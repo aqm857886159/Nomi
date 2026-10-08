@@ -11,7 +11,7 @@ import {
   readExtraHeaders,
   upstreamErrorText,
 } from "./modelListProbe";
-import { normalizeProviderKind, readCatalog } from "../../catalog/catalogStore";
+import { normalizeProviderKind } from "../../catalog/catalogStore";
 import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { checkVendorHealth } from "./vendorHealth";
