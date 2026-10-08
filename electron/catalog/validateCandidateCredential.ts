@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { readCatalog, normalizeProviderKind, mutateCatalog } from './catalogStore'
-import { decryptApiKeyRecord } from './secrets'
+import { decryptStoredApiKeyRecord } from './secrets'
 import type { Vendor } from './types'
 import { authQueryParams } from '../ai/requestPipeline'
 import { vendorAuthSpec } from './vendorAuthSpec'
@@ -32,7 +32,7 @@ import { probeDirectKeyCredential, publishBuiltinCuratedVendor } from './directK
  */
 function credentialFailure(messageKey: 'credential.invalid' | 'credential.validationUnavailable', vendorKey: string): Error {
   const kept = Boolean(readCatalog().apiKeysByVendor[vendorKey])
-  return new Error(kept ? `${desktopT(messageKey)}${desktopT('credential.previousKept')}` : desktopT(messageKey))
+  return new Error(kept ? `${desktopT(messageKey)}${desktopT('credential.sentenceGap')}${desktopT('credential.previousKept')}` : desktopT(messageKey))
 }
 
 export async function validateCandidateCredential(vendor: Vendor, apiKey: string): Promise<boolean> {
@@ -110,7 +110,7 @@ export async function revalidatePendingCredential(vendorKey: string): Promise<vo
   const inflight = pendingProbes.get(vendorKey)
   if (inflight?.snapshot === snapshot) return inflight.promise
   const promise = (async () => {
-    const pending = await validateCandidateCredential(vendor, decryptApiKeyRecord(credential))
+    const pending = await validateCandidateCredential(vendor, decryptStoredApiKeyRecord(credential))
     if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
     if (pending) throw new Error(desktopT('credential.revalidationUnavailable'))
     mutateCatalog((_tx, current) => { delete current.apiKeysByVendor[vendorKey].verificationPending })

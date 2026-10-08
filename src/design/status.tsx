@@ -18,8 +18,8 @@ export type StatusBadgeProps = Omit<BadgeProps, 'color'> & {
 }
 
 /**
- * ⚠️ **采纳现状（2026-09-07 实测）：生产代码 0 个调用点。**
- * 保留理由不是「以后可能用得上」，而是有**具体的迁移对象**：画布侧另有 5 份手写徽章
+ * 采纳现状：凭据状态（「已保存 · 未验证」「已复验 · 模型未验证」）已走它（2 个文件，见 README）。
+ * 其余迁移对象（2026-09-07 实测，仍待迁）：画布侧另有 5 份手写徽章
  * （`nodes/NodeQueuedBadge.tsx` / `NodeLockBadge.tsx` / `NodeDeconstructionBadge.tsx` /
  * `TechnicalReviewBadge.tsx` / `render/ShotMountBadges.tsx`）——「状态徽章」这件事一直在
  * 做，只是没走这个组件。
@@ -53,7 +53,7 @@ export function StatusBadge({
  * 于是 `color="grape"` 能绕过整套 token 上一块 Mantine 自带的紫（设计实验室的
  * PRO 徽章因此在四套候选配色下岿然不变）。收敛成封闭词表后，类型层就拦住了。
  *
- * ⚠️ 采纳现状同 `StatusBadge`：生产代码 0 个调用点，保留理由见上。
+ * ⚠️ 采纳现状：`DesignBadge` 生产代码 0 个调用点，保留理由见上。
  */
 export type DesignBadgeProps = Omit<BadgeProps, 'color'> & {
   tone?: StatusBadgeTone

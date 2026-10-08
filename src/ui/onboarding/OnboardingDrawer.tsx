@@ -455,7 +455,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         vendorName={translateModelDisplayText(card.meta.name)} baseUrl={card.meta.baseUrl}
         // 数量与发布提示都读主进程 availability（#765）；列表与数量同源＝传过滤后的数组，不另立 modelCount（#788）。
         models={card.vendorModels.filter((model) => model.availability?.usable === true)}
-        hasApiKey={card.meta.hasApiKey} credentialVerificationPending={card.meta.credentialVerificationPending}
+        hasApiKey={card.meta.hasApiKey} credentialMaterialSaved={card.meta.credentialMaterialSaved} credentialVerificationPending={card.meta.credentialVerificationPending}
         curatedModelsPublished={card.vendorModels.some((model) => model.availability?.usable === true)}
         onBack={goBack}
         onSaved={refresh}
