@@ -120,7 +120,7 @@ try {
   // ③ 「在画布里看」→ 画布，镜 03 被选中：角标 + 「在列表里看」。
   await clickOrFail(win.locator('[data-list-inspector="shot-3"]').getByRole('button', { name: zh ? /在画布里看/ : /View in canvas/ }), '在画布里看')
   await expect(win.locator('[data-generation-list]'), '没有切回画布').toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
-  await expect(win.locator('[data-node-id="shot-3"] [data-storyboard-shot-badge="3"]'), '镜 03 角标没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(win.locator('[data-node-id="shot-3"] [data-storyboard-shot-label="3"]'), '镜 03 角标没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-view-in-list="shot-3"]'), '选中的镜 03 没有「在列表里看」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   // 放大到能看清角标（Ctrl + 滚轮 = 画布缩放），只为截图取景。
   const box = await win.locator('[data-node-id="shot-3"]').boundingBox()

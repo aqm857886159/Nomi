@@ -109,11 +109,10 @@ export function GenerationListView({ sectionActions }: {
               {virtualizer.getVirtualItems().map((item) => {
                 const row = rows[item.index]
                 if (!row) return null
-                // 第一个分组标题顶在列表左上角时让开悬浮的「画布 | 列表」切换钮（pl-8 = LEAD_INSET 换算到标题 px-4 之后）。
                 return (
                   <div key={item.key} ref={virtualizer.measureElement} data-index={item.index} className="absolute left-0 top-0 w-full px-4" style={{ transform: `translateY(${item.start}px)` }}>
                     {row.kind === 'header' ? (
-                      <div className={item.index === 0 ? cn('pt-3', !model.anchors.length && !filter && 'pl-8') : 'pt-5'}>
+                      <div className={item.index === 0 ? 'pt-3' : 'pt-5'}>
                         <GenerationListSectionHeader
                           section={row.section}
                           collapsed={collapsed.has(row.section.key)}
