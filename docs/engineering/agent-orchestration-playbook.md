@@ -119,6 +119,8 @@
 
 ## 8. Codex 执行体专项：full clone + 结构护栏
 
+> **2026-10-08 更新**：现行做法见 [工作模式](execution-modes.md) 与 [codex/](codex/)（公共规矩、质量画像、任务书模板、交付账本）。`codex exec -s danger-full-access` 下 sibling worktree 已可正常提交，下文「禁 worktree」是 09 月的旧结论，保留作历史。
+
 **原则**：给 Codex 派码活用 **full clone 不用 git worktree**（worktree 的 `.git` 元数据在主仓路径下，Codex 的 cwd 沙箱写不了）；护栏不靠沙箱靠结构。
 
 - **禁 worktree**：worktree 的 `.git` 是指向主仓的引用文件，Codex 沙箱在主仓路径下连 `index.lock` 都写不了、代理端口也不通——它只能把活存成 patch，逼出「假 commit / 补丁接力 / fetch 反转」三类弯路。**给 Codex 一个独立 full clone 目录**。
