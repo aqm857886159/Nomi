@@ -13,6 +13,7 @@
  */
 import type { ResidentSurfaceDisabledReason, ResidentSurfaceOffPhase } from "./residentSurfaceLifecycle";
 import type { GenerationShotKind } from "../generationShotKind";
+import type { ProjectAgentApprovalPolicy } from "../agentCapabilities/capabilityApprovalPolicy";
 
 import { z } from 'zod';
 import { generationReferenceSchema, type GenerationReference } from '../agentCapabilities/generationPlanSchemas';
@@ -68,6 +69,14 @@ export type PendingSpendConfirm = Readonly<{
   /** Host identity of the exact displayed candidates, scope and quote. */
   quoteId: string;
   candidateRevision: number;
+  /** Durable identity of the exact presentation that produced this quote. */
+  presentationId?: string;
+  /** Conditional-write epoch for actions originating from this card. */
+  presentationEpoch?: number;
+  /** Policy captured when this presentation opened. */
+  policySnapshot?: ProjectAgentApprovalPolicy;
+  /** Read-side deadline or durable failure marker requires an explicit user decision. */
+  manualDecisionRequired?: true;
   /**
    * 付费门已经开着时它就是那道门的 id；还是草稿（没封印）时缺席。
    *
@@ -80,6 +89,8 @@ export type PendingSpendConfirm = Readonly<{
   /** 已知价格之和。`unknownShotCount > 0` 时它**不是**合计，卡上必须走「算不出」那一档。 */
   knownSubtotal: number;
   unknownShotCount: number;
+  /** Projection failure card; identity remains tied to the same presentation. */
+  error?: Readonly<{ code: string; message: string }>;
 }>;
 
 /**
@@ -100,7 +111,7 @@ export type PendingSpendConfirm = Readonly<{
 export type PendingSpendRead =
   | Readonly<{ surface: "ready"; rows: readonly PendingSpendConfirm[] }>
   | Readonly<{ surface: "off"; phase: ResidentSurfaceOffPhase; reason?: ResidentSurfaceDisabledReason }>
-  | Readonly<{ surface: "unreadable"; reason: "surface-unavailable" | "projection-failed" }>;
+  | Readonly<{ surface: "unreadable"; reason: "surface-unavailable" | "projection-failed"; card?: PendingSpendConfirm }>;
 
 /**
  * 卡上「改参数」那一下的回包：宿主落完改动之后**现算的那张卡**（正式报价）就在回包里。

@@ -13,7 +13,7 @@ import { applyProductionCommand, type ProductionCommandEffect } from "./producti
 import { settleRunLifecycle } from "./productionRunLifecycle";
 import { settlePresentation } from "./productionGenerationPresentationEdits";
 import { normalizeLegacySpendAuthority } from "../shared/productionSpendAuthority";
-import { draftCardHidden, normalizeLegacyPresentation } from "../shared/productionGenerationPresentation";
+import { draftCardHidden, normalizeLegacyPresentation, projectPolicyDecisionDeadlineFromOwnerClock } from "../shared/productionGenerationPresentation";
 import { normalizeLegacyStopReason } from "../shared/productionRunStop";
 import { assertProductionPolicyReady } from "./productionPolicyReadiness";
 import {
@@ -36,6 +36,7 @@ import {
   type RunEvent,
 } from "./productionRunTypes";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, type ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { generationShotEnvelopeOf } from "../shared/generationShotEnvelope";
 import { isCanvasRunId, openCanvasRuns } from "./canvasShotRunIndex";
 import { buildProductionRunDraftSummary } from "./productionRunDraftSummary";
@@ -397,6 +398,7 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     candidate: PlanCandidate;
     currency?: string;
     policy?: Partial<AutomationPolicy>;
+    policySnapshot?: ProjectAgentApprovalPolicy;
     /**
      * P4 S6.5 生产入口: a multi-shot draft seeds its per-shot entries (anchor + video shots) here at
      * create time so patch/preview can shot-address them (S1 `generation.patch` reads plan.shots) and
@@ -446,6 +448,13 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
         state: "draft",
         // 草稿要不要当场摆上卡：`draft_shots` 建的不摆（空列表 = 从没摆过）；其余旧入口照旧当场摆上（旧默认「卡可见」）。
         presentations: input.cardHidden === true ? [] : [{
+          presentationId: `${operationId}:presentation:1`,
+          presentationEpoch: 1,
+          policySnapshot: structuredClone(input.policySnapshot ?? DEFAULT_PROJECT_AGENT_APPROVAL_POLICY),
+          ...(input.policySnapshot?.mode === "project" ? {
+            policyDecisionState: "pending" as const,
+            ...(projectPolicyDecisionDeadlineFromOwnerClock(timestamp) ? { policyDecisionDeadlineAt: projectPolicyDecisionDeadlineFromOwnerClock(timestamp) } : {}),
+          } : {}),
           shotIds: input.shots && input.shots.length > 0
             ? input.shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId)
             : [input.candidate.candidateId],

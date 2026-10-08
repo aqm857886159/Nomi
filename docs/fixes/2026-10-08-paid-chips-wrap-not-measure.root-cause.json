@@ -1,0 +1,132 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-paid-chips-wrap-not-measure",
+  "problem_type": "Priced paid-card parameter chips hidden, overlapped, or scrolled away by a width-measurement layout policy",
+  "symptom": "In the Agent panel paid card, a Seedance 2.0 card at the production 390px width drew 16:9 on top of the variant chip (标准 / Standard); at 300px English the variant chip left the card and all three priced chips (aspect ratio, duration, resolution) moved into the gear panel. The previous follow-up kept the chips but made the row horizontally scrollable.",
+  "direct_cause": "useFittedChipCount decided how many primary chips to show from scrollWidth versus clientWidth. The identity row (model + variant) was one min-w-0 flex item, so it shrank and its shrink-0 children spilled over the next chip without making the row report overflow; when overflow was detected, planParameterChips demoted priced chips from the tail into the gear panel. 712ff9ba7 then ignored the measured count and added overflow-x-auto, which keeps the chips in the DOM but out of sight.",
+  "class_root": "Visibility of priced/output controls on the spend confirmation surface depended on a runtime width measurement. Any measurement blind spot (shrinking wrappers, fonts, first-frame width, viewport) could hide a value the user is about to pay for, and the only alternatives offered were demotion or scrolling, both of which hide it.",
+  "affected_population": [
+    "Every chips-layout InlineParameterBar: the Agent panel paid confirmation card (NodeGenerationComposer host=panel) and the design-lab chips demo",
+    "Models whose primary chips plus identity chips exceed the card width: Seedance 2.0 with its variant axis at 390px, any model in English or with a narrow panel"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/primaryParameterChips.ts"
+  ],
+  "entry_points": [
+    "InlineParameterBar computes the chips from splitPrimaryParameterControls; NodeGenerationComposer passes parameterLayout=chips only for the Agent panel paid card."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Which parameters must stay visible before a paid generation is Nomi's spend-card domain rule; CSS flex-wrap is the platform layout primitive used to satisfy it and needs no library decision.",
+  "invariants": [
+    "In chips layout every role-derived primary (priced/output) control renders as a chip on the paid card; none is demoted to the gear panel for width reasons.",
+    "The chips row never scrolls horizontally and no chip (including model and variant) overlaps another or leaves the card; when the row is too narrow, chips wrap whole to the next line.",
+    "The chip set does not read any layout measurement, so a wrong or zero measurement cannot remove a chip."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "splitPrimaryParameterControls"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "symbol": "splitPrimaryParameterControls"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 2,
+    "why_not": "primaryParameterChips.ts defines which controls are primary (archetype-derived) and InlineParameterBar.tsx is its only consumer that renders them; both must exist, and neither takes a width input any more."
+  },
+  "generality_proof": "The chips list is now exactly splitPrimaryParameterControls(renderedControls).primary for every chips-layout caller, and the row's wrapping is a CSS property of the single shared component rather than a per-model or per-width branch. The measurement hook and the planner were the only code that could shrink the list; both are deleted, so no caller, font, platform, or viewport can reintroduce demotion without re-adding code that the structural test rejects.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "InlineParameterBar",
+      "responsibility": "Render every primary chip in chips layout and let the row wrap; identity chips are direct members of the wrapping row."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "symbol": "splitPrimaryParameterControls",
+      "responsibility": "Decide which controls are primary from the model archetype; no width input."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "parameterLayout: 'chips' (host=panel)",
+      "disposition": "enforced",
+      "evidence": "The Agent panel paid card is the only production chips caller; its footer segment is min-w-0 so the wrapping bar is bounded by the card width (design-lab-ask-card-in-panel Seedance 390/300 cells, zh and en)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "summary layout (canvas node, default)",
+      "disposition": "not-affected",
+      "evidence": "Summary layout keeps the nowrap row and the identity flex box; InlineParameterBar.test.ts pins both class lists."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+      "entry_point": "InlineParameterBar summary with summaryOverride",
+      "disposition": "not-affected",
+      "evidence": "The storyboard row passes no parameterLayout, so it uses the unchanged summary branch."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "New models with variant axes, longer English labels, and narrower panels all push the row past one line; any measurement-based policy would again hide a priced value on some machine.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs useFittedChipCount and planParameterChips: each had one caller, InlineParameterBar.",
+      "grep parameterLayout across src: only NodeGenerationComposer (panel host) and the design-lab chips demo use chips layout.",
+      "Design-lab walk on 712ff9ba7^ (measurement + demotion) and 712ff9ba7 (overflow-x-auto) both fail on the Seedance 390/300 cells; the new code passes."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "invariant": "Chips layout renders the full primary list in a flex-wrap row with no overflow scrolling and no measurement input.",
+    "failure_mode": "A narrow card grows taller instead of hiding a chip; reintroducing measurement or scrolling fails InlineParameterBar.test.ts and the design-lab walk.",
+    "exception_policy": "none",
+    "strategy": "Delete the measuring hook and the demotion planner, make the wrapping a property of the one shared component, and assert geometry (no overlap, inside the card, no scroll, wraps when narrow) in a real headless browser.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "src/workbench/generationCanvas/nodes/primaryParameterChips.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.test.ts",
+    "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/useFittedChipCount.ts",
+      "src/workbench/generationCanvas/nodes/primaryParameterChips.ts"
+    ],
+    "rationale": "useFittedChipCount.ts is deleted and planParameterChips is removed from primaryParameterChips.ts in the same change; there is no fallback path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Layout uses the browser's flex-wrap; no third-party runtime decides the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted state changes; the paid card simply grows a row when the chips do not fit.",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/InlineParameterBar.test.ts",
+      "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
+    ]
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-10-08",
+  "residual_risks": [
+    "Wrapping makes the Seedance 2.0 paid card two rows tall at the production 390px width. The 2026-09-10 v3 user feedback asked for a one-row bar; the 2026-10-08 coordinator contract chose wrap over hiding. Kling-class models still fit one row.",
+    "At 300px English the card's action row clips the primary button; that row is outside this change.",
+    "The Linux E2E failures of run 37795697410 had a different root cause (fixture credential backend), recorded in docs/plan/2026-10-08-spend-walks-direction-check.md; Linux CI confirmation is pending until the coordinator pushes."
+  ]
+}

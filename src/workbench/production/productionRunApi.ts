@@ -1,5 +1,6 @@
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ProductionActionResult, ProductionShotActionFailure, ProductionShotActionResult, RunCommand } from '../../../electron/productionRun/productionRunTypes'
+import type { PendingSpendActionIdentity } from '../../desktop/productionRunBridgeTypes'
 
 export type { ProductionActionResult, ProductionShotActionFailure, ProductionShotActionResult }
 
@@ -20,11 +21,11 @@ export const productionRunApi = {
   rework: (projectId: string, runId: string, shotId?: string): Promise<ProductionShotActionResult> => bridge().rework(projectId, runId, shotId),
   resumeBatch: (projectId: string, runId: string): Promise<ProductionShotActionResult> => bridge().resumeBatch(projectId, runId),
   // 2026-09-11 Agent 面板付费确认卡的动作，都回结构化 { ok, code }。卡本身随对话投影推过来，这里没有读口。
-  reviseSpend: (input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }) => bridge().reviseSpend(input),
-  discardSpend: (projectId: string, operationId: string, quoteId: string) => bridge().discardSpend(projectId, operationId, quoteId),
+  reviseSpend: (input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> } & PendingSpendActionIdentity) => bridge().reviseSpend(input),
+  discardSpend: (projectId: string, operationId: string, quoteId: string, identity?: PendingSpendActionIdentity) => bridge().discardSpend(projectId, operationId, quoteId, identity),
   /** 付费卡上「生成这张 / 这段」：只批这一镜。 */
-  confirmSpend: (projectId: string, operationId: string, quoteId: string, shotId?: string) => bridge().confirmSpend(projectId, operationId, quoteId, shotId),
+  confirmSpend: (projectId: string, operationId: string, quoteId: string, shotId?: string, identity?: PendingSpendActionIdentity) => bridge().confirmSpend(projectId, operationId, quoteId, shotId, identity),
   /** 付费卡上「去掉这张 / 这段」：这一镜不生成。 */
-  removeSpendShot: (projectId: string, operationId: string, quoteId: string, shotId: string) => bridge().removeSpendShot(projectId, operationId, quoteId, shotId),
-  confirmSpendRemaining: (projectId: string, operationId: string, quoteId: string, shotIds: readonly string[]) => bridge().confirmSpendRemaining(projectId, operationId, quoteId, shotIds),
+  removeSpendShot: (projectId: string, operationId: string, quoteId: string, shotId: string, identity?: PendingSpendActionIdentity) => bridge().removeSpendShot(projectId, operationId, quoteId, shotId, identity),
+  confirmSpendRemaining: (projectId: string, operationId: string, quoteId: string, shotIds: readonly string[], identity?: PendingSpendActionIdentity) => bridge().confirmSpendRemaining(projectId, operationId, quoteId, shotIds, identity),
 }

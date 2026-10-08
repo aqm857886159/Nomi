@@ -9,6 +9,7 @@ import {
   planShotIds,
   presentationIsOpen,
   presentationResolved,
+  projectPolicyDecisionDeadlineFromOwnerClock,
   shotEverAuthorized,
   standingShotIds,
   undecidedShotIds,
@@ -20,6 +21,7 @@ import type {
   ProductionGenerationPlan,
   ProductionRun,
 } from "./productionRunTypes";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 
 const CLOSERS: ReadonlySet<GenerationPresentationCloser> = new Set(["resolved", "user_closed", "user_wrote", "stopped"]);
 
@@ -68,7 +70,7 @@ function presentationScope(run: ProductionRun, requested: unknown): string[] {
  * 一次没点完、还在等人的授权先撤掉。之前的每一笔都落定了 → 这是一次新的请求（计划与 Run 回到草稿，整份解封，点了再开跑）；
  * 还有镜在路上 → 只解封这一次摆的镜，在路上的照常跑。每一次出价换一个报价身份（planVersion + 1）。
  */
-export function presentGenerationPlan(current: ProductionRun, requested: unknown, now: string): ProductionRun {
+export function presentGenerationPlan(current: ProductionRun, requested: unknown, now: string, policySnapshot?: ProjectAgentApprovalPolicy): ProductionRun {
   if (!current.generationPlan) throw new Error("Generation plan not found");
   let run = revokeWaitingAndUnseal(current, now, "Present");
   const scope = presentationScope(run, requested);
@@ -86,7 +88,16 @@ export function presentGenerationPlan(current: ProductionRun, requested: unknown
           ? { ...shot, included: true, contract: undefined, candidate: { ...shot.candidate, sealedContractHash: undefined }, updatedAt: now }
           : shot) }
       : {}),
-    presentations: [...(superseded.presentations ?? []), { shotIds: scope, openedAt: now, fromGate: spendAuthorizationGates(run).length }],
+    presentations: [...(superseded.presentations ?? []), {
+      presentationId: `${run.runId}:presentation:${(superseded.presentations?.length ?? 0) + 1}`,
+      presentationEpoch: (superseded.presentations?.at(-1)?.presentationEpoch ?? superseded.presentations?.length ?? 0) + 1,
+      ...(policySnapshot ? { policySnapshot: structuredClone(policySnapshot) } : {}),
+      ...(policySnapshot?.mode === "project" ? {
+        policyDecisionState: "pending" as const,
+        ...(projectPolicyDecisionDeadlineFromOwnerClock(now) ? { policyDecisionDeadlineAt: projectPolicyDecisionDeadlineFromOwnerClock(now) } : {}),
+      } : {}),
+      shotIds: scope, openedAt: now, fromGate: spendAuthorizationGates(run).length,
+    }],
     updatedAt: now,
   };
   run = {
@@ -98,6 +109,24 @@ export function presentGenerationPlan(current: ProductionRun, requested: unknown
     updatedAt: now,
   };
   return run;
+}
+
+/** Record that the policy-owned automatic decision failed after this card was opened. */
+export function markGenerationPolicyDecisionFailed(current: ProductionRun, now: string): ProductionRun {
+  const plan = current.generationPlan;
+  const presentation = currentPresentation(plan);
+  if (!plan || plan.state !== "draft" || !presentation || presentation.closed
+    || presentation.policySnapshot?.mode !== "project") return current;
+  if (presentation.policyDecisionState === "failed") return current;
+  return {
+    ...current,
+    generationPlan: {
+      ...plan,
+      presentations: [...(plan.presentations ?? []).slice(0, -1), { ...presentation, policyDecisionState: "failed" }],
+      updatedAt: now,
+    },
+    updatedAt: now,
+  };
 }
 
 /**
