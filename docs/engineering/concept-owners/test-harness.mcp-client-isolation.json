@@ -1,0 +1,35 @@
+{
+  "name": "真实 MCP 客户端的隔离环境与能力证明",
+  "subject": "test-harness.mcp-client-isolation",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/system/mcp-real-client.mjs",
+    "symbol": "buildCodexOverrides"
+  },
+  "write_api": [
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "symbol": "buildCodexOverrides"
+    },
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "symbol": "captureFingerprint"
+    },
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "mcpServerEntry"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/system/mcp-real-client.node-test.mjs",
+  "allowed_consumers": [
+    "tests/system/mcp-real-client.node-test.mjs",
+    "tests/ux/_mcpJourney.mjs"
+  ],
+  "since": "2026-10-07",
+  "notes": "真实 Codex / Claude 客户端只能拿到位于系统临时目录下的完整隔离目录组、NOMI_MCP_STDIO=1 和隔离 capability proof；序列化前失败关闭，真实 profile 只读元数据。合同 docs/fixes/2026-10-07-mcp-real-client-isolation.root-cause.json。"
+}

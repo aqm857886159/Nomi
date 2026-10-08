@@ -1,0 +1,236 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-quit-teardown-not-before-quit",
+  "detected_by": "user",
+  "problem_type": "不可逆退出拆除发生在可取消阶段，并把 Agent 附属能力故障升级成项目恢复故障",
+  "symptom": "macOS 更新后窗口关闭被取消，进程仍活着但 nomi:agent-lane:command handler 已被移除，之后所有项目都显示项目恢复失败",
+  "direct_cause": "Electron 在 before-quit 后仍要关闭可取消的窗口；Nomi 却在 before-quit 停能力核、删实例和移除 lane handler，关窗确认取消后留下残缺进程；hydrateProject 又把 lane open 失败直接抛成项目恢复失败",
+  "class_root": "退出拆除没有一个不可取消阶段的共享 owner，项目 hydration 没有把可恢复附属能力与项目核心状态隔离",
+  "affected_population": [
+    "macOS 正式版更新后关窗确认取消或签名更新未完成的用户",
+    "任何平台上退出过程中窗口 close / beforeunload 被取消的会话",
+    "所有打开项目时 Agent lane handler、模型或工作区暂时不可用的项目"
+  ],
+  "scope_paths": [
+    "electron/quitTeardown.ts",
+    "electron/main.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/windowCloseConfirmation.ts",
+    "electron/agentLane/laneIpc.ts",
+    "electron/ai/antigravityIpc.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/video/depthVideoIpc.ts",
+    "src/workbench/NomiStudioApp.tsx",
+    "src/workbench/project/projectAgentLaneOpen.ts",
+    "src/workbench/ai/lane/laneClient.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/i18n/locales/agentPanelV4.ts"
+  ],
+  "entry_points": [
+    "Electron app before-quit / will-quit lifecycle",
+    "registerAgentLaneIpc dispose and command handler",
+    "NomiStudioApp hydrateProject Agent sidecar stage"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/app",
+      "checked_at": "2026-10-07",
+      "purpose": "确认 before-quit 在窗口关闭前且可 preventDefault，will-quit 在所有窗口关闭后触发并仍可阻止进程终止"
+    }
+  ],
+  "invariants": [
+    "before-quit 只记录退出意图，不拆除任何仍被活进程使用的能力或 IPC",
+    "所有不可逆退出清理在 will-quit 且窗口已关闭后完成，再允许进程终止",
+    "lane IPC handler 在进程存活期间始终存在；disposed 命令返回 agent_lane_disposed 结构化码",
+    "项目持久化与画布提交成功即可进入 studio；Agent lane 失败只显示原因并可重连",
+    "before-quit 只记录退出意图；关窗确认拒绝后 Agent 命令、能力核与项目打开保持可用",
+    "will-quit 拆除有 3000ms 上限；超时记录 quit-timeout 后调用 app.exit(0)"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "registerAgentLaneIpc"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "openProjectAgentLane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/exportJobManager.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/openWorkspaceFlow.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectHydrationRecovery.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "symbol": "hydrateProject"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 9,
+    "why_not": "退出请求的多个入口仍必须调用同一个 app 生命周期 owner；项目 hydration 的多个调用者仍共享同一个 hydrateProject，但 Agent 附属阶段已从其失败出口抽出为 openProjectAgentLane。"
+  },
+  "generality_proof": "quitTeardown 是唯一注册拆除顺序的共享边界，主进程、能力核、导出和 lane 都只从 will-quit 收尾；lane handler 的 disposed 分支覆盖所有命令形状。openProjectAgentLane 是 hydration 的共享附属能力边界，所有项目入口最终调用 hydrateProject，因此任何 lane provider、平台或旧进程状态的打开失败都会保留项目核心可用并落到同一条码与重连动作。",
+  "shared_boundaries": [
+    {
+      "path": "electron/quitTeardown.ts",
+      "symbol": "installQuitTeardown",
+      "responsibility": "统一把退出标记与不可逆拆除分到 before-quit / will-quit 两个阶段，并等待 lane 收尾后再重新触发退出"
+    },
+    {
+      "path": "electron/agentLane/laneIpc.ts",
+      "symbol": "registerAgentLaneIpc",
+      "responsibility": "保留 IPC handler，disposed 状态只返回结构化 agent_lane_disposed，工作区关闭仍由 dispose 完成"
+    },
+    {
+      "path": "src/workbench/project/projectAgentLaneOpen.ts",
+      "symbol": "openProjectAgentLane",
+      "responsibility": "把 Agent sidecar 的失败收成面板可重连的附属结果，不阻止项目 hydration"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/main.ts",
+      "entry_point": "installQuitTeardown",
+      "disposition": "enforced",
+      "evidence": "主进程能力核、导出、lane 和后台生命周期全部经同一 will-quit owner 收尾"
+    },
+    {
+      "path": "electron/ai/antigravityIpc.ts",
+      "entry_point": "registerAntigravityIpc",
+      "disposition": "enforced",
+      "evidence": "before-quit 只标记退出，异步取消与 drain 已在 will-quit 运行"
+    },
+    {
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "entry_point": "registerTaskIpcHandlers",
+      "disposition": "enforced",
+      "evidence": "图像任务取消与 drain 已在 will-quit 运行"
+    },
+    {
+      "path": "electron/video/depthVideoIpc.ts",
+      "entry_point": "registerVideoDepthIpc",
+      "disposition": "enforced",
+      "evidence": "深度视频作业收摊已在 will-quit 运行"
+    },
+    {
+      "path": "src/workbench/library/openWorkspaceFlow.ts",
+      "entry_point": "openWorkspaceFromLibrary",
+      "disposition": "enforced",
+      "evidence": "库页打开最终调用 hydrateProject，Agent 失败由 openProjectAgentLane 隔离"
+    },
+    {
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "entry_point": "revealProjectTarget",
+      "disposition": "enforced",
+      "evidence": "通知跳转最终调用 hydrateProject，沿用相同附属能力边界"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "退出监听分散在多个子系统，任何新增 before-quit 清理都能重现半拆进程；任何 lane provider、平台或旧工作区都可能使 Agent open 失败。用户事故已经在 macOS 正式版发生。",
+    "same_class_scan": [
+      "rg -n 'before-quit|will-quit' electron：盘点 main、mainProcessLifecycle、antigravity、tasks、depthVideo、screenshot 与 catalog reconciliation",
+      "rg -n 'ipcMain\\.removeHandler|removeHandler\\(' electron：核对 generation resolve 动态能力卸载与 lane handler 生命周期",
+      "node scripts/door-map.mjs registerAgentLaneIpc：主进程唯一注册写入口",
+      "node scripts/door-map.mjs hydrateProject：5 个写入口、3 个读入口，共 8 扇门，逐个核对所有项目打开路径",
+      "src/workbench/project/projectAgentLaneOpen.test.ts：报告失败仍返回 false 且不阻断项目调用者，成功才恢复 receipt"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/quitTeardown.ts",
+    "invariant": "退出可取消阶段不拆除活进程所需能力；不可逆清理由 will-quit owner 统一完成",
+    "failure_mode": "will-quit 拆除完成或超时都必须结束退出；超时记录诊断并强制退出，避免 app.quit 被其他监听器再次挂住",
+    "exception_policy": "none",
+    "strategy": "删除 before-quit 拆除；由 will-quit owner 统一执行拆除、3 秒预算与 app.exit 兜底，并由 lane 结构化失败码连接到面板重连动作",
+    "artifacts": [
+      "electron/quitTeardown.ts",
+      "electron/main.ts",
+      "electron/agentLane/laneIpc.ts",
+      "electron/ai/antigravityIpc.ts",
+      "electron/tasks/taskIpcHandlers.ts",
+      "electron/video/depthVideoIpc.ts",
+      "src/workbench/project/projectAgentLaneOpen.ts",
+      "tests/ux/quit-teardown-real.e2e.mjs",
+      "docs/evidence/2026-10-07-quit-teardown/README.md"
+    ]
+  },
+  "regression_tests": [
+    "electron/quitTeardown.test.ts",
+    "electron/agentLane/laneIpc.test.ts",
+    "src/workbench/project/projectAgentLaneOpen.test.ts",
+    "src/workbench/ai/lane/laneClient.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/quitTeardown.test.ts",
+    "electron/agentLane/laneIpc.test.ts",
+    "src/workbench/project/projectAgentLaneOpen.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/main.ts",
+      "electron/agentLane/laneIpc.ts",
+      "electron/ai/antigravityIpc.ts",
+      "electron/tasks/taskIpcHandlers.ts",
+      "electron/video/depthVideoIpc.ts"
+    ],
+    "rationale": "旧的可取消阶段拆除全部由同一提交删除；will-quit 是唯一不可逆收尾路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Electron 版本未变；本修复接入现有 app 生命周期事件和 IPC API，不需要升级第三方依赖。",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化格式变化。残缺旧进程只能通过退出并重新启动恢复；新进程每次启动重新注册 lane handler。",
+  "residual_risks": [
+    "签名更新与 Gatekeeper 行为仍未在本地复现；本次补充了真实无界面 Electron 退出收据，但未替代发行包验收",
+    "Electron 其他退出监听器若阻塞，quitTeardown 的 3 秒预算会记录 quit-timeout 并调用 app.exit(0)，因此极端情况下可能跳过迟到的异步收尾"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/quitTeardown.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/quitTeardown.test.ts",
+      "electron/agentLane/laneIpc.test.ts",
+      "src/workbench/project/projectAgentLaneOpen.test.ts"
+    ],
+    "rationale": "退出阶段不变量在主进程 lifecycle owner；lane 与 hydration 各自有共享边界测试，避免只测一次用户事故。"
+  },
+  "recurrence_check_on": "2026-11-07",
+  "internal_only_reason": "项目核心状态与 Agent sidecar 的失败隔离是 Nomi 工作台的领域边界；退出事件顺序的外部事实已由 Electron 官方文档覆盖。"
+}

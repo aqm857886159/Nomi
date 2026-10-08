@@ -147,7 +147,7 @@ export const TMPFILES_INGESTION: AssetIngestion = {
 
 export const ANON_UPLOAD_CHAIN: AssetIngestion = {
   strategy: "anon-chain",
-  chain: [LITTERBOX_INGESTION, TMPFILES_INGESTION],
+  chain: [TMPFILES_INGESTION, LITTERBOX_INGESTION],
   accepts: ["image", "video", "audio"],
   visibility: "public-anonymous",
   ttlSeconds: 60 * 60,

@@ -30,6 +30,8 @@ const TIMELINE_PRIMARY_TRACK_ROW = 52 + 6
  * 一个图片一个视频可以预览就行」。配乐/字幕是副轨，空时本来就收成窄条，不占默认高度。
  */
 const TIMELINE_DEFAULT_PRIMARY_TRACKS = 2
+/** Horizontal scrollbar reserve for the thin track viewport scrollbar. */
+const TIMELINE_TRACK_SCROLLBAR_RESERVE = 10
 
 /**
  * 展开态默认高度 = 「刚好装下两条主轨」，**派生**而不是拍一个数。
@@ -42,11 +44,16 @@ const TIMELINE_DEFAULT_PRIMARY_TRACKS = 2
  * 默认折叠态（`timelinePanelCollapsed=true`）下 gridTemplateRows 走 0px、stage 拿满高，
  * 本值不参与；只有展开时间轴后此值决定 stage 底边。可拖拽特性不变，用户仍可拉高/降低。
  */
-export const TIMELINE_PANEL_DEFAULT =
-  TIMELINE_PANEL_PADDING_Y
-  + TIMELINE_TOOLBAR_ROW
-  + TIMELINE_RULER_ROW
-  + TIMELINE_DEFAULT_PRIMARY_TRACKS * TIMELINE_PRIMARY_TRACK_ROW
+export function deriveTimelinePanelDefaultHeight(primaryTrackCount = TIMELINE_DEFAULT_PRIMARY_TRACKS): number {
+  const tracks = Math.max(0, Math.floor(primaryTrackCount))
+  return TIMELINE_PANEL_PADDING_Y
+    + TIMELINE_TOOLBAR_ROW
+    + TIMELINE_RULER_ROW
+    + tracks * TIMELINE_PRIMARY_TRACK_ROW
+    + TIMELINE_TRACK_SCROLLBAR_RESERVE
+}
+
+export const TIMELINE_PANEL_DEFAULT = deriveTimelinePanelDefaultHeight()
 
 export function clampTimelinePanelHeight(value: number): number {
   if (!Number.isFinite(value)) return TIMELINE_PANEL_DEFAULT

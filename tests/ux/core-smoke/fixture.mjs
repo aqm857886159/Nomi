@@ -312,7 +312,8 @@ export async function launchCoreSmoke({ name, seed = null, needs = [], preferenc
     repoRoot, settingsDir: dirs.settingsDir, userDataDir: dirs.userDataDir, appName: 'nomi',
     ...(extras.needsOptions ? { options: extras.needsOptions } : {}),
   })
-  const launchEnv = { ...provisioned.env, ...(extras.env ?? {}) }
+  const testNetworkGuardPath = path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')
+  const launchEnv = { NOMI_TEST_NETWORK_GUARD: '1', ...provisioned.env, ...(extras.env ?? {}) }
   const used = fixture !== 'empty'
   const viewport = used ? USED_VIEWPORT : (emptyViewport ?? USED_VIEWPORT)
   const initialLocalStorage = {
@@ -336,7 +337,7 @@ export async function launchCoreSmoke({ name, seed = null, needs = [], preferenc
       initialLocalStorage,
       // 依赖登记表里 `env` 那一格（needs.mjs）：只有主进程读得到的口子走这里。
       ...(Object.keys(launchEnv).length ? { env: launchEnv } : {}),
-      ...(extras.mainRequire?.length ? { mainRequire: extras.mainRequire } : {}),
+      mainRequire: [...new Set([testNetworkGuardPath, ...(extras.mainRequire ?? [])])],
       args: ['--no-proxy-server'],
       syntheticCredentialStorage: isolatedCredentials,
     })
