@@ -67,6 +67,13 @@ export type CanvasNodeActions = {
   setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
+  /**
+   * 文本节点正文落到 contentJson 的唯一写口：编辑器手改（persist:false，编辑器自己有撤销栈）与 Agent 写入（setNodeText，
+   * undoPoint:true 先打画布撤销点）都经它。不许再有第二处直接写 contentJson。
+   */
+  writeNodeBody: (nodeId: string, contentJson: TiptapDocJson, options?: CanvasMutationOptions & { undoPoint?: boolean }) => void
+  /** Agent 写文本节点正文：replace 覆盖 / append 接在后面；一个画布撤销步；只改正文，不生成、不花钱。 */
+  setNodeText: (nodeId: string, text: string, mode?: 'replace' | 'append') => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
   moveNodes: (updates: readonly { nodeId: string; position: { x: number; y: number } }[], options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void

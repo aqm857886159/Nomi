@@ -1,5 +1,5 @@
 import { storyboardAuthorFieldsSchema } from '../generationPlanSchemas'
-// 十三个写动词（设计正本 §5.2）：一个动词一种状态一种效果。执行那一半住 `electron/agentLane/`：常驻的
+// 十四个写动词（设计正本 §5.2）：一个动词一种状态一种效果。执行那一半住 `electron/agentLane/`：常驻的
 // （write_script / 三个画布写 / start_model_setup）在 `laneDocumentTools.ts` / `laneCanvasTools.ts` /
 // `laneDesktopTools.ts` 各自绑定；延迟组的经 `laneVerbTransport.ts` 翻成传输方法，`laneExtendedDesktopPorts.ts` 执行。
 //
@@ -355,6 +355,26 @@ export function writeVerbs(): VerbDeclaration[] {
     semanticInputOf: (args) => canvasWriteInputOf("make_artifact", args),
   };
 
+  // 只改画布上「文本节点」的正文：不生成、不花钱、不出确认卡；写入可撤销（和其它画布写一样走提议回执）。
+  const writeNodeText: VerbDeclaration = {
+    name: "write_node_text", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
+    describe: {
+      does: "Write the body text of an existing text node on the canvas — replace it or append to it. Only edits the text; it does not generate and costs nothing.",
+      useWhen: "The user asks you to write or revise the words inside a text node (a prompt, description or style note kept on the canvas).",
+      notWhen: "Not for image or video shot prompts (draft_shots), not for the creation-page script (write_script), not for new nodes (make_artifact) and never to start generation (generate).",
+      params: "nodeId of a text node from look_at_canvas; text is the exact body; mode is replace (default) or append.",
+    },
+    promptGuidelines: CANVAS_WRITE_GUIDELINES,
+    schema: z.object({
+      nodeId: z.string().trim().min(1).describe("Id of an existing text node, from look_at_canvas."),
+      text: z.string().min(1).max(20_000).describe("The exact body text. Plain text; line breaks become paragraphs."),
+      mode: z.enum(["replace", "append"]).optional().describe("replace (default) overwrites the body; append adds after it."),
+    }).strict(),
+    examples: [{ when: "Rewrite a style note:", arguments: { nodeId: "node-text-1", text: "Warm film grain, soft backlight, muted teal and amber.", mode: "replace" } }],
+    prepareArguments: modelArgumentTolerance({ fieldAliases: { text: ["content", "body"] } }),
+    semanticInputOf: (args) => canvasWriteInputOf("write_node_text", args),
+  };
+
   const stageShot: VerbDeclaration = {
     name: "stage_shot", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
@@ -549,5 +569,5 @@ export function writeVerbs(): VerbDeclaration[] {
     prepareArguments: modelArgumentTolerance({}),
   };
 
-  return [writeScript, draftShots, generate, arrangeCanvas, makeArtifact, director3dBoxFaceEnabled() ? directorStageShot : stageShot, editTimeline, undo, deleteFromCanvas, exportVideo, cancelJob, saveSkill, startModelSetup];
+  return [writeScript, draftShots, generate, arrangeCanvas, makeArtifact, writeNodeText, director3dBoxFaceEnabled() ? directorStageShot : stageShot, editTimeline, undo, deleteFromCanvas, exportVideo, cancelJob, saveSkill, startModelSetup];
 }

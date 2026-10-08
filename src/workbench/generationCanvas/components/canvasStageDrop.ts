@@ -13,6 +13,7 @@ import {
   parseAssetLibraryDragItems,
   type AssetLibraryDragPayload,
 } from '../../assets/assetLibraryDrag'
+import { tiptapDocFromPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { mediaImportRejectionMessages } from '../../assets/mediaImportMessage'
 import { importLocalMediaFilesToGenerationCanvas } from '../adapters/assetImportAdapter'
 import { materializeAssetLibraryItems } from '../../assets/assetLibraryMaterialize'
@@ -79,17 +80,6 @@ function cleanBrowserAssetTitle(value: unknown, fallback: string): string {
 
 function cleanBrowserAssetPrompt(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
-}
-
-function tiptapDocFromPlainText(text: string): TiptapDocJson {
-  const lines = text ? text.split(/\r?\n/) : ['']
-  return {
-    type: 'doc',
-    content: lines.map((line) => ({
-      type: 'paragraph',
-      ...(line ? { content: [{ type: 'text', text: line }] } : {}),
-    })),
-  }
 }
 
 function normalizeBrowserAssetCanvasItem(item: unknown): BrowserAssetCanvasItem | null {
@@ -192,7 +182,7 @@ export function importBrowserAssetsToGenerationCanvas(
         select: false,
         meta: sourceMeta,
       })
-      store.updateNode(node.id, { contentJson: tiptapDocFromPlainText(prompt) })
+      store.writeNodeBody(node.id, tiptapDocFromPlainText(prompt) as TiptapDocJson)
       nodeIds.push(node.id)
       return
     }

@@ -101,6 +101,7 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
       ` | ${compactHead(node.title, 80)}`,
       flags.length ? ` | ${flags.join(",")}` : "",
       promptHead ? ` | prompt: ${promptHead}` : "",
+      node.text ? ` | text: ${compactHead(node.text, 60)}${node.textTruncated ? "(正文已截断)" : ""}` : "",
       node.currentResultId ? ` | currentResultId: ${compactHead(node.currentResultId, 120)}` : "",
       resultIds ? ` | resultIds: ${resultIds}` : "",
       node.taskRef ? ` | taskRef: ${JSON.stringify(node.taskRef)}` : "",
@@ -131,6 +132,17 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
     writer.appendLine(heading);
     promptTruncated = writer.appendRemaining(node.prompt, coreTruncated ? 2 : 0);
     if (promptTruncated) break;
+  }
+  for (const node of result.nodes) {
+    if (promptTruncated || !selectedIds.has(node.id) || !node.text || node.text.length <= 60) continue;
+    const heading = `「${compactHead(node.title, 80)}」(${compactHead(node.id, 120)}) 文本正文${node.textTruncated ? "(已截断)" : ""}:`;
+    if (writer.remaining() <= heading.length + 2) {
+      promptsOmitted = true;
+      break;
+    }
+    writer.appendLine("");
+    writer.appendLine(heading);
+    promptTruncated = writer.appendRemaining(node.text, coreTruncated ? 2 : 0);
   }
   if ((coreTruncated || promptsOmitted) && !promptTruncated) writer.appendLine("…");
   return writer.text();

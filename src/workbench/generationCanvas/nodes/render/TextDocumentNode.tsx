@@ -40,16 +40,16 @@ function isDocEmpty(doc?: TiptapDocJson): boolean {
 
 function TextDocumentNodeImpl({ node }: Props): JSX.Element {
   const { t } = useTranslation()
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  const writeNodeBody = useGenerationCanvasStore((state) => state.writeNodeBody)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
 
   const content = React.useMemo<JSONContent>(() => (node.contentJson ?? EMPTY_DOC) as JSONContent, [node.contentJson])
 
   const handleChange = React.useCallback(
     (json: JSONContent) => {
-      updateNode(node.id, { contentJson: json as unknown as TiptapDocJson }, { persist: false })
+      writeNodeBody(node.id, json as unknown as TiptapDocJson, { persist: false })
     },
-    [node.id, updateNode],
+    [node.id, writeNodeBody],
   )
 
   // 把最新选区文本存进 meta（persist:false），供「改写」生成时拼 prompt 用。去重避免抖动。

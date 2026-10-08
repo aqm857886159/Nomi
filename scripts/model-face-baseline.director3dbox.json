@@ -1,5 +1,5 @@
 {
-  "verbCount": 28,
+  "verbCount": 29,
   "tools": [
     {
       "aliasBoundInput": null,
@@ -1160,6 +1160,69 @@
           "fileType",
           "title",
           "content"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "aliasBoundInput": null,
+      "alsoCovers": null,
+      "contractId": "canvas.write",
+      "description": "Write the body text of an existing text node on the canvas — replace it or append to it. Only edits the text; it does not generate and costs nothing. The user asks you to write or revise the words inside a text node (a prompt, description or style note kept on the canvas). Not for image or video shot prompts (draft_shots), not for the creation-page script (write_script), not for new nodes (make_artifact) and never to start generation (generate). nodeId of a text node from look_at_canvas; text is the exact body; mode is replace (default) or append. The change lands in the project as a reversible local edit (in step-by-step approval mode the user confirms it first; otherwise it applies right away). This local edit grants no new spending permission; use the tool result for any generation status.",
+      "effect": "reversible_local",
+      "effectGroups": null,
+      "examples": [
+        {
+          "arguments": {
+            "mode": "replace",
+            "nodeId": "node-text-1",
+            "text": "Warm film grain, soft backlight, muted teal and amber."
+          },
+          "when": "Rewrite a style note:"
+        }
+      ],
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "internalGroup": null,
+      "mcpTransportFields": null,
+      "name": "write_node_text",
+      "nextAction": "none",
+      "profileReason": "mcpHandwrittenTransport",
+      "profiles": [
+        "internal"
+      ],
+      "promptGuidelines": [
+        "Every canvas write is a reversible local edit: describe what changed in your reply using the returned userSees line rather than claiming more."
+      ],
+      "promptSnippet": "Write the body text of an existing text node on the canvas — replace it or append to it. Only edits the text; it does not generate and costs nothing.",
+      "publishedJsonSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "description": "replace (default) overwrites the body; append adds after it.",
+            "enum": [
+              "replace",
+              "append"
+            ],
+            "type": "string"
+          },
+          "nodeId": {
+            "description": "Id of an existing text node, from look_at_canvas.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "text": {
+            "description": "The exact body text. Plain text; line breaks become paragraphs.",
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "nodeId",
+          "text"
         ],
         "type": "object"
       }

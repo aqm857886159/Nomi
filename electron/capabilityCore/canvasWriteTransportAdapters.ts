@@ -12,7 +12,9 @@ import {
   canvasWriteOperationForAlias,
   canvasWritePiInputSchemaForAlias,
   canvasWriteSemanticInputSchema,
+  isNodeTargetedWriteOperation,
   type CanvasWriteInput,
+  type NodeTargetedWriteOperation,
 } from "../shared/agentCapabilities/canvasWrite";
 import { DIRECTOR_WRITE_CAPABILITY, directorWriteSemanticInputSchema, type DirectorWriteInput } from "../shared/agentCapabilities/directorWrite";
 import type { TargetRef } from "../shared/capabilityTargeting";
@@ -134,10 +136,10 @@ export function createPiCanvasWriteTransportAdapter(
       }
       const port = input.surfacePortRuntime.createCanvasWritePort(input.registry.captureProjectSessionPort(input.session));
       const rawEvidence = await port.capture(
-        operation === "set_node_prompt"
+        isNodeTargetedWriteOperation(operation)
           ? {
               operation,
-              nodeId: (semanticInput as Extract<CanvasWriteInput, { operation: "set_node_prompt" }>).nodeId,
+              nodeId: (semanticInput as Extract<CanvasWriteInput, { operation: NodeTargetedWriteOperation }>).nodeId,
               signal,
             }
           : { operation: semanticInput.operation, input: semanticInput, signal },

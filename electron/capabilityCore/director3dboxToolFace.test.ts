@@ -26,7 +26,7 @@ afterEach(() => {
 })
 
 const PRE_3DBOX_CAPTURE_OPERATIONS = [
-  'set_node_prompt', 'create_canvas_nodes', 'connect_canvas_edges', 'tidy_canvas', 'propose_storyboard_plan',
+  'set_node_prompt', 'set_node_text', 'create_canvas_nodes', 'connect_canvas_edges', 'tidy_canvas', 'propose_storyboard_plan',
   'patch_shots', 'arrange_storyboard_to_timeline', 'create_staging_reference', 'create_camera_move', 'delete_canvas_nodes',
 ]
 

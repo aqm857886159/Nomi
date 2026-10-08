@@ -57,7 +57,7 @@ export function referenceAssetKindForNode(node: GenerationCanvasNode): Reference
 /**
  * 文本节点的通用 reference 出边不是“参考素材”，而是下游生成 prompt 的上下文补充。
  * 只允许喂给图片/视频/3D 生成节点（吃 prompt 的媒体生成面）；其它边语义仍走正常参考能力校验。
- * 口径与 collectConnectedTextPromptParts 的目标判定一致，改必同改。
+ * 口径与 projectConnectedTextInputs 的目标判定一致，改必同改。
  */
 export function isTextPromptEdge(
   source: GenerationCanvasNode,
