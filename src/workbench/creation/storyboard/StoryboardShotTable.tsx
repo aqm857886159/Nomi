@@ -30,13 +30,15 @@ import { frameMediaBox } from './shotRow/shotFrameGeometry'
 import {
   effectiveShotAspect,
   planDefaultAspect,
+  resolveShotParams,
   setShotAspectOverride,
 } from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
 import type { ShotVariant } from './shotRow/shotVariants'
 import { positionsForAnchorFilter } from './storyboardDInteractions'
 import StoryboardSelectionToolbar from './StoryboardSelectionToolbar'
-import { applyBulkModelToShots, storyboardBulkModelGroups, type StoryboardShotKind } from './storyboardBulkModelScope'
+import { applyBulkModelToShots, type StoryboardShotKind } from './storyboardBulkModelScope'
+import { applyBulkParamToShots, storyboardBulkParamGroups } from './storyboardBulkParamScope'
 import { confirmDialog } from '../../../design'
 
 /**
@@ -65,7 +67,7 @@ type Props = {
   onChange: (plan: StoryboardPlan) => void
   /** The resident Agent receives the same stable storyboard reference as the row selection UI. */
   onStoryboardShotSelect?: (shot: StoryboardPlan['shots'][number]) => void
-  /** 选中集变化时上报（footer 的「选中 N 镜 · 交给 Agent 改」与浮条读同一份选择，不各存一份）。 */
+  /** 选中集变化时上报（编辑器与浮条读同一份选择，不各存一份）。 */
   onSelectionChange?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 行内「生成」（画面格常驻按钮 / 失败重试）。 */
   onGenerateRow: (runtime: StoryboardRowRuntime) => void
@@ -76,14 +78,13 @@ type Props = {
    * 缺省时那枚按钮就不出现——但绝不许拿 `onGenerateRow` 顶替（那是付费重跑）。
    */
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
-  /** 浮条 🔒/🔓 镜级锁定开关。 */
+  /** 行 ⋯ 菜单里的「锁定 / 解锁」镜级开关。 */
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
-  /** 结果态双击 / 浮条 ⛶ 放大预览。 */
+  /** 结果态双击打开预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
+  onLocateInCanvasRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 参考已变「用新图重跑」。 */
   onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
-  onSaveResultAsReference: (runtime: StoryboardRowRuntime) => void
-  onSetResultAsFirstFrame: (runtime: StoryboardRowRuntime, targetIndex: number) => void
   onGenerateSelected: (runtimes: StoryboardRowRuntime[]) => void
   onDeleteSelected: (runtimes: StoryboardRowRuntime[]) => void
   filterAnchorId?: string | null
@@ -100,9 +101,8 @@ type Props = {
   onDeleteVariant?: ((runtime: StoryboardRowRuntime, variant: ShotVariant) => void) | undefined
   /** 每镜产出的 `@tag`（§2.10）；键 = `stableShotId`。 */
   outputTagByShotId?: Readonly<Record<string, string>>
-  /** 「交给 Agent」——多选浮条与每行 ⋯ 菜单两处（§2.7 入口 2/3 与 3/3）。 */
+  /** Agent 入口——多选浮条与每行 ⋯ 菜单两处。 */
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
-  onLockSelected?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 播放本场；整片播放复用同一 playback queue owner。 */
   onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
 }
@@ -158,7 +158,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -196,7 +196,13 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   }, [selectedKeysSignature, rows])
   // 「统一模型」按选中集合的**镜种**分档（storyboardBulkModelScope 单源）——图片镜只列图片模型、
   // 视频镜只列视频模型；两种都选中就出两个下拉。混成一条平列表是 2026-09-11 反馈的那条错。
-  const selectedModelGroups = storyboardBulkModelGroups({ shots: selectedRows.map((runtime) => runtime.shot), imageModelOptions, videoModelOptions })
+  const selectedModelGroups = storyboardBulkParamGroups({
+    plan,
+    shots: selectedRows.map((runtime) => runtime.shot),
+    imageModelOptions,
+    videoModelOptions,
+    aspectOf: (shot) => effectiveShotAspect(plan, shot),
+  })
   const selectKeyOf = (shot: StoryboardRowRuntime['shot']): string => shot.shotId ?? `index:${shot.index}`
   const onSelectShot = (position: number, event: React.MouseEvent): void => {
     const keyAt = (index: number): string => selectKeyOf(rows[index].shot)
@@ -219,9 +225,28 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
     }
     onStoryboardShotSelect?.(rows[position].shot)
   }
-  const moveSelectedToScene = (sceneId: string): void => {
-    if (!sceneId) return
-    onChange({ ...plan, shots: plan.shots.map((shot) => selectedShotIds.has(selectKeyOf(shot)) ? (sceneId === NO_SCENE_VALUE ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { ...shot, sceneId }) : shot) })
+  const applyParamToSelected = (kind: StoryboardShotKind, control: Parameters<typeof applyBulkParamToShots>[0]['control'], raw: string): void => {
+    const group = selectedModelGroups.find((candidate) => candidate.kind === kind)
+    if (!group) return
+    onChange(applyBulkParamToShots({ plan, isSelected: (shot) => selectedShotIds.has(selectKeyOf(shot)), kind, control, raw, controls: group.scope.controls }))
+  }
+  // 「本次跳过」作用于已选镜：已选的全都跳过了就改成取消；否则把还没跳过的补上。
+  const allSelectedSkipped = selectedRows.length > 0 && selectedRows.every((runtime) => skippedShotIds?.has(stableShotId(runtime.shot)))
+  const skipSelected = (): void => {
+    if (!onToggleSkip) return
+    for (const runtime of selectedRows) {
+      const key = stableShotId(runtime.shot)
+      if ((skippedShotIds?.has(key) ?? false) === allSelectedSkipped) onToggleSkip(key)
+    }
+  }
+  const toggleSelectedAt = (position: number): void => {
+    const key = selectKeyOf(rows[position].shot)
+    setSelectedShotIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+    setSelectionAnchor(visiblePositions.indexOf(position))
   }
   const applyModelToSelected = (kind: StoryboardShotKind, modelKey: string, vendor?: string): void => {
     onChange(applyBulkModelToShots({ plan, isSelected: (shot) => selectedShotIds.has(selectKeyOf(shot)), kind, modelKey, vendor }))
@@ -351,6 +376,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onChangeAspect: (next: string | null) => onChange(setShotAspectOverride(plan, pos, next)),
                     skipped: skippedShotIds?.has(shotKey) ?? false,
                     onToggleSkip: onToggleSkip ? () => onToggleSkip(shotKey) : undefined,
+                    // 行首复选框 = 选中（以前是「本次跳过」）；跳过住行菜单与多选浮条。
+                    onToggleSelect: () => toggleSelectedAt(pos),
                     variants: variantsByShotId?.[shotKey] ?? [],
                     adoptedVariantId: adoptedVariantByShotId?.[shotKey],
                     onAdoptVariant: runtime && props_onAdoptVariant ? (variant: ShotVariant) => props_onAdoptVariant(runtime, variant) : undefined,
@@ -359,11 +386,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onAgentHandoff: runtime && onAgentHandoff ? () => onAgentHandoff([runtime]) : undefined,
                     onInsertAbove: () => onChange(insertShotAt(plan, pos)),
                     onInsertBelow: () => onChange(insertShotAt(plan, pos + 1)),
-                    targetShots: plan.shots.filter((candidate) => candidate.shotId !== shot.shotId && candidate.index !== shot.index),
-                    allShots: plan.shots,
-                    sourcePosition: pos,
-                    onSaveAsReference: runtime ? () => onSaveResultAsReference(runtime) : undefined,
-                    onSetAsFirstFrame: runtime ? (targetIndex: number) => onSetResultAsFirstFrame(runtime, targetIndex) : undefined,
                     selected: selectedShotIds.has(selectKeyOf(shot)),
                     onSelect: (event: React.MouseEvent) => onSelectShot(pos, event),
                     scenes: plan.scenes ?? [],
@@ -380,6 +402,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                       element?.focus()
                     },
                     onOpenPreview: runtime ? () => onOpenPreviewRow(runtime) : undefined,
+                    onLocateInCanvas: runtime && onLocateInCanvasRow ? () => onLocateInCanvasRow(runtime) : undefined,
                     onRerunFreshRefs: runtime ? () => onRerunFreshRefsRow(runtime) : undefined,
                     draggable: true as const,
                     isDragOver: overIndex === pos && dragIndex !== null && dragIndex !== pos,
@@ -405,7 +428,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                       } else onDeleteSelected([runtimeForRow])
                     },
                     // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）
-                    onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: shot.params })) }),
+                    onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: resolveShotParams(plan, shot) })) }),
                     storyboardProfile: storyboardProfileForKey(plan.profileKey),
                   }
                   // C1：有 anchorCards 时走 ShotRowWithMention（含 useShotMentionSource），
@@ -448,14 +471,14 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
         <StoryboardSelectionToolbar
           selectedCount={selectedRows.length}
           modelGroups={selectedModelGroups}
-          sceneOptions={plan.scenes ?? []}
           onGenerate={() => onGenerateSelected(selectedRows)}
-          onMoveToScene={moveSelectedToScene}
           onApplyModel={applyModelToSelected}
+          onApplyParam={applyParamToSelected}
+          allSkipped={allSelectedSkipped}
+          onSkip={onToggleSkip ? skipSelected : undefined}
           onDelete={() => { void deleteSelected() }}
           onClear={() => setSelectedShotIds(new Set())}
           onAgentHandoff={onAgentHandoff ? () => onAgentHandoff(selectedRows) : undefined}
-          onLock={onLockSelected ? () => onLockSelected(selectedRows) : undefined}
         />
       ) : null}
     </div>

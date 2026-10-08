@@ -95,14 +95,14 @@ describe('① 镜头卡底栏：选 APIMart 那条 → 镜头的 (modelKey, mode
 })
 
 describe('② 批量条「统一模型」：选 APIMart 那一行 → 每一镜都写 apimart', () => {
-  it('BulkModelPicker 回调的 vendor 一路写进每一镜', () => {
+  it('批量条的模型按钮（与行底栏同一个 InlineParameterBar）回调的 vendor 一路写进每一镜', () => {
     const onChange = vi.fn()
     const plan: StoryboardPlan = {
       title: 't', anchors: [],
       shots: [imageShot({ index: 1, modelKey: 'gpt-image-2', modelVendor: CUSTOM }), imageShot({ index: 2 })],
     }
     renderToStaticMarkup(createElement(StoryboardBulkBar, { plan, imageModelOptions: OPTIONS, videoModelOptions: [], onChange }))
-    const select = findSelect(i18n.t('storyboardEditor.bulk.modelAria'))
+    const select = findSelect(i18n.t('generationCommon.parameters.model'))
     const apimartRow = select.options.find((option) => option.label === 'GPT Image 2')!
     select.onChange(apimartRow.value)
     const next = onChange.mock.calls[0]![0] as StoryboardPlan

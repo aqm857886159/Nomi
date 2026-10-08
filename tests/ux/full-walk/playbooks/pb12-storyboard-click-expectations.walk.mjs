@@ -127,7 +127,7 @@ function describeRow(entry) {
   const parts = [entry.selected ? '选中了' : '没有选中']
   if (!entry.visible) parts.push('整行看不见了')
   if (entry.opacity < 1) parts.push(`整行变淡到 ${Math.round(entry.opacity * 100)}%`)
-  if (entry.skipped || entry.checkbox) parts.push('被标成「本次跳过」')
+  if (entry.skipped) parts.push('被标成「本次跳过」')
   if (!entry.composerVisible) parts.push('底栏看不见了')
   return parts.join('，')
 }
