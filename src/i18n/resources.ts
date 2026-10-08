@@ -22,6 +22,7 @@ import { enFeedbackReport, zhFeedbackReport } from './locales/feedbackReport'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
 import { enAgentLaneError, zhAgentLaneError } from './locales/agentLaneError'
 import { enAgentToolFailure, zhAgentToolFailure } from './locales/agentToolFailure'
+import { enUpdateReminder, zhUpdateReminder } from './locales/updateReminder'
 
 export const zhCN = {
   shotTable: zhShotTable,
@@ -444,6 +445,7 @@ export const zhCN = {
   agentPanelV4: zhAgentPanelV4,
   agentLaneError: zhAgentLaneError,
   agentToolFailure: zhAgentToolFailure,
+  updateReminder: zhUpdateReminder,
 } as const
 
 type TranslationShape<T> = {
@@ -870,6 +872,7 @@ export const en = {
   agentPanelV4: enAgentPanelV4,
   agentLaneError: enAgentLaneError,
   agentToolFailure: enAgentToolFailure,
+  updateReminder: enUpdateReminder,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {
