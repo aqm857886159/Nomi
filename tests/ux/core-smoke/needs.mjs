@@ -16,9 +16,11 @@ import {
 
 /** 执行侧那三把钥匙（同 `agent-runtime-walk-support.mjs:418-424`）。不点名供应商 = apimart。 */
 const PAID_ROUTE_ENV = (fixture) => ({
+  NOMI_TEST_NETWORK_GUARD: '1',
   NOMI_E2E_PRODUCTION_FIXTURE: '1',
   NOMI_E2E_FIXTURE_BASE_URL: fixture.baseURL,
   NOMI_E2E_FIXTURE_API_KEY: FIXTURE_APIMART_API_KEY,
+  NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: fixture.baseURL }]),
 })
 
 /**

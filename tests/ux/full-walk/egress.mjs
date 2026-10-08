@@ -36,6 +36,7 @@ export async function startEgressWatch({ logFile }) {
     mainRequire: [GUARD_MODULE],
     env: {
       NOMI_WALK_NET_LOG: logFile,
+      NOMI_TEST_NETWORK_GUARD: '1',
       HTTPS_PROXY: url, HTTP_PROXY: url, ALL_PROXY: url,
       https_proxy: url, http_proxy: url, all_proxy: url,
       NO_PROXY: '127.0.0.1,localhost,::1', no_proxy: '127.0.0.1,localhost,::1',
