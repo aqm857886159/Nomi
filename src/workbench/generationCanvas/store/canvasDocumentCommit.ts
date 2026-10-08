@@ -33,7 +33,7 @@ import { emitProductionCanvasSignal } from '../../production/productionCanvasSig
 /** 一次整写：哪扇门、带了什么。commit 按种类穷举处理，新加种类不处理就编译不过。 */
 export type CanvasDocumentWrite =
   /** 打开项目：没有活的画布可比，事实就是快照里的（含重启收敛）；暂存清空，撤销基线从这里起。 */
-  | Readonly<{ kind: 'load'; snapshot: unknown }>
+  | Readonly<{ kind: 'load'; snapshot: unknown; projectId?: string }>
   /** 打开项目时重放快照之后落盘的事件尾巴（崩溃恢复）。 */
   | Readonly<{ kind: 'load-tail'; events: readonly { type: string; payload: Record<string, unknown> }[] }>
   /** 撤销 / 重做：目标位置的投影 + 之后的落地。 */
@@ -123,11 +123,12 @@ function emitReturnedLandings(returned: readonly Returned[]): void {
 
 type Projection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; groups: NodeGroup[] }>
 
-function emitProductionSignalsForDocumentChange(before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
+function emitProductionSignalsForDocumentChange(projectId: string | null, before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
   const beforeIds = new Set(before.map((node) => node.id))
   const afterIds = new Set(after.map((node) => node.id))
-  emitProductionCanvasSignal({ kind: 'detach', nodes: before.filter((node) => !afterIds.has(node.id)) })
-  emitProductionCanvasSignal({ kind: 'reattach', nodes: after.filter((node) => !beforeIds.has(node.id)) })
+  if (!projectId) return
+  emitProductionCanvasSignal({ kind: 'detach', projectId, nodes: before.filter((node) => !afterIds.has(node.id)) })
+  emitProductionCanvasSignal({ kind: 'reattach', projectId, nodes: after.filter((node) => !beforeIds.has(node.id)) })
 }
 
 function invertProductionCanvasIntent(intent: ProductionCanvasHistoryIntent): ProductionCanvasHistoryIntent {
@@ -136,6 +137,7 @@ function invertProductionCanvasIntent(intent: ProductionCanvasHistoryIntent): Pr
     kind: 'signals',
     signals: intent.signals.map((signal) => ({
       kind: signal.kind === 'detach' ? 'reattach' : 'detach',
+      projectId: signal.projectId,
       nodes: signal.nodes,
     })),
   }
@@ -176,6 +178,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         clearClipboard()
         set({
           isReady: true,
+          projectId: write.projectId ?? null,
           persistRevision: get().persistRevision,
           nodes: normalized.nodes,
           edges: normalized.edges,
@@ -227,7 +230,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         })
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: next } }])
         emitReturnedLandings(settled.returned)
-        emitProductionSignalsForDocumentChange(live.nodes, next.nodes)
+        emitProductionSignalsForDocumentChange(live.projectId, live.nodes, next.nodes)
         return
       }
       case 'put-back': {
@@ -251,7 +254,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           ...settled.nodes.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
           ...addEdges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
         ])
-        emitProductionCanvasSignal({ kind: 'reattach', nodes: incoming })
+        if (live.projectId) emitProductionCanvasSignal({ kind: 'reattach', projectId: live.projectId, nodes: incoming })
         emitReturnedLandings(settled.returned)
         return
       }
@@ -271,7 +274,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
   }
 
   return {
-    restoreSnapshot: (snapshot) => commit({ kind: 'load', snapshot }),
+    restoreSnapshot: (snapshot, projectId) => commit({ kind: 'load', snapshot, projectId }),
     applyEventTail: (events) => commit({ kind: 'load-tail', events }),
     undo: () => {
       const restore = popUndo()

@@ -110,6 +110,7 @@ export function recordProductionCanvasSignal(signal: ProductionCanvasSignal): vo
   if (!activeRecord || signal.nodes.length === 0) return
   const nextSignal = {
     kind: signal.kind,
+    projectId: signal.projectId,
     nodes: signal.nodes.map((node) => structuredClone(node)),
   } as ProductionCanvasSignal
   activeRecord.intent = activeRecord.intent.kind === 'signals'

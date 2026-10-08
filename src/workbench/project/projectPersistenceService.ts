@@ -214,7 +214,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     // A turn begun while the read was pending still targets the outgoing project.
     abandonHydratingProjectOwnership()
     guard.assertCurrent()
-    measureProjectOpenStageSync('restore-store', () => restoreWorkbenchProjectPayload(upgraded.payload))
+    measureProjectOpenStageSync('restore-store', () => restoreWorkbenchProjectPayload(upgraded.payload, upgraded.id))
     // S5-b-1:重放快照没盖到的事件尾巴(崩溃恢复),完成后以含尾后态发 genesis。
     await measureProjectOpenStage('replay-events', () => replayCanvasEventTailAndSealGenesis(upgraded.id, upgraded.payload, guard))
     guard.assertCurrent()

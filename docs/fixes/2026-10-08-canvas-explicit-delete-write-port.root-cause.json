@@ -3,9 +3,9 @@
   "id": "2026-10-08-canvas-explicit-delete-write-port",
   "detected_by": "user",
   "problem_type": "Canvas deletion was inferred from store snapshots and renderer project-file read-modify-write raced the main writer",
-  "symptom": "Undoing a landed production batch detached shots without a reattach command, and an external project edit could be overwritten by a late renderer delivery.",
-  "direct_cause": "watchDeletedProductionNodes treated any loaded store node disappearance as a delete; runProjectDelivery read and saved a whole project record in the renderer while the main gateway could write the same file.",
-  "class_root": "User intent and project-file write ownership were not enforced at shared boundaries: snapshot lifecycle was mistaken for deletion, and more than one process could own a read-modify-write.",
+  "symptom": "Undoing a landed production batch detached shots without a reattach command, a signal from project A could be written into project B after a switch, and an external project edit could be overwritten by a late renderer delivery.",
+  "direct_cause": "watchDeletedProductionNodes treated any loaded store node disappearance as a delete; production canvas signals omitted their owning project and the host used its current project for every signal; runProjectDelivery read and saved a whole project record in the renderer while the main gateway could write the same file.",
+  "class_root": "User intent, signal project identity, and project-file write ownership were not enforced at shared boundaries: snapshot lifecycle was mistaken for deletion, signal delivery was bound to the current host instead of the emitting canvas store, and more than one process could own a read-modify-write.",
   "affected_population": [
     "Production batches using undo/redo or delete/cut gestures",
     "Background generation outcomes delivered while a project is closed",
@@ -35,14 +35,10 @@
     "Only explicit delete gestures and their undo/redo projection emit production detach or reattach signals.",
     "Project canvas writes are serialized by projectId in the main process and re-read current state inside the write queue.",
     "Renderer delivery never saves a whole project record directly; it calls the main applyCanvasNodePatch port.",
-    "Loading, unloading, switching projects, and ordinary non-production creation undo emit no production signal."
+    "Loading, unloading, switching projects, and ordinary non-production creation undo emit no production signal.",
+    "Every production canvas signal carries the projectId held by the emitting canvas store; history replay preserves it and a host drops mismatches with a warning."
   ],
   "doors": [
-    {
-      "kind": "read",
-      "path": "electron/main.ts",
-      "symbol": "applyCanvasNodePatch"
-    },
     {
       "kind": "read",
       "path": "electron/projects/projectsIpc.ts",
@@ -195,6 +191,11 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "routeProductionCanvasSignal"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/production/productionCanvasSignals.ts",
       "symbol": "emitProductionCanvasSignal"
     },
@@ -207,7 +208,7 @@
   "door_reduction": {
     "before": 32,
     "after": 33,
-    "why_not": "The fixed boundary keeps every existing deletion and project-write door and adds the history signal recorder; all listed doors remain independently checkable."
+    "why_not": "The fixed boundary keeps every existing deletion and project-write door and adds the project-scoped signal router; signal producers, journal replay, and the host remain separate doors because they own creation, persistence, and consumption respectively."
   },
   "generality_proof": "Every listed deletion caller converges on the canvas store actions or document commit before a production signal can be emitted, while every project canvas disk writer converges on serializeProjectCanvasWrite. A future caller cannot silently infer a delete or write around the boundary without adding a new door that the door map exposes.",
   "shared_boundaries": [
@@ -260,7 +261,7 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/projects/projectCanvasWrite.ts",
-    "invariant": "Only the main-process queue may commit a project canvas write, and it must patch current state inside the queue.",
+      "invariant": "Every production signal is project-scoped and only a matching host may invoke the main-process queue; the queue commits a project canvas write and patches current state inside the queue.",
     "failure_mode": "Missing project, node, identity binding, or write port fails closed without saving a stale whole record.",
     "exception_policy": "none",
     "strategy": "Move renderer delivery to an IPC patch and share one main queue with gateway writes; make delete intent an explicit signal at the canvas write boundary.",

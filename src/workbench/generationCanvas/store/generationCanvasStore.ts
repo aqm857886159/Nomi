@@ -43,6 +43,7 @@ function pasteThroughBorrowedClipboard<T>(payload: NonNullable<ReturnType<typeof
 
 export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscribeWithSelector(immer((set, get, store) => withCanvasWriteBoundary({
   isReady: false,
+  projectId: null,
   persistRevision: 0,
   // 初始画布走默认快照单一真相源（勿再内联一份节点/边，见审计 A4）。
   ...createDefaultGenerationCanvasSnapshot(),
@@ -124,7 +125,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
       ...removedIds.map((nodeId) => ({ type: 'canvas.node.removed' as const, payload: { nodeId } })),
     ])
-    emitProductionCanvasSignal({ kind: 'detach', nodes: removedNodes })
+    if (currentState.projectId) emitProductionCanvasSignal({ kind: 'detach', projectId: currentState.projectId, nodes: removedNodes })
   },
   pasteNodes: (basePosition, anchor) => {
     const currentState = get()
@@ -230,6 +231,7 @@ export const generationCanvasStoreLifetime = declareStoreLifetime({
     workflowTemplates: 'process',
     // 画布内容本体：项目就是它。
     nodes: 'project',
+    projectId: 'project',
     edges: 'project',
     groups: 'project',
     isReady: 'project',
@@ -249,6 +251,7 @@ export const generationCanvasStoreLifetime = declareStoreLifetime({
     const empty = createDefaultGenerationCanvasSnapshot()
     useGenerationCanvasStore.setState({
       isReady: false,
+      projectId: null,
       nodes: empty.nodes,
       edges: empty.edges,
       groups: empty.groups,

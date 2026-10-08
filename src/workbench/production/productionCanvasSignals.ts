@@ -2,8 +2,8 @@ import type { GenerationCanvasNode } from '../generationCanvas/model/generationC
 import { recordProductionCanvasSignal } from '../generationCanvas/events/canvasUndoJournal'
 
 export type ProductionCanvasSignal =
-  | Readonly<{ kind: 'detach'; nodes: readonly GenerationCanvasNode[] }>
-  | Readonly<{ kind: 'reattach'; nodes: readonly GenerationCanvasNode[] }>
+  | Readonly<{ kind: 'detach'; projectId: string; nodes: readonly GenerationCanvasNode[] }>
+  | Readonly<{ kind: 'reattach'; projectId: string; nodes: readonly GenerationCanvasNode[] }>
 
 type SignalSink = (signal: ProductionCanvasSignal) => void
 
@@ -18,4 +18,17 @@ export function emitProductionCanvasSignal(signal: ProductionCanvasSignal): void
   if (signal.nodes.length === 0) return
   recordProductionCanvasSignal(signal)
   for (const sink of sinks) sink(signal)
+}
+
+export function routeProductionCanvasSignal(
+  signal: ProductionCanvasSignal,
+  projectId: string,
+  onMatch: SignalSink,
+  onMismatch: (signal: ProductionCanvasSignal, hostProjectId: string) => void,
+): void {
+  if (signal.projectId !== projectId) {
+    onMismatch(signal, projectId)
+    return
+  }
+  onMatch(signal)
 }
