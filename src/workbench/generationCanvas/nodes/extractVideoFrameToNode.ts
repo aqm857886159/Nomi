@@ -2,7 +2,7 @@
 // 复用 M-A 的抽帧 IPC（window.nomiDesktop.video.extractFrame，which:'first'|'last'）——纯基建，
 // 抽出的是真实图片 URL（nomi-local://），建一个**已带结果**的图片节点，用户可直接拿去当任何参考/首尾帧。
 // 失败一律人话 toast、不冒充（resolver/IPC 已封死"视频/封面当首帧"）。
-import { resolveNodeVisualSize } from './nodeSizing'
+import { FOCUS_GENERATION_NODE_EVENT, resolveNodeVisualSize } from './nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { isProjectImportCancellation, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -62,4 +62,7 @@ export async function extractVideoFrameToNode(node: GenerationCanvasNode, which:
   const createdAt = Date.now()
   store.updateNode(created.id, { result: { id: `frame-${which}-${createdAt}`, type: 'image', url, createdAt } })
   store.selectNode(created.id)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: created.id } }))
+  }
 }
