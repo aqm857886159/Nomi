@@ -33,3 +33,8 @@
 {"date":"2026-10-08","line":"R-autoref","kind":"research","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"发现画布已在自动绑定用户手写提示词"}
 {"date":"2026-10-08","line":"R-review-1096","kind":"review","pr":1096,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：生产信号无 projectId，项目切换时可能写错项目的 Run；协调会话审和独立验收都漏了"}
 {"date":"2026-10-08","line":"L-landingB","kind":"implementation","pr":1096,"outcome":"returned-by-coordinator","defects":["semantic-change","claims-beyond-diff"],"note":"显式信号缺项目身份（跨项目写错 Run 的风险）；正文验证数字与实际不一致"}
+{"date":"2026-10-08","line":"R-review-1113","kind":"review","pr":1113,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：测试文件类型错 + 新 quality 角色让 4 类参数不可达；独立验收只跑了改动目录 vitest，没跑 test-types 和可达性测试"}
+{"date":"2026-10-08","line":"F-spendwalks3b","kind":"implementation","pr":1113,"outcome":"returned-by-coordinator","defects":["partial-gates","semantic-change"],"note":"归类改动挤掉 4 类参数的入口；test-types 红"}
+{"date":"2026-10-08","line":"V-spendsize","kind":"acceptance","pr":1113,"outcome":"returned-by-coordinator","defects":["partial-gates"],"note":"验收只跑改动目录 vitest，漏了跨目录的可达性测试与 test-types——验收模板要补「CI 同款门岗」"}
+{"date":"2026-10-08","line":"R-review-walkwait","kind":"review","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：e2e-launch-capability 5 个既有测试红、另一处仍按进程名判断、根因合同字段被写成 ????"}
+{"date":"2026-10-08","line":"F-walkwait","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["partial-gates","broke-design-intent","evidence-missing"],"note":"新登记逻辑破坏既有启动能力测试；根因合同编码写坏（GBK）"}
