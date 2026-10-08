@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expectVisible, clickOrFail, expectCount } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -110,7 +111,7 @@ try {
   const before = await win.locator('[data-node-id]').count()
   await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
   await win.getByRole('menuitem', { name: L.first }).click()
-  await win.waitForFunction(() => Array.from(document.querySelectorAll('[data-node-id]')).some((el) => !['img-node', 'vid-node', 'anchor-node'].includes(el.getAttribute('data-node-id') || '')), undefined, { timeout: 15000 })
+  await win.waitForFunction(() => Array.from(document.querySelectorAll('[data-node-id]')).some((el) => !['img-node', 'vid-node', 'anchor-node'].includes(el.getAttribute('data-node-id') || '')), undefined, { timeout: stationTimeout() })
   const afterIds = await win.locator('[data-node-id]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-id')).filter(Boolean))
   assert(afterIds.some((id) => !['img-node', 'vid-node', 'anchor-node'].includes(id)), 'first frame produced and focused a new image node')
   const after = afterIds.length
@@ -119,7 +120,7 @@ try {
   await select('vid-node', L.vid)
   await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
   await win.getByRole('menuitem', { name: L.last }).click()
-  await win.waitForFunction((expectedCount) => document.querySelectorAll('[data-node-id]').length > expectedCount, after, { timeout: 15000 })
+  await win.waitForFunction((expectedCount) => document.querySelectorAll('[data-node-id]').length > expectedCount, after, { timeout: stationTimeout() })
   const afterLastIds = await win.locator('[data-node-id]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-id')).filter(Boolean))
   assert(afterLastIds.length > after && afterLastIds.some((id) => !['img-node', 'vid-node', 'anchor-node'].includes(id)), 'last frame produced and focused a new image node')
   const afterLast = afterLastIds.length
