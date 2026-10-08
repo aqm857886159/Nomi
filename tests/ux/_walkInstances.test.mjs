@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { readLiveWalkInstances, registerWalkInstance } from './_walkInstances.mjs'
+import { readLiveWalkInstances, registerWalkInstance, registerWalkProcess } from './_walkInstances.mjs'
 import { countNomiProcesses, waitForOtherNomiToExit } from './full-walk/launch.mjs'
 
 function fixture() {
@@ -54,5 +54,18 @@ test('full-walk count and wait use the registered same-worktree set', async () =
     waitForOtherNomiToExit({ registryDir, isProcessAlive, pollMs: 0, maxWaitMs: 0 }),
     /同一 worktree 一直有 1 个走查实例/,
   )
+  registration.cleanup()
+})
+
+test('real process path fails closed when pid or once is missing', () => {
+  assert.throws(
+    () => registerWalkProcess({ pid: 1234 }, { worktree: process.cwd(), name: 'missing-handle' }),
+    /\[missing-handle\].*without pid\/once/,
+  )
+})
+
+test('test-only opt-in explicitly permits an untracked process double', () => {
+  const registration = registerWalkProcess({}, { worktree: process.cwd(), name: 'explicit-double', allowUntrackedProcessForTest: true })
+  assert.equal(registration.file, null)
   registration.cleanup()
 })

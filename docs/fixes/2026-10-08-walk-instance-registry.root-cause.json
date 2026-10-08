@@ -15,7 +15,8 @@
     "tests/ux/_launchApp.mjs",
     "tests/ux/full-walk/launch.mjs",
     "tests/ux/canvas-follow-hand/session.mjs",
-    "tests/ux/canvas-follow-hand.perf.mjs"
+    "tests/ux/canvas-follow-hand.perf.mjs",
+    "scripts/e2e-launch-capability.node-test.mjs"
   ],
   "entry_points": [
     "launchNomiApp",

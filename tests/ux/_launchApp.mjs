@@ -326,6 +326,7 @@ export async function launchNomiApp(options = {}) {
     executablePath = require('electron'),
     waitForWindow = true,
     syntheticCredentialStorage = false,
+    allowUntrackedProcessForTest = false,
   } = options
 
   const isolate = options.isolate !== false
@@ -414,7 +415,7 @@ export async function launchNomiApp(options = {}) {
   } catch (error) {
     throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
   }
-  const instanceRegistration = registerWalkProcess(app.process(), { worktree: repoRoot })
+  const instanceRegistration = registerWalkProcess(app.process(), { worktree: repoRoot, name, allowUntrackedProcessForTest })
   const close = async () => {
     try { await closeNomiApp(app) } finally { instanceRegistration.cleanup() }
   }

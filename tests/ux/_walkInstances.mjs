@@ -22,9 +22,10 @@ export function registerWalkInstance({ pid, worktree, registryDir = WALK_INSTANC
 }
 
 /** Playwright's Electron test double may omit ChildProcess fields; real launches always expose pid/once. */
-export function registerWalkProcess(processHandle, options) {
+export function registerWalkProcess(processHandle, { allowUntrackedProcessForTest = false, name = 'walk', ...options } = {}) {
   if (!Number.isInteger(processHandle?.pid) || typeof processHandle?.once !== 'function') {
-    return { file: null, cleanup: () => {} }
+    if (allowUntrackedProcessForTest) return { file: null, cleanup: () => {} }
+    throw new Error(`[${name}] Electron launch returned a process handle without pid/once; cannot register the walk instance`)
   }
   const registration = registerWalkInstance({ pid: processHandle.pid, ...options })
   processHandle.once('exit', registration.cleanup)
