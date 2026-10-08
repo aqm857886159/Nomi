@@ -125,7 +125,7 @@
     "tests/ux/** and scripts are outside ESLint's test-file rule and remain an explicitly listed non-Vitest surface.",
     "The two B1 parity assertions remain intentional expected failures; this repair stabilizes their fixture environment and does not change product listing behavior."
   ],
-  "detected_by": "user",
+  "detected_by": "ci",
   "recurrence_check_on": "2026-10-07",
   "invariant_owner_layer": {
     "layer": "vitest.config.ts",
