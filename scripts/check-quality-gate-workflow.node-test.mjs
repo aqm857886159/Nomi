@@ -500,6 +500,9 @@ test('spending and nightly workflows use shared routing, browser setup, timeouts
   assert.equal(spend.if, "needs.scope.outputs.spend_walks == 'true'")
   assert.match(spend.run, /validation-policy\.mjs --print-spend-walks blocking/)
   assert.match(spend.run, /timeout 600/)
+  // 证据上传和跑走查必须同一个条件：走查没跑时上传会报「No files were found」warning，被 CI 注解卫生当成意外（main 1d32e1b93）。
+  const upload = desktop.steps.find((step) => step.name === 'Upload spending walkthrough evidence')
+  assert.equal(upload.if, "always() && needs.scope.outputs.spend_walks == 'true'")
   const nightly = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/nightly-walkthroughs.yml'), 'utf8'))
   assert.equal(nightly.jobs.walks.steps.find((step) => step.name === 'Install Chromium').run, PLAYWRIGHT_INSTALL_STEP)
   assert.match(nightly.jobs.walks.steps.find((step) => step.name === 'Run non-paid walkthrough batch').run, /timeout 600/)
@@ -514,4 +517,23 @@ test('workflows delegate Chromium installation to the shared script', () => {
     if (/playwright install/.test(source)) offenders.push(file)
   }
   assert.deepEqual(offenders, [], `workflow 中禁止直接出现 playwright install：${offenders.join('、')}`)
+})
+
+test('every workflow job that runs a repository script checks out the repository first', () => {
+  const workflowDir = path.join(repoRoot, '.github/workflows')
+  const offenders = []
+  for (const file of fs.readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name))) {
+    const definition = load(fs.readFileSync(path.join(workflowDir, file), 'utf8'))
+    for (const [jobName, job] of Object.entries(definition.jobs ?? {})) {
+      const steps = job.steps ?? []
+      for (const [index, step] of steps.entries()) {
+        if (typeof step.run !== 'string' || !/\bscripts\//.test(step.run)) continue
+        const hasCheckout = steps.slice(0, index).some(
+          (prior) => typeof prior.uses === 'string' && /^actions\/checkout@/.test(prior.uses),
+        )
+        if (!hasCheckout) offenders.push(`${file}:${jobName}:${index}`)
+      }
+    }
+  }
+  assert.deepEqual(offenders, [])
 })
