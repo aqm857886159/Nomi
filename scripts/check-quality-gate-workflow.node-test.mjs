@@ -500,6 +500,9 @@ test('spending and nightly workflows use shared routing, browser setup, timeouts
   assert.equal(spend.if, "needs.scope.outputs.spend_walks == 'true'")
   assert.match(spend.run, /validation-policy\.mjs --print-spend-walks blocking/)
   assert.match(spend.run, /timeout 600/)
+  // 证据上传和跑走查必须同一个条件：走查没跑时上传会报「No files were found」warning，被 CI 注解卫生当成意外（main 1d32e1b93）。
+  const upload = desktop.steps.find((step) => step.name === 'Upload spending walkthrough evidence')
+  assert.equal(upload.if, "always() && needs.scope.outputs.spend_walks == 'true'")
   const nightly = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/nightly-walkthroughs.yml'), 'utf8'))
   assert.equal(nightly.jobs.walks.steps.find((step) => step.name === 'Install Chromium').run, PLAYWRIGHT_INSTALL_STEP)
   assert.match(nightly.jobs.walks.steps.find((step) => step.name === 'Run non-paid walkthrough batch').run, /timeout 600/)
