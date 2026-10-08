@@ -49,3 +49,5 @@
 {"date":"2026-10-08","line":"F-quitdrains2","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"按合同改对了关窗与顺序，但每步子时限 = 整个预算、某步超时即停：第 2 步挂住会让「中止导出（杀 FFmpeg 子进程）」永不执行，旧代码一定会跑"}
 {"date":"2026-10-08","line":"R-review-1114","kind":"review","pr":1114,"outcome":"accepted-first-pass","defects":[],"note":"抽样 54 个文件，抓到门岗漏报（直接 mkdtempSync 未被拦）与 _launchApp 里第二套注册清理实现"}
 {"date":"2026-10-08","line":"L-tempclean4","kind":"implementation","pr":1114,"outcome":"returned-by-coordinator","defects":["parallel-version","bulk-unverified"],"note":"批量替换漏改两处、自建门岗漏报、留并行实现"}
+{"date":"2026-10-08","line":"R-review-1093","kind":"review","pr":1093,"outcome":"accepted-first-pass","defects":[],"note":"抓到删掉无关的逐镜尺寸断言（为让走查过绿）与正文格式问题；两轮独立验收都没看到"}
+{"date":"2026-10-08","line":"F-pendingspend","kind":"implementation","pr":1093,"outcome":"returned-by-coordinator","defects":["test-weakened","claims-beyond-diff"],"note":"删除无关尺寸断言；正文写「所有 MCP 读路径一致」而实际没有独立 MCP 读路径"}
