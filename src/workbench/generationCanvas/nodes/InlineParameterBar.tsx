@@ -658,6 +658,9 @@ export default function InlineParameterBar({
       className={cn(
         'generation-canvas-v2-node__params--parameters',
         'min-w-0',
+        // Keep every priced/output chip in the paid bar; a narrow card scrolls
+        // the row instead of moving one of them into ⚙.
+        chipsMode && !stacked && 'max-w-full overflow-x-auto',
         stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2',
       )}
     >

@@ -10,7 +10,7 @@ import {
   splitPrimaryParameterControls,
 } from './primaryParameterChips'
 import { parameterControlRole, type DynamicModelControl } from './controls/parameterControlModel'
-import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
+import type { ModelParameterControl } from '../../../../electron/shared/videoCapabilities/types'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
 
 describe('paid-card size visibility characterization', () => {
@@ -210,15 +210,15 @@ describe('chip 上的值与文案', () => {
 describe('planParameterChips / overflowParameterControls — 装不下时退回 ⚙', () => {
   const { primary } = splitPrimaryParameterControls([ratio, duration, resolution, generateAudio])
 
-  it('从尾巴退，不重排、不跳着退', () => {
-    expect(keys(planParameterChips(primary, 2).chips)).toEqual(['aspect_ratio', 'duration'])
-    expect(keys(planParameterChips(primary, 2).demoted)).toEqual(['resolution'])
-    expect(keys(planParameterChips(primary, 1).chips)).toEqual(['aspect_ratio'])
+  it('窄卡也不把报价参数退进齿轮', () => {
+    expect(keys(planParameterChips(primary, 2).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
+    expect(planParameterChips(primary, 2).demoted).toEqual([])
+    expect(keys(planParameterChips(primary, 1).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
   })
 
-  it('一颗都装不下 → 全退，底栏不换行', () => {
-    expect(planParameterChips(primary, 0).chips).toEqual([])
-    expect(keys(planParameterChips(primary, 0).demoted)).toEqual(['aspect_ratio', 'duration', 'resolution'])
+  it('测得装不下时仍保留全部报价参数，长尾才进齿轮', () => {
+    expect(keys(planParameterChips(primary, 0).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
+    expect(planParameterChips(primary, 0).demoted).toEqual([])
   })
 
   it('装得下就全摆（要几颗给几颗，不留位）', () => {
@@ -228,7 +228,7 @@ describe('planParameterChips / overflowParameterControls — 装不下时退回 
   it('退回来的参数回到它在档案里的原位，不因为刚从底栏退下来就排到末尾', () => {
     const declared = [resolution, ratio, duration, generateAudio]
     const { chips } = planParameterChips(splitPrimaryParameterControls(declared).primary, 2)
-    expect(keys(overflowParameterControls(declared, chips))).toEqual(['resolution', 'generate_audio'])
+    expect(keys(overflowParameterControls(declared, chips))).toEqual(['generate_audio'])
   })
 
   it('摆在底栏上的参数不会在 ⚙ 里再出现一次（同一个值只有一个家）', () => {

@@ -122,10 +122,14 @@ export function splitPrimaryParameterControls(controls: readonly DynamicModelCon
  */
 export function planParameterChips(
   primary: readonly DynamicModelControl[],
-  visibleCount: number,
+  _visibleCount: number,
 ): { chips: DynamicModelControl[]; demoted: DynamicModelControl[] } {
-  const safeCount = Math.max(0, Math.min(primary.length, Math.floor(visibleCount)))
-  return { chips: primary.slice(0, safeCount), demoted: primary.slice(safeCount) }
+  // Every control in `primary` is a priced/output-affecting role derived above.
+  // A fitted width may be smaller on Linux (or with a wider host font), but
+  // demoting one of these controls to ⚙ hides a value the user is about to
+  // approve. Long-tail, non-priced controls stay in `rest` and remain the
+  // only controls eligible for the overflow panel.
+  return { chips: [...primary], demoted: [] }
 }
 
 /**

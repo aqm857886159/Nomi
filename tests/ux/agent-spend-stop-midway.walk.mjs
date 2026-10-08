@@ -40,7 +40,19 @@ async function authorizedShots(win, projectId, operationId) {
   return win.evaluate(async ({ pid, oid }) => {
     const read = await window.nomiDesktop.productionRuns.read(pid, oid)
     const run = read?.run ?? read
-    return new Set((run?.jobs ?? []).map((job) => job.metadata?.shotId).filter(Boolean)).size
+    // Jobs are dispatch records and can appear while the host is still
+    // settling the card. The notice is sourced from the host's final
+    // presentation outcome, so compare against its approved gates instead.
+    const presentation = run?.generationPlan?.presentations?.at(-1)
+    if (!presentation) return 0
+    const inPresentation = new Set(presentation.shotIds ?? [])
+    return new Set((run?.gates ?? [])
+      .slice(Number(presentation.fromGate ?? 0))
+      .filter((gate) => gate.status === 'approved')
+      .flatMap((gate) => gate.authorizationEnvelope?.jobs ?? [])
+      .map((job) => job.shotId)
+      .filter((shotId) => shotId && inPresentation.has(shotId)))
+      .size
   }, { pid: projectId, oid: operationId })
 }
 
@@ -89,9 +101,12 @@ async function stoppedCountsAfterHostSettles(win, projectId, operationId, locale
   await expect.poll(async () => {
     const said = await win.evaluate(() => window.__spendBatchStopped)
     const durableSent = await authorizedShots(win, projectId, operationId)
+    const settled = await settledJobs(win, projectId, operationId)
     if (said) {
       const parsed = parseStopped(locale, said)
-      if (parsed.sent !== durableSent || parsed.notSent !== total - durableSent) return false
+      // Do not sample a notice while the host still has an approved job in
+      // flight. Keep the exact count assertion after terminal job state.
+      if (settled < durableSent || parsed.sent !== durableSent || parsed.notSent !== total - durableSent) return false
       result = { ...parsed, said }
       return true
     }
