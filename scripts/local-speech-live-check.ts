@@ -17,6 +17,7 @@
  * 缺素材就非零退出并打印缺什么，**不 skip、不退回合成素材**（skip = 「登记即放绿」，R17）。
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
