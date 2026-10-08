@@ -13,11 +13,14 @@
   "scope_paths": [
     "tests/ux/_walkInstances.mjs",
     "tests/ux/_launchApp.mjs",
-    "tests/ux/full-walk/launch.mjs"
+    "tests/ux/full-walk/launch.mjs",
+    "tests/ux/canvas-follow-hand/session.mjs",
+    "tests/ux/canvas-follow-hand.perf.mjs"
   ],
   "entry_points": [
     "launchNomiApp",
-    "startPlaybook and waitForOtherNomiToExit"
+    "startPlaybook and waitForOtherNomiToExit",
+    "canvas-follow-hand performance preflight"
   ],
   "external_sources": [],
   "internal_only_reason": "The ownership invariant is internal to the test harness; no third-party behavior decides which process the harness may wait for.",
@@ -86,17 +89,17 @@
     ]
   },
   "regression_tests": [
-    "tests/ux/_walkInstances.test.mjs"
+    "tests/ux/_walkInstances.test.mjs",
+    "scripts/e2e-launch-capability.node-test.mjs"
   ],
   "class_regression_tests": [
-    "tests/ux/_walkInstances.test.mjs"
+    "tests/ux/_walkInstances.test.mjs",
+    "scripts/e2e-launch-capability.node-test.mjs"
   ],
   "legacy_paths": {
-    "status": "removed",
-    "removed_paths": [
-      "tests/ux/full-walk/launch.mjs"
-    ],
-    "rationale": "???????? tasklist/ps ???????????????"
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "旧的 tasklist/ps 进程名扫描是在 tests/ux/full-walk/launch.mjs 原地替换的，没有并行旧文件或迁移路径。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -112,13 +115,13 @@
   "door_reduction": {
     "before": 2,
     "after": 2,
-    "why_not": "??????????????????????????????????????"
+    "why_not": "登记写入与登记读取是两个共享边界；启动和等待分别需要各自的入口，不能合并成一扇门。"
   },
   "invariant_owner_layer": {
     "layer": "tests/ux/_walkInstances.mjs",
     "tests": [
       "tests/ux/_walkInstances.test.mjs"
     ],
-    "why": "????????????????????????????????"
+    "why": "共享助手是唯一负责登记、存活过滤和残留清理的边界，两个启动器只调用它；测试直接覆盖该边界的四类等待判定。"
   }
 }

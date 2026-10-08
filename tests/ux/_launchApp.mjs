@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url'
 import { ensureElectronSignature } from '../../scripts/ensure-electron-signature.mjs'
 import { installFeelObserver } from './_feel-observer.mjs'
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
-import { registerWalkInstance } from './_walkInstances.mjs'
+import { registerWalkProcess } from './_walkInstances.mjs'
 
 const require = createRequire(import.meta.url)
 const catalogVersionManifest = require('../../electron/catalog/catalogVersion.json')
@@ -414,8 +414,7 @@ export async function launchNomiApp(options = {}) {
   } catch (error) {
     throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
   }
-  const instanceRegistration = registerWalkInstance({ pid: app.process().pid, worktree: repoRoot })
-  app.process().once('exit', instanceRegistration.cleanup)
+  const instanceRegistration = registerWalkProcess(app.process(), { worktree: repoRoot })
   const close = async () => {
     try { await closeNomiApp(app) } finally { instanceRegistration.cleanup() }
   }

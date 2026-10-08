@@ -49,7 +49,7 @@ const shotDir = path.dirname(outFile)
 fs.mkdirSync(shotDir, { recursive: true })
 
 // 别的 Electron 只会污染毫秒数；快速档判的是计数，只提醒不拦（CI 上前一步冒烟留下的进程不该让它红）。
-const others = otherElectronProcesses()
+const others = otherElectronProcesses(repo)
 if (others.length && !structural && !flag('--allow-other-electron')) {
   throw new Error(`同机还有 ${others.length} 个 Electron / Nomi 进程（${[...new Set(others)].join(', ')}），会抢 GPU 与 CPU，帧数不可比。关掉再跑，或加 --allow-other-electron 明知故跑。`)
 }

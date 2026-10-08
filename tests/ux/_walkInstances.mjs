@@ -21,6 +21,16 @@ export function registerWalkInstance({ pid, worktree, registryDir = WALK_INSTANC
   return { file, cleanup: () => { if (!cleaned) { cleaned = true; try { fs.rmSync(file, { force: true }) } catch {} } } }
 }
 
+/** Playwright's Electron test double may omit ChildProcess fields; real launches always expose pid/once. */
+export function registerWalkProcess(processHandle, options) {
+  if (!Number.isInteger(processHandle?.pid) || typeof processHandle?.once !== 'function') {
+    return { file: null, cleanup: () => {} }
+  }
+  const registration = registerWalkInstance({ pid: processHandle.pid, ...options })
+  processHandle.once('exit', registration.cleanup)
+  return registration
+}
+
 export function readLiveWalkInstances({ worktree, registryDir = WALK_INSTANCE_DIR, isProcessAlive = isAlive } = {}) {
   if (typeof worktree !== 'string' || !worktree) throw new TypeError('walk instance worktree is required')
   ensureRegistryDir(registryDir)
