@@ -1,0 +1,45 @@
+
+ RUN  v4.1.8 D:/Nomi-sbbatch
+
+x··
+node.exe :
+At C:\Users\23732\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/creation/storyboard/storyboardSelectionMigration.test.ts > B5b legacy checkbox migration > reads a
+ legacy checked checkbox as skip without selecting the row
+AssertionError: expected { selected: true, skipped: false } to deeply equal { selected: false, skipped: true }
+
+- Expected
++ Received
+
+  {
+-   "selected": false,
+-   "skipped": true,
++   "selected": true,
++   "skipped": false,
+  }
+
+ ❯ src/workbench/creation/storyboard/storyboardSelectionMigration.test.ts:6:91
+      4| describe('B5b legacy checkbox migration', () => {
+      5|   it('reads a legacy checked checkbox as skip without selecting the ro…
+      6|     expect(readStoryboardCheckboxState({ checked: true, legacyCheckbox…
+       |                                                                                           ^
+      7|   })
+      8|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  21:04:19
+   Duration  521ms (transform 107ms, setup 154ms, import 24ms, tests 9ms, environment 0ms)
+
+
+exitCode=1

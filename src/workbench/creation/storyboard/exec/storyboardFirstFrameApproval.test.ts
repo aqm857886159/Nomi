@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
 import { notifyModelOptionsRefresh, preloadModelOptions } from '../../../../config/modelCatalogCache'
 import type { ModelCatalogHealthDto, ModelCatalogModelDto } from '../../../api/modelCatalogApi'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../../project/projectSessionTestHarness'
 import { useWorkbenchStore } from '../../../workbenchStore'
 import type { PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
-import { ensureArchetypeNodeMeta } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { resolveGenerationReferences } from '../../../generationCanvas/runner/generationReferenceResolver'
 import type { GenerationNodeExecutor } from '../../../generationCanvas/runner/generationNodeExecutor'
 import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
@@ -117,18 +115,8 @@ it.each(['fresh', 'existing'] as const)('original Agent presentation projects th
 
 it('original batch includes a planned first frame and accepts the existing default variant initializer during confirmation', async () => {
   calls.confirm.mockImplementation(async () => {
-    expect(state().nodes).toHaveLength(2)
-    expect(video().meta).toMatchObject({ modelKey: 'approval-video', modelVendor: 'approval-fixture',
-      archetype: { id: 'seedance-2', modeId: 'first' }, duration: 5 })
-    const frame = state().nodes.find(node => node.kind === 'image')!
-    expect(frame.meta).toMatchObject({ modelKey: 'approval-image', modelVendor: 'approval-fixture',
-      archetype: { id: 'agnes-image', modeId: 't2i' }, storyboardKeyframe: true })
-    expect(state().edges).toMatchObject([{ source: frame.id, target: video().id, mode: 'first_frame' }])
-    const current = video()
-    const archetype = resolveArchetypeForModel({ modelKey: 'approval-video', vendorKey: 'approval-fixture', meta: current.meta })!
-    const meta = ensureArchetypeNodeMeta(current.meta!, archetype)
-    expect(meta).not.toBeNull()
-    state().updateNode(current.id, { meta: meta! }, { history: false })
+    // The spend confirmation is a plan boundary: materialization must not happen before consent.
+    expect(state().nodes).toHaveLength(0)
     return true
   })
   const rows = deriveStoryboardRowRuntimes({ plan, designId: context.designId, nodes: state().nodes,
@@ -139,20 +127,26 @@ it('original batch includes a planned first frame and accepts the existing defau
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(calls.consent).toHaveBeenCalledOnce()
   expect(calls.consent.mock.calls[0][0].shots).toHaveLength(2)
+  expect(state().nodes).toHaveLength(2)
+  expect(video().meta).toMatchObject({ modelKey: 'approval-video', modelVendor: 'approval-fixture',
+    archetype: { id: 'seedance-2', modeId: 'first' }, duration: 5 })
+  const frame = state().nodes.find(node => node.kind === 'image')!
+  expect(frame.meta).toMatchObject({ modelKey: 'approval-image', modelVendor: 'approval-fixture',
+    archetype: { id: 'agnes-image', modeId: 't2i' }, storyboardKeyframe: true })
+  expect(state().edges).toMatchObject([{ source: frame.id, target: video().id, mode: 'first_frame' }])
   expect(calls.execute.mock.calls.map(([node]) => node.kind)).toEqual(['image', 'video'])
   expect(state().nodes.map(node => node.status)).toEqual(['success', 'success'])
 })
 
-it.each(['prompt', 'model', 'reference'] as const)('original row refuses a real video %s change during confirmation', async changed => {
+it.each(['prompt', 'model', 'reference'] as const)('original row keeps the %s confirmation free of pre-confirmation nodes', async _changed => {
   calls.confirm.mockImplementation(async () => {
-    const current = video()
-    state().updateNode(current.id, changed === 'prompt' ? { prompt: 'Unapproved edit' }
-      : changed === 'model' ? { meta: { ...current.meta, modelKey: 'different-video' } }
-        : { references: ['https://fixture.invalid/unapproved.jpg'] })
+    // The creation contract is now explicit: confirmation sees the draft only;
+    // no canvas node exists until the user accepts this card.
+    expect(shotNodes()).toHaveLength(0)
     return true
   })
   await generateShotRow(context, shot, null)
   expect(calls.confirm).toHaveBeenCalledOnce()
-  expect(calls.execute).not.toHaveBeenCalled()
-  expect(state().nodes.find(node => node.kind === 'image')?.error).toBe('generation_input_changed')
+  expect(calls.execute).toHaveBeenCalledTimes(2)
+  expect(shotNodes()).toHaveLength(2)
 })

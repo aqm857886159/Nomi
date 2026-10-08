@@ -120,13 +120,9 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         sourceSegment={overrides.sourceSegment}
         onInsertAbove={NOOP}
         onInsertBelow={NOOP}
-        onSaveAsReference={NOOP}
         onCopy={NOOP}
         onMoveToScene={NOOP}
         scenes={plan.scenes ?? []}
-        targetShots={[]}
-        allShots={plan.shots}
-        sourcePosition={0}
         selected={overrides.selected ?? false}
         onSelect={NOOP}
         isDragOver={overrides.isDragOver ?? false}

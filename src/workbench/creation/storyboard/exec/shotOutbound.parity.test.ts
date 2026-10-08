@@ -7,6 +7,7 @@ import { storyboardPlanToCreateNodesArgs, renderShotNodePrompt, type PlanShot, t
 import { compileShotOutbound } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import { referenceSlotStorage } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { useWorkbenchStore } from '../../../workbenchStore'
+import { useSpendConfirmStore } from '../../../generationCanvas/spend/spendConfirm'
 import { shotReferenceMetaPatch } from '../shotRow/shotReferenceSlots'
 import { projectPlanShotsOntoCreatedNodes, projectStoryboardDesign } from './storyboardProjection'
 import { generateShotRow, materializeShotRow, runStoryboardBatch } from './storyboardRowActions'
@@ -24,11 +25,19 @@ vi.mock('../../../generationCanvas/agent/availableModels', () => ({
   resolveStoryboardVideoDefault: async () => ({}),
 }))
 vi.mock('../../../generationCanvas/runner/generationRunController', () => ({
-  confirmAndRunNode: async () => 'started',
- 
+  confirmAndRunNode: async (_nodeId: string, options: { deferredMaterialization?: { materialize: () => Promise<string> } }) => {
+    await options.deferredMaterialization?.materialize()
+    return 'started'
+  },
+
   regenerateNodeInPlace: vi.fn(),
 }))
-vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: async () => 'started' }))
+vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({
+  confirmAndRunPlan: async (_plan: unknown, options: { deferredMaterialization?: { materialize: () => Promise<unknown> } }) => {
+    await options.deferredMaterialization?.materialize()
+    return 'started'
+  },
+}))
 
 const archetype = resolveArchetypeForModel({ modelKey: 'MiniMax-H3', vendorKey: 'apimart' })!
 const mode: ArchetypeMode = archetype.modes.find((candidate) => candidate.slots.some((slot) => slot.kind === 'image_ref'))
@@ -77,6 +86,15 @@ beforeEach(() => {
 })
 
 const expectedReference = (): unknown => shotReferenceMetaPatch(mode, compileShotOutbound(shot, 'shot').referenceBindings)[metaKey]
+const confirmSpend = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm')
+
+beforeEach(() => {
+  confirmSpend.mockReset().mockImplementation(async (request) => {
+    const anchor = request.planRows?.find((item) => item.id === 'anchor:hero')
+    if (anchor) request.onPlanToggle?.(anchor, false)
+    return true
+  })
+})
 
 describe('一镜发出去的只有行上的提示词和行上看得见的参考图（唯一出口 compileShotOutbound）', () => {
   it('出口本身：提示词逐字等于行上写的，参考图只有行上摆着的；anchorIds 不参与', () => {
@@ -131,5 +149,11 @@ describe('一镜发出去的只有行上的提示词和行上看得见的参考�
 
   it('renderShotNodePrompt（节点覆写对账用）读的也是同一个出口', () => {
     expect(renderShotNodePrompt(plan, shot)).toBe(compileShotOutbound(shot, 'shot').prompt)
+  })
+
+  it('取消新的确认等待不会派发，确认入口仍使用同一份行级出站内容', async () => {
+    confirmSpend.mockResolvedValue(false)
+    await expect(runStoryboardBatch(ctx, [row])).resolves.toBe('declined')
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
   })
 })
