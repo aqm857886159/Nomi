@@ -107,7 +107,7 @@ export const LAB_SCREENS: readonly LabScreen[] = [
   },
   {
     id: 'canvas-handles',
-    label: '画布 · 左右拉环与空节点「试试」（提案）',
+    label: '画布 · 左右拉环与空节点「试试」',
     states: CANVAS_HANDLES_STATES,
     cell: { width: CANVAS_HANDLES_CELL_WIDTH, height: CANVAS_HANDLES_CELL_HEIGHT },
   },

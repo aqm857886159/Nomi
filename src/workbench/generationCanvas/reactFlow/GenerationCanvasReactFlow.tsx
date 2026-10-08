@@ -73,6 +73,7 @@ import {
   overlayCanvasDragDraft,
 } from './canvasDragDraft'
 import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, isKeyboardMoveBatch, keyboardMoveScope, restoreDisownedKernelPositions } from './canvasDragWriteback'
+import { GenerationFlowHandleMenuScope } from './generationFlowNodeContext'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
@@ -387,6 +388,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     handleNodeContextAction,
     handleAddConnectedNode,
     openAddNodeMenuAt,
+    openHandleMenu, assetInputPicker, closeAssetInputPicker, handleAddInputFromAssets, handleAddInputPickOnCanvas,
   } = useGenerationCanvasReactFlowMenus({
     readOnly,
     hostRef,
@@ -672,6 +674,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         </React.Suspense>
       ) : null}
       {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} /> : null}
+      <GenerationFlowHandleMenuScope open={openHandleMenu}>
       <GenerationCanvasReactFlowViewport
         flowNodes={renderedFlowNodes}
         isNodeDragging={nodeDragActive}
@@ -723,6 +726,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onClearSelection={clearSelection}
         groupToolbar={groupToolbar}
       />
+      </GenerationFlowHandleMenuScope>
       <GenerationCanvasReactFlowOverlays
         readOnly={readOnly}
         activeCategoryId={activeCategoryId}
@@ -735,7 +739,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         screenshotOverlay={screenshotOverlay}
         contextNodeMenu={contextNodeMenu}
         connectionCreateMenu={connectionCreateMenu} onCloseConnectionCreateMenu={closeConnectionCreateMenu}
-        onCreateEmpty={() => useGenerationCanvasStore.getState().addNode({ kind: 'image', categoryId: activeCategoryId, select: true })}
+        onAddInputFromAssets={handleAddInputFromAssets} onAddInputPickOnCanvas={handleAddInputPickOnCanvas}
+        assetInputPicker={assetInputPicker} onCloseAssetInputPicker={closeAssetInputPicker}
+        getInsertionPosition={getInsertionPosition}
         onNodeContextAction={handleNodeContextAction}
         onCloseContextNodeMenu={closeContextNodeMenu}
         onAddContextNode={handleAddContextNode}

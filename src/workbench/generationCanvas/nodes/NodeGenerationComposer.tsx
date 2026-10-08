@@ -59,6 +59,7 @@ import { useProductionRunStore } from '../../production/productionRunStore'
 import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
 import { shotClaimCopy } from '../../observability/shotClaimCopy'
+import { useNodePromptFocusRequest } from './nodePromptFocus'
 
 // C5 P2：文本节点的三种生成模式（label 在渲染处翻译）。
 // 存**整键**而非相对片段：编译器替我们校验键存在（satisfies TranslationKey），
@@ -220,6 +221,13 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     isModel3dLikeGenerationNodeKind(node.kind)
   // 持有 prompt 编辑器实例,供「点参考 tile → 在光标处插入 chip」(@ 内联引用主路径)。
   const [promptEditor, setPromptEditor] = React.useState<Editor | null>(null)
+  // 空节点「试试」配方跑完要把光标放进这张卡的提示词（nodes/nodePromptFocus：配方先跑、生成框后挂，请求等它来取）。
+  const focusPrompt = React.useMemo(() => (promptEditor && !inPanel ? () => {
+    if (promptEditor.isDestroyed) return false
+    promptEditor.commands.focus('end')
+    return true
+  } : null), [inPanel, promptEditor])
+  useNodePromptFocusRequest(node.id, focusPrompt)
   // 拖文件到卡 → 加为参考（捷径 A）。仅当当前模式有数组参考槽时接管拖拽。
   const { acceptsDrop, isDragOver, isUploading, dropHandlers } = useNodeAssetDrop(node, reportFeedback, writeAccess)
   // @ 候选 = 当前模式 image_ref 槽的有序填充（连线在前+上传，option 2 单源），与面板编号①②③、

@@ -1,0 +1,238 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-canvas-node-input-owner",
+  "change_kind": "structural",
+  "problem_type": "Whether a canvas node kind takes input / has referenceable output had no owner, so every connection entry guessed it differently",
+  "symptom": "Left 「+」 on a video card greys out 图片 / 文字 (its main inputs); left 「+」 on a text card creates a meaningless image → text edge; a plain click on 「+」 does nothing; uploaded asset and text cards show a left 「+」 that cannot be used.",
+  "direct_cause": "createVerdictsForStart (useGenerationCanvasReactFlowMenus) always judged the started card as the SOURCE even on the left side, while connectToNode makes the new node its UPSTREAM; validateReferenceEdge returned ok for any target without a model archetype (asset, text, clip, director...); the source handle had no click handler and connectOnClick was false; the visual contract mounted both rings on every kind.",
+  "class_root": "The node-kind definitions (nodes/registry.ts) declared what a kind generates but not what it takes in or gives out, so rings, the left menu, the connection gate and the clip node each inferred it on the spot.",
+  "affected_population": [
+    "Every canvas user connecting nodes by ring click, ring drag to blank space, drop on a card, canvas pick, @-mention, auto-reference, group links or Agent connect_nodes",
+    "Old projects that already hold edges into asset / text cards (they keep loading; new ones are refused)"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/registry.ts",
+    "src/workbench/generationCanvas/model/generationNodeKinds.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+    "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+    "src/workbench/generationCanvas/quickActions/nodeTryRecipes.ts",
+    "src/workbench/generationCanvas/nodes/completeNodeConnection.ts"
+  ],
+  "entry_points": [
+    "Ring click → openHandleMenu → NodeDeriveMenu (left / right)",
+    "Ring drag released on blank space → handleConnectEnd → connectionMenuVerdicts",
+    "Ring drag released on a card → completeNodeConnection → connectToNode → resolveCanvasReferenceConnection → validateReferenceEdge",
+    "Canvas pick mode → pickCanvasInputFor → canConnectInput / connectExistingInput",
+    "@-mention of a canvas node → useNodeMentionSource → validateReferenceEdge",
+    "Auto-reference → canvasAutoReference → validateReferenceEdge",
+    "Agent connect_nodes → generationCanvasTools → validateReferenceEdge",
+    "Group input links → groupInputLinks / materialization → validateReferenceEdge"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/xyhandle/XYHandle.ts",
+      "checked_at": "2026-10-08",
+      "purpose": "Confirms a pointer down on a handle only starts a connection after moving past dragThreshold (default 1px), so a plain click never reaches onConnectStart / onConnectEnd and needs its own click handler (bug ①)."
+    }
+  ],
+  "invariants": [
+    "Every node kind declares connects.input ('models' | asset list | false) and connects.output; the type makes it mandatory.",
+    "A ring exists on a side only when that side can be used (getGenerationNodeConnectionSides reads connects).",
+    "Left-side verdicts judge the card as TARGET (connectionCreateVerdictsForTarget); right-side as SOURCE.",
+    "No NEW edge into a kind with connects.input === false passes validateReferenceEdge; existing edges are never deleted by this gate."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/generationCanvasTools.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/edgeModeMenu.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+      "symbol": "validateReferenceEdge"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "The six doors are six genuinely different user / agent gestures (agent connect, plan partition, edge-mode menu, manual / menu / pick connection, @-mention, auto-reference). They already converge on one function; the fix moved the missing fact into that function (via the kind definition) instead of adding a seventh check, so the count stays and every door inherits the rule."
+  },
+  "generality_proof": "The fact lives on the kind definition and is read by validateReferenceEdge, the single function all six edge-creation doors call, plus by the ring contract and both menu verdict functions. A new caller that creates edges through any of these doors cannot bypass it; a new node kind cannot be added without declaring connects (TypeScript error).",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/registry.ts",
+      "symbol": "connects",
+      "responsibility": "Single declaration of what each node kind takes in and gives out."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "validateReferenceEdge",
+      "responsibility": "Refuses new edges into kinds that take no input and enforces asset lists for clip / director."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "connectionCreateVerdictsForTarget",
+      "responsibility": "Left-ring verdicts judged with the card as target, sharing reasons with the right-ring verdicts."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+      "symbol": "resolveGenerationFlowConnectionAffordance",
+      "responsibility": "Ring existence per side, read from the kind definition."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts",
+      "entry_point": "connectionMenuVerdicts",
+      "disposition": "enforced",
+      "evidence": "Replaces createVerdictsForStart; left side calls connectionCreateVerdictsForTarget (connectionMenuModel.test.ts)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "entry_point": "resolveCanvasReferenceConnection",
+      "disposition": "enforced",
+      "evidence": "Calls validateReferenceEdge; manual drop, ring menu, recipes and pick mode all reach it through connectToNode."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/groupInputLinks.ts",
+      "entry_point": "planGroupLinkEdges",
+      "disposition": "enforced",
+      "evidence": "Calls validateReferenceEdge per member; groupInputLinks.test.ts now reports target_takes_no_input for text members."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "entry_point": "ClipNode upstreamMedia",
+      "disposition": "enforced",
+      "evidence": "Clip's own upstream reader (image / video results) is now declared as connects.input ['image','video'] instead of being inferred from 'no archetype = accept all'."
+    },
+    {
+      "path": "electron/capabilityCore/canvasGraph.ts",
+      "entry_point": "connectNodes",
+      "disposition": "not-affected",
+      "evidence": "The main-process MCP connect path never ran validateReferenceEdge (pre-existing gap of the wider class, not introduced here); it cannot import the renderer registry. Recorded in residual_risks."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new entry (the coming @ → canvas node pick, new node kinds) would otherwise infer input / output again; the clip node was already a second inference site.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs validateReferenceEdge → 6 write doors, all converge",
+      "node scripts/door-map.mjs connectNodes → 17 write doors; system provenance edges (panorama screenshot → asset, director / clip / whiteboard outputs) use store.connectNodes without the gate and are intentionally untouched",
+      "git grep providesImageReference / referenceAssetKindForNode → referenceAssetKindForNode now gated by connects.output"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/registry.ts",
+    "invariant": "Every node kind declares connects; rings, both menu verdicts, recipes and validateReferenceEdge read it.",
+    "failure_mode": "A missing declaration is a compile error; a new edge into a kind that takes no input is refused with target_takes_no_input and user-visible feedback.",
+    "exception_policy": "none",
+    "strategy": "Move the fact to the earliest shared place (the kind definition) and make the existing single gate read it.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/registry.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+      "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.target.test.ts",
+    "src/workbench/generationCanvas/reactFlow/connectionMenuModel.test.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
+    "tests/ux/canvas-handle-menus.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.target.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "src/devlab/designLab/canvasHandles/states/03-now.tsx"
+    ],
+    "rationale": "createVerdictsForStart (side-blind verdicts) deleted; unused showFlowConnectionHandle deleted; the specimen's RECEIVES_WITHOUT_ARCHETYPE list and DOM overrides deleted with the lab kit rewrite; the old-behaviour comparison states deleted."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "xyflow behaviour (dragThreshold) is used as documented; the click handler is ours. No dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Old edges into kinds that no longer take input keep loading and rendering (target handles stay mounted, hidden source handles stay mounted for anchoring) and can be disconnected; only new ones are refused.",
+  "residual_risks": [
+    "electron/capabilityCore/canvasGraph.ts connectNodes (external MCP connect) still has no capability gate at all; enforcing connects there needs the kind facts in a main-process-readable layer.",
+    "test:canvas:performance not run on this Windows line (unverified)."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-08",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/registry.ts",
+    "tests": [
+      "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.target.test.ts"
+    ],
+    "why": "The plugin definitions are the single declaration of node kinds; connects is a required field there, and every reader goes through getGenerationNodeDefinition."
+  },
+  "structural_evidence": {
+    "affected_paths": [
+      "src/workbench/generationCanvas/nodes/registry.ts",
+      "src/workbench/generationCanvas/model/generationNodeKinds.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+      "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "src/workbench/generationCanvas/quickActions/nodeTryRecipes.ts",
+      "src/workbench/generationCanvas/nodes/completeNodeConnection.ts"
+    ],
+    "preserved_exports": [
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "validateReferenceEdge"
+      },
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "connectionCreateVerdictsForSource"
+      },
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "referenceAssetKindForNode"
+      },
+      {
+        "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+        "name": "resolveGenerationFlowConnectionAffordance"
+      }
+    ],
+    "behavior_preservation": "Right-ring verdicts and copy are unchanged (connectionCreateVerdictsForSource untouched); referenceAssetKindForNode returns the same asset for every kind that had one (connects.output is true exactly for the kinds it returned non-null for, plus text which still returns null); image / video / generation targets validate exactly as before. Changed on purpose (user decision 10-08): rings disappear on unusable sides, the left menu judges the card as target, new edges into kinds that take no input are refused, plain click on a ring opens its menu.",
+    "verification_limits": "Unit tests, typecheck, i18n and design-lab structure ran on Windows; the real-Electron walk canvas-handle-menus ran headless off-screen on Windows (zh / en / dark). test:canvas:performance and macOS were not run on this line."
+  }
+}

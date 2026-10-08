@@ -2,15 +2,13 @@ import { CanvasAddPreferenceActions } from './CanvasAddPreferenceActions'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { cn } from '../../../utils/cn'
-import { IconPlus, IconRoute, IconUpload } from '../../../vendor/tablerIcons'
+import { IconPlus, IconRoute } from '../../../vendor/tablerIcons'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
-import { getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design'
-import { importLocalFilesToGenerationCanvas } from './canvasStageDrop'
+import { intentActionLabel, intentIcon, intentLabel, nodeKindLabel, useCanvasAddIntentAction, useLocalFilePicker } from './canvasAddIntentActions'
 import {
   canvasFullAddSections,
   canvasMoreAddSections,
@@ -20,75 +18,11 @@ import {
   type CanvasAddSectionView,
 } from './canvasToolbarModel'
 
-const QUICK_ADD_NODE_ITEMS = getQuickAddGenerationNodePlugins()
-
 // 左缘工具条与右键菜单**同源**：两边都从 canvasToolbarModel 的意图表 derive，永远不会分叉。
 // 2026-06-15：左侧栏瘦身为「纯创建节点」——复制/剪切走快捷键(⌘C/⌘X)、批量生成移到选中浮条、
 // 发送到时间轴删除(节点可直接拖入时间轴)。
 // 2026-09-06「第三档」：9 个平铺 → 5 常驻 + 一个「更多」，每段带名字（§1.5.1 常驻预算 / §1.5.3 分段要有名字）。
-
-function nodeKindLabel(kind: GenerationNodeKind, t: TFunction): string {
-  if (kind === 'text') return t('canvas.nodeKinds.text')
-  if (kind === 'image') return t('canvas.nodeKinds.image')
-  if (kind === 'video') return t('canvas.nodeKinds.video')
-  if (kind === 'clip') return t('canvas.nodeKinds.clip')
-  if (kind === 'audio') return t('canvas.nodeKinds.audio')
-  if (kind === 'model3d') return t('canvas.nodeKinds.model3d')
-  if (kind === 'whiteboard') return t('canvas.nodeKinds.whiteboard')
-  if (kind === 'panorama') return t('canvas.nodeKinds.panorama')
-  if (kind === 'director') return t('canvas.nodeKinds.director')
-  return kind
-}
-
-/** 菜单里这一条写什么字（节点用种类名；导入那条是「文件…」，段名已经说了「导入」）。 */
-function intentLabel(intent: CanvasAddIntent, t: TFunction): string {
-  return intent.kind ? nodeKindLabel(intent.kind, t) : t('canvas.importFile')
-}
-
-/** 无障碍名 / tooltip：脱离段名单独读也说得清「按下去会发生什么」。 */
-function intentActionLabel(intent: CanvasAddIntent, t: TFunction): string {
-  return intent.kind ? t('canvas.addNode', { type: nodeKindLabel(intent.kind, t) }) : t('canvas.importFileAction')
-}
-
-type IntentIcon = (props: { size?: number; stroke?: number }) => JSX.Element
-
-function intentIcon(intent: CanvasAddIntent): IntentIcon {
-  if (!intent.kind) return IconUpload as unknown as IntentIcon
-  const plugin = QUICK_ADD_NODE_ITEMS.find((item) => item.kind === intent.kind)
-  return (plugin?.icon ?? IconPlus) as unknown as IntentIcon
-}
-
-/**
- * 「挑本地文件」的共享小钩子：左缘「导入」钮与右键菜单「导入 · 文件…」用的是**同一个**受控
- * `<input type="file">` 形态与同一套过滤，只是落点不同。选完交给调用方决定落在哪一点。
- */
-function useLocalFilePicker(onFiles: (files: File[]) => void): { input: JSX.Element; open: () => void } {
-  const ref = React.useRef<HTMLInputElement>(null)
-  const open = React.useCallback(() => {
-    ref.current?.click()
-  }, [])
-  const input = (
-    <input
-      ref={ref}
-      type="file"
-      multiple
-      // 画布上只有图片 / 视频有落点（音频的家是素材库 → 时间轴），让选择器自己筛掉，
-      // 而不是让用户选完再被静默丢弃。
-      accept="image/*,video/*"
-      className="hidden"
-      aria-hidden="true"
-      tabIndex={-1}
-      onChange={(event) => {
-        // 不在这里筛：选中了却落不下的（音频在画布上没有节点可落）必须由导入那条路报出理由。
-        // 此前这里先筛一遍、筛空就什么都不做——用户选完一个 mp3，界面一个字都没有（实测静默）。
-        const files = Array.from(event.currentTarget.files || [])
-        event.currentTarget.value = ''
-        if (files.length) onFiles(files)
-      }}
-    />
-  )
-  return { input, open }
-}
+// 意图的名字 / 图标 / 执行（建节点或挑本地文件）在 canvasAddIntentActions：左缘、右键菜单、空画布任务卡共用。
 
 /** 一段带名字的菜单（§1.5.3：光加 `w-px` 分隔线不够，段要有名字）。 */
 function CanvasAddSectionList({
@@ -246,21 +180,11 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
   }, [clearCloseTimer, clearOpenTimer])
   React.useEffect(() => () => { clearOpenTimer(); clearCloseTimer() }, [clearCloseTimer, clearOpenTimer])
 
-  const handleAddNode = (kind: GenerationNodeKind) => {
-    addNode({ kind, position: getInsertionPosition(), categoryId })
-  }
-
-  // 「导入」= 系统文件选择器 → **画布现有那条本地文件路径**（拖进画布走的同一条：
-  // importLocalMediaFilesToGenerationCanvas，复制进项目 + 上传 + 建 asset 节点）。
-  // 这里不另建 asset 节点，也不另起一套提示（P1：无并行版）。
-  const picker = useLocalFilePicker((files) => {
-    void importLocalFilesToGenerationCanvas(files, { basePosition: getInsertionPosition(), categoryId })
-  })
+  const addIntent = useCanvasAddIntentAction({ getInsertionPosition, categoryId })
 
   const handlePick = (intent: CanvasAddIntent) => {
     closeMore()
-    if (intent.kind) handleAddNode(intent.kind)
-    else picker.open()
+    addIntent.run(intent)
   }
 
   return (
@@ -290,7 +214,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
         if (event.key === 'Escape') closeMore()
       }}
     >
-      {picker.input}
+      {addIntent.pickerInput}
       <TooltipProvider delayDuration={250} disableHoverableContent>
         {canvasResidentAddIntents(preference).map((intent) => {
           const Icon = intentIcon(intent)
@@ -309,7 +233,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                     '[&>svg]:size-[18px] [&>svg]:stroke-[1.8]',
                   )}
                   aria-label={action}
-                  onClick={() => (intent.kind ? handleAddNode(intent.kind) : picker.open())}
+                  onClick={() => addIntent.run(intent)}
                 >
                   <Icon size={18} stroke={1.6} />
                   <span className="hidden">{intentLabel(intent, t)}</span>

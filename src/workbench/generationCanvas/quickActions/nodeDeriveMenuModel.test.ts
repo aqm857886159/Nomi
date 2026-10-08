@@ -13,7 +13,7 @@ type Item = Extract<WorkbenchMenuNode, { id: string; label: string }> & { disabl
 describe('「给它加输入」 menu items', () => {
   const handlers = { onPick: vi.fn(), onFromAssets: vi.fn(), onPickOnCanvas: vi.fn() }
   const items = buildNodeAddInputMenuItems(connectionCreateVerdictsForTarget(image, NODE_DERIVE_KINDS), image, t, handlers)
-  const group = items[0] as { kind: 'group'; label: string; items: Item[] }
+  const group = items[0] as unknown as { kind: 'group'; label: string; items: Item[] }
 
   it('titles the group 「给它加输入」 and lists the four kinds in the right-menu order', () => {
     expect(group.label).toBe('generationCommon.quickActions.addInput.title')

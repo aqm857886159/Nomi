@@ -10,6 +10,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useAllProjectAssets } from '../../assets/useAllProjectAssets'
 import AssetPicker from '../../assets/AssetPicker'
 import AssetPickerPopover from '../../assets/AssetPickerPopover'
+import { ClipEmptyTry } from '../quickActions/NodeTryList'
 import type { AssetRef } from '../../assets/assetTypes'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
@@ -561,6 +562,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             onResizeClip={handleResizeClip}
             onScrubPlayhead={selectFrame}
             onAddMaterial={readOnly ? undefined : () => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }}
+            emptyState={<ClipEmptyTry nodeId={node.id} readOnly={readOnly} />}
           />
         </div>
       </div>

@@ -1,7 +1,7 @@
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { CENTER_PLACEMENT_ANCHOR, type CanvasPlacementAnchor } from '../model/canvasPlacement'
 import { importLocalFilesToGenerationCanvas } from './canvasStageDrop'
-import { completeNodeConnection } from '../nodes/completeNodeConnection'
+import { createConnectedNode } from '../quickActions/nodeInputActions'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { CanvasContextNodeMenu } from './useCanvasContextNodeMenu'
@@ -22,6 +22,8 @@ type CanvasMenuActionsInput = {
     sourceSide: ConnectionAnchorSide
     canvasX: number
     canvasY: number
+    /** true = 拖线松手的那一点（卡落在那儿）；false = 点「+」出的菜单，(canvasX, canvasY) 只是卡旁边的期望落点、由 addNode 避让。 */
+    exactPosition: boolean
     /** 线从卡起还是从编组的「+」起；编组起的线新建节点后，组内每个成员各连一条（store.connectToGroup）。 */
     sourceKind: 'node' | 'group'
   } | null
@@ -33,8 +35,6 @@ type CanvasMenuActionsInput = {
     exactPosition?: boolean
     select?: boolean
   }) => { id: string }
-  startConnection: (nodeId: string, side: ConnectionAnchorSide) => void
-  startGroupConnection: (groupId: string, side: ConnectionAnchorSide) => void
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
   pasteNodes: (position: { x: number; y: number }, anchor?: CanvasPlacementAnchor) => void
@@ -86,19 +86,19 @@ export function buildCanvasMenuActions(input: CanvasMenuActionsInput): {
     }
   }
 
+  // 拉环菜单选一项：建节点 + 连线（左「+」新节点在上游、右「+」在下游）是一步撤销（quickActions/nodeInputActions）。
   const handleAddConnectedNode = (kind: GenerationNodeKind) => {
     if (!input.connectionCreateMenu) return
-    const { sourceNodeId, sourceSide, sourceKind, canvasX, canvasY } = input.connectionCreateMenu
-    const created = input.addNode({
+    const { sourceNodeId, sourceSide, sourceKind, canvasX, canvasY, exactPosition } = input.connectionCreateMenu
+    createConnectedNode({
+      anchorNodeId: sourceNodeId,
+      side: sourceSide,
+      sourceKind,
       kind,
       position: { x: canvasX, y: canvasY },
+      exactPosition,
       categoryId: input.activeCategoryId,
-      exactPosition: true,
-      select: true,
     })
-    if (sourceKind === 'group') input.startGroupConnection(sourceNodeId, sourceSide)
-    else input.startConnection(sourceNodeId, sourceSide)
-    completeNodeConnection(created.id)
     input.setConnectionCreateMenu(null)
   }
 

@@ -30,7 +30,9 @@ import {
 } from '../components/canvasNodeLevelOfDetail'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { selectFlowZoom } from './canvasViewportScale'
-import { GenerationFlowNodeScope } from './generationFlowNodeContext'
+import { GenerationFlowNodeScope, useGenerationFlowHandleMenu } from './generationFlowNodeContext'
+import { handleMenuAnchor } from './connectionMenuModel'
+import { useCanvasPickNodeState } from '../store/canvasPickMode'
 import { readGroupPort } from '../model/groupPort'
 import { sameGenerationFlowNodeRender } from '../nodes/flowNodeRenderGate'
 import { resolveGenerationFlowConnectionAffordance, type GenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
@@ -66,6 +68,7 @@ function resetMagneticHandlePosition(event: React.PointerEvent<HTMLSpanElement>)
 }
 
 type GenerationFlowConnectionHandleProps = {
+  nodeId: string
   side: 'left' | 'right'
   type: 'source' | 'target'
   affordance: GenerationFlowConnectionAffordance
@@ -76,6 +79,7 @@ type GenerationFlowConnectionHandleProps = {
 }
 
 function GenerationFlowConnectionHandle({
+  nodeId,
   side,
   type,
   affordance,
@@ -91,6 +95,17 @@ function GenerationFlowConnectionHandle({
   // 它们曾共用 `data-active`，于是吸附不可观测：正向断言对任意候选都过（假绿），反向永远清不掉（真红）。
   const snapped = activeHandleId === id
   const homeX = side === 'left' ? 'calc(100% - 28px)' : '28px'
+  const openHandleMenu = useGenerationFlowHandleMenu()
+  // 点一下「+」（不拖）= 出这一侧的菜单，锚在圈下（bug ①：以前把手没有点击，xyflow 要移动 >1px 才起线，纯点击什么都不发生）。
+  // 拖线照旧归 xyflow：移动过阈值才会起线，此时不会再有 click。
+  const handleRingClick = type === 'source' && affordance === 'magnetic' && openHandleMenu
+    ? (event: React.MouseEvent<HTMLSpanElement>) => {
+        event.stopPropagation()
+        const ring = event.currentTarget.querySelector('.generation-canvas-react-flow__handle-icon')?.getBoundingClientRect()
+        const anchor = ring ? handleMenuAnchor(ring) : { x: event.clientX, y: event.clientY }
+        openHandleMenu({ nodeId, side, clientX: anchor.x, clientY: anchor.y })
+      }
+    : undefined
   return (
     <Handle
       id={id}
@@ -99,6 +114,8 @@ function GenerationFlowConnectionHandle({
       isConnectableStart={type === 'source'}
       isConnectableEnd={type === 'target'}
       aria-label={label}
+      // 用不上的那一侧（拉环只出现在用得上的一侧）：把手元素挂着只为画旧边，对读屏也不存在。
+      aria-hidden={type === 'source' && affordance === 'hidden' ? true : undefined}
       data-side={side}
       data-affordance={type === 'source' ? affordance : 'target'}
       data-active={active ? 'true' : undefined}
@@ -130,6 +147,7 @@ function GenerationFlowConnectionHandle({
           onPointerMove={affordance === 'magnetic' ? updateMagneticHandlePosition : undefined}
           onPointerLeave={affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
           onPointerCancel={affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
+          onClick={handleRingClick}
         >
           <span className="generation-canvas-react-flow__handle-icon" aria-hidden="true">
             {affordance === 'magnetic' ? <IconPlus size={18} stroke={1.8} /> : null}
@@ -187,7 +205,12 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
     selected,
     primarySelection,
   })
-  const connectionAffordance = resolveGenerationFlowConnectionAffordance(node, primarySelection, pendingConnectionSourceId)
+  const leftAffordance = resolveGenerationFlowConnectionAffordance(node, 'left', primarySelection, pendingConnectionSourceId)
+  const rightAffordance = resolveGenerationFlowConnectionAffordance(node, 'right', primarySelection, pendingConnectionSourceId)
+  // 卡面压不压自己的把手看「有没有一侧是磁吸」（见 CSS 同名选择器）。
+  const connectionAffordance = leftAffordance === 'magnetic' || rightAffordance === 'magnetic' ? 'magnetic' : leftAffordance === 'dot' || rightAffordance === 'dot' ? 'dot' : 'hidden'
+  // 「在画布上点选」进行中：可点的卡描边（悬停加粗）、其余变灰（含正在编辑的那张）——store/canvasPickMode。
+  const pickState = useCanvasPickNodeState(node.id)
   const isPendingConnectionSource = pendingConnectionSourceId === node.id
   const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource)
   const startConnectionLabel = t('generationCommon.node.startConnection')
@@ -206,7 +229,12 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
 
   return (
     <div
-      className="generation-canvas-react-flow__node-shell"
+      className={cn(
+        'generation-canvas-react-flow__node-shell',
+        pickState === 'eligible' && 'cursor-pointer rounded-nomi ring-2 ring-nomi-accent/60 ring-offset-2 ring-offset-workbench-bg hover:ring-[3px] hover:ring-nomi-accent',
+        pickState === 'ineligible' && 'opacity-40 grayscale',
+      )}
+      data-pick={pickState ?? undefined}
       onDragStart={blockImplicitNativeDrag}
       // 卡面与自己把手的上下层由把手档位派生（见 generationCanvasReactFlow.css 的同名选择器）：
       // 只有磁吸档才把卡面抬到带子之上，小圆点档的把手必须压在卡面上。
@@ -261,8 +289,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       />
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
         </>
       ) : null}
       {!groupPort ? (
@@ -304,8 +332,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       ) : null}
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="left" type="source" affordance={leftAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="right" type="source" affordance={rightAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
         </>
       ) : null}
     </div>

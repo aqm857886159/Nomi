@@ -299,6 +299,7 @@ export const zhCN = {
   connection: {
     sourceUnavailable: '这个节点没有可作为参考的图/视频，先生成它或换个来源',
     unsupported: '目标模型不支持这种参考连线',
+    targetTakesNoInput: '这个节点不收输入，没有连上',
     slotsFull: '参考槽已满（最多 {{max}} 个），多出的连线不会被使用',
     referenceFull: '该参考已满，多出的连线不会被使用',
     mentionModeSwitched: '已切到「{{mode}}」，@ 的素材按参考使用',
@@ -721,6 +722,7 @@ export const en = {
     sourceUnavailable:
       'This node has no image or video available as a reference. Generate it first or choose another source.',
     unsupported: 'The target model does not support this reference connection.',
+    targetTakesNoInput: 'This node does not take inputs, so nothing was connected.',
     slotsFull: 'Reference slots are full (maximum {{max}}). Extra connections will not be used.',
     referenceFull: 'This reference input is full. Extra connections will not be used.',
     mentionModeSwitched: 'Switched to "{{mode}}" so the mention is used as a reference.',

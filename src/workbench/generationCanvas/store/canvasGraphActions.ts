@@ -105,7 +105,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
   cancelConnection: () => {
     set({ pendingConnectionSourceId: '', pendingConnectionSourceSide: 'right', pendingConnectionSourceKind: 'node' })
   },
-  connectToNode: (connectedNodeId) => {
+  connectToNode: (connectedNodeId, options) => {
     const pendingNodeId = get().pendingConnectionSourceId
     if (!pendingNodeId) return { ok: false, reason: 'dangling' }
     if (get().pendingConnectionSourceKind === 'group') {
@@ -161,7 +161,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     // 边语义按**目标当前模式**挑（单一真相源 selectConnectionEdgeMode）：数组参考槽（omni 角色参考）→
     // character_ref（有序，对应 character1..N）；单帧 i2v → 首/尾帧填空。无源/目标 → 默认通用 reference。
     const connection = sourceNode && targetNode
-      ? resolveCanvasReferenceConnection(sourceNode, targetNode, pre.nodes, pre.edges)
+      ? resolveCanvasReferenceConnection(sourceNode, targetNode, pre.nodes, pre.edges, options?.mode)
       : { ok: false as const, reason: 'dangling' as const }
     // 连边能力校验收口到此(手动连线总闸):错配参考槽等盲连在创建期就拦；
     // 文本→图片/视频的通用 reference 边作为 prompt 上下文放行。

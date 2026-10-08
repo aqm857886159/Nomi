@@ -92,7 +92,8 @@ export type CanvasGraphActions = {
   startGroupConnection: (groupId: string, side?: ConnectionAnchorSide) => void
   cancelConnection: () => void
   // 返回连边能力校验结果:ok=已连;否则带 reason(手动连线总闸,UI 据此提示)。
-  connectToNode: (targetNodeId: string) => EdgeCapabilityResult | GroupConnectResult
+  /** 完成一条待连线。`options.mode` = 调用方指定边语义（「试试」首尾帧配方：首帧 / 尾帧），仍过同一道连线总闸。 */
+  connectToNode: (targetNodeId: string, options?: { mode?: GenerationCanvasEdge['mode'] }) => EdgeCapabilityResult | GroupConnectResult
   connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode'], targetParamKey?: string, order?: number) => void
   /**
    * 把待连的线落到**一个组**上：给组内每个成员各连一根真边，并记下组入参

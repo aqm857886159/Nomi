@@ -12,7 +12,12 @@ import { CanvasArrivalHint } from '../components/CanvasArrivalHint'
 import type { ArrivalHint } from '../components/canvasArrivalModel'
 import { hasClipboardContent } from '../store/canvasClipboard'
 import type { CanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
-import type { CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
+import type { CanvasAssetInputPicker, CanvasConnectionCreateMenu } from './useGenerationCanvasReactFlowMenus'
+import { CanvasPickModeLayer } from '../components/CanvasPickModeLayer'
+import AssetPicker from '../../assets/AssetPicker'
+import AssetPickerPopover from '../../assets/AssetPickerPopover'
+import { useOpenProjectId } from '../../project/useOpenProjectId'
+import { addAssetInput, addUploadedInput } from '../quickActions/nodeInputActions'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 
 const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
@@ -28,9 +33,15 @@ type GenerationCanvasReactFlowOverlaysProps = {
   selectedSet: Set<string>
   screenshotOverlay: React.ReactNode
   contextNodeMenu: CanvasContextNodeMenu | null
-  connectionCreateMenu: Pick<CanvasConnectionCreateMenu, 'verdicts' | 'clientX' | 'clientY'> | null
+  connectionCreateMenu: Pick<CanvasConnectionCreateMenu, 'verdicts' | 'clientX' | 'clientY' | 'sourceSide' | 'sourceNodeId' | 'sourceKind'> | null
   onCloseConnectionCreateMenu: () => void
-  onCreateEmpty: () => void
+  /** 左「+」菜单底下两项：从素材库添加… / 在画布上点选。 */
+  onAddInputFromAssets: () => void
+  onAddInputPickOnCanvas: () => void
+  assetInputPicker: CanvasAssetInputPicker | null
+  onCloseAssetInputPicker: () => void
+  /** 空画布任务卡建节点的期望落点（同左缘工具条）。 */
+  getInsertionPosition: () => { x: number; y: number }
   onNodeContextAction: (action: NodeContextMenuAction) => void
   /** 节点菜单自己关（Esc / 点外面 / 选完）。空白「添加节点」菜单仍走原来的 window 监听。 */
   onCloseContextNodeMenu: () => void
@@ -68,7 +79,11 @@ export function GenerationCanvasReactFlowOverlays({
   screenshotOverlay,
   contextNodeMenu,
   connectionCreateMenu,
-  onCreateEmpty,
+  onAddInputFromAssets,
+  onAddInputPickOnCanvas,
+  assetInputPicker,
+  onCloseAssetInputPicker,
+  getInsertionPosition,
   onNodeContextAction,
   onCloseContextNodeMenu,
   onAddContextNode,
@@ -94,10 +109,16 @@ export function GenerationCanvasReactFlowOverlays({
   arrivalHint,
   onGoToArrivals,
 }: GenerationCanvasReactFlowOverlaysProps): JSX.Element {
+  const openProjectId = useOpenProjectId()
+  // 左「+」菜单要说「剪辑节点不收文字」，得知道本卡是哪一类。
+  const menuTarget = connectionCreateMenu?.sourceSide === 'left' && connectionCreateMenu.sourceKind === 'node'
+    ? allNodes.find((node) => node.id === connectionCreateMenu.sourceNodeId)
+    : undefined
   return (
     <>
       {screenshotOverlay}
-      {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} onCreate={onCreateEmpty} /> : null}
+      {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} getInsertionPosition={getInsertionPosition} /> : null}
+      <CanvasPickModeLayer />
       {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
         // 刀 1：这一个菜单走 `WorkbenchMenu`（Portal 到 body + 视口坐标），
         // 所以不再传 stage 相对的 style，层级也交给原语的 popover 档（不再写 z-[20]）。
@@ -135,13 +156,30 @@ export function GenerationCanvasReactFlowOverlays({
         />
       ) : null}
       {connectionCreateMenu ? (
-        // 点「+」圈和拖线到空白处松手是同一个菜单：接不上的灰掉并说原因（`quickActions/NodeDeriveMenu`）。
+        // 点「+」圈和拖线到空白处松手是同一个菜单：右「用这个节点生成」、左「给它加输入」，接不上的灰掉并说原因（`quickActions/NodeDeriveMenu`）。
         <NodeDeriveMenu
+          side={menuTarget ? 'left' : 'right'}
+          target={menuTarget}
           verdicts={connectionCreateMenu.verdicts}
           point={{ x: connectionCreateMenu.clientX, y: connectionCreateMenu.clientY }}
           onPick={onAddConnectedNode}
+          onFromAssets={onAddInputFromAssets}
+          onPickOnCanvas={onAddInputPickOnCanvas}
           onClose={onCloseConnectionCreateMenu}
         />
+      ) : null}
+      {assetInputPicker ? (
+        // 「从素材库添加…」：同一个素材选择器（AssetPicker），只列这张卡收得下的种类；选中 / 上传后建素材卡并接进来。
+        <div className="fixed z-[60]" style={{ left: assetInputPicker.clientX, top: assetInputPicker.clientY }}>
+          <AssetPickerPopover onClose={onCloseAssetInputPicker}>
+            <AssetPicker
+              projectId={openProjectId}
+              accept={assetInputPicker.accept}
+              onPick={(asset) => { addAssetInput(assetInputPicker.targetNodeId, asset); onCloseAssetInputPicker() }}
+              onUpload={(file) => { void addUploadedInput(assetInputPicker.targetNodeId, file); onCloseAssetInputPicker() }}
+            />
+          </AssetPickerPopover>
+        </div>
       ) : null}
       <CanvasNavigationStack
         readOnly={readOnly}

@@ -32,17 +32,12 @@
 // reference equality is an exact, allocation-free staleness signal. This is the
 // idiom already used by `canvasNodeProjection.ts` in this directory.
 //
-// WHY `canRun` IS LAZY
-// `canRunGenerationNode` resolves the node's archetype and walks the edge list;
-// computing it eagerly for all N nodes would move the O(N²) from "per render
-// round" to "per store write". Filling the map on demand keeps each node's
-// answer computed at most once per store version — during a drag the store is
-// not written at all (the React Flow kernel holds the draft), so the whole map
-// survives the gesture and every frame after the first is O(1) per node.
+// 2026-10-08: the lazy `canRun` slot (the generate-button check) is gone — its only
+// reader was the empty video card's "add a first frame" sentence, which the empty-node
+// 「试试」 list replaced. Nothing per-card asks "can this node run" any more.
 
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { GenerationCanvasState } from './canvasStoreTypes'
-import { canRunGenerationNode } from '../runner/generationRunController'
 
 type GraphSlice = Pick<GenerationCanvasState, 'nodes' | 'edges'>
 
@@ -53,22 +48,19 @@ type GenerationIndex = {
   edgesRef: GenerationCanvasState['edges'] | null
   /** id → node, so a per-node lookup is O(1) instead of a full-table `.find`. */
   byId: Map<string, GenerationCanvasNode>
-  /** id → "can this node generate", filled lazily (see header). */
-  canRun: Map<string, boolean>
 }
 
 // One index per store singleton, for the same reason `canvasNodeProjection`
 // keeps one cache: the store is a module-level singleton and every consumer
 // observes the same store version at a time. Kept out of store state so no
 // action has to maintain it and it never enters persistence/undo.
-const index: GenerationIndex = { nodesRef: null, edgesRef: null, byId: new Map(), canRun: new Map() }
+const index: GenerationIndex = { nodesRef: null, edgesRef: null, byId: new Map() }
 
 function refresh(state: GraphSlice): GenerationIndex {
   if (index.nodesRef === state.nodes && index.edgesRef === state.edges) return index
   index.nodesRef = state.nodes
   index.edgesRef = state.edges
   index.byId = new Map(state.nodes.map((node) => [node.id, node]))
-  index.canRun = new Map()
   return index
 }
 
@@ -85,25 +77,4 @@ export function selectCanvasNodeById(
 export function selectCanvasNodeExists(state: GraphSlice, id: string | undefined | null): boolean {
   if (!id) return false
   return refresh(state).byId.has(id)
-}
-
-/**
- * "Can this node generate right now" — the same answer `canRunGenerationNode`
- * gives, computed at most once per node per store version instead of once per
- * render of every node card.
- *
- * Nodes not present in the store cannot generate; there is deliberately no
- * fallback that recomputes from a caller-supplied node object, because such a
- * fallback would silently restore the O(N) scan for exactly the case (a stale
- * card) where the answer is meaningless anyway.
- */
-export function selectCanvasNodeCanRun(state: GraphSlice, id: string | undefined | null): boolean {
-  if (!id) return false
-  const current = refresh(state)
-  const cached = current.canRun.get(id)
-  if (cached !== undefined) return cached
-  const node = current.byId.get(id)
-  const value = node ? canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges }) : false
-  current.canRun.set(id, value)
-  return value
 }
