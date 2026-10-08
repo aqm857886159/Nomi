@@ -1,0 +1,60 @@
+# 供应商健康走查方向检查
+
+## 0. 一句话根因
+
+这次红灯来自旧走查夹具没有等待异步凭据注册，并继续使用已被当前凭据验证门替换的注入方式；产品健康分类没有被证明回归。
+
+## 1. 归类表：bug → 直接原因 → 类
+
+| 提交 / bug | 直接原因 | 类 |
+|---|---|---|
+| `tests/ux/vendor-baseurl-discoverability.walk.mjs:81-96` 与 `tests/ux/provider-model-discovery.walk.mjs:101-118` 保存凭据后立即 reload | `upsertVendorApiKey` 是异步 IPC，夹具未 `await`；写入与 reload 竞态，relay 最终留下禁用空凭据 | 走查夹具生命周期失配 |
+| 加 `await` 的临时复现 | 当前凭据验证请求使用默认 Bearer，未满足夹具要求的 Authorization 覆盖头，验证阶段先失败 | 夹具未按当前验证门注册自定义中转 |
+| `vendorHealth` 生产路径 | 已有 `failureKind` 分类：有效模型列表 → `reachable`，全 404/405 或无法解析列表 → `unsupported`，鉴权 / 网络 / 上游失败 → `unreachable` | 未发现产品分类回归 |
+
+## 2. 为什么会出现
+
+走查由 `aa26d3813`（2026-08-27）引入；凭据保存后来改成异步验证与发布门，走查仍把异步 API 当同步写入。错误的夹具注册先造成空凭据，之后健康检查只能如实返回 `unsupported`。临时加 `await` 后暴露第二个夹具契约失配：验证阶段没有使用覆盖鉴权头，因此不是模型列表解析或健康分类问题。
+
+三条体验铁律落点：
+
+| 铁律 | 结论 | 最小证据 |
+|---|---|---|
+| 说的=摆的 | 走查声称“已保存凭据并验证中转”，但实际保存 Promise 未完成 | 走查原文 101-118；磁盘快照中的禁用空凭据 |
+| 能选到 | 走查应先完成凭据注册，再进入健康检查与模型选择 | `upsertVendorApiKey` 返回 Promise；preload bridge 23-26 |
+| 点了=以为的 | 点开模型首页时预期 `reachable`，实际因注册竞态没有可用凭据 | 走查 123-124；真实请求日志 |
+
+## 3. 不改结构的可验证预测
+
+| 预测 | 验证 |
+|---|---|
+| 保持旧夹具不变，两条走查都在健康状态断言处失败 | `node tests/ux/vendor-baseurl-discoverability.walk.mjs`：401 行收到“24 个模型 · …24 个已关闭”，应为“连不上”；`node tests/ux/provider-model-discovery.walk.mjs`：`Expected reachable / Received unsupported` |
+| 只给夹具凭据注册加 `await`，会在保存阶段暴露验证门错误，而不是让产品分类转绿 | 临时夹具复现：`密钥验证失败，请检查密钥和权限后重试`；请求头为默认 Bearer |
+| 生产分类单测不受影响 | 4 个 onboarding 单测文件，107/107 通过 |
+
+## 4. 独立性检查
+
+- 这是验收 / 走查维护问题，不修改产品分类 owner。
+- 当前结论不应通过增加 `vendorKey`、HTTP 状态特例或放宽 `unsupported` 判定来修复；那会掩盖凭据注册竞态。
+
+## 5. P0：是否我们独有
+
+不是。异步 IPC 生命周期和测试夹具凭据注入应复用现有 bridge / catalog API 契约；不新增产品实现。
+
+## 6. 选项与推荐
+
+| 选项 | 做什么 | 代价 / 风险 | 推荐 |
+|---|---|---|---|
+| 收口为走查过期 | 记录证据；另开夹具维护变更，等待 Promise 完成并按当前验证门准备覆盖鉴权头 | 本任务不产生产品修复提交 | **是** |
+| 改产品分类 | 在 `vendorHealth` 增加特例或放宽 unsupported | 会把空凭据 / 验证失败误报成可达，破坏共享分类契约 | 否 |
+
+## 7. 用户要权衡的核心
+
+要的是“走查绿”，还是“健康状态诚实”：本证据支持保留诚实分类，修正走查的凭据注册契约。
+
+
+## ???????2026-10-08?
+
+?????????????Onboarding ????????????? Header ????? `vendor.meta.extraHeaders`??? catalog/API ????????????? `validateCandidateCredential` ????? Bearer ?????? Authorization????? bug?????? `buildAuthHeaders`?????????????????? `electron/catalog/credentialProbeFree.test.ts` ???
+
+?????? `vendorHealth` ????????????????? await??????????????????? Kie ?????????????????????????
