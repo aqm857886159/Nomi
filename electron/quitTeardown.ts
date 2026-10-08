@@ -127,7 +127,7 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
         const timedOut = await runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError);
         if (timedOut) return false;
       }
-      await Promise.all(optional.map((entry) => runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError)));
+      for (const entry of optional) void runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError);
       return true;
     };
     void runInOrder().then((completed) => {
