@@ -18,8 +18,8 @@ export type QuitDrainOptions = {
   required?: boolean;
   timeoutMs?: number;
   /**
-   * Also runs when the OS ends the session (Windows session-end, Linux shutdown), where nobody can confirm
-   * anything and the whole budget is `CRITICAL_EXIT_TIMEOUT_MS`. It runs beside the built-in critical
+   * Runs ONLY when the OS ends the session (Windows session-end, Linux shutdown), never on a normal quit
+   * (will-quit skips critical entries). Nobody can confirm anything there and the whole budget is `CRITICAL_EXIT_TIMEOUT_MS`. It runs beside the built-in critical
    * chain, so it neither delays nor is delayed by the Agent lane close.
    */
   critical?: boolean;
@@ -260,8 +260,9 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
       report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });
       finish("deadline", requestedExitCode ?? 0);
     });
-    const registered = [...registeredDrains.values()];
-    for (const entry of registered) if (entry.critical) critical.add(entry);
+    // critical drains belong to the unattended-exit entry only (exitWithCriticalDrains): a normal quit
+    // has already closed the windows through the close confirmation, so there is nobody left to ask.
+    const registered = [...registeredDrains.values()].filter((entry) => !entry.critical);
     // Optional drains are best effort: they run beside the serial chain and never delay the exit.
     for (const entry of registered.filter((drain) => !drain.required)) {
       void runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError, onReceipt);

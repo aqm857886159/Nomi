@@ -37,7 +37,7 @@
 | 渲染层卡死没回执 | owner 的单项截止（400ms）到点记 `renderer-project-flush-timeout`，整体 500ms 到点 `app.exit` |
 | 渲染层已崩溃 / 窗口已销毁 | 不发请求（窗口过滤掉） |
 | 没有欠的改动 | `flushPendingWorkbenchProjectSaves` 只冲「已排队 / 在途 / 上次失败」的保存，不重新采样，不写盘 |
-| 普通退出（will-quit） | 窗口已关闭，这条排空无窗口可问，直接返回；关窗确认里的保存不变 |
+| 普通退出（will-quit） | `critical` 排空在 will-quit 链里被明确排除，请求次数为 0（测试钉住 win32 / darwin / linux 与关窗确认后退出）；关窗确认里的保存不变 |
 
 ## Mac 结论
 

@@ -10,7 +10,7 @@ vi.mock("electron", () => ({ app: { getPath: () => os.tmpdir(), getAppPath: () =
 const bridge = vi.hoisted(() => ({ current: null as null | { window: { onProjectFlushRequest: (cb: () => Promise<void>) => () => void } } }));
 vi.mock("../src/desktop/bridge", async (importOriginal) => ({ ...(await importOriginal<object>()), getDesktopBridge: () => bridge.current }));
 
-import { installQuitTeardown, resetQuitTeardownForTests } from "./quitTeardown";
+import { installQuitTeardown, requestQuit, resetQuitTeardownForTests } from "./quitTeardown";
 import { createProject, readProject, saveProject } from "./projects/repository";
 import { installShutdownProjectFlush, SHUTDOWN_FLUSH_REQUEST_CHANNEL, SHUTDOWN_FLUSH_RESPONSE_CHANNEL } from "./shutdownProjectFlush";
 import { subscribeWorkbenchProjectPersistence } from "../src/workbench/project/workbenchProjectSession";
@@ -19,7 +19,7 @@ import { useWorkbenchStore } from "../src/workbench/workbenchStore";
 
 type SessionListener = (event?: { preventDefault?: () => void }) => void;
 
-function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"answers" | "silent"> }) {
+function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"answers" | "silent">; platform?: NodeJS.Platform }) {
   const kinds = options.windows ?? [options.renderer ?? "answers"];
   const appListeners = new Map<string, (...args: never[]) => void>();
   const app = {
@@ -55,11 +55,12 @@ function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"an
     disposeDesktopLaneIpc: vi.fn(async () => undefined),
     abortAllActiveExports: vi.fn(() => 0),
     onError,
-    systemSession: { platform: "win32", powerMonitor: vi.fn() },
+    systemSession: { platform: options.platform ?? "win32", powerMonitor: vi.fn() },
   });
   installShutdownProjectFlush({ windows: () => windows, onResponse: (listener) => { responseListeners.push(listener); }, onError });
   (appListeners.get("browser-window-created") as unknown as (event: unknown, window: unknown) => void)({}, osWindow);
-  return { app, errors, webContents, windows, sessionEnd: () => sessionListeners.get("session-end")?.() };
+  const emitApp = (event: "before-quit" | "will-quit") => (appListeners.get(event) as unknown as (e: { preventDefault: () => void }) => void)({ preventDefault: vi.fn() });
+  return { app, errors, webContents, windows, emitApp, sessionEnd: () => sessionListeners.get("session-end")?.() };
 }
 
 describe("OS session end silently saves the project", () => {
@@ -194,5 +195,50 @@ describe("OS session end silently saves the project", () => {
     await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0), { timeout: 1500 });
     expect(Date.now() - startedAt).toBeLessThan(800);
     expect(run.errors).toContain("renderer-project-flush-timeout");
+  });
+
+  it("a flush held up by an in-flight write still catches an edit made after the flush began", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    saveSpy.mockImplementationOnce(async (id: string, payload: unknown) => {
+      await gate;
+      return saveProject(id, { ...readProject(id)!, payload }) as never;
+    });
+    const run = harness({ renderer: "answers" });
+    bindShutdownProjectFlush();
+    useWorkbenchStore.getState().addCategory("首笔卡住的分组");
+    await vi.waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1), { timeout: 2000 });
+
+    run.sessionEnd(); // flush starts and waits on the blocked first write
+    await vi.waitFor(() => expect(run.webContents.send).toHaveBeenCalledTimes(1));
+    useWorkbenchStore.getState().addCategory("flush 开始后才产生的分组"); // re-arms saveScheduled
+    expect(run.app.exit).not.toHaveBeenCalled();
+    release();
+    await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0));
+    expect(savedCategoryNames()).toEqual(expect.arrayContaining(["首笔卡住的分组", "flush 开始后才产生的分组"]));
+    expect(saveSpy).toHaveBeenCalledTimes(2);
+  });
+
+  describe("normal quits never ask the renderer to flush", () => {
+    it.each(["win32", "darwin", "linux"] as const)("plain will-quit on %s", async (platform) => {
+      const run = harness({ renderer: "answers", platform });
+      bindShutdownProjectFlush();
+      useWorkbenchStore.getState().addCategory("普通退出前的分组");
+      run.emitApp("before-quit");
+      run.emitApp("will-quit");
+      await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0));
+      expect(run.windows.every((w) => w.send.mock.calls.length === 0)).toBe(true);
+    });
+
+    it("app.quit() requested by the app, then the close confirmation, then will-quit", async () => {
+      const run = harness({ renderer: "answers", platform: "darwin" });
+      bindShutdownProjectFlush();
+      requestQuit(); // what a confirmed close resumes with
+      expect(run.app.quit).toHaveBeenCalled();
+      run.emitApp("before-quit");
+      run.emitApp("will-quit");
+      await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0));
+      expect(run.windows.every((w) => w.send.mock.calls.length === 0)).toBe(true);
+    });
   });
 });

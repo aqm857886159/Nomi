@@ -271,12 +271,17 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     isActive: () => !disposed && ownsRuntime(),
   })
   const flushOwned = async (): Promise<WorkbenchProjectRecordV1 | null> => {
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
-    if ((saveScheduled || saveQueue.hasFailed()) && ownedPayload) {
-      saveQueue.enqueue({ projectId: options.projectId, payload: ownedPayload })
-    }
-    saveScheduled = false
-    const record = await saveQueue.flush()
+    let record: WorkbenchProjectRecordV1 | null
+    // An edit can land while the write is awaited (saveIfReady re-arms saveScheduled): catch up until
+    // nothing is owed, otherwise the newest edit would only have a debounce timer left.
+    do {
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+      if ((saveScheduled || saveQueue.hasFailed()) && ownedPayload) {
+        saveQueue.enqueue({ projectId: options.projectId, payload: ownedPayload })
+      }
+      saveScheduled = false
+      record = await saveQueue.flush()
+    } while (saveScheduled && !disposed)
     if (disposed) projectSaveOwners.delete(target)
     return record
   }
