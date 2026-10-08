@@ -61,3 +61,16 @@
 ## 方向结论
 
 本任务书已明确采用“接入现有方案 + 在 `requestVendor` 补齐策略 + 删除旁路直连”的结构性结论。后续改动必须继续引用本复盘；提交信息使用 `Direction-Check: docs/plan/2026-10-08-paid-post-single-exit-direction-check.md`。
+
+## PR #1100 CI 回归复盘
+
+本轮用户明确要求修复 CI 并保持判据不放宽，继续采用既定统一出口方向。热点扫描：vendorHttp 与 catalog provider 各已有 7 次 fix，audioTaskRunner 3 次；不再增加独立传输分支。
+
+- 症状：目录执行器收到 HTTP 200 / code 1001 丢失明确拒绝；MCP C9 四镜均为 provider_not_reached。
+- 直接原因：迁移只比较成功传输，漏了目录的 code 成功值约定（0/200）；共享核的通用检测仅识别部分 HTTP 风格逻辑码。音频包装与 customCall 脱敏重建错误还会丢失 providerAnswer。C9 合成 key 保存时绑定了公共 origin，发送却被既有夹具替换成 loopback。
+- 类根因：迁移合同缺少“响应证据、错误包装、凭据身份仍完整”的不变量，现有测试只有旧执行器的部分拒绝样例，缺少跨出口矩阵和带真实凭据绑定的夹具。
+- 换 + 删：共享核接收调用方声明的成功 code 集合，目录恢复原来的 0/200 合同；错误包装保留非敏感 providerAnswer / cause；C9 在同一 key 保存事务中把合成凭据绑定到其真正的 loopback origin，再恢复 canonical 目录。拒绝白名单、未知结果判据和出站 guard 原样保留。
+- 特征证据：CI Unit 1 failed / 17425 passed；本地复现 1 failed / 12 passed。E2E 制品中四镜全为 outbound-blocked-credential-origin，供应商账本只有 GET、没有生成 POST。
+- 预测：小业务码和数字字符串必须同样由目录合同判失败；任务号或 5xx 仍保持未知；音频/customCall 包装不能擦掉证据；真实绑定错 origin 在夹具模式下也必须拒绝。
+
+通用 HTTP、脱敏和凭据绑定都复用现有模块，无新增依赖。独立验收仍由协调会话安排。

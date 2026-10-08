@@ -425,7 +425,17 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   // 出站真正用的那条 base：夹具回环优先，否则用户保存的那条。**渲染与发送共用它**，
   // 于是 path / origin / 鉴权头全部来自同一次 `buildProfileHttpRequest`，与引擎 A 同源。
   const networkVendor = (vendor: Vendor): Vendor =>
-    fixtureBaseUrl ? { ...vendor, baseUrlHint: fixtureBaseUrl } : vendor;
+    fixtureBaseUrl
+      ? {
+          ...vendor,
+          baseUrlHint: fixtureBaseUrl,
+          // The production fixture deliberately routes the saved synthetic key
+          // to its loopback server. Keep the credential-origin invariant intact
+          // by moving only the fixture copy of the binding; real catalog data is
+          // never rewritten and normal users cannot enable this seam.
+          ...(vendor.credentialBinding ? { credentialBinding: { ...vendor.credentialBinding, origin: fixtureBaseUrl } } : {}),
+        }
+      : vendor;
   // A payload hash alone cannot identify a mode; keep catalog identity alongside every prepared
   // hash and require it again at submit. This also makes a restart fail closed
   // instead of guessing an endpoint from model names or body fields.
@@ -482,7 +492,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
         built.query,
         body,
         undefined,
-        { fetchImpl },
+        { fetchImpl, logicalSuccessCodes: [0, 200] },
       );
       return record(payload, vendorKey, "");
     } catch (error: unknown) {

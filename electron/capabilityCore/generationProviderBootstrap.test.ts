@@ -259,6 +259,15 @@ describe("generation provider bootstrap", () => {
     vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
     try {
       const fixture = encryptedState();
+      fixture.vendors[0] = {
+        ...fixture.vendors[0],
+        credentialBinding: {
+          origin: "https://api.apimart.ai",
+          authType: "bearer",
+          authHeader: "Authorization",
+          confirmedAt: "now",
+        },
+      };
       const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
         code: 200,
         data: [{ status: "submitted", task_id: "task-loopback" }],
