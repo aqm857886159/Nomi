@@ -2,9 +2,11 @@
  * 已知供应商目录（presentation + 推广元数据）。
  *
  * 设计意图（P4 通用第一）：接入卡片是"供应商接入卡"的通用形态，不是某家专属。
- * 这里只放**无法从 catalog 派生**的展示信息（logo 字形 / 副标题 / 推广话术 + 链接）。
+ * 这里只放**无法从 catalog 派生**的展示数据（logo / 字形 / 推广链接 / 凭证形状）。
+ * 界面文字（副标题 / 推广话术 / CTA / 凭证说明）一个字都不住这里：全在
+ * `onboardingProviders.knownVendors.<vendorKey>.*` 词典里，按界面语言取（check:i18n 对 src/config/ 汉字硬零）。
  * 供应商显示名（vendor.name）和该家的模型清单都从 catalog **派生**，不在此硬编码——
- * 新增一家只加一条目录数据，不写新 UI（见 VendorOnboardCard）。
+ * 新增一家只加一条目录数据 + 一组词条，不写新 UI（见 VendorOnboardCard）。
  *
  * 与 catalog 的绑定键：`vendorKey` 必须等于 seed 里的 vendor.key
  * （apimart → APIMART_VENDOR_SEED.key、kie → KIE_VENDOR_SEED.key）。
@@ -14,9 +16,9 @@ import i18n from '../i18n'
 import { VENDOR_LOGOS } from '../assets/vendor-logos'
 
 export type KnownVendorPromo = {
-  /** 卡片底部话术正文。 */
+  /** 卡片底部话术正文（已按界面语言取好，词典 promoText）。 */
   text: string
-  /** CTA 按钮文案。 */
+  /** CTA 按钮文案（已按界面语言取好，词典 promoCta）。 */
   ctaLabel: string
   /**
    * 注册链接。当前先指官网；拿到专属 affiliate ?ref= 链接后替换这里即可，
@@ -32,39 +34,30 @@ export type KnownVendorPromo = {
  * 底层存储/钥匙串/runner 零改动，多段拆分只活在录入这一层。
  */
 export type CredentialField = {
-  /** 字段标识（aria-label / 状态区分用，不进存储）。 */
+  /** 字段标识（aria-label / 状态区分用，不进存储；也是词典 fields.<key>.* 的键）。 */
   key: string
-  /** 字段显示名（如「App ID」）。 */
+  /** 字段显示名（词典 fields.<key>.label）。 */
   label: string
-  /** 输入框占位。 */
+  /** 输入框占位（词典 fields.<key>.placeholder）。 */
   placeholder: string
   /** 是否密文输入（如 Access Token）。 */
   secret?: boolean
-  /** 字段下方小字说明（去哪拿这一段）。 */
+  /** 字段下方小字说明（词典 fields.<key>.hint，可缺省）。 */
   hint?: string
 }
 
-export type KnownVendor = {
-  /** 与 catalog vendor.key 一致。 */
+/** 目录里的一条：只有数据，没有界面文字。 */
+type KnownVendorEntry = {
+  /** 与 catalog vendor.key 一致；也是词典 onboardingProviders.knownVendors.<vendorKey> 的键。 */
   vendorKey: string
   /** brand logo 打包资源 URL；缺省回退到 glyph 字形。 */
   logo?: string
-  /** 单字母 logo 字形（无 logo 时的回退）。 */
+  /** logo 回退字形（拉丁字母，跟界面语言无关）。 */
   glyph: string
-  /** 卡片副标题。 */
-  tagline: string
-  /** 推广位；null = 不展示推广。 */
-  promo: KnownVendorPromo | null
-  /** key 输入框占位（缺省 = 通用 sk- 提示）。仅单段凭证用；声明了 credentialFields 时被忽略。 */
-  credentialPlaceholder?: string
-  /** key 输入框下方帮助文案（缺省 = 通用「填一次即可…」）。多段凭证时作为卡片底部总说明。 */
-  credentialHint?: string
-  /**
-   * 多段凭证声明（缺省 = 单段，沿用 credentialPlaceholder）。
-   * 声明后接入卡渲染对应数量的独立输入框，各自标注；保存时按 credentialJoin 拼成单串存进唯一 key 槽。
-   * 用于火山语音这类需要 App ID + Access Token 两段、但底层只有一个 key 槽的供应商。
-   */
-  credentialFields?: readonly CredentialField[]
+  /** 推广链接；null = 不展示推广。有链接时词典必须有 promoText / promoCta。 */
+  promoUrl: string | null
+  /** 多段凭证只声明字段形状；文字在词典 fields.<key>.*。 */
+  credentialFields?: readonly { key: string; secret?: boolean }[]
   /** 多段凭证的拼接分隔符（缺省冒号）。必须与后端拆分一致（如 splitDoubaoCredential 按首个冒号切）。 */
   credentialJoin?: string
   /** 「新手推荐」软标：仅未接入时显示，帮纯新人在多家里有个默认起点（聚合中转一个 key 全解锁）。
@@ -79,236 +72,99 @@ export type KnownVendor = {
   usesPlatformConnect?: boolean
 }
 
-export const KNOWN_VENDORS: readonly KnownVendor[] = [
-  {
-    vendorKey: 'apimart',
-    logo: VENDOR_LOGOS.apimart,
-    glyph: 'A',
-    tagline: '一个 key，解锁全部预置模型',
-    recommended: true, // 聚合中转，一个 key 解锁图/视频/文本/配音 → 新手最省事的起点
+/** 接入卡拿到的形状：目录数据 + 按当前界面语言取好的文字。只能经 getKnownVendor / getLocalizedKnownVendors 得到。 */
+export type KnownVendor = Omit<KnownVendorEntry, 'promoUrl' | 'credentialFields'> & {
+  /** 卡片副标题。 */
+  tagline: string
+  /** 推广位；null = 不展示推广。 */
+  promo: KnownVendorPromo | null
+  /** key 输入框占位（缺省 = 通用 sk- 提示）。仅单段凭证用；声明了 credentialFields 时被忽略。 */
+  credentialPlaceholder?: string
+  /** key 输入框下方帮助文案（缺省 = 通用「填一次即可…」）。多段凭证时作为卡片底部总说明。 */
+  credentialHint?: string
+  /**
+   * 多段凭证声明（缺省 = 单段，沿用 credentialPlaceholder）。
+   * 声明后接入卡渲染对应数量的独立输入框，各自标注；保存时按 credentialJoin 拼成单串存进唯一 key 槽。
+   * 用于火山语音这类需要 App ID + Access Token 两段、但底层只有一个 key 槽的供应商。
+   */
+  credentialFields?: readonly CredentialField[]
+}
 
-    promo: {
-      text: '如果你愿意，可以用我们的链接注册；不愿意也可以直接去官方注册。',
-      ctaLabel: '用我们的链接',
-      url: 'https://apimart.ai/register?aff=t55VtP', // 专属推广链接
-    },
-  },
-  {
-    // Agnes AI: public model coverage and account eligibility are separate (checked 2026-08-26).
-    vendorKey: 'agnes',
-    logo: VENDOR_LOGOS.agnes,
-    glyph: 'Ag',
-    tagline: '文本、图片与视频 · 可用模型以当前账户为准',
-    credentialPlaceholder: '粘贴 Agnes API Key',
-    credentialHint:
-      '在 Agnes 官方平台创建 API Key。部分模型需在 Agnes 单独开通或升级套餐；可用模型和限额以你的 Agnes 账户为准。凭证本地加密存储。',
-    promo: {
-      text: 'Agnes AI 提供 OpenAI 兼容的文本、图片与视频 API。公开模型清单不代表当前套餐均可调用。',
-      ctaLabel: '打开 Agnes 平台',
-      url: 'https://agnes-ai.com',
-    },
-  },
-  {
-    vendorKey: 'kie',
-    logo: VENDOR_LOGOS.kie,
-    glyph: 'K',
-    tagline: '一个 key，解锁内置模型',
-    promo: {
-      text: '如果你愿意，可以用我们的链接注册；不愿意也可以直接去官方注册。',
-      ctaLabel: '用我们的链接',
-      url: 'https://kie.ai', // TODO: 替换为专属 ?ref 链接
-    },
-  },
-  {
-    vendorKey: 'modelscope',
-    logo: VENDOR_LOGOS.modelscope,
-    glyph: '魔',
-    tagline: '官方原生 · 绑定阿里云账号使用推理额度',
-    promo: {
-      text: '魔搭社区由阿里达摩院运营，绑定阿里云账号后可使用魔搭的推理额度（以你的账户显示为准）。去官网拿 API Key。',
-      ctaLabel: '去魔搭注册',
-      url: 'https://modelscope.cn/my/myaccesstoken',
-    },
-  },
-  {
-    vendorKey: 'volcengine',
-    logo: VENDOR_LOGOS.volcengine,
-    glyph: '火',
-    tagline: '官方原生 · 豆包 Seedream / Seedance',
-    promo: {
-      text: '火山方舟（字节跳动）官方。需先在 Ark 控制台「开通管理」激活模型（Seedream/Seedance），再拿 API Key。',
-      ctaLabel: '去火山方舟',
-      url: 'https://console.volcengine.com/ark',
-    },
-  },
-  {
-    vendorKey: 'minimax',
-    logo: VENDOR_LOGOS.minimax,
-    glyph: 'M',
-    tagline: '官方原生 · M3 文本、H3 视频与 Speech 2.8',
-    credentialPlaceholder: '粘贴 MiniMax API Key',
-    promo: {
-      text: 'MiniMax 官方 API，提供 M3 文本与 Agent、H3 多模态视频和 Speech 2.8 高保真配音。',
-      ctaLabel: '打开 MiniMax 平台',
-      url: 'https://platform.minimax.io',
-    },
-  },
-  {
-    vendorKey: 'elevenlabs',
-    logo: VENDOR_LOGOS.elevenlabs,
-    glyph: 'E',
-    tagline: '官方原生 · 配音、音乐、音效与转写',
-    credentialPlaceholder: '粘贴 ElevenLabs API Key',
-    promo: {
-      text: 'ElevenLabs 官方 API，覆盖 Eleven v3、Music v2、Sound Effects v2 与 Scribe v2。',
-      ctaLabel: '打开 ElevenLabs',
-      url: 'https://elevenlabs.io/app/developers/api-keys',
-    },
-  },
-  {
-    vendorKey: 'meshy',
-    logo: VENDOR_LOGOS.meshy,
-    glyph: 'M',
-    tagline: '官方原生 · Meshy 7 单图生成带纹理 3D',
-    credentialPlaceholder: '粘贴 Meshy API Key',
-    promo: {
-      text: 'Meshy 官方 API，可从单张物体图生成带 PBR 材质的 GLB 资产。',
-      ctaLabel: '打开 Meshy 控制台',
-      url: 'https://www.meshy.ai/settings/api',
-    },
-  },
-  {
-    vendorKey: 'fal',
-    logo: VENDOR_LOGOS.fal,
-    glyph: 'F',
-    tagline: '官方队列 · 图片、视频、音频与 3D 模型',
-    credentialPlaceholder: '粘贴 fal.ai API Key',
-    credentialHint: '在 fal.ai Dashboard 创建 API Key。模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
-    promo: {
-      text: 'fal.ai 官方队列，统一提交、状态和结果生命周期；本目录只保留已对账的旗舰模型。',
-      ctaLabel: '打开 fal.ai',
-      url: 'https://fal.ai/dashboard/keys',
-    },
-  },
-  {
-    vendorKey: 'runway',
-    logo: VENDOR_LOGOS.runway,
-    glyph: 'Rw',
-    tagline: '官方原生 · Gen-4.5 与 Gen-4 Turbo 视频',
-    credentialPlaceholder: '粘贴 Runway API Key',
-    credentialHint: '在 Runway Dev 创建 API Key。生成按你的 Runway 账户 credits 计算，以 Runway 账户为准；凭证本地加密存储。',
-    promo: {
-      text: 'Runway Dev 官方 API，提供 Gen-4.5 文生/图生视频与 Gen-4 Turbo 图生视频。',
-      ctaLabel: '打开 Runway Dev',
-      url: 'https://dev.runwayml.com',
-    },
-  },
-  {
-    // RunningHub 标准模型 API（openapi/v2）：一个 key 解锁 355+ 模型（Seedance/可灵/Veo/混元3D/Meshy…）。
-    // ⚠️ 实测（2026-06-27）：标准模型 API **仅限 Enterprise-Shared（企业级-共享）key**，Consumer/个人 key
-    // 会报错误码 1014「访问被拒绝」。故 credentialHint 明着标，免得用户拿个人 key 填进来被 1014 蒙（D4 诚实）。
-    vendorKey: 'runninghub',
-    logo: VENDOR_LOGOS.runninghub,
-    glyph: 'RH',
-    tagline: '一个 key，解锁 355+ 标准模型（Seedance / 可灵 / 混元3D / Meshy…）',
-    credentialPlaceholder: '粘贴 RunningHub API Key（32 位）',
-    credentialHint:
-      '⚠️ 标准模型 API 需「Enterprise-Shared（企业级-共享）」API Key；个人/Consumer key 会报「访问被拒绝（1014）」。登录 RunningHub → API 设置里拿。凭证本地加密存储。',
-    promo: {
-      text: 'RunningHub 聚合 355+ 主流模型，用量与计费以你的 RunningHub 账户为准。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
-      ctaLabel: '去 RunningHub',
-      url: 'https://www.runninghub.cn',
-    },
-  },
+/** 目录数据（顺序即卡片顺序）。没有界面文字；要显示的一律走 getLocalizedKnownVendors / getKnownVendor。 */
+export const KNOWN_VENDORS: readonly KnownVendorEntry[] = [
+  // 聚合中转，一个 key 解锁图/视频/文本/配音 → 新手最省事的起点
+  { vendorKey: 'apimart', logo: VENDOR_LOGOS.apimart, glyph: 'A', recommended: true, promoUrl: 'https://apimart.ai/register?aff=t55VtP' },
+  // Agnes AI: public model coverage and account eligibility are separate (checked 2026-08-26).
+  { vendorKey: 'agnes', logo: VENDOR_LOGOS.agnes, glyph: 'Ag', promoUrl: 'https://agnes-ai.com' },
+  { vendorKey: 'kie', logo: VENDOR_LOGOS.kie, glyph: 'K', promoUrl: 'https://kie.ai' }, // TODO: 替换为专属 ?ref 链接
+  { vendorKey: 'modelscope', logo: VENDOR_LOGOS.modelscope, glyph: 'MS', promoUrl: 'https://modelscope.cn/my/myaccesstoken' },
+  { vendorKey: 'volcengine', logo: VENDOR_LOGOS.volcengine, glyph: 'V', promoUrl: 'https://console.volcengine.com/ark' },
+  { vendorKey: 'minimax', logo: VENDOR_LOGOS.minimax, glyph: 'M', promoUrl: 'https://platform.minimax.io' },
+  { vendorKey: 'elevenlabs', logo: VENDOR_LOGOS.elevenlabs, glyph: 'E', promoUrl: 'https://elevenlabs.io/app/developers/api-keys' },
+  { vendorKey: 'meshy', logo: VENDOR_LOGOS.meshy, glyph: 'M', promoUrl: 'https://www.meshy.ai/settings/api' },
+  { vendorKey: 'fal', logo: VENDOR_LOGOS.fal, glyph: 'F', promoUrl: 'https://fal.ai/dashboard/keys' },
+  { vendorKey: 'runway', logo: VENDOR_LOGOS.runway, glyph: 'Rw', promoUrl: 'https://dev.runwayml.com' },
+  // RunningHub 标准模型 API（openapi/v2）：一个 key 解锁 355+ 模型（Seedance/可灵/Veo/混元3D/Meshy…）。
+  // ⚠️ 实测（2026-06-27）：标准模型 API **仅限 Enterprise-Shared（企业级-共享）key**，Consumer/个人 key
+  // 会报错误码 1014「访问被拒绝」。故 credentialHint 明着标，免得用户拿个人 key 填进来被 1014 蒙（D4 诚实）。
+  { vendorKey: 'runninghub', logo: VENDOR_LOGOS.runninghub, glyph: 'RH', promoUrl: 'https://www.runninghub.cn' },
   {
     // 火山「语音技术」= 独立产品线，凭证 ≠ 方舟 bearer key（见 volcengineVendor.ts）。
     // 故必须独立成卡：否则豆包语音音色被归进「其他模型」且写死「已配置」，
     // 用户既无处填 APP_ID:ACCESS_KEY，又被误导以为已连通（真实坑，2026-06-25 用户反馈）。
     vendorKey: 'volcengine-speech',
     logo: VENDOR_LOGOS.doubao,
-    glyph: '声',
-    tagline: '官方原生 · 豆包语音 2.0 配音（自然语言情感控制）',
+    glyph: 'DS',
     // 火山语音需要两段凭证（App ID + Access Token），声明成两个独立框，别让用户自己拼冒号
     // （D1：让用户照我们的格式手写 = 离谱）。卡片保存时内部拼成 APP_ID:ACCESS_KEY 存单槽。
-    credentialFields: [
-      {
-        key: 'appId',
-        label: 'App ID',
-        placeholder: '火山语音应用的 App ID',
-        hint: '语音控制台 → 应用管理里的 App ID',
-      },
-      {
-        key: 'accessToken',
-        label: 'Access Token',
-        placeholder: '对应的 Access Token',
-        secret: true,
-        hint: '同一应用的访问令牌（Access Key）',
-      },
-    ],
-    credentialHint: '需先在火山控制台开通豆包语音合成 2.0，并开通要用的音色（部分音色需单独购买，以控制台为准）；凭证本地加密存储、只在调用时使用。',
-    promo: {
-      text: '火山「语音技术」官方（与方舟是不同控制台）。在火山控制台开通豆包语音合成 2.0，并开通要用的音色后，拿 App ID 与 Access Token。',
-      ctaLabel: '去火山语音控制台',
-      url: 'https://console.volcengine.com/speech/app',
-    },
+    credentialFields: [{ key: 'appId' }, { key: 'accessToken', secret: true }],
+    promoUrl: 'https://console.volcengine.com/speech/app',
   },
-  {
-    // Replicate：图片「元素拆解」(qwen-image-layered) 的托管端点。本机跑不动 57GB 模型，必须走云；
-    // 一把 r8_ token 即可。见 docs/plan/2026-06-28-element-decomposition-feature.md。
-    vendorKey: 'replicate',
-    logo: VENDOR_LOGOS.replicate,
-    glyph: 'Rp',
-    tagline: '一个 token，解锁「元素拆解」（一张图拆成可编辑图层）',
-    credentialPlaceholder: '粘贴 Replicate API Token（r8_…）',
-    credentialHint:
-      '用于「元素拆解」(qwen-image-layered)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
-    promo: {
-      text: 'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，用量与计费以你的 Replicate 账户为准。',
-      ctaLabel: '去 Replicate 拿 token',
-      url: 'https://replicate.com/account/api-tokens',
-    },
-  },
-] as const
+  // Replicate：图片「元素拆解」(qwen-image-layered) 的托管端点。本机跑不动 57GB 模型，必须走云；
+  // 一把 r8_ token 即可。见 docs/plan/2026-06-28-element-decomposition-feature.md。
+  { vendorKey: 'replicate', logo: VENDOR_LOGOS.replicate, glyph: 'Rp', promoUrl: 'https://replicate.com/account/api-tokens' },
+]
 
-const KNOWN_VENDOR_BY_KEY = new Map<string, KnownVendor>(KNOWN_VENDORS.map((vendor) => [vendor.vendorKey, vendor]))
+const KNOWN_VENDOR_BY_KEY = new Map<string, KnownVendorEntry>(KNOWN_VENDORS.map((vendor) => [vendor.vendorKey, vendor]))
 
 export function getKnownVendor(vendorKey: string): KnownVendor | undefined {
   const vendor = KNOWN_VENDOR_BY_KEY.get(vendorKey)
   return vendor ? localizeKnownVendor(vendor) : undefined
 }
 
-function translateKnownVendor(key: string, field: string, fallback: string): string {
-  const path = `onboardingProviders.knownVendors.${key}.${field}`
-  return i18n.exists(path) ? i18n.t(path) : fallback
+function vendorText(key: string, field: string): string {
+  return i18n.t(`onboardingProviders.knownVendors.${key}.${field}`)
 }
 
-function localizeKnownVendor(vendor: KnownVendor): KnownVendor {
+function optionalVendorText(key: string, field: string): string | undefined {
+  const path = `onboardingProviders.knownVendors.${key}.${field}`
+  return i18n.exists(path) ? i18n.t(path) : undefined
+}
+
+function localizeKnownVendor(vendor: KnownVendorEntry): KnownVendor {
   const key = vendor.vendorKey
-  const credentialFields = vendor.credentialFields?.map((field) => ({
-    ...field,
-    ...(field.placeholder
-      ? { placeholder: translateKnownVendor(key, `fields.${field.key}.placeholder`, field.placeholder) }
-      : {}),
-    ...(field.hint ? { hint: translateKnownVendor(key, `fields.${field.key}.hint`, field.hint) } : {}),
-  }))
-  const promo = vendor.promo
-    ? {
-        ...vendor.promo,
-        text: translateKnownVendor(key, 'promoText', vendor.promo.text),
-        ctaLabel: translateKnownVendor(key, 'promoCta', vendor.promo.ctaLabel),
-      }
-    : undefined
+  const { promoUrl, credentialFields, ...data } = vendor
+  const credentialPlaceholder = optionalVendorText(key, 'credentialPlaceholder')
+  const credentialHint = optionalVendorText(key, 'credentialHint')
   return {
-    ...vendor,
-    tagline: translateKnownVendor(key, 'tagline', vendor.tagline),
-    ...(vendor.credentialPlaceholder
-      ? { credentialPlaceholder: translateKnownVendor(key, 'credentialPlaceholder', vendor.credentialPlaceholder) }
+    ...data,
+    tagline: vendorText(key, 'tagline'),
+    promo: promoUrl ? { text: vendorText(key, 'promoText'), ctaLabel: vendorText(key, 'promoCta'), url: promoUrl } : null,
+    ...(credentialPlaceholder ? { credentialPlaceholder } : {}),
+    ...(credentialHint ? { credentialHint } : {}),
+    ...(credentialFields
+      ? {
+          credentialFields: credentialFields.map((field) => {
+            const hint = optionalVendorText(key, `fields.${field.key}.hint`)
+            return {
+              ...field,
+              label: vendorText(key, `fields.${field.key}.label`),
+              placeholder: vendorText(key, `fields.${field.key}.placeholder`),
+              ...(hint ? { hint } : {}),
+            }
+          }),
+        }
       : {}),
-    ...(vendor.credentialHint
-      ? { credentialHint: translateKnownVendor(key, 'credentialHint', vendor.credentialHint) }
-      : {}),
-    ...(credentialFields ? { credentialFields } : {}),
-    ...(promo ? { promo } : {}),
   }
 }
 

@@ -500,8 +500,8 @@ export const zhOnboardingProviders = {
         '火山「语音技术」官方（与方舟是不同控制台）。在火山控制台开通豆包语音合成 2.0，并开通要用的音色后，拿 App ID 与 Access Token。',
       promoCta: '去火山语音控制台',
       fields: {
-        appId: { placeholder: '火山语音应用的 App ID', hint: '语音控制台 → 应用管理里的 App ID' },
-        accessToken: { placeholder: '对应的 Access Token', hint: '同一应用的访问令牌（Access Key）' },
+        appId: { label: 'App ID', placeholder: '火山语音应用的 App ID', hint: '语音控制台 → 应用管理里的 App ID' },
+        accessToken: { label: 'Access Token', placeholder: '对应的 Access Token', hint: '同一应用的访问令牌（Access Key）' },
       },
     },
     replicate: {
@@ -514,18 +514,18 @@ export const zhOnboardingProviders = {
       promoCta: '去 Replicate 拿 token',
     },
     fal: {
-      tagline: '海外常用 · CDN 上传图片、视频和音频',
-      credentialPlaceholder: '粘贴 fal.ai Key',
-      credentialHint: '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
-      promoText: 'fal.ai 提供模型 API 与 CDN 文件上传。配置一个 Key 后，Nomi 可以把本地参考素材交给 fal 或其他支持公网 URL 的模型。',
-      promoCta: '去 fal.ai 创建 Key',
+      tagline: '官方队列 · 图片、视频、音频与 3D 模型',
+      credentialPlaceholder: '粘贴 fal.ai API Key',
+      credentialHint: '在 fal.ai Dashboard 创建 API Key。模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
+      promoText: 'fal.ai 官方队列，统一提交、状态和结果生命周期；本目录只保留已对账的旗舰模型。',
+      promoCta: '打开 fal.ai',
     },
     runway: {
-      tagline: '海外视频 · 临时素材上传（需账户配置）',
+      tagline: '官方原生 · Gen-4.5 与 Gen-4 Turbo 视频',
       credentialPlaceholder: '粘贴 Runway API Key',
-      credentialHint: '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户已配置。生成按你的 Runway 账户 credits 计算，以 Runway 账户为准；凭证本地加密存储。',
-      promoText: 'Runway 的 ephemeral upload 直接返回 Runway 专用 URI，适合 Runway 自己的图像/视频生成链路；上传权限和模型调用是两件事。',
-      promoCta: '去 Runway Developer',
+      credentialHint: '在 Runway Dev 创建 API Key。生成按你的 Runway 账户 credits 计算，以 Runway 账户为准；凭证本地加密存储。',
+      promoText: 'Runway Dev 官方 API，提供 Gen-4.5 文生/图生视频与 Gen-4 Turbo 图生视频。',
+      promoCta: '打开 Runway Dev',
     },
   },
   vendorCard: {
@@ -1748,40 +1748,41 @@ export const enOnboardingProviders = {
     'volcengine-speech': {
       tagline: 'Official access · Doubao Speech 2.0 with natural-language emotion control',
       credentialHint:
-        'Activate Doubao Speech Synthesis 2.0 and a selected voice first. Credentials are encrypted locally and used only for requests.',
+        'First activate Doubao Speech Synthesis 2.0 in the Volcengine console, plus the voices you want to use (some voices must be purchased separately; the console is authoritative). Credentials are encrypted locally and used only for requests.',
       promoText:
         'Volcengine Speech is separate from the Ark console. In the Volcengine console, activate Doubao Speech Synthesis 2.0 and the voice you need, then get the App ID and Access Token.',
       promoCta: 'Open Volcengine Speech console',
       fields: {
         appId: {
+          label: 'App ID',
           placeholder: 'App ID for the Volcengine Speech app',
           hint: 'Speech console → App management → App ID',
         },
-        accessToken: { placeholder: 'Access Token for the app', hint: 'Access Token / Access Key for the same app' },
+        accessToken: { label: 'Access Token', placeholder: 'Access Token for the app', hint: 'Access Token / Access Key for the same app' },
       },
     },
     replicate: {
       tagline: 'One token unlocks Element Decomposition into editable layers',
       credentialPlaceholder: 'Paste a Replicate API Token (r8_…)',
       credentialHint:
-        'Used for Element Decomposition with qwen-image-layered Get a token from Replicate → Account → API tokens. Credentials are encrypted locally and used only for requests.',
+        'Used for Element Decomposition with qwen-image-layered. Get a token from Replicate → Account → API tokens. Credentials are encrypted locally and used only for requests.',
       promoText:
         'Replicate hosts the Apache 2.0 qwen-image-layered model, which separates an image into editable foreground, background, and element layers. Get a token from Account; usage and billing depend on your Replicate account.',
       promoCta: 'Get a Replicate token',
     },
     fal: {
-      tagline: 'Common overseas route · CDN upload for image, video, and audio',
-      credentialPlaceholder: 'Paste your fal.ai Key',
-      credentialHint: 'Create a Key in the fal.ai Dashboard. Uploads use fal CDN and have a lifecycle; model quota, regions and pricing depend on your current account. Credentials are encrypted locally.',
-      promoText: 'fal.ai provides model APIs and CDN file uploads. With one Key, Nomi can make local reference media reachable to fal or another model that accepts public URLs.',
-      promoCta: 'Create a fal.ai Key',
+      tagline: 'Official queue · Image, video, audio, and 3D models',
+      credentialPlaceholder: 'Paste your fal.ai API Key',
+      credentialHint: 'Create an API Key in the fal.ai Dashboard. Model quota, regions and pricing depend on your current account. Credentials are encrypted locally.',
+      promoText: 'fal.ai official queue with one lifecycle for submission, status, and results; this catalog keeps only reconciled flagship models.',
+      promoCta: 'Open fal.ai',
     },
     runway: {
-      tagline: 'Overseas video · Ephemeral asset upload (account setup required)',
+      tagline: 'Official access · Gen-4.5 and Gen-4 Turbo video',
       credentialPlaceholder: 'Paste your Runway API Key',
-      credentialHint: 'Create an API Key in the Runway Developer console. Ephemeral uploads are limited to 200MB, last about 24 hours, and require an enabled account. Generation is calculated in your Runway account credits, subject to your Runway account. Credentials are encrypted locally.',
-      promoText: 'Runway ephemeral uploads return a Runway-only URI for Runway image/video workflows; upload access and model calls are separate capabilities.',
-      promoCta: 'Open Runway Developer',
+      credentialHint: 'Create an API Key in Runway Dev. Generation is calculated in your Runway account credits, subject to your Runway account. Credentials are encrypted locally.',
+      promoText: 'Runway Dev official API with Gen-4.5 text-to-video and image-to-video, plus Gen-4 Turbo image-to-video.',
+      promoCta: 'Open Runway Dev',
     },
   },
   vendorCard: {

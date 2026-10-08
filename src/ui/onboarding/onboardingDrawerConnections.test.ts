@@ -46,3 +46,69 @@ it('keeps a saved offline credential visible as pending in the available platfor
   expect(result.availableHomeConnections.find(item => item.vendorKey === 'apimart'))
     .toMatchObject({ hasApiKey: true, credentialVerificationPending: true })
 })
+
+// 第 8 轮验收抓到：英文界面的 Replicate / Runway / RunningHub 卡片底部、CTA 显示中文。
+// 洞在「卡片拿的是原始目录（源里写死中文）而不是按语言取的那一份」，所以这里走真实投影入口，
+// 把卡片会显示的每一个字段都拿出来查：英文轨里一个汉字都不许有。
+describe('known vendor cards follow the UI language', () => {
+  const HAN = /[\u3400-\u9fff]/u
+  // 供应商行的名字用种子里的真名（含中文的那几家照抄种子），连接详情页的标题就是拿它显示的。
+  const SEED_NAMES: Record<string, string> = { volcengine: '火山方舟', 'volcengine-speech': '火山豆包语音' }
+  const allKnownVendorMeta = () => new Map<string, OnboardingVendorMeta>(
+    ['apimart', 'agnes', 'kie', 'modelscope', 'volcengine', 'minimax', 'elevenlabs', 'meshy', 'fal', 'runway', 'runninghub', 'volcengine-speech', 'replicate']
+      .map((key) => [key, { name: SEED_NAMES[key] ?? key, hasApiKey: false, baseUrl: '', enabled: false, authType: 'bearer', customCallOnly: false }]),
+  )
+  const project = () => projectOnboardingConnections({
+    models: [], dreaminaStatus: null, openPage: vi.fn(),
+    localNames: { dreamina: 'Dreamina', codex: 'Codex', antigravity: 'Antigravity' },
+    vendorMeta: allKnownVendorMeta(),
+  })
+  const visibleStrings = (value: unknown): string[] => {
+    if (typeof value === 'string') return [value]
+    if (Array.isArray(value)) return value.flatMap(visibleStrings)
+    if (value && typeof value === 'object') {
+      return Object.entries(value).flatMap(([key, child]) => (key === 'url' || key === 'logo' || key === 'vendorKey' || key === 'key' ? [] : visibleStrings(child)))
+    }
+    return []
+  }
+  const cards = () => project().knownCards
+
+  it('English cards carry no CJK text in any displayed field', async () => {
+    const { default: i18n } = await import('../../i18n')
+    const before = i18n.language
+    await i18n.changeLanguage('en')
+    try {
+      const shown = cards()
+      expect(shown.map((card) => card.directory.vendorKey)).toContain('replicate')
+      for (const card of shown) {
+        for (const text of visibleStrings(card.directory)) {
+          expect(text, `${card.directory.vendorKey}: ${text}`).not.toMatch(HAN)
+        }
+      }
+      // 连接详情页标题（connectionTitle）同样是界面文字：英文轨不许把种子里的中文名原样端出去。
+      const { connectionTitle } = project()
+      for (const card of shown) expect(connectionTitle(card.directory.vendorKey), card.directory.vendorKey).not.toMatch(HAN)
+      const doubao = shown.find((card) => card.directory.vendorKey === 'volcengine-speech')!
+      // 合同：「部分音色需单独购买，以控制台为准」英文必须同义。
+      expect(doubao.directory.credentialHint).toMatch(/purchased separately/i)
+      expect(doubao.directory.credentialHint).toMatch(/console/i)
+    } finally {
+      await i18n.changeLanguage(before)
+    }
+  })
+
+  it('Chinese cards keep the contract wording', async () => {
+    const { default: i18n } = await import('../../i18n')
+    const before = i18n.language
+    await i18n.changeLanguage('zh-CN')
+    try {
+      const byKey = new Map(cards().map((card) => [card.directory.vendorKey, card.directory]))
+      expect(byKey.get('replicate')!.promo!.text).toContain('用量与计费以你的 Replicate 账户为准')
+      expect(byKey.get('runway')!.credentialHint).toContain('生成按你的 Runway 账户 credits 计算，以 Runway 账户为准')
+      expect(byKey.get('runninghub')!.promo!.text).toContain('用量与计费以你的 RunningHub 账户为准')
+      expect(byKey.get('volcengine-speech')!.credentialHint).toContain('部分音色需单独购买，以控制台为准')
+    } finally {
+      await i18n.changeLanguage(before)
+    }
+  })
+})

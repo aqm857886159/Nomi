@@ -320,12 +320,12 @@ export const zhGenerationCommon = {
     error: {
       auth: { reason: 'API Key 无效', hint: '请在「设置 → 模型」检查这个模型的 API Key。' },
       balance: {
-        reason: '服务商返回：账户余额不足（402）',
-        hint: '服务商返回：账户余额不足（402）。请到服务商充值后重试，或在「设置 → 模型」换一个模型。',
+        reason: '余额不足',
+        hint: '服务商返回：账户余额不足。请到服务商充值后重试，或在「设置 → 模型」换一个模型。',
       },
       quota: {
-        reason: '服务商返回：额度已用尽',
-        hint: '服务商返回：额度已用尽。稍后再试，或在「设置 → 模型」换一个模型。',
+        reason: '配额或限流',
+        hint: '服务商返回：配额已用尽或触发限流。请稍后重试，或在「设置 → 模型」换一个模型。',
       },
       pollTimeout: {
         reason: '生成超时',
@@ -1940,12 +1940,12 @@ export const enGenerationCommon = {
     error: {
       auth: { reason: 'Invalid API key', hint: 'Check this model’s API key in Model access.' },
       balance: {
-        reason: 'Provider returned: insufficient balance (402)',
-        hint: 'Provider returned: insufficient balance (402). Top up with the provider and try again, or choose another model in Model access.',
+        reason: 'Insufficient balance',
+        hint: 'Provider returned: insufficient balance. Top up with the provider and try again, or choose another model in Model access.',
       },
       quota: {
-        reason: 'Provider returned: quota exhausted',
-        hint: 'Provider returned: quota exhausted. Try again later or choose another model.',
+        reason: 'Quota or rate limit',
+        hint: 'Provider returned: quota exhausted or rate-limited. Try again later or choose another model in Model access.',
       },
       pollTimeout: {
         reason: 'Generation timed out',
