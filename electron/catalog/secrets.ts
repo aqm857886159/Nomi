@@ -142,6 +142,17 @@ export function decryptCustomConfigWithLegacy(
  * their key material never crosses this boundary.
  */
 export function decryptApiKeyRecord(rec: ApiKeyRecord | undefined): string {
+  // The one gate for outbound use: a disabled record is never decrypted, whoever asks.
+  if (!credentialRecordCounts(rec)) return "";
+  return decryptStoredApiKeyRecord(rec);
+}
+
+/**
+ * Raw read that skips the enabled gate. Only for work that must touch a record that is not (yet) usable —
+ * re-validating a pending save, certifying a saved key, copying key material. The closed list of callers is
+ * pinned by storedApiKeyReaders.test.ts; everything that sends a request goes through decryptApiKeyRecord.
+ */
+export function decryptStoredApiKeyRecord(rec: ApiKeyRecord | undefined): string {
   if (!rec || !rec.apiKey) return "";
   if (rec.enc !== "safeStorage") return "";
   try {
@@ -177,23 +188,22 @@ export type { ApiKeyDecryptStatus };
  */
 export type KeyStatusProbe = (record: ApiKeyRecord | undefined) => ApiKeyDecryptStatus;
 
-/**
- * 这条凭据记录**本身**算不算数——不开钥匙串就能答的那一半：没有材料，或用户把它停用了。
- *
- * 单独抽出来是因为它有两个合法消费者：`apiKeyDecryptStatus`（真解密那条路）和可用性派生器里
- * 的探测缝（注入假探针的测试也必须先过这一关，否则「停用的 key 不许去解」就成了只在生产成立的
- * 口头承诺）。以前这条规则由各个读者各写一遍 `record?.enabled` —— 文本大脑、生成默认模型、
- * 健康度各一份，删一处漏两处。
- */
+/** Return whether the credential is usable by the decrypting consumers. */
 export function credentialRecordCounts(rec: ApiKeyRecord | undefined): boolean {
+  // Disabled records must not open the keychain or reach any outbound consumer.
   return Boolean(rec?.apiKey) && rec?.enabled !== false;
+}
+
+/** Return whether persisted key material exists, without making an availability claim. */
+export function credentialMaterialSaved(rec: ApiKeyRecord | undefined): boolean {
+  return Boolean(rec?.apiKey);
 }
 
 export function apiKeyDecryptStatus(rec: ApiKeyRecord | undefined): ApiKeyDecryptStatus {
   if (!credentialRecordCounts(rec) || !rec) return "missing";
   if (rec.enc === "safeStorage") {
     // 密文在手：解得开非空 = ok；解不开 / 解出空串 = locked（身份不匹配等，key 确实存在只是读不动）。
-    return decryptApiKeyRecord(rec) ? "ok" : "locked";
+    return decryptStoredApiKeyRecord(rec) ? "ok" : "locked";
   }
   // plain / legacy：保留结构识别供迁移提示，但绝不把它当作新认证可用的 credential。
   return rec.apiKey ? "needs_resave" : "missing";
