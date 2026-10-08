@@ -4,7 +4,8 @@
  *
  * 要权衡的那一个东西：底栏这条带子的常驻宽度是有限的，而「每个参数一颗 chip」的价值
  * 恰恰来自**一步到位**——多一颗 chip 就多占一格宽，多收一颗进 ⚙ 就多一次点击。
- * 判据必须能同时回答「露哪几颗」和「露不下时先收哪颗」，而且两个答案都得从档案 derive。
+ * 判据只回答「露哪几颗」，而且从档案 derive。露不下时**换行**，不收（2026-10-08 合同：主参数影响报价 / 产出，
+ * 付费确认那一刻一颗都不许退进 ⚙、不许被裁、不许横向滚动；换行在 InlineParameterBar 的 chips 横排上）。
  *
  * 判据（三条，缺一不可）：
  *   ① **档案声明了这个语义角色**（比例 / 时长 / 清晰度，`parameterControlRole` 是全仓唯一的角色表）。
@@ -19,7 +20,6 @@
  *
  * 顺序按角色固定（比例 → 时长 → 清晰度），不随档案声明顺序漂：底栏是用户每次生成前都要扫的
  * 同一行，比例这颗今天在第一位、换个模型跑到第三位，等于每换一次模型都要重新找一遍。
- * 退位也按这个顺序**从尾巴退**（先退清晰度，再退时长），因为越靠前的越是「决定出什么」。
  */
 import {
   catalogControlInitialValue,
@@ -117,24 +117,8 @@ export function splitPrimaryParameterControls(controls: readonly DynamicModelCon
 }
 
 /**
- * 按「装得下几颗」切一刀。装不下的**退回 ⚙**（不换行、不缩成看不清的小字）。
- * `visibleCount` 由组件量出来（真实盒子宽度），这里只负责「从尾巴退、不重排、不跳着退」这条规则。
- */
-export function planParameterChips(
-  primary: readonly DynamicModelControl[],
-  _visibleCount: number,
-): { chips: DynamicModelControl[]; demoted: DynamicModelControl[] } {
-  // Every control in `primary` is a priced/output-affecting role derived above.
-  // A fitted width may be smaller on Linux (or with a wider host font), but
-  // demoting one of these controls to ⚙ hides a value the user is about to
-  // approve. Long-tail, non-priced controls stay in `rest` and remain the
-  // only controls eligible for the overflow panel.
-  return { chips: [...primary], demoted: [] }
-}
-
-/**
  * ⚙ 里到底放哪些控件：档案声明的全部控件里，去掉此刻摆在底栏上的那几颗。
- * 退回来的 chip 自动回到它在档案里的原位——顺序不因为它刚从底栏退下来就变。
+ * 顺序保持档案声明顺序。
  */
 export function overflowParameterControls(
   controls: readonly DynamicModelControl[],

@@ -6,7 +6,6 @@ import {
   parameterChipLabel,
   parameterChipOptions,
   parameterChipValue,
-  planParameterChips,
   splitPrimaryParameterControls,
 } from './primaryParameterChips'
 import { parameterControlRole, type DynamicModelControl } from './controls/parameterControlModel'
@@ -207,33 +206,18 @@ describe('chip 上的值与文案', () => {
   })
 })
 
-describe('planParameterChips / overflowParameterControls — 装不下时退回 ⚙', () => {
-  const { primary } = splitPrimaryParameterControls([ratio, duration, resolution, generateAudio])
-
-  it('窄卡也不把报价参数退进齿轮', () => {
-    expect(keys(planParameterChips(primary, 2).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
-    expect(planParameterChips(primary, 2).demoted).toEqual([])
-    expect(keys(planParameterChips(primary, 1).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
-  })
-
-  it('测得装不下时仍保留全部报价参数，长尾才进齿轮', () => {
-    expect(keys(planParameterChips(primary, 0).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
-    expect(planParameterChips(primary, 0).demoted).toEqual([])
-  })
-
-  it('装得下就全摆（要几颗给几颗，不留位）', () => {
-    expect(keys(planParameterChips(primary, 99).chips)).toEqual(['aspect_ratio', 'duration', 'resolution'])
-  })
-
-  it('退回来的参数回到它在档案里的原位，不因为刚从底栏退下来就排到末尾', () => {
+describe('overflowParameterControls — ⚙ 里只剩长尾', () => {
+  // 主参数恒全摆在底栏（不按宽度退位；放不下由 InlineParameterBar 换行）。⚙ 只收非主参数。
+  it('⚙ 只装长尾，且保持档案声明顺序', () => {
     const declared = [resolution, ratio, duration, generateAudio]
-    const { chips } = planParameterChips(splitPrimaryParameterControls(declared).primary, 2)
-    expect(keys(overflowParameterControls(declared, chips))).toEqual(['generate_audio'])
+    const { primary } = splitPrimaryParameterControls(declared)
+    expect(keys(primary)).toEqual(['aspect_ratio', 'duration', 'resolution'])
+    expect(keys(overflowParameterControls(declared, primary))).toEqual(['generate_audio'])
   })
 
   it('摆在底栏上的参数不会在 ⚙ 里再出现一次（同一个值只有一个家）', () => {
     const declared = [ratio, duration, resolution, generateAudio]
-    const { chips } = planParameterChips(splitPrimaryParameterControls(declared).primary, 3)
-    expect(keys(overflowParameterControls(declared, chips))).toEqual(['generate_audio'])
+    const { primary } = splitPrimaryParameterControls(declared)
+    expect(keys(overflowParameterControls(declared, primary))).toEqual(['generate_audio'])
   })
 })
