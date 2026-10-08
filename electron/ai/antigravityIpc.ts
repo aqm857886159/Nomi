@@ -12,8 +12,10 @@ export function registerAntigravityIpc(): void {
   let drained = false;
   let active: { owner: number; promise: Promise<AntigravityConnectionStatus> } | undefined;
   let completed: { owner: number; status: AntigravityConnectionStatus } | undefined;
-  app.on("before-quit", (event) => {
+  app.on("before-quit", () => {
     exiting = true;
+  });
+  app.on("will-quit", (event) => {
     if (drained || (!active && !draining)) return;
     event.preventDefault();
     if (draining) return;
