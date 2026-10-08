@@ -13,7 +13,7 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -126,6 +126,10 @@ describe("nomi_try_model 提交步骤的预算", () => {
     const closedPort = (probe.address() as { port: number }).port;
     await new Promise<void>((resolve) => probe.close(() => resolve()));
     refusedVendorKey = await declare("Example Refused", `http://127.0.0.1:${closedPort}`);
+  });
+
+  beforeEach(() => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
   });
 
   afterEach(() => {

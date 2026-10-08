@@ -187,6 +187,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  vi.stubEnv("NOMI_ASSET_RELAY_URL", `${baseUrl}/v1/assets`);
   hits.length = 0;
   pollsRemaining.clear();
   uploadedReferenceBytes = null;

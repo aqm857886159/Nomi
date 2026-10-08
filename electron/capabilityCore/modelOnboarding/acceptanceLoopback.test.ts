@@ -19,7 +19,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcListeners = vi.hoisted(() => ({ handlers: new Map<string, (event: unknown, payload: unknown) => void>() }));
 
@@ -78,6 +78,10 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address() as { port: number };
     origin = `http://127.0.0.1:${address.port}`;
+  });
+
+  beforeEach(() => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
   });
 
   afterAll(async () => {

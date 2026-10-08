@@ -46,6 +46,7 @@ describe('付费放行单一 owner（删掉客户端自报的第二扇门）', (
   const tempRoots: string[] = []
 
   beforeEach(() => {
+    vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot)
     mockedDocumentsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-spend-door-docs-'))
     mockedUserDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-spend-door-data-'))
     tempRoots.push(mockedDocumentsRoot, mockedUserDataRoot)

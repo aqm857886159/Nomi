@@ -9,7 +9,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -116,6 +116,10 @@ describe("nomi_read target=task", () => {
     expect(keyed.ok).toBe(true);
   });
 
+  beforeEach(() => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
+  });
+
   afterAll(async () => {
     vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -127,7 +131,7 @@ describe("nomi_read target=task", () => {
     const { tryModel } = await import("./modelOnboarding/tryModel");
     const { runTask, fetchTaskResult } = await import("../runtime");
     const tried = await tryModel({
-      runTask, fetchTaskResult, pollIntervalMs: 10, pollTimeoutMs: 40,
+      runTask, fetchTaskResult, pollIntervalMs: 10, pollTimeoutMs: 200,
       approvalPolicy: () => ({ mode: "project", spend: "confirm" }),
     }, { vendorKey, modelKey: "readtask-paint", prompt: "apple" }) as { code?: string; taskId?: string; nextAction?: string };
     expect(tried.code).toBe("still_processing");

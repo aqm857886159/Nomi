@@ -12,7 +12,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -123,6 +123,10 @@ describe("nomi_try_model 遇到异步供应商", () => {
     vendorKey = submitted.vendorKey;
     const keyed = await dispatch("model.onboarding.setup", { action: "set_key", vendorKey, apiKey: "relay-test-key" }, ctx) as { ok: boolean };
     expect(keyed.ok).toBe(true);
+  });
+
+  beforeEach(() => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
   });
 
   afterAll(async () => {

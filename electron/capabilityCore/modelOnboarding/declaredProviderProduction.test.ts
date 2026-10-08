@@ -18,7 +18,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -82,6 +82,10 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  });
+
+  beforeEach(() => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
   });
 
   afterAll(async () => {

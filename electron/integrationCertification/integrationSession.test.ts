@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // 2026-09-21：测试不许读写用户真实目录。这份文件此前经默认路径读到了**用户本人的**
 // `~/.nomi/capability-core`（token / 签名密钥 / 接入会话 / handoff 队列都住那里）——
@@ -9,6 +9,9 @@ import { describe, expect, it, vi } from "vitest";
 // 就是这么在这台机器上红、在别处绿的。给它一个本轮独有的空目录。
 const capabilityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-integration-session-cap-"));
 vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot);
+beforeEach(() => {
+  vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot);
+});
 import { IntegrationSessionService } from "./integrationSession";
 import { createRuntimeIntegrationSessionService } from "./integrationSession";
 
