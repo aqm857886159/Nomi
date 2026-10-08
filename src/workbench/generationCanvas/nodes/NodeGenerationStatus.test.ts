@@ -23,7 +23,7 @@ const justSaved = (): GenerationCanvasNode['runs'] => {
 const node: GenerationCanvasNode = { id: 'shot-status', kind: 'image', title: '', position: { x: 0, y: 0 }, status: 'success', runs: justSaved() }
 describe('shot inline lifecycle feedback', () => {
   it('keeps completion visible in its own node', () => {
-    expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus, { node: { ...node, runs: justSaved() } }))).toContain('已保存到项目')
+    expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus, { node: { ...node, runs: justSaved() } }))).toBe('')
   })
   it('落地回执是一次性的：窗口过完节点下面什么都不挂', () => {
     // 2026-09-11 用户实测：每个做完的图片节点下面都永久挂着这一条，一屏十几条重复的废话。

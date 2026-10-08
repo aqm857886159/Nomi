@@ -1,0 +1,1 @@
+Targeted render evidence: completed nodes render no inline saved receipt; bash tool labels resolve to the generic intent label in zh-CN/en. Full Electron screenshot walk is unverified in this worktree.\n

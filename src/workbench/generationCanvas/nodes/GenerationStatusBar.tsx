@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useReducedProcessMotion } from './useReducedProcessMotion'
 import { cn } from '../../../utils/cn'
-import { SAVED_FADE_MS, type GenerationFeedback } from '../../observability/generationFeedback'
+import type { GenerationFeedback } from '../../observability/generationFeedback'
 
 /** One atom, eight factual fillings. Geometry belongs to the node, never to progress. */
 export function GenerationStatusBar({ feedback, overlay = false, action }: {
@@ -11,25 +11,16 @@ export function GenerationStatusBar({ feedback, overlay = false, action }: {
 }): JSX.Element {
   const reduced = useReducedProcessMotion()
   const dot = React.useRef<HTMLSpanElement>(null)
-  const root = React.useRef<HTMLSpanElement>(null)
   React.useEffect(() => {
     if (reduced || !feedback.active) return
     const animation = dot.current?.animate([{ opacity: 0.5 }, { opacity: 1 }, { opacity: 0.5 }], { duration: 1600, iterations: Infinity })
     return () => animation?.cancel()
   }, [reduced, feedback.active])
   // 「已保存到项目」是限时回执：窗口最后一小段淡出；系统开了「减少动态效果」就不淡出，到点直接消失。
-  const savedRemaining = feedback.savedRemainingMs
-  React.useEffect(() => {
-    if (reduced || savedRemaining === undefined) return
-    const animation = root.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: SAVED_FADE_MS, delay: Math.max(0, savedRemaining - SAVED_FADE_MS), fill: 'forwards' })
-    return () => animation?.cancel()
-    // 只在这条回执出现的那一刻排一次：之后每秒的时钟重渲染不重排动画。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduced, feedback.saved])
-  const color = feedback.saved ? 'bg-nomi-success' : feedback.phase === 'failed' ? 'bg-nomi-danger'
+  const color = feedback.phase === 'failed' ? 'bg-nomi-danger'
     : feedback.late ? 'bg-nomi-warning' : feedback.phase === 'queued' ? 'bg-nomi-ink-30' : 'bg-nomi-accent'
   return (
-    <span ref={root} data-generation-status data-phase={feedback.phase} data-reduced-motion={reduced}
+    <span data-generation-status data-phase={feedback.phase} data-reduced-motion={reduced}
       className={cn('inline-flex max-w-full items-center gap-2 rounded-full px-2 py-1 text-caption font-medium leading-snug',
         overlay ? 'bg-nomi-paper/90 text-nomi-ink-60' : 'bg-nomi-ink-05 text-nomi-ink-60', feedback.phase === 'failed' && 'text-nomi-danger')}>
       <span ref={dot} data-process-dot className={cn('size-1.5 shrink-0 rounded-full', color)} aria-hidden />
