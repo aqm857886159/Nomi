@@ -1,7 +1,7 @@
 {
   "id": "FB-20261008-pending-spend-presentation",
   "since": "2026-10-08",
-  "source": "?????? docs/fixes/2026-10-08-pending-spend-presentation.root-cause.json ? symptom ???\"Switching approval mode or restarting could make an existing paid card disappear, while delayed actions could target a newer quote.\"",
+  "source": "用户报告（根因合同 docs/fixes/2026-10-08-pending-spend-presentation.root-cause.json 的 symptom）：Switching approval mode or restarting could make an existing paid card disappear, while delayed actions could target a newer quote.",
   "category": "interaction-semantics",
   "problem": "???????????????? generation presentation??????????????????",
   "existingInvariants": [],
