@@ -1,7 +1,7 @@
 {
   "id": "FB-20261008-production-canvas-signal-project-scope",
   "since": "2026-10-08",
-  "source": "用户原话：ProductionCanvasSignal 只有 kind / nodes 且全局广播，项目切换中或旧项目的异步动作 / 撤销重放期间，会把 A 项目的 detach / reattach 写进 B 项目。",
+  "source": "用户报告（根因合同 docs/fixes/2026-10-08-canvas-explicit-delete-write-port.root-cause.json，detected_by: user）：撤销已落地的生产批次只 detach 不 reattach；切换项目后 A 项目的信号写进 B 项目；外部改过的项目被渲染层迟到的提交覆盖。",
   "category": "interaction-semantics",
   "problem": "生产画布信号没有携带并校验 projectId，宿主按当前项目写 Run；撤销带 productionRunId 的建节点还会被节点集合差分误判为删除并发 detach。",
   "existingInvariants": [
