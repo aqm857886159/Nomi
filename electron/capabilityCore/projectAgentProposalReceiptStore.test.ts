@@ -280,7 +280,12 @@ describe("ProjectAgent committed proposal receipt", () => {
 describe("receipt read boundary recovery", () => {
   it.each(publishedReceiptFixtureFiles)("reads or isolates published receipt format %s", (fixtureName) => {
     const projectRoot = tempProject();
-    const fixture = JSON.parse(fs.readFileSync(path.join(publishedReceiptFixturesDir, fixtureName), "utf8")) as unknown;
+    const fixture = JSON.parse(fs.readFileSync(path.join(publishedReceiptFixturesDir, fixtureName), "utf8")) as Record<string, unknown>;
+    const isPreJournalSchema2 =
+      fixture.schemaVersion === 2 &&
+      fixture.proposalHash === undefined &&
+      fixture.operations === undefined &&
+      fixture.journalHash === undefined;
     fs.writeFileSync(projectAgentProposalReceiptPath(projectRoot), JSON.stringify(fixture), "utf8");
 
     expect(() => createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).not.toThrow();
@@ -289,6 +294,7 @@ describe("receipt read boundary recovery", () => {
       expect(restored.lifecycle).toBe("committed");
       expect(restored.proposal).toEqual(proposal);
     } else {
+      expect(isPreJournalSchema2).toBe(false);
       expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
       expect(
         fs.readdirSync(path.dirname(projectAgentProposalReceiptPath(projectRoot))).some((name) =>
