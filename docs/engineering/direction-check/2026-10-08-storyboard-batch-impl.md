@@ -55,3 +55,9 @@ mojibake in source text; `check-source-nul-bytes` only covers NUL bytes, and
 `useCharacterPlacement.ts`. This commit only restores the three strings. The
 class fix (a source-text mojibake gate plus repair of the existing occurrences)
 is tracked as a separate task so it is not hidden inside this feature PR.
+
+## 10. 第 4 轮：恢复页脚交给 Agent
+- 直接原因：实现时删了方案 Q9 写明「先不动」的入口（页脚「选中 N 镜 · 交给 Agent 改」；f07824de5 删按钮、8ffd4e67d 清配套状态），提交信息没有拍板依据。
+- 类：改动超出拍板范围。门岗只看代码和改动量，不对账方案里「不动」的项。
+- 这次的补法：`tests/ux/storyboard-agent-handoff.test.mjs`，三入口真路径测试，少一个就红。
+- 更强的补法（待协调会话立项，不在本 PR 做）：把方案 Q 表里的「不动」项登记成机器可读合同。

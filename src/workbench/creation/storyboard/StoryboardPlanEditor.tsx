@@ -3,7 +3,7 @@ import { deleteStoryboardRows, restoreStoryboardDeletion, type StoryboardDeletio
 import { isCanvasTextEditingContext } from '../../generationCanvas/components/useCanvasShortcuts'
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconRobot, IconX } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
 import { notify } from '../../../ui/notificationPolicy'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -78,6 +78,8 @@ export function StoryboardPlanEditorFooter({
   busy,
   runnableCount,
   generateLabel,
+  selectedCount = 0,
+  onAgentHandoff,
 }: {
   progress: string
   issueLabel?: string
@@ -86,12 +88,28 @@ export function StoryboardPlanEditorFooter({
   busy: boolean
   runnableCount: number
   generateLabel?: string
+  /** 勾选 = 选中的镜数（表是选择的唯一 owner，这里只读它上报的结果）。 */
+  selectedCount?: number
+  /** 「选中 N 镜 · 交给 Agent 改」（§2.7 入口 1/3，页脚常驻）；不传则不出这枚。 */
+  onAgentHandoff?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()
   return (
     <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper" data-storyboard-plan-footer="true">
       <div className="flex items-center gap-2 min-w-0">
         <WorkbenchButton variant="default" size="sm" onClick={onBack}>{t('storyboardEditor.backToCreation')}</WorkbenchButton>
+        {onAgentHandoff ? (
+          <WorkbenchButton
+            variant="default"
+            size="sm"
+            data-storyboard-agent-handoff="footer"
+            disabled={selectedCount === 0}
+            onClick={onAgentHandoff}
+          >
+            <IconRobot size={14} stroke={1.7} />
+            {t('storyboardEditor.agentHandoff.footer', { count: selectedCount })}
+          </WorkbenchButton>
+        ) : null}
         {issueLabel ? (
           <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
             <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
@@ -132,6 +150,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const imageModelOptions = useModelOptionsState('image', 'any-published').options
   // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
   const [busy, setBusy] = React.useState(false)
+  // 表上报的「勾选 = 选中」镜（表是唯一 owner，这里只是页脚入口读的镜像，不另存一份选择）。
+  const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const [actionFeedback, setActionFeedback] = React.useState<{ designId: string | null; message: string } | null>(null)
   const reportFailure = (message: string): void => {
     notify({ identity: `storyboard:${activeDocumentId}:${designId}`, reason: 'edit-action', level: 'inline', type: 'error', message,
@@ -649,6 +669,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onStoryboardShotSelect={onStoryboardShotSelect}
               skippedShotIds={skippedShotIds}
               onToggleSkip={onToggleSkip}
+              onSelectionChange={setSelectedRuntimes}
               onAgentHandoff={onAgentHandoff}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
@@ -700,6 +721,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         onGenerate={onRunBatch}
         busy={busy}
         runnableCount={batch.runnable.length}
+        selectedCount={selectedRuntimes.length}
+        onAgentHandoff={() => onAgentHandoff(selectedRuntimes)}
       />
 
       {actionFeedback?.designId === designId ? <p role="status" data-storyboard-action-feedback className="px-3 py-2 text-caption text-workbench-danger">{actionFeedback.message}</p> : null}
