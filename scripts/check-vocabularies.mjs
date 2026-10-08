@@ -125,7 +125,9 @@ export function resolveReferenceBaselines({ repoRoot, baselinePath, referenceBas
   if (status.status === 0 && status.stdout.trim()) addCommit('HEAD', 'HEAD')
 
   addCommit('HEAD^1', 'HEAD^1')
-  addCommit('origin/main', 'origin/main')
+
+  const mainIsAncestor = git(gitRoot, ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'])
+  if (mainIsAncestor.status === 0) addCommit('origin/main', 'origin/main')
 
   const mergeBase = git(gitRoot, ['merge-base', 'HEAD', 'origin/main'])
   if (mergeBase.status === 0 && mergeBase.stdout.trim()) {

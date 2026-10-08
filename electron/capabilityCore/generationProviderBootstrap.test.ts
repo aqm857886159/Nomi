@@ -11,6 +11,7 @@ import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from 
 import type { CatalogState } from "../catalog/types";
 import type { ProductionExecutionBinding } from "../productionRun/productionExecutionBinding";
 import type { ProductionRun } from "../productionRun/productionRunTypes";
+import { setProductionRunE2eFixturePackagedState } from "../shared/productionRunE2eFixtureGate";
 
 /** 授权必须站在真实 Run 上（`run` 现在是必填）。这份草稿快照只带 prepare 真正读的那几项。 */
 function draftRunFor(operationId: string, projectId: string): ProductionRun {
@@ -256,9 +257,20 @@ describe("generation provider bootstrap", () => {
   });
 
   it("routes an explicitly enabled production fixture through loopback while keeping the canonical APIMart scope", async () => {
+    setProductionRunE2eFixturePackagedState(false);
+    vi.stubEnv("NOMI_E2E", "1");
     vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
     try {
       const fixture = encryptedState();
+      fixture.vendors[0] = {
+        ...fixture.vendors[0],
+        credentialBinding: {
+          origin: "https://api.apimart.ai",
+          authType: "bearer",
+          authHeader: "Authorization",
+          confirmedAt: "now",
+        },
+      };
       const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
         code: 200,
         data: [{ status: "submitted", task_id: "task-loopback" }],
@@ -278,6 +290,45 @@ describe("generation provider bootstrap", () => {
         "http://127.0.0.1:4567/v1/images/generations",
         expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer encrypted-keychain-payload" }) }),
       );
+    } finally {
+      vi.unstubAllEnvs();
+      setProductionRunE2eFixturePackagedState(undefined);
+    }
+  });
+
+  it("keeps the saved credential origin and destination when fixture mode is off", async () => {
+    vi.stubEnv("NOMI_E2E", "0");
+    vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "0");
+    try {
+      const fixture = encryptedState();
+      fixture.vendors[0] = {
+        ...fixture.vendors[0],
+        credentialBinding: {
+          origin: "https://api.apimart.ai",
+          authType: "bearer",
+          authHeader: "Authorization",
+          confirmedAt: "now",
+        },
+      };
+      const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+        code: 200,
+        data: [{ status: "submitted", task_id: "task-production" }],
+      }), { status: 200 }));
+      const boot = createGenerationProviderBootstrap(fixture, {
+        catalogReader: () => fixture,
+        fixtureBaseUrlOverride: "http://127.0.0.1:4567",
+        fetchImpl,
+      });
+      const provider = boot.providers[0];
+      const request = generationInput();
+      await expect(provider?.submit(provider?.buildRequest(request), request.idempotencyKey))
+        .resolves.toMatchObject({ providerTaskId: "task-production" });
+      expect(fetchImpl).toHaveBeenCalledWith(
+        "https://api.apimart.ai/v1/images/generations",
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer encrypted-keychain-payload" }) }),
+      );
+      expect(fixture.vendors[0]?.credentialBinding?.origin).toBe("https://api.apimart.ai");
+      expect(JSON.stringify(fetchImpl.mock.calls[0])).not.toContain("127.0.0.1:4567");
     } finally {
       vi.unstubAllEnvs();
     }

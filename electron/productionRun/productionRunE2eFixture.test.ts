@@ -8,23 +8,31 @@ import { describe, expect, it } from 'vitest'
 import {
   createProductionRunE2eRenderer,
   isProductionRunE2eFixtureEnabled,
+  setProductionRunE2eFixturePackagedState,
 } from './productionRunE2eFixture'
 
 const require = createRequire(import.meta.url)
 
 describe('production Run E2E fixture', () => {
   it('requires both explicit E2E flags and refuses packaged builds by default', () => {
-    expect(isProductionRunE2eFixtureEnabled({}, false)).toBe(false)
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1' }, false)).toBe(false)
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E_PRODUCTION_FIXTURE: '1' }, false)).toBe(false)
+    setProductionRunE2eFixturePackagedState(false)
+    expect(isProductionRunE2eFixtureEnabled({})).toBe(false)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1' })).toBe(false)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E_PRODUCTION_FIXTURE: '1' })).toBe(false)
     // Without the packaged-fixture escape hatch, packaged builds are always refused.
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' }, true)).toBe(false)
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' }, false)).toBe(true)
+    setProductionRunE2eFixturePackagedState(true)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' })).toBe(false)
+    setProductionRunE2eFixturePackagedState(false)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' })).toBe(true)
     // Three-flag packaged E2E opt-in: all three flags must be set simultaneously.
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' }, true)).toBe(true)
+    setProductionRunE2eFixturePackagedState(true)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' })).toBe(true)
     // Missing any one of the three flags still refuses.
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' }, true)).toBe(false)
-    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' }, true)).toBe(false)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' })).toBe(false)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PACKAGED_FIXTURE: '1' })).toBe(false)
+    // No main-process injection is fail-closed as packaged.
+    setProductionRunE2eFixturePackagedState(undefined)
+    expect(isProductionRunE2eFixtureEnabled({ NOMI_E2E: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1' })).toBe(false)
   })
 
   it('materializes a playable local clip and a valid MP4 export without a provider', async () => {

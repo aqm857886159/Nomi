@@ -541,14 +541,20 @@ export function extractTaskId(raw: unknown, explicitPath?: string): string {
  *     —— errorCode 非 0/空即逻辑错（2026-06-30 真机实测：1014=非企业共享key被拒、1007=缺参、1001=路径错）。
  *     不限 <600（RunningHub 用 1xxx 业务码），否则非企业 key 的 1014 会被漏判 → 伪造本地 taskId 轮询成谜之失败。
  */
-export function looksLikeLogicalError(body: unknown): number | null {
+export function looksLikeLogicalError(body: unknown, successCodes: readonly (number | string)[] = []): number | string | null {
   if (!isRecord(body)) return null;
   const code = body.code;
+  // A declared mapping owns its exact code vocabulary.  Keep string codes
+  // distinct: APIMart's numeric 0/200 contract does not make "0" a success.
+  if (successCodes.length > 0 && (typeof code === "number" || typeof code === "string")) {
+    return successCodes.includes(code) ? null : code;
+  }
   if (typeof code === "number" && code >= 400 && code < 600) return code;
   // 与下行 errorCode 分支同口径 /^\d+$/：4 位业务码（如 "1004"）也是逻辑错，3 位正则会漏判成成功。
   if (typeof code === "string" && /^\d+$/.test(code) && Number(code) >= 400) return Number(code);
   // RunningHub 风格：errorCode 存在且非「成功」值（0 / "0" / 空）即逻辑错。
   const ec = body.errorCode;
+  if (successCodes.length > 0) return null;
   if (typeof ec === "number" && ec !== 0) return ec;
   if (typeof ec === "string" && ec.trim() !== "" && ec.trim() !== "0" && /^\d+$/.test(ec.trim())) return Number(ec);
   return null;
