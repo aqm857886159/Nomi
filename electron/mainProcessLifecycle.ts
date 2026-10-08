@@ -11,7 +11,7 @@ import { installProcessStdioErrorGuards } from "./processStdio";
 type ElectronAppLifecycle = {
   readonly isPackaged: boolean;
   exit: (code?: number) => void;
-  once: (event: "before-quit", listener: () => void) => unknown;
+  once: (event: "will-quit", listener: () => void) => unknown;
 };
 
 type MainProcessLifecycleDependencies = {
@@ -75,5 +75,5 @@ export function installMainProcessLifecycle(
     parentPid: readLauncherPid(dependencies.env ?? process.env),
     exit: (code) => app.exit(code),
   });
-  app.once("before-quit", stopParentProcessWatchdog);
+  app.once("will-quit", stopParentProcessWatchdog);
 }

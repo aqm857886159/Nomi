@@ -1,0 +1,23 @@
+{
+  "name": "工作流引用守卫",
+  "subject": "delivery.workflow-ref-guard",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/verify-workflow-ref.mjs",
+    "symbol": "compareWorkflowRef"
+  },
+  "write_api": [
+    {
+      "path": "scripts/verify-workflow-ref.mjs",
+      "symbol": "compareWorkflowRef"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-07",
+  "notes": "发布候选工作流先校验引用提交，再进入后续门禁。"
+}
