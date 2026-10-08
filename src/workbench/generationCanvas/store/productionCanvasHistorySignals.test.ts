@@ -24,7 +24,10 @@ describe('production canvas history signals', () => {
     stop = subscribeProductionCanvasSignals((signal) => signals.push(signal))
   })
 
-  afterEach(() => stop())
+  afterEach(() => {
+    stop()
+    vi.restoreAllMocks()
+  })
 
   it('does not infer detach when undoing creation of a production node', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [makeNode('source')], edges: [], groups: [] }, 'project-a')
@@ -113,24 +116,35 @@ describe('production canvas history signals', () => {
     expect(mismatches).toEqual(['project-a', 'project-a'])
   })
 
-  it('logs and queues an empty-project signal until the atomic project load binds identity', () => {
+  it('logs and drops an empty-project signal with identity diagnostics', () => {
     const error = vi.spyOn(rendererLog, 'logRendererError').mockImplementation(() => {})
-    emitProductionCanvasSignal({ kind: 'detach', projectId: null, nodes: [makeNode('queued')] })
+    emitProductionCanvasSignal({ kind: 'detach', projectId: null, nodes: [makeNode('orphan')] })
 
-    expect(error).toHaveBeenCalledWith('production-canvas-signal-project-unavailable', undefined, expect.objectContaining({ kind: 'detach' }))
+    expect(error).toHaveBeenCalledWith('production-canvas-signal-project-unavailable', undefined, expect.objectContaining({ kind: 'detach', nodeIds: 'orphan', canvasDocumentProjectId: '' }))
     expect(signals).toEqual([])
+  })
 
-    let observedStore: { projectId: string | null; nodeIds: string[] } | undefined
-    const observe = subscribeProductionCanvasSignals(() => {
-      const state = useGenerationCanvasStore.getState()
-      observedStore = { projectId: state.projectId, nodeIds: state.nodes.map((node) => node.id) }
-    })
-    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [makeNode('loaded')], edges: [], groups: [] }, 'project-a')
-    observe()
+  it('rejects production nodes in a load without project identity', () => {
+    const error = vi.spyOn(rendererLog, 'logRendererError').mockImplementation(() => {})
+    useGenerationCanvasStore.setState({ projectId: null, nodes: [], edges: [], groups: [] })
+    expect(() => useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [makeNode('invalid-load')], edges: [], groups: [] })).toThrow('project identity')
+    expect(() => useGenerationCanvasStore.getState().applyEventTail([{ type: 'canvas.node.added', payload: { node: makeNode('invalid-tail') } }])).toThrow('project identity')
+    expect(useGenerationCanvasStore.getState().nodes).toEqual([])
+    expect(error).toHaveBeenCalledWith('generation-canvas-project-identity-required', undefined, expect.objectContaining({ operation: 'load', nodeIds: 'invalid-load' }))
+  })
 
-    expect(useGenerationCanvasStore.getState().projectId).toBe('project-a')
-    expect(signals).toEqual([expect.objectContaining({ kind: 'detach', projectId: 'project-a' })])
-    expect(observedStore).toEqual({ projectId: 'project-a', nodeIds: ['loaded'] })
-    error.mockRestore()
+  it('rejects production nodes in paste, restore, and external graph writes without identity', () => {
+    const error = vi.spyOn(rendererLog, 'logRendererError').mockImplementation(() => {})
+    const production = makeNode('invalid-write')
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [production], edges: [], groups: [] }, 'project-a')
+    useGenerationCanvasStore.getState().selectNode('invalid-write')
+    useGenerationCanvasStore.getState().copySelectedNodes()
+    useGenerationCanvasStore.setState({ projectId: null, nodes: [], edges: [], groups: [] })
+    expect(useGenerationCanvasStore.getState().projectId).toBeNull()
+    expect(() => useGenerationCanvasStore.getState().pasteNodes()).toThrow('project identity')
+    expect(() => useGenerationCanvasStore.getState().restoreGraph([production], [])).toThrow('project identity')
+    const base = useGenerationCanvasStore.getState().readDocumentSnapshot()
+    expect(() => useGenerationCanvasStore.getState().applyExternalGraph({ base, next: { ...base, nodes: [production] } })).toThrow('project identity')
+    expect(error).toHaveBeenCalledWith('generation-canvas-project-identity-required', undefined, expect.objectContaining({ operation: 'paste nodes' }))
   })
 })

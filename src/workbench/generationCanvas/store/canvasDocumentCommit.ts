@@ -28,8 +28,7 @@ import { clearClipboard } from './canvasClipboard'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
-import { bindProductionCanvasSignalProject, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
-import { logRendererError } from '../../../desktop/rendererLog'
+import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 /** 一次整写：哪扇门、带了什么。commit 按种类穷举处理，新加种类不处理就编译不过。 */
 export type CanvasDocumentWrite =
@@ -131,13 +130,6 @@ function emitProductionSignalsForDocumentChange(projectId: string | null, before
   emitProductionCanvasSignal({ kind: 'reattach', projectId, nodes: after.filter((node) => !beforeIds.has(node.id)) })
 }
 
-function hasProductionNodes(nodes: readonly GenerationCanvasNode[]): boolean {
-  return nodes.some((node) => {
-    const meta = node.meta as Record<string, unknown> | undefined
-    return typeof meta?.productionRunId === 'string' && meta.productionRunId.trim().length > 0
-  })
-}
-
 function invertProductionCanvasIntent(intent: ProductionCanvasHistoryIntent): ProductionCanvasHistoryIntent {
   if (intent.kind === 'none') return intent
   return {
@@ -181,10 +173,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
       case 'load': {
         const normalized = normalizeStoreSnapshot(write.snapshot)
         const projectId = write.projectId ?? get().projectId
-        if (!projectId && hasProductionNodes(normalized.nodes)) {
-          logRendererError('generation-canvas-project-identity-required', undefined, { nodeCount: normalized.nodes.length })
-          throw new Error('Cannot load production canvas nodes without a project identity')
-        }
+        assertProductionCanvasProjectIdentity(projectId, normalized.nodes, 'load')
         // S5-b-2:journal 起点 = 恢复出的画布(undo 最远只回放到这帧,不会塌到空白)
         seedUndoJournalBase({ nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups })
         clearClipboard()
@@ -204,7 +193,6 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           hasClipboard: false,
           ...getHistoryFlags(),
         })
-        bindProductionCanvasSignalProject(projectId)
         // genesis 事件不在这里发(S5-b-1):必须等 hydrate 尾部重放完成后由
         // workbenchProjectSession 以"含尾巴的后态"发,否则磁盘日志最终态会丢尾巴。
         return
@@ -214,6 +202,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         if (!write.events.length) return
         const state = get()
         const projection = replayCanvasEvents(write.events, { nodes: state.nodes, edges: state.edges, groups: state.groups })
+        assertProductionCanvasProjectIdentity(state.projectId, projection.nodes, 'load event tail')
         // 拆解进度的每一下写都走 canvas.node.updated 进了事件日志，重放会把 `status: 'running'` 原样写回来——
         // 终态判定的 owner 只有一份，重放完再问它一次；已终态的表它原样返回，幂等（重启后拆解表卡在「进行中」就是这一下）。
         set({ nodes: convergeDeconstructionNodes(projection.nodes), edges: projection.edges, groups: projection.groups })
@@ -237,6 +226,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         const normalized = normalizeStoreSnapshot(merged)
         const settled = settleNodeFacts(normalized.nodes, live.nodes, live.heldNodeOutcomes, withLiveNodeFacts)
         const next = { nodes: settled.nodes, edges: normalized.edges, groups: normalized.groups }
+        assertProductionCanvasProjectIdentity(live.projectId, next.nodes, 'apply external graph')
         pushUndoSnapshot(live) // 入历史:外部改动可被用户 Ctrl+Z 撤销
         replaceDocument(next, withoutReturned(live.heldNodeOutcomes, settled.returned), (state) => {
           state.workflowTemplates = normalized.workflowTemplates || state.workflowTemplates
@@ -255,6 +245,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         const settled = settleNodeFacts(numbered, live.nodes, live.heldNodeOutcomes, withLiveNodeFacts)
         const addEdges = write.edges.filter((edge) => edge?.id && !existingEdgeIds.has(edge.id))
         if (!settled.nodes.length && !addEdges.length) return
+        assertProductionCanvasProjectIdentity(live.projectId, settled.nodes, 'restore graph')
         pushUndoSnapshot(live)
         set((state) => {
           state.nodes = [...state.nodes, ...settled.nodes]

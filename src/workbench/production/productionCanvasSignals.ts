@@ -10,7 +10,6 @@ type SignalSink = (signal: ProductionCanvasSignal) => void
 type BoundSignal = ProductionCanvasSignal & Readonly<{ projectId: string }>
 
 const sinks = new Set<SignalSink>()
-const pendingSignals: Array<Readonly<{ kind: ProductionCanvasSignal['kind']; nodes: readonly GenerationCanvasNode[] }>> = []
 
 function dispatch(signal: ProductionCanvasSignal): void {
   recordProductionCanvasSignal(signal)
@@ -34,24 +33,29 @@ export function emitProductionCanvasSignal(signal: ProductionCanvasSignal): void
   if (nodes.length === 0) return
   const normalized = nodes.length === signal.nodes.length ? signal : { ...signal, nodes }
   if (!normalized.projectId) {
-    pendingSignals.push({ kind: normalized.kind, nodes: normalized.nodes.map((node) => structuredClone(node)) })
     logRendererError('production-canvas-signal-project-unavailable', undefined, {
       kind: normalized.kind,
-      nodeCount: normalized.nodes.length,
-      pendingCount: pendingSignals.length,
+      nodeIds: normalized.nodes.map((node) => node.id).join(','),
+      canvasDocumentProjectId: normalized.projectId ?? '',
     })
     return
   }
   dispatch(normalized)
 }
 
-/** Bind identity in the same canvas-load transaction that installs the nodes. */
-export function bindProductionCanvasSignalProject(projectId: string | null): void {
-  if (!projectId) return
-  while (pendingSignals.length) {
-    const pending = pendingSignals.shift()!
-    dispatch({ kind: pending.kind, projectId, nodes: pending.nodes })
-  }
+export function assertProductionCanvasProjectIdentity(
+  projectId: string | null,
+  nodes: readonly GenerationCanvasNode[],
+  operation: string,
+): void {
+  const production = productionNodes(nodes)
+  if (projectId || production.length === 0) return
+  logRendererError('generation-canvas-project-identity-required', undefined, {
+    operation,
+    nodeIds: production.map((node) => node.id).join(','),
+    canvasDocumentProjectId: projectId ?? '',
+  })
+  throw new Error(`Cannot ${operation} production canvas nodes without a project identity`)
 }
 
 export function routeProductionCanvasSignal(

@@ -23,7 +23,7 @@ import { createCanvasNodeActions, removeGroupsEmptiedByNodeDeletion } from './ca
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
 import { createCanvasDocumentActions } from './canvasDocumentCommit'
-import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
+import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
 
@@ -170,6 +170,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
             ...node,
             position: { x: node.position.x + delta.x, y: node.position.y + delta.y },
           }))
+    assertProductionCanvasProjectIdentity(currentState.projectId, pastedNodes, 'paste nodes')
     pushUndoSnapshot(currentState)
     setClipboard({
       nodes: pastedNodes,
