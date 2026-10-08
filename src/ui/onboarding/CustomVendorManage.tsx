@@ -15,10 +15,10 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconKey, IconTrash } from '@tabler/icons-react'
+import { IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { confirmDialog } from '../../design'
+import { confirmDialog, DecisionBar } from '../../design'
 import { confirmAndDeleteVendor } from './vendorDeleteAction'
 import { VendorBaseUrlField } from './VendorBaseUrlField'
 import { VendorConnectionNotice } from './VendorConnectionNotice'
@@ -172,7 +172,7 @@ export function CustomVendorManage({
       {/* 凭证：已存→更换/断开；未存/更换中→输入框 */}
       {keyEditing ? (
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               ref={keyInputRef}
               data-model-connection-field="apiKey"
@@ -186,33 +186,20 @@ export function CustomVendorManage({
               }}
               disabled={busy}
               className={cn(
-                'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+                'min-w-[10rem] flex-[1_1_10rem] h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
                 'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent',
               )}
             />
-            <button
-              type="button"
-              onClick={handleSaveKey}
-              disabled={busy}
-              className={cn(
-                'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold',
-                'inline-flex items-center gap-1.5 hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
-              )}
-            >
-              <IconKey size={14} stroke={1.6} />
-              {t('onboardingProviders.vendorCard.save')}
-            </button>
+            <DecisionBar
+              inline
+              cancelLabel={hasApiKey ? t('common.cancel') : undefined}
+              onCancel={() => setKeyEditing(false)}
+              cancelDisabled={busy}
+              primaryLabel={t('onboardingProviders.vendorCard.save')}
+              onPrimary={handleSaveKey}
+              primaryDisabled={busy}
+            />
           </div>
-          {hasApiKey ? (
-            <button
-              type="button"
-              onClick={() => setKeyEditing(false)}
-              disabled={busy}
-              className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
-            >
-              {t('common.cancel')}
-            </button>
-          ) : null}
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">

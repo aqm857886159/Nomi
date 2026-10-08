@@ -2,8 +2,9 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { IconCheck, IconFolderPlus, IconTrash, IconX } from '../../../vendor/tablerIcons'
+import { IconFolderPlus, IconTrash, IconX } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
+import { DecisionBar } from '../../../design'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
 import { TOOL_BUTTON_CLASS } from '../popover/browserAssetPopoverConstants'
 import type { BrowserPromptExtractionTemplate, BrowserPromptExtractionTemplateSettings } from '../popover/browserAssetPopoverTypes'
@@ -165,21 +166,22 @@ export function BrowserPromptExtractionSettingsModal({
             </label>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-caption text-nomi-ink-40">{projectAvailable ? t('browserAssets.extraction.projectPortable') : t('browserAssets.extraction.projectUnavailable')}</div>
-              <div className="flex items-center gap-2">
-                {isDefaultTemplate ? (
+              <DecisionBar
+                className="min-w-[280px] flex-1"
+                leading={isDefaultTemplate ? (
                   <button type="button" className="inline-flex h-9 items-center rounded-nomi border border-nomi-line bg-nomi-paper px-3 text-caption font-semibold text-nomi-ink-60 hover:bg-nomi-ink-05" onClick={resetDefaultTemplate}>{t('browserAssets.extraction.restoreDefault')}</button>
                 ) : (
                   <button type="button" className="inline-flex h-9 items-center gap-2 rounded-nomi border border-workbench-danger/35 bg-nomi-paper px-3 text-caption font-semibold text-workbench-danger hover:bg-workbench-danger-soft" onClick={deleteSelectedTemplate}>
-                    <IconTrash size={15} stroke={1.8} aria-hidden="true" />
+                    <IconTrash size={16} stroke={1.8} aria-hidden="true" />
                     {t('browserAssets.extraction.delete')}
                   </button>
                 )}
-                <button type="button" className="inline-flex h-9 items-center rounded-nomi border border-nomi-line bg-nomi-paper px-3 text-caption font-semibold text-nomi-ink-80 hover:bg-nomi-ink-05" onClick={onClose}>{t('browserAssets.extraction.cancel')}</button>
-                <button type="button" className="inline-flex h-9 items-center gap-2 rounded-nomi border-0 bg-nomi-ink px-4 text-caption font-semibold text-nomi-paper hover:bg-nomi-accent" onClick={() => onSave(normalizeBrowserPromptExtractionTemplateSettings(draft))}>
-                  <IconCheck size={15} stroke={2} aria-hidden="true" />
-                  {t('browserAssets.extraction.save')}
-                </button>
-              </div>
+                size="md"
+                cancelLabel={t('browserAssets.extraction.cancel')}
+                onCancel={onClose}
+                primaryLabel={t('browserAssets.extraction.save')}
+                onPrimary={() => onSave(normalizeBrowserPromptExtractionTemplateSettings(draft))}
+              />
             </div>
           </section>
         </div>

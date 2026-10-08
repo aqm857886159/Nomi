@@ -8,9 +8,10 @@
 // 语义/管线见 docs/plan/2026-09-01-tikhub-connector-v1.md。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconKey, IconExternalLink, IconChevronDown } from '@tabler/icons-react'
+import { IconExternalLink, IconChevronDown } from '@tabler/icons-react'
 
 import { cn } from '../../utils/cn'
+import { DecisionBar } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { TikhubKeyStatus, TikhubRouteMode, TikhubRouteStatus } from '../../desktop/bridgeConnector'
 import { tikhubErrorKindOf } from '../../../electron/shared/contracts/tikhubErrorKinds'
@@ -240,7 +241,7 @@ export function TikhubConnectorCard(): JSX.Element {
         <div className="flex flex-col gap-2.5 p-2.5">
           {keyEditing ? (
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="password"
                   aria-label={t('settings.ai.tikhub.keyAria')}
@@ -252,34 +253,20 @@ export function TikhubConnectorCard(): JSX.Element {
                   }}
                   disabled={busy}
                   className={cn(
-                    'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+                    'min-w-[10rem] flex-[1_1_10rem] h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
                     'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent',
                   )}
                 />
-                <button
-                  type="button"
-                  onClick={handleSaveKey}
-                  disabled={busy}
-                  className={cn(
-                    'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold',
-                    'inline-flex items-center gap-1.5 hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
-                  )}
-                >
-                  <IconKey size={14} stroke={1.6} aria-hidden="true" />
-                  {/* busy 时说「验证中…」——诚实告诉用户点保存后我们真的在打一发验 key，不是空转。 */}
-                  {busy ? t('settings.ai.tikhub.verifying') : t('settings.ai.tikhub.save')}
-                </button>
+                <DecisionBar
+                  inline
+                  cancelLabel={hasKey ? t('common.cancel') : undefined}
+                  onCancel={() => setKeyEditing(false)}
+                  cancelDisabled={busy}
+                  primaryLabel={busy ? t('settings.ai.tikhub.verifying') : t('settings.ai.tikhub.save')}
+                  onPrimary={handleSaveKey}
+                  primaryDisabled={busy}
+                />
               </div>
-              {hasKey ? (
-                <button
-                  type="button"
-                  onClick={() => setKeyEditing(false)}
-                  disabled={busy}
-                  className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
-                >
-                  {t('common.cancel')}
-                </button>
-              ) : null}
             </div>
           ) : (
             <div className="flex items-center justify-between gap-2">

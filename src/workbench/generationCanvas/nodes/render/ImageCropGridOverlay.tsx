@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconX } from '@tabler/icons-react'
+import { DecisionBar } from '../../../../design'
 import { cn } from '../../../../utils/cn'
 
 export type CropRect = { x: number; y: number; w: number; h: number }
@@ -252,37 +252,18 @@ export default function ImageCropGridOverlay({
         />
       </div>
       {/* 确认 / 取消 */}
-      <div className="absolute right-2 top-2 flex items-center gap-1.5">
-        <button
-          type="button"
-          aria-label={t('generationCommon.cropGrid.cancel')}
-          title={t('generationCommon.cropGrid.cancel')}
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-nomi-paper text-nomi-ink-80 shadow-nomi-md"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation()
-            onCancel()
-          }}
-        >
-          <IconX size={16} stroke={1.8} />
-        </button>
-        <button
-          type="button"
-          aria-label={
-            cropOnly ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
-          }
-          title={
-            cropOnly ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
-          }
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-nomi-ink text-nomi-paper shadow-nomi-md hover:bg-nomi-accent"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation()
-            onConfirm({ rect, cols, rows })
-          }}
-        >
-          <IconCheck size={16} stroke={1.8} />
-        </button>
+      <div
+        className="absolute right-2 top-2 rounded-nomi bg-nomi-paper p-1 shadow-nomi-md"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <DecisionBar
+          inline
+          cancelLabel={t('generationCommon.cropGrid.cancel')}
+          onCancel={onCancel}
+          primaryLabel={cropOnly ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')}
+          onPrimary={() => onConfirm({ rect, cols, rows })}
+        />
       </div>
     </div>
   )

@@ -16,7 +16,7 @@
 // 所以这张卡上没有「我们非常重视您的隐私」这类句子，只有事实。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DesignButton } from '../../../design'
+import { DecisionBar } from '../../../design'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { hasAskedAgentConsent, markAgentConsentAsked } from '../../onboarding/onboardingState'
 
@@ -52,18 +52,20 @@ export function V4ConsentCard({
       <p className="text-body-sm font-medium text-nomi-ink">{t('agentPanelV4.consent.title')}</p>
       <p className="mt-1.5 text-caption leading-relaxed text-nomi-ink-60">{t('agentPanelV4.consent.collects')}</p>
       <p className="mt-0.5 text-caption leading-relaxed text-nomi-ink-60">{t('agentPanelV4.consent.excludes')}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {/* 同等大小：两颗都是默认尺寸，只有 variant 不同。 */}
-        <DesignButton data-v4-consent-accept variant="filled" onClick={() => answer(true)}>
-          {t('agentPanelV4.consent.accept')}
-        </DesignButton>
-        <DesignButton data-v4-consent-decline variant="default" onClick={() => answer(false)}>
-          {t('agentPanelV4.consent.decline')}
-        </DesignButton>
-        {/* 12px 而不是 micro(11px)：体感门岗 `check:feel` 的可读下限就是 12px，
-            而这行是首次询问卡上唯一解释「以后去哪儿关」的话——它比按钮更需要被读到。 */}
-        <span className="text-caption text-nomi-ink-40">{t('agentPanelV4.consent.settingsHint')}</span>
-      </div>
+      {/* 决定栏：拒绝在左、同意在最右（UI-R01）；两颗同尺寸，只有 variant 不同。
+          12px 而不是 micro(11px)：体感门岗 `check:feel` 的可读下限就是 12px，
+          而这行是首次询问卡上唯一解释「以后去哪儿关」的话——它比按钮更需要被读到。 */}
+      <DecisionBar
+        className="mt-3"
+        size="md"
+        leading={<span className="text-caption text-nomi-ink-40">{t('agentPanelV4.consent.settingsHint')}</span>}
+        cancelLabel={t('agentPanelV4.consent.decline')}
+        onCancel={() => answer(false)}
+        cancelProps={{ 'data-v4-consent-decline': '' }}
+        primaryLabel={t('agentPanelV4.consent.accept')}
+        onPrimary={() => answer(true)}
+        primaryProps={{ 'data-v4-consent-accept': '' }}
+      />
     </div>
   )
 }
