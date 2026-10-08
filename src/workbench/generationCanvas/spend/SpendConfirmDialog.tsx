@@ -152,7 +152,7 @@ export function SpendConfirmDialog() {
           >
             <Icon size={18} aria-hidden />
           </span>
-          <div className={cn('min-w-0')}>
+          <div className={cn('min-w-0 flex-1')}>
             <p id={titleId} className={cn('text-title font-medium text-nomi-ink truncate')}>{pending.title}</p>
             {isAgent ? (
               <p className={cn('text-micro text-nomi-ink-60')}>
@@ -165,7 +165,7 @@ export function SpendConfirmDialog() {
             size="sm"
             icon={<IconX size={16} stroke={1.9} />}
             label={t('common.close')}
-            className="ml-auto shrink-0"
+            className="shrink-0"
             data-spend-confirm-action="close"
             onClick={() => resolvePending(false)}
           />

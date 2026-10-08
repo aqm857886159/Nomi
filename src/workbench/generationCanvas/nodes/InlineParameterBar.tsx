@@ -57,6 +57,8 @@ export type InlineParameterBarParameterLayout = 'summary' | 'chips'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
+  /** Batch surfaces can provide the shared model picker beside this bar. */
+  hideModel?: boolean
   modelCatalogStatus: { message: string }
   renderedControls: DynamicModelControl[]
   selectedModelOption: ModelOption | null
@@ -177,6 +179,7 @@ function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>
 
 export default function InlineParameterBar({
   modelOptions,
+  hideModel = false,
   modelCatalogStatus,
   renderedControls,
   selectedModelOption,
@@ -513,19 +516,21 @@ export default function InlineParameterBar({
     // 两条一起覆盖；本分支留下的是**判据**——参数条一行里相邻两颗控件不许相压
     // （`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
     <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
-      <NomiSelect
-        ariaLabel={t('generationCommon.parameters.model')}
-        placeholder={t('generationCommon.parameters.selectModel')}
-        triggerMaxWidth={stacked ? 132 : 150}
-        className={modelChipClass}
-        value={modelSelect.modelValue}
-        options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
-        onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
-        onChipChange={modelSelect.onModelProviderPick}
-        footerAction={modelVisibilityFooterAction()}
-        hiddenNote={modelSelect.hiddenNote}
-        {...(portalTarget ? { portalTarget } : {})}
-      />
+      {!hideModel ? (
+        <NomiSelect
+          ariaLabel={t('generationCommon.parameters.model')}
+          placeholder={t('generationCommon.parameters.selectModel')}
+          triggerMaxWidth={stacked ? 132 : 150}
+          className={modelChipClass}
+          value={modelSelect.modelValue}
+          options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+          onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
+          onChipChange={modelSelect.onModelProviderPick}
+          footerAction={modelVisibilityFooterAction()}
+          hiddenNote={modelSelect.hiddenNote}
+          {...(portalTarget ? { portalTarget } : {})}
+        />
+      ) : null}
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {catalogVariants || visibleVariants.length > 1 ? (
         <NomiSelect

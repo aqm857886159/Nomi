@@ -46,6 +46,27 @@
   "registered": [
     {
       "members": [
+        "anchors",
+        "done",
+        "idle",
+        "shots",
+        "stopped"
+      ],
+      "reason": "Storyboard batch footer phases are the design-lab-only lifecycle states for the production storyboard progress footer; they describe anchor and shot waves rather than reusing a different runtime task vocabulary.",
+      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:FooterPhase/type-union"
+    },
+    {
+      "members": [
+        "done",
+        "plain",
+        "selected",
+        "skipped"
+      ],
+      "reason": "Storyboard batch row flags are design-lab fixture states for the approved row-selection screenshots; they describe the row presentation contract and are not a second production execution status vocabulary.",
+      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:RowFlag/type-union"
+    },
+    {
+      "members": [
         "completed",
         "prepared",
         "verified"

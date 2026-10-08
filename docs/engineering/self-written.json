@@ -802,6 +802,26 @@
       ],
       "whyNotIntegrated": "Domain constraint: Electron exposes lifecycle events and termination APIs, but it does not know Nomi capability-core, Agent lane IPC, or background export owners, nor can it coordinate the required order of cancellable window confirmation, irreversible will-quit cleanup, and timeout-bounded exit. This module composes the existing Electron and Node mechanisms without reimplementing IPC, window confirmation, or a timer library; the Nomi-specific invariants are live capabilities after a cancelled close and guaranteed termination after cleanup timeout.",
       "revisitWhen": "When Electron provides a unified async teardown coordinator that can express these Nomi owners and continue termination after a cleanup timeout, remove this boundary and use that mechanism."
+    },
+    {
+      "id": "storyboard-plan-rows-renderer",
+      "capability": "Storyboard and paid-generation confirmation plan rows: checked scope, grouped detail, and optional technical disclosure",
+      "status": "justified",
+      "paths": [
+        "src/workbench/shared/PlanRows.tsx"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "AgentPanelV4Cards plan renderer",
+          "source": "src/workbench/ai/v4/AgentPanelV4Cards.tsx"
+        },
+        {
+          "name": "Mantine list and checkbox primitives",
+          "source": "node_modules/@mantine/core"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: the storyboard batch confirmation and paid-generation card share one plan-row contract with checked dispatch scope, grouped shot and reference rows, and technical disclosure; the existing AgentPanelV4 renderer owns a different intervention data shape and cannot receive the storyboard row identity or toggle callback without coupling the approval surfaces.",
+      "revisitWhen": "When the shared approval-card contract exposes one plan-row renderer with row identity and toggle ownership for both AgentPanelV4 and spend confirmation, replace this adapter with that renderer."
     }
   ]
 }

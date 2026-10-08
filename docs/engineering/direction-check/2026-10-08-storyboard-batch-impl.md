@@ -23,3 +23,11 @@ The implementation line is separate from acceptance line storyboard-batch-select
 
 ## 5. User tradeoff
 The row menu remains denser because row-only actions stay available there; the multi-select toolbar stays focused on operations that apply to the selection.
+
+## 6. Gate-family review
+The `gate-family` self-written registry entry is the repeated generic-capability hotspot reported by `fix-churn`. The current change cannot replace it with a library: the gate family composes Nomi's domain-specific source, control, token, vocabulary, and design-lab checks over repository history, staged files, and project-local contracts; no existing package owns that cross-gate policy or the required ratchet semantics. The current registry entry remains under review, with the next replacement assessment due 2026-11-07; that review must evaluate a standard policy engine or repository-analysis framework before another gate-family fix is accepted.
+
+## 7. Feature tests that pin the current boundary
+- `src/workbench/capability/storyboardPresent.test.ts` asserts zero canvas nodes before consent, explicit checklist consent/cancellation, and the original materializer's post-consent nodes and dispatch waves.
+- `src/workbench/creation/storyboard/exec/storyboardFirstFrameApproval.test.ts` and `shotOutbound.parity.test.ts` assert that confirmation gates dispatch while cancellation and unchecked rows do not.
+- `scripts/check-source-nul-bytes.test.ts` and `scripts/check-control-contract.test.mjs` pin the repository-wide encoding and control-copy contracts.

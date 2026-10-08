@@ -65,6 +65,7 @@ export function SelectionStage({ pick, width, skippedAll = false, withRows = tru
   const shots = all.filter((shot) => pick.includes(shot.index))
   const plan = batchPlan(all)
   const groups = storyboardBulkParamGroups({
+    plan,
     shots,
     imageModelOptions: BATCH_IMAGE_MODELS,
     videoModelOptions: BATCH_VIDEO_MODELS,

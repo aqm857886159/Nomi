@@ -15,7 +15,8 @@ const VIDEO: ModelOption[] = [
 function shot(index: number, modelKey: string, vendor: string, over: Partial<PlanShot> = {}): PlanShot {
   return { index, durationSec: 5, anchorIds: [], prompt: 'p', shotKind: 'video', modelKey, modelVendor: vendor, ...over } as PlanShot
 }
-const scope = (shots: PlanShot[]) => deriveBulkParamScope({ shots, modelOptions: VIDEO, kind: 'video', aspectOf: () => '16:9' })
+const asPlan = (shots: PlanShot[]): StoryboardPlan => ({ title: 'test', anchors: [], shots })
+const scope = (shots: PlanShot[]) => deriveBulkParamScope({ plan: asPlan(shots), shots, modelOptions: VIDEO, kind: 'video', aspectOf: () => '16:9' })
 const keys = (controls: readonly { key: string }[]) => controls.map((control) => control.key)
 
 describe('deriveBulkParamScope（公共参数集 = 所选镜各模型档案的交集）', () => {
@@ -75,7 +76,7 @@ describe('applyBulkParamToShots（写到哪儿 = 行底栏同一把尺，只动�
       shot(3, 'bytedance/seedance-2-5', 'kie', { modeId: 'omni' }),
     ],
   })
-  const controls = deriveBulkParamScope({ shots: plan().shots, modelOptions: VIDEO, kind: 'video', aspectOf: () => '16:9' }).controls
+  const controls = deriveBulkParamScope({ plan: plan(), shots: plan().shots, modelOptions: VIDEO, kind: 'video', aspectOf: () => '16:9' }).controls
   const pick = (key: string) => controls.find((control) => control.key === key)!
   const selectedFirstTwo = (candidate: PlanShot): boolean => candidate.index <= 2
 

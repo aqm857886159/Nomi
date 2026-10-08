@@ -30,6 +30,7 @@ import { frameMediaBox } from './shotRow/shotFrameGeometry'
 import {
   effectiveShotAspect,
   planDefaultAspect,
+  resolveShotParams,
   setShotAspectOverride,
 } from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
@@ -196,6 +197,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   // 「统一模型」按选中集合的**镜种**分档（storyboardBulkModelScope 单源）——图片镜只列图片模型、
   // 视频镜只列视频模型；两种都选中就出两个下拉。混成一条平列表是 2026-09-11 反馈的那条错。
   const selectedModelGroups = storyboardBulkParamGroups({
+    plan,
     shots: selectedRows.map((runtime) => runtime.shot),
     imageModelOptions,
     videoModelOptions,
@@ -426,7 +428,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                       } else onDeleteSelected([runtimeForRow])
                     },
                     // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）
-                    onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: shot.params })) }),
+                    onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: resolveShotParams(plan, shot) })) }),
                     storyboardProfile: storyboardProfileForKey(plan.profileKey),
                   }
                   // C1：有 anchorCards 时走 ShotRowWithMention（含 useShotMentionSource），

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconStack2 } from '@tabler/icons-react'
 import { NomiSelect } from '../../../design'
 import type { ModelOption } from '../../../config/models'
+import BulkModelPicker from '../../common/BulkModelPicker'
 import StoryboardBulkParams from './StoryboardBulkParams'
 import { applyBulkModelToShots } from './storyboardBulkModelScope'
 import { applyBulkParamToShots, projectAspectOptions, storyboardBulkParamGroups } from './storyboardBulkParamScope'
@@ -56,6 +57,7 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
 
   // 模型 + 参数按镜种分档（与多选浮条同一份 `storyboardBulkParamGroups`）：参数 = 这一档各镜所用模型档案的公共可选集。
   const groups = React.useMemo(() => storyboardBulkParamGroups({
+    plan,
     shots: plan.shots,
     imageModelOptions,
     videoModelOptions,
@@ -91,7 +93,7 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
 
   // 整片默认画幅的候选 = 各镜模型各自声明的画幅取交集（不再是一份写死的固定表）∪ 当前值（Agent 可能写了候选外的档，别让触发器显错）。
   // '' = 还没定，按模型默认走。没有任何一镜带画幅控件时退回只留「按模型默认」。
-  const derivedAspects = projectAspectOptions({ shots: plan.shots, imageModelOptions, videoModelOptions, aspectOf: (shot) => effectiveShotAspect(plan, shot) })
+  const derivedAspects = projectAspectOptions({ plan, shots: plan.shots, imageModelOptions, videoModelOptions, aspectOf: (shot) => effectiveShotAspect(plan, shot) })
   const aspectOptions = [
     { value: '', label: t('storyboardEditor.bulk.aspectDefault') },
     ...[...new Set([...(derivedAspects ?? []), ...(planAspect ? [planAspect] : [])])].map((aspect) => ({ value: aspect, label: aspect })),
@@ -126,10 +128,20 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
             kind={group.kind}
             modelOptions={group.options}
             selectedModel={group.selectedModel}
+            hideModel
             omitAspect
             // vendor 必须一路带到写入：只写 key 会让落地按名字落到「同名里排第一的那家」（2026-09-21：选 APIMart、钱花在自定义中转）。
             onModelChange={(value, vendor) => onChange(applyBulkModelToShots({ plan, isSelected: () => true, kind: group.kind, modelKey: value, vendor }))}
             onParamChange={(control, raw) => onChange(applyBulkParamToShots({ plan, isSelected: () => true, kind: group.kind, control, raw, controls: group.scope.controls }))}
+          />
+          <BulkModelPicker
+            modelOptions={group.options}
+            ariaLabel={t('generationCommon.parameters.model')}
+            leadingLabel={t(`generationCommon.production.modelGroup.${group.kind}`, { count: group.count })}
+            placeholder={t('generationCommon.production.unifyModel')}
+            size="xs"
+            triggerMaxWidth={150}
+            onPick={(value, vendor) => onChange(applyBulkModelToShots({ plan, isSelected: () => true, kind: group.kind, modelKey: value, vendor }))}
           />
         </span>
       ))}

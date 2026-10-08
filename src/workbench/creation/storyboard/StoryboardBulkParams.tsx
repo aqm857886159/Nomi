@@ -24,6 +24,8 @@ type Props = {
   modelOptions: readonly ModelOption[]
   /** 所选镜都用同一个模型时的那一项；不同 = null（模型按钮显示占位）。 */
   selectedModel: ModelOption | null
+  /** The batch surface owns the shared BulkModelPicker; this bar only renders parameters. */
+  hideModel?: boolean
   onModelChange: (modelKey: string, vendor?: string) => void
   /**
    * 不在面板里出比例：「全部镜头」条上比例是**项目级**的「整片默认画幅」，条上另有一枚它自己的下拉；
@@ -34,7 +36,7 @@ type Props = {
   onParamChange: (control: Pick<ModelParameterControl, 'key' | 'type' | 'options'>, raw: string) => void
 }
 
-export default function StoryboardBulkParams({ scope: fullScope, kind, modelOptions, selectedModel, omitAspect = false, onModelChange, onParamChange }: Props): JSX.Element {
+export default function StoryboardBulkParams({ scope: fullScope, kind, modelOptions, selectedModel, hideModel = false, omitAspect = false, onModelChange, onParamChange }: Props): JSX.Element {
   const { t } = useTranslation()
   const scope = React.useMemo((): BulkParamScope => {
     if (!omitAspect) return fullScope
@@ -87,6 +89,7 @@ export default function StoryboardBulkParams({ scope: fullScope, kind, modelOpti
     <span className="flex min-w-0 items-center" data-storyboard-bulk-params={kind}>
       <InlineParameterBar
         modelOptions={modelOptions}
+        hideModel={hideModel}
         modelCatalogStatus={{ message: kind === 'image' ? t('storyboardEditor.anchor.noImageModel') : t('storyboardEditor.strategy.noVideoModelTitle') }}
         renderedControls={[...controls]}
         selectedModelOption={selectedModel}

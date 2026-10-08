@@ -1,7 +1,7 @@
 import type { ModelOption } from '../../../config/models'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import type { PlanShot, StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
-import { setShotAspectOverride } from '../../generationCanvas/agent/storyboardShotScope'
+import { resolveShotParams, setShotAspectOverride } from '../../generationCanvas/agent/storyboardShotScope'
 import { storyboardBulkModelGroups, storyboardShotKind, type StoryboardBulkModelGroup, type StoryboardShotKind } from './storyboardBulkModelScope'
 import { effectiveShotDurationSec } from '../../generationCanvas/agent/storyboardPlan'
 import {
@@ -113,13 +113,14 @@ function batchableControls(controls: readonly DynamicModelControl[]): DynamicPar
 }
 
 export function deriveBulkParamScope(input: {
+  plan: StoryboardPlan
   shots: readonly PlanShot[]
   modelOptions: readonly ModelOption[]
   kind: 'image' | 'video'
   /** 这一镜生效的画幅（行覆盖 ?? 整片默认）；与行底栏同一口径。 */
   aspectOf: (shot: PlanShot) => string
 }): BulkParamScope {
-  const { shots, modelOptions, kind, aspectOf } = input
+  const { plan, shots, modelOptions, kind, aspectOf } = input
   const perShot = shots.map((shot) => {
     const option = findModelOptionByIdentifier(modelOptions, shot.modelKey, shot.modelVendor)
     const aspect = aspectOf(shot)
@@ -128,7 +129,7 @@ export function deriveBulkParamScope(input: {
         ...(shot.modelKey ? { modelKey: shot.modelKey } : {}),
         ...(shot.modelVendor ? { modelVendor: shot.modelVendor } : {}),
         ...(shot.modeId ? { modeId: shot.modeId } : {}),
-        params: { ...(shot.params ?? {}), ...(aspect ? { aspect_ratio: aspect } : {}) },
+        params: { ...resolveShotParams(plan, shot), ...(aspect ? { aspect_ratio: aspect } : {}) },
       }, composerEntryIndex(option)),
       ...(kind === 'video' ? { duration: effectiveShotDurationSec(shot) } : {}),
     }
@@ -209,7 +210,7 @@ export function applyBulkParamToShots(input: {
     }
     const next = change.kind === 'duration'
       ? { ...shot, durationSec: change.value }
-      : { ...shot, params: { ...(shot.params ?? {}), [change.key]: change.value } }
+      : { ...shot, params: { ...resolveShotParams(plan, shot), [change.key]: change.value } }
     plan = { ...plan, shots: plan.shots.map((candidate, index) => (index === position ? next : candidate)) }
   })
   return plan
@@ -222,6 +223,7 @@ export type StoryboardBulkParamGroup = StoryboardBulkModelGroup & Readonly<{
 }>
 
 export function storyboardBulkParamGroups(input: {
+  plan: StoryboardPlan
   shots: readonly PlanShot[]
   imageModelOptions: readonly ModelOption[]
   videoModelOptions: readonly ModelOption[]
@@ -233,7 +235,7 @@ export function storyboardBulkParamGroups(input: {
     const sameModel = first !== undefined && shots.every((shot) => shot.modelKey === first.modelKey && shot.modelVendor === first.modelVendor)
     return {
       ...group,
-      scope: deriveBulkParamScope({ shots, modelOptions: group.options, kind: group.kind, aspectOf: input.aspectOf }),
+      scope: deriveBulkParamScope({ plan: input.plan, shots, modelOptions: group.options, kind: group.kind, aspectOf: input.aspectOf }),
       selectedModel: sameModel && first.modelKey ? findModelOptionByIdentifier(group.options, first.modelKey, first.modelVendor) : null,
     }
   })
@@ -245,6 +247,7 @@ export function storyboardBulkParamGroups(input: {
  * （批量条上那句「N 镜不带画幅」如实说出来）。以前这里是一份写死的固定表，与模型无关。
  */
 export function projectAspectOptions(input: {
+  plan: StoryboardPlan
   shots: readonly PlanShot[]
   imageModelOptions: readonly ModelOption[]
   videoModelOptions: readonly ModelOption[]
@@ -255,6 +258,7 @@ export function projectAspectOptions(input: {
     const kind = storyboardShotKind(shot)
     const alone = deriveBulkParamScope({
       shots: [shot],
+      plan: input.plan,
       modelOptions: kind === 'image' ? input.imageModelOptions : input.videoModelOptions,
       kind,
       aspectOf: input.aspectOf,
