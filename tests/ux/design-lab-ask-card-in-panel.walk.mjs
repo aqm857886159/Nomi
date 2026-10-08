@@ -56,7 +56,17 @@ const STATES = [
   ['v4-panel-question-answered', 'question-answered', 'dark'],
   ['v4-panel-spend-confirmed', 'spend-confirmed', 'light'],
   ['v4-panel-spend-confirmed', 'spend-confirmed', 'dark'],
+  // 2026-10-08：带变体 chip 的 Seedance 2.0 在生产宽 390 下、以及压窄到 300 时。合同：影响报价的 chip
+  // 与身份 chip（模型 / 变体）每颗整颗可见、不相压；放不下换到第二行，不横向滚动、不退进 ⚙。
+  ['v4-panel-spend-seedance', 'spend-seedance', 'light'],
+  ['v4-panel-spend-seedance-narrow', 'spend-seedance-narrow', 'light'],
+  // 这一对格子自己把卡切到英文（上两格固定中文）：两轨各证一遍。
+  ['v4-panel-spend-seedance-en', 'spend-seedance-en', 'light'],
+  ['v4-panel-spend-seedance-narrow-en', 'spend-seedance-narrow-en', 'light'],
 ]
+
+/** Seedance 2.0 文生视频在付费卡上必须摆出来的报价 chip（档案 derive 的主参数）。 */
+const SEEDANCE_PRICED_CHIPS = ['aspect_ratio', 'duration', 'resolution']
 
 const failures = []
 const measured = []
@@ -73,7 +83,9 @@ function waitForServer(url, timeoutMs = 60000) {
   })
 }
 
-const vite = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+// 直接用 node 起 vite 本体（不经 npx 垫片）：Windows 上 spawn('npx') 找不到可执行文件，
+// 而且经垫片起的 vite 在 kill 垫片后会成孤儿继续占内存。
+const vite = spawn(process.execPath, [path.join(REPO_ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
   cwd: REPO_ROOT, stdio: ['ignore', 'ignore', 'pipe'],
 })
 vite.stderr?.on('data', (chunk) => process.stderr.write(`[vite] ${chunk}`))
@@ -165,8 +177,9 @@ try {
         }
       })
       measured.push({ locale: tag, theme, kind, ...shape })
-      // 参数条那一行：**任意两颗控件不许相互压住**（EN 下「Kling 3.0」盖住「16:9」就是这个）。
-      // 量的是真矩形——相邻两颗的右缘不许越过下一颗的左缘。
+      // 参数条：**任意两颗控件不许相互压住**（EN 下「Kling 3.0」盖住「16:9」、390px 下「16:9」压在
+      // 变体「标准」上都是这个）。量的是真矩形两两相交——付费卡的 chips 允许换行，只比左右会把
+      // 第二行的 chip 误判成压住第一行的。
       const overlaps = await shot.locator('[data-node-composer-footer]').evaluateAll((rows) => {
         const hits = []
         for (const row of rows) {
@@ -175,16 +188,54 @@ try {
             .filter(({ rect }) => rect.width > 0 && rect.height > 0)
             // 只比最外层的可点块：chip 的 span 里包着它自己的 button，父子不算相压。
             .filter(({ node }, _, all) => !all.some((other) => other.node !== node && other.node.contains(node)))
-            .sort((a, b) => a.rect.left - b.rect.left)
-          for (let i = 1; i < boxes.length; i += 1) {
-            if (boxes[i - 1].rect.right > boxes[i].rect.left + 1) {
-              hits.push(`${(boxes[i - 1].node.textContent || '').trim().slice(0, 14)} → ${(boxes[i].node.textContent || '').trim().slice(0, 14)}`)
+          for (let i = 0; i < boxes.length; i += 1) {
+            for (let j = i + 1; j < boxes.length; j += 1) {
+              const a = boxes[i].rect
+              const b = boxes[j].rect
+              const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+              const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+              if (overlapX > 1 && overlapY > 1) {
+                hits.push(`${(boxes[i].node.textContent || '').trim().slice(0, 14)} ↔ ${(boxes[j].node.textContent || '').trim().slice(0, 14)}`)
+              }
             }
           }
         }
         return hits
       })
       if (overlaps.length) failures.push(`${tag}/${theme}/${kind}：参数条里控件相互压住：${overlaps.join(' | ')}`)
+      // 付费卡底栏：每颗 chip（参数 chip + 模型 / 变体）整颗落在卡里；参数行不横向滚动、不靠滚动藏东西。
+      if (kind.startsWith('spend')) {
+        const bar = await shot.evaluate((element) => {
+          const card = element.querySelector('[data-v4-block="intervention"]')
+          const row = card?.querySelector('[data-node-composer-footer] .generation-canvas-v2-node__params--parameters')
+          if (!card || !row) return null
+          const cardRect = card.getBoundingClientRect()
+          const members = [...row.querySelectorAll('[data-parameter-chip], button')]
+            .filter((node, _, all) => !all.some((other) => other !== node && other.contains(node)))
+            .map((node) => ({ text: (node.textContent || '').trim().slice(0, 14), rect: node.getBoundingClientRect() }))
+            .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+          return {
+            chips: [...row.querySelectorAll('[data-parameter-chip]')].map((node) => node.getAttribute('data-parameter-chip')),
+            variant: Boolean(row.querySelector('button[aria-label="变体"], button[aria-label="Variant"]')),
+            overflowX: getComputedStyle(row).overflowX,
+            scrolls: row.scrollWidth - row.clientWidth > 1,
+            outside: members.filter(({ rect }) => rect.left < cardRect.left - 0.5 || rect.right > cardRect.right + 0.5).map(({ text }) => text),
+            rows: new Set(members.map(({ rect }) => Math.round(rect.top))).size,
+          }
+        })
+        if (!bar) failures.push(`${tag}/${theme}/${kind}：付费卡里找不到参数行`)
+        else {
+          if (bar.scrolls || ['auto', 'scroll'].includes(bar.overflowX)) failures.push(`${tag}/${theme}/${kind}：参数行要横向滚动才看得全（overflow-x: ${bar.overflowX}）——放不下必须换行`)
+          if (bar.outside.length) failures.push(`${tag}/${theme}/${kind}：这几颗伸出了卡外：${bar.outside.join(' | ')}`)
+          if (kind.startsWith('spend-seedance')) {
+            const missing = SEEDANCE_PRICED_CHIPS.filter((key) => !bar.chips.includes(key))
+            if (missing.length) failures.push(`${tag}/${theme}/${kind}：报价参数没摆在底栏上（退进了 ⚙ 或丢了）：${missing.join(', ')}`)
+            if (!bar.variant) failures.push(`${tag}/${theme}/${kind}：Seedance 2.0 的变体 chip 不在底栏上`)
+          }
+          if (kind.startsWith('spend-seedance-narrow') && bar.rows < 2) failures.push(`${tag}/${theme}/${kind}：压窄到 300 却仍是一行（${bar.rows} 行）——这一格要证的「换行」没发生`)
+          measured.push({ locale: tag, theme, kind: `${kind}:bar`, ...bar })
+        }
+      }
       // 页脚左下那一格（合计 / 价格未知那句）不许被省略号截断——EN 串长，截断只有眼睛看得出，
       // 所以量它：内容宽不许超过自己的盒子。
       const leadClipped = await shot.locator('[data-v4-block="slot-total"]').evaluateAll((nodes) =>
