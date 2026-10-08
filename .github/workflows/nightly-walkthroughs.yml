@@ -1,0 +1,98 @@
+name: Nightly Walkthroughs
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-walkthroughs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  walks:
+    name: Walk batch ${{ matrix.batch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: bash scripts/ci-install-chromium.sh
+      - name: Build desktop surfaces
+        run: pnpm run build
+      - name: Run non-paid walkthrough batch
+        env:
+          BATCH: ${{ matrix.batch }}
+        run: |
+          set -o pipefail
+          mkdir -p nightly-walks
+          : > "nightly-walks/results-${BATCH}.tsv"
+          mapfile -t walks < <(find tests/ux -maxdepth 1 -type f -name '*.walk.mjs' ! -name '*.paid.mjs' | sort)
+          failed=0
+          for index in "${!walks[@]}"; do
+            [ "$((index % 4))" = "$BATCH" ] || continue
+            walk="${walks[$index]}"
+            name=$(basename "$walk")
+            log="nightly-walks/${name}.log"
+            started=$(date +%s)
+            set +e
+            timeout 600 xvfb-run -a node "$walk" >"$log" 2>&1
+            status=$?
+            set -e
+            ended=$(date +%s)
+            duration=$((ended - started))
+            printf '%s\t%s\t%s\t%s\n' "$walk" "$status" "$duration" "$log" >> "nightly-walks/results-${BATCH}.tsv"
+            if [ "$status" -ne 0 ]; then failed=1; fi
+          done
+          exit "$failed"
+      - name: Upload nightly batch evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-walks-${{ matrix.batch }}
+          path: nightly-walks/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  report:
+    name: Summarize nightly walkthroughs
+    if: always()
+    needs: walks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: nightly-walks-*
+          path: nightly-results
+          merge-multiple: true
+      - name: Publish summary and update issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/nightly-walk-summary.mjs nightly-results nightly-summary.md
+      - name: Upload nightly summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-walk-summary
+          path: nightly-summary.md
+          if-no-files-found: error
+          retention-days: 30

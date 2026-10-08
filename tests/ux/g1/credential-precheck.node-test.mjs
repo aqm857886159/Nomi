@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { watchCredential, recordBlocked } from './credential-precheck.mjs'
 
 test('hung decrypt is killed and recorded blocked, later stations are unreachable', async () => {
@@ -94,8 +95,8 @@ test('C0 missing credentials writes blocked and eight unreachable stations witho
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-c0-'))
   try {
     const preload = 'data:text/javascript,' + encodeURIComponent(`import os from 'node:os'; os.homedir = () => ${JSON.stringify(directory)}`)
-    const result = spawnSync(process.execPath, ['--import', preload, new URL('./c0-short-film.walk.mjs', import.meta.url).pathname, '--real'], {
-      env: { ...process.env, NOMI_SWEEP_CASE_DIR: directory, NOMI_WALK_MODE: 'collect' }, encoding: 'utf8', timeout: 10000,
+    const result = spawnSync(process.execPath, ['--import', preload, fileURLToPath(new URL('./c0-short-film.walk.mjs', import.meta.url)), '--real'], {
+      env: { ...process.env, NOMI_SWEEP_CASE_DIR: directory, NOMI_WALK_MODE: 'collect', NOMI_REAL_PROFILE_USER_DATA: directory }, encoding: 'utf8', timeout: 10000,
     })
     assert.equal(result.status, 0, result.stderr)
     const report = JSON.parse(fs.readFileSync(path.join(directory, 'report.json')))

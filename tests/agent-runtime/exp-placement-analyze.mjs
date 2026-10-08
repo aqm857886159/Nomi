@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
-const ROOT = process.env.EXP_ROOT ?? new URL('../../.tmp/exp-placement/', import.meta.url).pathname.replace(/\/$/, '');
+import { fileURLToPath } from 'node:url';
+const ROOT = process.env.EXP_ROOT ?? fileURLToPath(new URL('../../.tmp/exp-placement/', import.meta.url));
 const ARMS = ['0', 'A', 'B', 'T'];
 const LABEL = { '0': '臂0 不放', 'A': '臂A 技能段之前', 'B': '臂B 技能段之后', 'T': '臂T 提示词开头' };
 const REG = new Set(readFileSync(`${ROOT}/authority-block.txt`, 'utf8').split('\n')

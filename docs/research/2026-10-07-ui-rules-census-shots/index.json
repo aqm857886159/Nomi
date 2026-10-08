@@ -1,0 +1,281 @@
+[
+  {
+    "rule": "UI-R16",
+    "n": 1,
+    "cell": "find-reference/fr-platform-evidence",
+    "lang": "zh(默认)",
+    "hits": 4,
+    "example": "妮儿的推荐也忒er好辣~ @DOU+小助手 #好物推荐 #主播请就位 #美好生活",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R16__1__find-reference__fr-platform-evidence.png"
+  },
+  {
+    "rule": "UI-R16",
+    "n": 2,
+    "cell": "find-reference/fr-main",
+    "lang": "zh(默认)",
+    "hits": 2,
+    "example": "妮儿的推荐也忒er好辣~ @DOU+小助手 #好物推荐 #主播请就位 #美好生活",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R16__2__find-reference__fr-main.png"
+  },
+  {
+    "rule": "UI-R10",
+    "n": 1,
+    "cell": "storyboard/sb-zone-05-scene-groups",
+    "lang": "zh(默认)",
+    "hits": 15,
+    "example": "拖动调整镜头顺序",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R10__1__storyboard__sb-zone-05-scene-groups.png"
+  },
+  {
+    "rule": "UI-R10",
+    "n": 2,
+    "cell": "storyboard-reuse/sbr-01-rows-wide",
+    "lang": "zh(默认)",
+    "hits": 9,
+    "example": "拖动调整镜头顺序",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R10__2__storyboard-reuse__sbr-01-rows-wide.png"
+  },
+  {
+    "rule": "UI-R10",
+    "n": 3,
+    "cell": "node-quick-actions/qa-26-narrow-zoomed-top-refine-en",
+    "lang": "en",
+    "hits": 8,
+    "example": "Lock node (AI cannot edit it, but it can",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R10__3__node-quick-actions__qa-26-narrow-zoomed-top-refine-en.png"
+  },
+  {
+    "rule": "UI-R06",
+    "n": 1,
+    "cell": "agent-panel-v4/v4-rendering",
+    "lang": "zh(默认)",
+    "hits": 3,
+    "example": "",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R06__1__agent-panel-v4__v4-rendering.png"
+  },
+  {
+    "rule": "UI-R06",
+    "n": 2,
+    "cell": "settings/privacy-02-exporting",
+    "lang": "zh(默认)",
+    "hits": 2,
+    "example": "删除全部",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R06__2__settings__privacy-02-exporting.png"
+  },
+  {
+    "rule": "UI-R06",
+    "n": 3,
+    "cell": "primitives-actions/pa-02-workbench-button-busy",
+    "lang": "zh(默认)",
+    "hits": 2,
+    "example": "稍后",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R06__3__primitives-actions__pa-02-workbench-button-busy.png"
+  },
+  {
+    "rule": "UI-R04",
+    "n": 1,
+    "cell": "catalog-liveness/catalog-liveness-light",
+    "lang": "zh(默认)",
+    "hits": 3,
+    "example": "DeepSeek V4 Pro",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R04__1__catalog-liveness__catalog-liveness-light.png"
+  },
+  {
+    "rule": "UI-R04",
+    "n": 2,
+    "cell": "agent-panel-v4/v4-intervention-irreversible",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "删除⏎",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R04__2__agent-panel-v4__v4-intervention-irreversible.png"
+  },
+  {
+    "rule": "UI-R04",
+    "n": 3,
+    "cell": "editing/picker-03-unsupported",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "甩镜",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R04__3__editing__picker-03-unsupported.png"
+  },
+  {
+    "rule": "UI-R36",
+    "n": 1,
+    "cell": "storyboard/sb-zone-03-anchor-state-matrix",
+    "lang": "zh(默认)",
+    "hits": 5,
+    "example": "未生成未生成",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R36__1__storyboard__sb-zone-03-anchor-state-matrix.png"
+  },
+  {
+    "rule": "UI-R36",
+    "n": 2,
+    "cell": "agent-panel-v4/v4-composer-skill-popover",
+    "lang": "zh(默认)",
+    "hits": 4,
+    "example": "编剧 · Kasdan/kasdan三幕结构拆场，给每场冲突与转折",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R36__2__agent-panel-v4__v4-composer-skill-popover.png"
+  },
+  {
+    "rule": "UI-R36",
+    "n": 3,
+    "cell": "primitives-actions/pa-04-action-card",
+    "lang": "zh(默认)",
+    "hits": 4,
+    "example": "新建空项目自己搭画布",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R36__3__primitives-actions__pa-04-action-card.png"
+  },
+  {
+    "rule": "UI-R32",
+    "n": 1,
+    "cell": "agent-panel-v4/v4-composer-skill-popover",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "探索更多新建 · 管理",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R32__1__agent-panel-v4__v4-composer-skill-popover.png"
+  },
+  {
+    "rule": "UI-R32",
+    "n": 2,
+    "cell": "editing/picker-03-unsupported",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "甩镜",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R32__2__editing__picker-03-unsupported.png"
+  },
+  {
+    "rule": "UI-R32",
+    "n": 3,
+    "cell": "editing/picker-01-dissolve",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "叠化",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R32__3__editing__picker-01-dissolve.png"
+  },
+  {
+    "rule": "UI-R07",
+    "n": 1,
+    "cell": "agent-panel-v4/v4-rendering",
+    "lang": "zh(默认)",
+    "hits": 2,
+    "example": "",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R07__1__agent-panel-v4__v4-rendering.png"
+  },
+  {
+    "rule": "UI-R07",
+    "n": 2,
+    "cell": "primitives-surfaces/ps-07-modal",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R07__2__primitives-surfaces__ps-07-modal.png"
+  },
+  {
+    "rule": "UI-R07",
+    "n": 3,
+    "cell": "primitives-surfaces/ps-11-confirm-dialog",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R07__3__primitives-surfaces__ps-11-confirm-dialog.png"
+  },
+  {
+    "rule": "UI-R01",
+    "n": 1,
+    "cell": "agent-panel-v4/v4-consent-first-ask",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "不分享",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R01__1__agent-panel-v4__v4-consent-first-ask.png"
+  },
+  {
+    "rule": "UI-R16-clipped",
+    "n": 1,
+    "cell": "primitives-surfaces/ps-10-tooltip",
+    "lang": "zh(默认)",
+    "hits": 3,
+    "example": "导出为 MP4",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R16-clipped__1__primitives-surfaces__ps-10-tooltip.png"
+  },
+  {
+    "rule": "UI-R16-clipped",
+    "n": 2,
+    "cell": "editing/picker-01-dissolve",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "30 fps",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R16-clipped__2__editing__picker-01-dissolve.png"
+  },
+  {
+    "rule": "UI-R16-clipped",
+    "n": 3,
+    "cell": "editing/picker-02-cut",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "30 fps",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R16-clipped__3__editing__picker-02-cut.png"
+  },
+  {
+    "rule": "UI-R03",
+    "n": 1,
+    "cell": "storyboard/sb-zone-06-selection-toolbar",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "删除已选",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R03__1__storyboard__sb-zone-06-selection-toolbar.png"
+  },
+  {
+    "rule": "UI-R03",
+    "n": 2,
+    "cell": "node-quick-actions/qa-21-top-edge-more-effects-en",
+    "lang": "en",
+    "hits": 1,
+    "example": "Remove background",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R03__2__node-quick-actions__qa-21-top-edge-more-effects-en.png"
+  },
+  {
+    "rule": "UI-R03",
+    "n": 3,
+    "cell": "primitives-actions/pa-07-icon-action-button",
+    "lang": "zh(默认)",
+    "hits": 1,
+    "example": "删除这一档",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R03__3__primitives-actions__pa-07-icon-action-button.png"
+  },
+  {
+    "rule": "UI-R09",
+    "n": 1,
+    "cell": "primitives-surfaces/ps-09-anchored-popover",
+    "lang": "zh(默认)",
+    "hits": 10,
+    "example": "参考强度越高越贴近参考图的构图与配色。",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R09__1__primitives-surfaces__ps-09-anchored-popover.png"
+  },
+  {
+    "rule": "UI-R09",
+    "n": 2,
+    "cell": "primitives-forms/pf-01-text-input-four-states",
+    "lang": "zh(默认)",
+    "hits": 2,
+    "example": "",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R09__2__primitives-forms__pf-01-text-input-four-states.png"
+  },
+  {
+    "rule": "UI-R09",
+    "n": 3,
+    "cell": "primitives-forms/pf-02-textarea-number",
+    "lang": "zh(默认)",
+    "hits": 2,
+    "example": "",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R09__3__primitives-forms__pf-02-textarea-number.png"
+  },
+  {
+    "rule": "UI-R24",
+    "n": 1,
+    "cell": "primitives-surfaces/ps-01-status-badge-tones",
+    "lang": "zh(默认)",
+    "hits": 6,
+    "example": "待生成",
+    "file": "tests/ux/shots/ui-rules-census/top3/UI-R24__1__primitives-surfaces__ps-01-status-badge-tones.png"
+  }
+]

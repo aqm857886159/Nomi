@@ -10,11 +10,19 @@
     "S8"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "fixed",
+  "manualReview": "reviewed",
   "evidence": [
     "docs/research/2026-10-05-storyboard-plan-user-audit.md",
     "tests/ux/full-walk/invariants.mjs"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "823e25c17911df2476dad27de79966b40cf9de7a"
+  ],
+  "fixedInPr": 1080,
+  "rootCauseContract": "docs/fixes/2026-10-06-agent-feedback-batch.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/agent-runtime/lane-context-budget.test.mts"
+  }
 }

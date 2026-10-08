@@ -77,7 +77,8 @@
 | **关闭** | 关掉 · 收掉 · 关上 | Close | `common.close`；弹窗、面板、预览的收起 |
 | **取消** | 算了 · 不要 · 不用 · 放弃 · 不了 | Cancel | `common.cancel`；否定动作统一样式（§1.8 规则 4） |
 | **生成** | 去生成 · 开始生成 · 生成一下 · 出图 | Generate | 生成主动作；带后果时写成「生成 ¥1.20」 |
-| **确认** | 确定 · 好的 · 知道了 · 我知道了 · 没问题 | Confirm | `common.confirm`；花钱确认（§3.5 `SpendConfirmDialog`） |
+| **确认** | 确定 · 好的 · 没问题 | Confirm | `common.confirm`；花钱确认（§3.5 `SpendConfirmDialog`） |
+| **知道了** | 收到 · 明白 · 我知道了 | Got it | `runtime.design.gotIt`；纯告知收尾，不代表接受或执行一个决定 |
 | **谢绝一次邀请**（用动作动词的否定式：不分享 · 不导入 · 不开启…） | 不用 · 不要 · 算了 · 不了 · 暂不 · 以后再说 · 稍后再说 | Decline | 首次询问卡（`agentPanelV4.consent.decline`）等「邀请你开一个可选能力」的面 |
 
 > **「谢绝一次邀请」和「取消」是两个动作，所以各占一行。**

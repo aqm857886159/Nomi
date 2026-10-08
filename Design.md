@@ -11,7 +11,7 @@ Script -> Generate -> Edit -> Preview -> Export
 
 ## Principles
 
-- Light-only.
+- Light and dark modes: token-only switching, new colors go through semantic tokens (details in the full design system §1).
 - No fake progress or mock completion states.
 - Prioritize dense, useful production surfaces over decorative marketing layout.
 - Use one clear visual hierarchy: spacing, typography, and subtle surface contrast before borders.

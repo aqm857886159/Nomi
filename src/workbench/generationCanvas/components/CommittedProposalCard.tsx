@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { WorkbenchButton } from '../../../design'
+import { DecisionBar, WorkbenchButton } from '../../../design'
 import { useTranslation } from 'react-i18next'
 import { notify } from '../../../ui/notificationPolicy'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -133,14 +133,13 @@ export default function CommittedProposalCard({
               · {line}
             </span>
           ))}
-          <div className={cn('flex items-center justify-end gap-2')}>
-            <WorkbenchButton variant="default" size="sm" onClick={() => setLostEdits(null)}>
-              {t('generationCommon.committedProposal.cancel')}
-            </WorkbenchButton>
-            <WorkbenchButton variant="primary" size="sm" data-proposal-undo-confirm="true" onClick={handleUndo}>
-              {t('generationCommon.committedProposal.confirmUndo')}
-            </WorkbenchButton>
-          </div>
+          <DecisionBar
+            cancelLabel={t('generationCommon.committedProposal.cancel')}
+            onCancel={() => setLostEdits(null)}
+            primaryLabel={t('generationCommon.committedProposal.confirmUndo')}
+            onPrimary={handleUndo}
+            primaryProps={{ 'data-proposal-undo-confirm': 'true' }}
+          />
         </div>
       ) : null}
     </div>

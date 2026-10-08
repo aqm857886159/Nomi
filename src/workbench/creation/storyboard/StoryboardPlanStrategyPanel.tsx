@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconCheck, IconSparkles } from '@tabler/icons-react'
+import { IconAlertTriangle, IconSparkles } from '@tabler/icons-react'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import {
   applyMergeSuggestion,
@@ -190,9 +190,8 @@ function ProposalRow(props: ProposalRowProps): JSX.Element {
             type="button"
             onClick={onAdopt}
             data-storyboard-strategy-adopt="true"
-            className="shrink-0 inline-flex items-center gap-1 h-5 px-2 rounded-full bg-nomi-accent text-white text-micro font-medium hover:opacity-90"
+            className="shrink-0 inline-flex items-center gap-1 h-6 px-2.5 rounded-full bg-nomi-accent text-white text-micro font-medium hover:opacity-90"
           >
-            <IconCheck size={12} stroke={2} />
             {adoptLabel}
           </button>
           <button
