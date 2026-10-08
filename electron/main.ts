@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, session, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, powerMonitor, protocol, session, shell } from "electron";
 import { mainWindowWebPreferences } from "./mainWindowWebPreferences";
 import { startCatalogReconciliation } from "./ai/onboarding/vendorHealth";
 import type { Rectangle, WebContents } from "electron";
@@ -75,14 +75,15 @@ import { bootResidentSurfaceLifecycle, residentGenerationFactory } from "./capab
 import { createDesktopProposalReceiptResolver } from "./capabilityCore/projectAgentReceiptResolver";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
 import { registerSkillIpc } from "./skills/skillIpc";
-import { logError, logInfo, logWarn } from "./logging/logger";
+import { logError, logWarn } from "./logging/logger";
 import { seedFromStableInstallAtBoot } from "./settings/sideBySideInstallSeed";
 import { registerDevDiagnostics } from "./logging/devDiagnostics";
 import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
-import { installQuitTeardown } from "./quitTeardown";
+import { installQuitTeardown, registerQuitDrain, requestQuit } from "./quitTeardown";
+import { quitTeardownLogSinks } from "./quitTeardownLog";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
@@ -128,7 +129,7 @@ if (isMcpStdio) {
     })
     .catch((error) => {
       process.stderr.write(`[nomi:mcp-stdio] 启动失败: ${error instanceof Error ? error.message : String(error)}\n`);
-      app.exit(1);
+      requestQuit({ exitCode: 1 }); // owner 在模块加载时已同步装好：排空后以 1 退出
     });
 }
 protocol.registerSchemesAsPrivileged([
@@ -655,7 +656,7 @@ if (hasSingleInstanceLock)
         },
         lowMemoryMode ? 15000 : 3000,
       );
-      app.once("will-quit", startCatalogReconciliation());
+      registerQuitDrain("catalog-reconciliation", startCatalogReconciliation(), { required: false, timeoutMs: 100 });
       app.on("activate", () => void ensureMainWindow()); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
     })
     .catch((error) => {
@@ -666,14 +667,12 @@ app.on("window-all-closed", () => {
   if (isRecreatingMainWindow) return;
   if (process.platform !== "darwin") app.quit();
 });
-// 退出时中止所有在跑导出，否则 ffmpeg 子进程会变孤儿（继续占 CPU/写文件，直到自己跑完）。
-// abort → ffmpegRunner 监听 abort 后 kill 子进程。同步、不抛，绝不拖住退出。
+// 退出唯一 owner：导出 abort → ffmpegRunner kill 子进程（否则变孤儿）；Agent lane 关闭时落盘会话。
 installQuitTeardown(app, {
   disposeBackgroundLifecycle,
   stopDesktopCapabilityCore,
   disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
   abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
-  onError: (stage, error) => stage === "exports-aborted"
-    ? logInfo("export", "aborted-on-quit", { count: error && typeof error === "object" && "count" in error && typeof error.count === "number" ? error.count : 0 })
-    : logError("agent", `${stage}-on-quit-failed`, error),
+  ...quitTeardownLogSinks, // 失败按字段记；每步 quit-step、结束一条 quit-exit 回执
+  systemSession: { platform: process.platform, powerMonitor: () => powerMonitor }, // Windows 关机/注销不发 will-quit
 });

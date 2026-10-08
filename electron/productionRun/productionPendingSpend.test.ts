@@ -1,10 +1,12 @@
 import { normalizeLegacyPresentation } from "../shared/productionGenerationPresentation";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PlanCandidate } from "../capabilityCore/executionContract";
-import { listPendingSpendConfirms, projectPendingSpendConfirm } from "./productionPendingSpend";
+import { assertPendingSpendIdentity, listPendingSpendConfirms, projectPendingSpendConfirm } from "./productionPendingSpend";
+import { PROJECT_AGENT_PREPARING_DEADLINE_MS } from "../capabilityCore/projectAgentProposalReceiptStore";
 import type { ModelPricing } from "./shotPricing";
 import type { ProductionRun } from "./productionRunTypes";
+import { withdrawStalePresentations } from "./stalePresentationSweep";
 
 // 付费卡的**宿主投影**。这里钉死的三件事都只在钱这条轴上看得见：
 //   ① 价格是宿主按目录算的数字，不是渲染层从参数反推的；
@@ -61,6 +63,25 @@ describe("付费卡的宿主投影", () => {
     expect(pending!.shots[0].price).toEqual({ known: true, amount: 0.3 });
     expect(pending!.knownSubtotal).toBeCloseTo(0.3, 5);
     expect(pending!.unknownShotCount).toBe(0);
+    expect(pending!.presentationId).toBe("op-a:presentation:1");
+    expect(pending!.presentationEpoch).toBe(1);
+    expect(pending!.policySnapshot).toEqual({ mode: "safe-auto", spend: "confirm" });
+  });
+
+  it("旧卡的身份是 durable epoch：策略切换不会把同一张卡改成另一张", () => {
+    const pending = projectPendingSpendConfirm(run(), resolvePricing)!;
+    expect(() => assertPendingSpendIdentity(pending, {
+      presentationId: pending.presentationId,
+      presentationEpoch: pending.presentationEpoch,
+      planVersion: pending.planVersion,
+      quoteId: pending.quoteId,
+    })).not.toThrow();
+    expect(() => assertPendingSpendIdentity(pending, {
+      presentationId: pending.presentationId,
+      presentationEpoch: pending.presentationEpoch! + 1,
+      planVersion: pending.planVersion,
+      quoteId: pending.quoteId,
+    })).toThrowError("generation_presentation_stale");
   });
 
   it("命中的规格加价进价格（价目就是目录里那份，不是这里编的）", () => {
@@ -158,15 +179,74 @@ describe("付费卡的宿主投影", () => {
   // 照旧出卡」是**必须保留**的行为（策略答不了才问人，也包括用户看着一张卡时切进全自动）；
   // ③ 封印那一支一个字不动——代答链第一步就是封印，之后任何一步失败都停在「sealed + 门还等着」。
   it("全自动档代答中的那一笔不投影成卡（草稿落盘到封印之间不许闪卡）", () => {
-    const answered = (projectId: string, operationId: string) => projectId === "project-1" && operationId === "op-a";
-    expect(projectPendingSpendConfirm(run(), resolvePricing, answered)).toBeUndefined();
-    expect(listPendingSpendConfirms([run()], resolvePricing, answered)).toEqual([]);
+    const fullAuto = run();
+    fullAuto.generationPlan = { ...fullAuto.generationPlan!, presentations: [{
+      ...fullAuto.generationPlan!.presentations![0],
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: new Date(Date.now() + PROJECT_AGENT_PREPARING_DEADLINE_MS).toISOString(),
+    }] };
+    expect(projectPendingSpendConfirm(fullAuto, resolvePricing)).toBeUndefined();
+    expect(listPendingSpendConfirms([fullAuto], resolvePricing)).toEqual([]);
+  });
+
+  it("full-auto policy failure restores the same pending card", () => {
+    const failed = run();
+    failed.generationPlan = { ...failed.generationPlan!, presentations: [{
+      ...failed.generationPlan!.presentations![0],
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "failed",
+    }] };
+    expect(projectPendingSpendConfirm(failed, resolvePricing)).toMatchObject({ manualDecisionRequired: true });
+  });
+
+  it("marker failure or revision conflict cannot hide the card after the owner deadline", () => {
+    const markerLost = run();
+    markerLost.generationPlan = { ...markerLost.generationPlan!, presentations: [{
+      ...markerLost.generationPlan!.presentations![0],
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: new Date(Date.now() - 1).toISOString(),
+    }] };
+    expect(projectPendingSpendConfirm(markerLost, resolvePricing)).toMatchObject({ manualDecisionRequired: true });
+  });
+
+  it("a restarted run backfills the owner deadline and shows an expired pending decision", () => {
+    const persisted = run();
+    persisted.generationPlan = { ...persisted.generationPlan!, presentations: [{
+      ...persisted.generationPlan!.presentations![0],
+      openedAt: "2026-09-11T00:00:00.000Z",
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: undefined,
+    }] };
+    const restarted = normalizeLegacyPresentation(persisted);
+    expect(restarted.generationPlan!.presentations![0].policyDecisionDeadlineAt).toBe(
+      new Date(Date.parse("2026-09-11T00:00:00.000Z") + PROJECT_AGENT_PREPARING_DEADLINE_MS).toISOString(),
+    );
+    expect(projectPendingSpendConfirm(restarted, resolvePricing)).toMatchObject({ manualDecisionRequired: true });
+  });
+
+  it("startup cleanup leaves an expired project-policy card for read-side recovery", async () => {
+    const stale = run();
+    stale.generationPlan = { ...stale.generationPlan!, presentations: [{
+      ...stale.generationPlan!.presentations![0],
+      openedAt: "2026-09-11T00:00:00.000Z",
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: new Date(Date.now() - 1).toISOString(),
+    }] };
+    const withdraw = vi.fn();
+    expect(await withdrawStalePresentations({
+      listRuns: () => [stale],
+      withdraw,
+      processStartedAt: "2026-10-07T00:00:00.000Z",
+    }, "project-1")).toEqual([]);
+    expect(withdraw).not.toHaveBeenCalled();
   });
 
   it("没有代答在飞的草稿照旧出卡（每步问 / 自动改两档，以及代答失败后卡回到原处）", () => {
-    const answeringSomethingElse = (_projectId: string, operationId: string) => operationId === "op-other";
-    expect(projectPendingSpendConfirm(run(), resolvePricing, answeringSomethingElse)).toBeDefined();
-    // 谓词缺席 = 外部 MCP 宿主那条路，逐字不变。
+    expect(projectPendingSpendConfirm(run(), resolvePricing)).toBeDefined();
     expect(projectPendingSpendConfirm(run(), resolvePricing)).toBeDefined();
   });
 
@@ -175,7 +255,7 @@ describe("付费卡的宿主投影", () => {
       gates: [{ gateId: "gate-a", scope: "budget_envelope", status: "waiting", planHash: "d-a", authorizationDigest: "d-a", authorizationEnvelope: { gateId: "gate-a", jobs: [] } as never, title: "", summary: "", jobIds: [], createdAt: NOW, expiresAt: NOW } as ProductionRun["gates"][number]],
     });
     sealed.generationPlan = { ...sealed.generationPlan!, state: "sealed" };
-    expect(projectPendingSpendConfirm(sealed, resolvePricing, () => true)).toBeDefined();
+    expect(projectPendingSpendConfirm(sealed, resolvePricing)).toBeDefined();
   });
 
   it("一个项目里多笔时按 updatedAt 排序（介入槽只显示第一张，其余算「还有 N 条」）", () => {

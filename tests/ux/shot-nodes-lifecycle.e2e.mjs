@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
@@ -86,8 +86,11 @@ try {
     const vendor = catalog.listVendors().find(v => v.key === 'agent-runtime-loopback')
     catalog.upsertVendor({ ...vendor, enabled: false })
   })
+  const firstMessage = first.locator('[data-node-inline-status] [data-generation-message]')
+  const firstMessageProof = await proveProbe(firstMessage, '镜 1 落盘前节点上有过程文字')
   await app.app.evaluate(() => globalThis.__shotNodeMaterialize.release())
-  await expect(first.locator('[data-node-inline-status] [data-generation-message]')).toContainText('已保存到项目', { timeout: stationTimeout({ operations: 8 }) })
+  // 完成后不再挂「已保存到项目」之类的多余文字：过程文字整条消失。
+  await expectAbsent(firstMessage, { provenBy: firstMessageProof, message: '镜 1 完成后过程文字消失' }, stationTimeout({ operations: 8 }))
   await expect(first.locator('[data-node-media-state=ready]')).toBeAttached()
   await capture('complete')
   await expect(second.locator('[role=alert]')).toContainText('这个模型没配好', { timeout: stationTimeout({ operations: 8 }) })
@@ -107,8 +110,10 @@ try {
   const confirm = page.getByRole('button', { name: '生成', exact: true }).last()
   if (await page.getByText('开始生成', { exact: true }).isVisible()) await confirm.click()
   await expect.poll(() => fixture.jobs.length).toBe(2)
+  const secondMessage = second.locator('[data-node-inline-status] [data-generation-message]')
+  const secondMessageProof = await proveProbe(secondMessage, '镜 2 重试生成中节点上有过程文字')
   fixture.jobs[1].done = true
-  await expect(second.locator('[data-node-inline-status] [data-generation-message]')).toContainText('已保存到项目', { timeout: stationTimeout({ operations: 8 }) })
+  await expectAbsent(secondMessage, { provenBy: secondMessageProof, message: '镜 2 完成后过程文字消失' }, stationTimeout({ operations: 8 }))
   await capture('retry-complete')
   receipt.checks.push('Existing node retry/generate action completes after configuration recovery')
 } catch (error) {

@@ -10,6 +10,7 @@
 // 既违反 R15（可见文字必须走 i18n），又凭空多了一份要和合同对齐的词表。
 import type { ProjectAgentApprovalPolicy } from '../../../../electron/shared/agentCapabilities/capabilityApprovalPolicy';
 import type { LaneTaskCandidate, LaneTaskStatus } from '../../../../electron/shared/agentLane/laneContracts'
+import type { PlanRow } from '../../shared/PlanRows'
 import type { LaneAssistantFault } from '../../../../electron/shared/agentLane/laneAssistantFault'
 import type { V4AskQuestion } from './agentPanelV4AskModel'
 import type { V4QuestionOption } from './agentPanelV4Question'
@@ -154,7 +155,12 @@ export type TaskCardData = Readonly<{
   undoable?: boolean
 }>
 
-export type PlanRow = Readonly<{ label: string; detail?: string; technical?: string; checked: boolean }>
+/**
+ * 计划卡的一行。`group`：这一行所属的一组（「参考卡 2 张」「镜头 4 个」）——相邻行 group 不同时在它前面印一条小标题。
+ * `aside`：同一行右端的灰色小字（模型名），不另起一行——单行一项，6 项不用滚。
+ * 分镜表「生成剩余」的确认框用它们分阶段（参考卡先、镜头后）；别处不传 = 不分组，长相与以前一字不差。
+ */
+export type { PlanRow }
 
 export type InterventionData = Readonly<{
   kind: V4InterventionKind

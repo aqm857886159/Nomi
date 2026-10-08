@@ -1,4 +1,4 @@
-import { app, ipcMain } from "electron";
+import { ipcMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { runTaskWithIdempotency } from "../submissionLedger";
@@ -7,6 +7,7 @@ import { runTaskIpcGuard } from "./taskIpcGuard";
 import { withTaskOwner } from "./localTaskJobs";
 import { antigravityImageJobs } from "../catalog/antigravityImageOperation";
 import { cancelComfyCandidateTest, failComfyCandidateEnvelope, runComfyCandidateTest } from "./comfyCandidateTest";
+import { registerQuitDrain } from "../quitTeardown";
 
 type RuntimeLoader = () => Promise<typeof import("../runtime")>;
 type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
@@ -17,15 +18,7 @@ const str = (value: unknown): string => (typeof value === "string" ? value.trim(
 /** Register the renderer task boundary, including the spend-grant trust check. */
 export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCore: CoreLoader): void {
   const owners = new Set<number>();
-  let draining = false;
-  let drained = false;
-  app.on("will-quit", (event) => {
-    if (drained) return;
-    event.preventDefault();
-    if (draining) return;
-    draining = true;
-    void antigravityImageJobs.cancelAll().finally(() => { drained = true; app.quit(); });
-  });
+  registerQuitDrain("antigravity-image-jobs", () => antigravityImageJobs.cancelAll(), { required: true, timeoutMs: 2500 });
   // 发起任务的窗口没了：它的本地任务取消，它在等的画布 Run 交给主进程观察者收完。
   const trackOwner = (sender: Electron.WebContents): void => {
     if (owners.has(sender.id)) return;

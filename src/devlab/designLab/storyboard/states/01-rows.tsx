@@ -116,7 +116,7 @@ export const ROW_STATES: readonly LabState[] = [
   },
   {
     id: 'sb-row-13-row-menu',
-    name: '行 · ⋯ 菜单（含「交给 Agent 改这一镜」「这一镜换画幅」）',
+    name: '行 · ⋯ 菜单（含「交给 Agent」「这一镜换画幅」）',
     source: '合同 §2.6 ⋯ 菜单 / §2.7 Agent 三入口之三 / §2.4.1 覆盖入口',
     coverage: 'shell',
     /** 菜单是绝对定位、比行还高，按元素截会被行的 bounding box 切掉一半（截出半张菜单的假证据）。 */

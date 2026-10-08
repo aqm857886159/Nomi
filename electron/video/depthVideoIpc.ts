@@ -6,8 +6,9 @@
  * 每个 handler 第一句都是 `assertTrustedSender`，重活模块用动态 import 留在启动路径之外
  * ——与 videoIpc.ts 同一套约定。
  */
-import { app, ipcMain, type WebContents } from "electron";
+import { ipcMain, type WebContents } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
+import { registerQuitDrain } from "../quitTeardown";
 
 /**
  * 作业模块是**按需加载**的（重活不进启动路径），但退出清理必须是同步的：
@@ -63,7 +64,7 @@ export function registerVideoDepthIpc(): void {
 
   // 退出时收摊：ffmpeg 编码器是子进程，临时目录里躺着这次抽出来的整批帧。
   // 挂在这里而不是 main.ts——那是已登记的巨壳，每个子系统往里塞两行正是它长成那样的原因。
-  app.on("will-quit", () => {
+  registerQuitDrain("video-depth-jobs", async () => {
     jobModule?.disposeAllVideoDepthJobs();
-  });
+  }, { required: true, timeoutMs: 1000 });
 }

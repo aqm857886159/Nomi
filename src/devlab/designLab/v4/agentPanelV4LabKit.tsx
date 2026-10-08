@@ -13,6 +13,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
+import { holdDesignLabReady } from '../labReadyHold'
 import type {
   ContextUsage,
   InterventionData,
@@ -73,6 +74,18 @@ export function useV4Fixtures() {
   const { t, i18n } = useTranslation()
   // `locale` 跟着夹具一起给出去：金额怎么印看界面语言（`formatMoney`），实验室与生产同一条路。
   return React.useMemo(() => ({ ...buildFixtures(t), locale: i18n.language }), [t, i18n.language])
+}
+
+export function useV4Locale(locale: 'zh-CN' | 'en'): boolean {
+  const { i18n } = useTranslation()
+  const [ready, setReady] = React.useState(i18n.language === locale)
+  React.useLayoutEffect(() => {
+    if (i18n.language === locale) { setReady(true); return undefined }
+    const release = holdDesignLabReady(`v4-vocabulary:locale:${locale}`)
+    void i18n.changeLanguage(locale).then(() => { setReady(true); release() })
+    return release
+  }, [locale])
+  return ready
 }
 
 /** 夹具照定稿画布逐格抄：同一句话、同一个数字，才比得出实现有没有走样。 */

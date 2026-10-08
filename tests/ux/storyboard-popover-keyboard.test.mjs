@@ -23,13 +23,7 @@ const POPOVERS = [
     activate: (page) => page.keyboard.press('Enter'),
     menu: '[data-storyboard-row-menu="1"]',
   },
-  {
-    name: '「用作…」菜单',
-    query: 'confirm',
-    focusOpener: (page) => page.locator('[data-storyboard-actbar] button[aria-label]').last().focus(),
-    activate: (page) => page.keyboard.press('Enter'),
-    menu: '[data-storyboard-result-intake-menu]',
-  },
+  // 「用作…」菜单按 2026-10-06 分镜批量方案删除（第 78、82 行），本 PR #1107。
   {
     name: '提示词片段菜单',
     query: 'segments',

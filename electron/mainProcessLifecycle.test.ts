@@ -1,22 +1,39 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
+import { installQuitTeardown, resetQuitTeardownForTests } from "./quitTeardown";
+import type { ParentProcessWatchdogOptions } from "./parentProcessWatchdog";
 
+/** Lifecycle app plus the real quit owner on a stand-in Electron app. */
 function createApp(isPackaged: boolean) {
-  let willQuit: (() => void) | undefined;
-  const app = {
-    isPackaged,
-    exit: vi.fn(),
-    once: vi.fn((event: "will-quit", listener: () => void) => {
-      if (event === "will-quit") willQuit = listener;
-      return app;
-    }),
-  };
-  return { app, willQuit: () => willQuit?.() };
+  const listeners = new Map<string, (event: { preventDefault: () => void }) => void>();
+  const owner = { on: (name: string, listener: (...args: never[]) => void) => { listeners.set(name, listener as (event: { preventDefault: () => void }) => void); }, whenReady: () => Promise.resolve(), quit: vi.fn(), exit: vi.fn() };
+  const exports = vi.fn(() => 0);
+  const lane = vi.fn(async () => undefined);
+  const installOwner = () => installQuitTeardown(owner, { disposeBackgroundLifecycle: vi.fn(), stopDesktopCapabilityCore: vi.fn(), abortAllActiveExports: exports, disposeDesktopLaneIpc: lane });
+  return { app: { isPackaged }, owner, exports, lane, installOwner, willQuit: () => listeners.get("will-quit")?.({ preventDefault: vi.fn() }) };
 }
 
 describe("installMainProcessLifecycle", () => {
-  it("使用启动器显式传入的 PID，覆盖安装前已经被重新托管的竞态", () => {
-    const { app, willQuit } = createApp(false);
+  beforeEach(() => resetQuitTeardownForTests());
+  it("launcher loss exits through the owner's critical drains instead of a bare app.exit", async () => {
+    const { app, owner, exports, lane, installOwner } = createApp(false);
+    let options: ParentProcessWatchdogOptions | undefined;
+    installMainProcessLifecycle(app, {
+      env: { NOMI_LAUNCHER_PID: "42" },
+      installCrashHandlers: vi.fn(),
+      installProcessStdioErrorGuards: vi.fn(),
+      installParentProcessWatchdog: vi.fn((value: ParentProcessWatchdogOptions) => { options = value; return vi.fn(); }),
+    });
+    installOwner();
+    options!.exit(0);
+    await vi.waitFor(() => expect(owner.exit).toHaveBeenCalledWith(0));
+    expect(exports).toHaveBeenCalledOnce();
+    expect(lane).toHaveBeenCalledOnce();
+    expect(owner.quit).not.toHaveBeenCalled();
+  });
+
+  it("使用启动器显式传入的 PID，覆盖安装前已经被重新托管的竞态", async () => {
+    const { app, installOwner, willQuit } = createApp(false);
     const stop = vi.fn();
     const installCrashHandlers = vi.fn();
     const installProcessStdioErrorGuards = vi.fn();
@@ -39,8 +56,9 @@ describe("installMainProcessLifecycle", () => {
       parentPid: 42,
     }));
 
+    installOwner();
     willQuit();
-    expect(stop).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
   });
 
   it("装齐三层崩溃证据：JS 异常 / 原生 minidump / 进程死亡，且 Crashpad 挂在 app 上", () => {

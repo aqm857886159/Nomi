@@ -1,0 +1,41 @@
+
+ RUN  v4.1.8 D:/Nomi-sbbatch
+
+·x·················
+node.exe :
+At C:\Users\23732\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts > does not dispatch an item removed from t
+he confirmation checklist
+AssertionError: expected [ { …(12) }, { …(12) } ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts:74:53
+     72|     runtimeRows(shots),
+     73|   )
+     74|   expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+       |                                                     ^
+     75|   expect(calls.confirm).toHaveBeenCalledOnce()
+     76|   expect(calls.confirm.mock.calls[0][0].waves.flat()).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:03:25
+   Duration  16.36s (transform 5.13s, setup 200ms, import 15.57s, tests 120ms, environment 0ms)
+
+
+exitCode=1

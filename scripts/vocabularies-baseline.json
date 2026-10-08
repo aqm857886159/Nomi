@@ -46,6 +46,27 @@
   "registered": [
     {
       "members": [
+        "anchors",
+        "done",
+        "idle",
+        "shots",
+        "stopped"
+      ],
+      "reason": "Storyboard batch footer phases are the design-lab-only lifecycle states for the production storyboard progress footer; they describe anchor and shot waves rather than reusing a different runtime task vocabulary.",
+      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:FooterPhase/type-union"
+    },
+    {
+      "members": [
+        "done",
+        "plain",
+        "selected",
+        "skipped"
+      ],
+      "reason": "Storyboard batch row flags are design-lab fixture states for the approved row-selection screenshots; they describe the row presentation contract and are not a second production execution status vocabulary.",
+      "site": "src/devlab/designLab/storyboardBatch/storyboardBatchLabKit.tsx::type:RowFlag/type-union"
+    },
+    {
+      "members": [
         "completed",
         "prepared",
         "verified"
@@ -1934,6 +1955,23 @@
       ],
       "reason": "AT_REST 是 ProductionRunStatus 的子集：Run 停在这三种状态时不再派发新镜，判断「这批是否还在动」只看它与供应商那边是否还有在飞的 job。它不是一套新状态词表，成员类型就是 ProductionRunStatus（ReadonlySet<ProductionRunStatus>）；和视口动画的结算结果（ViewportAnimationSettlementOutcome）只是碰巧同名，概念无关，不该复用。",
       "site": "electron/productionRun/productionRunLifecycle.ts::variable:AT_REST/set"
+    },
+    {
+      "members": [
+        "done",
+        "failed",
+        "timeout"
+      ],
+      "reason": "DrainOutcome 是退出收尾里单个 drain 步骤的结局，只用来写 quit-step 回执（tests/ux/quit-teardown-real.e2e.mjs 读它）：步骤跑完、超出时间预算、抛错三选一。它和视频深度任务的终态（TERMINAL_VIDEO_DEPTH_PHASES，含用户 cancelled、没有 timeout）不是同一个概念——收尾步骤不能被用户取消，超时却是它的核心结局；复用那份词表会把 cancelled 带进退出回执、丢掉 timeout。",
+      "site": "electron/quitTeardown.ts::type:DrainOutcome/type-union"
+    },
+    {
+      "members": [
+        "failed",
+        "pending"
+      ],
+      "reason": "GenerationPresentation.policyDecisionState records the automatic spend decision for this presentation: pending is unresolved and failed requires manual handling. ProviderPollStatusClass instead classifies an already submitted provider task, including succeeded and unknown. Reusing it would confuse pre-spend authorization with post-submission execution; this is an intentional independent owner.",
+      "site": "electron/productionRun/productionRunTypes.ts::type:GenerationPresentation/property:policyDecisionState/type-union"
     }
   ],
   "debt": [

@@ -244,7 +244,8 @@ export function readableToolName(t: Translate, name: string, rawArgs?: unknown):
   if (name === 'read' || name === 'ls') return t('agentResident.toolFileRead')
   if (name === 'grep' || name === 'find') return t('agentResident.toolFileSearch')
   if (name === 'edit' || name === 'write') return t('agentResident.toolFileWrite')
-  if (name === 'bash') return t('agentResident.toolShell')
+  // Shell is an implementation detail; the panel should describe the agent's work, not expose its transport.
+  if (name === 'bash') return t('agentResident.toolGeneric')
   const normalized = toolIdentity(name, args)
   if (isStoryboardPlanWrite(name, args)) return t('agentResident.toolStoryboardWrite')
   if (normalized.includes('arrange_storyboard_to_timeline')) return t('agentResident.toolTimelineAdd')

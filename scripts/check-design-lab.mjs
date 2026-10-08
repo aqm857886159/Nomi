@@ -55,6 +55,7 @@ const { inspectLabPort, formatForeignHolder } = await import(pathToFileURL(path.
 const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs')).href)
 
 const UPDATE = process.argv.includes('--update')
+const requestedScreenArg = process.argv.find((arg, index) => arg === '--screen' ? process.argv[index + 1] : false)
 const SKIP_VISUAL = process.argv.includes('--structure-only')
 
 const errors = []
@@ -307,7 +308,12 @@ const runStatus = await new Promise((resolve) => {
   const child = spawn('npx', playwrightArgs, {
     cwd: repoRoot,
     stdio: ['inherit', 'pipe', 'pipe'],
-    env: { ...process.env, ...(UPDATE ? { NOMI_DESIGN_LAB_UPDATE: '1' } : {}) },
+    ...(process.platform === 'win32' ? { shell: true } : {}),
+    env: {
+      ...process.env,
+      ...(UPDATE ? { NOMI_DESIGN_LAB_UPDATE: '1' } : {}),
+      ...(requestedScreenArg ? { NOMI_DESIGN_LAB_SCREEN: requestedScreenArg } : {}),
+    },
   })
   const tee = (stream, sink) => stream.on('data', (chunk) => {
     transcript[transcript.length] = String(chunk)
