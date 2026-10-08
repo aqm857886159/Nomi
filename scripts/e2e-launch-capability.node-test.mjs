@@ -23,6 +23,7 @@ for (const scenario of ['env', 'explicit', 'inherited', 'derived', 'non-isolated
       executablePath: '/fixture/Nomi',
       waitForWindow: false,
       env: {},
+      allowUntrackedProcessForTest: true,
     }
     let expected
     if (scenario === 'env' || scenario === 'explicit') {
