@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 import { ensureElectronSignature } from '../../scripts/ensure-electron-signature.mjs'
 import { installFeelObserver } from './_feel-observer.mjs'
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
+import { registerWalkInstance } from './_walkInstances.mjs'
 
 const require = createRequire(import.meta.url)
 const catalogVersionManifest = require('../../electron/catalog/catalogVersion.json')
@@ -413,11 +414,17 @@ export async function launchNomiApp(options = {}) {
   } catch (error) {
     throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
   }
+  const instanceRegistration = registerWalkInstance({ pid: app.process().pid, worktree: repoRoot })
+  app.process().once('exit', instanceRegistration.cleanup)
+  const close = async () => {
+    try { await closeNomiApp(app) } finally { instanceRegistration.cleanup() }
+  }
+
   if (preMainInjection) {
     try {
       await preMainInjection
     } catch (error) {
-      await app.close().catch(() => undefined)
+      await close()
       throw new Error(`[${name}] 打包形态没能在主入口之前装上 ${packagedPreMain.modules.join(', ')}：${error.message}`)
     }
   }
@@ -438,7 +445,7 @@ export async function launchNomiApp(options = {}) {
     } catch (error) {
       // 两种失败形状都落这儿：等超时，以及 app 提前退出导致的 TargetClosedError
       //（单实例锁没抢到就是后者——主进程自己 quit 了）。诊断是同一套。
-      await app.close().catch(() => undefined)
+      await close()
       throw new Error(diagnoseLaunchFailure(`等了 ${timeout}ms 没等到窗口`, name, error, logTail))
     }
     await win.waitForLoadState('domcontentloaded')
@@ -476,7 +483,7 @@ export async function launchNomiApp(options = {}) {
     if (options.initialLocalStorage) {
       const missing = await win.evaluate((keys) => keys.filter((key) => localStorage.getItem(key) === null), Object.keys(options.initialLocalStorage))
       if (missing.length) {
-        await app.close().catch(() => undefined)
+        await close()
         throw new Error(`initialLocalStorage was not seeded before the first document: ${missing.join(', ')}`)
       }
     }
@@ -489,7 +496,7 @@ export async function launchNomiApp(options = {}) {
   try {
     await configureSyntheticCredentialStorage(app, syntheticCredentialStorage)
   } catch (error) {
-    await app.close().catch(() => undefined)
+    await close()
     throw error
   }
 
@@ -503,7 +510,7 @@ export async function launchNomiApp(options = {}) {
     capabilityDir,
     /** 主进程 stdout+stderr 的尾巴（最多 400 行）。断言红时给调用方看，不必只在启动失败时才有。 */
     mainLogTail: () => logTail.slice(),
-    close: () => closeNomiApp(app),
+    close,
   }
 }
 
