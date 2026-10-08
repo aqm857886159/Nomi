@@ -66,7 +66,7 @@ type Props = {
   onChange: (plan: StoryboardPlan) => void
   /** The resident Agent receives the same stable storyboard reference as the row selection UI. */
   onStoryboardShotSelect?: (shot: StoryboardPlan['shots'][number]) => void
-  /** 选中集变化时上报（footer 的「选中 N 镜 · 交给 Agent 改」与浮条读同一份选择，不各存一份）。 */
+  /** 选中集变化时上报（编辑器与浮条读同一份选择，不各存一份）。 */
   onSelectionChange?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 行内「生成」（画面格常驻按钮 / 失败重试）。 */
   onGenerateRow: (runtime: StoryboardRowRuntime) => void
@@ -79,7 +79,7 @@ type Props = {
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 浮条 🔒/🔓 镜级锁定开关。 */
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
-  /** 结果态双击 / 浮条 ⛶ 放大预览。 */
+  /** 结果态双击打开预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
   onLocateInCanvasRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 参考已变「用新图重跑」。 */
@@ -100,7 +100,7 @@ type Props = {
   onDeleteVariant?: ((runtime: StoryboardRowRuntime, variant: ShotVariant) => void) | undefined
   /** 每镜产出的 `@tag`（§2.10）；键 = `stableShotId`。 */
   outputTagByShotId?: Readonly<Record<string, string>>
-  /** 「交给 Agent」——多选浮条与每行 ⋯ 菜单两处（§2.7 入口 2/3 与 3/3）。 */
+  /** Agent 入口——多选浮条与每行 ⋯ 菜单两处。 */
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   /** 播放本场；整片播放复用同一 playback queue owner。 */
   onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined

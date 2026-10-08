@@ -10,8 +10,7 @@ import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
  * 分镜页多选浮条。布局/作用域语义对齐画布 `CanvasSelectionToolbar`：纸白圆角浮条、已选计数、
  * 生成与统一模型动作、清除入口；分镜特有的移场/锁定/删除仍只作用于已选镜。
  *
- * v6 新增「交给 Agent」（§2.7 入口 1/2）——多选与单行是两种选择规模，
- * 两处共用 `data-storyboard-agent-handoff`，页脚不再重复一枚入口。
+ * 多选浮条提供 Agent 入口；页脚不重复放置入口。
  *
  * 「移到场」只在这份分镜**真的有场**时出现：没有场的分镜里它只剩「移到场」与「未分场」两行——
  * 一个点开什么都做不了的下拉（2026-09-11 用户实测反馈）。有场才是它有意义的前提，
@@ -49,7 +48,7 @@ export default function StoryboardSelectionToolbar({
   onSkip?: (() => void) | undefined
   onDelete: () => void
   onClear: () => void
-  /** 「交给 Agent」：把选中的这几镜交给常驻 Agent 改（改动就地预览 + 确认卡）。 */
+  /** Agent 入口：把选中的镜头交给常驻 Agent 处理。 */
   onAgentHandoff?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()

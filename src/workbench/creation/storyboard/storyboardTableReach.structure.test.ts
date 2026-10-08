@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
  * Playwright 的 click 还会自己滚——只有真人看不见、点不到。所以真判据是走查里的 elementFromPoint
  * （`tests/ux/storyboard-table-structure.walk.mjs`）；这里钉的是**根因的形状**：
  *   ① 多选浮条不在 `overflow-hidden` 的行区里（sticky 只认最近的滚动祖先）；
- *   ② 表里每一个弹出层都走 `AnchoredPopover`（Portal 到 body），没有第二套原地 `absolute` 弹层。
+ *   ? ?????????? `AnchoredPopover`???????????????? `StoryboardHoverPreview` ???
  */
 
 const read = (relative: string): string => fs.readFileSync(path.join(process.cwd(), relative), 'utf8')
@@ -60,7 +60,7 @@ describe('多选浮条：不能放在会裁切的行区里', () => {
 
 describe('表内弹出层：全部走 AnchoredPopover，没有原地 absolute 弹层', () => {
   /**
-   * 数门：行 ⋯ 菜单（StoryboardShotRow）、「用作…」菜单（StoryboardFrameActions）、提示词片段菜单
+   * 数门：行 ⋯ 菜单（StoryboardShotRow）、提示词片段菜单
    * （PromptSkeletonSegments）、参考悬停预览（StoryboardHoverPreview）。
    * 参考条（ShotReferenceStrip）的「+N」折叠浮层与「+」素材选择器（AssetPickerPopover）也走它；
    * 2026-10-06 分镜复用画布交互后底栏没有自己的弹层了（旧底栏 ⋯ 与参考槽浮层已删）——参数面板是画布同款
@@ -68,7 +68,6 @@ describe('表内弹出层：全部走 AnchoredPopover，没有原地 absolute �
    */
   const popoverUsers = [
     `${STORYBOARD_DIR}/shotRow/StoryboardShotRow.tsx`,
-    `${STORYBOARD_DIR}/shotRow/StoryboardFrameActions.tsx`,
     `${STORYBOARD_DIR}/shotRow/PromptSkeletonSegments.tsx`,
     `${STORYBOARD_DIR}/StoryboardHoverPreview.tsx`,
     `${STORYBOARD_DIR}/shotRow/ShotReferenceStrip.tsx`,
