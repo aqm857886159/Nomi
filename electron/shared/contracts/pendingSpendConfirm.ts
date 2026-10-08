@@ -75,6 +75,8 @@ export type PendingSpendConfirm = Readonly<{
   presentationEpoch?: number;
   /** Policy captured when this presentation opened. */
   policySnapshot?: ProjectAgentApprovalPolicy;
+  /** Read-side deadline or durable failure marker requires an explicit user decision. */
+  manualDecisionRequired?: true;
   /**
    * 付费门已经开着时它就是那道门的 id；还是草稿（没封印）时缺席。
    *

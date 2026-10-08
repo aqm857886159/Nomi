@@ -25,6 +25,8 @@
     "electron/productionRun/productionRunTypes.ts",
     "electron/capabilityCore/mcpGenerationTools.ts",
     "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/productionRun/stalePresentationSweep.ts",
     "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
   ],
   "entry_points": [
@@ -35,7 +37,9 @@
   "invariants": [
     "Every visible pending spend card has a stable presentationId and monotonic presentationEpoch.",
     "A card action is accepted only when quoteId, planVersion, presentationId, and presentationEpoch still match the current card.",
-    "A policy switch never rewrites an existing presentation's pending decision."
+    "A policy switch never rewrites an existing presentation's pending decision.",
+    "A project-policy pending decision has an owner deadline; after expiry or a failed marker it is projected as a manual-decision card.",
+    "Startup stale cleanup never withdraws a project-policy pending presentation before the user can resolve it."
   ],
   "invariant_owner_layer": {
     "layer": "electron/productionRun/productionPendingSpend.ts",
@@ -111,12 +115,22 @@
       "kind": "write",
       "path": "electron/productionRun/productionRunService.ts",
       "symbol": "createGenerationDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/stalePresentationSweep.ts",
+      "symbol": "withdrawStalePresentations"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "symbol": "PROJECT_AGENT_PREPARING_DEADLINE_MS"
     }
   ],
   "door_reduction": {
     "before": 13,
-    "after": 13,
-    "why_not": "Presentation creation, repository migration, operation projection, IPC identity forwarding, pending-card projection, and action validation are separate ownership boundaries. Each must remain explicit so policy cannot re-enter the repository or bypass the shared stale-card guard."
+    "after": 15,
+    "why_not": "Presentation creation, repository migration, operation projection, IPC identity forwarding, pending-card projection, startup cleanup, and action validation are separate ownership boundaries. Each must remain explicit so policy cannot re-enter the repository or bypass the shared stale-card guard."
   },
   "generality_proof": "All desktop card reads pass through projectPendingSpendConfirm/listPendingSpendConfirms and all mutating card actions pass through appIntegrationSpendConfirm's identity guard, so mode switches, restart reads, and delayed IPC calls share the same durable contract.",
   "shared_boundaries": [
@@ -129,6 +143,11 @@
       "path": "electron/productionRun/productionPendingSpend.ts",
       "symbol": "assertPendingSpendIdentity",
       "responsibility": "Fail closed when an action references a stale quote or presentation."
+    },
+    {
+      "path": "electron/productionRun/stalePresentationSweep.ts",
+      "symbol": "withdrawStalePresentations",
+      "responsibility": "Leave project-policy pending presentations available for read-side deadline recovery instead of withdrawing them during startup cleanup."
     }
   ],
   "same_class_entry_points": [
@@ -182,12 +201,14 @@
   "regression_tests": [
     "electron/productionRun/productionPendingSpend.test.ts",
     "electron/shared/productionGenerationPresentation.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
     "electron/agentLane/laneDesktopSpend.test.ts",
     "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
   ],
   "class_regression_tests": [
     "electron/productionRun/productionPendingSpend.test.ts",
     "electron/shared/productionGenerationPresentation.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
     "electron/agentLane/laneDesktopSpend.test.ts",
     "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
   ],
@@ -203,7 +224,7 @@
     "rationale": "No third-party dependency controls this invariant.",
     "exit_criteria": []
   },
-  "migration": "Legacy runs are normalized on read with deterministic presentation IDs and epochs; new runs persist the snapshot at creation and presentation time.",
+  "migration": "Legacy runs are normalized on read with deterministic presentation IDs, epochs, and project-policy deadlines derived from openedAt; new runs persist the snapshot and owner-anchored deadline at creation and presentation time.",
   "residual_risks": [
     "A real Electron restart walk still needs final green evidence after the renderer card error state is exercised.",
     "Independent acceptance by the L walk line remains pending until its receipt is available."

@@ -15,7 +15,8 @@ import {
   type ProjectAgentProposalReceiptWrite,
 } from "../shared/projectAgentProposalReceipt";
 import { assertProjectAgentBinding, sameProjectAgentBinding } from "../shared/projectBinding";
-import { MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE } from "../shared/agentCapabilities/verbDeclaration";
+import { PROJECT_AGENT_PREPARING_DEADLINE_MS } from "../shared/projectAgentPreparingDeadline";
+export { PROJECT_AGENT_PREPARING_DEADLINE_MS } from "../shared/projectAgentPreparingDeadline";
 
 type ReceiptOperation = Readonly<{
   operationId: string;
@@ -66,8 +67,6 @@ const MAX_OPERATIONS = 64;
  * （工具超时、回执没拿到、进程被打断），没有人会再去收它。没有这条时限时，这样一次死掉的写入会把之后**每一次**
  * 写入都挡在「已有未完成操作」后面，直到用户手工清文件（pb04 走查 `agent-write-receipt-stuck`）。
  */
-export const PROJECT_AGENT_PREPARING_DEADLINE_MS = MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE + 15_000;
-
 function receiptPath(projectRoot: string): string {
   return path.join(path.resolve(projectRoot), ".nomi", "project-agent-proposal-receipt.json");
 }

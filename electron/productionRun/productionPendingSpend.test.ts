@@ -1,10 +1,12 @@
 import { normalizeLegacyPresentation } from "../shared/productionGenerationPresentation";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import { assertPendingSpendIdentity, listPendingSpendConfirms, projectPendingSpendConfirm } from "./productionPendingSpend";
+import { PROJECT_AGENT_PREPARING_DEADLINE_MS } from "../capabilityCore/projectAgentProposalReceiptStore";
 import type { ModelPricing } from "./shotPricing";
 import type { ProductionRun } from "./productionRunTypes";
+import { withdrawStalePresentations } from "./stalePresentationSweep";
 
 // 付费卡的**宿主投影**。这里钉死的三件事都只在钱这条轴上看得见：
 //   ① 价格是宿主按目录算的数字，不是渲染层从参数反推的；
@@ -179,7 +181,10 @@ describe("付费卡的宿主投影", () => {
   it("全自动档代答中的那一笔不投影成卡（草稿落盘到封印之间不许闪卡）", () => {
     const fullAuto = run();
     fullAuto.generationPlan = { ...fullAuto.generationPlan!, presentations: [{
-      ...fullAuto.generationPlan!.presentations![0], policySnapshot: { mode: "project", spend: "confirm" },
+      ...fullAuto.generationPlan!.presentations![0],
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: new Date(Date.now() + PROJECT_AGENT_PREPARING_DEADLINE_MS).toISOString(),
     }] };
     expect(projectPendingSpendConfirm(fullAuto, resolvePricing)).toBeUndefined();
     expect(listPendingSpendConfirms([fullAuto], resolvePricing)).toEqual([]);
@@ -192,7 +197,52 @@ describe("付费卡的宿主投影", () => {
       policySnapshot: { mode: "project", spend: "confirm" },
       policyDecisionState: "failed",
     }] };
-    expect(projectPendingSpendConfirm(failed, resolvePricing)).toBeDefined();
+    expect(projectPendingSpendConfirm(failed, resolvePricing)).toMatchObject({ manualDecisionRequired: true });
+  });
+
+  it("marker failure or revision conflict cannot hide the card after the owner deadline", () => {
+    const markerLost = run();
+    markerLost.generationPlan = { ...markerLost.generationPlan!, presentations: [{
+      ...markerLost.generationPlan!.presentations![0],
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: new Date(Date.now() - 1).toISOString(),
+    }] };
+    expect(projectPendingSpendConfirm(markerLost, resolvePricing)).toMatchObject({ manualDecisionRequired: true });
+  });
+
+  it("a restarted run backfills the owner deadline and shows an expired pending decision", () => {
+    const persisted = run();
+    persisted.generationPlan = { ...persisted.generationPlan!, presentations: [{
+      ...persisted.generationPlan!.presentations![0],
+      openedAt: "2026-09-11T00:00:00.000Z",
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: undefined,
+    }] };
+    const restarted = normalizeLegacyPresentation(persisted);
+    expect(restarted.generationPlan!.presentations![0].policyDecisionDeadlineAt).toBe(
+      new Date(Date.parse("2026-09-11T00:00:00.000Z") + PROJECT_AGENT_PREPARING_DEADLINE_MS).toISOString(),
+    );
+    expect(projectPendingSpendConfirm(restarted, resolvePricing)).toMatchObject({ manualDecisionRequired: true });
+  });
+
+  it("startup cleanup leaves an expired project-policy card for read-side recovery", async () => {
+    const stale = run();
+    stale.generationPlan = { ...stale.generationPlan!, presentations: [{
+      ...stale.generationPlan!.presentations![0],
+      openedAt: "2026-09-11T00:00:00.000Z",
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "pending",
+      policyDecisionDeadlineAt: new Date(Date.now() - 1).toISOString(),
+    }] };
+    const withdraw = vi.fn();
+    expect(await withdrawStalePresentations({
+      listRuns: () => [stale],
+      withdraw,
+      processStartedAt: "2026-10-07T00:00:00.000Z",
+    }, "project-1")).toEqual([]);
+    expect(withdraw).not.toHaveBeenCalled();
   });
 
   it("没有代答在飞的草稿照旧出卡（每步问 / 自动改两档，以及代答失败后卡回到原处）", () => {

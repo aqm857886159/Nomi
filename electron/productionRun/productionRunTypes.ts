@@ -284,6 +284,8 @@ export type GenerationPresentation = {
   policySnapshot?: ProjectAgentApprovalPolicy;
   /** Full-auto policy decision lifecycle for this presentation. */
   policyDecisionState?: "pending" | "failed";
+  /** Read-side safety deadline for a policy decision that may fail to persist its marker. */
+  policyDecisionDeadlineAt?: string;
   /** 这一次摆到卡上的那几镜（按计划顺序；单镜旧形态 = 顶层候选的 candidateId）。 */
   shotIds: string[];
   openedAt: string;

@@ -56,3 +56,24 @@
 - `electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts`
 - `tests/ux/agent-spend-full-auto.walk.mjs`
 - `electron/productionRun/productionRunRepository.test.ts`
+
+## 8. Read-side recovery for a failed marker write
+
+The follow-up acceptance found the remaining class of failure: the policy owner can
+throw while writing `generation.policy_decision_failed` (including a revision
+conflict). The direct cause is then a best-effort marker write; the class root cause
+is that card visibility depended on that write succeeding.
+
+The durable owner now records `policyDecisionDeadlineAt` when a project policy
+presentation opens, using the existing `PROJECT_AGENT_PREPARING_DEADLINE_MS`
+contract. The read owner shows a project pending card once that deadline has passed,
+or whenever the durable state is `failed`, and marks the projected card
+`manualDecisionRequired`. This is deliberately a read-side deadline rather than a
+second retry protocol: a retry can still lose to process death or another revision,
+while the deadline is deterministic and survives restart. Startup stale cleanup also
+leaves project policy-pending presentations in place so the safety card can be read.
+
+Regression evidence is split by boundary: the transport test covers a marker
+revision conflict; `productionPendingSpend.test.ts` covers expired pending data and
+the manual-decision contract; `normalizeLegacyPresentation` covers restart/backfill;
+and the future-deadline case proves successful full-auto decisions do not add a card.

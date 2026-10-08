@@ -19,8 +19,24 @@ import type {
 import { spendAuthorizationGates } from "./productionSpendAuthority";
 import { jobEndedBeforeAcceptance, jobsForShot } from "./productionShotJobs";
 import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY } from "./agentCapabilities/capabilityApprovalPolicy";
+import { PROJECT_AGENT_PREPARING_DEADLINE_MS } from "./projectAgentPreparingDeadline";
 
 type PlanView = Pick<ProductionGenerationPlan, "state" | "candidate" | "shots" | "presentations">;
+
+/** The policy owner gives a pending decision the same bounded lifetime as its durable receipt writes. */
+export function projectPolicyDecisionDeadlineAt(openedAt: string): string | undefined {
+  const openedMs = Date.parse(openedAt);
+  return Number.isFinite(openedMs)
+    ? new Date(openedMs + PROJECT_AGENT_PREPARING_DEADLINE_MS).toISOString()
+    : undefined;
+}
+
+/** New writes are anchored to the owner's wall clock; injected historical timestamps in replay/tests must not expire immediately. */
+export function projectPolicyDecisionDeadlineFromOwnerClock(openedAt: string): string | undefined {
+  const openedMs = Date.parse(openedAt);
+  if (!Number.isFinite(openedMs)) return undefined;
+  return new Date(Math.max(openedMs, Date.now()) + PROJECT_AGENT_PREPARING_DEADLINE_MS).toISOString();
+}
 
 /** 这一次出价（最后一条）。没有 = 草稿从没摆到用户面前过。 */
 export function currentPresentation(plan: Pick<ProductionGenerationPlan, "presentations"> | undefined): GenerationPresentation | undefined {
@@ -180,12 +196,21 @@ export function normalizeLegacyPresentation<T extends Pick<ProductionRun, "gates
   const plan = run.generationPlan as (ProductionGenerationPlan & { cardHidden?: boolean }) | undefined;
   if (!plan) return run;
   if (plan.presentations) {
-    if (plan.presentations.every((presentation) => presentation.presentationId && presentation.presentationEpoch !== undefined && presentation.policySnapshot)) return run;
+    if (plan.presentations.every((presentation) => presentation.presentationId
+      && presentation.presentationEpoch !== undefined
+      && presentation.policySnapshot
+      && (presentation.policySnapshot.mode !== "project" || presentation.policyDecisionDeadlineAt))) return run;
     const presentations = plan.presentations.map((presentation, index) => ({
       ...presentation,
       presentationId: presentation.presentationId ?? `${plan.operationId}:presentation:${index + 1}`,
       presentationEpoch: presentation.presentationEpoch ?? index + 1,
       policySnapshot: presentation.policySnapshot ?? DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
+      ...(presentation.policySnapshot?.mode === "project" && !presentation.policyDecisionDeadlineAt
+        ? (() => {
+            const deadline = projectPolicyDecisionDeadlineAt(presentation.openedAt);
+            return deadline ? { policyDecisionDeadlineAt: deadline } : {};
+          })()
+        : {}),
     }));
     return { ...run, generationPlan: { ...plan, presentations } as ProductionGenerationPlan };
   }

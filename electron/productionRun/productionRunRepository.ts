@@ -13,7 +13,7 @@ import { applyProductionCommand, type ProductionCommandEffect } from "./producti
 import { settleRunLifecycle } from "./productionRunLifecycle";
 import { settlePresentation } from "./productionGenerationPresentationEdits";
 import { normalizeLegacySpendAuthority } from "../shared/productionSpendAuthority";
-import { draftCardHidden, normalizeLegacyPresentation } from "../shared/productionGenerationPresentation";
+import { draftCardHidden, normalizeLegacyPresentation, projectPolicyDecisionDeadlineFromOwnerClock } from "../shared/productionGenerationPresentation";
 import { normalizeLegacyStopReason } from "../shared/productionRunStop";
 import { assertProductionPolicyReady } from "./productionPolicyReadiness";
 import {
@@ -451,7 +451,10 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
           presentationId: `${operationId}:presentation:1`,
           presentationEpoch: 1,
           policySnapshot: structuredClone(input.policySnapshot ?? DEFAULT_PROJECT_AGENT_APPROVAL_POLICY),
-          ...(input.policySnapshot?.mode === "project" ? { policyDecisionState: "pending" as const } : {}),
+          ...(input.policySnapshot?.mode === "project" ? {
+            policyDecisionState: "pending" as const,
+            ...(projectPolicyDecisionDeadlineFromOwnerClock(timestamp) ? { policyDecisionDeadlineAt: projectPolicyDecisionDeadlineFromOwnerClock(timestamp) } : {}),
+          } : {}),
           shotIds: input.shots && input.shots.length > 0
             ? input.shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId)
             : [input.candidate.candidateId],
