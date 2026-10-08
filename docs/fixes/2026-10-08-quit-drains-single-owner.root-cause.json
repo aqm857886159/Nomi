@@ -24,8 +24,7 @@
     "electron/update/autoUpdater.ts",
     "electron/video/depthVideoIpc.ts",
     "electron/screenshot/screenshotHotkey.ts",
-    "eslint.config.mjs",
-    "electron/quitTeardownLog.ts"
+    "eslint.config.mjs"
   ],
   "entry_points": [
     "Electron before-quit and will-quit lifecycle (Cmd+Q, Dock quit, app.quit, last window on Windows/Linux, electron-updater quitAndInstall)",
