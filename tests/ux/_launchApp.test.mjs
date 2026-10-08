@@ -1,7 +1,6 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 钉住启动器的核心不变量（替掉原 helpers/electronFixture.test.mjs，2026-08-11 收敛）。
 // 这条不变量就是本次修复的根因：漏掉这两个 env，窗口起不来且**毫无提示**，只会干等到超时。
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
