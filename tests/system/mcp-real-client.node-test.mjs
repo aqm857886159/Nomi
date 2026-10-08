@@ -2,7 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import os from 'node:os'
 import path from 'node:path'
+import { require as tsxRequire } from 'tsx/cjs/api'
 import { parseMcpServerNames, buildCodexOverrides, compareFingerprints } from './mcp-real-client.mjs'
+
+const { mcpServerEntry } = tsxRequire('../../electron/capabilityCore/mcpConfig.ts', import.meta.url)
 
 function isolatedEnv() {
   const root = path.join(os.tmpdir(), 'mcp-real-client-fixture')
@@ -26,6 +29,23 @@ test('Codex overrides fail closed when isolation env is incomplete or outside te
   assert.throws(() => buildCodexOverrides('', { command: 'electron', args: [], env: { NOMI_MCP_STDIO: '1' } }), /missing NOMI_ELECTRON_USER_DATA_DIR/)
   const env = { NOMI_MCP_STDIO: '1', NOMI_ELECTRON_USER_DATA_DIR: 'C:/Users/user/AppData/Roaming/nomi', NOMI_SETTINGS_DIR: 'C:/Users/user/AppData/Roaming', NOMI_PROJECTS_DIR: 'C:/Users/user/AppData/Roaming/projects', NOMI_CAPABILITY_DIR: 'C:/Users/user/AppData/Roaming/capability' }
   assert.throws(() => buildCodexOverrides('', { command: 'electron', args: [], env }), /isolation root must be a child/)
+})
+
+test('Codex smoke uses the shared Node launcher entry and isolated runtime override', () => {
+  const env = isolatedEnv()
+  const entry = mcpServerEntry('codex', {
+    appCommand: 'electron.exe',
+    appArgs: ['D:/repo'],
+    launcherCommand: process.execPath,
+    launcherScript: 'D:/repo/dist-electron/capabilityCore/mcpNodeLauncher.js',
+    kind: 'development',
+    settingsDir: env.NOMI_SETTINGS_DIR,
+  })
+  assert.equal(entry.command, process.execPath)
+  assert.deepEqual(entry.args, ['D:/repo/dist-electron/capabilityCore/mcpNodeLauncher.js'])
+  assert.equal(entry.env.ELECTRON_RUN_AS_NODE, '1')
+  assert.equal(entry.env.NOMI_MCP_APP_COMMAND, 'electron.exe')
+  assert.deepEqual(JSON.parse(entry.env.NOMI_MCP_APP_ARGS), ['D:/repo'])
 })
 
 test('overrides disable every configured server and preserve exact argv', () => {

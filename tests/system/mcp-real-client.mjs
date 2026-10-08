@@ -2,11 +2,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { repoRoot, makeIsolatedDirs } from '../ux/_mcpJourney.mjs'
+import { repoRoot, makeIsolatedDirs, seedMcpClientIdentityEnv } from '../ux/_mcpJourney.mjs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { realNomiProfile } from '../ux/_realProfile.mjs'
+import { require as tsxRequire } from 'tsx/cjs/api'
 const require = createRequire(import.meta.url)
+const { mcpServerEntry } = tsxRequire('../../electron/capabilityCore/mcpConfig.ts', import.meta.url)
 
 export function parseMcpServerNames(configText = '') {
   const names = []
@@ -125,7 +127,17 @@ export async function main(argv = process.argv.slice(2)) {
   if (client === 'codex') {
     const configPath = path.join(os.homedir(), '.codex', 'config.toml')
     const configText = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : ''
-    const overrides = buildCodexOverrides(configText, { command: electron, args: nomiArgs, env: {
+    const launcher = mcpServerEntry('codex', {
+      appCommand: electron,
+      appArgs: nomiArgs,
+      launcherCommand: process.execPath,
+      launcherScript: path.join(repoRoot, 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js'),
+      kind: 'development',
+      settingsDir: dirs.settingsDir,
+    })
+    const overrides = buildCodexOverrides(configText, { command: launcher.command, args: launcher.args, env: {
+      ...launcher.env,
+      ...seedMcpClientIdentityEnv(dirs.capabilityDir, 'codex'),
       NOMI_MCP_STDIO: '1',
       NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir,
       NOMI_SETTINGS_DIR: dirs.settingsDir,
