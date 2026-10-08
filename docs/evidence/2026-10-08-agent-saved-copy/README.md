@@ -1,5 +1,10 @@
 # Agent saved-copy evidence
 
-No valid zh/en Electron screenshots were captured. I checked every two minutes for eight minutes. The active worktree sessions cleared, but an external Electron orphan remained at PID 76504 with no executable path and a dead parent PID 44048. The repository full-walk launcher treated that orphan as an Electron lock: `node tests/ux/full-walk/run.mjs --only pb10 --locale zh-CN` never launched an Electron window or reached a screenshot step. I stopped only my own runner.
+These four images are cropped from the real `pb10-node-display-rules` Electron loopback walk. Each is below 500 KB and was read back after cropping.
 
-No image is submitted because there is no frame to inspect; the required claims (result image visible and no completion receipt, plus generic bash intent label) are therefore unverified.
+- `zh-node.png`: the Chinese canvas shows the completed Saver node with its result image visible; the node has no completion status bar or saved receipt attached.
+- `en-node.png`: the English canvas shows the same completed Saver result image; no completion status bar or saved receipt is attached to the node.
+- `zh-agent.png`: the Chinese Agent panel is expanded to the tool row `????` (Prepare generation) and shows no `????` transport label.
+- `en-agent.png`: the English Agent panel is expanded to `Prepare generation` and shows no `Run a command` transport label.
+
+The walk used the repository loopback fixture only, with isolated data and no spend.
