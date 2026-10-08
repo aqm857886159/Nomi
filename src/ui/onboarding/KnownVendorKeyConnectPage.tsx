@@ -11,6 +11,7 @@ import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
 import { groupModelsByKind } from './modelChipGrouping'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { VendorBaseUrlField } from './VendorBaseUrlField'
+import { resolveCredentialCopy } from './credentialPresentation'
 
 export function KnownVendorKeyConnectPage({
   directory,
@@ -96,6 +97,8 @@ export function KnownVendorKeyConnectPage({
   const { connection } = useVendorHealth(directory.vendorKey, {
     hasApiKey: saved, skipImplicitProbe: true,
   })
+  // The copy resolver owns the pendingTitle/pendingHint branch so saved keys never fall back to “no key”.
+  const credentialCopy = resolveCredentialCopy({ hasApiKey, verificationPending, curatedModelsPublished })
   React.useEffect(() => {
     if (connection?.state === 'reachable') setVerificationPending(false)
   }, [connection?.state])
@@ -264,22 +267,10 @@ export function KnownVendorKeyConnectPage({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-body-sm font-semibold text-nomi-ink">
-                  {verificationPending
-                    ? t('onboardingProviders.keyOnly.offlineTitle')
-                    : curatedModelsPublished
-                    ? t('onboardingProviders.keyOnly.publishedTitle', { name: vendorName })
-                    : hasApiKey && apiKey === ''
-                    ? t('onboardingProviders.keyOnly.pendingTitle', { name: vendorName })
-                    : t('onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
+                  {t(credentialCopy.titleKey, { name: vendorName })}
                 </div>
                 <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
-                  {verificationPending
-                    ? t('onboardingProviders.keyOnly.offlineHint')
-                    : curatedModelsPublished
-                    ? t('onboardingProviders.keyOnly.publishedHint', { count: modelCount })
-                    : hasApiKey && apiKey === ''
-                    ? t('onboardingProviders.keyOnly.pendingHint')
-                    : t('onboardingProviders.keyOnly.savedHint')}
+                  {t(credentialCopy.hintKey, { count: modelCount })}
                 </p>
               </div>
             </div>

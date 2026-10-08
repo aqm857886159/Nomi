@@ -178,15 +178,13 @@ export type { ApiKeyDecryptStatus };
 export type KeyStatusProbe = (record: ApiKeyRecord | undefined) => ApiKeyDecryptStatus;
 
 /**
- * 这条凭据记录**本身**算不算数——不开钥匙串就能答的那一半：没有材料，或用户把它停用了。
- *
- * 单独抽出来是因为它有两个合法消费者：`apiKeyDecryptStatus`（真解密那条路）和可用性派生器里
- * 的探测缝（注入假探针的测试也必须先过这一关，否则「停用的 key 不许去解」就成了只在生产成立的
- * 口头承诺）。以前这条规则由各个读者各写一遍 `record?.enabled` —— 文本大脑、生成默认模型、
- * 健康度各一份，删一处漏两处。
+ * Return whether persisted key material exists. Enablement and verification stay separate facts owned by
+ * the catalog availability boundary, so an offline pending save remains visible as saved.
  */
 export function credentialRecordCounts(rec: ApiKeyRecord | undefined): boolean {
-  return Boolean(rec?.apiKey) && rec?.enabled !== false;
+  // Material existence is independent from whether the credential is currently enabled.
+  // A pending offline save must remain visible as saved while availability stays disabled.
+  return Boolean(rec?.apiKey);
 }
 
 export function apiKeyDecryptStatus(rec: ApiKeyRecord | undefined): ApiKeyDecryptStatus {

@@ -34,7 +34,7 @@ vi.mock("../logging/logger", () => {
   }
 })
 
-import { apiKeyDecryptStatus, decryptApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
+import { apiKeyDecryptStatus, credentialRecordCounts, decryptApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
 
 describe("isSafeStorageAvailable", () => {
   it("reports availability from safeStorage", () => {
@@ -116,5 +116,11 @@ describe("apiKeyDecryptStatus — credential readiness（ok / missing / locked /
   it("plain / legacy 非空明文 → needs_resave，而不是可用于新认证的 ok", () => {
     expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "raw", enc: "plain", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("needs_resave");
     expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "legacy", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("needs_resave");
+  });
+
+  it("counts encrypted material even while the record is disabled pending verification", () => {
+    const pending = { ...makeApiKeyRecordFromPlain("sk-pending", "openai", false, "c", "u"), verificationPending: true as const };
+    expect(credentialRecordCounts(pending)).toBe(true);
+    expect(apiKeyDecryptStatus(pending)).toBe("ok");
   });
 });
