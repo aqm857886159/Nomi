@@ -1,6 +1,7 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 钉住启动器的核心不变量（替掉原 helpers/electronFixture.test.mjs，2026-08-11 收敛）。
 // 这条不变量就是本次修复的根因：漏掉这两个 env，窗口起不来且**毫无提示**，只会干等到超时。
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
@@ -219,7 +220,7 @@ describe('isolatedCatalogHasSafeStorageCredentials', () => {
   // 不是凭据：只是 catalog 里那一格的形状（值从不被解密）。
   const placeholder = 'not-a-secret'
   const withCatalog = (catalog, run) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-synthetic-cred-'))
+    const root = makeTempDir('nomi-synthetic-cred-')
     try {
       if (catalog !== undefined) fs.writeFileSync(path.join(root, 'model-catalog.json'), typeof catalog === 'string' ? catalog : JSON.stringify(catalog))
       return run(root)
