@@ -107,8 +107,9 @@ try {
   await clickOrFail(card.locator(INTERVENTION_REJECT), '丢弃这份草稿')
   await expectAbsent(card, { provenBy: cardProof, message: '丢弃之后槽里不再留着这张卡' })
   await recorded(plannerDone.received, 'generate returns once the card was closed')
+  // Reject closes the pending presentation; the already-landed draft node remains on the canvas.
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
-    { timeout: DEFAULT_TIMEOUT_MS }).toBe(0)
+    { timeout: DEFAULT_TIMEOUT_MS }).toBe(1)
   await expect(panelError, '清空之后面板依然是可用的面板').toHaveCount(0)
   await walk.snap('missing-card-03-cleared-on-both-sides')
 
