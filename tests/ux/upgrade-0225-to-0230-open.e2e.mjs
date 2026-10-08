@@ -9,6 +9,7 @@ import path from 'node:path'
 
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const projectsDir = process.env.NOMI_UPGRADE_PROJECTS_DIR
 const userDataDir = process.env.NOMI_UPGRADE_USER_DATA_DIR
@@ -63,11 +64,11 @@ try {
     settleMs: 700,
   }))
   await dismissSplashIfPresent(win)
-  await win.waitForTimeout(800)
   const card = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)
-  if (!(await card.count())) throw new Error(`Project card ${projectId} is not rendered`)
+  await card.waitFor({ state: 'visible', timeout: stationTimeout() }).catch(() => { throw new Error(`Project card ${projectId} is not rendered`) })
   await card.dispatchEvent('click')
-  await win.waitForTimeout(8_000)
+  // 等到「进了 studio」或「出现打开失败的提示」二者之一，不靠固定墙钟。
+  await win.waitForFunction(() => location.hash.includes('/studio') || /发送失败|项目恢复失败|project restore/i.test(document.body.innerText), null, { timeout: stationTimeout() })
   evidence.url = win.url()
   evidence.bodyTail = (await win.locator('body').innerText()).slice(-2_000)
 } finally {
