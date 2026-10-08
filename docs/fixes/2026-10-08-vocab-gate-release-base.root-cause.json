@@ -5,8 +5,8 @@
   "recurrence_check_on": "2026-10-08",
   "problem_type": "CI historical baseline selection regression",
   "symptom": "A release branch cut from an older tag fails check:vocabularies because origin/main later removed a debt entry that never existed on the release branch.",
-  "direct_cause": "resolveReferenceBaselines evaluated origin/main, HEAD^1, and merge-base as simultaneous historical references, so a later main snapshot could impose a stricter debt cap on a divergent branch.",
-  "class_root": "Historical ratchet reference selection did not enforce a single branch-consistent snapshot invariant.",
+  "direct_cause": "resolveReferenceBaselines always added origin/main alongside HEAD^1 and merge-base, so a later main snapshot could impose a stricter debt cap on a divergent branch.",
+  "class_root": "Historical ratchet reference selection did not guard the optional origin/main snapshot with the branch ancestry invariant.",
   "affected_population": [
     "Release and hotfix branches cut before origin/main retired vocabulary debt",
     "Any divergent branch whose baseline file differs from a newer origin/main snapshot"
@@ -29,9 +29,9 @@
     "why": "The resolver is the single enforcement owner for historical reference selection, and its topology tests exercise both divergent and ancestor histories."
   },
   "invariants": [
-    "The historical ratchet compares a branch against exactly one trusted baseline snapshot.",
+    "The historical ratchet compares every available trusted historical snapshot.",
     "origin/main is eligible only when it is an ancestor of HEAD.",
-    "A divergent branch falls back to merge-base, then HEAD^1, and never borrows a newer main-only snapshot."
+    "A divergent branch still compares HEAD when dirty, HEAD^1, and merge-base, but never borrows a newer main-only snapshot."
   ],
   "doors": [
     {
@@ -50,12 +50,12 @@
     "after": 2,
     "why_not": "The production resolver and its behavior tests remain separate doors: the resolver owns selection, while the test door proves branch topology with real Git fixtures. Combining them would remove executable regression evidence."
   },
-  "generality_proof": "Every check:vocabularies invocation converges through resolveReferenceBaselines before historical evaluation. The ancestor predicate and single-reference selection therefore apply equally to release, hotfix, and ordinary task branches regardless of which debt entry changed.",
+  "generality_proof": "Every check:vocabularies invocation converges through resolveReferenceBaselines before historical evaluation. The ancestor predicate controls only the optional origin/main snapshot while the existing multi-snapshot ratchet remains active for release, hotfix, and ordinary task branches.",
   "shared_boundaries": [
     {
       "path": "scripts/check-vocabularies.mjs",
       "symbol": "resolveReferenceBaselines",
-      "responsibility": "Select one branch-consistent historical baseline and fail closed when none can be proven."
+      "responsibility": "Collect the existing historical snapshots and admit origin/main only when ancestry proves it belongs to this branch history."
     }
   ],
   "same_class_entry_points": [
@@ -84,10 +84,10 @@
   "prevention": {
     "kind": "static-gate",
     "enforcement_path": "scripts/check-vocabularies.mjs",
-    "invariant": "Historical debt is evaluated against one snapshot selected by explicit reference precedence and branch ancestry.",
+    "invariant": "Historical debt is evaluated against every available historical snapshot; origin/main is included only when it is an ancestor of HEAD.",
     "failure_mode": "If no readable trusted snapshot exists, the gate fails closed with a reference-unavailable error.",
     "exception_policy": "none",
-    "strategy": "Select origin/main only for ancestor branches; otherwise select merge-base or the immediate parent and stop after the first readable snapshot.",
+    "strategy": "Keep the existing HEAD, HEAD^1, and merge-base collection order, and gate only the origin/main addition with merge-base --is-ancestor.",
     "artifacts": [
       "scripts/check-vocabularies.mjs",
       "scripts/check-vocabularies.node-test.mjs"
@@ -104,7 +104,7 @@
     "removed_paths": [
       "scripts/check-vocabularies.mjs"
     ],
-    "rationale": "The old behavior is deleted in the same change; no fallback keeps origin/main active on divergent history."
+    "rationale": "The old unconditional origin/main addition is removed in the same change; the existing multi-snapshot history path remains."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
