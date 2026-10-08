@@ -9,6 +9,7 @@ export {
   isProductionRunE2eFixtureEnabled,
   productionFixtureBaseOrigin,
   productionFixtureBaseOriginFromEnv,
+  setProductionRunE2eFixturePackagedState,
   type ProductionRunE2eFixtureEnvironment,
 } from '../shared/productionRunE2eFixtureGate'
 

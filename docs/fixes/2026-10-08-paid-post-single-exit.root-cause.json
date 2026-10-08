@@ -38,7 +38,9 @@
     "electron/productionRun/productionRunE2eFixture.test.ts",
     "electron/productionRun/productionRunE2eFixture.matrix.test.ts",
     "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
-    "electron/shared/productionRunE2eFixtureGate.ts"
+    "electron/shared/productionRunE2eFixtureGate.ts",
+    "electron/main.ts",
+    "electron/productionRun/productionRunRuntime.ts"
   ],
   "entry_points": [
     "目录生成 create/query 通过 catalog provider.send",
@@ -176,11 +178,21 @@
       "kind": "read",
       "path": "electron/productionRun/productionRunE2eFixture.ts",
       "symbol": "isProductionRunE2eFixtureEnabled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "setProductionRunE2eFixturePackagedState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntime.ts",
+      "symbol": "isProductionRunE2eFixtureEnabled"
     }
   ],
   "door_reduction": {
     "before": 5,
-    "after": 23,
+    "after": 25,
     "why_not": "?????????????????????? vendorHttp.requestVendor ???????? door-map ?? 23 ???????? owner ? re-export ??????????after ?????????audioTaskRunner?runtime?customCallRunner ? apimart provider ??? wire / ?????mcpLoopbackRpcCall?modelOnboarding ? outboundDispatchEvidence ??????? owner???????????"
   },
   "generality_proof": "door-map 覆盖了音频、目录生成、custom call、runtime 和证据层的同类调用；所有真正写供应商 POST 的入口现在只调用 requestJson/requestBinary/requestMultipart，这三个包装都收敛到 requestVendor。新连接、重定向、超时、响应上限和写出证据不会随 JSON、二进制或 multipart wire 再复制。",
@@ -266,7 +278,9 @@
       "electron/catalog/userVendorBase.ts",
       "electron/catalog/userVendorBase.test.ts",
       "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
-      "electron/shared/productionRunE2eFixtureGate.ts"
+      "electron/shared/productionRunE2eFixtureGate.ts",
+      "electron/main.ts",
+      "electron/productionRun/productionRunRuntime.ts"
     ]
   },
   "regression_tests": [

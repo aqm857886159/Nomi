@@ -3,11 +3,25 @@ export type ProductionRunE2eFixtureEnvironment = Partial<Record<
   string | undefined
 >>
 
+// The main process injects this once during boot. Until then, fail closed as
+// packaged so a renderer or an early worker can never enable a private fixture
+// by assuming it is running unpackaged.
+let packagedState: boolean | undefined
+
+export function setProductionRunE2eFixturePackagedState(
+  isPackaged: boolean | undefined,
+): void {
+  packagedState = isPackaged
+}
+
+function isPackagedBuild(): boolean {
+  return packagedState ?? true
+}
+
 export function isProductionRunE2eFixtureEnabled(
   env: ProductionRunE2eFixtureEnvironment,
-  isPackaged: boolean,
 ): boolean {
-  if (isPackaged && env.NOMI_E2E_PACKAGED_FIXTURE !== '1') return false
+  if (isPackagedBuild() && env.NOMI_E2E_PACKAGED_FIXTURE !== '1') return false
   return env.NOMI_E2E === '1' && env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
 }
 
@@ -17,9 +31,8 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1'])
 export function productionFixtureBaseOrigin(
   value: unknown,
   env: ProductionRunE2eFixtureEnvironment,
-  isPackaged: boolean,
 ): string | undefined {
-  if (!isProductionRunE2eFixtureEnabled(env, isPackaged)) return undefined
+  if (!isProductionRunE2eFixtureEnabled(env)) return undefined
   if (typeof value !== 'string' || !value.trim()) return undefined
   try {
     const url = new URL(value.trim())
@@ -33,7 +46,6 @@ export function productionFixtureBaseOrigin(
 
 export function productionFixtureBaseOriginFromEnv(
   env: ProductionRunE2eFixtureEnvironment = process.env,
-  isPackaged = false,
 ): string | undefined {
-  return productionFixtureBaseOrigin(env.NOMI_E2E_FIXTURE_BASE_URL, env, isPackaged)
+  return productionFixtureBaseOrigin(env.NOMI_E2E_FIXTURE_BASE_URL, env)
 }

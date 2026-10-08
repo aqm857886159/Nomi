@@ -274,7 +274,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     /* 取不到系统 locale → 保持 zh-CN 缺省 */
   }
 
-  const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env, app.isPackaged)
+  const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env)
   const fixtureReferenceUrl = fixtureBaseUrlOverride && process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
     ? process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
     : undefined

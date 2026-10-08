@@ -410,7 +410,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   if (!vendorKey) throw new CatalogGenerationProviderError("a generation provider needs a vendor key");
   const fetchImpl = options.fetchImpl ?? appFetch;
   const catalogReader = options.catalogReader ?? readCatalog;
-  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env, false);
+  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env);
   // 出站真正用的那条 base：夹具回环优先，否则用户保存的那条。**渲染与发送共用它**，
   // 于是 path / origin / 鉴权头全部来自同一次 `buildProfileHttpRequest`，与引擎 A 同源。
   const networkVendor = (vendor: Vendor): Vendor =>

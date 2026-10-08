@@ -11,6 +11,7 @@ import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from 
 import type { CatalogState } from "../catalog/types";
 import type { ProductionExecutionBinding } from "../productionRun/productionExecutionBinding";
 import type { ProductionRun } from "../productionRun/productionRunTypes";
+import { setProductionRunE2eFixturePackagedState } from "../shared/productionRunE2eFixtureGate";
 
 /** 授权必须站在真实 Run 上（`run` 现在是必填）。这份草稿快照只带 prepare 真正读的那几项。 */
 function draftRunFor(operationId: string, projectId: string): ProductionRun {
@@ -256,6 +257,7 @@ describe("generation provider bootstrap", () => {
   });
 
   it("routes an explicitly enabled production fixture through loopback while keeping the canonical APIMart scope", async () => {
+    setProductionRunE2eFixturePackagedState(false);
     vi.stubEnv("NOMI_E2E", "1");
     vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
     try {
@@ -290,6 +292,7 @@ describe("generation provider bootstrap", () => {
       );
     } finally {
       vi.unstubAllEnvs();
+      setProductionRunE2eFixturePackagedState(undefined);
     }
   });
 

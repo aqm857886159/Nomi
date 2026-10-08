@@ -106,7 +106,7 @@ export function createGenerationProviderBootstrap(
   for (const vendor of state.vendors) readinessByProvider[vendor.key] = readiness(false, noRecovery, ["configured_provider"]);
   const providers: GenerationProvider[] = [];
   const catalogReader = options.catalogReader ?? readCatalog;
-  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env, false);
+  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env);
   const fixtureApiKey = safeFixtureApiKey(fixtureBaseUrl);
   const fixtureVendor = fixtureVendorKey();
 

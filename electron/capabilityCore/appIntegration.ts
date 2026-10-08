@@ -194,7 +194,7 @@ export async function startCapabilityCore(
       },
     })
     const projectRevisionResolver = authorities.projectRevisionResolver ?? defaults.projectRevisionResolver!
-    const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env, app.isPackaged)
+    const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env)
     const fixtureReferenceUrl = fixtureBaseUrlOverride && process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
       ? process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
       : undefined

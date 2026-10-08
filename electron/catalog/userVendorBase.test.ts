@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { localizeAssetsForVendor, resolveAssetIngestionWithFallback, type LocalAsset } from "./assetLocalization";
 import { userVendorBaseUrl } from "./userVendorBase";
+import { setProductionRunE2eFixturePackagedState } from "../shared/productionRunE2eFixtureGate";
 
 // 走真实路径：目标 vendor（带用户保存的 baseUrlHint）→ 候选通道排序 → localizeAssetsForVendor 真的发 multipart。
 // 只把最底层的 HTTP 换成记账替身，看参考图到底被传到了哪个 URL。
@@ -19,7 +20,10 @@ async function uploadedTo(vendor: { key: string; baseUrlHint?: string }, allVend
 }
 
 describe("APIMart 参考图上传跟着用户保存的接口地址走", () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    setProductionRunE2eFixturePackagedState(undefined);
+  });
 
   it("用户填了国内线路 api.apib.ai → 上传打到 api.apib.ai", async () => {
     expect(await uploadedTo({ key: "apimart", baseUrlHint: "https://api.apib.ai" })).toEqual(["https://api.apib.ai/v1/uploads/images"]);
@@ -43,6 +47,7 @@ describe("APIMart 参考图上传跟着用户保存的接口地址走", () => {
   });
 
   it("夹具口：E2E 夹具 + 回环地址时，夹具点名的那家 base 指到夹具；非回环地址不认", () => {
+    setProductionRunE2eFixturePackagedState(false);
     vi.stubEnv("NOMI_E2E", "1");
     vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
     vi.stubEnv("NOMI_E2E_FIXTURE_BASE_URL", "http://127.0.0.1:5555");

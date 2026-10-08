@@ -22,7 +22,7 @@ function fixtureVendorKey(): string {
 /** 用户这条连接的 base（无尾斜杠）；没填 = 空串。 */
 export function userVendorBaseUrl(vendor: { key?: string; baseUrlHint?: string | null } | null | undefined): string {
   const fixture = vendor?.key && vendor.key === fixtureVendorKey()
-    ? productionFixtureBaseOriginFromEnv(process.env, false)
+    ? productionFixtureBaseOriginFromEnv(process.env)
     : undefined;
   if (fixture) return fixture;
   return String(vendor?.baseUrlHint ?? "").trim().replace(/\/+$/, "");
