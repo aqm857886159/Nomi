@@ -16,12 +16,11 @@ import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeWriteAccessProvider, useNodeWriteAccess } from './nodeWriteAccess'
-import { canRunGenerationNode, confirmAndRunNode, regenerateNodeInPlace, unmetReferenceDependencyForNode } from '../runner/generationRunController'
+import { canRunGenerationNode, unmetReferenceDependencyForNode } from '../runner/generationRunController'
 import { directorPreviewSpendBlock } from './director/model/directorPreviewState'
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
 import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
-import { buildDependencyWaves } from '../runner/dependencyWaves'
-import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
+import { runComposerGenerate } from './nodeComposerGenerate'
 import NodeParameterControls from './NodeParameterControls'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
@@ -297,23 +296,10 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     [mentionCandidates, node.id, node.locked, node.prompt, promptEditor, reportFeedback, t, updateNode, latestNode, writeAccess, inPanel],
   )
 
-  const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  // 按下 ↑ 之后的事归 nodeComposerGenerate（画布生成框与列表大详情共用一个口）。
+  const handleGenerate = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    const state = useGenerationCanvasStore.getState()
-    // 自动备齐参考：本节点有「连了线但还没出图」的上游 → 不裸跑，排依赖波次（参考先、本镜后）
-    // 走批量确认条（确认前零调用零扣费；用户一眼看到先生成谁、再生成谁）。根治单节点生成绕过
-    // 依赖、参考没回灌进镜头的整类问题（对话 2026-06-14）。
-    const pendingRefs = collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges })
-    if (pendingRefs.length > 0) {
-      const plan = buildDependencyWaves([...pendingRefs, node.id], { nodes: state.nodes, edges: state.edges })
-      useBatchPlanPreviewStore.getState().open(plan)
-      return
-    }
-    if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
-    // 每按一次 ↑ 只出一版；要几版就按几次，版本卡片把它们铺开（用户 2026-10-06 拍板删掉「每次生成几个」）。
-    // 已有结果的「重新生成」原地回填：新图进当前节点堆叠并设为主图，不再复制新节点。
-    if (hasResult) await regenerateNodeInPlace(node.id, { initiator: 'user' })
-    else await confirmAndRunNode(node.id, { initiator: 'user' })
+    void runComposerGenerate(node.id)
   }
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。
