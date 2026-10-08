@@ -88,7 +88,8 @@ describe("quit teardown lifecycle", () => {
     expect(deps.disposeBackgroundLifecycle).toHaveBeenCalledOnce();
     expect(deps.stopDesktopCapabilityCore).toHaveBeenCalledOnce();
     expect(deps.abortAllActiveExports).toHaveBeenCalledOnce();
-    await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(app.quit).not.toHaveBeenCalled();
   });
 
   it.each(quitCancellationMatrix)("leaves the live %s usable when close confirmation rejects quit", async (surface) => {
@@ -200,8 +201,7 @@ describe("quit teardown lifecycle", () => {
       releaseBackground();
       for (let i = 0; i < 6; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core"]);
-      vi.advanceTimersByTime(40);
-      for (let i = 0; i < 20; i += 1) await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(10); // capability-core's own 10ms cap (40ms budget / 4)
       expect(order).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
       expect(exports).toHaveBeenCalledOnce();
       expect(lane).toHaveBeenCalledOnce();
@@ -394,7 +394,7 @@ describe("quit teardown lifecycle", () => {
     expect(powerMonitor).not.toHaveBeenCalled();
   });
 
-  it("session end during a running will-quit teardown does not rerun drains and shortens the deadline", async () => {
+  it("session end during a running will-quit teardown skips non-critical drains and shortens the deadline", async () => {
     vi.useFakeTimers();
     try {
       const { app, emit } = fakeApp();
@@ -410,7 +410,7 @@ describe("quit teardown lifecycle", () => {
       exitWithoutConfirmation("session-end");
       releaseBackground();
       await flushMicrotasks();
-      expect(calls).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+      expect(calls).toEqual(["background-lifecycle", "active-exports", "desktop-lane-ipc"]);
       vi.advanceTimersByTime(500);
       await flushMicrotasks();
       expect(app.exit).toHaveBeenCalledWith(0);
@@ -418,6 +418,72 @@ describe("quit teardown lifecycle", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("session end while the lane is already draining still exits at 500ms (R-review-1125 #1)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const calls: string[] = [];
+      const errors: string[] = [];
+      const deps = recordingDeps(calls, {
+        disposeDesktopLaneIpc: vi.fn(() => { calls.push("desktop-lane-ipc"); return new Promise<void>(() => undefined); }),
+      });
+      installQuitTeardown(app, { ...deps, timeoutMs: 3000, onError: (stage) => errors.push(stage) });
+      emit("will-quit");
+      await flushMicrotasks();
+      expect(calls).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+      await vi.advanceTimersByTimeAsync(1000); // the lane already holds its long timer
+      exitWithoutConfirmation("session-end");
+      await vi.advanceTimersByTimeAsync(499);
+      expect(app.exit).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(app.exit).toHaveBeenCalledWith(0);
+      expect(app.exit).toHaveBeenCalledOnce();
+      expect(errors).toContain("critical-exit-timeout");
+      expect(calls).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends a completed teardown with app.exit, never a second app.quit inside will-quit (V-1125)", async () => {
+    // Real Electron: when the drains settle in the microtask checkpoint of the will-quit dispatch
+    // the owner prevented, Electron is still quitting and ignores app.quit(); the process stayed
+    // alive with no windows. Synchronous drains settle exactly there.
+    const { app, emit } = fakeApp();
+    const receipts: string[] = [];
+    installQuitTeardown(app, {
+      ...recordingDeps([]),
+      onReceipt: (event, fields) => receipts.push(`${event}:${String(fields.step ?? fields.reason)}:${String(fields.outcome ?? fields.code)}`),
+    });
+    emit("before-quit");
+    emit("will-quit");
+    await flushMicrotasks();
+    expect(app.exit).toHaveBeenCalledWith(0);
+    expect(app.quit).not.toHaveBeenCalled();
+    expect(receipts).toEqual([
+      "quit-step:background-lifecycle:done",
+      "quit-step:capability-core:done",
+      "quit-step:active-exports:done",
+      "quit-step:desktop-lane-ipc:done",
+      "quit-exit:completed:0",
+    ]);
+    // A will-quit that Electron emits again after the owner's exit is not prevented.
+    expect(emit("will-quit")).not.toHaveBeenCalled();
+  });
+
+  it("an updater-style quit (windows closed before before-quit) still drains and exits once", async () => {
+    // electron-updater quitAndInstall / Squirrel close windows first, then app.quit():
+    // before-quit arrives with no window left, then will-quit; the owner path is the same.
+    const { app, emit } = fakeApp();
+    const calls: string[] = [];
+    installQuitTeardown(app, recordingDeps(calls));
+    emit("before-quit");
+    expect(emit("will-quit")).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(calls).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+    expect(app.exit).toHaveBeenCalledOnce();
   });
 
   it("unattended exits and quit requests require the installed owner", () => {
@@ -469,8 +535,11 @@ describe("quit teardown lifecycle", () => {
     });
     registerQuitDrain(`matrix-${_label}`, drain, { required: true, timeoutMs: 5 });
     emit("will-quit");
-    if (outcome === "exit") await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
-    else await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
+    // Every outcome ends through app.exit(0); app.quit() would be ignored inside will-quit.
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(app.exit).toHaveBeenCalledOnce();
+    expect(app.quit).not.toHaveBeenCalled();
+    expect(outcome === "exit" || outcome === "quit").toBe(true);
   });
 
   it.each([
@@ -503,7 +572,9 @@ describe("quit teardown lifecycle", () => {
       }
       emit("will-quit");
     }
-    if (expected === "exit") await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
-    else await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(app.exit).toHaveBeenCalledOnce();
+    expect(app.quit).not.toHaveBeenCalled();
+    expect(expected === "exit" || expected === "quit").toBe(true);
   });
 });

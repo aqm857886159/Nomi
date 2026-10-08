@@ -153,11 +153,13 @@ describe("task IPC local operation lifecycle", () => {
     expect(second.preventDefault).toHaveBeenCalledOnce();
     await vi.waitFor(() => expect(mocks.cancelAll).toHaveBeenCalledOnce());
     for (let i = 0; i < 24; i += 1) await Promise.resolve();
-    expect(app.quit).not.toHaveBeenCalled();
-    finish();
-    await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
-    expect(mocks.cancelAll).toHaveBeenCalledOnce();
     expect(app.exit).not.toHaveBeenCalled();
+    finish();
+    // The owner ends the process itself once cleanup settled (app.quit() inside will-quit is ignored by Electron).
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(mocks.cancelAll).toHaveBeenCalledOnce();
+    expect(app.exit).toHaveBeenCalledOnce();
+    expect(app.quit).not.toHaveBeenCalled();
     const completed = willQuit();
     expect(completed.preventDefault).not.toHaveBeenCalled();
   });

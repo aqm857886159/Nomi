@@ -16,8 +16,12 @@ vi.mock("electron", () => ({
 import { installWindowCloseConfirmation } from "./windowCloseConfirmation";
 import { installQuitTeardown, isQuitRequested, resetQuitTeardownForTests } from "./quitTeardown";
 
+class FakeWebContents extends EventEmitter {
+  readonly send = vi.fn();
+}
+
 class FakeWindow extends EventEmitter {
-  readonly webContents = { send: vi.fn() };
+  readonly webContents = new FakeWebContents();
   readonly focus = vi.fn();
   readonly close = vi.fn(() => {
     const event = { preventDefault: vi.fn() };
@@ -28,16 +32,25 @@ class FakeWindow extends EventEmitter {
   isDestroyed = () => this.destroyed;
 }
 
-/** Electron app stand-in: app.quit() emits before-quit, then will-quit once no window is open. */
+/**
+ * Electron app stand-in: app.quit() emits before-quit, then will-quit once no window is open.
+ * Like Electron's Browser::Quit, a call made while a quit is still in flight is ignored; Electron
+ * clears that state only after the (prevented) will-quit dispatch and its microtasks are over,
+ * modelled here as the next macrotask. A second app.quit() from inside the owner's drains is lost.
+ */
 function installOwner(openWindows: () => number) {
   const listeners = new Map<string, (event: { preventDefault: () => void }) => void>();
+  let quitting = false;
   const app = {
     on: vi.fn((event: string, listener: (...args: never[]) => void) => { listeners.set(event, listener as (event: { preventDefault: () => void }) => void); return app; }),
     whenReady: vi.fn(() => Promise.resolve()),
     exit: vi.fn(),
     quit: vi.fn(() => {
+      if (quitting) return;
+      quitting = true;
       listeners.get("before-quit")?.({ preventDefault: vi.fn() });
       if (openWindows() === 0) listeners.get("will-quit")?.({ preventDefault: vi.fn() });
+      setTimeout(() => { quitting = false; }, 0);
     }),
   };
   installQuitTeardown(app, {
@@ -54,7 +67,7 @@ describe("window close confirmation", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     resetQuitTeardownForTests();
-    mocks.showMessageBox.mockResolvedValue({ response: 1 });
+    mocks.showMessageBox.mockReset().mockResolvedValue({ response: 1 });
   });
   afterEach(() => vi.useRealTimers());
 
@@ -110,6 +123,69 @@ describe("window close confirmation", () => {
     expect(window.close).toHaveBeenCalledOnce();
   });
 
+  it("asks natively with Force Quit / Cancel, Cancel as default and escape", async () => {
+    const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
+    installWindowCloseConfirmation(window as never);
+    window.emit("close", { preventDefault: vi.fn() });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(mocks.showMessageBox).toHaveBeenCalledWith(window, expect.objectContaining({
+      buttons: ["Force Quit", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+    }));
+  });
+
+  it("focuses the open native dialog instead of stacking a second one (R-review-1125 #4)", async () => {
+    const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
+    let resolveDialog!: (value: { response: number }) => void;
+    mocks.showMessageBox.mockReturnValueOnce(new Promise<{ response: number }>((resolve) => { resolveDialog = resolve; }));
+    installWindowCloseConfirmation(window as never);
+    window.emit("close", { preventDefault: vi.fn() });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(mocks.showMessageBox).toHaveBeenCalledOnce(); // dialog is open now, the close request is gone
+    window.focus.mockClear();
+    const again = { preventDefault: vi.fn() };
+    window.emit("close", again);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(again.preventDefault).toHaveBeenCalledOnce();
+    expect(window.focus).toHaveBeenCalled();
+    expect(mocks.showMessageBox).toHaveBeenCalledOnce();
+    expect(window.webContents.send).toHaveBeenCalledOnce();
+    resolveDialog({ response: 1 });
+    await vi.runAllTimersAsync();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the renderer crashes", (window: FakeWindow) => window.webContents.emit("render-process-gone", {}, { reason: "crashed" })],
+    ["the renderer hangs", (window: FakeWindow) => window.emit("unresponsive")],
+  ])("asks natively when %s after ACK instead of refusing every close forever", async (_label, loseRenderer) => {
+    const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
+    mocks.showMessageBox.mockResolvedValueOnce({ response: 0 });
+    installWindowCloseConfirmation(window as never);
+    window.emit("close", { preventDefault: vi.fn() });
+    const { requestId } = window.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, ack: true });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(mocks.showMessageBox).not.toHaveBeenCalled();
+    loseRenderer(window);
+    await vi.runAllTimersAsync();
+    expect(mocks.showMessageBox).toHaveBeenCalledOnce();
+    expect(window.close).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a lost renderer when no close is pending", async () => {
+    const window = new FakeWindow();
+    installWindowCloseConfirmation(window as never);
+    window.webContents.emit("render-process-gone", {}, { reason: "crashed" });
+    window.emit("unresponsive");
+    await vi.runAllTimersAsync();
+    expect(mocks.showMessageBox).not.toHaveBeenCalled();
+  });
+
   it("does not open a second native dialog when quit is clicked twice while the first is open", async () => {
     const window = new FakeWindow();
     mocks.fromWebContents.mockReturnValue(window);
@@ -155,9 +231,11 @@ describe("window close confirmation", () => {
     mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed: true });
     expect(window.close).toHaveBeenCalledOnce();
     await vi.runAllTimersAsync();
-    // 1 = user quit (cancelled by the prevented close), 2 = resumed after closed, 3 = owner after drains.
-    await vi.waitFor(() => expect(app.quit).toHaveBeenCalledTimes(3));
-    expect(app.exit).not.toHaveBeenCalled();
+    // 1 = user quit (cancelled by the prevented close), 2 = resumed after closed; then the owner
+    // drains and ends the process itself with app.exit (never a third app.quit inside will-quit).
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(app.quit).toHaveBeenCalledTimes(2);
+    expect(app.exit).toHaveBeenCalledOnce();
   });
 
   it("finishes a requested quit after native force quit, but not after a plain window close", async () => {

@@ -19,9 +19,11 @@ it("ESLint exempts the single owner file", async () => {
   expect(result?.messages.some((message) => message.ruleId === "no-restricted-syntax")).toBe(false);
 });
 
+const electronApp = 'import { app } from "electron"; ';
+
 it.each([
-  ['app.exit(0);', 'app.exit'],
-  ['app.relaunch();', 'app.relaunch'],
+  [`${electronApp}app.exit(0);`, 'app.exit'],
+  [`${electronApp}app.relaunch();`, 'app.relaunch'],
   ['autoUpdater.quitAndInstall();', 'autoUpdater.quitAndInstall'],
 ])("ESLint rejects direct %s outside the owner or documented exemption", async (source) => {
   const eslint = new ESLint({ cwd: process.cwd() });
@@ -32,11 +34,11 @@ it.each([
 it("ESLint allows only the two documented exemptions to exit directly", async () => {
   const eslint = new ESLint({ cwd: process.cwd() });
   for (const filePath of ["electron/capabilityCore/host.ts", "electron/update/autoUpdater.ts"]) {
-    const [result] = await eslint.lintText("app.exit(0); autoUpdater.quitAndInstall();", { filePath });
+    const [result] = await eslint.lintText(`${electronApp}app.exit(0); autoUpdater.quitAndInstall();`, { filePath });
     expect(result?.messages.some((message) => message.message.includes("quitTeardown"))).toBe(false);
   }
   for (const filePath of ["electron/main.ts", "electron/mainProcessLifecycle.ts", "electron/capabilityCore/mcpStdioServer.ts"]) {
-    const [result] = await eslint.lintText("app.exit(0);", { filePath });
+    const [result] = await eslint.lintText(`${electronApp}app.exit(0);`, { filePath });
     expect(result?.messages.some((message) => message.ruleId === "no-restricted-syntax")).toBe(true);
   }
 });
@@ -54,4 +56,35 @@ it.each([
     const [result] = await eslint.lintText(source, { filePath });
     expect(result?.messages.some((message) => message.ruleId === "no-restricted-syntax")).toBe(true);
   }
+});
+
+// R-review-1125 #3: every bypass the review found must fail lint outside the owner.
+it.each([
+  `${electronApp}const exit = app.exit; exit(0);`,
+  `${electronApp}const { exit: destructuredExit } = app; destructuredExit(0);`,
+  `${electronApp}app["exit"](0);`,
+  `${electronApp}app.exit.bind(app)(0);`,
+  `${electronApp}app?.exit?.(0);`,
+  `${electronApp}const alias = app; alias.exit(0);`,
+  'import { app as electronApp } from "electron"; electronApp.exit(0);',
+  'const { app } = require("electron"); app.exit(0);',
+  'import * as electron from "electron"; electron.app.exit(0);',
+  `${electronApp}const on = app.on; on("will-quit", () => undefined);`,
+  `${electronApp}app["on"]("will-quit", () => undefined);`,
+  `${electronApp}app.on(\`before-quit\`, () => undefined);`,
+  'const events = ["session-end"]; for (const name of events) win.on(name, () => undefined);',
+  'const subscribe = powerMonitor.on.bind(powerMonitor); subscribe("shutdown", () => undefined);',
+])("ESLint rejects the quit-owner bypass %s", async (source) => {
+  const eslint = new ESLint({ cwd: process.cwd() });
+  const [result] = await eslint.lintText(source, { filePath: "electron/ai/quit-lifecycle-counterexample.ts" });
+  expect(result?.messages.some((message) => message.ruleId === "no-restricted-syntax")).toBe(true);
+});
+
+it("ESLint leaves a plain Node `app` object and the word shutdown alone", async () => {
+  const eslint = new ESLint({ cwd: process.cwd() });
+  const [result] = await eslint.lintText(
+    'const app = { exit: null as null | number }; app.exit = 1; logInfo("main", "shutdown-requested", { reason: "shutdown" }); declare function logInfo(...args: unknown[]): void;',
+    { filePath: "electron/capabilityCore/quit-lifecycle-negative.ts" },
+  );
+  expect(result?.messages.filter((message) => message.ruleId === "no-restricted-syntax")).toEqual([]);
 });

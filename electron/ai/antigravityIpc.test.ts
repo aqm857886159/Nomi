@@ -64,13 +64,15 @@ it("owner quit cancels native verification once across repeated will-quit, refus
   expect(first.preventDefault).toHaveBeenCalledOnce();
   expect(second.preventDefault).toHaveBeenCalledOnce();
   await vi.waitFor(() => expect(mocks.cancel).toHaveBeenCalledOnce());
-  expect(owner.quit).not.toHaveBeenCalled();
+  expect(owner.exit).not.toHaveBeenCalled();
   await expect(mocks.handlers.get("nomi:antigravity:test")!(windowOwner, { capability: "text", modelId: "auto" })).rejects.toThrow("ANTIGRAVITY_SHUTTING_DOWN");
   finish({ state: "unverified", models: [], checkedAt: 1, loginCommand: "agy", checks: [] });
   await pending;
-  await vi.waitFor(() => expect(owner.quit).toHaveBeenCalledOnce());
+  // The owner ends the process itself once the drain settled (app.quit() inside will-quit is ignored by Electron).
+  await vi.waitFor(() => expect(owner.exit).toHaveBeenCalledWith(0));
   expect(mocks.cancel).toHaveBeenCalledOnce();
-  expect(owner.exit).not.toHaveBeenCalled();
+  expect(owner.exit).toHaveBeenCalledOnce();
+  expect(owner.quit).not.toHaveBeenCalled();
 });
 it("owner quit waits for persistence even when native work has already finished", async () => {
   let finish!: () => void;
@@ -81,11 +83,12 @@ it("owner quit waits for persistence even when native work has already finished"
   await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledOnce());
   emitOwner("will-quit");
   for (let i = 0; i < 24; i += 1) await Promise.resolve();
-  expect(owner.quit).not.toHaveBeenCalled();
+  expect(owner.exit).not.toHaveBeenCalled();
   expect(emitOwner("will-quit").preventDefault).toHaveBeenCalledOnce();
   finish(); await pending;
-  await vi.waitFor(() => expect(owner.quit).toHaveBeenCalledOnce());
-  expect(owner.exit).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(owner.exit).toHaveBeenCalledWith(0));
+  expect(owner.exit).toHaveBeenCalledOnce();
+  expect(owner.quit).not.toHaveBeenCalled();
 });
 it("a cancelled quit lets the user start a new verification again", async () => {
   emitOwner("before-quit");
