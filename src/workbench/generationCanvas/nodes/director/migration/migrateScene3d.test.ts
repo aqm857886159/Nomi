@@ -50,7 +50,7 @@ describe('migrateScene3DState', () => {
     expect(hero.scale).toEqual({ x: 1, y: 1, z: 1 })
     expect(hero.rotation.y).toBeCloseTo(90, 1)
     expect(hero.boneRotations?.mixamorigLeftLeg?.x).toBeCloseTo(1.9 / DEG, 1)
-    expect(hero.modelPath).toBe('builtin:x-bot')
+    expect(hero.modelPath).toBe('builtin:ual')
     expect(hero.rig).toBe('mixamo')
   })
 
@@ -127,7 +127,7 @@ describe('migrateScene3DState', () => {
     const hero = byId('hero')!
     const clips = hero.actionClips!
     const walk = clips.find((clip) => clip.clipType === 'action')!
-    expect(walk.actionPose).toBe('standard_walk')
+    expect(walk.actionPose).toBe('Walk_Loop')
     expect(walk.startTime).toBe(1)
     expect(walk.endTime).toBe(5)
     const pose = clips.find((clip) => clip.clipType === 'custom_pose')!

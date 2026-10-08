@@ -1,0 +1,32 @@
+{
+  "name": "制作 Run 现在要不要有人驱动（停稳之后已付费的在飞活仍要盯到收尾）",
+  "subject": "production.run-driver-wanted",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunLifecycle.ts",
+    "symbol": "runWantsDriver"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunLifecycle.ts",
+      "symbol": "runWantsDriver"
+    },
+    {
+      "path": "electron/productionRun/productionRunLifecycle.ts",
+      "symbol": "hasWorkToWatch"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionRunLifecycle.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/appIntegrationRunObservation.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/productionRun/productionRunService.ts"
+  ],
+  "since": "2026-10-07",
+  "notes": "合同 docs/fixes/2026-10-07-stopped-run-keeps-watching-paid-work.root-cause.json。停只是「不再派新的」；已经交给供应商、拿着任务号的那几件（isProductionJobInFlight）不管 Run 是已暂停 / 已取消，都要有人盯到收尾、产物落进项目。以前多镜重踢（kickSchedulerForRun）、单镜再问一次（singleShotStillInFlight）、重开项目、启动恢复（resumeUnfinishedRuns，独立验收 V-1078 抓到的第四扇门）各抄一份 Run 状态清单，#934 只给「暂停中」开了口子，于是取消后的慢镜头、已暂停里点「重新取回」的那一镜没人去取。现在四处只问 runWantsDriver（交给了供应商、还没结论：isStillAtProvider）/ hasWorkToWatch（其中拿着任务号、能去问的）；派不派新活仍由调度派生按 Run 状态判（isStoppedRunStatus），不在这里。同批：状态机补上 pausing → cancelled（任务卡暂停中只给「取消制作」），卡上每个控制都要是状态机认的一步（src/workbench/production/productionRunView.test.ts 穷举）。"
+}

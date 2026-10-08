@@ -1,0 +1,140 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-mcp-real-client-isolation",
+  "problem_type": "Real MCP client test process isolation",
+  "symptom": "The Codex smoke test timed out without Nomi tools after bypassing the production launcher and using an isolated profile whose capability proof was not rebound to that profile.",
+  "direct_cause": "The test hand-built a direct Electron stdio command instead of using mcpConfig.ts, and the later launcher override initially retained proof material from the real profile.",
+  "class_root": "The real-client harness had no single shared launcher/proof construction boundary that required the Node helper, background app launch, complete isolated directories, and an identity signed for the isolated capability directory.",
+  "affected_population": [
+    "Codex real-client runs on Windows, macOS, and Linux",
+    "Any future caller that omits one of the Nomi isolation directories"
+  ],
+  "scope_paths": [
+    "tests/system/mcp-real-client.mjs",
+    "electron/capabilityCore/mcpConfig.ts",
+    "tests/system/mcp-real-client.node-test.mjs"
+  ],
+  "entry_points": [
+    "main -> mcpServerEntry -> buildCodexOverrides",
+    "captureFingerprint -> realNomiProfile metadata scan"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-owned: this harness must serialize the same four temporary directories already required by Nomi's stdio boundary.",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpConfig.ts",
+    "tests": ["tests/system/mcp-real-client.node-test.mjs"]
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-07",
+  "invariants": [
+    "Every Codex MCP env contains NOMI_MCP_STDIO=1 and all four isolated directory variables.",
+    "The settings directory is a child of the system temp directory and the other three directories are its fixed children.",
+    "Real profile verification reads metadata only and never file contents."
+    ,"The Codex smoke path launches the Node mcpNodeLauncher, which cold-starts the dev Electron app in background mode."
+    ,"The isolated capability proof is generated under the isolated capability directory before the launcher is serialized."
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/capabilityCore/mcpConfig.ts", "symbol": "mcpServerEntry" },
+    { "kind": "write", "path": "electron/capabilityCore/mcpConfig.ts", "symbol": "mcpServerEntry" },
+    { "kind": "read", "path": "electron/main.ts", "symbol": "main" },
+    { "kind": "read", "path": "electron/workspace/workspaceManifest.ts", "symbol": "main" },
+    { "kind": "read", "path": "src/devlab/directorAssetCatalog.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/devlab/skillLibrarySpecimen.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/ui/browser/dialog/NomiBrowserDialogView.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/model/nodeResultLifecycle.ts", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/library/ProjectLibraryPage.tsx", "symbol": "main" },
+    { "kind": "read", "path": "src/workbench/WorkbenchShell.tsx", "symbol": "main" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 13,
+    "why_not": "The door map reports existing application readers, but this test-harness fix cannot consolidate those unrelated production readers; all client callers converge at buildCodexOverrides instead."
+  },
+  "generality_proof": "The only serialized Codex MCP environment is built by buildCodexOverrides; requiring the complete directory tuple there makes omitted, host-profile, and cross-platform callers fail before a client can start.",
+  "shared_boundaries": [
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "symbol": "buildCodexOverrides",
+      "responsibility": "Validate and serialize the complete temporary Nomi environment for the child client."
+    },
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "symbol": "captureFingerprint",
+      "responsibility": "Record metadata-only fingerprints for configured files and the real Nomi profile."
+    },
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "mcpServerEntry",
+      "responsibility": "Provide the production Node launcher command, cold-start arguments, and launcher environment as the single source of truth."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "entry_point": "main (codex client)",
+      "disposition": "enforced",
+      "evidence": "The Codex branch now passes the validated five-key isolation env into buildCodexOverrides."
+    },
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "entry_point": "main (claude client)",
+      "disposition": "enforced",
+      "evidence": "The Claude branch already serializes the same four directories and NOMI_MCP_STDIO in its strict temporary config."
+    },
+    {
+      "path": "tests/system/mcp-real-client.mjs",
+      "entry_point": "main (codex launcher override)",
+      "disposition": "enforced",
+      "evidence": "The Codex branch calls mcpServerEntry with the dev Electron command and Node launcher, then overlays seedMcpClientIdentityEnv for the isolated capability directory."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new real-client caller or omitted env key could reconnect Nomi to the host profile unless the shared serializer rejects it.",
+    "same_class_scan": [
+      "rg buildCodexOverrides tests/system package.json",
+      "Reviewed both codex and claude branches in tests/system/mcp-real-client.mjs",
+      "Reviewed makeIsolatedDirs in tests/ux/_mcpJourney.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/system/mcp-real-client.mjs",
+    "invariant": "Only a complete tuple rooted below the system temp directory may be serialized to Codex.",
+    "failure_mode": "Throw before spawning Codex when any key is missing, NOMI_MCP_STDIO is wrong, or a path escapes the temporary root.",
+    "exception_policy": "none",
+    "strategy": "Make the env argument mandatory and validate its fixed directory topology at the single serializer used by the real Codex run.",
+    "artifacts": [
+      "tests/system/mcp-real-client.mjs",
+      "tests/system/mcp-real-client.node-test.mjs",
+      "electron/capabilityCore/mcpConfig.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/system/mcp-real-client.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/system/mcp-real-client.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/system/mcp-real-client.mjs",
+      "electron/capabilityCore/mcpConfig.ts"
+    ],
+    "rationale": "The unsafe default is deleted; every caller must now provide and pass the complete isolation tuple."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure was caused by the harness-owned env serialization boundary, not a third-party runtime.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or user configuration changes; the next test invocation fails closed until its caller supplies the required temporary directories.",
+  "residual_risks": [
+    "The direct Electron NOMI_MCP_STDIO route still gets stdin EOF on Windows; this is limited to tests/ux/_mcpJourney.mjs and is not the real Node launcher user path.",
+    "A live real-client run still depends on local Codex authentication and installed Electron; it is separately reported by the command result."
+  ]
+}

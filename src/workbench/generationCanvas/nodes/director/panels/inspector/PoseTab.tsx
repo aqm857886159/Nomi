@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 react、react-i18next、../../../../../../utils/cn、../../../../../../vendor/tablerIcons 的 IconCheck、../../DirectorEditorContext、
  *          ../../model/directorTypes 的 DirectorObject、../../model/actionLibrary（ACTION_LIBRARY / resolveActionAlias / T_POSE_ACTION_ID）、../../model/rigs 的 BODY_TYPE_PRESETS、../fields/FieldPrimitives
  * [OUTPUT]: 对外提供 PoseTab：「内置姿态」列表（名字 + 当前项勾选，点 = 换 posePreset 并清微调）+ 提示；「快捷体形」列表（按缩放容差 0.02 判当前项）+ 提示
- * [POS]: director/panels/inspector 的角色姿态页：清单与动作库同一份（T-Pose + 9 个 FBX）；当前项按别名解析，体形当前项按缩放匹配。
+ * [POS]: director/panels/inspector 的角色姿态页：清单与动作库同一份（T-Pose + UAL 43 个原生动作）；当前项按别名解析，体形当前项按缩放匹配。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'

@@ -27,6 +27,7 @@ import {
 import { describeOutboundRefusal } from "./networkOutboundMessage";
 import { appFetch } from "./appFetch";
 import { getAppDispatcher, isApplicationProxyActive } from "./systemProxy";
+import { guardTestNetworkUrl } from "./testNetworkGuard";
 export { isPrivateHost } from "./networkHostPolicy";
 
 export type HardenedFetchOptions = {
@@ -297,7 +298,7 @@ export async function hardenedFetch(
   // Lab origins stay merged here so the "any configured private exception disables redirects"
   // rule below keeps its existing meaning; the policy owner merges them again on its side.
   const allowedPrivateOrigins = [...(options.allowedPrivateOrigins || []), ...getLabTrustedPrivateOrigins()];
-  const url = assertSafeUrl(rawUrl);
+  const url = assertSafeUrl(guardTestNetworkUrl(rawUrl));
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const idleTimeoutMs = options.idleTimeoutMs;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
@@ -389,7 +390,7 @@ export async function hardenedFetch(
     let response: Response | undefined;
     const readEnvironment = dependencies.readOutboundEnvironment ?? readOutboundEnvironment;
     for (let hop = 0; hop <= 5; hop += 1) {
-      currentUrl = assertSafeUrl(currentUrl.toString());
+      currentUrl = assertSafeUrl(guardTestNetworkUrl(currentUrl.toString()));
       const declaredPrivate = matchesDeclaredOrigin(currentUrl, allowedPrivateOrigins);
       let dispatcher: Dispatcher | undefined;
       if (options.dispatcher) {
@@ -437,7 +438,7 @@ export async function hardenedFetch(
       if (!allowRedirect || !location || hop === 5 || (method !== "GET" && method !== "HEAD")) {
         throw new Error("Redirect refused by hardened fetch policy");
       }
-      const nextUrl = new URL(location, currentUrl);
+      const nextUrl = new URL(guardTestNetworkUrl(new URL(location, currentUrl).toString()));
       if (nextUrl.origin !== currentUrl.origin) {
         requestHeaders = Object.fromEntries(
           Object.entries(requestHeaders).filter(([header]) => !sensitiveHeaders.has(header.toLowerCase())),

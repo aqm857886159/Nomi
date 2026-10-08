@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconX, IconDeviceFloppy } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { DecisionBar } from '../../design'
 import type { LibraryPrompt, PromptMediaType } from '../api/promptLibraryApi'
 import type { UserPromptDraft } from './useUserPrompts'
 
@@ -103,32 +103,15 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
         }}
       />
 
-      <div className={cn('flex flex-wrap items-center gap-2 mt-2.5')}>
-        {error ? <span className={cn('min-w-0 flex-1 text-micro text-nomi-danger')}>{error}</span> : null}
-        <span className={cn('min-w-4 flex-1')} />
-        <button
-          type="button"
-          onClick={onCancel}
-          className={cn(
-            'inline-flex items-center gap-1 h-8 px-3 rounded-full cursor-pointer border-0 bg-transparent text-caption text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05',
-          )}
-        >
-          <IconX size={14} stroke={1.8} />
-          {t('libraries.prompt.composer.cancel')}
-        </button>
-        <button
-          type="button"
-          onClick={() => void submit()}
-          disabled={saving}
-          className={cn(
-            'inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full cursor-pointer border-0',
-            'bg-nomi-accent text-nomi-paper text-caption font-medium hover:opacity-90 disabled:opacity-50',
-          )}
-        >
-          <IconDeviceFloppy size={14} stroke={1.8} />
-          {initial ? t('libraries.prompt.composer.save') : t('libraries.prompt.composer.saveToMine')}
-        </button>
-      </div>
+      <DecisionBar
+        className="mt-2.5"
+        leading={error ? <span className={cn('min-w-0 text-micro text-nomi-danger')}>{error}</span> : undefined}
+        cancelLabel={t('libraries.prompt.composer.cancel')}
+        onCancel={onCancel}
+        primaryLabel={initial ? t('libraries.prompt.composer.save') : t('libraries.prompt.composer.saveToMine')}
+        onPrimary={() => void submit()}
+        primaryDisabled={saving}
+      />
     </div>
   )
 }
