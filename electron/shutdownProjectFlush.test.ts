@@ -19,7 +19,8 @@ import { useWorkbenchStore } from "../src/workbench/workbenchStore";
 
 type SessionListener = (event?: { preventDefault?: () => void }) => void;
 
-function harness(options: { renderer: "answers" | "silent" }) {
+function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"answers" | "silent"> }) {
+  const kinds = options.windows ?? [options.renderer ?? "answers"];
   const appListeners = new Map<string, (...args: never[]) => void>();
   const app = {
     on: vi.fn((event: string, listener: (...args: never[]) => void) => { appListeners.set(event, listener); return app; }),
@@ -33,10 +34,10 @@ function harness(options: { renderer: "answers" | "silent" }) {
   let rendererHandler: (() => Promise<void>) | undefined;
   bridge.current = { window: { onProjectFlushRequest: (cb) => { rendererHandler = cb; return () => { rendererHandler = undefined; }; } } };
   // The preload wiring: run the renderer handler, answer on the response channel.
-  const webContents = {
+  const windows = kinds.map((kind) => ({
     send: vi.fn((channel: string, payload: { requestId: string }) => {
       expect(channel).toBe(SHUTDOWN_FLUSH_REQUEST_CHANNEL);
-      if (options.renderer === "silent") return;
+      if (kind === "silent") return;
       void (async () => {
         let ok = true;
         try { await rendererHandler?.(); } catch { ok = false; }
@@ -44,7 +45,8 @@ function harness(options: { renderer: "answers" | "silent" }) {
         expect(SHUTDOWN_FLUSH_RESPONSE_CHANNEL).toBeTruthy();
       })();
     }),
-  };
+  }));
+  const webContents = windows[0]!;
   const errors: string[] = [];
   const onError = (stage: string) => { errors.push(stage); };
   installQuitTeardown(app, {
@@ -55,9 +57,9 @@ function harness(options: { renderer: "answers" | "silent" }) {
     onError,
     systemSession: { platform: "win32", powerMonitor: vi.fn() },
   });
-  installShutdownProjectFlush({ windows: () => [webContents], onResponse: (listener) => { responseListeners.push(listener); }, onError });
+  installShutdownProjectFlush({ windows: () => windows, onResponse: (listener) => { responseListeners.push(listener); }, onError });
   (appListeners.get("browser-window-created") as unknown as (event: unknown, window: unknown) => void)({}, osWindow);
-  return { app, errors, webContents, sessionEnd: () => sessionListeners.get("session-end")?.() };
+  return { app, errors, webContents, windows, sessionEnd: () => sessionListeners.get("session-end")?.() };
 }
 
 describe("OS session end silently saves the project", () => {
@@ -133,5 +135,64 @@ describe("OS session end silently saves the project", () => {
     run.sessionEnd();
     await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0));
     expect(run.errors).toContain("renderer-project-flush-failed");
+  });
+
+  it("waits for the save already in flight, then writes the newest edit once, losing nothing", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    saveSpy.mockImplementationOnce(async (id: string, payload: unknown) => {
+      await gate;
+      return saveProject(id, { ...readProject(id)!, payload }) as never;
+    });
+    const run = harness({ renderer: "answers" });
+    bindShutdownProjectFlush();
+    useWorkbenchStore.getState().addCategory("在途那次的分组");
+    await vi.waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1), { timeout: 2000 }); // debounce fired, write blocked
+    useWorkbenchStore.getState().addCategory("存盘途中新改的分组");
+
+    run.sessionEnd();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(run.app.exit).not.toHaveBeenCalled(); // receipt waits for the in-flight write
+    release();
+    await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0));
+    expect(savedCategoryNames()).toEqual(expect.arrayContaining(["在途那次的分组", "存盘途中新改的分组"]));
+    expect(saveSpy).toHaveBeenCalledTimes(2); // the in-flight one + exactly one catch-up write
+    expect(run.errors).toEqual([]);
+  });
+
+  it("saves every window's project when two windows both answer, writing each once", async () => {
+    const secondId = createProject({ name: "shutdown-save-2" }).id;
+    const secondSave = vi.fn(async (id: string, payload: unknown) => saveProject(id, { ...readProject(id)!, payload }) as never);
+    const disposeSecond = subscribeWorkbenchProjectPersistence({
+      projectId: secondId, isHydrating: () => false, canPersist: () => true, saveProject: secondSave as never, onSaved: vi.fn(),
+    });
+    try {
+      const run = harness({ windows: ["answers", "answers"] });
+      bindShutdownProjectFlush();
+      useWorkbenchStore.getState().addCategory("两个窗口的新分组");
+      run.sessionEnd();
+      await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0));
+      const names = (id: string) => ((readProject(id)?.payload as { categories?: Array<{ name: string }> } | undefined)?.categories ?? []).map((c) => c.name);
+      expect(names(projectId)).toContain("两个窗口的新分组");
+      expect(names(secondId)).toContain("两个窗口的新分组");
+      expect(saveSpy).toHaveBeenCalledTimes(1);
+      expect(secondSave).toHaveBeenCalledTimes(1);
+      expect(run.windows.every((w) => w.send.mock.calls.length === 1)).toBe(true);
+      expect(run.errors).toEqual([]);
+    } finally {
+      await disposeSecond().catch(() => undefined);
+    }
+  });
+
+  it("one silent window does not hold back the other window's save, and the whole thing stays in budget", async () => {
+    const run = harness({ windows: ["silent", "answers"] });
+    bindShutdownProjectFlush();
+    useWorkbenchStore.getState().addCategory("另一个窗口没回执的分组");
+    const startedAt = Date.now();
+    run.sessionEnd();
+    await vi.waitFor(() => expect(savedCategoryNames()).toContain("另一个窗口没回执的分组"), { timeout: 300 });
+    await vi.waitFor(() => expect(run.app.exit).toHaveBeenCalledWith(0), { timeout: 1500 });
+    expect(Date.now() - startedAt).toBeLessThan(800);
+    expect(run.errors).toContain("renderer-project-flush-timeout");
   });
 });
