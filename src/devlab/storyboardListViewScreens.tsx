@@ -63,7 +63,7 @@ function MediaBox({ card, height = 104 }: { card: ListCard; height?: number }): 
         }
       >
         <img
-          className="absolute inset-0 size-full object-cover"
+          className="absolute inset-0 size-full object-contain"
           src={dataImage(
             Number(card.id.replace(/\D/g, '') || '1'),
             card.ratio,
@@ -96,10 +96,12 @@ function AnchorChip({ card, locale }: { card: ListCard; locale: ListViewLocale }
 function ConnectionButton({
   active,
   locale,
+  mediaHeight,
   onClick,
 }: {
   active: boolean
   locale: ListViewLocale
+  mediaHeight: number
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void
 }): JSX.Element {
   const t = listCopy[locale]
@@ -109,10 +111,10 @@ function ConnectionButton({
       onClick={onClick}
       title={active ? t.connectPrevious : t.connect}
       aria-pressed={active}
-      className={`absolute -left-3 top-1/2 z-10 inline-flex -translate-y-1/2 items-center gap-1 rounded-pill border px-1.5 py-1 text-micro shadow-nomi-sm ${active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line bg-nomi-paper text-nomi-ink-40 hover:text-nomi-ink'}`}
+      className={`absolute -left-8 z-10 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-pill border text-micro shadow-nomi-sm ${active ? 'border-nomi-accent bg-nomi-accent text-nomi-paper' : 'border-nomi-line bg-nomi-paper text-nomi-ink-40 hover:text-nomi-ink'}`}
+      style={{ top: 10 + mediaHeight / 2 }}
     >
       <IconLink size={12} stroke={1.7} />
-      {active ? t.connectPrevious : null}
     </button>
   )
 }
@@ -187,10 +189,11 @@ function ListCardView({
       role="button"
       tabIndex={0}
     >
-      {card.kind === 'shot' && index > 0 ? (
+      {card.kind === 'shot' && card.groupId === 'storyboard' && index > 0 ? (
         <ConnectionButton
           active={Boolean(card.connectionOn)}
           locale={locale}
+          mediaHeight={mediaHeight}
           onClick={(event) => {
             event.stopPropagation()
             onConnect()
@@ -207,12 +210,6 @@ function ListCardView({
         }}
       />
       <p className="mt-1.5 line-clamp-1 text-body-sm text-nomi-ink">{prompt}</p>
-      <div className="mt-2 flex items-center justify-between border-t border-nomi-line pt-2 text-micro text-nomi-ink-60">
-        <span>
-          {card.kind === 'director' ? (locale === 'en' ? 'Canvas-only node' : '仅在画布打开') : card.groupLabel}
-        </span>
-        {card.kind === 'director' ? <IconExternalLink size={13} stroke={1.7} /> : <span>{card.ratio}</span>}
-      </div>
     </article>
   )
 }
@@ -427,10 +424,12 @@ function ListSurface({
   state,
   locale,
   narrow,
+  productOnly,
 }: {
   state: ListViewState
   locale: ListViewLocale
   narrow: boolean
+  productOnly: boolean
 }): JSX.Element {
   const t = listCopy[locale]
   const sections = React.useMemo(() => createListSections(state, locale), [state, locale])
@@ -448,7 +447,8 @@ function ListSurface({
   }, [])
   const allCards = sections.flatMap((section) => section.cards)
   const selectedCard = allCards.find((card) => card.id === inspectorId)
-  const cardMediaHeight = state === 'long' ? 72 : selectedCard ? 112 : 68
+  const extraWide = window.innerWidth >= 1536
+  const cardMediaHeight = extraWide && !selectedCard ? 180 : 220
   const toggleCard = (id: string) =>
     setSelectedIds((current) => {
       const next = new Set(current)
@@ -467,20 +467,22 @@ function ListSurface({
   return (
     <div className="mx-auto max-w-[1440px] p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-caption text-nomi-ink-60">
+        <div className="flex min-w-[260px] items-center gap-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-1.5 text-caption text-nomi-ink-40">
           <IconSearch size={15} stroke={1.7} /> {t.longHint}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-caption text-nomi-ink-60">{locale === 'en' ? 'Review state' : '走查状态'}</span>
-          <DesignBadge size="xs" tone="success">
-            light / token-only
-          </DesignBadge>
-          <WorkbenchIconButton
-            icon={<IconSettings size={15} stroke={1.7} />}
-            label={locale === 'en' ? 'List settings' : '列表设置'}
-            size="sm"
-          />
-        </div>
+        {!productOnly ? (
+          <div className="flex items-center gap-2">
+            <span className="text-caption text-nomi-ink-60">{locale === 'en' ? 'Review state' : '走查状态'}</span>
+            <DesignBadge size="xs" tone="success">
+              light / token-only
+            </DesignBadge>
+            <WorkbenchIconButton
+              icon={<IconSettings size={15} stroke={1.7} />}
+              label={locale === 'en' ? 'List settings' : '列表设置'}
+              size="sm"
+            />
+          </div>
+        ) : null}
       </div>
       <div className="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-sm">
         <AnchorStrip locale={locale} />
@@ -507,7 +509,7 @@ function ListSurface({
               <section key={section.id} className="mb-5 last:mb-0">
                 <SectionHeader section={section} locale={locale} />
                 <div
-                  className={`grid gap-3 ${state === 'long' ? 'grid-cols-5' : selectedCard ? (narrow ? 'grid-cols-2' : 'grid-cols-3') : 'grid-cols-4'}`}
+                  className={`grid gap-x-8 gap-y-4 pl-8 ${selectedCard ? 'grid-cols-2' : extraWide ? 'grid-cols-4' : 'grid-cols-3'}`}
                 >
                   {section.cards.map((card, index) => (
                     <ListCardView
@@ -536,6 +538,11 @@ function ListSurface({
 
 function CanvasSurface({ locale, empty }: { locale: ListViewLocale; empty: boolean }): JSX.Element {
   const t = listCopy[locale]
+  const shot03Label = locale === 'en' ? 'Shot 03' : '镜 03'
+  const shot04Label = locale === 'en' ? 'Shot 04' : '镜 04'
+  const shot03Detail = locale === 'en' ? 'Low angle' : '低机位'
+  const shot04Detail = locale === 'en' ? 'Top down' : '俯拍'
+  const posterGroupLabel = locale === 'en' ? 'Canvas group · Poster pass' : '画布分组 · 海报试稿'
   return (
     <div className="mx-auto max-w-[1440px] p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -568,26 +575,30 @@ function CanvasSurface({ locale, empty }: { locale: ListViewLocale; empty: boole
         ) : (
           <>
             <div className="absolute left-[10%] top-[18%] w-[240px] rounded-nomi border border-nomi-line bg-nomi-paper p-3 shadow-nomi-sm">
-              <span className="absolute left-2 top-2 rounded-pill bg-nomi-ink px-1.5 py-0.5 text-micro text-nomi-paper">
-                镜 03
-              </span>
+              <div className="mb-2">
+                <span className="rounded-pill bg-nomi-ink px-1.5 py-0.5 text-micro text-nomi-paper">{shot03Label}</span>
+              </div>
               <MediaBox card={createListSections('default', locale)[0].cards[2]} height={120} />
-              <div className="mt-2 text-caption font-semibold text-nomi-ink">镜 03 · 低机位</div>
+              <div className="mt-2 text-caption font-semibold text-nomi-ink">
+                {shot03Label} · {shot03Detail}
+              </div>
             </div>
             <div className="absolute left-[47%] top-[28%] w-[260px] rounded-nomi border border-nomi-accent bg-nomi-paper p-3 shadow-nomi-md">
-              <span className="absolute left-2 top-2 rounded-pill bg-nomi-ink px-1.5 py-0.5 text-micro text-nomi-paper">
-                镜 04
-              </span>
+              <div className="mb-2">
+                <span className="rounded-pill bg-nomi-ink px-1.5 py-0.5 text-micro text-nomi-paper">{shot04Label}</span>
+              </div>
               <MediaBox card={createListSections('default', locale)[0].cards[3]} height={132} />
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-caption font-semibold text-nomi-ink">镜 04 · 俯拍</span>
+                <span className="text-caption font-semibold text-nomi-ink">
+                  {shot04Label} · {shot04Detail}
+                </span>
                 <WorkbenchButton size="sm" variant="accent">
                   <IconList size={13} /> {t.canvasNodeHint}
                 </WorkbenchButton>
               </div>
             </div>
             <div className="absolute left-[73%] top-[62%] w-[220px] rounded-nomi border border-nomi-line bg-nomi-paper p-3 shadow-nomi-sm">
-              <span className="text-caption font-semibold text-nomi-ink">画布分组 · 海报试稿</span>
+              <span className="text-caption font-semibold text-nomi-ink">{posterGroupLabel}</span>
               <div className="mt-2 grid grid-cols-3 gap-1">
                 <IconPhoto className="text-nomi-ink-40" size={18} />
                 <IconPhoto className="text-nomi-ink-40" size={18} />
@@ -605,37 +616,41 @@ function AppChrome({
   locale,
   state,
   view,
+  hideLabHeader,
   onLocale,
   onView,
 }: {
   locale: ListViewLocale
   state: ListViewState
   view: 'canvas' | 'list'
+  hideLabHeader: boolean
   onLocale: (locale: ListViewLocale) => void
   onView: (view: 'canvas' | 'list') => void
 }): JSX.Element {
   const t = listCopy[locale]
   return (
     <header className="border-b border-nomi-line bg-nomi-paper px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-caption text-nomi-ink-60">
-            <IconStack2 size={15} /> {locale === 'en' ? 'Generate · Rainy convenience store' : '生成 · 雨夜便利店'}
+      {!hideLabHeader ? (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-caption text-nomi-ink-60">
+              <IconStack2 size={15} /> {locale === 'en' ? 'Generate · Rainy convenience store' : '生成 · 雨夜便利店'}
+            </div>
+            <h1 className="mt-1 text-h3 font-semibold text-nomi-ink">{t.title}</h1>
+            <p className="mt-1 text-body-sm text-nomi-ink-60">{t.subtitle}</p>
           </div>
-          <h1 className="mt-1 text-h3 font-semibold text-nomi-ink">{t.title}</h1>
-          <p className="mt-1 text-body-sm text-nomi-ink-60">{t.subtitle}</p>
+          <DesignSegmentedControl
+            size="xs"
+            value={locale}
+            onChange={(value) => onLocale(value as ListViewLocale)}
+            data={[
+              { label: '中', value: 'zh' },
+              { label: 'EN', value: 'en' },
+            ]}
+          />
         </div>
-        <DesignSegmentedControl
-          size="xs"
-          value={locale}
-          onChange={(value) => onLocale(value as ListViewLocale)}
-          data={[
-            { label: '中', value: 'zh' },
-            { label: 'EN', value: 'en' },
-          ]}
-        />
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      ) : null}
+      <div className={`${hideLabHeader ? '' : 'mt-3 '}flex flex-wrap items-center justify-between gap-2`}>
         <DesignSegmentedControl
           size="xs"
           value={view}
@@ -668,13 +683,26 @@ export function StoryboardListViewApp(): JSX.Element {
   const [locale, setLocale] = React.useState<ListViewLocale>(initialLocale)
   const [view, setView] = React.useState<'canvas' | 'list'>(state === 'canvas' || state === 'empty' ? 'canvas' : 'list')
   const narrow = params.get('narrow') === '1'
+  const productOnly = params.get('capture') === 'product'
   return (
     <div className="min-h-screen bg-nomi-bg text-nomi-ink">
-      <AppChrome locale={locale} state={state} view={view} onLocale={setLocale} onView={setView} />
+      <AppChrome
+        locale={locale}
+        state={state}
+        view={view}
+        hideLabHeader={productOnly}
+        onLocale={setLocale}
+        onView={setView}
+      />
       {view === 'canvas' ? (
         <CanvasSurface locale={locale} empty={state === 'empty'} />
       ) : (
-        <ListSurface state={state === 'empty' ? 'default' : state} locale={locale} narrow={narrow} />
+        <ListSurface
+          state={state === 'empty' ? 'default' : state}
+          locale={locale}
+          narrow={narrow}
+          productOnly={productOnly}
+        />
       )}
     </div>
   )
