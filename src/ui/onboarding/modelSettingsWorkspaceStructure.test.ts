@@ -168,7 +168,7 @@ describe('model settings workspace structure', () => {
     const hook = read('src/ui/onboarding/useCustomCallTestRun.ts')
     expect(editor).toContain("test.phase === 'done' && test.ok")
     expect(editor).toContain('customCall.saveDraft')
-    expect(editor).toContain('onClick={saveTestedScript}')
+    expect(editor).toContain('onPrimary: saveTestedScript')
     expect(editor).toContain('customCall.saveAndContinueCapability')
     expect(editor).toContain('requiresCapabilitySetup && onContinueCapability')
     expect(editor).toContain('customCall.testRun')

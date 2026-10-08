@@ -18,7 +18,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectHittable, proveProbe, expectAbsent, clickOrFail, expectVisible } from './_assert.mjs'
 
-const repoRoot = path.resolve(new URL('../..', import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
 

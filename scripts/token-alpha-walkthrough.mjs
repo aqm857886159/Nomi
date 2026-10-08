@@ -13,7 +13,8 @@ const chunk=(t,d)=>{const c=Buffer.concat([Buffer.from(t),d]);const len=Buffer.a
 const row=Buffer.concat([Buffer.from([0]),Buffer.alloc(w*3).fill(Buffer.from([11,11,16]))])
 const ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=2
 return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',ihdr),chunk('IDAT',zlib.deflateSync(Buffer.concat(Array(h).fill(row)))),chunk('IEND',Buffer.alloc(0))])}
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+import { fileURLToPath } from 'node:url'
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.token-alpha-lab'); fs.mkdirSync(outDir, { recursive: true })
 const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'i32-s-'))
 const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'i32-p-'))

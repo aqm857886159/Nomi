@@ -1,0 +1,7342 @@
+{
+  "iconSizes": {
+    "9": 3,
+    "11": 84,
+    "12": 277,
+    "13": 85,
+    "14": 83,
+    "15": 150,
+    "16": 114,
+    "18": 55,
+    "28": 4,
+    "15.1": 1,
+    "19.6": 2
+  },
+  "iconStroke": {
+    "2": 424,
+    "2px": 7,
+    "1.6": 221,
+    "1.5": 4,
+    "1px": 3,
+    "1.7": 72,
+    "1.8": 127
+  },
+  "iconPos": {
+    "left": 130,
+    "right": 1,
+    "rightStructural": 184
+  },
+  "iconGap": {
+    "2": 3,
+    "4": 113,
+    "6": 138,
+    "8": 33,
+    "11": 3,
+    "20": 8,
+    "24": 4,
+    "31": 2,
+    "32": 6,
+    "56": 1,
+    "-2": 4
+  },
+  "cells": 171,
+  "failedCells": [],
+  "byRule": {
+    "UI-R10-spaced": [
+      {
+        "cell": "agent-panel-v4/v4-assistant-interrupted",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 11,
+          "y": 36,
+          "w": 40,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "继续",
+        "w": 40,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-tool-layout-undo",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 133,
+          "y": 17,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "撤销",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-tool-video-failed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 167,
+          "y": 57,
+          "w": 60,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "换模型重试",
+        "w": 60,
+        "h": 18
+      },
+      {
+        "cell": "agent-panel-v4/v4-task-complete",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 197,
+          "y": 97,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "撤销",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-task-failed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 178,
+          "y": 57,
+          "w": 60,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "换模型重试",
+        "w": 60,
+        "h": 18
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-spend",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 84,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-spend",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 84,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-three",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 188,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-three",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 188,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-plan",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 52,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "1 开场远景 · 蓝色水杯推门",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-plan",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 104,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "2 推门近景 · 水流特写",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-plan",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 157,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "3 眼神反应 · 缺首帧",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-plan",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 209,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "4 尾声 · 产品定格",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-plan",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 275,
+          "w": 34,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "收起 ▴",
+        "w": 34,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-queue-mixed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 144,
+          "y": 48,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "插队",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-queue-mixed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 172,
+          "y": 45,
+          "w": 22,
+          "h": 22
+        },
+        "tag": "button",
+        "text": "取消这条指令",
+        "w": 22,
+        "h": 22
+      },
+      {
+        "cell": "agent-panel-v4/v4-queue-mixed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 208,
+          "y": 74,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "插队",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-queue-mixed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 236,
+          "y": 71,
+          "w": 22,
+          "h": 22
+        },
+        "tag": "button",
+        "text": "取消这条指令",
+        "w": 22,
+        "h": 22
+      },
+      {
+        "cell": "agent-panel-v4/v4-queue-interrupt",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 144,
+          "y": 48,
+          "w": 44,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "立即中断",
+        "w": 44,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-reference",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 100,
+          "y": 27,
+          "w": 11,
+          "h": 11
+        },
+        "tag": "button",
+        "text": "移除 参考.png",
+        "w": 11,
+        "h": 11
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-reference",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 227,
+          "y": 27,
+          "w": 11,
+          "h": 11
+        },
+        "tag": "button",
+        "text": "移除 编剧 · Kasdan",
+        "w": 11,
+        "h": 11
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-reference",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 161,
+          "y": 57,
+          "w": 11,
+          "h": 11
+        },
+        "tag": "button",
+        "text": "移除 推门近景 · 0:03–0:06",
+        "w": 11,
+        "h": 11
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 54,
+          "w": 38,
+          "h": 22
+        },
+        "tag": "button",
+        "text": "全部",
+        "w": 38,
+        "h": 22
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 54,
+          "w": 38,
+          "h": 22
+        },
+        "tag": "button",
+        "text": "技能",
+        "w": 38,
+        "h": 22
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 106,
+          "y": 54,
+          "w": 49,
+          "h": 22
+        },
+        "tag": "button",
+        "text": "提示词",
+        "w": 49,
+        "h": 22
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-dock",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 161,
+          "y": 27,
+          "w": 11,
+          "h": 11
+        },
+        "tag": "button",
+        "text": "移除 推门近景 · 0:03–0:06",
+        "w": 11,
+        "h": 11
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-multi",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 722,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-multi",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 722,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 501,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "1 开场远景 · 蓝色水杯推门",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 553,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "2 推门近景 · 水流特写",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 606,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "3 眼神反应 · 缺首帧",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 658,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "4 尾声 · 产品定格",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 724,
+          "w": 34,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "收起 ▴",
+        "w": 34,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 155,
+          "y": 257,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "撤销",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 617,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "转场 · 镜头 2→3 叠化 12 帧",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 648,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "字幕 · 第 2 镜 →「清爽相伴」",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 679,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "input",
+        "text": "音量 · 镜头 2 −6 dB",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 199,
+          "y": 273,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "撤销",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 180,
+          "y": 359,
+          "w": 60,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "换模型重试",
+        "w": 60,
+        "h": 18
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-running",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 145,
+          "y": 466,
+          "w": 66,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "取消这条指令",
+        "w": 66,
+        "h": 17
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-failure",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 170,
+          "y": 183,
+          "w": 24,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "反馈",
+        "w": 24,
+        "h": 18
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-batch",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 692,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-batch",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 692,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-collapsed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-collapsed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-collapsed-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-collapsed-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-model-open",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-model-open",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-panel-open",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 388,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-panel-open",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 388,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-repriced",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 297,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-repriced",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 297,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-page2",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-page2",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-price-unknown",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 22,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "上一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-price-unknown",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 64,
+          "y": 259,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "下一张",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-auto-mode-reminder",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 242,
+          "y": 13,
+          "w": 69,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "回到自动改",
+        "w": 69,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-auto-mode-reminder",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 317,
+          "y": 13,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "不再显示这条提醒",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-auto-mode-reminder-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 242,
+          "y": 13,
+          "w": 69,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "回到自动改",
+        "w": 69,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-auto-mode-reminder-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 317,
+          "y": 13,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "button",
+        "text": "不再显示这条提醒",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "agent-panel-v4/v4-feedback-report-idle",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 92,
+          "w": 24,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "查看",
+        "w": 24,
+        "h": 18
+      },
+      {
+        "cell": "agent-panel-v4/v4-feedback-report-idle",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 27,
+          "y": 122,
+          "w": 20,
+          "h": 20
+        },
+        "tag": "input",
+        "text": "",
+        "w": 20,
+        "h": 20
+      },
+      {
+        "cell": "storyboard/sb-row-01-draft-inherited-aspect",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-01-draft-inherited-aspect",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-02-aspect-override-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-02-aspect-override-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 58,
+          "y": 157,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-03-aspect-override-1-1",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-03-aspect-override-1-1",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 58,
+          "y": 202,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-05-missing-required",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-06-generating",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-06-generating",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-07-failed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-07-failed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-08-done",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-08-done",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-09-locked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-09-locked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-10-skipped",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-10-skipped",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-11-ref-changed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-11-ref-changed",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-13-row-menu",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-13-row-menu",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-12-selected-dragover",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-12-selected-dragover",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-15-image-shot",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-15-image-shot",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除林薇",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-14-variants-drawer",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-14-variants-drawer",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-16-script-source-original",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-16-script-source-original",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-row-17-script-source-edited",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-row-17-script-source-edited",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-02-first-frame-required",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-slot-01-no-references",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-slot-05-mixed-required",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-slot-03-first-last-frames",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-slot-03-first-last-frames",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除参考 1",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 56,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除参考 2",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 96,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除参考 3",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 136,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除参考 4",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 176,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除参考 5",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 216,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除白膜预览",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-slot-06-edit-capacity",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 18,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-slot-06-edit-capacity",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 201,
+          "y": 16,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除林薇",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-02-anchors-expanded",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 25,
+          "y": 76,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "参考卡操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-02-anchors-expanded",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 817,
+          "y": 64,
+          "w": 57,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "被 4 镜引用",
+        "w": 57,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-02-anchors-expanded",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 25,
+          "y": 371,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "参考卡操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-02-anchors-expanded",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 817,
+          "y": 359,
+          "w": 57,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "被 3 镜引用",
+        "w": 57,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 10,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第一场 · 天台对峙3 镜 · 13 s1 缺参考",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 8,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第一场 · 天台对峙",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 55,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 53,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 325,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 2",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 324,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 597,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 3",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 853,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第二场 · 雨停之后2 镜 · 10 s",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 851,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第二场 · 雨停之后",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 902,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 4",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 901,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 1174,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 5",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 1172,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 10,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第一场 · 天台对峙3 镜 · 13 s1 缺参考",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 8,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第一场 · 天台对峙",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 55,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 53,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 325,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 2",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 324,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 597,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 3",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 853,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第二场 · 雨停之后2 镜 · 10 s",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 851,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第二场 · 雨停之后",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 902,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 4",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 901,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 1174,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 5",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 1172,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 10,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第一场 · 天台对峙3 镜 · 13 s1 缺参考",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 8,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第一场 · 天台对峙",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 55,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 53,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 325,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 2",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 324,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 597,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 3",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 853,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第二场 · 雨停之后2 镜 · 10 s",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 851,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第二场 · 雨停之后",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 44,
+          "y": 902,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 4",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 901,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 1174,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 5",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 1172,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 27,
+          "y": 160,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第一场 · 天台对峙3 镜 · 13 s1 缺参考",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 822,
+          "y": 158,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第一场 · 天台对峙",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 58,
+          "y": 205,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 215,
+          "y": 203,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 57,
+          "y": 475,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 2",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 215,
+          "y": 474,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 58,
+          "y": 747,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 3",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 27,
+          "y": 1003,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第二场 · 雨停之后2 镜 · 10 s",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 822,
+          "y": 1001,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第二场 · 雨停之后",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 57,
+          "y": 1052,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 4",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 215,
+          "y": 1051,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 58,
+          "y": 1324,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 5",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 215,
+          "y": 1322,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-09-playback-playing",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 748,
+          "y": 23,
+          "w": 19,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "下一镜",
+        "w": 19,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-10-playback-skipped",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 672,
+          "y": 23,
+          "w": 19,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "上一镜",
+        "w": 19,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-11-playback-empty",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 748,
+          "y": 23,
+          "w": 19,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "下一镜",
+        "w": 19,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 10,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第一场 · 天台对峙3 镜 · 13 s1 缺参考",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 8,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第一场 · 天台对峙",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 55,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 53,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 326,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 2",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 324,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 597,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 3",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 853,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第二场 · 雨停之后2 镜 · 10 s",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 851,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第二场 · 雨停之后",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 903,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 4",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 901,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 1174,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 5",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 202,
+          "y": 1172,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 10,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第一场 · 天台对峙3 镜 · 13 s1 缺参考",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 8,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第一场 · 天台对峙",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 55,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 1",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 59,
+          "y": 194,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 263,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 2",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 59,
+          "y": 402,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 471,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 3",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 14,
+          "y": 664,
+          "w": 787,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "第二场 · 雨停之后2 镜 · 10 s",
+        "w": 787,
+        "h": 18
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 809,
+          "y": 662,
+          "w": 77,
+          "h": 23
+        },
+        "tag": "button",
+        "text": "播放第二场 · 雨停之后",
+        "w": 77,
+        "h": 23
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 714,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 4",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 59,
+          "y": 853,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 45,
+          "y": 922,
+          "w": 22,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "选择镜 5",
+        "w": 22,
+        "h": 17
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 59,
+          "y": 1061,
+          "w": 14,
+          "h": 14
+        },
+        "tag": "button",
+        "text": "移除天台夜景",
+        "w": 14,
+        "h": 14
+      },
+      {
+        "cell": "settings/assisted-01-idle",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 30,
+          "y": 239,
+          "w": 456,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "看内容任务提示词 · 技能文件",
+        "w": 456,
+        "h": 17
+      },
+      {
+        "cell": "settings/assisted-02-not-connected",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 196,
+          "y": 162,
+          "w": 53,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "去接入",
+        "w": 53,
+        "h": 18
+      },
+      {
+        "cell": "settings/assisted-02-not-connected",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 30,
+          "y": 240,
+          "w": 456,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "看内容任务提示词 · 技能文件",
+        "w": 456,
+        "h": 17
+      },
+      {
+        "cell": "settings/assisted-05-idle-dark",
+        "rule": "UI-R10-spaced",
+        "rect": {
+          "x": 30,
+          "y": 239,
+          "w": 456,
+          "h": 17
+        },
+        "tag": "button",
+        "text": "看内容任务提示词 · 技能文件",
+        "w": 456,
+        "h": 17
+      }
+    ],
+    "UI-R06": [
+      {
+        "cell": "agent-panel-v4/v4-intervention-question",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 212,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-retry",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 197,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-free",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 113,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-two-options",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 184,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-four-mixed",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 275,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-labels-only",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 203,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-three",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 184,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "继续⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-missing-param",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 187,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-intervention-question-multi",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 275,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-awaiting-answer",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 59,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-idle",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 59,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-permission-step",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 59,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-permission-project",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 59,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-permission-safe-auto",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 59,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-height-one-line",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 59,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-error-network",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 371,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-error-recovered",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 371,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-light",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 718,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-light",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-multi",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 718,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "继续⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-multi",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-answered",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 288,
+          "y": 718,
+          "w": 80,
+          "h": 28
+        },
+        "tag": "button",
+        "text": "发送⏎"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-answered",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-approval-light",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 33,
+          "y": 221,
+          "w": 13,
+          "h": 13
+        },
+        "tag": "input",
+        "text": ""
+      },
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 33,
+          "y": 246,
+          "w": 13,
+          "h": 13
+        },
+        "tag": "input",
+        "text": ""
+      },
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 591,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 751,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-thinking-complete",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-creation",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-preview",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-creation",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-failure",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-generation",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-preview",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 343,
+          "y": 570,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-done",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 571,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-failed",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 571,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-light",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-batch",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-confirmed",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-unknown",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 811,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-auto-mode-reminder",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 93,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "agent-panel-v4/v4-auto-mode-reminder-dark",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 344,
+          "y": 93,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "发送"
+      },
+      {
+        "cell": "storyboard/sb-row-14-variants-drawer",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 192,
+          "y": 522,
+          "w": 51,
+          "h": 24
+        },
+        "tag": "button",
+        "text": "已采用"
+      },
+      {
+        "cell": "storyboard/sb-zone-09-playback-playing",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 673,
+          "y": 23,
+          "w": 19,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "上一镜"
+      },
+      {
+        "cell": "storyboard/sb-zone-10-playback-skipped",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 748,
+          "y": 23,
+          "w": 19,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "下一镜"
+      },
+      {
+        "cell": "storyboard/sb-zone-11-playback-empty",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 673,
+          "y": 23,
+          "w": 19,
+          "h": 18
+        },
+        "tag": "button",
+        "text": "上一镜"
+      },
+      {
+        "cell": "settings/privacy-01-idle",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 198,
+          "y": 242,
+          "w": 101,
+          "h": 32
+        },
+        "tag": "button",
+        "text": "删除全部"
+      },
+      {
+        "cell": "settings/privacy-02-exporting",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 198,
+          "y": 242,
+          "w": 101,
+          "h": 32
+        },
+        "tag": "button",
+        "text": "删除全部"
+      },
+      {
+        "cell": "settings/privacy-02-exporting",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 25,
+          "y": 434,
+          "w": 111,
+          "h": 32
+        },
+        "tag": "button",
+        "text": "正在打包…"
+      },
+      {
+        "cell": "settings/privacy-03-saved",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 198,
+          "y": 242,
+          "w": 101,
+          "h": 32
+        },
+        "tag": "button",
+        "text": "删除全部"
+      },
+      {
+        "cell": "settings/privacy-04-failed",
+        "rule": "UI-R06",
+        "rect": {
+          "x": 198,
+          "y": 242,
+          "w": 101,
+          "h": 32
+        },
+        "tag": "button",
+        "text": "删除全部"
+      }
+    ],
+    "UI-R36": [
+      {
+        "cell": "agent-panel-v4/v4-collapsed-done",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 298,
+          "y": 18,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "展开 Nomi · 刚做完",
+        "dy": 10
+      },
+      {
+        "cell": "agent-panel-v4/v4-collapsed-needs-confirm",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 298,
+          "y": 18,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "展开 Nomi · 等你确认 1 条",
+        "dy": 10
+      },
+      {
+        "cell": "agent-panel-v4/v4-collapsed-dark",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 298,
+          "y": 18,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "展开 Nomi · 等你确认 2 条",
+        "dy": 10
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 12,
+          "y": 82,
+          "w": 328,
+          "h": 52
+        },
+        "tag": "button",
+        "text": "编剧 · Kasdan/kasdan三幕结构拆场，给每场冲突与转折",
+        "dy": 9.5
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 12,
+          "y": 134,
+          "w": 328,
+          "h": 52
+        },
+        "tag": "button",
+        "text": "拆镜头/shots按导演方法论把剧本拆成分镜表",
+        "dy": 9.5
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 12,
+          "y": 186,
+          "w": 328,
+          "h": 52
+        },
+        "tag": "button",
+        "text": "节奏剪辑/pace按情绪曲线收紧或放松每一镜",
+        "dy": 9.5
+      },
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 12,
+          "y": 238,
+          "w": 328,
+          "h": 52
+        },
+        "tag": "button",
+        "text": "产品短片/product-ad15 秒电商产品片模板",
+        "dy": 9.5
+      },
+      {
+        "cell": "agent-panel-v4/v4-collapsed",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 529,
+          "y": 6,
+          "w": 30,
+          "h": 30
+        },
+        "tag": "button",
+        "text": "展开 Nomi · 等你确认 1 条",
+        "dy": 10
+      },
+      {
+        "cell": "storyboard/sb-zone-01-anchors-collapsed",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 13,
+          "y": 45,
+          "w": 99,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "林薇已生成",
+        "dy": 5.8
+      },
+      {
+        "cell": "storyboard/sb-zone-01-anchors-collapsed",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 242,
+          "y": 45,
+          "w": 102,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "旧怀表未生成",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-01-anchors-collapsed",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 352,
+          "y": 45,
+          "w": 114,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "全片风格不生成图",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-03-anchor-state-matrix",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 13,
+          "y": 45,
+          "w": 102,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "未生成未生成",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-03-anchor-state-matrix",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 123,
+          "y": 45,
+          "w": 102,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "生成中生成中",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-03-anchor-state-matrix",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 233,
+          "y": 45,
+          "w": 110,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "失败生成失败",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-03-anchor-state-matrix",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 461,
+          "y": 45,
+          "w": 102,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "已锁定已生成",
+        "dy": 5.8
+      },
+      {
+        "cell": "storyboard/sb-zone-03-anchor-state-matrix",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 571,
+          "y": 45,
+          "w": 110,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "仅文字不生成图",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 13,
+          "y": 86,
+          "w": 99,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "林薇已生成",
+        "dy": 5.8
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 242,
+          "y": 86,
+          "w": 102,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "旧怀表未生成",
+        "dy": 8.8
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R36",
+        "rect": {
+          "x": 352,
+          "y": 86,
+          "w": 114,
+          "h": 48
+        },
+        "tag": "button",
+        "text": "全片风格不生成图",
+        "dy": 8.8
+      }
+    ],
+    "UI-R32": [
+      {
+        "cell": "agent-panel-v4/v4-composer-skill-popover",
+        "rule": "UI-R32",
+        "rect": {
+          "x": 12,
+          "y": 290,
+          "w": 328,
+          "h": 35
+        },
+        "tag": "button",
+        "text": "探索更多新建 · 管理",
+        "gap": 6
+      }
+    ],
+    "UI-R10": [
+      {
+        "cell": "agent-panel-v4/v4-panel-error-network",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-error-network",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-error-recovered",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-error-recovered",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-light",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-light",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-multi",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-multi",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-answered",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-question-answered",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-generation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-generation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-approval-light",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-approval-light",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-creation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-flow-preview",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-thinking-streaming",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-thinking-streaming",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-thinking-complete",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-thinking-complete",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-creation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-creation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-generation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-generation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-preview",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-preview",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-running",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-running",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-creation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-creation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-failure",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-wired-failure",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-running",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-running",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-generation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-generation",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-preview",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 338,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-empty-preview",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 361,
+          "y": 14,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-done",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-done",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-failed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/b2c-process-failed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-light",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-light",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-batch",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-batch",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-confirmed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-confirmed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-unknown",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 339,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "历史会话",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "agent-panel-v4/v4-panel-spend-unknown",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 362,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "收起面板",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-01-draft-inherited-aspect",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-01-draft-inherited-aspect",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-01-draft-inherited-aspect",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-02-aspect-override-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-02-aspect-override-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-02-aspect-override-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-03-aspect-override-1-1",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-03-aspect-override-1-1",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-03-aspect-override-1-1",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-05-missing-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-05-missing-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-05-missing-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-06-generating",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-06-generating",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-06-generating",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-07-failed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-07-failed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-07-failed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-08-done",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-08-done",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-08-done",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-09-locked",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-09-locked",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-09-locked",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-10-skipped",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-10-skipped",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-10-skipped",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-11-ref-changed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-11-ref-changed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-11-ref-changed",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-13-row-menu",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-13-row-menu",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-13-row-menu",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-12-selected-dragover",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-12-selected-dragover",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-12-selected-dragover",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-15-image-shot",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-15-image-shot",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-15-image-shot",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-14-variants-drawer",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-14-variants-drawer",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-14-variants-drawer",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-16-script-source-original",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-16-script-source-original",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-16-script-source-original",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-row-17-script-source-edited",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-row-17-script-source-edited",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-row-17-script-source-edited",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-slot-02-first-frame-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-slot-02-first-frame-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-slot-02-first-frame-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-slot-01-no-references",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-slot-01-no-references",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-slot-01-no-references",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-slot-05-mixed-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-slot-05-mixed-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-slot-05-mixed-required",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-slot-03-first-last-frames",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-slot-03-first-last-frames",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-slot-03-first-last-frames",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-slot-04-omni-stacked",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-slot-06-edit-capacity",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 13,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-slot-06-edit-capacity",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 32,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-slot-06-edit-capacity",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 12,
+          "y": 48,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 50,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 69,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 85,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 321,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 340,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 2",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 356,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 592,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 611,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 3",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 627,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 898,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 917,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 4",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 933,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 1169,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 1188,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 5",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-05-scene-groups",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 1204,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 50,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 69,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 85,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 321,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 340,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 2",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 356,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 592,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 611,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 3",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 627,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 898,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 917,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 4",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 933,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 1169,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 1188,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 5",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-06-selection-toolbar",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 1204,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 50,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 69,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 85,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 321,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 340,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 2",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 356,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 592,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 611,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 3",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 627,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 898,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 917,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 4",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 933,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 1169,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 1188,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 5",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-07-insert-line",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 1204,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 27,
+          "y": 200,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 28,
+          "y": 219,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 26,
+          "y": 235,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 27,
+          "y": 471,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 28,
+          "y": 490,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 2",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 26,
+          "y": 506,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 27,
+          "y": 742,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 28,
+          "y": 761,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 3",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 26,
+          "y": 777,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 27,
+          "y": 1048,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 28,
+          "y": 1067,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 4",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 26,
+          "y": 1083,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 27,
+          "y": 1319,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 28,
+          "y": 1338,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 5",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-08-screen-composite",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 26,
+          "y": 1354,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 50,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 69,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 85,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 321,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 340,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 2",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 356,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 592,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 611,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 3",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 627,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 898,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 917,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 4",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 933,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 1169,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 1188,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 5",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-13-uniform-9-16",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 1204,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 50,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 69,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 1",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 85,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 258,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 277,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 2",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 293,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 466,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 485,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 3",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 501,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 709,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 728,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 4",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 744,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 14,
+          "y": 917,
+          "w": 15,
+          "h": 15
+        },
+        "tag": "button",
+        "text": "拖动调整镜头顺序",
+        "w": 15,
+        "h": 15
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 15,
+          "y": 936,
+          "w": 12,
+          "h": 12
+        },
+        "tag": "input",
+        "text": "本次跳过镜 5",
+        "w": 12,
+        "h": 12
+      },
+      {
+        "cell": "storyboard/sb-zone-12-uniform-16-9",
+        "rule": "UI-R10",
+        "rect": {
+          "x": 13,
+          "y": 952,
+          "w": 16,
+          "h": 16
+        },
+        "tag": "button",
+        "text": "镜头操作",
+        "w": 16,
+        "h": 16
+      }
+    ],
+    "UI-R07": [
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R07",
+        "rect": {
+          "x": 33,
+          "y": 221,
+          "w": 13,
+          "h": 13
+        },
+        "tag": "input",
+        "text": ""
+      },
+      {
+        "cell": "agent-panel-v4/v4-rendering",
+        "rule": "UI-R07",
+        "rect": {
+          "x": 33,
+          "y": 246,
+          "w": 13,
+          "h": 13
+        },
+        "tag": "input",
+        "text": ""
+      },
+      {
+        "cell": "primitives-surfaces/ps-07-modal",
+        "rule": "UI-R07",
+        "rect": {
+          "x": 901,
+          "y": 369,
+          "w": 28,
+          "h": 28
+        },
+        "tag": "button",
+        "text": ""
+      },
+      {
+        "cell": "primitives-surfaces/ps-11-confirm-dialog",
+        "rule": "UI-R07",
+        "rect": {
+          "x": 871,
+          "y": 449,
+          "w": 28,
+          "h": 28
+        },
+        "tag": "button",
+        "text": ""
+      }
+    ],
+    "UI-R23": [
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 93,
+          "y": 43,
+          "w": 24,
+          "h": 18
+        },
+        "tag": "strong",
+        "text": "41%",
+        "ratio": 1.56,
+        "need": 4.5,
+        "size": 12,
+        "fg": "rgb(201, 201, 201)",
+        "opacity": 1
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 93,
+          "y": 193,
+          "w": 60,
+          "h": 18
+        },
+        "tag": "span",
+        "text": "本线程花费",
+        "ratio": 1.56,
+        "need": 4.5,
+        "size": 12,
+        "fg": "rgb(201, 201, 201)",
+        "opacity": 1
+      },
+      {
+        "cell": "agent-panel-v4/v4-dark",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 159,
+          "y": 193,
+          "w": 33,
+          "h": 18
+        },
+        "tag": "span",
+        "text": "¥0.83",
+        "ratio": 1.56,
+        "need": 4.5,
+        "size": 12,
+        "fg": "rgb(201, 201, 201)",
+        "opacity": 1
+      },
+      {
+        "cell": "agent-panel-v4/v4-spend-params-collapsed-dark",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 44,
+          "y": 261,
+          "w": 18,
+          "h": 17
+        },
+        "tag": "span",
+        "text": "1/4",
+        "ratio": 1.56,
+        "need": 4.5,
+        "size": 11,
+        "fg": "rgb(201, 201, 201)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 26,
+          "y": 57,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "待生成",
+        "ratio": 2.85,
+        "need": 4.5,
+        "size": 10,
+        "fg": "rgb(134, 142, 150)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 26,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "待生成",
+        "ratio": 3.32,
+        "need": 4.5,
+        "size": 10,
+        "fg": "rgb(255, 255, 255)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 83,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "排队中",
+        "ratio": 1.06,
+        "need": 4.5,
+        "size": 10,
+        "fg": "rgb(255, 255, 255)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 139,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "已完成",
+        "ratio": 1.06,
+        "need": 4.5,
+        "size": 10,
+        "fg": "rgb(255, 255, 255)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 196,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "需确认",
+        "ratio": 1.06,
+        "need": 4.5,
+        "size": 10,
+        "fg": "rgb(255, 255, 255)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 252,
+          "y": 110,
+          "w": 20,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "失败",
+        "ratio": 1.06,
+        "need": 4.5,
+        "size": 10,
+        "fg": "rgb(255, 255, 255)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-02-design-badge",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 28,
+          "y": 41,
+          "w": 22,
+          "h": 18
+        },
+        "tag": "span",
+        "text": "草稿",
+        "ratio": 2.85,
+        "need": 4.5,
+        "size": 11,
+        "fg": "rgb(134, 142, 150)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-02-design-badge",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 28,
+          "y": 95,
+          "w": 23,
+          "h": 18
+        },
+        "tag": "span",
+        "text": "Pro",
+        "ratio": 1.06,
+        "need": 4.5,
+        "size": 11,
+        "fg": "rgb(255, 255, 255)",
+        "opacity": 1
+      },
+      {
+        "cell": "primitives-surfaces/ps-02-design-badge",
+        "rule": "UI-R23",
+        "rect": {
+          "x": 81,
+          "y": 95,
+          "w": 42,
+          "h": 18
+        },
+        "tag": "span",
+        "text": "v0.21.0",
+        "ratio": 3.13,
+        "need": 4.5,
+        "size": 11,
+        "fg": "rgb(134, 142, 150)",
+        "opacity": 1
+      }
+    ],
+    "UI-R24": [
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R24",
+        "rect": {
+          "x": 26,
+          "y": 57,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "待生成",
+        "size": 10
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R24",
+        "rect": {
+          "x": 26,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "待生成",
+        "size": 10
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R24",
+        "rect": {
+          "x": 83,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "排队中",
+        "size": 10
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R24",
+        "rect": {
+          "x": 139,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "已完成",
+        "size": 10
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R24",
+        "rect": {
+          "x": 196,
+          "y": 110,
+          "w": 31,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "需确认",
+        "size": 10
+      },
+      {
+        "cell": "primitives-surfaces/ps-01-status-badge-tones",
+        "rule": "UI-R24",
+        "rect": {
+          "x": 252,
+          "y": 110,
+          "w": 20,
+          "h": 16
+        },
+        "tag": "span",
+        "text": "失败",
+        "size": 10
+      }
+    ],
+    "UI-R09": [
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      },
+      {
+        "cell": "primitives-surfaces/ps-09-anchored-popover",
+        "rule": "UI-R09",
+        "tag": "div",
+        "text": "参考强度越高越贴近参考图的构图与配色。",
+        "rect": {
+          "x": 8,
+          "y": 109,
+          "w": 260,
+          "h": 68
+        },
+        "focusVisible": true
+      }
+    ],
+    "UI-R16-clipped": [
+      {
+        "cell": "primitives-surfaces/ps-10-tooltip",
+        "rule": "UI-R16-clipped",
+        "rect": {
+          "x": 201,
+          "y": 47,
+          "w": 1,
+          "h": 1
+        },
+        "tag": "span",
+        "text": "导出为 MP4",
+        "full": "导出为 MP4"
+      },
+      {
+        "cell": "primitives-surfaces/ps-10-tooltip",
+        "rule": "UI-R16-clipped",
+        "rect": {
+          "x": 263,
+          "y": 135,
+          "w": 1,
+          "h": 1
+        },
+        "tag": "span",
+        "text": "正在导出，结束后可再次点击",
+        "full": "正在导出，结束后可再次点击"
+      },
+      {
+        "cell": "primitives-surfaces/ps-10-tooltip",
+        "rule": "UI-R16-clipped",
+        "rect": {
+          "x": 222,
+          "y": 306,
+          "w": 1,
+          "h": 1
+        },
+        "tag": "span",
+        "text": "黄昏的海边，少年逆光走向镜头。手持轻微晃动，暖色调，浅景深。",
+        "full": "黄昏的海边，少年逆光走向镜头。手持轻微晃动，暖色调，浅景深。"
+      }
+    ]
+  },
+  "gaps": {
+    "2": 242,
+    "5": 8,
+    "6": 2055,
+    "10": 284
+  },
+  "shotsTaken": {},
+  "interactive": 1268,
+  "labelVariants": [
+    {
+      "label": "Skill",
+      "variants": 3,
+      "kinds": [
+        {
+          "sig": "28|6px|rgba(0, 0, 0, 0)|oklab(0.32 0.00173648 0.00984808)|12px|400|0px",
+          "cellCount": 39,
+          "sample": [
+            "agent-panel-v4/v4-composer-awaiting-answer",
+            "agent-panel-v4/v4-composer-idle"
+          ]
+        },
+        {
+          "sig": "28|6px|oklab(0.97 0.000520944 0.00295442)|oklab(0.32 0.00173648 0.00984808)|12px|400|0px",
+          "cellCount": 2,
+          "sample": [
+            "agent-panel-v4/v4-composer-reference",
+            "agent-panel-v4/v4-flow-creation"
+          ]
+        },
+        {
+          "sig": "28|6px|rgba(0, 0, 0, 0)|oklab(0.84 0.000522935 0.00597717)|12px|400|0px",
+          "cellCount": 2,
+          "sample": [
+            "agent-panel-v4/v4-dark",
+            "agent-panel-v4/v4-auto-mode-reminder-dark"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "GPT-5.6",
+      "variants": 2,
+      "kinds": [
+        {
+          "sig": "28|6px|rgba(0, 0, 0, 0)|oklab(0.32 0.00173648 0.00984808)|12px|400|0px",
+          "cellCount": 28,
+          "sample": [
+            "agent-panel-v4/v4-composer-awaiting-answer",
+            "agent-panel-v4/v4-composer-idle"
+          ]
+        },
+        {
+          "sig": "28|6px|rgba(0, 0, 0, 0)|oklab(0.84 0.000522935 0.00597717)|12px|400|0px",
+          "cellCount": 2,
+          "sample": [
+            "agent-panel-v4/v4-dark",
+            "agent-panel-v4/v4-auto-mode-reminder-dark"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "01",
+      "variants": 2,
+      "kinds": [
+        {
+          "sig": "17|6px|oklab(0.94 0.000520944 0.00295442)|oklab(0.5 0.00173648 0.00984808)|11px|400|0px",
+          "cellCount": 22,
+          "sample": [
+            "storyboard/sb-row-01-draft-inherited-aspect",
+            "storyboard/sb-row-02-aspect-override-16-9"
+          ]
+        },
+        {
+          "sig": "17|6px|oklab(0.18 0.00173648 0.00984808 / 0.64)|oklab(1 0 0)|11px|400|0px",
+          "cellCount": 5,
+          "sample": [
+            "storyboard/sb-row-06-generating",
+            "storyboard/sb-row-08-done"
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "UI-R10-spaced": {
+      "count": 197,
+      "cells": 65
+    },
+    "UI-R06": {
+      "count": 54,
+      "cells": 48
+    },
+    "UI-R36": {
+      "count": 19,
+      "cells": 8
+    },
+    "UI-R32": {
+      "count": 1,
+      "cells": 1
+    },
+    "UI-R10": {
+      "count": 212,
+      "cells": 56
+    },
+    "UI-R07": {
+      "count": 4,
+      "cells": 3
+    },
+    "UI-R23": {
+      "count": 13,
+      "cells": 4
+    },
+    "UI-R24": {
+      "count": 6,
+      "cells": 1
+    },
+    "UI-R09": {
+      "count": 10,
+      "cells": 1
+    },
+    "UI-R16-clipped": {
+      "count": 3,
+      "cells": 1
+    }
+  }
+}

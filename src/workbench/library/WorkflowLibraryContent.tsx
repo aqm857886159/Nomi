@@ -1,8 +1,8 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconDeviceFloppy, IconPencil, IconRoute, IconStar, IconStarFilled, IconX } from '@tabler/icons-react'
+import { IconPencil, IconRoute, IconStar, IconStarFilled, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { DesignEmptyState, DesignModal, DesignSearchInput, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
+import { DecisionBar, DesignEmptyState, DesignModal, DesignSearchInput, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { notify } from '../../ui/notificationPolicy'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
@@ -216,16 +216,13 @@ function WorkflowEditDialog({
           onChange={(event) => setTags(event.target.value)}
         />
         {error ? <p className="m-0 text-micro text-nomi-danger">{error}</p> : null}
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" className="inline-flex h-8 items-center gap-1 rounded-full border-0 bg-transparent px-3 text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={onClose}>
-            <IconX size={14} stroke={1.8} aria-hidden="true" />
-            {t('libraries.workflow.cancel')}
-          </button>
-          <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-full border-0 bg-nomi-ink px-3.5 text-caption font-medium text-nomi-paper hover:bg-nomi-accent" onClick={save}>
-            <IconDeviceFloppy size={14} stroke={1.8} aria-hidden="true" />
-            {t('libraries.workflow.save')}
-          </button>
-        </div>
+        <DecisionBar
+          className="pt-1"
+          cancelLabel={t('libraries.workflow.cancel')}
+          onCancel={onClose}
+          primaryLabel={t('libraries.workflow.save')}
+          onPrimary={save}
+        />
       </div>
     </DesignModal>
   )
