@@ -1,3 +1,4 @@
+/* global process, structuredClone */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import os from 'node:os'
@@ -13,7 +14,7 @@ function isolatedEnv() {
 }
 
 test('parses unique MCP headers including dotted and quoted names', () => {
-  const config = '[mcp_servers.node_repl]\ncommand="x"\n[mcp_servers.node_repl]\n[mcp_servers."team.tools"]\n[mcp_servers."quoted\\\"name"]\n'
+  const config = '[mcp_servers.node_repl]\ncommand="x"\n[mcp_servers.node_repl]\n[mcp_servers."team.tools"]\n[mcp_servers."quoted\\"name"]\n'
   assert.deepEqual(parseMcpServerNames(config), ['node_repl', 'team.tools', 'quoted"name'])
 })
 
