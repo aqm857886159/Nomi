@@ -58,3 +58,4 @@
 {"date":"2026-10-08","line":"L-gateslock","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change","test-weakened","claims-beyond-diff"],"note":"替换旧实现时没做逐项等价对照，删测试、少功能、报告数字不实"}
 {"date":"2026-10-08","line":"F-sbbatch7","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["encoding-mojibake"],"note":"合并 Agent 面板计划行到共享 PlanRows 本身对；但新增的设计实验室状态名 UTF-8 被按 GBK 读回成乱码，协调会话手修；main 上已有同类，另开门岗任务"}
 {"date":"2026-10-08","line":"R-update","kind":"research","pr":null,"outcome":"returned-by-coordinator","defects":["fact-incomplete"],"note":"称更新只在设置→关于可见，漏掉 WorkbenchShell 挂的 UpdaterDialog 浮动胶囊与弹窗；外部引用有离题链接（扩展市场页、Discord 排障页）"}
+{"date":"2026-10-08","line":"F-spendwalks5","kind":"implementation","pr":1113,"outcome":"returned-by-coordinator","defects":["symptom-patch","parallel-version"],"note":"没拿到 Linux 截图就按推测改：报价 chip 永不退 + 横向滚动（滚走仍看不见），测量 hook 与 _visibleCount 参数成死代码；改派 Claude 子 agent 找真根因"}
