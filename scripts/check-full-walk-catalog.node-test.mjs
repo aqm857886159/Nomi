@@ -23,6 +23,12 @@ test('an owner symbol that is not declared in its file is caught', () => {
   assert.match(check({ ...real, journeys }).join('\n'), /没有声明 noSuchNarrator/)
 })
 
+test('duplicate playbook scripts are caught so script numbers stay unique', () => {
+  const playbooks = clone(FULL_WALK_PLAYBOOKS)
+  playbooks[1].script = playbooks[0].script
+  assert.match(check({ ...real, playbooks }).join('\\n'), /script 重复/)
+})
+
 test('a journey without any script is caught', () => {
   const journeys = clone(FULL_WALK_JOURNEYS)
   journeys[1].scripts = []
