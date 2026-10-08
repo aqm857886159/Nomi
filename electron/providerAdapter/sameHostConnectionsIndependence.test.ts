@@ -167,11 +167,12 @@ describe("同一 Base URL 下的三条独立连接（issue #831）", () => {
     const pick = (state: Record<string, unknown>) => {
       const row = (state.vendors as Array<Record<string, unknown>>).find((v) => v.key === HOST_KEY)!;
       // 身份/血统/连接参数这几格才是「迁移」会动的东西；`hasApiKey`、
-      // `credentialVerificationPending` 是凭据投影，每次写盘都会重算，与本改动无关，
+      // `credentialVerificationPending`、`credentialMaterialSaved` 是凭据投影，每次写盘都会重算，与本改动无关，
       // 把它们算进来会让这条断言测的是别的东西（假红）。
       const {
         hasApiKey: _hasApiKey,
         credentialVerificationPending: _pending,
+        credentialMaterialSaved: _materialSaved,
         ...identity
       } = row;
       return identity;
