@@ -91,6 +91,14 @@ export const zhGenerationCommon = {
     missing: '图没加载出来',
     someMissing: '{{count}} 张图片加载失败，总览图中已留空',
   },
+  // 空节点「试试」：只搭结构（建好上下游空节点、切模式、聚焦提示词），不生成、不花钱。D-handles 样张，等用户拍板。
+  nodeTry: {
+    label: '试试',
+    image: { text: '文字生图', reference: '参考图生图' },
+    video: { firstFrame: '首帧生视频', firstLast: '首尾帧生视频', text: '文字生视频' },
+    text: { write: '写脚本', toImage: '拿它生图', toVideo: '拿它生视频' },
+    clip: { hint: '把视频节点连进来' },
+  },
   nodeEmpty: {
     derivedReady: { title: '提示词已填好', description: '选中它，点 ↑ 才开始生成' },
     image: { title: '图片节点', description: '在下方输入提示词，点击生成。' },
@@ -544,6 +552,13 @@ export const zhGenerationCommon = {
         video: '视频',
         audio: '声音',
       },
+    },
+    // 左「+」：给这张卡加输入（判据 = 以本卡为目标；D-handles 样张，等用户拍板）。
+    addInput: {
+      title: '给它加输入',
+      fromAssets: '从素材库添加…',
+      pickOnCanvas: '在画布上点选',
+      notAccepted: '{{target}}节点不收{{source}}',
     },
     duplicateVariantHint: '带上游连线，不带结果',
     derivedTitle: '{{action}} · {{source}}',
@@ -1715,6 +1730,13 @@ export const enGenerationCommon = {
     missing: 'Image failed to load',
     someMissing: '{{count}} images failed to load; those cells were left blank in the overview',
   },
+  nodeTry: {
+    label: 'Try',
+    image: { text: 'Text to image', reference: 'From a reference image' },
+    video: { firstFrame: 'First frame to video', firstLast: 'First + last frame', text: 'Text to video' },
+    text: { write: 'Write a script', toImage: 'Make an image from it', toVideo: 'Make a video from it' },
+    clip: { hint: 'Connect video nodes' },
+  },
   nodeEmpty: {
     derivedReady: { title: 'Prompt ready', description: 'Select it and press ↑ to generate' },
     image: { title: 'Image node', description: 'Enter a prompt below, then generate.' },
@@ -2156,6 +2178,12 @@ export const enGenerationCommon = {
         video: 'video',
         audio: 'audio',
       },
+    },
+    addInput: {
+      title: 'Add input',
+      fromAssets: 'Add from Assets…',
+      pickOnCanvas: 'Pick on canvas',
+      notAccepted: '{{target}} nodes do not take {{source}}',
     },
     duplicateVariantHint: 'Keeps incoming links, not results',
     derivedTitle: '{{action}} · {{source}}',

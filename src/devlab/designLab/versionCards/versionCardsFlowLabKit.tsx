@@ -64,7 +64,7 @@ function sourceNode(input: { count: number; title: string; kind: 'image' | 'vide
   } as GenerationCanvasNode
 }
 
-function useLabLocale(locale: 'zh-CN' | 'en'): boolean {
+export function useLabLocale(locale: 'zh-CN' | 'en'): boolean {
   const [ready, setReady] = React.useState(i18n.language === locale)
   React.useLayoutEffect(() => {
     if (i18n.language === locale) { setReady(true); return undefined }
