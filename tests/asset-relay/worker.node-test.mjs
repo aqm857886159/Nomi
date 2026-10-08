@@ -15,7 +15,7 @@ function bucket() {
     async get(key) {
       const item = values.get(key);
       if (!item) return null;
-      return { body: new Response(item.bytes).body, customMetadata: item.customMetadata, writeHttpMetadata(headers) { headers.set("Content-Type", item.httpMetadata.contentType); } };
+      return { size: item.bytes.length, body: new Response(item.bytes).body, customMetadata: item.customMetadata, writeHttpMetadata(headers) { headers.set("Content-Type", item.httpMetadata.contentType); } };
     },
     async delete(key) { values.delete(key); },
     async list() { return { truncated: false, objects: [...values.entries()].map(([key, value]) => ({ key, size: value.bytes.length, customMetadata: value.customMetadata })) }; },
@@ -75,6 +75,30 @@ test("stores an allowed file and serves it until its lifecycle expiry", async ()
   assert.equal(usagePayload.objectCount, 1);
   assert.equal(usagePayload.storageBytes, 5);
   assert.equal(usagePayload.estimatedMonthlyStorageUsd, 0);
+});
+
+test("HEAD mirrors GET metadata without returning a body", async () => {
+  const e = env();
+  const form = new FormData();
+  form.append("file", new File(["hello"], "hello.wav", { type: "audio/wav" }));
+  const upload = await handler.fetch(new Request("https://assets.example/v1/assets", { method: "POST", headers: { Authorization: "Bearer secret" }, body: form }), e);
+  const payload = await upload.json();
+  const get = await handler.fetch(new Request(payload.url), e);
+  const head = await handler.fetch(new Request(payload.url, { method: "HEAD" }), e);
+  assert.equal(head.status, get.status);
+  assert.equal(head.headers.get("Content-Type"), get.headers.get("Content-Type"));
+  assert.equal(head.headers.get("Content-Length"), get.headers.get("Content-Length"));
+  assert.equal(head.headers.get("Cache-Control"), get.headers.get("Cache-Control"));
+  assert.equal(await head.text(), "");
+});
+
+test("HEAD uses the same expired and missing-object statuses as GET", async () => {
+  const e = env();
+  e.ASSETS.values.set("assets/expired", { bytes: new Uint8Array([1]), customMetadata: { expiresAt: "2020-01-01T00:00:00.000Z" }, httpMetadata: { contentType: "image/png" } });
+  const expired = await handler.fetch(new Request("https://assets.example/v1/assets/assets%2Fexpired", { method: "HEAD" }), e);
+  const missing = await handler.fetch(new Request("https://assets.example/v1/assets/assets%2Fmissing", { method: "HEAD" }), e);
+  assert.equal(expired.status, 404);
+  assert.equal(missing.status, 404);
 });
 
 test("blocks an upload that would exceed the configured storage guard", async () => {

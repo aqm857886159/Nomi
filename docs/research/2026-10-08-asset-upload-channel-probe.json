@@ -1,0 +1,1024 @@
+{
+  "generatedAt": "2026-10-07T20:16:38.322Z",
+  "timeoutMs": 8000,
+  "repetitions": 3,
+  "proxyConfigured": true,
+  "environment": {
+    "platform": "win32",
+    "node": "v22.15.0"
+  },
+  "results": [
+    {
+      "timestamp": "2026-10-07T20:16:39.728Z",
+      "channel": "litterbox",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 2044,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:41.772Z",
+      "channel": "litterbox",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 1755,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:43.527Z",
+      "channel": "litterbox",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 679,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:44.206Z",
+      "channel": "litterbox",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 671,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:44.878Z",
+      "channel": "litterbox",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 671,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:45.549Z",
+      "channel": "litterbox",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 667,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:46.216Z",
+      "channel": "litterbox",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 650,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:46.866Z",
+      "channel": "litterbox",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 607,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:47.473Z",
+      "channel": "litterbox",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 664,
+        "error": "HTTP 403: <!doctype html><html lang=\"en\"><meta charset=\"UTF-8\"><meta content=\"nofollow,noarchive,noindex\" name=\"robots\"><title>403 | Forbidden</title><meta content=\"width=device-width,initial-scale=1\" name=\"viewport\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta content=\"403 | Forbidden\" name=\"ti"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:16:48.137Z",
+      "channel": "tmpfiles",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 1,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 1611,
+        "url": "https://tmpfiles.org/dl/w6A6lt4c8Z7b/inline-q40v4r.png"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/w6A6lt4c8Z7b/inline-q40v4r.png",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2956,
+          "elapsedMs": 2214,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 896
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 3360
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:16:56.222Z",
+      "channel": "tmpfiles",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 2,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 1482,
+        "url": "https://tmpfiles.org/dl/weAhlA4G8TDs/inline-q40v4r.png"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/weAhlA4G8TDs/inline-q40v4r.png",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2956,
+          "elapsedMs": 2231,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 892
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 2882
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:03.709Z",
+      "channel": "tmpfiles",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 3,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 1401,
+        "url": "https://tmpfiles.org/dl/wJAtlY4c8Y8R/inline-q40v4r.png"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/wJAtlY4c8Y8R/inline-q40v4r.png",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2956,
+          "elapsedMs": 2095,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 814
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 2946
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:10.965Z",
+      "channel": "tmpfiles",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 1,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 3121,
+        "url": "https://tmpfiles.org/dl/wTA4lt4dEPUQ/inline-wjdbna.jpg"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/wTA4lt4dEPUQ/inline-wjdbna.jpg",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2956,
+          "elapsedMs": 2159,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 840
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 2892
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:19.977Z",
+      "channel": "tmpfiles",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 2,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 3279,
+        "url": "https://tmpfiles.org/dl/wzA6l24DEj7O/inline-wjdbna.jpg"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/wzA6l24DEj7O/inline-wjdbna.jpg",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2956,
+          "elapsedMs": 2120,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 857
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 3888
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:30.121Z",
+      "channel": "tmpfiles",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 3,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 2671,
+        "url": "https://tmpfiles.org/dl/weAqlm4kE3zc/inline-wjdbna.jpg"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/weAqlm4kE3zc/inline-wjdbna.jpg",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2956,
+          "elapsedMs": 2041,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 813
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 3980
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:39.627Z",
+      "channel": "tmpfiles",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 1,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 1669,
+        "url": "https://tmpfiles.org/dl/wXAAld4LEXNu/inline-a3lnwf.mp4"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/wXAAld4LEXNu/inline-a3lnwf.mp4",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2815,
+          "elapsedMs": 1977,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 823
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 2989
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:47.085Z",
+      "channel": "tmpfiles",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 2,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 1676,
+        "url": "https://tmpfiles.org/dl/wQAtlR4xpK6q/inline-a3lnwf.mp4"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/wQAtlR4xpK6q/inline-a3lnwf.mp4",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2815,
+          "elapsedMs": 1922,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 853
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 3159
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:17:54.696Z",
+      "channel": "tmpfiles",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 3,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 1546,
+        "url": "https://tmpfiles.org/dl/wOAZlF4Ipf5y/inline-a3lnwf.mp4"
+      },
+      "verification": {
+        "url": "https://tmpfiles.org/dl/wOAZlF4Ipf5y/inline-a3lnwf.mp4",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "bytes": 2815,
+          "elapsedMs": 2020,
+          "contentTypeOk": false,
+          "sizeOk": false
+        },
+        "headDirect": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 814
+        },
+        "headProxy": {
+          "ok": true,
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 3028
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:18:02.105Z",
+      "channel": "nomi-relay",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 1,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 5766,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404296121-23956e42-96e6-4111-807c-3df609a2816f-inline-q40v4r.png"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404296121-23956e42-96e6-4111-807c-3df609a2816f-inline-q40v4r.png",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "image/png",
+          "bytes": 200,
+          "elapsedMs": 1700,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 289
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1465
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:18:11.326Z",
+      "channel": "nomi-relay",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 8017,
+        "error": "超时"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:18:19.343Z",
+      "channel": "nomi-relay",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "elapsedMs": 8024,
+        "error": "超时"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:18:27.367Z",
+      "channel": "nomi-relay",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 1,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 6183,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404321996-4a390fb6-2d4e-40af-8c00-20297ac91b89-inline-wjdbna.jpg"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404321996-4a390fb6-2d4e-40af-8c00-20297ac91b89-inline-wjdbna.jpg",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "image/jpeg",
+          "bytes": 1502932,
+          "elapsedMs": 3866,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1492
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1481
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:18:40.389Z",
+      "channel": "nomi-relay",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 2,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 6287,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404335035-196829e0-5486-4035-bc97-378281c93a73-inline-wjdbna.jpg"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404335035-196829e0-5486-4035-bc97-378281c93a73-inline-wjdbna.jpg",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "image/jpeg",
+          "bytes": 1502932,
+          "elapsedMs": 5293,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1411
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1348
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:18:54.729Z",
+      "channel": "nomi-relay",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 3,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 6469,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404349650-7a804905-c1ae-413b-bc20-8564fa9cef66-inline-wjdbna.jpg"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404349650-7a804905-c1ae-413b-bc20-8564fa9cef66-inline-wjdbna.jpg",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "image/jpeg",
+          "bytes": 1502932,
+          "elapsedMs": 3919,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1500
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1522
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:19:08.139Z",
+      "channel": "nomi-relay",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 1,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 6072,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404362464-8dae8d6a-7d46-4860-9336-ff6227984ce0-inline-a3lnwf.mp4"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404362464-8dae8d6a-7d46-4860-9336-ff6227984ce0-inline-a3lnwf.mp4",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "video/mp4",
+          "bytes": 8459,
+          "elapsedMs": 1478,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 306
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1271
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:19:17.267Z",
+      "channel": "nomi-relay",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 2,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 5490,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404371170-ad8af529-2988-42e3-9eb3-907f38d4a31a-inline-a3lnwf.mp4"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404371170-ad8af529-2988-42e3-9eb3-907f38d4a31a-inline-a3lnwf.mp4",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "video/mp4",
+          "bytes": 8459,
+          "elapsedMs": 1900,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 292
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1341
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:19:26.291Z",
+      "channel": "nomi-relay",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 3,
+      "upload": {
+        "ok": true,
+        "elapsedMs": 5268,
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404379963-446fad53-cf7b-4678-935f-6e7c8acdb45e-inline-a3lnwf.mp4"
+      },
+      "verification": {
+        "url": "https://nomi-asset-relay.2373272608.workers.dev/v1/assets/assets%2F1791404379963-446fad53-cf7b-4678-935f-6e7c8acdb45e-inline-a3lnwf.mp4",
+        "get": {
+          "ok": true,
+          "status": 200,
+          "contentType": "video/mp4",
+          "bytes": 8459,
+          "elapsedMs": 1863,
+          "contentTypeOk": true,
+          "sizeOk": true
+        },
+        "headDirect": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 286
+        },
+        "headProxy": {
+          "ok": false,
+          "status": 404,
+          "contentType": "application/json; charset=utf-8",
+          "contentLength": null,
+          "elapsedMs": 1324
+        }
+      }
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "kie",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "apimart",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "apimart",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.032Z",
+      "channel": "apimart",
+      "asset": "png-64",
+      "mediaKind": "image",
+      "bytes": 200,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.033Z",
+      "channel": "apimart",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.033Z",
+      "channel": "apimart",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.033Z",
+      "channel": "apimart",
+      "asset": "jpeg-large",
+      "mediaKind": "image",
+      "bytes": 1502932,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.033Z",
+      "channel": "apimart",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 1,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.033Z",
+      "channel": "apimart",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 2,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    },
+    {
+      "timestamp": "2026-10-07T20:19:35.033Z",
+      "channel": "apimart",
+      "asset": "mp4-1s",
+      "mediaKind": "video",
+      "bytes": 8459,
+      "attempt": 3,
+      "upload": {
+        "ok": false,
+        "skipped": "未测：无 key"
+      },
+      "verification": null
+    }
+  ]
+}

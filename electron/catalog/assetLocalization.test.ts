@@ -331,20 +331,21 @@ describe("resolveLocalAsset (per strategy)", () => {
     expect(fileField).toBe("file");
   });
 
-  it("anon-chain falls through litterbox → tmpfiles when the first throws, returns the second's url", async () => {
+  it("anon-chain falls through tmpfiles → litterbox when the first throws, returns the second's url", async () => {
     const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
     const postMultipart = vi
       .fn()
-      // 1st call = litterbox (plain text) → throw (host down / rate-limited)
-      .mockRejectedValueOnce(new Error("素材上传失败(HTTP 503)：litterbox down"))
-      // 2nd call = tmpfiles (JSON) → success
-      .mockResolvedValueOnce({ status: "success", data: { url: "https://tmpfiles.org/77/clip.mp4" } });
+      // 1st call = tmpfiles (JSON) → throw (host down / rate-limited)
+      .mockRejectedValueOnce(new Error("素材上传失败(HTTP 503)：tmpfiles down"))
+      // 2nd call = litterbox (plain text) → success
+      .mockResolvedValueOnce("https://litter.catbox.moe/77-clip.mp4");
     const out = await resolveLocalAsset(localUrl("clip.mp4"), ANON_UPLOAD_CHAIN, "ignored", readMp4, vi.fn(), postMultipart);
-    expect(out).toBe("https://tmpfiles.org/dl/77/clip.mp4"); // tmpfiles, /dl/-transformed
+    expect(out).toBe("https://litter.catbox.moe/77-clip.mp4");
     expect(postMultipart).toHaveBeenCalledTimes(2);
-    // 1st attempt hit litterbox, 2nd hit tmpfiles
-    expect(postMultipart.mock.calls[0][0]).toBe(LITTERBOX_INGESTION.strategy === "upload-multipart" ? LITTERBOX_INGESTION.endpoint : "");
-    expect(postMultipart.mock.calls[1][0]).toBe("https://tmpfiles.org/api/v1/upload");
+    // 1st attempt hit tmpfiles, 2nd hit litterbox
+    expect(postMultipart.mock.calls[0][0]).toBe("https://tmpfiles.org/api/v1/upload");
+    if (LITTERBOX_INGESTION.strategy !== "upload-multipart") throw new Error("litterbox 必须是 multipart 上传通道");
+    expect(postMultipart.mock.calls[1][0]).toBe(LITTERBOX_INGESTION.endpoint);
   });
 
   // 2026-07-31：litterbox 官方允许 1h/12h/24h/72h（litterbox.catbox.moe/tools.php 核）。
@@ -357,20 +358,20 @@ describe("resolveLocalAsset (per strategy)", () => {
     expect(LITTERBOX_INGESTION.extraFields?.reqtype).toBe("fileupload")
   })
 
-  it("anon-chain uses the first host when it succeeds (tmpfiles not tried)", async () => {
+  it("anon-chain uses tmpfiles first when it succeeds (litterbox not tried)", async () => {
     const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
-    const postMultipart = vi.fn().mockResolvedValue("https://litter.catbox.moe/abc.mp4");
+    const postMultipart = vi.fn().mockResolvedValue({ status: "success", data: { url: "https://tmpfiles.org/abc/clip.mp4" } });
     const out = await resolveLocalAsset(localUrl("clip.mp4"), ANON_UPLOAD_CHAIN, "", readMp4, vi.fn(), postMultipart);
-    expect(out).toBe("https://litter.catbox.moe/abc.mp4");
-    expect(postMultipart).toHaveBeenCalledTimes(1); // litterbox succeeded, tmpfiles never tried
+    expect(out).toBe("https://tmpfiles.org/dl/abc/clip.mp4");
+    expect(postMultipart).toHaveBeenCalledTimes(1); // tmpfiles succeeded, litterbox never tried
   });
 
   it("anon-chain throws an honest error when ALL hosts fail", async () => {
     const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
     const postMultipart = vi
       .fn()
-      .mockRejectedValueOnce(new Error("litterbox 503"))
-      .mockRejectedValueOnce(new Error("tmpfiles 500"));
+      .mockRejectedValueOnce(new Error("tmpfiles 503"))
+      .mockRejectedValueOnce(new Error("litterbox 500"));
     await expect(
       resolveLocalAsset(localUrl("clip.mp4"), ANON_UPLOAD_CHAIN, "", readMp4, vi.fn(), postMultipart),
     ).rejects.toThrow(/所有免配置上传 host 都失败/);

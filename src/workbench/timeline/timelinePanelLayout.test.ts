@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { useWorkbenchStore } from '../workbenchStore'
-import { TIMELINE_PANEL_DEFAULT, TIMELINE_PANEL_MAX, TIMELINE_PANEL_MIN, clampTimelinePanelHeight } from './timelinePanelBounds'
+import { deriveTimelinePanelDefaultHeight, TIMELINE_PANEL_DEFAULT, TIMELINE_PANEL_MAX, TIMELINE_PANEL_MIN, clampTimelinePanelHeight } from './timelinePanelBounds'
 import { dockCollapsedByDefault, readDockCollapsed, writeDockCollapsed } from '../generation/dockCollapsePrefs'
 
 const source = fs.readFileSync(path.join(process.cwd(), 'src/workbench/timeline/TimelinePanel.tsx'), 'utf8')
@@ -120,14 +120,23 @@ describe('面板高度下限 = 只剩头部行', () => {
     const toolbarRow = 8 + (1 + 4 + 32 + 4 + 1) + 8
     const rulerRow = 22 + 6 // .workbench-timeline__ruler: h-[22px] mb-1.5
     const primaryTrackRow = 52 + 6 // TimelineTrack primary: min-h-[52px] mb-1.5
-    expect(TIMELINE_PANEL_DEFAULT).toBe(padding + toolbarRow + rulerRow + 2 * primaryTrackRow)
-    expect(TIMELINE_PANEL_DEFAULT).toBe(230)
+    expect(TIMELINE_PANEL_DEFAULT).toBe(padding + toolbarRow + rulerRow + 2 * primaryTrackRow + 10)
+    expect(TIMELINE_PANEL_DEFAULT).toBe(240)
     // 两条主轨装不下的那个旧值不许再回来。
     expect(TIMELINE_PANEL_DEFAULT).toBeGreaterThan(padding + toolbarRow + rulerRow + primaryTrackRow)
     // 默认值必须落在可拖区间里，否则一展开就被 clamp 成另一个数。
     expect(TIMELINE_PANEL_DEFAULT).toBeGreaterThanOrEqual(TIMELINE_PANEL_MIN)
     expect(TIMELINE_PANEL_DEFAULT).toBeLessThanOrEqual(TIMELINE_PANEL_MAX)
     expect(clampTimelinePanelHeight(TIMELINE_PANEL_DEFAULT)).toBe(TIMELINE_PANEL_DEFAULT)
+  })
+
+  it('derives one extra primary track from the same row geometry', () => {
+    const primaryTrackRow = 52 + 6
+    const padding = 12 + 16
+    const toolbarRow = 8 + (1 + 4 + 32 + 4 + 1) + 8
+    const rulerRow = 22 + 6
+    expect(deriveTimelinePanelDefaultHeight(3) - deriveTimelinePanelDefaultHeight(2)).toBe(primaryTrackRow)
+    expect(deriveTimelinePanelDefaultHeight(0)).toBe(padding + toolbarRow + rulerRow + 10)
   })
 
   it('钳制仍然守住上下限与默认值', () => {
