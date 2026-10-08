@@ -1,0 +1,39 @@
+{
+  "name": "画布高频位置投影",
+  "subject": "canvas.high-frequency-projection",
+  "lifecycle": "live-interaction",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "symbol": "handleNodesChange"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "handleNodesChange"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+      "symbol": "applyCanvasDragKernelPositionChanges"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
+      "symbol": "commitCanvasNodeDragStop"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeProjection.ts",
+      "symbol": "selectStableCanvasNodes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/hooks/useNodeRelationships.ts",
+      "symbol": "useNodeUsageCount"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-05",
+  "notes": "React Flow 的高频位置投影、拖动草稿与稳定节点派生共用一个渲染层边界。"
+}

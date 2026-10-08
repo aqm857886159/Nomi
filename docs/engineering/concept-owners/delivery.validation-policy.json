@@ -14,6 +14,18 @@
     {
       "path": "scripts/validation-policy.mjs",
       "symbol": "classifyValidationPolicy"
+    },
+    {
+      "path": "docs/engineering/test-routing.json",
+      "symbol": "spend-walks"
+    },
+    {
+      "path": "scripts/validation-policy.mjs",
+      "symbol": "isSpendSourcePath"
+    },
+    {
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "summarizeRows"
     }
   ],
   "forbidden_derivations": [],

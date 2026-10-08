@@ -26,7 +26,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../m
 import { bumpPersistRevision } from './canvasGuards'
 import { clearClipboard } from './canvasClipboard'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
-import { nodeRunOutcomePatch, type HeldNodeOutcome } from './nodeRunOutcome'
+import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
 
 /** 一次整写：哪扇门、带了什么。commit 按种类穷举处理，新加种类不处理就编译不过。 */
@@ -58,9 +58,6 @@ function readOutcome(landed: Readonly<Record<string, unknown>>): HeldNodeOutcome
 /** 生成结果 / 文本定稿才算「节点上落过付费结果」（撤销建节点时据此留下节点）；运行状态不算。 */
 const isPaidLanding = (outcome: HeldNodeOutcome | null) => outcome?.kind === 'result' || outcome?.kind === 'content'
 
-const layOutcomes = (node: GenerationCanvasNode, outcomes: readonly HeldNodeOutcome[]) =>
-  outcomes.reduce<GenerationCanvasNode>((current, outcome) => ({ ...current, ...nodeRunOutcomePatch(current, outcome) }), node)
-
 /**
  * 唯一的事实层规则：活着的节点按 `rule` 取活的事实；活的画布上没有、这次被带回来的节点，叠上它不在期间暂存的结局。
  */
@@ -77,7 +74,7 @@ export function settleNodeFacts(
     if (current) return rule(node, current)
     const pending = held[node.id]
     if (!pending?.length) return node
-    const landed = layOutcomes(node, pending)
+    const landed = reapplyLandedOutcomes(node, pending)
     returned.push({ node: landed, outcomes: pending })
     return landed
   })

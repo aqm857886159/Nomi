@@ -144,3 +144,14 @@ export type HeldNodeOutcome =
   | LandedNodeOutcome
   | Extract<NodeRunOutcome, { kind: 'status' }>
   | Extract<NodeRunOutcome, { kind: 'run-started' }>
+
+/** Reapply every system-owned outcome in arrival order when a node returns to the document. */
+export function reapplyLandedOutcomes(
+  node: GenerationCanvasNode,
+  outcomes: readonly HeldNodeOutcome[],
+): GenerationCanvasNode {
+  return outcomes.reduce<GenerationCanvasNode>(
+    (current, outcome) => ({ ...current, ...nodeRunOutcomePatch(current, outcome) }),
+    node,
+  )
+}
