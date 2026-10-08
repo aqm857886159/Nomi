@@ -1,0 +1,31 @@
+{
+  "name": "时间轴面板展开高度（默认值与上下限）",
+  "subject": "workbench.timeline-panel-height",
+  "lifecycle": "preference",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "derived",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/timeline/timelinePanelBounds.ts",
+    "symbol": "deriveTimelinePanelDefaultHeight"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "deriveTimelinePanelDefaultHeight"
+    },
+    {
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "clampTimelinePanelHeight"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/timeline/timelinePanelLayout.test.ts",
+  "allowed_consumers": [
+    "src/workbench/workbenchStore.ts",
+    "src/workbench/timeline/TimelineResizeHandle.tsx"
+  ],
+  "since": "2026-10-08",
+  "notes": "时间轴展开时的默认高度从内边距、工具栏、标尺、主轨行高和横向细滚动条占位派生（只此一处）；上下限与非法值回落也在这里。2026-10-08 夜跑发现默认高度漏算滚动条占位、视频轨被裁 5px，修复时收成本概念。收起 / 展开偏好归 workbench.dock-collapse。"
+}

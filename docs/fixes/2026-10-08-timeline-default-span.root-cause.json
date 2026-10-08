@@ -12,7 +12,8 @@
   "scope_paths": [
     "src/workbench/timeline/timelinePanelBounds.ts",
     "src/workbench/timeline/timelinePanelLayout.test.ts",
-    "tests/ux/layout-timeline-panel-span.walk.mjs"
+    "tests/ux/layout-timeline-panel-span.walk.mjs",
+    "src/workbench/workbenchStore.ts"
   ],
   "entry_points": [
     "workbenchStore initial timelinePanelHeight",
@@ -80,9 +81,9 @@
       "responsibility": "Own the complete vertical geometry formula, including the track viewport scrollbar reserve, and expose the single default used by all callers."
     },
     {
-      "path": "src/workbench/workbenchStore.ts",
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
       "symbol": "clampTimelinePanelHeight",
-      "responsibility": "Apply the shared default and bounds to initial state, invalid values, and user resize writes."
+      "responsibility": "Apply the shared default and bounds to invalid values and user resize writes; workbenchStore.setTimelinePanelHeight and TimelineResizeHandle both call it."
     }
   ],
   "same_class_entry_points": [
@@ -149,5 +150,14 @@
   "migration": "No persisted data migration is needed. Existing user-resized heights remain clamped as before; only the default and invalid-height fallback now include the scrollbar reserve.",
   "residual_risks": [
     "The 10px reserve is tied to the repository scrollbar-thin layout contract; if that CSS token changes, the bounds owner and geometry walk must be updated together."
-  ]
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-08",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/timeline/timelinePanelBounds.ts",
+    "tests": [
+      "src/workbench/timeline/timelinePanelLayout.test.ts",
+      "tests/ux/layout-timeline-panel-span.walk.mjs"
+    ]
+  }
 }
