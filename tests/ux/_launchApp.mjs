@@ -72,6 +72,27 @@ export function prepareIsolatedCatalog(settingsDir, { testedCatalogVersion = cur
   return { status: 'quarantined', catalogPath, quarantinePath, diskVersion, testedCatalogVersion }
 }
 
+/**
+ * 隔离 settings 里预埋的 catalog 有没有 safeStorage 加密的凭据。
+ *
+ * 夹具（agent-runtime-fixture / _mcpL2Fixture）在 Linux 上用 Chromium 的 basic 合成后端加密占位 key；
+ * 被测 App 若不用同一个后端起，就解不开它——模型在渲染层一律 `credential_locked`（「当前不可用」），
+ * 付费卡上一颗参数 chip 都没有（2026-10-08 Linux CI run 37795697410 的两条付费走查红，Windows 绿：
+ * Windows 的 DPAPI 不分后端，所以只在 Linux 暴露）。「加密用哪个后端」和「起 App 用哪个后端」原来是
+ * 两处各自决定的，这里把后者改成从盘上那份 catalog 推出来——写了加密凭据的隔离 profile 不可能再忘。
+ */
+export function isolatedCatalogHasSafeStorageCredentials(settingsDir) {
+  const catalogPath = path.join(settingsDir, 'model-catalog.json')
+  if (!fs.existsSync(catalogPath)) return false
+  let parsed
+  try {
+    parsed = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+  } catch {
+    return false
+  }
+  return Object.values(parsed?.apiKeysByVendor ?? {}).some((entry) => entry?.enc === 'safeStorage')
+}
+
 /** 仓库根：本文件在 <repo>/tests/ux/ 下。 */
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -320,7 +341,8 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @param {Record<string,string>} [options.initialLocalStorage] Existing product preferences for an isolated fixture (dev or packaged); omitted for first-run tests.
  * @param {string[]} [options.mainRequire] 主进程入口前加载的模块（绝对路径，走查仪表专用；见 mainRequireArgs；打包形态见 requireBeforePackagedMain）
  * @param {(win: import('playwright').Page) => Promise<void>} [options.observeWindow] Optional measurement observer
- * @param {boolean} [options.syntheticCredentialStorage=false]  仅供隔离目录里的非秘密测试凭据；Linux CI 使用 basic 后端
+ * @param {boolean} [options.syntheticCredentialStorage]  仅供隔离目录里的非秘密测试凭据；Linux CI 使用 basic 后端。
+ *   不传 = 隔离 catalog 里有 safeStorage 加密凭据就开（夹具加密时用的就是它）；显式 false 用于用户真实资料的拷贝
  * @returns {Promise<{app: import('playwright').ElectronApplication, win: import('playwright').Page,
  *   tempRoot: string, userDataDir: string, settingsDir: string, projectsDir: string, close: () => Promise<void>}>}
  */
@@ -334,7 +356,6 @@ export async function launchNomiApp(options = {}) {
     // 默认起开发构建；打包产物走查（如 mcp-client-activation）传装好的 .app 二进制。
     executablePath = require('electron'),
     waitForWindow = true,
-    syntheticCredentialStorage = false,
     allowUntrackedProcessForTest = false,
   } = options
 
@@ -342,7 +363,7 @@ export async function launchNomiApp(options = {}) {
   if (options.initialLocalStorage && !isolate) {
     throw new Error('initialLocalStorage requires an isolated Nomi profile')
   }
-  if (syntheticCredentialStorage && !isolate) {
+  if (options.syntheticCredentialStorage && !isolate) {
     throw new Error('syntheticCredentialStorage requires an isolated Nomi profile')
   }
   if (options.mainRequire?.length && !isolate) {
@@ -379,6 +400,10 @@ export async function launchNomiApp(options = {}) {
   // 想要干净 profile 的脚本自己在调用前 rmSync——语义留在看得见的地方。
   if (isolate) for (const dir of [userDataDir, settingsDir, projectsDir, capabilityDir]) fs.mkdirSync(dir, { recursive: true })
   if (isolate) prepareIsolatedCatalog(settingsDir, { testedCatalogVersion: options.testedCatalogVersion })
+  // 显式声明优先（core-smoke 的 profile-copy 刻意传 false：那份 catalog 是用户真实钥匙串加密的）；
+  // 没声明时由盘上的 catalog 决定，见 isolatedCatalogHasSafeStorageCredentials。
+  const syntheticCredentialStorage = options.syntheticCredentialStorage
+    ?? (isolate ? isolatedCatalogHasSafeStorageCredentials(settingsDir) : false)
 
   // 主入口之前要加载的模块：开发版拼成 `-r` 对；打包版不认 `-r`，改走调试口（见 requireBeforePackagedMain）。
   const preMainArgs = [

@@ -426,7 +426,10 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
       : {}),
   })
   const testNetworkGuardPath = path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')
-  const testNetworkMainRequire = [...new Set([testNetworkGuardPath, ...(mainRequire ?? [])])]
+  // 桌面机（Windows / macOS）上跑走查不许弹到用户面前、抢焦点：窗口建出来就在屏幕外（_offscreenWindows.cjs）。
+  // Linux CI 跑在无头显示上，本来就没人看，保持原样。
+  const offscreenWindows = process.platform === 'linux' ? [] : [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')]
+  const testNetworkMainRequire = [...new Set([testNetworkGuardPath, ...offscreenWindows, ...(mainRequire ?? [])])]
   const testNetworkRedirects = generationProvider === 'apimart'
     ? [{ from: 'https://api.apimart.ai', to: fixture.baseURL }]
     : generationProvider === 'higgsfield'
