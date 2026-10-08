@@ -208,6 +208,67 @@ describe("quit teardown lifecycle", () => {
     }
   });
 
+  it("gives desktop-lane-ipc the remaining budget when earlier drains are instant", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const errors: string[] = [];
+      const lane = vi.fn(() => new Promise<void>(() => undefined));
+      installQuitTeardown(app, {
+        disposeBackgroundLifecycle: vi.fn(),
+        stopDesktopCapabilityCore: vi.fn(),
+        disposeDesktopLaneIpc: lane,
+        abortAllActiveExports: vi.fn(() => 0),
+        onError: (stage) => errors.push(stage),
+        timeoutMs: 3000,
+      });
+      emit("will-quit");
+      for (let i = 0; i < 32; i += 1) await Promise.resolve();
+      expect(lane).toHaveBeenCalledOnce();
+      vi.advanceTimersByTime(2249);
+      await vi.runOnlyPendingTimersAsync();
+      expect(app.exit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(751);
+      await vi.runAllTimersAsync();
+      expect(errors).toContain("desktop-lane-ipc-timeout");
+      expect(app.exit).toHaveBeenCalledWith(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the remaining budget for desktop-lane-ipc when capability-core hangs", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const errors: string[] = [];
+      const lane = vi.fn(() => new Promise<void>(() => undefined));
+      installQuitTeardown(app, {
+        disposeBackgroundLifecycle: vi.fn(),
+        stopDesktopCapabilityCore: vi.fn(() => new Promise<void>(() => undefined)),
+        disposeDesktopLaneIpc: lane,
+        abortAllActiveExports: vi.fn(() => 0),
+        onError: (stage) => errors.push(stage),
+        timeoutMs: 3000,
+      });
+      emit("will-quit");
+      for (let i = 0; i < 32; i += 1) await Promise.resolve();
+      expect(lane).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(250);
+      for (let i = 0; i < 24; i += 1) await Promise.resolve();
+      expect(errors).toContain("capability-core-timeout");
+      expect(lane).toHaveBeenCalledOnce();
+      vi.advanceTimersByTime(2749);
+      await vi.runOnlyPendingTimersAsync();
+      expect(app.exit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      await vi.runAllTimersAsync();
+      expect(app.exit).toHaveBeenCalledWith(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([
     ["required completes", async (): Promise<void> => undefined, "quit"],
     ["required throws", async (): Promise<void> => { throw new Error("drain failed"); }, "quit"],
