@@ -13,7 +13,7 @@ const shots = ['shot-1', 'shot-2'].map((shotId, i) => ({ shotId, kind: 'video' a
 
 function addDirector(id: string, preview: Record<string, unknown>) {
   const node = { id, kind: 'director', title: '', position: { x: 0, y: 0 }, meta: { directorPreview: { revision: 'dplan-1', updatedAt: 1, ...preview } } } as unknown as GenerationCanvasNode
-  useGenerationCanvasStore.getState().restoreSnapshot({ ...useGenerationCanvasStore.getState(), nodes: [...useGenerationCanvasStore.getState().nodes, node], edges: [], groups: [] } as never)
+  useGenerationCanvasStore.getState().restoreSnapshot({ ...useGenerationCanvasStore.getState(), nodes: [...useGenerationCanvasStore.getState().nodes, node], edges: [], groups: [] } as never, 'project-a')
 }
 
 describe('V-3b spend gate on the real Agent landing stamps', () => {
@@ -23,7 +23,7 @@ describe('V-3b spend gate on the real Agent landing stamps', () => {
   beforeEach(async () => {
     project = createProjectSessionTestHarness(); await project.open('project-a')
     resetClientIdRegistry()
-    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] }, 'project-a')
     const landed = await materializeShots({ materializationOperationId: `canvas-landing:${RUN}`, runId: RUN, shots })
     nodeIds = Object.fromEntries(landed.bindings.map((b) => [b.shotId, b.nodeId]))
   })
@@ -78,7 +78,7 @@ describe('V-3b single-shot draft (no shot id): the not_referenced check still ap
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
     // 单镜草稿落地的节点只有 runId 章、没有 shotId。
     const nodeId = 'single-node'
-    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ id: nodeId, kind: 'video', title: '', position: { x: 0, y: 0 }, meta: { productionRunId: RUN } } as unknown as GenerationCanvasNode], edges: [], groups: [] } as never)
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ id: nodeId, kind: 'video', title: '', position: { x: 0, y: 0 }, meta: { productionRunId: RUN } } as unknown as GenerationCanvasNode], edges: [], groups: [] } as never, 'project-test')
     addDirector('d1', { status: 'ready', attach: 'video_ref', assetId: 'asset-pre', targetNodeId: nodeId })
     expect(directorPreviewBlocksOp({ operationId: RUN, candidateReferences: { '': ['other'] } }).blocks.map((b) => b.reason)).toEqual(['not_referenced'])
     expect(directorPreviewBlocksOp({ operationId: RUN, candidateReferences: { '': ['asset-pre'] } }).blocks).toEqual([])
