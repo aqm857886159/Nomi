@@ -67,8 +67,11 @@ try {
   const card = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)
   await card.waitFor({ state: 'visible', timeout: stationTimeout() }).catch(() => { throw new Error(`Project card ${projectId} is not rendered`) })
   await card.dispatchEvent('click')
-  // 等到「进了 studio」或「出现打开失败的提示」二者之一，不靠固定墙钟。
-  await win.waitForFunction(() => location.hash.includes('/studio') || /发送失败|项目恢复失败|project restore/i.test(document.body.innerText), null, { timeout: stationTimeout() })
+  // 两个具体信号赛跑：路由进了 studio，或失败横幅那一行出现（定位到那段文字本身，不扫整页文本）。
+  evidence.outcome = await Promise.any([
+    win.waitForURL((url) => url.hash.includes('/studio'), { timeout: stationTimeout() }).then(() => 'studio'),
+    win.getByText(/发送失败|项目恢复失败|project restore/i).first().waitFor({ state: 'visible', timeout: stationTimeout() }).then(() => 'failure-visible'),
+  ])
   evidence.url = win.url()
   evidence.bodyTail = (await win.locator('body').innerText()).slice(-2_000)
 } finally {
@@ -78,7 +81,7 @@ try {
 const allLogs = rendererLogText()
 const currentSessionLogs = allLogs.slice(allLogs.lastIndexOf('session-start'))
 evidence.logTail = currentSessionLogs.slice(-8_000)
-const visibleFailure = /发送失败|项目恢复失败|project restore/i.test(evidence.bodyTail || '')
+const visibleFailure = evidence.outcome === 'failure-visible' || /发送失败|项目恢复失败|project restore/i.test(evidence.bodyTail || '')
 const rawFailure = /project-restore-failed/.test(currentSessionLogs)
 const quarantined = fs.readdirSync(path.dirname(receiptPath))
   .some((name) => name.startsWith('project-agent-proposal-receipt.json.quarantined-'))
