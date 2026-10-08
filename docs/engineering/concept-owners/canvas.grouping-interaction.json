@@ -1,0 +1,67 @@
+{
+  "name": "画布分组交互",
+  "subject": "canvas.grouping-interaction",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/model/selectedGroup.ts",
+    "symbol": "resolveSelectedGroupId"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/model/selectedGroup.ts",
+      "symbol": "resolveSelectedGroupId"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/groupConnectionPorts.ts",
+      "symbol": "projectGroupConnectionPorts"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "symbol": "setGroupColor"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "handleGroupFramePointerDown"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "moveNodes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "removeGroupsEmptiedByNodeDeletion"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "setGroupColor"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "moveNodes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "cutSelectedNodes"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-05",
+  "notes": "分组选择、连接口、移动、删除后清理和剪切共同维护画布分组交互状态。"
+}
