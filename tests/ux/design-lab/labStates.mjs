@@ -57,6 +57,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasFrame/states'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-frame'),
   },
+  'canvas-handles': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasHandles/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'canvas-handles'),
+  },
   'canvas-grouping': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasGrouping'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-grouping'),
