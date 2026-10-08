@@ -11,7 +11,7 @@
 3. **语义被改**：被改函数的所有调用方（git grep / node scripts/door-map.mjs）是否仍按原语义使用；字段 / 返回值含义变了没；安全 / 花钱类开关是否仍由一个 owner 判断、拿不准按最严（fail closed）。
 4. **门岗被放宽**：scripts/check-* 、基线 / 白名单 / allowlist / ledger / baseline json、eslint 配置、workflow 有没有被放宽来让自己过；动了的话理由是否成立（有没有更早的设计意图被破坏——读该门岗的测试和 git log 看它为什么这样写）。
 5. **批量改动**：改了 >20 个文件的，抽样 ≥20% 且覆盖每种改法，逐个确认能执行到（测试真跑或 node --check + import 解析）。
-6. **并行版 / 死代码**：新实现是否同提交删了旧实现（P1）；有没有留下没人用的导出、字段、分支、i18n key。
+6. **并行版 / 死代码**：新实现是否同提交删了旧实现（P1）；有没有留下没人用的导出、字段、分支、i18n key。**新建的每个组件 / 模块**都要按功能（不只按名字）git grep 仓库里有没有同类既有实现——例如勾选列表、计划行、选择器、chip、弹层、确认卡（10-08 #1107 新建 PlanRows 而 Agent 面板计划卡仍自渲染一份，两轮评审都漏了）；有就是并行版，阻断。
 7. **CI 同款门岗**：在 worktree 里跑 Contracts 段（python3 锁挡就拿 package.json 里的内层命令）、typecheck、check:test-types、lint、改动目录 vitest；红的在干净 origin/main 上对照，区分「既有」与「本次引入」。
 8. **PR 正文 / 设计卡 / 根因合同**与 diff 是否一致（点名的文件、函数、证据真存在）。
 
