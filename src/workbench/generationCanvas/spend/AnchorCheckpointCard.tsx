@@ -25,16 +25,8 @@ type Props = {
   onRework: (shotIds: string[]) => void
 }
 
-function formatMoney(value: number, currency: string, language: string): string {
-  try {
-    return new Intl.NumberFormat(language, { style: 'currency', currency, maximumFractionDigits: 2 }).format(value)
-  } catch {
-    return `${currency} ${value.toFixed(2)}`
-  }
-}
-
 export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Props): JSX.Element {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
   const [zoomUrl, setZoomUrl] = React.useState<string | null>(null)
 
@@ -49,9 +41,7 @@ export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Pr
 
   const reworkMode = selected.size > 0
   // 说明行只在真有已知金额时才提金额；价格未知（今天的常态）就只说「都是你已经确认过的」，不出现预算两个字。
-  const note = model.approvedBudget === null
-    ? t('generationCommon.production.checkpoint.note', { count: model.shotCount })
-    : t('generationCommon.production.checkpoint.noteWithBudget', { budget: formatMoney(model.approvedBudget, model.budgetCurrency, i18n.language), count: model.shotCount })
+  const note = t('generationCommon.production.checkpoint.note', { count: model.shotCount })
 
   return (
     <>

@@ -342,9 +342,9 @@ export const zhOnboardingProviders = {
       pillUnsupported: '代理地址无效 · 未生效',
       pillLocalProxy: '检测到本地代理',
       hintSystem: '已探测到 {{url}} · 来自{{source}}',
-      hintSystemNone: '没探测到系统代理，当前直连。境外服务商和免费图床可能连不上。',
+      hintSystemNone: '没探测到系统代理，当前直连。境外服务商和公共图床可能连不上。',
       hintCustom: '只对 Nomi 生效，不改你的系统代理。支持 http:// https:// socks5://（也认 socks4://）',
-      hintOff: '所有请求直连。境外服务商与免费图床可能连不上，本机参考图会送不出去。',
+      hintOff: '所有请求直连。境外服务商与公共图床可能连不上，本机参考图会送不出去。',
       hintUnsupported:
         '这个代理地址解析不了，已按直连跑。请在「自定义」里填一个有效地址，如 http://127.0.0.1:7897 或 socks5://127.0.0.1:7897。',
       localProxyDetected:
@@ -424,12 +424,8 @@ export const zhOnboardingProviders = {
     // 「这台机器上到底存没存住这把 key」——从状态派生，不是一条文案分支（2026-09-17，W-17）。
     storedYes: '这台机器上已经存着 {{name}} 的密钥。',
     storedNo: '这台机器上还没有存 {{name}} 的密钥。',
-    // 「点这一下会发什么、花不花钱」——料源是主进程那份唯一的探测策略（T-MO-10，09-22 拍板）。
-    // 不知道就说不知道：**不许**在问不到的时候默认说「免费验证」。
-    probeCostFree: '保存时会用这把密钥发一次验证请求（只查权限，不生成内容）。',
-    probeCostPaid: '这家没有免费的验证端点：保存时会发一次最小的真实请求来验密钥，预计消耗 {{amount}} 额度。发之前会再问你一次。',
-    probeCostPaidUnpriced: '这家没有免费的验证端点：保存时会发一次最小的真实请求来验密钥，会消耗额度（这家还没填价，具体多少说不准）。发之前会再问你一次。',
-    probeCostUnknown: '暂时读不到这家的验证方式；保存前 Nomi 会先告诉你这一下花不花钱。',
+    // 「点这一下会发什么」——动作事实来自主进程探测策略；页面不作费用断言。
+    probeRequest: '保存后如需验证，Nomi 会用这把密钥发一次最小的真实请求；发之前会再问你一次。不确认也能保存，只是标为「未验证」。',
   },
   knownVendors: {
     apimart: {
@@ -441,7 +437,7 @@ export const zhOnboardingProviders = {
       tagline: '文本、图片与视频 · 可用模型以当前账户为准',
       credentialPlaceholder: '粘贴 Agnes API Key',
       credentialHint:
-        '在 Agnes 官方平台创建 API Key。部分模型需付费或单独开通；可用模型、价格和限额以当前账户为准。凭证本地加密存储。',
+        '在 Agnes 官方平台创建 API Key。部分模型需单独开通；可用模型和能力以当前账户为准。凭证本地加密存储。',
       promoText:
         'Agnes AI 提供 OpenAI 兼容的文本、图片与视频 API。公开模型清单不代表当前套餐均可调用。',
       promoCta: '打开 Agnes 平台',
@@ -461,8 +457,8 @@ export const zhOnboardingProviders = {
       promoCta: '打开 Higgsfield 控制台',
     },
     modelscope: {
-      tagline: '官方原生 · 绑定阿里云每天免费额度',
-      promoText: '魔搭社区由阿里达摩院运营，绑定阿里云账号后每天有免费推理额度。去官网拿 API Key。',
+      tagline: '官方原生 · 绑定阿里云账号',
+      promoText: '魔搭社区由阿里达摩院运营，绑定阿里云账号后可使用推理服务。去官网拿 API Key。',
       promoCta: '去魔搭注册',
     },
     volcengine: {
@@ -494,14 +490,14 @@ export const zhOnboardingProviders = {
       credentialHint:
         '⚠️ 标准模型 API 需「Enterprise-Shared（企业级-共享）」API Key；个人/Consumer key 会报「访问被拒绝（1014）」。登录 RunningHub → API 设置里拿。凭证本地加密存储。',
       promoText:
-        'RunningHub 聚合 355+ 主流模型（按量付费）。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
+        'RunningHub 聚合 355+ 主流模型。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
       promoCta: '去 RunningHub',
     },
     'volcengine-speech': {
       tagline: '官方原生 · 豆包语音 2.0 配音（自然语言情感控制）',
-      credentialHint: '需先开通豆包语音合成 2.0 + 付费音色；凭证本地加密存储、只在调用时使用。',
+      credentialHint: '需先开通豆包语音合成 2.0 + 指定音色；凭证本地加密存储、只在调用时使用。',
       promoText:
-        '火山「语音技术」官方（与方舟是不同控制台）。开通豆包语音合成 2.0 与付费音色后，拿 App ID 与 Access Token。',
+        '火山「语音技术」官方（与方舟是不同控制台）。开通豆包语音合成 2.0 与指定音色后，拿 App ID 与 Access Token。',
       promoCta: '去火山语音控制台',
       fields: {
         appId: { placeholder: '火山语音应用的 App ID', hint: '语音控制台 → 应用管理里的 App ID' },
@@ -512,23 +508,23 @@ export const zhOnboardingProviders = {
       tagline: '一个 token，解锁「元素拆解」（一张图拆成可编辑图层）',
       credentialPlaceholder: '粘贴 Replicate API Token（r8_…）',
       credentialHint:
-        '用于「元素拆解」(qwen-image-layered，约 $0.05/张，按量付费)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
+        '用于「元素拆解」(qwen-image-layered)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
       promoText:
-        'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，按量付费。',
+        'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token。',
       promoCta: '去 Replicate 拿 token',
     },
     fal: {
       tagline: '海外常用 · CDN 上传图片、视频和音频',
       credentialPlaceholder: '粘贴 fal.ai Key',
-      credentialHint: '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
+      credentialHint: '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型和可用区域以当前账户为准。凭证本地加密存储。',
       promoText: 'fal.ai 提供模型 API 与 CDN 文件上传。配置一个 Key 后，Nomi 可以把本地参考素材交给 fal 或其他支持公网 URL 的模型。',
       promoCta: '去 fal.ai 创建 Key',
     },
     runway: {
-      tagline: '海外视频 · 临时素材上传（需账户额度）',
+      tagline: '海外视频 · 临时素材上传（需账户配置）',
       credentialPlaceholder: '粘贴 Runway API Key',
-      credentialHint: '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户有可用 credits。凭证本地加密存储。',
-      promoText: 'Runway 的 ephemeral upload 直接返回 Runway 专用 URI，适合 Runway 自己的图像/视频生成链路；上传不等于模型额度免费。',
+      credentialHint: '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户已配置。凭证本地加密存储。',
+      promoText: 'Runway 的 ephemeral upload 直接返回 Runway 专用 URI，适合 Runway 自己的图像/视频生成链路；上传权限和模型调用是两件事。',
       promoCta: '去 Runway Developer',
     },
   },
@@ -610,7 +606,7 @@ export const zhOnboardingProviders = {
         session: { title: '建立接入会话', body: '助手说明了要接什么' },
         credential: { title: '你贴 Key', body: '在 Nomi 的安全页里，助手看不到' },
         proposal: { title: '找模型、挑模型', body: '读对方的模型列表，或由助手手填候选' },
-        certifying: { title: '试跑一次验证', body: '要花钱的话会先弹确认' },
+        certifying: { title: '试跑一次验证', body: '发出请求前会先弹确认' },
         listed: { title: '出现在上面的「已接入」里', body: '带一次真实产出当凭据' },
       },
       failedTitle: '没有接进来',
@@ -830,7 +826,7 @@ export const zhOnboardingProviders = {
       notFound: '这个地址上没有对应的接口（{{status}}）。多半是接入地址少写或多写了一段。',
       auth: '密钥被对方拒了（{{status}}）。密钥本身没错的话，可能是这个账号还没开通这个模型。',
       balance: '账户余额不足，对方拒绝了这次调用。',
-      quota: '触发了对方的频率或额度限制。这是暂时的，过一会儿重新验证通常就好。',
+      quota: '触发了对方的频率或服务限制。这是暂时的，过一会儿重新验证通常就好。',
       input: '请求被对方拒绝了（{{status}}）——我们猜的调用形状不合这家的规矩。改地址或换密钥都没用。',
       server: '对方服务器出错了（{{status}}），和你的配置无关。过一会儿重新验证。',
       network: '连不上这个地址。检查地址有没有写错，以及本机网络/代理。',
@@ -847,7 +843,7 @@ export const zhOnboardingProviders = {
       fixUrl: '改接入地址',
       fixKey: '换个密钥',
       retry: '重新验证',
-      topUp: '去充值',
+      topUp: '打开账户设置',
       selfConnect: '我自己接',
       manualSetup: '手动配置',
     },
@@ -921,14 +917,14 @@ export const zhOnboardingProviders = {
     authorizePending: '授权完成后稍候。',
     cancel: '取消',
     loggedInTitle: '已登录即梦',
-    credits: '· 积分 {{count}}',
+    credits: '· 已登录',
     loggedInBeforePremium:
-      '在生成画布选「即梦 Seedance 2.0（会员）」出视频。注意：免费试用已于 2026-05-01 结束，生成需即梦',
+      '在生成画布选「即梦 Seedance 2.0（会员）」出视频。生成需即梦会员资格；',
     loggedInAfterPremium:
-      '——非会员会被拒（光登录、光充积分不够）；部分模型首次使用还需先在 jimeng.jianying.com 网页端授权一次。',
+      '——仅登录还不够；部分模型首次使用还需先在 jimeng.jianying.com 网页端授权一次。',
     logout: '退出登录',
-    loginBeforeRequirement: '扫码登录你的即梦账号，用会员积分在 Nomi 出视频。',
-    premiumRequirement: '生成需高级会员（maestro vip）',
+    loginBeforeRequirement: '扫码登录你的即梦账号，在 Nomi 出视频。',
+    premiumRequirement: '生成需通过即梦会员资格验证（maestro vip）',
     loginAfterRequirement: '这一档。',
     starting: '发起中…',
     login: '扫码登录',
@@ -1133,7 +1129,7 @@ export const zhOnboardingProviders = {
       modelIdHint: '填一个脚本将要调用的真实 ID。',
       modelIdPlaceholder: '例如：new-image-model',
       modelKind: '模型类型',
-      draftNote: '继续后只会建立一条不可生成的草稿，不会抓文档、拉模型、调用 AI 或发起付费验证。脚本测试成功后保存；如果输入方式未知，再继续设置输入。',
+      draftNote: '继续后只会建立一条不可生成的草稿，不会抓文档、拉模型、调用 AI 或发起验证请求。脚本测试成功后保存；如果输入方式未知，再继续设置输入。',
       continue: '继续填写',
       unavailable: 'Nomi 后台暂时不支持建立脚本草稿，请重启应用后再试。',
       createFailed: '草稿保存失败：{{message}}',
@@ -1561,7 +1557,7 @@ export const enOnboardingProviders = {
       viewAll: 'View all',
       otherMethods: 'Other connection methods',
       comfyuiHint: 'Use ComfyUI workflows on this machine or your local network',
-      dreaminaHint: 'Use Dreamina Premium credits for Seedance 2.0 video',
+      dreaminaHint: 'Use Dreamina account access for Seedance 2.0 video',
       codexImageHint: 'Let Nomi use local Codex to generate images',
       otherWays: 'Other methods',
       dataSources: 'Data sources',
@@ -1597,11 +1593,11 @@ export const enOnboardingProviders = {
       pillLocalProxy: 'Local proxy detected',
       hintSystem: 'Detected {{url}} · from {{source}}',
       hintSystemNone:
-        'No system proxy detected — connecting directly. Overseas providers and free image hosts may be unreachable.',
+        'No system proxy detected — connecting directly. Overseas providers and public image hosts may be unreachable.',
       hintCustom:
         'Applies to Nomi only; your system proxy is untouched. http://, https:// and socks5:// are supported (socks4:// too).',
       hintOff:
-        'Everything connects directly. Overseas providers and free image hosts may be unreachable, and local reference images will fail to upload.',
+        'Everything connects directly. Overseas providers and public image hosts may be unreachable, and local reference images will fail to upload.',
       hintUnsupported:
         'That proxy address could not be parsed, so Nomi is connecting directly. Enter a valid address under Custom, e.g. http://127.0.0.1:7897 or socks5://127.0.0.1:7897.',
       localProxyDetected:
@@ -1679,10 +1675,7 @@ export const enOnboardingProviders = {
     saveFailed: 'Could not save: {{message}}',
     storedYes: 'A {{name}} key is stored on this machine.',
     storedNo: 'No {{name}} key is stored on this machine yet.',
-    probeCostFree: 'Saving sends one verification request with this key (it checks access only — nothing is generated).',
-    probeCostPaid: 'This provider has no free verification endpoint: saving sends one minimal real request to check the key, costing about {{amount}} in credits. You are asked once more before it goes out.',
-    probeCostPaidUnpriced: 'This provider has no free verification endpoint: saving sends one minimal real request to check the key, which spends credits (no price is on file, so the amount is unknown). You are asked once more before it goes out.',
-    probeCostUnknown: 'Nomi cannot read this provider’s verification method right now; it will tell you whether the check costs anything before sending it.',
+    probeRequest: 'After saving, if verification is needed, Nomi uses this key for one minimal real request; you are asked once more before it goes out. You can also save without confirming, and it stays marked unverified.',
   },
   knownVendors: {
     apimart: {
@@ -1714,9 +1707,9 @@ export const enOnboardingProviders = {
       promoCta: 'Open Higgsfield console',
     },
     modelscope: {
-      tagline: 'Official access · Daily free quota with an Alibaba Cloud account',
+      tagline: 'Official access · Link an Alibaba Cloud account',
       promoText:
-        'ModelScope is operated by Alibaba DAMO Academy and provides a daily free inference quota after linking an Alibaba Cloud account. Get an API Key from the official site.',
+        'ModelScope is operated by Alibaba DAMO Academy. Link an Alibaba Cloud account to use its inference service, then get an API Key from the official site.',
       promoCta: 'Register with ModelScope',
     },
     volcengine: {
@@ -1749,15 +1742,15 @@ export const enOnboardingProviders = {
       credentialHint:
         'The standard model API requires an Enterprise-Shared API Key. Personal or Consumer keys return access denied error 1014. Get the key from API Settings in RunningHub. Credentials are encrypted locally.',
       promoText:
-        'RunningHub provides 355+ pay-as-you-go models. The standard model API requires an Enterprise-Shared key from API Settings in the console.',
+        'RunningHub provides 355+ models. The standard model API requires an Enterprise-Shared key from API Settings in the console.',
       promoCta: 'Open RunningHub',
     },
     'volcengine-speech': {
       tagline: 'Official access · Doubao Speech 2.0 with natural-language emotion control',
       credentialHint:
-        'Activate Doubao Speech Synthesis 2.0 and a paid voice first. Credentials are encrypted locally and used only for requests.',
+        'Activate Doubao Speech Synthesis 2.0 and a selected voice first. Credentials are encrypted locally and used only for requests.',
       promoText:
-        'Volcengine Speech is separate from the Ark console. Activate Doubao Speech Synthesis 2.0 and a paid voice, then get the App ID and Access Token.',
+        'Volcengine Speech is separate from the Ark console. Activate Doubao Speech Synthesis 2.0 and a selected voice, then get the App ID and Access Token.',
       promoCta: 'Open Volcengine Speech console',
       fields: {
         appId: {
@@ -1784,10 +1777,10 @@ export const enOnboardingProviders = {
       promoCta: 'Create a fal.ai Key',
     },
     runway: {
-      tagline: 'Overseas video · Ephemeral asset upload (credits required)',
+      tagline: 'Overseas video · Ephemeral asset upload (account setup required)',
       credentialPlaceholder: 'Paste your Runway API Key',
-      credentialHint: 'Create an API Key in the Runway Developer console. Ephemeral uploads are limited to 200MB, last about 24 hours, and require available credits. Credentials are encrypted locally.',
-      promoText: 'Runway ephemeral uploads return a Runway-only URI for Runway image/video workflows; upload access does not make model generation free.',
+      credentialHint: 'Create an API Key in the Runway Developer console. Ephemeral uploads are limited to 200MB, last about 24 hours, and require an enabled account. Credentials are encrypted locally.',
+      promoText: 'Runway ephemeral uploads return a Runway-only URI for Runway image/video workflows; upload access and model calls are separate capabilities.',
       promoCta: 'Open Runway Developer',
     },
   },
@@ -1867,7 +1860,7 @@ export const enOnboardingProviders = {
         session: { title: 'Integration session opened', body: 'The assistant stated what it wants to connect' },
         credential: { title: 'You paste the key', body: 'In Nomi\u2019s own secure page; the assistant cannot see it' },
         proposal: { title: 'Find and pick models', body: 'Reads the provider model list, or the assistant fills candidates in' },
-        certifying: { title: 'One real test run', body: 'If it costs money, you are asked first' },
+        certifying: { title: 'One real test run', body: 'You are asked before the request is sent' },
         listed: { title: 'Shows up under “Connected” above', body: 'With one real output as evidence' },
       },
       failedTitle: 'It did not get connected',
@@ -2077,7 +2070,7 @@ export const enOnboardingProviders = {
         'No such endpoint at this address ({{status}}). The base URL is probably missing or has an extra path segment.',
       auth: 'The provider rejected the key ({{status}}). If the key is right, this account may not have access to this model yet.',
       balance: 'The account is out of credit, so the provider refused the call.',
-      quota: 'Hit the provider’s rate or quota limit. This is temporary — verifying again later usually works.',
+      quota: 'Hit the provider’s rate or service limit. This is temporary — verifying again later usually works.',
       input:
         'The provider rejected the request ({{status}}) — the call shape we guessed does not match theirs. Changing the URL or key will not help.',
       server: 'The provider’s server errored ({{status}}). Nothing to do with your settings — verify again later.',
@@ -2095,7 +2088,7 @@ export const enOnboardingProviders = {
       fixUrl: 'Fix the address',
       fixKey: 'Change the key',
       retry: 'Verify again',
-      topUp: 'Top up',
+      topUp: 'Open account settings',
       selfConnect: 'Connect it myself',
       manualSetup: 'Manual Setup',
     },
@@ -2151,8 +2144,8 @@ export const enOnboardingProviders = {
     },
   },
   dreamina: {
-    name: 'Dreamina membership',
-    subtitle: 'Use Dreamina Premium credits for Seedance 2.0 video',
+    name: 'Dreamina account',
+    subtitle: 'Use Dreamina account access for Seedance 2.0 video',
     status: {
       notInstalled: 'Not installed',
       loginRequired: 'Login required',
@@ -2161,13 +2154,13 @@ export const enOnboardingProviders = {
     },
     loginTimeout: 'Login timed out. Start again.',
     installDescription:
-      'Dreamina connects through its official command-line tool. Install it, then scan the code to use your membership credits in Nomi.',
+      'Dreamina connects through its official command-line tool. Install it, then scan the code to use the account in Nomi.',
     installing: 'Installing…',
     install: 'Install Component',
     officialSource: 'Official source: jimeng.jianying.com. Installs to ~/.local/bin.',
     authorizeTitle: 'Scan or open the authorization link',
     authorizeBeforePremium: 'Open the link in the Dreamina app or a browser and authorize an account with ',
-    premiumMembership: 'Premium membership',
+    premiumMembership: 'Membership access',
     authorizeAfterPremium: '.',
     openAuthorizePage: 'Open Authorization',
     verificationCode: 'Verification code',
@@ -2177,14 +2170,14 @@ export const enOnboardingProviders = {
     authorizePending: 'Authorization complete. Please wait.',
     cancel: 'Cancel',
     loggedInTitle: 'Logged in to Dreamina',
-    credits: '· {{count}} credits',
+    credits: '· Signed in',
     loggedInBeforePremium:
-      'Choose “Dreamina Seedance 2.0 (Membership)” on the generation canvas. The free trial ended on May 1, 2026, and generation requires ',
+      'Choose “Dreamina Seedance 2.0 (Membership)” on the generation canvas. Generation requires Dreamina membership access; ',
     loggedInAfterPremium:
-      '. Login or purchased credits alone are not enough; some models also require one-time authorization at jimeng.jianying.com.',
+      '. Signing in alone is not enough; some models also require one-time authorization at jimeng.jianying.com.',
     logout: 'Log out',
-    loginBeforeRequirement: 'Scan the code to log in to Dreamina and use membership credits in Nomi. ',
-    premiumRequirement: 'Generation requires Premium membership (maestro vip)',
+    loginBeforeRequirement: 'Scan the code to log in to Dreamina and use the account in Nomi. ',
+    premiumRequirement: 'Generation requires Dreamina membership access (maestro vip)',
     loginAfterRequirement: '.',
     starting: 'Starting…',
     login: 'Scan Login',
@@ -2402,7 +2395,7 @@ export const enOnboardingProviders = {
       modelIdPlaceholder: 'For example: new-image-model',
       modelKind: 'Model type',
       draftNote:
-        'Continuing creates a disabled draft only. It does not fetch docs, list models, call AI, or run paid verification. Save after the script passes; if the model inputs are unknown, input setup continues.',
+        'Continuing creates a disabled draft only. It does not fetch docs, list models, call AI, or run verification. Save after the script passes; if the model inputs are unknown, input setup continues.',
       continue: 'Continue Draft',
       unavailable: 'The Nomi background process cannot create script drafts yet. Restart the app and try again.',
       createFailed: 'Could not save the draft: {{message}}',

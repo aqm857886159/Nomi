@@ -31,15 +31,13 @@ export const PRICE_WORDING = Object.freeze({
 })
 
 /**
- * 「没花钱 / 不计费 / 免费」这一类**断言**（界面不谈钱：现在都走中转站，扣没扣钱 Nomi 不知道，只说事实和下一步）。
- * 只抓断言，不抓「这一步会花钱」的披露（那是付费确认卡的职责），也不抓**第三方自己的**说法：
- * 免费图床 / 免费额度 / 免费试用 / 上传不等于模型额度免费（Runway）/ free image host / free quota / free trial / upload access does not make model generation free（Runway）说的是别人的服务；
- * 「free up space」「free roam」「Edit freely」「watermark-free」不是钱。
- * 正则写成这样是为了零误报：单测会拿整本中英词典核对，命中必须是登记在案的例外。
+ * 「没花钱 / 不计费 / 免费」这一类**断言**（界面不谈钱：只说事实和下一步）。
+ * 费用方向的披露同样不进入界面；只有空间、方向、视图或惯用语里的 free 由门岗按 key 排除。
+ * 单测会拿整本中英词典核对，命中必须是明确的非金钱 key 或有理由的上游原文。
  */
 export const NO_COST_CLAIMS = Object.freeze({
-  'zh-CN': /(?<!模型额度)免费(?!图床|额度|试用|推理)|不花钱|没花钱|没有花钱|不花额度|不(?:会)?消耗(?:生成|模型)?额度|无费用|没有费用|不产生费用|不收费|不另外收费|不扣费|没有扣费|没扣费|未扣费|不计费|未计费|不额外(?:花|收)|省额度|重复扣费|再扣一次钱|勿重复付费|勿再次付费|不重付|并计费|会计费|仍会计费/,
-  en: /(?<![-{])(?<!feel )(?<!generation )\bfree\b(?! (?:up\b|space|roam|orientation|view|image host|inference|quota|left|trial))(?![-}])|no charge|not charged|nothing was charged|(?:costs?|cost) nothing|no cost|no extra charge|no (?:generation )?quota\b|no credits\b|save credits|charge[sd]? (?:you )?(?:twice|again)|\bstill bill|\band billing|\bnot billed|nothing was spent|paying again|pay again|\brepay/i,
+  'zh-CN': /免费|不花钱|没花钱|没有花钱|不花额度|不(?:会)?消耗(?:生成|模型)?额度|无费用|没有费用|不产生费用|不收费|不另外收费|不扣费|没有扣费|没扣费|未扣费|不计费|未计费|不额外(?:花|收)|省额度|重复扣费|再扣一次钱|勿重复付费|勿再次付费|不重付|并计费|会计费|仍会计费/,
+  en: /\bfree\b|no charge|not charged|nothing was charged|(?:costs?|cost) nothing|no cost|no extra charge|no (?:generation )?quota\b|no credits\b|save credits|charge[sd]? (?:you )?(?:twice|again)|\bstill bill|\band billing|\bnot billed|nothing was spent|paying again|pay again|\brepay/i,
 })
 
 /** 在一段用户可见文字里找违例。返回 [{kind, match}]；kind ∈ raw-json | internal-id | price-wording。 */

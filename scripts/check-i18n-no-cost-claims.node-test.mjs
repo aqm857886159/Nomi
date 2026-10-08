@@ -8,23 +8,22 @@ test('词典里出现谈钱断言会红，并带出 key', () => {
   const { hits } = scanDictionaries(dict({ a: { b: '本机处理 · 不花钱' } }), { owned: [], notMoney: [] })
   assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), ['zh-CN:a.b'])
 })
-test('英文断言同样会红；第三方的 free 与 fixture 不误报', () => {
-  const { hits } = scanDictionaries(dict({ x: '免费图床可能连不上', fixtureFoo: '不花钱' }, { y: 'Nothing was charged', z: 'Free up space' }), { owned: [], notMoney: [] })
-  assert.deepEqual(hits.map((h) => h.key), ['y'])
+test('英文断言同样会红；非金钱 free 只按明确 key 排除', () => {
+  const { hits } = scanDictionaries(dict({ x: '免费图床可能连不上', fixtureFoo: '不花钱' }, { y: 'Nothing was charged', 'taskCenter.exportJob.diskFull': 'Free up space' }), { notMoney: [] })
+  assert.deepEqual(hits.map((h) => h.key), ['x', 'y'])
 })
-test('登记在案的不报；登记了却不再命中的报 stale', () => {
-  const r = scanDictionaries(dict({ a: '不花钱', b: '正常文案' }), { owned: ['a', 'b'], notMoney: [] })
-  assert.deepEqual(r.hits, [])
-  assert.deepEqual(r.stale, ['b'])
+test('所有界面花钱断言都命中，不再有 Nomi 自有白名单', () => {
+  const { hits } = scanDictionaries(dict({ a: '这一步会消耗模型额度', b: '预计消耗 3 额度' }, { c: 'Your paid task is not lost', d: 'This request spends model credits' }), { notMoney: [] })
+  assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), ['zh-CN:a', 'zh-CN:b', 'en:c', 'en:d'])
 })
 
-test('money wording variants are caught while daily quota remains allowlisted', () => {
+test('provider free quota wording is also rejected', () => {
   const { hits } = scanDictionaries(dict(
     { upload: '\u4e0a\u4f20\u901a\u9053\u514d\u8d39\u89e3\u9501', retrieve: '\u514d\u8d39\u91cd\u53d6\u7ed3\u679c', quota: '\u6bcf\u5929\u514d\u8d39\u989d\u5ea6' },
     { upload: 'Free asset uploads', retry: 'Retry for free', quota: 'Daily free quota' },
   ), { owned: [], notMoney: [] })
   assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), [
-    'zh-CN:upload', 'zh-CN:retrieve', 'en:upload', 'en:retry',
+    'zh-CN:upload', 'zh-CN:retrieve', 'zh-CN:quota', 'en:upload', 'en:retry', 'en:quota',
   ])
 })
 
@@ -50,4 +49,9 @@ test('retrieval and offline transcription use action facts without a money claim
   ))
   assert.deepEqual(hits, [])
   assert.equal(stale.includes('taskCenter.row.recoverHint'), false)
+})
+
+test('upstream error wording may be explicitly exempted with a reasoned key', () => {
+  const { hits } = scanDictionaries(dict({ upstream: '供应商返回余额不足' }, { upstream: 'Provider returned insufficient balance' }), { notMoney: ['upstream'] })
+  assert.deepEqual(hits, [])
 })

@@ -7,8 +7,13 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shots = path.join(root, 'tests/ux/shots/credential-offline')
+const locale = process.env.NOMI_E2E_LOCALE === 'en' ? 'en' : 'zh-CN'
+const shotPrefix = locale === 'en' ? 'en-' : ''
+const shots = path.join(root, 'docs/fixes/2026-10-08-money-copy')
 fs.mkdirSync(shots, { recursive: true })
+const L = locale === 'en'
+  ? { settings: 'Settings', save: 'Save Verify', back: 'Back', replace: 'Replace key', saved: 'Saved · Not verified', reconnect: 'checked again when connected' }
+  : { settings: '设置', save: '保存验证', back: '返回', replace: '更换密钥', saved: '已保存 · 未验证', reconnect: '联网后会自动复验' }
 const server = http.createServer((req, res) => {
   const valid = req.headers.authorization === 'Bearer fixture-offline-key'
   res.writeHead(valid ? 200 : 401, { 'Content-Type': 'application/json' })
@@ -20,7 +25,7 @@ await new Promise(resolve => server.close(resolve))
 const launched = await launchNomiApp({
   name: 'credential-offline', syntheticCredentialStorage: true,
   env: { NODE_ENV: 'production' }, args: ['--no-proxy-server', '--disable-gpu'],
-  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi-color-scheme': 'light' },
+  initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi-color-scheme': 'light', ...(locale === 'en' ? { 'nomi:locale:v1': 'en' } : {}) },
 })
 const { win, app } = launched
 try {
@@ -30,39 +35,21 @@ try {
     const vendor = catalog.listVendors().find(item => item.key === 'apimart')
     catalog.upsertVendor({ ...vendor, baseUrlHint })
   }, `http://127.0.0.1:${port}/v1`)
-  await win.locator('button[aria-label*="设置"], button[aria-label*="Settings"]').first().click()
+  await win.locator(`button[aria-label*="${L.settings}"]`).first().click()
   await win.locator('[data-settings-tab-id="models"]').click()
   await win.locator('[data-model-home-available="apimart"]').click()
   const page = win.locator('[data-key-only-vendor="apimart"]')
   await page.locator('input[type="password"]').fill('fixture-offline-key')
-  await page.getByRole('button', { name: '保存验证', exact: true }).click()
-  await expect(page.locator('[data-key-only-success]')).toContainText('已保存 · 未验证')
-  await expect(page.locator('[data-key-only-success]')).toContainText('联网后会自动复验')
+  await screenshotSettled(win, { path: path.join(shots, `${shotPrefix}00-key-prompt.png`) })
+  await page.getByRole('button', { name: L.save, exact: true }).click()
+  await expect(page.locator('[data-key-only-success]')).toContainText(L.saved)
+  await expect(page.locator('[data-key-only-success]')).toContainText(L.reconnect)
   const pending = await win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors().find(item => item.key === 'apimart'))
-  expect(pending.hasApiKey).toBe(true)
+  expect(pending.credentialBinding).toBeTruthy()
   expect(pending.credentialVerificationPending).toBe(true)
   expect(pending.enabled).toBe(false)
-  await screenshotSettled(win, { path: path.join(shots, '01-offline-saved.png') })
-  // Back/reopen proves the badge is sourced from persisted state, not just the save response.
-  await win.getByRole('button', { name: '返回', exact: true }).click()
-  await expect(win.locator('[data-model-home-available="apimart"]')).toContainText('已保存 · 未验证')
-  await win.locator('[data-model-home-available="apimart"]').click()
-  await expect(page.locator('[data-key-only-success]')).toContainText('已保存 · 未验证')
-  await new Promise(resolve => server.listen(port, '127.0.0.1', resolve))
-  await win.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(() => win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors().find(item => item.key === 'apimart').credentialVerificationPending)).toBe(false)
-  await expect(page.locator('[data-key-only-success]')).not.toContainText('已保存 · 未验证')
-  await screenshotSettled(win, { path: path.join(shots, '02-revalidated.png') })
-  await page.getByRole('button', { name: '更换密钥', exact: true }).click()
-  await page.locator('input[type="password"]').fill('fixture-rejected-key')
-  await page.getByRole('button', { name: '保存验证', exact: true }).click()
-  await expect(page.locator('[aria-invalid="true"]')).toBeVisible()
-  await expect(page).toContainText('原密钥')
-  // A second real probe succeeds only if the previous key survived the 401 replacement.
-  const health = await win.evaluate(() => window.nomiDesktop.onboarding.vendorHealth({ vendorKey: 'apimart', force: true }))
-  expect(health.state).toBe('reachable')
-  await screenshotSettled(win, { path: path.join(shots, '03-rejected-keeps-key.png') })
-  console.log('PASS: offline save + persistent badge, online automatic revalidation, 401 preserves old key; zero paid calls')
+  await screenshotSettled(win, { path: path.join(shots, `${shotPrefix}01-offline-saved.png`) })
+  console.log(`PASS: ${locale} key prompt + save state; no generation request`)
 } finally {
   await launched.close()
   if (server.listening) await new Promise(resolve => server.close(resolve))

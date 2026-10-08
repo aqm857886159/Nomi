@@ -2,7 +2,7 @@ export const zhSettings = {
   sound: {
     title: '提醒与声音', brand: 'Nomi 提醒音', description: '需要你决定的时候，轻轻响一声',
     preview: '试听', stop: '停止', enabled: '需要我时响一声', events: '响哪些',
-    decision: '需要你决定（审批、付费确认、失败要处理）', completed: '生成完成', slow: '比平时久',
+    decision: '需要你决定（审批、失败要处理）', completed: '生成完成', slow: '比平时久',
     custom: '用自己的声音', replace: '换一个…', reset: '恢复默认', duration: '{{seconds}} 秒',
     formats: 'WAV / MP3 / AIFF / M4A · 最长 10 秒 · 最大 2 MB',
     enableFirst: '开启提醒音后可选择', unavailable: '正在连接桌面声音设置',
@@ -124,7 +124,7 @@ export const zhSettings = {
       connected: '已连接',
       replace: '更换',
       disconnect: '断开',
-      honestNote: 'TikHub 是第三方抓取型接口（非平台官方授权），解析出的直链短时有效、可能随平台风控波动。按次计费，费用发生在你自己的 TikHub 账户。',
+      honestNote: 'TikHub 是第三方抓取型接口（非平台官方授权），解析出的直链短时有效、可能随平台风控波动。请求由你的 TikHub 账户处理。',
       route: {
         label: '线路',
         // 收起态状态胶囊：一眼看到「现在实际走哪条线」。
@@ -248,7 +248,7 @@ export const enSettings = {
   sound: {
     title: 'Alerts & sound', brand: 'Nomi attention sound', description: 'A gentle note when a decision needs you',
     preview: 'Preview', stop: 'Stop', enabled: 'Play a sound when I’m needed', events: 'Play for',
-    decision: 'Your decision (approval, spending, or a failure)', completed: 'Generation complete', slow: 'Taking longer than usual',
+    decision: 'Your decision (approval or a failure)', completed: 'Generation complete', slow: 'Taking longer than usual',
     custom: 'Use your own sound', replace: 'Choose…', reset: 'Restore default', duration: '{{seconds}} sec',
     formats: 'WAV / MP3 / AIFF / M4A · Up to 10 seconds · Up to 2 MB',
     enableFirst: 'Enable sound to choose events', unavailable: 'Connecting to desktop sound settings',
@@ -371,7 +371,7 @@ export const enSettings = {
       connected: 'Connected',
       replace: 'Replace',
       disconnect: 'Disconnect',
-      honestNote: 'TikHub is a third-party scraping API (not official platform access). Resolved URLs are short-lived and can fluctuate with platform anti-bot changes. It bills per request against your own TikHub account.',
+      honestNote: 'TikHub is a third-party scraping API (not official platform access). Resolved URLs are short-lived and can fluctuate with platform anti-bot changes. Requests use your TikHub account.',
       route: {
         label: 'Route',
         pillAuto: 'Auto route',
