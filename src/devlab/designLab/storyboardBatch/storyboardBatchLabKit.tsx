@@ -206,6 +206,7 @@ export function BatchFooter({ phase, width }: { phase: FooterPhase; width: numbe
         issueLabel={phase === 'stopped' ? progress : undefined}
         onBack={NOOP}
         onGenerate={NOOP}
+        onAgentHandoff={NOOP}
         busy={phase === 'anchors' || phase === 'shots' || phase === 'done'}
         runnableCount={phase === 'done' ? 0 : phase === 'stopped' ? 4 : 6}
         generateLabel={phase === 'done' ? t('storyboardEditor.batch.allDone') : undefined}
