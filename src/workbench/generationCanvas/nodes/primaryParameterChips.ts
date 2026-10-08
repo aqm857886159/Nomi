@@ -34,8 +34,8 @@ import {
 } from './controls/parameterControlModel'
 import { hasUsableSliderStep } from './controls/numericDraft'
 
-/** 露出顺序 = 决策顺序：先定画面形状，再定它多长，最后才是清晰度（也是最影响价格的那一档在前）。 */
-export const PRIMARY_ROLE_ORDER: readonly ParameterRole[] = ['aspect', 'duration', 'resolution']
+/** 露出顺序 = 决策顺序：先定画面形状，再定它多长，再定清晰度和输出张数。 */
+export const PRIMARY_ROLE_ORDER: readonly ParameterRole[] = ['aspect', 'duration', 'resolution', 'quantity']
 
 /**
  * 数值区间能切出多少档还算「一个下拉」。
@@ -101,9 +101,10 @@ export function splitPrimaryParameterControls(controls: readonly DynamicModelCon
   for (const control of controls) {
     const role = parameterControlRole(control)
     const rank = role ? PRIMARY_ROLE_ORDER.indexOf(role) : -1
-    // 同一个角色只留第一个：档案去重后本不该出现两枚，真出现了也只摆一枚（两枚说同一件事更糟）。
-    if (role && rank >= 0 && !takenRoles.has(role) && isChipEligible(control)) {
-      takenRoles.add(role)
+    // Aspect aliases are the same semantic value. Other roles may have more than one independently priced/output-affecting control.
+    const isDuplicateAspect = role === 'aspect' && takenRoles.has(role)
+    if (role && rank >= 0 && !isDuplicateAspect && isChipEligible(control)) {
+      if (role === 'aspect') takenRoles.add(role)
       ranked.push({ control, rank })
       continue
     }

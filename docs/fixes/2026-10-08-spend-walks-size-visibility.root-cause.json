@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-spend-walks-size-visibility",
+  "problem_type": "Paid confirmation cards hide price/output-affecting model parameters behind the overflow controls",
+  "symptom": "The paid-card walkthrough could not find the real 尺寸 control for a pixel-size image model before the confirmation timeout.",
+  "direct_cause": "The shared parameterControlRole function returned null for a non-ratio size alias, so splitPrimaryParameterControls sent that control to the overflow panel.",
+  "class_root": "Parameter aliases were used by the de-duplication boundary but the primary-parameter role boundary only represented ratio-valued size aliases; the same catalog field therefore had no visible paid-card role when its values were pixels or resolution names.",
+  "affected_population": [
+    "Built-in image and video model archetypes whose price/output controls use size, imageSize, videoSize, video_size, image_size, quality, resolution_type, mode, upscale_factor, or quantity aliases",
+    "Paid confirmation cards and the inline parameter bar that consume the shared primary-parameter split"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/primaryParameterChips.ts"
+  ],
+  "entry_points": [
+    "Model archetype parameter controls are normalized by parameterControlRole before the paid card and inline bar split them into primary chips and overflow controls."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This invariant is owned by Nomi's shared model-archetype role mapping and paid-card composition; no external dependency decides which catalog aliases are user-facing spend controls.",
+  "invariants": [
+    "Every image/video catalog control that represents a priced or output-defining ratio, size, resolution/quality, duration, or output quantity is assigned a primary role when it has a renderable chip value.",
+    "Aspect aliases are de-duplicated only when their options are actual aspect ratios; non-ratio size aliases remain independently visible as resolution controls.",
+    "A primary control is never silently replaced by a model-specific or provider-specific fallback path."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "symbol": "parameterControlRole"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "generality_proof": "The role decision is centralized before both primary-chip consumers. The class matrix walks every registered image/video archetype and every mode, including pixel dimensions, resolution names, quality aliases, duration, and quantity controls; the Agnes ratio/pixel cases prove that de-duplication and visibility now use the same option-aware boundary.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "parameterControlRole",
+      "responsibility": "Map model and catalog aliases to the user-facing semantic role while preserving option-aware aspect-ratio identity."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "symbol": "splitPrimaryParameterControls",
+      "responsibility": "Expose every eligible priced/output control as a primary chip, de-duplicating only aspect aliases and retaining the rest in the gear panel."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "entry_point": "splitPrimaryParameterControls",
+      "disposition": "enforced",
+      "evidence": "The inline parameter bar calls the same split function used by paid-card composition, so the centralized role boundary covers both surfaces."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "buildDynamicControls / parameterLayout=chips",
+      "disposition": "enforced",
+      "evidence": "The composer builds controls from the selected model archetype and passes chips layout to the paid confirmation card; it does not classify aliases independently."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "entry_point": "parameterEquivalentKeys",
+      "disposition": "enforced",
+      "evidence": "The existing option-aware equivalent-key logic remains the shared de-duplication boundary; the Agnes matrix exercises both pixel and ratio-valued size aliases."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The alias is reused across multiple providers and model generations, and the same key can carry ratio, pixel, or resolution values. A new archetype or another caller can reproduce the omission unless role classification remains centralized and catalog-wide tested.",
+    "same_class_scan": [
+      "Enumerated MODEL_ARCHETYPES modes for every image/video profile and collected all parameter keys and labels.",
+      "Searched parameterControlRole, splitPrimaryParameterControls, InlineParameterBar, NodeGenerationComposer, and the three paid walkthroughs.",
+      "Checked the existing Agnes size/ratio regression and the pixel-size paid-card characterization before implementation."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+    "invariant": "Non-ratio size aliases always resolve to the resolution role; only option-confirmed ratio aliases resolve to aspect, and all other priced/output aliases resolve to their primary semantic role.",
+    "failure_mode": "An unrecognized alias returns null and remains in the overflow panel; the catalog matrix fails before a new model or alias can ship without a primary role.",
+    "exception_policy": "none",
+    "strategy": "Keep classification and option-aware de-duplication at the shared control boundary, and make the matrix derive its population from the real model registry rather than a fixture or one provider.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.test.ts",
+    "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "This fix changes the shared role classification in place; there is no obsolete persisted format or fallback implementation to migrate."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is in Nomi's catalog-role invariant and does not depend on a third-party runtime behavior.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. Existing size, ratio, quality, duration, and quantity values continue to use their existing keys; only their paid-card visibility role changes.",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/controls/parameterControlModel.test.ts",
+      "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-10-08",
+  "residual_risks": [
+    "The matrix intentionally checks controls with renderable chip values; open-ended continuous numeric controls remain in the gear panel by the existing chip eligibility rule.",
+    "Independent acceptance remains pending because this local implementation session is not the separate acceptance line."
+  ]
+}

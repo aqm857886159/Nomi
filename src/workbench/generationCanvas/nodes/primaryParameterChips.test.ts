@@ -6,10 +6,80 @@ import {
   parameterChipLabel,
   parameterChipOptions,
   parameterChipValue,
+  parameterChipOptions,
   planParameterChips,
   splitPrimaryParameterControls,
 } from './primaryParameterChips'
-import type { DynamicModelControl } from './controls/parameterControlModel'
+import { parameterControlRole, type DynamicModelControl, type ModelParameterControl } from './controls/parameterControlModel'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+
+describe('paid-card size visibility characterization', () => {
+  it('keeps pixel size in the visible primary parameter set', () => {
+    const pixelSize: DynamicModelControl = {
+      key: 'size', label: '尺寸', type: 'select', binding: 'parameter',
+      options: [{ value: '1024x1024', label: '1024x1024' }, { value: '1536x1024', label: '1536x1024' }],
+      defaultValue: '1024x1024',
+    }
+    expect(splitPrimaryParameterControls([pixelSize]).primary.map((control) => control.key)).toEqual(['size'])
+  })
+})
+
+const PAID_PARAMETER_KEYS = new Set([
+  'aspect_ratio', 'aspectRatio', 'aspect', 'size', 'imageSize', 'videoSize', 'ratio', 'video_size', 'image_size',
+  'durationSeconds', 'videoDuration', 'duration', 'video_duration', 'length', 'clip_length',
+  'resolution', 'videoResolution', 'video_resolution', 'output_resolution', 'outputResolution',
+  'quality', 'resolution_type', 'mode', 'upscale_factor',
+  'output_count', 'batch_size', 'num_images', 'number_of_images', 'n',
+])
+
+function modelControl(parameter: ModelParameterControl): DynamicModelControl {
+  return { ...parameter, binding: 'parameter' }
+}
+
+function isPaidParameter(control: DynamicModelControl): boolean {
+  return PAID_PARAMETER_KEYS.has(control.key) || /ratio|size|resolution|duration|count|batch|quality|upscale/i.test(control.key)
+}
+
+describe('real model catalog paid parameter matrix', () => {
+  it('keeps every priced/output-affecting chip in the primary set and de-dupes aspect aliases', () => {
+    const failures: string[] = []
+    for (const archetype of MODEL_ARCHETYPES) {
+      if (archetype.kind !== 'image' && archetype.kind !== 'video') continue
+      for (const mode of archetype.modes) {
+        const controls = mode.params.map(modelControl)
+        const { primary } = splitPrimaryParameterControls(controls)
+        const primaryKeys = new Set(primary.map((control) => control.key))
+        for (const control of controls.filter(isPaidParameter)) {
+          const role = parameterControlRole(control)
+          if (!role) failures.push(`${archetype.id}/${mode.id}/${control.key}: no role`)
+          if (role && role !== 'aspect' && parameterChipOptions(control).length > 0 && !primaryKeys.has(control.key)) {
+            failures.push(`${archetype.id}/${mode.id}/${control.key}: ${role} not primary`)
+          }
+        }
+        const visibleAspectControls = controls.filter((control) => isPaidParameter(control) && parameterControlRole(control) === 'aspect' && parameterChipOptions(control).length > 0)
+        const primaryAspectCount = primary.filter((control) => parameterControlRole(control) === 'aspect').length
+        if (visibleAspectControls.length > 0 && primaryAspectCount !== 1) {
+          failures.push(`${archetype.id}/${mode.id}: expected one aspect chip, got ${primaryAspectCount}`)
+        }
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  it('keeps the Agnes size/resolution and ratio pair covered by the alias regression', () => {
+    const select = (key: string, values: string[]): DynamicModelControl => modelControl({
+      key, label: key, type: 'select', options: values.map((value) => ({ value, label: value })),
+    })
+    expect(splitPrimaryParameterControls([
+      select('size', ['1K', '2K']),
+      select('ratio', ['1:1', '16:9']),
+    ]).primary.map((control) => control.key)).toEqual(['ratio', 'size'])
+    expect(splitPrimaryParameterControls([
+      select('size', ['1024x1024', '1280x720']),
+      select('aspect_ratio', ['16:9', '1:1']),
+    ]).primary.map((control) => control.key)).toEqual(['aspect_ratio', 'size'])
+  })
+})
 
 // 底栏「哪几个参数自己占一颗 chip」（2026-09-11 02:10 拍板方案 B）。
 // 这条规则的全部价值在「换个模型照样说得对」——所以每条都拿**档案里真实存在的控件形状**去验，
