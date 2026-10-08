@@ -130,21 +130,9 @@ describe("task IPC local operation lifecycle", () => {
     expect(mocks.failCandidateEnvelope).toHaveBeenCalledWith(payload, "candidate_cancelled");
     expect(mocks.runCandidate).not.toHaveBeenCalled();
   });
-  it("prevents repeated quit events from bypassing process cleanup", async () => {
-    let finish!: () => void;
-    const cleanup = new Promise<void>((resolve) => { finish = resolve; });
-    mocks.cancelAll.mockReturnValue(cleanup);
+  it("registers task cancellation without subscribing to Electron quit events", () => {
     registerTaskIpcHandlers(async () => ({}) as Runtime, noCanvasCore);
-    const first = { preventDefault: vi.fn() }; const second = { preventDefault: vi.fn() };
-    mocks.quitHandler!(first); mocks.quitHandler!(second);
-    expect(first.preventDefault).toHaveBeenCalledOnce();
-    expect(second.preventDefault).toHaveBeenCalledOnce();
-    expect(mocks.cancelAll).toHaveBeenCalledOnce();
-    expect(mocks.quit).not.toHaveBeenCalled();
-    finish(); await cleanup; await Promise.resolve();
-    expect(mocks.quit).toHaveBeenCalledOnce();
-    const completed = { preventDefault: vi.fn() }; mocks.quitHandler!(completed);
-    expect(completed.preventDefault).not.toHaveBeenCalled();
+    expect(mocks.quitHandler).toBeUndefined();
   });
 });
 

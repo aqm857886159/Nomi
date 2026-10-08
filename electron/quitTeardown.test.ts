@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { installQuitTeardown } from "./quitTeardown";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { installQuitTeardown, registerQuitDrain, resetQuitRequest, resetQuitTeardownForTests } from "./quitTeardown";
 import { openProjectAgentLane } from "../src/workbench/project/projectAgentLaneOpen";
 
 type Listener = (event: { preventDefault: () => void }) => void;
@@ -26,6 +26,7 @@ function fakeApp() {
 }
 
 describe("quit teardown lifecycle", () => {
+  beforeEach(() => resetQuitTeardownForTests());
   it("keeps teardown reversible at before-quit and performs it after windows are closed", async () => {
     const { app, emit } = fakeApp();
     let handlerAlive = true;
@@ -101,5 +102,52 @@ describe("quit teardown lifecycle", () => {
     emit("will-quit");
     await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
     expect(app.quit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["required completes", async (): Promise<void> => undefined, "quit"],
+    ["required throws", async (): Promise<void> => { throw new Error("drain failed"); }, "quit"],
+    ["required hangs", (): Promise<void> => new Promise<void>(() => undefined), "exit"],
+  ] as const)("keeps the single owner bounded when %s", async (_label, drain, outcome) => {
+    const { app, emit } = fakeApp();
+    installQuitTeardown(app, {
+      disposeBackgroundLifecycle: vi.fn(),
+      stopDesktopCapabilityCore: vi.fn(),
+      disposeDesktopLaneIpc: vi.fn(async () => undefined),
+      abortAllActiveExports: vi.fn(() => 0),
+      timeoutMs: 5,
+    });
+    registerQuitDrain(`matrix-${_label}`, drain, { required: true, timeoutMs: 5 });
+    emit("will-quit");
+    if (outcome === "exit") await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    else await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
+  });
+
+  it.each([
+    ["completes", async (): Promise<void> => undefined, "first"],
+    ["throws", async (): Promise<void> => { throw new Error("drain failed"); }, "double"],
+    ["hangs", (): Promise<void> => new Promise<void>(() => undefined), "cancel-then-exit"],
+  ] as const)("bounds %s across the %s quit path", async (_label, drain, quitPath) => {
+    const { app, emit } = fakeApp();
+    installQuitTeardown(app, {
+      disposeBackgroundLifecycle: vi.fn(),
+      stopDesktopCapabilityCore: vi.fn(),
+      disposeDesktopLaneIpc: vi.fn(async () => undefined),
+      abortAllActiveExports: vi.fn(() => 0),
+      timeoutMs: 5,
+    });
+    registerQuitDrain(`matrix-${quitPath}`, drain, { required: true, timeoutMs: 5 });
+    if (quitPath === "double") {
+      emit("will-quit");
+      emit("will-quit");
+    } else {
+      if (quitPath === "cancel-then-exit") {
+        emit("before-quit");
+        resetQuitRequest();
+      }
+      emit("will-quit");
+    }
+    if (_label === "hangs") await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    else await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
   });
 });

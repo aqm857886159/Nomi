@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-quit-drains-single-owner",
+  "detected_by": "user",
+  "problem_type": "unbounded Electron quit and window-close lifecycle drains",
+  "symptom": "On macOS 0.23.0, clicking quit could leave the Electron main process alive indefinitely; a renderer that never answered close confirmation could also keep a window from closing forever.",
+  "direct_cause": "Multiple modules independently prevented will-quit and waited on promises without a shared deadline; windowCloseConfirmation prevented every repeated close while waiting for an unbounded renderer response.",
+  "class_root": "Quit lifecycle work had no single owner that enforced one total deadline across every drain and close confirmation.",
+  "affected_population": [
+    "macOS users quitting while local task or Antigravity work is active",
+    "users whose renderer is stalled or disconnected during close confirmation",
+    "all main-process quit paths that register asynchronous cleanup"
+  ],
+  "scope_paths": [
+    "electron/quitTeardown.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/ai/antigravityIpc.ts",
+    "electron/windowCloseConfirmation.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/main.ts",
+    "electron/video/depthVideoIpc.ts",
+    "electron/screenshot/screenshotHotkey.ts",
+    "eslint.config.mjs"
+  ],
+  "entry_points": [
+    "Electron before-quit and will-quit lifecycle",
+    "task IPC local image jobs",
+    "Antigravity connection test IPC",
+    "renderer close confirmation",
+    "video depth, screenshot, watchdog, and catalog lifecycle cleanup"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an application-owned Electron lifecycle contract; no third-party behavior determines the ownership or deadline policy.",
+  "invariants": [
+    "Only electron/quitTeardown.ts subscribes to before-quit or will-quit.",
+    "Every registered drain declares required/optional status and an individual deadline under one owner total timeout.",
+    "A close confirmation request always resolves by renderer response or the owner timeout; rejection leaves runtime resources alive.",
+    "Only quitTeardown may call app.quit or app.exit for teardown completion and timeout fallback."
+  ],
+  "doors": [
+    { "kind": "write", "path": "electron/ai/antigravityIpc.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/main.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/mainProcessLifecycle.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/quitTeardown.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/screenshot/screenshotHotkey.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/tasks/taskIpcHandlers.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/video/depthVideoIpc.ts", "symbol": "registerQuitDrain" },
+    { "kind": "write", "path": "electron/windowCloseConfirmation.ts", "symbol": "quitTeardownTimeoutMs" },
+    { "kind": "write", "path": "electron/windowCloseConfirmation.ts", "symbol": "resetQuitRequest" }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 9,
+    "why_not": "The seven lifecycle subscriptions are removed. The nine surviving doors are independent resource owners registering with the single boundary; deleting any would leak that resource's cleanup."
+  },
+  "generality_proof": "The owner is reached by every checked quit cleanup caller, while the static ESLint selector rejects future direct subscriptions in electron production code. Window close confirmation reads the same owner timeout and reset state, so a stalled renderer cannot create a second unbounded lifecycle.",
+  "shared_boundaries": [
+    { "path": "electron/quitTeardown.ts", "symbol": "installQuitTeardown", "responsibility": "Own lifecycle subscriptions, parallel drain execution, required/optional deadlines, and app.quit/app.exit fallback." },
+    { "path": "electron/quitTeardown.ts", "symbol": "registerQuitDrain", "responsibility": "Require every cleanup participant to declare its policy before the owner runs it." },
+    { "path": "electron/windowCloseConfirmation.ts", "symbol": "installWindowCloseConfirmation", "responsibility": "Bound renderer close confirmation and preserve explicit cancellation." },
+    { "path": "eslint.config.mjs", "symbol": "quitLifecycleSelectors", "responsibility": "Prevent production lifecycle subscriptions outside the owner." }
+  ],
+  "same_class_entry_points": [
+    { "path": "electron/tasks/taskIpcHandlers.ts", "entry_point": "registerTaskIpcHandlers", "disposition": "enforced", "evidence": "Task cancellation now registers antigravity image job draining with the owner and has no Electron quit listener." },
+    { "path": "electron/ai/antigravityIpc.ts", "entry_point": "registerAntigravityIpc", "disposition": "enforced", "evidence": "Connection cancellation and settlement are registered with the owner; shutdown rejection reads owner state." },
+    { "path": "electron/windowCloseConfirmation.ts", "entry_point": "installWindowCloseConfirmation", "disposition": "enforced", "evidence": "Renderer response, explicit rejection, and no-response timeout all converge on bounded close handling." },
+    { "path": "electron/video/depthVideoIpc.ts", "entry_point": "registerVideoDepthIpc", "disposition": "enforced", "evidence": "Video job disposal is an owner drain rather than a direct will-quit listener." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new asynchronous main-process cleanup or stalled renderer could reproduce the same permanent preventDefault wait unless registration and deadline ownership are structural.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs registerQuitDrain enumerated all seven registration call-site files.",
+      "Repository search found the former seven will-quit listeners across quitTeardown, antigravity, tasks, main lifecycle, main, depth video, and screenshot modules.",
+      "electron/windowCloseConfirmation.ts was checked independently for repeated close prevention and renderer response handling."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/quitTeardown.ts",
+    "invariant": "All cleanup is registered once and runs under one owner total timeout; required timeout exits and optional timeout only logs.",
+    "failure_mode": "A thrown drain is recorded and teardown continues; a required timeout or total timeout calls app.exit(0).",
+    "exception_policy": "none",
+    "strategy": "Delete per-module lifecycle state machines and direct quit calls, then make ESLint reject new direct lifecycle subscriptions.",
+    "artifacts": [
+      "electron/quitTeardown.ts",
+      "eslint.config.mjs",
+      "electron/windowCloseConfirmation.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/quitTeardown.test.ts",
+    "electron/windowCloseConfirmation.test.ts",
+    "electron/quitLifecycleGuard.test.ts",
+    "electron/tasks/taskIpcHandlers.test.ts",
+    "electron/ai/antigravityIpc.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/quitTeardown.test.ts",
+    "electron/windowCloseConfirmation.test.ts",
+    "electron/quitLifecycleGuard.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/tasks/taskIpcHandlers.ts",
+      "electron/ai/antigravityIpc.ts",
+      "electron/video/depthVideoIpc.ts",
+      "electron/screenshot/screenshotHotkey.ts",
+      "electron/mainProcessLifecycle.ts",
+      "electron/main.ts"
+    ],
+    "rationale": "The obsolete paths were deleted in the same change; no fallback listener remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade controls this application-owned lifecycle invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or external protocol changes; existing runtime registrations converge on the new owner during process startup.",
+  "residual_risks": [
+    "A real packaged macOS quit with a native renderer stall was not run in this headless validation environment.",
+    "The owner total timeout remains a fixed 3 seconds by default and should be revisited only with measured lifecycle evidence."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/quitTeardown.ts",
+    "tests": ["electron/quitTeardown.test.ts", "electron/windowCloseConfirmation.test.ts", "electron/quitLifecycleGuard.test.ts"]
+  },
+  "recurrence_check_on": "2026-11-08"
+}

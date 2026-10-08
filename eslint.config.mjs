@@ -16,6 +16,17 @@ const windowsPathSelectors = [
   },
 ]
 
+const quitLifecycleSelectors = [
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name=/^(on|once|prependListener)$/][arguments.0.value="will-quit"]',
+    message: 'Subscribe to will-quit only in electron/quitTeardown.ts; register a drain with quitTeardown instead.',
+  },
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name=/^(on|once|prependListener)$/][arguments.0.value="before-quit"]',
+    message: 'Subscribe to before-quit only in electron/quitTeardown.ts; use quitTeardown state instead.',
+  },
+]
+
 export default tseslint.config(
   {
     ignores: [
@@ -121,6 +132,15 @@ export default tseslint.config(
     rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
   },
   {
+    files: ['electron/**/*.{ts,tsx}'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors] },
+  },
+  {
+    files: ['electron/quitTeardown.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
+  },
+  {
     files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -165,6 +185,15 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/desktop/rendererLog.ts'],
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx}'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors] },
+  },
+  {
+    files: ['electron/quitTeardown.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。

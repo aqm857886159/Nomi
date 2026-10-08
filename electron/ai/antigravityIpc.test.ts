@@ -36,20 +36,9 @@ it("binds cancellation to the initiating window and waits for process settlement
   expect(mocks.sync).toHaveBeenCalledWith(result);
   expect(owner.sender.listenerCount("destroyed")).toBe(0);
 });
-it("waits for native verification cleanup on quit, including repeated quit events, and refuses new tests", async () => {
-  let finish!: (value: unknown) => void;
-  mocks.test.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
-  const owner = { sender: sender(1) };
-  const pending = mocks.handlers.get("nomi:antigravity:test")!(owner, { capability: "image", modelId: "auto" });
-  const event = { preventDefault: vi.fn() };
-  mocks.onBeforeQuit?.(); mocks.onWillQuit?.(event); mocks.onWillQuit?.(event);
-  expect(event.preventDefault).toHaveBeenCalledTimes(2);
-  expect(mocks.cancel).toHaveBeenCalledOnce();
-  expect(mocks.quit).not.toHaveBeenCalled();
-  await expect(mocks.handlers.get("nomi:antigravity:test")!(owner, { capability: "text", modelId: "auto" })).rejects.toThrow("ANTIGRAVITY_SHUTTING_DOWN");
-  finish({ state: "unverified", models: [], checkedAt: 1, loginCommand: "agy", checks: [] });
-  await pending;
-  await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
+it("registers shutdown draining without owning Electron quit events", () => {
+  expect(mocks.onBeforeQuit).toBeUndefined();
+  expect(mocks.onWillQuit).toBeUndefined();
 });
 it("keeps cancellation and new submissions waiting until the finished result is persisted", async () => {
   let finish!: () => void;
@@ -76,20 +65,4 @@ it("returns an owned just-finished result when success wins the cancellation IPC
   await expect(mocks.handlers.get("nomi:antigravity:cancel")!(owner)).resolves.toEqual(ready);
   await expect(mocks.handlers.get("nomi:antigravity:cancel")!({ sender: sender(2) })).resolves.toBeUndefined();
   expect(mocks.cancel).not.toHaveBeenCalled();
-});
-it("quit waits for persistence even when native work has already finished", async () => {
-  let finish!: () => void;
-  const persisting = new Promise<void>((resolve) => { finish = resolve; });
-  mocks.test.mockResolvedValue({ state: "ready", models: [], checkedAt: 1, loginCommand: "agy", checks: [] });
-  mocks.sync.mockReturnValue(persisting);
-  const pending = mocks.handlers.get("nomi:antigravity:test")!({ sender: sender(1) });
-  await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledOnce());
-  const event = { preventDefault: vi.fn() };
-  mocks.onWillQuit?.(event);
-  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
-  expect(mocks.quit).not.toHaveBeenCalled();
-  mocks.onWillQuit?.(event);
-  expect(event.preventDefault).toHaveBeenCalledTimes(2);
-  finish(); await pending;
-  await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
 });

@@ -8,11 +8,11 @@ import { installMainLogger, markStderrAsDiagnosticSurface } from "./logging/logg
 import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
 import { setProductionRunE2eFixturePackagedState } from "./shared/productionRunE2eFixtureGate";
+import { registerQuitDrain } from "./quitTeardown";
 
 type ElectronAppLifecycle = {
   readonly isPackaged: boolean;
   exit: (code?: number) => void;
-  once: (event: "will-quit", listener: () => void) => unknown;
 };
 
 type MainProcessLifecycleDependencies = {
@@ -77,5 +77,5 @@ export function installMainProcessLifecycle(
     parentPid: readLauncherPid(dependencies.env ?? process.env),
     exit: (code) => app.exit(code),
   });
-  app.once("will-quit", stopParentProcessWatchdog);
+  registerQuitDrain("parent-process-watchdog", stopParentProcessWatchdog, { required: false, timeoutMs: 100 });
 }
