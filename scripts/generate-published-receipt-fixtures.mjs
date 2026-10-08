@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
+import { gitPaths } from "./lib/gitPaths.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = path.join(repoRoot, "electron", "capabilityCore", "__fixtures__", "published-receipts");
@@ -52,7 +53,7 @@ function resolveHistoricalPath(tag, sourcePath, importer, specifier, files) {
 }
 
 function extractHistoricalGraph(tag, destination) {
-  const files = new Set(git("ls-tree", "-r", "--name-only", tag).split(/\r?\n/).filter(Boolean));
+  const files = new Set(gitPaths(["ls-tree", "-r", "--name-only", tag], { cwd: repoRoot }));
   const sourcePath = [
     "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
     "electron/projectAgentHost/projectAgentProposalReceiptStore.ts",
