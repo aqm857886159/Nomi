@@ -10,7 +10,12 @@
     "path": "src/workbench/generation/list/generationListModel.ts",
     "symbol": "deriveGenerationList"
   },
-  "write_api": [],
+  "write_api": [
+    {
+      "path": "src/workbench/generation/list/generationListModel.ts",
+      "symbol": "deriveGenerationList"
+    }
+  ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/generation/list/generationListSource.ts",

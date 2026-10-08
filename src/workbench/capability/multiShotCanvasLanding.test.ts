@@ -8,7 +8,6 @@ import * as modelLookup from '../generationCanvas/agent/availableModels'
 import * as projectPersistence from '../project/workbenchProjectSession'
 import * as canvasTools from '../generationCanvas/agent/applyCanvasToolCall'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
-import { readShotTable } from '../../../electron/shared/canvas/shotTable'
 import { useWorkbenchStore } from '../workbenchStore'
 import { deriveNodeRowExec, deriveStoryboardBatch } from '../creation/storyboard/exec/storyboardRowStatus'
 import { eligibleGenerationNodeIds } from '../generationCanvas/components/canvasProductionScope'
@@ -34,14 +33,11 @@ describe('materializeShots preserves the reading viewport on existing content', 
     useWorkbenchStore.setState({ canvasFitNonce: 0, canvasFitCategoryId: null, activeCategoryId: 'shots' })
   })
 
-  it('rebinds only shot 2 without requesting fit or changing node/table selection or active category', async () => {
+  it('rebinds only shot 2 without requesting fit or changing node selection or active category', async () => {
     const initial = await land()
     const store = useGenerationCanvasStore.getState()
     const secondId = initial.bindings[1].nodeId
     store.selectNode(secondId)
-    const table = store.nodes.find(node => node.id === initial.shotTableNodeId)!
-    const document = readShotTable(table.meta)!
-    store.updateNode(table.id, { meta: { ...table.meta, shotTable: { ...document, view: { ...document.view, selectedRowIds: [secondId] } } } })
     // A background projection must not navigate out of a category the user opened.
     useWorkbenchStore.setState({ activeCategoryId: 'cast' })
     const beforeFit = useWorkbenchStore.getState().canvasFitNonce
@@ -55,7 +51,6 @@ describe('materializeShots preserves the reading viewport on existing content', 
     expect(initial.bindings.map(binding => after.nodes.find(node => node.id === binding.nodeId)?.prompt))
       .toEqual(['原提示词 1', '逆光下的侧脸', '原提示词 3'])
     expect(after.selectedNodeIds).toEqual(beforeSelection)
-    expect(readShotTable(after.nodes.find(node => node.id === table.id)?.meta)?.view.selectedRowIds).toEqual([secondId])
     expect(useWorkbenchStore.getState().canvasFitNonce).toBe(beforeFit)
     expect(useWorkbenchStore.getState().activeCategoryId).toBe('cast')
   })
@@ -76,12 +71,12 @@ describe('materializeShots preserves the reading viewport on existing content', 
 
   // 2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到那个镜头生成去哪里了」。落地（新建镜头、组、
   // 分镜表，单镜变多镜）一律不请求适应、不切分类；屏外的新东西由画布边缘提示指路。
-  it('reported case: paid-card landing creates nodes, group and table without moving the viewport', async () => {
+  it('reported case: paid-card landing creates nodes and group (no table node) without moving the viewport', async () => {
     const activeBefore = useWorkbenchStore.getState().activeCategoryId
     const result = await land()
     expect(result.createdNodeIds).toHaveLength(3)
     expect(result.groupId).toBeTruthy()
-    expect(result.shotTableNodeId).toBeTruthy()
+    expect(useGenerationCanvasStore.getState().nodes.some(node => node.kind === 'shot_table')).toBe(false)
     expect(useWorkbenchStore.getState().canvasFitNonce).toBe(0)
     expect(useWorkbenchStore.getState().activeCategoryId).toBe(activeBefore)
   })
@@ -95,10 +90,8 @@ describe('materializeShots preserves the reading viewport on existing content', 
 
   it('class: adding a group or growing a single shot into a multi-shot plan never requests a fit', async () => {
     const first = await land(shots.slice(0, 1))
-    expect(first.shotTableNodeId).toBeNull()
     const next = await land()
     expect(next.createdNodeIds).toHaveLength(2)
-    expect(next.shotTableNodeId).toBeTruthy()
     useGenerationCanvasStore.setState({ groups: [] })
     const regrouped = await land()
     expect(regrouped.groupId).toBeTruthy()
@@ -222,23 +215,16 @@ describe('production shot table is born with the landed nodes', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
   })
 
-  it('落地 N≥2 镜 → 一张 shot_table(production) 指向这个 Run，标题 = 计划名，行零缓存', async () => {
-    const result = await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
-    expect(result.shotTableNodeId).toBeTruthy()
-    const [table] = tables()
-    expect(table.title).toBe('旧书店')
-    expect(readShotTable(table.meta)?.source).toEqual({ kind: 'production', runId, materializationOperationId: operationId })
-    expect(table.meta?.shotTable).not.toHaveProperty('rows')
+  it('落地 N≥2 镜 → 只有镜头节点和组，不再建分镜表节点（0.24 退役，镜头在生成页列表里按镜序看）', async () => {
+    await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
+    expect(tables()).toHaveLength(0)
+    expect(useGenerationCanvasStore.getState().nodes.filter((node) => node.meta?.productionRunId === runId)).toHaveLength(3)
   })
 
-  it('补齐重放（节点已在）不建第二张；用户删掉表后重放也不复活它——删表只是删视图', async () => {
+  it('补齐重放（节点已在）什么都不新建', async () => {
     await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
-    await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
-    expect(tables()).toHaveLength(1)
-    useGenerationCanvasStore.getState().deleteNode(tables()[0].id)
     const replay = await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
     expect(tables()).toHaveLength(0)
-    expect(replay.shotTableNodeId).toBeNull()
     expect(replay.createdNodeIds).toHaveLength(0)
   })
 
@@ -247,9 +233,8 @@ describe('production shot table is born with the landed nodes', () => {
     expect(tables()).toHaveLength(0)
   })
 
-  it('表、节点、组同一个撤销步：一次 undo 三者全退', async () => {
+  it('节点、组同一个撤销步：一次 undo 两者全退', async () => {
     await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
-    expect(tables()).toHaveLength(1)
     useGenerationCanvasStore.getState().undo()
     const state = useGenerationCanvasStore.getState()
     expect(state.nodes.filter((node) => node.meta?.materializationOperationId === operationId)).toEqual([])
@@ -506,7 +491,7 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
 
 // 同一次任务里画布上出现两张分镜表：同一个 Run 的两次落地重叠时，「这个 Run 已有表吗」在 await 之前判一次、之后才建，
 // 两次都判成「没有」。判据必须在真正建表那一刻（同步段内）再读一次。
-describe('production shot table is created at most once per Run, even when two landings overlap', () => {
+describe('overlapping landings of one Run never duplicate nodes (and no table node exists any more)', () => {
   const runId = 'run-overlap-1'
   const operationId = `canvas-landing:${runId}`
   const shots = [
@@ -518,11 +503,13 @@ describe('production shot table is created at most once per Run, even when two l
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
   })
 
-  it('reported case: two overlapping landings of one Run leave exactly one table', async () => {
+  it('reported case: two overlapping landings of one Run leave exactly one set of shot nodes and no table', async () => {
     await Promise.all([
       materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
       materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots }),
     ])
-    expect(useGenerationCanvasStore.getState().nodes.filter((node) => node.kind === 'shot_table')).toHaveLength(1)
+    const nodes = useGenerationCanvasStore.getState().nodes
+    expect(nodes.filter((node) => node.kind === 'shot_table')).toHaveLength(0)
+    expect(nodes.filter((node) => node.meta?.productionRunId === runId)).toHaveLength(2)
   })
 })

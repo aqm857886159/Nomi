@@ -1,0 +1,32 @@
+{
+  "name": "分镜镜头的对外编号（「镜 03」/「<分镜名> · 镜 03」）",
+  "subject": "storyboard.shot-label",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/canvas/storyboardShotLabel.ts",
+    "symbol": "resolveStoryboardShotLabel"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/canvas/storyboardShotLabel.ts",
+      "symbol": "resolveStoryboardShotLabel"
+    },
+    {
+      "path": "electron/shared/canvas/storyboardShotLabel.ts",
+      "symbol": "formatStoryboardShotLabelForAgent"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generation/list/storyboardLabels.ts",
+    "src/workbench/generation/list/generationListModel.ts",
+    "electron/shared/agentCapabilities/canvasRead.ts",
+    "electron/shared/agentCapabilities/canvasReadCompact.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "2026-10-08 用户「镜头编号只留分镜里的号」。画布、列表、Agent canvas.read、时间轴都从这里取名字；全局 shotIndex 对分镜镜头不再对外。必红测试 src/workbench/generation/list/storyboardShotLabel.surfaces.test.ts。"
+}

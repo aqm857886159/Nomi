@@ -1,4 +1,4 @@
-import { normalizeShotTableMeta } from '../../electron/shared/canvas/shotTable'
+import { isRetiredShotTableNode, normalizeShotTableMeta } from '../../electron/shared/canvas/shotTable'
 import { normalizeWorkbenchDocument, type WorkbenchDocument } from './workbenchTypes'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import type { TimelineState } from './timeline/timelineTypes'
@@ -43,11 +43,16 @@ export function normalizeGenerationCanvasSnapshot(input: unknown): GenerationCan
       groups: [],
     }
   }
+  // 已退役的分镜表 / Agent 分镜表节点整个丢掉（同 canvasSnapshotNormalizer），连着它们的边和选中一起收。
+  const nodes = input.nodes.filter((node) => !isRetiredShotTableNode(node))
+  const alive = new Set(nodes.map((node) => node.id))
   return {
     ...input,
-    nodes: input.nodes.map((node) => node.kind === 'shot_table'
+    nodes: nodes.map((node) => node.kind === 'shot_table'
       ? { ...node, meta: normalizeShotTableMeta(node.meta) }
       : node),
+    edges: input.edges.filter((edge) => alive.has(edge.source) && alive.has(edge.target)),
+    selectedNodeIds: (input.selectedNodeIds ?? []).filter((id) => alive.has(id)),
     groups: Array.isArray(input.groups) ? input.groups : [],
   }
 }

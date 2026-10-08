@@ -73,35 +73,6 @@ export const shotTableFactRowSchema = z.object({
   return { ...row, startSeconds, endSeconds, durationSeconds: quantizeShotSeconds(endSeconds - startSeconds) }
 })
 
-export const storyboardShotTableSchema = z.object({
-  ...commonShape,
-  source: z.object({
-    kind: z.literal('storyboard'),
-    documentId: identitySchema,
-    designId: identitySchema,
-  }).strict(),
-  columnSetId: z.literal('production'),
-  // A view never owns a cached copy of the storyboard rows.
-  rows: z.never().optional(),
-}).strict()
-
-/**
- * Agent 分镜的账本只有一份：`ProductionRun.generationPlan` 落成的画布节点。这张表不存任何一行，
- * 行从画布上 `meta.productionRunId === runId` 的节点 derive（分镜表 = 画布节点的表格表示版，
- * 2026-09-01 拍板）。删掉这张表只是删掉一个视图，节点与 Run 一字不动。
- */
-export const productionShotTableSchema = z.object({
-  ...commonShape,
-  source: z.object({
-    kind: z.literal('production'),
-    runId: identitySchema,
-    /** 落地那一批的幂等章（`canvas-landing:<runId>`）：同一 Run 的补齐重放据它认出这张表已存在。 */
-    materializationOperationId: identitySchema,
-  }).strict(),
-  columnSetId: z.literal('production'),
-  rows: z.never().optional(),
-}).strict()
-
 export const deconstructionShotTableSchema = z.object({
   ...commonShape,
   source: z.object({
@@ -148,12 +119,10 @@ export const deconstructionShotTableSchema = z.object({
   rows: z.array(shotTableFactRowSchema).refine((rows) => new Set(rows.map((row) => row.rowId)).size === rows.length),
 }).strict()
 
-/** Cross-process persistence owner. Storyboard rows remain in the existing design/node owners. */
-export const shotTableDocumentSchema = z.union([storyboardShotTableSchema, productionShotTableSchema, deconstructionShotTableSchema])
-export type StoryboardShotTableDocument = z.infer<typeof storyboardShotTableSchema>
-export type ProductionShotTableDocument = z.infer<typeof productionShotTableSchema>
+/** Cross-process persistence owner. 现在只剩拆解（参考片）这一种表：分镜表 / Agent 分镜表在 0.24 退役（镜头只在画布节点里，列表是它的视图）。 */
+export const shotTableDocumentSchema = deconstructionShotTableSchema
 export type DeconstructionShotTableDocument = z.infer<typeof deconstructionShotTableSchema>
-export type ShotTableDocument = z.infer<typeof shotTableDocumentSchema>
+export type ShotTableDocument = DeconstructionShotTableDocument
 export type ShotTableColumn = z.infer<typeof shotTableColumnSchema>
 export type ShotTableFactRow = z.infer<typeof shotTableFactRowSchema>
 
@@ -169,34 +138,18 @@ export function normalizeShotTableMeta(meta: unknown): Record<string, unknown> {
   return { ...value, shotTable: shotTableDocumentSchema.parse(value.shotTable) }
 }
 
-export function createStoryboardShotTable(
-  documentId: string,
-  designId: string,
-  updatedAt = new Date().toISOString(),
-): StoryboardShotTableDocument {
-  return storyboardShotTableSchema.parse({
-    schemaVersion: 1,
-    source: { kind: 'storyboard', documentId, designId },
-    columnSetId: 'production',
-    view: { selectedRowIds: [], density: 'auto' },
-    revision: 0,
-    updatedAt,
-  })
-}
-
-export function createProductionShotTable(
-  runId: string,
-  materializationOperationId: string,
-  updatedAt = new Date().toISOString(),
-): ProductionShotTableDocument {
-  return productionShotTableSchema.parse({
-    schemaVersion: 1,
-    source: { kind: 'production', runId, materializationOperationId },
-    columnSetId: 'production',
-    view: { selectedRowIds: [], density: 'auto' },
-    revision: 0,
-    updatedAt,
-  })
+/**
+ * 0.23.1 及更早写过的两种已退役表来源（分镜表 storyboard、Agent 分镜表 production）。
+ * 它们只是画布节点的另一种展示，不存任何一行；现行 schema 不再认它们，读取时整节点丢掉
+ * （迁移入口：project/storyboardTableRetirement，镜头节点、方案一个不动）。
+ */
+const RETIRED_SHOT_TABLE_SOURCES: ReadonlySet<string> = new Set(['storyboard', 'production'])
+export function isRetiredShotTableNode(node: { kind?: unknown; meta?: unknown }): boolean {
+  if (node.kind !== 'shot_table') return false
+  const meta = node.meta && typeof node.meta === 'object' ? node.meta as Record<string, unknown> : {}
+  const table = meta.shotTable && typeof meta.shotTable === 'object' ? meta.shotTable as Record<string, unknown> : {}
+  const source = table.source && typeof table.source === 'object' ? table.source as Record<string, unknown> : {}
+  return typeof source.kind === 'string' && RETIRED_SHOT_TABLE_SOURCES.has(source.kind)
 }
 
 /**

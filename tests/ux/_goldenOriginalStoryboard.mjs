@@ -38,26 +38,8 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   const originalPlan = structuredClone(await readPlan())
   expect(originalPlan.shots.map(row => row.prompt)).toEqual(prompts)
   expect(originalPlan.shots.map(row => row.shotId)).toEqual(['shot-1', shotId, 'shot-3'])
-  // 2026-09-21 合并 ①：这条原先是 `shots.map(row => row.title)).toEqual(titles)`，钉的是一个
-  // **不存在的契约**——`planShotSchema` 没有逐镜 `title` 这一格（zod 当场剥掉），分镜行的 UI 也不显示
-  // 逐镜标题（`StoryboardShotRow.tsx` 全文零处读它）。实测 plan 行的键恰好就是 schema 那几个。
-  // 模型拟的标题**没有丢**：`storyboardPlanFromDraftSubjects` 取第一条有名字的当方案名，
-  // 也就是左栏方案行上那个名字。所以改成钉住真实契约的两条（判据：产品没回归，是断言写错了）：
-  //   ① 逐镜不带 title —— 冒出来 = 有人又给「这一镜叫什么」加了第二个语义 owner；
-  //   ② 模型写的标题成了方案的名字 —— 丢了就是真的丢了。
-  expect(originalPlan.shots.filter(row => 'title' in row), 'plan 行不带逐镜标题（planShotSchema 没有这一格）').toHaveLength(0)
-  expect(originalPlan.title, '模型拟的标题成为方案名，不是被静默丢掉').toBe(titles[0])
-  expect(originalPlan.shots.map(row => row.modelKey)).toEqual(prompts.map(() => FIXTURE_IMAGE_MODEL))
-  // 2026-09-21 合并 ①：这条原先断言「拆完镜头画布上一个节点都没有」。实测有一个，`kind=shot_table`
-  // ——那是**这份方案的表格视图**，由 `ensureStoryboardShotTable` 在「显式写入一份方案」时建一张；
-  // 那个文件在 origin/main 上逐字节同一份，手建分镜走的也是它，不是 Pass 2 长出来的副作用。
-  // 用户拍的「Agent 产出先成方案、显式『放入画布』才落节点」说的是**生成节点**（会花钱、占画布的镜头卡），
-  // 不是方案自己的表。所以断言收窄到它真正要守的那条，并把表视图**正着**钉下来——
-  // 它没了或变成两张，同样是回归（判据：产品没回归，是断言写得太宽）。
-  await expect.poll(async () => {
-    const nodes = (await readProject(win, projectId)).payload.generationCanvas.nodes ?? []
-    return { generation: nodes.filter(node => node.kind !== 'shot_table').length, tables: nodes.filter(node => node.kind === 'shot_table').length }
-  }, { timeout: stationTimeout({ operations: 1 }) }).toEqual({ generation: 0, tables: 1 })
+  // 保存方案 = 只存方案：画布上一个节点都没有（分镜表节点 0.24 退役；「放入画布」才落镜头节点，会花钱的那种）。
+  await expect.poll(async () => ((await readProject(win, projectId)).payload.generationCanvas.nodes ?? []).length, { timeout: stationTimeout({ operations: 1 }) }).toBe(0)
   expect(walk.fixture.images, 'Saving a storyboard submits no media').toHaveLength(0)
   const openEditor = async () => {
     await win.getByRole('button', { name: '创作', exact: true }).click()

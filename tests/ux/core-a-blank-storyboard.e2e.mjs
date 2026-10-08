@@ -59,10 +59,8 @@ function assertNoExecution(editedCount) {
   assert.equal(fixture.images.length, 0, 'Manual creation/edit/reopen must not generate media')
   fixture.assertClean()
   const graph = disk().generationCanvas
-  // Baseline dc113e712 creates a read-through shot_table on explicit author edits.
-  // Preserve that original view; blank creation must add nothing and media nodes are forbidden.
-  assert.equal(graph.nodes.length, editedCount, 'Only existing authored-plan table views may be present')
-  assert(graph.nodes.every(node => node.kind === 'shot_table'), 'No image/video/execution nodes')
+  // 分镜表节点已退役：创建 / 编辑空白方案不往画布加任何东西（也不许有生成节点）。
+  assert.equal(graph.nodes.length, 0, 'The canvas stays empty: no table view, no image/video/execution nodes')
   assert.deepEqual(graph.edges, [])
   assert.deepEqual(disk().workbenchDocuments, documents, 'Source documents must stay unchanged')
 }

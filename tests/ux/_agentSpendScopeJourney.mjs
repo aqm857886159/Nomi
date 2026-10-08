@@ -90,7 +90,7 @@ export async function checkSpendScopeJourney(walk, win) {
   const draftedGraph = await graph()
   const baselineIds = new Set(baselineGraph.nodes.map(node => node.id))
   const createdNodes = draftedGraph.nodes.filter(node => !baselineIds.has(node.id))
-  expect(createdNodes.filter(node => node.kind === 'shot_table')).toHaveLength(1)
+  expect(createdNodes.filter(node => node.kind === 'shot_table'), '分镜表节点已退役：落画布只长镜头节点').toHaveLength(0)
   expect(createdNodes.filter(node => node.kind === 'image').map(node => node.prompt).sort())
     .toEqual(originalShots.map(shot => shot.candidate.prompt).sort())
   const firstTurn = await present(operationId, requestedIds)

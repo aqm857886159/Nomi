@@ -1,3 +1,4 @@
+// @ts-nocheck — 这份探针在 `git archive <tag>` 解出的发布版源码树里运行（相对路径指向那棵树），不属于本仓的类型检查。
 // Release-writer probe for the storyboard-table retirement fixture.
 //
 // This file is NOT part of the repository test lane: `scripts/generate-storyboard-table-fixture.mjs`

@@ -59,7 +59,8 @@ describe('storyboard-table retirement (old projects written by v0.23.1)', () => 
   it('every snapshot read path drops a retired view instead of failing to open (load, persistence normalizer)', () => {
     const canvas = fixture.payload.generationCanvas
     expect(tableSources(normalizeStoreSnapshot(canvas).nodes)).toEqual(['deconstruction'])
-    expect(tableSources(normalizeGenerationCanvasSnapshot(canvas).nodes)).toEqual(['deconstruction'])
+    // 写盘载荷不带 selectedNodeIds（会话态）；serializeWorkbenchState 吃的是内存快照，所以这条路补上它再喂。
+    expect(tableSources(normalizeGenerationCanvasSnapshot({ ...canvas, selectedNodeIds: [] }).nodes)).toEqual(['deconstruction'])
     // 现行写入 schema 不再认这两种来源：读不出来 = 没有任何地方能再把它当一张表用。
     const storyboardTable = canvas.nodes.find((node) => tableSources([node])[0] === 'storyboard')!
     expect(readShotTable(storyboardTable.meta)).toBeUndefined()

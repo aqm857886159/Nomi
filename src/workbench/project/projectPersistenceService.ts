@@ -7,6 +7,7 @@ import {
   subscribeWorkbenchProjectPersistence,
 } from './workbenchProjectSession'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
+import { retireStoryboardTableViews } from './storyboardTableRetirement'
 import { migrateProjectRecord, type CategoryMigrationDiagnostic } from './projectCategoryMigration'
 import { migrateProjectV51ToV60 } from './projectV51ToV60Migration'
 import { backfillShotIndexes } from '../generationCanvas/model/shotNumbering'
@@ -29,6 +30,8 @@ function isGuardCurrent(guard: ProjectHydrationGuard): boolean {
 }
 
 const categoryMigrationDiagnostics = new WeakMap<object, CategoryMigrationDiagnostic>()
+/** 这次打开移除了几张已退役的分镜表节点（要给用户一句可见提示）。 */
+const retiredTableCounts = new WeakMap<object, number>()
 
 function abandonHydratingProjectOwnership(): void {
   invalidateAgentTurnStates()
@@ -95,6 +98,13 @@ export function migratedRecordNeedsPersist(
   if (Object.is(original, upgraded)) return false
   if (original.name !== upgraded.name) return true
   return !workbenchPayloadSemanticEquals(original.payload, upgraded.payload)
+}
+
+/** 这次打开移除了几张分镜表节点；取走即清（只认这一轮 hydration 的 guard）。 */
+export function consumeRetiredStoryboardTableCount(guard: ProjectHydrationGuard): number {
+  const value = retiredTableCounts.get(guard) ?? 0
+  retiredTableCounts.delete(guard)
+  return value
 }
 
 /** Returns + clears only the diagnostic owned by this exact hydration epoch. */
@@ -175,15 +185,16 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     const project = await measureProjectOpenStage('read-project', () => readLocalProjectAsync(projectId))
     guard.assertCurrent()
     if (!project) return null
-    const { diagnostic, mediaDimensionsUpgraded } = await measureProjectOpenStage('migrate', async () => {
+    const { diagnostic, mediaDimensionsUpgraded, retiredTables } = await measureProjectOpenStage('migrate', async () => {
       const mediaUpgraded = await upgradeWorkbenchProjectMediaUrls(project)
       guard.assertCurrent()
       const { record: catUpgraded, diagnostic } = migrateProjectRecord(mediaUpgraded)
-      const { record: v60Upgraded } = migrateProjectV51ToV60(catUpgraded)
+      const { record: v60Upgraded0 } = migrateProjectV51ToV60(catUpgraded)
+      const { record: v60Upgraded, retired: retiredTables } = retireStoryboardTableViews(v60Upgraded0)
       // A1.5：历史导入/切图/裁剪/截图的 image 节点改判为 asset（素材卡）。
       const assetUpgraded = normalizeLegacyImageAssetKinds(v60Upgraded)
       const mediaDimensionsUpgraded = await backfillCanvasMediaDimensions(assetUpgraded)
-      return { diagnostic, mediaDimensionsUpgraded }
+      return { diagnostic, mediaDimensionsUpgraded, retiredTables }
     })
     // 镜头编号存储身份化（审计 A2）：存量项目缺 shotIndex 的镜头节点按
     // (y, x, id) 确定性回填一次；此后编号不再随布局/添加节点漂移。
@@ -208,6 +219,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     if (changed && !diagnostic.alreadyMigrated && (diagnostic.migratedNodes > 0 || diagnostic.removedNodes > 0 || diagnostic.categoriesSeeded)) {
       categoryMigrationDiagnostics.set(guard, diagnostic)
     }
+    if (changed && retiredTables > 0) retiredTableCounts.set(guard, retiredTables)
     if (changed) {
       await measureProjectOpenStage('save-migrated', () => saveLocalProject(upgraded.id, upgraded.payload))
     }

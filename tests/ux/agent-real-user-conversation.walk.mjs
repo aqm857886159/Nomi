@@ -354,7 +354,7 @@ try {
   await expect(canvas).toContainText('K_CANVAS1_DONE')
   await expect.poll(shotNodeIds, { message: '三个镜头节点必须真的落到画布上', timeout: stationTimeout({ operations: 2 }) })
     .toHaveLength(3)
-  await expect.poll(shotTableIds, { message: '多镜草稿落地时同一步长出一张分镜表', timeout: stationTimeout({ operations: 2 }) }).toHaveLength(1)
+  await expect.poll(shotTableIds, { message: '多镜草稿落地不再长分镜表节点（已退役，镜头在生成页列表里）', timeout: stationTimeout({ operations: 2 }) }).toHaveLength(0)
   const nodesAfterCreate = await shotNodeIds()
   await walk.snap('06-canvas-three-nodes-no-card')
 

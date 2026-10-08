@@ -18,7 +18,6 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 const require = createRequire(import.meta.url)
 const { productionRunsRoot } = tsxRequire('../../electron/productionRun/productionRunPaths.ts', import.meta.url)
 const { renderShotNodePrompt, stableShotId } = tsxRequire('../../src/workbench/generationCanvas/agent/storyboardPlan.ts', import.meta.url)
-const { createStoryboardShotTable } = tsxRequire('../../electron/shared/canvas/shotTable.ts', import.meta.url)
 const { resolveNodeRenderKind } = tsxRequire('../../src/workbench/generationCanvas/nodes/resolveRenderKind.ts', import.meta.url)
 const { NODE_KIND_DEFAULT_SIZE } = tsxRequire('../../electron/capabilityCore/nodeKindDomain.ts', import.meta.url)
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex')
@@ -188,23 +187,6 @@ export function assertCanvasPreserved(actual, expected, measurements = {}, { bef
   assert.deepEqual(actual.nodes, expectedNodes, 'All original graph content and only explicitly expected edits must survive')
   assert.deepEqual(actual.edges, expected.edges)
   assert.deepEqual(actual.groups ?? [], expected.groups ?? [])
-}
-
-export function captureExpectedLegacyTable(actual, original, savedDesign) {
-  const originalIds = new Set(original.nodes.map(node => node.id))
-  const additions = actual.nodes.filter(node => !originalIds.has(node.id))
-  assert.equal(additions.length, 1, 'Only one existing-kind storyboard view may be created by the explicit retired-plan edit')
-  const table = additions[0]
-  assert.equal(typeof table.id, 'string')
-  assert(table.id.length > 0)
-  assert(Number.isFinite(table.position?.x) && Number.isFinite(table.position?.y))
-  assert.deepEqual(table, {
-    id: table.id, kind: 'shot_table', title: savedDesign.title,
-    position: table.position, size: NODE_KIND_DEFAULT_SIZE.shot_table,
-    prompt: '', references: [], history: [], status: 'idle', categoryId: 'shots',
-    meta: { shotTable: createStoryboardShotTable(savedDesign.documentId, savedDesign.id, new Date(savedDesign.updatedAt).toISOString()) },
-  }, 'Validate the complete original table envelope; no media results, rows, lineage or extra metadata')
-  return structuredClone(table)
 }
 
 async function hashLargeFile(file) {
@@ -444,7 +426,7 @@ async function main() {
     await walk.stopApp()
     verifyFinalGraph()
     walk.report.oldStoryboardFormats = await runOldStoryboardFormatMatrix({ source, outputDir,
-      prepareOldProjectCopy, openCopiedStoryboardEditor, assertCanvasPreserved, assertNoHydratedCanvasAddition, editedCanvasExpectation, readCardInfoMeasurements, captureExpectedLegacyTable, recordCandidateFailure, fileHashes })
+      prepareOldProjectCopy, openCopiedStoryboardEditor, assertCanvasPreserved, assertNoHydratedCanvasAddition, editedCanvasExpectation, readCardInfoMeasurements, recordCandidateFailure, fileHashes })
   } catch (error) {
     recordCandidateFailure(walk.report, 'journey', error)
     failure = error
