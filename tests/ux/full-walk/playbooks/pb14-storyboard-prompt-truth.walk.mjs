@@ -56,7 +56,7 @@ const makePlan = (heroUrl) => ({
 })
 
 const pb = await startPlaybook({
-  id: 'pb07-storyboard-prompt-truth',
+  id: 'pb14-storyboard-prompt-truth',
   needs: ['loopbackProvider', 'fixtureTextModel', 'paidGenerationRoute'],
   seed: ({ imageResult, imageMeta }) => ({
     nodes: [
