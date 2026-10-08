@@ -48,6 +48,8 @@
 - 判断「是不是我们自己的进程 / 实例 / 锁」一律按自己登记的 PID 或锁文件，不按进程名数（全走查启动器按 nomi.exe / electron.exe 数，把用户自己开的正式版和僵尸进程都算进去，走查永远起不来）。
 
 ## 交付前必跑 CI 同款门岗（10-08 加：#1114 / #1115 / 0.23.1 连着三次「本地没跑全、CI 才红」）
+
+> **10-08 晚修订（取代本节「必跑整段」的要求）**：本机同时有 5 条左右的线。**不要在本机跑整段 Contracts / 全量 Unit / tests/ux 全目录**——它们一次起上百个子进程，几条线同时跑会耗尽 Windows 桌面堆，所有进程起不来（0xC0000142，10-08 三次）。只跑与你改动相关的门岗与测试（改了哪个 check-* 就跑哪个及其 node-test；改了哪个目录就跑那个目录的相关 vitest），并贴退出码；整段门岗交给 CI。等 node 版门岗锁合入后，整段只能经 `pnpm run gates`（有锁排队）跑。
 - `pnpm run gates` 在这台 Windows 上会卡在 python3 锁，**不是不跑的理由**：直接跑它里面的分段（gates:contracts / test 这些脚本外面也包着 python3 锁，就把 package.json 里 `with-gates-lock.py --` 或 `--command "…"` 后面那段命令原样拿出来跑）——Contracts 段 = `node scripts/run-gates-contracts.mjs` 加 package.json 里同样的参数、`pnpm run typecheck`、`pnpm run check:test-types`、`pnpm lint`（零 error），改了测试再加 `node scripts/check-test-waits.mjs`。
 - 报告里贴每条的退出码。某条红了：先在干净的 `origin/main` 上同样跑一次（用已经在 origin/main 上的只读 worktree，或 `git worktree add --detach` 一个临时的、跑完交给协调会话清理；不许用 git stash——stash 栈是所有会话共用的），main 上也红 = Windows 环境既有问题，写明哪条、报错首行；main 上不红 = 你引入的，必须修好再交。
 - 批量替换（codemod / sed / 脚本改很多文件）后，**每个被改文件**都要被执行到：对应测试真跑、或至少 `node --check` + import 解析；只抽查几个不算。
