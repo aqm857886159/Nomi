@@ -1,0 +1,423 @@
+{
+  "writtenBy": {
+    "tag": "v0.23.1",
+    "commit": "66d6eafed07ad6239acd765dd05c9eb0870cf849",
+    "writer": "scripts/fixtures/storyboardTableReleaseWriter.probe.ts"
+  },
+  "payload": {
+    "workbenchDocuments": [
+      {
+        "id": "doc-rain",
+        "version": 1,
+        "title": "Rain letter",
+        "contentJson": {
+          "type": "doc",
+          "content": []
+        },
+        "updatedAt": 1
+      }
+    ],
+    "activeDocumentId": "doc-rain",
+    "timeline": {
+      "version": 1,
+      "fps": 30,
+      "scale": 1,
+      "playheadFrame": 0,
+      "tracks": [
+        {
+          "id": "imageTrack",
+          "type": "image",
+          "label": "图片轨",
+          "clips": []
+        },
+        {
+          "id": "videoTrack",
+          "type": "video",
+          "label": "视频轨",
+          "clips": []
+        },
+        {
+          "id": "audioTrack",
+          "type": "audio",
+          "label": "音频轨",
+          "clips": []
+        }
+      ],
+      "textClips": []
+    },
+    "generationCanvas": {
+      "nodes": [
+        {
+          "id": "gen-v2-shot_table-muzvbg9h-j7xn",
+          "kind": "shot_table",
+          "title": "Rainy store",
+          "position": {
+            "x": 120,
+            "y": 360
+          },
+          "size": {
+            "width": 960,
+            "height": 420
+          },
+          "prompt": "",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "shotTable": {
+              "schemaVersion": 1,
+              "view": {
+                "selectedRowIds": [],
+                "density": "auto"
+              },
+              "revision": 0,
+              "updatedAt": "2026-10-08T18:26:38.731Z",
+              "source": {
+                "kind": "storyboard",
+                "documentId": "doc-rain",
+                "designId": "storyboard-82c827e1-94fc-4475-b04b-a1cb45fb8139"
+              },
+              "columnSetId": "production"
+            }
+          },
+          "categoryId": "shots"
+        },
+        {
+          "id": "gen-v2-video-muzvbg9j-esvw",
+          "kind": "video",
+          "title": "Shot 1",
+          "position": {
+            "x": 0,
+            "y": 1052
+          },
+          "size": {
+            "width": 420,
+            "height": 340
+          },
+          "prompt": "prompt shot-a",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "storyboardDesignId": "storyboard-82c827e1-94fc-4475-b04b-a1cb45fb8139",
+            "shotId": "shot-a",
+            "creationDocumentId": "doc-rain",
+            "modelKey": "seedance-2",
+            "modelVendor": "apimart"
+          },
+          "categoryId": "shots",
+          "shotIndex": 1
+        },
+        {
+          "id": "gen-v2-video-muzvbg9k-6aoj",
+          "kind": "video",
+          "title": "Shot 2",
+          "position": {
+            "x": 932,
+            "y": 1052
+          },
+          "size": {
+            "width": 420,
+            "height": 340
+          },
+          "prompt": "prompt shot-b",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "storyboardDesignId": "storyboard-82c827e1-94fc-4475-b04b-a1cb45fb8139",
+            "shotId": "shot-b",
+            "creationDocumentId": "doc-rain",
+            "modelKey": "seedance-2",
+            "modelVendor": "apimart"
+          },
+          "categoryId": "shots",
+          "shotIndex": 2
+        },
+        {
+          "id": "gen-v2-image-muzvbg9l-2tk4",
+          "kind": "image",
+          "title": "Agent shot 1",
+          "position": {
+            "x": 0,
+            "y": 1592
+          },
+          "size": {
+            "width": 340,
+            "height": 280
+          },
+          "prompt": "agent prompt p1",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "productionRunId": "run-agent-storyboard",
+            "productionShotId": "p1",
+            "materializationOperationId": "canvas-landing:run-agent-storyboard",
+            "clientId": "p1"
+          },
+          "categoryId": "shots",
+          "shotIndex": 3,
+          "groupId": "group-shots-muzvbg9m-osuf"
+        },
+        {
+          "id": "gen-v2-image-muzvbg9l-kmnz",
+          "kind": "image",
+          "title": "Agent shot 2",
+          "position": {
+            "x": 852,
+            "y": 1592
+          },
+          "size": {
+            "width": 340,
+            "height": 280
+          },
+          "prompt": "agent prompt p2",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "productionRunId": "run-agent-storyboard",
+            "productionShotId": "p2",
+            "materializationOperationId": "canvas-landing:run-agent-storyboard",
+            "clientId": "p2"
+          },
+          "categoryId": "shots",
+          "shotIndex": 4,
+          "groupId": "group-shots-muzvbg9m-osuf"
+        },
+        {
+          "id": "gen-v2-shot_table-muzvbg9n-50rp",
+          "kind": "shot_table",
+          "title": "Agent plan",
+          "position": {
+            "x": 1192,
+            "y": 360
+          },
+          "size": {
+            "width": 960,
+            "height": 420
+          },
+          "prompt": "",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "shotTable": {
+              "schemaVersion": 1,
+              "view": {
+                "selectedRowIds": [],
+                "density": "auto"
+              },
+              "revision": 0,
+              "updatedAt": "2026-10-01T00:00:00.000Z",
+              "source": {
+                "kind": "production",
+                "runId": "run-agent-storyboard",
+                "materializationOperationId": "canvas-landing:run-agent-storyboard"
+              },
+              "columnSetId": "production"
+            }
+          },
+          "categoryId": "shots"
+        },
+        {
+          "id": "gen-v2-video-muzvbg9n-ah5v",
+          "kind": "video",
+          "title": "Reference clip",
+          "position": {
+            "x": 0,
+            "y": 2252
+          },
+          "size": {
+            "width": 420,
+            "height": 340
+          },
+          "prompt": "",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {},
+          "categoryId": "shots",
+          "shotIndex": 5
+        },
+        {
+          "id": "gen-v2-shot_table-muzvbg9o-iax6",
+          "kind": "shot_table",
+          "title": "Reference breakdown",
+          "position": {
+            "x": 1192,
+            "y": -172
+          },
+          "size": {
+            "width": 960,
+            "height": 420
+          },
+          "prompt": "",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "shotTable": {
+              "schemaVersion": 1,
+              "view": {
+                "selectedRowIds": [],
+                "density": "auto"
+              },
+              "revision": 0,
+              "updatedAt": "2026-10-01T00:00:00.000Z",
+              "source": {
+                "kind": "deconstruction",
+                "sourceNodeId": "gen-v2-video-muzvbg9n-ah5v",
+                "title": "Reference clip",
+                "status": "ready"
+              },
+              "columnSetId": "facts",
+              "columns": [],
+              "rows": []
+            }
+          },
+          "categoryId": "shots"
+        }
+      ],
+      "edges": [],
+      "groups": [
+        {
+          "id": "group-shots-muzvbg9m-osuf",
+          "name": "Storyboard group · Agent plan",
+          "categoryId": "shots",
+          "nodeIds": [
+            "gen-v2-image-muzvbg9l-2tk4",
+            "gen-v2-image-muzvbg9l-kmnz"
+          ],
+          "frameBounds": {
+            "x": -24,
+            "y": 1540,
+            "w": 1240,
+            "h": 356
+          },
+          "materializationOperationId": "canvas-landing:run-agent-storyboard",
+          "createdAt": 1791483998745,
+          "updatedAt": 1791483998745
+        }
+      ],
+      "workflowTemplates": []
+    },
+    "categories": [
+      {
+        "id": "shots",
+        "name": "分镜",
+        "icon": "🎬",
+        "iconName": "IconLayoutRows",
+        "defaultNodeRenderKind": "shot-frame",
+        "order": 1,
+        "isBuiltin": true
+      },
+      {
+        "id": "cast",
+        "name": "角色",
+        "icon": "👥",
+        "iconName": "IconUser",
+        "defaultNodeRenderKind": "character-card",
+        "order": 2,
+        "isBuiltin": true
+      },
+      {
+        "id": "scene",
+        "name": "场景",
+        "icon": "🌍",
+        "iconName": "IconPhoto",
+        "defaultNodeRenderKind": "scene-card",
+        "order": 3,
+        "isBuiltin": true
+      },
+      {
+        "id": "prop",
+        "name": "道具",
+        "icon": "🧰",
+        "iconName": "IconBox",
+        "defaultNodeRenderKind": "prop-card",
+        "order": 4,
+        "isBuiltin": true
+      },
+      {
+        "id": "audio",
+        "name": "声音",
+        "icon": "🎵",
+        "iconName": "IconChartBar",
+        "defaultNodeRenderKind": "audio-strip",
+        "order": 5,
+        "isBuiltin": true
+      }
+    ],
+    "generationCanvasLastSeq": 0,
+    "storyboardDesignsByDocumentId": {
+      "doc-rain": [
+        {
+          "id": "storyboard-82c827e1-94fc-4475-b04b-a1cb45fb8139",
+          "documentId": "doc-rain",
+          "title": "Rainy store",
+          "plan": {
+            "title": "Rainy store",
+            "anchors": [
+              {
+                "id": "anchor-lin",
+                "kind": "character",
+                "name": "Lin",
+                "description": "young woman, short hair",
+                "carrier": "visual"
+              }
+            ],
+            "shots": [
+              {
+                "shotId": "shot-a",
+                "index": 1,
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [
+                  "anchor-lin"
+                ],
+                "prompt": "Wide shot, Lin by the store awning"
+              },
+              {
+                "shotId": "shot-b",
+                "index": 2,
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [
+                  "anchor-lin"
+                ],
+                "prompt": "Close-up, Lin in profile"
+              },
+              {
+                "shotId": "shot-c",
+                "index": 3,
+                "shotKind": "image",
+                "durationSec": 3,
+                "anchorIds": [],
+                "prompt": "Low angle, a pocket watch in a puddle"
+              }
+            ]
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 1,
+          "createdAt": 1791483998731,
+          "updatedAt": 1791483998731
+        }
+      ]
+    },
+    "editingPanelLayout": {
+      "sourceWidth": 300,
+      "inspectorWidth": 240,
+      "assistantWidth": 390,
+      "timelineHeight": 260,
+      "visibility": {
+        "source": true,
+        "inspector": true,
+        "assistant": true
+      },
+      "preset": "default"
+    }
+  }
+}
