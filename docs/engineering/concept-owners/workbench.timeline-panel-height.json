@@ -4,7 +4,7 @@
   "lifecycle": "preference",
   "authority_kind": "writer",
   "trust_domain": "renderer",
-  "fact_kind": "derived",
+  "fact_kind": "rule",
   "migration_status": "converged",
   "owner": {
     "path": "src/workbench/timeline/timelinePanelBounds.ts",
