@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { installQuitTeardown, registerQuitDrain, registerQuitSessionEndSource, resetQuitRequest, resetQuitTeardownForTests } from "./quitTeardown";
+import { continueRequestedQuit, exitWithoutConfirmation, installQuitTeardown, isQuitRequested, registerQuitDrain, requestQuit, resetQuitRequest, resetQuitTeardownForTests } from "./quitTeardown";
 import { openProjectAgentLane } from "../src/workbench/project/projectAgentLaneOpen";
 
 type Listener = (event: { preventDefault: () => void }) => void;
@@ -7,12 +7,13 @@ type SessionEvent = { preventDefault?: () => void };
 const quitCancellationMatrix = ["agent command", "capability core", "project opening"] as const;
 
 function fakeApp() {
-  const listeners = new Map<string, Listener>();
+  const listeners = new Map<string, (...args: never[]) => void>();
   const app = {
-    on: vi.fn((event: "before-quit" | "will-quit", listener: Listener) => {
+    on: vi.fn((event: string, listener: (...args: never[]) => void) => {
       listeners.set(event, listener);
       return app;
     }),
+    whenReady: vi.fn((): Promise<unknown> => Promise.resolve()),
     quit: vi.fn(),
     exit: vi.fn(),
   };
@@ -20,8 +21,11 @@ function fakeApp() {
     app,
     emit: (event: "before-quit" | "will-quit") => {
       const preventDefault = vi.fn();
-      listeners.get(event)?.({ preventDefault });
+      (listeners.get(event) as Listener | undefined)?.({ preventDefault });
       return preventDefault;
+    },
+    createWindow: (window: unknown) => {
+      (listeners.get("browser-window-created") as ((event: unknown, window: unknown) => void) | undefined)?.({}, window);
     },
   };
 }
@@ -40,6 +44,20 @@ function fakeSessionSource() {
       listeners.get(event)?.(payload);
     },
   };
+}
+
+function recordingDeps(calls: string[], overrides: Partial<Parameters<typeof installQuitTeardown>[1]> = {}) {
+  return {
+    disposeBackgroundLifecycle: vi.fn(() => { calls.push("background-lifecycle"); }),
+    stopDesktopCapabilityCore: vi.fn(() => { calls.push("capability-core"); }),
+    abortAllActiveExports: vi.fn(() => { calls.push("active-exports"); return 1; }),
+    disposeDesktopLaneIpc: vi.fn(async () => { calls.push("desktop-lane-ipc"); }),
+    ...overrides,
+  };
+}
+
+async function flushMicrotasks(rounds = 24): Promise<void> {
+  for (let i = 0; i < rounds; i += 1) await Promise.resolve();
 }
 
 describe("quit teardown lifecycle", () => {
@@ -286,51 +304,154 @@ describe("quit teardown lifecycle", () => {
     }
   });
 
-  it("runs only required critical drains for a Windows query-session-end without confirmation", async () => {
+  it("Windows query-session-end delays the OS, runs only exports then lane, and exits without confirmation", async () => {
+    const { app, createWindow } = fakeApp();
+    const window = fakeSessionSource();
+    const calls: string[] = [];
+    const deps = recordingDeps(calls);
+    installQuitTeardown(app, { ...deps, systemSession: { platform: "win32", powerMonitor: () => { throw new Error("not on win32"); } } });
+    createWindow(window.source);
+    const preventDefault = vi.fn();
+    window.emit("query-session-end", { preventDefault });
+    window.emit("session-end");
+    expect(preventDefault).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(calls).toEqual(["active-exports", "desktop-lane-ipc"]);
+    expect(app.quit).not.toHaveBeenCalled();
+    expect(app.exit).toHaveBeenCalledOnce();
+  });
+
+  it("Windows session-end alone still aborts exports and closes the lane before exit", async () => {
+    const { app, createWindow } = fakeApp();
+    const window = fakeSessionSource();
+    const calls: string[] = [];
+    installQuitTeardown(app, { ...recordingDeps(calls), systemSession: { platform: "win32", powerMonitor: vi.fn() } });
+    createWindow(window.source);
+    window.emit("session-end");
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(calls).toEqual(["active-exports", "desktop-lane-ipc"]);
+  });
+
+  it("caps system session end at 500ms and still runs the lane when exports throw", async () => {
     vi.useFakeTimers();
     try {
-      const { app } = fakeApp();
-      const session = fakeSessionSource();
-      const preventDefault = vi.fn();
-      const calls: string[] = [];
-      registerQuitSessionEndSource(session.source, ["query-session-end", "session-end"]);
+      const { app, createWindow } = fakeApp();
+      const window = fakeSessionSource();
+      const errors: string[] = [];
+      const lane = vi.fn(() => new Promise<void>(() => undefined));
       installQuitTeardown(app, {
-        disposeBackgroundLifecycle: vi.fn(() => { calls.push("background"); }),
-        stopDesktopCapabilityCore: vi.fn(() => { calls.push("capability"); }),
-        disposeDesktopLaneIpc: vi.fn(async () => { calls.push("lane"); }),
-        abortAllActiveExports: vi.fn(() => { calls.push("exports"); return 1; }),
-        timeoutMs: 40,
+        disposeBackgroundLifecycle: vi.fn(),
+        stopDesktopCapabilityCore: vi.fn(),
+        abortAllActiveExports: vi.fn((): number => { throw new Error("ffmpeg kill failed"); }),
+        disposeDesktopLaneIpc: lane,
+        onError: (stage) => errors.push(stage),
+        timeoutMs: 3000,
+        systemSession: { platform: "win32", powerMonitor: vi.fn() },
       });
-      session.emit("query-session-end", { preventDefault });
-      expect(preventDefault).toHaveBeenCalledOnce();
-      for (let i = 0; i < 20; i += 1) await Promise.resolve();
-      expect(calls).toEqual(["exports", "lane"]);
-      expect(app.quit).not.toHaveBeenCalled();
-      vi.advanceTimersByTime(40);
-      await vi.runAllTimersAsync();
+      createWindow(window.source);
+      window.emit("query-session-end", { preventDefault: vi.fn() });
+      await flushMicrotasks();
+      expect(errors).toContain("active-exports-failed");
+      expect(lane).toHaveBeenCalledOnce();
+      vi.advanceTimersByTime(499);
+      await flushMicrotasks();
+      expect(app.exit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      await flushMicrotasks();
+      expect(errors).toEqual(expect.arrayContaining(["desktop-lane-ipc-timeout", "critical-exit-timeout"]));
       expect(app.exit).toHaveBeenCalledWith(0);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("runs critical drains for a session-end event without attempting confirmation", async () => {
+  it("Linux subscribes powerMonitor shutdown only after ready and drains before exit", async () => {
     const { app } = fakeApp();
-    const session = fakeSessionSource();
-    const exports = vi.fn(() => 0);
-    const lane = vi.fn(async () => undefined);
-    registerQuitSessionEndSource(session.source, ["session-end"]);
-    installQuitTeardown(app, {
-      disposeBackgroundLifecycle: vi.fn(),
-      stopDesktopCapabilityCore: vi.fn(),
-      disposeDesktopLaneIpc: lane,
-      abortAllActiveExports: exports,
-      timeoutMs: 5,
-    });
-    session.emit("session-end");
+    let ready!: () => void;
+    app.whenReady.mockReturnValue(new Promise<void>((resolve) => { ready = resolve; }));
+    const monitor = fakeSessionSource();
+    const powerMonitor = vi.fn(() => monitor.source);
+    const calls: string[] = [];
+    installQuitTeardown(app, { ...recordingDeps(calls), systemSession: { platform: "linux", powerMonitor } });
+    expect(app.on).not.toHaveBeenCalledWith("browser-window-created", expect.any(Function));
+    await flushMicrotasks();
+    expect(powerMonitor).not.toHaveBeenCalled();
+    ready();
+    await vi.waitFor(() => expect(monitor.source.on).toHaveBeenCalledWith("shutdown", expect.any(Function)));
+    const preventDefault = vi.fn();
+    monitor.emit("shutdown", { preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
     await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
-    expect(exports).toHaveBeenCalledOnce();
-    expect(lane).toHaveBeenCalledOnce();
+    expect(calls).toEqual(["active-exports", "desktop-lane-ipc"]);
+  });
+
+  it("macOS keeps logout on the normal quit lifecycle and subscribes no session source", () => {
+    const { app } = fakeApp();
+    const powerMonitor = vi.fn();
+    installQuitTeardown(app, { ...recordingDeps([]), systemSession: { platform: "darwin", powerMonitor } });
+    expect(app.on.mock.calls.map(([event]) => event)).toEqual(["before-quit", "will-quit"]);
+    expect(app.whenReady).not.toHaveBeenCalled();
+    expect(powerMonitor).not.toHaveBeenCalled();
+  });
+
+  it("session end during a running will-quit teardown does not rerun drains and shortens the deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const calls: string[] = [];
+      let releaseBackground!: () => void;
+      const deps = recordingDeps(calls, {
+        disposeBackgroundLifecycle: vi.fn(() => new Promise<void>((resolve) => { calls.push("background-lifecycle"); releaseBackground = resolve; })) as unknown as () => void,
+        disposeDesktopLaneIpc: vi.fn(() => { calls.push("desktop-lane-ipc"); return new Promise<void>(() => undefined); }),
+      });
+      installQuitTeardown(app, { ...deps, timeoutMs: 3000 });
+      emit("will-quit");
+      await flushMicrotasks();
+      exitWithoutConfirmation("session-end");
+      releaseBackground();
+      await flushMicrotasks();
+      expect(calls).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+      vi.advanceTimersByTime(500);
+      await flushMicrotasks();
+      expect(app.exit).toHaveBeenCalledWith(0);
+      expect(app.exit).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("unattended exits and quit requests require the installed owner", () => {
+    expect(() => exitWithoutConfirmation("parent-process-exited")).toThrow("quit owner is not installed");
+    expect(() => requestQuit()).toThrow("quit owner is not installed");
+  });
+
+  it("requestQuit with an exit code drains through will-quit and exits with that code", async () => {
+    const { app, emit } = fakeApp();
+    const calls: string[] = [];
+    installQuitTeardown(app, recordingDeps(calls));
+    app.quit.mockImplementationOnce(() => { emit("before-quit"); emit("will-quit"); });
+    requestQuit({ exitCode: 1 });
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(1));
+    expect(calls).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+    expect(app.quit).toHaveBeenCalledOnce();
+  });
+
+  it("resumes a quit that a confirmed window close interrupted, and only then", () => {
+    const { app, emit } = fakeApp();
+    installQuitTeardown(app, recordingDeps([]));
+    continueRequestedQuit();
+    expect(app.quit).not.toHaveBeenCalled();
+    emit("before-quit");
+    resetQuitRequest();
+    continueRequestedQuit();
+    expect(app.quit).not.toHaveBeenCalled();
+    emit("before-quit");
+    expect(isQuitRequested()).toBe(true);
+    continueRequestedQuit();
+    expect(app.quit).toHaveBeenCalledOnce();
+    emit("will-quit");
+    continueRequestedQuit();
+    expect(app.quit).toHaveBeenCalledOnce();
   });
 
   it.each([

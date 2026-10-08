@@ -136,6 +136,9 @@ app.whenReady().then(async () => {
   } catch (error) {
     emit({ ok: false, error: rpcErrorWirePayload(error) })
   } finally {
+    // ESLint exemption (eslint.config.mjs directQuitExemptionFiles): this is a separate one-shot
+    // Electron entry. main.ts never runs here, so the GUI quit owner is never installed; the
+    // dispatch above already settled, and this finally block is the whole process lifecycle.
     app.exit(code)
   }
 })

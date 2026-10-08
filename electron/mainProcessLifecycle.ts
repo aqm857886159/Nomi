@@ -8,11 +8,10 @@ import { installMainLogger, markStderrAsDiagnosticSurface } from "./logging/logg
 import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
 import { setProductionRunE2eFixturePackagedState } from "./shared/productionRunE2eFixtureGate";
-import { registerQuitDrain } from "./quitTeardown";
+import { exitWithoutConfirmation, registerQuitDrain } from "./quitTeardown";
 
 type ElectronAppLifecycle = {
   readonly isPackaged: boolean;
-  exit: (code?: number) => void;
 };
 
 type MainProcessLifecycleDependencies = {
@@ -75,7 +74,9 @@ export function installMainProcessLifecycle(
     // 启动器可能在 Electron 完成模块加载前已被强杀；此时 process.ppid 已经变成 1。
     // 显式传入 spawn 时的 PID，才能封住这段启动竞态。
     parentPid: readLauncherPid(dependencies.env ?? process.env),
-    exit: (code) => app.exit(code),
+    // 启动器没了就没人能回答关窗确认：交给退出 owner 只跑关键排空（中止导出、落盘 Agent 会话）后退出。
+    // 看门狗首次检查在 setInterval 一个周期后，main.ts 顶层同步装的 owner 那时必然已就位。
+    exit: () => exitWithoutConfirmation("parent-process-exited"),
   });
   registerQuitDrain("parent-process-watchdog", stopParentProcessWatchdog, { required: false, timeoutMs: 100 });
 }

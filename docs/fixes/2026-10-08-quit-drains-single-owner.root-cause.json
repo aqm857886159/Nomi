@@ -4,88 +4,243 @@
   "detected_by": "user",
   "problem_type": "unbounded Electron quit and window-close lifecycle drains",
   "symptom": "On macOS 0.23.0, clicking quit could leave the Electron main process alive indefinitely; a renderer that never answered close confirmation could also keep a window from closing forever.",
-  "direct_cause": "Multiple modules independently prevented will-quit and waited on promises without a shared deadline; windowCloseConfirmation prevented every repeated close while waiting for an unbounded renderer response.",
-  "class_root": "Quit lifecycle work had no single owner that enforced one total deadline across every drain and close confirmation.",
+  "direct_cause": "Multiple modules independently prevented will-quit and waited on promises without a shared deadline; windowCloseConfirmation prevented every repeated close while waiting for an unbounded renderer response; Windows session end, the dev parent watchdog, and MCP stdio shutdown ended the process with app.exit and skipped every drain.",
+  "class_root": "Process termination had no single owner: any module could subscribe to the quit lifecycle or end the process directly, so no path was guaranteed to run the drains under one deadline.",
   "affected_population": [
     "macOS users quitting while local task or Antigravity work is active",
     "users whose renderer is stalled or disconnected during close confirmation",
-    "all main-process quit paths that register asynchronous cleanup"
+    "Windows users who shut down, restart, or log off with Nomi open (exports and Agent lane were never drained)",
+    "MCP stdio hosts and dev/e2e launchers whose child Nomi process ended without draining"
   ],
   "scope_paths": [
     "electron/quitTeardown.ts",
+    "electron/windowCloseConfirmation.ts",
     "electron/tasks/taskIpcHandlers.ts",
     "electron/ai/antigravityIpc.ts",
-    "electron/windowCloseConfirmation.ts",
     "electron/mainProcessLifecycle.ts",
     "electron/main.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/host.ts",
+    "electron/update/autoUpdater.ts",
     "electron/video/depthVideoIpc.ts",
     "electron/screenshot/screenshotHotkey.ts",
     "eslint.config.mjs"
   ],
   "entry_points": [
-    "Electron before-quit and will-quit lifecycle",
+    "Electron before-quit and will-quit lifecycle (Cmd+Q, Dock quit, app.quit, last window on Windows/Linux, electron-updater quitAndInstall)",
+    "Windows BrowserWindow query-session-end / session-end and Linux powerMonitor shutdown",
+    "dev/e2e parent-process watchdog",
+    "MCP stdio transport close and MCP stdio startup failure",
     "task IPC local image jobs",
     "Antigravity connection test IPC",
     "renderer close confirmation",
     "video depth, screenshot, watchdog, and catalog lifecycle cleanup"
   ],
-  "external_sources": [],
-  "internal_only_reason": "The invariant is an application-owned Electron lifecycle contract; no third-party behavior determines the ownership or deadline policy.",
+  "external_sources": [
+    "node_modules/electron/electron.d.ts (Electron 43.4.1) App 'before-quit': On Windows, this event will not be emitted if the app is closed due to a shutdown/restart of the system or a user logout.",
+    "node_modules/electron/electron.d.ts (Electron 43.4.1) App.exit: before-quit and will-quit events will not be emitted.",
+    "https://www.electronjs.org/docs/latest/api/browser-window#event-query-session-end",
+    "https://www.electronjs.org/docs/latest/api/browser-window#event-session-end",
+    "https://www.electronjs.org/docs/latest/api/power-monitor#event-shutdown",
+    "https://www.electronjs.org/docs/latest/api/app#appquit",
+    "node_modules/electron-updater (6.8.9) out/BaseUpdater.js quitAndInstall: spawns the installer, then this.app.quit(); out/MacUpdater.js hands off to Squirrel nativeUpdater.quitAndInstall."
+  ],
+  "internal_only_reason": "Electron supplies the events; which drains run, in what order, under which deadline, and who may end the process is an application-owned contract.",
   "invariants": [
-    "Only electron/quitTeardown.ts subscribes to before-quit or will-quit.",
-    "Every registered drain declares required/optional status and an individual deadline under one owner total timeout.",
-    "A close confirmation request always resolves by renderer response or the owner timeout; rejection leaves runtime resources alive.",
-    "Only quitTeardown may call app.quit or app.exit for teardown completion and timeout fallback."
+    "Only electron/quitTeardown.ts subscribes to before-quit, will-quit, BrowserWindow query-session-end/session-end, or powerMonitor shutdown (ESLint no-restricted-syntax, any of on/once/addListener/prependListener/prependOnceListener).",
+    "Only electron/quitTeardown.ts calls app.exit or app.relaunch in the GUI process; two reviewed file exemptions remain: capabilityCore/host.ts (separate one-shot Electron entry where the owner is never installed) and update/autoUpdater.ts (quitAndInstall ends in app.quit and re-enters the owner).",
+    "The normal quit budget starts at will-quit; built-ins run serially background-lifecycle -> capability-core -> active-exports (250ms cap each) -> desktop-lane-ipc (all remaining budget), then registered required drains; a step timeout is logged with its step name and the next step still runs; at the total deadline the owner calls app.exit.",
+    "Unattended exits (Windows session end, Linux shutdown, lost dev launcher) run only active-exports then desktop-lane-ipc within 500ms, never show a confirmation, and then app.exit(0).",
+    "Close confirmation never discards unsaved content without an explicit user choice: renderer ACK within 1500ms hands the decision to the user with no timeout; no ACK shows one native Force Quit / Cancel dialog (default Cancel); a confirmed close resumes the quit it interrupted."
   ],
   "doors": [
-    { "kind": "write", "path": "electron/ai/antigravityIpc.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/main.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/mainProcessLifecycle.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/quitTeardown.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/screenshot/screenshotHotkey.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/tasks/taskIpcHandlers.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/video/depthVideoIpc.ts", "symbol": "registerQuitDrain" },
-    { "kind": "write", "path": "electron/windowCloseConfirmation.ts", "symbol": "quitTeardownTimeoutMs" },
-    { "kind": "write", "path": "electron/windowCloseConfirmation.ts", "symbol": "resetQuitRequest" }
+    {
+      "kind": "write",
+      "path": "electron/quitTeardown.ts",
+      "symbol": "installQuitTeardown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityIpc.ts",
+      "symbol": "registerQuitDrain"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "registerQuitDrain"
+    },
+    {
+      "kind": "write",
+      "path": "electron/mainProcessLifecycle.ts",
+      "symbol": "registerQuitDrain"
+    },
+    {
+      "kind": "write",
+      "path": "electron/screenshot/screenshotHotkey.ts",
+      "symbol": "registerQuitDrain"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "registerQuitDrain"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoIpc.ts",
+      "symbol": "registerQuitDrain"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "requestQuit"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "requestQuit"
+    },
+    {
+      "kind": "write",
+      "path": "electron/mainProcessLifecycle.ts",
+      "symbol": "exitWithoutConfirmation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/windowCloseConfirmation.ts",
+      "symbol": "resetQuitRequest"
+    },
+    {
+      "kind": "read",
+      "path": "electron/windowCloseConfirmation.ts",
+      "symbol": "continueRequestedQuit"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/host.ts",
+      "symbol": "app.exit"
+    },
+    {
+      "kind": "write",
+      "path": "electron/update/autoUpdater.ts",
+      "symbol": "quitAndInstall"
+    }
   ],
   "door_reduction": {
-    "before": 7,
-    "after": 9,
-    "why_not": "The seven lifecycle subscriptions are removed. The nine surviving doors are independent resource owners registering with the single boundary; deleting any would leak that resource's cleanup."
+    "before": 12,
+    "after": 14,
+    "why_not": "Before: seven lifecycle subscriptions, four direct app.exit calls (main.ts MCP failure, mcpStdioServer close, parent watchdog, host.ts) and the updater restart; Windows session end had no door at all. After: one owner (installQuitTeardown) holds every subscription and every GUI-process exit; eleven doors are calls into it (six registrations, two quit requests, one unattended exit, close-cancel reset, close-confirmed resume), and two are reviewed exemptions outside the GUI owner path (host.ts separate process, autoUpdater.quitAndInstall that re-enters the owner through app.quit). Each call-in door is a distinct caller intent; merging them would push caller knowledge back into the owner."
   },
-  "generality_proof": "The owner is reached by every checked quit cleanup caller, while the static ESLint selector rejects future direct subscriptions in electron production code. Window close confirmation reads the same owner timeout and reset state, so a stalled renderer cannot create a second unbounded lifecycle.",
+  "generality_proof": "Every way to end the GUI process is either an Electron lifecycle event the owner alone subscribes to, or an owner function (requestQuit, exitWithoutConfirmation). ESLint rejects new subscriptions to quit or session-end events and new app.exit/app.relaunch/autoUpdater.quitAndInstall calls anywhere in electron/ except the owner and two named exemption files, so a new module cannot add a second termination path without editing eslint.config.mjs in review.",
   "shared_boundaries": [
-    { "path": "electron/quitTeardown.ts", "symbol": "installQuitTeardown", "responsibility": "Own lifecycle subscriptions, parallel drain execution, required/optional deadlines, and app.quit/app.exit fallback." },
-    { "path": "electron/quitTeardown.ts", "symbol": "registerQuitDrain", "responsibility": "Require every cleanup participant to declare its policy before the owner runs it." },
-    { "path": "electron/windowCloseConfirmation.ts", "symbol": "installWindowCloseConfirmation", "responsibility": "Bound renderer close confirmation and preserve explicit cancellation." },
-    { "path": "eslint.config.mjs", "symbol": "quitLifecycleSelectors", "responsibility": "Prevent production lifecycle subscriptions outside the owner." }
+    {
+      "path": "electron/quitTeardown.ts",
+      "symbol": "installQuitTeardown",
+      "responsibility": "Own before-quit/will-quit and platform session-end subscriptions, ordered drains, per-step and total deadlines, and the final app.quit/app.exit."
+    },
+    {
+      "path": "electron/quitTeardown.ts",
+      "symbol": "registerQuitDrain",
+      "responsibility": "Require every cleanup participant to declare required/optional and its deadline before the owner runs it."
+    },
+    {
+      "path": "electron/quitTeardown.ts",
+      "symbol": "exitWithoutConfirmation",
+      "responsibility": "Single unattended exit: 500ms critical drains, then app.exit(0)."
+    },
+    {
+      "path": "electron/quitTeardown.ts",
+      "symbol": "requestQuit",
+      "responsibility": "Normal quit request from code, with optional process exit code, routed through will-quit drains."
+    },
+    {
+      "path": "electron/windowCloseConfirmation.ts",
+      "symbol": "installWindowCloseConfirmation",
+      "responsibility": "Renderer ACK liveness, user decision without timeout, native fallback dialog, and quit resume after a confirmed close."
+    },
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "quitLifecycleSelectors",
+      "responsibility": "Reject production quit/session-end subscriptions and direct exit/relaunch/updater calls outside the owner or the two exemptions."
+    }
   ],
   "same_class_entry_points": [
-    { "path": "electron/tasks/taskIpcHandlers.ts", "entry_point": "registerTaskIpcHandlers", "disposition": "enforced", "evidence": "Task cancellation now registers antigravity image job draining with the owner and has no Electron quit listener." },
-    { "path": "electron/ai/antigravityIpc.ts", "entry_point": "registerAntigravityIpc", "disposition": "enforced", "evidence": "Connection cancellation and settlement are registered with the owner; shutdown rejection reads owner state." },
-    { "path": "electron/windowCloseConfirmation.ts", "entry_point": "installWindowCloseConfirmation", "disposition": "enforced", "evidence": "Renderer response, explicit rejection, and no-response timeout all converge on bounded close handling." },
-    { "path": "electron/video/depthVideoIpc.ts", "entry_point": "registerVideoDepthIpc", "disposition": "enforced", "evidence": "Video job disposal is an owner drain rather than a direct will-quit listener." }
+    {
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "entry_point": "registerTaskIpcHandlers",
+      "disposition": "enforced",
+      "evidence": "Image job cancelAll is an owner drain; taskIpcHandlers.test.ts drives the real owner: one cancelAll across repeated will-quit, quit only after cleanup settles."
+    },
+    {
+      "path": "electron/ai/antigravityIpc.ts",
+      "entry_point": "registerAntigravityIpc",
+      "disposition": "enforced",
+      "evidence": "Cancel and settlement are an owner drain; antigravityIpc.test.ts drives the real owner: single cancel, refuses new tests after before-quit, waits for persistence before quit."
+    },
+    {
+      "path": "electron/windowCloseConfirmation.ts",
+      "entry_point": "installWindowCloseConfirmation",
+      "disposition": "enforced",
+      "evidence": "ACK / decision / native dialog / quit resume covered by windowCloseConfirmation.test.ts against the real owner."
+    },
+    {
+      "path": "electron/video/depthVideoIpc.ts",
+      "entry_point": "registerVideoDepthIpc",
+      "disposition": "enforced",
+      "evidence": "Video job disposal is an owner drain rather than a direct will-quit listener."
+    },
+    {
+      "path": "electron/mainProcessLifecycle.ts",
+      "entry_point": "installMainProcessLifecycle",
+      "disposition": "enforced",
+      "evidence": "Parent watchdog exit calls exitWithoutConfirmation; mainProcessLifecycle.test.ts asserts exports abort and lane close before app.exit."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "startMcpStdioServer",
+      "disposition": "enforced",
+      "evidence": "Transport close calls requestQuit() instead of app.exit(0)."
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "MCP stdio startup failure",
+      "disposition": "enforced",
+      "evidence": "Calls requestQuit({ exitCode: 1 }); owner exits with code 1 after drains (quitTeardown.test.ts)."
+    },
+    {
+      "path": "electron/capabilityCore/host.ts",
+      "entry_point": "headless capability host",
+      "disposition": "not-affected",
+      "evidence": "Separate one-shot Electron entry with no spawner today (see mcpResultEnrichLive.ts note); main.ts and the owner never load there. ESLint file exemption with reason comment."
+    },
+    {
+      "path": "electron/update/autoUpdater.ts",
+      "entry_point": "registerUpdaterIpc install",
+      "disposition": "not-affected",
+      "evidence": "electron-updater quitAndInstall ends in app.quit (BaseUpdater) or Squirrel's quit (MacUpdater), re-entering the owner. ESLint file exemption with reason comment."
+    }
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "Any new asynchronous main-process cleanup or stalled renderer could reproduce the same permanent preventDefault wait unless registration and deadline ownership are structural.",
+    "reason": "Any new asynchronous cleanup, platform exit event, or direct process exit could recreate an undrained or unbounded termination path unless subscription and exit ownership are structural.",
     "same_class_scan": [
-      "node scripts/door-map.mjs registerQuitDrain enumerated all seven registration call-site files.",
-      "Repository search found the former seven will-quit listeners across quitTeardown, antigravity, tasks, main lifecycle, main, depth video, and screenshot modules.",
-      "electron/windowCloseConfirmation.ts was checked independently for repeated close prevention and renderer response handling."
+      "node scripts/door-map.mjs registerQuitDrain: six registration files.",
+      "node scripts/door-map.mjs requestQuit / exitWithoutConfirmation / continueRequestedQuit / resetQuitRequest: listed in doors.",
+      "git grep for app.exit/app.relaunch/quitAndInstall in electron/ (excluding tests and fixtures): only quitTeardown.ts, capabilityCore/host.ts, update/autoUpdater.ts remain.",
+      "git grep for on/once/addListener of before-quit, will-quit, query-session-end, session-end, shutdown in electron/ and src/: only quitTeardown.ts."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/quitTeardown.ts",
-    "invariant": "All cleanup is registered once and runs under one owner total timeout; required timeout exits and optional timeout only logs.",
-    "failure_mode": "A thrown drain is recorded and teardown continues; a required timeout or total timeout calls app.exit(0).",
+    "invariant": "All termination goes through the owner; drains run serially under one deadline started at will-quit (3000ms) or at the unattended-exit trigger (500ms).",
+    "failure_mode": "A thrown drain is logged as <step>-failed and the next step runs; a step timeout is logged as <step>-timeout and the next step runs; when any step timed out the owner logs quit-timeout or critical-exit-timeout and calls app.exit.",
     "exception_policy": "none",
-    "strategy": "Delete per-module lifecycle state machines and direct quit calls, then make ESLint reject new direct lifecycle subscriptions.",
+    "strategy": "Delete per-module lifecycle listeners and direct exits, route every remaining caller through owner functions, and make ESLint reject new subscriptions and direct exits. Not exceptions to the GUI-process invariant: capabilityCore/host.ts is a separate process where the owner never exists, and autoUpdater.quitAndInstall ends in app.quit, which re-enters the owner; both are named in eslint.config.mjs directQuitExemptionFiles with reason comments.",
     "artifacts": [
       "electron/quitTeardown.ts",
       "eslint.config.mjs",
-      "electron/windowCloseConfirmation.ts"
+      "electron/windowCloseConfirmation.ts",
+      "electron/quitLifecycleGuard.test.ts"
     ]
   },
   "regression_tests": [
@@ -93,7 +248,8 @@
     "electron/windowCloseConfirmation.test.ts",
     "electron/quitLifecycleGuard.test.ts",
     "electron/tasks/taskIpcHandlers.test.ts",
-    "electron/ai/antigravityIpc.test.ts"
+    "electron/ai/antigravityIpc.test.ts",
+    "electron/mainProcessLifecycle.test.ts"
   ],
   "class_regression_tests": [
     "electron/quitTeardown.test.ts",
@@ -108,9 +264,10 @@
       "electron/video/depthVideoIpc.ts",
       "electron/screenshot/screenshotHotkey.ts",
       "electron/mainProcessLifecycle.ts",
-      "electron/main.ts"
+      "electron/main.ts",
+      "electron/capabilityCore/mcpStdioServer.ts"
     ],
-    "rationale": "The obsolete paths were deleted in the same change; no fallback listener remains."
+    "rationale": "Per-module quit listeners and direct app.exit calls were deleted in the same change; no fallback listener or exit remains."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -119,12 +276,20 @@
   },
   "migration": "No persisted data or external protocol changes; existing runtime registrations converge on the new owner during process startup.",
   "residual_risks": [
-    "A real packaged macOS quit with a native renderer stall was not run in this headless validation environment.",
-    "The owner total timeout remains a fixed 3 seconds by default and should be revisited only with measured lifecycle evidence."
+    "Windows query-session-end preventDefault and 500ms drain timing are unit-verified only; not run on a real Windows shutdown/logoff.",
+    "Linux powerMonitor shutdown is unit-verified only.",
+    "Resume-after-confirmed-close relies on reading Electron's Browser::OnWindowCloseCancelled (a prevented window close cancels an in-flight quit); not verified on a packaged macOS build. The resume is idempotent if Electron did not cancel.",
+    "Windows/Linux session end exits without asking the renderer to save; unsaved renderer edits since the last autosave can be lost. Open product decision recorded in the PR body.",
+    "electron-updater quitAndInstall on macOS with a pending close confirmation is not covered by a test.",
+    "Owner total timeout stays 3000ms by default; revisit only with measured lifecycle evidence."
   ],
   "invariant_owner_layer": {
     "layer": "electron/quitTeardown.ts",
-    "tests": ["electron/quitTeardown.test.ts", "electron/windowCloseConfirmation.test.ts", "electron/quitLifecycleGuard.test.ts"]
+    "tests": [
+      "electron/quitTeardown.test.ts",
+      "electron/windowCloseConfirmation.test.ts",
+      "electron/quitLifecycleGuard.test.ts"
+    ]
   },
   "recurrence_check_on": "2026-11-08"
 }

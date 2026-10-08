@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
-import { resetQuitRequest } from "./quitTeardown";
+import { continueRequestedQuit, resetQuitRequest } from "./quitTeardown";
 
 export const CLOSE_ACK_DEADLINE_MS = 1500;
 const windowsAllowedToClose = new WeakSet<BrowserWindow>();
@@ -108,5 +108,9 @@ export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void 
   });
   mainWindow.on("closed", () => {
     clearPendingClose(mainWindow);
+    // Preventing the window "close" event cancels Electron's in-flight quit (⌘Q / Dock / app.quit). Once the user
+    // confirmed and the window is gone, resume the quit they asked for; after the window list
+    // settles so Electron does not re-close a closing window. No-op when no quit was requested.
+    setImmediate(continueRequestedQuit);
   });
 }

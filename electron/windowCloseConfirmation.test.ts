@@ -14,7 +14,7 @@ vi.mock("electron", () => ({
 }));
 
 import { installWindowCloseConfirmation } from "./windowCloseConfirmation";
-import { isQuitRequested, resetQuitTeardownForTests } from "./quitTeardown";
+import { installQuitTeardown, isQuitRequested, resetQuitTeardownForTests } from "./quitTeardown";
 
 class FakeWindow extends EventEmitter {
   readonly webContents = { send: vi.fn() };
@@ -26,6 +26,27 @@ class FakeWindow extends EventEmitter {
   });
   destroyed = false;
   isDestroyed = () => this.destroyed;
+}
+
+/** Electron app stand-in: app.quit() emits before-quit, then will-quit once no window is open. */
+function installOwner(openWindows: () => number) {
+  const listeners = new Map<string, (event: { preventDefault: () => void }) => void>();
+  const app = {
+    on: vi.fn((event: string, listener: (...args: never[]) => void) => { listeners.set(event, listener as (event: { preventDefault: () => void }) => void); return app; }),
+    whenReady: vi.fn(() => Promise.resolve()),
+    exit: vi.fn(),
+    quit: vi.fn(() => {
+      listeners.get("before-quit")?.({ preventDefault: vi.fn() });
+      if (openWindows() === 0) listeners.get("will-quit")?.({ preventDefault: vi.fn() });
+    }),
+  };
+  installQuitTeardown(app, {
+    disposeBackgroundLifecycle: vi.fn(),
+    stopDesktopCapabilityCore: vi.fn(),
+    abortAllActiveExports: vi.fn(() => 0),
+    disposeDesktopLaneIpc: vi.fn(async () => undefined),
+  });
+  return app;
 }
 
 describe("window close confirmation", () => {
@@ -116,5 +137,55 @@ describe("window close confirmation", () => {
     vi.advanceTimersByTime(1);
     expect(window.close).not.toHaveBeenCalled();
     expect(mocks.showMessageBox).toHaveBeenCalledOnce();
+  });
+
+  it("finishes a requested quit after the user confirms the close that interrupted it", async () => {
+    const window = new FakeWindow();
+    let open = 1;
+    window.on("closed", () => { open = 0; });
+    mocks.fromWebContents.mockReturnValue(window);
+    const app = installOwner(() => open);
+    installWindowCloseConfirmation(window as never);
+    app.quit();
+    window.emit("close", { preventDefault: vi.fn() });
+    const { requestId } = window.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, ack: true });
+    vi.advanceTimersByTime(10_000);
+    expect(app.quit).toHaveBeenCalledOnce();
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed: true });
+    expect(window.close).toHaveBeenCalledOnce();
+    await vi.runAllTimersAsync();
+    // 1 = user quit (cancelled by the prevented close), 2 = resumed after closed, 3 = owner after drains.
+    await vi.waitFor(() => expect(app.quit).toHaveBeenCalledTimes(3));
+    expect(app.exit).not.toHaveBeenCalled();
+  });
+
+  it("finishes a requested quit after native force quit, but not after a plain window close", async () => {
+    const quitting = new FakeWindow();
+    let open = 1;
+    quitting.on("closed", () => { open = 0; });
+    mocks.fromWebContents.mockReturnValue(quitting);
+    mocks.showMessageBox.mockResolvedValueOnce({ response: 0 });
+    const app = installOwner(() => open);
+    installWindowCloseConfirmation(quitting as never);
+    app.quit();
+    quitting.emit("close", { preventDefault: vi.fn() });
+    vi.advanceTimersByTime(1500);
+    await vi.runAllTimersAsync();
+    expect(quitting.close).toHaveBeenCalledOnce();
+    expect(app.quit.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    resetQuitTeardownForTests();
+    const plain = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(plain);
+    const plainApp = installOwner(() => 1);
+    installWindowCloseConfirmation(plain as never);
+    plain.emit("close", { preventDefault: vi.fn() });
+    const { requestId } = plain.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: plain.webContents }, { requestId, ack: true });
+    mocks.ipcListener?.({ sender: plain.webContents }, { requestId, confirmed: true });
+    await vi.runAllTimersAsync();
+    expect(plain.close).toHaveBeenCalledOnce();
+    expect(plainApp.quit).not.toHaveBeenCalled();
   });
 });

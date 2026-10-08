@@ -16,15 +16,46 @@ const windowsPathSelectors = [
   },
 ]
 
+const quitListenerMethods = '/^(on|once|addListener|prependListener|prependOnceListener)$/'
 const quitLifecycleSelectors = [
   {
-    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name=/^(on|once|prependListener)$/][arguments.0.value="will-quit"]',
+    selector: `CallExpression[callee.type="MemberExpression"][callee.property.name=${quitListenerMethods}][arguments.0.value="will-quit"]`,
     message: 'Subscribe to will-quit only in electron/quitTeardown.ts; register a drain with quitTeardown instead.',
   },
   {
-    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name=/^(on|once|prependListener)$/][arguments.0.value="before-quit"]',
+    selector: `CallExpression[callee.type="MemberExpression"][callee.property.name=${quitListenerMethods}][arguments.0.value="before-quit"]`,
     message: 'Subscribe to before-quit only in electron/quitTeardown.ts; use quitTeardown state instead.',
   },
+  {
+    // Windows session end and Linux powerMonitor shutdown bypass before-quit / will-quit.
+    selector: `CallExpression[callee.type="MemberExpression"][callee.property.name=${quitListenerMethods}][arguments.0.value=/^(query-session-end|session-end|shutdown)$/]`,
+    message: 'Subscribe to system session end only in electron/quitTeardown.ts; it runs the critical drains before exit.',
+  },
+]
+
+const directQuitSelectors = [
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="app"][callee.property.name="exit"]',
+    message: 'Call app.exit only from electron/quitTeardown.ts or a documented independent-process exemption.',
+  },
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="app"][callee.property.name="relaunch"]',
+    message: 'Call app.relaunch only from electron/quitTeardown.ts or a documented independent-process exemption.',
+  },
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="autoUpdater"][callee.property.name="quitAndInstall"]',
+    message: 'Call autoUpdater.quitAndInstall only from electron/quitTeardown.ts or a documented updater exemption.',
+  },
+]
+
+// Reviewed exemptions; each call site carries the same reason in a comment.
+const directQuitExemptionFiles = [
+  // Separate one-shot headless Electron entry (spawned as "electron host.js"); the GUI owner is
+  // never installed in that process and its finally block is the whole lifecycle.
+  'electron/capabilityCore/host.ts',
+  // electron-updater quitAndInstall closes windows and then calls app.quit(), so it re-enters the
+  // owner's before-quit / will-quit; the restart itself is the updater's platform primitive.
+  'electron/update/autoUpdater.ts',
 ]
 
 export default tseslint.config(
@@ -132,15 +163,6 @@ export default tseslint.config(
     rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
   },
   {
-    files: ['electron/**/*.{ts,tsx}'],
-    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts'],
-    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors] },
-  },
-  {
-    files: ['electron/quitTeardown.ts'],
-    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
-  },
-  {
     files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -188,7 +210,12 @@ export default tseslint.config(
   },
   {
     files: ['electron/**/*.{ts,tsx}'],
-    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors] },
+  },
+  {
+    // Exemptions still may not subscribe to the quit lifecycle.
+    files: directQuitExemptionFiles,
     rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors] },
   },
   {
