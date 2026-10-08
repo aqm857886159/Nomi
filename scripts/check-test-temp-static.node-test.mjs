@@ -12,6 +12,7 @@ const forbidden = [
   /(?:mkdtempSync|mkdtemp)\s*\(\s*path\.join\(\s*tmpdir\(\)/,
   /mkdtempSync\s*\(\s*join\(\s*tmpdir\(\)/,
   /mkdtempSync\s*\(\s*path\.join\(\s*fs\.realpathSync\(os\.tmpdir\(\)/,
+  /mkdtempSync\s*\(\s*['\"]\/(?:tmp|var\/tmp)\//,
 ]
 const helperCall = /\b(?:makeTempDir|makeTempDirAsync|registerTempRoot|cleanupTempRoot)\s*\(/g
 const forbiddenQualifiedHelperCall = /\b[A-Za-z_$][\w$]*\.(?:makeTempDir|makeTempDirAsync|registerTempRoot|cleanupTempRoot)\s*\(/g
@@ -45,6 +46,11 @@ test('node:test and standalone walkthroughs use the shared temp helper for syste
     if (forbidden.some((pattern) => pattern.test(source)) && !Object.hasOwn(NON_SYSTEM_TEMP_ALLOWLIST, rel)) violations.push(rel)
   }
   assert.deepEqual(violations, [], `direct system-temp mkdtemp calls remain: ${violations.join(', ')}`)
+})
+
+test('fixed absolute system-temp mkdtemp calls are rejected', () => {
+  const source = ['const root = fs.mkdtempSync(', "'/tmp/", "nomi-regression-')"].join('')
+  assert.ok(forbidden.some((pattern) => pattern.test(source)))
 })
 
 test('every non-system mkdtemp exception has a documented reason', () => {

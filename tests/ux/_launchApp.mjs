@@ -1,4 +1,4 @@
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { cleanupTestTemp, makeTempDir, registerTestTemp } from '../../scripts/_test-temp.mjs'
 // tests/ux 与 evals 唯一的 Electron 启动器（2026-08-11 收敛，见 docs/plan/2026-08-11-e2e-launcher-convergence.md）。
 //
 // 为什么必须收敛成一份：走查脚本手抄 launch 样板时抄漏 env，会**静默挂死**——一张截图不产、
@@ -74,29 +74,12 @@ export function prepareIsolatedCatalog(settingsDir, { testedCatalogVersion = cur
 /** 仓库根：本文件在 <repo>/tests/ux/ 下。 */
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-const ownedTempRoots = new Set()
-let tempRootExitHookInstalled = false
-
-function installTempRootExitHook() {
-  if (tempRootExitHookInstalled) return
-  tempRootExitHookInstalled = true
-  process.once('exit', () => {
-    for (const root of ownedTempRoots) fs.rmSync(root, { recursive: true, force: true })
-    ownedTempRoots.clear()
-  })
-}
-
 export function registerTempRoot(root) {
-  if (!root) return root
-  ownedTempRoots.add(root)
-  installTempRootExitHook()
-  return root
+  return registerTestTemp(root)
 }
 
 export function cleanupTempRoot(root) {
-  if (!root) return
-  ownedTempRoots.delete(root)
-  fs.rmSync(root, { recursive: true, force: true })
+  cleanupTestTemp(root)
 }
 
 /** 默认等窗口的上限。取 60s：明显短于 Playwright 默认的 180s，让**我们的**错误信息先落地。 */
@@ -377,7 +360,9 @@ export async function launchNomiApp(options = {}) {
   // isolate:false = 用用户**真实** profile 起（交互式 dev driver ui-driver.mjs 才这么用：
   // 它要能打开已有/示例项目，这是它注释里写明的既定设计，不是漏配）。此时不传 --user-data-dir、
   // 不覆盖三个目录 env，等价于「裸起一个 Nomi」；NOMI_E2E 那两条仍然强制。
-  const tempRoot = isolate ? registerTempRoot(options.tempRoot ?? makeTempDir(`${name}-`)) : null
+  const tempRoot = isolate
+    ? (options.tempRoot ? registerTempRoot(options.tempRoot) : makeTempDir(`${name}-`))
+    : null
   const userDataDir = isolate ? (options.userDataDir ?? path.join(tempRoot, 'user-data')) : null
   const settingsDir = isolate ? (options.settingsDir ?? path.join(tempRoot, 'settings')) : null
   const projectsDir = isolate ? (options.projectsDir ?? path.join(tempRoot, 'projects')) : null

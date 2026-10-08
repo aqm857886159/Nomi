@@ -132,7 +132,7 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
 
 describe('prepareIsolatedCatalog', () => {
   test('quarantines a seed newer than the tested app instead of letting it enter Electron', () => {
-    const root = fs.mkdtempSync('/tmp/nomi-catalog-seed-red-')
+    const root = makeTempDir('nomi-catalog-seed-red-')
     const catalog = path.join(root, 'model-catalog.json')
     const future = { version: 12, futureOnlyField: 'preserve-me', vendors: [], models: [], mappings: [], apiKeysByVendor: {} }
     fs.writeFileSync(catalog, JSON.stringify(future))
@@ -146,7 +146,7 @@ describe('prepareIsolatedCatalog', () => {
 
   test('keeps current and older seeds for the app migration chain', () => {
     for (const diskVersion of [currentCatalogVersion(), currentCatalogVersion() - 1]) {
-      const root = fs.mkdtempSync('/tmp/nomi-catalog-seed-compatible-')
+      const root = makeTempDir('nomi-catalog-seed-compatible-')
       const catalog = path.join(root, 'model-catalog.json')
       fs.writeFileSync(catalog, JSON.stringify({ version: diskVersion, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }))
 
