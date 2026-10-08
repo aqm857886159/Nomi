@@ -198,4 +198,9 @@ describe('参数去重：size 只有选项是比例时才和 aspect_ratio / rati
     expect(role(select('size', ['16:9', '1:1']))).toBe('aspect')
     expect(role(select('ratio', ['16:9', '1:1']))).toBe('aspect')
   })
+  it('quality shares the resolution role without joining its de-duplication aliases', () => {
+    expect(keysOf([select('resolution', ['1K', '2K']), select('quality', ['standard', 'high'])])).toEqual(['resolution', 'quality'])
+    const quality = select('quality', ['standard', 'high'])
+    expect(parameterControlRole({ ...quality, binding: 'parameter' } as DynamicModelControl)).toBe('resolution')
+  })
 })
