@@ -30,6 +30,7 @@ let teardownInstalled = false;
 let teardownFinished = false;
 let teardownStarted = false;
 let ownerTimeoutMs = 3000;
+let quitDeadlineAt: number | undefined;
 
 export function registerQuitDrain(name: string, drain: () => void | Promise<void>, options: QuitDrainOptions = {}): () => void {
   if (!name.trim()) throw new Error("quit drain name is required");
@@ -44,11 +45,14 @@ export function isQuitRequested(): boolean {
 
 /** A cancellable close confirmation may undo a before-quit request. */
 export function resetQuitRequest(): void {
-  if (!teardownStarted) quitRequested = false;
+  if (!teardownStarted) {
+    quitRequested = false;
+    quitDeadlineAt = undefined;
+  }
 }
 
 export function quitTeardownTimeoutMs(): number {
-  return ownerTimeoutMs;
+  return quitDeadlineAt === undefined ? ownerTimeoutMs : Math.max(0, quitDeadlineAt - Date.now());
 }
 
 /** Vitest isolation hook; the production owner is installed exactly once. */
@@ -59,6 +63,7 @@ export function resetQuitTeardownForTests(): void {
   teardownFinished = false;
   teardownStarted = false;
   ownerTimeoutMs = 3000;
+  quitDeadlineAt = undefined;
 }
 
 function report(onError: ((stage: string, error: unknown) => void) | undefined, stage: string, error: unknown): void {
@@ -89,7 +94,11 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
   teardownInstalled = true;
   ownerTimeoutMs = dependencies.timeoutMs ?? 3000;
 
-  app.on("before-quit", () => { quitRequested = true; });
+  app.on("before-quit", () => {
+    if (quitRequested) return;
+    quitRequested = true;
+    quitDeadlineAt = Date.now() + ownerTimeoutMs;
+  });
 
   registerQuitDrain("background-lifecycle", dependencies.disposeBackgroundLifecycle, { required: true });
   registerQuitDrain("capability-core", dependencies.stopDesktopCapabilityCore, { required: true });
@@ -104,17 +113,18 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     event.preventDefault();
     if (teardownStarted) return;
     teardownStarted = true;
+    const remainingTimeoutMs = quitTeardownTimeoutMs();
     const required = [...registeredDrains.values()].filter((entry) => entry.required);
     const optional = [...registeredDrains.values()].filter((entry) => !entry.required);
-    for (const entry of optional) void runDrain(entry, ownerTimeoutMs, dependencies.onError);
-    const requiredWork = Promise.all(required.map((entry) => runDrain(entry, ownerTimeoutMs, dependencies.onError)));
+    for (const entry of optional) void runDrain(entry, remainingTimeoutMs, dependencies.onError);
+    const requiredWork = Promise.all(required.map((entry) => runDrain(entry, remainingTimeoutMs, dependencies.onError)));
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const totalTimeout = new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), ownerTimeoutMs); });
+    const totalTimeout = new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), remainingTimeoutMs); });
     void Promise.race([requiredWork.then((timedOut) => timedOut.some(Boolean) ? "required-timeout" as const : "done" as const), totalTimeout]).then((result) => {
       if (timer) clearTimeout(timer);
       teardownFinished = true;
       if (result === "timeout" || result === "required-timeout") {
-        report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });
+        report(dependencies.onError, "quit-timeout", { timeoutMs: remainingTimeoutMs });
         app.exit?.(0);
         return;
       }
