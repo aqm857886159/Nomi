@@ -124,7 +124,8 @@ it('Run identity does not grant override ownership to variants, derived nodes, k
     { meta: { productionRunId: 'run', productionShotId: 's3' }, derivedFrom: 'original' },
     { meta: { productionRunId: 'run', productionShotId: 's3', storyboardKeyframe: true } },
   ]) {
-    store.restoreSnapshot({ nodes: [{ id: 'branch', kind: 'video', title: 'Shot 3', position: { x: 0, y: 0 }, prompt: 'Original', ...spec }], edges: [], groups: [], selectedNodeIds: [] })
+    // 带 productionRunId 的节点是制作节点：载入必须带项目身份（productionCanvasSignals 的不变量）。
+    store.restoreSnapshot({ nodes: [{ id: 'branch', kind: 'video', title: 'Shot 3', position: { x: 0, y: 0 }, prompt: 'Original', ...spec }], edges: [], groups: [], selectedNodeIds: [] }, 'project-test')
     store.updateNode('branch', { prompt: 'Independent edit' })
     expect(node().meta?.overriddenFields).toBeUndefined()
   }
