@@ -209,7 +209,6 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
     dispose: async () => {
       disposed = true
       for (const shot of singleShots.values()) shot.controller.abort()
-      ipcMain.removeHandler(LANE_IPC_CHANNELS.command)
       await lifecycle
       await close()
     },

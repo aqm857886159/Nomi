@@ -196,7 +196,8 @@ async function read(request, env) {
   object.writeHttpMetadata(headers);
   headers.set("Cache-Control", "private, max-age=300");
   headers.set("X-Nomi-Asset-Expires-At", expiresAt || "");
-  return new Response(object.body, { headers });
+  if (Number.isFinite(object.size)) headers.set("Content-Length", String(object.size));
+  return new Response(request.method === "HEAD" ? null : object.body, { headers });
 }
 
 export async function cleanup(env) {
@@ -228,7 +229,7 @@ export default {
         return json({ error: "usage_unavailable" }, 503);
       }
     }
-    if (request.method === "GET" && url.pathname.startsWith("/v1/assets/")) return read(request, env);
+    if (["GET", "HEAD"].includes(request.method) && url.pathname.startsWith("/v1/assets/")) return read(request, env);
     return json({ error: "not_found" }, 404);
   },
   async scheduled(_event, env) {

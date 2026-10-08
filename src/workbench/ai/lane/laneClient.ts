@@ -71,6 +71,9 @@ export const EMPTY_LANE_WORKSPACE: LaneWorkspaceProjection = Object.freeze({
 export interface LaneClient {
   connect(bridge: LaneBridge | undefined): void
   open(binding: ProjectBinding, model?: LaneComposerContext['model']): Promise<LaneCommandResult>
+  retryOpen(): Promise<boolean>
+  subscribeConnection(listener: (failure: LaneCommandResult | null) => void): () => void
+  connectionFailure(): LaneCommandResult | null
   close(): Promise<void>
   setPolicy(policy: LaneComposerContext['approvalPolicy']): Promise<LaneCommandResult>
   context(): Readonly<{ subscriptionId: string; binding: ProjectBinding }> | null
@@ -141,12 +144,15 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
   let latest: LaneWorkspaceProjection = EMPTY_LANE_WORKSPACE
   let current: Readonly<{ subscriptionId: string; binding: ProjectBinding }> | null = null
   let reopen: { binding: ProjectBinding; model?: LaneComposerContext['model'] } | null = null
+  let lastBinding: { binding: ProjectBinding; model?: LaneComposerContext['model'] } | null = null
   let openedModel: LaneComposerContext['model']
   const openingProjections = new Map<string, LaneWorkspaceProjection>()
   let openingEpoch: number | null = null
   let epoch = 0
   let connectionEpoch = 0
   const listeners = new Set<(projection: LaneWorkspaceProjection) => void>()
+  const connectionListeners = new Set<(failure: LaneCommandResult | null) => void>()
+  let connectionFailure: LaneCommandResult | null = null
   // `useSyncExternalStore` 的 getter 必须**引用稳定**：只在真收到新投影时换对象。
   // 这条不是风格问题——仓库里 6 个手写 store 之一因为每次 getter 新建对象，
   // 在「有待决工具」时把整页打成「工作台加载失败」（G6 判据②）。
@@ -171,9 +177,11 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
     bridge = next
     current = null
     reopen = null
+    lastBinding = null
     openingProjections.clear()
     openingEpoch = null
     epoch += 1
+    connectionFailure = null
     publish(EMPTY_LANE_WORKSPACE)
     const connectedEpoch = ++connectionEpoch
     const connectedBridge = bridge
@@ -181,6 +189,10 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
       if (connectedBridge !== bridge || connectedEpoch !== connectionEpoch) return
       publish(projection)
     })
+  }
+  const setConnectionFailure = (failure: LaneCommandResult | null) => {
+    connectionFailure = failure
+    for (const listener of connectionListeners) listener(failure)
   }
   connect(bridge)
   // 「这次 open 还没落定」。面板刚打开的那一两秒里用户就打字/点按钮是常态：以前这些命令
@@ -256,11 +268,13 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
     openingProjections.clear()
     openingEpoch = generation
     openedModel = model
+    lastBinding = { binding, model }
     publish(EMPTY_LANE_WORKSPACE)
     const inFlight = send({ kind: 'workspace-open', binding, ...(model ? { model } : {}) })
     opening = inFlight
     try {
-      const result = await inFlight
+      const result = await inFlight.catch((error: unknown): LaneCommandResult => ({ ok: false, code: 'agent_lane_execute_failed', diagnostic: error instanceof Error ? error.message : String(error) }))
+      setConnectionFailure(result.ok ? null : result)
       if (generation === epoch && result.ok && result.workspaceId) {
         current = Object.freeze({ subscriptionId: result.workspaceId, binding: Object.freeze({ ...binding }) })
         const buffered = openingProjections.get(result.workspaceId)
@@ -273,9 +287,18 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
     }
   }
 
+  const retryOpen = async (): Promise<boolean> => {
+    if (!lastBinding) return false
+    const result = await open(lastBinding.binding, lastBinding.model)
+    return result.ok
+  }
+
   return {
     connect,
     open,
+    retryOpen,
+    subscribeConnection: (listener) => { connectionListeners.add(listener); return () => connectionListeners.delete(listener) },
+    connectionFailure: () => connectionFailure,
     close: async () => {
       const closing = ++epoch
       reopen = null
