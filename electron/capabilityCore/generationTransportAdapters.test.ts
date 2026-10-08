@@ -96,6 +96,51 @@ describe("resident semantic generation transport", () => {
     expect(planning).toHaveBeenCalledWith(expect.objectContaining({ origin: { host: "nomi", actorId: "project-agent-host" } }));
   });
 
+  it("marks the durable presentation when a full-auto policy decision fails", async () => {
+    const planning = vi.fn(async () => ({ operation: { operationId: "op-1" } }));
+    const markPolicyDecisionFailed = vi.fn();
+    const adapter = createPiGenerationTransportAdapter(binding, {
+      planning,
+      leaseFor: () => lease,
+      approvalPolicy: () => ({ mode: "project", spend: "confirm" }),
+      requestGenerationGate: vi.fn(async () => { throw new Error("gate unavailable"); }),
+      authorizeGeneration: vi.fn(),
+      approvalReceiptAuthority: authority(),
+      markPolicyDecisionFailed,
+    });
+
+    await expect(adapter.tryExecute(
+      call("nomi_generation_plan", { operation: "create", prompt: "a small cat avatar" }),
+      new AbortController().signal,
+    )).resolves.toMatchObject({ ok: false });
+    expect(markPolicyDecisionFailed).toHaveBeenCalledWith(expect.objectContaining({
+      params: expect.objectContaining({ operationId: "op-1" }),
+      lease,
+    }));
+  });
+
+  it("keeps the generation failure result when the failure marker hits a revision conflict", async () => {
+    const planning = vi.fn(async () => ({ operation: { operationId: "op-1" } }));
+    const markPolicyDecisionFailed = vi.fn(async () => {
+      throw Object.assign(new Error("revision_conflict"), { code: "revision_conflict" });
+    });
+    const adapter = createPiGenerationTransportAdapter(binding, {
+      planning,
+      leaseFor: () => lease,
+      approvalPolicy: () => ({ mode: "project", spend: "confirm" }),
+      requestGenerationGate: vi.fn(async () => { throw new Error("gate unavailable"); }),
+      authorizeGeneration: vi.fn(),
+      approvalReceiptAuthority: authority(),
+      markPolicyDecisionFailed,
+    });
+
+    await expect(adapter.tryExecute(
+      call("nomi_generation_plan", { operation: "create", prompt: "a small cat avatar" }),
+      new AbortController().signal,
+    )).resolves.toMatchObject({ ok: false, code: "generation_execution_failed" });
+    expect(markPolicyDecisionFailed).toHaveBeenCalledTimes(1);
+  });
+
   it("maps the status intent operations to the same lease-bound canonical seam", async () => {
     const planning = vi.fn(async ({ capability, params }) => ({ capability, params }));
     const adapter = createPiGenerationTransportAdapter(binding, { planning, leaseFor: () => lease });
