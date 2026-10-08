@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { runStoryboardBatch, regenerateShotRow, generateShotRow, generateAnchorCard } from './storyboardRowActions'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
+import { useSpendConfirmStore } from '../../../generationCanvas/spend/spendConfirm'
 import { getActiveCanvasGestureContext, withCanvasGestureContext, type CanvasGestureContext } from '../../../generationCanvas/events/canvasGestureContext'
 import { deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
@@ -41,6 +42,68 @@ beforeEach(() => {
   calls.regenerate.mockReset()
   calls.onDefaults.mockReset()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
+  useSpendConfirmStore.setState({ pending: null, queue: [], requestConfirm: async () => true })
+})
+
+it('does not materialize or dispatch anything when the batch confirmation is cancelled', async () => {
+  useSpendConfirmStore.setState({ requestConfirm: async () => {
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+    return false
+  } })
+  const shot = { index: 1, shotId: 'cancelled', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }
+  const outcome = await runStoryboardBatch(
+    { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } },
+    runtimeRows([shot]),
+  )
+  expect(outcome).toBe('declined')
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+  expect(calls.gestures).toHaveLength(0)
+})
+
+it('does not dispatch an item removed from the confirmation checklist', async () => {
+  useSpendConfirmStore.setState({ requestConfirm: async (request) => {
+    const firstShot = request.planRows?.find((row) => row.id?.startsWith('shot:'))
+    if (firstShot) request.onPlanToggle?.(firstShot, false)
+    return true
+  } })
+  const shots = [1, 2].map((index) => ({ index, shotId: `unchecked-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }))
+  await runStoryboardBatch(
+    { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots } },
+    runtimeRows(shots),
+  )
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+  expect(calls.confirm).toHaveBeenCalledOnce()
+  expect(calls.confirm.mock.calls[0][0].waves.flat()).toHaveLength(1)
+})
+
+it('stops before shot dispatch when a selected reference card has no result', async () => {
+  const anchor = { id: 'actor', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'Actor' }
+  const shot = { index: 1, shotId: 'needs-actor', shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Door' }
+  await runStoryboardBatch(
+    { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [anchor], shots: [shot] } },
+    runtimeRows([shot]),
+  )
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+  expect(calls.confirm).toHaveBeenCalledOnce()
+  expect(calls.confirm.mock.calls[0][0].waves.flat()).toHaveLength(1)
+})
+
+it('dispatches selected reference cards before the shots that consume them', async () => {
+  const anchor = { id: 'actor', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'Actor' }
+  const shot = { index: 1, shotId: 'ordered-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Door' }
+  calls.confirm.mockImplementation(async () => {
+    const node = useGenerationCanvasStore.getState().nodes.find((candidate) => (candidate.meta as Record<string, unknown>).anchorId === 'actor')
+    if (node) useGenerationCanvasStore.getState().updateNode(node.id, { result: { id: 'actor-result', createdAt: 1, type: 'image', url: 'https://fixture.invalid/actor.png' } })
+    return 'started'
+  })
+  await runStoryboardBatch(
+    { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [anchor], shots: [shot] } },
+    runtimeRows([shot]),
+  )
+  expect(calls.confirm).toHaveBeenCalledTimes(2)
+  expect(calls.confirm.mock.calls[0][0].waves.flat()).toHaveLength(1)
+  expect(calls.confirm.mock.calls[1][0].waves.flat()).toHaveLength(1)
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(2)
 })
 
 it('lands selected rows under one explicit transaction, groups them and undoes the whole batch', async () => {
@@ -161,6 +224,29 @@ it('finds a newly materialized shot through its own metadata on the next call', 
   const first = useGenerationCanvasStore.getState().nodes[0].id
   await runStoryboardBatch(context, rows, { groupTitle: 'Run', placementOnly: true })
   expect(useGenerationCanvasStore.getState().nodes.map(value => value.id)).toEqual([first])
+})
+
+it('does not leave a single shot node when its confirmation is cancelled', async () => {
+  calls.single.mockResolvedValue('declined')
+  const shot = { index: 1, shotId: 'single-cancelled', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }
+  await generateShotRow(
+    { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } },
+    shot,
+    null,
+  )
+  expect(calls.single).toHaveBeenCalledOnce()
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+})
+
+it('does not leave an Agent reference card when its confirmation is cancelled', async () => {
+  calls.single.mockResolvedValue('declined')
+  const anchor = { id: 'single-anchor-cancelled', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'Actor' }
+  await generateAnchorCard(
+    { initiator: 'agent' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [anchor], shots: [] } },
+    anchor,
+  )
+  expect(calls.single).toHaveBeenCalledOnce()
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
 })
 
 

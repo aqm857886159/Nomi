@@ -66,6 +66,7 @@
       }
     },
     "storyboard-reuse": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
+    "storyboard-batch": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "storyboard": {
       "tolerance": {
         "threshold": 0.2,

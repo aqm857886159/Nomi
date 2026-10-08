@@ -11,7 +11,15 @@ import { generateAnchorCard, runStoryboardBatch } from '../creation/storyboard/e
 import { mergeRunOutcomes, type GenerationRunOutcome } from '../generationCanvas/runner/generationRunOutcome'
 
 /** 他说了「不」那一支的回包：形状与成功那一支逐字相同，只有 `decision` 不一样。 */
-function declined(designId: string, shotIds: readonly string[], outcomes: readonly GenerationRunOutcome[]) {
+export type StoryboardPresentResult = {
+  status: 'presented'
+  designId: string
+  shotIds: readonly string[]
+  decision: GenerationRunOutcome
+  operations?: string[]
+}
+
+function declined(designId: string, shotIds: readonly string[], outcomes: readonly GenerationRunOutcome[]): StoryboardPresentResult {
   return { status: 'presented' as const, designId, shotIds, decision: mergeRunOutcomes(outcomes) }
 }
 
@@ -28,7 +36,7 @@ function contentOf(documentId: string, designId: string): string {
 }
 
 /** The existing renderer bridge supplies identity; original actions still own all paid behavior. */
-export async function presentStoryboard(data: Record<string, unknown>) {
+export async function presentStoryboard(data: Record<string, unknown>): Promise<StoryboardPresentResult> {
   const { projectId, designId, sourceDocumentId } = data
   if (typeof projectId !== 'string' || typeof designId !== 'string' || typeof sourceDocumentId !== 'string') {
     throw new Error('storyboard_target_required')
