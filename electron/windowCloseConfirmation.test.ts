@@ -129,7 +129,7 @@ describe("window close confirmation", () => {
     installWindowCloseConfirmation(window as never);
     window.emit("close", { preventDefault: vi.fn() });
     await vi.advanceTimersByTimeAsync(1500);
-    expect(mocks.showMessageBox).toHaveBeenCalledWith(window, expect.objectContaining({
+    expect(mocks.showMessageBox).toHaveBeenCalledWith(expect.objectContaining({
       buttons: ["Force Quit", "Cancel"],
       defaultId: 1,
       cancelId: 1,

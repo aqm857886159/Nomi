@@ -75,7 +75,7 @@ import { bootResidentSurfaceLifecycle, residentGenerationFactory } from "./capab
 import { createDesktopProposalReceiptResolver } from "./capabilityCore/projectAgentReceiptResolver";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
 import { registerSkillIpc } from "./skills/skillIpc";
-import { logError, logInfo, logWarn } from "./logging/logger";
+import { logError, logWarn } from "./logging/logger";
 import { seedFromStableInstallAtBoot } from "./settings/sideBySideInstallSeed";
 import { registerDevDiagnostics } from "./logging/devDiagnostics";
 import { registerRendererLogIpc } from "./logging/rendererLog";

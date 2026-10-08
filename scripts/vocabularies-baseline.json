@@ -1934,6 +1934,15 @@
       ],
       "reason": "AT_REST 是 ProductionRunStatus 的子集：Run 停在这三种状态时不再派发新镜，判断「这批是否还在动」只看它与供应商那边是否还有在飞的 job。它不是一套新状态词表，成员类型就是 ProductionRunStatus（ReadonlySet<ProductionRunStatus>）；和视口动画的结算结果（ViewportAnimationSettlementOutcome）只是碰巧同名，概念无关，不该复用。",
       "site": "electron/productionRun/productionRunLifecycle.ts::variable:AT_REST/set"
+    },
+    {
+      "members": [
+        "done",
+        "failed",
+        "timeout"
+      ],
+      "reason": "DrainOutcome 是退出收尾里单个 drain 步骤的结局，只用来写 quit-step 回执（tests/ux/quit-teardown-real.e2e.mjs 读它）：步骤跑完、超出时间预算、抛错三选一。它和视频深度任务的终态（TERMINAL_VIDEO_DEPTH_PHASES，含用户 cancelled、没有 timeout）不是同一个概念——收尾步骤不能被用户取消，超时却是它的核心结局；复用那份词表会把 cancelled 带进退出回执、丢掉 timeout。",
+      "site": "electron/quitTeardown.ts::type:DrainOutcome/type-union"
     }
   ],
   "debt": [

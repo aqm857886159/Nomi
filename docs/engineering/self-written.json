@@ -784,7 +784,8 @@
       "capability": "Nomi main-process quit teardown boundary: coordinate cancellable quit intent with capability-core, Agent lane, and export cleanup under a hard async budget",
       "status": "justified",
       "paths": [
-        "electron/quitTeardown.ts"
+        "electron/quitTeardown.ts",
+        "electron/quitTeardownLog.ts"
       ],
       "alternativesChecked": [
         {

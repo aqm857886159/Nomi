@@ -36,7 +36,8 @@ function showNativeCloseDialog(mainWindow: BrowserWindow): void {
     mainWindow.focus();
     return;
   }
-  const dialogPromise = dialog.showMessageBox(mainWindow, {
+  // 只传 options：带父窗口会跨线程持有属主，Windows 第三方输入法下整个 app 闪退（electron/nativeDialogParent.invariant.test.ts）。
+  const dialogPromise = dialog.showMessageBox({
     type: "warning",
     buttons: ["Force Quit", "Cancel"],
     defaultId: 1,
