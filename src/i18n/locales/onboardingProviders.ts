@@ -307,7 +307,7 @@ export const zhOnboardingProviders = {
       viewAll: '查看全部',
       otherMethods: '其他接入方式',
       comfyuiHint: '使用本机或局域网中的 ComfyUI 工作流',
-      dreaminaHint: '用即梦高级会员积分生成 Seedance 2.0 视频',
+      dreaminaHint: '用即梦接入生成 Seedance 2.0 视频',
       codexImageHint: '让 Nomi 使用本机 Codex 生成图片',
       otherWays: '其他方式',
       localAndMembership: '本地运行时与即梦会员',
@@ -638,7 +638,7 @@ export const zhOnboardingProviders = {
     // 「连上后允许做什么」——每张客户端卡的第二个开关（此前是设置页里独立的「可信发起方」一栏）。
     trust: {
       title: '允许 {{client}} 自动发起制作',
-      hint: '关闭时它只能发起草稿、查看状态和打开安全深链；花钱前仍然每次都要你确认。',
+      hint: '关闭时它只能发起草稿、查看状态和打开安全深链；发起生成前仍然每次都要你确认。',
     },
     noneDetected: '本机没有检测到 {{clients}}。装好其中任何一个再回来，或用下面的通用配置接入别的客户端。',
     // 通用入口：不带客户端身份的条目，Nomi 把它当作外部客户端（不在可信发起方之列）。
@@ -825,7 +825,7 @@ export const zhOnboardingProviders = {
     why: {
       notFound: '这个地址上没有对应的接口（{{status}}）。多半是接入地址少写或多写了一段。',
       auth: '密钥被对方拒了（{{status}}）。密钥本身没错的话，可能是这个账号还没开通这个模型。',
-      balance: '账户余额不足，对方拒绝了这次调用。',
+      balance: '对方拒绝了这次调用，请检查账户状态。',
       quota: '触发了对方的频率或服务限制。这是暂时的，过一会儿重新验证通常就好。',
       input: '请求被对方拒绝了（{{status}}）——我们猜的调用形状不合这家的规矩。改地址或换密钥都没用。',
       server: '对方服务器出错了（{{status}}），和你的配置无关。过一会儿重新验证。',
@@ -893,7 +893,7 @@ export const zhOnboardingProviders = {
   },
   dreamina: {
     name: '即梦会员',
-    subtitle: '用即梦高级会员积分跑 Seedance 2.0 视频',
+    subtitle: '用即梦接入跑 Seedance 2.0 视频',
     status: {
       notInstalled: '未安装',
       loginRequired: '待登录',
@@ -901,7 +901,7 @@ export const zhOnboardingProviders = {
       loggedIn: '已登录',
     },
     loginTimeout: '登录超时，请重新发起。',
-    installDescription: '即梦用官方命令行工具接入。一键装好后，扫码登录就能用你的会员积分在 Nomi 里出视频。',
+    installDescription: '即梦用官方命令行工具接入。一键装好后，扫码登录就能在 Nomi 里出视频。',
     installing: '安装中…',
     install: '一键安装',
     officialSource: '官方源 jimeng.jianying.com，安装到 ~/.local/bin。',
@@ -1687,7 +1687,7 @@ export const enOnboardingProviders = {
       tagline: 'Text, image and video · Availability depends on your account',
       credentialPlaceholder: 'Paste your Agnes API Key',
       credentialHint:
-        'Create an API Key on the official Agnes platform. Some models require payment or separate access. Availability, pricing and limits depend on your account. Credentials are encrypted locally.',
+        'Create an API Key on the official Agnes platform. Some models require separate access. Availability and limits depend on your account. Credentials are encrypted locally.',
       promoText:
         'Agnes AI provides OpenAI-compatible text, image and video APIs. The public model catalog does not guarantee access under your current plan.',
       promoCta: 'Open Agnes platform',
@@ -1764,7 +1764,7 @@ export const enOnboardingProviders = {
       tagline: 'One token unlocks Element Decomposition into editable layers',
       credentialPlaceholder: 'Paste a Replicate API Token (r8_…)',
       credentialHint:
-        'Used for Element Decomposition with qwen-image-layered at about $0.05 per image. Get a token from Replicate → Account → API tokens. Credentials are encrypted locally and used only for requests.',
+        'Used for Element Decomposition with qwen-image-layered Get a token from Replicate → Account → API tokens. Credentials are encrypted locally and used only for requests.',
       promoText:
         'Replicate hosts the Apache 2.0 qwen-image-layered model, which separates an image into editable foreground, background, and element layers. Get a pay-as-you-go token from Account.',
       promoCta: 'Get a Replicate token',
@@ -1772,7 +1772,7 @@ export const enOnboardingProviders = {
     fal: {
       tagline: 'Common overseas route · CDN upload for image, video, and audio',
       credentialPlaceholder: 'Paste your fal.ai Key',
-      credentialHint: 'Create a Key in the fal.ai Dashboard. Uploads use fal CDN and have a lifecycle; model access, regions, and pricing depend on your account. Credentials are encrypted locally.',
+      credentialHint: 'Create a Key in the fal.ai Dashboard. Uploads use fal CDN and have a lifecycle; model access and regions depend on your account. Credentials are encrypted locally.',
       promoText: 'fal.ai provides model APIs and CDN file uploads. With one Key, Nomi can make local reference media reachable to fal or another model that accepts public URLs.',
       promoCta: 'Create a fal.ai Key',
     },
@@ -1890,7 +1890,7 @@ export const enOnboardingProviders = {
     hostApprovalHint: '{{client}} may ask you to approve Nomi once on first use.',
     trust: {
       title: 'Let {{client}} start production on its own',
-      hint: 'When off, it can only start drafts, read status, and open safe deep links. Spending still asks you every time.',
+      hint: 'When off, it can only start drafts, read status, and open safe deep links. Generation still asks you every time.',
     },
     noneDetected: 'None of {{clients}} was detected on this computer. Install one and come back, or connect another client with the generic configuration below.',
     generic: {
@@ -2069,7 +2069,7 @@ export const enOnboardingProviders = {
       notFound:
         'No such endpoint at this address ({{status}}). The base URL is probably missing or has an extra path segment.',
       auth: 'The provider rejected the key ({{status}}). If the key is right, this account may not have access to this model yet.',
-      balance: 'The account is out of credit, so the provider refused the call.',
+      balance: 'The provider refused the call. Check the account status and try again.',
       quota: 'Hit the provider’s rate or service limit. This is temporary — verifying again later usually works.',
       input:
         'The provider rejected the request ({{status}}) — the call shape we guessed does not match theirs. Changing the URL or key will not help.',

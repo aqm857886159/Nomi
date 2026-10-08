@@ -13,8 +13,8 @@ test('英文断言同样会红；非金钱 free 只按明确 key 排除', () => 
   assert.deepEqual(hits.map((h) => h.key), ['x', 'y'])
 })
 test('所有界面花钱断言都命中，不再有 Nomi 自有白名单', () => {
-  const { hits } = scanDictionaries(dict({ a: '这一步会消耗模型额度', b: '预计消耗 3 额度' }, { c: 'Your paid task is not lost', d: 'This request spends model credits' }), { notMoney: [] })
-  assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), ['zh-CN:a', 'zh-CN:b', 'en:c', 'en:d'])
+  const { hits } = scanDictionaries(dict({ a: '这一步会消耗模型额度', b: '预计消耗 3 额度', e: '这一步会花钱' }, { c: 'Your paid task is not lost', d: 'This request spends model credits', e: 'Payment is required' }), { notMoney: [] })
+  assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), ['zh-CN:a', 'zh-CN:b', 'zh-CN:e', 'en:c', 'en:d', 'en:e'])
 })
 
 test('provider free quota wording is also rejected', () => {
@@ -33,7 +33,7 @@ test('zero budget and zero spent wording is caught as an unsupported money claim
     { budget: 'Budget: $0', spent: 'Spent $0.00', known: 'Known price $0.05' },
   ), { owned: [], notMoney: [] })
   assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), [
-    'zh-CN:budget', 'zh-CN:spent', 'en:budget', 'en:spent',
+    'zh-CN:budget', 'zh-CN:spent', 'en:budget', 'en:spent', 'en:known',
   ])
 })
 
@@ -45,7 +45,7 @@ test('Chinese display keys are scanned, not only mapped English values', () => {
 test('retrieval and offline transcription use action facts without a money claim', () => {
   const { hits, stale } = scanDictionaries(dict(
     { taskCenter: { row: { recoverHint: '只查结果，不重新生成' } }, offline: '在这台电脑上离线转写，不发到网上；语言自动识别' },
-    { taskCenter: { row: { recoverHint: 'Only fetches the result — no new generation' } }, offline: 'Transcribe on this computer without sending it online; the language is detected automatically' },
+    { taskCenter: { row: { recoverHint: 'Only fetches the result — no new generation' } }, offline: 'Transcribe on this computer without sending it online; the language is detected automatically', processing: 'Estimated processing: {{credits}}' },
   ))
   assert.deepEqual(hits, [])
   assert.equal(stale.includes('taskCenter.row.recoverHint'), false)

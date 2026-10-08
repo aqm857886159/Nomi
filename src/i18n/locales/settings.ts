@@ -69,7 +69,7 @@ export const zhSettings = {
         kieConnected: 'KIE 已接入',
         configure: '去配置 KIE',
         upsell: '优先使用你已配置供应商自己的上传 API。都不可用时，Nomi 才使用受限公共 Relay；最后才尝试匿名图床。',
-        settled: '素材优先走供应商自己的私有上传。Nomi Relay 只作受限兜底，超过额度会停止，不会继续上传。',
+        settled: '素材优先走供应商自己的私有上传。Nomi Relay 只作受限兜底，达到服务限制会停止，不会继续上传。',
       },
       customRelay: {
         title: '自定义 Relay（高级）',
@@ -119,7 +119,7 @@ export const zhSettings = {
       saveFailed: '保存失败，请重试（可能是系统钥匙串未解锁）。',
       // 真实校验失败态（保存前打一发验 key 得到的诚实结果，不再乱填也「已连接」）。
       keyInvalid: 'Key 无效，未通过 TikHub 验证。请核对后重新粘贴。',
-      keyQuota: 'Key 有效，但账户额度不足或权限受限。请到 TikHub 充值或检查权限。',
+      keyQuota: 'Key 有效，但当前请求被账户状态或权限限制。请检查 TikHub 权限后再试。',
       verifyNetwork: '连不上 TikHub，无法验证这把 Key。请检查网络或代理后重试（可在下方线路里手动指定线路）。',
       connected: '已连接',
       replace: '更换',
@@ -315,7 +315,7 @@ export const enSettings = {
         kieConnected: 'KIE connected',
         configure: 'Configure KIE',
         upsell: 'Nomi first uses upload APIs from providers you configured. Only then does it try the limited public Relay, followed by anonymous hosts.',
-        settled: 'Assets first use provider-owned private uploads. Nomi Relay is only a limited fallback and stops at its quota.',
+        settled: 'Assets first use provider-owned private uploads. Nomi Relay is only a limited fallback and stops at the service limit.',
       },
       customRelay: {
         title: 'Custom Relay (advanced)',
@@ -366,7 +366,7 @@ export const enSettings = {
       saveFailed: 'Could not save — try again (the system keychain may be locked).',
       // Real-verification failure states (a key check runs before saving, so an invalid key never shows "Connected").
       keyInvalid: 'Invalid key — it did not pass TikHub verification. Check it and paste again.',
-      keyQuota: 'The key is valid, but the account is out of quota or lacks permission. Top up on TikHub or check permissions.',
+      keyQuota: 'The key is valid, but this request is blocked by account state or permissions. Check TikHub permissions and try again.',
       verifyNetwork: 'Cannot reach TikHub to verify this key. Check your network or proxy and retry (you can force a route below).',
       connected: 'Connected',
       replace: 'Replace',

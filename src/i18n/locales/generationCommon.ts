@@ -320,8 +320,8 @@ export const zhGenerationCommon = {
     error: {
       auth: { reason: 'API Key 无效', hint: '请在「设置 → 模型」检查这个模型的 API Key。' },
       balance: {
-        reason: '余额不足',
-        hint: '服务商账户余额不足，请到服务商充值后重试，或在「设置 → 模型」换一个模型。',
+        reason: '请求被服务商拒绝',
+        hint: '服务商拒绝了请求，请检查账户状态后重试，或在「设置 → 模型」换一个模型。',
       },
       quota: {
         reason: '配额或限流',
@@ -1466,7 +1466,7 @@ export const zhGenerationCommon = {
       trustLevel: '信任档位',
       trustLevelValue: {
         key_confirm: '关键确认（默认，五门全开）',
-        budget_only: '只管钱（跳过创意与样片门）',
+        budget_only: '处理这一批（跳过创意与样片门）',
         confirm_all: '全程确认（每镜提交前都停）',
       },
     },
@@ -1940,12 +1940,12 @@ export const enGenerationCommon = {
     error: {
       auth: { reason: 'Invalid API key', hint: 'Check this model’s API key in Model access.' },
       balance: {
-        reason: 'Insufficient balance',
-        hint: 'Top up your provider account and try again, or choose another model in Model access.',
+        reason: 'Provider rejected the request',
+        hint: 'Check your provider account status and try again, or choose another model in Model access.',
       },
       quota: {
-        reason: 'Quota or rate limit',
-        hint: 'The provider quota is exhausted or rate-limited. Try again later or choose another model.',
+        reason: 'Provider limit or rate limit',
+        hint: 'The provider limit was reached or rate-limited. Try again later or choose another model.',
       },
       pollTimeout: {
         reason: 'Generation timed out',
@@ -3059,7 +3059,7 @@ export const enGenerationCommon = {
       trustLevel: 'Trust level',
       trustLevelValue: {
         key_confirm: 'Key confirmations (default; all gates on)',
-        budget_only: 'Budget only (skips creative + sample gates)',
+        budget_only: 'Process only (skips creative + sample gates)',
         confirm_all: 'Confirm everything (stops before each shot)',
       },
     },
@@ -3090,7 +3090,7 @@ export const enGenerationCommon = {
         shots: 'shot list',
         models: 'models',
         references: 'references',
-        price: 'price',
+        price: 'configuration',
       },
       backToEdit: 'Edit',
       trialFirst: 'Try shot 1 first',

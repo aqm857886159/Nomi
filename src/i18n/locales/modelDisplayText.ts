@@ -238,11 +238,11 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   英文: 'English',
   '用大白话描述，如「用撒娇甜蜜的语气」「沉稳一点，像在讲睡前故事」':
     'Describe the delivery naturally, such as “sweet and playful” or “calm, like a bedtime story”',
-  '用即梦会员积分，纯文字生成 Seedance 2.0 视频':
-    'Generate Seedance 2.0 video from text using Dreamina membership credits',
-  '用即梦会员积分，纯文字生成 Seedance 视频':
-    'Generate Seedance video from text using Dreamina membership credits',
-  '用即梦会员积分，纯文字生成图像': 'Generate images from text using Dreamina membership credits',
+  '用即梦接入，纯文字生成 Seedance 2.0 视频':
+    'Generate Seedance 2.0 video from text using Dreamina',
+  '用即梦接入，纯文字生成 Seedance 视频':
+    'Generate Seedance video from text using Dreamina',
+  '用即梦接入，纯文字生成图像': 'Generate images from text using Dreamina',
   语速: 'Speed',
   语言: 'Language',
   原图: 'Original image',
@@ -354,8 +354,8 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   保留原曲风格并延长一段音乐: 'Keep the original style and extend the track',
   保留原曲旋律并转换为新风格: 'Keep the original melody and convert it to a new style',
   转写并识别说话人和声音事件: 'Transcribe and identify speakers and audio events',
-  '使用当前 Codex 登录额度，纯文字生成图片':
-    'Use your current Codex sign-in credits to generate an image from text',
+  '使用当前 Codex 接入，纯文字生成图片':
+    'Use your current Codex connection to generate an image from text',
   '通过官方 CLI 的 generate_image 工具生成一张图片':
     'Generate an image via the official CLI generate_image tool',
   '纯文字生成图像，快档': 'Generate an image from text (fast tier)',

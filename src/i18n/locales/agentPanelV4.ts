@@ -63,7 +63,7 @@ export const zhAgentPanelV4 = {
   permission: { step: '每步问', 'safe-auto': '自动改', project: '全自动' },
   systemPrompt: '编辑系统提示词',
   permissionWhy: {
-    step: '改动、花钱、计划都先问。',
+    step: '改动、生成、计划都先问。',
     'safe-auto': '文稿和时间轴改动直接做（收据可撤销），生成前仍会问。',
     project: '可撤销的改动直接做，生成也按你切档时那次确认直接跑，不再逐笔问。不可逆的操作仍然每次问。',
   },
@@ -586,7 +586,7 @@ export const enAgentPanelV4 = {
   permission: { step: 'Ask each step', 'safe-auto': 'Auto-edit', project: 'Full auto' },
   systemPrompt: 'Edit system prompt',
   permissionWhy: {
-    step: 'Edits, spending and plans are all confirmed first.',
+    step: 'Edits, generation and plans are all confirmed first.',
     'safe-auto': 'Document and timeline edits happen directly (receipts are undoable); generation still asks.',
     project: 'Undoable edits happen directly, and generation runs on the confirmation you gave when switching in. Irreversible actions are still confirmed every time.',
   },

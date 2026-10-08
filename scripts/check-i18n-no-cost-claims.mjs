@@ -38,8 +38,8 @@ export const ZERO_SPEND_CLAIMS = Object.freeze({
 })
 /** 正向花钱断言也禁止：界面不替用户断言已付费、会消耗额度或这一步的价格。 */
 export const POSITIVE_SPEND_CLAIMS = Object.freeze({
-  'zh-CN': /已付费|付费(?:的任务|生成|确认|验证|模型|调用)|消耗[^。\n]{0,8}额度|预计消耗|没有免费的|花不花钱|只花那一张的钱|会消耗(?:生成|模型)?额度|花费|费用|价格|金币|预算/,
-  en: /paid (?:task|generation|model|verification|confirmation|work)|spend\w* (?:model )?credits|uses? (?:model )?credits|costing about|costs anything|no free verification|maximum cost|price unavailable|est\.? .*credits/i,
+  'zh-CN': /已付费|付费(?:的任务|生成|确认|验证|模型|调用)|会花钱|花钱|消耗[^。\n]{0,8}额度|预计消耗|没有免费的|花不花钱|只花那一张的钱|会消耗(?:生成|模型)?额度|花费|费用|价格|计费|扣费|充值|金币|积分|预算/,
+  en: /paid (?:task|generation|model|verification|confirmation|work)|payment|pricing|price|spend\w* (?:model )?credits?|uses? (?:model )?credits?|\bcredits?\b|\bquota\b|\bbudget\b|costing about|costs? anything|no free verification|maximum cost|\bfee\b|\bcharge\b|billing|top up|est\.? .*credits|about \$\d/i,
 })
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
@@ -53,8 +53,9 @@ export function scanDictionaries(dictionaries, { notMoney = NOT_MONEY } = {}) {
   const hits = []
   for (const locale of Object.keys(NO_COST_CLAIMS)) {
     for (const [key, value] of flatOf(dictionaries[locale] ?? {})) {
+      const visibleValue = value.replace(/\{\{[^}]+\}\}/g, '')
       const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale], POSITIVE_SPEND_CLAIMS[locale]]
-      if (!patterns.some((pattern) => pattern.test(value))) continue
+      if (!patterns.some((pattern) => pattern.test(visibleValue))) continue
       if (isFixture(key) || notMoney.includes(key) || NON_MONEY_KEYS.includes(key)) continue
       hits.push({ locale, key, text: value.slice(0, 60) })
     }
@@ -67,8 +68,9 @@ export function scanDictionaryKeys(keyDictionaries, { notMoney = NOT_MONEY } = {
   const hits = []
   for (const locale of Object.keys(NO_COST_CLAIMS)) {
     for (const [key, value] of flatOf(keyDictionaries[locale] ?? {})) {
+      const visibleValue = value.replace(/\{\{[^}]+\}\}/g, '')
       const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale], POSITIVE_SPEND_CLAIMS[locale]]
-      if (!patterns.some((pattern) => pattern.test(value))) continue
+      if (!patterns.some((pattern) => pattern.test(visibleValue))) continue
       if (isFixture(key) || notMoney.includes(key) || NON_MONEY_KEYS.includes(key)) continue
       hits.push({ locale, key, text: value.slice(0, 60), source: 'key' })
     }
