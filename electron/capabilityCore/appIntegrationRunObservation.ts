@@ -11,7 +11,7 @@
  * 旧实例的 epoch 必须作废，不能让上一代的 worker 把过期状态写进新运行时（stop()）。
  */
 import { logWarn } from '../logging/logger'
-import { isProductionJobInFlight } from '../shared/productionShotPhase'
+import { hasWorkToWatch, runWantsDriver } from '../productionRun/productionRunLifecycle'
 import type { MultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import type { ProductionRun } from '../productionRun/productionRunTypes'
 import type { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
@@ -98,12 +98,14 @@ export function createRunObservationDrivers(deps: {
   const scheduleBatchRekick = (projectId: string, runId: string): void => {
     scheduleRekick(`batch:${projectId}:${runId}`, () => kickSchedulerForRun(projectId, runId))
   }
-  /** 这个单镜 Run 还有没有一个「交给了供应商、还没结论」的任务——只有它才值得再问。 */
+  /**
+   * 这个单镜 Run 还有没有一个「交给了供应商、还没结论」的任务——只有它才值得再问。不看 Run 状态：取消了，
+   * 钱也已经花出去了，出片照样要落进项目（2026-10-07 以前取消了就没人再问）。
+   */
   const singleShotStillInFlight = (projectId: string, runId: string): boolean => {
     try {
       const run = repository.read(projectId, runId)
-      if (!run || ['completed', 'cancelled'].includes(run.status)) return false
-      return run.jobs.some(isProductionJobInFlight)
+      return Boolean(run && hasWorkToWatch(run))
     } catch {
       return false
     }
@@ -142,9 +144,10 @@ export function createRunObservationDrivers(deps: {
     }
     if (!run || !run.generationPlan?.shots || run.generationPlan.shots.length === 0) return
     if (run.generationPlan.state !== 'submitted') return // 还没确认过的草稿不驱动
-    // 已完成 / 已取消 / 已暂停不自动续。pausing 要驱动：在跑的那一镜要有人盯着收尾，收尾后才落到 paused——
-    // 以前连它也跳过，多镜批次急停后永远停在 pausing（2026-09-29 用户实见「暂停后还一直在转」）。
-    if (['completed', 'cancelled', 'paused'].includes(run.status)) return
+    // 要不要驱动只问生命周期 owner：停稳了（已暂停 / 已取消 / 已完成）而手上没有交给供应商的活就不驱动；
+    // 还有就只盯不派（派生对停着的 Run 不派新活）。以前按状态挑：先是连 pausing 也跳过（2026-09-29「暂停后还一直在转」），
+    // 后来只放开了 pausing——取消后的慢镜头、已暂停里点「重新取回」的那一镜仍没人去取（2026-10-07）。
+    if (!runWantsDriver(run)) return
     const scheduler = buildSchedulerForRun(projectId, runId, run)
     if (!scheduler) return
     driveScheduler(projectId, runId, scheduler, 'batch resume tick')

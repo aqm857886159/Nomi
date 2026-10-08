@@ -1,0 +1,365 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-tests-no-network",
+  "problem_type": "测试与走查启动路径向真实供应商和公开提示词源发出请求",
+  "symptom": "带 APIMart 内置档案的走查打开项目时探测真实 api.apimart.ai/models；提示词库启动时读取 raw.githubusercontent.com",
+  "direct_cause": "夹具只替换了供应商服务地址，主进程 appFetch 和提示词库刷新仍接受任意公网 URL；没有测试模式的共享目的地判据",
+  "class_root": "测试环境没有在最早共享出站边界强制请求只能去 loopback 或登记的夹具 origin",
+  "affected_population": [
+    "带内置供应商档案的 UX 走查",
+    "调用模型列表探测的测试与连接向导",
+    "首次读取提示词库的离线 / CI 测试"
+  ],
+  "scope_paths": [
+    "electron/testNetworkGuard.ts",
+    "electron/appFetch.ts",
+    "electron/promptLibrary/promptLibraryStore.ts",
+    "tests/ux/full-walk/egress.mjs",
+    "tests/ux/core-smoke/needs.mjs",
+    "electron/appFetch.test.ts",
+    "electron/promptLibrary/promptLibraryStore.test.ts",
+    "scripts/walkthrough-network-guard.test.mjs",
+    "tests/ux/core-smoke/fixture.mjs",
+    "electron/hardenedFetch.ts",
+    "electron/hardenedFetch.test.ts",
+    "docs/engineering/concept-owners/test-harness.network-guard.json"
+  ],
+  "entry_points": [
+    "模型列表：vendorHealth → fetchModelList → appFetch",
+    "提示词目录：promptLibraryIpc → getPromptLibrary → hardenedFetchText",
+    "Chromium 走查资源：walkthrough-network-guard 的 session.webRequest"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是测试环境的内部目的地不变量；仓库已有 Undici、Electron webRequest 和 appFetch，外部文档不能决定本仓夹具登记语义。",
+  "invariants": [
+    "启用测试网络模式时，主进程 HTTP 请求只能去 loopback 或 NOMI_TEST_NETWORK_FIXTURE_ORIGINS 登记的 origin",
+    "登记的真实供应商 origin 必须在发出前改投登记的 loopback 夹具；未登记公网 host 直接失败并带 hostname",
+    "测试网络模式下提示词库只读随包 bundled fixture，不启动远端刷新",
+    "未启用测试网络模式时，生产请求路径和在线提示词刷新行为保持原样"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/appFetch.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/testNetworkGuard.ts",
+      "symbol": "guardTestNetworkUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "symbol": "getPromptLibrary"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpHttpDesktop.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiProgressSocket.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localRuntime/localTextCapabilityProbe.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/localRuntime/localTextEndpoints.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/proxyProbe.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/telemetry/intakeClient.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/buildAiSdkModel.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localAssetFile.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/imageEditProbe.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/multipartOperation.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/nativeEndpointProbe.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyui/capabilityStore.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyuiObjectInfo.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyuiProbe.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyuiProgressSocket.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/comfyuiTemplates.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorBaseFallback.ts",
+      "symbol": "appFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityTask.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/agentPanelSpendConfirmTestUtils.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaInputFiles.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubConnector.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubRoute.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localAiExternalProbe.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/extractVideoFrame.ts",
+      "symbol": "hardenedFetch"
+    }
+  ],
+  "door_reduction": {
+    "before": 42,
+    "after": 42,
+    "why_not": "appFetch and hardenedFetch are separate shared HTTP owners; their callers cannot be deleted, so both boundaries remain and each fails closed in test mode."
+  },
+  "generality_proof": "The test-mode predicate is applied at both main-process HTTP owners: appFetch and hardenedFetch. This covers model probes, vendor calls, media retrieval, local probes, and prompt refreshes regardless of proxy or DNS implementation; getPromptLibrary additionally avoids starting remote refresh in test mode.",
+  "shared_boundaries": [
+    {
+      "path": "electron/testNetworkGuard.ts",
+      "symbol": "guardTestNetworkUrl",
+      "responsibility": "Parse test-mode fixture origins and fail closed for unregistered public hosts."
+    },
+    {
+      "path": "electron/appFetch.ts",
+      "symbol": "appFetch",
+      "responsibility": "Guard the primary main-process HTTP route before dispatch."
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch",
+      "responsibility": "Guard the independent hardened retrieval route, including redirects, before proxy or DNS dispatch."
+    },
+    {
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "symbol": "getPromptLibrary",
+      "responsibility": "Return bundled prompts without starting remote refresh in test mode."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "entry_point": "fetchModelList",
+      "disposition": "enforced",
+      "evidence": "Uses appFetch, whose shared guard rejects unregistered public origins."
+    },
+    {
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "entry_point": "loadSource",
+      "disposition": "enforced",
+      "evidence": "Uses hardenedFetchText, whose shared guard now rejects unregistered public origins."
+    },
+    {
+      "path": "electron/browser/core/browserViews.ts",
+      "entry_point": "Chromium webRequest",
+      "disposition": "not-affected",
+      "evidence": "Renderer requests remain governed by the existing walkthrough session webRequest guard."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新模型供应商、新的只读远端资源或新的 appFetch 调用者都能重新把公网 host 带进测试启动路径。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/appFetch.ts：25 个主进程 appFetch 门，全部共享同一出口。",
+      "git grep -n 'raw.githubusercontent.com' electron/promptLibrary：promptSources 是远端源唯一生产入口，store 只有一个读取门。",
+      "Card 25 网络记录：5 次 Electron 走查共 11 次 raw.githubusercontent.com 主进程读取。",
+      "D:/Nomi-service/roadmap/TODO.md：model-list and project-open walkthrough records 描述模型列表真实地址探测。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/hardenedFetch.ts",
+    "invariant": "When test mode is enabled, every main-process HTTP URL must be loopback or a registered fixture origin, with optional explicit origin redirect to loopback.",
+    "failure_mode": "Throw TestNetworkBlockedError naming the hostname before proxy, DNS, or fetch dispatch; prompt library returns bundled prompts.",
+    "exception_policy": "none",
+    "strategy": "Call the same pure URL guard at each shared main-process HTTP boundary and keep the prompt catalog test-mode branch.",
+    "artifacts": [
+      "electron/testNetworkGuard.ts",
+      "electron/appFetch.ts",
+      "electron/hardenedFetch.ts",
+      "electron/promptLibrary/promptLibraryStore.ts",
+      "electron/hardenedFetch.test.ts",
+      "electron/appFetch.test.ts",
+      "electron/promptLibrary/promptLibraryStore.test.ts",
+      "tests/ux/full-walk/egress.mjs",
+      "tests/ux/core-smoke/needs.mjs",
+      "tests/ux/core-smoke/fixture.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/appFetch.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "electron/promptLibrary/promptLibraryStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/appFetch.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "electron/promptLibrary/promptLibraryStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy production path was deleted; the existing prompt library refresh remains the production path and now converges on hardenedFetchText."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方依赖控制这个测试不变量；复用现有 appFetch、Undici 和 Electron webRequest。",
+    "exit_criteria": []
+  },
+  "migration": "无持久化数据迁移；走查夹具通过环境变量登记 loopback origin，既有生产 catalog 不改写。",
+  "residual_risks": [
+    "Real Card 25 Electron walks were not rerun in this handoff; the new hardenedFetch regression proves the previously unguarded raw GitHub class fails before dispatch.",
+    "Renderer Chromium traffic still depends on the walkthrough session webRequest guard and is outside main-process URL ownership."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-01",
+  "invariant_owner_layer": {
+    "layer": "electron/appFetch.ts",
+    "tests": [
+      "electron/appFetch.test.ts",
+      "electron/promptLibrary/promptLibraryStore.test.ts"
+    ],
+    "why": "appFetch is the shared main-process HTTP boundary and its regression tests prove both fail-closed public-host rejection and loopback fixture redirection; prompt catalog has a separate test-mode branch test."
+  }
+}
