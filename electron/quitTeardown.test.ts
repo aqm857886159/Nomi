@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { installQuitTeardown, registerQuitDrain, resetQuitRequest, resetQuitTeardownForTests } from "./quitTeardown";
+import { installQuitTeardown, registerQuitDrain, registerQuitSessionEndSource, resetQuitRequest, resetQuitTeardownForTests } from "./quitTeardown";
 import { openProjectAgentLane } from "../src/workbench/project/projectAgentLaneOpen";
 
 type Listener = (event: { preventDefault: () => void }) => void;
+type SessionEvent = { preventDefault?: () => void };
 const quitCancellationMatrix = ["agent command", "capability core", "project opening"] as const;
 
 function fakeApp() {
@@ -21,6 +22,22 @@ function fakeApp() {
       const preventDefault = vi.fn();
       listeners.get(event)?.({ preventDefault });
       return preventDefault;
+    },
+  };
+}
+
+function fakeSessionSource() {
+  const listeners = new Map<string, (event?: SessionEvent) => void>();
+  const source = {
+    on: vi.fn((event: string, listener: (event?: SessionEvent) => void) => {
+      listeners.set(event, listener);
+      return source;
+    }),
+  };
+  return {
+    source,
+    emit: (event: string, payload: SessionEvent = {}) => {
+      listeners.get(event)?.(payload);
     },
   };
 }
@@ -267,6 +284,53 @@ describe("quit teardown lifecycle", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("runs only required critical drains for a Windows query-session-end without confirmation", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app } = fakeApp();
+      const session = fakeSessionSource();
+      const preventDefault = vi.fn();
+      const calls: string[] = [];
+      registerQuitSessionEndSource(session.source, ["query-session-end", "session-end"]);
+      installQuitTeardown(app, {
+        disposeBackgroundLifecycle: vi.fn(() => { calls.push("background"); }),
+        stopDesktopCapabilityCore: vi.fn(() => { calls.push("capability"); }),
+        disposeDesktopLaneIpc: vi.fn(async () => { calls.push("lane"); }),
+        abortAllActiveExports: vi.fn(() => { calls.push("exports"); return 1; }),
+        timeoutMs: 40,
+      });
+      session.emit("query-session-end", { preventDefault });
+      expect(preventDefault).toHaveBeenCalledOnce();
+      for (let i = 0; i < 20; i += 1) await Promise.resolve();
+      expect(calls).toEqual(["exports", "lane"]);
+      expect(app.quit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(40);
+      await vi.runAllTimersAsync();
+      expect(app.exit).toHaveBeenCalledWith(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs critical drains for a session-end event without attempting confirmation", async () => {
+    const { app } = fakeApp();
+    const session = fakeSessionSource();
+    const exports = vi.fn(() => 0);
+    const lane = vi.fn(async () => undefined);
+    registerQuitSessionEndSource(session.source, ["session-end"]);
+    installQuitTeardown(app, {
+      disposeBackgroundLifecycle: vi.fn(),
+      stopDesktopCapabilityCore: vi.fn(),
+      disposeDesktopLaneIpc: lane,
+      abortAllActiveExports: exports,
+      timeoutMs: 5,
+    });
+    session.emit("session-end");
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(exports).toHaveBeenCalledOnce();
+    expect(lane).toHaveBeenCalledOnce();
   });
 
   it.each([

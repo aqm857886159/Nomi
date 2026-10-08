@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   handlers: new Map<string, Handler>(), quitHandler: undefined as undefined | ((event: QuitEvent) => void),
   guard: vi.fn(), quit: vi.fn(), cancel: vi.fn(), cancelOwner: vi.fn(), cancelAll: vi.fn(), grant: vi.fn(),
   runCandidate: vi.fn(), cancelCandidate: vi.fn(), failCandidateEnvelope: vi.fn(),
+  drain: undefined as undefined | (() => void | Promise<void>),
 }));
 vi.mock("electron", () => ({
   ipcMain: { handle: (name: string, fn: Handler) => mocks.handlers.set(name, fn) },
@@ -26,6 +27,9 @@ vi.mock("./comfyCandidateTest", () => ({
   cancelComfyCandidateTest: mocks.cancelCandidate,
   failComfyCandidateEnvelope: mocks.failCandidateEnvelope,
 }));
+vi.mock("../quitTeardown", () => ({
+  registerQuitDrain: (_name: string, drain: () => void | Promise<void>) => { mocks.drain = drain; return vi.fn(); },
+}));
 
 import { registerTaskIpcHandlers } from "./taskIpcHandlers";
 type Runtime = Awaited<ReturnType<Parameters<typeof registerTaskIpcHandlers>[0]>>;
@@ -36,7 +40,7 @@ const call = (action: string, owner: Sender, payload?: unknown) => mocks.handler
 /** 画布单镜 Run 那一半（能力核）：这里只测本地任务的生命周期，窗口关掉时它被告知一声即可。 */
 const noCanvasCore = async () => ({ releaseCanvasShotSender: vi.fn() }) as never;
 describe("task IPC local operation lifecycle", () => {
-  beforeEach(() => { vi.resetAllMocks(); mocks.handlers.clear(); mocks.cancelAll.mockResolvedValue(undefined); });
+  beforeEach(() => { vi.resetAllMocks(); mocks.handlers.clear(); mocks.drain = undefined; mocks.cancelAll.mockResolvedValue(undefined); });
   it("binds submissions and result queries to the actual sender, not a payload owner", async () => {
     const jobs = new LocalTaskJobs<string>();
     const runtime = {
@@ -133,6 +137,19 @@ describe("task IPC local operation lifecycle", () => {
   it("registers task cancellation without subscribing to Electron quit events", () => {
     registerTaskIpcHandlers(async () => ({}) as Runtime, noCanvasCore);
     expect(mocks.quitHandler).toBeUndefined();
+  });
+  it("executes the owner drain and waits for all image jobs to cancel", async () => {
+    let finish!: () => void;
+    mocks.cancelAll.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+    registerTaskIpcHandlers(async () => ({}) as Runtime, noCanvasCore);
+    expect(mocks.drain).toBeDefined();
+    let settled = false;
+    const draining = mocks.drain!().then(() => { settled = true; });
+    expect(mocks.cancelAll).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+    finish();
+    await draining;
+    expect(settled).toBe(true);
   });
 });
 
