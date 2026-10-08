@@ -43,6 +43,59 @@ describe("categorizeVendorFailure", () => {
 });
 
 describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
+  it("付费出口：供应商声明幂等时，写出前失败只用同一幂等键重发一次", async () => {
+    const calls: Array<{ headers?: HeadersInit }> = [];
+    let attempt = 0;
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      calls.push({ headers: init?.headers });
+      attempt += 1;
+      if (attempt === 1) {
+        throw new TypeError("fetch failed", {
+          cause: Object.assign(new Error("connect refused"), { syscall: "connect", code: "ECONNREFUSED" }),
+        });
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }));
+
+    await expect(requestJson(
+      vendor,
+      "k",
+      "POST",
+      "https://x/v1/jobs",
+      {},
+      {},
+      { prompt: "hi" },
+      undefined,
+      { retryOnNotWritten: true, idempotencyKey: "same-key" },
+    )).resolves.toEqual({ ok: true });
+    expect(calls).toHaveLength(2);
+    expect(calls.every(({ headers }) => new Headers(headers).get("Idempotency-Key") === "same-key")).toBe(true);
+  });
+
+  it("付费出口：写出后断开即使允许重发也只保留结果未知的一笔", async () => {
+    const fetchSpy = vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("{"));
+        controller.error(new TypeError("terminated", { cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }) }));
+      },
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const error = await requestJson(
+      vendor,
+      "k",
+      "POST",
+      "https://x/v1/jobs",
+      {},
+      {},
+      { prompt: "hi" },
+      undefined,
+      { retryOnNotWritten: true, idempotencyKey: "same-key" },
+    ).catch((caught) => caught);
+    expect(error).toBeInstanceOf(VendorRequestError);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("HTTP 200 + 逻辑错误信封(kie 风格)→ VendorRequestError 带 logicalCode/category", async () => {
     stubFetch(() => new Response(JSON.stringify({ code: 402, msg: "余额不足" }), { status: 200 }));
     const error = await requestJson(vendor, "k", "POST", "https://api.kie.ai/v1/task", {}, {}, { a: 1 }).catch((e) => e);

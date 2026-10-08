@@ -77,6 +77,7 @@ import { repairStaleMcpConfigs } from './mcpConfig'
 import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
 import { markResidentSurfaceInstallFailed, markResidentSurfaceReady, markResidentSurfaceStarting, markResidentSurfaceStopped, readResidentSurfaceLifecycle } from './residentSurfaceLifecycle'
 import { createProductionShotDispatchGuard } from '../productionRun/productionShotDispatchGuard'
+import { productionFixtureBaseOriginFromEnv } from '../shared/productionRunE2eFixtureGate'
 
 let handle: RpcServerHandle | null = null
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
@@ -193,9 +194,7 @@ export async function startCapabilityCore(
       },
     })
     const projectRevisionResolver = authorities.projectRevisionResolver ?? defaults.projectRevisionResolver!
-    const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
-      ? process.env.NOMI_E2E_FIXTURE_BASE_URL
-      : undefined
+    const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env)
     const fixtureReferenceUrl = fixtureBaseUrlOverride && process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
       ? process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
       : undefined

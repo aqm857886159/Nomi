@@ -5,7 +5,6 @@
     "electron/ai/onboarding/modelListProbe.ts",
     "electron/ai/onboarding/onboardingIpc.ts",
     "electron/assets/localAssetFile.ts",
-    "electron/audioTaskRunner.ts",
     "electron/capabilityCore/apimartGenerationProvider.ts",
     "electron/capabilityCore/mcpHttpDesktop.ts",
     "electron/capabilityCore/mcpLoopbackRpcRequest.test.ts",
@@ -24,7 +23,8 @@
     "electron/localRuntime/localTextEndpoints.ts",
     "electron/proxyProbe.ts",
     "electron/telemetry/intakeClient.ts",
-    "electron/vendor/vendorBaseFallback.ts"
+    "electron/vendor/vendorBaseFallback.ts",
+    "electron/vendor/vendorHttp.ts"
   ],
   "privateHostImporters": [
     "electron/integrationCertification/httpConnector.ts",
