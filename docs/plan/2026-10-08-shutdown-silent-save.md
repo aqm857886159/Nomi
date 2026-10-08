@@ -45,6 +45,8 @@ macOS 关机 / 注销走正常退出流程：`before-quit` → 关窗，关窗�
 
 ## 先查别人
 
-- Electron 自带：Windows `query-session-end` / `session-end`、Linux `powerMonitor` `shutdown`（见 #1125 设计卡），只给时机，不管渲染层状态。
-- 保存本身：仓库已有渲染层保存队列与主进程项目单写口，本刀不新增写盘逻辑。
-- 自写部分：只有「请求渲染层冲掉已欠保存」的一条登记排空 + `critical` 选项（让登记的排空也能进 500ms 的无人值守路径）。理由是领域约束：创作者的未保存项目改动不能因关机丢失。
+- Electron 自带：Windows `query-session-end` / `session-end`（https://www.electronjs.org/docs/latest/api/browser-window#event-query-session-end-windows）、Linux `powerMonitor` 的 `shutdown` 事件（https://www.electronjs.org/docs/latest/api/power-monitor#event-shutdown-linux-macos），以及 `app` 的 `before-quit` / `will-quit`（https://www.electronjs.org/docs/latest/api/app#event-before-quit；类型注释 `node_modules/electron/electron.d.ts:202` 写明 Windows 关机 / 注销不发 before-quit）。只给「要结束了」的时机，不管渲染层有没有欠的保存。
+- 操作系统层：Windows 关机先发 WM_QUERYENDSESSION，应用可以延迟放行但时间很短（https://learn.microsoft.com/en-us/windows/win32/shutdown/wm-queryendsession），所以这一刀只能是几百毫秒内的静默落盘，不能弹框。
+- 同类桌面应用：VS Code 的生命周期服务把「关闭前要等我做完」做成登记式、带截止时间（https://github.com/microsoft/vscode/blob/main/src/vs/platform/lifecycle/electron-main/lifecycleMainService.ts）；本刀沿用这个登记模式，不另起监听。
+- 仓库里已有：渲染层保存队列与主进程项目单写口（`src/workbench/project/workbenchProjectSession.ts` 的 `flushOwned`）、退出 owner 的 `registerQuitDrain`（`electron/quitTeardown.ts:75`）、关窗确认的请求 / 回执写法（`electron/windowCloseConfirmation.ts`）。本刀不新增写盘逻辑。
+- 结论：时机用 Electron 自带的，登记和预算用现有 owner，写盘用现有保存口；自写的只有「请求渲染层冲掉已欠保存」这一条登记排空（`electron/shutdownProjectFlush.ts`、`electron/quitOwnerMain.ts`）和 owner 的 `critical` 选项，理由是创作者的未保存项目改动不能因关机丢失（领域约束），已登记在 `docs/engineering/self-written.json`。
