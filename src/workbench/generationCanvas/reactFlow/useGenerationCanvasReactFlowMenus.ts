@@ -245,8 +245,9 @@ export function useGenerationCanvasReactFlowMenus({
     }
   }, [cancelConnection, connectionCreateMenu, contextNodeMenu, setContextNodeMenu])
 
+  // 拖线松手出的菜单挂在那条待连的线上：线没了（别处取消）菜单跟着关。点「+」出的菜单不挂线（见 openHandleMenu）。
   React.useEffect(() => {
-    if (connectionCreateMenu && !pendingConnectionSourceId) setConnectionCreateMenu(null)
+    if (connectionCreateMenu?.exactPosition && !pendingConnectionSourceId) setConnectionCreateMenu(null)
   }, [connectionCreateMenu, pendingConnectionSourceId])
 
   const { handleAddContextNode, handleImportContextFiles, handleNodeContextAction, handleAddConnectedNode } = buildCanvasMenuActions({
@@ -327,7 +328,8 @@ export function useGenerationCanvasReactFlowMenus({
   }, [cancelConnection, getCanvasPointFromClientPoint, handleConnectToGroup, hostRef, nodeById, readOnly, visibleGroups])
 
   // 点一下「+」（不拖）：出这一侧的菜单，锚在圈下（bug ①：以前只有拖线这一条入口，点了什么都不发生）。
-  // 菜单开着 = 一条待连的线（与拖线松手同一状态），关菜单就取消它；新卡落在卡旁边（没有松手点）。
+  // 不先起一条待连的线：起了线，卡就退回小圆点（起线中的起点不出圈），菜单旁的「+」会消失。选一项时由
+  // createConnectedNode 自己起线、连上；新卡落在卡旁边（没有松手点）。
   const openHandleMenu = React.useCallback(({ nodeId, side, clientX, clientY }: { nodeId: string; side: ConnectionSide; clientX: number; clientY: number }) => {
     if (readOnly) return
     const state = useGenerationCanvasStore.getState()
@@ -337,7 +339,6 @@ export function useGenerationCanvasReactFlowMenus({
     if (!verdicts.length) return
     const rect = hostRef.current?.getBoundingClientRect()
     const placement = resolveRingMenuPlacement(node, side, 'image')
-    startConnection(nodeId, side)
     setConnectionCreateMenu({
       sourceNodeId: nodeId,
       sourceSide: side,
@@ -351,7 +352,7 @@ export function useGenerationCanvasReactFlowMenus({
       exactPosition: false,
       sourceKind: 'node',
     })
-  }, [hostRef, readOnly, startConnection])
+  }, [hostRef, readOnly])
 
   // 左「+」菜单底下两项：都先关菜单（取消那条待连的线），再交给素材选择器 / 点选模式去接。
   const handleAddInputFromAssets = React.useCallback(() => {

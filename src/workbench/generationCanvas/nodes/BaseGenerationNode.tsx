@@ -455,7 +455,8 @@ function BaseGenerationNodeImpl({
           )
         ) : localImageOpPending ? (
           <RemoveBackgroundPendingPlaceholder title={node.title} progress={node.progress?.percent} />
-        ) : (
+        ) : isCardKind || isTextKind ? null : (
+          // 卡片 / 文本卡的空态在它们自己的 body 里（上面），这块预览是隐藏的，不再重复挂一份空态。
           <PendingGenerationPlaceholder
             node={node}
             selected={selected}
