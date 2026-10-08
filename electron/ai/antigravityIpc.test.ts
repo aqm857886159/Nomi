@@ -2,9 +2,9 @@ import { EventEmitter } from "node:events";
 import { beforeEach, expect, it, vi } from "vitest";
 type Handler = (event: { sender: EventEmitter & { id: number } }, value?: unknown) => Promise<unknown>;
 const mocks = vi.hoisted(() => ({ handlers: new Map<string, Handler>(), guard: vi.fn(),
-  onQuit: undefined as undefined | ((event: { preventDefault: () => void }) => void), quit: vi.fn(),
+  onBeforeQuit: undefined as undefined | (() => void), onWillQuit: undefined as undefined | ((event: { preventDefault: () => void }) => void), quit: vi.fn(),
   status: vi.fn(), test: vi.fn(), cancel: vi.fn(), restore: vi.fn(), sync: vi.fn(), read: vi.fn(() => []), write: vi.fn() }));
-vi.mock("electron", () => ({ app: { on: (_name: string, fn: typeof mocks.onQuit) => { mocks.onQuit = fn; }, quit: mocks.quit }, ipcMain: { handle: (name: string, fn: Handler) => mocks.handlers.set(name, fn) } }));
+vi.mock("electron", () => ({ app: { on: (name: string, fn: (event: { preventDefault: () => void }) => void) => { if (name === "before-quit") mocks.onBeforeQuit = fn as () => void; else mocks.onWillQuit = fn; }, quit: mocks.quit }, ipcMain: { handle: (name: string, fn: Handler) => mocks.handlers.set(name, fn) } }));
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: mocks.guard }));
 vi.mock("./antigravityConnection", () => ({ antigravityConnection: mocks }));
 vi.mock("../catalog/antigravityCatalog", () => ({ syncAntigravityCatalog: mocks.sync }));
@@ -42,7 +42,7 @@ it("waits for native verification cleanup on quit, including repeated quit event
   const owner = { sender: sender(1) };
   const pending = mocks.handlers.get("nomi:antigravity:test")!(owner, { capability: "image", modelId: "auto" });
   const event = { preventDefault: vi.fn() };
-  mocks.onQuit?.(event); mocks.onQuit?.(event);
+  mocks.onBeforeQuit?.(); mocks.onWillQuit?.(event); mocks.onWillQuit?.(event);
   expect(event.preventDefault).toHaveBeenCalledTimes(2);
   expect(mocks.cancel).toHaveBeenCalledOnce();
   expect(mocks.quit).not.toHaveBeenCalled();
@@ -85,10 +85,10 @@ it("quit waits for persistence even when native work has already finished", asyn
   const pending = mocks.handlers.get("nomi:antigravity:test")!({ sender: sender(1) });
   await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledOnce());
   const event = { preventDefault: vi.fn() };
-  mocks.onQuit?.(event);
+  mocks.onWillQuit?.(event);
   await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
   expect(mocks.quit).not.toHaveBeenCalled();
-  mocks.onQuit?.(event);
+  mocks.onWillQuit?.(event);
   expect(event.preventDefault).toHaveBeenCalledTimes(2);
   finish(); await pending;
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());

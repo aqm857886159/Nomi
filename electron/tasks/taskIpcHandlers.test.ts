@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("electron", () => ({
   ipcMain: { handle: (name: string, fn: Handler) => mocks.handlers.set(name, fn) },
-  app: { on: (_name: string, fn: (event: QuitEvent) => void) => { mocks.quitHandler = fn; }, quit: mocks.quit },
+  app: { on: (name: string, fn: (event: QuitEvent) => void) => { if (name === "will-quit") mocks.quitHandler = fn; }, quit: mocks.quit },
 }));
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: mocks.guard }));
 vi.mock("../spendGrant", () => ({ mintSpendGrant: mocks.grant }));

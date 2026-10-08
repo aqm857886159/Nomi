@@ -778,6 +778,30 @@
       ],
       "whyNotIntegrated": "尚未下结论。领域约束只有一条：撤销「建节点」时节点因为装着付费结果要留下（协调会话 10-07 定 B），Yjs / tldraw 按来源撤销「插入」会连容器一起拿走，表达不了；其余（按来源只撤用户事务、事实层不进撤销栈）是通用能力。Immer 已是依赖、画布 store 已用 zustand/middleware/immer，撤销栈改成反向补丁是首选评估方向。",
       "revisitWhen": "评估撤销栈改成 Immer 反向补丁（方向检查 §6 接入 B）的结论出来时；或画布写边界再收到一份根因合同时先看这一项"
+    },
+    {
+      "id": "nomi-quit-teardown-boundary",
+      "capability": "Nomi main-process quit teardown boundary: coordinate cancellable quit intent with capability-core, Agent lane, and export cleanup under a hard async budget",
+      "status": "justified",
+      "paths": [
+        "electron/quitTeardown.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Electron app before-quit / will-quit lifecycle events",
+          "source": "https://www.electronjs.org/docs/latest/api/app"
+        },
+        {
+          "name": "Electron app.quit / app.exit process termination APIs",
+          "source": "https://www.electronjs.org/docs/latest/api/app#appexitexitcode"
+        },
+        {
+          "name": "Node.js timers for a bounded Promise race",
+          "source": "https://nodejs.org/api/timers.html"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: Electron exposes lifecycle events and termination APIs, but it does not know Nomi capability-core, Agent lane IPC, or background export owners, nor can it coordinate the required order of cancellable window confirmation, irreversible will-quit cleanup, and timeout-bounded exit. This module composes the existing Electron and Node mechanisms without reimplementing IPC, window confirmation, or a timer library; the Nomi-specific invariants are live capabilities after a cancelled close and guaranteed termination after cleanup timeout.",
+      "revisitWhen": "When Electron provides a unified async teardown coordinator that can express these Nomi owners and continue termination after a cleanup timeout, remove this boundary and use that mechanism."
     }
   ]
 }
