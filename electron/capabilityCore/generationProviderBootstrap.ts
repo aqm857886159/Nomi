@@ -8,6 +8,7 @@ import type { GenerationProvider } from "./generationRuntimeAdapter";
 import { createCatalogGenerationProvider } from "./apimartGenerationProvider";
 import type { GenerationProviderReadiness, GenerationProviderReadinessMap } from "./moduleCatalogBootstrap";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
+import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 
 export type GenerationProviderBootstrapOptions = {
   connectionResolver?: (vendorKey: string) => { apiKey: string; baseUrl?: string } | null;
@@ -55,18 +56,6 @@ function hasSafeDirectKeyScope(state: CatalogState, vendorKey: string): boolean 
 /** 夹具只认一家：`NOMI_E2E_FIXTURE_VENDOR`（缺省 apimart）。 */
 function fixtureVendorKey(): string {
   return String(process.env.NOMI_E2E_FIXTURE_VENDOR || "apimart").trim() || "apimart";
-}
-
-function safeFixtureBaseUrl(value: unknown): string | undefined {
-  if (process.env.NOMI_E2E !== "1" || process.env.NOMI_E2E_PRODUCTION_FIXTURE !== "1" || typeof value !== "string" || !value.trim()) return undefined;
-  try {
-    const url = new URL(value.trim());
-    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost" && url.hostname !== "::1") return undefined;
-    return url.origin;
-  } catch {
-    return undefined;
-  }
 }
 
 function safeFixtureApiKey(baseUrl: string | undefined): string | undefined {
@@ -117,7 +106,7 @@ export function createGenerationProviderBootstrap(
   for (const vendor of state.vendors) readinessByProvider[vendor.key] = readiness(false, noRecovery, ["configured_provider"]);
   const providers: GenerationProvider[] = [];
   const catalogReader = options.catalogReader ?? readCatalog;
-  const fixtureBaseUrl = safeFixtureBaseUrl(options.fixtureBaseUrlOverride);
+  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env, false);
   const fixtureApiKey = safeFixtureApiKey(fixtureBaseUrl);
   const fixtureVendor = fixtureVendorKey();
 

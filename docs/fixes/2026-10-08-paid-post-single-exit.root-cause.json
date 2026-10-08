@@ -31,7 +31,14 @@
     "electron/runtime.ts",
     "electron/capabilityCore/appIntegration.ts",
     "electron/capabilityCore/mcpStdioServer.ts",
-    "electron/paidPostCodeFeatureTable.test.ts"
+    "electron/paidPostCodeFeatureTable.test.ts",
+    "electron/catalog/userVendorBase.ts",
+    "electron/catalog/userVendorBase.test.ts",
+    "electron/productionRun/productionRunE2eFixture.ts",
+    "electron/productionRun/productionRunE2eFixture.test.ts",
+    "electron/productionRun/productionRunE2eFixture.matrix.test.ts",
+    "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
+    "electron/shared/productionRunE2eFixtureGate.ts"
   ],
   "entry_points": [
     "目录生成 create/query 通过 catalog provider.send",
@@ -142,16 +149,6 @@
     },
     {
       "kind": "write",
-      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
-      "symbol": "safeFixtureBaseUrl"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
-      "symbol": "safeFixtureBaseUrl"
-    },
-    {
-      "kind": "write",
       "path": "electron/capabilityCore/appIntegration.ts",
       "symbol": "startCapabilityCore"
     },
@@ -159,12 +156,32 @@
       "kind": "write",
       "path": "electron/capabilityCore/mcpStdioServer.ts",
       "symbol": "startMcpStdioServer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionRunE2eFixtureGate.ts",
+      "symbol": "productionFixtureBaseOriginFromEnv"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/userVendorBase.ts",
+      "symbol": "userVendorBaseUrl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunE2eFixture.ts",
+      "symbol": "isProductionRunE2eFixtureEnabled"
     }
   ],
   "door_reduction": {
     "before": 5,
-    "after": 21,
-    "why_not": "改前有五个付费传输边界（APIMart、自有 vendorHttp、同步音频、豆包 TTS、Whisper multipart）；改后付费发送边界只有 vendorHttp.requestVendor 一个。门表按 door-map 保留 21 个入口、包装和证据引用，after 必须与这份普查表的长度一致；audioTaskRunner、runtime、customCallRunner 与 apimart provider 只负责 wire / 业务适配，mcpLoopbackRpcCall、modelOnboarding 和 outboundDispatchEvidence 是非付费或判据 owner，不是第二个发送边界。"
+    "after": 23,
+    "why_not": "?????????????????????? vendorHttp.requestVendor ???????? door-map ?? 23 ???????? owner ? re-export ??????????after ?????????audioTaskRunner?runtime?customCallRunner ? apimart provider ??? wire / ?????mcpLoopbackRpcCall?modelOnboarding ? outboundDispatchEvidence ??????? owner???????????"
   },
   "generality_proof": "door-map 覆盖了音频、目录生成、custom call、runtime 和证据层的同类调用；所有真正写供应商 POST 的入口现在只调用 requestJson/requestBinary/requestMultipart，这三个包装都收敛到 requestVendor。新连接、重定向、超时、响应上限和写出证据不会随 JSON、二进制或 multipart wire 再复制。",
   "shared_boundaries": [
@@ -243,7 +260,13 @@
       "electron/audioTaskRunner.test.ts",
       "electron/capabilityCore/generationProviderBootstrap.ts",
       "electron/capabilityCore/appIntegration.ts",
-      "electron/capabilityCore/mcpStdioServer.ts"
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/productionRun/productionRunE2eFixture.ts",
+      "electron/productionRun/productionRunE2eFixture.matrix.test.ts",
+      "electron/catalog/userVendorBase.ts",
+      "electron/catalog/userVendorBase.test.ts",
+      "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
+      "electron/shared/productionRunE2eFixtureGate.ts"
     ]
   },
   "regression_tests": [
@@ -251,14 +274,18 @@
     "electron/audioTaskRunner.test.ts",
     "electron/providerExplicitRejection.test.ts",
     "electron/capabilityCore/generationProviderBootstrap.test.ts",
-    "electron/paidPostCodeFeatureTable.test.ts"
+    "electron/paidPostCodeFeatureTable.test.ts",
+    "electron/catalog/userVendorBase.test.ts",
+    "electron/productionRun/productionRunE2eFixture.matrix.test.ts"
   ],
   "class_regression_tests": [
     "electron/vendor/vendorHttp.test.ts",
     "electron/audioTaskRunner.test.ts",
     "electron/providerExplicitRejection.test.ts",
     "electron/capabilityCore/generationProviderBootstrap.test.ts",
-    "electron/paidPostCodeFeatureTable.test.ts"
+    "electron/paidPostCodeFeatureTable.test.ts",
+    "electron/catalog/userVendorBase.test.ts",
+    "electron/productionRun/productionRunE2eFixture.matrix.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

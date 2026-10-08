@@ -43,11 +43,20 @@ describe("APIMart 参考图上传跟着用户保存的接口地址走", () => {
   });
 
   it("夹具口：E2E 夹具 + 回环地址时，夹具点名的那家 base 指到夹具；非回环地址不认", () => {
+    vi.stubEnv("NOMI_E2E", "1");
     vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
     vi.stubEnv("NOMI_E2E_FIXTURE_BASE_URL", "http://127.0.0.1:5555");
     expect(userVendorBaseUrl({ key: "apimart", baseUrlHint: "https://api.apimart.ai" })).toBe("http://127.0.0.1:5555");
     expect(userVendorBaseUrl({ key: "kie", baseUrlHint: "https://api.kie.ai" })).toBe("https://api.kie.ai");
     vi.stubEnv("NOMI_E2E_FIXTURE_BASE_URL", "https://evil.example");
     expect(userVendorBaseUrl({ key: "apimart", baseUrlHint: "https://api.apimart.ai" })).toBe("https://api.apimart.ai");
+  });
+
+  it("涓嶆湇浠庢病鏈夋墦寮€ E2E 鐨勭幆澧冨啀璺宠繃 loopback 夹具", () => {
+    vi.stubEnv("NOMI_E2E", "0");
+    vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
+    vi.stubEnv("NOMI_E2E_FIXTURE_BASE_URL", "http://127.0.0.1:5555");
+    expect(userVendorBaseUrl({ key: "apimart", baseUrlHint: "https://api.apimart.ai" }))
+      .toBe("https://api.apimart.ai");
   });
 });

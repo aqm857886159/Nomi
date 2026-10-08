@@ -1,0 +1,38 @@
+{
+  "name": "production E2E fixture gate",
+  "subject": "test-harness.production-e2e-fixture-gate",
+  "lifecycle": "host",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/productionRunE2eFixtureGate.ts",
+    "symbol": "productionFixtureBaseOriginFromEnv"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/productionRunE2eFixtureGate.ts",
+      "symbol": "isProductionRunE2eFixtureEnabled"
+    },
+    {
+      "path": "electron/shared/productionRunE2eFixtureGate.ts",
+      "symbol": "productionFixtureBaseOrigin"
+    },
+    {
+      "path": "electron/shared/productionRunE2eFixtureGate.ts",
+      "symbol": "productionFixtureBaseOriginFromEnv"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionRunE2eFixture.matrix.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/generationProviderBootstrap.ts",
+    "electron/catalog/userVendorBase.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpStdioServer.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "Fixture routing is active only when NOMI_E2E=1, the production fixture flag is 1, packaged builds also have the packaged fixture flag, and the base origin is HTTP(S) loopback."
+}

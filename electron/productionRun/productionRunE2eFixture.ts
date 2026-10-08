@@ -5,6 +5,13 @@ import path from 'node:path'
 
 export const PRODUCTION_E2E_FIXTURE_PROVIDER = 'nomi-e2e-fixture'
 
+export {
+  isProductionRunE2eFixtureEnabled,
+  productionFixtureBaseOrigin,
+  productionFixtureBaseOriginFromEnv,
+  type ProductionRunE2eFixtureEnvironment,
+} from '../shared/productionRunE2eFixtureGate'
+
 /**
  * 夹具模式下的花费上限（单位与账本一致）。
  *
@@ -14,8 +21,6 @@ export const PRODUCTION_E2E_FIXTURE_PROVIDER = 'nomi-e2e-fixture'
  */
 export const PRODUCTION_E2E_FIXTURE_MAX_SPEND = 100
 export const PRODUCTION_E2E_FIXTURE_MODEL = 'nomi-e2e-fixture-video'
-
-type FixtureEnvironment = Partial<Record<'NOMI_E2E' | 'NOMI_E2E_PRODUCTION_FIXTURE' | 'NOMI_E2E_PACKAGED_FIXTURE', string | undefined>>
 
 type FixtureOptions = {
   projectRootResolver: (projectId: string) => string | null
@@ -29,18 +34,6 @@ function bundledFfmpegPath(): string {
   } catch {
     return ''
   }
-}
-
-export function isProductionRunE2eFixtureEnabled(
-  env: FixtureEnvironment,
-  isPackaged: boolean,
-): boolean {
-  // In packaged mode the fixture is disabled by default so production users
-  // are never exposed to it.  CI packaged E2E can opt back in by setting
-  // NOMI_E2E_PACKAGED_FIXTURE=1 in addition to the normal two flags.  This
-  // three-flag gate makes an accidental opt-in extremely unlikely.
-  if (isPackaged && env.NOMI_E2E_PACKAGED_FIXTURE !== '1') return false
-  return env.NOMI_E2E === '1' && env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
 }
 
 function identifier(value: unknown, label: string): string {

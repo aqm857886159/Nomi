@@ -31,6 +31,7 @@ import type { TaskRequest } from "../runtime";
 import "../catalog/apimartMinimaxH3";
 import { applyRequestTransformSync, validateRequestTransformSync } from "../tasks/requestTransforms";
 import { mirrorApimartReferenceParameterAliases } from "./apimartGenerationReferenceAliases";
+import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 import {
   assertReferenceParameters,
   assertReferencesReachBody,
@@ -138,18 +139,6 @@ function strictBaseUrl(value: unknown, vendorKey: string): string {
     return candidate;
   } catch {
     throw new CatalogGenerationProviderError(`${vendorKey} catalog vendor base URL is invalid`);
-  }
-}
-
-function safeFixtureBaseUrl(value: unknown): string | undefined {
-  if (process.env.NOMI_E2E !== "1" || process.env.NOMI_E2E_PRODUCTION_FIXTURE !== "1" || typeof value !== "string" || !value.trim()) return undefined;
-  try {
-    const url = new URL(value.trim());
-    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost" && url.hostname !== "::1") return undefined;
-    return url.origin;
-  } catch {
-    return undefined;
   }
 }
 
@@ -421,7 +410,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   if (!vendorKey) throw new CatalogGenerationProviderError("a generation provider needs a vendor key");
   const fetchImpl = options.fetchImpl ?? appFetch;
   const catalogReader = options.catalogReader ?? readCatalog;
-  const fixtureBaseUrl = safeFixtureBaseUrl(options.fixtureBaseUrlOverride);
+  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env, false);
   // 出站真正用的那条 base：夹具回环优先，否则用户保存的那条。**渲染与发送共用它**，
   // 于是 path / origin / 鉴权头全部来自同一次 `buildProfileHttpRequest`，与引擎 A 同源。
   const networkVendor = (vendor: Vendor): Vendor =>
