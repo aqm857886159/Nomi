@@ -7,6 +7,7 @@ import {
 import { installMainLogger, markStderrAsDiagnosticSurface } from "./logging/logger";
 import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
+import { setProductionRunE2eFixturePackagedState } from "./shared/productionRunE2eFixtureGate";
 
 type ElectronAppLifecycle = {
   readonly isPackaged: boolean;
@@ -35,6 +36,7 @@ export function installMainProcessLifecycle(
   app: ElectronAppLifecycle,
   dependencies: MainProcessLifecycleDependencies = {},
 ): void {
+  setProductionRunE2eFixturePackagedState(app.isPackaged);
   const crashHandlerInstaller = dependencies.installCrashHandlers ?? installCrashHandlers;
   const watchdogInstaller =
     dependencies.installParentProcessWatchdog ?? installParentProcessWatchdog;

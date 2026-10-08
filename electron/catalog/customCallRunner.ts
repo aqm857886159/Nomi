@@ -297,7 +297,7 @@ export async function runCustomCallScript(input: {
           ...rawCauseError.structured,
           url: redact(rawCauseError.structured.url),
           upstreamMsg: redact(rawCauseError.structured.upstreamMsg),
-        })
+        }, rawCauseError.providerAnswer, { cause: rawCauseError.cause })
       : rawCauseError instanceof Error
         ? Object.assign(new Error(redact(rawCauseError.message)), { name: rawCauseError.name })
         : rawCauseError;
