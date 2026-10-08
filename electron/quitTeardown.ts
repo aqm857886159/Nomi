@@ -32,6 +32,8 @@ let teardownFinished = false;
 let teardownStarted = false;
 let ownerTimeoutMs = 3000;
 let quitDeadlineAt: number | undefined;
+const BUILTIN_FAST_DRAIN_TIMEOUT_CAP_MS = 250;
+const BUILTIN_FAST_DRAIN_COUNT = 3;
 
 export function registerQuitDrain(name: string, drain: () => void | Promise<void>, options: QuitDrainOptions = {}): () => void {
   if (!name.trim()) throw new Error("quit drain name is required");
@@ -113,7 +115,14 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     },
     { name: "desktop-lane-ipc", drain: dependencies.disposeDesktopLaneIpc, required: true },
   ];
-  const builtInStepTimeoutMs = Math.max(1, Math.floor(ownerTimeoutMs / builtInDrains.length));
+  // The first three drains are synchronous bookkeeping and get a small cap. The lane
+  // close is different: laneHost.close records the pending Agent turn before closing
+  // its trace and harness, so it receives every millisecond left in the owner budget.
+  // Scale the cap only for tiny test/embedded budgets so the three caps never exceed it.
+  const builtInFastDrainTimeoutMs = Math.min(
+    BUILTIN_FAST_DRAIN_TIMEOUT_CAP_MS,
+    Math.max(1, Math.floor(ownerTimeoutMs / (BUILTIN_FAST_DRAIN_COUNT + 1))),
+  );
 
   app.on("will-quit", (event) => {
     if (teardownFinished) return;
@@ -126,9 +135,11 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     const optional = [...registeredDrains.values()].filter((entry) => !entry.required);
     const runInOrder = async (): Promise<boolean> => {
       let anyTimedOut = false;
-      for (const entry of builtInDrains) {
+      for (const [index, entry] of builtInDrains.entries()) {
         const timedOut = await runDrain(
-          { ...entry, timeoutMs: builtInStepTimeoutMs },
+          index < BUILTIN_FAST_DRAIN_COUNT
+            ? { ...entry, timeoutMs: builtInFastDrainTimeoutMs }
+            : entry,
           quitTeardownTimeoutMs(),
           dependencies.onError,
         );

@@ -165,7 +165,7 @@ describe("quit teardown lifecycle", () => {
       releaseBackground();
       for (let i = 0; i < 6; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core"]);
-      vi.advanceTimersByTime(10);
+      vi.advanceTimersByTime(40);
       for (let i = 0; i < 20; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
       expect(exports).toHaveBeenCalledOnce();
@@ -197,7 +197,7 @@ describe("quit teardown lifecycle", () => {
       emit("will-quit");
       for (let i = 0; i < 32; i += 1) await Promise.resolve();
       expect(lane).toHaveBeenCalledOnce();
-      vi.advanceTimersByTime(10);
+      vi.advanceTimersByTime(40);
       for (let i = 0; i < 12; i += 1) await Promise.resolve();
       expect(errors).toContain("desktop-lane-ipc-timeout");
       expect(app.exit).toHaveBeenCalledWith(0);
@@ -226,7 +226,7 @@ describe("quit teardown lifecycle", () => {
       for (let i = 0; i < 32; i += 1) await Promise.resolve();
       expect(lane).toHaveBeenCalledOnce();
       vi.advanceTimersByTime(2249);
-      await vi.runOnlyPendingTimersAsync();
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
       expect(app.exit).not.toHaveBeenCalled();
       vi.advanceTimersByTime(751);
       await vi.runAllTimersAsync();
@@ -259,7 +259,7 @@ describe("quit teardown lifecycle", () => {
       expect(errors).toContain("capability-core-timeout");
       expect(lane).toHaveBeenCalledOnce();
       vi.advanceTimersByTime(2749);
-      await vi.runOnlyPendingTimersAsync();
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
       expect(app.exit).not.toHaveBeenCalled();
       vi.advanceTimersByTime(1);
       await vi.runAllTimersAsync();
