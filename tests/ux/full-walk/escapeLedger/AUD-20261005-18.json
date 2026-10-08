@@ -6,13 +6,14 @@
   "problem": "中文界面「⋯」里比例显示英文原值 adaptive",
   "existingInvariants": [],
   "ironLaws": [
-    "⑩"
+    "⑩",
+    "⑪"
   ],
   "useCases": [
     "S7"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/research/2026-10-05-storyboard-plan-user-audit.md",
@@ -32,5 +33,6 @@
     "kind": "iron-law",
     "file": "tests/experience-laws/parameterReachability.test.mjs",
     "ref": "⑪"
-  }
+  },
+  "fixedInPr": 1042
 }
