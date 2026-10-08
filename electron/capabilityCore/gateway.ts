@@ -14,6 +14,7 @@ import { readProject, saveProject } from '../projects/repository'
 import { normalizeSnapshot, type CanvasSnapshot } from './canvasGraph'
 import { mergeExternalCanvasWrite } from '../shared/canvas/externalCanvasWrite'
 import { requestRenderer, requestRendererDecision } from './rendererBridge'
+import { serializeProjectCanvasWrite } from '../projects/projectCanvasWrite'
 
 /** 方案门（Phase B）：外部 agent 要往画布落一套节点方案时，弹应用内卡让用户一眼看懂 AI 要建什么。 */
 export type PlanConfirmInfo = {
@@ -66,6 +67,7 @@ function readDiskSnapshot(projectId: string): CanvasSnapshot {
 }
 
 async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot, base: CanvasSnapshot): Promise<void> {
+  await serializeProjectCanvasWrite(projectId, async () => {
   const record = readProject(projectId)
   if (!record) throw new Error(`项目不存在: ${projectId}`)
   const payload = record.payload && typeof record.payload === 'object' ? { ...(record.payload as Record<string, unknown>) } : {}
@@ -73,6 +75,7 @@ async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot, ba
   const raw = payload.generationCanvas && typeof payload.generationCanvas === 'object' ? payload.generationCanvas as Record<string, unknown> : {}
   payload.generationCanvas = { ...raw, ...mergeExternalCanvasWrite({ base, next: snapshot, current: normalizeSnapshot(raw) }) }
   await saveProject(projectId, { ...record, payload })
+  })
 }
 
 /**

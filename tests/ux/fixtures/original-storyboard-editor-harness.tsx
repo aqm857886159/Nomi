@@ -38,7 +38,7 @@ store.setActiveStoryboardId(designs.a.id, 'doc')
 if (query.has('confirm')) {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ id: 'result-node', kind: 'image', title: 'Result', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'success', result: { id: 'result', type: 'image', url: '/favicon.ico', createdAt: 1 }, meta: { storyboardDesignId: designs.a.id, shotId: 'shot-a' } }], edges: [], groups: [] })
 }
-Object.assign(window, { originalStoryboard: { plans: () => useWorkbenchStore.getState().storyboardDesignsByDocumentId } })
+Object.assign(window, { originalStoryboard: { plans: () => useWorkbenchStore.getState().storyboardDesignsByDocumentId, agentRefs: () => useWorkbenchStore.getState().projectAgentReferences.map((item) => item.value) } })
 useWorkbenchStore.getState().setWorkspaceMode('storyboard')
 function Fixture() {
   const [hidden, setHidden] = React.useState(false)

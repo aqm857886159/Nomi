@@ -28,6 +28,18 @@ vi.mock('../../library/localProjectStore', () => ({
   }),
 }))
 vi.mock('../../api/taskApi', () => ({ mintSpendGrant: vi.fn(async () => 'grant') }))
+vi.mock('../../../desktop/bridge', () => ({
+  getDesktopBridge: () => ({ projects: {
+    applyCanvasNodePatch: async ({ projectId, nodeId, patch }: { projectId: string; nodeId: string; patch: Record<string, unknown> }) => {
+      const record = disk.get(projectId) as { payload: { generationCanvas: { nodes: Array<Record<string, unknown>> } } } | undefined
+      if (!record) return { applied: false }
+      const nodes = record.payload.generationCanvas.nodes.map((node) => node.id === nodeId ? { ...node, ...patch } : node)
+      record.payload.generationCanvas.nodes = nodes
+      disk.set(projectId, structuredClone(record))
+      return { applied: true }
+    },
+  } }),
+}))
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -99,7 +111,7 @@ describe('background generation keeps the project identity fixed at submission',
 
     expect(outcome.successes.map((success) => success.nodeId)).toEqual([node.id])
     expect(canvasBytes()).toBe(projectBBefore)
-    expect(vi.mocked(saveLocalProject).mock.calls.map(([projectId]) => projectId)).toEqual(['project-a'])
+    expect(vi.mocked(saveLocalProject)).not.toHaveBeenCalled()
     const landed = diskNode('project-a', node.id)
     expect(landed).toMatchObject({ status: 'success', result: { id: 'result-a', url: 'nomi-local://asset/project-a/result.png' } })
     expect(landed?.runs?.[0]).toMatchObject({ status: 'success', projectId: 'project-a', taskId: 'task-a-1' })

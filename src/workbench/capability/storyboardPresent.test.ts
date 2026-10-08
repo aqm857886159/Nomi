@@ -2,10 +2,11 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { presentStoryboard } from './storyboardPresent'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../generationCanvas/events/canvasGestureContext'
 import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 
-const calls = vi.hoisted(() => ({ preload: vi.fn(), defaults: vi.fn(), confirm: vi.fn(), single: vi.fn(), current: true }))
+const calls = vi.hoisted(() => ({ preload: vi.fn(), defaults: vi.fn(), confirm: vi.fn(), spend: vi.fn(), single: vi.fn(), current: true }))
 vi.mock('../../config/useModelOptions', () => ({ preloadModelOptions: calls.preload }))
 vi.mock('../project/projectCanvasReadSurface', () => ({ withProjectAction: (action: (value: unknown) => unknown) => action({ binding: { projectId: 'p' }, signal: new AbortController().signal, assertCurrent: () => { if (!calls.current) throw new Error('changed project') } }) }))
 vi.mock('../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: calls.confirm }))
@@ -40,8 +41,15 @@ const shotNodes = () => useGenerationCanvasStore.getState().nodes.filter(node =>
 beforeEach(() => {
   vi.clearAllMocks(); calls.current = true; calls.defaults.mockReset()
   calls.preload.mockResolvedValue([])
-  // 2026-09-22：这两个执行口现在**回报结局**（用户同意 / 取消 / 没得跑）。夹具默认「他同意了」。
-  calls.confirm.mockResolvedValue('started'); calls.single.mockResolvedValue('started')
+  // The agent path shows the shared checklist before the paid batch runner.
+  // Answer both gates explicitly and notify the handoff callback at consent time.
+  calls.spend.mockResolvedValue(true)
+  calls.confirm.mockImplementation(async (batch, options) => {
+    options?.onConsented?.(batch.waves.flat())
+    return 'started'
+  })
+  vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockImplementation(calls.spend)
+  calls.single.mockResolvedValue('started')
   const store = useWorkbenchStore.getState()
   store.hydrateWorkbenchDocuments([{ id: 'doc', version: 1, title: 'Doc', updatedAt: 1, contentJson: { type: 'doc', content: [] } }], 'doc')
   store.hydrateStoryboardDesigns({})
@@ -50,8 +58,13 @@ beforeEach(() => {
 })
 it('executes the original materializer and batch action for exact scope, and reports that he approved', async () => {
   const result = await presentStoryboard(input())
-  expect(result).toEqual({ status: 'presented', designId: 'run', shotIds: ['shot-1'], decision: 'started' })
+  expect(result).toMatchObject({ status: 'presented', designId: 'run', shotIds: ['shot-1'], decision: 'started' })
+  expect(result.operations).toHaveLength(1)
   expect(shotNodes().map(node => node.meta?.shotId)).toEqual(['shot-1'])
+  expect(calls.spend).toHaveBeenCalledOnce()
+  expect(calls.spend.mock.calls[0][0].planRows).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: 'shot:shot-1', checked: true }),
+  ]))
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(calls.confirm.mock.calls[0][0].waves.flat()).toEqual(shotNodes().map(node => node.id))
 })
@@ -63,11 +76,11 @@ it('executes the original materializer and batch action for exact scope, and rep
 // `generate` 只好以 `generation_approval_unavailable`（「this host did not wait for his answer」）
 // 的错误形状回给模型并进熔断（A1 一次、A3 两次，与答框次数一一对应）。
 it('他点了取消 → 回包带 declined，画布和方案都不动', async () => {
-  calls.confirm.mockResolvedValue('declined')
+  calls.spend.mockResolvedValue(false)
   const result = await presentStoryboard(input())
   expect(result).toMatchObject({ status: 'presented', designId: 'run', shotIds: ['shot-1'], decision: 'declined' })
   // 取消不撤占位：占位属于草稿，不属于这一次出价（2026-09-22 用户拍板的同一条）。
-  expect(shotNodes().map(node => node.meta?.shotId)).toEqual(['shot-1'])
+  expect(shotNodes()).toHaveLength(0)
   expect(design().plan.shots.map(shot => shot.prompt)).toEqual(['Prompt 1', 'Prompt 2'])
 })
 

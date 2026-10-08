@@ -11,7 +11,7 @@ import {
   snapshotBeforeMigration,
 } from "./catalogFileAccess";
 export { modelCatalogReadOnlyStatus, type ModelCatalogReadOnlyStatus } from "./catalogFileAccess";
-import { apiKeyDecryptStatus, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
+import { apiKeyDecryptStatus, credentialMaterialSaved, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { migrateCatalogForward } from "./catalogMigrations";
@@ -117,6 +117,7 @@ function readCatalogShared(): Readonly<CatalogState> {
         ...vendor,
         providerKind: normalizeProviderKind(vendor.providerKind),
         hasApiKey: keyStatus === "ok",
+        credentialMaterialSaved: credentialMaterialSaved(apiKeysByVendor[vendor.key]),
         credentialVerificationPending: apiKeysByVendor[vendor.key]?.verificationPending === true,
       };
       // Overlay the DECRYPTED proxy/header credentials onto the INTERNAL vendor at
@@ -334,6 +335,7 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
     name: String(raw.name || existing?.name || key).trim(),
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     hasApiKey: existing?.hasApiKey ?? false,
+    credentialMaterialSaved: undefined,
     // readCatalog 每次从 apiKeysByVendor[].verificationPending 现算并覆盖，落盘的值没有意义。
     credentialVerificationPending: undefined,
     baseUrlHint: typeof raw.baseUrlHint === "string" ? raw.baseUrlHint.trim() || null : (existing?.baseUrlHint ?? null),
@@ -367,7 +369,11 @@ export function upsertModelCatalogVendor(payload: unknown): Vendor {
   if (existing && normalizedConnectionScope(existing) !== normalizedConnectionScope(vendor)) {
     invalidateProviderAdapterRunsForVendors(new Set([vendor.key]));
   }
-  return publicVendor({ ...vendor, hasApiKey: apiKeyDecryptStatus(state.apiKeysByVendor[vendor.key]) === "ok" });
+  return publicVendor({
+    ...vendor,
+    hasApiKey: apiKeyDecryptStatus(state.apiKeysByVendor[vendor.key]) === "ok",
+    credentialMaterialSaved: credentialMaterialSaved(state.apiKeysByVendor[vendor.key]),
+  });
 }
 export function deleteModelCatalogVendor(key: string): void {
   const state = readCatalog();

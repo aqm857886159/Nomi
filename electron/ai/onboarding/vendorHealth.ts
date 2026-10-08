@@ -21,7 +21,7 @@ import { BrowserWindow } from "electron";
 import { createHash } from "node:crypto";
 import type { AiSdkProviderKind } from "../../catalog/types";
 import { readCatalog, normalizeProviderKind, mutateCatalog } from "../../catalog/catalogStore";
-import { decryptApiKeyRecord } from "../../catalog/secrets";
+import { decryptStoredApiKeyRecord } from "../../catalog/secrets";
 import { isJsonRecord, mergeHeadersCaseInsensitive } from "../../jsonUtils";
 import { authHeaders, authQueryParams } from "../requestPipeline";
 import { userVendorBaseUrl } from "../../catalog/userVendorBase";
@@ -79,12 +79,14 @@ function resolveTarget(vendorKey: string): Target | null {
   const vendor = state.vendors.find((v) => v.key === vendorKey);
   if (!vendor) return null;
   if (vendor.authType === "none") return null;
-  // hasApiKey 由 readCatalog 统一算（存在 + 未禁用），别在这儿另立一套判据。
-  if (!vendor.hasApiKey) return null;
+  // readCatalog.hasApiKey gates usable credentials; pending material is explicitly revalidated below.
   const baseUrl = userVendorBaseUrl(vendor);
   if (!/^https?:\/\//i.test(baseUrl)) return null;
   const record = state.apiKeysByVendor[vendorKey];
-  const apiKey = decryptApiKeyRecord(record) || "";
+  // A pending save is the one intentional exception: it may be revalidated, but
+  // a user-disabled non-pending record must remain completely out of health probes.
+  if (!vendor.hasApiKey && record?.verificationPending !== true) return null;
+  const apiKey = decryptStoredApiKeyRecord(record) || "";
   if (!apiKey) return null;
   const providerKind = normalizeProviderKind(vendor.providerKind);
   const authType = vendor.authType || (providerKind === "anthropic" ? "x-api-key" : "bearer");
@@ -140,7 +142,14 @@ async function probe(vendorKey: string, target: Target): Promise<VendorHealth> {
       const patches = modelListReconciliation(state.models, vendorKey, res);
       if (patches.length || state.apiKeysByVendor[vendorKey]?.verificationPending) {
         mutateCatalog((tx, state) => {
-          if (state.apiKeysByVendor[vendorKey]) delete state.apiKeysByVendor[vendorKey].verificationPending;
+          const record = state.apiKeysByVendor[vendorKey];
+          if (record?.verificationPending) {
+            // Pending writes stay disabled until this successful probe. Promote
+            // only that pending record; a non-pending user disablement is never
+            // decrypted or sent by this path.
+            delete record.verificationPending;
+            record.enabled = true;
+          }
           for (const patch of modelListReconciliation(state.models, vendorKey, res)) tx.upsertModel(patch);
         });
         for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("nomi:model-catalog:changed");
@@ -194,7 +203,10 @@ export async function checkVendorHealth(vendorKey: string, force = false): Promi
 /** Daily sweep reuses the same credential, timeout and in-flight owner as model settings. */
 export async function reconcileTextVendorCatalogs(): Promise<void> {
   const state = readCatalog();
-  const vendors = state.vendors.filter((vendor) => vendor.hasApiKey && state.models.some((model) => model.vendorKey === vendor.key && model.kind === "text"));
+  const vendors = state.vendors.filter((vendor) => (
+    (vendor.hasApiKey || state.apiKeysByVendor[vendor.key]?.verificationPending === true)
+    && state.models.some((model) => model.vendorKey === vendor.key && model.kind === "text")
+  ));
   for (const vendor of vendors) await checkVendorHealth(vendor.key);
 }
 

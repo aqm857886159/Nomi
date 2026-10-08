@@ -43,6 +43,7 @@ import { planStoryboardFromScript } from './mcpStoryboardPlanner'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
 import { createProductionShotDispatchGuard } from '../productionRun/productionShotDispatchGuard'
+import { requestQuit } from '../quitTeardown'
 import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { prepareProductionGenerationAuthorizationWithReferences } from '../productionRun/prepareProductionGenerationAuthorization'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
@@ -497,7 +498,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   mcp.server.onerror = (error) => logWarn('mcp', MCP_TRANSPORT_ERROR_EVENT, { message: error.message })
   mcp.onClose((inFlightAtClose) => {
     if (inFlightAtClose > 0) logWarn('mcp', MCP_CANCELLED_IN_FLIGHT_EVENT, { count: inFlightAtClose })
-    void previewServer.close().finally(() => app.exit(0))
+    void previewServer.close().finally(() => requestQuit())
   })
   await mcp.connect(new StdioServerTransport())
 }

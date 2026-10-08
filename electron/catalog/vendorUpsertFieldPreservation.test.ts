@@ -59,6 +59,7 @@ const FULL_VENDOR = {
   enabled: true,
   hasApiKey: false,
   credentialVerificationPending: false,
+  credentialMaterialSaved: false,
   credentialBinding: { origin: "https://relay.acme.example", authType: "bearer", authHeader: "X-Acme-Key", authScheme: "Key", authQueryParam: "token", confirmedAt: "2026-09-01T00:00:00.000Z" },
   baseUrlHint: "https://relay.acme.example/v1",
   authType: "bearer",
@@ -77,7 +78,7 @@ const FULL_VENDOR = {
  * 由服务端/读路径派生、**不该**在 vendor 记录里落盘的字段。写成常量而不是散在断言里：
  * 将来有人想把某个字段挪进/挪出这份名单，必须在这里显式改，改不动就说明它该被保住。
  */
-const DERIVED_NOT_PERSISTED: ReadonlyArray<keyof Vendor> = ["hasApiKey", "credentialVerificationPending", "updatedAt"];
+const DERIVED_NOT_PERSISTED: ReadonlyArray<keyof Vendor> = ["hasApiKey", "credentialMaterialSaved", "credentialVerificationPending", "updatedAt"];
 
 describe("vendor upsert 不丢字段（整类）", () => {
   beforeEach(() => {

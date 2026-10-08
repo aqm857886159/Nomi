@@ -3,7 +3,7 @@ import { IconCheck, IconExternalLink } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 
 import type { KnownVendor } from '../../config/knownVendors'
-import { DesignButton, VendorLogoImage } from '../../design'
+import { DesignButton, StatusBadge, VendorLogoImage } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
 import { useVendorHealth } from './useVendorHealth'
@@ -11,6 +11,7 @@ import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
 import { groupModelsByKind } from './modelChipGrouping'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { VendorBaseUrlField } from './VendorBaseUrlField'
+import { resolveCredentialCopy, resolveCredentialStored } from './credentialPresentation'
 
 export function KnownVendorKeyConnectPage({
   directory,
@@ -18,6 +19,7 @@ export function KnownVendorKeyConnectPage({
   baseUrl = '',
   models,
   hasApiKey = false,
+  credentialMaterialSaved = false,
   credentialVerificationPending = false,
   curatedModelsPublished = false,
   onBack,
@@ -40,6 +42,8 @@ export function KnownVendorKeyConnectPage({
    * 避免用户在 availableKnown 点击卡片后看到一个要他重填 key 的表单。
    */
   hasApiKey?: boolean
+  /** Persisted material for display; unlike hasApiKey this does not imply usable or enabled. */
+  credentialMaterialSaved?: boolean
   credentialVerificationPending?: boolean
   /**
    * 该供应商的预置模型**此刻**已经在可用列表里（凭据 enabled → vendor 未被 de-publish，
@@ -63,11 +67,22 @@ export function KnownVendorKeyConnectPage({
   const hiddenModelCount = modelCount - visibleModels.length
   const [apiKey, setApiKey] = React.useState('')
   const [busy, setBusy] = React.useState(false)
-  // 已有 key = 直接进入「已保存」状态（跳过录入，避免要求用户重填已存 key）。
-  const [saved, setSaved] = React.useState(hasApiKey)
+  // 「存没存」只问存储事实（props = 目录里的凭据；savedHere = 本页刚存成的，等目录刷新）；
+  // 「更换密钥」只是视图模式，不是存储事实——替换被拒后旧 key 仍在，提示不能跟着表单走。
+  const [savedHere, setSavedHere] = React.useState(false)
+  const [replacing, setReplacing] = React.useState(false)
+  const stored = resolveCredentialStored({ credentialMaterialSaved, hasApiKey, savedHere })
+  const saved = stored && !replacing
   const [error, setError] = React.useState('')
   const [verificationPending, setVerificationPending] = React.useState(credentialVerificationPending)
   React.useEffect(() => setVerificationPending(credentialVerificationPending), [credentialVerificationPending])
+  // pending → cleared means the automatic re-check confirmed the key; the card must say so (models stay unverified).
+  const [keyRechecked, setKeyRechecked] = React.useState(false)
+  const wasPending = React.useRef(verificationPending)
+  React.useEffect(() => {
+    if (wasPending.current && !verificationPending) setKeyRechecked(true)
+    wasPending.current = verificationPending
+  }, [verificationPending])
   /**
    * 「点这个按钮会不会花钱」——**问主进程那份唯一的探测策略**，不在这里第二次判
    * （T-MO-10，用户 2026-09-22 拍板）。此前这页只写「保存验证」，而 apimart 那一下是一次
@@ -76,8 +91,10 @@ export function KnownVendorKeyConnectPage({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const errorId = React.useId()
   const { connection } = useVendorHealth(directory.vendorKey, {
-    hasApiKey: saved, skipImplicitProbe: true,
+    hasApiKey: hasApiKey || verificationPending, skipImplicitProbe: true,
   })
+  // The copy resolver owns the pendingTitle/pendingHint branch so saved keys never fall back to “no key”.
+  const credentialCopy = resolveCredentialCopy({ credentialMaterialSaved: stored, verificationPending, curatedModelsPublished, keyRechecked })
   React.useEffect(() => {
     if (connection?.state === 'reachable') setVerificationPending(false)
   }, [connection?.state])
@@ -99,7 +116,8 @@ export function KnownVendorKeyConnectPage({
     try {
       const result = await catalog.upsertVendorApiKey(directory.vendorKey, { apiKey: cleanKey, enabled: false }) as { verificationPending?: boolean }
       setVerificationPending(result.verificationPending === true)
-      setSaved(true)
+      setSavedHere(true)
+      setReplacing(false)
       setApiKey('')
       onSaved()
     } catch (reason) {
@@ -205,8 +223,8 @@ export function KnownVendorKeyConnectPage({
           {/* 「这台机器上到底存没存住这把 key」——**从 `saved` 派生**，不是给失败态另写一条文案分支
               （2026-09-17，W-17）。失败时用户读到的是一句错误话，而界面上没有任何地方回答
               他真正在问的那件事：那把 key 进去了没有。 */}
-          <p className="mt-1 text-caption text-nomi-ink-40" data-vendor-key-stored={saved ? 'yes' : 'no'}>
-            {t(saved ? 'onboardingProviders.keyOnly.storedYes' : 'onboardingProviders.keyOnly.storedNo', { name: vendorName })}
+          <p className="mt-1 text-caption text-nomi-ink-40" data-vendor-key-stored={stored ? 'yes' : 'no'}>
+            {t(stored ? 'onboardingProviders.keyOnly.storedYes' : 'onboardingProviders.keyOnly.storedNo', { name: vendorName })}
           </p>
           <p className="mt-3 text-caption leading-relaxed text-nomi-ink-40">
             {t('onboardingProviders.keyOnly.managedHint')}
@@ -244,32 +262,26 @@ export function KnownVendorKeyConnectPage({
                 <IconCheck size={16} stroke={2} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-body-sm font-semibold text-nomi-ink">
-                  {verificationPending
-                    ? t('onboardingProviders.keyOnly.offlineTitle')
-                    : curatedModelsPublished
-                    ? t('onboardingProviders.keyOnly.publishedTitle', { name: vendorName })
-                    : hasApiKey && apiKey === ''
-                    ? t('onboardingProviders.keyOnly.pendingTitle', { name: vendorName })
-                    : t('onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
-                </div>
+                {credentialCopy.badgeTone ? (
+                  <StatusBadge className="normal-case" tone={credentialCopy.badgeTone} data-credential-state={credentialCopy.titleKey}>
+                    {t(credentialCopy.titleKey, { name: vendorName })}
+                  </StatusBadge>
+                ) : (
+                  <div className="text-body-sm font-semibold text-nomi-ink">
+                    {t(credentialCopy.titleKey, { name: vendorName })}
+                  </div>
+                )}
                 <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
-                  {verificationPending
-                    ? t('onboardingProviders.keyOnly.offlineHint')
-                    : curatedModelsPublished
-                    ? t('onboardingProviders.keyOnly.publishedHint', { count: modelCount })
-                    : hasApiKey && apiKey === ''
-                    ? t('onboardingProviders.keyOnly.pendingHint')
-                    : t('onboardingProviders.keyOnly.savedHint')}
+                  {t(credentialCopy.hintKey, { count: modelCount })}
                 </p>
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between gap-2">
               {/* 已有 key 的情况提供「更换密钥」出口，让用户不被困在此页 */}
-              {hasApiKey && apiKey === '' ? (
+              {saved && apiKey === '' ? (
                 <button
                   type="button"
-                  onClick={() => setSaved(false)}
+                  onClick={() => setReplacing(true)}
                   className="text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
                 >
                   {t('onboardingProviders.keyOnly.replaceKey')}

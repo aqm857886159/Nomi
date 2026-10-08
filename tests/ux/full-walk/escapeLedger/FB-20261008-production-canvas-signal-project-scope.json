@@ -1,0 +1,41 @@
+{
+  "id": "FB-20261008-production-canvas-signal-project-scope",
+  "since": "2026-10-08",
+  "source": "用户报告（根因合同 docs/fixes/2026-10-08-canvas-explicit-delete-write-port.root-cause.json，detected_by: user）：撤销已落地的生产批次只 detach 不 reattach；切换项目后 A 项目的信号写进 B 项目；外部改过的项目被渲染层迟到的提交覆盖。",
+  "category": "interaction-semantics",
+  "problem": "生产画布信号没有携带并校验 projectId，宿主按当前项目写 Run；撤销带 productionRunId 的建节点还会被节点集合差分误判为删除并发 detach。",
+  "existingInvariants": [
+    "每条生产画布历史记录保存当次手势发出的显式 detach / reattach 意图，撤销发反向信号，重做原样重放。",
+    "生产画布内容与项目身份在同一载入提交中安装；无身份的生产节点写入路径拒绝提交。"
+  ],
+  "ironLaws": [
+    "生产信号必须带发出方画布 store 的 projectId；宿主只处理同项目，跨项目信号丢弃并记录诊断。"
+  ],
+  "useCases": [
+    "项目 A 删除生产节点后切到项目 B，A 的 detach 不得写入 B 的 Run。",
+    "同项目删除、撤销、重做与 put-back 保持 detach / reattach 序列。",
+    "空身份信号记录节点与文档身份诊断且不写入任何项目。"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
+    "src/workbench/production/productionCanvasSignals.ts"
+  ],
+  "completionCommits": [
+    "71b61f4f1",
+    "0dac0f679"
+  ],
+  "fixedInPr": 1096,
+  "rootCauseContract": "docs/fixes/2026-10-08-canvas-explicit-delete-write-port.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/production/redoReattachesProductionShots.test.ts",
+    "relatedFiles": [
+      "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts",
+      "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
+    ]
+  }
+}

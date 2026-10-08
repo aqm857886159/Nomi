@@ -192,7 +192,7 @@ export const FULL_WALK_PLAYBOOKS = Object.freeze([
   }),
   Object.freeze({
     id: 'pb10-node-display-rules', script: 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', paid: false,
-    title: Object.freeze({ 'zh-CN': '节点上显示什么：版本角标、重拍入口、已保存回执、失败标题、草稿标题', en: 'What a node shows: version badge, re-film entry, saved receipt, failure title, draft title' }),
+    title: Object.freeze({ 'zh-CN': '节点上显示什么：版本角标、重拍入口、失败标题、草稿标题', en: 'What a node shows: version badge, re-film entry, failure title, draft title' }),
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
   }),
   Object.freeze({
@@ -260,7 +260,6 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
       { id: 'generating', kind: 'system', visibleText: ['generationCommon.observability.progress.generating', 'generationCommon.observability.progress.generatingElapsed'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'generating' } },
       { id: 'still-generating', kind: 'system', visibleText: ['generationCommon.observability.progress.stillGenerating'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'still-generating' } },
       { id: 'finalizing', kind: 'system', visibleText: ['generationCommon.observability.progress.finalizing'], actions: [], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'finalizing' } },
-      { id: 'saved-receipt', kind: 'system', visibleText: ['generationCommon.observability.progress.saved'], actions: [], owner: 'src/workbench/observability/generationFeedback.ts#savedFeedbackWindowOpen', deadline: { ref: 'src/workbench/observability/generationFeedback.ts#SAVED_FEEDBACK_WINDOW_MS' } },
       { id: 'success', kind: 'terminal', visibleText: ['generationCommon.versionCards.expandAria'], actions: ['下载', '加入时间轴', '再生成一版'], owner: 'src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx#NodeVersionCardsHost' },
       { id: 'error', kind: 'terminal', visibleText: ['generationCommon.observability.action.retry.main', 'generationCommon.observability.action.switchModel.main', 'generationCommon.node.providerFailed', 'generationCommon.node.switchProvider', 'generationCommon.observability.error.outputUnreadable.reason', 'generationCommon.observability.error.outputUnreadable.hint'], actions: ['重试', '换个模型', '切到另一家'], owner: 'src/workbench/observability/classifyError.ts#classifyGenerationError' },
       { id: 'recoverable', kind: 'user', visibleText: ['generationCommon.recoverable.title', 'generationCommon.production.runAction.retry-retrieval'], actions: ['重新取回（免费）', '标记失败'], owner: 'src/workbench/generationCanvas/runner/recoverTaskActions.ts#recoverNodeResult', deadline: USER },

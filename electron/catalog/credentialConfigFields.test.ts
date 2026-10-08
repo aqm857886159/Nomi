@@ -20,6 +20,7 @@ const SAMPLE_VENDOR = {
   name: "Sample",
   enabled: true,
   hasApiKey: false,
+  credentialMaterialSaved: true,
   credentialVerificationPending: true,
   baseUrlHint: "https://relay.example/v1",
   authType: "bearer",

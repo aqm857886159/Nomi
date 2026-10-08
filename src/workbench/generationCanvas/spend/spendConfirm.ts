@@ -6,6 +6,8 @@ import type { ProductionContractView } from './productionContractView'
 import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
 import i18n from '../../../i18n'
 import { getDesktopBridge } from '../../../desktop/bridge'
+import type { PlanRow } from '../../shared/PlanRows'
+export type { PlanRow }
 
 type GenerationEtaBucket = {
   key: string
@@ -105,6 +107,10 @@ export type SpendConfirmRequest = {
   onBackToEdit?: () => void
   /** 明细行（节点 / 模型 / 预估），让用户一眼看懂谁要花钱、花在哪。 */
   details?: Array<{ label: string; value: string }>
+  /** Optional checklist for a batch whose entries are not materialized yet. */
+  planRows?: readonly PlanRow[]
+  /** Receives the user's checklist edits before the batch is materialized. */
+  onPlanToggle?: (row: PlanRow, checked: boolean) => void
   /** When anonymous hosting is required, this disclosure is rendered in the same spend card. */
   hostingDisclosure?: HostingDisclosure
 }

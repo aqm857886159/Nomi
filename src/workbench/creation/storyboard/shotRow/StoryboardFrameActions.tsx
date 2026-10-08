@@ -1,19 +1,12 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  IconArrowUpRight,
   IconLayersSubtract,
-  IconLock,
-  IconLockOpen,
-  IconMaximize,
   IconRefresh,
 } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
-import { AnchoredPopover } from '../../../../design'
-import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { recoverableHintKey } from '../../../generationCanvas/model/recoverableCopy'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
-import { resolveResultTargetShotIndex } from '../storyboardDInteractions'
 import type { ShotVariant } from './shotVariants'
 
 /**
@@ -28,7 +21,6 @@ import type { ShotVariant } from './shotVariants'
  */
 
 type Props = {
-  shot: PlanShot
   exec: ShotRowExec
   variants: readonly ShotVariant[]
   /**
@@ -43,15 +35,8 @@ type Props = {
    * 它和 `onGenerate`/`onRegenerate` 是两回事——那两条都会重新扣费，绝不能拿来当"重试"顶替它。
    */
   onRecover?: (() => void) | undefined
-  onOpenPreview?: (() => void) | undefined
-  onToggleLock?: (() => void) | undefined
   onOpenVariants?: (() => void) | undefined
   onGenerate?: (() => void) | undefined
-  targetShots?: readonly PlanShot[]
-  allShots?: readonly PlanShot[]
-  sourcePosition?: number
-  onSaveAsReference?: (() => void) | undefined
-  onSetAsFirstFrame?: ((targetIndex: number) => void) | undefined
 }
 
 /** 动作条按钮：26×26 常驻小图标钮（合同 §6.3 `.acts button`）。 */
@@ -84,98 +69,14 @@ function ActButton({
   )
 }
 
-function ResultIntakeMenu({
-  shot,
-  targetShots,
-  allShots,
-  sourcePosition,
-  onSaveAsReference,
-  onSetAsFirstFrame,
-}: {
-  shot: PlanShot
-  targetShots: readonly PlanShot[]
-  allShots: readonly PlanShot[]
-  sourcePosition: number
-  onSaveAsReference: () => void
-  onSetAsFirstFrame?: ((targetPosition: number) => void) | undefined
-}): JSX.Element {
-  const { t } = useTranslation()
-  const [open, setOpen] = React.useState(false)
-  const anchorRef = React.useRef<HTMLDivElement>(null)
-  const [targetPosition, setTargetPosition] = React.useState(() => resolveResultTargetShotIndex(allShots, sourcePosition) ?? -1)
-  const targetPositionOf = (target: PlanShot): number => allShots.findIndex((candidate) => (
-    (candidate.shotId ?? `index:${candidate.index}`) === (target.shotId ?? `index:${target.index}`)
-  ))
-  return (
-    <div ref={anchorRef} className="relative">
-      <ActButton label={t('storyboardEditor.resultIntake.useAs')} onClick={() => setOpen((value) => !value)}>
-        <IconArrowUpRight size={14} stroke={1.8} />
-      </ActButton>
-      {open ? (
-        // Portal 贴锚点：行在表格的 overflow-hidden 里，原地 absolute 的菜单在最后一行会被裁成一条边。
-        <AnchoredPopover anchorRef={anchorRef} onClose={() => setOpen(false)}>
-        <div
-          className="flex min-w-40 flex-col gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-1.5 shadow-nomi-md"
-          data-storyboard-result-intake-menu="true"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05"
-            onClick={onSaveAsReference}
-          >
-            {t('storyboardEditor.resultIntake.reference')}
-          </button>
-          {targetShots.length > 0 && onSetAsFirstFrame ? (
-            <>
-              <span className="px-2 pt-1 text-micro text-nomi-ink-40">{t('storyboardEditor.resultIntake.targetShot')}</span>
-              <select
-                value={targetPosition}
-                onChange={(event) => setTargetPosition(Number(event.target.value))}
-                aria-label={t('storyboardEditor.resultIntake.targetShot')}
-                className="h-7 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 text-micro text-nomi-ink-80"
-              >
-                {targetShots.map((target) => (
-                  <option key={target.shotId ?? target.index} value={targetPositionOf(target)}>
-                    {target.index === shot.index + 1
-                      ? t('storyboardEditor.resultIntake.nextShot', { index: target.index })
-                      : t('storyboardEditor.resultIntake.shot', { index: target.index })}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={targetPosition < 0}
-                className="rounded-nomi-sm px-2 py-1 text-left text-micro text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:opacity-40"
-                onClick={() => onSetAsFirstFrame(targetPosition)}
-              >
-                {t('storyboardEditor.resultIntake.firstFrame')}
-              </button>
-            </>
-          ) : null}
-        </div>
-        </AnchoredPopover>
-      ) : null}
-    </div>
-  )
-}
-
 export default function StoryboardFrameActions({
-  shot,
   exec,
   variants,
   outputTag,
   onRegenerate,
   onRecover,
-  onOpenPreview,
-  onToggleLock,
   onOpenVariants,
   onGenerate,
-  targetShots = [],
-  allShots = [],
-  sourcePosition = -1,
-  onSaveAsReference,
-  onSetAsFirstFrame,
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const [recovering, setRecovering] = React.useState(false)
@@ -244,29 +145,6 @@ export default function StoryboardFrameActions({
           <IconLayersSubtract size={14} stroke={1.8} />
           <span className="tabular-nums">{variants.length}</span>
         </button>
-      ) : null}
-      {hasResult ? (
-        <ActButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}>
-          <IconMaximize size={14} stroke={1.8} />
-        </ActButton>
-      ) : null}
-      {hasResult ? (
-        <ActButton
-          label={locked ? t('storyboardEditor.frame.unlock') : t('storyboardEditor.frame.lock')}
-          onClick={onToggleLock}
-        >
-          {locked ? <IconLockOpen size={14} stroke={1.8} /> : <IconLock size={14} stroke={1.8} />}
-        </ActButton>
-      ) : null}
-      {hasResult && !locked && onSaveAsReference ? (
-        <ResultIntakeMenu
-          shot={shot}
-          targetShots={targetShots}
-          allShots={allShots}
-          sourcePosition={sourcePosition}
-          onSaveAsReference={onSaveAsReference}
-          onSetAsFirstFrame={onSetAsFirstFrame}
-        />
       ) : null}
     </div>
     {outputTag ? (

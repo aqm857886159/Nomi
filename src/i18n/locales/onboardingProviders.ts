@@ -398,6 +398,8 @@ export const zhOnboardingProviders = {
   keyOnly: {
     offlineTitle: '已保存 · 未验证',
     offlineHint: '密钥已加密保存。联网后会自动复验，下次调用前也会先检查一次。',
+    recheckedTitle: '密钥已复验 · 模型未验证',
+    recheckedHint: '联网复验通过，这把密钥可用。点「继续验证」后 Nomi 会用真实请求逐个验证模型，通过的才会出现在可用模型列表。',
     title: '接入 {{name}}',
     subtitle: '已适配平台 · 只需填写 API Key',
     catalogManaged: '已预置 {{count}} 个模型，地址和请求方式都由 Nomi 维护',
@@ -1653,6 +1655,8 @@ export const enOnboardingProviders = {
   keyOnly: {
     offlineTitle: 'Saved · Not verified',
     offlineHint: 'Your key is saved securely. It will be checked again when connected, and before the next call.',
+    recheckedTitle: 'Key confirmed · Models not verified',
+    recheckedHint: 'The automatic re-check passed, so the key works. Click "Continue verification" and Nomi will run real requests to verify each model; only verified models appear in the available model list.',
     title: 'Connect {{name}}',
     subtitle: 'Adapted platform · Only an API key is required',
     catalogManaged: '{{count}} preset models — Nomi maintains the endpoint and request behavior',

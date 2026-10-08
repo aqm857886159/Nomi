@@ -380,6 +380,6 @@ export function narrateTaskOutcome(state: string, recoverable = false): string {
   if (recoverable) return i18n.t('taskCenter.row.recoverable')
   if (state === 'cancelled') return i18n.t('taskCenter.row.cancelled')
   if (state === 'error') return i18n.t('taskCenter.row.failed')
-  if (state === 'success') return i18n.t('generationCommon.observability.progress.saved')
+  if (state === 'success') return i18n.t('taskCenter.groups.done')
   return narrateProgress(state === 'queued' ? 'queued' : 'generating')
 }

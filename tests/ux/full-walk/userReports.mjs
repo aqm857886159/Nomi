@@ -13,7 +13,6 @@ export const USER_REPORTED_ISSUES = Object.freeze([
   { id: 'U06', reported: '2026-09-29', text: '分镜表自己冒出来（没点过）', playbook: 'pb05-pause-resume', rules: ['surface-storyboardTable', 'surface-workspaceMode', 'surface-creationSelection'] },
   { id: 'U07', reported: '2026-09-29', text: '暂停以后，上面的消息 / 转圈一直在转', playbook: 'pb05-pause-resume', rules: ['spinner-without-deadline', 'run-stuck-pausing', 'agent-turn-idle'] },
   { id: 'U08', reported: '2026-09-29', text: '节点上的无效角标：只有 1 版也显示「几版」', playbook: 'pb01-two-page-card', rules: ['9a-single-version-pill'] },
-  { id: 'U09', reported: '2026-09-29', text: '节点上的无效角标：「已存入项目」存好以后一直挂着', playbook: 'pb01-two-page-card', rules: ['9b-saved-label-lingers'] },
   { id: 'U10', reported: '2026-09-29', text: '缩小窗口后右上角的提示框伸出窗口，关闭钮点不到，还叠 ×3', playbook: 'pb06-failure-small-window', rules: ['overlay-out-of-viewport', 'close-button-unreachable', '9c-repeated-toast'] },
   { id: 'U11', reported: '2026-09-28', text: '长对话里 Agent 一回合输入 token 爆到几十万，写剧本连着失败', playbook: 'pb04-script-attachment-long-chat', rules: ['input-tokens-over-budget', 'agent-write-receipt-stuck'] },
   { id: 'U12', reported: '2026-09-29', text: '生成失败时的提示文字：原因说错、把旧失败算到新换的那家头上、提示是英文原话', playbook: 'pb06-failure-small-window', rules: ['failure-reason-misstated', 'failure-blamed-on-wrong-vendor', 'raw-english-in-chinese-ui', 'stale-failure-toast'] },

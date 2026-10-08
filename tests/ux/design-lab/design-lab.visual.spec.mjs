@@ -19,8 +19,10 @@ const DIRECTOR_SCREENS = new Set(['director-3dbox', 'director-refine'])
 // `design-lab:update` 跑的就是来录基线的那一趟，所以它不跳——拍板后录完记得删登记。
 const UPDATING = process.env.NOMI_DESIGN_LAB_UPDATE === '1'
 const pending = pendingApprovalScreens()
+const requestedScreen = process.env.NOMI_DESIGN_LAB_SCREEN
 
 for (const screen of LAB_SCREEN_IDS) {
+  if (requestedScreen && screen !== requestedScreen) continue
   if (pending[screen] && !UPDATING) continue
   const states = readLabStates(screen)
   // 容差按屏取（见 calibration.json 的 why.perScreenTolerance：大格用比例会宽到放过真实改动）。

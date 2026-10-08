@@ -22,14 +22,7 @@
     {
       "path": "src/workbench/capability/multiShotCanvasLanding.ts",
       "symbol": "materializeShots"
-    },
-    {
-      "path": "src/workbench/production/watchDeletedProductionNodes.ts",
-      "symbol": "watchDeletedProductionNodes"
-    },
-    {
-      "path": "electron/productionRun/canvasLandingHost.ts",
-      "symbol": "draftLandingOutcome"
+
     }
   ],
   "forbidden_derivations": [],
@@ -41,5 +34,5 @@
     "src/workbench/production/reportDetachedShotNodes.ts"
   ],
   "since": "2026-10-03",
-  "notes": "「这一镜的节点在不在画布上」只有已装载的画布文档说了算；Run 里的 nodeId / canvasDetached 只是上报留下的记录（合同 docs/fixes/2026-10-03-switch-project-landing.root-cause.json，S1-5）。写这份记录的只有两条：删节点上报 watchDeletedProductionNodes（只认同一份已装载画布上的消失——前后两拍 isReady 都成立；装载 / 卸下只重记基线）和落地绑定（canvasLandingHost → plan.bind-shot-nodes）。每一次落地投影（确认即落 / 草稿 / 跟随 / 打开项目对账，含已结束的 Run）都把记了 detached 的镜投成 existingOnly：节点真不在不复活，节点还在就对上真实状态并回报绑定；纠正型绑定的命令号带它纠正的 revision，仓库的命令号幂等重放吞不掉它。不许再在别处按 canvasDetached 把一镜从投影里滤掉。"
+  "notes": "「这一镜的节点在不在画布上」只有已装载的画布文档说了算；Run 里的 nodeId / canvasDetached 只是上报留下的记录（合同 docs/fixes/2026-10-03-switch-project-landing.root-cause.json，S1-5）。写这份记录的只有两条：删除手势通过 productionCanvasSignals 显式上报（装载 / 卸下只重记基线）和落地绑定（canvasLandingHost → plan.bind-shot-nodes）。每一次落地投影（确认即落 / 草稿 / 跟随 / 打开项目对账，含已结束的 Run）都把记了 detached 的镜投成 existingOnly：节点真不在不复活，节点还在就对上真实状态并回报绑定；纠正型绑定的命令号带它纠正的 revision，仓库的命令号幂等重放吞不掉它。不许再在别处按 canvasDetached 把一镜从投影里滤掉。"
 }
