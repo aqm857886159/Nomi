@@ -15,8 +15,6 @@ import { createCharacterPoseContext, poseCharacterFrame, type CharacterPoseConte
 import { loadPoseClipsFrom } from './poseClipLibrary'
 import { loadUalMannequinForTest } from './ualMannequin.testkit'
 
-vi.mock('../../../../../../desktop/rendererLog', () => ({ logRendererError: () => {}, logRendererWarn: () => {} }))
-
 const gltf = await loadUalMannequinForTest()
 loadPoseClipsFrom(gltf)
 

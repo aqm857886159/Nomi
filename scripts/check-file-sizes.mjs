@@ -25,7 +25,7 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "electron/runtime.ts": 485, // …→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）
+  "electron/runtime.ts": 483, // …→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）
   // Conversational model integration boundary: the session service keeps the
   // state machine, receipt contract, canonical certification and recovery
   // transitions together. It is reviewed as one security boundary and must
@@ -47,7 +47,7 @@ const ALLOWLIST = {
   // 846→828：console.* 收口到 logging/logger 时，把 registerDevDiagnostics（dev-only 窗口诊断挂钩，
   // 整族最后都落在 logDevDetail 上）搬进 electron/logging/devDiagnostics.ts（−26 行），
   // 同 commit 加回「profile 被隔离时日志跟着走」那段带注释的 setPath（+8 行）。
-  "electron/main.ts": 682,
+  "electron/main.ts": 679,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后
   // 折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
