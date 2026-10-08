@@ -305,7 +305,7 @@ const playwrightArgs = ['playwright', 'test', '-c', 'tests/ux/design-lab/playwri
 // 「所有失败都说成视觉基线不符」正是这么来的。
 const transcript = []
 const runStatus = await new Promise((resolve) => {
-  const child = spawn(process.platform === 'win32' ? 'npx' : 'npx', playwrightArgs, {
+  const child = spawn('npx', playwrightArgs, {
     cwd: repoRoot,
     stdio: ['inherit', 'pipe', 'pipe'],
     ...(process.platform === 'win32' ? { shell: true } : {}),

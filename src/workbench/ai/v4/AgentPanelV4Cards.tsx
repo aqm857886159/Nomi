@@ -28,6 +28,7 @@ import { V4ErrorBar } from './AgentPanelV4Receipt'
 import { V4AskCard, type V4AskCardLabels } from './AgentPanelV4AskCard'
 import { V4Pager, V4SlotShell } from './AgentPanelV4SlotShell'
 import { askCardQuestions } from './agentPanelV4AskModel'
+import { PlanRows } from '../../shared/PlanRows'
 import type { V4QuestionReply } from './agentPanelV4Question'
 import type {
   InterventionData,
@@ -510,38 +511,16 @@ export function V4Intervention({
           // 清单自己滚：卡壳是 `overflow-hidden`（圆角要它），所以清单不给自己一个滚动容器
           // 就等于「第 9 行起不存在」——用户 2026-09-11 报的 8 镜计划卡正是这样，
           // 下面几镜连同底栏一起被裁在卡外。高度上限按 6 行留（再多就该收起来读）。
-          <div className={cn('flex flex-col gap-1 overflow-y-auto', data.plan.some((row) => row.group) ? 'max-h-[17rem]' : 'max-h-[13.5rem]')} data-v4-block="plan-rows">
-            {data.plan.map((row, index) => (
-              <React.Fragment key={`${index}-${row.label}`}>
-              {row.group && row.group !== data.plan?.[index - 1]?.group ? (
-                <div className={cn('text-micro font-semibold text-nomi-ink-40', index > 0 && 'pt-1.5')} data-v4-block="plan-group">{row.group}</div>
-              ) : null}
-              <div className="flex items-start gap-2 py-[3px] text-caption text-nomi-ink-80">
-                <input
-                  type="checkbox"
-                  aria-label={row.label}
-                  checked={row.checked}
-                  onChange={(event) => onPlanToggle(row.label, event.target.checked)}
-                  className="mt-0.5 size-3.5 shrink-0 accent-nomi-accent"
-                />
-                {row.technical ? (
-                  <details className="group min-w-0 flex-1" data-v4-block="plan-detail">
-                    <summary className="flex cursor-pointer list-none items-start gap-1">
-                      <div className="min-w-0 flex-1"><AgentPanelV4Markdown text={row.label} />{row.detail ? <AgentPanelV4Markdown text={row.detail} /> : null}</div>
-                      <IconChevronRight size={12} className="mt-0.5 shrink-0 group-open:rotate-90" aria-hidden="true" />
-                    </summary>
-                    <pre className="m-0 mt-1 whitespace-pre-wrap break-all font-nomi-mono text-micro text-nomi-ink-40">{row.technical}</pre>
-                  </details>
-                ) : row.aside ? (
-                  <div className="flex min-w-0 flex-1 items-baseline gap-2">
-                    <div className="min-w-0 flex-1 truncate"><AgentPanelV4Markdown text={row.label} /></div>
-                    <span className="shrink-0 text-micro text-nomi-ink-40" data-v4-block="plan-aside">{row.aside}</span>
-                  </div>
-                ) : <div className="min-w-0 flex-1"><AgentPanelV4Markdown text={row.label} />{row.detail ? <AgentPanelV4Markdown text={row.detail} /> : null}</div>}
-              </div>
-              </React.Fragment>
-            ))}
-          </div>
+          <PlanRows
+            rows={data.plan}
+            onToggle={(row, checked) => onPlanToggle(row.label, checked)}
+            renderLabel={(row) => (
+              <>
+                <AgentPanelV4Markdown text={row.label} />
+                {row.detail ? <AgentPanelV4Markdown text={row.detail} /> : null}
+              </>
+            )}
+          />
         ) : null}
         {data.reasonPlaceholder && (rejecting || data.kind === 'reject-reason') ? (
           // 这一行不自己提交：拒绝要说的那句话由底栏的「确认不要」收尾（渐进披露的第二下）。

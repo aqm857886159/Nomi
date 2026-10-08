@@ -20,7 +20,7 @@ import { V4FlowRow } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import type { ToolReceipt, V4AssistantStatus } from '../../../../workbench/ai/v4/agentPanelV4Types'
 import { formatMoney } from '../../../../workbench/ai/v4/formatMoney'
-import { Piece, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
+import { Piece, useV4Fixtures, useV4Locale, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import type { LaneViewModelLabels } from '../../../../workbench/ai/lane/laneViewModel'
 import { providerFailureText } from '../../../../workbench/ai/lane/laneCommandFailure'
 import { laneDrivenReceipt, laneSnapshotQuestionAnswered, laneSnapshotToolDenied, laneSnapshotToolRunning } from '../laneDrivenFixtures'
@@ -174,6 +174,18 @@ function SlotCell({ pick }: { pick: keyof ReturnType<typeof useV4Fixtures>['slot
   return (
     <Piece>
       <V4Intervention {...V4_LAB_SLOT_HANDLERS} data={fx.slots[pick]} labels={labels.intervention} />
+    </Piece>
+  )
+}
+
+function PlanCell({ locale }: { locale: 'zh-CN' | 'en' }): JSX.Element {
+  const ready = useV4Locale(locale)
+  const fx = useV4Fixtures()
+  const labels = useV4Labels()
+  if (!ready) return <Piece><div /></Piece>
+  return (
+    <Piece>
+      <V4Intervention {...V4_LAB_SLOT_HANDLERS} data={fx.slots.plan} labels={labels.intervention} />
     </Piece>
   )
 }
@@ -598,6 +610,29 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     source: '2026-09-06-agent-panel-v4.md · Vocabulary 板',
     coverage: 'component-only',
     render: () => <SlotCell pick="plan" />,
+  },
+  {
+    id: 'v4-intervention-plan-en',
+    name: '鈶?浠嬪叆妲?路 璁″垝锛堣嫳鏂囩晫闈級',
+    source: '2026-09-06-agent-panel-v4.md 路 Vocabulary 鏉?鈶╋綔2026-10-08 鍏变韩 PlanRows',
+    coverage: 'component-only',
+    render: () => <PlanCell locale="en" />,
+  },
+  {
+    id: 'v4-intervention-plan-dark',
+    name: '鈶?浠嬪叆妲?路 璁″垝锛堟殫鑹诧級',
+    source: '2026-09-06-agent-panel-v4.md 路 Vocabulary 鏉?鈶╋綔2026-10-08 鍏变韩 PlanRows',
+    coverage: 'component-only',
+    scheme: 'dark',
+    render: () => <PlanCell locale="zh-CN" />,
+  },
+  {
+    id: 'v4-intervention-plan-en-dark',
+    name: '鈶?浠嬪叆妲?路 璁″垝锛堣嫳鏂囨殫鑹诧級',
+    source: '2026-09-06-agent-panel-v4.md 路 Vocabulary 鏉?鈶╋綔2026-10-08 鍏变韩 PlanRows',
+    coverage: 'component-only',
+    scheme: 'dark',
+    render: () => <PlanCell locale="en" />,
   },
   {
     id: 'v4-intervention-credential',
