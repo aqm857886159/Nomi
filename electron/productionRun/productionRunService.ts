@@ -13,7 +13,7 @@ import {
 } from './artifactProjection'
 import { buildProductionDeepLink } from './productionDeepLink'
 import { applyRunControl } from './productionRunControl'
-import { isStillAtProvider, settleRunLifecycle } from './productionRunLifecycle'
+import { isStillAtProvider, runWantsDriver, settleRunLifecycle } from './productionRunLifecycle'
 import { createDriverOps, isSemanticMultiShotRun } from './productionRunDriverOps'
 import { isShotGate, isSpendGate } from './productionRunGateIdentity'
 import { withEventTap } from './productionRunEventTap'
@@ -620,7 +620,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       const summaries = typeof repository.list === 'function' ? repository.list(safeProjectId) : []
       for (const summary of summaries) {
         let current = repository.read(safeProjectId, summary.runId)
-        if (!current || ['completed', 'cancelled'].includes(current.status)) continue
+        // 要不要处理只问生命周期 owner：停稳了而手上没有交给供应商的活就跳过。以前这里自己按状态挑、已取消一律跳过——
+        // 取消后关掉 Nomi，那一镜停在「提交中」永远没人标成结果待核对（2026-10-07 独立验收 V-1078 抓到的第四扇门）。
+        if (!current || !runWantsDriver(current)) continue
         // 老数据：上一版把多镜批次急停后留在 pausing、手上其实已经没有在跑的活——之后再没有命令经过写入口，
         // 它就永远「暂停中」。欠不欠这一步只由生命周期 owner 判，这里只负责在重开项目时让它经过一次写入口。
         if (settleRunLifecycle(current, new Date().toISOString())) {

@@ -1,0 +1,20 @@
+{
+  "name": "娴嬭瘯妯″紡涓昏繘绋嬪嚭绔欑綉缁滈棬",
+  "subject": "test-harness.network-guard",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": { "path": "electron/testNetworkGuard.ts", "symbol": "guardTestNetworkUrl" },
+  "write_api": [
+    { "path": "electron/testNetworkGuard.ts", "symbol": "guardTestNetworkUrl" },
+    { "path": "electron/appFetch.ts", "symbol": "appFetch" },
+    { "path": "electron/hardenedFetch.ts", "symbol": "hardenedFetch" }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/hardenedFetch.test.ts",
+  "allowed_consumers": ["electron/appFetch.ts", "electron/hardenedFetch.ts", "electron/promptLibrary/promptLibraryStore.ts", "tests/ux/full-walk/egress.mjs"],
+  "since": "2026-10-07",
+  "notes": "娴嬭瘯妯″紡涓嬪彧鍏佽 loopback 鎴栨樉寮忕櫥璁扮殑 fixture origin锛岄伩鍏嶇郴缁熶唬鐞嗘帹閫佸叕缃戣姹傘€"
+}
