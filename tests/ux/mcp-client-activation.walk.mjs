@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 installed-app journey for truthful MCP client activation.
 //
 // Default: isolated HOME/settings/projects, safe to rerun.
@@ -37,7 +38,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
 
 if (!fs.existsSync(executablePath)) throw new Error(`Installed Nomi executable not found: ${executablePath}`)
 
-const tempRoot = realConnect ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-activation-walk-'))
+const tempRoot = realConnect ? null : makeTempDir('nomi-mcp-activation-walk-')
 const testHome = tempRoot ? path.join(tempRoot, 'home') : os.homedir()
 const settingsDir = tempRoot ? path.join(tempRoot, 'settings') : null
 const projectsDir = tempRoot ? path.join(tempRoot, 'projects') : null

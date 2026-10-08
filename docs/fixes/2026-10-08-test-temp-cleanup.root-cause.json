@@ -1,0 +1,1443 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-test-temp-cleanup",
+  "problem_type": "Test and walkthrough temporary-directory leaks",
+  "symptom": "Vitest and Electron walkthrough runs leave nomi-* directories in the host temporary directory, growing local disks across repeated runs.",
+  "direct_cause": "Temporary roots are created independently and cleanup is attached to individual happy-path scripts, so failed assertions, launch timeouts, and process exits bypass removal.",
+  "class_root": "No shared lifecycle owner enforces creation and teardown for test-run and isolated Electron temporary roots.",
+  "affected_population": [
+    "Vitest workers and every test using os.tmpdir()",
+    "Electron UX walks and E2E scripts using the shared launcher",
+    "Windows, Linux, and macOS repeated local or CI runs"
+  ],
+  "scope_paths": [
+    "vitest.config.ts",
+    "scripts/_test-temp.mjs",
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/check-test-temp-static.node-test.mjs",
+    "scripts/tempWorkspace.test.ts",
+    "tests/setup/tempWorkspace.ts",
+    "tests/ux/_launchApp.mjs",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "entry_points": [
+    "Vitest globalSetup creates one run root and redirects TMPDIR/TEMP/TMP",
+    "launchNomiApp registers isolated Electron profile roots",
+    "launcher close and process-exit teardown remove registered roots"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-owned test infrastructure lifecycle behavior; no vendor API decision controls it.",
+  "invariant_owner_layer": {
+    "layer": "tests/setup/tempWorkspace.ts",
+    "tests": [
+      "scripts/tempWorkspace.test.ts",
+      "tests/ux/_launchApp.test.mjs"
+    ]
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-08",
+  "invariants": [
+    "Every Vitest run has one owned root and restores the host temp environment after teardown.",
+    "Every isolated Electron launch registers its profile root before any child temp path is created.",
+    "Registered roots are removed on normal close, launch failure, and process exit, and cleanup is idempotent."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "registerTestTemp"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.node-test.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.node-test.mjs",
+      "symbol": "cleanupTestTemp"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/agent-trajectory-report.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/agent-worktree-janitor.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/attention-cue/attention-cue.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/audit-package.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-boundary-owners.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-concept-owners.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-escape-ledger.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-framework-surface.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-generation-entrances.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-git-path-quoting.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-hook-behavior.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-icon-semantics.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-main-guard.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-mcp-tool-references.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-mjs-parse.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-packaged-deps.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-push-bypass.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-root-cause-contracts.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-self-written.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-supply-chain-pins.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-test-waits.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-vocabularies-history.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-workflow-script-refs.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/ci-annotation-hygiene.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/daily-radar-session.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/e2e-launch-capability.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/edit-time-reminder.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/electron-install-identity.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/eng-metrics.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/entry-directory.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/fix-churn.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/git-delivery.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/intake-radar.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/gitPaths.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/intake-radar/store.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/new-root-cause-contract.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/package-build-stamp.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/pr-judgement-lib.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/pre-push-check.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/real-user-test-gates.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/repair-doc-gates.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/self-check-hook.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/test-focused.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/validation-policy.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/vitest-fair-share.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/with-gates-lock.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/perf/canvas-scale-bench.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/system/cross-device-continuation.contract.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_comfyImportPanel.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_feel-observer.browser.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_mcpJourney.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_mcpL2Fixture.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_modelIntegrationHarness.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_realProfile.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/adoption-bridge.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-askback-real-model.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-default-model-real.paid.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-dock-dismiss.walk.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-lane-models-block.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-lane-observer.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-panel-form.walk.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-runtime-fixture.test.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-runtime-provider.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-runtime-provider.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-runtime-video-export.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-runtime-walk-support.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-runtime-walk-support.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-spend-long-output-name.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-storyboard-real-model.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-timeline-ops.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-timeline-receipt.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-ui-a-composer.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/anchor-checkpoint-card.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/anchor-real.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/apimart-domestic-line.paid.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/apimart-seedance25-h3.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/app-page-zoom.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/archetype-modebar.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/arrange-draft-cta.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/asset-library-interactions.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/asset-library-native-import.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/asset-tab-overlap-and-nomi-entry.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/asset-transport-settings.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/asset-video-preview.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/assisted-onboarding-entry.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/browser-asset-i18n.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/build-artifact-url-migration.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/camera-move-render-e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-batch-production.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-card-stack.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-context-menu-click.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-control-clarity.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-drop-at-cursor.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-frame-real-task.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-frame.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-handles-alt-drag.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-image-aspect.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-image-preview-and-rename.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-magnetic-handle.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-marquee-group.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-migration-backfill.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-node-context-menu.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-open-fit.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-perf/failureDiagnostics.test.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-real-suite.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-s5-walkthrough.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-shortcut-parity.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-shortcuts.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-shot-identity.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/canvas-toolbar-open-select.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/catalog-seed-version-repro.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/clip-node-editing.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/comfy-workflow-feedback.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/comfy-workflow-multiref.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/composerLifecycle.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/control-hierarchy-u2.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-a-blank-storyboard.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-a-composer.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-a-creation-plans.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-a-storyboard-undo.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-a-storyboard.paid.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-smoke/core-smoke.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-smoke/fixture.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/core-smoke/run.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/creation-editor-mount.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/creation-flow-fixes.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/creation-pill-overlap.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/creation-plan-delete-undo.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/creation-sidebar-multi-doc.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/creation-work-surfaces.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/credential-connect-honesty.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/credential-probe-free.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/credential-redirect.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/cross-device-continuation.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/custom-prompt-realtask.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/dark-journey.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/deconstruction-panel.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/deep-link-navigate.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/default-generation-model.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/design-lab/labFailureTriage.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/diagnostics-bundle.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/draft-loop.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/editing-panel-system.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/editing-real-user-pass.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/experience/collector.browser.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/experience/experience.node-test.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/f3-f16b.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/feel-policy.test.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/find-reference.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/full-walk/escapeLedger.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/g1/c0-fixture.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/g1/c0-real-assembly.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/g1/c0-real-budget.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/g1/credential-precheck.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/g1/sweep-budget.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/g1/sweep-evidence.node-test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/grouping-real-media.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/ia-audit-shots.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/image-grid-split-freeze.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/journeys/experience.walk.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/layout-timeline-panel-span.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/library-cover-imported-video.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/mcp-apps-host-render.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/mcp-client-activation.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/mcp-connection-truthfulness.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/mcp-http-direct.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/mcp-workbuddy-client-profile.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/media-import-matrix.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/model-availability-agreement.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/model-box-tidy.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/model-catalog-config-package.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/model-kind-misguess.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/model-selection-real.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/model3d-asset-library.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/narrowed-mode-guidance.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/node-actions-off-image.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/node-label-project-journey.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/node-toolbar-one-row.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/onboarding-auto-fetch.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/onboarding-checkmark-honesty.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/onboarding-overlap.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/original-storyboard-editor.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/outbound-policy-paid-retrieval.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/overlay-z-order.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/p4-s6p5-multishot-paid.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/packaged-mcp-smoke.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/packaged-sandbox-active.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/pd1-deferred-tools-cache.probe.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/plan-gate.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/pr720-apimart-key.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/pr720-language-switch-mid-session.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/pr720-prompt-language.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/pr720-ux-geometry.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/preview-control-scope.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/preview-export-busy.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/process-feedback-electron.e2e.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/process-feedback-imgfx-real.e2e.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/production-mcp-journey.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/production-stalled-draft.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/project-asset-healthcheck.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/project-location-settings.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/project-open-stages.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/project-switch-background-run.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/prompt-library-remote-media.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/prompt-picker.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/provider-model-discovery.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/r1-upload-verify.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/real-media-export-overlay-cost.probe.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/real-user-long-video.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/reference-companion-required.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/reference-url-scheme-boot.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/renderer-failure-diagnostics.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/rich-editor-p1.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/runway-vendor-honest-modes.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/selection-drag-lifecycle.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/settings-relocation.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/shot-cut-empty-states.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/shot-nodes-lifecycle.e2e.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/shot-nodes-media.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/shot-table-storyboard-projection.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/skill-import-formats.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/smoke.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/spend-confirm-a11y.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/spend-panel-write-ownership.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-anchor-policy.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-delete-undo.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-film-aspect-passthrough.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-first-frame-false-alarms.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-methodology.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-model-same-name.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-narrow-row.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-popover-keyboard.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-reference-slots.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-strategy-no-model.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-strategy-resolve.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-table-exec.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-table-phasec.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/storyboard-table-structure.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/task-center-states.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/text-document-generation-ownership.test.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/tikhub-connector.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/tikhub-project-video-breakdown.e2e.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/timeline-context-menu.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/timeline-toolbar-row.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/timeline-transition-preview.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/timeline-visual-feedback.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/toolbar-order.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/vendor-baseurl-discoverability.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/vendor-honest-variant-axis.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/vendor-preference-order.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/video-depth-real-task.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/video-playback-heal.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/visibility-i18n-batch.walk.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/windows-freeze-sweep.walk.mjs",
+      "symbol": "makeTempDir"
+    }
+  ],
+  "door_reduction": {
+    "before": 261,
+    "after": 261,
+    "why_not": "The node:test helper is one shared construction boundary, while each caller file is a distinct door in the generated map; callers are migrated rather than hidden behind a second wrapper."
+  },
+  "generality_proof": "Vitest workers inherit all three Node temp variables, so every existing and future os.tmpdir()/mkdtemp caller converges on the run root. Every isolated Electron caller converges on launchNomiApp, whose registry covers explicit and generated roots and has both close and process-exit teardown.",
+  "shared_boundaries": [
+    {
+      "path": "tests/setup/tempWorkspace.ts",
+      "symbol": "createTempWorkspace",
+      "responsibility": "Own the Vitest run root, redirect inherited temp variables, and restore/remove them idempotently."
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "registerTempRoot",
+      "responsibility": "Own every isolated Electron profile root and remove it through the common cleanup boundary or process exit."
+    },
+    {
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDir",
+      "responsibility": "Own synchronous and asynchronous node:test or standalone system-temp roots until process exit or explicit cleanup."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "vitest.config.ts",
+      "entry_point": "test.globalSetup",
+      "disposition": "enforced",
+      "evidence": "The config invokes tests/setup/tempWorkspace.ts before workers are created."
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp",
+      "disposition": "enforced",
+      "evidence": "All shared Electron UX launches allocate or register their isolated profile root here."
+    },
+    {
+      "path": "tests/ux/full-walk/launch.mjs",
+      "entry_point": "startPlaybook",
+      "disposition": "enforced",
+      "evidence": "startPlaybook delegates to launchCoreSmoke, which delegates to launchNomiApp; no second Electron launcher exists."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same leak can be reintroduced by any new test or walk that creates a temp root, and existing failure paths already bypass per-script finally blocks.",
+    "same_class_scan": [
+      "rg -n 'mkdtemp|mkdtempSync' tests scripts electron/testSupport found independent Vitest, UX, system, and walkthrough producers.",
+      "Checked tests/ux/_launchApp.mjs and tests/ux/full-walk/launch.mjs as the shared Electron launch chain.",
+      "Checked vitest.config.ts and tests/setup/* as the shared Vitest setup chain."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/setup/tempWorkspace.ts",
+    "invariant": "Each run owns its temp root and every owned root is removed on all lifecycle exits.",
+    "failure_mode": "Cleanup is synchronous, idempotent, and fail-safe with force removal; no caller-specific exception path is required.",
+    "exception_policy": "none",
+    "strategy": "Move lifecycle ownership to global setup and the shared launcher registry, then keep individual tests focused on behavior rather than cleanup choreography.",
+    "artifacts": [
+      "tests/setup/tempWorkspace.ts",
+      "tests/ux/_launchApp.mjs",
+      "scripts/_test-temp.mjs",
+      "scripts/check-test-temp-static.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/check-test-temp-static.node-test.mjs",
+    "scripts/electron-install-identity.node-test.mjs",
+    "scripts/tempWorkspace.test.ts",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/check-test-temp-static.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Existing callers remain compatible; the shared boundaries add lifecycle ownership without changing product or gate behavior."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls temporary-directory ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or user files are migrated. Only roots created by the current test process are owned and removed.",
+  "residual_risks": [
+    "Standalone scripts that never use the shared Electron launcher still require a later sweep; they are outside this shared-boundary change.",
+    "Existing historical nomi-* directories are intentionally untouched and require the coordinator's separate cleanup procedure."
+  ]
+}

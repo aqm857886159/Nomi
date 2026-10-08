@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // P5 E1 R13 走查（零额度）：产物 → 加入时间轴 → 预览有段 → 一步 Undo 复原。
 // 只播种一个已有产物，不触发生成；四路隔离目录都显式设置，尤其是 NOMI_CAPABILITY_DIR。
 // 用法：pnpm run build && node tests/ux/adoption-bridge.walk.mjs
@@ -13,7 +14,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/adoption-bridge')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-adoption-bridge-'))
+const root = makeTempDir('nomi-adoption-bridge-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

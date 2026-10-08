@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜表 v5 Anchor Policy 走查（R13/R16）：只走真实 Electron/IPC/渲染/项目文件源，零生成额度。
 // 覆盖 @ 入口与四类候选来源、绑定/解绑、文本顺序、骨架预设、整条 subline 展开。
 import fs from 'node:fs'
@@ -9,7 +10,7 @@ import { clickOrFail, expect, expectCount, expectText, expectVisible, screenshot
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/plan/storyboard-anchor-policy-evidence/screenshots')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-anchor-policy-'))
+const tempRoot = makeTempDir('nomi-storyboard-anchor-policy-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'storyboard-anchor-policy-walk'

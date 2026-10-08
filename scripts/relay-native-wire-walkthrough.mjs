@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：中转接入「认得出的模型走它的原生报文」通用策略。
 //
 // 两台假中转，跑同一套流程：
@@ -105,7 +106,7 @@ async function runCase({ label, rich, port }) {
   await new Promise((r) => server.listen(port, '127.0.0.1', r))
   const baseUrl = `http://127.0.0.1:${port}/v1` // 用户就是这么填的（带 /v1）
   const vendorKey = `relay-${port}`
-  const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'native-wire-walk-'))
+  const settingsDir = makeTempDir('native-wire-walk-')
   seedCatalog(settingsDir, vendorKey, baseUrl)
 
   const { app, win } = await launchNomiApp({

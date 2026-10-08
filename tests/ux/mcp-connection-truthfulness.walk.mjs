@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 走查：MCP 连接状态必须说真话（docs/plan/2026-09-14-mcp-connection-truthfulness.md）。
 // 固定跑本分支开发构建；HOME 指向临时目录（宿主配置写在 HOME 下，绝不能碰真机）。
 //
@@ -23,7 +24,7 @@ import { clickOrFail, screenshotSettled } from './_assert.mjs'
 const shotsDir = path.resolve(process.argv.find((arg) => arg.startsWith('--shots-out='))?.split('=').slice(1).join('=')
   || 'tests/ux/shots/mcp-connection-truthfulness')
 fs.mkdirSync(shotsDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-truth-walk-'))
+const tempRoot = makeTempDir('nomi-mcp-truth-walk-')
 const testHome = path.join(tempRoot, 'home')
 // 安装痕迹：Claude Code / Codex / Cursor 「已安装」，WorkBuddy 没装。
 for (const marker of ['.claude', '.codex', '.cursor']) fs.mkdirSync(path.join(testHome, marker), { recursive: true })

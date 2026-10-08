@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 走查网络闸（scripts/walkthrough-network-guard.cjs）先验它会红：每一层都拿一次真实的出门尝试去撞，必须被拦下、记账；
 // 本机回环必须放行。起一个装了闸的 node 子进程（Chromium 那一层只在 Electron 主进程里有，这里验不到，由走查的 layers 检查兜）。
 import { spawnSync } from 'node:child_process'
@@ -12,7 +13,7 @@ const guard = path.join(path.dirname(fileURLToPath(import.meta.url)), 'walkthrou
 const temps = []
 
 function runGuarded(code) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-net-guard-'))
+  const dir = makeTempDir('nomi-net-guard-')
   temps.push(dir)
   const log = path.join(dir, 'net.jsonl')
   const result = spawnSync(process.execPath, ['-r', guard, '-e', code], {

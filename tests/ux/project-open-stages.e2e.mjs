@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实规模性能跑器：打开项目分阶段计时（路由表 scale 类 perf-real-scale 的底座，docs/engineering/test-routing.json）。
 //
 // 量什么：点项目卡 → 画布出现 → 第一张图解码，拆成阶段（产品代码里的 User Timing 打点，开关见
@@ -43,7 +44,7 @@ const PREFIX = 'nomi:open:'
 const MAIN_PREFIX = 'nomi:open:main:'
 const FIRST_RUN_SEEN = { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' }
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-open-stages-'))
+const root = makeTempDir('nomi-open-stages-')
 const projectsDir = path.join(root, 'projects')
 const userDataDir = path.join(root, 'user-data')
 fs.mkdirSync(userDataDir, { recursive: true })

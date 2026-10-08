@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 任务面板「乱 + 状态对不上」R13 走查（用户 2026-09-25 反馈，PR claude/agent-panel-tidy）。
 // 用法: NOMI_EVIDENCE_LABEL=before|after node tests/ux/task-center-states.walk.mjs（缺省 after）
 // 产出: docs/evidence/2026-09-25-agent-panel-tidy/task-center-<label>-<zh|en>.png + task-center-<label>.json
@@ -31,7 +32,7 @@ if (!['before', 'after'].includes(label)) throw new Error('Usage: NOMI_EVIDENCE_
 const outDir = path.join(repoRoot, 'docs/evidence/2026-09-25-agent-panel-tidy')
 fs.mkdirSync(outDir, { recursive: true })
 const fixtureDir = path.join(repoRoot, 'tests/ux/fixtures/task-center-agent-drafts')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-task-center-states-'))
+const tempRoot = makeTempDir('nomi-task-center-states-')
 
 const PANEL = '[data-nomi-right-panel="tasks"]'
 const STALE_RUN_ID = 'op-walk-stale-multishot'

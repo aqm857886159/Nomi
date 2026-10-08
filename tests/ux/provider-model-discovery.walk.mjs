@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real Electron journeys, fake HTTP only: discovery is not generation verification.
 // Run after pnpm build: node tests/ux/provider-model-discovery.walk.mjs
 import http from 'node:http'
@@ -8,7 +9,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, expectNoCjkInEnglishDom } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-model-discovery-'))
+const tempRoot = makeTempDir('nomi-model-discovery-')
 const shots = path.join(tempRoot, 'shots')
 fs.mkdirSync(shots)
 const requests = []

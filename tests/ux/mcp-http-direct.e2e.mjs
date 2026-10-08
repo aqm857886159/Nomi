@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // MCP 本机 HTTP 直连 · 真 Electron 端到端（设计卡 docs/plan/2026-10-05-mcp-official-sdk.md 第 2 段）。
 //
 // 起一个**隔离**的真 Nomi（GUI 模式，窗口全挪到屏幕外、不抢焦点），用官方 SDK 的客户端当宿主：
@@ -92,7 +93,7 @@ async function exerciseClient(label, transport, projectsDir) {
 }
 
 async function main() {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-http-e2e-'))
+  const tempRoot = makeTempDir('nomi-mcp-http-e2e-')
   const capabilityDir = path.join(tempRoot, 'capability')
   fs.mkdirSync(capabilityDir, { recursive: true })
   const token = crypto.randomBytes(24).toString('hex')

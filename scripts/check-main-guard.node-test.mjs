@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 「入口判断」写法门岗的阳性 / 阴性对照（2026-09-24）。
 //
 // 一道只会绿的门岗和没有门岗是一回事，所以两个方向都钉：
@@ -53,7 +54,7 @@ test('正确写法与无关用法一条都不许误伤', () => {
 
 test('放行的写法在当前平台真的会执行；被拦的写法遇到 `#` 在任何平台都不执行', (t) => {
   // realpath：macOS 的 tmpdir 是 /var → /private/var 的符号链接，而 import.meta.url 是解过链接的真路径。
-  const dir = path.join(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-main-guard-'))), 'dir with space#1')
+  const dir = path.join(makeTempDir('nomi-main-guard-'), 'dir with space#1')
   t.after(() => fs.rmSync(path.dirname(dir), { recursive: true, force: true }))
   fs.mkdirSync(dir, { recursive: true })
   const runs = (guard) => {
@@ -67,7 +68,7 @@ test('放行的写法在当前平台真的会执行；被拦的写法遇到 `#` 
 })
 
 test('退回旧写法 → 门岗必须红；一个源文件都没扫到 → 也必须红', (t) => {
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-main-guard-repo-'))
+  const fixture = makeTempDir('nomi-main-guard-repo-')
   t.after(() => fs.rmSync(fixture, { recursive: true, force: true }))
   execFileSync('git', ['init', '-q'], { cwd: fixture })
   const lines = []

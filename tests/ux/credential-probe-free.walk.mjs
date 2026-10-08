@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真机走查：接入页填 key → 点「保存验证」→ 出站只查询既有状态，不发起生成请求。
 //
 // 背景：此前这一下发的是真实
@@ -37,7 +38,7 @@ const fixture = http.createServer((req, res) => {
 await new Promise((resolve) => fixture.listen(0, '127.0.0.1', resolve))
 const fixtureOrigin = `http://127.0.0.1:${fixture.address().port}`
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-probe-free-'))
+const tempRoot = makeTempDir('nomi-probe-free-')
 const profile = {
   tempRoot,
   settingsDir: path.join(tempRoot, 'settings'),

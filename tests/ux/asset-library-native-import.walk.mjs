@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实任务走查：Finder 复制图片 → 素材库 Cmd/Ctrl+V → 无损落盘。
 // 走查使用 Electron 原生 clipboard 写入 file-url，再走用户实际键盘粘贴路径，
 // 不直接调用 assets.copyFiles，避免只测 IPC 而漏掉面板事件、刷新和用户反馈。
@@ -8,7 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-asset-native-import-'))
+const base = makeTempDir('nomi-asset-native-import-')
 const userDataDir = path.join(base, 'user-data')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')

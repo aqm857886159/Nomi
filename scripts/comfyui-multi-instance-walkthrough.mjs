@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：多实例（M 轨 · 四幕样张第④幕）。**起两台 mock ComfyUI**（不同端口、装的模型不同），
 // 验用户真正在意的那件事：两台各管各的、互不串台。
 // ① 已接入区出现两张卡（本机 / 工作站）+「再接一台」按钮
@@ -15,7 +16,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-multi-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-multi-walk-'))
+const settingsDir = makeTempDir('comfyui-multi-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 // 两台机器装的东西不同 —— 这正是"各报各的缺件"要证明的。
@@ -74,7 +75,7 @@ const WAN_GRAPH = JSON.stringify({
 const { app, win } = await launchNomiApp({
   name: 'comfyui-multi-instance',
   settingsDir,
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-multi-proj-')),
+  projectsDir: makeTempDir('comfyui-multi-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

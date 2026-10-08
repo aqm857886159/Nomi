@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 打开项目时适应一次（useAutoFitOnLoad，2026-09-25 用户拍板保留、09-26 裁定 B 改成必定触发）——冷开与从项目库重开两条路都要摆全貌。
 //
 // 为什么单独一条走查：「打开时摆全貌」判的是「打开那一刻」的两样输入——内容载入没有、用户有没有留下视角。
@@ -19,7 +20,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shots = path.join(root, 'tests/ux/shots/canvas-open-fit')
 fs.rmSync(shots, { recursive: true, force: true })
 fs.mkdirSync(shots, { recursive: true })
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-open-fit-'))
+const temp = makeTempDir('nomi-open-fit-')
 const fixture = createCanvasPerformanceFixture({ projectsDir: path.join(temp, 'projects'), scale: 'S', projectName: '打开时适应验收' })
 // 留 16 张：1:1 下一屏装不下（后面有断言证明），最小缩放 0.2 之内又装得下——48 张的 S 档在 1600 宽里 0.2 都装不全，
 // 那时「每张都在舞台里」量的是缩放下限，不是适应有没有发生。

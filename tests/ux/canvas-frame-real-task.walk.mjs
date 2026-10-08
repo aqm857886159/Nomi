@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 / R16 走查 —— 框工具的**另一半**真实任务：先摆东西，再把它们圈起来，然后整块搬家。
 // 用法: node tests/ux/canvas-frame-real-task.walk.mjs   产出: tests/ux/shots/canvas-frame-real-task/*.png
 //
@@ -47,7 +48,7 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame-real-task')
 fs.rmSync(shotsDir, { recursive: true, force: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-frame-real-task-'))
+const tempRoot = makeTempDir('nomi-frame-real-task-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

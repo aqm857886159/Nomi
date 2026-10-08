@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 / R16 走查 —— 「提取深度」的真实用户任务。
 //
 // 用法: pnpm run build && node tests/ux/video-depth-real-task.walk.mjs
@@ -46,7 +47,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/video-depth-real-task')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-video-depth-walk-'))
+const tempRoot = makeTempDir('nomi-video-depth-walk-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

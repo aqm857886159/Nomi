@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // ComfyUI「导入自定义工作流」面板的共用走查骨架：一台本地假 ComfyUI + 种好指向它的 comfyui-local
 // → 启动真实应用 → 打开导入面板 → 粘贴并分析。
 //
@@ -45,7 +46,7 @@ export async function startFakeComfy({ objectInfo, onPrompt }) {
 
 /** 种一台指向假服务器的 comfyui-local，启动应用，一路点到导入面板（粘贴框可见为止）。 */
 export async function openComfyImportPanel({ name, baseUrl, locale = 'zh-CN' }) {
-  const settingsDir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), `nomi-${name}-`)), 'settings')
+  const settingsDir = path.join(makeTempDir(`nomi-${name}-`), 'settings')
   fs.mkdirSync(settingsDir, { recursive: true })
   fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
     version: 12,

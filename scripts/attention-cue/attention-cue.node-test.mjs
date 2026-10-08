@@ -1,3 +1,4 @@
+import { makeTempDir } from '../_test-temp.mjs'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, symlinkSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,7 +14,7 @@ const settings = JSON.parse(readFileSync(path.join(root, '.claude/settings.json'
 const registration = settings.hooks.Notification.find(entry => entry.hooks.some(hook => hook.command.includes('/attention-cue.sh')))
 
 function fixture(t, platform = 'Darwin', players = ['afplay', 'osascript']) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'nomi attention '))
+  const dir = makeTempDir('nomi attention ')
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const bin = path.join(dir, 'bin')
   mkdirSync(bin)

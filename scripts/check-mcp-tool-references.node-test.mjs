@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -108,7 +109,7 @@ test('template interpolation before host objects preserves object boundaries', (
 })
 
 test('Markdown fences retain line numbers and do not share host identity', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-tool-refs-'))
+  const dir = makeTempDir('mcp-tool-refs-')
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
   const file = path.join(dir, 'excerpt.md')
   fs.writeFileSync(

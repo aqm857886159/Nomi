@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：素材库双击放大预览（#52 群反馈「加个双击放大预览」）。
 // 验证链：进画布 → 素材库 tab → 上传一张图 → 双击素材 → 全屏预览 lightbox 出现 → Esc 关闭。
 // 用法：node scripts/asset-preview-walkthrough.mjs（需先 pnpm build）
@@ -8,8 +9,8 @@ import path from 'node:path'
 
 const outDir = path.join(repoRoot, '.asset-preview-walk')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-preview-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-preview-projects-'))
+const settingsDir = makeTempDir('asset-preview-settings-')
+const projectsDir = makeTempDir('asset-preview-projects-')
 
 // 1x1 红点 png 作上传素材
 const TINY_PNG = Buffer.from(

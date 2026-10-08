@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../../scripts/_test-temp.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -8,7 +9,7 @@ import { createCollector, readJson, rubricFile } from './collect.mjs'
 import { installFeelObserver } from '../_feel-observer.mjs'
 
 test('collector consumes the existing observer screenshot record without another scan', async () => {
-  const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'experience-shared-observer-'))
+  const outputDir = await makeTempDirAsync('experience-shared-observer-')
   const browser = await chromium.launch({ headless: true })
   try {
     const page = await browser.newPage()

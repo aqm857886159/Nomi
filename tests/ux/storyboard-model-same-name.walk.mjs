@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜里「两家同名模型，选 APIMart 那家，钱就花在 APIMart」——真机走查（2026-09-21 根因合同
 // docs/fixes/2026-09-21-storyboard-model-vendor.root-cause.json）。
 //
@@ -47,7 +48,7 @@ const T = {
 }[LOCALE]
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-same-name-model-'))
+const tempRoot = makeTempDir('nomi-same-name-model-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'same-name-model-walk'

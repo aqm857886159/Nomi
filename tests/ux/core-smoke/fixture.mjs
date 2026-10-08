@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 // 核心冒烟的夹具（2026-09-22，docs/plan/2026-09-22-core-flow-smoke-three-defenses.md）。
 //
 // 三种夹具：
@@ -294,7 +295,7 @@ export async function launchCoreSmoke({ name, seed = null, needs = [], preferenc
     if (declared !== assigned) throw new Error(`场景 ${name} 在走查里声明的 needs [${declared}] 与清单登记的 [${assigned}] 不一致——清单是唯一 owner`)
   }
   const effectiveLocale = environment.locale || locale
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-core-smoke-${name}-${fixture}-`))
+  const tempRoot = makeTempDir(`nomi-core-smoke-${name}-${fixture}-`)
   let dirs
   if (fixture === 'profile-copy') {
     if (!environment.profileCopyRoot) throw new Error('profile-copy 夹具只能由 runner 起（它负责 cp -R 拷贝与事后删除）：pnpm run test:core-smoke -- --fixture profile-copy')

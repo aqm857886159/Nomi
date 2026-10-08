@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real Electron + persisted legacy project + registered photographed media; no provider calls.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -9,7 +10,7 @@ import { expect } from './_assert.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shot-identity-'))
+const root = makeTempDir('nomi-shot-identity-')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'shot-identity'
 const projectRoot = path.join(projectsDir, projectId)
