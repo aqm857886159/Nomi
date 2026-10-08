@@ -17,13 +17,13 @@ const str = (value: unknown): string => (typeof value === "string" ? value.trim(
 /** Register the renderer task boundary, including the spend-grant trust check. */
 export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCore: CoreLoader): void {
   const owners = new Set<number>();
-  let exiting = false;
+  let draining = false;
   let drained = false;
-  app.on("before-quit", (event) => {
+  app.on("will-quit", (event) => {
     if (drained) return;
     event.preventDefault();
-    if (exiting) return;
-    exiting = true;
+    if (draining) return;
+    draining = true;
     void antigravityImageJobs.cancelAll().finally(() => { drained = true; app.quit(); });
   });
   // 发起任务的窗口没了：它的本地任务取消，它在等的画布 Run 交给主进程观察者收完。

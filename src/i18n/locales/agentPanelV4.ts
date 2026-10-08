@@ -524,6 +524,7 @@ export const zhAgentPanelV4 = {
   queueOne: '把这段结尾收紧一点',
   queueTwo: '给 2、3 之间加叠化',
   queueThree: '把第 2 镜字幕改成「清爽相伴」',
+  reconnect: '重新连接',
   queueMakeVideo: '把第 2 张做成视频',
 } as const
 
@@ -975,5 +976,6 @@ export const enAgentPanelV4 = {
   queueOne: 'Tighten this ending',
   queueTwo: 'Add a dissolve between 2 and 3',
   queueThree: 'Change shot 2 captions to “Fresh match”',
+  reconnect: 'Reconnect',
   queueMakeVideo: 'Turn image 2 into a video',
 } as const

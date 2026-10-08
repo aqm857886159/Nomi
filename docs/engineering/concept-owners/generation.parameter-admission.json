@@ -42,6 +42,38 @@
     {
       "path": "electron/shared/storyboard/storyboardShotScope.ts",
       "symbol": "foldRatioIntoSlot"
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/capabilityCore/canvasReadTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/capabilityCore/documentReadTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/capabilityCore/documentWriteTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/capabilityCore/phase4SurfaceTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/capabilityCore/timelineTransportAdapters.ts",
+      "symbol": "safeFailure"
+    },
+    {
+      "path": "electron/tasks/comfyCandidateTest.ts",
+      "symbol": "safeFailure"
     }
   ],
   "forbidden_derivations": [

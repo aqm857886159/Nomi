@@ -1,0 +1,27 @@
+{
+  "name": "Windows 本地门禁",
+  "subject": "delivery.windows-local-gates",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "eslint.config.mjs",
+    "symbol": "windowsPathSelectors"
+  },
+  "write_api": [
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "windowsPathSelectors"
+    },
+    {
+      "path": "scripts/vitest-fair-share.mjs",
+      "symbol": "buildVitestInvocation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-07",
+  "notes": "Windows 本地门禁的路径选择和 Vitest 调度共用一条平台适配契约。"
+}

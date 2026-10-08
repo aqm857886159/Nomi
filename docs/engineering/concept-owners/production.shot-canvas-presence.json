@@ -26,6 +26,10 @@
     {
       "path": "src/workbench/production/watchDeletedProductionNodes.ts",
       "symbol": "watchDeletedProductionNodes"
+    },
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "draftLandingOutcome"
     }
   ],
   "forbidden_derivations": [],
