@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { parseArgs } from 'node:util'
+import { openStoryboardEditor } from '../_creationResourceTree.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const { values } = parseArgs({ options: {
@@ -185,7 +186,7 @@ try {
     expect(actual.reduce((sum, s) => sum + s.durationSec, 0)).toBe(64)
     scheduler.verifyPlan(actual, expect)
     await scheduler.assertNoGeneration(expect)
-    await clickOrFail(win.locator('[data-storyboard-id]').first(), '进入可编辑分镜表')
+    await openStoryboardEditor(win, { pick: 'first' }, '进入可编辑分镜表')
     await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('日落前的一分钟')
   }, '分镜审批 1 次')
   if (values['plan-only']) {

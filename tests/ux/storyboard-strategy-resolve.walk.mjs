@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { applyColorSchemeForShot, clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-strategy-resolve-'))
@@ -150,7 +151,7 @@ try {
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
   // 侧栏分镜条目**就是**进入分镜页的按钮（不存在「再次编辑 / 打开分镜」这一步——
   // 上一版等的是一个从没渲染过的按钮，`clickOrFail` 前它就该红）。
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '从侧栏进入分镜方案')
+  await openStoryboardEditor(win, DESIGN, '从侧栏进入分镜方案')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
   await snap('01-editor-with-video-shots')
 

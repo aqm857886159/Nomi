@@ -23,6 +23,7 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { lastUserText, operationIdOf, scriptTurn } from './full-walk/brain.mjs'
 import { startPlaybook } from './full-walk/launch.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -299,7 +300,7 @@ try {
   await row('storyboard-user-open', EN ? 'Click the storyboard myself' : '自己点开分镜', EN ? 'It opens normally' : '正常打开', async (record) => {
     const target = rows.find((entry) => entry.id === 'storyboard-not-opened')?.createdDesignId
     await pb.monitor.step('用户：点开左栏里 Agent 写好的分镜方案', async () => {
-      await clickOrFail(win().locator(target ? `[data-storyboard-id="${target}"]` : '[data-storyboard-id]').last(), '左栏里的分镜方案')
+      await openStoryboardEditor(win(), target ?? { pick: 'last' }, '左栏里的分镜方案')
       await expect(win().locator('.workbench-storyboard').first(), '分镜表打开了').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     }, { surfaces: ['workspaceMode', 'storyboardTable', 'creationSelection'] })
     record.screenshots.push(await shot('storyboard-user-open'))

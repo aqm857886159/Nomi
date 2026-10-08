@@ -10,6 +10,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-blank-storyboard-'))
@@ -120,7 +121,7 @@ try {
   await start()
   for (const previous of expected) {
     await expandSidebar()
-    await win.locator(`button[data-storyboard-id="${previous.id}"]`).click()
+    await openStoryboardEditor(win, previous.id)
     await expect(editor().locator('header input')).toHaveValue(previous.plan.title)
     await expect(editor().locator('[data-storyboard-row="1"] [data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText(previous.plan.shots[0].prompt)
     assert.deepEqual(savedPlans().find(plan => plan.id === previous.id), previous)

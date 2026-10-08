@@ -9,6 +9,7 @@ import { waitForCanvasViewportSettled, findCanvasBlankPoint, findNodeHitPoint } 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, DOCUMENT, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 const { createProductionRunRepository } = tsxRequire('../../electron/productionRun/productionRunRepository.ts', import.meta.url)
 
 export async function runOriginalStoryboardGolden({ walk, win, projectId, projectRoot, shot, setCurrentWin,
@@ -62,7 +63,7 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
     await win.getByRole('button', { name: '创作', exact: true }).click()
     const expand = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
     if (await expand.isVisible()) await expand.click()
-    await win.locator(`[data-storyboard-id="${designId}"]`).click()
+    await openStoryboardEditor(win, designId)
     const editor = win.locator('[data-storyboard-editor="true"]')
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(3)
     return editor

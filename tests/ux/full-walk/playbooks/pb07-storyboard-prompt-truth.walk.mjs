@@ -20,6 +20,7 @@ import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture
 import { findCanvasBlankPoint, findNodeHitPoint } from '../../_canvasHit.mjs'
 import { clickNodeGenerate, SPEND_DIALOG } from '../actions.mjs'
 import { startPlaybook } from '../launch.mjs'
+import { openStoryboardEditor } from '../../_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -158,7 +159,7 @@ try {
   // ── 回到分镜表：E2 批量 / E4 Agent 确认框 ──────────────────────────────────────────
   await monitor.step('回到创作页的分镜表', async () => {
     await clickOrFail(win().locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
-    if (!(await editor().isVisible().catch(() => false))) await clickOrFail(win().locator(`[data-storyboard-id="${DESIGN}"]`).first(), '侧栏选中分镜方案')
+    if (!(await editor().isVisible().catch(() => false))) await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor(), '分镜编辑器回来').toBeVisible({ timeout: stationTimeout() })
   }, { surfaces: ['*'] })
   await monitor.step('E4 · 用户把第 5 镜的提示词改写成「巨龙」，并勾上「本次跳过」把它留给 Agent', async () => {

@@ -1,5 +1,6 @@
 import { shots, MODEL } from './c0-fixture.mjs'
 import { REAL_MODELS } from './c0-real-budget.mjs'
+import { openStoryboardEditor } from '../_creationResourceTree.mjs'
 
 export function c0RepairPlan(mode) {
   return { title: '日落前的一分钟', anchors: [], shots: shots.map(shot => ({ ...shot,
@@ -26,5 +27,5 @@ export async function repairStoryboard(win, projectId, { title, shots }) {
   if (!saved) throw Error('Fixture persistence did not return a receipt')
   await win.reload({ waitUntil: 'domcontentloaded' })
   await win.getByRole('button', { name: '创作', exact: true }).click()
-  await win.locator('[data-storyboard-id]').first().click()
+  await openStoryboardEditor(win, { pick: 'first' })
 }

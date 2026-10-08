@@ -7,6 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-surfaces-'))
@@ -158,14 +159,14 @@ try {
   await documentRenameInput.press('Enter')
   await expectVisible(thirdDocumentRow.getByText('原稿 C · 产品短片修订', { exact: true }), '第三篇原稿无法通过资源菜单重命名')
 
-  await win.locator('[data-storyboard-id="sb-a1"]').click()
+  await openStoryboardEditor(win, 'sb-a1')
   // 分镜页默认收起「创作内容」列（A-1 刀 1）：这里像真人一样点一次展开钮把它要回来，
   // 之后这条走查后半程都在树上操作，偏好记住即可，不必每步再点。
   await ensureCreationResourceTree(win, '打开原稿 A 的第一份分镜后')
   await expect(win.getByLabel('镜 1 提示词'), '没有打开原稿 A 的第一份分镜').toHaveValue('PLAN_A1_SENTINEL：手持追拍。')
   assert(!(await win.getByText('ORIGINAL_A_SENTINEL', { exact: false }).isVisible().catch(() => false)), '分镜编辑器与原稿编辑器发生重叠')
 
-  await win.locator('[data-storyboard-id="sb-a2"]').click()
+  await openStoryboardEditor(win, 'sb-a2')
   await expect(win.getByLabel('镜 1 提示词'), '同一原稿的第二份分镜无法独立切换').toHaveValue('PLAN_A2_SENTINEL：慢推悬疑。')
   const secondRow = win.locator('[data-storyboard-row="sb-a2"]')
   await secondRow.locator('[data-resource-menu-trigger="storyboard"]').click()
@@ -185,7 +186,7 @@ try {
   const duplicatedRow = win.locator(`[data-storyboard-row="${duplicatedStoryboardId}"]`)
   await expect(duplicatedRow.locator('[data-storyboard-id]'), '副本没有归属原稿 A').toHaveAttribute('data-document-id', 'doc-a')
   await expect(duplicatedRow.locator('[data-storyboard-title="true"]'), '副本标题没有按同稿版本递增').toHaveText('雨夜追凶 · 动作版 4')
-  await duplicatedRow.locator('[data-storyboard-id]').click()
+  await openStoryboardEditor(win, duplicatedStoryboardId)
   await expect(win.getByLabel('镜 1 提示词'), '分镜副本没有保留原方案内容').toHaveValue('PLAN_A1_SENTINEL：手持追拍。')
 
   const obsoleteRow = win.locator('[data-storyboard-row="sb-a3"]')
@@ -202,7 +203,7 @@ try {
   await win.locator('[data-document-id="doc-b"]:not([data-storyboard-id])').click()
   assert(await win.getByText('ORIGINAL_B_SENTINEL', { exact: false }).isVisible(), '跨原稿切换没有回到原稿 B')
   await expect(documentBStoryboardRow, '仅打开原稿 B 不应把分镜标为需同步').toHaveAttribute('data-storyboard-status', 'draft')
-  await win.locator('[data-storyboard-id="sb-b1"]').click()
+  await openStoryboardEditor(win, 'sb-b1')
   await expect(win.getByLabel('镜 1 提示词'), '原稿 B 的分镜被原稿 A 的选择污染').toHaveValue('PLAN_B1_SENTINEL：黄昏环绕。')
   await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()
   assert(await win.getByText('ORIGINAL_A_SENTINEL', { exact: false }).isVisible(), '返回原稿 A 后正文丢失')
@@ -220,7 +221,7 @@ try {
   await win.setViewportSize({ width: 1440, height: 900 })
   await screenshotSettled(win, { path: path.join(outDir, '01-unified-creation-desktop.png') })
 
-  await win.locator('[data-storyboard-id="sb-a2"]').click()
+  await openStoryboardEditor(win, 'sb-a2')
   await expect(win.locator('[data-creation-surface]'), '分镜选择没有切换主编辑面').toHaveAttribute('data-creation-surface', 'storyboard')
   // v5：中列是方案摘要卡（完整编辑器住分镜页）——卡上的镜头预览须恢复对应方案的内容。
   await expect(win.locator('[data-creation-surface="storyboard"]'), '分镜摘要卡没有恢复对应方案').toContainText('PLAN_A2_SENTINEL：慢推悬疑。')
@@ -261,7 +262,7 @@ try {
   assert(clippedResourceTitles.length === 0, `最小窗口下资源标题被裁切：${clippedResourceTitles.join('、')}`)
   await screenshotSettled(win, { path: path.join(outDir, '02-unified-creation-min-window.png') })
 
-  await win.locator('[data-storyboard-id="sb-a2"]').click()
+  await openStoryboardEditor(win, 'sb-a2')
   await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口无法打开分镜摘要').toBeVisible()
   await expect(win.locator('[data-creation-surface="storyboard"]'), '最小窗口打开了错误的分镜设计').toContainText('PLAN_A2_SENTINEL：慢推悬疑。')
   await expect(win.getByRole('button', { name: '打开分镜', exact: true }), '最小窗口分镜主操作不可见').toBeVisible()
@@ -308,9 +309,9 @@ try {
   await expect(win.getByText('雨夜追凶 · 悬疑修订版', { exact: true }), '重载后分镜重命名丢失').toBeVisible()
   await expect(win.locator(`[data-storyboard-row="${duplicatedStoryboardId}"]`), '重载后分镜副本丢失').toBeVisible()
   await expect(win.locator('[data-storyboard-row="sb-a3"]'), '重载后被删除的分镜重新出现').toHaveCount(0)
-  await win.locator(`[data-storyboard-id="${duplicatedStoryboardId}"]`).click()
+  await openStoryboardEditor(win, duplicatedStoryboardId)
   await expect(win.getByLabel('镜 1 提示词'), '重载后分镜副本内容丢失').toHaveValue('PLAN_A1_SENTINEL：手持追拍。')
-  await win.locator('[data-storyboard-id="sb-a2"]').click()
+  await openStoryboardEditor(win, 'sb-a2')
   await expect(win.getByLabel('镜 1 提示词'), '重载后分镜 A2 内容丢失').toHaveValue('PLAN_A2_SENTINEL：慢推悬疑。')
   await expect(win.locator('[data-storyboard-row="sb-a2"]'), '重载后需同步状态丢失').toHaveAttribute('data-storyboard-status', 'stale')
   await expect(win.locator('[data-storyboard-row="sb-b1"]'), '重载后原稿 B 分镜状态被污染').toHaveAttribute('data-storyboard-status', 'draft')

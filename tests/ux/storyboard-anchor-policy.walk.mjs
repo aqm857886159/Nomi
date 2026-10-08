@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/plan/storyboard-anchor-policy-evidence/screenshots')
@@ -54,7 +55,7 @@ try {
   await expectVisible(card, '项目卡')
   await card.dblclick()
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '创作页')
-  await clickOrFail(win.locator(`[data-storyboard-id="${designId}"]`), '方案')
+  await openStoryboardEditor(win, designId, '方案')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜表')
   await win.getByRole('button', { name: '收起面板', exact: true }).click()
   await win.evaluate(() => { for (const el of document.querySelectorAll('*')) if (el.scrollLeft) el.scrollLeft = 0 })
@@ -69,7 +70,7 @@ try {
   await expectVisible(win.locator('.generation-canvas-v2-node [data-storyboard-overrides="node-3"]'), '节点卡覆写角标')
   await screenshotSettled(win, { path: path.join(outDir, '03-canvas-badge.png') })
   await clickOrFail(win.getByRole('navigation', { name: '工作区切换' }).getByRole('button', { name: '创作', exact: true }), '回分镜')
-  await clickOrFail(win.locator(`[data-storyboard-id="${designId}"]`), '返回原方案')
+  await openStoryboardEditor(win, designId, '返回原方案')
   await row.scrollIntoViewIfNeeded()
   await row.getByRole('button', { name: '丢弃', exact: true }).click()
   await expectCount(row.locator('[data-storyboard-overrides]'), 0, '丢弃后清除角标')

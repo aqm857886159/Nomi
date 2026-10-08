@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-sidebar-'))
@@ -150,7 +151,7 @@ try {
   await snap('02-doc-b-selected.png')
 
   // 打开一个分镜方案 → 这里是回归的现场：分镜表出来了，但资源树整棵消失
-  await clickOrFail(win.locator('[data-storyboard-id="d-b1"]'), '打开「夜风 · 方案一」')
+  await openStoryboardEditor(win, 'd-b1', '打开「夜风 · 方案一」')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没渲染')
   await snap('03-storyboard-open.png')
   await expectResourceTreeReachable(win, '分镜方案打开时', {
@@ -159,7 +160,7 @@ try {
   })
 
   // 在分镜页直接换到另一篇原稿的另一个方案（用户要的「点到我的其他那些剧本、分镜」）
-  await clickOrFail(win.locator('[data-storyboard-id="d-a2"]'), '在分镜页切到另一篇原稿的方案二')
+  await openStoryboardEditor(win, 'd-a2', '在分镜页切到另一篇原稿的方案二')
   await expectVisible(win.locator('[data-storyboard-id="d-a2"][data-active="true"]'), '切过去的方案没有被标成 active')
   await expectText(win.locator('[data-storyboard-editor="true"]'), /影子 · 方案二/, '分镜表没换成「影子 · 方案二」')
   await snap('04-switch-plan-across-docs.png')

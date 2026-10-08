@@ -14,6 +14,7 @@ const RUN_LIST_OBSERVATION_MS = 5_000
 import { createAgentRuntimeFixture, FIXTURE_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_IMAGE_MODEL } from './agent-runtime-fixture.mjs'
 import { waitForV4TurnIdle, recorded, sendCreation, readProject, AGENT_PANEL } from './agent-runtime-walk-support.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-a-creation-'))
 const settingsDir = path.join(tempRoot, 'settings')
@@ -109,7 +110,7 @@ try {
     const expandTree = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
     if (await expandTree.isVisible()) await expandTree.click()
     await win.locator(`[data-document-row="${id.startsWith('a') ? 'a' : 'b'}"] button[data-document-id]`).click()
-    await win.locator(`[data-storyboard-id="${ids[id]}"]`).click()
+    await openStoryboardEditor(win, ids[id])
     // Preserve the already approved editor contract: being able to edit a
     // textarea in a replacement form is not storyboard feature parity.
     const sharedEditor = win.locator('[data-storyboard-editor="true"]')
@@ -125,7 +126,7 @@ try {
   const expandForEdit = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
   if (await expandForEdit.isVisible()) await expandForEdit.click()
   await win.locator('[data-document-row="a"] button[data-document-id]').click()
-  await win.locator(`[data-storyboard-id="${ids.a1}"]`).click()
+  await openStoryboardEditor(win, ids.a1)
   const originalFields=structuredClone((await designById(win,ids.a1)).plan.shots[0])
   const editor = win.locator('[data-storyboard-editor="true"]')
   await editor.locator('[data-storyboard-prompt-block] [contenteditable="true"]').first().fill('Edited A1')
@@ -166,7 +167,7 @@ try {
   gui = await launchNomiApp(options)
   win = gui.win
   await openProject(win)
-  await win.locator(`[data-storyboard-id="${ids.a1}"]`).click()
+  await openStoryboardEditor(win, ids.a1)
   await expect(win.locator('[data-storyboard-editor="true"] [data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText('Edited A1')
   await expect(win.locator(`[data-place-storyboard="${ids.a1}"]`)).toHaveText('查看画布')
   assert.deepEqual((await designById(win,ids.a1)).plan.shots[0],{...originalFields,prompt:'Edited A1',promptSegments:[]})
@@ -191,7 +192,7 @@ try {
   check(true,'Single-shot generation uses the original runner and decodes the returned real JPG')
   const expandForBatch = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
   if(await expandForBatch.isVisible()) await expandForBatch.click()
-  await win.locator(`[data-storyboard-id="${ids.a2}"]`).click()
+  await openStoryboardEditor(win, ids.a2)
   const batchEditor = win.locator('[data-storyboard-editor="true"]')
   await expect(batchEditor).toBeVisible()
   assert.equal(fixture.images.length,submissionsBefore+1,'Nothing is submitted before the batch click')
@@ -208,7 +209,7 @@ try {
   gui = await launchNomiApp(options)
   win = gui.win
   await openProject(win)
-  await win.locator(`[data-storyboard-id="${ids.a1}"]`).click()
+  await openStoryboardEditor(win, ids.a1)
   await expect(win.locator(`[data-place-storyboard="${ids.a1}"]`)).toHaveText('View canvas')
   await expect(win.locator('[data-storyboard-editor="true"] [data-storyboard-frame]').first()).toHaveAttribute('data-storyboard-frame','done')
   assert.equal((await canvasNodes())[0].result.id,generated[0].result.id,'Cold restart preserves the same generated result')

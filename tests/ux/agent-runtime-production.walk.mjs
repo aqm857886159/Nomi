@@ -15,6 +15,7 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { laneDiskSnapshot, laneMessages, laneMessageText, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { residentToolNames } from './agent-runtime-walk-support.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const STORY = 'F_INLINE_STORY：清晨，一位创作者来到咖啡馆。她将红色杯子放到白桌正中央，然后坐在窗边整理相机。镜头保持正面中景，自然光照亮杯沿，背景不要多余物件。画面只需要表现拍摄开始前安静的准备时刻。'
 const PLAN_CALL = 'f-inline-plan-1'
@@ -126,7 +127,7 @@ try {
 
   // v5 执行面：没有「确认落画布」——进分镜页，footer「生成未生成的 N 镜」按需 materialize + 批量。
   // 入口是侧栏那条分镜条目（onClick 直接 setWorkspaceMode('storyboard')，DocumentListSidebar.tsx:110-114）。
-  await clickOrFail(win.locator('[data-storyboard-id]').first(), '从侧栏分镜条目进入分镜页')
+  await openStoryboardEditor(win, { pick: 'first' }, '从侧栏分镜条目进入分镜页')
   await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('F镜头')
   const beforeJudge = laneDiskSnapshot(projectRoot)
   const judge = walk.fixture.expectText({

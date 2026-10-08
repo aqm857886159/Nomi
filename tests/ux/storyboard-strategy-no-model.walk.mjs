@@ -21,6 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { applyColorSchemeForShot, clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-strategy-no-model-'))
@@ -97,7 +98,7 @@ try {
     else await projectCard.dblclick()
   }
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '从侧栏进入分镜方案')
+  await openStoryboardEditor(win, DESIGN, '从侧栏进入分镜方案')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
 
   await expect(strategyRoot(), '没有视频模型时，面板应当进入 no-video-model 态（而不是把内部错误码摆出来）')

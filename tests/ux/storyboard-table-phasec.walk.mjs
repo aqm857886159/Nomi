@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = process.env.PHASEC_WALK_OUT || '/tmp/phaseC-walk'
@@ -90,7 +91,7 @@ try {
   const card = win.locator('[data-project-card]', { hasText: 'Phase C 引用走查' }).first()
   if (await card.isVisible().catch(() => false)) { await card.hover(); const button = card.getByText('继续创作', { exact: false }).first(); if (await button.isVisible().catch(() => false)) await button.click(); else await card.dblclick() }
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
-  await clickOrFail(win.locator(`[data-storyboard-id="${designId}"]`), '选中 Phase C 分镜')
+  await openStoryboardEditor(win, designId, '选中 Phase C 分镜')
   // 侧栏点中方案就直接进分镜页——摘要卡（「打开分镜 / 再次编辑」那一跳）已随 805096d41 删除。
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器未渲染')
   await expectVisible(row, '走查镜头未渲染')

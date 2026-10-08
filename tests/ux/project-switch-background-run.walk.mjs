@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const mode = process.env.NOMI_BACKGROUND_MODE || 'single'
@@ -207,7 +208,7 @@ try {
     }, { projectId: projectA, designId: DESIGN, imageModel: IMAGE_MODEL, videoModel: VIDEO_MODEL, vendor: VENDOR, prompt: PROMPT, firstFrame: mode === 'storyboard-first-frame' })
     await openFromLibrary(win, projectA)
     await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '原创作工作区')
-    await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '原分镜方案')
+    await openStoryboardEditor(win, DESIGN, '原分镜方案')
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
     if (mode === 'storyboard-first-frame') {
       // 2026-10-06 起参考在视觉列的缩略图条里；计划首帧是最前面那一格只读占位。
@@ -369,7 +370,7 @@ try {
   check(wireCalls.length === expectedRequests, '返回原项目未产生新请求')
   if (mode.startsWith('storyboard-')) {
     await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '返回原分镜工作区')
-    await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '返回原方案')
+    await openStoryboardEditor(win, DESIGN, '返回原方案')
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
     await snap(win, 'original-editor-results-on-return')
   }

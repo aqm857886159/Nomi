@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expectOverlayReachable, expectVisible, screenshotSettled } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outRoot = process.env.STORYBOARD_TABLE_STRUCTURE_OUT || path.join(repoRoot, 'tests', 'ux', 'shots', 'storyboard-table-structure')
@@ -174,7 +175,7 @@ async function openEditor(locale) {
   }
   await clickOrFail(win.getByRole('button', { name: /^(创作|Create)$/ }), '切到创作页')
   await setSidebar('expand')
-  await clickOrFail(win.locator(`[data-storyboard-id="${designId}"]`), '选中走查分镜')
+  await openStoryboardEditor(win, designId, '选中走查分镜')
   const appeared = await editor().waitFor({ state: 'visible', timeout: stationTimeout() }).then(() => true).catch(() => false)
   if (!appeared) await clickOrFail(win.getByRole('button', { name: /打开分镜|再次编辑|Open storyboard|Edit again/ }).first(), '打开分镜页')
   await expectVisible(editor(), '分镜编辑器未渲染')

@@ -17,6 +17,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = process.env.NARROW_ROW_WALK_OUT || path.join(repoRoot, '.tmp', 'storyboard-narrow-row')
@@ -187,7 +188,7 @@ async function openEditor(locale) {
   }
   await clickOrFail(win.getByRole('button', { name: /^(创作|Create)$/ }), '切到创作页')
   await setSidebar('expand')
-  await clickOrFail(win.locator(`[data-storyboard-id="${designId}"]`), '选中走查分镜')
+  await openStoryboardEditor(win, designId, '选中走查分镜')
   // 侧栏点一行方案通常直接就进编辑器；某些态下还要再点一次「打开分镜 / 再次编辑」。
   // 两条路都要能走通：先给编辑器一段真实的渲染时间（问得太早会把「还没画出来」当成「这条路不通」），
   // 真等不到才去找那颗按钮——**两条都不通就报红**，不静默跳过。
