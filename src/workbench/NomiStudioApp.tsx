@@ -734,6 +734,8 @@ export default function NomiStudioApp(): JSX.Element {
           onOpenModelCatalog={settingsDialogController.openModelSettings}
           onOpenSettings={settingsDialogController.openDefaultSettings}
           onRenameProject={handleRenameProject}
+          onOpenProject={openProject}
+          onNewProject={() => void newProject()}
         />
 
         {settingsDialog}

@@ -53,7 +53,8 @@ function ShotCover({ source }: { source: CanvasShotSource }): JSX.Element {
   return <div className="absolute inset-0 bg-nomi-ink-05" aria-hidden="true" />
 }
 
-function ShotGrid(): JSX.Element {
+/** 样张（design/shell-space）：剪辑页的「镜头」并进左栏「镜头与分组」抽屉，抽屉在预览页复用这一格。 */
+export function ShotGrid(): JSX.Element {
   const { t } = useTranslation()
   // 镜头栏按 result/shotIndex 派生已出片镜头；无号镜头（参考卡/首帧图/非分镜产物）按真实
   // position.y/x 排序 → 必须读真节点，不能喂位置无关投影（S3 F1：投影冻结旧位置 → 拖动后

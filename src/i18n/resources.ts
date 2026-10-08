@@ -22,8 +22,10 @@ import { enFeedbackReport, zhFeedbackReport } from './locales/feedbackReport'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
 import { enAgentLaneError, zhAgentLaneError } from './locales/agentLaneError'
 import { enAgentToolFailure, zhAgentToolFailure } from './locales/agentToolFailure'
+import { enShellSpace, zhShellSpace } from './locales/shellSpace'
 
 export const zhCN = {
+  shellSpace: zhShellSpace,
   shotTable: zhShotTable,
   common: {
     language: '语言',
@@ -451,6 +453,7 @@ type TranslationShape<T> = {
 }
 
 export const en = {
+  shellSpace: enShellSpace,
   shotTable: enShotTable,
   common: {
     language: 'Language',

@@ -29,7 +29,12 @@ type ResourceMenu = {
   y: number
 } | null
 
-export default function DocumentListSidebar(): JSX.Element {
+/**
+ * `variant="drawer"`（样张 design/shell-space）：同一棵树住进左栏「文稿」抽屉——抽屉自带标题与外框，
+ * 这里不再画第二层框、也没有收起钮（抽屉自己会收）。
+ */
+export default function DocumentListSidebar({ variant = 'column' }: { variant?: 'column' | 'drawer' } = {}): JSX.Element {
+  const drawer = variant === 'drawer'
   const { t } = useTranslation()
   const documents = useWorkbenchStore((state) => state.workbenchDocuments)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
@@ -242,13 +247,13 @@ export default function DocumentListSidebar(): JSX.Element {
 
   return (
     <aside
-      className={cn('flex h-full w-[240px] shrink-0 flex-col', workspacePanelFrame)}
+      className={drawer ? 'flex min-h-0 flex-1 flex-col' : cn('flex h-full w-[240px] shrink-0 flex-col', workspacePanelFrame)}
       aria-label={t('creationAi.documentList.aria')}
       data-creation-resource-tree="true"
     >
-      <div className={cn('flex shrink-0 items-center justify-between gap-1', workspacePanelHeader)}>
+      <div className={cn('flex shrink-0 items-center justify-between gap-1', drawer ? 'h-9 px-3' : workspacePanelHeader)}>
         <div className="min-w-0">
-          <div className="truncate text-body-sm font-semibold text-nomi-ink">{t('creationAi.documentList.title')}</div>
+          {drawer ? null : <div className="truncate text-body-sm font-semibold text-nomi-ink">{t('creationAi.documentList.title')}</div>}
           <div className="text-micro text-nomi-ink-40">{t('creationAi.documentList.count', { count: documents.length })}</div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
@@ -257,7 +262,7 @@ export default function DocumentListSidebar(): JSX.Element {
             label={t('creationAi.documentList.newDocumentAria')}
             onClick={addWorkbenchDocument}
           />
-          <CreationResourceTreeToggle placement="column" />
+          {drawer ? null : <CreationResourceTreeToggle placement="column" />}
         </div>
       </div>
 

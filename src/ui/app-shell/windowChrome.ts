@@ -8,10 +8,14 @@
  *        点击会被当成拖窗口吃掉，所以「让开多少」必须只有一个来源，不许各处自己写 32。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
+import { SHELL_SPACE_SPECIMEN, SHELL_TOPBAR_HEIGHT } from './shellSpaceSpecimen'
+
 export const WORKBENCH_TOPBAR_HEIGHT = 56
 export const WINDOWS_WINDOWBAR_HEIGHT = 32
 
 export function workbenchFloatingTopOffset(platform: string | undefined, gap = 8): number {
+  // 样张（design/shell-space）：窗口栏与应用栏合成一条 40px，两平台一样高。
+  if (SHELL_SPACE_SPECIMEN) return SHELL_TOPBAR_HEIGHT + gap
   const windowbarHeight = platform === 'win32' ? WINDOWS_WINDOWBAR_HEIGHT : 0
   return windowbarHeight + WORKBENCH_TOPBAR_HEIGHT + gap
 }
@@ -27,6 +31,8 @@ export function currentWorkbenchFloatingTopOffset(gap = 8): number {
  * 窗口控件（最小化 / 最大化 / 关闭）只有窗口栏那一份，盖住它用户就没法收起或关掉应用了。
  */
 export function fullscreenOverlayTopOffset(platform: string | undefined): number {
+  // 样张：窗口按钮住在合一顶栏里，全屏浮层一律从顶栏下方开始、不再各自画窗口按钮（两平台同）。
+  if (SHELL_SPACE_SPECIMEN) return SHELL_TOPBAR_HEIGHT
   return platform === 'win32' ? WINDOWS_WINDOWBAR_HEIGHT : 0
 }
 

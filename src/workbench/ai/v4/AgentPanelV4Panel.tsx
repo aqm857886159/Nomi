@@ -27,6 +27,7 @@ import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } fr
 import { flowItemNotices } from './useDirectorPatchNotices'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
+import { AgentPanelHeaderSlotContext } from './agentPanelHeaderSlot'
 import type { V4QuestionReply } from './agentPanelV4Question'
 import { useV4Labels } from './agentPanelV4Labels'
 import type { V4FlowScrollMemoryBox } from './agentPanelV4ScrollMemory'
@@ -244,6 +245,7 @@ export function AgentPanelV4Panel({
 }: AgentPanelV4PanelProps): JSX.Element {
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
+  const headerSlot = React.useContext(AgentPanelHeaderSlotContext)
   const labels = useV4Labels()
   const flowHandlersRef = React.useRef(flowHandlers)
   flowHandlersRef.current = flowHandlers
@@ -385,7 +387,7 @@ export function AgentPanelV4Panel({
       style={{ width, height }}
       data-v4-panel="true"
     >
-      <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3')}>
+      <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3', headerSlot?.dragHandleClassName)}>
         <NomiBrand markSize={18} wordSize={14} />
         <V4ContextRing usage={context} labels={labels.context} />
         <span className="flex-1" />
@@ -393,9 +395,11 @@ export function AgentPanelV4Panel({
           <button type="button" aria-label={t('agentPanelV4.history')} onClick={onHistory} data-v4-control="history">
             <IconHistory size={15} />
           </button>
-          <button type="button" aria-label={t('agentPanelV4.collapsePanel')} onClick={onCollapse} data-v4-control="collapse">
-            <IconLayoutSidebarRightCollapse size={15} />
-          </button>
+          {headerSlot ? headerSlot.actions : (
+            <button type="button" aria-label={t('agentPanelV4.collapsePanel')} onClick={onCollapse} data-v4-control="collapse">
+              <IconLayoutSidebarRightCollapse size={15} />
+            </button>
+          )}
         </span>
       </header>
       {legacyNotice ? <p className="shrink-0 truncate px-3 pt-2 text-micro text-nomi-ink-60" title={legacyNotice} data-v4-legacy="true">{legacyNotice}</p> : null}

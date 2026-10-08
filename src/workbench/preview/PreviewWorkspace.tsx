@@ -9,6 +9,7 @@ import TimelinePanel from '../timeline/TimelinePanel'
 import { computeTimelineDuration, resolveActiveClipsAtFrame } from '../timeline/timelineMath'
 import TimelinePreview from './TimelinePreview'
 import PreviewSourcePanel from './PreviewSourcePanel'
+import { SHELL_SPACE_SPECIMEN } from '../../ui/app-shell/shellSpaceSpecimen'
 import PreviewInspector from './inspector/PreviewInspector'
 import { EDITING_PANEL_BOUNDS, EDITING_PANEL_RAIL_WIDTH, editingPanelResizeEffect, type EditingPanelSizeKey } from './panelLayout'
 import { useTimelinePlaybackClock } from '../timeline/useTimelinePlaybackClock'
@@ -191,20 +192,25 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
           <Group orientation="vertical" className="h-full" id="editing-surface-left" onLayoutChanged={onUserLayout}>
             <Panel id="editing-surface-stage" minSize={EDITING_PANEL_BOUNDS.stage.min}>
               <Group orientation="horizontal" className="h-full" id="editing-surface-stage-row" onLayoutChanged={onUserLayout}>
-                <Panel
-                  id="editing-surface-source"
-                  panelRef={sourcePanelRef}
-                  elementRef={sourceElementRef}
-                  defaultSize={initialLayout.sourceWidth}
-                  minSize={EDITING_PANEL_BOUNDS.source.min}
-                  maxSize={EDITING_PANEL_BOUNDS.source.max}
-                  collapsible
-                  collapsedSize={EDITING_PANEL_RAIL_WIDTH}
-                  onResize={(size) => onPanelResized('sourceWidth', size.inPixels, layout.visibility.source)}
-                >
-                  <div className="h-full min-w-0 overflow-hidden"><PreviewSourcePanel /></div>
-                </Panel>
-                <SplitHandle vertical />
+                {/* 样张（design/shell-space）：剪辑页左边那栏「镜头 / 素材」并进左栏「镜头与分组」「素材」两个抽屉（09-08 A1 去重），这里不再常驻一栏。 */}
+                {SHELL_SPACE_SPECIMEN ? null : (
+                  <>
+                  <Panel
+                    id="editing-surface-source"
+                    panelRef={sourcePanelRef}
+                    elementRef={sourceElementRef}
+                    defaultSize={initialLayout.sourceWidth}
+                    minSize={EDITING_PANEL_BOUNDS.source.min}
+                    maxSize={EDITING_PANEL_BOUNDS.source.max}
+                    collapsible
+                    collapsedSize={EDITING_PANEL_RAIL_WIDTH}
+                    onResize={(size) => onPanelResized('sourceWidth', size.inPixels, layout.visibility.source)}
+                  >
+                    <div className="h-full min-w-0 overflow-hidden"><PreviewSourcePanel /></div>
+                  </Panel>
+                  <SplitHandle vertical />
+                  </>
+                )}
                 <Panel id="editing-surface-preview" minSize={EDITING_PANEL_BOUNDS.preview.min}>
                   <div className="relative h-full min-w-0 overflow-hidden">
                     <TimelinePreview

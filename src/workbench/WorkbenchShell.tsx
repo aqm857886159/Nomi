@@ -54,6 +54,9 @@ type WorkbenchShellProps = {
     onOpenModelCatalog?: () => void;
     onOpenSettings?: () => void;
     onRenameProject?: (name: string) => void;
+    /** 顶栏项目菜单：最近项目 / 新建。 */
+    onOpenProject?: (projectId: string) => void;
+    onNewProject?: () => void;
 };
 
 const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
