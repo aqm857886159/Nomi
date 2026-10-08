@@ -7,7 +7,7 @@ directory; adding a release sample is therefore part of the release checklist.
 The samples were generated with the writer from each tag using:
 
 ```text
-pnpm exec tsx scripts/generate-published-receipt-fixtures.mjs v0.22.0 v0.22.5 v0.23.0 --pre-journal-v2
+pnpm exec tsx scripts/generate-published-receipt-fixtures.mjs v0.22.0 v0.22.1 v0.22.2 v0.22.3 v0.22.4 v0.22.5 v0.23.0 --pre-journal-v2
 ```
 
 The generator uses `git show` to extract the historical writer and its local
