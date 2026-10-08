@@ -3,7 +3,8 @@ import { IconArrowRight, IconGridDots, IconList, IconPlus, IconSearch, IconStack
 import { WorkbenchButton } from '../design'
 import { AutoReferenceApp } from './autoReferenceScreens'
 import { cardNode, referenceEdges, refNode, useLabLanguage, useSeededCanvas } from './listViewStage'
-import { AnchorStrip, AppChrome, BatchBar, InspectorPanel, ListCardView, MediaBox, SectionHeader } from './storyboardListViewParts'
+import { AnchorStrip, AppChrome, InspectorPanel, ListCardView, MediaBox, SectionHeader } from './storyboardListViewParts'
+import { SectionGenerateDialog } from './sectionGenerateDialog'
 import {
   createListSections,
   listCopy,
@@ -27,9 +28,7 @@ function ListSurface({ state, locale, narrow }: { state: ListViewState; locale: 
   )
   const edges = React.useMemo(() => allCards.flatMap((card) => referenceEdges(card.id, card.refs)), [allCards])
   const ready = useSeededCanvas(nodes, edges)
-  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
-    () => new Set(allCards.filter((card) => card.selected).map((card) => card.id)),
-  )
+  const [generateSectionId, setGenerateSectionId] = React.useState<string | null>(state === 'generate' ? 'storyboard' : null)
   const [inspectorId, setInspectorId] = React.useState<string | null>(state === 'selected' ? 'shot-2' : null)
   const [connected, setConnected] = React.useState('shot-4')
   React.useEffect(() => {
@@ -42,22 +41,15 @@ function ListSurface({ state, locale, narrow }: { state: ListViewState; locale: 
   const selectedCard = allCards.find((card) => card.id === inspectorId)
   const extraWide = window.innerWidth >= 1536
   const cardMediaHeight = extraWide && !selectedCard ? 180 : 220
-  const toggleCard = (id: string) =>
-    setSelectedIds((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
   const visibleSections = sections.map((section) => ({
     ...section,
     cards: section.cards.map((card) => ({
       ...card,
-      selected: selectedIds.has(card.id),
+      selected: card.id === inspectorId,
       connectionOn: card.id === 'shot-4' && connected === 'shot-4',
     })),
   }))
-  const selectedCards = visibleSections.flatMap((section) => section.cards).filter((card) => card.selected)
+  const generateSection = visibleSections.find((section) => section.id === generateSectionId)
   if (!ready) return <div />
   return (
     <div className="mx-auto max-w-[1440px] p-4" data-lab-ready="true">
@@ -75,7 +67,6 @@ function ListSurface({ state, locale, narrow }: { state: ListViewState; locale: 
             </span>
           </div>
         ) : null}
-        <BatchBar selected={selectedCards} locale={locale} onClear={() => setSelectedIds(new Set())} onGenerate={() => undefined} />
         <div
           className="grid min-w-0"
           style={{
@@ -89,7 +80,11 @@ function ListSurface({ state, locale, narrow }: { state: ListViewState; locale: 
           <div className="min-w-0 p-4">
             {visibleSections.map((section) => (
               <section key={section.id} className="mb-5 last:mb-0" data-list-section={section.id}>
-                <SectionHeader section={section} locale={locale} />
+                <SectionHeader
+                  section={section}
+                  locale={locale}
+                  onGenerate={section.id === 'ungrouped' ? undefined : () => setGenerateSectionId(section.id)}
+                />
                 <div className={`grid gap-x-8 gap-y-4 pl-8 ${selectedCard ? 'grid-cols-2' : extraWide ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   {section.cards.map((card, index) => (
                     <ListCardView
@@ -99,7 +94,6 @@ function ListSurface({ state, locale, narrow }: { state: ListViewState; locale: 
                       index={index}
                       mediaHeight={cardMediaHeight}
                       onSelect={() => setInspectorId((current) => (current === card.id ? null : card.id))}
-                      onToggle={() => toggleCard(card.id)}
                       onConnect={() => setConnected((current) => (current === card.id ? '' : card.id))}
                     />
                   ))}
@@ -110,6 +104,9 @@ function ListSurface({ state, locale, narrow }: { state: ListViewState; locale: 
           {selectedCard ? <InspectorPanel card={selectedCard} locale={locale} onClose={() => setInspectorId(null)} /> : null}
         </div>
       </div>
+      {generateSection ? (
+        <SectionGenerateDialog section={generateSection} locale={locale} onClose={() => setGenerateSectionId(null)} />
+      ) : null}
     </div>
   )
 }

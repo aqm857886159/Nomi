@@ -112,7 +112,7 @@ export function AgentSpendStage({ locale }: { locale: ListViewLocale }): JSX.Ele
         <div className="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-sm">
           <AnchorStrip locale={locale} />
           <div className="p-4">
-            <SectionHeader section={storyboard} locale={locale} />
+            <SectionHeader section={storyboard} locale={locale} onGenerate={() => undefined} />
             <div className="grid grid-cols-2 gap-x-8 gap-y-4 pl-8">
               {storyboard.cards.slice(0, 4).map((card, index) => (
                 <ListCardView
@@ -123,7 +123,6 @@ export function AgentSpendStage({ locale }: { locale: ListViewLocale }): JSX.Ele
                   mediaHeight={200}
                   suggestions={index === 0 ? suggestions : undefined}
                   onSelect={() => setPage(index)}
-                  onToggle={() => undefined}
                   onConnect={() => undefined}
                 />
               ))}

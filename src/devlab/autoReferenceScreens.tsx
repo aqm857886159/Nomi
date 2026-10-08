@@ -8,8 +8,6 @@
 // 同一颗 chip（AssetMentionChip）、同一层建议线与同一个候选列表（referencePromptKit）。
 import React, { type JSX } from 'react'
 import BaseGenerationNode from '../workbench/generationCanvas/nodes/BaseGenerationNode'
-import { SpendConfirmDialog } from '../workbench/generationCanvas/spend/SpendConfirmDialog'
-import { describeGenerationCost, useSpendConfirmStore } from '../workbench/generationCanvas/spend/spendConfirm'
 import type { GenerationCanvasNode } from '../workbench/generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../workbench/generationCanvas/store/generationCanvasStore'
 import { LabCanvasViewport } from './designLab/labCanvasViewport'
@@ -27,7 +25,7 @@ import {
   usePickListKeys,
   type PickRow,
 } from './referencePromptKit'
-import { AnchorStrip, AppChrome, BatchBar, InspectorPanel, ListCardView, SectionHeader } from './storyboardListViewParts'
+import { AnchorStrip, AppChrome, InspectorPanel, ListCardView, SectionHeader } from './storyboardListViewParts'
 import {
   ANCHOR_IDS,
   createListSections,
@@ -51,7 +49,6 @@ export type AutoRefState =
   | 'pick-done'
   | 'list'
   | 'agent'
-  | 'spend'
 
 const COMPOSER_PROMPT = '[data-node-composer-prompt] .ProseMirror'
 
@@ -276,12 +273,11 @@ const LIST_PROMPT: Record<ListViewLocale, string> = {
   en: 'Insert, {lin} grips the {watch} as rain runs from her hair',
 }
 
-function ListStage({ locale, state }: { locale: ListViewLocale; state: AutoRefState }): JSX.Element {
-  const spend = state === 'spend'
-  const sections = React.useMemo(() => createListSections(spend ? 'batch' : 'default'), [spend])
+function ListStage({ locale }: { locale: ListViewLocale }): JSX.Element {
+  const sections = React.useMemo(() => createListSections('default'), [])
   const storyboard = sections[0]
   const [watch, setWatch] = React.useState<'suggest' | 'bound' | 'rejected'>('suggest')
-  const [openKey, setOpenKey] = React.useState<string | null>(spend ? null : 'watch')
+  const [openKey, setOpenKey] = React.useState<string | null>('watch')
   const cards = sections.flatMap((section) => section.cards).filter((card) => card.kind !== 'director')
   const overrideId = 'shot-2'
   const overridePrompt = expandPrompt(LIST_PROMPT[locale], locale, watch === 'bound' ? ['lin', 'watch'] : ['lin'])
@@ -300,33 +296,17 @@ function ListStage({ locale, state }: { locale: ListViewLocale; state: AutoRefSt
   )
   const ready = useSeededCanvas(nodes, edges)
   const suggestions = watch === 'suggest' ? [watchCandidates(locale)] : []
-  const inspectorCard = spend ? null : storyboard.cards[1]
-  const selected = spend ? cards.filter((card) => card.selected) : []
-  React.useEffect(() => {
-    if (!spend || !ready) return
-    const details = selected.map((card) => ({
-      label: locale === 'en' ? card.titleEn : card.title,
-      value: card.refs.filter((id) => REFS[id].ready).map((id) => refName(id, locale)).join(' · ') || '—',
-    }))
-    void useSpendConfirmStore.getState().requestConfirm({
-      title: locale === 'en' ? 'Generate 4 selected' : '生成已选 4 项',
-      message: describeGenerationCost(selected.length, 'mixed'),
-      confirmLabel: locale === 'en' ? 'Generate 4' : '生成 4 项',
-      details,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spend, ready, locale])
+  const inspectorCard = storyboard.cards[1]
   if (!ready) return <div />
   return (
     <div className="mx-auto max-w-[1440px] p-4" data-lab-ready="true">
       <div className="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-sm">
         <AnchorStrip locale={locale} />
-        <BatchBar selected={selected} locale={locale} onClear={() => undefined} onGenerate={() => undefined} />
         <div className="grid min-w-0" style={{ gridTemplateColumns: inspectorCard ? 'minmax(0, 1fr) minmax(440px, 480px)' : 'minmax(0, 1fr)' }}>
           <div className="min-w-0 p-4">
-            {(spend ? sections : [storyboard]).map((section) => (
+            {[storyboard].map((section) => (
               <section key={section.id} className="mb-5 last:mb-0">
-                <SectionHeader section={section} locale={locale} />
+                <SectionHeader section={section} locale={locale} onGenerate={() => undefined} />
                 <div className={`grid gap-x-8 gap-y-4 pl-8 ${inspectorCard ? 'grid-cols-2' : 'grid-cols-3'}`}>
                   {section.cards.map((card, index) => (
                     <ListCardView
@@ -337,7 +317,6 @@ function ListStage({ locale, state }: { locale: ListViewLocale; state: AutoRefSt
                       mediaHeight={220}
                       suggestions={card.id === overrideId ? suggestions : undefined}
                       onSelect={() => undefined}
-                      onToggle={() => undefined}
                       onConnect={() => undefined}
                     />
                   ))}
@@ -367,7 +346,6 @@ function ListStage({ locale, state }: { locale: ListViewLocale; state: AutoRefSt
           ) : null}
         </div>
       </div>
-      {spend ? <SpendConfirmDialog /> : null}
     </div>
   )
 }
@@ -388,7 +366,7 @@ export function AutoReferenceApp(): JSX.Element {
       ) : state === 'agent' ? (
         <AgentSpendStage locale={locale} />
       ) : (
-        <ListStage key={`${state}-${locale}`} locale={locale} state={state} />
+        <ListStage key={`${state}-${locale}`} locale={locale} />
       )}
     </div>
   )

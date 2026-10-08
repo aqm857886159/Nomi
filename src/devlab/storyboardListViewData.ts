@@ -12,7 +12,7 @@ import {
   type ArtRatio,
 } from './listViewArt'
 
-export type ListViewState = 'default' | 'selected' | 'batch' | 'deep-link' | 'canvas' | 'empty' | 'long' | 'junction'
+export type ListViewState = 'default' | 'selected' | 'generate' | 'deep-link' | 'canvas' | 'empty' | 'long' | 'junction'
 export type ListViewLocale = 'zh' | 'en'
 export type AnchorState = 'locked' | 'pending' | 'none'
 export type ListCardKind = 'shot' | 'group-image' | 'director'
@@ -96,8 +96,6 @@ export const listCopy = {
     storyboard: '分镜 · 雨夜便利店',
     ungrouped: '未分组',
     director: '导演台',
-    generateSelected: '生成已选',
-    selectedCount: '已选',
     connectPrevious: '接上一镜',
     connect: '连接上一镜',
     autoRef: '自动引用',
@@ -108,7 +106,6 @@ export const listCopy = {
     backCanvas: '返回画布',
     canvasNodeHint: '在列表里看',
     longHint: '搜索镜头或节点',
-    clearSelection: '清除选择',
     cardMenu: '卡片菜单',
     collapseGroup: '收起分组',
     image: '图片',
@@ -134,8 +131,6 @@ export const listCopy = {
     storyboard: 'Storyboard · Rainy convenience store',
     ungrouped: 'Ungrouped',
     director: 'Director desk',
-    generateSelected: 'Generate selected',
-    selectedCount: 'selected',
     connectPrevious: 'Use previous frame',
     connect: 'Connect previous',
     autoRef: 'Auto reference',
@@ -146,7 +141,6 @@ export const listCopy = {
     backCanvas: 'Back to canvas',
     canvasNodeHint: 'View in list',
     longHint: 'Search shots or nodes',
-    clearSelection: 'Clear selection',
     cardMenu: 'Card menu',
     collapseGroup: 'Collapse group',
     image: 'Image',
@@ -302,9 +296,8 @@ function directorCard(selected: boolean): ListCard {
 }
 
 export function createListSections(state: ListViewState): ListSection[] {
-  const selected = new Set(
-    state === 'batch' ? ['shot-2', 'shot-4', 'poster-a-2', 'ungrouped-1'] : state === 'selected' ? ['shot-2'] : [],
-  )
+  // selected = 检查器开着的那张（卡描边高亮）；列表上没有多选。
+  const selected = new Set(state === 'selected' ? ['shot-2'] : [])
   const long = state === 'long'
   const storyboard: ListSection = {
     id: 'storyboard',

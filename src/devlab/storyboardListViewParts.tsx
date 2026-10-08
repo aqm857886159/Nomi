@@ -1,18 +1,17 @@
-// 列表视图的零件：卡、分组头、视觉锚条、批量条、检查器。
+// 列表视图的零件：卡、分组头（带「生成整组」）、视觉锚条、检查器。
+// 没有批量条、卡上没有勾选（2026-10-08 用户：模型在节点创建时就选好了，批量走编组的「生成整组」）。
 // 检查器正文 = 现役 NodeGenerationComposer（host="panel"）——和画布节点、Agent 付费卡是同一张生成框；
 // 卡上提示词 = 现役 PromptEditor（只读），chip 编号从同一份参考边推出。
 import React, { type JSX } from 'react'
-import { IconDots, IconExternalLink, IconEye, IconLink, IconMovie, IconChevronDown, IconSparkles, IconTag, IconX } from '@tabler/icons-react'
-import { DesignBadge, DesignCheckbox, DesignSegmentedControl, WorkbenchButton, WorkbenchIconButton } from '../design'
+import { IconDots, IconExternalLink, IconEye, IconLink, IconMovie, IconChevronDown, IconPlayerPlay, IconTag, IconX } from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
+import { DesignBadge, DesignSegmentedControl, WorkbenchButton, WorkbenchIconButton } from '../design'
 import PromptEditor from '../workbench/assets/PromptEditor'
 import NodeGenerationComposer from '../workbench/generationCanvas/nodes/NodeGenerationComposer'
-import InlineParameterBar from '../workbench/generationCanvas/nodes/InlineParameterBar'
+import { ToolbarButton, TOOLBAR_ICON } from '../workbench/generationCanvas/nodes/NodeFloatingToolbar'
 import { currentReferenceMedia } from '../workbench/generationCanvas/nodes/mentionCandidates'
-import { resolveArchetypeForOption, resolveRenderedControls } from '../workbench/generationCanvas/nodes/nodeModelArchetype'
-import { toCatalogModelOptions } from '../config/modelOptionMappers'
 import { useGenerationCanvasStore } from '../workbench/generationCanvas/store/generationCanvasStore'
 import { shotArt } from './listViewArt'
-import { LAB_MODEL_ROWS } from './listViewStage'
 import { SuggestionLayer, type Suggestion } from './referencePromptKit'
 import {
   ANCHOR_IDS,
@@ -25,7 +24,6 @@ import {
   type ListSection,
   type ListViewLocale,
   type ListViewState,
-  type MediaKind,
 } from './storyboardListViewData'
 
 export function MediaBox({ card, height = 104 }: { card: ListCard; height?: number }): JSX.Element {
@@ -141,7 +139,6 @@ export function ListCardView({
   mediaHeight,
   suggestions,
   onSelect,
-  onToggle,
   onConnect,
 }: {
   card: ListCard
@@ -149,8 +146,8 @@ export function ListCardView({
   index: number
   mediaHeight: number
   suggestions?: Suggestion[]
+  /** 点卡 = 开检查器（模型 / 参数在那里改；卡上没有勾选，批量生成走分组头的「生成整组」）。 */
   onSelect: () => void
-  onToggle: () => void
   onConnect: () => void
 }): JSX.Element {
   const t = listCopy[locale]
@@ -180,17 +177,6 @@ export function ListCardView({
       <div className="mt-2 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
-            {card.kind === 'director' ? null : (
-              <DesignCheckbox
-                checked={card.selected}
-                onChange={(event) => {
-                  event.stopPropagation()
-                  onToggle()
-                }}
-                onClick={(event) => event.stopPropagation()}
-                aria-label={locale === 'en' ? `Select ${card.titleEn}` : `选择${card.title}`}
-              />
-            )}
             <span className="truncate text-caption font-semibold text-nomi-ink">{locale === 'en' ? card.titleEn : card.title}</span>
             {card.kind === 'shot' ? <StatusTag card={card} locale={locale} /> : null}
           </div>
@@ -216,17 +202,40 @@ export function ListCardView({
   )
 }
 
-export function SectionHeader({ section, locale }: { section: ListSection; locale: ListViewLocale }): JSX.Element {
+/**
+ * 分组头。分镜段和每个画布分组段右端一颗「生成整组」——就是画布组工具条上那一颗
+ * （CanvasGroupToolbar 的 ToolbarButton + IconPlayerPlay + `generationCommon.canvas.group.toolbarGenerate`），
+ * 同一个组件、同一句文案；未分组段不给（未分组的节点各自在自己的节点上生成）。
+ */
+export function SectionHeader({
+  section,
+  locale,
+  onGenerate,
+}: {
+  section: ListSection
+  locale: ListViewLocale
+  onGenerate?: () => void
+}): JSX.Element {
+  const { t } = useTranslation()
   return (
-    <div className="mb-2 flex items-end justify-between gap-3">
+    <div className="mb-2 flex items-end justify-between gap-3" data-section-header={section.id}>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <h2 className="text-body-sm font-semibold text-nomi-ink">{locale === 'en' ? section.titleEn : section.title}</h2>
           <span className="rounded-pill bg-nomi-ink-05 px-1.5 py-0.5 text-micro text-nomi-ink-60">{section.cards.length}</span>
+          <WorkbenchIconButton icon={<IconChevronDown size={15} stroke={1.7} />} label={listCopy[locale].collapseGroup} size="sm" />
         </div>
         <p className="mt-0.5 text-micro text-nomi-ink-60">{locale === 'en' ? section.subtitleEn : section.subtitle}</p>
       </div>
-      <WorkbenchIconButton icon={<IconChevronDown size={15} stroke={1.7} />} label={listCopy[locale].collapseGroup} size="sm" />
+      {onGenerate ? (
+        <ToolbarButton
+          icon={<IconPlayerPlay size={TOOLBAR_ICON.size} stroke={TOOLBAR_ICON.stroke} />}
+          label={t('generationCommon.canvas.group.toolbarGenerate')}
+          accent
+          actionId="section-generate"
+          onClick={onGenerate}
+        />
+      ) : null}
     </div>
   )
 }
@@ -246,81 +255,6 @@ export function AnchorStrip({ locale }: { locale: ListViewLocale }): JSX.Element
           <span className="text-micro text-nomi-ink-40">{REFS[id].ready ? t.locked : t.pending}</span>
         </span>
       ))}
-    </div>
-  )
-}
-
-// ── 批量条：[× N 已选] [视频 ×2 · 模型 ▾ 参数 ▾] [图片 ×2 · 模型 ▾ 参数 ▾] ……… [生成已选] ──────────
-// 模型 / 参数是节点生成框底栏同一个 InlineParameterBar（模型在前、参数在后），按媒体类型分组，
-// 每组「图片 ×N」只出现一次；主动作贴最右。
-
-function BatchGroup({ media, count, locale }: { media: MediaKind; count: number; locale: ListViewLocale }): JSX.Element {
-  const t = listCopy[locale]
-  const options = React.useMemo(
-    () => toCatalogModelOptions(LAB_MODEL_ROWS.filter((model) => model.kind === media)),
-    [media],
-  )
-  const [meta, setMeta] = React.useState<Record<string, unknown>>(() =>
-    media === 'video'
-      ? { modelKey: 'seedance-2', modelVendor: 'apimart', aspect_ratio: '16:9', duration: 5, resolution: '1080p' }
-      : { modelKey: 'gpt-image-2', modelVendor: 'apimart', aspect_ratio: '1:1', resolution: '2K' },
-  )
-  const option = options[0] ?? null
-  const controls = React.useMemo(
-    () => resolveRenderedControls(option, meta, media === 'image', media === 'video'),
-    [option, meta, media],
-  )
-  return (
-    <div className="flex items-center gap-1.5 rounded-nomi-sm bg-nomi-paper py-0.5 pl-2 pr-1 shadow-nomi-sm" data-batch-group={media}>
-      <span className="shrink-0 text-caption font-medium text-nomi-ink-80">
-        {media === 'video' ? t.video : t.image} ×{count}
-      </span>
-      <InlineParameterBar
-        modelOptions={options}
-        modelCatalogStatus={{ message: '' }}
-        renderedControls={controls}
-        selectedModelOption={option}
-        archetype={resolveArchetypeForOption(option)}
-        meta={meta}
-        summaryWidth={{ hug: 260 }}
-        onModelChange={() => undefined}
-        onCatalogControlChange={(control, value) => setMeta((prev) => ({ ...prev, [control.key]: value }))}
-        onParameterControlChange={(control, value) => setMeta((prev) => ({ ...prev, [control.key]: value }))}
-      />
-    </div>
-  )
-}
-
-export function BatchBar({
-  selected,
-  locale,
-  onClear,
-  onGenerate,
-}: {
-  selected: ListCard[]
-  locale: ListViewLocale
-  onClear: () => void
-  onGenerate: () => void
-}): JSX.Element | null {
-  const t = listCopy[locale]
-  if (!selected.length) return null
-  const counts = (['video', 'image'] as const)
-    .map((media) => ({ media, count: selected.filter((card) => card.kind !== 'director' && card.media === media).length }))
-    .filter((entry) => entry.count > 0)
-  return (
-    <div className="flex items-center gap-2 border-b border-nomi-line bg-nomi-ink-05 px-4 py-2" data-batch-bar="true">
-      <WorkbenchIconButton icon={<IconX size={15} stroke={1.7} />} label={t.clearSelection} size="sm" onClick={onClear} />
-      <span className="shrink-0 text-caption font-medium text-nomi-ink">
-        {locale === 'en' ? `${selected.length} ${t.selectedCount}` : `${t.selectedCount} ${selected.length}`}
-      </span>
-      <div className="flex min-w-0 items-center gap-2">
-        {counts.map((entry) => (
-          <BatchGroup key={entry.media} media={entry.media} count={entry.count} locale={locale} />
-        ))}
-      </div>
-      <WorkbenchButton size="sm" variant="primary" className="ml-auto" onClick={onGenerate}>
-        <IconSparkles size={14} /> {t.generateSelected}
-      </WorkbenchButton>
     </div>
   )
 }
