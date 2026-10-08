@@ -4,7 +4,6 @@ import { IN_APP_AGENT_ORIGIN_HOST } from '../productionRun/productionPendingSpen
 import { getProductionRunService, subscribeProductionRunChanges } from '../productionRun/productionRunRuntime'
 import { watchSpendCardClose } from './laneSpendCardClose'
 import { readPendingSpend, subscribeResidentSurfaceLifecycle } from '../capabilityCore/residentSurfaceLifecycle'
-import { subscribePolicySpendDecisions } from '../capabilityCore/policySpendDecision'
 
 // 「这个项目有一笔钱在等用户点头」进对话投影（2026-10-05 · 付费卡并进对话投影，B）。
 //
@@ -50,7 +49,6 @@ export function createDesktopLaneSpend(projectId: string, refresh: () => void) {
     && (run.origin.host === IN_APP_AGENT_ORIGIN_HOST || shown().has(run.runId))
   const unsubscribers = [
     subscribeProductionRunChanges((run) => { if (relevant(run)) invalidate() }),
-    subscribePolicySpendDecisions((changedProjectId) => { if (changedProjectId === projectId) invalidate() }),
     subscribeResidentSurfaceLifecycle(invalidate),
   ]
   const whenCardCloses = (operationId: string) => watchSpendCardClose({

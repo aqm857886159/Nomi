@@ -23,6 +23,9 @@ function operationFromRun(run: ReturnType<ProductionRunService["readFull"]>): Ge
     state: plan.state,
     ...(draftCardHidden(plan) ? { cardHidden: true } : {}),
     ...(outcome ? { presentationOutcome: outcome } : {}),
+    ...(plan.presentations?.at(-1)?.presentationId ? { presentationId: plan.presentations.at(-1)!.presentationId } : {}),
+    ...(plan.presentations?.at(-1)?.presentationEpoch !== undefined ? { presentationEpoch: plan.presentations.at(-1)!.presentationEpoch } : {}),
+    ...(plan.presentations?.at(-1)?.policySnapshot ? { policySnapshot: structuredClone(plan.presentations.at(-1)!.policySnapshot) } : {}),
     submissionStarted: anySubmissionMayHaveReachedProvider(run.jobs),
     ...(plan.contract ? { contract: structuredClone(plan.contract) } : {}),
     ...(latest ? { authorization: { gateId: latest.gateId, digest: latest.authorizationDigest,
@@ -109,6 +112,7 @@ export function createProductionGenerationOperationStore(
         candidate: input.candidate,
         ...(input.shots && input.shots.length > 0 ? { shots: input.shots } : {}),
         ...(input.cardHidden === true ? { cardHidden: true } : {}),
+        ...(input.policySnapshot ? { policySnapshot: input.policySnapshot } : {}),
       });
       const operation = operationFromRun(run);
       if (!operation) throw new Error("Production Run did not persist a generation plan");
@@ -178,7 +182,7 @@ export function createProductionGenerationOperationStore(
       notifyPlanChanged(operation.projectId, operation.operationId);
       return operation;
     },
-    async present(projectId, operationId, now, shotIds, target) {
+    async present(projectId, operationId, now, shotIds, target, policySnapshot) {
       read(projectId, operationId);
       const run = owner.readFull(projectId, operationId);
       assertTarget(run, target);
@@ -187,7 +191,7 @@ export function createProductionGenerationOperationStore(
         commandId: `generation.present:${operationId}:${revision}`,
         expectedRevision: revision,
         type: "generation.present",
-        payload: { ...(shotIds === undefined ? {} : { shotIds }) },
+        payload: { ...(shotIds === undefined ? {} : { shotIds }), ...(policySnapshot ? { policySnapshot } : {}) },
         issuedAt: now,
       });
       const operation = operationFromRun(result.run);

@@ -54,7 +54,8 @@ import { spendActionFailureCopy, type SpendActionOutcome } from './spendCardFail
  * `unreadable` 不在这里：它是一张会说话的卡（见 `slot`），不是「没有」。
  */
 export function pendingSpendOfRead(read: PendingSpendRead | undefined): PendingSpendConfirm | undefined {
-  return read?.surface === 'ready' ? read.rows[0] : undefined
+  if (read?.surface === 'ready') return read.rows[0]
+  return read?.surface === 'unreadable' ? read.card : undefined
 }
 
 export type AgentPanelSpendConfirm = Readonly<{
@@ -107,6 +108,7 @@ type BatchControl = Readonly<{ shouldStop: () => boolean; onQuote: (quoteId: str
 export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): AgentPanelSpendConfirm {
   const { t, i18n } = useTranslation()
   const pending = pendingSpendOfRead(read)
+  const cardIdentity = (card: PendingSpendConfirm) => ({ presentationId: card.presentationId, presentationEpoch: card.presentationEpoch, planVersion: card.planVersion })
   const [draft, setDraft] = React.useState<SpendDraft>(EMPTY_SPEND_DRAFT)
   const draftOwner = React.useRef<string | undefined>(undefined)
   const [page, setPage] = React.useState(0)
@@ -423,7 +425,7 @@ export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): A
       const saved = await persistShown(target, [currentShot])
       if (!('approved' in saved)) return saved
       const { approved } = saved
-      const confirmed = await productionRunApi.confirmSpend(approved.projectId, approved.operationId, approved.quoteId, currentShot.shotId)
+      const confirmed = await productionRunApi.confirmSpend(approved.projectId, approved.operationId, approved.quoteId, currentShot.shotId, cardIdentity(approved))
       if (confirmed.ok) {
         const remaining = consumeSpendDraft(approved, saved.remaining, [currentShot.shotId])
         if (draftOwner.current === spendDraftKey(approved)) setDraft(remaining)
@@ -450,7 +452,7 @@ export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): A
       }
       // 还没交给宿主就停了：一张都没批，收回出价（带渲染层知道的最新一版报价）。
       const stopBeforeDispatch = async (projectId: string): Promise<SpendActionOutcome> => {
-        const withdrawn = await productionRunApi.discardSpend(projectId, run.operationId, run.quoteId)
+        const withdrawn = await productionRunApi.discardSpend(projectId, run.operationId, run.quoteId, cardIdentity(target))
         // 收回不成（卡已经被别处关了）也照实说：这一叠一张都没发。
         if (withdrawn.ok || withdrawn.message === 'no pending generation to discard') {
           sayStopped(0, run.total)
@@ -467,7 +469,7 @@ export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): A
         if (run.stopRequested) return await stopBeforeDispatch(approved.projectId)
         run.handedOver = true
         const shotIds = approved.shots.map((entry) => entry.shotId)
-        const confirmed = await productionRunApi.confirmSpendRemaining(approved.projectId, approved.operationId, approved.quoteId, shotIds)
+        const confirmed = await productionRunApi.confirmSpendRemaining(approved.projectId, approved.operationId, approved.quoteId, shotIds, cardIdentity(approved))
         if (confirmed.ok) {
           const remaining = consumeSpendDraft(approved, saved.remaining, shotIds)
           if (draftOwner.current === spendDraftKey(approved)) setDraft(remaining)
@@ -483,7 +485,7 @@ export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): A
         else if (!confirmed.ok && run.stopRequested) {
           // 卡上此刻那一份（推过来的最新一版）。报价晚一版也照样认：宿主认这一次出价里被卡上动作换掉过的每一版。
           const latest = pendingRef.current
-          if (latest && latest.operationId === run.operationId) await productionRunApi.discardSpend(latest.projectId, latest.operationId, latest.quoteId)
+          if (latest && latest.operationId === run.operationId) await productionRunApi.discardSpend(latest.projectId, latest.operationId, latest.quoteId, cardIdentity(latest))
         }
         return confirmed
       } finally {
@@ -498,7 +500,7 @@ export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): A
     remove: () => act(async (target) => {
       const currentShot = target.shots[index]
       if (!currentShot) return { ok: false, message: 'generation_scope_invalid' }
-      const removed = await productionRunApi.removeSpendShot(target.projectId, target.operationId, target.quoteId, currentShot.shotId)
+      const removed = await productionRunApi.removeSpendShot(target.projectId, target.operationId, target.quoteId, currentShot.shotId, cardIdentity(target))
       if (removed.ok) {
         const remaining = consumeSpendDraft(target, draft, [currentShot.shotId])
         if (draftOwner.current === spendDraftKey(target)) setDraft(remaining)

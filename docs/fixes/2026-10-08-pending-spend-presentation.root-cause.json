@@ -1,0 +1,232 @@
+{
+  "schema_version": 3,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-08",
+  "id": "2026-10-08-pending-spend-presentation",
+  "problem_type": "Durable identity lost when a pending spend card is re-read",
+  "symptom": "Switching approval mode or restarting could make an existing paid card disappear, while delayed actions could target a newer quote.",
+  "direct_cause": "The read model reinterpreted draft state through a process-local approval-policy bus instead of reading the presentation that created the card; card actions also lacked a presentation epoch guard.",
+  "class_root": "A pending spend decision must remain bound to the exact generation presentation and policy snapshot that produced it.",
+  "affected_population": [
+    "Users with an unresolved paid generation card",
+    "Approval-mode switches during an active run",
+    "Renderer restarts and delayed card actions"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionPendingSpend.ts",
+    "electron/shared/productionGenerationPresentation.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/productionRun/productionGenerationOperationStore.ts",
+    "electron/productionRun/productionGenerationPresentationEdits.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/productionRun/stalePresentationSweep.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+  ],
+  "entry_points": [
+    "Agent-panel pending-spend projection",
+    "Desktop spend-card confirm, revise, discard, remaining, and remove actions"
+  ],
+  "internal_only_reason": "The presentation identity and policy snapshot are Nomi's internal production-run contract; no external standard defines their lifecycle.",
+  "invariants": [
+    "Every visible pending spend card has a stable presentationId and monotonic presentationEpoch.",
+    "A card action is accepted only when quoteId, planVersion, presentationId, and presentationEpoch still match the current card.",
+    "A policy switch never rewrites an existing presentation's pending decision.",
+    "A project-policy pending decision has an owner deadline; after expiry or a failed marker it is projected as a manual-decision card.",
+    "Startup stale cleanup never withdraws a project-policy pending presentation before the user can resolve it."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionPendingSpend.ts",
+    "tests": [
+      "electron/productionRun/productionPendingSpend.test.ts",
+      "electron/shared/productionGenerationPresentation.test.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+    ],
+    "why": "The production presentation edit boundary assigns identity and policy snapshots; the pending-spend projection/action boundary is the only place that can reject stale card identities. These tests exercise legacy normalization, projection, and renderer retention at those owners."
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "presentGenerationPlan"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "assertCardIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "symbol": "cardIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationOperationStore.ts",
+      "symbol": "operationFromRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "presentGenerationPlan"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunTypes.ts",
+      "symbol": "GenerationPresentation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "normalizeLegacyPresentation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionGenerationPresentation.ts",
+      "symbol": "GenerationPresentation"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "cardIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "plan"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "createGenerationPlanningHandler"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "createGenerationDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/stalePresentationSweep.ts",
+      "symbol": "withdrawStalePresentations"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "symbol": "PROJECT_AGENT_PREPARING_DEADLINE_MS"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 15,
+    "why_not": "Presentation creation, repository migration, operation projection, IPC identity forwarding, pending-card projection, startup cleanup, and action validation are separate ownership boundaries. Each must remain explicit so policy cannot re-enter the repository or bypass the shared stale-card guard."
+  },
+  "generality_proof": "All desktop card reads pass through projectPendingSpendConfirm/listPendingSpendConfirms and all mutating card actions pass through appIntegrationSpendConfirm's identity guard, so mode switches, restart reads, and delayed IPC calls share the same durable contract.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "presentGenerationPlan",
+      "responsibility": "Assign a new durable presentation identity, epoch, and policy snapshot whenever the displayed plan changes."
+    },
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "assertPendingSpendIdentity",
+      "responsibility": "Fail closed when an action references a stale quote or presentation."
+    },
+    {
+      "path": "electron/productionRun/stalePresentationSweep.ts",
+      "symbol": "withdrawStalePresentations",
+      "responsibility": "Leave project-policy pending presentations available for read-side deadline recovery instead of withdrawing them during startup cleanup."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionActionIpc.ts",
+      "entry_point": "pending spend IPC channels",
+      "disposition": "enforced",
+      "evidence": "Every channel forwards presentationId and presentationEpoch to the shared application integration guard."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "generation create/present",
+      "disposition": "enforced",
+      "evidence": "Planning and presentation commands persist the approval-policy snapshot with the generation presentation."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future caller that derives card visibility from live policy or omits the presentation epoch can reproduce disappearance or stale-action behavior.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs presentGenerationPlan",
+      "node scripts/door-map.mjs settlePresentation",
+      "rg -n policySpendDecision electron src",
+      "electron/productionRun/productionPendingSpend.test.ts",
+      "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionPendingSpend.ts",
+    "invariant": "Projection and action validation use the persisted presentation identity rather than live approval policy.",
+    "failure_mode": "Projection errors become visible identity-preserving error cards; stale actions return generation_presentation_stale without mutating the run.",
+    "exception_policy": "none",
+    "strategy": "Persist identity at presentation creation and require it at every action boundary.",
+    "artifacts": [
+      "electron/shared/productionGenerationPresentation.ts",
+      "electron/productionRun/productionPendingSpend.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/productionRun/productionActionIpc.ts",
+      "electron/productionRun/productionGenerationOperationStore.ts",
+      "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "electron/productionRun/productionRunReducer.ts",
+      "electron/productionRun/productionRunRepository.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/productionRunTypes.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionPendingSpend.test.ts",
+    "electron/shared/productionGenerationPresentation.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "electron/agentLane/laneDesktopSpend.test.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionPendingSpend.test.ts",
+    "electron/shared/productionGenerationPresentation.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "electron/agentLane/laneDesktopSpend.test.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/policySpendDecision.ts"
+    ],
+    "rationale": "The process-local policy decision bus was the competing interpretation path and is deleted; policy is now captured in the durable generation presentation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Legacy runs are normalized on read with deterministic presentation IDs, epochs, and project-policy deadlines derived from openedAt; new runs persist the snapshot and owner-anchored deadline at creation and presentation time.",
+  "residual_risks": [
+    "A real Electron restart walk still needs final green evidence after the renderer card error state is exercised.",
+    "Independent acceptance by the L walk line remains pending until its receipt is available."
+  ]
+}

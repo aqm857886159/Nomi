@@ -351,6 +351,16 @@
         "symbol": "restoreSnapshot"
       },
       "reason": "2026-10-07 画布写边界统一：装载（restoreSnapshot，唯一置 isReady=true 的写口）随所有整写搬进统一提交口 store/canvasDocumentCommit.ts，仍是 store 的同名动作、仍是唯一写口（canvasReadyOwner.test.ts 守）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-18-full-auto-spend-card-and-static-receipt.root-cause.json",
+      "path": "electron/capabilityCore/policySpendDecision.ts",
+      "symbol": "beginPolicySpendDecision",
+      "anchor": {
+        "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+        "symbol": "presentGenerationPlan / markGenerationPolicyDecisionFailed"
+      },
+      "reason": "PR 1093 removed the process-local policySpendDecision map. ProductionRun now persists policySnapshot, policyDecisionState and policyDecisionDeadlineAt on the presentation; presentGenerationPlan starts that lifetime and markGenerationPolicyDecisionFailed records failure. productionPendingSpend reads the persisted state and expiry so restart or a failed marker write cannot permanently hide a paid card."
     }
   ],
   "retirements": [
