@@ -11,6 +11,7 @@ import {
 } from "../ai/requestPipeline";
 import { describeIllegalHeader, findIllegalHeader, isJsonRecord, pickUpstreamCode, pickUpstreamMessage } from "../jsonUtils";
 import { fetchVendorWithBaseFallback } from "./vendorBaseFallback";
+import { appFetch } from "../appFetch";
 import type { Vendor } from "../catalog/types";
 import { vendorAuthSpec } from "../catalog/vendorAuthSpec";
 import { isRedirectRefusal, networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
@@ -22,6 +23,7 @@ import { providerDispatcher } from "../providerNetwork";
 import { createFreshConnectionDispatcher } from "../systemProxy";
 import type { Dispatcher } from "undici";
 import { authorizeSubmitDestination } from "./vendorOutboundGuard";
+import { outboundRequestWasNeverWritten } from "../outboundDispatchEvidence";
 
 export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
 
@@ -77,6 +79,7 @@ export type VendorErrorStructured = {
 
 export class VendorRequestError extends Error {
   readonly structured: VendorErrorStructured;
+  declare readonly cause?: unknown;
   /** 只在**收到了响应**时才有：「提交有没有被受理」由 `outboundDispatchEvidence.providerExplicitlyRejected` 读它判。 */
   readonly providerAnswer?: ProviderAnswer;
   constructor(message: string, structured: VendorErrorStructured, providerAnswer?: ProviderAnswer, options?: { cause?: unknown }) {
@@ -149,6 +152,13 @@ async function requestVendor(
   signal?: AbortSignal,
   maxResponseBytes = DEFAULT_VENDOR_RESPONSE_MAX_BYTES,
   responseKind: "json" | "binary" = "json",
+  options: {
+    fetchImpl?: typeof fetch;
+    retryOnNotWritten?: boolean;
+    idempotencyKey?: string;
+    idempotencyHeader?: string;
+    logicalSuccessCodes?: readonly (number | string)[];
+  } = {},
 ): Promise<unknown | BinaryVendorResponse> {
   const requestAuthQuery = vendorAuthQueryParams(vendor, apiKey);
   const finalUrl = appendQueryParams(url, { ...requestAuthQuery, ...query });
@@ -193,6 +203,14 @@ async function requestVendor(
   else signal?.addEventListener("abort", relayAbort, { once: true });
   const timer = setTimeout(() => controller.abort(new DOMException("Provider response timeout", "TimeoutError")), timeoutMs);
   const dispatcher = providerDispatcher(vendor);
+  const fetchImpl = options.fetchImpl ?? appFetch;
+  const fetchRequest = options.fetchImpl
+    ? (target: string, init: RequestInit) => fetchImpl(target, init)
+    : (target: string, init: RequestInit) => fetchVendorWithBaseFallback(target, init);
+  const requestHeaders = { ...headers };
+  if (options.retryOnNotWritten && options.idempotencyKey) {
+    requestHeaders[options.idempotencyHeader?.trim() || "Idempotency-Key"] = options.idempotencyKey;
+  }
   // ── 出站策略：提交侧与取回侧问**同一个** owner、读同一份进程内环境事实 ────────────────
   // 判据跑在这里而不是更下面，是因为「不扣费」这条承诺就是靠位置成立的：refusal 抛在
   // fetchVendorWithBaseFallback 之前，请求一个字节都没离开本机，供应商不可能计费
@@ -234,59 +252,71 @@ async function requestVendor(
   // 付费提交（非 GET/HEAD）每次用**全新连接**，不与任何别的请求共用连接池：共享池里的空闲 keep-alive 连接
   // 可能已被对面关掉，那时抛出的 UND_ERR_SOCKET 和「请求写出去后连接被重置」一模一样，分不清哪个才是「没发出去」。
   // 显式供应商代理（`dispatcher`）本来就是每请求新建的，不重复造。判据与由来见 outboundDispatchEvidence.ts。
-  let freshDispatcher: Dispatcher | undefined;
-  const closeFreshDispatcher = () => {
-    if (freshDispatcher) void freshDispatcher.close().catch(() => undefined);
-  };
   let response: Response;
-  try {
-    if (!dispatcher && upperMethod !== "GET" && upperMethod !== "HEAD") {
-      freshDispatcher = await createFreshConnectionDispatcher(controller.signal, finalUrl);
-    }
-    // 经 vendorBaseFallback：主域被墙（连接从未建立）→ 零额度探测官方备用域 → 换线重发一次。
-    // 仅连接层安全码触发重发，「重试绝不包住付费提交」铁律不破（见 vendorBaseFallback 文件头）。
-    response = await fetchVendorWithBaseFallback(finalUrl, {
-      method: upperMethod,
-      headers,
-      signal: controller.signal,
-      ...(dispatcher ?? freshDispatcher ? { dispatcher: dispatcher ?? freshDispatcher } : {}),
-      ...(hasBody ? { body: bodyInit } : {}),
-    });
-  } catch (error: unknown) {
-    clearTimeout(timer);
-    signal?.removeEventListener("abort", relayAbort);
-    if (dispatcher) void dispatcher.close().catch(() => undefined);
-    closeFreshDispatcher();
-    const cancellation = callerCancellation(signal);
-    if (cancellation) throw cancellation;
-    // abort = 我们的超时，给一条说人话的 timeout 错误（仍归 network 类、可重试），而不是裸 "aborted"。
-    const aborted = (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError"))
-      || (error instanceof BoundedResponseError && error.code === "response_timeout");
-    // 带密钥的请求被跳转：appFetch 按「凭据请求不跟随跳转」拒了。不是网络问题，重试只会再撞同一个跳转。
-    if (isRedirectRefusal(error)) {
-      const upstreamMsg = tagNomiError("credential-redirect", "provider endpoint redirected; request stopped to protect the key");
-      throw new VendorRequestError(`Provider request refused redirect at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
+  let freshDispatcher: Dispatcher | undefined;
+  let attempt = 0;
+  while (true) {
+    try {
+      if (!dispatcher && upperMethod !== "GET" && upperMethod !== "HEAD") {
+        freshDispatcher = await createFreshConnectionDispatcher(controller.signal, finalUrl);
+      }
+      // 经 vendorBaseFallback：主域被墙（连接从未建立）→ 零额度探测官方备用域 → 换线重发一次。
+      // 仅连接层安全码触发重发；统一出口额外允许的预写重发也最多一轮。
+      response = await fetchRequest(finalUrl, {
+        method: upperMethod,
+        headers: requestHeaders,
+        signal: controller.signal,
+        ...(dispatcher ?? freshDispatcher ? { dispatcher: dispatcher ?? freshDispatcher } : {}),
+        ...(hasBody ? { body: bodyInit } : {}),
+      });
+      break;
+    } catch (error: unknown) {
+      if (freshDispatcher) void freshDispatcher.close().catch(() => undefined);
+      freshDispatcher = undefined;
+      const cancellation = callerCancellation(signal);
+      if (cancellation) {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", relayAbort);
+        if (dispatcher) void dispatcher.close().catch(() => undefined);
+        throw cancellation;
+      }
+      if (options.retryOnNotWritten && attempt === 0 && upperMethod !== "GET" && upperMethod !== "HEAD"
+        && outboundRequestWasNeverWritten(error)) {
+        attempt += 1;
+        continue;
+      }
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", relayAbort);
+      if (dispatcher) void dispatcher.close().catch(() => undefined);
+      // abort = 我们的超时，给一条说人话的 timeout 错误（仍归 network 类、可重试），而不是裸 "aborted"。
+      const aborted = (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError"))
+        || (error instanceof BoundedResponseError && error.code === "response_timeout");
+      // 带密钥的请求被跳转：appFetch 按「凭据请求不跟随跳转」拒了。不是网络问题，重试只会再撞同一个跳转。
+      if (isRedirectRefusal(error)) {
+        const upstreamMsg = tagNomiError("credential-redirect", "provider endpoint redirected; request stopped to protect the key");
+        throw new VendorRequestError(`Provider request refused redirect at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
+          vendorKey: vendor.key,
+          method: upperMethod,
+          url: diagnosticUrl,
+          upstreamMsg,
+          category: "network",
+          retryable: false,
+        });
+      }
+      const upstreamMsg = aborted
+        ? `请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`
+        : networkMessage(error);
+      throw new VendorRequestError(`Provider request failed (network) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
         vendorKey: vendor.key,
         method: upperMethod,
         url: diagnosticUrl,
         upstreamMsg,
         category: "network",
-        retryable: false,
-      });
+        retryable: true,
+      },
+        // 出站证据（建连前失败 / 写出后失败）只存在于 cause 链里；丢了它，`outboundRequestWasNeverWritten` 永远答「不知道」。
+        undefined, { cause: error });
     }
-    const upstreamMsg = aborted
-      ? `请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`
-      : networkMessage(error);
-    throw new VendorRequestError(`Provider request failed (network) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
-      vendorKey: vendor.key,
-      method: upperMethod,
-      url: diagnosticUrl,
-      upstreamMsg,
-      category: "network",
-      retryable: true,
-    },
-      // 出站证据（建连前失败 / 写出后失败）只存在于 cause 链里；丢了它，`outboundRequestWasNeverWritten` 永远答「不知道」。
-      undefined, { cause: error });
   }
   // 超时同样覆盖响应体读取（vendor 可能接了连接却 hang 在 body 上）；读完才清 timer。
   let bytes: Buffer;
@@ -335,7 +365,7 @@ async function requestVendor(
     signal?.removeEventListener("abort", relayAbort);
     // per-connection dispatcher 的连接池只属于本次请求；body 已缓冲读完，可安全退休。
     if (dispatcher) void dispatcher.close().catch(() => undefined);
-    closeFreshDispatcher();
+    if (freshDispatcher) void freshDispatcher.close().catch(() => undefined);
   }
   const contentType = String(response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
   const looksJson = contentType === "application/json"
@@ -356,7 +386,10 @@ async function requestVendor(
   // a logical-error envelope `{ code: 4xx/5xx, msg/message: "..." }` instead of
   // a real error status. Treat that as a failure too, otherwise we'd hand a
   // body with no asset URL to the result builder and report a silent dud.
-  const logicalCode = looksLikeLogicalError(record);
+  // A success-code vocabulary is an explicit provider/mapping declaration. With
+  // no declaration, retain main's historical envelope semantics for user-owned
+  // catalog calls, runtime profiles, and polling.
+  const logicalCode = looksLikeLogicalError(record, options.logicalSuccessCodes);
   if (!response.ok || logicalCode != null) {
     // 键优先级表住 jsonUtils.pickUpstreamMessage（全仓唯一，onboarding 拉模型/测连接同读一份）。
     const rawUpstream = pickUpstreamMessage(record, redactRequestMessage);
@@ -391,12 +424,19 @@ export async function requestJson(
   query: Record<string, unknown>,
   body: unknown,
   signal?: AbortSignal,
-  options: { maxResponseBytes?: number } = {},
+  options: {
+    maxResponseBytes?: number;
+    fetchImpl?: typeof fetch;
+    retryOnNotWritten?: boolean;
+    idempotencyKey?: string;
+    idempotencyHeader?: string;
+    logicalSuccessCodes?: readonly (number | string)[];
+  } = {},
 ): Promise<unknown> {
   const upperMethod = method.toUpperCase();
   const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
   const bodyInit = hasBody ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined;
-  return requestVendor(vendor, apiKey, upperMethod, url, headers, query, bodyInit, signal, options.maxResponseBytes, "json");
+  return requestVendor(vendor, apiKey, upperMethod, url, headers, query, bodyInit, signal, options.maxResponseBytes, "json", options);
 }
 
 /** Byte-in-body submission for synchronous media endpoints, with the same error, redaction and timeout contract as JSON. */
@@ -409,7 +449,14 @@ export async function requestBinary(
   query: Record<string, unknown>,
   body: unknown,
   signal?: AbortSignal,
-  options: { maxResponseBytes?: number } = {},
+  options: {
+    maxResponseBytes?: number;
+    fetchImpl?: typeof fetch;
+    retryOnNotWritten?: boolean;
+    idempotencyKey?: string;
+    idempotencyHeader?: string;
+    logicalSuccessCodes?: readonly (number | string)[];
+  } = {},
 ): Promise<BinaryVendorResponse> {
   const upperMethod = method.toUpperCase();
   const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
@@ -425,6 +472,7 @@ export async function requestBinary(
     signal,
     options.maxResponseBytes,
     "binary",
+    options,
   ) as Promise<BinaryVendorResponse>;
 }
 
@@ -441,10 +489,17 @@ export async function requestMultipart(
   query: Record<string, unknown>,
   form: FormData,
   signal?: AbortSignal,
-  options: { maxResponseBytes?: number } = {},
+  options: {
+    maxResponseBytes?: number;
+    fetchImpl?: typeof fetch;
+    retryOnNotWritten?: boolean;
+    idempotencyKey?: string;
+    idempotencyHeader?: string;
+    logicalSuccessCodes?: readonly (number | string)[];
+  } = {},
 ): Promise<unknown> {
   const cleanHeaders = Object.fromEntries(
     Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type"),
   );
-  return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes, "json");
+  return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes, "json", options);
 }

@@ -6,35 +6,24 @@
  * 零花费走查里同一条就表现为「有请求打到真实服务商」。0.22.5 只修了生成那一条，没有收口。
  *
  * 判据只有两层：
- *  1. 走查/E2E 夹具口（NOMI_E2E_PRODUCTION_FIXTURE=1 + 回环地址，只对夹具点名的那一家）；
+ *  1. 走查/E2E 夹具口（production E2E fixture gate + 回环地址，只对夹具点名的那一家）；
  *  2. 用户保存在这条连接上的 baseUrlHint。
  * 端点（上传、健康探测……）一律由它推出来，不许再各拼各的域名。
  * 域名重试（vendorBaseFallback）照旧在发请求那一层按 origin 改写，和这里无关。
  */
 import type { AssetIngestion } from "./types";
+import { productionFixtureBaseOriginFromEnv } from "../shared/productionRunE2eFixtureGate";
 
 /** 夹具只认一家：`NOMI_E2E_FIXTURE_VENDOR`（缺省 apimart）。与 generationProviderBootstrap 同一口子。 */
 function fixtureVendorKey(): string {
   return String(process.env.NOMI_E2E_FIXTURE_VENDOR || "apimart").trim() || "apimart";
 }
 
-function fixtureBaseOrigin(vendorKey: string | undefined): string | undefined {
-  if (process.env.NOMI_E2E_PRODUCTION_FIXTURE !== "1" || !vendorKey || vendorKey !== fixtureVendorKey()) return undefined;
-  const raw = String(process.env.NOMI_E2E_FIXTURE_BASE_URL || "").trim();
-  if (!raw) return undefined;
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost" && url.hostname !== "::1") return undefined;
-    return url.origin;
-  } catch {
-    return undefined;
-  }
-}
-
 /** 用户这条连接的 base（无尾斜杠）；没填 = 空串。 */
 export function userVendorBaseUrl(vendor: { key?: string; baseUrlHint?: string | null } | null | undefined): string {
-  const fixture = fixtureBaseOrigin(vendor?.key);
+  const fixture = vendor?.key && vendor.key === fixtureVendorKey()
+    ? productionFixtureBaseOriginFromEnv(process.env)
+    : undefined;
   if (fixture) return fixture;
   return String(vendor?.baseUrlHint ?? "").trim().replace(/\/+$/, "");
 }

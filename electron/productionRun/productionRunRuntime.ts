@@ -1,4 +1,3 @@
-import { app } from 'electron'
 
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
@@ -40,7 +39,7 @@ export function getProductionRunService(): ProductionRunService {
       approvalReceiptAuthority: getApprovalReceiptAuthority(),
       projectRevisionResolver: currentProjectRevision,
     }
-    const fixtureEnabled = isProductionRunE2eFixtureEnabled(process.env, Boolean(app?.isPackaged))
+    const fixtureEnabled = isProductionRunE2eFixtureEnabled(process.env)
     if (fixtureEnabled) {
       const projectRootResolver = (projectId: string) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())
       registerProductionRunService(createProductionRunService({

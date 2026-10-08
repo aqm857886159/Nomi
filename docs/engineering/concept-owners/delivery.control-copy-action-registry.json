@@ -1,0 +1,67 @@
+{
+  "name": "控制文案动作词登记",
+  "subject": "delivery.control-copy-action-registry",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/control-contract-copy.mjs",
+    "symbol": "scanControlCopy"
+  },
+  "write_api": [
+    {
+      "path": "scripts/control-contract-copy.mjs",
+      "symbol": "scanControlCopy"
+    },
+    {
+      "path": "docs/GLOSSARY.md",
+      "symbol": "**知道了**"
+    },
+    {
+      "path": "tests/ux/design-lab-agent-panel-v4.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-catalog-liveness.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-node-composer-bar.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-primitives-actions.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-primitives-forms.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-primitives-surfaces.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-primitives-menu.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-settings-sound.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-settings.walk.mjs",
+      "symbol": "assertState"
+    },
+    {
+      "path": "tests/ux/design-lab-vendor-order.walk.mjs",
+      "symbol": "assertState"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-07",
+  "notes": "控制文案门禁、动作词表和真实旅程几何断言共用这一条登记契约。"
+}
