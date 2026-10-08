@@ -101,4 +101,20 @@ describe("catalog read cache", () => {
 
     expect(store.readCatalog().vendors[0]?.hasApiKey).toBe(true);
   });
+
+  it("projects persisted pending material as a saved key even while disabled", async () => {
+    const store = await seededStore();
+    const onDisk = JSON.parse(fs.readFileSync(catalogFile(), "utf8"));
+    onDisk.vendors[0].enabled = false;
+    onDisk.apiKeysByVendor.acme.enabled = false;
+    onDisk.apiKeysByVendor.acme.verificationPending = true;
+    fs.writeFileSync(catalogFile(), JSON.stringify(onDisk), "utf8");
+
+    expect(store.readCatalog().vendors[0]).toMatchObject({
+      enabled: false,
+      hasApiKey: false,
+      credentialMaterialSaved: true,
+      credentialVerificationPending: true,
+    });
+  });
 });

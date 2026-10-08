@@ -51,6 +51,7 @@ export type ModelCatalogVendorDto = {
   name: string
   enabled: boolean
   hasApiKey?: boolean
+  credentialMaterialSaved?: boolean
   credentialVerificationPending?: boolean
   baseUrlHint?: string | null
   authType?: ModelCatalogVendorAuthType
