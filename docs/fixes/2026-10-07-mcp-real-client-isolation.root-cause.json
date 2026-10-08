@@ -24,8 +24,8 @@
     "layer": "electron/capabilityCore/mcpConfig.ts",
     "tests": ["tests/system/mcp-real-client.node-test.mjs"]
   },
-  "detected_by": "user",
-  "recurrence_check_on": "2026-10-07",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-07",
   "invariants": [
     "Every Codex MCP env contains NOMI_MCP_STDIO=1 and all four isolated directory variables.",
     "The settings directory is a child of the system temp directory and the other three directories are its fixed children.",
