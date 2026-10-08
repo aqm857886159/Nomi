@@ -14,6 +14,10 @@ import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessio
 import i18n from '../../../i18n'
 
 const disk = vi.hoisted(() => new Map<string, unknown>())
+const applyCanvasNodePatch = vi.hoisted(() => vi.fn())
+vi.mock('../../../desktop/bridge', () => ({
+  getDesktopBridge: () => ({ projects: { applyCanvasNodePatch } }),
+}))
 vi.mock('../../library/localProjectStore', () => ({
   readLocalProjectAsync: vi.fn(async (projectId: string) => structuredClone(disk.get(projectId) ?? null)),
   saveLocalProject: vi.fn(async (projectId: string, payload: unknown, name?: string) => {
@@ -48,6 +52,18 @@ const succeeded = (url: string): FetchWorkbenchTaskResultResponseDto => ({
 let session: ProjectSessionTestHarness
 beforeEach(async () => {
   disk.clear()
+  applyCanvasNodePatch.mockReset().mockImplementation(async ({ projectId, nodeId, patch }: {
+    projectId: string
+    nodeId: string
+    patch: Record<string, unknown>
+  }) => {
+    const record = disk.get(projectId) as WorkbenchProjectRecordV1 | undefined
+    if (!record) return { applied: false }
+    const canvas = record.payload.generationCanvas
+    const nodes = canvas.nodes.map((node) => node.id === nodeId ? { ...node, ...patch } : node)
+    disk.set(projectId, structuredClone({ ...record, payload: { ...record.payload, generationCanvas: { ...canvas, nodes } } }))
+    return { applied: true }
+  })
   vi.mocked(fetchWorkbenchTaskResultByVendor).mockReset()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   __resetCanvasUndoJournalForTests()

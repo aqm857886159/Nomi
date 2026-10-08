@@ -16,6 +16,10 @@ import type { GenerationNodeExecutor } from './generationNodeExecutor'
 import { createDefaultWorkbenchProjectPayload, type WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 
 const calls = vi.hoisted(() => ({ execute: vi.fn(), disk: new Map<string, WorkbenchProjectRecordV1>(), confirm: vi.fn(), mint: vi.fn(), consent: vi.fn() }))
+const applyCanvasNodePatch = vi.hoisted(() => vi.fn())
+vi.mock('../../../desktop/bridge', () => ({
+  getDesktopBridge: () => ({ projects: { applyCanvasNodePatch } }),
+}))
 vi.mock('../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
   saveLocalProject: async (id: string, payload: WorkbenchProjectRecordV1['payload'], name: string) => {
@@ -31,6 +35,18 @@ vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof im
 let session: ProjectSessionTestHarness
 beforeEach(() => {
   calls.disk.clear()
+  applyCanvasNodePatch.mockReset().mockImplementation(async ({ projectId, nodeId, patch }: {
+    projectId: string
+    nodeId: string
+    patch: Record<string, unknown>
+  }) => {
+    const record = calls.disk.get(projectId)
+    if (!record) return { applied: false }
+    const canvas = record.payload.generationCanvas
+    const nodes = canvas.nodes.map((node) => node.id === nodeId ? { ...node, ...patch } : node)
+    calls.disk.set(projectId, structuredClone({ ...record, payload: { ...record.payload, generationCanvas: { ...canvas, nodes } } }))
+    return { applied: true }
+  })
   calls.confirm.mockReset().mockResolvedValue(true)
   calls.execute.mockReset()
   vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockImplementation(calls.confirm)

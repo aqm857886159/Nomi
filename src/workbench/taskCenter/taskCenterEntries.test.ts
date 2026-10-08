@@ -218,6 +218,5 @@ describe('settled attempts retain their own outcome during regeneration', () => 
     })
     expect(view.rows.find(row => row.id === 'old')?.phaseText).not.toContain('生成中')
     expect(view.rows.find(row => row.id === 'new')?.phaseText).toContain('生成中')
-    if (state === 'success') expect(view.rows.find(row => row.id === 'old')?.phaseText).toBe('已保存到项目')
   })
 })

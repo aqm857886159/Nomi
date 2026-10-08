@@ -1,0 +1,43 @@
+{
+  "id": "FB-20261008-quit-unbounded-drains",
+  "since": "2026-10-08",
+  "source": "用户 10-08 Mac 0.23.0：点「退出」没反应（含 Dock 和菜单栏），只能强制退出；0.23.1 热修用 3 秒兜底止血",
+  "category": "claims-and-outcomes",
+  "problem": "多个模块各自拦 will-quit 并无共同截止时间地等待；关窗确认对渲染层的回应无限等；Windows 会话结束、开发启动器消失、MCP stdio 关闭直接 app.exit 跳过所有排空。 第 6 轮（V-1125 真机）：owner 排空后在 will-quit 派发内再调 app.quit() 被 Electron 吞掉，窗口全关但进程不退；main 同样被吞，靠 3 秒兜底计时器掩盖。",
+  "existingInvariants": [
+    "退出只有一个 owner：只有 quitTeardown 能订阅退出 / 会话结束事件并结束进程。",
+    "退出在预算内完成，超时记录步骤名后继续，不无限等待。"
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "有后台任务时 ⌘Q / Dock 退出在预算内完成",
+    "渲染层不回应关窗确认时出原生「强制退出 / 取消」框",
+    "Windows 关机 / 注销时导出被中止、Agent 会话落盘",
+    "真 Electron 调 app.quit() 后内置四步按序排空、回执 completed、1500ms 内退出"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/quitTeardown.test.ts",
+    "electron/windowCloseConfirmation.test.ts",
+    "electron/quitLifecycleGuard.test.ts",
+    "electron/mainProcessLifecycle.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
+  ],
+  "completionCommits": [
+    "172b99169",
+    "2861cf906",
+    "b9bc2c241",
+    "0790244b7",
+    "df3222dc8"
+  ],
+  "fixedInPr": 1125,
+  "rootCauseContract": "docs/fixes/2026-10-08-quit-drains-single-owner.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/quitTeardown.test.ts"
+  }
+}

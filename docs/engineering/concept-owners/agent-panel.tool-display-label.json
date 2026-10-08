@@ -1,0 +1,26 @@
+{
+  "name": "Agent 面板里工具的人话名（传输层工具名不进界面）",
+  "subject": "agent-panel.tool-display-label",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/resident/residentToolDisplay.ts",
+    "symbol": "readableToolName"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/resident/residentToolDisplay.ts",
+      "symbol": "readableToolName"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/ai/v4/agentPanelV4Intervention.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "合同 docs/fixes/2026-10-07-agent-redundant-saved-copy.root-cause.json：Agent 面板上一个工具显示成什么字只问 readableToolName；bash 之类的传输层名映射成通用意图名，不原样露给用户。工具身份本身（名字是什么、有什么事实）仍归 agent.tool-identity。"
+}

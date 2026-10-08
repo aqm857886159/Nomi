@@ -153,7 +153,7 @@ export type HeldNodeOutcomes = Record<string, HeldNodeOutcome[]>
  */
 export type CanvasDocumentActions = {
   /** 打开项目：硬重置（清选区 / 剪贴板 / 暂存，撤销基线从这里起）。 */
-  restoreSnapshot: (snapshot: unknown) => void
+  restoreSnapshot: (snapshot: unknown, projectId?: string) => void
   /** S5-b-1 崩溃恢复:把快照之后落盘的事件尾巴重放回投影(reducer 幂等)。 */
   applyEventTail: (events: readonly { type: string; payload: Record<string, unknown> }[]) => void
   undo: () => void
@@ -170,6 +170,7 @@ export type CanvasDocumentActions = {
 }
 
 export type GenerationCanvasState = {
+  projectId: string | null
   /**
    * 这个项目的画布内容已经载入。唯一置 true 的是 restoreSnapshot（打开项目时 restoreWorkbenchProjectPayload 调它），
    * releaseProject 复位。「打开时适应一次」判的就是它——画布组件挂载不是「载入完」，不许在挂载时写它

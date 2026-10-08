@@ -281,7 +281,7 @@ export function NodeErrorReport({
       // （用户真机反馈）。放行 → 节点可拖可选、参数框正常弹；复制错误详情走卡里的「复制详情」按钮（不靠划选）。
     >
       <div className={cn("flex items-start gap-2", !summaryVisible && "justify-end")}>
-        {summaryVisible ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, saved: false, late: false, previewLabel: '' }} /> : null}
+        {summaryVisible ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, late: false, previewLabel: '' }} /> : null}
         {/* 收起：失败卡是铺满正文的遮罩，节点先前生成的片子就压在它下面——没有这颗钮，用户「一直看不了
             原本的视频」（2026-08-24 用户反馈，并在截图上把 × 画在了这个位置）。§1.5：它是 L2 情境控件，
             只随失败卡存在，且长在卡自己的不透明表面上、不是压在画面内容上（§1.5.3 那条硬规则）。
