@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-nightly-walk-report-checkout",
+  "problem_type": "workflow jobs executing repository scripts without a checked-out repository",
+  "symptom": "The nightly Summarize job failed with Cannot find module scripts/nightly-walk-summary.mjs after the walkthrough batches had already produced 149 passes, 169 failures, and 6 timeouts.",
+  "direct_cause": "The report job downloaded artifacts but did not run actions/checkout before invoking a repository-relative Node script.",
+  "class_root": "There was no repository-wide workflow invariant or test requiring checkout before any job run step that references scripts/.",
+  "affected_population": [
+    "Nightly walkthrough report job",
+    "Any current or future workflow job that executes a repository-relative scripts/ file"
+  ],
+  "scope_paths": [
+    ".github/workflows/nightly-walkthroughs.yml",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/nightly-walk-selection.mjs",
+    "scripts/nightly-walk-selection.node-test.mjs",
+    "tests/ux/nightly-ci-exclusions.json"
+  ],
+  "entry_points": [
+    "nightly walkthrough batch selection",
+    "nightly walkthrough report summary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal repository workflow invariant; no third-party behavior decides whether a checked-out repository is required before a repository-relative script runs.",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-07",
+  "invariants": [
+    "Every workflow job step that runs a scripts/ file has an earlier actions/checkout step.",
+    "Nightly CI selection is derived from the reviewed B-category registry rather than an unreviewed find-all list.",
+    "The report job has the Node runtime required by its repository script."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/check-quality-gate-workflow.node-test.mjs",
+    "tests": [
+      "scripts/check-quality-gate-workflow.node-test.mjs",
+      "scripts/nightly-walk-selection.node-test.mjs"
+    ],
+    "why": "The workflow test is the shared merge boundary for every workflow YAML, while the selector test owns the nightly B-registry invariant."
+  },
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/model-identity-walkthrough.mjs",
+      "symbol": "readRows"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "readRows"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "updateIssue"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "The two readRows consumers are separate report-producing workflows and must remain independently callable; updateIssue is the sole issue-writing boundary. The fix adds workflow enforcement around these doors rather than merging their responsibilities."
+  },
+  "generality_proof": "The workflow test scans every YAML workflow and every run step, so a new job or workflow that invokes scripts/ without checkout fails before merge. The nightly selector centralizes the B-category decision in data and is covered by a class-level test.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-quality-gate-workflow.node-test.mjs",
+      "symbol": "every workflow job that runs a repository script checks out the repository first",
+      "responsibility": "Reject every workflow job that executes a repository-relative scripts/ file before checkout."
+    },
+    {
+      "path": "scripts/nightly-walk-selection.mjs",
+      "symbol": "selectNightlyWalks",
+      "responsibility": "Apply the reviewed B-category exclusion registry to every nightly walk selection."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "entry_point": "jobs.report.steps.Publish summary and update issue",
+      "disposition": "enforced",
+      "evidence": "This was the reported missing-checkout entry; checkout and setup-node now precede the summary script."
+    },
+    {
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "entry_point": "jobs.walks.steps.Run non-paid walkthrough batch",
+      "disposition": "enforced",
+      "evidence": "The batch job already checked out first; the repository-wide test now protects that invariant for future edits."
+    },
+    {
+      "path": "scripts/model-identity-walkthrough.mjs",
+      "entry_point": "readRows",
+      "disposition": "not-affected",
+      "evidence": "This is a separate local walkthrough consumer of the shared helper, not a GitHub Actions job, so the workflow checkout invariant does not govern it."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any workflow can reproduce the same module-not-found failure whenever it calls a repository-relative script without checkout; the original report job already demonstrated that the failure can hide a large batch result.",
+    "same_class_scan": [
+      "Scanned every .github/workflows/*.yml and *.yaml job run step for scripts/ references.",
+      "Checked both nightly batch and report entry points.",
+      "Ran node scripts/door-map.mjs readRows updateIssue --roots=scripts,.github,.github/workflows --include-tests; it found the three shared summary doors recorded above."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-quality-gate-workflow.node-test.mjs",
+    "invariant": "A workflow job may not run a repository-relative scripts/ file until an actions/checkout step has executed earlier in that job.",
+    "failure_mode": "The node:test assertion fails with the offending workflow, job, and step index before merge.",
+    "exception_policy": "none",
+    "strategy": "Keep the production workflow explicit and use one cross-workflow assertion as the shared gate; no per-workflow allowlist is permitted.",
+    "artifacts": [
+      ".github/workflows/nightly-walkthroughs.yml",
+      "scripts/check-quality-gate-workflow.node-test.mjs",
+      "scripts/nightly-walk-selection.mjs",
+      "tests/ux/nightly-ci-exclusions.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/nightly-walk-selection.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/nightly-walk-selection.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/nightly-walkthroughs.yml"
+    ],
+    "rationale": "The unreviewed find-all selection in this workflow was replaced by the registry-backed selector in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the checkout invariant; actions/checkout and setup-node are workflow primitives used directly.",
+    "exit_criteria": []
+  },
+  "migration": "Existing workflows require no data migration. Future B-category walkthroughs are added to tests/ux/nightly-ci-exclusions.json and are then excluded by the shared selector.",
+  "residual_risks": [
+    "The 25 D-category entries remain unmodified pending independent product reproduction; their evidence and paths are listed in docs/research/2026-10-08-nightly-walk-triage.md.",
+    "The six timed-out walks remain C-category evidence; this branch fixes the shared report checkout and selection boundary but does not tune individual walk timeouts."
+  ]
+}
