@@ -113,7 +113,7 @@
       "src/workbench/generationCanvas/nodes/primaryParameterChips.test.ts"
     ]
   },
-  "detected_by": "user",
+  "detected_by": "walkthrough",
   "recurrence_check_on": "2026-10-08",
   "residual_risks": [
     "The matrix intentionally checks controls with renderable chip values; open-ended continuous numeric controls remain in the gear panel by the existing chip eligibility rule.",
