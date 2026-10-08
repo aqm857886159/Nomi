@@ -2,8 +2,8 @@ import React, { type JSX } from 'react'
 import { FocusTrap } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
-import { BodyPortal, NOMI_OVERLAY_Z_INDEX, useOverlayEscape, WorkbenchButton } from '../../../design'
+import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser, IconX } from '@tabler/icons-react'
+import { BodyPortal, DecisionBar, NOMI_OVERLAY_Z_INDEX, useOverlayEscape, WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
@@ -89,6 +89,16 @@ export function SpendConfirmDialog() {
         : pending.kind === 'anchorCheckpoint'
           ? IconUser
           : isAgent ? IconRobot : IconCoin
+  const primaryAction = (): void => {
+    if (incompletePolicy) {
+      const openPolicySettings = pending.onOpenPolicySettings
+      resolvePending(false)
+      openPolicySettings?.()
+      return
+    }
+    if (directionCandidates.length) pending.onDirectionDecision?.(choiceKey)
+    resolvePending(true, rememberHosting)
+  }
 
   return (
     // BodyPortal + 中央 z 层级（overlayLayers 契约：全局浮层都 portal 到 body 消费统一层级）——
@@ -118,6 +128,13 @@ export function SpendConfirmDialog() {
         // **刻意不落在「确认花钱」上** —— 那是不可逆动作，不该被一个回车顺手按掉。
         tabIndex={-1}
         data-autofocus
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          const target = event.target as HTMLElement | null
+          if (target?.closest('button, input, textarea, select, [contenteditable="true"]')) return
+          event.preventDefault()
+          primaryAction()
+        }}
         className={cn(
           'outline-none',
           pending.kind === 'contract' ? 'w-[680px]' : isAnchorCheckpoint ? 'w-[560px]' : 'w-[380px]',
@@ -144,6 +161,14 @@ export function SpendConfirmDialog() {
               </p>
             ) : null}
           </div>
+          <WorkbenchIconButton
+            size="sm"
+            icon={<IconX size={16} stroke={1.9} />}
+            label={t('common.close')}
+            className="ml-auto shrink-0"
+            data-spend-confirm-action="close"
+            onClick={() => resolvePending(false)}
+          />
         </div>
 
         {isAnchorCheckpoint && pending.anchorCheckpoint ? (
@@ -283,39 +308,16 @@ export function SpendConfirmDialog() {
           </div>
         ) : null}
 
-        <div className={cn('flex items-center justify-end gap-2')}>
-          {/* 走查/工具的稳定锚点，与卡本体的 `data-spend-confirm-dialog` 同理：这两颗钮的文案
-              随调用方走（「生成 N 镜」「再想想」「忽略」…），按文案找就是易碎选择器。 */}
-          <WorkbenchButton data-spend-confirm-action="cancel" className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
-            {pending.cancelLabel || (isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel'))}
-          </WorkbenchButton>
-          {incompletePolicy ? (
-            <WorkbenchButton
-              className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
-              onClick={() => {
-                const openPolicySettings = pending.onOpenPolicySettings
-                resolvePending(false)
-                openPolicySettings?.()
-              }}
-            >
-              {t('generationCommon.production.gate.openProductionPolicy')}
-            </WorkbenchButton>
-          ) : (
-            <WorkbenchButton
-              data-spend-confirm-action="confirm"
-              className={cn(
-                'h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
-              )}
-              onClick={() => {
-                // B1：方向门确认时先回传选中候选（沿用 onOpenPolicySettings 的回调模式），再 resolve。
-                if (directionCandidates.length) pending.onDirectionDecision?.(choiceKey)
-                resolvePending(true, rememberHosting)
-              }}
-            >
-              {pending.confirmLabel || t('generationCommon.spend.confirm')}
-            </WorkbenchButton>
-          )}
-        </div>
+        <DecisionBar
+          cancelLabel={pending.cancelLabel || (isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel'))}
+          onCancel={() => resolvePending(false)}
+          cancelProps={{ 'data-spend-confirm-action': 'cancel' }}
+          primaryLabel={incompletePolicy ? t('generationCommon.production.gate.openProductionPolicy') : (pending.confirmLabel || t('generationCommon.spend.confirm'))}
+          onPrimary={primaryAction}
+          primaryProps={{ 'data-spend-confirm-action': incompletePolicy ? 'open-policy' : 'confirm' }}
+          primaryHint="Enter"
+          className="mt-1"
+        />
         </>
         )}
       </div>
