@@ -333,11 +333,11 @@ export default function NomiStudioApp(): JSX.Element {
         surfaceEpoch.assertCurrent()
         if (committedBinding) {
           await openProjectAgentLane(committedBinding.binding, {
-            open: (binding) => measureProjectOpenStage('agent-lane-open', () => laneClient.open(binding)),
-            recoverReceipts: (workspaceId) => measureProjectOpenStage('receipt-recovery', async () => {
+            open: (binding) => laneClient.open(binding),
+            recoverReceipts: async (workspaceId) => {
               hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(workspaceId))
               await recoverPendingProposalReceipt()
-            }),
+            },
             reportFailure: (failure) => logRendererError('agent-lane-open-failed', failure),
           })
           surfaceEpoch.assertCurrent()
