@@ -16,6 +16,61 @@ const windowsPathSelectors = [
   },
 ]
 
+// Event names, not call shapes: an aliased `const on = app.on`, `app["on"]`, `emitter.prependOnceListener`
+// or a template literal all still have to spell the event, so the name is the one thing a bypass
+// cannot avoid (R-review-1125 #3). Only the owner may spell these.
+const quitEventSelectors = (name, message) => [
+  { selector: `Literal[value="${name}"]`, message },
+  { selector: `TemplateElement[value.cooked="${name}"]`, message },
+]
+const quitLifecycleSelectors = [
+  ...quitEventSelectors('will-quit', 'Subscribe to will-quit only in electron/quitTeardown.ts; register a drain with quitTeardown instead.'),
+  ...quitEventSelectors('before-quit', 'Subscribe to before-quit only in electron/quitTeardown.ts; use quitTeardown state instead.'),
+  // Windows session end and Linux powerMonitor shutdown bypass before-quit / will-quit.
+  ...['query-session-end', 'session-end'].flatMap((name) => quitEventSelectors(name, 'Subscribe to system session end only in electron/quitTeardown.ts; it runs the critical drains before exit.')),
+  {
+    // "shutdown" is an ordinary word elsewhere; ban it as an event argument of any call.
+    selector: 'CallExpression > Literal.arguments[value="shutdown"], CallExpression > TemplateLiteral.arguments > TemplateElement[value.cooked="shutdown"]',
+    message: 'Subscribe to system session end only in electron/quitTeardown.ts; it runs the critical drains before exit.',
+  },
+]
+
+// Any access to app.exit / app.relaunch (call, alias, bind, optional chain, computed key,
+// destructuring) and aliasing `app` itself, so the access cannot hide behind another name.
+// Scoped to files that take `app` from electron: plain Node files may have their own `app` object.
+const appExitMember = '/^(exit|relaunch)$/'
+const directQuitMessage = 'Call app.exit / app.relaunch only from electron/quitTeardown.ts or a documented independent-process exemption.'
+const appAliasMessage = 'Do not alias Electron app; aliases hide app.exit from the quit-owner guard.'
+const electronAppFiles = [
+  'Program:has(ImportDeclaration[source.value="electron"] > ImportSpecifier[imported.name="app"])',
+  'Program:has(VariableDeclarator[init.callee.name="require"][init.arguments.0.value="electron"] > ObjectPattern > Property[key.name="app"])',
+]
+const inElectronAppFiles = (selector, message) => electronAppFiles.map((scope) => ({ selector: `${scope} ${selector}`, message }))
+const directQuitSelectors = [
+  ...inElectronAppFiles(`MemberExpression[object.name="app"][property.name=${appExitMember}]`, directQuitMessage),
+  ...inElectronAppFiles(`MemberExpression[object.name="app"][computed=true][property.value=${appExitMember}]`, directQuitMessage),
+  ...inElectronAppFiles(`VariableDeclarator[init.name="app"] > ObjectPattern > Property[key.name=${appExitMember}]`, directQuitMessage),
+  ...inElectronAppFiles('VariableDeclarator[init.name="app"][id.type="Identifier"]', appAliasMessage),
+  ...inElectronAppFiles('AssignmentExpression[right.name="app"]', appAliasMessage),
+  { selector: 'ImportDeclaration[source.value="electron"] > ImportSpecifier[imported.name="app"][local.name!="app"]', message: appAliasMessage },
+  // `electron.app.exit(...)` / `require("electron").app.exit(...)`.
+  { selector: `MemberExpression[object.property.name="app"][property.name=${appExitMember}]`, message: directQuitMessage },
+  {
+    selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="autoUpdater"][callee.property.name="quitAndInstall"]',
+    message: 'Call autoUpdater.quitAndInstall only from electron/quitTeardown.ts or a documented updater exemption.',
+  },
+]
+
+// Reviewed exemptions; each call site carries the same reason in a comment.
+const directQuitExemptionFiles = [
+  // Separate one-shot headless Electron entry (spawned as "electron host.js"); the GUI owner is
+  // never installed in that process and its finally block is the whole lifecycle.
+  'electron/capabilityCore/host.ts',
+  // electron-updater quitAndInstall closes windows and then calls app.quit(), so it re-enters the
+  // owner's before-quit / will-quit; the restart itself is the updater's platform primitive.
+  'electron/update/autoUpdater.ts',
+]
+
 export default tseslint.config(
   {
     ignores: [
@@ -165,6 +220,20 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/desktop/rendererLog.ts'],
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx}'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors] },
+  },
+  {
+    // Exemptions still may not subscribe to the quit lifecycle.
+    files: directQuitExemptionFiles,
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...quitLifecycleSelectors] },
+  },
+  {
+    files: ['electron/quitTeardown.ts'],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。

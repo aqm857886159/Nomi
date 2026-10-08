@@ -1937,6 +1937,15 @@
     },
     {
       "members": [
+        "done",
+        "failed",
+        "timeout"
+      ],
+      "reason": "DrainOutcome 是退出收尾里单个 drain 步骤的结局，只用来写 quit-step 回执（tests/ux/quit-teardown-real.e2e.mjs 读它）：步骤跑完、超出时间预算、抛错三选一。它和视频深度任务的终态（TERMINAL_VIDEO_DEPTH_PHASES，含用户 cancelled、没有 timeout）不是同一个概念——收尾步骤不能被用户取消，超时却是它的核心结局；复用那份词表会把 cancelled 带进退出回执、丢掉 timeout。",
+      "site": "electron/quitTeardown.ts::type:DrainOutcome/type-union"
+    },
+    {
+      "members": [
         "failed",
         "pending"
       ],
