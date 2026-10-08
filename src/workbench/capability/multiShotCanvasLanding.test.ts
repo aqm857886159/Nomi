@@ -90,7 +90,7 @@ describe('materializeShots preserves the reading viewport on existing content', 
   })
 
   it('class: adding a group or growing a single shot into a multi-shot plan never requests a fit', async () => {
-    const first = await land(shots.slice(0, 1))
+    await land(shots.slice(0, 1))
     const next = await land()
     expect(next.createdNodeIds).toHaveLength(2)
     useGenerationCanvasStore.setState({ groups: [] })
