@@ -8,7 +8,7 @@ import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
 
 /**
  * 分镜页多选浮条。布局/作用域语义对齐画布 `CanvasSelectionToolbar`：纸白圆角浮条、已选计数、
- * 生成与统一模型动作、清除入口；分镜特有的移场/锁定/删除仍只作用于已选镜。
+ * 生成与统一模型动作、清除入口；分镜特有的「本次跳过」「删除」只作用于已选镜（移场、锁定在每行 ⋯ 菜单里）。
  *
  * 多选浮条提供 Agent 入口；页脚不重复放置入口。
  *

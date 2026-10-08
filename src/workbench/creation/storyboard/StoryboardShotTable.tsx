@@ -77,7 +77,7 @@ type Props = {
    * 缺省时那枚按钮就不出现——但绝不许拿 `onGenerateRow` 顶替（那是付费重跑）。
    */
   onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
-  /** 浮条 🔒/🔓 镜级锁定开关。 */
+  /** 行 ⋯ 菜单里的「锁定 / 解锁」镜级开关。 */
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击打开预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
