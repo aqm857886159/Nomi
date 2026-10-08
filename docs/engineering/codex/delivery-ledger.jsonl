@@ -1,0 +1,62 @@
+{"date":"2026-10-08","line":"F-paidpost","kind":"implementation","pr":1100,"outcome":"returned-by-coordinator","defects":["semantic-change","parallel-version"],"note":"全局成功码默认 [0,200]、测试模式判断复制两份且一份漏 NOMI_E2E、isPackaged 硬编码 false"}
+{"date":"2026-10-08","line":"F-savedcopy","kind":"implementation","pr":1109,"outcome":"returned-by-coordinator","defects":["test-weakened","evidence-missing"],"note":"把失败节点「模型未配置」断言削掉；截图证明不了结论"}
+{"date":"2026-10-08","line":"L-quitteardown","kind":"implementation","pr":1104,"outcome":"returned-by-coordinator","defects":["claims-beyond-diff"],"note":"PR 正文写了 diff 里没有的改动"}
+{"date":"2026-10-08","line":"L-landingB","kind":"implementation","pr":1096,"outcome":"returned-by-coordinator","defects":["claims-beyond-diff"],"note":"「先查别人」引了仓库里不存在的符号"}
+{"date":"2026-10-08","line":"L-walkupdate","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["test-weakened"],"note":"产品撤销还在，却删了撤销覆盖"}
+{"date":"2026-10-08","line":"F-credoffline","kind":"implementation","pr":1118,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"改了 credentialRecordCounts 含义，用户停用的 key 在三处变可用"}
+{"date":"2026-10-08","line":"F-credoffline2","kind":"implementation","pr":1118,"outcome":"accepted-first-pass","defects":["evidence-missing"],"note":"语义保住；截图没进仓库、设计卡缺格，补件"}
+{"date":"2026-10-08","line":"F-moneycopy4","kind":"implementation","pr":1099,"outcome":"returned-by-coordinator","defects":["rule-loosened"],"note":"用户「没有例外」，自留白名单并自写理由"}
+{"date":"2026-10-08","line":"F-flaky4b","kind":"implementation","pr":1094,"outcome":"returned-by-coordinator","defects":["symptom-patch"],"note":"根因对，12 个文件逐个改，没补防回潮的规则"}
+{"date":"2026-10-08","line":"D-listview","kind":"design","pr":null,"outcome":"returned-by-coordinator","defects":["ui-rough"],"note":"缩略图约 70px 被裁、钮压标题、英文没翻、实验室页头入镜"}
+{"date":"2026-10-08","line":"D-listview2","kind":"design","pr":null,"outcome":"returned-by-coordinator","defects":["ui-rough"],"note":"大方向通过；英文卡上 chip 仍是中文"}
+{"date":"2026-10-08","line":"L-tempclean","kind":"implementation","pr":1114,"outcome":"ci-red-after-push","defects":["bulk-unverified","partial-gates"],"note":"260 个文件批量替换，3 个测试被改成 fs.makeTempDir、os 未用"}
+{"date":"2026-10-08","line":"L-tempclean3","kind":"implementation","pr":1114,"outcome":"ci-red-after-push","defects":["partial-gates"],"note":"新 check 脚本没接进 gates 链"}
+{"date":"2026-10-08","line":"F-vendorhealth2","kind":"implementation","pr":1115,"outcome":"ci-red-after-push","defects":["partial-gates"],"note":"测试私有 30s 墙钟等待 + test-types 错"}
+{"date":"2026-10-08","line":"F-vendorhealth3","kind":"implementation","pr":1115,"outcome":"accepted-first-pass","defects":[],"note":""}
+{"date":"2026-10-08","line":"L-hotfix0231","kind":"release","pr":null,"outcome":"ci-red-after-push","defects":["partial-gates"],"note":"本机缺 python3 没跑全量门岗，RC validate 4 道红"}
+{"date":"2026-10-08","line":"L-hotfix0231b","kind":"release","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"3 道修好；第 4 道按任务书停下上报（门岗设计缺口）"}
+{"date":"2026-10-08","line":"L-vocabref","kind":"gate-fix","pr":1117,"outcome":"ci-red-after-push","defects":["broke-design-intent","partial-gates"],"note":"改成单一基准，破坏了『逐个历史快照都比』的有意设计；只跑了一半测试"}
+{"date":"2026-10-08","line":"L-vocabref2","kind":"gate-fix","pr":1117,"outcome":"accepted-first-pass","defects":[],"note":"最小改动"}
+{"date":"2026-10-08","line":"F-pendingspend5","kind":"implementation","pr":1093,"outcome":"ci-red-after-push","defects":["partial-gates"],"note":"独立验收通过，但合 main 后 self-written / vocabularies / boundary-owners 三道红"}
+{"date":"2026-10-08","line":"F-spendwalks3b","kind":"implementation","pr":1113,"outcome":"accepted-first-pass","defects":[],"note":"独立验收仅提一条非阻断范围缺口"}
+{"date":"2026-10-08","line":"F-landingB4","kind":"implementation","pr":1096,"outcome":"accepted-first-pass","defects":[],"note":""}
+{"date":"2026-10-08","line":"V-landingB","kind":"acceptance","pr":1096,"outcome":"accepted-first-pass","defects":[],"note":"第一轮判不通过，抓到真缺口"}
+{"date":"2026-10-08","line":"V-pendingspend2","kind":"acceptance","pr":1093,"outcome":"accepted-first-pass","defects":[],"note":"判不通过，抓到「标记写入失败时卡被吃掉」"}
+{"date":"2026-10-08","line":"V-pendingspend3","kind":"acceptance","pr":1093,"outcome":"accepted-first-pass","defects":[],"note":"复核通过，变异必红、真跑走查"}
+{"date":"2026-10-08","line":"V-spendsize","kind":"acceptance","pr":1113,"outcome":"accepted-first-pass","defects":[],"note":"变异 + 三条付费走查中英真跑"}
+{"date":"2026-10-08","line":"R-life","kind":"research","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"生命周期体检三份 + UntrustedIpcSender 一份"}
+{"date":"2026-10-08","line":"R-arch-1..4","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":[],"note":""}
+{"date":"2026-10-08","line":"R-arch-5","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":["stale-number"],"note":"概念登记条数沿用 09-26 旧数（78 vs 182）"}
+{"date":"2026-10-08","line":"R-arch-6..7","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":[],"note":""}
+{"date":"2026-10-08","line":"R-arch-8","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":["overstated"],"note":"把『无法确认在跑』说成『没跑』的口径需评审纠正"}
+{"date":"2026-10-08","line":"R-arch-9","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":["incomplete"],"note":"事故按层表因工具缺依赖没给出，评审人工补"}
+{"date":"2026-10-08","line":"R-autoref","kind":"research","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"发现画布已在自动绑定用户手写提示词"}
+{"date":"2026-10-08","line":"R-review-1096","kind":"review","pr":1096,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：生产信号无 projectId，项目切换时可能写错项目的 Run；协调会话审和独立验收都漏了"}
+{"date":"2026-10-08","line":"L-landingB","kind":"implementation","pr":1096,"outcome":"returned-by-coordinator","defects":["semantic-change","claims-beyond-diff"],"note":"显式信号缺项目身份（跨项目写错 Run 的风险）；正文验证数字与实际不一致"}
+{"date":"2026-10-08","line":"R-review-1113","kind":"review","pr":1113,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：测试文件类型错 + 新 quality 角色让 4 类参数不可达；独立验收只跑了改动目录 vitest，没跑 test-types 和可达性测试"}
+{"date":"2026-10-08","line":"F-spendwalks3b","kind":"implementation","pr":1113,"outcome":"returned-by-coordinator","defects":["partial-gates","semantic-change"],"note":"归类改动挤掉 4 类参数的入口；test-types 红"}
+{"date":"2026-10-08","line":"V-spendsize","kind":"acceptance","pr":1113,"outcome":"returned-by-coordinator","defects":["partial-gates"],"note":"验收只跑改动目录 vitest，漏了跨目录的可达性测试与 test-types——验收模板要补「CI 同款门岗」"}
+{"date":"2026-10-08","line":"R-review-walkwait","kind":"review","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：e2e-launch-capability 5 个既有测试红、另一处仍按进程名判断、根因合同字段被写成 ????"}
+{"date":"2026-10-08","line":"F-walkwait","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["partial-gates","broke-design-intent","evidence-missing"],"note":"新登记逻辑破坏既有启动能力测试；根因合同编码写坏（GBK）"}
+{"date":"2026-10-08","line":"L-lifee2e","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["rule-loosened","claims-beyond-diff","test-weakened"],"note":"29 条「不进 CI」用同一句套话、15 条理由与状态矛盾、把启动主路径 cold-start 以「断言过时」移出 CI、夜跑改成只在发版候选跑、实现线自写「独立验收」"}
+{"date":"2026-10-08","line":"F-walkwait2","kind":"implementation","pr":null,"outcome":"accepted-first-pass","defects":["partial-gates"],"note":"三个阻断都修了；仍以 python3 缺失为由没跑 Contracts 内层命令"}
+{"date":"2026-10-08","line":"R-review-1107","kind":"review","pr":1107,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：确认前 0 节点只在批量入口成立，单镜 / Agent 参考卡仍先物化；第二份模型选择器还在、结构门被放宽"}
+{"date":"2026-10-08","line":"F-sbbatch5b","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["semantic-change","test-weakened","parallel-version"],"note":"承诺只在一个入口兑现；放宽 BulkModelPicker 单一实现结构门"}
+{"date":"2026-10-08","line":"F-quitdrains","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"关窗确认被并进 3 秒退出预算，用户 3 秒内没点「有未保存内容」就强制关窗——会丢数据；四个排空由串行改并行无证据。协调会话读 diff 发现，测试全绿抓不到"}
+{"date":"2026-10-08","line":"F-moneycopy5","kind":"implementation","pr":1099,"outcome":"returned-by-coordinator","defects":["rule-overapplied"],"note":"「界面不谈钱」过度执行：把服务商 402 余额不足 / 额度用尽的报错改成「请检查账户状态」，用户看不出要充值；NOT_MONEY 白名单整个清空，无视任务书允许的「转述上游报错」"}
+{"date":"2026-10-08","line":"R-review-1105","kind":"review","pr":1105,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：为画布基准实时输出改了共享 runner 默认，core-smoke / full-walk 的日志与失败摘要会丢子进程输出"}
+{"date":"2026-10-08","line":"L-benchlog","kind":"implementation","pr":1105,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"改共享默认影响其它调用方，没查调用方"}
+{"date":"2026-10-08","line":"F-quitdrains2","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"按合同改对了关窗与顺序，但每步子时限 = 整个预算、某步超时即停：第 2 步挂住会让「中止导出（杀 FFmpeg 子进程）」永不执行，旧代码一定会跑"}
+{"date":"2026-10-08","line":"R-review-1114","kind":"review","pr":1114,"outcome":"accepted-first-pass","defects":[],"note":"抽样 54 个文件，抓到门岗漏报（直接 mkdtempSync 未被拦）与 _launchApp 里第二套注册清理实现"}
+{"date":"2026-10-08","line":"L-tempclean4","kind":"implementation","pr":1114,"outcome":"returned-by-coordinator","defects":["parallel-version","bulk-unverified"],"note":"批量替换漏改两处、自建门岗漏报、留并行实现"}
+{"date":"2026-10-08","line":"R-review-1093","kind":"review","pr":1093,"outcome":"accepted-first-pass","defects":[],"note":"抓到删掉无关的逐镜尺寸断言（为让走查过绿）与正文格式问题；两轮独立验收都没看到"}
+{"date":"2026-10-08","line":"F-pendingspend","kind":"implementation","pr":1093,"outcome":"returned-by-coordinator","defects":["test-weakened","claims-beyond-diff"],"note":"删除无关尺寸断言；正文写「所有 MCP 读路径一致」而实际没有独立 MCP 读路径"}
+{"date":"2026-10-08","line":"R-review-quitdrains","kind":"review","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"抓到 Windows 关机 / 注销不走 quit 事件、生产代码直接 app.exit 绕过 owner、清理行为断言被删"}
+{"date":"2026-10-08","line":"F-quitdrains4","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["test-weakened","claims-beyond-diff"],"note":"迁到新 owner 时删掉旧清理行为断言没补等价测试；根因合同证据与实现不一致；退出路径全集没盘全"}
+{"date":"2026-10-08","line":"F-sbbatch6","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["parallel-version"],"note":"新建 PlanRows 计划行组件而 Agent 面板计划卡仍自渲染一份（两轮对抗评审都没抓到，推送时先查别人门岗暴露、协调会话核实）"}
+{"date":"2026-10-08","line":"R-review-gateslock","kind":"review","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"抓到锁语义不等价（子进程存活时锁可被接管）、信号退出码错、超时没实现、旧测试删掉 7 类、删 .py 致边界主人新红；并给出 Windows 本机已知红清单"}
+{"date":"2026-10-08","line":"L-gateslock","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change","test-weakened","claims-beyond-diff"],"note":"替换旧实现时没做逐项等价对照，删测试、少功能、报告数字不实"}
+{"date":"2026-10-08","line":"F-sbbatch7","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["encoding-mojibake"],"note":"合并 Agent 面板计划行到共享 PlanRows 本身对；但新增的设计实验室状态名 UTF-8 被按 GBK 读回成乱码，协调会话手修；main 上已有同类，另开门岗任务"}
+{"date":"2026-10-08","line":"R-update","kind":"research","pr":null,"outcome":"returned-by-coordinator","defects":["fact-incomplete"],"note":"称更新只在设置→关于可见，漏掉 WorkbenchShell 挂的 UpdaterDialog 浮动胶囊与弹窗；外部引用有离题链接（扩展市场页、Discord 排障页）"}
+{"date":"2026-10-08","line":"F-spendwalks5","kind":"implementation","pr":1113,"outcome":"returned-by-coordinator","defects":["symptom-patch","parallel-version"],"note":"没拿到 Linux 截图就按推测改：报价 chip 永不退 + 横向滚动（滚走仍看不见），测量 hook 与 _visibleCount 参数成死代码；改派 Claude 子 agent 找真根因"}
+{"date":"2026-10-08","line":"F-credoffline3","kind":"implementation","pr":1118,"outcome":"returned-by-coordinator","defects":["evidence-missing","claims-beyond-diff"],"note":"补的中英截图本身暴露两个问题：拒绝替换时提示「原密钥已保留」又写「还没有存密钥」；标为「已复验」的截图仍是「等待验证」，证据不支持结论；自己 Read 过却没发现"}
