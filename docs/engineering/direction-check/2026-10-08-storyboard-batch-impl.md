@@ -44,3 +44,14 @@ the inline model field and renders the existing `BulkModelPicker` once per
 model-kind group. The red-before-fix slice covered single cancellation, Agent
 anchor cancellation, and the strong single-picker structure gate; the same
 tests pass after the shared-boundary fix.
+
+## 9. Coordinator review: mojibake in design-lab state names
+The shared-`PlanRows` commit added three design-lab states whose `name` and
+`source` strings were UTF-8 Chinese read back as GBK (for example `鈶?浠嬪叆妲?`).
+Symptom: garbled lab catalog labels. Direct cause: a Windows write path that
+re-encoded the file. Class root cause: nothing in the repository rejects GBK
+mojibake in source text; `check-source-nul-bytes` only covers NUL bytes, and
+`origin/main` already carries the same pattern in comments of
+`useCharacterPlacement.ts`. This commit only restores the three strings. The
+class fix (a source-text mojibake gate plus repair of the existing occurrences)
+is tracked as a separate task so it is not hidden inside this feature PR.
