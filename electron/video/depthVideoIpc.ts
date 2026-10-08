@@ -63,7 +63,7 @@ export function registerVideoDepthIpc(): void {
 
   // 退出时收摊：ffmpeg 编码器是子进程，临时目录里躺着这次抽出来的整批帧。
   // 挂在这里而不是 main.ts——那是已登记的巨壳，每个子系统往里塞两行正是它长成那样的原因。
-  app.on("before-quit", () => {
+  app.on("will-quit", () => {
     jobModule?.disposeAllVideoDepthJobs();
   });
 }

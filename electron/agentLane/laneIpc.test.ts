@@ -270,3 +270,14 @@ describe('F12 IPC pre-admission cancellation', () => {
     } finally { release(); await registration.dispose() }
   })
 })
+
+describe('quit lifecycle', () => {
+  it('keeps the command handler alive after disposal and returns a structured failure', async () => {
+    const sender = { id: 1, send: vi.fn(), isDestroyed: () => false, once: vi.fn(), removeListener: vi.fn() }
+    const registration = registerAgentLaneIpc({ openWorkspace: vi.fn(), validate: vi.fn(), configure: vi.fn(), receipt: vi.fn(), singleShot: vi.fn(), updatePolicy: vi.fn(), restoreInput: vi.fn() })
+    await registration.dispose()
+    const result = await ipc.handlers.get(LANE_IPC_CHANNELS.command)!({ sender }, { kind: 'prompt', text: 'after quit cancel' }) as { ok: boolean; code: string }
+    expect(result).toMatchObject({ ok: false, code: 'agent_lane_disposed' })
+    expect(ipc.handlers.has(LANE_IPC_CHANNELS.command)).toBe(true)
+  })
+})
