@@ -3,12 +3,13 @@
 // 所以同一份量具能量「改前 / 改后」两棵树。
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync, execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { PAGE_PROBE } from './probe.mjs'
 import { buildProject } from './fixture.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
 import { panCanvasUntilInside } from '../_canvasHit.mjs'
+import { readLiveWalkInstances } from '../_walkInstances.mjs'
 
 export const EDITOR = '[data-composer-host] .ProseMirror[contenteditable="true"]'
 export const STAGE = '.generation-canvas-v2__stage'
@@ -16,17 +17,8 @@ export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const VIEWPORT = { width: 1280, height: 933 }
 
 /** 同机别的 Electron / Nomi 进程会抢 GPU 与 CPU，帧数就不可比了。 */
-export function otherElectronProcesses() {
-  try {
-    if (process.platform === 'win32') {
-      const out = execFileSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf8' })
-      return out.split(/\r?\n/).map((l) => l.split('","')[0]?.replace(/^"/, '')).filter((n) => /^(electron|nomi)(\.exe)?$/i.test(n || ''))
-    }
-    const out = execFileSync('ps', ['-A', '-o', 'comm='], { encoding: 'utf8' })
-    return out.split('\n').map((l) => path.basename(l.trim())).filter((n) => /^(electron|nomi|Nomi Helper.*)$/i.test(n))
-  } catch {
-    return []
-  }
+export function otherElectronProcesses(worktree = process.cwd(), options = {}) {
+  return readLiveWalkInstances({ worktree, ...options })
 }
 
 /**
@@ -92,7 +84,7 @@ export async function openCanvasSession({ repo, workRoot, label, media, fixtureO
   })
   const { app } = launched
   const s = { app, win: launched.win, tempRoot, fixture, label, repo, mainLogTail: launched.mainLogTail }
-  s.close = async () => { await app.close().catch(() => undefined) }
+  s.close = launched.close
   try {
     await seedPlaceholderKey(app, settingsDir)
     // 探针要在 React 加载前就位：注册后重载库窗口；之后新开的项目窗口自动带上。
