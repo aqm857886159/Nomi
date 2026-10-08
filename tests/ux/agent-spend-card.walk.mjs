@@ -131,6 +131,10 @@ try {
   const draftPrompt = 'T7 isolated payment draft / 未批准草稿'
   await win.keyboard.insertText(draftPrompt)
   await expect(input).toHaveText(draftPrompt)
+  let sizeChip = card.locator('[data-parameter-chip] button[aria-label="尺寸"]').first()
+  await clickOrFail(sizeChip, '付款卡真实尺寸参数')
+  await clickOrFail(win.getByRole('option', { name: '1536x1024', exact:true }).first(), '修改未批准尺寸')
+  await expect(sizeChip).toContainText('1536x1024')
   expect((await readProject(win, projectId)).payload.generationCanvas.nodes, '未批准输入不得更改画布内容/历史').toEqual(before)
   expect(walk.fixture.images, '编辑未批准卡不发媒体请求').toHaveLength(0)
   await walk.snap('spend-card-zh-edited-isolated')
@@ -178,6 +182,7 @@ try {
   await openCanvas(win)
   card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   input = card.locator('[data-composer-host="panel"] [contenteditable="true"]')
+  sizeChip = card.locator('[data-parameter-chip] button[aria-label="尺寸"]').first()
   await expectAbsent(card,{provenBy:cardProof,message:'冷启动不会复活已关闭的旧确认卡'})
   // Existing projectV51ToV60Migration fills this derived renderer hint on reopen.
   // Keep the full-node comparison for the agent's own shot: no other field may change
@@ -210,6 +215,7 @@ try {
   // 账本锚的是这一次生成（`spendDraftKey` 只含 projectId/runId/operationId），重新出价换的
   // 只是报价指纹，换不掉他的地址。
   await expect(input, '重新出价回来的是他没提交的那句话，不是原候选').toHaveText(draftPrompt)
+  await expect(sizeChip, '他改过的尺寸也跟着回来').toContainText('1536x1024')
   // 而宿主那份候选**没被偷偷改过**：手改只活在卡上，直到他按「生成」。
   const pendingRows = await readLaneSpend(win)
   expect(pendingRows?.surface, '探针：待决投影（推给面板的那一份）这一刻真的读得到').toBe('ready')

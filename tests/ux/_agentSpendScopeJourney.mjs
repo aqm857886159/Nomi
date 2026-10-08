@@ -23,6 +23,7 @@ export async function checkSpendScopeJourney(walk, win) {
   await expect(panel.locator(COMPOSER)).toHaveAttribute('data-spend-policy', 'confirm')
   const card = panel.locator(`${APPROVAL_CARD}[data-kind="spend"]`)
   const input = card.locator('[data-composer-host="panel"] [contenteditable="true"]')
+  const size = card.locator('[data-parameter-chip="size"]')
   const pager = card.locator('[data-v4-block="pager"]')
   const graph = async () => {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
@@ -114,10 +115,15 @@ export async function checkSpendScopeJourney(walk, win) {
   await expect(input).toHaveText('CJ1_anchor_2 原始画面')
   const editedPrompt = 'CJ1 第二卡独立草稿，不串其他镜头'
   await input.fill(editedPrompt)
+  await clickOrFail(size.locator('button').first(), '第二镜尺寸控件')
+  await clickOrFail(win.getByRole('option', { name: '1536x1024', exact: true }).first(), '只改第二镜的尺寸')
+  await expect(size).toHaveAttribute('data-parameter-chip-value', '1536x1024')
   await pageTo(3)
   await expect(input).toHaveText('CJ1_anchor_3 原始画面')
+  await expect(size, '第三镜的尺寸没被第二镜带走').toHaveAttribute('data-parameter-chip-value', '1024x1024')
   await pageTo(2)
   await expect(input).toHaveText(editedPrompt)
+  await expect(size).toHaveAttribute('data-parameter-chip-value', '1536x1024')
   expect(await graph()).toEqual(initialGraph)
   await expectPlanKept('逐镜编辑之后')
   expect(walk.fixture.images).toHaveLength(0)
@@ -174,6 +180,7 @@ export async function checkSpendScopeJourney(walk, win) {
   const secondTurn = await present(otherOperationId, otherShots.map(shot => shot.shotId))
   await expect.poll(async () => (await pending()).map(row => row.operationId)).toEqual([otherOperationId])
   await expect(input).toHaveText('CJ1_shot_99 原始画面')
+  await expect(size).toHaveAttribute('data-parameter-chip-value', '1024x1024')
   const afterFirstDecline = (await graph()).nodes.map(node => node.id).sort()
   await walk.snap('cj1-second-operation-has-own-draft')
   const proof = await proveProbe(card, 'Second pending really appears before dismissal')
@@ -197,8 +204,10 @@ export async function checkSpendScopeJourney(walk, win) {
   // projectId/runId/operationId），重新出价换的只是报价指纹。改动只落在第二镜上。
   await pageTo(2)
   await expect(input, '重新出价带回他在第二镜上没提交的那句话').toHaveText(editedPrompt)
+  await expect(size, '第二镜那个尺寸也跟着回来').toHaveAttribute('data-parameter-chip-value', '1536x1024')
   await pageTo(3)
   await expect(input, '改动仍然只落在第二镜上').toHaveText('CJ1_anchor_3 原始画面')
+  await expect(size, '第三镜还是原来的尺寸').toHaveAttribute('data-parameter-chip-value', '1024x1024')
   // 「× 之后画布不多也不少」不靠墙钟等：上面这一整个模型回合（两次账本变更 + 一次读 + 回合落定）期间，
   // 落地对这两份计划各被触发过不止一次（账本每变一次它就重算一遍）。
   expect((await graph()).nodes.map(node => node.id).sort(), '× 之后经过一整个回合，画布节点一个不多也一个不少').toEqual(afterBothDeclined)
