@@ -10,7 +10,8 @@
     "Paid confirmation cards and the inline parameter bar that consume the shared primary-parameter split"
   ],
   "scope_paths": [
-    "src/workbench/generationCanvas/nodes/primaryParameterChips.ts"
+    "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts"
   ],
   "entry_points": [
     "Model archetype parameter controls are normalized by parameterControlRole before the paid card and inline bar split them into primary chips and overflow controls."
