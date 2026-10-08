@@ -9,6 +9,7 @@ import {
   effectiveShotAspect,
   planDefaultAspect,
 } from '../../../workbench/generationCanvas/agent/storyboardShotScope'
+import type { ModelOption } from '../../../config/models'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { labAnchorRuntime, labExec, NOOP } from '../storyboard/storyboardFixtures'
 import { LINWEI_RESULT, REUSE_ANCHORS, REUSE_IMAGE_MODELS, REUSE_VIDEO_MODELS } from './storyboardReuseFixtures'
@@ -50,8 +51,8 @@ function currentRefUrls(shot: PlanShot): string[] {
 }
 
 /** 一行镜头：现役 `StoryboardShotRow`，props 与 `StoryboardShotTable` 递下去的同一组。 */
-export function ShotRow({ plan, shot }: { plan: StoryboardPlan; shot: PlanShot }): JSX.Element {
-  const models = modelsFor(shot)
+export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: StoryboardPlan; shot: PlanShot; extra?: Partial<React.ComponentProps<typeof StoryboardShotRow>>; models?: { image: ModelOption[]; video: ModelOption[] } }): JSX.Element {
+  const models = modelsOverride ? (shot.shotKind === 'image' ? modelsOverride.image : modelsOverride.video) : modelsFor(shot)
   const mode = resolveShotArchetypeMode(findModelOptionByIdentifier(models, shot.modelKey, shot.modelVendor), shot.modeId)?.mode ?? null
   const exec = labExec({ missingSlots: missingRequiredSlots(mode, shot, plan.anchors) })
   const aspect = effectiveShotAspect(plan, shot)
@@ -74,13 +75,9 @@ export function ShotRow({ plan, shot }: { plan: StoryboardPlan; shot: PlanShot }
       onAgentHandoff={NOOP}
       onInsertAbove={NOOP}
       onInsertBelow={NOOP}
-      onSaveAsReference={NOOP}
       onCopy={NOOP}
       onMoveToScene={NOOP}
       scenes={[]}
-      targetShots={[]}
-      allShots={plan.shots}
-      sourcePosition={shot.index - 1}
       selected={false}
       onSelect={NOOP}
       isDragOver={false}
@@ -90,6 +87,7 @@ export function ShotRow({ plan, shot }: { plan: StoryboardPlan; shot: PlanShot }
       onMentionSelect={() => null}
       onUpdate={NOOP}
       onRemove={NOOP}
+      {...extra}
     />
   )
 }

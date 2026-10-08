@@ -5,7 +5,6 @@ import {
   IconDots,
   IconLock,
   IconLockOpen,
-  IconMaximize,
   IconPalette,
   IconPhoto,
   IconRefresh,
@@ -203,7 +202,6 @@ export default function StoryboardAnchorRow({
                   <ActButton label={t('storyboardEditor.anchor.lockTitle')} onClick={onToggleLock}><IconLock size={14} stroke={1.8} /></ActButton>
                 </>
               )}
-              {onOpenPreview ? <ActButton label={t('storyboardEditor.frame.zoom')} onClick={onOpenPreview}><IconMaximize size={14} stroke={1.8} /></ActButton> : null}
             </div>
           ) : null}
           </div>
@@ -323,7 +321,10 @@ function AnchorFace({
         <div
           className="relative overflow-hidden rounded-nomi border border-nomi-line bg-nomi-ink-05"
           style={style}
-          onDoubleClick={onOpenPreview}
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest('button')) return
+            onOpenPreview?.()
+          }}
           data-anchor-face={runtime.locked ? 'locked' : 'done'}
           data-storyboard-visual-box="true"
         >

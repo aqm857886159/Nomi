@@ -36,6 +36,7 @@ vi.mock('../store/generationCanvasStore', () => ({
 vi.mock('../agent/shotVerifyStore', () => ({ verifyShotsAndReport: vi.fn() }))
 
 vi.mock('../runner/generationRunController', () => ({
+  spendCostKind: vi.fn((kind: string) => kind === 'video' ? 'video' : 'image'),
   spendCostKindForNodes: vi.fn(() => 'image'),
   paidNodeLedger: vi.fn(() => 'run'),
 }))
