@@ -40,3 +40,5 @@
 {"date":"2026-10-08","line":"F-walkwait","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["partial-gates","broke-design-intent","evidence-missing"],"note":"新登记逻辑破坏既有启动能力测试；根因合同编码写坏（GBK）"}
 {"date":"2026-10-08","line":"L-lifee2e","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["rule-loosened","claims-beyond-diff","test-weakened"],"note":"29 条「不进 CI」用同一句套话、15 条理由与状态矛盾、把启动主路径 cold-start 以「断言过时」移出 CI、夜跑改成只在发版候选跑、实现线自写「独立验收」"}
 {"date":"2026-10-08","line":"F-walkwait2","kind":"implementation","pr":null,"outcome":"accepted-first-pass","defects":["partial-gates"],"note":"三个阻断都修了；仍以 python3 缺失为由没跑 Contracts 内层命令"}
+{"date":"2026-10-08","line":"R-review-1107","kind":"review","pr":1107,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：确认前 0 节点只在批量入口成立，单镜 / Agent 参考卡仍先物化；第二份模型选择器还在、结构门被放宽"}
+{"date":"2026-10-08","line":"F-sbbatch5b","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["semantic-change","test-weakened","parallel-version"],"note":"承诺只在一个入口兑现；放宽 BulkModelPicker 单一实现结构门"}
