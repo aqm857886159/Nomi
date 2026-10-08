@@ -72,7 +72,7 @@ type SessionHarness = ReturnType<typeof makeSessionHarness>;
 function makeSessionHarness() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-verified-invocation-"));
   tempDirs.push(dir);
-  process.env[CAPABILITY_DIR_ENV] = path.join(dir, "capability");
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(dir, "capability"));
   ensureToken();
   const proof = signMcpClient("codex")!;
   const makeConnection = (secret = "A".repeat(43)): McpConnectionContext =>
@@ -176,8 +176,8 @@ function expectInvocationError(code: CapabilityInvocationError["code"]) {
 }
 
 afterEach(() => {
-  if (previousCapabilityDir === undefined) delete process.env[CAPABILITY_DIR_ENV];
-  else process.env[CAPABILITY_DIR_ENV] = previousCapabilityDir;
+  if (previousCapabilityDir === undefined) vi.stubEnv(CAPABILITY_DIR_ENV, undefined);
+  else vi.stubEnv(CAPABILITY_DIR_ENV, previousCapabilityDir);
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 

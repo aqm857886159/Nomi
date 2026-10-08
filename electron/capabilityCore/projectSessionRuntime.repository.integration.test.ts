@@ -36,16 +36,16 @@ const previousEnvironment = {
 };
 
 function restoreEnvironment(name: string, value: string | undefined): void {
-  if (value === undefined) delete process.env[name];
-  else process.env[name] = value;
+  if (value === undefined) vi.stubEnv(name, undefined);
+  else vi.stubEnv(name, value);
 }
 
 beforeEach(() => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-session-repository-b6-"));
   tempDirs.push(root);
-  process.env[CAPABILITY_DIR_ENV] = path.join(root, "capability");
-  process.env[PROJECT_ROOT_ENV] = path.join(root, "projects");
-  process.env[SETTINGS_ROOT_ENV] = path.join(root, "settings");
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(root, "capability"));
+  vi.stubEnv(PROJECT_ROOT_ENV, path.join(root, "projects"));
+  vi.stubEnv(SETTINGS_ROOT_ENV, path.join(root, "settings"));
 });
 
 afterEach(() => {

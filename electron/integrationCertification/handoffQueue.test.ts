@@ -1,10 +1,12 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-handoff-'))
-process.env.NOMI_CAPABILITY_DIR = root
+beforeEach(() => {
+  vi.stubEnv("NOMI_CAPABILITY_DIR", root)
+})
 
 import { acknowledgeIntegrationHandoff, enqueueIntegrationHandoff, listIntegrationHandoffs, retireIntegrationHandoffs } from './handoffQueue'
 

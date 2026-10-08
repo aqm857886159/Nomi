@@ -153,39 +153,24 @@ it('a later SDK global fetch replacement cannot change the native fetch implemen
 });
 
 it('test network mode rejects public destinations before transport and names the host', async () => {
-  const previous = process.env.NOMI_TEST_NETWORK_GUARD;
-  process.env.NOMI_TEST_NETWORK_GUARD = '1';
+  vi.stubEnv('NOMI_TEST_NETWORK_GUARD', '1');
   const send = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
   const proxy = await import('./systemProxy');
   await proxy.applySystemProxy({ setProxy: async () => {} } as unknown as Session, { mode: 'off', customUrl: '' });
-  try {
-    const { appFetch } = await import('./appFetch');
-    await expect(appFetch('https://api.apimart.ai/v1/models')).rejects.toThrow('api.apimart.ai');
-    expect(send).not.toHaveBeenCalled();
-  } finally {
-    if (previous === undefined) delete process.env.NOMI_TEST_NETWORK_GUARD;
-    else process.env.NOMI_TEST_NETWORK_GUARD = previous;
-  }
+  const { appFetch } = await import('./appFetch');
+  await expect(appFetch('https://api.apimart.ai/v1/models')).rejects.toThrow('api.apimart.ai');
+  expect(send).not.toHaveBeenCalled();
 });
 
 it('test network mode rewrites a registered vendor origin to its loopback fixture', async () => {
-  const previousGuard = process.env.NOMI_TEST_NETWORK_GUARD;
-  const previousRedirects = process.env.NOMI_TEST_NETWORK_REDIRECTS;
-  process.env.NOMI_TEST_NETWORK_GUARD = '1';
-  process.env.NOMI_TEST_NETWORK_REDIRECTS = JSON.stringify([
+  vi.stubEnv('NOMI_TEST_NETWORK_GUARD', '1');
+  vi.stubEnv('NOMI_TEST_NETWORK_REDIRECTS', JSON.stringify([
     { from: 'https://api.apimart.ai', to: 'http://127.0.0.1:43123' },
-  ]);
+  ]));
   const send = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
   const proxy = await import('./systemProxy');
   await proxy.applySystemProxy({ setProxy: async () => {} } as unknown as Session, { mode: 'off', customUrl: '' });
-  try {
-    const { appFetch } = await import('./appFetch');
-    await appFetch('https://api.apimart.ai/v1/models');
-    expect(send).toHaveBeenCalledWith('http://127.0.0.1:43123/v1/models', expect.anything());
-  } finally {
-    if (previousGuard === undefined) delete process.env.NOMI_TEST_NETWORK_GUARD;
-    else process.env.NOMI_TEST_NETWORK_GUARD = previousGuard;
-    if (previousRedirects === undefined) delete process.env.NOMI_TEST_NETWORK_REDIRECTS;
-    else process.env.NOMI_TEST_NETWORK_REDIRECTS = previousRedirects;
-  }
+  const { appFetch } = await import('./appFetch');
+  await appFetch('https://api.apimart.ai/v1/models');
+  expect(send).toHaveBeenCalledWith('http://127.0.0.1:43123/v1/models', expect.anything());
 });

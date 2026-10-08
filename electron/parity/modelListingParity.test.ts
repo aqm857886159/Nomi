@@ -16,12 +16,18 @@
  */
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+/* eslint-disable @typescript-eslint/no-require-imports -- vi.hoisted runs before static imports. */
+const testRoot = vi.hoisted(() => {
+  const nodeFs = require("node:fs") as typeof import("node:fs");
+  const nodeOs = require("node:os") as typeof import("node:os");
+  const nodePath = require("node:path") as typeof import("node:path");
+  return nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), "nomi-parity-listing-"));
+});
+/* eslint-enable @typescript-eslint/no-require-imports */
+
 vi.mock("electron", async () => {
-  const nodeFs = await import("node:fs");
-  const nodeOs = await import("node:os");
-  const nodePath = await import("node:path");
   const { electronStub } = await import("./parityElectronMock");
-  return electronStub(nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), "nomi-parity-listing-")));
+  return electronStub(testRoot);
 });
 
 import { seedParityCatalog } from "./generationParityTestUtils";
@@ -46,6 +52,13 @@ beforeAll(async () => {
 });
 
 describe("模型清单 · 设置页偏好 vs Agent/MCP 清单", () => {
+  it("keeps the catalog and preference fixture under its isolated settings root", async () => {
+    const { modelBoxPreferenceSettingsPath } = await import("../settings/modelBoxPreferenceSettings");
+    const { catalogPath } = await import("../catalog/catalogFileAccess");
+    expect(modelBoxPreferenceSettingsPath()).toContain(testRoot);
+    expect(catalogPath()).toContain(testRoot);
+  });
+
   it("Agent 清单确实是从同一份目录派生的（有行，且包含被藏的那几个模型）", () => {
     expect(listing.length).toBeGreaterThan(0);
     for (const hidden of HIDDEN) {

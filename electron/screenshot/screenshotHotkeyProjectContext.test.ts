@@ -42,13 +42,13 @@ const thumbnail = { isEmpty: () => false, getSize: () => ({ width: 1, height: 1 
 beforeEach(() => {
   vi.resetModules()
   mock.root = temp()
-  process.env.NOMI_SETTINGS_DIR = path.join(mock.root, 'settings')
+  vi.stubEnv("NOMI_SETTINGS_DIR", path.join(mock.root, 'settings'))
   const webContents = { send: mock.send }
   mock.win = { isDestroyed: () => false, show: vi.fn(), focus: vi.fn(), webContents }
 })
 afterEach(() => {
   vi.clearAllMocks()
-  delete process.env.NOMI_SETTINGS_DIR
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 

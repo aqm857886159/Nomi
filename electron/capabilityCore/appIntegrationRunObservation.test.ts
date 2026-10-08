@@ -26,12 +26,12 @@ describe('single-shot observation outlives the provider', () => {
   const previousHorizon = process.env.NOMI_POLL_TIMEOUT_MS
   beforeEach(() => {
     vi.useFakeTimers()
-    process.env.NOMI_POLL_TIMEOUT_MS = String(HORIZON_MS)
+    vi.stubEnv("NOMI_POLL_TIMEOUT_MS", String(HORIZON_MS))
   })
   afterEach(() => {
     vi.useRealTimers()
-    if (previousHorizon === undefined) delete process.env.NOMI_POLL_TIMEOUT_MS
-    else process.env.NOMI_POLL_TIMEOUT_MS = previousHorizon
+    if (previousHorizon === undefined) vi.stubEnv("NOMI_POLL_TIMEOUT_MS", undefined)
+    else vi.stubEnv("NOMI_POLL_TIMEOUT_MS", previousHorizon)
   })
 
   function setup(status: ProductionRun['status'] = 'running') {

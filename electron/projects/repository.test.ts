@@ -69,11 +69,11 @@ describe("legacyProjectDirById（folder rename 自愈）", () => {
   beforeEach(() => {
     prevEnv = process.env.NOMI_PROJECTS_DIR;
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-projroot-"));
-    process.env.NOMI_PROJECTS_DIR = root;
+    vi.stubEnv("NOMI_PROJECTS_DIR", root);
   });
   afterEach(() => {
-    if (prevEnv === undefined) delete process.env.NOMI_PROJECTS_DIR;
-    else process.env.NOMI_PROJECTS_DIR = prevEnv;
+    if (prevEnv === undefined) vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
+    else vi.stubEnv("NOMI_PROJECTS_DIR", prevEnv);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -108,15 +108,15 @@ describe("listProjects 启动一次 GC（空白草稿回收）", () => {
     prevSettings = process.env.NOMI_SETTINGS_DIR;
     projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-gc-proj-"));
     settingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-gc-settings-"));
-    process.env.NOMI_PROJECTS_DIR = projectsRoot;
-    process.env.NOMI_SETTINGS_DIR = settingsRoot;
+    vi.stubEnv("NOMI_PROJECTS_DIR", projectsRoot);
+    vi.stubEnv("NOMI_SETTINGS_DIR", settingsRoot);
     resetEmptyDraftGcGuard();
   });
   afterEach(() => {
-    if (prevProjects === undefined) delete process.env.NOMI_PROJECTS_DIR;
-    else process.env.NOMI_PROJECTS_DIR = prevProjects;
-    if (prevSettings === undefined) delete process.env.NOMI_SETTINGS_DIR;
-    else process.env.NOMI_SETTINGS_DIR = prevSettings;
+    if (prevProjects === undefined) vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
+    else vi.stubEnv("NOMI_PROJECTS_DIR", prevProjects);
+    if (prevSettings === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+    else vi.stubEnv("NOMI_SETTINGS_DIR", prevSettings);
     fs.rmSync(projectsRoot, { recursive: true, force: true });
     fs.rmSync(settingsRoot, { recursive: true, force: true });
   });

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   assertVerifiedMcpConnectionContext,
@@ -20,14 +20,14 @@ import {
 const tempRoots: string[] = []
 
 afterEach(() => {
-  delete process.env[CAPABILITY_DIR_ENV]
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 
 function installClientProof(client: 'claude' | 'codex' | 'cursor') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-connection-'))
   tempRoots.push(root)
-  process.env[CAPABILITY_DIR_ENV] = root
+  vi.stubEnv(CAPABILITY_DIR_ENV, root)
   ensureToken()
   return signMcpClient(client)!
 }
