@@ -400,8 +400,8 @@ try {
   if (!edgeProbe.error) {
     await win.mouse.click(edgeProbe.x, edgeProbe.y)
     await waitForVisualQuiescence(win)
-    const edgeSelected = await win.evaluate(() => Boolean(document.querySelector('.react-flow__edge[data-id="edge-text-scene"].selected, .react-flow__edge[data-id="edge-text-scene"] [data-selected="true"], .generation-canvas-react-flow__edge-label')))
-    check(edgeSelected, 'A4·点下去选中的是那条连线（出现边菜单胶囊）', { edgeSelected })
+    const edgeSelected = await win.evaluate(() => Boolean(document.querySelector('.generation-canvas-v2__edge[data-edge-id="edge-text-scene"][data-active="true"]')))
+    check(edgeSelected, 'A4·点下去选中的是那条连线（高亮；用户 10-08「删掉连线中间的标签」后不再弹模式菜单胶囊）', { edgeSelected })
     await shot('03-edge-beside-unselected-card-clickable')
   }
 

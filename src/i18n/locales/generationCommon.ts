@@ -133,9 +133,6 @@ export const zhGenerationCommon = {
     edge: {
       select: '选择连接线：{{source}} 到 {{target}}',
       disconnect: '断开连接：{{source}} 到 {{target}}',
-      disconnectAction: '断开连接',
-      changeMode: '修改连接语义：当前为{{mode}}',
-      modeMenu: '连接语义',
       modes: {
         reference: '素材参考',
         first_frame: '首帧',
@@ -1765,9 +1762,6 @@ export const enGenerationCommon = {
     edge: {
       select: 'Select connection: {{source}} to {{target}}',
       disconnect: 'Disconnect: {{source}} to {{target}}',
-      disconnectAction: 'Disconnect',
-      changeMode: 'Change connection meaning: currently {{mode}}',
-      modeMenu: 'Connection meaning',
       modes: {
         reference: 'Asset reference',
         first_frame: 'First frame',

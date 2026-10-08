@@ -59,11 +59,6 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/components/edgeModeMenu.ts",
-      "symbol": "validateReferenceEdge"
-    },
-    {
-      "kind": "write",
       "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
       "symbol": "validateReferenceEdge"
     },
@@ -81,7 +76,7 @@
   "door_reduction": {
     "before": 6,
     "after": 6,
-    "why_not": "The six doors are six genuinely different user / agent gestures (agent connect, plan partition, edge-mode menu, manual / menu / pick connection, @-mention, auto-reference). They already converge on one function; the fix moved the missing fact into that function (via the kind definition) instead of adding a seventh check, so the count stays and every door inherits the rule."
+    "why_not": "The doors are genuinely different user / agent gestures (agent connect, plan partition, manual / menu / pick connection, @-mention, auto-reference). They already converge on one function; the fix moved the missing fact into that function (via the kind definition) instead of adding a seventh check, so the count stays and every door inherits the rule."
   },
   "generality_proof": "The fact lives on the kind definition and is read by validateReferenceEdge, the single function all six edge-creation doors call, plus by the ring contract and both menu verdict functions. A new caller that creates edges through any of these doors cannot bypass it; a new node kind cannot be added without declaring connects (TypeScript error).",
   "shared_boundaries": [
@@ -142,7 +137,7 @@
     "classification": "recurring",
     "reason": "Any new entry (the coming @ → canvas node pick, new node kinds) would otherwise infer input / output again; the clip node was already a second inference site.",
     "same_class_scan": [
-      "node scripts/door-map.mjs validateReferenceEdge → 6 write doors, all converge",
+      "node scripts/door-map.mjs validateReferenceEdge → 5 write doors after the edge-mode pill was removed (was 6), all converge",
       "node scripts/door-map.mjs connectNodes → 17 write doors; system provenance edges (panorama screenshot → asset, director / clip / whiteboard outputs) use store.connectNodes without the gate and are intentionally untouched",
       "git grep providesImageReference / referenceAssetKindForNode → referenceAssetKindForNode now gated by connects.output"
     ]

@@ -71,7 +71,7 @@ import {
   useNarrowedModeGuidance,
 } from './controls/narrowedModeGuidance'
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
-import { resolveReferenceSlots, decideArrayReferenceRemoval } from '../runner/referenceSlots'
+import { resolveReferenceSlots, decideArrayReferenceRemoval, firstFrameTaggedSlot } from '../runner/referenceSlots'
 import { useChannelCreateBodies } from './controls/useChannelCreateBody'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
@@ -547,12 +547,15 @@ export default function NodeParameterControls({
   // 真的看得见（根治「显示读 meta、生成读边」分裂导致的「连线没用」）。按存储键回填到 assetValuesByKey。
   // pending（连了边但源未生成/待抽帧）本片先不显示空位（占位态留 S4b）；非档案模型仍走旧启发式路径。
   const resolvedFillUrlsByMetaKey = new Map<string, string[]>()
+  let firstFrameSlotKey: string | undefined
   // 槽位**已占用位置数**（含「连了边但源未生成」的 pending fill，它占位但 url 为空）。容量判断（能否再加/连）
   // 必须用它，而非「有 url 的显示图数」或「meta 数组长度」——否则被 pending 边占满的槽仍显示「+」、上传/连线
   // 写得进去却落不下（resolveReferenceSlots 没空位放）→「参考图上不去 / 连线连不上」（2026-06-25 真机存档定位）。
   const arrayOccupiedByKey = new Map<string, number>()
   if (archMode) {
-    for (const rs of resolveReferenceSlots(node, nodes, edges)) {
+    const resolvedSlots = resolveReferenceSlots(node, nodes, edges)
+    const taggedSlot = firstFrameTaggedSlot(resolvedSlots)
+    for (const rs of resolvedSlots) {
       const storage = referenceSlotStorage({ kind: rs.slotKind })
       if (storage) {
         resolvedFillUrlsByMetaKey.set(
@@ -560,6 +563,7 @@ export default function NodeParameterControls({
           rs.fills.map((f) => f.url).filter((u): u is string => Boolean(u)),
         )
         arrayOccupiedByKey.set(storage.metaKey, rs.fills.length)
+        if (rs === taggedSlot) firstFrameSlotKey = storage.metaKey
       }
     }
   }
@@ -755,6 +759,7 @@ export default function NodeParameterControls({
           onInsertMention={onInsertMention}
           onReorder={handleReorder}
           onBrowseAll={handleBrowseAll}
+          firstFrameSlotKey={firstFrameSlotKey}
         />
       ) : null}
 

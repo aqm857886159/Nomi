@@ -256,7 +256,8 @@ try {
     const point = await findEdgeHitPoint(win)
     expect(point, '连线上存在真的点得到的点').not.toBeNull()
     await win.mouse.click(point.x, point.y)
-    await expect(win.locator('.generation-canvas-react-flow__edge-label').first(), '点连线打开连线模式药丸').toBeVisible()
+    // 用户 10-08「删掉连线中间的标签吗，没有作用」：点线不再打开模式药丸 / 菜单，只选中并在中点出「×」。
+    await expect(win.locator('[data-edge-disconnect]').first(), '点连线选中它、中点出「×」').toBeVisible()
     await snap('04-close-edge-stays-clickable')
   })
 

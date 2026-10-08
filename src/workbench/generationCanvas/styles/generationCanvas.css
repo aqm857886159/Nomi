@@ -268,9 +268,6 @@
   pointer-events: none;
 }
 
-/* A′：删旧四色 data-mode 着色（first/last/style/character/composition 各色）——
-   统一到 accent 实线，类型信息靠 typed 边的小标签补（P1 删并行版，不留四色彩虹）。 */
-
 .generation-canvas-v2__edge-cut-wrap {
   display: grid;
   width: 36px;

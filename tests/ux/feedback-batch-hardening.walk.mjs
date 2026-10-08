@@ -98,46 +98,41 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
   const edgePath = edge.locator('.generation-canvas-v2__edge-path')
   const edgeHit = edge.locator('.generation-canvas-v2__edge-hit')
   const edgeControl = win.locator('.generation-canvas-v2__edge-control[data-edge-id="edge-style"]')
-  const edgeTag = edgeControl.locator('.generation-canvas-v2__edge-tag-pill').filter({ hasText: '风格' })
-  const opacityOf = (locator) => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity))
-  const pointerEventsOf = (locator) => locator.evaluate((element) => getComputedStyle(element).pointerEvents)
   const strokeOpacityOf = (locator) => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).strokeOpacity))
   const expectNear = async (actualPromise, expected, state) => {
     const actual = await actualPromise
     if (Math.abs(actual - expected) > 0.05) throw new Error(`${state}: expected ${expected}, received ${actual}`)
   }
 
-  await expectNear(opacityOf(edgeControl), 0, 'collapsed edge label opacity')
-  if (await pointerEventsOf(edgeControl) !== 'none') throw new Error('collapsed edge label intercepted pointer events')
+  // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点不再有类型标签；闲置时没有任何中点控件，悬停才出断开「×」。
+  if (await edgeControl.count() !== 0) throw new Error('idle edge shows a midpoint control')
   await expectNear(strokeOpacityOf(edgePath), 0.18, 'idle edge opacity')
   await shot(win, '01-edge-label-collapsed.png')
 
   await edgeHit.hover({ force: true })
   await win.waitForTimeout(220)
-  await expectNear(opacityOf(edgeControl), 1, 'hovered edge label opacity')
-  if (await pointerEventsOf(edgeControl) !== 'auto') throw new Error('hovered edge label was not interactive')
+  await edgeControl.locator('[data-edge-disconnect]').waitFor({ state: 'visible', timeout: 3000 })
+  if (await edgeControl.locator('.generation-canvas-v2__edge-tag-pill').count() !== 0) throw new Error('hovered edge still shows a mode pill')
   await expectNear(strokeOpacityOf(edgePath), 1, 'hovered edge opacity')
   await shot(win, '02-edge-label-hover.png')
 
   await win.locator('[data-node-id="role-node"]').click()
   await win.waitForTimeout(220)
-  await expectNear(opacityOf(edgeControl), 1, 'selected asset edge label opacity')
   await expectNear(strokeOpacityOf(edgePath), 1, 'selected asset edge opacity')
   await shot(win, '03-edge-label-selected-asset.png')
 
   await win.locator('.generation-canvas-v2__stage').click({ position: { x: 500, y: 760 }, force: true })
   await win.waitForTimeout(220)
-  await expectNear(opacityOf(edgeControl), 0, 'cleared selection edge label opacity')
-  if (await pointerEventsOf(edgeControl) !== 'none') throw new Error('cleared edge label intercepted pointer events')
+  if (await edgeControl.count() !== 0) throw new Error('cleared selection left a midpoint control')
 
   await win.locator('[data-node-id="shot-node"]').click()
   await win.waitForTimeout(600)
   await shot(win, '04-dark-toolbar-clearance.png')
 
-  await edgeTag.click()
+  // 旧的「点标签 → 连接语义菜单」整段作废（同上，用户 10-08）：点线只选中，不弹菜单。
+  await edgeHit.click({ force: true })
   await win.waitForTimeout(250)
-  await shot(win, '05-edge-mode-menu.png')
-  if (!(await win.getByRole('menu', { name: '连接语义' }).isVisible())) throw new Error('edge mode menu did not open')
+  if (await win.getByRole('menu', { name: '连接语义' }).count() !== 0) throw new Error('clicking an edge still opens a mode menu')
   await win.keyboard.press('Escape')
 
   const stackButton = win.getByRole('button', { name: '3 张堆叠图片' })

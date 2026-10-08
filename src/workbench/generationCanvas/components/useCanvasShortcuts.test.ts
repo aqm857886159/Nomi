@@ -284,3 +284,40 @@ describe('画布粘贴来源路由', () => {
     expect(handler?.indexOf('shouldPreferCanvasClipboard')).toBeLessThan(handler?.indexOf('pasteClipboardMediaToGenerationCanvas') ?? -1)
   })
 })
+
+describe('Delete 键与选中的连线（用户 10-08「删掉连线中间的标签」后，断开 = 悬停「×」或选中后 Delete）', () => {
+  function deleteHandler(selectedNodeCount: number) {
+    const deleteActiveEdge = vi.fn()
+    const deleteSelectedNodes = vi.fn()
+    const handler = createCanvasKeydownHandler({
+      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+      selectedNodeCount, selectedGroupCount: 0, activeCategoryId: 'shots',
+      setActiveEdge: () => {}, cancelConnection: () => {}, deleteActiveEdge, deleteSelectedNodes,
+      groupSelectedNodes: () => {}, ungroupSelectedNodes: () => {}, copySelectedNodes: () => {}, cutSelectedNodes: () => {},
+      pasteNodes: () => {}, zoomByStep: () => {}, undo: () => {}, redo: () => {}, ...NO_PARITY_COMMANDS,
+    })
+    return { handler, deleteActiveEdge, deleteSelectedNodes }
+  }
+  function press(handler: (event: KeyboardEvent) => void) {
+    const eventWindow = new EventTarget() as EventTarget & { getSelection: () => { isCollapsed: boolean } }
+    eventWindow.getSelection = () => ({ isCollapsed: true })
+    const canvasTarget = targetWithEditableAncestor(false)
+    globalThis.window = eventWindow as Window & typeof globalThis
+    globalThis.document = { activeElement: canvasTarget, querySelector: () => null } as unknown as Document
+    handler(keyboardEvent(canvasTarget, { key: 'Delete', code: 'Delete', metaKey: false, ctrlKey: false }))
+  }
+
+  it('没有选中节点、选中了一条线 → Delete 断开那条线，不删节点', () => {
+    const { handler, deleteActiveEdge, deleteSelectedNodes } = deleteHandler(0)
+    press(handler)
+    expect(deleteActiveEdge).toHaveBeenCalledTimes(1)
+    expect(deleteSelectedNodes).not.toHaveBeenCalled()
+  })
+
+  it('选中了节点 → Delete 照旧删节点，不碰线', () => {
+    const { handler, deleteActiveEdge, deleteSelectedNodes } = deleteHandler(1)
+    press(handler)
+    expect(deleteSelectedNodes).toHaveBeenCalledTimes(1)
+    expect(deleteActiveEdge).not.toHaveBeenCalled()
+  })
+})

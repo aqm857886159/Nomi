@@ -25,7 +25,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
-import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findEdgeHitPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const evidenceDir = path.join(repoRoot, 'docs/plan/2026-09-11-triage-board-evidence')
@@ -77,7 +77,9 @@ fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify
 const TOOLBAR = '.generation-canvas-v2-toolbar'
 const NAV_STACK = '.generation-canvas-v2__navigation-stack'
 const NODE_FLOATING_TOOLBAR = '[data-node-floating-toolbar]'
-const EDGE_LABEL = '.generation-canvas-react-flow__edge-label'
+// 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点的模式胶囊已删，剩下的中点控件是断开用的「×」；
+// ③ 量的「恒定屏幕尺寸」判据不变，量它。
+const EDGE_LABEL = '[data-edge-disconnect]'
 const LIGHTBOX = '[role="dialog"][aria-label], .workbench-generation__canvas [role="dialog"]'
 
 const log = (...args) => console.log('  ', ...args)
@@ -248,8 +250,12 @@ try {
   }
 
   // ── ③ 边标签在 30% 与 300% 下屏幕高度一致 ──
-  await getWin().locator('.generation-canvas-v2-node[data-node-id="backfill-style"]').first().click()
-  await expectVisible(getWin().locator(EDGE_LABEL).first(), '选中边的一端后应当出现边模式胶囊')
+  const blankBeforeEdge = await findCanvasBlankPoint(getWin())
+  if (blankBeforeEdge) { await getWin().mouse.click(blankBeforeEdge.x, blankBeforeEdge.y); await getWin().waitForTimeout(300) }
+  const edgePoint = await findEdgeHitPoint(getWin(), { edgeSelector: '.generation-canvas-v2__edge-hit', margins: { left: 16, top: 80, right: 16, bottom: 16 } })
+  expect(edgePoint, '连线上找得到点得到的一点').not.toBe(null)
+  await getWin().mouse.click(edgePoint.x, edgePoint.y)
+  await expectVisible(getWin().locator(EDGE_LABEL).first(), '点选一条边后中点应当出现断开「×」')
   // 缩放锚光标：把光标压在胶囊上滚，它就一直留在屏幕中间——截图才看得见被测的东西。
   const labelCenter = async () => {
     const box = await getWin().locator(EDGE_LABEL).first().boundingBox().catch(() => null)

@@ -80,6 +80,8 @@ type AssetTileProps = {
   asset: AssetRef
   /** 1-based 编号徽标;不传 = 不显示。 */
   index?: number
+  /** 角上的小字签（如「首帧」），与编号徽标同一个徽标样式、放在左下角;不传 = 不显示。 */
+  tag?: string
   /** 传了才显示删除「×」。 */
   onRemove?: () => void
   /** 传了则可点(hover 高亮)。 */
@@ -97,13 +99,13 @@ const WAVE_HEIGHTS = [8, 16, 22, 12, 18, 9]
 // 小格取「半边减 3」，保证序号和 × 在 28 格里也并排放得下、互不压。
 const CORNER_SIZE = 'h-[min(16px,calc(50%_-_3px))]'
 
-function NumberBadge({ index }: { index: number }): JSX.Element {
+function NumberBadge({ index, tag }: { index?: number; tag?: string }): JSX.Element {
   return (
     <span
-      data-asset-tile-badge={index}
-      className={cn('absolute top-[2px] left-[2px] min-w-[min(16px,calc(50%_-_3px))] px-[min(4px,8%)] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none z-[2]', CORNER_SIZE)}
+      {...(tag ? { 'data-asset-tile-tag': 'firstFrame' } : { 'data-asset-tile-badge': index })}
+      className={cn('absolute left-[2px] min-w-[min(16px,calc(50%_-_3px))] px-[min(4px,8%)] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none z-[2]', tag ? 'bottom-[2px]' : 'top-[2px]', CORNER_SIZE)}
     >
-      {index}
+      {tag ?? index}
     </span>
   )
 }
@@ -163,7 +165,7 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
   )
 }
 
-export default function AssetTile({ asset, index, onRemove, onClick, dragProps, className }: AssetTileProps): JSX.Element {
+export default function AssetTile({ asset, index, tag, onRemove, onClick, dragProps, className }: AssetTileProps): JSX.Element {
   const clickable = Boolean(onClick)
   // 图用原图、视频用首帧缩略图放大；音频无缩略图不弹。
   const zoomSrc = asset.kind === 'audio' || asset.kind === 'model3d' ? undefined : asset.kind === 'video' ? asset.thumbUrl : asset.renderUrl
@@ -190,6 +192,7 @@ export default function AssetTile({ asset, index, onRemove, onClick, dragProps, 
       >
         <AssetThumb asset={asset} />
         {typeof index === 'number' ? <NumberBadge index={index} /> : null}
+        {tag ? <NumberBadge tag={tag} /> : null}
         {onRemove ? <RemoveButton label={asset.name} onRemove={onRemove} /> : null}
       </div>
       {zoom.overlay}
