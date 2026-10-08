@@ -107,29 +107,48 @@ export function resolveReferenceBaselines({ repoRoot, baselinePath, referenceBas
     const commit = resolveCommit(gitRoot, ref)
     if (!commit) {
       if (required) errors.push(`reference commit is unavailable：${label}（${ref}）`)
-      return
+      return false
     }
     if (seenCommits.has(commit)) return
     seenCommits.add(commit)
     const baseline = readBaselineAtCommit(gitRoot, relativeBaselinePath, commit)
     if (baseline?.parseError) {
       errors.push(`reference baseline is invalid JSON：${label}:${relativeBaselinePath}（${baseline.parseError}）`)
-      return
+      return false
     }
-    if (baseline) references.push({ baseline, label: `${label}:${relativeBaselinePath}`, commit })
+    if (!baseline) return false
+    references.push({ baseline, label: `${label}:${relativeBaselinePath}`, commit })
+    return true
   }
 
   if (hasExplicitCommit) addCommit(envRef, `VOCAB_BASE_REF=${envRef}`, { required: true })
 
-  const status = git(gitRoot, ['status', '--porcelain', '--', relativeBaselinePath])
-  if (status.status === 0 && status.stdout.trim()) addCommit('HEAD', 'HEAD')
+  // A historical ratchet must compare this branch with one coherent past
+  // snapshot. Comparing every reachable snapshot makes a release branch red
+  // merely because main later retired debt that never existed on the branch.
+  // A dirty baseline is intentionally checked against its committed HEAD
+  // snapshot first; otherwise main is authoritative only after it is already
+  // an ancestor of this branch. Older branches use their merge-base (then the
+  // immediately previous commit when no baseline was present at the merge-base)
+  // and never borrow a newer main-only snapshot.
+  if (references.length === 0) {
+    const status = git(gitRoot, ['status', '--porcelain', '--', relativeBaselinePath])
+    if (status.status === 0 && status.stdout.trim()) addCommit('HEAD', 'HEAD')
+  }
 
-  addCommit('HEAD^1', 'HEAD^1')
-  addCommit('origin/main', 'origin/main')
-
-  const mergeBase = git(gitRoot, ['merge-base', 'HEAD', 'origin/main'])
-  if (mergeBase.status === 0 && mergeBase.stdout.trim()) {
-    addCommit(mergeBase.stdout.trim(), `merge-base(${mergeBase.stdout.trim()})`)
+  if (references.length === 0) {
+    const mainIsAncestor = git(gitRoot, ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'])
+    if (mainIsAncestor.status === 0) {
+      addCommit('origin/main', 'origin/main')
+    } else {
+      const mergeBase = git(gitRoot, ['merge-base', 'HEAD', 'origin/main'])
+      const mergeBaseResolved = mergeBase.status === 0 && mergeBase.stdout.trim()
+      if (mergeBaseResolved && addCommit(mergeBase.stdout.trim(), `merge-base(${mergeBase.stdout.trim()})`)) {
+        // Keep exactly one historical snapshot for the ratchet.
+      } else {
+        addCommit('HEAD^1', 'HEAD^1')
+      }
+    }
   }
 
   const baselineHistory = git(gitRoot, ['log', '--format=%H', '--', relativeBaselinePath])
