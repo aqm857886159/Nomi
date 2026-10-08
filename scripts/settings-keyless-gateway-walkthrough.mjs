@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R16 真实任务：把一个无需 Key、没有文档、媒体自检失败的本地网关接进 Nomi。
 // 成功标准：UI 不要求 Key；请求不带鉴权头；模型仍启用且有可执行 mapping；旧官方预设仍要求 Key。
 // Usage: pnpm build && node scripts/settings-keyless-gateway-walkthrough.mjs
@@ -10,8 +11,8 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-keyless-gateway-walk')
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-keyless-gateway-set-'))
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-keyless-gateway-proj-'))
+const settingsDir = makeTempDir('settings-keyless-gateway-set-')
+const projectsDir = makeTempDir('settings-keyless-gateway-proj-')
 mkdirSync(outDir, { recursive: true })
 
 const requests = []

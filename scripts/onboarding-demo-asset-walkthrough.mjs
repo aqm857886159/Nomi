@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：引导示例项目的预置成图（2026-07-30 根因修复验证）。
 // 场景：**用 dist 产物**起 Electron（打包版走的就是这条 file:// 路径）→ 项目库点「看 Nomi 怎么出片」
 // → 引导落画布并注入 10 张成图。此前注入的是构建产物 URL（dev server 地址落进了 project.json），
@@ -13,8 +14,8 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.onboarding-demo-lab')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-s-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-p-'))
+const settingsDir = makeTempDir('demo-s-')
+const projectsDir = makeTempDir('demo-p-')
 
 const { app, win } = await launchNomiApp({
   name: 'onboarding-demo-asset',

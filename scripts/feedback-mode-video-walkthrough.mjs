@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查（2026-07-28 群反馈两根治）：
 // B) 导入 Chromium 播不了的视频（mpeg4 AVI）→ 进口归一化转码 → 节点能播、时长非 0；
 //    导入损坏视频 → 播放守卫显示人话原因（不再无声灰壳）。
@@ -24,7 +25,7 @@ const isolatedProjects = path.join(os.tmpdir(), 'nomi-feedback-walk-projects')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
 // 与启动器默认同形（每次新 tempRoot/user-data），只是先建出来：凭据钥匙（Windows 的 Local State）要在起 App 前种进去。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'feedback-mode-video-'))
+const tempRoot = makeTempDir('feedback-mode-video-')
 const userDataDir = path.join(tempRoot, 'user-data')
 if (existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: isolatedSettings, userDataDir })
 

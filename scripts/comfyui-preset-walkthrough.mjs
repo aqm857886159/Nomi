@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：ComfyUI 预置模板（WAN2.2）缺件**提示**（2026-08-11 起不再是死门）。
 // 场景：① 点开模板 → 缺 6 个模型（红 chip + 逐文件 ✗/目录/复制/下载链），按钮是「仍要启用」**不是置灰**；
 //       ② 点「仍要启用」→ 摊开风险 + 按钮变「确认启用」（二次确认，此时还没启用）；
@@ -16,7 +17,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-preset-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-preset-walk-'))
+const settingsDir = makeTempDir('comfyui-preset-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 const WAN_FILES = [
@@ -82,7 +83,7 @@ await new Promise((r) => mock.listen(8188, '127.0.0.1', r))
 const { app, win } = await launchNomiApp({
   name: 'comfyui-preset',
   settingsDir,
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-preset-proj-')),
+  projectsDir: makeTempDir('comfyui-preset-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

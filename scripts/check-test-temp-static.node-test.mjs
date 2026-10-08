@@ -23,6 +23,8 @@ const NON_SYSTEM_TEMP_ALLOWLIST = {
   'tests/network/run-proxy-cold.mjs': 'fixture is created below the caller-provided network repair root',
   'tests/ux/anchor-real-planner.mjs': 'explicit --output-dir fallback is below the planner repository scratch root',
   'tests/ux/g1/c0-short-film.walk.mjs': 'attempt directory is below the selected sweep output directory',
+  'scripts/_test-temp.mjs': 'the shared helper is the single system-temp allocation boundary',
+  'tests/setup/tempWorkspace.ts': 'Vitest global setup owns the run TMPDIR and its direct allocation is the workspace contract',
 }
 
 function filesUnder(root) {
@@ -31,7 +33,7 @@ function filesUnder(root) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) walk(full)
-      else if ((root === 'scripts' ? entry.name.endsWith('.node-test.mjs') : sourcePattern.test(entry.name))) out.push(full)
+      else if ((root === 'scripts' ? /\.(?:mjs|ts)$/.test(entry.name) : sourcePattern.test(entry.name))) out.push(full)
     }
   }
   walk(path.join(repoRoot, root))
@@ -43,6 +45,7 @@ test('node:test and standalone walkthroughs use the shared temp helper for syste
   for (const file of roots.flatMap(filesUnder)) {
     const rel = path.relative(repoRoot, file).split(path.sep).join('/')
     const source = fs.readFileSync(file, 'utf8')
+    if (rel === 'scripts/check-test-temp-static.node-test.mjs') continue
     if (forbidden.some((pattern) => pattern.test(source)) && !Object.hasOwn(NON_SYSTEM_TEMP_ALLOWLIST, rel)) violations.push(rel)
   }
   assert.deepEqual(violations, [], `direct system-temp mkdtemp calls remain: ${violations.join(', ')}`)
@@ -65,7 +68,7 @@ test('every shared temp helper call has an import and no qualified helper call',
   const qualifiedCalls = []
   for (const file of roots.flatMap(filesUnder)) {
     const rel = path.relative(repoRoot, file).split(path.sep).join('/')
-    if (rel === 'scripts/_test-temp.mjs') continue
+    if (rel === 'scripts/_test-temp.mjs' || rel === 'scripts/check-test-temp-static.node-test.mjs') continue
     const source = fs.readFileSync(file, 'utf8')
     if (source.match(helperCall) && !/from ['"][^'\"]*_test-temp\.mjs['"]/.test(source)) missingImports.push(rel)
     if (forbiddenQualifiedHelperCall.test(source)) qualifiedCalls.push(rel)
@@ -73,4 +76,10 @@ test('every shared temp helper call has an import and no qualified helper call',
   }
   assert.deepEqual(missingImports, [], `helper calls without shared helper imports: ${missingImports.join(', ')}`)
   assert.deepEqual(qualifiedCalls, [], `qualified shared helper calls remain: ${qualifiedCalls.join(', ')}`)
+})
+
+test('walkthrough scripts are included in the static scan', () => {
+  const files = filesUnder('scripts').map((file) => path.relative(repoRoot, file).split(path.sep).join('/'))
+  assert.ok(files.includes('scripts/settings-autosave-walkthrough.mjs'))
+  assert.ok(files.includes('scripts/asset-preview-walkthrough.mjs'))
 })

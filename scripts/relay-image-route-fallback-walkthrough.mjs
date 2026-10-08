@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查（wire 眼见链）：中转生图路由回退 + 档案模型参考不丢，打真 HTTP 到本地 mock 中转。
 // mock 复刻 y7api 定案行为：/v1/images/generations|edits 恒 403 "Image generation is not enabled
 // for this group"，/v1/chat/completions 正常出图（one-api 分组只开聊天路由的真实形态）。
@@ -115,8 +116,8 @@ const errors = []
 let failed = false
 
 async function launchApp() {
-  const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-fb-settings-'))
-  const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-fb-projects-'))
+  const settingsDir = makeTempDir('relay-fb-settings-')
+  const projectsDir = makeTempDir('relay-fb-projects-')
   seedCatalog(settingsDir)
   const { app, win } = await launchNomiApp({
     name: 'relay-image-route-fallback',

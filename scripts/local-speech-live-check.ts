@@ -17,7 +17,6 @@
  * 缺素材就非零退出并打印缺什么，**不 skip、不退回合成素材**（skip = 「登记即放绿」，R17）。
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -25,6 +24,7 @@ import { transcribeLocally, type LocalSpeechProgress } from "../electron/localSp
 import { isLocalSpeechEngineInstalled, pendingLocalSpeechBytes } from "../electron/localSpeech/localSpeechInstall";
 import { LOCAL_SPEECH_DEFAULT_TIER, localSpeechEngineForPlatform, localSpeechTier } from "../electron/shared/localSpeech/localSpeechAssets";
 import { rememberProxyStateForTests } from "../electron/systemProxy";
+import { makeTempDir } from "./_test-temp.mjs";
 
 const require_ = createRequire(import.meta.url);
 const { requireRealMediaAssets, readRealMediaRegistry } = require_("../tests/ux/fixtures/realMedia.mjs") as {
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   }
   console.log(`引擎已装：${isLocalSpeechEngineInstalled(engine)}；这次还要下 ${(pending / 1e6).toFixed(0)} MB`);
 
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-localstt-live-"));
+  const workDir = makeTempDir("nomi-localstt-live-");
   const receipts: Record<string, unknown>[] = [];
 
   for (const id of wantedIds) {

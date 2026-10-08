@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -19,7 +20,7 @@ function write(root, relative, content) {
 }
 
 function fixture(main = 'dist-electron/main.js') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-electron-build-'))
+  const root = makeTempDir('nomi-electron-build-')
   temporaryRoots.push(root)
   write(root, 'package.json', { main })
   const compilerOptions = { target: 'ES2022', rootDir: '.', outDir: '../dist-electron', strict: true,
