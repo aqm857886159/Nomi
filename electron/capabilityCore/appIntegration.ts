@@ -45,7 +45,7 @@ import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } fro
 import type { ModuleRegistry } from './moduleRegistry'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { createRunObservationDrivers } from './appIntegrationRunObservation'
-import { isProductionJobInFlight } from '../shared/productionShotPhase'
+import { hasWorkToWatch, runWantsDriver } from '../productionRun/productionRunLifecycle'
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { readCatalog } from '../catalog/catalogStore'
 import { recommendVideoGeneration } from '../shared/videoCapabilities'
@@ -561,7 +561,8 @@ export async function startCapabilityCore(
             } catch {
               continue
             }
-            if (!run || run.status === 'cancelled') continue
+            // 已取消的 Run 只在手上还有交给供应商的活时往下走（钱已花出：盯到收尾、产物落进节点）；其余照旧跳过。
+            if (!run || (run.status === 'cancelled' && !runWantsDriver(run))) continue
             // 打开项目的画布对账**绝不新建节点**：只让已经在、认得出是同一镜的节点对上 Run（补结果、纠正 detached 记录），
             // 认不出来的什么都不做（落地宿主记日志）。建节点只归确认即落 / 草稿投影。
             // CI 抓到（#966 canvas-shortcuts C19）：这里以前是整份落地，带老 Run 的项目一打开就凭空多出一份节点。
@@ -592,8 +593,8 @@ export async function startCapabilityCore(
                 settleSingleShotAttention(projectId, run.runId, attentionJob?.jobId)
                 continue
               }
-              // 与观察者「歇一歇再问」用同一个判据（isProductionJobInFlight），重开项目与观察窗到期不会各判各的。
-              const observable = refreshed.jobs.some(isProductionJobInFlight)
+              // 与观察者「歇一歇再问」用同一个判据（生命周期 owner 的 hasWorkToWatch），重开项目与观察窗到期不会各判各的。
+              const observable = hasWorkToWatch(refreshed)
               if (observable) {
                 const submission = buildSubmissionForRun(refreshed)
                 if (submission) observeSingleShotRun(submission, projectId, run.runId)

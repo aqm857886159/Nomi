@@ -213,7 +213,7 @@ function probe() {
     if (!/flex|grid/.test(s.display)) continue
     for (const v of [s.columnGap, s.rowGap]) {
       const n = parseFloat(v)
-      if (n > 0 && n % 4 !== 0 && visible(el)) gaps[n] = (gaps[n] ?? 0) + 1
+      if (n > 0 && n % 4 && visible(el)) gaps[n] = (gaps[n] ?? 0) + 1
     }
   }
 
