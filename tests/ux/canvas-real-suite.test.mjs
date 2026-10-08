@@ -12,6 +12,7 @@ import {
   parseCanvasSuiteArgv,
   PERFORMANCE_CANVAS_SCENARIOS,
   runCanvasScenario,
+  runCanvasSuite,
   scenariosForProfile,
   summarizeCanvasScenarioFailure,
 } from './canvas-real-suite.mjs'
@@ -151,6 +152,25 @@ describe('real canvas acceptance suite', () => {
       timedOut: true,
       timeoutMs: DEFAULT_CANVAS_SCENARIO_TIMEOUT_MS,
     })
+  })
+
+  it('prints ordered scenario progress around a fake child process', async () => {
+    const lines = []
+    const originalLog = console.log
+    console.log = (line) => lines.push(line)
+    try {
+      runCanvasSuite('critical', {
+        cwd: '/tmp/nomi-suite',
+        spawnProcess: () => ({ status: 0, signal: null, stdout: '', stderr: '' }),
+      })
+    } finally {
+      console.log = originalLog
+    }
+    expect(lines.filter((line) => line.includes('START')).length).toBe(CRITICAL_CANVAS_SCENARIOS.length)
+    expect(lines.filter((line) => line.includes('END')).length).toBe(CRITICAL_CANVAS_SCENARIOS.length)
+    for (let index = 0; index < CRITICAL_CANVAS_SCENARIOS.length; index += 1) {
+      expect(lines.indexOf(lines.find((line) => line.includes(`START ${index + 1}/`)))).toBeLessThan(lines.indexOf(lines.find((line) => line.includes(`END ${index + 1}/`))))
+    }
   })
 
   it('persists each child transcript and an actionable failure summary', () => {
