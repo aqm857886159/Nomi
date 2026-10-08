@@ -151,7 +151,8 @@ describe("引擎 B：目录执行器", () => {
 
   it("HTTP 400 → 明确拒绝；HTTP 200 + 失败信封 → 明确拒绝", async () => {
     expect(providerExplicitlyRejected(await submitError(400, { error: { message: "bad prompt" } }))).toBe(true);
-    expect(providerExplicitlyRejected(await submitError(200, { code: 1001, msg: "bad prompt" }))).toBe(true);
+    const failedEnvelope = await submitError(200, { code: 1001, msg: "bad prompt" });
+    expect(providerExplicitlyRejected(failedEnvelope)).toBe(true);
   });
 
   it("HTTP 409 / 408 → 结果未知，不是拒绝", async () => {
