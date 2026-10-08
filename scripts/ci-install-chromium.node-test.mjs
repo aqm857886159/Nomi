@@ -17,7 +17,7 @@ function runBash(body) {
 
 test('超时会结束这一次起的整个进程组（孙进程也不留下）', () => {
   const marker = `nomi-ci-group-${process.pid}`
-  const result = runBash(`set +e; run_group_with_timeout 2 bash -c 'sleep 30 & sleep 30 & wait' ${marker}; echo "rc=$?"; sleep 1; ps -eo args | grep -c "[s]leep 30" || true`)
+  const result = runBash(`set +e; run_group_with_timeout 2 bash -c 'sleep 30 & sleep 30 & wait' ${marker}; echo "rc=$?"; sleep 1; ps -eo comm=,args= | awk '$1 == "sleep" && $2 == "sleep" && $3 == "30"' | wc -l`)
   assert.match(result.stdout, /rc=124/)
   const leftover = Number(result.stdout.trim().split('\n').pop())
   assert.equal(leftover, 0, `超时后还剩 ${leftover} 个子孙进程：${result.stdout}${result.stderr}`)
