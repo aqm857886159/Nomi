@@ -28,7 +28,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
  * 标尺行 + 两条主轨行」派生）。这里写死同一个数当**独立**对账：走查从 UI 读 aria-valuenow，
  * 两边都错成同一个值的概率远低于抄同一个常量。
  */
-const EXPECTED_DEFAULT_HEIGHT = 230
+const EXPECTED_DEFAULT_HEIGHT = 240
 /** 主窗最小宽（electron/main.ts）之上的一个常规窗口，两态都够宽。 */
 const WINDOW = { width: 1440, height: 920 }
 

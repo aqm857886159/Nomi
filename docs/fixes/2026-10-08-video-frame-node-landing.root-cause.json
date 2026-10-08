@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-video-frame-node-landing",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-08",
+  "problem_type": "Interactive video frame node visibility",
+  "symptom": "The real local MP4 first-frame action persisted a sixth image node but the canvas remained at five visible nodes because the new node was outside the current viewport.",
+  "direct_cause": "extractVideoFrameToNode selected and persisted the new image node without dispatching the shared canvas focus event, so React Flow did not center the newly created node.",
+  "class_root": "Every interactive canvas action that creates a reference node must route the new node through the shared focus boundary after publication so a successful result is visible and usable immediately.",
+  "affected_population": [
+    "Users extracting first or last frames from video nodes",
+    "Any successful interactive action that creates a canvas reference node outside the current viewport"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "tests/ux/node-toolbar-one-row.walk.mjs"
+  ],
+  "entry_points": [
+    "NodeVideoFrameToolbar first/last frame menu",
+    "video IPC frame handler",
+    "deconstructVideo frame extraction"
+  ],
+  "internal_only_reason": "The invariant is an application-owned renderer landing contract; no third-party behavior determines canvas focus.",
+  "invariants": [
+    "A successful first or last frame extraction creates an image node with the returned nomi-local URL.",
+    "The created image node is routed through the shared canvas focus event after its result is attached."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVideo.ts",
+      "symbol": "extractVideoFrameToAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/videoIpc.ts",
+      "symbol": "extractVideoFrameToAsset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx",
+      "symbol": "extractVideoFrameToNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+      "symbol": "extractVideoFrameToNode"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "The desktop IPC handler, deconstruction pipeline, and renderer toolbar are separate required callers: deconstruction is a background analysis path, while the IPC and toolbar doors own the interactive frame-to-node path. They cannot be removed without deleting supported behavior."
+  },
+  "generality_proof": "Both first and last selectors converge on extractVideoFrameToNode, which now publishes the result, selects the created node, and dispatches the shared focus event. The existing focus listener centers any node id through the same canvas path used by other locate-node actions.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+      "symbol": "extractVideoFrameToNode",
+      "responsibility": "Publish the returned image URL, add the image node, and dispatch the shared canvas focus event."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "handleFocusNode",
+      "responsibility": "Resolve the created node and center the canvas on it through the shared focus event."
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+    "tests": [
+      "tests/ux/node-toolbar-one-row.walk.mjs"
+    ],
+    "why": "The renderer extraction-to-node helper is the single interactive landing boundary and owns selection plus viewport focus after publication."
+  },
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx",
+      "entry_point": "extractVideoFrameToNode",
+      "disposition": "enforced",
+      "evidence": "Both first and last menu items call the shared video IPC handler and only add a node after a non-empty returned URL."
+    },
+    {
+      "path": "electron/video/videoIpc.ts",
+      "entry_point": "nomi:video:extract-frame",
+      "disposition": "enforced",
+      "evidence": "The IPC handler supplies the published URL to the renderer helper; the landing boundary is enforced after this call returns."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/relayFrameResolver.ts",
+      "entry_point": "applyRelayFirstFrame",
+      "disposition": "not-affected",
+      "evidence": "Relay extraction is an explicit background run without the interactive toolbar completion window; it already consumes the shared extractor result and fails visibly on an empty URL."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new reference node can be persisted outside the current viewport when its creator selects without using the shared focus boundary; both first and last frame selectors share this landing path.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs extractVideoFrameToNode extractVideoFrameToAsset",
+      "rg -n extractFrame electron src/workbench/generationCanvas tests",
+      "Verified NodeVideoFrameToolbar first/last selectors, extractVideoFrameToNode, and useGenerationCanvasReactFlowEffects focus listener; checked deconstructVideo and relayFrameResolver as non-node consumers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+    "invariant": "Every successful interactive frame extraction creates the image node and routes focus through the shared canvas focus event.",
+    "failure_mode": "Extraction errors still reject through the existing handler and renderer feedback path; no empty URL or fallback node is created.",
+    "exception_policy": "none",
+    "strategy": "Keep extraction and publication unchanged, then use the existing focus boundary after the node result is attached so the new reference is visible for both selectors.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+      "tests/ux/node-toolbar-one-row.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/node-toolbar-one-row.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/node-toolbar-one-row.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No obsolete extraction or node path existed; the fix adds focus routing at the existing landing boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The fix changes application renderer focus routing; ffmpeg and Electron versions remain unchanged.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or caller payload changes; existing frame URLs and node result shapes remain unchanged.",
+  "residual_risks": [
+    "The focus event requires the canvas focus listener to be mounted; the existing listener is part of the production canvas host and is covered by the real Electron walk."
+  ]
+}

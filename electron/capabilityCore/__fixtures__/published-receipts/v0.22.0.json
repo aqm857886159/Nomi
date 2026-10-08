@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 2,
+  "binding": {
+    "projectId": "receipt-project-a",
+    "immutableProjectUuid": "11111111-1111-4111-8111-111111111111",
+    "projectGeneration": 1
+  },
+  "revision": 2,
+  "lifecycle": "committed",
+  "proposalId": "proposal-a",
+  "operationId": "commit-proposal-a",
+  "proposal": {
+    "proposalId": "proposal-a",
+    "summary": "created one shot",
+    "stepLabels": [
+      "created Shot A"
+    ],
+    "categoryCounts": [
+      {
+        "categoryId": "shots",
+        "label": "Shots",
+        "count": 1
+      }
+    ],
+    "compensation": [
+      {
+        "kind": "disconnect-edges",
+        "pairs": [
+          {
+            "source": "node-a",
+            "target": "node-b"
+          }
+        ]
+      },
+      {
+        "kind": "delete-nodes",
+        "nodeIds": [
+          "node-a"
+        ]
+      }
+    ],
+    "watchNodes": [
+      {
+        "nodeId": "node-a",
+        "title": "Shot A",
+        "prompt": "wide shot"
+      }
+    ],
+    "reconciliationOk": false,
+    "anchorMessageId": "assistant-a",
+    "anchorTextOffset": 12
+  },
+  "proposalHash": "64b486c97904ccb6bac51055958f71bb20a776e763387e26463f640b99c7396a",
+  "operations": [
+    {
+      "operationId": "prepare-proposal-a",
+      "requestHash": "31475fe96cebe2a50772c89a07f484a653597e172b13843ee28bc721dd4af5dd",
+      "appliedRevision": 1
+    },
+    {
+      "operationId": "commit-proposal-a",
+      "requestHash": "b3734b898e7791e849ff779d40e929a03982ade650d1836f909ca4fb7a8cc61b",
+      "appliedRevision": 2
+    }
+  ],
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "journalHash": "80c9e2560e96d72b8e07322c9d861e49c3bacff532ddfa5fd76c7293154421b8"
+}
