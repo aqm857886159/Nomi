@@ -45,7 +45,9 @@
     "before-quit 只记录退出意图，不拆除任何仍被活进程使用的能力或 IPC",
     "所有不可逆退出清理在 will-quit 且窗口已关闭后完成，再允许进程终止",
     "lane IPC handler 在进程存活期间始终存在；disposed 命令返回 agent_lane_disposed 结构化码",
-    "项目持久化与画布提交成功即可进入 studio；Agent lane 失败只显示原因并可重连"
+    "项目持久化与画布提交成功即可进入 studio；Agent lane 失败只显示原因并可重连",
+    "before-quit 只记录退出意图；关窗确认拒绝后 Agent 命令、能力核与项目打开保持可用",
+    "will-quit 拆除有 3000ms 上限；超时记录 quit-timeout 后调用 app.exit(0)"
   ],
   "doors": [
     {
@@ -170,9 +172,9 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/quitTeardown.ts",
     "invariant": "退出可取消阶段不拆除活进程所需能力；不可逆清理由 will-quit owner 统一完成",
-    "failure_mode": "will-quit 收尾失败记录诊断并继续处理其它 owner；lane handler 在 disposed 状态返回机器码，不产生裸 IPC 缺失异常",
+    "failure_mode": "will-quit 拆除完成或超时都必须结束退出；超时记录诊断并强制退出，避免 app.quit 被其他监听器再次挂住",
     "exception_policy": "none",
-    "strategy": "删除 main.ts before-quit 中的拆除，把各子系统 drain 与作业收摊改到 will-quit，并用 lane 的结构化失败码连接到面板重连动作",
+    "strategy": "删除 before-quit 拆除；由 will-quit owner 统一执行拆除、3 秒预算与 app.exit 兜底，并由 lane 结构化失败码连接到面板重连动作",
     "artifacts": [
       "electron/quitTeardown.ts",
       "electron/main.ts",
@@ -180,19 +182,23 @@
       "electron/ai/antigravityIpc.ts",
       "electron/tasks/taskIpcHandlers.ts",
       "electron/video/depthVideoIpc.ts",
-      "src/workbench/project/projectAgentLaneOpen.ts"
+      "src/workbench/project/projectAgentLaneOpen.ts",
+      "tests/ux/quit-teardown-real.e2e.mjs",
+      "docs/evidence/2026-10-07-quit-teardown/README.md"
     ]
   },
   "regression_tests": [
     "electron/quitTeardown.test.ts",
     "electron/agentLane/laneIpc.test.ts",
     "src/workbench/project/projectAgentLaneOpen.test.ts",
-    "src/workbench/ai/lane/laneClient.test.ts"
+    "src/workbench/ai/lane/laneClient.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
   ],
   "class_regression_tests": [
     "electron/quitTeardown.test.ts",
     "electron/agentLane/laneIpc.test.ts",
-    "src/workbench/project/projectAgentLaneOpen.test.ts"
+    "src/workbench/project/projectAgentLaneOpen.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -212,9 +218,8 @@
   },
   "migration": "没有持久化格式变化。残缺旧进程只能通过退出并重新启动恢复；新进程每次启动重新注册 lane handler。",
   "residual_risks": [
-    "真实 macOS 正式签名更新和 Gatekeeper 行为未在本地复现；无界面 Electron 生命周期单测覆盖事件顺序，真机发布走查由独立验收线完成。",
-    "generationResolveIpc 的动态 stop 仍会 removeHandler，但它只在 will-quit 的能力核停止边界运行，不属于进程活着且退出被取消的路径。",
-    "NomiStudioApp 的真实窗口走查未在本工作树执行，原因是任务限制无界面且本地 tsc 还受仓库既有缺失 SKILL.md raw 模块阻塞。"
+    "签名更新与 Gatekeeper 行为仍未在本地复现；本次补充了真实无界面 Electron 退出收据，但未替代发行包验收",
+    "Electron 其他退出监听器若阻塞，quitTeardown 的 3 秒预算会记录 quit-timeout 并调用 app.exit(0)，因此极端情况下可能跳过迟到的异步收尾"
   ],
   "invariant_owner_layer": {
     "layer": "electron/quitTeardown.ts",

@@ -80,7 +80,6 @@ import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
-import { markQuitRequested } from "./windowCloseConfirmation";
 import { installQuitTeardown } from "./quitTeardown";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
@@ -675,7 +674,6 @@ app.on("window-all-closed", () => {
 // 退出时中止所有在跑导出，否则 ffmpeg 子进程会变孤儿（继续占 CPU/写文件，直到自己跑完）。
 // abort → ffmpegRunner 监听 abort 后 kill 子进程。同步、不抛，绝不拖住退出。
 installQuitTeardown(app, {
-  markQuitRequested,
   disposeBackgroundLifecycle,
   stopDesktopCapabilityCore,
   disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
@@ -684,7 +682,10 @@ installQuitTeardown(app, {
     return abortAllActiveExports();
   },
   onError: (stage, error) => {
-    if (stage === "exports-aborted") logInfo("export", "aborted-on-quit", error);
+    if (stage === "exports-aborted") {
+      const count = error && typeof error === "object" && "count" in error && typeof error.count === "number" ? error.count : 0;
+      logInfo("export", "aborted-on-quit", { count });
+    }
     else logError("agent", `${stage}-on-quit-failed`, error);
   },
 });
