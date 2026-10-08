@@ -11,6 +11,7 @@ import { PROMPT_SOURCES, type PromptSource } from "./promptSources";
 import { withBuiltinPrompts } from "./builtinPacks";
 import type { LibraryPrompt } from "./promptLibraryTypes";
 import seedJson from "./promptLibrarySeed.json";
+import { testNetworkGuardEnabled } from "../testNetworkGuard";
 
 // 打包进 App 的精选快照(scripts/snapshot-prompt-library.ts 生成)。
 // 作用=地板:外部 GitHub raw 全拉不到且无磁盘缓存时,库也不空(只覆盖空态,在线拉成功照常顶掉)。
@@ -117,6 +118,7 @@ async function getExternalPrompts(): Promise<LibraryPrompt[]> {
 export async function getPromptLibrary(): Promise<LibraryPrompt[]> {
   hydrateFromDisk();
   const local = await withBuiltinPrompts(floor());
+  if (testNetworkGuardEnabled()) return local;
   // Remote freshness must not delay bundled media; the existing single-flight
   // refresh persists its result for the next read, including manual reloads.
   void getExternalPrompts();

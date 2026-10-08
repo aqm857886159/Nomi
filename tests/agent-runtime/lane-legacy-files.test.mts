@@ -15,7 +15,7 @@ async function fixture(t: TestContext) {
   return { root, access };
 }
 
-test('source admission rejects symlink, hardlink and replaced parent directories without reading outside roots', async t => {
+test('source admission rejects symlink, hardlink and replaced parent directories without reading outside roots', { skip: process.platform === 'win32' ? 'Windows symlink privilege is not guaranteed for this POSIX identity fixture' : false }, async t => {
   const { root, access } = await fixture(t);
   const file = join(root, '.nomi', 'source.json'); const other = join(root, 'private.json');
   fs.writeFileSync(other, 'private'); fs.symlinkSync(other, file);
@@ -86,7 +86,7 @@ test('archive resumes interrupted writes and publication, and never adopts unrel
   assert.equal(fs.readFileSync(`${foreign}.partial`, 'utf8'), 'not ours');
 });
 
-test('manifest update requires the exact previous bytes and rejects symlinked archive parents', async t => {
+test('manifest update requires the exact previous bytes and rejects symlinked archive parents', { skip: process.platform === 'win32' ? 'Windows symlink privilege is not guaranteed for this POSIX identity fixture' : false }, async t => {
   const { root, access } = await fixture(t);
   const manifest = join(root, '.nomi', 'manifest.json');
   const previous = access.writeManifest(manifest, { phase: 1 }, undefined);

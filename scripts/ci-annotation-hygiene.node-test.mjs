@@ -218,7 +218,8 @@ test('advisory 冒烟格的失败注解委派给 T-QA-23，阻断档同一条注
 test('advisory 委派派生自 CORE_SMOKE_ADVISORY_CHECK_NAMES：把 used 挪出名单，同一条注解立刻翻红', async () => {
   // 规则若写死了 'Core Flow Smoke (used)'，名单和判据就会各走各的，升阻断（T-QA-23）当天
   // 这条委派会继续放行一个已经该阻断的格子。这里把**真实源文件**里的名单改掉再跑一遍来证伪：
-  // validation-policy.mjs 没有任何 import，整份复制到临时目录即可独立求值。
+  // validation-policy.mjs 只依赖 docs/engineering/test-routing.json（花钱路径与花钱走查的唯一登记），
+  // 所以临时目录按仓库布局摆：scripts/ 放两份脚本、docs/engineering/ 放路由表，相对路径照常解析。
   const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'advisory-smoke-derivation-'))
   try {
     const scriptsDir = path.dirname(fileURLToPath(import.meta.url))
@@ -229,21 +230,20 @@ test('advisory 委派派生自 CORE_SMOKE_ADVISORY_CHECK_NAMES：把 used 挪出
       "export const CORE_SMOKE_BLOCKING_FIXTURES = Object.freeze(['empty', 'used'])",
     )
     assert.notEqual(promoted, policySource, '没能改到 CORE_SMOKE_BLOCKING_FIXTURES：名单写法变了，这条派生证明已失效')
-    fs.writeFileSync(path.join(fixtureDir, 'validation-policy.mjs'), promoted)
-    fs.copyFileSync(
-      path.join(scriptsDir, 'ci-annotation-hygiene.mjs'),
-      path.join(fixtureDir, 'ci-annotation-hygiene.mjs'),
-    )
+    const routing = path.join(scriptsDir, '..', 'docs', 'engineering', 'test-routing.json')
+    const layOut = (root, policy) => {
+      fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
+      fs.mkdirSync(path.join(root, 'docs', 'engineering'), { recursive: true })
+      fs.writeFileSync(path.join(root, 'scripts', 'validation-policy.mjs'), policy)
+      fs.copyFileSync(path.join(scriptsDir, 'ci-annotation-hygiene.mjs'), path.join(root, 'scripts', 'ci-annotation-hygiene.mjs'))
+      fs.copyFileSync(routing, path.join(root, 'docs', 'engineering', 'test-routing.json'))
+    }
+    layOut(fixtureDir, promoted)
 
     // 对照组：同一套临时复制手法、名单**不改**，必须仍然委派——否则翻红只是复制本身出的错。
-    fs.mkdirSync(path.join(fixtureDir, 'unchanged'))
-    fs.writeFileSync(path.join(fixtureDir, 'unchanged', 'validation-policy.mjs'), policySource)
-    fs.copyFileSync(
-      path.join(scriptsDir, 'ci-annotation-hygiene.mjs'),
-      path.join(fixtureDir, 'unchanged', 'ci-annotation-hygiene.mjs'),
-    )
+    layOut(path.join(fixtureDir, 'unchanged'), policySource)
     const controlModule = await import(
-      pathToFileURL(path.join(fixtureDir, 'unchanged', 'ci-annotation-hygiene.mjs')).href
+      pathToFileURL(path.join(fixtureDir, 'unchanged', 'scripts', 'ci-annotation-hygiene.mjs')).href
     )
     const control = controlModule.evaluateAnnotations(
       [...CORE_SMOKE_ADVISORY_CHECK_NAMES].map(advisoryFailure),
@@ -253,7 +253,7 @@ test('advisory 委派派生自 CORE_SMOKE_ADVISORY_CHECK_NAMES：把 used 挪出
     assert.equal(control.unexpected.length, 0)
     assert.equal(control.advisorySmoke.length, CORE_SMOKE_ADVISORY_CHECK_NAMES.length)
 
-    const promotedModule = await import(pathToFileURL(path.join(fixtureDir, 'ci-annotation-hygiene.mjs')).href)
+    const promotedModule = await import(pathToFileURL(path.join(fixtureDir, 'scripts', 'ci-annotation-hygiene.mjs')).href)
     const result = promotedModule.evaluateAnnotations(
       [...CORE_SMOKE_ADVISORY_CHECK_NAMES].map(advisoryFailure),
       { schemaVersion: 1, entries: [] },

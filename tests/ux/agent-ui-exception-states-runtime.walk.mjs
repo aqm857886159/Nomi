@@ -12,7 +12,8 @@ import {
 import { expect } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 
-const SHOT_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'shots', 'agent-exception-states-runtime')
+import { fileURLToPath } from 'node:url'
+const SHOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'shots', 'agent-exception-states-runtime')
 
 function patchCatalog(settingsDir) {
   const catalogPath = path.join(settingsDir, 'model-catalog.json')
