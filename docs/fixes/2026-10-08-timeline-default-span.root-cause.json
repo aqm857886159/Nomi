@@ -1,0 +1,153 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-timeline-default-span",
+  "problem_type": "Timeline default panel height derivation",
+  "symptom": "On first opening the generation timeline, the video track bottom is clipped by 5px and the user must drag the panel taller to see both primary tracks.",
+  "direct_cause": "TIMELINE_PANEL_DEFAULT summed panel padding, toolbar, ruler, and track rows but omitted the 10px horizontal scrollbar reserve consumed by the overflowing track viewport.",
+  "class_root": "The shared default-height owner did not include all layout tokens that reduce the track viewport, so any default track set using the same scroll container could be clipped.",
+  "affected_population": [
+    "Users opening the generation timeline with the default expanded state",
+    "Any future primary-track count rendered in the same horizontally overflowing track viewport"
+  ],
+  "scope_paths": [
+    "src/workbench/timeline/timelinePanelBounds.ts",
+    "src/workbench/timeline/timelinePanelLayout.test.ts",
+    "tests/ux/layout-timeline-panel-span.walk.mjs"
+  ],
+  "entry_points": [
+    "workbenchStore initial timelinePanelHeight",
+    "TimelineResizeHandle reset-to-default",
+    "TimelinePanel generation timeline geometry"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-owned: the timeline panel must account for its own padding, toolbar, ruler, primary rows, and scrollbar geometry.",
+  "invariants": [
+    "The default expanded height is derived from the primary-track count and every fixed vertical layout token.",
+    "The default height leaves the track viewport large enough for every default primary row without initial scroll offset."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "TIMELINE_PANEL_DEFAULT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "TIMELINE_PANEL_MAX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "TIMELINE_PANEL_MIN"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TIMELINE_PANEL_MIN"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TIMELINE_PANEL_MAX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TIMELINE_PANEL_DEFAULT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "TIMELINE_PANEL_DEFAULT"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "clampTimelinePanelHeight"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "The eight doors are the existing shared reads and the single store write: TimelineResizeHandle owns user reset/clamping, workbenchStore owns persisted runtime height, and timelinePanelBounds owns the shared derivation. Consolidating them would create new coupling without reducing the broken default-height entry path."
+  },
+  "generality_proof": "Every default, reset, and invalid-height fallback converges on TIMELINE_PANEL_DEFAULT or deriveTimelinePanelDefaultHeight in timelinePanelBounds.ts. The derivation includes the scrollbar reserve and scales each additional primary row by the same row token, so another caller or track count cannot reintroduce the omitted viewport cost.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "deriveTimelinePanelDefaultHeight",
+      "responsibility": "Own the complete vertical geometry formula, including the track viewport scrollbar reserve, and expose the single default used by all callers."
+    },
+    {
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "clampTimelinePanelHeight",
+      "responsibility": "Apply the shared default and bounds to initial state, invalid values, and user resize writes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/workbenchStore.ts",
+      "entry_point": "timelinePanelHeight initial state",
+      "disposition": "enforced",
+      "evidence": "The store initializes from TIMELINE_PANEL_DEFAULT, which now comes from the complete shared derivation."
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "entry_point": "adjust(TIMELINE_PANEL_DEFAULT)",
+      "disposition": "enforced",
+      "evidence": "The double-click reset reads the same exported default, so reset and first-open geometry cannot diverge."
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "entry_point": "workbench-timeline__tracks viewport",
+      "disposition": "enforced",
+      "evidence": "The real walk measures this scroll container and its track rows; the shared default now reserves the scrollbar that reduces its clientHeight."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The omitted scrollbar cost is a reusable layout failure: any caller using the shared default or any future primary-track count can reproduce clipping when the track viewport overflows horizontally.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs src/workbench/timeline/timelinePanelBounds.ts",
+      "rg TIMELINE_PANEL_DEFAULT timelinePanelBounds.ts TimelineResizeHandle.tsx workbenchStore.ts tests/ux/layout-timeline-panel-span.walk.mjs",
+      "Real Electron walk measured panel, viewport, and both track DOM rectangles before the fix."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/timeline/timelinePanelBounds.ts",
+    "invariant": "deriveTimelinePanelDefaultHeight includes padding, toolbar, ruler, every primary row, and the 10px scrollbar reserve for the shared track viewport.",
+    "failure_mode": "An invalid height still clamps to the complete derived default; the real walk fails if any default primary row extends beyond the unscrolled viewport.",
+    "exception_policy": "none",
+    "strategy": "Keep all default-height arithmetic in the one bounds owner and make track-count growth use the same row token; callers only consume the exported value.",
+    "artifacts": [
+      "src/workbench/timeline/timelinePanelBounds.ts",
+      "src/workbench/timeline/timelinePanelLayout.test.ts",
+      "tests/ux/layout-timeline-panel-span.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/timeline/timelinePanelLayout.test.ts",
+    "tests/ux/layout-timeline-panel-span.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/timeline/timelinePanelLayout.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/timeline/timelinePanelBounds.ts"
+    ],
+    "rationale": "The incomplete fixed arithmetic was replaced in the same owner by deriveTimelinePanelDefaultHeight; no parallel fallback remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is in application-owned layout arithmetic; no third-party dependency controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. Existing user-resized heights remain clamped as before; only the default and invalid-height fallback now include the scrollbar reserve.",
+  "residual_risks": [
+    "The 10px reserve is tied to the repository scrollbar-thin layout contract; if that CSS token changes, the bounds owner and geometry walk must be updated together."
+  ]
+}
