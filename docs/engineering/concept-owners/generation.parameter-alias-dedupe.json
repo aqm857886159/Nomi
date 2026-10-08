@@ -14,6 +14,14 @@
     {
       "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
       "symbol": "parameterEquivalentKeys"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "parameterControlRole"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/primaryParameterChips.ts",
+      "symbol": "splitPrimaryParameterControls"
     }
   ],
   "forbidden_derivations": [],

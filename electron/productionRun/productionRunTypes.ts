@@ -2,6 +2,7 @@ import type { ProductionExecutionBinding } from "./productionExecutionBinding";
 import type { ProductionGenerationAuthorizationEnvelopeV1 } from "./productionGenerationAuthorization";
 import type { GenerationProviderTaskState } from "../capabilityCore/generationRuntimeAdapter";
 import type { ExecutionContractV1, PlanCandidate } from "../capabilityCore/executionContract";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 
 export const PRODUCTION_RUN_SCHEMA_VERSION = 1;
 
@@ -275,6 +276,16 @@ export type ProductionGenerationShot = {
 export type GenerationPresentationCloser = "resolved" | "user_closed" | "user_wrote" | "stopped";
 
 export type GenerationPresentation = {
+  /** Durable identity of the displayed confirmation card. */
+  presentationId?: string;
+  /** Monotonic epoch for conditional card actions. */
+  presentationEpoch?: number;
+  /** Approval policy captured when this card was opened; later policy changes do not rewrite it. */
+  policySnapshot?: ProjectAgentApprovalPolicy;
+  /** Full-auto policy decision lifecycle for this presentation. */
+  policyDecisionState?: "pending" | "failed";
+  /** Read-side safety deadline for a policy decision that may fail to persist its marker. */
+  policyDecisionDeadlineAt?: string;
   /** 这一次摆到卡上的那几镜（按计划顺序；单镜旧形态 = 顶层候选的 candidateId）。 */
   shotIds: string[];
   openedAt: string;

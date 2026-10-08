@@ -1,0 +1,34 @@
+{
+  "id": "LAW13-pending-spend-card-presentation-identity",
+  "since": "2026-10-08",
+  "source": "2026-10-07 协调会话转述的真实走查：切换审批档位或重启后，待决付费卡无法稳定复现。",
+  "category": "interaction-semantics",
+  "problem": "待决付费卡由进程内策略重新解释，展示身份和动作身份没有绑定到同一张卡。",
+  "existingInvariants": [
+    4,
+    9
+  ],
+  "ironLaws": [
+    "卡片展示的事实必须来自持久化生成展示快照。",
+    "延迟动作必须携带并校验展示身份。"
+  ],
+  "useCases": [
+    "S1",
+    "S4"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "Baseline agent-panel-missing-card walk reproduced the missing-card failure before the fix.",
+    "Baseline agent-spend-card walk stopped at a stale size-control selector before exercising the card."
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-08-pending-spend-presentation.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/productionRun/productionPendingSpend.test.ts"
+  },
+  "completionCommits": []
+}

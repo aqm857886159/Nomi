@@ -802,6 +802,26 @@
       ],
       "whyNotIntegrated": "Domain constraint: Electron exposes lifecycle events and termination APIs, but it does not know Nomi capability-core, Agent lane IPC, or background export owners, nor can it coordinate the required order of cancellable window confirmation, irreversible will-quit cleanup, and timeout-bounded exit. This module composes the existing Electron and Node mechanisms without reimplementing IPC, window confirmation, or a timer library; the Nomi-specific invariants are live capabilities after a cancelled close and guaranteed termination after cleanup timeout.",
       "revisitWhen": "When Electron provides a unified async teardown coordinator that can express these Nomi owners and continue termination after a cleanup timeout, remove this boundary and use that mechanism."
+    },
+    {
+      "id": "project-agent-preparing-deadline",
+      "capability": "Shared deadline for paid project-agent decisions and proposal receipts",
+      "status": "justified",
+      "paths": [
+        "electron/shared/projectAgentPreparingDeadline.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Existing proposal receipt deadline (reused, extracted without changing its formula)",
+          "source": "electron/capabilityCore/projectAgentProposalReceiptStore.ts"
+        },
+        {
+          "name": "Existing model write timeout declaration (reused as the deadline budget)",
+          "source": "electron/shared/agentCapabilities/verbDeclaration.ts"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: paid pending presentations and durable proposal receipts must share the model-write budget plus its receipt grace period. This module only extracts that existing Nomi constant into a browser-safe owner; it implements no timer, retry or persistence mechanism.",
+      "revisitWhen": "When the paid presentation and proposal receipt lifecycle no longer share a model-write budget, review their deadline ownership together."
     }
   ]
 }

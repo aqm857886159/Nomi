@@ -64,8 +64,24 @@ const KLING: ModelOption = {
   label: 'Kling 3.0',
   kind: 'video',
 }
+/**
+ * Seedance 2.0（kie）：档案带**变体轴**（标准 / 快速 / Mini），付费卡底栏会多一颗变体 chip。
+ * 2026-10-08 另一条设计线在 390px 面板里看到：这颗变体被挤出包装、「16:9」压在「标准」上——
+ * 这一格专门钉「每颗 chip（含变体）整颗可见、不相压，放不下就换行」。
+ */
+const SEEDANCE: ModelOption = {
+  value: 'bytedance/seedance-2',
+  modelKey: 'bytedance/seedance-2',
+  vendor: 'kie',
+  vendorName: 'kie',
+  label: 'Seedance 2.0',
+  kind: 'video',
+}
+const LAB_MODELS = { kling: KLING, seedance: SEEDANCE } as const
+type LabModel = keyof typeof LAB_MODELS
 const MODEL_OPTIONS: readonly ModelOption[] = [
   KLING,
+  SEEDANCE,
   { value: 'seedance-2.5', modelKey: 'seedance-2.5', vendor: 'apimart', vendorName: 'APIMart', label: 'Seedance 2.5', kind: 'video' },
   { value: 'minimax-hailuo-3', modelKey: 'minimax-hailuo-3', vendor: 'apimart', vendorName: 'APIMart', label: 'Hailuo 3', kind: 'video' },
 ]
@@ -105,24 +121,26 @@ function quoteShot(meta: Record<string, unknown> | undefined): ShotQuote | null 
 }
 
 
-function baseMeta(): Record<string, unknown> {
+function baseMeta(model: LabModel): Record<string, unknown> {
+  const option = LAB_MODELS[model]
   return {
-    archetype: { id: 'kling-3.0', modeId: 't2v' },
-    modelKey: KLING.modelKey,
-    modelAlias: KLING.value,
-    modelVendor: KLING.vendor,
-    vendor: KLING.vendor,
-    modelLabel: KLING.label,
-    videoModel: KLING.value,
-    videoModelVendor: KLING.vendor,
-    mode: 'std',
-    duration: '3',
+    archetype: model === 'seedance'
+      ? { id: 'seedance-2', modeId: 't2v', variantId: 'standard' }
+      : { id: 'kling-3.0', modeId: 't2v' },
+    modelKey: option.modelKey,
+    modelAlias: option.value,
+    modelVendor: option.vendor,
+    vendor: option.vendor,
+    modelLabel: option.label,
+    videoModel: option.value,
+    videoModelVendor: option.vendor,
+    ...(model === 'seedance' ? { resolution: '720p', duration: '5' } : { mode: 'std', duration: '3' }),
     aspect_ratio: '16:9',
     sound: false,
   }
 }
 
-function shotNode(index: number, metaOverride: Record<string, unknown> = {}): GenerationCanvasNode {
+function shotNode(index: number, model: LabModel, metaOverride: Record<string, unknown> = {}): GenerationCanvasNode {
   return {
     id: NODE_ID(index),
     kind: 'video',
@@ -132,7 +150,7 @@ function shotNode(index: number, metaOverride: Record<string, unknown> = {}): Ge
     position: { x: 0, y: 0 },
     size: { width: 340, height: 192 },
     status: 'idle',
-    meta: { ...baseMeta(), ...metaOverride },
+    meta: { ...baseMeta(model), ...metaOverride },
   }
 }
 
@@ -151,6 +169,10 @@ type CardFixture = {
   canvasImages?: boolean
   /** 这一格的界面语言（缺省中文）。 */
   locale?: 'zh-CN' | 'en'
+  /** 卡上的模型（缺省 Kling 3.0）。 */
+  model?: LabModel
+  /** 面板宽（缺省生产的 390）：窄一档用来钉「放不下就换行」。 */
+  panelWidth?: number
 }
 
 /** 画布上已出图的两张（卡上打 @ 时「画布」那一组列它们）。图是内联的小 SVG（候选只收可引用的地址：本地 / 内联 / http），不碰网络。 */
@@ -200,9 +222,12 @@ function SpendComposerCard({
   openTrigger,
   canvasImages = false,
   locale,
+  model = 'kling',
+  panelWidth,
   inPanel = false,
   waiting,
 }: CardFixture & { inPanel?: boolean; waiting?: boolean }): JSX.Element {
+  const modelOption = LAB_MODELS[model]
   const localeApplied = useLabLocale(locale)
   const fx = useV4Fixtures()
   const labels = useV4Labels()
@@ -217,7 +242,7 @@ function SpendComposerCard({
     ])
     useWorkbenchStore.setState({ activeCategoryId: 'shots' })
     useGenerationCanvasStore.setState({
-      nodes: [...Array.from({ length: shots }, (_, i) => shotNode(i, metaByShot[i])), ...(canvasImages ? CANVAS_IMAGE_NODES : [])],
+      nodes: [...Array.from({ length: shots }, (_, i) => shotNode(i, model, metaByShot[i])), ...(canvasImages ? CANVAS_IMAGE_NODES : [])],
       edges: [],
       selectedNodeIds: [],
     })
@@ -225,7 +250,7 @@ function SpendComposerCard({
     setReady(true)
     // 夹具是每一格重建一次的常量对象，深比较无意义；这几个基元决定了这一格是什么样。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shots, page, priceUnknown, canvasImages])
+  }, [shots, page, priceUnknown, canvasImages, model])
 
   // 节点从 store 订阅（不是从上面那次 setState 的返回值拿）：用户在提示词里打字、在参数条里
   // 改画质，写的都是 store，价格行必须跟着那份**唯一**的 meta 走。
@@ -293,7 +318,7 @@ function SpendComposerCard({
         nodeId: candidate.id,
         index: i + 1,
         prompt: String(candidate.prompt ?? ''),
-        providerId: String(KLING.vendor ?? ''),
+        providerId: String(modelOption.vendor ?? ''),
         modelId: String(candidate.meta?.modelKey || ''),
         kind: 'video' as const,
         mode: 'text_to_video',
@@ -307,7 +332,7 @@ function SpendComposerCard({
   const data = projectSpendCard(pendingSpend, { page: index }, fx.t, {
     // 「Nomi 选的」= 模型还是 Nomi 当初挑的那个。用户在卡上一改模型，这句话跟着消失。
     locale: fx.locale,
-    agentPickedModelIds: [String(KLING.modelKey ?? '')],
+    agentPickedModelIds: [String(modelOption.modelKey ?? '')],
   })
   if (!data) return <Piece><div /></Piece>
 
@@ -335,6 +360,7 @@ function SpendComposerCard({
           {...(waiting === undefined ? {} : { slotWaiting: waiting })}
           context={{ ...fx.context, used: 36000 }}
           height={860}
+          {...(panelWidth ? { width: panelWidth } : {})}
         />
       </div>
     )
@@ -425,6 +451,38 @@ export const V4_SPEND_PARAMS_STATES: readonly LabState[] = [
     coverage: 'component-only',
     span: 2,
     render: () => <SpendComposerCard shots={1} inPanel />,
+  },
+  {
+    id: 'v4-panel-spend-seedance',
+    name: '⑤ 付费卡在真面板里 · Seedance 2.0（带变体 chip）· 生产宽 390',
+    source: '2026-10-08 协调会话：390px 下「16:9」压在「标准」上、变体 chip 溢出包装；合同：每颗 chip 整颗可见、放不下换行',
+    coverage: 'component-only',
+    span: 2,
+    render: () => <SpendComposerCard shots={1} inPanel model="seedance" />,
+  },
+  {
+    id: 'v4-panel-spend-seedance-narrow',
+    name: '⑤ 付费卡在真面板里 · Seedance 2.0 · 面板压窄到 300（放不下 → 换到第二行，不滚动、不进 ⚙）',
+    source: '2026-10-08 协调会话合同：报价参数永不退进 ⚙、不裁、不横向滚动，真放不下就换行',
+    coverage: 'component-only',
+    span: 2,
+    render: () => <SpendComposerCard shots={1} inPanel model="seedance" panelWidth={300} />,
+  },
+  {
+    id: 'v4-panel-spend-seedance-en',
+    name: '⑤ 付费卡在真面板里 · Seedance 2.0 · 390（英文）',
+    source: '2026-10-08 协调会话：同上，英文一轨',
+    coverage: 'component-only',
+    span: 2,
+    render: () => <SpendComposerCard shots={1} inPanel model="seedance" locale="en" />,
+  },
+  {
+    id: 'v4-panel-spend-seedance-narrow-en',
+    name: '⑤ 付费卡在真面板里 · Seedance 2.0 · 压窄到 300（英文）',
+    source: '2026-10-08 协调会话：同上，英文一轨',
+    coverage: 'component-only',
+    span: 2,
+    render: () => <SpendComposerCard shots={1} inPanel model="seedance" panelWidth={300} locale="en" />,
   },
   {
     // 待答态的对照格（2026-09-22），付费卡这一张。理由同 `v4-panel-question-answered`。
