@@ -375,7 +375,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
       ...removedIds.map((nodeId) => ({ type: 'canvas.node.removed' as const, payload: { nodeId } })),
     ])
-    if (get().projectId) emitProductionCanvasSignal({ kind: 'detach', projectId: get().projectId!, nodes: removedNodes })
+    emitProductionCanvasSignal({ kind: 'detach', projectId: get().projectId, nodes: removedNodes })
     reconcileTimelineForDeletedNodes(removedIds)
   },
   selectNode: (nodeId, additive = false) => {
@@ -583,7 +583,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       { type: 'canvas.node.removed', payload: { nodeId } },
       ...touchedGroups.map((group) => ({ type: 'canvas.group.updated', payload: { group } })),
     ])
-    if (removedNode && get().projectId) emitProductionCanvasSignal({ kind: 'detach', projectId: get().projectId!, nodes: [removedNode] })
+    if (removedNode) emitProductionCanvasSignal({ kind: 'detach', projectId: get().projectId, nodes: [removedNode] })
     reconcileTimelineForDeletedNodes([nodeId])
   },
   saveSelectedAsWorkflowTemplate: (name) => {

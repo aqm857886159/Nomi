@@ -28,7 +28,8 @@ import { clearClipboard } from './canvasClipboard'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
-import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
+import { bindProductionCanvasSignalProject, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
+import { logRendererError } from '../../../desktop/rendererLog'
 
 /** 一次整写：哪扇门、带了什么。commit 按种类穷举处理，新加种类不处理就编译不过。 */
 export type CanvasDocumentWrite =
@@ -126,9 +127,15 @@ type Projection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCan
 function emitProductionSignalsForDocumentChange(projectId: string | null, before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
   const beforeIds = new Set(before.map((node) => node.id))
   const afterIds = new Set(after.map((node) => node.id))
-  if (!projectId) return
   emitProductionCanvasSignal({ kind: 'detach', projectId, nodes: before.filter((node) => !afterIds.has(node.id)) })
   emitProductionCanvasSignal({ kind: 'reattach', projectId, nodes: after.filter((node) => !beforeIds.has(node.id)) })
+}
+
+function hasProductionNodes(nodes: readonly GenerationCanvasNode[]): boolean {
+  return nodes.some((node) => {
+    const meta = node.meta as Record<string, unknown> | undefined
+    return typeof meta?.productionRunId === 'string' && meta.productionRunId.trim().length > 0
+  })
 }
 
 function invertProductionCanvasIntent(intent: ProductionCanvasHistoryIntent): ProductionCanvasHistoryIntent {
@@ -173,12 +180,17 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
     switch (write.kind) {
       case 'load': {
         const normalized = normalizeStoreSnapshot(write.snapshot)
+        const projectId = write.projectId ?? get().projectId
+        if (!projectId && hasProductionNodes(normalized.nodes)) {
+          logRendererError('generation-canvas-project-identity-required', undefined, { nodeCount: normalized.nodes.length })
+          throw new Error('Cannot load production canvas nodes without a project identity')
+        }
         // S5-b-2:journal 起点 = 恢复出的画布(undo 最远只回放到这帧,不会塌到空白)
         seedUndoJournalBase({ nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups })
         clearClipboard()
         set({
           isReady: true,
-          projectId: write.projectId ?? null,
+          projectId,
           persistRevision: get().persistRevision,
           nodes: normalized.nodes,
           edges: normalized.edges,
@@ -192,6 +204,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           hasClipboard: false,
           ...getHistoryFlags(),
         })
+        bindProductionCanvasSignalProject(projectId)
         // genesis 事件不在这里发(S5-b-1):必须等 hydrate 尾部重放完成后由
         // workbenchProjectSession 以"含尾巴的后态"发,否则磁盘日志最终态会丢尾巴。
         return
@@ -254,7 +267,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           ...settled.nodes.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
           ...addEdges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
         ])
-        if (live.projectId) emitProductionCanvasSignal({ kind: 'reattach', projectId: live.projectId, nodes: incoming })
+        emitProductionCanvasSignal({ kind: 'reattach', projectId: live.projectId, nodes: incoming })
         emitReturnedLandings(settled.returned)
         return
       }

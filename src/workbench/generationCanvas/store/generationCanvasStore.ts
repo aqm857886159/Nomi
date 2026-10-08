@@ -125,7 +125,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
       ...removedIds.map((nodeId) => ({ type: 'canvas.node.removed' as const, payload: { nodeId } })),
     ])
-    if (currentState.projectId) emitProductionCanvasSignal({ kind: 'detach', projectId: currentState.projectId, nodes: removedNodes })
+    emitProductionCanvasSignal({ kind: 'detach', projectId: currentState.projectId, nodes: removedNodes })
   },
   pasteNodes: (basePosition, anchor) => {
     const currentState = get()

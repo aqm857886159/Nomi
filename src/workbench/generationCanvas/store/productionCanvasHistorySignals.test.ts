@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { routeProductionCanvasSignal, subscribeProductionCanvasSignals, type ProductionCanvasSignal } from '../../production/productionCanvasSignals'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { emitProductionCanvasSignal, routeProductionCanvasSignal, subscribeProductionCanvasSignals, type ProductionCanvasSignal } from '../../production/productionCanvasSignals'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import * as rendererLog from '../../../desktop/rendererLog'
 
 const makeNode = (id: string): GenerationCanvasNode => ({
   id,
@@ -81,6 +82,7 @@ describe('production canvas history signals', () => {
     const accepted: ProductionCanvasSignal[] = []
     const mismatches: Array<{ signalProjectId: string; hostProjectId: string }> = []
     routeProductionCanvasSignal(signalFromA!, 'project-b', (signal) => accepted.push(signal), (signal, hostProjectId) => {
+      if (!signal.projectId) throw new Error('test signal must carry project identity')
       mismatches.push({ signalProjectId: signal.projectId, hostProjectId })
     })
     expect(accepted).toEqual([])
@@ -102,9 +104,33 @@ describe('production canvas history signals', () => {
     const accepted: ProductionCanvasSignal[] = []
     const mismatches: string[] = []
     for (const signal of [undoSignal, redoSignal]) {
-      routeProductionCanvasSignal(signal!, 'project-b', (matched) => accepted.push(matched), (foreign) => mismatches.push(foreign.projectId))
+      routeProductionCanvasSignal(signal!, 'project-b', (matched) => accepted.push(matched), (foreign) => {
+        if (!foreign.projectId) throw new Error('test signal must carry project identity')
+        mismatches.push(foreign.projectId)
+      })
     }
     expect(accepted).toEqual([])
     expect(mismatches).toEqual(['project-a', 'project-a'])
+  })
+
+  it('logs and queues an empty-project signal until the atomic project load binds identity', () => {
+    const error = vi.spyOn(rendererLog, 'logRendererError').mockImplementation(() => {})
+    emitProductionCanvasSignal({ kind: 'detach', projectId: null, nodes: [makeNode('queued')] })
+
+    expect(error).toHaveBeenCalledWith('production-canvas-signal-project-unavailable', undefined, expect.objectContaining({ kind: 'detach' }))
+    expect(signals).toEqual([])
+
+    let observedStore: { projectId: string | null; nodeIds: string[] } | undefined
+    const observe = subscribeProductionCanvasSignals(() => {
+      const state = useGenerationCanvasStore.getState()
+      observedStore = { projectId: state.projectId, nodeIds: state.nodes.map((node) => node.id) }
+    })
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [makeNode('loaded')], edges: [], groups: [] }, 'project-a')
+    observe()
+
+    expect(useGenerationCanvasStore.getState().projectId).toBe('project-a')
+    expect(signals).toEqual([expect.objectContaining({ kind: 'detach', projectId: 'project-a' })])
+    expect(observedStore).toEqual({ projectId: 'project-a', nodeIds: ['loaded'] })
+    error.mockRestore()
   })
 })

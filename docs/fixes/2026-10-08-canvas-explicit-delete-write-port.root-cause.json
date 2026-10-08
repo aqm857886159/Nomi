@@ -36,7 +36,8 @@
     "Project canvas writes are serialized by projectId in the main process and re-read current state inside the write queue.",
     "Renderer delivery never saves a whole project record directly; it calls the main applyCanvasNodePatch port.",
     "Loading, unloading, switching projects, and ordinary non-production creation undo emit no production signal.",
-    "Every production canvas signal carries the projectId held by the emitting canvas store; history replay preserves it and a host drops mismatches with a warning."
+    "Every production canvas signal carries the projectId held by the emitting canvas store; history replay preserves it and a host drops mismatches with a warning.",
+    "Canvas content and project identity are installed in one load commit; an empty-identity production signal is logged, retained, and flushed only after identity binding."
   ],
   "doors": [
     {
@@ -203,12 +204,17 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
       "symbol": "recordProductionCanvasSignal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "bindProductionCanvasSignalProject"
     }
   ],
   "door_reduction": {
     "before": 32,
-    "after": 33,
-    "why_not": "The fixed boundary keeps every existing deletion and project-write door and adds the project-scoped signal router; signal producers, journal replay, and the host remain separate doors because they own creation, persistence, and consumption respectively."
+    "after": 34,
+    "why_not": "The fixed boundary keeps every existing deletion and project-write door and adds the project-scoped signal router plus the load-commit identity binding; signal producers, journal replay, and the host remain separate doors because they own creation, persistence, and consumption respectively."
   },
   "generality_proof": "Every listed deletion caller converges on the canvas store actions or document commit before a production signal can be emitted, while every project canvas disk writer converges on serializeProjectCanvasWrite. A future caller cannot silently infer a delete or write around the boundary without adding a new door that the door map exposes.",
   "shared_boundaries": [
@@ -276,12 +282,14 @@
     "src/workbench/production/redoReattachesProductionShots.test.ts",
     "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
     "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
-    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts"
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
   ],
   "class_regression_tests": [
     "src/workbench/production/redoReattachesProductionShots.test.ts",
     "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
-    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts"
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
   ],
   "legacy_paths": {
     "status": "removed",
