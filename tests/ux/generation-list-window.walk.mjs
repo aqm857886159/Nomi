@@ -3,6 +3,7 @@
 // 用法：pnpm run build && node tests/ux/generation-list-window.walk.mjs [输出目录]
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
+import { openStoryboardInList } from './_creationResourceTree.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -135,6 +136,12 @@ try {
   // ④ 「在列表里看」→ 回列表并打开它。
   await clickOrFail(win.locator('[data-view-in-list="shot-3"]'), '在列表里看')
   await expect(win.locator('[data-list-inspector="shot-3"]'), '「在列表里看」没有打开这一张').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // ⑤ 创作页点「分镜方案」→ 生成页列表、只看这份分镜；× 回到全部。
+  await clickOrFail(win.locator('nav.nomi-stepper [data-mode="creation"]').first(), '切到创作页')
+  await openStoryboardInList(win, designId, '创作页点分镜方案')
+  await screenshotSettled(win, { path: path.join(outDir, `listview-window-deeplink-${suffix}.png`) })
+  await clickOrFail(win.locator(`[data-list-filter="${designId}"] button`), '点 × 回到全部节点')
+  await expect(win.locator(`[data-list-filter="${designId}"]`), '× 之后筛选条还在').toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
   console.log(`✓ generation-list-window ${suffix} → ${outDir}`)
 } finally {
   await shutdown()
