@@ -7,7 +7,7 @@
  * 读：mean 列就是「每帧毫秒」。目标：100 人同一动作 ≤ 12 ms（编辑器视口 ≥ 30 fps 的逐帧 JS 预算）。
  */
 import * as THREE from 'three'
-import { bench, describe, vi } from 'vitest'
+import { bench, describe } from 'vitest'
 import { createDirectorStore } from '../../model/directorStore'
 import type { DirectorObject } from '../../model/directorTypes'
 import { prepareCharacterModel } from './characterAsset'
