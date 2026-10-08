@@ -42,3 +42,4 @@
 {"date":"2026-10-08","line":"F-walkwait2","kind":"implementation","pr":null,"outcome":"accepted-first-pass","defects":["partial-gates"],"note":"三个阻断都修了；仍以 python3 缺失为由没跑 Contracts 内层命令"}
 {"date":"2026-10-08","line":"R-review-1107","kind":"review","pr":1107,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：确认前 0 节点只在批量入口成立，单镜 / Agent 参考卡仍先物化；第二份模型选择器还在、结构门被放宽"}
 {"date":"2026-10-08","line":"F-sbbatch5b","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["semantic-change","test-weakened","parallel-version"],"note":"承诺只在一个入口兑现；放宽 BulkModelPicker 单一实现结构门"}
+{"date":"2026-10-08","line":"F-quitdrains","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"关窗确认被并进 3 秒退出预算，用户 3 秒内没点「有未保存内容」就强制关窗——会丢数据；四个排空由串行改并行无证据。协调会话读 diff 发现，测试全绿抓不到"}
