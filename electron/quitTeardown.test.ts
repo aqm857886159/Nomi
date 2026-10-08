@@ -109,6 +109,8 @@ describe("quit teardown lifecycle", () => {
     try {
       const { app, emit } = fakeApp();
       const drain = vi.fn(() => new Promise<void>(() => undefined));
+      const now = vi.spyOn(Date, "now");
+      now.mockReturnValue(0);
       installQuitTeardown(app, {
         disposeBackgroundLifecycle: vi.fn(),
         stopDesktopCapabilityCore: vi.fn(),
@@ -117,11 +119,11 @@ describe("quit teardown lifecycle", () => {
         timeoutMs: 20,
       });
       emit("before-quit");
-      vi.advanceTimersByTime(5000);
+      now.mockReturnValue(5000);
       emit("will-quit");
-      vi.advanceTimersByTime(19);
-      await vi.runAllTimersAsync();
+      for (let i = 0; i < 32; i += 1) await Promise.resolve();
       expect(drain).toHaveBeenCalledOnce();
+      vi.advanceTimersByTime(19);
       expect(app.exit).not.toHaveBeenCalled();
       vi.advanceTimersByTime(1);
       await vi.runAllTimersAsync();
@@ -156,10 +158,10 @@ describe("quit teardown lifecycle", () => {
         timeoutMs: 5,
       });
       emit("will-quit");
-      await Promise.resolve();
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle"]);
       releaseBackground();
-      await Promise.resolve();
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core"]);
       vi.advanceTimersByTime(5);
       await vi.runAllTimersAsync();

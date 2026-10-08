@@ -1,10 +1,12 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, dialog, ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
-import { quitTeardownTimeoutMs, resetQuitRequest } from "./quitTeardown";
+import { resetQuitRequest } from "./quitTeardown";
 
+export const CLOSE_ACK_DEADLINE_MS = 1500;
 const windowsAllowedToClose = new WeakSet<BrowserWindow>();
-const pendingCloseRequests = new WeakMap<BrowserWindow, string>();
+const pendingCloseRequests = new WeakMap<BrowserWindow, { requestId: string; acked: boolean }>();
 const pendingCloseTimers = new WeakMap<BrowserWindow, ReturnType<typeof setTimeout>>();
+const pendingCloseDialogs = new WeakMap<BrowserWindow, Promise<void>>();
 let closeResponseIpcRegistered = false;
 
 function clearPendingClose(mainWindow: BrowserWindow): void {
@@ -14,11 +16,43 @@ function clearPendingClose(mainWindow: BrowserWindow): void {
   pendingCloseTimers.delete(mainWindow);
 }
 
-function parseCloseResponse(payload: unknown): { requestId: string; confirmed: boolean } | null {
+function parseCloseResponse(payload: unknown): { requestId: string; kind: "ack" | "decision"; confirmed?: boolean } | null {
   if (!payload || typeof payload !== "object") return null;
   const requestId = String((payload as { requestId?: unknown }).requestId || "").trim();
   if (!requestId) return null;
-  return { requestId, confirmed: (payload as { confirmed?: unknown }).confirmed === true };
+  if ((payload as { ack?: unknown }).ack === true) return { requestId, kind: "ack" };
+  return { requestId, kind: "decision", confirmed: (payload as { confirmed?: unknown }).confirmed === true };
+}
+
+function forceClose(mainWindow: BrowserWindow): void {
+  if (mainWindow.isDestroyed()) return;
+  windowsAllowedToClose.add(mainWindow);
+  mainWindow.close();
+}
+
+function showNativeCloseDialog(mainWindow: BrowserWindow): void {
+  const existing = pendingCloseDialogs.get(mainWindow);
+  if (existing) {
+    mainWindow.focus();
+    return;
+  }
+  const dialogPromise = dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    buttons: ["Force Quit", "Cancel"],
+    defaultId: 1,
+    cancelId: 1,
+    title: "Nomi",
+    message: "Nomi did not respond.",
+    detail: "Force quitting may lose unsaved content.",
+  }).then((result) => {
+    pendingCloseDialogs.delete(mainWindow);
+    if (result.response === 0) forceClose(mainWindow);
+    else resetQuitRequest();
+  }).catch(() => {
+    pendingCloseDialogs.delete(mainWindow);
+    resetQuitRequest();
+  });
+  pendingCloseDialogs.set(mainWindow, dialogPromise);
 }
 
 function registerCloseResponseIpc(): void {
@@ -28,14 +62,21 @@ function registerCloseResponseIpc(): void {
     const mainWindow = BrowserWindow.fromWebContents(event.sender);
     const response = parseCloseResponse(payload);
     if (!mainWindow || !response) return;
-    if (pendingCloseRequests.get(mainWindow) !== response.requestId) return;
+    const pending = pendingCloseRequests.get(mainWindow);
+    if (!pending || pending.requestId !== response.requestId) return;
+    if (response.kind === "ack") {
+      pending.acked = true;
+      const timer = pendingCloseTimers.get(mainWindow);
+      if (timer) clearTimeout(timer);
+      pendingCloseTimers.delete(mainWindow);
+      return;
+    }
     clearPendingClose(mainWindow);
     if (!response.confirmed || mainWindow.isDestroyed()) {
       resetQuitRequest();
       return;
     }
-    windowsAllowedToClose.add(mainWindow);
-    mainWindow.close();
+    forceClose(mainWindow);
   });
 }
 
@@ -46,20 +87,20 @@ export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void 
       windowsAllowedToClose.delete(mainWindow);
       return;
     }
-    if (pendingCloseRequests.has(mainWindow)) {
+    if (pendingCloseRequests.has(mainWindow) || pendingCloseDialogs.has(mainWindow)) {
       event.preventDefault();
+      mainWindow.focus();
       return;
     }
     event.preventDefault();
     const requestId = randomUUID();
-    pendingCloseRequests.set(mainWindow, requestId);
+    pendingCloseRequests.set(mainWindow, { requestId, acked: false });
     const timer = setTimeout(() => {
-      if (pendingCloseRequests.get(mainWindow) !== requestId) return;
+      const pending = pendingCloseRequests.get(mainWindow);
+      if (!pending || pending.requestId !== requestId || pending.acked) return;
       clearPendingClose(mainWindow);
-      if (mainWindow.isDestroyed()) return;
-      windowsAllowedToClose.add(mainWindow);
-      mainWindow.close();
-    }, quitTeardownTimeoutMs());
+      showNativeCloseDialog(mainWindow);
+    }, CLOSE_ACK_DEADLINE_MS);
     timer.unref?.();
     pendingCloseTimers.set(mainWindow, timer);
     mainWindow.focus();

@@ -73,7 +73,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     cancelClose: (requestId: string) =>
       ipcRenderer.send("nomi:window:close-response", { requestId, confirmed: false }),
     onCloseRequest: (cb: (payload: { requestId: string }) => void) => {
-      const listener = (_: unknown, payload: { requestId: string }) => cb(payload);
+      const listener = (_: unknown, payload: { requestId: string }) => {
+        ipcRenderer.send("nomi:window:close-response", { requestId: payload.requestId, ack: true });
+        cb(payload);
+      };
       ipcRenderer.on("nomi:window:close-request", listener);
       return () => ipcRenderer.removeListener("nomi:window:close-request", listener);
     },
