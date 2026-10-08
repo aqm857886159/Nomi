@@ -437,7 +437,7 @@ export const zhOnboardingProviders = {
       tagline: '文本、图片与视频 · 可用模型以当前账户为准',
       credentialPlaceholder: '粘贴 Agnes API Key',
       credentialHint:
-        '在 Agnes 官方平台创建 API Key。部分模型需单独开通；可用模型和能力以当前账户为准。凭证本地加密存储。',
+        '在 Agnes 官方平台创建 API Key。部分模型需在 Agnes 单独开通或升级套餐；可用模型和限额以你的 Agnes 账户为准。凭证本地加密存储。',
       promoText:
         'Agnes AI 提供 OpenAI 兼容的文本、图片与视频 API。公开模型清单不代表当前套餐均可调用。',
       promoCta: '打开 Agnes 平台',
@@ -457,8 +457,8 @@ export const zhOnboardingProviders = {
       promoCta: '打开 Higgsfield 控制台',
     },
     modelscope: {
-      tagline: '官方原生 · 绑定阿里云账号',
-      promoText: '魔搭社区由阿里达摩院运营，绑定阿里云账号后可使用推理服务。去官网拿 API Key。',
+      tagline: '官方原生 · 绑定阿里云账号使用推理额度',
+      promoText: '魔搭社区由阿里达摩院运营，绑定阿里云账号后可使用魔搭的推理额度（以你的账户显示为准）。去官网拿 API Key。',
       promoCta: '去魔搭注册',
     },
     volcengine: {
@@ -490,14 +490,14 @@ export const zhOnboardingProviders = {
       credentialHint:
         '⚠️ 标准模型 API 需「Enterprise-Shared（企业级-共享）」API Key；个人/Consumer key 会报「访问被拒绝（1014）」。登录 RunningHub → API 设置里拿。凭证本地加密存储。',
       promoText:
-        'RunningHub 聚合 355+ 主流模型。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
+        'RunningHub 聚合 355+ 主流模型，用量与计费以你的 RunningHub 账户为准。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
       promoCta: '去 RunningHub',
     },
     'volcengine-speech': {
       tagline: '官方原生 · 豆包语音 2.0 配音（自然语言情感控制）',
-      credentialHint: '需先开通豆包语音合成 2.0 + 指定音色；凭证本地加密存储、只在调用时使用。',
+      credentialHint: '需先在火山控制台开通豆包语音合成 2.0，并开通要用的音色（部分音色需单独购买，以控制台为准）；凭证本地加密存储、只在调用时使用。',
       promoText:
-        '火山「语音技术」官方（与方舟是不同控制台）。开通豆包语音合成 2.0 与指定音色后，拿 App ID 与 Access Token。',
+        '火山「语音技术」官方（与方舟是不同控制台）。在火山控制台开通豆包语音合成 2.0，并开通要用的音色后，拿 App ID 与 Access Token。',
       promoCta: '去火山语音控制台',
       fields: {
         appId: { placeholder: '火山语音应用的 App ID', hint: '语音控制台 → 应用管理里的 App ID' },
@@ -510,20 +510,20 @@ export const zhOnboardingProviders = {
       credentialHint:
         '用于「元素拆解」(qwen-image-layered)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
       promoText:
-        'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token。',
+        'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，用量与计费以你的 Replicate 账户为准。',
       promoCta: '去 Replicate 拿 token',
     },
     fal: {
       tagline: '海外常用 · CDN 上传图片、视频和音频',
       credentialPlaceholder: '粘贴 fal.ai Key',
-      credentialHint: '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型和可用区域以当前账户为准。凭证本地加密存储。',
+      credentialHint: '在 fal.ai Dashboard 创建 Key。上传走 fal CDN，URL 有生命周期；模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
       promoText: 'fal.ai 提供模型 API 与 CDN 文件上传。配置一个 Key 后，Nomi 可以把本地参考素材交给 fal 或其他支持公网 URL 的模型。',
       promoCta: '去 fal.ai 创建 Key',
     },
     runway: {
       tagline: '海外视频 · 临时素材上传（需账户配置）',
       credentialPlaceholder: '粘贴 Runway API Key',
-      credentialHint: '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户已配置。凭证本地加密存储。',
+      credentialHint: '在 Runway Developer 控制台创建 API Key。临时上传最多 200MB、有效期约 24 小时，并要求账户已配置。生成按你的 Runway 账户 credits 计算，以 Runway 账户为准；凭证本地加密存储。',
       promoText: 'Runway 的 ephemeral upload 直接返回 Runway 专用 URI，适合 Runway 自己的图像/视频生成链路；上传权限和模型调用是两件事。',
       promoCta: '去 Runway Developer',
     },
@@ -1687,7 +1687,7 @@ export const enOnboardingProviders = {
       tagline: 'Text, image and video · Availability depends on your account',
       credentialPlaceholder: 'Paste your Agnes API Key',
       credentialHint:
-        'Create an API Key on the official Agnes platform. Some models require separate access. Availability and limits depend on your account. Credentials are encrypted locally.',
+        'Create an API Key on the official Agnes platform. Some models must be enabled separately in Agnes or require a plan upgrade. Model availability and limits depend on your Agnes account. Credentials are encrypted locally.',
       promoText:
         'Agnes AI provides OpenAI-compatible text, image and video APIs. The public model catalog does not guarantee access under your current plan.',
       promoCta: 'Open Agnes platform',
@@ -1709,7 +1709,7 @@ export const enOnboardingProviders = {
     modelscope: {
       tagline: 'Official access · Link an Alibaba Cloud account',
       promoText:
-        'ModelScope is operated by Alibaba DAMO Academy. Link an Alibaba Cloud account to use its inference service, then get an API Key from the official site.',
+        'ModelScope is operated by Alibaba DAMO Academy. Link an Alibaba Cloud account to use ModelScope inference quota (as shown in your account), then get an API Key from the official site.',
       promoCta: 'Register with ModelScope',
     },
     volcengine: {
@@ -1742,7 +1742,7 @@ export const enOnboardingProviders = {
       credentialHint:
         'The standard model API requires an Enterprise-Shared API Key. Personal or Consumer keys return access denied error 1014. Get the key from API Settings in RunningHub. Credentials are encrypted locally.',
       promoText:
-        'RunningHub provides 355+ models. The standard model API requires an Enterprise-Shared key from API Settings in the console.',
+        'RunningHub provides 355+ models; usage and billing depend on your RunningHub account. The standard model API requires an Enterprise-Shared key from API Settings in the console.',
       promoCta: 'Open RunningHub',
     },
     'volcengine-speech': {
@@ -1750,7 +1750,7 @@ export const enOnboardingProviders = {
       credentialHint:
         'Activate Doubao Speech Synthesis 2.0 and a selected voice first. Credentials are encrypted locally and used only for requests.',
       promoText:
-        'Volcengine Speech is separate from the Ark console. Activate Doubao Speech Synthesis 2.0 and a selected voice, then get the App ID and Access Token.',
+        'Volcengine Speech is separate from the Ark console. In the Volcengine console, activate Doubao Speech Synthesis 2.0 and the voice you need, then get the App ID and Access Token.',
       promoCta: 'Open Volcengine Speech console',
       fields: {
         appId: {
@@ -1766,20 +1766,20 @@ export const enOnboardingProviders = {
       credentialHint:
         'Used for Element Decomposition with qwen-image-layered Get a token from Replicate → Account → API tokens. Credentials are encrypted locally and used only for requests.',
       promoText:
-        'Replicate hosts the Apache 2.0 qwen-image-layered model, which separates an image into editable foreground, background, and element layers. Get a pay-as-you-go token from Account.',
+        'Replicate hosts the Apache 2.0 qwen-image-layered model, which separates an image into editable foreground, background, and element layers. Get a token from Account; usage and billing depend on your Replicate account.',
       promoCta: 'Get a Replicate token',
     },
     fal: {
       tagline: 'Common overseas route · CDN upload for image, video, and audio',
       credentialPlaceholder: 'Paste your fal.ai Key',
-      credentialHint: 'Create a Key in the fal.ai Dashboard. Uploads use fal CDN and have a lifecycle; model access and regions depend on your account. Credentials are encrypted locally.',
+      credentialHint: 'Create a Key in the fal.ai Dashboard. Uploads use fal CDN and have a lifecycle; model quota, regions and pricing depend on your current account. Credentials are encrypted locally.',
       promoText: 'fal.ai provides model APIs and CDN file uploads. With one Key, Nomi can make local reference media reachable to fal or another model that accepts public URLs.',
       promoCta: 'Create a fal.ai Key',
     },
     runway: {
       tagline: 'Overseas video · Ephemeral asset upload (account setup required)',
       credentialPlaceholder: 'Paste your Runway API Key',
-      credentialHint: 'Create an API Key in the Runway Developer console. Ephemeral uploads are limited to 200MB, last about 24 hours, and require an enabled account. Credentials are encrypted locally.',
+      credentialHint: 'Create an API Key in the Runway Developer console. Ephemeral uploads are limited to 200MB, last about 24 hours, and require an enabled account. Generation is calculated in your Runway account credits, subject to your Runway account. Credentials are encrypted locally.',
       promoText: 'Runway ephemeral uploads return a Runway-only URI for Runway image/video workflows; upload access and model calls are separate capabilities.',
       promoCta: 'Open Runway Developer',
     },

@@ -101,7 +101,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     tagline: '文本、图片与视频 · 可用模型以当前账户为准',
     credentialPlaceholder: '粘贴 Agnes API Key',
     credentialHint:
-      '在 Agnes 官方平台创建 API Key。部分模型需付费或单独开通；可用模型、价格和限额以当前账户为准。凭证本地加密存储。',
+      '在 Agnes 官方平台创建 API Key。部分模型需在 Agnes 单独开通或升级套餐；可用模型和限额以你的 Agnes 账户为准。凭证本地加密存储。',
     promo: {
       text: 'Agnes AI 提供 OpenAI 兼容的文本、图片与视频 API。公开模型清单不代表当前套餐均可调用。',
       ctaLabel: '打开 Agnes 平台',
@@ -123,9 +123,9 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     vendorKey: 'modelscope',
     logo: VENDOR_LOGOS.modelscope,
     glyph: '魔',
-    tagline: '官方原生 · 绑定阿里云每天免费额度',
+    tagline: '官方原生 · 绑定阿里云账号使用推理额度',
     promo: {
-      text: '魔搭社区由阿里达摩院运营，绑定阿里云账号后每天有免费推理额度。去官网拿 API Key。',
+      text: '魔搭社区由阿里达摩院运营，绑定阿里云账号后可使用魔搭的推理额度（以你的账户显示为准）。去官网拿 API Key。',
       ctaLabel: '去魔搭注册',
       url: 'https://modelscope.cn/my/myaccesstoken',
     },
@@ -183,7 +183,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     glyph: 'F',
     tagline: '官方队列 · 图片、视频、音频与 3D 模型',
     credentialPlaceholder: '粘贴 fal.ai API Key',
-    credentialHint: '在 fal.ai Dashboard 创建 API Key。不同模型的价格、限额和可用区域以当前账户为准。凭证本地加密存储。',
+    credentialHint: '在 fal.ai Dashboard 创建 API Key。模型额度、可用区域和价格以当前账户为准。凭证本地加密存储。',
     promo: {
       text: 'fal.ai 官方队列，统一提交、状态和结果生命周期；本目录只保留已对账的旗舰模型。',
       ctaLabel: '打开 fal.ai',
@@ -196,7 +196,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     glyph: 'Rw',
     tagline: '官方原生 · Gen-4.5 与 Gen-4 Turbo 视频',
     credentialPlaceholder: '粘贴 Runway API Key',
-    credentialHint: '在 Runway Dev 创建 API Key。生成会消耗 credits；凭证本地加密存储。',
+    credentialHint: '在 Runway Dev 创建 API Key。生成按你的 Runway 账户 credits 计算，以 Runway 账户为准；凭证本地加密存储。',
     promo: {
       text: 'Runway Dev 官方 API，提供 Gen-4.5 文生/图生视频与 Gen-4 Turbo 图生视频。',
       ctaLabel: '打开 Runway Dev',
@@ -215,7 +215,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     credentialHint:
       '⚠️ 标准模型 API 需「Enterprise-Shared（企业级-共享）」API Key；个人/Consumer key 会报「访问被拒绝（1014）」。登录 RunningHub → API 设置里拿。凭证本地加密存储。',
     promo: {
-      text: 'RunningHub 聚合 355+ 主流模型（按量付费）。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
+      text: 'RunningHub 聚合 355+ 主流模型，用量与计费以你的 RunningHub 账户为准。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
       ctaLabel: '去 RunningHub',
       url: 'https://www.runninghub.cn',
     },
@@ -245,9 +245,9 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
         hint: '同一应用的访问令牌（Access Key）',
       },
     ],
-    credentialHint: '需先开通豆包语音合成 2.0 + 付费音色；凭证本地加密存储、只在调用时使用。',
+    credentialHint: '需先在火山控制台开通豆包语音合成 2.0，并开通要用的音色（部分音色需单独购买，以控制台为准）；凭证本地加密存储、只在调用时使用。',
     promo: {
-      text: '火山「语音技术」官方（与方舟是不同控制台）。开通豆包语音合成 2.0 与付费音色后，拿 App ID 与 Access Token。',
+      text: '火山「语音技术」官方（与方舟是不同控制台）。在火山控制台开通豆包语音合成 2.0，并开通要用的音色后，拿 App ID 与 Access Token。',
       ctaLabel: '去火山语音控制台',
       url: 'https://console.volcengine.com/speech/app',
     },
@@ -261,9 +261,9 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     tagline: '一个 token，解锁「元素拆解」（一张图拆成可编辑图层）',
     credentialPlaceholder: '粘贴 Replicate API Token（r8_…）',
     credentialHint:
-      '用于「元素拆解」(qwen-image-layered，约 $0.05/张，按量付费)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
+      '用于「元素拆解」(qwen-image-layered)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
     promo: {
-      text: 'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，按量付费。',
+      text: 'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，用量与计费以你的 Replicate 账户为准。',
       ctaLabel: '去 Replicate 拿 token',
       url: 'https://replicate.com/account/api-tokens',
     },

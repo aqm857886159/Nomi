@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { scanDictionaries, scanDictionaryKeys, validateNotMoneyEntries } from './check-i18n-no-cost-claims.mjs'
+import { scanDictionaries, scanDictionaryKeys, scanSourceStrings, validateNotMoneyEntries } from './check-i18n-no-cost-claims.mjs'
 
 const dict = (zh, en = {}) => ({ 'zh-CN': zh, en })
 
@@ -61,4 +61,13 @@ test('NOT_MONEY 每条都有理由且只能登记错误或账号状态 key', () 
   assert.deepEqual(validateNotMoneyEntries({ 'taskCenter.row.recoverHint': '转述服务商返回' }), ['taskCenter.row.recoverHint: not an error/account-status key'])
   assert.deepEqual(validateNotMoneyEntries({ 'provider.error.balance': '' }), ['provider.error.balance: missing reason'])
   assert.deepEqual(validateNotMoneyEntries({ 'provider.error.balance': '不花钱' }), ['provider.error.balance: reason contains a money exemption'])
+  assert.deepEqual(validateNotMoneyEntries({ 'provider.error.balance': '服务商返回：余额不足' }, { 'provider.error.balance': '本机已处理' }), ['provider.error.balance: value lacks provider/account context', 'provider.error.balance: value lacks an actionable next step'])
+})
+
+test('源码门岗跳过注释但检查发给模型和供应商目录的固定字符串', () => {
+  const { hits } = scanSourceStrings({
+    'electron/harness/context/agentContext.ts': '// 会花钱\nconst prompt = "下一步会花钱"',
+    'src/config/knownVendors.ts': 'const hint = "在 fal.ai Dashboard 创建 API Key。不同模型的价格、限额和可用区域以当前账户为准。"',
+  }, { notMoney: { 'knownVendors.fal.credentialHint': '服务商账户前置条件，说明价格和限额由账户决定，并引导去控制台查看' } })
+  assert.deepEqual(hits.map((h) => h.key), ['electron/harness/context/agentContext.ts:2'])
 })
