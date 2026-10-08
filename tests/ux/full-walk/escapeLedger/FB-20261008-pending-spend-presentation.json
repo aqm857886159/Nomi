@@ -1,0 +1,32 @@
+{
+  "id": "FB-20261008-pending-spend-presentation",
+  "since": "2026-10-08",
+  "source": "?????? docs/fixes/2026-10-08-pending-spend-presentation.root-cause.json ? symptom ???\"Switching approval mode or restarting could make an existing paid card disappear, while delayed actions could target a newer quote.\"",
+  "category": "interaction-semantics",
+  "problem": "???????????????? generation presentation??????????????????",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "S1",
+    "S4"
+  ],
+  "fullWalkJourneys": [
+    "J04-agent-multishot-spend"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "???? invariant_owner_layer?electron/productionRun/productionPendingSpend.ts?????????? presentation identity???/????? stale action ???"
+  ],
+  "fixedInPr": 1093,
+  "completionCommits": [
+    "7a46a021f",
+    "f8c8500a8",
+    "9c2a6493c"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-08-pending-spend-presentation.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  }
+}
