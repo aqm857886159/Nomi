@@ -9,6 +9,7 @@
 // Electron is still "quitting" and swallows that call, so the process never exited. origin/main
 // hid the same swallow behind a 3s force-exit timer, and a "did it exit within 5s" check passed
 // on that backstop. So this test requires a completed (not deadline) exit well inside the budget.
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 
@@ -66,9 +67,13 @@ try {
   }
   console.log(`REAL_ELECTRON_QUIT ${JSON.stringify({ pid, ...result, steps: steps.map((step) => `${step.step}:${step.ms}ms`), exit: exits[0] })}`)
 } finally {
-  // Only the process this test started, by its own PID.
+  // Only the process tree this test started, by its own PID: a hung quit must not leave the
+  // main process or its GPU / utility helpers behind (a bare kill of the main PID did once).
   if (processHandle.exitCode === null && processHandle.signalCode === null) {
-    try { process.kill(pid) } catch { /* already gone */ }
+    try {
+      if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+      else process.kill(pid, 'SIGKILL')
+    } catch { /* already gone */ }
   }
   await launched.close().catch(() => undefined)
 }
