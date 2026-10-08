@@ -1,6 +1,8 @@
 import { FIND_REFERENCE_STATES } from './findReference/states/01-find-reference'
 import { CREATION_COLUMNS_STATES } from './creationColumns/states/01-columns'
 import { SHOT_TABLE_STATES } from './shotTable/states/01-table'
+import { GENERATION_LIST_STATES } from './generationList/states/01-list'
+import { GENERATION_LIST_CELL_HEIGHT, GENERATION_LIST_CELL_WIDTH } from './generationList/generationListLabKit'
 import { PROCESS_FEEDBACK_STATES } from './processFeedback/states/01-process-feedback'
 import { SETTINGS_SOUND_STATES } from './settingsSound/states/01-sound'
 import { CATALOG_LIVENESS_STATES } from './catalogLiveness/states/01-listing'
@@ -48,6 +50,7 @@ import type { LabScreen, LabState } from './labScreen'
 export const LAB_SCREENS: readonly LabScreen[] = [
   { id: 'find-reference', label: '找参考', states: FIND_REFERENCE_STATES, cell: { width: 1260, height: 650 } },
   { id: 'shot-table', label: '画布 · 分镜表', states: SHOT_TABLE_STATES, cell: { width: 992, height: 452 } },
+  { id: 'generation-list', label: '生成页 · 列表视图', states: GENERATION_LIST_STATES, cell: { width: GENERATION_LIST_CELL_WIDTH, height: GENERATION_LIST_CELL_HEIGHT } },
   { id: 'process-feedback', label: '生成过程反馈 C1', states: PROCESS_FEEDBACK_STATES, cell: { width: 800, height: 560 } },
   { id: 'settings-sound', label: '提醒与声音', states: SETTINGS_SOUND_STATES, cell: { width: 564, height: 550 } },
   { id: 'catalog-liveness', label: '模型目录活性', states: CATALOG_LIVENESS_STATES, cell: { width: 960, height: 760 } },

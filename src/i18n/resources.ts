@@ -1,4 +1,5 @@
 import { enShotTable, zhShotTable } from './locales/shotTable'
+import { enGenerationList, zhGenerationList } from './locales/generationList'
 import { enAntigravity, zhAntigravity } from './locales/antigravity'
 import { enModelSetup, zhModelSetup } from './locales/modelSetup'
 import { enBrowserAssets, zhBrowserAssets } from './locales/browserAssets'
@@ -25,6 +26,7 @@ import { enAgentToolFailure, zhAgentToolFailure } from './locales/agentToolFailu
 
 export const zhCN = {
   shotTable: zhShotTable,
+  generationList: zhGenerationList,
   common: {
     language: '语言',
     chinese: '简体中文',
@@ -452,6 +454,7 @@ type TranslationShape<T> = {
 
 export const en = {
   shotTable: enShotTable,
+  generationList: enGenerationList,
   common: {
     language: 'Language',
     chinese: '简体中文',

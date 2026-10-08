@@ -17,6 +17,13 @@ const TimelinePanel = lazyWithChunkBoundary(
 import { computeTimelineDuration } from '../timeline/timelineMath'
 import { resolveTimelineHandleLeft, type DockSpan } from './timelineHandlePlacement'
 import { collectBottomDockRects, resolveBottomDockScope } from './workspaceBottomDocks'
+import { useGenerationViewStore } from './list/generationViewStore'
+import { GenerationViewToggle } from './list/GenerationViewToggle'
+
+const GenerationListView = lazyWithChunkBoundary(
+  'i18n:generationList.aria',
+  () => import('./list/GenerationListView').then((module) => ({ default: module.GenerationListView })),
+)
 
 /**
  * 收起态时间轴手柄的水平落位（2026-09-10 走查反馈 #13 修正）。
@@ -119,6 +126,9 @@ export default function GenerationWorkspace({
   const canvasRef = React.useRef<HTMLDivElement | null>(null)
   const timelineHandleRef = React.useRef<HTMLButtonElement | null>(null)
   const timelineHandleLeft = useTimelineHandleLeft(canvasRef, timelineHandleRef, timelineCollapsed, aiCollapsed)
+  // 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。
+  const generationView = useGenerationViewStore((state) => state.view)
+  const listOpen = generationView === 'list'
   const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '0px' : assistantTargetWidth) : '0px'
   const isDockedAssistant = hasAssistant
   const workspaceStyle = {
@@ -157,7 +167,17 @@ export default function GenerationWorkspace({
           'relative',
         )}
       >
-        {canvas}
+        <div className={cn('absolute inset-0', listOpen && 'invisible')} inert={listOpen} data-generation-canvas-surface>
+          {canvas}
+        </div>
+        {listOpen ? (
+          <div className="absolute inset-0 z-[8]">
+            <React.Suspense fallback={null}>
+              <GenerationListView />
+            </React.Suspense>
+          </div>
+        ) : null}
+        <GenerationViewToggle />
         {/* 折叠态：底部居中把手——2026-08-06 曾挪到右下「避开中央编辑通道」，但用户拍板
             （2026-08-08 飞书反馈）时间轴是主时间观入口，应在底部中间。 */}
         {timelineCollapsed ? (

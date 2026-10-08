@@ -1,0 +1,24 @@
+{
+  "name": "生成页「列表」视图（分镜 → 画布分组 → 未分组的那份排法）",
+  "subject": "generation.list-view",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generation/list/generationListModel.ts",
+    "symbol": "deriveGenerationList"
+  },
+  "write_api": [],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generation/list/generationListSource.ts",
+    "src/workbench/generation/list/GenerationListView.tsx",
+    "src/workbench/generation/list/GenerationListParts.tsx",
+    "src/workbench/generation/list/GenerationListInspector.tsx",
+    "src/workbench/generation/list/CanvasListLinks.tsx"
+  ],
+  "since": "2026-10-08",
+  "notes": "设计卡 docs/plan/2026-10-08-generation-list-view.md。列表没有第二份数据：卡读画布 store 的节点、还没落画布的方案镜读分镜方案（第二步账本合一之前的现状），行状态读 storyboardRowStatus 的词表。零写入：检查器里的生成框（NodeGenerationComposer host=panel）不包 NodeWriteAccessProvider，写口就是画布 store；「接上一镜」走画布 connectNodes / disconnectEdge。视图状态（画布 / 列表、筛选、检查器）归 useGenerationViewStore，不进项目文件。"
+}
