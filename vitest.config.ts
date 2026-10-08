@@ -27,6 +27,7 @@ export const VITEST_LANE: LaneRule[] = [
   { root: "scripts", suffix: ".test.mjs" },
   { root: "scripts", suffix: ".test.ts" },
   { root: "tests", suffix: ".test.mjs" },
+  { root: "tests", suffix: ".test.ts" },
 ];
 
 /**
@@ -101,6 +102,7 @@ export default defineConfig({
       fileURLToPath(new URL("./tests/setup/networkTransport.ts", import.meta.url)),
       // 技能目录的 CJS→岛桥在源码上不存在（要编译产物）；单测里把 readSkillRecords 直接接到岛上（见文件头）。
       fileURLToPath(new URL("./tests/setup/skillCatalogBridge.ts", import.meta.url))],
+    globalSetup: fileURLToPath(new URL("./tests/setup/tempWorkspace.ts", import.meta.url)),
     // flake 的另一条腿：测试自己不 fsync 了，但**邻居进程**打满文件系统时（这台机器 20+ worktree
     // 并行跑 gates 是常态），最重的编排测试仍会被外部负载从 ~300ms 拖过 5s——2026-08-25 实测：
     // 8 个 fsync 锤子进程加载下，durability 修复后 productionGateIdempotency / productionQaVerify

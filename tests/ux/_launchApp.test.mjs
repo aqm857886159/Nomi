@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process'
 import { describe, expect, test } from 'vitest'
 import {
   buildNomiLaunchEnv,
+  cleanupTempRoot,
   configureSyntheticCredentialStorage,
   currentCatalogVersion,
   diagnoseLaunchFailure,
@@ -17,11 +18,23 @@ import {
   launchNomiApp,
   mainRequireArgs,
   repoRoot,
+  registerTempRoot,
   requireBeforePackagedMain,
   withLinuxNoSandbox,
   withLinuxSyntheticCredentialStorage,
   withPackagedPlaywrightOrigin,
 } from './_launchApp.mjs'
+
+describe('shared Electron temp-root lifecycle', () => {
+  test('cleanup is idempotent for explicit and generated roots', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-launch-cleanup-'))
+    registerTempRoot(root)
+    expect(fs.existsSync(root)).toBe(true)
+    cleanupTempRoot(root)
+    cleanupTempRoot(root)
+    expect(fs.existsSync(root)).toBe(false)
+  })
+})
 
 const dirs = { userDataDir: '/tmp/case/user-data', settingsDir: '/tmp/case/settings', projectsDir: '/tmp/case/projects' }
 

@@ -73,6 +73,31 @@ export function prepareIsolatedCatalog(settingsDir, { testedCatalogVersion = cur
 /** 仓库根：本文件在 <repo>/tests/ux/ 下。 */
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
+const ownedTempRoots = new Set()
+let tempRootExitHookInstalled = false
+
+function installTempRootExitHook() {
+  if (tempRootExitHookInstalled) return
+  tempRootExitHookInstalled = true
+  process.once('exit', () => {
+    for (const root of ownedTempRoots) fs.rmSync(root, { recursive: true, force: true })
+    ownedTempRoots.clear()
+  })
+}
+
+export function registerTempRoot(root) {
+  if (!root) return root
+  ownedTempRoots.add(root)
+  installTempRootExitHook()
+  return root
+}
+
+export function cleanupTempRoot(root) {
+  if (!root) return
+  ownedTempRoots.delete(root)
+  fs.rmSync(root, { recursive: true, force: true })
+}
+
 /** 默认等窗口的上限。取 60s：明显短于 Playwright 默认的 180s，让**我们的**错误信息先落地。 */
 const DEFAULT_WINDOW_TIMEOUT_MS = 60_000
 
@@ -351,7 +376,7 @@ export async function launchNomiApp(options = {}) {
   // isolate:false = 用用户**真实** profile 起（交互式 dev driver ui-driver.mjs 才这么用：
   // 它要能打开已有/示例项目，这是它注释里写明的既定设计，不是漏配）。此时不传 --user-data-dir、
   // 不覆盖三个目录 env，等价于「裸起一个 Nomi」；NOMI_E2E 那两条仍然强制。
-  const tempRoot = isolate ? (options.tempRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`))) : null
+  const tempRoot = isolate ? registerTempRoot(options.tempRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`))) : null
   const userDataDir = isolate ? (options.userDataDir ?? path.join(tempRoot, 'user-data')) : null
   const settingsDir = isolate ? (options.settingsDir ?? path.join(tempRoot, 'settings')) : null
   const projectsDir = isolate ? (options.projectsDir ?? path.join(tempRoot, 'projects')) : null
@@ -411,6 +436,7 @@ export async function launchNomiApp(options = {}) {
   try {
     app = await electron.launch(launchOptions)
   } catch (error) {
+    cleanupTempRoot(tempRoot)
     throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
   }
   if (preMainInjection) {
@@ -418,6 +444,7 @@ export async function launchNomiApp(options = {}) {
       await preMainInjection
     } catch (error) {
       await app.close().catch(() => undefined)
+      cleanupTempRoot(tempRoot)
       throw new Error(`[${name}] 打包形态没能在主入口之前装上 ${packagedPreMain.modules.join(', ')}：${error.message}`)
     }
   }
@@ -439,6 +466,7 @@ export async function launchNomiApp(options = {}) {
       // 两种失败形状都落这儿：等超时，以及 app 提前退出导致的 TargetClosedError
       //（单实例锁没抢到就是后者——主进程自己 quit 了）。诊断是同一套。
       await app.close().catch(() => undefined)
+      cleanupTempRoot(tempRoot)
       throw new Error(diagnoseLaunchFailure(`等了 ${timeout}ms 没等到窗口`, name, error, logTail))
     }
     await win.waitForLoadState('domcontentloaded')
@@ -463,6 +491,7 @@ export async function launchNomiApp(options = {}) {
     const actualViewport = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
     if (actualViewport.width !== viewportSize.width || actualViewport.height !== viewportSize.height) {
       await closeNomiApp(app)
+      cleanupTempRoot(tempRoot)
       throw new Error(`Acceptance viewport mismatch: expected ${JSON.stringify(viewportSize)}, got ${JSON.stringify(actualViewport)}`)
     }
     console.log('[walkthrough] content viewport', JSON.stringify(actualViewport))
@@ -471,12 +500,14 @@ export async function launchNomiApp(options = {}) {
       if (options.observeWindow) await options.observeWindow(win)
     } catch (error) {
       await closeNomiApp(app)
+      cleanupTempRoot(tempRoot)
       throw error
     }
     if (options.initialLocalStorage) {
       const missing = await win.evaluate((keys) => keys.filter((key) => localStorage.getItem(key) === null), Object.keys(options.initialLocalStorage))
       if (missing.length) {
         await app.close().catch(() => undefined)
+        cleanupTempRoot(tempRoot)
         throw new Error(`initialLocalStorage was not seeded before the first document: ${missing.join(', ')}`)
       }
     }
@@ -490,6 +521,7 @@ export async function launchNomiApp(options = {}) {
     await configureSyntheticCredentialStorage(app, syntheticCredentialStorage)
   } catch (error) {
     await app.close().catch(() => undefined)
+    cleanupTempRoot(tempRoot)
     throw error
   }
 
@@ -503,7 +535,10 @@ export async function launchNomiApp(options = {}) {
     capabilityDir,
     /** 主进程 stdout+stderr 的尾巴（最多 400 行）。断言红时给调用方看，不必只在启动失败时才有。 */
     mainLogTail: () => logTail.slice(),
-    close: () => closeNomiApp(app),
+    close: async () => {
+      await closeNomiApp(app)
+      cleanupTempRoot(tempRoot)
+    },
   }
 }
 

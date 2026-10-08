@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-test-temp-cleanup",
+  "problem_type": "Test and walkthrough temporary-directory leaks",
+  "symptom": "Vitest and Electron walkthrough runs leave nomi-* directories in the host temporary directory, growing local disks across repeated runs.",
+  "direct_cause": "Temporary roots are created independently and cleanup is attached to individual happy-path scripts, so failed assertions, launch timeouts, and process exits bypass removal.",
+  "class_root": "No shared lifecycle owner enforces creation and teardown for test-run and isolated Electron temporary roots.",
+  "affected_population": [
+    "Vitest workers and every test using os.tmpdir()",
+    "Electron UX walks and E2E scripts using the shared launcher",
+    "Windows, Linux, and macOS repeated local or CI runs"
+  ],
+  "scope_paths": [
+    "vitest.config.ts",
+    "tests/setup/tempWorkspace.ts",
+    "tests/setup/tempWorkspace.test.ts",
+    "tests/ux/_launchApp.mjs",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "entry_points": [
+    "Vitest globalSetup creates one run root and redirects TMPDIR/TEMP/TMP",
+    "launchNomiApp registers isolated Electron profile roots",
+    "launcher close and process-exit teardown remove registered roots"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-owned test infrastructure lifecycle behavior; no vendor API decision controls it.",
+  "invariant_owner_layer": {
+    "layer": "tests/setup/tempWorkspace.ts",
+    "tests": [
+      "tests/setup/tempWorkspace.test.ts",
+      "tests/ux/_launchApp.test.mjs"
+    ]
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-08",
+  "invariants": [
+    "Every Vitest run has one owned root and restores the host temp environment after teardown.",
+    "Every isolated Electron launch registers its profile root before any child temp path is created.",
+    "Registered roots are removed on normal close, launch failure, and process exit, and cleanup is idempotent."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "tests/setup/tempWorkspace.test.ts",
+      "symbol": "createTempWorkspace"
+    },
+    {
+      "kind": "write",
+      "path": "tests/setup/tempWorkspace.ts",
+      "symbol": "createTempWorkspace"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "registerTempRoot"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "cleanupTempRoot"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "The Vitest constructor and its regression test are separate test-only doors; registerTempRoot and cleanupTempRoot are separate lifecycle operations in the shared Electron boundary. They cannot be merged without hiding either creation or teardown evidence."
+  },
+  "generality_proof": "Vitest workers inherit all three Node temp variables, so every existing and future os.tmpdir()/mkdtemp caller converges on the run root. Every isolated Electron caller converges on launchNomiApp, whose registry covers explicit and generated roots and has both close and process-exit teardown.",
+  "shared_boundaries": [
+    {
+      "path": "tests/setup/tempWorkspace.ts",
+      "symbol": "createTempWorkspace",
+      "responsibility": "Own the Vitest run root, redirect inherited temp variables, and restore/remove them idempotently."
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "registerTempRoot",
+      "responsibility": "Own every isolated Electron profile root and remove it through the common cleanup boundary or process exit."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "vitest.config.ts",
+      "entry_point": "test.globalSetup",
+      "disposition": "enforced",
+      "evidence": "The config invokes tests/setup/tempWorkspace.ts before workers are created."
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp",
+      "disposition": "enforced",
+      "evidence": "All shared Electron UX launches allocate or register their isolated profile root here."
+    },
+    {
+      "path": "tests/ux/full-walk/launch.mjs",
+      "entry_point": "startPlaybook",
+      "disposition": "enforced",
+      "evidence": "startPlaybook delegates to launchCoreSmoke, which delegates to launchNomiApp; no second Electron launcher exists."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same leak can be reintroduced by any new test or walk that creates a temp root, and existing failure paths already bypass per-script finally blocks.",
+    "same_class_scan": [
+      "rg -n 'mkdtemp|mkdtempSync' tests scripts electron/testSupport found independent Vitest, UX, system, and walkthrough producers.",
+      "Checked tests/ux/_launchApp.mjs and tests/ux/full-walk/launch.mjs as the shared Electron launch chain.",
+      "Checked vitest.config.ts and tests/setup/* as the shared Vitest setup chain."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/setup/tempWorkspace.ts",
+    "invariant": "Each run owns its temp root and every owned root is removed on all lifecycle exits.",
+    "failure_mode": "Cleanup is synchronous, idempotent, and fail-safe with force removal; no caller-specific exception path is required.",
+    "exception_policy": "none",
+    "strategy": "Move lifecycle ownership to global setup and the shared launcher registry, then keep individual tests focused on behavior rather than cleanup choreography.",
+    "artifacts": [
+      "tests/setup/tempWorkspace.ts",
+      "tests/ux/_launchApp.mjs",
+      "vitest.config.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/setup/tempWorkspace.test.ts",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/setup/tempWorkspace.test.ts",
+    "tests/ux/_launchApp.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Existing callers remain compatible; the shared boundaries add lifecycle ownership without changing product or gate behavior."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls temporary-directory ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or user files are migrated. Only roots created by the current test process are owned and removed.",
+  "residual_risks": [
+    "Standalone scripts that never use the shared Electron launcher still require a later sweep; they are outside this shared-boundary change.",
+    "Existing historical nomi-* directories are intentionally untouched and require the coordinator's separate cleanup procedure."
+  ]
+}
