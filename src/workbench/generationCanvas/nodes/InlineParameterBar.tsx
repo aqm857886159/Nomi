@@ -20,10 +20,8 @@ import {
   parameterChipLabel,
   parameterChipOptions,
   parameterChipValue,
-  planParameterChips,
   splitPrimaryParameterControls,
 } from './primaryParameterChips'
-import { useFittedChipCount } from './useFittedChipCount'
 import { commonRatioSortKey } from './aspectRatio'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { modelVisibilityFooterAction, useDedupedModelSelect } from '../../common/useDedupedModelSelect'
@@ -208,15 +206,11 @@ export default function InlineParameterBar({
   const stacked = layout === 'stacked'
 
   // ── chips 形态：底栏摆哪几颗 chip ──
-  // 「哪几个是主参数」的判据全在 primaryParameterChips.ts（从档案 derive）；
-  // 「这一行装不装得下」是**量出来的**（useFittedChipCount 读真实盒子），不在这里估宽度。
-  // summary 形态用不到这两件事，但 hook 不能条件调用——所以 enabled 关掉、chips 规划成空。
+  // 「哪几个是主参数」的判据全在 primaryParameterChips.ts（从档案 derive）。主参数影响报价 / 产出，
+  // 付费确认那一刻**一颗都不许退进 ⚙、不许被裁、不许要横向滚动才看得见**：放不下就换到第二行
+  // （2026-10-08 协调会话合同）。所以这里不量宽度、不按「装得下几颗」切——没有任何测量能让它少一颗。
   const { primary } = splitPrimaryParameterControls(renderedControls)
-  const barRef = React.useRef<HTMLDivElement | null>(null)
-  // 竖排（窄面板）本来就允许换行，用不着退位；横排底栏不许换行，装不下就退回 ⚙。
-  const fittedCount = useFittedChipCount(barRef, primary.length, { enabled: chipsMode && !stacked })
-  const planned = planParameterChips(primary, stacked ? primary.length : fittedCount)
-  const chips = chipsMode ? planned.chips : []
+  const chips = chipsMode ? primary : []
   // summary 形态的面板装**全部**参数（摘要 pill 不占走任何一个）；chips 形态只装没上底栏的那些。
   const panelControls = chipsMode ? overflowParameterControls(renderedControls, chips) : renderedControls
 
@@ -492,7 +486,8 @@ export default function InlineParameterBar({
   const summaryMaxWidth = typeof summaryWidth === 'object' ? summaryWidth.hug : undefined
   // chips 形态的横排里身份两枚**不缩**：模型名本身已由 triggerMaxWidth 截到 150px，再让它跟着挤，
   // 结果是「宽度不够时模型名先被榨没、chip 却一颗不少」——而模型是这一行的一等决策（§1.5.4）。
-  // 不缩也是「装不下」这件事能被量出来的前提：所有成员都不缩，行才会真的溢出（见 useFittedChipCount）。
+  // 横排 chips 放不下时**换行**：身份两枚与参数 chip 是同一条可换行 flex 行的直接成员（下面 identityRow 用 `contents`），
+  // 每一颗都整颗待在本行或整颗挪到下一行——不会出现「变体被挤出包装、压在 16:9 上」（2026-10-08 Seedance 2 · 390px）。
   // summary 形态只有一颗定宽 pill，不存在「装不下」，行窄时让位的只有**模型**那枚：它的值区是有意的
   // 省略号、hover 的 title 是全名。变体是短枚举（「变体 5.0」），和分镜底栏的模式 / 时长同一条规则
   // （2026-10-06 前分镜旧底栏的让位表同一条规则：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
@@ -505,7 +500,7 @@ export default function InlineParameterBar({
     // 它想修的「EN 下 Kling 3.0 压住 16:9」由 #834 的 `modelChipClass` / `variantChipClass`
     // 两条一起覆盖；本分支留下的是**判据**——参数条一行里相邻两颗控件不许相压
     // （`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
-    <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
+    <div className={cn(chipsMode && !stacked ? 'contents' : 'flex min-w-0 items-center gap-2', stacked && 'w-full')}>
       <NomiSelect
         ariaLabel={t('generationCommon.parameters.model')}
         placeholder={t('generationCommon.parameters.selectModel')}
@@ -654,18 +649,19 @@ export default function InlineParameterBar({
 
   return (
     <div
-      ref={barRef}
       className={cn(
         'generation-canvas-v2-node__params--parameters',
         'min-w-0',
-        stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2',
+        // chips 横排放不下就**换行**：每颗 chip（含模型 / 变体）整颗留在原处或整颗挪到下一行，
+        // 不缩、不叠、不滚动。summary 横排只有一颗 pill，保持一行（画布节点长相不变）。
+        stacked ? 'flex flex-col items-stretch gap-1.5' : cn('flex items-center gap-2', chipsMode && 'flex-wrap'),
       )}
     >
       {stacked ? identityRow : <div className="contents">{identityRow}</div>}
       {chipsMode ? (
         <>
           {/* 横排：chip 与 ⚙ 直接排在模型芯片后面（`contents` 让它们成为同一条 flex 行的成员，
-              好让底栏「单行不换行」这条断言量得到）。竖排（窄面板）自己成一行并允许换行。 */}
+              放不下就整颗换到下一行）。竖排（窄面板）自己成一行并允许换行。 */}
           <div className={cn(stacked ? 'flex w-full flex-wrap items-center gap-1.5' : 'contents')}>
             {chips.map((control) => renderChip(control))}
             {moreTrigger}

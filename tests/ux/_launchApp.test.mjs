@@ -12,6 +12,7 @@ import {
   configureSyntheticCredentialStorage,
   currentCatalogVersion,
   diagnoseLaunchFailure,
+  isolatedCatalogHasSafeStorageCredentials,
   prepareIsolatedCatalog,
   prepareLocalStorageSeed,
   launchNomiApp,
@@ -195,6 +196,36 @@ describe('withLinuxNoSandbox', () => {
   test('non-Linux spawns keep their original arguments', () => {
     expect(withLinuxNoSandbox(['.', '--disable-gpu'], 'darwin')).toEqual(['.', '--disable-gpu'])
     expect(withLinuxNoSandbox(['.', '--disable-gpu'], 'win32')).toEqual(['.', '--disable-gpu'])
+  })
+})
+
+describe('isolatedCatalogHasSafeStorageCredentials', () => {
+  // 2026-10-08 Linux CI：夹具用合成后端加密了 apimart 占位 key，被测 App 却没开同一个后端 →
+  // 模型在渲染层「当前不可用」、付费卡一颗参数 chip 都没有。起 App 的后端必须从盘上的 catalog 推出来。
+  // 不是凭据：只是 catalog 里那一格的形状（值从不被解密）。
+  const placeholder = 'not-a-secret'
+  const withCatalog = (catalog, run) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-synthetic-cred-'))
+    try {
+      if (catalog !== undefined) fs.writeFileSync(path.join(root, 'model-catalog.json'), typeof catalog === 'string' ? catalog : JSON.stringify(catalog))
+      return run(root)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  }
+
+  test('a fixture catalog with a safeStorage-encrypted key needs the synthetic backend', () => {
+    withCatalog({ apiKeysByVendor: {
+      'agent-runtime-loopback': { apiKey: placeholder, enc: 'plain' },
+      apimart: { apiKey: placeholder, enc: 'safeStorage' },
+    } }, (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(true))
+  })
+
+  test('plain-only, missing or unreadable catalogs do not switch the backend', () => {
+    withCatalog({ apiKeysByVendor: { 'agent-runtime-loopback': { apiKey: placeholder, enc: 'plain' } } },
+      (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
+    withCatalog(undefined, (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
+    withCatalog('{not json', (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
   })
 })
 
