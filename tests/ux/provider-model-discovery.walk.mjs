@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, expectNoCjkInEnglishDom } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-model-discovery-'))
 const shots = path.join(tempRoot, 'shots')
@@ -92,7 +93,7 @@ async function savedKeys(vendorKey) {
 }
 async function completeModelSelfCheck() {
   const done = win.getByRole('button', { name: '\u5b8c\u6210', exact: true }).last()
-  await expect(done).toBeVisible({ timeout: 30_000 })
+  await expect(done).toBeVisible({ timeout: stationTimeout({ operations: 3 }) })
   await clickOrFail(done, 'complete model self-check')
   const cancel = picker().getByRole('button', { name: '\u53d6\u6d88', exact: true })
   if (await cancel.count()) await clickOrFail(cancel, 'close model picker after self-check')

@@ -94,7 +94,13 @@ describe("custom relay credential validation", () => {
     await expect(upsertRendererCatalogVendorApiKey("byo-auth-relay", { apiKey: "stored-key", enabled: false }))
       .resolves.toMatchObject({ vendorKey: "byo-auth-relay", hasApiKey: true });
 
-    const headers = new Headers(mockAppFetch.mock.calls[0][1].headers);
+    const firstCall = mockAppFetch.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    if (!firstCall) throw new Error("credential validation did not issue a request");
+    const firstRequest = firstCall[1];
+    expect(firstRequest).toBeDefined();
+    if (!firstRequest) throw new Error("credential validation request options are missing");
+    const headers = new Headers(firstRequest.headers);
     expect(headers.get("authorization")).toBe("Bearer gateway-override");
   });
 });
