@@ -8,7 +8,7 @@
 
 | 提交 / bug | 直接原因 | 类 |
 |---|---|---|
-| `tests/ux/provider-model-discovery.walk.mjs:101-118` 保存 relay / replicate 凭据后立即 reload | `upsertVendorApiKey` 是异步 IPC，夹具未 `await`；写入与 reload 竞态，relay 最终留下禁用空凭据 | 走查夹具生命周期失配 |
+| `tests/ux/vendor-baseurl-discoverability.walk.mjs:81-96` 与 `tests/ux/provider-model-discovery.walk.mjs:101-118` 保存凭据后立即 reload | `upsertVendorApiKey` 是异步 IPC，夹具未 `await`；写入与 reload 竞态，relay 最终留下禁用空凭据 | 走查夹具生命周期失配 |
 | 加 `await` 的临时复现 | 当前凭据验证请求使用默认 Bearer，未满足夹具要求的 Authorization 覆盖头，验证阶段先失败 | 夹具未按当前验证门注册自定义中转 |
 | `vendorHealth` 生产路径 | 已有 `failureKind` 分类：有效模型列表 → `reachable`，全 404/405 或无法解析列表 → `unsupported`，鉴权 / 网络 / 上游失败 → `unreachable` | 未发现产品分类回归 |
 
@@ -28,7 +28,7 @@
 
 | 预测 | 验证 |
 |---|---|
-| 保持旧夹具不变，走查仍在健康检查处得到 `unsupported` | `node tests/ux/provider-model-discovery.walk.mjs`，原始结果 `Expected reachable / Received unsupported` |
+| 保持旧夹具不变，两条走查都在健康状态断言处失败 | `node tests/ux/vendor-baseurl-discoverability.walk.mjs`：401 行收到“24 个模型 · …24 个已关闭”，应为“连不上”；`node tests/ux/provider-model-discovery.walk.mjs`：`Expected reachable / Received unsupported` |
 | 只给夹具凭据注册加 `await`，会在保存阶段暴露验证门错误，而不是让产品分类转绿 | 临时夹具复现：`密钥验证失败，请检查密钥和权限后重试`；请求头为默认 Bearer |
 | 生产分类单测不受影响 | 4 个 onboarding 单测文件，107/107 通过 |
 
@@ -50,4 +50,4 @@
 
 ## 7. 用户要权衡的核心
 
-要的是“走查绿”，还是“健康状态诚实”：本证据支持保留诚实分类，修正走查的凭据注册契约。\n
+要的是“走查绿”，还是“健康状态诚实”：本证据支持保留诚实分类，修正走查的凭据注册契约。
