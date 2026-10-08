@@ -1,0 +1,33 @@
+{
+  "id": "FB-20261007-receipt-schema-upgrade",
+  "since": "2026-10-07",
+  "source": "用户 Mac 日志 10-07：从 0.22.5 升到 0.23.0 后打开项目显示项目恢复失败，任何项目都进不去",
+  "category": "claims-and-outcomes",
+  "problem": "0.22.5 写下的 Agent 提议回执（schemaVersion 2）在 0.23.0 读取时被判为非法并直接抛错，项目打开整条链失败；一份坏掉或旧版本的回执就能让整个项目打不开。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "0.22.5 项目在 0.23 打开：旧版回执被迁移，项目照常打开",
+    "回执文件损坏 / 版本认不出：隔离成 *.quarantined-* 后项目照常打开"
+  ],
+  "fullWalkJourneys": [
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts：旧版迁移 / 认不出隔离 / 当前版本原样读取",
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs：真实资料库卡片打开，断言回执被隔离且进入 studio"
+  ],
+  "completionCommits": [
+    "3e21971f1"
+  ],
+  "fixedInPr": 1102,
+  "rootCauseContract": "docs/fixes/2026-10-07-agent-proposal-receipt-read-recovery.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts"
+  }
+}
