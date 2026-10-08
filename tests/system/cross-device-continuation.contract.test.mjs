@@ -1,6 +1,5 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { localAssetUrl } from "../../electron/assets/assetPaths.ts";

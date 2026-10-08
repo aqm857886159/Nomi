@@ -25,7 +25,7 @@ const testTree = ts.factory.updateSourceFile(tree, tree.statements.filter((state
     ))]), statement.catchClause, statement.finallyBlock)
 }))
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-const execute = new AsyncFunction('fs', 'os', 'path', 'createHash', 'repoRoot', 'process',
+const execute = new AsyncFunction('fs', 'os', 'path', 'createHash', 'repoRoot', 'process', 'makeTempDir',
   'finalizeRuntimeWalk', 'stopRuntimeApp', 'runUiTask', 'expect', 'realNomiProfile', 'removeRealCredentials', 'seedRealCredentialStore',
   ts.createPrinter().printFile(testTree))
 const variableIndex = (name) => uiTry.tryBlock.statements.findIndex((statement) => ts.isVariableStatement(statement)
@@ -96,7 +96,7 @@ afterEach(() => {
 async function run(runUiTask = async () => {}) {
   const isolatedProcess = { argv: ['node', 'walk', '--packaged', '/synthetic/Nomi.app/Contents/MacOS/Nomi'],
     env: { NOMI_AGENT_LIVE: '1', NOMI_REAL_PROFILE_USER_DATA: path.dirname(sourceFile) } }
-  await execute(fs, { ...os, tmpdir: () => root }, path, createHash, root, isolatedProcess,
+  await execute(fs, { ...os, tmpdir: () => root }, path, createHash, root, isolatedProcess, makeTempDir,
     finalizeRuntimeWalk, stopRuntimeApp, runUiTask, expect, realNomiProfile, removeRealCredentials, seedRealCredentialStore)
   const output = fs.readdirSync(path.join(root, '.tmp'))
   expect(output).toHaveLength(1)

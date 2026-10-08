@@ -258,7 +258,8 @@
     "eng:metrics": "node ./scripts/eng-metrics.mjs",
     "merge:preflight": "node ./scripts/merge-preflight.mjs",
     "eval:director": "tsx evals/director/run.ts",
-    "eval:director:judge": "tsx evals/director/judge/run.ts"
+    "eval:director:judge": "tsx evals/director/judge/run.ts",
+    "check:test-temp-static": "node --test ./scripts/check-test-temp-static.node-test.mjs ./scripts/_test-temp.node-test.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

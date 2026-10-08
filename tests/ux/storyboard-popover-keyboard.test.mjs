@@ -53,7 +53,7 @@ const POPOVERS = [
 ]
 
 for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.name}`, async () => {
-  const cacheDir = fs.makeTempDir('nomi-storyboard-popover-kbd-')
+  const cacheDir = makeTempDir('nomi-storyboard-popover-kbd-')
   const server = await createServer({ configFile: false, cacheDir, server: { host: '127.0.0.1', port: 0, hmr: false, watch: null } })
   let browser
   try {

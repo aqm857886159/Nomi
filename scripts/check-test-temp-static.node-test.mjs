@@ -13,6 +13,8 @@ const forbidden = [
   /mkdtempSync\s*\(\s*join\(\s*tmpdir\(\)/,
   /mkdtempSync\s*\(\s*path\.join\(\s*fs\.realpathSync\(os\.tmpdir\(\)/,
 ]
+const helperCall = /\b(?:makeTempDir|makeTempDirAsync|registerTempRoot|cleanupTempRoot)\s*\(/g
+const forbiddenQualifiedHelperCall = /\b[A-Za-z_$][\w$]*\.(?:makeTempDir|makeTempDirAsync|registerTempRoot|cleanupTempRoot)\s*\(/g
 
 // These are deliberately non-system fixtures: their parent is a repository or
 // caller-provided scratch root, so redirecting them would change the fixture contract.
@@ -50,4 +52,19 @@ test('every non-system mkdtemp exception has a documented reason', () => {
     assert.ok(reason.length > 0)
     assert.ok(fs.existsSync(path.join(repoRoot, file)), `${file} disappeared from its allowlist`)
   }
+})
+
+test('every shared temp helper call has an import and no qualified helper call', () => {
+  const missingImports = []
+  const qualifiedCalls = []
+  for (const file of roots.flatMap(filesUnder)) {
+    const rel = path.relative(repoRoot, file).split(path.sep).join('/')
+    if (rel === 'scripts/_test-temp.mjs') continue
+    const source = fs.readFileSync(file, 'utf8')
+    if (source.match(helperCall) && !/from ['"][^'\"]*_test-temp\.mjs['"]/.test(source)) missingImports.push(rel)
+    if (forbiddenQualifiedHelperCall.test(source)) qualifiedCalls.push(rel)
+    forbiddenQualifiedHelperCall.lastIndex = 0
+  }
+  assert.deepEqual(missingImports, [], `helper calls without shared helper imports: ${missingImports.join(', ')}`)
+  assert.deepEqual(qualifiedCalls, [], `qualified shared helper calls remain: ${qualifiedCalls.join(', ')}`)
 })
