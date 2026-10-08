@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
 import { IconPlus, IconX } from '@tabler/icons-react'
+import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { getGenerationNodeComponentForNode } from '../nodes/renderRegistry'
@@ -450,19 +451,18 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       <circle className="generation-canvas-v2__edge-dot" cx={targetX} cy={targetY} r={3.2} />
       {showDisconnect ? (
         <EdgeDisconnectLayer id={id} labelX={labelX} labelY={labelY} onPointerEnter={enter} onPointerLeave={leave}>
-          <button
-            type="button"
+          {/* 最小图标按钮（设计系统现成的 WorkbenchIconButton，不加额外样式）；最终样子等设计稿。 */}
+          <WorkbenchIconButton
+            size="sm"
             data-edge-disconnect=""
-            className="inline-flex h-6 w-6 items-center justify-center rounded-pill border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm cursor-pointer hover:text-workbench-danger"
-            aria-label={disconnectLabel}
+            icon={<IconX size={12} stroke={2} aria-hidden="true" />}
+            label={disconnectLabel}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation()
               if (edge) disconnectEdge(edge.id)
             }}
-          >
-            <IconX size={12} stroke={2} aria-hidden="true" />
-          </button>
+          />
         </EdgeDisconnectLayer>
       ) : null}
     </g>

@@ -316,7 +316,7 @@ describe('generation canvas control structure', () => {
     const edgeRenderer = source('../reactFlow/GenerationCanvasReactFlowNodes.tsx')
 
     expect(edgeRenderer).toContain('const showDisconnect = !readOnly && Boolean(edge) && (Boolean(selected) || hovered)')
-    expect(edgeRenderer).toContain('aria-label={disconnectLabel}')
+    expect(edgeRenderer).toContain('label={disconnectLabel}')
     expect(edgeRenderer).not.toContain('edge-tag-pill')
     expect(edgeRenderer).not.toContain('edge-menu')
     expect(edgeRenderer).not.toContain('changeMode')
