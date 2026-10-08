@@ -19,6 +19,7 @@ import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/c
 import { EDITING_STATES } from './editing/editingStates'
 import { STORYBOARD_STATES } from './storyboard/storyboardStates'
 import { STORYBOARD_REUSE_STATES } from './storyboardReuse/storyboardReuseStates'
+import { STORYBOARD_BATCH_STATES } from './storyboardBatch/storyboardBatchStates'
 import { STAGE_HEIGHT, STAGE_WIDTH } from './storyboard/storyboardLabKit'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
 import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
@@ -81,6 +82,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     label: '分镜表 · 复用画布底栏（提案）',
     states: STORYBOARD_REUSE_STATES,
     cell: { width: 900, height: 760 },
+  },
+  {
+    id: 'storyboard-batch',
+    label: '分镜 · 生成剩余 / 勾选 / 批量参数（提案）',
+    states: STORYBOARD_BATCH_STATES,
+    cell: { width: 900, height: 700 },
   },
   {
     id: 'host-config',

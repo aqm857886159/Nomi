@@ -238,9 +238,11 @@ export function ParameterOptionGroup({
  * 连续数值滑杆（时长秒数这类）。拖动期间只改本地显示，松手 / 方向键改完（Mantine `onChangeEnd`）才提交一次：
  * 每一步都写画布状态会让整张图的订阅者跟着重渲、还多一步撤销（2026-09-25 画布跟手实测：32 个视频时每步约 40 ms）。
  */
-function ParameterSlider({ label, value, min, max, step, onCommit }: {
+function ParameterSlider({ label, value, min, max, step, onCommit, unset = false }: {
   label: string
   value: number
+  /** 这一刻没有一个确定的值（分镜批量 / 多选里所选镜取值不一致）：读数印「—」，滑杆停在下限。 */
+  unset?: boolean
   min: number
   max: number
   step: number
@@ -270,7 +272,7 @@ function ParameterSlider({ label, value, min, max, step, onCommit }: {
         }}
       />
       <span className="shrink-0 text-right text-caption text-nomi-ink-80 tabular-nums" style={{ minWidth: 28 }}>
-        {shown}
+        {unset && draft === null ? '—' : shown}
       </span>
     </div>
   )
@@ -322,8 +324,9 @@ export function ParameterControlBody({
     && typeof control.max === 'number'
     && hasUsableSliderStep(control.min, control.max, control.step)
   ) {
-    const current = Number(controlInitialValue(control, meta))
-    const value = Number.isFinite(current) ? current : control.min
+    const rawValue = controlInitialValue(control, meta)
+    const current = Number(rawValue)
+    const value = rawValue !== '' && Number.isFinite(current) ? current : control.min
     return (
       <ParameterSlider
         label={label}
@@ -331,6 +334,7 @@ export function ParameterControlBody({
         min={control.min}
         max={control.max}
         step={control.step || 1}
+        unset={rawValue === ''}
         onCommit={(v) => onParameterControlChange(control, String(v))}
       />
     )

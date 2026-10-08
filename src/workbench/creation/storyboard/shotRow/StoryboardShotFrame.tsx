@@ -121,7 +121,10 @@ export default function StoryboardShotFrame({
       <div
         className="relative rounded-nomi overflow-hidden border border-nomi-line bg-nomi-ink-05"
         style={mediaStyle}
-        onDoubleClick={onOpenPreview}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest('button')) return
+          onOpenPreview?.()
+        }}
         data-storyboard-frame-media={aspect || 'default'}
         data-storyboard-visual-box="true"
       >

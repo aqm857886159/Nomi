@@ -26,7 +26,7 @@ import { adapterDraftFromProposal, compileRequestFor } from "./integrationAdapte
 import type { IntegrationHandoff } from "./handoffQueue";
 import { enqueueIntegrationHandoff, retireIntegrationHandoffs } from "./handoffQueue";
 import { mutateCatalog, readCatalog, normalizeProviderKind } from "../catalog/catalogStore";
-import { decryptApiKeyRecord } from "../catalog/secrets";
+import { decryptStoredApiKeyRecord } from "../catalog/secrets";
 import { sessionVendorKey } from "./sessionVendorKey";
 import type { ProfileKind } from "../catalog/types";
 import { runComfyCandidateTest } from "../tasks/comfyCandidateTest";
@@ -207,7 +207,7 @@ export function createRuntimeIntegrationSessionService(
     if (session.kind !== "http-api-provider" || !session.config.baseUrl) return undefined;
     const catalog = readCatalog();
     const vendorKey = sessionVendorKey(session, catalog.vendors);
-    return vendorKey ? decryptApiKeyRecord(catalog.apiKeysByVendor[vendorKey]) || undefined : undefined;
+    return vendorKey ? decryptStoredApiKeyRecord(catalog.apiKeysByVendor[vendorKey]) || undefined : undefined;
   };
   const runTask = input.runTask;
   const fetchTaskResult = input.fetchTaskResult;

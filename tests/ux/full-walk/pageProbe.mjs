@@ -8,30 +8,15 @@
 // 输入事件只认 `isTrusted`：Playwright 的鼠标键盘走 CDP，产生的就是可信事件（与真人同一类），
 // 页面脚本自己 dispatch 的不算。
 
-import { UI_LOCALES, uiText } from './invariants.mjs'
-
-/** 「已保存到项目」回执（9b）的中英原文，从词典读——页内观察者不自己写界面原话。 */
-const SAVED_LABEL_KEY = 'generationCommon.observability.progress.saved'
-
 /** 注入页面的函数本体（`win.evaluate(installProbe, options)`）。幂等：已经装过就只回报 already。 */
-export function installProbe({ savedTexts }) {
+export function installProbe() {
   const VERSION = 7
   if (window.__nomiFullWalk?.version === VERSION) return 'already'
   const state = {
     version: VERSION, installedAt: Date.now(), inputs: [], surfaces: [], current: null,
-    spinners: {}, savedLabels: {}, versionPills: {}, toasts: {}, nextId: 1,
+    spinners: {}, versionPills: {}, toasts: {}, nextId: 1,
   }
   window.__nomiFullWalk = state
-
-  // 9b 的记账：同一节点的回执消失后再出现，是新的一次（重置 firstSeen）；否则一个节点多次成功的剧本必定误报「挂了」。
-  state.trackSaved = (present, at) => {
-    for (const node of present) {
-      const entry = state.savedLabels[node]
-      if (!entry || entry.gone) state.savedLabels[node] = { node, firstSeen: at, lastSeen: at, gone: null }
-      else entry.lastSeen = at
-    }
-    for (const [key, entry] of Object.entries(state.savedLabels)) if (!present.has(key) && !entry.gone) entry.gone = at
-  }
 
   const visible = (el) => {
     if (!el || !el.isConnected) return false
@@ -132,28 +117,6 @@ export function installProbe({ savedTexts }) {
     document.querySelectorAll('[data-v4-block="composer"][data-mode="running"]').forEach((el) => consider(el, 'agent-running'))
     for (const entry of Object.values(state.spinners)) if (!seen.has(entry.id) && !entry.gone) entry.gone = now
 
-    // 9a / 9b：节点上的版本入口（10-07 起是图片右上角内侧的数字角标，名字写着几版）与「已保存到项目」回执，按节点记出现 / 消失时刻。
-    const pills = new Set()
-    document.querySelectorAll('[data-version-badge][aria-label]').forEach((button) => {
-      if (!visible(button)) return
-      const label = button.getAttribute('aria-label') ?? ''
-      const node = button.closest('[data-node-id]')?.getAttribute('data-node-id') ?? 'unknown'
-      const key = `${node}|${label}`
-      pills.add(key)
-      const entry = state.versionPills[key] ?? (state.versionPills[key] = { node, label, firstSeen: now, lastSeen: now, gone: null })
-      entry.lastSeen = now
-      entry.gone = null
-    })
-    for (const [key, entry] of Object.entries(state.versionPills)) if (!pills.has(key) && !entry.gone) entry.gone = now
-    const saved = new Set()
-    document.querySelectorAll('[data-node-id]').forEach((nodeEl) => {
-      if (!visible(nodeEl)) return
-      const text = nodeEl.innerText ?? ''
-      if (!savedTexts.some((saved) => text.includes(saved))) return
-      saved.add(nodeEl.getAttribute('data-node-id'))
-    })
-    state.trackSaved(saved, now)
-
     // 7c / 9c：每一条 toast 的文字与「×N」都记下（toast 可能在步骤收尾前就自己关了）。
     const toasts = new Set()
     document.querySelectorAll('.mantine-Notification-root').forEach((root) => {
@@ -193,7 +156,7 @@ export function installProbe({ savedTexts }) {
 }
 
 export async function ensurePageProbe(win) {
-  return win.evaluate(installProbe, { savedTexts: UI_LOCALES.map((locale) => uiText(locale, SAVED_LABEL_KEY)) })
+  return win.evaluate(installProbe)
 }
 
 /** 读回页内时间线（原样；归因在监视器里做）。页面没装 / 被导航冲掉时回 null。 */
@@ -203,7 +166,7 @@ export async function readPageProbe(win) {
     if (!state) return null
     return JSON.parse(JSON.stringify({
       installedAt: state.installedAt, current: state.current, inputs: state.inputs, surfaces: state.surfaces,
-      spinners: state.spinners, savedLabels: state.savedLabels, versionPills: state.versionPills, toasts: state.toasts,
+      spinners: state.spinners, versionPills: state.versionPills, toasts: state.toasts,
       spinnersSampledAt: state.spinnersSampledAt ?? null, readAt: Date.now(),
     }))
   })

@@ -55,6 +55,8 @@ export type InlineParameterBarParameterLayout = 'summary' | 'chips'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
+  /** Batch surfaces can provide the shared model picker beside this bar. */
+  hideModel?: boolean
   modelCatalogStatus: { message: string }
   renderedControls: DynamicModelControl[]
   selectedModelOption: ModelOption | null
@@ -129,6 +131,11 @@ type InlineParameterBarProps = {
    * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
    */
   leadingModelOption?: { label: string }
+  /**
+   * 面板最底下的一小段说明（分镜批量 / 多选：「哪些参数为什么没出现」）。画布节点不传。
+   * 传了它，即使一个可调参数都没有，触发器也照样出现——点开才读得到「为什么没有」。
+   */
+  panelFooter?: React.ReactNode
 }
 
 // section="parameters"：底栏 = 模型芯片 + 变体 + **参数区**。参数区有两种摆法，由 `parameterLayout` 选：
@@ -170,6 +177,7 @@ function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>
 
 export default function InlineParameterBar({
   modelOptions,
+  hideModel = false,
   modelCatalogStatus,
   renderedControls,
   selectedModelOption,
@@ -192,6 +200,7 @@ export default function InlineParameterBar({
   modeLabel,
   onModeSelect,
   leadingModelOption,
+  panelFooter,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
@@ -366,7 +375,7 @@ export default function InlineParameterBar({
   const hasProvider = modelSelect.providerOptions.length > 1
   // 触发器只在**里面真有东西**时出现：长尾参数、供应商、生成方式一件都没有的模型
   // （chips 形态下参数可能全上了 chip），留一颗点开是空白的触发器比不留更糟。
-  const hasPanel = panelControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect)
+  const hasPanel = panelControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect) || Boolean(panelFooter)
   // Catalog variants keep separate exact IDs; media archetype variants keep their existing parameter contract.
   // Both use the same approved variant control next to the family/model chip.
   const catalogVariants = modelSelect.variantOptions.length > 0
@@ -383,7 +392,7 @@ export default function InlineParameterBar({
    */
   const soloControl = soloOptionControl({
     controls: panelControls,
-    hasProvider,
+    hasProvider: hasProvider || Boolean(panelFooter),
     hasModeChoices: Boolean(modeChoices?.length && onModeSelect),
     chipsMode,
   })
@@ -442,6 +451,7 @@ export default function InlineParameterBar({
             />
           </div>
         ) : null}
+        {panelFooter ? <div className="border-t border-nomi-line-soft pt-2 text-micro text-nomi-ink-40" data-parameter-panel-footer="true">{panelFooter}</div> : null}
       </div>
     )
     if (surface === 'inline') {
@@ -501,19 +511,21 @@ export default function InlineParameterBar({
     // 两条一起覆盖；本分支留下的是**判据**——参数条一行里相邻两颗控件不许相压
     // （`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
     <div className={cn(chipsMode && !stacked ? 'contents' : 'flex min-w-0 items-center gap-2', stacked && 'w-full')}>
-      <NomiSelect
-        ariaLabel={t('generationCommon.parameters.model')}
-        placeholder={t('generationCommon.parameters.selectModel')}
-        triggerMaxWidth={stacked ? 132 : 150}
-        className={modelChipClass}
-        value={modelSelect.modelValue}
-        options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
-        onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
-        onChipChange={modelSelect.onModelProviderPick}
-        footerAction={modelVisibilityFooterAction()}
-        hiddenNote={modelSelect.hiddenNote}
-        {...(portalTarget ? { portalTarget } : {})}
-      />
+      {!hideModel ? (
+        <NomiSelect
+          ariaLabel={t('generationCommon.parameters.model')}
+          placeholder={t('generationCommon.parameters.selectModel')}
+          triggerMaxWidth={stacked ? 132 : 150}
+          className={modelChipClass}
+          value={modelSelect.modelValue}
+          options={leadingModelOption ? [{ value: '', label: leadingModelOption.label }, ...modelSelect.modelOptions] : modelSelect.modelOptions}
+          onChange={(id) => (id || !leadingModelOption ? modelSelect.onModelPick(id) : onModelChange(''))}
+          onChipChange={modelSelect.onModelProviderPick}
+          footerAction={modelVisibilityFooterAction()}
+          hiddenNote={modelSelect.hiddenNote}
+          {...(portalTarget ? { portalTarget } : {})}
+        />
+      ) : null}
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {catalogVariants || visibleVariants.length > 1 ? (
         <NomiSelect

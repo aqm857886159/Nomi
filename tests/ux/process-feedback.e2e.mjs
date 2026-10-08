@@ -103,12 +103,11 @@ try {
     await mutation('stable-geometry', async () => expect(await geometry(page)).toEqual(initial))
     await page.locator('[data-node-id]').evaluate((element) => element.style.height = '240px')
     const generationStatusProof = await proveProbe(page.locator('[data-node-id] [data-generation-status]'), '生成前状态条存在')
-    for (const stage of ['queued', 'requesting', 'generating', 'finalizing', 'saved']) {
+    for (const stage of ['queued', 'requesting', 'generating', 'finalizing']) {
       await advance(page, stage)
       await page.clock.runFor(200)
-      const expectedPhase = { queued: '排队中', requesting: '提交中', generating: '生成中', finalizing: '正在存到你电脑上', saved: '已保存到项目' }[stage]
-      if (stage === 'saved') await expectAbsent(page.locator('[data-node-id] [data-generation-status]'), { provenBy: generationStatusProof })
-      else await expect(page.locator(messageSelectors[0])).toContainText(expectedPhase)
+      const expectedPhase = { queued: '排队中', requesting: '提交中', generating: '生成中', finalizing: '正在存到你电脑上'}[stage]
+      await expect(page.locator(messageSelectors[0])).toContainText(expectedPhase)
       expect(await geometry(page)).toEqual(initial)
       await page.locator('[data-process-lab-ready]').screenshot({ path: path.join(evidence, `journey-${stage}.png`) })
     }

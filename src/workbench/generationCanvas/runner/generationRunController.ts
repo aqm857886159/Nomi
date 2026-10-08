@@ -59,7 +59,7 @@ import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
-function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
+export function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
   const exec = getGenerationNodeExecutionKind(kind)
   // model3d 同为一等产物口径——落回 'image' 会让花钱确认卡把 3D 生成说成「1 张画面」（同族 kind 边界漏 3D）。
   return exec === 'text' || exec === 'video' || exec === 'audio' || exec === 'model3d' ? exec : 'image'
@@ -104,6 +104,11 @@ export type GenerationConfirmationGuards = GenerationApprovalGuards & {
    * 缺省成 'user' 就是 fail-open——下一个忘了报的新入口会被当成「用户点的便宜单张」静默花钱（R17：让编译器拦）。
    */
   initiator: SpendInitiator
+}
+
+export type DeferredNodeMaterialization = {
+  draftNode: GenerationCanvasNode
+  materialize: () => Promise<string>
 }
 
 export type RunGenerationNodeOptions = {
@@ -533,14 +538,16 @@ function ledgerOptions(node: GenerationCanvasNode | undefined): Pick<RunGenerati
  * 单节点生成/重试/生成变体的轻确认 + 跑。要花钱的走单镜 Run（这一下点击就是批准，主进程记账）；文本 / 本地 ComfyUI 不进 Run、不要授权。
  * rerun=true 是「基于此生成变体」：先复制出新节点再跑；普通重新生成走 regenerateNodeInPlace。
  */
-export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
+export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡）换了项目 = 取消，没花钱；
   // 一旦提交，运行归原项目（target），之后切页/切项目都不取消它。
   const project = withProjectAction((issued) => issued)
   if (!project) return 'unavailable'
   const projectId = project.binding.projectId
-  let assertApprovedInputs = captureApprovedGenerationInputs([nodeId])
-  const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
+  let assertApprovedInputs = opts.deferredMaterialization
+    ? undefined
+    : captureApprovedGenerationInputs([nodeId])
+  const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
   const hosting = await resolveHostingDisclosure(node)
   // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting.allowed) return 'declined'
@@ -561,8 +568,14 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   await opts.assertCurrent?.()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
   let runId = nodeId
+  if (opts.deferredMaterialization) {
+    runId = await opts.deferredMaterialization.materialize()
+    if (!runId) return 'unavailable'
+    assertApprovedInputs = captureApprovedGenerationInputs([runId])
+  }
+  const runNode = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === runId) ?? node
   if (opts.rerun) {
-    assertApprovedInputs(useGenerationCanvasStore.getState(), nodeId)
+    assertApprovedInputs?.(useGenerationCanvasStore.getState(), nodeId)
     const dup = useGenerationCanvasStore.getState().duplicateNodeForRegeneration(nodeId)
     if (!dup) return 'unavailable'
     runId = dup.id
@@ -570,7 +583,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
   }
   try {
-    await runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(node), assetUploadConsent: 'allow', target: project.binding })
+    await runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(runNode), assetUploadConsent: 'allow', target: project.binding })
   } catch {
     // 原任务队列保留失败原因；原项目身份有效时，节点也显示错误。
   }

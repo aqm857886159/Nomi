@@ -14,7 +14,7 @@ const RUN = 'run-duration-1'
 
 function addDirector(id: string, preview: Record<string, unknown>) {
   const node = { id, kind: 'director', title: '', position: { x: 0, y: 0 }, meta: { directorPreview: { revision: 'dplan-1', updatedAt: 1, ...preview } } } as unknown as GenerationCanvasNode
-  useGenerationCanvasStore.getState().restoreSnapshot({ ...useGenerationCanvasStore.getState(), nodes: [...useGenerationCanvasStore.getState().nodes, node], edges: [], groups: [] } as never)
+  useGenerationCanvasStore.getState().restoreSnapshot({ ...useGenerationCanvasStore.getState(), nodes: [...useGenerationCanvasStore.getState().nodes, node], edges: [], groups: [] } as never, 'project-a')
 }
 
 describe('3D-BOX 花钱闸：预演时长 vs 候选时长', () => {
@@ -24,7 +24,7 @@ describe('3D-BOX 花钱闸：预演时长 vs 候选时长', () => {
   beforeEach(async () => {
     project = createProjectSessionTestHarness(); await project.open('project-a')
     resetClientIdRegistry()
-    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] }, 'project-a')
     const landed = await materializeShots({ materializationOperationId: `canvas-landing:${RUN}`, runId: RUN, shots: [{ shotId: 'shot-1', kind: 'video', prompt: 'p', candidate: { candidateId: 'c1', revision: 1 } }] })
     shotNode = landed.bindings[0].nodeId
   })

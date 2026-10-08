@@ -1,0 +1,40 @@
+{
+  "name": "项目画布文件的主进程单写口",
+  "subject": "project.canvas-write-port",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/projects/projectCanvasWrite.ts",
+    "symbol": "serializeProjectCanvasWrite"
+  },
+  "write_api": [
+    {
+      "path": "electron/projects/projectCanvasWrite.ts",
+      "symbol": "applyCanvasNodePatch"
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "writeDiskSnapshot"
+    },
+    {
+      "path": "electron/projects/projectCanvasWrite.ts",
+      "symbol": "serializeProjectCanvasWrite"
+    },
+    {
+      "path": "electron/preload.ts",
+      "symbol": "applyCanvasNodePatch"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/projects/projectsIpc.ts",
+    "electron/capabilityCore/gateway.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
+  ],
+  "parity_test": "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
+  "since": "2026-10-08",
+  "notes": "gateway 的整图合并与 renderer 的结果 patch 都在 main 进程按 projectId 串行；每次写入在队列内重新读取当前记录，避免交错写覆盖外部编辑。"
+}

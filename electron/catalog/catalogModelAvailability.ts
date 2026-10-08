@@ -32,9 +32,9 @@ export function createCatalogAvailability(
     const cached = credentialCache.get(vendorKey);
     if (cached) return cached;
     const record = state.apiKeysByVendor[vendorKey];
-    // 记录本身就不算数（没配过 / 被用户停用）时连探针都不调：注入假探针的测试也得守这条，
-    // 否则「停用的 key 不许去开钥匙串」只是生产里的口头承诺。
-    const status = credentialRecordCounts(record) ? probe(record) : "missing";
+    // Material existence and current enablement are separate facts: pending material stays visible,
+    // but a disabled record must not be decrypted or probed until the promotion boundary enables it.
+    const status = credentialRecordCounts(record) && record?.enabled === true ? probe(record) : "missing";
     credentialCache.set(vendorKey, status);
     return status;
   };

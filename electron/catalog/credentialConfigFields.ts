@@ -38,6 +38,7 @@ export const VENDOR_CONFIG_FIELD_CLASSIFICATION: Record<keyof Vendor, VendorConf
   name: "non-credential",
   enabled: "non-credential",
   hasApiKey: "non-credential",
+  credentialMaterialSaved: "non-credential",
   credentialVerificationPending: "non-credential",
   baseUrlHint: "non-credential",
   // 凭据**绑定**（§6.1）：记的是「这把 key 去哪、怎么放」，全是公开协议元数据——origin、

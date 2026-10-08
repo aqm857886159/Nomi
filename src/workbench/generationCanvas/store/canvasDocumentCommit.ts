@@ -18,7 +18,7 @@
 import { backfillShotIndexes } from '../model/shotNumbering'
 import { replayCanvasEvents } from '../events/canvasEventReducer'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { getHistoryFlags, popRedo, popUndo, pushUndoSnapshot, seedUndoJournalBase, type UndoRestore } from '../events/canvasUndoJournal'
+import { getHistoryFlags, popRedo, popUndo, pushUndoSnapshot, seedUndoJournalBase, type ProductionCanvasHistoryIntent, type UndoRestore } from '../events/canvasUndoJournal'
 import { mergeExternalCanvasWrite, type CanvasDocLike } from '../../../../electron/shared/canvas/externalCanvasWrite'
 import { withLiveNodeFacts, withLiveRunState } from '../../../../electron/shared/canvas/landedNodeFields'
 import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLifecycle'
@@ -28,15 +28,16 @@ import { clearClipboard } from './canvasClipboard'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
+import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 /** 一次整写：哪扇门、带了什么。commit 按种类穷举处理，新加种类不处理就编译不过。 */
 export type CanvasDocumentWrite =
   /** 打开项目：没有活的画布可比，事实就是快照里的（含重启收敛）；暂存清空，撤销基线从这里起。 */
-  | Readonly<{ kind: 'load'; snapshot: unknown }>
+  | Readonly<{ kind: 'load'; snapshot: unknown; projectId?: string }>
   /** 打开项目时重放快照之后落盘的事件尾巴（崩溃恢复）。 */
   | Readonly<{ kind: 'load-tail'; events: readonly { type: string; payload: Record<string, unknown> }[] }>
   /** 撤销 / 重做：目标位置的投影 + 之后的落地。 */
-  | Readonly<{ kind: 'rewind'; restore: UndoRestore }>
+  | Readonly<{ kind: 'rewind'; restore: UndoRestore; direction: 'undo' | 'redo' }>
   /** 外部 MCP 整张写回：base = 外部读到的那份，next = 它算出的整张；只合它自己改了的编辑。 */
   | Readonly<{ kind: 'external'; base: CanvasDocLike; next: CanvasDocLike }>
   /** 按原 id 放回被删的节点 / 边（已在的跳过，不覆盖现状）。 */
@@ -122,6 +123,33 @@ function emitReturnedLandings(returned: readonly Returned[]): void {
 
 type Projection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; groups: NodeGroup[] }>
 
+function emitProductionSignalsForDocumentChange(projectId: string | null, before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
+  const beforeIds = new Set(before.map((node) => node.id))
+  const afterIds = new Set(after.map((node) => node.id))
+  emitProductionCanvasSignal({ kind: 'detach', projectId, nodes: before.filter((node) => !afterIds.has(node.id)) })
+  emitProductionCanvasSignal({ kind: 'reattach', projectId, nodes: after.filter((node) => !beforeIds.has(node.id)) })
+}
+
+function invertProductionCanvasIntent(intent: ProductionCanvasHistoryIntent): ProductionCanvasHistoryIntent {
+  if (intent.kind === 'none') return intent
+  return {
+    kind: 'signals',
+    signals: intent.signals.map((signal) => ({
+      kind: signal.kind === 'detach' ? 'reattach' : 'detach',
+      projectId: signal.projectId,
+      nodes: signal.nodes,
+    })),
+  }
+}
+
+function replayProductionCanvasIntent(restore: UndoRestore, direction: 'undo' | 'redo'): void {
+  const intent = direction === 'undo'
+    ? invertProductionCanvasIntent(restore.productionCanvasIntent)
+    : restore.productionCanvasIntent
+  if (intent.kind === 'none') return
+  for (const signal of intent.signals) emitProductionCanvasSignal(signal)
+}
+
 export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActions> = (set, get) => {
   /** 换掉整张图（撤销 / 重做 / 外部写）：选区 clamp 到仍在的节点，连线手势作废。 */
   const replaceDocument = (next: Projection, held: HeldNodeOutcomes, extra?: (state: GenerationCanvasState) => void) => {
@@ -144,11 +172,14 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
     switch (write.kind) {
       case 'load': {
         const normalized = normalizeStoreSnapshot(write.snapshot)
+        const projectId = write.projectId ?? get().projectId
+        assertProductionCanvasProjectIdentity(projectId, normalized.nodes, 'load')
         // S5-b-2:journal 起点 = 恢复出的画布(undo 最远只回放到这帧,不会塌到空白)
         seedUndoJournalBase({ nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups })
         clearClipboard()
         set({
           isReady: true,
+          projectId,
           persistRevision: get().persistRevision,
           nodes: normalized.nodes,
           edges: normalized.edges,
@@ -171,6 +202,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         if (!write.events.length) return
         const state = get()
         const projection = replayCanvasEvents(write.events, { nodes: state.nodes, edges: state.edges, groups: state.groups })
+        assertProductionCanvasProjectIdentity(state.projectId, projection.nodes, 'load event tail')
         // 拆解进度的每一下写都走 canvas.node.updated 进了事件日志，重放会把 `status: 'running'` 原样写回来——
         // 终态判定的 owner 只有一份，重放完再问它一次；已终态的表它原样返回，幂等（重启后拆解表卡在「进行中」就是这一下）。
         set({ nodes: convergeDeconstructionNodes(projection.nodes), edges: projection.edges, groups: projection.groups })
@@ -183,6 +215,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // 影子记账:撤销=全量后态(replay≡snapshot 恒真)
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: next.nodes, edges: next.edges, groups: next.groups } } }])
         emitReturnedLandings(next.returned)
+        replayProductionCanvasIntent(write.restore, write.direction)
         return
       }
       case 'external': {
@@ -193,12 +226,14 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         const normalized = normalizeStoreSnapshot(merged)
         const settled = settleNodeFacts(normalized.nodes, live.nodes, live.heldNodeOutcomes, withLiveNodeFacts)
         const next = { nodes: settled.nodes, edges: normalized.edges, groups: normalized.groups }
+        assertProductionCanvasProjectIdentity(live.projectId, next.nodes, 'apply external graph')
         pushUndoSnapshot(live) // 入历史:外部改动可被用户 Ctrl+Z 撤销
         replaceDocument(next, withoutReturned(live.heldNodeOutcomes, settled.returned), (state) => {
           state.workflowTemplates = normalized.workflowTemplates || state.workflowTemplates
         })
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: next } }])
         emitReturnedLandings(settled.returned)
+        emitProductionSignalsForDocumentChange(live.projectId, live.nodes, next.nodes)
         return
       }
       case 'put-back': {
@@ -210,6 +245,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         const settled = settleNodeFacts(numbered, live.nodes, live.heldNodeOutcomes, withLiveNodeFacts)
         const addEdges = write.edges.filter((edge) => edge?.id && !existingEdgeIds.has(edge.id))
         if (!settled.nodes.length && !addEdges.length) return
+        assertProductionCanvasProjectIdentity(live.projectId, settled.nodes, 'restore graph')
         pushUndoSnapshot(live)
         set((state) => {
           state.nodes = [...state.nodes, ...settled.nodes]
@@ -222,6 +258,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           ...settled.nodes.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
           ...addEdges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
         ])
+        emitProductionCanvasSignal({ kind: 'reattach', projectId: live.projectId, nodes: incoming })
         emitReturnedLandings(settled.returned)
         return
       }
@@ -241,15 +278,15 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
   }
 
   return {
-    restoreSnapshot: (snapshot) => commit({ kind: 'load', snapshot }),
+    restoreSnapshot: (snapshot, projectId) => commit({ kind: 'load', snapshot, projectId }),
     applyEventTail: (events) => commit({ kind: 'load-tail', events }),
     undo: () => {
       const restore = popUndo()
-      if (restore) commit({ kind: 'rewind', restore })
+      if (restore) commit({ kind: 'rewind', restore, direction: 'undo' })
     },
     redo: () => {
       const restore = popRedo()
-      if (restore) commit({ kind: 'rewind', restore })
+      if (restore) commit({ kind: 'rewind', restore, direction: 'redo' })
     },
     applyExternalGraph: ({ base, next }) => commit({ kind: 'external', base, next }),
     restoreGraph: (nodes, edges) => commit({ kind: 'put-back', nodes, edges }),

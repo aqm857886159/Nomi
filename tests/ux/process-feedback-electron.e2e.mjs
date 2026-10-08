@@ -157,7 +157,9 @@ try {
     if (elements.length !== 1) throw new Error(`Expected one message for the active node at ${selector}, got ${elements.length}`)
     return elements[0].textContent
   }), nodeId)
-  await expect(page.locator('[data-nomi-right-panel=tasks] [data-generation-message]').last()).toHaveText('已保存到项目')
+  // 进行中那一行有过程文字（基线）；已完成的行不再挂「已保存到项目」之类的过程文字。
+  const runningTaskMessageProof = await proveProbe(page.locator(`[data-nomi-right-panel=tasks] [data-task-node-id="${nodeId}"][data-task-group=running] [data-generation-message]`), '任务面板进行中那一行有过程文字')
+  await expectAbsent(page.locator('[data-nomi-right-panel=tasks] [data-task-group=done] [data-generation-message]'), { provenBy: runningTaskMessageProof, message: '已完成的任务行没有过程文字' })
   expect(messages[0]).toMatch(/生成中.*已等/)
   expect(new Set(messages).size).toBe(1)
   receipt.checks.push({ criterion: 'three-real-surfaces-same-instant', nodeId, messages, result: 'green' })

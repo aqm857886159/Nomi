@@ -1,0 +1,316 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-canvas-explicit-delete-write-port",
+  "detected_by": "user",
+  "problem_type": "Canvas deletion was inferred from store snapshots and renderer project-file read-modify-write raced the main writer",
+  "symptom": "Undoing a landed production batch detached shots without a reattach command, a signal from project A could be written into project B after a switch, and an external project edit could be overwritten by a late renderer delivery.",
+  "direct_cause": "watchDeletedProductionNodes treated any loaded store node disappearance as a delete; production canvas signals omitted their owning project and the host used its current project for every signal; runProjectDelivery read and saved a whole project record in the renderer while the main gateway could write the same file.",
+  "class_root": "User intent, signal project identity, and project-file write ownership were not enforced at shared boundaries: snapshot lifecycle was mistaken for deletion, signal delivery was bound to the current host instead of the emitting canvas store, and more than one process could own a read-modify-write.",
+  "affected_population": [
+    "Production batches using undo/redo or delete/cut gestures",
+    "Background generation outcomes delivered while a project is closed",
+    "Headless or hybrid gateway writes interleaved with renderer delivery"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+    "src/workbench/production/productionCanvasSignals.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.tsx",
+    "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "electron/projects/projectCanvasWrite.ts",
+    "electron/projects/projectsIpc.ts",
+    "electron/capabilityCore/gateway.ts"
+  ],
+  "entry_points": [
+    "deleteNode, deleteSelectedNodes, cutSelectedNodes, applyExternalGraph",
+    "canvasDocumentCommit undo/redo and restoreGraph",
+    "deliverRunOutcome for a closed project",
+    "createDiskGateway.apply"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The intent boundary and project persistence ownership are application invariants; external reconciliation systems do not decide Nomi Run binding or project schema semantics.",
+  "invariants": [
+    "Only explicit delete gestures and their undo/redo projection emit production detach or reattach signals.",
+    "Project canvas writes are serialized by projectId in the main process and re-read current state inside the write queue.",
+    "Renderer delivery never saves a whole project record directly; it calls the main applyCanvasNodePatch port.",
+    "Loading, unloading, switching projects, and ordinary non-production creation undo emit no production signal.",
+    "Every production canvas signal carries the projectId held by the emitting canvas store; history replay preserves it and a host drops mismatches with a warning.",
+    "Canvas content and project identity are installed in one load commit; an empty-identity production signal is logged with node/document identity diagnostics and dropped, while production-node insertion paths reject missing identity."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "applyCanvasNodePatch"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "deleteSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "deleteSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "deleteSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "applyCanvasNodePatch"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/sidebar/CategoryTree.tsx",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "serializeProjectCanvasWrite"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "writeDiskSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectCanvasWrite.ts",
+      "symbol": "serializeProjectCanvasWrite"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "applyCanvasNodePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "applyExternalGraph"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardDeleteUndo.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/generationCanvasTools.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts",
+      "symbol": "deleteSelectedNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "deleteSelectedNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/deriveFromNode.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/sidebar/CategoryTree.tsx",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "replayProductionCanvasIntent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "deleteNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "cutSelectedNodes"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "subscribeProductionCanvasSignals"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "routeProductionCanvasSignal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/productionCanvasSignals.ts",
+      "symbol": "emitProductionCanvasSignal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal"
+    }
+  ],
+  "door_reduction": {
+    "before": 32,
+    "after": 33,
+    "why_not": "The fixed boundary keeps every existing deletion and project-write door and adds the project-scoped signal router plus the load-commit identity invariant; signal producers, journal replay, and the host remain separate doors because they own creation, persistence, and consumption respectively."
+  },
+  "generality_proof": "Every listed deletion caller converges on the canvas store actions or document commit before a production signal can be emitted, while every project canvas disk writer converges on serializeProjectCanvasWrite. A future caller cannot silently infer a delete or write around the boundary without adding a new door that the door map exposes.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal",
+      "responsibility": "Records the explicit production signal intent on the active history gesture so undo inverts it and redo replays it without snapshot-diff inference."
+    },
+    {
+      "path": "src/workbench/production/productionCanvasSignals.ts",
+      "symbol": "emitProductionCanvasSignal",
+      "responsibility": "Carries explicit production detach/reattach intent and has no snapshot-diff inference."
+    },
+    {
+      "path": "electron/projects/projectCanvasWrite.ts",
+      "symbol": "serializeProjectCanvasWrite",
+      "responsibility": "Serializes all main-process project canvas writes by projectId and reads current state inside the queue."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "entry_point": "replayProductionCanvasIntent",
+      "disposition": "enforced",
+      "evidence": "Undo and redo replay the history record signal intent (undo inverted); external whole-graph writes record explicit action-time deltas, and load paths do not call it."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "deliverRunOutcome",
+      "disposition": "enforced",
+      "evidence": "Closed-project outcomes use the main applyCanvasNodePatch port and no renderer save function."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "entry_point": "restoreSnapshot",
+      "disposition": "not-affected",
+      "evidence": "Project load establishes a baseline and intentionally emits no production signal."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new delete gesture or project writer could otherwise repeat the inference or interleaving failure.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs deleteNode deleteSelectedNodes cutSelectedNodes applyExternalGraph applyCanvasNodePatch serializeProjectCanvasWrite writeDiskSnapshot",
+      "rg readLocalProjectAsync saveLocalProject src/workbench/generationCanvas/runner electron/capabilityCore electron/projects",
+      "src/workbench/production/redoReattachesProductionShots.test.ts",
+      "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projects/projectCanvasWrite.ts",
+      "invariant": "Every production signal is project-scoped and only a matching host may invoke the main-process queue; the queue commits a project canvas write and patches current state inside the queue.",
+    "failure_mode": "Missing project, node, identity binding, or write port fails closed without saving a stale whole record.",
+    "exception_policy": "none",
+    "strategy": "Move renderer delivery to an IPC patch and share one main queue with gateway writes; make delete intent an explicit signal at the canvas write boundary.",
+    "artifacts": [
+      "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "electron/projects/projectCanvasWrite.ts",
+      "src/workbench/production/productionCanvasSignals.ts",
+      "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/production/redoReattachesProductionShots.test.ts",
+    "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
+    "src/workbench/generationCanvas/store/undoKeepsLandedResults.test.ts",
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/production/redoReattachesProductionShots.test.ts",
+    "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts",
+    "src/workbench/generationCanvas/store/productionCanvasHistorySignals.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/production/watchDeletedProductionNodes.ts",
+      "src/workbench/production/watchDeletedProductionNodes.test.ts",
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
+    ],
+    "rationale": "Snapshot-diff deletion inference and renderer whole-record saving are deleted rather than retained as fallback paths."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant belongs to Nomi's canvas and project persistence boundaries.",
+    "exit_criteria": []
+  },
+  "migration": "Project file shape and existing canvas data are unchanged; only the writer path and signal source change. Existing sessions load normally and establish a baseline without emitting production commands.",
+  "residual_risks": [
+    "Real packaged Electron multi-window verification is unverified.",
+    "A production node deleted and never undone remains detached by design; its Run result remains durable.",
+    "External project writers outside this Electron main process are not coordinated by this in-process queue."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/projects/projectCanvasWrite.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/diskWriteInterleave.test.ts"
+    ]
+  },
+  "recurrence_check_on": "2026-11-08"
+}

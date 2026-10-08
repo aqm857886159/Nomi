@@ -26,7 +26,10 @@ import { getTikhubRouteStatus, setTikhubRouteMode, type TikhubRouteStatus } from
 /** 读 TikHub 明文 key（仅主进程内部用于出站；绝不跨 IPC 回渲染层）。 */
 function readTikhubApiKey(): string {
   const state = readCatalog();
-  return decryptApiKeyRecord(state.apiKeysByVendor[TIKHUB_CONNECTOR_ID]);
+  // Gated read: a disabled key yields "" and we stop here, before any request is built.
+  const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[TIKHUB_CONNECTOR_ID]);
+  if (!apiKey) throw new TikhubConnectorError("missing-key", "尚未配置 TikHub API Key。");
+  return apiKey;
 }
 
 export type TikhubKeyStatus = {
