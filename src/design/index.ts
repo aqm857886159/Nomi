@@ -1,5 +1,7 @@
 export { ActionCard, DesignButton, IconActionButton, WorkbenchButton, WorkbenchIconButton } from './actions'
 export type { ActionCardProps, DesignButtonProps, IconActionButtonProps, WorkbenchButtonProps, WorkbenchIconButtonProps } from './actions'
+export { DecisionBar } from './decisionBar'
+export type { DecisionBarProps } from './decisionBar'
 export { DesignBadge, StatusBadge } from './status'
 export type { DesignBadgeProps, DesignProgressProps, StatusBadgeProps, NomiSkeletonProps } from './status'
 export { DesignProgress, NomiSkeleton } from './status'

@@ -91,8 +91,8 @@ export const APPROVAL_CARD = '[data-v4-block="intervention"]'
 export const INTERVENTION_SLOT = APPROVAL_CARD
 export const INTERVENTION_CONFIRM = '[data-v4-control="confirm"]'
 /**
- * 卡上那颗否定动作（×）。2026-09-22 换壳后它由 `V4SlotShell` 统一摆在**右上**，
- * 锚点随之从 `reject` 改成 `slot-dismiss`——它不再是页脚里的一颗钮，而是外壳的零件。
+ * 卡上的否定动作。2026-09-22 换壳时锚点从 `reject` 改成 `slot-dismiss`；2026-10-07 起它是决定栏里
+ * 的**文字按钮「取消」**（右组最左，主动作左边），右上角不再有 ×（反问卡除外，它自己的壳还有 ×）。
  * 常量在这里改一次，全部走查跟着走（这就是它当初被抽成常量的理由）。
  */
 export const INTERVENTION_REJECT = '[data-v4-control="slot-dismiss"]'
@@ -424,6 +424,13 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
       ? { userDataDir, appName: executablePath ? 'Nomi' : 'nomi' }
       : {}),
   })
+  const testNetworkGuardPath = path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')
+  const testNetworkMainRequire = [...new Set([testNetworkGuardPath, ...(mainRequire ?? [])])]
+  const testNetworkRedirects = generationProvider === 'apimart'
+    ? [{ from: 'https://api.apimart.ai', to: fixture.baseURL }]
+    : generationProvider === 'higgsfield'
+      ? [{ from: 'https://api.higgsfield.ai', to: fixture.baseURL }]
+      : []
   const launches = []
   const screenshots = []
   const report = { name, mode, tempRoot, outputDir, launches, screenshots, paidCalls: 0 }
@@ -439,7 +446,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
     current = await launchNomiApp({
       name: `pi-${name}`, tempRoot, settingsDir, userDataDir, settleMs: 0,
       ...(executablePath ? { executablePath } : {}),
-      ...(mainRequire ? { mainRequire } : {}),
+      mainRequire: testNetworkMainRequire,
       ...(name === 'golden-path' ? {
         initialLocalStorage: {
           'nomi:locale:v1': 'zh-CN',
@@ -448,6 +455,10 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
       } : {}),
       env: {
         ...extraEnv,
+        NOMI_TEST_NETWORK_GUARD: '1',
+        ...(testNetworkRedirects.length > 0
+          ? { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify(testNetworkRedirects) }
+          : {}),
         NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_DISABLE_AUTO_UPDATE: '1',
         // 这三个是同一个口子的三把钥匙（`safeFixtureBaseUrl` 只接受 http(s) 的 127.0.0.1/localhost/::1）：
         // 少一把就装不出可提交的生成供应商。默认仍是 '0'，老走查一个字都不变。

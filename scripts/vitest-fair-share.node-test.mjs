@@ -13,7 +13,14 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { countLivePeers, fairShare, isAlive } from './vitest-fair-share.mjs'
+import { buildVitestInvocation, countLivePeers, fairShare, isAlive } from './vitest-fair-share.mjs'
+
+test('Vitest arguments with spaces stay one argv item on every platform', () => {
+  const invocation = buildVitestInvocation(['run', '-t', '名字 带 空格'], 'C:\\repo\\node_modules\\vitest\\vitest.mjs')
+  assert.equal(invocation.command, process.execPath)
+  assert.deepEqual(invocation.args.slice(-2), ['-t', '名字 带 空格'])
+  assert.equal(invocation.shell, false)
+})
 
 test('独占时返回 null —— 不传 flag，vitest 默认原样保留（CI 单跑零影响）', () => {
   assert.equal(fairShare({ cores: 10, peers: 1 }), null)

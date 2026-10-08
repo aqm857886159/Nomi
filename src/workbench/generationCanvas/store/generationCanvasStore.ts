@@ -19,7 +19,7 @@ import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { withCanvasWriteBoundary } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasState } from './canvasStoreTypes'
-import { createCanvasNodeActions } from './canvasNodeActions'
+import { createCanvasNodeActions, removeGroupsEmptiedByNodeDeletion } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
 import { createCanvasDocumentActions } from './canvasDocumentCommit'
@@ -108,17 +108,22 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     if (!nextClipboard) return
     const removedIds = [...currentState.selectedNodeIds]
     const removedNodes = currentState.nodes.filter((node) => removedIds.includes(node.id))
+    const { groups: nextGroups, removedGroupIds } = removeGroupsEmptiedByNodeDeletion(currentState.groups, removedIds)
     setClipboard(nextClipboard)
     pushUndoSnapshot(currentState)
     set((state) => {
       const next = removeNodes(state.nodes, state.edges, state.selectedNodeIds)
       state.nodes = next.nodes
       state.edges = next.edges
+      state.groups = nextGroups
       state.selectedNodeIds = []
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags(), { hasClipboard: true })
     })
-    emitCanvasGesture(removedIds.map((nodeId) => ({ type: 'canvas.node.removed', payload: { nodeId } })))
+    emitCanvasGesture([
+      ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
+      ...removedIds.map((nodeId) => ({ type: 'canvas.node.removed' as const, payload: { nodeId } })),
+    ])
     emitProductionCanvasSignal({ kind: 'detach', nodes: removedNodes })
   },
   pasteNodes: (basePosition, anchor) => {

@@ -69,6 +69,7 @@ test('scope exposes every independent validation surface from the shared classif
     unit: '${{ steps.profile.outputs.unit }}',
     desktop: '${{ steps.profile.outputs.desktop }}',
     journeys: '${{ steps.profile.outputs.journeys }}',
+    spend_walks: '${{ steps.profile.outputs.spend_walks }}',
     canvas: '${{ steps.profile.outputs.canvas }}',
     performance: '${{ steps.profile.outputs.performance }}',
     package: '${{ steps.profile.outputs.package }}',
@@ -489,6 +490,20 @@ test('every workflow job that runs browser-backed tests installs Chromium before
   }
   assert.ok(jobsWithBrowserTests > 0, '断言空转：没有找到任何跑浏览器测试的 job')
   assert.deepEqual(offenders, [], `这些 job 跑了浏览器测试却没在它之前装 Chromium：${offenders.join('、')}`)
+})
+
+
+test('spending and nightly workflows use shared routing, browser setup, timeouts, and summary semantics', () => {
+  const quality = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/quality-gate.yml'), 'utf8'))
+  const desktop = quality.jobs['desktop-linux']
+  const spend = desktop.steps.find((step) => step.name === 'Spending path walkthroughs (blocking subset)')
+  assert.equal(spend.if, "needs.scope.outputs.spend_walks == 'true'")
+  assert.match(spend.run, /validation-policy\.mjs --print-spend-walks blocking/)
+  assert.match(spend.run, /timeout 600/)
+  const nightly = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/nightly-walkthroughs.yml'), 'utf8'))
+  assert.equal(nightly.jobs.walks.steps.find((step) => step.name === 'Install Chromium').run, PLAYWRIGHT_INSTALL_STEP)
+  assert.match(nightly.jobs.walks.steps.find((step) => step.name === 'Run non-paid walkthrough batch').run, /timeout 600/)
+  assert.match(nightly.jobs.report.steps.find((step) => step.name === 'Publish summary and update issue').run, /nightly-walk-summary\.mjs/)
 })
 
 test('workflows delegate Chromium installation to the shared script', () => {

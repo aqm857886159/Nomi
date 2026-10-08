@@ -13,6 +13,7 @@
 - `WorkbenchButton` / `WorkbenchIconButton` —— 工作区原生按钮，密集面（画布 / 时间轴 / 节点 / 侧栏）。主力（35 / 15 个文件在用）。
 - `DesignButton` / `IconActionButton` —— Mantine-backed，设置 / 模型管理 / 分享这类 Mantine 面（22 / 10 个文件）。
 - `ActionCard` —— 起始页页面级主入口大卡（1 个文件）。
+- `DecisionBar`（`decisionBar.tsx`）—— 决定栏：取消（文字）在左、主动作在最右、无 ✓、具体动词（设计系统 §1.9）。`confirmDialog` + 各行内编辑在用。
 
 **表单与选择**
 - `DesignTextInput` / `DesignTextarea` / `DesignNumberInput` / `DesignCheckbox` / `DesignSwitch` / `DesignSegmentedControl`（`forms.tsx`）—— Mantine-backed。

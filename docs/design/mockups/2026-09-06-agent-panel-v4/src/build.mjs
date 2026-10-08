@@ -1,6 +1,7 @@
-/* global URL, console */
+/* global console */
 import fs from 'node:fs'; import path from 'node:path';
-const D = path.dirname(new URL(import.meta.url).pathname);
+import { fileURLToPath } from 'node:url';
+const D = path.dirname(fileURLToPath(import.meta.url));
 const P = JSON.parse(fs.readFileSync(path.join(D,'_tabler.json'),'utf8'));
 const icon = (n, s=14, w=2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${P[n]||'<circle cx="12" cy="12" r="6"/>'}</svg>`;
 const css = fs.readFileSync(path.join(D,'_tokens.css'),'utf8') + '\n' + fs.readFileSync(path.join(D,'_agent.css'),'utf8');

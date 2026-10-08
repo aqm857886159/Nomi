@@ -77,7 +77,7 @@ test('mixed dispatch caps each quoted text tier at 1.5 and never forwards media'
 test('C0 invocation passes the selected real text tier and budget; default stays dry', async () => {
   const { c0Invocation } = await import('./sweep-c0.mjs')
   const base = { root: '/repo', target: '/case', directory: '/run', budgetCny: 1.5, env: {} }
-  assert.deepEqual(c0Invocation(base).args, ['/repo/tests/ux/g1/c0-short-film.walk.mjs', '--dry-run'])
+  assert.deepEqual(c0Invocation(base).args, [path.join('/repo', 'tests/ux/g1/c0-short-film.walk.mjs'), '--dry-run'])
   for (const plannerModel of ['gpt-5-nano', 'deepseek-v4-pro']) {
     const child = c0Invocation({ ...base, realText: true, plannerModel, packaged: '/Nomi.app' })
     assert.deepEqual(child.args.slice(1), ['--real', '--planner-model', plannerModel, '--packaged', '/Nomi.app'])

@@ -14,6 +14,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPencil } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { DecisionBar } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ModelSettingsConnectionFocus } from './modelSettingsNavigation'
 
@@ -90,7 +91,7 @@ export function VendorBaseUrlField({
   if (editing) {
     return (
       <div className="flex flex-col gap-1.5">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input
             ref={inputRef}
             data-model-connection-field="baseUrl"
@@ -109,34 +110,24 @@ export function VendorBaseUrlField({
             disabled={locked}
             autoFocus
             className={cn(
-              'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+              'min-w-[10rem] flex-[1_1_10rem] h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
               'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent',
             )}
           />
-          <button
-            type="button"
-            onClick={handleSave}
-            data-model-connection-save="baseUrl"
-            disabled={locked}
-            className={cn(
-              'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold',
-              'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
-          >
-            {t('onboardingProviders.vendorCard.save')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
+          <DecisionBar
+            inline
+            cancelLabel={t('common.cancel')}
+            onCancel={() => {
               setEditing(false)
               setError('')
             }}
-            data-model-connection-edit="baseUrl"
-            disabled={locked}
-            className="shrink-0 h-8 px-2 text-caption text-nomi-ink-40 hover:text-nomi-ink-60 disabled:opacity-50"
-          >
-            {t('common.cancel')}
-          </button>
+            cancelDisabled={locked}
+            cancelProps={{ 'data-model-connection-edit': 'baseUrl' }}
+            primaryLabel={t('onboardingProviders.vendorCard.save')}
+            onPrimary={handleSave}
+            primaryDisabled={locked}
+            primaryProps={{ 'data-model-connection-save': 'baseUrl' }}
+          />
         </div>
         {error ? <div className="text-caption text-workbench-danger">{error}</div> : null}
       </div>

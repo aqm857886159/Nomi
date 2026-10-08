@@ -4,7 +4,7 @@ import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { resolveInsertionPosition } from './resolveInsertionPosition'
 import { visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { tidyCanvasLayout } from './tidyCanvasLayout'
-import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { getDefaultCategoryForNodeKind, type GenerationCanvasNode, type NodeGroup } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { resultIdentity, setNodeMainResultPatch } from '../model/nodeResultLifecycle'
 import { assignClonedShotIndexes, backfillShotIndexes, changesShotIdentity, isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
@@ -29,6 +29,27 @@ import { emitProductionCanvasSignal } from '../../production/productionCanvasSig
 // 调用方缺失/无悬空 clip 时是 no-op,绝不影响画布删除本身。
 function reconcileTimelineForDeletedNodes(nodeIds: readonly string[]): void {
   useWorkbenchStore.getState().reconcileTimelineForDeletedNodes(nodeIds)
+}
+
+/**
+ * Shared deletion boundary: only groups made empty by this node deletion are removed.
+ * A user-created empty group has no deleted member and therefore remains intact.
+ */
+export function removeGroupsEmptiedByNodeDeletion(groups: readonly NodeGroup[], removedNodeIds: readonly string[]): {
+  groups: NodeGroup[]
+  removedGroupIds: string[]
+} {
+  const removed = new Set(removedNodeIds)
+  const nextGroups = groups.map((group) => ({
+    ...group,
+    nodeIds: group.nodeIds.filter((nodeId) => !removed.has(nodeId)),
+  }))
+  const removedGroupIds = groups
+    .filter((group) => group.nodeIds.length > 0 && nextGroups.find((next) => next.id === group.id)?.nodeIds.length === 0)
+    .map((group) => group.id)
+  if (!removedGroupIds.length) return { groups: nextGroups, removedGroupIds }
+  const removedSet = new Set(removedGroupIds)
+  return { groups: nextGroups.filter((group) => !removedSet.has(group.id)), removedGroupIds }
 }
 
 // 编辑突发(burst)粒度的撤销点:提示词/参数是逐键连续写入,原先完全不打 barrier →
@@ -339,22 +360,19 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // 成员被整框选中 = 框被选中（点框选中的就是它的全部成员；画布浮条的「已选 N 组」也按这个判据数）。
     // 删这样的选区时框一起走——否则留下一个删不掉的空框（2026-09-22 用户：「编组框删不掉」）。
     // 只删了部分成员时框照留：那是在框里删东西，不是删框。
-    const removedSet = new Set(removedIds)
-    const coveredGroupIds = currentState.groups
-      .filter((group) => group.nodeIds.length > 0 && group.nodeIds.every((nodeId) => removedSet.has(nodeId)))
-      .map((group) => group.id)
+    const { groups: nextGroups, removedGroupIds } = removeGroupsEmptiedByNodeDeletion(currentState.groups, removedIds)
     pushUndoSnapshot(currentState)
     set((state) => {
       const next = removeNodes(state.nodes, state.edges, state.selectedNodeIds)
       state.nodes = next.nodes
       state.edges = next.edges
       state.selectedNodeIds = []
-      if (coveredGroupIds.length) state.groups = state.groups.filter((group) => !coveredGroupIds.includes(group.id))
+      state.groups = nextGroups
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags())
     })
     emitCanvasGesture([
-      ...coveredGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
+      ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
       ...removedIds.map((nodeId) => ({ type: 'canvas.node.removed' as const, payload: { nodeId } })),
     ])
     emitProductionCanvasSignal({ kind: 'detach', nodes: removedNodes })
@@ -546,15 +564,13 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     const current = get()
     if (!current.nodes.some((candidate) => candidate.id === nodeId)) return
     const removedNode = current.nodes.find((candidate) => candidate.id === nodeId)
+    const { groups: nextGroups, removedGroupIds } = removeGroupsEmptiedByNodeDeletion(current.groups, [nodeId])
     pushUndoSnapshot(current)
     set((state) => {
       const next = removeNodes(state.nodes, state.edges, [nodeId])
       state.nodes = next.nodes
       state.edges = next.edges
-      state.groups = state.groups.map((group) => ({
-        ...group,
-        nodeIds: group.nodeIds.filter((candidateNodeId) => candidateNodeId !== nodeId),
-      }))
+      state.groups = nextGroups
       state.selectedNodeIds = state.selectedNodeIds.filter((candidateNodeId) => candidateNodeId !== nodeId)
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags())
@@ -563,6 +579,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // 本 action 还清理了组成员 → 发受影响组的后态(影子期不改 store 行为,只如实记账)。
     const touchedGroups = get().groups.filter((group) => current.groups.some((before) => before.id === group.id && before.nodeIds.includes(nodeId)))
     emitCanvasGesture([
+      ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
       { type: 'canvas.node.removed', payload: { nodeId } },
       ...touchedGroups.map((group) => ({ type: 'canvas.group.updated', payload: { group } })),
     ])

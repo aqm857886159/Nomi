@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
-import { NomiLogoMark } from '../../../design'
+import { DecisionBar, NomiLogoMark } from '../../../design'
 import { addUserPrompt, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
 import { notify } from '../../../ui/notificationPolicy'
 import type { TranslationKey } from '../../../i18n/translationKey'
@@ -250,14 +250,16 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
                 />
               </label>
               {saveError ? <p role="status" className="m-0 text-caption text-nomi-danger">{saveError}</p> : null}
-              <div className="flex items-center justify-end gap-3 pt-1">
-                <button type="button" className="h-10 rounded-nomi-sm border border-nomi-line bg-transparent px-4 text-body-sm text-nomi-ink-60 hover:bg-nomi-ink-05" onClick={closeDraft} disabled={saving}>
-                  {t('generationCommon.savePrompt.cancel')}
-                </button>
-                <button type="button" className="h-10 rounded-nomi-sm border-0 bg-nomi-ink px-5 text-body-sm font-semibold text-nomi-paper hover:bg-nomi-accent" onClick={saveDraft} disabled={saving || !draft.text.trim()}>
-                  {t('generationCommon.savePrompt.save')}
-                </button>
-              </div>
+              <DecisionBar
+                className="pt-1"
+                size="md"
+                cancelLabel={t('generationCommon.savePrompt.cancel')}
+                onCancel={closeDraft}
+                cancelDisabled={saving}
+                primaryLabel={t('generationCommon.savePrompt.save')}
+                onPrimary={saveDraft}
+                primaryDisabled={saving || !draft.text.trim()}
+              />
             </div>
           </section>
         </div>

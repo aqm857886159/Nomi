@@ -55,6 +55,7 @@ jobs:
       unit: ${{ steps.profile.outputs.unit }}
       desktop: ${{ steps.profile.outputs.desktop }}
       journeys: ${{ steps.profile.outputs.journeys }}
+      spend_walks: ${{ steps.profile.outputs.spend_walks }}
       canvas: ${{ steps.profile.outputs.canvas }}
       performance: ${{ steps.profile.outputs.performance }}
       package: ${{ steps.profile.outputs.package }}
@@ -247,6 +248,22 @@ jobs:
       - name: Golden path (Agent storyboard lands on canvas)
         if: needs.scope.outputs.journeys == 'true'
         run: xvfb-run -a pnpm run test:golden
+      # The routing table owns both the walk list and the blocking subset.
+      - name: Spending path walkthroughs (blocking subset)
+        if: needs.scope.outputs.spend_walks == 'true'
+        run: |
+          set -o pipefail
+          mkdir -p outputs/spend-walks
+          failed=0
+          while IFS= read -r walk; do
+            [ -n "$walk" ] || continue
+            name=$(basename "$walk" .walk.mjs)
+            echo "[spend-walk] $walk"
+            if ! timeout 600 xvfb-run -a node "$walk" 2>&1 | tee "outputs/spend-walks/$name.log"; then
+              failed=1
+            fi
+          done < <(node scripts/validation-policy.mjs --print-spend-walks blocking)
+          test "$failed" = 0
       - name: Critical canvas acceptance
         id: canvas-critical
         continue-on-error: true
@@ -291,6 +308,14 @@ jobs:
             tests/ux/shots/group-ports/**
             tests/ux/shots/react-flow-read-only/**
             tests/ux/perf-results/canvas-*.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload spending walkthrough evidence
+        if: always() && needs.scope.outputs.journeys == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: spend-walk-evidence
+          path: outputs/spend-walks/**
           if-no-files-found: warn
           retention-days: 7
 
