@@ -20,7 +20,7 @@ const meta = { modelKey: 'seedance-2', archetype: { id: 'seedance-2', modeId: 'o
 const slot = resolveNodeArraySlots(meta).find(slot => slot.accept === 'image') ?? resolveNodeArraySlots(meta)[0]
 if (!slot) throw new Error('reference fixture requires a real model array slot')
 const nodes: GenerationCanvasNode[] = ['a', 'b'].map(id => ({ id, kind: 'video', title: id, position: { x: 0, y: 0 }, prompt: id, meta: { ...meta, [slot.metaKey]: [] } }))
-const pending: PendingSpendConfirm = { projectId: 'project', runId: 'run', operationId: 'operation', quoteId: 'quote', planVersion: 1, candidateRevision: 1, currency: 'CNY', knownSubtotal: 2, unknownShotCount: 0,
+const pending: PendingSpendConfirm = { projectId: 'project', runId: 'run', operationId: 'operation', quoteId: 'quote', planVersion: 1, presentationId: 'operation:presentation:1', presentationEpoch: 1, candidateRevision: 1, currency: 'CNY', knownSubtotal: 2, unknownShotCount: 0,
   shots: nodes.map((node, index) => ({ shotId: node.id, nodeId: node.id, index: index + 1, prompt: node.id, modelId: 'seedance-2', providerId: 'fixture', kind: 'video' as const, mode: 'text-to-video', modeId: 'omni', parameters: { [slot.metaKey]: [] }, price: { known: true, amount: 1 } })) }
 let refresh: (() => void) | undefined
 let releaseUpload: ((value: unknown) => void) | undefined

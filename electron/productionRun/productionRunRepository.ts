@@ -36,7 +36,7 @@ import {
   type RunEvent,
 } from "./productionRunTypes";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
-import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, type ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { generationShotEnvelopeOf } from "../shared/generationShotEnvelope";
 import { isCanvasRunId, openCanvasRuns } from "./canvasShotRunIndex";
 import { buildProductionRunDraftSummary } from "./productionRunDraftSummary";
@@ -450,7 +450,7 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
         presentations: input.cardHidden === true ? [] : [{
           presentationId: `${operationId}:presentation:1`,
           presentationEpoch: 1,
-          ...(input.policySnapshot ? { policySnapshot: structuredClone(input.policySnapshot) } : {}),
+          policySnapshot: structuredClone(input.policySnapshot ?? DEFAULT_PROJECT_AGENT_APPROVAL_POLICY),
           shotIds: input.shots && input.shots.length > 0
             ? input.shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId)
             : [input.candidate.candidateId],
