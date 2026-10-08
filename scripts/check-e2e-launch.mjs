@@ -56,6 +56,9 @@ if (offenders.length) {
 console.log('✅ check:e2e-launch —— 无直接 electron.launch 调用（全部走 _launchApp.mjs）')
 
 // Exercise launchNomiApp assembly as well as banning alternate launch paths.
-const regression = spawnSync(process.execPath, ['--test', path.join(repoRoot, 'scripts/e2e-launch-capability.node-test.mjs')], { stdio: 'inherit' })
+const regression = spawnSync(process.execPath, ['--test',
+  path.join(repoRoot, 'scripts/e2e-launch-capability.node-test.mjs'),
+  path.join(repoRoot, 'tests/ux/_walkInstances.node-test.mjs'),
+], { stdio: 'inherit' })
 if (regression.error) throw regression.error
 if (regression.status !== 0) process.exit(regression.status ?? 1)
