@@ -4,7 +4,6 @@
 // 这里只多挂三样：出网闸（egress.mjs）、夹具的「按真实请求报用量」档（铁律 8 要它）、监视器。
 //
 // 变体（「乱用」那一档）与语言由跑器经环境变量指派；单跑剧本时缺省 base / zh-CN。
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -14,6 +13,7 @@ import { standingBackgroundResponders } from './brain.mjs'
 import { startEgressWatch } from './egress.mjs'
 import { createInvariantMonitor } from './monitor.mjs'
 import { startUploadRelay } from './uploadRelay.mjs'
+import { readLiveWalkInstances } from '../_walkInstances.mjs'
 
 /** 窗口放屏幕外、不抢焦点的主进程模块（`offscreen: true` 的剧本装它）。 */
 const OFFSCREEN_MODULE = path.join(repoRoot, 'tests', 'ux', 'full-walk', 'offscreenWindow.cjs')
@@ -32,33 +32,24 @@ function stamp() {
   return new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-')
 }
 
-/** 本机此刻有几个 Nomi / Electron 进程（只数，不碰）。 */
-function countNomiProcesses() {
-  try {
-    if (process.platform === 'win32') {
-      const out = execFileSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true })
-      return out.split('\n').filter((line) => /^"(nomi|electron)\.exe"/i.test(line.trim())).length
-    }
-    const out = execFileSync('ps', ['-A', '-o', 'comm='], { encoding: 'utf8' })
-    return out.split('\n').filter((line) => /(^|\/)(nomi|electron)$/i.test(line.trim())).length
-  } catch {
-    return 0
-  }
+/** 当前 worktree 登记且仍存活的走查实例数；不扫描或触碰用户进程。 */
+export function countNomiProcesses(options = {}) {
+  return readLiveWalkInstances({ worktree: repoRoot, ...options }).length
 }
 
 /**
- * 机器上有别的 Nomi / 走查实例在跑时，等它结束再起（任务规矩：不关别人的进程）。
- * 走查本身用隔离资料目录、允许多实例，不会互相踩；等是为了不和别人的走查抢同一台机器的 CPU / 窗口焦点。
+ * 同一 worktree 有别的走查实例在跑时，等它结束再起（不关别人的进程）。
+ * 用户安装版、僵尸 electron 和其他 worktree 都不属于本次等待集合。
  */
-async function waitForOtherNomiToExit({ pollMs = 10_000, maxWaitMs = 30 * 60_000 } = {}) {
+export async function waitForOtherNomiToExit({ pollMs = 10_000, maxWaitMs = 30 * 60_000, ...options } = {}) {
   const started = Date.now()
-  let count = countNomiProcesses()
+  let count = countNomiProcesses(options)
   while (count > 0) {
     const waited = Date.now() - started
-    if (waited > maxWaitMs) throw new Error(`机器上一直有 ${count} 个 Nomi / Electron 进程（等了 ${Math.round(waited / 60_000)} 分钟），按规矩不关别人的进程，这一条剧本不起`)
-    console.log(`[full-walk] 机器上有 ${count} 个 Nomi / Electron 进程在跑，等它们结束（已等 ${Math.round(waited / 1000)}s）`)
+    if (waited > maxWaitMs) throw new Error(`同一 worktree 一直有 ${count} 个走查实例（等了 ${Math.round(waited / 60_000)} 分钟），按规矩不关别人的进程，这一条剧本不起`)
+    console.log(`[full-walk] 同一 worktree 有 ${count} 个走查实例在跑，等它们结束（已等 ${Math.round(waited / 1000)}s）`)
     await new Promise((resolve) => setTimeout(resolve, pollMs))
-    count = countNomiProcesses()
+    count = countNomiProcesses(options)
   }
 }
 

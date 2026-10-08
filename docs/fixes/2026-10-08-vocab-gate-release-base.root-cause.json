@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-vocab-gate-release-base",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-10-08",
+  "problem_type": "CI historical baseline selection regression",
+  "symptom": "A release branch cut from an older tag fails check:vocabularies because origin/main later removed a debt entry that never existed on the release branch.",
+  "direct_cause": "resolveReferenceBaselines always added origin/main alongside HEAD^1 and merge-base, so a later main snapshot could impose a stricter debt cap on a divergent branch.",
+  "class_root": "Historical ratchet reference selection did not guard the optional origin/main snapshot with the branch ancestry invariant.",
+  "affected_population": [
+    "Release and hotfix branches cut before origin/main retired vocabulary debt",
+    "Any divergent branch whose baseline file differs from a newer origin/main snapshot"
+  ],
+  "scope_paths": [
+    "scripts/check-vocabularies.mjs",
+    "scripts/check-vocabularies.node-test.mjs"
+  ],
+  "entry_points": [
+    "run() resolves one historical baseline before evaluateHistoricalRatchet",
+    "resolveReferenceBaselines() selects explicit, main, merge-base, or parent history"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is repository-specific Git history policy; no third-party API determines which branch snapshot is authoritative.",
+  "invariant_owner_layer": {
+    "layer": "scripts/check-vocabularies.mjs",
+    "tests": [
+      "scripts/check-vocabularies.node-test.mjs"
+    ],
+    "why": "The resolver is the single enforcement owner for historical reference selection, and its topology tests exercise both divergent and ancestor histories."
+  },
+  "invariants": [
+    "The historical ratchet compares every available trusted historical snapshot.",
+    "origin/main is eligible only when it is an ancestor of HEAD.",
+    "A divergent branch still compares HEAD when dirty, HEAD^1, and merge-base, but never borrows a newer main-only snapshot."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-vocabularies.mjs",
+      "symbol": "resolveReferenceBaselines"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-vocabularies.node-test.mjs",
+      "symbol": "resolveReferenceBaselines"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The production resolver and its behavior tests remain separate doors: the resolver owns selection, while the test door proves branch topology with real Git fixtures. Combining them would remove executable regression evidence."
+  },
+  "generality_proof": "Every check:vocabularies invocation converges through resolveReferenceBaselines before historical evaluation. The ancestor predicate controls only the optional origin/main snapshot while the existing multi-snapshot ratchet remains active for release, hotfix, and ordinary task branches.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-vocabularies.mjs",
+      "symbol": "resolveReferenceBaselines",
+      "responsibility": "Collect the existing historical snapshots and admit origin/main only when ancestry proves it belongs to this branch history."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-vocabularies.mjs",
+      "entry_point": "run",
+      "disposition": "enforced",
+      "evidence": "run consumes the resolver result for every historical ratchet evaluation."
+    },
+    {
+      "path": "scripts/check-vocabularies.node-test.mjs",
+      "entry_point": "historical ratchet topology tests",
+      "disposition": "enforced",
+      "evidence": "Real temporary Git repositories cover divergent release history and ancestor main history."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future release or hotfix cut before main debt cleanup can reproduce the same false failure.",
+    "same_class_scan": [
+      "git grep -n resolveReferenceBaselines scripts",
+      "git grep -n 'origin/main' scripts/check-vocabularies.mjs scripts/check-vocabularies.node-test.mjs",
+      "Temporary Git fixture with divergent release and main commits"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-vocabularies.mjs",
+    "invariant": "Historical debt is evaluated against every available historical snapshot; origin/main is included only when it is an ancestor of HEAD.",
+    "failure_mode": "If no readable trusted snapshot exists, the gate fails closed with a reference-unavailable error.",
+    "exception_policy": "none",
+    "strategy": "Keep the existing HEAD, HEAD^1, and merge-base collection order, and gate only the origin/main addition with merge-base --is-ancestor.",
+    "artifacts": [
+      "scripts/check-vocabularies.mjs",
+      "scripts/check-vocabularies.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-vocabularies.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-vocabularies.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-vocabularies.mjs"
+    ],
+    "rationale": "The old unconditional origin/main addition is removed in the same change; the existing multi-snapshot history path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The change uses the existing Git CLI and Node standard library; no third-party dependency controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No stored vocabulary data changes. Existing VOCAB_BASE_REF and --reference-baseline overrides remain authoritative.",
+  "residual_risks": [
+    "A repository with no merge-base, parent, or explicit reference still requires a deliberate baseline seed and remains fail-closed."
+  ]
+}

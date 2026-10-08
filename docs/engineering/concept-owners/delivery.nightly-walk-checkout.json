@@ -1,0 +1,27 @@
+{
+  "name": "夜间走查工作流取检",
+  "subject": "delivery.nightly-walk-checkout",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/nightly-walk-selection.mjs",
+    "symbol": "selectNightlyWalks"
+  },
+  "write_api": [
+    {
+      "path": "scripts/nightly-walk-selection.mjs",
+      "symbol": "selectNightlyWalks"
+    },
+    {
+      "path": "scripts/check-quality-gate-workflow.node-test.mjs",
+      "symbol": "every workflow job that runs a repository script checks out the repository first"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-07",
+  "notes": "夜间走查选择与工作流 checkout 形状检查共同保证报告使用当前仓库。"
+}
