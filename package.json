@@ -210,7 +210,7 @@
     "check:batch-machines": "node ./scripts/check-batch-machines.mjs",
     "check:test-types": "node --test ./scripts/typecheck.node-test.mjs && node ./scripts/check-test-types.mjs",
     "check:gates-chain": "node --test ./scripts/gate-slimming.node-test.mjs ./scripts/run-gates-contracts.node-test.mjs ./scripts/repair-doc-gates.node-test.mjs && node ./scripts/check-gates-chain.mjs",
-    "check:quality-gate-workflow": "node --test ./scripts/validation-policy.node-test.mjs ./scripts/check-quality-gate-workflow.node-test.mjs ./scripts/nightly-walk-summary.node-test.mjs ./scripts/nightly-walk-selection.node-test.mjs ./scripts/run-gates-tests.node-test.mjs ./scripts/ci-annotation-hygiene.node-test.mjs ./scripts/test-focused.node-test.mjs ./scripts/real-user-test-gates.node-test.mjs",
+    "check:quality-gate-workflow": "node --test ./scripts/validation-policy.node-test.mjs ./scripts/check-quality-gate-workflow.node-test.mjs ./scripts/ci-install-chromium.node-test.mjs ./scripts/nightly-walk-summary.node-test.mjs ./scripts/nightly-walk-selection.node-test.mjs ./scripts/run-gates-tests.node-test.mjs ./scripts/ci-annotation-hygiene.node-test.mjs ./scripts/test-focused.node-test.mjs ./scripts/real-user-test-gates.node-test.mjs",
     "check:desktop-rc-workflow": "node --test ./scripts/check-desktop-rc-workflow.node-test.mjs",
     "check:workflow-protected-writes": "node --test ./scripts/check-workflow-protected-writes.node-test.mjs && node ./scripts/check-workflow-protected-writes.mjs",
     "check:workflow-script-refs": "node --test ./scripts/check-workflow-script-refs.node-test.mjs && node ./scripts/check-workflow-script-refs.mjs",

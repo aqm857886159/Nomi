@@ -9,10 +9,7 @@
  */
 import type { GenerationProvider, GenerationProviderRequestInputV1 } from "./generationRuntimeAdapter";
 import { appFetch } from "../appFetch";
-import { createFreshConnectionDispatcher } from "../systemProxy";
-import { vendorHttpTimeoutMs } from "../vendor/vendorHttp";
-import type { Dispatcher } from "undici";
-import { describeOutboundFailure } from "../outboundDispatchEvidence";
+import { requestJson, VendorRequestError } from "../vendor/vendorHttp";
 import { extractMaterializationOutputs } from "./apimartGenerationOutputs";
 import { productionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
 import { readCatalog } from "../catalog/catalogStore";
@@ -27,13 +24,14 @@ import { applyHeadlessParamDefaults, imageEditGuardError } from "../catalog/task
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
 import { extractVendorExtraHeaders } from "../catalog/catalogStore";
 import { bodyReferencedParamKeys } from "../catalog/paramTranslate";
-import { describeIllegalHeader, findIllegalHeader, isJsonRecord, firstString } from "../jsonUtils";
+import { isJsonRecord, firstString } from "../jsonUtils";
 import { firstMappedString, providerMetaFromResponse, resolveTaskStatus, taskFailureMessageFromResponse } from "../tasks/responseParsing";
 import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
 import type { TaskRequest } from "../runtime";
 import "../catalog/apimartMinimaxH3";
 import { applyRequestTransformSync, validateRequestTransformSync } from "../tasks/requestTransforms";
 import { mirrorApimartReferenceParameterAliases } from "./apimartGenerationReferenceAliases";
+import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 import {
   assertReferenceParameters,
   assertReferencesReachBody,
@@ -141,18 +139,6 @@ function strictBaseUrl(value: unknown, vendorKey: string): string {
     return candidate;
   } catch {
     throw new CatalogGenerationProviderError(`${vendorKey} catalog vendor base URL is invalid`);
-  }
-}
-
-function safeFixtureBaseUrl(value: unknown): string | undefined {
-  if (process.env.NOMI_E2E_PRODUCTION_FIXTURE !== "1" || typeof value !== "string" || !value.trim()) return undefined;
-  try {
-    const url = new URL(value.trim());
-    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost" && url.hostname !== "::1") return undefined;
-    return url.origin;
-  } catch {
-    return undefined;
   }
 }
 
@@ -414,22 +400,6 @@ function findPrepared(
     && entry.fingerprint === selection.fingerprint);
 }
 
-async function readJson(response: Response, vendorKey: string): Promise<JsonRecord> {
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new CatalogGenerationProviderError(`${vendorKey} response was not JSON (HTTP ${response.status})`, { providerAnswer: { httpStatus: response.status, envelopeFailure: false, taskIdReturned: false } });
-  }
-  return record(payload, vendorKey, "");
-}
-
-function providerMessage(payload: JsonRecord): string {
-  const data = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data) ? payload.data as JsonRecord : undefined;
-  const error = payload.error && typeof payload.error === "object" && !Array.isArray(payload.error) ? payload.error as JsonRecord : undefined;
-  return String(error?.message ?? data?.error ?? payload.message ?? payload.msg ?? "request rejected").slice(0, 256);
-}
-
 /** 这家的 mapping 里有没有可用的轮询 op —— 恢复能力**由声明决定**，不按 vendor 写死。 */
 function vendorHasQueryOperation(state: CatalogState, vendorKey: string): boolean {
   return state.mappings.some((mapping) => mapping.vendorKey === vendorKey && mapping.enabled !== false && Boolean(mapping.query));
@@ -440,11 +410,21 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   if (!vendorKey) throw new CatalogGenerationProviderError("a generation provider needs a vendor key");
   const fetchImpl = options.fetchImpl ?? appFetch;
   const catalogReader = options.catalogReader ?? readCatalog;
-  const fixtureBaseUrl = safeFixtureBaseUrl(options.fixtureBaseUrlOverride);
+  const fixtureBaseUrl = productionFixtureBaseOrigin(options.fixtureBaseUrlOverride, process.env);
   // 出站真正用的那条 base：夹具回环优先，否则用户保存的那条。**渲染与发送共用它**，
   // 于是 path / origin / 鉴权头全部来自同一次 `buildProfileHttpRequest`，与引擎 A 同源。
   const networkVendor = (vendor: Vendor): Vendor =>
-    fixtureBaseUrl ? { ...vendor, baseUrlHint: fixtureBaseUrl } : vendor;
+    fixtureBaseUrl
+      ? {
+          ...vendor,
+          baseUrlHint: fixtureBaseUrl,
+          // The production fixture deliberately routes the saved synthetic key
+          // to its loopback server. Keep the credential-origin invariant intact
+          // by moving only the fixture copy of the binding; real catalog data is
+          // never rewritten and normal users cannot enable this seam.
+          ...(vendor.credentialBinding ? { credentialBinding: { ...vendor.credentialBinding, origin: fixtureBaseUrl } } : {}),
+        }
+      : vendor;
   // A payload hash alone cannot identify a mode; keep catalog identity alongside every prepared
   // hash and require it again at submit. This also makes a restart fail closed
   // instead of guessing an endpoint from model names or body fields.
@@ -484,57 +464,34 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   };
 
   const send = async (
+    vendor: Vendor,
+    apiKey: string,
     built: { method: string; url: string; headers: Record<string, string>; query: Record<string, unknown> },
     body: unknown,
     context: string,
   ): Promise<JsonRecord> => {
-    const url = new URL(built.url);
-    for (const [key, value] of Object.entries(built.query)) {
-      if (value === undefined || value === null) continue;
-      url.searchParams.set(key, String(value));
-    }
     const method = built.method.toUpperCase();
-    const isSubmission = method !== "GET" && method !== "HEAD" && body !== undefined;
-    // 请求头守卫（同引擎 A requestVendor）：码点 > 255 的头值（密钥混进中文 / 全角）让 fetch 当场抛错时，请求已交给网络出口，
-    // 出站证据只能判「结果未知」、这一镜被冻进对账；在交出去之前拦下，它就是确定没发出。
-    const badHeader = findIllegalHeader(built.headers);
-    if (badHeader) throw new CatalogGenerationProviderError(`${vendorKey} ${context} stopped before sending: ${describeIllegalHeader(badHeader).message}`);
-    // 付费提交每次用**全新连接**，不与任何别的请求共用连接池：共享池里的空闲 keep-alive 连接可能已被对面关掉，
-    // 那时抛出的 UND_ERR_SOCKET 与「请求写出去后连接被重置」一模一样，判不出哪个才是「没发出去」。
-    // 用完（含读完响应体）必须关掉；查询（GET）不受影响，照旧走共享池。
-    let fresh: Dispatcher | undefined;
     try {
-      let response: Response;
-      try {
-        if (isSubmission) fresh = await createFreshConnectionDispatcher(undefined, url.toString());
-        response = await fetchImpl(url.toString(), {
-          method,
-          headers: built.headers,
-          ...(isSubmission ? { body: JSON.stringify(body) } : {}),
-          ...(fresh ? { dispatcher: fresh } : {}),
-          // 付费提交要有响应超时（此前没有：供应商接了连接却不回话，会一直挂在「生成中」，136 秒还不报）。
-          // 与旧通道 vendorHttp 同一个时长；到点 abort 发生在请求发出之后，判据把它记成「结果未知」，不自动重发。
-          ...(isSubmission ? { signal: AbortSignal.timeout(vendorHttpTimeoutMs()) } : {}),
-        } as RequestInit);
-      } catch (error) {
-        // `fetch failed` 是 undici 的外壳，真正的原因在 cause 链里。两件事都要带出去：
-        // 摊平成人话（否则日志与用户看到的永远只有那四个字），以及把 cause 原样挂上——
-        // 提交那一层要靠它判「这次请求到底写出去没有」（`outboundDispatchEvidence.ts`）。
-        throw new CatalogGenerationProviderError(
-          `${vendorKey} ${context} failed: ${describeOutboundFailure(error)}`,
-          { cause: error },
-        );
+      const payload = await requestJson(
+        networkVendor(vendor),
+        apiKey,
+        method,
+        built.url,
+        built.headers,
+        built.query,
+        body,
+        undefined,
+        { fetchImpl, logicalSuccessCodes: [0, 200] },
+      );
+      return record(payload, vendorKey, "");
+    } catch (error: unknown) {
+      if (error instanceof VendorRequestError) {
+        throw new CatalogGenerationProviderError(`${vendorKey} ${context} failed: ${error.message}`, {
+          cause: error,
+          ...(error.providerAnswer ? { providerAnswer: error.providerAnswer } : {}),
+        });
       }
-      const payload = await readJson(response, vendorKey);
-      const code = payload.code;
-      // 信封码：OpenAI 兼容的中转/网关普遍用 HTTP 200 + 信封 `code` 表达失败（APIMart、kie…）。
-      // 声明了 code 却不是成功码 = 上游拒了，绝不能当成「受理成功」往下走。没有 code 的家不受影响。
-      if (!response.ok || (code !== undefined && code !== 200 && code !== 0)) {
-        throw new CatalogGenerationProviderError(`${vendorKey} ${context} rejected the request: ${providerMessage(payload)}`, { providerAnswer: { httpStatus: response.status, envelopeFailure: code !== undefined && code !== 200 && code !== 0, taskIdReturned: Boolean(extractTaskIdShared(payload)) } });
-      }
-      return payload;
-    } finally {
-      if (fresh) void fresh.close().catch(() => undefined);
+      throw error;
     }
   };
 
@@ -603,8 +560,9 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     const queryOperation = target.operation;
     const providerMeta: JsonRecord = { task_id: taskId, query_id: taskId, id: taskId };
     const request = { kind: target.mapping.taskKind, prompt: "", extras: { ...providerMeta } } as TaskRequest;
-    const built = renderOperation(target, queryOperation, request, providerMeta, requireApiKey());
-    const payload = await send(built, undefined, "task query");
+    const apiKey = requireApiKey();
+    const built = renderOperation(target, queryOperation, request, providerMeta, apiKey);
+    const payload = await send(target.vendor, apiKey, built, undefined, "task query");
     const responseMapping = isJsonRecord(queryOperation.response_mapping) ? queryOperation.response_mapping : null;
     // 状态词表是共享的（`tasks/responseParsing.resolveTaskStatus`），与引擎 A 同一份：
     // 上游原样的状态串优先（Run 的账本记的是真话），认不出来时才落到归一后的判词。
@@ -638,10 +596,11 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     assertReferenceParameters(body);
     const rendered = requestByPreparedKey.get(preparedKey(prepared));
     if (!rendered) throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
-    const built = renderOperation(selection, selection.mapping.create, rendered, {}, requireApiKey());
+    const apiKey = requireApiKey();
+    const built = renderOperation(selection, selection.mapping.create, rendered, {}, apiKey);
     // **发的是封存过的那份 body**（用户批准的就是它），传输层（method/url/headers/query）
     // 才是这一刻按真 key 现渲染的。两者分开，正是「批准的是 A、发出去的是 B」的反面。
-    const payload = await send(built, body, `${selection.endpoint} submission`);
+    const payload = await send(selection.vendor, apiKey, built, body, `${selection.endpoint} submission`);
     const createMapping = isJsonRecord(selection.mapping.create.response_mapping) ? selection.mapping.create.response_mapping : null;
     const metaMapping = isJsonRecord(selection.mapping.create.provider_meta_mapping) ? selection.mapping.create.provider_meta_mapping : null;
     // 任务编号从**声明**里取（与引擎 A 的 `buildProfileTaskResult` 同一条链），
