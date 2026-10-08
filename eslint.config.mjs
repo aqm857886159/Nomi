@@ -171,6 +171,18 @@ export default tseslint.config(
           selector: "UnaryExpression[operator='delete'][argument.type='MemberExpression'][argument.object.type='MemberExpression'][argument.object.object.name='process'][argument.object.property.name='env']",
           message: 'Use vi.stubEnv(name, undefined) so Vitest restores process.env after each test.',
         },
+        {
+          selector: "CallExpression[callee.name='beforeAll'] CallExpression[callee.object.name='vi'][callee.property.name='stubEnv']",
+          message: 'unstubEnvs: true restores env after each test; put vi.stubEnv in beforeEach.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='vi'][callee.property.name='hoisted'] CallExpression[callee.object.name='vi'][callee.property.name='stubEnv']",
+          message: 'unstubEnvs: true restores env after each test; put vi.stubEnv in beforeEach.',
+        },
+        {
+          selector: "Program > ExpressionStatement > CallExpression[callee.object.name='vi'][callee.property.name='stubEnv']",
+          message: 'unstubEnvs: true restores env after each test; put vi.stubEnv in beforeEach.',
+        },
       ],
     },
   },

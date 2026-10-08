@@ -92,7 +92,6 @@ describe("nomi_try_model 提交步骤的预算", () => {
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-try-budget-"));
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     server = http.createServer((request, response) => {
       const url = String(request.url);
       if (request.method === "POST" && url === "/v1/jobs") {
@@ -118,6 +117,11 @@ describe("nomi_try_model 提交步骤的预算", () => {
       response.writeHead(404).end("{}");
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+  });
+
+  beforeEach(async () => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     vendorKey = await declare("Example Budget", origin);
     // 一个没人监听的端口：建连被拒 = 请求一个字节都没写出去。
@@ -126,10 +130,6 @@ describe("nomi_try_model 提交步骤的预算", () => {
     const closedPort = (probe.address() as { port: number }).port;
     await new Promise<void>((resolve) => probe.close(() => resolve()));
     refusedVendorKey = await declare("Example Refused", `http://127.0.0.1:${closedPort}`);
-  });
-
-  beforeEach(() => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
   });
 
   afterEach(() => {

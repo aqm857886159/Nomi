@@ -4,7 +4,6 @@ import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-handoff-'))
-vi.stubEnv("NOMI_CAPABILITY_DIR", root)
 beforeEach(() => {
   vi.stubEnv("NOMI_CAPABILITY_DIR", root)
 })

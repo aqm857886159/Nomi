@@ -48,7 +48,6 @@ describe("nomi_read target=task", () => {
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-read-task-"));
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     server = http.createServer((request, response) => {
       const url = String(request.url);
       if (url === "/art.png") {
@@ -79,6 +78,11 @@ describe("nomi_read target=task", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 
+
+  });
+
+  beforeEach(async () => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     const { dispatch } = await import("./dispatcher");
     const docs = "https://docs.example-readtask.com/api";
     const submitted = await dispatch("model.onboarding.setup", {
@@ -114,10 +118,6 @@ describe("nomi_read target=task", () => {
     vendorKey = submitted.vendorKey;
     const keyed = await dispatch("model.onboarding.setup", { action: "set_key", vendorKey, apiKey: "relay-test-key" }, ctx) as { ok: boolean };
     expect(keyed.ok).toBe(true);
-  });
-
-  beforeEach(() => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
   });
 
   afterAll(async () => {

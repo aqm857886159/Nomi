@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // 读到的是真人数据，写下去就是改真人数据，而且一台机器一个结果：`mcpOnboardingLoopback`
 // 就是这么在这台机器上红、在别处绿的。给它一个本轮独有的空目录。
 const capabilityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-rpc-server-cap-"));
-vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot);
 
 import { startRpcServer, type RpcServerHandle } from "./rpcServer";
 import { ensureToken, signMcpClient, type AuthenticatedMcpClient } from "./security";
@@ -20,6 +19,10 @@ import { ensureWorkspaceProjectIdentity } from "../workspace/workspaceProjectIde
 import { createMainCapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
 import { createProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
 import { projectAgentProposalReceiptPath } from "./projectAgentProposalReceiptStore";
+
+beforeEach(() => {
+  vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot);
+});
 
 function canvasReadRuntime(nodeId: string) {
   return Object.freeze({

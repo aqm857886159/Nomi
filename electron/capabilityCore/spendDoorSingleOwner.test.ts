@@ -15,7 +15,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // 读到的是真人数据，写下去就是改真人数据，而且一台机器一个结果：`mcpOnboardingLoopback`
 // 就是这么在这台机器上红、在别处绿的。给它一个本轮独有的空目录。
 const capabilityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-spend-door-cap-"));
-vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot);
 
 let mockedDocumentsRoot = ''
 let mockedUserDataRoot = ''

@@ -50,7 +50,6 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-975-declared-production-"));
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     let nextTask = 0;
     server = http.createServer((request, response) => {
       let body = "";

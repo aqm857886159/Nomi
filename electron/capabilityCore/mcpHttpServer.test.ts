@@ -9,7 +9,7 @@ import { PassThrough } from 'node:stream'
 
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { bridgeStdioToHttp, NOMI_UNREACHABLE_MESSAGE } from './mcpHttpBridge'
 import {
@@ -24,7 +24,7 @@ const previousCapabilityDir = process.env.NOMI_CAPABILITY_DIR
 let capabilityDir: string
 let server: McpHttpServerHandle
 
-beforeAll(async () => {
+beforeEach(async () => {
   capabilityDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-http-'))
   vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityDir)
   ensureToken()
@@ -39,11 +39,7 @@ beforeAll(async () => {
   })
 })
 
-beforeEach(() => {
-  vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityDir)
-})
-
-afterAll(async () => {
+afterEach(async () => {
   await server.close()
   if (previousCapabilityDir === undefined) vi.stubEnv("NOMI_CAPABILITY_DIR", undefined)
   else vi.stubEnv("NOMI_CAPABILITY_DIR", previousCapabilityDir)

@@ -14,7 +14,7 @@ import { PassThrough } from 'node:stream'
 
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MCP_APP_MIME_TYPE, NOMI_LIVE_DRAFT_UI_URI } from './mcpAppWidget'
 import { bridgeStdioToHttp } from './mcpHttpBridge'
@@ -599,8 +599,11 @@ const stdioPipe: McpWireConnector = (host, emit) => {
 
 // ── 本机 HTTP（第 2 段）：真的 Streamable HTTP 服务端（只听 127.0.0.1）+ SDK 的 HTTP 客户端传输；身份走真签名。 ──
 // capability 目录指到临时目录：签名用的 token 是这一次新铸的，不碰 ~/.nomi。
-vi.stubEnv("NOMI_CAPABILITY_DIR", fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-wire-')))
-ensureToken()
+const capabilityRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-wire-'))
+beforeEach(() => {
+  vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot)
+  ensureToken()
+})
 const HTTP_CLIENT = 'codex'
 
 /** 起一个只服务这次连接的 HTTP 端点；宿主口照用这组用例的假宿主，认人结果换成真签名认出来的那个人。 */
