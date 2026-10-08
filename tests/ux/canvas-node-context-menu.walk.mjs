@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：右键节点弹「节点操作」菜单，且点「复制」真的能复制（2026-08-20 拍板样张 A）。
 //
 // 来历：群反馈 G1#4968「copy 键是啥呢？ctrl+c 没有用啊」。实测快捷键**是好的**——
@@ -21,7 +22,7 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-node-context-menu')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-node-menu-'))
+const tempRoot = makeTempDir('nomi-node-menu-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

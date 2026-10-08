@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /**
  * R13/R16 走查 · PR #720 反馈 #4「apimart 填 key 后模型全部消失」逐条复验。
  *
@@ -47,7 +48,7 @@ function record(id, name, ok, detail) {
 }
 
 // 全新 profile：**不**拷用户真实 catalog（那份里 apimart 已经有 key，等于没测到修法）。
-const isoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pr720-apimart-'))
+const isoDir = makeTempDir('nomi-pr720-apimart-')
 const dirs = {}
 for (const d of ['settings', 'projects', 'chromium', 'capability']) {
   dirs[d] = path.join(isoDir, d)

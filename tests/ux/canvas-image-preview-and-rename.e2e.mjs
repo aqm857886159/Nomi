@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 微信反馈回归：画布图片要能放大；普通图片节点名字要能直接在图上修改并持久化。
 // 2026-09-14 追加媒体生命周期断言：画布内联 <img> 挂的是落盘边界派生的 `.preview.` 缩略图，
 // 全屏预览对话框拿到的是原图 URL（两者必须不同——画布不为每个节点解码原图）。
@@ -11,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { expectVisible } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-image-preview-'))
+const root = makeTempDir('nomi-canvas-image-preview-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'canvas-image-preview-e2e'

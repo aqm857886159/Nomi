@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 「重装之后我的模型配置还在不在、能不能搬走」（2026-09-21）。
 //
 // 起因是 Windows 群友那句「换路径重装、装回旧版后所有模型配置都没了」。配置一条都没丢；
@@ -42,7 +43,7 @@ const snap = async (name) => {
 
 /** 每种语言一次冷启动、一份全新 profile：语言只在启动时读一次，同一个 profile 第二次种不进去。 */
 async function openModelSettings(locale) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-config-package-'))
+  const root = makeTempDir('nomi-config-package-')
   const settingsDir = path.join(root, 'settings')
   const projectsDir = path.join(root, 'projects')
   fs.mkdirSync(settingsDir, { recursive: true })

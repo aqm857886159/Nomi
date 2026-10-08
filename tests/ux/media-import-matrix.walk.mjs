@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实任务矩阵走查：「入口 × 媒体」——每格都像真人一样点，记录成功 / 拒绝文案 / 耗时 / 有没有进度。
 //
 // 为什么是矩阵而不是单条：用户原话「这地方要通用支持，不能只支持一部分」。一条走查只能证明
@@ -49,7 +50,7 @@ const MEDIA = [
 ]
 
 fs.mkdirSync(SHOT_DIR, { recursive: true })
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-media-matrix-'))
+const base = makeTempDir('nomi-media-matrix-')
 
 /**
  * **每个入口一个全新项目 + 全新实例**。

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查（零额度）：点 nomi:// 深链，App 到底跳不跳。
 //
 // 修的真实故障：渲染层订阅深链的那段写着 `if (!projectId || !runId) return`——于是
@@ -28,7 +29,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/deep-link-navigate')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-deeplink-'))
+const base = makeTempDir('nomi-deeplink-')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查（批量生成现状核查·纯 UI 用户路径）：工具栏建 3 个图片节点 → 各打提示词 →
 // ⌘A 全选 → 浮条「生成 3 个」→ 轻确认一次 → 真实并发生成到全部落定。
 // 回答「我们现在能不能批量产出」。真花额度（3 张图，默认模型=用户同款路径）。
@@ -19,7 +20,7 @@ const shot = async (win, name) => { await win.screenshot({ path: path.join(outDi
 // 隔离档案 + 拷真实目录与凭据钥匙（owner：tests/ux/_realProfile.mjs；Windows 的钥匙是 userData 里的 Local State）
 const isolatedSettings = path.join(os.tmpdir(), 'nomi-batch-walk-settings')
 const isolatedProjects = path.join(os.tmpdir(), 'nomi-batch-walk-projects')
-const isolatedUserData = mkdtempSync(path.join(os.tmpdir(), 'nomi-batch-walk-user-data-'))
+const isolatedUserData = makeTempDir('nomi-batch-walk-user-data-')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
 const devCatalog = realNomiProfile().catalogPath

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R1 真实验证 harness（零额度：KIE 文件上传免费）。
 // catalog 在测试进程读(有 fs);密钥密文传进 app 主进程,仅在那里 safeStorage 解密 + fetch
 // (fetch 是主进程全局,runtime 就在用),解出的明文 key 不回传测试进程。
@@ -27,7 +28,7 @@ if (!rec || !rec.apiKey) {
 const ONE_PX_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
 
 // 隔离 App 主进程要解真实目录的密文：凭据钥匙（Windows 的 Local State）先种进它将要用的 userData。
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "r1-upload-verify-"));
+const tempRoot = makeTempDir("r1-upload-verify-");
 const userDataDir = path.join(tempRoot, "user-data");
 seedRealCredentialStore(userDataDir);
 const { app } = await launchNomiApp({ name: "r1-upload-verify", tempRoot, userDataDir });

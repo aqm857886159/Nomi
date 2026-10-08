@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import { test, expect } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -44,7 +45,7 @@ test('unregistered surfaces record while explicit zero and known counts still ra
 })
 
 test('nightly collects every run including nested runs without discarding findings', async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'feel-nightly-'))
+  const dir = await makeTempDirAsync('feel-nightly-')
   try {
     const surface = { label: 'new-journey', rule: finding.rule, mode: 'record', findings: [finding], screenshot: 'evidence.png' }
     for (const run of ['run-a', 'nested/run-b']) {

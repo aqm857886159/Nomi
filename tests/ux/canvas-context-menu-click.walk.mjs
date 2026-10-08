@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：画布右键菜单**点得动**（2026-08-18 从私有 fork 比对中捞出的回归）。
 //
 // 病象：右键画布空白 → 弹出「添加节点」菜单 → 点里面任何一项 → 什么都没发生。
@@ -25,7 +26,7 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-context-menu-click')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-ctx-menu-'))
+const tempRoot = makeTempDir('nomi-ctx-menu-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

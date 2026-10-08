@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // check-push-bypass.node-test.mjs
 // 回归测试：验证 check:push-bypass 门岗的核心判定逻辑。
 //
@@ -37,7 +38,7 @@ function runGate(args, bypassLogPath) {
 }
 
 function makeLogDir() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bypass-test-"))
+  const dir = makeTempDir("bypass-test-")
   const logPath = path.join(dir, "push-bypass.log")
   return { dir, logPath, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) }
 }
@@ -138,7 +139,7 @@ test("--clear-confirmed removes confirmed=yes lines → passes (empty log)", () 
 
 test("gates stamp present with matching sha → auto-confirm and pass", () => {
   // 构建一个临时 git repo，在其 .git/nomi-gates-ok 里写入 sha
-  const worktreeDir = fs.mkdtempSync(path.join(os.tmpdir(), "bypass-wt-"));
+  const worktreeDir = makeTempDir("bypass-wt-");
   const { dir, logPath, cleanup } = makeLogDir()
   try {
     // 初始化一个临时 git repo

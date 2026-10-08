@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 + 回归门：图片浮条「宫格 ▾ → 9 宫格(3×3)」不许再卡死（2026-08-20）。
 //
 // 用户报告：「点击图片的切图功能 九宫格 直接卡死」。根因取证与修法见
@@ -40,7 +41,7 @@ const BLOCK_BUDGET_MS = 400
 const outDir = path.join(repoRoot, `docs/design/mockups/2026-08-20-grid-split-freeze/${GRID}x${GRID}`)
 fs.mkdirSync(outDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-split-walk-'))
+const root = makeTempDir('nomi-split-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

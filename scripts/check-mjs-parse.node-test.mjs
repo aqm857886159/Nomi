@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -20,7 +21,7 @@ import {
  * 于是断言对着不存在的文件跑——那种失败长得像「门岗坏了」，其实是自测自己坏了。
  */
 async function withFixtureDir(run) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mjs-parse-gate-'))
+  const dir = makeTempDir('mjs-parse-gate-')
   try {
     return await run(dir)
   } finally {

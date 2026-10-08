@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 走查：拖放图片 / 视频到生成画布，卡片落在「松手的那一点」（2026-09-21）。
 //
 // 用户原话：「拖放图片/视频到生成画布，不会落在鼠标松手的地方，会偏，有时在视线外」。
@@ -43,7 +44,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
 const { assets } = requireRealMediaAssets(['video-4k-hevc-10bit', 'image-4k-png'])
 const sourceVideo = assets.get('video-4k-hevc-10bit').file
 const derivedSpec = assets.get('image-4k-png').spec
-const mediaTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'canvas-drop-at-cursor-media-'))
+const mediaTmp = makeTempDir('canvas-drop-at-cursor-media-')
 const frames = [['frame-a.png', '00:00:05'], ['frame-b.png', '00:00:40']].map(([name, at]) => {
   const file = path.join(mediaTmp, name)
   execFileSync(ffmpeg.path, ['-y', '-ss', at, '-i', sourceVideo, '-frames:v', '1', file], { stdio: 'pipe' })

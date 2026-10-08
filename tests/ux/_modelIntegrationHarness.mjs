@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Shared process harness for the model-integration release journeys.
 // It deliberately exposes only MCP JSON-RPC and isolated directories: no Catalog,
 // credential file, or repository source path is handed to the simulated agent.
@@ -19,7 +20,7 @@ export function assert(condition, message) {
 }
 
 export function makeIsolatedRoot(prefix = 'nomi-model-integration-') {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  const tempRoot = makeTempDir(prefix)
   const dirs = {
     tempRoot,
     settingsDir: path.join(tempRoot, 'settings'),

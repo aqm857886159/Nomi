@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real Electron restoration journey, with a photographed frame from the registered user media.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,7 +12,7 @@ import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 const before = process.argv.includes('--before')
 const related = process.argv.includes('--related')
 const lod = process.argv.includes('--lod')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-image-aspect-'))
+const root = makeTempDir('nomi-image-aspect-')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'image-aspect'
 const projectRoot = path.join(projectsDir, projectId)

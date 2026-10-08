@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：中转接入的视频模型「图生视频」全链路（存量自愈 → 选中通道 → 首帧真的发上线）。
 //
 // 真机报障(2026-07-30)：用户接了个只有 Seedance 视频模型的 new-api 中转，视频节点连上首帧图就报
@@ -24,7 +25,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.relay-i2v-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'relay-i2v-walk-'))
+const settingsDir = makeTempDir('relay-i2v-walk-')
 
 const MODEL = 'doubao-seedance-2-0-260128'
 const VENDOR = 'relay-example-com'

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Original sidebar -> original editor -> project IPC/disk -> a new Electron process.
 // Only vendor services are loopback; no plan/store write is injected after launch.
 import fs from 'node:fs'
@@ -12,7 +13,7 @@ import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-blank-storyboard-'))
+const tempRoot = makeTempDir('nomi-blank-storyboard-')
 const settingsDir = path.join(tempRoot, 'settings'), projectsDir = path.join(tempRoot, 'projects')
 const outputDir = process.env.NOMI_BLANK_PLAN_EVIDENCE_DIR || path.join(tempRoot, 'evidence')
 fs.mkdirSync(outputDir, { recursive: true })

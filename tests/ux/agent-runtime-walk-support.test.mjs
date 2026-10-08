@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -26,7 +27,7 @@ afterEach(() => {
 })
 
 function report() {
-  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-walk-report-test-'))
+  const outputDir = makeTempDir('nomi-walk-report-test-')
   folders.push(outputDir)
   return { outputDir, name: 'cleanup-contract' }
 }

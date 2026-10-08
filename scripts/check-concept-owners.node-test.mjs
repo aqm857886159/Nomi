@@ -1,10 +1,10 @@
+import { makeTempDir } from './_test-temp.mjs'
 // check:concept-owners 的阳性对照（R17.0：加规则前先验它会红；有豁免的规则再补一发反向控制）。
 // 每条判据都在一个临时 git 仓库里先造一处违规看它红、再改回来看它绿；豁免条件（别名、另一个概念认领的同名定义、
 // 旧形状住在主人文件里）各有一条「把豁免条件拿掉就红」的反向控制。
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -100,7 +100,7 @@ function git(root, ...args) {
 
 /** 一个临时仓库：基础文件 + 登记表 + 基线，提交一次作为参照提交。 */
 function makeRepo({ files = {}, concepts = [concept()], base = baseline() } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-concept-owners-'))
+  const root = makeTempDir('nomi-concept-owners-')
   write(root, { ...BASE_FILES, ...files, [REGISTRY]: registry(concepts), [BASELINE]: base })
   git(root, 'init', '-q')
   git(root, 'add', '-A')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 运镜工具「深度端到端」验证 —— 单测照不出的活链路：离屏渲染 → mp4 → 喂 video_ref（免费），
 // 再（额度门控）真生成 + #6 mp4 上传到 vendor + VLM 运动核验。
 //
@@ -170,7 +171,7 @@ function isOmniMode(node) {
 /** ffmpeg 抽样最多 N 帧（每 ~1s 一帧），返回 base64 PNG dataURL 数组；失败返回 []。 */
 function sampleVideoFrames(file, frames = 6) {
   if (!hasFfmpeg) return [];
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-cammove-frames-"));
+  const tmp = makeTempDir("nomi-cammove-frames-");
   try {
     const r = spawnSync(
       "ffmpeg",

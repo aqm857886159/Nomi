@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：给用户看「语言 / 外观 / 关于 归位到设置」到底长什么样（2026-08-04）。
 // 零额度——不建生成节点、不碰任何模型。
 //
@@ -18,7 +19,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-04-settings-after')
 fs.mkdirSync(outDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-settings-walk-'))
+const root = makeTempDir('nomi-settings-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

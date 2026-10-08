@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户任务：在画布剪辑节点内预览、剪辑、导入，并走完四条导出路径。
 // 零模型额度：使用隔离项目和本地媒体；导出走真实 Electron/ffmpeg 链路。
 // 用法：pnpm run build && node tests/ux/clip-node-editing.walk.mjs
@@ -16,7 +17,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
 const ffprobePath = require('@ffprobe-installer/ffprobe').path
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-clip-node-walk-'))
+const root = makeTempDir('nomi-clip-node-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'clip-node-editing-walk'

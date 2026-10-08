@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // APIMart Seedance 2.5 / MiniMax-H3 真实异步链路验收（R13）。
 // 覆盖：Seedance 2.5 文生视频、MiniMax-H3 768P 文生视频、H3 Context-IR 提示词增强，
 // 以及用同一 H3 768P task_id 调 MiniMax-H3-Regeneration 再生成。
@@ -17,7 +18,7 @@ if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
 const ENV_KEY = process.env.APIMART_API_KEY;
 const ONLY = new Set((process.env.ONLY || "").split(",").map((value) => value.trim()).filter(Boolean));
 const REGEN_TASK_ID = (process.env.APIMART_REGEN_TASK_ID || "").trim();
-const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-apimart-seedance25-h3-"));
+const userDataDir = makeTempDir("nomi-apimart-seedance25-h3-");
 // 目录 + 凭据钥匙（Windows 的 Local State）一起带进隔离 userData；settings 与 userData 同目录。
 if (!ENV_KEY && fs.existsSync(realNomiProfile().catalogPath)) {
   seedRealCredentials({ settingsDir: userDataDir, userDataDir });

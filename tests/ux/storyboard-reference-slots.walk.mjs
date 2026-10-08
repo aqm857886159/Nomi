@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜行参考槽走查（R13/R16）：真实 Electron / IPC / 渲染 / 项目文件，**零生成额度**（全程不点生成）。
 // 覆盖用户原话「选 Seedance 竟然无法上传参考图和参考视频」的三条：
 //   ① 具名槽（首帧/尾帧）能上传本地图 → 红态消失、行进入批量；
@@ -12,7 +13,7 @@ import { clickOrFail, expectCount, expectText, expectVisible, screenshotSettled 
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = process.env.REF_SLOTS_WALK_OUT || path.join(repoRoot, '.tmp', 'storyboard-reference-slots')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-refslots-'))
+const tempRoot = makeTempDir('nomi-storyboard-refslots-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'storyboard-reference-slots-walk'

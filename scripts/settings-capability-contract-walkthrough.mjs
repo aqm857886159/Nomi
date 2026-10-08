@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // Real Electron journey for an unknown video model capability contract.
 //
 // Proves the full user path:
@@ -14,8 +15,8 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-capability-contract-walk')
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-capability-contract-set-'))
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-capability-contract-proj-'))
+const settingsDir = makeTempDir('settings-capability-contract-set-')
+const projectsDir = makeTempDir('settings-capability-contract-proj-')
 const vendorKey = 'future-motion-contract-lab'
 const vendorName = 'Future Motion Contract Lab'
 const modelKey = 'future-video-model-v2026-08-15'

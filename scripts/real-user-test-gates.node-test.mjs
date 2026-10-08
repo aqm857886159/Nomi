@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 /* global process */
 
 import assert from 'node:assert/strict'
@@ -9,7 +10,7 @@ import test from 'node:test'
 import { DIMENSIONS, buildReport, runRealUserGates, selectJourneys, validateManifest } from './real-user-test-gates.mjs'
 import { REAL_USER_TEST_MANIFEST } from '../tests/system/real-user-test-gates.mjs'
 
-const tempDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-real-user-gates-'))
+const tempDir = () => makeTempDir('nomi-real-user-gates-')
 
 test('the manifest registers the three product journeys and existing MCP coverage across H/B/E/T/N', () => {
   const validation = validateManifest(REAL_USER_TEST_MANIFEST, { root: process.cwd() })

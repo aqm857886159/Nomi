@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 // Real production Electron UI, isolated catalog/project. Zero GPU / no paid service.
 // Task: reopen a misclassified video workflow, select a long UNet filename, retain it after reopening.
@@ -14,7 +15,7 @@ import { walkWorkflowMacGestures, verifySavedMacGestures } from './_comfyWorkflo
 
 const require = createRequire(import.meta.url)
 const { buildImportedWorkflow, buildComfyImportModelMapping } = tsxRequire('../../electron/catalog/comfyuiWorkflowImport.ts', import.meta.url)
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-comfy-feedback-'))
+const root = makeTempDir('nomi-comfy-feedback-')
 const shotsDir = path.join(root, 'shots')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
