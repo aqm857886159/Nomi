@@ -1,0 +1,19 @@
+{
+  "broke-design-intent": "破坏既有设计意图",
+  "bulk-unverified": "批量改动未逐项验证",
+  "claims-beyond-diff": "声明超出 diff 证据",
+  "encoding-mojibake": "编码乱码",
+  "evidence-missing": "证据缺失",
+  "fact-incomplete": "事实不完整",
+  "incomplete": "内容不完整",
+  "overstated": "表述过度",
+  "parallel-version": "并行版本",
+  "partial-gates": "门岗未完整执行",
+  "rule-loosened": "规则被放宽",
+  "rule-overapplied": "规则过度套用",
+  "semantic-change": "语义改变",
+  "stale-number": "数字过时",
+  "symptom-patch": "只修症状未补根因",
+  "test-weakened": "测试被削弱",
+  "ui-rough": "界面首轮粗糙"
+}
