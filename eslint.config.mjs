@@ -16,32 +16,45 @@ const windowsPathSelectors = [
   },
 ]
 
-const quitListenerMethods = '/^(on|once|addListener|prependListener|prependOnceListener)$/'
+// Event names, not call shapes: an aliased `const on = app.on`, `app["on"]`, `emitter.prependOnceListener`
+// or a template literal all still have to spell the event, so the name is the one thing a bypass
+// cannot avoid (R-review-1125 #3). Only the owner may spell these.
+const quitEventSelectors = (name, message) => [
+  { selector: `Literal[value="${name}"]`, message },
+  { selector: `TemplateElement[value.cooked="${name}"]`, message },
+]
 const quitLifecycleSelectors = [
+  ...quitEventSelectors('will-quit', 'Subscribe to will-quit only in electron/quitTeardown.ts; register a drain with quitTeardown instead.'),
+  ...quitEventSelectors('before-quit', 'Subscribe to before-quit only in electron/quitTeardown.ts; use quitTeardown state instead.'),
+  // Windows session end and Linux powerMonitor shutdown bypass before-quit / will-quit.
+  ...['query-session-end', 'session-end'].flatMap((name) => quitEventSelectors(name, 'Subscribe to system session end only in electron/quitTeardown.ts; it runs the critical drains before exit.')),
   {
-    selector: `CallExpression[callee.type="MemberExpression"][callee.property.name=${quitListenerMethods}][arguments.0.value="will-quit"]`,
-    message: 'Subscribe to will-quit only in electron/quitTeardown.ts; register a drain with quitTeardown instead.',
-  },
-  {
-    selector: `CallExpression[callee.type="MemberExpression"][callee.property.name=${quitListenerMethods}][arguments.0.value="before-quit"]`,
-    message: 'Subscribe to before-quit only in electron/quitTeardown.ts; use quitTeardown state instead.',
-  },
-  {
-    // Windows session end and Linux powerMonitor shutdown bypass before-quit / will-quit.
-    selector: `CallExpression[callee.type="MemberExpression"][callee.property.name=${quitListenerMethods}][arguments.0.value=/^(query-session-end|session-end|shutdown)$/]`,
+    // "shutdown" is an ordinary word elsewhere; ban it as an event argument of any call.
+    selector: 'CallExpression > Literal.arguments[value="shutdown"], CallExpression > TemplateLiteral.arguments > TemplateElement[value.cooked="shutdown"]',
     message: 'Subscribe to system session end only in electron/quitTeardown.ts; it runs the critical drains before exit.',
   },
 ]
 
+// Any access to app.exit / app.relaunch (call, alias, bind, optional chain, computed key,
+// destructuring) and aliasing `app` itself, so the access cannot hide behind another name.
+// Scoped to files that take `app` from electron: plain Node files may have their own `app` object.
+const appExitMember = '/^(exit|relaunch)$/'
+const directQuitMessage = 'Call app.exit / app.relaunch only from electron/quitTeardown.ts or a documented independent-process exemption.'
+const appAliasMessage = 'Do not alias Electron app; aliases hide app.exit from the quit-owner guard.'
+const electronAppFiles = [
+  'Program:has(ImportDeclaration[source.value="electron"] > ImportSpecifier[imported.name="app"])',
+  'Program:has(VariableDeclarator[init.callee.name="require"][init.arguments.0.value="electron"] > ObjectPattern > Property[key.name="app"])',
+]
+const inElectronAppFiles = (selector, message) => electronAppFiles.map((scope) => ({ selector: `${scope} ${selector}`, message }))
 const directQuitSelectors = [
-  {
-    selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="app"][callee.property.name="exit"]',
-    message: 'Call app.exit only from electron/quitTeardown.ts or a documented independent-process exemption.',
-  },
-  {
-    selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="app"][callee.property.name="relaunch"]',
-    message: 'Call app.relaunch only from electron/quitTeardown.ts or a documented independent-process exemption.',
-  },
+  ...inElectronAppFiles(`MemberExpression[object.name="app"][property.name=${appExitMember}]`, directQuitMessage),
+  ...inElectronAppFiles(`MemberExpression[object.name="app"][computed=true][property.value=${appExitMember}]`, directQuitMessage),
+  ...inElectronAppFiles(`VariableDeclarator[init.name="app"] > ObjectPattern > Property[key.name=${appExitMember}]`, directQuitMessage),
+  ...inElectronAppFiles('VariableDeclarator[init.name="app"][id.type="Identifier"]', appAliasMessage),
+  ...inElectronAppFiles('AssignmentExpression[right.name="app"]', appAliasMessage),
+  { selector: 'ImportDeclaration[source.value="electron"] > ImportSpecifier[imported.name="app"][local.name!="app"]', message: appAliasMessage },
+  // `electron.app.exit(...)` / `require("electron").app.exit(...)`.
+  { selector: `MemberExpression[object.property.name="app"][property.name=${appExitMember}]`, message: directQuitMessage },
   {
     selector: 'CallExpression[callee.type="MemberExpression"][callee.object.name="autoUpdater"][callee.property.name="quitAndInstall"]',
     message: 'Call autoUpdater.quitAndInstall only from electron/quitTeardown.ts or a documented updater exemption.',

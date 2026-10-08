@@ -4,8 +4,8 @@
   "detected_by": "user",
   "problem_type": "unbounded Electron quit and window-close lifecycle drains",
   "symptom": "On macOS 0.23.0, clicking quit could leave the Electron main process alive indefinitely; a renderer that never answered close confirmation could also keep a window from closing forever.",
-  "direct_cause": "Multiple modules independently prevented will-quit and waited on promises without a shared deadline; windowCloseConfirmation prevented every repeated close while waiting for an unbounded renderer response; Windows session end, the dev parent watchdog, and MCP stdio shutdown ended the process with app.exit and skipped every drain.",
-  "class_root": "Process termination had no single owner: any module could subscribe to the quit lifecycle or end the process directly, so no path was guaranteed to run the drains under one deadline.",
+  "direct_cause": "Multiple modules independently prevented will-quit and waited on promises without a shared deadline; windowCloseConfirmation prevented every repeated close while waiting for an unbounded renderer response; Windows session end, the dev parent watchdog, and MCP stdio shutdown ended the process with app.exit and skipped every drain. Round 6 (independent acceptance V-1125, real Windows Electron): after a successful drain the owner called app.quit() again to finish; the drains settle inside the microtask checkpoint of the will-quit dispatch it prevented, where Electron is still quitting and ignores app.quit(), so the windowless process never exited. origin/main had the same swallowed call hidden behind a 3s force-exit timer (every normal quit took ~3.2s and logged a false quit-timeout).",
+  "class_root": "Process termination had no single owner: any module could subscribe to the quit lifecycle or end the process directly, so no path was guaranteed to run the drains under one deadline. The owner itself must end the process with exactly one terminal call (app.exit) and one deadline timer; re-entering Electron's quit state machine from inside its own dispatch is unreliable, and fakes that model app.quit as an independent recorder cannot see it.",
   "affected_population": [
     "macOS users quitting while local task or Antigravity work is active",
     "users whose renderer is stalled or disconnected during close confirmation",
@@ -43,7 +43,9 @@
     "https://www.electronjs.org/docs/latest/api/browser-window#event-session-end",
     "https://www.electronjs.org/docs/latest/api/power-monitor#event-shutdown",
     "https://www.electronjs.org/docs/latest/api/app#appquit",
-    "node_modules/electron-updater (6.8.9) out/BaseUpdater.js quitAndInstall: spawns the installer, then this.app.quit(); out/MacUpdater.js hands off to Squirrel nativeUpdater.quitAndInstall."
+    "node_modules/electron-updater (6.8.9) out/BaseUpdater.js quitAndInstall: spawns the installer, then this.app.quit(); out/MacUpdater.js hands off to Squirrel nativeUpdater.quitAndInstall.",
+    "Real Electron 43.4.1 probe (Windows, off-screen): app.quit() called during the will-quit task produced no further before-quit / will-quit / quit events; deferring it by one macrotask exited in 247ms.",
+    "node_modules/electron/electron.d.ts (Electron 43.4.1) powerMonitor 'shutdown': docs say e.preventDefault() delays shutdown while the listener is typed () => void; Electron's bundled lib/browser/api/power-monitor.ts takes the logind delay lock via setListeningForShutdown and assigns the native emit to the JS emitter, which passes the event object first."
   ],
   "internal_only_reason": "Electron supplies the events; which drains run, in what order, under which deadline, and who may end the process is an application-owned contract.",
   "invariants": [
@@ -51,7 +53,9 @@
     "Only electron/quitTeardown.ts calls app.exit or app.relaunch in the GUI process; two reviewed file exemptions remain: capabilityCore/host.ts (separate one-shot Electron entry where the owner is never installed) and update/autoUpdater.ts (quitAndInstall ends in app.quit and re-enters the owner).",
     "The normal quit budget starts at will-quit; built-ins run serially background-lifecycle -> capability-core -> active-exports (250ms cap each) -> desktop-lane-ipc (all remaining budget), then registered required drains; a step timeout is logged with its step name and the next step still runs; at the total deadline the owner calls app.exit.",
     "Unattended exits (Windows session end, Linux shutdown, lost dev launcher) run only active-exports then desktop-lane-ipc within 500ms, never show a confirmation, and then app.exit(0).",
-    "Close confirmation never discards unsaved content without an explicit user choice: renderer ACK within 1500ms hands the decision to the user with no timeout; no ACK shows one native Force Quit / Cancel dialog (default Cancel); a confirmed close resumes the quit it interrupted."
+    "Close confirmation never discards unsaved content without an explicit user choice: renderer ACK within 1500ms hands the decision to the user with no timeout; no ACK shows one native Force Quit / Cancel dialog (default Cancel); a confirmed close resumes the quit it interrupted.",
+    "The owner ends the GUI process only through app.exit, from one finish() guarded by teardownFinished, and one owner deadline timer that an unattended exit re-arms (never extends); a drain already running cannot hold the process past the shortened deadline, and drains not yet started that are not critical are skipped.",
+    "A renderer that ACKed a close and then crashed (render-process-gone) or hung (unresponsive) is treated like a missing ACK: the native Force Quit / Cancel dialog decides."
   ],
   "doors": [
     {
@@ -233,14 +237,15 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/quitTeardown.ts",
     "invariant": "All termination goes through the owner; drains run serially under one deadline started at will-quit (3000ms) or at the unattended-exit trigger (500ms).",
-    "failure_mode": "A thrown drain is logged as <step>-failed and the next step runs; a step timeout is logged as <step>-timeout and the next step runs; when any step timed out the owner logs quit-timeout or critical-exit-timeout and calls app.exit.",
+    "failure_mode": "A thrown drain is logged as <step>-failed and the next step runs; a step timeout is logged as <step>-timeout and the next step runs; every step leaves a quit-step receipt and every exit one quit-exit receipt (reason completed / step-timeout / deadline / <unattended reason>); the only terminal call is app.exit.",
     "exception_policy": "none",
-    "strategy": "Delete per-module lifecycle listeners and direct exits, route every remaining caller through owner functions, and make ESLint reject new subscriptions and direct exits. Not exceptions to the GUI-process invariant: capabilityCore/host.ts is a separate process where the owner never exists, and autoUpdater.quitAndInstall ends in app.quit, which re-enters the owner; both are named in eslint.config.mjs directQuitExemptionFiles with reason comments.",
+    "strategy": "Delete per-module lifecycle listeners and direct exits, route every remaining caller through owner functions, and make ESLint reject new subscriptions and direct exits. Not exceptions to the GUI-process invariant: capabilityCore/host.ts is a separate process where the owner never exists, and autoUpdater.quitAndInstall ends in app.quit, which re-enters the owner; both are named in eslint.config.mjs directQuitExemptionFiles with reason comments. ESLint keys the lifecycle ban on the event names themselves (any Literal / template element spelling will-quit, before-quit, query-session-end, session-end, or a call argument shutdown), so aliases, computed keys and bind cannot hide a subscription; app.exit / app.relaunch are banned in every access form (alias, destructure, computed, optional chain, electron.app.exit) in files that take app from electron, and aliasing app is banned.",
     "artifacts": [
       "electron/quitTeardown.ts",
       "eslint.config.mjs",
       "electron/windowCloseConfirmation.ts",
-      "electron/quitLifecycleGuard.test.ts"
+      "electron/quitLifecycleGuard.test.ts",
+      "tests/ux/quit-teardown-real.e2e.mjs"
     ]
   },
   "regression_tests": [
@@ -249,12 +254,14 @@
     "electron/quitLifecycleGuard.test.ts",
     "electron/tasks/taskIpcHandlers.test.ts",
     "electron/ai/antigravityIpc.test.ts",
-    "electron/mainProcessLifecycle.test.ts"
+    "electron/mainProcessLifecycle.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
   ],
   "class_regression_tests": [
     "electron/quitTeardown.test.ts",
     "electron/windowCloseConfirmation.test.ts",
-    "electron/quitLifecycleGuard.test.ts"
+    "electron/quitLifecycleGuard.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -277,11 +284,12 @@
   "migration": "No persisted data or external protocol changes; existing runtime registrations converge on the new owner during process startup.",
   "residual_risks": [
     "Windows query-session-end preventDefault and 500ms drain timing are unit-verified only; not run on a real Windows shutdown/logoff.",
-    "Linux powerMonitor shutdown is unit-verified only.",
     "Resume-after-confirmed-close relies on reading Electron's Browser::OnWindowCloseCancelled (a prevented window close cancels an in-flight quit); not verified on a packaged macOS build. The resume is idempotent if Electron did not cancel.",
     "Windows/Linux session end exits without asking the renderer to save; unsaved renderer edits since the last autosave can be lost. Open product decision recorded in the PR body.",
-    "electron-updater quitAndInstall on macOS with a pending close confirmation is not covered by a test.",
-    "Owner total timeout stays 3000ms by default; revisit only with measured lifecycle evidence."
+    "Owner total timeout stays 3000ms by default; revisit only with measured lifecycle evidence.",
+    "Linux powerMonitor shutdown preventDefault relies on Electron docs and its bundled JS wiring (typings disagree); not run on a real Linux shutdown.",
+    "electron-updater quitAndInstall is covered at the owner level (windows closed before before-quit still drains and exits once) and by the ordinary confirm-then-resume path; not run against a real installer.",
+    "tests/ux/quit-teardown-real.e2e.mjs has no CI runner yet (architecture review row 5: 40 explicit *.e2e.mjs files are unwired; owned by the lifecycle e2e wiring line). Real Windows run is in this PR's evidence; Linux/macOS real runs are unverified."
   ],
   "invariant_owner_layer": {
     "layer": "electron/quitTeardown.ts",

@@ -13,6 +13,7 @@ export interface QuitLifecycleApp {
   exit(code?: number): void;
 }
 
+export type QuitReceiptEvent = "quit-step" | "quit-exit";
 export type QuitDrainOptions = { required?: boolean; timeoutMs?: number };
 
 type QuitDrain = {
@@ -28,6 +29,8 @@ export interface QuitTeardownDependencies {
   disposeDesktopLaneIpc(): Promise<void>;
   abortAllActiveExports(): number;
   onError?(stage: string, error: unknown): void;
+  /** Receipts: one `quit-step` per built-in / registered drain, one `quit-exit` when the owner ends the process. */
+  onReceipt?(event: QuitReceiptEvent, fields: Record<string, string | number>): void;
   timeoutMs?: number;
   /**
    * Operating-system session end that bypasses before-quit / will-quit.
@@ -49,6 +52,10 @@ let quitDeadlineAt: number | undefined;
 let ownerApp: QuitLifecycleApp | undefined;
 let requestedExitCode: number | undefined;
 let exitWithCriticalDrains: ((reason: string) => void) | undefined;
+let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+// Set once an unattended exit (session end, lost launcher) arrives: drains that have not started
+// yet and are not critical are skipped so the shortened deadline is spent on exports and the lane.
+let criticalOnly = false;
 const BUILTIN_FAST_DRAIN_TIMEOUT_CAP_MS = 250;
 const BUILTIN_FAST_DRAIN_COUNT = 3;
 // Nobody can answer a confirmation when the OS session ends or the dev launcher died:
@@ -116,35 +123,55 @@ export function resetQuitTeardownForTests(): void {
   exitWithCriticalDrains = undefined;
   ownerTimeoutMs = 3000;
   quitDeadlineAt = undefined;
+  if (deadlineTimer) clearTimeout(deadlineTimer);
+  deadlineTimer = undefined;
+  criticalOnly = false;
 }
 
 function report(onError: ((stage: string, error: unknown) => void) | undefined, stage: string, error: unknown): void {
   onError?.(stage, error);
 }
 
-async function runDrain(entry: QuitDrain, totalTimeoutMs: number, onError: ((stage: string, error: unknown) => void) | undefined): Promise<boolean> {
+type DrainOutcome = "done" | "timeout" | "failed";
+type Receipt = QuitTeardownDependencies["onReceipt"];
+
+async function runDrain(entry: QuitDrain, totalTimeoutMs: number, onError: QuitTeardownDependencies["onError"], onReceipt: Receipt): Promise<boolean> {
   const timeoutMs = Math.max(0, Math.min(entry.timeoutMs ?? totalTimeoutMs, totalTimeoutMs));
+  const startedAt = Date.now();
+  let outcome: DrainOutcome = "done";
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), timeoutMs); });
   try {
     const result = await Promise.race([Promise.resolve().then(entry.drain).then(() => "done" as const), timeout]);
     if (result === "timeout") {
+      outcome = "timeout";
       report(onError, `${entry.name}-timeout`, { timeoutMs, required: entry.required });
-      return true;
     }
   } catch (error) {
+    outcome = "failed";
     report(onError, `${entry.name}-failed`, error);
   } finally {
     if (timer) clearTimeout(timer);
   }
-  return false;
+  onReceipt?.("quit-step", { step: entry.name, outcome, ms: Date.now() - startedAt });
+  return outcome === "timeout";
 }
 
 /** Runs every entry in order; a timed-out step is logged and the next step still runs. */
-async function runSerially(entries: readonly QuitDrain[], onError: QuitTeardownDependencies["onError"]): Promise<boolean> {
+async function runSerially(
+  entries: readonly QuitDrain[],
+  critical: ReadonlySet<QuitDrain>,
+  onError: QuitTeardownDependencies["onError"],
+  onReceipt: Receipt,
+): Promise<boolean> {
   let anyTimedOut = false;
   for (const entry of entries) {
-    const timedOut = await runDrain(entry, quitTeardownTimeoutMs(), onError);
+    if (teardownFinished) break;
+    if (criticalOnly && !critical.has(entry)) {
+      onReceipt?.("quit-step", { step: entry.name, outcome: "skipped", ms: 0 });
+      continue;
+    }
+    const timedOut = await runDrain(entry, quitTeardownTimeoutMs(), onError, onReceipt);
     anyTimedOut ||= timedOut;
   }
   return anyTimedOut;
@@ -181,6 +208,32 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
   const builtInDrains = [backgroundLifecycle, capabilityCore, activeExports, desktopLane];
   const criticalDrains = [activeExports, desktopLane];
 
+  const critical = new Set(criticalDrains);
+  const onReceipt = dependencies.onReceipt;
+  let teardownStartedAt = 0;
+
+  // The one place the GUI process ends. Always app.exit, never a second app.quit(): when the drains
+  // settle in the microtask checkpoint of the will-quit dispatch that prevented the quit, Electron is
+  // still "quitting" and silently ignores app.quit(), so the process stayed alive (V-1125).
+  // app.exit still emits `quit`; before-quit / will-quit already ran and windows are already closed.
+  const finish = (reason: string, code: number): void => {
+    if (teardownFinished) return;
+    teardownFinished = true;
+    if (deadlineTimer) clearTimeout(deadlineTimer);
+    deadlineTimer = undefined;
+    onReceipt?.("quit-exit", { reason, code, ms: Date.now() - teardownStartedAt });
+    app.exit(code);
+  };
+
+  // One owner deadline. It is re-armed (never extended) when an unattended exit shortens it, so a
+  // drain that is already running cannot hold the process past the shorter deadline.
+  const armDeadline = (at: number, onDeadline: () => void): void => {
+    if (quitDeadlineAt !== undefined && quitDeadlineAt <= at && deadlineTimer) return;
+    quitDeadlineAt = at;
+    if (deadlineTimer) clearTimeout(deadlineTimer);
+    deadlineTimer = setTimeout(onDeadline, Math.max(0, at - Date.now()));
+  };
+
   app.on("before-quit", () => {
     quitRequested = true;
   });
@@ -191,38 +244,43 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     if (teardownStarted) return;
     teardownStarted = true;
     quitRequested = true;
-    quitDeadlineAt = Date.now() + ownerTimeoutMs;
-    const required = [...registeredDrains.values()].filter((entry) => entry.required);
-    const optional = [...registeredDrains.values()].filter((entry) => !entry.required);
-    const runInOrder = async (): Promise<boolean> => {
-      const timedOut = await runSerially([...builtInDrains, ...required], dependencies.onError);
-      for (const entry of optional) void runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError);
-      return !timedOut;
-    };
-    void runInOrder().then((completed) => {
-      teardownFinished = true;
-      if (!completed) {
-        report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });
-        app.exit(requestedExitCode ?? 0);
-        return;
-      }
-      if (requestedExitCode !== undefined) app.exit(requestedExitCode);
-      else app.quit();
+    teardownStartedAt = Date.now();
+    armDeadline(teardownStartedAt + ownerTimeoutMs, () => {
+      report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });
+      finish("deadline", requestedExitCode ?? 0);
     });
+    const registered = [...registeredDrains.values()];
+    // Optional drains are best effort: they run beside the serial chain and never delay the exit.
+    for (const entry of registered.filter((drain) => !drain.required)) {
+      void runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError, onReceipt);
+    }
+    void runSerially([...builtInDrains, ...registered.filter((drain) => drain.required)], critical, dependencies.onError, onReceipt)
+      .then((timedOut) => {
+        if (teardownFinished) return; // the deadline already ended the process
+        if (timedOut) report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });
+        finish(timedOut ? "step-timeout" : "completed", requestedExitCode ?? 0);
+      });
   });
 
   exitWithCriticalDrains = (reason) => {
     if (teardownFinished) return;
     const budgetMs = Math.min(ownerTimeoutMs, CRITICAL_EXIT_TIMEOUT_MS);
-    quitDeadlineAt = Math.min(quitDeadlineAt ?? Number.POSITIVE_INFINITY, Date.now() + budgetMs);
-    // A will-quit teardown already running keeps going on the shortened deadline.
+    criticalOnly = true;
+    const onDeadline = (): void => {
+      report(dependencies.onError, "critical-exit-timeout", { reason, timeoutMs: budgetMs });
+      finish(`${reason}-deadline`, 0);
+    };
+    // A will-quit teardown already running keeps going, but only through the critical drains and
+    // on the shortened deadline (the timer is re-armed, not just the remaining-budget variable).
+    armDeadline(Date.now() + budgetMs, onDeadline);
     if (teardownStarted) return;
     teardownStarted = true;
     quitRequested = true;
-    void runSerially(criticalDrains, dependencies.onError).then((timedOut) => {
-      teardownFinished = true;
+    teardownStartedAt = Date.now();
+    void runSerially(criticalDrains, critical, dependencies.onError, onReceipt).then((timedOut) => {
+      if (teardownFinished) return;
       if (timedOut) report(dependencies.onError, "critical-exit-timeout", { reason, timeoutMs: budgetMs });
-      app.exit(0);
+      finish(reason, 0);
     });
   };
 
@@ -239,6 +297,10 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     });
   } else if (session?.platform === "linux") {
     void app.whenReady().then(() => {
+      // Electron 43 types this listener as `() => void`, but its docs (same d.ts entry) say
+      // `e.preventDefault()` delays shutdown, and lib/browser/api/power-monitor.ts takes a logind
+      // shutdown-delay lock (setListeningForShutdown) only so that preventDefault can work. The
+      // native emitter passes the event as the first argument. Real Linux shutdown: unverified.
       session.powerMonitor().on("shutdown", (event) => {
         if (!teardownFinished) event?.preventDefault?.();
         exitWithoutConfirmation("shutdown");

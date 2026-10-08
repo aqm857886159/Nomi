@@ -106,6 +106,15 @@ export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void 
     mainWindow.focus();
     mainWindow.webContents.send("nomi:window:close-request", { requestId });
   });
+  // A renderer that ACKed and then crashed or hung can never deliver the user's decision: the window
+  // would refuse every later close and quit forever. Treat it like a missing ACK: ask natively.
+  const rendererLost = (): void => {
+    if (!pendingCloseRequests.has(mainWindow)) return;
+    clearPendingClose(mainWindow);
+    showNativeCloseDialog(mainWindow);
+  };
+  mainWindow.webContents.on("render-process-gone", rendererLost);
+  mainWindow.on("unresponsive", rendererLost);
   mainWindow.on("closed", () => {
     clearPendingClose(mainWindow);
     // Preventing the window "close" event cancels Electron's in-flight quit (⌘Q / Dock / app.quit). Once the user

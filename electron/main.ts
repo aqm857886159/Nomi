@@ -672,8 +672,14 @@ installQuitTeardown(app, {
   stopDesktopCapabilityCore,
   disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
   abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
-  onError: (stage, error) => stage === "exports-aborted"
-    ? logInfo("export", "aborted-on-quit", { count: error && typeof error === "object" && "count" in error && typeof error.count === "number" ? error.count : 0 })
-    : logError("agent", `${stage}-on-quit-failed`, error),
+  onError: (stage, error) => {
+    if (error instanceof Error) return logError("main", `quit-${stage}`, error);
+    // Timeouts and counts arrive as plain fields; log them as fields, not as "[object Object]".
+    const fields = error && typeof error === "object" ? Object.fromEntries(Object.entries(error).map(([key, value]) => [key, typeof value === "number" || typeof value === "boolean" ? value : String(value)])) : undefined;
+    if (stage === "exports-aborted") logInfo("export", "aborted-on-quit", fields);
+    else logWarn("main", `quit-${stage}`, fields);
+  },
+  // quit-step per drain and one quit-exit receipt (tests/ux/quit-teardown-real.e2e.mjs reads them).
+  onReceipt: (event, fields) => logInfo("main", event, fields),
   systemSession: { platform: process.platform, powerMonitor: () => powerMonitor }, // Windows 关机/注销不发 will-quit
 });
