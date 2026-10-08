@@ -142,7 +142,7 @@ function strictBaseUrl(value: unknown, vendorKey: string): string {
 }
 
 function safeFixtureBaseUrl(value: unknown): string | undefined {
-  if (process.env.NOMI_E2E_PRODUCTION_FIXTURE !== "1" || typeof value !== "string" || !value.trim()) return undefined;
+  if (process.env.NOMI_E2E !== "1" || process.env.NOMI_E2E_PRODUCTION_FIXTURE !== "1" || typeof value !== "string" || !value.trim()) return undefined;
   try {
     const url = new URL(value.trim());
     if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;

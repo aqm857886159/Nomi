@@ -156,7 +156,7 @@ async function requestVendor(
     retryOnNotWritten?: boolean;
     idempotencyKey?: string;
     idempotencyHeader?: string;
-    logicalSuccessCodes?: readonly number[];
+    logicalSuccessCodes?: readonly (number | string)[];
   } = {},
 ): Promise<unknown | BinaryVendorResponse> {
   const requestAuthQuery = vendorAuthQueryParams(vendor, apiKey);
@@ -385,10 +385,10 @@ async function requestVendor(
   // a logical-error envelope `{ code: 4xx/5xx, msg/message: "..." }` instead of
   // a real error status. Treat that as a failure too, otherwise we'd hand a
   // body with no asset URL to the result builder and report a silent dud.
-  // Catalog and custom-call mappings use the established 0/200 success envelope;
-  // callers may override it, but every JSON paid POST must preserve non-success
-  // numeric codes as providerAnswer evidence for the explicit-rejection gate.
-  const logicalCode = looksLikeLogicalError(record, options.logicalSuccessCodes ?? [0, 200]);
+  // A success-code vocabulary is an explicit provider/mapping declaration. With
+  // no declaration, retain main's historical envelope semantics for user-owned
+  // catalog calls, runtime profiles, and polling.
+  const logicalCode = looksLikeLogicalError(record, options.logicalSuccessCodes);
   if (!response.ok || logicalCode != null) {
     // 键优先级表住 jsonUtils.pickUpstreamMessage（全仓唯一，onboarding 拉模型/测连接同读一份）。
     const rawUpstream = pickUpstreamMessage(record, redactRequestMessage);
@@ -429,7 +429,7 @@ export async function requestJson(
     retryOnNotWritten?: boolean;
     idempotencyKey?: string;
     idempotencyHeader?: string;
-    logicalSuccessCodes?: readonly number[];
+    logicalSuccessCodes?: readonly (number | string)[];
   } = {},
 ): Promise<unknown> {
   const upperMethod = method.toUpperCase();
@@ -454,7 +454,7 @@ export async function requestBinary(
     retryOnNotWritten?: boolean;
     idempotencyKey?: string;
     idempotencyHeader?: string;
-    logicalSuccessCodes?: readonly number[];
+    logicalSuccessCodes?: readonly (number | string)[];
   } = {},
 ): Promise<BinaryVendorResponse> {
   const upperMethod = method.toUpperCase();
@@ -494,7 +494,7 @@ export async function requestMultipart(
     retryOnNotWritten?: boolean;
     idempotencyKey?: string;
     idempotencyHeader?: string;
-    logicalSuccessCodes?: readonly number[];
+    logicalSuccessCodes?: readonly (number | string)[];
   } = {},
 ): Promise<unknown> {
   const cleanHeaders = Object.fromEntries(

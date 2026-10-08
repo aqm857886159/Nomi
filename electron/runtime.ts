@@ -230,7 +230,6 @@ export async function executeProfileOperation(input: {
   const { vendor, apiKey } = effectiveInput;
   const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, {
     maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
-    logicalSuccessCodes: [0, 200],
   });
   return { response, request: built.preview };
 }

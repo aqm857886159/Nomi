@@ -74,3 +74,15 @@
 - 预测：小业务码和数字字符串必须同样由目录合同判失败；任务号或 5xx 仍保持未知；音频/customCall 包装不能擦掉证据；真实绑定错 origin 在夹具模式下也必须拒绝。
 
 通用 HTTP、脱敏和凭据绑定都复用现有模块，无新增依赖。独立验收仍由协调会话安排。
+
+## 审查回归：码表与夹具凭据边界
+
+审查指出统一出口把 APIMart 的 0/200 码表错误地设成所有 JSON 调用的默认。隔离 main 基线特征表 `electron/paidPostCodeFeatureTable.test.ts` 锁定：通用目录、customCall、runtime、轮询继续使用旧 `looksLikeLogicalError`；只有 APIMart 映射声明严格数值 0/200，`"0"`、`"success"` 和 `errorCode=1004` 均按 main 基线处理。修复后码表只从 APIMart provider 传入，未声明入口不改变。
+
+夹具 URL 来源是 `NOMI_E2E=1`、`NOMI_E2E_PRODUCTION_FIXTURE=1` 下的 `NOMI_E2E_FIXTURE_BASE_URL`，且只接受 loopback；appIntegration 与 MCP stdio 另要求非打包或显式 `NOMI_E2E_PACKAGED_FIXTURE=1`。非夹具模式保留 `credentialBinding.origin` 与 canonical 请求 origin，回归测试确认密钥不会被送往 loopback。
+
+### 自写登记复盘：mcp-protocol
+
+- 登记条目：`mcp-protocol`（`to-replace`），计划 `docs/plan/2026-10-05-mcp-official-sdk.md`。
+- 本次不能替换的原因：本次改动只收紧夹具环境门和付费出口的凭据来源；`mcpStdioServer.ts` 只读取环境并把已由官方 SDK v2 承担的 stdio 传输交给现有 Nomi 领域派发。现在切换协议层会同时改变 `tools/call` 审批、loopback RPC、E2E C9 夹具和 packaged stdio 的边界，超出本修复的最小根因范围，也会把未验证的协议迁移与花钱出口混在一次提交里。
+- 复评时间：2026-11-08；届时按现有计划把 `mcpStdioServer.ts` / `mcpNodeLauncher.ts` 收敛为官方 SDK v2 转发器，并以四传输特征表和 packaged stdio 收据作为退出条件。

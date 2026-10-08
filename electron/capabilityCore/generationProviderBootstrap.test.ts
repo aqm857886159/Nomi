@@ -256,6 +256,7 @@ describe("generation provider bootstrap", () => {
   });
 
   it("routes an explicitly enabled production fixture through loopback while keeping the canonical APIMart scope", async () => {
+    vi.stubEnv("NOMI_E2E", "1");
     vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "1");
     try {
       const fixture = encryptedState();
@@ -287,6 +288,44 @@ describe("generation provider bootstrap", () => {
         "http://127.0.0.1:4567/v1/images/generations",
         expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer encrypted-keychain-payload" }) }),
       );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("keeps the saved credential origin and destination when fixture mode is off", async () => {
+    vi.stubEnv("NOMI_E2E", "0");
+    vi.stubEnv("NOMI_E2E_PRODUCTION_FIXTURE", "0");
+    try {
+      const fixture = encryptedState();
+      fixture.vendors[0] = {
+        ...fixture.vendors[0],
+        credentialBinding: {
+          origin: "https://api.apimart.ai",
+          authType: "bearer",
+          authHeader: "Authorization",
+          confirmedAt: "now",
+        },
+      };
+      const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+        code: 200,
+        data: [{ status: "submitted", task_id: "task-production" }],
+      }), { status: 200 }));
+      const boot = createGenerationProviderBootstrap(fixture, {
+        catalogReader: () => fixture,
+        fixtureBaseUrlOverride: "http://127.0.0.1:4567",
+        fetchImpl,
+      });
+      const provider = boot.providers[0];
+      const request = generationInput();
+      await expect(provider?.submit(provider?.buildRequest(request), request.idempotencyKey))
+        .resolves.toMatchObject({ providerTaskId: "task-production" });
+      expect(fetchImpl).toHaveBeenCalledWith(
+        "https://api.apimart.ai/v1/images/generations",
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer encrypted-keychain-payload" }) }),
+      );
+      expect(fixture.vendors[0]?.credentialBinding?.origin).toBe("https://api.apimart.ai");
+      expect(JSON.stringify(fetchImpl.mock.calls[0])).not.toContain("127.0.0.1:4567");
     } finally {
       vi.unstubAllEnvs();
     }
