@@ -1,25 +1,37 @@
 {
   "id": "REC-20261007-receipt-upgrade-quarantine",
   "since": "2026-10-07",
-  "source": "升级复现 R-macopen：0.22.5 回执损坏后项目无法打开",
+  "source": "用户 Mac 日志 10-07：从 0.22.5 升到 0.23.0 后打开项目显示项目恢复失败，任何项目都进不去；升级复现线确认 0.22.5 写下的回执在 0.23 被判非法",
   "category": "claims-and-outcomes",
-  "problem": "项目级 Agent 回执读失败时，项目打开流程把一份可隔离的持久化故障说成整个项目恢复失败，用户无法进入画布查看已有内容。",
+  "problem": "项目级 Agent 回执读失败时，项目打开流程把一份可迁移 / 可隔离的持久化文件说成整个项目恢复失败，用户无法进入画布查看已有内容。",
   "existingInvariants": [],
   "ironLaws": [
     "⑪"
   ],
   "useCases": [
-    "升级后打开曾由 Agent 改过画布的项目"
+    "升级后打开曾由 Agent 改过画布的项目：旧版回执被迁移，项目照常打开",
+    "回执文件损坏 / 版本认不出：隔离成 *.quarantined-* 后项目照常打开"
   ],
   "fullWalkJourneys": [
     "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
   ],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "fixed",
+  "manualReview": "reviewed",
   "evidence": [
-    "scratchpad/codex-R-macopen.md",
-    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts：按目录遍历已发布格式档案（v0.22.0 … v0.23.0），每份都读出正确结果或被隔离；当前版本缺档案即红",
+    "electron/capabilityCore/__fixtures__/published-receipts/README.md：每份档案由当时标签的写入代码真实生成",
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs：真实资料库卡片打开，断言回执被隔离且进入 studio",
     "docs/fixes/2026-10-07-agent-proposal-receipt-read-recovery.root-cause.json"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "3e21971f1",
+    "9357e6f40",
+    "1254d3fae"
+  ],
+  "fixedInPr": 1102,
+  "rootCauseContract": "docs/fixes/2026-10-07-agent-proposal-receipt-read-recovery.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts"
+  }
 }
