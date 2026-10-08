@@ -104,6 +104,74 @@ describe("quit teardown lifecycle", () => {
     expect(app.quit).not.toHaveBeenCalled();
   });
 
+  it("starts the quit budget at will-quit after a five-second confirmation", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const drain = vi.fn(() => new Promise<void>(() => undefined));
+      installQuitTeardown(app, {
+        disposeBackgroundLifecycle: vi.fn(),
+        stopDesktopCapabilityCore: vi.fn(),
+        disposeDesktopLaneIpc: drain,
+        abortAllActiveExports: vi.fn(() => 0),
+        timeoutMs: 20,
+      });
+      emit("before-quit");
+      vi.advanceTimersByTime(5000);
+      emit("will-quit");
+      vi.advanceTimersByTime(19);
+      await vi.runAllTimersAsync();
+      expect(drain).toHaveBeenCalledOnce();
+      expect(app.exit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      await vi.runAllTimersAsync();
+      expect(app.exit).toHaveBeenCalledWith(0);
+      expect(app.quit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs built-in drains in the original serial order and exits on a hanging step", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const order: string[] = [];
+      let releaseBackground!: () => void;
+      const background = vi.fn(() => new Promise<void>((resolve) => {
+        order.push("background-lifecycle");
+        releaseBackground = resolve;
+      }));
+      const capability = vi.fn(() => {
+        order.push("capability-core");
+        return new Promise<void>(() => undefined);
+      });
+      const exports = vi.fn(() => { order.push("active-exports"); return 0; });
+      const lane = vi.fn(async () => { order.push("desktop-lane-ipc"); });
+      installQuitTeardown(app, {
+        disposeBackgroundLifecycle: background,
+        stopDesktopCapabilityCore: capability,
+        disposeDesktopLaneIpc: lane,
+        abortAllActiveExports: exports,
+        timeoutMs: 5,
+      });
+      emit("will-quit");
+      await Promise.resolve();
+      expect(order).toEqual(["background-lifecycle"]);
+      releaseBackground();
+      await Promise.resolve();
+      expect(order).toEqual(["background-lifecycle", "capability-core"]);
+      vi.advanceTimersByTime(5);
+      await vi.runAllTimersAsync();
+      expect(app.exit).toHaveBeenCalledWith(0);
+      expect(order).toEqual(["background-lifecycle", "capability-core"]);
+      expect(exports).not.toHaveBeenCalled();
+      expect(lane).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([
     ["required completes", async (): Promise<void> => undefined, "quit"],
     ["required throws", async (): Promise<void> => { throw new Error("drain failed"); }, "quit"],

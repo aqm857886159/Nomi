@@ -4,15 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   ipcListener: undefined as undefined | ((event: { sender: object }, payload: unknown) => void),
   fromWebContents: vi.fn(),
+  showMessageBox: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
   BrowserWindow: { fromWebContents: mocks.fromWebContents },
   ipcMain: { on: (_channel: string, listener: typeof mocks.ipcListener) => { mocks.ipcListener = listener; } },
+  dialog: { showMessageBox: mocks.showMessageBox },
 }));
 
 import { installWindowCloseConfirmation } from "./windowCloseConfirmation";
-import { resetQuitTeardownForTests } from "./quitTeardown";
+import { isQuitRequested, resetQuitTeardownForTests } from "./quitTeardown";
 
 class FakeWindow extends EventEmitter {
   readonly webContents = { send: vi.fn() };
@@ -31,13 +33,11 @@ describe("window close confirmation", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     resetQuitTeardownForTests();
+    mocks.showMessageBox.mockResolvedValue({ response: 1 });
   });
   afterEach(() => vi.useRealTimers());
 
-  it.each([
-    ["confirms", true, true],
-    ["rejects", false, false],
-  ] as const)("handles a renderer response that %s", (_label, confirmed, closes) => {
+  it("keeps the window open while an ACKed renderer waits ten seconds before confirming", () => {
     const window = new FakeWindow();
     mocks.fromWebContents.mockReturnValue(window);
     installWindowCloseConfirmation(window as never);
@@ -45,18 +45,76 @@ describe("window close confirmation", () => {
     window.emit("close", firstClose);
     expect(firstClose.preventDefault).toHaveBeenCalledOnce();
     const { requestId } = window.webContents.send.mock.calls[0]![1] as { requestId: string };
-    mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed });
-    expect(window.close).toHaveBeenCalledTimes(closes ? 1 : 0);
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, ack: true });
+    vi.advanceTimersByTime(10_000);
+    expect(window.close).not.toHaveBeenCalled();
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed: true });
+    expect(window.close).toHaveBeenCalledOnce();
   });
 
-  it("treats a renderer that never replies as confirmed within the owner budget", () => {
+  it("keeps the window open when an ACKed renderer cancels, then allows a later quit", () => {
     const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
     installWindowCloseConfirmation(window as never);
     const firstClose = { preventDefault: vi.fn() };
     window.emit("close", firstClose);
-    vi.advanceTimersByTime(2999);
+    const firstRequest = window.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId: firstRequest.requestId, ack: true });
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId: firstRequest.requestId, confirmed: false });
     expect(window.close).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
+    expect(isQuitRequested()).toBe(false);
+    window.emit("close", { preventDefault: vi.fn() });
+    const secondRequest = window.webContents.send.mock.calls[1]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId: secondRequest.requestId, ack: true });
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId: secondRequest.requestId, confirmed: true });
     expect(window.close).toHaveBeenCalledOnce();
+  });
+
+  it("uses a native dialog after 1500ms without ACK, where cancel stays open and force quit closes", async () => {
+    const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
+    mocks.showMessageBox.mockResolvedValueOnce({ response: 1 }).mockResolvedValueOnce({ response: 0 });
+    installWindowCloseConfirmation(window as never);
+    window.emit("close", { preventDefault: vi.fn() });
+    vi.advanceTimersByTime(1500);
+    await vi.runAllTimersAsync();
+    expect(mocks.showMessageBox).toHaveBeenCalledOnce();
+    expect(window.close).not.toHaveBeenCalled();
+    expect(isQuitRequested()).toBe(false);
+    window.emit("close", { preventDefault: vi.fn() });
+    vi.advanceTimersByTime(1500);
+    await vi.runAllTimersAsync();
+    expect(mocks.showMessageBox).toHaveBeenCalledTimes(2);
+    await vi.runAllTimersAsync();
+    expect(window.close).toHaveBeenCalledOnce();
+  });
+
+  it("does not open a second native dialog when quit is clicked twice while the first is open", async () => {
+    const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
+    let resolveDialog!: (value: { response: number }) => void;
+    mocks.showMessageBox.mockReturnValueOnce(new Promise<{ response: number }>((resolve) => { resolveDialog = resolve; }));
+    installWindowCloseConfirmation(window as never);
+    window.emit("close", { preventDefault: vi.fn() });
+    window.emit("close", { preventDefault: vi.fn() });
+    vi.advanceTimersByTime(1500);
+    await vi.runAllTimersAsync();
+    expect(mocks.showMessageBox).toHaveBeenCalledOnce();
+    resolveDialog({ response: 1 });
+    await vi.runAllTimersAsync();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
+  it("keeps the window open at the ACK deadline, guarding against force-close mutation", () => {
+    const window = new FakeWindow();
+    mocks.fromWebContents.mockReturnValue(window);
+    installWindowCloseConfirmation(window as never);
+    window.emit("close", { preventDefault: vi.fn() });
+    vi.advanceTimersByTime(1499);
+    expect(window.close).not.toHaveBeenCalled();
+    expect(mocks.showMessageBox).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(window.close).not.toHaveBeenCalled();
+    expect(mocks.showMessageBox).toHaveBeenCalledOnce();
   });
 });
