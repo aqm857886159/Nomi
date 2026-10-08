@@ -83,6 +83,7 @@ import { createProjectInteractionCapture } from "./assets/projectInteractionCapt
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
 import { installQuitTeardown, registerQuitDrain, requestQuit } from "./quitTeardown";
+import { quitTeardownLogSinks } from "./quitTeardownLog";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
@@ -672,14 +673,6 @@ installQuitTeardown(app, {
   stopDesktopCapabilityCore,
   disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
   abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
-  onError: (stage, error) => {
-    if (error instanceof Error) return logError("main", `quit-${stage}`, error);
-    // Timeouts and counts arrive as plain fields; log them as fields, not as "[object Object]".
-    const fields = error && typeof error === "object" ? Object.fromEntries(Object.entries(error).map(([key, value]) => [key, typeof value === "number" || typeof value === "boolean" ? value : String(value)])) : undefined;
-    if (stage === "exports-aborted") logInfo("export", "aborted-on-quit", fields);
-    else logWarn("main", `quit-${stage}`, fields);
-  },
-  // quit-step per drain and one quit-exit receipt (tests/ux/quit-teardown-real.e2e.mjs reads them).
-  onReceipt: (event, fields) => logInfo("main", event, fields),
+  ...quitTeardownLogSinks, // 失败按字段记；每步 quit-step、结束一条 quit-exit 回执
   systemSession: { platform: process.platform, powerMonitor: () => powerMonitor }, // Windows 关机/注销不发 will-quit
 });
