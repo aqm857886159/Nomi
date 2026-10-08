@@ -158,6 +158,15 @@ type LauncherEntry = {
   env: Record<string, string>
 }
 
+export type McpLauncherRuntimeOverride = {
+  appCommand: string
+  appArgs: string[]
+  launcherCommand: string
+  launcherScript: string
+  kind?: McpLauncherKind
+  settingsDir: string
+}
+
 function packagedNodeLauncherPaths(appCommand: string): Pick<LauncherEntry, 'command' | 'args'> {
   const joinPortable = (...parts: string[]): string => {
     const first = String(parts[0] || '')
@@ -223,8 +232,20 @@ function launcherEntry(): LauncherEntry {
  * nomi MCP server 条目：用包内 Node helper 跑 stdio 桥；桥只在需要时启动 GUI 主进程。
  * 三个客户端拿到同一个启动器，但各自有独立签名 proof，GUI RPC 仍负责最终鉴权和付费硬闸。
  */
-export function mcpServerEntry(client?: McpClientKey): McpServerEntry {
-  const launcher = launcherEntry()
+export function mcpServerEntry(client?: McpClientKey, runtime?: McpLauncherRuntimeOverride): McpServerEntry {
+  const launcher = runtime
+    ? {
+        command: runtime.launcherCommand,
+        args: [runtime.launcherScript],
+        kind: runtime.kind ?? 'development',
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+          NOMI_MCP_APP_COMMAND: runtime.appCommand,
+          NOMI_MCP_APP_ARGS: JSON.stringify(runtime.appArgs),
+          NOMI_SETTINGS_DIR: runtime.settingsDir,
+        },
+      }
+    : launcherEntry()
   const env: Record<string, string> = {
     ...launcher.env,
     NOMI_MCP_STDIO: '1',

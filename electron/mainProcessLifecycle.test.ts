@@ -2,21 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
 
 function createApp(isPackaged: boolean) {
-  let beforeQuit: (() => void) | undefined;
+  let willQuit: (() => void) | undefined;
   const app = {
     isPackaged,
     exit: vi.fn(),
-    once: vi.fn((event: "before-quit", listener: () => void) => {
-      if (event === "before-quit") beforeQuit = listener;
+    once: vi.fn((event: "will-quit", listener: () => void) => {
+      if (event === "will-quit") willQuit = listener;
       return app;
     }),
   };
-  return { app, beforeQuit: () => beforeQuit?.() };
+  return { app, willQuit: () => willQuit?.() };
 }
 
 describe("installMainProcessLifecycle", () => {
   it("使用启动器显式传入的 PID，覆盖安装前已经被重新托管的竞态", () => {
-    const { app, beforeQuit } = createApp(false);
+    const { app, willQuit } = createApp(false);
     const stop = vi.fn();
     const installCrashHandlers = vi.fn();
     const installProcessStdioErrorGuards = vi.fn();
@@ -39,7 +39,7 @@ describe("installMainProcessLifecycle", () => {
       parentPid: 42,
     }));
 
-    beforeQuit();
+    willQuit();
     expect(stop).toHaveBeenCalledOnce();
   });
 
