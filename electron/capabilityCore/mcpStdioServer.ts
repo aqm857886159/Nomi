@@ -49,6 +49,7 @@ import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } fro
 import type { ModuleRegistry } from './moduleRegistry'
 import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
+import { productionFixtureBaseOriginFromEnv } from '../shared/productionRunE2eFixtureGate'
 import { markSingleShotAttention, markSingleShotCompleted } from '../productionRun/singleShotRunLifecycle'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
@@ -273,9 +274,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     /* 取不到系统 locale → 保持 zh-CN 缺省 */
   }
 
-  const fixtureBaseUrlOverride = process.env.NOMI_E2E_PRODUCTION_FIXTURE === '1'
-    ? process.env.NOMI_E2E_FIXTURE_BASE_URL
-    : undefined
+  const fixtureBaseUrlOverride = productionFixtureBaseOriginFromEnv(process.env)
   const fixtureReferenceUrl = fixtureBaseUrlOverride && process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
     ? process.env.NOMI_E2E_FIXTURE_REFERENCE_URL
     : undefined
