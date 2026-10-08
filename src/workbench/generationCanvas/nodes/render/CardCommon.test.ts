@@ -40,3 +40,23 @@ describe('pending media action', () => {
     expect(plain).not.toContain('derivedReady')
   })
 })
+
+// 用户 10-08：「节点上那个什么试试以及那个大 icon 设计有点丑，可以优化一下吗，排版都不对齐」。
+// 空节点只对齐一条轴（居中）：小号弱色线性图标（不加实心圆底）、动作是一排居中的胶囊按钮、不再有孤零零的「试试」小字、没有斜线底纹。
+describe('empty node layout: one centered axis', () => {
+  it.each(['image', 'video'] as const)('%s: line icon without a solid disc, centered chip row, no orphan label', (kind) => {
+    const out = html({ node: node(kind), selected: false })
+    expect(out).not.toContain('bg-nomi-ink text-nomi-paper')
+    expect(out).not.toContain('rounded-full')
+    expect(out).not.toContain('text-left')
+    expect(out).toContain('justify-center')
+    expect(out).toContain('flex-wrap')
+    expect(out).not.toContain('text-micro text-nomi-ink-40')
+    expect(out).not.toMatch(/<span[^>]*>nodeTry\.label<\/span>/)
+  })
+
+  it('no striped hatch under an empty card (design-system empty surface instead)', async () => {
+    const { previewBackgroundClass } = await import('./previewBackground')
+    expect(String(previewBackgroundClass(false, false))).not.toContain('repeating-linear-gradient')
+  })
+})

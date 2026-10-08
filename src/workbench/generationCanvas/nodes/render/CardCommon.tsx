@@ -18,8 +18,9 @@ import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { NodeTryList } from '../../quickActions/NodeTryList'
 import { nodeTryRecipes } from '../../quickActions/nodeTryRecipes'
 
-export const STRIPED_BG_CLASS =
-  'bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]'
+/** 没出图 / 没放素材的卡面：浅底 + 虚线内描边（设计系统的「空 / 草稿」表达，不画斜线底纹——2026-10-08 用户嫌吵）。 */
+export const EMPTY_SURFACE_CLASS =
+  'bg-nomi-ink-05 outline outline-1 -outline-offset-1 outline-dashed outline-nomi-line'
 
 /**
  * 透明图的棋盘格底（亮 / 暗两套 token 自动跟主题）。只垫在**抠图结果**下面：

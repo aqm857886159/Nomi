@@ -11,11 +11,14 @@ export type NodeEmptyStateProps = {
   compact?: boolean
 }
 
-/** All node kinds share one empty-state rhythm: what this node does (or just its icon), then the next action. */
+/**
+ * All node kinds share one empty-state rhythm, aligned on ONE axis (centered): a small, quiet line icon (no solid disc),
+ * then what this node does (if said), then the next actions. 2026-10-08 用户：「大 icon 设计有点丑…排版都不对齐」。
+ */
 export function NodeEmptyState({ icon, title, description, action, className, compact = false }: NodeEmptyStateProps): JSX.Element {
   return (
-    <div data-node-empty-state="true" className={cn('flex h-full w-full items-center justify-center gap-2 px-4 text-center', compact ? 'py-2' : 'flex-col py-5', className)}>
-      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-nomi-ink text-nomi-paper" aria-hidden="true">
+    <div data-node-empty-state="true" className={cn('flex h-full w-full items-center justify-center px-4 text-center', compact ? 'gap-2 py-2' : 'flex-col gap-3 py-5', className)}>
+      <span className="grid shrink-0 place-items-center text-nomi-ink-40" aria-hidden="true">
         {icon}
       </span>
       {title || description ? (
@@ -24,7 +27,7 @@ export function NodeEmptyState({ icon, title, description, action, className, co
           {description ? <span className="max-w-[22rem] text-caption leading-relaxed text-nomi-ink-60">{description}</span> : null}
         </span>
       ) : null}
-      {action ? <div className="pt-1">{action}</div> : null}
+      {action ? <div className="flex max-w-full justify-center">{action}</div> : null}
     </div>
   )
 }

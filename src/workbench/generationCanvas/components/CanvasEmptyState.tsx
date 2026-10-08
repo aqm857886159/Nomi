@@ -1,10 +1,10 @@
 // 画布空状态（E.2C-24，从 GenerationCanvas 抽出，R9/R12 防巨壳）。
 // 2026-10-08 用户拍板 ③：「添加第一个节点…」那句说明和单个「+ 新建图片」换成一排任务卡——
 // 种类 = 左缘工具条常驻那几样（canvasResidentAddIntents，同一张意图表、同一份用户显隐 / 排序偏好），
-// 点一张 = 工具条上同一个动作（canvasAddIntentActions）。不新增种类，不加「双击画布」入口（Tab / 右键已有）。
+// 视觉语言与空节点「试试」一致（同一个次要胶囊按钮，居中一条轴）。点一个 = 工具条上同一个动作（canvasAddIntentActions）。不新增种类，不加「双击画布」入口（Tab / 右键已有）。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActionCard } from '../../../design'
+import { WorkbenchButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import { canvasResidentAddIntents } from './canvasToolbarModel'
@@ -31,24 +31,23 @@ export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: Can
         '-translate-x-1/2 -translate-y-1/2',
       )}
     >
-      <strong className="text-body text-nomi-ink">
+      <strong className="text-body-sm font-medium text-nomi-ink-60">
         {t('generationCommon.canvas.empty.title', { category: activeCategoryName })}
       </strong>
       {addIntent.pickerInput}
-      <div data-empty-canvas-tasks="true" className="mt-2 flex w-max gap-2">
+      <div data-empty-canvas-tasks="true" className="flex max-w-[34rem] flex-wrap items-center justify-center gap-2">
         {canvasResidentAddIntents(preference).map((intent) => {
           const Icon = intentIcon(intent)
           return (
-            <ActionCard
+            <WorkbenchButton
               key={intent.id}
               data-add-intent={intent.id}
-              icon={<Icon size={18} stroke={1.7} />}
-              title={intentCardLabel(intent, t)}
-              description=""
               aria-label={intentActionLabel(intent, t)}
-              className="h-14 w-auto min-w-[112px] gap-2.5 px-3 [&>span:first-child]:size-8"
               onClick={() => addIntent.run(intent)}
-            />
+            >
+              <Icon size={16} stroke={1.7} />
+              <span>{intentCardLabel(intent, t)}</span>
+            </WorkbenchButton>
           )
         })}
       </div>
