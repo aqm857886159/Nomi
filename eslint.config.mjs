@@ -9,6 +9,13 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import globals from 'globals'
 import prettier from 'eslint-config-prettier'
 
+const windowsPathSelectors = [
+  {
+    selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
+    message: 'Use node:url fileURLToPath for filesystem paths; URL.pathname is not a Windows filesystem path.',
+  },
+]
+
 export default tseslint.config(
   {
     ignores: [
@@ -108,6 +115,12 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
+    // scripts/** 与 tests/ux/** 在上面的全局 ignore 里，本规则管不到；那两处的平台路径问题归门岗换底层线
+    // （在 Windows 上跑通 gates 时一并兜住），见 docs/fixes/2026-10-07-windows-local-gates.root-cause.json。
+    files: ['docs/design/**/*.mjs'],
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors] },
+  },
+  {
     files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -142,6 +155,7 @@ export default tseslint.config(
       'no-irregular-whitespace': 'warn',
       'preserve-caught-error': 'warn',
       'prefer-const': 'warn',
+      'no-restricted-syntax': ['error', ...windowsPathSelectors],
     },
   },
   {

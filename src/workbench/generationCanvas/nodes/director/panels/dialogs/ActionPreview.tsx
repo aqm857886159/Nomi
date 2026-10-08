@@ -1,9 +1,10 @@
 /**
  * [INPUT]: 依赖 react、three、@react-three/fiber（useFrame）、../../../fencedCanvas 的 FencedCanvas（workbench 内禁裸 Canvas）、@react-three/drei（OrbitControls / useGLTF）、three/examples/jsm/utils/SkeletonUtils 的 clone、../../scene/character/mannequinAssets 的 MANNEQUIN_MODEL_URL、
- *          ../../scene/character/mannequinSkeleton（normalizeMannequinModel / applyMannequinSkeletonPose）、../../scene/character/poseClipLibrary（samplePoseClip / poseClipSourceBind / preloadPoseClips）、
- *          ../../scene/character/poseSnapshot（indexBonesByBaseName / bindWorldQuaternionsByBaseName / applyPoseSnapshot / HIPS_BASE_NAME）、../../scene/character/characterRig 的 measureSkeletonExtent、../../scene/sceneTheme 的 PREVIEW_COLORS
- * [OUTPUT]: 对外提供 ActionPreview：动作库弹窗右侧的实时 3D 预览（X Bot + 网格地面 + 三灯 + OrbitControls，
- *           按秒表采样当前动作循环播放；resetSignal 变化即把视角归位到 (0,1.2,2.6) 看 (0,0.9,0)）
+ *          ../../scene/character/mannequinSkeleton（rememberMannequinRestPose / applyMannequinSkeletonPose）、../../scene/character/poseClipLibrary（samplePoseClip / poseClipSourceBind / preloadPoseClips）、
+ *          ../../scene/character/poseSnapshot（indexBonesByBaseName / bindWorldQuaternionsByBaseName / applyPoseSnapshot / HIPS_BASE_NAME）、../../model/directorSpace 的 CHARACTER_HEIGHT、
+ *          ../../model/assetCatalog/ualActions 的 UAL_MANNEQUIN_HEIGHT_M、../../model/actionLibrary 的 findActionEntry、../../scene/sceneTheme 的 PREVIEW_COLORS
+ * [OUTPUT]: 对外提供 ActionPreview：动作库弹窗右侧的实时 3D 预览（默认 UAL 人偶 + 网格地面 + 三灯 + OrbitControls，
+ *           按秒表采样当前动作反复播放：循环动作直接走，单次 / 单帧播完停 1 秒再从头；换动作秒表归零；resetSignal 变化即把视角归位到 (0,1.2,2.6) 看 (0,0.9,0)）
  * [POS]: director/panels/dialogs 的预览小场景：与主视口互不相干（自己的 Canvas / 相机 / 灯），采样与套骨走和角色实体同一套 poseClipLibrary / poseSnapshot，所见即成片。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,16 +14,17 @@ import { useFrame } from '@react-three/fiber'
 import { FencedCanvas } from '../../../fencedCanvas'
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import { measureSkeletonExtent } from '../../scene/character/characterRig'
 import { PREVIEW_COLORS } from '../../scene/sceneTheme'
 import { MANNEQUIN_MODEL_URL } from '../../scene/character/mannequinAssets'
-import { applyMannequinSkeletonPose, normalizeMannequinModel, rememberMannequinRestPose } from '../../scene/character/mannequinSkeleton'
+import { CHARACTER_HEIGHT } from '../../model/directorSpace'
+import { UAL_MANNEQUIN_HEIGHT_M } from '../../model/assetCatalog/ualActions'
+import { findActionEntry } from '../../model/actionLibrary'
+import { applyMannequinSkeletonPose, rememberMannequinRestPose } from '../../scene/character/mannequinSkeleton'
 import { poseClipSourceBind, preloadPoseClips, samplePoseClip } from '../../scene/character/poseClipLibrary'
 import { applyPoseSnapshot, bindWorldQuaternionsByBaseName, HIPS_BASE_NAME, indexBonesByBaseName } from '../../scene/character/poseSnapshot'
 
 const CAMERA_POSITION = new THREE.Vector3(0, 1.2, 2.6)
 const CAMERA_TARGET = new THREE.Vector3(0, 0.9, 0)
-const CHARACTER_HEIGHT = 1.8
 
 function PreviewCharacter({ actionId, onReady }: { actionId: string; onReady: () => void }): JSX.Element {
   const { scene } = useGLTF(MANNEQUIN_MODEL_URL)
@@ -31,17 +33,15 @@ function PreviewCharacter({ actionId, onReady }: { actionId: string; onReady: ()
     const skeleton = cloneSkinned(scene)
     // 先记 rest（applyMannequinSkeletonPose 的复位靠它；不记就每帧累加基线偏移，预览的人越转越歪——2026-09-04 「动作库的手看起来很奇怪」根因之一）
     rememberMannequinRestPose(skeleton)
-    const root = normalizeMannequinModel(skeleton)
-    applyMannequinSkeletonPose(root)
-    // 与 CharacterEntity 同法：骨骼范围量的是 root 局部（原始单位），乘回 root.scale 才是外层看到的高度
-    const extent = measureSkeletonExtent(root) ?? { minY: -0.5, maxY: 0.5 }
-    const scale = CHARACTER_HEIGHT / Math.max(0.001, (extent.maxY - extent.minY) * root.scale.y)
-    return { root, scale, baseY: -extent.minY * root.scale.y * scale }
+    applyMannequinSkeletonPose(skeleton)
+    // 与 CharacterEntity 同法：UAL 原点就在脚底（ground-min-z），网格实高 = manifest 的 heightM；不按骨骼范围量（UAL 没有头顶末端骨，会量矮、人被放大）
+    return { root: skeleton, scale: CHARACTER_HEIGHT / UAL_MANNEQUIN_HEIGHT_M, baseY: 0 }
   }, [scene])
   const bones = React.useMemo(() => indexBonesByBaseName(model.root), [model.root])
   const bindWorld = React.useMemo(() => bindWorldQuaternionsByBaseName(model.root), [model.root])
   const restHips = React.useMemo(() => bones.get(HIPS_BASE_NAME)?.position.clone() ?? null, [bones])
   const clock = React.useMemo(() => new THREE.Clock(), [])
+  React.useEffect(() => clock.start(), [actionId, clock])
   React.useEffect(() => {
     void preloadPoseClips().then(onReady)
   }, [onReady])
@@ -49,7 +49,10 @@ function PreviewCharacter({ actionId, onReady }: { actionId: string; onReady: ()
     applyMannequinSkeletonPose(model.root)
     const hips = bones.get(HIPS_BASE_NAME)
     if (hips && restHips) hips.position.copy(restHips)
-    const snapshot = samplePoseClip(actionId, clock.getElapsedTime())
+    const entry = findActionEntry(actionId)
+    const elapsed = clock.getElapsedTime()
+    // 单次 / 单帧动作在库里夹在末帧；预览要看得到动作本身，播完停 1 秒再从头
+    const snapshot = samplePoseClip(actionId, entry && entry.kind !== 'loop' ? elapsed % (entry.durationSec + 1) : elapsed)
     const sourceBind = poseClipSourceBind(actionId)
     if (snapshot && sourceBind) applyPoseSnapshot(bones, snapshot, { weight: 1, sourceBind, targetBindWorld: bindWorld, root: model.root, restHips })
   })

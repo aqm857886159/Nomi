@@ -13,6 +13,7 @@ import {
 } from "./hardenedFetch";
 import { OutboundDestinationRefusedError, type OutboundEnvironment } from "./networkOutboundPolicy";
 import { matchNomiErrorCode } from "./shared/nomiErrorCodes";
+import { TestNetworkBlockedError } from "./testNetworkGuard";
 
 const NO_LOCAL_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
 const FAKE_IP_PROXY: OutboundEnvironment = { syntheticResolver: true, syntheticSample: "198.18.0.7" };
@@ -62,6 +63,22 @@ beforeAll(async () => {
 afterAll(() => server?.close());
 
 describe("hardenedFetch 私网边界", () => {
+  it("test network mode blocks hardenedFetch before proxy or DNS dispatch", async () => {
+    const previous = process.env.NOMI_TEST_NETWORK_GUARD;
+    process.env.NOMI_TEST_NETWORK_GUARD = "1";
+    const fetchImpl = vi.fn();
+    try {
+      await expect(hardenedFetch("https://raw.githubusercontent.com/example/prompts", {}, {
+        fetch: fetchImpl,
+        resolveHost: vi.fn(),
+      })).rejects.toBeInstanceOf(TestNetworkBlockedError);
+      expect(fetchImpl).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) delete process.env.NOMI_TEST_NETWORK_GUARD;
+      else process.env.NOMI_TEST_NETWORK_GUARD = previous;
+    }
+  });
+
   it("默认继续拒绝 loopback", async () => {
     await expectOutboundRefusal(hardenedFetch(`${baseUrl}/view`), "private-host");
   });

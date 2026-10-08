@@ -9,6 +9,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 import { discardedCommandOffenders } from './control-contract-discarded-commands.mjs'
 import { copyOffenders } from './control-contract-copy.mjs'
@@ -243,7 +244,7 @@ export function Panel({ text }: { text: string }) {
 })
 
 it('全仓没有被静默丢弃的命令', async () => {
-  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const src = path.join(root, 'src')
   const files = []
   const walk = (dir) => {
@@ -371,7 +372,7 @@ it('说明文字不是标签：带句读的、以 Hint/Description 结尾的键�
 })
 
 it('全仓控件文案违规不超过棘轮基线', async () => {
-  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const files = []
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

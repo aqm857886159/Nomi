@@ -11,10 +11,10 @@
 import React, { type JSX } from 'react'
 import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
-import { IconKey, IconExternalLink } from '@tabler/icons-react'
+import { IconExternalLink } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { confirmDialog, VendorLogoImage } from '../../design'
+import { confirmDialog, DecisionBar, VendorLogoImage } from '../../design'
 import type { KnownVendor } from '../../config/knownVendors'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
@@ -230,36 +230,19 @@ export function VendorOnboardCard({
                   {field.hint ? <div className="text-micro text-nomi-ink-40">{field.hint}</div> : null}
                 </div>
               ))}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleUnlock}
-                  disabled={busy}
-                  className={cn(
-                    'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
-                    'text-body-sm font-semibold inline-flex items-center gap-1.5',
-                    'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
-                  )}
-                >
-                  <IconKey size={14} stroke={1.6} />
-                  {t('onboardingProviders.vendorCard.unlock')}
-                </button>
-                {hasApiKey ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    disabled={busy}
-                    className="text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                ) : null}
-              </div>
+              <DecisionBar
+                cancelLabel={hasApiKey ? t('common.cancel') : undefined}
+                onCancel={() => setEditing(false)}
+                cancelDisabled={busy}
+                primaryLabel={t('onboardingProviders.vendorCard.unlock')}
+                onPrimary={handleUnlock}
+                primaryDisabled={busy}
+              />
             </div>
           ) : (
             // 单段凭证：输入框 + 解锁按钮同排（绝大多数家）。
             <>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   ref={credentialInputRef}
                   data-model-connection-field="apiKey"
@@ -273,35 +256,21 @@ export function VendorOnboardCard({
                   }}
                   disabled={busy}
                   className={cn(
-                    'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+                    'min-w-[10rem] flex-[1_1_10rem] h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
                     'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40',
                     'outline-none focus:border-nomi-accent',
                   )}
                 />
-                <button
-                  type="button"
-                  onClick={handleUnlock}
-                  disabled={busy}
-                  className={cn(
-                    'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
-                    'text-body-sm font-semibold inline-flex items-center gap-1.5',
-                    'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
-                  )}
-                >
-                  <IconKey size={14} stroke={1.6} />
-                  {t('onboardingProviders.vendorCard.unlock')}
-                </button>
+                <DecisionBar
+                  inline
+                  cancelLabel={hasApiKey ? t('common.cancel') : undefined}
+                  onCancel={() => setEditing(false)}
+                  cancelDisabled={busy}
+                  primaryLabel={t('onboardingProviders.vendorCard.unlock')}
+                  onPrimary={handleUnlock}
+                  primaryDisabled={busy}
+                />
               </div>
-              {hasApiKey ? (
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  disabled={busy}
-                  className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
-                >
-                  {t('common.cancel')}
-                </button>
-              ) : null}
             </>
           )}
           <div className="text-caption text-nomi-ink-40">

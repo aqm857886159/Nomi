@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import regressionPlans from './directorPlanCompiler.regressions.json'
 import { compileDirectorPlan } from './directorPlanCompiler'
+import { findActionEntry } from '../actionLibrary'
 import {
   measureContinuity,
   recognizeCameraMotion,
@@ -134,7 +135,7 @@ describe('S1 director compiler', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const woman = result.project.scenes[0].objects.find((object) => object.id === result.actorMap.woman)!
-    expect([...new Set(woman.actionClips?.map((clip) => clip.actionPose))]).toEqual(['standard_walk', 'standing_idle'])
+    expect([...new Set(woman.actionClips?.map((clip) => clip.actionPose))]).toEqual(['Walk_Loop', 'Idle_Loop'])
     expect(woman.actionClips?.some((clip) => clip.actionPose === 'hide_object_behind_back')).toBe(false)
     expect(result.issues.some((issue) => issue.kind === 'missing_asset')).toBe(true)
   })
@@ -162,6 +163,17 @@ describe('S1 director compiler', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(measureContinuity(sampleDirectorProject(result.project, { duration: result.duration, anchors: result.anchors }), result.project.scenes[0])).toEqual([])
+  })
+  // 回归计划是 10-04 真实规划器的原样输出（还写着旧 Mixamo 动作 id standing_idle）：不重录（重录要再调一次付费模型），
+  // 正好钉住「旧 id 经别名表编进 UAL 动作库」——编出来的工程里每个动作都是库里的条目，人默认 rig 是 ual
+  it.each(regressionPlans)('R3 regression $source: legacy action ids compile into UAL library entries', ({ plan }) => {
+    const result = compileDirectorPlan(plan)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const characters = result.project.scenes[0].objects.filter((object) => object.type === 'character')
+    for (const character of characters) {
+      for (const clip of character.actionClips ?? []) expect(findActionEntry(clip.actionPose ?? ''), clip.actionPose).toBeDefined()
+    }
   })
   it('stands on one ground height and never inside a solid: the gate scene', () => {
     const result = compileDirectorPlan(S1_ORACLE_PLANS['courtyard-standoff'])
@@ -192,6 +204,10 @@ describe('S1 director compiler', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const scene = result.project.scenes[0]
+    // 旧 Mixamo 动作 id（规划器 / 旧回归里还写着 standing_idle）经别名表解析成 UAL 动作，不报缺资产
+    const guard = scene.objects.find((object) => object.id === result.actorMap.guard)!
+    expect(guard.actionClips?.some((clip) => clip.actionPose === 'Idle_Loop' && clip.startTime === 0)).toBe(true)
+    expect(guard.actionClips?.some((clip) => clip.actionPose === 'standing_idle')).toBe(false)
     const frames = sampleDirectorProject(result.project, { duration: result.duration }).frames
     const before = frames.find((frame) => frame.time === 6)!.objects[result.actorMap.guard].position
     const after = frames.find((frame) => frame.time > 6)!.objects[result.actorMap.guard].position

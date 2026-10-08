@@ -14,7 +14,7 @@ import {
 import type { Direction, DirectorCard } from './cardSchema'
 import { bindCardEntities } from './binding'
 import type { AnchorSpec } from '../../src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement'
-import { findActionEntry } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
+import { ACTION_LIBRARY, resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
 
 /** `null` = the card does not constrain this layer, so it is left out of the total (spec: unconstrained fields are not scored). */
 export type LayerScores = {
@@ -109,23 +109,21 @@ function findObject(scene: DirectorScene, key: string): DirectorObject | undefin
   )
 }
 
+// 尺子按「动作词」查动作库（经别名表），不手抄具体动作 id；动作库换了（2026-10-07 Mixamo → UAL）尺子自动跟着走
+const actionIdFor = (word: string): string => resolveActionAlias(word)?.id ?? word
 const MOVEMENT_ACTION_BY_VERB = {
-  walk_to: 'standard_walk',
-  run_to: 'running',
-  sidestep_block: 'standard_walk',
-  drive_along: 'standard_walk',
-  chase: 'running',
+  walk_to: actionIdFor('walk'),
+  run_to: actionIdFor('run'),
+  sidestep_block: actionIdFor('walk'),
+  drive_along: actionIdFor('walk'),
+  chase: actionIdFor('chase'),
 } as const
-const STATIC_ACTION_IDS = new Set([
-  'standing_idle',
-  'kneeling_idle',
-  'tpose',
-  'male_sitting_pose_1',
-  'male_sitting_pose',
-])
+const IDLE_ACTION_ID = actionIdFor('idle')
+/** 「停住」可接受的动作 = 原地不走的：非位移类、且不是播完就结束的单次动作（循环待机 / 坐 / 蹲、单姿势、T-Pose） */
+const STATIC_ACTION_IDS = new Set(ACTION_LIBRARY.filter((entry) => !entry.tags.includes('locomotion') && entry.kind !== 'once').map((entry) => entry.id))
 
 function actionClipCovers(scene: DirectorScene, objectId: string, window: [number, number], actionId: string): boolean {
-  if (!findActionEntry(actionId)) return false
+  if (!resolveActionAlias(actionId)) return false
   const object = scene.objects.find((candidate) => candidate.id === objectId)
   if (!object || object.type !== 'character') return true
   return (object.actionClips ?? []).some(
@@ -147,11 +145,13 @@ function actionEvidence(
   if (action.verb === 'hide_object_behind_back') return { ok: false, missingAsset: 'hide_object_behind_back' }
   if (action.verb === 'hold_pose') {
     const actionId = action.action
-    if (!actionId || !findActionEntry(actionId)) return { ok: false, missingAsset: actionId ?? 'hold_pose' }
-    return { ok: actionClipCovers(scene, objectId, window, actionId), missingAsset: actionId }
+    // 规划器 schema 归一会把动作词小写化（electron/shared/director/directorPlanSchema），动作 id / 别名一律经动作库解析，与编译器同口径
+    const resolved = actionId ? resolveActionAlias(actionId)?.id : undefined
+    if (!resolved) return { ok: false, missingAsset: actionId ?? 'hold_pose' }
+    return { ok: actionClipCovers(scene, objectId, window, resolved), missingAsset: resolved }
   }
   if (action.verb === 'stop') {
-    const actionId = action.action && findActionEntry(action.action) ? action.action : 'standing_idle'
+    const actionId = (action.action ? resolveActionAlias(action.action)?.id : undefined) ?? IDLE_ACTION_ID
     const ok = STATIC_ACTION_IDS.has(actionId) && actionClipCovers(scene, objectId, window, actionId)
     return { ok, missingAsset: actionId }
   }
@@ -224,7 +224,7 @@ export function scoreBlocking(
     if (ok) good++
     else if (
       action.capability === 'missing_asset' ||
-      (evidence.missingAsset && !findActionEntry(evidence.missingAsset))
+      (evidence.missingAsset && !resolveActionAlias(evidence.missingAsset))
     ) {
       // A card-declared unavailable capability is recorded as a partial oracle result, not a silent zero.
       good += 0.6

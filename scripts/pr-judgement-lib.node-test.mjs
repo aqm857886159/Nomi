@@ -95,7 +95,7 @@ test('证据行判据：链接 / 路径 / 截图 / 运行号 / PR 号算；「�
 
 test('验收证据：必交证据取并集；缺条目红；条目没证据红；未验证:工具未建 接受并列出缺口', () => {
   const req = requiredEvidence(['ui', 'spend'], table).map((item) => item.id)
-  assert.deepEqual(req, ['ui-mockup', 'ui-click-census', 'ui-capability-unavailable', 'ui-ai-walk', 'ui-screens', 'spend-paid-sample', 'spend-fault-injection'])
+  assert.deepEqual(req, ['ui-mockup', 'ui-click-census', 'ui-capability-unavailable', 'ui-ai-walk', 'ui-screens', 'spend-walks', 'spend-paid-sample', 'spend-fault-injection'])
   const none = checkRoutingEvidence('## 设计卡\nx', ['ui'], table)
   assert.equal(none.ok, false)
   assert.match(none.lines.join('\n'), /ui-mockup/)
@@ -124,7 +124,7 @@ test('整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿�
   const files = [M('electron/spendLedger.ts')]
   const bad = checkRouting('## 设计卡\nx', inferRoutes(files, '', table), table)
   assert.equal(bad.ok, false)
-  const good = '## 设计卡\n### 功能分类\n- [x] 花钱\n\n## 验收证据\n- spend-paid-sample：run 987654\n- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs\n'
+  const good = '## 设计卡\n### 功能分类\n- [x] 花钱\n\n## 验收证据\n- spend-walks：tests/ux/agent-spend-card.walk.mjs\n- spend-paid-sample：run 987654\n- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs\n'
   assert.equal(checkRouting(good, inferRoutes(files, '', table), table).ok, true)
   const after = evaluatePrJudgement({ body: '## 设计卡\nx', files, createdAt: '2026-10-08T00:00:00Z', table })
   assert.equal(after.blocked, true)
@@ -198,7 +198,7 @@ test('端到端：临时 git 仓库里跑 CI 脚本——没勾分类 / 缺证�
   assert.match(red.stdout, /scripts\/check-x\.mjs/)
   const full = [
     '## 设计卡', '### 功能分类', '- [x] 花钱',
-    '## 验收证据', '- spend-paid-sample：run 987654', '- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs',
+    '## 验收证据', '- spend-walks：tests/ux/agent-spend-card.walk.mjs', '- spend-paid-sample：run 987654', '- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs',
     '## 碰到的规则与门岗', '- scripts/check-x.mjs：改了判据',
   ].join('\n')
   const green = run(full)

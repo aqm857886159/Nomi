@@ -6,10 +6,11 @@ import { chromium } from 'playwright'
 import postcss from 'postcss'
 import tailwind from 'tailwindcss'
 import loadConfig from 'tailwindcss/loadConfig.js'
+import { fileURLToPath } from 'node:url'
 const output = new URL('../../.tmp/focus-evidence/', import.meta.url)
 await fs.mkdir(output, { recursive: true })
 const fixture = await fs.readFile(new URL('./fixtures/focus-indication/controls.html', import.meta.url), 'utf8')
-const config = loadConfig(new URL('../../tailwind.config.ts', import.meta.url).pathname)
+const config = loadConfig(fileURLToPath(new URL('../../tailwind.config.ts', import.meta.url)))
 const { css } = await postcss([tailwind({ ...config, content: [{ raw: fixture }] })]).process('@tailwind base; @tailwind utilities;', { from: undefined })
 const browser = await chromium.launch()
 const report = { negativeFixtures: [], themes: [], failures: [] }
@@ -84,7 +85,7 @@ try {
       entries.push({ id, keyboard, mouse })
     }
     report.themes.push({ theme, entries })
-    await page.screenshot({ path: new URL(`${theme}-controls.png`, output).pathname, fullPage: true })
+    await page.screenshot({ path: fileURLToPath(new URL(`${theme}-controls.png`, output)), fullPage: true })
   }
 } finally { await browser.close() }
 await fs.writeFile(new URL(process.env.FOCUS_EXPECT_RED ? 'matrix-red.json' : 'matrix-green.json', output), JSON.stringify(report, null, 2))

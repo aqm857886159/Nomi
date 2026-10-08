@@ -34,14 +34,14 @@ describe('single-shot observation outlives the provider', () => {
     else vi.stubEnv("NOMI_POLL_TIMEOUT_MS", previousHorizon)
   })
 
-  function setup() {
+  function setup(status: ProductionRun['status'] = 'running') {
     let providerDone = false
-    let current = pollingRun()
+    let current: ProductionRun = { ...pollingRun(), status }
     const submission = {
       start: vi.fn(),
       poll: vi.fn(async () => ({ operationId: 'run-1', runId: 'run-1', jobId: 'job-1', providerTaskId: 'task-1', providerStatus: providerDone ? 'completed' : 'processing', nextAction: providerDone ? 'materialize' as const : 'poll' as const })),
       materialize: vi.fn(async () => {
-        current = pollingRun('ready')
+        current = { ...pollingRun('ready'), status }
         return { operationId: 'run-1', runId: 'run-1', jobId: 'job-1', providerTaskId: 'task-1', artifactId: 'art-1', contentHash: 'h', nextAction: 'completed' as const }
       }),
       resume: vi.fn(),
@@ -62,6 +62,19 @@ describe('single-shot observation outlives the provider', () => {
     expect(submission.materialize).not.toHaveBeenCalled()
 
     finishAtProvider() // 供应商那边出片了——在第一次观察窗之后
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(submission.poll.mock.calls.length).toBeGreaterThan(pollsInFirstWindow)
+    expect(submission.materialize).toHaveBeenCalledTimes(1)
+    expect(submission.start).not.toHaveBeenCalled()
+    drivers.stop()
+  })
+
+  it('Run 已取消、那一镜还在供应商那边（钱已花出）→ 照样歇一会儿接着问，出片落进项目（以前取消了就没人再问）', async () => {
+    const { submission, drivers, finishAtProvider } = setup('cancelled')
+    drivers.observeSingleShotRun(submission as never, 'proj-1', 'run-1')
+    await vi.advanceTimersByTimeAsync(HORIZON_MS + 1_000)
+    const pollsInFirstWindow = submission.poll.mock.calls.length
+    finishAtProvider()
     await vi.advanceTimersByTimeAsync(60_000)
     expect(submission.poll.mock.calls.length).toBeGreaterThan(pollsInFirstWindow)
     expect(submission.materialize).toHaveBeenCalledTimes(1)
@@ -121,10 +134,18 @@ describe('batch scheduler kicks', () => {
     built.stop()
   })
 
-  it.each(['paused', 'completed', 'cancelled'] as const)('%s 的批次不自动续', (status) => {
-    const { built, runToQuiescence } = drivers(() => batchRun(status))
+  it.each(['paused', 'completed', 'cancelled'] as const)('%s 的批次、手上没有在供应商那边的活：不自动续', (status) => {
+    const { built, runToQuiescence } = drivers(() => ({ ...batchRun(status), jobs: batchRun(status).jobs.map((job) => ({ ...job, status: 'adopted' as const })) }))
     built.kickSchedulerForRun('proj-1', 'run-1')
     expect(runToQuiescence).not.toHaveBeenCalled()
+    built.stop()
+  })
+
+  // 停着只是不派新的；已经交给供应商、钱已花出的那几件要有人盯到收尾（取消后的慢镜头、已暂停里点「重新取回」的那一镜）。
+  it.each(['paused', 'cancelled'] as const)('%s 的批次、手上还有在供应商那边的活：照样驱动（只盯不派，派不派由调度派生判）', (status) => {
+    const { built, runToQuiescence } = drivers(() => batchRun(status))
+    built.kickSchedulerForRun('proj-1', 'run-1')
+    expect(runToQuiescence).toHaveBeenCalledTimes(1)
     built.stop()
   })
 

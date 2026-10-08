@@ -7,14 +7,15 @@
 // 工具层是**真的**（`createLaneTools` + 声明上的 prepareArguments + pi 校验 + 真返回信封 `User sees:`），
 // 只有领域端口是夹具（画布/文稿/时间轴/生成域返回固定事实）；模型是真的（DeepSeek 官方端点）。
 // 密钥只从环境变量读，绝不打印、绝不落盘。产出：results.json + summary.md（数字进 PR 正文）。
-/* global process, console, URL, fetch */
+/* global process, console, fetch */
 // 跑法：`npx tsx tests/system/agent-tool-face-real-model.mjs`（lane 运行时是 ESM 原生 .mts，要走 tsx 的 ESM loader）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { validateToolArguments } from '@earendil-works/pi-ai'
 import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context'
 
-const here = path.dirname(new URL(import.meta.url).pathname)
+import { fileURLToPath } from 'node:url'
+const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..', '..')
 // 题库可换（`NOMI_R30_BANK`），结果写回题库自己那个目录。**一套 harness 两个题库**，不是两套 harness：
 // 动词面的 42 句和技能面的 22 句量的是同一件事（选对工具 / 入参写对 / 回合成功），

@@ -120,8 +120,8 @@ export const zhAgentPanelV4 = {
 
   // 介入槽
   confirm: '确认',
-  reject: '不要',
-  confirmReject: '确认不要',
+  reject: '取消',
+  confirmReject: '确认拒绝',
   escalate: '不再问 →',
   collapsePlan: '收起 ▴',
   expandPlan: '展开 ▾',
@@ -466,12 +466,12 @@ export const zhAgentPanelV4 = {
   spendConfirmRemainingVideo_one: '生成剩下 {{count}} 段',
   spendConfirmRemainingVideo_other: '生成剩下 {{count}} 段',
   /**
-   * 「生成剩下 N 张」正在一张一张走（2026-10-02）：标题说到第几张了，动作行只说怎么停（右上那颗 × 就是停下）。
-   * 点了 × 之后、宿主停稳之前：说正在停，已经发出去的照常生成（钱撤不回来，不装作能撤）。
+   * 「生成剩下 N 张」正在一张一张走（2026-10-02）：标题说到第几张了，动作行只说怎么停（「取消」就是停下）。
+   * 点了「取消」之后、宿主停稳之前：说正在停，已经发出去的照常生成（钱撤不回来，不装作能撤）。
    */
   spendBatchProgressImage: '正在发出 {{current}}/{{total}} 张',
   spendBatchProgressVideo: '正在发出 {{current}}/{{total}} 段',
-  spendBatchStopHint: '按 × 停下剩下的',
+  spendBatchStopHint: '点「取消」停下剩下的',
   spendBatchStopping: '正在停下…',
   spendBatchStoppingHint: '已经发出的照常生成',
   /** 停下之后那一句（卡这时已经关了）：批下去几张、没发几张，只说事实。 */
@@ -479,7 +479,7 @@ export const zhAgentPanelV4 = {
   spendBatchStoppedImage_other: '发出了 {{sent}} 张，剩下 {{count}} 张没发。',
   spendBatchStoppedVideo_one: '发出了 {{sent}} 段，剩下 {{count}} 段没发。',
   spendBatchStoppedVideo_other: '发出了 {{sent}} 段，剩下 {{count}} 段没发。',
-  spendParamsDecline: '不要',
+  spendParamsDecline: '取消',
   /** 卡上有没提交的手改时，× 先问这一句（D4：撤什么、丢什么，明着说）。 */
   /** 宿主拒绝这一下时的兜底句（它通常自己带一句更具体的，那句优先）。按了没反应是最贵的一种沉默。 */
   spendActionFailed: '暂时无法确认这一步的结果，请查看任务状态后再操作。',
@@ -497,7 +497,7 @@ export const zhAgentPanelV4 = {
   autoModeConfirmTitle: '切到「全自动」？',
   autoModeConfirmBody: '之后可撤销的改动 Nomi 直接做，**付费生成也会直接跑、不再逐笔给你看报价**——这一次确认就是你对它们的授权。不可逆的操作仍然每次问。',
   autoModeConfirmOk: '切到全自动',
-  autoModeConfirmCancel: '不用',
+  autoModeConfirmCancel: '取消',
   autoModeBannerNote: '付费生成会直接跑，不可逆仍会问',
   autoModeBannerRevert: '回到自动改',
   /** 叉掉这一条（2026-09-10 用户：可以叉掉，一直放占空间）。 */
@@ -636,8 +636,8 @@ export const enAgentPanelV4 = {
   undo: 'Undo',
 
   confirm: 'Confirm',
-  reject: 'No',
-  confirmReject: 'Confirm no',
+  reject: 'Cancel',
+  confirmReject: 'Confirm decline',
   escalate: "Don't ask again →",
   collapsePlan: 'Collapse ▴',
   expandPlan: 'Expand ▾',
@@ -936,14 +936,14 @@ export const enAgentPanelV4 = {
   spendConfirmRemainingVideo_other: 'Generate remaining {{count}}',
   spendBatchProgressImage: 'Sending {{current}} of {{total}} images',
   spendBatchProgressVideo: 'Sending {{current}} of {{total}} videos',
-  spendBatchStopHint: 'Press × to stop the rest',
+  spendBatchStopHint: 'Cancel to stop the rest',
   spendBatchStopping: 'Stopping…',
   spendBatchStoppingHint: 'The ones already sent keep generating',
   spendBatchStoppedImage_one: 'Sent {{sent}} of {{total}} images; the last one was not sent.',
   spendBatchStoppedImage_other: 'Sent {{sent}} of {{total}} images; the other {{count}} were not sent.',
   spendBatchStoppedVideo_one: 'Sent {{sent}} of {{total}} videos; the last one was not sent.',
   spendBatchStoppedVideo_other: 'Sent {{sent}} of {{total}} videos; the other {{count}} were not sent.',
-  spendParamsDecline: 'No',
+  spendParamsDecline: 'Cancel',
   spendActionFailed: 'The outcome could not be confirmed. Check the task status before trying again.',
   spendActionNotStarted: 'That did not go through. Nomi has not started generating — adjust it and press again.',
   spendActionNotStartedLocked: 'That did not go through. Nomi has not started generating. This card can\'t be changed right now: close it with × and tell Nomi what to change, and it will draft it again.',
@@ -954,7 +954,7 @@ export const enAgentPanelV4 = {
   autoModeConfirmTitle: 'Switch to Full auto?',
   autoModeConfirmBody: 'Nomi will make undoable edits directly and **paid generation will run without showing you a quote each time** — this confirmation is your authorisation for them. Irreversible actions are still confirmed every time.',
   autoModeConfirmOk: 'Switch to full auto',
-  autoModeConfirmCancel: 'Not now',
+  autoModeConfirmCancel: 'Cancel',
   autoModeBannerNote: 'Paid generation runs directly; irreversible still asks',
   autoModeBannerRevert: 'Back to Auto-edit',
   autoModeBannerDismiss: 'Hide this reminder',

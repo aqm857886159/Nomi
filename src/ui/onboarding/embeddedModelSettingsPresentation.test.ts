@@ -60,7 +60,7 @@ describe('embedded model settings presentation', () => {
     expect(editor).toContain('sm:flex-1')
     expect(editor).toContain('const requestClose = React.useCallback')
     expect(editor).toContain('onBack={() => { void requestClose() }}')
-    expect(editor).toContain('onClick={() => { void requestClose() }}')
+    expect(editor).toContain('onCancel={() => { void requestClose() }}')
     expect(editor).toContain('testResultRef.current?.scrollIntoView')
   })
 
