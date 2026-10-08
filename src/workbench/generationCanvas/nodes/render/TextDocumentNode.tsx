@@ -94,7 +94,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
     landSelectionRewrite(node.id, resultId, text && editor ? editor.getJSON() as unknown as TiptapDocJson : null)
   }, [resultId, pendingApplyId, node.id, node.result?.text, tools, editor])
 
-  // 「试试 · 写脚本」等配方要把光标放进正文（nodes/nodePromptFocus）。
+  // 配方 / 节点提示词聚焦请求要把光标放进正文（nodes/nodePromptFocus）。
   const focusEditor = React.useMemo(() => (editor ? () => {
     if (editor.isDestroyed) return false
     editor.commands.focus('end')
@@ -174,7 +174,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
           {showPlaceholder && !isFocused ? (
             // 2026-10-08 拍板 ③：空文本卡用「试试」替换那句说明。外层不接指针（点空白处照样落进正文去写），只有列表项能点。
             <div className="pointer-events-none absolute inset-0">
-              <NodeEmptyState icon={<IconWriting size={20} stroke={1.6} />} action={<NodeTryList node={node} />} />
+              <NodeEmptyState icon={<IconWriting size={18} stroke={1.5} />} title={t('canvas.nodeKinds.text')} description={t('generationCommon.nodeTry.status.text')} action={<NodeTryList node={node} />} />
             </div>
           ) : null}
           <EditorContent editor={editor} />

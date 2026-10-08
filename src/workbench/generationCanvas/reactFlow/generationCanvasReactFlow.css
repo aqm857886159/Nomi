@@ -220,12 +220,7 @@
 
 .generation-canvas-react-flow .react-flow__edge-path {
   stroke: var(--nomi-accent);
-  stroke-width: 2;
-}
-
-.generation-canvas-react-flow .generation-canvas-react-flow__edge--selected {
-  stroke: var(--nomi-accent);
-  stroke-width: 3;
+  stroke-width: 1.5;
 }
 
 .generation-canvas-react-flow .react-flow__controls,

@@ -17,14 +17,14 @@ import { addDownstreamNode, addUpstreamNodes, runAsSingleUndoStep } from './node
 export type NodeTryRecipeId =
   | 'image.text' | 'image.reference'
   | 'video.firstFrame' | 'video.firstLast' | 'video.text'
-  | 'text.write' | 'text.toImage' | 'text.toVideo'
+  | 'text.toImage' | 'text.toVideo'
 
 export type NodeTryRecipe = {
   id: NodeTryRecipeId
   /** i18n 键（generationCommon.nodeTry.*）。 */
   labelKey: string
-  /** 行首图标：这一步要接进来 / 生成出的那一类；'write' = 直接写。 */
-  icon: GenerationNodeKind | 'write'
+  /** 这一步要接进来 / 生成出的那一类（配方数据的一部分；目前的纯文字按钮不画它）。 */
+  icon: GenerationNodeKind
 }
 
 type RecipeDefinition = NodeTryRecipe & {
@@ -70,6 +70,11 @@ function addFrames(node: GenerationCanvasNode, found: { archetype: ModelArchetyp
   addUpstreamNodes(node.id, 'image', modes)
 }
 
+/**
+ * 类型 → 「试试」动作列表：**唯一的一张表**，组件（NodeTryList）只读它，改某类节点的动作只改这里那一行。
+ * 文本这一行是**过渡态**（用户 10-08 23:00Z）：先只放现在就能用的「拿它生图 · 拿它生视频」；剧本归创作页，不放跳转链接；
+ * 文本节点线第 2 步（左环 + 加工框）落地时，由它把这一行换成「扩写成提示词 · 看图写描述 · 拆成多条」。
+ */
 const RECIPES: Record<'image' | 'video' | 'text', readonly RecipeDefinition[]> = {
   image: [
     {
@@ -105,7 +110,6 @@ const RECIPES: Record<'image' | 'video' | 'text', readonly RecipeDefinition[]> =
     },
   ],
   text: [
-    { id: 'text.write', labelKey: 'generationCommon.nodeTry.text.write', icon: 'write', available: () => true, run: () => undefined },
     {
       id: 'text.toImage', labelKey: 'generationCommon.nodeTry.text.toImage', icon: 'image',
       available: (node) => feeds(node, 'image'),
@@ -136,11 +140,6 @@ export function runNodeTryRecipe(nodeId: string, recipeId: NodeTryRecipeId): voi
   const node = store().nodes.find((candidate) => candidate.id === nodeId)
   const recipe = node ? recipesFor(node.kind).find((candidate) => candidate.id === recipeId) : undefined
   if (!node || !recipe || !recipe.available(node)) return
-  if (recipe.id === 'text.write') {
-    store().selectNode(node.id)
-    requestNodePromptFocus(node.id)
-    return
-  }
   const before = new Set(store().nodes.map((candidate) => candidate.id))
   runAsSingleUndoStep(`node-try-${recipe.id}-${Date.now()}`, () => recipe.run(node))
   const downstream = node.kind === 'text' ? store().nodes.find((candidate) => !before.has(candidate.id)) : undefined

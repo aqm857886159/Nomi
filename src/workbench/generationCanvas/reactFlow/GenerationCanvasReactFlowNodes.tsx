@@ -419,13 +419,14 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       data-edge-id={id}
       data-aggregate-group={data?.aggregateGroupId}
       data-active={selected ? 'true' : undefined}
+      data-hovered={hovered && !readOnly ? 'true' : undefined}
       data-incident={incident ? 'true' : undefined}
     >
       <BaseEdge
         id={id}
         path={path}
         interactionWidth={30}
-        className={cn('generation-canvas-v2__edge-path', selected ? 'generation-canvas-react-flow__edge--selected' : undefined)}
+        className="generation-canvas-v2__edge-path"
       />
       {!readOnly ? (
         <path
@@ -451,9 +452,10 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       <circle className="generation-canvas-v2__edge-dot" cx={targetX} cy={targetY} r={3.2} />
       {showDisconnect ? (
         <EdgeDisconnectLayer id={id} labelX={labelX} labelY={labelY} onPointerEnter={enter} onPointerLeave={leave}>
-          {/* 最小图标按钮（设计系统现成的 WorkbenchIconButton，不加额外样式）；最终样子等设计稿。 */}
+          {/* Claude Design 拍板稿 Edges：22px 圆形 × （纸白底、1px 描边 + 轻阴影、灰 12px 图标），悬停变深。 */}
           <WorkbenchIconButton
             size="sm"
+            className="size-[22px] rounded-full bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm ring-1 ring-inset ring-nomi-line hover:bg-nomi-paper hover:text-nomi-ink [&>svg]:size-3"
             data-edge-disconnect=""
             icon={<IconX size={12} stroke={2} aria-hidden="true" />}
             label={disconnectLabel}

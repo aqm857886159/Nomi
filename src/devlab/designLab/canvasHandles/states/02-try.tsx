@@ -50,7 +50,7 @@ export const TRY_STATES: readonly LabState[] = [
   },
   {
     id: 'ch-07-try-text-zh',
-    name: '空文本卡「试试」：写脚本 / 拿它生图 / 拿它生视频',
+    name: '空文本卡「试试」：拿它生图 / 拿它生视频',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx:177',
     coverage: 'shell',
@@ -58,7 +58,7 @@ export const TRY_STATES: readonly LabState[] = [
   },
   {
     id: 'ch-07-try-text-en',
-    name: '空文本卡「试试」：写脚本 / 拿它生图 / 拿它生视频（英文）',
+    name: '空文本卡「试试」：拿它生图 / 拿它生视频（英文）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx:177',
     coverage: 'shell',

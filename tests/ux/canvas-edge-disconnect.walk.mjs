@@ -144,6 +144,19 @@ try {
     expect(await xButton().textContent(), '「×」只有图标、没有文字').toBe('')
     expect(await xButton().getAttribute('aria-label')).toContain(zh ? '断开连接' : 'Disconnect')
     void xProof
+    // Claude Design 拍板稿 Edges：选中 / 悬停这一条线 = 深灰（ink-60）略粗，不是强调色（强调色只给「选中节点的连线」）。
+    const stroke = await win.evaluate(() => {
+      const path = document.querySelector('.generation-canvas-v2__edge[data-edge-id="e-gen"] .generation-canvas-v2__edge-path')
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--nomi-ink-60)'
+      document.body.appendChild(probe)
+      const ink60 = getComputedStyle(probe).color
+      probe.remove()
+      const style = path ? getComputedStyle(path) : null
+      return { stroke: style?.stroke, ink60, width: style?.strokeWidth, opacity: style?.strokeOpacity }
+    })
+    expect(stroke.stroke, JSON.stringify(stroke)).toBe(stroke.ink60)
+    await shot('edge-03-selected-x')
   })
 
   await task('02-selected-node-lines-and-hover-x', async () => {

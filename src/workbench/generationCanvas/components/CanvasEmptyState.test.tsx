@@ -16,6 +16,13 @@ describe('empty canvas task cards', () => {
     expect(shown).toEqual(canvasResidentAddIntents().map((intent) => intent.id))
   })
 
+  it('ends with a 「更多」 tile that opens the same menu as the toolbar 「+」, and says files can be dropped in', () => {
+    const out = html()
+    expect(out).toContain('data-canvas-add-more="true"')
+    expect(out).toContain('aria-haspopup="menu"')
+    expect(out).toContain('generationCommon.canvas.empty.dropHint')
+  })
+
   it('no longer shows the instruction sentence or the single 「+ 新建」 button', () => {
     const out = html()
     expect(out).not.toContain('generationCommon.canvas.empty.description')

@@ -96,8 +96,9 @@ export const zhGenerationCommon = {
     label: '试试',
     image: { text: '文字生图', reference: '参考图生图' },
     video: { firstFrame: '首帧生视频', firstLast: '首尾帧生视频', text: '文字生视频' },
-    text: { write: '写脚本', toImage: '拿它生图', toVideo: '拿它生视频' },
-    clip: { hint: '把视频节点连进来' },
+    text: { toImage: '拿它生图', toVideo: '拿它生视频' },
+    status: { image: '还没生成', video: '还没生成', text: '还没有内容', clip: '还没有片段' },
+    clip: { fromLibrary: '从素材库添加' },
   },
   nodeEmpty: {
     derivedReady: { title: '提示词已填好', description: '选中它，点 ↑ 才开始生成' },
@@ -152,6 +153,7 @@ export const zhGenerationCommon = {
         fallback: '节点',
       },
       title: '这里还没有{{category}}',
+      dropHint: '或者把图片、视频直接拖进来',
     },
     controlsHelp: {
       aria: '画布操作帮助',
@@ -1727,8 +1729,9 @@ export const enGenerationCommon = {
     label: 'Try',
     image: { text: 'Text to image', reference: 'From a reference image' },
     video: { firstFrame: 'First frame to video', firstLast: 'First + last frame', text: 'Text to video' },
-    text: { write: 'Write a script', toImage: 'Make an image from it', toVideo: 'Make a video from it' },
-    clip: { hint: 'Connect video nodes' },
+    text: { toImage: 'Make an image from it', toVideo: 'Make a video from it' },
+    status: { image: 'Not generated yet', video: 'Not generated yet', text: 'Nothing here yet', clip: 'No clips yet' },
+    clip: { fromLibrary: 'Add from library' },
   },
   nodeEmpty: {
     derivedReady: { title: 'Prompt ready', description: 'Select it and press ↑ to generate' },
@@ -1780,6 +1783,7 @@ export const enGenerationCommon = {
         fallback: 'nodes',
       },
       title: 'No {{category}} here yet',
+      dropHint: 'Or drop images and videos right in',
     },
     controlsHelp: {
       aria: 'Canvas controls help',

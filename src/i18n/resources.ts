@@ -408,7 +408,7 @@ export const zhCN = {
       generate: '生成',
       more: '更多',
       import: '导入',
-      space: '空间 · 草图',
+      space: '空间',
     },
     nodeKinds: {
       text: '文字',
@@ -835,7 +835,7 @@ export const en = {
       generate: 'Generate',
       more: 'More',
       import: 'Import',
-      space: 'Space · Sketch',
+      space: 'Space',
     },
     nodeKinds: {
       text: 'Text',

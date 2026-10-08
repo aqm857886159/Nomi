@@ -41,21 +41,27 @@ describe('pending media action', () => {
   })
 })
 
-// 用户 10-08：「节点上那个什么试试以及那个大 icon 设计有点丑，可以优化一下吗，排版都不对齐」。
-// 空节点只对齐一条轴（居中）：小号弱色线性图标（不加实心圆底）、动作是一排居中的胶囊按钮、不再有孤零零的「试试」小字、没有斜线底纹。
-describe('empty node layout: one centered axis', () => {
-  it.each(['image', 'video'] as const)('%s: line icon without a solid disc, centered chip row, no orphan label', (kind) => {
+// 用户 10-08：「节点上那个什么试试以及那个大 icon 设计有点丑…排版都不对齐」→ Claude Design 拍板稿 EmptyStates：
+// 去斜线底纹；图标深色放 36px 浅灰圆底；类型名加粗、状态小字；「试试」是纯文字按钮用「·」隔开、不套胶囊框；内容从同一高度往下排。
+describe('empty node layout (Claude Design EmptyStates)', () => {
+  it.each(['image', 'video'] as const)('%s: icon disc, bold kind name, status line, plain-text actions joined by dots', (kind) => {
     const out = html({ node: node(kind), selected: false })
     expect(out).not.toContain('bg-nomi-ink text-nomi-paper')
-    expect(out).not.toContain('rounded-full')
-    expect(out).not.toContain('text-left')
-    expect(out).toContain('justify-center')
-    expect(out).toContain('flex-wrap')
-    expect(out).not.toContain('text-micro text-nomi-ink-40')
-    expect(out).not.toMatch(/<span[^>]*>nodeTry\.label<\/span>/)
+    expect(out).toContain('size-9')
+    expect(out).toContain('bg-nomi-ink-05')
+    expect(out).toContain(`canvas.nodeKinds.${kind}`)
+    expect(out).toContain(`nodeTry.status.${kind}`)
+    expect(out).toContain('justify-start')
+    expect(out).not.toContain('justify-center py')
+    expect(out).toContain('>·<')
+    // 不套胶囊框：动作按钮没有边框 / 圆角胶囊 / 底色，悬停才出浅底。
+    expect(out).not.toContain('rounded-full bg-nomi-paper')
+    expect(out).not.toContain('border-nomi-line')
+    expect(out).toContain('hover:bg-nomi-ink-05')
+    expect(out).not.toContain('>generationCommon.nodeTry.label<')
   })
 
-  it('no striped hatch under an empty card (design-system empty surface instead)', async () => {
+  it('no striped hatch under an empty card', async () => {
     const { previewBackgroundClass } = await import('./previewBackground')
     expect(String(previewBackgroundClass(false, false))).not.toContain('repeating-linear-gradient')
   })

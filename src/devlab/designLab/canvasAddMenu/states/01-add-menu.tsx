@@ -31,7 +31,7 @@ export const CANVAS_ADD_MENU_STATES: readonly LabState[] = [
   },
   {
     id: 'canvas-add-02-rail-more-open',
-    name: '「更多」展开 · 两段带名字（更多 / 空间 · 草图）',
+    name: '「更多」展开 · 两段带名字（更多 / 空间）',
     source: '现役 CanvasToolbar.tsx 的 more 菜单 ← canvasMoreAddSections()（§1.5.3 分段要有名字）',
     coverage: 'shell',
     render: () => (
@@ -42,7 +42,7 @@ export const CANVAS_ADD_MENU_STATES: readonly LabState[] = [
   },
   {
     id: 'canvas-add-03-context-menu-full',
-    name: '空白处右键 · 三段列全（生成 / 导入 / 空间 · 草图）',
+    name: '空白处右键 · 三段列全（生成 / 导入 / 空间）',
     source: '现役 NodeAddMenu ← canvasFullAddSections()；落点语义见 useCanvasMenuActions.ts',
     coverage: 'shell',
     render: () => (

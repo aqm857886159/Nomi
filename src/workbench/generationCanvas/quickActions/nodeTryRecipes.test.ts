@@ -26,7 +26,7 @@ describe('which tasks an empty card offers', () => {
   it('image / video / text each list their real tasks', () => {
     expect(ids(node('i', 'image'))).toEqual(['image.text', 'image.reference'])
     expect(ids(node('v', 'video'))).toEqual(['video.firstFrame', 'video.firstLast', 'video.text'])
-    expect(ids(node('t', 'text'))).toEqual(['text.write', 'text.toImage', 'text.toVideo'])
+    expect(ids(node('t', 'text'))).toEqual(['text.toImage', 'text.toVideo'])
   })
 
   it('drops a task the chosen model cannot do (no first + last frame workflow)', () => {
@@ -104,13 +104,5 @@ describe('running a task builds structure only, in one undo step', () => {
     expect(useNodePromptFocusStore.getState().request?.nodeId).toBe(added[0].id)
     state().undo()
     expect(state().readDocumentSnapshot()).toEqual(before)
-  })
-
-  it('写脚本 only focuses the text editor', () => {
-    seed(node('t', 'text'))
-    runNodeTryRecipe('t', 'text.write')
-    expect(state().nodes).toHaveLength(1)
-    expect(state().edges).toHaveLength(0)
-    expect(useNodePromptFocusStore.getState().request?.nodeId).toBe('t')
   })
 })

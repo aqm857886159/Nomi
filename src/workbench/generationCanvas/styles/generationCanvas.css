@@ -205,7 +205,7 @@
   fill: none;
   /* A′：所有边统一 accent 实线；vector-effect 锁屏幕像素线宽——缩小不变细、不消失（根因层治「边看不见」）。 */
   stroke: var(--nomi-accent);
-  stroke-width: 2;
+  stroke-width: 1.5;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
@@ -223,11 +223,17 @@
   transition: opacity 140ms ease;
 }
 
-/* 点亮：hover 该边 / 该边属于聚焦（单选）节点 / 该边被选中。 */
-.generation-canvas-v2__edge[data-hovered='true'] .generation-canvas-v2__edge-path,
-.generation-canvas-v2__edge[data-incident='true'] .generation-canvas-v2__edge-path,
-.generation-canvas-v2__edge[data-active='true'] .generation-canvas-v2__edge-path {
+/* 点亮（Claude Design 拍板稿 Edges）：该边属于聚焦（单选）节点 = 强调色实线；悬停 / 选中这一条 = 深灰、略粗（中点同时出 ×）。 */
+.generation-canvas-v2__edge[data-incident='true'] .generation-canvas-v2__edge-path {
   stroke-opacity: 1;
+}
+
+.generation-canvas-react-flow .generation-canvas-v2__edge[data-hovered='true'] .generation-canvas-v2__edge-path,
+.generation-canvas-react-flow .generation-canvas-v2__edge[data-active='true'] .generation-canvas-v2__edge-path {
+  /* 前缀是为了压过 React Flow 自带的 .react-flow__edge.selected .react-flow__edge-path（同样 3 级、加载更晚）。 */
+  stroke: var(--nomi-ink-60);
+  stroke-opacity: 1;
+  stroke-width: 2;
 }
 
 .generation-canvas-v2__edge[data-hovered='true'] .generation-canvas-v2__edge-dot,
@@ -247,11 +253,6 @@
 .generation-canvas-v2__edge-hit:focus,
 .generation-canvas-v2__edge-hit:focus-visible {
   outline: none;
-}
-
-.generation-canvas-v2__edge[data-active='true'] .generation-canvas-v2__edge-path {
-  stroke-width: 3;
-  filter: drop-shadow(0 0 4px rgba(18, 24, 38, 0.14));
 }
 
 .generation-canvas-v2__edge-cut-object {

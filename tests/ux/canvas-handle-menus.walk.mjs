@@ -221,6 +221,24 @@ try {
     expect((await store()).edges).toHaveLength(0)
   })
 
+  // 「+」菜单（Claude Design 拍板稿 EmptyStates）：加节点条最后一颗「+」点开 = 「空间」一组；空画布起步行的「更多」是同一个菜单。
+  const SPACE_KINDS = ['director', 'model3d', 'panorama', 'whiteboard']
+  const spaceKinds = async (menu) => menu.locator('[data-node-kind]').evaluateAll((items) => items.map((item) => item.getAttribute('data-node-kind')))
+  await task('07b-toolbar-plus-opens-space-menu', async () => {
+    await win.evaluate(() => /** @type {any} */ (window).__nomiCanvasStore.getState().selectNodes([]))
+    const plus = win.locator('.generation-canvas-v2-toolbar [data-canvas-add-more="true"]')
+    await plus.click()
+    const menu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+    await expect(menu).toBeVisible()
+    expect(await spaceKinds(menu)).toEqual(SPACE_KINDS)
+    await shot('11-plus-menu-toolbar')
+    await win.keyboard.press('Escape')
+    await expect(win.locator('.generation-canvas-v2-toolbar__more-menu')).toHaveCount(0)
+    await plus.hover()
+    await win.waitForTimeout(500)
+    await expect(win.locator('.generation-canvas-v2-toolbar__more-menu'), '只悬停不开（点开才出菜单）').toHaveCount(0)
+  })
+
   await task('08-empty-canvas-task-cards', async () => {
     await win.evaluate(() => /** @type {any} */ (window).__nomiCanvasStore.getState().selectNodes([]))
     await win.evaluate(() => {
@@ -232,6 +250,14 @@ try {
     await expect(cards.first()).toBeVisible()
     expect(await cards.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-add-intent')))).toEqual(['image', 'video', 'audio', 'text', 'clip', 'import-file'])
     await shot('10-empty-canvas')
+    const more = win.locator('[data-empty-canvas-tasks] [data-canvas-add-more="true"]')
+    await more.click()
+    const moreMenu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+    await expect(moreMenu).toBeVisible()
+    expect(await spaceKinds(moreMenu), '空画布「更多」与加节点条「+」同一个菜单').toEqual(SPACE_KINDS)
+    await shot('12-plus-menu-empty-canvas')
+    await win.keyboard.press('Escape')
+    await expect(win.locator('.generation-canvas-v2-toolbar__more-menu')).toHaveCount(0)
   })
 } finally {
   await run.close().catch(() => {})

@@ -562,7 +562,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             onResizeClip={handleResizeClip}
             onScrubPlayhead={selectFrame}
             onAddMaterial={readOnly ? undefined : () => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }}
-            emptyState={<ClipEmptyTry nodeId={node.id} readOnly={readOnly} />}
+            emptyState={<ClipEmptyTry nodeId={node.id} readOnly={readOnly} onAddMaterial={() => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }} />}
           />
         </div>
       </div>

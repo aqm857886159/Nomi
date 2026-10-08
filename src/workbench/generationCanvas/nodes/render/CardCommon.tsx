@@ -18,9 +18,9 @@ import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { NodeTryList } from '../../quickActions/NodeTryList'
 import { nodeTryRecipes } from '../../quickActions/nodeTryRecipes'
 
-/** 没出图 / 没放素材的卡面：浅底 + 虚线内描边（设计系统的「空 / 草稿」表达，不画斜线底纹——2026-10-08 用户嫌吵）。 */
+/** 没出图 / 没放素材的卡面：纸白底（Claude Design 拍板稿 EmptyStates：去掉斜线底纹，卡的描边由外壳给）。 */
 export const EMPTY_SURFACE_CLASS =
-  'bg-nomi-ink-05 outline outline-1 -outline-offset-1 outline-dashed outline-nomi-line'
+  'bg-nomi-paper'
 
 /**
  * 透明图的棋盘格底（亮 / 暗两套 token 自动跟主题）。只垫在**抠图结果**下面：
@@ -160,7 +160,12 @@ export function PendingGenerationPlaceholder({
   if (!derivedReady && !waitingUpstream && nodeTryRecipes(node).length) {
     return (
       <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
-        <NodeEmptyState icon={icon} action={<NodeTryList node={node} />} />
+        <NodeEmptyState
+          icon={icon}
+          title={t(isVideo ? 'canvas.nodeKinds.video' : 'canvas.nodeKinds.image')}
+          description={t(isVideo ? 'generationCommon.nodeTry.status.video' : 'generationCommon.nodeTry.status.image')}
+          action={<NodeTryList node={node} />}
+        />
       </div>
     )
   }

@@ -103,7 +103,13 @@ function NumberBadge({ index, tag }: { index?: number; tag?: string }): JSX.Elem
   return (
     <span
       {...(tag ? { 'data-asset-tile-tag': 'firstFrame' } : { 'data-asset-tile-badge': index })}
-      className={cn('absolute left-[2px] min-w-[min(16px,calc(50%_-_3px))] px-[min(4px,8%)] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none z-[2]', tag ? 'bottom-[2px]' : 'top-[2px]', CORNER_SIZE)}
+      className={cn(
+        'absolute flex items-center justify-center leading-none z-[2] text-micro',
+        // 用途字签（Claude Design 拍板稿 Edges）：左下角、深色半透明小标签；编号徽标仍是左上角的强调色小圆。
+        tag
+          ? 'bottom-[3px] left-[3px] h-4 px-1 rounded-[4px] bg-[oklch(0.18_0.01_80/0.64)] text-white'
+          : cn('top-[2px] left-[2px] min-w-[min(16px,calc(50%_-_3px))] px-[min(4px,8%)] rounded-pill bg-nomi-accent text-nomi-paper font-semibold', CORNER_SIZE),
+      )}
     >
       {tag ?? index}
     </span>

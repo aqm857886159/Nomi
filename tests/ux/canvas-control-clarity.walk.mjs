@@ -251,7 +251,7 @@ try {
     moreProofs.push([kind, label, await proveProbe(toolbar.locator(`[data-node-kind="${kind}"]`), `展开时${label}在工具条里`)])
   }
   // §1.5.3「分段要有名字」：两段各自带名字，不是一条看不见的分隔线。
-  for (const sectionLabel of ['更多', '空间 · 草图']) {
+  for (const sectionLabel of ['更多', '空间']) {
     assert(
       (await moreMenu.locator(`[role="group"][aria-label="${sectionLabel}"]`).count()) === 1,
       `「更多」菜单里有名为「${sectionLabel}」的一段`,

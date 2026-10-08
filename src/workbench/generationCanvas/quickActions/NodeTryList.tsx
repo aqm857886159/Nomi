@@ -1,23 +1,27 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconPointer, IconWriting } from '../../../vendor/tablerIcons'
-import { WorkbenchButton } from '../../../design'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { getGenerationNodeIcon } from '../nodes/renderRegistry'
 import { nodeTryRecipes, runNodeTryRecipe } from './nodeTryRecipes'
 import { pickCanvasInputFor } from './nodeInputActions'
-
-type RowIcon = (props: { size?: number; stroke?: number }) => JSX.Element
 
 /** 卡内的点击不能变成拖卡 / 框选：按下就截住（同 NodeEmptyAction）。 */
 const stopCanvasGesture = (event: React.PointerEvent) => event.stopPropagation()
 
+const TRY_ACTION_CLASS = [
+  'inline-flex h-6 cursor-pointer items-center whitespace-nowrap rounded-nomi-sm border-0 bg-transparent px-1.5 font-[inherit] text-caption text-nomi-ink-80',
+  'transition-colors hover:bg-nomi-ink-05 active:bg-nomi-ink-10',
+  'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-nomi-accent',
+].join(' ')
+
+/** 纯文字动作之间的「·」（Claude Design 拍板稿：不套胶囊框，悬停才出浅底）。 */
+function TrySeparator(): JSX.Element {
+  return <span aria-hidden="true" className="text-caption text-nomi-ink-30">·</span>
+}
+
 /**
- * 空节点「试试」——所有种类**一个**列表组件（2026-10-08 拍板 ③）。替换那句操作说明，不叠加。
- * 排法（2026-10-08 用户「排版都不对齐」后）：全部内容只对齐一条居中轴——动作是一排居中的胶囊按钮（工作区次要按钮 sm，
- * 图标 + 两三个字），放不下就换行、仍居中。不再有孤零零的「试试」小字：胶囊本身带图标和动词，一眼就是可点的建议；
- * 「试试」两个字只留给读屏的分组名（aria-label）——前缀版在 180–340px 宽的卡里换行时会落单成一行，反而又歪。
- * 点一下跑配方（只搭结构、一步撤销）；没有配方的种类不出现（返回 null）。
+ * 空节点「试试」——所有种类**一个**列表组件（2026-10-08 拍板 ③ + 同日 Claude Design 拍板稿）。
+ * 排法：纯文字按钮用「·」隔开、悬停才出浅底、不套框；一行放得下就一行（视频三项），放不下换行仍居中；
+ * 「试试」两个字只留给读屏的分组名。点一下跑配方（只搭结构、一步撤销）；没有配方的种类不出现（返回 null）。
  */
 export function NodeTryList({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
   const { t } = useTranslation()
@@ -26,51 +30,76 @@ export function NodeTryList({ node }: { node: GenerationCanvasNode }): JSX.Eleme
   return (
     <ul
       data-node-try={node.kind}
-      className="pointer-events-auto m-0 flex max-w-full list-none flex-wrap items-center justify-center gap-1.5 p-0"
+      className="pointer-events-auto m-0 flex max-w-full list-none flex-wrap items-center justify-center gap-x-0.5 p-0"
       aria-label={t('generationCommon.nodeTry.label')}
     >
-      {recipes.map((recipe) => {
-        const Icon = (recipe.icon === 'write' ? IconWriting : getGenerationNodeIcon(recipe.icon)) as unknown as RowIcon
-        return (
-          <li key={recipe.id}>
-            <WorkbenchButton
-              size="sm"
+      {recipes.map((recipe, index) => (
+        <React.Fragment key={recipe.id}>
+          {index > 0 ? <li role="presentation"><TrySeparator /></li> : null}
+          <li>
+            <button
+              type="button"
               data-node-try-recipe={recipe.id}
+              className={TRY_ACTION_CLASS}
               onPointerDown={stopCanvasGesture}
               onClick={(event) => {
                 event.stopPropagation()
                 runNodeTryRecipe(node.id, recipe.id)
               }}
             >
-              <Icon size={14} stroke={1.7} />
-              <span>{t(recipe.labelKey)}</span>
-            </WorkbenchButton>
+              {t(recipe.labelKey)}
+            </button>
           </li>
-        )
-      })}
+        </React.Fragment>
+      ))}
     </ul>
   )
 }
 
 /**
- * 剪辑卡空态：直说「把视频节点连进来」，给一个「在画布上点选」（画布共享的点选模式，点中即连进这张剪辑卡）。
+ * 剪辑卡空态：它是一条 132px 高的时间轴条，放不下「图标 + 名 + 状态 + 动作」四层，所以收成一行：
+ * 状态小字 + 「在画布上点选 · 从素材库添加」（点选 = 画布共享的点选模式，点中即连进这张剪辑卡；
+ * 从素材库添加 = 时间轴左边「+」同一个素材选择器）。
  */
-export function ClipEmptyTry({ nodeId, readOnly = false }: { nodeId: string; readOnly?: boolean }): JSX.Element {
+export function ClipEmptyTry({ nodeId, readOnly = false, onAddMaterial }: { nodeId: string; readOnly?: boolean; onAddMaterial?: () => void }): JSX.Element {
   const { t } = useTranslation()
   return (
-    <span className="pointer-events-auto inline-flex items-center justify-center gap-2" data-node-try="clip">
-      <span className="text-caption text-nomi-ink-40">{t('generationCommon.nodeTry.clip.hint')}</span>
-      {readOnly ? null : <WorkbenchButton
-        size="sm"
-        onPointerDown={stopCanvasGesture}
-        onClick={(event) => {
-          event.stopPropagation()
-          pickCanvasInputFor(nodeId)
-        }}
-      >
-        <IconPointer size={14} stroke={1.7} />
-        {t('generationCommon.quickActions.addInput.pickOnCanvas')}
-      </WorkbenchButton>}
+    <span className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5" data-node-try="clip">
+      <span className="text-caption text-nomi-ink-40">{t('generationCommon.nodeTry.status.clip')}</span>
+      {readOnly ? null : (
+        <>
+          <TrySeparator />
+          <button
+            type="button"
+            data-node-try-recipe="clip.pick"
+            className={TRY_ACTION_CLASS}
+            onPointerDown={stopCanvasGesture}
+            onClick={(event) => {
+              event.stopPropagation()
+              pickCanvasInputFor(nodeId)
+            }}
+          >
+            {t('generationCommon.quickActions.addInput.pickOnCanvas')}
+          </button>
+          {onAddMaterial ? (
+            <>
+              <TrySeparator />
+              <button
+                type="button"
+                data-node-try-recipe="clip.library"
+                className={TRY_ACTION_CLASS}
+                onPointerDown={stopCanvasGesture}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onAddMaterial()
+                }}
+              >
+                {t('generationCommon.nodeTry.clip.fromLibrary')}
+              </button>
+            </>
+          ) : null}
+        </>
+      )}
     </span>
   )
 }
