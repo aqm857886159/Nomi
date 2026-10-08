@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-asset-upload-channel-boundary",
+  "problem_type": "Public asset retrieval method and anonymous upload fallback ordering",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-07",
+  "symptom": "Provider probes using HEAD receive 404 for assets that GET serves, and anonymous uploads try the known 403 host before tmpfiles.",
+  "direct_cause": "The Relay fetch router only dispatched GET and read() always returned a body; ANON_UPLOAD_CHAIN registered litterbox before tmpfiles.",
+  "class_root": "The shared asset channel contract did not require metadata-equivalent HEAD handling or encode the empirically preferred anonymous host order at its single registry boundary.",
+  "affected_population": [
+    "Any provider or probe that checks a Nomi Relay asset with HEAD",
+    "Image, video, and audio local assets using the anonymous fallback chain"
+  ],
+  "scope_paths": [
+    "workers/nomi-asset-relay/src/index.mjs",
+    "electron/catalog/assetIngestionRegistry.ts",
+    "tests/asset-relay/worker.node-test.mjs",
+    "electron/catalog/assetLocalization.test.ts"
+  ],
+  "entry_points": [
+    "Relay fetch() for GET/HEAD /v1/assets/:key",
+    "assetLocalization resolveLocalAsset() through ANON_UPLOAD_CHAIN"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's application-level Relay and fallback ordering contract; no dependency behavior is needed to decide it.",
+  "invariants": [
+    "GET and HEAD for a live Relay asset return the same status and metadata headers, while HEAD has no body.",
+    "GET and HEAD apply the same missing and expiry checks.",
+    "ANON_UPLOAD_CHAIN tries tmpfiles before litterbox for every accepted media kind."
+  ],
+  "doors": [
+    { "kind": "write", "path": "electron/catalog/assetIngestionRegistry.ts", "symbol": "ingestionAccepts" },
+    { "kind": "write", "path": "electron/catalog/assetLocalization.ts", "symbol": "ingestionAccepts" }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The registry and resolver are separate desktop boundaries: the registry owns declarations and the resolver owns candidate selection. The Relay worker lives outside the door-map scan roots and is covered by its own shared read boundary and tests."
+  },
+  "generality_proof": "All Relay asset reads converge on read(), and all anonymous desktop uploads resolve the single ANON_UPLOAD_CHAIN registry constant before resolveLocalAsset iterates its hosts.",
+  "shared_boundaries": [
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "read", "responsibility": "Own lookup, expiry, metadata, and GET/HEAD body semantics for every Relay asset read." },
+    { "path": "electron/catalog/assetIngestionRegistry.ts", "symbol": "ANON_UPLOAD_CHAIN", "responsibility": "Own the ordered anonymous fallback host list for all accepted media kinds." }
+  ],
+  "same_class_entry_points": [
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "entry_point": "fetch GET/HEAD /v1/assets/:key", "disposition": "enforced", "evidence": "Both methods dispatch to read(), which owns the shared lookup and expiry checks." },
+    { "path": "electron/catalog/assetLocalization.ts", "entry_point": "resolveLocalAsset via ANON_UPLOAD_CHAIN", "disposition": "enforced", "evidence": "The resolver iterates the registry chain for image, video, and audio candidates." },
+    { "path": "tests/asset-relay/worker.node-test.mjs", "entry_point": "worker contract fixture", "disposition": "enforced", "evidence": "Class regression coverage exercises live, expired, and missing HEAD cases." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "HEAD is a standard retrieval method used by multiple providers, and the anonymous chain is shared by every media kind and future caller.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs ANON_UPLOAD_CHAIN -> electron/catalog/assetLocalization.ts read door",
+      "rg -n 'request.method.*GET|/v1/assets/|ANON_UPLOAD_CHAIN' workers electron tests -> Relay router, read(), and desktop resolver",
+      "Existing assetLocalization tests cover anonymous image/video/audio acceptance and host fallback behavior."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "workers/nomi-asset-relay/src/index.mjs",
+    "invariant": "Every Relay GET/HEAD asset read shares lookup/expiry/metadata logic; every anonymous upload uses the registry's tmpfiles-first order.",
+    "failure_mode": "Unknown, missing, or expired keys return 404 for both methods; failed first anonymous hosts proceed to the next configured host.",
+    "exception_policy": "none",
+    "strategy": "Route both retrieval methods into one read boundary and encode the measured fallback order once in the shared registry.",
+    "artifacts": [
+      "workers/nomi-asset-relay/src/index.mjs",
+      "electron/catalog/assetIngestionRegistry.ts",
+      "tests/asset-relay/worker.node-test.mjs",
+      "electron/catalog/assetLocalization.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/asset-relay/worker.node-test.mjs",
+    "electron/catalog/assetLocalization.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/asset-relay/worker.node-test.mjs",
+    "electron/catalog/assetLocalization.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No obsolete file path remains callable; the old method guard and host order are replaced in place at their shared boundaries."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The failure is in Nomi routing and registry policy; no third-party runtime controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or URL format changes; existing asset keys remain readable through GET and HEAD.",
+  "residual_risks": [
+    "The worker fix is locally tested but intentionally not deployed, so live Cloudflare behavior remains pending deployment verification.",
+    "The probe's external provider observations remain evidence in the research report and are not re-run as part of unit tests."
+  ],
+  "invariant_owner_layer": {
+    "layer": "workers/nomi-asset-relay/src/index.mjs",
+    "tests": ["tests/asset-relay/worker.node-test.mjs", "electron/catalog/assetLocalization.test.ts"],
+    "why": "Relay read semantics are owned by read() and its fetch router; anonymous ordering is separately owned by the registry, with desktop resolver coverage in the listed class tests."
+  }
+}
