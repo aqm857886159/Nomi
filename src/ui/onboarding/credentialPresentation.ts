@@ -11,11 +11,11 @@ export type CredentialHintKey =
   | 'onboardingProviders.keyOnly.savedHint'
 
 export function resolveCredentialCopy({
-  hasApiKey,
+  credentialMaterialSaved,
   verificationPending,
   curatedModelsPublished,
 }: {
-  hasApiKey: boolean
+  credentialMaterialSaved: boolean
   verificationPending: boolean
   curatedModelsPublished: boolean
 }): { titleKey: CredentialCopyKey; hintKey: CredentialHintKey } {
@@ -31,7 +31,7 @@ export function resolveCredentialCopy({
       hintKey: 'onboardingProviders.keyOnly.publishedHint',
     }
   }
-  if (hasApiKey) {
+  if (credentialMaterialSaved) {
     return {
       titleKey: 'onboardingProviders.keyOnly.pendingTitle',
       hintKey: 'onboardingProviders.keyOnly.pendingHint',

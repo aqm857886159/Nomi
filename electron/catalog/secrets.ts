@@ -177,13 +177,14 @@ export type { ApiKeyDecryptStatus };
  */
 export type KeyStatusProbe = (record: ApiKeyRecord | undefined) => ApiKeyDecryptStatus;
 
-/**
- * Return whether persisted key material exists. Enablement and verification stay separate facts owned by
- * the catalog availability boundary, so an offline pending save remains visible as saved.
- */
+/** Return whether the credential is usable by the decrypting consumers. */
 export function credentialRecordCounts(rec: ApiKeyRecord | undefined): boolean {
-  // Material existence is independent from whether the credential is currently enabled.
-  // A pending offline save must remain visible as saved while availability stays disabled.
+  // Disabled records must not open the keychain or reach any outbound consumer.
+  return Boolean(rec?.apiKey) && rec?.enabled !== false;
+}
+
+/** Return whether persisted key material exists, without making an availability claim. */
+export function credentialMaterialSaved(rec: ApiKeyRecord | undefined): boolean {
   return Boolean(rec?.apiKey);
 }
 

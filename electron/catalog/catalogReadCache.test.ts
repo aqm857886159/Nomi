@@ -112,7 +112,8 @@ describe("catalog read cache", () => {
 
     expect(store.readCatalog().vendors[0]).toMatchObject({
       enabled: false,
-      hasApiKey: true,
+      hasApiKey: false,
+      credentialMaterialSaved: true,
       credentialVerificationPending: true,
     });
   });

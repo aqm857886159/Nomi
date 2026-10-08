@@ -19,6 +19,7 @@ export function KnownVendorKeyConnectPage({
   baseUrl = '',
   models,
   hasApiKey = false,
+  credentialMaterialSaved = false,
   credentialVerificationPending = false,
   curatedModelsPublished = false,
   onBack,
@@ -41,6 +42,8 @@ export function KnownVendorKeyConnectPage({
    * 避免用户在 availableKnown 点击卡片后看到一个要他重填 key 的表单。
    */
   hasApiKey?: boolean
+  /** Persisted material for display; unlike hasApiKey this does not imply usable or enabled. */
+  credentialMaterialSaved?: boolean
   credentialVerificationPending?: boolean
   /**
    * 该供应商的预置模型**此刻**已经在可用列表里（凭据 enabled → vendor 未被 de-publish，
@@ -65,7 +68,7 @@ export function KnownVendorKeyConnectPage({
   const [apiKey, setApiKey] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   // 已有 key = 直接进入「已保存」状态（跳过录入，避免要求用户重填已存 key）。
-  const [saved, setSaved] = React.useState(hasApiKey)
+  const [saved, setSaved] = React.useState(credentialMaterialSaved || hasApiKey)
   const [error, setError] = React.useState('')
   const [verificationPending, setVerificationPending] = React.useState(credentialVerificationPending)
   React.useEffect(() => setVerificationPending(credentialVerificationPending), [credentialVerificationPending])
@@ -95,10 +98,10 @@ export function KnownVendorKeyConnectPage({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const errorId = React.useId()
   const { connection } = useVendorHealth(directory.vendorKey, {
-    hasApiKey: saved, skipImplicitProbe: true,
+    hasApiKey: hasApiKey || verificationPending, skipImplicitProbe: true,
   })
   // The copy resolver owns the pendingTitle/pendingHint branch so saved keys never fall back to “no key”.
-  const credentialCopy = resolveCredentialCopy({ hasApiKey, verificationPending, curatedModelsPublished })
+  const credentialCopy = resolveCredentialCopy({ credentialMaterialSaved: saved, verificationPending, curatedModelsPublished })
   React.useEffect(() => {
     if (connection?.state === 'reachable') setVerificationPending(false)
   }, [connection?.state])
@@ -276,7 +279,7 @@ export function KnownVendorKeyConnectPage({
             </div>
             <div className="mt-4 flex items-center justify-between gap-2">
               {/* 已有 key 的情况提供「更换密钥」出口，让用户不被困在此页 */}
-              {hasApiKey && apiKey === '' ? (
+              {saved && apiKey === '' ? (
                 <button
                   type="button"
                   onClick={() => setSaved(false)}
