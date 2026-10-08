@@ -6,6 +6,7 @@ import type { ExecutionContractV1, PlanCandidate } from "./executionContract";
 import type { GenerationOperationDraftShot, GenerationSealMultiShot } from "./mcpGenerationMultiShot";
 import type { GenerationInvocationContext } from "../shared/agentCapabilities/generationInvocationContext";
 import type { ProductionGenerationAuthorizationEnvelopeV1 } from "../productionRun/productionGenerationAuthorization";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 
 export type GenerationOperationState = "draft" | "sealed" | "cancelled" | "submitted";
 
@@ -48,6 +49,9 @@ export type GenerationOperation = Readonly<{
   authorization?: GenerationOperationAuthorization;
   /** 这一次出价（付费卡）的结局：宿主从 Run 现算，Agent 的 generate 回执只读它。 */
   presentationOutcome?: GeneratePresentationOutcome;
+  presentationId?: string;
+  presentationEpoch?: number;
+  policySnapshot?: ProjectAgentApprovalPolicy;
   /** 账本里有没有任何一笔**可能**到过供应商（`productionShotJobs.anySubmissionMayHaveReachedProvider`）。`false` = 一个字节都没离开过这台机器、没花钱。 */
   submissionStarted?: boolean;
   updatedAt: string;
@@ -68,12 +72,12 @@ export type GenerationAuthorizationPreparation = Readonly<{
 
 export type GenerationOperationStore = {
   // P4 S6.5: `shots` seeds a multi-shot draft (anchor + video shots). Absent → single-shot (unchanged).
-  create(input: { operationId: string; projectId: string; candidate: PlanCandidate; now: string; origin?: { host: string; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } }; shots?: ReadonlyArray<GenerationOperationDraftShot>; cardHidden?: boolean }): GenerationOperation | Promise<GenerationOperation>;
+  create(input: { operationId: string; projectId: string; candidate: PlanCandidate; now: string; origin?: { host: string; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } }; shots?: ReadonlyArray<GenerationOperationDraftShot>; cardHidden?: boolean; policySnapshot?: ProjectAgentApprovalPolicy }): GenerationOperation | Promise<GenerationOperation>;
   read(projectId: string, operationId: string): GenerationOperation | null | Promise<GenerationOperation | null>;
   /** `shotId`：改多镜草稿里的一镜（那一镜的候选 revision +1，其它镜一字不动）；缺省 = 顶层候选。 */
   patch(projectId: string, operationId: string, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>, now: string, shotId?: string, target?: GenerationInvocationContext['storyboardTarget']): GenerationOperation | Promise<GenerationOperation>;
   /** `generate` 动词：清掉 `cardHidden`，报价卡从这一刻起可投影。只对 draft 合法。 */
-  present(projectId: string, operationId: string, now: string, shotIds?: readonly string[], target?: GenerationInvocationContext['storyboardTarget']): GenerationOperation | Promise<GenerationOperation>;
+  present(projectId: string, operationId: string, now: string, shotIds?: readonly string[], target?: GenerationInvocationContext['storyboardTarget'], policySnapshot?: ProjectAgentApprovalPolicy): GenerationOperation | Promise<GenerationOperation>;
   // P4 S6.5: `multiShot` seals per-shot sub-contracts + planHash (reducer freezes the whole batch). Absent
   // → single-shot seal of the one top-level contract (byte-identical to today).
   seal(projectId: string, operationId: string, contract: ExecutionContractV1, now: string, multiShot?: GenerationSealMultiShot, authorization?: GenerationAuthorizationPreparation): GenerationOperation | Promise<GenerationOperation>;

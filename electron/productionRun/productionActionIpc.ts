@@ -76,6 +76,11 @@ export function registerProductionActionIpc(deps: {
     if (projectId !== deps.getActiveProjectId()) return { ok: false, code: "run_not_open" };
     return { projectId, operationId };
   };
+  const cardIdentity = (raw: Record<string, unknown>): { presentationId?: string; presentationEpoch?: number; planVersion?: number } => ({
+    ...(str(raw.presentationId) ? { presentationId: str(raw.presentationId) } : {}),
+    ...(typeof raw.presentationEpoch === "number" ? { presentationEpoch: raw.presentationEpoch } : {}),
+    ...(typeof raw.planVersion === "number" ? { planVersion: raw.planVersion } : {}),
+  });
 
   ipcMain.handle("nomi:production-runs:revise-spend", async (event, payload: unknown): Promise<ProductionActionResult & PendingSpendRevised> => {
     assertTrustedSender(event);
@@ -85,14 +90,15 @@ export function registerProductionActionIpc(deps: {
     const shotId = str(raw.shotId) || undefined;
     const patch = objectOf(raw.patch);
     if (Object.keys(patch).length === 0) return { ok: false, code: "failed", message: "empty revision" };
-    return (await deps.loadCore()).revisePendingSpendConfirmation({ ...scoped, quoteId: str(raw.quoteId), ...(shotId ? { shotId } : {}), patch });
+    return (await deps.loadCore()).revisePendingSpendConfirmation({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId), ...(shotId ? { shotId } : {}), patch });
   });
 
   ipcMain.handle("nomi:production-runs:discard-spend", async (event, payload: unknown): Promise<ProductionActionResult> => {
     assertTrustedSender(event);
     const scoped = spendOperation(payload);
     if ("ok" in scoped) return scoped;
-    return (await deps.loadCore()).discardPendingSpendConfirmation({ ...scoped, quoteId: str(objectOf(payload).quoteId) });
+    const raw = objectOf(payload);
+    return (await deps.loadCore()).discardPendingSpendConfirmation({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId) });
   });
 
   ipcMain.handle("nomi:production-runs:confirm-spend", async (event, payload: unknown): Promise<ProductionActionResult> => {
@@ -102,7 +108,7 @@ export function registerProductionActionIpc(deps: {
     const raw = objectOf(payload);
     // 一下点击只批一镜（付费卡逐镜）：渲染层只递「用户点的是哪一镜」，批不批、派不派由主进程决定。
     const shotId = str(raw.shotId) || undefined;
-    return (await deps.loadCore()).confirmPendingSpendConfirmation({ ...scoped, quoteId: str(raw.quoteId), ...(shotId ? { shotId } : {}) });
+    return (await deps.loadCore()).confirmPendingSpendConfirmation({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId), ...(shotId ? { shotId } : {}) });
   });
 
   ipcMain.handle("nomi:production-runs:confirm-spend-remaining", async (event, payload: unknown): Promise<ProductionActionResult> => {
@@ -114,7 +120,7 @@ export function registerProductionActionIpc(deps: {
     // 每张各封一份授权、各派一份由主进程决定。
     const shotIds = Array.isArray(raw.shotIds) ? raw.shotIds.map(str).filter(Boolean) : [];
     if (shotIds.length === 0) return { ok: false, code: "failed", message: "generation_scope_invalid" };
-    return (await deps.loadCore()).confirmRemainingSpendShots({ ...scoped, quoteId: str(raw.quoteId), shotIds });
+    return (await deps.loadCore()).confirmRemainingSpendShots({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId), shotIds });
   });
 
   ipcMain.handle("nomi:production-runs:remove-spend-shot", async (event, payload: unknown): Promise<ProductionActionResult> => {
@@ -124,7 +130,7 @@ export function registerProductionActionIpc(deps: {
     const raw = objectOf(payload);
     const shotId = str(raw.shotId);
     if (!shotId) return { ok: false, code: "failed", message: "generation_scope_invalid" };
-    return (await deps.loadCore()).removePendingSpendShot({ ...scoped, quoteId: str(raw.quoteId), shotId });
+    return (await deps.loadCore()).removePendingSpendShot({ ...scoped, ...cardIdentity(raw), quoteId: str(raw.quoteId), shotId });
   });
 
   ipcMain.handle("nomi:production-runs:resume-batch", async (event, payload: unknown): Promise<ProductionShotActionResult> => {

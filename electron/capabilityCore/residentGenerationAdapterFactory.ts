@@ -109,6 +109,19 @@ export function createResidentGenerationAdapterFactory(
     }
   };
 
+  const markPolicyDecisionFailed = async ({ params, lease }: { params: Record<string, unknown>; lease: ProjectLeaseV2 }): Promise<void> => {
+    const operationId = typeof params.operationId === "string" ? params.operationId.trim() : "";
+    if (!operationId) return;
+    const current = input.owner.readFull(lease.projectId, operationId);
+    await input.owner.command(lease.projectId, operationId, {
+      commandId: `generation.policy_decision_failed:${operationId}:${current.revision}`,
+      expectedRevision: current.revision,
+      type: "generation.policy_decision_failed",
+      payload: {},
+      issuedAt: new Date().toISOString(),
+    });
+  };
+
   const factory = (
     binding: ProjectBinding,
     approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined,
@@ -117,6 +130,7 @@ export function createResidentGenerationAdapterFactory(
     requestGenerationGate: input.requestGenerationGate,
     authorizeGeneration: input.authorizeGeneration,
     rejectGeneration: reject,
+    markPolicyDecisionFailed,
     confirmGenerationInNomi: input.confirmGenerationInNomi,
     approvalReceiptAuthority: input.approvalReceiptAuthority,
     leaseFor,
