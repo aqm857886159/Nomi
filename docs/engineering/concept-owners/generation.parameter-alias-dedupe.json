@@ -1,0 +1,23 @@
+{
+  "name": "参数别名去重",
+  "subject": "generation.parameter-alias-dedupe",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+    "symbol": "parameterEquivalentKeys"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts",
+      "symbol": "parameterEquivalentKeys"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-05",
+  "notes": "同一参数的别名归一只在控制模型的共享等价键边界决定。"
+}

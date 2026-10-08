@@ -1,0 +1,23 @@
+{
+  "name": "分镜行菜单收口",
+  "subject": "storyboard.row-menu-dismiss",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "symbol": "StoryboardShotRow"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "StoryboardShotRow"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-05",
+  "notes": "分镜行菜单的打开与收口由行组件统一交给浮层边界处理。"
+}
