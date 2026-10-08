@@ -10,8 +10,29 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { NO_COST_CLAIMS } from '../tests/ux/full-walk/outcomeText.mjs'
 
-/** 只有转述上游原文才可登记；当前没有需要豁免的上游错误 key。 */
-export const NOT_MONEY = Object.freeze([])
+/** 只有转述上游原文才可登记；每条必须说明它是服务商错误/账号状态，不是 Nomi 的花费判断。 */
+export const NOT_MONEY = Object.freeze({
+  'generationCommon.error.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.error.quota': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.error.balance.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.error.balance.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.error.quota.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.error.quota.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.observability.error.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.observability.error.quota': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.observability.error.balance.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.observability.error.balance.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.observability.error.quota.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'generationCommon.observability.error.quota.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'onboardingProviders.adapterVerification.why.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'onboardingProviders.adapterVerification.why.quota': '转述服务商返回，不是 Nomi 对某一步花费的断言',
+  'assetLibrary.pasteLink.errQuota': '转述 TikHub 返回，不是 Nomi 对某一步花费的断言',
+  'assetLibrary.pasteLink.errRateLimited': '转述 TikHub 返回，不是 Nomi 对某一步花费的断言',
+  'antigravity.errors.quota': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
+  'antigravity.check.limited': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
+  'antigravity.notice.limited': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
+  'antigravity.accountUsage': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
+})
 /** 非金钱同形词：这些 key 的 free 只描述空间、方向、视图或惯用语，不表达费用。 */
 export const NON_MONEY_KEYS = Object.freeze([
   'director.aspect.free',
@@ -44,6 +65,19 @@ export const POSITIVE_SPEND_CLAIMS = Object.freeze({
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
 
+const hasNotMoneyReason = (notMoney, key) => !Array.isArray(notMoney) && typeof notMoney?.[key] === 'string' && notMoney[key].trim().length > 0
+
+/** 防止把动作事实或普通 UI 文案塞进上游错误白名单。 */
+export function validateNotMoneyEntries(notMoney = NOT_MONEY) {
+  const errors = []
+  for (const [key, reason] of Object.entries(notMoney ?? {})) {
+    if (typeof reason !== 'string' || !reason.trim()) errors.push(`${key}: missing reason`)
+    if (!/(error|err|quota|balance|rate|limited|status|account)/i.test(key)) errors.push(`${key}: not an error/account-status key`)
+    if (/(不花钱|免费|no charge|not charged|cost nothing|free)/i.test(String(reason))) errors.push(`${key}: reason contains a money exemption`)
+  }
+  return errors
+}
+
 export const FIX_HINT = '界面不谈钱（#957）：只说动作事实；上游报错原文才能按理由登记到 NOT_MONEY'
 
 const flatOf = (node, prefix = '') => Object.entries(node).flatMap(([key, value]) => (typeof value === 'string' ? [[`${prefix}${key}`, value]] : value && typeof value === 'object' ? flatOf(value, `${prefix}${key}.`) : []))
@@ -56,7 +90,7 @@ export function scanDictionaries(dictionaries, { notMoney = NOT_MONEY } = {}) {
       const visibleValue = value.replace(/\{\{[^}]+\}\}/g, '')
       const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale], POSITIVE_SPEND_CLAIMS[locale]]
       if (!patterns.some((pattern) => pattern.test(visibleValue))) continue
-      if (isFixture(key) || notMoney.includes(key) || NON_MONEY_KEYS.includes(key)) continue
+      if (isFixture(key) || hasNotMoneyReason(notMoney, key) || NON_MONEY_KEYS.includes(key)) continue
       hits.push({ locale, key, text: value.slice(0, 60) })
     }
   }
@@ -71,7 +105,7 @@ export function scanDictionaryKeys(keyDictionaries, { notMoney = NOT_MONEY } = {
       const visibleValue = value.replace(/\{\{[^}]+\}\}/g, '')
       const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale], POSITIVE_SPEND_CLAIMS[locale]]
       if (!patterns.some((pattern) => pattern.test(visibleValue))) continue
-      if (isFixture(key) || notMoney.includes(key) || NON_MONEY_KEYS.includes(key)) continue
+      if (isFixture(key) || hasNotMoneyReason(notMoney, key) || NON_MONEY_KEYS.includes(key)) continue
       hits.push({ locale, key, text: value.slice(0, 60), source: 'key' })
     }
   }
@@ -81,6 +115,11 @@ export function scanDictionaryKeys(keyDictionaries, { notMoney = NOT_MONEY } = {
 async function main() {
   const { loadDictionaries } = await import('../tests/ux/full-walk/invariants.mjs')
   const dictionaries = loadDictionaries()
+  const whitelistErrors = validateNotMoneyEntries()
+  if (whitelistErrors.length) {
+    for (const error of whitelistErrors) console.error(`  ${error}`)
+    process.exit(1)
+  }
   const modelDisplaySource = fs.readFileSync(path.resolve('src/i18n/locales/modelDisplayText.ts'), 'utf8')
   const modelKeys = [...modelDisplaySource.matchAll(/^\s*(['"])(.*?)\1\s*:/gm)].map(([, , value]) => value)
   const { hits: valueHits } = scanDictionaries(dictionaries)

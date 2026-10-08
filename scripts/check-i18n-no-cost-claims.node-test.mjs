@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { scanDictionaries, scanDictionaryKeys } from './check-i18n-no-cost-claims.mjs'
+import { scanDictionaries, scanDictionaryKeys, validateNotMoneyEntries } from './check-i18n-no-cost-claims.mjs'
 
 const dict = (zh, en = {}) => ({ 'zh-CN': zh, en })
 
@@ -52,6 +52,13 @@ test('retrieval and offline transcription use action facts without a money claim
 })
 
 test('upstream error wording may be explicitly exempted with a reasoned key', () => {
-  const { hits } = scanDictionaries(dict({ upstream: '供应商返回余额不足' }, { upstream: 'Provider returned insufficient balance' }), { notMoney: ['upstream'] })
+  const { hits } = scanDictionaries(dict({ upstream: '供应商返回余额不足' }, { upstream: 'Provider returned insufficient balance' }), { notMoney: { upstream: '转述服务商返回，不是 Nomi 对某一步花费的断言' } })
   assert.deepEqual(hits, [])
+})
+
+test('NOT_MONEY 每条都有理由且只能登记错误或账号状态 key', () => {
+  assert.deepEqual(validateNotMoneyEntries({ 'provider.error.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言' }), [])
+  assert.deepEqual(validateNotMoneyEntries({ 'taskCenter.row.recoverHint': '转述服务商返回' }), ['taskCenter.row.recoverHint: not an error/account-status key'])
+  assert.deepEqual(validateNotMoneyEntries({ 'provider.error.balance': '' }), ['provider.error.balance: missing reason'])
+  assert.deepEqual(validateNotMoneyEntries({ 'provider.error.balance': '不花钱' }), ['provider.error.balance: reason contains a money exemption'])
 })

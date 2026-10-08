@@ -825,8 +825,8 @@ export const zhOnboardingProviders = {
     why: {
       notFound: '这个地址上没有对应的接口（{{status}}）。多半是接入地址少写或多写了一段。',
       auth: '密钥被对方拒了（{{status}}）。密钥本身没错的话，可能是这个账号还没开通这个模型。',
-      balance: '对方拒绝了这次调用，请检查账户状态。',
-      quota: '触发了对方的频率或服务限制。这是暂时的，过一会儿重新验证通常就好。',
+      balance: '服务商返回：账户余额不足（402）。请到服务商充值后重试。',
+      quota: '服务商返回：请求太频繁（429）。等几秒再重新验证。',
       input: '请求被对方拒绝了（{{status}}）——我们猜的调用形状不合这家的规矩。改地址或换密钥都没用。',
       server: '对方服务器出错了（{{status}}），和你的配置无关。过一会儿重新验证。',
       network: '连不上这个地址。检查地址有没有写错，以及本机网络/代理。',
@@ -2069,8 +2069,8 @@ export const enOnboardingProviders = {
       notFound:
         'No such endpoint at this address ({{status}}). The base URL is probably missing or has an extra path segment.',
       auth: 'The provider rejected the key ({{status}}). If the key is right, this account may not have access to this model yet.',
-      balance: 'The provider refused the call. Check the account status and try again.',
-      quota: 'Hit the provider’s rate or service limit. This is temporary — verifying again later usually works.',
+      balance: 'Provider returned: insufficient balance (402). Top up with the provider and try again.',
+      quota: 'Provider returned: requests are too frequent (429). Wait a few seconds, then verify again.',
       input:
         'The provider rejected the request ({{status}}) — the call shape we guessed does not match theirs. Changing the URL or key will not help.',
       server: 'The provider’s server errored ({{status}}). Nothing to do with your settings — verify again later.',
