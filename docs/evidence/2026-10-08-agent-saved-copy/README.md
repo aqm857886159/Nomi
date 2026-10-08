@@ -1,5 +1,5 @@
 # Agent saved-copy evidence
 
-未验证：中英文真截图还没拿到。上一轮的两张节点截图拍到的是空节点（没有结果图），Agent 工具调用两张是设计实验室整页拼图，都不能证明「完成节点不再挂回执」与「bash 按意图显示」，已作废，补拍后放在这里。
+No valid zh/en Electron screenshots were captured. The existing loopback walk was blocked at startup by an external `D:\Nomi-mcpclient\node_modules\electron\dist\electron.exe` process. The intermediate geometry-failure image from `process-feedback-electron.e2e.mjs` cannot prove either required conclusion, so it is not submitted as evidence.
 
-已验证的是定向渲染测试和 `pnpm run build`。
+Class-level coverage remains in `src/workbench/observability/generationFeedback.test.ts` and `src/workbench/ai/resident/residentToolDisplay.test.ts`.

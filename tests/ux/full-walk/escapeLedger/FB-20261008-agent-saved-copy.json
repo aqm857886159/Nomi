@@ -1,0 +1,33 @@
+{
+  "id": "FB-20261008-agent-saved-copy",
+  "since": "2026-10-08",
+  "source": "User feedback: historical userReports.mjs U09 said the saved-to-project label lingered after saving; the same feedback reported the Agent panel showing Run a command for bash.",
+  "category": "claims-and-outcomes",
+  "problem": "Completed nodes with a result image retained a saved receipt, and Agent-facing bash calls exposed a transport-level command label.",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "completed generation with landed result image",
+    "Agent panel showing one bash tool call"
+  ],
+  "fullWalkJourneys": [
+    "pb10-agent-saved-copy"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/observability/generationFeedback.test.ts: completed nodes return null from the shared feedback projection",
+    "src/workbench/ai/resident/residentToolDisplay.test.ts: bash maps to the generic intent label",
+    "PR #1109: removes the terminal receipt and transport-level label"
+  ],
+  "completionCommits": [
+    "89a5a8aef",
+    "45ad03534"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-07-agent-redundant-saved-copy.root-cause.json",
+  "fixedInPr": 1109,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/ai/resident/residentToolDisplay.test.ts"
+  }
+}
