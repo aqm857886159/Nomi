@@ -54,3 +54,5 @@
 {"date":"2026-10-08","line":"R-review-quitdrains","kind":"review","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"抓到 Windows 关机 / 注销不走 quit 事件、生产代码直接 app.exit 绕过 owner、清理行为断言被删"}
 {"date":"2026-10-08","line":"F-quitdrains4","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["test-weakened","claims-beyond-diff"],"note":"迁到新 owner 时删掉旧清理行为断言没补等价测试；根因合同证据与实现不一致；退出路径全集没盘全"}
 {"date":"2026-10-08","line":"F-sbbatch6","kind":"implementation","pr":1107,"outcome":"returned-by-coordinator","defects":["parallel-version"],"note":"新建 PlanRows 计划行组件而 Agent 面板计划卡仍自渲染一份（两轮对抗评审都没抓到，推送时先查别人门岗暴露、协调会话核实）"}
+{"date":"2026-10-08","line":"R-review-gateslock","kind":"review","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"抓到锁语义不等价（子进程存活时锁可被接管）、信号退出码错、超时没实现、旧测试删掉 7 类、删 .py 致边界主人新红；并给出 Windows 本机已知红清单"}
+{"date":"2026-10-08","line":"L-gateslock","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change","test-weakened","claims-beyond-diff"],"note":"替换旧实现时没做逐项等价对照，删测试、少功能、报告数字不实"}
