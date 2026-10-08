@@ -298,11 +298,11 @@ export function V4Intervention({
    * 这不是第二个 pending 布尔：它读的是已有的 `kind`，没有新字段、没有新产地。
    */
   const shellWaiting = waiting && data.kind !== 'missing-card'
-  // 计划槽底栏：主动作 + 「改一下」…… 「收起 ▴/展开 ▾」，**以及和其余档一样的那颗 ×**。
+  // 计划槽底栏：主动作 + 「改一下」…… 「收起 ▴/展开 ▾」，**以及和其余档一样的文字「取消」**。
   //
   // 原来这里没有 ×，理由是「整张不要就是不勾任何一项」。2026-09-11 用户实测把这条否了：
   // 逐条取消 8 个勾再确认，是让人用 8 下点击说一句「不用了」，而且当时那几个勾还点不动。
-  // × 是全站统一的否定动作（一 icon 一含义），计划卡不该是唯一的例外。
+  // 否定动作是全站统一的（2026-10-07 起是决定栏里的文字「取消」，不再是右上角 ×），计划卡不该是唯一的例外。
   const isPlan = data.kind === 'plan'
   const pager = data.pager
   /**
@@ -353,6 +353,7 @@ export function V4Intervention({
 
   // 页脚先算成一个值再交给外壳：它闭包里用着 rejecting / reason / pager / labels 一大把
   // 局部量，抽成独立组件要把它们全当 prop 再传一遍，那是把一处可读的 JSX 换成十个参数。
+  const dismissCard = (): void => (data.reasonPlaceholder ? setRejecting(true) : onReject?.())
   const slotFooter = hasActions ? (
     <>
         {/* ── 翻页那一行 = 「这一叠」：第几页 + 一共多少（2026-10-01 用户看样张后拍板）──
@@ -382,8 +383,14 @@ export function V4Intervention({
             不截断、不挤压、主按钮不被挤到下一行（2026-10-01）。中文在默认面板宽下一行放得下。 */}
         <V4Row as="div" className="flex-wrap text-caption" data-v4-block="actions">
           {data.progress ? (
-            // 动作已经交出去、正在一张一张走（付费卡「生成剩下 N 张」）：不摆任何按钮，只说怎么停——右上那颗 × 就是停下。
-            <span className="text-caption text-nomi-ink-60" data-v4-block="slot-progress">{data.progress.hint}</span>
+            // 动作已经交出去、正在一张一张走（付费卡「生成剩下 N 张」）：不摆主动作，只说怎么停——右边那颗文字「取消」就是停下。
+            <>
+              <span className="text-caption text-nomi-ink-60" data-v4-block="slot-progress">{data.progress.hint}</span>
+              <span className="flex-1" />
+              <WorkbenchButton size="sm" className="shrink-0" onClick={dismissCard} data-v4-control="slot-dismiss">
+                {labels.reject}
+              </WorkbenchButton>
+            </>
           ) : rejecting || data.kind === 'reject-reason' ? (
             <>
               <span className="flex-1" />
@@ -425,8 +432,13 @@ export function V4Intervention({
                 </button>
               ) : null}
               {/* ── 右：**这一张的动作**，一组、靠右。安静次按钮在左、深色主按钮在右（参照物的排法）。
-                  否定动作那颗 × 已经搬到卡右上角，由外壳统一摆，这里不再有它。 */}
+                  否定动作是这一组最左的文字「取消」（2026-10-07 起，右上角没有 ×）。 */}
               <span className="flex grow items-center justify-end gap-1.5" data-v4-block="card-actions">
+                {/* 决定栏的取消（文字）：右组最左、紧挨「去掉这段」和主动作（设计系统 §1.9.1）。
+                    它就是原来右上角 × 干的那件事（拒绝 / 停下），两个入口做一件事只留这一个。 */}
+                <WorkbenchButton size="sm" className="shrink-0" onClick={dismissCard} data-v4-control="slot-dismiss">
+                  {labels.reject}
+                </WorkbenchButton>
                 {data.alternateLabel ? (
                   // 次动作 = 现役描边按钮（agent 专章 §8.2：主次只用颜色分，深底=主、描边=次；
                   // 文字链不与按钮同排）。
@@ -447,9 +459,6 @@ export function V4Intervention({
                   // 单动作最小宽 72px（agent 专章 §8.2），否则两个字的按钮会缩成小方块。尺寸阶梯上没有 72，取上一档 80（`min-w-20`），不写任意值。
                   className="min-w-20 shrink-0"
                 >
-                  {data.kind === 'approval-irreversible' || data.kind === 'spend' ? (
-                    <IconCheck aria-hidden="true" />
-                  ) : null}
                   {data.confirmLabel ?? labels.confirm}
                   <span aria-hidden="true" className="text-micro opacity-70">⏎</span>
                 </WorkbenchButton>
@@ -480,13 +489,7 @@ export function V4Intervention({
           ) : null}
         </span>
       )}
-      // × 统一钉在右上（三张卡一处），不再蹲在页脚右端。
-      {...(hasActions ? {
-        dismiss: {
-          label: labels.reject,
-          onClick: () => (data.reasonPlaceholder ? setRejecting(true) : onReject?.()),
-        },
-      } : {})}
+      // 右上角没有 ×：这些是内联卡片不是窗口，「取消」是决定栏里的文字按钮（§1.9.1）。
       {...(slotFooter ? { footer: slotFooter } : {})}
     >
         {data.summary ? <AgentPanelV4Markdown text={data.summary} /> : null}

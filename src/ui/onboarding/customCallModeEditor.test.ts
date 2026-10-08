@@ -46,7 +46,7 @@ describe('CustomCallEditor mode scripts', () => {
   it('saves only after a successful test and continues media drafts into capability setup', () => {
     expect(editor).toContain("const testPassed = test.phase === 'done' && test.ok")
     expect(editor).toContain('const saveTestedScript = React.useCallback')
-    expect(editor).toContain('onClick={saveTestedScript}')
+    expect(editor).toContain('onPrimary: saveTestedScript')
     expect(editor).toContain('requiresCapabilitySetup && onContinueCapability')
     expect(editor).toContain('customCall.saveAndContinueCapability')
     expect(editor).toContain("customCall.saveScope', { scope: selectedScopeLabel }")
