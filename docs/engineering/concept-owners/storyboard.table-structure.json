@@ -1,0 +1,23 @@
+{
+  "name": "分镜表格结构",
+  "subject": "storyboard.table-structure",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.ts",
+    "symbol": "STORYBOARD_ROW_NARROW_BELOW"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardRowDensity.ts",
+      "symbol": "STORYBOARD_ROW_NARROW_BELOW"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-05",
+  "notes": "分镜表格的窄行阈值是共享布局契约，供行组件统一使用。"
+}

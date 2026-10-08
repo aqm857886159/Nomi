@@ -6,7 +6,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createProject, deleteProject, diagnoseProject, listProjects, readProject, recoverProject, saveProject } from "./projects/repository";
 import { registerProjectsIpc } from "./projects/projectsIpc";
-import { applyCanvasNodePatch } from "./projects/projectCanvasWrite";
 import { registerAssetsIpc } from "./assets/assetsIpc";
 import {
   clearModelCatalogVendorApiKey,
@@ -83,6 +82,7 @@ import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
+import { installQuitTeardown } from "./quitTeardown";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
@@ -418,7 +418,6 @@ function registerIpc(): void {
     deleteProject,
     diagnoseProject,
     recoverProject,
-    applyCanvasNodePatch,
   });
   ipcMain.on("nomi:app:reopen-library-window", (event) => {
     if (!assertTrustedFireAndForget(event, "nomi:app:reopen-library-window", assertTrustedSender)) return;
@@ -656,7 +655,7 @@ if (hasSingleInstanceLock)
         },
         lowMemoryMode ? 15000 : 3000,
       );
-      app.once("before-quit", startCatalogReconciliation());
+      app.once("will-quit", startCatalogReconciliation());
       app.on("activate", () => void ensureMainWindow()); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
     })
     .catch((error) => {
@@ -669,16 +668,12 @@ app.on("window-all-closed", () => {
 });
 // 退出时中止所有在跑导出，否则 ffmpeg 子进程会变孤儿（继续占 CPU/写文件，直到自己跑完）。
 // abort → ffmpegRunner 监听 abort 后 kill 子进程。同步、不抛，绝不拖住退出。
-app.on("before-quit", () => {
-  // 能力核退出清理：清实例广告 + 关 RPC，让外部探测立刻知道「app 已关」。同步、不抛。
-  disposeBackgroundLifecycle();
-  stopDesktopCapabilityCore();
-  void desktopLaneIpc?.dispose().catch((error) => logError("agent", "close-on-quit-failed", error));
-  try {
-    const { abortAllActiveExports } = require("./export/exportJobs") as typeof import("./export/exportJobs");
-    const aborted = abortAllActiveExports();
-    if (aborted > 0) logInfo("export", "aborted-on-quit", { count: aborted });
-  } catch (error) {
-    logError("export", "abort-on-quit-failed", error);
-  }
+installQuitTeardown(app, {
+  disposeBackgroundLifecycle,
+  stopDesktopCapabilityCore,
+  disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
+  abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
+  onError: (stage, error) => stage === "exports-aborted"
+    ? logInfo("export", "aborted-on-quit", { count: error && typeof error === "object" && "count" in error && typeof error.count === "number" ? error.count : 0 })
+    : logError("agent", `${stage}-on-quit-failed`, error),
 });

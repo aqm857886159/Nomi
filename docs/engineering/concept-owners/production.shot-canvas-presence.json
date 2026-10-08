@@ -22,6 +22,7 @@
     {
       "path": "src/workbench/capability/multiShotCanvasLanding.ts",
       "symbol": "materializeShots"
+
     }
   ],
   "forbidden_derivations": [],

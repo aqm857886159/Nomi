@@ -14,6 +14,10 @@
     {
       "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
       "symbol": "deliverRunOutcome"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "reapplyLandedOutcomes"
     }
   ],
   "forbidden_derivations": [],
