@@ -164,6 +164,17 @@ export async function persistActiveWorkbenchProjectNow(): Promise<WorkbenchProje
   return projectSaveOwners.get(target)?.() ?? null
 }
 
+/**
+ * Writes only what is already owed: a debounced edit, a save in flight, or a failed save to retry.
+ * Unlike persistActiveWorkbenchProjectNow it never samples the stores, so a clean project is not
+ * rewritten. Used by the OS-shutdown flush, where nobody is there to answer a dialog.
+ */
+export async function flushPendingWorkbenchProjectSaves(): Promise<void> {
+  const results = await Promise.allSettled([...projectSaveOwners.values()].map((flush) => flush()))
+  const failed = results.find((result) => result.status === 'rejected')
+  if (failed) throw (failed as PromiseRejectedResult).reason
+}
+
 export type WorkbenchProjectPersistenceOptions = {
   projectId: string
   isHydrating: () => boolean

@@ -83,6 +83,7 @@ import { createProjectInteractionCapture } from "./assets/projectInteractionCapt
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
 import { installQuitTeardown, registerQuitDrain, requestQuit } from "./quitTeardown";
+import { installShutdownProjectFlush, SHUTDOWN_FLUSH_RESPONSE_CHANNEL } from "./shutdownProjectFlush";
 import { quitTeardownLogSinks } from "./quitTeardownLog";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
@@ -675,4 +676,10 @@ installQuitTeardown(app, {
   abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
   ...quitTeardownLogSinks, // 失败按字段记；每步 quit-step、结束一条 quit-exit 回执
   systemSession: { platform: process.platform, powerMonitor: () => powerMonitor }, // Windows 关机/注销不发 will-quit
+});
+// 关机 / 注销时让每个开着的窗口静默存一次项目：登记进退出 owner 的必需排空，写盘仍走渲染层既有保存口。
+installShutdownProjectFlush({
+  windows: () => BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed() && !window.webContents.isCrashed()).map((window) => window.webContents),
+  onResponse: (listener) => { ipcMain.on(SHUTDOWN_FLUSH_RESPONSE_CHANNEL, (_event, payload: unknown) => listener(payload)); },
+  onError: quitTeardownLogSinks.onError!,
 });
