@@ -62,9 +62,16 @@ async function watchStopNotice(win) {
   await win.evaluate((selector) => {
     window.__spendBatchStoppedObserver?.disconnect()
     window.__spendBatchStopped = null
+    const before = new Map([...document.querySelectorAll(selector)].map((element) => [element, element.textContent?.trim() ?? '']))
     window.__spendBatchStoppedObserver = new MutationObserver(() => {
-      const text = document.querySelector(selector)?.textContent?.trim()
-      if (text && !window.__spendBatchStopped) window.__spendBatchStopped = text
+      const candidate = [...document.querySelectorAll(selector)].find((element) => {
+        const text = element.textContent?.trim() ?? ''
+        return Boolean(text) && (!before.has(element) || before.get(element) !== text)
+      })
+      if (candidate && !window.__spendBatchStopped) {
+        window.__spendBatchStopped = candidate.textContent.trim()
+        window.__spendBatchStoppedObserver.disconnect()
+      }
     })
     window.__spendBatchStoppedObserver.observe(document.body, { childList: true, subtree: true, characterData: true })
   }, STOP_NOTICE)
@@ -74,6 +81,32 @@ async function watchStopNotice(win) {
 function parseStopped(locale, said) {
   const [, sentText, notSentText, lastOne] = COPY[locale].stopped.exec(said ?? '') ?? []
   return { sent: Number(sentText), notSent: lastOne ? 1 : Number(notSentText) }
+}
+
+/** Read the stop sentence only after the host has settled, and require it to match durable authorization. */
+async function stoppedCountsAfterHostSettles(win, projectId, operationId, locale, total) {
+  let result
+  await expect.poll(async () => {
+    const said = await win.evaluate(() => window.__spendBatchStopped)
+    const durableSent = await authorizedShots(win, projectId, operationId)
+    if (said) {
+      const parsed = parseStopped(locale, said)
+      if (parsed.sent !== durableSent || parsed.notSent !== total - durableSent) return false
+      result = { ...parsed, said }
+      return true
+    }
+    // A fast run can authorize every shot before the stop notice exists; there is no stopped split to assert then.
+    if (durableSent === total) {
+      result = { sent: total, notSent: 0, said: null }
+      return true
+    }
+    return false
+  }, {
+    message: `${locale}: stop notice must match the host's final authorized shot count`,
+    timeout: stationTimeout({ operations: 12 }),
+    intervals: [100],
+  }).toBe(true)
+  return result
 }
 
 /** 供应商这一叠收到的是哪几镜：按每一笔请求的提示词认回卡上的那一镜（认不出的原样留着，断言会把它摆出来）。 */
@@ -145,18 +178,15 @@ async function stopRound(walk, win, projectId, locale) {
     }, { message: `${locale}：宿主批下第 1 张`, timeout: stationTimeout({ operations: 6 }), intervals: [100] }).toBeLessThan(6)
     expect(dismissAt, `${locale}：批下第 1 张时卡和 × 都还在`).toBeTruthy()
     await win.mouse.click(dismissAt.x, dismissAt.y)
-    await expect.poll(() => win.evaluate(() => window.__spendBatchStopped),
-      { message: `${locale}：卡关掉时说发了几张、剩几张没发`, timeout: stationTimeout({ operations: 6 }) }).toBeTruthy()
-    await quickShot(walk, win, `${locale}-stopped`)
-    walk.report.stoppedShotHasNotice = { ...(walk.report.stoppedShotHasNotice ?? {}), [locale]: await win.locator(STOP_NOTICE).count() > 0 }
   } finally {
     walk.fixture.holdSubmits(false)
   }
-  const said = await win.evaluate(() => window.__spendBatchStopped)
-  const { sent, notSent } = parseStopped(locale, said)
+  await recorded(turnDone.received, `${locale}: generate returns once the card is closed`)
+  const { said, sent, notSent } = await stoppedCountsAfterHostSettles(win, projectId, operationId, locale, 6)
+  await quickShot(walk, win, `${locale}-stopped`)
+  walk.report.stoppedShotHasNotice = { ...(walk.report.stoppedShotHasNotice ?? {}), [locale]: await win.locator(STOP_NOTICE).count() > 0 }
   expect(sent + notSent, `${locale}：发了的 + 没发的 = 6（${said}）`).toBe(6)
   expect(sent, `${locale}：× 真的停下了（不是 6 张全发）`).toBeLessThan(6)
-  await recorded(turnDone.received, `${locale}: generate returns once the card is closed by ×`)
   expect(receipt(), `${locale}：回执记成用户关掉了卡`).toMatch(/closed the card/)
   // 批下的正好是那一句说的张数；供应商收到的正好是批下的那几张（派完再数）。
   expect(await authorizedShots(win, projectId, operationId), `${locale}：宿主只批下了 ${sent} 张`).toBe(sent)
@@ -191,28 +221,29 @@ async function singleStopRound(walk, win, projectId, locale) {
   await win.mouse.click(at.confirm.x, at.confirm.y)
   await win.mouse.click(at['slot-dismiss'].x, at['slot-dismiss'].y)
   // × 落在那一下还在路上时，那一句提示和 Agent 的回执差不多同时到：一边等回合说完，一边看提示，它一出来就拍（只留 8 秒）。
-  let turnOver = false
-  void turnDone.received.then(() => { turnOver = true }, () => { turnOver = true })
-  await expect.poll(async () => Boolean(await win.evaluate(() => window.__spendBatchStopped)) || turnOver,
-    { message: `${locale}：提示出来了，或这一轮说完了`, timeout: stationTimeout({ operations: 6 }) }).toBe(true)
-  if (await win.evaluate(() => window.__spendBatchStopped)) await quickShot(walk, win, `${locale}-single-stopped`)
-  await recorded(turnDone.received, `${locale}: generate returns once × closes the card (single)`, stationTimeout({ operations: 6 }))
-  // 等宿主那头落定：批下的都发到了供应商、都出了图（或失败）。
+  await recorded(turnDone.received, `${locale}: generate returns once the card is closed (single)`, stationTimeout({ operations: 6 }))
+  // Wait for the host's terminal authorization/job state before reading the sentence.
   const settled = async () => {
     const authorized = await authorizedShots(win, projectId, operationId)
     return authorized === walk.fixture.images.length - imagesBefore && authorized === await settledJobs(win, projectId, operationId)
   }
-  await expect.poll(settled, { message: `${locale}：批下的都发到了、都落定`, timeout: stationTimeout({ operations: 6 }) }).toBe(true)
-  const said = await win.evaluate(() => window.__spendBatchStopped)
-  if (said && !walk.report.shots?.[`${locale}-single-stopped`]) await quickShot(walk, win, `${locale}-single-stopped`)
+  await expect.poll(settled, { message: `${locale}: approved shots reached the provider and settled`, timeout: stationTimeout({ operations: 12 }) }).toBe(true)
+  const stopped = await stoppedCountsAfterHostSettles(win, projectId, operationId, locale, 3)
+  const said = stopped.said
+  if (said) await quickShot(walk, win, `${locale}-single-stopped`)
   const decision = receiptDecision(receipt())
   expect(decision.closedBy, `${locale}：回执记成用户关掉了卡`).toBe('user_closed')
   expect(decision.generating, `${locale}：回执里在生成的张数 = 宿主批下的张数`).toHaveLength(await authorizedShots(win, projectId, operationId))
   expect(vendorShots(walk, imagesBefore, decision.prompts).sort(), `${locale}：回执里在生成的那几镜，正好是供应商收到的那几镜`)
     .toEqual([...decision.generating].sort())
   if (said) {
-    const { sent, notSent } = parseStopped(locale, said)
-    expect({ sent, notSent }, `${locale}：卡关掉时那一句照宿主最终批下的说（${said}）`).toEqual({ sent: decision.generating.length, notSent: 3 - decision.generating.length })
+    expect(stopped, `${locale}: stop sentence agrees with durable host state`).toEqual({
+      sent: decision.generating.length,
+      notSent: 3 - decision.generating.length,
+      said,
+    })
+  } else {
+    expect(decision.generating.length, `${locale}: no stop sentence only when the host authorized every shot`).toBe(3)
   }
   walk.report.singleStopped = { ...(walk.report.singleStopped ?? {}), [locale]: {
     generating: decision.generating, vendor: vendorShots(walk, imagesBefore, decision.prompts), said: said ?? null,
