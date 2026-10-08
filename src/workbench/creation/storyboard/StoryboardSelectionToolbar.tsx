@@ -2,6 +2,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPlayerPlay, IconPlayerSkipForward, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
 import StoryboardBulkParams from './StoryboardBulkParams'
+import BulkModelPicker from '../../common/BulkModelPicker'
 import { SelectionToolbarFrame } from '../../generationCanvas/components/SelectionToolbarFrame'
 import type { StoryboardShotKind } from './storyboardBulkModelScope'
 import type { StoryboardBulkParamGroup } from './storyboardBulkParamScope'
@@ -99,8 +100,18 @@ export default function StoryboardSelectionToolbar({
               kind={group.kind}
               modelOptions={group.options}
               selectedModel={group.selectedModel}
+              hideModel
               onModelChange={(value, vendor) => onApplyModel(group.kind, value, vendor)}
               onParamChange={(control, raw) => onApplyParam(group.kind, control, raw)}
+            />
+            <BulkModelPicker
+              modelOptions={group.options}
+              ariaLabel={t('generationCommon.parameters.model')}
+              leadingLabel={scope}
+              placeholder={t('generationCommon.production.unifyModel')}
+              size="xs"
+              triggerMaxWidth={150}
+              onPick={(value, vendor) => onApplyModel(group.kind, value, vendor)}
             />
           </span>
         )

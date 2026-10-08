@@ -49,7 +49,9 @@ describe('分镜多选条：「统一模型」按镜种分档，不再拼一条�
   /** P1：模型 + 参数全仓只有 `InlineParameterBar` 一份实现（画布节点、镜头行、这里同一个）——不许再长一个原生 <select>。 */
   it('复用 StoryboardBulkParams（InlineParameterBar），不自己写模型 <select>', () => {
     expect(toolbar).toContain("import StoryboardBulkParams from './StoryboardBulkParams'")
-    expect(toolbar).not.toContain('BulkModelPicker')
+    expect(toolbar).toContain("import BulkModelPicker from '../../common/BulkModelPicker'")
+    expect(toolbar).toContain('<BulkModelPicker')
+    expect(toolbar).toContain('hideModel')
     expect(toolbar).not.toContain('<select')
   })
 })

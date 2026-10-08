@@ -31,3 +31,16 @@ The `gate-family` self-written registry entry is the repeated generic-capability
 - `src/workbench/capability/storyboardPresent.test.ts` asserts zero canvas nodes before consent, explicit checklist consent/cancellation, and the original materializer's post-consent nodes and dispatch waves.
 - `src/workbench/creation/storyboard/exec/storyboardFirstFrameApproval.test.ts` and `shotOutbound.parity.test.ts` assert that confirmation gates dispatch while cancellation and unchecked rows do not.
 - `scripts/check-source-nul-bytes.test.ts` and `scripts/check-control-contract.test.mjs` pin the repository-wide encoding and control-copy contracts.
+
+## 8. Adversarial review follow-up
+The review found that single-row and Agent anchor creation still wrote through
+`applyCreate` before their spend confirmation. The shared `confirmAndRunNode`
+and `confirmAndRunPlan` boundaries now accept deferred materialization, so the
+draft is used for the card and the canvas write happens only after acceptance;
+existing nodes retain the direct regeneration path. `door-map.mjs` was run for
+`generateShotRow`, `generateAnchorCard`, `materializeShotRow`, and `applyCreate`,
+and the contract records all 20 affected doors. The selection toolbar now hides
+the inline model field and renders the existing `BulkModelPicker` once per
+model-kind group. The red-before-fix slice covered single cancellation, Agent
+anchor cancellation, and the strong single-picker structure gate; the same
+tests pass after the shared-boundary fix.

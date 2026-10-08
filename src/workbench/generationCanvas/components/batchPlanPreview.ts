@@ -6,7 +6,7 @@ import { reportCanvasFeedback } from './canvasFeedback'
 import { notify, revealNotificationTarget } from '../../../ui/notificationPolicy'
 import { isProjectExecutionContextCurrent, isProjectOpen, withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { captureApprovedGenerationInputs, type RunGraph, type RunProjectTarget } from '../runner/runProjectDelivery'
-import { paidNodeLedger, spendCostKindForNodes, type GenerationConfirmationGuards } from '../runner/generationRunController'
+import { paidNodeLedger, spendCostKind, spendCostKindForNodes, type GenerationConfirmationGuards } from '../runner/generationRunController'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
 import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
 import { consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
@@ -19,8 +19,14 @@ import type { GenerationRunOutcome } from '../runner/generationRunOutcome'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import i18n from '../../../i18n'
 import { normalizeCanvasBatchConcurrency } from './canvasProductionScope'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 export const BATCH_RUN_TOAST_ID = 'canvas-batch-run'
+
+export type DeferredStoryboardPlan = {
+  draftNodes: readonly GenerationCanvasNode[]
+  materialize: () => Promise<DependencyWavePlan>
+}
 
 type BatchPlanPreviewState = {
   plan: DependencyWavePlan | null
@@ -81,14 +87,12 @@ export function describeBlockedNotice(plan: DependencyWavePlan): string | null {
  * 一批节点的托管解析：整批只问一次（有一个节点需要披露，整批就带上披露块）。
  * 返回 null = 策略 deny，这批直接不跑。
  */
-async function resolveBatchHosting(ids: string[]): Promise<Awaited<ReturnType<typeof resolveAssetUploadConsent>> | null> {
+async function resolveBatchHostingNodes(
+  nodes: readonly GenerationCanvasNode[],
+): Promise<Awaited<ReturnType<typeof resolveAssetUploadConsent>> | null> {
   const canvasState = useGenerationCanvasStore.getState()
-  const nodesById = new Map(canvasState.nodes.map((n) => [n.id, n]))
-  const consentNodes = ids
-    .map((id) => nodesById.get(id))
-    .filter((node): node is NonNullable<typeof node> => Boolean(node))
-    .map((node) => {
-      const resolved = resolveGenerationReferences(node, { nodes: canvasState.nodes, edges: canvasState.edges })
+  const consentNodes = nodes.map((node) => {
+      const resolved = resolveGenerationReferences(node, { nodes: [...nodes], edges: canvasState.edges })
       return {
         ...node,
         references: [
@@ -109,6 +113,11 @@ async function resolveBatchHosting(ids: string[]): Promise<Awaited<ReturnType<ty
     if (resolution.needsConfirmation && !hosting.needsConfirmation) hosting = resolution
   }
   return hosting
+}
+
+async function resolveBatchHosting(ids: string[]): Promise<Awaited<ReturnType<typeof resolveAssetUploadConsent>> | null> {
+  const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
+  return resolveBatchHostingNodes(ids.map((id) => nodesById.get(id)).filter((node): node is GenerationCanvasNode => Boolean(node)))
 }
 
 /** 解析结果 → 花钱卡要不要带披露块。needsConfirmation 时才给，否则整块不渲染。 */
@@ -152,20 +161,25 @@ async function consentPaidNodes(ids: readonly string[], projectId: string): Prom
  */
 export async function confirmAndRunPlan(
   plan: DependencyWavePlan,
-  options: { concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean } & GenerationConfirmationGuards,
+  options: { concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean; deferredMaterialization?: DeferredStoryboardPlan } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
   const project = withProjectAction((issued) => issued)
   if (!project) return 'unavailable'
-  const ids = plan.waves.flat()
+  const deferred = options.deferredMaterialization
+  let executionPlan = plan
+  let ids = deferred ? deferred.draftNodes.map((node) => node.id) : plan.waves.flat()
   if (ids.length === 0) {
     // 无可跑 → 复用人话 toast 报「为什么不能跑」。零节点也就没有素材要上传。
-    await runPlanWithToasts(plan, { assetUploadConsent: 'not-needed', project })
+    await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
     return 'nothing-to-run'
   }
-  const assertApprovedInputs = captureApprovedGenerationInputs(ids)
+  let assertApprovedInputs = deferred ? undefined : captureApprovedGenerationInputs(ids)
   const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
-  const hosting = await resolveBatchHosting(ids)
+  const draftNodes = deferred ? deferred.draftNodes : ids.map((id) => nodesById.get(id)).filter((node): node is GenerationCanvasNode => Boolean(node))
+  const draftKinds = new Set(draftNodes.map((node) => spendCostKind(node.kind)))
+  const draftCostKind = draftKinds.size === 1 ? [...draftKinds][0] : draftKinds.size === 0 ? 'image' : 'mixed'
+  const hosting = deferred ? await resolveBatchHostingNodes(draftNodes) : await resolveBatchHosting(ids)
   // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting) return 'declined'
   const ok = options.skipSpendConfirmation
@@ -173,10 +187,10 @@ export async function confirmAndRunPlan(
     : await confirmGenerationSpend(ids.map((id) => nodesById.get(id)), {
       initiator: options.initiator,
       title: i18n.t('generationCommon.batchPlan.startTitle'),
-      message: describeGenerationCost(ids.length, spendCostKindForNodes(ids), {
-        ...generationCostContextForNodes(ids.map((id) => nodesById.get(id)), project.binding.projectId),
+      message: describeGenerationCost(ids.length, deferred ? draftCostKind : spendCostKindForNodes(ids), {
+        ...generationCostContextForNodes(draftNodes, project.binding.projectId),
         concurrency: normalizeCanvasBatchConcurrency(options.concurrency),
-        waveSizes: plan.waves.map((wave) => wave.length),
+        waveSizes: executionPlan.waves.map((wave) => wave.length),
       }),
       confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
       ...hostingDisclosureFor(hosting),
@@ -187,6 +201,11 @@ export async function confirmAndRunPlan(
   await options.assertCurrent?.()
   project.assertCurrent()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+  if (deferred) {
+    executionPlan = await deferred.materialize()
+    ids = executionPlan.waves.flat()
+    assertApprovedInputs = captureApprovedGenerationInputs(ids)
+  }
   const consented = await consentPaidNodes(ids, project.binding.projectId)
   const canvasRunRecordIds = consented.recordIds
   // 开出价那一下（一次 IPC）里换了项目：还没交任何东西，收回刚开的出价，这一批算没开始（与提交前换项目 = 取消同一条）。
@@ -195,7 +214,7 @@ export async function confirmAndRunPlan(
     return 'unavailable'
   }
   options.onConsented?.(consented.runIds)
-  await runPlanWithToasts(plan, {
+  await runPlanWithToasts(executionPlan, {
     project,
     assertAuthorCurrent: options.assertAuthorCurrent,
     assertApprovedInputs,

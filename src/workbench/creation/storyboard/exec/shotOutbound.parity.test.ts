@@ -25,11 +25,19 @@ vi.mock('../../../generationCanvas/agent/availableModels', () => ({
   resolveStoryboardVideoDefault: async () => ({}),
 }))
 vi.mock('../../../generationCanvas/runner/generationRunController', () => ({
-  confirmAndRunNode: async () => 'started',
- 
+  confirmAndRunNode: async (_nodeId: string, options: { deferredMaterialization?: { materialize: () => Promise<string> } }) => {
+    await options.deferredMaterialization?.materialize()
+    return 'started'
+  },
+
   regenerateNodeInPlace: vi.fn(),
 }))
-vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({ confirmAndRunPlan: async () => 'started' }))
+vi.mock('../../../generationCanvas/components/batchPlanPreview', () => ({
+  confirmAndRunPlan: async (_plan: unknown, options: { deferredMaterialization?: { materialize: () => Promise<unknown> } }) => {
+    await options.deferredMaterialization?.materialize()
+    return 'started'
+  },
+}))
 
 const archetype = resolveArchetypeForModel({ modelKey: 'MiniMax-H3', vendorKey: 'apimart' })!
 const mode: ArchetypeMode = archetype.modes.find((candidate) => candidate.slots.some((slot) => slot.kind === 'image_ref'))

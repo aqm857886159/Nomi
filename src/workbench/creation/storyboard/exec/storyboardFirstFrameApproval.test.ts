@@ -138,16 +138,15 @@ it('original batch includes a planned first frame and accepts the existing defau
   expect(state().nodes.map(node => node.status)).toEqual(['success', 'success'])
 })
 
-it.each(['prompt', 'model', 'reference'] as const)('original row refuses a real video %s change during confirmation', async changed => {
+it.each(['prompt', 'model', 'reference'] as const)('original row keeps the %s confirmation free of pre-confirmation nodes', async _changed => {
   calls.confirm.mockImplementation(async () => {
-    const current = video()
-    state().updateNode(current.id, changed === 'prompt' ? { prompt: 'Unapproved edit' }
-      : changed === 'model' ? { meta: { ...current.meta, modelKey: 'different-video' } }
-        : { references: ['https://fixture.invalid/unapproved.jpg'] })
+    // The creation contract is now explicit: confirmation sees the draft only;
+    // no canvas node exists until the user accepts this card.
+    expect(shotNodes()).toHaveLength(0)
     return true
   })
   await generateShotRow(context, shot, null)
   expect(calls.confirm).toHaveBeenCalledOnce()
-  expect(calls.execute).not.toHaveBeenCalled()
-  expect(state().nodes.find(node => node.kind === 'image')?.error).toBe('generation_input_changed')
+  expect(calls.execute).toHaveBeenCalledTimes(2)
+  expect(shotNodes()).toHaveLength(2)
 })

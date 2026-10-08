@@ -5,7 +5,7 @@ import type { GenerationRunOutcome } from '../../../generationCanvas/runner/gene
 import { ignoredShotAnchors, type IgnoredAnchor } from '../../../generationCanvas/agent/storyboardAnchorPolicy'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'
-import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
+import type { PlanAnchor, PlanShot, StoryboardPlan, PlanCreatedNode } from '../../../generationCanvas/agent/storyboardPlan'
 import { anchorCarriesOwnMaterial, isVisualAnchor, buildAnchorSheetPrompt } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import {
   stableShotId,
@@ -22,8 +22,8 @@ import {
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
-import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards } from '../../../generationCanvas/runner/generationRunController'
-import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
+import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards, type DeferredNodeMaterialization } from '../../../generationCanvas/runner/generationRunController'
+import { confirmAndRunPlan, type DeferredStoryboardPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
@@ -114,6 +114,73 @@ async function applyCreate(args: PlanCreateNodesArgs, gesture?: CanvasGestureCon
   return result?.clientIdToNodeId ?? {}
 }
 
+function draftNodeFromPlanNode(node: PlanCreatedNode): GenerationCanvasNode {
+  return {
+    id: node.clientId,
+    kind: node.kind as GenerationCanvasNode['kind'],
+    title: node.title,
+    prompt: node.prompt,
+    position: { x: 0, y: 0 },
+    meta: {
+      ...(node.metadata ?? {}),
+      ...(node.modelKey ? { modelKey: node.modelKey } : {}),
+      ...(node.modelVendor ? { modelVendor: node.modelVendor } : {}),
+      ...(node.modeId ? { modeId: node.modeId } : {}),
+      ...(node.params ? { params: node.params } : {}),
+    },
+  }
+}
+
+type PreparedShotRow = {
+  args: PlanCreateNodesArgs
+  existing: ReturnType<typeof existingRowBindings>
+  ignoredAnchors: IgnoredAnchor[]
+  keyframeEnabled: boolean
+  mode: ArchetypeMode | null
+}
+
+async function prepareShotRow(ctx: RowActionContext, shot: PlanShot, mode: ArchetypeMode | null): Promise<PreparedShotRow> {
+  await ctx.assertCurrent?.()
+  const ignoredAnchors = ignoredShotAnchors(ctx.plan, shot, mode)
+  const existing = existingRowBindings(ctx, shot)
+  const keyframeEnabled = shot.shotKind !== 'image' && shot.keyframe?.enabled === true
+  const defaults = await resolveDefaults()
+  if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard materialization')
+  const args = storyboardShotToCreateNodesArgs(ctx.plan, shot, {
+    ...defaults,
+    creationDocumentId: ctx.documentId,
+    storyboardDesignId: ctx.designId,
+    materializationOperationId: `storyboard:${ctx.designId}`,
+    ...(existing.keyframeNode ? { existingKeyframeNodeId: existing.keyframeNode.id } : {}),
+  })
+  if (existing.shotNode) {
+    const clientId = stableShotId(shot)
+    args.nodes = args.nodes.filter(node => node.clientId !== clientId)
+    args.edges = args.edges.map(edge => ({ ...edge,
+      sourceClientId: edge.sourceClientId === clientId ? existing.shotNode!.id : edge.sourceClientId,
+      targetClientId: edge.targetClientId === clientId ? existing.shotNode!.id : edge.targetClientId,
+    }))
+  }
+  return { args, existing, ignoredAnchors, keyframeEnabled, mode }
+}
+
+async function finishMaterializedShotRow(
+  ctx: RowActionContext,
+  shot: PlanShot,
+  prepared: PreparedShotRow,
+  preserveExisting: boolean,
+): Promise<{ shotNodeId: string; keyframeNodeId: string | null; ignoredAnchors: IgnoredAnchor[] }> {
+  const clientIdToNodeId = await applyCreate(prepared.args, ctx.gesture, ctx.assertCurrent)
+  const shotNodeId = prepared.existing.shotNode?.id ?? clientIdToNodeId[stableShotId(shot)]
+  if (!shotNodeId) throw new Error('materialize failed: shot node missing')
+  const keyframeNodeId = prepared.existing.keyframeNode?.id
+    ?? (prepared.keyframeEnabled ? clientIdToNodeId[`${stableShotId(shot)}-keyframe`] ?? null : null)
+  const created = canvasState().nodes.find((node) => node.id === shotNodeId)
+  if (created && (!preserveExisting || !prepared.existing.shotNode)) await syncShotNodeWithRow(ctx, shot, created, 'shot', prepared.mode)
+  if (prepared.existing.keyframeNode && !preserveExisting) await syncShotNodeWithRow(ctx, shot, prepared.existing.keyframeNode, 'keyframe')
+  return { shotNodeId, keyframeNodeId, ignoredAnchors: prepared.ignoredAnchors }
+}
+
 // ── 行编辑写回节点（跑之前的唯一收口）──
 
 /**
@@ -146,38 +213,9 @@ export async function materializeShotRow(
   mode: ArchetypeMode | null,
   preserveExisting = false,
 ): Promise<{ shotNodeId: string; keyframeNodeId: string | null; ignoredAnchors: IgnoredAnchor[] }> {
-  await ctx.assertCurrent?.()
-  const ignoredAnchors = ignoredShotAnchors(ctx.plan, shot, mode)
-  const existing = existingRowBindings(ctx, shot)
-  const keyframeEnabled = shot.shotKind !== 'image' && shot.keyframe?.enabled === true
-  const defaults = await resolveDefaults()
-  if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard materialization')
-  const args = storyboardShotToCreateNodesArgs(ctx.plan, shot, {
-    ...defaults,
-    creationDocumentId: ctx.documentId,
-    storyboardDesignId: ctx.designId,
-    materializationOperationId: `storyboard:${ctx.designId}`,
-    ...(existing.keyframeNode ? { existingKeyframeNodeId: existing.keyframeNode.id } : {}),
-  })
-  if (existing.shotNode) {
-    const clientId = stableShotId(shot)
-    args.nodes = args.nodes.filter(node => node.clientId !== clientId)
-    args.edges = args.edges.map(edge => ({ ...edge,
-      sourceClientId: edge.sourceClientId === clientId ? existing.shotNode!.id : edge.sourceClientId,
-      targetClientId: edge.targetClientId === clientId ? existing.shotNode!.id : edge.targetClientId,
-    }))
-  }
-  const clientIdToNodeId = await applyCreate(args, ctx.gesture, ctx.assertCurrent)
-  const shotNodeId = existing.shotNode?.id ?? clientIdToNodeId[stableShotId(shot)]
-  if (!shotNodeId) throw new Error('materialize failed: shot node missing')
-  const keyframeNodeId = existing.keyframeNode?.id
-    ?? (keyframeEnabled ? clientIdToNodeId[`${stableShotId(shot)}-keyframe`] ?? null : null)
-  // 刚建出来的节点同样要过一遍写回 —— 参考绑定不在 create_canvas_nodes 的参数面里，
-  // 只在这条写回边界上进 meta；漏掉它 = 第一次生成不带参考、第二次才带（最阴的静默陷阱）。
-  const created = canvasState().nodes.find((node) => node.id === shotNodeId)
-  if (created && (!preserveExisting || !existing.shotNode)) await syncShotNodeWithRow(ctx, shot, created, 'shot', mode)
-  if (existing.keyframeNode && !preserveExisting) await syncShotNodeWithRow(ctx, shot, existing.keyframeNode, 'keyframe')
-  return { shotNodeId, keyframeNodeId, ignoredAnchors }
+  // 单行先构造草稿，确认通过后才 materialize，再沿用既有单发通路。
+  const prepared = await prepareShotRow(ctx, shot, mode)
+  return finishMaterializedShotRow(ctx, shot, prepared, preserveExisting)
 }
 
 /**
@@ -189,16 +227,47 @@ export async function generateShotRow(
   shot: PlanShot,
   mode: ArchetypeMode | null,
 ): Promise<void> {
-  const { shotNodeId, keyframeNodeId } = await materializeShotRow(ctx, shot, mode)
-  const { nodes, edges } = canvasState()
-  const keyframeNode = keyframeNodeId ? nodes.find((node) => node.id === keyframeNodeId) ?? null : null
-  if (keyframeNode && !hasUsableResult(keyframeNode)) {
+  const prepared = await prepareShotRow(ctx, shot, mode)
+  if (prepared.existing.shotNode && !prepared.keyframeEnabled) {
     await ctx.assertCurrent?.()
-    await confirmAndRunPlan(buildDependencyWaves([keyframeNodeId!, shotNodeId], { nodes, edges }), confirmationGuards(ctx))
+    await syncShotNodeWithRow(ctx, shot, prepared.existing.shotNode, 'shot', mode)
+    await confirmAndRunNode(prepared.existing.shotNode.id, confirmationGuards(ctx))
     return
   }
+  const draftNodes = prepared.args.nodes
+    .filter((node) => node.clientId === stableShotId(shot) || node.clientId === `${stableShotId(shot)}-keyframe`)
+    .map(draftNodeFromPlanNode)
+  if (prepared.existing.shotNode && !draftNodes.some((node) => node.id === prepared.existing.shotNode!.id)) draftNodes.push(prepared.existing.shotNode)
+  if (prepared.existing.keyframeNode && !hasUsableResult(prepared.existing.keyframeNode)) draftNodes.push(prepared.existing.keyframeNode)
+  const shotDraft = draftNodes.find((node) => node.id === stableShotId(shot)) ?? prepared.existing.shotNode
+  if (!shotDraft) throw new Error('materialize failed: shot draft missing')
+  const deferred: DeferredNodeMaterialization = {
+    draftNode: shotDraft,
+    materialize: async () => (await finishMaterializedShotRow(ctx, shot, prepared, false)).shotNodeId,
+  }
+  const keyframeNode = prepared.existing.keyframeNode
+  const keyframeDraft = draftNodes.find((node) => node.id === `${stableShotId(shot)}-keyframe`)
+  if ((!keyframeNode && !keyframeDraft) || (keyframeNode && hasUsableResult(keyframeNode))) {
+    await ctx.assertCurrent?.()
+    await confirmAndRunNode(shotDraft.id, { ...confirmationGuards(ctx), deferredMaterialization: deferred })
+    return
+  }
+  const draftPlan = buildDependencyWaves(draftNodes.map((node) => node.id), { nodes: draftNodes, edges: [] })
   await ctx.assertCurrent?.()
-  await confirmAndRunNode(shotNodeId, confirmationGuards(ctx))
+  await confirmAndRunPlan(draftPlan, {
+    ...confirmationGuards(ctx),
+    deferredMaterialization: {
+      draftNodes,
+      materialize: async () => {
+        const materialized = await finishMaterializedShotRow(ctx, shot, prepared, false)
+        const state = canvasState()
+        return buildDependencyWaves(
+          [materialized.keyframeNodeId ?? materialized.shotNodeId, materialized.shotNodeId],
+          state,
+        )
+      },
+    },
+  })
 }
 
 /** 悬停浮条 ↻：写回行编辑 + 原地重生成（同节点、不换 id、时间轴回填闸沿用）。 */
@@ -274,12 +343,19 @@ export async function generateAnchorCard(ctx: RowActionContext, anchor: PlanAnch
       materializationOperationId: `storyboard:${ctx.designId}`,
     })
     if (!args) return 'nothing-to-run' // 文本锚不生成图（按钮态就不该出现）
-    const clientIdToNodeId = await applyCreate(args, ctx.gesture, ctx.assertCurrent)
-    const nodeId = clientIdToNodeId[anchor.id]
-    if (!nodeId) throw new Error('materialize failed: anchor node missing')
-    await ctx.assertCurrent?.()
-    // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-    return confirmAndRunNode(nodeId, confirmationGuards(ctx))
+    const draftNode = draftNodeFromPlanNode(args.nodes[0])
+    return confirmAndRunNode(draftNode.id, {
+      ...confirmationGuards(ctx),
+      deferredMaterialization: {
+        draftNode,
+        materialize: async () => {
+          const clientIdToNodeId = await applyCreate(args, ctx.gesture, ctx.assertCurrent)
+          const nodeId = clientIdToNodeId[anchor.id]
+          if (!nodeId) throw new Error('materialize failed: anchor node missing')
+          return nodeId
+        },
+      },
+    })
   }
   await ctx.assertCurrent?.()
   await syncAnchorNodeWithCard(ctx, anchor, node)

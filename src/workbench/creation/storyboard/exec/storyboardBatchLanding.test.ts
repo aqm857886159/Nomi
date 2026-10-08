@@ -226,6 +226,29 @@ it('finds a newly materialized shot through its own metadata on the next call', 
   expect(useGenerationCanvasStore.getState().nodes.map(value => value.id)).toEqual([first])
 })
 
+it('does not leave a single shot node when its confirmation is cancelled', async () => {
+  calls.single.mockResolvedValue('declined')
+  const shot = { index: 1, shotId: 'single-cancelled', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Door' }
+  await generateShotRow(
+    { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [], shots: [shot] } },
+    shot,
+    null,
+  )
+  expect(calls.single).toHaveBeenCalledOnce()
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+})
+
+it('does not leave an Agent reference card when its confirmation is cancelled', async () => {
+  calls.single.mockResolvedValue('declined')
+  const anchor = { id: 'single-anchor-cancelled', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'Actor' }
+  await generateAnchorCard(
+    { initiator: 'agent' as const, documentId: 'doc', designId: 'design', plan: { title: 'Reference', anchors: [anchor], shots: [] } },
+    anchor,
+  )
+  expect(calls.single).toHaveBeenCalledOnce()
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+})
+
 
 it('bound row actions keep single-shot and regeneration on the original runner', async () => {
   const shot = { index: 1, shotId: 'action-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: [], prompt: 'Updated author prompt' }
