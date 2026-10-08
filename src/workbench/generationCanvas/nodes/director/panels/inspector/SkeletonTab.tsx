@@ -16,7 +16,7 @@ import { cn } from '../../../../../../utils/cn'
 import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
 import type { DirectorObject, Vec3 } from '../../model/directorTypes'
 import type { IkHandleKey } from '../../model/ikChains'
-import { boneName, jointAxisLabelKey, type SemanticBone } from '../../model/rigs'
+import { boneName, DEFAULT_CHARACTER_RIG, jointAxisLabelKey, type SemanticBone } from '../../model/rigs'
 import { useViewportApi } from '../../scene/ViewportApiContext'
 import { InspectorCard, SectionHeader } from '../fields/FieldPrimitives'
 import { SliderNumberField } from '../fields/SliderNumberField'
@@ -48,7 +48,7 @@ export function SkeletonTab({ object }: { object: DirectorObject }): JSX.Element
     return null
   })
   const mode: Mode = ikEnabled ? 'ik' : 'fk'
-  const rig = object.rig ?? 'mixamo'
+  const rig = object.rig ?? DEFAULT_CHARACTER_RIG
   // 选中骨骼关键帧时读那一帧，否则读静止微调
   const rotations = keyframe?.boneRotations ?? object.boneRotations ?? {}
   const jointRotation = (bone: SemanticBone): Vec3 => rotations[boneName(rig, bone)] ?? ZERO
