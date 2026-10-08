@@ -5,7 +5,6 @@ import {
   IconArrowUp,
   IconCheck,
   IconDots,
-  IconGripVertical,
   IconLayoutGrid,
   IconList,
   IconLock,
@@ -40,19 +39,30 @@ import {
   type Locale,
   type Shot,
 } from './storyboardLayoutExploreData'
+import { ImprovedRow, ListRow } from './storyboardLayoutExploreRows'
 
 function ShotMedia({
   shot,
   compact = false,
   bounded = false,
+  framed = false,
+  frameHeight = 220,
   locale,
   selected = shot.selected,
+  showStatusOverlay = true,
+  showProgressLine = false,
+  showPreview = true,
 }: {
   shot: Shot
   compact?: boolean
   bounded?: boolean
+  framed?: boolean
+  frameHeight?: number
   locale: Locale
   selected?: boolean
+  showStatusOverlay?: boolean
+  showProgressLine?: boolean
+  showPreview?: boolean
 }): JSX.Element {
   const t = copy[locale]
   const ratio = shot.ratio.replace(':', '/')
@@ -68,25 +78,47 @@ function ShotMedia({
         : shot.ratio === '1:1'
           ? '方形'
           : '横屏'
-  return (
+  const mediaBox = (
     <div
-      className={`relative overflow-hidden rounded-nomi-sm bg-nomi-ink-05 ${compact ? 'shrink-0' : ''} ${bounded ? 'h-full w-auto max-w-full' : ''}`}
-      style={bounded ? { height: '100%', aspectRatio: ratio } : { aspectRatio: ratio }}
+      className={`relative overflow-hidden rounded-nomi-sm bg-nomi-ink-05 ${compact ? 'shrink-0' : ''} ${framed ? 'max-h-full max-w-full' : ''}`}
+      style={
+        framed
+          ? shot.ratio === '9:16'
+            ? { height: '100%', aspectRatio: ratio }
+            : { width: '100%', maxHeight: '100%', aspectRatio: ratio }
+          : bounded
+            ? { height: '100%', aspectRatio: ratio }
+            : { aspectRatio: ratio }
+      }
     >
       <img
         className="absolute inset-0 size-full object-cover"
         src={dataImage(Number(shot.id.replace('shot-', '')), shot.ratio, shot.tone, imageLabel)}
         alt=""
       />
-      <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-1 p-1.5">
-        <DesignBadge size="xs" variant="filled" tone={statusTone(shot.status)} className="bg-nomi-paper/90 text-micro">
-          {statusLabel(shot.status, t)}
-        </DesignBadge>
-        <span className="rounded-nomi-sm bg-nomi-ink/55 px-1.5 py-0.5 text-micro font-medium text-nomi-paper">
+      {showStatusOverlay ? (
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-1 p-1.5">
+          <DesignBadge
+            size="xs"
+            variant="filled"
+            tone={statusTone(shot.status)}
+            className="bg-nomi-paper/90 text-micro"
+          >
+            {statusLabel(shot.status, t)}
+          </DesignBadge>
+          <span className="rounded-nomi-sm bg-nomi-ink/55 px-1.5 py-0.5 text-micro font-medium text-nomi-paper">
+            {shot.ratio}
+          </span>
+        </div>
+      ) : (
+        <span className="absolute right-1.5 top-1.5 rounded-nomi-sm bg-nomi-ink/55 px-1.5 py-0.5 text-micro font-medium text-nomi-paper">
           {shot.ratio}
         </span>
-      </div>
-      {shot.status === 'generating' ? (
+      )}
+      {showProgressLine && shot.status === 'generating' ? (
+        <span className="absolute inset-x-0 bottom-0 h-1 bg-nomi-accent" />
+      ) : null}
+      {showStatusOverlay && shot.status === 'generating' ? (
         <div className="absolute inset-x-2 bottom-2 rounded-nomi-sm bg-nomi-ink/65 px-2 py-1.5 text-micro text-nomi-paper">
           <div className="mb-1 flex items-center justify-between">
             <span>{t.generating}</span>
@@ -97,12 +129,12 @@ function ShotMedia({
           </div>
         </div>
       ) : null}
-      {shot.status === 'failed' ? (
+      {showStatusOverlay && shot.status === 'failed' ? (
         <div className="absolute inset-x-2 bottom-2 rounded-nomi-sm bg-nomi-ink/72 px-2 py-1.5 text-micro text-nomi-paper">
           {t.failed} · {locale === 'en' ? 'retry available' : '可重试'}
         </div>
       ) : null}
-      {shot.status === 'skipped' ? (
+      {showStatusOverlay && shot.status === 'skipped' ? (
         <div className="absolute inset-0 grid place-items-center bg-nomi-ink/35 text-caption font-semibold text-nomi-paper">
           {t.skipped}
         </div>
@@ -115,7 +147,7 @@ function ShotMedia({
           <IconCheck size={15} stroke={2.2} aria-hidden="true" />
         </span>
       ) : null}
-      {!compact ? (
+      {showPreview && !compact ? (
         <button
           type="button"
           className="absolute bottom-2 right-2 grid size-7 place-items-center rounded-full bg-nomi-paper/90 text-nomi-ink shadow-nomi-sm"
@@ -125,6 +157,16 @@ function ShotMedia({
         </button>
       ) : null}
     </div>
+  )
+  return framed ? (
+    <div
+      className="relative flex items-center justify-center overflow-hidden rounded-nomi-sm bg-nomi-ink-05"
+      style={{ height: frameHeight }}
+    >
+      {mediaBox}
+    </div>
+  ) : (
+    mediaBox
   )
 }
 
@@ -142,7 +184,7 @@ function TopShell({
   onLocale: (locale: Locale) => void
 }): JSX.Element {
   const t = copy[locale]
-  const labels: Record<Direction, string> = { a: t.grid, b: t.inspector, c: t.rows }
+  const labels: Record<Direction, string> = { a: t.grid, b: t.inspector, c: t.rows, d: t.hybrid }
   return (
     <header className="border-b border-nomi-line bg-nomi-paper px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -173,7 +215,7 @@ function TopShell({
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1 rounded-nomi-sm bg-nomi-ink-05 p-1">
-          {(['a', 'b', 'c'] as Direction[]).map((key) => (
+          {(['a', 'b', 'c', 'd'] as Direction[]).map((key) => (
             <a
               key={key}
               href={`?direction=${key}&count=${count}&locale=${locale}${narrow ? '&narrow=1' : ''}`}
@@ -262,19 +304,51 @@ function MetaLine({ shot, locale }: { shot: Shot; locale: Locale }): JSX.Element
   )
 }
 
-function GridCard({ shot, locale }: { shot: Shot; locale: Locale }): JSX.Element {
+function GridCard({
+  shot,
+  locale,
+  frameHeight = 220,
+  onSelect,
+}: {
+  shot: Shot
+  locale: Locale
+  frameHeight?: number
+  onSelect?: (shot: Shot) => void
+}): JSX.Element {
   const t = copy[locale]
   const prompt = locale === 'en' ? shot.promptEn : shot.prompt
   return (
     <article
-      className={`group rounded-nomi border bg-nomi-paper p-2.5 shadow-nomi-sm transition-[border-color,box-shadow] ${shot.selected ? 'border-nomi-accent ring-1 ring-inset ring-nomi-accent/30' : 'border-nomi-line hover:border-nomi-ink-30'}`}
+      className={`group rounded-nomi border bg-nomi-paper p-2.5 shadow-nomi-sm transition-[border-color,box-shadow] ${shot.selected ? 'border-nomi-accent ring-1 ring-inset ring-nomi-accent/30' : 'border-nomi-line hover:border-nomi-ink-30'} ${onSelect ? 'cursor-pointer' : ''}`}
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={onSelect ? () => onSelect(shot) : undefined}
+      onKeyDown={
+        onSelect
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') onSelect(shot)
+            }
+          : undefined
+      }
     >
-      <ShotMedia shot={shot} locale={locale} selected={shot.selected} />
+      <ShotMedia
+        shot={shot}
+        locale={locale}
+        selected={shot.selected}
+        framed
+        frameHeight={frameHeight}
+        showStatusOverlay={false}
+        showProgressLine
+        showPreview={false}
+      />
       <div className="mt-2 flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span className="text-caption font-semibold text-nomi-ink">
             {locale === 'en' ? 'Shot' : '镜'} {shot.id.replace('shot-', '').padStart(2, '0')}
           </span>
+          <DesignBadge size="xs" tone={statusTone(shot.status)}>
+            {statusLabel(shot.status, t)}
+          </DesignBadge>
           {shot.selected ? (
             <span className="rounded-nomi-sm bg-nomi-accent/10 px-1.5 py-0.5 text-micro font-medium text-nomi-accent">
               {locale === 'en' ? 'selected' : '选中'}
@@ -316,7 +390,7 @@ function GridDirection({ shots, locale, count }: { shots: Shot[]; locale: Locale
       </div>
       <div className={`grid items-start gap-3 px-4 pb-4 ${count === 6 ? 'grid-cols-4' : 'grid-cols-5'}`}>
         {shots.map((shot) => (
-          <GridCard key={shot.id} shot={shot} locale={locale} />
+          <GridCard key={shot.id} shot={shot} locale={locale} frameHeight={count === 6 ? 220 : 156} />
         ))}
       </div>
       <Footer locale={locale} count={count} />
@@ -324,7 +398,80 @@ function GridDirection({ shots, locale, count }: { shots: Shot[]; locale: Locale
   )
 }
 
-function InspectorPanel({ shot, locale }: { shot: Shot; locale: Locale }): JSX.Element {
+function HybridDirection({
+  shots,
+  locale,
+  count,
+  narrow,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  shots: Shot[]
+  locale: Locale
+  count: number
+  narrow: boolean
+  selectedId: string | null
+  onSelect: (shot: Shot) => void
+  onClose: () => void
+}): JSX.Element {
+  const selected = shots.find((shot) => shot.id === selectedId)
+  const t = copy[locale]
+  const gridColumns = count === 30 ? 'grid-cols-5' : narrow ? 'grid-cols-2' : selected ? 'grid-cols-3' : 'grid-cols-4'
+  return (
+    <div className="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-sm">
+      <SceneToolbar locale={locale} count={count} />
+      <BatchBar locale={locale} />
+      <div
+        className="grid min-w-0 transition-[grid-template-columns] duration-200"
+        data-inspector-open={selected ? 'true' : 'false'}
+        style={{
+          gridTemplateColumns: selected
+            ? narrow
+              ? 'minmax(0, 1fr) minmax(300px, 320px)'
+              : 'minmax(0, 1fr) minmax(360px, 420px)'
+            : 'minmax(0, 1fr)',
+        }}
+      >
+        <section className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-nomi-line px-4 py-3">
+            <div className="flex items-center gap-1 rounded-nomi-sm bg-nomi-ink-05 p-1">
+              <span className="rounded-nomi-sm bg-nomi-paper px-2 py-1 text-caption font-medium text-nomi-ink shadow-nomi-sm">
+                {t.all}
+              </span>
+              <span className="px-2 py-1 text-caption text-nomi-ink-60">{t.filter}</span>
+            </div>
+            <div className="flex items-center gap-2 text-caption text-nomi-ink-60">
+              <IconLayoutGrid size={15} stroke={1.7} /> {locale === 'en' ? 'Visual scan' : '画面扫读'} <span>·</span>{' '}
+              {selected
+                ? locale === 'en'
+                  ? 'inspector open'
+                  : '检查器已展开'
+                : locale === 'en'
+                  ? 'prompt collapsed'
+                  : '提示词收起'}
+            </div>
+          </div>
+          <div className={`grid items-start gap-3 px-4 pb-4 ${gridColumns}`}>
+            {shots.map((shot) => (
+              <GridCard
+                key={shot.id}
+                shot={shot}
+                locale={locale}
+                frameHeight={count === 6 ? 220 : 156}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
+        </section>
+        {selected ? <InspectorPanel shot={selected} locale={locale} onClose={onClose} /> : null}
+      </div>
+      <Footer locale={locale} count={count} />
+    </div>
+  )
+}
+
+function InspectorPanel({ shot, locale, onClose }: { shot: Shot; locale: Locale; onClose?: () => void }): JSX.Element {
   const t = copy[locale]
   const prompt = locale === 'en' ? shot.promptEn : shot.prompt
   return (
@@ -347,6 +494,14 @@ function InspectorPanel({ shot, locale }: { shot: Shot; locale: Locale }): JSX.E
             label={locale === 'en' ? 'Next shot' : '下一镜'}
             size="sm"
           />
+          {onClose ? (
+            <WorkbenchIconButton
+              icon={<IconX size={15} stroke={1.7} />}
+              label={locale === 'en' ? 'Close inspector' : '收起检查器'}
+              size="sm"
+              onClick={onClose}
+            />
+          ) : null}
         </div>
       </div>
       <div className="overflow-auto p-4">
@@ -475,67 +630,6 @@ function Param({ label, value }: { label: string; value: string }): JSX.Element 
   )
 }
 
-function ListRow({
-  shot,
-  locale,
-  selected,
-  compact = false,
-}: {
-  shot: Shot
-  locale: Locale
-  selected: boolean
-  compact?: boolean
-}): JSX.Element {
-  const t = copy[locale]
-  const mediaHeight = compact ? 28 : 52
-  return (
-    <div
-      className={`grid items-center gap-2 border-b border-nomi-line ${compact ? 'px-2 py-0.5' : 'px-3 py-1.5'} ${selected ? 'bg-nomi-accent/8' : 'bg-nomi-paper'}`}
-      style={{ gridTemplateColumns: compact ? '18px 30px minmax(0, 1fr) auto' : '20px 52px minmax(0, 1fr) auto' }}
-    >
-      <WorkbenchIconButton
-        icon={<IconGripVertical size={14} stroke={1.6} />}
-        label={locale === 'en' ? 'Drag to reorder' : '拖动排序'}
-        size="sm"
-        className="cursor-grab text-nomi-ink-30"
-      />
-      <div
-        className="relative overflow-hidden rounded-nomi-sm bg-nomi-ink-05"
-        style={{ height: mediaHeight, aspectRatio: shot.ratio.replace(':', '/') }}
-      >
-        <img
-          className="absolute inset-0 size-full object-cover"
-          src={dataImage(Number(shot.id.replace('shot-', '')), shot.ratio, shot.tone, '')}
-          alt=""
-        />
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span
-            className={compact ? 'text-micro font-semibold text-nomi-ink' : 'text-caption font-semibold text-nomi-ink'}
-          >
-            {locale === 'en' ? 'Shot' : '镜'} {shot.id.replace('shot-', '').padStart(2, '0')}
-          </span>
-          <DesignBadge size="xs" tone={statusTone(shot.status)}>
-            {statusLabel(shot.status, t)}
-          </DesignBadge>
-        </div>
-        <div className="truncate text-micro text-nomi-ink-60">{locale === 'en' ? shot.promptEn : shot.prompt}</div>
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="hidden text-micro text-nomi-ink-40 sm:inline">{shot.ratio}</span>
-        {selected ? (
-          <span className="grid size-5 place-items-center rounded-full bg-nomi-accent text-nomi-paper">
-            <IconCheck size={12} stroke={2.2} />
-          </span>
-        ) : (
-          <WorkbenchIconButton icon={<IconDots size={15} stroke={1.7} />} label={t.more} size="sm" />
-        )}
-      </div>
-    </div>
-  )
-}
-
 function InspectorDirection({ shots, locale, count }: { shots: Shot[]; locale: Locale; count: number }): JSX.Element {
   const selected = shots.find((shot) => shot.id === 'shot-2') ?? shots[0]
   return (
@@ -571,61 +665,6 @@ function InspectorDirection({ shots, locale, count }: { shots: Shot[]; locale: L
         <InspectorPanel shot={selected} locale={locale} />
       </div>
       <Footer locale={locale} count={count} />
-    </div>
-  )
-}
-
-function ImprovedRow({ shot, locale, count }: { shot: Shot; locale: Locale; count: number }): JSX.Element {
-  const t = copy[locale]
-  const prompt = locale === 'en' ? shot.promptEn : shot.prompt
-  const mediaHeight = count === 30 ? 38 : 64
-  return (
-    <div
-      className={`group grid items-center gap-3 border-b border-nomi-line px-3 ${shot.selected ? 'bg-nomi-accent/8' : ''}`}
-      style={{ minHeight: count === 30 ? 48 : 82, gridTemplateColumns: '20px auto minmax(0, 1fr) auto' }}
-    >
-      <WorkbenchIconButton
-        icon={<IconGripVertical size={15} stroke={1.6} />}
-        label={locale === 'en' ? 'Drag to reorder' : '拖动排序'}
-        size="sm"
-        className="cursor-grab text-nomi-ink-30 opacity-0 transition-opacity group-hover:opacity-100"
-      />
-      <div
-        className="relative shrink-0 overflow-hidden rounded-nomi-sm bg-nomi-ink-05"
-        style={{ height: mediaHeight, aspectRatio: shot.ratio.replace(':', '/') }}
-      >
-        <img
-          className="absolute inset-0 size-full object-cover"
-          src={dataImage(Number(shot.id.replace('shot-', '')), shot.ratio, shot.tone, '')}
-          alt=""
-        />
-        {shot.status === 'generating' ? <span className="absolute inset-x-0 bottom-0 h-1 bg-nomi-accent" /> : null}
-      </div>
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-caption font-semibold text-nomi-ink">
-            {locale === 'en' ? 'Shot' : '镜'} {shot.id.replace('shot-', '').padStart(2, '0')}
-          </span>
-          <DesignBadge size="xs" tone={statusTone(shot.status)}>
-            {statusLabel(shot.status, t)}
-          </DesignBadge>
-          <span className="hidden truncate text-micro text-nomi-ink-60 md:inline">
-            {kindLabel(shot.kind, t)} · {shot.model}
-          </span>
-        </div>
-        <p className={`mt-0.5 truncate text-body-sm text-nomi-ink ${count === 30 ? 'max-w-[680px]' : ''}`}>{prompt}</p>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="hidden rounded-nomi-sm bg-nomi-ink-05 px-1.5 py-1 text-micro text-nomi-ink-60 sm:inline">
-          {shot.ratio}
-        </span>
-        {shot.selected ? (
-          <span className="grid size-6 place-items-center rounded-full bg-nomi-accent text-nomi-paper">
-            <IconCheck size={14} stroke={2.2} />
-          </span>
-        ) : null}
-        <WorkbenchIconButton icon={<IconDots size={16} stroke={1.7} />} label={t.more} size="sm" />
-      </div>
     </div>
   )
 }
@@ -690,7 +729,18 @@ function LayoutExploreApp(): JSX.Element {
   const initialLocale = params.get('locale') === 'en' ? 'en' : 'zh'
   const narrow = params.get('narrow') === '1'
   const [locale, setLocale] = React.useState<Locale>(initialLocale)
+  const [hybridSelectedId, setHybridSelectedId] = React.useState<string | null>(
+    direction === 'd' && count === 6 ? 'shot-2' : null,
+  )
   const shots = React.useMemo(() => createShots(count, locale), [count, locale])
+  React.useEffect(() => {
+    if (direction !== 'd') return undefined
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHybridSelectedId(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [direction])
   return (
     <div className="min-h-screen bg-nomi-bg text-nomi-ink">
       <TopShell direction={direction} locale={locale} count={count} narrow={narrow} onLocale={setLocale} />
@@ -718,8 +768,18 @@ function LayoutExploreApp(): JSX.Element {
           <GridDirection shots={shots} locale={locale} count={count} />
         ) : direction === 'b' ? (
           <InspectorDirection shots={shots} locale={locale} count={count} />
-        ) : (
+        ) : direction === 'c' ? (
           <ImprovedRowsDirection shots={shots} locale={locale} count={count} />
+        ) : (
+          <HybridDirection
+            shots={shots}
+            locale={locale}
+            count={count}
+            narrow={narrow}
+            selectedId={hybridSelectedId}
+            onSelect={(shot) => setHybridSelectedId((current) => (current === shot.id ? null : shot.id))}
+            onClose={() => setHybridSelectedId(null)}
+          />
         )}
       </main>
     </div>

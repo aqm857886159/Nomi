@@ -1,4 +1,4 @@
-export type Direction = 'a' | 'b' | 'c'
+export type Direction = 'a' | 'b' | 'c' | 'd'
 export type Locale = 'zh' | 'en'
 export type ShotStatus = 'ready' | 'generating' | 'failed' | 'skipped'
 type Ratio = '16:9' | '9:16' | '1:1'
@@ -20,10 +20,11 @@ export type Shot = {
 export const copy = {
   zh: {
     title: '分镜方案 · 版式探索',
-    subtitle: '同一组镜头数据，三种阅读方式。这里只验证版式，不连接生成逻辑。',
+    subtitle: '同一组镜头数据，四种阅读方式。这里只验证版式，不连接生成逻辑。',
     grid: 'A · 画面优先格子板',
     inspector: 'B · 紧凑列表 + 右侧检查器',
     rows: 'C · 改良现行一行一镜',
+    hybrid: 'D · 格子板 + 侧滑检查器',
     six: '6 镜混合比例',
     thirty: '30 镜长列表',
     state: '状态同屏',
@@ -65,10 +66,11 @@ export const copy = {
   },
   en: {
     title: 'Storyboard plan · layout explore',
-    subtitle: 'One shot dataset, three reading modes. Layout only; generation logic is not connected.',
+    subtitle: 'One shot dataset, four reading modes. Layout only; generation logic is not connected.',
     grid: 'A · Image-first grid',
     inspector: 'B · Compact list + inspector',
     rows: 'C · Refined one-shot rows',
+    hybrid: 'D · Grid + slide-out inspector',
     six: '6 shots · mixed ratios',
     thirty: '30 shots · long list',
     state: 'States together',
