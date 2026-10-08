@@ -1,0 +1,333 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-paid-post-single-exit",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-08",
+  "problem_type": "付费 POST 入口绕过统一新连接与写出证据，陈旧 keep-alive 断开后无法稳定区分是否已写出",
+  "symptom": "音频 TTS、音频转写和其他 catalog multipart 付费提交仍可直接经过共享 appFetch；代理或服务器掐掉空闲连接后，用户看到结果未知，且不同入口没有同一套预写失败重发策略。",
+  "direct_cause": "apimartGenerationProvider 与 vendorHttp 各自装配传输，audioTaskRunner 的豆包 NDJSON 使用 hardenedFetch、转写使用 appFetch；这些入口没有共同调用包含 createFreshConnectionDispatcher 与 outboundRequestWasNeverWritten 的共享核。",
+  "class_root": "所有会扣费的 POST 没有一个强制共享的发送边界，导致 wire 编码差异被误当成需要独立网络路径，陈旧连接、写出证据和预写重发规则在入口分叉。",
+  "affected_population": [
+    "所有通过 catalog 生成、同步音频 TTS、音频转写或 multipart 图像编辑提交付费 POST 的用户",
+    "使用会复用 keep-alive 连接的代理、供应商或空闲连接被服务端回收的 Windows / Node 运行环境",
+    "供应商响应在写出前连接失败或写出后断开的所有输入"
+  ],
+  "scope_paths": [
+    "electron/vendor/vendorHttp.ts",
+    "electron/ai/requestPipeline.ts",
+    "electron/vendor/vendorBaseFallback.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/audio/synchronousAudioResponse.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/generationProviderBootstrap.ts",
+    "electron/systemProxy.ts",
+    "electron/outboundDispatchEvidence.ts",
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/providerExplicitRejection.test.ts",
+    "electron/capabilityCore/generationProviderBootstrap.test.ts",
+    "electron/audioTaskRunner.test.ts",
+    "electron/capabilityCore/apimartFreshConnection.test.ts",
+    "electron/catalog/customCallRunner.ts",
+    "electron/runtime.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/paidPostCodeFeatureTable.test.ts",
+    "electron/catalog/userVendorBase.ts",
+    "electron/catalog/userVendorBase.test.ts",
+    "electron/productionRun/productionRunE2eFixture.ts",
+    "electron/productionRun/productionRunE2eFixture.test.ts",
+    "electron/productionRun/productionRunE2eFixture.matrix.test.ts",
+    "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
+    "electron/shared/productionRunE2eFixtureGate.ts",
+    "electron/main.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/productionRun/productionRunRuntime.ts"
+  ],
+  "entry_points": [
+    "目录生成 create/query 通过 catalog provider.send",
+    "vendorHttp JSON / binary / multipart 包装",
+    "同步音频 TTS 与豆包 NDJSON TTS",
+    "音频转写 multipart",
+    "runtime 与 customCallRunner 已经注入 requestJson/requestMultipart 的 catalog 路径"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/nodejs/undici/blob/v6.19.8/lib/core/errors.js",
+      "checked_at": "2026-10-07",
+      "purpose": "确认 UND_ERR_SOCKET 的错误形状不能单独证明请求是否写出，因此连接建立与写出证据必须由共享出口统一处理。"
+    }
+  ],
+  "invariants": [
+    "所有会扣费的 HTTP POST 都经 vendorHttp.requestVendor 及其 requestJson/requestBinary/requestMultipart 包装。",
+    "付费 POST 每次使用只属于该请求的 createFreshConnectionDispatcher；GET 查询和非付费媒体读取不进入该规则。",
+    "只有 outboundRequestWasNeverWritten 明确证明预写失败时才允许一次自动重发；重发必须复用同一个幂等键并且由入口声明供应商支持幂等。",
+    "收到响应体后或写出后断开一律不自动重发，交给现有结果未知回执逻辑。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/audio/synchronousAudioResponse.ts",
+      "symbol": "requestBinary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "runTranscribe"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "runDoubaoUnidirectionalTts"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "requestBinary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "requestMultipart"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "requestJson"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpLoopbackRpcCall.ts",
+      "symbol": "outboundRequestWasNeverWritten"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "outboundRequestWasNeverWritten"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "requestMultipart"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "requestJson"
+    },
+    {
+      "kind": "write",
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "outboundRequestWasNeverWritten"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "requestMultipart"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "requestJson"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "createFreshConnectionDispatcher"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "outboundRequestWasNeverWritten"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestVendor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/requestPipeline.ts",
+      "symbol": "looksLikeLogicalError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "startCapabilityCore"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "startMcpStdioServer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionRunE2eFixtureGate.ts",
+      "symbol": "productionFixtureBaseOriginFromEnv"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/userVendorBase.ts",
+      "symbol": "userVendorBaseUrl"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunE2eFixture.ts",
+      "symbol": "isProductionRunE2eFixtureEnabled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/mainProcessLifecycle.ts",
+      "symbol": "setProductionRunE2eFixturePackagedState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntime.ts",
+      "symbol": "isProductionRunE2eFixtureEnabled"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 25,
+    "why_not": "?????????????????????? vendorHttp.requestVendor ???????? door-map ?? 23 ???????? owner ? re-export ??????????after ?????????audioTaskRunner?runtime?customCallRunner ? apimart provider ??? wire / ?????mcpLoopbackRpcCall?modelOnboarding ? outboundDispatchEvidence ??????? owner???????????"
+  },
+  "generality_proof": "door-map 覆盖了音频、目录生成、custom call、runtime 和证据层的同类调用；所有真正写供应商 POST 的入口现在只调用 requestJson/requestBinary/requestMultipart，这三个包装都收敛到 requestVendor。新连接、重定向、超时、响应上限和写出证据不会随 JSON、二进制或 multipart wire 再复制。",
+  "shared_boundaries": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestVendor",
+      "responsibility": "唯一付费 HTTP 出口：构造每请求新连接、调用 outboundRequestWasNeverWritten，执行最多一次预写重发并统一解析响应/错误。"
+    },
+    {
+      "path": "electron/systemProxy.ts",
+      "symbol": "createFreshConnectionDispatcher",
+      "responsibility": "为每次付费提交创建不共享 keep-alive 池的 dispatcher，并复用应用代理路由。"
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "outboundRequestWasNeverWritten",
+      "responsibility": "只在 DNS、建连或 TLS 握手前等证据足够时回答未写出；写出后失败保持未知。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "send",
+      "disposition": "enforced",
+      "evidence": "send 已删除自有 fetch / dispatcher，调用 requestJson；apimartFreshConnection.test.ts 的真实 loopback 连接矩阵仍覆盖连续 POST、写后断开、拒连。"
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestVendor",
+      "disposition": "enforced",
+      "evidence": "requestJson、requestBinary 和 requestMultipart 只在此处进入 fetchVendorWithBaseFallback，并共享新连接和写出证据。"
+    },
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "runDoubaoUnidirectionalTts",
+      "disposition": "enforced",
+      "evidence": "NDJSON 响应只保留本地编解码，POST 改用 requestBinary；audioTaskRunner.test.ts 断言真实 fetch 收到带 dispatcher 的 POST。"
+    },
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "runTranscribe",
+      "disposition": "enforced",
+      "evidence": "multipart FormData 仍由 executeMultipartOperation 组装，但发送改用 requestMultipart。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "executeProfileOperation",
+      "disposition": "enforced",
+      "evidence": "既有 JSON 与 multipart catalog 路径已经注入 requestJson/requestMultipart，门表将其列为共享出口消费者。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增的同步音频、multipart 或目录供应商提交都能复制同一旁路；当前仓库已存在至少四类独立 wire / caller。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs createFreshConnectionDispatcher outboundRequestWasNeverWritten requestVendor requestJson requestBinary requestMultipart",
+      "rg -n 'method.*POST|appFetch\\(|hardenedFetch' electron，人工区分付费提交与 GET / 本地控制请求",
+      "electron/capabilityCore/apimartFreshConnection.test.ts：目录生成真实 socket 入口",
+      "electron/audioTaskRunner.test.ts：同步 TTS、豆包 NDJSON、Whisper multipart 三个音频入口",
+      "electron/runtime.ts:213/231：catalog JSON / multipart 已经从 requestVendor 收敛"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/vendor/vendorHttp.ts",
+    "invariant": "所有付费 POST 只能从 requestVendor 进入网络；预写失败重发最多一轮，写出后不重发。",
+    "failure_mode": "入口若改回直接 appFetch/hardenedFetch，门表与入口测试失去统一出口断言；requestVendor 对写后断开保留 VendorRequestError，fail closed 到结果未知。",
+    "exception_policy": "none",
+    "strategy": "在既有 JSON / binary / multipart 包装的共同底层集中装配新连接、写出证据、响应上限和错误分类，入口只保留 wire 编码。",
+    "artifacts": [
+      "electron/vendor/vendorHttp.ts",
+      "electron/ai/requestPipeline.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts",
+      "electron/audioTaskRunner.ts",
+      "electron/vendor/vendorHttp.test.ts",
+      "electron/audioTaskRunner.test.ts",
+      "electron/capabilityCore/generationProviderBootstrap.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/productionRun/productionRunE2eFixture.ts",
+      "electron/productionRun/productionRunE2eFixture.matrix.test.ts",
+      "electron/catalog/userVendorBase.ts",
+      "electron/catalog/userVendorBase.test.ts",
+      "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
+      "electron/shared/productionRunE2eFixtureGate.ts",
+      "electron/mainProcessLifecycle.ts",
+      "electron/productionRun/productionRunRuntime.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/audioTaskRunner.test.ts",
+    "electron/providerExplicitRejection.test.ts",
+    "electron/capabilityCore/generationProviderBootstrap.test.ts",
+    "electron/paidPostCodeFeatureTable.test.ts",
+    "electron/catalog/userVendorBase.test.ts",
+    "electron/productionRun/productionRunE2eFixture.matrix.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/audioTaskRunner.test.ts",
+    "electron/providerExplicitRejection.test.ts",
+    "electron/capabilityCore/generationProviderBootstrap.test.ts",
+    "electron/paidPostCodeFeatureTable.test.ts",
+    "electron/catalog/userVendorBase.test.ts",
+    "electron/productionRun/productionRunE2eFixture.matrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/apimartGenerationProvider.ts",
+      "electron/audioTaskRunner.ts"
+    ],
+    "rationale": "旧的旁路调用在同一改动中被删除，保留的 executeMultipartOperation 只负责 FormData 组装，保留的 readAudioBytes 只负责非付费参考媒体 GET。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有升级或新增依赖；沿用仓库已安装的 undici dispatcher、Node fetch 和现有 vendorHttp。",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/vendor/vendorHttp.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/vendor/vendorHttp.test.ts",
+      "electron/audioTaskRunner.test.ts"
+    ],
+    "rationale": "requestVendor 是所有付费 POST 的共享发送边界；vendorHttp.test.ts 覆盖新连接、预写重发和写后断开，audioTaskRunner.test.ts 覆盖音频旁路已经接入该边界。"
+  },
+  "migration": "没有持久化数据或回执 schema 迁移；旧调用方在同一提交中切换到现有 requestVendor 包装，既有供应商 mapping 与结果状态保持不变。",
+  "residual_risks": [
+    "当前生产供应商能力声明仍大多不支持幂等键，因此预写自动重发只对显式传入 retryOnNotWritten + idempotencyKey 的调用生效；不支持幂等的入口保持结果未知，不会猜测。",
+    "真实代理、真实供应商和真付费未运行，Windows / 英文界面 / 真规模 / 真账号形态验收保持 unverified。",
+    "供应商备用域 fallback 仍由既有 vendorBaseFallback 管理；本次只让它复用统一 fetch 实现，没有改变备用域名单或回执语义。"
+  ]
+}

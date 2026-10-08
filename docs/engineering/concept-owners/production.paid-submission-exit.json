@@ -1,0 +1,27 @@
+{
+  "name": "付费提交出口",
+  "subject": "production.paid-submission-exit",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/vendor/vendorHttp.ts",
+    "symbol": "requestVendor"
+  },
+  "write_api": [
+    { "path": "electron/vendor/vendorHttp.ts", "symbol": "requestVendor" }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/vendor/vendorHttp.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/audio/synchronousAudioResponse.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/runtime.ts",
+    "electron/catalog/customCallRunner.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "根因合同 docs/fixes/2026-10-08-paid-post-single-exit.root-cause.json：所有会扣费的 HTTP POST 统一经过 requestVendor；每次新连接与 outboundDispatchEvidence 写出判据只在这里装配，供应商声明支持幂等时预写失败最多重发一次，写出后失败交上层现有结果未知逻辑，不在入口另写。GET 查询与本地参考媒体读取不属于付费提交出口。"
+}
