@@ -166,7 +166,7 @@ describe("quit teardown lifecycle", () => {
       for (let i = 0; i < 6; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core"]);
       vi.advanceTimersByTime(10);
-      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+      for (let i = 0; i < 20; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
       expect(exports).toHaveBeenCalledOnce();
       expect(lane).toHaveBeenCalledOnce();

@@ -13,6 +13,7 @@ type QuitDrain = {
   drain: () => void | Promise<void>;
   required: boolean;
   timeoutMs?: number;
+  critical?: boolean;
 };
 
 export interface QuitTeardownDependencies {
@@ -99,8 +100,8 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
   });
 
   const builtInDrains: QuitDrain[] = [
-    { name: "background-lifecycle", drain: dependencies.disposeBackgroundLifecycle, required: true, timeoutMs: ownerTimeoutMs },
-    { name: "capability-core", drain: dependencies.stopDesktopCapabilityCore, required: true, timeoutMs: ownerTimeoutMs },
+    { name: "background-lifecycle", drain: dependencies.disposeBackgroundLifecycle, required: true },
+    { name: "capability-core", drain: dependencies.stopDesktopCapabilityCore, required: true },
     {
       name: "active-exports",
       drain: () => {
@@ -108,10 +109,11 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
         if (aborted > 0) report(dependencies.onError, "exports-aborted", { count: aborted });
       },
       required: true,
-      timeoutMs: ownerTimeoutMs,
+      critical: true,
     },
-    { name: "desktop-lane-ipc", drain: dependencies.disposeDesktopLaneIpc, required: true, timeoutMs: ownerTimeoutMs },
+    { name: "desktop-lane-ipc", drain: dependencies.disposeDesktopLaneIpc, required: true },
   ];
+  const builtInStepTimeoutMs = Math.max(1, Math.floor(ownerTimeoutMs / builtInDrains.length));
 
   app.on("will-quit", (event) => {
     if (teardownFinished) return;
@@ -123,12 +125,21 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     const required = [...registeredDrains.values()].filter((entry) => entry.required);
     const optional = [...registeredDrains.values()].filter((entry) => !entry.required);
     const runInOrder = async (): Promise<boolean> => {
-      for (const entry of [...builtInDrains, ...required]) {
+      let anyTimedOut = false;
+      for (const entry of builtInDrains) {
+        const timedOut = await runDrain(
+          { ...entry, timeoutMs: builtInStepTimeoutMs },
+          quitTeardownTimeoutMs(),
+          dependencies.onError,
+        );
+        anyTimedOut ||= timedOut;
+      }
+      for (const entry of required) {
         const timedOut = await runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError);
-        if (timedOut) return false;
+        anyTimedOut ||= timedOut;
       }
       for (const entry of optional) void runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError);
-      return true;
+      return !anyTimedOut;
     };
     void runInOrder().then((completed) => {
       teardownFinished = true;
