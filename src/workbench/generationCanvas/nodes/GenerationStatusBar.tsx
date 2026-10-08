@@ -3,7 +3,6 @@ import { useReducedProcessMotion } from './useReducedProcessMotion'
 import { cn } from '../../../utils/cn'
 import type { GenerationFeedback } from '../../observability/generationFeedback'
 
-/** One atom, eight factual fillings. Geometry belongs to the node, never to progress. */
 export function GenerationStatusBar({ feedback, overlay = false, action }: {
   feedback: GenerationFeedback
   overlay?: boolean
@@ -16,7 +15,6 @@ export function GenerationStatusBar({ feedback, overlay = false, action }: {
     const animation = dot.current?.animate([{ opacity: 0.5 }, { opacity: 1 }, { opacity: 0.5 }], { duration: 1600, iterations: Infinity })
     return () => animation?.cancel()
   }, [reduced, feedback.active])
-  // 「已保存到项目」是限时回执：窗口最后一小段淡出；系统开了「减少动态效果」就不淡出，到点直接消失。
   const color = feedback.phase === 'failed' ? 'bg-nomi-danger'
     : feedback.late ? 'bg-nomi-warning' : feedback.phase === 'queued' ? 'bg-nomi-ink-30' : 'bg-nomi-accent'
   return (

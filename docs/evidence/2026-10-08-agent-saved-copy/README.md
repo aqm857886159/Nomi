@@ -1,1 +1,5 @@
-Targeted render evidence: completed nodes render no inline saved receipt; bash tool labels resolve to the generic intent label in zh-CN/en. Full Electron screenshot walk is unverified in this worktree.\n
+# Agent saved-copy evidence
+
+未验证：中英文真截图还没拿到。上一轮的两张节点截图拍到的是空节点（没有结果图），Agent 工具调用两张是设计实验室整页拼图，都不能证明「完成节点不再挂回执」与「bash 按意图显示」，已作废，补拍后放在这里。
+
+已验证的是定向渲染测试和 `pnpm run build`。

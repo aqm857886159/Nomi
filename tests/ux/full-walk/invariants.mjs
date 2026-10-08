@@ -57,7 +57,6 @@ export const INVARIANTS = Object.freeze([
   Object.freeze({
     id: 9, key: 'nothing-useless-shown',
     title: Object.freeze({ 'zh-CN': '不显示没用的东西', en: 'Nothing useless is shown' }),
-    how: '逐条规则核对：9a 只有 1 版时不显示「几版」；9b「已保存到项目」过了登记的回执窗口不许还挂着；9c 同一条提示不因同一次失败重复叠「×N」。',
   }),
   // 2026-10-05 体验铁律第一批（docs/plan/2026-10-05-experience-iron-laws-batch1.md）。⑩ ⑪ 是单测 / 评测，不在走查里判；
   // ⑫ 要真点、真看，所以住在这里。它只在剧本显式调 `monitor.checkClickTarget` 时判，不改上面九条的任何判据。

@@ -64,8 +64,6 @@ export function useGenerationFeedback(node: GenerationCanvasNode | null | undefi
   useTranslation()
   const entries = useGenerationQueueStore((state) => state.entries)
   const { current, queued, queueAhead, active } = selectGenerationFeedbackNode(node, keyframeNode, entries)
-  // 落地回执是**限时**的，所以刚跑完的那几秒钟表也得继续走——否则「跑完」那一帧渲染出回执之后
-  // 再没有第二帧来把它收走，一句一次性的话就又变回常驻的了。窗口过完这一格自己退订。
   const timestamp = useGenerationFeedbackClock(active)
   return current ? generationFeedback(current, timestamp, queued, queueAhead) : null
 }

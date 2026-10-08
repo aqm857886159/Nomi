@@ -44,7 +44,6 @@ it('a queued rerun keeps its queue position instead of showing the previous succ
   const feedback = generationFeedback(selected.current!, Date.now(), selected.queued, selected.queueAhead)
   expect(feedback?.phase).toBe('queued')
   expect(feedback?.message).toContain('前面 1 个')
-  expect(feedback?.saved).toBe(false)
 })
 
 it('a failed prerequisite stays visible even when the shot itself is recoverable', () => {

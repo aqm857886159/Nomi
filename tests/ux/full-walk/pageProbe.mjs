@@ -8,7 +8,6 @@
 // 输入事件只认 `isTrusted`：Playwright 的鼠标键盘走 CDP，产生的就是可信事件（与真人同一类），
 // 页面脚本自己 dispatch 的不算。
 
-/** 「已保存到项目」回执（9b）的中英原文，从词典读——页内观察者不自己写界面原话。 */
 /** 注入页面的函数本体（`win.evaluate(installProbe, options)`）。幂等：已经装过就只回报 already。 */
 export function installProbe() {
   const VERSION = 7

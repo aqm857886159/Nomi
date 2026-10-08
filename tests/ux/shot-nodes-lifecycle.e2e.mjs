@@ -86,7 +86,7 @@ try {
     catalog.upsertVendor({ ...vendor, enabled: false })
   })
   await app.app.evaluate(() => globalThis.__shotNodeMaterialize.release())
-  await expect(first.locator('[data-node-inline-status] [data-generation-message]')).toContainText('已保存到项目', { timeout: stationTimeout({ operations: 8 }) })
+  await expect(first.locator('[data-node-inline-status] [data-generation-message]')).toHaveCount(0)
   await expect(first.locator('[data-node-media-state=ready]')).toBeAttached()
   await capture('complete')
   await expect(second.locator('[role=alert]')).toContainText('这个模型没配好', { timeout: stationTimeout({ operations: 8 }) })
@@ -107,7 +107,7 @@ try {
   if (await page.getByText('开始生成', { exact: true }).isVisible()) await confirm.click()
   await expect.poll(() => fixture.jobs.length).toBe(2)
   fixture.jobs[1].done = true
-  await expect(second.locator('[data-node-inline-status] [data-generation-message]')).toContainText('已保存到项目', { timeout: stationTimeout({ operations: 8 }) })
+  await expect(second.locator('[data-node-inline-status] [data-generation-message]')).toHaveCount(0)
   await capture('retry-complete')
   receipt.checks.push('Existing node retry/generate action completes after configuration recovery')
 } catch (error) {

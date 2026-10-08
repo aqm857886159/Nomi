@@ -47,3 +47,7 @@
 - NodeGenerationStatus and LightweightGenerationNode do not render saved receipt
 - bash resolves to toolGeneric
 - pageProbe no longer tracks saved receipt ledger
+
+## 协调会话批准
+
+2026-10-08 协调会话审过：选「在共享投影删除终态回执」——删除是结构性收口（P1），不是第 N 次补丁；任务中心完成行保留并改说「已完成」。

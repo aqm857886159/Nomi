@@ -192,7 +192,7 @@ export const FULL_WALK_PLAYBOOKS = Object.freeze([
   }),
   Object.freeze({
     id: 'pb10-node-display-rules', script: 'tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs', paid: false,
-    title: Object.freeze({ 'zh-CN': '节点上显示什么：版本角标、重拍入口、已保存回执、失败标题、草稿标题', en: 'What a node shows: version badge, re-film entry, saved receipt, failure title, draft title' }),
+    title: Object.freeze({ 'zh-CN': '节点上显示什么：版本角标、重拍入口、失败标题、草稿标题', en: 'What a node shows: version badge, re-film entry, failure title, draft title' }),
     variants: Object.freeze([Object.freeze({ id: 'base', locale: 'zh-CN' }), Object.freeze({ id: 'en', locale: 'en' })]),
   }),
   Object.freeze({

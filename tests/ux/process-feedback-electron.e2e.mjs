@@ -157,7 +157,7 @@ try {
     if (elements.length !== 1) throw new Error(`Expected one message for the active node at ${selector}, got ${elements.length}`)
     return elements[0].textContent
   }), nodeId)
-  await expect(page.locator('[data-nomi-right-panel=tasks] [data-generation-message]').last()).toHaveText('已保存到项目')
+  await expect(page.locator('[data-nomi-right-panel=tasks] [data-generation-message]').last()).toHaveCount(0)
   expect(messages[0]).toMatch(/生成中.*已等/)
   expect(new Set(messages).size).toBe(1)
   receipt.checks.push({ criterion: 'three-real-surfaces-same-instant', nodeId, messages, result: 'green' })
