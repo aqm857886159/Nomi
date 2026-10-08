@@ -1285,17 +1285,6 @@ export function createInvariantMonitor(options) {
         snapshot: { pill },
       })
     }
-    const now = Date.now()
-    for (const label of Object.values(probe.savedLabels ?? {})) {
-      const shown = (label.gone ?? now) - label.firstSeen
-      if (shown <= limits.savedFeedbackWindowMs.value + 400) continue
-      await violate({
-        invariant: 9, rule: '9b-saved-label-lingers', key: label.node,
-        module: 'src/workbench/observability/useGenerationFeedback.ts（回执窗口过了没人再渲一帧）',
-        message: `节点 ${label.node} 的「已保存到项目」挂了 ${Math.round(shown / 1000)}s，登记窗口是 ${limits.savedFeedbackWindowMs.value}ms（${limits.savedFeedbackWindowMs.source}）`,
-        snapshot: { label },
-      })
-    }
     const failures = submissions.filter((submission) => submission.behavior?.fail || submission.behavior?.reject || submission.behavior?.corruptResult).length
     for (const toast of Object.values(probe.toasts ?? {})) {
       if (toast.maxOccurrences <= Math.max(1, failures)) continue

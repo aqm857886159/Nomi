@@ -18,7 +18,7 @@ describe('lightweight shots use the shared lifecycle feedback', () => {
   })
   it('keeps active elapsed time, completion and failure reason', () => {
     expect(render({ status: 'running', progress: { phase: 'generating', updatedAt: 1000 } })).toContain('已等 12 秒')
-    expect(render({})).toContain('已保存到项目')
+    expect(render({})).not.toContain('已保存到项目')
     // 同一个节点，窗口过完就不再挂那一条（落地回执是一次性的，不是常驻状态）。
     expect(render({ runs: [{ id: 'run-0', status: 'success', startedAt: 0, updatedAt: 1, completedAt: 1 }] })).not.toContain('已保存到项目')
     expect(render({ status: 'error', error: 'SpecificUnrecognizedProviderFailure' })).toContain('SpecificUnrecognizedProviderFailure')

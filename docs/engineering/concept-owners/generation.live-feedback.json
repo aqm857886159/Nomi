@@ -1,0 +1,27 @@
+{
+  "name": "生成进行中的过程反馈（节点 / 任务面板 / 时间轴同一句话；完成即消失）",
+  "subject": "generation.live-feedback",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/observability/generationFeedback.ts",
+    "symbol": "generationFeedback"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "generationFeedback"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/GenerationStatusBar.tsx",
+    "src/workbench/observability/useGenerationFeedback.ts",
+    "src/workbench/taskCenter/taskCenterEntries.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "合同 docs/fixes/2026-10-07-agent-redundant-saved-copy.root-cause.json：三处界面（节点状态条、任务面板、时间轴）的进行中文案只由 generationFeedback 投影；节点完成后它返回 null，「已保存到项目」这类终态过程文字不再存在——完成由节点 / 任务本身的持久状态表示。"
+}
