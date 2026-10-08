@@ -28,7 +28,8 @@
 
 ## 先查别人
 
-- Kubernetes API 的声明式 reconciliation 把“用户明确提交的期望状态”与控制器观察到的差异分开；本任务采用同一原则：删除动作发显式 intent，装载/卸载的差异不再被解释成删除。来源：Kubernetes API Concepts，Declarative Management。
-- 单写者原则要求一个共享资源只有一个串行写入边界；本任务把 renderer 的项目文件写回改为 main IPC，并让 gateway 与结果投递共用 `serializeProjectCanvasWrite`。来源：SQLite transaction/serialized writer guidance；仓库已有 `workspaceSaveLock`。
-- 这些外部原则只决定边界形状，Run 命令格式、画布 node patch 和项目身份校验仍由仓库现有 owner 决定。
-
+- Kubernetes 声明式对象管理把「用户明确提交的期望状态」与控制器观察到的差异分开：https://kubernetes.io/docs/concepts/overview/working-with-objects/object-management/ 。本任务采用同一原则：删除动作发显式 intent，装载 / 卸载造成的差异不再被解释成删除。
+- SQLite 的锁模型同一时刻只允许一个写者（RESERVED / EXCLUSIVE 锁串行写入）：https://www.sqlite.org/lockingv3.html 。本任务把 renderer 的项目文件写回改为 main IPC，并让 gateway 与结果投递共用一个按项目串行的队列 `electron/projects/projectCanvasWrite.ts:11`（`serializeProjectCanvasWrite`）。
+- Electron 官方 IPC 模式：渲染进程用 `ipcRenderer.invoke` 请求、主进程 `ipcMain.handle` 执行有副作用的操作：https://www.electronjs.org/docs/latest/tutorial/ipc 。节点补丁 `projects.applyCanvasNodePatch` 按此模式走主进程，不在渲染进程直写项目文件。
+- 合并逻辑复用仓库已有的三方合并 `electron/shared/canvas/externalCanvasWrite.ts:59`（`mergeExternalCanvasWrite`），没有另写一份。
+- 这些外部原则只决定边界形状；Run 命令格式、画布 node patch 和项目身份校验仍由仓库现有 owner 决定。
