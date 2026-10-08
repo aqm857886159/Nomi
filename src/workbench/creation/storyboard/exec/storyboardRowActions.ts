@@ -23,7 +23,7 @@ import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvas
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
 import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards, type DeferredNodeMaterialization } from '../../../generationCanvas/runner/generationRunController'
-import { confirmAndRunPlan, type DeferredStoryboardPlan } from '../../../generationCanvas/components/batchPlanPreview'
+import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'

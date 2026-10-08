@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
  * Playwright 的 click 还会自己滚——只有真人看不见、点不到。所以真判据是走查里的 elementFromPoint
  * （`tests/ux/storyboard-table-structure.walk.mjs`）；这里钉的是**根因的形状**：
  *   ① 多选浮条不在 `overflow-hidden` 的行区里（sticky 只认最近的滚动祖先）；
- *   ? ?????????? `AnchoredPopover`???????????????? `StoryboardHoverPreview` ???
+ *   ② 表里每一个弹出层都走 `AnchoredPopover`（Portal 到 body），没有第二套原地 `absolute` 弹层。
  */
 
 const read = (relative: string): string => fs.readFileSync(path.join(process.cwd(), relative), 'utf8')

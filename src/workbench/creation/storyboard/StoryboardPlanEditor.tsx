@@ -156,8 +156,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
    * 必须与它同一份 derive（合同 §9.3：不许 footer 自己再减一次）。
    */
   const [skippedShotIds, setSkippedShotIds] = React.useState<ReadonlySet<string>>(new Set())
-  // ???????????????????????? Agent ???
-  const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const deletedPlanUndoRef = React.useRef<(StoryboardDeletion & { projectId: typeof projectId; documentId: string; designId: string }) | null>(null)
   const editorRef = React.useRef<HTMLElement>(null)
   const deletedFocusRef = React.useRef<Element | null>(null)
@@ -450,7 +448,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     })
   }
   /**
-   * Agent ??????????????? Agent ???
+   * 「交给 Agent 改」（§2.7）：把选中的镜头挂成常驻 Agent 的引用，用户接着用人话说要改什么。
    * 改表本身走现役 canonical 工具（`nomi_canvas_plan(operation=patch_shots)`），
    * 「就地预览 + 确认卡」的交互语义在 Agent 侧，本合同只保证入口可见。
    */
@@ -649,7 +647,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               durationWarnings={durationWarnings}
               onChange={setStoryboardPlan}
               onStoryboardShotSelect={onStoryboardShotSelect}
-              onSelectionChange={setSelectedRuntimes}
               skippedShotIds={skippedShotIds}
               onToggleSkip={onToggleSkip}
               onAgentHandoff={onAgentHandoff}

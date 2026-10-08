@@ -86,7 +86,7 @@ type Props = {
   /** 可找回态的**免费**续查（`recoverNodeResult`）；与 onGenerate/onRegenerate 那两条付费路径分开。 */
   onRecover?: (() => void) | undefined
   onToggleLock?: (() => void) | undefined
-  /** Agent ????????? */
+  /** 「交给 Agent 改这一镜」（§2.7 入口 3/3）。 */
   onAgentHandoff?: (() => void) | undefined
   /** 设计返工 §2.7：剧本来源只展示设计，不在本轮接真实文稿读写链。 */
   sourceSegment?: { id: string; edited: boolean; onClick?: (() => void) | undefined }

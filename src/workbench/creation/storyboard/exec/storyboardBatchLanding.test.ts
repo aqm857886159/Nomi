@@ -91,7 +91,7 @@ it('stops before shot dispatch when a selected reference card has no result', as
 it('dispatches selected reference cards before the shots that consume them', async () => {
   const anchor = { id: 'actor', kind: 'character' as const, carrier: 'visual' as const, name: 'Actor', description: 'Actor' }
   const shot = { index: 1, shotId: 'ordered-shot', shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Door' }
-  calls.confirm.mockImplementation(async (request: { waves: readonly (readonly string[])[] }) => {
+  calls.confirm.mockImplementation(async () => {
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => (candidate.meta as Record<string, unknown>).anchorId === 'actor')
     if (node) useGenerationCanvasStore.getState().updateNode(node.id, { result: { id: 'actor-result', createdAt: 1, type: 'image', url: 'https://fixture.invalid/actor.png' } })
     return 'started'
