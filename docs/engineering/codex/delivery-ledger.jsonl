@@ -46,3 +46,4 @@
 {"date":"2026-10-08","line":"F-moneycopy5","kind":"implementation","pr":1099,"outcome":"returned-by-coordinator","defects":["rule-overapplied"],"note":"「界面不谈钱」过度执行：把服务商 402 余额不足 / 额度用尽的报错改成「请检查账户状态」，用户看不出要充值；NOT_MONEY 白名单整个清空，无视任务书允许的「转述上游报错」"}
 {"date":"2026-10-08","line":"R-review-1105","kind":"review","pr":1105,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：为画布基准实时输出改了共享 runner 默认，core-smoke / full-walk 的日志与失败摘要会丢子进程输出"}
 {"date":"2026-10-08","line":"L-benchlog","kind":"implementation","pr":1105,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"改共享默认影响其它调用方，没查调用方"}
+{"date":"2026-10-08","line":"F-quitdrains2","kind":"implementation","pr":null,"outcome":"returned-by-coordinator","defects":["semantic-change"],"note":"按合同改对了关窗与顺序，但每步子时限 = 整个预算、某步超时即停：第 2 步挂住会让「中止导出（杀 FFmpeg 子进程）」永不执行，旧代码一定会跑"}
