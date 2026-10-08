@@ -2,9 +2,9 @@
   "name": "Agent proposal 回执读取、迁移与隔离",
   "subject": "agent-proposal.receipt-read-recovery",
   "lifecycle": "execution",
-  "authority_kind": "reader",
+  "authority_kind": "writer",
   "trust_domain": "main",
-  "fact_kind": "persistence-boundary",
+  "fact_kind": "durable",
   "migration_status": "converged",
   "owner": {
     "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
@@ -17,7 +17,11 @@
     }
   ],
   "forbidden_derivations": [
-    "Callers must not parse the durable receipt or decide whether an unreadable file blocks project open."
+    {
+      "symbol": "migrateProjectAgentProposalReceipt",
+      "kind": "definition",
+      "why": "回执的旧格式迁移只许在 store 里定义一份；调用方自己解析 / 迁移回执、或自己决定读不出的文件挡不挡项目打开，就会再出现 0.22.5→0.23 那种一份文件让项目打不开的情况。"
+    }
   ],
   "allowed_consumers": [
     "electron/agentLane/laneReceiptCommands.ts",
