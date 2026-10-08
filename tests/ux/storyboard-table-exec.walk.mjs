@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜表 v5 Phase B 执行面走查（R13/R16）：表 = 画布节点的表格表示版。
 // 种 2 场 8 镜 + 4 张参考卡；行状态机、锚卡状态、批量排除、镜级锁定、参考已变链、
 // 双击放大、⏳直达 全部真机截图 + 断言。生成走 agent-runtime loopback fixture：
@@ -16,7 +17,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import storyboardIntentContract from '../../docs/design/mockups/contracts/2026-09-01-storyboard-table-image-first.intent.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-exec-'))
+const tempRoot = makeTempDir('nomi-storyboard-exec-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'storyboard-exec-walk'

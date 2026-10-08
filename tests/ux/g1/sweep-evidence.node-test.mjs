@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -7,7 +8,7 @@ import { createHash } from 'node:crypto'
 import { copyTranscripts, saveReport, scoreCollectedAgent } from './sweep-evidence.mjs'
 import { createResponseCapture, providerFailure } from './sweep-response.mjs'
 test('legacy native entries export without reconstructing messages; checksum and provenance retained', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sweep-native-'))
+  const temp = makeTempDir('sweep-native-')
   try {
     const source = path.join(temp, 'profile/project/.nomi'), output = path.join(temp, 'out')
     fs.mkdirSync(source, { recursive: true })
@@ -30,7 +31,7 @@ test('legacy native entries export without reconstructing messages; checksum and
   } finally { fs.rmSync(temp, { recursive: true, force: true }) }
 })
 test('ledger lists every deviation and repaired failures separately', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sweep-report-'))
+  const temp = makeTempDir('sweep-report-')
   try {
     saveReport(temp, [{ id: 'case', surface: 'storyboard', costCny: 0, stations: [{ id: 'first' }, { id: 'later', surface: 'export', status: 'unreachable' }], deviations: [
       { station: 'first', surface: 'storyboard', phenomenon: 'a|b\nnext', layer: '契约', repaired: true, repairedBy: 'fixture' },
@@ -92,7 +93,7 @@ test('drain waits for in-flight headers and bodies registered after drain starts
   assert.equal(dispatched, false)
 })
 test('feel ledger aggregates three stations once with count=3 and first evidence', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sweep-dedup-'))
+  const temp = makeTempDir('sweep-dedup-')
   try {
     const deviations = ['first', 'second', 'third'].map((station, i) => ({
       station, surface: 'storyboard', assertion: 'feel:font-size', layer: 'UI', screenshot: `${station}.png`,
@@ -108,7 +109,7 @@ test('feel ledger aggregates three stations once with count=3 and first evidence
   } finally { fs.rmSync(temp, { recursive: true, force: true }) }
 })
 test('feel identity spans cases but preserves rule, text, target and surface; functional failures stay individual', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sweep-identity-'))
+  const temp = makeTempDir('sweep-identity-')
   try {
     const hit = { station: 'first', surface: 'storyboard', assertion: 'feel:font-size', actual: { rule: 'font-size', text: ['identity-text'], target: ['span'] } }
     const variants = [hit, { ...hit, actual: { ...hit.actual, rule: 'clipping' } },

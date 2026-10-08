@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { test } from 'vitest'
 import { expect } from '@playwright/test'
 import { chromium } from 'playwright'
@@ -12,7 +13,7 @@ freshTailwindCss()
 
 for (const locale of ['zh-CN', 'en']) for (const media of ['image', 'video']) test(`original storyboard ${locale}/${media} keeps loaded-model controls clickable at the established collapsed-sidebar editor width`, async () => {
   const en = locale === 'en'
-  const cacheDir = fs.mkdtempSync(path.join(tmpdir(), 'nomi-storyboard-width-vite-'))
+  const cacheDir = fs.makeTempDir('nomi-storyboard-width-vite-')
   const server = await createServer({ configFile: false, cacheDir, server: { host: '127.0.0.1', port: 0, hmr: false, watch: null } })
   let browser
   try {

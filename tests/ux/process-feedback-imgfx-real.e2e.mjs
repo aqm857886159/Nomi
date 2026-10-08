@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,7 +10,7 @@ import { createProcessFixture } from './process-feedback-real-fixture.mjs'
 const root = path.resolve('.')
 const evidence = path.join(root, 'docs/plan/process-feedback-evidence/imgfx/real')
 await fs.mkdir(evidence, { recursive: true })
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-imgfx-real-'))
+const tempRoot = await makeTempDirAsync('nomi-imgfx-real-')
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = await createProcessFixture(root, settingsDir)
 const { app, win: page } = await launchNomiApp({ name: 'imgfx-real', tempRoot, settingsDir, settleMs: 0,

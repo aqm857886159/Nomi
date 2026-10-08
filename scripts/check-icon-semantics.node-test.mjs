@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 /**
  * icon 语义门岗的自测：**先证明它会红**（R17），再证明它不乱红。
  *
@@ -13,7 +14,7 @@ import test from 'node:test'
 import { conflictId, findConflicts, loadRegisteredIcons, scanIconDictionary, scanIconSemantics } from './check-icon-semantics.mjs'
 
 function fixture(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icon-semantics-'))
+  const dir = makeTempDir('icon-semantics-')
   for (const [name, content] of Object.entries(files)) {
     const file = path.join(dir, name)
     fs.mkdirSync(path.dirname(file), { recursive: true })

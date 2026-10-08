@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 // Release smoke: launch the packaged MCP server from an isolated cwd so repository files cannot
 // mask a missing package asset. It creates one isolated draft per signed client, but never calls a provider.
@@ -26,7 +27,7 @@ const launcherPath = process.platform === 'darwin'
 const launcherScript = process.platform === 'darwin'
   ? path.join(bundlePath, 'Contents', 'Resources', 'app.asar', 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')
   : path.join(path.dirname(bundlePath), 'resources', 'app.asar', 'dist-electron', 'capabilityCore', 'mcpNodeLauncher.js')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-packaged-mcp-smoke-'))
+const tempRoot = makeTempDir('nomi-packaged-mcp-smoke-')
 const capabilityDir = path.join(tempRoot, 'capability')
 const token = crypto.randomBytes(24).toString('hex')
 fs.mkdirSync(capabilityDir, { recursive: true })

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实用户任务测试（剧本 → 拆镜头方案）：验证阿泽方法论集成（P1/P2/P3#2）在真实规划师输出里生效。
 // 走真实 app 栈 + 真实已连文本模型（复用 app 已配 key 自解密），用**我编辑过的**
 // `workbench.storyboard.planner` 技能跑一段带台词+动作+运镜的真戏，捕获 propose_storyboard_plan 的
@@ -25,7 +26,7 @@ if (!process.env.NOMI_R16) {
 
 // 隔离的 userData（不撞用户真项目/真运行实例），但拷进真 model-catalog.json 复用已连模型 +
 // safeStorage 加密 key（同机同用户可解密；Windows 连同 Local State 钥匙一起拷）。真 skills 从仓内 skills/ 加载，不需拷。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), "nomi-r16-"));
+const tempRoot = makeTempDir("nomi-r16-");
 const userDataDir = path.join(tempRoot, "user-data");
 const projectsDir = path.join(tempRoot, "projects");
 mkdirSync(userDataDir, { recursive: true });

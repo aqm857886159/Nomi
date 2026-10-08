@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 钉住启动器的核心不变量（替掉原 helpers/electronFixture.test.mjs，2026-08-11 收敛）。
 // 这条不变量就是本次修复的根因：漏掉这两个 env，窗口起不来且**毫无提示**，只会干等到超时。
 import fs from 'node:fs'
@@ -27,7 +28,7 @@ import {
 
 describe('shared Electron temp-root lifecycle', () => {
   test('cleanup is idempotent for explicit and generated roots', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-launch-cleanup-'))
+    const root = makeTempDir('nomi-launch-cleanup-')
     registerTempRoot(root)
     expect(fs.existsSync(root)).toBe(true)
     cleanupTempRoot(root)
@@ -40,7 +41,7 @@ const dirs = { userDataDir: '/tmp/case/user-data', settingsDir: '/tmp/case/setti
 
 describe('initial local storage fixture', () => {
   test('seeds missing preferences while preserving explicit values and excluding subframes', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storage-seed-'))
+    const root = makeTempDir('nomi-storage-seed-')
     try {
       const args = prepareLocalStorageSeed(root, { 'nomi:splash:v1': 'seen', 'nomi-color-scheme': 'light' })
       let listener
@@ -81,7 +82,7 @@ describe('initial local storage fixture', () => {
 
 describe('mainRequire（主进程入口前的 -r 模块）', () => {
   test('每个绝对路径拼成一对 -r，顺序保持', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-main-require-'))
+    const root = makeTempDir('nomi-main-require-')
     try {
       const first = path.join(root, 'guard.cjs')
       const second = path.join(root, 'probe.cjs')
@@ -106,7 +107,7 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
 
   // 打包好的 App 静默忽略 `-r`：闸没装上、请求直奔真网。打包形态必须在主入口第一行之前真的装上。
   test('打包形态：模块在 app.asar/dist-electron/main.js 第一行之前就已加载', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-packaged-premain-'))
+    const root = makeTempDir('nomi-packaged-premain-')
     const entryDir = path.join(root, 'resources', 'app.asar', 'dist-electron')
     fs.mkdirSync(entryDir, { recursive: true })
     const guard = path.join(root, 'guard.cjs')

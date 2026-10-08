@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 方向检查计数器 + commit-msg 校验的测试：全部走真 git 仓库（临时目录），不 mock 提交历史。
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -13,7 +14,7 @@ import { churnFor, directionMessage, findHotspots, isUnitSource, isFixSubject, i
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url))
 
 function repo(subjects, { dir = 'src/feature', files = ['a.ts'] } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-churn-'))
+  const root = makeTempDir('nomi-churn-')
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   git('init', '-q'); git('config', 'user.email', 't@t'); git('config', 'user.name', 't')
   fs.mkdirSync(path.join(root, dir), { recursive: true })
@@ -106,7 +107,7 @@ describe('trailer 解析与决策', () => {
     try { assert.equal(decideDirectionTrailer('fix: a', deps()).ok, false) } finally { if (prev === undefined) delete process.env.NOMI_SKIP_DIRECTION_CHECK; else process.env.NOMI_SKIP_DIRECTION_CHECK = prev }
   })
   test('docLooksReal：必须在 docs/ 下、.md、够长、不许越界', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-doc-'))
+    const dir = makeTempDir('nomi-doc-')
     try {
       fs.mkdirSync(path.join(dir, 'docs'))
       fs.writeFileSync(path.join(dir, 'docs', 'ok.md'), 'x'.repeat(500))
@@ -159,7 +160,7 @@ describe('词典按功能键（命名空间）计数', () => {
     '}', '',
   ].join('\n')
   const dictRepo = (steps) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-churn-ns-'))
+    const root = makeTempDir('nomi-churn-ns-')
     const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
     git('init', '-q'); git('config', 'user.email', 't@t'); git('config', 'user.name', 't')
     fs.mkdirSync(path.join(root, 'src/i18n/locales'), { recursive: true })
@@ -250,7 +251,7 @@ describe('按概念计数：自写登记条目（30 天 / 第 2 个）与 concep
 
   /** 真 git 仓库：每个提交 { subject, file, daysAgo }。 */
   function dated(commits, extra = {}) {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-churn-units-'))
+    const root = makeTempDir('nomi-churn-units-')
     const run = (env, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } })
     run({}, 'init', '-q'); run({}, 'config', 'user.email', 't@t'); run({}, 'config', 'user.name', 't')
     commits.forEach((c, i) => {

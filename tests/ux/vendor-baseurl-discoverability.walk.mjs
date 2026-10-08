@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 「我接入的中转站地址填错了，想改」的真实用户旅程（2026-08-18）。
 //
 // 背景：微信群两条投诉——「要改 api url，翻了半天没找到修改的地方」「api 配置需要加一个单独的
@@ -28,7 +29,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-baseurl-walk-'))
+const root = makeTempDir('nomi-baseurl-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

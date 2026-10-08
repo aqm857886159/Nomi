@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Tests the walk's real setup/finally, substituting only its UI task body.
 // Synthetic files only: no app, provider, user settings or credentials are accessed.
 import fs from 'node:fs'
@@ -70,7 +71,7 @@ let originalExitCode
 const originalWrite = fs.writeFileSync.bind(fs)
 
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-provider-cleanup-test-'))
+  root = makeTempDir('nomi-provider-cleanup-test-')
   sourceFile = path.join(root, 'source', 'model-catalog.json')
   fs.mkdirSync(path.dirname(sourceFile))
   originalWrite(sourceFile, JSON.stringify({

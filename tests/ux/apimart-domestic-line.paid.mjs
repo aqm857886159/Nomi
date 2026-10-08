@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实付费核对 · APIMart 国内线路真出一张图（2026-09-29：截图只能证明请求发去了哪，证明不了真能出图）。
 //
 // 在**打好的安装包**上跑：设置里把 APIMart 地址改成国内线路 https://api.apib.ai，用最便宜的 Z-Image Turbo
@@ -32,7 +33,7 @@ const out = path.resolve(process.env.NOMI_WALK_OUT || path.join(repoRoot, '.apim
 fs.rmSync(out, { recursive: true, force: true })
 fs.mkdirSync(out, { recursive: true })
 const log = path.join(out, 'network.jsonl')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-apimart-line-paid-'))
+const root = makeTempDir('nomi-apimart-line-paid-')
 const dirs = { settingsDir: path.join(root, 'settings'), userDataDir: path.join(root, 'user-data'), projectsDir: path.join(root, 'projects') }
 const t = UI['zh-CN']
 const report = { script: SCRIPT, build: { packaged: PACKAGED, version: null }, model: `${MODEL.vendorKey}/${MODEL.modelKey}`, checks: [], shots: [] }

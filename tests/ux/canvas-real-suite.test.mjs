@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -154,7 +155,7 @@ describe('real canvas acceptance suite', () => {
   })
 
   it('persists each child transcript and an actionable failure summary', () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-suite-'))
+    const cwd = makeTempDir('nomi-canvas-suite-')
     const outputDir = path.join(cwd, 'outputs/canvas-acceptance/critical')
     const stdout = { write: () => true }
     const stderr = { write: () => true }

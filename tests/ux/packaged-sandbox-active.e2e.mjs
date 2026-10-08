@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 发版证据 · **打包后的 Nomi 里，bash 的系统级沙箱真的起得来**。
 //
 // 为什么这件事必须在打包产物上验、而不是靠单测：沙箱是否 active 取决于两件只有打包后才成立的事
@@ -45,7 +46,7 @@ for (const required of [launcherPath, appAsar]) {
   }
 }
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-packaged-sandbox-'))
+const tempRoot = makeTempDir('nomi-packaged-sandbox-')
 const projectDir = path.join(tempRoot, 'project')
 const settingsRoot = path.join(tempRoot, 'settings')
 fs.mkdirSync(projectDir, { recursive: true })

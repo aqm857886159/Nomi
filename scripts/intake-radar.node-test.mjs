@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -7,7 +8,7 @@ import { run } from './intake-radar.mjs'
 import { readState, rawFilePath } from './lib/intake-radar/store.mjs'
 
 function tmpCacheDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'intake-radar-test-'))
+  return makeTempDir('intake-radar-test-')
 }
 
 const OK_CREDENTIALS = () => ({ accountId: 'test-account', token: 'test-token' })

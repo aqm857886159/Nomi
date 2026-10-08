@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -10,7 +11,7 @@ import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
 const root = path.resolve('.')
 const evidence = path.join(root, 'docs/plan/process-feedback-evidence/neighbor-placement/real')
 await fs.mkdir(evidence, { recursive: true })
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-process-real-'))
+const tempRoot = await makeTempDirAsync('nomi-process-real-')
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = await createProcessFixture(root, settingsDir)
 const application = await launchNomiApp({ name: 'process-real', tempRoot, settingsDir, settleMs: 0,

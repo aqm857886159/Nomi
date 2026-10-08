@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -9,7 +10,7 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 // Exercise the real assembly boundary; replace only the expensive Electron spawn.
 for (const scenario of ['env', 'explicit', 'inherited', 'derived', 'non-isolated']) {
   test(`capability directory has one source: ${scenario}`, async (t) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-launch-capability-'))
+    const root = makeTempDir('nomi-launch-capability-')
     t.after(() => fs.rmSync(root, { recursive: true, force: true }))
     const inherited = process.env.NOMI_CAPABILITY_DIR
     delete process.env.NOMI_CAPABILITY_DIR

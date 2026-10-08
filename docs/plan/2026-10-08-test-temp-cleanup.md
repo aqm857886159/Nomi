@@ -12,7 +12,7 @@
 
 ## ★ 3 一致与复用
 
-复用现有 Vitest `globalSetup` 能力和现有 Electron `launchNomiApp` 启动链；新增的清理只放在共享边界，不复制到各个 walk 脚本。
+复用现有 Vitest `globalSetup` 能力、Electron `launchNomiApp` 启动链和新增的 `scripts/_test-temp.mjs`；各个 node:test / walk 脚本只调用共享助手，不再直接创建系统临时目录。
 
 ## ★ 4 全状态
 

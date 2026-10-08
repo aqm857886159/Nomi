@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -7,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { watchCredential, recordBlocked } from './credential-precheck.mjs'
 
 test('hung decrypt is killed and recorded blocked, later stations are unreachable', async () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-test-'))
+  const directory = makeTempDir('credential-test-')
   let killed = 0
   try {
     await assert.rejects(watchCredential({ directory, timeoutMs: 40,
@@ -26,7 +27,7 @@ test('hung decrypt is killed and recorded blocked, later stations are unreachabl
 })
 
 test('successful marker disarms decrypt deadline while later billing remains separate', async () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-test-'))
+  const directory = makeTempDir('credential-test-')
   try {
     const result = await watchCredential({ directory, timeoutMs: 20, screen: { state: 'unknown' },
       kill: () => assert.fail('must not kill'), run: async marker => {
@@ -40,7 +41,7 @@ test('successful marker disarms decrypt deadline while later billing remains sep
 
 test('decrypt uses the application function exactly once and only emits a safe status', async () => {
   const { decryptForDispatch } = await import('./credential-main.mjs')
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-main-'))
+  const directory = makeTempDir('credential-main-')
   const marker = path.join(directory, 'marker.json')
   try {
     for (const outcome of ['secret-fixture-value', '', new Error('sensitive native error')]) {
@@ -60,7 +61,7 @@ test('decrypt uses the application function exactly once and only emits a safe s
 test('native synchronous hang cannot defeat the parent deadline', async () => {
   const { spawn } = await import('node:child_process')
   const { once } = await import('node:events')
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-native-'))
+  const directory = makeTempDir('credential-native-')
   const child = spawn(process.execPath, ['-e', 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)'], { stdio: 'ignore' })
   const ended = once(child, 'exit')
   try {
@@ -76,7 +77,7 @@ test('native synchronous hang cannot defeat the parent deadline', async () => {
 })
 
 test('explicit decrypt rejection is blocked; assembly failures are not disguised as credentials', async () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-errors-'))
+  const directory = makeTempDir('credential-errors-')
   try {
     await assert.rejects(watchCredential({ directory, screen: { state: 'unlocked' }, kill: () => {},
       run: marker => { fs.writeFileSync(marker, JSON.stringify({ status: 'blocked', reason: 'keychain-denied' })); throw Error('native secret') } }), error => {
@@ -92,7 +93,7 @@ test('explicit decrypt rejection is blocked; assembly failures are not disguised
 
 test('C0 missing credentials writes blocked and eight unreachable stations without launching', async () => {
   const { spawnSync } = await import('node:child_process')
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-c0-'))
+  const directory = makeTempDir('credential-c0-')
   try {
     const preload = 'data:text/javascript,' + encodeURIComponent(`import os from 'node:os'; os.homedir = () => ${JSON.stringify(directory)}`)
     const result = spawnSync(process.execPath, ['--import', preload, fileURLToPath(new URL('./c0-short-film.walk.mjs', import.meta.url)), '--real'], {
@@ -109,7 +110,7 @@ test('C0 missing credentials writes blocked and eight unreachable stations witho
 
 test('sweep report marks blocked without counting a failure or a reached paid station', async () => {
   const { saveReport } = await import('./sweep-evidence.mjs')
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'credential-report-'))
+  const directory = makeTempDir('credential-report-')
   try {
     fs.writeFileSync(path.join(directory, 'run.json'), JSON.stringify({ mode: 'real-text' }))
     const paid = { id: 'paid', surface: 'agent-panel', costCny: 0 }

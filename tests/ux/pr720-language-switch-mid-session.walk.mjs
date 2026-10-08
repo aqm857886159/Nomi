@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /**
  * R13/R16 走查 · PR #720 走查文档「后续」补齐项：会话中途切换语言（zh-CN ↔ en）。
  *
@@ -124,7 +125,7 @@ async function assertNoRawKeys(win, locale, surface) {
   }
 }
 
-const isoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-lang-switch-mid-session-'))
+const isoDir = makeTempDir('nomi-lang-switch-mid-session-')
 const iso = prepareIsolation(isoDir, { requireCatalog: true })
 
 const { app, win } = await launchNomiApp({

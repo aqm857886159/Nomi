@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：2026-09-01 UXC 可见性/一致性修复批（fix/visibility-i18n-batch）。
 // 逐项钉死用户真机反馈的 5 个问题，全部用 _assert.mjs 的真断言（点不到/看不到即红），不留假绿路径：
 //   1&2. 流程库 rail 标签走 i18n（不再泄漏 raw key `sidebar.workflows`）且不截断。
@@ -33,7 +34,7 @@ const shotsDir = path.join(repoRoot, 'tests', 'ux', 'shots', 'visibility-i18n-ba
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-visibility-i18n-'))
+const root = makeTempDir('nomi-visibility-i18n-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

@@ -27,7 +27,6 @@ export const VITEST_LANE: LaneRule[] = [
   { root: "scripts", suffix: ".test.mjs" },
   { root: "scripts", suffix: ".test.ts" },
   { root: "tests", suffix: ".test.mjs" },
-  { root: "tests", suffix: ".test.ts" },
 ];
 
 /**

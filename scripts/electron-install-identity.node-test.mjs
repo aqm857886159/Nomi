@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -25,14 +26,14 @@ test('reads Electron version from stdout despite macOS sandbox diagnostics on st
 })
 
 function createRepo(options = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-electron-identity-'))
+  const root = makeTempDir('nomi-electron-identity-')
   fs.writeFileSync(
     path.join(root, 'package.json'),
     JSON.stringify({ devDependencies: { electron: options.declared ?? VERSION } }),
   )
 
   const modulesRoot = options.symlinkNodeModules
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shared-modules-'))
+    ? makeTempDir('nomi-shared-modules-')
     : path.join(root, 'node_modules')
   fs.mkdirSync(modulesRoot, { recursive: true })
   if (options.symlinkNodeModules) fs.symlinkSync(modulesRoot, path.join(root, 'node_modules'), 'junction')
@@ -40,7 +41,7 @@ function createRepo(options = {}) {
   if (options.installed !== null) {
     const externalPackage = options.externalElectronLink || options.externalPnpmStore
     const electronRoot = externalPackage
-      ? path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-external-electron-')), 'electron')
+      ? path.join(makeTempDir('nomi-external-electron-'), 'electron')
       : path.join(modulesRoot, 'electron')
     fs.mkdirSync(electronRoot, { recursive: true })
     fs.writeFileSync(path.join(electronRoot, 'package.json'), JSON.stringify({ version: options.installed ?? VERSION }))

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createTempWorkspace } from "./tempWorkspace";
+import { createTempWorkspace } from "../tests/setup/tempWorkspace";
 
 describe("Vitest temp workspace", () => {
   it("redirects every Node temp variable and removes the run root on teardown", () => {

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import ffprobe from '@ffprobe-installer/ffprobe'
@@ -11,7 +12,7 @@ import { createC0Fixture, MODEL, shots } from './c0-fixture.mjs'
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 test('C0 loopback works without system media tools, returns eight decodable clips and rejects duplicate/unknown shots', async () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'c0-fixture-test-'))
+  const temp = makeTempDir('c0-fixture-test-')
   const originalPath = process.env.PATH
   process.env.PATH = temp // No system ffmpeg/ffprobe: use the declared platform binaries.
   let fixture
@@ -52,7 +53,7 @@ test('C0 loopback works without system media tools, returns eight decodable clip
 })
 
 test('delayed loopback submits immediately and exposes pending then completed through task polling', async () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'c0-delayed-test-'))
+  const temp = makeTempDir('c0-delayed-test-')
   const fixture = await createC0Fixture(rootDir, path.join(temp, 'settings'), path.join(temp, 'media'), { videoDelayMs: { 7: 190_000, 8: 1 } })
   try {
     const catalog = JSON.parse(fs.readFileSync(path.join(temp, 'settings/model-catalog.json'), 'utf8'))

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from './_test-temp.mjs'
 // 每轮注入（self-check.sh）的行为测试：常驻要小、关键词块命中才出现、注入里指向的文件都真实存在。
 //
 // 为什么要测：规则体系瘦身把 CLAUDE.md 里「只在特定场景才用」的段落搬走，保证它们「用到时一定加载」的唯一机制就是
@@ -14,7 +15,7 @@ import { describe, test } from 'node:test'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const HOOK = path.join(repo, 'scripts', 'claude-hooks', 'self-check.sh')
-const emptyProject = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-selfcheck-'))
+const emptyProject = makeTempDir('nomi-selfcheck-')
 
 const inject = (prompt) => spawnSync('bash', [HOOK], {
   input: Buffer.from(JSON.stringify({ hook_event_name: 'UserPromptSubmit', prompt }), 'utf8'),
@@ -114,7 +115,7 @@ describe('设计卡块：两块合成一块、词表收窄、命中次数记到�
   })
 
   test('命中一次就在 .claude/self-check-hits.log 记一行（块名），没命中不记', () => {
-    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-selfcheck-hits-'))
+    const project = makeTempDir('nomi-selfcheck-hits-')
     const run = (prompt) => spawnSync('bash', [HOOK], {
       input: Buffer.from(JSON.stringify({ prompt }), 'utf8'),
       env: { ...process.env, CLAUDE_PROJECT_DIR: project, CLAUDE_USER_PROMPT: '' },

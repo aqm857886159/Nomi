@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 走查：时间轴工具条不再盖住内容，面板能一路缩到「只剩头部行」。
 //
 // 真实用户任务（2026-09-10 真机反馈原话）：「时间轴无法向下缩；右上角的功能栏和下面有遮挡。」
@@ -19,7 +20,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
 /** 生产侧的下限真相源是 workbenchStore.TIMELINE_PANEL_MIN；这里写死同一个数当**独立**对账。 */
 const EXPECTED_MIN_HEIGHT = 86
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-timeline-toolbar-'))
+const root = makeTempDir('nomi-timeline-toolbar-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 收起创作助手后，入口 pill 必须在编辑器右侧独立占位，不能覆盖撤销/重做。
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -7,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-pill-'))
+const tempRoot = makeTempDir('nomi-creation-pill-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'creation-pill-overlap'

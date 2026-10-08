@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // F4 走查（2026-08-25「预算焦虑短剧创作者」真机走查抓出）：上手清单下拉不得盖住创作区右侧
 // 「拆成镜头·落画布」按钮并吞掉点击。
 //
@@ -22,7 +23,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-onboarding-overlap-'))
+const tempRoot = makeTempDir('nomi-onboarding-overlap-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/onboarding-overlap')

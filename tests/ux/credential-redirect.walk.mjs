@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：服务商地址发生跳转时，用户看到的那句话（zh / en 各一张截图）。
 // 走的是真实用户路径：设置 → 模型 → 一条手动接入连接 → 改接入地址 → 添加模型 → 获取可用模型。
 //
@@ -45,7 +46,7 @@ const source = await listen((request, response) => {
 
 let failure = null
 for (const spec of LOCALES) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-credential-redirect-${spec.locale}-`))
+  const root = makeTempDir(`nomi-credential-redirect-${spec.locale}-`)
   const settingsDir = path.join(root, 'settings')
   const userDataDir = path.join(root, 'user-data')
   const projectsDir = path.join(root, 'projects')

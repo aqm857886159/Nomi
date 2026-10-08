@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 模型框整理的真实旅程（2026-09-11 用户拍板的三件事，一次走完）：
 //   设置里把一个模型往上挪 → 藏掉一个 → 回画布打开模型框（顺序对、藏的不在、脚注说清藏了几个）
 //   → 点另一家供应商的标签 → 切走再切回 → 真实生成一次，证明请求确实发到了**手点过的那一家**。
@@ -21,7 +22,7 @@ import { stationTimeout } from './_station-budget.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'docs/plan/2026-09-11-model-box-tidy-evidence')
 fs.mkdirSync(shotsDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-model-box-'))
+const tempRoot = makeTempDir('nomi-model-box-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

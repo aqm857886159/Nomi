@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 /**
  * 自动补齐的阳性对照（R17）：先造出一个「门岗会红」的仓库快照，再证明补齐把它变绿，
  * 而且**只碰新增的那几篇**——基线里冻着的历史存量一根手指都不许动（碰了就等于偷偷抬基线）。
@@ -23,7 +24,7 @@ function write(root, relativePath, content) {
 
 /** 一个最小仓库快照：两篇冻在基线里的存量 + 两篇「刚加的」违规文档。 */
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-autosync-'))
+  const root = makeTempDir('docs-autosync-')
   write(root, 'scripts/docs-index-baseline.json', JSON.stringify({
     unindexedDocuments: ['docs/plan/legacy-unindexed.md'],
   }))

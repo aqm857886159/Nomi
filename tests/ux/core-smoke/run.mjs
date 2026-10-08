@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 // 核心流程冒烟的跑法（唯一入口：pnpm run test:core-smoke -- --fixture <empty|used|profile-copy>）。
 //
 // 按「夹具 × 场景 × 用例」逐个起子进程（沿用 canvas-real-suite 的 runCanvasScenario：超时、日志、失败摘要同一套），
@@ -86,7 +87,7 @@ function sourceWatchList({ userData, projectsRoot }) {
 
 /** 深拷贝（不是硬链接：硬链接会共享 leveldb 锁，也会让拷贝上的写穿透回原库）。用 fs.cpSync 而不是外部 `cp -R`：Windows 上没有 cp。 */
 export function prepareProfileCopy(source = defaultRealProfile()) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-smoke-profile-copy-'))
+  const root = makeTempDir('nomi-core-smoke-profile-copy-')
   const userDataCopy = path.join(root, 'user-data')
   const projectsCopy = path.join(root, 'projects')
   const started = Date.now()

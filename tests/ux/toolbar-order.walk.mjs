@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 工具栏功能层级梳理走查（用户拍板：全屏从最左移到右侧工具区，和下载做伴）。
 // 种一个图片节点 + 一个视频节点，分别选中让浮动工具栏出现，截图人眼核对全屏新位置。
 // 零额度：nomi-local SVG/本地 mp4，不调模型。
@@ -13,7 +14,7 @@ import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-toolbar-'))
+const root = makeTempDir('nomi-toolbar-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'toolbar-order-walk'

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -585,7 +586,7 @@ test('shallow Git history without an explicit base reference fails closed', () =
       debt: [],
     },
   )
-  const cloneContainer = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-vocabularies-shallow-'))
+  const cloneContainer = makeTempDir('nomi-vocabularies-shallow-')
   const cloneRoot = path.join(cloneContainer, 'checkout')
 
   try {

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Windows 卡顿巡检 —— 发版前在 Windows 机器上跑（docs/release-process.md §4）。
 //
 // 为什么要它（2026-09-24）：v0.22.0 在 Windows 上一导入素材、一生图就整窗卡死一分多钟，随后显卡进程
@@ -45,7 +46,7 @@ const outDir = path.join(repoRoot, 'tests/ux/shots/windows-freeze-sweep', label)
 fs.rmSync(outDir, { recursive: true, force: true })
 fs.mkdirSync(outDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-windows-sweep-'))
+const tempRoot = makeTempDir('nomi-windows-sweep-')
 const settingsDir = path.join(tempRoot, 'settings')
 // 中文 + 空格的项目目录：用户现场就是这样，路径编码问题在这里先暴露。
 const projectsDir = path.join(tempRoot, '团队 共享', '中文项目目录')

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // scripts/eng-metrics.mjs 的行为测试：三个数的口径、缓存、拿不到就明说「—」、永远 exit 0。
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -21,7 +22,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url))
 
 function repoWith(contracts) {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-eng-metrics-'))
+  const repo = makeTempDir('nomi-eng-metrics-')
   const dir = path.join(repo, 'docs', 'fixes')
   fs.mkdirSync(dir, { recursive: true })
   for (const [name, body] of Object.entries(contracts)) fs.writeFileSync(path.join(dir, name), JSON.stringify(body))

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,7 +7,7 @@ import test from "node:test";
 import { VERDICT, checkBoundary, evaluate, hasWord, readContracts, resolveSymbol } from "./boundary-owners.mjs";
 
 function sandbox(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "boundary-owners-"));
+  const root = makeTempDir("boundary-owners-");
   for (const [rel, body] of Object.entries(files)) {
     const abs = path.join(root, rel);
     fs.mkdirSync(path.dirname(abs), { recursive: true });

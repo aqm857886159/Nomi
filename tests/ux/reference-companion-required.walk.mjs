@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 穿透走查（规则 13）—— 跨槽依赖：Seedance 2.0 的参考音频不能单独用。**零额度**（全程不点生成）。
 //
 // 覆盖的真实缺陷（2026-08-20）：omni 模式只放一段参考音频时，`canRunGenerationNode` 此前只问
@@ -28,7 +29,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-companion-require
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-companion-'))
+const tempRoot = makeTempDir('nomi-companion-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 fs.mkdirSync(projectsDir, { recursive: true })

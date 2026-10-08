@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // TikHub → project asset → video deconstruction → storyboard side effect.
 //
 // This is a real Electron journey. TikHub and the vision model are both local
@@ -13,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 
 const FIXTURE_VIDEO = path.join(repoRoot, 'tests/ux/fixtures/fixture-video.mp4')
-const TEMP_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-tikhub-video-breakdown-'))
+const TEMP_ROOT = makeTempDir('nomi-tikhub-video-breakdown-')
 const userDataDir = path.join(TEMP_ROOT, 'user-data')
 const settingsDir = path.join(TEMP_ROOT, 'settings')
 const projectsDir = path.join(TEMP_ROOT, 'projects')

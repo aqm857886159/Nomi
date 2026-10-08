@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -7,7 +8,7 @@ import { test } from 'node:test'
 import { buildReportData, normalizeFailureMessage, renderMarkdown } from './agent-trajectory-report.mjs'
 
 function makeRun(prefix, files) {
-  const runDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  const runDir = makeTempDir(prefix)
   const trajectoriesDir = path.join(runDir, 'trajectories')
   fs.mkdirSync(trajectoriesDir)
   for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(trajectoriesDir, `${name}.jsonl`), content)
