@@ -25,6 +25,7 @@ const FOCUS_DISPATCHERS: Record<string, string> = {
   'workbench/generationCanvas/components/BatchPlanOverlay.tsx': '批量条上点被卡住的那一镜',
   'workbench/generationCanvas/nodes/completeNodeConnection.ts': 'toast 上的「定位」动作',
   'workbench/project/useProjectNotificationTarget.ts': '点系统通知 / 深链跳到节点',
+  'workbench/generationCanvas/nodes/extractVideoFrameToNode.ts': '视频浮条点「首帧 / 尾帧」：用户点了才抽，新图片节点建好后对准它（之前落在视口外看不见）',
 }
 
 function sourceFiles(dir: string): string[] {
