@@ -12,7 +12,7 @@ import { useViewport } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconListCheck } from '@tabler/icons-react'
-import { WorkbenchButton } from '../../../design'
+import { DecisionBar } from '../../../design'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { waveIndexByNode, type DependencyWavePlan } from '../runner/dependencyWaves'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
@@ -138,18 +138,14 @@ export function BatchPlanOverlay() {
             {costLabel}
           </span>
         ) : null}
-        <WorkbenchButton className={cn('h-7 min-h-7 px-3 cursor-pointer')} onClick={cancel}>
-          {t('generationCommon.batchPlan.cancel')}
-        </WorkbenchButton>
-        <WorkbenchButton
-          className={cn(
-            'h-7 min-h-7 px-3 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-ink hover:text-nomi-paper',
-          )}
-          onClick={() => void confirm()}
-          disabled={planCount === 0}
-        >
-          {t('generationCommon.batchPlan.generate')}
-        </WorkbenchButton>
+        <DecisionBar
+          inline
+          cancelLabel={t('generationCommon.batchPlan.cancel')}
+          onCancel={cancel}
+          primaryLabel={t('generationCommon.batchPlan.generate')}
+          onPrimary={() => void confirm()}
+          primaryDisabled={planCount === 0}
+        />
       </div>
     </div>
   )

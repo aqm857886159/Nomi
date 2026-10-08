@@ -1723,7 +1723,7 @@
         "missing",
         "ready"
       ],
-      "reason": "poseClipStatus 是导演台姿态库（Mixamo FBX 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。",
+      "reason": "poseClipStatus 是导演台动作库（默认 UAL 人偶 glb 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。",
       "site": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts::function:poseClipStatus/type-union"
     },
     {
@@ -1925,6 +1925,15 @@
       ],
       "reason": "NODE_RUN_STATE_FIELDS 是节点上「只由运行写」的字段清单（运行记录 / 状态 / 错误 / 进度）：撤销 / 重做与外部整张写回画布时这几项都取此刻的真实值、不回退不覆盖，生成中不会被撤回或改成空闲。它不是一套状态枚举，而是 GenerationCanvasNode 字段名的子集；读者是同文件的 withLiveRunState / withLiveNodeFacts（画布写边界统一提交口 store/canvasDocumentCommit 与盘上 shared/canvas/externalCanvasWrite 共用）。",
       "site": "electron/shared/canvas/landedNodeFields.ts::variable:NODE_RUN_STATE_FIELDS/as-const"
+    },
+    {
+      "members": [
+        "cancelled",
+        "completed",
+        "paused"
+      ],
+      "reason": "AT_REST 是 ProductionRunStatus 的子集：Run 停在这三种状态时不再派发新镜，判断「这批是否还在动」只看它与供应商那边是否还有在飞的 job。它不是一套新状态词表，成员类型就是 ProductionRunStatus（ReadonlySet<ProductionRunStatus>）；和视口动画的结算结果（ViewportAnimationSettlementOutcome）只是碰巧同名，概念无关，不该复用。",
+      "site": "electron/productionRun/productionRunLifecycle.ts::variable:AT_REST/set"
     }
   ],
   "debt": [

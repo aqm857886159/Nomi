@@ -23,6 +23,32 @@ await walkDesignLabScreen({
    * 只对那一格断言：其余格子没有参数浮层，对它们断言「没有下拉」是句在任何情况下都成立的废话。
    */
   async assertState(page, state, record) {
+    if (state.id === 'v4-consent-first-ask') {
+      const geometry = await page.evaluate(() => {
+        const card = document.querySelector('[data-v4-block="consent"]')
+        const decline = document.querySelector('[data-v4-consent-decline]')
+        const accept = document.querySelector('[data-v4-consent-accept]')
+        if (!(card instanceof HTMLElement) || !(decline instanceof HTMLElement) || !(accept instanceof HTMLElement)) return null
+        card.style.width = '300px'
+        card.style.boxSizing = 'border-box'
+        const rect = (element) => {
+          const box = element.getBoundingClientRect()
+          return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height }
+        }
+        return { card: rect(card), decline: rect(decline), accept: rect(accept) }
+      })
+      if (!geometry) {
+        record(`${state.id} consent action geometry missing`)
+      } else {
+        const { card, decline, accept } = geometry
+        if (accept.width <= 0 || accept.height <= 0 || accept.right > card.right + 1 || accept.bottom > card.bottom + 1) {
+          record(`${state.id} primary action is clipped at narrow width: ${JSON.stringify(geometry)}`)
+        }
+        if (accept.right < decline.right - 1 || accept.top < decline.top - 1) {
+          record(`${state.id} primary action is not the rightmost action on the final row: ${JSON.stringify(geometry)}`)
+        }
+      }
+    }
     if (state.id !== 'v4-spend-params-panel-open') return
     const shape = await page.evaluate(() => {
       const panel = document.querySelector('[data-agent-parameter-panel="true"]')

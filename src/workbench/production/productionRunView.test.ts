@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProductionRun, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
 import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
 import { buildProductionRunView, isProductionRunTask, productionRunStatusGroup, type ProductionRunTone } from './productionRunView'
+import { transitionRun } from '../../../electron/productionRun/productionRunState'
 
 /** 每一组允许的色调：状态签说「进行中」，颜色就不能是「等你确认」的琥珀色（排队组不会出现制作卡）。 */
 const VIEW_TONES_BY_GROUP: Readonly<Record<Exclude<TaskCenterGroup, 'queued'>, readonly ProductionRunTone[]>> = {
@@ -84,6 +85,24 @@ describe('production run view', () => {
     // draft 但阶段还在（历史 run）：没有可暂停的东西，也不催用户取消。
     expect(buildProductionRunView(run({ status: 'draft', jobs: [] }), now).controls).toEqual([])
     expect(buildProductionRunView(run({ status: 'completed', jobs: [] }), now).controls).toEqual([])
+  })
+
+  // 2026-10-07：暂停中任务卡只给「取消制作」，状态机却不认 pausing → cancelled，点了只回一句英文报错。
+  // 卡上摆出来的每一个控制，在那个状态下都必须是状态机认的那一步（穷举 Run 状态：新加一个状态不表态，类型检查就红）。
+  it('every control the card offers is a step the run state machine accepts from that status', () => {
+    const statuses: Record<ProductionRunStatus, true> = {
+      draft: true, awaiting_direction: true, awaiting_script_review: true, awaiting_storyboard_review: true, awaiting_contract: true,
+      ready: true, running: true, pausing: true, paused: true, needs_attention: true, awaiting_rough_cut_review: true,
+      awaiting_export: true, exporting: true, completed: true, cancelled: true,
+    }
+    const target = { pause: 'pausing', cancel: 'cancelled' } as const
+    for (const status of Object.keys(statuses) as ProductionRunStatus[]) {
+      for (const fixture of [run({ status }), run({ status, jobs: [], stages: [], gates: [] })]) {
+        for (const control of buildProductionRunView(fixture, now).controls) {
+          expect(() => transitionRun(fixture, target[control], fixture.updatedAt), `${status} offers ${control}`).not.toThrow()
+        }
+      }
+    }
   })
 
   // 2026-08-18 的坑：未实现的 playbook 曾静默建出 draft + 空 stages/gates 的坏 Run。它不会自己往前走，

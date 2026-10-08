@@ -91,8 +91,8 @@ export const APPROVAL_CARD = '[data-v4-block="intervention"]'
 export const INTERVENTION_SLOT = APPROVAL_CARD
 export const INTERVENTION_CONFIRM = '[data-v4-control="confirm"]'
 /**
- * 卡上那颗否定动作（×）。2026-09-22 换壳后它由 `V4SlotShell` 统一摆在**右上**，
- * 锚点随之从 `reject` 改成 `slot-dismiss`——它不再是页脚里的一颗钮，而是外壳的零件。
+ * 卡上的否定动作。2026-09-22 换壳时锚点从 `reject` 改成 `slot-dismiss`；2026-10-07 起它是决定栏里
+ * 的**文字按钮「取消」**（右组最左，主动作左边），右上角不再有 ×（反问卡除外，它自己的壳还有 ×）。
  * 常量在这里改一次，全部走查跟着走（这就是它当初被抽成常量的理由）。
  */
 export const INTERVENTION_REJECT = '[data-v4-control="slot-dismiss"]'
