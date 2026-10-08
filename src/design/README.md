@@ -24,7 +24,7 @@
 **状态与空态** `status.tsx` / `emptyState.tsx`
 - `DesignProgress`（4 个文件）、`NomiSkeleton`（项目库 loading 态）。
 - `DesignEmptyState` —— 面板级空态（9 个文件；画布节点族另有 3 份并行结构，理由见该文件注释）。
-- `DesignBadge` / `StatusBadge` —— ⚠️ **生产代码 0 调用点**，保留是因为画布侧有 5 份手写徽章待迁（见 `status.tsx` 注释）。
+- `StatusBadge` —— 凭据状态徽章（2 个文件：`KnownVendorKeyConnectPage` 的「已保存 · 未验证 / 已复验」、`ModelSettingsHome` 行内同一状态）；画布侧另有 5 份手写徽章待迁（见 `status.tsx` 注释）。`DesignBadge` —— ⚠️ 生产代码 0 调用点。
 
 **浮层** `overlays.tsx` / `AnchoredPopover.tsx` / `tooltip.tsx` / `confirmDialog.tsx` / `portal.tsx`
 - `DesignModal` —— Mantine Modal + token 外壳（8 个文件）。

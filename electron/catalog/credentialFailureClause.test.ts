@@ -33,4 +33,13 @@ describe('验证失败的那句话：保留子句只在真有原密钥时才说'
     setDesktopLocale('zh-CN')
     expect(desktopT('credential.previousKept')).toContain('原密钥')
   })
+
+  it('英文两句之间有空格（中文不加）：句子是拼起来的，不能粘成 "retry.Your"', async () => {
+    const { desktopT, setDesktopLocale } = await import('../i18n')
+    setDesktopLocale('en')
+    const en = `${desktopT('credential.invalid')}${desktopT('credential.sentenceGap')}${desktopT('credential.previousKept')}`
+    expect(en).toMatch(/. Your previous key/)
+    setDesktopLocale('zh-CN')
+    expect(`${desktopT('credential.invalid')}${desktopT('credential.sentenceGap')}${desktopT('credential.previousKept')}`).not.toMatch(/s/)
+  })
 })

@@ -116,7 +116,7 @@
     {
       "id": "P5",
       "aliases": [],
-      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；新增或改动用户可见界面，拍板样张必须是设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）搭出的屏，拍板后生产代码就是它；手写 HTML / 交互 widget 只准标 exploration 做方向探索，不能作实现合同；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。",
+      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。",
       "disease": "没想清楚就写，返工与连带面漏掉",
       "enforcement": [
         "template:docs/engineering/design-card.md",
@@ -127,7 +127,7 @@
         "hook:self-check(设计卡块)",
         "template:docs/design/nomi-design-flow-howto.md"
       ],
-      "evidence": "mockup-contracts 门岗；用户纠正「推荐先看用户控制权」",
+      "evidence": "mockup-contracts 门岗；用户纠正「推荐先看用户控制权」；2026-10-08 用户看了直接拿组件拼的外壳样张：「明显很丑……是没用你的 claude design 设计吗，因为这个设计很重要」「这次重排以及前面的设计优化都最好过一遍 design，因为希望设计整体提升一个台阶，细节很重要，而且注意我们的设计系统」「把这个规则要计入仓库」（根因：该流程只记在协调会话私人记忆，子 agent 读不到）",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "设计卡覆盖全部内容后并入 DC",

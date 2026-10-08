@@ -5,7 +5,7 @@ import {
   normalizeProviderKind,
   readCatalog,
 } from "../catalog/catalogStore";
-import { apiKeyDecryptStatus, decryptApiKeyRecord } from "../catalog/secrets";
+import { apiKeyDecryptStatus, decryptApiKeyRecord, decryptStoredApiKeyRecord } from "../catalog/secrets";
 import type { Model, ProfileKind, Vendor } from "../catalog/types";
 import { humanizeModelKey } from "../catalog/modelLabel";
 import {
@@ -166,7 +166,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
       if (input.authType === "none") tx.deleteApiKey(targetVendorKey);
       else if (!input.preserveExistingCredential) tx.upsertApiKey(targetVendorKey, { apiKey: input.apiKey, enabled: true, ...(before.apiKeysByVendor[sourceVendorKey]?.verificationPending ? { verificationPending: true } : {}) });
       else if (isolatedCandidate) {
-        tx.upsertApiKey(targetVendorKey, { apiKey: decryptApiKeyRecord(savedCredential), enabled: true, ...(savedCredential?.verificationPending ? { verificationPending: true } : {}) });
+        tx.upsertApiKey(targetVendorKey, { apiKey: decryptStoredApiKeyRecord(savedCredential), enabled: true, ...(savedCredential?.verificationPending ? { verificationPending: true } : {}) });
       }
       const models = input.models.map((selected) => {
         const existing = before.models.find(
