@@ -40,7 +40,7 @@ export const LOCAL_SPEECH_ARCHETYPE: ModelArchetype = {
       id: "transcribe",
       intent: "single",
       vendorTerm: "本地转写",
-      hint: "在这台电脑上离线转写，不联网、不花钱；语言自动识别",
+      hint: "在这台电脑上离线转写，不发到网上；语言自动识别",
       promptRequired: false,
       slots: [{ kind: "audio_ref", label: "音频", min: 1, max: 1 }],
       params: [],

@@ -15,10 +15,11 @@ import { NO_COST_CLAIMS } from '../tests/ux/full-walk/outcomeText.mjs'
  * 等那条线改完再从这张表里拿掉（拿掉之后词典里再出现就红）。表里每一条都必须真的还命中——不命中说明已经改好了，该删这一行。
  */
 export const OWNED_BY_SPEND_CARD_LANE = Object.freeze([
-  // 已提交任务的结果查询只轮询既有 provider task id，不发起新生成请求，也不会再次扣费。
-  'taskCenter.row.recoverHint',
-  'onboardingProviders.keyOnly.probeCostPaid', 'onboardingProviders.keyOnly.probeCostPaidUnpriced', 'onboardingProviders.keyOnly.probeCostUnknown',
-  'generationCommon.production.checkpoint.subtitleWithReuse', 'generationCommon.production.checkpoint.note', 'generationCommon.production.checkpoint.noteWithBudget',
+  // 第三方服务自己的验证端点与额度说法，保留供应商边界，不变成 Nomi 的保证。
+  'onboardingProviders.keyOnly.probeCostPaid',
+  'onboardingProviders.keyOnly.probeCostPaidUnpriced',
+  'onboardingProviders.keyOnly.probeCostUnknown',
+  // 第三方服务自己的验证端点与额度说法，保留供应商边界，不变成 Nomi 的保证。
   'runtime.capability.credentialProbeMessage',
 ])
 /** 词本身不是钱：导演模式画幅选项叫「Free / 自由」。 */
@@ -32,11 +33,6 @@ export const ADDITIONAL_SPEND_CLAIMS = Object.freeze({
 export const ZERO_SPEND_CLAIMS = Object.freeze({
   'zh-CN': /(?:预算|已花费|已用|花费)\s*(?:为|[:：])?\s*[¥￥]?\s*0(?:\.00)?(?:\s*元)?/,
   en: /\b(?:budget|spent|spend|cost)\b[^\n]{0,16}\$\s*0(?:\.00)?\b/i,
-})
-/** 代码确定的本地离线能力：不联网、不发 provider 请求，因此保留“不花钱”事实。 */
-export const FACTUAL_KEY_CLAIMS = Object.freeze({
-  'zh-CN': new Set(['在这台电脑上离线转写，不联网、不花钱；语言自动识别']),
-  en: new Set(['Transcribe on this computer, offline and free; the language is detected automatically']),
 })
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
@@ -70,7 +66,7 @@ export function scanDictionaryKeys(keyDictionaries, { owned = OWNED_BY_SPEND_CAR
       const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale]]
       if (!patterns.some((pattern) => pattern.test(value))) continue
       everHit.add(key)
-      if (isFixture(key) || notMoney.includes(key) || owned.includes(key) || FACTUAL_KEY_CLAIMS[locale]?.has(value)) continue
+      if (isFixture(key) || notMoney.includes(key) || owned.includes(key)) continue
       hits.push({ locale, key, text: value.slice(0, 60), source: 'key' })
     }
   }

@@ -43,8 +43,11 @@ test('Chinese display keys are scanned, not only mapped English values', () => {
   assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}:${h.source}`), ['zh-CN:modelDisplayText.0:key'])
 })
 
-test('submitted-result retrieval is allowlisted with its no-charge fact', () => {
-  const { hits, stale } = scanDictionaries(dict({ taskCenter: { row: { recoverHint: '只查结果，不重新生成，不花钱' } } }, { taskCenter: { row: { recoverHint: 'Only fetches the result — no new generation, no charge' } } }))
+test('retrieval and offline transcription use action facts without a money claim', () => {
+  const { hits, stale } = scanDictionaries(dict(
+    { taskCenter: { row: { recoverHint: '只查结果，不重新生成' } }, offline: '在这台电脑上离线转写，不发到网上；语言自动识别' },
+    { taskCenter: { row: { recoverHint: 'Only fetches the result — no new generation' } }, offline: 'Transcribe on this computer without sending it online; the language is detected automatically' },
+  ))
   assert.deepEqual(hits, [])
   assert.equal(stale.includes('taskCenter.row.recoverHint'), false)
 })

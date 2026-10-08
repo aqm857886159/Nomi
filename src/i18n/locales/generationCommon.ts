@@ -1403,7 +1403,7 @@ export const zhGenerationCommon = {
     checkpoint: {
       title: '主角形象出片了——过目后开拍',
       subtitle: '{{count}} 张形象卡就绪，都是新拍的',
-      subtitleWithReuse: '{{count}} 张形象卡就绪：{{fresh}} 张新拍 · 另有 {{reused}} 张沿用你已有的形象（无需过目、不花钱）',
+      subtitleWithReuse: '{{count}} 张形象卡就绪：{{fresh}} 张新拍 · 另有 {{reused}} 张沿用你已有的形象（无需过目）',
       badgeNew: '新拍',
       badgeReuse: '复用上集',
       reworkThis: '重拍这张',
@@ -1412,8 +1412,8 @@ export const zhGenerationCommon = {
       stillAlt: '{{name}} 的定妆照',
       stillLargeAlt: '定妆照大图',
       // 说明行按「有没有已知金额」分两句：今天价格未知，金额一个字都不提（以前拼成「按已批准的 已批准的 预算开拍」）。
-      note: '确认后开拍 {{count}} 镜——都是你已经确认过的，这一步不新增花费。不满意哪张就重拍哪张，只花那一张的钱。',
-      noteWithBudget: '确认后按已批准的 {{budget}} 开拍 {{count}} 镜——这一步不新增花费。不满意哪张就重拍哪张，只花那一张的钱。',
+      note: '确认后开拍 {{count}} 镜——都是你已经确认过的。不满意哪张就单独重拍哪张。',
+      noteWithBudget: '确认后按已批准的 {{budget}} 开拍 {{count}} 镜。不满意哪张就单独重拍哪张。',
       defer: '先不拍',
       approve: '形象都对，开拍 {{count}} 镜',
       reworkSelected: '先重拍选中的，再回来过目',
@@ -2997,7 +2997,7 @@ export const enGenerationCommon = {
     checkpoint: {
       title: 'The lead character look is out — review it, then shoot',
       subtitle: '{{count}} character cards ready, all freshly shot',
-      subtitleWithReuse: '{{count}} character cards ready: {{fresh}} freshly shot · plus {{reused}} reusing looks you already have (nothing to review, no cost)',
+      subtitleWithReuse: '{{count}} character cards ready: {{fresh}} freshly shot · plus {{reused}} reusing looks you already have (nothing to review)',
       badgeNew: 'Fresh',
       badgeReuse: 'Reused',
       reworkThis: 'Reshoot this',
@@ -3007,8 +3007,8 @@ export const enGenerationCommon = {
       stillLargeAlt: 'Character still, enlarged',
       // The note has two versions depending on whether an amount is known: prices are unknown today, so no amount is mentioned
       // (it used to read "within the approved the approved budget").
-      note: 'On confirm, Nomi shoots {{count}} shots — all ones you already confirmed, so this step adds no cost. Reshoot any you do not like; you only pay for that one.',
-      noteWithBudget: 'On confirm, Nomi shoots {{count}} shots within the approved {{budget}} — this step adds no cost. Reshoot any you do not like; you only pay for that one.',
+      note: 'On confirm, Nomi shoots {{count}} shots — all ones you already confirmed. Reshoot any you do not like individually.',
+      noteWithBudget: 'On confirm, Nomi shoots {{count}} shots within the approved {{budget}}. Reshoot any you do not like individually.',
       defer: 'Not yet',
       approve: 'Looks right — shoot {{count}} shots',
       reworkSelected: 'Reshoot the selected ones first',

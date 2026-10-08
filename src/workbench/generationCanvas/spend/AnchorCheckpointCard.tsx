@@ -153,7 +153,7 @@ export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Pr
           })}
         </div>
 
-        {/* 说明行：两句承诺（不新增花费 + 只花重拍那张的钱）。零内部词。 */}
+        {/* 说明行：确认已选镜头，重拍动作保持按镜头处理。零内部词。 */}
         <p className={cn('m-0 mt-4 text-caption leading-relaxed text-nomi-ink-60')} data-anchor-checkpoint-note>
           {note}
         </p>

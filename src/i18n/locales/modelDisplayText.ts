@@ -15,7 +15,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   'Codex 生图': 'Codex image generation',
   '本地转写（离线）': 'Local transcription (offline)',
   '本地转写': 'Local transcription',
-  '在这台电脑上离线转写，不联网、不花钱；语言自动识别': 'Transcribe on this computer, offline and free; the language is detected automatically',
+  '在这台电脑上离线转写，不发到网上；语言自动识别': 'Transcribe on this computer without sending it online; the language is detected automatically',
   'checkpoint 文件名': 'Checkpoint filename',
   '不想出现的内容（可留空）': 'Content to exclude (optional)',
   '你 ComfyUI/models/checkpoints 目录里的文件名': 'Filename in your ComfyUI/models/checkpoints directory',

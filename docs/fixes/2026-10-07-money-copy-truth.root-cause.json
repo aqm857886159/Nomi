@@ -14,6 +14,9 @@
     "src/i18n/locales/onboardingProviders.ts",
     "src/i18n/locales/modelDisplayText.ts",
     "src/i18n/resources.ts",
+    "electron/shared/modelArchetypes/localSpeech.ts",
+    "electron/catalog/modelscopeTexts.ts",
+    "src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx",
     "src/i18n/locales/generationCommon.ts",
     "electron/desktopStrings.ts",
     "docs/plan/2026-10-07-money-copy-truth.md",
@@ -28,7 +31,7 @@
   "internal_only_reason": "This remediation enforces Nomi's internal copy invariant; provider prices and quotas are deliberately not asserted without a scoped source.",
   "invariants": [
     "Unknown or account-dependent cost is never phrased as free, zero, no charge, or free retry.",
-    "A true local/offline or explicitly scoped provider fact may remain only in its existing allowlisted wording.",
+    "No user-facing copy asserts a zero-cost outcome; copy uses the observable action instead.",
     "Recovery copy describes the available retrieval action without asserting a new cost outcome."
   ],
   "doors": [
@@ -127,16 +130,16 @@
       "evidence": "Recovery strings no longer promise free retrieval or retry."
     },
     {
-      "path": "src/i18n/resources.ts",
-      "entry_point": "zhCN.taskCenter.row.recoverHint/en.taskCenter.row.recoverHint",
-      "disposition": "enforced",
-      "evidence": "The copy states the existing-result lookup is no-charge because it only polls an already submitted task and never starts a new generation request."
-    },
-    {
       "path": "electron/catalog/modelscopeTexts.ts",
       "entry_point": "MODELSCOPE_TEXT_MODELS",
-      "disposition": "not-affected",
-      "evidence": "This task changes user-visible copy only; the free metadata controls billing semantics and is intentionally not changed."
+      "disposition": "enforced",
+      "evidence": "Qwen display labels no longer append a free claim; the free metadata remains an internal catalog fact."
+    },
+    {
+      "path": "electron/shared/modelArchetypes/localSpeech.ts",
+      "entry_point": "localSpeech hint",
+      "disposition": "enforced",
+      "evidence": "Offline transcription describes local handling without asserting a zero-cost outcome."
     }
   ],
   "recurrence": {
