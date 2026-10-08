@@ -55,7 +55,7 @@ function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"an
     disposeDesktopLaneIpc: vi.fn(async () => undefined),
     abortAllActiveExports: vi.fn(() => 0),
     onError,
-    systemSession: { platform: options.platform ?? "win32", powerMonitor: vi.fn() },
+    systemSession: { platform: options.platform ?? "win32", powerMonitor: () => ({ on: vi.fn() }) },
   });
   installShutdownProjectFlush({ windows: () => windows, onResponse: (listener) => { responseListeners.push(listener); }, onError });
   (appListeners.get("browser-window-created") as unknown as ((event: unknown, window: unknown) => void) | undefined)?.({}, osWindow);
