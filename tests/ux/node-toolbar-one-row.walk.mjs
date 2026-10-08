@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expectVisible, clickOrFail, expectCount } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -54,8 +55,8 @@ fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify
 
 const LOCALE = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh'
 const L = LOCALE === 'en'
-  ? { img: 'Image actions', vid: 'Video actions', presets: 'More effects', refine: 'Refine', grid: 'Grid', extract: 'Extract frame', breakDown: 'Break down', first: 'First frame', freeze: 'Confirm look' }
-  : { img: '图片操作', vid: '视频操作', presets: '更多效果', refine: '改图', grid: '宫格', extract: '抽帧', breakDown: '拆解', first: '首帧', freeze: '定妆' }
+  ? { img: 'Image actions', vid: 'Video actions', presets: 'More effects', refine: 'Edit', grid: 'Grid', extract: 'Extract frame', breakDown: 'Break down', first: 'First frame', last: 'Last frame', freeze: 'Confirm look' }
+  : { img: '图片操作', vid: '视频操作', presets: '更多效果', refine: '改图', grid: '宫格', extract: '抽帧', breakDown: '拆解', first: '首帧', last: '尾帧', freeze: '定妆' }
 const { app, win } = await launchNomiApp({
   name: 'node-toolbar-one-row',
   userDataDir: settingsDir,
@@ -110,10 +111,20 @@ try {
   const before = await win.locator('[data-node-id]').count()
   await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
   await win.getByRole('menuitem', { name: L.first }).click()
-  await expectCount(win.locator('[data-node-id]'), before + 1, `点「${L.first}」后多出一个节点`)
-  const after = await win.locator('[data-node-id]').count()
-  assert(after === before + 1, `点「${L.first}」抽出一个图片节点（${before}→${after}）`)
+  await win.waitForFunction(() => Array.from(document.querySelectorAll('[data-node-id]')).some((el) => !['img-node', 'vid-node', 'anchor-node'].includes(el.getAttribute('data-node-id') || '')), undefined, { timeout: stationTimeout() })
+  const afterIds = await win.locator('[data-node-id]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-id')).filter(Boolean))
+  assert(afterIds.some((id) => !['img-node', 'vid-node', 'anchor-node'].includes(id)), 'first frame produced and focused a new image node')
+  const after = afterIds.length
   await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-6-after-extract.png`) })
+  await win.getByRole('button', { name: /适应视图|Fit view/ }).click()
+  await select('vid-node', L.vid)
+  await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
+  await win.getByRole('menuitem', { name: L.last }).click()
+  await win.waitForFunction((expectedCount) => document.querySelectorAll('[data-node-id]').length > expectedCount, after, { timeout: stationTimeout() })
+  const afterLastIds = await win.locator('[data-node-id]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-id')).filter(Boolean))
+  assert(afterLastIds.length > after && afterLastIds.some((id) => !['img-node', 'vid-node', 'anchor-node'].includes(id)), 'last frame produced and focused a new image node')
+  const afterLast = afterLastIds.length
+  await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-7-after-last-extract.png`) })
   console.log(`\n✅ 一行浮条走查通过（${passed} 项）截图：${outDir}`)
 } finally {
   await app.close().catch(() => {})

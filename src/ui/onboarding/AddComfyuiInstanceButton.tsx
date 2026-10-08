@@ -11,6 +11,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPlus, IconServerBolt } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { DecisionBar } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notify } from '../notificationPolicy'
 import { COMFYUI_VENDOR_KEY } from './ComfyuiLocalCard'
@@ -89,19 +90,14 @@ export function AddComfyuiInstanceButton({ onAdded }: { onAdded: () => void }): 
         className="h-8 px-2.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper font-mono text-caption text-nomi-ink focus:border-nomi-accent outline-none"
       />
       {error ? <p role="alert" className="m-0 text-caption text-nomi-danger">{error}</p> : null}
-      <div className="flex items-center gap-2 pt-0.5">
-        <button
-          type="button" onClick={submit} disabled={busy || !name.trim() || !addr.trim()}
-          className={cn('inline-flex items-center h-8 px-3.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
-            'text-caption font-medium hover:bg-nomi-accent disabled:opacity-45')}
-        >
-          {t('onboardingProviders.comfyInstance.confirm')}
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-caption text-nomi-ink-40 hover:text-nomi-ink">
-          {t('common.cancel')}
-        </button>
-        <span className="flex-1" />
-      </div>
+      <DecisionBar
+        className="pt-0.5"
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setOpen(false)}
+        primaryLabel={t('onboardingProviders.comfyInstance.confirm')}
+        onPrimary={submit}
+        primaryDisabled={busy || !name.trim() || !addr.trim()}
+      />
       <div className="text-micro text-nomi-ink-30 leading-relaxed">{t('onboardingProviders.comfyInstance.hint')}</div>
     </div>
   )

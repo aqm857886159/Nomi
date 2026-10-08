@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
 import { RADARS, localDate, radarStateFile, runDailyRadar, runSession, skillExists, tryLock, unlock } from './daily-radar-session.mjs'
 
@@ -143,7 +144,7 @@ describe('hook 不许动工作树', () => {
   test('模型雷达在 hook 路径里带 --no-liveness（没有任何扣费请求）；模型雷达脚本把结果写到仓库外', () => {
     const models = RADARS.find((radar) => radar.key === 'models')
     assert.ok(models.argv.includes('--no-liveness'))
-    const source = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1')), 'model-radar.ts'), 'utf8')
+    const source = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'model-radar.ts'), 'utf8')
     assert.match(source, /--no-liveness/)
     assert.doesNotMatch(source, /SNAPSHOT_DIR,\s*"latest\.json"/, 'latest.json 不能再写进仓库')
     assert.doesNotMatch(source, /SNAPSHOT_DIR,\s*"liveness\.json"/, 'liveness.json 不能再写进仓库')
@@ -229,7 +230,7 @@ describe('技能在不在：不存在的技能不能叫人去跑；论文雷达�
   })
 
   test('真实仓库里：hook 还会查的两个技能确实存在', () => {
-    const repo = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1')), '..')
+    const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-empty-home-'))
     try {
       assert.equal(skillExists('nomi-intake-radar', { root: repo, home }), true)

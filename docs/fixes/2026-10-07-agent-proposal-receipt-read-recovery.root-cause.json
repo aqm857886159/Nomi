@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-agent-proposal-receipt-read-recovery",
+  "problem_type": "project_agent_receipt_upgrade_read_failure",
+  "symptom": "A project containing an unreadable Agent proposal receipt fails during lane restore and remains stuck on the project library after upgrading from 0.22.5 to 0.23.0.",
+  "direct_cause": "The shared receipt store returned null for malformed or binding-mismatched disk data, then the service treated the still-existing file as fatal and threw from current() during project open.",
+  "class_root": "Durable project receipts had no read-time compatibility, quarantine, or recovery boundary. Any truncated JSON, invalid hash, binding mismatch, or future legacy shape could therefore escape into the project-open failure path.",
+  "affected_population": [
+    "Projects upgraded from 0.22.x with an Agent proposal receipt",
+    "Projects interrupted while writing or persisting a receipt",
+    "Projects copied across bindings or containing malformed JSON / JSONL",
+    "Every lane caller that reads the shared proposal receipt"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts",
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs",
+    "docs/engineering/concept-owners/agent-proposal.receipt-read-recovery.json"
+  ],
+  "entry_points": [
+    "createProjectAgentProposalReceiptService().read/write/transition/clear",
+    "laneReceiptCommands receipt-read and receipt-write",
+    "mcpStdioServer durable receipt reads",
+    "NomiStudioApp project-open receipt hydration"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The receipt schema, project binding, migration contract, and project-open recovery behavior are Nomi-owned persistence invariants; no third-party API defines them.",
+  "invariants": [
+    "Every durable receipt read either returns a validated current schema-2 receipt or returns no pending receipt after preserving the unreadable bytes beside the original path.",
+    "Recognized pre-journal receipts migrate to schema 2 with deterministic hashes and remain usable after a recreated reader.",
+    "A receipt whose binding does not match the current project is quarantined and cannot block that project or another project from opening.",
+    "A bad receipt never propagates an exception through the lane-open/project-open boundary."
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/agentLane/laneDesktopRuntime.ts", "symbol": "createProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/agentLane/laneDesktopTools.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/agentLane/laneExtendedDesktopPorts.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/agentLane/laneReceiptCommands.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/mcpDocumentWriteReceipt.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/mcpStdioServer.ts", "symbol": "createProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentDocumentReceipt.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "ProjectAgentProposalReceiptError" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "ProjectAgentProposalReceipt" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "PROJECT_AGENT_PREPARING_DEADLINE_MS" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentReceiptResolver.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/projectAgentReceiptResolver.ts", "symbol": "createProjectAgentProposalReceiptService" },
+    { "kind": "read", "path": "electron/capabilityCore/rpcServer.ts", "symbol": "ProjectAgentProposalReceiptService" },
+    { "kind": "write", "path": "electron/agentLane/laneDesktopRuntime.ts", "symbol": "createProjectAgentProposalReceiptService" },
+    { "kind": "write", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "hashProjectAgentCommittedProposal" },
+    { "kind": "write", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "migrateProjectAgentProposalReceipt" },
+    { "kind": "write", "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "symbol": "createProjectAgentProposalReceiptStore" },
+    { "kind": "write", "path": "electron/capabilityCore/projectAgentReceiptResolver.ts", "symbol": "createProjectAgentProposalReceiptService" }
+  ],
+  "door_reduction": {
+    "before": 19,
+    "after": 19,
+    "why_not": "The 14 read and 5 write doors are distinct desktop, MCP, renderer-command, and service construction paths. They must remain separate APIs, but all disk parsing and quarantine now converge in createProjectAgentProposalReceiptStore; merging callers would create a second ownership boundary rather than reduce risk."
+  },
+  "generality_proof": "The store is constructed by every desktop and MCP service resolver and is the only code that reads the durable file. Binding validation, schema migration, JSON parsing, hash checks, quarantine, and the null recovery result therefore apply equally to lane restore, renderer receipt commands, document writes, and MCP stdio callers.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "symbol": "createProjectAgentProposalReceiptStore",
+      "responsibility": "Own canonical parsing, legacy migration, binding comparison, evidence-preserving quarantine, and reason-code logging for every disk read."
+    },
+    {
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "symbol": "createProjectAgentProposalReceiptService",
+      "responsibility": "Expose the safe null-on-quarantine result to all receipt lifecycle callers while retaining normal CAS and preparing-expiry behavior."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneReceiptCommands.ts",
+      "entry_point": "executeLaneReceiptCommand receipt-read",
+      "disposition": "enforced",
+      "evidence": "The command receives the service created by laneDesktopRuntime; its read path now inherits store quarantine and returns an empty receipt rather than throwing."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createProjectAgentProposalReceiptService for MCP projects",
+      "disposition": "enforced",
+      "evidence": "MCP stdio resolves the same service factory and therefore uses the same parser, binding check, migration, and quarantine boundary."
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "receipt-recovery project-open hydration",
+      "disposition": "enforced",
+      "evidence": "The upgrade-path Electron test opens through the real project card after a damaged receipt is quarantined; the app reaches the studio instead of project-restore-failed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Durable files can be interrupted, copied, partially written, produced by an older release, or edited by another process; each population can reproduce the same fail-closed project lock without a shared read invariant.",
+    "same_class_scan": [
+      "Ran node scripts/door-map.mjs electron/capabilityCore/projectAgentProposalReceiptStore.ts and checked 14 read plus 5 write doors.",
+      "Read laneReceiptCommands.ts, laneDesktopRuntime.ts, mcpStdioServer.ts, projectAgentReceiptResolver.ts, and rpcServer.ts to confirm they converge on the service/store boundary.",
+      "Checked the v0.22.5 and v0.23.0 tagged store implementations: both write schemaVersion 2; the upgrade reproduction intentionally supplies a truncated schema-2 JSON value, so the observed mismatch is unreadable shape, not a version field change."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "invariant": "A receipt read must return validated current data, migrate a recognized legacy shape, or quarantine the file and return null; no invalid file may remain as a fatal read-side input.",
+    "failure_mode": "Malformed JSON, truncated JSONL, unsupported shape, invalid hashes, invalid bindings, and binding mismatches are renamed to a timestamped quarantined sibling and logged with a reason code; the project continues without pending receipt recovery.",
+    "exception_policy": "none",
+    "strategy": "Move all compatibility and corruption handling into the earliest shared filesystem read, keep the original bytes, and remove the caller-side exists-then-throw branch in the service.",
+    "artifacts": [
+      "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts",
+      "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts",
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts",
+    "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old exists-then-throw branch was inline behavior in the same store and is removed; there is no obsolete file or alternate parser path to list."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi's persistence layer and uses the existing Node filesystem, logger, and atomic JSON helpers; no third-party runtime controls the receipt contract.",
+    "exit_criteria": []
+  },
+  "migration": "A recognized pre-journal receipt is converted by a pure deterministic function to schema 2, persisted atomically on the first read, and then read idempotently by recreated services. Unrecognized or damaged files are preserved under a timestamped quarantine name and treated as no pending recovery evidence.",
+  "residual_risks": [
+    "The Windows environment reports Node v22.15.0 while package.json requires >=22.19.0; focused Vitest passed, but the packaged macOS upgrade journey remains unverified here.",
+    "Quarantine rename can fail on an externally locked file; the service still returns null and logs quarantine-failed, while the locked original remains for the next diagnostic pass."
+  ],
+  "detected_by": "post-release",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "tests": [
+      "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts",
+      "tests/ux/upgrade-0225-to-0230-open.e2e.mjs"
+    ],
+    "why": "This is the earliest shared main-process boundary that sees every durable receipt before any lane, MCP, renderer, or project-open caller can fail."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "应用退出拆除",
+  "subject": "host.quit-teardown",
+  "lifecycle": "host",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/quitTeardown.ts",
+    "symbol": "installQuitTeardown"
+  },
+  "write_api": [
+    {
+      "path": "electron/quitTeardown.ts",
+      "symbol": "installQuitTeardown"
+    },
+    {
+      "path": "electron/agentLane/laneIpc.ts",
+      "symbol": "registerAgentLaneIpc"
+    },
+    {
+      "path": "src/workbench/project/projectAgentLaneOpen.ts",
+      "symbol": "openProjectAgentLane"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/quitTeardown.test.ts",
+  "allowed_consumers": [
+    "electron/main.ts",
+    "electron/agentLane/laneIpc.ts",
+    "electron/windowCloseConfirmation.ts",
+    "electron/ai/antigravityIpc.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/video/depthVideoIpc.ts"
+  ],
+  "since": "2026-10-07",
+  "notes": "before-quit 只记录退出意图并保留可取消路径；所有不可逆拆除统一由 will-quit 边界编排，完成后才重新进入 app.quit。"
+}

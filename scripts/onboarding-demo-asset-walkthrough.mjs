@@ -9,7 +9,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+import { fileURLToPath } from 'node:url'
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.onboarding-demo-lab')
 fs.mkdirSync(outDir, { recursive: true })
 const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-s-'))
