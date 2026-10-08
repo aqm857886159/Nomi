@@ -124,10 +124,16 @@ describe("quit teardown lifecycle", () => {
   });
 
   it.each([
-    ["completes", async (): Promise<void> => undefined, "first"],
-    ["throws", async (): Promise<void> => { throw new Error("drain failed"); }, "double"],
-    ["hangs", (): Promise<void> => new Promise<void>(() => undefined), "cancel-then-exit"],
-  ] as const)("bounds %s across the %s quit path", async (_label, drain, quitPath) => {
+    ["completes-first", async (): Promise<void> => undefined, "quit", "first"],
+    ["completes-double", async (): Promise<void> => undefined, "quit", "double"],
+    ["completes-cancel-then-exit", async (): Promise<void> => undefined, "quit", "cancel-then-exit"],
+    ["throws-first", async (): Promise<void> => { throw new Error("drain failed"); }, "quit", "first"],
+    ["throws-double", async (): Promise<void> => { throw new Error("drain failed"); }, "quit", "double"],
+    ["throws-cancel-then-exit", async (): Promise<void> => { throw new Error("drain failed"); }, "quit", "cancel-then-exit"],
+    ["hangs-first", (): Promise<void> => new Promise<void>(() => undefined), "exit", "first"],
+    ["hangs-double", (): Promise<void> => new Promise<void>(() => undefined), "exit", "double"],
+    ["hangs-cancel-then-exit", (): Promise<void> => new Promise<void>(() => undefined), "exit", "cancel-then-exit"],
+  ] as const)("bounds %s", async (_label, drain, expected, quitPath) => {
     const { app, emit } = fakeApp();
     installQuitTeardown(app, {
       disposeBackgroundLifecycle: vi.fn(),
@@ -147,7 +153,7 @@ describe("quit teardown lifecycle", () => {
       }
       emit("will-quit");
     }
-    if (_label === "hangs") await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    if (expected === "exit") await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
     else await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
   });
 });
