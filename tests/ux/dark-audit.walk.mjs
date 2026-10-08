@@ -44,7 +44,8 @@ await dismissTour(win)
 await snap(win, 'creation')
 // 生成画布（空 + 建节点卡）
 await click(win, '生成', 1800); await dismissTour(win); await snap(win, 'canvas-empty')
-await click(win, '新建画面', 1600); await snap(win, 'canvas-node-card')
+// 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click({ timeout: 1600 }).catch(() => {}); await snap(win, 'canvas-node-card')
 // 时间轴/预览（白线所在）
 await click(win, '预览', 1800); await dismissTour(win); await snap(win, 'preview-timeline')
 // 顶栏各库

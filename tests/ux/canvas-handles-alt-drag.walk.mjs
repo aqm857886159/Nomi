@@ -54,6 +54,18 @@ const IMAGE_META = { imageWidth: 3840, imageHeight: 2160, imageAspectRatio: 16 /
 // 一张带两个版本的图片卡（结果堆叠），一个装着两张图的框，一条从 A 连到 B 的边（B 未选中时边要点得到）。
 const SHOT_TABLE = {"schemaVersion":1,"view":{"selectedRowIds":[],"density":"auto"},"revision":0,"updatedAt":"2026-09-21T10:10:42.999Z","source":{"kind":"deconstruction","sourceNodeId":"kind-video","title":"Reference","status":"idle"},"columnSetId":"facts","columns":[{"columnId":"shotSize","kind":"builtin","labelKey":"shotSize","order":0,"visible":true},{"columnId":"motion","kind":"builtin","labelKey":"motion","order":1,"visible":true},{"columnId":"visual","kind":"builtin","labelKey":"visual","order":2,"visible":true},{"columnId":"dialogue","kind":"builtin","labelKey":"dialogue","order":3,"visible":true},{"columnId":"onScreenText","kind":"builtin","labelKey":"onScreenText","order":4,"visible":true},{"columnId":"mood","kind":"builtin","labelKey":"mood","order":5,"visible":true}],"rows":[]}
 const KINDS = ['shot_table', 'text', 'character', 'scene', 'image', 'keyframe', 'video', 'audio', 'clip', 'shot', 'output', 'panorama', 'director', 'whiteboard', 'model3d', 'asset', 'agent-artifact']
+// 2026-10-08 用户拍板 ①（替换 09-21「所有种类都有」）：拉环只出现在用得上的一侧——左 = 收输入、右 = 给下游用。
+// 期望逐行抄拍板与种类定义（src/workbench/generationCanvas/nodes/registry.ts 的 connects；单测 nodeConnectionSides.test.ts 同一张表）。
+const RING_SIDES = {
+  shot_table: { left: false, right: false }, text: { left: false, right: true }, character: { left: true, right: true },
+  scene: { left: true, right: true }, image: { left: true, right: true }, keyframe: { left: true, right: true },
+  video: { left: true, right: true }, audio: { left: true, right: true }, clip: { left: true, right: false },
+  shot: { left: false, right: false }, output: { left: false, right: false }, panorama: { left: false, right: true },
+  director: { left: true, right: true }, whiteboard: { left: false, right: true }, model3d: { left: true, right: false },
+  asset: { left: false, right: true }, 'agent-artifact': { left: false, right: false },
+}
+const usableSides = (kind, state) => state.filter((s) => RING_SIDES[kind][s.side])
+const unusableSides = (kind, state) => state.filter((s) => !RING_SIDES[kind][s.side])
 const nodes = KINDS.map((kind, index) => {
   const node = {
     id: `kind-${kind}`,
@@ -314,7 +326,8 @@ try {
   await waitForVisualQuiescence(win)
   await shot('00-canvas-ready')
 
-  // ═══ A1 每一种能连线的卡：唯一选中 → 「+」圈常驻可见；鼠标移开仍可见 ═══
+  // ═══ A1 每一种卡：唯一选中 → 用得上的那一侧「+」圈常驻可见（鼠标移开仍可见），用不上的那一侧不画 ═══
+  // （旧断言「两侧都有」随 10-08 拍板 ① 作废，改按 RING_SIDES 逐种验。）
   const kindRows = []
   for (const kind of KINDS) {
     const id = `kind-${kind}`
@@ -323,9 +336,10 @@ try {
     await win.mouse.move(4, 4)
     await waitForVisualQuiescence(win)
     const state = await handleState(id)
-    const ok = state.every((s) => s.affordance === 'magnetic' && s.iconVisible && s.onTop && s.plus && s.iconOpacity >= 0.8)
+    const ok = usableSides(kind, state).every((s) => s.affordance === 'magnetic' && s.iconVisible && s.onTop && s.plus && s.iconOpacity >= 0.8)
+      && unusableSides(kind, state).every((s) => s.affordance === 'hidden' && !s.iconVisible)
     kindRows.push({ kind, ok, state })
-    check(ok, `A1·${kind}：唯一选中、鼠标移开后左右「+」圈仍可见且在最上层`, state.map((s) => ({ side: s.side, affordance: s.affordance, opacity: s.iconOpacity, onTop: s.onTop })))
+    check(ok, `A1·${kind}：唯一选中、鼠标移开后用得上的一侧「+」圈可见且在最上层，用不上的一侧没有圈`, state.map((s) => ({ side: s.side, affordance: s.affordance, opacity: s.iconOpacity, onTop: s.onTop })))
     if (['image', 'video', 'text', 'audio', 'panorama', 'director', 'clip', 'shot_table'].includes(kind)) await shot(`01-plus-${kind}`)
   }
   results.kinds = kindRows
@@ -336,9 +350,11 @@ try {
   const vpDots = await readViewport()
   const dotState = await handleState('kind-text')
   results.dotGeometry = { zoom: vpDots.zoom, state: dotState }
-  check(dotState.every((s) => s.affordance === 'dot'), 'A2·未选中卡是小圆点', dotState.map((s) => s.affordance))
-  check(dotState.every((s) => s.hit && Math.abs(s.hit.w / vpDots.zoom - 28) <= 1 && Math.abs(s.icon.w / vpDots.zoom - 14) <= 1),
-    'A2·圆点几何：命中 28px、可见点 14px（画布坐标，逐字同迁移前 w-7 按钮 + 14px 点）', dotState.map((s) => ({ hit: s.hit.w / vpDots.zoom, icon: s.icon.w / vpDots.zoom })))
+  // 文本卡只有右环（拍板 ①：文本不收输入）：右侧是小圆点、左侧没有圆点（旧断言「两侧都是小圆点」作废）。
+  const textDots = usableSides('text', dotState)
+  check(textDots.length === 1 && textDots.every((s) => s.affordance === 'dot') && unusableSides('text', dotState).every((s) => s.affordance === 'hidden'), 'A2·未选中卡在用得上的一侧是小圆点，另一侧不画', dotState.map((s) => s.affordance))
+  check(textDots.every((s) => s.hit && Math.abs(s.hit.w / vpDots.zoom - 28) <= 1 && Math.abs(s.icon.w / vpDots.zoom - 14) <= 1),
+    'A2·圆点几何：命中 28px、可见点 14px（画布坐标，逐字同迁移前 w-7 按钮 + 14px 点）', textDots.map((s) => ({ hit: s.hit.w / vpDots.zoom, icon: s.icon.w / vpDots.zoom })))
 
   // ═══ A3 多选 → 全体退回小圆点 ═══
   // 两张上下相邻的卡（同一列）：先把两者的中点平移到舞台中央，两张都点得到。
@@ -353,8 +369,9 @@ try {
     await win.keyboard.up('Shift')
   }
   await waitForVisualQuiescence(win)
-  const multi = [...await handleState('kind-image'), ...await handleState('kind-clip')]
-  check(Boolean(second) && multi.every((s) => s.affordance === 'dot'), 'A3·多选两张 → 两张都退回小圆点', multi.map((s) => s.affordance))
+  // 剪辑卡没有右环（拍板 ①）：只看两张卡用得上的那几侧（旧断言把剪辑右侧也算进去，作废）。
+  const multi = [...usableSides('image', await handleState('kind-image')), ...usableSides('clip', await handleState('kind-clip'))]
+  check(Boolean(second) && multi.length === 3 && multi.every((s) => s.affordance === 'dot'), 'A3·多选两张 → 两张都退回小圆点', multi.map((s) => s.affordance))
   await shot('02-multi-select-dots')
 
   // ═══ A4 选中一张卡时，穿过**未选中卡**外侧（带子若常驻就会盖住的位置）的连线仍点得到 ═══

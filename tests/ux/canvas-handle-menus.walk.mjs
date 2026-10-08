@@ -18,8 +18,8 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
-import { findNodeHitPoint } from './_canvasHit.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
+import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -48,12 +48,13 @@ const T = zh
   ? { gen: '镜头 1 · 雨夜街口', asset: '主角定妆照', video: '镜头 3', image: '镜头 2' }
   : { gen: 'Shot 1 · Rainy street', asset: 'Lead portrait', video: 'Shot 3', image: 'Shot 2' }
 const nodes = [
-  { id: 'h-gen', kind: 'image', title: T.gen, position: { x: 80, y: 60 }, size: { width: 300, height: 169 }, status: 'success', result: media('h-gen', 'street.png'), history: [media('h-gen', 'street.png')], meta: { imageWidth: 640, imageHeight: 360, previewHeight: 169 } },
-  { id: 'h-asset', kind: 'asset', title: T.asset, position: { x: 560, y: 60 }, size: { width: 300, height: 169 }, status: 'success', result: media('h-asset', 'portrait.png'), history: [media('h-asset', 'portrait.png')], meta: { imageWidth: 640, imageHeight: 360, previewHeight: 169, source: 'asset-upload' } },
-  { id: 'h-video', kind: 'video', title: T.video, position: { x: 80, y: 420 }, size: { width: 340, height: 191 }, status: 'idle', meta: {} },
-  { id: 'h-image', kind: 'image', title: T.image, position: { x: 560, y: 420 }, size: { width: 340, height: 191 }, status: 'idle', meta: {} },
-  { id: 'h-text', kind: 'text', title: '', position: { x: 1040, y: 60 }, size: { width: 280, height: 200 }, status: 'idle', meta: {} },
-  { id: 'h-clip', kind: 'clip', title: '', position: { x: 80, y: 760 }, size: { width: 560, height: 132 }, status: 'idle', meta: {} },
+  // 画布 1:1（打开后点「重置视图」）时的布局：最左一列离左缘工具条留足一圈「+」的位置，最右一列不进右侧助手面板。
+  { id: 'h-gen', kind: 'image', title: T.gen, position: { x: 220, y: 40 }, size: { width: 300, height: 169 }, status: 'success', result: media('h-gen', 'street.png'), history: [media('h-gen', 'street.png')], meta: { imageWidth: 640, imageHeight: 360, previewHeight: 169 } },
+  { id: 'h-asset', kind: 'asset', title: T.asset, position: { x: 600, y: 40 }, size: { width: 300, height: 169 }, status: 'success', result: media('h-asset', 'portrait.png'), history: [media('h-asset', 'portrait.png')], meta: { imageWidth: 640, imageHeight: 360, previewHeight: 169, source: 'asset-upload' } },
+  { id: 'h-video', kind: 'video', title: T.video, position: { x: 220, y: 330 }, size: { width: 340, height: 191 }, status: 'idle', meta: {} },
+  { id: 'h-image', kind: 'image', title: T.image, position: { x: 640, y: 330 }, size: { width: 340, height: 191 }, status: 'idle', meta: {} },
+  { id: 'h-text', kind: 'text', title: '', position: { x: 940, y: 40 }, size: { width: 240, height: 200 }, status: 'idle', meta: {} },
+  { id: 'h-clip', kind: 'clip', title: '', position: { x: 220, y: 640 }, size: { width: 560, height: 132 }, status: 'idle', meta: {} },
 ].map((node) => ({ categoryId: 'shots', prompt: '', ...node }))
 const payload = { workbenchDocument: null, timeline: null, generationCanvas: { nodes, edges: [], groups: [], selectedNodeIds: [] }, storyboardPlan: null, storyboardPlanCommitted: false }
 const project = { id: projectId, name: 'Handle menus', version: 2, createdAt: 1, updatedAt: 1, savedAt: 1, revision: 1, lastKnownRootPath: projectRoot, ...payload, payload }
@@ -81,7 +82,7 @@ async function shot(name, target = win) {
 async function task(name, body) {
   try { await body(); results.push({ name, pass: true }) }
   catch (error) {
-    results.push({ name, pass: false, error: String(error?.message ?? error).split('\n')[0] })
+    results.push({ name, pass: false, error: String(error?.message ?? error).split('\n').filter(Boolean).slice(0, 8).join(' | ') })
     await win.screenshot({ path: path.join(evidence, `FAIL-${name}-${tag}.png`) }).catch(() => {})
     await win.keyboard.press('Escape').catch(() => {})
   }
@@ -105,6 +106,8 @@ async function clickRing(id, side) {
   await win.mouse.up()
 }
 async function undo() {
+  // 配方 / 菜单跑完会把光标放进提示词框；那时 Ctrl+Z 归编辑器（撤字）。像人一样先把焦点从输入框拿走，再撤画布这一步。
+  await win.evaluate(() => /** @type {HTMLElement | null} */ (document.activeElement)?.blur?.())
   await win.keyboard.press('Control+z')
   await waitForVisualQuiescence(win)
 }
@@ -116,6 +119,10 @@ try {
   win.setDefaultTimeout(stationTimeout({ operations: 2 }))
   await win.locator('.generation-canvas-v2__stage').waitFor()
   await expect(win.locator('.react-flow__node')).toHaveCount(nodes.length)
+  // 打开项目会一次性「摆全貌」（最左一列会贴到左缘工具条底下）；像人一样点「重置视图」回到 1:1。
+  await waitForCanvasViewportSettled(win)
+  await win.getByRole('button', { name: zh ? '重置视图' : 'Reset view', exact: true }).first().click()
+  await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 
   await task('01-generated-card-both-rings', async () => {
@@ -136,10 +143,10 @@ try {
     await select('h-gen')
     const before = (await store()).nodes.length
     await clickRing('h-gen', 'right')
-    await expect(win.getByTestId('node-derive-menu')).toBeVisible({ timeout: 3_000 })
+    const menuProof = await proveProbe(win.getByTestId('node-derive-menu'), '点一下右「+」出的菜单看得见', 3_000)
     await shot('03-right-menu')
     await win.keyboard.press('Escape')
-    await expect(win.getByTestId('node-derive-menu')).toHaveCount(0)
+    await expectAbsent(win.getByTestId('node-derive-menu'), { provenBy: menuProof, message: 'Esc 关掉菜单' })
     expect((await store()).nodes.length, 'Esc closes without creating a node').toBe(before)
   })
 
@@ -157,14 +164,15 @@ try {
     const created = after.nodes.find((node) => !nodes.some((seed) => seed.id === node.id))
     expect(created?.kind).toBe('image')
     expect(after.edges[0]).toMatchObject({ source: created.id, target: 'h-video' })
-    expect(created.x, 'the new input lands on the left of the video card').toBeLessThan(80)
+    expect(created.x, 'the new input lands on the left of the video card').toBeLessThan(220)
     await undo()
     await expect.poll(async () => (await store()).nodes.length).toBe(nodes.length)
     expect((await store()).edges).toHaveLength(0)
   })
 
   await task('05-empty-cards-show-try', async () => {
-    await win.mouse.click(5, 5).catch(() => {})
+    await win.evaluate(() => /** @type {any} */ (window).__nomiCanvasStore.getState().selectNodes([]))
+    await waitForVisualQuiescence(win)
     for (const [id, kind] of [['h-image', 'image'], ['h-video', 'video'], ['h-text', 'text'], ['h-clip', 'clip']]) {
       await expect(win.locator(`${nodeSel(id)} [data-node-try="${kind}"]`), `${id} shows 试试`).toBeVisible()
     }
@@ -193,12 +201,12 @@ try {
     await clickRing('h-video', 'left')
     await win.getByTestId('node-add-input-menu').getByRole('menuitem', { name: zh ? /在画布上点选/ : /Pick on canvas/ }).click()
     const bar = win.locator('[data-canvas-pick-bar]')
-    await expect(bar).toBeVisible()
+    const barProof = await proveProbe(bar, '点选模式顶栏看得见')
     await expect(win.locator(`${nodeSel('h-gen')} .generation-canvas-react-flow__node-shell`)).toHaveAttribute('data-pick', 'eligible')
     await expect(win.locator(`${nodeSel('h-video')} .generation-canvas-react-flow__node-shell`)).toHaveAttribute('data-pick', 'ineligible')
     await shot('09-pick-mode')
     await win.keyboard.press('Escape')
-    await expect(bar).toHaveCount(0)
+    await expectAbsent(bar, { provenBy: barProof, message: 'Esc 退出点选' })
     expect((await store()).edges, 'Esc builds nothing').toHaveLength(0)
 
     await select('h-video')
@@ -207,7 +215,7 @@ try {
     await expect(bar).toBeVisible()
     const point = await findNodeHitPoint(win, { nodeSelector: nodeSel('h-gen') })
     await win.mouse.click(point.x, point.y)
-    await expect(bar).toHaveCount(0)
+    await expectAbsent(bar, { provenBy: barProof, message: '点中一张即退出点选' })
     await expect.poll(async () => (await store()).edges).toEqual([expect.objectContaining({ source: 'h-gen', target: 'h-video' })])
     await undo()
     expect((await store()).edges).toHaveLength(0)

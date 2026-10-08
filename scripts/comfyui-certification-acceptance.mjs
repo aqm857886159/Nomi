@@ -239,7 +239,8 @@ try {
   await win.waitForTimeout(6000)
   await snap('07-canvas')
 
-  await win.getByRole('button', { name: /新建画面/ }).first().click().catch(() => win.mouse.click(99, 382))
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click().catch(() => win.mouse.click(99, 382))
   await win.waitForTimeout(5000)
   await snap('08-node-created')
 
