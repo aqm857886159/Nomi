@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-walk-instance-registry",
+  "problem_type": "process-name based UX walk startup deadlock",
+  "symptom": "Full-walk scripts waited up to 30 minutes whenever any nomi.exe or electron.exe existed, including the user's installed app and an unkillable zombie.",
+  "direct_cause": "The full-walk launcher counted machine-wide process names instead of instances started by the walk harness.",
+  "class_root": "The launch lifecycle had no shared ownership registry connecting a spawned Electron PID to its worktree and teardown.",
+  "affected_population": [
+    "Users with the installed Nomi app open",
+    "Machines with an unrelated or zombie electron.exe",
+    "Concurrent full-walk runs from another worktree"
+  ],
+  "scope_paths": [
+    "tests/ux/_walkInstances.mjs",
+    "tests/ux/_launchApp.mjs",
+    "tests/ux/full-walk/launch.mjs",
+    "tests/ux/canvas-follow-hand/session.mjs",
+    "tests/ux/canvas-follow-hand.perf.mjs",
+    "scripts/e2e-launch-capability.node-test.mjs"
+  ],
+  "entry_points": [
+    "launchNomiApp",
+    "startPlaybook and waitForOtherNomiToExit",
+    "canvas-follow-hand performance preflight"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The ownership invariant is internal to the test harness; no third-party behavior decides which process the harness may wait for.",
+  "invariants": [
+    "Only a PID registered by the shared walk launcher for the same worktree can delay a full-walk startup.",
+    "Every registered PID is removed on process exit, normal close, failed startup, timeout, or stale-process discovery."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "tests/ux/_walkInstances.mjs",
+      "symbol": "registerWalkInstance"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/_walkInstances.mjs",
+      "symbol": "readLiveWalkInstances"
+    }
+  ],
+  "generality_proof": "All UX Electron launches converge on launchNomiApp, and full-walk startup reads the same registry through readLiveWalkInstances; unrelated processes have no registry record and cannot enter the wait set.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/_walkInstances.mjs",
+      "symbol": "registerWalkInstance",
+      "responsibility": "Own PID registration and idempotent lifecycle cleanup."
+    },
+    {
+      "path": "tests/ux/_walkInstances.mjs",
+      "symbol": "readLiveWalkInstances",
+      "responsibility": "Filter by worktree, test liveness, and delete stale records."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp",
+      "disposition": "enforced",
+      "evidence": "Every shared UX launcher now registers its Electron child through the common helper."
+    },
+    {
+      "path": "tests/ux/full-walk/launch.mjs",
+      "entry_point": "waitForOtherNomiToExit",
+      "disposition": "enforced",
+      "evidence": "The wait reads only live same-worktree records and no longer invokes tasklist or ps."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future launcher or process-name variant could reproduce the deadlock without an ownership boundary.",
+    "same_class_scan": [
+      "git grep launchNomiApp -- tests/ux",
+      "git grep 'electron.launch' -- tests/ux"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/_walkInstances.mjs",
+    "invariant": "Wait sets contain only live registered PIDs belonging to the requested worktree.",
+    "failure_mode": "Malformed and dead records are removed; unregistered processes are ignored.",
+    "exception_policy": "none",
+    "strategy": "Converge registration and liveness filtering in one helper used by both launchers.",
+    "artifacts": [
+      "tests/ux/_walkInstances.mjs",
+      "tests/ux/_launchApp.mjs",
+      "tests/ux/full-walk/launch.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/_walkInstances.test.mjs",
+    "scripts/e2e-launch-capability.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/_walkInstances.test.mjs",
+    "scripts/e2e-launch-capability.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "旧的 tasklist/ps 进程名扫描是在 tests/ux/full-walk/launch.mjs 原地替换的，没有并行旧文件或迁移路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the registry invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted user data is changed; stale registry JSON is safely discarded on read.",
+  "residual_risks": [
+    "A process PID reused after an unexpectedly abandoned registry file cannot be distinguished without platform-specific creation-time APIs; stale liveness cleanup still bounds the record lifetime."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-08",
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "登记写入与登记读取是两个共享边界；启动和等待分别需要各自的入口，不能合并成一扇门。"
+  },
+  "invariant_owner_layer": {
+    "layer": "tests/ux/_walkInstances.mjs",
+    "tests": [
+      "tests/ux/_walkInstances.test.mjs"
+    ],
+    "why": "共享助手是唯一负责登记、存活过滤和残留清理的边界，两个启动器只调用它；测试直接覆盖该边界的四类等待判定。"
+  }
+}
