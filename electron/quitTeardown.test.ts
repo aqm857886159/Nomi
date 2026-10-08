@@ -134,11 +134,12 @@ describe("quit teardown lifecycle", () => {
     }
   });
 
-  it("runs built-in drains in the original serial order and exits on a hanging step", async () => {
+  it("continues to abort exports and dispose the lane after capability-core times out", async () => {
     vi.useFakeTimers();
     try {
       const { app, emit } = fakeApp();
       const order: string[] = [];
+      const errors: string[] = [];
       let releaseBackground!: () => void;
       const background = vi.fn(() => new Promise<void>((resolve) => {
         order.push("background-lifecycle");
@@ -155,7 +156,8 @@ describe("quit teardown lifecycle", () => {
         stopDesktopCapabilityCore: capability,
         disposeDesktopLaneIpc: lane,
         abortAllActiveExports: exports,
-        timeoutMs: 5,
+        onError: (stage) => errors.push(stage),
+        timeoutMs: 40,
       });
       emit("will-quit");
       for (let i = 0; i < 6; i += 1) await Promise.resolve();
@@ -163,12 +165,44 @@ describe("quit teardown lifecycle", () => {
       releaseBackground();
       for (let i = 0; i < 6; i += 1) await Promise.resolve();
       expect(order).toEqual(["background-lifecycle", "capability-core"]);
-      vi.advanceTimersByTime(5);
+      vi.advanceTimersByTime(10);
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+      expect(order).toEqual(["background-lifecycle", "capability-core", "active-exports", "desktop-lane-ipc"]);
+      expect(exports).toHaveBeenCalledOnce();
+      expect(lane).toHaveBeenCalledOnce();
+      expect(errors).toContain("capability-core-timeout");
+      vi.advanceTimersByTime(30);
       await vi.runAllTimersAsync();
       expect(app.exit).toHaveBeenCalledWith(0);
-      expect(order).toEqual(["background-lifecycle", "capability-core"]);
-      expect(exports).not.toHaveBeenCalled();
-      expect(lane).not.toHaveBeenCalled();
+      expect(errors).toContain("quit-timeout");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("times out desktop-lane-ipc at its own deadline and exits within the owner budget", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, emit } = fakeApp();
+      const errors: string[] = [];
+      const lane = vi.fn(() => new Promise<void>(() => undefined));
+      installQuitTeardown(app, {
+        disposeBackgroundLifecycle: vi.fn(),
+        stopDesktopCapabilityCore: vi.fn(),
+        disposeDesktopLaneIpc: lane,
+        abortAllActiveExports: vi.fn(() => 1),
+        onError: (stage) => errors.push(stage),
+        timeoutMs: 40,
+      });
+      emit("will-quit");
+      for (let i = 0; i < 32; i += 1) await Promise.resolve();
+      expect(lane).toHaveBeenCalledOnce();
+      vi.advanceTimersByTime(10);
+      for (let i = 0; i < 12; i += 1) await Promise.resolve();
+      expect(errors).toContain("desktop-lane-ipc-timeout");
+      expect(app.exit).toHaveBeenCalledWith(0);
+      expect(app.quit).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();
     }
