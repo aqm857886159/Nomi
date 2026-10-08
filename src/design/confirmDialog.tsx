@@ -6,7 +6,7 @@
 import React, { type JSX } from 'react'
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react'
 import { DesignModal } from './overlays'
-import { WorkbenchButton } from './actions'
+import { DecisionBar } from './decisionBar'
 import { cn } from '../utils/cn'
 import { bindConfirmDialogHost, confirmDialog, type DialogRequest } from './confirmDialogStore'
 import { useTranslation } from 'react-i18next'
@@ -137,34 +137,19 @@ export function ConfirmDialogHost(): JSX.Element {
             }}
           />
         ) : null}
-        <div className={cn('flex items-center justify-end gap-2')}>
-          {active?.kind !== 'alert' ? (
-            <WorkbenchButton
-              className={cn(
-                'h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-caption cursor-pointer hover:bg-nomi-ink-05',
-              )}
-              data-confirm-dialog-cancel="true"
-              onClick={() => settle(cancelValue)}
-            >
-              {active?.cancelLabel ?? t('runtime.design.cancel')}
-            </WorkbenchButton>
-          ) : null}
-          <WorkbenchButton
-            className={cn(
-              'h-7 px-3 rounded-nomi-sm border-0 text-caption cursor-pointer',
-              active?.danger
-                ? 'bg-[var(--nomi-snap-tag)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-snap-tag)] hover:text-[var(--nomi-paper)] hover:shadow-nomi-sm'
-                : 'bg-nomi-ink text-nomi-paper hover:bg-nomi-accent',
-            )}
-            data-confirm-dialog-confirm="true"
-            onClick={() => settle(
-              active?.kind === 'prompt' ? inputValue : active?.toggle ? (toggleOn ? 'toggle-on' : 'toggle-off') : true,
-            )}
-          >
-            {active?.confirmLabel ??
-              (active?.kind === 'alert' ? t('runtime.design.gotIt') : t('runtime.design.confirm'))}
-          </WorkbenchButton>
-        </div>
+        <DecisionBar
+          cancelLabel={active?.kind !== 'alert' ? (active?.cancelLabel ?? t('runtime.design.cancel')) : undefined}
+          onCancel={() => settle(cancelValue)}
+          cancelProps={{ 'data-confirm-dialog-cancel': 'true' }}
+          primaryLabel={active?.confirmLabel ??
+            (active?.kind === 'alert' ? t('runtime.design.gotIt') : t('runtime.design.confirm'))}
+          onPrimary={() => settle(
+            active?.kind === 'prompt' ? inputValue : active?.toggle ? (toggleOn ? 'toggle-on' : 'toggle-off') : true,
+          )}
+          primaryProps={{ 'data-confirm-dialog-confirm': 'true' }}
+          tone={active?.danger ? 'danger' : 'default'}
+          dangerClassName="bg-[var(--nomi-snap-tag)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-snap-tag)] hover:text-[var(--nomi-paper)] hover:shadow-nomi-sm"
+        />
       </div>
     </DesignModal>
   )

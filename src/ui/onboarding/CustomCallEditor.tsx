@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconCheck, IconCopy, IconPlayerPlay, IconPlayerStop, IconPlus, IconSparkles, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import {
+  DecisionBar,
   DesignButton,
   DesignModal,
   DesignTextarea,
@@ -389,70 +390,70 @@ export function CustomCallEditor({
   )
 
   const actionBar = target ? (
-    <div className="flex min-h-9 flex-wrap items-center gap-2">
-      {!target.draft && hasSavedScript ? (
-        <DesignButton
-          variant="subtle"
-          className="text-workbench-danger"
-          onClick={() => void removeScript()}
-          leftSection={<IconTrash size={14} stroke={1.8} aria-hidden="true" />}
-        >
-          {t('onboardingProviders.customCall.removeScope', { scope: selectedScopeLabel })}
-        </DesignButton>
-      ) : null}
-      {target.draft && !testPassed && !testBusy ? (
+    // 决定栏走共享 `DecisionBar`（§1.9.1）：取消 → 次动作（保存草稿）→ 主动作；删除脚本放 leading（最左，与决定隔开）。
+    <DecisionBar
+      className="min-h-9"
+      size="md"
+      leading={(
+        <>
+          {!target.draft && hasSavedScript ? (
+            <DesignButton
+              variant="subtle"
+              className="text-workbench-danger"
+              onClick={() => void removeScript()}
+              leftSection={<IconTrash size={14} stroke={1.8} aria-hidden="true" />}
+            >
+              {t('onboardingProviders.customCall.removeScope', { scope: selectedScopeLabel })}
+            </DesignButton>
+          ) : null}
+          {saveError ? <span className="min-w-0 text-caption text-workbench-danger">{saveError}</span> : null}
+          {test.phase === 'done' ? (
+            <span
+              role="status"
+              className={cn('text-caption font-medium', test.ok ? 'text-workbench-success' : 'text-workbench-danger')}
+            >
+              {t(test.ok
+                ? 'onboardingProviders.customCall.footerTestSuccess'
+                : 'onboardingProviders.customCall.footerTestFailed')}
+            </span>
+          ) : null}
+        </>
+      )}
+      cancelLabel={t('common.cancel')}
+      onCancel={() => { void requestClose() }}
+      middle={target.draft && !testPassed && !testBusy ? (
         <DesignButton variant="light" onClick={saveDraft}>
           {t('onboardingProviders.customCall.saveDraft')}
         </DesignButton>
-      ) : null}
-      <DesignButton variant="subtle" onClick={() => { void requestClose() }}>
-        {t('common.cancel')}
-      </DesignButton>
-      <span className="min-w-0 flex-1" />
-      {saveError ? <span className="basis-full text-caption text-workbench-danger sm:basis-auto">{saveError}</span> : null}
-      {test.phase === 'done' ? (
-        <span
-          role="status"
-          className={cn('text-caption font-medium', test.ok ? 'text-workbench-success' : 'text-workbench-danger')}
-        >
-          {t(test.ok
-            ? 'onboardingProviders.customCall.footerTestSuccess'
-            : 'onboardingProviders.customCall.footerTestFailed')}
-        </span>
-      ) : null}
-      {testPassed ? (
-        <DesignButton
-          variant="filled"
-          onClick={saveTestedScript}
-          leftSection={<IconCheck size={14} stroke={2} aria-hidden="true" />}
-          size="md"
-        >
-          {requiresCapabilitySetup
+      ) : undefined}
+      {...(testPassed
+        ? {
+          primaryLabel: requiresCapabilitySetup
             ? t('onboardingProviders.customCall.saveAndContinueCapability')
             : target.draft
               ? t('onboardingProviders.customCall.saveAndEnable')
-              : t('onboardingProviders.customCall.saveScope', { scope: selectedScopeLabel })}
-        </DesignButton>
-      ) : (
-        <span title={!script.trim() ? t('onboardingProviders.customCall.testNeedsScript') : undefined}>
-          <DesignButton
-            variant="filled"
-            disabled={test.phase === 'cancelling' || (!testBusy && !script.trim())}
-            onClick={() => { void runOrCancelTest() }}
-            leftSection={testBusy
-              ? <IconPlayerStop size={14} stroke={1.8} aria-hidden="true" />
-              : <IconPlayerPlay size={14} stroke={1.8} aria-hidden="true" />}
-            className={cn('h-9', testBusy && 'bg-workbench-danger hover:bg-workbench-danger')}
-          >
-            {test.phase === 'cancelling'
-              ? t('onboardingProviders.customCall.testStopping')
-              : test.phase === 'running'
-                ? t('onboardingProviders.customCall.testStop')
-                : t('onboardingProviders.customCall.testRun')}
-          </DesignButton>
-        </span>
-      )}
-    </div>
+              : t('onboardingProviders.customCall.saveScope', { scope: selectedScopeLabel }),
+          onPrimary: saveTestedScript,
+        }
+        : {
+          primaryLabel: (
+            <>
+              {testBusy
+                ? <IconPlayerStop size={14} stroke={1.8} aria-hidden="true" />
+                : <IconPlayerPlay size={14} stroke={1.8} aria-hidden="true" />}
+              {test.phase === 'cancelling'
+                ? t('onboardingProviders.customCall.testStopping')
+                : test.phase === 'running'
+                  ? t('onboardingProviders.customCall.testStop')
+                  : t('onboardingProviders.customCall.testRun')}
+            </>
+          ),
+          onPrimary: () => { void runOrCancelTest() },
+          primaryDisabled: test.phase === 'cancelling' || (!testBusy && !script.trim()),
+          ...(!script.trim() ? { primaryHint: t('onboardingProviders.customCall.testNeedsScript') } : {}),
+          ...(testBusy ? { tone: 'danger' as const } : {}),
+        })}
+    />
   ) : null
 
   const content = target ? (
