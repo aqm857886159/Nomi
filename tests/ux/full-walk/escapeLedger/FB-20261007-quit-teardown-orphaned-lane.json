@@ -28,8 +28,12 @@
     "docs/evidence/2026-10-07-quit-teardown/agent-lane-open-failure-zh.png",
     "docs/evidence/2026-10-07-quit-teardown/agent-lane-open-failure-en.png"
   ],
-  "completionCommits": [],
-  "fixedInPr": 1067,
+  "completionCommits": [
+    "f8d023a33",
+    "88d1e4339",
+    "4d2d1548e"
+  ],
+  "fixedInPr": 1104,
   "rootCauseContract": "docs/fixes/2026-10-07-quit-teardown-not-before-quit.root-cause.json",
   "classCheck": {
     "kind": "matrix",
