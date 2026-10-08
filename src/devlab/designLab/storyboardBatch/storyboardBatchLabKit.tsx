@@ -1,10 +1,9 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconPlayerPlay } from '@tabler/icons-react'
 import { V4Intervention } from '../../../workbench/ai/v4/AgentPanelV4Cards'
 import { useV4Labels } from '../../../workbench/ai/v4/agentPanelV4Labels'
 import type { InterventionData, PlanRow } from '../../../workbench/ai/v4/agentPanelV4Types'
-import { WorkbenchButton } from '../../../design'
+import { StoryboardPlanEditorFooter } from '../../../workbench/creation/storyboard/StoryboardPlanEditor'
 import StoryboardSelectionToolbar from '../../../workbench/creation/storyboard/StoryboardSelectionToolbar'
 import StoryboardBulkBar from '../../../workbench/creation/storyboard/StoryboardBulkBar'
 import { storyboardBulkParamGroups } from '../../../workbench/creation/storyboard/storyboardBulkParamScope'
@@ -29,7 +28,7 @@ const aspectOf = (): string => '16:9'
 
 // ───────────────────────── B5b：行 ─────────────────────────
 
-type RowFlag = 'plain' | 'selected' | 'skipped' | 'done' | 'removed'
+type RowFlag = 'plain' | 'selected' | 'skipped' | 'done'
 
 const VARIANTS = [
   { id: 'v2', url: STILL_NEON, tag: '镜01-v2', modelLabel: 'Seedance 2.5', modeLabel: '', prompt: '', createdAt: 2 },
@@ -38,10 +37,9 @@ const VARIANTS = [
 
 function rowExtra(flag: RowFlag): NonNullable<Parameters<typeof ShotRow>[0]['extra']> {
   const base = { onToggleSelect: NOOP, onToggleSkip: NOOP, selected: flag === 'selected', skipped: flag === 'skipped' }
-  if (flag === 'done') return { ...base, onRemoveResult: NOOP, exec: labExec({ status: 'done', resultUrl: STILL_NEON }), variants: VARIANTS, outputTag: '镜01' }
-  // 移除结果之后：回到未生成态（画面格空、底栏「生成」回来），**历史版本还在**——变体计数不变。
-  if (flag === 'removed') return { ...base, exec: labExec({ status: 'ready' }), variants: VARIANTS, outputTag: '镜01' }
-  return base
+  const menu = { onLocateInCanvas: NOOP, onToggleLock: NOOP, scenes: [{ id: 'scene-a', title: 'Scene A' }], onMoveToScene: NOOP }
+  if (flag === 'done') return { ...base, ...menu, exec: labExec({ status: 'done', resultUrl: STILL_NEON }), variants: VARIANTS, outputTag: '镜01' }
+  return { ...base, ...menu }
 }
 
 /** 三行摞在一起：每行一种状态（flags 按行给）。 */
@@ -85,9 +83,7 @@ export function SelectionStage({ pick, width, skippedAll = false, withRows = tru
         <StoryboardSelectionToolbar
           selectedCount={shots.length}
           modelGroups={groups}
-          sceneOptions={[]}
           onGenerate={NOOP}
-          onMoveToScene={NOOP}
           onApplyModel={NOOP}
           onApplyParam={NOOP}
           allSkipped={skippedAll}
@@ -95,7 +91,6 @@ export function SelectionStage({ pick, width, skippedAll = false, withRows = tru
           onDelete={NOOP}
           onClear={NOOP}
           onAgentHandoff={NOOP}
-          onLock={NOOP}
         />
       </div>
     </ReuseStage>
@@ -158,7 +153,7 @@ export function BatchDialogCard({ items, width = 440 }: { items: readonly BatchI
     title: t('storyboardEditor.batch.title', { count: items.length }),
     plan,
     confirmLabel: t('storyboardEditor.batch.confirm', { count: checked }),
-    actionsDisabled: checked === 0,
+    ...(checked === 0 ? { actionsDisabled: true as const } : {}),
   }
   return (
     <div style={{ width }} data-storyboard-batch-dialog="true">
@@ -203,17 +198,17 @@ export function BatchFooter({ phase, width }: { phase: FooterPhase; width: numbe
     stopped: t('storyboardEditor.batch.stoppedByAnchor'),
     done: t('storyboardEditor.footer.progress', { done: 6, total: 6 }),
   }[phase]
-  const running = phase === 'anchors' || phase === 'shots'
-  const label = phase === 'done' ? t('storyboardEditor.batch.allDone') : t('storyboardEditor.batch.generateRemaining', { count: phase === 'stopped' ? 4 : 6 })
   return (
     <ReuseStage width={width}>
-      <footer className="flex items-center justify-between gap-3 border-t border-nomi-line bg-nomi-paper px-4 py-2.5" data-storyboard-batch-footer={phase}>
-        <span className={`min-w-0 truncate text-caption ${phase === 'stopped' ? 'text-workbench-danger' : 'text-nomi-ink-60'}`}>{progress}</span>
-        <WorkbenchButton variant="primary" disabled={running || phase === 'done'} className="shrink-0">
-          <IconPlayerPlay size={15} stroke={1.8} />
-          {label}
-        </WorkbenchButton>
-      </footer>
+      <StoryboardPlanEditorFooter
+        progress={progress}
+        issueLabel={phase === 'stopped' ? progress : undefined}
+        onBack={NOOP}
+        onGenerate={NOOP}
+        busy={phase === 'anchors' || phase === 'shots' || phase === 'done'}
+        runnableCount={phase === 'done' ? 0 : phase === 'stopped' ? 4 : 6}
+        generateLabel={phase === 'done' ? t('storyboardEditor.batch.allDone') : undefined}
+      />
     </ReuseStage>
   )
 }

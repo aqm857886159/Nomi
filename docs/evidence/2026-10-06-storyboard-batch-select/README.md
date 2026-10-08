@@ -31,7 +31,6 @@
 | | `sbb-b2-08…12-footer-*` | 页脚五态：平时 / 参考卡阶段 / 镜头阶段 / 参考卡失败镜头未发 / 全部已生成 |
 | B5b 行 | `sbb-b5-01-rows` `02-rows-narrow` `03-rows-dark` | 已生成 / 本次跳过 / 选中三种行 · 窄 · 暗 |
 | | `sbb-b5-04-row-menu` | 行菜单里的「本次跳过」 |
-| | `sbb-b5-05-result-removed` | 移除结果之后：回到未生成，历史版本 ×2 仍在 |
 | | `sbb-b5-06-result-narrow` | 最小窗口下结果动作条（多了一枚图标仍一行） |
 | B7 浮条 | `sbb-b7-01-toolbar-same-model` | 同一模型，参数全在，时长不一致 = 混合 |
 | | `sbb-b7-02-toolbar-three-models` | 跨 Seedance / Veo / Kling |

@@ -81,6 +81,7 @@ type Props = {
   onToggleLockRow: (runtime: StoryboardRowRuntime) => void
   /** 结果态双击 / 浮条 ⛶ 放大预览。 */
   onOpenPreviewRow: (runtime: StoryboardRowRuntime) => void
+  onLocateInCanvasRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 参考已变「用新图重跑」。 */
   onRerunFreshRefsRow: (runtime: StoryboardRowRuntime) => void
   onGenerateSelected: (runtimes: StoryboardRowRuntime[]) => void
@@ -156,7 +157,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -399,6 +400,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                       element?.focus()
                     },
                     onOpenPreview: runtime ? () => onOpenPreviewRow(runtime) : undefined,
+                    onLocateInCanvas: runtime && onLocateInCanvasRow ? () => onLocateInCanvasRow(runtime) : undefined,
                     onRerunFreshRefs: runtime ? () => onRerunFreshRefsRow(runtime) : undefined,
                     draggable: true as const,
                     isDragOver: overIndex === pos && dragIndex !== null && dragIndex !== pos,

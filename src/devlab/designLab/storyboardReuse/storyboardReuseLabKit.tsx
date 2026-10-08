@@ -75,13 +75,9 @@ export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: S
       onAgentHandoff={NOOP}
       onInsertAbove={NOOP}
       onInsertBelow={NOOP}
-      onSaveAsReference={NOOP}
       onCopy={NOOP}
       onMoveToScene={NOOP}
       scenes={[]}
-      targetShots={[]}
-      allShots={plan.shots}
-      sourcePosition={shot.index - 1}
       selected={false}
       onSelect={NOOP}
       isDragOver={false}

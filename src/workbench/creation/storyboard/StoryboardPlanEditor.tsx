@@ -70,6 +70,45 @@ import { autoReferencePlan } from './exec/storyboardAutoReference'
 /** 还没有方案时喂给执行计划 hook 的空方案（hook 顺序不能因方案有无而变；空方案 → idle，不发 IPC）。 */
 const EMPTY_STRATEGY_PLAN: StoryboardPlan = { title: '', anchors: [], shots: [] }
 
+export function StoryboardPlanEditorFooter({
+  progress,
+  issueLabel,
+  onBack,
+  onGenerate,
+  busy,
+  runnableCount,
+  generateLabel,
+}: {
+  progress: string
+  issueLabel?: string
+  onBack: () => void
+  onGenerate: () => void
+  busy: boolean
+  runnableCount: number
+  generateLabel?: string
+}): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper" data-storyboard-plan-footer="true">
+      <div className="flex items-center gap-2 min-w-0">
+        <WorkbenchButton variant="default" size="sm" onClick={onBack}>{t('storyboardEditor.backToCreation')}</WorkbenchButton>
+        {issueLabel ? (
+          <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
+            <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
+            <span className="truncate">{issueLabel}</span>
+          </span>
+        ) : <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">{progress}</span>}
+      </div>
+      <div className="flex items-center gap-2.5 shrink-0">
+        <WorkbenchButton variant="primary" onClick={onGenerate} disabled={busy || runnableCount === 0} data-storyboard-batch="true">
+          <IconPlayerPlay size={15} stroke={1.8} />
+          {generateLabel ?? t('storyboardEditor.footer.generateRemaining', { count: runnableCount })}
+        </WorkbenchButton>
+      </div>
+    </footer>
+  )
+}
+
 export default function StoryboardPlanEditor({ projectId }: { projectId?: string | null }): JSX.Element | null {
   const { t } = useTranslation()
   const activeDesign = useWorkbenchStore((s) => {
@@ -384,6 +423,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     }
     void runAction(context => runStoryboardBatch(context, rows, { groupTitle: plan.title, placementOnly: true }))
   }
+  const onLocateInCanvasRow = (runtime: StoryboardRowRuntime): void => {
+    const nodeId = runtime.exec.node?.id
+    if (nodeId) window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId, select: false } }))
+  }
   const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
     void guardMaterialize([runtime], context => generateShotRow(context, runtime.shot, runtime.mode))
   }
@@ -615,6 +658,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onRecoverRow={onRecoverRow}
               onToggleLockRow={onToggleLockRow}
               onOpenPreviewRow={onOpenPreviewRow}
+              onLocateInCanvasRow={onLocateInCanvasRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}
               onGenerateSelected={(selected) => onRunSelected(selected)}
               onDeleteSelected={(selected) => {
@@ -652,46 +696,14 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         </section>
       </div>
 
-      <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper">
-        <div className="flex items-center gap-2 min-w-0">
-          <WorkbenchButton variant="default" size="sm" onClick={() => {
-            setActiveStoryboardId(null)
-            setWorkspaceMode('creation')
-          }}>
-            {t('storyboardEditor.backToCreation')}
-          </WorkbenchButton>
-          {visibleIssues.length > 0 ? (
-            <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0" data-storyboard-issues={visibleIssues.length}>
-              <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
-              <span className="truncate">{t('storyboardEditor.issuesSummary', { count: visibleIssues.length, issue: firstIssueLabel(visibleIssues[0]) })}</span>
-            </span>
-          ) : (
-            <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">
-              {t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}
-              {excludedReasons.length > 0 ? ` · ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}
-            </span>
-          )}
-        </div>
-        {/* 右端只留主动作。这里原本还挂着一句 `footer.spendNote`——而它**逐字**就是上面那条
-            提示行（`spendHint`）的后半句「每次生成前确认花费 / Cost is confirmed before every
-            generation」，同一屏写了两遍。它住在 `shrink-0` 的组里，所以永远不让位：英文下白占
-            约 220px（中文约 110px），而左边那句**有行动价值**的进度/问题摘要正是靠 `truncate`
-            在这点宽度上被切掉的——1280 + Agent 面板展开时 EN 被切 426px，连「还差几张参考卡」
-            都看不见；1680 宽屏也仍被切 26px。让位顺序反了：零行动价值的重复说明不让，
-            要用户去做事的那句反而让。删掉重复的那句就是修在根因（R2「有行动价值吗，没有删」）。
-            2026-09-26 提示行里那半句也删了：用户自己点的单行生成不再弹花钱确认卡，承诺不成立。 */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <WorkbenchButton
-            variant="primary"
-            onClick={onRunBatch}
-            disabled={busy || batch.runnable.length === 0}
-            data-storyboard-batch="true"
-          >
-            <IconPlayerPlay size={15} stroke={1.8} />
-            {t('storyboardEditor.footer.generateRemaining', { count: batch.runnable.length })}
-          </WorkbenchButton>
-        </div>
-      </footer>
+      <StoryboardPlanEditorFooter
+        progress={`${t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}${excludedReasons.length > 0 ? ` ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}`}
+        issueLabel={visibleIssues.length > 0 ? t('storyboardEditor.issuesSummary', { count: visibleIssues.length, issue: firstIssueLabel(visibleIssues[0]) }) : undefined}
+        onBack={() => { setActiveStoryboardId(null); setWorkspaceMode('creation') }}
+        onGenerate={onRunBatch}
+        busy={busy}
+        runnableCount={batch.runnable.length}
+      />
 
       {actionFeedback?.designId === designId ? <p role="status" data-storyboard-action-feedback className="px-3 py-2 text-caption text-workbench-danger">{actionFeedback.message}</p> : null}
 

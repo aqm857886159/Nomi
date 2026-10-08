@@ -22,9 +22,9 @@ import { batchPlan, batchShots } from '../storyboardBatchFixtures'
  */
 
 const DOC = 'docs/plan/2026-10-06-storyboard-batch-select.md'
-const SOURCE_B2 = `${DOC} §B2 生成剩余`
-const SOURCE_B5 = `${DOC} §B5b 勾选 = 选中 · 结果可移除`
-const SOURCE_B7 = `${DOC} §B7 批量 / 多选参数 = 公共可选集`
+const SOURCE_B2 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B2'
+const SOURCE_B5 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B5b'
+const SOURCE_B7 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B7'
 const ROW = 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx:169'
 const BAR = 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx:45'
 const BULK = 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx:55'
@@ -168,14 +168,6 @@ export const BATCH_STATES: readonly LabState[] = [
         <BatchRows flags={['plain']} width={BATCH_WIDE} />
       </ClickFirst>
     ),
-  },
-  {
-    id: 'sbb-b5-05-result-removed',
-    name: 'B5b · 移除结果之后（回到未生成，历史版本 ×2 还在）',
-    source: SOURCE_B5,
-    mirrors: ROW,
-    coverage: 'component-only',
-    render: () => <BatchRows flags={['removed']} width={BATCH_WIDE} />,
   },
   {
     id: 'sbb-b5-06-result-narrow',

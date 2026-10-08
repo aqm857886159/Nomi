@@ -8,6 +8,7 @@ import {
   IconArrowRight,
   IconCopy,
   IconDots,
+  IconFocus2,
   IconGripVertical,
   IconLock,
   IconPlayerSkipForward,
@@ -96,6 +97,7 @@ type Props = {
   scenes?: readonly { id: string; title: string }[]
   onCopy?: (() => void) | undefined
   onMoveToScene?: ((sceneId: string) => void) | undefined
+  onLocateInCanvas?: (() => void) | undefined
   onKeyboardMove?: ((direction: -1 | 1) => void) | undefined
   onKeyboardFocus?: ((direction: -1 | 1) => void) | undefined
   onRerunFreshRefs?: (() => void) | undefined
@@ -289,6 +291,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               <MenuItem icon={<IconArrowRight size={13} stroke={1.8} />} label={t('storyboardEditor.selection.allScenes')} onClick={() => { props.onMoveToScene?.(NO_SCENE_VALUE); closeMenus() }} />
             </>
           ) : null}
+          {props.onLocateInCanvas ? <MenuItem icon={<IconFocus2 size={13} stroke={1.8} />} label={t('storyboardEditor.rowMenu.locateInCanvas')} onClick={() => { props.onLocateInCanvas?.(); closeMenus() }} /> : null}
           <span className="my-0.5 h-px bg-nomi-line-soft" aria-hidden />
           {onToggleSkip ? (
             <MenuItem
