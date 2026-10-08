@@ -164,6 +164,44 @@ describe('InlineParameterBar 参数摆法（parameterLayout）', () => {
     expect(captured.iconButtons).toHaveLength(0)
   })
 
+  // 2026-10-08 合同：付费卡上影响报价的 chip 永不退进 ⚙、不裁、不横向滚动；放不下就换行。
+  // 真盒子的几何由设计实验室走查量（design-lab-ask-card-in-panel：Seedance 2.0 带变体 · 390 / 300 · 中英）；
+  // 这里钉的是结构：摆法不依赖任何测量，所以「量出来是 0 / 量错了」也少不了一颗。
+  const resolution: DynamicModelControl = {
+    key: 'resolution', label: '清晰度', type: 'select', binding: 'parameter',
+    options: [{ value: '720p', label: '720p' }, { value: '1080p', label: '1080p' }], defaultValue: '720p',
+  }
+  const barClass = (html: string): string => /class="([^"]*generation-canvas-v2-node__params--parameters[^"]*)"/.exec(html)?.[1] ?? ''
+
+  it('chips：三颗报价 chip 全摆在底栏上，⚙ 里只剩长尾', () => {
+    const { html } = renderChips([ratio, duration, resolution, generateAudio], {})
+    for (const key of ['aspect_ratio', 'duration', 'resolution']) expect(html).toContain(`data-parameter-chip="${key}"`)
+    expect(captured.iconButtons).toHaveLength(1)
+    expect(captured.iconButtons[0].label).toContain('1')
+  })
+
+  it('chips 横排：放不下换行（flex-wrap），不横向滚动；身份两枚与参数 chip 是同一行的直接成员', () => {
+    const { html } = renderChips([ratio, duration, resolution], {})
+    const cls = barClass(html).split(' ')
+    expect(cls).toContain('flex-wrap')
+    expect(cls.some((name) => /^overflow-/.test(name))).toBe(false)
+    // 身份行在 chips 横排里是 contents：模型 / 变体各自换行，不会被挤出包装压到 16:9 上。
+    expect(html).not.toContain('class="flex min-w-0 items-center gap-2"')
+  })
+
+  it('summary（画布节点）摆法不变：一行、不换行，身份行仍是自己的 flex 盒', () => {
+    const { html } = render([ratio, duration], {})
+    expect(barClass(html).split(' ')).not.toContain('flex-wrap')
+    expect(html).toContain('class="flex min-w-0 items-center gap-2"')
+  })
+
+  it('摆法不读任何测量：组件里没有量盒子的代码（量错 / 量出 0 都少不了一颗 chip）', () => {
+    const source = readFileSync(fileURLToPath(new URL('./InlineParameterBar.tsx', import.meta.url)), 'utf8')
+    for (const measuring of ['scrollWidth', 'clientWidth', 'ResizeObserver', 'useFittedChipCount', 'planParameterChips']) {
+      expect(source, measuring).not.toContain(measuring)
+    }
+  })
+
   it('chips：走查锚点跟着 chip 走：key 找得到、当前值读得出（不靠中文 aria-label）', () => {
     const { html } = renderChips([ratio], { aspect_ratio: '9:16' })
     expect(html).toContain('data-parameter-chip="aspect_ratio"')
