@@ -228,9 +228,7 @@ export async function executeProfileOperation(input: {
   const built = buildProfileHttpRequest(effectiveInput);
   const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
-  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, {
-    maxResponseBytes: vendorResponseLimitForKind(input.model.kind),
-  });
+  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
   return { response, request: built.preview };
 }
 /** Normalize an upstream response into the shared TaskResult contract. */

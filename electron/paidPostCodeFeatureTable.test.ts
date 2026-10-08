@@ -19,7 +19,7 @@ const vendor: Vendor = {
 const catalog = (): CatalogState => ({
   version: 11,
   vendors: [vendor],
-  models: [{ vendorKey: "acme", modelKey: "acme-image", kind: "image", enabled: true, labelZh: "Acme", createdAt: "now" }],
+  models: [{ vendorKey: "acme", modelKey: "acme-image", kind: "image", enabled: true, labelZh: "Acme", createdAt: "now", updatedAt: "now" }],
   mappings: [{
     id: "acme-text_to_image",
     vendorKey: "acme",

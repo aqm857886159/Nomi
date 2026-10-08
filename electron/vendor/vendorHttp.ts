@@ -79,6 +79,7 @@ export type VendorErrorStructured = {
 
 export class VendorRequestError extends Error {
   readonly structured: VendorErrorStructured;
+  declare readonly cause?: unknown;
   /** 只在**收到了响应**时才有：「提交有没有被受理」由 `outboundDispatchEvidence.providerExplicitlyRejected` 读它判。 */
   readonly providerAnswer?: ProviderAnswer;
   constructor(message: string, structured: VendorErrorStructured, providerAnswer?: ProviderAnswer, options?: { cause?: unknown }) {

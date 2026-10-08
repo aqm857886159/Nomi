@@ -201,6 +201,9 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
       } catch (error: unknown) {
         if (isRedirectRefusal(error)) throw Object.assign(new Error(desktopT("network.credentialRedirect")), { cause: error });
         if (error instanceof VendorRequestError && error.structured.httpStatus) {
+          // Preserve the established user-facing error shape for this branch.
+          // The caught vendor error remains an internal detail by contract.
+          // eslint-disable-next-line preserve-caught-error -- keep the existing transcribe error surface
           throw new Error(desktopT("transcribe.httpError", {
             vendor: vendor.key,
             status: error.structured.httpStatus,

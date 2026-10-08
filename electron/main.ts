@@ -77,7 +77,6 @@ import { installContentSecurityPolicy } from "./contentSecurityPolicy";
 import { registerSkillIpc } from "./skills/skillIpc";
 import { logError, logInfo, logWarn } from "./logging/logger";
 import { seedFromStableInstallAtBoot } from "./settings/sideBySideInstallSeed";
-import { setProductionRunE2eFixturePackagedState } from "./shared/productionRunE2eFixtureGate";
 import { registerDevDiagnostics } from "./logging/devDiagnostics";
 import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
@@ -98,7 +97,6 @@ if (configuredUserDataDir) {
   // 正常安装的用户没有这个 env，路径与从前逐字一致（仍是 ~/Library/Logs/Nomi）。
   app.setPath("logs", path.join(configuredUserDataDir, "logs"));
 }
-setProductionRunE2eFixturePackagedState(app.isPackaged);
 installMainProcessLifecycle(app);
 // 单实例锁（能力核前提，docs/plan/2026-06-20）：保证同一 user-data 只有一个 app 实例 = 工程文件的
 // 唯一写者，外部 CLI/MCP 才能安全地「app 开着走 RPC、关着走 headless」。隔离实例（eval/promo 用独立

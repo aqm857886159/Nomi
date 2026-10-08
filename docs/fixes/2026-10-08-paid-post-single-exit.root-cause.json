@@ -40,6 +40,7 @@
     "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
     "electron/shared/productionRunE2eFixtureGate.ts",
     "electron/main.ts",
+    "electron/mainProcessLifecycle.ts",
     "electron/productionRun/productionRunRuntime.ts"
   ],
   "entry_points": [
@@ -181,7 +182,7 @@
     },
     {
       "kind": "write",
-      "path": "electron/main.ts",
+      "path": "electron/mainProcessLifecycle.ts",
       "symbol": "setProductionRunE2eFixturePackagedState"
     },
     {
@@ -279,7 +280,7 @@
       "electron/catalog/userVendorBase.test.ts",
       "docs/engineering/concept-owners/test-harness.production-e2e-fixture-gate.json",
       "electron/shared/productionRunE2eFixtureGate.ts",
-      "electron/main.ts",
+      "electron/mainProcessLifecycle.ts",
       "electron/productionRun/productionRunRuntime.ts"
     ]
   },
