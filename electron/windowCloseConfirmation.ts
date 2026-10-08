@@ -4,11 +4,6 @@ import { randomUUID } from "node:crypto";
 const windowsAllowedToClose = new WeakSet<BrowserWindow>();
 const pendingCloseRequests = new WeakMap<BrowserWindow, string>();
 let closeResponseIpcRegistered = false;
-let quitRequested = false;
-
-export function markQuitRequested(): void {
-  quitRequested = true;
-}
 
 function parseCloseResponse(payload: unknown): { requestId: string; confirmed: boolean } | null {
   if (!payload || typeof payload !== "object") return null;
@@ -35,7 +30,6 @@ function registerCloseResponseIpc(): void {
 export function installWindowCloseConfirmation(mainWindow: BrowserWindow): void {
   registerCloseResponseIpc();
   mainWindow.on("close", (event) => {
-    if (quitRequested) return;
     if (windowsAllowedToClose.has(mainWindow)) {
       windowsAllowedToClose.delete(mainWindow);
       return;

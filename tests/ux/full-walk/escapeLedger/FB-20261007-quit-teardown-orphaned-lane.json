@@ -4,16 +4,29 @@
   "source": "用户 Mac 日志 10-07：点了更新之后显示项目恢复失败，然后任何项目都进不去，现在也一直进不去",
   "category": "claims-and-outcomes",
   "problem": "更新触发的退出被窗口确认取消后，存活进程已拆掉 Agent lane IPC handler，后续所有项目恢复都显示 No handler registered。",
-  "existingInvariants": ["取消窗口关闭确认必须保留进程内 IPC 和能力核心。", "真正退出时才允许拆除后台生命周期和 IPC。"],
-  "ironLaws": ["⑫"],
-  "useCases": ["更新后窗口关闭确认取消退出，再打开已有项目", "真实 will-quit 完成 lane 和能力核心拆除"],
-  "fullWalkJourneys": ["tests/ux/deconstruction-interrupted-recovery.walk.mjs"],
+  "existingInvariants": [
+    "取消窗口关闭确认必须保留进程内 IPC 和能力核心。",
+    "真正退出时才允许拆除后台生命周期和 IPC。"
+  ],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "更新后窗口关闭确认取消退出，再打开已有项目",
+    "真实 will-quit 完成 lane 和能力核心拆除"
+  ],
+  "fullWalkJourneys": [
+    "tests/ux/deconstruction-interrupted-recovery.walk.mjs"
+  ],
   "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "electron/quitTeardown.test.ts",
     "electron/agentLane/laneIpc.test.ts",
-    "src/workbench/project/projectAgentLaneOpen.test.ts"
+    "src/workbench/project/projectAgentLaneOpen.test.ts",
+    "tests/ux/quit-teardown-real.e2e.mjs",
+    "docs/evidence/2026-10-07-quit-teardown/agent-lane-open-failure-zh.png",
+    "docs/evidence/2026-10-07-quit-teardown/agent-lane-open-failure-en.png"
   ],
   "completionCommits": [],
   "fixedInPr": 1067,

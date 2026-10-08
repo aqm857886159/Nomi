@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { installQuitTeardown } from "./quitTeardown";
+import { openProjectAgentLane } from "../src/workbench/project/projectAgentLaneOpen";
 
 type Listener = (event: { preventDefault: () => void }) => void;
 
@@ -11,6 +12,7 @@ function fakeApp() {
       return app;
     }),
     quit: vi.fn(),
+    exit: vi.fn(),
   };
   return {
     app,
@@ -22,8 +24,6 @@ function fakeApp() {
   };
 }
 
-const quitLifecycleMatrix = ["before-quit", "will-quit"] as const;
-
 describe("quit teardown lifecycle", () => {
   it("keeps teardown reversible at before-quit and performs it after windows are closed", async () => {
     const { app, emit } = fakeApp();
@@ -32,20 +32,16 @@ describe("quit teardown lifecycle", () => {
       handlerAlive = false;
     });
     const deps = {
-      markQuitRequested: vi.fn(),
       disposeBackgroundLifecycle: vi.fn(),
       stopDesktopCapabilityCore: vi.fn(),
       disposeDesktopLaneIpc: disposeLane,
       abortAllActiveExports: vi.fn(() => 2),
     };
     installQuitTeardown(app, deps);
-    for (const event of quitLifecycleMatrix) {
-      expect(app.on).toHaveBeenCalledWith(event, expect.any(Function));
-    }
+    expect(app.on).toHaveBeenCalledWith("will-quit", expect.any(Function));
 
     const beforePrevented = emit("before-quit");
     expect(beforePrevented).not.toHaveBeenCalled();
-    expect(deps.markQuitRequested).toHaveBeenCalledOnce();
     expect(handlerAlive).toBe(true);
     expect(deps.stopDesktopCapabilityCore).not.toHaveBeenCalled();
 
@@ -55,6 +51,53 @@ describe("quit teardown lifecycle", () => {
     expect(deps.disposeBackgroundLifecycle).toHaveBeenCalledOnce();
     expect(deps.stopDesktopCapabilityCore).toHaveBeenCalledOnce();
     expect(deps.abortAllActiveExports).toHaveBeenCalledOnce();
-    expect(app.quit).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
+  });
+
+  it("leaves the live lane, capability core, and project opening usable when close confirmation rejects quit", async () => {
+    const { app, emit } = fakeApp();
+    let laneAvailable = true;
+    let capabilityCoreAlive = true;
+    let projectOpen = false;
+    const runAgentCommand = vi.fn(() => laneAvailable ? { ok: true, value: "agent-command-accepted" } : { ok: false, code: "agent_lane_disposed" });
+    const readCapabilityCore = vi.fn(() => capabilityCoreAlive ? { ok: true, value: "capability-core-alive" } : { ok: false });
+    const openProject = vi.fn(() => { projectOpen = capabilityCoreAlive; return projectOpen; });
+    installQuitTeardown(app, {
+      disposeBackgroundLifecycle: vi.fn(),
+      stopDesktopCapabilityCore: vi.fn(() => { capabilityCoreAlive = false; }),
+      disposeDesktopLaneIpc: vi.fn(async () => { laneAvailable = false; }),
+      abortAllActiveExports: vi.fn(() => 0),
+    });
+    const beforePrevented = emit("before-quit");
+    expect(beforePrevented).not.toHaveBeenCalled();
+    expect(runAgentCommand()).toEqual({ ok: true, value: "agent-command-accepted" });
+    expect(readCapabilityCore()).toEqual({ ok: true, value: "capability-core-alive" });
+    expect(openProject()).toBe(true);
+    await expect(openProjectAgentLane(
+      { projectId: "project-after-cancel", immutableProjectUuid: "uuid-after-cancel", projectGeneration: 1 },
+      {
+        open: vi.fn(async () => ({ ok: true as const, workspaceId: "workspace-after-cancel" })),
+        recoverReceipts: vi.fn(async () => undefined),
+        reportFailure: vi.fn(),
+      },
+    )).resolves.toBe(true);
+    expect(laneAvailable).toBe(true);
+    expect(capabilityCoreAlive).toBe(true);
+    expect(projectOpen).toBe(true);
+    expect(app.quit).not.toHaveBeenCalled();
+  });
+
+  it("forces process exit after the teardown budget when a dependency hangs", async () => {
+    const { app, emit } = fakeApp();
+    installQuitTeardown(app, {
+      disposeBackgroundLifecycle: vi.fn(),
+      stopDesktopCapabilityCore: vi.fn(),
+      disposeDesktopLaneIpc: () => new Promise<void>(() => undefined),
+      abortAllActiveExports: vi.fn(() => 0),
+      timeoutMs: 5,
+    });
+    emit("will-quit");
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(app.quit).not.toHaveBeenCalled();
   });
 });

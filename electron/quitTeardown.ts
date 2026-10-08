@@ -3,15 +3,16 @@ export type QuitLifecycleEvent = { preventDefault: () => void };
 export interface QuitLifecycleApp {
   on(event: "before-quit" | "will-quit", listener: (event: QuitLifecycleEvent) => void): unknown;
   quit(): void;
+  exit?(code?: number): void;
 }
 
 export interface QuitTeardownDependencies {
-  markQuitRequested(): void;
   disposeBackgroundLifecycle(): void;
   stopDesktopCapabilityCore(): void;
   disposeDesktopLaneIpc(): Promise<void>;
   abortAllActiveExports(): number;
   onError?(stage: string, error: unknown): void;
+  timeoutMs?: number;
 }
 
 /**
@@ -22,16 +23,13 @@ export interface QuitTeardownDependencies {
 export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTeardownDependencies): void {
   let cleanupFinished = false;
   let cleanup: Promise<void> | undefined;
-
-  app.on("before-quit", () => {
-    dependencies.markQuitRequested();
-  });
+  const timeoutMs = dependencies.timeoutMs ?? 3000;
 
   app.on("will-quit", (event) => {
     if (cleanupFinished) return;
     event.preventDefault();
     if (cleanup) return;
-    cleanup = (async () => {
+    const teardown = (async () => {
       try {
         dependencies.disposeBackgroundLifecycle();
       } catch (error) {
@@ -53,9 +51,27 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
       } catch (error) {
         dependencies.onError?.("agent-lane", error);
       }
-      cleanupFinished = true;
-      app.quit();
     })();
-    void cleanup;
+    cleanup = teardown;
+    void (async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), timeoutMs);
+      });
+      const result = await Promise.race([teardown.then(() => "done" as const), timeout]);
+      if (timer) clearTimeout(timer);
+      cleanupFinished = true;
+      if (result === "timeout") {
+        dependencies.onError?.("quit-timeout", { timeoutMs });
+        app.exit?.(0);
+      } else {
+        const forceExit = setTimeout(() => {
+          dependencies.onError?.("quit-timeout", { timeoutMs });
+          app.exit?.(0);
+        }, timeoutMs);
+        forceExit.unref?.();
+        app.quit();
+      }
+    })();
   });
 }
