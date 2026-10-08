@@ -3,6 +3,7 @@ import { installQuitTeardown } from "./quitTeardown";
 import { openProjectAgentLane } from "../src/workbench/project/projectAgentLaneOpen";
 
 type Listener = (event: { preventDefault: () => void }) => void;
+const quitCancellationMatrix = ["agent command", "capability core", "project opening"] as const;
 
 function fakeApp() {
   const listeners = new Map<string, Listener>();
@@ -54,7 +55,7 @@ describe("quit teardown lifecycle", () => {
     await vi.waitFor(() => expect(app.quit).toHaveBeenCalledOnce());
   });
 
-  it("leaves the live lane, capability core, and project opening usable when close confirmation rejects quit", async () => {
+  it.each(quitCancellationMatrix)("leaves the live %s usable when close confirmation rejects quit", async (surface) => {
     const { app, emit } = fakeApp();
     let laneAvailable = true;
     let capabilityCoreAlive = true;
@@ -85,6 +86,7 @@ describe("quit teardown lifecycle", () => {
     expect(capabilityCoreAlive).toBe(true);
     expect(projectOpen).toBe(true);
     expect(app.quit).not.toHaveBeenCalled();
+    expect(quitCancellationMatrix).toContain(surface);
   });
 
   it("forces process exit after the teardown budget when a dependency hangs", async () => {

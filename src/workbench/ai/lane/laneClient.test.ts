@@ -51,10 +51,14 @@ describe('laneClient', () => {
       .mockResolvedValueOnce({ ok: true, workspaceId: 'workspace-recovered' })
     const client = createLaneClient(bridge)
     const failures: Array<string | null> = []
-    const unsubscribe = client.subscribeConnection(failure => failures.push(failure?.code ?? null))
+    const unsubscribe = client.subscribeConnection(failure => failures.push(failure && !failure.ok ? failure.code : null))
     try {
-      await expect(client.open({ projectId: 'p', immutableProjectUuid: 'p', projectGeneration: 1 })).resolves.toMatchObject({ ok: false, code: 'agent_lane_disposed' })
-      expect(client.connectionFailure()?.code).toBe('agent_lane_disposed')
+      const opened = await client.open({ projectId: 'p', immutableProjectUuid: 'p', projectGeneration: 1 })
+      expect(opened).toMatchObject({ ok: false, code: 'agent_lane_disposed' })
+      if (!opened.ok) expect(opened.code).toBe('agent_lane_disposed')
+      const connectionFailure = client.connectionFailure()
+      expect(connectionFailure?.ok).toBe(false)
+      if (connectionFailure && !connectionFailure.ok) expect(connectionFailure.code).toBe('agent_lane_disposed')
       await expect(client.retryOpen()).resolves.toBe(true)
       expect(client.connectionFailure()).toBeNull()
       expect(sent.filter(command => command.kind === 'workspace-open')).toHaveLength(0)
