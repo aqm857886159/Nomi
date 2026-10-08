@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { taskReferenceSchema } from './taskReference';
 import { resolveShotIdentities } from "../canvas/shotNumbering";
+import { formatStoryboardShotLabelForAgent, resolveStoryboardShotLabel, storyboardLabelSourceSchema } from "../canvas/storyboardShotLabel";
 import { generationNodeStatusSchema, parseGenerationNodeStatus } from "../canvas/generationNodeStatus";
 import { DIRECTOR_PREVIEW_STATUSES } from "../director/directorPreviewStatus";
 import type { CapabilityContract } from "./capabilityContract";
@@ -46,6 +47,11 @@ const canvasReadNodeSchema = z
     position: canvasReadPositionSchema,
     locked: z.boolean(),
     shotIndex: z.number().int().positive().safe().optional(),
+    /**
+     * 分镜镜头的名字（「镜 03」/「<分镜名> · 镜 03」，owner = canvas/storyboardShotLabel）。
+     * 有它的节点**不带 shotIndex**：全局镜号只是内部排序键，分镜镜头对人、对模型只有这一个号。
+     */
+    shotLabel: z.string().min(1).optional(),
     shotRole: z.enum(["first_frame", "video", "image"]).optional(),
     shotOwnerNodeIds: z.array(trimmedNonEmptyStringSchema).optional(),
     hasResult: z.boolean(),
@@ -418,9 +424,19 @@ export function projectCanvasRead(source: unknown): CanvasReadResult {
   const survivingNodeIds = new Set(nodes.map((node) => node.id));
   const edges = projectEdges(canvas?.edges, survivingNodeIds);
   const identities = resolveShotIdentities(identityInputs, edges);
+  // 读面随画布一起带来的分镜编号源（渲染层 readCanvasReadSource）；没有 = 旧读面 / 外部图，照旧只有全局号。
+  const storyboards = storyboardLabelSourceSchema.safeParse(canvas?.storyboards);
+  const labelSource = storyboards.success ? storyboards.data : [];
+  const metaById = new Map(identityInputs.map((input) => [input.id, input.meta]));
 
   return canvasReadResultSchema.parse({
-    nodes: nodes.map((node) => ({ ...node, ...identities.get(node.id) })),
+    nodes: nodes.map((node) => {
+      const identity = identities.get(node.id);
+      const label = resolveStoryboardShotLabel({ meta: metaById.get(node.id) }, labelSource);
+      if (!label) return { ...node, ...identity };
+      const { shotIndex: _internalOrder, ...rest } = identity ?? {};
+      return { ...node, ...rest, shotLabel: formatStoryboardShotLabelForAgent(label) };
+    }),
     edges,
     groups: projectGroups(canvas?.groups, survivingNodeIds),
     selectedNodeIds: survivingReferences(canvas?.selectedNodeIds, survivingNodeIds),

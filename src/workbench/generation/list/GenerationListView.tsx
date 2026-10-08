@@ -46,7 +46,7 @@ export function GenerationListView({ sectionActions }: {
   const inspectorNodeTitle = useGenerationCanvasStore((state) => (inspectorKey ? state.nodes.find((node) => node.id === inspectorKey)?.title : undefined))
   // 只开着一张不在列表里的节点（参考素材、未引用素材）时，检查器用一张临时卡显示它。
   const inspectorCard: GenerationListCard | null = React.useMemo(() => card ?? (inspectorKey && inspectorNodeTitle !== undefined
-    ? { key: inspectorKey, nodeId: inspectorKey, variant: 'generation', storyboardShotNumber: null, title: inspectorNodeTitle, status: null, planPrompt: null, anchor: null, referenceNodeIds: [], previous: null }
+    ? { key: inspectorKey, nodeId: inspectorKey, variant: 'generation', storyboardShotNumber: null, storyboardScope: null, title: inspectorNodeTitle, status: null, planPrompt: null, anchor: null, referenceNodeIds: [], previous: null }
     : null), [card, inspectorKey, inspectorNodeTitle])
 
   // 筛选的方案被删了 → 回到全部；检查器那张卡不见了 → 收起。
@@ -109,10 +109,11 @@ export function GenerationListView({ sectionActions }: {
               {virtualizer.getVirtualItems().map((item) => {
                 const row = rows[item.index]
                 if (!row) return null
+                // 第一个分组标题顶在列表左上角时让开悬浮的「画布 | 列表」切换钮（pl-8 = LEAD_INSET 换算到标题 px-4 之后）。
                 return (
                   <div key={item.key} ref={virtualizer.measureElement} data-index={item.index} className="absolute left-0 top-0 w-full px-4" style={{ transform: `translateY(${item.start}px)` }}>
                     {row.kind === 'header' ? (
-                      <div className={item.index === 0 ? 'pt-3' : 'pt-5'}>
+                      <div className={item.index === 0 ? cn('pt-3', !model.anchors.length && !filter && 'pl-8') : 'pt-5'}>
                         <GenerationListSectionHeader
                           section={row.section}
                           collapsed={collapsed.has(row.section.key)}

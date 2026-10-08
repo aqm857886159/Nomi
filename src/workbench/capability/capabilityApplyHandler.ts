@@ -24,7 +24,7 @@ import { projectPlanShotsOntoCreatedNodes } from '../creation/storyboard/exec/st
 import { parseStoryboardPlan } from '../generationCanvas/agent/storyboardPlanSchema'
 import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
-import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+import { readCanvasReadSource } from '../generationCanvas/agent/generationCanvasTools'
 import { captureCanvasReadResult } from '../generationCanvas/agent/canvasReadResultSeal'
 import {
   captureCurrentProjectCanvasReadSurfaceBinding,
@@ -395,7 +395,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   const plannerSnapshot =
     op === 'production.plan-storyboard'
       ? captureCanvasReadResult({
-          ...readGenerationCanvasSnapshot(),
+          ...readCanvasReadSource(),
           // Production planning is document-scoped. A transient UI selection
           // must not make the prompt and the main-sealed read target disagree.
           selectedNodeIds: [],

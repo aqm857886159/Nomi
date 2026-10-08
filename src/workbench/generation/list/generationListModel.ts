@@ -55,6 +55,8 @@ export type GenerationListCard = {
   variant: GenerationListCardVariant
   /** 分镜镜序（只有分镜段的卡有）；其余卡用节点标题。 */
   storyboardShotNumber: number | null
+  /** 项目里不止一份分镜时，卡名要带的分镜名（「<分镜名> · 镜 03」，同 canvas/storyboardShotLabel）。 */
+  storyboardScope: string | null
   title: string
   status: ShotRowStatus | null
   /** 还没落画布的方案镜：方案里的提示词（有节点的卡读节点自己的提示词）。 */
@@ -113,6 +115,7 @@ function nodeCard(node: GenerationCanvasNode, referenceNodeIds: string[]): Gener
     nodeId: node.id,
     variant: role === 'tool' ? 'tool' : 'generation',
     storyboardShotNumber: null,
+    storyboardScope: null,
     title: node.title || '',
     status: role === 'tool' ? null : listNodeStatus(node),
     planPrompt: null,
@@ -146,6 +149,9 @@ export function deriveGenerationList(input: GenerationListInput): GenerationList
   const allDesigns = Object.values(designsByDocumentId).flat()
   const filterMissing = Boolean(filter && !allDesigns.some((design) => design.id === filter.designId && design.documentId === filter.documentId))
   const activeFilter = filterMissing ? null : filter
+
+  // 编号作用域与 canvas/storyboardShotLabel 同一判据：有镜头的分镜不止一份，名字就带分镜名。
+  const scoped = allDesigns.filter((design) => design.plan.shots.length > 0).length > 1
 
   // ── 分镜：按方案镜序；还没落画布的镜头也在（「生成整组」要能勾它）。──
   for (const design of allDesigns) {
@@ -184,6 +190,7 @@ export function deriveGenerationList(input: GenerationListInput): GenerationList
         nodeId: node?.id ?? null,
         variant: 'generation',
         storyboardShotNumber: shot.index,
+        storyboardScope: scoped ? design.title || design.plan.title : null,
         title: node?.title || '',
         status: exec.status,
         planPrompt: node ? null : shot.prompt,
@@ -246,8 +253,9 @@ export function findGenerationListCard(model: GenerationListModel, key: string):
   return null
 }
 
-/** 卡片 / 检查器标题：分镜卡用镜序「镜 03」，其余用节点标题。 */
-export function shotLabel(t: (key: string, options?: Record<string, unknown>) => string, card: Pick<GenerationListCard, 'storyboardShotNumber' | 'title'>): string {
-  if (card.storyboardShotNumber != null) return t('generationList.shot', { index: String(card.storyboardShotNumber).padStart(2, '0') })
-  return card.title || t('generationList.untitled')
+/** 卡片 / 检查器标题：分镜卡用分镜号「镜 03」/「<分镜名> · 镜 03」，其余用节点标题。 */
+export function shotLabel(t: (key: string, options?: Record<string, unknown>) => string, card: Pick<GenerationListCard, 'storyboardShotNumber' | 'storyboardScope' | 'title'>): string {
+  if (card.storyboardShotNumber == null) return card.title || t('generationList.untitled')
+  const index = String(card.storyboardShotNumber).padStart(2, '0')
+  return card.storyboardScope ? t('generationList.shotScoped', { storyboard: card.storyboardScope, index }) : t('generationList.shot', { index })
 }

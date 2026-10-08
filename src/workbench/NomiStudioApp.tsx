@@ -21,7 +21,7 @@ import {
   hydrateCommittedProposalReceipt,
   recoverPendingProposalReceipt,
 } from './generationCanvas/agent/proposalUndo'
-import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
+import { readCanvasReadSource, readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
 import {
   captureCanvasDeleteRawEvidence,
   captureCanvasWriteRawEvidence,
@@ -231,7 +231,7 @@ export default function NomiStudioApp(): JSX.Element {
     () =>
       registerProjectCanvasReadSurface(
         projectSurface,
-        readGenerationCanvasSnapshot,
+        readCanvasReadSource,
         // 文稿读写的 owner 是项目会话层（documentSessionPort）：基线随项目在，编辑器挂载只做增强覆盖。
         readDocumentThroughSessionPort,
         (request) => writeDocumentThroughSessionPort(request as Parameters<typeof writeDocumentThroughSessionPort>[0]),

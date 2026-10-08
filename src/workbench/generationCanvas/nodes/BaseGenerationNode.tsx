@@ -5,7 +5,6 @@ import type { ImageGenerationPreset } from 'img-fx'
 import { useTranslation } from 'react-i18next'
 import { IconCopy, IconDownload, IconMaximize, IconUpload } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
-import { ShotPreviewOverlays } from './ConvertShotToVideoButton'
 import { resolveNodeRenderKind, isCardRenderKind, nodeHasGenerationComposer } from './resolveRenderKind'
 import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
@@ -56,7 +55,7 @@ import { useResultDownload } from './useResultDownload'
 import { useArtifactNodeSlots } from './artifact/artifactNodeSlots'
 import { RESIZE_DIRECTIONS, getNodeSizeBounds, FOCUS_GENERATION_NODE_EVENT, resolveNodeVisualSize } from './nodeSizing'
 import { NodeLabelRow } from './NodeLabelRow'
-import { StoryboardShotBadge, ViewInListButton } from '../../generation/list/CanvasListLinks'
+import { NodeShotLabel, ViewInListButton } from '../../generation/list/CanvasListLinks'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeMediaMeasurement } from './useNodeMediaMeasurement'
 import { useNodeVideoPreviewIntent } from './useNodeVideoPreviewIntent'
@@ -309,8 +308,7 @@ function BaseGenerationNodeImpl({
       ) : null}
       {mediaPreviewControls}
       <NodeLabelRow>
-        <ShotPreviewOverlays {...shotIdentity} />
-        {!isCardKind && !isTextKind ? <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} readOnly={readOnly} /> : null}
+        <NodeShotLabel node={node} {...shotIdentity}>{!isCardKind && !isTextKind ? <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} readOnly={readOnly} /> : null}</NodeShotLabel>
         {!isCardKind ? <ShotMountBadges cards={mountedCards} /> : null}
         <TechnicalReviewBadge meta={node.meta} /><DerivedReadyBadge node={node} />
         {/* 拆解收起态（视图 07）：视频节点有拆解结果且面板未占槽时，挂「已拆解 · N 镜」角标 + 可点回浮条。 */}
@@ -337,7 +335,6 @@ function BaseGenerationNodeImpl({
         {/* 2026-08-04 撤离卡片右上两颗常驻按钮（放大＝浮条「全屏」去重；生成记录迁进浮动工具栏，门是 selected 非 hover）——动作不压内容（§1.5）。 */}
         {selected && !isMultiSelectActive ? <ViewInListButton node={node} /> : null}
       </NodeLabelRow>
-      <StoryboardShotBadge node={node} />
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
         <NodeGenerationStatus node={node} />
       </div>

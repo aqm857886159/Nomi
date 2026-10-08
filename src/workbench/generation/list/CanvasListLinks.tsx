@@ -1,43 +1,38 @@
-// 画布节点上通往列表的两件小东西（样张板 E「画布角标」）：
-//   - 分镜镜头左上角的「镜 03」角标：号就是分镜方案里的镜序，与列表那张卡同一个号；
+// 画布节点上与列表相关的两件小东西：
+//   - 镜头号：分镜镜头只显示分镜号（「镜 03」/「<分镜名> · 镜 03」，2026-10-08 用户「只留分镜里的号」），
+//     不再显示画布全局号「镜头 N」；默认标题「镜头 N」也不再重复一遍。不是分镜镜头的节点照旧。
 //   - 选中时标题行右端的「在列表里看」：切到列表并打开这一张。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconLayoutList } from '@tabler/icons-react'
-import { useWorkbenchStore } from '../../workbenchStore'
-import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
+import type { ShotIdentity } from '../../../../electron/shared/canvas/shotNumbering'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
+import { ShotPreviewOverlays } from '../../generationCanvas/nodes/ConvertShotToVideoButton'
 import { generationListRole } from './generationListModel'
 import { useGenerationViewStore } from './generationViewStore'
+import { formatStoryboardShotLabel, isAutoStoryboardShotTitle, useStoryboardShotLabel } from './storyboardLabels'
 
-/** 这个节点绑定的分镜镜序（不是分镜镜头 = null）。只读方案，不写任何东西。 */
-function useStoryboardShotNumber(node: GenerationCanvasNode): number | null {
-  const meta = node.meta as Record<string, unknown> | undefined
-  const designId = typeof meta?.storyboardDesignId === 'string' ? meta.storyboardDesignId : ''
-  const shotId = typeof meta?.shotId === 'string' ? meta.shotId : ''
-  const keyframe = meta?.storyboardKeyframe === true
-  return useWorkbenchStore((state) => {
-    if (!designId || !shotId || keyframe || node.regeneratedFrom || node.derivedFrom) return null
-    for (const designs of Object.values(state.storyboardDesignsByDocumentId)) {
-      const design = designs.find((candidate) => candidate.id === designId)
-      const shot = design?.plan.shots.find((candidate) => stableShotId(candidate) === shotId)
-      if (shot) return shot.index
-    }
-    return null
-  })
-}
-
-export function StoryboardShotBadge({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
+/**
+ * 节点框外标题行里的镜头号 + 标题（`children` = 标题件）。
+ * 分镜镜头：分镜号一枚（同 ShotPreviewOverlays 的样子），标题是落画布时的默认「镜头 N」就不再显示；
+ * 其余节点：原样交给 ShotPreviewOverlays（全局号 / 首帧图 / 视频）。
+ */
+export function NodeShotLabel({ node, shotIndex, shotRole, children }: {
+  node: GenerationCanvasNode
+  shotIndex?: number | null
+  shotRole?: ShotIdentity['shotRole']
+  children?: React.ReactNode
+}): JSX.Element {
   const { t } = useTranslation()
-  const number = useStoryboardShotNumber(node)
-  if (number == null) return null
+  const label = useStoryboardShotLabel(node)
+  if (!label) return <><ShotPreviewOverlays shotIndex={shotIndex} shotRole={shotRole} />{children}</>
   return (
-    <span
-      data-storyboard-shot-badge={number}
-      className="pointer-events-none absolute left-2 top-2 z-[3] rounded-pill bg-nomi-ink px-1.5 py-0.5 text-micro font-medium tabular-nums text-nomi-paper shadow-nomi-sm"
-    >
-      {t('generationList.shot', { index: String(number).padStart(2, '0') })}
-    </span>
+    <>
+      <span data-shot-number data-storyboard-shot-label={label.number} className="inline-flex shrink-0 items-center rounded-nomi-sm border border-nomi-line bg-nomi-paper/90 px-2 py-0.5 font-normal tabular-nums text-nomi-ink pointer-events-none">
+        {formatStoryboardShotLabel(t, label)}
+      </span>
+      {isAutoStoryboardShotTitle(node.title, label.number) ? null : children}
+    </>
   )
 }
 
