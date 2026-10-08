@@ -254,7 +254,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
   {
     // Replicate：图片「元素拆解」(qwen-image-layered) 的托管端点。本机跑不动 57GB 模型，必须走云；
-    // 一把 r8_ token 即可（按量付费，约 $0.05/张）。见 docs/plan/2026-06-28-element-decomposition-feature.md。
+    // 一把 r8_ token 即可。见 docs/plan/2026-06-28-element-decomposition-feature.md。
     vendorKey: 'replicate',
     logo: VENDOR_LOGOS.replicate,
     glyph: 'Rp',
