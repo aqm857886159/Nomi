@@ -46,8 +46,9 @@ const server = http.createServer((req, res) => {
 })
 await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const mockBase = `http://127.0.0.1:${server.address().port}`
+const OK_URL = `${mockBase}/v1/ok`
 const WRONG_URL = `${mockBase}/v1/wrong-path`
-const VENDOR_KEY = 'stepfun-relay'
+let vendorKey = 'stepfun-relay'
 const VENDOR_NAME = '阶跃星辰中转'
 
 let n = 0
@@ -75,11 +76,14 @@ await win.evaluate(() => {
 })
 
 // ── 造现场：一家中转站 + 24 个模型，地址是错的 ──────────────────────────────
-const seeded = await win.evaluate(({ vendorKey, vendorName, wrongUrl }) => {
+const seeded = await win.evaluate(async ({ vendorName, okUrl, wrongUrl }) => {
   const mc = window.nomiDesktop?.modelCatalog
   if (!mc) return null
-  mc.upsertVendor({ key: vendorKey, name: vendorName, baseUrlHint: wrongUrl, enabled: true })
-  mc.upsertVendorApiKey(vendorKey, { apiKey: 'sk-walkthrough-relay', enabled: true })
+  // The current credential gate validates the saved key. Register it at the
+  // reachable fixture first, then edit the URL to the deliberate 401 route.
+  const configured = await window.nomiDesktop.onboarding.httpConnectionConfigure({ vendorName, baseUrl: okUrl, apiKey: 'sk-walkthrough-relay', authType: 'bearer', providerKind: 'openai-compatible', headers: {}, models: [] })
+  if (!configured.ok) throw new Error('Fixture relay registration failed')
+  const vendorKey = configured.registration.vendorKey
   // 中转站的典型体量：一家几十个模型。数量本身就是可发现性的敌人。
   const names = [
     'step-1-8k', 'step-1-32k', 'step-1-128k', 'step-1-256k', 'step-1v-8k', 'step-1v-32k',
@@ -93,11 +97,11 @@ const seeded = await win.evaluate(({ vendorKey, vendorName, wrongUrl }) => {
   }
   // 内置家也接一个：VendorOnboardCard 与自定义家共用同一份 VendorBaseUrlField，
   // 改哪面就得验哪面（R13），不能只看自定义家绿了就以为内置家没事。
-  mc.upsertVendor({ key: 'apimart', baseUrlHint: wrongUrl })
-  mc.upsertVendorApiKey('apimart', { apiKey: 'sk-walkthrough-known', enabled: true })
-  return mc.listModels({ vendorKey }).filter((m) => m.vendorKey === vendorKey).length
-}, { vendorKey: VENDOR_KEY, vendorName: VENDOR_NAME, wrongUrl: WRONG_URL })
-console.log(`现场：${VENDOR_NAME} · ${seeded} 个模型 · 地址=${WRONG_URL}`)
+  mc.upsertVendor({ key: vendorKey, baseUrlHint: wrongUrl })
+  return { vendorKey, count: mc.listModels({ vendorKey }).filter((m) => m.vendorKey === vendorKey).length }
+}, { vendorName: VENDOR_NAME, okUrl: OK_URL, wrongUrl: WRONG_URL })
+vendorKey = seeded.vendorKey
+console.log(`现场：${VENDOR_NAME} · ${seeded.count} 个模型 · 地址=${WRONG_URL}`)
 
 await win.reload()
 await win.waitForLoadState('domcontentloaded')
@@ -162,11 +166,11 @@ await step('切到「模型」页签', async () => {
 })
 
 // ① 首页那一行必须把「连不上」说出来（用户扫视的就是这一屏）。
-const homeRow = win.locator(`[data-model-home-connection="${VENDOR_KEY}"]`)
+const homeRow = win.locator(`[data-model-home-connection="${vendorKey}"]`)
 await expectVisible(homeRow, '首页已连入行')
 await expect(homeRow, '① 401 的家在首页行要显示「连不上」，不能只报模型统计').toContainText('连不上')
 await expect(
-  win.locator(`[data-model-home-unreachable][data-model-home-connection="${VENDOR_KEY}"]`),
+  win.locator(`[data-model-home-unreachable][data-model-home-connection="${vendorKey}"]`),
   '① 连不上的行要带 data-model-home-unreachable 标记',
 ).toHaveCount(1)
 console.log('  ✓ 首页行：', (await homeRow.innerText()).replace(/\s+/g, ' '))
@@ -209,7 +213,7 @@ const deleteEntries = await win.evaluate(() => {
   for (const b of document.querySelectorAll('button')) {
     const label = `${b.getAttribute('aria-label') ?? ''} ${b.getAttribute('title') ?? ''} ${b.innerText}`.trim()
     // 「彻底删除 <模型名>」是单个模型的行内动作，不算整家入口。
-    if (/删除.*供应商|删除该供应商/.test(label)) {
+    if (/\u6574\u4f53\u5220\u9664|delete.*(vendor|provider)/i.test(label)) {
       hits.push(label.replace(/\s+/g, ' ').slice(0, 40))
     }
   }
@@ -240,11 +244,11 @@ await expect(
 await snap(win, 'healed')
 console.log('  ✓ 改对地址后「连不上」已消失')
 
-// ── 内置家（apimart）走同一份地址字段：共用组件不能只在自定义家那面成立 ─────────
-await step('回到模型首页，进内置家 APIMart', async () => {
+// ── 内置家（Higgsfield）走同一份地址字段：共用组件不能只在自定义家那面成立 ────────
+await step('回到模型首页，进内置家 Higgsfield', async () => {
   await clickOrFail(win.locator('[data-model-settings-page] button[aria-label*="返回"], [data-model-settings-page] header button').first(), '返回')
   await expectVisible(win.locator('[data-model-settings-page="home"]'), '模型设置首页')
-  await clickOrFail(win.locator('[data-model-home-connection="apimart"]'), '已连接行「APIMart」')
+  await clickOrFail(win.locator('[data-model-home-connection="higgsfield"]'), '已连接行「Higgsfield」')
   await expectVisible(win.locator('[data-model-connection-field="baseUrl"], [aria-label*="接入地址"]').first(), '内置家的地址字段')
   await snap(win, 'known-vendor-connection')
 })

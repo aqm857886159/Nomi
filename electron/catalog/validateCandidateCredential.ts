@@ -2,10 +2,10 @@ import { BrowserWindow } from 'electron'
 import { readCatalog, normalizeProviderKind, mutateCatalog } from './catalogStore'
 import { decryptApiKeyRecord } from './secrets'
 import type { Vendor } from './types'
-import { authHeaders, authQueryParams } from '../ai/requestPipeline'
+import { authQueryParams } from '../ai/requestPipeline'
 import { vendorAuthSpec } from './vendorAuthSpec'
-import { fetchModelList, readExtraHeaders } from '../ai/onboarding/modelListProbe'
-import { isJsonRecord, mergeHeadersCaseInsensitive } from '../jsonUtils'
+import { buildAuthHeaders, fetchModelList, readExtraHeaders } from '../ai/onboarding/modelListProbe'
+import { isJsonRecord } from '../jsonUtils'
 import { desktopT } from '../i18n'
 import { providerProxyUrl } from '../providerNetwork'
 import { hasBuiltinCredentialJudgement } from './builtinVendorSeeds'
@@ -69,10 +69,11 @@ export async function validateCandidateCredential(vendor: Vendor, apiKey: string
   }
   const providerKind = normalizeProviderKind(vendor.providerKind)
   const authType = vendor.authType || (providerKind === 'anthropic' ? 'x-api-key' : 'bearer')
-  const headers = mergeHeadersCaseInsensitive(
-    providerKind === 'anthropic' ? { 'anthropic-version': '2023-06-01' } : {},
+  const headers = buildAuthHeaders(
+    providerKind,
+    apiKey,
     readExtraHeaders(isJsonRecord(vendor.meta) ? vendor.meta.extraHeaders : undefined),
-    authHeaders({ ...vendorAuthSpec(vendor), authType }, apiKey),
+    { ...vendorAuthSpec(vendor), authType },
   )
   const result = await fetchModelList(providerKind, vendor.baseUrlHint, headers, AbortSignal.timeout(12_000), {
     query: authQueryParams({ ...vendorAuthSpec(vendor), authType }, apiKey),
