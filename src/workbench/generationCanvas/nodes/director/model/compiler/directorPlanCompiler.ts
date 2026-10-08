@@ -13,7 +13,7 @@ import type { DirectorCamera, DirectorObject, DirectorProject, Vec3, Waypoint } 
 import type { EvalShotSize } from '../../../../../../../electron/shared/director/vocab'
 import { evaluateEntityTransform } from '../trajectoryEval'
 import { evaluateSceneObjectPose } from '../evaluatedSceneObject'
-import { findActionEntry } from '../actionLibrary'
+import { resolveActionAlias } from '../actionLibrary'
 import { lookAtAngles } from '../vec3'
 import {
   directorPlanSchema,
@@ -197,14 +197,17 @@ function applyBlocking(
     actor.motionTrajectory = [...(actor.motionTrajectory ?? []), ...points.map((point) => ({ ...point, clipId: trajectoryClip.id }))].sort((a, b) => a.time - b.time)
     actor.trajectoryClips = [...(actor.trajectoryClips ?? []), trajectoryClip]
     if (actor.type === 'character') {
+      // 规划器给的动作词 / 动词默认词一律经动作库别名表解析（旧 Mixamo id、英文、中文都认），这里不写死具体动作 id
       const chosen =
         action.action ??
-        (action.verb === 'run_to' || action.verb === 'chase'
-          ? 'running'
-          : action.verb === 'walk_to' || action.verb === 'drive_along' || action.verb === 'sidestep'
-            ? 'standard_walk'
-            : 'standing_idle')
-      const entry = findActionEntry(chosen)
+        (action.verb === 'chase'
+          ? 'chase'
+          : action.verb === 'run_to'
+            ? 'run'
+            : action.verb === 'walk_to' || action.verb === 'drive_along' || action.verb === 'sidestep'
+              ? 'walk'
+              : 'idle')
+      const entry = resolveActionAlias(chosen)
       if (entry) {
         actor.actionClips = [
           ...(actor.actionClips ?? []),
@@ -233,7 +236,7 @@ function applyBlocking(
 }
 
 function ensureCharacterActionCoverage(objects: DirectorObject[], duration: number): void {
-  const entry = findActionEntry('standing_idle')!
+  const entry = resolveActionAlias('idle')!
   for (const object of objects.filter((item) => item.type === 'character')) {
     const clips = [...(object.actionClips ?? [])].sort((a, b) => a.startTime - b.startTime)
     let cursor = 0

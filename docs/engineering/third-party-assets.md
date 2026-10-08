@@ -4,7 +4,7 @@
 
 ## 本轮方向
 
-2026-10-04 第三轮采用 **Quaternius Universal Animation Library Standard 自带 CC0 人偶**作为 3D-BOX 默认角色，45 个动作保留原生 UAL 骨架和动作，不再给 X Bot 做重定向。上一轮新增的 10 个重定向动作、恢复的 Mixamo 4 个动作和重定向工具已从本 PR 删除；旧导演台的 X Bot、UE 人偶和现有 Mixamo 资产不动。
+2026-10-04 第三轮采用 **Quaternius Universal Animation Library Standard 自带 CC0 人偶**作为 3D-BOX 默认角色，45 个动作保留原生 UAL 骨架和动作，不再给 X Bot 做重定向。上一轮新增的 10 个重定向动作、恢复的 Mixamo 4 个动作和重定向工具已从本 PR 删除。2026-10-07 导演台整体换成 UAL 人偶（施工计划 `docs/plan/2026-10-07-director-ual-mannequin.md`），旧的 `x-bot.glb` 与 9 个 Mixamo FBX 已删除并移出登记。
 
 入库文件为 `src/assets/director/ual/ual-mannequin.glb`：
 
@@ -22,6 +22,6 @@
 
 ## 待裁决灰区
 
-仓库已有 `x-bot.glb`、`ue-mannequin-retopology.glb`（Sketchfab Standard）和 9 个 Mixamo FBX 仍登记为灰区：当前应用可使用，但在用户裁决前不宜原样再分发。本轮没有把它们改成 CC0，也没有把它们接入新的 UAL 目录。
+仓库里只剩 `ue-mannequin-retopology.glb`（Sketchfab Standard）登记为灰区：`src/` 里已没有任何引用，另开清理。`x-bot.glb` 与 9 个 Mixamo FBX 两类灰区已随 2026-10-07 换 UAL 删除。
 
 完整文件清单、下载包 SHA-256 与原始压缩包大小见 [`third-party-assets.json`](./third-party-assets.json)。

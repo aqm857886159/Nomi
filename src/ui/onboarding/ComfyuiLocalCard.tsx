@@ -13,11 +13,11 @@ import React, { type JSX } from 'react'
 import { MODEL_ACCESS_ENTRY } from '../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
-import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconCheck, IconX, IconTrash, IconChevronRight } from '@tabler/icons-react'
+import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconTrash, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notify } from '../notificationPolicy'
-import { confirmDialog } from '../../design'
+import { confirmDialog, DecisionBar } from '../../design'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ComfyuiWorkflowImportPanel } from './ComfyuiWorkflowImportPanel'
 import { ComfyuiPresetSection } from './ComfyuiPresetSection'
@@ -209,12 +209,12 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
         : t('onboardingProviders.comfyLocal.status.disconnected')
 
   const addrRow = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="text-caption text-nomi-ink-60 whitespace-nowrap">{t('onboardingProviders.comfyLocal.addressLabelCloud')}</span>
       {editing ? (
         <div
           data-nomi-escape-owner="true"
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-2"
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
             event.preventDefault()
@@ -226,10 +226,15 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
             value={addrDraft} onChange={(e) => setAddrDraft(e.target.value)} spellCheck={false}
             aria-label={t('onboardingProviders.comfyLocal.addressLabelCloud')}
             autoFocus
-            className="flex-1 h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption font-mono text-nomi-ink focus:border-nomi-accent outline-none"
+            className="min-w-[10rem] flex-[1_1_10rem] h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption font-mono text-nomi-ink focus:border-nomi-accent outline-none"
           />
-          <button type="button" onClick={handleSaveAddr} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-workbench-success hover:bg-nomi-ink-05" aria-label={t('onboardingProviders.comfyLocal.saveAddress')}><IconCheck size={15} stroke={1.8} /></button>
-          <button type="button" onClick={cancelAddressEditing} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05" aria-label={t('common.cancel')}><IconX size={15} stroke={1.8} /></button>
+          <DecisionBar
+            inline
+            cancelLabel={t('common.cancel')}
+            onCancel={cancelAddressEditing}
+            primaryLabel={t('onboardingProviders.comfyLocal.saveAddress')}
+            onPrimary={handleSaveAddr}
+          />
         </div>
       ) : (
         <>

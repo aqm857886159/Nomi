@@ -4,7 +4,7 @@ import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/contracts/modelA
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronRight, IconListCheck, IconListDetails, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { WorkbenchButton } from '../../../design'
+import { DecisionBar, WorkbenchButton } from '../../../design'
 import { isKnownVendor } from '../../../config/knownVendors'
 import { notifyModelOptionsRefresh } from '../../../config/modelCatalogCache'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -148,8 +148,8 @@ export function NodeErrorReport({
   }, [])
 
   const releaseRunId = productionMetaOf({ meta })?.runId
-  const handleReleaseContinue = React.useCallback((event: React.MouseEvent) => {
-    event.stopPropagation()
+  const handleReleaseContinue = React.useCallback((event?: React.MouseEvent) => {
+    event?.stopPropagation()
     const nodeId = rootRef.current?.closest('[data-node-id]')?.getAttribute('data-node-id')
     if (!nodeId || !releaseRunId || releaseBusy) return
     setReleaseBusy(true)
@@ -356,14 +356,15 @@ export function NodeErrorReport({
         <div data-release-confirm className="mb-1 grid gap-2" onPointerDown={(event) => event.stopPropagation()}>
           <p className="text-caption leading-snug text-nomi-ink-80">{t('generationCommon.observability.releaseConfirm.message')}</p>
           {releaseFailed ? <p className="text-micro text-workbench-danger">{t('generationCommon.observability.releaseConfirm.failed')}</p> : null}
-          <div className="flex items-center gap-2">
-            <WorkbenchButton size="sm" onClick={handleReleaseContinue} disabled={releaseBusy} className="shrink-0 whitespace-nowrap bg-workbench-danger text-nomi-paper border-0 hover:bg-workbench-danger-soft">
-              {t('generationCommon.observability.releaseConfirm.continue')}
-            </WorkbenchButton>
-            <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmingRelease(false); setReleaseFailed(false) }} className="shrink-0 whitespace-nowrap text-caption text-nomi-ink-40 hover:text-nomi-ink">
-              {t('generationCommon.observability.releaseConfirm.cancel')}
-            </button>
-          </div>
+          <DecisionBar
+            cancelLabel={t('generationCommon.observability.releaseConfirm.cancel')}
+            onCancel={() => { setConfirmingRelease(false); setReleaseFailed(false) }}
+            primaryLabel={t('generationCommon.observability.releaseConfirm.continue')}
+            onPrimary={handleReleaseContinue}
+            primaryDisabled={releaseBusy}
+            tone="danger"
+            dangerClassName="bg-workbench-danger text-nomi-paper hover:bg-workbench-danger"
+          />
         </div>
       ) : null}
       <div className={cn('flex flex-wrap items-center gap-2', confirmingRelease && 'hidden')}>

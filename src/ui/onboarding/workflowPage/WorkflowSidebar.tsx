@@ -11,15 +11,14 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle,
-  IconCheck,
   IconCircleCheck,
   IconMovie,
   IconPhoto,
   IconServerBolt,
   IconTrash,
-  IconX,
 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
+import { DecisionBar } from '../../../design'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { AddComfyuiInstanceButton } from '../AddComfyuiInstanceButton'
 
@@ -145,31 +144,22 @@ function BackendItem({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1 rounded-nomi-sm border border-nomi-accent bg-nomi-paper p-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-nomi-sm border border-nomi-accent bg-nomi-paper p-1.5">
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           spellCheck={false}
           autoFocus
           aria-label={t('comfyuiWorkflowPage.backends.addressAria', { name: backend.name })}
-          className="h-6 min-w-0 flex-1 rounded-nomi-sm border border-nomi-line bg-nomi-bg px-1.5 font-nomi-mono text-micro text-nomi-ink outline-none focus:border-nomi-accent"
+          className="h-7 min-w-0 basis-full rounded-nomi-sm border border-nomi-line bg-nomi-bg px-1.5 font-nomi-mono text-micro text-nomi-ink outline-none focus:border-nomi-accent"
         />
-        <button
-          type="button"
-          onClick={() => { const next = draft.trim(); if (next) onSaveAddress(next); setEditing(false) }}
-          aria-label={t('comfyuiWorkflowPage.backends.save')}
-          className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-accent hover:bg-nomi-ink-05"
-        >
-          <IconCheck size={13} stroke={1.9} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => { setDraft(backend.baseUrl); setEditing(false) }}
-          aria-label={t('common.cancel')}
-          className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05"
-        >
-          <IconX size={13} stroke={1.9} aria-hidden="true" />
-        </button>
+        <DecisionBar
+          inline
+          cancelLabel={t('common.cancel')}
+          onCancel={() => { setDraft(backend.baseUrl); setEditing(false) }}
+          primaryLabel={t('comfyuiWorkflowPage.backends.save')}
+          onPrimary={() => { const next = draft.trim(); if (next) onSaveAddress(next); setEditing(false) }}
+        />
       </div>
     )
   }

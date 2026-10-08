@@ -1,9 +1,10 @@
 /* global process, URL, document, getComputedStyle, console */
 import fs from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from '../../../../tests/ux/_launchApp.mjs'
 import { expect } from '@playwright/test'
 const phase = process.argv[2] || 'after'
-const root = new URL('.', import.meta.url).pathname
+const root = fileURLToPath(new URL('.', import.meta.url))
 await fs.mkdir(root,{recursive:true})
 const session=await launchNomiApp({name:`c76-${phase}`,settleMs:0,env:{VITE_DEV_SERVER_URL:'http://127.0.0.1:5273',NOMI_DISABLE_AUTO_UPDATE:'1'},initialLocalStorage:{'nomi-color-scheme':'light','nomi:splash:v1':'seen','nomi:journey-tour:v1':'seen'}})
 const page=session.win

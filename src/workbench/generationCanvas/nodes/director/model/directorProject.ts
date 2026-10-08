@@ -1,12 +1,14 @@
 /**
  * [INPUT]: 依赖 ./directorTypes（全部 schema）、./directorIds 的 createSceneId、./cameraLens 的 syncFocalLength
  * [OUTPUT]: 对外提供 DEFAULT_SCENE_CONFIG / DEFAULT_PANORAMA_CONFIG、createDefaultScene、createDefaultProject、
- *           normalizeDirectorProject（容错归一，任何 unknown → 合法工程）、cloneDirectorProject、projectStats
+ *           normalizeDirectorProject（容错归一，任何 unknown → 合法工程；角色 → UAL 读时迁移在 normalizeObject，唯一入口）、
+ *           ualMigrationNoteOf（这份工程读档时迁过人偶的说明，只在内存）、cloneDirectorProject、projectStats
  * [POS]: director/model 的工程生命周期：节点 meta 里读出来的东西先过 normalize 再进 store（对齐 V1 serializer 的
  *        「逐字段容错、不做版本迁移链」做法）；V1→V2 迁移在切换门时加在这里。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { syncFocalLength } from './cameraLens'
+import { createUalMigrationNote, migrateCharacterToUal, type UalMigrationNote } from './characterRigMigration'
 import { createSceneId } from './directorIds'
 import {
   DIRECTOR_EXPORT_RATIOS,
@@ -151,7 +153,7 @@ function normalizeTimelineFields(raw: Record<string, unknown>) {
 
 const OBJECT_TYPES = new Set(['character', 'model', 'group', 'splat', 'cube', 'sphere', 'plane', 'cylinder', 'cone', 'torus', 'tetrahedron', 'icosahedron'])
 
-function normalizeObject(raw: unknown): DirectorObject | null {
+function normalizeObject(raw: unknown, note: UalMigrationNote): DirectorObject | null {
   if (!isRecord(raw) || typeof raw.id !== 'string') return null
   const type = OBJECT_TYPES.has(String(raw.type)) ? (raw.type as DirectorObject['type']) : 'cube'
   const object: DirectorObject = {
@@ -176,7 +178,7 @@ function normalizeObject(raw: unknown): DirectorObject | null {
   for (const key of ['modelPath', 'posePreset', 'bodyType'] as const) {
     if (typeof raw[key] === 'string') object[key] = raw[key] as string
   }
-  if (raw.rig === 'mixamo' || raw.rig === 'ue4') object.rig = raw.rig
+  if (raw.rig === 'mixamo' || raw.rig === 'ue4' || raw.rig === 'ual') object.rig = raw.rig
   // 模型实量包围盒：六个数都有限才保留，否则当没量过（读的一方按兜底处理并标出来）
   if (isRecord(raw.measuredBounds) && isRecord(raw.measuredBounds.min) && isRecord(raw.measuredBounds.max)) {
     const min = vec3(raw.measuredBounds.min, { x: NaN, y: NaN, z: NaN }), max = vec3(raw.measuredBounds.max, { x: NaN, y: NaN, z: NaN })
@@ -235,6 +237,8 @@ function normalizeObject(raw: unknown): DirectorObject | null {
     }
   })
   if (lookAtClips.length) object.lookAtClips = lookAtClips
+  // 读时迁移（唯一入口）：2026-10-07 前存的内置人偶是 Mixamo x-bot、动作是旧 9 个 id，读进来就是 UAL；只改内存，用户真改动后才落盘
+  migrateCharacterToUal(object, note)
   return object
 }
 
@@ -310,7 +314,7 @@ function normalizeLight(raw: unknown): DirectorLight | null {
   }
 }
 
-export function normalizeScene(raw: unknown, fallbackName: string): DirectorScene | null {
+export function normalizeScene(raw: unknown, fallbackName: string, note: UalMigrationNote = createUalMigrationNote()): DirectorScene | null {
   if (!isRecord(raw)) return null
   const id = typeof raw.id === 'string' && raw.id ? raw.id : createSceneId()
   const scene = createDefaultScene(str(raw.name, fallbackName), id)
@@ -339,7 +343,7 @@ export function normalizeScene(raw: unknown, fallbackName: string): DirectorScen
       rotationY: num(raw.panoramaConfig.rotationY, 0),
     }
   }
-  scene.objects = arrayOf(raw.objects, normalizeObject)
+  scene.objects = arrayOf(raw.objects, (item) => normalizeObject(item, note))
   scene.cameras = arrayOf(raw.cameras, normalizeCamera)
   scene.lights = arrayOf(raw.lights, normalizeLight)
   const knownIds = new Set([...scene.objects, ...scene.cameras].map((entity) => entity.id))
@@ -361,9 +365,22 @@ export function normalizeScene(raw: unknown, fallbackName: string): DirectorScen
   return scene
 }
 
+/** 这一份工程是读档时从旧人偶迁过来的：迁移说明（只在内存，不进工程；编辑器打开时据此提示一次） */
+const migrationNotes = new WeakMap<DirectorProject, UalMigrationNote>()
+export function ualMigrationNoteOf(project: DirectorProject): UalMigrationNote | null {
+  return migrationNotes.get(project) ?? null
+}
+
 export function normalizeDirectorProject(raw: unknown, defaultSceneName: string = 'Scene 1'): DirectorProject {
   if (!isRecord(raw)) return createDefaultProject(defaultSceneName)
-  const scenes = arrayOf(raw.scenes, (item, ) => normalizeScene(item, defaultSceneName))
+  const note = createUalMigrationNote()
+  const project = normalizeProjectRecord(raw, defaultSceneName, note)
+  if (note.characters > 0) migrationNotes.set(project, note)
+  return project
+}
+
+function normalizeProjectRecord(raw: Record<string, unknown>, defaultSceneName: string, note: UalMigrationNote): DirectorProject {
+  const scenes = arrayOf(raw.scenes, (item) => normalizeScene(item, defaultSceneName, note))
   if (scenes.length === 0) scenes.push(createDefaultScene(defaultSceneName))
   const activeSceneId = typeof raw.activeSceneId === 'string' && scenes.some((scene) => scene.id === raw.activeSceneId)
     ? raw.activeSceneId

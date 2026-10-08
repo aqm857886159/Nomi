@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 import { loadConceptRegistry } from './concept-registry-lib.mjs'
 import { writeGithubOutput } from './select-quality-gate-profile.mjs'
-import { classifyValidationPolicy, CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_FIXTURES } from './validation-policy.mjs'
+import { SPEND_BLOCKING_WALKS, SPEND_WALK_FILES, classifyValidationPolicy, CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_FIXTURES } from './validation-policy.mjs'
 
 function surfaces(result) {
   return {
@@ -427,6 +427,7 @@ test('GitHub output exposes every policy dimension with stable snake-case names'
     unit: 'full',
     desktop: 'true',
     journeys: 'false',
+    spend_walks: 'false',
     canvas: 'none',
     performance: 'false',
     package: 'true',
@@ -526,4 +527,25 @@ test('认不出的路径 fail-closed 到全量；认得出的孤立改动仍是 
   assert.equal(isolated.failClosed, false)
   assert.equal(isolated.reason, 'isolated_change')
   assert.equal(classifyValidationPolicy(['docs/x.md']).reason, 'docs_only')
+})
+
+
+test('spend routing is data-owned and source changes select journeys', () => {
+  assert.equal(SPEND_WALK_FILES.length, 16)
+  assert.equal(SPEND_BLOCKING_WALKS.length, 6)
+  assert.deepEqual(SPEND_BLOCKING_WALKS.map((walk) => walk.path), [
+    'tests/ux/agent-spend-card.walk.mjs',
+    'tests/ux/agent-spend-confirm-executes.walk.mjs',
+    'tests/ux/agent-spend-full-auto.walk.mjs',
+    'tests/ux/agent-spend-generate-remaining.walk.mjs',
+    'tests/ux/agent-spend-stop-midway.walk.mjs',
+    'tests/ux/core-smoke-spend-confirm.walk.mjs',
+  ])
+  for (const file of ['electron/productionRun/productionPendingSpend.ts', 'src/workbench/generationCanvas/spend/SpendApprovalCard.tsx']) {
+    assert.equal(classifyValidationPolicy([file]).journeys, true, file)
+    assert.equal(classifyValidationPolicy([file]).spendWalks, true, file)
+  }
+  assert.equal(classifyValidationPolicy(['electron/capabilityCore/pendingSpendReferences.ts']).spendWalks, true)
+  assert.equal(classifyValidationPolicy(['scripts/validation-policy.mjs']).spendWalks, false)
+  assert.equal(classifyValidationPolicy(['src/utils/unrelated.ts']).journeys, false)
 })

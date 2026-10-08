@@ -1723,7 +1723,7 @@
         "missing",
         "ready"
       ],
-      "reason": "poseClipStatus 是导演台姿态库（Mixamo FBX 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。",
+      "reason": "poseClipStatus 是导演台动作库（默认 UAL 人偶 glb 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。",
       "site": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts::function:poseClipStatus/type-union"
     },
     {
