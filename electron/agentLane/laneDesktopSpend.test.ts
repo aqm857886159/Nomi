@@ -5,7 +5,6 @@ import type { PendingSpendRead } from '../shared/contracts/pendingSpendConfirm'
 
 const bus = vi.hoisted(() => ({
   runs: new Set<(run: unknown) => void>(),
-  policy: new Set<(projectId: string, operationId: string) => void>(),
   lifecycle: new Set<() => void>(),
   read: { current: (() => ({ surface: 'ready', rows: [] })) as (projectId: string) => unknown },
   reads: 0,
@@ -13,9 +12,6 @@ const bus = vi.hoisted(() => ({
 
 vi.mock('../productionRun/productionRunRuntime', () => ({
   subscribeProductionRunChanges: (listener: (run: unknown) => void) => { bus.runs.add(listener); return () => bus.runs.delete(listener) },
-}))
-vi.mock('../capabilityCore/policySpendDecision', () => ({
-  subscribePolicySpendDecisions: (listener: (projectId: string, operationId: string) => void) => { bus.policy.add(listener); return () => bus.policy.delete(listener) },
 }))
 vi.mock('../capabilityCore/residentSurfaceLifecycle', () => ({
   readPendingSpend: (projectId: string) => { bus.reads += 1; return bus.read.current(projectId) },
@@ -31,7 +27,7 @@ const emitRun = (value: ProductionRun) => { for (const listener of [...bus.runs]
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve))
 
 afterEach(() => {
-  bus.runs.clear(); bus.policy.clear(); bus.lifecycle.clear(); bus.reads = 0
+  bus.runs.clear(); bus.lifecycle.clear(); bus.reads = 0
   bus.read.current = () => ({ surface: 'ready', rows: [] })
 })
 
@@ -79,17 +75,13 @@ describe('laneDesktopSpend：推，不拉', () => {
     spend.dispose()
   })
 
-  it('全自动代答收尾（释放不写账本）和常驻生成面换相，各推一次', async () => {
+  it('常驻生成面换相推一次；策略切换不再重解释旧卡', async () => {
     const refresh = vi.fn()
     const spend = createDesktopLaneSpend('project-1', refresh)
     spend.resolve()
-    for (const listener of [...bus.policy]) listener('project-1', 'op-1')
-    await tick()
     for (const listener of [...bus.lifecycle]) listener()
     await tick()
-    for (const listener of [...bus.policy]) listener('project-2', 'op-9')
-    await tick()
-    expect(refresh).toHaveBeenCalledTimes(2)
+    expect(refresh).toHaveBeenCalledTimes(1)
     spend.dispose()
   })
 
@@ -100,6 +92,6 @@ describe('laneDesktopSpend：推，不拉', () => {
     spend.dispose()
     await tick()
     expect(refresh).not.toHaveBeenCalled()
-    expect([bus.runs.size, bus.policy.size, bus.lifecycle.size]).toEqual([0, 0, 0])
+    expect([bus.runs.size, bus.lifecycle.size]).toEqual([0, 0])
   })
 })

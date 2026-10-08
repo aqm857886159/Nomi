@@ -40,6 +40,11 @@ export async function withdrawStalePresentations(deps: StalePresentationSweepDep
   for (const run of deps.listRuns(projectId)) {
     const awaiting = awaitingSpendDecision(run);
     if (!awaiting) continue;
+    // A project-policy decision has a read-side deadline precisely because its
+    // failure marker may be lost. Keep the durable card for manual recovery;
+    // startup cleanup must not turn that safety net back into a disappearance.
+    const presentation = currentPresentation(awaiting.plan);
+    if (presentation?.policySnapshot?.mode === "project" && presentation.policyDecisionState !== "failed") continue;
     // 这一次出价开出来的那一刻；ISO 串同宽，字典序即时间序。
     const openedAt = currentPresentation(awaiting.plan)?.openedAt ?? awaiting.plan.updatedAt;
     if (openedAt.localeCompare(startedAt) >= 0) continue;

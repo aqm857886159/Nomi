@@ -37,10 +37,9 @@ import type { ProjectBinding } from "../shared/projectBinding";
 import type { ProjectLeaseV2 } from "./projectLease";
 import type { ModelPricing } from "../productionRun/shotPricing";
 import type { ProductionActionResult, ProductionRun } from "../productionRun/productionRunTypes";
-import { listPendingSpendConfirms, projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
+import { assertPendingSpendIdentity, listPendingSpendConfirms, projectPendingSpendConfirm } from "../productionRun/productionPendingSpend";
 import { decideGenerationSpend } from "./generationSpendDecision";
 import { productionShotActionFailureOf } from "./appIntegrationProductionActions";
-import { spendAnsweredByPolicy } from "./policySpendDecision";
 import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised } from "../shared/contracts/pendingSpendConfirm";
 import { cardActionsSettled, serializeCardAction } from "./spendCardActionQueue";
 
@@ -105,7 +104,7 @@ export function spendFailureReason(error: unknown): string | undefined {
 
 function failed(error: unknown, started = true): ProductionActionResult {
   // Provider text is private diagnostics, never renderer or model copy.
-  const safe = error instanceof Error && ['generation_quote_changed', 'run_not_open', 'generation_scope_invalid'].includes(error.message)
+  const safe = error instanceof Error && ['generation_quote_changed', 'generation_presentation_stale', 'run_not_open', 'generation_scope_invalid'].includes(error.message)
     ? error.message
     : started ? 'generation_execution_failed' : 'generation_not_started';
   const reason = spendFailureReason(error);
@@ -119,6 +118,30 @@ function failed(error: unknown, started = true): ProductionActionResult {
   // 发起过的那一档只说「结果未知、先去核对」，种类不改变那句话，所以不带。
   const failure = safe === 'generation_not_started' ? productionShotActionFailureOf(error) : undefined;
   return { ok: false, code: "failed", message: safe, ...(reason && reason !== safe ? { reason } : {}), ...(failure ? { failure } : {}) };
+}
+
+type SpendCardActionInput = Readonly<{
+  projectId: string;
+  operationId: string;
+  quoteId: string;
+  presentationId?: string;
+  presentationEpoch?: number;
+  planVersion?: number;
+}>;
+
+function assertCardIdentity(pending: PendingSpendConfirm, input: SpendCardActionInput): void {
+  if (input.presentationId === undefined && input.presentationEpoch === undefined && input.planVersion === undefined) return;
+  assertPendingSpendIdentity(pending, {
+    presentationId: input.presentationId ?? pending.presentationId,
+    presentationEpoch: input.presentationEpoch ?? pending.presentationEpoch,
+    planVersion: input.planVersion ?? pending.planVersion,
+    quoteId: input.quoteId,
+  });
+}
+
+function staleCardResult(pending: PendingSpendConfirm, input: SpendCardActionInput): ProductionActionResult | undefined {
+  try { assertCardIdentity(pending, input); return undefined; }
+  catch (error) { return failed(error, false); }
 }
 
 /**
@@ -147,18 +170,18 @@ export function readInstalledPendingSpend(projectId: string): Extract<PendingSpe
   return { surface: "ready", rows: actions.listPendingSpend(projectId) };
 }
 
-export async function revisePendingSpendConfirmation(input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }): Promise<ProductionActionResult & PendingSpendRevised> {
+export async function revisePendingSpendConfirmation(input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown>; presentationId?: string; presentationEpoch?: number; planVersion?: number }): Promise<ProductionActionResult & PendingSpendRevised> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.revisePendingSpend(input);
 }
 
-export async function discardPendingSpendConfirmation(input: { projectId: string; operationId: string; quoteId: string }): Promise<ProductionActionResult> {
+export async function discardPendingSpendConfirmation(input: SpendCardActionInput): Promise<ProductionActionResult> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.discardPendingSpend(input);
 }
 
 /** 付费卡上「生成这张 / 这段」：只批这一镜（`shotId`）。卡上只剩一镜时可以不点名。 */
-export async function confirmPendingSpendConfirmation(input: { projectId: string; operationId: string; quoteId: string; shotId?: string }): Promise<ProductionActionResult> {
+export async function confirmPendingSpendConfirmation(input: SpendCardActionInput & { shotId?: string }): Promise<ProductionActionResult> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.confirmPendingSpend(input);
 }
@@ -167,13 +190,13 @@ export async function confirmPendingSpendConfirmation(input: { projectId: string
  * 付费卡上「生成剩下 N 张 / 段」（2026-10-01 用户拍板）：卡上还没决定的每一张各点一次「生成这张」。
  * `shotIds` 必须就是此刻卡上那一叠（去掉过的不在里面）；每张各封一份只盖它自己的授权，没有总价授权。
  */
-export async function confirmRemainingSpendShots(input: { projectId: string; operationId: string; quoteId: string; shotIds: readonly string[] }): Promise<ProductionActionResult> {
+export async function confirmRemainingSpendShots(input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.confirmRemainingShots(input);
 }
 
 /** 付费卡上「去掉这张 / 这段」：这一镜不生成，卡上剩下的镜照旧等人决定。 */
-export async function removePendingSpendShot(input: { projectId: string; operationId: string; quoteId: string; shotId: string }): Promise<ProductionActionResult> {
+export async function removePendingSpendShot(input: SpendCardActionInput & { shotId: string }): Promise<ProductionActionResult> {
   if (!actions) return { ok: false, code: "unavailable" };
   return actions.removePendingSpendShot(input);
 }
@@ -238,12 +261,12 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
   /**
    * 面板要显示的那些。空数组 = 面板上一张付费卡都不该出现。
    *
-   * `spendAnsweredByPolicy` 是「这一笔此刻正由『全自动』档代答」那份事实（`policySpendDecision.ts`）。
+   * 待决卡的身份来自持久化的生成展示快照；策略切换不会改写已经展示的卡。
    * 它**只减不增**：任何一笔它说 `false` 的，行为与此前逐字相同。
    */
   const listPendingSpend = (projectId: string): readonly PendingSpendConfirm[] => {
     if (!deps.isProjectOpen(projectId)) return Object.freeze([]);
-    return listPendingSpendConfirms(readRuns(projectId), deps.resolvePricing, spendAnsweredByPolicy)
+    return listPendingSpendConfirms(readRuns(projectId), deps.resolvePricing)
       .map(pending => withSpendReferencePreviews(pending, referenceAssets));
   };
 
@@ -254,7 +277,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
    */
   const pendingFor = (projectId: string, operationId: string): PendingSpendConfirm | undefined => {
     const run = deps.runs.read(projectId, operationId);
-    return run ? projectPendingSpendConfirm(run, deps.resolvePricing, spendAnsweredByPolicy) : undefined;
+    return run ? projectPendingSpendConfirm(run, deps.resolvePricing) : undefined;
   };
 
   const leased = async (projectId: string): Promise<ProjectLeaseV2> => {
@@ -325,11 +348,15 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     quoteId: string;
     shotId?: string;
     patch: Readonly<Record<string, unknown>>;
+    presentationId?: string;
+    presentationEpoch?: number;
+    planVersion?: number;
   }>): Promise<ProductionActionResult & PendingSpendRevised> => {
     if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
     if (!deps.operations.revise) return { ok: false, code: "unavailable" };
     const pending = pendingFor(input.projectId, input.operationId);
     if (!pending) return { ok: false, code: "failed", message: "no pending generation to revise" };
+    const stale = staleCardResult(pending, input); if (stale) return stale;
     if (!input.quoteId || input.quoteId !== pending.quoteId) return failed(new Error("generation_quote_changed"));
     const capturedRun = deps.runs.read(input.projectId, input.operationId);
     const plan = capturedRun?.generationPlan;
@@ -394,10 +421,11 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
    * 再往前那一版调的是 `operations.dismiss`（只置 `cardHidden`、不收门），已随裁决删净。
    * **IPC 名（`discardSpend`）不变**。
    */
-  const discardPendingSpend = async (input: Readonly<{ projectId: string; operationId: string; quoteId: string }>): Promise<ProductionActionResult> => {
+  const discardPendingSpend = async (input: SpendCardActionInput): Promise<ProductionActionResult> => {
     if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
     const pending = pendingFor(input.projectId, input.operationId);
     if (!pending) return { ok: false, code: "failed", message: "no pending generation to discard" };
+    const stale = staleCardResult(pending, input); if (stale) return stale;
     const replacedByCard = Boolean(input.quoteId && replacedInOpenPresentation(input.projectId, input.operationId, input.quoteId));
     if (!input.quoteId || (input.quoteId !== pending.quoteId && !replacedByCard)) return failed(new Error("generation_quote_changed"));
     // × 不排队：它可以打断一下还没批下来的「生成这张」（那一下就算没点成），已经批下来的那一镜照样在生成；
@@ -426,10 +454,10 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
    * 收据把手势绑到那个 gateId + digest 上，`authorizeGeneration` 只认对得上的收据，
    * 消费一次之后同一张收据再也批不动第二次。
    */
-  const confirmPendingSpend = (input: Readonly<{ projectId: string; operationId: string; quoteId: string; shotId?: string }>): Promise<ProductionActionResult> =>
+  const confirmPendingSpend = (input: SpendCardActionInput & { shotId?: string }): Promise<ProductionActionResult> =>
     serializeCardAction(input.projectId, input.operationId, () => confirmOneShot(input));
 
-  const confirmOneShot = async (input: Readonly<{ projectId: string; operationId: string; quoteId: string; shotId?: string }>): Promise<ProductionActionResult> => {
+  const confirmOneShot = async (input: SpendCardActionInput & { shotId?: string }): Promise<ProductionActionResult> => {
     if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
     const binding = deps.committedBinding();
     if (!binding || binding.projectId !== input.projectId) return { ok: false, code: 'run_not_open' };
@@ -441,6 +469,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     if (input.shotId && shotAlreadyDecided(input.projectId, input.operationId, input.shotId)) return { ok: true, code: "spend_confirmed" };
     const pending = pendingFor(input.projectId, input.operationId);
     if (!pending) return { ok: false, code: "failed", message: "no pending generation to confirm" };
+    const stale = staleCardResult(pending, input); if (stale) return stale;
     if (!input.quoteId || input.quoteId !== pending.quoteId) return failed(new Error("generation_quote_changed"));
     // 这一下点的是哪一镜：卡上只剩一镜时可以不点名；点名的必须就在卡上（还没决定）。
     const shotId = input.shotId ?? (pending.shots.length === 1 ? pending.shots[0].shotId : undefined);
@@ -491,11 +520,12 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
    * 哪一张没成就停在那一张——它和它后面的镜照旧留在卡上，和逐张点到那里停下一模一样。用户中途点 × 收回出价，
    * 剩下的不再生成（× 不排队，正是为了能打断它）。
    */
-  const confirmRemainingShots = (input: Readonly<{ projectId: string; operationId: string; quoteId: string; shotIds: readonly string[] }>): Promise<ProductionActionResult> =>
+  const confirmRemainingShots = (input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> =>
     serializeCardAction(input.projectId, input.operationId, async () => {
       if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
       const pending = pendingFor(input.projectId, input.operationId);
       if (!pending) return { ok: false, code: "failed", message: "no pending generation to confirm" };
+      const stale = staleCardResult(pending, input); if (stale) return stale;
       if (!input.quoteId || input.quoteId !== pending.quoteId) return failed(new Error("generation_quote_changed"), false);
       const onCard = pending.shots.map((shot) => shot.shotId);
       if (onCard.length < 2 || input.shotIds.length !== onCard.length || input.shotIds.some((shotId, index) => shotId !== onCard[index])) {
@@ -511,7 +541,8 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
         }
         if (shownShot(current, shotId) !== seen.get(shotId)) return failed(new Error("generation_quote_changed"), false);
         // 每一张从此刻那一版报价出发；它批下去换掉的那一版，× 带着来照样认（`noteReplacing`，在 confirmOneShot 里记）。
-        const result = await confirmOneShot({ projectId: input.projectId, operationId: input.operationId, quoteId: current.quoteId, shotId });
+        const result = await confirmOneShot({ projectId: input.projectId, operationId: input.operationId, quoteId: current.quoteId, shotId,
+          presentationId: current.presentationId, presentationEpoch: current.presentationEpoch, planVersion: current.planVersion });
         if (!result.ok) {
           // × 恰好落在这一张批下来之前（它的核对读到卡已经关了）：这一张也没发，和停在两张之间是同一件事。
           // 账本说这一张可能已经出去了（`generation_execution_failed`）就不能算进「没发」，原样交给卡去说「先去核对」。
@@ -524,13 +555,14 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     });
 
   /** 「去掉这张 / 这段」（第 2 条）：这一镜不生成，占位留在画布上。连点两下 → 第二下原样回成功。 */
-  const removePendingSpendShot = (input: Readonly<{ projectId: string; operationId: string; quoteId: string; shotId: string }>): Promise<ProductionActionResult> =>
+  const removePendingSpendShot = (input: SpendCardActionInput & { shotId: string }): Promise<ProductionActionResult> =>
     serializeCardAction(input.projectId, input.operationId, async () => {
       if (!deps.isProjectOpen(input.projectId)) return { ok: false, code: "run_not_open" };
       if (!deps.operations.removeShot) return { ok: false, code: "unavailable" };
       if (shotAlreadyDecided(input.projectId, input.operationId, input.shotId)) return { ok: true, code: "shot_removed" };
       const pending = pendingFor(input.projectId, input.operationId);
       if (!pending) return { ok: false, code: "failed", message: "no pending generation to change" };
+      const stale = staleCardResult(pending, input); if (stale) return stale;
       if (!input.quoteId || input.quoteId !== pending.quoteId) return failed(new Error("generation_quote_changed"), false);
       if (!pending.shots.some((shot) => shot.shotId === input.shotId)) return failed(new Error("generation_scope_invalid"), false);
       noteReplacing(input.projectId, input.operationId, pending.quoteId);

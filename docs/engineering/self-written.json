@@ -822,6 +822,26 @@
       ],
       "whyNotIntegrated": "Domain constraint: the storyboard batch confirmation and paid-generation card share one plan-row contract with checked dispatch scope, grouped shot and reference rows, and technical disclosure; the existing AgentPanelV4 renderer owns a different intervention data shape and cannot receive the storyboard row identity or toggle callback without coupling the approval surfaces.",
       "revisitWhen": "When the shared approval-card contract exposes one plan-row renderer with row identity and toggle ownership for both AgentPanelV4 and spend confirmation, replace this adapter with that renderer."
+    },
+    {
+      "id": "project-agent-preparing-deadline",
+      "capability": "Shared deadline for paid project-agent decisions and proposal receipts",
+      "status": "justified",
+      "paths": [
+        "electron/shared/projectAgentPreparingDeadline.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Existing proposal receipt deadline (reused, extracted without changing its formula)",
+          "source": "electron/capabilityCore/projectAgentProposalReceiptStore.ts"
+        },
+        {
+          "name": "Existing model write timeout declaration (reused as the deadline budget)",
+          "source": "electron/shared/agentCapabilities/verbDeclaration.ts"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: paid pending presentations and durable proposal receipts must share the model-write budget plus its receipt grace period. This module only extracts that existing Nomi constant into a browser-safe owner; it implements no timer, retry or persistence mechanism.",
+      "revisitWhen": "When the paid presentation and proposal receipt lifecycle no longer share a model-write budget, review their deadline ownership together."
     }
   ]
 }

@@ -62,6 +62,21 @@ function run(opts: {
 
 const open = (shotIds: string[], fromGate = 0, extra: Partial<GenerationPresentation> = {}): GenerationPresentation => ({ shotIds, openedAt: NOW, fromGate, ...extra })
 
+describe('generation presentation identity', () => {
+  it('每次出价都有持久 identity、epoch 和策略快照', () => {
+    const r = run({ presentations: [{
+      presentationId: 'run-1:presentation:7', presentationEpoch: 7,
+      shotIds: ['s1'], openedAt: NOW, fromGate: 0,
+      policySnapshot: { mode: 'step', spend: 'confirm' },
+    }] })
+    expect(r.generationPlan?.presentations?.[0]).toMatchObject({
+      presentationId: 'run-1:presentation:7',
+      presentationEpoch: 7,
+      policySnapshot: { mode: 'step', spend: 'confirm' },
+    })
+  })
+})
+
 describe('undecidedShotIds — 卡上摆的、标题数的就是它', () => {
   it('点了「生成这张」（门批了）的那一镜不再算没决定；另一镜还在卡上', () => {
     const r = run({ presentations: [open(['s1', 's2'])], gates: [gate('g1', 'approved', ['s1'])] })
@@ -183,7 +198,7 @@ describe('normalizeLegacyPresentation — 旧 Run 的 cardHidden 读盘时折成
 
   it('草稿、没写 cardHidden（旧默认「卡可见」）→ 一条开着的出价，摆的是勾进这一批的镜', () => {
     const r = normalizeLegacyPresentation(legacy({ state: 'draft', shots: run({ shots: [{ shotId: 's1' }, { shotId: 's2', included: false }] }).generationPlan!.shots }))
-    expect(r.generationPlan?.presentations).toEqual([{ shotIds: ['s1'], openedAt: NOW, fromGate: 0 }])
+    expect(r.generationPlan?.presentations).toMatchObject([{ shotIds: ['s1'], openedAt: NOW, fromGate: 0, presentationId: 'run-1:presentation:1', presentationEpoch: 1 }])
   })
 
   it('cardHidden: true → 没有开着的出价；字段本身不再留', () => {
@@ -194,11 +209,11 @@ describe('normalizeLegacyPresentation — 旧 Run 的 cardHidden 读盘时折成
 
   it('已封印、门还在等 → 卡开着，在等的那道门算这一次出价里的点击', () => {
     const r = normalizeLegacyPresentation(legacy({ state: 'sealed' }, [gate('g-old', 'approved', ['s1']), gate('g-wait', 'waiting', ['s2'])]))
-    expect(r.generationPlan?.presentations).toEqual([{ shotIds: ['s1', 's2'], openedAt: NOW, fromGate: 1 }])
+    expect(r.generationPlan?.presentations).toMatchObject([{ shotIds: ['s1', 's2'], openedAt: NOW, fromGate: 1, presentationId: 'run-1:presentation:1', presentationEpoch: 1 }])
   })
 
   it('已经是新形状就原样返回同一个对象', () => {
-    const r = run({ presentations: [open(['s1'])] })
+    const r = run({ presentations: [open(['s1'], 0, { presentationId: 'run-1:presentation:1', presentationEpoch: 1, policySnapshot: { mode: 'safe-auto', spend: 'confirm' } })] })
     expect(normalizeLegacyPresentation(r)).toBe(r)
   })
 })
