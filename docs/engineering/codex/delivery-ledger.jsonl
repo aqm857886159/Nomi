@@ -31,3 +31,5 @@
 {"date":"2026-10-08","line":"R-arch-8","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":["overstated"],"note":"把『无法确认在跑』说成『没跑』的口径需评审纠正"}
 {"date":"2026-10-08","line":"R-arch-9","kind":"research","pr":1119,"outcome":"accepted-first-pass","defects":["incomplete"],"note":"事故按层表因工具缺依赖没给出，评审人工补"}
 {"date":"2026-10-08","line":"R-autoref","kind":"research","pr":null,"outcome":"accepted-first-pass","defects":[],"note":"发现画布已在自动绑定用户手写提示词"}
+{"date":"2026-10-08","line":"R-review-1096","kind":"review","pr":1096,"outcome":"accepted-first-pass","defects":[],"note":"对抗评审抓到阻断：生产信号无 projectId，项目切换时可能写错项目的 Run；协调会话审和独立验收都漏了"}
+{"date":"2026-10-08","line":"L-landingB","kind":"implementation","pr":1096,"outcome":"returned-by-coordinator","defects":["semantic-change","claims-beyond-diff"],"note":"显式信号缺项目身份（跨项目写错 Run 的风险）；正文验证数字与实际不一致"}
