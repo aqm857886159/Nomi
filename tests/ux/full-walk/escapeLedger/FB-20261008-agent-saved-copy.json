@@ -1,28 +1,28 @@
 {
   "id": "FB-20261008-agent-saved-copy",
   "since": "2026-10-08",
-  "source": "User feedback: historical userReports.mjs U09 said the saved-to-project label lingered after saving; the same feedback reported the Agent panel showing Run a command for bash.",
+  "source": "用户报告 U09（tests/ux/full-walk/userReports.mjs）：节点上「已存入项目」存好以后一直挂着；同批反馈：Agent 面板把底层 bash 调用显示成「运行命令」",
   "category": "claims-and-outcomes",
-  "problem": "Completed nodes with a result image retained a saved receipt, and Agent-facing bash calls exposed a transport-level command label.",
+  "problem": "生成完成、结果图已在画面上的节点仍挂一条「已保存到项目」回执，一屏十几个节点各挂一条；Agent 面板把传输层的 bash 调用直接显示成「运行命令」，用户看不懂 Agent 在做什么。",
   "existingInvariants": [],
   "ironLaws": [],
   "useCases": [
-    "completed generation with landed result image",
-    "Agent panel showing one bash tool call"
+    "生成完成、节点上有结果图：节点上不挂任何完成回执",
+    "Agent 调用一次 bash：面板按意图显示通用工具名，不显示「运行命令」"
   ],
   "fullWalkJourneys": [
-    "pb10-agent-saved-copy"
+    "tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs"
   ],
   "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
-    "src/workbench/observability/generationFeedback.test.ts: completed nodes return null from the shared feedback projection",
-    "src/workbench/ai/resident/residentToolDisplay.test.ts: bash maps to the generic intent label",
-    "PR #1109: removes the terminal receipt and transport-level label"
+    "src/workbench/observability/generationFeedback.test.ts：完成节点在共享投影里返回 null",
+    "src/workbench/ai/resident/residentToolDisplay.test.ts：bash 映射为通用意图名",
+    "tests/ux/full-walk/playbooks/pb10-node-display-rules.walk.mjs：存好后节点上没有状态条 / 回执（以失败节点状态条为探针基线）"
   ],
   "completionCommits": [
-    "89a5a8aef",
-    "45ad03534"
+    "372ac66a7",
+    "89a5a8aef"
   ],
   "rootCauseContract": "docs/fixes/2026-10-07-agent-redundant-saved-copy.root-cause.json",
   "fixedInPr": 1109,
