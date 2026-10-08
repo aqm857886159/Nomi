@@ -20,6 +20,7 @@ import type { CanvasNodeActions, CanvasSliceCreator } from './canvasStoreTypes'
 import i18n from '../../../i18n'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { captureCanvasWorkflowTemplate, instantiateCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
+import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 // 删节点 → 时间轴对账(数据一致性):clip 创建时把节点产物 url 快照冻结、无 node→clip 同步,
 // 删了节点时间轴仍引用悬空/过期素材(导出会渲染已删节点的旧帧)。删完节点单向通知 workbenchStore
@@ -355,6 +356,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     const currentState = get()
     if (!currentState.selectedNodeIds.length) return
     const removedIds = [...currentState.selectedNodeIds]
+    const removedNodes = currentState.nodes.filter((node) => removedIds.includes(node.id))
     // 成员被整框选中 = 框被选中（点框选中的就是它的全部成员；画布浮条的「已选 N 组」也按这个判据数）。
     // 删这样的选区时框一起走——否则留下一个删不掉的空框（2026-09-22 用户：「编组框删不掉」）。
     // 只删了部分成员时框照留：那是在框里删东西，不是删框。
@@ -373,6 +375,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...removedGroupIds.map((groupId) => ({ type: 'canvas.group.removed' as const, payload: { groupId, releasedNodeIds: [] } })),
       ...removedIds.map((nodeId) => ({ type: 'canvas.node.removed' as const, payload: { nodeId } })),
     ])
+    emitProductionCanvasSignal({ kind: 'detach', projectId: get().projectId, nodes: removedNodes })
     reconcileTimelineForDeletedNodes(removedIds)
   },
   selectNode: (nodeId, additive = false) => {
@@ -560,6 +563,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
   deleteNode: (nodeId) => {
     const current = get()
     if (!current.nodes.some((candidate) => candidate.id === nodeId)) return
+    const removedNode = current.nodes.find((candidate) => candidate.id === nodeId)
     const { groups: nextGroups, removedGroupIds } = removeGroupsEmptiedByNodeDeletion(current.groups, [nodeId])
     pushUndoSnapshot(current)
     set((state) => {
@@ -579,6 +583,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       { type: 'canvas.node.removed', payload: { nodeId } },
       ...touchedGroups.map((group) => ({ type: 'canvas.group.updated', payload: { group } })),
     ])
+    if (removedNode) emitProductionCanvasSignal({ kind: 'detach', projectId: get().projectId, nodes: [removedNode] })
     reconcileTimelineForDeletedNodes([nodeId])
   },
   saveSelectedAsWorkflowTemplate: (name) => {

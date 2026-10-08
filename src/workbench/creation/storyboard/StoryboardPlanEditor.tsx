@@ -11,7 +11,6 @@ import { useGenerationCanvasStore } from '../../generationCanvas/store/generatio
 import { useModelOptionsState } from '../../../config/useModelOptions'
 import {
   addAnchor,
-  addExternalReferenceAnchor,
   addShot,
   changeAnchorKind,
   removeAnchor,
@@ -48,7 +47,6 @@ import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { stableProjectAgentJson } from '../../../../electron/shared/legacyAgentJson'
 import { isRunTargetLoaded, readRunProjectRecord } from '../../generationCanvas/runner/runProjectDelivery'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
-import { appendBinding } from './shotRow/shotReferenceSlots'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
@@ -71,6 +69,63 @@ import { autoReferencePlan } from './exec/storyboardAutoReference'
 
 /** 还没有方案时喂给执行计划 hook 的空方案（hook 顺序不能因方案有无而变；空方案 → idle，不发 IPC）。 */
 const EMPTY_STRATEGY_PLAN: StoryboardPlan = { title: '', anchors: [], shots: [] }
+
+export function StoryboardPlanEditorFooter({
+  progress,
+  issueLabel,
+  onBack,
+  onGenerate,
+  busy,
+  runnableCount,
+  generateLabel,
+  selectedCount = 0,
+  onAgentHandoff,
+}: {
+  progress: string
+  issueLabel?: string
+  onBack: () => void
+  onGenerate: () => void
+  busy: boolean
+  runnableCount: number
+  generateLabel?: string
+  /** 勾选 = 选中的镜数（表是选择的唯一 owner，这里只读它上报的结果）。 */
+  selectedCount?: number
+  /** 「选中 N 镜 · 交给 Agent 改」（§2.7 入口 1/3，页脚常驻）；不传则不出这枚。 */
+  onAgentHandoff?: (() => void) | undefined
+}): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper" data-storyboard-plan-footer="true">
+      <div className="flex items-center gap-2 min-w-0">
+        <WorkbenchButton variant="default" size="sm" onClick={onBack}>{t('storyboardEditor.backToCreation')}</WorkbenchButton>
+        {onAgentHandoff ? (
+          <WorkbenchButton
+            variant="default"
+            size="sm"
+            data-storyboard-agent-handoff="footer"
+            disabled={selectedCount === 0}
+            onClick={onAgentHandoff}
+          >
+            <IconRobot size={14} stroke={1.7} />
+            {t('storyboardEditor.agentHandoff.footer', { count: selectedCount })}
+          </WorkbenchButton>
+        ) : null}
+        {issueLabel ? (
+          <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
+            <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
+            <span className="truncate">{issueLabel}</span>
+          </span>
+        ) : <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">{progress}</span>}
+      </div>
+      <div className="flex items-center gap-2.5 shrink-0">
+        <WorkbenchButton variant="primary" onClick={onGenerate} disabled={busy || runnableCount === 0} data-storyboard-batch="true">
+          <IconPlayerPlay size={15} stroke={1.8} />
+          {generateLabel ?? t('storyboardEditor.footer.generateRemaining', { count: runnableCount })}
+        </WorkbenchButton>
+      </div>
+    </footer>
+  )
+}
 
 export default function StoryboardPlanEditor({ projectId }: { projectId?: string | null }): JSX.Element | null {
   const { t } = useTranslation()
@@ -95,6 +150,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const imageModelOptions = useModelOptionsState('image', 'any-published').options
   // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
   const [busy, setBusy] = React.useState(false)
+  // 表上报的「勾选 = 选中」镜（表是唯一 owner，这里只是页脚入口读的镜像，不另存一份选择）。
+  const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const [actionFeedback, setActionFeedback] = React.useState<{ designId: string | null; message: string } | null>(null)
   const reportFailure = (message: string): void => {
     notify({ identity: `storyboard:${activeDocumentId}:${designId}`, reason: 'edit-action', level: 'inline', type: 'error', message,
@@ -119,8 +176,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
    * 必须与它同一份 derive（合同 §9.3：不许 footer 自己再减一次）。
    */
   const [skippedShotIds, setSkippedShotIds] = React.useState<ReadonlySet<string>>(new Set())
-  // 选中的行（表上报）——footer 的「交给 Agent 改」与多选浮条读同一份，不各存一份。
-  const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const deletedPlanUndoRef = React.useRef<(StoryboardDeletion & { projectId: typeof projectId; documentId: string; designId: string }) | null>(null)
   const editorRef = React.useRef<HTMLElement>(null)
   const deletedFocusRef = React.useRef<Element | null>(null)
@@ -386,6 +441,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     }
     void runAction(context => runStoryboardBatch(context, rows, { groupTitle: plan.title, placementOnly: true }))
   }
+  const onLocateInCanvasRow = (runtime: StoryboardRowRuntime): void => {
+    const nodeId = runtime.exec.node?.id
+    if (nodeId) window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId, select: false } }))
+  }
   const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
     void guardMaterialize([runtime], context => generateShotRow(context, runtime.shot, runtime.mode))
   }
@@ -425,9 +484,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         runtime.shot.shotId ? {documentId:activeDocumentId,designId,shotId:runtime.shot.shotId} : undefined,
       )),
     ])
-  }
-  const onLockSelected = (runtimes: StoryboardRowRuntime[]): void => {
-    for (const runtime of runtimes) if (runtime.exec.node) toggleNodeLock(runtime.exec.node.id)
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
@@ -477,30 +533,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       setMentionPreviewAsset(null)
       setPreviewNodeId(runtime.node.id)
     }
-  }
-  const resultReference = (runtime: StoryboardRowRuntime): { plan: typeof plan; anchorId: string } | null => {
-    if (!runtime.exec.node || !runtime.exec.resultUrl) return null
-    const asset = canvasNodeToAssetRefs(runtime.exec.node)[0]
-    if (!asset) return null
-    return addExternalReferenceAnchor(plan, { id: asset.id, name: t('storyboardEditor.resultIntake.shot', { index: runtime.shot.index }), url: asset.renderUrl, kind: asset.kind === 'video' ? 'video' : 'image', sourceNodeId: runtime.exec.node.id })
-  }
-  const onSaveResultAsReference = (runtime: StoryboardRowRuntime): void => {
-    const result = resultReference(runtime)
-    if (result) setStoryboardPlan(result.plan)
-  }
-  const onSetResultAsFirstFrame = (runtime: StoryboardRowRuntime, targetPosition: number): void => {
-    const result = resultReference(runtime)
-    if (!result) return
-    const target = result.plan.shots[targetPosition]
-    if (!target) return
-    // 「设为首帧」= 把这一镜的结果放进目标镜参考列里的首帧槽（没有首帧槽的模式退到图片参考槽）。发出去的就是参考列里摆着的。
-    const mode = rows[targetPosition]?.mode
-    const slot = mode?.slots.find((candidate) => candidate.kind === 'first_frame') ?? mode?.slots.find((candidate) => candidate.kind === 'image_ref')
-    const asset = runtime.exec.node ? canvasNodeToAssetRefs(runtime.exec.node)[0] : undefined
-    if (!slot || !asset) { reportFailure(t('storyboardEditor.resultIntake.noFirstFrameSlot', { index: target.index })); return }
-    const added = appendBinding(target.referenceBindings, slot, { url: asset.renderUrl, name: t('storyboardEditor.resultIntake.shot', { index: runtime.shot.index }), ...(runtime.exec.node ? { sourceNodeId: runtime.exec.node.id } : {}) }, asset.kind === 'video' ? 'video' : 'image')
-    if (added.status === 'added') setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPosition ? { ...shot, referenceBindings: added.next } : shot) })
-    else if (added.status !== 'duplicate') reportFailure(t('storyboardEditor.resultIntake.noFirstFrameSlot', { index: target.index }))
   }
   const onStartPlayback = (selectedRows: StoryboardRowRuntime[] = rows): void => {
     if (selectedRows.length === 0) return
@@ -635,19 +667,17 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               durationWarnings={durationWarnings}
               onChange={setStoryboardPlan}
               onStoryboardShotSelect={onStoryboardShotSelect}
-              onSelectionChange={setSelectedRuntimes}
               skippedShotIds={skippedShotIds}
               onToggleSkip={onToggleSkip}
+              onSelectionChange={setSelectedRuntimes}
               onAgentHandoff={onAgentHandoff}
-              onLockSelected={onLockSelected}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onRecoverRow={onRecoverRow}
               onToggleLockRow={onToggleLockRow}
               onOpenPreviewRow={onOpenPreviewRow}
+              onLocateInCanvasRow={onLocateInCanvasRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}
-              onSaveResultAsReference={onSaveResultAsReference}
-              onSetResultAsFirstFrame={onSetResultAsFirstFrame}
               onGenerateSelected={(selected) => onRunSelected(selected)}
               onDeleteSelected={(selected) => {
                 const current = currentTargetRef.current
@@ -684,57 +714,16 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         </section>
       </div>
 
-      <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper">
-        <div className="flex items-center gap-2 min-w-0">
-          <WorkbenchButton variant="default" size="sm" onClick={() => {
-            setActiveStoryboardId(null)
-            setWorkspaceMode('creation')
-          }}>
-            {t('storyboardEditor.backToCreation')}
-          </WorkbenchButton>
-          {/* 「选中 N 镜 · 交给 Agent 改」（§2.7 入口 1/3，footer 常驻）。 */}
-          <WorkbenchButton
-            variant="default"
-            size="sm"
-            data-storyboard-agent-handoff="footer"
-            disabled={selectedRuntimes.length === 0}
-            onClick={() => onAgentHandoff(selectedRuntimes)}
-          >
-            <IconRobot size={14} stroke={1.7} />
-            {t('storyboardEditor.agentHandoff.footer', { count: selectedRuntimes.length })}
-          </WorkbenchButton>
-          {visibleIssues.length > 0 ? (
-            <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0" data-storyboard-issues={visibleIssues.length}>
-              <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
-              <span className="truncate">{t('storyboardEditor.issuesSummary', { count: visibleIssues.length, issue: firstIssueLabel(visibleIssues[0]) })}</span>
-            </span>
-          ) : (
-            <span className="text-caption text-nomi-ink-60 min-w-0 truncate" data-storyboard-progress="true">
-              {t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}
-              {excludedReasons.length > 0 ? ` · ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}
-            </span>
-          )}
-        </div>
-        {/* 右端只留主动作。这里原本还挂着一句 `footer.spendNote`——而它**逐字**就是上面那条
-            提示行（`spendHint`）的后半句「每次生成前确认花费 / Cost is confirmed before every
-            generation」，同一屏写了两遍。它住在 `shrink-0` 的组里，所以永远不让位：英文下白占
-            约 220px（中文约 110px），而左边那句**有行动价值**的进度/问题摘要正是靠 `truncate`
-            在这点宽度上被切掉的——1280 + Agent 面板展开时 EN 被切 426px，连「还差几张参考卡」
-            都看不见；1680 宽屏也仍被切 26px。让位顺序反了：零行动价值的重复说明不让，
-            要用户去做事的那句反而让。删掉重复的那句就是修在根因（R2「有行动价值吗，没有删」）。
-            2026-09-26 提示行里那半句也删了：用户自己点的单行生成不再弹花钱确认卡，承诺不成立。 */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <WorkbenchButton
-            variant="primary"
-            onClick={onRunBatch}
-            disabled={busy || batch.runnable.length === 0}
-            data-storyboard-batch="true"
-          >
-            <IconPlayerPlay size={15} stroke={1.8} />
-            {t('storyboardEditor.footer.generateRemaining', { count: batch.runnable.length })}
-          </WorkbenchButton>
-        </div>
-      </footer>
+      <StoryboardPlanEditorFooter
+        progress={`${t('storyboardEditor.footer.progress', { done: batch.doneCount + batch.excluded.locked, total: plan.shots.length })}${excludedReasons.length > 0 ? ` ${excludedReasons.join(t('storyboardEditor.footer.reasonSeparator'))}${t('storyboardEditor.footer.excludedSuffix')}` : ''}`}
+        issueLabel={visibleIssues.length > 0 ? t('storyboardEditor.issuesSummary', { count: visibleIssues.length, issue: firstIssueLabel(visibleIssues[0]) }) : undefined}
+        onBack={() => { setActiveStoryboardId(null); setWorkspaceMode('creation') }}
+        onGenerate={onRunBatch}
+        busy={busy}
+        runnableCount={batch.runnable.length}
+        selectedCount={selectedRuntimes.length}
+        onAgentHandoff={() => onAgentHandoff(selectedRuntimes)}
+      />
 
       {actionFeedback?.designId === designId ? <p role="status" data-storyboard-action-feedback className="px-3 py-2 text-caption text-workbench-danger">{actionFeedback.message}</p> : null}
 

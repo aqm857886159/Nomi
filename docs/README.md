@@ -33,6 +33,7 @@
 | **术语表：同一个东西的多个叫法（搜不到时先查这里）** | [`GLOSSARY.md`](GLOSSARY.md) |
 | **已拍板但还没交付的，都欠着什么** | `pnpm run ledger:brief` 看一行摘要（每轮 L0 hook 也会自动顶出来）；`pnpm run gen:ledger` 生成本地 `DELIVERY-LEDGER.md`——**本地视图、不进 git**（它含全局计数，commit 了两个分支会永远抢它）|
 | **设计系统 / token / 组件规范** | [`design/`](design/) → 核心是 `design/nomi-design-system.md`（任何 UI 改动前必读）|
+| **2026-10-08 已拍板的四份设计（列表视图 / 自动引用 / 画布拉环与空节点 / 应用内更新提醒）接手索引** | [`design/2026-10-08-approved-designs.md`](design/2026-10-08-approved-designs.md) → 用户原话、拍板结果、样张分支、实现进度 |
 | **「设计一个页面」的完整流程（可搬到别的产品复用）** | [`design/page-design-process.md`](design/page-design-process.md) → 七道闸 + 每道闸防的真实事故 + 可复制的模板/门岗/断言 |
 | **说一句话触发的设计流程技能（七闸）** | `.claude/skills/nomi-design-flow/SKILL.md`（技能）；[`design/nomi-design-flow-howto.md`](design/nomi-design-flow-howto.md)（使用指南）|
 | **找参考的设计画布源（4 块画板 + 布局）** | [`design/2026-09-07-find-reference-canvas/README.md`](design/2026-09-07-find-reference-canvas/README.md) → 改画布从这里重新生成，别手改发布产物 |
@@ -48,6 +49,7 @@
 | **会话之间的交接（冷启动接手）** | [`handoff/`](handoff/) ｜ plan 里 `*-handoff.md` / `*-HANDOFF.md` 也是交接 |
 | **工作流方法论（如何走查/E2E/自主测试）** | [`workflow/`](workflow/) |
 | **多智能体编排（如何派工/收货/接力多个 Codex/Opus 执行体）** | [`engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md)（CLAUDE.md R27 的 L2 详解）|
+| **工作模式：协调会话 + Claude 子 agent / Codex（怎么选、流水线、Codex 规矩 / 质量画像 / 任务书模板 / 交付账本）** | [`engineering/execution-modes.md`](engineering/execution-modes.md) + [`engineering/codex/rules.md`](engineering/codex/rules.md) + [`engineering/codex/quality-profile.md`](engineering/codex/quality-profile.md) + [`engineering/codex/templates/`](engineering/codex/templates/) + [`engineering/codex/delivery-ledger.jsonl`](engineering/codex/delivery-ledger.jsonl) |
 | **做一次调研（模板 / 必查的信息面 / 自媒体来源怎么抓）** | [`research/TEMPLATE.md`](research/TEMPLATE.md) + [`engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md) §15；TikHub 接口契约在 [`research/tikhub-api-notes.md`](research/tikhub-api-notes.md) |
 | **全方位学习竞品 / 每 3 天复查产品与营销** | [`research/competitive/README.md`](research/competitive/README.md) → LibTV/TapNow 核心对标，来源登记、真实鼠标录屏、TikHub、视频拆解与 Nomi 决策；技能 [`nomi-competitive-radar`](../agent-skills/nomi-competitive-radar/SKILL.md) |
 | **当前哪些战线在途 / 哪些文件面被占道（动共享面前必查必登）** | [`engineering/active-lanes.md`](engineering/active-lanes.md) |

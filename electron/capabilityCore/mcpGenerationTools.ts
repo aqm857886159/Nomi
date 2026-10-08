@@ -42,6 +42,7 @@ import {
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { LiveGenerationRuntimeScope } from "./liveGenerationRuntime";
 import type { ProjectLeaseV2 } from "./projectLease";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { GenerationProviderCapabilityError } from "./generationRuntimeAdapter";
 import type {
   VideoGenerationRecommendationInput,
@@ -489,7 +490,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       if (normalizedShots) {
         // 顶层 candidate = 第一个 shot 的 candidate (reducer seal 硬要顶层 contract 匹配顶层 draft candidate,
         // productionRunReducer.ts generation.seal). 与 S4 e2e setup 同构 (top = shots[0]).
-        const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedShots[0].candidate, shots: normalizedShots, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}) });
+        const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedShots[0].candidate, shots: normalizedShots, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}), ...(input.approvalPolicy ? { policySnapshot: input.approvalPolicy } : {}) });
         const savedPlan = await documentPlans.saveDocumentPlan(capturedProjectId, input.origin?.sourceDocument, operation.operationId, normalizedShots, input.storyboardTarget);
         // 「这份草稿只有参考卡」是一条**安静提示**，不是一次拒绝（2026-09-22，用户 09-21 点名）。
         // 它照样会生成、照样在报价卡上逐张标价；缺的只是「还没有镜头用到它们」这件事实。
@@ -508,7 +509,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
             : "This draft has only reference cards; no shot reuses them yet. That is fine — generate the cards on their own, or draft the shots that reuse them." } : {}) };
       }
       const normalizedSingle = admitSingleCandidate(input.lease.projectId, operationId, params, draftRegistry);
-      const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedSingle, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}) });
+      const operation = await deps.operations.create({ operationId, projectId: input.lease.projectId, candidate: normalizedSingle, now: now(), origin: input.origin, ...(params.cardHidden === true ? { cardHidden: true } : {}), ...(input.approvalPolicy ? { policySnapshot: input.approvalPolicy } : {}) });
       const savedSingle = await documentPlans.saveDocumentPlan(capturedProjectId, input.origin?.sourceDocument, operation.operationId,
         [{shotId:normalizedSingle.candidateId,candidate:normalizedSingle,storyboard:params.storyboard as GenerationOperationDraftShot['storyboard']}], input.storyboardTarget);
       const singleDeviations = declaredDefaultDeviations([{ params, candidate: normalizedSingle }], deps.defaultModelForTaskKind, input.modelNames);
@@ -541,7 +542,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // 2026-09-22 上午这里有一条「被 × 过的 operationId 不许再 present」的拒绝。当天下午用户改窄了裁决 D：
       // × 收回的是**这一次出价**，不是那份计划——对同一份草稿再 `generate` 就是重新出价，必须放行。
       const scope = resolveGenerationShotScope(current.shots?.map((shot) => shot.shotId) ?? [current.candidate.candidateId], params.shotIds);
-      const operation = await deps.operations.present(input.lease.projectId, operationId, now(), scope, input.storyboardTarget);
+      const operation = await deps.operations.present(input.lease.projectId, operationId, now(), scope, input.storyboardTarget, input.approvalPolicy);
       const shots = operation.shots && operation.shots.length > 0
         ? operation.shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId)
         : [operation.candidate.candidateId];
@@ -763,6 +764,7 @@ export type GenerationPlanningHandler = (input: {
   origin?: { host: string; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } };
   storyboardTarget?: GenerationInvocationContext['storyboardTarget'];
   modelNames?: GenerationInvocationContext['modelNames'];
+  approvalPolicy?: ProjectAgentApprovalPolicy;
 }) => unknown | Promise<unknown>;
 
 export { createInMemoryGenerationOperationStore } from "./mcpGenerationOperationMemoryStore";

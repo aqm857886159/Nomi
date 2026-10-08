@@ -1,0 +1,35 @@
+
+ RUN  v4.1.8 D:/Nomi-sbbatch
+
+x··················
+node.exe :
+At C:\Users\23732\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts > does not materialize or dispatch anythin
+g when the batch confirmation is cancelled
+TypeError: Cannot read properties of null (reading 'anchors')
+ ❯ Module.runStoryboardBatch src/workbench/creation/storyboard/exec/storyboardRowActions.ts:443:44
+    441|   // Reference cards are a separate wave. A failed card stops here; sh…
+    442|   // so a missing reference can never be silently dispatched as a shot…
+    443|   if (!landing?.placementOnly && confirmed.anchors.length > 0) {
+       |                                            ^
+    444|     const anchorRunIds: string[] = []
+    445|     for (const anchor of confirmed.anchors) {
+ ❯ src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts:54:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:02:58
+   Duration  11.86s (transform 3.85s, setup 157ms, import 11.32s, tests 93ms, environment 0ms)
+
+
+exitCode=1

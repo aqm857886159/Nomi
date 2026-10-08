@@ -1,0 +1,176 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-agent-redundant-saved-copy",
+  "problem_type": "Repeated completion and implementation-detail narration in generation surfaces",
+  "symptom": "Completed canvas nodes repeatedly show 已保存到项目, while Agent tool receipts expose bash as 运行命令.",
+  "direct_cause": "The shared generation feedback projection synthesizes a success receipt from completedAt, and residentToolDisplay maps the low-level bash tool directly to a user-facing shell label.",
+  "class_root": "Presentation surfaces lack a single invariant that terminal success is represented by the durable node/task state and that transport-level tool names are hidden behind user-facing intent.",
+  "affected_population": [
+    "All completed generation nodes rendered on the canvas or timeline",
+    "All Agent panel turns containing the bash tool, in zh-CN or en"
+  ],
+  "scope_paths": [
+    "src/workbench/observability/generationFeedback.ts",
+    "src/workbench/observability/useGenerationFeedback.ts",
+    "src/workbench/generationCanvas/nodes/GenerationStatusBar.tsx",
+    "src/workbench/ai/resident/residentToolDisplay.ts",
+    "tests/ux/full-walk/pageProbe.mjs",
+    "tests/ux/full-walk/monitor.mjs",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/timeline/TimelineGenerationFeedback.tsx",
+    "src/i18n/locales/generationCommon.ts",
+    "src/workbench/taskCenter/taskCenterEntries.test.ts"
+  ],
+  "entry_points": [
+    "Canvas and timeline consumers call generationFeedback for node status",
+    "Agent panel and approval receipts call readableToolName for tool labels"
+  ],
+  "internal_only_reason": "This is an internal presentation invariant; no third-party behavior determines it.",
+  "invariants": [
+    "A successful terminal node has no transient inline saved receipt; task history and durable canvas state remain the completion evidence.",
+    "Agent-facing labels never expose the bash transport name or the phrase Run a command."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/GenerationStatusBar.tsx",
+      "symbol": "GenerationFeedback"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "GenerationFeedback"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/useGenerationFeedback.ts",
+      "symbol": "generationFeedback"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "generationFeedback"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/observability/narrate.ts",
+      "symbol": "narrateTaskOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineGenerationFeedback.tsx",
+      "symbol": "TimelineGenerationFeedback"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "symbol": "zhGenerationCommon"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/resident/residentToolDisplay.ts",
+      "symbol": "readableToolName"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "The canvas/timeline reader and task-center reader must remain separate because one is an inline live-status surface and the other is the durable task-history surface. Both now consume the same projection, while only the live projection suppresses terminal success narration."
+  },
+  "generality_proof": "Every canvas and timeline inline status reaches generationFeedback, so removing the terminal-success branch removes the duplicate across node variants and prerequisite-owned status. Every Agent tool label reaches readableToolName, so the bash mapping is hidden for all aliases and locales.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "generationFeedback",
+      "responsibility": "Owns the shared live-generation projection and fails closed to null for completed nodes."
+    },
+    {
+      "path": "src/workbench/ai/resident/residentToolDisplay.ts",
+      "symbol": "readableToolName",
+      "responsibility": "Owns all Agent-facing tool labels and maps bash to the generic intent label."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/observability/useGenerationFeedback.ts",
+      "entry_point": "useGenerationFeedback",
+      "disposition": "enforced",
+      "evidence": "All canvas node variants use this hook; completed success now returns null."
+    },
+    {
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "entry_point": "buildTaskCenterRows",
+      "disposition": "not-affected",
+      "evidence": "Task history intentionally retains a terminal outcome label for the completed row; it is not an inline duplicate on the canvas."
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "createToolDisplayCache",
+      "disposition": "enforced",
+      "evidence": "The Agent panel obtains labels through residentToolDisplay, whose bash branch now returns toolGeneric."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The duplicate was produced by shared projection code and applied to every completed node; the shell label was produced by a shared tool-name mapper and applied to every bash call.",
+    "same_class_scan": [
+      "rg found all generationFeedback consumers in canvas, timeline, and task center.",
+      "rg found the only user-facing bash label branch in residentToolDisplay and both locale keys.",
+      "Targeted regression tests cover completion, lightweight nodes, page probe, and resident tool labels."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/observability/generationFeedback.ts",
+    "invariant": "Terminal success is represented by durable state; transport names never become Agent-facing copy.",
+    "failure_mode": "Completed nodes return no inline feedback, and bash resolves to the generic intent label.",
+    "exception_policy": "none",
+    "strategy": "Delete the terminal-success presentation branch and replace the transport-specific label at the shared mapping boundary.",
+    "artifacts": [
+      "src/workbench/observability/generationFeedback.ts",
+      "src/workbench/ai/resident/residentToolDisplay.ts",
+      "tests/ux/full-walk/pageProbe.mjs",
+      "src/workbench/timeline/TimelineGenerationFeedback.tsx",
+      "src/workbench/observability/narrate.ts",
+      "src/i18n/locales/generationCommon.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/observability/generationFeedback.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+    "src/workbench/generationCanvas/components/LightweightGenerationNode.test.ts",
+    "src/workbench/ai/resident/residentToolDisplay.test.ts",
+    "tests/ux/full-walk/pageProbe.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/observability/generationFeedback.test.ts",
+    "src/workbench/ai/resident/residentToolDisplay.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/full-walk/pageProbe.mjs",
+      "src/workbench/observability/generationFeedback.ts"
+    ],
+    "rationale": "The obsolete receipt ledger, success projection branch, and fade timing are deleted in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this presentation invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes; existing completed nodes continue to render from their durable media and task history.",
+  "residual_risks": [
+    "A real Electron visual walk was not run in this worktree; the targeted render tests and syntax checks pass, but the final zh-CN/en screenshot evidence remains unverified."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-07",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/observability/generationFeedback.ts",
+    "tests": [
+      "src/workbench/observability/generationFeedback.test.ts",
+      "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts"
+    ],
+    "why": "All live canvas and timeline status surfaces consume the shared projection; terminal success returns null there."
+  }
+}

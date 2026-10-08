@@ -12,6 +12,7 @@ import type { MaterializeStoryboardResult } from "../../electron/productionRun/p
 import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised, PendingSpendShot } from "../../electron/shared/contracts/pendingSpendConfirm";
 
 export type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised, PendingSpendShot };
+export type PendingSpendActionIdentity = Readonly<{ presentationId?: string; presentationEpoch?: number; planVersion?: number }>;
 
 export type ProductionRunProjection = ProductionRun & { storyboardReferenceUrls?: Readonly<Record<string,string>> };
 
@@ -30,12 +31,12 @@ export type DesktopProductionRunBridge = {
    * （`LaneWorkspaceProjection.spend`，2026-10-05），渲染层没有去拉它的第二条路。
    * 改参数的回包带着宿主现算的那张卡（`pending`）：点下去那一刻拿它对账、封印。
    */
-  reviseSpend: (input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> }) => Promise<ProductionActionResult & PendingSpendRevised>;
-  discardSpend: (projectId: string, operationId: string, quoteId: string) => Promise<ProductionActionResult>;
+  reviseSpend: (input: { projectId: string; operationId: string; quoteId: string; shotId?: string; patch: Record<string, unknown> } & PendingSpendActionIdentity) => Promise<ProductionActionResult & PendingSpendRevised>;
+  discardSpend: (projectId: string, operationId: string, quoteId: string, identity?: PendingSpendActionIdentity) => Promise<ProductionActionResult>;
   /** 付费卡上「生成这张 / 这段」：只批这一镜。 */
-  confirmSpend: (projectId: string, operationId: string, quoteId: string, shotId?: string) => Promise<ProductionActionResult>;
+  confirmSpend: (projectId: string, operationId: string, quoteId: string, shotId?: string, identity?: PendingSpendActionIdentity) => Promise<ProductionActionResult>;
   /** 付费卡上「去掉这张 / 这段」：这一镜不生成。 */
-  removeSpendShot: (projectId: string, operationId: string, quoteId: string, shotId: string) => Promise<ProductionActionResult>;
+  removeSpendShot: (projectId: string, operationId: string, quoteId: string, shotId: string, identity?: PendingSpendActionIdentity) => Promise<ProductionActionResult>;
   /** 付费卡上「生成剩下 N 张 / 段」：点名的这几张（= 卡上还没决定的全部）各批一份、各派一份。 */
-  confirmSpendRemaining: (projectId: string, operationId: string, quoteId: string, shotIds: readonly string[]) => Promise<ProductionActionResult>;
+  confirmSpendRemaining: (projectId: string, operationId: string, quoteId: string, shotIds: readonly string[], identity?: PendingSpendActionIdentity) => Promise<ProductionActionResult>;
 };

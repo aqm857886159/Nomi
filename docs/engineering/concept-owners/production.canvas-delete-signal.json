@@ -1,0 +1,35 @@
+{
+  "name": "制作镜头从画布显式解绑",
+  "subject": "production.canvas-delete-signal",
+  "lifecycle": "projection",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/production/productionCanvasSignals.ts",
+    "symbol": "emitProductionCanvasSignal"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/production/productionCanvasSignals.ts",
+      "symbol": "emitProductionCanvasSignal"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "replayProductionCanvasIntent"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
+      "symbol": "recordProductionCanvasSignal"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/production/ProductionCanvasLandingHost.tsx",
+    "src/workbench/production/reportDetachedShotNodes.ts",
+    "src/workbench/production/reportReattachedShotNodes.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "删除、撤销和重做的 intent 由画布写边界显式发出；旧的 store snapshot diff watcher 已移除。普通装载、卸载、切项目和非生产节点变更不会制造 Run 命令。"
+}

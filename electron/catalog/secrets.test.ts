@@ -34,7 +34,7 @@ vi.mock("../logging/logger", () => {
   }
 })
 
-import { apiKeyDecryptStatus, decryptApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
+import { apiKeyDecryptStatus, credentialMaterialSaved, credentialRecordCounts, decryptApiKeyRecord, decryptStoredApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
 
 describe("isSafeStorageAvailable", () => {
   it("reports availability from safeStorage", () => {
@@ -116,5 +116,28 @@ describe("apiKeyDecryptStatus — credential readiness（ok / missing / locked /
   it("plain / legacy 非空明文 → needs_resave，而不是可用于新认证的 ok", () => {
     expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "raw", enc: "plain", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("needs_resave");
     expect(apiKeyDecryptStatus({ vendorKey: "v", apiKey: "legacy", enabled: true, createdAt: "c", updatedAt: "u" })).toBe("needs_resave");
+  });
+
+  it("keeps disabled pending material visible without making it executable", () => {
+    const pending = { ...makeApiKeyRecordFromPlain("sk-pending", "openai", false, "c", "u"), verificationPending: true as const };
+    expect(credentialMaterialSaved(pending)).toBe(true);
+    expect(credentialRecordCounts(pending)).toBe(false);
+    expect(apiKeyDecryptStatus(pending)).toBe("missing");
+  });
+});
+
+describe("decryptApiKeyRecord is the single gated entry for outbound use", () => {
+  it("never decrypts a disabled record (the keychain is not even opened), pending or not", () => {
+    for (const pending of [false, true]) {
+      const disabled = { ...makeApiKeyRecordFromPlain("sk-disabled", "tikhub", false, "c", "u"), ...(pending ? { verificationPending: true as const } : {}) };
+      expect(decryptApiKeyRecord(disabled)).toBe("");
+    }
+  });
+
+  it("still decrypts an enabled record, and the named raw reader is the only way past the gate", () => {
+    const enabled = makeApiKeyRecordFromPlain("sk-enabled", "tikhub", true, "c", "u");
+    const disabled = makeApiKeyRecordFromPlain("sk-disabled", "tikhub", false, "c", "u");
+    expect(decryptApiKeyRecord(enabled)).toBe("sk-enabled");
+    expect(decryptStoredApiKeyRecord(disabled)).toBe("sk-disabled");
   });
 });

@@ -188,6 +188,9 @@ export function registerUpdaterIpc(): void {
     setImmediate(() => {
       try {
         void loadAutoUpdater()
+          // ESLint exemption (eslint.config.mjs directQuitExemptionFiles): electron-updater 6.8.9
+          // BaseUpdater.quitAndInstall spawns the installer then calls app.quit(); MacUpdater hands
+          // off to Squirrel, which closes windows then app.quit(). Both re-enter the quit owner.
           .then((autoUpdater) => autoUpdater.quitAndInstall())
           .catch((error) => broadcast({ type: "error", message: describeError(error) }));
       } catch (error) {

@@ -294,6 +294,29 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     expect((await checkVendorHealth("v")).state).toBe("reachable");
     expect(new Headers(fetchSpy.mock.calls[0][1].headers).get("authorization")).toBe("Bearer gateway-override");
   });
+
+  it('revalidates pending material but never probes a user-disabled non-pending key', async () => {
+    readCatalog.mockReturnValue({
+      models: [],
+      vendors: [{ key: 'v', authType: 'bearer', hasApiKey: false, baseUrlHint: 'https://api.example.com/v1' }],
+      apiKeysByVendor: { v: { ...encryptedRecord('pending', 'pending'), enabled: false, verificationPending: true } },
+    });
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'fixture-model' }] }), { status: 200 }));
+    expect((await checkVendorHealth('v')).state).toBe('reachable');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(readCatalog().apiKeysByVendor.v.enabled).toBe(true);
+    expect(readCatalog().apiKeysByVendor.v.verificationPending).toBeUndefined();
+
+    resetVendorHealthCache();
+    fetchSpy.mockReset();
+    readCatalog.mockReturnValue({
+      models: [],
+      vendors: [{ key: 'v', authType: 'bearer', hasApiKey: false, baseUrlHint: 'https://api.example.com/v1' }],
+      apiKeysByVendor: { v: { ...encryptedRecord('disabled', 'disabled'), enabled: false } },
+    });
+    expect((await checkVendorHealth('v')).state).toBe('unsupported');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('live catalog reconciliation delivery', () => {

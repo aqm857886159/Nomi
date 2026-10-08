@@ -11,9 +11,10 @@ describe('pendingSpendOfRead：off 不是失败', () => {
     expect(pendingSpendOfRead({ surface: 'ready', rows: [ROW] })).toBe(ROW)
     expect(pendingSpendOfRead({ surface: 'ready', rows: [] })).toBeUndefined()
   })
-  it('投影里还没有这一项 / 读不到：都不是「卡上那一笔」', () => {
+  it('投影里还没有这一项才是空；读不到时保留带身份的错误卡', () => {
     expect(pendingSpendOfRead(undefined)).toBeUndefined()
-    expect(pendingSpendOfRead({ surface: 'unreadable', reason: 'projection-failed' })).toBeUndefined()
+    const card = { operationId: 'op-1', projectId: 'project-1', presentationId: 'op-1:presentation:1', presentationEpoch: 1, error: { code: 'pending_spend_projection_empty', message: 'projection failed' }, shots: [] } as never
+    expect(pendingSpendOfRead({ surface: 'unreadable', reason: 'projection-failed', card })).toBe(card)
   })
   it.each([
     { surface: 'off', phase: 'disabled', reason: 'env' },

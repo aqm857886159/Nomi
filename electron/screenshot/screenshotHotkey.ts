@@ -11,7 +11,7 @@
 //
 // 另一个官方文档明说的坑：`globalShortcut.register` 在**键已被别的应用占用时会静默失败**、只返回 false。
 // 所以注册结果必须回给 UI，让用户知道「这组键没抢到，换一个」。
-import { app, desktopCapturer, globalShortcut, screen, shell, systemPreferences } from "electron";
+import { desktopCapturer, globalShortcut, screen, shell, systemPreferences } from "electron";
 import path from "node:path";
 import { getSettingsRoot, ensureDir } from "../runtimePaths";
 import { readConfigFileOrDefault, writeConfigFileAtomic } from "../configFileStore";
@@ -21,6 +21,7 @@ import { logError } from "../logging/logger";
 import type { AssetWriteContext } from "../assets/assetWriteContext";
 import { captureIssuedProjectWrite, issueWindowProject } from "../assets/windowProjectCapture";
 import { surfacePortFailure, type SurfacePortBindingWire } from "../shared/surfacePortBinding";
+import { registerQuitDrain } from "../quitTeardown";
 
 const PREFS_FILE = "screenshot-hotkey-prefs.json";
 
@@ -262,7 +263,7 @@ export async function captureScreenToCanvas(): Promise<void> {
   }
 }
 
-app.on("will-quit", () => {
+registerQuitDrain("screenshot-hotkey", () => {
   // 不撤会一直占着用户的全局键（哪怕 Nomi 已经退了）。
   disposeScreenshotHotkey();
-});
+}, { required: false, timeoutMs: 100 });

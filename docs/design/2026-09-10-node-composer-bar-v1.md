@@ -139,9 +139,12 @@ catalog 的 `binding` 早就是本仓「哪个键表示哪件事」的唯一出�
 - 用户自接入的模型 / 导入的 ComfyUI 工作流（采样步数、帧率…）**一颗 chip 都不出**，全在 ⚙ 里。
 
 **顺序固定为 比例 → 时长 → 清晰度**，不随档案声明顺序漂。
-一行装不下时按这个顺序**从尾巴退**回 ⚙（先退清晰度，再退时长），绝不换行；
-「装不装得下」是量出来的（`useFittedChipCount` 读真实盒子），不是按字宽估的。
-为此 chips 形态的横排里身份两枚（模型 / 变体）不缩——否则宽度不够时先被榨没的是模型名。
+~~一行装不下时按这个顺序从尾巴退回 ⚙，绝不换行；装不装得下靠 `useFittedChipCount` 量。~~
+**2026-10-08 协调会话合同取代上一句**：主参数影响报价 / 产出，付费确认那一刻一颗都不许退进 ⚙、不许被裁、不许横向滚动；
+一行放不下就**整颗换到第二行**（chips 横排 `flex-wrap`，模型 / 变体和参数 chip 是同一行的直接成员）。
+量宽度的 `useFittedChipCount` 与退位的 `planParameterChips` 已删：量错（Seedance 2.0 带变体在 390 下「16:9」压住「标准」却量成装得下）
+或量窄（英文 300 下三颗报价 chip 全退进 ⚙）都会把用户正要付钱的值藏起来。
+chips 形态的横排里身份两枚（模型 / 变体）仍不缩——否则宽度不够时先被榨没的是模型名。
 画布节点的 summary 形态（2026-09-21 补）：行窄时只有模型那枚让位（有意省略号 + hover 全名），变体是短枚举、从不缩——
 1100×720 英文下它曾被压到值区只剩 5px，「Variant 5.0」读成「Variant E」。与分镜底栏 `composerBarGeometry.ts`「短枚举不缩」同一条规则。
 
@@ -368,7 +371,7 @@ tests/ux/shots/node-composer-placement/06-video-param-panel.png  ← 点摘要 p
 | 拍板那一条 | 落在哪 | 删了什么 |
 |---|---|---|
 | 参数 chip 只报两个值（**画布节点现役**） | `nodes/composerHeadlineSummary.ts`（按控件 key 挑，值从档案 derive）→ `NodeParameterControls` 走 `InlineParameterBar` 已有的 `summaryOverride` 缝 | 没有新造第二条摘要通路；导入工作流那支的口径优先，原样保留 |
-| **（B · 02:10 拍板 → 04:30 收窄到付费卡）** 每个主参数一颗下拉 chip、长尾进 ⚙ | `InlineParameterBar` 的 `parameterLayout='chips'`（默认 `'summary'`，画布节点不传）+ `nodes/primaryParameterChips.ts`（判据从档案 derive）+ `nodes/useFittedChipCount.ts`（装不下就退位，量真实盒子）；角色表 `parameterControlRole` 挂在既有的别名/binding 唯一出处上 | 无（02:10 那版误删的摘要 pill 通路已按 04:30 的纠正整条恢复） |
+| **（B · 02:10 拍板 → 04:30 收窄到付费卡）** 每个主参数一颗下拉 chip、长尾进 ⚙ | `InlineParameterBar` 的 `parameterLayout='chips'`（默认 `'summary'`，画布节点不传）+ `nodes/primaryParameterChips.ts`（判据从档案 derive）（2026-10-08 起放不下换行，不再量宽退位）；角色表 `parameterControlRole` 挂在既有的别名/binding 唯一出处上 | 无（02:10 那版误删的摘要 pill 通路已按 04:30 的纠正整条恢复） |
 | B 簇 = 缩小一号的纯 icon | 新 `nodes/NodePromptToolCluster.tsx`（只放外观与分组：`WorkbenchIconButton size="sm"` + Radix `Tooltip` + 激活点），三个控件各自的触发器改用它 | `NodeCameraMoveControl` 带文字的芯片（连同 `cameraMove.hint` 词条）· `NodePromptOptimizer` 带文字的按钮与它的 `ml-auto`（连同 `optimizer.optimize`）· `NodeEffectChips` 的「更多 ▾」（连同 `libraries.gallery.more`） |
 | 锁回节点浮条 | `FloatingToolbarShell` 里，`lockNodeId` 是**必填**参数：六条浮条每条都得答一次「你挂的是不是一个可锁的节点」，写成可选就是下一条浮条静默少一把锁（R28 让编译器拦） | `NodeGenerationComposer` 底栏那份 `NodeLockBadge` 与「锁移到底栏」那段注释；`NodeLockBadge` 的 `locked` / `selected` 两个 prop（锁态自己从 store 读，不把同一个事实抄两份） |
 | 底栏一行三段 | `NodeGenerationComposer` 底栏：`data-bar-segment` 四段 + 两根现役 `ToolbarDivider`；一件工具都没有（锁住的节点）时整段连分隔线一起不渲染 | — |

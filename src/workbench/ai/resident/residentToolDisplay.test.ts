@@ -26,6 +26,7 @@ describe('resident tool display projection', () => {
     expect(readableToolSummary(translate, 'nomi_canvas_write', { operation: 'create_canvas_nodes' })).toContain('agentResident.toolNoGeneration')
     expect(isReadOnlyToolName('read_full_text')).toBe(true)
     expect(readableToolName(translate, 'nomi_request_tools')).toBe('agentResident.toolPrepareTools')
+    expect(readableToolName(translate, 'bash')).toBe('agentResident.toolGeneric')
   })
 
   // 真实测试 ④：撤销一笔画布改动，面板那一行写「调整时间线」——撤销与编辑计划同属 timeline.write，按契约名认就认错了。

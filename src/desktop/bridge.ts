@@ -232,6 +232,7 @@ export type DesktopBridge = DesktopMediaBridge &
     diagnose?: (projectId: string) => Promise<{ projectId: string; rootPath?: string; status: 'ok' | 'not-registered' | 'missing-folder' | 'missing-manifest' | 'corrupt-manifest' | 'id-mismatch'; recoverable: boolean; backupAvailable: boolean }>
     recover?: (projectId: string) => Promise<unknown>
     save: (projectId: string, record: unknown) => Promise<unknown>
+    applyCanvasNodePatch?: (input: { projectId: string; nodeId: string; patch: Record<string, unknown>; expectedBinding?: unknown }) => Promise<{ applied: boolean }>
     delete: (projectId: string) => { id: string; deleted: boolean }
   }
   assets: DesktopAssetsSurface

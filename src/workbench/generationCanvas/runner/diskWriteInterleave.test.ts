@@ -44,6 +44,16 @@ vi.mock('../../../../electron/projects/repository', () => ({
   },
 }))
 vi.mock('../../../../electron/capabilityCore/rendererBridge', () => ({ requestRenderer: vi.fn(), requestRendererDecision: vi.fn() }))
+vi.mock('../../../desktop/bridge', () => ({
+  getDesktopBridge: () => ({ projects: {
+    applyCanvasNodePatch: async ({ projectId, nodeId, patch }: { projectId: string; nodeId: string; patch: Record<string, unknown> }) => {
+      const record = disk.record as { id: string; payload: { generationCanvas: { nodes: GenerationCanvasNode[] } } } | null
+      if (!record || record.id !== projectId) return { applied: false }
+      record.payload.generationCanvas.nodes = record.payload.generationCanvas.nodes.map((node) => node.id === nodeId ? { ...node, ...patch } : node)
+      return { applied: true }
+    },
+  } }),
+}))
 
 import { createDiskGateway } from '../../../../electron/capabilityCore/gateway'
 import { deliverRunOutcome, type RunProjectTarget } from './runProjectDelivery'
@@ -83,7 +93,7 @@ describe('prediction ③: background delivery (renderer) and external disk write
     expect(diskNode('b')?.prompt).toBe('external prompt')
   })
 
-  it.fails('expected (not fixed here): delivery reads, the gateway writes, delivery saves — the external edit must survive', async () => {
+  it('delivery reads, the gateway writes, and the main write port preserves the external edit', async () => {
     let release!: () => void
     disk.gate = new Promise<void>((resolve) => { release = resolve })
     const read = new Promise<void>((resolve) => { disk.entered = resolve })
