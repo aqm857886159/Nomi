@@ -1,28 +1,20 @@
-import { app, ipcMain } from "electron";
+import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { parseAntigravityTestRequest, type AntigravityConnectionStatus } from "../shared/antigravity";
 import { antigravityConnection } from "./antigravityConnection";
 import { syncAntigravityCatalog } from "../catalog/antigravityCatalog";
 import { readAntigravityEvidence, writeAntigravityEvidence } from "./antigravityEvidenceStore";
+import { isQuitRequested, registerQuitDrain } from "../quitTeardown";
 
 export function registerAntigravityIpc(): void {
   let initialized = false;
-  let exiting = false;
-  let draining = false;
-  let drained = false;
   let active: { owner: number; promise: Promise<AntigravityConnectionStatus> } | undefined;
   let completed: { owner: number; status: AntigravityConnectionStatus } | undefined;
-  app.on("before-quit", () => {
-    exiting = true;
-  });
-  app.on("will-quit", (event) => {
-    if (drained || (!active && !draining)) return;
-    event.preventDefault();
-    if (draining) return;
-    draining = true;
+  registerQuitDrain("antigravity-connection", async () => {
+    if (!active) return;
     antigravityConnection.cancel();
-    void active!.promise.catch(() => {}).finally(() => { drained = true; app.quit(); });
-  });
+    await active.promise.catch(() => undefined);
+  }, { required: true, timeoutMs: 2500 });
   const initialize = () => {
     if (initialized) return;
     initialized = true;
@@ -39,7 +31,7 @@ export function registerAntigravityIpc(): void {
   });
   ipcMain.handle("nomi:antigravity:test", async (event, value: unknown) => {
     assertTrustedSender(event);
-    if (exiting) throw new Error("ANTIGRAVITY_SHUTTING_DOWN");
+    if (isQuitRequested()) throw new Error("ANTIGRAVITY_SHUTTING_DOWN");
     const request = parseAntigravityTestRequest(value);
     if (active) throw new Error("ANTIGRAVITY_TEST_ACTIVE");
     initialize();

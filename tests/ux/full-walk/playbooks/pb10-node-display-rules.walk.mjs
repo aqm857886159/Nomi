@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// 剧本 PB10 · 「节点上显示什么」：版本入口、已保存回执、失败标题、草稿标题
+// 剧本 PB10 · 「节点上显示什么」：版本入口、失败标题、草稿标题
 //
 // 用户拍板的显示规则（零花费，全部从真实 App 的真实节点上看）：
 //   · 版本入口（图片右上角内侧的数字角标，10-07 拍板）只在 ≥2 版时出现；制作流程的镜头 1 版也没有；
 //     浮条里不再有「重拍这镜」（10-06 用户拍板删除：再出一版就按节点 ↑，失败镜头在卡面上重试）；
-//   · 「已保存到项目」存好后只显示 3 秒（系统开了「减少动态效果」不淡出，直接消失）；
+//   · 生成存好后节点上不挂「已保存到项目」之类的完成回执（10-07 拍板删除：图已经在画面里了）；
 //   · 失败标题只说原因，不附「未计费」；
 //   · 视频草稿节点没有标题时说「镜头 N」，不回退成候选 id（cand-op-…）。
-// 单版角标 / 回执窗口由监视器的铁律 9（9a / 9b）现场判；这里负责把画面留下来，并对每条规则各写一句断言。
+// 单版角标由监视器的铁律 9（9a）现场判；这里负责把画面留下来，并对每条规则各写一句断言。
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe, waitForVisualQuiescence } from '../../_assert.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
 import { FIXTURE_APIMART_VENDOR, FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture.mjs'
@@ -43,7 +43,7 @@ const pb = await startPlaybook({
       { ...base, id: 'blocked', kind: 'image', title: 'Blocked', prompt: 'x', position: { x: 520, y: 520 }, status: 'error',
         error: 'NOMI_ERR::outbound-blocked-submit:: request was blocked before it left this machine', history: [],
         meta: { modelKey: FIXTURE_IMAGE_MODEL, modelVendor: FIXTURE_VENDOR, imageModel: FIXTURE_IMAGE_MODEL, imageModelVendor: FIXTURE_VENDOR } },
-      // 点 ↑ 生成：存好那一刻出「已保存到项目」，3 秒后消失。
+      // 点 ↑ 生成：存好后节点上什么回执都不挂。
       { ...base, id: 'saver', kind: 'image', title: 'Saver', prompt: 'rainy corner', position: { x: 60, y: 520 }, status: 'idle', history: [],
         meta: { modelKey: FIXTURE_IMAGE_MODEL, modelVendor: FIXTURE_VENDOR, imageModel: FIXTURE_IMAGE_MODEL, imageModelVendor: FIXTURE_VENDOR } },
     ],
@@ -56,7 +56,6 @@ const EN = pb.locale === 'en'
 const win = () => smoke.win
 const nodes = async () => (await monitor.readProject())?.payload?.generationCanvas?.nodes ?? []
 const pill = (id) => win().locator(`[data-node-id="${id}"] [data-version-badge]`)
-const savedLabel = () => win().locator('[data-generation-status][data-phase="finalizing"]')
 const toolbar = () => win().locator('[data-node-floating-toolbar="true"]')
 const reshootButton = () => toolbar().getByRole('button', { name: EN ? 'Re-film shot' : '重拍这镜' })
 /** 浮条里没有「重拍这镜」：先证明浮条本身看得见（探针生效），再断言那颗按钮不在。 */
@@ -143,19 +142,15 @@ try {
     await monitor.screenshot('04-failed-node-no-not-charged')
   }, { user: false, surfaces: [] })
 
-  await monitor.step('点「Saver」的 ↑ 生成；刚存好时「已保存到项目」在，3 秒后它消失', async () => {
-    // 窗口只有 3 秒：步骤之间的收尾会吃掉它。所以点击与等回执在同一步里，且等待在点击之前就挂上（页面侧轮询，不绕读项目文件）。
-    const appeared = savedLabel().first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 4 }) })
-    appeared.catch(() => undefined)
+  await monitor.step('点「Saver」的 ↑ 生成；存好后节点上不挂任何完成回执（10-07 拍板删掉「已保存到项目」）', async () => {
+    // 基线：失败节点 Blocked 的状态条一直在，证明状态条探针在这张画布上测得到东西。
+    const proof = await proveProbe(win().locator('[data-node-id="blocked"] [data-generation-status]'), '失败节点 Blocked 的状态条看得见')
     await monitor.consentNodeGenerate('saver', { label: 'Saver 的 ↑' })
     await clickNodeGenerate(win(), 'saver')
-    await appeared
-    await monitor.screenshot('05-saved-just-now')
-    // 4 秒后（窗口 3 秒）再拍一张，证明它已经消失。
-    await win().waitForTimeout(4000)
-    await expect(savedLabel(), '4 秒后回执已经消失').toHaveCount(0)
-    expect((await nodes()).find((node) => node.id === 'saver')?.status, 'Saver 落成 success').toBe('success')
-    await monitor.screenshot('06-saved-gone-after-4s')
+    await expect.poll(async () => (await nodes()).find((node) => node.id === 'saver')?.status, { message: 'Saver 落成 success', timeout: stationTimeout({ operations: 4 }) }).toBe('success')
+    await expect(win().locator('[data-node-id="saver"] [data-node-media-state=ready]')).toBeAttached({ timeout: stationTimeout({ operations: 2 }) })
+    await expectAbsent(win().locator('[data-node-id="saver"] [data-generation-status]'), { provenBy: proof, message: '存好后 Saver 上没有状态条 / 回执' })
+    await monitor.screenshot('05-saved-no-receipt')
   }, { surfaces: ['modal', 'canvasGesture'] })
 
   // ── 视频草稿节点：没标题时说「镜头 N」（Agent 起草，全自动，供应商是回环夹具）──────────

@@ -26,7 +26,7 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   }
 }
 
-export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload): void {
+export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload, projectId?: string): void {
   useWorkbenchStore.getState().hydrateWorkbenchDocuments(
     payload.workbenchDocuments ?? (payload.workbenchDocument ? [payload.workbenchDocument] : []),
     payload.activeDocumentId ?? null,
@@ -37,7 +37,7 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   const store = useWorkbenchStore.getState()
   store.hydrateStoryboardDesigns(payload.storyboardDesignsByDocumentId ?? {})
   if (payload.editingPanelLayout) store.setEditingPanelLayout(payload.editingPanelLayout, false)
-  useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas)
+  useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas, projectId)
 }
 
 /**

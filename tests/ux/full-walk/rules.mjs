@@ -64,7 +64,6 @@ export const RULE_ROOTS = Object.freeze({
   'control-partly-covered': rooted('C', 'P0-2'),
   'agent-write-receipt-stuck': rooted('C', 'P1-6'),
   'input-tokens-over-budget': rooted('C', 'P1-6'),
-  '9b-saved-label-lingers': rooted('C', 'P0-2'),
   // D 「谁发起的」不是一等事实：分不清是用户、Agent 还是哪一次失败引起的
   'agent-ignores-declared-default': rooted('D', 'P0-2'),
   'failure-blamed-on-wrong-vendor': rooted('D', 'P0-4'),
