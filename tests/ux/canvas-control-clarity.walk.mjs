@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 生成画布控件辨识与比例连续性 R13 走查。
 //
 // 真 Electron + 真构建产物，隔离 userData / projects，不触发任何生成请求（零额度）。
@@ -14,7 +15,7 @@ import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_a
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-control-clarity-'))
+const tempRoot = makeTempDir('nomi-canvas-control-clarity-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

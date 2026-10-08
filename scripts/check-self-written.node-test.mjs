@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 自写登记门岗的判据测试（R17：加规则必须先证明它会咬人）。
 // 判据层喂假数据；另有一条真 git 仓库的端到端（临时目录里建 base、加文件、跑 CLI），
 // 证明「#945 那种新建一个同类文件」在警告期出警告、阻断期出红，领域目录与有登记的不报。
@@ -249,7 +250,7 @@ function git(cwd, ...args) {
 }
 
 test('端到端：新建一个同类文件，警告期放行并出警告，阻断期退出 1；领域目录与有登记的不报', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'self-written-'))
+  const root = makeTempDir('self-written-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (file, content) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
@@ -295,7 +296,7 @@ test('端到端：新建一个同类文件，警告期放行并出警告，阻�
 })
 
 test('端到端：新增文件路径带中文时门岗仍然认得出（git 默认会把中文路径转义成八进制串，按行读会漏判）', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'self-written-cjk-'))
+  const root = makeTempDir('self-written-cjk-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (file, content) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
@@ -371,7 +372,7 @@ test('to-replace 的 paths 已经全部不存在 → 红（已替换，请删登
 })
 
 test('端到端：过期的 under-review 条目，改动碰它的文件时 CLI 退出 1，没碰时退出 0，改成 to-replace 后退出 0', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'self-written-due-'))
+  const root = makeTempDir('self-written-due-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (file, content) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })

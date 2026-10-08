@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import { Buffer } from 'node:buffer'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -20,7 +21,7 @@ import {
 
 const roots = []
 const makeRoot = () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-release-contract-'))
+  const root = makeTempDir('nomi-release-contract-')
   roots.push(root)
   return root
 }

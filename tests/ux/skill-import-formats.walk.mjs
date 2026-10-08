@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实任务走查：用户手上是「一个 SKILL.md」或「一个 zip 包」，把它导进 Nomi 技能库。
 //
 // 缘起（2026-08-27 用户群反馈）：「正常用 hermes 或 workbuddy 都是导入一个 zip 包就行，包里有
@@ -17,7 +18,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-skill-import-'))
+const base = makeTempDir('nomi-skill-import-')
 const userDataDir = path.join(base, 'user-data')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -662,7 +663,7 @@ test("invariant_owner_layer: 阈值之前 / 没有日期前缀的合同不追溯
 
 // A relocation is both removal of the legacy path and addition of the new owner.
 test("rename evidence: the checker inventory includes both endpoints", () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-contract-rename-"));
+  const cwd = makeTempDir("nomi-contract-rename-");
   const git = (...args) => execFileSync("git", args, { cwd, stdio: "pipe" });
   try {
     git("init");

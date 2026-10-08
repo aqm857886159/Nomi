@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 走查：保存 vendor key 后，「已接入 / N 个可使用」这套「已可用」表述必须与真实可用性一致。
 //
 // 背景（2026-09-01 CERT 核实）：保存凭据落盘即 enabled:false（认证前不 promote，属正确 fail-closed），
@@ -32,7 +33,7 @@ const API_KEY = process.env.APIMART_API_KEY || 'sk-walkthrough-not-a-real-key-00
 const MODEL = 'deepseek-v4-pro'
 
 function mkProfile(name) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-credhon-${name}-`))
+  const tempRoot = makeTempDir(`nomi-credhon-${name}-`)
   const p = {
     tempRoot,
     settingsDir: path.join(tempRoot, 'settings'),

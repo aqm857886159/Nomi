@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：文本侧结构化错误 → 对话错误卡（bb32ec56 修复验证）。
 //
 // 单测能证「分类对不对」，证不了**用户眼前那张卡长什么样**。这次改动往错误 message 里塞了
@@ -21,8 +22,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outDir = path.join(repoRoot, '.text-error-lab')
 fs.rmSync(outDir, { recursive: true, force: true })
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'texterr-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'texterr-projects-'))
+const settingsDir = makeTempDir('texterr-settings-')
+const projectsDir = makeTempDir('texterr-projects-')
 
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 

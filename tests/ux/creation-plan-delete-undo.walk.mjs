@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 删一条方案 = **一个手势 + 一条撤销路**（2026-09-21 用户：「有个删除 icon 就行，
 // 一串名字作为按钮很蠢」）。这条走查像真人一样用鼠标做完整件事，不灌 store、不调 IPC。
 //
@@ -18,7 +19,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-plan-delete-'))
+const tempRoot = makeTempDir('nomi-plan-delete-')
 const projectsDir = path.join(tempRoot, 'projects')
 const settingsDir = path.join(tempRoot, 'settings')
 const outDir = process.env.PLAN_DELETE_OUT || path.join(repoRoot, 'tests/ux/shots/creation-plan-delete-undo')

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 全套 R13-A：真机走查本地 ComfyUI「导入自定义工作流」UI + 假 ComfyUI 让接入卡真「已连上」。
 // 起假 ComfyUI(node http, :8188) → 起 Nomi(comfyui-local 已启用) → 接入卡显示已连上 → 展开 →
 // 导入面板 → 贴 WAN i2v workflow → 分析 → 看绑定编辑器 → 导入 → 模型出现在卡里。截图人眼判断。
@@ -6,7 +7,7 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import path from 'node:path'; import { fileURLToPath } from 'node:url'; import { mkdirSync, writeFileSync, mkdtempSync } from 'node:fs'; import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.feedback-walk'); mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'nomi-comfy-e2e-'))
+const settingsDir = makeTempDir('nomi-comfy-e2e-')
 const now = '2026-07-15T00:00:00.000Z'
 writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({ version: 5, vendors: [{ key: 'comfyui-local', name: '本地 ComfyUI', enabled: true, authType: 'none', baseUrlHint: 'http://127.0.0.1:8188', createdAt: now, updatedAt: now }], models: [{ modelKey: 'comfyui-txt2img', vendorKey: 'comfyui-local', labelZh: '本地 · 文生图', kind: 'image', enabled: true, createdAt: now, updatedAt: now }], mappings: [], apiKeysByVendor: {} }))
 const WAN_I2V = JSON.stringify({ "1": { class_type: "LoadImage", inputs: { image: "start.png" } }, "2": { class_type: "CLIPTextEncode", inputs: { text: "a dragon flying over misty mountains", clip: ["3", 0] } }, "3": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "wan2.2.safetensors" } }, "4": { class_type: "KSampler", inputs: { seed: 42, steps: 20, cfg: 6, positive: ["2", 0], model: ["3", 0] } }, "5": { class_type: "VHS_VideoCombine", inputs: { images: ["4", 0], frame_rate: 24 } } }, null, 2)

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -74,7 +75,7 @@ test('ignores comments, strings, synchronous DOM predicates and awaited evaluate
 })
 
 test('discovers real walk/e2e/helper scripts and unit tests while skipping generated dependencies', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-test-waits-'))
+  const root = makeTempDir('nomi-test-waits-')
   try {
     const included = ['tests/ux/a.walk.mjs', 'tests/ux/b.e2e.mjs', 'tests/ux/_read.mjs', 'tests/example.spec.ts', 'electron/example.test.ts', 'scripts/check.node-test.mjs']
     const excluded = ['tests/ux/notes.md', 'tests/node_modules/hidden.test.ts', 'tests/dist/generated.mjs', 'src/product.ts']

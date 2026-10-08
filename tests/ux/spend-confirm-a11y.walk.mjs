@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // B3 花钱确认弹层的键盘/无障碍保障 —— R13 零额度真机走查。
 // 方案：docs/plan/2026-09-07-design-system-optimization.md §1 B3。
 // 用法: node tests/ux/spend-confirm-a11y.walk.mjs
@@ -23,7 +24,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/spend-confirm-a11y')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-spend-a11y-'))
+const tempRoot = makeTempDir('nomi-spend-a11y-')
 const settingsDir = path.join(tempRoot, 'settings')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')

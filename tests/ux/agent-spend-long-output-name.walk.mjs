@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户任务（R13）：**Agent 付费卡生成一段视频 → 片子落进项目 → 在画布上点「下载」存到本地 → 双击能打开吗？**
 //
 // 0.22.0 的现场：供应商产物地址的 basename 很长（签名段 / 哈希段），落盘时整段名字被截到 90 字，
@@ -121,7 +122,7 @@ const walk = await createRuntimeWalk('spend-long-output-name', {
   videoResultPath: `/fixture/${LONG_NAME}`,
   env: egressEnv,
 })
-const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-walk-downloads-'))
+const saveDir = makeTempDir('nomi-walk-downloads-')
 let failure
 /** 每一步的时刻：公网尝试（黑洞代理那边带时间）要能对上是哪一步惹出来的。 */
 const steps = []

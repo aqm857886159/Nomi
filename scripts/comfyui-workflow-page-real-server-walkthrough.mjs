@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查（**真 ComfyUI，不是 mock**）：从接入到出图，把工作流设置整页的全流程走通一遍。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 //
@@ -92,8 +93,8 @@ const pngsBefore = new Set(readdirSync(outputRoot).filter((f) => f.endsWith('.pn
 // ── ③④⑤ Nomi 界面全流程 ──
 const { app, win } = await launchNomiApp({
   name: 'comfyui-workflow-page-real',
-  settingsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-real-set-')),
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-real-proj-')),
+  settingsDir: makeTempDir('comfyui-real-set-'),
+  projectsDir: makeTempDir('comfyui-real-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

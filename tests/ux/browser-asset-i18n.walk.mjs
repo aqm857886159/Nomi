@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真机走查（R13）：**英文界面下的浏览器素材子系统**。
 //
 // 盯的是 2026-09-02 修掉的那批：25 条词条 zh+en 译文都在、却零引用——代码把中文写死在
@@ -29,7 +30,7 @@ import {
 
 const outDir = path.join(repoRoot, 'tests/ux/shots/browser-asset-i18n')
 mkdirSync(outDir, { recursive: true })
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-browser-i18n-'))
+const tmp = makeTempDir('nomi-browser-i18n-')
 const projectsDir = path.join(tmp, 'projects')
 mkdirSync(projectsDir, { recursive: true })
 

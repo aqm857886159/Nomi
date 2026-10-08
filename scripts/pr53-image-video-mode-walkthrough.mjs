@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查（PR#53 图片+视频分镜 + 镜号共号修复）：
 // 真旅程 = 新建项目 → 写故事 → 拆镜头 → 动作卡选「图片+视频」→ 真 planner 拆镜 →
 // 方案编辑器（首帧图提示词框）→ 确认落画布 → 画布镜号硬断言（首帧图与视频共号、视频 1..N 连续）。
@@ -22,7 +23,7 @@ const isolatedProjects = path.join(os.tmpdir(), 'nomi-pr53-projects')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
 // 凭据钥匙（Windows 的 Local State）跟目录一起进隔离副本，user-data 与启动器默认同形、只是先建出来。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'pr53-image-video-mode-'))
+const tempRoot = makeTempDir('pr53-image-video-mode-')
 const userDataDir = path.join(tempRoot, 'user-data')
 if (existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: isolatedSettings, userDataDir })
 

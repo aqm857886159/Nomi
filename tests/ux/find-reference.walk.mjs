@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 「找参考」真机走查：模拟一个真实用户，从空素材库走到「把一条正在跑的片子加进项目」。
 //
 // **打真 TikHub**（需要 TIKHUB_API_KEY），因为这条线的价值全在真实数据上——
@@ -22,7 +23,7 @@ const SHOTS = path.join(repoRoot, 'tests/ux/shots/find-reference')
 fs.rmSync(SHOTS, { recursive: true, force: true })
 fs.mkdirSync(SHOTS, { recursive: true })
 
-const TEMP = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-find-reference-'))
+const TEMP = makeTempDir('nomi-find-reference-')
 const trail = []
 // 这一趟必须成立的事；收尾按 length 决定退出码。截图给人眼看，这些给 CI 看。
 const failures = []

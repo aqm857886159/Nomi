@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户长视频任务的 Electron/UI boundary harness。
 //
 // 约束：动作只能通过可见 DOM/真实 Electron bridge 完成；不导入、不读取、不调用任何
@@ -343,7 +344,7 @@ async function run(mode) {
   const durationSeconds = sampleDurationSeconds(samplePath)
   if (durationSeconds < REAL_USER_LONG_VIDEO_MANIFEST.sample.minimumDurationSeconds) throw new Error(`sample is shorter than ${REAL_USER_LONG_VIDEO_MANIFEST.sample.minimumDurationSeconds}s`)
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-real-user-long-video-'))
+  const tempRoot = makeTempDir('nomi-real-user-long-video-')
   const profile = {
     userDataDir: path.join(tempRoot, 'user-data'), settingsDir: path.join(tempRoot, 'settings'), projectsDir: path.join(tempRoot, 'projects'),
     current: null, replace(next) { this.current = next },

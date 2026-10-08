@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 2026-08-18 提示词选择器的真机走查（R13）。用户原话：「得留自定义的口子，而且得可以被调用，
 // 我们现在的找不到调用的地方」。这份要证明的正是「调得起来」：
 //   1 选择器在 composer 发送键左边，头部那颗已删（一功能一个家）
@@ -14,7 +15,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-prompt-picker-'))
+const tempRoot = makeTempDir('nomi-prompt-picker-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/prompt-picker')

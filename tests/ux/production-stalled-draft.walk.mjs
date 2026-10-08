@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 未实现 playbook 的坏 Run —— R13 走查（plan docs/plan/2026-08-18-production-playbook-registry.md）。
 // 用法: node tests/ux/production-stalled-draft.walk.mjs
 // 产出: tests/ux/shots/production-stalled-draft/*.png
@@ -17,7 +18,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectAbsent, proveProbe, scopedText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-stalled-draft-'))
+const tempRoot = makeTempDir('nomi-stalled-draft-')
 const projectsDir = path.join(tempRoot, 'projects')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/production-stalled-draft')
 fs.rmSync(shotsDir, { recursive: true, force: true })

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { test } from 'node:test'
 import { expect } from '@playwright/test'
 import fs from 'node:fs'
@@ -15,7 +16,7 @@ test('baseline accepts known counts and reports increases and reductions', () =>
 
 test('shared observer scans screenshots and completed state waits without author calls', async () => {
   const browser = await chromium.launch({ headless: true })
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'feel-observer-'))
+  const dir = makeTempDir('feel-observer-')
   try {
     const page = await browser.newPage()
     const observer = installFeelObserver(page, {
@@ -52,7 +53,7 @@ test('shared observer scans screenshots and completed state waits without author
 
 test('real journey observer records known budget overruns on page, locator and waits', async () => {
   const browser = await chromium.launch({ headless: true })
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'feel-real-record-'))
+  const dir = makeTempDir('feel-real-record-')
   try {
     for (const name of ['eval-iso', 'real-user-test-gates']) {
       const page = await browser.newPage()
@@ -86,7 +87,7 @@ test('real journey observer records known budget overruns on page, locator and w
 
 test('repeated rows records five tool steps without ratcheting even with a registered zero', async () => {
   const browser = await chromium.launch({ headless: true })
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'feel-repeated-'))
+  const dir = makeTempDir('feel-repeated-')
   try {
     const page = await browser.newPage()
     const observer = installFeelObserver(page, {

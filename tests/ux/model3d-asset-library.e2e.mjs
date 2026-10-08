@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,7 +12,7 @@ import { seedFinishedJourneyProject } from './fixtures/journey-project-fixture.m
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-model3d-asset-library-'))
+const root = makeTempDir('nomi-model3d-asset-library-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

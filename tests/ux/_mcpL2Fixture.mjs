@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -14,7 +15,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 export const FIXTURE_API_KEY = 'mcp-l2-loopback-key'
 
 function mediaFixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-l2-media-'))
+  const root = makeTempDir('nomi-mcp-l2-media-')
   const videoPath = path.join(root, 'fixture.mp4')
   execFileSync(require('@ffmpeg-installer/ffmpeg').path, [
     '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=teal:s=64x64:d=1',

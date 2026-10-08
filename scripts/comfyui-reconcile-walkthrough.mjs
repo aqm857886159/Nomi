@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：ComfyUI 导入缺件对账（缺节点/缺模型在导入面板就说清，治「一跑就炸不知道为啥」）。
 // 场景：① 贴「缺自定义节点 + 引用了本机没有的 checkpoint」的图 → 分析 → 两条红警示；
 //       ② 贴全齐的图 → 分析 → 零警示；
@@ -13,7 +14,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-reconcile-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-reconcile-walk-'))
+const settingsDir = makeTempDir('comfyui-reconcile-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 // 本机「已装」能力（mock /object_info）：SD 基础节点齐、checkpoint 只有 local-sd15。
@@ -63,7 +64,7 @@ await new Promise((r) => mock.listen(8188, '127.0.0.1', r))
 const { app, win } = await launchNomiApp({
   name: 'comfyui-reconcile',
   settingsDir,
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-reconcile-proj-')),
+  projectsDir: makeTempDir('comfyui-reconcile-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

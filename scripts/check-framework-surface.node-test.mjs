@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 框架接触面门岗自己的测试（R17：加规则必须先证它会红）。
 //
 // 判据部分喂**假登记表 + 假事实**，抽取部分喂**假 .d.ts + 假源码**（临时目录），
@@ -163,7 +164,7 @@ test('值比对只归一空白与引号', () => {
 // ─── 抽取器：假 .d.ts + 假源码 ────────────────────────────────────────────────
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'framework-surface-'))
+  const root = makeTempDir('framework-surface-')
   fs.mkdirSync(path.join(root, 'node_modules/fake-sdk'), { recursive: true })
   fs.writeFileSync(path.join(root, 'node_modules/fake-sdk/index.d.ts'), `
 export interface Base { name: string; description: string }

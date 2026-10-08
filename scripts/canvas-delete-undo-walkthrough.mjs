@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：多选删除误删安全网（2026-07-24 群反馈「画板编辑多出图，凭直觉 del 把 4 张全删了」）。
 // 修复=键盘 del 删多个节点后弹「已删除 N 个 · 撤销」toast，点撤销复用画布 undo 恢复。
 // 验证链：加 2 节点 → 全选 → Delete → ① 撤销 toast 出现 + 节点删空 → 点撤销 → ② 节点恢复。
@@ -9,8 +10,8 @@ import path from 'node:path'
 
 const outDir = path.join(repoRoot, '.canvas-delete-undo-walk')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'del-undo-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'del-undo-projects-'))
+const settingsDir = makeTempDir('del-undo-settings-')
+const projectsDir = makeTempDir('del-undo-projects-')
 
 const { app, win } = await launchNomiApp({
   name: 'canvas-delete-undo',

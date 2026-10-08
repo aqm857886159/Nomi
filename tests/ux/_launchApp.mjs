@@ -1,3 +1,4 @@
+import { cleanupTestTemp, makeTempDir, registerTestTemp } from '../../scripts/_test-temp.mjs'
 // tests/ux 与 evals 唯一的 Electron 启动器（2026-08-11 收敛，见 docs/plan/2026-08-11-e2e-launcher-convergence.md）。
 //
 // 为什么必须收敛成一份：走查脚本手抄 launch 样板时抄漏 env，会**静默挂死**——一张截图不产、
@@ -94,6 +95,14 @@ export function isolatedCatalogHasSafeStorageCredentials(settingsDir) {
 
 /** 仓库根：本文件在 <repo>/tests/ux/ 下。 */
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+
+export function registerTempRoot(root) {
+  return registerTestTemp(root)
+}
+
+export function cleanupTempRoot(root) {
+  cleanupTestTemp(root)
+}
 
 /** 默认等窗口的上限。取 60s：明显短于 Playwright 默认的 180s，让**我们的**错误信息先落地。 */
 const DEFAULT_WINDOW_TIMEOUT_MS = 60_000
@@ -374,7 +383,9 @@ export async function launchNomiApp(options = {}) {
   // isolate:false = 用用户**真实** profile 起（交互式 dev driver ui-driver.mjs 才这么用：
   // 它要能打开已有/示例项目，这是它注释里写明的既定设计，不是漏配）。此时不传 --user-data-dir、
   // 不覆盖三个目录 env，等价于「裸起一个 Nomi」；NOMI_E2E 那两条仍然强制。
-  const tempRoot = isolate ? (options.tempRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`))) : null
+  const tempRoot = isolate
+    ? (options.tempRoot ? registerTempRoot(options.tempRoot) : makeTempDir(`${name}-`))
+    : null
   const userDataDir = isolate ? (options.userDataDir ?? path.join(tempRoot, 'user-data')) : null
   const settingsDir = isolate ? (options.settingsDir ?? path.join(tempRoot, 'settings')) : null
   const projectsDir = isolate ? (options.projectsDir ?? path.join(tempRoot, 'projects')) : null
@@ -438,11 +449,15 @@ export async function launchNomiApp(options = {}) {
   try {
     app = await electron.launch(launchOptions)
   } catch (error) {
+    cleanupTempRoot(tempRoot)
     throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
   }
   const instanceRegistration = registerWalkProcess(app.process(), { worktree: repoRoot, name, allowUntrackedProcessForTest })
   const close = async () => {
-    try { await closeNomiApp(app) } finally { instanceRegistration.cleanup() }
+    try { await closeNomiApp(app) } finally {
+      instanceRegistration.cleanup()
+      cleanupTempRoot(tempRoot)
+    }
   }
 
   if (preMainInjection) {
@@ -495,6 +510,7 @@ export async function launchNomiApp(options = {}) {
     const actualViewport = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
     if (actualViewport.width !== viewportSize.width || actualViewport.height !== viewportSize.height) {
       await closeNomiApp(app)
+      cleanupTempRoot(tempRoot)
       throw new Error(`Acceptance viewport mismatch: expected ${JSON.stringify(viewportSize)}, got ${JSON.stringify(actualViewport)}`)
     }
     console.log('[walkthrough] content viewport', JSON.stringify(actualViewport))
@@ -503,6 +519,7 @@ export async function launchNomiApp(options = {}) {
       if (options.observeWindow) await options.observeWindow(win)
     } catch (error) {
       await closeNomiApp(app)
+      cleanupTempRoot(tempRoot)
       throw error
     }
     if (options.initialLocalStorage) {
