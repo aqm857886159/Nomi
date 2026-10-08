@@ -6,6 +6,7 @@
 // 匹配器不在这里写第二份：NO_COST_CLAIMS 来自 tests/ux/full-walk/outcomeText.mjs（走查监视器同一份）。
 // 白名单只有这里一份。
 import path from 'node:path'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { NO_COST_CLAIMS } from '../tests/ux/full-walk/outcomeText.mjs'
 
@@ -14,6 +15,8 @@ import { NO_COST_CLAIMS } from '../tests/ux/full-walk/outcomeText.mjs'
  * 等那条线改完再从这张表里拿掉（拿掉之后词典里再出现就红）。表里每一条都必须真的还命中——不命中说明已经改好了，该删这一行。
  */
 export const OWNED_BY_SPEND_CARD_LANE = Object.freeze([
+  // 已提交任务的结果查询只轮询既有 provider task id，不发起新生成请求，也不会再次扣费。
+  'taskCenter.row.recoverHint',
   'onboardingProviders.keyOnly.probeCostPaid', 'onboardingProviders.keyOnly.probeCostPaidUnpriced', 'onboardingProviders.keyOnly.probeCostUnknown',
   'generationCommon.production.checkpoint.subtitleWithReuse', 'generationCommon.production.checkpoint.note', 'generationCommon.production.checkpoint.noteWithBudget',
   'runtime.capability.credentialProbeMessage',
@@ -29,6 +32,11 @@ export const ADDITIONAL_SPEND_CLAIMS = Object.freeze({
 export const ZERO_SPEND_CLAIMS = Object.freeze({
   'zh-CN': /(?:预算|已花费|已用|花费)\s*(?:为|[:：])?\s*[¥￥]?\s*0(?:\.00)?(?:\s*元)?/,
   en: /\b(?:budget|spent|spend|cost)\b[^\n]{0,16}\$\s*0(?:\.00)?\b/i,
+})
+/** 代码确定的本地离线能力：不联网、不发 provider 请求，因此保留“不花钱”事实。 */
+export const FACTUAL_KEY_CLAIMS = Object.freeze({
+  'zh-CN': new Set(['在这台电脑上离线转写，不联网、不花钱；语言自动识别']),
+  en: new Set(['Transcribe on this computer, offline and free; the language is detected automatically']),
 })
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
@@ -53,9 +61,31 @@ export function scanDictionaries(dictionaries, { owned = OWNED_BY_SPEND_CARD_LAN
   return { hits, stale: owned.filter((key) => !everHit.has(key)) }
 }
 
+/** 扫描作为中文显示文本的字典 key；模型目录会直接把它们交给 UI，不能只扫英文 value。 */
+export function scanDictionaryKeys(keyDictionaries, { owned = OWNED_BY_SPEND_CARD_LANE, notMoney = NOT_MONEY } = {}) {
+  const hits = []
+  const everHit = new Set()
+  for (const locale of Object.keys(NO_COST_CLAIMS)) {
+    for (const [key, value] of flatOf(keyDictionaries[locale] ?? {})) {
+      const patterns = [NO_COST_CLAIMS[locale], ADDITIONAL_SPEND_CLAIMS[locale], ZERO_SPEND_CLAIMS[locale]]
+      if (!patterns.some((pattern) => pattern.test(value))) continue
+      everHit.add(key)
+      if (isFixture(key) || notMoney.includes(key) || owned.includes(key) || FACTUAL_KEY_CLAIMS[locale]?.has(value)) continue
+      hits.push({ locale, key, text: value.slice(0, 60), source: 'key' })
+    }
+  }
+  return { hits, stale: [] }
+}
+
 async function main() {
   const { loadDictionaries } = await import('../tests/ux/full-walk/invariants.mjs')
-  const { hits, stale } = scanDictionaries(loadDictionaries())
+  const dictionaries = loadDictionaries()
+  const modelDisplaySource = fs.readFileSync(path.resolve('src/i18n/locales/modelDisplayText.ts'), 'utf8')
+  const modelKeys = [...modelDisplaySource.matchAll(/^\s*(['"])(.*?)\1\s*:/gm)].map(([, , value]) => value)
+  const { hits: valueHits, stale: valueStale } = scanDictionaries(dictionaries)
+  const { hits: keyHits } = scanDictionaryKeys({ 'zh-CN': { modelDisplayText: modelKeys } })
+  const hits = [...valueHits, ...keyHits]
+  const stale = valueStale
   if (!hits.length && !stale.length) { console.log('check:i18n-no-cost-claims OK'); return }
   for (const h of hits) console.error(`  ${h.locale} ${h.key}: ${h.text}`)
   for (const key of stale) console.error(`  白名单已烂：${key} 在词典里已不命中，从 OWNED_BY_SPEND_CARD_LANE 删掉这一行`)

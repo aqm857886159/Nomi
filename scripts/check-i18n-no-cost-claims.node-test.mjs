@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { scanDictionaries } from './check-i18n-no-cost-claims.mjs'
+import { scanDictionaries, scanDictionaryKeys } from './check-i18n-no-cost-claims.mjs'
 
 const dict = (zh, en = {}) => ({ 'zh-CN': zh, en })
 
@@ -36,4 +36,15 @@ test('zero budget and zero spent wording is caught as an unsupported money claim
   assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}`), [
     'zh-CN:budget', 'zh-CN:spent', 'en:budget', 'en:spent',
   ])
+})
+
+test('Chinese display keys are scanned, not only mapped English values', () => {
+  const { hits } = scanDictionaryKeys({ 'zh-CN': { modelDisplayText: ['Qwen3 30B（免费）'] } }, { owned: [], notMoney: [] })
+  assert.deepEqual(hits.map((h) => `${h.locale}:${h.key}:${h.source}`), ['zh-CN:modelDisplayText.0:key'])
+})
+
+test('submitted-result retrieval is allowlisted with its no-charge fact', () => {
+  const { hits, stale } = scanDictionaries(dict({ taskCenter: { row: { recoverHint: '只查结果，不重新生成，不花钱' } } }, { taskCenter: { row: { recoverHint: 'Only fetches the result — no new generation, no charge' } } }))
+  assert.deepEqual(hits, [])
+  assert.equal(stale.includes('taskCenter.row.recoverHint'), false)
 })

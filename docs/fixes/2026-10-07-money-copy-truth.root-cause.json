@@ -13,6 +13,7 @@
     "scripts/check-i18n-no-cost-claims.node-test.mjs",
     "src/i18n/locales/onboardingProviders.ts",
     "src/i18n/locales/modelDisplayText.ts",
+    "src/i18n/resources.ts",
     "src/i18n/locales/generationCommon.ts",
     "electron/desktopStrings.ts",
     "docs/plan/2026-10-07-money-copy-truth.md",
@@ -124,6 +125,12 @@
       "entry_point": "desktopT",
       "disposition": "enforced",
       "evidence": "Recovery strings no longer promise free retrieval or retry."
+    },
+    {
+      "path": "src/i18n/resources.ts",
+      "entry_point": "zhCN.taskCenter.row.recoverHint/en.taskCenter.row.recoverHint",
+      "disposition": "enforced",
+      "evidence": "The copy states the existing-result lookup is no-charge because it only polls an already submitted task and never starts a new generation request."
     },
     {
       "path": "electron/catalog/modelscopeTexts.ts",
