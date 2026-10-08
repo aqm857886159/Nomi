@@ -36,6 +36,12 @@ const proposal = {
   anchorTextOffset: 12,
 } as const;
 
+const publishedReceiptFixturesDir = path.join(process.cwd(), "electron", "capabilityCore", "__fixtures__", "published-receipts");
+const publishedReceiptFixtureFiles = fs
+  .readdirSync(publishedReceiptFixturesDir)
+  .filter((name) => name.endsWith(".json"))
+  .sort();
+
 let root = "";
 
 function tempProject(): string {
@@ -272,6 +278,31 @@ describe("ProjectAgent committed proposal receipt", () => {
 });
 
 describe("receipt read boundary recovery", () => {
+  it.each(publishedReceiptFixtureFiles)("reads or isolates published receipt format %s", (fixtureName) => {
+    const projectRoot = tempProject();
+    const fixture = JSON.parse(fs.readFileSync(path.join(publishedReceiptFixturesDir, fixtureName), "utf8")) as unknown;
+    fs.writeFileSync(projectAgentProposalReceiptPath(projectRoot), JSON.stringify(fixture), "utf8");
+
+    expect(() => createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).not.toThrow();
+    const restored = createProjectAgentProposalReceiptService({ projectRoot, binding }).read();
+    if (restored) {
+      expect(restored.lifecycle).toBe("committed");
+      expect(restored.proposal).toEqual(proposal);
+    } else {
+      expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
+      expect(
+        fs.readdirSync(path.dirname(projectAgentProposalReceiptPath(projectRoot))).some((name) =>
+          name.startsWith("project-agent-proposal-receipt.json.quarantined-"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("archives the current package release in the published-format matrix", () => {
+    const packageVersion = (JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as { version: string }).version;
+    expect(publishedReceiptFixtureFiles).toContain(`v${packageVersion}.json`);
+  });
+
   it("migrates the pre-journal shape with a pure, idempotent function and persists schema 2 on read", () => {
     const projectRoot = tempProject();
     const legacy = {
