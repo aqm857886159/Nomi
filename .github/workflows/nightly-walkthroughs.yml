@@ -44,7 +44,7 @@ jobs:
           set -o pipefail
           mkdir -p nightly-walks
           : > "nightly-walks/results-${BATCH}.tsv"
-          mapfile -t walks < <(find tests/ux -maxdepth 1 -type f -name '*.walk.mjs' ! -name '*.paid.mjs' | sort)
+          mapfile -t walks < <(node scripts/nightly-walk-selection.mjs tests/ux)
           failed=0
           for index in "${!walks[@]}"; do
             [ "$((index % 4))" = "$BATCH" ] || continue
@@ -78,6 +78,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
       - uses: actions/download-artifact@v7
         with:
           pattern: nightly-walks-*
