@@ -58,7 +58,7 @@ function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"an
     systemSession: { platform: options.platform ?? "win32", powerMonitor: vi.fn() },
   });
   installShutdownProjectFlush({ windows: () => windows, onResponse: (listener) => { responseListeners.push(listener); }, onError });
-  (appListeners.get("browser-window-created") as unknown as (event: unknown, window: unknown) => void)({}, osWindow);
+  (appListeners.get("browser-window-created") as unknown as ((event: unknown, window: unknown) => void) | undefined)?.({}, osWindow);
   const emitApp = (event: "before-quit" | "will-quit") => (appListeners.get(event) as unknown as (e: { preventDefault: () => void }) => void)({ preventDefault: vi.fn() });
   return { app, errors, webContents, windows, emitApp, sessionEnd: () => sessionListeners.get("session-end")?.() };
 }
