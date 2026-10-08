@@ -16,12 +16,14 @@
  */
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+/* eslint-disable @typescript-eslint/no-require-imports -- vi.hoisted runs before static imports. */
 const testRoot = vi.hoisted(() => {
   const nodeFs = require("node:fs") as typeof import("node:fs");
   const nodeOs = require("node:os") as typeof import("node:os");
   const nodePath = require("node:path") as typeof import("node:path");
   return nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), "nomi-parity-listing-"));
 });
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 vi.mock("electron", async () => {
   const { electronStub } = await import("./parityElectronMock");
