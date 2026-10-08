@@ -142,6 +142,17 @@ export function decryptCustomConfigWithLegacy(
  * their key material never crosses this boundary.
  */
 export function decryptApiKeyRecord(rec: ApiKeyRecord | undefined): string {
+  // The one gate for outbound use: a disabled record is never decrypted, whoever asks.
+  if (!credentialRecordCounts(rec)) return "";
+  return decryptStoredApiKeyRecord(rec);
+}
+
+/**
+ * Raw read that skips the enabled gate. Only for work that must touch a record that is not (yet) usable —
+ * re-validating a pending save, certifying a saved key, copying key material. The closed list of callers is
+ * pinned by storedApiKeyReaders.test.ts; everything that sends a request goes through decryptApiKeyRecord.
+ */
+export function decryptStoredApiKeyRecord(rec: ApiKeyRecord | undefined): string {
   if (!rec || !rec.apiKey) return "";
   if (rec.enc !== "safeStorage") return "";
   try {
@@ -192,7 +203,7 @@ export function apiKeyDecryptStatus(rec: ApiKeyRecord | undefined): ApiKeyDecryp
   if (!credentialRecordCounts(rec) || !rec) return "missing";
   if (rec.enc === "safeStorage") {
     // 密文在手：解得开非空 = ok；解不开 / 解出空串 = locked（身份不匹配等，key 确实存在只是读不动）。
-    return decryptApiKeyRecord(rec) ? "ok" : "locked";
+    return decryptStoredApiKeyRecord(rec) ? "ok" : "locked";
   }
   // plain / legacy：保留结构识别供迁移提示，但绝不把它当作新认证可用的 credential。
   return rec.apiKey ? "needs_resave" : "missing";

@@ -59,6 +59,7 @@ const FULL_VENDOR = {
   enabled: true,
   hasApiKey: false,
   credentialVerificationPending: false,
+  credentialMaterialSaved: false,
   credentialBinding: { origin: "https://relay.acme.example", authType: "bearer", authHeader: "X-Acme-Key", authScheme: "Key", authQueryParam: "token", confirmedAt: "2026-09-01T00:00:00.000Z" },
   baseUrlHint: "https://relay.acme.example/v1",
   authType: "bearer",

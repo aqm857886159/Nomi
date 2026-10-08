@@ -29,7 +29,7 @@ const model = (over: Partial<Model> = {}): Model => ({
   vendorKey: 'relay', modelKey: 'model', labelZh: 'Model', kind: 'text', enabled: true,
   meta: { adapter: { state: 'verified', modes: [] } }, createdAt: 't', updatedAt: 't', ...over,
 })
-const state = (record: CatalogState['apiKeysByVendor']['relay'], over: Partial<Vendor> = {}): CatalogState => ({
+const state = (record: CatalogState['apiKeysByVendor']['relay'] | undefined, over: Partial<Vendor> = {}): CatalogState => ({
   version: 12, vendors: [vendor(over)], models: [model()], mappings: [], apiKeysByVendor: record ? { relay: record } : {},
 } as CatalogState)
 const CONSUMERS = [

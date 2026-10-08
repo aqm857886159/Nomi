@@ -13,7 +13,7 @@ import { CatalogPackageActions, CatalogStatusNotices } from './ModelCatalogNotic
 import type { ModelCatalogReadOnlyDto } from '../../workbench/api/modelCatalogApi'
 
 import type { Mapping } from '../../../electron/catalog/types'
-import { DesignButton, DesignSearchInput, NomiLoadingMark, VendorLogoImage } from '../../design'
+import { DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage } from '../../design'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
@@ -188,9 +188,9 @@ function AvailableConnectionRow({
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-caption font-semibold text-nomi-ink">{title ?? displayName}</span>
           {statusBadge ? (
-            <span className="rounded-full bg-nomi-accent-soft px-2 py-0.5 text-micro font-semibold text-nomi-accent">
+            <StatusBadge className="normal-case" tone={connection.credentialVerificationPending ? 'warning' : 'info'} data-credential-state={connection.credentialVerificationPending ? 'offline' : undefined}>
               {statusBadge}
-            </span>
+            </StatusBadge>
           ) : null}
         </span>
         <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">{hint}</span>

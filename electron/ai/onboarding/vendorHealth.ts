@@ -21,7 +21,7 @@ import { BrowserWindow } from "electron";
 import { createHash } from "node:crypto";
 import type { AiSdkProviderKind } from "../../catalog/types";
 import { readCatalog, normalizeProviderKind, mutateCatalog } from "../../catalog/catalogStore";
-import { decryptApiKeyRecord } from "../../catalog/secrets";
+import { decryptStoredApiKeyRecord } from "../../catalog/secrets";
 import { isJsonRecord, mergeHeadersCaseInsensitive } from "../../jsonUtils";
 import { authHeaders, authQueryParams } from "../requestPipeline";
 import { userVendorBaseUrl } from "../../catalog/userVendorBase";
@@ -86,7 +86,7 @@ function resolveTarget(vendorKey: string): Target | null {
   // A pending save is the one intentional exception: it may be revalidated, but
   // a user-disabled non-pending record must remain completely out of health probes.
   if (!vendor.hasApiKey && record?.verificationPending !== true) return null;
-  const apiKey = decryptApiKeyRecord(record) || "";
+  const apiKey = decryptStoredApiKeyRecord(record) || "";
   if (!apiKey) return null;
   const providerKind = normalizeProviderKind(vendor.providerKind);
   const authType = vendor.authType || (providerKind === "anthropic" ? "x-api-key" : "bearer");
