@@ -1,0 +1,27 @@
+{
+  "name": "画布浮动工具栏更新",
+  "subject": "canvas.floating-toolbar-update-loop",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+    "symbol": "nextFloatingToolbarPlacement"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/floatingToolbarClamp.ts",
+      "symbol": "nextFloatingToolbarPlacement"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+      "symbol": "FloatingToolbarShell"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-06",
+  "notes": "浮动工具栏位置计算与宿主外壳共享同一帧更新边界。"
+}
