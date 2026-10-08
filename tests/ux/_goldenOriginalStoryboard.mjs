@@ -1,5 +1,5 @@
-// Original-editor branch of the golden journey. The separate production-table
-// mode remains in golden-path.e2e.mjs with its table-specific assertions intact.
+// Original-editor branch of the golden journey. The separate production-canvas
+// mode remains in golden-path.e2e.mjs (canvas nodes only, no shot table).
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
