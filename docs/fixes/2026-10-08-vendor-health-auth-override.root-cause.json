@@ -1,0 +1,120 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-vendor-health-auth-override",
+  "problem_type": "saved custom authorization override lost during credential validation",
+  "symptom": "Settings key replacement sent the default Bearer header even when a relay had a saved Authorization override.",
+  "direct_cause": "validateCandidateCredential merged generated auth headers after saved extraHeaders, so the generated Bearer value won case-insensitively.",
+  "class_root": "All model-list credential probes must share one header precedence rule: generated auth first, saved custom headers last.",
+  "affected_population": [
+    "custom relays and proxies with Authorization or other header overrides",
+    "users replacing relay keys in Model Settings"
+  ],
+  "scope_paths": [
+    "electron/catalog/validateCandidateCredential.ts",
+    "electron/catalog/credentialProbeFree.test.ts",
+    "electron/ai/onboarding/modelListProbe.ts"
+  ],
+  "entry_points": [
+    "CustomVendorManage -> modelCatalog.upsertVendorApiKey -> rendererCatalogMutation -> validateCandidateCredential"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is owned by Nomi request construction and encrypted catalog state; repository source and the real catalog/API regression decide it.",
+  "invariants": [
+    "saved custom headers are replayed during credential validation",
+    "header merge is case-insensitive with saved extras last",
+    "credential validation uses buildAuthHeaders"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "validateCandidateCredential"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "validateCandidateCredential"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The renderer mutation is the public write entry and validateCandidateCredential is the shared validation boundary; both remain necessary."
+  },
+  "generality_proof": "The shared buildAuthHeaders path covers Authorization, x-api-key and custom relay headers for settings replacement and model-list probes; existing onboarding and vendor-health callers already use the same precedence.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "buildAuthHeaders",
+      "responsibility": "Owns case-insensitive generated-auth plus saved-extra-header precedence."
+    },
+    {
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "validateCandidateCredential",
+      "responsibility": "Uses the shared builder before accepting a replacement key."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "upsertRendererCatalogVendorApiKey",
+      "disposition": "enforced",
+      "evidence": "Settings replacement reaches validateCandidateCredential."
+    },
+    {
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "entry_point": "resolveTarget",
+      "disposition": "not-affected",
+      "evidence": "Existing vendor-health tests already assert custom Authorization override."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any local merge-order copy can regress another saved relay header or entry point.",
+    "same_class_scan": [
+      "rg buildAuthHeaders electron src",
+      "rg mergeHeadersCaseInsensitive electron/catalog electron/ai"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/validateCandidateCredential.ts",
+    "invariant": "All credential model-list requests put saved extra headers after generated auth.",
+    "failure_mode": "A valid override is preserved; auth failures remain auth failures.",
+    "exception_policy": "none",
+    "strategy": "Remove the local merge and reuse the shared builder.",
+    "artifacts": [
+      "electron/catalog/validateCandidateCredential.ts",
+      "electron/catalog/credentialProbeFree.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/credentialProbeFree.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/credentialProbeFree.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The local merge was replaced; no parallel legacy caller remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls header precedence.",
+    "exit_criteria": []
+  },
+  "migration": "Existing encrypted meta.extraHeaders are read through readCatalog; no migration is needed.",
+  "residual_risks": [
+    "The two UX fixtures still use isolated fake HTTP and need their final full-run receipts."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/validateCandidateCredential.ts",
+    "tests": [
+      "electron/catalog/credentialProbeFree.test.ts"
+    ],
+    "why": "The shared validation boundary owns this invariant and its focused regression test."
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-10-08"
+}
