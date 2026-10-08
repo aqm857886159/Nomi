@@ -65,6 +65,7 @@ export type GenerationTransportAdapterDependencies = Readonly<{
   requestGenerationGate?: NonNullable<DispatchContext["requestGenerationGate"]>;
   authorizeGeneration?: NonNullable<DispatchContext["authorizeGeneration"]>;
   rejectGeneration?: (input: { params: Record<string, unknown>; lease: ProjectLeaseV2 }) => unknown | Promise<unknown>;
+  markPolicyDecisionFailed?: (input: { params: Record<string, unknown>; lease: ProjectLeaseV2 }) => unknown | Promise<unknown>;
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>;
   approvalReceiptAuthority?: ApprovalReceiptAuthority;
   leaseFor: GenerationLeaseFactory;
@@ -499,6 +500,7 @@ export function createPiGenerationTransportAdapter(
       if (signal.aborted) return { ok: false, code: "generation_cancelled", message: "generation_cancelled", denied: true };
       // 这次调用落到了哪份计划上（入参点名的，或这一次刚起草的）。失败时拿它去问账本「有没有东西发出去过」。
       let addressed: string | undefined;
+      let policyDecisionAttempt: { params: Record<string, unknown>; lease: ProjectLeaseV2 } | undefined;
       try {
         const parsed = parsedArgs(call);
         const canonicalCall = canonicalGenerationCall(call, parsed);
@@ -552,9 +554,11 @@ export function createPiGenerationTransportAdapter(
           // 卡本来就没藏着（`cardHidden` 不为 true：外部 MCP 宿主与面板自己的路径）。「全自动」档在这里替用户决门（见上）。
           const cardShown = capability === "present"
             || ((capability === "create" || capability === "plan") && !planCardHidden(result));
-          if (cardShown) {
+          if (cardShown && spendDecidedByPolicy(deps.approvalPolicy?.())) {
+            policyDecisionAttempt = { params: { ...args, operationId: draftedOperationId(result, args) }, lease: currentLease };
             const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
             if (decided) return { ok: true, result: decided };
+            policyDecisionAttempt = undefined;
           }
           // 草稿写（建 / 改）成功：等落地落完，把「此刻在画布上吗」随结果交出去（回执据它说话）。
           if ((capability === "create" || capability === "plan") && deps.draftLanding && addressed) {
@@ -565,6 +569,11 @@ export function createPiGenerationTransportAdapter(
           }
           return { ok: true, result, silent: capability === "context" || capability === "read" };
       } catch (error) {
+        if (policyDecisionAttempt && deps.markPolicyDecisionFailed) {
+          try { await deps.markPolicyDecisionFailed(policyDecisionAttempt); } catch (markError) {
+            logWarn("production-run", "policy-decision-failure-marker-failed", undefined, markError);
+          }
+        }
         const failure = safeFailure(error);
         // 「结果可能未知」只有在真的有提交意图落过盘时才是真的。认不出的异常先落到兜底码，这里问账本一句：
         // 这份计划（没有计划就更没有）有没有任何一笔走到过提交意图——没有就是「没发出去、没扣费」，

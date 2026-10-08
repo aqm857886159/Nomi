@@ -282,6 +282,8 @@ export type GenerationPresentation = {
   presentationEpoch?: number;
   /** Approval policy captured when this card was opened; later policy changes do not rewrite it. */
   policySnapshot?: ProjectAgentApprovalPolicy;
+  /** Full-auto policy decision lifecycle for this presentation. */
+  policyDecisionState?: "pending" | "failed";
   /** 这一次摆到卡上的那几镜（按计划顺序；单镜旧形态 = 顶层候选的 candidateId）。 */
   shotIds: string[];
   openedAt: string;

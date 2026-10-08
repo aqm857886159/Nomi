@@ -131,7 +131,8 @@ export function awaitingSpendDecision(
   // A newly opened full-auto draft is hidden while the unified policy decision is
   // in flight. Once a card was opened under another policy it remains visible even
   // if the user changes settings later.
-  if (plan.state === "draft" && presentation?.policySnapshot?.mode === "project") return undefined;
+  if (plan.state === "draft" && presentation?.policySnapshot?.mode === "project"
+    && presentation.policyDecisionState !== "failed") return undefined;
   const waiting = waitingAuthorizationGates(run).at(-1);
   return { plan, undecided, ...(waiting ? { gateId: waiting.gateId } : {}) };
 }

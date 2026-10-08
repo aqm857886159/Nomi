@@ -34,6 +34,7 @@ import {
 import {
   parsePresentationCloser,
   presentGenerationPlan,
+  markGenerationPolicyDecisionFailed,
   removePresentedShot,
   withdrawGenerationPresentation,
 } from "./productionGenerationPresentationEdits";
@@ -225,6 +226,8 @@ export function applyProductionCommand(
         command.payload.policySnapshot && typeof command.payload.policySnapshot === "object"
           ? command.payload.policySnapshot as Parameters<typeof presentGenerationPlan>[3]
           : undefined), eventType: "generation.plan.presented", message: current.runId };
+    case "generation.policy_decision_failed":
+      return { run: markGenerationPolicyDecisionFailed(current, now), eventType: "generation.policy_decision.failed", message: current.generationPlan?.operationId ?? current.runId };
     // 用户的一下点击（放行形象 / 继续）续它批过、还没发出去的那几镜的同意（付费卡① 第 13 条）。
     // 写口只有 `productionDispatchConsentEdits.renewDispatchConsent`，判据在 `productionDispatchConsent`。
     case "generation.consent_renew":

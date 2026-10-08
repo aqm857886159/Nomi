@@ -185,6 +185,16 @@ describe("付费卡的宿主投影", () => {
     expect(listPendingSpendConfirms([fullAuto], resolvePricing)).toEqual([]);
   });
 
+  it("full-auto policy failure restores the same pending card", () => {
+    const failed = run();
+    failed.generationPlan = { ...failed.generationPlan!, presentations: [{
+      ...failed.generationPlan!.presentations![0],
+      policySnapshot: { mode: "project", spend: "confirm" },
+      policyDecisionState: "failed",
+    }] };
+    expect(projectPendingSpendConfirm(failed, resolvePricing)).toBeDefined();
+  });
+
   it("没有代答在飞的草稿照旧出卡（每步问 / 自动改两档，以及代答失败后卡回到原处）", () => {
     expect(projectPendingSpendConfirm(run(), resolvePricing)).toBeDefined();
     expect(projectPendingSpendConfirm(run(), resolvePricing)).toBeDefined();

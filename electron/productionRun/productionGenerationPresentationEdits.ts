@@ -91,6 +91,7 @@ export function presentGenerationPlan(current: ProductionRun, requested: unknown
       presentationId: `${run.runId}:presentation:${(superseded.presentations?.length ?? 0) + 1}`,
       presentationEpoch: (superseded.presentations?.at(-1)?.presentationEpoch ?? superseded.presentations?.length ?? 0) + 1,
       ...(policySnapshot ? { policySnapshot: structuredClone(policySnapshot) } : {}),
+      ...(policySnapshot?.mode === "project" ? { policyDecisionState: "pending" as const } : {}),
       shotIds: scope, openedAt: now, fromGate: spendAuthorizationGates(run).length,
     }],
     updatedAt: now,
@@ -104,6 +105,24 @@ export function presentGenerationPlan(current: ProductionRun, requested: unknown
     updatedAt: now,
   };
   return run;
+}
+
+/** Record that the policy-owned automatic decision failed after this card was opened. */
+export function markGenerationPolicyDecisionFailed(current: ProductionRun, now: string): ProductionRun {
+  const plan = current.generationPlan;
+  const presentation = currentPresentation(plan);
+  if (!plan || plan.state !== "draft" || !presentation || presentation.closed
+    || presentation.policySnapshot?.mode !== "project") return current;
+  if (presentation.policyDecisionState === "failed") return current;
+  return {
+    ...current,
+    generationPlan: {
+      ...plan,
+      presentations: [...(plan.presentations ?? []).slice(0, -1), { ...presentation, policyDecisionState: "failed" }],
+      updatedAt: now,
+    },
+    updatedAt: now,
+  };
 }
 
 /**
