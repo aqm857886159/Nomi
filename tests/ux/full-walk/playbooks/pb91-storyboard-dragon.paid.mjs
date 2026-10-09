@@ -45,7 +45,7 @@ try {
     anchors: [{ id: 'hero', kind: 'character', name: '林薇', description: '短发，风衣，眼神冷', staticFeatures: '黑色齐肩短发、瓜子脸的年轻女子，左眉有一道浅疤', carrier: 'visual' }],
     shots: [{ index: 1, shotId: 'shot-1', shotKind: 'image', durationSec: 3, anchorIds: ['hero'], prompt: '林薇站在天台边缘，风衣被吹起', modelKey: CHEAPEST.modelKey, modelVendor: CHEAPEST.vendorKey }],
   }
-  const saved = await win.evaluate(({ projectId, documentId, designId, plan }) => window.__nomiCapabilityApply('storyboard.upsert-design', { projectId, documentId, designId, plan }),
+  const saved = await win.evaluate(({ projectId, documentId, designId, plan }) => window.__nomiCapabilityApply('storyboard.upsert-design', { projectId, documentId, designId, plan, initiator: 'agent' }),
     { projectId, documentId, designId: DESIGN, plan })
   expect(saved, '方案落到左栏那份存储').toMatchObject({ status: 'saved', designId: DESIGN })
 

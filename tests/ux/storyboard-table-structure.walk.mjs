@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜表「能不能看到、能不能点到」走查（审计 B5a + B8，AUD-20261005-12 / -16）：
 // 真实 Electron / IPC / 渲染 / 项目文件，零生成额度（全程不点生成，供应商不接网），窗口全程在屏幕外。
 //
@@ -84,7 +85,7 @@ const projectRecord = (projectRoot) => ({
 })
 
 function makeFixture() {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-structure-'))
+  const tempRoot = makeTempDir('nomi-storyboard-structure-')
   const settingsDir = path.join(tempRoot, 'settings')
   const projectsDir = path.join(tempRoot, 'projects')
   const projectRoot = path.join(projectsDir, projectId)

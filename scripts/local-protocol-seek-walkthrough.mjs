@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：nomi-local 视频连续拖动进度条，主进程不得抛 ERR_INVALID_STATE。
 //
 // 闭合 docs/plan/2026-08-24-local-protocol-stream-ownership.md §1.6 那一环——
@@ -27,8 +28,8 @@ const require = createRequire(import.meta.url)
 const ffmpeg = require('@ffmpeg-installer/ffmpeg').path
 const outDir = path.join(repoRoot, '.local-protocol-seek-walk')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'seek-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'seek-projects-'))
+const settingsDir = makeTempDir('seek-settings-')
+const projectsDir = makeTempDir('seek-projects-')
 
 const SEED_NAME = 'seek-seed.mp4'
 const BIG_NAME = 'seek-big.mp4'

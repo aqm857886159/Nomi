@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -220,7 +221,7 @@ test('advisory 委派派生自 CORE_SMOKE_ADVISORY_CHECK_NAMES：把 used 挪出
   // 这条委派会继续放行一个已经该阻断的格子。这里把**真实源文件**里的名单改掉再跑一遍来证伪：
   // validation-policy.mjs 只依赖 docs/engineering/test-routing.json（花钱路径与花钱走查的唯一登记），
   // 所以临时目录按仓库布局摆：scripts/ 放两份脚本、docs/engineering/ 放路由表，相对路径照常解析。
-  const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'advisory-smoke-derivation-'))
+  const fixtureDir = makeTempDir('advisory-smoke-derivation-')
   try {
     const scriptsDir = path.dirname(fileURLToPath(import.meta.url))
     const policySource = fs.readFileSync(path.join(scriptsDir, 'validation-policy.mjs'), 'utf8')

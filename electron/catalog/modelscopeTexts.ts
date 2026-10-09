@@ -25,7 +25,7 @@ export type ModelscopeTextModel = {
 };
 
 export const MODELSCOPE_TEXT_MODELS: ModelscopeTextModel[] = [
-  { modelKey: "Qwen/Qwen3-Next-80B-A3B-Instruct", labelZh: "Qwen3 Next 80B（免费）", free: true },
-  { modelKey: "Qwen/Qwen3-30B-A3B", labelZh: "Qwen3 30B（免费）", free: true },
-  { modelKey: "Qwen/Qwen3-8B", labelZh: "Qwen3 8B（免费）", free: true },
+  { modelKey: "Qwen/Qwen3-Next-80B-A3B-Instruct", labelZh: "Qwen3 Next 80B", free: true },
+  { modelKey: "Qwen/Qwen3-30B-A3B", labelZh: "Qwen3 30B", free: true },
+  { modelKey: "Qwen/Qwen3-8B", labelZh: "Qwen3 8B", free: true },
 ];

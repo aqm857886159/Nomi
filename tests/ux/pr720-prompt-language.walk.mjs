@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /**
  * R13/R16 走查 · PR #720 反馈 #1「提示词出英文」逐条复验（真实文本模型，不生成图/视频）。
  *
@@ -74,7 +75,7 @@ function longestEnglishSpan(text) {
  * locale 在首帧之前写进 localStorage，i18n 初始化时同步给主进程。
  */
 async function askForPrompt({ locale, question, shotName }) {
-  const isoDir = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-pr720-lang-${locale}-`))
+  const isoDir = makeTempDir(`nomi-pr720-lang-${locale}-`)
   const iso = prepareIsolation(isoDir, { requireCatalog: true })
   const { app, win } = await launchNomiApp({
     name: `pr720-prompt-language-${locale}`,

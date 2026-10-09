@@ -1,9 +1,9 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 逃逸账本门岗的判据测试（R17：加规则必须先证明它会咬人）：判据层喂假数据，另有真目录端到端
 // （构造一条不合格的 fixed 条目 → CLI 退出 1；补齐后 → 退出 0）。
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -151,7 +151,7 @@ test('真实账本：现状是绿的', () => {
 })
 
 test('端到端：不合格的 fixed 条目 → CLI 退出 1；补齐根因合同、类检查、PR 号后 → 退出 0；candidate 超期只警告', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'escape-ledger-'))
+  const root = makeTempDir('escape-ledger-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (rel, content) => {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
@@ -179,7 +179,7 @@ test('端到端：不合格的 fixed 条目 → CLI 退出 1；补齐根因合�
 })
 
 test('一条一个文件：目录不在 / 缺 _meta.json / 文件坏了 / 文件名和 id 对不上 → CLI 红并点名', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'escape-ledger-dir-'))
+  const root = makeTempDir('escape-ledger-dir-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const run = () => spawnSync(process.execPath, [path.join(here, 'check-escape-ledger.mjs')], {
     encoding: 'utf8', env: { ...process.env, ESCAPE_LEDGER_REPO_ROOT: root, ESCAPE_LEDGER_TODAY: '2026-10-06' },
@@ -224,7 +224,7 @@ test('一条一个文件：id 就是文件名——非法字符、只差大小�
 })
 
 test('loadEscapeLedger：条目按 since + id 稳定排序；读某个提交与读工作树结果相同', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'escape-ledger-ref-'))
+  const root = makeTempDir('escape-ledger-ref-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   writeLedgerDirectory(root, ledger([entry({ id: 'b', since: '2026-10-02' }), entry({ id: 'c', since: '2026-10-01' }), entry({ id: 'a', since: '2026-10-02' })]))
   const loaded = loadEscapeLedger(root)

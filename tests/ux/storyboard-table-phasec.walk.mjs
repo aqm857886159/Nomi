@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜表 v5 Phase C 走查（R13/R16）：只走真实 Electron/IPC/渲染/项目文件源，零生成额度。
 // 覆盖 @ 入口与四类候选来源、绑定（插胶囊）/解绑（删胶囊）、文本顺序、骨架预设。
 import fs from 'node:fs'
@@ -11,7 +12,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = process.env.PHASEC_WALK_OUT || '/tmp/phaseC-walk'
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-phasec-'))
+const tempRoot = makeTempDir('nomi-storyboard-phasec-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'storyboard-phasec-walk'

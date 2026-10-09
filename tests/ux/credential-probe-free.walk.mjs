@@ -1,6 +1,7 @@
-// 真机走查：接入页填 key → 点「保存验证」→ 出站**只有免费端点**，一次生成请求都没有。
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+// 真机走查：接入页填 key → 点「保存验证」→ 出站只查询既有状态，不发起生成请求。
 //
-// 背景（T-MO-10，用户 2026-09-22 拍板「免费探测」）：此前这一下发的是真实
+// 背景：此前这一下发的是真实
 // `POST /api/v1/chat/completions`（`max_tokens:1`），扣用户积分，且经 `appFetch` 直接出门、
 // 没有 `grantId`，报价卡在结构上永远不可能为它出现（09-11 群反馈）。
 //
@@ -10,8 +11,7 @@
 // 夹具逐条记下真实收到的 method + path，然后断言：
 //   · 恰好一次请求，`GET /v1/balance`；
 //   · **零次** chat/completions（或任何生成形状的路径）；
-//   · 接入页文案的**料源**（主进程策略投影 `credentialProbePlan`）在点之前就已经是 `free`。
-//     （按钮上那句话本身由单测和 i18n 门岗管；这里要钉的是真机上它读到的是哪个答案。）
+//   · 接入页文案说明会发出的请求，页面不替用户判断费用。
 //
 // 用法（零额度，不需要任何真 key）：node tests/ux/credential-probe-free.walk.mjs
 import http from 'node:http'
@@ -38,7 +38,7 @@ const fixture = http.createServer((req, res) => {
 await new Promise((resolve) => fixture.listen(0, '127.0.0.1', resolve))
 const fixtureOrigin = `http://127.0.0.1:${fixture.address().port}`
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-probe-free-'))
+const tempRoot = makeTempDir('nomi-probe-free-')
 const profile = {
   tempRoot,
   settingsDir: path.join(tempRoot, 'settings'),
@@ -82,11 +82,6 @@ try {
     window.nomiDesktop.modelCatalog.upsertVendor({ key: 'apimart', name: 'APIMart', baseUrlHint: origin, authType: 'bearer', authHeader: 'Authorization', providerKind: 'openai-compatible' })
   }, fixtureOrigin)
 
-  // 接入页在**点之前**就该说清这一下花不花钱。
-  const plan = await win.evaluate(() => window.nomiDesktop.modelCatalog.credentialProbePlan('apimart'))
-  console.log(`  探测策略投影：cost=${plan?.cost} amount=${plan?.amount}`)
-  expect(plan?.cost, 'apimart 已经有免费端点了，接入页却读到它要花钱').toBe('free')
-
   const before = seen.length
   const result = await win.evaluate(() => window.nomiDesktop.modelCatalog.upsertVendorApiKey('apimart', { apiKey: 'sk-walkthrough-not-a-real-key-000', enabled: false }))
   const during = seen.slice(before)
@@ -96,10 +91,10 @@ try {
   const generationShaped = during.filter((r) => /(chat\/completions|\/completions|\/generations|\/v1\/messages|\/responses)/i.test(r.url))
   expect(generationShaped.length, `保存验证发出了生成请求（花用户的钱）：${generationShaped.map((r) => `${r.method} ${r.url}`).join(', ')}`).toBe(0)
   expect(during.length, `保存验证的出站次数不是 1：${during.map((r) => `${r.method} ${r.url}`).join(', ')}`).toBe(1)
-  expect(during[0].method, '免费探测不该是 POST').toBe('GET')
-  expect(during[0].url.startsWith('/v1/balance'), `免费探测打的不是余额端点，而是 ${during[0].url}`).toBe(true)
+  expect(during[0].method, '状态查询不该是 POST').toBe('GET')
+  expect(during[0].url.startsWith('/v1/balance'), `状态查询打的不是余额端点，而是 ${during[0].url}`).toBe(true)
 
-  console.log(`\n✅ 凭据免费探测走查通过：保存验证只打了 ${during[0].method} ${during[0].url}，零次生成请求。`)
+  console.log(`\n✅ 凭据探测走查通过：保存验证只打了 ${during[0].method} ${during[0].url}，没有发起生成请求。`)
   await app.close().catch(() => {})
   fixture.close()
   process.exit(0)

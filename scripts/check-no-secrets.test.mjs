@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 安全门岗的凭证检测单测。
 //
 // 为什么存在：2026-08-25 复盘——一个真实可用的 kie.ai key 明文躺在公开仓库 3 个月没被拦住
@@ -17,7 +18,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCANNER = path.join(REPO, "scripts", "check-no-secrets.mjs");
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-secret-gate-"));
+const tmpDir = makeTempDir("nomi-secret-gate-");
 
 afterAll(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 

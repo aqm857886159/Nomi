@@ -13,13 +13,11 @@ import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { runOldStoryboardFormatMatrix } from './core-a-old-storyboard-formats.mjs'
-import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const require = createRequire(import.meta.url)
 const { productionRunsRoot } = tsxRequire('../../electron/productionRun/productionRunPaths.ts', import.meta.url)
 const { renderShotNodePrompt, stableShotId } = tsxRequire('../../src/workbench/generationCanvas/agent/storyboardPlan.ts', import.meta.url)
 const { resolveNodeRenderKind } = tsxRequire('../../src/workbench/generationCanvas/nodes/resolveRenderKind.ts', import.meta.url)
-const { NODE_KIND_DEFAULT_SIZE } = tsxRequire('../../electron/capabilityCore/nodeKindDomain.ts', import.meta.url)
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex')
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'))
 const inside = (root, file) => {
@@ -292,7 +290,7 @@ export async function openCopiedStoryboardEditor(win, { original, design, copyRo
   const treeToggle = win.locator('[data-creation-resource-tree-toggle]:visible')
   await expect(treeToggle).toBeVisible()
   if (await treeToggle.getAttribute('data-creation-resource-tree-toggle') === 'expand') await clickOrFail(treeToggle, '展开原文稿侧栏')
-  await openStoryboardEditor(win, design.id, '打开原分镜方案')
+  await clickOrFail(win.locator(`[data-storyboard-id="${design.id}"]`), '打开原分镜方案')
   const editor = win.locator('[data-storyboard-editor="true"]')
   await expect(editor).toBeVisible()
   await expect(editor.locator('[data-storyboard-bulkbar]')).toBeVisible()
@@ -426,7 +424,7 @@ async function main() {
     await walk.stopApp()
     verifyFinalGraph()
     walk.report.oldStoryboardFormats = await runOldStoryboardFormatMatrix({ source, outputDir,
-      prepareOldProjectCopy, openCopiedStoryboardEditor, assertCanvasPreserved, assertNoHydratedCanvasAddition, editedCanvasExpectation, readCardInfoMeasurements, recordCandidateFailure, fileHashes })
+      prepareOldProjectCopy, openCopiedStoryboardEditor, assertCanvasPreserved, assertNoHydratedCanvasAddition, editedCanvasExpectation, readCardInfoMeasurements, captureExpectedLegacyTable, recordCandidateFailure, fileHashes })
   } catch (error) {
     recordCandidateFailure(walk.report, 'journey', error)
     failure = error

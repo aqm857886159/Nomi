@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：参考 URL 白名单改判定器之后，**生产构建的渲染层**照常起得来、画布照常画。
 //
 // 为什么非走查不可（单测证不了这条）：referenceUrl.asUrl 从「手列 scheme」改成了 import
@@ -18,7 +19,7 @@ import { expectVisible, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-url-scheme-boot')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-reference-url-scheme-'))
+const tempRoot = makeTempDir('nomi-reference-url-scheme-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 rmSync(shotsDir, { recursive: true, force: true })

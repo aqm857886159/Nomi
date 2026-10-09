@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 验收走查（「素材标签页重叠 + 重复的 Nomi 重新打开入口」）。
 //   ① 剪辑页左栏「素材」拉到最窄（240px）：「全部素材 / 项目素材」两个标签的字不越出自己的按钮、不压到旁边的钮；
 //      再往左拖过最小宽度：左栏变成收起条（不再把整块面板挤进 32px）；从收起条拖开：面板回来；
@@ -18,7 +19,7 @@ const shotsDir = path.join(repoRoot, `tests/ux/shots/asset-tab-overlap-and-nomi-
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-asset-tab-'))
+const tempRoot = makeTempDir('nomi-asset-tab-')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'walk-asset-tab'
 const projectName = en ? 'Narrow panels' : '窄栏验收'

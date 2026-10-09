@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 「一条一个文件」的账本目录（scripts/lib/entryDirectory.mjs）与两本账本的唯一加载函数：
 // 文件名 ↔ 身份一一对应、读某个提交 = 读工作树、坏文件点名、旧大文件留在工作树里就拒绝（墓碑）。
 import assert from 'node:assert/strict'
@@ -22,7 +23,7 @@ import { META_FILE, formatEntryJson, readEntryDirectory } from './lib/entryDirec
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 function tempRepo(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'entry-directory-'))
+  const root = makeTempDir('entry-directory-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   return root
 }

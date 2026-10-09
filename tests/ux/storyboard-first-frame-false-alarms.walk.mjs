@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜两处误报的真机走查（0.22.0 回归，合同 docs/fixes/2026-09-26-storyboard-resolve-vendor-rejected.root-cause.json
 // 与 docs/fixes/2026-09-26-storyboard-planned-first-frame-slot.root-cause.json）。
 //
@@ -50,7 +51,7 @@ const T = {
 }[LOCALE]
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-first-frame-alarm-'))
+const tempRoot = makeTempDir('nomi-first-frame-alarm-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const userDataDir = path.join(tempRoot, 'user-data')

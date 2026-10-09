@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Generation Strategy Resolver —— 执行计划面板 + 行内警示 + 落画布闸 真实用户任务走查（R13/R16）。
 //
 // 任务：一段含「超上限长镜 + 同场碎镜」的方案 → 打开分镜编辑器 → 执行计划面板按真实模型档案给出
@@ -30,7 +31,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-strategy-resolve-'))
+const tempRoot = makeTempDir('nomi-strategy-resolve-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'strategy-resolve-walk'

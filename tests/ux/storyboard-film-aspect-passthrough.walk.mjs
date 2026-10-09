@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 整片默认画幅**真的发得出去**（R13/R16 真机走查，2026-09-12 根因合同
 // docs/fixes/2026-09-12-storyboard-plan-defaults-passthrough.root-cause.json）。
 //
@@ -37,7 +38,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-film-aspect-'))
+const tempRoot = makeTempDir('nomi-film-aspect-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'film-aspect-walk'

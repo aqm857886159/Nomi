@@ -1,5 +1,5 @@
-// Original-editor branch of the golden journey. The separate production-table
-// mode remains in golden-path.e2e.mjs with its table-specific assertions intact.
+// Original-editor branch of the golden journey. The separate production-canvas
+// mode remains in golden-path.e2e.mjs (canvas nodes only, no shot table).
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
@@ -9,7 +9,6 @@ import { waitForCanvasViewportSettled, findCanvasBlankPoint, findNodeHitPoint } 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, DOCUMENT, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
-import { openStoryboardEditor } from './_creationResourceTree.mjs'
 const { createProductionRunRepository } = tsxRequire('../../electron/productionRun/productionRunRepository.ts', import.meta.url)
 
 export async function runOriginalStoryboardGolden({ walk, win, projectId, projectRoot, shot, setCurrentWin,
@@ -38,14 +37,28 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   const originalPlan = structuredClone(await readPlan())
   expect(originalPlan.shots.map(row => row.prompt)).toEqual(prompts)
   expect(originalPlan.shots.map(row => row.shotId)).toEqual(['shot-1', shotId, 'shot-3'])
-  // 保存方案 = 只存方案：画布上一个节点都没有（分镜表节点 0.24 退役；「放入画布」才落镜头节点，会花钱的那种）。
-  await expect.poll(async () => ((await readProject(win, projectId)).payload.generationCanvas.nodes ?? []).length, { timeout: stationTimeout({ operations: 1 }) }).toBe(0)
+  // 2026-09-21 合并 ①：这条原先是 `shots.map(row => row.title)).toEqual(titles)`，钉的是一个
+  // **不存在的契约**——`planShotSchema` 没有逐镜 `title` 这一格（zod 当场剥掉），分镜行的 UI 也不显示
+  // 逐镜标题（`StoryboardShotRow.tsx` 全文零处读它）。实测 plan 行的键恰好就是 schema 那几个。
+  // 模型拟的标题**没有丢**：`storyboardPlanFromDraftSubjects` 取第一条有名字的当方案名，
+  // 也就是左栏方案行上那个名字。所以改成钉住真实契约的两条（判据：产品没回归，是断言写错了）：
+  //   ① 逐镜不带 title —— 冒出来 = 有人又给「这一镜叫什么」加了第二个语义 owner；
+  //   ② 模型写的标题成了方案的名字 —— 丢了就是真的丢了。
+  expect(originalPlan.shots.filter(row => 'title' in row), 'plan 行不带逐镜标题（planShotSchema 没有这一格）').toHaveLength(0)
+  expect(originalPlan.title, '模型拟的标题成为方案名，不是被静默丢掉').toBe(titles[0])
+  expect(originalPlan.shots.map(row => row.modelKey)).toEqual(prompts.map(() => FIXTURE_IMAGE_MODEL))
+  // 2026-10-08 用户：「我们经常莫名其妙生成分镜表，这个可以删掉吧」。写方案不再往画布放任何节点（含分镜表视图）；
+  // 「Agent 产出先成方案、显式『放入画布』才落节点」。断言回到原话：拆完镜头画布上一个节点都没有。
+  await expect.poll(async () => {
+    const nodes = (await readProject(win, projectId)).payload.generationCanvas.nodes ?? []
+    return { generation: nodes.filter(node => node.kind !== 'shot_table').length, tables: nodes.filter(node => node.kind === 'shot_table').length }
+  }, { timeout: stationTimeout({ operations: 1 }) }).toEqual({ generation: 0, tables: 0 })
   expect(walk.fixture.images, 'Saving a storyboard submits no media').toHaveLength(0)
   const openEditor = async () => {
     await win.getByRole('button', { name: '创作', exact: true }).click()
     const expand = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
     if (await expand.isVisible()) await expand.click()
-    await openStoryboardEditor(win, designId)
+    await win.locator(`[data-storyboard-id="${designId}"]`).click()
     const editor = win.locator('[data-storyboard-editor="true"]')
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(3)
     return editor

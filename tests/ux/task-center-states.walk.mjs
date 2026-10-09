@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 任务面板「乱 + 状态对不上」R13 走查（用户 2026-09-25 反馈，PR claude/agent-panel-tidy）。
 // 用法: NOMI_EVIDENCE_LABEL=before|after node tests/ux/task-center-states.walk.mjs（缺省 after）
 // 产出: docs/evidence/2026-09-25-agent-panel-tidy/task-center-<label>-<zh|en>.png + task-center-<label>.json
@@ -22,6 +23,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, assertMockupContract, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 // 获批样张（2026-09-25「设计没问题」）的意图契约：等你处理排最上面、重新拉取常驻在那一组。
 import taskCenterIntentContract from '../../docs/design/mockups/contracts/2026-09-25-agent-panel-tidy-task-center.intent.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 标签走环境变量：runtime walk 的启动器只认 `--packaged <path>` 一种参数。
@@ -30,7 +32,7 @@ if (!['before', 'after'].includes(label)) throw new Error('Usage: NOMI_EVIDENCE_
 const outDir = path.join(repoRoot, 'docs/evidence/2026-09-25-agent-panel-tidy')
 fs.mkdirSync(outDir, { recursive: true })
 const fixtureDir = path.join(repoRoot, 'tests/ux/fixtures/task-center-agent-drafts')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-task-center-states-'))
+const tempRoot = makeTempDir('nomi-task-center-states-')
 
 const PANEL = '[data-nomi-right-panel="tasks"]'
 const STALE_RUN_ID = 'op-walk-stale-multishot'
@@ -230,7 +232,8 @@ try {
     // ② 等待超时（可重新拉取）的两行不在「已完成」组；卡上的状态词 = 它所在分组的名字。
     expect(seen.sections[0]?.group, `[${locale}] 「等你处理」排最上面（D1-A）`).toBe('attention')
     expect(seen.badge, `[${locale}] 顶栏数字 = 2 等你处理 + 1 进行中（D2-A）`).toMatch(/3$/)
-    expect(seen.recoverHint, `[${locale}] 悬停说明说清只查不花钱`).toBe(locale === 'zh' ? '只查结果，不重新生成，不花钱' : 'Only fetches the result — no new generation, no charge')
+    const dictionaryLocale = locale === 'zh' ? 'zh-CN' : 'en'
+    expect(seen.recoverHint, `[${locale}] 悬停说明来自词典`).toBe(uiText(dictionaryLocale, 'taskCenter.row.recoverHint'))
     const recoverable = seen.rows.filter((row) => /小鹿|老陈/.test(row.text))
     expect(recoverable.length, `[${locale}] 小鹿、老陈两行都在`).toBe(2)
     for (const row of recoverable) {

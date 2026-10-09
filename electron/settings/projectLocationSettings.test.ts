@@ -18,13 +18,13 @@ const previousSettingsRoot = process.env.NOMI_SETTINGS_DIR;
 
 beforeEach(() => {
   settingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-location-settings-"));
-  process.env.NOMI_SETTINGS_DIR = settingsRoot;
+  vi.stubEnv("NOMI_SETTINGS_DIR", settingsRoot);
 });
 
 afterEach(() => {
   fs.rmSync(settingsRoot, { recursive: true, force: true });
-  if (previousSettingsRoot === undefined) delete process.env.NOMI_SETTINGS_DIR;
-  else process.env.NOMI_SETTINGS_DIR = previousSettingsRoot;
+  if (previousSettingsRoot === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+  else vi.stubEnv("NOMI_SETTINGS_DIR", previousSettingsRoot);
 });
 
 describe("project location settings", () => {

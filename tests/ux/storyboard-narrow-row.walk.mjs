@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 镜头卡窄档走查（2026-10-06 第二轮版面重写，原样张 v1 的「参考列收一格 + N」随参考列一起删除）：
 // 真实 Electron / IPC / 渲染 / 项目文件，**零生成额度**（全程不点生成）。
 //
@@ -31,7 +32,7 @@ fs.mkdirSync(outDir, { recursive: true })
  * ② 上一轮跑完项目文件的 revision 变了，第二轮开库时会弹「发现另一台电脑的项目更新」把卡片挡住。
  */
 function makeFixture() {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storyboard-narrow-'))
+  const tempRoot = makeTempDir('nomi-storyboard-narrow-')
   const settingsDir = path.join(tempRoot, 'settings')
   const projectsDir = path.join(tempRoot, 'projects')
   const projectRoot = path.join(projectsDir, projectId)

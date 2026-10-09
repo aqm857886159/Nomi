@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Electron 主窗口页面缩放回归：Cmd/Ctrl +/-/0 不能改变应用壳 zoom factor。
 // 画布有自己的缩放模型；这里锁的是 Chromium 页面级缩放，避免整个 UI 越缩越小。
 // 用法：pnpm run build && node tests/ux/app-page-zoom.e2e.mjs
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-page-zoom-'))
+const tmp = makeTempDir('nomi-page-zoom-')
 const outDir = path.join(repoRoot, '.page-zoom-lab')
 mkdirSync(outDir, { recursive: true })
 

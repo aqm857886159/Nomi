@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Unified creation workspace walkthrough: drafts and multiple storyboard designs
 // share one resource tree, remain isolated, and survive a project reload.
 import { launchNomiApp } from './_launchApp.mjs'
@@ -10,7 +11,7 @@ import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-surfaces-'))
+const tempRoot = makeTempDir('nomi-creation-surfaces-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'creation-surfaces-e2e'

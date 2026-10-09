@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // P4 §3.2 形象确认卡（锚检查点渲染层）—— R13 零额度走查。接 #156 决议链（plan 2026-08-25-p4-anchor-checkpoint-card）。
 // 用法: node tests/ux/anchor-checkpoint-card.walk.mjs   （EN: NOMI_E2E_LOCALE=en node ...）
 // 产出: tests/ux/shots/anchor-checkpoint-card/*.png（光/暗各一组）
@@ -22,7 +23,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectHidden, expectText, proveProbe, expectAbsent, scopedText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-anchor-checkpoint-'))
+const tempRoot = makeTempDir('nomi-anchor-checkpoint-')
 const projectsDir = path.join(tempRoot, 'projects')
 const locale = process.env.NOMI_E2E_LOCALE === 'en' ? 'en' : 'zh-CN'
 const shotPrefix = locale === 'en' ? 'en-' : ''
@@ -49,8 +50,6 @@ const L = locale === 'en'
       reworkSelected: 'Reshoot the selected ones first',
       badgeNew: 'Fresh',
       badgeReuse: 'Reused',
-      noCost: 'adds no cost',
-      onlyPay: 'only pay for that one',
       // 内部词红线（英文别名一并挡）
       forbidden: ['anchor', 'checkpoint', 'freeze', 'seal', 'materialize', 'contract'],
     }
@@ -63,8 +62,6 @@ const L = locale === 'en'
       reworkSelected: '先重拍选中的',
       badgeNew: '新拍',
       badgeReuse: '复用上集',
-      noCost: '不新增花费',
-      onlyPay: '只花那一张的钱',
       forbidden: ['锚', '检查点', '冻结', '封存', '物化', '合同'],
     }
 
@@ -220,10 +217,10 @@ try {
     await win.locator('[data-anchor-badge="new"]').count() === 2 && await win.locator('[data-anchor-badge="reuse"]').count() === 0,
     `新拍=${await win.locator('[data-anchor-badge="new"]').count()} 复用=${await win.locator('[data-anchor-badge="reuse"]').count()}`)
 
-  // 两句承诺可见
+  // 说明行只写确认后的动作，不对费用作断言。
   const noteText = await scopedText(win.locator('[data-anchor-checkpoint-note]'))
-  record('② 两句承诺都在（不新增花费 + 只花重拍那张的钱）',
-    noteText.includes(L.noCost) && noteText.includes(L.onlyPay), `承诺行：「${noteText}」`)
+  record('② 说明行只写动作事实',
+    noteText.length > 0 && !/cost|charge|pay|花费|费用|付费|预算|额度|价格/i.test(noteText), `说明行：「${noteText}」`)
 
   // 零内部词（阳性对照：先证「重拍这张」这类真词探针测得到，再断言禁词不在卡内）
   const reworkProbe = await proveProbe(win.locator('[data-anchor-checkpoint-card]', { hasText: L.reworkThis }), '卡上确有「重拍这张」这类可见词（证明扫描测得到卡内文本）')
@@ -259,7 +256,7 @@ try {
   await expectHidden(card, '「先不拍」后卡应关闭')
   await delay(600)
   const afterDefer = await readRun(win, projectId)
-  record('④ 先不拍 = 不 decide、门保持 waiting（不产生费用）',
+  record('④ 先不拍 = 不 decide、门保持 waiting（不发起生成）',
     afterDefer?.gates?.find((g) => g.scope === 'anchor_checkpoint')?.status === 'waiting'
     && afterDefer?.budget?.actual === 0,
     `门=${afterDefer?.gates?.find((g) => g.scope === 'anchor_checkpoint')?.status} 已花=${afterDefer?.budget?.actual}`)
@@ -296,7 +293,7 @@ try {
   fs.rmSync(tempRoot, { recursive: true, force: true })
 
   // ── ⑥ 暗色：全新实例，冷启动即暗色（seedLocalStorage 在首帧前写好），整条链复用浅色那套 ──────────
-  const darkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-anchor-checkpoint-dark-'))
+  const darkRoot = makeTempDir('nomi-anchor-checkpoint-dark-')
   const darkProjectsDir = path.join(darkRoot, 'projects')
   fs.mkdirSync(darkProjectsDir, { recursive: true })
   let darkApp, darkWin, isDark = false

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -73,7 +74,7 @@ describe('core smoke needs', () => {
   })
 
   it('loopbackProvider + fixtureTextModel really stand up a zero-cost provider and select its text model', async () => {
-    const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-smoke-needs-'))
+    const settingsDir = makeTempDir('nomi-core-smoke-needs-')
     temps.push(settingsDir)
     const provisioned = await provisionNeeds(['fixtureTextModel', 'loopbackProvider'], { repoRoot, settingsDir })
     try {
@@ -93,7 +94,7 @@ describe('core smoke needs', () => {
   // 「能真按下去的那条生成路」：声明了才开执行侧那三把钥匙。不声明 → 一把都不给（老场景一个字不变）；
   // 声明 → 三把齐，且地址就是这台夹具（少一把主进程就装不出可提交的执行器，见 needs.mjs 里的理由）。
   it('paidGenerationRoute hands the main process the three fixture keys, and nothing does without it', async () => {
-    const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-smoke-needs-plain-'))
+    const plain = makeTempDir('nomi-core-smoke-needs-plain-')
     temps.push(plain)
     const textOnly = await provisionNeeds(['loopbackProvider', 'fixtureTextModel'], { repoRoot, settingsDir: plain })
     try {
@@ -102,7 +103,7 @@ describe('core smoke needs', () => {
       await textOnly.close()
     }
 
-    const paidDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-smoke-needs-paid-'))
+    const paidDir = makeTempDir('nomi-core-smoke-needs-paid-')
     temps.push(paidDir)
     const paid = await provisionNeeds(['loopbackProvider', 'paidGenerationRoute'], {
       repoRoot, settingsDir: paidDir, userDataDir: paidDir, appName: 'nomi',

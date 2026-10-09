@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：应用内代理设置（零 vendor 调用、零额度；只打免费图床做连通探测）。
 //
 // 判据不是「有没有渲染出来」，是**三态切换真的改变了出站行为**：
@@ -26,7 +27,7 @@ const projects = path.join(os.tmpdir(), 'nomi-proxywalk-projects')
 mkdirSync(settings, { recursive: true })
 mkdirSync(projects, { recursive: true })
 // 凭据钥匙（Windows 的 Local State）跟目录一起进隔离副本，user-data 与启动器默认同形、只是先建出来。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'proxy-setting-'))
+const tempRoot = makeTempDir('proxy-setting-')
 const userDataDir = path.join(tempRoot, 'user-data')
 if (existsSync(realNomiProfile().catalogPath)) seedRealCredentials({ settingsDir: settings, userDataDir })
 

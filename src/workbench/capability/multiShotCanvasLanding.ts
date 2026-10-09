@@ -87,7 +87,7 @@ export type MaterializeShotsPayload = {
   projectId?: string
   runId?: string
   materializationOperationId?: string
-  /** 计划名：分镜组名 = 它加「分镜组·」前缀，分镜表标题 = 它本身，两处都走 i18n。缺省 = 两处各用通用兜底。 */
+  /** 计划名：分镜组名 = 它加「分镜组·」前缀（走 i18n）。缺省 = 通用兜底。 */
   planName?: string
   shots?: MaterializeShotInput[]
 }

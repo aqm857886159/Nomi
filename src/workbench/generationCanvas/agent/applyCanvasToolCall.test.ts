@@ -317,13 +317,13 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
     useWorkbenchStore.getState().setWorkspaceMode('creation')
   })
 
-  it('合法方案 → 创作 owner + 一张表投影,不创建生成镜头,回执含计数', async () => {
+  it('合法方案 → 创作 owner,画布上不放任何节点（不建分镜表、不生成镜头）,回执含计数', async () => {
     const ack = await applyCanvasToolCall('propose_storyboard_plan', PLAN)
     const ws = useWorkbenchStore.getState()
     expect(ws.storyboardDesignsByDocumentId['doc-1']?.[0]?.plan).toEqual(PLAN)
     expect(ws.workspaceMode).toBe('creation')
     expect(ws.activeStoryboardId).toBeNull() // Agent 新建的方案只进列表，打开是用户的动作
-    expect(useGenerationCanvasStore.getState().nodes.map(node => node.kind)).toEqual(['shot_table']) // 只建表投影，不生成媒体
+    expect(useGenerationCanvasStore.getState().nodes).toEqual([]) // 写方案不碰画布（2026-10-08 不再自动建分镜表）
     expect(ack).toMatchObject({ status: 'applied', documentId: 'doc-1', storyboardDesignId: expect.any(String) })
     expect((ack as { message: string }).message).toContain('1 个锚')
     expect((ack as { message: string }).message).toContain('2 个镜头')

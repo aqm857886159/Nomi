@@ -91,7 +91,10 @@ export async function runOldStoryboardFormatMatrix({ source, outputDir, prepareO
       walk.report.beforeEditPersistedGraphAndMountedIdsPreserved = true
       await prompt().fill(editedPrompt)
       await expect.poll(() => readSavedDesign()?.plan?.shots.find(item => item.index === shot.index)?.prompt).toBe(editedPrompt)
-      // 显式编辑旧方案不再长出任何分镜表节点（0.24 退役）：画布节点数不变，由下面的 assertCanvasPreserved 钉住。
+      if (retired) {
+        // 2026-10-08：编辑旧方案不再顺手建分镜表，画布节点数不变。
+        assert.equal(readCopy().payload.generationCanvas.nodes.length, originalCanvas.nodes.length, 'Editing a retired plan adds no shot table')
+      }
       const assertSaved = () => {
         assert.deepEqual(readSavedDesign().plan, expectedPlan, 'Only the explicit prompt edit changes the complete original plan')
         assert.equal(readSavedDesign().documentId, fixture.design.documentId)

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // Settings model routes must replace the right-hand surface instead of opening nested dialogs.
 // Usage: pnpm build && node scripts/settings-nested-overlay-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
@@ -17,8 +18,8 @@ const shot = async (win, name) => {
 
 const { app, win } = await launchNomiApp({
   name: 'settings-right-pane-stack',
-  settingsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-right-pane-set-')),
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-right-pane-proj-')),
+  settingsDir: makeTempDir('settings-right-pane-set-'),
+  projectsDir: makeTempDir('settings-right-pane-proj-'),
   env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist', 'index.html')}` },
   settleMs: 1800,
 })

@@ -124,10 +124,8 @@ try {
     return canvas.nodes ?? []
   }
   const canvasNodeIds = async () => (await canvasNodes()).map((node) => node.id)
-  // 镜头节点。多镜草稿落画布时，同一个撤销步里还会长一张分镜表节点（`shot_table`，d65571cdb 2026-09-18
-  // 「分镜表读落地节点」）——它是这几镜的投影，不是第四个镜头。数镜头时不算它，表本身单独断言。
+  // 镜头节点。多镜草稿落画布只落镜头和分组，不再长分镜表（2026-10-08 用户：「我们经常莫名其妙生成分镜表」）。
   const shotNodeIds = async () => (await canvasNodes()).filter((node) => node.kind !== 'shot_table').map((node) => node.id)
-  const shotTableIds = async () => (await canvasNodes()).filter((node) => node.kind === 'shot_table').map((node) => node.id)
   const lanes = () => readLaneTranscripts(projectRoot)
   const nativeResult = (id) => lanes().flatMap(laneMessages).find((message) => message.role === 'toolResult' && message.toolCallId === id)
 
@@ -354,7 +352,7 @@ try {
   await expect(canvas).toContainText('K_CANVAS1_DONE')
   await expect.poll(shotNodeIds, { message: '三个镜头节点必须真的落到画布上', timeout: stationTimeout({ operations: 2 }) })
     .toHaveLength(3)
-  await expect.poll(shotTableIds, { message: '多镜草稿落地不再长分镜表节点（已退役，镜头在生成页列表里）', timeout: stationTimeout({ operations: 2 }) }).toHaveLength(0)
+  expect((await canvasNodes()).filter((node) => node.kind === 'shot_table'), '多镜草稿落地不许冒出分镜表').toHaveLength(0)
   const nodesAfterCreate = await shotNodeIds()
   await walk.snap('06-canvas-three-nodes-no-card')
 

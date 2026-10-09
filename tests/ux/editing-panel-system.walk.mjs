@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 走查：剪辑面板系统 C′（合同 docs/design/2026-09-05-editing-panel-design-contract.md §2.1–§2.3）。
 //
 // 真实用户任务：把一条已经拼好的粗剪拿到剪辑面上——挑镜头、看画面、调这一段的参数、导出。
@@ -20,7 +21,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/editing-panel-system')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-editing-panels-'))
+const root = makeTempDir('nomi-editing-panels-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

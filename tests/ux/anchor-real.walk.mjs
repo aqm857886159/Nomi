@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // C72 red/green receipt rendering in an isolated real Electron shell; zero media requests.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -9,7 +10,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/plan/anchor-real-evidence/screenshots')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-anchor-real-'))
+const tempRoot = makeTempDir('nomi-anchor-real-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'anchor-real-walk'

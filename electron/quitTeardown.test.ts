@@ -332,6 +332,43 @@ describe("quit teardown lifecycle", () => {
     expect(calls).toEqual(["active-exports", "desktop-lane-ipc"]);
   });
 
+  it("a drain registered critical runs on Windows session-end beside the lane, a plain one does not", async () => {
+    const { app, createWindow } = fakeApp();
+    const window = fakeSessionSource();
+    const calls: string[] = [];
+    registerQuitDrain("flush", async () => { calls.push("flush"); }, { critical: true });
+    registerQuitDrain("plain", async () => { calls.push("plain"); });
+    installQuitTeardown(app, { ...recordingDeps(calls), systemSession: { platform: "win32", powerMonitor: vi.fn() } });
+    createWindow(window.source);
+    window.emit("session-end");
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+    expect(calls).toContain("flush");
+    expect(calls).not.toContain("plain");
+    expect(calls).toContain("desktop-lane-ipc");
+  });
+
+  it("a critical drain that never settles is logged and does not hold the OS session past 500ms", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app, createWindow } = fakeApp();
+      const window = fakeSessionSource();
+      const errors: string[] = [];
+      const calls: string[] = [];
+      registerQuitDrain("flush", () => new Promise<void>(() => undefined), { critical: true, timeoutMs: 400 });
+      installQuitTeardown(app, { ...recordingDeps(calls), onError: (stage) => errors.push(stage), systemSession: { platform: "win32", powerMonitor: vi.fn() } });
+      createWindow(window.source);
+      window.emit("session-end");
+      await flushMicrotasks();
+      expect(calls).toContain("desktop-lane-ipc");
+      expect(app.exit).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(400);
+      expect(errors).toContain("flush-timeout");
+      expect(app.exit).toHaveBeenCalledWith(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("caps system session end at 500ms and still runs the lane when exports throw", async () => {
     vi.useFakeTimers();
     try {

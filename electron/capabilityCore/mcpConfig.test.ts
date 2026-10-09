@@ -85,7 +85,7 @@ beforeEach(() => {
     fs.writeFileSync(file, '', { mode: 0o755 })
   }
   // 隔离 capability-core 目录（security.ts 的 capabilityCoreDir() 用这个 env）。
-  process.env[CAPABILITY_DIR_ENV] = path.join(homeDir, '.nomi-cap')
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(homeDir, '.nomi-cap'))
   isPackaged = false
   realHome = null
   installHost('.claude')
@@ -95,9 +95,9 @@ beforeEach(() => {
 afterEach(() => {
   Object.defineProperty(process, 'execPath', { value: originalExecPath, configurable: true })
   vi.restoreAllMocks()
-  delete process.env[CAPABILITY_DIR_ENV]
-  delete process.env.NOMI_E2E
-  delete process.env.NOMI_SETTINGS_DIR
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
+  vi.stubEnv("NOMI_E2E", undefined)
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true })
 })
 
@@ -563,8 +563,8 @@ describe('capabilityCore/mcpConfig', () => {
     }, null, 2)
 
     it.each([
-      ['NOMI_E2E=1', () => { process.env.NOMI_E2E = '1' }],
-      ['NOMI_SETTINGS_DIR ≠ userData', () => { process.env.NOMI_SETTINGS_DIR = path.join(homeDir, 'isolated-settings') }],
+      ['NOMI_E2E=1', () => { vi.stubEnv("NOMI_E2E", '1') }],
+      ['NOMI_SETTINGS_DIR ≠ userData', () => { vi.stubEnv("NOMI_SETTINGS_DIR", path.join(homeDir, 'isolated-settings')) }],
     ])('refuses repair, install and uninstall under %s', (_label, isolate) => {
       isPackaged = true
       realHome = homeDir // 这台机器的真实主目录就是测试 HOME → 目标文件在真实主目录里
@@ -579,7 +579,7 @@ describe('capabilityCore/mcpConfig', () => {
 
     it('still writes when the walkthrough also moved HOME to a throwaway directory', () => {
       isPackaged = true
-      process.env.NOMI_E2E = '1' // realHome 保持本机真值；临时 HOME 不在它下面 → 写的是临时文件，无害
+      vi.stubEnv("NOMI_E2E", '1') // realHome 保持本机真值；临时 HOME 不在它下面 → 写的是临时文件，无害
       fs.writeFileSync(claudeJson(), stale)
       expect(repairStaleMcpConfigs().changed).toBe(true)
       expect(installMcp('claude').ok).toBe(true)

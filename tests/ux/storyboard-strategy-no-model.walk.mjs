@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 执行计划面板的「没有可用视频模型」态（R13，返工 6）。
 //
 // 为什么单独一条：这是同一块 UI 的**另一个真实结局**，而且是最容易被做坏的那个——
@@ -24,7 +25,7 @@ import { applyColorSchemeForShot, clickOrFail, expect, expectVisible, screenshot
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-strategy-no-model-'))
+const tempRoot = makeTempDir('nomi-strategy-no-model-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'strategy-no-model-walk'

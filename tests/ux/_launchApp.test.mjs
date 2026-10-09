@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 钉住启动器的核心不变量（替掉原 helpers/electronFixture.test.mjs，2026-08-11 收敛）。
 // 这条不变量就是本次修复的根因：漏掉这两个 env，窗口起不来且**毫无提示**，只会干等到超时。
 import fs from 'node:fs'
@@ -9,6 +10,7 @@ import { spawn } from 'node:child_process'
 import { describe, expect, test } from 'vitest'
 import {
   buildNomiLaunchEnv,
+  cleanupTempRoot,
   configureSyntheticCredentialStorage,
   currentCatalogVersion,
   diagnoseLaunchFailure,
@@ -18,17 +20,29 @@ import {
   launchNomiApp,
   mainRequireArgs,
   repoRoot,
+  registerTempRoot,
   requireBeforePackagedMain,
   withLinuxNoSandbox,
   withLinuxSyntheticCredentialStorage,
   withPackagedPlaywrightOrigin,
 } from './_launchApp.mjs'
 
+describe('shared Electron temp-root lifecycle', () => {
+  test('cleanup is idempotent for explicit and generated roots', () => {
+    const root = makeTempDir('nomi-launch-cleanup-')
+    registerTempRoot(root)
+    expect(fs.existsSync(root)).toBe(true)
+    cleanupTempRoot(root)
+    cleanupTempRoot(root)
+    expect(fs.existsSync(root)).toBe(false)
+  })
+})
+
 const dirs = { userDataDir: '/tmp/case/user-data', settingsDir: '/tmp/case/settings', projectsDir: '/tmp/case/projects' }
 
 describe('initial local storage fixture', () => {
   test('seeds missing preferences while preserving explicit values and excluding subframes', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-storage-seed-'))
+    const root = makeTempDir('nomi-storage-seed-')
     try {
       const args = prepareLocalStorageSeed(root, { 'nomi:splash:v1': 'seen', 'nomi-color-scheme': 'light' })
       let listener
@@ -69,7 +83,7 @@ describe('initial local storage fixture', () => {
 
 describe('mainRequire（主进程入口前的 -r 模块）', () => {
   test('每个绝对路径拼成一对 -r，顺序保持', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-main-require-'))
+    const root = makeTempDir('nomi-main-require-')
     try {
       const first = path.join(root, 'guard.cjs')
       const second = path.join(root, 'probe.cjs')
@@ -94,7 +108,7 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
 
   // 打包好的 App 静默忽略 `-r`：闸没装上、请求直奔真网。打包形态必须在主入口第一行之前真的装上。
   test('打包形态：模块在 app.asar/dist-electron/main.js 第一行之前就已加载', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-packaged-premain-'))
+    const root = makeTempDir('nomi-packaged-premain-')
     const entryDir = path.join(root, 'resources', 'app.asar', 'dist-electron')
     fs.mkdirSync(entryDir, { recursive: true })
     const guard = path.join(root, 'guard.cjs')
@@ -119,7 +133,7 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
 
 describe('prepareIsolatedCatalog', () => {
   test('quarantines a seed newer than the tested app instead of letting it enter Electron', () => {
-    const root = fs.mkdtempSync('/tmp/nomi-catalog-seed-red-')
+    const root = makeTempDir('nomi-catalog-seed-red-')
     const catalog = path.join(root, 'model-catalog.json')
     const future = { version: 12, futureOnlyField: 'preserve-me', vendors: [], models: [], mappings: [], apiKeysByVendor: {} }
     fs.writeFileSync(catalog, JSON.stringify(future))
@@ -133,7 +147,7 @@ describe('prepareIsolatedCatalog', () => {
 
   test('keeps current and older seeds for the app migration chain', () => {
     for (const diskVersion of [currentCatalogVersion(), currentCatalogVersion() - 1]) {
-      const root = fs.mkdtempSync('/tmp/nomi-catalog-seed-compatible-')
+      const root = makeTempDir('nomi-catalog-seed-compatible-')
       const catalog = path.join(root, 'model-catalog.json')
       fs.writeFileSync(catalog, JSON.stringify({ version: diskVersion, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }))
 
@@ -205,7 +219,7 @@ describe('isolatedCatalogHasSafeStorageCredentials', () => {
   // 不是凭据：只是 catalog 里那一格的形状（值从不被解密）。
   const placeholder = 'not-a-secret'
   const withCatalog = (catalog, run) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-synthetic-cred-'))
+    const root = makeTempDir('nomi-synthetic-cred-')
     try {
       if (catalog !== undefined) fs.writeFileSync(path.join(root, 'model-catalog.json'), typeof catalog === 'string' ? catalog : JSON.stringify(catalog))
       return run(root)

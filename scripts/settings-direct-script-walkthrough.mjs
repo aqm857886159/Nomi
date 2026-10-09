@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // Real Electron journey for the direct-script escape hatch.
 // Proves that draft creation performs no provider/docs/model/AI/verification request,
 // then performs exactly one user-triggered request during the explicit test run.
@@ -11,8 +12,8 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-direct-script-walk')
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-direct-script-set-'))
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-direct-script-proj-'))
+const settingsDir = makeTempDir('settings-direct-script-set-')
+const projectsDir = makeTempDir('settings-direct-script-proj-')
 mkdirSync(outDir, { recursive: true })
 
 const vendorName = 'Direct Script Relay With A Deliberately Long Connection Name'

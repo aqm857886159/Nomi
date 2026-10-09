@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import { afterEach, describe, expect, test } from 'vitest'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
@@ -21,7 +22,7 @@ afterEach(async () => {
 })
 
 async function temporarySettings() {
-  const settingsDir = await mkdtemp(path.join(os.tmpdir(), 'nomi-runtime-fixture-test-'))
+  const settingsDir = await makeTempDirAsync('nomi-runtime-fixture-test-')
   cleanups.push(() => rm(settingsDir, { recursive: true, force: true }))
   return settingsDir
 }

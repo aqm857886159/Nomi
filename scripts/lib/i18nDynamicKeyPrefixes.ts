@@ -72,6 +72,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
     ],
     why: "动态: 外部 Agent 接模型时那五步;枚举来源: assistedProgressProjection.ts 的 ASSISTED_PROGRESS_STEPS(它本身是 integrationContract 12 个 stage 的投影)(progress.steps.*.title/.body 词条)",
   },
+  { prefix: 'onboardingProviders.knownVendors', why: '动态: 供应商接入卡的界面文字按 vendorKey 取(tagline/promoText/promoCta/credential*/fields.*);枚举来源: src/config/knownVendors.ts 的 KNOWN_VENDORS(目录只放数据,文字全在这棵子树)' },
   { prefix: 'onboardingProviders.modelControls.kind', why: '动态: 模型 chip 类别;枚举来源: isKnownModelChipKind 判定的 kind 集(modelControls.kind.* 词条)' },
   { prefix: 'onboardingProviders.workspace.capability.editor.errors', why: '动态: 能力编辑器表单错误码;枚举来源: ModelCapabilityEditor 的 errors.form/errors.modes(editor.errors.* 词条)' },
   { prefix: 'onboardingProviders.workspace.adapter.title', why: '动态: 适配器状态卡标题;枚举来源: ModelAdapterStatusSection 的 state.state 联合(adapter.title.* 词条)' },

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 // 「门岗把基础设施失败说成视觉基线不符」这一类的回归测试（2026-09-06）。
 //
 // 素材是**真实跑出来的输出片段**，不是我编的字符串：连接类那一组抄自当天把 spec
@@ -171,7 +172,7 @@ describe('视觉道失败分诊', () => {
   })
 
   it('差异图是从磁盘上数出来的，不是从输出文本里猜的', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-lab-diff-'))
+    const dir = makeTempDir('nomi-lab-diff-')
     try {
       fs.mkdirSync(path.join(dir, 'form-07'))
       fs.writeFileSync(path.join(dir, 'form-07', 'form-07-diff.png'), 'x')

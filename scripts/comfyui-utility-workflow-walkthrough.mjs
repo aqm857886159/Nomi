@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：**处理类工作流**（不吃提示词的那类）从导入到点生成走通。
 // 这条路此前是死的——提交咽喉无条件抛英文 'prompt is required'，用户连好图点生成就卡死。
 //
@@ -17,7 +18,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-utility-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-utility-'))
+const settingsDir = makeTempDir('comfyui-utility-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 const COMFY = 'http://127.0.0.1:8188'
@@ -39,7 +40,7 @@ writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   models: [], mappings: [], apiKeysByVendor: {},
 }))
 
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-utility-proj-'))
+const projectsDir = makeTempDir('comfyui-utility-proj-')
 const { app, win } = await launchNomiApp({
   name: 'comfyui-utility-workflow',
   settingsDir,

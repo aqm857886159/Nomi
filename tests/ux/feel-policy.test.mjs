@@ -1,9 +1,10 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import { test, expect } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { collectNewFeelSurfaces, updateFeelLedger } from '../../scripts/feel-nightly.mjs'
-import { applyFeelExemptions, compareFeelBaseline, recordNewFeelSurfaces } from './_feel-observer.mjs'
+import { applyFeelExemptions, compareFeelBaseline, exemptionEvidenceGrowth, recordNewFeelSurfaces } from './_feel-observer.mjs'
 
 const finding = { rule: 'font-size', target: ['span'], text: ['Badge'], fontSizes: [11] }
 const exemptions = { entries: [{ label: 'state', rule: 'font-size', owner: 'typography', reason: 'Reviewed badge', findings: [finding] }] }
@@ -44,7 +45,7 @@ test('unregistered surfaces record while explicit zero and known counts still ra
 })
 
 test('nightly collects every run including nested runs without discarding findings', async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'feel-nightly-'))
+  const dir = await makeTempDirAsync('feel-nightly-')
   try {
     const surface = { label: 'new-journey', rule: finding.rule, mode: 'record', findings: [finding], screenshot: 'evidence.png' }
     for (const run of ['run-a', 'nested/run-b']) {
@@ -89,4 +90,17 @@ test('only declared journeys ratchet and screenshot budgets never bleed into oth
     expect(compareFeelBaseline(real, stale)).toEqual([])
     expect(recordNewFeelSurfaces(real, stale)).toEqual([expect.objectContaining({ journey, screenshotName: 'one.png', mode: 'record', findings: [finding] })])
   }
+})
+
+// 例外证据棘轮按 (target, fontSizes) 计数，文案只是说明（PR #1099：改文案不该被当成「例外变多」）。
+test('exemption ratchet: same element with reworded text is not growth', () => {
+  const old = [finding]
+  expect(exemptionEvidenceGrowth(old, [{ ...finding, text: ['Reworded badge'] }])).toEqual([])
+})
+
+test('exemption ratchet: an extra element of the same kind on the surface is still growth', () => {
+  const old = [{ rule: 'font-size', target: ['div'], text: ['A'], fontSizes: [11] }]
+  const extra = { rule: 'font-size', target: ['div'], text: ['B'], fontSizes: [11] }
+  expect(exemptionEvidenceGrowth(old, [old[0], extra])).toEqual([extra])
+  expect(exemptionEvidenceGrowth(old, [{ ...old[0], fontSizes: [10] }])).toHaveLength(1)
 })

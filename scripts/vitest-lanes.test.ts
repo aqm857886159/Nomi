@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { makeTempDir } from "./_test-temp.mjs";
 import { OTHER_LANES, findOrphanTests, listTestStyleFiles } from "../vitest.config";
 
 const repoRoot = join(__dirname, "..");
@@ -12,7 +12,7 @@ describe("测试文件必须有车道认领（vitest.config.ts 配置期自检�
   });
 
   test("新建一个不被任何车道收的测试文件 → 被点名；被收的不误报", () => {
-    const root = mkdtempSync(join(tmpdir(), "nomi-lanes-"));
+    const root = makeTempDir("nomi-lanes-");
     mkdirSync(join(root, "src/x"), { recursive: true });
     mkdirSync(join(root, "docs/x"), { recursive: true });
     writeFileSync(join(root, "src/x/a.test.tsx"), "");

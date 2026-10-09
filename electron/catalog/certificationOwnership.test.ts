@@ -173,12 +173,12 @@ describe("(b) AI 接入建的连接：仍是认证连接，鉴权放法照样锁
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-cert-owner-"));
-    process.env.NOMI_SETTINGS_DIR = root;
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     vi.resetModules();
   });
 
   afterEach(() => {
-    delete process.env.NOMI_SETTINGS_DIR;
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     fs.rmSync(root, { recursive: true, force: true });
   });
 

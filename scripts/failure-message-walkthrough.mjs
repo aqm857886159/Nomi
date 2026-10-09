@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查（终态失败原因是否说人话）：只留 apimart Imagen 4 一个图片模型（其上游 Google
 // 确定性 404，见 2026-07-30 直连探针）→ 建图片节点 → 打提示词 → 生成 → 等失败 →
 // 截图 + 打印错误卡的**真实 DOM 文案**，核对用户看到的是上游原话而不是「模型任务执行失败 (taskId=…)」。
@@ -25,7 +26,7 @@ const isolatedProjects = path.join(os.tmpdir(), 'nomi-failure-walk-projects')
 mkdirSync(isolatedSettings, { recursive: true })
 mkdirSync(isolatedProjects, { recursive: true })
 // 与启动器默认同形（每次新 tempRoot/user-data），只是先建出来：凭据钥匙（Windows 的 Local State）要在起 App 前种进去。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'failure-message-'))
+const tempRoot = makeTempDir('failure-message-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const devCatalog = realNomiProfile().catalogPath
 if (!existsSync(devCatalog)) {

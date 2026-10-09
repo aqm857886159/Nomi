@@ -76,8 +76,8 @@ try {
   // 面板出卡。它是**介入槽**里的一张卡，不是居中弹窗——单轨化的可见证据。
   let card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   const cardProof = await proveProbe(card, 'The paid confirmation lives in the agent panel intervention slot')
-  // 价格是宿主按目录 pricing 算出来的数字，不是标签。
-  await expect(card.locator(PRICE_TOTAL)).toContainText('0.30')
+  // 合同 contract-moneycopy（#1099）：界面不出 Nomi 按价目表算的金额——卡上原先那个 0.30 已删，这里改断言「不出金额」。
+  await expect(card.locator(PRICE_TOTAL), '确认控件上不出金额或货币符号').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   // 卡体就是画布节点那张生成框整件：提示词在卡上，不是留在画布上（v1 被打回的那个窟窿）。
   await expect(card).toContainText('六棱柱')
   await expect(card.locator('[data-parameter-summary]'), '付款卡沿用原参数 chips，不并存画布摘要 pill').toHaveCount(0)
@@ -94,7 +94,7 @@ try {
   await clickOrFail(switchCard.locator(INTERVENTION_CONFIRM), '确认切到全自动')
   await expect(win.locator(`${CANVAS_PANEL} [data-v4-block="auto-mode"]`), '全自动档要有常驻提醒').toBeVisible()
   await expect(card, '付费卡在切档之后仍然等着人答——钱不因档位放行').toBeVisible()
-  await expect(card.locator(PRICE_TOTAL), '让位回来之后价格一个字都没变——它没有倒计时，等多久都行').toContainText('0.30')
+  await expect(card.locator(PRICE_TOTAL), '让位回来之后确认控件上仍不出金额——它没有倒计时，等多久都行').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   expect(walk.fixture.images, '切档不提交待确认生成').toHaveLength(0)
   await walk.snap('spend-card-still-waiting-under-full-auto')
 

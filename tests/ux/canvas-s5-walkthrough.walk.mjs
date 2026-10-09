@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // S5 终验走查（画布拖动性能战役 · R13/R16 真机使用闭环）。
 //
 // 真实用户任务链路（每步一张证据截图 → outputs/canvas-s5-walkthrough/）：
@@ -20,7 +21,7 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'outputs/canvas-s5-walkthrough')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-s5-'))
+const tempRoot = makeTempDir('nomi-canvas-s5-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

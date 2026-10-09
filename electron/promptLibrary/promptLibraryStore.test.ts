@@ -35,15 +35,9 @@ it('serves stale disk content immediately and makes refreshed content available 
 })
 
 it('test network mode serves the bundled prompt fixture without starting a remote refresh', async () => {
-  const previous = process.env.NOMI_TEST_NETWORK_GUARD
-  process.env.NOMI_TEST_NETWORK_GUARD = '1'
+  vi.stubEnv('NOMI_TEST_NETWORK_GUARD', '1')
   mocks.fetch.mockRejectedValue(new Error('remote prompt source must not be touched'))
-  try {
-    const result = await getPromptLibrary()
-    expect(result.filter(p => p.sourceId === 'builtin-expressions')).toHaveLength(25)
-    expect(mocks.fetch).not.toHaveBeenCalled()
-  } finally {
-    if (previous === undefined) delete process.env.NOMI_TEST_NETWORK_GUARD
-    else process.env.NOMI_TEST_NETWORK_GUARD = previous
-  }
+  const result = await getPromptLibrary()
+  expect(result.filter(p => p.sourceId === 'builtin-expressions')).toHaveLength(25)
+  expect(mocks.fetch).not.toHaveBeenCalled()
 })
