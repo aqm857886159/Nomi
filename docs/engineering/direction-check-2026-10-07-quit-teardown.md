@@ -59,3 +59,10 @@ The registry entry `gate-family` remains under review because the current quit b
 - `electron/agentLane/laneIpc.test.ts`：先新增 dispose 后调用的红测，钉住旧行为会变成 handler 缺失。
 - `electron/quitTeardown.test.ts`：先新增 before-quit / will-quit 顺序红测，钉住旧实现把拆除放在 before-quit。
 - 项目 hydration 的真实 UI 走查在实现后补；当前没有 NomiStudioApp 的可注入单测 harness，未验证原因记在交货报告。
+
+## 2026-10-08 关机静默保存
+
+- 这一刀不是补旧行为：它按 #1125 / #1119 的 owner 设计扩展登记口，给 `registerQuitDrain` 加 `critical` 选项，让登记的排空也能进关机 / 注销的 500ms 无人值守路径，并与 Agent 会话收尾并行。
+- 类级结论不变：退出只归 `quitTeardown` 一个 owner。以后任何「关机前必须落盘」的东西都走这一个登记口（`critical`），不许另起监听、另写一套超时。
+- 首个使用者：`renderer-project-flush`（`electron/shutdownProjectFlush.ts`），只冲渲染层已欠的项目保存，没有改动不写盘。
+- 测试钉住中途状态：保存进行中又来 session-end、两个窗口、有窗口不回执、存盘失败、无改动（`electron/shutdownProjectFlush.test.ts`）。
