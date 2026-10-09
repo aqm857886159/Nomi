@@ -165,7 +165,7 @@ export function GenerationListDetail({ card, onBack, leadInset = false }: { card
           {node ? <DetailVersions node={node} width={previewWidth} /> : null}
           {node ? (
             nodeHasGenerationComposer(node.kind) ? (
-              <div className="mx-auto mt-4 w-full rounded-panel bg-nomi-paper p-3 ring-1 ring-nomi-line [&_[data-node-composer-references]:empty]:hidden" style={{ maxWidth: DETAIL_PREVIEW_WIDTH }} data-inspector-composer>
+              <div className="mx-auto mt-4 w-full rounded-panel bg-nomi-paper p-3 ring-1 ring-nomi-line" style={{ maxWidth: DETAIL_PREVIEW_WIDTH }} data-inspector-composer>
                 <LazyNodeGenerationComposer node={node} visualSize={node.size ?? { width: 340, height: 192 }} host="panel" onFeedback={NO_FEEDBACK} />
                 {/* 生成钮：panel 宿主的生成框把「生成」交给宿主；这里接，按下去 = 画布「↑」同一个口（nodeComposerGenerate）。 */}
                 <div className="mt-3 flex justify-end">
