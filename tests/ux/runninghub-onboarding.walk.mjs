@@ -29,7 +29,8 @@ if (!await tryClick(win, 'button:has-text("新建空白项目")', 'new-blank-pro
 await win.waitForTimeout(1500)
 await snap(win, 'project-opened')
 await tryClick(win, 'button:has-text("生成")', 'gen-tab'); await win.waitForTimeout(700)
-await tryClick(win, 'button:has-text("新建画面")', 'new-board'); await win.waitForTimeout(1000)
+// 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+await tryClick(win, '[data-empty-canvas-tasks] [data-add-intent="image"]', 'new-board'); await win.waitForTimeout(1000)
 await snap(win, 'canvas')
 
 // 加视频节点

@@ -24,31 +24,31 @@ import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 export { SLOT_ACCEPTS, type ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 
-export type EdgeSkipReason = 'dangling' | 'source_not_referenceable' | 'unsupported_reference'
+/** `target_takes_no_input`：目标这一类节点根本不收输入（上传素材 / 文本……，见种类定义的 `connects.input`）。 */
+export type EdgeSkipReason = 'dangling' | 'source_not_referenceable' | 'unsupported_reference' | 'target_takes_no_input'
 
 export type EdgeCapabilityResult = { ok: true } | { ok: false; reason: EdgeSkipReason }
 
 /**
- * 源节点能给出哪种可参考资产。按节点 kind 的执行语义 derive(与 resolver 取参考的口径一致):
- * 可执行视频→video、可执行图片→image、非执行但 providesImageReference(asset/panorama/director…)→image。
- * 文本/镜头/输出等(无 execution+不提供图参考)→ null:它们没有可被下游当参考的产物。
+ * 源节点能给出哪种可参考资产。先问种类定义「有没有能给下游用的产出」（`connects.output`，唯一 owner）——
+ * 没有 → null；有 → 按执行语义 derive（与 resolver 取参考的口径一致）：可执行视频→video、可执行图片→image、
+ * 可执行音频→audio；文本的产出是给下游的**提示词上下文**、不是参考素材 → null（文本边走 isTextPromptEdge）；
+ * 不执行但有产出的种类（素材 / 全景 / 导演台 / 画板）看产物 result.type。
  */
 export function referenceAssetKindForNode(node: GenerationCanvasNode): ReferenceAssetKind | null {
+  const definition = getGenerationNodeDefinition(node.kind)
+  if (!definition.connects.output) return null
   const exec = getGenerationNodeExecutionKind(node.kind)
   if (exec === 'video') return 'video'
   if (exec === 'image') return 'image'
-  // 音频节点(kind='audio')的产物是且只能是音频参考(用户报的根因「声音节点连不上视频节点」)：
-  // 与 image/video 同一层派生,不走下面 providesImageReference 分支(那支只处理"非执行类但仍能
-  // 提供图片参考"的节点,如 asset/panorama/scene3d,与音频语义无关)。
+  // 音频节点(kind='audio')的产物是且只能是音频参考(用户报的根因「声音节点连不上视频节点」)。
   if (exec === 'audio') return 'audio'
-  if (!getGenerationNodeDefinition(node.kind).providesImageReference) return null
+  if (exec) return null
   // 素材节点(kind='asset')**一个种类同时承载导入的图、视频和音频**——真实媒体类型必须看产物
   // result.type，不能一律当图参考。否则导入的视频被判 image → 连成 character_ref → 落「角色参考」
   // 图槽 → 显示成 <img src=video.mp4> 加载失败(用户报的「上传视频却显示图片/加载失败」)，且与发送侧
   // (generationReferenceResolver 按 result.type 把视频/音频分流进 referenceVideos/referenceAudios)
-  // 口径分裂。看 result.type 后:视频 → video_ref 槽、音频 → audio_ref 槽(用户报的另一种形态——
-  // 拖一段导入的音频文件当参考,而不是用专门的「声音」生成节点,同样不能被当图参考)。
-  // 无产物(上传中)默认 image。
+  // 口径分裂。看 result.type 后:视频 → video_ref 槽、音频 → audio_ref 槽。无产物(上传中)默认 image。
   if (node.result?.type === 'video') return 'video'
   if (node.result?.type === 'audio') return 'audio'
   return 'image'
@@ -151,19 +151,26 @@ function targetSlotKinds(node: GenerationCanvasNode): Set<ArchetypeReferenceSlot
 }
 
 /**
- * 这条参考边目标模型到底吃不吃。文本→图片/视频的通用 reference 边作为 prompt 上下文放行;
+ * 这条参考边目标到底收不收——**新建**连线的总闸（手动拖线 / 点「+」/ 点选 / @ / Agent / 自动引用都经它）。
+ * 目标这一类不收输入（种类定义 `connects.input === false`：上传素材、文本……）→ target_takes_no_input;
+ * 文本→图片/视频的通用 reference 边作为 prompt 上下文放行;
  * 其余源无可参考资产 → source_not_referenceable;
+ * 目标自己读上游边（`connects.input` 是素材列表：剪辑、导演台）→ 源资产在列表里才收，否则 unsupported_reference;
  * 目标声明了档案但任何模式都没有能消费「该 mode + 该源资产」的槽 → unsupported_reference;
- * 其余(含目标无档案)→ ok。
+ * 其余(含生成类目标还没选模型)→ ok。
+ * 只管新建：已经存在的旧边（老项目）照常加载、显示、能断开，这里不回头删它们。
  */
 export function validateReferenceEdge(
   source: GenerationCanvasNode,
   target: GenerationCanvasNode,
   mode: GenerationCanvasEdgeMode | undefined,
 ): EdgeCapabilityResult {
+  const input = getGenerationNodeDefinition(target.kind).connects.input
+  if (input === false) return { ok: false, reason: 'target_takes_no_input' }
   if (isTextPromptEdge(source, target, mode)) return { ok: true }
   const asset = referenceAssetKindForNode(source)
   if (!asset) return { ok: false, reason: 'source_not_referenceable' }
+  if (input !== 'models') return input.includes(asset) ? { ok: true } : { ok: false, reason: 'unsupported_reference' }
   const slotKinds = targetSlotKinds(target)
   if (!slotKinds) return { ok: true }
   const required = EDGE_MODE_SLOTS[mode ?? 'reference']
@@ -181,8 +188,14 @@ export function validateReferenceEdge(
  * 2026-09-24 用户反馈「视频无法拖出下一个连线」：v0.22 起每张能连线的卡都有「+」圈，但松手处的菜单还按
  * 旧名单只认 text/image，视频拖出去松手直接被取消，连线凭空消失。
  */
-/** 为什么接不上：源根本不产可参考的素材 / 这一类节点没有任何模型收这种素材。 */
-export type ConnectionCreateBlockReason = 'source_not_referenceable' | 'no_model_accepts'
+/**
+ * 为什么接不上（两侧菜单共用一套原因、一套文案，见 quickActions/nodeDeriveMenuModel）：
+ * - `source_not_referenceable`：源根本不产可参考的素材；
+ * - `no_model_accepts`：这一类节点没有任何模型收这种素材；
+ * - `model_rejects`：（左「+」）这张卡**当前选的模型**不收这种素材；
+ * - `not_accepted`：（左「+」）这张卡这一类根本不收这种输入（例如剪辑卡不收文字）。
+ */
+export type ConnectionCreateBlockReason = 'source_not_referenceable' | 'no_model_accepts' | 'model_rejects' | 'not_accepted'
 
 export type ConnectionCreateVerdict<K extends GenerationNodeKind = GenerationNodeKind> =
   | { kind: K; ok: true }
@@ -204,6 +217,47 @@ export function connectionCreateVerdictsForSource<K extends GenerationNodeKind>(
       archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
     )
     return accepted ? { kind, ok: true } : { kind, ok: false, reason: 'no_model_accepts', asset }
+  })
+}
+
+/** 某一类刚新建、还空着的节点（还没选模型、没有产物）——判「新建这一类接进来行不行」用。 */
+function emptyNodeOfKind(kind: GenerationNodeKind, like: GenerationCanvasNode): GenerationCanvasNode {
+  return { id: `new-${kind}`, kind, title: '', position: like.position, categoryId: like.categoryId, meta: {} }
+}
+
+/** 这一类节点有没有任一模型档案在任一模式里收这种素材（新建节点还没选模型时的判据，与右侧同一口径）。 */
+function anyArchetypeOfKindAccepts(kind: string | undefined, asset: ReferenceAssetKind): boolean {
+  return MODEL_ARCHETYPES.some((archetype) =>
+    archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
+  )
+}
+
+/**
+ * 左「+」= **给这张卡加输入**：新建哪一类节点接进来、接得上吗——以本卡为**目标**算（2026-10-08 拍板 ②；
+ * 修 bug ②：以前拿右侧那份以本卡为**源**的判据来判，视频卡把图片 / 文字灰掉，文本卡却能连出 图片 → 文本）。
+ * 与 `connectionCreateVerdictsForSource` 同文件、同一套原因（文案在 nodeDeriveMenuModel 一处翻译）。
+ * 判据全读种类定义的 `connects.input` 与模型档案：不收输入 → not_accepted；文本 → 吃提示词的目标才收；
+ * 素材列表型（剪辑 / 导演台）→ 列表里有才收；生成类 → 选了模型按这个模型（validateReferenceEdge 同口径），
+ * 没选模型按这一类任一模型。
+ */
+export function connectionCreateVerdictsForTarget<K extends GenerationNodeKind>(
+  target: GenerationCanvasNode,
+  kinds: readonly K[],
+): ConnectionCreateVerdict<K>[] {
+  const input = getGenerationNodeDefinition(target.kind).connects.input
+  return kinds.map((kind): ConnectionCreateVerdict<K> => {
+    const source = emptyNodeOfKind(kind, target)
+    const asset = referenceAssetKindForNode(source)
+    if (input === false) return { kind, ok: false, reason: 'not_accepted', asset }
+    if (isTextPromptEdge(source, target)) return { kind, ok: true }
+    if (!asset) return { kind, ok: false, reason: 'not_accepted', asset }
+    if (input !== 'models') return input.includes(asset) ? { kind, ok: true } : { kind, ok: false, reason: 'not_accepted', asset }
+    if (archetypeForNode(target)) {
+      return validateReferenceEdge(source, target, 'reference').ok ? { kind, ok: true } : { kind, ok: false, reason: 'model_rejects', asset }
+    }
+    return anyArchetypeOfKindAccepts(getGenerationNodeExecutionKind(target.kind), asset)
+      ? { kind, ok: true }
+      : { kind, ok: false, reason: 'no_model_accepts', asset }
   })
 }
 

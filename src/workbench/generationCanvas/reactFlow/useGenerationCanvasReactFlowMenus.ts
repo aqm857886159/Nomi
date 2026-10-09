@@ -6,14 +6,18 @@ import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import type { NodeContextMenuAction } from '../components/NodeContextMenu'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
-import { connectionCreateVerdictsForSource, connectionCreateVerdictsForSources, type ConnectionCreateVerdict } from '../agent/referenceEdgeCapability'
-import { NODE_DERIVE_KINDS, type NodeDeriveKind } from '../quickActions/nodeDeriveMenuModel'
+import type { ConnectionCreateVerdict } from '../agent/referenceEdgeCapability'
+import type { NodeDeriveKind } from '../quickActions/nodeDeriveMenuModel'
+import { connectionMenuVerdicts, resolveRingMenuPlacement, type ConnectionMenuStart } from '../quickActions/connectionMenuModel'
+import { addInputAcceptedAssets } from '../quickActions/nodeDeriveMenuModel'
+import { pickCanvasInputFor } from '../quickActions/nodeInputActions'
 import {
   useCanvasContextNodeMenu,
   type CanvasContextNodeMenu,
 } from '../components/useCanvasContextNodeMenu'
 import { buildCanvasMenuActions } from '../components/useCanvasMenuActions'
 import { resolveCanvasDropTargetFromDom } from './canvasConnectionDropTarget'
+import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
 type ConnectionSide = 'left' | 'right'
 
@@ -29,26 +33,16 @@ export type CanvasConnectionCreateMenu = {
   /** 松手 / 点「+」那一下的视口坐标（菜单走 `WorkbenchMenu`，按视口定位）。 */
   clientX: number
   clientY: number
+  /** true = 拖线松手（新卡落在松手点）；false = 点「+」出的菜单（新卡落在卡旁边，由 addNode 避让）。 */
+  exactPosition: boolean
   /** 线从一张卡起，还是从编组的「+」起（model/groupPort.ts）——新建节点后按哪种起点接上。 */
   sourceKind: 'node' | 'group'
 }
 
-type ConnectionStart = { nodeId: string; side: ConnectionSide; sourceKind: 'node' | 'group' }
+type ConnectionStart = ConnectionMenuStart
 
-/**
- * 松手在空白处 / 点「+」时每一类节点接不接得上。卡：看这张卡；编组：只有右侧（编组的输出）能接出新节点，
- * 判定是组内成员的并集；左侧（接进编组）在空白处没有「新建谁喂给这一组」的定义，取消。
- */
-function createVerdictsForStart(started: ConnectionStart): ConnectionCreateVerdict<NodeDeriveKind>[] {
-  const state = useGenerationCanvasStore.getState()
-  if (started.sourceKind === 'node') {
-    const source = state.nodes.find((node) => node.id === started.nodeId)
-    return source ? connectionCreateVerdictsForSource(source, NODE_DERIVE_KINDS) : []
-  }
-  if (started.side !== 'right') return []
-  const memberIds = new Set(state.groups.find((group) => group.id === started.nodeId)?.nodeIds ?? [])
-  return connectionCreateVerdictsForSources(state.nodes.filter((node) => memberIds.has(node.id)), NODE_DERIVE_KINDS)
-}
+/** 左「+」「从素材库添加…」打开的素材选择器：接进哪张卡、锚在哪、只列这张卡收得下的种类。 */
+export type CanvasAssetInputPicker = { targetNodeId: string; /** 打开选择器那一刻签发的原项目（动作起点签发，不是显示时现读当前项目）。 */ projectId: string | null; clientX: number; clientY: number; accept: ('image' | 'video' | 'audio')[] }
 
 type UseGenerationCanvasReactFlowMenusArgs = {
   readOnly: boolean
@@ -150,9 +144,15 @@ export function useGenerationCanvasReactFlowMenus({
   handleNodeContextAction: (action: NodeContextMenuAction) => void
   handleAddConnectedNode: (kind: GenerationNodeKind) => void
   openAddNodeMenuAt: (clientX: number, clientY: number) => void
+  openHandleMenu: (request: { nodeId: string; side: ConnectionSide; clientX: number; clientY: number }) => void
+  assetInputPicker: CanvasAssetInputPicker | null
+  closeAssetInputPicker: () => void
+  handleAddInputFromAssets: () => void
+  handleAddInputPickOnCanvas: () => void
 } {
   const connectionStartRef = React.useRef<ConnectionStart | null>(null)
   const [connectionCreateMenu, setConnectionCreateMenu] = React.useState<CanvasConnectionCreateMenu | null>(null)
+  const [assetInputPicker, setAssetInputPicker] = React.useState<CanvasAssetInputPicker | null>(null)
   const startGroupConnection = useGenerationCanvasStore((state) => state.startGroupConnection)
 
   const ensureContextNodeSelected = React.useCallback((nodeId: string) => {
@@ -246,8 +246,9 @@ export function useGenerationCanvasReactFlowMenus({
     }
   }, [cancelConnection, connectionCreateMenu, contextNodeMenu, setContextNodeMenu])
 
+  // 拖线松手出的菜单挂在那条待连的线上：线没了（别处取消）菜单跟着关。点「+」出的菜单不挂线（见 openHandleMenu）。
   React.useEffect(() => {
-    if (connectionCreateMenu && !pendingConnectionSourceId) setConnectionCreateMenu(null)
+    if (connectionCreateMenu?.exactPosition && !pendingConnectionSourceId) setConnectionCreateMenu(null)
   }, [connectionCreateMenu, pendingConnectionSourceId])
 
   const { handleAddContextNode, handleImportContextFiles, handleNodeContextAction, handleAddConnectedNode } = buildCanvasMenuActions({
@@ -257,8 +258,6 @@ export function useGenerationCanvasReactFlowMenus({
     connectionCreateMenu,
     setConnectionCreateMenu,
     addNode,
-    startConnection,
-    startGroupConnection,
     copySelectedNodes,
     cutSelectedNodes,
     pasteNodes,
@@ -301,7 +300,7 @@ export function useGenerationCanvasReactFlowMenus({
       else handleConnectToGroup(targetGroupId)
       return
     }
-    const verdicts = createVerdictsForStart(started)
+    const verdicts = connectionMenuVerdicts(started)
     if (!verdicts.some((verdict) => verdict.ok)) {
       cancelConnection()
       return
@@ -324,9 +323,56 @@ export function useGenerationCanvasReactFlowMenus({
       verdicts,
       clientX: point.clientX,
       clientY: point.clientY,
+      exactPosition: true,
       sourceKind: started.sourceKind,
     })
   }, [cancelConnection, getCanvasPointFromClientPoint, handleConnectToGroup, hostRef, nodeById, readOnly, visibleGroups])
+
+  // 点一下「+」（不拖）：出这一侧的菜单，锚在圈下（bug ①：以前只有拖线这一条入口，点了什么都不发生）。
+  // 不先起一条待连的线：起了线，卡就退回小圆点（起线中的起点不出圈），菜单旁的「+」会消失。选一项时由
+  // createConnectedNode 自己起线、连上；新卡落在卡旁边（没有松手点）。
+  const openHandleMenu = React.useCallback(({ nodeId, side, clientX, clientY }: { nodeId: string; side: ConnectionSide; clientX: number; clientY: number }) => {
+    if (readOnly) return
+    const state = useGenerationCanvasStore.getState()
+    const node = state.nodes.find((candidate) => candidate.id === nodeId)
+    if (!node) return
+    const verdicts = connectionMenuVerdicts({ nodeId, side, sourceKind: 'node' })
+    if (!verdicts.length) return
+    const rect = hostRef.current?.getBoundingClientRect()
+    const placement = resolveRingMenuPlacement(node, side, 'image')
+    setConnectionCreateMenu({
+      sourceNodeId: nodeId,
+      sourceSide: side,
+      stageX: rect ? clientX - rect.left : clientX,
+      stageY: rect ? clientY - rect.top : clientY,
+      canvasX: placement.x,
+      canvasY: placement.y,
+      verdicts,
+      clientX,
+      clientY,
+      exactPosition: false,
+      sourceKind: 'node',
+    })
+  }, [hostRef, readOnly])
+
+  // 左「+」菜单底下两项：都先关菜单（取消那条待连的线），再交给素材选择器 / 点选模式去接。
+  const handleAddInputFromAssets = React.useCallback(() => {
+    if (!connectionCreateMenu) return
+    setAssetInputPicker({
+      targetNodeId: connectionCreateMenu.sourceNodeId,
+      projectId: withProjectAction((project) => project.binding.projectId) ?? null,
+      clientX: connectionCreateMenu.clientX,
+      clientY: connectionCreateMenu.clientY,
+      accept: addInputAcceptedAssets(connectionCreateMenu.verdicts),
+    })
+    closeConnectionCreateMenu()
+  }, [closeConnectionCreateMenu, connectionCreateMenu])
+  const handleAddInputPickOnCanvas = React.useCallback(() => {
+    if (!connectionCreateMenu) return
+    closeConnectionCreateMenu()
+    pickCanvasInputFor(connectionCreateMenu.sourceNodeId)
+  }, [closeConnectionCreateMenu, connectionCreateMenu])
+  const closeAssetInputPicker = React.useCallback(() => setAssetInputPicker(null), [])
 
   const handlePendingGroupPointerUp = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement> | PointerEvent | MouseEvent) => {
     if (readOnly || !pendingConnectionSourceId) return
@@ -374,5 +420,10 @@ export function useGenerationCanvasReactFlowMenus({
     handleNodeContextAction,
     handleAddConnectedNode,
     openAddNodeMenuAt: openBlankMenuAt,
+    openHandleMenu,
+    assetInputPicker,
+    closeAssetInputPicker,
+    handleAddInputFromAssets,
+    handleAddInputPickOnCanvas,
   }
 }

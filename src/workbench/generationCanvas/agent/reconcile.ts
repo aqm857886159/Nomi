@@ -29,6 +29,7 @@ export type ReconcileDeviation = {
 const SKIP_REASON_TEXT: Record<string, string> = {
   unsupported_reference: '所选模型不支持这种参考连接',
   source_not_referenceable: '源节点没有可作参考的产物',
+  target_takes_no_input: '目标节点不收输入',
   dangling: '连接的一端节点找不到',
 }
 

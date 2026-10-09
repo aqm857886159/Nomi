@@ -23,7 +23,7 @@ vi.mock('../../project/projectCanvasReadSurface', () => ({
   })()),
 }))
 vi.mock('../store/generationCanvasStore', () => {
-  const getState = () => ({ nodes: fixture.nodes, updateNode: fixture.update, addNode: fixture.add,
+  const getState = () => ({ nodes: fixture.nodes, updateNode: fixture.update, addNode: fixture.add, addDerivedOutput: (request: { node: unknown }) => fixture.add(request.node),
     selectNode: fixture.select, connectNodes: fixture.connect })
   return { useGenerationCanvasStore: Object.assign((selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState()), { getState }) }
 })
