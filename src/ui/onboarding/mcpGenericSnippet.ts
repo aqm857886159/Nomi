@@ -15,5 +15,9 @@ import type { McpInfo } from '../../desktop/mcpBridgeTypes'
  * `external`：不在可信发起方之列，走得完 integration.* 全程，但不能替用户自动花钱。
  */
 export function genericMcpSnippet(server: McpInfo['server']): string {
-  return JSON.stringify({ mcpServers: { nomi: server } }, null, 2)
+  // 主动剥身份：就算调用方误传了已签名条目，这份通用片段也不带环境变量或请求头形式的 id / proof。
+  const { env, ...launcher } = server
+  const anonymousEnv = Object.fromEntries(Object.entries(env ?? {}).filter(([key]) => !/^NOMI_MCP_CLIENT(?:_PROOF)?$/.test(key)))
+  const { url: _url, headers: _headers, ...rest } = launcher as typeof launcher & { url?: unknown; headers?: unknown }
+  return JSON.stringify({ mcpServers: { nomi: { ...rest, ...(Object.keys(anonymousEnv).length ? { env: anonymousEnv } : {}) } } }, null, 2)
 }

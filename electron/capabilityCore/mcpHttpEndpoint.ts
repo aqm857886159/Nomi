@@ -100,3 +100,18 @@ export function buildMcpHttpHostEntry(client: AuthenticatedMcpClient, port: numb
   if (!proof) return null
   return { url: mcpHttpUrl(port), headers: mcpHttpIdentityHeaders(client, proof) }
 }
+
+/**
+ * 稳定地址（宿主配置里写的那个）此刻有没有 Nomi 在听：端点文件指向这个端口，且写它的进程还活着。
+ * 端口被占 / 服务没起来 → 端点文件不会指向这里（或进程已死）→ false，迁移据此拒绝（宿主保持 stdio）。
+ */
+export function isMcpHttpLiveAt(port: number): boolean {
+  const endpoint = readMcpHttpEndpoint()
+  if (!endpoint || endpoint.port !== port) return false
+  try {
+    process.kill(endpoint.pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException)?.code === 'EPERM'
+  }
+}

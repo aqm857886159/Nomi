@@ -9,7 +9,7 @@ let homeDir = ''
 const originalExecPath = process.execPath
 
 vi.mock('electron', () => ({
-  app: { getAppPath: () => path.join(homeDir, 'repo'), getPath: () => homeDir, get isPackaged() { return true } },
+  app: { getAppPath: () => path.join(homeDir, 'repo'), getPath: () => homeDir, getVersion: () => '9.9.9', get isPackaged() { return true } },
 }))
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>()
@@ -23,7 +23,7 @@ import {
   restorePreMigrationMcpConfig,
 } from './mcpHostMigration'
 import { builtinMcpClientConfigPath } from './mcpDetectedClients'
-import { MCP_HTTP_DEFAULT_PORT, mcpHttpUrl } from './mcpHttpEndpoint'
+import { MCP_HTTP_DEFAULT_PORT, mcpHttpUrl, writeMcpHttpEndpoint } from './mcpHttpEndpoint'
 import { CAPABILITY_DIR_ENV, MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, ensureToken, verifyMcpClient } from './security'
 import { BUILTIN_MCP_CLIENTS, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 
@@ -78,6 +78,9 @@ beforeEach(() => {
   vi.stubEnv(CAPABILITY_DIR_ENV, path.join(homeDir, '.nomi-cap'))
   vi.stubEnv('APPDATA', path.join(homeDir, 'AppData', 'Roaming'))
   vi.stubEnv('XDG_CONFIG_HOME', path.join(homeDir, '.config'))
+  // 服务端自己选端口的函数认显式覆盖；本进程在这个端口上「活着」= 端点文件指向它且 pid 是自己
+  vi.stubEnv('NOMI_MCP_HTTP_PORT', String(MCP_HTTP_DEFAULT_PORT))
+  writeMcpHttpEndpoint(MCP_HTTP_DEFAULT_PORT)
   fs.mkdirSync(path.join(homeDir, '.claude'), { recursive: true })
   fs.writeFileSync(path.join(homeDir, '.claude', 'installed-marker'), '1')
   ensureToken()
@@ -181,6 +184,37 @@ describe('同意后：按宿主写不同形状，保留别的服务器', () => {
     const before = bytes(cfg('workbuddy'))
     expect(migrateMcpHostsToHttp(['workbuddy'])[0]).toMatchObject({ ok: false, reason: 'not-migratable' })
     expect(bytes(cfg('workbuddy'))).toEqual(before)
+  })
+})
+
+describe('新连接方式此刻用不了：拒绝迁移，宿主保持 stdio', () => {
+  it('端点文件不存在（服务没起来 / 端口被占没记下）：全部报 http-unavailable，字节不变，没有备份', () => {
+    seedAll()
+    fs.rmSync(path.join(homeDir, '.nomi-cap', 'mcp-http.json'))
+    const before = snapshotAll()
+    const results = migrateMcpHostsToHttp(['claude', 'codex', 'cursor'])
+    expect(results.map((r) => (r.ok ? 'ok' : r.reason))).toEqual(['http-unavailable', 'http-unavailable', 'http-unavailable'])
+    for (const c of HOSTS) expect(bytes(cfg(c)), c).toEqual(before.get(c))
+    expect(noPremigrateFiles()).toBe(true)
+  })
+
+  it('端点文件指向别的端口，或写它的进程已经死了：同样拒绝', () => {
+    seedAll()
+    const before = bytes(cfg('claude'))
+    writeMcpHttpEndpoint(MCP_HTTP_DEFAULT_PORT + 1)
+    expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: false, reason: 'http-unavailable' })
+    const file = path.join(homeDir, '.nomi-cap', 'mcp-http.json')
+    fs.writeFileSync(file, JSON.stringify({ url: mcpHttpUrl(MCP_HTTP_DEFAULT_PORT), port: MCP_HTTP_DEFAULT_PORT, pid: 2147483000 }))
+    expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: false, reason: 'http-unavailable' })
+    expect(bytes(cfg('claude'))).toEqual(before)
+  })
+
+  it('显式要随机端口（0）不是稳定地址：拒绝，绝不把临时端口写进宿主', () => {
+    seedAll()
+    vi.stubEnv('NOMI_MCP_HTTP_PORT', '0')
+    const before = bytes(cfg('claude'))
+    expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: false, reason: 'http-unavailable' })
+    expect(bytes(cfg('claude'))).toEqual(before)
   })
 })
 

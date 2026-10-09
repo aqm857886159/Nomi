@@ -23,6 +23,7 @@ import {
   type McpClientKey,
 } from './mcpConfig'
 import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, isBuiltinMcpClient, verifyMcpClient } from './security'
+import { configuredMcpHttpEntry, verifyHttpEntry } from './mcpVerifyHttp'
 import type { McpVerifyReason } from '../shared/mcpConnectionContract'
 
 /** 失败原因：中立契约层 electron/shared/mcpConnectionContract.ts 的唯一 owner，这里只 derive。 */
@@ -59,7 +60,15 @@ export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
     : (isBuiltinMcpClient(client) || listCustomMcpProfiles().some((p) => p.key === client)) ? client : null
   if (!key) return fail('not-installed', false)
   const entry = configuredMcpEntry(key)
-  if (!entry) return fail('not-installed', false)
+  if (!entry) {
+    // 迁移后的 HTTP 条目：同样只认读回来的那一条，真握手一次（不 spawn，直连本机地址）。
+    const http = configuredMcpHttpEntry(key)
+    if (!http) return fail('not-installed', false)
+    const outcome = await verifyHttpEntry(key, http)
+    return outcome.ok
+      ? { ok: true, reason: 'ok', latencyMs: outcome.latencyMs, toolCount: outcome.toolCount, stale: false, detail: '' }
+      : fail(outcome.reason, false, outcome.detail)
+  }
 
   const expected = mcpServerEntry(key)
   const stale = entry.command !== expected.command || JSON.stringify(entry.args) !== JSON.stringify(expected.args)

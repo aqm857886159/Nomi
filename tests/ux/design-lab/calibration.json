@@ -1,6 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
+    "host-config": "2026-10-09 · MCP 第 3 段迁移提示（宿主配置迁移到本机直连）新增 20 格（询问 / 改好 / 部分没改成 / 新连接方式用不了 / 点了以后再说 × 中英 × 浅暗），舞台是生产 ConnectAssistantCard。界面以用户 10-05 在画布 v5 拍板为准，截图对账见 docs/evidence/2026-10-09-mcp-host-migration/。基线按 calibratedPlatform（darwin）录，Windows 上录出来的图和 CI 对不上：在 mac 上跑 pnpm run design-lab:update -- --screen host-config 并**删掉本条登记**。",
     "director-crowd": "2026-10-07 立屏（L-crowd）· 群众并进「＋→角色→群众」（行 / 列 / 间距 / 动作同一浮层，放下后是一个群众组，右卡可整组改动作）。样张已由用户拍板「按推荐走」并已实现，格子是现役组件本体；基线按 calibratedPlatform（darwin）录，Windows 录出来的图和 CI 对不上：在 mac 上跑 pnpm run design-lab:update -- --screen director-crowd 并**删掉本条登记**。截图证据在 docs/evidence/2026-10-07-director-crowd-as-role/。",
     "version-cards": "2026-10-06 立屏（L-vcard）· V2 已接进节点；入口按用户 10-07 拍板是图片右上角内侧的数字角标（vc-b1~b10 挂在真 React Flow 里），宫格 vc-01~19。基线要在 darwin 上录（Windows 上 design-lab:update 起不来）：跑 pnpm run design-lab:update -- --screen version-cards 并**删掉本条登记**。",
     "canvas-grouping": "2026-10-06 · 临时多选与编组的真实组件设计先给用户确认；确认后在 darwin 上跑 pnpm run design-lab:update -- --screen canvas-grouping 录基线，并删除本登记。当前不把设计提案误当成用户拍板基线。",

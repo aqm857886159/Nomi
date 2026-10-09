@@ -44,6 +44,19 @@ export type McpUninstallResult =
   | { ok: true; client: string }
   | { ok: false; client: string; reason: McpWriteRefusal }
 
+/** 迁移到本机直连（mcpHostMigration）的投影。 */
+export type McpMigrationFailure =
+  | 'not-migratable' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
+  | 'http-unavailable' | 'backup-failed' | 'write-failed'
+export type McpMigrationState = {
+  hosts: { client: string; label: string }[]
+  /** 「以后再说」按它记：到下一版再问。 */
+  appVersion: string
+}
+export type McpMigrationResult =
+  | { client: string; ok: true; kind: 'http' | 'forwarder'; backupPath: string | null }
+  | { client: string; ok: false; reason: McpMigrationFailure }
+
 export type McpInfo = {
   tokenReady: boolean
   rpcRunning: boolean

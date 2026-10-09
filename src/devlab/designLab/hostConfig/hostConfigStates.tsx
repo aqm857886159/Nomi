@@ -8,6 +8,7 @@
 // 这屏的基线**还没录**：接触表要先给用户看过（calibration.json 的
 // pendingApprovalScreens 里有一条显式登记，拍板录完基线就删掉它）。
 import { HOST_CONFIG_STATES as OWNERSHIP_STATES } from './states/01-client-ownership'
+import { HOST_CONFIG_MIGRATION_STATES } from './states/02-migration'
 import type { LabState } from '../labScreen'
 
-export const HOST_CONFIG_STATES: readonly LabState[] = [...OWNERSHIP_STATES]
+export const HOST_CONFIG_STATES: readonly LabState[] = [...OWNERSHIP_STATES, ...HOST_CONFIG_MIGRATION_STATES]

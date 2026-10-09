@@ -33,7 +33,7 @@ import { SETTINGS_ROOT_ENV, getSettingsRoot } from '../settings/settingsRoot'
 import { MCP_CLIENT_REGISTRY, isBuiltinMcpClient, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 import type { McpConfigState } from '../shared/mcpConnectionContract'
 
-const SERVER_NAME = 'nomi'
+export const SERVER_NAME = 'nomi'
 export const MCP_CONFIG_VERSION_ENV = 'NOMI_MCP_CONFIG_VERSION'
 export const MCP_CONFIG_KIND_ENV = 'NOMI_MCP_CONFIG_KIND'
 export const MCP_CONFIG_VERSION = '3'
@@ -313,18 +313,38 @@ function assertHostConfigWritable(target: string): void {
   if (realHome && isInside(target, realHome)) throw new HostConfigWriteRefused('isolated-instance', `${marker} → ${target}`)
 }
 
-function atomicWrite(target: string, content: string): string | null {
+/** 写盘失败发生在哪一步（迁移据此如实报「备份没成」还是「写没成」）；挂在抛出的错误上。 */
+export type HostConfigWriteStage = 'backup' | 'write'
+/** suffix = 备份文件名后缀；overwrite=false = 已有就保留（迁移前那份原文只存第一次）。 */
+export type AtomicWriteBackup = Readonly<{ suffix: string; overwrite: boolean }>
+const DEFAULT_BACKUP: AtomicWriteBackup = { suffix: '.nomi-backup', overwrite: true }
+
+function tagStage(error: unknown, stage: HostConfigWriteStage): unknown {
+  if (error && typeof error === 'object') (error as { nomiWriteStage?: HostConfigWriteStage }).nomiWriteStage = stage
+  return error
+}
+export function hostConfigWriteStage(error: unknown): HostConfigWriteStage | null {
+  const stage = (error as { nomiWriteStage?: unknown } | null)?.nomiWriteStage
+  return stage === 'backup' || stage === 'write' ? stage : null
+}
+
+/** 宿主配置唯一写盘门：先备份（失败则原文件不动），再写临时文件、原子换名；换名失败清掉临时文件。 */
+export function atomicWrite(target: string, content: string | Buffer, backup: AtomicWriteBackup = DEFAULT_BACKUP): string | null {
   assertHostConfigWritable(target)
   ensureDir(target)
-  let backupPath: string | null = null
-  if (fs.existsSync(target)) {
-    backupPath = `${target}.nomi-backup`
-    fs.copyFileSync(target, backupPath)
+  const backupPath = fs.existsSync(target) ? `${target}${backup.suffix}` : null
+  if (backupPath && (backup.overwrite || !fs.existsSync(backupPath))) {
+    try { fs.copyFileSync(target, backupPath) } catch (error) { throw tagStage(error, 'backup') }
   }
   const tmp = `${target}.nomi-tmp`
-  fs.writeFileSync(tmp, content, 'utf8')
-  // Windows：目标（如 Claude/Cursor 配置）被杀毒/编辑器短暂持有会 EPERM，共享重试收口（P2）。
-  renameSyncWithRetry(tmp, target)
+  try {
+    fs.writeFileSync(tmp, content, 'utf8')
+    // Windows：目标被杀毒/编辑器短暂持有会 EPERM，共享重试收口（P2）。
+    renameSyncWithRetry(tmp, target)
+  } catch (error) {
+    try { fs.rmSync(tmp, { force: true }) } catch { /* 清不掉不盖过原错误 */ }
+    throw tagStage(error, 'write')
+  }
   return backupPath
 }
 
@@ -335,7 +355,7 @@ function atomicWrite(target: string, content: string): string | null {
  * 此前解析失败也回 `{}`，随后整份 `{mcpServers:{nomi}}` 被当作整个文件写回——`~/.claude.json` 里
  * Claude Code 的登录会话和逐项目信任全没了（有 .nomi-backup，但用户不会知道）。
  */
-function readJsonConfig(target: string): Record<string, unknown> | null {
+export function readJsonConfig(target: string): Record<string, unknown> | null {
   if (!fs.existsSync(target)) return {}
   try {
     const parsed = JSON.parse(fs.readFileSync(target, 'utf8'))
@@ -385,7 +405,7 @@ const CODEX_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*\]
 const CODEX_TABLE_HEADER_RE = /^\s*(?:\[[^\]]+\]|\[\[[^\]]+\]\])\s*(?:#.*)?$/
 const CODEX_FAMILY_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*(?:\.\s*[^\]]+)?\]\s*(?:#.*)?$/
 
-function tomlEscape(value: string): string {
+export function tomlEscape(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
@@ -401,8 +421,8 @@ function tomlEscape(value: string): string {
  *    设 "writes" = 只对**没标 readOnlyHint** 的工具弹确认（标注在 mcpProtocol 的 READ_ONLY_TOOLS）：
  *    查询类静默通过，写入与生成门仍由各自权限边界确认——不拿用户的钱换顺滑。
  */
-const CODEX_STARTUP_TIMEOUT_SEC = 60
-const CODEX_TOOL_TIMEOUT_SEC = 600
+export const CODEX_STARTUP_TIMEOUT_SEC = 60
+export const CODEX_TOOL_TIMEOUT_SEC = 600
 
 function codexBlock(server: McpServerEntry): string {
   const args = server.args.map((arg) => `"${tomlEscape(arg)}"`).join(', ')
@@ -418,7 +438,7 @@ function codexBlock(server: McpServerEntry): string {
   return block
 }
 
-function readText(target: string): string {
+export function readText(target: string): string {
   try {
     return fs.readFileSync(target, 'utf8')
   } catch {
@@ -436,7 +456,7 @@ function codexInstalled(target: string): boolean {
  * Codex 也接受 `[mcp_servers.nomi.env]`。如果只删父表、留下 env 子表，再写
  * `env = { ... }`，整个 config.toml 会因重复 env 键而无法解析。
  */
-function removeCodexBlock(text: string): string {
+export function removeCodexBlock(text: string): string {
   const out: string[] = []
   let skipping = false
   for (const line of text.split('\n')) {

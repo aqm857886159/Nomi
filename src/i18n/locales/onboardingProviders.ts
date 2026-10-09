@@ -649,6 +649,24 @@ export const zhOnboardingProviders = {
       body: '用 Cline / Windsurf / pi-mcp-adapter 等别的 MCP 客户端？复制这段通用配置粘进它的 MCP 设置。它不带客户端身份，Nomi 会把它当作外部客户端。',
       copy: '复制配置',
     },
+    // 迁移提示（第 3 段）：不出现协议名 / 口令 / 价格；失败如实说哪个、为什么、下一步。
+    migration: {
+      separator: '、',
+      ask: 'Nomi 换了更快的连接方式，要把 {{clients}} 改过去吗？',
+      askHint: '改之前会先备份；不改也照样能用到下个版本。',
+      defer: '以后再说',
+      confirm: '改过去',
+      done: '已改好 {{count}} 个，原配置的备份放在各自旁边，重启它们后生效。',
+      failed: {
+        unavailable: '{{client}} 没改：新连接方式现在用不了，原来的连接照常可用。稍后再试。',
+        backupFailed: '{{client}} 没改：没能先备份，所以没动它，原来的连接照常可用。请确认它的配置文件所在文件夹可写，再试一次。',
+        writeFailed: '{{client}} 没改成：写入没成功，原配置没有被改动。请先关掉 {{client}}，再试一次。',
+        configUnreadable: '{{client}} 没改：它的配置文件现在不是合法 JSON，Nomi 不会覆盖它。请先修好那个文件。',
+        isolatedInstance: '{{client}} 没改：这是隔离的测试实例，不会改你本机的配置。',
+        notMigratable: '{{client}} 没改：现在没有可改的旧连接，原来的连接照常可用。',
+      },
+    },
+    openNomiFirst: '用之前先打开 Nomi。Nomi 关着时，助手那边会直接提示连不上。',
     // 写盘被拒时的人话（主进程 mcpConfig.McpWriteRefusal）。
     refused: {
       unknownClient: '不认识的客户端，没有写入任何文件。',
@@ -1903,6 +1921,24 @@ export const enOnboardingProviders = {
       body: 'Using Cline, Windsurf, pi-mcp-adapter, or another MCP client? Copy this generic configuration into its MCP settings. It carries no client identity, so Nomi treats it as an external client.',
       copy: 'Copy config',
     },
+    // Migration prompt (segment 3): no protocol names, passwords or prices; failures say which one, why, and what to do.
+    migration: {
+      separator: ', ',
+      ask: 'Nomi has a faster way to connect. Switch {{clients}} over?',
+      askHint: 'We back up first. Leaving it as is keeps working until the next version.',
+      defer: 'Not now',
+      confirm: 'Switch over',
+      done: 'Switched {{count}}. Each original config is backed up next to it. Restart them to take effect.',
+      failed: {
+        unavailable: 'Not changed ({{client}}): the new way to connect is not available right now. The old connection keeps working. Try again later.',
+        backupFailed: '{{client}} was not changed: the backup could not be made, so nothing was touched and the old connection keeps working. Make sure the folder of its config file is writable, then try again.',
+        writeFailed: '{{client}} was not changed: the write failed and its config is untouched. Close {{client}} first, then try again.',
+        configUnreadable: '{{client}} was not changed: its config file is not valid JSON right now, so Nomi will not overwrite it. Fix that file first.',
+        isolatedInstance: '{{client}} was not changed: this is an isolated test instance and will not edit the config on this computer.',
+        notMigratable: '{{client}} was not changed: there is no old connection to switch. The existing connection keeps working.',
+      },
+    },
+    openNomiFirst: 'Open Nomi before you use it. When Nomi is closed, your assistant will say it cannot connect.',
     refused: {
       unknownClient: 'Unknown client. Nothing was written.',
       clientNotInstalled: '{{client}} was not detected on this computer. Nothing was written.',

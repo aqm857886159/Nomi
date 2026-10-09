@@ -97,6 +97,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'onboardingProviders.assistant.reason', why: '动态: 助手连接失败原因;枚举来源: REASON_I18N 映射值(assistant.reason.* 词条)' },
   { prefix: 'onboardingProviders.assistant.staleConfig', why: '动态: 已知过时的接入配置形状;枚举来源: STALE_CONFIG_I18N 映射值(McpConfigState 四种 Nomi 自己写过的历史形状 → assistant.staleConfig.* 词条)' },
   { prefix: 'onboardingProviders.assistant.refused', why: '动态: 助手配置写盘被拒原因;枚举来源: REFUSAL_I18N 映射值(mcpConfig.McpWriteRefusal → assistant.refused.* 词条)' },
+  { prefix: 'onboardingProviders.assistant.migration.failed', why: '动态: 迁移到本机直连时某个宿主没改成的原因;枚举来源: McpMigrationPrompt 的 FAILURE_I18N 映射值(McpMigrationFailure → assistant.migration.failed.* 词条)' },
   { prefix: 'onboardingProviders.customCall.template', why: '动态: 自定义调用模板 id;枚举来源: CustomCallEditor 的 template tpl.id(customCall.template.* 词条)' },
   { prefix: 'onboardingProviders.customCall.vars', why: '动态: 自定义调用变量名;枚举来源: CustomCallEditor 的变量名集(customCall.vars.* 词条)' },
   { prefix: 'onboardingProviders.journey.beats', why: '动态: 引导旅途节拍;枚举来源: JourneyTourController 的 beat.id(journey.beats.${id}.title/.body 词条)' },
