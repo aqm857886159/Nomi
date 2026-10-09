@@ -79,7 +79,7 @@ function seedFor(scene: CanvasScene, locale: VnLocale): Seed {
         id: 'vn-frame',
         title: frameCardTitle(locale, c.sourceTitle, PLAYHEAD_SECONDS),
         position: RESULT_AT,
-        extra: { status: 'error', error: frameFailureMessage(locale, PLAYHEAD_SECONDS) },
+        extra: { status: 'error', error: frameFailureMessage(locale) },
       })
       return { nodes: [source, frame], edges: [link('vn-frame')] }
     }

@@ -90,10 +90,10 @@ export async function extractVideoFrameToNode(node: GenerationCanvasNode, reques
     const result = await extractFrame({ videoUrl, which: ipcWhich(request), projectId: project.binding.projectId, projectBinding: project.binding })
     project.assertCurrent()
     url = result?.url || ''
-    if (!url) failure = failureMessage(i18n.t('generationCommon.node.extractFrame.empty', { frame: label }))
+    if (!url) failure = failureMessage(i18n.t('generationCommon.node.extractFrame.empty'))
   } catch (error) {
     if (project.signal.aborted || isProjectImportCancellation(error)) return
-    failure = failureMessage(i18n.t('generationCommon.node.extractFrame.failed', { frame: label }), error)
+    failure = failureMessage(i18n.t('generationCommon.node.extractFrame.failed'), error)
   }
 
   const size = resolveNodeVisualSize(node)
@@ -125,7 +125,7 @@ export async function extractVideoFrameToNode(node: GenerationCanvasNode, reques
     return card
   })
   if (!created) {
-    reportFeedback(failure?.human ?? i18n.t('generationCommon.node.extractFrame.failed', { frame: label }))
+    reportFeedback(failure?.human ?? i18n.t('generationCommon.node.extractFrame.failed'))
     return
   }
   // 失败时那张新的错误卡自己就是回执（标题 = 失败原因），不再往原视频卡下面补一条重复的提示。
@@ -148,7 +148,6 @@ export async function retryVideoFrameCapture(cardId: string, reportFeedback: (me
   }
   const time = card.meta?.sourceTime
   const request: VideoFrameRequest = frame === 'time' ? { atSeconds: typeof time === 'number' ? time : 0 } : frame
-  const label = frameLabel(request)
   const project = withProjectAction((issued) => issued)
   const extractFrame = getDesktopBridge()?.video?.extractFrame
   if (!project || !extractFrame) {
@@ -159,7 +158,7 @@ export async function retryVideoFrameCapture(cardId: string, reportFeedback: (me
   try {
     const result = await extractFrame({ videoUrl, which: ipcWhich(request), projectId: project.binding.projectId, projectBinding: project.binding })
     project.assertCurrent()
-    if (!result?.url) throw new Error(i18n.t('generationCommon.node.extractFrame.empty', { frame: label }))
+    if (!result?.url) throw new Error(i18n.t('generationCommon.node.extractFrame.empty'))
     const createdAt = Date.now()
     useGenerationCanvasStore.getState().updateNode(cardId, {
       result: { id: `frame-${frame}-${createdAt}`, type: 'image', url: result.url, createdAt },
@@ -169,7 +168,7 @@ export async function retryVideoFrameCapture(cardId: string, reportFeedback: (me
     })
   } catch (error) {
     if (project.signal.aborted || isProjectImportCancellation(error)) return
-    const message = failureMessage(i18n.t('generationCommon.node.extractFrame.failed', { frame: label }), error)
+    const message = failureMessage(i18n.t('generationCommon.node.extractFrame.failed'), error)
     // 失败卡自己就是回执，不重复提示。
     useGenerationCanvasStore.getState().updateNode(cardId, { status: 'error', error: message.stored })
   }

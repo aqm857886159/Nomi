@@ -87,8 +87,7 @@ export function frameCardTitle(locale: VnLocale, source: string, seconds: number
   return i18n.t('generationCommon.node.extractFrame.nodeTitle', { lng: locale, title: source, frame })
 }
 
-export function frameFailureMessage(locale: VnLocale, seconds: number): string {
-  const frame = i18n.t('generationCommon.node.extractFrame.current', { lng: locale, time: frameTimecode(seconds) })
+export function frameFailureMessage(locale: VnLocale): string {
   const detail = locale === 'en' ? 'ffmpeg exited with code 1' : 'ffmpeg 中途退出（code 1）'
-  return localProcessingError(`${i18n.t('generationCommon.node.extractFrame.failed', { lng: locale, frame })}\n${detail}`)
+  return localProcessingError(`${i18n.t('generationCommon.node.extractFrame.failed', { lng: locale })}\n${detail}`)
 }

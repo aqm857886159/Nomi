@@ -75,7 +75,7 @@ const L = {
   last: tr('generationCommon.videoToolbar.lastFrame'),
   retry: tr('generationCommon.observability.action.retry.main'),
   // 失败卡的标题 = 失败文案第一行（人话），不是一句泛泛的「失败」。
-  failedTitle: tr('generationCommon.node.extractFrame.failed').replace('{{frame}}', tr('generationCommon.node.extractFrame.current').replace('{{time}}', '0:07.2')),
+  failedTitle: tr('generationCommon.node.extractFrame.failed'),
   switchModel: [tr('generationCommon.observability.action.switchModel.main'), tr('generationCommon.observability.action.switchModel.alt')],
 }
 
