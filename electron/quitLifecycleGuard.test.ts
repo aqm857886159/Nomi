@@ -33,11 +33,11 @@ it.each([
 
 it("ESLint allows only the two documented exemptions to exit directly", async () => {
   const eslint = new ESLint({ cwd: process.cwd() });
-  for (const filePath of ["electron/capabilityCore/host.ts", "electron/update/autoUpdater.ts"]) {
+  for (const filePath of ["electron/capabilityCore/host.ts", "electron/update/installGate.ts"]) {
     const [result] = await eslint.lintText(`${electronApp}app.exit(0); autoUpdater.quitAndInstall();`, { filePath });
     expect(result?.messages.some((message) => message.message.includes("quitTeardown"))).toBe(false);
   }
-  for (const filePath of ["electron/main.ts", "electron/mainProcessLifecycle.ts", "electron/capabilityCore/mcpStdioServer.ts"]) {
+  for (const filePath of ["electron/main.ts", "electron/mainProcessLifecycle.ts", "electron/capabilityCore/mcpStdioServer.ts", "electron/update/autoUpdater.ts"]) {
     const [result] = await eslint.lintText(`${electronApp}app.exit(0);`, { filePath });
     expect(result?.messages.some((message) => message.ruleId === "no-restricted-syntax")).toBe(true);
   }
@@ -52,7 +52,7 @@ it.each([
   'autoUpdaterExemptFile.on("session-end", () => undefined);',
 ])("ESLint rejects quit or session-end subscription %s outside the owner, exemptions included", async (source) => {
   const eslint = new ESLint({ cwd: process.cwd() });
-  for (const filePath of ["electron/ai/quit-lifecycle-counterexample.ts", "electron/update/autoUpdater.ts"]) {
+  for (const filePath of ["electron/ai/quit-lifecycle-counterexample.ts", "electron/update/installGate.ts"]) {
     const [result] = await eslint.lintText(source, { filePath });
     expect(result?.messages.some((message) => message.ruleId === "no-restricted-syntax")).toBe(true);
   }
