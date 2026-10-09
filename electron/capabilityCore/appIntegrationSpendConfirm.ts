@@ -28,7 +28,8 @@ import { sameProjectAgentBinding } from '../shared/projectBinding';
 //
 // 见 `productionRunReducer.ts` 的 `generation.revise`：改了载荷还沿用旧授权，
 // 面板收据上写的和真正跑的就分叉了，而用户是照着收据点的头。
-import { logWarn } from "../logging/logger";
+import { logInfo, logWarn } from "../logging/logger";
+import { awaitShotHandover } from "../productionRun/shotProviderHandover";
 import type { ApprovalReceiptAuthority } from "./approvalReceipt";
 import type { DispatchContext } from "./dispatcher";
 import type { GenerationOperationStore, GenerationReviseInput } from "./mcpGenerationTools";
@@ -534,7 +535,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
    * 用户按下去的那一刻看到的就是要发的：`quoteId` 必须是此刻这张卡、点名的必须恰好是卡上那一叠；
    * 每张开拍前再核一次它在卡上的样子没被别人改过（前面几张批下去会换报价，但不该换这一张要发的内容）。
    * 哪一张没成就停在那一张——它和它后面的镜照旧留在卡上，和逐张点到那里停下一模一样。用户中途点 × 收回出价，
-   * 剩下的不再生成（× 不排队，正是为了能打断它）。
+   * 剩下的不再生成（× 不排队，正是为了能打断它）。一张一张交：上一张供应商受理了才批下一张（`awaitShotHandover`）。
    */
   const confirmRemainingShots = (input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> =>
     serializeCardAction(input.projectId, input.operationId, async () => {
@@ -570,6 +571,14 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
           return closedUnderIt ? { ok: true, code: "spend_confirmed", batchStopped: { sent, notSent: input.shotIds.length - sent } } : result;
         }
         sent += 1;
+        // 一张一张交（10-09 拍板 B）：这一张真的交到供应商手里了才批下一张——× 停得住还没交的，「正在发出 k/N」是真话。
+        // 只等受理、不等生成完；等的这段 × 照样进得来（真 I/O 的等待），这一张已经在交就让它交完，后面的不再批。
+        const approvedAt = Date.now();
+        const handover = await awaitShotHandover({ readRun: () => deps.runs.read(input.projectId, input.operationId), shotId });
+        logInfo("production-run", "spend-batch-shot-handover", { shotId, handover, approvedToHandoverMs: Date.now() - approvedAt });
+        // 批了却不会再派了（Run 停了）：这一张没发出，照实说，剩下的不再批。
+        if (handover === "not_dispatched") return { ok: true, code: "spend_confirmed", batchStopped: { sent: sent - 1, notSent: input.shotIds.length - sent + 1 } };
+        if (handover === "timed_out") return { ok: true, code: "spend_confirmed", batchStopped: { sent, notSent: input.shotIds.length - sent } };
       }
       return { ok: true, code: "spend_confirmed" };
     });

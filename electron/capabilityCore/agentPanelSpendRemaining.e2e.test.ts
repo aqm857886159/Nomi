@@ -7,6 +7,7 @@
 //   · 点完以后卡和芯片的状态跟逐张点完全一致（同一份逐镜结局驱动）；
 //   · 按下去时看到的就是要发的——点名的不是卡上那一叠、或报价旧了，一张都不发。
 import { afterEach, describe, expect, it } from "vitest";
+import type { GenerationProvider } from "./generationRuntimeAdapter";
 
 import { generationPresentationOutcome } from "../shared/productionGenerationPresentation";
 import { waitForProduction } from "../productionRun/productionRunTestHelpers";
@@ -124,45 +125,49 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
     }
   });
 
-  // #1139 CI eval:journey（zh「× 真的停下了」6 张全发）：× 是另一条 IPC，主进程得空出一拍才处理得到。
-  // 以前每批一张都要等一次渲染层落地（真 I/O），那一拍是碰巧有的；落地前移之后节点已在画布上，这一叠全是微任务，
-  // × 要等六张全批完才轮得到。这里不在动作里等 ×，只在第 1 张批下之后把它排成下一拍到来的 IPC。
-  it("× arrives as a separate IPC after the 1st approval (not awaited inside the action): the batch stops, sent < total and equals what was approved before ×", async () => {
-    const vendor = await startLoopbackVendor();
+  // #1139 CI eval:journey（zh「× 真的停下了」6 张全发）+ 10-09 拍板 B：「生成剩下 N 张」一张一张交——上一张供应商受理了才批下一张。
+  // 与真 App 同形：批下之后派发另起（不在动作里等），第 1 张的提交停在供应商门口时用户点 ×（另一条 IPC，不在动作里等）。
+  // 一口气批完的旧行为下，第 1 张还没交到供应商手里，后面几张早就批了——× 停不住；这里必须只发 1 张。
+  it("one at a time: × lands while the 1st shot is still being handed to the provider → only that shot is sent, nothing after × is approved", async () => {
     const base = harness();
     const submits: string[] = [];
-    let approvedBeforeStop = -1;
+    let approvedWhenXLanded = -1;
     let discarding: Promise<unknown> | undefined;
-    let armed = true;
-    const built = buildActions(base, vendor.origin, submits, {
-      // 与真 App 同形：批下之后派发是另起的（调度器 fire-and-forget），这一下动作里没有任何真 I/O。
-      holdDispatch: () => true,
-      afterAuthorize: async () => {
-        if (!armed) return;
-        armed = false;
-        setImmediate(() => {
+    let built: ReturnType<typeof buildActions>;
+    let sequence = 0;
+    const provider = (providerId: string, _origin: string, sent: string[]): GenerationProvider => ({
+      providerId,
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+      buildRequest: (input) => input,
+      submit: async (_request, idempotencyKey) => {
+        sent.push(idempotencyKey);
+        if (sequence === 0) {
+          // 第 1 张的请求到了供应商，受理要一会儿（真供应商几秒）；用户在这段时间里点 ×。等卡真的关了，供应商才受理这一张。
+          // 一口气批完的旧行为下，这半秒里后面几张早就批完了。
+          await new Promise((resolve) => setTimeout(resolve, 500));
           const open = built.withWindow.listPendingSpend(PROJECT_ID)[0];
-          if (!open) return;
-          approvedBeforeStop = 6 - open.shots.length;
-          discarding = built.withWindow.discardPendingSpend({ ...TARGET, quoteId: open.quoteId });
-        });
+          approvedWhenXLanded = open ? 6 - open.shots.length : -1;
+          discarding = built.withWindow.discardPendingSpend({ ...TARGET, quoteId: open!.quoteId });
+          await waitForProduction(() => built.withWindow.listPendingSpend(PROJECT_ID).length === 0);
+        }
+        sequence += 1;
+        return { providerTaskId: `task-${sequence}` };
       },
+      query: async (providerTaskId) => ({ status: "succeeded", raw: { id: providerTaskId, status: "succeeded" } }),
+      materialize: async ({ providerTaskId }) => ({ outputs: [{ kind: "image", url: `nomi-local://asset/${PROJECT_ID}/${providerTaskId}.png` }] }),
     });
+    built = buildActions(base, "http://127.0.0.1:1", submits, { detachDispatch: true, provider });
     const { withWindow, handler } = built;
-    try {
-      await imageDraft(base, handler, 6);
-      const card = withWindow.listPendingSpend(PROJECT_ID)[0];
-      advanceClock(1000);
-      const result = await withWindow.confirmRemainingShots({ ...TARGET, quoteId: card.quoteId, shotIds: card.shots.map((shot) => shot.shotId) });
-      await discarding;
-      const outcome = generationPresentationOutcome(base.repository.read(PROJECT_ID, OPERATION_ID)!)!;
-      expect(approvedBeforeStop, "× 真的在批完之前到了").toBeGreaterThan(0);
-      expect(outcome.generating.length, "× 之后没批的不再生成").toBeLessThan(6);
-      expect(outcome.generating.length, "批下的就是 × 到之前批下的那几张").toBe(approvedBeforeStop);
-      expect(result).toMatchObject({ ok: true, batchStopped: { sent: approvedBeforeStop, notSent: 6 - approvedBeforeStop } });
-    } finally {
-      await vendor.close();
-    }
+    await imageDraft(base, handler, 6);
+    const card = withWindow.listPendingSpend(PROJECT_ID)[0];
+    advanceClock(1000);
+    const result = await withWindow.confirmRemainingShots({ ...TARGET, quoteId: card.quoteId, shotIds: card.shots.map((shot) => shot.shotId) });
+    await discarding;
+    const outcome = generationPresentationOutcome(base.repository.read(PROJECT_ID, OPERATION_ID)!)!;
+    expect(approvedWhenXLanded, "× 到的时候宿主只批了正在交的那一张").toBe(1);
+    expect(outcome.generating, "× 之后没有新的批准").toEqual(["shot-1"]);
+    expect(submits, "供应商只收到那一张").toHaveLength(1);
+    expect(result).toMatchObject({ ok: true, batchStopped: { sent: 1, notSent: 5 } });
   });
 
   // 2026-10-02 真 App 实测：每批下一张卡上的报价就换一版，用户点 × 时带的是他卡上那一版——往往已经是前一张批下去之前的。

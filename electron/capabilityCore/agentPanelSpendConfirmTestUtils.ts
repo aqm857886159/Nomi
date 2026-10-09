@@ -236,6 +236,11 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
    */
   holdDispatch?: () => boolean;
   /**
+   * 批准之后派发另起、不在这一下动作里等它（与真 App 同形：appIntegration 的 driveScheduler 是 fire-and-forget）。
+   * 缺省 = 在 start 里等这一轮调度跑完（老夹具的样子）。
+   */
+  detachDispatch?: boolean;
+  /**
    * 换一份模块目录（缺省 = 本文件那份只有两个夹具模型的目录）。铁律 ⑩ 的宿主矩阵用真内置目录种子建的目录
    * （`createCatalogModuleRegistry`），好让「键名不同 / 没有该参数 / 像素档」这几类真模型走同一条宿主链。
    */
@@ -311,7 +316,10 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
           commandId: `fixture:submit:v${run.planVersion}`, expectedRevision: run.revision,
           type: "generation.submit", payload: {}, issuedAt: now(),
         });
-        if (!hooks.holdDispatch?.()) await runBatch(operation.operationId);
+        if (!hooks.holdDispatch?.()) {
+          if (hooks.detachDispatch) void runBatch(operation.operationId).catch(() => undefined);
+          else await runBatch(operation.operationId);
+        }
         return { operationId: operation.operationId, state: "submitted", nextAction: "observe" };
       }
       const started = await startSingleShotProduction({ repository, submission, landShots: canvasLanding.landBeforeDispatch, projectId: PROJECT_ID, runId: operation.operationId, now });

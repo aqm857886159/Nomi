@@ -117,9 +117,17 @@ const LOCK_BUSY_RETRY_MS = 250;
 /**
  * 同一进程里，一个 Run 同一时刻只有一趟驱动（#1139：以前每批下一镜就新起一趟，几趟抢同一把 Run 锁，
  * 抢输的那一镜被当成「这一趟的失败」丢下，几趟都歇了之后它停在 authorized、再没人派——12 镜批了 10 镜）。
- * 又有人来踢（又批下一镜 / 点了继续 / 定时重踢）：并进正在跑的那一趟，它歇下前按最新的 Run 再走一遍。
+ * 又有人来踢（又批下一镜 / 点了继续 / 定时重踢）：并进正在跑的那一趟，它歇下前按最新的 Run 再走一遍；它正在两轮轮询之间
+ * 等着（3 秒起、翻倍到 15 秒）就当场叫醒——不然刚批下的一镜要陪着等完这一觉才派（「生成剩下 N 张」一张一张交时，每张多等十几秒）。
  */
-const drivesInFlight = new Map<string, { again: boolean; outcome: Promise<BatchOutcome> }>();
+type DriveInFlight = {
+  /** 这一趟歇下前要不要按最新的 Run 再走一遍（有人并进来过）。 */
+  again: boolean;
+  outcome: Promise<BatchOutcome>;
+  /** 叫醒正在两轮之间等着的这一趟；它没在等，就记下「下一次别睡」（只抵一次）。 */
+  wake: () => void;
+};
+const drivesInFlight = new Map<string, DriveInFlight>();
 
 /** Same env override as the single-shot legacy chain (core.ts) so slow vendors tune ONE knob. */
 function defaultPollHorizonMs(): number {
@@ -282,16 +290,43 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     });
   }
 
+  let current: DriveInFlight | undefined;
+  let kickedWhileAwake = false;
+
+  /** 两轮之间的等待；有人来踢（见 drivesInFlight）就提前醒。 */
+  function restUnlessKicked(ms: number): Promise<void> {
+    const entry = current;
+    if (!entry) return sleep(ms);
+    if (kickedWhileAwake) {
+      kickedWhileAwake = false; // 上一轮醒着的时候有人踢过：这一觉不睡，马上按最新的 Run 再派生一次
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        entry.wake = () => { kickedWhileAwake = true; };
+        resolve();
+      };
+      entry.wake = finish;
+      void sleep(ms).then(finish);
+    });
+  }
+
   /** 一个 Run 一趟驱动（见 drivesInFlight）：已经有一趟在跑就并进去，不另起一趟去抢锁。 */
   function runToQuiescence(): Promise<BatchOutcome> {
     const key = `${deps.projectId}\u0000${deps.runId}`;
     const active = drivesInFlight.get(key);
     if (active) {
       active.again = true;
+      active.wake();
       return active.outcome;
     }
-    const entry = { again: false, outcome: undefined as unknown as Promise<BatchOutcome> };
+    const entry: DriveInFlight = { again: false, outcome: undefined as unknown as Promise<BatchOutcome>, wake: () => { kickedWhileAwake = true; } };
     drivesInFlight.set(key, entry);
+    current = entry;
+    kickedWhileAwake = false;
     entry.outcome = (async () => {
       try {
         let outcome: BatchOutcome;
@@ -302,6 +337,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         return outcome;
       } finally {
         drivesInFlight.delete(key);
+        current = undefined;
       }
     })();
     return entry.outcome;
@@ -438,7 +474,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         const delayMs = Math.min(POLL_DELAY_START_MS * 2 ** backoffStep, POLL_DELAY_CAP_MS, pollHorizonMs - sleptMs);
         backoffStep += 1;
         sleptMs += delayMs;
-        await sleep(delayMs);
+        await restUnlessKicked(delayMs);
         lockBusy.clear(); // 等过这一轮，锁多半空了：没派成的那几镜下一轮照常派
         continue; // waiting round — bounded by pollHorizonMs, does not consume maxTicks
       }
@@ -448,7 +484,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         if (sleptMs >= pollHorizonMs) return { progress: result.progress, checkpoint: result.checkpoint, quiescent: false };
         const delayMs = Math.min(LOCK_BUSY_RETRY_MS, pollHorizonMs - sleptMs);
         sleptMs += delayMs;
-        await sleep(delayMs);
+        await restUnlessKicked(delayMs);
         lockBusy.clear();
         continue;
       }

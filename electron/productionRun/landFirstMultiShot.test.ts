@@ -398,6 +398,35 @@ describe("the one submit boundary re-checks the stop, and a Run has one drive at
     expect(completions).toEqual([1, 2]);
   });
 
+  it("a kick while the drive is waiting between polls wakes it at once (a just-approved shot does not wait out a 3–15 s sleep)", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a")]);
+    let queries = 0;
+    const provider = mockProvider(vi.fn(async () => ({ providerTaskId: "task-a" })));
+    provider.query = async (providerTaskId) => {
+      queries += 1;
+      // 交的那一下问一次、第一轮观察再问一次都还在生成；之后这一趟去睡。
+      return queries <= 2 ? { status: "processing", raw: { id: providerTaskId, status: "processing" } } : { status: "succeeded", raw: { id: providerTaskId, status: "succeeded" } };
+    };
+    let slept: (() => void) | undefined;
+    const make = () => createMultiShotBatchScheduler({
+      repository, projectId: PROJECT, runId: RUN, now: () => NOW, landShots: landingThatBinds(repository, []),
+      // 这一觉自己永远不醒：只有来踢的那一下能叫醒它。
+      sleep: () => new Promise<void>(() => { slept?.(); }),
+      submission: createProductionGenerationSubmission({
+        repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, intentMacKey: "test-intent-key", provider, now: () => NOW,
+        materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
+      }),
+    });
+    const asleep = new Promise<void>((resolve) => { slept = resolve; });
+    const drive = make().runToQuiescence();
+    await asleep;
+    const kicked = make().runToQuiescence(); // 又批下一镜 / 点了继续
+
+    const [outcome] = await Promise.all([drive, kicked]);
+    expect(outcome.quiescent).toBe(true);
+    expect(queries).toBe(3);
+  }, 10_000);
+
   it("a shot whose submit met a busy Run lock is not a failure: it is sent later in the same drive, and the drive rests quiescent", async () => {
     const { root, repository } = setupBatch([shotEntry("shot-a", "a"), shotEntry("shot-b", "b"), shotEntry("shot-c", "c")]);
     const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length}` }));
