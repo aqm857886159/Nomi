@@ -26,6 +26,7 @@ import { getDesktopBridge } from '../../../desktop/bridge'
 import { buildWorkspaceFileUrl } from '../../explorer/workspaceFileDrag'
 import ClipNodePreview from './ClipNodePreview'
 import ClipNodeTimeline from './ClipNodeTimeline'
+import { resolveClipGestureAdmission } from './clipNodeGestureModel'
 import ClipNodeActionToolbar from './ClipNodeActionToolbar'
 import { createExclusiveClipNodeUpload, importClipNodeAsset } from './clipNodeUpload'
 import {
@@ -264,6 +265,13 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
     setEditingOpen(true)
     setExportMenuOpen(false)
   }, [meta, node.id, persist, selectNode, selected])
+
+  // 手势按下的那一刻就让节点与片段的选中态跟上：不等松手的 click（拖动会吞掉 click，选中态就一直落后于手势）。
+  const admitGesture = React.useCallback((clipId: string | null) => {
+    const admission = resolveClipGestureAdmission({ nodeSelected: selected, selectedClipId, targetClipId: clipId })
+    if (admission.selectNode) selectNode(node.id)
+    if (admission.selectClipId) persist({ ...meta, selectedClipId: admission.selectClipId.replace(/^clip-/, '') }, { history: false })
+  }, [meta, node.id, persist, selectNode, selected, selectedClipId])
 
   const selectFrame = React.useCallback((frame: number) => {
     if (!timelineClips.length) return
@@ -557,6 +565,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             canvasZoom={canvasZoom}
             selectedClipId={selectedClipId}
             onSelectClip={selectClip}
+            onAdmitGesture={readOnly ? undefined : admitGesture}
             onMoveClip={handleMoveClip}
             onResizeClip={handleResizeClip}
             onScrubPlayhead={selectFrame}

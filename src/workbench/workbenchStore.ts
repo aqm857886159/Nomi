@@ -158,6 +158,8 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Creatio
   captureTimelineUndo: () => void
   /** 弹出上一个 timeline 快照恢复（⌘Z）。 */
   undoTimeline: () => void
+  /** 拖拽手势被打断：弹回手势开始前的快照，且不留 redo（半截拖动不该能被「重做」出来）。 */
+  cancelTimelineGesture: () => void
   /** 重做（⇧⌘Z）：把撤销掉的编辑再放回。 */
   redoTimeline: () => void
   setWorkspaceMode: (mode: unknown) => void
@@ -486,6 +488,22 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
         selectedTextClipId: previous.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
         timelinePlaying: false,
+        persistRevision: state.persistRevision + 1,
+      }
+    })
+  },
+  cancelTimelineGesture: () => {
+    set((state) => {
+      const stack = state.timelineUndoStack
+      if (stack.length === 0) return state
+      const previous = timelineUndoTimeline(stack[stack.length - 1])
+      const liveIds = new Set(previous.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
+      return {
+        timeline: previous,
+        timelineUndoStack: stack.slice(0, -1),
+        selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
+        selectedTextClipId: previous.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
+        timelineSnapGuide: null,
         persistRevision: state.persistRevision + 1,
       }
     })
