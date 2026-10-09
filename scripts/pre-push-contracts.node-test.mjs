@@ -185,7 +185,7 @@ function commitChange(edit) {
 
 // 真钩子调用时 git 会把 <remote名> <url> 作为参数传进来；脚本只有收到这两个参数才读 stdin 的 ref 行
 const HOOK_ARGS = ['origin', 'https://example.invalid/r.git']
-function prePush({ body, cwd = work, args = HOOK_ARGS, refLine, dispatched = true } = {}) {
+function prePush({ body = CARD, cwd = work, args = HOOK_ARGS, refLine, dispatched = true } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
   // 外层 node --test 会设 NODE_TEST_CONTEXT，子进程里再 node --test 就不真跑了（假绿）——必须清掉
   const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
