@@ -40,9 +40,16 @@ describe('walkthrough network guard', () => {
     const { entries } = runGuarded(`
       fetch('https://allowed.invalid/v1/chat/completions', { method: 'POST', body: '{}' }).catch(() => undefined)
         .then(() => fetch('https://other.invalid/v1/x')).catch(() => undefined)
-    `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1' })
+    `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1', CI: '' })
     const blocked = entries.filter((entry) => entry.kind === 'blocked')
     expect(blocked.map((entry) => entry.host)).toEqual(['other.invalid'])
+  })
+
+  it('NOMI_WALK_ALLOW_ORIGINS is ignored under CI (an inherited variable cannot open the public network there)', () => {
+    const { entries } = runGuarded(`
+      fetch('https://allowed.invalid/v1/chat/completions', { method: 'POST', body: '{}' }).catch(() => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1', CI: 'true' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host)).toEqual(['allowed.invalid'])
   })
 
   it('blocks fetch to a public host and records who called it', () => {

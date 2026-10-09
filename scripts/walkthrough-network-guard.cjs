@@ -43,7 +43,8 @@ function isLocalHost(host) {
  * 付费真跑走查专用：NOMI_WALK_ALLOW_ORIGINS = 逗号分隔的 origin，只放行被授权的那几家供应商
  * （tests/ux/_paidRun 类走查要真的出门；其余公网照旧一律拦）。没设 = 一家都不放，老走查一个字不变。
  */
-const ALLOWED_ORIGINS = new Set(String(process.env.NOMI_WALK_ALLOW_ORIGINS || '').split(',').map((value) => {
+// CI 里一律忽略：CI 从来没有真钱（与 tests/ux/_paidRun.mjs 同一条），继承来的环境变量不能在那里打开公网。
+const ALLOWED_ORIGINS = new Set(String(process.env.CI ? '' : process.env.NOMI_WALK_ALLOW_ORIGINS || '').split(',').map((value) => {
   try { return new URL(value.trim()).origin } catch { return '' }
 }).filter(Boolean))
 const ALLOWED_HOSTS = new Set([...ALLOWED_ORIGINS].map((origin) => new URL(origin).hostname.toLowerCase()))

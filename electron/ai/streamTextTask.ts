@@ -45,6 +45,8 @@ export type StreamTextTaskOptions = {
 // 超时即 abort（真掐断 HTTP 连接，见 buildAiSdkModel 透传 init.signal），并抛错让节点落 error 可重试。
 const FIRST_TOKEN_TIMEOUT_MS = 30_000;
 const OVERALL_TIMEOUT_MS = 120_000;
+/** 读完流之后等 finishReason / reasoning 的上限：它们是附带信息，不给就当没有。 */
+const METADATA_GRACE_MS = 2_000;
 
 /** http(s) URL 走 URL 引用（不内联）；data:/base64 等原样作字符串传给 SDK。 */
 function toImagePart(imageUrl: string): { type: "image"; image: URL | string | Uint8Array; mimeType?: string } {
@@ -152,8 +154,15 @@ export async function streamTextTask(
   const finishReasonPromise = result.finishReason.catch(() => undefined);
   const reasoningPromise = result.reasoning.catch(() => undefined);
 
+  // 所有结束方式（正常读完 / 出错 / 超时 / 用户停止）都必须让下面的 await 收口——ai@4 的流在 abort、或请求没发出去时，
+  // textStream / finishReason 都可能永远不 settle。所以不是各种情况各补一处，而是统一用「已中止」信号与读流竞速：
+  // 中止一发生，立刻收口，不再等 SDK 的任何 Promise（2026-10-09 复审：停止也会让主进程任务永久悬挂）。
+  const aborted = new Promise<void>((resolve) => {
+    if (controller.signal.aborted) resolve();
+    else controller.signal.addEventListener("abort", () => resolve(), { once: true });
+  });
   let text = "";
-  try {
+  const consume = (async () => {
     for await (const delta of result.textStream) {
       // 收到首字 → 撤首字闸，后续交给整体闸。
       if (firstTokenTimer) {
@@ -163,20 +172,29 @@ export async function streamTextTask(
       text += delta;
       opts.onDelta?.(delta);
     }
+  })();
+  consume.catch(() => undefined); // 竞速输了之后它再 reject 也不能变成未处理的 rejection
+  try {
+    await Promise.race([consume, aborted]);
   } catch (err) {
-    // AI SDK abort 时 textStream 多半静默结束，但个别 provider 会抛——抛了也归一成超时错。
     if (timeoutReason) throw timeoutError();
     throw err;
   } finally {
     if (firstTokenTimer) clearTimeout(firstTokenTimer);
     clearTimeout(overallTimer);
   }
-  // abort 导致的静默结束在这里兜：是我们的超时 abort 就抛错（落 node error 可重试），
-  // 不能把空/残文本当成功返回。外部取消(timeoutReason 为空)则由渲染层的取消路径收尾。
+  // 是我们的超时 abort 就抛错（落 node error 可重试）；用户点停止 = 取消：抛 AbortError，
+  // 不是成功（不把残文本当结果）也不是错误（调用方按 AbortError 收尾，IPC 层不发 error）。
   if (timeoutReason) throw timeoutError();
-  if (streamError !== undefined && !controller.signal.aborted) throw streamError; // 用户点停止（外部 abort）不是错误
-  // 流已跑完，这两个 promise 立即可解；individual provider 不给就当没有，绝不因此让整个任务失败。
-  const [finishReason, reasoning] = await Promise.all([finishReasonPromise, reasoningPromise]);
+  if (external?.aborted) throw new DOMException("text stream aborted", "AbortError");
+  if (streamError !== undefined) throw streamError;
+  // 元数据（finishReason / reasoning）只是附带信息：正常读完它应当立刻可解；SDK 若不给就当没有，
+  // 绝不因此挂住整个任务，也不因此让任务失败。
+  let graceTimer: ReturnType<typeof setTimeout> | undefined;
+  const [finishReason, reasoning] = await Promise.race([
+    Promise.all([finishReasonPromise, reasoningPromise]),
+    new Promise<[undefined, undefined]>((resolve) => { graceTimer = setTimeout(() => resolve([undefined, undefined]), METADATA_GRACE_MS); }),
+  ]).finally(() => clearTimeout(graceTimer));
   return {
     text,
     raw: { choices: [{ message: { role: "assistant", content: text } }] },

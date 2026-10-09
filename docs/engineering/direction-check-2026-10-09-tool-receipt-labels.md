@@ -59,3 +59,8 @@
 ## 特征测试
 
 `src/workbench/ai/resident/residentToolDisplay.test.ts`：每个 lane 工具说的话不同；共用桶的动词必须登记；write_node_text 中英文案不含「镜头卡」且写明可撤销。删掉登记，这两条必红（已验证）。
+
+## 补：自写登记条目（2026-10-09 复审后的两刀）
+
+- 登记 `ai-sdk-text-stack`（to-replace）：`streamTextTask` 是文本流的唯一 owner，包的是 ai@4 的 `streamText`。本刀让「读完 / 出错 / 超时 / 停止」都收口，并把 ai 的流式函数收进这一个文件。现成方案就是 ai SDK 本身；它的缺口（fetch 抛错 / abort 时 `finishReason` 永不 settle，错误只走 `onError`）是上游行为，换不了——升级到 ai@5/6 是另立的 SDK 升级片（与协调会话已定的「SDK 升级脱钩」一致），升级后这层收口可以删或变薄；在那之前只有这一个文件能碰它，由门岗锁住。
+- 登记 `gate-family`（under-review）：`check:llm-stream-owner` 从正则改成 TypeScript 语法树判定，是复审的阻断项（正则可被命名空间 / 动态 import / 重导出绕过）。语法树判定用的是现成的 `typescript` 编译器 API，没有自写解析器；同族门岗的合并评估不在这一刀。
