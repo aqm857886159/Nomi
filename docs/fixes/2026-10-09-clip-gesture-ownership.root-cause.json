@@ -141,7 +141,6 @@
     "rationale": "没有新增依赖；@use-gesture/react 评估后不接（见设计卡「先查别人」）。",
     "exit_criteria": []
   },
-  "detected_by": "user",
   "recurrence_check_on": "2026-11-09",
   "invariant_owner_layer": {
     "layer": "src/workbench/timeline/timelineGesture.ts",
