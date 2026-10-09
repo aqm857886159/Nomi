@@ -220,3 +220,39 @@ export async function watchSpendDialogs(win, { selector, attribute }) {
   }, { dialog: SPEND_DIALOG, selector, attribute, slot })
   return { read: () => win.evaluate((key) => window[key], slot) }
 }
+
+// ── 不走 openPaidWalk 的付费走查：例外表（唯一一份）──────────────────────────────
+// openPaidWalk 自动配好出网名单、被挡当场失败、花钱前核对闸已装上（_paidNetwork.mjs）。下面两条不走它，
+// 各自的原因与它们**自己**的出网护栏写在这里；tests/ux/_paidRun.test.mjs 逐个 *.paid.mjs 核对：
+// 要么调用 openPaidWalk、要么在这张表里，表里的文件不存在了也红（不留死条目）。
+export const PAID_WALKS_WITHOUT_OPEN_PAID_WALK = Object.freeze([
+  {
+    file: 'tests/ux/apimart-domestic-line.paid.mjs',
+    why: '在打好的安装包上，故意真出网到 APIMart 国内线路（要证明请求真的发往国内主机），不能用「只放授权名单、其余全拦」的闸。',
+    networkGuard: '主进程出站走 scripts/apimart-line-netsim.cjs 的「只记账不拦截」档（RECORD_ONLY），脚本自己核对记账已在主入口前装上、官方主域 0 次；花钱面用 lockSpendToModels 收窄到被授权的一个模型。',
+  },
+  {
+    file: 'tests/ux/core-a-storyboard.paid.mjs',
+    why: '分镜表整条真旅程（可从上一场续跑、可在安装包上跑），整份真实目录按字节拷进隔离副本，自己管理凭据副本的生灭。',
+    networkGuard: '没有出网闸：不挂 walkthrough-network-guard，也不开 NOMI_TEST_NETWORK_GUARD，真网直连。护栏只有 assertPaidRunAllowed（CI 拒跑、NOMI_SPEND_OK、用户 Nomi 开着拒跑、原库指纹）、确认框观察（watchSpendDialogs）与收据（spendReceipt）。这是已知缺口：不会自动配名单，也不会因被挡当场失败（因为根本不拦）。',
+  },
+])
+
+/**
+ * 纯判据（结构测试钉它）：给定仓库里所有 *.paid.mjs（相对路径）和读文件的函数，返回问题清单。
+ * 每个文件要么调用 openPaidWalk，要么在例外表里；例外表里的文件必须存在，且确实没有调用 openPaidWalk（否则条目已过期）。
+ */
+export function paidWalkCoverageProblems(files, readFile, exceptions = PAID_WALKS_WITHOUT_OPEN_PAID_WALK) {
+  const listed = new Map(exceptions.map((entry) => [entry.file, entry]))
+  const problems = []
+  for (const file of files) {
+    const usesOpenPaidWalk = /\bopenPaidWalk\s*\(/.test(readFile(file))
+    if (!usesOpenPaidWalk && !listed.has(file)) problems.push(`${file}：既没调用 openPaidWalk，也不在例外表里——花钱前核闸、被挡即失败都没覆盖到`)
+    if (usesOpenPaidWalk && listed.has(file)) problems.push(`${file}：已经调用 openPaidWalk，例外表里的条目过期了，删掉`)
+  }
+  for (const entry of exceptions) {
+    if (!files.includes(entry.file)) problems.push(`${entry.file}：例外表里的文件不存在了，删掉死条目`)
+    if (!entry.why || !entry.networkGuard) problems.push(`${entry.file}：例外表条目缺理由或缺它自己的网络护栏说明`)
+  }
+  return problems
+}
