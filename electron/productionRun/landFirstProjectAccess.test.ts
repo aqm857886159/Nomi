@@ -216,7 +216,10 @@ describe("C′ lease: anything that changes while the hidden window is opening t
     const window: AppWindow = { openProject: OTHER, hiddenFromUser: true };
     const { host, payloads } = app(base, window, { hydrateTicks: 3, duringHydrate: (tick, w) => { if (tick === 1) w.openProject = "project-he-picked"; } });
 
-    await start(base, host);
+    const result = await start(base, host);
+
+    // 是租约当场取消（不是等到超时才拒）。
+    expect(result).toMatchObject({ nextAction: "canvas_landing_failed", landingFailure: { code: "landing_lease_revoked" } });
 
     expect(window.openProject).toBe("project-he-picked");
     expect(payloads).toEqual([]);
