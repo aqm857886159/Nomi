@@ -150,15 +150,15 @@ describe('generation.single-shot dispatcher policy boundary', () => {
   it('语义路不再被任何环境变量打回；它停在缺租约那一步', async () => {
     const { ctx, productionRuns } = context({})
     const before = process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1
-    process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1 = '0'
+    vi.stubEnv("NOMI_MCP_GENERATION_SINGLE_SHOT_V1", '0')
     try {
       await expect(dispatch('nomi_operation_create', { projectId: 'project-1' }, ctx as never))
         .rejects.toMatchObject({ code: 'lease_required', capability: 'create' })
       await expect(dispatch('nomi_start_generation', { runId: 'run-1' }, ctx as never))
         .rejects.toMatchObject({ code: 'lease_required', capability: 'start' })
     } finally {
-      if (before === undefined) delete process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1
-      else process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1 = before
+      if (before === undefined) vi.stubEnv("NOMI_MCP_GENERATION_SINGLE_SHOT_V1", undefined)
+      else vi.stubEnv("NOMI_MCP_GENERATION_SINGLE_SHOT_V1", before)
     }
     expect(productionRuns.createDraft).not.toHaveBeenCalled()
     expect(productionRuns.command).not.toHaveBeenCalled()

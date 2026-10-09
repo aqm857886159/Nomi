@@ -45,11 +45,11 @@ const CLIP_MP4 = synthesize("testsrc2=s=1280x720:r=24", ["-t", "1", "-c:v", "lib
 beforeEach(() => {
   mockedDocumentsRoot = makeTempDir("nomi-asset-preview-documents-");
   mockedUserDataRoot = makeTempDir("nomi-asset-preview-user-data-");
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
 });
 
 afterEach(() => {
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 

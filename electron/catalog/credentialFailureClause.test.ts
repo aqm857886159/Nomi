@@ -9,11 +9,11 @@ describe('验证失败的那句话：保留子句只在真有原密钥时才说'
   let root: string
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cred-clause-'))
-    process.env.NOMI_SETTINGS_DIR = root
+    vi.stubEnv("NOMI_SETTINGS_DIR", root)
     vi.resetModules()
   })
   afterEach(() => {
-    delete process.env.NOMI_SETTINGS_DIR
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
     fs.rmSync(root, { recursive: true, force: true })
   })
 

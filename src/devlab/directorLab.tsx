@@ -17,6 +17,7 @@ import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { primeNomiColorScheme } from '../theme/colorScheme'
 import DirectorEditor from '../workbench/generationCanvas/nodes/director/DirectorEditor'
 import type { DirectorProject } from '../workbench/generationCanvas/nodes/director/model/directorTypes'
+import { createProjectSessionTestHarness } from '../workbench/project/projectSessionTestHarness'
 
 const STORAGE_KEY = 'nomi:director-lab:project'
 
@@ -70,6 +71,11 @@ function DirectorLab(): JSX.Element {
 }
 
 primeNomiColorScheme()
+
+// 浏览器里没有桌面窗口，也就没有「已打开的项目」；动作入口（withProjectAction）会判定「没项目，动作不起」。
+// 这里挂一个真协调器 + 桩主进程桥（只在 devlab，生产不引用），让走查走的是真实的签发路径。
+const projectSession = createProjectSessionTestHarness()
+await projectSession.open('director-lab')
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -62,11 +62,11 @@ describe("密钥两入口并存的两条不变量", () => {
   let root: string;
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-cred-inv-"));
-    process.env.NOMI_SETTINGS_DIR = root;
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     vi.resetModules();
   });
   afterEach(() => {
-    delete process.env.NOMI_SETTINGS_DIR;
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     fs.rmSync(root, { recursive: true, force: true });
   });
 

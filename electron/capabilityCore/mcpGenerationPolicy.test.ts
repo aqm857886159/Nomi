@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { MCP_GENERATION_CAPABILITIES, classifyMcpGenerationRoute } from './mcpGenerationPolicy'
 import { deriveProjectSessionScopes } from './projectSessionAuthority'
@@ -19,15 +19,15 @@ describe('MCP generation route classification', () => {
 
   it('没有任何环境变量能把这个面关掉（阳性对照：曾经的两个 flag）', async () => {
     const before = process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1
-    process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1 = '0'
+    vi.stubEnv("NOMI_MCP_GENERATION_SINGLE_SHOT_V1", '0')
     try {
       // 租约照发：scope 的多少不再由任何 env 决定。
       const scopes = deriveProjectSessionScopes()
       expect(scopes).toContain('generation:read')
       expect(scopes).toContain('generation:gate')
     } finally {
-      if (before === undefined) delete process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1
-      else process.env.NOMI_MCP_GENERATION_SINGLE_SHOT_V1 = before
+      if (before === undefined) vi.stubEnv("NOMI_MCP_GENERATION_SINGLE_SHOT_V1", undefined)
+      else vi.stubEnv("NOMI_MCP_GENERATION_SINGLE_SHOT_V1", before)
     }
   })
 

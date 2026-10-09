@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildCodexImagePrompt, buildCodexSpawnEnv, buildCodexSpawnInvocation, candidateCodexBins, describeCodexFailure, extractImagegenUpstreamError, latestGeneratedImageForThread, parseCodexThreadId, queryCodexImageOperation } from "./codexCli";
 
 const envSnapshot = { ...process.env };
 const tempRoots: string[] = [];
 
 afterEach(() => {
-  for (const key of Object.keys(process.env)) delete process.env[key];
+  for (const key of Object.keys(process.env)) vi.stubEnv(key, undefined);
   Object.assign(process.env, envSnapshot);
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
@@ -144,7 +144,7 @@ describe("Codex CLI image bridge", () => {
   it("只从当前 thread 的 generated_images 目录取新生成图片", () => {
     const root = path.join(os.tmpdir(), `nomi-codex-test-${Date.now()}-${process.pid}`);
     tempRoots.push(root);
-    process.env.CODEX_HOME = root;
+    vi.stubEnv("CODEX_HOME", root);
     const threadDir = path.join(root, "generated_images", "thread-1");
     mkdirSync(threadDir, { recursive: true });
     const oldFile = path.join(threadDir, "old.png");
@@ -168,7 +168,7 @@ describe("Codex CLI image bridge", () => {
   it("query 可从落盘 job + generated_images 找回并导入图片", async () => {
     const root = path.join(os.tmpdir(), `nomi-codex-query-test-${Date.now()}-${process.pid}`);
     tempRoots.push(root);
-    process.env.CODEX_HOME = root;
+    vi.stubEnv("CODEX_HOME", root);
     const jobId = "codex-job-1";
     const threadId = "thread-query-1";
     const startedAt = Date.now() - 1000;

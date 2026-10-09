@@ -46,11 +46,11 @@ function makeTempDir(name = 'nomi-capcore-test-'): string {
 beforeEach(() => {
   mockedDocumentsRoot = makeTempDir('nomi-capcore-documents-')
   mockedUserDataRoot = makeTempDir('nomi-capcore-user-data-')
-  delete process.env.NOMI_PROJECTS_DIR
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined)
 })
 
 afterEach(() => {
-  delete process.env.NOMI_PROJECTS_DIR
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined)
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true })
   }
