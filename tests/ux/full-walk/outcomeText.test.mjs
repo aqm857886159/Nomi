@@ -1,7 +1,7 @@
 // 「查结果」第 1 道的判据：先证明会红（每一类违例各一条真实形状），再证明不误报（整本中英词典 + 常见正常句子）。
 import { describe, expect, it } from 'vitest'
 
-import { activeDebt, findLeaks, NO_COST_CLAIMS, PRICE_WORDING } from './outcomeText.mjs'
+import { activeDebt, compileExemptions, findLeaks, NON_MONEY_KEYS, NOT_MONEY, PRICE_WORDING } from './outcomeText.mjs'
 import { loadDictionaries } from './invariants.mjs'
 
 const kinds = (text) => findLeaks(text).map((leak) => leak.kind)
@@ -30,19 +30,40 @@ describe('会红：每一类违例', () => {
   })
 })
 
-describe('词表对着真实词典核对（词典里「价格未知」类文案改了词表要跟着改）', () => {
+describe('词表对着真实词典核对（被检对象从词典生成，不手抄文案、不按键名猜意思）', () => {
   const dictionaries = loadDictionaries()
   const flat = (node, prefix = '') => Object.entries(node).flatMap(([key, value]) => (typeof value === 'string' ? [[`${prefix}${key}`, value]] : value && typeof value === 'object' ? flat(value, `${prefix}${key}.`) : []))
   const find = (locale, suffix) => flat(dictionaries[locale]).filter(([key]) => key.endsWith(suffix)).map(([, value]) => value)
+  const registered = new Set([...Object.keys(NOT_MONEY), ...NON_MONEY_KEYS])
+  const isFixtureKey = (key) => /(^|\.)fixture[A-Z]/.test(key)
 
-  it('这几条真实文案都被词表抓得到', () => {
+  it('整本中英词典：价格 / 不谈钱词表只命中登记在案的例外键（设计实验室夹具除外）', () => {
     for (const locale of ['zh-CN', 'en']) {
-      for (const suffix of ['estCostUnknown', 'shotPriceUnknown']) {
-        const values = find(locale, suffix)
-        expect(values.length, `${locale} 词典里找不到 ${suffix}`).toBeGreaterThan(0)
-        for (const value of values) expect(kinds(value), `${locale}.${suffix} = ${value}`).toContain('price-wording')
+      const hits = flat(dictionaries[locale])
+        .filter(([key]) => !registered.has(key) && !isFixtureKey(key))
+        .filter(([, value]) => kinds(value.replace(/\{\{[^}]+\}\}/g, '')).includes('price-wording'))
+        .map(([key, value]) => `${key} = ${value}`)
+      expect(hits, `${locale} 词典里出现了没登记的价格 / 花费说法`).toEqual([])
+    }
+  })
+
+  it('监视器的豁免和 check:i18n 是同一批键：每条例外键的词典值经监视器都不再判成价格字样', () => {
+    const exemptions = compileExemptions(dictionaries)
+    for (const locale of ['zh-CN', 'en']) {
+      for (const [key, value] of flat(dictionaries[locale]).filter(([entry]) => registered.has(entry))) {
+        const shown = value.replace(/\{\{[^}]+\}\}/g, '2 GB')
+        expect(findLeaks(shown, { exemptions }).filter((leak) => leak.kind === 'price-wording'), `${locale}.${key} = ${value}`).toEqual([])
       }
     }
+  })
+
+  it('豁免只抹例外键那一句：同屏另一句谈钱的话照样红', () => {
+    const exemptions = compileExemptions(dictionaries)
+    const allowed = flat(dictionaries.en).find(([key]) => key === 'director.timelineInspector.freeOrientation')?.[1]
+    expect(allowed, '例外键在词典里找不到').toBeTruthy()
+    expect(kinds(`${allowed} · Nothing was charged`)).toContain('price-wording')
+    expect(findLeaks(`${allowed} · Nothing was charged`, { exemptions }).map((leak) => leak.kind)).toContain('price-wording')
+    expect(findLeaks(allowed, { exemptions })).toEqual([])
   })
 
   it('付费卡那几句（合计「价格未知」、停下「预算已用完 · 提额续拍」）已从词典删掉，不许回来（#947）', () => {
@@ -110,14 +131,12 @@ describe('不谈钱：没花钱 / 免费 / 不计费 这类断言', () => {
     }
   })
 
-  it('不误报：第三方自己的说法、不是钱的 free、正常句子（零误报）', () => {
-    for (const text of [
-      '境外服务商和免费图床可能连不上', 'Overseas providers and free image hosts may be unreachable', // 第三方服务
-      '绑定阿里云账号后每天有免费推理额度', 'Daily free quota with an Alibaba Cloud account', '免费试用已于 2026-05-01 结束', 'The free trial ended on May 1',
-      '上传不等于模型额度免费', // 第三方（Runway）的额度说明
-      'Free up space and export again', 'The project disk has only 2 GB free left', 'Free roam · panorama', 'Free orientation', 'The watermark-free video lands in your library', 'AI draft · Edit freely',
-      '这一步没成，Nomi 没有开始生成。', 'The task was never submitted; you can retry.', '已取消（未提交）', '只查结果，不重新生成', '重新生成这一镜',
-    ]) expect(findLeaks(text).filter((leak) => leak.kind === 'price-wording'), text).toEqual([])
+  // 不误报不再手抄句子：例外键的真实词典值由上面「监视器的豁免和 check:i18n 是同一批键」逐条核对；
+  // 下面只留不在词典里的、不是钱的 free 形状（free 只作词根），防词表把它们误抓；watermark-free 这类连字符词由例外键管。
+  it('不误报：不是钱的 free 形状', () => {
+    for (const text of ['AI draft · Edit freely', 'freestyle sketch', 'freeform notes']) {
+      expect(findLeaks(text).filter((leak) => leak.kind === 'price-wording'), text).toEqual([])
+    }
   })
 
   // 整本词典的扫描、白名单与「白名单没烂掉」已前移到 scripts/check-i18n-no-cost-claims.mjs（check:i18n 链里，本地 gates / pre-push 会跑）。

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// 真实用户任务（R13）：**目录里填了价**的那一档——我让 Agent 生成一张图，卡上写着 ¥0.30，
-// 我按下去，钱真的按那个数被记进账本，图真的落回我刚才那个节点。
+// 真实用户任务（R13）：**目录里填了价**的那一档——我让 Agent 生成一张图，卡上问我「生成这张」，
+// 我按下去，账本按目录那一行的价记下，图真的落回我刚才那个节点。
+// 合同 contract-moneycopy（#1099，提交 184ea8997）：界面不出 Nomi 按价目表算的金额——卡上原先印的 ¥0.30 / 合计已删，
+// 这条走查只把「卡上印着金额」那几条断言换成「卡上不出金额」；有价 / 无价两档的区分、账本、出站、落图照旧断言。
 //
 // ── 这条走查此前为什么不存在 ────────────────────────────────────────────────────
 // 夹具模式（`NOMI_E2E_PRODUCTION_FIXTURE=1`）此前把 Run 的 `policy.maxSpend` 钉成 0
@@ -11,14 +13,13 @@
 // 这条链第一次能在真实界面上被断言。
 //
 // 四条（全部是真人视角看得见的事）：
-//   ① 卡上印的是**具体金额**（¥0.30）；主按钮是「生成这张」并带着这一镜的价（2026-09-30 付费卡逐镜：
-//      报得出价时可以带，没有任何一条路径依赖它）；
+//   ① 有价这一档（data-v4-price="total"，不是「算不出」那一档）；主按钮是「生成这张」，卡上不出金额；
 //   ② 按下去：供应商真的收到一次生成请求，送的就是卡上那一镜；
 //   ③ **账本记的是同一个数**：盘上那份 Run 的授权信封里 `price.maximum === 0.3`，
 //      `budget.unknownJobCount` 是 0（这一镜的价是知道的），预留额度也是同一个数；
 //   ④ 产物真的落回草稿那一刻建的那个节点，卡收起来；一分钱没花（供应商是本机 loopback）。
 //   ⑤ 英文一样（EN 串长 1.5-2 倍，截断只有眼睛看得出）。
-//   ⑥ 两张一起摆（2026-10-01）：这一叠的合计「2 张 · 合计 ¥0.60」印在**翻页那一行的右端**、一行放得下
+//   ⑥ 两张一起摆（2026-10-01）：这一叠的「2 张 · 已选」印在**翻页那一行的右端**、一行放得下（金额已随合同删除）
 //      （以前在动作行左边，英文挤成三行）；单位跟标题同一条规则（图片说张、英文与标题同词「2 images」）；
 //      「生成剩下 2 张」在动作行最左，按钮上不再印合计；中英各拍一张。
 import fs from 'node:fs'
@@ -31,6 +32,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
   createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas, closeSpendCard,
 } from './agent-runtime-walk-support.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 // 这条走查的前提正好与 unknown-price 那条相反：目录里**有**价目那一行。
 // 在这里硬设（而不是靠调用方记得不传），免得哪天默认值翻了面，这条走查悄悄变成另一个世界。
@@ -99,9 +101,10 @@ async function twoShotPricedCard(walk, win, { locale, ask, planCall, done, promp
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   const total = card.locator(`[data-v4-block="pager-row"] ${PRICE_TOTAL}`)
   await proveProbe(total, `${locale}：两张的卡上有这一叠的合计`)
-  await expect(total, `${locale}：合计 = 两张 × 0.30`).toContainText('0.60')
-  // 单位跟标题同一条规则（2026-10-01 用户拍板）：图片说「张」，英文与标题同词。
-  await expect(total, `${locale}：合计的单位和标题一样`).toContainText(locale === 'zh' ? '2 张 · 合计' : '2 images')
+  await expect(total, `${locale}：这一叠那一格不出金额`).not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
+  // 单位跟标题同一条规则（2026-10-01 用户拍板）：图片说「张」，英文与标题同词。按键取值，不抄字面。
+  await expect(total, `${locale}：合计的单位和标题一样`)
+    .toContainText(uiText(locale === 'zh' ? 'zh-CN' : 'en', 'agentPanelV4.spendTotalLeadImage_other').replace('{{count}}', '2'))
   const totalBox = await total.boundingBox()
   const pagerBox = await card.locator('[data-v4-block="pager"]').boundingBox()
   expect(Math.abs((totalBox?.y ?? 0) + (totalBox?.height ?? 0) / 2 - ((pagerBox?.y ?? 0) + (pagerBox?.height ?? 0) / 2)),
@@ -110,7 +113,7 @@ async function twoShotPricedCard(walk, win, { locale, ask, planCall, done, promp
   const batch = card.locator('[data-v4-control="batch"]')
   await expect(batch, `${locale}：「生成剩下 2 张」在`).toContainText(locale === 'zh' ? '生成剩下 2 张' : 'Generate remaining 2')
   await expect(batch, `${locale}：批量按钮上不印合计（合计已在翻页那一行）`).not.toContainText('¥')
-  await expect(card.locator(INTERVENTION_CONFIRM), `${locale}：主按钮仍带这一张的价`).toContainText('0.30')
+  await expect(card.locator(INTERVENTION_CONFIRM), `${locale}：主按钮不出金额`).not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   const file = await walk.snap(`priced-two-shots-${locale}`)
   await card.screenshot({ path: file.replace(/\.png$/, '-card.png') })
   await closeSpendCard(card, `${locale}：看完关掉两张的卡`)
@@ -133,16 +136,16 @@ try {
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
     { timeout: DEFAULT_TIMEOUT_MS }).toBe(1)
 
-  // ── ① 卡上印的是具体金额，不是「算不出」那一档 ──
+  // ── ① 有价这一档（不是「算不出」那一档），卡上不出金额 ──
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   const cardProbe = await proveProbe(card, 'The priced paid confirmation reaches the intervention slot')
   const totalProbe = await proveProbe(card.locator(PRICE_TOTAL), 'the card renders a data-v4-price="total" slot')
-  await expect(card.locator(PRICE_TOTAL), '价格位印的就是目录里那一行算出来的钱').toContainText('0.30')
+  await expect(card.locator(PRICE_TOTAL), '有价这一档的锚点在，但卡上不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   // 基线由上面那条证过：同一个 `data-v4-price` 属性**测得到东西**，所以这里的「没看到」不是探针失灵。
   await expectAbsent(card.locator(PRICE_UNAVAILABLE), { provenBy: totalProbe, message: '有价这一档不该出现「暂时算不出价格」' })
-  // 付费卡逐镜（第 1、7 条）：主按钮只生成这一镜；报得出价时带上这一下花多少（用户按下去之前就知道）。
+  // 付费卡逐镜（第 1、7 条）：主按钮只生成这一镜；金额不再印在按钮上（合同 contract-moneycopy）。
   await expect(card.locator(INTERVENTION_CONFIRM), '主按钮是「生成这张」').toContainText('生成这张')
-  await expect(card.locator(INTERVENTION_CONFIRM), '主按钮上带着这一镜的价').toContainText('0.30')
+  await expect(card.locator(INTERVENTION_CONFIRM), '主按钮不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   expect(walk.fixture.images, '卡还没按之前，一次供应商生成都没发生').toHaveLength(0)
   await walk.snap('priced-card-zh')
 
@@ -158,7 +161,7 @@ try {
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮「生成这张」', { noWaitAfter: true })
 
   await expect.poll(() => walk.fixture.images.length,
-    { message: '按下带价格的主按钮之后，供应商必须真的收到一次生成请求', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(0)
+    { message: '按下主按钮之后，供应商必须真的收到一次生成请求', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(0)
   expect(hostRefusals, `宿主不许再拒（实际：${hostRefusals.join(' ')}）`).toHaveLength(0)
   await recorded(turnDone.received, 'generate returns once the user approved the card')
   const submitted = JSON.stringify(walk.fixture.images[0].body)
@@ -168,8 +171,8 @@ try {
   await expect.poll(() => readRunEnvelope(projectRoot, operationId)?.envelope?.jobs?.length ?? 0,
     { message: 'Run 里必须真的有一张授权信封', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(0)
   const run = readRunEnvelope(projectRoot, operationId)
-  // 这就是「账本记同一价」那一条：卡上印 0.30，信封里冻的也是 0.30，一分不多一分不少。
-  expect(run.envelope.jobs[0].price.maximum, '授权信封里冻住的金额 = 卡上印的那个数').toBe(BASE_PRICE)
+  // 「账本记同一价」那一条：卡上不再印金额，但信封里冻的仍是目录那一行的价，一分不多一分不少。
+  expect(run.envelope.jobs[0].price.maximum, '授权信封里冻住的金额 = 目录那一行的价').toBe(BASE_PRICE)
   expect(run.envelope.budget.unknownJobCount ?? 0, '这一镜的价是知道的，未知计数必须是 0').toBe(0)
   expect(run.policy.maxSpend, '夹具上限是一个小的正数（钉 0 的那颗钉子已拔），否则有价作业永远提交不了')
     .toBeGreaterThan(BASE_PRICE)
@@ -198,10 +201,10 @@ try {
   })
   const enCard = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   const enTotalProbe = await proveProbe(enCard.locator(PRICE_TOTAL), 'EN: the card renders a data-v4-price="total" slot')
-  await expect(enCard.locator(PRICE_TOTAL), 'EN：价格位印的是同一个数').toContainText('0.30')
+  await expect(enCard.locator(PRICE_TOTAL), 'EN：有价这一档也不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   await expectAbsent(enCard.locator(PRICE_UNAVAILABLE), { provenBy: enTotalProbe, message: 'EN：有价这一档没有 unavailable 那一格' })
   await expect(enCard.locator(INTERVENTION_CONFIRM), 'EN：Generate this one').toContainText('Generate this one')
-  await expect(enCard.locator(INTERVENTION_CONFIRM), 'EN：主按钮上也带着这一镜的价').toContainText('0.30')
+  await expect(enCard.locator(INTERVENTION_CONFIRM), 'EN：主按钮不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   await walk.snap('priced-card-en')
   // EN 这张只是来看长相的；看完就答（关掉），让等它的那个回合收尾。
   await closeSpendCard(enCard, 'close the EN card')
@@ -213,9 +216,9 @@ try {
     prompts: ['A celadon teacup in slanting morning light', 'A celadon teacup against the evening light'],
   })
 
-  walk.report.verified = ['priced-card-shows-the-amount-zh-and-en',
+  walk.report.verified = ['priced-card-shows-no-amount-zh-and-en',
     'confirm-really-reaches-the-vendor',
-    'ledger-records-the-same-amount-the-card-showed',
+    'ledger-records-the-catalog-price',
     'artifact-lands-on-the-node-the-draft-created',
     'two-shot-total-on-the-pager-row-one-line-zh-and-en']
 } catch (error) {

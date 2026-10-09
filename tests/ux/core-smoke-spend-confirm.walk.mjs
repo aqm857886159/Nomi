@@ -27,12 +27,12 @@ import {
   expandResidentPanel, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const ASK = 'CORE_SMOKE_SPEND：帮我生成一张六棱柱的图。'
 const PLAN_CALL = 'core-smoke-spend-plan'
 const GENERATE_CALL = `${PLAN_CALL}-generate`
 const PROMPT = '一个悬浮的六棱柱，柔和的演播室灯光'
-const PRICE_TOTAL = '[data-v4-price="total"]'
 
 const smoke = await launchCoreSmoke({
   name: 'spend-confirm',
@@ -101,7 +101,14 @@ try {
   // ── ① 出卡 ────────────────────────────────────────────────────────────────────────
   const card = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
   const cardProof = await proveProbe(card, 'The paid confirmation lives in the agent panel intervention slot')
-  await expect(card.locator(PRICE_TOTAL), '卡上是宿主按目录 pricing 算出来的数字，不是一个标签').toContainText('0.30')
+  // 依据：用户拍板「界面不谈钱」（今天全走中转、价格未知，界面不出金额）+ PR #1099：确认按钮不再带价，
+  // 所以不再断言卡上有「0.30」。改断言：按钮可见、文案是新文案（取自 i18n 键）、按钮上没有任何金额 / 货币符号。
+  const confirmButton = card.locator(INTERVENTION_CONFIRM)
+  await expect(confirmButton, '确认按钮在卡上可见').toBeVisible()
+  // 按控件名字认（键取词典值）：按钮里还有 aria-hidden 的 ⏎ 键帽，整段可见文字不是它的名字。
+  const confirmLabel = uiText(smoke.locale === 'en' ? 'en' : 'zh-CN', 'agentPanelV4.spendConfirmThisImage')
+  await expect(confirmButton, '确认按钮的名字是词典键 spendConfirmThisImage 的值').toHaveAccessibleName(confirmLabel)
+  expect((await confirmButton.innerText()), '确认按钮上不含金额或货币符号').not.toMatch(/[¥￥$€£]|[0-9]/)
   await expect(card, '卡体就是那张生成框整件：提示词在卡上').toContainText('六棱柱')
   expect(fixture.images, '卡还没答，一次媒体请求都不许发').toHaveLength(0)
   const nodesWithDraft = (await readProject(win, projectId)).payload.generationCanvas.nodes.map((entry) => entry.id).sort()
@@ -126,7 +133,7 @@ try {
     // 请求一次适应视图，2026-09-25 拍板删了）。基线在视口停稳时读；另挂一个改写记录器，抓首尾相同的来回闪。
     const viewportBeforeConfirm = await waitForCanvasViewportSettled(win)
     const viewportWrites = await recordCanvasViewportWrites(win)
-    await clickOrFail(card.locator(INTERVENTION_CONFIRM), '按下那颗印着价的「生成这张」')
+    await clickOrFail(card.locator(INTERVENTION_CONFIRM), '按下「生成这张」')
     // 顺序照 `agent-spend-confirm-executes.walk.mjs:162-172`：先等出站请求（那是「钱真的动了」的第一个
     // 证据），再等 `generate` 把结论递回正在等的那个回合。反过来写会让「还没跑起来」以超时的形状报出来。
     await expect.poll(() => fixture.images.length + hostRefusals.length,

@@ -13,7 +13,7 @@ export const CODEX_IMAGEGEN_ARCHETYPE: ModelArchetype = {
       id: "t2i",
       intent: "text",
       vendorTerm: "文生图",
-      hint: "使用当前 Codex 登录额度，纯文字生成图片",
+      hint: "使用当前 Codex 接入，纯文字生成图片",
       promptRequired: true,
       transportTaskKind: "text_to_image",
       slots: [],

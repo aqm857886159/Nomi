@@ -1,6 +1,6 @@
 import { ANTIGRAVITY_IMAGE_MODEL_KEY, ANTIGRAVITY_VENDOR_KEY } from '../../../electron/shared/antigravity'
 import { groupAntigravityCatalogModels } from './antigravityCardModel'
-import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
+import { getLocalizedKnownVendors, isKnownVendor } from '../../config/knownVendors'
 import { VENDOR_LOGOS } from '../../assets/vendor-logos'
 import { isComfyuiVendorKey } from '../../workbench/generationCanvas/model/comfyuiVendor'
 import type { ChipModel } from './ModelChipGroups'
@@ -13,6 +13,7 @@ import { CODEX_LOCAL_VENDOR_KEY } from './codexLocalProvider'
 import { LOCAL_TEXT_VENDOR_KEY } from './LocalModelCard'
 import { DREAMINA_CONNECTION_KEY } from './onboardingDrawerConstants'
 import { groupOtherVendorModels } from './onboardingDrawerDerivations'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatus, localNames, openPage }: {
   models: ChipModel[]
@@ -21,7 +22,8 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
   localNames: { dreamina: string; codex: string; antigravity: string }
   openPage: (page: Exclude<ModelSettingsPage, { type: 'home' }>) => void
 }) {
-  const knownCards = KNOWN_VENDORS
+  // 卡片显示的文字按当前界面语言取（目录本身只有数据）；调用方每次渲染都重投影，切语言即跟着变。
+  const knownCards = getLocalizedKnownVendors()
     .map((directory) => {
       const meta = vendorMeta.get(directory.vendorKey)
       if (!meta) return null
@@ -75,17 +77,18 @@ export function projectOnboardingConnections({ models, vendorMeta, dreaminaStatu
   const antigravityEnabled = vendorMeta.get(ANTIGRAVITY_VENDOR_KEY)?.enabled === true
   const antigravityModels = models.filter((model) => model.vendorKey === ANTIGRAVITY_VENDOR_KEY)
 
+  // 种子里的供应商名（火山方舟、本地模型…）过一次展示名边界再给标题用；用户自建的连接名原样显示。
   const connectionTitle = (vendorKey: string): string => {
     const known = knownCards.find((card) => card.directory.vendorKey === vendorKey)
-    if (known) return known.meta.name
+    if (known) return translateModelDisplayText(known.meta.name)
     const custom = otherVendorGroups.find((group) => group.vendorKey === vendorKey)
     if (custom) return custom.name
     const comfy = comfyuiInstances.find((instance) => instance.key === vendorKey)
-    if (comfy) return comfy.meta.name
+    if (comfy) return translateModelDisplayText(comfy.meta.name)
     if (vendorKey === DREAMINA_CONNECTION_KEY) return localNames.dreamina
     if (vendorKey === CODEX_LOCAL_VENDOR_KEY) return localNames.codex
     // 本地模型走 vendor 自己的 name（种子里是「本地模型」），不另建 localName 键。
-    if (vendorKey === LOCAL_TEXT_VENDOR_KEY) return localTextMeta?.name ?? vendorKey
+    if (vendorKey === LOCAL_TEXT_VENDOR_KEY) return translateModelDisplayText(localTextMeta?.name ?? vendorKey)
     if (vendorKey === ANTIGRAVITY_VENDOR_KEY) return localNames.antigravity
     return vendorKey
   }

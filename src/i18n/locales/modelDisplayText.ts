@@ -15,7 +15,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   'Codex 生图': 'Codex image generation',
   '本地转写（离线）': 'Local transcription (offline)',
   '本地转写': 'Local transcription',
-  '在这台电脑上离线转写，不联网、不花钱；语言自动识别': 'Transcribe on this computer, offline and free; the language is detected automatically',
+  '在这台电脑上离线转写，不发到网上；语言自动识别': 'Transcribe on this computer without sending it online; the language is detected automatically',
   'checkpoint 文件名': 'Checkpoint filename',
   '不想出现的内容（可留空）': 'Content to exclude (optional)',
   '你 ComfyUI/models/checkpoints 目录里的文件名': 'Filename in your ComfyUI/models/checkpoints directory',
@@ -121,9 +121,9 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   'GPT Image 2 · 图生图': 'GPT Image 2 · Image-to-image',
   'MiniMax H3 · Context-IR 提示词增强': 'MiniMax H3 · Context-IR prompt enhancement',
   'Qwen-Image 改图': 'Qwen-Image editing',
-  'Qwen3 30B（免费）': 'Qwen3 30B (free)',
-  'Qwen3 8B（免费）': 'Qwen3 8B (free)',
-  'Qwen3 Next 80B（免费）': 'Qwen3 Next 80B (free)',
+  'Qwen3 30B': 'Qwen3 30B',
+  'Qwen3 8B': 'Qwen3 8B',
+  'Qwen3 Next 80B': 'Qwen3 Next 80B',
   'WAN2.2 图生视频 · 14B': 'WAN2.2 image-to-video · 14B',
   '本地 · 文生图': 'Local · Text-to-image',
   '留空 = 自动用本机第一个 checkpoint': 'Leave empty to use the first checkpoint on this machine',
@@ -238,11 +238,11 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   英文: 'English',
   '用大白话描述，如「用撒娇甜蜜的语气」「沉稳一点，像在讲睡前故事」':
     'Describe the delivery naturally, such as “sweet and playful” or “calm, like a bedtime story”',
-  '用即梦会员积分，纯文字生成 Seedance 2.0 视频':
-    'Generate Seedance 2.0 video from text using Dreamina membership credits',
-  '用即梦会员积分，纯文字生成 Seedance 视频':
-    'Generate Seedance video from text using Dreamina membership credits',
-  '用即梦会员积分，纯文字生成图像': 'Generate images from text using Dreamina membership credits',
+  '用即梦接入，纯文字生成 Seedance 2.0 视频':
+    'Generate Seedance 2.0 video from text using Dreamina',
+  '用即梦接入，纯文字生成 Seedance 视频':
+    'Generate Seedance video from text using Dreamina',
+  '用即梦接入，纯文字生成图像': 'Generate images from text using Dreamina',
   语速: 'Speed',
   语言: 'Language',
   原图: 'Original image',
@@ -354,8 +354,8 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   保留原曲风格并延长一段音乐: 'Keep the original style and extend the track',
   保留原曲旋律并转换为新风格: 'Keep the original melody and convert it to a new style',
   转写并识别说话人和声音事件: 'Transcribe and identify speakers and audio events',
-  '使用当前 Codex 登录额度，纯文字生成图片':
-    'Use your current Codex sign-in credits to generate an image from text',
+  '使用当前 Codex 接入，纯文字生成图片':
+    'Use your current Codex connection to generate an image from text',
   '通过官方 CLI 的 generate_image 工具生成一张图片':
     'Generate an image via the official CLI generate_image tool',
   '纯文字生成图像，快档': 'Generate an image from text (fast tier)',

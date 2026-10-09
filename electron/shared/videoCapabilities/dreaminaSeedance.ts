@@ -24,7 +24,7 @@ const PARAMS_NO_RATIO: ModelParameterControl[] = [RESOLUTION, DURATION];
 
 const MODES: ModelArchetype["modes"] = [
   {
-    id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "用即梦会员积分，纯文字生成 Seedance 视频",
+    id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "用即梦接入，纯文字生成 Seedance 视频",
     promptRequired: true, transportTaskKind: "text_to_video", fixedParams: { dreamina_cmd: "text2video" },
     slots: [], params: PARAMS_WITH_RATIO,
   },
