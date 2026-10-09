@@ -108,6 +108,7 @@ function nextActionFor(
     }
     case 'arrange_canvas':
     case 'make_artifact':
+    case 'write_node_text':
     case 'stage_shot': {
       const changeId = typeof record.changeId === 'string' ? record.changeId : undefined
       return { kind: 'none', userSees: 'The canvas change is applied. It is reversible; call undo to take it back.', ...(changeId ? { changeId } : {}) }

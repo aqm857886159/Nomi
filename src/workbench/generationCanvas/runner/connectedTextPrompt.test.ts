@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { collectConnectedTextPromptParts, withConnectedTextPrompts } from './connectedTextPrompt'
+import { projectConnectedTextInputs, withConnectedTextPrompts } from './connectedTextPrompt'
 
 function imageNode(id: string, prompt = ''): GenerationCanvasNode {
   return { id, kind: 'image', title: id, position: { x: 0, y: 0 }, prompt } as GenerationCanvasNode
@@ -41,7 +41,7 @@ describe('connected text prompt context', () => {
     const nodes = [target, first, second]
     const edges = [edge('t2', 'img', 1), edge('t1', 'img', 0)]
 
-    expect(collectConnectedTextPromptParts(target, { nodes, edges })).toEqual(['first text block', 'second text block'])
+    expect(projectConnectedTextInputs(target, { nodes, edges }).map((input) => input.text)).toEqual(['first text block', 'second text block'])
 
     const withPrompt = withConnectedTextPrompts(target, { nodes, edges })
     expect(withPrompt).not.toBe(target)

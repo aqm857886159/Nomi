@@ -63,7 +63,7 @@ export function NodePromptTranslator({
     abortRef.current = ctrl
     setRunning(true)
     try {
-      const brain = await getTextBrain()
+      const brain = await getTextBrain({ strict: true })
       if (!brain) {
         onFeedback(t('generationCommon.optimizer.configureTextModel'))
         return

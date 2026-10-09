@@ -62,7 +62,7 @@ type ArtifactArgs = { fileType: string; title: string; content: string };
 type StageArgs = { shotId: string; staging?: Record<string, unknown>; cameraMove?: Record<string, unknown> };
 
 /**
- * 三个画布写动词 → `canvas.write` 的语义输入。只认这三个名字：退役的旧名（`nomi_canvas_write` /
+ * 画布写动词 → `canvas.write` 的语义输入。只认这几个名字：退役的旧名（`nomi_canvas_write` /
  * `nomi_storyboard_write` …）**不在这里兼容**，旧转录里的那些调用只是历史消息（拍板二.4：不留安全阀门）。
  */
 export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInput {
@@ -82,6 +82,9 @@ export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInpu
       operation: "create_canvas_nodes", summary: title,
       nodes: [{ clientId: "artifact-1", kind: "agent-artifact", title, prompt: "", artifact: { fileType, content } }],
     };
+  } else if (verb === "write_node_text") {
+    const { nodeId, text, mode } = args as { nodeId: string; text: string; mode?: "replace" | "append" };
+    semantic = { operation: "set_node_text", nodeId, text, ...(mode ? { mode } : {}) };
   } else if (verb === "stage_shot") {
     const { shotId, staging, cameraMove } = args as StageArgs;
     semantic = staging

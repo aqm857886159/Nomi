@@ -171,6 +171,7 @@ describe("capability contract registry", () => {
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
     expect(capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi")).toEqual([
       "make_artifact",
+      "write_node_text",
       "stage_shot",
     ]);
     expect(resolveCapabilityAlias("nomi_set_node_prompt")).toBeUndefined();

@@ -39,9 +39,9 @@ const errors: string[] = [];
 if (manifest.schemaVersion !== 1) errors.push("schemaVersion must be 1");
 for (const entry of unknownFlags) errors.push(`${entry.id}: requiresFlag only accepts ${DIRECTOR_3DBOX_FLAG}, got ${String(entry.requiresFlag)}`);
 if (flagOn && flaggedCases.length < 4) errors.push(`3D-BOX face is on but only ${flaggedCases.length} requiresFlag cases exist (need create / patch / undo / attach-then-generate)`);
-// 21 = 设计正本的 20 个动词 + 2026-09-21 的通用反问 `ask_user`。这个数手写而不是从
+// 22 = 设计正本的 20 个动词 + 2026-09-21 的通用反问 `ask_user` + 2026-10-08 的 `write_node_text`（文本节点正文）。这个数手写而不是从
 // 投影数出来，理由与 `check-model-face-frozen.mjs` 里那个一样：动它就等于一次签名。
-if (published.length !== 21) errors.push(`internal profile publishes ${published.length} verbs, the design says 21: ${published.join(", ")}`);
+if (published.length !== 22) errors.push(`internal profile publishes ${published.length} verbs, the design says 22: ${published.join(", ")}`);
 if (new Set(published).size !== published.length) errors.push("internal profile publishes a duplicate name");
 for (const verb of expected) if (!declared.has(verb)) errors.push(`manifest verb is not published on the internal profile: ${verb}`);
 for (const verb of declared) if (!expected.has(verb)) errors.push(`published verb missing from manifest: ${verb}`);

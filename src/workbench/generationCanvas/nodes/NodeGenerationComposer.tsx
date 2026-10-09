@@ -3,7 +3,6 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
 import { NomiLoadingMark, WorkbenchIconButton } from '../../../design'
-import type { TranslationKey } from '../../../i18n/translationKey'
 import { cn } from '../../../utils/cn'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
 import { useNodeEffectChips } from './NodeEffectChips'
@@ -16,12 +15,11 @@ import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeWriteAccessProvider, useNodeWriteAccess } from './nodeWriteAccess'
-import { canRunGenerationNode, confirmAndRunNode, regenerateNodeInPlace, unmetReferenceDependencyForNode } from '../runner/generationRunController'
+import { canRunGenerationNode, unmetReferenceDependencyForNode } from '../runner/generationRunController'
+import { startGenerationFromComposer } from './composerRun'
 import { directorPreviewSpendBlock } from './director/model/directorPreviewState'
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
 import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
-import { buildDependencyWaves } from '../runner/dependencyWaves'
-import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import NodeParameterControls from './NodeParameterControls'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { NodePromptToolCluster } from './NodePromptToolCluster'
@@ -42,11 +40,11 @@ import { resolveArchetypeForModel } from '../../../../electron/shared/modelArche
 import { applyArchetypeModeSwitch, currentArchetypeMode } from './controls/archetypeMeta'
 import { archetypeForNode, resolveModeForReferenceDemand } from '../agent/referenceEdgeCapability'
 import { addAssetUrlToNode } from './nodeAssetWrite'
-import { getTextGenMode, type TextGenMode } from '../runner/textActions'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
 import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
-import { composerCanvasPlacement } from './composerCanvasPlacement'
-import { useCanvasLiveZoom } from '../reactFlow/canvasViewportScale'
+import { ComposerAnchor } from './composerAnchor'
+import { ConnectedTextChips } from './ConnectedTextChips'
+import TextNodeComposer from './TextNodeComposer'
 import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2 } from '@tabler/icons-react'
 import {
   findModelOptionByIdentifier,
@@ -60,20 +58,6 @@ import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
 import { shotClaimCopy } from '../../observability/shotClaimCopy'
 import { useNodePromptFocusRequest } from './nodePromptFocus'
-
-// C5 P2：文本节点的三种生成模式（label 在渲染处翻译）。
-// 存**整键**而非相对片段：编译器替我们校验键存在（satisfies TranslationKey），
-// 且不给死键门岗留下 `generationCommon.` 这种覆盖整命名空间的模板 head（见 i18n/translationKey.ts）。
-const TEXT_GEN_MODES = [
-  { value: 'append', labelKey: 'generationCommon.composer.append' },
-  { value: 'rewrite', labelKey: 'generationCommon.composer.rewrite' },
-  { value: 'replace', labelKey: 'generationCommon.composer.replace' },
-] as const satisfies readonly { value: TextGenMode; labelKey: TranslationKey }[]
-const TEXT_MODE_PLACEHOLDER_KEY = {
-  append: 'generationCommon.composer.appendPlaceholder',
-  rewrite: 'generationCommon.composer.rewritePlaceholder',
-  replace: 'generationCommon.composer.replacePlaceholder',
-} as const satisfies Record<TextGenMode, TranslationKey>
 
 // 生成节点的浮动 composer：references + 提示词 + 参数 + 生成/重新生成按钮。
 // 从 BaseGenerationNode 抽出（A1.5 接缝）：只有「生成类」节点挂它，素材节点不挂。
@@ -128,7 +112,17 @@ function composerMaxHeight(kind: GenerationCanvasNode['kind']): number {
   return kind === 'video' ? 460 : 400
 }
 
-export default function NodeGenerationComposer({ onFeedback, node, visualSize, host = 'canvas', readOnly = false }: Props): JSX.Element {
+/**
+ * 文本节点在画布上的浮框是「加工框」（预设 + 一句话 + 跟随 Agent 的模型），不是图片 / 视频那张带参考与参数的卡——
+ * 两件东西没有共同的身体，所以按种类分开：文本走 TextNodeComposer，其余走下面这张。
+ */
+export default function NodeGenerationComposer(props: Props): JSX.Element {
+  return props.node.kind === 'text' && (props.host ?? 'canvas') === 'canvas'
+    ? <TextNodeComposer onFeedback={props.onFeedback} node={props.node} visualSize={props.visualSize} readOnly={props.readOnly ?? false} />
+    : <GenericNodeGenerationComposer {...props} />
+}
+
+function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'canvas', readOnly = false }: Props): JSX.Element {
   const feedbackOwnerRef = React.useRef<string | null>(node.id)
   feedbackOwnerRef.current = node.id
   React.useEffect(() => { feedbackOwnerRef.current = node.id; return () => { feedbackOwnerRef.current = null } }, [node.id])
@@ -196,7 +190,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     : null
   const productionClaimBlocked = productionClaim?.holder === 'production'
   const productionClaimCopy = shotClaimCopy(productionClaim?.reason)
-  const isTextKind = node.kind === 'text'
   // 声音节点：解析当前档案模式（配音 speech / 转写 transcribe），驱动「台词框 vs 音频参考槽」分流。
   const isAudioKind = isAudioLikeGenerationNodeKind(node.kind)
   const audioMode = React.useMemo(() => {
@@ -211,8 +204,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
     return archetype ? currentArchetypeMode(archetype, meta) : null
   }, [isAudioKind, node.meta])
   const audioIsTranscribe = audioMode?.transportTaskKind === 'transcribe'
-  const textGenMode = getTextGenMode(node)
-  const hasPromptPickerButton = Boolean(nodeExecutionKind) && acceptsPrompt && !audioIsTranscribe && !isTextKind
+  const hasPromptPickerButton = Boolean(nodeExecutionKind) && acceptsPrompt && !audioIsTranscribe
   const hasReferenceControls =
     isImageLikeGenerationNodeKind(node.kind) ||
     isVideoLikeGenerationNodeKind(node.kind) ||
@@ -307,21 +299,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    const state = useGenerationCanvasStore.getState()
-    // 自动备齐参考：本节点有「连了线但还没出图」的上游 → 不裸跑，排依赖波次（参考先、本镜后）
-    // 走批量确认条（确认前零调用零扣费；用户一眼看到先生成谁、再生成谁）。根治单节点生成绕过
-    // 依赖、参考没回灌进镜头的整类问题（对话 2026-06-14）。
-    const pendingRefs = collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges })
-    if (pendingRefs.length > 0) {
-      const plan = buildDependencyWaves([...pendingRefs, node.id], { nodes: state.nodes, edges: state.edges })
-      useBatchPlanPreviewStore.getState().open(plan)
-      return
-    }
-    if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
-    // 每按一次 ↑ 只出一版；要几版就按几次，版本卡片把它们铺开（用户 2026-10-06 拍板删掉「每次生成几个」）。
-    // 已有结果的「重新生成」原地回填：新图进当前节点堆叠并设为主图，不再复制新节点。
-    if (hasResult) await regenerateNodeInPlace(node.id, { initiator: 'user' })
-    else await confirmAndRunNode(node.id, { initiator: 'user' })
+    await startGenerationFromComposer(node, hasResult)
   }
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。
@@ -413,39 +391,10 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
           <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
         </div>
       ) : null}
-      {isTextKind ? (
-        <div
-          className={cn('flex items-center gap-1')}
-          role="group"
-          aria-label={t('generationCommon.composer.generationMode')}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {TEXT_GEN_MODES.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={textGenMode === option.value}
-              data-active={textGenMode === option.value ? 'true' : 'false'}
-              title={t(option.labelKey)}
-              onClick={(event) => {
-                event.stopPropagation()
-                updateNode(node.id, { meta: { ...(node.meta || {}), textGenMode: option.value } })
-              }}
-              className={cn(
-                'min-h-7 rounded-nomi-sm px-2.5 py-1 text-caption font-medium leading-none',
-                'text-nomi-ink-60 hover:bg-nomi-ink-05',
-                'data-[active=true]:bg-nomi-paper data-[active=true]:text-nomi-ink data-[active=true]:shadow-nomi-sm',
-              )}
-            >
-              {t(option.labelKey)}
-            </button>
-          ))}
-        </div>
-      ) : null}
       {/* 长 prompt 在编辑器内部滚动/换行；卡宽确定，提示词不撑爆卡片。 */}
       {/* 输入区始终保留三行，推荐项在剩余高度内展示。 */}
       {/* 转写模式无台词输入（音频参考即输入）。 */}
-      {audioIsTranscribe || isTextKind || !acceptsPrompt ? null : (
+      {audioIsTranscribe || !acceptsPrompt ? null : (
         // 外层不滚、只负责占位和挂「展开」钮；里层是滚动口。钮挂在滚动口外面，滚到底也还在右上角。
         // 展开（2026-09-25 用户拍板，参考 LibTV）：卡片高度上限让开、滚动口长到全文（再长到 360 才内滚）。
         // 只给画布宿主——付费确认卡的提示词是 Nomi 写好的、面板高度有限，那里不加（同日拍板第 2 题）。
@@ -465,7 +414,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
           <PromptEditor
             className={cn('min-h-[72px]')}
             value={node.prompt || ''}
-            placeholder={appendMentionHint(isTextKind ? t(TEXT_MODE_PLACEHOLDER_KEY[textGenMode]) : getGenerationNodePromptPlaceholder(node.kind))}
+            placeholder={appendMentionHint(getGenerationNodePromptPlaceholder(node.kind))}
             editable={!node.locked && !readOnly}
             onChange={(next) => { if (!readOnly) updateNode(node.id, { prompt: next }) }}
             onBlur={() => { if (!inPanel && !readOnlyRef.current) void persistActiveWorkbenchProjectNow().catch(() => {}) }}
@@ -489,6 +438,8 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
         ) : null}
         </div>
       )}
+      {/* 连进来的文字：拼进提示词的那几段，摆出来（和生成时拼提示词读同一个投影）。 */}
+      <ConnectedTextChips node={node} />
       {/* 推荐行不进面板宿主：卡上的提示词是 Nomi 已经写完的，这一刻不是重新起草的时候。 */}
       {showPromptPicker && effects.recommendations}
       {/* 底栏（v1.1，2026-09-11 用户拍板）：铺满卡宽（w-full），一行三段、不换行：
@@ -603,28 +554,4 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
       ) : null}
     </ComposerAnchor></NodeWriteAccessProvider>
   )
-}
-
-type ComposerAnchorProps = React.HTMLAttributes<HTMLDivElement> & {
-  inPanel: boolean
-  anchorRef: React.Ref<HTMLDivElement>
-  visualSize: { width: number; height: number }
-  'data-composer-host': NodeComposerHost
-}
-
-/** 浮框最外层：面板宿主是普通内容流里的一个 div；画布宿主是钉在节点下沿的定位锚。 */
-function ComposerAnchor({ inPanel, anchorRef, visualSize, ...rest }: ComposerAnchorProps): JSX.Element {
-  return inPanel ? <div ref={anchorRef} {...rest} /> : <CanvasComposerAnchor anchorRef={anchorRef} visualSize={visualSize} {...rest} />
-}
-
-/**
- * 画布宿主的定位锚：位置 = composerCanvasPlacement(节点尺寸, 画布缩放)。
- * 缩放读 React Flow 的 transform（唯一真相，见 reactFlow/canvasViewportScale）——不读 workbenchStore 里「记住的视角」：
- * 那份只在手势 / 动画结束时才写，中途和贴在屏幕上的缩放差一截，浮框就忽大忽小（2026-10-06 同源问题把节点浮条带进了无限更新）。
- * 单独成一层：缩放每帧变时只有这一层重渲，里面的编辑器（children 引用不变）不跟着重渲。
- * 面板宿主不在 React Flow 里、订不到它，所以只有画布宿主走这里。
- */
-function CanvasComposerAnchor({ anchorRef, visualSize, style, ...rest }: Omit<ComposerAnchorProps, 'inPanel'>): JSX.Element {
-  const canvasZoom = useCanvasLiveZoom()
-  return <div ref={anchorRef} {...rest} style={{ ...composerCanvasPlacement(visualSize, canvasZoom), ...style }} />
 }
