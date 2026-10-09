@@ -141,6 +141,26 @@ async function runZoom(zoomPercent) {
     }
     const release = async () => { await win.mouse.up(); await win.waitForTimeout(300) }
 
+    // ───────── V 外观取证（不判对错）：手柄「悬停即现」是这次唯一的可见变化，改前改后各截一张节点 ─────────
+    if (wanted('V')) {
+      await deselectAll()
+      const cBox = await box(clip('c'))
+      await win.mouse.move(center(cBox).x, center(cBox).y)
+      await win.waitForTimeout(250)
+      await node.screenshot({ path: path.join(SHOT_DIR, `${LOCALE}-${SCHEME}-z${z}-v1-hover-unselected.png`) })
+      await win.mouse.click(center(cBox).x, center(cBox).y)
+      await win.waitForTimeout(250)
+      await win.keyboard.press('Escape') // 收起点击片段展开的预览浮层，只留节点本身
+      await win.mouse.move(center(cBox).x, center(cBox).y)
+      await win.waitForTimeout(250)
+      await node.screenshot({ path: path.join(SHOT_DIR, `${LOCALE}-${SCHEME}-z${z}-v2-selected.png`) })
+      const bBox = await box(clip('b'))
+      await win.mouse.move(center(bBox).x, center(bBox).y)
+      await win.waitForTimeout(250)
+      await node.screenshot({ path: path.join(SHOT_DIR, `${LOCALE}-${SCHEME}-z${z}-v3-hover-other-clip.png`) })
+      record('V', z, '外观取证截图已落盘', true, { dir: SHOT_DIR })
+    }
+
     // ───────── P2 未选中节点里按住片段：按下那一刻节点与片段都被选中，然后能直接拖 ─────────
     if (wanted('P2')) {
       await deselectAll()
