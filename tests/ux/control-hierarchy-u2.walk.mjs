@@ -13,6 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-u2-after')
@@ -144,7 +145,7 @@ try {
   await getWin().waitForTimeout(3000)
   await dismissTour()
   await resizeWindow()
-  await getWin().locator('[data-shell-topbar]').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  await getWin().locator('[data-shell-topbar]').first().waitFor({ state: 'visible', timeout: stationTimeout() }).catch(() => {})
 
   const rightCluster = await getWin().evaluate(() => {
     const right = document.querySelector('[data-shell-topbar] [role="toolbar"]')

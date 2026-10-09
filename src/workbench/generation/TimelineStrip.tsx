@@ -47,17 +47,16 @@ export function TimelineStrip({ onExpand, label, expandLabel, icon, expandIcon }
       <span className="shrink-0 text-caption tabular-nums text-nomi-ink-40">
         {t('generationCommon.workspace.clipSummary', { count: summary.clipCount, duration: summary.durationLabel })}
       </span>
-      {summary.thumbs.length ? (
-        <span className="ml-1.5 flex min-w-0 items-center gap-0.5 overflow-hidden" aria-hidden="true">
-          {summary.thumbs.map((thumb) => (
-            thumb.url
-              ? <img key={thumb.id} src={thumb.url} alt="" className="h-[18px] w-[30px] shrink-0 rounded-[3px] object-cover" />
-              : <span key={thumb.id} className="h-[18px] w-[30px] shrink-0 rounded-[3px] bg-nomi-ink-10" />
-          ))}
-          {summary.more ? <span className="pl-1 text-micro text-nomi-ink-40">+{summary.more}</span> : null}
-        </span>
-      ) : null}
-      <span className="ml-auto grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60" aria-hidden="true">{expandIcon}</span>
+      {/* 缩略图这一格吃掉剩余宽度（flex-1），展开钮自然落在行尾（不靠贴边类）。 */}
+      <span className="ml-1.5 flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden" aria-hidden="true">
+        {summary.thumbs.map((thumb) => (
+          thumb.url
+            ? <img key={thumb.id} src={thumb.url} alt="" className="h-[18px] w-[30px] shrink-0 rounded-sm object-cover" />
+            : <span key={thumb.id} className="h-[18px] w-[30px] shrink-0 rounded-sm bg-nomi-ink-10" />
+        ))}
+        {summary.more ? <span className="pl-1 text-micro text-nomi-ink-40">+{summary.more}</span> : null}
+      </span>
+      <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60" aria-hidden="true">{expandIcon}</span>
     </button>
   )
 }

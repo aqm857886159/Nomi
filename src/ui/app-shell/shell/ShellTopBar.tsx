@@ -32,7 +32,7 @@ import {
   usePreviewExportState,
 } from '../../../workbench/preview/previewExportRequest'
 import { useLocalProjects } from '../../../workbench/library/localProjectStore'
-import { useOnboardingProgress } from '../../../workbench/onboarding/useOnboardingProgress'
+import { useOnboardingProgress } from '../../../workbench/onboarding/onboardingProgress'
 import { useUpdater } from '../useUpdater'
 import { UpdaterDialog } from '../UpdaterDialog'
 import { SHELL_MAC_TRAFFIC_WIDTH, SHELL_TOPBAR_HEIGHT, shellChromePlatform } from '../shellGeometry'

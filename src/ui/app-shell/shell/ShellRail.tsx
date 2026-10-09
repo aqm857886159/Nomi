@@ -255,7 +255,7 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
         transitionProps={{ transition: 'slide-right', duration: 160 }}
         classNames={{
           inner: 'pointer-events-none',
-          content: 'pointer-events-auto relative flex flex-col overflow-hidden rounded-[12px] bg-nomi-paper shadow-nomi-lg ring-1 ring-nomi-line-soft',
+          content: 'pointer-events-auto relative flex flex-col overflow-hidden rounded-nomi-lg bg-nomi-paper shadow-nomi-lg ring-1 ring-nomi-line-soft',
           body: 'flex min-h-0 flex-1 flex-col p-0',
         }}
         styles={{

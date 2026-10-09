@@ -13,7 +13,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { ActionCard, DesignEmptyState, NomiSkeleton } from '../../design'
+import { ActionCard, DesignEmptyState, NomiSkeleton, WorkbenchIconButton } from '../../design'
 import { NomiImage } from '../../design/media'
 import { ShellFrame } from '../../ui/app-shell/shell/ShellFrame'
 import { ShellTopBar } from '../../ui/app-shell/shell/ShellTopBar'
@@ -363,27 +363,24 @@ export default function ProjectLibraryPage({
               <span className="flex-1" />
               <div className="flex shrink-0 items-center gap-2">
                 {onPlayJourneyTour ? (
-                  // 「看一遍怎么做」在 Library 板上只画在空库；有项目后它原来是第三张动作卡——功能不丢，收成一颗文字按钮（设计卡对账：有意不同）。
-                  <button
-                    type="button"
+                  // 「看一遍怎么做」在 Library 板上只画在空库；有项目后它原来是第三张动作卡——功能不丢，收成一颗图标钮
+                  // （控件文案契约 §1.8：次动作 / 工具动作 = 图标 + 悬停名字；设计卡对账：有意不同）。
+                  <WorkbenchIconButton
+                    icon={<IconPlayerPlay size={16} stroke={1.5} aria-hidden="true" />}
+                    label={journeyTourSeen ? t('library.replayGuide') : t('library.watchHow')}
                     onClick={onPlayJourneyTour}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-transparent px-2.5 text-caption text-nomi-ink-60 transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink"
                     data-library-tour
-                  >
-                    <IconPlayerPlay size={14} stroke={1.5} aria-hidden="true" />
-                    {journeyTourSeen ? t('library.replayGuide') : t('library.watchHow')}
-                  </button>
+                  />
                 ) : null}
                 {onOpenFolder ? (
-                  <button
-                    type="button"
+                  // Library 板画的是「打开文件夹」文字胶囊；控件文案契约要求次动作 = 图标 + 悬停名字（≤4 字才可带字），
+                  // 两条拍板相冲，先按契约做成图标钮，交协调会话定（设计卡 C12）。
+                  <WorkbenchIconButton
+                    icon={<IconFolderOpen size={16} stroke={1.5} aria-hidden="true" />}
+                    label={t('appShell.library.openFolder')}
                     onClick={onOpenFolder}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-nomi-paper px-3 text-caption font-medium text-nomi-ink-80 ring-1 ring-nomi-line transition-colors hover:bg-nomi-ink-05 focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent"
                     data-library-open-folder
-                  >
-                    <IconFolderOpen size={14} stroke={1.5} className="text-nomi-ink-60" aria-hidden="true" />
-                    {t('appShell.library.openFolder')}
-                  </button>
+                  />
                 ) : null}
                 <button
                   type="button"

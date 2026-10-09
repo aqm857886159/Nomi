@@ -27,7 +27,7 @@ import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } fr
 import { flowItemNotices } from './useDirectorPatchNotices'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
-import { AGENT_HEADER_COMPACT_WIDTH, AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from './agentPanelHeaderSlot'
+import { AGENT_HEADER_COMPACT_WIDTH, AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from '../../../ui/app-shell/shell/agentPanelHeaderSlot'
 import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
 import { IconDots } from '@tabler/icons-react'
 import type { V4QuestionReply } from './agentPanelV4Question'

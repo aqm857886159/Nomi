@@ -411,8 +411,7 @@ try {
   assert(!prev.barOverflowsX, "控制条横向无溢出（无多余滚动条「杠」）", `overflowsX=${prev.barOverflowsX}`);
   assert(prev.barInViewport, "控制条整体在视口内（不溢出/不被裁）", `barInViewport=${prev.barInViewport}`);
 
-  console.log("
-── 上手 4 步清单（10-08：顶栏设置钮上的未完成点 → 设置「通用」最上面一块）──");
+  console.log("\n── 上手 4 步清单（10-08：顶栏设置钮上的未完成点 → 设置「通用」最上面一块）──");
   const trig = await win.evaluate(() => {
     const t = document.querySelector("[data-shell-settings]");
     if (!t) return { present: false };

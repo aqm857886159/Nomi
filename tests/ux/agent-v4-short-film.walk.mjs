@@ -11,6 +11,7 @@
 //
 // 用法：node tests/ux/agent-v4-short-film.walk.mjs
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { laneMessages, laneMessageText, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
@@ -340,7 +341,7 @@ try {
   await clickOrFail(dock, '点小球展开面板')
   await expect(win.locator(`${CANVAS_PANEL} ${V4_FLOW}`)).toBeVisible()
   await expect.poll(async () => Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0),
-    { message: '点小球必须**原宽**原状态还原（浮窗记住的那个宽），不是重置成默认宽', timeout: 30_000 }).toBe(widthBeforeCollapse)
+    { message: '点小球必须**原宽**原状态还原（浮窗记住的那个宽），不是重置成默认宽', timeout: stationTimeout({ operations: 2 }) }).toBe(widthBeforeCollapse)
   await expect(canvas.locator(USER_BUBBLE).last(), '展开后最后一句话还是收起前发的那句').toContainText('整体节奏')
   // 展开**动画结束之后**再截：还原是不是「原宽原状态」这件事，只有停下来的那一帧看得出来
   // （动画中途的任何一帧宽度都不是最终宽，截到它等于给拍板人看一张过程图）。

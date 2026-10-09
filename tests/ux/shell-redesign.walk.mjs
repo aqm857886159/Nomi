@@ -7,10 +7,11 @@
 //   环境：WALK_LOCALE=zh-CN|en  WALK_SCHEME=light|dark  WALK_SIZE=1280x800|1000x700|1440x900
 //         WALK_SHOTS=逗号分隔的屏名（缺省全拍）：library-empty,library,main,canvas-agent,creation-doc,
 //         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -125,7 +126,7 @@ async function shoot(win, name) {
 
 // ── 1. 空项目库（LibraryEmpty 板）──
 if (want('library-empty')) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shell-redesign-empty-'))
+  const root = makeTempDir('nomi-shell-redesign-empty-')
   const projectsDir = path.join(root, 'projects')
   fs.mkdirSync(projectsDir, { recursive: true })
   let close
@@ -144,7 +145,7 @@ if (want('library-empty')) {
 }
 
 // ── 2. 有项目的一轮 ──
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shell-redesign-'))
+const root = makeTempDir('nomi-shell-redesign-')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(projectsDir, { recursive: true })
 const project = seedProjects(projectsDir)
@@ -238,7 +239,7 @@ try {
     await win.keyboard.press('Control+J')
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Ctrl+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await expect.poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('#project-agent-resident') && document.activeElement?.tagName === 'TEXTAREA')),
-      { message: 'Ctrl+J 打开后焦点不在 Agent 输入框', timeout: 5000 }).toBe(true)
+      { message: 'Ctrl+J 打开后焦点不在 Agent 输入框', timeout: stationTimeout() }).toBe(true)
     await shoot(win, 'check-mod-j')
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), 'Ctrl+\\ 没把浮窗收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
@@ -296,7 +297,7 @@ try {
       const clips = win.locator('[data-testid="timeline-clip"]')
       const before = await clips.count()
       await clickOrFail(win.locator('[data-shell-drawer-shots] [data-testid="preview-source-shot"]').first(), '点抽屉里的镜头 1')
-      await expect.poll(() => clips.count(), { message: '点抽屉镜头后时间轴没多一段', timeout: 10_000 }).toBe(before + 1)
+      await expect.poll(() => clips.count(), { message: '点抽屉镜头后时间轴没多一段', timeout: stationTimeout() }).toBe(before + 1)
       measures.previewAppend = { before, after: await clips.count() }
       await shoot(win, 'check-preview-append')
     }

@@ -765,6 +765,24 @@
       "path": "src/workbench/generationCanvas/components/canvasBatchModelLabel.ts",
       "symbol": "resolveCanvasBulkModelLabelKey",
       "reason": "2026-10-06 用户拍板：画布不再有批量选模型入口（底部批量栏和框选浮条上的按类型统一换模型整条删除，批量只走组工具条「生成整组」，各节点用自己已选好的模型）；这条「同类不同模式的批量下拉不许同名」的不变量所约束的 CanvasBulkModelSelect / canvasBatchModelLabel 随之整体删除，不再适用。分镜多选条仍用 BulkModelPicker，由 storyboardBulkModelScope 的测试守。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-17-creation-left-column-collapse.root-cause.json",
+      "path": "src/workbench/creation/creationResourceTreeCollapse.ts",
+      "symbol": "creationResourceTreeCollapsedFor / DEFAULT_COLLAPSED_BY_MODE / createCreationResourceTreeSlice",
+      "reason": "2026-10-08 外壳重设计（用户拍板稿 CreationDoc）：创作页常驻的「创作内容」列整列删除，文稿树搬进左栏「文稿」抽屉（ShellRail），抽屉是浮层、不占列宽，没有「按模式默认收起」这份状态了。「树最多一步就回来」这条不变量改由 ShellRail 守：任何一页点左栏「文稿」即开（creationResourceTreeModes.test 钉住「只在 ShellRail 挂一次」，走查 helper _creationResourceTree.mjs 点的就是这颗钮）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-17-creation-left-column-collapse.root-cause.json",
+      "path": "src/workbench/creation/CreationResourceTreeToggle.tsx",
+      "symbol": "CreationResourceTreeToggle",
+      "reason": "同上：中间面板上的展开 / 收起钮随「创作内容」列一起删除，回来的那一步换成左栏「文稿」钮（ShellRail 的 RailButton，data-shell-rail-item=docs，aria-pressed 表开合）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-21-timeline-handle-vertical-band.root-cause.json",
+      "path": "src/workbench/generation/timelineHandlePlacement.ts",
+      "symbol": "resolveTimelineHandleLeft",
+      "reason": "2026-10-08 外壳重设计（用户拍板稿 Main）：生成页收起的时间轴不再是浮在画布上、要避让别的浮层的把手，而是工作面底边的一行窄条（TimelineStrip，画布之下的独立一格），结构上不会和画布浮层 / Agent 小球重叠，「把手横向落在哪」这件事不再存在。"
     }
   ],
   "unverified": [

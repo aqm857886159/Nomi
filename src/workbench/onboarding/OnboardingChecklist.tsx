@@ -18,7 +18,7 @@ import { IconCheck, IconMap } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { DesignProgress } from '../../design'
 import type { ChecklistStep } from './onboardingState'
-import { useOnboardingProgress } from './useOnboardingProgress'
+import { useOnboardingProgress } from './onboardingProgress'
 
 /** 设置「通用」最上面那一块：上手清单。做完 / 关掉 / 过期后整块不出现。 */
 export function OnboardingChecklistSection(): JSX.Element | null {

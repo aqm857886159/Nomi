@@ -10,196 +10,786 @@
   ],
   "enforceFrom": "2026-10-08",
   "domainRoots": [
-    {"path":"electron/productionRun/","reason":"制作流程 ProductionRun：按镜头花钱的持久编排——调度、暂停收尾、返工与续拍、预算账本，Nomi 独有"},
-    {"path":"electron/capabilityCore/canvas*","reason":"画布领域的读写能力：节点工厂、版式、画布图、读写面端口与传输适配"},
-    {"path":"electron/capabilityCore/anchor*","reason":"锚点圣经：分镜一致性的领域模型"},
-    {"path":"electron/capabilityCore/document*","reason":"文稿领域的读写面与传输适配"},
-    {"path":"electron/capabilityCore/generation*","reason":"生成的领域面：派发、报价与花钱判决、计划补丁、输出落地、恢复投影、默认模型"},
-    {"path":"electron/capabilityCore/semanticAspectRatio*","reason":"镜头参数语义：用户说的画面比例落到所选模式的哪个参数键、哪一档（含像素档按同档挑），翻不了就拒——按镜头花钱的领域规则；名字与格式照 Vercel AI SDK 的 aspectRatio，翻译按档案写（docs/plan/2026-10-05-agent-aspect-ratio-semantic.md「先查别人」）"},
-    {"path":"electron/capabilityCore/apimartGeneration*","reason":"APIMart 供应商的生成适配（只有我们接的这家才有）"},
-    {"path":"electron/capabilityCore/appIntegration*","reason":"App 集成：把制作流程与付费确认接给 Agent / MCP 的领域胶合"},
-    {"path":"electron/capabilityCore/approvalReceipt*","reason":"审批回执：按领域动作记账与撤销"},
-    {"path":"electron/capabilityCore/projectAgent*","reason":"Agent 对项目的提案回执与文稿回执：写入可撤销的领域语义"},
-    {"path":"electron/capabilityCore/production*","reason":"制作流程在能力核里的参考图与信任授权"},
-    {"path":"electron/capabilityCore/shot*","reason":"镜头领域：镜头语言、顺序、校验"},
-    {"path":"electron/capabilityCore/spendDecision*","reason":"按镜头花钱的决定与等待"},
-    {"path":"electron/capabilityCore/policySpend*","reason":"花钱判决：审批档位 × 金额语义"},
-    {"path":"electron/capabilityCore/pendingSpend*","reason":"待确认付费的参考素材"},
-    {"path":"electron/capabilityCore/timeline*","reason":"时间轴领域的传输适配"},
-    {"path":"electron/capabilityCore/skill*TransportAdapters*","reason":"技能库读写的传输适配"},
-    {"path":"electron/capabilityCore/nodeKind*","reason":"画布节点种类的领域词表"},
-    {"path":"electron/capabilityCore/semanticGeneration*","reason":"语义化生成候选：从用户意图到可提交的生成"},
-    {"path":"electron/capabilityCore/usableVideoModel*","reason":"可用视频模型候选：按真实可用性筛"},
-    {"path":"electron/capabilityCore/runOwnedGeneration*","reason":"制作流程拥有的生成闸权威"},
-    {"path":"electron/capabilityCore/resident*","reason":"常驻生成面的装配与生命周期"},
-    {"path":"electron/capabilityCore/model*","reason":"模型接入的领域面：准入 schema、接入流程、规格读取"},
-    {"path":"electron/capabilityCore/verifiedCapability*","reason":"已验证能力的调用：领域能力的受控调用"},
-    {"path":"electron/capabilityCore/module*","reason":"能力模块清单与注册"},
-    {"path":"electron/capabilityCore/executionContract*","reason":"能力执行契约：每个领域能力的效果类、超时预算与审批语义声明"},
-    {"path":"electron/capabilityCore/phase4Surface*","reason":"阶段 4 画布 / 文稿 / 时间轴面的传输适配"},
-    {"path":"electron/shared/agentCapabilities/","reason":"能力契约与动词：画布 / 文稿 / 时间轴 / 生成的领域读写、审批语义"},
-    {"path":"electron/shared/videoCapabilities/","reason":"视频生成能力的领域词表与契约"},
-    {"path":"electron/shared/imageCapabilities/","reason":"图像生成能力的领域词表与契约"},
-    {"path":"electron/shared/audioCapabilities/","reason":"音频生成能力的领域词表与契约"},
-    {"path":"electron/shared/modelArchetypes/","reason":"模型档案：生成模型的参数 / 模式声明槽"},
-    {"path":"electron/shared/storyboard/","reason":"分镜：镜头表、编译与出站的领域规则"},
-    {"path":"electron/shared/canvas/","reason":"画布节点状态、镜头顺序与时间的领域规则"},
-    {"path":"electron/shared/assets/","reason":"素材声明与引用的跨进程契约"},
-    {"path":"electron/shared/localSpeech/","reason":"本地转写的跨进程契约"},
-    {"path":"electron/shared/production*","reason":"制作流程的镜头阶段、批次成员、停下原因、命令 id"},
-    {"path":"electron/shared/decideShotClaim*","reason":"镜头认领：一镜在生成的唯一判决"},
-    {"path":"electron/shared/generation*","reason":"生成模块 id 与镜头信封"},
-    {"path":"electron/shared/aspectRatio*","reason":"画面比例判据：什么值算比例、什么控件是比例控件、要的比例落哪一档；宿主准入与画布参数面板共读这一份（同上方案「先查别人」）"},
-    {"path":"electron/shared/projectAgentProposalReceipt*","reason":"提案回执的跨进程契约"},
-    {"path":"electron/shared/projectBinding*","reason":"项目绑定：对话与创作项目的归属"},
-    {"path":"electron/shared/model*","reason":"模型发布、可用性与上下文窗口目录"},
-    {"path":"electron/shared/vendor*","reason":"供应商身份与字段丢失提示的领域规则"},
-    {"path":"electron/shared/builtinVendorIdentity*","reason":"内置供应商身份：我们策展过的那批供应商的稳定标识"},
-    {"path":"electron/shared/providerAdapterContract*","reason":"供应商适配契约：各家生成供应商 API 差异的统一声明"},
-    {"path":"electron/shared/integrationContract*","reason":"接入契约：用户接入新供应商 / 模型时的领域声明"},
-    {"path":"electron/shared/customCapabilityContract*","reason":"自定义能力契约：用户自接模型暴露为生成能力的声明"},
-    {"path":"electron/shared/capability*","reason":"能力定向与模式清单"},
-    {"path":"electron/shared/skill*","reason":"技能提供、导入与策展契约"},
-    {"path":"electron/shared/textModelCapabilities*","reason":"文本模型能力声明"},
-    {"path":"electron/shared/agentContextSnapshot*","reason":"Agent 看到的画布 / 选中快照"},
-    {"path":"electron/shared/surfacePortBinding*","reason":"画布面端口绑定：Agent 写画布时目标画布的身份与权限"},
-    {"path":"electron/shared/onboardingDemoAssets*","reason":"演示素材清单：首次使用时的示例项目素材"},
-    {"path":"electron/catalog/","reason":"多供应商模型目录、中转地址、单价换算与各家供应商适配：Nomi 的供应商面，没有第三方等价物","exclude":["electron/catalog/*FileAccess*","electron/catalog/*Commit*"]},
-    {"path":"electron/providerAdapter/","reason":"各家生成供应商 API 的差异适配"},
-    {"path":"electron/integrationCertification/","reason":"接入认证：证明某供应商 / 模型真能按我们的契约生成"},
-    {"path":"electron/vendor/cost*","reason":"供应商调用的成本记账"},
-    {"path":"electron/vendor/provenance*","reason":"生成产物的来源记录"},
-    {"path":"electron/vendor/vendorOutboundGuard*","reason":"付费取片的出站守卫：必须证明连的是供应商，拒绝要说明「没计费」"},
-    {"path":"electron/vendor/vendorBaseFallback*","reason":"供应商地址的回落规则"},
-    {"path":"electron/tasks/","reason":"生成任务的提交、轮询、取片与本地化，按真钱语义处理失败","exclude":["electron/tasks/taskCache*","electron/tasks/taskIpc*"]},
-    {"path":"electron/comfyui/","reason":"本地 ComfyUI 生成后端的适配与进度"},
-    {"path":"electron/export/","reason":"时间轴导出成片：领域的最终产物"},
-    {"path":"electron/assets/","reason":"项目素材库：导入、本地化、解码判定、素材声明与引用","exclude":["electron/assets/download*","electron/assets/scratch*","electron/assets/storageCapacity*","electron/assets/localFileCopy*","electron/assets/nativeFileBridge*","electron/assets/clipboardFilePaths*"]},
-    {"path":"electron/video/","reason":"创作向视频处理：抽帧、切镜检测、深度、拆解"},
-    {"path":"electron/director/","reason":"导演台与运镜：移动端桥与镜头语言"},
-    {"path":"electron/shared/director/","reason":"3D-BOX 导演计划（schema、词表、按名字寻址的补丁与修订号、写法指导）：Nomi 独有的导演领域对象，渲染端编译器与主进程工具面共用（P2 从 src 搬来）"},
-    {"path":"electron/workspace/","reason":"项目工作区：项目身份、清单、迁移的盘上形态","exclude":["electron/workspace/workspaceManifestLock*","electron/workspace/workspaceManifestTransaction*","electron/workspace/workspaceSync*","electron/workspace/workspaceFileIndex*","electron/workspace/workspaceFileDelete*"]},
-    {"path":"electron/projects/","reason":"项目库：目录、最近项目与项目身份"},
-    {"path":"electron/memory/","reason":"项目记忆：创作事实的沉淀"},
-    {"path":"electron/promptLibrary/","reason":"创作提示词库：用户沉淀的提示词与模板"},
-    {"path":"electron/review/","reason":"成片 / 镜头评审与技术检查"},
-    {"path":"electron/skills/","reason":"创作技能库的存取（格式本身用标准 SKILL.md，发现与解析交给 pi）"},
-    {"path":"electron/experience/","reason":"创作经验的抽取与沉淀"},
-    {"path":"electron/parity/","reason":"生成入口一致性账：每个能发出供应商请求的入口都有裁决"},
-    {"path":"electron/onboarding/","reason":"首次使用引导与演示素材"},
-    {"path":"electron/localSpeech/","reason":"本地转写 provider 的编排：引擎是 whisper.cpp，我们只编排下载、校验、分段与回落规则"},
-    {"path":"electron/localRuntime/","reason":"本地 AI 运行时的探测与描述，只对我们接的这几类本地后端有意义"},
-    {"path":"electron/events/generationEtaStats*","reason":"生成耗时统计：领域的预计等待"},
-    {"path":"electron/events/vendorCallTrace*","reason":"供应商调用的领域追踪"},
-    {"path":"electron/events/agentChatTrace*","reason":"Agent 回合的领域追踪"},
-    {"path":"electron/settings/agentApprovalPolicy*","reason":"Agent 审批档位设置"},
-    {"path":"electron/settings/generationModelDefaults*","reason":"各生成任务的默认模型设置"},
-    {"path":"electron/settings/vendorPreference*","reason":"供应商偏好设置：用户对各家供应商的启用与排序偏好"},
-    {"path":"electron/settings/modelBoxPreference*","reason":"模型框偏好设置：画布模型下拉框的展示偏好"},
-    {"path":"electron/settings/automationPolicy*","reason":"自动化权限设置：外部 Agent 能对项目做什么的授权"},
-    {"path":"electron/settings/systemPrompts*","reason":"系统提示词设置：用户对 Agent 创作风格的自定义"},
-    {"path":"electron/settings/canvasMenuPreference*","reason":"画布菜单偏好设置"},
-    {"path":"electron/browser/media/","reason":"内置浏览器里面向创作的媒体采集"},
-    {"path":"electron/browser/captureNaming*","reason":"采集素材的命名规则"},
-    {"path":"src/workbench/ai/lane/","reason":"Agent 对话投影的渲染层：视图模型、回执撤销、任务候选动作、失败话术——把 lane 的快照画成面板"},
-    {"path":"src/workbench/ai/v4/agentPanelSpendCard*","reason":"付费确认卡的领域呈现：报价、范围、逐镜修订"},
-    {"path":"src/workbench/ai/v4/spendCard*","reason":"付费确认卡的本地账本：覆写、估算、参考图"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4AskCard*","reason":"Agent 提问卡：用户必须亲口答的一步"},
-    {"path":"src/workbench/ai/v4/agentPanelV4AskModel*","reason":"提问卡的选项与答案模型"},
-    {"path":"src/workbench/ai/v4/agentPanelV4Question*","reason":"提问卡的问题模型"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4Receipt*","reason":"写入回执卡：可撤销的画布 / 文稿写入记录"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4Consent*","reason":"「帮 Nomi 变好」首次询问卡：隐私同意的产品界面"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4SandboxNotice*","reason":"命令沙箱状态提示：Nomi 的执行安全语义"},
-    {"path":"src/workbench/ai/v4/agentPanelV4SandboxReason*","reason":"沙箱不可用的原因归类"},
-    {"path":"src/workbench/ai/v4/agentPanelV4Intervention*","reason":"介入卡：Agent 需要用户介入的统一槽位"},
-    {"path":"src/workbench/ai/v4/missingInterventionCard*","reason":"介入卡缺失时的诚实呈现"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4SlotShell*","reason":"介入卡的外壳：统一槽位的边框与动作区"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4Cards*","reason":"面板里的领域卡片：任务卡、候选卡"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4Context*","reason":"面板里的上下文标签：当前选中的画布 / 镜头 / 文稿"},
-    {"path":"src/workbench/ai/v4/AgentPanelV4AutoMode*","reason":"Agent 审批档位（自动改 / 逐步确认）的界面"},
-    {"path":"src/workbench/ai/v4/agentPanelV4ModelRows*","reason":"模型下拉里按我们目录呈现的模型行"},
-    {"path":"src/workbench/ai/v4/agentPanelV4ToolOutput*","reason":"领域工具输出的面板呈现"},
-    {"path":"src/workbench/ai/systemPrompt/","reason":"用户对 Agent 创作风格的系统提示词自定义"},
-    {"path":"src/workbench/ai/resident/","reason":"常驻 Agent 的领域显示：提案、镜头参考、时间轴选择、工具文案、镜头校验反馈","exclude":["src/workbench/ai/resident/residentTranscriptScroll*"]},
-    {"path":"src/workbench/ai/composer/composerAttachmentTypes*","reason":"附件作为项目素材声明的类型"},
-    {"path":"src/workbench/ai/agent*","reason":"Agent 回合的领域状态：意图、循环模式、会话键、回合生命周期、用量、失败诊断"},
-    {"path":"src/workbench/ai/assistant*","reason":"Agent 使用的模型身份与偏好"},
-    {"path":"src/workbench/ai/projectAgent*","reason":"项目级 Agent 的附件与草稿恢复"},
-    {"path":"src/workbench/ai/resident*","reason":"常驻 Agent 的活动状态"},
-    {"path":"src/workbench/ai/NoTextModel*","reason":"没有可用文本模型时的恢复卡"},
-    {"path":"src/workbench/ai/NomiIdentityRow*","reason":"Nomi 助手身份行"},
-    {"path":"src/workbench/ai/ProjectAgentResidentShell*","reason":"常驻 Agent 外壳：把项目、画布与对话接在一起"},
-    {"path":"src/workbench/ai/workbenchAiTypes*","reason":"Agent 面板的领域类型"},
-    {"path":"electron/connectors/tikhub*","reason":"TikHub 数据源接入：拆解参考片与自媒体来源，只有我们接的这家才有"},
-    {"path":"electron/connectors/referenceSearch*","reason":"参考片搜索：创作向的参考素材检索"},
-    {"path":"electron/connectors/connectorDefinition*","reason":"数据源连接器的声明"},
-    {"path":"src/workbench/generationCanvas/nodes/","reason":"画布节点：各类生成节点的界面与状态呈现"},
-    {"path":"src/workbench/generationCanvas/model/","reason":"画布节点与连线的领域模型"},
-    {"path":"src/workbench/generationCanvas/spend/","reason":"画布上的花钱确认：报价卡、锚点检查"},
-    {"path":"src/workbench/generationCanvas/runner/","reason":"画布节点的生成执行：提交、轮询、失败归属"},
-    {"path":"src/workbench/generationCanvas/store/","reason":"画布节点的状态仓"},
-    {"path":"src/workbench/generationCanvas/agent/","reason":"Agent 对画布的读写落地"},
-    {"path":"src/workbench/generationCanvas/fixation/","reason":"画布节点的固定与回放"},
-    {"path":"src/workbench/generationCanvas/videoDepth/","reason":"视频深度节点：生成画布上的深度估计节点与结果呈现"},
-    {"path":"src/workbench/generationCanvas/quickActions/","reason":"节点快捷动作：从一个画布节点一键派生下游节点（连参考、引用效果库条目、沿用模型、按镜头花钱走唯一派发口）——画布节点与按镜头花钱语义，Nomi 独有"},
-    {"path":"src/workbench/generationCanvas/components/","reason":"画布上的业务组件：批量计划、到达提示等"},
-    {"path":"src/workbench/generationCanvas/events/","reason":"画布事件（撤销日志与写边界是通用能力，单独登记为 entries.canvas-undo-journal-write-boundary）"},
-    {"path":"src/workbench/production/","reason":"制作流程的界面与状态：Run、镜头认领、落地宿主"},
-    {"path":"src/workbench/capability/","reason":"能力落地到画布 / 分镜的渲染层写入点"},
-    {"path":"src/workbench/creation/","reason":"创作：文稿与分镜的编辑与编译"},
-    {"path":"src/workbench/timeline/","reason":"时间轴：片段、播放与编辑"},
-    {"path":"src/workbench/player/","reason":"时间轴播放时钟：多轨片段的统一播放时间线"},
-    {"path":"src/workbench/preview/","reason":"成片预览：时间轴合成结果的预览界面"},
-    {"path":"src/workbench/export/","reason":"导出成片的界面：格式、范围与进度，领域的最终产物"},
-    {"path":"src/workbench/assets/","reason":"素材库界面：项目素材的浏览、分组、拖入画布"},
-    {"path":"src/workbench/library/","reason":"项目库与工作流库界面"},
-    {"path":"src/workbench/project/","reason":"项目：分类、封面、备份、创建流程"},
-    {"path":"src/workbench/adoption/","reason":"采纳生成结果与分镜批次进画布"},
-    {"path":"src/workbench/generation/","reason":"生成相关的界面状态"},
-    {"path":"src/workbench/taskCenter/","reason":"任务中心：制作与生成任务的总览"},
-    {"path":"src/workbench/promptLibrary/","reason":"提示词库界面：用户沉淀的提示词与模板的使用面"},
-    {"path":"src/workbench/skillLibrary/","reason":"技能库界面：创作技能的启用、导入与选择"},
-    {"path":"src/workbench/onboarding/","reason":"首次使用引导界面"},
-    {"path":"src/workbench/settings/","reason":"设置页的各分区界面"},
-    {"path":"src/workbench/observability/","reason":"失败话术：错误归类、叙述与按镜头认领文案"},
-    {"path":"src/workbench/sidebar/","reason":"素材 / 分组侧栏"},
-    {"path":"src/workbench/explorer/","reason":"项目文件侧栏：项目内文稿与素材文件的导航"},
-    {"path":"src/ui/onboarding/","reason":"产品引导页面：首次使用的旅程与示例"},
-    {"path":"src/ui/community/","reason":"社区页面：Nomi 社区与反馈入口的产品界面"},
-    {"path":"src/ui/browser/","reason":"内置浏览器的界面"},
-    {"path":"src/ui/app-shell/","reason":"应用外壳页面：项目库、窗口框架等产品外壳"},
-    {"path":"src/i18n/locales/","reason":"界面文案本身（zh-CN / en）"},
-    {"path":"src/config/knownVendors*","reason":"已知供应商清单：我们策展的供应商名称、图标与默认地址"},
-    {"path":"src/config/modelBoxPreference*","reason":"模型框偏好：画布模型下拉框的展示偏好（渲染层）"},
-    {"path":"src/config/models*","reason":"模型选项的领域配置"},
-    {"path":"src/devlab/","reason":"设计实验室：Nomi 界面的样张与状态集，不进产物"}
+    {
+      "path": "electron/productionRun/",
+      "reason": "制作流程 ProductionRun：按镜头花钱的持久编排——调度、暂停收尾、返工与续拍、预算账本，Nomi 独有"
+    },
+    {
+      "path": "electron/capabilityCore/canvas*",
+      "reason": "画布领域的读写能力：节点工厂、版式、画布图、读写面端口与传输适配"
+    },
+    {
+      "path": "electron/capabilityCore/anchor*",
+      "reason": "锚点圣经：分镜一致性的领域模型"
+    },
+    {
+      "path": "electron/capabilityCore/document*",
+      "reason": "文稿领域的读写面与传输适配"
+    },
+    {
+      "path": "electron/capabilityCore/generation*",
+      "reason": "生成的领域面：派发、报价与花钱判决、计划补丁、输出落地、恢复投影、默认模型"
+    },
+    {
+      "path": "electron/capabilityCore/semanticAspectRatio*",
+      "reason": "镜头参数语义：用户说的画面比例落到所选模式的哪个参数键、哪一档（含像素档按同档挑），翻不了就拒——按镜头花钱的领域规则；名字与格式照 Vercel AI SDK 的 aspectRatio，翻译按档案写（docs/plan/2026-10-05-agent-aspect-ratio-semantic.md「先查别人」）"
+    },
+    {
+      "path": "electron/capabilityCore/apimartGeneration*",
+      "reason": "APIMart 供应商的生成适配（只有我们接的这家才有）"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration*",
+      "reason": "App 集成：把制作流程与付费确认接给 Agent / MCP 的领域胶合"
+    },
+    {
+      "path": "electron/capabilityCore/approvalReceipt*",
+      "reason": "审批回执：按领域动作记账与撤销"
+    },
+    {
+      "path": "electron/capabilityCore/projectAgent*",
+      "reason": "Agent 对项目的提案回执与文稿回执：写入可撤销的领域语义"
+    },
+    {
+      "path": "electron/capabilityCore/production*",
+      "reason": "制作流程在能力核里的参考图与信任授权"
+    },
+    {
+      "path": "electron/capabilityCore/shot*",
+      "reason": "镜头领域：镜头语言、顺序、校验"
+    },
+    {
+      "path": "electron/capabilityCore/spendDecision*",
+      "reason": "按镜头花钱的决定与等待"
+    },
+    {
+      "path": "electron/capabilityCore/policySpend*",
+      "reason": "花钱判决：审批档位 × 金额语义"
+    },
+    {
+      "path": "electron/capabilityCore/pendingSpend*",
+      "reason": "待确认付费的参考素材"
+    },
+    {
+      "path": "electron/capabilityCore/timeline*",
+      "reason": "时间轴领域的传输适配"
+    },
+    {
+      "path": "electron/capabilityCore/skill*TransportAdapters*",
+      "reason": "技能库读写的传输适配"
+    },
+    {
+      "path": "electron/capabilityCore/nodeKind*",
+      "reason": "画布节点种类的领域词表"
+    },
+    {
+      "path": "electron/capabilityCore/semanticGeneration*",
+      "reason": "语义化生成候选：从用户意图到可提交的生成"
+    },
+    {
+      "path": "electron/capabilityCore/usableVideoModel*",
+      "reason": "可用视频模型候选：按真实可用性筛"
+    },
+    {
+      "path": "electron/capabilityCore/runOwnedGeneration*",
+      "reason": "制作流程拥有的生成闸权威"
+    },
+    {
+      "path": "electron/capabilityCore/resident*",
+      "reason": "常驻生成面的装配与生命周期"
+    },
+    {
+      "path": "electron/capabilityCore/model*",
+      "reason": "模型接入的领域面：准入 schema、接入流程、规格读取"
+    },
+    {
+      "path": "electron/capabilityCore/verifiedCapability*",
+      "reason": "已验证能力的调用：领域能力的受控调用"
+    },
+    {
+      "path": "electron/capabilityCore/module*",
+      "reason": "能力模块清单与注册"
+    },
+    {
+      "path": "electron/capabilityCore/executionContract*",
+      "reason": "能力执行契约：每个领域能力的效果类、超时预算与审批语义声明"
+    },
+    {
+      "path": "electron/capabilityCore/phase4Surface*",
+      "reason": "阶段 4 画布 / 文稿 / 时间轴面的传输适配"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/",
+      "reason": "能力契约与动词：画布 / 文稿 / 时间轴 / 生成的领域读写、审批语义"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/",
+      "reason": "视频生成能力的领域词表与契约"
+    },
+    {
+      "path": "electron/shared/imageCapabilities/",
+      "reason": "图像生成能力的领域词表与契约"
+    },
+    {
+      "path": "electron/shared/audioCapabilities/",
+      "reason": "音频生成能力的领域词表与契约"
+    },
+    {
+      "path": "electron/shared/modelArchetypes/",
+      "reason": "模型档案：生成模型的参数 / 模式声明槽"
+    },
+    {
+      "path": "electron/shared/storyboard/",
+      "reason": "分镜：镜头表、编译与出站的领域规则"
+    },
+    {
+      "path": "electron/shared/canvas/",
+      "reason": "画布节点状态、镜头顺序与时间的领域规则"
+    },
+    {
+      "path": "electron/shared/assets/",
+      "reason": "素材声明与引用的跨进程契约"
+    },
+    {
+      "path": "electron/shared/localSpeech/",
+      "reason": "本地转写的跨进程契约"
+    },
+    {
+      "path": "electron/shared/production*",
+      "reason": "制作流程的镜头阶段、批次成员、停下原因、命令 id"
+    },
+    {
+      "path": "electron/shared/decideShotClaim*",
+      "reason": "镜头认领：一镜在生成的唯一判决"
+    },
+    {
+      "path": "electron/shared/generation*",
+      "reason": "生成模块 id 与镜头信封"
+    },
+    {
+      "path": "electron/shared/aspectRatio*",
+      "reason": "画面比例判据：什么值算比例、什么控件是比例控件、要的比例落哪一档；宿主准入与画布参数面板共读这一份（同上方案「先查别人」）"
+    },
+    {
+      "path": "electron/shared/projectAgentProposalReceipt*",
+      "reason": "提案回执的跨进程契约"
+    },
+    {
+      "path": "electron/shared/projectBinding*",
+      "reason": "项目绑定：对话与创作项目的归属"
+    },
+    {
+      "path": "electron/shared/model*",
+      "reason": "模型发布、可用性与上下文窗口目录"
+    },
+    {
+      "path": "electron/shared/vendor*",
+      "reason": "供应商身份与字段丢失提示的领域规则"
+    },
+    {
+      "path": "electron/shared/builtinVendorIdentity*",
+      "reason": "内置供应商身份：我们策展过的那批供应商的稳定标识"
+    },
+    {
+      "path": "electron/shared/providerAdapterContract*",
+      "reason": "供应商适配契约：各家生成供应商 API 差异的统一声明"
+    },
+    {
+      "path": "electron/shared/integrationContract*",
+      "reason": "接入契约：用户接入新供应商 / 模型时的领域声明"
+    },
+    {
+      "path": "electron/shared/customCapabilityContract*",
+      "reason": "自定义能力契约：用户自接模型暴露为生成能力的声明"
+    },
+    {
+      "path": "electron/shared/capability*",
+      "reason": "能力定向与模式清单"
+    },
+    {
+      "path": "electron/shared/skill*",
+      "reason": "技能提供、导入与策展契约"
+    },
+    {
+      "path": "electron/shared/textModelCapabilities*",
+      "reason": "文本模型能力声明"
+    },
+    {
+      "path": "electron/shared/agentContextSnapshot*",
+      "reason": "Agent 看到的画布 / 选中快照"
+    },
+    {
+      "path": "electron/shared/surfacePortBinding*",
+      "reason": "画布面端口绑定：Agent 写画布时目标画布的身份与权限"
+    },
+    {
+      "path": "electron/shared/onboardingDemoAssets*",
+      "reason": "演示素材清单：首次使用时的示例项目素材"
+    },
+    {
+      "path": "electron/catalog/",
+      "reason": "多供应商模型目录、中转地址、单价换算与各家供应商适配：Nomi 的供应商面，没有第三方等价物",
+      "exclude": [
+        "electron/catalog/*FileAccess*",
+        "electron/catalog/*Commit*"
+      ]
+    },
+    {
+      "path": "electron/providerAdapter/",
+      "reason": "各家生成供应商 API 的差异适配"
+    },
+    {
+      "path": "electron/integrationCertification/",
+      "reason": "接入认证：证明某供应商 / 模型真能按我们的契约生成"
+    },
+    {
+      "path": "electron/vendor/cost*",
+      "reason": "供应商调用的成本记账"
+    },
+    {
+      "path": "electron/vendor/provenance*",
+      "reason": "生成产物的来源记录"
+    },
+    {
+      "path": "electron/vendor/vendorOutboundGuard*",
+      "reason": "付费取片的出站守卫：必须证明连的是供应商，拒绝要说明「没计费」"
+    },
+    {
+      "path": "electron/vendor/vendorBaseFallback*",
+      "reason": "供应商地址的回落规则"
+    },
+    {
+      "path": "electron/tasks/",
+      "reason": "生成任务的提交、轮询、取片与本地化，按真钱语义处理失败",
+      "exclude": [
+        "electron/tasks/taskCache*",
+        "electron/tasks/taskIpc*"
+      ]
+    },
+    {
+      "path": "electron/comfyui/",
+      "reason": "本地 ComfyUI 生成后端的适配与进度"
+    },
+    {
+      "path": "electron/export/",
+      "reason": "时间轴导出成片：领域的最终产物"
+    },
+    {
+      "path": "electron/assets/",
+      "reason": "项目素材库：导入、本地化、解码判定、素材声明与引用",
+      "exclude": [
+        "electron/assets/download*",
+        "electron/assets/scratch*",
+        "electron/assets/storageCapacity*",
+        "electron/assets/localFileCopy*",
+        "electron/assets/nativeFileBridge*",
+        "electron/assets/clipboardFilePaths*"
+      ]
+    },
+    {
+      "path": "electron/video/",
+      "reason": "创作向视频处理：抽帧、切镜检测、深度、拆解"
+    },
+    {
+      "path": "electron/director/",
+      "reason": "导演台与运镜：移动端桥与镜头语言"
+    },
+    {
+      "path": "electron/shared/director/",
+      "reason": "3D-BOX 导演计划（schema、词表、按名字寻址的补丁与修订号、写法指导）：Nomi 独有的导演领域对象，渲染端编译器与主进程工具面共用（P2 从 src 搬来）"
+    },
+    {
+      "path": "electron/workspace/",
+      "reason": "项目工作区：项目身份、清单、迁移的盘上形态",
+      "exclude": [
+        "electron/workspace/workspaceManifestLock*",
+        "electron/workspace/workspaceManifestTransaction*",
+        "electron/workspace/workspaceSync*",
+        "electron/workspace/workspaceFileIndex*",
+        "electron/workspace/workspaceFileDelete*"
+      ]
+    },
+    {
+      "path": "electron/projects/",
+      "reason": "项目库：目录、最近项目与项目身份"
+    },
+    {
+      "path": "electron/memory/",
+      "reason": "项目记忆：创作事实的沉淀"
+    },
+    {
+      "path": "electron/promptLibrary/",
+      "reason": "创作提示词库：用户沉淀的提示词与模板"
+    },
+    {
+      "path": "electron/review/",
+      "reason": "成片 / 镜头评审与技术检查"
+    },
+    {
+      "path": "electron/skills/",
+      "reason": "创作技能库的存取（格式本身用标准 SKILL.md，发现与解析交给 pi）"
+    },
+    {
+      "path": "electron/experience/",
+      "reason": "创作经验的抽取与沉淀"
+    },
+    {
+      "path": "electron/parity/",
+      "reason": "生成入口一致性账：每个能发出供应商请求的入口都有裁决"
+    },
+    {
+      "path": "electron/onboarding/",
+      "reason": "首次使用引导与演示素材"
+    },
+    {
+      "path": "electron/localSpeech/",
+      "reason": "本地转写 provider 的编排：引擎是 whisper.cpp，我们只编排下载、校验、分段与回落规则"
+    },
+    {
+      "path": "electron/localRuntime/",
+      "reason": "本地 AI 运行时的探测与描述，只对我们接的这几类本地后端有意义"
+    },
+    {
+      "path": "electron/events/generationEtaStats*",
+      "reason": "生成耗时统计：领域的预计等待"
+    },
+    {
+      "path": "electron/events/vendorCallTrace*",
+      "reason": "供应商调用的领域追踪"
+    },
+    {
+      "path": "electron/events/agentChatTrace*",
+      "reason": "Agent 回合的领域追踪"
+    },
+    {
+      "path": "electron/settings/agentApprovalPolicy*",
+      "reason": "Agent 审批档位设置"
+    },
+    {
+      "path": "electron/settings/generationModelDefaults*",
+      "reason": "各生成任务的默认模型设置"
+    },
+    {
+      "path": "electron/settings/vendorPreference*",
+      "reason": "供应商偏好设置：用户对各家供应商的启用与排序偏好"
+    },
+    {
+      "path": "electron/settings/modelBoxPreference*",
+      "reason": "模型框偏好设置：画布模型下拉框的展示偏好"
+    },
+    {
+      "path": "electron/settings/automationPolicy*",
+      "reason": "自动化权限设置：外部 Agent 能对项目做什么的授权"
+    },
+    {
+      "path": "electron/settings/systemPrompts*",
+      "reason": "系统提示词设置：用户对 Agent 创作风格的自定义"
+    },
+    {
+      "path": "electron/settings/canvasMenuPreference*",
+      "reason": "画布菜单偏好设置"
+    },
+    {
+      "path": "electron/browser/media/",
+      "reason": "内置浏览器里面向创作的媒体采集"
+    },
+    {
+      "path": "electron/browser/captureNaming*",
+      "reason": "采集素材的命名规则"
+    },
+    {
+      "path": "src/workbench/ai/lane/",
+      "reason": "Agent 对话投影的渲染层：视图模型、回执撤销、任务候选动作、失败话术——把 lane 的快照画成面板"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelSpendCard*",
+      "reason": "付费确认卡的领域呈现：报价、范围、逐镜修订"
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCard*",
+      "reason": "付费确认卡的本地账本：覆写、估算、参考图"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4AskCard*",
+      "reason": "Agent 提问卡：用户必须亲口答的一步"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4AskModel*",
+      "reason": "提问卡的选项与答案模型"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Question*",
+      "reason": "提问卡的问题模型"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Receipt*",
+      "reason": "写入回执卡：可撤销的画布 / 文稿写入记录"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Consent*",
+      "reason": "「帮 Nomi 变好」首次询问卡：隐私同意的产品界面"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4SandboxNotice*",
+      "reason": "命令沙箱状态提示：Nomi 的执行安全语义"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4SandboxReason*",
+      "reason": "沙箱不可用的原因归类"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Intervention*",
+      "reason": "介入卡：Agent 需要用户介入的统一槽位"
+    },
+    {
+      "path": "src/workbench/ai/v4/missingInterventionCard*",
+      "reason": "介入卡缺失时的诚实呈现"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4SlotShell*",
+      "reason": "介入卡的外壳：统一槽位的边框与动作区"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Cards*",
+      "reason": "面板里的领域卡片：任务卡、候选卡"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Context*",
+      "reason": "面板里的上下文标签：当前选中的画布 / 镜头 / 文稿"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4AutoMode*",
+      "reason": "Agent 审批档位（自动改 / 逐步确认）的界面"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4ModelRows*",
+      "reason": "模型下拉里按我们目录呈现的模型行"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4ToolOutput*",
+      "reason": "领域工具输出的面板呈现"
+    },
+    {
+      "path": "src/workbench/ai/systemPrompt/",
+      "reason": "用户对 Agent 创作风格的系统提示词自定义"
+    },
+    {
+      "path": "src/workbench/ai/resident/",
+      "reason": "常驻 Agent 的领域显示：提案、镜头参考、时间轴选择、工具文案、镜头校验反馈",
+      "exclude": [
+        "src/workbench/ai/resident/residentTranscriptScroll*"
+      ]
+    },
+    {
+      "path": "src/workbench/ai/composer/composerAttachmentTypes*",
+      "reason": "附件作为项目素材声明的类型"
+    },
+    {
+      "path": "src/workbench/ai/agent*",
+      "reason": "Agent 回合的领域状态：意图、循环模式、会话键、回合生命周期、用量、失败诊断"
+    },
+    {
+      "path": "src/workbench/ai/assistant*",
+      "reason": "Agent 使用的模型身份与偏好"
+    },
+    {
+      "path": "src/workbench/ai/projectAgent*",
+      "reason": "项目级 Agent 的附件与草稿恢复"
+    },
+    {
+      "path": "src/workbench/ai/resident*",
+      "reason": "常驻 Agent 的活动状态"
+    },
+    {
+      "path": "src/workbench/ai/NoTextModel*",
+      "reason": "没有可用文本模型时的恢复卡"
+    },
+    {
+      "path": "src/workbench/ai/NomiIdentityRow*",
+      "reason": "Nomi 助手身份行"
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell*",
+      "reason": "常驻 Agent 外壳：把项目、画布与对话接在一起"
+    },
+    {
+      "path": "src/workbench/ai/workbenchAiTypes*",
+      "reason": "Agent 面板的领域类型"
+    },
+    {
+      "path": "electron/connectors/tikhub*",
+      "reason": "TikHub 数据源接入：拆解参考片与自媒体来源，只有我们接的这家才有"
+    },
+    {
+      "path": "electron/connectors/referenceSearch*",
+      "reason": "参考片搜索：创作向的参考素材检索"
+    },
+    {
+      "path": "electron/connectors/connectorDefinition*",
+      "reason": "数据源连接器的声明"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/",
+      "reason": "画布节点：各类生成节点的界面与状态呈现"
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/",
+      "reason": "画布节点与连线的领域模型"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/",
+      "reason": "画布上的花钱确认：报价卡、锚点检查"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/",
+      "reason": "画布节点的生成执行：提交、轮询、失败归属"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/",
+      "reason": "画布节点的状态仓"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/",
+      "reason": "Agent 对画布的读写落地"
+    },
+    {
+      "path": "src/workbench/generationCanvas/fixation/",
+      "reason": "画布节点的固定与回放"
+    },
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/",
+      "reason": "视频深度节点：生成画布上的深度估计节点与结果呈现"
+    },
+    {
+      "path": "src/workbench/generationCanvas/quickActions/",
+      "reason": "节点快捷动作：从一个画布节点一键派生下游节点（连参考、引用效果库条目、沿用模型、按镜头花钱走唯一派发口）——画布节点与按镜头花钱语义，Nomi 独有"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/",
+      "reason": "画布上的业务组件：批量计划、到达提示等"
+    },
+    {
+      "path": "src/workbench/generationCanvas/events/",
+      "reason": "画布事件（撤销日志与写边界是通用能力，单独登记为 entries.canvas-undo-journal-write-boundary）"
+    },
+    {
+      "path": "src/workbench/production/",
+      "reason": "制作流程的界面与状态：Run、镜头认领、落地宿主"
+    },
+    {
+      "path": "src/workbench/capability/",
+      "reason": "能力落地到画布 / 分镜的渲染层写入点"
+    },
+    {
+      "path": "src/workbench/creation/",
+      "reason": "创作：文稿与分镜的编辑与编译"
+    },
+    {
+      "path": "src/workbench/timeline/",
+      "reason": "时间轴：片段、播放与编辑"
+    },
+    {
+      "path": "src/workbench/player/",
+      "reason": "时间轴播放时钟：多轨片段的统一播放时间线"
+    },
+    {
+      "path": "src/workbench/preview/",
+      "reason": "成片预览：时间轴合成结果的预览界面"
+    },
+    {
+      "path": "src/workbench/export/",
+      "reason": "导出成片的界面：格式、范围与进度，领域的最终产物"
+    },
+    {
+      "path": "src/workbench/assets/",
+      "reason": "素材库界面：项目素材的浏览、分组、拖入画布"
+    },
+    {
+      "path": "src/workbench/library/",
+      "reason": "项目库与工作流库界面"
+    },
+    {
+      "path": "src/workbench/project/",
+      "reason": "项目：分类、封面、备份、创建流程"
+    },
+    {
+      "path": "src/workbench/adoption/",
+      "reason": "采纳生成结果与分镜批次进画布"
+    },
+    {
+      "path": "src/workbench/generation/",
+      "reason": "生成相关的界面状态"
+    },
+    {
+      "path": "src/workbench/taskCenter/",
+      "reason": "任务中心：制作与生成任务的总览"
+    },
+    {
+      "path": "src/workbench/promptLibrary/",
+      "reason": "提示词库界面：用户沉淀的提示词与模板的使用面"
+    },
+    {
+      "path": "src/workbench/skillLibrary/",
+      "reason": "技能库界面：创作技能的启用、导入与选择"
+    },
+    {
+      "path": "src/workbench/onboarding/",
+      "reason": "首次使用引导界面"
+    },
+    {
+      "path": "src/workbench/settings/",
+      "reason": "设置页的各分区界面"
+    },
+    {
+      "path": "src/workbench/observability/",
+      "reason": "失败话术：错误归类、叙述与按镜头认领文案"
+    },
+    {
+      "path": "src/workbench/sidebar/",
+      "reason": "素材 / 分组侧栏"
+    },
+    {
+      "path": "src/workbench/explorer/",
+      "reason": "项目文件侧栏：项目内文稿与素材文件的导航"
+    },
+    {
+      "path": "src/ui/onboarding/",
+      "reason": "产品引导页面：首次使用的旅程与示例"
+    },
+    {
+      "path": "src/ui/community/",
+      "reason": "社区页面：Nomi 社区与反馈入口的产品界面"
+    },
+    {
+      "path": "src/ui/browser/",
+      "reason": "内置浏览器的界面"
+    },
+    {
+      "path": "src/ui/app-shell/",
+      "reason": "应用外壳页面：项目库、窗口框架等产品外壳"
+    },
+    {
+      "path": "src/i18n/locales/",
+      "reason": "界面文案本身（zh-CN / en）"
+    },
+    {
+      "path": "src/config/knownVendors*",
+      "reason": "已知供应商清单：我们策展的供应商名称、图标与默认地址"
+    },
+    {
+      "path": "src/config/modelBoxPreference*",
+      "reason": "模型框偏好：画布模型下拉框的展示偏好（渲染层）"
+    },
+    {
+      "path": "src/config/models*",
+      "reason": "模型选项的领域配置"
+    },
+    {
+      "path": "src/devlab/",
+      "reason": "设计实验室：Nomi 界面的样张与状态集，不进产物"
+    }
   ],
   "genericZones": [
-    {"path":"**/hooks/","reason":"通用 hooks 子树：轮询、订阅、节流等不分领域，新文件要登记"},
-    {"path":"**/use[A-Z]*.ts","reason":"React hook 文件：通用机制，不因落在领域目录而豁免"},
-    {"path":"**/use[A-Z]*.tsx","reason":"React hook 文件：通用机制，不因落在领域目录而豁免"},
-    {"path":"**/utils/","reason":"工具函数子树"},
-    {"path":"**/lib/","reason":"通用库子树"},
-    {"path":"**/common/","reason":"通用组件子树"},
-    {"path":"**/ipc/","reason":"IPC 管道子树"},
-    {"path":"**/*Equal*.ts","reason":"深比较 / 结构共享：fast-deep-equal、immer 之类现成：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Equal*.tsx","reason":"深比较 / 结构共享：fast-deep-equal、immer 之类现成：同上"},
-    {"path":"**/*Cache*.ts","reason":"缓存机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Cache*.tsx","reason":"缓存机制：同上"},
-    {"path":"**/*Poll*.ts","reason":"轮询机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Poll*.tsx","reason":"轮询机制：同上"},
-    {"path":"**/*Retry*.ts","reason":"重试机制（pi 的 RetryPolicy 等现成）：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Retry*.tsx","reason":"重试机制（pi 的 RetryPolicy 等现成）：同上"},
-    {"path":"**/*Queue*.ts","reason":"队列机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Queue*.tsx","reason":"队列机制：同上"},
-    {"path":"**/*Debounce*.ts","reason":"防抖：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Debounce*.tsx","reason":"防抖：同上"},
-    {"path":"**/*Throttle*.ts","reason":"节流：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Throttle*.tsx","reason":"节流：同上"},
-    {"path":"**/*Storage*.ts","reason":"存储机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Storage*.tsx","reason":"存储机制：同上"},
-    {"path":"**/*Prefs*.ts","reason":"偏好持久化（localStorage / 文件的读写封装）：文件名本身说明这是通用机制，不因落在领域目录而豁免"},
-    {"path":"**/*Prefs*.tsx","reason":"偏好持久化（localStorage / 文件的读写封装）：同上"}
+    {
+      "path": "**/hooks/",
+      "reason": "通用 hooks 子树：轮询、订阅、节流等不分领域，新文件要登记"
+    },
+    {
+      "path": "**/use[A-Z]*.ts",
+      "reason": "React hook 文件：通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/use[A-Z]*.tsx",
+      "reason": "React hook 文件：通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/utils/",
+      "reason": "工具函数子树"
+    },
+    {
+      "path": "**/lib/",
+      "reason": "通用库子树"
+    },
+    {
+      "path": "**/common/",
+      "reason": "通用组件子树"
+    },
+    {
+      "path": "**/ipc/",
+      "reason": "IPC 管道子树"
+    },
+    {
+      "path": "**/*Equal*.ts",
+      "reason": "深比较 / 结构共享：fast-deep-equal、immer 之类现成：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Equal*.tsx",
+      "reason": "深比较 / 结构共享：fast-deep-equal、immer 之类现成：同上"
+    },
+    {
+      "path": "**/*Cache*.ts",
+      "reason": "缓存机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Cache*.tsx",
+      "reason": "缓存机制：同上"
+    },
+    {
+      "path": "**/*Poll*.ts",
+      "reason": "轮询机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Poll*.tsx",
+      "reason": "轮询机制：同上"
+    },
+    {
+      "path": "**/*Retry*.ts",
+      "reason": "重试机制（pi 的 RetryPolicy 等现成）：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Retry*.tsx",
+      "reason": "重试机制（pi 的 RetryPolicy 等现成）：同上"
+    },
+    {
+      "path": "**/*Queue*.ts",
+      "reason": "队列机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Queue*.tsx",
+      "reason": "队列机制：同上"
+    },
+    {
+      "path": "**/*Debounce*.ts",
+      "reason": "防抖：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Debounce*.tsx",
+      "reason": "防抖：同上"
+    },
+    {
+      "path": "**/*Throttle*.ts",
+      "reason": "节流：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Throttle*.tsx",
+      "reason": "节流：同上"
+    },
+    {
+      "path": "**/*Storage*.ts",
+      "reason": "存储机制：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Storage*.tsx",
+      "reason": "存储机制：同上"
+    },
+    {
+      "path": "**/*Prefs*.ts",
+      "reason": "偏好持久化（localStorage / 文件的读写封装）：文件名本身说明这是通用机制，不因落在领域目录而豁免"
+    },
+    {
+      "path": "**/*Prefs*.tsx",
+      "reason": "偏好持久化（localStorage / 文件的读写封装）：同上"
+    }
   ],
   "entries": [
     {
@@ -213,9 +803,18 @@
         "electron/shared/agentLane/laneApproval.ts"
       ],
       "alternativesChecked": [
-        { "name": "pi harness 的 before_tool 钩子（只有钩子，没有对话框）", "source": "node_modules/@earendil-works/pi-agent-core/dist/harness/hooks.d.ts:17" },
-        { "name": "pi RPC 的 extension_ui_request / response（属于 AgentSession 栈，harness 不提供）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/rpc.md:1184" },
-        { "name": "pi 九层对照「控制流」「扩展 API」两层的逐项结论", "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md" }
+        {
+          "name": "pi harness 的 before_tool 钩子（只有钩子，没有对话框）",
+          "source": "node_modules/@earendil-works/pi-agent-core/dist/harness/hooks.d.ts:17"
+        },
+        {
+          "name": "pi RPC 的 extension_ui_request / response（属于 AgentSession 栈，harness 不提供）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/rpc.md:1184"
+        },
+        {
+          "name": "pi 九层对照「控制流」「扩展 API」两层的逐项结论",
+          "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md"
+        }
       ],
       "whyNotIntegrated": "领域约束：花钱与写画布必须由用户批准，且批准有七种结局（确认 / 拒绝 / 改口 / 停止 / 关窗 / 重启…）要给用户不同的话；pi 的确认只有 yes / no / 取消，harness 层连对话框都没有。形状（按 id 匹配、阻塞到回复、取消是一等结局）已经照 pi 的协议抄了。",
       "revisitWhen": "pi 的 harness 层提供带结局枚举的待决确认原语时；或 0.24 B（付费卡并进投影）落地后复查是否还有第二份「等」"
@@ -229,8 +828,14 @@
         "electron/agentLane/laneStreamObserver.mts"
       ],
       "alternativesChecked": [
-        { "name": "pi-ai 的 timeoutMs 透传与 CLI 的 httpIdleTimeoutMs（库路径不装 dispatcher）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/settings.md:176" },
-        { "name": "pi 的 RetryPolicy（只有三个数，没有分类器钩子，判据是英文正则）", "source": "node_modules/@earendil-works/pi-ai/dist/utils/retry.d.ts:8" }
+        {
+          "name": "pi-ai 的 timeoutMs 透传与 CLI 的 httpIdleTimeoutMs（库路径不装 dispatcher）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/settings.md:176"
+        },
+        {
+          "name": "pi 的 RetryPolicy（只有三个数，没有分类器钩子，判据是英文正则）",
+          "source": "node_modules/@earendil-works/pi-ai/dist/utils/retry.d.ts:8"
+        }
       ],
       "whyNotIntegrated": "领域约束：中转供应商的错误是中文、状态码混用（500 + 余额不足），而重试等于再花一次真钱；pi 的重试判据没有钩子，只能改输入文本，这是它留给宿主的唯一口子。看门狗部分是否能被 pi-ai 的 timeoutMs 透传替掉一半，尚未做 spike。",
       "revisitWhen": "做完「pi-ai timeoutMs 透传能否替掉首字节 / 空闲看门狗」的半天 spike 后；或 pi 给重试加分类器钩子时",
@@ -240,9 +845,14 @@
       "id": "lane-repeated-failure",
       "capability": "同一个工具连着撞同一堵墙的计数与止损",
       "status": "justified",
-      "paths": ["electron/agentLane/laneRepeatedFailure.mts"],
+      "paths": [
+        "electron/agentLane/laneRepeatedFailure.mts"
+      ],
       "alternativesChecked": [
-        { "name": "pi 的循环停止条件（四条路，没有「连续同错」）", "source": "node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js:78" }
+        {
+          "name": "pi 的循环停止条件（四条路，没有「连续同错」）",
+          "source": "node_modules/@earendil-works/pi-agent-core/dist/agent-loop.js:78"
+        }
       ],
       "whyNotIntegrated": "领域约束：模型读不懂中文供应商报错时会把同一次付费调用原样连发六次，每次都是真钱；pi 假设错误正文足够可行动，没有这条规则。",
       "revisitWhen": "pi 提供 shouldStopAfterTurn 之外的连续失败止损原语时"
@@ -269,8 +879,14 @@
         "electron/agentLane/laneNativeDesktop.mts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的工具定义（description / promptSnippet / promptGuidelines / prepareArguments / addedToolNames，在用）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/sdk.md:579" },
-        { "name": "pi 九层对照「工具」层的逐项结论", "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md" }
+        {
+          "name": "pi 的工具定义（description / promptSnippet / promptGuidelines / prepareArguments / addedToolNames，在用）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/sdk.md:579"
+        },
+        {
+          "name": "pi 九层对照「工具」层的逐项结论",
+          "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md"
+        }
       ],
       "whyNotIntegrated": "这是对 pi 工具形状的适配，不是第二份工具系统：领域能力契约（画布 / 分镜 / 时间轴 / 生成的动词、效果类、超时预算、审批语义）是我们的，pi 只负责工具的激活、校验与执行。",
       "revisitWhen": "pi 的工具定义新增我们另写了一份的字段（例如内建超时预算、效果类）时，用 framework-surface 门岗逐字段裁决"
@@ -285,9 +901,18 @@
         "electron/agentLane/laneCodingSandbox.mts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 7 个 coding 工具与 BashOperations 插槽（在用，一个执行器都不自研）", "source": "electron/agentLane/laneCodingTools.mts:1" },
-        { "name": "pi 的 sandbox 示例（@anthropic-ai/sandbox-runtime，同一个包在用）", "source": "electron/agentLane/laneCodingSandbox.mts:1" },
-        { "name": "pi 的 powershell 工具与 Git Bash / shellPath 的 Windows 方案（尚未接）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/windows.md:1" }
+        {
+          "name": "pi 的 7 个 coding 工具与 BashOperations 插槽（在用，一个执行器都不自研）",
+          "source": "electron/agentLane/laneCodingTools.mts:1"
+        },
+        {
+          "name": "pi 的 sandbox 示例（@anthropic-ai/sandbox-runtime，同一个包在用）",
+          "source": "electron/agentLane/laneCodingSandbox.mts:1"
+        },
+        {
+          "name": "pi 的 powershell 工具与 Git Bash / shellPath 的 Windows 方案（尚未接）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/windows.md:1"
+        }
       ],
       "whyNotIntegrated": "只出策略不出执行：沙箱 allowWrite 从项目根 derive、不读用户可编辑配置（领域约束：用户是创作者，可编辑的沙箱配置等于留后门）。Windows 的 PowerShell 工具 pi 有、我们没接，是缺口而不是理由。",
       "revisitWhen": "Windows 命令沙箱起不来的真因定位后：缺 bash 就接 createPowerShellTool；OS 沙箱起不来则沿用 active:false 降级",
@@ -310,8 +935,14 @@
         "electron/agentLane/laneRestoredInput.ts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 JsonlSessionRepo / Session / Branch API（在用）", "source": "electron/agentLane/laneSession.mts:17" },
-        { "name": "pi 会话文件不指定 mode（世界可读）", "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md" }
+        {
+          "name": "pi 的 JsonlSessionRepo / Session / Branch API（在用）",
+          "source": "electron/agentLane/laneSession.mts:17"
+        },
+        {
+          "name": "pi 会话文件不指定 mode（世界可读）",
+          "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md"
+        }
       ],
       "whyNotIntegrated": "适配层，不是第二份持久化：会话里是用户的原稿正文，所以文件 0600 / 目录 0700、原子替换由我们注入的 FileSystem 保证（领域约束：隐私承诺）。",
       "revisitWhen": "pi 的 JsonlSessionRepo 自己默认 0600，或提供注入 mode 的选项时"
@@ -326,7 +957,10 @@
         "electron/agentLane/laneProjectSession.ts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 /tree /fork /clone 与按 cwd 的会话目录（会话元数据没有项目选择）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/sessions.md:69" }
+        {
+          "name": "pi 的 /tree /fork /clone 与按 cwd 的会话目录（会话元数据没有项目选择）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/sessions.md:69"
+        }
       ],
       "whyNotIntegrated": "领域约束：对话按创作项目绑定，不按 cwd；用户要一边改第三场戏、一边另起一条问片种怎么排。会话列表仍归 pi 的 repo，我们只记项目级选择。",
       "revisitWhen": "pi 的会话元数据支持项目归属时"
@@ -341,7 +975,10 @@
         "electron/agentLane/laneNativeLoader.cts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 loadSourcedSkills / formatSkillInvocation（在用，发现与解析全交给 pi）", "source": "electron/agentLane/laneSkillCatalog.mts:14" }
+        {
+          "name": "pi 的 loadSourcedSkills / formatSkillInvocation（在用，发现与解析全交给 pi）",
+          "source": "electron/agentLane/laneSkillCatalog.mts:14"
+        }
       ],
       "whyNotIntegrated": "只做投影与策略（哪些技能对创作者可见、选中技能怎么进提示词），发现与解析不自写；pi 包是 ESM-only，CJS 侧只能经动态 import 接缝。",
       "revisitWhen": "pi 的技能策略（可见性、按项目启停）有公开接口时"
@@ -361,7 +998,10 @@
         "electron/agentLane/laneLegacySources.ts"
       ],
       "alternativesChecked": [
-        { "name": "pi 没有旧格式迁移的需要，也没有导入旧转录的接口", "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md" }
+        {
+          "name": "pi 没有旧格式迁移的需要，也没有导入旧转录的接口",
+          "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md"
+        }
       ],
       "whyNotIntegrated": "领域约束：用户有旧版本落下的对话历史，不能丢。这是一次性代码，迁移窗口结束后整体删除，登记成待替换（实为待删）以免被当成长期自写。",
       "revisitWhen": "旧转录迁移窗口结束（旧版本用户基本升完）后整体删除 laneLegacy*"
@@ -378,8 +1018,14 @@
         "electron/agentLane/laneReceiptCommands.ts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 custom entry（耐久事实走它，在用）", "source": "electron/agentLane/laneTrace.mts:1" },
-        { "name": "pi 的遥测 span 契约（默认关，不是运行日志）", "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md" }
+        {
+          "name": "pi 的 custom entry（耐久事实走它，在用）",
+          "source": "electron/agentLane/laneTrace.mts:1"
+        },
+        {
+          "name": "pi 的遥测 span 契约（默认关，不是运行日志）",
+          "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md"
+        }
       ],
       "whyNotIntegrated": "视图不是第二个写者：原始 pi 消息仍是唯一文本权威；脱敏与回执关联是领域约束（隐私承诺、画布写入回执与撤销）。",
       "revisitWhen": "pi 提供转录脱敏或回执关联原语时"
@@ -396,8 +1042,14 @@
         "electron/agentLane/laneSingleShot.mts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 createAgentSession / AgentSessionRuntime（官方嵌入入口，我们走更底层的 AgentHarness）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/sdk.md:44" },
-        { "name": "pi --mode rpc 子进程集成", "source": "node_modules/@earendil-works/pi-coding-agent/docs/sdk.md:1150" }
+        {
+          "name": "pi 的 createAgentSession / AgentSessionRuntime（官方嵌入入口，我们走更底层的 AgentHarness）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/sdk.md:44"
+        },
+        {
+          "name": "pi --mode rpc 子进程集成",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/sdk.md:1150"
+        }
       ],
       "whyNotIntegrated": "pi 包是 ESM-only，Electron 主进程只能动态 import；宿主只做三件事（lane 生命周期、把 Nomi 的闸挂到 before_tool / after_tool、投影推送）。AgentSession / RPC 两条官方路都会多一台状态机或一个进程，与「进程内耐久」冲突——但「进程内 AgentSession 能否承载」尚未评估（见 pi 九层对照的开放问题）。",
       "revisitWhen": "评估完「进程内 AgentSession 能否承载 lane」之后；或 pi 的 CLI 开始使用 AgentHarness 时",
@@ -418,9 +1070,18 @@
         "electron/agentLane/laneDesktopTasks.ts"
       ],
       "alternativesChecked": [
-        { "name": "pi 的 compact() 与 CompactionSettings（在用，只出配置与领域摘要指令）", "source": "electron/agentLane/laneContextBudget.mts:1" },
-        { "name": "pi 的 createProvider / ModelCost / calculateCost（在用）", "source": "electron/agentLane/laneModelProvider.mts:81" },
-        { "name": "pi 的默认模型设置（只有驱动 LLM 一种，没有生成模型默认）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/settings.md:30" }
+        {
+          "name": "pi 的 compact() 与 CompactionSettings（在用，只出配置与领域摘要指令）",
+          "source": "electron/agentLane/laneContextBudget.mts:1"
+        },
+        {
+          "name": "pi 的 createProvider / ModelCost / calculateCost（在用）",
+          "source": "electron/agentLane/laneModelProvider.mts:81"
+        },
+        {
+          "name": "pi 的默认模型设置（只有驱动 LLM 一种，没有生成模型默认）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/settings.md:30"
+        }
       ],
       "whyNotIntegrated": "都是配置与适配：压缩摘要提示词要保留节点 id、modelKey / modeId（pi 的六节摘要为写代码调）；provider 装配把目录单价换成 pi 的 ModelCost；桌面端口把领域事实（默认生成模型、附件声明、任务状态）交给 lane。",
       "revisitWhen": "pi 的压缩提示词可按领域注入字段，或提供附件 / 默认模型的宿主原语时"
@@ -437,8 +1098,14 @@
         "electron/ai/aiSdkVendorError.ts"
       ],
       "alternativesChecked": [
-        { "name": "lane 已走的 pi-ai 单次调用（laneSingleShot：一次 provider 调用，无循环无会话）", "source": "electron/agentLane/laneSingleShot.mts:1" },
-        { "name": "pi 九层对照问 3：文本任务改走 pi-ai，删掉 AI SDK 栈与 ai@4 钉死", "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md" }
+        {
+          "name": "lane 已走的 pi-ai 单次调用（laneSingleShot：一次 provider 调用，无循环无会话）",
+          "source": "electron/agentLane/laneSingleShot.mts:1"
+        },
+        {
+          "name": "pi 九层对照问 3：文本任务改走 pi-ai，删掉 AI SDK 栈与 ai@4 钉死",
+          "source": "docs/research/2026-10-01-pi-coding-agent-reference-conformance/report.md"
+        }
       ],
       "whyNotIntegrated": "没有领域理由：这是历史上先接入的栈，lane 后来走了 pi-ai，于是出现两台调用栈。归 0.24「两台发动机收敛」（S4），也是 AI SDK 版本裁决（S5）的前置。",
       "revisitWhen": "0.24 S4 开工时按 plan 迁移；迁完整体删除"
@@ -453,8 +1120,14 @@
         "infra/feedback-worker/"
       ],
       "alternativesChecked": [
-        { "name": "Sentry / PostHog / Aptabase 等第三方 SDK（方案四列表里逐个比过）", "source": "infra/feedback-worker/src/worker.mjs:3" },
-        { "name": "OpenTelemetry error.type 等通行字段（字段命名已对齐，未引入 SDK）", "source": "docs/plan/2026-10-01-generation-result-reasons.md" }
+        {
+          "name": "Sentry / PostHog / Aptabase 等第三方 SDK（方案四列表里逐个比过）",
+          "source": "infra/feedback-worker/src/worker.mjs:3"
+        },
+        {
+          "name": "OpenTelemetry error.type 等通行字段（字段命名已对齐，未引入 SDK）",
+          "source": "docs/plan/2026-10-01-generation-result-reasons.md"
+        }
       ],
       "whyNotIntegrated": "领域约束：对用户的承诺是「数据只去我们的端点」。第三方 SDK 的代价不是钱，是这句承诺无法自证——只要它在进程里，「不收别的」就只能靠对方文档。传输自建，白名单 / 同意合同 / 脱敏沿用仓库里已有的一套。",
       "revisitWhen": "出现可在进程内审计、且字段白名单由我们强制的开源遥测 SDK 时；或隐私承诺的表述改变时"
@@ -470,9 +1143,18 @@
         "scripts/test-focused.mjs"
       ],
       "alternativesChecked": [
-        { "name": "dorny/paths-filter（按路径模式输出各 lane 是否命中）", "source": "https://github.com/dorny/paths-filter" },
-        { "name": "Nx affected（按依赖图而不是路径正则决定受影响面）", "source": "https://nx.dev/ci/features/affected" },
-        { "name": "分类器为什么按概念表对照而不是补文件名", "source": "docs/audit/2026-10-01-scripts-validation-judgement-structure-review.md" }
+        {
+          "name": "dorny/paths-filter（按路径模式输出各 lane 是否命中）",
+          "source": "https://github.com/dorny/paths-filter"
+        },
+        {
+          "name": "Nx affected（按依赖图而不是路径正则决定受影响面）",
+          "source": "https://nx.dev/ci/features/affected"
+        },
+        {
+          "name": "分类器为什么按概念表对照而不是补文件名",
+          "source": "docs/audit/2026-10-01-scripts-validation-judgement-structure-review.md"
+        }
       ],
       "whyNotIntegrated": "尚未下结论。能被替换的是「路径 → lane」的匹配本身（paths-filter 能做）；暂不能替的是三件事：删除 / 重命名 / 空 diff fail-closed、画布 critical 与 full 的分档只升不降、清单对着 concept-owners 概念表核对。评估方向：paths-filter 出路径集 + 自写的薄 fail-closed 层。",
       "revisitWhen": "出评估结论（paths-filter 加薄层是否够用）；或分类器再收到一份根因合同时先看这一项"
@@ -481,10 +1163,18 @@
       "id": "full-walk-monitor",
       "capability": "全功能走查的九条铁律监视器（跑完整旅程，每一步收尾核对铁律）",
       "status": "justified",
-      "paths": ["tests/ux/full-walk/"],
+      "paths": [
+        "tests/ux/full-walk/"
+      ],
       "alternativesChecked": [
-        { "name": "Playwright Test 的 reporter 与 fixtures 机制（运行器在用，监视器规则无现成的）", "source": "https://playwright.dev/docs/test-reporters" },
-        { "name": "监视器的纪律：违反不中断剧本、证据只从真相源读", "source": "tests/ux/full-walk/monitor.mjs:1" }
+        {
+          "name": "Playwright Test 的 reporter 与 fixtures 机制（运行器在用，监视器规则无现成的）",
+          "source": "https://playwright.dev/docs/test-reporters"
+        },
+        {
+          "name": "监视器的纪律：违反不中断剧本、证据只从真相源读",
+          "source": "tests/ux/full-walk/monitor.mjs:1"
+        }
       ],
       "whyNotIntegrated": "领域约束：九条铁律是 Nomi 的产品不变量（批准范围 = 派发范围、界面不露内部 id、付费卡图 / 视频一致……），没有通用测试框架自带；运行器与浏览器自动化已经是 Playwright，自写的只有规则与判据。",
       "revisitWhen": "监视器规则能以 Playwright 自定义 matcher / reporter 的形式表达而不损失「违反不中断」语义时"
@@ -506,8 +1196,14 @@
         "electron/capabilityCore/mcpHttpEndpoint.ts"
       ],
       "alternativesChecked": [
-        { "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/" },
-        { "name": "SDK 低层 Server 手动列工具（目录是活的、标题按语言现算时的官方用法）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/advanced/low-level-server.md" }
+        {
+          "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）",
+          "source": "https://ts.sdk.modelcontextprotocol.io/v2/"
+        },
+        {
+          "name": "SDK 低层 Server 手动列工具（目录是活的、标题按语言现算时的官方用法）",
+          "source": "https://ts.sdk.modelcontextprotocol.io/v2/advanced/low-level-server.md"
+        }
       ],
       "whyNotIntegrated": "第 2 段（2026-10-05）本机 HTTP 同样接 SDK：Streamable HTTP 服务端传输、Host / Origin 防重绑定用 @modelcontextprotocol/node，转发口的 HTTP 客户端传输用 @modelcontextprotocol/client；Nomi 只写「谁能连（签名身份头，与回环 RPC 同一套）、按会话分配协议实例、会话里的领域调用走回环 RPC 同一扇门」，以及转发桥里两件传输本身要的事（把协商出的协议版本告诉 HTTP 传输、Nomi 没开时给宿主回一句）。第 1 段：（2026-10-05）手写的握手 / 路由 / 取消 / 在飞账本 / stdio 分帧 / Ajv 校验器已删，协议由 SDK 承担。剩下的是领域：tools/list 投影（zod v3 契约 → 对外 schema 的扁平超集，mcpTransportSchemaFromZod.ts；SDK 只认 zod v4 且字节必变）、审批只有 tools/call 一个入口、未验证客户端的判据。两个 stdio 启动器在第 2、3 段改成本机 HTTP + 转发口后收口。",
       "revisitWhen": "第 3 段（宿主配置迁移、旧启动器当转发器）完成后，mcpStdioServer.ts / mcpNodeLauncher.ts 收成一个薄转发口，本条改 justified 并只剩领域路径"
@@ -530,9 +1226,18 @@
         "electron/providerNetwork.ts"
       ],
       "alternativesChecked": [
-        { "name": "undici ProxyAgent（HTTP 代理 dispatcher）", "source": "https://undici.nodejs.org/#/docs/api/ProxyAgent" },
-        { "name": "socks-proxy-agent（SOCKS 代理）", "source": "https://www.npmjs.com/package/socks-proxy-agent" },
-        { "name": "Electron session.setProxy（Chromium 侧代理配置）", "source": "https://www.electronjs.org/docs/latest/api/session#sessetproxyconfig" }
+        {
+          "name": "undici ProxyAgent（HTTP 代理 dispatcher）",
+          "source": "https://undici.nodejs.org/#/docs/api/ProxyAgent"
+        },
+        {
+          "name": "socks-proxy-agent（SOCKS 代理）",
+          "source": "https://www.npmjs.com/package/socks-proxy-agent"
+        },
+        {
+          "name": "Electron session.setProxy（Chromium 侧代理配置）",
+          "source": "https://www.electronjs.org/docs/latest/api/session#sessetproxyconfig"
+        }
       ],
       "whyNotIntegrated": "尚未下结论。领域约束成立的部分：付费取片的出站策略（fake-ip / 私网需要确证，请求发出前拒绝要说明「没计费」）是 Nomi 的真钱语义；代理 / SOCKS 的 dispatcher 本身看起来有现成的。评估方向：代理层接现成库，只留出站策略这层领域判定。",
       "revisitWhen": "出评估结论；评估前这里不得新增网络栈文件"
@@ -547,8 +1252,14 @@
         "electron/durability.ts"
       ],
       "alternativesChecked": [
-        { "name": "write-file-atomic（临时文件 + rename，npm 通用）", "source": "https://www.npmjs.com/package/write-file-atomic" },
-        { "name": "pi 的 publishFileAtomically 与 FileSystem.renameFile 语义（lane 侧已注入）", "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md" }
+        {
+          "name": "write-file-atomic（临时文件 + rename，npm 通用）",
+          "source": "https://www.npmjs.com/package/write-file-atomic"
+        },
+        {
+          "name": "pi 的 publishFileAtomically 与 FileSystem.renameFile 语义（lane 侧已注入）",
+          "source": "docs/research/2026-09-07-pi-reference-implementation-conformance.md"
+        }
       ],
       "whyNotIntegrated": "尚未下结论。领域理由成立的部分：project.json 是用户最贵的数据，且测试里需要关 fsync 的唯一开关（durability.ts 是全仓唯一决定要不要 fsync 的地方）；原子写本身有现成库。评估：原子写换库、保留 fsync 开关。",
       "revisitWhen": "出评估结论"
@@ -563,8 +1274,14 @@
         "electron/crashLog.ts"
       ],
       "alternativesChecked": [
-        { "name": "electron-log（主进程 / 渲染进程日志、文件轮转）", "source": "https://www.npmjs.com/package/electron-log" },
-        { "name": "Electron crashReporter", "source": "https://www.electronjs.org/docs/latest/api/crash-reporter" }
+        {
+          "name": "electron-log（主进程 / 渲染进程日志、文件轮转）",
+          "source": "https://www.npmjs.com/package/electron-log"
+        },
+        {
+          "name": "Electron crashReporter",
+          "source": "https://www.electronjs.org/docs/latest/api/crash-reporter"
+        }
       ],
       "whyNotIntegrated": "尚未下结论。领域理由成立的部分：日志不记提示词、密钥与文件路径，脱敏规则（redact）是隐私承诺的一部分；日志落盘与轮转本身有现成库。评估：落盘交给 electron-log，只留脱敏规则。",
       "revisitWhen": "出评估结论"
@@ -579,10 +1296,22 @@
         "scripts/run-gates-contracts.mjs"
       ],
       "alternativesChecked": [
-        { "name": "eslint 自定义规则 / eslint-plugin-boundaries（谁能 import 谁）", "source": "https://github.com/javierbrea/eslint-plugin-boundaries" },
-        { "name": "dependency-cruiser（依赖图规则）", "source": "https://github.com/sverweij/dependency-cruiser" },
-        { "name": "knip（未用导出 / 依赖）", "source": "https://knip.dev" },
-        { "name": "门岗账本：每道门岗红过几次、真问题 / 纸面 / 误报各占多少", "source": "docs/audit/2026-10-01-gate-ledger.md" }
+        {
+          "name": "eslint 自定义规则 / eslint-plugin-boundaries（谁能 import 谁）",
+          "source": "https://github.com/javierbrea/eslint-plugin-boundaries"
+        },
+        {
+          "name": "dependency-cruiser（依赖图规则）",
+          "source": "https://github.com/sverweij/dependency-cruiser"
+        },
+        {
+          "name": "knip（未用导出 / 依赖）",
+          "source": "https://knip.dev"
+        },
+        {
+          "name": "门岗账本：每道门岗红过几次、真问题 / 纸面 / 误报各占多少",
+          "source": "docs/audit/2026-10-01-gate-ledger.md"
+        }
       ],
       "whyNotIntegrated": "尚未下结论。大部分门岗检查的是 Nomi 自己的登记表与合同（概念 owner、根因合同、真实素材登记），没有现成工具；但「只加不减」本身是问题。结论等门岗账本出来后由用户按保留 / 合并 / 降级 / 删除逐项拍板。",
       "revisitWhen": "门岗账本的保留 / 降级 / 删除清单被拍板后；之后每次周期审计重跑账本"
@@ -591,11 +1320,23 @@
       "id": "design-system",
       "capability": "Nomi 设计系统：token-only 的组件封装、浮层、选择器、分段控件与光 / 暗主题翻转",
       "status": "justified",
-      "paths": ["src/design/Nomi*", "src/theme/"],
+      "paths": [
+        "src/design/Nomi*",
+        "src/theme/"
+      ],
       "alternativesChecked": [
-        { "name": "Mantine（已在用的基础组件库，设计系统是它之上的 token 层）", "source": "package.json:1" },
-        { "name": "Radix UI Primitives（无样式的可访问性原语）", "source": "https://www.radix-ui.com/primitives" },
-        { "name": "设计系统规范：token-only、禁止任意 px / hex / 默认色板", "source": "docs/design/nomi-design-system.md:1" }
+        {
+          "name": "Mantine（已在用的基础组件库，设计系统是它之上的 token 层）",
+          "source": "package.json:1"
+        },
+        {
+          "name": "Radix UI Primitives（无样式的可访问性原语）",
+          "source": "https://www.radix-ui.com/primitives"
+        },
+        {
+          "name": "设计系统规范：token-only、禁止任意 px / hex / 默认色板",
+          "source": "docs/design/nomi-design-system.md:1"
+        }
       ],
       "whyNotIntegrated": "领域约束：产品的视觉识别与密度优先的规范是 Nomi 自己的（token 翻转、天黑自动暗、一致的控件层级）；基础交互原语已经用 Mantine，不自写。这里自写的只有品牌层（登记只覆盖 Nomi 前缀的品牌组件与主题）。新增的通用交互组件（例如又一个浮层）仍应先看 Mantine / Radix 有没有。",
       "revisitWhen": "0.24 S6：Tailwind 4 与 AI Elements 评估时，一并评估设计系统与它们的冲突与可替换部分",
@@ -610,9 +1351,18 @@
         "scripts/self-written-lib.mjs"
       ],
       "alternativesChecked": [
-        { "name": "eslint-plugin-boundaries（管 import 方向，不管新增模块有没有人负责）", "source": "https://github.com/javierbrea/eslint-plugin-boundaries" },
-        { "name": "dependency-cruiser（依赖图规则，同上）", "source": "https://github.com/sverweij/dependency-cruiser" },
-        { "name": "已有的 check:boundaries / check:concept-owners（管边界与概念写口，不管通用能力登记）", "source": "scripts/check-boundaries.mjs:1" }
+        {
+          "name": "eslint-plugin-boundaries（管 import 方向，不管新增模块有没有人负责）",
+          "source": "https://github.com/javierbrea/eslint-plugin-boundaries"
+        },
+        {
+          "name": "dependency-cruiser（依赖图规则，同上）",
+          "source": "https://github.com/sverweij/dependency-cruiser"
+        },
+        {
+          "name": "已有的 check:boundaries / check:concept-owners（管边界与概念写口，不管通用能力登记）",
+          "source": "scripts/check-boundaries.mjs:1"
+        }
       ],
       "whyNotIntegrated": "没有现成工具回答「这次 diff 新增的模块，是领域代码、还是登记过的通用能力、还是没人认领」。判据是 Nomi 的领域目录清单，本质上是登记表读取加 git diff，不是通用能力。",
       "revisitWhen": "出现能读自定义「模块归属清单」并对 diff 新增文件做归属断言的现成门岗时"
@@ -622,10 +1372,18 @@
       "capability": "generate 回执：把宿主给的逐镜结局（在生成 / 发出前就失败 / 用户去掉 / 画布接手 / 没决定 + 原因）读成给模型的那句话",
       "status": "to-replace",
       "plan": "docs/research/2026-09-29-agent-message-layer-conformance/report.md",
-      "paths": ["electron/shared/agentLane/generateOutcomeReceipt.ts"],
+      "paths": [
+        "electron/shared/agentLane/generateOutcomeReceipt.ts"
+      ],
       "alternativesChecked": [
-        { "name": "AI SDK 工具的 toModelOutput：同一个工具 part 的 output 改写成给模型看的那份", "source": "docs/research/2026-09-29-agent-message-layer-conformance/report.md:249" },
-        { "name": "pi 的 tool_result 钩子：可以改工具结果（中间件式串联）", "source": "node_modules/@earendil-works/pi-coding-agent/docs/extensions.md:842" }
+        {
+          "name": "AI SDK 工具的 toModelOutput：同一个工具 part 的 output 改写成给模型看的那份",
+          "source": "docs/research/2026-09-29-agent-message-layer-conformance/report.md:249"
+        },
+        {
+          "name": "pi 的 tool_result 钩子：可以改工具结果（中间件式串联）",
+          "source": "node_modules/@earendil-works/pi-coding-agent/docs/extensions.md:842"
+        }
       ],
       "whyNotIntegrated": "回执说的事实（这一次出价里每一镜的结局）是按镜头花钱的领域事实，住在宿主（generationPresentationOutcome），这里只渲染；把值映射成模型看的文字是通用机制。lane 跑在 pi 上、不装 AI SDK 运行时（框架中立，0.24 B / C1 之前不换），toModelOutput 今天没有宿主可挂；pi 的 tool_result 能改结果，但回执要的是「工具等到卡关掉、再按宿主的值说话」，那一跳在 before_tool 的等待里，不在结果钩子上。",
       "revisitWhen": "C1（一次工具调用一条 part，字段对齐 AI SDK ToolUIPart）落地时并进那条 part 的 toModelOutput"
@@ -638,9 +1396,18 @@
         "scripts/vitest-flaky-reporter.mjs"
       ],
       "alternativesChecked": [
-        { "name": "vitest 自带 github-actions reporter（flaky 只进 Job Summary，不出注解；判据 diagnostic().flaky 我们直接复用）", "source": "https://vitest.dev/guide/reporters#github-actions-reporter" },
-        { "name": "vitest 自带 json reporter（要再写脚本读结果、还得多一步 CI，比 reporter 更重）", "source": "https://vitest.dev/guide/reporters#json-reporter" },
-        { "name": "vitest TestCase.diagnostic() 的 flaky / retryCount 字段（我们的判据来源，不自己判定）", "source": "https://vitest.dev/api/advanced/test-case#diagnostic" }
+        {
+          "name": "vitest 自带 github-actions reporter（flaky 只进 Job Summary，不出注解；判据 diagnostic().flaky 我们直接复用）",
+          "source": "https://vitest.dev/guide/reporters#github-actions-reporter"
+        },
+        {
+          "name": "vitest 自带 json reporter（要再写脚本读结果、还得多一步 CI，比 reporter 更重）",
+          "source": "https://vitest.dev/guide/reporters#json-reporter"
+        },
+        {
+          "name": "vitest TestCase.diagnostic() 的 flaky / retryCount 字段（我们的判据来源，不自己判定）",
+          "source": "https://vitest.dev/api/advanced/test-case#diagnostic"
+        }
       ],
       "whyNotIntegrated": "现成能力只把 flaky 写进 Job Summary，没人读；合并前要用 gh api 读 check-run 注解。这份 reporter 只做格式转换（flaky → ::warning），不自己判定什么是 flaky。",
       "revisitWhen": "vitest 的 github-actions reporter 提供 flaky 注解开关时，删掉这份 reporter"
@@ -654,9 +1421,18 @@
         "src/workbench/generationCanvas/nodes/director/panels/viewport/useDirectorToolChange.ts"
       ],
       "alternativesChecked": [
-        { "name": "@mantine/hooks 的 useHotkeys（只给「按了 Esc 就回调」，不懂导演台「浮层 → 按需面板 → 选中 → 机位视角 → 退出」这条让路链；也未声明为直接依赖）", "source": "https://mantine.dev/hooks/use-hotkeys/" },
-        { "name": "导演台 Popover 原语自己的 Esc 处理：只管浮层，按需面板不是浮层", "source": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx" },
-        { "name": "在 ViewportToolbar 与属性卡头各写一遍 setTransformMode / setDrawMode（两份工具切换规则会漂）", "source": "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportToolbar.tsx" }
+        {
+          "name": "@mantine/hooks 的 useHotkeys（只给「按了 Esc 就回调」，不懂导演台「浮层 → 按需面板 → 选中 → 机位视角 → 退出」这条让路链；也未声明为直接依赖）",
+          "source": "https://mantine.dev/hooks/use-hotkeys/"
+        },
+        {
+          "name": "导演台 Popover 原语自己的 Esc 处理：只管浮层，按需面板不是浮层",
+          "source": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx"
+        },
+        {
+          "name": "在 ViewportToolbar 与属性卡头各写一遍 setTransformMode / setDrawMode（两份工具切换规则会漂）",
+          "source": "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportToolbar.tsx"
+        }
       ],
       "whyNotIntegrated": "Esc 那颗是导演台 Esc 归属协议（DirectorEditor 见到 data-nomi-escape-layer 就让路）里「按需面板」这一层；工具切换那颗是创建模式 / 画路径模式 / gizmo 三者互斥的领域规则。都只有导演台用。",
       "revisitWhen": "导演台 Esc 归属改由统一的分层快捷键作用域承担时，删掉 useDismissOnEscape"
@@ -770,11 +1546,26 @@
         "src/workbench/generationCanvas/store/canvasDocumentCommit.ts"
       ],
       "alternativesChecked": [
-        { "name": "Yjs UndoManager 的 trackedOrigins（只撤指定来源的事务）", "source": "https://github.com/yjs/docs/blob/main/api/undo-manager.md" },
-        { "name": "tldraw editor.run(fn, { history: 'ignore' }) 与 document / session / presence 记录分域", "source": "https://github.com/tldraw/tldraw/blob/main/apps/docs/content/sdk-features/store.mdx" },
-        { "name": "Immer produceWithPatches 的反向补丁（服务端改的字段不被撤回）", "source": "https://github.com/immerjs/immer/blob/main/website/docs/patches.mdx" },
-        { "name": "zundo 的 partialize（撤销只记一部分状态）", "source": "https://github.com/charkour/zundo" },
-        { "name": "逐项结论", "source": "docs/plan/2026-10-07-canvas-landing-direction-check.md" }
+        {
+          "name": "Yjs UndoManager 的 trackedOrigins（只撤指定来源的事务）",
+          "source": "https://github.com/yjs/docs/blob/main/api/undo-manager.md"
+        },
+        {
+          "name": "tldraw editor.run(fn, { history: 'ignore' }) 与 document / session / presence 记录分域",
+          "source": "https://github.com/tldraw/tldraw/blob/main/apps/docs/content/sdk-features/store.mdx"
+        },
+        {
+          "name": "Immer produceWithPatches 的反向补丁（服务端改的字段不被撤回）",
+          "source": "https://github.com/immerjs/immer/blob/main/website/docs/patches.mdx"
+        },
+        {
+          "name": "zundo 的 partialize（撤销只记一部分状态）",
+          "source": "https://github.com/charkour/zundo"
+        },
+        {
+          "name": "逐项结论",
+          "source": "docs/plan/2026-10-07-canvas-landing-direction-check.md"
+        }
       ],
       "whyNotIntegrated": "尚未下结论。领域约束只有一条：撤销「建节点」时节点因为装着付费结果要留下（协调会话 10-07 定 B），Yjs / tldraw 按来源撤销「插入」会连容器一起拿走，表达不了；其余（按来源只撤用户事务、事实层不进撤销栈）是通用能力。Immer 已是依赖、画布 store 已用 zustand/middleware/immer，撤销栈改成反向补丁是首选评估方向。",
       "revisitWhen": "评估撤销栈改成 Immer 反向补丁（方向检查 §6 接入 B）的结论出来时；或画布写边界再收到一份根因合同时先看这一项"
@@ -843,6 +1634,26 @@
       ],
       "whyNotIntegrated": "Domain constraint: paid pending presentations and durable proposal receipts must share the model-write budget plus its receipt grace period. This module only extracts that existing Nomi constant into a browser-safe owner; it implements no timer, retry or persistence mechanism.",
       "revisitWhen": "When the paid presentation and proposal receipt lifecycle no longer share a model-write budget, review their deadline ownership together."
+    },
+    {
+      "id": "main-window-chrome",
+      "capability": "主窗口外框参数（Windows titleBarOverlay / macOS hiddenInset 红绿灯位）与原生窗口按钮配色的受信 IPC",
+      "status": "justified",
+      "paths": [
+        "electron/mainWindowChrome.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Electron 原生自定义标题栏（titleBarStyle hidden + titleBarOverlay / hiddenInset + trafficLightPosition）——直接接入，窗口按钮、拖动、双击最大化、Snap 都交给它",
+          "source": "https://www.electronjs.org/docs/latest/tutorial/custom-title-bar"
+        },
+        {
+          "name": "custom-electron-titlebar（npm）：用 DOM 自绘按钮，丢掉 Win11 Snap 菜单，正是本次要删的旧做法",
+          "source": "https://github.com/AlexTorresDev/custom-electron-titlebar"
+        }
+      ],
+      "whyNotIntegrated": "不是自写能力：窗口按钮全部是 Electron 原生的。这个文件只做 Nomi 外壳拍板稿（10-08 Chrome 板）要求的两件领域决定——40px 合一顶栏的高度 / 红绿灯位，以及按钮底色跟 Nomi 自己的光暗主题 token（渲染层算出 hex 经受信 IPC 交给主进程）；Electron 不知道 Nomi 的主题。",
+      "revisitWhen": "Electron 提供跟随页面 CSS 变量的 titleBarOverlay 配色，或外壳不再用合一顶栏时。"
     }
   ]
 }

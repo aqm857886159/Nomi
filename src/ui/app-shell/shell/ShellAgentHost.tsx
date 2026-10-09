@@ -17,7 +17,7 @@ import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { useResidentActivityStore } from '../../../workbench/ai/residentActivity'
-import { AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from '../../../workbench/ai/v4/agentPanelHeaderSlot'
+import { AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from './agentPanelHeaderSlot'
 import { dockStatusLabel } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../workbench/ai/v4/agentPanelV4Labels'
 import { AgentBallFace } from './AgentBallFace'
@@ -195,7 +195,7 @@ function AgentFloat({ surface, area, children }: { surface: AgentFormSurface; ar
       })}
     >
       <section
-        className="relative size-full overflow-hidden rounded-[16px] bg-nomi-paper shadow-nomi-lg ring-1 ring-nomi-line-soft [&_[data-v4-panel]]:rounded-none [&_[data-v4-panel]]:ring-0"
+        className="relative size-full overflow-hidden rounded-nomi-lg bg-nomi-paper shadow-nomi-lg ring-1 ring-nomi-line-soft [&_[data-v4-panel]]:rounded-none [&_[data-v4-panel]]:ring-0"
         aria-label={t('appShell.agent.floatAria')}
         data-agent-float={surface}
       >

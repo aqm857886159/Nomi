@@ -2,6 +2,7 @@
 // Windows uses native window controls (titleBarOverlay); the whole top bar is the drag region and every
 // button inside it is no-drag. Success means BrowserWindow bounds changed after dragging the top bar.
 import { launchNomiApp } from "./_launchApp.mjs";
+import { stationTimeout } from "./_station-budget.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -370,7 +371,7 @@ try {
   assert(libraryLayout.main.scrollbarWidth === "none", `project library scrollbar is hidden (${libraryLayout.main.scrollbarWidth})`);
 
   await primaryCard.click();
-  await win.locator("[data-shell-topbar]").waitFor({ timeout: 20000 });
+  await win.locator("[data-shell-topbar]").waitFor({ timeout: stationTimeout({ operations: 2 }) });
   await win.bringToFront();
 
   await resetMainWindowBounds(app);
