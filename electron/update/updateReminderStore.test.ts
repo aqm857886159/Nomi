@@ -62,4 +62,12 @@ describe("更新提醒的跨重启记忆", () => {
     const store = openUpdateReminderStore("0.23.0", file);
     expect(store.memory()).toEqual({ dismissedBanners: [], updatedCard: null });
   });
+
+  it("已下载待安装的目标版本跨重启保留；当前版本到了目标版本就清掉", () => {
+    const first = openUpdateReminderStore("0.23.1", file);
+    first.rememberDownloaded({ version: "0.24.0", file: "C:/cache/Nomi-Setup-0.24.0.exe" });
+    expect(openUpdateReminderStore("0.23.1", file).pendingInstall()).toEqual({ version: "0.24.0", file: "C:/cache/Nomi-Setup-0.24.0.exe" });
+    expect(openUpdateReminderStore("0.24.0", file).pendingInstall()).toBeNull();
+    expect(JSON.parse(fs.readFileSync(file, "utf8")).pendingInstall).toBeNull();
+  });
 });

@@ -13,6 +13,9 @@ const MAX_DISMISSED = 20;
 
 type Pending = Readonly<{ fromVersion: string; toVersion: string; notes: readonly VersionNotes[] }>;
 
+/** 同意更新且已下载好、还没装上的那一版：下次启动时据此重新设好「退出时安装」。 */
+export type PendingInstall = Readonly<{ version: string; file: string }>;
+
 type Persisted = {
   version: 1;
   lastRunVersion: string | null;
@@ -20,9 +23,10 @@ type Persisted = {
   /** 用户同意更新（点了下载 / 去官网）那一刻记下的「从哪版到哪版 + 说明」，装好后第一次启动用来出卡。 */
   pending: Pending | null;
   updatedCard: UpdatedCardData | null;
+  pendingInstall: PendingInstall | null;
 };
 
-const EMPTY: Persisted = { version: 1, lastRunVersion: null, dismissedBanners: [], pending: null, updatedCard: null };
+const EMPTY: Persisted = { version: 1, lastRunVersion: null, dismissedBanners: [], pending: null, updatedCard: null, pendingInstall: null };
 
 function isPersisted(value: unknown): boolean {
   return isJsonRecord(value) && value.version === 1;
@@ -31,6 +35,13 @@ function isPersisted(value: unknown): boolean {
 export type UpdateReminderStore = {
   memory(): UpdateReminderMemory;
   rememberPending(pending: Pending): void;
+  /** 已下载好（用户已同意）的目标版本与安装包缓存路径。 */
+  rememberDownloaded(install: PendingInstall): void;
+  /** 上次没装上的那一版；当前版本已经到了目标版本时是 null（启动时已清掉）。 */
+  pendingInstall(): PendingInstall | null;
+  /** 同意更新时记下的各版本说明（恢复「上次没装上」的界面时用）。 */
+  pendingNotes(): readonly VersionNotes[];
+  clearPendingInstall(): void;
   dismissBanner(version: string): UpdateReminderMemory;
   dismissUpdatedCard(): UpdateReminderMemory;
 };
@@ -71,11 +82,31 @@ export function openUpdateReminderStore(currentVersion: string, filePath: string
     save();
   }
 
+  // 版本已经到了目标版本：装成功了，这条记录没用了。
+  if (data.pendingInstall && compareVersions(currentVersion, data.pendingInstall.version) >= 0) {
+    data = { ...data, pendingInstall: null };
+    save();
+  }
+
   const memory = (): UpdateReminderMemory => ({ dismissedBanners: data.dismissedBanners, updatedCard: data.updatedCard });
   return {
     memory,
     rememberPending(pending) {
       data = { ...data, pending };
+      save();
+    },
+    rememberDownloaded(install) {
+      data = { ...data, pendingInstall: install };
+      save();
+    },
+    pendingInstall() {
+      return data.pendingInstall;
+    },
+    pendingNotes() {
+      return data.pending?.notes ?? [];
+    },
+    clearPendingInstall() {
+      data = { ...data, pendingInstall: null };
       save();
     },
     dismissBanner(version) {

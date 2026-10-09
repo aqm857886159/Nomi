@@ -53,6 +53,10 @@ export interface QuitTeardownDependencies {
 }
 
 const registeredDrains = new Map<string, QuitDrain>();
+// 「退出开始那一刻」的快照：排空项会改变世界（先 abort 导出、关窗口），后面的排空项再去读「现在忙不忙」
+// 就读到被前一个排空项清掉的结果。要在退出开始时、跑任何排空项之前读一次，之后只读这份（修在 owner 边界，不在各排空项里补）。
+const quitStartProbes = new Map<string, () => boolean>();
+const quitStartResults = new Map<string, boolean>();
 let quitRequested = false;
 let teardownInstalled = false;
 let teardownFinished = false;
@@ -77,6 +81,26 @@ export function registerQuitDrain(name: string, drain: () => void | Promise<void
   const entry = { name, drain, required: options.required ?? true, timeoutMs: options.timeoutMs, critical: options.critical ?? false } satisfies QuitDrain;
   registeredDrains.set(name, entry);
   return () => { if (registeredDrains.get(name) === entry) registeredDrains.delete(name); };
+}
+
+/** 登记一个「退出开始时」要读的布尔事实（如「还有导出 / 任务在跑吗」）；读不出来按 true。 */
+export function registerQuitStartProbe(name: string, probe: () => boolean): () => void {
+  if (!name.trim()) throw new Error("quit start probe name is required");
+  quitStartProbes.set(name, probe);
+  return () => { if (quitStartProbes.get(name) === probe) { quitStartProbes.delete(name); quitStartResults.delete(name); } };
+}
+
+/** 退出开始时那份快照；退出还没开始过就是 undefined。 */
+export function quitStartProbeResult(name: string): boolean | undefined {
+  return quitStartResults.get(name);
+}
+
+function sampleQuitStartProbes(keepTrue: boolean): void {
+  for (const [name, probe] of quitStartProbes) {
+    let value: boolean;
+    try { value = probe(); } catch { value = true; }
+    quitStartResults.set(name, keepTrue ? (quitStartResults.get(name) ?? false) || value : value);
+  }
 }
 
 export function isQuitRequested(): boolean {
@@ -124,6 +148,8 @@ export function quitTeardownTimeoutMs(): number {
 /** Vitest isolation hook; the production owner is installed exactly once. */
 export function resetQuitTeardownForTests(): void {
   registeredDrains.clear();
+  quitStartProbes.clear();
+  quitStartResults.clear();
   quitRequested = false;
   teardownInstalled = false;
   teardownFinished = false;
@@ -246,6 +272,8 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
   };
 
   app.on("before-quit", () => {
+    // 窗口还开着：渲染层报的排队 / 生成中任务此刻还在册。可能被「取消关闭」撤销，所以每次重新读。
+    if (!teardownStarted) sampleQuitStartProbes(false);
     quitRequested = true;
   });
 
@@ -255,6 +283,7 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     if (teardownStarted) return;
     teardownStarted = true;
     quitRequested = true;
+    sampleQuitStartProbes(true); // 任何排空项开始之前：before-quit 时忙过的，到这里仍算忙
     teardownStartedAt = Date.now();
     armDeadline(teardownStartedAt + ownerTimeoutMs, () => {
       report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });

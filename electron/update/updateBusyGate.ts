@@ -26,7 +26,8 @@ export function createUpdateBusyGate(deps: { hasMainBusy: () => boolean }): Upda
   const rendererBusy = (): boolean => [...reported.values()].some((count) => count > 0);
   return {
     report(senderId, count) {
-      reported.set(senderId, Number.isFinite(count) && count > 0 ? Math.floor(count) : 0);
+      // 上报无法解释（NaN / Infinity / 负数）：按忙算，不放行。
+      reported.set(senderId, Number.isFinite(count) && count >= 0 ? Math.floor(count) : 1);
     },
     forget(senderId) {
       reported.delete(senderId);

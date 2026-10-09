@@ -19,7 +19,7 @@ async function flush(): Promise<void> {
   for (let i = 0; i < 60; i += 1) await Promise.resolve();
 }
 
-async function load() {
+async function load(options: { version?: string } = {}) {
   vi.resetModules();
   const handlers = new Map<string, Handler>();
   const sent: Array<Record<string, unknown>> = [];
@@ -27,7 +27,7 @@ async function load() {
   const electronApp = {
     isPackaged: true,
     getName: () => "Nomi",
-    getVersion: () => "0.23.1",
+    getVersion: () => options.version ?? "0.23.1",
     on: vi.fn((event: string, listener: QuitListener) => { quitListeners.set(event, listener); return electronApp; }),
     whenReady: vi.fn(() => Promise.resolve()),
     quit: vi.fn(),
@@ -76,7 +76,7 @@ async function load() {
     quitListeners.get("will-quit")?.({ preventDefault: vi.fn() });
     await flush();
   };
-  return { call, updater, sent, announceAvailable, quit, electronApp, reportBusy };
+  return { call, updater, sent, announceAvailable, quit, electronApp, reportBusy, mod };
 }
 
 describe("更新流程：下载 → 退出时装 / 重启装 / 失败重试", () => {
@@ -247,6 +247,91 @@ describe("更新流程：下载 → 退出时装 / 重启装 / 失败重试", ()
       await quit();
       expect((updater as unknown as { quitAndInstallCalled: boolean }).quitAndInstallCalled).toBe(false);
       expect((await call("nomi:update:snapshot") as { state: { phase: string } }).state.phase).toBe("downloaded");
+    });
+  });
+
+  describe("装包程序异步起不来：进程退出后「同意 + 已下载」不丢，下个进程退出时再试", () => {
+    const AFTER_START = 30_000;
+
+    /** 第一个进程：同意并下载好，退出时装；装包程序 spawn 之后才异步报错（真实 NsisUpdater 就是这样：doInstall 先返回 true）。 */
+    async function firstProcessThatFailsToInstall(cachedFile: string) {
+      const first = await load();
+      await first.reportBusy(0);
+      await first.announceAvailable();
+      first.updater.downloadUpdate.mockImplementation(async () => {
+        first.updater.emit("update-downloaded", { version: "0.24.0", downloadedFile: cachedFile });
+      });
+      await first.call("nomi:update:download");
+      first.updater.install.mockImplementation(() => {
+        setImmediate(() => first.updater.emit("error", new Error("spawn EACCES")));
+        return true;
+      });
+      await first.quit();
+      expect(first.updater.install).toHaveBeenCalledTimes(1);
+      return first;
+    }
+
+    function cacheFile(): string {
+      const file = path.join(root, "Nomi-Setup-0.24.0.exe");
+      fs.writeFileSync(file, "installer");
+      return file;
+    }
+
+    it("新进程：版本仍低于目标、缓存包还在 → 界面显示「上次没装上」，核对缓存后退出时再次尝试安装", async () => {
+      await firstProcessThatFailsToInstall(cacheFile());
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+      try {
+        const second = await load();
+        (second.updater.checkForUpdates as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({ updateInfo: { version: "0.24.0" } });
+        second.updater.downloadUpdate.mockImplementation(async () => {
+          second.updater.emit("update-downloaded", { version: "0.24.0", downloadedFile: path.join(root, "Nomi-Setup-0.24.0.exe") });
+        });
+        second.mod.startAutoUpdateCheck();
+        const restored = (await second.call("nomi:update:snapshot") as { state: Record<string, unknown> }).state;
+        expect(restored).toMatchObject({ phase: "error", errorStage: "install", latestVersion: "0.24.0" });
+        await vi.advanceTimersByTimeAsync(AFTER_START);
+        await flush();
+        expect(second.updater.downloadUpdate).toHaveBeenCalledTimes(1); // 核对缓存走库自己的 check + downloadUpdate
+        await second.quit();
+        expect(second.updater.install).toHaveBeenCalledTimes(1);
+        expect(second.updater.install).toHaveBeenCalledWith(true, false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("新进程里点一次「重试」：先核对缓存包，再真的重新安装（不用等 30 秒、不用重新下载）", async () => {
+      await firstProcessThatFailsToInstall(cacheFile());
+      const second = await load();
+      (second.updater.checkForUpdates as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({ updateInfo: { version: "0.24.0" } });
+      second.updater.downloadUpdate.mockImplementation(async () => {
+        second.updater.emit("update-downloaded", { version: "0.24.0", downloadedFile: path.join(root, "Nomi-Setup-0.24.0.exe") });
+      });
+      second.mod.startAutoUpdateCheck();
+      await second.reportBusy(0);
+      expect(await second.call("nomi:update:install")).toEqual({ ok: true });
+      await flush(); await new Promise((resolve) => setImmediate(resolve)); await flush();
+      expect(second.updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it("版本已经是目标版本（上次其实装上了）：记录被清掉，不出「没装上」，退出也不再装", async () => {
+      await firstProcessThatFailsToInstall(cacheFile());
+      const second = await load({ version: "0.24.0" });
+      second.mod.startAutoUpdateCheck();
+      expect((await second.call("nomi:update:snapshot") as { state: { phase: string } }).state.phase).toBe("idle");
+      expect(JSON.parse(fs.readFileSync(path.join(root, "update-reminder.json"), "utf8")).pendingInstall).toBeNull();
+      await second.quit();
+      expect(second.updater.install).not.toHaveBeenCalled();
+    });
+
+    it("缓存包已经不在：不撒谎，记录清掉、界面保持空闲", async () => {
+      const file = cacheFile();
+      await firstProcessThatFailsToInstall(file);
+      fs.rmSync(file);
+      const second = await load();
+      second.mod.startAutoUpdateCheck();
+      expect((await second.call("nomi:update:snapshot") as { state: { phase: string } }).state.phase).toBe("idle");
+      expect(JSON.parse(fs.readFileSync(path.join(root, "update-reminder.json"), "utf8")).pendingInstall).toBeNull();
     });
   });
 });

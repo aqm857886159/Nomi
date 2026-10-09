@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { exitWithoutConfirmation, installQuitTeardown, registerQuitDrain, resetQuitTeardownForTests } from "../quitTeardown";
+import { exitWithoutConfirmation, installQuitTeardown, quitStartProbeResult, registerQuitDrain, registerQuitStartProbe, resetQuitTeardownForTests } from "../quitTeardown";
 import { createInstallOnQuit } from "./installOnQuit";
 
 // 走真实的退出 owner（installQuitTeardown）：排空项是不是真的在 will-quit 里、在别的排空项之后、被调用，
@@ -148,5 +148,52 @@ describe("退出时自动装更新（走退出 owner 的排空项）", () => {
     expect(install).not.toHaveBeenCalled();
     expect(gate.isArmed()).toBe(true);
     expect(app.exit).toHaveBeenCalledWith(0);
+  });
+
+  it("退出开始时有导出在跑：owner 先 abort 导出（计数随即归零），更新排空项仍读到退出开始的快照 → 不装", async () => {
+    const { app, emit } = fakeApp();
+    const exportsRunning = { count: 1 };
+    const order: string[] = [];
+    installQuitTeardown(app as never, {
+      disposeBackgroundLifecycle: () => undefined,
+      stopDesktopCapabilityCore: () => undefined,
+      // 和真实现一致：abort 之后计数在异步收尾里才变；这里最坏情形——abort 立刻让计数归零。
+      abortAllActiveExports: () => { const aborted = exportsRunning.count; exportsRunning.count = 0; order.push("abort-exports"); return aborted; },
+      disposeDesktopLaneIpc: async () => undefined,
+    });
+    registerQuitStartProbe("update-busy", () => exportsRunning.count > 0);
+    const install = vi.fn(() => { order.push("install"); return true; });
+    const gate = createInstallOnQuit({
+      registerDrain: registerQuitDrain,
+      install,
+      isBusy: () => (quitStartProbeResult("update-busy") ?? false) || exportsRunning.count > 0,
+    });
+    gate.consent();
+    gate.markDownloaded();
+    emit("before-quit");
+    emit("will-quit");
+    await settle();
+    expect(order).toEqual(["abort-exports"]);
+    expect(install).not.toHaveBeenCalled();
+    expect(app.exit).toHaveBeenCalledWith(0);
+  });
+
+  it("没有活在跑时快照为假，照常装（快照不会把正常退出变成永远不装）", async () => {
+    const { app, emit } = fakeApp();
+    installQuitTeardown(app as never, {
+      disposeBackgroundLifecycle: () => undefined,
+      stopDesktopCapabilityCore: () => undefined,
+      abortAllActiveExports: () => 0,
+      disposeDesktopLaneIpc: async () => undefined,
+    });
+    registerQuitStartProbe("update-busy", () => false);
+    const install = vi.fn(() => true);
+    const gate = createInstallOnQuit({ registerDrain: registerQuitDrain, install, isBusy: () => quitStartProbeResult("update-busy") ?? false });
+    gate.consent();
+    gate.markDownloaded();
+    emit("before-quit");
+    emit("will-quit");
+    await settle();
+    expect(install).toHaveBeenCalledTimes(1);
   });
 });

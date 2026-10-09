@@ -29,9 +29,11 @@ describe("updateBusyGate：判不准就拦", () => {
     expect(gate.isBusyAtQuit()).toBe(false);
   });
 
-  it("非法数值按 0 记，不会变成忙", () => {
-    const gate = createUpdateBusyGate({ hasMainBusy: () => false });
-    gate.report(1, Number.NaN);
-    expect(gate.isBusyForInstall(1)).toBe(false);
+  it("无法解释的上报（NaN / Infinity / 负数）按忙算，不放行", () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -1]) {
+      const gate = createUpdateBusyGate({ hasMainBusy: () => false });
+      gate.report(1, bad);
+      expect(gate.isBusyForInstall(1)).toBe(true);
+    }
   });
 });

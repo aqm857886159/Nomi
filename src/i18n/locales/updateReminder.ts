@@ -15,7 +15,7 @@ export const zhUpdateReminder = {
     downloading: '更新下载中 {{percent}}%',
     ready: '重启以更新',
     failed: '更新没下完 · 重试',
-    installFailed: '更新没装上 · 重试',
+    installFailed: '上次没装上 · 点一下重试',
   },
   dialog: {
     availableTitle: '新版本 {{version}}',
@@ -66,7 +66,7 @@ export const enUpdateReminder: typeof zhUpdateReminder = {
     downloading: 'Downloading update {{percent}}%',
     ready: 'Restart to update',
     failed: 'Update incomplete · Retry',
-    installFailed: 'Update not installed · Retry',
+    installFailed: 'Last install failed · Click to retry',
   },
   dialog: {
     availableTitle: 'Nomi {{version}} is available',

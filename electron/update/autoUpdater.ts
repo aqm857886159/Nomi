@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { app, ipcMain, shell } from "electron";
 import { desktopT } from "../i18n";
 import { buildDownloadPageUrl } from "./downloadPage";
@@ -6,14 +7,14 @@ import { assertTrustedSender } from "../ipcSenderGuard";
 import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
 import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/telemetryEvents";
 import type { TelemetryResult } from "../shared/contracts/telemetry";
-import { classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
+import { AUTO_CHECK_FIRST_DELAY_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
 import { hasInFlightProductionWork } from "../backgroundLaunch";
 import { createInstallOnQuit } from "./installOnQuit";
 import { createUpdateBusyGate } from "./updateBusyGate";
 import { digestReleaseNotesHtml } from "../shared/releaseNotesDigest";
 import { currentUpdaterState, publishUpdateEvent } from "./updateHub";
 import { openUpdateReminderStore, type UpdateReminderStore } from "./updateReminderStore";
-import { registerQuitDrain } from "../quitTeardown";
+import { quitStartProbeResult, registerQuitDrain, registerQuitStartProbe } from "../quitTeardown";
 import type { UpdateInfo } from "electron-updater";
 import { buildReleaseNotesUrl, type UpdaterErrorStage, type UpdateSnapshot, type VersionNotes } from "../shared/updateReminder";
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
@@ -83,12 +84,14 @@ function installerSizeBytes(info: UpdateInfo): number | null {
   return (exe ?? files.reduce((largest, file) => ((file.size ?? 0) > (largest.size ?? 0) ? file : largest))).size ?? null;
 }
 
+const UPDATE_BUSY_PROBE = "update-busy";
 const busySenders = new Set<number>();
 const busyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork });
 
 const installOnQuit = createInstallOnQuit({
   registerDrain: registerQuitDrain,
-  isBusy: () => busyGate.isBusyAtQuit(),
+  // 读退出开始那一刻的快照（owner 在跑任何排空项之前读的）：别的排空项 abort 导出之后，这里不会读到 0。
+  isBusy: () => (quitStartProbeResult(UPDATE_BUSY_PROBE) ?? false) || busyGate.isBusyAtQuit(),
   install: () => {
     const updater = loadedUpdater as unknown as { install?: (isSilent: boolean, isForceRunAfter: boolean) => boolean; quitAndInstallCalled?: boolean } | null;
     let started = false;
@@ -104,6 +107,8 @@ const installOnQuit = createInstallOnQuit({
 });
 
 let eventsWired = false;
+// 启动时从磁盘恢复「上次没装上」的更新时，后台静默地重新核对缓存包，这期间库的事件不广播给界面。
+let quietPrepare = false;
 let autoUpdaterPromise: Promise<typeof import("electron-updater")["autoUpdater"]> | null = null;
 
 function wireUpdaterEvents(autoUpdater: typeof import("electron-updater")["autoUpdater"]): void {
@@ -111,6 +116,7 @@ function wireUpdaterEvents(autoUpdater: typeof import("electron-updater")["autoU
   eventsWired = true;
   autoUpdater.on("checking-for-update", () => { if (!silentCheck) publishUpdateEvent({ type: "checking" }); });
   autoUpdater.on("update-available", (info) => {
+    if (quietPrepare) return;
     if (!notifyGate.shouldNotify(info.version, silentCheck)) return;
     publishUpdateEvent({
       type: "available",
@@ -122,10 +128,12 @@ function wireUpdaterEvents(autoUpdater: typeof import("electron-updater")["autoU
   });
   autoUpdater.on("update-not-available", () => { if (!silentCheck) publishUpdateEvent({ type: "up-to-date" }); });
   autoUpdater.on("download-progress", (progress) =>
-    publishUpdateEvent({ type: "progress", percent: Math.max(0, Math.min(100, Math.round(progress.percent))) }));
+    quietPrepare ? undefined : publishUpdateEvent({ type: "progress", percent: Math.max(0, Math.min(100, Math.round(progress.percent))) }));
   autoUpdater.on("update-downloaded", (info) => {
     installOnQuit.markDownloaded();
-    publishUpdateEvent({ type: "downloaded", version: info.version });
+    // 同意 + 已下载的目标版本和缓存路径落盘：进程退出后「退出时安装」的意愿不会跟着内存一起丢。
+    reminderStore?.rememberDownloaded({ version: info.version, file: (info as { downloadedFile?: string }).downloadedFile ?? "" });
+    if (!quietPrepare) publishUpdateEvent({ type: "downloaded", version: info.version });
   });
   autoUpdater.on("error", (error) => {
     if (silentCheck) return;
@@ -164,7 +172,48 @@ const autoCheckScheduler = createAutoCheckScheduler({
   },
 });
 
+/**
+ * 上次同意并下载好、却没装上（装包程序起不来是异步报错，进程已退出，拿不到）：
+ * 启动时如果当前版本还低于目标版本、缓存包还在，就把「退出时安装」重新设好——核对缓存用库自己的
+ * check + downloadUpdate（缓存命中不会重下），不自己写更新器能力。返回错误对象，null = 成功。
+ */
+async function prepareCachedInstall(version: string): Promise<unknown | null> {
+  quietPrepare = true;
+  silentCheck = true;
+  try {
+    const updater = await loadAutoUpdater();
+    const result = await updater.checkForUpdates();
+    if (result?.updateInfo?.version !== version) return new Error("cached update is no longer the latest release");
+    installOnQuit.consent();
+    await updater.downloadUpdate();
+    installOnQuit.markDownloaded();
+    return null;
+  } catch (error) {
+    installOnQuit.revoke();
+    return error;
+  } finally {
+    quietPrepare = false;
+    silentCheck = false;
+  }
+}
+
+/** 启动时：把磁盘上记着的「上次没装上」恢复成界面状态（胶囊「上次没装上，点一下重试」），稍后在后台重新设好退出时安装。 */
+function restorePendingInstall(): void {
+  const pending = reminderStore?.pendingInstall();
+  if (!pending) return;
+  if (!pending.file || !fs.existsSync(pending.file)) {
+    reminderStore?.clearPendingInstall(); // 缓存包已经没了：没有东西可装，别让界面撒谎
+    return;
+  }
+  const remembered = reminderStore?.pendingNotes() ?? [];
+  publishUpdateEvent({ type: "available", version: pending.version, notes: remembered, sizeBytes: null, releaseUrl: buildReleaseNotesUrl(pending.version) });
+  publishUpdateEvent({ type: "error", message: "", stage: "install", reason: "other" });
+  const timer = setTimeout(() => { void prepareCachedInstall(pending.version); }, AUTO_CHECK_FIRST_DELAY_MS);
+  timer.unref?.();
+}
+
 export function startAutoUpdateCheck(): void {
+  if (app.isPackaged && CAN_CHECK_UPDATES && !isAutomatedLaunch()) restorePendingInstall();
   autoCheckScheduler.start();
 }
 
@@ -176,6 +225,7 @@ function pendingFromState(): { fromVersion: string; toVersion: string; notes: re
 
 export function registerUpdaterIpc(): void {
   reminderStore = openUpdateReminderStore(app.getVersion());
+  registerQuitStartProbe(UPDATE_BUSY_PROBE, () => busyGate.isBusyAtQuit());
 
   ipcMain.handle("nomi:app:version", (): AppInfo => ({
     version: app.getVersion(),
@@ -280,16 +330,26 @@ export function registerUpdaterIpc(): void {
     }
   });
 
-  ipcMain.handle("nomi:update:install", (event) => {
+  ipcMain.handle("nomi:update:install", async (event) => {
     // 装更新会立刻重启整个应用，是最强的一条控制权。
     assertTrustedSender(event);
     // 连点「重启以更新」只触发一次；还没下好不装；安装失败后（phase=error、stage=install）允许再点一次重试。
     const state = currentUpdaterState();
-    const retryingInstall = state.phase === "error" && state.errorStage === "install" && installOnQuit.isDownloaded();
+    const restored = !installOnQuit.isDownloaded() ? reminderStore?.pendingInstall() ?? null : null;
+    const retryingInstall = state.phase === "error" && state.errorStage === "install" && (installOnQuit.isDownloaded() || restored !== null);
     if (installRequested || (state.phase !== "downloaded" && !retryingInstall)) return { ok: false };
     // 有任务在跑就拒绝（判断只在主进程这一处；判不准按忙算），渲染层只负责提示。
     if (busyGate.isBusyForInstall(event.sender.id)) return { ok: false, reason: "busy" };
     installRequested = true;
+    // 上个进程留下的「没装上」：这个进程还没核对过缓存包，先核对（命中缓存不重下），核对不过就老实报错、可再点。
+    if (restored) {
+      const failure = await prepareCachedInstall(restored.version);
+      if (failure) {
+        installRequested = false;
+        publishError(failure, "download");
+        return { ok: false };
+      }
+    }
     stage = "install";
     installOnQuit.markInstallStarted();
     trackUpdate("install", "success");
