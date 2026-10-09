@@ -76,6 +76,14 @@ macOS 上密钥的钥匙串条目名随 app 名走，所以密钥要在 Preview 
 
 release 分支仍通过 PR 进入 `main`。为保持 RC commit 可追溯，release PR 使用 merge commit 或 fast-forward，不能 squash。
 
+### 发版节奏与授权（用户 2026-09-28 / 10-01 / 10-04 拍板）
+
+- **攒一大批再发**，版本号跟着升一档（0.23.0，不是 0.22.5）。原因：安装包大（几百 MB），每次发版用户都要重新下载安装一遍，发得越勤越烦，小修补不值得让用户跑一趟；「包大、更新麻烦」本身也要治（增量更新、包体瘦身），不能只靠少发版躲。
+- **只有「花钱出错 / 丢数据 / 用不了」才可能单独发热修版**，而且默认仍按「攒进下一个大版本」排：下一个大版本已在路上、触发概率低、离下一版只有几天时，用户宁可并版发。只有正在持续造成损失（数据 / 反馈有证据）、且大版本还远时才力推热修；不要为同一批东西反复推热修。
+- **发布不等用户说「发」**：过完发版前检查（候选版 + 全功能走查 + 审计报告）就直接发，发完汇报版本号、改了什么、走查结果；检查没过就不发，这条优先。公开 issue 回复不在这条里，仍先问。`production-release` 环境的发布审批由协调会话批：先 `gh api repos/<o>/<r>/actions/runs/<run>/pending_deployments` 看清待批环境，再 POST `state=approved`，comment 写明 RC run 和验收结论；批之前候选版验收截图已亲眼看过、合回 main 的收据已到手；子 agent 不自己批。
+- **全功能走查是仓库里的 Playwright 脚本**（`tests/ux/` 下，一功能一条场景、自动截图出报告），加了新功能或改了哪块，同一个 PR 里更新对应场景，缺场景的新功能算没做完；每次发版前在候选版上跑一遍。
+- 候选版 RC 必须从 `release/<版本>` 分支触发，否则发布时报 commit 不一致（见教训 [RC 必须在发布分支上触发](lessons/rc-must-be-dispatched-on-the-release-branch.md)）。
+
 ## 4. 构建 Release Candidate
 
 在 GitHub Actions 手动运行 `Desktop Release Candidate`：
