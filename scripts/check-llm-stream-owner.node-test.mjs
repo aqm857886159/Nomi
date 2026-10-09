@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 
+import { makeTempDir } from './_test-temp.mjs'
 import { bannedAccesses, scan } from './check-llm-stream-owner.mjs'
 
 const hit = (source) => bannedAccesses(source).length > 0
@@ -54,13 +54,11 @@ for (const [name, source] of Object.entries(ALLOWED)) {
 }
 
 test('扫盘：owner 自己放行，别的文件（含 .mjs）任何绕法都红，测试文件不算', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-owner-'))
-  try {
-    const put = (rel, body) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, body) }
-    put('electron/ai/streamTextTask.ts', 'import { streamText } from "ai"')
-    put('electron/other/rogue.ts', 'export * from "ai"')
-    put('src/x/rogue.mjs', 'const m = await import("ai")')
-    put('electron/other/rogue.test.ts', 'import { streamText } from "ai"')
-    assert.deepEqual(scan(root).map((entry) => entry.file).sort(), ['electron/other/rogue.ts', 'src/x/rogue.mjs'])
-  } finally { fs.rmSync(root, { recursive: true, force: true }) }
+  const root = makeTempDir('llm-owner-')
+  const put = (rel, body) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, body) }
+  put('electron/ai/streamTextTask.ts', 'import { streamText } from "ai"')
+  put('electron/other/rogue.ts', 'export * from "ai"')
+  put('src/x/rogue.mjs', 'const m = await import("ai")')
+  put('electron/other/rogue.test.ts', 'import { streamText } from "ai"')
+  assert.deepEqual(scan(root).map((entry) => entry.file).sort(), ['electron/other/rogue.ts', 'src/x/rogue.mjs'])
 })
