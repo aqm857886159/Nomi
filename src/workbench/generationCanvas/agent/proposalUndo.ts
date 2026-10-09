@@ -440,7 +440,7 @@ export function applyCompensationOps(compensation: readonly ProjectAgentProposal
       useGenerationCanvasStore.getState().updateNodePrompt(op.nodeId, op.prompt, op.promptOverridden)
     } else if (op.kind === 'restore-text') {
       // 正文放回提议之前的样子（和 Agent 写入同一个写口）；节点已被删 = no-op。
-      useGenerationCanvasStore.getState().writeNodeBody(op.nodeId, (op.contentJson ?? { type: 'doc', content: [] }) as TiptapDocJson, { undoPoint: false })
+      useGenerationCanvasStore.getState().restoreNodeBody(op.nodeId, op.contentJson as TiptapDocJson | null)
     } else if (op.kind === 'restore-node-fields') {
       // 整节点放回只放编辑层；结果、运行态、跟主图走的媒体尺寸取此刻的（统一提交口）。节点已被删 = no-op。
       useGenerationCanvasStore.getState().restoreNodeFields(op.nodeId, op.meta, op.prompt)

@@ -64,3 +64,22 @@ describe('点加工预设：先看有没有东西可加工，再走和 ↑ 同�
     expect(messages).toEqual([])
   })
 })
+
+describe('预设被什么挡着：不可点 + 说明原因（和生成钮缺参考时同一种做法）', () => {
+  it('没连图 → 看图写描述 needImage；没内容 → 其余三个 needText；有内容 / 连了图就都放行', async () => {
+    const { presetBlockReason } = await import('./textProcessRun')
+    const empty = addText('')
+    const graph = () => ({ nodes: store().nodes, edges: store().edges })
+    expect(presetBlockReason(empty, graph(), 'describe')).toBe('needImage')
+    expect(presetBlockReason(empty, graph(), 'expand')).toBe('needText')
+    expect(presetBlockReason(empty, graph(), 'split')).toBe('needText')
+    expect(presetBlockReason(empty, graph(), 'translate')).toBe('needText')
+    const body = addText('有字')
+    expect(presetBlockReason(body, graph(), 'expand')).toBeNull()
+    expect(presetBlockReason(body, graph(), 'describe')).toBe('needImage')
+    const image = store().addNode({ kind: 'image', title: '图', prompt: '' })
+    store().updateNode(image.id, { result: { id: 'r', type: 'image', url: 'https://x/a.png' } as never })
+    store().connectNodes(image.id, body.id)
+    expect(presetBlockReason(store().nodes.find((n) => n.id === body.id)!, graph(), 'describe')).toBeNull()
+  })
+})

@@ -23,8 +23,8 @@ import { buildRichTextActions } from '../../../common/richTextActions'
 import { NodeEmptyState } from './NodeEmptyState'
 import { toast } from '../../../../ui/toast'
 import { requestTaskCancel } from '../../runner/localTaskControl'
-import { runTextPreset } from '../textProcessRun'
-import { TEXT_PROCESS_PRESETS, TEXT_PROCESS_PRESET_LABEL_KEY, countSplitItems, type TextProcessPresetId } from '../../runner/textProcessPresets'
+import { presetBlockHint, runTextPreset, useTextPresetBlocks } from '../textProcessRun'
+import { TEXT_PROCESS_PRESET_LABEL_KEY, countSplitItems, type TextProcessPresetId } from '../../runner/textProcessPresets'
 import { docToPlainText } from '../../runner/textGenerationDocument'
 import { NomiLoadingMark } from '../../../../design'
 import { landSelectionRewrite } from '../../runner/textActions'
@@ -104,6 +104,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
   }, [resultId, pendingApplyId, node.id, node.result?.text, tools, editor])
 
   const showPlaceholder = isDocEmpty(node.contentJson)
+  const presetBlocks = useTextPresetBlocks(node.id)
   const running = node.status === 'queued' || node.status === 'running'
   const splitCount = node.meta?.textGenPreset === 'split' && !running ? countSplitItems(node.contentJson) : null
   const characterCount = React.useMemo(() => (showPlaceholder ? 0 : docToPlainText(node.contentJson).length), [node.contentJson, showPlaceholder])
@@ -198,8 +199,8 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
                         <button
                           type="button"
                           data-preset={id}
-                          disabled={node.locked}
-                          title={TEXT_PROCESS_PRESETS[id].needsImage ? t('generationCommon.textProcess.needImageHint') : undefined}
+                          disabled={node.locked || Boolean(presetBlocks[id])}
+                          title={presetBlocks[id] ? presetBlockHint(presetBlocks[id]!) : undefined}
                           className="inline-flex h-6 items-center whitespace-nowrap rounded-nomi-sm px-1.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:text-nomi-ink-30"
                           onPointerDown={(event) => event.stopPropagation()}
                           onClick={(event) => {

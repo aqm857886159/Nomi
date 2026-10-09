@@ -40,3 +40,17 @@ describe('文本节点正文唯一写口 writeNodeBody / setNodeText', () => {
     expect(store().nodes[0]!.contentJson?.content).toHaveLength(1)
   })
 })
+
+describe('restoreNodeBody：撤销补偿的专用入口（不是 Agent 写入口）', () => {
+  it('把正文放回写之前的样子（null = 之前没有正文），不打撤销点', () => {
+    const node = store().addNode({ kind: 'text', title: 't', prompt: '' })
+    store().writeNodeBody(node.id, tiptapDocFromPlainText('原文') as TiptapDocJson)
+    store().setNodeText(node.id, 'Agent 写的')
+    const past = store().canUndo
+    store().restoreNodeBody(node.id, tiptapDocFromPlainText('原文') as TiptapDocJson)
+    expect(bodyOf(node.id)).toBe('原文')
+    expect(store().canUndo).toBe(past)
+    store().restoreNodeBody(node.id, null)
+    expect(bodyOf(node.id)).toBe('')
+  })
+})

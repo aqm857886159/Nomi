@@ -19,13 +19,12 @@ import { cn } from '../../../utils/cn'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { findModelOptionByIdentifier, useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { TEXT_PROCESS_PRESETS, TEXT_PROCESS_PRESET_IDS, TEXT_PROCESS_PRESET_LABEL_KEY, type TextProcessPresetId } from '../runner/textProcessPresets'
 import type { TextGenMode } from '../runner/textGenerationDocument'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { ComposerAnchor } from './composerAnchor'
 import { startGenerationFromComposer } from './composerRun'
-import { runTextPreset } from './textProcessRun'
+import { presetBlockHint, runTextPreset, useTextPresetBlocks } from './textProcessRun'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
@@ -134,10 +133,8 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
     : null
   const activePreset = typeof meta.textGenPreset === 'string' ? meta.textGenPreset : null
 
-  // 连了几张图：「看图写描述」要有图才做。与运行时同一个解析器（resolveGenerationReferences），只订阅一个数字。
-  const imageCount = useGenerationCanvasStore((state) =>
-    resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges }).referenceImages.length,
-  )
+  // 四个预设此刻各自被什么挡着（没图 / 没内容）：做成不可点 + 说明原因，和生成钮缺参考时同一种做法。
+  const blocks = useTextPresetBlocks(nodeId)
 
   const setMeta = React.useCallback((patch: Record<string, unknown>, remove: readonly string[] = []) => {
     if (locked) return
@@ -233,7 +230,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
       >
         <div className="-ml-1.5 flex min-w-0 flex-nowrap items-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-process-presets>
           {TEXT_PROCESS_PRESET_IDS.map((id) => {
-            const blocked = TEXT_PROCESS_PRESETS[id].needsImage && imageCount === 0
+            const block = blocks[id]
             return (
               <React.Fragment key={id}>
                 <button
@@ -241,12 +238,11 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
                   className={TEXT_ACTION_CLASS}
                   data-preset={id}
                   data-active={activePreset === id && running ? 'true' : 'false'}
-                  disabled={locked || running}
-                  aria-disabled={blocked || undefined}
-                  title={blocked ? t('generationCommon.textProcess.needImageHint') : undefined}
+                  disabled={locked || running || Boolean(block)}
+                  title={block ? presetBlockHint(block) : undefined}
                   onClick={(event) => { event.stopPropagation(); runPreset(id) }}
                 >
-                  <span className={cn(blocked && 'text-nomi-ink-40')}>{t(TEXT_PROCESS_PRESET_LABEL_KEY[id])}</span>
+                  <span>{t(TEXT_PROCESS_PRESET_LABEL_KEY[id])}</span>
                 </button>
                 <span aria-hidden="true" className="text-caption text-nomi-ink-30">·</span>
               </React.Fragment>

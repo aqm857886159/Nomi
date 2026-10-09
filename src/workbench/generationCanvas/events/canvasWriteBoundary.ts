@@ -24,7 +24,7 @@ export const CANVAS_ACTION_LAYERS = {
   resetGenerationAiConversation: 'session', copySelectedNodes: 'session', cutSelectedNodes: 'edit',
   duplicateNodesForDrag: 'edit', duplicateSelectedNodes: 'edit', pasteNodes: 'edit', readSnapshot: 'session', readDocumentSnapshot: 'session',
   addNode: 'edit', commitPersistedChange: 'session', updateNode: 'edit', updateNodes: 'edit',
-  updateNodePrompt: 'edit', setNodeResultStackOpen: 'edit', setNodeMainResult: 'edit', setNodeLocked: 'edit', writeNodeBody: 'edit', setNodeText: 'edit', moveNode: 'edit', moveNodes: 'edit', moveSelectedNodes: 'edit',
+  updateNodePrompt: 'edit', setNodeResultStackOpen: 'edit', setNodeMainResult: 'edit', setNodeLocked: 'edit', writeNodeBody: 'edit', restoreNodeBody: 'edit', setNodeText: 'edit', moveNode: 'edit', moveNodes: 'edit', moveSelectedNodes: 'edit',
   tidyCategory: 'edit', deleteSelectedNodes: 'edit', selectNode: 'session', selectNodes: 'session',
   clearSelection: 'session', selectAllNodes: 'session',
   duplicateNodeForRegeneration: 'edit', reassignNodeCategory: 'edit', copyNodeToCategory: 'edit', deleteNode: 'edit',

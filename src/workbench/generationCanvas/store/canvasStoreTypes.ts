@@ -72,6 +72,8 @@ export type CanvasNodeActions = {
    * undoPoint:true 先打画布撤销点）都经它。不许再有第二处直接写 contentJson。
    */
   writeNodeBody: (nodeId: string, contentJson: TiptapDocJson, options?: CanvasMutationOptions & { undoPoint?: boolean }) => void
+  /** 撤销补偿专用：把文本节点正文放回提议之前的样子（null = 之前没有正文）。不是 Agent 写入口：不打撤销点，由提议回执 / 撤销日志负责记账。 */
+  restoreNodeBody: (nodeId: string, contentJson: TiptapDocJson | null) => void
   /** Agent 写文本节点正文：replace 覆盖 / append 接在后面；一个画布撤销步；只改正文，不生成、不花钱。 */
   setNodeText: (nodeId: string, text: string, mode?: 'replace' | 'append') => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void

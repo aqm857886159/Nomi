@@ -278,6 +278,9 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { contentJson } } }])
     }
   },
+  restoreNodeBody: (nodeId, contentJson) => {
+    get().writeNodeBody(nodeId, contentJson ?? { type: 'doc', content: [] })
+  },
   setNodeText: (nodeId, text, mode = 'replace') => {
     const existing = get().nodes.find((candidate) => candidate.id === nodeId)
     if (!existing) return

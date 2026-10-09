@@ -622,7 +622,7 @@ export function canvasWriteOperationForAlias(alias: string): CanvasWriteOperatio
 export const CANVAS_WRITE_CAPABILITY = {
   id: "canvas.write",
   version: 1,
-  // `pi` surface 上只放模型可见的三个动词（`verbs/canvasVerbs.ts`）；operation 值不是别名，
+  // `pi` surface 上只放模型可见的画布写动词（`verbs/writeVerbs.ts`）；operation 值不是别名，
   // 它们是 schema 里的枚举（`CANVAS_WRITE_OPERATIONS`）。
   // 模型可见动词：arrange_canvas / make_artifact / write_node_text / stage_shot（都不能造生成类节点——那只归 draft_shots）。
   aliases: {

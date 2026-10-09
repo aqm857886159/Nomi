@@ -58,6 +58,9 @@ export function registerTextStreamIpc(): void {
         });
       })()
         .then((result) => {
+          // 用户点了「停止」：底层流被掐断后会带着已收到的残文本正常返回，但那不是一次成功——
+          // 不发 done（否则把半截文字当终态送给渲染层）；渲染层自己按取消收尾。
+          if (session.abortController.signal.aborted) return;
           sendTextEvent(session, { type: "done", result });
         })
         .catch(async (error: unknown) => {
