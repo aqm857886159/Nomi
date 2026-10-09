@@ -365,7 +365,7 @@ function EdgeDisconnectLayer({ id, labelX, labelY, onPointerEnter, onPointerLeav
   return (
     <EdgeLabelRenderer>
       <div
-        className="generation-canvas-v2__edge-control absolute z-10 flex items-center gap-1 pointer-events-auto"
+        className="generation-canvas-v2__edge-control absolute z-10 pointer-events-auto"
         style={{ transform: edgeLabelTransform(labelX, labelY, zoom) }}
         data-edge-id={id}
         onPointerEnter={onPointerEnter}
@@ -396,11 +396,6 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
     () => t('generationCommon.canvas.edge.select', { source: sourceLabel, target: targetLabel }),
     [sourceLabel, t, targetLabel],
   )
-  // 编组聚合线（组的输入 / 输出）要让人看出「这是整个组的关系」：选中 / 悬停时「×」旁带一枚小字（普通连线中点什么都不挂）。
-  const aggregateDirection = data?.aggregateDirection
-  const aggregateLabel = React.useMemo(() => aggregateDirection
-    ? t(`generationCommon.canvas.group.aggregate${aggregateDirection === 'input' ? 'Input' : 'Output'}`)
-    : null, [aggregateDirection, t])
   const disconnectLabel = data?.aggregateDirection
     ? t('generationCommon.canvas.group.disconnectAggregate')
     : t('generationCommon.canvas.edge.disconnect', { source: sourceLabel, target: targetLabel })
@@ -423,6 +418,8 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       data-mode={mode}
       data-edge-id={id}
       data-aggregate-group={data?.aggregateGroupId}
+      // 编组聚合线的关系只用不可见的方式表达（连线中点不挂任何字）：这两个属性给走查 / 辅助技术读，「×」的 aria-label 说「断开整条编组连接」。
+      data-aggregate-direction={data?.aggregateDirection}
       data-active={selected ? 'true' : undefined}
       data-hovered={hovered && !readOnly ? 'true' : undefined}
       data-incident={incident ? 'true' : undefined}
@@ -470,9 +467,6 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
               if (edge) disconnectEdge(edge.id)
             }}
           />
-          {aggregateLabel ? (
-            <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill bg-nomi-paper px-2 text-micro text-nomi-ink-60 shadow-nomi-sm ring-1 ring-inset ring-nomi-line">{aggregateLabel}</span>
-          ) : null}
         </EdgeDisconnectLayer>
       ) : null}
     </g>
