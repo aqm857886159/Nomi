@@ -25,6 +25,8 @@ export const CANVAS_DRAGGING_OWNER = {
   reactFlowNode: 'react-flow-node',
   reactFlowPan: 'react-flow-pan',
   reactFlowViewport: 'react-flow-viewport',
+  // 时间轴 / 剪辑节点内的片段、手柄、播放头手势（timeline/timelineGesture.ts）。只借打断监听，不升旗（active:false）。
+  timelineGesture: 'timeline-gesture',
 } as const
 
 export type CanvasDraggingOwner = (typeof CANVAS_DRAGGING_OWNER)[keyof typeof CANVAS_DRAGGING_OWNER]

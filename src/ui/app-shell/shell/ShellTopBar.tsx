@@ -34,8 +34,7 @@ import {
 import { useLocalProjects } from '../../../workbench/library/localProjectStore'
 import { useOnboardingProgress } from '../../../workbench/onboarding/onboardingProgress'
 import { DotMark } from './DotMark'
-import { useUpdater } from '../useUpdater'
-import { UpdaterDialog } from '../UpdaterDialog'
+import { UpdatePill } from '../UpdatePill'
 import { SHELL_MAC_TRAFFIC_WIDTH, SHELL_TOPBAR_HEIGHT, shellChromePlatform } from '../shellGeometry'
 
 /** 顶栏图标钮一族：28px 方块、圆角 6、图标 18 / 1.5（拍板稿 .ib）。 */
@@ -153,42 +152,6 @@ function ProjectMenu({
   )
 }
 
-/**
- * 「新版本」胶囊：只由更新器的真状态决定出不出（10-08 C11 裁决：样张占位不进生产）。
- * 宽窗是 info 底胶囊；窄窗（< 1100）收成一颗带点的下载图标（Chrome 板「窄窗口」）。
- */
-function UpdaterPill({ phase, percent, onOpen }: { phase: string; percent: number; onOpen: () => void }): JSX.Element | null {
-  const { t } = useTranslation()
-  if (phase !== 'available' && phase !== 'downloading' && phase !== 'downloaded' && phase !== 'error') return null
-  const label = phase === 'downloading'
-    ? t('appShell.update.downloading', { percent })
-    : phase === 'downloaded' ? t('appShell.update.ready') : phase === 'error' ? t('appShell.update.failed') : t('appShell.update.available')
-  return (
-    <>
-      <button
-        type="button"
-        className={cn(
-          'app-no-drag mx-1 inline-flex h-6 shrink-0 items-center gap-1 rounded-pill border-0 pl-2 pr-2.5 text-caption font-medium',
-          'transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent max-[1099px]:hidden',
-          phase === 'error' ? 'bg-nomi-danger-soft text-nomi-danger-ink hover:bg-nomi-danger-edge' : 'bg-nomi-info-soft text-nomi-info-ink hover:bg-nomi-info-edge',
-        )}
-        onClick={onOpen}
-        data-updater-badge={phase}
-        title={label}
-      >
-        <IconDownload size={14} stroke={1.5} aria-hidden="true" />
-        <span className="whitespace-nowrap tabular-nums">{label}</span>
-      </button>
-      <BarTooltip label={label}>
-        <button type="button" className={cn(BAR_ICON_BUTTON, 'min-[1100px]:hidden text-nomi-info-ink')} aria-label={label} onClick={onOpen} data-updater-badge-compact={phase}>
-          <IconDownload size={18} stroke={1.5} aria-hidden="true" />
-          <DotMark className={phase === 'error' ? 'bg-nomi-danger' : undefined} />
-        </button>
-      </BarTooltip>
-    </>
-  )
-}
-
 type ShellTopBarProps = {
   /** null = 项目库页（没有项目名、没有阶段切换、没有任务）。 */
   workspaceMode: WorkspaceMode | null
@@ -204,8 +167,6 @@ type ShellTopBarProps = {
   onOpenSettings?: () => void
   /** 生成页「画布 | 列表」切换（列表线提供；列表视图还没进 main）。 */
   viewSwitcher?: React.ReactNode
-  /** 有任务在跑：「重启安装」要禁用并说明原因。 */
-  hasRunningTask?: boolean
   /** 左栏收起时，左端多一颗「展开左栏」。 */
   railCollapsed?: boolean
   onExpandRail?: () => void
@@ -223,15 +184,12 @@ export function ShellTopBar({
   onRenameProject,
   onOpenSettings,
   viewSwitcher,
-  hasRunningTask = false,
   railCollapsed = false,
   onExpandRail,
 }: ShellTopBarProps): JSX.Element {
   const { t } = useTranslation()
   const platform = shellChromePlatform()
   const onboarding = useOnboardingProgress()
-  const updater = useUpdater()
-  const [updaterRequested, setUpdaterRequested] = React.useState(false)
   const previewExport = usePreviewExportState()
   const exportBusy = isPreviewExportBusy(previewExport.status)
   const exportStageKey = previewExportStageKey(previewExport.status)
@@ -322,7 +280,8 @@ export function ShellTopBar({
               <IconBrowser size={18} stroke={1.5} aria-hidden="true" />
             </button>
           </BarTooltip>
-          <UpdaterPill phase={updater.phase} percent={updater.percent} onOpen={() => setUpdaterRequested(true)} />
+          {/* 更新胶囊（#1135）：只由主进程更新状态决定出不出；窄屏自收成带点图标，点开的弹窗由 NomiStudioApp 全局挂一份。 */}
+          <UpdatePill host="appbar" />
           {onOpenSettings ? (
             <BarTooltip label={onboarding.active ? t('appShell.topbar.settingsDot', { count: onboarding.total - onboarding.doneCount }) : t('settings.title')}>
               <button type="button" className={BAR_ICON_BUTTON} aria-label={t('settings.title')} onClick={onOpenSettings} data-shell-settings>
@@ -333,7 +292,6 @@ export function ShellTopBar({
           ) : null}
         </div>
       </TooltipProvider>
-      <UpdaterDialog updater={updater} hasRunningTask={hasRunningTask} requested={updaterRequested} onRequestedChange={setUpdaterRequested} />
     </header>
   )
 }

@@ -17,6 +17,7 @@ import {
   screenshotSettled,
 } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { expectArrivalsReachable, expectCanvasViewportHeld, expectToolbarInsideStageEverywhere, findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 
 const root = makeTempDir('nomi-card-stack-walk-')
@@ -467,7 +468,14 @@ try {
   })
   check('聚合编组输入线上存在真的点得到的点', Boolean(aggregatePoint), JSON.stringify(aggregatePoint))
   await win.mouse.click(aggregatePoint.x, aggregatePoint.y)
-  await expectVisible(win.getByText('编组输入', { exact: true }), '聚合线应显示编组关系而不是伪造成员模式')
+  // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点不挂任何字。编组关系用不可见的方式验证：边带编组 id / 方向属性，
+  // 「×」的读屏名是「断开整条编组连接」（不是某条成员边的断开）；界面上没有任何模式 / 标签文字，也没有伪造成员模式。
+  const aggregateEdge = win.locator('g[data-aggregate-group="reference-group"]')
+  await expect(aggregateEdge, '聚合线带编组方向（不可见属性）').toHaveAttribute('data-aggregate-direction', 'input')
+  await expectVisible(win.getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.disconnectAggregate'), exact: true }), '聚合线选中后的「×」读屏名是断开整条编组连接')
+  // 正向断言：聚合线中点那一层只有「×」、没有任何文字（没有模式胶囊 / 「编组输入」字样）。
+  await expect(win.locator('.generation-canvas-v2__edge-control > *'), '聚合线中点只有「×」一个控件').toHaveCount(1)
+  await expect(win.locator('.generation-canvas-v2__edge-control'), '聚合线中点没有任何文字').toHaveText('')
   await screenshotSettled(win, { path: path.join(outputDir, '04-real-collapsed-group-link-light.png') })
 
   await expect.poll(() => {

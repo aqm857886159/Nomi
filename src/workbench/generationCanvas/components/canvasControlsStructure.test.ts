@@ -312,15 +312,14 @@ describe('generation canvas control structure', () => {
     expect(groupContract).toContain("group's semantic color")
   })
 
-  it('keeps React Flow edge labels explicit and accessible', () => {
+  it('keeps the edge disconnect control icon-only and accessible, with no mode pill or menu', () => {
     const edgeRenderer = source('../reactFlow/GenerationCanvasReactFlowNodes.tsx')
 
-    expect(edgeRenderer).toContain(
-      "const showLabel = !readOnly && (menuOpen || (mode !== 'reference' && (incident || selected)))",
-    )
-    expect(edgeRenderer).toContain('{!readOnly ? (')
-    expect(edgeRenderer).toContain("aria-label={t('generationCommon.canvas.edge.modeMenu')}")
-    expect(edgeRenderer).toContain("aria-label={t('generationCommon.canvas.edge.changeMode'")
+    expect(edgeRenderer).toContain('const showDisconnect = !readOnly && Boolean(edge) && (Boolean(selected) || hovered)')
+    expect(edgeRenderer).toContain('label={disconnectLabel}')
+    expect(edgeRenderer).not.toContain('edge-tag-pill')
+    expect(edgeRenderer).not.toContain('edge-menu')
+    expect(edgeRenderer).not.toContain('changeMode')
     expect(edgeRenderer).not.toContain('EDGE_TAG_DENSE_THRESHOLD')
     expect(edgeRenderer).not.toContain('hoveredEdgeId')
   })
@@ -337,7 +336,8 @@ describe('generation canvas control structure', () => {
     expect(modeBar).toContain('min-h-7 rounded-nomi-sm px-3 py-1 text-caption')
     expect(parameterBody).toContain('style={{ height: 28 }}')
     expect(parameterBody).toContain('density="compact"')
-    expect(composer).toContain('min-h-7 rounded-nomi-sm px-2.5 py-1 text-caption')
+    // 文本节点的续写 / 改写 / 重写按钮搬进了加工框的下拉（TextNodeComposer），不再是通用浮框里的一排按钮。
+    expect(source('../nodes/TextNodeComposer.tsx')).toContain('h-6 items-center gap-0.5 whitespace-nowrap rounded-nomi-sm px-1.5 text-caption')
     expect(composer).not.toContain('NomiSegmented')
     expect(composer).not.toContain('h-[22px]')
   })

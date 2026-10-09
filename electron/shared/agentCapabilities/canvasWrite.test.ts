@@ -10,6 +10,7 @@ import {
   canvasWriteResultSchema,
   canvasWriteSemanticInputSchema,
   canvasWriteOperationForAlias,
+  MAX_SET_NODE_TEXT_CHARACTERS,
 } from "./canvasWrite";
 
 describe("canvas.write canonical contract", () => {
@@ -31,7 +32,7 @@ describe("canvas.write canonical contract", () => {
       // `pi` surface 上只放模型可见的三个动词；operation 值是 schema 枚举，不是别名。
       aliases: { pi: "arrange_canvas", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
       additionalAliases: {
-        pi: ["make_artifact", "stage_shot"],
+        pi: ["make_artifact", "write_node_text", "stage_shot"],
       },
       inputSchema: canvasWriteSemanticInputSchema,
       outputSchema: canvasWriteResultSchema,
@@ -47,6 +48,7 @@ describe("canvas.write canonical contract", () => {
         create_staging_reference: "reversible_local",
         create_camera_move: "reversible_local",
         set_node_prompt: "reversible_local",
+        set_node_text: "reversible_local",
       },
       operationPlanReview: {
         propose_storyboard_plan: { allowReuse: false },
@@ -93,7 +95,18 @@ describe("canvas.write canonical contract", () => {
       }).success,
     ).toBe(false);
 
+    for (const accepted of [
+      { operation: "set_node_text", nodeId: "node-a", text: "正文" },
+      { operation: "set_node_text", nodeId: "node-a", text: "正文", mode: "append" },
+    ]) {
+      expect(canvasWriteSemanticInputSchema.safeParse(accepted).success).toBe(true);
+    }
+
     for (const rejected of [
+      { operation: "set_node_text", nodeId: "node-a", text: "" },
+      { operation: "set_node_text", nodeId: "node-a", text: "x".repeat(MAX_SET_NODE_TEXT_CHARACTERS + 1) },
+      { operation: "set_node_text", nodeId: "node-a", text: "x", mode: "prepend" },
+      { operation: "set_node_text", nodeId: "node-a", text: "x", prompt: "extra" },
       { operation: "set_node_prompt", nodeId: "", prompt: "new prompt" },
       { operation: "set_node_prompt", nodeId: "   ", prompt: "new prompt" },
       { operation: "set_node_prompt", nodeId: "node-a", prompt: "" },

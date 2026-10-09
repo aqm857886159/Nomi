@@ -10,6 +10,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useAllProjectAssets } from '../../assets/useAllProjectAssets'
 import AssetPicker from '../../assets/AssetPicker'
 import AssetPickerPopover from '../../assets/AssetPickerPopover'
+import { ClipEmptyTry } from '../quickActions/NodeTryList'
 import type { AssetRef } from '../../assets/assetTypes'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
@@ -26,6 +27,7 @@ import { getDesktopBridge } from '../../../desktop/bridge'
 import { buildWorkspaceFileUrl } from '../../explorer/workspaceFileDrag'
 import ClipNodePreview from './ClipNodePreview'
 import ClipNodeTimeline from './ClipNodeTimeline'
+import { resolveClipGestureAdmission } from './clipNodeGestureModel'
 import ClipNodeActionToolbar from './ClipNodeActionToolbar'
 import { createExclusiveClipNodeUpload, importClipNodeAsset } from './clipNodeUpload'
 import {
@@ -60,8 +62,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const { t } = useTranslation()
   const canvasNodes = useGenerationCanvasStore((state) => state.nodes)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const addNode = useGenerationCanvasStore((state) => state.addNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const addDerivedOutput = useGenerationCanvasStore((state) => state.addDerivedOutput)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -265,6 +266,13 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
     setExportMenuOpen(false)
   }, [meta, node.id, persist, selectNode, selected])
 
+  // 手势按下的那一刻就让节点与片段的选中态跟上：不等松手的 click（拖动会吞掉 click，选中态就一直落后于手势）。
+  const admitGesture = React.useCallback((clipId: string | null) => {
+    const admission = resolveClipGestureAdmission({ nodeSelected: selected, selectedClipId, targetClipId: clipId })
+    if (admission.selectNode) selectNode(node.id)
+    if (admission.selectClipId) persist({ ...meta, selectedClipId: admission.selectClipId.replace(/^clip-/, '') }, { history: false })
+  }, [meta, node.id, persist, selectNode, selected, selectedClipId])
+
   const selectFrame = React.useCallback((frame: number) => {
     if (!timelineClips.length) return
     const boundedFrame = Math.max(0, Math.min(frame, Math.max(0, durationFrames - 1)))
@@ -377,18 +385,25 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
               ? candidate.meta?.sourceClipId === task.sourceClipId
               : !candidate.meta?.sourceClipId)
           ))
-          const outputNode = existing ?? addNode({
-            kind: 'video',
-            title: task.sourceClipId
-              ? t('generationCommon.clipNode.outputClipTitle', { index: task.index + 1 })
-              : t('generationCommon.clipNode.outputNodeTitle'),
-            position: {
-              x: node.position.x + visualSize.width + 80,
-              y: node.position.y + (task.sourceClipId ? task.index * 180 : -180),
+          // 新输出卡 + 出处边是一个原子动作（addDerivedOutput）；已有的输出卡（重复导出同一段）沿用——它的边要么还在，
+          // 要么是用户自己断开的，不替他重连。
+          const outputNode = existing ?? addDerivedOutput({
+            sourceNodeId: node.id,
+            kind: 'clip-export',
+            node: {
+              kind: 'video',
+              title: task.sourceClipId
+                ? t('generationCommon.clipNode.outputClipTitle', { index: task.index + 1 })
+                : t('generationCommon.clipNode.outputNodeTitle'),
+              position: {
+                x: node.position.x + visualSize.width + 80,
+                y: node.position.y + (task.sourceClipId ? task.index * 180 : -180),
+              },
+              categoryId: node.categoryId,
+              select: false,
             },
-            categoryId: node.categoryId,
-            select: false,
           })
+          if (!outputNode) continue
           updateNode(outputNode.id, buildClipNodeOutputPatch({
             sourceClipNodeId: node.id,
             ...(task.sourceClipId ? { sourceClipId: task.sourceClipId } : {}),
@@ -396,8 +411,6 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             relativePath,
             durationSeconds: task.durationFrames / Math.max(1, task.timeline.fps),
           }))
-          // Default reference edges retain the canvas's light, label-free resting state.
-          connectNodes(node.id, outputNode.id)
         }
       }
       setExportMenuOpen(false)
@@ -557,10 +570,12 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             canvasZoom={canvasZoom}
             selectedClipId={selectedClipId}
             onSelectClip={selectClip}
+            onAdmitGesture={readOnly ? undefined : admitGesture}
             onMoveClip={handleMoveClip}
             onResizeClip={handleResizeClip}
             onScrubPlayhead={selectFrame}
             onAddMaterial={readOnly ? undefined : () => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }}
+            emptyState={<ClipEmptyTry nodeId={node.id} readOnly={readOnly} onAddMaterial={() => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }} />}
           />
         </div>
       </div>

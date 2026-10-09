@@ -43,7 +43,7 @@ import { useProductionNodeRetry } from './useProductionNodeRetry'
 import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from '../../timeline/timelineDragPayload'
 import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimelineEnd'
 import { confirmAndRunNode } from '../runner/generationRunController'
-import { selectCanvasNodeById, selectCanvasNodeCanRun, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
+import { selectCanvasNodeById, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
 import { retryLocalAssetImport } from '../adapters/assetImportAdapter'
 import { NodeErrorReport } from './NodeErrorReport'
 import { NodeRecoverableReport } from './NodeRecoverableReport'
@@ -107,7 +107,7 @@ function BaseGenerationNodeImpl({
   const moveNode = useGenerationCanvasStore((state) => state.moveNode)
   const moveSelectedNodes = useGenerationCanvasStore((state) => state.moveSelectedNodes)
   const isMultiSelectActive = useGenerationCanvasStore((state) => selected && state.selectedNodeIds.length > 1)
-  // S3(2026-09-12)：这三条与下面的 canGenerate 原先各扫一遍 state.nodes。每张卡都挂一份，
+  // S3(2026-09-12)：这几条原先各扫一遍 state.nodes。每张卡都挂一份，
   // 全选拖动时 N 张卡每帧各扫一遍全表 = O(N²)。改走 canvasNodeGenerationIndex 的
   // 单次派生索引（每个 store 版本算一次，每张卡只读自己那一格）。
   const sourceNodeTitle = useGenerationCanvasStore(
@@ -189,7 +189,6 @@ function BaseGenerationNodeImpl({
     commitPersistedChange,
   })
   const isGenerating = status === 'queued' || status === 'running'
-  const canGenerate = useGenerationCanvasStore((state) => selectCanvasNodeCanRun(state, node.id)) && !isGenerating
   const canSendToTimeline = canDragGenerationNodeToTimeline(node, { readOnly })
   // 「拖进时间轴」只有顶部这一个把手。卡片左右两侧归连线「+」圈（generationCanvasReactFlowVisualContract.ts）；
   // 2026-09-24 用户反馈「多结果卡片拉环不见了」：旧的侧边拖柄就住在右侧「+」圈的位置上、层级还更高，把圈整个盖住，
@@ -210,7 +209,6 @@ function BaseGenerationNodeImpl({
   // 切片2：镜头「挂了哪些设定卡」——不选中也能一眼看出挂了林夏/咖啡馆（可审计，免数连线）。
   const mountedCards = useMountedCards(node.id)
   const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === 'video') // A15：已连上游边时占位不再喊「拖图」
-  const needsFirstFrame = nodeExecutionKind === 'video' && !canGenerate && !isGenerating
   const { handlePanoramaFileChange, handlePanoramaScreenshot } = useNodePanoramaHandlers(node, visualSize, reportFeedback)
   const artifactSlots = useArtifactNodeSlots(node, { reportFeedback, selected, isMultiSelectActive, readOnly }) // 手艺产物的正文/浮条归 artifact 目录
 
@@ -226,8 +224,6 @@ function BaseGenerationNodeImpl({
   const composerMounted = React.useDeferredValue(composerWanted)
   // 被别的节点铺开的版本宫格压住时，标题先藏起来（不然会从卡片缝里漏出来，读着像哪张版本卡的标题）。选中的、自己铺开的在上面，不藏。
   const labelCovered = useLabelCoveredByVersionGrid(node.id, { x: node.position.x, y: node.position.y, width: visualSize.width, height: visualSize.height }, !selected && !node.resultStackOpen)
-  const showFlowConnectionHandle =
-    node.kind !== 'panorama' && (node.kind === 'image' || isAssetKind || isImageLikeGenerationNodeKind(node.kind))
 
   return (
     <article
@@ -459,10 +455,11 @@ function BaseGenerationNodeImpl({
           )
         ) : localImageOpPending ? (
           <RemoveBackgroundPendingPlaceholder title={node.title} progress={node.progress?.percent} />
-        ) : (
+        ) : isCardKind || isTextKind ? null : (
+          // 卡片 / 文本卡的空态在它们自己的 body 里（上面），这块预览是隐藏的，不再重复挂一份空态。
           <PendingGenerationPlaceholder
-            kind={node.kind}
-            selected={selected} needsFirstFrame={needsFirstFrame}
+            node={node}
+            selected={selected}
             waitingUpstream={hasFrameSourceEdge} derivedReady={isDerivedPromptReady(node)}
           />
         )}
@@ -496,7 +493,7 @@ function BaseGenerationNodeImpl({
         />
       ) : null}
 
-      {!localImageOpPending ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} motion={waitingMotion} preset={waitingPreset} /> : null}
+      {!localImageOpPending && !isTextKind ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} motion={waitingMotion} preset={waitingPreset} /> : null}
 
       <ProductionShotOverlays reportFeedback={reportFeedback} node={node} selected={selected && !isMultiSelectActive} />{/* P4 S5+S6 多镜叠加：占位三态 + 版本条（非多镜早退零开销） */}
       {/* composer：生成类节点 + **单选**时浮出。多选(框选)一律不挂——否则每个选中节点都弹自己的

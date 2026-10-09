@@ -588,3 +588,42 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
 
   return { fixture, report, outputDir, settingsDir, userDataDir, start, newProject, snap, resizeWindow, stopApp, finish }
 }
+
+// ── 「说的 = 做的」：Agent 写文本节点正文之后，面板回执的字要等于登记的文案（中英各核一次）──────────
+// 文案一律从词典按 key 取（uiText），不手抄字面量（copy-literals）。回执收在「用了 N 个工具」折里，要先点开。
+// 2026-10-09 逃逸：Agent 调的是 write_node_text，回执却写「创建或修改镜头卡 · 把镜头卡写入当前画布」。
+async function switchAppLocale(win, locale) {
+  await clickOrFail(win.getByRole('button', { name: /^(设置|Settings)$/ }).first(), '顶栏「设置」')
+  await clickOrFail(win.locator('[data-settings-tab-id="general"]'), '设置「通用」')
+  await clickOrFail(win.locator(`[data-settings-locale="${locale}"]`), `语言 ${locale}`)
+  await clickOrFail(win.locator('[data-settings-close]'), '关闭设置')
+}
+
+/** 展开最后一条「用了 N 个工具」并返回最后一行回执的文字。 */
+async function readLastReceipt(win, locale) {
+  const { uiText, uiTextPattern } = await import('./full-walk/invariants.mjs')
+  const folds = win.locator(CANVAS_PANEL).getByText(new RegExp(uiTextPattern(uiText(locale, 'agentPanelV4.processSummary'))))
+  const receipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
+  if (!(await receipt.isVisible().catch(() => false))) await clickOrFail(folds.last(), '展开「用了 N 个工具」')
+  await expect(receipt).toBeVisible()
+  return receipt
+}
+
+export async function assertNodeTextWriteReceipt(win, { snap }) {
+  const { uiText } = await import('./full-walk/invariants.mjs')
+  const rows = []
+  for (const locale of ['zh-CN', 'en']) {
+    if (locale === 'en') await switchAppLocale(win, 'en')
+    const title = uiText(locale, 'agentResident.toolNodeTextWrite')
+    const summary = uiText(locale, 'agentResident.toolNodeTextWriteSummary')
+    const wrong = uiText(locale, 'agentResident.toolCanvasWriteSummary')
+    const receipt = await readLastReceipt(win, locale)
+    const text = await receipt.innerText()
+    expect(text, `[${locale}] 回执标题 = write_node_text 的登记文案`).toContain(title)
+    expect(text, `[${locale}] 回执摘要 = write_node_text 的登记文案`).toContain(summary)
+    expect(text, `[${locale}] 回执不能套用镜头卡写入的话`).not.toContain(wrong)
+    rows.push({ locale, shot: await snap(`receipt-${locale}`) })
+  }
+  await switchAppLocale(win, 'zh-CN')
+  return rows
+}

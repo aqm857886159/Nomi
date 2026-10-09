@@ -90,8 +90,9 @@ try {
   // 先造一个节点 composer 在场（复现「后挂载的 composer 盖住菜单」那一幕）
   await win.keyboard.press('Escape').catch(() => {})
   await win.waitForTimeout(300)
-  const newBoard = win.locator('button', { hasText: '新建画面' }).first()
-  if (await newBoard.count()) { await clickOrFail(newBoard, '新建画面'); await win.waitForTimeout(1500) }
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  const newBoard = win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first()
+  if (await newBoard.count()) { await clickOrFail(newBoard, '空画布任务卡「图片」'); await win.waitForTimeout(1500) }
   await clickOrFail(rail.locator('button[aria-label="添加图片节点"]'), '左缘「添加图片节点」')
   await win.waitForTimeout(1800)
   const composerCardCount = await win.locator('.generation-canvas-v2-node__composer-card').count()

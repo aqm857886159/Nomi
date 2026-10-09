@@ -17,6 +17,14 @@
       "bytes": 121,
       "decision": "协调会话 2026-10-05 派的 B 线任务 L-readtask；设计卡 docs/plan/2026-10-05-nomi-read-task-target.md（承接 docs/plan/2026-10-04-try-model-async-queued.md 的后续项）。",
       "why": "nomi_read 的 target 枚举加一个值 task与一条可选 taskId 说明，合计 121 字节，纯加法、不改 required、不改已发布字段、没有新工具。买到的是：nomi_try_model 返回 still_processing（已收费、不要重试）后，AI 第一次有工具能按任务号只读地查一次现状（排队/处理中/成功带产物/失败带供应商原话/不认识），不再只能叫用户去供应商后台；查询只走 fetchTaskResult，没有提交入口，不会重复扣费。这不是散文漂移：说明只有一句，使用时机写在 taskId 说明里。"
+    },
+    {
+      "tool": "nomi_canvas_edit",
+      "fromBytes": 50655,
+      "toBytes": 51021,
+      "bytes": 366,
+      "decision": "协调会话 2026-10-08 拍板（用户 23:08Z 确认文本节点方案）：Agent 能写文本节点正文，canvas.write 新增 set_node_text 与动词 write_node_text；任务书 I-textnode1。",
+      "why": "canvas.write 的 operation 联合新增一个分支 set_node_text（nodeId、text、mode=replace|append 三个字段）加动词 write_node_text 的描述，合计 366 字节，纯加法、不改已发布字段。买到的是：外部宿主与内置 Agent 第一次能改画布上文本节点的正文（之前 canvas.read 看不到正文、也没有写口），并且写入走同一条可撤销的提议回执。字段描述只有一句，不是散文漂移；不花钱，不触发生成。"
     }
   ]
 }

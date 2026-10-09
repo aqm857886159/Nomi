@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import fs from "node:fs";
+import { app, ipcMain, shell } from "electron";
 import { desktopT } from "../i18n";
 import { buildDownloadPageUrl } from "./downloadPage";
 
@@ -6,10 +7,21 @@ import { assertTrustedSender } from "../ipcSenderGuard";
 import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
 import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/telemetryEvents";
 import type { TelemetryResult } from "../shared/contracts/telemetry";
-import { classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate } from "./autoCheck";
+import { AUTO_CHECK_FIRST_DELAY_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
+import { hasInFlightProductionWork } from "../backgroundLaunch";
+import { createInstallGate, type UpdaterInstaller } from "./installGate";
+import { createInstallOnQuit } from "./installOnQuit";
+import { createUpdateBusyGate } from "./updateBusyGate";
+import { digestReleaseNotesHtml } from "../shared/releaseNotesDigest";
+import { currentUpdaterState, publishUpdateEvent } from "./updateHub";
+import { openUpdateReminderStore, type UpdateReminderStore } from "./updateReminderStore";
+import { quitStartProbeResult, registerQuitDrain, registerQuitStartProbe } from "../quitTeardown";
+import type { UpdateInfo } from "electron-updater";
+import { buildReleaseNotesUrl, type UpdaterErrorStage, type UpdateSnapshot, type VersionNotes } from "../shared/updateReminder";
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
-// 全程用户显式触发：关自动下载 / 关退出即装，下载与安装都必须用户点（P2 用户掌控）。
+// 下载与安装都由用户显式触发（P2 用户掌控）：点「下载更新」= 同意更新，下好后下次退出时自动装
+// （installOnQuit.ts，走退出唯一 owner 的排空项）；autoInstallOnAppQuit 保持关，库自己不订阅 quit。
 
 type AppInfo = {
   version: string;
@@ -22,8 +34,6 @@ type AppInfo = {
   canAutoInstall: boolean;
   canCheckUpdates: boolean;
 };
-
-const EVENT_CHANNEL = "nomi:update:event";
 
 // 未签名 mac 无法就地自动安装；其余平台（Windows NSIS）可以。
 const CAN_AUTO_INSTALL = process.platform !== "darwin";
@@ -42,58 +52,106 @@ let manualCheckInFlight = false;
 let downloadStarted = false;
 const notifyGate = createVersionNotifyGate();
 
-function broadcast(payload: Record<string, unknown>): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) win.webContents.send(EVENT_CHANNEL, payload);
-  }
-}
-
 function describeError(error: unknown): string {
   if (error == null) return desktopT("common.unknownError");
   if (error instanceof Error) return error.message || String(error);
   return String(error);
 }
 
-function stripHtml(input: string): string {
-  return input.replace(/<[^>]+>/g, "").replace(/\s+\n/g, "\n").trim();
+// 当前正在做的是哪一步：错误事件带上它，界面的「重试」才能直接重做失败的那一步（一次点击生效）。
+let stage: UpdaterErrorStage = "check";
+let downloadInFlight = false;
+let installRequested = false;
+let loadedUpdater: Awaited<ReturnType<typeof loadAutoUpdater>> | null = null;
+let reminderStore: UpdateReminderStore | null = null;
+
+function publishError(error: unknown, at: UpdaterErrorStage = stage): void {
+  publishUpdateEvent({ type: "error", message: describeError(error), stage: at, reason: describeUpdateFailure(error) });
 }
 
-type ReleaseNote = { version: string; note: string | null };
-
-function normalizeNotes(notes: string | ReleaseNote[] | null | undefined): string {
-  if (!notes) return "";
-  if (typeof notes === "string") return stripHtml(notes);
-  return notes
-    .map((entry) => stripHtml(entry.note || ""))
-    .filter(Boolean)
-    .join("\n");
+/** 从 electron-updater 给的 releaseNotes（单段 HTML，或 fullChangelog 下每个新版本一段）摘出每个版本的两种语言摘要。 */
+function toVersionNotes(info: UpdateInfo): VersionNotes[] {
+  const raw = info.releaseNotes;
+  if (!raw) return [];
+  if (typeof raw === "string") return [digestReleaseNotesHtml(raw, info.version)];
+  return raw.filter((entry) => entry.note).map((entry) => digestReleaseNotesHtml(entry.note ?? "", entry.version));
 }
+
+/** 安装包大小：Windows 取 .exe 那一项，其余取最大的一项；更新信息没给就返回 null（界面不写这一行）。 */
+function installerSizeBytes(info: UpdateInfo): number | null {
+  const files = (info.files ?? []).filter((file) => typeof file.size === "number" && file.size > 0);
+  if (!files.length) return null;
+  const exe = files.find((file) => /\.exe$/i.test(file.url));
+  return (exe ?? files.reduce((largest, file) => ((file.size ?? 0) > (largest.size ?? 0) ? file : largest))).size ?? null;
+}
+
+const UPDATE_BUSY_PROBE = "update-busy";
+const busySenders = new Set<number>();
+const busyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork });
+
+const installOnQuit = createInstallOnQuit({
+  registerDrain: registerQuitDrain,
+  install: () => installGate.installIfIdleNow("quit"),
+});
+
+/** 全仓唯一的安装入口：判忙和调用库在同一个同步块里（见 installGate.ts）。 */
+const installGate = createInstallGate({
+  getUpdater: () => loadedUpdater as unknown as UpdaterInstaller | null,
+  isBusy: (mode, senderId) => mode === "restart"
+    ? busyGate.isBusyForInstall(senderId ?? -1)
+    // 退出时：读退出开始那一刻的快照（owner 在任何排空项之前读的）+ 现在的读数；别的排空项 abort 导出之后也不会读到 0。
+    : (quitStartProbeResult(UPDATE_BUSY_PROBE) ?? false) || busyGate.isBusyAtQuit(),
+  markStarted: () => installOnQuit.markInstallStarted(),
+  markFailed: () => installOnQuit.markInstallFailed(),
+  onAttempt: (_mode, outcome) => { if (outcome !== "busy") trackUpdate("install", outcome === "started" ? "success" : "failure"); },
+});
 
 let eventsWired = false;
+// 启动时从磁盘恢复「上次没装上」的更新时，后台静默地重新核对缓存包，这期间库的事件不广播给界面。
+let quietPrepare = false;
 let autoUpdaterPromise: Promise<typeof import("electron-updater")["autoUpdater"]> | null = null;
 
 function wireUpdaterEvents(autoUpdater: typeof import("electron-updater")["autoUpdater"]): void {
   if (eventsWired) return;
   eventsWired = true;
-  autoUpdater.on("checking-for-update", () => { if (!silentCheck) broadcast({ type: "checking" }); });
+  autoUpdater.on("checking-for-update", () => { if (!silentCheck) publishUpdateEvent({ type: "checking" }); });
   autoUpdater.on("update-available", (info) => {
+    if (quietPrepare) return;
     if (!notifyGate.shouldNotify(info.version, silentCheck)) return;
-    broadcast({ type: "available", version: info.version, notes: normalizeNotes(info.releaseNotes) });
+    publishUpdateEvent({
+      type: "available",
+      version: info.version,
+      notes: toVersionNotes(info),
+      sizeBytes: installerSizeBytes(info),
+      releaseUrl: buildReleaseNotesUrl(info.version),
+    });
   });
-  autoUpdater.on("update-not-available", () => { if (!silentCheck) broadcast({ type: "up-to-date" }); });
+  autoUpdater.on("update-not-available", () => { if (!silentCheck) publishUpdateEvent({ type: "up-to-date" }); });
   autoUpdater.on("download-progress", (progress) =>
-    broadcast({ type: "progress", percent: Math.max(0, Math.min(100, Math.round(progress.percent))) }));
-  autoUpdater.on("update-downloaded", (info) => broadcast({ type: "downloaded", version: info.version }));
-  autoUpdater.on("error", (error) => { if (!silentCheck) broadcast({ type: "error", message: describeError(error) }); });
+    quietPrepare ? undefined : publishUpdateEvent({ type: "progress", percent: Math.max(0, Math.min(100, Math.round(progress.percent))) }));
+  autoUpdater.on("update-downloaded", (info) => {
+    installOnQuit.markDownloaded();
+    // 同意 + 已下载的目标版本和缓存路径落盘：进程退出后「退出时安装」的意愿不会跟着内存一起丢。
+    reminderStore?.rememberDownloaded({ version: info.version, file: (info as { downloadedFile?: string }).downloadedFile ?? "" });
+    if (!quietPrepare) publishUpdateEvent({ type: "downloaded", version: info.version });
+  });
+  autoUpdater.on("error", (error) => {
+    if (silentCheck) return;
+    if (stage === "install") { installRequested = false; installOnQuit.markInstallFailed(); }
+    publishError(error);
+  });
 }
 
 async function loadAutoUpdater(): Promise<typeof import("electron-updater")["autoUpdater"]> {
   autoUpdaterPromise ??= import("electron-updater").then(({ autoUpdater }) => {
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
+    // 跳了几版的用户要在「已更新」卡里看到每一版改了什么：让库返回当前版本之后每个版本的说明。
+    autoUpdater.fullChangelog = true;
     // electron-updater 默认日志器会刷屏 + 抢崩溃日志，错误统一走事件透传给用户，关掉它。
     autoUpdater.logger = null;
     wireUpdaterEvents(autoUpdater);
+    loadedUpdater = autoUpdater;
     return autoUpdater;
   });
   return autoUpdaterPromise;
@@ -114,11 +172,81 @@ const autoCheckScheduler = createAutoCheckScheduler({
   },
 });
 
+/**
+ * 上次同意并下载好、却没装上（装包程序起不来是异步报错，进程已退出，拿不到）：
+ * 启动时如果当前版本还低于目标版本、缓存包还在，就把「退出时安装」重新设好——核对缓存用库自己的
+ * check + downloadUpdate（缓存命中不会重下），不自己写更新器能力。返回错误对象，null = 成功。
+ */
+type PrepareResult = { kind: "ready" } | { kind: "superseded" } | { kind: "failed"; error: unknown };
+
+async function prepareCachedInstall(version: string): Promise<PrepareResult> {
+  quietPrepare = true;
+  silentCheck = true;
+  try {
+    const updater = await loadAutoUpdater();
+    const result = await updater.checkForUpdates();
+    const latest = result?.updateInfo?.version;
+    if (latest !== version) {
+      // 缓存的那一版已经不是最新（或根本没有更新了）：旧的待装记录作废，走正常的「有新版 / 已是最新」流程，
+      // 不再反复显示「上次没装上」。
+      installOnQuit.revoke();
+      reminderStore?.clearPendingInstall();
+      if (result?.isUpdateAvailable && result.updateInfo) {
+        publishUpdateEvent({
+          type: "available",
+          version: result.updateInfo.version,
+          notes: toVersionNotes(result.updateInfo),
+          sizeBytes: installerSizeBytes(result.updateInfo),
+          releaseUrl: buildReleaseNotesUrl(result.updateInfo.version),
+        });
+      } else {
+        publishUpdateEvent({ type: "up-to-date" });
+      }
+      return { kind: "superseded" };
+    }
+    installOnQuit.consent();
+    await updater.downloadUpdate();
+    installOnQuit.markDownloaded();
+    return { kind: "ready" };
+  } catch (error) {
+    installOnQuit.revoke();
+    return { kind: "failed", error };
+  } finally {
+    quietPrepare = false;
+    silentCheck = false;
+  }
+}
+
+/** 启动时：把磁盘上记着的「上次没装上」恢复成界面状态（胶囊「上次没装上，点一下重试」），稍后在后台重新设好退出时安装。 */
+function restorePendingInstall(): void {
+  const pending = reminderStore?.pendingInstall();
+  if (!pending) return;
+  if (!pending.file || !fs.existsSync(pending.file)) {
+    reminderStore?.clearPendingInstall(); // 缓存包已经没了：没有东西可装，别让界面撒谎
+    return;
+  }
+  const remembered = reminderStore?.pendingNotes() ?? [];
+  publishUpdateEvent({ type: "available", version: pending.version, notes: remembered, sizeBytes: null, releaseUrl: buildReleaseNotesUrl(pending.version) });
+  publishUpdateEvent({ type: "error", message: "", stage: "install", reason: "other" });
+  const timer = setTimeout(() => { void prepareCachedInstall(pending.version); }, AUTO_CHECK_FIRST_DELAY_MS);
+  timer.unref?.();
+}
+
 export function startAutoUpdateCheck(): void {
+  if (app.isPackaged && CAN_CHECK_UPDATES && !isAutomatedLaunch()) restorePendingInstall();
   autoCheckScheduler.start();
 }
 
+function pendingFromState(): { fromVersion: string; toVersion: string; notes: readonly VersionNotes[] } | null {
+  const state = currentUpdaterState();
+  if (!state.latestVersion) return null;
+  return { fromVersion: app.getVersion(), toVersion: state.latestVersion, notes: state.notes };
+}
+
 export function registerUpdaterIpc(): void {
+  reminderStore = openUpdateReminderStore(app.getVersion());
+  registerQuitStartProbe(UPDATE_BUSY_PROBE, () => busyGate.isBusyAtQuit());
+
   ipcMain.handle("nomi:app:version", (): AppInfo => ({
     version: app.getVersion(),
     platform: process.platform,
@@ -127,15 +255,44 @@ export function registerUpdaterIpc(): void {
     canCheckUpdates: CAN_CHECK_UPDATES,
   }));
 
-  // 手动更新兜底：把主进程已知的真实平台/架构交给官网，由官网直接启动对应安装包下载。
+  // 渲染层挂载时补上已经发生的事（项目库页可能晚于「发现新版」事件才打开），再靠事件跟随。
+  ipcMain.handle("nomi:update:snapshot", (event): UpdateSnapshot => {
+    assertTrustedSender(event);
+    return { state: currentUpdaterState(), memory: reminderStore?.memory() ?? { dismissedBanners: [], updatedCard: null } };
+  });
+
+  // 渲染层报「我这边还有几个排队 / 生成中的任务」：只报事实，能不能重启由主进程判。
+  ipcMain.handle("nomi:update:report-busy", (event, count: unknown) => {
+    assertTrustedSender(event);
+    const senderId = event.sender.id;
+    busyGate.report(senderId, typeof count === "number" ? count : 1);
+    if (!busySenders.has(senderId)) {
+      busySenders.add(senderId);
+      event.sender.once("destroyed", () => { busySenders.delete(senderId); busyGate.forget(senderId); });
+    }
+    return { ok: true };
+  });
+
+  // 热修横幅 ✕ / 「已更新」卡 ✕：只记「看过了」，一次性。
+  ipcMain.handle("nomi:update:dismiss", (event, payload: unknown) => {
+    assertTrustedSender(event);
+    const request = payload as { kind?: unknown; version?: unknown } | null;
+    if (request?.kind === "banner" && typeof request.version === "string") return reminderStore?.dismissBanner(request.version) ?? null;
+    if (request?.kind === "updated-card") return reminderStore?.dismissUpdatedCard() ?? null;
+    return null;
+  });
+
+  // 手动更新兜底（未签名 Mac）：把主进程已知的真实平台/架构交给官网，由官网直接启动对应安装包下载。
   ipcMain.handle("nomi:update:open-download", async (event) => {
     // shell.openExternal：能让任意内容驱动系统去打开外部 URL。
     assertTrustedSender(event);
     try {
       await shell.openExternal(buildDownloadPageUrl(process.platform, process.arch));
+      const pending = pendingFromState();
+      if (pending) reminderStore?.rememberPending(pending);
       return { ok: true };
     } catch (error) {
-      broadcast({ type: "error", message: describeError(error) });
+      publishError(error, "download");
       return { ok: false };
     }
   });
@@ -145,18 +302,19 @@ export function registerUpdaterIpc(): void {
     // 未打包（dev）时 electron-updater 不可用——诚实回错，不假装能更新。
     // 开发版 / 非正式版不是「检查失败」：回错给界面，但不上报成 failure。
     if (!app.isPackaged) {
-      broadcast({ type: "error", message: desktopT("updater.devUnavailable") });
+      publishUpdateEvent({ type: "error", message: desktopT("updater.devUnavailable"), stage: "check", reason: "other" });
       return { ok: false, reason: "not-packaged" };
     }
     if (!CAN_CHECK_UPDATES) return { ok: false, reason: "non-stable-build" };
     manualCheckInFlight = true;
+    stage = "check";
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.checkForUpdates();
       trackUpdate("check", "success");
       return { ok: true };
     } catch (error) {
-      broadcast({ type: "error", message: describeError(error) });
+      publishError(error, "check");
       trackUpdate("check", "failure", classifyUpdateError(error));
       return { ok: false };
     } finally {
@@ -166,7 +324,16 @@ export function registerUpdaterIpc(): void {
 
   ipcMain.handle("nomi:update:download", async (event) => {
     assertTrustedSender(event);
+    // 连点「下载更新」只开一次下载。
+    if (downloadInFlight) return { ok: true };
+    downloadInFlight = true;
     downloadStarted = true;
+    stage = "download";
+    // 点下载 = 同意更新：下好后下次退出时自动装；同时记下「从哪版到哪版 + 说明」，装好后第一次打开出「已更新」卡。
+    installOnQuit.consent();
+    const pending = pendingFromState();
+    if (pending) reminderStore?.rememberPending(pending);
+    publishUpdateEvent({ type: "progress", percent: 0 });
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.downloadUpdate();
@@ -174,29 +341,49 @@ export function registerUpdaterIpc(): void {
       return { ok: true };
     } catch (error) {
       downloadStarted = false;
-      broadcast({ type: "error", message: describeError(error) });
+      installOnQuit.revoke();
+      publishError(error, "download");
       trackUpdate("download", "failure", classifyUpdateError(error));
       return { ok: false };
+    } finally {
+      downloadInFlight = false;
     }
   });
 
-  ipcMain.handle("nomi:update:install", (event) => {
+  ipcMain.handle("nomi:update:install", async (event) => {
     // 装更新会立刻重启整个应用，是最强的一条控制权。
     assertTrustedSender(event);
-    trackUpdate("install", "success");
-    // 立即重启并安装（非静默）。mac 未签名会被 Gatekeeper 拦——降级实况以真机为准。
-    setImmediate(() => {
-      try {
-        void loadAutoUpdater()
-          // ESLint exemption (eslint.config.mjs directQuitExemptionFiles): electron-updater 6.8.9
-          // BaseUpdater.quitAndInstall spawns the installer then calls app.quit(); MacUpdater hands
-          // off to Squirrel, which closes windows then app.quit(). Both re-enter the quit owner.
-          .then((autoUpdater) => autoUpdater.quitAndInstall())
-          .catch((error) => broadcast({ type: "error", message: describeError(error) }));
-      } catch (error) {
-        broadcast({ type: "error", message: describeError(error) });
+    // 连点「重启以更新」只触发一次；还没下好不装；安装失败后（phase=error、stage=install）允许再点一次重试。
+    const state = currentUpdaterState();
+    const restored = !installOnQuit.isDownloaded() ? reminderStore?.pendingInstall() ?? null : null;
+    const retryingInstall = state.phase === "error" && state.errorStage === "install" && (installOnQuit.isDownloaded() || restored !== null);
+    if (installRequested || (state.phase !== "downloaded" && !retryingInstall)) return { ok: false };
+    installRequested = true;
+    let started = false;
+    try {
+      // ── 异步准备：全部在安装入口前面做完 ──
+      // 上个进程留下的「没装上」：这个进程还没核对过缓存包，先核对（命中缓存不重下）。
+      if (restored) {
+        const prepared = await prepareCachedInstall(restored.version);
+        if (prepared.kind === "superseded") return { ok: false, reason: "superseded" };
+        if (prepared.kind === "failed") {
+          publishError(prepared.error, "download");
+          return { ok: false };
+        }
       }
-    });
-    return { ok: true };
+      await loadAutoUpdater();
+      // ── 唯一安装入口：从这里开始到调用库之间没有 await；判忙在里面同步做（任务可能在上面的 await 期间开始）──
+      stage = "install";
+      const outcome = installGate.installIfIdleNow("restart", event.sender.id);
+      if (outcome === "busy") return { ok: false, reason: "busy" };
+      if (outcome === "failed") {
+        publishError(new Error("update installer did not start"), "install");
+        return { ok: false };
+      }
+      started = true;
+      return { ok: true };
+    } finally {
+      if (!started) installRequested = false;
+    }
   });
 }

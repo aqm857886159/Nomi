@@ -13,7 +13,7 @@ import { flattenDiscriminatedUnion, ConflictingBranchField } from '../../electro
 import {
   collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
 } from '../../electron/shared/agentCapabilities/modelVisibleJsonSchema.js';
-import { canvasWriteSemanticInputSchema } from '../../electron/shared/agentCapabilities/canvasWrite.js';
+import { CANVAS_WRITE_OPERATIONS, canvasWriteSemanticInputSchema } from '../../electron/shared/agentCapabilities/canvasWrite.js';
 import { LANE_MODEL_TOOL_CATALOG, LANE_TOOL_BUDGET } from '../../electron/agentLane/laneToolCatalog.js';
 import { renderLanePromptSections } from '../../electron/agentLane/lanePromptSections.js';
 import {
@@ -137,7 +137,8 @@ test('扁平化产物的根是对象，且判别字段是 enum 不是 const', ()
   assert.equal(json.anyOf, undefined);
   assert.deepEqual(json.required, ['operation']);
   assert.equal(json.properties?.operation.type, 'string');
-  assert.equal(json.properties?.operation.enum?.length, 9, '9 个 operation 一个都不能在扁平化时掉');
+  // 数量不再手抄：以契约自己的 operation 清单为准（新增 set_node_text 后是 10 个），一个都不能在扁平化时掉。
+  assert.deepEqual([...(json.properties?.operation.enum ?? [])].sort(), [...CANVAS_WRITE_OPERATIONS].sort(), '每个 operation 一个都不能在扁平化时掉');
 });
 
 test('扁平化保住跨字段约束——不是只把形状铺平', () => {

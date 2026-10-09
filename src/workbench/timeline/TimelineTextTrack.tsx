@@ -1,4 +1,5 @@
 import React, { type JSX } from 'react'
+import { revertCapturedTimelineEdit, usePointerSession } from './timelineGesture'
 import { useTranslation } from 'react-i18next'
 import { IconLetterCase } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -20,13 +21,12 @@ export default function TimelineTextTrack(): JSX.Element {
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const clipsRef = React.useRef<HTMLDivElement | null>(null)
 
+  const startSession = usePointerSession()
+
   const beginDrag = React.useCallback(
     (event: React.PointerEvent<HTMLElement>, clipId: string, startFrame: number) => {
       event.preventDefault()
       event.stopPropagation()
-      const pointerId = event.pointerId
-      const target = event.currentTarget
-      target.setPointerCapture?.(pointerId)
       selectTimelineTextClip(clipId)
       const rect = clipsRef.current?.getBoundingClientRect()
       const grabFrame = rect ? pixelToFrame(event.clientX - rect.left, scale) : startFrame
@@ -40,24 +40,21 @@ export default function TimelineTextTrack(): JSX.Element {
         moveTimelineTextClip(clipId, frame, { commit })
       }
 
-      const handleMove = (move: PointerEvent) => {
-        // 真正拖动才压撤销栈（纯点击 select 不污染栈）
-        if (!captured) {
-          useWorkbenchStore.getState().captureTimelineUndo()
-          captured = true
-        }
-        apply(move.clientX, false)
-      }
-      const handleUp = (up: PointerEvent) => {
-        apply(up.clientX, true)
-        target.releasePointerCapture?.(pointerId)
-        window.removeEventListener('pointermove', handleMove)
-        window.removeEventListener('pointerup', handleUp)
-      }
-      window.addEventListener('pointermove', handleMove)
-      window.addEventListener('pointerup', handleUp)
+      startSession({
+        event,
+        onMove: (move) => {
+          // 真正拖动才压撤销栈（纯点击 select 不污染栈）
+          if (!captured) {
+            useWorkbenchStore.getState().captureTimelineUndo()
+            captured = true
+          }
+          apply(move.clientX, false)
+        },
+        onCommit: (up) => apply(up.clientX, true),
+        onCancel: () => revertCapturedTimelineEdit(captured),
+      })
     },
-    [moveTimelineTextClip, scale, selectTimelineTextClip],
+    [moveTimelineTextClip, scale, selectTimelineTextClip, startSession],
   )
 
   // 拖左/右边缘改时长：钉住对侧、移动本侧（resizeTextClip 已保证 ≥1 帧）。拖动 commit:false，松手 commit:true。
@@ -65,9 +62,6 @@ export default function TimelineTextTrack(): JSX.Element {
     (event: React.PointerEvent<HTMLElement>, clipId: string, edge: 'left' | 'right') => {
       event.preventDefault()
       event.stopPropagation()
-      const pointerId = event.pointerId
-      const target = event.currentTarget
-      target.setPointerCapture?.(pointerId)
       selectTimelineTextClip(clipId)
       let captured = false
 
@@ -78,23 +72,20 @@ export default function TimelineTextTrack(): JSX.Element {
         resizeTimelineTextClip(clipId, edge, frame, { commit })
       }
 
-      const handleMove = (move: PointerEvent) => {
-        if (!captured) {
-          useWorkbenchStore.getState().captureTimelineUndo()
-          captured = true
-        }
-        apply(move.clientX, false)
-      }
-      const handleUp = (up: PointerEvent) => {
-        apply(up.clientX, true)
-        target.releasePointerCapture?.(pointerId)
-        window.removeEventListener('pointermove', handleMove)
-        window.removeEventListener('pointerup', handleUp)
-      }
-      window.addEventListener('pointermove', handleMove)
-      window.addEventListener('pointerup', handleUp)
+      startSession({
+        event,
+        onMove: (move) => {
+          if (!captured) {
+            useWorkbenchStore.getState().captureTimelineUndo()
+            captured = true
+          }
+          apply(move.clientX, false)
+        },
+        onCommit: (up) => apply(up.clientX, true),
+        onCancel: () => revertCapturedTimelineEdit(captured),
+      })
     },
-    [resizeTimelineTextClip, scale, selectTimelineTextClip],
+    [resizeTimelineTextClip, scale, selectTimelineTextClip, startSession],
   )
 
   return (

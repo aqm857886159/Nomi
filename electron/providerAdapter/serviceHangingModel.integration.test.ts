@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LanguageModelV1 } from "ai";
 import type { Model, Vendor } from "../catalog/types";
 import { ProviderAdapterStore, isTerminalAdapterStage } from "./store";
@@ -95,7 +95,7 @@ describe("a model that really hangs", () => {
       }),
       now: () => new Date().toISOString(),
       id: () => "run-hang",
-      batchTimeoutMs: 400, // 真实是 5 分钟；这里压缩墙钟，形状不变
+      batchTimeoutMs: 2_000, // 真实是 5 分钟；这里压缩墙钟，形状不变。留足余量：满载的 CI 分片上服务器收到请求可能晚几百毫秒
       verifyTimeoutMs: 60_000, // 刻意长过 deadline：证明收尾靠的是 deadline 而不是单步超时
       terminalErrorJournalPath: `${filePath}.errors.jsonl`,
     } as unknown as ProviderAdapterServiceDependencies;
@@ -113,9 +113,8 @@ describe("a model that really hangs", () => {
     } as never);
 
     const execution = service.executeRun(run.id);
-    // 让它真的跑进去、真的打到那台服务器上。
-    await new Promise((resolve) => setTimeout(resolve, 120));
-    expect(provider.hits).toBeGreaterThan(0);
+    // 让它真的跑进去、真的打到那台服务器上：等可观察的状态（服务器收到请求），不等固定时长。
+    await vi.waitFor(() => expect(provider.hits).toBeGreaterThan(0), { timeout: 10_000, interval: 10 });
     expect(isTerminalAdapterStage(store.getRun(run.id)!.stage)).toBe(false);
 
     // ① cancel 在「正在验证」阶段必须给出**明确结果**，而不是被拒或静默。
@@ -131,7 +130,9 @@ describe("a model that really hangs", () => {
 
     // ② 而它**不会永远停在那里**：deadline 一到，看门狗强制终态化。这是那次死锁缺的东西。
     if (!isTerminalAdapterStage(afterCancel.stage)) {
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      // 等到 deadline 真的过去（读 run 自己的 deadlineAt，而不是猜一个固定时长）。
+      const deadlineAt = Date.parse(store.getRun(run.id)!.deadlineAt!);
+      await vi.waitFor(() => expect(Date.now()).toBeGreaterThan(deadlineAt), { timeout: 10_000, interval: 20 });
       expect(service.sweepExpiredRuns()).toEqual([run.id]);
       await service.awaitTerminalWrites();
       expect(isTerminalAdapterStage(store.getRun(run.id)!.stage)).toBe(true);

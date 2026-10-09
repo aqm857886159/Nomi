@@ -11,6 +11,7 @@ import type { TimelineClip as TimelineClipData } from './timelineTypes'
 import { resolveTimelineClipPreviewMedia } from './timelineClipPreview'
 import { useFilmstrip } from '../../media/useFilmstrip'
 import { resolveTimelineSourceWindow } from './timelineVisualFeedback'
+import { revertCapturedTimelineEdit, usePointerSession } from './timelineGesture'
 
 type TimelineClipProps = {
   clip: TimelineClipData
@@ -74,61 +75,60 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
     [pulseSnap],
   )
 
+  const startSession = usePointerSession()
+
   const beginResize = React.useCallback(
     (event: React.PointerEvent<HTMLButtonElement>, edge: 'left' | 'right') => {
       event.preventDefault()
       event.stopPropagation()
-      const pointerId = event.pointerId
-      const node = event.currentTarget
       const startX = event.clientX
       const originEdge = edge === 'left' ? clip.startFrame : clip.endFrame
       let appliedDelta = 0
       let captured = false
       lastSnapLabelRef.current = null
-      node.setPointerCapture(pointerId)
 
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        const scaleNow = useWorkbenchStore.getState().timeline.scale
-        let deltaFrame = Math.round((moveEvent.clientX - startX) / scaleNow)
-        if (!moveEvent.shiftKey) {
-          const timeline = useWorkbenchStore.getState().timeline
-          const points = buildSnapPoints(timeline, { excludeClipIds: new Set([clip.id]) })
-          const snap = resolveSnap(originEdge + deltaFrame, points, pixelThresholdToFrames(scaleNow))
-          if (snap) deltaFrame = snap.frame - originEdge
-          applySnapGuide(snap)
-        } else {
-          applySnapGuide(null)
-        }
-        const incremental = deltaFrame - appliedDelta
-        if (incremental === 0) return
-        // 手势首次真正改动才压撤销栈（避免空点也压）
-        if (!captured) {
-          useWorkbenchStore.getState().captureTimelineUndo()
-          captured = true
-        }
-        appliedDelta = deltaFrame
-        useWorkbenchStore.getState().resizeTimelineClip(clip.id, edge, incremental)
-        // 气泡：读回 live clip 算可见时长 + 累计 Δ帧（裁掉相邻夹紧后的真实增量）
-        const liveTimeline = useWorkbenchStore.getState().timeline
-        const live = liveTimeline.tracks.flatMap((track) => track.clips).find((candidate) => candidate.id === clip.id)
-        if (live) {
-          const fpsNow = liveTimeline.fps || 30
-          const visible = live.endFrame - live.startFrame
-          const sign = appliedDelta >= 0 ? '+' : '−'
-          setResizeTag({ edge, text: `${sign}${Math.abs(appliedDelta)}f · ${(visible / fpsNow).toFixed(1)}s` })
-        }
-      }
-      const handlePointerUp = () => {
-        node.releasePointerCapture(pointerId)
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handlePointerUp)
-        useWorkbenchStore.getState().setTimelineSnapGuide(null)
-        setResizeTag(null)
-      }
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handlePointerUp)
+      startSession({
+        event,
+        onMove: (moveEvent) => {
+          const scaleNow = useWorkbenchStore.getState().timeline.scale
+          let deltaFrame = Math.round((moveEvent.clientX - startX) / scaleNow)
+          if (!moveEvent.shiftKey) {
+            const timeline = useWorkbenchStore.getState().timeline
+            const points = buildSnapPoints(timeline, { excludeClipIds: new Set([clip.id]) })
+            const snap = resolveSnap(originEdge + deltaFrame, points, pixelThresholdToFrames(scaleNow))
+            if (snap) deltaFrame = snap.frame - originEdge
+            applySnapGuide(snap)
+          } else {
+            applySnapGuide(null)
+          }
+          const incremental = deltaFrame - appliedDelta
+          if (incremental === 0) return
+          // 手势首次真正改动才压撤销栈（避免空点也压）
+          if (!captured) {
+            useWorkbenchStore.getState().captureTimelineUndo()
+            captured = true
+          }
+          appliedDelta = deltaFrame
+          useWorkbenchStore.getState().resizeTimelineClip(clip.id, edge, incremental)
+          // 气泡：读回 live clip 算可见时长 + 累计 Δ帧（裁掉相邻夹紧后的真实增量）
+          const liveTimeline = useWorkbenchStore.getState().timeline
+          const live = liveTimeline.tracks.flatMap((track) => track.clips).find((candidate) => candidate.id === clip.id)
+          if (live) {
+            const fpsNow = liveTimeline.fps || 30
+            const visible = live.endFrame - live.startFrame
+            const sign = appliedDelta >= 0 ? '+' : '−'
+            setResizeTag({ edge, text: `${sign}${Math.abs(appliedDelta)}f · ${(visible / fpsNow).toFixed(1)}s` })
+          }
+        },
+        // 被系统打断（pointercancel / 失焦 / 丢 capture / Esc）：回到按下之前，不留半截裁剪。
+        onCancel: () => revertCapturedTimelineEdit(captured),
+        onEnd: () => {
+          useWorkbenchStore.getState().setTimelineSnapGuide(null)
+          setResizeTag(null)
+        },
+      })
     },
-    [applySnapGuide, clip.endFrame, clip.id, clip.startFrame],
+    [applySnapGuide, clip.endFrame, clip.id, clip.startFrame, startSession],
   )
 
   const beginDrag = React.useCallback(
@@ -140,8 +140,6 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
       // Shift 用于多选切换，不启动拖动（交给 onClick 处理）
       if (event.shiftKey) return
       event.preventDefault()
-      const pointerId = event.pointerId
-      const target = event.currentTarget
       const startX = event.clientX
       didDragRef.current = false
       lastSnapLabelRef.current = null
@@ -172,73 +170,79 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
       const draggedLen = Math.max(1, dragged.endFrame - dragged.startFrame)
       let lastDesired = dragged.startFrame
       let lastPositions: Record<string, number> = {}
+      let captured = false
 
-      target.setPointerCapture(pointerId)
       setIsDragging(true)
 
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        const scaleNow = useWorkbenchStore.getState().timeline.scale
-        if (Math.abs(moveEvent.clientX - startX) > 3 && !didDragRef.current) {
-          didDragRef.current = true
-          // 拖拽手势首次真正移动 → 压撤销栈（拖动前的状态）
-          useWorkbenchStore.getState().captureTimelineUndo()
-        }
-        let desiredStart = Math.max(0, dragged.startFrame + Math.round((moveEvent.clientX - startX) / scaleNow))
-
-        if (!moveEvent.shiftKey) {
-          const timeline = useWorkbenchStore.getState().timeline
-          // 排除整个选区（成组同速平移，不互相吸附）
-          const points = buildSnapPoints(timeline, { excludeClipIds: selectionSet })
-          const threshold = pixelThresholdToFrames(scaleNow)
-          const snapStart = resolveSnap(desiredStart, points, threshold)
-          const snapEnd = resolveSnap(desiredStart + draggedLen, points, threshold)
-          let guide: SnapResult | null = null
-          if (snapStart && (!snapEnd || Math.abs(snapStart.deltaFrame) <= Math.abs(snapEnd.deltaFrame))) {
-            desiredStart = Math.max(0, snapStart.frame)
-            guide = snapStart
-          } else if (snapEnd) {
-            desiredStart = Math.max(0, snapEnd.frame - draggedLen)
-            guide = snapEnd
+      startSession({
+        event,
+        onMove: (moveEvent) => {
+          const scaleNow = useWorkbenchStore.getState().timeline.scale
+          if (Math.abs(moveEvent.clientX - startX) > 3 && !didDragRef.current) {
+            didDragRef.current = true
+            // 拖拽手势首次真正移动 → 压撤销栈（拖动前的状态）
+            useWorkbenchStore.getState().captureTimelineUndo()
+            captured = true
           }
-          applySnapGuide(guide)
-        } else {
-          applySnapGuide(null)
-        }
+          let desiredStart = Math.max(0, dragged.startFrame + Math.round((moveEvent.clientX - startX) / scaleNow))
 
-        lastDesired = desiredStart
-        if (isGroup) {
-          // 以被拖 clip 推出整组 delta，夹紧到合法范围（任一成员不与非选中重叠）
-          const delta = clampGroupDelta(
-            useWorkbenchStore.getState().timeline,
-            origins,
-            desiredStart - dragged.startFrame,
-          )
-          const positions: Record<string, number> = {}
-          for (const origin of origins) positions[origin.id] = Math.max(0, origin.startFrame + delta)
-          lastPositions = positions
-          useWorkbenchStore.getState().moveTimelineClips(positions, { commit: false })
-        } else {
-          // 单片：合法落位（撞了滑入最近空位，不弹回）
-          useWorkbenchStore.getState().moveTimelineClip(clip.id, desiredStart, { commit: false })
-        }
-      }
-      const handlePointerUp = () => {
-        target.releasePointerCapture(pointerId)
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handlePointerUp)
-        setIsDragging(false)
-        useWorkbenchStore.getState().setTimelineSnapGuide(null)
+          if (!moveEvent.shiftKey) {
+            const timeline = useWorkbenchStore.getState().timeline
+            // 排除整个选区（成组同速平移，不互相吸附）
+            const points = buildSnapPoints(timeline, { excludeClipIds: selectionSet })
+            const threshold = pixelThresholdToFrames(scaleNow)
+            const snapStart = resolveSnap(desiredStart, points, threshold)
+            const snapEnd = resolveSnap(desiredStart + draggedLen, points, threshold)
+            let guide: SnapResult | null = null
+            if (snapStart && (!snapEnd || Math.abs(snapStart.deltaFrame) <= Math.abs(snapEnd.deltaFrame))) {
+              desiredStart = Math.max(0, snapStart.frame)
+              guide = snapStart
+            } else if (snapEnd) {
+              desiredStart = Math.max(0, snapEnd.frame - draggedLen)
+              guide = snapEnd
+            }
+            applySnapGuide(guide)
+          } else {
+            applySnapGuide(null)
+          }
+
+          lastDesired = desiredStart
+          if (isGroup) {
+            // 以被拖 clip 推出整组 delta，夹紧到合法范围（任一成员不与非选中重叠）
+            const delta = clampGroupDelta(
+              useWorkbenchStore.getState().timeline,
+              origins,
+              desiredStart - dragged.startFrame,
+            )
+            const positions: Record<string, number> = {}
+            for (const origin of origins) positions[origin.id] = Math.max(0, origin.startFrame + delta)
+            lastPositions = positions
+            useWorkbenchStore.getState().moveTimelineClips(positions, { commit: false })
+          } else {
+            // 单片：合法落位（撞了滑入最近空位，不弹回）
+            useWorkbenchStore.getState().moveTimelineClip(clip.id, desiredStart, { commit: false })
+          }
+        },
         // 松手落盘一次（commit:true）
-        if (isGroup && Object.keys(lastPositions).length > 0) {
-          useWorkbenchStore.getState().moveTimelineClips(lastPositions, { commit: true })
-        } else if (!isGroup) {
-          useWorkbenchStore.getState().moveTimelineClip(clip.id, lastDesired, { commit: true })
-        }
-      }
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handlePointerUp)
+        onCommit: () => {
+          if (isGroup && Object.keys(lastPositions).length > 0) {
+            useWorkbenchStore.getState().moveTimelineClips(lastPositions, { commit: true })
+          } else if (!isGroup) {
+            useWorkbenchStore.getState().moveTimelineClip(clip.id, lastDesired, { commit: true })
+          }
+        },
+        // 被系统打断：回到按下之前。没有 click 会跟来，别让「刚拖过」的标记吞掉用户下一次真点击。
+        onCancel: () => {
+          revertCapturedTimelineEdit(captured)
+          didDragRef.current = false
+        },
+        onEnd: () => {
+          setIsDragging(false)
+          useWorkbenchStore.getState().setTimelineSnapGuide(null)
+        },
+      })
     },
-    [applySnapGuide, clip.endFrame, clip.id, clip.startFrame],
+    [applySnapGuide, clip.endFrame, clip.id, clip.startFrame, startSession],
   )
 
   const clipWidth = Math.max(36, frameToPixel(clipVisibleFrames(clip), scale))

@@ -88,6 +88,10 @@ export const COMPOSER_MIN_USABLE_HEIGHT = 150;
  */
 export const NODE_COMPOSER_WIDTH = 560;
 export const NODE_COMPOSER_GAP = 14;
+// 文本节点的加工框（Claude Design「文本节点：会加工、看得见」）：和节点同宽、紧贴在下面；五个预设排得下的最小宽度兜底。
+export const TEXT_COMPOSER_GAP = 8;
+export const TEXT_COMPOSER_MIN_WIDTH = 380;
+export const TEXT_COMPOSER_MAX_WIDTH = 560;
 
 export function clampNumber(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));

@@ -11,7 +11,7 @@ import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { readPropMeta } from '../../model/nodeMetaFields'
 import { useNodeUsageCount } from '../../hooks/useNodeRelationships'
-import { STRIPED_BG_CLASS, UsageDot, UploadFallback } from './CardCommon'
+import { EMPTY_SURFACE_CLASS, UsageDot, UploadFallback } from './CardCommon'
 import { useNodeImageUpload } from '../../adapters/useNodeImageUpload'
 import { EditableNodeTitle } from './EditableNodeTitle'
 import { useNodeMediaMeasurement } from '../useNodeMediaMeasurement'
@@ -35,7 +35,7 @@ function PropCardNodeImpl({ node }: Props): JSX.Element {
 
   return (
     <div className={cn('w-full h-full flex flex-col rounded-nomi-sm overflow-hidden bg-nomi-paper')}>
-      <div className={cn('relative w-full flex-1 min-h-0 overflow-hidden', !hasImage && STRIPED_BG_CLASS)}>
+      <div className={cn('relative w-full flex-1 min-h-0 overflow-hidden', !hasImage && EMPTY_SURFACE_CLASS)}>
         {hasImage ? (
           <DeferredNodeImage
             src={node.result!.url!}

@@ -119,7 +119,8 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
           if (mock) {
             spec = await mock({ prompt: trimmed, images })
           } else {
-            const brain = await getTextBrain().catch(() => null)
+            // strict：会花钱的运行路径，Agent 选的模型不可用就如实报错（带去设置的入口），不悄悄换别家；真实错误落到下面的 catch 显示。
+            const brain = await getTextBrain({ strict: true })
             if (!ownsRequest()) return false
             if (!brain) {
               setStatus({ phase: 'error', message: t('director.ai.noTextModel'), elapsedSeconds: elapsed, streamedChars: 0 })
@@ -161,8 +162,11 @@ export function useAiSceneBuilder(): { status: AiSceneStatus; run: (description:
             setStatus({ phase: 'cancelled', message: t('director.ai.cancelled'), elapsedSeconds: elapsed, streamedChars: chars })
             return false
           }
-          setStatus({ phase: 'error', message: t('director.ai.failed'), elapsedSeconds: elapsed, streamedChars: chars })
-          toast(t('director.ai.failed'), 'error')
+          // 如实显示真实原因（不再把一切都吞成同一句）。
+          const reason = error instanceof Error ? error.message.trim() : ''
+          const failedMessage = reason ? t('director.ai.failedWithReason', { reason }) : t('director.ai.failed')
+          setStatus({ phase: 'error', message: failedMessage, elapsedSeconds: elapsed, streamedChars: chars })
+          toast(failedMessage, 'error')
           return false
         } finally {
           if (abortRef.current === controller) {

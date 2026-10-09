@@ -17,7 +17,6 @@ import { computeTimelineDuration } from "./timeline/timelineMath";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore';
-import { useProductionRunStore } from './production/productionRunStore';
 import { ShellFrame } from '../ui/app-shell/shell/ShellFrame';
 import { ShellTopBar } from '../ui/app-shell/shell/ShellTopBar';
 import { ShellRail } from '../ui/app-shell/shell/ShellRail';
@@ -229,9 +228,6 @@ export default function WorkbenchShell({
     const railCollapsed = useShellLayoutStore((state) => state.railCollapsed);
     const setRailCollapsed = useShellLayoutStore((state) => state.setRailCollapsed);
     const stepperMeta = useStepperMeta();
-    const hasRunningCanvasTask = useGenerationCanvasStore((state) => state.nodes.some((node) => node.status === 'running'));
-    const productionRun = useProductionRunStore((state) => state.projectId === projectId ? state.run : null);
-    const hasRunningTask = hasRunningCanvasTask || productionRun?.status === 'running' || productionRun?.status === 'pausing' || productionRun?.status === 'exporting';
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
@@ -355,7 +351,6 @@ export default function WorkbenchShell({
                             onNewProject={onNewProject}
                             onRenameProject={onRenameProject}
                             onOpenSettings={onOpenSettings}
-                            hasRunningTask={hasRunningTask}
                             railCollapsed={railCollapsed}
                             onExpandRail={() => setRailCollapsed(false)}
                         />

@@ -1,5 +1,5 @@
 {
-  "name": "画布手势寿命（一次拖动/框选/缩放何时结束）",
+  "name": "画布手势寿命（一次拖动/框选/缩放何时结束；含时间轴 / 剪辑节点内的片段手势）",
   "subject": "canvas.gesture-lifetime",
   "lifecycle": "live-interaction",
   "authority_kind": "lease",
@@ -22,6 +22,10 @@
     {
       "path": "src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts",
       "symbol": "keyboardMoveScope"
+    },
+    {
+      "path": "src/workbench/timeline/timelineGesture.ts",
+      "symbol": "beginPointerSession"
     }
   ],
   "forbidden_derivations": [],
@@ -31,8 +35,9 @@
     "src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
-    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts"
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+    "src/workbench/timeline/timelineGesture.ts"
   ],
   "since": "2026-09-25",
-  "notes": "React Flow 内核（d3-drag）自己也记着拖动状态，框架层删不掉；裁决是单向的——租约判定结束，内核照办：租约取消或松手丢失时经 reactFlow/canvasDragWriteback.ts 的 endKernelNodeDrag 走内核自己的 end 路径，内核不许反过来自行判定。方向键移动的授权是同一概念的键盘面：keyboardMoveScope（按下时选中的那批），不靠时间窗口。复核：docs/audit/2026-09-25-generation-canvas-ownership-review.md。"
+  "notes": "React Flow 内核（d3-drag）自己也记着拖动状态，框架层删不掉；裁决是单向的——租约判定结束，内核照办：租约取消或松手丢失时经 reactFlow/canvasDragWriteback.ts 的 endKernelNodeDrag 走内核自己的 end 路径，内核不许反过来自行判定。方向键移动的授权是同一概念的键盘面：keyboardMoveScope（按下时选中的那批），不靠时间窗口。复核：docs/audit/2026-09-25-generation-canvas-ownership-review.md。 2026-10-09：时间轴 / 剪辑节点里的片段移动、裁剪、拖播放头也归本概念——timeline/timelineGesture.ts 的 beginPointerSession 是它们唯一的入口：打断监听来自本租约（active:false 只借监听、不升旗），松手提交、其它任何终止回滚。判据：src/workbench/timeline/timelineGesture.structure.test.ts。"
 }

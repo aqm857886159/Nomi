@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PreconditionSet, TargetRef } from "../capabilityTargeting";
 import { synchronousSha256 } from "../synchronousSha256";
 import type { CanvasWriteInput } from "./canvasWrite";
-import { CANVAS_WRITE_MAX_PROMPT_CHARS } from "./canvasWrite";
+import { CANVAS_WRITE_MAX_PROMPT_CHARS, isNodeTargetedWriteOperation, type NodeTargetedWriteOperation } from "./canvasWrite";
 
 const canonicalIdSchema = z.string().trim().min(1).max(512);
 const optionalCanonicalIdSchema = canonicalIdSchema.nullable();
@@ -36,6 +36,8 @@ export const canvasWriteRawEvidenceSchema = z
         kind: z.string().trim().min(1).max(128),
         title: z.string().max(4_096),
         prompt: z.string().max(CANVAS_WRITE_MAX_PROMPT_CHARS),
+        /** 文本节点正文的指纹（只有文本节点带）：取证之后用户又改了正文，这次写就是过期的。 */
+        bodyHash: z.string().max(128).optional(),
         locked: z.boolean(),
         categoryId: optionalCanonicalIdSchema,
         groupId: optionalCanonicalIdSchema,
@@ -166,7 +168,7 @@ function assertUnique(values: readonly string[]): void {
  * failure mode for storyboard/staging/camera tools).
  */
 function requestedReferenceIds(
-  input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
+  input: Exclude<CanvasWriteInput, { operation: NodeTargetedWriteOperation }>,
 ): string[] {
   switch (input.operation) {
     case "tidy_canvas":
@@ -213,6 +215,7 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
     kind: evidence.node.kind,
     title: evidence.node.title,
     prompt: evidence.node.prompt,
+    ...(evidence.node.bodyHash ? { bodyHash: evidence.node.bodyHash } : {}),
     locked: evidence.node.locked,
     model: evidence.node.model,
     currentResult: evidence.node.currentResult,
@@ -282,7 +285,7 @@ function verifiedBatchEvidence(value: unknown): Readonly<{ evidence: CanvasWrite
 
 function buildBatchCanvasWriteAdmission(
   value: unknown,
-  input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
+  input: Exclude<CanvasWriteInput, { operation: NodeTargetedWriteOperation }>,
 ): CanvasWriteAdmission {
   const { evidence, resolved, relationHash } = verifiedBatchEvidence(value);
   if (input.operation === "tidy_canvas" && input.categoryId) {
@@ -318,9 +321,9 @@ function buildBatchCanvasWriteAdmission(
 }
 
 export function buildCanvasWriteAdmissionForOperation(value: unknown, input: CanvasWriteInput): CanvasWriteAdmission {
-  return input.operation === "set_node_prompt"
+  return isNodeTargetedWriteOperation(input.operation)
     ? buildCanvasWriteAdmission(value)
-    : buildBatchCanvasWriteAdmission(value, input);
+    : buildBatchCanvasWriteAdmission(value, input as Exclude<CanvasWriteInput, { operation: NodeTargetedWriteOperation }>);
 }
 
 export function assertCanvasWriteAdmissionMatches(

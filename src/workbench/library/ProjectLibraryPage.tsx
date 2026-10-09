@@ -1,3 +1,4 @@
+import { UpdateNotices } from '../../ui/app-shell/UpdateNotices'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { getAppLocale } from '../../i18n'
@@ -47,11 +48,6 @@ type Props = {
   onOpenFolder?: () => void
   onRevealProjectFolder?: (projectId: string) => void
   onOpenModelCatalog?: () => void
-  /**
-   * 项目库页顶部的一次性通知位（10-08 Library 板）：热修横幅、「已更新到 x.y.z」卡由更新提醒线
-   * （I-update 的 HotfixBanner / UpdatedCard）从这里摆进来；本页只管位置，不判断出不出。没有就不占位。
-   */
-  notices?: React.ReactNode
   /** 打开集中设置页（顶栏齿轮）；缺省则不渲染齿轮入口。 */
   onOpenSettings?: () => void
   /** 看「60 秒预置回放」引导旅途（建示例项目 + 走一遍全流程）；缺省则不渲染该卡 */
@@ -134,7 +130,6 @@ export default function ProjectLibraryPage({
   onPlayJourneyTour,
   journeyTourSeen = false,
   hasTextModel = null,
-  notices = null,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   // 项目列表由本页自己读：它是这份数据的唯一消费者，外壳不该当数据管道（R9）。
@@ -305,7 +300,8 @@ export default function ProjectLibraryPage({
   const page = (
     <div className="nomi-library-page flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-panel bg-nomi-paper font-nomi-sans text-body-sm leading-normal text-nomi-ink antialiased ring-1 ring-nomi-line-soft" data-library-tab={tab}>
       <main className="nomi-library-page__main flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 pb-12 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {notices ? <div className="flex shrink-0 flex-col gap-3" data-library-notices>{notices}</div> : null}
+        {/* 通知位（#1135）：热修横幅 / 已更新卡；没有要出的内容时自己隐藏。 */}
+        <UpdateNotices />
         {projectFeedback?.message && !filteredProjects.some((project) => project.id === projectFeedback.projectId) ? <p role="alert" className="m-0 text-caption text-nomi-danger">{projectFeedback.message}</p> : null}
         {/* ── 页签行：项目 · Skill · 提示词；项目页签有项目时同一行是筛选、搜索与右上两颗按钮 ── */}
         <section className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-3 gap-y-2">

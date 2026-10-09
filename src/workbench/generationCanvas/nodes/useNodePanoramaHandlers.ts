@@ -22,8 +22,7 @@ export function useNodePanoramaHandlers(
 } {
   const { t } = useTranslation()
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const addNode = useGenerationCanvasStore((state) => state.addNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const addDerivedOutput = useGenerationCanvasStore((state) => state.addDerivedOutput)
 
   const handlePanoramaFileChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,15 +53,22 @@ export function useNodePanoramaHandlers(
         project.assertCurrent()
         const { blob, dimensions } = screenshot
         const createdAt = Date.now()
-        const screenshotNode = addNode({
-          kind: 'asset',
-          title: screenshot.title || t('generationCommon.node.panoramaScreenshotTitle'),
-          prompt: screenshot.prompt || t('generationCommon.node.panoramaScreenshotPrompt'),
-          position: {
-            x: Math.round(node.position.x + visualSize.width + 80),
-            y: Math.round(node.position.y),
+        // 截图卡 + 出处边是一个原子动作（addDerivedOutput）：源必须是全景节点、新节点是素材卡。
+        const screenshotNode = addDerivedOutput({
+          sourceNodeId: node.id,
+          kind: 'panorama-screenshot',
+          mode: 'reference',
+          node: {
+            kind: 'asset',
+            title: screenshot.title || t('generationCommon.node.panoramaScreenshotTitle'),
+            prompt: screenshot.prompt || t('generationCommon.node.panoramaScreenshotPrompt'),
+            position: {
+              x: Math.round(node.position.x + visualSize.width + 80),
+              y: Math.round(node.position.y),
+            },
           },
         })
+        if (!screenshotNode) throw new Error('panorama screenshot card was not created')
         screenshotNodeId = screenshotNode.id
         // 落盘换 nomi-local:// 之后才写 store —— 截图这条路以前把整张 base64 留在 store 里**永不替换**，
         // 全景 8K 图一张就是十几 MB，随每次保存全量序列化（同「九宫格卡死」的病根）。
@@ -102,14 +108,13 @@ export function useNodePanoramaHandlers(
             ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
           },
         })
-        connectNodes(node.id, screenshotNode.id, 'reference')
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
         if (screenshotNodeId) updateNode(screenshotNodeId, { status: 'error', error: t('generationCommon.panorama.captureFailed') })
         reportFeedback(t('generationCommon.panorama.captureFailed'))
       }
     },
-    [addNode, t, node.position.x, node.position.y, node.id, visualSize.width, updateNode, connectNodes, reportFeedback],
+    [addDerivedOutput, t, node.position.x, node.position.y, node.id, visualSize.width, updateNode, reportFeedback],
   )
 
   return { handlePanoramaFileChange, handlePanoramaScreenshot }

@@ -115,7 +115,8 @@ try {
   await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout({ operations: 2 }) })
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()
-  await win.getByText('新建画面', { exact: false }).first().click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), null, { timeout: stationTimeout({ operations: 2 }) })
   const input = win.locator('textarea[data-v4-control="input"]').first()
   if (!(await input.count())) await win.evaluate(() => document.querySelector('[data-agent-ball]')?.click())

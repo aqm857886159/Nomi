@@ -33,15 +33,15 @@ try {
   await expect(win.locator('[data-task-center-trigger]')).toBeVisible()
   await app.evaluate(({ BrowserWindow }) => {
     for (const window of BrowserWindow.getAllWindows()) {
-      window.webContents.send('nomi:update:event', { type: 'available', version: '0.99.0', notes: 'Notification policy validation' })
+      window.webContents.send('nomi:update:event', { type: 'available', version: '0.99.0', notes: [], sizeBytes: null, releaseUrl: null })
     }
   })
   if (phase === 'after') {
-    await expect(win.locator('[data-updater-badge]')).toBeVisible()
-    const badgeProof = await proveProbe(win.locator('[data-updater-badge]'), '更新事件已投影到真实宿主角标')
+    await expect(win.locator('[data-update-badge]')).toBeVisible()
+    const badgeProof = await proveProbe(win.locator('[data-update-badge]'), '更新事件已投影到真实宿主角标')
     await expectAbsent(win.locator('[data-updater-dialog]'), { provenBy: badgeProof, message: '未请求更新详情时不主动弹窗' })
     await win.screenshot({ path: path.join(output, `${phase}-update-available.png`) })
-    await win.locator('[data-updater-badge]').click()
+    await win.locator('[data-update-badge]').click()
     await expect(win.locator('[data-updater-dialog]')).toBeVisible()
     const dialogProof = await proveProbe(win.locator('[data-updater-dialog]'), '用户点击角标后更新弹窗确实出现')
     await win.screenshot({ path: path.join(output, `${phase}-update-requested.png`) })
@@ -49,7 +49,7 @@ try {
     await app.evaluate(({ BrowserWindow }) => {
       for (const window of BrowserWindow.getAllWindows()) window.webContents.send('nomi:update:event', { type: 'downloaded', version: '0.99.0' })
     })
-    await expect(win.locator('[data-updater-badge]')).toBeVisible()
+    await expect(win.locator('[data-update-badge]')).toBeVisible()
     await expectAbsent(win.locator('[data-updater-dialog]'), { provenBy: dialogProof, message: '用户关闭后下载完成不重新弹窗' })
   } else {
     await expect(win.locator('[data-updater-dialog]')).toBeVisible()

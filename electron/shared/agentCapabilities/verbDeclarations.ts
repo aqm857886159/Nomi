@@ -3,7 +3,7 @@
 // **顺序是合同，不是审美**：目录顺序进系统提示词与 `tools/list`，是 prompt/KV-cache 的前缀
 // （上游 `splitDeferredTools` 靠稳定前缀保住缓存）。按领域族固定拼，别按 `Object.keys` 之类会随实现漂的东西。
 //
-// 21 个动词（设计正本 §5 + 2026-09-21 通用反问）：7 读 + 13 写 + 1 问。常驻（无 `internalGroup`）的是用户每一轮都可能碰到的那些；
+// 22 个动词（设计正本 §5 + 2026-09-21 通用反问）：7 读 + 14 写 + 1 问。常驻（无 `internalGroup`）的是用户每一轮都可能碰到的那些；
 // 生成 / 时间轴 / 素材 / 维护 / 技能 / 模型 按组延迟披露。
 import { CAPABILITY_CONTRACTS, mcpToolNames } from "./registry";
 import { isPaidBoundaryAlias } from "./paidBoundary";

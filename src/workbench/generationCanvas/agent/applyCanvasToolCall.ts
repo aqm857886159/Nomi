@@ -678,6 +678,18 @@ export async function applyCanvasToolCall(
     return { nodeId: node.id }
   }
 
+  if (operation === 'set_node_text') {
+    const nodeId = resolveNodeId(String(record.nodeId || '').trim())
+    const target = useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)
+    if (!target) throw new Error('node_not_found')
+    // 只写文本节点的正文：别的节点没有正文，写进去等于凭空造了一份没人读的字段。
+    if (target.kind !== 'text') throw new Error('not_a_text_node')
+    if (target.locked) throw new Error('node_locked')
+    const mode = record.mode === 'append' ? 'append' : 'replace'
+    inCtx(() => useGenerationCanvasStore.getState().setNodeText(nodeId, String(record.text ?? ''), mode))
+    return { nodeId }
+  }
+
   if (operation === 'delete_canvas_nodes') {
     const nodeIds = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)

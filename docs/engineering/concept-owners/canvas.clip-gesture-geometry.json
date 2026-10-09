@@ -1,0 +1,39 @@
+{
+  "name": "剪辑节点内手势的命中几何（手柄 / 播放头抓取带宽度、屏幕像素换算、手势准入）",
+  "subject": "canvas.clip-gesture-geometry",
+  "lifecycle": "derived",
+  "authority_kind": "derivation",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+    "symbol": "clipHandleHitWidth"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "clipHandleHitWidth"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "playheadHitWidth"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "clientXToDesignPx"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "resolveClipGestureAdmission"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx"
+  ],
+  "since": "2026-10-09",
+  "notes": "节点在画布里被整体缩放（0.2–3），节点内部像素是设计像素、用户手指落在屏幕像素上：可抓取对象（裁剪手柄 8–16px、播放头抓取带 8px）的宽度按屏幕像素定、只在这里除以 zoom，不再各写各的 clamp。手势准入 = 按下的那一刻节点与片段的选中态先跟上（拖动会吞掉 click）。"
+}

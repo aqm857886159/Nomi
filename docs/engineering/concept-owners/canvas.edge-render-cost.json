@@ -19,5 +19,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-06",
-  "notes": "React Flow 边类型登记表 edgeTypes 的唯一边组件：可选连线模式只在模式菜单打开时算，文案按依赖值缓存（docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json，类检查 edgeViewDragCost.test.ts）。"
+  "notes": "React Flow 边类型登记表 edgeTypes 的唯一边组件：边组件不做档案校验（连线模式胶囊与菜单 2026-10-08 已删），文案按依赖值缓存（docs/fixes/2026-10-06-open-mount-render-cost.root-cause.json，类检查 edgeViewDragCost.test.ts）。"
 }

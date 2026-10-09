@@ -61,6 +61,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasFrame/states'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-frame'),
   },
+  'canvas-handles': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasHandles/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'canvas-handles'),
+  },
   'canvas-grouping': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasGrouping'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-grouping'),
@@ -116,6 +120,10 @@ export const LAB_SCREENS = {
   'director-crowd': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/directorCrowd/states'),
     baselineDir: path.join(BASELINE_ROOT, 'director-crowd'),
+  },
+  'update-reminder': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/updateReminder/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'update-reminder'),
   },
 }
 
