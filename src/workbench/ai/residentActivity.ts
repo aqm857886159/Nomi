@@ -7,17 +7,17 @@ import type { V4DockStatus } from './v4/agentPanelV4DockStatus'
  *
  * 为什么单独一个 store 而不是塞进 workbenchStore：两个消费者都不在面板那棵子树里——
  * 剪辑面右侧 32px 图标条住在面板系统里（Agent 收起时挂到了预览列的浮层上，两边够不着），
- * 顶栏那格收起角标更是住在整个工作区外面。而 Agent 的运行状态每个 token 都在变，
+ * 收起后的 Agent 小球（外壳 ShellAgentHost）更是住在面板子树外面。而 Agent 的运行状态每个 token 都在变，
  * 塞进 workbenchStore 会让整条剪辑面跟着重渲。这里只有几个标量，只有那两处订阅它。
  *
  * ## 两组字段，两个消费者，同一个 owner
  *
  * - `dotClassName` / `label`：剪辑面图标条那颗点（合同 §2.1 + §2.6）。存的是**已经算好的
  *   token 类名**，不是又一套「运行中 / 等确认 / 空闲」的状态词。
- * - `dockStatus` / `dockPendingCount` / `dockUnreadCount`：顶栏收起角标（09-01 定稿 §11.2）。
+ * - `dockStatus` / `dockPendingCount` / `dockUnreadCount`：收起后的 Agent 小球（10-08 外壳重设计 Chrome 板四态 + 未读点）。
  *   `dockStatus` 是**搬运** `V4DockStatus`，不是在这儿另立一份同义词表——词表的唯一 owner
  *   仍是 `v4/agentPanelV4DockStatus.ts`，派生的唯一处仍是 `resolveDockStatus`（R14.1）。
- *   `null` = 面板没收起、或者根本没挂载（没开项目）→ 顶栏那格不出角标。
+ *   `null` = 面板没收起、或者根本没挂载（没开项目）→ 小球按空闲画。
  */
 type ResidentActivityStore = {
   /** 状态点的 token 类名；空串 = 不画点。 */
@@ -46,7 +46,7 @@ export const useResidentActivityStore = create<ResidentActivityStore>((set) => (
   dockPendingCount: 0,
   dockUnreadCount: 0,
   // 同值短路和上面那条同一个理由：这个 setter 挂在面板的 effect 上，每个 token 都会跑一遍，
-  // 无脑 set 会让顶栏跟着 Agent 的每一帧重渲。
+  // 无脑 set 会让小球跟着 Agent 的每一帧重渲。
   setResidentDockBadge: (dockStatus, dockPendingCount, dockUnreadCount) => set((state) => (
     state.dockStatus === dockStatus
       && state.dockPendingCount === dockPendingCount

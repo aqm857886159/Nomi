@@ -176,14 +176,65 @@ try {
   await shoot(win, 'main')
 
   // Chrome 板：小球三态（显示态注入，见文件头）
-  const setBadge = (status, pending) => win.evaluate(([s, n]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, n, 0), [status, pending])
+  const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, n, u), [status, pending, unread])
   for (const [name, status, pending] of [['chrome-ball-running', 'running', 0], ['chrome-ball-failed', 'failed', 0], ['chrome-ball-pending', 'needs-confirm', 2]]) {
     if (!want(name)) continue
     await setBadge(status, pending)
     await expect(win.locator(`[data-agent-ball="${status === 'needs-confirm' ? 'pending' : status}"]`), `小球没有进入 ${status}`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await shoot(win, name)
   }
+  // 未读点（10-08 协调拍板：旧顶栏角标的未读数不能丢）：空闲 + 3 条未读 = 右上强调色小点，悬停名字带「3 条新消息」。
+  if (want('chrome-ball-unread')) {
+    await setBadge('idle', 0, 3)
+    const unreadBall = win.locator('[data-agent-ball="idle"][data-agent-dock-unread="3"]')
+    await expect(unreadBall, '小球没有接住未读').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(unreadBall.locator('[data-dot-mark]'), '有未读却没冒点').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(unreadBall, '悬停名字没说有几条新消息').toHaveAttribute('title', zh ? /3 条新消息/ : /New messages: 3/)
+    await shoot(win, 'chrome-ball-unread')
+    // 等你确认优先：同时在时只出胶囊，不叠点。
+    await setBadge('needs-confirm', 1, 4)
+    await expect(win.locator('[data-agent-ball="pending"]'), '等你确认没有压过未读').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const dotProof = await proveProbe(win.locator('[data-agent-ball] [data-dot-mark], [data-agent-ball="pending"]'), '小球在场（判点之前先证探针活着）')
+    await expectAbsent(win.locator('[data-agent-ball] [data-dot-mark]'), { provenBy: dotProof, message: '胶囊时还叠了未读点' })
+  }
   await setBadge('idle', 0)
+
+  // 事实测量（协调 10-08 问）：靠底节点的生成框和底边时间轴窄条重叠多少像素。
+  // 新外壳里窄条是画布下面独立的一格，画布元素到窄条顶边为止；生成框伸出画布下沿的部分被画布裁掉，不会画到窄条上。
+  if (want('check-bottom-composer')) {
+    const rects = () => win.evaluate(() => {
+      const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right), h: Math.round(b.height) } }
+      const composer = [...document.querySelectorAll('[data-composer-host="node"], [data-composer-host]')].find((el) => el.getClientRects().length > 0 && el.closest('.workbench-generation__canvas'))
+      const node = document.querySelector('.react-flow__node[data-id="shot-5"]')
+      const strip = document.querySelector('[data-timeline-strip]')
+      const canvas = document.querySelector('.workbench-generation__canvas')
+      const cr = r(composer); const sr = r(strip); const cv = r(canvas)
+      // 视觉上压到窄条的像素 = 生成框可见部分（被画布裁剪后）与窄条的交叠；被藏在画布下沿以下的像素另记。
+      const visibleBottom = cr && cv ? Math.min(cr.bottom, cv.bottom) : null
+      return {
+        node: r(node), composer: cr, strip: sr, canvas: cv,
+        overlapWithStripPx: cr && sr ? Math.max(0, Math.min(visibleBottom, sr.bottom) - Math.max(cr.top, sr.top)) : null,
+        hiddenBelowCanvasPx: cr && cv ? Math.max(0, cr.bottom - cv.bottom) : null,
+      }
+    })
+    await clickOrFail(win.locator('.react-flow__node[data-id="shot-5"]'), '选中第 5 镜（下排）')
+    await expect(win.locator('.workbench-generation__canvas [data-composer-host]').first(), '选中后生成框没出来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await win.waitForTimeout(400)
+    const asIs = await rects()
+    // 把这镜拖到靠底：节点下沿离窄条 24px（左键拖空白处平移画布）。
+    const dy = (asIs.canvas?.bottom ?? 0) - (asIs.node?.bottom ?? 0) - 24
+    const from = { x: (asIs.canvas?.left ?? 0) + 330, y: (asIs.canvas?.top ?? 0) + 40 }
+    await win.mouse.move(from.x, from.y)
+    await win.mouse.down()
+    await win.mouse.move(from.x, from.y + dy, { steps: 10 })
+    await win.mouse.up()
+    await win.waitForTimeout(500)
+    const nearBottom = await rects()
+    measures.bottomComposer = { asIs, nearBottom }
+    expect(nearBottom.overlapWithStripPx ?? 0, '生成框画到了时间轴窄条上').toBe(0)
+    await shoot(win, 'check-bottom-composer')
+    await win.keyboard.press('Escape')
+  }
 
   // CanvasAgent 板：点小球 = 浮窗
   if (want('canvas-agent') || want('chrome-assets') || want('chrome-rail-collapsed')) {

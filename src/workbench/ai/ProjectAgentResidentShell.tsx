@@ -350,14 +350,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     : 0
 
   /**
-   * 把这三个数投到顶栏那格角标去（09-01 定稿 §11.2：收起态的家是顶栏右簇「浏览器 / 设置」之间）。
-   *
-   * 为什么要投而不是就地渲：顶栏不在这棵子树里。之前那一版把 logo 画在内容区右上角——
-   * 它跟着面板走，于是每换一个面落点就换一个地方，用户得重新找它。顶栏是唯一四个面都在的那条 chrome。
-   *
-   * 展开时报 `null`（不是报 `idle`）：`idle` 是「收着但没事」，`null` 是「压根没收起」——
-   * 顶栏据此决定那一格出不出角标，两者不能混。卸载时也报 `null`，否则关掉项目后
-   * 顶栏还挂着一颗指向已经不存在的面板的角标。
+   * 把这三个数投到收起后的 Agent 小球去（10-08 外壳重设计：小球住在外壳 ShellAgentHost，不在这棵子树里）。
+   * 小球读它画四态 +「N 条新消息」未读点；展开时报 `null`（不是 `idle`），卸载时也报 `null`，
+   * 否则关掉项目后小球还挂着上一个项目的未读。
    */
   const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
   React.useEffect(() => {

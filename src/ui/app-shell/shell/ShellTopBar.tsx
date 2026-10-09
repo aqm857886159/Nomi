@@ -33,6 +33,7 @@ import {
 } from '../../../workbench/preview/previewExportRequest'
 import { useLocalProjects } from '../../../workbench/library/localProjectStore'
 import { useOnboardingProgress } from '../../../workbench/onboarding/onboardingProgress'
+import { DotMark } from './DotMark'
 import { useUpdater } from '../useUpdater'
 import { UpdaterDialog } from '../UpdaterDialog'
 import { SHELL_MAC_TRAFFIC_WIDTH, SHELL_TOPBAR_HEIGHT, shellChromePlatform } from '../shellGeometry'
@@ -46,10 +47,6 @@ const BAR_ICON_BUTTON = cn(
 )
 
 /** 右上角那个小点（设置：上手没做完；窄窗下的新版本）。外圈描一圈外壳底色，压在图标上也读得出。 */
-function DotMark({ className }: { className?: string }): JSX.Element {
-  return <span className={cn('pointer-events-none absolute right-[5px] top-[5px] size-1.5 rounded-full bg-nomi-accent ring-2 ring-nomi-chrome', className)} aria-hidden="true" />
-}
-
 function BarTooltip({ label, children }: { label: string; children: JSX.Element }): JSX.Element {
   return (
     <Tooltip>

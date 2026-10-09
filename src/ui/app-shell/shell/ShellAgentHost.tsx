@@ -117,6 +117,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const labels = useV4Labels()
   const status = useResidentActivityStore((state) => state.dockStatus)
   const pending = useResidentActivityStore((state) => state.dockPendingCount)
+  const unread = useResidentActivityStore((state) => state.dockUnreadCount)
   const stored = useAgentFormStore((state) => state.bySurface[surface].ball)
   const setBallPoint = useAgentFormStore((state) => state.setBallPoint)
   const setForm = useAgentFormStore((state) => state.setForm)
@@ -134,6 +135,9 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   }
   const statusText = status ? dockStatusLabel(status, pending, labels.dock) : labels.dock.idle
   const label = pill ? t('appShell.agent.ballPending', { count: pending }) : t('appShell.agent.ballOpen', { shortcut: `${MOD}J` })
+  // 未读（不含等你确认那几条——那几条已经在胶囊里点名）：悬停 / 读屏说「N 条新消息」。
+  const unreadOnly = pill ? 0 : Math.max(0, unread - pending)
+  const title = [label, statusText, unreadOnly > 0 ? t('appShell.agent.ballUnread', { count: unreadOnly }) : null].filter(Boolean).join(' · ')
   const items: WorkbenchMenuNode[] = [
     { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { setForm(surface, 'float'); focusComposerSoon() } },
     { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { setForm(surface, 'dock'); focusComposerSoon() } },
@@ -158,8 +162,9 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
         <AgentBallFace
           status={status}
           pendingCount={pending}
+          unreadCount={unreadOnly}
           label={label}
-          title={`${label} · ${statusText}`}
+          title={title}
           className={pill ? 'w-full' : undefined}
           onClick={open}
           onContextMenu={(event) => {
