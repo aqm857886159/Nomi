@@ -61,7 +61,7 @@ try {
 
   // 建方案走的是 Agent 自己那条真路（`storyboard.upsert-design` = 主进程 `upsertStoryboardDesign` 打的 op）。
   const saved = await win.evaluate(async ({ projectId, documentId, designId, plan }) =>
-    window.__nomiCapabilityApply('storyboard.upsert-design', { projectId, documentId, designId, plan }),
+    window.__nomiCapabilityApply('storyboard.upsert-design', { projectId, documentId, designId, plan, initiator: 'agent' }),
   { projectId, documentId, designId: DESIGN_ID, plan })
   expect(saved, '方案要真的落到用户左栏那一份存储里').toMatchObject({ status: 'saved', designId: DESIGN_ID })
 

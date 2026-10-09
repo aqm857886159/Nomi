@@ -39,7 +39,7 @@ export function writeOldStoryboardShape(copy, shape) {
 }
 
 export async function runOldStoryboardFormatMatrix({ source, outputDir, prepareOldProjectCopy,
-  openCopiedStoryboardEditor, assertCanvasPreserved, assertNoHydratedCanvasAddition, editedCanvasExpectation, readCardInfoMeasurements, captureExpectedLegacyTable, recordCandidateFailure, fileHashes }) {
+  openCopiedStoryboardEditor, assertCanvasPreserved, assertNoHydratedCanvasAddition, editedCanvasExpectation, readCardInfoMeasurements, recordCandidateFailure, fileHashes }) {
   const reports = []
   for (const shape of ['retired-map', 'retired-single', 'owner-with-conflicting-retired-map']) {
     const walk = await createRuntimeWalk(`core-a-old-storyboard-${shape}`)
@@ -92,8 +92,8 @@ export async function runOldStoryboardFormatMatrix({ source, outputDir, prepareO
       await prompt().fill(editedPrompt)
       await expect.poll(() => readSavedDesign()?.plan?.shots.find(item => item.index === shot.index)?.prompt).toBe(editedPrompt)
       if (retired) {
-        await expect.poll(() => readCopy().payload.generationCanvas.nodes.length).toBe(originalCanvas.nodes.length + 1)
-        expectedCanvas.nodes.push(captureExpectedLegacyTable(readCopy().payload.generationCanvas, originalCanvas, readSavedDesign()))
+        // 2026-10-08：编辑旧方案不再顺手建分镜表，画布节点数不变。
+        assert.equal(readCopy().payload.generationCanvas.nodes.length, originalCanvas.nodes.length, 'Editing a retired plan adds no shot table')
       }
       const assertSaved = () => {
         assert.deepEqual(readSavedDesign().plan, expectedPlan, 'Only the explicit prompt edit changes the complete original plan')
