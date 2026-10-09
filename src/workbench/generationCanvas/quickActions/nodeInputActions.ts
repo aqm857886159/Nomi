@@ -136,8 +136,8 @@ export function addAssetInput(targetId: string, asset: AssetRef): string | null 
  * 上传完成后把新建的素材卡接进来：**不另起撤销点**（只压住连线自己的撤销屏障、不再 pushUndoSnapshot），
  * 并进导入那一步——Ctrl+Z 一次撤干净「导入 + 连线」。
  */
-export function connectUploadedInputs(createdIds: readonly string[], targetId: string): void {
-  withCanvasGestureContext({ source: 'user', txnId: txn('upload-input'), suppressUndoBarriers: true }, () => {
+export function connectUploadedInputs(createdIds: readonly string[], targetId: string, undoTxn: string = txn('upload-input')): void {
+  withCanvasGestureContext({ source: 'user', txnId: undoTxn, suppressUndoBarriers: true }, () => {
     for (const nodeId of createdIds) {
       store().startConnection(targetId, 'left')
       completeNodeConnection(nodeId)
@@ -152,6 +152,8 @@ export function connectUploadedInputs(createdIds: readonly string[], targetId: s
 export async function addUploadedInput(targetId: string, file: File, options: { shouldConnect: () => boolean }): Promise<void> {
   const target = store().nodes.find((node) => node.id === targetId)
   if (!target) return
-  const created = await importLocalFilesToGenerationCanvas([file], { basePosition: resolveRingMenuPlacement(target, 'left', 'asset'), categoryId: target.categoryId })
-  if (created.length && options.shouldConnect()) connectUploadedInputs(created, targetId)
+  // 上传 + 接线是**一个撤销点**：导入自己的每一笔写（建卡 / 进度 / 落盘结果）都在 undoTxn 里压住撤销屏障，接线也进同一个事务，Ctrl+Z 一次撤干净。
+  const undoTxn = txn('upload-input')
+  const created = await importLocalFilesToGenerationCanvas([file], { basePosition: resolveRingMenuPlacement(target, 'left', 'asset'), categoryId: target.categoryId, undoTxn })
+  if (created.length && options.shouldConnect()) connectUploadedInputs(created, targetId, undoTxn)
 }

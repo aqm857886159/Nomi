@@ -171,7 +171,8 @@
     "src/workbench/generationCanvas/runner/referenceSlotsFirstFrameTag.test.ts",
     "src/workbench/generationCanvas/model/derivedOutput.test.ts",
     "src/workbench/generationCanvas/adapters/assetImportAdapter.test.ts",
-    "src/workbench/generationCanvas/components/canvasStageDrop.importResult.test.ts"
+    "src/workbench/generationCanvas/components/canvasStageDrop.importResult.test.ts",
+    "tests/ux/canvas-handle-menus.walk.mjs (09 / 10: real Electron upload → wire → one Ctrl+Z)"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",

@@ -395,7 +395,7 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
 /** 返回这次建出来的素材卡 id（左「+」素材选择器上传后要把它们接进目标卡）。 */
 export function importLocalFilesToGenerationCanvas(
   files: readonly File[],
-  options: { basePosition: { x: number; y: number }; categoryId?: string; exactPosition?: boolean; anchor?: { xRatio: number; yRatio: number } },
+  options: { basePosition: { x: number; y: number }; categoryId?: string; exactPosition?: boolean; anchor?: { xRatio: number; yRatio: number }; undoTxn?: string },
 ): Promise<string[]> {
   // 拖入 / 导入钮即动作起点：此刻签发原项目，下游全程只认它（没有打开的项目就什么都不做）。
   // 先同步签发、再挂 .catch：这个命令不会把拒绝丢给调用它的控件。

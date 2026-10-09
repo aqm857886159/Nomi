@@ -288,3 +288,32 @@ describe('importLocalMediaFilesToGenerationCanvas · per-node success', () => {
     expect(result.failedCount).toBe(0)
   })
 })
+
+// V-1133c（真 Electron 实测）：素材选择器上传 + 接线按一次 Ctrl+Z 只撤了连线、导入的素材卡还在——
+// 导入自己的建卡 / 落盘结果各起了撤销点，接线那次的压屏障盖不住它们。undoTxn = 整次导入一个撤销点。
+describe('importLocalMediaFilesToGenerationCanvas · undoTxn (one undo step for the whole import)', () => {
+  beforeEach(async () => {
+    coordinator = makeCoordinator(); unregister = registerProjectCanvasReadSurfaceCoordinator(coordinator)
+    await switchProject('project-a')
+    __resetGenerationCanvasHistoryForTests()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
+  })
+  const run = (undoTxn?: string) => importLocalMediaFilesToGenerationCanvas([makeImageFile()], { projectContext: currentProject(),
+    basePosition: { x: 0, y: 0 }, capacity: null, createObjectUrl: () => 'blob:test', revokeObjectUrl: vi.fn(), readImageDimensions: async () => null,
+    uploadFile: async () => asset, recoverFile: async () => null, ...(undoTxn ? { undoTxn } : {}),
+  })
+
+  it('with undoTxn: one undo removes the imported card entirely', async () => {
+    const result = await run('upload-input-test')
+    expect(result.succeededNodeIds).toHaveLength(1)
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+  })
+
+  it('without undoTxn: the old behaviour (separate undo points) is untouched', async () => {
+    await run()
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes.length).toBeGreaterThan(0) // 一次撤不干净——这正是 undoTxn 要解决的
+  })
+})
