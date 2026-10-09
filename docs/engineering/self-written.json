@@ -1596,6 +1596,31 @@
       "revisitWhen": "When Electron provides a unified async teardown coordinator that can express these Nomi owners and continue termination after a cleanup timeout, remove this boundary and use that mechanism."
     },
     {
+      "id": "nomi-shutdown-project-flush",
+      "capability": "OS shutdown / logout: ask each open window to silently write its pending project changes inside the unattended-exit budget, with a per-window receipt",
+      "status": "justified",
+      "paths": [
+        "electron/shutdownProjectFlush.ts",
+        "electron/quitOwnerMain.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Electron query-session-end / session-end / powerMonitor shutdown events (timing only)",
+          "source": "https://www.electronjs.org/docs/latest/api/power-monitor#event-shutdown-linux-macos"
+        },
+        {
+          "name": "Windows WM_QUERYENDSESSION (very short grace, no UI)",
+          "source": "https://learn.microsoft.com/en-us/windows/win32/shutdown/wm-queryendsession"
+        },
+        {
+          "name": "VS Code lifecycle service: registered shutdown participants with deadlines (the pattern reused here)",
+          "source": "https://github.com/microsoft/vscode/blob/main/src/vs/platform/lifecycle/electron-main/lifecycleMainService.ts"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: the unsaved state is Nomi project data held in the renderer save queue (canvas, storyboard, timeline) and the only writer is the Nomi main-process project store. Electron and the OS give only the timing; no library knows which renderer has owed project writes or how to flush them in order. The module only requests the existing save path and waits for a receipt; it adds no write logic and registers into the single quit owner.",
+      "revisitWhen": "When Electron offers a built-in renderer-flush-before-exit primitive, or when the project save path moves out of the renderer queue."
+    },
+    {
       "id": "storyboard-plan-rows-renderer",
       "capability": "Storyboard and paid-generation confirmation plan rows: checked scope, grouped detail, and optional technical disclosure",
       "status": "justified",

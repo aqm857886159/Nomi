@@ -78,6 +78,16 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.on("nomi:window:close-request", listener);
       return () => ipcRenderer.removeListener("nomi:window:close-request", listener);
     },
+    // 关机 / 注销：主进程请渲染层静默存一次项目，存完回执（回执就是 ok，抛错回 ok:false）。
+    onProjectFlushRequest: (cb: () => Promise<void>) => {
+      const listener = async (_: unknown, payload: { requestId: string }) => {
+        let ok = true;
+        try { await cb(); } catch { ok = false; }
+        ipcRenderer.send("nomi:project:shutdown-flush-response", { requestId: payload.requestId, ok });
+      };
+      ipcRenderer.on("nomi:project:shutdown-flush-request", listener);
+      return () => ipcRenderer.removeListener("nomi:project:shutdown-flush-request", listener);
+    },
     onCanvasZoomShortcut: (cb: (direction: -1 | 1) => void) => {
       const listener = (_: unknown, direction: -1 | 1) => cb(direction);
       ipcRenderer.on("nomi:canvas:zoom-shortcut", listener);

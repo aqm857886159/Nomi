@@ -361,6 +361,15 @@
         "symbol": "presentGenerationPlan / markGenerationPolicyDecisionFailed"
       },
       "reason": "PR 1093 removed the process-local policySpendDecision map. ProductionRun now persists policySnapshot, policyDecisionState and policyDecisionDeadlineAt on the presentation; presentGenerationPlan starts that lifetime and markGenerationPolicyDecisionFailed records failure. productionPendingSpend reads the persisted state and expiry so restart or a failed marker write cannot permanently hide a paid card."
+    },
+    {
+      "contract": "docs/fixes/2026-09-10-storyboard-projection-receipt-composition.root-cause.json",
+      "path": "src/workbench/creation/storyboard/exec/ensureStoryboardShotTable.ts",
+      "symbol": "applyStoryboardPlanProjection",
+      "anchor": {
+        "path": "src/workbench/creation/storyboard/exec/applyStoryboardPlanProjection.ts",
+        "symbol": "applyStoryboardPlanProjection"
+      }
     }
   ],
   "retirements": [

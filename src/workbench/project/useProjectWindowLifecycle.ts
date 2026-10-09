@@ -13,6 +13,14 @@ export function useProjectLeaveAction(leave: () => Promise<void>): () => Promise
   return useCallback(() => shareInFlight(pending, leave), [leave])
 }
 
+/** 关机 / 注销时主进程只给几百毫秒：不弹框，把已欠的保存写完就回执。 */
+export function bindShutdownProjectFlush(): (() => void) | undefined {
+  return getDesktopBridge()?.window?.onProjectFlushRequest?.(async () => {
+    const { flushPendingWorkbenchProjectSaves } = await import('./workbenchProjectSession')
+    await flushPendingWorkbenchProjectSaves()
+  })
+}
+
 /** Close/reload acknowledges the active project's save before releasing its renderer. */
 export function useProjectWindowLifecycle(): void {
   const { t } = useTranslation()
@@ -41,6 +49,7 @@ export function useProjectWindowLifecycle(): void {
         .finally(() => { if (pendingClose.current === requestId) pendingClose.current = null })
     })
   }, [t])
+  useEffect(() => bindShutdownProjectFlush(), [])
   useEffect(() => {
     const reload = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase()
