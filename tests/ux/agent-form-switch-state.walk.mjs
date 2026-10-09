@@ -172,6 +172,38 @@ try {
   await expect(rows.first(), '第 1 行应仍勾着').toBeChecked()
   await snap('04-dock-after-cycle')
   console.log('✅ 停靠 → 小球 → 浮窗 → 停靠：勾选、折叠、草稿、对话、回执、面板挂载都在。')
+
+  // ⑤ 功能全表 #58：搬家后的面板里，待确认卡的「确认」和「不要（带原因）」照样走得通。
+  const applied = fixture.expectText({ label: 'plan applied', match: (body) => hasToolResult(body, 'walk-plan'), reply: { type: 'text', text: 'WALK_APPLIED：按勾选的两条改好了。' } })
+  await clickOrFail(card.locator('[data-v4-control="confirm"]'), '#58 确认计划卡')
+  const appliedWire = await recorded(applied.received, 'applied plan result')
+  // 计划卡的确认 = 按勾选执行：有一行取消着，就是「只保留勾着的几行」回给模型（planConfirmDecision）——
+  // 这条回执里必须带着勾着的行、不带取消掉的那行：勾选状态是真的穿过了三形态切换才走到这里的。
+  const planResult = JSON.stringify((appliedWire.body.messages ?? []).find((entry) => entry.role === 'tool' && entry.tool_call_id === 'walk-plan')?.content ?? '')
+  console.log('  [#58] 计划卡确认回给模型：', planResult.slice(0, 400))
+  expect(planResult, '#58 确认回执里没有勾着的那行').toContain('-6')
+  expect(planResult, '#58 取消掉的那行不该回给模型').not.toContain('他终于推开了门')
+  await expect(panel.locator(ASSISTANT_MESSAGE).filter({ hasText: 'WALK_APPLIED' }), '#58 确认后没有回到模型').toBeVisible({ timeout: stationTimeout({ turns: 1 }) })
+  const REJECT_PROMPT = '再把开场远景开头剪掉一秒'
+  const rejectRead = fixture.expectText({ label: 'reject read', match: (body) => flattenRequestText(body).includes(REJECT_PROMPT) && !hasToolResult(body, 'walk-read-2'), reply: { type: 'tool', id: 'walk-read-2', name: 'read_timeline', args: {} } })
+  const rejectPlan = fixture.expectText({ label: 'reject plan', match: (body) => hasToolResult(body, 'walk-read-2') && !hasToolResult(body, 'walk-plan-2'), reply: { type: 'hold' } })
+  const rejected = fixture.expectText({ label: 'rejected', match: (body) => hasToolResult(body, 'walk-plan-2'), reply: { type: 'text', text: 'WALK_REJECTED：好，开场保留。' } })
+  await panel.locator(COMPOSER_INPUT).fill(REJECT_PROMPT)
+  await clickOrFail(panel.locator(COMPOSER_SEND), '发送删开场')
+  await recorded(rejectRead.received, 'reject read')
+  const rejectWire = await recorded(rejectPlan.received, 'reject plan request')
+  rejectPlan.release({ type: 'tool', id: 'walk-plan-2', name: 'edit_timeline', args: { summary: '删开场远景', baseRevision: revisionFromToolResult(rejectWire.body, 'walk-read-2'), operations: [{ kind: 'trim', clipId: 'clip-a', edge: 'left', deltaFrame: 30 }] } })
+  const rejectCard = panel.locator(APPROVAL_CARD).first()
+  await expect(rejectCard, '#58 第二张卡没出来').toBeVisible({ timeout: stationTimeout({ turns: 1 }) })
+  await clickOrFail(rejectCard.locator('[data-v4-control="slot-dismiss"]'), '#58 不要')
+  const reason = rejectCard.locator('[data-v4-control="reject-reason"]')
+  await expect(reason, '#58 不要之后没出原因输入').toBeVisible()
+  await reason.fill('开场是全片的锚')
+  await clickOrFail(rejectCard.locator('[data-v4-control="confirm-reject"]'), '#58 确认不要')
+  await recorded(rejected.received, 'rejected result')
+  await expect(panel.locator(ASSISTANT_MESSAGE).filter({ hasText: 'WALK_REJECTED' }), '#58 拒绝后没有回到模型').toBeVisible({ timeout: stationTimeout({ turns: 1 }) })
+  await snap('05-confirm-and-reject')
+  console.log('✅ #58 搬家后的面板里确认 / 带原因拒绝都走得通。')
 } catch (error) {
   failure = error
   try { await win.screenshot({ path: path.join(shotsDir, 'FAIL.png') }) } catch { /* window gone */ }

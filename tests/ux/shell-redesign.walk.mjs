@@ -11,6 +11,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -515,6 +516,209 @@ try {
     await expect(assets, '#16 确认卡关掉后素材抽屉被收起了').toBeVisible()
     parity.assetFolders = 'create, drag-in, open, back, delete'
     await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#16 收起素材抽屉')
+  }
+
+  // ── #1136 重验「看不出」的行：补夹具、真点通（中文轨）──
+  if (want('check-parity2') && zh) {
+    const parity2 = measures.parity2 = {}
+    const nodeCount = () => win.evaluate(() => window.__nomiCanvasStore?.getState().nodes.length ?? -1)
+    const rectOf = (locator) => locator.evaluate((node) => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), bottom: Math.round(r.bottom) } })
+    const viewport = await win.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
+    await clickOrFail(win.locator('.nomi-stepper__step[data-mode="generation"]'), '回生成页')
+    await win.waitForTimeout(600)
+
+    // #43 底边窄条 ^ 展开时间轴、再收回窄条。
+    const strip = win.locator('[data-timeline-strip]')
+    const timelinePanel = win.locator('.workbench-generation__timeline .workbench-timeline').first()
+    if (await timelinePanel.isVisible().catch(() => false)) await clickOrFail(timelinePanel.locator('[data-timeline-collapse]').first(), '#43 先收起时间轴')
+    await clickOrFail(strip, '#43 点窄条 ^ 展开时间轴')
+    await expect(timelinePanel, '#43 窄条展开后没有时间轴面板').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await clickOrFail(timelinePanel.locator('[data-timeline-collapse]').first(), '#43 收起时间轴')
+    await expect(strip, '#43 收起后窄条没回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    parity2.timelineStrip = 'expand → collapse'
+
+    // #39 加节点、#40 更多菜单、#42 缩放。
+    const before39 = await nodeCount()
+    await addCanvasNodeFromRail(win, 'image')
+    await expect.poll(nodeCount, { message: '#39 左栏加图片节点没生效', timeout: stationTimeout() }).toBe(before39 + 1)
+    await win.keyboard.press('Escape')
+    await clickOrFail(win.locator('[data-canvas-add-more="true"]').first(), '#40 打开「更多」')
+    const moreMenu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+    await expect(moreMenu, '#40 「更多」菜单没展开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const moreKinds = await moreMenu.locator('[data-node-kind]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-node-kind')))
+    expect(moreKinds.includes('director'), `#40 「更多」里没有导演台（${moreKinds.join(',')}）`).toBe(true)
+    await shoot(win, 'check-parity2-canvas-more')
+    await win.keyboard.press('Escape')
+    await win.mouse.click(700, 80)
+    const scaleOf = () => win.evaluate(() => { const t = getComputedStyle(document.querySelector('.react-flow__viewport')).transform; const m = /matrix\(([^,]+)/.exec(t); return m ? Number(m[1]) : 1 })
+    const scale0 = await scaleOf()
+    const zoomRange = win.locator('input[aria-label="缩放比例"]').first()
+    await zoomRange.focus()
+    for (let i = 0; i < 4; i += 1) await win.keyboard.press('ArrowRight')
+    await expect.poll(scaleOf, { message: '#42 缩放滑杆没改变画布缩放', timeout: stationTimeout() }).not.toBe(scale0)
+    await clickOrFail(win.getByRole('button', { name: '适应视图' }).first(), '#42 适应视图')
+    parity2.canvas = { added: 'image', moreKinds, zoomFrom: scale0, zoomTo: await scaleOf() }
+
+    // #14 素材拖进画布、双击全屏预览；#50 素材全屏预览不被外壳裁切。
+    await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#14 打开素材抽屉')
+    const assets = win.locator('[data-shell-drawer="assets"]')
+    const tile = assets.locator('div[draggable="true"]').first()
+    await expect(tile, '#14 素材抽屉里没有可拖的素材').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const before14 = await nodeCount()
+    await tile.dragTo(win.locator('.react-flow__pane').first(), { targetPosition: { x: 900, y: 360 } })
+    await expect.poll(nodeCount, { message: '#14 素材拖进画布没有落成节点', timeout: stationTimeout() }).toBe(before14 + 1)
+    await tile.dblclick()
+    const preview = win.locator('[data-asset-preview-dialog="true"]').first()
+    await expect(preview, '#14 双击素材没打开全屏预览').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const previewRect = await rectOf(preview)
+    expect(previewRect.top >= 40 - 1 && previewRect.bottom >= viewport.height - 1, `#50 素材全屏预览被裁切或压住顶栏（${JSON.stringify(previewRect)}）`).toBe(true)
+    // 全屏预览要压在抽屉上面：在抽屉占的那块点一下，命中的必须是预览（层级合同：applicationModal 9000 > floatingPanel 4000）。
+    const previewOnTop = await win.evaluate(() => Boolean(document.elementFromPoint(160, 300)?.closest('[data-asset-preview-dialog]')))
+    expect(previewOnTop, '#50 素材全屏预览被左栏抽屉压在下面').toBe(true)
+    await shoot(win, 'check-parity2-asset-preview')
+    await win.keyboard.press('Escape')
+    const previewProof = await proveProbe(assets, '素材抽屉还在（判预览关掉之前先证探针活着）')
+    await expectAbsent(preview, { provenBy: previewProof, message: '#14 Esc 关不掉素材预览' })
+    parity2.assets = { dragToCanvas: true, previewRect }
+    await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#14 收起素材抽屉')
+
+    // #50 导演台全屏浮层从 40px 顶栏下开始、铺满到底。
+    await addCanvasNodeFromRail(win, 'director')
+    await clickOrFail(win.locator('[data-testid="director-node-open"]').first(), '#50 进入导演台')
+    const director = win.locator('[data-testid="director-editor"]')
+    await expect(director, '#50 导演台没打开').toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+    const directorRect = await rectOf(director)
+    expect(directorRect.top >= 40 - 1 && directorRect.bottom >= viewport.height - 1 && directorRect.left <= 1, `#50 导演台浮层被裁切或压住顶栏（${JSON.stringify(directorRect)}）`).toBe(true)
+    await shoot(win, 'check-parity2-director')
+    await clickOrFail(win.locator('[data-testid="director-exit"]').first(), '#50 导演台左上「退出」')
+    await clickOrFail(win.locator('[data-confirm-dialog-confirm]').first(), '#50 确认退出导演台')
+    const canvasProof = await proveProbe(win.locator('.workbench-generation__canvas'), '画布在（判导演台关掉之前先证探针活着）')
+    await expectAbsent(director, { provenBy: canvasProof, message: '#50 退出导演台后浮层还在' })
+    parity2.director = directorRect
+
+    // #3 顶栏项目菜单改名：Enter 生效、Esc 放弃。
+    const projectMenu = win.locator('[data-shell-project-menu]')
+    await clickOrFail(projectMenu, '#3 打开项目菜单')
+    await clickOrFail(win.getByRole('menuitem', { name: '重命名' }), '#3 菜单 · 重命名')
+    const nameInput = win.locator('[data-shell-topbar] input[aria-label]').first()
+    await nameInput.fill('雨夜来信·改名')
+    await nameInput.press('Enter')
+    await expect(projectMenu, '#3 Enter 改名没生效').toHaveAttribute('title', '雨夜来信·改名', { timeout: stationTimeout() })
+    await clickOrFail(projectMenu, '#3 再开项目菜单')
+    await clickOrFail(win.getByRole('menuitem', { name: '重命名' }), '#3 菜单 · 重命名（这次 Esc）')
+    await win.locator('[data-shell-topbar] input[aria-label]').first().fill('不该生效的名字')
+    await win.locator('[data-shell-topbar] input[aria-label]').first().press('Escape')
+    await expect(projectMenu, '#3 Esc 没有放弃改名').toHaveAttribute('title', '雨夜来信·改名')
+    parity2.projectRename = 'enter-commits, escape-cancels'
+
+    // #22 / #23 文稿与方案：新建、改名、删除、复制、从文稿建方案。
+    await clickOrFail(win.locator('[data-shell-rail-item="docs"]'), '#22 打开文稿抽屉')
+    const docs = win.locator('[data-shell-drawer="docs"]')
+    const docRows = docs.locator('[data-document-row]')
+    const docs0 = await docRows.count()
+    await clickOrFail(docs.getByRole('button', { name: '新建一篇原稿' }), '#22 新建文稿')
+    await expect.poll(() => docRows.count(), { message: '#22 新建文稿没多一行', timeout: stationTimeout() }).toBe(docs0 + 1)
+    const newDoc = docRows.last()
+    await newDoc.locator('[data-document-id] [data-document-title]').dblclick()
+    const docRename = docs.locator('input[aria-label="原稿标题"]').first()
+    await docRename.fill('走查文稿')
+    await docRename.press('Enter')
+    await expect(newDoc, '#22 文稿改名没生效').toContainText('走查文稿', { timeout: stationTimeout() })
+    await newDoc.locator('[data-document-id]').first().click({ button: 'right' })
+    await clickOrFail(win.locator('[data-creation-resource-menu="document"] [data-resource-action="delete"]'), '#22 右键 · 删除文稿')
+    await clickOrFail(win.locator('[data-confirm-dialog-confirm]').first(), '#22 确认删除文稿')
+    await expect.poll(() => docRows.count(), { message: '#22 删除文稿没少一行', timeout: stationTimeout() }).toBe(docs0)
+    const plans = docs.locator('[data-storyboard-row]')
+    const plans0 = await plans.count()
+    await docs.locator('[data-storyboard-id="design-rain"]').click({ button: 'right' })
+    await clickOrFail(win.locator('[data-creation-resource-menu="storyboard"] [data-resource-action="duplicate"]'), '#23 右键 · 复制方案')
+    await expect.poll(() => plans.count(), { message: '#23 复制方案没多一行', timeout: stationTimeout() }).toBe(plans0 + 1)
+    const copy = plans.last()
+    await copy.locator('[data-storyboard-id]').click({ button: 'right' })
+    await clickOrFail(win.locator('[data-creation-resource-menu="storyboard"] [data-resource-action="rename"]'), '#23 右键 · 改名方案')
+    const planRename = copy.locator('input').first()
+    await planRename.fill('走查方案')
+    await planRename.press('Enter')
+    await expect(copy, '#23 方案改名没生效').toContainText('走查方案', { timeout: stationTimeout() })
+    await copy.locator('[data-storyboard-id]').click({ button: 'right' })
+    await clickOrFail(win.locator('[data-creation-resource-menu="storyboard"] [data-resource-action="delete"]'), '#23 右键 · 删除方案')
+    // 删方案走「撤销 toast」不弹确认卡（现役行为）；万一弹了也点掉——下面的行数断言才是判据。
+    const planConfirm = win.locator('[data-confirm-dialog-confirm]').first()
+    if (await planConfirm.isVisible().catch(() => false)) await clickOrFail(planConfirm, '#23 确认删除方案')
+    await expect.poll(() => plans.count(), { message: '#23 删除方案没少一行', timeout: stationTimeout() }).toBe(plans0)
+    await clickOrFail(docs.locator('[data-add-storyboard]').first(), '#23 从文稿新建方案')
+    await expect.poll(() => plans.count(), { message: '#23 从文稿新建方案没多一行', timeout: stationTimeout() }).toBe(plans0 + 1)
+    await shoot(win, 'check-parity2-docs')
+    parity2.docs = { newDoc: true, renameDoc: true, deleteDoc: true, duplicatePlan: true, renamePlan: true, deletePlan: true, newPlan: true }
+    if (await docs.isVisible().catch(() => false)) await clickOrFail(win.locator('[data-shell-rail-item="docs"]'), '#22 收起文稿抽屉')
+
+    // #37 剪辑页面板布局 Cmd+Z：切掉一个面板，Cmd+Z 回来。
+    await clickOrFail(win.locator('.nomi-stepper__step[data-mode="preview"]'), '#37 切到剪辑页')
+    await win.waitForTimeout(800)
+    const layoutTrigger = win.locator('[data-shell-topbar] button[aria-label="布局"]').first()
+    const layoutMenu = win.locator('[data-shell-topbar] [role="menu"][aria-label="布局"]').first()
+    await clickOrFail(layoutTrigger, '#37 打开布局菜单')
+    const toggle = layoutMenu.locator('[role="menuitemcheckbox"]').first()
+    const checked0 = await toggle.getAttribute('aria-checked')
+    await clickOrFail(toggle, '#37 切掉一个面板')
+    await win.keyboard.press('Escape')
+    await win.locator('.workbench-preview-player__control-bar').first().click({ position: { x: 300, y: 20 } })
+    // 布局撤销绑的是 metaKey（现役：PreviewWorkspace 只认 Cmd+Z；Windows 上 Ctrl+Z 归时间轴撤销，main 上同样如此）。
+    await win.keyboard.press('Meta+z')
+    await clickOrFail(layoutTrigger, '#37 再开布局菜单看')
+    await expect(layoutMenu.locator('[role="menuitemcheckbox"]').first(), '#37 Cmd+Z 没撤回面板布局').toHaveAttribute('aria-checked', checked0 ?? 'true')
+    await win.keyboard.press('Escape')
+    parity2.layoutUndo = 'toggle → cmd+z restored'
+
+    // #33 播放控件：播放 / 暂停、逐帧、静音、全屏。
+    const bar = win.locator('.workbench-preview-player__control-bar').first()
+    await clickOrFail(bar.getByRole('button', { name: '播放' }), '#33 播放')
+    await expect(bar.getByRole('button', { name: '暂停' }), '#33 播放后没变暂停').toBeVisible({ timeout: stationTimeout() })
+    await clickOrFail(bar.getByRole('button', { name: '暂停' }), '#33 暂停')
+    const timeText = () => bar.locator('[data-control-scope="transport"] span').first().innerText()
+    const t0 = await timeText()
+    await clickOrFail(bar.getByRole('button', { name: '下一帧' }), '#33 下一帧')
+    await clickOrFail(bar.getByRole('button', { name: '下一帧' }), '#33 下一帧')
+    await clickOrFail(bar.getByRole('button', { name: '上一帧' }), '#33 上一帧')
+    await clickOrFail(bar.getByRole('button', { name: '静音' }), '#33 静音')
+    await expect(bar.getByRole('button', { name: '取消静音' }), '#33 静音后没变取消静音').toBeVisible()
+    await clickOrFail(bar.getByRole('button', { name: '取消静音' }), '#33 取消静音')
+    await clickOrFail(bar.getByRole('button', { name: '全屏' }), '#33 全屏')
+    await expect.poll(() => win.evaluate(() => Boolean(document.fullscreenElement)), { message: '#33 全屏没进去', timeout: stationTimeout() }).toBe(true)
+    await win.evaluate(() => document.exitFullscreen?.())
+    parity2.player = { timeBeforeStep: t0, timeAfterStep: await timeText() }
+
+    // #34 文字层：加一条字幕、在画面上拖动、双击改字。
+    await clickOrFail(bar.getByRole('button', { name: '添加文字' }), '#34 打开「文字」')
+    await clickOrFail(bar.getByRole('menuitem', { name: '字幕' }), '#34 加字幕')
+    // 新加的字幕直接进编辑态（现役：addText 后立刻 setEditingTextId），先写一句再拖。
+    const firstEditor = win.locator('.workbench-preview-player textarea').first()
+    await expect(firstEditor, '#34 加字幕后没进编辑').toBeVisible({ timeout: stationTimeout() })
+    await firstEditor.fill('第一句字幕')
+    await firstEditor.press('Enter')
+    // 刚加的字幕是选中态（带四角框，内层 title=拖动移动 · 四角缩放 · 双击改字）；没选中时是 __text-box。
+    const target = win.locator('.workbench-preview-player [title="拖动移动 · 四角缩放 · 双击改字"], .workbench-preview-player__text-box').first()
+    await expect(target, '#34 加字幕后画面上没有文字层').toBeVisible({ timeout: stationTimeout() })
+    const box0 = await target.boundingBox()
+    if (!box0) throw new Error('#34 文字层没有几何')
+    await win.mouse.move(box0.x + box0.width / 2, box0.y + box0.height / 2)
+    await win.mouse.down()
+    await win.mouse.move(box0.x + box0.width / 2 + 60, box0.y + box0.height / 2 - 40, { steps: 8 })
+    await win.mouse.up()
+    const box1 = await target.boundingBox()
+    expect(Math.abs((box1?.x ?? 0) - box0.x) + Math.abs((box1?.y ?? 0) - box0.y), '#34 文字层拖不动').toBeGreaterThan(20)
+    // 选中态（四角框）里双击才改字：先确保是选中态那一格，再双击它的文字。
+    const selectedText = win.locator('.workbench-preview-player [title="拖动移动 · 四角缩放 · 双击改字"]').first()
+    if (!(await selectedText.isVisible().catch(() => false))) await target.click()
+    await expect(selectedText, '#34 点文字层没进选中态').toBeVisible({ timeout: stationTimeout() })
+    await selectedText.dblclick()
+    const textEditor = win.locator('.workbench-preview-player textarea').first()
+    await expect(textEditor, '#34 双击文字层没进编辑').toBeVisible({ timeout: stationTimeout() })
+    await textEditor.fill('走查字幕')
+    await textEditor.press('Enter')
+    await expect(win.locator('.workbench-preview-player').getByText('走查字幕').first(), '#34 改字没生效').toBeVisible({ timeout: stationTimeout() })
+    await shoot(win, 'check-parity2-preview-text')
+    parity2.textLayer = { moved: { dx: Math.round((box1?.x ?? 0) - box0.x), dy: Math.round((box1?.y ?? 0) - box0.y) }, edited: '走查字幕' }
   }
 
   console.log(JSON.stringify({ tail, measures, shots: shotsTaken }))
