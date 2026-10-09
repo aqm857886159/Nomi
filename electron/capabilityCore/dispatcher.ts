@@ -512,13 +512,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         return ctx.productionRuns.readProjection(projectId, runId)
       }
       try {
-        await ctx.productionRuns.command(projectId, runId, {
-          commandId: `mcp-control-${action}-${full.revision}`,
-          expectedRevision: full.revision,
-          type: 'run.control',
-          payload: { action },
-          issuedAt: new Date().toISOString(),
-        })
+        await ctx.productionRuns.command(projectId, runId, { commandId: `mcp-control-${action}-${full.revision}`, expectedRevision: full.revision, type: 'run.control', payload: { action }, issuedAt: new Date().toISOString() })
       } catch (error) {
         // 「继续」了也一镜都不会派（唯一判定 resumeOutlook，写口拒绝）：不是出错，回结构化原因，Agent 照它说真话（#1139 V-1139c）。
         if (!(error instanceof NothingToResumeError)) throw error

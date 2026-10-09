@@ -418,7 +418,7 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
         actionInFlightRef.current = false
       }
     },
-    [executeCommand, production.run, reportFailure, t, view?.targetId],
+    [executeCommand, identity, production.run, reportFailure, t, view?.targetId],
   )
 
   // A4 情境控制：暂停直接执行；取消是破坏性动作先 confirmDialog（§3.5）。两者与 MCP 同走 run.control。
