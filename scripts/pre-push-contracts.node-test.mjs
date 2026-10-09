@@ -309,3 +309,35 @@ test('手动跑可以用 NOMI_PR_BODY_FILE 给正文；文件读不了 = 明确�
   assert.equal(missing.status, 1, missing.stderr)
   assert.match(missing.stderr, /NOMI_PR_BODY_FILE/)
 })
+
+// ── 10-09 补进推送前的「几秒能跑完、却在 CI 才红」的门岗：必红 + 路径选择 ───────────────────
+
+test('必红：走查新增 mkdtempSync(os.tmpdir()…) → 推送前就红，点名 test:temp-helper（CI 上 3 个 PR 撞过）', () => {
+  commitChange(() => {
+    fs.mkdirSync(path.join(work, 'tests/ux'), { recursive: true })
+    fs.writeFileSync(path.join(work, 'tests/ux/prepush-probe.walk.mjs'), "import fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nexport const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-'))\n")
+  })
+  const result = prePush({ body: CARD })
+  assert.equal(result.status, 1, result.stderr)
+  assert.match(result.stderr, /✖ test:temp-helper/)
+})
+
+test('必红：src 新增未登记的 type union（生命周期词）→ 推送前红，点名 check:vocabularies', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'src/prepushProbeVocabulary.ts'), "export type PrepushProbeState = 'queued' | 'running' | 'success'\n"))
+  const result = prePush({ body: CARD })
+  assert.equal(result.status, 1, result.stderr)
+  assert.match(result.stderr, /✖ check:vocabularies/)
+})
+
+test('按改动路径选门岗：只改 docs 不跑新增的；改 tests/ 跑临时目录与抄文案；改 src tsx 跑 tokens / vocabularies / controls；改 electron 跑退出守卫', () => {
+  const docs = selectGates(['docs/a.md'])
+  for (const name of ['check:tokens', 'check:vocabularies', 'check:controls', 'test:temp-helper', 'check:test-copy-literals', 'test:quit-lifecycle-guard']) assert.ok(!docs.includes(name), `docs 改动不该跑 ${name}`)
+  const tests = selectGates(['tests/ux/x.walk.mjs'])
+  assert.ok(tests.includes('test:temp-helper') && tests.includes('check:test-copy-literals'))
+  assert.ok(!tests.includes('check:tokens'))
+  const tsx = selectGates(['src/ui/A.tsx'])
+  for (const name of ['check:tokens', 'check:vocabularies', 'check:controls', 'check:test-copy-literals']) assert.ok(tsx.includes(name), name)
+  assert.ok(selectGates(['electron/main.ts']).includes('test:quit-lifecycle-guard'))
+  assert.ok(selectGates(['scripts/control-contract-copy.mjs']).includes('test:control-contract'))
+  assert.ok(selectGates(null).includes('test:control-contract'), '算不出改动 = 全跑')
+})

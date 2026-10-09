@@ -49,6 +49,24 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:test-waits', when: (files) => files.some((file) => CODE_FILE.test(file)) },
   { name: 'check:mjs-parse', when: (files) => files.some((file) => SCRIPT_FILE.test(file)) },
   { name: 'check:ipc-sender-binding', when: (files) => files.some((file) => file.startsWith('electron/')) },
+  // 2026-10-09 加：10-09 上午 #1133 / #1135 / #1128 / #1137 推送前全绿、CI Contracts 各红好几处，全是下面这几道（本机 Windows 实测 7–13 秒）
+  { name: 'check:tokens', when: (files) => files.some((file) => /^(?:src|electron)\/.*\.tsx?$|^tailwind\.config\.ts$|^scripts\/check-design-tokens/.test(file)) },
+  { name: 'check:vocabularies', when: (files) => files.some((file) => /^(?:src|electron)\/.*\.tsx?$|^scripts\/check-vocabularies/.test(file)) },
+  { name: 'check:controls', when: (files) => files.some((file) => /^src\/.*\.tsx$|^scripts\/(?:check-)?control-contract/.test(file)) },
+])
+
+const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
+
+/**
+ * 不是 package.json 的 check 脚本、但「整库扫描型 / 规则红绿证明型」的单测与扫描：按改动路径挑出来跑（同样只跑几秒到十几秒的）。
+ * argv 是 node 的参数；rerun 是失败时给人看的重跑命令。超过 15 秒的（如 vocabularies 的 38 秒单测套件）不在这里，
+ * 它只在改到它自己的文件时由 gateCommands 带上（见 gateCommands）。
+ */
+export const SCAN_TESTS = Object.freeze([
+  { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => files.some((file) => /^(?:scripts|tests)\//.test(file)) },
+  { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => files.some((file) => /^(?:src|electron|scripts|tests|evals|packages)\//.test(file)) },
+  { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => files.some((file) => /^scripts\/(?:check-)?control-contract/.test(file)) },
+  { name: 'test:quit-lifecycle-guard', argv: [VITEST_ENTRY, 'run', 'electron/quitLifecycleGuard.test.ts'], rerun: 'node node_modules/vitest/vitest.mjs run electron/quitLifecycleGuard.test.ts', when: (files) => files.some((file) => /^electron\/|^eslint\.config\./.test(file)) },
 ])
 
 /** 正文类（需要 PR 正文）：prior-art 与 pr-judgement，正文取不到时只说「今天没查成」（CI 侧仍然 fail-closed）。 */
@@ -117,11 +135,12 @@ export function pushDecision(refs, headSha, inMain = () => false) {
 
 /** 选出本次要跑的门岗名（含 lint:changed）。files = 改动路径；null = 算不出改动 → 全跑。 */
 export function selectGates(files) {
-  if (files === null) return [...PRE_PUSH_GATES.map((gate) => gate.name), LINT_GATE.name]
+  if (files === null) return [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name]
   // 纯文档改动：只跑「总跑」的登记类门岗（它们也管 docs 里的登记表），代码类不跑
   const policy = classifyValidationPolicy(files.map((file) => ({ path: file, status: 'M' })))
   const docsOnly = !policy.failClosed && policy.reason === 'docs_only'
   const picked = PRE_PUSH_GATES.filter((gate) => gate.when === null || (!docsOnly && gate.when(files))).map((gate) => gate.name)
+  if (!docsOnly) picked.push(...SCAN_TESTS.filter((scan) => scan.when(files)).map((scan) => scan.name))
   if (!docsOnly && LINT_GATE.when(files)) picked.push(LINT_GATE.name)
   return picked
 }
@@ -169,7 +188,11 @@ async function pool(tasks, limit) {
 const tail = (text, lines) => String(text).trimEnd().split('\n').slice(-lines).join('\n')
 
 /** 单道门岗的重跑命令（不走钩子入口：钩子不接受缩小门岗集合的参数）。 */
-export const rerunCommand = (name) => (name === LINT_GATE.name ? `node ${LINT_GATE.script}` : `pnpm run ${name}`)
+export const rerunCommand = (name) => {
+  if (name === LINT_GATE.name) return `node ${LINT_GATE.script}`
+  const scan = SCAN_TESTS.find((item) => item.name === name)
+  return scan ? scan.rerun : `pnpm run ${name}`
+}
 
 export function formatSummary(results) {
   const failed = results.filter((result) => result.status !== 0)
@@ -186,7 +209,7 @@ export function formatSummary(results) {
 
 export async function main(argv = process.argv.slice(2), { stdinText = null } = {}) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
-  const known = [...PRE_PUSH_GATES.map((gate) => gate.name), LINT_GATE.name, ...BODY_GATES]
+  const known = [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, ...BODY_GATES]
   // 入口只认 --list；任何别的参数（含空值）一律报错——推送钩子不能有让门岗集合变小的开关（P1）
   // 钩子形态 = 恰好两个位置参数 <remote名> <url>（git githooks 文档的 pre-push 约定），它们不影响门岗集合
   const hooked = argv.length === 2 && argv.every((arg) => arg !== '' && !arg.startsWith('-'))
@@ -236,6 +259,9 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
       }
       return { name: gate.name, status: last.status, output: last.output, ms: Date.now() - started }
     })
+  }
+  for (const scan of SCAN_TESTS) {
+    if (selected.has(scan.name)) tasks.push(async () => ({ name: scan.name, ...(await runNode(scan.argv)) }))
   }
   if (selected.has(LINT_GATE.name)) {
     tasks.push(async () => ({ name: LINT_GATE.name, ...(await runNode([path.join(repoRoot, LINT_GATE.script)])) }))
