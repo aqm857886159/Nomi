@@ -52,16 +52,43 @@ export function useStoryboardShotLabel(node: { meta?: Record<string, unknown> | 
   return React.useMemo(() => (node ? resolveStoryboardShotLabel(node, storyboardLabelSource(designs)) : null), [designs, node])
 }
 
-/** 时间轴片段的名字：来自分镜镜头的片段叫分镜号（+ 用户改过的标题）；其余照旧用片段自己的名字。 */
+/** 画布全局镜号写进文字的那几句默认话（「镜头 7」「Shot 7」「镜头 7 首帧」…），两种语言都认。 */
+function defaultShotTextPatterns(): RegExp[] {
+  const marker = 'INDEX_PLACEHOLDER'
+  const escapeText = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return ['zh-CN', 'en'].flatMap((lng) => [
+    i18n.t('generationCommon.agentRuntime.shotTitle', { index: marker, lng }),
+    i18n.t('generationCommon.agentRuntime.shotKeyframeTitle', { index: marker, lng }),
+    i18n.t('generationCommon.shotConversion.shot', { index: marker, lng }),
+  ].map((template) => new RegExp('^' + escapeText(template).split(marker).join('\\d+') + '$')))
+}
+
+/** 持久化在时间轴片段 / 节点里的老文字是不是「镜头 N」这种全局号——是就不能给人看。 */
+export function isPersistedGlobalShotText(value: string | undefined): boolean {
+  const text = (value || '').trim()
+  return Boolean(text) && defaultShotTextPatterns().some((pattern) => pattern.test(text))
+}
+
+/**
+ * 时间轴片段的名字：每次都按 resolver 重新算，不拿持久化的旧文字当真。
+ *   - 来自分镜镜头：分镜号（+ 用户改过的标题）；
+ *   - 来自别的节点（没挂分镜 / 元数据对不上）：只显示节点名，**没有镜号**；
+ *   - 节点没了：片段自己的名字，但「镜头 N」这种老全局号不显示；
+ *   - 不是节点生成的片段（导入的素材 / 文字片段）：照旧用片段自己的名字。
+ */
 export function timelineClipDisplayName(
   clip: { label?: string; text?: string; sourceNodeId?: string },
   node: { title?: string; meta?: Record<string, unknown> | null } | undefined,
   source: StoryboardLabelSource,
   t: Translate,
 ): string {
-  const fallback = clip.label || clip.text || clip.sourceNodeId || ''
+  const own = clip.label || clip.text || ''
   const label = node ? resolveStoryboardShotLabel(node, source) : null
-  if (!label || !node) return fallback
-  const name = formatStoryboardShotLabel(t, label)
-  return isAutoStoryboardShotTitle(node.title, label.number) ? name : `${name} · ${(node.title || '').trim()}`
+  if (label && node) {
+    const name = formatStoryboardShotLabel(t, label)
+    return isAutoStoryboardShotTitle(node.title, label.number) ? name : `${name} · ${(node.title || '').trim()}`
+  }
+  if (node) return isPersistedGlobalShotText(node.title) ? '' : (node.title || '').trim()
+  if (clip.sourceNodeId) return isPersistedGlobalShotText(own) ? '' : own
+  return own || clip.sourceNodeId || ''
 }

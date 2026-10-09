@@ -183,6 +183,9 @@ export type MediaDimensions = { width: number; height: number };
 /** Decoded dimensions are derived state, not a user edit or a full-project save. */
 export const MEDIA_DIMENSION_UPDATE_OPTIONS = { persist: false, emit: false, history: false } as const;
 
+/** 解码 / 版式测量写进节点 meta 的那几个运行时字段（computeMediaMetaPatch / card-info）；不是用户内容，读侧可以据此忽略。 */
+export const MEDIA_MEASUREMENT_META_KEYS: ReadonlySet<string> = new Set(['imageWidth', 'imageHeight', 'imageAspectRatio', 'videoWidth', 'videoHeight', 'videoAspectRatio', 'videoDuration', 'cardInfoHeight'])
+
 /** Only measure here; resolveNodeVisualSize owns geometry, including restored legacy sizes. */
 export function computeMediaMetaPatch(params: {
   resultType: string | undefined;

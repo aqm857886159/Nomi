@@ -1,6 +1,9 @@
 // 生成页列表的数据入口：读画布 + 分镜方案 → 列表投影；切行；在画布里定位一个节点。
 // 只读、不写（写只在大详情的生成框里，经画布 store）。
 import React from 'react'
+import { useStoreWithEqualityFn } from 'zustand/traditional'
+import { MEDIA_MEASUREMENT_META_KEYS } from '../../generationCanvas/nodes/nodeSizing'
+import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { useModelOptionsState } from '../../../config/useModelOptions'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
@@ -37,9 +40,37 @@ export function buildListRows(model: GenerationListModel, columns: number, colla
   return rows
 }
 
-/** 读画布 + 分镜方案 → 列表投影。只在引用变化时重算。 */
+const sameShallow = (left: Record<string, unknown>, right: Record<string, unknown>, ignore?: ReadonlySet<string>): boolean => {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)])
+  for (const key of keys) {
+    if (ignore?.has(key)) continue
+    if (!Object.is(left[key], right[key])) return false
+  }
+  return true
+}
+
+/**
+ * 列表关心的节点输入有没有变：画布上图片一张张解码完会往节点 meta 里写尺寸（运行时测量，不是内容），
+ * 一个 200 节点的项目开着就是 200 次写入——每次都重排整张列表 + 重绘所有卡，第一次切到列表就卡 4~6 秒。
+ * 位置 / 尺寸 / 测量字段不影响列表，忽略；其余任何字段变了都重算。
+ */
+export function sameListNodes(previous: readonly GenerationCanvasNode[], next: readonly GenerationCanvasNode[]): boolean {
+  if (previous === next) return true
+  if (previous.length !== next.length) return false
+  const skipNodeKeys = new Set(['position', 'size', 'meta'])
+  for (let index = 0; index < previous.length; index += 1) {
+    const left = previous[index]!
+    const right = next[index]!
+    if (left === right) continue
+    if (!sameShallow(left as unknown as Record<string, unknown>, right as unknown as Record<string, unknown>, skipNodeKeys)) return false
+    if (!sameShallow((left.meta ?? {}) as Record<string, unknown>, (right.meta ?? {}) as Record<string, unknown>, MEDIA_MEASUREMENT_META_KEYS)) return false
+  }
+  return true
+}
+
+/** 读画布 + 分镜方案 → 列表投影。只在列表真正关心的输入变化时重算。 */
 export function useGenerationListModel(): GenerationListModel {
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
+  const nodes = useStoreWithEqualityFn(useGenerationCanvasStore, (state) => state.nodes, sameListNodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
   const groups = useGenerationCanvasStore((state) => state.groups)
   const designsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)

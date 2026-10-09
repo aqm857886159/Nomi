@@ -59,7 +59,7 @@ export function LightweightGenerationNode({
       }}
     >
       <NodeLabelRow>
-        <NodeShotLabel node={node} {...shotIdentity}>
+        <NodeShotLabel node={node} shotRole={shotIdentity.shotRole}>
           <span className="min-w-0 flex-1 truncate font-normal text-nomi-ink-60">{node.title || t('generationCommon.lightweightNode.untitled')}</span>
         </NodeShotLabel>
       </NodeLabelRow>

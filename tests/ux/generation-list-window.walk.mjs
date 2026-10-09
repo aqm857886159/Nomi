@@ -2,10 +2,10 @@
 // 产出：整窗截图——列表、大详情（已生成 / 生成中 / 失败 / 还没生成）、切回画布（「镜 03」角标 + 「去列表」）。
 // 用法：pnpm run build && node tests/ux/generation-list-window.walk.mjs [输出目录]
 //   WALK_LOCALE=en 英文；WALK_SCHEME=dark 暗色（四轨：中光 / 中暗 / 英光 / 英暗）。
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,7 +16,7 @@ const locale = process.env.WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const scheme = process.env.WALK_SCHEME === 'dark' ? 'dark' : 'light'
 const suffix = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : '-light'}`
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-generation-list-'))
+const root = makeTempDir('nomi-generation-list-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
@@ -140,6 +140,16 @@ try {
   await expect(win.locator('[data-list-card="shot-1"]'), '列表里没有镜 01').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-section-generate]').first(), '分区头没有「生成全部」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await shot('list')
+
+  // ①b 分区头「生成全部」→ 同一张付费确认、按项勾选（没生成的勾上、已生成的不勾）；取消 = 什么都不发生。
+  await clickOrFail(win.locator('[data-section-generate]').first(), 'generate all')
+  const checklist = win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')
+  await expect(checklist.first(), 'the confirm card has no checklist').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  expect(await checklist.count(), 'one checkbox per shot of the section').toBe(6)
+  expect(await win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count(), 'idle + failed shots ticked by default').toBe(2)
+  await shot('confirm')
+  await win.keyboard.press('Escape')
+  await expect(checklist.first(), 'the card did not close').toBeHidden({ timeout: DEFAULT_TIMEOUT_MS })
 
   // ② 点镜 01 → 大详情（已生成）：左窄列 + 大预览 + 生成框 + 「重新生成」。
   await clickOrFail(win.locator('[data-list-card="shot-1"]'), '点镜 01')

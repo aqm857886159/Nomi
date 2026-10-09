@@ -89,8 +89,8 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
       node.status !== "idle" && node.status !== "success" ? node.status : null,
     ].filter(Boolean);
     const role = node.shotRole === "first_frame" ? "首帧图" : node.shotRole === "video" ? "视频" : "";
-    // 分镜镜头只说分镜号（node.shotLabel，已含「首帧图」）；其余镜头照旧用画布全局号。
-    const shotLabel = node.shotLabel ?? [typeof node.shotIndex === "number" ? `镜${node.shotIndex}` : "", role].filter(Boolean).join(" · ");
+    // 分镜镜头只说分镜号（node.shotLabel，已含「首帧图」）；其余节点没有镜号，只有角色（首帧图 / 视频）。
+    const shotLabel = node.shotLabel ?? role;
     const owners = boundedJoin(node.shotOwnerNodeIds ?? [], 260, ", ", (id) => compactHead(id, 120)).text;
     const promptHead = compactHead(node.prompt, 60);
     const resultIds = boundedJoin(node.resultIds ?? [], 260, ", ", (id) => compactHead(id, 120)).text;

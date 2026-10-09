@@ -46,10 +46,9 @@ const canvasReadNodeSchema = z
     status: generationNodeStatusSchema,
     position: canvasReadPositionSchema,
     locked: z.boolean(),
-    shotIndex: z.number().int().positive().safe().optional(),
     /**
      * 分镜镜头的名字（「镜 03」/「<分镜名> · 镜 03」，owner = canvas/storyboardShotLabel）。
-     * 有它的节点**不带 shotIndex**：全局镜号只是内部排序键，分镜镜头对人、对模型只有这一个号。
+     * 全局镜号（画布 shotIndex）只是内部排序键，读面一律不输出：没挂在分镜上的节点没有镜号，只有节点名。
      */
     shotLabel: z.string().min(1).optional(),
     shotRole: z.enum(["first_frame", "video", "image"]).optional(),
@@ -433,9 +432,9 @@ export function projectCanvasRead(source: unknown): CanvasReadResult {
     nodes: nodes.map((node) => {
       const identity = identities.get(node.id);
       const label = resolveStoryboardShotLabel({ meta: metaById.get(node.id) }, labelSource);
-      if (!label) return { ...node, ...identity };
+      // 内部排序键 shotIndex 不出读面：分镜镜头只有分镜号（shotLabel），其余节点没有镜号。
       const { shotIndex: _internalOrder, ...rest } = identity ?? {};
-      return { ...node, ...rest, shotLabel: formatStoryboardShotLabelForAgent(label) };
+      return label ? { ...node, ...rest, shotLabel: formatStoryboardShotLabelForAgent(label) } : { ...node, ...rest };
     }),
     edges,
     groups: projectGroups(canvas?.groups, survivingNodeIds),

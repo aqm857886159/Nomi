@@ -73,3 +73,54 @@ describe('one storyboard shot, one label everywhere (two storyboards in the proj
     expect((read.nodes[0] as { shotLabel?: string }).shotLabel).toBe('镜 03')
   })
 })
+
+// 用户定的是「只留分镜号」：没挂在分镜上的节点**不显示镜号**（只显示节点名），不是退回显示全局号。
+// 三种负例 × 四个面：没有分镜元数据、元数据错配（分镜 / 镜头都不存在）、时间轴里持久化的旧「镜头 N」文字。
+describe('no global shot number on any surface when the node is not on a storyboard', () => {
+  const t = (key: string, options?: Record<string, unknown>) => (key === 'generationList.shotScoped' ? `${options?.storyboard} · 镜 ${options?.index}` : `镜 ${options?.index}`)
+  const source = storyboardLabelSourceFromDesigns(designs)
+  const base = { id: 'plain', kind: 'image', title: '雨棚草图', prompt: 'p', position: { x: 0, y: 0 }, status: 'success', categoryId: 'shots', shotIndex: 7, result: { id: 'r', type: 'image', url: 'https://example.test/a.png', createdAt: 1 } }
+  const cases: Array<[string, GenerationCanvasNode]> = [
+    ['no storyboard metadata', { ...base } as GenerationCanvasNode],
+    ['mismatched metadata (unknown storyboard)', { ...base, meta: { storyboardDesignId: 'gone', shotId: 'rain-s3' } } as GenerationCanvasNode],
+    ['mismatched metadata (unknown shot)', { ...base, meta: { storyboardDesignId: 'rain', shotId: 'nope' } } as GenerationCanvasNode],
+  ]
+  const globalNumber = /镜头\s?7|镜\s?0?7\b|Shot\s?7\b/
+
+  it.each(cases)('canvas: %s → title row has no number', (_name, node) => {
+    const server = useWorkbenchStore.getInitialState() as unknown as Record<string, unknown>
+    const saved = server.storyboardDesignsByDocumentId
+    server.storyboardDesignsByDocumentId = designs
+    const html = renderToStaticMarkup(React.createElement(NodeShotLabel, { node, shotRole: 'image' }))
+    server.storyboardDesignsByDocumentId = saved
+    expect(html).not.toMatch(globalNumber)
+    expect(html).not.toContain('data-shot-number')
+  })
+
+  it.each(cases)('list: %s → the card is named by the node, not a number', (_name, node) => {
+    const model = deriveGenerationList({ nodes: [node], edges: [], groups: [], designsByDocumentId: designs, imageModelOptions: [], videoModelOptions: [] })
+    const card = model.sections.flatMap((section) => section.cards).find((candidate) => candidate.nodeId === node.id)!
+    expect(card.storyboardShotNumber).toBeNull()
+    expect(shotLabel(t, card)).toBe('雨棚草图')
+  })
+
+  it.each(cases)('Agent: %s → canvas.read carries no shotIndex and the compact text has no number', (_name, node) => {
+    const read = projectCanvasRead({ nodes: [node], edges: [], selectedNodeIds: [], groups: [], storyboards: source })
+    expect((read.nodes[0] as { shotIndex?: number }).shotIndex).toBeUndefined()
+    expect((read.nodes[0] as { shotLabel?: string }).shotLabel).toBeUndefined()
+    expect(formatCanvasForAgent(read)).not.toMatch(globalNumber)
+  })
+
+  it.each(cases)('timeline: %s with a persisted old 「镜头 7」 label → only the node name', (_name, node) => {
+    expect(timelineClipDisplayName({ label: '镜头 7', sourceNodeId: node.id }, node, source, t)).toBe('雨棚草图')
+    const untitled = { ...node, title: '' } as GenerationCanvasNode
+    expect(timelineClipDisplayName({ label: '镜头 7', sourceNodeId: node.id }, untitled, source, t)).toBe('')
+  })
+
+  it('timeline: the node is gone → the old 「镜头 7」 / 「Shot 7」 text is not shown, an ordinary name is', () => {
+    expect(timelineClipDisplayName({ label: '镜头 7', sourceNodeId: 'deleted' }, undefined, source, t)).toBe('')
+    expect(timelineClipDisplayName({ label: 'Shot 7', sourceNodeId: 'deleted' }, undefined, source, t)).toBe('')
+    expect(timelineClipDisplayName({ label: '雨棚草图', sourceNodeId: 'deleted' }, undefined, source, t)).toBe('雨棚草图')
+    expect(timelineClipDisplayName({ label: '导入的配乐' }, undefined, source, t)).toBe('导入的配乐')
+  })
+})

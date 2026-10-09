@@ -167,7 +167,7 @@ export default function GenerationWorkspace({
           'relative',
         )}
       >
-        <div className={cn('absolute inset-0', listOpen && 'invisible')} inert={listOpen} data-generation-canvas-surface>
+        <div className={cn('absolute inset-0', listOpen && 'invisible [content-visibility:hidden]')} inert={listOpen} data-generation-canvas-surface>
           {canvas}
         </div>
         {listOpen ? (

@@ -13,6 +13,8 @@ import { addGenerationNodeToTimelineEnd } from '../timeline/addNodeToTimelineEnd
 import { useFilmstrip } from '../../media/useFilmstrip'
 import { NomiImage } from '../../design/media'
 import { selectCanvasShotSourcesFromStore, type CanvasShotSource } from './canvasShotSources'
+import { storyboardLabelSource } from '../generation/list/storyboardLabels'
+import { resolveStoryboardShotLabel } from '../../../electron/shared/canvas/storyboardShotLabel'
 
 const AssetLibraryContent = lazyWithChunkBoundary('i18n:sidebar.assetLibrary', () =>
   import('../assets/AssetLibraryPanel').then((module) => ({ default: module.AssetLibraryContent })),
@@ -53,6 +55,12 @@ function ShotCover({ source }: { source: CanvasShotSource }): JSX.Element {
   return <div className="absolute inset-0 bg-nomi-ink-05" aria-hidden="true" />
 }
 
+/** 角标上的号 = 分镜里的镜序（画布全局镜号不显示；没挂在分镜上的镜头没有号）。 */
+function shotNumberOf(source: CanvasShotSource, labelSource: ReturnType<typeof storyboardLabelSource>): number | null {
+  if (!source.storyboard) return null
+  return resolveStoryboardShotLabel({ meta: { storyboardDesignId: source.storyboard.designId, shotId: source.storyboard.shotId } }, labelSource)?.number ?? null
+}
+
 function ShotGrid(): JSX.Element {
   const { t } = useTranslation()
   // 镜头栏按 result/shotIndex 派生已出片镜头；无号镜头（参考卡/首帧图/非分镜产物）按真实
@@ -60,6 +68,7 @@ function ShotGrid(): JSX.Element {
   // 顺序不更新）。selectCanvasShotSourcesFromStore 读真 state.nodes 但按输出稳定 memo：位置无
   // 关的拖动帧产出同一列表引用 → 面板不重渲（保住 S3 画布外零重渲）；真发生重排才发新引用。
   const sources = useGenerationCanvasStore(selectCanvasShotSourcesFromStore)
+  const labelSource = storyboardLabelSource(useWorkbenchStore((state) => state.storyboardDesignsByDocumentId))
 
   if (sources.length === 0) {
     return (
@@ -102,7 +111,7 @@ function ShotGrid(): JSX.Element {
           }}
         >
           <ShotCover source={source} />
-          {source.shotIndex != null ? (
+          {shotNumberOf(source, labelSource) != null ? (
             <span
               className={cn(
                 'absolute left-1 top-1 rounded-nomi-sm px-1 py-px',
@@ -110,7 +119,7 @@ function ShotGrid(): JSX.Element {
                 'text-micro font-medium tabular-nums backdrop-blur-[6px]',
               )}
             >
-              {source.shotIndex}
+              {shotNumberOf(source, labelSource)}
             </span>
           ) : null}
         </button>

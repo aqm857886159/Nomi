@@ -23,22 +23,19 @@ beforeEach(() => {
 })
 
 describe('runGroupGenerate (the one batch generate entrance)', () => {
-  it('hands only the idle / failed nodes to the paid-confirm funnel, once', async () => {
+  it('hands the default selection (idle / failed) and the itemized rows to the paid-confirm funnel, once', async () => {
     const { runGroupGenerate } = await import('./groupGenerate')
     expect(runGroupGenerate(['idle', 'failed', 'done', 'running'])).toBe('started')
     expect(confirmAndRunPlan).toHaveBeenCalledTimes(1)
-    const [plan, options] = confirmAndRunPlan.mock.calls[0] as unknown as [{ waves: Array<Array<{ nodeId?: string } | string>> }, { initiator: string }]
-    const ids = JSON.stringify(plan)
-    expect(ids).toContain('idle')
-    expect(ids).toContain('failed')
-    expect(ids).not.toContain('"done"')
-    expect(ids).not.toContain('"running"')
-    expect(options).toEqual({ initiator: 'user' })
+    const [plan, options] = confirmAndRunPlan.mock.calls[0] as unknown as [{ waves: string[][] }, { initiator: string; itemized: { rows: Array<{ id: string; checked: boolean; disabled?: boolean }> } }]
+    expect(plan.waves.flat().sort()).toEqual(['failed', 'idle'])
+    expect(options.initiator).toBe('user')
+    expect(options.itemized.rows.map((row) => [row.id, row.checked, Boolean(row.disabled)])).toEqual([['idle', true, false], ['failed', true, false], ['done', false, false], ['running', false, true]])
   })
 
-  it('nothing generatable = no dispatch at all (the caller says so)', async () => {
+  it('nothing tickable (everything is generating) = no dispatch at all (the caller says so)', async () => {
     const { runGroupGenerate } = await import('./groupGenerate')
-    expect(runGroupGenerate(['done', 'running'])).toBe('empty')
+    expect(runGroupGenerate(['running'])).toBe('empty')
     expect(runGroupGenerate([])).toBe('empty')
     expect(confirmAndRunPlan).not.toHaveBeenCalled()
   })

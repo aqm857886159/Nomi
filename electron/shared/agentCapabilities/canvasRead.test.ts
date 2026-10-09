@@ -203,7 +203,7 @@ describe("canvas.read canonical contract", () => {
     expect(parsed.error.issues.map((issue) => issue.path)).toContainEqual([...issuePath]);
   });
 
-  it.each(INVALID_SEQUENCE_CASES)("rejects %s sequence numbers in the result schema", (_name, value) => {
+  it.each(INVALID_SEQUENCE_CASES)("rejects %s sequence numbers in the result schema; the global shotIndex is not part of the read result at all", (_name, value) => {
     const fixture = canonicalResultFixture();
     const withShotIndex = {
       ...fixture,
@@ -217,10 +217,8 @@ describe("canvas.read canonical contract", () => {
     const shotIndexResult = canvasReadResultSchema.safeParse(withShotIndex);
     const orderResult = canvasReadResultSchema.safeParse(withOrder);
 
+    // 全局镜号（内部排序键）不属于读面：结果里带着它就是不合法（schema 里没有这一格）。
     expect(shotIndexResult.success).toBe(false);
-    if (!shotIndexResult.success) {
-      expect(shotIndexResult.error.issues.map((issue) => issue.path)).toContainEqual(["nodes", 0, "shotIndex"]);
-    }
     expect(orderResult.success).toBe(false);
     if (!orderResult.success) {
       expect(orderResult.error.issues.map((issue) => issue.path)).toContainEqual(["edges", 0, "order"]);
@@ -313,7 +311,6 @@ describe("projectCanvasRead", () => {
           status: "success",
           position: { x: 12, y: 34 },
           locked: true,
-          shotIndex: 2,
           shotRole: "image",
           hasResult: true,
           currentResultId: "result-current",
@@ -344,7 +341,6 @@ describe("projectCanvasRead", () => {
       "position",
       "prompt",
       "resultIds",
-      "shotIndex",
       "shotRole",
       "status",
       "title",

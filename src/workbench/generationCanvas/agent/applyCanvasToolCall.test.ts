@@ -269,8 +269,10 @@ describe('applyCanvasToolCall 图片+视频分镜镜号', () => {
     expect(kf2?.shotIndex).toBeUndefined()
     const { projectCanvasRead } = await import('../../../../electron/shared/agentCapabilities/canvasRead')
     const read = projectCanvasRead(useGenerationCanvasStore.getState())
-    expect(read.nodes.find(n => n.id === kf1?.id)).toMatchObject({ shotIndex: 1, shotRole: 'first_frame', shotOwnerNodeIds: [video1!.id] })
-    expect(read.nodes.find(n => n.id === kf2?.id)).toMatchObject({ shotIndex: 2, shotRole: 'first_frame', shotOwnerNodeIds: [video2!.id] })
+    expect(read.nodes.find(n => n.id === kf1?.id)).toMatchObject({ shotRole: 'first_frame', shotOwnerNodeIds: [video1!.id] })
+    expect(read.nodes.find(n => n.id === kf2?.id)).toMatchObject({ shotRole: 'first_frame', shotOwnerNodeIds: [video2!.id] })
+    // 读面不输出全局镜号（内部排序键）
+    expect(read.nodes.some((node) => 'shotIndex' in node)).toBe(false)
     expect((kf1?.meta as Record<string, unknown>)?.storyboardKeyframe).toBe(true)
   })
 })

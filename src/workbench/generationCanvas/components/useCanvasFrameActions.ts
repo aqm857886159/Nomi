@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { reportCanvasFeedback } from './canvasFeedback'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { frameHasTimelineUnits, sendFrameToTimeline } from '../agent/sendFrameToTimeline'
-import { eligibleGroupGenerateIds, runGroupGenerate } from './groupGenerate'
+import { hasGroupGenerateCandidates, runGroupGenerate } from './groupGenerate'
 import type { FrameContextMenuAction } from './FrameContextMenu'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
@@ -31,7 +31,7 @@ const MENU_EDGE_GAP = 8
 
 function frameEligibleIds(groupId: string): string[] {
   const group = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === groupId)
-  return eligibleGroupGenerateIds(group?.nodeIds ?? [])
+  return hasGroupGenerateCandidates(group?.nodeIds ?? []) ? group!.nodeIds : []
 }
 
 export function useCanvasFrameActions({

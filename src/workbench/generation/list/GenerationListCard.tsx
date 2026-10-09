@@ -21,7 +21,7 @@ import {
 } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
-import PromptEditor from '../../assets/PromptEditor'
+import { parsePromptSegments, promptReferenceForUrl } from '../../assets/promptMentions'
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
 import { currentReferenceMedia } from '../../generationCanvas/nodes/mentionCandidates'
 import { getGenerationNodeExecutionKind, getGenerationNodeLabel } from '../../generationCanvas/model/generationNodeKinds'
@@ -32,8 +32,6 @@ import { formatSeconds, readAspect, readDurationSeconds } from './generationList
 import { CARD_MEDIA_HEIGHT } from './generationListSource'
 import { shotLabel, type GenerationListCard } from './generationListModel'
 
-/** 卡上提示词是只读的，编辑器要求一个 onChange。 */
-const ignoreChange = (): void => undefined
 
 /** 卡上的参考小图（取代卡间的链接图标）：最多 3 张，其余 +N。 */
 export function ReferenceThumbs({ nodeIds, size = 20 }: { nodeIds: readonly string[]; size?: number }): JSX.Element | null {
@@ -55,23 +53,31 @@ export function ReferenceThumbs({ nodeIds, size = 20 }: { nodeIds: readonly stri
   )
 }
 
-/** 卡上的提示词：现役 PromptEditor 只读渲染，参考 chip 的样子与大详情、画布同一颗。 */
+/**
+ * 卡上的提示词：静态文字 + 参考 chip（缩略图 + 「图 N」，编号与画布 / 大详情同一张表 currentReferenceMedia）。
+ * 不起编辑器：一屏十几张卡各起一个 tiptap 实例是第一次切到列表慢的主要自有成本之一，卡上只读，用不着。
+ */
 function CardPrompt({ node, lines }: { node: GenerationCanvasNode; lines: 2 | 3 }): JSX.Element | null {
   const { t } = useTranslation()
   const referencesKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceMedia(node, state.nodes, state.edges)))
-  const references = React.useMemo(() => JSON.parse(referencesKey), [referencesKey])
+  const references = React.useMemo(() => JSON.parse(referencesKey) as Array<{ url: string; kind: 'image' | 'video' | 'audio'; index: number }>, [referencesKey])
   const prompt = node.prompt ?? ''
   if (!prompt.trim()) return <p className="m-0 text-caption text-nomi-ink-40">{t('generationList.promptEmpty')}</p>
+  const segments = parsePromptSegments(prompt)
   return (
-    <div className="min-w-0" data-card-prompt>
-      <PromptEditor
-        value={prompt}
-        onChange={ignoreChange}
-        editable={false}
-        mentionReferences={references}
-        className={cn('pointer-events-none [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0', lines === 2 ? '[&_.ProseMirror_p]:line-clamp-2' : '[&_.ProseMirror_p]:line-clamp-3')}
-      />
-    </div>
+    <p className={cn('m-0 min-w-0 text-body-sm leading-relaxed text-nomi-ink-80', lines === 2 ? 'line-clamp-2' : 'line-clamp-3')} data-card-prompt>
+      {segments.map((segment, index) => {
+        if (segment.type === 'text') return <React.Fragment key={index}>{segment.value}</React.Fragment>
+        const reference = promptReferenceForUrl(segment.url, references)
+        const labelKey = reference?.kind === 'video' ? 'assetLibrary.referenceVideoIndexed' : reference?.kind === 'audio' ? 'assetLibrary.referenceAudioIndexed' : 'assetLibrary.referenceImageIndexed'
+        return (
+          <span key={index} className="mx-0.5 inline-flex h-[18px] items-center gap-1 rounded-nomi-sm bg-nomi-ink-05 px-1 align-[-4px] text-micro text-nomi-ink-80" data-card-prompt-chip>
+            {reference?.kind === 'image' || !reference ? <img src={segment.url} alt="" className="size-3.5 rounded-[3px] object-cover" /> : null}
+            {reference ? t(labelKey, { index: reference.index }) : t('assetLibrary.referenceImage')}
+          </span>
+        )
+      })}
+    </p>
   )
 }
 

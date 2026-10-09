@@ -210,7 +210,7 @@ export function spendConfirmationRequirement(input: {
  */
 export async function confirmGenerationSpend(
   nodes: Array<{ meta?: Record<string, unknown> | null } | undefined>,
-  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; initiator: SpendInitiator },
+  opts: { title: string; message: string; confirmLabel?: string; hostingDisclosure?: HostingDisclosure; initiator: SpendInitiator; planRows?: readonly PlanRow[]; onPlanToggle?: (row: PlanRow, checked: boolean) => void },
 ): Promise<boolean> {
   if (!generationSpendsCredits(nodes)) return true
   const required = spendConfirmationRequirement({
@@ -224,6 +224,7 @@ export async function confirmGenerationSpend(
     message: opts.message,
     ...(opts.confirmLabel ? { confirmLabel: opts.confirmLabel } : {}),
     ...(opts.hostingDisclosure ? { hostingDisclosure: opts.hostingDisclosure } : {}),
+    ...(opts.planRows?.length ? { planRows: opts.planRows, ...(opts.onPlanToggle ? { onPlanToggle: opts.onPlanToggle } : {}) } : {}),
   })
 }
 

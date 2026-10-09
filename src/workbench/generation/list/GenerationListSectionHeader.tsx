@@ -8,7 +8,7 @@ import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { WorkbenchMenu, type WorkbenchMenuAnchorRect, type WorkbenchMenuNode } from '../../../design/menu'
 import { cn } from '../../../utils/cn'
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
-import { eligibleGroupGenerateIds, runGroupGenerate } from '../../generationCanvas/components/groupGenerate'
+import { hasGroupGenerateCandidates, runGroupGenerate } from '../../generationCanvas/components/groupGenerate'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { GenerationListAnchor, GenerationListSection } from './generationListModel'
@@ -54,7 +54,7 @@ export function GenerationListSectionHeader({
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   // 可用态与点击后真正派发的集合同一份推导（groupGenerate.eligibleGroupGenerateIds）。
   // 订阅画布 store 的任何变化（选择器读的是 store 现状），节点状态一变这颗钮的可用态跟着变。
-  const canGenerate = useGenerationCanvasStore(() => section.kind !== 'ungrouped' && eligibleGroupGenerateIds(sectionGenerateNodeIds(section)).length > 0)
+  const canGenerate = useGenerationCanvasStore(() => section.kind !== 'ungrouped' && hasGroupGenerateCandidates(sectionGenerateNodeIds(section)))
   const count = section.cards.length
   const done = section.cards.filter((card) => card.status === 'done' || card.status === 'locked').length
   const title = section.kind === 'storyboard'

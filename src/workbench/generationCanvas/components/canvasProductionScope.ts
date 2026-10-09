@@ -37,6 +37,12 @@ export function nodesInCanvasProductionScope(
   })
 }
 
+/** 这个节点此刻在生成 / 排队，或归制作流程占着（再派一次 = 重复扣费）。逐项勾选里这类行锁住、不能勾。 */
+export function isGenerationNodeBusy(node: GenerationCanvasNode | undefined, productionRuns: ProductionRunsById = {}): boolean {
+  if (!node) return false
+  return node.status === 'queued' || node.status === 'running' || isNodeGenerationOwnedByProduction(node, productionRuns)
+}
+
 export function eligibleGenerationNodeIds(
   nodes: readonly GenerationCanvasNode[],
   scope: CanvasGenerationScope = {},
