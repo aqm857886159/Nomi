@@ -11,7 +11,25 @@
 - 样张期（design/shell-space）的开关、`SHELL_SPACE_SPECIMEN` 分支、样张走查都没有带进生产：新外壳是唯一形态。
 
 ### 功能分类
-- [x] 新界面 / 改交互　- [ ] 花钱　- [ ] 长跑 / 可打断　- [x] Agent 行为（只改面板摆在哪）　- [x] 画布　- [ ] 生成效果　- [ ] 数据格式
+- [x] 新界面 / 改交互
+- [ ] 花钱
+- [x] 长跑 / 可打断（只动任务中心按钮的样子与角标，不动任务本身）
+- [x] Agent 行为（只改面板摆在哪，不改 Agent 逻辑）
+- [x] 大数据量 / 画布 / 长列表（画布外壳与时间轴窄条）
+- [ ] 生成效果
+- [ ] 数据格式
+
+## 先查别人
+
+| 问 | 查到什么（出处） | 结论 |
+|---|---|---|
+| 依赖里已有？ | Mantine AppShell static 布局：node_modules/@mantine/core/lib/components/AppShell/AppShell.d.ts:39（mode: fixed 或 static）；Mantine Drawer：node_modules/@mantine/core/lib/components/Drawer/Drawer.d.ts；@mantine/hooks useClickOutside / useWindowEvent | 外壳骨架、抽屉、点外收起、Esc 全部接现成 |
+| 生态里已有（浮窗 / 小球拖动改大小） | react-rnd 10.5.3 https://github.com/bokuweb/react-rnd （node_modules/react-rnd/lib/index.d.ts:30 bounds） | 接入；只自写「窗口缩小后夹回可见区」约 10 行（bounds 只在拖动中生效） |
+| 生态里已有（同一棵 React 树挪位置不重挂） | react-reverse-portal 2.3.0 https://github.com/httptoolkit/react-reverse-portal （node_modules/react-reverse-portal/dist/index.d.ts:58 createHtmlPortalNode） | 接入，解决三形态切换重挂（#1136 评审阻断 1） |
+| 平台自带（窗口按钮 / 拖动 / Snap） | Electron 自定义标题栏 https://www.electronjs.org/docs/latest/tutorial/custom-title-bar （titleBarOverlay / hiddenInset + trafficLightPosition） | 接入；不用 custom-electron-titlebar https://github.com/AlexTorresDev/custom-electron-titlebar （DOM 自绘按钮，丢 Win11 Snap） |
+| 仓库里已有？ | 层级合同 src/design/overlayLayers.ts:7（NOMI_OVERLAY_Z_INDEX）；菜单 WorkbenchMenu、图标白名单 src/vendor/tablerIcons.ts；各库面板原件（ShellRail.tsx 里整体复用） | 复用，不另写 |
+| TikHub 自媒体里怎么说？ | 未查：TikHub 密钥不落盘，本线拿不到；外壳布局是拍板稿定的，不靠用户口碑取舍 | — |
+| 结论 | 用已有；自研只有 clampRect / clampBall 与抽屉拖宽把手（沿用旧探索栏写法），理由见九格 ★3 | — |
 
 ## 九格
 
