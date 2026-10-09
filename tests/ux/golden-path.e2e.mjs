@@ -46,7 +46,7 @@ import path from 'node:path'
 
 import { clickOrFail, expect, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findNodeHitPoint, panCanvasUntilInside, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
@@ -328,7 +328,13 @@ async function stepGenerateShot2Image(win, projectId, nodeIds) {
   // 「生成 1 镜」= 一次只跑 1 份、用户自己点的：不弹付费确认卡，直接开始（2026-09-25 拍板，判据按份数不按入口）。
   // 证据是下面「这一行变成已生成、供应商恰好收到 1 次」——若中间弹了卡而走查不去点，请求永远发不出去。
   // 第 2 镜节点在上一步已选中；点它自己的生成钮（节点那扇既有的付费门）。
-  await clickOrFail(win.locator('[data-bar-segment="generate"]').first(), '生成选中的第 2 镜')
+  // 浮框钉在节点正下方、被挡就挡（2026-09-25 拍板，见 _canvasHit.mjs 的 panCanvasUntilInside）：节点靠近舞台下沿时，
+  // 生成钮会落到底部停靠区（时间轴胶囊）底下，点不到——人会自己把画布拖上来，走查照做。拖的目标是生成钮本身，
+  // 下沿留白 72 让开胶囊（CI #1129 上正是这一颗盖在 ↑ 上）。
+  const generateButton = win.locator('[data-bar-segment="generate"]').first()
+  const panned = await panCanvasUntilInside(win, generateButton)
+  expect(panned.ok, `生成钮拖不进可点区：${JSON.stringify(panned)}`).toBe(true)
+  await clickOrFail(generateButton, '生成选中的第 2 镜')
   await expect.poll(async () => shotNode((await readProject(win, projectId)).payload, SHOT_2_ID)?.result?.url ?? null,
     { message: '第 2 镜的生成结果没有回到它的节点', timeout: stationTimeout({ operations: 4 }) }).toMatch(/^nomi-local:\/\//)
   const resultUrl = shotNode((await readProject(win, projectId)).payload, SHOT_2_ID).result.url
