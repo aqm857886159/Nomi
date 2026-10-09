@@ -3,7 +3,7 @@
  * 在 pnpm install (postinstall) 时把 Git hooks 写入 Git 配置的 hooks 目录。
  * 已存在则覆盖（保持 source-of-truth 在 scripts/）。
  *
- * Git hooks 必须保持边界明确：pre-commit 只运行敏感数据扫描；pre-push 只跑 PR 正文门岗的本地半场（不跑模型）。
+ * Git hooks 必须保持边界明确：pre-commit 只运行敏感数据扫描；pre-push 跑「按改动范围选出的本机 Contracts 门岗」+ PR 正文门岗（不跑模型）。
  * 任一步失败就阻止操作。
  *
  * linked worktree 且启用 extensions.worktreeConfig 时使用该 worktree 的
@@ -21,9 +21,10 @@ const REPO_ROOT = path.resolve(__dirname, '..')
 // 装的 hook（source-of-truth 在 scripts/，随 git 走）。顺序是契约：
 //   · commit-msg = 原有提交信息进度校验 + 方向检查 trailer（fix 碰热点必须带 Direction-Check，见 fix-churn.mjs）。
 //   · pre-commit = 敏感数据扫描，**只有这一件**（2026-09-15 起不再在提交时刻跑模型评审）。
-//   · pre-push = PR 正文门岗的本地半场，不跑模型（2026-10-02 起不再有评审收据校验）。
-//     正文门岗放在这里的理由见 scripts/check-pr-body-gates.mjs：那两条判据此前只在 CI 里跑，
-//     而 CI 一轮 40 分钟——「正文少一行链接」这种十秒能改的事不该花一轮 CI（R17）。
+//   · pre-push = 本机 Contracts 门岗（按改动范围选，filesize / self-written / prior-art / test-waits / boundary-owners /
+//     mjs-parse / ipc-sender-binding / pr-judgement / 改动文件 lint）+ PR 正文门岗，不跑模型（2026-10-02 起不再有评审收据校验）。
+//     放在这里的理由见 scripts/pre-push-contracts.mjs：这些判据此前只在 CI 里跑，而 CI 一轮 40 分钟——
+//     「多一条警告」「正文少一行链接」这种几秒能改的事不该花一轮 CI（R17）。
 const HOOKS = Object.freeze([
   Object.freeze({
     name: 'commit-msg',
@@ -41,7 +42,7 @@ const HOOKS = Object.freeze([
   Object.freeze({
     name: 'pre-push',
     commands: Object.freeze([
-      Object.freeze({ target: 'scripts/check-pr-body-gates.mjs', passArgs: false }),
+      Object.freeze({ target: 'scripts/pre-push-contracts.mjs', passArgs: false }),
     ]),
   }),
 ])
