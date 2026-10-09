@@ -16,6 +16,7 @@
 // 同一个 Run 的落地**逐个排队**：并发的两次 materialize 都会看见「节点还没建」，然后各建一份。
 import { buildMaterializeShotsPayload, landCanvasForRun, landCanvasForRunOrThrow, materializeShotsSignature, runHasBeenOnCanvas, type CanvasLandingDeps } from "./multiShotCanvasLanding";
 import type { ProductionRun } from "./productionRunTypes";
+import { ProductionRunRevisionConflictError } from "./productionRunRepository";
 import type { DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import { openProjectLease, type LandingProjectAccess, type LandingProjectLease } from "./landingProjectAccess";
 
@@ -88,6 +89,11 @@ export function draftCanvasLandingOfRun(run: ProductionRun, projectOpen: boolean
   return { state: "not_placed", reason: projectOpen ? "not_landed" : "project_closed" };
 }
 
+/** 写回撞上了并发写入（仓库的乐观并发检查）。按错误类型认，不读原话。 */
+function isRevisionConflict(error: unknown): boolean {
+  return error instanceof ProductionRunRevisionConflictError;
+}
+
 /** Run 里这一镜是不是记着 detached（单镜计划的地址是候选 id，与落地投影同一条约定）。 */
 function shotIsDetached(run: ProductionRun, shotId: string): boolean {
   const plan = run.generationPlan;
@@ -138,13 +144,26 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       // （S1-5）。所以纠正带上它纠正的那个 revision，号放在绑定串前面，截断也截不掉。
       const reattach = bindings.some((binding) => shotIsDetached(landing, binding.shotId));
       const kind = reattach ? `reattach-${expectedRevision}` : "bind";
-      await deps.command(boundProjectId, boundRunId, {
-        commandId: `canvas-landing:${boundRunId}:${kind}:${bindings.map((binding) => `${binding.shotId}=${binding.nodeId}`).join(",")}`.slice(0, 200),
-        expectedRevision,
-        type: "plan.bind-shot-nodes",
-        payload: { bindings },
-        issuedAt: new Date().toISOString(),
-      });
+      // 落节点要等渲染层（真 I/O），这段时间里 Run 常被别的写入推进（批下一张、派发一张）。绑定是幂等的事实写回：
+      // 撞上 revision 冲突就按最新的 Run 重写一次——不能把并发写入误判成「没落下」（那几镜会停在 landing_failed
+      // 再也不派；#1139 第二轮走查 12 张只发出 9 张）。命令号不随 revision 变，已经写进去的那一份按幂等原样认。
+      let revision = expectedRevision;
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          await deps.command(boundProjectId, boundRunId, {
+            commandId: `canvas-landing:${boundRunId}:${kind}:${bindings.map((binding) => `${binding.shotId}=${binding.nodeId}`).join(",")}`.slice(0, 200),
+            expectedRevision: revision,
+            type: "plan.bind-shot-nodes",
+            payload: { bindings },
+            issuedAt: new Date().toISOString(),
+          });
+          return;
+        } catch (error) {
+          const latest = attempt < 4 && isRevisionConflict(error) ? deps.readRun(boundProjectId, boundRunId) : undefined;
+          if (!latest) throw error;
+          revision = latest.revision;
+        }
+      }
     },
   });
   const landOnce = async (projectId: string, runId: string, existingOnly: boolean, reportUnmatched = false): Promise<boolean> => {

@@ -77,6 +77,8 @@ type AppHooks = Readonly<{
   duringHydrate?: (tick: number, window: AppWindow) => void;
   /** 项目认下之后、请渲染层落地之前（host 读 Run 的那一刻）发生的事。 */
   beforeMaterialize?: (window: AppWindow) => void;
+  /** 渲染层落节点的 await 期间（发 materialize 之后、写回绑定之前）发生的事。 */
+  duringRender?: () => void;
   /** 写回绑定（plan.bind-shot-nodes）的 await 期间发生的事。 */
   duringBind?: (window: AppWindow) => void;
 }>;
@@ -103,6 +105,7 @@ function app(base: Setup, window: AppWindow, hooks: AppHooks = {}) {
       const wire = payload as MaterializeShotsWirePayload;
       if (window.openProject !== wire.projectId) throw new Error("storyboard_project_changed");
       payloads.push(structuredClone(wire));
+      hooks.duringRender?.();
       return { bindings: wire.existingOnly ? [] : wire.shots.map((shot) => ({ shotId: shot.shotId, nodeId: `node-${shot.shotId}` })) };
     },
     resolveProjectRoot: () => base.root,
@@ -292,5 +295,28 @@ describe("C′ lease after the bind is written back", () => {
     expect(second).toMatchObject({ nextAction: "observe" });
     expect(base.submit).toHaveBeenCalledTimes(1);
     expect(payloads).toHaveLength(1);
+  });
+});
+
+// 第二轮 CI 走查（12 张全批、只发出 9 张）的那一类：落节点的 await 期间 Run 被别的写入推进了（批下一张、派发一张），
+// 写回绑定拿着旧 revision 撞上「revision conflict」——以前这一下被当成「落地失败」，那几镜就停在 landing_failed 再也不派。
+// 绑定是幂等的事实写回，撞上了就按最新的 Run 重写一次，不能把并发写入误判成没落下。
+describe("bind write-back survives a concurrent Run write", () => {
+  it("the Run moves on while the renderer is landing → the bind is rewritten on the latest revision, and the shot is sent exactly once", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: PROJECT, hiddenFromUser: false };
+    let bumped = false;
+    const { host } = app(base, window, { duringRender: () => {
+      if (bumped) return;
+      bumped = true;
+      const run = base.repository.read(PROJECT, RUN)!;
+      base.repository.execute(PROJECT, RUN, { commandId: "concurrent-write", expectedRevision: run.revision, type: "run.stage", payload: { stageId: run.stageId }, issuedAt: NOW });
+    } });
+
+    const result = await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+
+    expect(bumped).toBe(true);
+    expect(result).toMatchObject({ nextAction: "observe" });
+    expect(base.submit).toHaveBeenCalledTimes(1);
   });
 });
