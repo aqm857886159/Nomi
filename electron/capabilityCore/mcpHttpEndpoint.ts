@@ -109,3 +109,17 @@ export function isMcpHttpLiveAt(port: number): boolean {
   const endpoint = readMcpHttpEndpoint()
   return Boolean(endpoint && endpoint.port === port && endpoint.url === mcpHttpUrl(port) && endpoint.pid === process.pid)
 }
+
+/**
+ * 转发口只许连本机回环的 MCP 端点（端口不限：转发口跑在宿主的进程环境里，不知道 Nomi 选了哪个端口）。
+ * 地址来自宿主配置的环境变量，被改成外部地址时身份头不能跟着发出去 → 不连、直接退出。
+ */
+export function isLoopbackMcpUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'http:' && url.hostname === '127.0.0.1' && url.pathname === MCP_HTTP_PATH
+      && !url.username && !url.password && !url.search && !url.hash
+  } catch {
+    return false
+  }
+}

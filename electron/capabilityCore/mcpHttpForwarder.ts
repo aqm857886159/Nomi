@@ -8,13 +8,19 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 
 import { bridgeStdioToHttp } from './mcpHttpBridge'
-import { mcpHttpIdentityHeaders, resolveForwarderUrl } from './mcpHttpEndpoint'
+import { isLoopbackMcpUrl, mcpHttpIdentityHeaders, resolveForwarderUrl } from './mcpHttpEndpoint'
 import { MCP_TRANSPORT_ERROR_EVENT } from './mcpStdioDiagnostics'
 import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV } from './security'
 
 const client = String(process.env[MCP_CLIENT_ENV] || '').trim()
 const proof = String(process.env[MCP_CLIENT_PROOF_ENV] || '').trim()
-const upstream = new StreamableHTTPClientTransport(new URL(resolveForwarderUrl()), {
+const forwarderUrl = resolveForwarderUrl()
+// 身份头只发往本机回环：地址被改成别处就不连（fail-closed）。
+if (!isLoopbackMcpUrl(forwarderUrl)) {
+  process.stderr.write('[nomi-mcp] forwarder refused: the configured address is not this computer\n')
+  process.exit(1)
+}
+const upstream = new StreamableHTTPClientTransport(new URL(forwarderUrl), {
   requestInit: { headers: mcpHttpIdentityHeaders(client, proof), redirect: 'error' },
 })
 

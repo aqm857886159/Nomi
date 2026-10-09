@@ -16,7 +16,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, default: { ...actual, homedir: () => homeDir }, homedir: () => homeDir }
 })
 
-import { installMcp, readMcpInfo, repairStaleMcpConfigs } from './mcpConfig'
+import { installMcp, readMcpInfo, repairStaleMcpConfigs, uninstallMcp } from './mcpConfig'
 import {
   listMigratableMcpHosts,
   migrateMcpHostsToHttp,
@@ -24,7 +24,7 @@ import {
 } from './mcpHostMigration'
 import { HostConfigBusyError } from './hostConfigWrite'
 import { builtinMcpClientConfigPath } from './mcpDetectedClients'
-import { MCP_HTTP_DEFAULT_PORT, mcpHttpUrl, writeMcpHttpEndpoint } from './mcpHttpEndpoint'
+import { MCP_HTTP_DEFAULT_PORT, isLoopbackMcpUrl, mcpHttpUrl, writeMcpHttpEndpoint } from './mcpHttpEndpoint'
 import { CAPABILITY_DIR_ENV, MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, ensureToken, verifyMcpClient } from './security'
 import { BUILTIN_MCP_CLIENTS, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 
@@ -444,5 +444,35 @@ describe('评审 4：迁移后的条目有自己的分类，不会被当成「�
     }
     expect(clients.workbuddy.configState).not.toMatch(/migrated|elsewhere/)
     expect(listMigratableMcpHosts()).toEqual(HOSTS.includes('workbuddy') ? [] : [])
+  })
+})
+
+describe('评审后自审：同类入口一并收口', () => {
+  it('撤销接入也在锁里、换名前比对：宿主在读完之后改了文件，撤销放弃，宿主内容保留', () => {
+    seedAll()
+    const hostWrote = JSON.stringify({ ...JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8')), hostAdded: true }, null, 2)
+    const realCopy = fs.copyFileSync
+    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
+      realCopy(src, dest, ...rest)
+      fs.writeFileSync(cfg('cursor'), hostWrote)
+    }) as typeof fs.copyFileSync)
+    expect(() => uninstallMcp('cursor')).toThrow()
+    expect(fs.readFileSync(cfg('cursor'), 'utf8')).toBe(hostWrote)
+  })
+
+  it('Codex 配置末尾没有换行时，连接 / 迁移不会吃掉最后一个字符', () => {
+    seedAll()
+    fs.writeFileSync(cfg('codex'), ['[profiles.p]', 'model = "m"', '# bye bonus'].join(String.fromCharCode(10)))
+    expect(installMcp('codex').ok).toBe(true)
+    expect(fs.readFileSync(cfg('codex'), 'utf8')).toContain('# bye bonus')
+    expect(migrateMcpHostsToHttp(['codex'])[0]).toMatchObject({ ok: true })
+    expect(fs.readFileSync(cfg('codex'), 'utf8')).toContain('# bye bonus')
+  })
+
+  it('转发口只连本机回环地址', () => {
+    expect(isLoopbackMcpUrl('http://127.0.0.1:47173/mcp')).toBe(true)
+    for (const bad of ['http://evil.example/mcp', 'https://127.0.0.1:1/mcp', 'http://127.0.0.1:1/other', 'http://u:p@127.0.0.1:1/mcp', 'http://127.0.0.1:1/mcp?x=1', 'not a url']) {
+      expect(isLoopbackMcpUrl(bad), bad).toBe(false)
+    }
   })
 })

@@ -307,14 +307,18 @@ function jsonInstall(target: string, entry: unknown): string | null {
 
 function jsonUninstall(target: string): void {
   if (!fs.existsSync(target)) return
-  const config = readJsonConfig(target)
-  if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
-  const servers = config.mcpServers as Record<string, unknown> | undefined
-  if (servers && typeof servers === 'object' && servers[SERVER_NAME]) {
-    delete servers[SERVER_NAME]
-    config.mcpServers = servers
-    atomicWrite(target, JSON.stringify(config, null, 2))
-  }
+  // 读—改—写整段在锁里，换名前比对版本（与安装同一套）：撤销也不能盖掉宿主刚写的内容。
+  withHostConfigLock(target, () => {
+    const before = sha256OfFile(target)
+    const config = readJsonConfig(target)
+    if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
+    const servers = config.mcpServers as Record<string, unknown> | undefined
+    if (servers && typeof servers === 'object' && servers[SERVER_NAME]) {
+      delete servers[SERVER_NAME]
+      config.mcpServers = servers
+      atomicWrite(target, JSON.stringify(config, null, 2), { lockHeld: true, expectedSha256: before })
+    }
+  })
 }
 
 // ── TOML 客户端（Codex）：[mcp_servers.nomi]，块级合并不引依赖 ──────────────
@@ -382,7 +386,7 @@ function codexInstall(target: string, block: string): string | null {
   return withHostConfigLock(target, () => {
     const before = sha256OfFile(target)
     const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
-    const base = removeCodexBlock(readText(target)).replace(/s*$/, '')
+    const base = removeCodexBlock(readText(target)).replace(/\s*$/, '')
     atomicWrite(target, (base ? `${base}
 
 ` : '') + block, { lockHeld: true, expectedSha256: before })
@@ -392,9 +396,12 @@ function codexInstall(target: string, block: string): string | null {
 
 function codexUninstall(target: string): void {
   if (!fs.existsSync(target)) return
-  if (!codexInstalled(target)) return
-  const next = removeCodexBlock(readText(target)).replace(/\s*$/, '') + '\n'
-  atomicWrite(target, next)
+  withHostConfigLock(target, () => {
+    const before = sha256OfFile(target)
+    if (!codexInstalled(target)) return
+    const next = removeCodexBlock(readText(target)).replace(/\s*$/, '') + '\n'
+    atomicWrite(target, next, { lockHeld: true, expectedSha256: before })
+  })
 }
 
 // ── 对外 API ───────────────────────────────────────────────────────────

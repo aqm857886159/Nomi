@@ -505,6 +505,8 @@
         "electron/capabilityCore/mcpHttpDesktop.ts",
         "electron/capabilityCore/mcpHttpEndpoint.ts",
         "electron/capabilityCore/mcpHostMigration.ts",
+        "electron/capabilityCore/hostConfigWrite.ts",
+        "electron/capabilityCore/mcpHostEntries.ts",
         "electron/capabilityCore/mcpVerifyHttp.ts"
       ],
       "alternativesChecked": [
