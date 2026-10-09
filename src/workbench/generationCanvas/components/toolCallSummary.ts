@@ -75,6 +75,10 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
     const title = record.nodeId ? nodeTitleById(String(record.nodeId)) : null
     return title ? tt('setNodePrompt', { title }) : tt('setNodePromptGeneric')
   }
+  if (toolName === 'set_node_text') {
+    const title = record.nodeId ? nodeTitleById(String(record.nodeId)) : null
+    return title ? tt('setNodeText', { title }) : tt('setNodeTextGeneric')
+  }
   if (toolName === 'delete_canvas_nodes') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
     return tt('deleteNodes', { count: ids.length })
@@ -213,6 +217,10 @@ export function describeToolCallDetail(toolName: string, args: unknown): string 
       })
       .filter((line): line is string => Boolean(line))
     return lines.join(tt('lineSeparator'))
+  }
+  if (toolName === 'set_node_text') {
+    const text = String(record.text || '')
+    return text.length > 80 ? `${text.slice(0, 80)}…` : text
   }
   if (toolName === 'set_node_prompt') {
     const prompt = String(record.prompt || '')

@@ -23,14 +23,14 @@ describe('which menu a ring opens', () => {
     expect(okKinds(connectionMenuVerdicts({ nodeId: 'video', side: 'left', sourceKind: 'node' }))).toEqual(expect.arrayContaining(['image', 'text']))
   })
 
-  it('left 「+」 on a text card would offer nothing (a text card has no left ring)', () => {
+  it('left 「+」 on a text card offers images and text only (10-09: a text card has a left ring)', () => {
     state().restoreSnapshot({ nodes: [node('text', 'text')], edges: [], groups: [] })
-    expect(okKinds(connectionMenuVerdicts({ nodeId: 'text', side: 'left', sourceKind: 'node' }))).toEqual([])
+    expect(okKinds(connectionMenuVerdicts({ nodeId: 'text', side: 'left', sourceKind: 'node' }))).toEqual(['image', 'text'])
   })
 
-  it('right 「+」 keeps the existing 「用这个节点生成」 verdicts', () => {
+  it('right 「+」 keeps the 「用这个节点生成」 verdicts (an image can now also feed a text card: describe-image)', () => {
     state().restoreSnapshot({ nodes: [{ ...node('image', 'image'), result: { id: 'r', type: 'image', url: 'nomi-local://a.png', createdAt: 1 } }], edges: [], groups: [] })
-    expect(okKinds(connectionMenuVerdicts({ nodeId: 'image', side: 'right', sourceKind: 'node' }))).toEqual(['image', 'video'])
+    expect(okKinds(connectionMenuVerdicts({ nodeId: 'image', side: 'right', sourceKind: 'node' }))).toEqual(['image', 'video', 'text'])
   })
 
   it('a click anchors the menu under the ring (left edge of the ring, 6px below)', () => {

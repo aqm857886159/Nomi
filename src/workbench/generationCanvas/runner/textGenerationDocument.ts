@@ -1,4 +1,5 @@
 import type { GenerationCanvasNode, TiptapDocJson } from '../model/generationCanvasTypes'
+import { docToPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { synchronousSha256 } from '../../../../electron/shared/synchronousSha256'
 
 /**
@@ -15,24 +16,7 @@ export function getTextGenMode(node: Pick<GenerationCanvasNode, 'meta'>): TextGe
   return mode === 'replace' || mode === 'rewrite' ? mode : 'append'
 }
 
-/** 把 Tiptap 文档拍平成纯文本（数据层，不需要 editor）——用于喂给模型做上下文。 */
-export function docToPlainText(doc?: TiptapDocJson): string {
-  const walk = (entry: unknown): string => {
-    if (!entry || typeof entry !== 'object') return ''
-    const node = entry as { type?: string; text?: string; content?: unknown[] }
-    if (typeof node.text === 'string') return node.text
-    if (Array.isArray(node.content)) return node.content.map(walk).join('')
-    return ''
-  }
-  if (!doc || !Array.isArray(doc.content)) return ''
-  // 每个块级节点之间用换行分隔。
-  return doc.content
-    .map(walk)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join('\n')
-    .trim()
-}
+export { docToPlainText }
 
 /** Hash the exact plain text consumed by generation, without persisting another document. */
 export function textDocumentDigest(doc?: TiptapDocJson): string {

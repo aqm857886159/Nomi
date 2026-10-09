@@ -23,10 +23,10 @@ beforeEach(() => {
 })
 
 describe('which tasks an empty card offers', () => {
-  it('image / video / text each list their real tasks', () => {
+  it('image / video list their real tasks; a text card has none here (its 试试 is the processing row)', () => {
     expect(ids(node('i', 'image'))).toEqual(['image.text', 'image.reference'])
     expect(ids(node('v', 'video'))).toEqual(['video.firstFrame', 'video.firstLast', 'video.text'])
-    expect(ids(node('t', 'text'))).toEqual(['text.toImage', 'text.toVideo'])
+    expect(ids(node('t', 'text'))).toEqual([])
   })
 
   it('drops a task the chosen model cannot do (no first + last frame workflow)', () => {
@@ -88,20 +88,6 @@ describe('running a task builds structure only, in one undo step', () => {
     expect(added.map((candidate) => candidate.kind)).toEqual(['image'])
     expect(state().edges).toEqual([expect.objectContaining({ source: added[0].id, target: 'i' })])
     expect(modeOf('i')).toBe('i2i')
-    state().undo()
-    expect(state().readDocumentSnapshot()).toEqual(before)
-  })
-
-  it('拿它生图: one downstream image fed by the text, selected and focused', () => {
-    seed(node('t', 'text'))
-    const before = state().readDocumentSnapshot()
-    runNodeTryRecipe('t', 'text.toImage')
-    const added = state().nodes.filter((candidate) => candidate.id !== 't')
-    expect(added.map((candidate) => candidate.kind)).toEqual(['image'])
-    expect(state().edges).toEqual([expect.objectContaining({ source: 't', target: added[0].id })])
-    expect(added[0].position.x).toBeGreaterThan(600 + 420)
-    expect(state().selectedNodeIds).toEqual([added[0].id])
-    expect(useNodePromptFocusStore.getState().request?.nodeId).toBe(added[0].id)
     state().undo()
     expect(state().readDocumentSnapshot()).toEqual(before)
   })

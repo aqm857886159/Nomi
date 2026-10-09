@@ -118,7 +118,7 @@ export const plannedEdgeSchema = z
       .enum(["reference", "first_frame", "last_frame", "style_ref", "character_ref", "composition_ref"])
       .optional()
       .describe(
-        "Reference-slot semantics: character_ref (cast sheet feeds keyframe), style_ref (scene/style feeds keyframe), composition_ref, first_frame (keyframe image feeds the video's first frame; when the source is a VIDEO node this means last-frame relay and must be opted-in by the user), last_frame, reference (generic). Omit for a generic reference edge. Only connect a reference the TARGET model actually supports — see each model's per-mode reference slots in the available-models list; text/shot/output nodes cannot be a reference source. Unsupported edges are skipped and reported back in skippedEdges.",
+        "Slot semantics: character_ref (cast sheet feeds keyframe), style_ref (scene/style feeds keyframe), composition_ref, first_frame (keyframe image feeds the video's first frame; from a VIDEO source it means last-frame relay, which the user must opt into), last_frame, reference (generic, default). Connect only a reference the TARGET model supports (see its per-mode reference slots in the available-models list); text/shot/output nodes cannot be a reference source. Unsupported edges are skipped and reported in skippedEdges.",
       ),
   })
   .strict();
@@ -292,6 +292,25 @@ const setNodePromptInputSchema = z
   .object({ operation: z.literal("set_node_prompt"), nodeId: canonicalIdSchema, prompt: nonBlankPromptSchema })
   .strict();
 
+/** 文本节点正文的上限（字符）。和 canvas.read 给 Agent 的上限分开：读是摘要，写是整段落盘。 */
+export const MAX_SET_NODE_TEXT_CHARACTERS = 20_000;
+
+const setNodeTextInputSchema = z
+  .object({
+    operation: z.literal("set_node_text"),
+    nodeId: canonicalIdSchema,
+    text: z.string().min(1).max(MAX_SET_NODE_TEXT_CHARACTERS),
+    mode: z.enum(["replace", "append"]).optional(),
+  })
+  .strict();
+
+/** 以一个已有节点为目标、走单节点取证的 operation（其余都是批量取证）。两个名字只此一份。 */
+export const NODE_TARGETED_WRITE_OPERATIONS = Object.freeze(["set_node_prompt", "set_node_text"] as const);
+export type NodeTargetedWriteOperation = (typeof NODE_TARGETED_WRITE_OPERATIONS)[number];
+export function isNodeTargetedWriteOperation(operation: unknown): operation is NodeTargetedWriteOperation {
+  return (NODE_TARGETED_WRITE_OPERATIONS as readonly unknown[]).includes(operation);
+}
+
 /**
  * ── 三个语义分组（方案 §3.5 的「拆分」那一行）──
  *
@@ -312,6 +331,7 @@ const setNodePromptInputSchema = z
  */
 export const canvasNodeWriteInputUnion = z.discriminatedUnion("operation", [
   setNodePromptInputSchema,
+  setNodeTextInputSchema,
   createCanvasNodesInputSchema,
   connectCanvasEdgesInputSchema,
   tidyCanvasInputSchema,
@@ -473,7 +493,7 @@ export const canvasWriteResultSchema = z.union([
       applied: z.literal(true),
       proposalId: canonicalIdSchema,
       changeId: changeIdSchema,
-      operation: z.literal("set_node_prompt"),
+      operation: z.enum(["set_node_prompt", "set_node_text"]),
       affectedNodeIds: z.array(canonicalIdSchema).length(1),
       reconciliation: reconciliationSchema,
     })
@@ -602,9 +622,9 @@ export function canvasWriteOperationForAlias(alias: string): CanvasWriteOperatio
 export const CANVAS_WRITE_CAPABILITY = {
   id: "canvas.write",
   version: 1,
-  // `pi` surface 上只放模型可见的三个动词（`verbs/canvasVerbs.ts`）；operation 值不是别名，
+  // `pi` surface 上只放模型可见的画布写动词（`verbs/writeVerbs.ts`）；operation 值不是别名，
   // 它们是 schema 里的枚举（`CANVAS_WRITE_OPERATIONS`）。
-  // 模型可见动词：arrange_canvas / make_artifact / stage_shot（都不能造生成类节点——那只归 draft_shots）。
+  // 模型可见动词：arrange_canvas / make_artifact / write_node_text / stage_shot（都不能造生成类节点——那只归 draft_shots）。
   aliases: {
     pi: "arrange_canvas",
     mcp: "nomi_canvas_edit",
@@ -612,7 +632,7 @@ export const CANVAS_WRITE_CAPABILITY = {
   },
   additionalAliases: {
     // 3D-BOX 开关开时 `stage_shot` 归 `director.write`（同名换芯，任一构建只装配一份）。
-    pi: Object.freeze(director3dBoxFaceEnabled() ? ["make_artifact"] : ["make_artifact", "stage_shot"]),
+    pi: Object.freeze(director3dBoxFaceEnabled() ? ["make_artifact", "write_node_text"] : ["make_artifact", "write_node_text", "stage_shot"]),
   },
   inputSchema: canvasWriteSemanticInputSchema,
   outputSchema: canvasWriteResultSchema,
@@ -628,6 +648,7 @@ export const CANVAS_WRITE_CAPABILITY = {
     create_staging_reference: "reversible_local",
     create_camera_move: "reversible_local",
     set_node_prompt: "reversible_local",
+    set_node_text: "reversible_local",
   }),
   operationPlanReview: Object.freeze({
     propose_storyboard_plan: Object.freeze({ allowReuse: false }),

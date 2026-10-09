@@ -15,7 +15,7 @@ export function askVerbs(): readonly VerbDeclaration[] {
     effect: "read",
     nextAction: "user_sees_question_card",
     describe: {
-      does: "Ask the user up to three related questions on one card and wait for his answers.",
+      does: "Ask up to three related questions on one card and wait for his answers.",
       // 2026-09-22：触发句写成**可判定的情形**，不是「当你不确定时」。
       // 依据是 run1/run2 两轮实测里模型真正卡住的那几句（`tests/ux/agent-askback-real-model.cases.json`）：
       // 「把那个删了」——它读完画布看见 6 个节点，**然后就停住了**，既没问也没动；

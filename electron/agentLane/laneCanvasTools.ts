@@ -63,6 +63,7 @@ function canvasWriteNextAction(input: CanvasWriteInput, receipt: CanvasWriteResu
   if ("cancelled" in receipt) return { kind: "none", userSees: "Nothing changed: the user declined the proposal." };
   const what = input.operation === "connect_canvas_edges" ? "the new reference links"
     : input.operation === "tidy_canvas" ? "the tidied layout"
+      : input.operation === "set_node_text" ? "the new text in the node (the node is marked as edited by you in the change card)"
       : input.operation === "create_canvas_nodes" ? "the new artifact node"
         : "the new director reference node next to the shot";
   return { kind: "none", userSees: `The canvas shows ${what}; the user can undo it with Cmd+Z. Nothing was generated and nothing was spent.`, changeId: receipt.changeId };

@@ -56,7 +56,7 @@ const nodes = [
   { id: 'h-asset', kind: 'asset', title: T.asset, position: { x: 600, y: 40 }, size: { width: 300, height: 169 }, status: 'success', result: media('h-asset', 'portrait.png'), history: [media('h-asset', 'portrait.png')], meta: { imageWidth: 640, imageHeight: 360, previewHeight: 169, source: 'asset-upload' } },
   { id: 'h-video', kind: 'video', title: T.video, position: { x: 220, y: 330 }, size: { width: 340, height: 191 }, status: 'idle', meta: {} },
   { id: 'h-image', kind: 'image', title: T.image, position: { x: 640, y: 330 }, size: { width: 340, height: 191 }, status: 'idle', meta: {} },
-  { id: 'h-text', kind: 'text', title: '', position: { x: 940, y: 40 }, size: { width: 240, height: 200 }, status: 'idle', meta: {} },
+  { id: 'h-text', kind: 'text', title: '', position: { x: 860, y: 560 }, size: { width: 240, height: 200 }, status: 'idle', meta: {} },
   { id: 'h-clip', kind: 'clip', title: '', position: { x: 220, y: 640 }, size: { width: 560, height: 132 }, status: 'idle', meta: {} },
 ].map((node) => ({ categoryId: 'shots', prompt: '', ...node }))
 const payload = { workbenchDocument: null, timeline: null, generationCanvas: { nodes, edges: [], groups: [], selectedNodeIds: [] }, storyboardPlan: null, storyboardPlanCommitted: false }
@@ -169,6 +169,31 @@ try {
     expect(created?.kind).toBe('image')
     expect(after.edges[0]).toMatchObject({ source: created.id, target: 'h-video' })
     expect(created.x, 'the new input lands on the left of the video card').toBeLessThan(220)
+    await undo()
+    await expect.poll(async () => (await store()).nodes.length).toBe(nodes.length)
+    expect((await store()).edges).toHaveLength(0)
+  })
+
+  // 2026-10-09 用户拍板：文本卡有左环（「这一侧能用才出现」）——收文字和图，不收视频；左「+」按本卡当目标判，新节点落在上游。
+  await task('04b-text-card-left-ring-takes-image-and-text', async () => {
+    await select('h-text')
+    await expect(sourceHandle('h-text', 'left')).toHaveAttribute('data-affordance', 'magnetic')
+    await expect(sourceHandle('h-text', 'right')).toHaveAttribute('data-affordance', 'magnetic')
+    await clickRing('h-text', 'left')
+    const menu = win.getByTestId('node-add-input-menu')
+    await expect(menu).toBeVisible({ timeout: 3_000 })
+    await expect(menu.getByRole('menuitem', { name: zh ? /^图片/ : /^Image/ })).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(menu.getByRole('menuitem', { name: zh ? /^文字|^文本/ : /^Text/ })).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(menu.getByRole('menuitem', { name: zh ? /^视频/ : /^Video/ })).toHaveAttribute('aria-disabled', 'true')
+    await shot('04b-text-left-menu')
+    const imageItem = menu.getByRole('menuitem', { name: zh ? /^图片/ : /^Image/ })
+    await imageItem.click()
+    await expect.poll(async () => (await store()).edges.length).toBe(1)
+    const after = await store()
+    const created = after.nodes.find((node) => !nodes.some((seed) => seed.id === node.id))
+    expect(created?.kind).toBe('image')
+    // 方向 = 新节点是上游（边从新节点指向文本卡），不是下游（bug ②）；落点由 store.addNode 统一避让，这排卡挤，不断言坐标。
+    expect(after.edges[0]).toMatchObject({ source: created.id, target: 'h-text' })
     await undo()
     await expect.poll(async () => (await store()).nodes.length).toBe(nodes.length)
     expect((await store()).edges).toHaveLength(0)

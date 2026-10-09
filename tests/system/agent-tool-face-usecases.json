@@ -13,6 +13,7 @@
     "generate",
     "arrange_canvas",
     "make_artifact",
+    "write_node_text",
     "stage_shot",
     "edit_timeline",
     "undo",
@@ -189,6 +190,20 @@
       ],
       "tools": [
         "make_artifact"
+      ]
+    },
+    {
+      "id": "U12b",
+      "userSays": "把这个文本节点里的风格说明改写得更简洁",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "write_node_text"
       ]
     },
     {
