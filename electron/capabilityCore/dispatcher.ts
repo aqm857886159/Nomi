@@ -666,10 +666,8 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         const currentEdgeIds = new Set(current.edges.map((edge) => edge.id))
         const restoredEdges = entry.snapshot.edges.filter((edge) =>
           !currentEdgeIds.has(edge.id) && restoredIdSet.has(edge.source) && restoredIdSet.has(edge.target))
-        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] }, current, {
-          // 放回被删的节点与它原来的边：恢复语义，不当「外部新增的边」过连线总闸（含旧项目里的老非法边，不丢用户数据）。
-          restoredEdgeIds: restoredEdges.map((edge) => edge.id),
-        })
+        // 放回被删节点与它原来的边 = 恢复语义（restoredEdgeIds），不当「外部新增边」过连线总闸，旧非法边不丢。
+        await gateway.apply({ ...current, nodes: [...current.nodes, ...restoredNodes], edges: [...current.edges, ...restoredEdges] }, current, { restoredEdgeIds: restoredEdges.map((edge) => edge.id) })
         canvasDeleteUndoJournal.delete(undoToken)
         return {
           applied: true,
