@@ -104,7 +104,12 @@ export const DERIVED_INPUT_GATES = Object.freeze(['typecheck'])
 
 /** 某道门岗的选择器：改动里有任何一个文件落在它的输入范围里就选中。 */
 export function touchesGateInputs(name, changedFiles, root = repoRoot) {
-  if (name === 'typecheck') return touchesTypecheck(changedFiles, root)
+  if (name === 'typecheck') {
+    // typecheck 自己的入口脚本及其 import 闭包（typecheck.mjs / check-test-types.mjs / lib/typecheckProjects.mjs）：改了它们 CI 会红，必须选中
+    const impl = implementationFiles(['scripts/typecheck.mjs', 'scripts/check-test-types.mjs'], root)
+    const normalized = changedFiles.map((file) => file.split(path.win32.sep).join('/'))
+    return touchesTypecheck(normalized, root) || normalized.some((file) => impl.has(file))
+  }
   const input = GATE_INPUTS[name]
   if (!input) throw new Error(`没有登记输入范围的门岗：${name}`)
   const impl = implementationFiles(input.entries, root)

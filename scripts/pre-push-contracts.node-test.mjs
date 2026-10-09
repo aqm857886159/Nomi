@@ -20,6 +20,7 @@ import {
   TAG_IN_MAIN_NOTICE,
   formatSummary,
   gateCommands,
+  gateEntryFiles,
   parsePushRefs,
   runNode,
   runWithDeadline,
@@ -518,8 +519,8 @@ test('探针：每份被 typecheck 实际编译的 tsconfig，取一个它展开
   await Promise.all(probes)
 })
 
-test('typecheck 不覆盖的目录诚实地不选中（tests/ux 的 tsx、evals 非 test、packages 等），tsconfig.devlab.json 这种没人跑的配置也不选', () => {
-  for (const file of ['tests/ux/fixtures/foo.tsx', 'tests/ux/walk.ts', 'tests/agent-system/schema.mts', 'evals/director/binding.ts', 'packages/p/index.ts', 'workers/w.ts', 'tsconfig.devlab.json']) {
+test('typecheck 不覆盖的目录诚实地不选中（tests/ux 的 tsx、evals 非 test、packages 等），（tsconfig 配置文件本身另测：任何 tsconfig*.json 都选中）', () => {
+  for (const file of ['tests/ux/fixtures/foo.tsx', 'tests/ux/walk.ts', 'tests/agent-system/schema.mts', 'evals/director/binding.ts', 'packages/p/index.ts', 'workers/w.ts']) {
     assert.equal(touchesGateInputs('typecheck', [file]), false, `${file} 不在任何 tsc program 里，不该选中 typecheck`)
   }
   assert.ok(TYPECHECK_NOT_COVERED.length >= 4, '不覆盖的目录要在选择表里如实标明')
@@ -580,4 +581,29 @@ test('解析器：gates:contracts 的门不按名字前缀过滤（test: / run: 
   assert.deepEqual(parsed.gates, ['check:b', 'test:new-gate', 'run:policy', 'typecheck'])
   assert.deepEqual(parsed.advisory, ['--advisory=check:a'])
   assert.throws(() => parseContractGates('node something-else.mjs a b'), /找不到 run-gates-contracts/)
+})
+
+// ── 复审 3：门自己的实现脚本被改，必须选中这道门本身 ─────────────────────────────────────────────────────
+
+test('必红：改了 typecheck 自己的入口脚本（typecheck.mjs / check-test-types.mjs / lib/typecheckProjects.mjs）或任何 tsconfig*.json → 选中 typecheck', () => {
+  for (const file of ['scripts/typecheck.mjs', 'scripts/check-test-types.mjs', 'scripts/lib/typecheckProjects.mjs', 'tsconfig.devlab.json', 'tests/agent-system/tsconfig.json', 'electron/tsconfig.pi.json']) {
+    assert.ok(touchesGateInputs('typecheck', [file]), `${file} 应选中 typecheck`)
+    assert.ok(selectGates([file]).includes('typecheck'), `selectGates([${file}]) 应包含 typecheck`)
+  }
+})
+
+test('通用规则：每道推送前门的实现脚本（package.json 命令 / argv 引用的脚本及其 import 闭包）被改时，选中这道门本身', () => {
+  const names = [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name]
+  let checked = 0
+  for (const name of names) {
+    const entries = gateEntryFiles(name)
+    if (entries.length === 0) continue // 命令里没有仓库内脚本（理论上不该发生）
+    for (const entry of entries.filter((file) => /^scripts\//.test(file))) {
+      assert.ok(selectGates([entry]).includes(name), `改了 ${entry} 应选中 ${name}`)
+      checked += 1
+    }
+  }
+  assert.ok(checked > 40, `核对的 (门, 实现脚本) 对太少：${checked}`)
+  // 之前漏过的例子：ipc-sender-binding 只看 electron/，它自己的脚本被改却不会选中它
+  assert.ok(selectGates(['scripts/check-ipc-sender-binding.mjs']).includes('check:ipc-sender-binding'))
 })

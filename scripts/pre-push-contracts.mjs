@@ -25,7 +25,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { resolvePullRequestBody } from './lib/prBody.mjs'
-import { touchesGateInputs } from './pre-push-gate-inputs.mjs'
+import { implementationFiles, touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { CI_ONLY, PARTIAL_LOCAL } from './pre-push-gate-table.mjs'
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
@@ -189,15 +189,40 @@ export function pushDecision(refs, headSha, inMain = () => false) {
   return { check: true }
 }
 
+const SCRIPT_REF = /[A-Za-z0-9_./-]+\.(?:mjs|cjs|js|ts)\b/g
+
+/**
+ * 一道门自己的实现入口：它的 package.json 命令 / argv 里引用的脚本（含单测）。通用规则（10-09 复审 3）：
+ * 门的实现脚本及其相对 import 闭包被改，必须选中这道门本身——不然 CI 红了本机却没跑（每道门各漏一次）。
+ */
+export function gateEntryFiles(name) {
+  const scan = SCAN_TESTS.find((item) => item.name === name)
+  let refs = []
+  if (scan) refs = scan.argv.filter((arg) => !arg.startsWith('-') && !arg.startsWith('node_modules'))
+  else if (name === LINT_GATE.name) refs = [LINT_GATE.script]
+  else {
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
+    refs = String(pkg.scripts?.[name] ?? '').match(SCRIPT_REF) ?? []
+  }
+  return refs.map((ref) => ref.replace(/^\.\//, '')).filter((ref) => fs.existsSync(path.join(repoRoot, ref)))
+}
+
+export function touchesImplementation(name, files) {
+  const entries = gateEntryFiles(name)
+  if (entries.length === 0) return false
+  const impl = implementationFiles(entries, repoRoot)
+  return files.some((file) => impl.has(file))
+}
+
 /** 选出本次要跑的门岗名（含 lint:changed）。files = 改动路径；null = 算不出改动 → 全跑。 */
 export function selectGates(files) {
   if (files === null) return [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name]
   // 纯文档改动：只跑「总跑」的登记类门岗（它们也管 docs 里的登记表），代码类不跑
   const policy = classifyValidationPolicy(files.map((file) => ({ path: file, status: 'M' })))
   const docsOnly = !policy.failClosed && policy.reason === 'docs_only'
-  const picked = PRE_PUSH_GATES.filter((gate) => gate.when === null || (!docsOnly && gate.when(files))).map((gate) => gate.name)
-  if (!docsOnly) picked.push(...SCAN_TESTS.filter((scan) => scan.when(files)).map((scan) => scan.name))
-  if (!docsOnly && LINT_GATE.when(files)) picked.push(LINT_GATE.name)
+  const picked = PRE_PUSH_GATES.filter((gate) => gate.when === null || (!docsOnly && (gate.when(files) || touchesImplementation(gate.name, files)))).map((gate) => gate.name)
+  if (!docsOnly) picked.push(...SCAN_TESTS.filter((scan) => scan.when(files) || touchesImplementation(scan.name, files)).map((scan) => scan.name))
+  if (!docsOnly && (LINT_GATE.when(files) || touchesImplementation(LINT_GATE.name, files))) picked.push(LINT_GATE.name)
   return picked
 }
 
