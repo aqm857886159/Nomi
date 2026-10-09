@@ -12,7 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { stationTimeout } from './_station-budget.mjs'
-import { clickOrFail, expect, expectVisible, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
@@ -110,7 +110,6 @@ try {
   await expect(describe, '没连图时「看图写描述」不可点').toBeDisabled()
   await expect(describe, '不可点的原因写在按钮上').toHaveAttribute('title', /图片/)
   await walk.snap('03-describe-without-image')
-  await expect(win.locator(`[data-node-id="${textId}"] [data-text-node-footer="running"]`), '没连图不会进入运行').toHaveCount(0)
 
   // 本地图片夹具 → 「导入文件」→ 画布上多一个带图的节点。
   const before = new Set(await nodeIds())
@@ -136,10 +135,11 @@ try {
   await clickOrFail(win.locator('[data-text-process-box] [data-preset="describe"]'), '连了图后点「看图写描述」')
   await recorded(describeRequest.received, 'describe request reached the text model')
   const footer = win.locator(`[data-node-id="${textId}"] [data-text-node-footer="running"]`)
-  await expectVisible(footer, '进入运行：底部「正在写 · 停止」')
+  // 探针先证明测得到：连了图以后「正在写」这一条确实出现过，后面的「不在了」才有意义。
+  const runningProof = await proveProbe(footer, '进入运行：底部「正在写 · 停止」')
   await walk.snap('04-describe-running')
   await clickOrFail(footer.getByRole('button', { name: '停止' }), '点「停止」')
-  await expect(footer, '停止后退出运行').toHaveCount(0, { timeout: stationTimeout({ operations: 1 }) })
+  await expectAbsent(footer, { provenBy: runningProof, message: '停止后退出运行' }, stationTimeout({ operations: 1 }))
   await walk.snap('05-describe-stopped')
   expect(walk.fixture.images, '全程没有图片生成请求').toHaveLength(0)
   console.log(`\ntext-node-undo-describe 走查通过（project=${projectId}）`)
