@@ -12,6 +12,7 @@ import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Rnd } from 'react-rnd'
+import { createHtmlPortalNode, InPortal, OutPortal, type HtmlPortalNode } from 'react-reverse-portal'
 import { IconLayoutSidebarRight, IconPictureInPicture } from '@tabler/icons-react'
 import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
 import { cn } from '../../../utils/cn'
@@ -294,19 +295,28 @@ export function ShellAgentHost({
     ],
     ...(form === 'float' ? { dragHandleClassName: cn(DRAG_HANDLE, 'cursor-move') } : {}),
   }), [form, setForm, surface, t])
-  const wrapped = <AgentPanelHeaderSlotContext.Provider value={slot}>{agent}</AgentPanelHeaderSlotContext.Provider>
+  // 面板只挂**一棵**稳定的 React 树（react-reverse-portal：InPortal 渲染一次，OutPortal 决定它的 DOM 落在哪）。
+  // 三形态切换只是把同一个 DOM 节点挪到停靠栏 / 浮窗 / 隐藏容器，不卸载重挂——待确认卡的勾选与折叠、滚动、
+  // 历史分页、线程菜单、草稿都留在原地（#1136 评审阻断 1：此前每种形态 portal 到不同容器，切一次就整棵重挂）。
+  const [panelNode] = React.useState<HtmlPortalNode>(() => createHtmlPortalNode({
+    attributes: { style: 'display:flex;flex-direction:column;width:100%;height:100%;min-width:0;min-height:0', 'data-agent-portal': 'true' },
+  }))
+  const panelOut = <OutPortal node={panelNode} />
   const floating = (
     <>
       {form === 'ball' ? <AgentBall surface={surface} area={area} /> : null}
-      {form === 'float' ? <AgentFloat surface={surface} area={area}>{wrapped}</AgentFloat> : null}
+      {form === 'float' ? <AgentFloat surface={surface} area={area}>{panelOut}</AgentFloat> : null}
     </>
   )
   return (
     <div ref={setOwnLayer} className="pointer-events-none absolute inset-0 z-[60]" data-shell-agent-layer data-agent-form={form}>
-      {/* 小球形态：面板仍挂着（收起支路 = 回执效果、计划预览、角标投影都还在），但挂在看不见的地方。 */}
+      <InPortal node={panelNode}>
+        <AgentPanelHeaderSlotContext.Provider value={slot}>{agent}</AgentPanelHeaderSlotContext.Provider>
+      </InPortal>
+      {/* 小球形态：同一棵面板挪进看不见的容器（回执效果、计划预览、角标投影照常跑），点开再挪回来。 */}
       <div ref={setHidden} hidden />
-      {form === 'dock' && dockTarget ? createPortal(wrapped, dockTarget) : null}
-      {form === 'ball' && hidden ? createPortal(wrapped, hidden) : null}
+      {form === 'dock' && dockTarget ? createPortal(panelOut, dockTarget) : null}
+      {form === 'ball' && hidden ? createPortal(panelOut, hidden) : null}
       {layerTarget ? createPortal(floating, layerTarget) : floating}
     </div>
   )

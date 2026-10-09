@@ -499,27 +499,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   }
   const attachmentInput = <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT}
     className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
-  // 收起 = 外壳把 Agent 收成内容区右下的小球（10-08 外壳重设计：小球 / 浮窗 / 停靠三形态，
-  // src/ui/app-shell/shell/ShellAgentHost.tsx）。原来横在页面上的那条输入坞已删：它在画布上没法用（用户 10-08）。
-  // 这一支只留**跟着面板活着的效果**（时间轴回执、计划预览、附件选择器）；待确认与未读由上面那条角标投影
-  // 交给小球（「等你确认 N」胶囊），点开小球回到面板里的那张卡。
-  if (collapsed) {
-    return (
-      <section
-        id="project-agent-resident"
-        className="pointer-events-none relative h-full w-full overflow-visible"
-        aria-label={t('agentResident.aria')}
-        data-agent-resident="true"
-        data-agent-surface={surface}
-        data-agent-collapsed="true"
-      >
-        <TimelineAgentReceiptEffect />
-        {timelinePlanPreviewPortal}
-        {attachmentInput}
-      </section>
-    )
-  }
-
+  // 收起 = 外壳把 Agent 收成内容区右下的小球（10-08 外壳重设计：小球 / 浮窗 / 停靠三形态，src/ui/app-shell/shell/ShellAgentHost.tsx）。
+  // 收起时**不换一棵树**：同一个面板原样挂着，只是外壳把它的 DOM 挪进看不见的容器——待确认卡的勾选与折叠、
+  // 滚动、历史分页、线程菜单、草稿都不丢（#1136 评审阻断 1）。时间轴回执、计划预览、附件选择器照常跑。
   return (
     <div
       ref={size.measure}
@@ -527,7 +509,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col text-nomi-ink"
       aria-label={t('agentResident.aria')}
       data-agent-resident="true"
-      data-agent-panel="true"
+      data-agent-panel={collapsed ? undefined : 'true'}
+      data-agent-collapsed={collapsed ? 'true' : undefined}
       data-agent-surface={surface}
       data-agent-approval-mode={actions.permission}
       onKeyDownCapture={(event) => {
