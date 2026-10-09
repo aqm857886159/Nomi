@@ -60,13 +60,15 @@ it('a pre-upgrade batch consent that was not sent says so on the node, in both l
   const message = `Error invoking remote method 'nomi:tasks:canvas-shot-submit': Error: NOMI_VENDOR_ERR_B64::${structured}:: canvas_consent_predates_upgrade: canvas-run-a`
   const zh = classifyGenerationError(message)
   expect(zh.reason).toBe(i18n.t('generationCommon.observability.error.consentPredatesUpgrade.reason'))
-  expect(`${zh.reason}${zh.hint}`).toContain('升级后这批没有发出')
-  expect(`${zh.reason}${zh.hint}`).toContain('再确认一次')
+  // 文案只从词典读（check:test-copy-literals）：节点上说的就是「升级后没有发出、要重新确认」那两个键。
+  expect(zh.hint).toBe(i18n.t('generationCommon.observability.error.consentPredatesUpgrade.hint'))
   expect(zh.vendorSide).toBe(false)
   await i18n.changeLanguage('en')
   try {
     const en = classifyGenerationError(message)
-    expect(en.reason).toBe('This batch was not sent after the update')
+    expect(en.reason).toBe(i18n.t('generationCommon.observability.error.consentPredatesUpgrade.reason'))
+    expect(en.reason).not.toBe(zh.reason)
+    expect(en.hint).toBe(i18n.t('generationCommon.observability.error.consentPredatesUpgrade.hint'))
     expect(`${en.reason}${en.hint}`).not.toMatch(/charge|credit|refund|cost/i)
   } finally {
     await i18n.changeLanguage('zh-CN')

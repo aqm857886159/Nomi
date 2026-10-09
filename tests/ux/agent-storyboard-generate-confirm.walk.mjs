@@ -116,7 +116,7 @@ try {
   if (await expandTree.isVisible()) await clickOrFail(expandTree, '展开左栏')
   await clickOrFail(win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`), '选中这份文稿')
   await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN_ID}"]`), '打开这份文稿方案')
-  await clickOrFail(win.locator(`[data-place-storyboard="${DESIGN_ID}"]`), '放入画布')
+  await clickOrFail(win.locator(`[data-place-storyboard="${DESIGN_ID}"]`), '在方案页头点那颗「放到画布上」的按钮')
   await expect.poll(nodesPerShot, { timeout: DEFAULT_TIMEOUT_MS, message: '放入画布：两镜各落一个节点' }).toEqual({ 'shot-1': 1, 'shot-2': 1 })
   const placed = await graph()
   expect(walk.fixture.images, '只是摆上画布，不花钱').toHaveLength(0)
