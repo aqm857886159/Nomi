@@ -912,6 +912,31 @@
       ],
       "whyNotIntegrated": "Domain constraint: 「有没有活」要按镜头 / 制作流程 Run / 导出 / 画布排队节点这些 Nomi 独有的在途工作判断，不能打断用户按镜头付费的生成；退出时安装必须挂在 Nomi 的退出唯一 owner 上。横幅 ✕ 记忆、已更新卡、跨进程待装记录是产品层的提醒记忆，electron-updater 没有这些能力（见 alternativesChecked 首条），所以才自写；更新检查、下载、安装、缓存校验本身没有自写。",
       "revisitWhen": "electron-updater 提供按外部在途工作阻止安装的钩子，或 Nomi 的在途工作判断收敛成单一服务后，重新评估 updateBusyGate 与 installOnQuit。"
+    },
+    {
+      "id": "timeline-pointer-session",
+      "capability": "时间轴 / 剪辑节点里一次按住指针手势的生命周期：capture、move / up、Esc，松手提交、任何打断回滚；以及节点内手势的屏幕像素↔设计像素换算、命中宽度、准入",
+      "status": "justified",
+      "paths": [
+        "src/workbench/timeline/timelineGesture.ts",
+        "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "@use-gesture/react useDrag（pointercancel 与松手同走 pointerUp，会把半截拖动当提交；不处理 blur / lostpointercapture / Esc）",
+          "source": "node_modules/.pnpm/@use-gesture+core@10.3.1/node_modules/@use-gesture/core/dist/actions-fe213e88.esm.js:714"
+        },
+        {
+          "name": "画布已有打断租约 beginCanvasDragging（复用：打断监听不再写第二份）",
+          "source": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts:185"
+        },
+        {
+          "name": "dnd-kit（拖放与排序，不管帧、手柄与播放头；留给素材拖进时间轴的第二片评估）",
+          "source": "https://github.com/clauderic/dnd-kit"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: 时间轴编辑是「松手才落盘、任何打断必须回到拖之前」（对接时间轴撤销栈：弹回栈顶且不留 redo），而 use-gesture 把取消当松手；要用它得在外面再包一层补 blur / lostpointercapture / Esc 并把 cancel 与 release 分开，不比这 ~80 行短。命中宽度与层叠规则服务片段 / 裁剪手柄 / 播放头三种时间轴对象，换算又依赖画布缩放，只能放在剪辑节点这一侧。打断监听本身没有自写，复用画布租约。",
+      "revisitWhen": "use-gesture（或 dnd-kit）提供区分 release / cancel 并覆盖 blur、lostpointercapture、Esc 的会话原语时；或预览区 OverlaySelectionBox / TimelinePreview 的拖动也迁入同一会话、需要把它抽成通用手势层时"
     }
   ]
 }
