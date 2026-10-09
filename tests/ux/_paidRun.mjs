@@ -16,7 +16,8 @@ import path from 'node:path'
 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { realNomiIsRunning, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
+import { blockedError, newNetLogFile, paidWalkAllowlist, watchNetLog } from './_paidNetwork.mjs'
+import { readRealCatalog, realNomiIsRunning, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
 export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
 
@@ -83,11 +84,23 @@ export async function lockSpendToModels(win, seeded) {
  */
 export async function openPaidWalk(script, name, models) {
   const guard = assertPaidRunAllowed(script)
-  const walk = await createRuntimeWalk(name)
+  // 出网名单按本场授权的供应商自动算（见 _paidNetwork.mjs），连同账本路径一起交给被测 App 的闸；调用方什么都不用配。
+  const allow = paidWalkAllowlist(readRealCatalog(), models.map((model) => model.vendorKey))
+  const netLog = newNetLogFile()
+  const walk = await createRuntimeWalk(name, { env: { NOMI_WALK_ALLOW_ORIGINS: allow.join(','), NOMI_WALK_NET_LOG: netLog } })
+  walk.report.networkAllowlist = allow
+  let blocked = null
+  // 被挡就地失败：别等 UI 超时（以前一次连接被挡要干等 600 多秒）。关掉 App，让走查脚本里正在等的那一步立刻报错，
+  // finish 再把真正的原因（被挡的 host 与层）换到报告里。
+  const netWatch = watchNetLog(netLog, (entries) => {
+    blocked = blockedError(entries, allow)
+    console.error(`[paid] ${blocked.message}`)
+    walk.stopApp().catch(() => {})
+  })
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir })
   let seeded
   try { seeded = seedRealModels({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, models }) }
-  catch (error) { removeCredentialCopy(); await walk.fixture.close(); throw error }
+  catch (error) { netWatch.stop(); removeCredentialCopy(); await walk.fixture.close(); throw error }
   walk.report.seededModels = seeded.map((row) => `${row.vendorKey}/${row.modelKey}`)
   walk.report.realProfileBefore = guard.realProfileBefore
   console.log(`[paid] 隔离副本装了：${walk.report.seededModels.join(' · ')}`)
@@ -96,7 +109,10 @@ export async function openPaidWalk(script, name, models) {
     walk.report.disabledUnauthorizedModels = await lockSpendToModels(win, seeded)
   }
   async function finish(error) {
-    await walk.finish(error, {
+    const finalEntries = netWatch.stop()
+    blocked ??= blockedError(finalEntries, allow)
+    walk.report.networkBlocked = finalEntries.filter((entry) => entry.kind === 'blocked').map(({ via, host, url }) => ({ via, host, url }))
+    await walk.finish(blocked ?? error, {
       unscriptedFixture: true,
       collect: async () => {
         // App 已经关了：凭据副本（目录里的 key 密文 + 钥匙）当场删掉，项目与截图留作证据。

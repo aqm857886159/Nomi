@@ -40,14 +40,34 @@ function isLocalHost(host) {
 }
 
 /**
- * 付费真跑走查专用：NOMI_WALK_ALLOW_ORIGINS = 逗号分隔的 origin，只放行被授权的那几家供应商
+ * 付费真跑走查专用：NOMI_WALK_ALLOW_ORIGINS = 逗号分隔的放行名单，只放行被授权的那几家供应商
  * （tests/ux/_paidRun 类走查要真的出门；其余公网照旧一律拦）。没设 = 一家都不放，老走查一个字不变。
+ * 每项两种写法：精确 origin（`https://api.example.com`），或 `*.域名`（该域名本身及其全部子域，
+ * 给「结果下载在随机子域上」的供应商用；`example.com.evil.test` 这类形似域名不算）。
+ * 名单由 tests/ux/_paidRun.mjs 按授权的供应商自动算出，走查作者不手配。
  */
 // CI 里一律忽略：CI 从来没有真钱（与 tests/ux/_paidRun.mjs 同一条），继承来的环境变量不能在那里打开公网。
-const ALLOWED_ORIGINS = new Set(String(process.env.CI ? '' : process.env.NOMI_WALK_ALLOW_ORIGINS || '').split(',').map((value) => {
-  try { return new URL(value.trim()).origin } catch { return '' }
-}).filter(Boolean))
+const ALLOWED_ORIGINS = new Set()
+const ALLOWED_SUFFIXES = []
+for (const raw of String(process.env.CI ? '' : process.env.NOMI_WALK_ALLOW_ORIGINS || '').split(',')) {
+  const value = raw.trim()
+  if (value.startsWith('*.')) {
+    const suffix = value.slice(2).toLowerCase()
+    if (/^[a-z0-9.-]+$/.test(suffix)) ALLOWED_SUFFIXES.push(suffix)
+    continue
+  }
+  try { ALLOWED_ORIGINS.add(new URL(value).origin) } catch { /* 不是 origin：忽略，照样被拦 */ }
+}
 const ALLOWED_HOSTS = new Set([...ALLOWED_ORIGINS].map((origin) => new URL(origin).hostname.toLowerCase()))
+
+function matchesAllowedSuffix(host) {
+  const value = String(host || '').toLowerCase()
+  return ALLOWED_SUFFIXES.some((suffix) => value === suffix || value.endsWith(`.${suffix}`))
+}
+
+function isAllowedHost(host) {
+  return ALLOWED_HOSTS.has(String(host || '').toLowerCase()) || matchesAllowedSuffix(host)
+}
 
 function isLocal(rawUrl) {
   let url
@@ -57,7 +77,7 @@ function isLocal(rawUrl) {
     return true
   }
   if (['file:', 'data:', 'blob:', 'nomi-local:'].includes(url.protocol)) return true
-  if (ALLOWED_ORIGINS.has(url.origin)) return true
+  if (ALLOWED_ORIGINS.has(url.origin) || matchesAllowedSuffix(url.hostname)) return true
   return isLocalHost(url.hostname)
 }
 
@@ -164,7 +184,7 @@ function describeConnectArgs(args) {
 const originalConnect = net.Socket.prototype.connect
 net.Socket.prototype.connect = function walkthroughGuardedConnect(...args) {
   const target = describeConnectArgs(args)
-  if (target.path || isLocalHost(target.host) || ALLOWED_HOSTS.has(String(target.host).toLowerCase())) return originalConnect.apply(this, args)
+  if (target.path || isLocalHost(target.host) || isAllowedHost(target.host)) return originalConnect.apply(this, args)
   note({ kind: 'blocked', via: 'socket', url: `tcp://${target.host}:${target.port ?? ''}`, host: String(target.host), stack: callerStack() })
   const error = Object.assign(
     new Error(`connect ECONNREFUSED ${target.host}:${target.port} (blocked by walkthrough network guard)`),

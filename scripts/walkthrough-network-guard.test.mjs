@@ -52,6 +52,29 @@ describe('walkthrough network guard', () => {
     expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host)).toEqual(['allowed.invalid'])
   })
 
+  it('"*.domain" lets the domain and its subdomains through, and nothing that merely looks like it', () => {
+    const { entries } = runGuarded(`
+      const urls = ['https://getapib.org/a', 'https://img.getapib.org/a.png', 'https://a.b.getapib.org/a.png',
+        'https://getapib.org.evil.test/a', 'https://evilgetapib.org/a', 'https://getapib.org.evil.test/b']
+      Promise.all(urls.map((url) => fetch(url).catch(() => undefined)))
+    `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host).sort())
+      .toEqual(['evilgetapib.org', 'getapib.org.evil.test', 'getapib.org.evil.test'])
+  })
+
+  it('"*.domain" also opens the connection layer for subdomains but not look-alikes', () => {
+    const { entries } = runGuarded(`
+      const net = require('node:net')
+      for (const host of ['cdn.getapib.org', 'getapib.org.evil.test']) net.connect(443, host).on('error', () => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
+    expect(entries.filter((entry) => entry.kind === 'blocked' && entry.via === 'socket').map((entry) => entry.host)).toEqual(['getapib.org.evil.test'])
+  })
+
+  it('"*.domain" is ignored under CI too', () => {
+    const { entries } = runGuarded(`fetch('https://img.getapib.org/a.png').catch(() => undefined)`, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: 'true' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host)).toEqual(['img.getapib.org'])
+  })
+
   it('blocks fetch to a public host and records who called it', () => {
     const { stdout, entries } = runGuarded(`
       function probeVendorModels() { return fetch('https://api.vendor.invalid/models?key=secret') }
