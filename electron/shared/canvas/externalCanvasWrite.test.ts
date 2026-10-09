@@ -30,4 +30,17 @@ describe('mergeExternalCanvasWrite', () => {
     expect(merged.nodes[0]).toEqual(node('a', { prompt: 'external', position: { x: 9, y: 9 } }))
     expect(merged.edges.map((item) => (item as { id: string }).id)).toEqual(['e3', 'e2'])
   })
+
+  // 2026-10-10：外部新增的边过连线总闸（盘上写与渲染层 store 共用这一个函数）。
+  it('rejects an externally added edge the target does not take, keeps legitimate ones and pre-existing edges', () => {
+    const kinds = (id: string, kind: string) => node(id, { kind })
+    const nodes = [kinds('v', 'video'), kinds('t', 'text'), kinds('i', 'image'), kinds('w', 'video')]
+    const legacy = { id: 'legacy', source: 'v', target: 't' }
+    const base = { nodes, edges: [legacy] }
+    const next = { nodes, edges: [legacy, { id: 'bad', source: 'v', target: 't' }, { id: 'ok', source: 'i', target: 'w' }] }
+    const rejected: unknown[] = []
+    const merged = mergeExternalCanvasWrite({ base, next, current: { nodes, edges: [legacy] }, onRejectedEdges: (items) => rejected.push(...items) })
+    expect(merged.edges.map((item) => (item as { id: string }).id)).toEqual(['legacy', 'ok'])
+    expect(rejected).toHaveLength(1)
+  })
 })

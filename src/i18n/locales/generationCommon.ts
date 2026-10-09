@@ -115,6 +115,8 @@ export const zhGenerationCommon = {
     waiting: '已连接输入，等上游产出后继续。',
   },
   canvas: {
+    // 粘贴 / 复制 / 拖动复制时，目标节点不收的连线会被跳过（electron/shared/canvas/edgeAdmission）；节点照常粘贴，说清几条没带过来。
+    edgesSkippedOnPaste: '节点已照常放下，有 {{count}} 条连线没带过来（目标节点不接收这种输入）',
     aria: 'AI 影像创作画布',
     // 「在画布上点选」顶栏（store/canvasPickMode；左「+」菜单、剪辑空态、@ 画布节点共用）。
     pickMode: { title: '选择要引用的节点', exit: '退出点选', escKey: 'Esc' },
@@ -1747,6 +1749,7 @@ export const enGenerationCommon = {
     waiting: 'Input connected. Waiting for the upstream result.',
   },
   canvas: {
+    edgesSkippedOnPaste: 'Nodes placed as usual; {{count}} connection(s) were left behind (the target node does not take that input).',
     aria: 'AI visual creation canvas',
     pickMode: { title: 'Pick a node to reference', exit: 'Stop picking', escKey: 'Esc' },
     arrival: {

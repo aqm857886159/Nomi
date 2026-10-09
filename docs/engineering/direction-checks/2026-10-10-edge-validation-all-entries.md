@@ -32,7 +32,7 @@
 
 ### 5. P0：这些是我们独有的吗
 
-领域判据（哪类卡收哪类素材）是我们独有的，且已经有唯一 owner（种类定义 `connects`）；没有通用库可接。自写登记 `canvas-undo-journal-write-boundary`（under-review）：本刀不动撤销日志本体，只是不让它成为新边的入口——撤销 / 重做仍只恢复原有边。
+领域判据（哪类卡收哪类素材）是我们独有的，且已经有唯一 owner（种类定义 `connects`）；没有通用库可接。自写登记 `canvas-undo-journal-write-boundary`（under-review）：自写登记 `gate-family`（under-review，门岗家族 30 天内 108 个 fix）：本刀新增一个门岗 `check:canvas-edge-writers`，为什么现在换不了现成方案——它钉的是我们独有的领域不变量（画布 edges 数组只有哪几扇门能写、每扇必须过 `validateReferenceEdge`），ESLint `no-restricted-syntax` 能挡「写 .edges」这个语法形状，但表达不了「名单内每个文件必须真调到过闸函数、名单里不许有不再写边的文件」；门岗家族整体换成 lint 规则 + 类型层封装的评估归 gate-family 条目本身，不在本刀范围（目标：下一次门岗家族复盘时评估把 `.edges` 改成只读类型 + 唯一写函数，届时本门岗可整个删掉）。本刀不动撤销日志本体，只是不让它成为新边的入口——撤销 / 重做仍只恢复原有边。
 
 ### 6. 接入 / 补 / 重写 / 删 对比表 + 推荐
 

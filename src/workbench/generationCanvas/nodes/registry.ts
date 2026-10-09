@@ -15,6 +15,7 @@ export type GenerationNodeRenderProps<TNode = unknown> = {
 
 export type GenerationNodeComponent = ComponentType<GenerationNodeRenderProps<unknown>>
 // 生成种类词表的 owner 在中立层（主进程的 Agent 工具面也要判它）；这里只是再导出，对账测试保证插件表与它一致。
+import { NODE_KIND_CONNECTS } from '../../../../electron/shared/canvas/edgeAdmission'
 import type { GenerationNodeExecutionKind } from '../../../../electron/shared/canvas/nodeExecutionKinds'
 import type { ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 
@@ -85,7 +86,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: false,
     agentCreatable: false,
-    connects: { input: false, output: false },
+    connects: NODE_KIND_CONNECTS['shot_table'],
   },
   {
     kind: 'text',
@@ -100,7 +101,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Enter text...',
-    connects: { input: false, output: true },
+    connects: NODE_KIND_CONNECTS['text'],
   },
   {
     kind: 'character',
@@ -116,7 +117,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe the character...',
-    connects: { input: 'models', output: true },
+    connects: NODE_KIND_CONNECTS['character'],
   },
   {
     kind: 'scene',
@@ -132,7 +133,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe the scene...',
-    connects: { input: 'models', output: true },
+    connects: NODE_KIND_CONNECTS['scene'],
   },
   {
     kind: 'image',
@@ -148,7 +149,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe this frame...',
-    connects: { input: 'models', output: true },
+    connects: NODE_KIND_CONNECTS['image'],
   },
   {
     kind: 'keyframe',
@@ -163,7 +164,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe the keyframe...',
-    connects: { input: 'models', output: true },
+    connects: NODE_KIND_CONNECTS['keyframe'],
   },
   {
     kind: 'video',
@@ -178,7 +179,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Describe the video...',
-    connects: { input: 'models', output: true },
+    connects: NODE_KIND_CONNECTS['video'],
   },
   {
     // 声音：配音生成（TTS，文→音）/ 转写（Whisper，音→文）/ 上传音频。渲染走 audio-strip（按 kind 强制，
@@ -195,7 +196,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Enter dialogue or narration...',
-    connects: { input: 'models', output: true },
+    connects: NODE_KIND_CONNECTS['audio'],
   },
   {
     kind: 'clip',
@@ -210,7 +211,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: false,
     promptPlaceholder: 'Add media to edit...',
     // 剪辑卡不走模型档案，自己读上游边（ClipNode：上游产物是图 / 视频才进时间轴）；导出的成片落成新的视频卡，它本身不给下游引用。
-    connects: { input: ['image', 'video'], output: false },
+    connects: NODE_KIND_CONNECTS['clip'],
   },
   {
     kind: 'shot',
@@ -223,7 +224,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: true,
     promptPlaceholder: 'Describe the shot...',
-    connects: { input: false, output: false },
+    connects: NODE_KIND_CONNECTS['shot'],
   },
   {
     kind: 'output',
@@ -236,7 +237,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: true,
     promptPlaceholder: 'Add output notes...',
-    connects: { input: false, output: false },
+    connects: NODE_KIND_CONNECTS['output'],
   },
   {
     kind: 'panorama',
@@ -250,7 +251,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: 'Add a panorama reference...',
-    connects: { input: false, output: true },
+    connects: NODE_KIND_CONNECTS['panorama'],
   },
   {
     // 导演台（docs/plan/2026-09-02-director-console-v2.md）：Nomi 唯一的 3D 节点；老 scene3d 节点在快照加载时迁成它（director/migration）。
@@ -268,7 +269,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     providesImageReference: true,
     promptPlaceholder: 'Block, move the camera and render in the 3D director...',
     // 导演台自己读上游边：图片 / 全景 / 素材（splat、模型文件也挂在素材卡上），都按图参考算。
-    connects: { input: ['image'], output: true },
+    connects: NODE_KIND_CONNECTS['director'],
   },
   {
     kind: 'whiteboard',
@@ -284,7 +285,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: 'Draw a reference...',
-    connects: { input: false, output: true },
+    connects: NODE_KIND_CONNECTS['whiteboard'],
   },
   {
     // 3D 模型：文生 / 图生 3D 生成节点（RunningHub 混元/HiTem/Meshy，输出 .glb）。是**生成节点**
@@ -302,7 +303,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Describe the 3D model...',
-    connects: { input: 'models', output: false },
+    connects: NODE_KIND_CONNECTS['model3d'],
   },
   {
     // 素材：导入图 / 文件树拖入 / 本地切图裁剪旋转衍生物。它就是一张图，不是生成节点：
@@ -318,7 +319,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'image',
     quickAdd: false,
     providesImageReference: true,
-    connects: { input: false, output: true },
+    connects: NODE_KIND_CONNECTS['asset'],
   },
   {
     // AI 手艺产物：Agent 不调模型、用代码/标记语言直接做出的表达物（SVG / 动态 HTML / Markdown /
@@ -342,7 +343,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: false,
     agentCreatable: true,
-    connects: { input: false, output: false },
+    connects: NODE_KIND_CONNECTS['agent-artifact'],
   },
 ])
 

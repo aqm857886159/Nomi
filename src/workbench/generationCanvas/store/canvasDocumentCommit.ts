@@ -25,6 +25,7 @@ import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLi
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { bumpPersistRevision } from './canvasGuards'
 import { clearClipboard } from './canvasClipboard'
+import { reportSkippedEdges } from './canvasEdgeWrite'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
@@ -222,7 +223,13 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // A 模式实时桥：外部 MCP 改动经主进程算好整张，这里按它读到的那份三方合并到此刻的画布（与盘上同一个合并函数）。
         // 规范化里的「重启收敛」只对装载成立；会话中途应用时事实层一律以此刻的为准（下面 settleNodeFacts）。
         const live = get()
-        const merged = mergeExternalCanvasWrite({ base: write.base, next: write.next, current: live.readDocumentSnapshot() })
+        // 外部新增的边在合并里过连线总闸（口径同 edgeAdmission）：被拒的不写，说一句。
+        const merged = mergeExternalCanvasWrite({
+          base: write.base,
+          next: write.next,
+          current: live.readDocumentSnapshot(),
+          onRejectedEdges: (rejected) => reportSkippedEdges(rejected, live.projectId),
+        })
         const normalized = normalizeStoreSnapshot(merged)
         const settled = settleNodeFacts(normalized.nodes, live.nodes, live.heldNodeOutcomes, withLiveNodeFacts)
         const next = { nodes: settled.nodes, edges: normalized.edges, groups: normalized.groups }

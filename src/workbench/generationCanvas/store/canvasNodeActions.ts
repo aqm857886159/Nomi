@@ -21,6 +21,7 @@ import i18n from '../../../i18n'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { captureCanvasWorkflowTemplate, instantiateCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
+import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 
 // 删节点 → 时间轴对账(数据一致性):clip 创建时把节点产物 url 快照冻结、无 node→clip 同步,
 // 删了节点时间轴仍引用悬空/过期素材(导出会渲染已删节点的旧帧)。删完节点单向通知 workbenchStore
@@ -467,9 +468,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
         target: copiedNode.id,
       }))
     pushUndoSnapshot(state)
+    let landed: AppendedEdges = { added: [], rejected: [] }
     set((current) => {
       current.nodes.push(copiedNode)
-      current.edges.push(...incomingEdges)
+      landed = appendAdmittedEdges(current, incomingEdges)
       if (copiedNode.groupId) {
         const group = current.groups.find((candidate) => candidate.id === copiedNode.groupId)
         if (group && !group.nodeIds.includes(copiedNode.id)) {
@@ -485,9 +487,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     const touchedGroup = copiedNode.groupId ? get().groups.find((group) => group.id === copiedNode.groupId) : undefined
     emitCanvasGesture([
       { type: 'canvas.node.added', payload: { node: copiedNode } },
-      ...incomingEdges.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
+      ...landed.added.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
       ...(touchedGroup ? [{ type: 'canvas.group.updated', payload: { group: touchedGroup } }] : []),
     ])
+    reportSkippedEdges(landed.rejected, state.projectId)
     return copiedNode
   },
   reassignNodeCategory: (nodeId, categoryId) => {
@@ -614,9 +617,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     if (!instantiated.nodes.length) return []
     instantiated.nodes = assignClonedShotIndexes(currentState.nodes, instantiated.nodes)
     pushUndoSnapshot(currentState)
+    let landedTemplateEdges: AppendedEdges = { added: [], rejected: [] }
     set((state) => {
       state.nodes = [...state.nodes, ...instantiated.nodes]
-      state.edges = [...state.edges, ...instantiated.edges]
+      landedTemplateEdges = appendAdmittedEdges(state, instantiated.edges)
       state.groups = [...state.groups, ...instantiated.groups]
       state.selectedNodeIds = instantiated.nodes.map((node) => node.id)
       state.pendingConnectionSourceId = ''
@@ -626,9 +630,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     })
     emitCanvasGesture([
       ...instantiated.nodes.map((node) => ({ type: 'canvas.node.added' as const, payload: { node } })),
-      ...instantiated.edges.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
+      ...landedTemplateEdges.added.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
       ...instantiated.groups.map((group) => ({ type: 'canvas.group.created' as const, payload: { group } })),
     ])
+    reportSkippedEdges(landedTemplateEdges.rejected, currentState.projectId)
     return instantiated.nodes
   },
 })

@@ -9,7 +9,9 @@
 // - 外部没碰的、以及读图之后才出现的节点 / 边 / 组：保持当前的样子；
 // - 节点上的事实层（landedNodeFields：运行态 / 落地 / 跟主图走的媒体尺寸）外部写入永远改不动：
 //   合出来的每个已有节点再过一遍 withLiveNodeFacts，以当前真实值为准（与渲染层统一提交口同一个函数）。
+// - 外部新增的边过连线总闸（edgeAdmission）：目标不收这种输入的写不进来，被拒的从 `onRejectedEdges` 报出；已经在画布上的旧边不动；
 // 合完把两端已不在的边去掉，免得悬挂。
+import { admitNewEdges, type EdgeEndpoint, type RejectedEdge } from './edgeAdmission'
 import { withLiveNodeFacts } from './landedNodeFields'
 
 type Keyed = { id: string } & Record<string, unknown>
@@ -56,14 +58,31 @@ function mergeKeyed(
   return merged
 }
 
-export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonly<{ base: CanvasDocLike; next: CanvasDocLike; current: T }>): T {
+type EdgeRecord = { id: string; source: string; target: string; mode?: string }
+
+export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonly<{
+  base: CanvasDocLike
+  next: CanvasDocLike
+  current: T
+  /** 外部新增、但过不了连线总闸的边（调用方想告诉用户 / 模型就接这个）。 */
+  onRejectedEdges?: (rejected: readonly RejectedEdge[]) => void
+}>): T {
   const { base, next, current } = input
   const nodes = mergeKeyed(base.nodes, next.nodes, current.nodes, withLiveNodeFacts)
   const nodeIds = new Set(nodes.filter(isKeyed).map((node) => node.id))
-  const edges = mergeKeyed(base.edges, next.edges, current.edges).filter((edge) => {
+  const connected = mergeKeyed(base.edges, next.edges, current.edges).filter((edge) => {
     const { source, target } = edge as { source?: unknown; target?: unknown }
     return typeof source === 'string' && typeof target === 'string' && nodeIds.has(source) && nodeIds.has(target)
   })
+  // 已在 base / 当前画布上的边是旧边，原样保留（老项目里的老非法边不删，只是不再能新建）；其余是外部这次新加的。
+  const known = new Set([...base.edges, ...current.edges].filter(isKeyed).map((edge) => edge.id))
+  const verdict = admitNewEdges({
+    nodes: nodes.filter(isKeyed) as unknown as (EdgeEndpoint & { id: string })[],
+    known,
+    next: connected as unknown as EdgeRecord[],
+  })
+  if (verdict.rejected.length) input.onRejectedEdges?.(verdict.rejected)
+  const edges = verdict.rejected.length ? verdict.edges : connected
   const groups = mergeKeyed(base.groups ?? [], next.groups ?? [], current.groups ?? [])
   return { ...current, nodes, edges, groups }
 }
