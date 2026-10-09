@@ -32,7 +32,7 @@
 - **唯一准入点** `electron/productionRun/shotLandingAdmission.ts#admitShotsForDispatch`：读 Run → 没节点的镜调一次落地器（主进程 → 渲染层 materialize-shots，失败如实抛）→ 重读 → 有节点的发准入；落不下的报回来，调用方经同一模块的 `recordLandingFailure` 把 Run 停在 `landing_failed`（`retryLiftsStop` 为 true）。
 - **提交出口**：`submission.start(input: GenerationSubmissionDispatchInput)` 必须带 `LandedShotAdmission`（品牌类型，只有准入函数造得出来）；第一笔耐久写之前、拿到 Run 锁之后各按耐久 Run 复核一次（`assertShotAdmission`），伪造 / 过期拒（`shot_not_landed`）。不依赖可注入的 `beforeDispatch`。
 - **落地器** `canvasLandingHost.landBeforeDispatch`：不再 best-effort；文稿来源计划也真建节点（Q3 确认即落）；草稿投影 / Run 跟随 / 打开项目对账仍是 best-effort，且不替用户放文稿计划。
-- **项目没打开（Q1 = A + C′）** `landingProjectAccess.ts`：主窗口隐藏且用户从没叫出来过（`backgroundLaunch.mainWindowHiddenFromUser`）→ 经现有 `nomi:production-deep-link` 通道让它打开目标项目（不 show、不 focus）再落地；用户看得见的窗口开着别的项目 → 拒，绝不切换；进程内 stdio 路 → `refuseLandingWithoutRenderer` 拒。拒绝回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（`electron/shared/landingFailureCopy.ts`，中英两套，不谈钱）。
+- **项目没打开（Q1 = A + C′）** `landingProjectAccess.ts`：主窗口隐藏且用户从没叫出来过（`backgroundLaunch.mainWindowHiddenFromUser`）→ 经现有 `nomi:production-deep-link` 通道让它打开目标项目（不 show、不 focus）再落地；用户看得见的窗口开着别的项目 → 拒，绝不切换；进程内 stdio 路 → `refuseLandingWithoutRenderer` 拒。拒绝回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（`electron/productionRun/landingFailureCopy.ts`，中英两套，不谈钱）。
 - **付费卡（Q2）**：确认那一下先过准入；落不下来什么都不批，卡留在原地、这一镜没决定，再按一次就是重试；卡上那一句复用现有失败行（`actionFailure.canvasLandingFailed`），不加新界面、不加任务中心行。
 - **结局回填**：落地报文带上 Run 绑着的 `nodeId`；节点不在时出片结果 / 确定失败按 nodeId 暂存（同一份结局只暂存一次），撤销 / 放回时由 `canvasDocumentCommit` 落上。
 - **门岗**：入口表每条加 `landing`（`node-first` + owner，或 `exception`）；例外理由只认 `scripts/generation-entrances-ledger.json#landingExceptions`。
@@ -66,6 +66,7 @@
 
 ## 先查别人
 
-- 「先拿到许可才能调用」用类型表达（品牌类型 / opaque type）：TypeScript 官方手册的 nominal-ish 品牌写法（https://www.typescriptlang.org/play/?#example/nominal-typing）。本刀的 `LandedShotAdmission` 即此法。
-- 「先写出可见状态、再做有副作用的事」：outbox / 先持久化意向再派发是 Run 提交出口早已采用的模式（`submissionOutbox.ts`），本刀只是在它前面再加一道「节点先存在」。
-- 仓库里已有：普通画布的结局暂存（`runProjectDelivery.applyToStore` → `holdRunOutcome`）、打开项目的 deep-link 通道（`productionRunDesktopLifecycle` / `useProjectNotificationTarget.revealProjectTarget`）、后台冷启（`backgroundLaunch`）。全部复用，没有另写。
+- 「先拿到许可才能调用」用类型表达（品牌类型 / nominal typing）：https://www.typescriptlang.org/play/?#example/nominal-typing 。本刀的 `LandedShotAdmission` 即此法，编译器就是门岗，不另写扫描器。
+- 「有副作用之前先过一道零副作用的闸」：Run 提交出口早已采用（派发闸排在第一笔耐久写之前），electron/productionRun/submissionOutbox.ts:272。本刀把「节点先存在」放进同一个出口，不另起一条。
+- 节点不在时到达的结局按 nodeId 暂存、节点回来时落上：普通画布已有，src/workbench/generationCanvas/runner/runProjectDelivery.ts:46（holdRunOutcome）。制作流程复用同一份，不另写暂存区。
+- 主进程让窗口打开某个项目：现有 deep-link 处理 src/workbench/project/useProjectNotificationTarget.ts:20（revealProjectTarget）；后台冷启的隐藏主窗口 electron/backgroundLaunch.ts:14（backgroundWindowOptions）。C′ 复用这两样，不新建窗口。

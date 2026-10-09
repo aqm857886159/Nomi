@@ -3,7 +3,7 @@ import http from "node:http";
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
 import { waitForProduction } from "../productionRun/productionRunTestHelpers";
 import { PROJECT_ID, OPERATION_ID, lease, now, candidate, startLoopbackVendor, harness, buildActions, draft, resetSpendFixture } from "./agentPanelSpendConfirmTestUtils";
-import { landedAdmission, landingThatBinds } from "../productionRun/landFirstTestUtils";
+import { landedAdmission } from "../productionRun/landFirstTestUtils";
 
 afterEach(resetSpendFixture);
 

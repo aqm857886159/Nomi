@@ -6,7 +6,7 @@
 import type { GenerationSubmissionResult, ProductionGenerationSubmission } from "./productionGenerationSubmission";
 import type { ProductionRunRepository } from "./productionRunRepository";
 import { admitShotsForDispatch, liftLandingFailure, recordLandingFailure, type LandingFailure, type LandShotsOnCanvas } from "./shotLandingAdmission";
-import { landingFailureNotice } from "../shared/landingFailureCopy";
+import { landingFailureNotice } from "./landingFailureCopy";
 
 export type SingleShotLandingFailed = Readonly<{
   operationId: string;

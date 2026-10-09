@@ -10,7 +10,7 @@ import { getDesktopLocale } from "../i18n";
 import { createLandingProjectAccess } from "../productionRun/landingProjectAccess";
 import type { ProductionRunRepository } from "../productionRun/productionRunRepository";
 import { admitShotsForDispatch, type LandShotsOnCanvas } from "../productionRun/shotLandingAdmission";
-import { landingFailureNotice } from "../shared/landingFailureCopy";
+import { landingFailureNotice } from "../productionRun/landingFailureCopy";
 import { shotIncluded } from "../shared/productionShotJobs";
 import { readWorkspaceProject } from "../workspace/workspaceRepository";
 import { getWorkspaceRepositoryDeps } from "../runtimePaths";
