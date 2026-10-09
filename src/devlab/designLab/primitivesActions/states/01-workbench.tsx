@@ -39,7 +39,6 @@ export const WORKBENCH_ACTION_STATES: readonly LabState[] = [
     name: 'WorkbenchButton · 三变体 × 两尺寸全矩阵',
     source: SOURCE_ACTIONS,
     mirrors: [
-      'src/ui/app-shell/UpdaterDialog.tsx:81',
       'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx:204',
       'src/workbench/generationCanvas/nodes/ClipNode.tsx:582',
     ],

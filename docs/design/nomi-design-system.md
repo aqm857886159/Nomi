@@ -1109,6 +1109,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 展开 / 收起提示词（原地变高显示全文）| `IconArrowsDiagonal` / `IconArrowsDiagonalMinimize2` | 生成节点浮框提示词区右上角那一颗（2026-09-25 用户拍板，参考 LibTV）。选对角双箭头而不是 `IconMaximize`：后者在本仓已是「全屏打开编辑器」（`scene3d.fullscreen.openEditor`），这里是原地变高、不离开当前面；收起用同族的收拢形，一眼看出是同一颗钮的两态 |
 | 画布外那一侧有新东西（点了过去）| `IconArrowDown`（与 `IconArrowUp` / `IconArrowLeft` / `IconArrowRight` 同族按方向取）| 画布边缘提示胶囊 `CanvasArrivalHint` 尾部那一颗（2026-09-25 用户拍板，样张 v1）。箭头只指方向、不是按钮本身的动作；不用 `IconChevron*`：那族在本仓是「展开/折叠」示能 |
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
+| 你的项目和素材留在本机、这次操作不动它（一句保证，放在动作前的说明行里）| `IconShieldCheck` | 应用内更新弹窗 `UpdateDialog` 的「项目和素材都在你电脑上，更新只换 Nomi 本身」那一行（2026-10-09）。词典里没有现成的：`IconLock` 已是「自动化与权限 / 受限」的语义，在这里会读成「被锁住」；`IconFolder` 读成「文件夹入口」而不是「保证」；`IconCircleCheck` 只表状态完成，不表保护。|
 
 ### 选图规则
 

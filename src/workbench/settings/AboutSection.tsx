@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconChevronRight, IconCircleCheck, IconMap, IconMessage, IconPlayerPlay } from '@tabler/icons-react'
-import { DesignProgress, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
+import { NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
 import { useUpdater } from '../../ui/app-shell/useUpdater'
 import { FeedbackShareContent } from '../../ui/community/FeedbackShareContent'
 
@@ -119,14 +119,14 @@ export function AboutSection({ onClose, onReplaySplash }: AboutSectionProps): JS
         {!updater.supported ? (
           <p className="text-body-sm text-nomi-ink-60">{t('about.desktopUpdateUnsupported')}</p>
         ) : (
-          <UpdateBody updater={updater} />
+          <UpdateBody updater={updater} onClose={onClose} />
         )}
       </div>
     </div>
   )
 }
 
-function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JSX.Element {
+function UpdateBody({ updater, onClose }: { updater: ReturnType<typeof useUpdater>; onClose: () => void }): JSX.Element {
   const { t } = useTranslation()
   const { phase } = updater
 
@@ -152,69 +152,42 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
     )
   }
 
-  if (phase === 'available') {
-    return (
-      <div>
-        <div className="flex min-h-8 items-center justify-between gap-3">
-          <span className="text-body-sm text-nomi-ink">
-            {t('about.available')} <b className="font-medium">{updater.latestVersion}</b>
-          </span>
-          <div className="flex shrink-0 items-center gap-2">
-            <WorkbenchButton variant="default" onClick={updater.reset}>{t('common.later')}</WorkbenchButton>
-            {updater.canAutoInstall ? (
-              <WorkbenchButton variant="primary" onClick={updater.download}>{t('about.downloadUpdate')}</WorkbenchButton>
-            ) : (
-              <WorkbenchButton variant="primary" onClick={updater.openDownload}>{t('about.openDownload')}</WorkbenchButton>
-            )}
-          </div>
-        </div>
-        {!updater.canAutoInstall ? (
-          <p className="mt-2 text-micro text-nomi-ink-40">{t('about.macManualUpdate')}</p>
-        ) : null}
-        {updater.notes ? (
-          <div className="mt-2.5 max-h-[120px] overflow-auto rounded-nomi-sm bg-nomi-ink-05 p-3 text-micro leading-relaxed text-nomi-ink-60 whitespace-pre-line">
-            {updater.notes}
-          </div>
-        ) : null}
-      </div>
-    )
-  }
-
-  if (phase === 'downloading') {
-    return (
-      <div>
-        <p className="mb-2 text-body-sm text-nomi-ink">{t('about.downloading')}</p>
-        <DesignProgress value={updater.percent} size="sm" />
-        <p className="mt-1.5 text-micro text-nomi-ink-40">{t('about.downloadingHint', { percent: updater.percent })}</p>
-      </div>
-    )
-  }
-
-  if (phase === 'downloaded') {
-    return (
-      <div className="flex min-h-8 items-center justify-between gap-3">
-        <span className="flex items-center gap-1.5 text-body-sm text-nomi-ink">
-          <IconCircleCheck size={16} className="text-workbench-success" />
-          {t('about.downloaded')}
-        </span>
-        <div className="flex shrink-0 items-center gap-2">
-          <WorkbenchButton variant="default" onClick={updater.reset}>{t('common.later')}</WorkbenchButton>
-          <WorkbenchButton variant="primary" onClick={updater.install}>{t('about.restartInstall')}</WorkbenchButton>
-        </div>
-      </div>
-    )
-  }
-
-  if (phase === 'error') {
+  // 检查本身失败（断网 / 开发版）：就地说明 + 重试。下载 / 安装的失败走下面的「查看」，细节在更新弹窗里。
+  if (phase === 'error' && updater.errorStage === 'check') {
     return (
       <div>
         <div className="flex items-start gap-1.5 text-body-sm text-workbench-danger">
           <IconAlertTriangle size={16} className="mt-0.5 shrink-0" />
-          <span className="min-w-0 break-words">{updater.errorMessage || t('about.updateError')}</span>
+          <span className="min-w-0 break-words">{updater.errorReason === 'offline' ? t('updateReminder.dialog.failedOffline') : t('about.updateError')}</span>
         </div>
         <div className="mt-2.5 flex justify-end">
-          <WorkbenchButton variant="default" onClick={updater.check}>{t('common.retry')}</WorkbenchButton>
+          <WorkbenchButton variant="default" onClick={updater.retry}>{t('common.retry')}</WorkbenchButton>
         </div>
+      </div>
+    )
+  }
+
+  // 有更新的所有状态共用同一个弹窗（弹窗是下载 / 重启 / 去官网 / 重试的唯一入口），这里只报一句状态 + 「查看」。
+  if (phase === 'available' || phase === 'downloading' || phase === 'downloaded' || phase === 'error') {
+    const status = phase === 'downloading'
+      ? t('updateReminder.badge.downloading', { percent: updater.percent })
+      : phase === 'downloaded'
+        ? t('updateReminder.badge.ready')
+        : phase === 'error'
+          ? t(updater.errorStage === 'install' ? 'updateReminder.badge.installFailed' : 'updateReminder.badge.failed')
+          : t('updateReminder.badge.available', { version: updater.latestVersion ?? '' })
+    return (
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <span className="text-body-sm text-nomi-ink">{status}</span>
+        <WorkbenchButton
+          variant="primary"
+          onClick={() => {
+            onClose()
+            updater.openDialog()
+          }}
+        >
+          {t('updateReminder.about.view')}
+        </WorkbenchButton>
       </div>
     )
   }

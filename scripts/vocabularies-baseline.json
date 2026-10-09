@@ -1294,7 +1294,7 @@
         "up-to-date"
       ],
       "reason": "桌面更新器生命周期（available / checking / downloaded / downloading / error / idle / up-to-date），对应下载/安装检查阶段，与创作任务正交。",
-      "site": "src/ui/app-shell/useUpdater.ts::type:UpdaterPhase/type-union"
+      "site": "electron/shared/updateReminder.ts::type:UpdaterPhase/type-union"
     },
     {
       "members": [
@@ -1972,6 +1972,45 @@
       ],
       "reason": "GenerationPresentation.policyDecisionState records the automatic spend decision for this presentation: pending is unresolved and failed requires manual handling. ProviderPollStatusClass instead classifies an already submitted provider task, including succeeded and unknown. Reusing it would confuse pre-spend authorization with post-submission execution; this is an intentional independent owner.",
       "site": "electron/productionRun/productionRunTypes.ts::type:GenerationPresentation/property:policyDecisionState/type-union"
+    },
+    {
+      "members": [
+        "check",
+        "download",
+        "install"
+      ],
+      "reason": "更新流程当前处在哪一步（检查 / 下载 / 安装）：错误事件带上它，界面的重试才知道重做哪一步；不是任务状态，也不是别的执行阶段词表。",
+      "site": "electron/shared/updateReminder.ts::type:UpdaterErrorStage/type-union"
+    },
+    {
+      "members": [
+        "busy",
+        "failed",
+        "started"
+      ],
+      "reason": "唯一安装入口 installIfIdleNow 的三种结果（装了 / 因有任务在跑拒绝 / 装包程序没起来）；它是更新安装这一个动作的返回值，不是任务中心按钮色调那套词表。",
+      "site": "electron/update/installGate.ts::type:InstallOutcome/type-union"
+    },
+    {
+      "members": [
+        "available",
+        "downloading",
+        "failed",
+        "mac-steps",
+        "ready"
+      ],
+      "reason": "更新弹窗身体的五个屏（有新版 / 下载中 / 下好了 / 失败 / Mac 三步），按更新阶段派生的展示视图，不是更新阶段本身，也不是别处的执行状态。",
+      "site": "src/ui/app-shell/UpdateDialog.tsx::type:UpdateDialogView/type-union"
+    },
+    {
+      "members": [
+        "available",
+        "downloaded",
+        "downloading",
+        "error"
+      ],
+      "reason": "顶栏胶囊会显示的四个更新阶段（更新阶段词表 UpdaterPhase 的子集：空闲 / 检查中 / 已是最新不显示胶囊）；子集单独成型是为了让胶囊组件的入参类型穷尽。",
+      "site": "src/ui/app-shell/UpdatePill.tsx::type:UpdatePillPhase/type-union"
     }
   ],
   "debt": [

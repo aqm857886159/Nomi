@@ -41,6 +41,8 @@ import { DIRECTOR_CROWD_CELL_HEIGHT, DIRECTOR_CROWD_CELL_WIDTH } from './directo
 import { CANVAS_GROUPING_STATES } from './canvasGrouping/canvasGroupingStates'
 import { CANVAS_HANDLES_STATES } from './canvasHandles/canvasHandlesStates'
 import { CANVAS_HANDLES_CELL_HEIGHT, CANVAS_HANDLES_CELL_WIDTH } from './canvasHandles/canvasHandlesLabKit'
+import { UPDATE_REMINDER_STATES } from './updateReminder/updateReminderStates'
+import { UPDATE_REMINDER_WINDOW } from './updateReminder/updateReminderLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -222,6 +224,13 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     label: '导演台 · 群众并进加人',
     states: DIRECTOR_CROWD_ALL_STATES,
     cell: { width: DIRECTOR_CROWD_CELL_WIDTH, height: DIRECTOR_CROWD_CELL_HEIGHT },
+  },
+  {
+    id: 'update-reminder',
+    label: '应用内更新提醒（D-update 样张）',
+    states: UPDATE_REMINDER_STATES,
+    // 取景 = 主窗口默认尺寸（项目库整页）；弹窗格按弹窗自身大小截，顶栏格按真宽截。
+    cell: { width: UPDATE_REMINDER_WINDOW.width, height: UPDATE_REMINDER_WINDOW.height },
   },
 ]
 

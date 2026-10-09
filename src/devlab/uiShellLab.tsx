@@ -5,36 +5,11 @@ import { getGenerationNodeIcon } from '../workbench/generationCanvas/nodes/rende
 import { NodeEmptyState } from '../workbench/generationCanvas/nodes/render/NodeEmptyState'
 import { ClipEmptyTry, NodeTryList } from '../workbench/generationCanvas/quickActions/NodeTryList'
 import type { GenerationCanvasNode } from '../workbench/generationCanvas/model/generationCanvasTypes'
-import { UpdaterDialog } from '../ui/app-shell/UpdaterDialog'
-import type { Updater } from '../ui/app-shell/useUpdater'
-import type { UpdaterPhase } from '../ui/app-shell/useUpdater'
 
 export type UiShellLabState = Readonly<{ id: string; name: string; render: () => JSX.Element }>
 
-const updater = (phase: UpdaterPhase, overrides: Partial<Updater> = {}): Updater => ({
-  phase,
-  appInfo: { version: '0.21.0', platform: 'darwin', arch: 'arm64', canAutoInstall: true, canCheckUpdates: true },
-  latestVersion: '0.22.0',
-  notes: '## 这次更新\n\n- 生成任务可以继续在后台运行\n- 画布节点空态更清晰',
-  percent: 48,
-  errorMessage: '更新服务器暂时不可用',
-  supported: true,
-  canAutoInstall: true,
-  canCheckUpdates: true,
-  check: () => undefined,
-  download: () => undefined,
-  install: () => undefined,
-  openDownload: () => undefined,
-  reset: () => undefined,
-  ...overrides,
-})
-
 function LabFrame({ children }: { children: React.ReactNode }): JSX.Element {
   return <div className="grid min-h-[24rem] w-[34rem] place-items-center bg-nomi-bg p-8 text-nomi-ink">{children}</div>
-}
-
-function UpdateState({ phase, running = false }: { phase: UpdaterPhase; running?: boolean }): JSX.Element {
-  return <LabFrame><UpdaterDialog updater={updater(phase)} hasRunningTask={running} /></LabFrame>
 }
 
 /**
@@ -102,13 +77,9 @@ const nodeStates: readonly UiShellLabState[] = (canvasToolbarNodeKinds() as Canv
   render: () => <NodeEmptyLabCell kind={kind} />,
 }))
 
-export const UI_SHELL_STATES: readonly UiShellLabState[] = [
-  { id: 'updater-available', name: '版本弹窗 · 有更新', render: () => <UpdateState phase="available" /> },
-  { id: 'updater-downloading', name: '版本弹窗 · 下载中', render: () => <UpdateState phase="downloading" /> },
-  { id: 'updater-error', name: '版本弹窗 · 失败', render: () => <UpdateState phase="error" /> },
-  { id: 'updater-running-badge', name: '版本弹窗 · 任务运行中角标', render: () => <UpdateState phase="available" running /> },
-  ...nodeStates,
-]
+// 原来这里还有四格「版本弹窗」：本文件不挂在任何屏上、那四格从没被截过图，2026-10-08 由设计实验室
+// `update-reminder` 屏取代并删除。剩下的节点空态清单留着，是因为它的 Record 键类型是工具栏节点种类的编译期护栏。
+export const UI_SHELL_STATES: readonly UiShellLabState[] = nodeStates
 
 export function findUiShellState(id: string | null): UiShellLabState | null {
   return UI_SHELL_STATES.find((state) => state.id === id) ?? null
