@@ -42,6 +42,10 @@ export function completeNodeConnection(connectedNodeId: string, present?: (messa
     reportFeedback(i18n.t('connection.sourceUnavailable'))
     return
   }
+  if (!verdict.ok && verdict.reason === 'target_takes_no_input') {
+    reportFeedback(i18n.t('connection.targetTakesNoInput'))
+    return
+  }
   if (!verdict.ok && verdict.reason === 'unsupported_reference') {
     const target = before.nodes.find((node) => node.id === targetNodeId)
     const declared = readParameterReferenceSlots(target?.meta)

@@ -2,7 +2,8 @@ import { materializeGroupLink, materializeGroupOutputLink, type GroupMaterialize
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
 import { normalizeParameterEdges, readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { resolveCanvasReferenceConnection } from '../model/canvasReferenceConnection'
-import { archetypeForNode, resolveTargetModeForEdge } from '../agent/referenceEdgeCapability'
+import { canDeriveOutput } from '../model/derivedOutput'
+import { archetypeForNode, resolveTargetModeForEdge, validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { groupMemberNodes, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
@@ -90,6 +91,44 @@ function isEdgeInDisconnectScope(edge: GenerationCanvasEdge, scope: GroupEdgeDis
   if (scope.direction === 'output') return edge.target === scope.targetNodeId
   return edge.source === scope.sourceNodeId && (scope.mode == null || edge.mode === scope.mode)
 }
+type GraphSet = Parameters<CanvasSliceCreator<CanvasGraphActions>>[0]
+type GraphGet = Parameters<CanvasSliceCreator<CanvasGraphActions>>[1]
+
+/** 写一条边的共用落点：由调用方的 decide 说这条边收不收（总闸 / 出处边规则），收了就落库 + 发事件 + 自动对模式。 */
+function writeCanvasEdge(
+  set: GraphSet,
+  get: GraphGet,
+  sourceNodeId: string,
+  targetNodeId: string,
+  mode: GenerationCanvasEdgeMode | undefined,
+  targetParamKey: string | undefined,
+  order: number | undefined,
+  decide: (state: ReturnType<GraphGet>) => { ok: false } | { ok: true; mode: GenerationCanvasEdgeMode; targetParamKey?: string },
+): void {
+  const beforeEdges = get().edges
+  set((state) => {
+    const connection = decide(state)
+    if (!connection.ok) return
+    const key = connection.targetParamKey
+    let nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, connection.mode, key, order)
+    if (nextEdges === state.edges) return
+    if (key) nextEdges = nextEdges.filter((edge) => edge.target !== targetNodeId || edge.targetParamKey !== key || (edge.source === sourceNodeId && edge.mode === connection.mode))
+    state.edges = normalizeParameterEdges(state.nodes, nextEdges)
+    bumpPersistRevision(state)
+  })
+  const afterEdges = get().edges
+  if (afterEdges !== beforeEdges) {
+    const addedEdge = afterEdges.find((candidate) => !beforeEdges.some((edge) => edge.id === candidate.id))
+    if (addedEdge) emitCanvasGesture([
+      ...beforeEdges.filter((edge) => !afterEdges.some((candidate) => candidate.id === edge.id))
+        .map((edge) => ({ type: 'canvas.edge.removed' as const, payload: { edge } })),
+      { type: 'canvas.edge.added', payload: { edge: addedEdge } },
+    ])
+    // agent 计划 / 3D 站位经此入口连线，同样把收不下参考的目标自动切到能收的模式(幂等，见 helper)。
+    autoPromoteTargetModeForEdge(get(), sourceNodeId, targetNodeId, mode)
+  }
+}
+
 export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get, store) => ({
   // 框（Frame）自己的两个写口住在隔壁（R9 分层：本文件已顶到 800 行门岗）。
   ...createCanvasFrameStoreActions(set, get, store),
@@ -105,7 +144,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
   cancelConnection: () => {
     set({ pendingConnectionSourceId: '', pendingConnectionSourceSide: 'right', pendingConnectionSourceKind: 'node' })
   },
-  connectToNode: (connectedNodeId) => {
+  connectToNode: (connectedNodeId, options) => {
     const pendingNodeId = get().pendingConnectionSourceId
     if (!pendingNodeId) return { ok: false, reason: 'dangling' }
     if (get().pendingConnectionSourceKind === 'group') {
@@ -161,7 +200,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     // 边语义按**目标当前模式**挑（单一真相源 selectConnectionEdgeMode）：数组参考槽（omni 角色参考）→
     // character_ref（有序，对应 character1..N）；单帧 i2v → 首/尾帧填空。无源/目标 → 默认通用 reference。
     const connection = sourceNode && targetNode
-      ? resolveCanvasReferenceConnection(sourceNode, targetNode, pre.nodes, pre.edges)
+      ? resolveCanvasReferenceConnection(sourceNode, targetNode, pre.nodes, pre.edges, options?.mode)
       : { ok: false as const, reason: 'dangling' as const }
     // 连边能力校验收口到此(手动连线总闸):错配参考槽等盲连在创建期就拦；
     // 文本→图片/视频的通用 reference 边作为 prompt 上下文放行。
@@ -271,33 +310,26 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     return { ok: true, connected: outcome.connected.length, skipped: outcome.skipped, alreadyConnected: outcome.alreadyConnected }
   },
   connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey, order) => {
-    const beforeEdges = get().edges
-    set((state) => {
+    // **新边的唯一写边边界**：不管目标有没有参数槽都先过总闸（没有任何「我是系统出处边」的开关——出处边走 addDerivedOutput：建节点 + 连边一个原子动作）。
+    writeCanvasEdge(set, get, sourceNodeId, targetNodeId, mode, targetParamKey, order, (state) => {
       const target = state.nodes.find((node) => node.id === targetNodeId)
       const source = state.nodes.find((node) => node.id === sourceNodeId)
       const slots = readParameterReferenceSlots(target?.meta)
-      const connection = slots.length && source && target
+      return slots.length && source && target
         ? resolveCanvasReferenceConnection(source, target, state.nodes, state.edges, mode, targetParamKey)
-        : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
-      if (!connection.ok) return
-      const key = connection.targetParamKey
-      let nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, connection.mode, key, order)
-      if (nextEdges === state.edges) return
-      if (key) nextEdges = nextEdges.filter((edge) => edge.target !== targetNodeId || edge.targetParamKey !== key || (edge.source === sourceNodeId && edge.mode === connection.mode))
-      state.edges = normalizeParameterEdges(state.nodes, nextEdges)
-      bumpPersistRevision(state)
+        : source && target && !validateReferenceEdge(source, target, mode).ok
+          ? { ok: false as const }
+          : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
     })
-    const afterEdges = get().edges
-    if (afterEdges !== beforeEdges) {
-      const addedEdge = afterEdges.find((candidate) => !beforeEdges.some((edge) => edge.id === candidate.id))
-      if (addedEdge) emitCanvasGesture([
-        ...beforeEdges.filter((edge) => !afterEdges.some((candidate) => candidate.id === edge.id))
-          .map((edge) => ({ type: 'canvas.edge.removed' as const, payload: { edge } })),
-        { type: 'canvas.edge.added', payload: { edge: addedEdge } },
-      ])
-      // agent 计划 / 3D 站位经此入口连线，同样把收不下参考的目标自动切到能收的模式(幂等，见 helper)。
-      autoPromoteTargetModeForEdge(get(), sourceNodeId, targetNodeId, mode)
-    }
+  },
+  addDerivedOutput: ({ sourceNodeId, kind, node, mode }) => {
+    // 系统出处边的**唯一**写法：建派生节点 + 连出处边是一个原子动作——按规则表（model/derivedOutput）核源种类和新节点种类，
+    // 建节点，连边。目标一定是刚建出来的新节点（天然没有别的来源），不持久化任何身份字段，也没有「给已有节点补出处边」的入口。
+    const source = get().nodes.find((candidate) => candidate.id === sourceNodeId)
+    if (!source || !canDeriveOutput(kind, source, node.kind)) return null
+    const created = get().addNode(node)
+    writeCanvasEdge(set, get, sourceNodeId, created.id, mode, undefined, undefined, () => ({ ok: true as const, mode: mode ?? 'reference', targetParamKey: undefined }))
+    return created
   },
   updateEdgeMode: (edgeId, mode) => {
     const existing = get().edges.find((candidate) => candidate.id === edgeId)

@@ -26,3 +26,21 @@ describe('reference capacity rendering', () => {
     expect(html.includes('assetLibrary.addReference')).toBe(canAdd)
   })
 })
+
+describe('first-frame tag on the array slot', () => {
+  const slot: AssetSlot = { key: 'refs', label: 'References', accept: 'image', form: 'array', persistAsEdge: false, numbered: false }
+  const render = (firstFrameSlotKey?: string) => renderToStaticMarkup(React.createElement(AssetReference, {
+    slots: [slot], valuesByKey: { refs: ['https://cdn/a.png', 'https://cdn/b.png'] },
+    projectId: null, openSlotKey: '', uploadingSlotKey: '',
+    onTogglePicker: vi.fn(), onPick: vi.fn(), onUpload: vi.fn(), onRemove: vi.fn(),
+    ...(firstFrameSlotKey ? { firstFrameSlotKey } : {}),
+  }))
+  it('marks only the first tile of the named slot', () => {
+    const html = render('refs')
+    expect(html.match(/data-asset-tile-tag="firstFrame"/g)?.length).toBe(1)
+    expect(html).toContain('generationCommon.parameters.firstFrame')
+  })
+  it('no tag when the slot is not named', () => {
+    expect(render()).not.toContain('data-asset-tile-tag')
+  })
+})
