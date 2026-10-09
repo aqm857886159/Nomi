@@ -32,6 +32,8 @@ import { formatSeconds, ListCardMedia, ListStatusTag, readAspect, readDurationSe
 import { shotLabel, type GenerationListCard } from './generationListModel'
 
 export const CARD_MEDIA_HEIGHT = 144
+/** 卡上提示词是只读的，编辑器要求一个 onChange。 */
+const ignoreChange = (): void => undefined
 
 /** 节点上选好的模型 → 卡上那个显示名（找不到目录项就原样显示 key）。 */
 export function useModelLabels(): (node: GenerationCanvasNode | undefined) => string {
@@ -77,7 +79,7 @@ function CardPrompt({ node, lines }: { node: GenerationCanvasNode; lines: 2 | 3 
     <div className="min-w-0" data-card-prompt>
       <PromptEditor
         value={prompt}
-        onChange={() => undefined}
+        onChange={ignoreChange}
         editable={false}
         mentionReferences={references}
         className={cn('pointer-events-none [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0', lines === 2 ? '[&_.ProseMirror_p]:line-clamp-2' : '[&_.ProseMirror_p]:line-clamp-3')}

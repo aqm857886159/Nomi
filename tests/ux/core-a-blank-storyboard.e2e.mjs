@@ -1,6 +1,7 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Original sidebar -> original editor -> project IPC/disk -> a new Electron process.
 // Only vendor services are loopback; no plan/store write is injected after launch.
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -119,7 +120,7 @@ try {
   await start()
   for (const previous of expected) {
     await expandSidebar()
-    await win.locator(`button[data-storyboard-id="${previous.id}"]`).click()
+    await openStoryboardEditor(win, previous.id)
     await expect(editor().locator('header input')).toHaveValue(previous.plan.title)
     await expect(editor().locator('[data-storyboard-row="1"] [data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText(previous.plan.shots[0].prompt)
     assert.deepEqual(savedPlans().find(plan => plan.id === previous.id), previous)

@@ -135,7 +135,7 @@ try {
   await expect(toggle, '生成页左上没有「画布 | 列表」切换').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
 
   // ① 切到列表：画布区换成列表，其余不动。
-  await clickOrFail(toggle.getByRole('button', { name: zh ? '切到列表' : 'Switch to list' }), '切到列表')
+  await clickOrFail(toggle.locator('button'), 'toggle to list')
   await expect(win.locator('[data-generation-list]'), '列表没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-list-card="shot-1"]'), '列表里没有镜 01').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-section-generate]').first(), '分区头没有「生成全部」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
@@ -179,7 +179,7 @@ try {
   await clickOrFail(win.locator('[data-view-in-list="shot-4"]'), '去列表')
   await expect(win.locator('[data-list-inspector="shot-4"]'), '「去列表」没有打开这一张').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   // ⑧ 返回列表。
-  await clickOrFail(win.locator('[data-list-detail-back]'), '返回列表')
+  await clickOrFail(win.locator('[data-list-detail-back]'), 'back from detail')
   await expect(win.locator('[data-list-layout="grid"]'), '返回之后不是列表网格').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   console.log(`✓ generation-list-window ${suffix} → ${outDir}`)
 } finally {
