@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import test, { before } from 'node:test'
+import test, { after, before } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { makeTempDir } from './_test-temp.mjs'
@@ -158,7 +158,12 @@ function gitSetup() {
   git('checkout', '-q', '--detach', head)
   git('update-ref', 'refs/remotes/origin/main', head)
   baseSha = head
+  // 依赖门岗（tokens / vocabularies 要 typescript）需要 node_modules：junction 指回真仓库；退出前先只摘链接（rmdir 不跟进目标）
+  nodeModulesLink = path.join(work, 'node_modules')
+  fs.symlinkSync(path.join(repoRoot, 'node_modules'), nodeModulesLink, 'junction')
 }
+let nodeModulesLink = null
+after(() => { try { if (nodeModulesLink) fs.rmdirSync(nodeModulesLink) } catch { /* 已不在 */ } })
 
 function commitChange(edit) {
   git('reset', '-q', '--hard', baseSha)
@@ -171,7 +176,9 @@ function commitChange(edit) {
 const HOOK_ARGS = ['origin', 'https://example.invalid/r.git']
 function prePush({ body, cwd = work, args = HOOK_ARGS, refLine } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
+  // 外层 node --test 会设 NODE_TEST_CONTEXT，子进程里再 node --test 就不真跑了（假绿）——必须清掉
   const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
+  delete env.NODE_TEST_CONTEXT
   return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
     input: refLine ? refLine(sha) : `refs/heads/topic ${sha} refs/heads/topic ${ZERO}\n`,
     env,
@@ -327,6 +334,7 @@ test('必红：src 新增未登记的 type union（生命周期词）→ 推送�
   const result = prePush({ body: CARD })
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:vocabularies/)
+  assert.match(result.stderr, /PrepushProbeState/, '红的原因要是这个新 union，不是缺依赖')
 })
 
 test('按改动路径选门岗：只改 docs 不跑新增的；改 tests/ 跑临时目录与抄文案；改 src tsx 跑 tokens / vocabularies / controls；改 electron 跑退出守卫', () => {
