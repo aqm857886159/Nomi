@@ -527,6 +527,26 @@ try {
     await clickOrFail(win.locator('.nomi-stepper__step[data-mode="generation"]'), '回生成页')
     await win.waitForTimeout(600)
 
+    // #2 顶栏浏览器：打开、浮层从顶栏下开始、关掉。
+    await clickOrFail(win.locator('[data-shell-browser]'), '#2 顶栏 · 浏览器')
+    const browser = win.locator('.nomi-browser-dialog__panel').first()
+    await expect(browser, '#2 浏览器没打开').toBeVisible({ timeout: stationTimeout() })
+    const browserRect = await rectOf(browser)
+    expect(browserRect.top >= 40 - 1, `#2 浏览器浮层压住了顶栏（${JSON.stringify(browserRect)}）`).toBe(true)
+    await clickOrFail(browser.getByRole('button', { name: '关闭浏览器' }), '#2 关闭浏览器')
+    const canvasForBrowser = await proveProbe(win.locator('.workbench-generation__canvas'), '画布在（判浏览器关掉之前先证探针活着）')
+    await expectAbsent(browser, { provenBy: canvasForBrowser, message: '#2 浏览器关不掉' })
+    parity2.browser = browserRect
+
+    // #6 上手清单：设置钮上的点 → 设置「通用」最上面那块，四步都在。
+    await clickOrFail(win.locator('[data-shell-settings]'), '#6 顶栏 · 设置')
+    await clickOrFail(win.locator('[data-settings-tab-id="general"]').first(), '#6 设置 · 通用')
+    const checklist = win.locator('[data-onboarding-checklist="settings"]')
+    await expect(checklist, '#6 设置通用里没有上手清单').toBeVisible({ timeout: stationTimeout() })
+    expect(await checklist.locator('li[data-step]').count(), '#6 上手清单不是四步').toBe(4)
+    await clickOrFail(win.locator('[data-settings-close]').first(), '#6 关设置')
+    parity2.onboarding = 'settings › general, 4 steps'
+
     // #43 底边窄条 ^ 展开时间轴、再收回窄条。
     const strip = win.locator('[data-timeline-strip]')
     const timelinePanel = win.locator('.workbench-generation__timeline .workbench-timeline').first()

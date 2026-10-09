@@ -72,11 +72,11 @@
 | # | 功能 | 新位置可用（截图 / 走查名） |
 |---:|---|---|
 | 1 | 窗口最小化 / 最大化 / 关闭 / 双击最大化 | Windows 原生 titleBarOverlay 三钮 + 整条顶栏是拖拽区（window-drag.e2e）；**Snap 真机 unverified** |
-| 2 | 打开浏览器 | 顶栏 `[data-shell-browser]`（main-*） |
-| 3 | 回项目库 / 项目下拉 / 重命名 | 顶栏「项目名 ▾」菜单：最近项目、回项目库、新建、重命名；双击改名（main-*） |
+| 2 | 打开浏览器 | 顶栏 `[data-shell-browser]`：打开、浮层从顶栏下开始、关闭（shell-redesign.walk check-parity2） |
+| 3 | 回项目库 / 项目下拉 / 重命名 | 顶栏「项目名 ▾」菜单：最近项目、回项目库、新建、重命名；改名 Enter 生效、Esc 放弃（shell-redesign.walk check-parity2） |
 | 4 | 切换创作 / 生成 / 预览 | 顶栏步骤器（main-*、creation-doc-*、preview-catalog-*） |
 | 5 | 预览布局、任务定位 | 剪辑页顶栏布局菜单 + 任务钮（preview-catalog-*；task-center.walk） |
-| 6 | 上手清单与未完成态 | 设置钮上的点 + 设置「通用」最上面一块（main-* 设置点；onboarding-checkmark-honesty.walk） |
+| 6 | 上手清单与未完成态 | 设置钮上的点 + 设置「通用」最上面一块，四步都在（shell-redesign.walk check-parity2；onboarding-checkmark-honesty.walk） |
 | 7 | 设置、模型接入、导出 MP4 | 顶栏设置；设置 › 模型；剪辑页顶栏「导出 MP4」（preview-catalog-*） |
 | 8 | 旧「去出片」 | 删（设计卡归位表；canvas-control-clarity.walk 断言不在） |
 | 9 | 收起后状态 / 未读 / 出错 + 叫回 | 右下小球四态 + 未读点（chrome-ball-*、chrome-ball-unread-*；agent-v4-short-film.walk） |
@@ -84,7 +84,7 @@
 | 11 | 拖宽 | 六个抽屉右缘都能拖宽、关掉再开宽度还在（走查 check-parity：docs/catalog/flows/skills/prompts 280→328，assets 440→488，再开不变；check-drawer-resize-*） |
 | 12 | 分组新建 / 重命名 / 删除 | 「目录」抽屉 CategoryTree + 抽屉头「+ 新建分组」（preview-catalog-*） |
 | 13 | 节点拖入分组、重排 | 「目录」抽屉里节点拖进分组、分组拖动重排都生效，拖动时抽屉不被「点外面收起」打断（走查 check-parity；check-parity-catalog-dnd-zh-light-1280） |
-| 14 | 素材上传 / 链接 / 删除 / 搜索 / 预览 / 拖拽 | 「素材」抽屉 AssetLibraryContent 原件（chrome-assets-*；canvas-card-stack.walk） |
+| 14 | 素材上传 / 链接 / 删除 / 搜索 / 预览 / 拖拽 | 「素材」抽屉原件：素材拖进画布落成节点、双击全屏预览、Esc 只关预览（shell-redesign.walk check-parity2；check-parity2-asset-preview）；上传走系统文件窗，屏外不点 |
 | 15 | 素材筛选 | 同上（筛选钮在搜索框右侧） |
 | 16 | 素材文件夹 | 「素材」抽屉 › 项目素材：新建、拖素材进文件夹、打开、返回、删除（含确认卡）都在，确认卡关掉后抽屉不收（走查 check-parity；check-parity-asset-folder-zh-light-1280） |
 | 17 | 提示词筛选 / 新建 / 重载 | 「提示词」抽屉 + 项目库「提示词」页签，同一个 PromptLibraryContent |
@@ -92,26 +92,26 @@
 | 19 | Skill 来源 / 导入 / 新建 | 「Skill」抽屉 + 项目库「Skill」页签，同一个 SkillLibraryContent |
 | 20 | 流程搜索 / 收藏 / 编辑 / 删除 / 复制 | 「流程」抽屉 WorkflowLibraryContent 原件 |
 | 21 | 文稿树开关、新建 / 切换文稿 | 「文稿」抽屉 + 头部「+ 新建文稿」+ 工具条「文稿名 ▾」（creation-doc-*；_creationResourceTree helper） |
-| 22 | 文稿重命名 / 删除；新建 / 切换方案 | 「文稿」抽屉 DocumentListSidebar 原件（creation-doc-*） |
-| 23 | 方案重命名 / 复制 / 删除 / 从文稿创建 | 同上 |
+| 22 | 文稿重命名 / 删除；新建 / 切换方案 | 「文稿」抽屉：新建、双击改名、右键删除（含确认卡）（shell-redesign.walk check-parity2；check-parity2-docs） |
+| 23 | 方案重命名 / 复制 / 删除 / 从文稿创建 | 右键复制、改名、删除，「新建方案」从文稿建（shell-redesign.walk check-parity2；check-parity2-docs） |
 | 24 | 编辑器工具条 | 编辑器顶部那一行原样，「文稿名 ▾」在最左（creation-doc-*） |
 | 25 | 分镜：返回创作、交 Agent、生成全部、放到画布 | StoryboardPlanEditor 原样（只删了旧资源树开关） |
 | 26–30 | 分镜方案细项 | 归 I-planview；方案视图做好之前现役编辑器原样保留（本线未动这些功能） |
 | 31 | 剪辑页素材 / 镜头切换、收起 | 剪辑页 PreviewSourcePanel 原样保留 + 左栏抽屉另有同一套（preview-catalog-*） |
 | 32 | 拖镜头进时间轴 / 点击追加 | 剪辑页「目录」抽屉顶部镜头格可拖、点击追加；「素材」抽屉带音频（check-preview-append-zh-light-1280：时间轴 0→1 段） |
-| 33 | 播放器控制 | 原样（preview-catalog-*） |
-| 34 | 文本层编辑 | 原样 |
+| 33 | 播放器控制 | 播放 / 暂停、上一帧 / 下一帧（时间 0.1s→0.2s）、静音 / 取消静音、全屏进出（shell-redesign.walk check-parity2） |
+| 34 | 文本层编辑 | 加字幕、在画面上拖动（60,-40）、选中态双击改字（shell-redesign.walk check-parity2；check-parity2-preview-text）。选中态双击原本就进不了编辑（main 同样，OverlaySelectionBox 抓指针吞了 dblclick），本线一并修了 |
 | 35 | 剪辑页布局菜单 | 剪辑页顶栏右簇「布局」钮（窄于 1440 只剩图标 + ▾）：面板显隐 3 项、预设 4 项、恢复默认都在、点了生效（走查 check-parity；check-parity-layout-menu-zh-light-1280） |
 | 36 | 检查器 | 原样（preview-catalog-*） |
-| 37 | Cmd+\ / Cmd+Z | Ctrl(⌘)+\ 停靠↔小球、Ctrl(⌘)+J 打开并聚焦输入框（check-mod-j / check-mod-backslash-dock；editing-real-user-pass.walk）；布局撤销原样 |
+| 37 | Cmd+\ / Cmd+Z | Ctrl(⌘)+\ 停靠↔小球、Ctrl(⌘)+J 打开并聚焦输入框（check-mod-j / check-mod-backslash-dock；editing-real-user-pass.walk）；剪辑页切掉面板后 Cmd+Z 撤回（shell-redesign.walk check-parity2；现役只认 Cmd+Z，Windows 上 Ctrl+Z 归时间轴撤销，main 同样） |
 | 38 | 画布 / 列表切换 | 顶栏「生成」旁 `viewSwitcher` 位（列表线填） |
-| 39–42 | 画布添加节点 / 更多 / 流程模板 / 缩放 | 画布内部原样（main-*） |
-| 43 | 时间轴开 / 收 | 底边窄条点 ^ 展开（main-*；layout-timeline-panel-span.walk） |
+| 39–42 | 画布添加节点 / 更多 / 流程模板 / 缩放 | 左栏加图片节点（节点数 +1）、「更多」里导演台 / 3D / 全景 / 白板、缩放滑杆与适应视图（shell-redesign.walk check-parity2；check-parity2-canvas-more）；流程模板与右键偏好由 canvas-context-menu-click.walk 覆盖 |
+| 43 | 时间轴开 / 收 | 底边窄条 ^ 展开、面板上收起回窄条（shell-redesign.walk check-parity2；main-*） |
 | 44–45 | 时间轴工具与交互 | 窄条 ^ 展开后就是现役 TimelinePanel：工具条 10 颗（分割 / 副本 / 删除 / AI 拼片 / 撤销 / 重做 / 吸附 / 缩小 / 重置 / 放大）、选中后分割可用、右键 8 项、拖标尺播放头会动（走查 check-parity；check-parity-timeline-zh-light-1280） |
 | 46 | 新建 / 打开文件夹 / 筛选 / 搜索 / 打开项目 | 项目库（library-*） |
 | 47–48 | 删除 / 改名 / 打开文件夹 / 同步徽标 / 重查 | 项目卡原样：悬停出删除钮（先出确认卡）、双击名字改名生效、悬停出「打开项目文件夹」、同步徽标在（走查 check-parity；check-parity-project-card-zh-light-1280）。main 上项目卡本来就没有「更多」菜单 |
 | 49 | 页签、重试、清空搜索、空态动作卡 | Library / LibraryEmpty（library-*、library-empty-*） |
-| 50 | 全屏浮层让开顶栏 | `fullscreenOverlayTopOffset()` = 40（windowChrome.test；director-windowbar.walk） |
+| 50 | 全屏浮层让开顶栏 | 素材全屏预览 top=40、铺满、压在抽屉之上；导演台 top=40 铺满（shell-redesign.walk check-parity2；check-parity2-asset-preview、check-parity2-director）；ComfyUI 设置页要连本地 ComfyUI，未真点，用同一个 fullscreenOverlayTopOffset |
 | 51 | 素材预览前后切换 / 下载 3D / Esc | 原样，只改顶偏移 |
 | 52 | 小球状态 | chrome-ball-*（running / failed / pending）+ main-*（空闲） |
 | 53 | 三形态切换、浮窗拖动改大小 | 头部三选一 + 小球右键菜单；react-rnd（canvas-agent-*、check-mod-backslash-dock） |
@@ -119,7 +119,7 @@
 | 55 | 发送 / 停止 / 附件 / 模型 / Skill / 权限 | composer 原样（canvas-agent-*） |
 | 56 | 模型弹层打开模型库 | 原样（事件 nomi-open-model-catalog → 设置 › 模型） |
 | 57 | 线程新建 / 切换 / 删除 / 历史 | 头部历史钮原样；浮窗窄时收进「⋯」（check-float-compact-zh-light-1280） |
-| 58 | 待确认卡动作 | 卡在面板里原样；小球「等你确认 N」点开回到卡（agent-v4-short-film.walk §4） |
+| 58 | 待确认卡动作 | 确认（勾选穿过三形态切换：回给模型的只有勾着的两行）、不要 + 原因（agent-form-switch-state.walk）；「去掉这张」（替代）在 agent-spend-per-shot.walk 中文 10 个场景全过；「继续」agent-lane-stop-resume.walk 通过；「重试」见下方未通 |
 | 59 | 收起时角标（待确认 / 未读 / 出错）+ Mod+J | 小球四态 + 未读点 + Ctrl(⌘)+J（chrome-ball-*、chrome-ball-unread-*、check-mod-j） |
 
 **未读（10-08 协调拍板补上）**：收起期间的未读条数（原顶栏角标的数字）由小球右上一颗强调色小点承接（外壳共用的 DotMark，同窄屏「新版本」图标上那颗），悬停 / 读屏写「N 条新消息」；「等你确认 N」优先（同时在只出胶囊），出错点占同一角时不叠未读点。证据：chrome-ball-unread-zh-light-1280、chrome-ball-unread-en-dark-1280；单测 AgentBallFace.test.ts。
@@ -137,3 +137,17 @@ NomiAppBar、WindowControls、windowTitlebarDoubleClick、appBarActionGroups、A
 - U3 原生窗口按钮在光 / 暗切换时的颜色（页面截图拍不到原生层）。
 - U4 设计实验室 darwin 基线（creation-columns、agent-panel-v4、primitives）要在 mac 上重录。
 - U5 小球处理中 / 出错 / 等你确认 N 由真 Agent 驱动的样子（截图是注入；真 Agent 那条由 agent-v4-short-film.walk 覆盖，本机没跑）。
+
+## 功能全表还没真点通的行（#1136 复核后，10-09）
+
+| # | 状态 | 原因 |
+|---|---|---|
+| 1 | unverified | 原生窗口按钮 / Snap 在屏外内容层拍不到，要真机 |
+| 7 | 入口在、未触发导出 | 导出 MP4 会真跑编码，走查不点；入口与导出走查 preview-export-busy 同一颗钮 |
+| 17–20 | 抽屉打开在位、内部动作未逐个点 | 提示词 / Skill / 流程是原件整体搬进抽屉（V-1136 重验已逐个打开）；内部动作各有自己的走查，未在本线重跑 |
+| 48 | 打开项目文件夹 / 同步徽标在，「重查」未点 | 重查要有同步异常的项目夹具 |
+| 51 | Esc 关闭已点通，前后切换 / 3D 下载未点 | 前后切换只在序列预览出现；3D 下载要 3D 素材夹具 |
+| 55–56 | 发送 / 模型选择有 agent 走查覆盖，「打开模型库」未点 | — |
+| 58 · 重试 | 未通 | agent-ui-exception-states-runtime.walk 过了收起 / 小球那一段，卡在走查自己的 appendHostItem（`window.nomiDesktop…open` 未定义，夹具接口过期，main 夜跑同一份走查也红） |
+| agent-v4-short-film | 未通（main 同样红） | 红在 append_to_end 工具直接失败、没出审批卡，与 main 夜跑同一处同一报错（docs/research/2026-10-08-nightly-walk-triage.md） |
+| agent-spend-per-shot 英文轨 | 中文 10 场景全过，英文前 6 个过、第 7 个（5 张那场）超时 | 等「去掉这张」那颗钮超时；中文同场景通过，未定位 |
