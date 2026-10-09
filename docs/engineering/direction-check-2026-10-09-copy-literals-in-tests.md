@@ -98,5 +98,6 @@
 - B：`scripts/check-test-copy-literals.mjs` + 自测 `scripts/check-test-copy-literals.node-test.mjs` + 基线 `scripts/test-copy-literals-baseline.json`，挂进 `package.json` 的 `check:i18n`；`electron/desktopStrings.ts` 导出 `desktopTranslations` 供门岗读主进程文案表（运行时取词仍只走 `desktopT`）。
 - C：例外键 `NOT_MONEY` / `NON_MONEY_KEYS` 从 `scripts/check-i18n-no-cost-claims.mjs` 搬进 `tests/ux/full-walk/outcomeText.mjs`，门岗按键豁免、监视器用 `compileExemptions(词典)` 按同一批键取值豁免；`outcomeText.test.mjs` 的被检对象改成从整本词典生成。
 - 6 条红按 A 改：① `desktopT('outbound.submitFakeIpBlocked', …)` 比对；② 删按键名猜意思的那条，换成整本词典扫描；③ 删手抄例句，改成例外键的词典值逐条过监视器；④ `toHaveAccessibleName(uiText(...))`；⑤⑥（连同 ⑤ 调用的 `_agentSpendScopeJourney.mjs` 里同形的 0.90）只把金额断言换成「确认控件不出金额」。
+- 本机屏外跑 `agent-spend-full-auto` 时，删掉 0.30 后紧跟着又撞到一处手抄旧句「付费生成也会直接跑」——正是 §3 预测的那一类，同样改成 `uiText` 取值（走查遇第一处红就停，CI 只报得出第一处）。
 - 没在本 PR 动、留给协调会话排的：不在 CI 里的 `agent-spend-priced-card` / `agent-spend-reprice` / `agent-spend-r30` 走查仍断言卡上有金额（同属旧产品决策，不是字面问题，门岗也抓不到）。
 
