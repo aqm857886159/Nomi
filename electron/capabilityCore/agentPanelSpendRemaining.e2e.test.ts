@@ -133,7 +133,6 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
     const submits: string[] = [];
     let approvedWhenXLanded = -1;
     let discarding: Promise<unknown> | undefined;
-    let built: ReturnType<typeof buildActions>;
     let sequence = 0;
     const provider = (providerId: string, _origin: string, sent: string[]): GenerationProvider => ({
       providerId,
@@ -156,7 +155,7 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
       query: async (providerTaskId) => ({ status: "succeeded", raw: { id: providerTaskId, status: "succeeded" } }),
       materialize: async ({ providerTaskId }) => ({ outputs: [{ kind: "image", url: `nomi-local://asset/${PROJECT_ID}/${providerTaskId}.png` }] }),
     });
-    built = buildActions(base, "http://127.0.0.1:1", submits, { detachDispatch: true, provider });
+    const built = buildActions(base, "http://127.0.0.1:1", submits, { detachDispatch: true, provider });
     const { withWindow, handler } = built;
     await imageDraft(base, handler, 6);
     const card = withWindow.listPendingSpend(PROJECT_ID)[0];
