@@ -47,11 +47,11 @@ describe('storyboard-table retirement (old projects written by v0.23.1)', () => 
     const model = deriveGenerationList({
       nodes: canvas.nodes, edges: canvas.edges, groups: canvas.groups,
       designsByDocumentId: after.payload.storyboardDesignsByDocumentId as never,
-      imageModelOptions: [], videoModelOptions: [], filter: null,
+      imageModelOptions: [], videoModelOptions: [],
     })
     const storyboard = model.sections.find((section) => section.kind === 'storyboard')!
-    expect(storyboard.cards.map((card) => card.storyboardShotNumber)).toEqual([1, 2, 3])
-    expect(storyboard.cards.filter((card) => card.nodeId).length).toBe(2)
+    // 列表只显示画布上有的镜头：方案第 3 镜还没落画布，它在创作页的分镜方案里（方案一个不动，上面已断言）。
+    expect(storyboard.cards.map((card) => card.storyboardShotNumber)).toEqual([1, 2])
     const group = model.sections.find((section) => section.kind === 'group')!
     expect(group.cards).toHaveLength(2)
   })

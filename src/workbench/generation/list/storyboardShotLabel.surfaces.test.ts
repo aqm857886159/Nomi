@@ -47,7 +47,7 @@ describe('one storyboard shot, one label everywhere (two storyboards in the proj
   })
 
   it('list: the card is 「雨夜 · 镜 03」', () => {
-    const model = deriveGenerationList({ nodes: [shot], edges: [], groups: [], designsByDocumentId: designs, imageModelOptions: [], videoModelOptions: [], filter: null })
+    const model = deriveGenerationList({ nodes: [shot], edges: [], groups: [], designsByDocumentId: designs, imageModelOptions: [], videoModelOptions: [] })
     const card = model.sections[0].cards.find((candidate) => candidate.nodeId === shot.id)!
     expect(shotLabel((key, options) => (key === 'generationList.shotScoped' ? `${options?.storyboard} · 镜 ${options?.index}` : `镜 ${options?.index}`), card)).toBe('雨夜 · 镜 03')
   })

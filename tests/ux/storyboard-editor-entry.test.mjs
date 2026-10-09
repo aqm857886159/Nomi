@@ -1,7 +1,4 @@
-// 静态门：走查不许再「点左栏分镜方案行」去进编辑器。
-// 2026-10-08 起点方案行 = 生成页列表（只看这份分镜）；编辑器只从 ⋯ 菜单「编辑分镜方案」进，
-// 唯一的走查入口是 tests/ux/_creationResourceTree.mjs 的 openStoryboardEditor()。
-// 点方案行进列表的那一条也只在同一个文件里（openStoryboardInList）。
+// 静态门：走查不许自己「点左栏分镜方案行」去进编辑器——唯一入口是 tests/ux/_creationResourceTree.mjs 的 openStoryboardEditor()。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

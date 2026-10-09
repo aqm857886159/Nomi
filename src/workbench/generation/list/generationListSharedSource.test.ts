@@ -37,10 +37,10 @@ beforeEach(() => {
 
 describe('list and canvas share one data source', () => {
   it('the inspector composer writes straight into the canvas node, and the list card reads the change back', async () => {
-    const { GenerationListInspector } = await import('./GenerationListInspector')
+    const { GenerationListDetail } = await import('./GenerationListDetail')
     const model = () => {
       const state = useGenerationCanvasStore.getState()
-      return deriveGenerationList({ nodes: state.nodes, edges: state.edges, groups: state.groups, designsByDocumentId: {}, imageModelOptions: [], videoModelOptions: [], filter: null })
+      return deriveGenerationList({ nodes: state.nodes, edges: state.edges, groups: state.groups, designsByDocumentId: {}, imageModelOptions: [], videoModelOptions: [] })
     }
     const card = model().sections[0].cards[0]
     // 静态渲染读的是 store 的「服务端快照」（zustand 4 = getInitialState 那个对象）；让它此刻就是这张画布，
@@ -48,9 +48,7 @@ describe('list and canvas share one data source', () => {
     const serverSnapshot = useGenerationCanvasStore.getInitialState() as unknown as Record<string, unknown>
     const savedNodes = serverSnapshot.nodes
     serverSnapshot.nodes = useGenerationCanvasStore.getState().nodes
-    renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(GenerationListInspector, {
-      card, sectionTitle: '', narrow: false, onClose: () => undefined, onViewInCanvas: () => undefined,
-    })))
+    renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(GenerationListDetail, { card, onBack: () => undefined })))
     serverSnapshot.nodes = savedNodes
     expect(probe.nodeId).toBe('shot-1')
     expect(probe.host).toBe('panel')

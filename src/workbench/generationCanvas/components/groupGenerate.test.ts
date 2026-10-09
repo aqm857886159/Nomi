@@ -1,0 +1,57 @@
+// 「生成全部」只有一个执行口：画布组框工具条 / 右键菜单与列表分区头都走 groupGenerate，共用同一张付费确认。
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createGenerationNode } from '../model/graphOps'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+
+const confirmAndRunPlan = vi.fn(async () => undefined)
+vi.mock('./batchPlanPreview', async (original) => ({ ...await original<typeof import('./batchPlanPreview')>(), confirmAndRunPlan }))
+
+const node = (id: string, status: GenerationCanvasNode['status']): GenerationCanvasNode => ({ ...createGenerationNode({ id, kind: 'image' }), status, categoryId: 'shots' })
+
+beforeEach(() => {
+  confirmAndRunPlan.mockClear()
+  useGenerationCanvasStore.getState().restoreSnapshot({
+    nodes: [node('idle', 'idle'), node('failed', 'error'), node('done', 'success'), node('running', 'running')],
+    edges: [], groups: [], selectedNodeIds: [],
+  })
+  // 载入时会把「存盘时在跑」的收敛掉；这里要的是此刻真在跑，直接写 store。
+  useGenerationCanvasStore.setState((state) => ({ nodes: state.nodes.map((candidate) => (candidate.id === 'running' ? { ...candidate, status: 'running' as const } : candidate)) }))
+})
+
+describe('runGroupGenerate (the one batch generate entrance)', () => {
+  it('hands only the idle / failed nodes to the paid-confirm funnel, once', async () => {
+    const { runGroupGenerate } = await import('./groupGenerate')
+    expect(runGroupGenerate(['idle', 'failed', 'done', 'running'])).toBe('started')
+    expect(confirmAndRunPlan).toHaveBeenCalledTimes(1)
+    const [plan, options] = confirmAndRunPlan.mock.calls[0] as unknown as [{ waves: Array<Array<{ nodeId?: string } | string>> }, { initiator: string }]
+    const ids = JSON.stringify(plan)
+    expect(ids).toContain('idle')
+    expect(ids).toContain('failed')
+    expect(ids).not.toContain('"done"')
+    expect(ids).not.toContain('"running"')
+    expect(options).toEqual({ initiator: 'user' })
+  })
+
+  it('nothing generatable = no dispatch at all (the caller says so)', async () => {
+    const { runGroupGenerate } = await import('./groupGenerate')
+    expect(runGroupGenerate(['done', 'running'])).toBe('empty')
+    expect(runGroupGenerate([])).toBe('empty')
+    expect(confirmAndRunPlan).not.toHaveBeenCalled()
+  })
+})
+
+describe('structure: no second batch path', () => {
+  it('the list section header and the canvas frame actions both go through groupGenerate; nobody else builds a batch plan from a section', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const read = (relative: string) => readFileSync(path.join(here, relative), 'utf8')
+    expect(read('./useCanvasFrameActions.ts')).toContain("from './groupGenerate'")
+    expect(read('../../generation/list/GenerationListSectionHeader.tsx')).toContain("from '../../generationCanvas/components/groupGenerate'")
+    for (const file of ['../../generation/list/GenerationListSectionHeader.tsx', '../../generation/list/GenerationListView.tsx', '../../generation/list/GenerationListDetail.tsx']) {
+      expect(read(file), `${file} must not call confirmAndRunPlan itself`).not.toMatch(/confirmAndRunPlan|buildDependencyWaves/)
+    }
+  })
+})

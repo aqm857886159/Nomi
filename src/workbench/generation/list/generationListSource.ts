@@ -1,5 +1,5 @@
 // 生成页列表的数据入口：读画布 + 分镜方案 → 列表投影；切行；在画布里定位一个节点。
-// 只读、不写（写只在检查器的生成框里，经画布 store）。
+// 只读、不写（写只在大详情的生成框里，经画布 store）。
 import React from 'react'
 import { useModelOptionsState } from '../../../config/useModelOptions'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -14,12 +14,13 @@ export type ListRow =
   | { kind: 'cards'; key: string; section: GenerationListSection; cards: GenerationListCard[] }
   | { kind: 'assets'; key: string; nodeIds: string[] }
 
-/** 列数跟着列表可用宽度走（样张：宽屏 4 列、常规 3 列、开着检查器 2 列）。 */
+export const CARD_WIDTH = 256
+export const CARD_GAP = 24
+export const SIDE_PADDING = 32
+
+/** 列数：卡片定宽 256、列间 24，按可用宽度能放几张放几张；放不下也给 1 列（留白优先，不拉伸卡片）。 */
 export function columnsFor(width: number): number {
-  if (width >= 1440) return 4
-  if (width >= 900) return 3
-  if (width >= 520) return 2
-  return 1
+  return Math.max(1, Math.floor((width - SIDE_PADDING * 2 + CARD_GAP) / (CARD_WIDTH + CARD_GAP)))
 }
 
 export function buildListRows(model: GenerationListModel, columns: number, collapsed: ReadonlySet<string>): ListRow[] {
@@ -41,12 +42,11 @@ export function useGenerationListModel(): GenerationListModel {
   const edges = useGenerationCanvasStore((state) => state.edges)
   const groups = useGenerationCanvasStore((state) => state.groups)
   const designsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
-  const filter = useGenerationViewStore((state) => state.listFilter)
   const imageModelOptions = useModelOptionsState('image').options
   const videoModelOptions = useModelOptionsState('video').options
   return React.useMemo(
-    () => deriveGenerationList({ nodes, edges, groups, designsByDocumentId, filter, imageModelOptions, videoModelOptions }),
-    [nodes, edges, groups, designsByDocumentId, filter, imageModelOptions, videoModelOptions],
+    () => deriveGenerationList({ nodes, edges, groups, designsByDocumentId, imageModelOptions, videoModelOptions }),
+    [nodes, edges, groups, designsByDocumentId, imageModelOptions, videoModelOptions],
   )
 }
 
@@ -60,9 +60,3 @@ export function viewNodeInCanvas(nodeId: string): void {
     waitFrame: () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())),
   })
 }
-
-/**
- * 列表第一行的左内边距：视图切换钮浮在画布区左上（与画布态同一个屏幕位置，不占一行），
- * 面板第一行从它右边开始，不被它盖住。面板左缘 16px + 这里 48px = 64px，切换钮右缘约 56px。
- */
-export const LEAD_INSET = 'pl-12'

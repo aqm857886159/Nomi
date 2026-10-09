@@ -7,7 +7,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../.
 import type { StoryboardDesign } from '../../../workbench/workbenchTypes'
 import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
-import { useGenerationViewStore, type GenerationListFilter } from '../../../workbench/generation/list/generationViewStore'
+import { useGenerationViewStore } from '../../../workbench/generation/list/generationViewStore'
 import { GenerationListView } from '../../../workbench/generation/list/GenerationListView'
 import { GenerationViewToggle } from '../../../workbench/generation/list/GenerationViewToggle'
 import { holdDesignLabReady } from '../labReadyHold'
@@ -46,7 +46,7 @@ export type GenerationListFixture = {
   designs: Record<string, StoryboardDesign[]>
 }
 
-/** 每一种画布节点都在：分镜 3 镜（一镜还没落画布）、一个画布分组、未分组里每种生成节点与工具节点，加素材。 */
+/** 每一种画布节点都在：分镜 3 镜（一镜生成中、一镜还没生成）、一个画布分组、未分组里每种生成节点与工具节点，加素材。 */
 export function kindsFixture(locale: Locale): GenerationListFixture {
   const design: StoryboardDesign = {
     id: DESIGN_ID, documentId: DOCUMENT_ID, title: L(locale, '雨夜便利店', 'Rainy convenience store'), committed: true, status: 'draft',
@@ -71,6 +71,8 @@ export function kindsFixture(locale: Locale): GenerationListFixture {
     // 分镜镜头（前两镜落了画布）
     node({ id: 'shot-1', kind: 'video', title: '', prompt: design.plan.shots[0].prompt, status: 'success', meta: { ...videoMeta('16:9'), storyboardDesignId: DESIGN_ID, shotId: 's1' }, ...videoResult('shot-1', shotArt(1, '16:9', '#384d67|#111827')) }),
     node({ id: 'shot-2', kind: 'video', title: '', prompt: design.plan.shots[1].prompt, status: 'running', progress: { percent: 40 } as never, meta: { ...videoMeta('9:16'), storyboardDesignId: DESIGN_ID, shotId: 's2' } }),
+    // 第 3 镜落了画布、还没生成：列表里是草稿卡（画面区放提示词文字）。
+    node({ id: 'shot-3', kind: 'video', title: '', prompt: design.plan.shots[2].prompt, meta: { ...videoMeta('16:9'), storyboardDesignId: DESIGN_ID, shotId: 's3' } }),
     // 画布分组：海报试稿
     node({ id: 'poster-1', kind: 'image', title: L(locale, '海报 01', 'Poster 01'), prompt: L(locale, '竖版海报，便利店霓虹与积水倒影', 'Vertical poster, store neon and puddle reflections'), status: 'success', meta: imageMeta('9:16'), ...imageResult('poster-1', shotArt(11, '9:16', '#5d526f|#1b1726')) }),
     node({ id: 'poster-2', kind: 'image', title: L(locale, '海报 02', 'Poster 02'), prompt: L(locale, '方形海报，怀表落在积水里', 'Square poster, a pocket watch in a puddle'), status: 'error', error: L(locale, '生成失败', 'Generation failed'), meta: imageMeta('1:1') }),
@@ -124,7 +126,7 @@ export type GenerationListStageProps = {
   fixture: 'kinds' | 'long' | 'empty'
   locale?: Locale
   inspectorKey?: string
-  filter?: boolean
+  width?: number
   height?: number
 }
 
@@ -141,7 +143,7 @@ function useLabLocale(locale: Locale): boolean {
 }
 
 /** 一格 = 生成页画布区那一块：左上「画布 | 列表」+ 现役列表视图。 */
-export function GenerationListStage({ fixture, locale = 'zh-CN', inspectorKey, filter = false, height = GENERATION_LIST_CELL_HEIGHT }: GenerationListStageProps): JSX.Element {
+export function GenerationListStage({ fixture, locale = 'zh-CN', inspectorKey, width = GENERATION_LIST_CELL_WIDTH, height = GENERATION_LIST_CELL_HEIGHT }: GenerationListStageProps): JSX.Element {
   React.useMemo(() => installCatalogBridge(), [])
   const languageReady = useLabLocale(locale)
   const [chunkReady, setChunkReady] = React.useState(false)
@@ -155,12 +157,11 @@ export function GenerationListStage({ fixture, locale = 'zh-CN', inspectorKey, f
     const data = fixture === 'empty' ? { nodes: [], edges: [], groups: [], designs: {} } : fixture === 'long' ? longFixture(locale) : kindsFixture(locale)
     useWorkbenchStore.setState({ activeCategoryId: 'shots', storyboardDesignsByDocumentId: data.designs })
     useGenerationCanvasStore.setState({ nodes: data.nodes, edges: data.edges, groups: data.groups, selectedNodeIds: [] })
-    const listFilter: GenerationListFilter = filter ? { documentId: DOCUMENT_ID, designId: DESIGN_ID } : null
-    useGenerationViewStore.setState({ view: 'list', listFilter, inspectorKey: inspectorKey ?? null })
+    useGenerationViewStore.setState({ view: 'list', inspectorKey: inspectorKey ?? null })
     setSeeded(true)
-  }, [filter, fixture, inspectorKey, locale])
+  }, [fixture, inspectorKey, locale])
   return (
-    <div data-design-lab-stage="generation-list" className="relative overflow-hidden bg-nomi-bg" style={{ width: GENERATION_LIST_CELL_WIDTH, height }}>
+    <div data-design-lab-stage="generation-list" className="relative overflow-hidden bg-nomi-bg" style={{ width, height }}>
       {seeded && chunkReady && languageReady ? (
         <>
           <div className="absolute inset-0"><GenerationListView /></div>

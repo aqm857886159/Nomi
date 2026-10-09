@@ -1,0 +1,26 @@
+{
+  "name": "「生成全部」的唯一执行口（画布组框与列表分区头共用）",
+  "subject": "generation.group-generate",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+    "symbol": "runGroupGenerate"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "runGroupGenerate"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+    "src/workbench/generation/list/GenerationListSectionHeader.tsx"
+  ],
+  "since": "2026-10-08",
+  "notes": "一批节点按依赖分波交给同一张付费确认（confirmAndRunPlan）；每个节点用自己已选好的模型和参数。列表没有第二条批量路径；必红测试 groupGenerate.test.ts（含结构断言：列表组件不许自己调 confirmAndRunPlan / buildDependencyWaves）。"
+}

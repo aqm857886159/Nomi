@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../../generationCanvas/model/generationCanvasTypes'
 import type { StoryboardDesign } from '../../workbenchTypes'
-import { deriveGenerationList, generationListRole, planShotKey } from './generationListModel'
+import { deriveGenerationList, generationListRole } from './generationListModel'
 
 const node = (partial: Partial<GenerationCanvasNode> & Pick<GenerationCanvasNode, 'id' | 'kind'>): GenerationCanvasNode =>
   ({ title: partial.id, prompt: '', position: { x: 0, y: 0 }, status: 'idle', categoryId: 'shots', ...partial }) as GenerationCanvasNode
@@ -45,23 +45,21 @@ function fixture(): { nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge
   return { nodes, edges, groups }
 }
 
-const derive = (filter: { documentId: string; designId: string } | null = null) => {
+const derive = () => {
   const { nodes, edges, groups } = fixture()
-  return deriveGenerationList({ nodes, edges, groups, designsByDocumentId: { doc: [design] }, imageModelOptions: [], videoModelOptions: [], filter })
+  return deriveGenerationList({ nodes, edges, groups, designsByDocumentId: { doc: [design] }, imageModelOptions: [], videoModelOptions: [] })
 }
 
 describe('generation list projection', () => {
-  it('orders sections storyboard → canvas groups → ungrouped, storyboard in plan shot order', () => {
+  it('orders sections storyboard → canvas groups → ungrouped, storyboard in plan shot order, only shots that are on the canvas', () => {
     const model = derive()
     expect(model.sections.map((section) => section.kind)).toEqual(['storyboard', 'group', 'ungrouped'])
     const storyboard = model.sections[0]
-    expect(storyboard.cards.map((card) => card.storyboardShotNumber)).toEqual([1, 2, 3])
-    expect(storyboard.cards.map((card) => card.nodeId)).toEqual(['shot-b', 'shot-a', null])
-    // 还没落画布的方案镜也在（「生成整组」要能勾它），读的是方案里的提示词。
-    expect(storyboard.cards[2]).toMatchObject({ key: planShotKey('d1', 'c'), planPrompt: 'third, only in the plan', status: 'ready' })
-    expect(storyboard.cards[1].previous).toEqual({ nodeId: 'shot-b', connected: true })
-    expect(storyboard.cards[0].anchor).toEqual({ name: 'Lin', ready: true })
-    expect(model.anchors).toEqual([{ key: 'd1:lin', nodeId: 'anchor-lin', name: 'Lin', ready: true }])
+    // 方案里第 3 镜还没落画布：列表只显示画布上有的节点，它不在这里（只在创作页的分镜方案里）。
+    expect(storyboard.cards.map((card) => card.storyboardShotNumber)).toEqual([1, 2])
+    expect(storyboard.cards.map((card) => card.nodeId)).toEqual(['shot-b', 'shot-a'])
+    expect(storyboard.cards.map((card) => card.key)).toEqual(['shot-b', 'shot-a'])
+    expect(storyboard.anchors).toEqual([{ key: 'd1:lin', nodeId: 'anchor-lin', name: 'Lin', ready: true }])
   })
 
   it('places every canvas node exactly once: a card, a chip on the card that uses it, an anchor, or the unreferenced strip', () => {
@@ -69,7 +67,7 @@ describe('generation list projection', () => {
     const cards = model.sections.flatMap((section) => section.cards).flatMap((card) => (card.nodeId ? [card.nodeId] : []))
     expect(new Set(cards).size).toBe(cards.length)
     const chips = model.sections.flatMap((section) => section.cards).flatMap((card) => card.referenceNodeIds)
-    const anchors = model.anchors.flatMap((anchor) => (anchor.nodeId ? [anchor.nodeId] : []))
+    const anchors = model.sections.flatMap((section) => section.anchors).flatMap((anchor) => (anchor.nodeId ? [anchor.nodeId] : []))
     const strip = model.sections.flatMap((section) => section.unreferencedAssetIds)
     const placed = new Set([...cards, ...chips, ...anchors, ...strip])
     expect([...placed].sort()).toEqual(fixture().nodes.map((candidate) => candidate.id).sort())
@@ -85,14 +83,5 @@ describe('generation list projection', () => {
       ['loose-image', 'generation'], ['voice', 'generation'], ['note', 'generation'], ['director', 'tool'], ['clip', 'tool'],
     ])
     expect(generationListRole(node({ id: 'k', kind: 'image', meta: { storyboardKeyframe: true } }))).toBe('asset')
-  })
-
-  it('filters to one storyboard (creation page deep link) and reports a deleted filter target', () => {
-    const filtered = derive({ documentId: 'doc', designId: 'd1' })
-    expect(filtered.sections.map((section) => section.kind)).toEqual(['storyboard'])
-    expect(filtered.filterMissing).toBe(false)
-    const missing = derive({ documentId: 'doc', designId: 'gone' })
-    expect(missing.filterMissing).toBe(true)
-    expect(missing.sections.map((section) => section.kind)).toEqual(['storyboard', 'group', 'ungrouped'])
   })
 })

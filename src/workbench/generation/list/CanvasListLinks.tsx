@@ -40,10 +40,12 @@ export function ViewInListButton({ node }: { node: GenerationCanvasNode }): JSX.
   const { t } = useTranslation()
   if (generationListRole(node) === 'asset') return null
   return (
+    <>
+    <span className="min-w-0 flex-1" aria-hidden />
     <button
       type="button"
       data-view-in-list={node.id}
-      className="nodrag ml-auto inline-flex shrink-0 items-center gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 py-0.5 text-caption text-nomi-accent hover:bg-nomi-accent-soft"
+      className="nodrag inline-flex shrink-0 items-center gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 py-0.5 text-caption text-nomi-accent hover:bg-nomi-accent-soft"
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation()
@@ -53,5 +55,6 @@ export function ViewInListButton({ node }: { node: GenerationCanvasNode }): JSX.
       <IconLayoutList size={13} stroke={1.7} aria-hidden />
       {t('generationList.viewInList')}
     </button>
+    </>
   )
 }

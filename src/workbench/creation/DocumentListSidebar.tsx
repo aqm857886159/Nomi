@@ -20,7 +20,6 @@ import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { materializedShotIds } from './storyboard/exec/storyboardNodeBinding'
-import { useGenerationViewStore } from '../generation/list/generationViewStore'
 
 type EditingTarget = { kind: 'document' | 'storyboard'; id: string } | null
 type ResourceMenu = {
@@ -135,17 +134,8 @@ export default function DocumentListSidebar(): JSX.Element {
     setWorkspaceMode('creation')
   }
 
-  // 点一份「分镜方案」= 生成页列表、只看这份分镜（2026-10-08 拍板：分镜和画布是同一份镜头，一个组件一个地方）。
-  // 方案专属的编辑（视觉锚、分场、时长、加删镜头、还没落画布的镜）在第二步账本合一之前仍住在分镜编辑器里，
-  // 入口是 ⋯ 菜单「编辑分镜方案」，新建 / 复制出来的方案直接进编辑器。
+  // 点一份「分镜方案」= 留在创作页打开这份方案（2026-10-08 22:40Z C3：方案视图做好前先开现役的方案编辑器）。
   const selectStoryboard = (id: string, documentId: string) => {
-    setActiveStoryboardId(id, documentId)
-    setExpanded((current) => ({ ...current, [documentId]: true }))
-    useGenerationViewStore.getState().openListFiltered({ documentId, designId: id })
-    setWorkspaceMode('generation')
-  }
-
-  const editStoryboard = (id: string, documentId: string) => {
     setActiveStoryboardId(id, documentId)
     setWorkspaceMode('storyboard')
     setExpanded((current) => ({ ...current, [documentId]: true }))
@@ -153,7 +143,7 @@ export default function DocumentListSidebar(): JSX.Element {
 
   const createDesignForDocument = (documentId: string) => {
     const design = addStoryboardDesign({ initiator: 'user', documentId })
-    if (design) editStoryboard(design.id, documentId)
+    if (design) selectStoryboard(design.id, documentId)
   }
 
   const openMenu = React.useCallback((
@@ -162,7 +152,7 @@ export default function DocumentListSidebar(): JSX.Element {
     point: { x: number; y: number },
   ) => {
     const menuWidth = 176
-    const menuHeight = target.kind === 'storyboard' ? 152 : 88
+    const menuHeight = target.kind === 'storyboard' ? 120 : 88
     setMenu({
       target,
       documentId,
@@ -196,20 +186,6 @@ export default function DocumentListSidebar(): JSX.Element {
         onContextMenu={(event) => event.preventDefault()}
         data-creation-resource-menu={menuTarget.kind}
       >
-        {menuTarget.kind === 'storyboard' ? (
-          <button
-            type="button"
-            role="menuitem"
-            className={buttonClass}
-            data-resource-action="edit-storyboard"
-            onClick={() => {
-              close()
-              editStoryboard(menuTarget.id, menu.documentId)
-            }}
-          >
-            {t('generationList.editStoryboardPlan')}
-          </button>
-        ) : null}
         <button
           type="button"
           role="menuitem"
@@ -234,7 +210,7 @@ export default function DocumentListSidebar(): JSX.Element {
             onClick={() => {
               const copy = duplicateStoryboardDesign(menuTarget.id, menu.documentId)
               close()
-              if (copy) editStoryboard(copy.id, menu.documentId)
+              if (copy) selectStoryboard(copy.id, menu.documentId)
             }}
           >
             {t('creationAi.documentList.duplicateStoryboard')}
