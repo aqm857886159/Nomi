@@ -348,14 +348,13 @@ describe("「继续」一批因为落地失败停下的镜：说的就是会发�
     expect(kickScheduler).not.toHaveBeenCalled();
   });
 
-  it("对照：这一次落下了 → 照常继续、踢调度器", async () => {
+  it("对照：这一次落下了 → 照常继续（Run 回到 running；停着的 Run 由 run.control resume 唤醒驱动，不另踢）", async () => {
     const landBeforeResume = vi.fn(async () => null);
-    const { repository, hooks, kickScheduler } = setup({ landBeforeResume });
+    const { repository, hooks } = setup({ landBeforeResume });
     stop(repository, "needs_attention", "landing_failed");
 
     await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: true, code: "resumed" });
     expect(landBeforeResume).toHaveBeenCalledTimes(1);
     expect(repository.read(PROJECT, RUN)!.status).toBe("running");
-    expect(kickScheduler).toHaveBeenCalledTimes(1);
   });
 });
