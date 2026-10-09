@@ -145,8 +145,8 @@ describe('canvasLandingHost.followRunChange', () => {
       readRun: () => run([job('polling')]), command: vi.fn(async () => undefined), requestRenderer,
       resolveProjectRoot: () => null, isProjectOpen: () => true,
     })
-    const first = host.landCanvasBestEffort('proj-1', 'run-1')
-    const second = host.landCanvasBestEffort('proj-1', 'run-1')
+    const first = host.landBeforeDispatch('proj-1', 'run-1')
+    const second = host.landBeforeDispatch('proj-1', 'run-1')
     await vi.waitFor(() => expect(requestRenderer).toHaveBeenCalledTimes(1))
     release!()
     await vi.waitFor(() => expect(requestRenderer).toHaveBeenCalledTimes(2))

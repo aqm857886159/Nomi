@@ -28,6 +28,7 @@ import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunService } from "./productionRunService";
 import type { ProductionGenerationShot, ProductionRun, RunEvent } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 const PROJECT = "project-1";
 const RUN = "op-stop";
@@ -95,7 +96,7 @@ async function drive(root: string, repository: Repository, vendor: GenerationPro
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
     now: clock,
   });
-  return await createMultiShotBatchScheduler({ repository, submission, projectId: PROJECT, runId: RUN, now: clock, sleep: async () => {} }).runToQuiescence();
+  return await createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: PROJECT, runId: RUN, now: clock, sleep: async () => {} }).runToQuiescence();
 }
 
 const shotState = (run: ProductionRun, shotId: string) => deriveProductionShotState(run, shotId);

@@ -20,6 +20,7 @@ import { applyRunControl } from "./productionRunControl";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landedAdmission, landingThatBinds } from "./landFirstTestUtils";
 
 const NOW_BASE = Date.parse("2026-10-05T00:00:00.000Z");
 const ELEVEN_MINUTES = 11 * 60 * 1000;
@@ -103,7 +104,7 @@ function productionSubmission(root: string, repository: Repository, provider: Ge
 
 function scheduler(root: string, repository: Repository, provider: GenerationProvider, options: { maxShotsPerRun?: number; pollHorizonMs?: number } = {}) {
   const submission = productionSubmission(root, repository, provider);
-  return createMultiShotBatchScheduler({ repository, submission, projectId: PROJECT, runId: RUN, now, options, sleep: async () => undefined });
+  return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: PROJECT, runId: RUN, now, options, sleep: async () => undefined });
 }
 
 const read = (repository: Repository): ProductionRun => repository.read(PROJECT, RUN)!;
@@ -152,7 +153,7 @@ describe("双扣地图：同一镜，画布和制作合起来只花一次钱", (
     const statusBefore = shotTwo()?.status;
 
     const submits: string[] = [];
-    await expect(productionSubmission(root, repository, productionProvider(submits)).start({ projectId: PROJECT, operationId: RUN, shotId: "shot-2" }))
+    await expect(productionSubmission(root, repository, productionProvider(submits)).start({ projectId: PROJECT, operationId: RUN, shotId: "shot-2", admission: await landedAdmission(repository, PROJECT, RUN, "shot-2") }))
       .rejects.toMatchObject({ code: "production_shot_claimed", reason: "run_stopped" });
 
     expect(submits).toEqual([]);

@@ -277,9 +277,10 @@ export function useAgentPanelSpendConfirm(read: PendingSpendRead | undefined): A
     }
     if (!repriced) return undefined
     const remembered = originalModelIds.current
-    // 进度只由两样事实算：点下去那一刻卡上那一叠（`total`）和宿主此刻还剩几张没批（投影）。正在发的是第几张 = 批完的 + 1。
+    // 进度只由两样事实算：点下去那一刻卡上那一叠（`total`）和宿主此刻还剩几张没批（投影）。宿主一张一张交（上一张供应商受理了
+    // 才批下一张，10-09 拍板 B），所以批下的最后那一张就是正在交的那一张：正在发的是第几张 = 批下的张数（还没批第一张时是第 1 张）。
     const batch = batchView && batchView.operationId === repriced.operationId
-      ? { current: Math.min(batchView.total, Math.max(1, batchView.total - repriced.shots.length + 1)), total: batchView.total, stopping: batchView.stopping }
+      ? { current: Math.min(batchView.total, Math.max(1, batchView.total - repriced.shots.length)), total: batchView.total, stopping: batchView.stopping }
       : undefined
     const card = projectSpendCard(repriced, { page: index, ...(batch ? { batch } : {}) }, t, {
       locale: i18n.language,

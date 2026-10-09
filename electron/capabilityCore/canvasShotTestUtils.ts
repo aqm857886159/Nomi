@@ -12,7 +12,6 @@ import { createCanvasTransportProvider, type CanvasTaskResult, type CanvasTransp
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { createProductionRunService } from "../productionRun/productionRunService";
-import { createProductionShotDispatchGuard } from "../productionRun/productionShotDispatchGuard";
 import type { WorkspaceProjectRecordV2 } from "../workspace/workspaceTypes";
 
 export const CANVAS_TEST_PROJECT = "project-1";
@@ -69,7 +68,6 @@ export function setupCanvasShots(options: {
     buildSubmission: (input) => createProductionGenerationSubmission({
       repository, projectRoot: input.projectRoot, immutableProjectUuid: input.immutableProjectUuid, projectGeneration: input.projectGeneration,
       intentMacKey: "intent-key", providers: input.providers,
-      beforeDispatch: createProductionShotDispatchGuard({ readRun: (projectId, runId) => repository.read(projectId, runId) ?? undefined }),
       materializeOutput: async ({ projectId, providerTaskId, output }) => canvasLocalArtifactReceipt({ projectId, projectRoot: root, providerTaskId, output })!,
       ...(options.now ? { now: options.now } : {}),
     }),

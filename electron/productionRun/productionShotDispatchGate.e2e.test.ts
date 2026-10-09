@@ -20,6 +20,7 @@ import { applyRunControl } from "./productionRunControl";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionJob, ProductionRun } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landedAdmission, landingThatBinds } from "./landFirstTestUtils";
 
 const PROJECT = "project-1";
 const RUN = "op-gate";
@@ -131,7 +132,7 @@ describe("the production dispatch gate runs before anything about the attempt is
     };
     const vendor = provider(submits, () => { if (submits.length === 1) press(); });
 
-    await createMultiShotBatchScheduler({ repository, submission: submission(root, repository, gate.guard, vendor), projectId: PROJECT, runId: RUN,
+    await createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission: submission(root, repository, gate.guard, vendor), projectId: PROJECT, runId: RUN,
       now }).runToQuiescence();
 
     expect(submits, "only shot 1 was already at the provider when the user stopped the batch").toHaveLength(1);
@@ -158,7 +159,7 @@ describe("the production dispatch gate runs before anything about the attempt is
     const submits: string[] = [];
     const gate = observedGate(repository);
 
-    await submission(root, repository, gate.guard, provider(submits)).start({ projectId: PROJECT, operationId: RUN });
+    await submission(root, repository, gate.guard, provider(submits)).start({ projectId: PROJECT, operationId: RUN, admission: await landedAdmission(repository, PROJECT, RUN) });
 
     expect(submits).toHaveLength(1);
     expect(gate.seen).toEqual([{ shotId: "cand-single", status: "authorized", reserved: false }]);
