@@ -169,6 +169,31 @@ function allowedHookDirs(root) {
 }
 const normalizeDir = (dir) => (process.platform === 'win32' ? path.resolve(dir).toLowerCase() : path.resolve(dir))
 
+/**
+ * 词法上在 .git 里还不够：.git/hooks（或它的任一上级，直到 git 公共目录）若是符号链接 / junction，写进去会落到 .git 外面。
+ * 返回不安全的原因，安全返回 null。lstat 判链接（Windows 的 junction 也算），再用 realpath 校验真实位置仍在 git 公共目录之下。
+ */
+function unsafeHooksDir(root, target) {
+  const common = path.resolve(root, execFileSync('git', ['rev-parse', '--git-common-dir'], { cwd: root, encoding: 'utf8' }).trim())
+  const stop = normalizeDir(common)
+  const chain = []
+  for (let p = path.resolve(target); ; p = path.dirname(p)) {
+    chain.push(p)
+    if (normalizeDir(p) === stop || path.dirname(p) === p) break
+  }
+  for (const entry of chain) {
+    let stat
+    try { stat = fs.lstatSync(entry) } catch { continue }
+    if (stat.isSymbolicLink()) return `${entry} 是符号链接或 junction`
+  }
+  const existing = chain.find((entry) => fs.existsSync(entry))
+  if (existing) {
+    const expected = path.join(fs.realpathSync(common), path.relative(common, existing))
+    if (normalizeDir(fs.realpathSync(existing)) !== normalizeDir(expected)) return '真实路径不在 git 公共目录之下'
+  }
+  return null
+}
+
 function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
   const list = execFileSync('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot, encoding: 'utf8' })
   const roots = list.split('\n').filter((line) => line.startsWith('worktree ')).map((line) => line.slice('worktree '.length).trim())
@@ -189,6 +214,13 @@ function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
     if (target === null || !allowed.includes(normalizeDir(target))) {
       logger.log(`跳过 ${root}：钩子目录（${target ?? '解析不出'}）不是主仓 .git/hooks 或该 worktree 自己的 hooks，不写（core.hooksPath 指到外面也不认）`)
       skipped.push({ root, reason: 'external_hooks_path' })
+      continue
+    }
+    let unsafe = null
+    try { unsafe = unsafeHooksDir(root, target) } catch (error) { unsafe = `检查失败：${error.message}` }
+    if (unsafe) {
+      logger.log(`跳过 ${root}：钩子目录不安全（${unsafe}），不写`)
+      skipped.push({ root, reason: 'unsafe_hooks_dir' })
       continue
     }
     const result = installHooks({ repoRoot: root, logger })

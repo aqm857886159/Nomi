@@ -24,6 +24,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { resolvePullRequestBody } from './lib/prBody.mjs'
+import { touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -50,9 +51,9 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:mjs-parse', when: (files) => files.some((file) => SCRIPT_FILE.test(file)) },
   { name: 'check:ipc-sender-binding', when: (files) => files.some((file) => file.startsWith('electron/')) },
   // 2026-10-09 加：10-09 上午 #1133 / #1135 / #1128 / #1137 推送前全绿、CI Contracts 各红好几处，全是下面这几道（本机 Windows 实测 7–13 秒）
-  { name: 'check:tokens', when: (files) => files.some((file) => /^(?:src|electron)\/.*\.tsx?$|^tailwind\.config\.ts$|^scripts\/check-design-tokens/.test(file)) },
-  { name: 'check:vocabularies', when: (files) => files.some((file) => /^(?:src|electron)\/.*\.tsx?$|^scripts\/check-vocabularies/.test(file)) },
-  { name: 'check:controls', when: (files) => files.some((file) => /^src\/.*\.tsx$|^scripts\/(?:check-)?control-contract/.test(file)) },
+  { name: 'check:tokens', when: (files) => touchesGateInputs('check:tokens', files) },
+  { name: 'check:vocabularies', when: (files) => touchesGateInputs('check:vocabularies', files) },
+  { name: 'check:controls', when: (files) => touchesGateInputs('check:controls', files) },
 ])
 
 const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
@@ -63,10 +64,10 @@ const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
  * 它只在改到它自己的文件时由 gateCommands 带上（见 gateCommands）。
  */
 export const SCAN_TESTS = Object.freeze([
-  { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => files.some((file) => /^(?:scripts|tests)\//.test(file)) },
-  { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => files.some((file) => /^(?:src|electron|scripts|tests|evals|packages)\//.test(file)) },
-  { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => files.some((file) => /^scripts\/(?:check-)?control-contract/.test(file)) },
-  { name: 'test:quit-lifecycle-guard', argv: [VITEST_ENTRY, 'run', 'electron/quitLifecycleGuard.test.ts'], rerun: 'node node_modules/vitest/vitest.mjs run electron/quitLifecycleGuard.test.ts', when: (files) => files.some((file) => /^electron\/|^eslint\.config\./.test(file)) },
+  { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
+  { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => touchesGateInputs('check:test-copy-literals', files) },
+  { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => touchesGateInputs('test:control-contract', files) },
+  { name: 'test:quit-lifecycle-guard', argv: [VITEST_ENTRY, 'run', 'electron/quitLifecycleGuard.test.ts'], rerun: 'node node_modules/vitest/vitest.mjs run electron/quitLifecycleGuard.test.ts', when: (files) => touchesGateInputs('test:quit-lifecycle-guard', files) },
 ])
 
 /** 正文类（需要 PR 正文）：prior-art 与 pr-judgement，正文取不到时只说「今天没查成」（CI 侧仍然 fail-closed）。 */

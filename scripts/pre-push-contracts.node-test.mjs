@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { makeTempDir } from './_test-temp.mjs'
 import { judgeLint } from './lint-changed.mjs'
+import { GATE_INPUTS, touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import {
   BODY_GATES,
   LINT_GATE,
@@ -377,4 +378,35 @@ test('有标记 + 两个参数才算钩子：同一条删除 ref 这时才允许
   const result = prePush({ body: CARD, refLine: () => `(delete) ${ZERO} refs/heads/topic ${'c'.repeat(40)}\n` })
   assert.equal(result.status, 0, result.stderr)
   assert.match(result.stderr, /只是删除远端 ref/)
+})
+
+// ── 选择器与扫描器同一份声明：契约测试（10-09 复审：tokens 漏 .css 与依赖脚本、vocabularies 漏 .mts / .cts）──────────────
+
+/** 每道门岗的扫描器「实际会读」的样例路径：新增 / 改动任何一个，选择器都必须选中它。改扫描范围不改 GATE_INPUTS，这条就红。 */
+const SCANNER_READS = {
+  'check:tokens': ['src/theme/nomi-tokens.css', 'src/ui/A.tsx', 'src/a.ts', 'src/a.mts', 'electron/x.ts', 'electron/theme.css', 'tailwind.config.ts', 'scripts/check-design-tokens.mjs', 'scripts/lib/colorMixHue.mjs', 'scripts/lib/scopedTokenScan.mjs', 'scripts/lib/gitPaths.mjs'],
+  'check:vocabularies': ['src/a.ts', 'src/a.tsx', 'src/a.mts', 'src/a.cts', 'electron/b.cts', 'electron/b.mts', 'scripts/check-vocabularies.mjs', 'scripts/check-vocabularies-scan.mjs', 'scripts/vocabularies-baseline.json'],
+  'check:controls': ['src/ui/B.tsx', 'scripts/check-control-contract.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/control-copy-baseline.json'],
+  'test:temp-helper': ['scripts/x.node-test.mjs', 'tests/ux/y.walk.mjs', 'tests/ux/z.probe.mjs', 'scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.mjs'],
+  'check:test-copy-literals': ['src/a.test.ts', 'electron/b.test.ts', 'scripts/c.node-test.mjs', 'tests/ux/d.walk.mjs', 'tests/ux/exempt.json', 'evals/e.test.mjs', 'packages/p/f.test.ts', 'src/i18n/locales/zh.ts', 'electron/desktopStrings.ts', 'scripts/check-test-copy-literals.mjs'],
+  'test:control-contract': ['scripts/check-control-contract.test.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/_test-temp.mjs'],
+  'test:quit-lifecycle-guard': ['electron/quitLifecycleGuard.test.ts', 'electron/main.ts', 'electron/x.mts', 'eslint.config.mjs'],
+}
+
+test('契约：每道按路径选的新门岗都在 GATE_INPUTS 里登记，且扫描器会读的样例路径（css / mts / cts / 依赖脚本 / 基线）都选得中', () => {
+  assert.deepEqual(Object.keys(SCANNER_READS).sort(), Object.keys(GATE_INPUTS).sort(), '样例表与输入声明的门岗集合必须一致')
+  for (const [name, samples] of Object.entries(SCANNER_READS)) {
+    for (const sample of samples) assert.ok(touchesGateInputs(name, [sample]), `${name} 应被 ${sample} 选中（扫描器会读它）`)
+    assert.ok(!touchesGateInputs(name, ['docs/engineering/x.md']), `${name} 不该被纯文档选中`)
+  }
+})
+
+test('契约：选择器只用 GATE_INPUTS，pre-push-contracts.mjs 里没有手写的这七道门岗的路径正则', () => {
+  const entry = read('scripts/pre-push-contracts.mjs')
+  for (const name of Object.keys(GATE_INPUTS)) {
+    const line = entry.split('\n').find((text) => text.includes(`name: '${name}'`))
+    assert.ok(line, `${name} 应在入口里登记`)
+    assert.match(line, /touchesGateInputs\(/, `${name} 的选择器必须来自 GATE_INPUTS`)
+    assert.doesNotMatch(line, /\.test\(file\)/, `${name} 不许再手写路径正则`)
+  }
 })

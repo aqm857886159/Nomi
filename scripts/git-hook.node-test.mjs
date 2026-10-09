@@ -159,3 +159,24 @@ test('必红：--all-worktrees 遇到外部 core.hooksPath（指到仓库 .git �
   assert.ok(result.skipped.some((item) => item.reason === 'external_hooks_path'), JSON.stringify(result))
   assert.ok(lines.some((line) => line.includes('跳过') && line.includes('core.hooksPath')), lines.join('\n'))
 })
+
+test('必红：.git/hooks 被换成指向外部的 junction → 一键换钩子跳过，外部目录始终为空', () => {
+  const main = makeRepo()
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' })
+  git(main, 'config', 'user.name', 't'); git(main, 'config', 'user.email', 't@example.com')
+  put(main, 'a.txt', 'a')
+  git(main, 'add', '-A'); git(main, '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'init')
+  const outside = makeTempDir('nomi-junction-outside-')
+  const hooks = path.join(main, '.git', 'hooks')
+  fs.rmSync(hooks, { recursive: true, force: true })
+  fs.symlinkSync(outside, hooks, 'junction')
+  try {
+    const lines = []
+    const result = installer.installAllWorktrees({ repoRoot: main, logger: { log: (line) => lines.push(line), warn() {} } })
+    assert.deepEqual(fs.readdirSync(outside), [], '外部目录里不许出现任何文件')
+    assert.ok(result.skipped.some((item) => item.reason === 'unsafe_hooks_dir'), JSON.stringify(result))
+    assert.ok(lines.some((line) => line.includes('跳过') && line.includes('junction')), lines.join('\n'))
+  } finally {
+    fs.rmdirSync(hooks) // 只摘链接，不跟进目标
+  }
+})
