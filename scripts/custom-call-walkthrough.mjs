@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 真机走查：连接页 → 第三层模型弹窗 → 调用脚本 → 插入模板 → 试跑失败态 → 试跑成功。
 // 试跑打到本脚本起的 mock 中转（先 400 再 200），验证 transcript 摊开与 AI 修复入口。截图人眼判断。
 // 用法：node scripts/custom-call-walkthrough.mjs
@@ -11,7 +12,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.custom-call-recon')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'custom-call-walk-'))
+const settingsDir = makeTempDir('custom-call-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 async function modelDialogState(win, pageSelector) {

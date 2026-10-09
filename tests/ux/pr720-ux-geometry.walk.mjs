@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /**
  * R13 走查 · PR #720 用户可见修复逐条复验（几何 / 交互面）。
  *
@@ -29,7 +30,7 @@ function record(id, name, ok, detail) {
   console.log(`  ${ok ? '✓' : '✗'} [${id}] ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-const isoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pr720-geom-'))
+const isoDir = makeTempDir('nomi-pr720-geom-')
 const iso = prepareIsolation(isoDir, { requireCatalog: true })
 
 const { app, win } = await launchNomiApp({

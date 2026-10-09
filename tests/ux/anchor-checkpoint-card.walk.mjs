@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // P4 §3.2 形象确认卡（锚检查点渲染层）—— R13 零额度走查。接 #156 决议链（plan 2026-08-25-p4-anchor-checkpoint-card）。
 // 用法: node tests/ux/anchor-checkpoint-card.walk.mjs   （EN: NOMI_E2E_LOCALE=en node ...）
 // 产出: tests/ux/shots/anchor-checkpoint-card/*.png（光/暗各一组）
@@ -22,7 +23,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectHidden, expectText, proveProbe, expectAbsent, scopedText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-anchor-checkpoint-'))
+const tempRoot = makeTempDir('nomi-anchor-checkpoint-')
 const projectsDir = path.join(tempRoot, 'projects')
 const locale = process.env.NOMI_E2E_LOCALE === 'en' ? 'en' : 'zh-CN'
 const shotPrefix = locale === 'en' ? 'en-' : ''
@@ -296,7 +297,7 @@ try {
   fs.rmSync(tempRoot, { recursive: true, force: true })
 
   // ── ⑥ 暗色：全新实例，冷启动即暗色（seedLocalStorage 在首帧前写好），整条链复用浅色那套 ──────────
-  const darkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-anchor-checkpoint-dark-'))
+  const darkRoot = makeTempDir('nomi-anchor-checkpoint-dark-')
   const darkProjectsDir = path.join(darkRoot, 'projects')
   fs.mkdirSync(darkProjectsDir, { recursive: true })
   let darkApp, darkWin, isDark = false

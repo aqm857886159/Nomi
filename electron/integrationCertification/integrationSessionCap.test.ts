@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { IntegrationSessionService } from "./integrationSession";
 import { validateState } from "./integrationSessionRecord";
 
@@ -38,12 +38,16 @@ beforeAll(() => {
   // 任何情况下都不许碰用户真实的 ~/.nomi/capability-core。
   previousCapabilityDir = process.env.NOMI_CAPABILITY_DIR;
   capabilityDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-cap-capability-"));
-  process.env.NOMI_CAPABILITY_DIR = capabilityDir;
 });
 
+beforeEach(() => {
+  vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityDir);
+});
+
+
 afterAll(() => {
-  if (previousCapabilityDir === undefined) delete process.env.NOMI_CAPABILITY_DIR;
-  else process.env.NOMI_CAPABILITY_DIR = previousCapabilityDir;
+  if (previousCapabilityDir === undefined) vi.stubEnv("NOMI_CAPABILITY_DIR", undefined);
+  else vi.stubEnv("NOMI_CAPABILITY_DIR", previousCapabilityDir);
   fs.rmSync(capabilityDir, { recursive: true, force: true });
 });
 

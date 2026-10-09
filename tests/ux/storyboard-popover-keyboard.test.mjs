@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 分镜表里每一个 Portal 弹层的键盘合同（V-1039 评审：「用作…」/ 片段菜单挪进 Portal 后 Tab 进不去）。
 // 修在 `src/design/AnchoredPopover.tsx` 这一层，所以这里按**清单遍历**，不是只测一个：
 //   打开 → 焦点进浮层 → Tab / Shift+Tab 在浮层内循环（不掉出去）→ Esc 关 → 焦点回到打开前的那个元素。
@@ -46,7 +47,7 @@ const POPOVERS = [
 ]
 
 for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.name}`, async () => {
-  const cacheDir = fs.mkdtempSync(path.join(tmpdir(), 'nomi-storyboard-popover-kbd-'))
+  const cacheDir = makeTempDir('nomi-storyboard-popover-kbd-')
   const server = await createServer({ configFile: false, cacheDir, server: { host: '127.0.0.1', port: 0, hmr: false, watch: null } })
   let browser
   try {

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // PR 正文判据（功能分类 → 测试路由 + 规则与门岗范围）的测试（R17：加规则必须先证明它会咬人）。
 // 判据层喂假数据；另有真 git 仓库端到端（临时仓库里跑 check:pr-judgement CLI）。
 import assert from 'node:assert/strict'
@@ -174,7 +175,7 @@ function git(cwd, ...args) {
 }
 
 test('端到端：临时 git 仓库里跑 CI 脚本——没勾分类 / 缺证据 / 没点名受保护文件 → 红；补齐 → 绿；非 PR 环境跳过', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pr-judgement-'))
+  const root = makeTempDir('pr-judgement-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const write = (rel, content) => {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
@@ -216,7 +217,7 @@ test('端到端：临时 git 仓库里跑 CI 脚本——没勾分类 / 缺证�
 })
 
 test('端到端：逃逸账本一条一个文件——条目文件被删（base 有、HEAD 没有）→ 红并点名 id；只新增 / 改状态 → 不报删除', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pr-judgement-ledger-'))
+  const root = makeTempDir('pr-judgement-ledger-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const dir = path.join(root, 'tests/ux/full-walk/escapeLedger')
   fs.mkdirSync(dir, { recursive: true })

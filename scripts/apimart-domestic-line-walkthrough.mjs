@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查 · 设置页亲手改 APIMart 接口地址（2026-09-29 用户反馈：新电脑上改成国内地址，保存报
 // 「Certification-owned connection changes require a new integration session」；主域不翻墙用不了）。
 //
@@ -62,7 +63,7 @@ const apimartRow = (settingsDir) => readCatalog(settingsDir).vendors.find((vendo
 
 /** 一个场景一份临时资料目录；同一场景的多次启动共用它（「重开 App」就是重启同一份资料）。 */
 function profile(name) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-apimart-line-${name}-`))
+  const root = makeTempDir(`nomi-apimart-line-${name}-`)
   profileRoots.add(root)
   const out = path.join(outRoot, name)
   fs.rmSync(out, { recursive: true, force: true })

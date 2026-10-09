@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 真机验收：本机 ComfyUI 在 127.0.0.1:8188 跑着，像真人一样只走界面，把
 // 「导入工作流 → 认证晋级 → 实例已启用 → 画布选得到 → 真出一张图」整条跑通。
 //
@@ -54,7 +55,7 @@ async function comfyHistoryIds() {
 const baselinePromptIds = await comfyHistoryIds()
 console.log(`ComfyUI ${BASE_URL} · /history 基线 ${baselinePromptIds.length} 条`)
 
-const tempRoot = fs.mkdtempSync(path.join(process.env.TMPDIR ?? '/tmp', 'comfy-cert-accept-'))
+const tempRoot = makeTempDir('comfy-cert-accept-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

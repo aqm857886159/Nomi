@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,7 +8,7 @@ import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.m
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/b2d-dock-evidence')
 await fs.mkdir(out, { recursive: true })
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-b2d-dock-'))
+const tempRoot = await makeTempDirAsync('nomi-b2d-dock-')
 const settingsDir = path.join(tempRoot, 'settings')
 await fs.mkdir(settingsDir, { recursive: true })
 const now = '2026-09-09T00:00:00.000Z'

@@ -15,10 +15,10 @@ const previousProjectsRoot = process.env.NOMI_PROJECTS_DIR;
 const previousSettingsRoot = process.env.NOMI_SETTINGS_DIR;
 afterEach(() => {
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
-  if (previousProjectsRoot === undefined) delete process.env.NOMI_PROJECTS_DIR;
-  else process.env.NOMI_PROJECTS_DIR = previousProjectsRoot;
-  if (previousSettingsRoot === undefined) delete process.env.NOMI_SETTINGS_DIR;
-  else process.env.NOMI_SETTINGS_DIR = previousSettingsRoot;
+  if (previousProjectsRoot === undefined) vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
+  else vi.stubEnv("NOMI_PROJECTS_DIR", previousProjectsRoot);
+  if (previousSettingsRoot === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+  else vi.stubEnv("NOMI_SETTINGS_DIR", previousSettingsRoot);
 });
 function makeTempDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-runtime-paths-test-"));
@@ -55,16 +55,16 @@ describe("readText", () => {
 describe("getProjectsRoot", () => {
   it("resolves environment override before the saved preference before the documents default", () => {
     const settingsRoot = makeTempDir();
-    process.env.NOMI_SETTINGS_DIR = settingsRoot;
+    vi.stubEnv("NOMI_SETTINGS_DIR", settingsRoot);
     const customRoot = path.join(settingsRoot, "custom-projects");
     const environmentRoot = path.join(settingsRoot, "environment-projects");
     writeProjectsRoot(customRoot);
 
-    process.env.NOMI_PROJECTS_DIR = environmentRoot;
+    vi.stubEnv("NOMI_PROJECTS_DIR", environmentRoot);
     expect(getProjectLocationState()).toEqual({ path: environmentRoot, source: "environment" });
     expect(getProjectsRoot()).toBe(environmentRoot);
 
-    delete process.env.NOMI_PROJECTS_DIR;
+    vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
     expect(getProjectLocationState()).toEqual({ path: customRoot, source: "custom" });
     expect(getProjectsRoot()).toBe(customRoot);
 

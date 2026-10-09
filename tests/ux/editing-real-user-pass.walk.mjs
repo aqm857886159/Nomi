@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 收官 A · R13/R16 走查：一个人要做一支 15 秒短片，全程只用剪辑面**手工**剪。
 //
 // 这条走查跟已有几条的分工（别互相重复）：
@@ -34,7 +35,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/editing-real-user-pass')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-editing-real-user-'))
+const root = makeTempDir('nomi-editing-real-user-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

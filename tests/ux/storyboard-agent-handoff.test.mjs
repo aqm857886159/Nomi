@@ -6,9 +6,9 @@ import { expect } from '@playwright/test'
 import { chromium } from 'playwright'
 import { createServer } from 'vite'
 import fs from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 freshTailwindCss()
 
@@ -27,7 +27,7 @@ const ENTRIES = [
 
 for (const locale of ['zh-CN', 'en']) for (const entry of ENTRIES) test(`分镜「交给 Agent」${locale}：${entry.name}把这一镜挂给 Agent`, async () => {
   const en = locale === 'en'
-  const cacheDir = fs.mkdtempSync(path.join(tmpdir(), 'nomi-storyboard-handoff-'))
+  const cacheDir = makeTempDir('nomi-storyboard-handoff-')
   const server = await createServer({ configFile: false, cacheDir, server: { host: '127.0.0.1', port: 0, hmr: false, watch: null } })
   let browser
   try {

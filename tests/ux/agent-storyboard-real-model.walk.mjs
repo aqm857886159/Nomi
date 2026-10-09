@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 「用户照着文稿让 Agent 出分镜」——**真模型、真应用、真素材**的整机走查（R13 第二/三档）。
 //
 // ── 它补的是哪一格 ──
@@ -71,7 +72,7 @@ fs.mkdirSync(outputDir, { recursive: true })
 const { assets } = requireRealMediaAssets(['video-4k-hevc-10bit', 'image-4k-png'])
 const sourceVideo = assets.get('video-4k-hevc-10bit').file
 const derivedSpec = assets.get('image-4k-png').spec
-const mediaTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'storyboard-real-media-'))
+const mediaTmp = makeTempDir('storyboard-real-media-')
 const referenceImage = path.join(mediaTmp, 'reference-4k.png')
 execFileSync(ffmpeg.path, ['-y', '-ss', '00:00:05', '-i', sourceVideo, '-frames:v', '1', referenceImage], { stdio: 'pipe' })
 const referenceBytes = fs.statSync(referenceImage).size

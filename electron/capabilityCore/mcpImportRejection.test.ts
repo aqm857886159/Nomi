@@ -26,12 +26,12 @@ async function loadCore() {
 describe('MCP 素材导入的拒绝路径', () => {
   beforeEach(() => {
     projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-import-reject-'))
-    process.env.NOMI_PROJECTS_DIR = projectsRoot
+    vi.stubEnv("NOMI_PROJECTS_DIR", projectsRoot)
     importLocalFile.mockReset()
   })
   afterEach(() => {
     fs.rmSync(projectsRoot, { recursive: true, force: true })
-    delete process.env.NOMI_PROJECTS_DIR
+    vi.stubEnv("NOMI_PROJECTS_DIR", undefined)
   })
 
   it.each<[MediaImportRejection, RegExp[]]>([

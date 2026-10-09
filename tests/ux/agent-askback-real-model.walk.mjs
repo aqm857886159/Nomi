@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 「模型该不该先问一句」——**真模型、真应用、真素材**的整机走查（R13 第三档）。
 //
 // ── 它补的是哪一格 ──
@@ -87,7 +88,7 @@ const ARG_REJECTED = /Validation failed for tool|capability_input_invalid|genera
 const { assets } = requireRealMediaAssets(['video-4k-hevc-10bit', 'image-4k-png'])
 const sourceVideo = assets.get('video-4k-hevc-10bit').file
 const derivedSpec = assets.get('image-4k-png').spec
-const mediaTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'askback-real-media-'))
+const mediaTmp = makeTempDir('askback-real-media-')
 const referenceImage = path.join(mediaTmp, 'reference-4k.png')
 execFileSync(ffmpeg.path, ['-y', '-ss', '00:00:05', '-i', sourceVideo, '-frames:v', '1', referenceImage], { stdio: 'pipe' })
 const referenceBytes = fs.statSync(referenceImage).size

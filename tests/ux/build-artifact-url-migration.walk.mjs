@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 验收走查（引导示例图的构建产物地址 · 2026-09-25 用户 Mac 控制台：
 // `Not allowed to load local resource: file:///Applications/Nomi.app/…/app.asar/dist/assets/kid-Bv5PJ3l5.jpg`、
 // `Loading the image 'http://127.0.0.1:5273/src/workbench/onboarding/assets/robot/kid.jpg' violates … img-src`、
@@ -23,7 +24,7 @@ const DEV_KID = 'http://127.0.0.1:5273/src/workbench/onboarding/assets/robot/kid
 const PACKAGED_SHOT = 'file:///Applications/Nomi.app/Contents/Resources/app.asar/dist/assets/shot-3-Qw3rTy12.jpg'
 const DEV_ROBOT = 'http://127.0.0.1:5273/src/workbench/onboarding/assets/robot/robot.jpg'
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-build-artifact-walk-'))
+const tempRoot = makeTempDir('nomi-build-artifact-walk-')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'walk-legacy-demo'
 const projectName = locale === 'en' ? 'Example: fix a little robot' : '示例：修好一个小机器人'

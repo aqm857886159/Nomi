@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // P4 S6.5 — APIMart 真付费全链验收（走真生产入口：语义多镜 create）。
 //
 // 链路：起隔离 GUI app（真 catalog + 隔离 NOMI_CAPABILITY_DIR，绝不碰用户真库）→ 另起 stdio MCP 子进程
@@ -51,7 +52,7 @@ fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
 // 隔离目录 + 真 catalog（safeStorage 同机可解密）。NOMI_CAPABILITY_DIR 指隔离目录——不设会跟用户真 Nomi 抢库。
-const isoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-s6p5-paid-'))
+const isoDir = makeTempDir('nomi-s6p5-paid-')
 const iso = prepareIsolation(isoDir, { requireCatalog: true })
 const capDir = path.join(isoDir, 'capability-core')
 fs.mkdirSync(capDir, { recursive: true })

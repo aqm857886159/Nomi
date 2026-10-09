@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -6,7 +7,7 @@ import { test } from 'node:test'
 import { resolveCacheDir, rawFilePath, writeRawFile, listRawRecords, readState, writeState, writeReport, reportsDir } from './store.mjs'
 
 function tmpDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'intake-store-test-'))
+  return makeTempDir('intake-store-test-')
 }
 
 test('resolveCacheDir 优先用 NOMI_INTAKE_CACHE 覆盖', () => {

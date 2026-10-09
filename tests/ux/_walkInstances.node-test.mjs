@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -8,7 +9,7 @@ import { readLiveWalkInstances, registerWalkInstance, registerWalkProcess } from
 import { countNomiProcesses, waitForOtherNomiToExit } from './full-walk/launch.mjs'
 
 function fixture() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-walk-instances-test-'))
+  return makeTempDir('nomi-walk-instances-test-')
 }
 
 test('ignores user-installed and unregistered zombie processes', () => {

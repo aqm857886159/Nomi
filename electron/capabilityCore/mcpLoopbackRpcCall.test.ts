@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createMcpConnectionContext } from './mcpConnectionContext'
 import { callMcpLoopbackRpc, mcpRpcTimeoutMessage, mcpRequestMayHaveRunMessage } from './mcpLoopbackRpcCall'
@@ -11,14 +11,14 @@ import { CAPABILITY_DIR_ENV, ensureToken, signMcpClient } from './security'
 const roots: string[] = []
 
 afterEach(() => {
-  delete process.env[CAPABILITY_DIR_ENV]
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 
 function connection() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-loopback-call-'))
   roots.push(root)
-  process.env[CAPABILITY_DIR_ENV] = path.join(root, 'capability')
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(root, 'capability'))
   ensureToken()
   const proof = signMcpClient('codex')!
   return { proof, connection: createMcpConnectionContext({ client: 'codex', proof }) }

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机闭环（**真实调用、真花额度**）：改完轮询节奏（慢道 3s + ±30% 抖动 + 429 指数退避）后，
 // 跑一次真实的视频生成，证明「提交 → 轮询 → 拿到片子」整条链没被改坏。
 //
@@ -32,7 +33,7 @@ const projects = path.join(os.tmpdir(), 'nomi-pollcadence-projects')
 mkdirSync(settings, { recursive: true })
 mkdirSync(projects, { recursive: true })
 // 与启动器默认同形（每次新 tempRoot/user-data），只是先建出来：凭据钥匙（Windows 的 Local State）要在起 App 前种进去。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'poll-cadence-live-'))
+const tempRoot = makeTempDir('poll-cadence-live-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const devCatalog = realNomiProfile().catalogPath
 if (!existsSync(devCatalog)) {

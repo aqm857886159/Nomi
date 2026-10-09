@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实用户任务：「我刚接了个文本模型，三个地方说的得是一回事」。
 //
 // 2026-09-12 真实付费验收 P0-10 的现场（docs/research/2026-09-12-real-onboarding-acceptance/README.md §6）：
@@ -46,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-availability-'))
+const tempRoot = makeTempDir('nomi-availability-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

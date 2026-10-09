@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：本地 ComfyUI 接入卡。可接入「有本地 ComfyUI？」→ 展开卡（未启用）→ 点「启用本地 ComfyUI」
 // → 探测 mock /system_stats → 卡上到「已接入 · 运行中」→ 停用回落。截图人眼判断。
 // 用法：node scripts/comfyui-onboarding-walkthrough.mjs
@@ -12,7 +13,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outDir = path.join(repoRoot, '.comfyui-onboarding-walk')
 mkdirSync(outDir, { recursive: true })
 // 每次跑用全新 settings 目录 → 种子重跑 comfyui-local enabled:false（否则上次启用会持久到下次，卡永远在「已接入」）。
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-walk-'))
+const settingsDir = makeTempDir('comfyui-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 // 假 ComfyUI：只要 /system_stats（探测卡走这条）。随机端口避免碰到用户正在运行的本地实例。

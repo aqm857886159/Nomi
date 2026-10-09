@@ -27,10 +27,10 @@ function fakeWindow(parent: FakeWindow | null = null): FakeWindow {
 beforeEach(() => {
   vi.resetModules()
   mock.root = temp()
-  process.env.NOMI_SETTINGS_DIR = path.join(mock.root, 'settings')
+  vi.stubEnv("NOMI_SETTINGS_DIR", path.join(mock.root, 'settings'))
 })
 afterEach(() => {
-  delete process.env.NOMI_SETTINGS_DIR
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 

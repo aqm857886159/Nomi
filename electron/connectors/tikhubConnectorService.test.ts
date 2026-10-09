@@ -43,16 +43,16 @@ beforeEach(() => {
   clearModelCatalogVendorApiKey.mockReset();
   importRemoteAsset.mockReset();
   decryptStatus = "missing";
-  delete process.env.NOMI_E2E;
-  delete process.env.NOMI_TIKHUB_TEST_ORIGIN;
+  vi.stubEnv("NOMI_E2E", undefined);
+  vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", undefined);
 });
 
 describe("importTikhubShareUrl — 解析后带 source evidence 落成项目素材", () => {
   it("真实导入编排把 resolved 视频和 loopback trusted origin 交给素材落盘边界", async () => {
     const { importTikhubShareUrl } = await import("./tikhubConnectorService");
     decryptStatus = "ok";
-    process.env.NOMI_E2E = "1";
-    process.env.NOMI_TIKHUB_TEST_ORIGIN = "http://127.0.0.1:43210";
+    vi.stubEnv("NOMI_E2E", "1");
+    vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", "http://127.0.0.1:43210");
     resolveShareVideo.mockResolvedValue({ platform: "douyin", playUrl: "http://127.0.0.1:43210/fixture.mp4", videoId: "fixture-video" });
     importRemoteAsset.mockResolvedValue({ id: "asset-fixture" });
 

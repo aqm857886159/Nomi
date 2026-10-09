@@ -6,45 +6,45 @@ import { intakeConfigPath, intakeConfigured, intakeEndpoint, intakeToken, postIn
 const ORIGINAL = { endpoint: process.env.NOMI_INTAKE_ENDPOINT, token: process.env.NOMI_INTAKE_TOKEN }
 
 afterEach(() => {
-  process.env.NOMI_INTAKE_ENDPOINT = ORIGINAL.endpoint
-  process.env.NOMI_INTAKE_TOKEN = ORIGINAL.token
-  if (ORIGINAL.endpoint === undefined) delete process.env.NOMI_INTAKE_ENDPOINT
-  if (ORIGINAL.token === undefined) delete process.env.NOMI_INTAKE_TOKEN
+  vi.stubEnv("NOMI_INTAKE_ENDPOINT", ORIGINAL.endpoint)
+  vi.stubEnv("NOMI_INTAKE_TOKEN", ORIGINAL.token)
+  if (ORIGINAL.endpoint === undefined) vi.stubEnv("NOMI_INTAKE_ENDPOINT", undefined)
+  if (ORIGINAL.token === undefined) vi.stubEnv("NOMI_INTAKE_TOKEN", undefined)
   resetIntakeConfigCache()
 })
 
 describe('intake endpoint 解析', () => {
   it('没配就是 null，设置页据此显示「只在本机记录」', () => {
-    delete process.env.NOMI_INTAKE_ENDPOINT
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", undefined)
     expect(intakeEndpoint()).toBeNull()
     expect(intakeConfigured()).toBe(false)
   })
 
   it('明文 http 的**远端**当没配 —— 照发但不加密比降级更糟', () => {
-    process.env.NOMI_INTAKE_TOKEN = 'token'
+    vi.stubEnv("NOMI_INTAKE_TOKEN", 'token')
     for (const endpoint of ['http://intake.example', 'http://10.0.0.5:8787', 'http://127.0.0.1.evil.example', 'ftp://intake.example']) {
-      process.env.NOMI_INTAKE_ENDPOINT = endpoint
+      vi.stubEnv("NOMI_INTAKE_ENDPOINT", endpoint)
       expect(intakeEndpoint(), endpoint).toBeNull()
     }
   })
 
   it('回环上的 http 放行：走查要往本机 mock 端点真发一次请求', () => {
-    process.env.NOMI_INTAKE_TOKEN = 'token'
+    vi.stubEnv("NOMI_INTAKE_TOKEN", 'token')
     for (const endpoint of ['http://127.0.0.1:8787', 'http://localhost:8787', 'http://[::1]:8787']) {
-      process.env.NOMI_INTAKE_ENDPOINT = endpoint
+      vi.stubEnv("NOMI_INTAKE_ENDPOINT", endpoint)
       expect(intakeEndpoint(), endpoint).toBe(endpoint)
       expect(intakeConfigured(), endpoint).toBe(true)
     }
   })
 
   it('尾斜杠剥干净，避免拼出 //v1/events', () => {
-    process.env.NOMI_INTAKE_ENDPOINT = 'https://intake.example///'
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", 'https://intake.example///')
     expect(intakeEndpoint()).toBe('https://intake.example')
   })
 
   it('端点有、令牌空 = 未配置（缺一个都发不出去）', () => {
-    process.env.NOMI_INTAKE_ENDPOINT = 'https://intake.example'
-    process.env.NOMI_INTAKE_TOKEN = '   '
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", 'https://intake.example')
+    vi.stubEnv("NOMI_INTAKE_TOKEN", '   ')
     expect(intakeToken()).toBe('')
     expect(intakeConfigured()).toBe(false)
   })
@@ -110,8 +110,8 @@ describe('出厂烤进来的配置', () => {
   const bakedFile = intakeConfigPath()
 
   it('env 没定义时回落到打包时烤进去的那份', () => {
-    delete process.env.NOMI_INTAKE_ENDPOINT
-    delete process.env.NOMI_INTAKE_TOKEN
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", undefined)
+    vi.stubEnv("NOMI_INTAKE_TOKEN", undefined)
     withBaked({ version: 1, endpoint: 'https://intake.example', token: 'baked-token' }, () => {
       expect(intakeEndpoint()).toBe('https://intake.example')
       expect(intakeToken()).toBe('baked-token')
@@ -120,8 +120,8 @@ describe('出厂烤进来的配置', () => {
   })
 
   it('env 只要**被定义**就赢，哪怕是空串 —— 走查靠它显式关掉出厂端点', () => {
-    process.env.NOMI_INTAKE_ENDPOINT = ''
-    process.env.NOMI_INTAKE_TOKEN = ''
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", '')
+    vi.stubEnv("NOMI_INTAKE_TOKEN", '')
     withBaked({ version: 1, endpoint: 'https://intake.example', token: 'baked-token' }, () => {
       expect(intakeEndpoint()).toBeNull()
       expect(intakeConfigured()).toBe(false)
@@ -129,8 +129,8 @@ describe('出厂烤进来的配置', () => {
   })
 
   it('开发构建烤出来的是空配置 —— 开发版不发送', () => {
-    delete process.env.NOMI_INTAKE_ENDPOINT
-    delete process.env.NOMI_INTAKE_TOKEN
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", undefined)
+    vi.stubEnv("NOMI_INTAKE_TOKEN", undefined)
     withBaked({ version: 1, endpoint: '', token: '' }, () => {
       expect(intakeEndpoint()).toBeNull()
       expect(intakeConfigured()).toBe(false)

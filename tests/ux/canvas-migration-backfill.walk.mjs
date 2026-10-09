@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // React Flow 迁移回填②的真机验收：一个窗口、界面动作、量真实几何。
 // 用法：pnpm run build && node tests/ux/canvas-migration-backfill.walk.mjs
 //
@@ -31,7 +32,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const evidenceDir = path.join(repoRoot, 'docs/plan/2026-09-11-triage-board-evidence')
 fs.mkdirSync(evidenceDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-migration-backfill-b-'))
+const tempRoot = makeTempDir('nomi-migration-backfill-b-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'migration-backfill-b'

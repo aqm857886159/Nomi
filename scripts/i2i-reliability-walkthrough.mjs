@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：图生图可靠性三层修复（docs/plan/2026-07-06-i2i-reference-reliability.md）。
 // A（存量自愈）：种一份 v4 catalog（老中转 image 条目：size/quality/n + 只有 t2i mapping）→ 启动
 //    → 断言磁盘 catalog 升到 v5 且补了 image_edit mapping + supportsReferenceImages + 比例/清晰度
@@ -58,8 +59,8 @@ function legacyCatalogFixture() {
 }
 
 function prepDirs(tag, withKieKey) {
-  const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), `i2i-walk-${tag}-settings-`))
-  const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), `i2i-walk-${tag}-projects-`))
+  const settingsDir = makeTempDir(`i2i-walk-${tag}-settings-`)
+  const projectsDir = makeTempDir(`i2i-walk-${tag}-projects-`)
   const fixture = legacyCatalogFixture()
   if (withKieKey) fixture.apiKeysByVendor.kie = { apiKey: 'sk-kie-walkthrough-fake', vendorKey: 'kie', enabled: true, enc: 'plain', createdAt: NOW, updatedAt: NOW }
   fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(fixture, null, 2))

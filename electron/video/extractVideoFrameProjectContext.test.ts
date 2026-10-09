@@ -21,9 +21,9 @@ vi.mock('node:child_process', async (importOriginal) => ({ ...await importOrigin
 
 const roots: string[] = []
 function temp(): string { const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-frame-context-')); roots.push(root); return root }
-beforeEach(() => { vi.resetModules(); mock.ffmpegStarted.mockClear(); mock.finishFfmpeg = null; mock.root = temp(); process.env.NOMI_SETTINGS_DIR = path.join(mock.root, 'settings') })
+beforeEach(() => { vi.resetModules(); mock.ffmpegStarted.mockClear(); mock.finishFfmpeg = null; mock.root = temp(); vi.stubEnv("NOMI_SETTINGS_DIR", path.join(mock.root, 'settings')) })
 afterEach(() => {
-  delete process.env.NOMI_SETTINGS_DIR
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 

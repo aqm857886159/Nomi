@@ -9,7 +9,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -48,7 +48,6 @@ describe("nomi_read target=task", () => {
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-read-task-"));
-    process.env.NOMI_SETTINGS_DIR = root;
     server = http.createServer((request, response) => {
       const url = String(request.url);
       if (url === "/art.png") {
@@ -79,6 +78,11 @@ describe("nomi_read target=task", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 
+
+  });
+
+  beforeEach(async () => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     const { dispatch } = await import("./dispatcher");
     const docs = "https://docs.example-readtask.com/api";
     const submitted = await dispatch("model.onboarding.setup", {
@@ -117,7 +121,7 @@ describe("nomi_read target=task", () => {
   });
 
   afterAll(async () => {
-    delete process.env.NOMI_SETTINGS_DIR;
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     await new Promise<void>((resolve) => server.close(() => resolve()));
     fs.rmSync(root, { recursive: true, force: true });
   });
@@ -127,7 +131,7 @@ describe("nomi_read target=task", () => {
     const { tryModel } = await import("./modelOnboarding/tryModel");
     const { runTask, fetchTaskResult } = await import("../runtime");
     const tried = await tryModel({
-      runTask, fetchTaskResult, pollIntervalMs: 10, pollTimeoutMs: 40,
+      runTask, fetchTaskResult, pollIntervalMs: 10, pollTimeoutMs: 200,
       approvalPolicy: () => ({ mode: "project", spend: "confirm" }),
     }, { vendorKey, modelKey: "readtask-paint", prompt: "apple" }) as { code?: string; taskId?: string; nextAction?: string };
     expect(tried.code).toBe("still_processing");

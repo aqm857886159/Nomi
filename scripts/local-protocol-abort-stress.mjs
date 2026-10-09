@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // nomi-local 协议：高强度取消压测，专门去撞 ERR_INVALID_STATE 那条竞态。
 //
 // 和 scripts/local-protocol-seek-walkthrough.mjs 的分工：
@@ -40,8 +41,8 @@ const require = createRequire(import.meta.url)
 const ffmpeg = require('@ffmpeg-installer/ffmpeg').path
 const outDir = path.join(repoRoot, '.local-protocol-abort-stress')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stress-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'stress-projects-'))
+const settingsDir = makeTempDir('stress-settings-')
+const projectsDir = makeTempDir('stress-projects-')
 
 const SEED_NAME = 'stress-seed.mp4'
 const BIG_NAME = 'stress-big.mp4'

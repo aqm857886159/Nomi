@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 门岗自身的判据测试（R17：加规则必须先验它会红，否则这条规则从第一天起就是装饰）。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -76,7 +77,7 @@ test('登记表空着但代码声明了下载资产 → 红（空登记不是通
 })
 
 test('扫到的源文件键与登记表同一种写法（正斜杠）——Windows 上用 path.join 拼键会把每个已登记文件都报成「没登记」', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-supply-pins-'))
+  const root = makeTempDir('nomi-supply-pins-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   fs.mkdirSync(path.join(root, 'electron/shared/fixture'), { recursive: true })
   fs.writeFileSync(path.join(root, 'electron/shared/fixture/assets.ts'), goodSource)

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // F6 + F5 走查（2026-08-25「预算焦虑短剧创作者」真机走查抓出）：
 //   F6 上手清单第一步「接入模型」的绿勾不得撒谎——key 记录在、但本机解不开（locked）时不得打勾。
 //   F5 拆镜头缺可用文本大脑时，不得把英文原串直通用户（走 recovery 卡人话）。
@@ -21,7 +22,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-checkmark-honesty-'))
+const tempRoot = makeTempDir('nomi-checkmark-honesty-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/onboarding-checkmark-honesty')

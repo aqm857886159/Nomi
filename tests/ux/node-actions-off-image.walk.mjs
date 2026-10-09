@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：画布节点「动作不许压在内容上」落地取证（2026-08-04）。
 // 零额度——只用本地 ffmpeg 造的色块图，绝不触发任何生成。
 //
@@ -19,7 +20,7 @@ const require = createRequire(import.meta.url)
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-04-node-after')
 fs.mkdirSync(outDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-node-walk-'))
+const root = makeTempDir('nomi-node-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

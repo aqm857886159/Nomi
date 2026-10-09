@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 暗色「完整用户旅途」R13 走查 —— J1-J5：项目库 → 创作 → 生成画布 → 预览时间轴 → 导出。
 // 用法: pnpm run build && node tests/ux/dark-journey.walk.mjs
 // 产出: tests/ux/shots/dark-journey/*.png（每段一张，人眼对账暗色下的层次/对比/可读性）。
@@ -52,7 +53,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
 
 // 一次性隔离 profile：不碰用户真实项目库/设置，也保证库里**只有**我们种的那一个项目
 // ——「库里恰好 1 个项目」于是成为一条测得准的断言。
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-dark-journey-'))
+const tempRoot = makeTempDir('nomi-dark-journey-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

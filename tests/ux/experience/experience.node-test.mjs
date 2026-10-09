@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../../scripts/_test-temp.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -58,7 +59,7 @@ function fixture() {
   }
 }
 async function withEvidence(fn) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'experience-test-'))
+  const dir = await makeTempDirAsync('experience-test-')
   try {
     await fs.writeFile(path.join(dir, 'shot.png'), png)
     await fn(fixture(), dir)

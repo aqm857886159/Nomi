@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 「被收窄模式指路提示」R13 真机走查（2026-09-03）。
 //
 // 走查对象：生成画布上，某模型在这家供应商被藏掉了某个模式时，节点参考区多出的那一行指路提示
@@ -31,7 +32,7 @@ mkdirSync(shotsDir, { recursive: true })
 
 // 隔离区拷入真实 catalog：runway / kie / apimart 的那些行只存在于真 catalog 里，
 // 内置种子目录凑不出任何一个收窄命中。projects/settings/chromium/capability 全部隔离，不碰用户资料库。
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-narrowed-mode-guidance-'))
+const tempRoot = makeTempDir('nomi-narrowed-mode-guidance-')
 const iso = prepareIsolation(path.join(tempRoot, 'iso'), { requireCatalog: true })
 
 const { app, win: initialWin } = await launchNomiApp({

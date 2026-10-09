@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // Save-first model access journey against a real Electron main process and a local HTTP mock.
 // Usage: pnpm build && node scripts/settings-model-access-save-first-walkthrough.mjs
 import { createServer } from 'node:http'
@@ -9,8 +10,8 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-model-access-save-first-walk')
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-model-access-save-first-set-'))
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-model-access-save-first-proj-'))
+const settingsDir = makeTempDir('settings-model-access-save-first-set-')
+const projectsDir = makeTempDir('settings-model-access-save-first-proj-')
 const rendererUrl = process.env.NOMI_WALK_RENDERER_URL || `file://${path.join(repoRoot, 'dist', 'index.html')}`
 mkdirSync(outDir, { recursive: true })
 

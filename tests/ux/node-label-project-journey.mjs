@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -8,7 +9,7 @@ import { stationTimeout } from './_station-budget.mjs'
 
 /** Persisted project -> project library -> real React Flow canvas -> rename/drag/preview. */
 export async function runNodeLabelProjectJourney(origin, out, { largeCanvas = false } = {}) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-label-project-'))
+  const tempRoot = makeTempDir('nomi-label-project-')
   const projectsDir = path.join(tempRoot, 'projects')
   const projectId = 'node-label-project'
   const projectRoot = path.join(projectsDir, projectId)

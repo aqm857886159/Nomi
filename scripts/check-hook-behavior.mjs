@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from './_test-temp.mjs'
 // push 闸行为契约门岗（2026-09-02）。守两条轴，都用**实际执行 hook** 来判，不读它的源码文本：
 //   轴 A｜戳契约——写戳方（gates）与读戳方（pre-push hook）必须指同一枚戳；
 //   轴 B｜命令识别——「这条命令推不推、推的哪棵树」必须判对，两个方向都不许错。
@@ -79,7 +80,7 @@ function git(args, cwd) {
  *（doc-only 的改动 hook 会直接放行，验不到戳）。
  */
 function makeProbeRepo() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gates-probe-'))
+  const dir = makeTempDir('nomi-gates-probe-')
   git(['init', '-q', '-b', 'main'], dir)
   git(['config', 'user.email', 'probe@example.com'], dir)
   git(['config', 'user.name', 'probe'], dir)
@@ -99,7 +100,7 @@ function makeProbeRepo() {
  * `extraPaths` 里塞一个代码文件，就成了「文档 + 代码」的反面用例。
  */
 function makeDocsProbeRepo({ docPath, extraPaths = [] }) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-docs-probe-'))
+  const dir = makeTempDir('nomi-docs-probe-')
   git(['init', '-q', '-b', 'main'], dir)
   git(['config', 'user.email', 'probe@example.com'], dir)
   git(['config', 'user.name', 'probe'], dir)
@@ -396,7 +397,7 @@ function checkSettingsGuards(root, problems) {
   }
 
   // 「脚本被挪走」的现场：一个存在、但里面没有 scripts/claude-hooks/ 的项目根。
-  const stripped = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-hook-missing-'))
+    const stripped = makeTempDir('nomi-hook-missing-')
   try {
     for (const command of commands) {
       const script = referencedScript(command)

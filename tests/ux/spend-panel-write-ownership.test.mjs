@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -18,7 +19,7 @@ const ports = {
   assetUploadApi: `export const importWorkbenchLocalAssetFile = (...args) => window.spendOwnership.upload(...args);`,
 }
 beforeAll(async () => {
-  cacheDir = mkdtempSync(path.join(tmpdir(), 'nomi-t7-vite-panel-'))
+  cacheDir = makeTempDir('nomi-t7-vite-panel-')
   server = await createServer({ configFile: false, cacheDir, plugins: [{ name: 'controlled-panel-environment', enforce: 'pre',
     resolveId(source, importer) {
       if (!importer || !/\/(useAgentPanelSpendConfirm|useNodeAssetDrop|nodeWriteAccess)\.ts$/.test(importer)) return
