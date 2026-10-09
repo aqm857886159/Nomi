@@ -23,7 +23,8 @@ import {
   type McpClientKey,
 } from './mcpConfig'
 import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, isBuiltinMcpClient, verifyMcpClient } from './security'
-import { configuredMcpHttpEntry, verifyHttpEntry } from './mcpVerifyHttp'
+import { configuredMcpHttpEntry, forwarderTarget, isForwarderEntry } from './mcpHostEntries'
+import { verifyHttpEntry } from './mcpVerifyHttp'
 import type { McpVerifyReason } from '../shared/mcpConnectionContract'
 
 /** 失败原因：中立契约层 electron/shared/mcpConnectionContract.ts 的唯一 owner，这里只 derive。 */
@@ -60,6 +61,15 @@ export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
     : (isBuiltinMcpClient(client) || listCustomMcpProfiles().some((p) => p.key === client)) ? client : null
   if (!key) return fail('not-installed', false)
   const entry = configuredMcpEntry(key)
+  // 迁移后的转发口（Claude Desktop）：它只是 stdio→HTTP 的桥，验证握的是它要连的那个本机地址、带它配置里的身份。
+  const bridged = entry && isForwarderEntry(entry) ? forwarderTarget(entry) : null
+  if (entry && isForwarderEntry(entry)) {
+    if (!bridged) return fail('client-auth-missing', true)
+    const outcome = await verifyHttpEntry(key, bridged)
+    return outcome.ok
+      ? { ok: true, reason: 'ok', latencyMs: outcome.latencyMs, toolCount: outcome.toolCount, stale: false, detail: '' }
+      : fail(outcome.reason, false, outcome.detail)
+  }
   if (!entry) {
     // 迁移后的 HTTP 条目：同样只认读回来的那一条，真握手一次（不 spawn，直连本机地址）。
     const http = configuredMcpHttpEntry(key)

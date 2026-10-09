@@ -14,9 +14,20 @@
 // Codex 是 TOML，用块级文本合并（按 [表头] 边界只换我们自己的 [mcp_servers.nomi] 块），不引 TOML 依赖（P1）。
 import { app } from 'electron'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
+import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
+import {
+  HostConfigWriteRefused,
+  atomicWrite,
+  isolatedInstanceMarker,
+  readJsonConfig,
+  readText,
+  sha256OfFile,
+  tomlEscapeValue,
+  withHostConfigLock,
+  type McpWriteRefusal,
+} from './hostConfigWrite'
+import { codexHttpBlock, configuredMcpHttpEntry, forwarderEntry, httpJsonEntry, isForwarderEntry, stableMcpPort } from './mcpHostEntries'
 import {
   BUILTIN_MCP_CLIENTS,
   MCP_CLIENT_ENV,
@@ -33,6 +44,9 @@ import { SETTINGS_ROOT_ENV, getSettingsRoot } from '../settings/settingsRoot'
 import { MCP_CLIENT_REGISTRY, isBuiltinMcpClient, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 import type { McpConfigState } from '../shared/mcpConnectionContract'
 
+// 写盘门与读写工具住在 hostConfigWrite；这里转出，老的导入点（协议登记、迁移）不用改。
+export { HostConfigWriteRefused, atomicWrite, isolatedInstanceMarker, readJsonConfig, readText }
+export type { McpWriteRefusal }
 export const SERVER_NAME = 'nomi'
 export const MCP_CONFIG_VERSION_ENV = 'NOMI_MCP_CONFIG_VERSION'
 export const MCP_CONFIG_KIND_ENV = 'NOMI_MCP_CONFIG_KIND'
@@ -264,109 +278,7 @@ export function mcpServerEntry(client?: McpClientKey, runtime?: McpLauncherRunti
   }
 }
 
-function ensureDir(filePath: string): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-}
-
-/** 写盘被拒的原因（UI 按它走 i18n）。 */
-export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
-
-export class HostConfigWriteRefused extends Error {
-  constructor(readonly reason: McpWriteRefusal, detail: string) {
-    super(`host config write refused (${reason}): ${detail}`)
-  }
-}
-
-/** 隔离实例的判据（唯一一份；协议登记等也问它）：走查/评测启动器钉死的 NOMI_E2E，或设置根不是本机 Electron 的 userData。 */
-export function isolatedInstanceMarker(): string | null {
-  if (process.env.NOMI_E2E === '1') return 'NOMI_E2E=1'
-  const settingsRoot = String(process.env[SETTINGS_ROOT_ENV] || '').trim()
-  if (settingsRoot && path.resolve(settingsRoot) !== path.resolve(app.getPath('userData'))) return `${SETTINGS_ROOT_ENV}=${settingsRoot}`
-  return null
-}
-
-/** 真实用户主目录——取 passwd/profile 那份，不取 HOME 环境变量（走查会把 HOME 换成临时目录）。 */
-function realUserHome(): string | null {
-  try {
-    const home = os.userInfo().homedir
-    return home && path.isAbsolute(home) ? path.resolve(home) : null
-  } catch {
-    return null
-  }
-}
-
-function isInside(target: string, root: string): boolean {
-  const relative = path.relative(root, path.resolve(target))
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
-}
-
-/**
- * 隔离实例（走查 / 评测 / 临时 profile）不得改写**真实用户主目录**下的宿主配置——那会把开发者本机的
- * Claude Code / Codex / Cursor 全指到一个跑完就删的临时 profile（2026-09-13 本机 5 个文件全指向死掉的
- * /tmp/nomi-real-agent-*，就是这么来的）。HOME 已换成临时目录的走查照常可写（目标不在真实主目录里）。
- * 守卫住在唯一的写盘门上，而不是某个包装层：包装层可以被绕（此前 readMcpInfo 就绕过了 repair 的守卫）。
- */
-function assertHostConfigWritable(target: string): void {
-  const marker = isolatedInstanceMarker()
-  if (!marker) return
-  const realHome = realUserHome()
-  if (realHome && isInside(target, realHome)) throw new HostConfigWriteRefused('isolated-instance', `${marker} → ${target}`)
-}
-
-/** 写盘失败时，是不是卡在「备份」这一步（迁移据此如实报「备份没成」还是「写没成」）；标记挂在抛出的错误上。 */
-/** suffix = 备份文件名后缀；overwrite=false = 已有就保留（迁移前那份原文只存第一次）。 */
-export type AtomicWriteBackup = Readonly<{ suffix: string; overwrite: boolean }>
-const DEFAULT_BACKUP: AtomicWriteBackup = { suffix: '.nomi-backup', overwrite: true }
-
-function markBackupFailure(error: unknown, backupStep: boolean): unknown {
-  if (error && typeof error === 'object') (error as { nomiBackupFailed?: boolean }).nomiBackupFailed = backupStep
-  return error
-}
-export function hostConfigBackupFailed(error: unknown): boolean {
-  return (error as { nomiBackupFailed?: unknown } | null)?.nomiBackupFailed === true
-}
-
-/** 宿主配置唯一写盘门：先备份（失败则原文件不动），再写临时文件、原子换名；换名失败清掉临时文件。 */
-export function atomicWrite(target: string, content: string | Buffer, backup: AtomicWriteBackup = DEFAULT_BACKUP): string | null {
-  assertHostConfigWritable(target)
-  ensureDir(target)
-  const backupPath = fs.existsSync(target) ? `${target}${backup.suffix}` : null
-  if (backupPath && (backup.overwrite || !fs.existsSync(backupPath))) {
-    // 先写 .part 再换名：备份本身也是原子的，断电不会留下半份却被当成「已备份」。
-    const part = `${backupPath}.part`
-    try { fs.copyFileSync(target, part); renameSyncWithRetry(part, backupPath) } catch (error) {
-      try { fs.rmSync(part, { force: true }) } catch { /* 清不掉不盖过原错误 */ }
-      throw markBackupFailure(error, true)
-    }
-  }
-  const tmp = `${target}.nomi-tmp`
-  try {
-    fs.writeFileSync(tmp, content, 'utf8')
-    // Windows：目标被杀毒/编辑器短暂持有会 EPERM，共享重试收口（P2）。
-    renameSyncWithRetry(tmp, target)
-  } catch (error) {
-    try { fs.rmSync(tmp, { force: true }) } catch { /* 清不掉不盖过原错误 */ }
-    throw markBackupFailure(error, false)
-  }
-  return backupPath
-}
-
 // ── JSON 客户端（Claude Code / Cursor）：root.mcpServers.nomi ─────────────
-
-/**
- * 文件不存在 → `{}`（可以新建）；文件存在但不是一个 JSON 对象 → `null`（**不许写**）。
- * 此前解析失败也回 `{}`，随后整份 `{mcpServers:{nomi}}` 被当作整个文件写回——`~/.claude.json` 里
- * Claude Code 的登录会话和逐项目信任全没了（有 .nomi-backup，但用户不会知道）。
- */
-export function readJsonConfig(target: string): Record<string, unknown> | null {
-  if (!fs.existsSync(target)) return {}
-  try {
-    const parsed = JSON.parse(fs.readFileSync(target, 'utf8'))
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
-}
 
 function jsonInstalled(target: string): boolean {
   const servers = readJsonConfig(target)?.mcpServers
@@ -377,17 +289,20 @@ function jsonSnippet(server: McpServerEntry): string {
   return JSON.stringify({ mcpServers: { [SERVER_NAME]: server } }, null, 2)
 }
 
-function jsonInstall(target: string, client: McpClientKey): string | null {
-  const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
-  const config = readJsonConfig(target)
-  if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
-  const servers = (config.mcpServers && typeof config.mcpServers === 'object' && !Array.isArray(config.mcpServers)
-    ? (config.mcpServers as Record<string, unknown>)
-    : {}) as Record<string, unknown>
-  servers[SERVER_NAME] = mcpServerEntry(client)
-  config.mcpServers = servers
-  atomicWrite(target, JSON.stringify(config, null, 2))
-  return backupPath
+function jsonInstall(target: string, entry: unknown): string | null {
+  return withHostConfigLock(target, () => {
+    const before = sha256OfFile(target)
+    const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
+    const config = readJsonConfig(target)
+    if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
+    const servers = (config.mcpServers && typeof config.mcpServers === 'object' && !Array.isArray(config.mcpServers)
+      ? (config.mcpServers as Record<string, unknown>)
+      : {}) as Record<string, unknown>
+    servers[SERVER_NAME] = entry
+    config.mcpServers = servers
+    atomicWrite(target, JSON.stringify(config, null, 2), { lockHeld: true, expectedSha256: before })
+    return backupPath
+  })
 }
 
 function jsonUninstall(target: string): void {
@@ -408,9 +323,7 @@ const CODEX_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*\]
 const CODEX_TABLE_HEADER_RE = /^\s*(?:\[[^\]]+\]|\[\[[^\]]+\]\])\s*(?:#.*)?$/
 const CODEX_FAMILY_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*(?:\.\s*[^\]]+)?\]\s*(?:#.*)?$/
 
-export function tomlEscape(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-}
+export const tomlEscape = tomlEscapeValue
 
 /**
  * Codex 的三个默认值对 Nomi 全都不成立，不显式写就是三种「看着接上了其实用不了」（官方文档核实：
@@ -441,14 +354,6 @@ function codexBlock(server: McpServerEntry): string {
   return block
 }
 
-export function readText(target: string): string {
-  try {
-    return fs.readFileSync(target, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
 function codexInstalled(target: string): boolean {
   return readText(target).split('\n').some((line) => CODEX_HEADER_RE.test(line))
 }
@@ -473,12 +378,16 @@ export function removeCodexBlock(text: string): string {
   return out.join('\n')
 }
 
-function codexInstall(target: string, client: McpClientKey): string | null {
-  const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
-  const base = removeCodexBlock(readText(target)).replace(/\s*$/, '')
-  const next = (base ? `${base}\n\n` : '') + codexBlock(mcpServerEntry(client))
-  atomicWrite(target, next)
-  return backupPath
+function codexInstall(target: string, block: string): string | null {
+  return withHostConfigLock(target, () => {
+    const before = sha256OfFile(target)
+    const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
+    const base = removeCodexBlock(readText(target)).replace(/s*$/, '')
+    atomicWrite(target, (base ? `${base}
+
+` : '') + block, { lockHeld: true, expectedSha256: before })
+    return backupPath
+  })
 }
 
 function codexUninstall(target: string): void {
@@ -519,7 +428,7 @@ function clientInfo(client: McpClientKey): McpClientInfo {
   const server = mcpServerEntry(client)
   const launcherKind = server.env?.[MCP_CONFIG_KIND_ENV] === 'development' ? 'development' : 'packaged'
   const configured = configuredMcpEntry(client)
-  const configState = classifyMcpEntry(client, configured, server)
+  const configState = configured === null && configuredMcpHttpEntry(client) ? 'migrated-http' : classifyMcpEntry(client, configured, server)
   const installed = configured !== null || (spec.format === 'toml' ? codexInstalled(target) : jsonInstalled(target))
   const snippet = spec.format === 'toml' ? codexBlock(server) : jsonSnippet(server)
   return { installed, appInstalled: isMcpClientAppInstalled(client), configPath: target, snippet, configState, launcherKind,
@@ -556,13 +465,34 @@ export function readMcpInfo(rpcPort: number | null): McpInfo {
 function writeClientConfig(client: McpClientKey, spec: ClientSpec): { ok: true; backupPath: string | null } | { ok: false; reason: McpWriteRefusal } {
   if (isBuiltinMcpClient(client) && !isMcpClientAppInstalled(client)) return { ok: false, reason: 'client-not-installed' }
   const target = spec.configPath()
+  // 传输方式只由用户的迁移同意改变（mcpHostMigration）：已经是 HTTP / 转发口的条目，「修复」只能按同一种传输重写，
+  // 绝不降回 stdio；降回旧方式只有显式的恢复函数。没迁移过的条目照旧写 stdio。
+  const transport = existingTransport(client)
+  const port = transport === 'stdio' ? null : stableMcpPort()
+  if (transport !== 'stdio' && port === null) return { ok: false, reason: 'http-unavailable' }
   try {
-    const backupPath = spec.format === 'toml' ? codexInstall(target, client) : jsonInstall(target, client)
+    const stdio = mcpServerEntry(client)
+    let backupPath: string | null
+    if (spec.format === 'toml') {
+      const block = transport === 'http' ? codexHttpBlock(client, port!, CODEX_TOOL_TIMEOUT_SEC) : codexBlock(stdio)
+      if (!block) return { ok: false, reason: 'http-unavailable' }
+      backupPath = codexInstall(target, block)
+    } else {
+      const entry = transport === 'http' ? httpJsonEntry(client, port!) : transport === 'forwarder' ? forwarderEntry(client, port!, stdio) : stdio
+      if (!entry) return { ok: false, reason: 'http-unavailable' }
+      backupPath = jsonInstall(target, entry)
+    }
     return { ok: true, backupPath }
   } catch (error) {
     if (error instanceof HostConfigWriteRefused) return { ok: false, reason: error.reason }
     throw error
   }
+}
+
+function existingTransport(client: McpClientKey): 'stdio' | 'http' | 'forwarder' {
+  if (configuredMcpHttpEntry(client)) return 'http'
+  const configured = configuredMcpEntry(client)
+  return configured && isForwarderEntry(configured) ? 'forwarder' : 'stdio'
 }
 
 /**
@@ -722,6 +652,7 @@ export function classifyMcpEntry(
   expected = mcpServerEntry(client),
 ): McpConfigState {
   if (!entry) return 'absent'
+  if (isForwarderEntry(entry)) return 'migrated-forwarder' // 迁移后的 Claude Desktop 转发口：自己的形状，不是「另一份 Nomi」
   // Exact equality with Nomi's current launcher is authoritative even in test/dev runtimes whose
   // executable basename is `node` rather than Nomi/Electron. Historical shapes still use the
   // narrower recognizers below so an unrelated custom proxy is never claimed or migrated.

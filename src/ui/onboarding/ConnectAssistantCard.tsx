@@ -82,6 +82,7 @@ const REFUSAL_I18N: Record<McpWriteRefusal, string> = {
   'client-not-installed': 'clientNotInstalled',
   'isolated-instance': 'isolatedInstance',
   'config-unreadable': 'configUnreadable',
+  'http-unavailable': 'httpUnavailable',
 }
 
 // 「以后再说」只记到下一版：存的是当时的应用版本号，版本一变就重新问。per-viewer 便利，存不下也照常显示。

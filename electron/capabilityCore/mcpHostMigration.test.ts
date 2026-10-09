@@ -22,6 +22,7 @@ import {
   migrateMcpHostsToHttp,
   restorePreMigrationMcpConfig,
 } from './mcpHostMigration'
+import { HostConfigBusyError } from './hostConfigWrite'
 import { builtinMcpClientConfigPath } from './mcpDetectedClients'
 import { MCP_HTTP_DEFAULT_PORT, mcpHttpUrl, writeMcpHttpEndpoint } from './mcpHttpEndpoint'
 import { CAPABILITY_DIR_ENV, MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, ensureToken, verifyMcpClient } from './security'
@@ -278,7 +279,8 @@ describe('迁移前备份与恢复', () => {
     const original = bytes(cfg('claude'))!
     expect(migrateMcpHostsToHttp(['claude'])[0].ok).toBe(true)
     expect(bytes(`${cfg('claude')}${PREMIGRATE}`)).toEqual(original)
-    // 用户之后又加了别的服务器、点了「重新连接」：配置内容已经和迁移前不同，.nomi-backup 也会被换掉
+    // 用户恢复回旧连接、又加了别的服务器、重新连接（.nomi-backup 被换掉），然后第二次同意迁移
+    expect(restorePreMigrationMcpConfig('claude').ok).toBe(true)
     const later = JSON.parse(fs.readFileSync(cfg('claude'), 'utf8'))
     later.mcpServers.later = { command: 'later' }
     fs.writeFileSync(cfg('claude'), JSON.stringify(later, null, 2))
@@ -313,5 +315,134 @@ describe('迁移前备份与恢复', () => {
     const before = bytes(cfg('claude'))
     expect(restorePreMigrationMcpConfig('claude')).toMatchObject({ ok: false, reason: 'no-backup' })
     expect(bytes(cfg('claude'))).toEqual(before)
+  })
+})
+
+/** 把身份印记弄坏（模拟握手失败 → 用户点「修复」）。 */
+function breakProof(client: BuiltinMcpClient): void {
+  const text = fs.readFileSync(cfg(client), 'utf8')
+  const broken = text.replace(/(proof"?\s*[:=]\s*")[^"]+/i, '$1broken')
+  expect(broken, client).not.toBe(text)
+  fs.writeFileSync(cfg(client), broken)
+}
+const TRANSPORT_HOSTS = HOSTS.filter((c) => c !== 'workbuddy')
+
+describe('评审 1：「修复 / 重新连接」不能改变传输方式', () => {
+  it('已迁移的条目被点「修复」（installMcp）：仍是同一种传输，身份重新签好，没有降回 stdio', () => {
+    seedAll()
+    migrateMcpHostsToHttp(TRANSPORT_HOSTS)
+    for (const c of TRANSPORT_HOSTS) breakProof(c)
+    for (const c of TRANSPORT_HOSTS) expect(installMcp(c).ok, c).toBe(true)
+    for (const c of TRANSPORT_HOSTS) {
+      const text = fs.readFileSync(cfg(c), 'utf8')
+      expect(text, c).not.toContain('NOMI_MCP_STDIO')
+      expect(text, c).not.toContain('mcpNodeLauncher')
+      expect(text, c).not.toContain('broken')
+      if (c === 'claude-desktop') expect(text).toContain('mcpHttpForwarder')
+      else expect(text, c).toContain(mcpHttpUrl(MCP_HTTP_DEFAULT_PORT))
+    }
+    const claude = JSON.parse(fs.readFileSync(cfg('claude'), 'utf8')).mcpServers
+    expect(claude.nomi.type).toBe('http')
+    expect(claude.other).toEqual({ command: 'npx', args: ['x'] })
+  })
+
+  it('已迁移但 HTTP 服务没有稳定地址（隔离实例）：修复拒绝，不降回 stdio，文件不动', () => {
+    seedAll()
+    migrateMcpHostsToHttp(['claude'])
+    const before = bytes(cfg('claude'))
+    vi.stubEnv('NOMI_MCP_HTTP_PORT', '0')
+    expect(installMcp('claude')).toMatchObject({ ok: false, reason: 'http-unavailable' })
+    expect(bytes(cfg('claude'))).toEqual(before)
+  })
+
+  it('没点「改过去」：连接 / 修复 / 启动修复都不会产生任何传输方式的改变', () => {
+    seedAll()
+    for (const c of HOSTS) {
+      expect(installMcp(c).ok, c).toBe(true)
+      const text = fs.readFileSync(cfg(c), 'utf8')
+      expect(text, c).toContain('NOMI_MCP_STDIO')
+      expect(text, c).not.toMatch(/http_headers|"headers"|mcpHttpForwarder|"type"\s*:\s*"http"/)
+    }
+    repairStaleMcpConfigs()
+    expect(listMigratableMcpHosts().sort()).toEqual(TRANSPORT_HOSTS.filter((c) => c !== 'claude-desktop' || process.platform !== 'linux').sort())
+  })
+})
+
+describe('评审 2：并发与宿主热写', () => {
+  it('两个迁移同时碰同一个目标：只有持锁的那个写，另一个如实失败，临时文件各用各的、不串、不残留', () => {
+    seedAll()
+    vi.stubEnv('NOMI_HOST_LOCK_WAIT_MS', '50')
+    const tmpNames: string[] = []
+    const realWrite = fs.writeFileSync
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      if (String(file).includes('.nomi-tmp')) tmpNames.push(path.basename(String(file)))
+      return realWrite(file, data, options)
+    }) as typeof fs.writeFileSync)
+    let second: ReturnType<typeof migrateMcpHostsToHttp> | null = null
+    let installError: unknown = null
+    const realCopy = fs.copyFileSync
+    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
+      realCopy(src, dest, ...rest)
+      // 第一个迁移正持着锁、在做迁移前备份：第二个实例此刻来迁移同一个文件
+      if (String(dest).includes(PREMIGRATE) && !second) {
+        second = migrateMcpHostsToHttp(['claude'])
+        // 用户此刻在连接卡点了「重新连接」：写入同一个文件，也要排队（抢不到锁就如实失败，不交叉写）
+        try { installMcp('claude') } catch (error) { installError = error }
+      }
+    }) as typeof fs.copyFileSync)
+    const first = migrateMcpHostsToHttp(['claude'])
+    expect(first[0]).toMatchObject({ ok: true })
+    expect(second![0]).toMatchObject({ ok: false, reason: 'write-failed' })
+    expect(installError).toBeInstanceOf(HostConfigBusyError)
+    expect(tmpNames).toHaveLength(1)
+    expect(tmpNames[0]).toMatch(/\.nomi-tmp\.\d+\.[0-9a-f]+$/)
+    const left = fs.readdirSync(path.dirname(cfg('claude'))).filter((n) => /nomi-tmp|\.part|nomi-lock/.test(n))
+    expect(left).toEqual([])
+    expect(JSON.parse(fs.readFileSync(cfg('claude'), 'utf8')).mcpServers.nomi.type).toBe('http')
+  })
+
+  it.each(['claude', 'codex'] as const)('%s：读完之后宿主又改了文件：放弃迁移，宿主写的内容原样保留', (client) => {
+    seedAll()
+    const hostWrote = client === 'codex'
+      ? fs.readFileSync(cfg(client), 'utf8') + '\n[mcp_servers.hostadded]\ncommand = "x"\n'
+      : JSON.stringify({ ...JSON.parse(fs.readFileSync(cfg(client), 'utf8')), hostAdded: true }, null, 2)
+    const realCopy = fs.copyFileSync
+    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
+      realCopy(src, dest, ...rest)
+      if (String(dest).includes(PREMIGRATE)) fs.writeFileSync(cfg(client), hostWrote) // 宿主此刻写了它自己的改动
+    }) as typeof fs.copyFileSync)
+    expect(migrateMcpHostsToHttp([client])[0]).toMatchObject({ ok: false, reason: 'host-changed' })
+    expect(fs.readFileSync(cfg(client), 'utf8')).toBe(hostWrote)
+    expect(fs.readdirSync(path.dirname(cfg(client))).filter((n) => /nomi-tmp|nomi-lock/.test(n))).toEqual([])
+  })
+
+  it('迁移前备份是排他创建：已经存在就保留原样，不会被第二个写入者覆盖', () => {
+    seedAll()
+    fs.writeFileSync(`${cfg('claude')}${PREMIGRATE}`, 'SENTINEL')
+    expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: true })
+    expect(fs.readFileSync(`${cfg('claude')}${PREMIGRATE}`, 'utf8')).toBe('SENTINEL')
+  })
+
+  it('端点文件是另一个还活着的进程写的（别的 Nomi 实例占着这个地址）：不迁移', () => {
+    seedAll()
+    const file = path.join(homeDir, '.nomi-cap', 'mcp-http.json')
+    fs.writeFileSync(file, JSON.stringify({ url: mcpHttpUrl(MCP_HTTP_DEFAULT_PORT), port: MCP_HTTP_DEFAULT_PORT, pid: process.ppid }))
+    const before = bytes(cfg('claude'))
+    expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: false, reason: 'http-unavailable' })
+    expect(bytes(cfg('claude'))).toEqual(before)
+  })
+})
+
+describe('评审 4：迁移后的条目有自己的分类，不会被当成「另一份 Nomi」', () => {
+  it('各宿主迁移后：HTTP 宿主 migrated-http，Claude Desktop migrated-forwarder，WorkBuddy 不变；谁都不是 launcher-elsewhere', () => {
+    seedAll()
+    migrateMcpHostsToHttp(TRANSPORT_HOSTS)
+    const clients = readMcpInfo(0).clients
+    for (const c of TRANSPORT_HOSTS) {
+      expect(clients[c].configState, c).toBe(c === 'claude-desktop' ? 'migrated-forwarder' : 'migrated-http')
+      expect(clients[c].configState).not.toBe('launcher-elsewhere')
+    }
+    expect(clients.workbuddy.configState).not.toMatch(/migrated|elsewhere/)
+    expect(listMigratableMcpHosts()).toEqual(HOSTS.includes('workbuddy') ? [] : [])
   })
 })

@@ -34,7 +34,7 @@ export type McpClientInfo = {
 }
 
 /** 写盘被拒的原因（主进程 mcpConfig.McpWriteRefusal 的投影）。 */
-export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
+export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable' | 'http-unavailable'
 
 export type McpInstallResult =
   | { ok: true; client: string; configPath: string; backupPath: string | null }
@@ -47,7 +47,7 @@ export type McpUninstallResult =
 /** 迁移到本机直连（mcpHostMigration）的投影。 */
 export type McpMigrationFailure =
   | 'not-migratable' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
-  | 'http-unavailable' | 'backup-failed' | 'write-failed'
+  | 'http-unavailable' | 'backup-failed' | 'write-failed' | 'host-changed'
 export type McpMigrationState = {
   hosts: { client: string; label: string }[]
   /** 「以后再说」按它记：到下一版再问。 */

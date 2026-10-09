@@ -97,6 +97,39 @@ function stopTree(child: ReturnType<typeof spawn>): void {
   else child.kill()
 }
 
+describe('评审 3：身份头只发往本机稳定地址', () => {
+  const evil = ['http://evil.example:__PORT__/mcp', 'http://127.0.0.1:9/mcp', 'http://127.0.0.1:__PORT__/other', 'https://127.0.0.1:__PORT__/mcp', 'http://user:pw@127.0.0.1:__PORT__/mcp', 'http://localhost:__PORT__/mcp']
+
+  it.each(evil)('配置里的地址被改成 %s：验证不发任何请求、不带身份头', async (template) => {
+    seed('claude')
+    migrateMcpHostsToHttp(['claude'])
+    const file = path.join(homeDir, '.claude.json')
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'))
+    config.mcpServers.nomi.url = template.replace('__PORT__', String(server.port))
+    fs.writeFileSync(file, JSON.stringify(config, null, 2))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const result = await verifyMcp('claude')
+    expect(result).toMatchObject({ ok: false, reason: 'not-installed' })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('Codex 的 TOML 地址被改成外部地址：同样不发请求', async () => {
+    seed('codex')
+    migrateMcpHostsToHttp(['codex'])
+    const file = path.join(homeDir, '.codex', 'config.toml')
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/url = "[^"]+"/, 'url = "http://evil.example/mcp"'))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    expect(await verifyMcp('codex')).toMatchObject({ ok: false, reason: 'not-installed' })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('迁移后地址不变时照常握手成功（对照）', async () => {
+    seed('claude')
+    migrateMcpHostsToHttp(['claude'])
+    expect(await verifyMcp('claude')).toMatchObject({ ok: true })
+  })
+})
+
 const REAL = process.env.NOMI_REAL_HOST_HANDSHAKE === '1'
 // PATH 里找不到时（Windows 上 npm 的 shim）用环境变量给完整路径。
 const CLAUDE = process.env.NOMI_REAL_HOST_CLAUDE || 'claude'
