@@ -1,0 +1,41 @@
+{
+  "id": "FB-20261008-ui-talks-money",
+  "since": "2026-10-08",
+  "source": "用户 10-08 拍板 ②（协调会话文案合同 contract-moneycopy.md 引用）：「界面不谈钱」",
+  "category": "claims-and-outcomes",
+  "problem": "界面在谈钱：上传、取回、重试、模型标签写「免费 / 不花钱」，付费确认卡与按钮印 Nomi 按价目表算的金额，提示里写预算 / 已花费 0 / 会消耗额度——现在都走中转站，扣没扣、扣多少 Nomi 证明不了，这些说法都是没有依据的承诺。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "中英任一界面：词典里任何一条文案都不断言这一步花不花钱、花多少（例外只认登记在案、带理由的上游原文与非金钱同形词键）",
+    "付费确认卡：只说这次要生成什么、几张 / 几段，确认 / 去掉逐项生效，卡上与按钮上不出金额",
+    "走查监视器在真实界面取到的文字里不出现价格 / 免费字样，豁免与词典门岗是同一批键"
+  ],
+  "fullWalkJourneys": [
+    "tests/ux/agent-spend-card.walk.mjs",
+    "tests/ux/agent-spend-priced-card.walk.mjs",
+    "tests/ux/core-smoke-spend-confirm.walk.mjs"
+  ],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "scripts/check-i18n-no-cost-claims.mjs（check:i18n）：整本中英词典、模型显示名键、Agent 提示词与供应商目录源字符串不许有零元 / 正向花钱断言",
+    "tests/ux/full-walk/outcomeText.test.mjs：整本中英词典过同一词表，除登记例外键零命中；例外键的词典值经走查监视器逐条不再判成价格字样",
+    "scripts/check-test-copy-literals.mjs（check:i18n）：测试 / 走查不许手抄词典文案，改文案不再全仓撞红（#1099 第 9 轮类根因复盘 docs/engineering/direction-check-2026-10-09-copy-literals-in-tests.md）",
+    "铁律 ⑩ 说的 = 摆的：界面说的只能是 Nomi 摆得出依据的事实（动作与选择），不替用户断言费用",
+    "tests/ux/agent-spend-card.walk.mjs、tests/ux/agent-spend-priced-card.walk.mjs：确认控件不出金额（本机屏外跑过）"
+  ],
+  "completionCommits": [
+    "184ea8997",
+    "00b3932be",
+    "a4a77e844"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-07-money-copy-truth.root-cause.json",
+  "fixedInPr": 1099,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/full-walk/outcomeText.test.mjs"
+  }
+}

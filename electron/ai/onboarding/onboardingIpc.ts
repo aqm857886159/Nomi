@@ -11,12 +11,9 @@ import {
   readExtraHeaders,
   upstreamErrorText,
 } from "./modelListProbe";
-import { normalizeProviderKind, readCatalog } from "../../catalog/catalogStore";
+import { normalizeProviderKind } from "../../catalog/catalogStore";
 import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
-import { credentialProbePlan } from "../../catalog/credentialProbePolicy";
-import { directKeyProbeModelId } from "../../catalog/directKeyCredential";
-import { quoteSpendLine } from "../../spendQuote";
 import { checkVendorHealth } from "./vendorHealth";
 import { createExplicitProxyDispatcher } from "../../systemProxy";
 
@@ -94,16 +91,6 @@ export function registerOnboardingIpc(): void {
 
   // 「这家验一次 key 要不要花钱」——接入页的按钮文案读它（T-MO-10，用户 2026-09-22 拍板）。
   // 判据不在渲染层第二次成立：这里只是把主进程那份唯一策略（credentialProbePolicy）投影出去，
-  // 于是「界面说免费、实际扣了钱」在结构上讲不出来。金额走同一个报价 owner quoteSpendLine。
-  ipcMain.handle("nomi:model-catalog:credential-probe-plan", async (event, vendorKey: string) => {
-    assertTrustedSender(event);
-    const key = String(vendorKey || "").trim();
-    const plan = credentialProbePlan(key);
-    if (plan.cost === "free") return { cost: "free" as const, amount: null };
-    const modelKey = directKeyProbeModelId(readCatalog(), key);
-    return { cost: "paid" as const, amount: modelKey ? quoteSpendLine({ vendorKey: key, modelKey }).amount : null };
-  });
-
   // 「AI 读文档」接入路径已下线（Issue #8：改为中转拉取式接入图片/视频/文本）。
 
   // 供应商连接健康：模型面板每次打开时按家自查「现在能不能用」。凭证由主进程自取——

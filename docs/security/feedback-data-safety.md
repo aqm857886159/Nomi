@@ -88,5 +88,5 @@ MP4 magic bytes、B站 WBI 测试向量），用两条结构判据分开，**没
 
 ## 装配（换机/新 worktree 时）
 
-- **pre-commit / pre-push hook**：`scripts/install-git-hooks.cjs`（`pnpm install` 的 postinstall 自动跑）安装到当前 Git hooks 配置。pre-commit 只扫 staged 敏感数据；pre-push 只跑 PR 正文门岗的本地半场（`scripts/check-pr-body-gates.mjs`，不跑模型；2026-10-02 起交工前评审与评审收据校验已整套删除，用合并前独立验收代替）。普通 worktree 使用其 configured hooks 路径；linked worktree 只有在 `extensions.worktreeConfig=true` 时才写入专属目录，无法隔离则跳过并提示，避免一个分支改坏并行 worktree。手动补装：`node scripts/install-git-hooks.cjs`。
+- **pre-commit / pre-push hook**：`scripts/install-git-hooks.cjs`（`pnpm install` 的 postinstall 自动跑）安装到当前 Git hooks 配置。pre-commit 只扫 staged 敏感数据；pre-push 跑按改动范围选出的本机 Contracts 门岗 + PR 正文门岗（`scripts/pre-push-contracts.mjs`，不跑模型；2026-10-02 起交工前评审与评审收据校验已整套删除，用合并前独立验收代替）。普通 worktree 使用其 configured hooks 路径；linked worktree 只有在 `extensions.worktreeConfig=true` 时才写入专属目录，无法隔离则跳过并提示，避免一个分支改坏并行 worktree。手动补装：`node scripts/install-git-hooks.cjs`。
 - **secret-guard**：注册在 `.claude/settings.json` 的 PreToolUse→Bash。`.claude/` 不随 git，换机需手动复制 `.claude/hooks/secret-guard.sh` + settings.json 那条注册（与其它 hook 同）。

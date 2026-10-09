@@ -61,7 +61,6 @@ const EXCLUDED_PREFIXES = [
   'electron/capabilityCore/', // MCP/RPC schemas and agent-facing protocol text
 ]
 const EXCLUDED_FILES = new Set([
-  'src/config/knownVendors.ts', // getLocalizedKnownVendors translates every displayed field
   'src/config/models.ts', // curated model labels use the model display-text boundary
   'src/ui/onboarding/providerPresets.ts', // legacy endpoint metadata; not rendered
   'src/ui/onboarding/customCallTestFixture.ts', // connectivity-test prompts sent to the model, not UI copy
@@ -322,6 +321,14 @@ function scanFile(fileName) {
           collectExpressionLiterals(node.initializer, (text) => addElectron(`dialog-prop:${propertyName}`, text))
         }
       }
+    }
+
+    // src/config/ 是喂界面的展示目录（供应商卡片、模型目录…）。这里不按属性名猜哪些字段会显示——
+    // tagline / text / ctaLabel 这类名字永远列不全（knownVendors 就是这么整卡漏成中文的）——
+    // 而是汉字硬零：任何带汉字的字符串字面量都红，界面文字一律住 i18n 词典。注释不算（AST 不含注释）。
+    if (relative.startsWith('src/config/') && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node))) {
+      const text = literalText(node)
+      if (text !== null && hasHan(text)) add('config-literal', text)
     }
 
     if (ts.isJsxText(node)) add('jsx-text', node.text)

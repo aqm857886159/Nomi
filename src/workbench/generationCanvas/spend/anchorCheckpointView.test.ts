@@ -63,8 +63,6 @@ describe('buildAnchorCheckpointCard', () => {
     expect(model).not.toBeNull()
     expect(model.gateId).toBe('gate-anchor-checkpoint-op-batch')
     expect(model.projectId).toBe('project-1')
-    expect(model.approvedBudget).toBe(18)
-    expect(model.budgetCurrency).toBe('CNY')
     expect(model.shotCount).toBe(2) // 2 included video shots (anchors excluded)
     expect(model.anchors).toHaveLength(2)
 
@@ -172,8 +170,4 @@ describe('buildAnchorCheckpointCard', () => {
     expect(model).toBeNull()
   })
 
-  it('approvedBudget null when the ledger authorized nothing (does not fabricate a money figure)', () => {
-    const model = buildAnchorCheckpointCard(run({ budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0, unknownInFlight: 0 } }), gate)!
-    expect(model.approvedBudget).toBeNull()
-  })
 })
