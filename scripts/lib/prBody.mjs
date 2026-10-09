@@ -10,7 +10,7 @@
 //
 // 改法两半，本文件是第一半：**正文一律现取**（`gh pr view --json body`），不再读事件负载。
 // 现取的正文和作者屏幕上看到的是同一份，所以「改完正文重跑这个 job」就能变绿，不必重推。
-// 第二半在 scripts/check-pr-body-gates.mjs：push 前在本地先跑一遍同样的判据，
+// 第二半在 scripts/pre-push-contracts.mjs（pre-push 钩子的入口）：push 前在本地先跑一遍同样的判据，
 // 让「正文没写全」在推之前就被发现，而不是四十分钟以后。
 //
 // fail-closed 的边界写死在这里，别靠猜：
@@ -19,6 +19,15 @@
 //   · 本地默认跳过（本地没有 PR 这个东西）；显式 `--pr` 时用 gh 取当前分支的 PR 正文，
 //     取不到就明说「今天没查成」并跳过 —— 本地不是最后一道闸，CI 侧仍然 fail-closed。
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+
+/** 还没有 PR 时，实现线按约定把 PR 正文草稿写在仓库根的这个文件（已 gitignore）；推送前就用它按合并前的标准判。 */
+export const LOCAL_PR_BODY_DRAFT = '.tmp-pr-body.md'
+
+function readLocalDraft(cwd) {
+  try { return fs.readFileSync(path.join(cwd, LOCAL_PR_BODY_DRAFT), 'utf8') } catch { return null }
+}
 
 /** `gh pr view` 的默认实现；测试里换成假的。 */
 function ghPullRequestBody(args, cwd) {
@@ -35,6 +44,7 @@ export function resolvePullRequestBody({
   argv = process.argv,
   cwd = process.cwd(),
   fetchBody = ghPullRequestBody,
+  readDraft = readLocalDraft,
 } = {}) {
   // 显式喂正文（测试与 --body-file 之类的本地用法）。空字符串是合法输入：
   // 「正文是空的」本身就是一个应该报红的事实，不是「没拿到」。
@@ -55,6 +65,9 @@ export function resolvePullRequestBody({
   try {
     return { available: true, body: fetchBody(args, cwd), source: number ? `gh pr view ${number}` : 'gh pr view' }
   } catch (error) {
+    // 本地、这条分支还没有 PR：有草稿就用草稿（CI 里没有这个文件，也永远不走这条）
+    const draft = inPullRequest ? null : readDraft(cwd)
+    if (draft !== null) return { available: true, body: draft, source: LOCAL_PR_BODY_DRAFT }
     const detail = error instanceof Error ? String(error.message).split('\n')[0] : String(error)
     return { available: false, required: inPullRequest, reason: `gh pr view 取不到正文：${detail}` }
   }
