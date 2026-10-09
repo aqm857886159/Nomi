@@ -89,31 +89,24 @@ describe('canvas add-intent model（2026-09-10 拍板：文本回常驻 → 6 �
   })
 })
 
-describe('「更多」hover 开合的结构不变量（2026-09-11 走查根因的棘轮）', () => {
-  // 走查（tests/ux/pr720-ux-geometry.walk.mjs 的 #5）才是真证明：它真的把指针斜着挪进菜单。
-  // 这里只钉住那个根因——**收起判据不许再挂在那颗 32×32 的按钮上**。菜单向上高出按钮 130+px，
-  // 挂在按钮上就等于「指针一离开按钮那条横带就关」，用户斜着奔顶部那一项永远点不到。
-  const source = fs.readFileSync(new URL('./CanvasToolbar.tsx', import.meta.url), 'utf8')
+describe('「+」菜单：点开、一个菜单两个入口（2026-10-08 Claude Design 拍板稿 EmptyStates）', () => {
+  const toolbar = fs.readFileSync(new URL('./CanvasToolbar.tsx', import.meta.url), 'utf8')
+  const emptyState = fs.readFileSync(new URL('./CanvasEmptyState.tsx', import.meta.url), 'utf8')
 
-  it('收起挂在整条工具条上，8px before 伪元素桥已删（P1 不留两套）', () => {
-    expect(source).not.toContain('before:-left-2')
-    // 工具条根节点（带 generation-canvas-v2-toolbar 类的那一层）自己带 onPointerLeave。
-    const railBlock = source.slice(source.indexOf("'generation-canvas-v2-toolbar',"), source.indexOf('<TooltipProvider'))
-    expect(railBlock).toContain('onPointerLeave')
-    expect(railBlock).toContain('onPointerEnter')
-    // 按钮那一层只许管「开」：它的 pointerleave 只清展开计时器，不 setMoreOpen(false)。
-    const buttonWrapper = source.slice(source.indexOf('onPointerLeave={clearOpenTimer}') - 600,
-      source.indexOf('onPointerLeave={clearOpenTimer}') + 40)
-    expect(buttonWrapper).toContain('onPointerLeave={clearOpenTimer}')
-    expect(buttonWrapper).not.toContain('setMoreOpen(false)')
+  it('底部加节点条最后一颗「+」点开（不再悬停展开：hover 计时器与间隙桥整套删了，P1 不留两套）', () => {
+    expect(toolbar).toContain('onClick={() => setMoreOpen((open) => !open)}')
+    expect(toolbar).not.toContain('MORE_MENU_HOVER_DELAY_MS')
+    expect(toolbar).not.toContain('data-canvas-more-hover-bridge')
+    expect(toolbar).not.toContain('openTimerRef')
   })
 
-  it('间隙桥沿菜单全高，不是只补按钮那条横带', () => {
-    expect(source).toContain('data-canvas-more-hover-bridge="true"')
-    const bridge = source.slice(source.indexOf('data-canvas-more-hover-bridge') - 200,
-      source.indexOf('data-canvas-more-hover-bridge'))
-    // 桥是菜单的**父层**（高度天然等于菜单高度），左侧只补按钮右沿到菜单左沿那 8px。
-    expect(bridge).toContain('left-full')
-    expect(bridge).toContain('pl-2')
+  it('加节点条的「+」和空画布起步行的「更多」是同一个菜单组件、同一份数据', () => {
+    expect(toolbar).toContain('<CanvasMoreAddMenu')
+    expect(emptyState).toContain("import { CanvasMoreAddMenu } from './CanvasToolbar'")
+    expect(emptyState).toContain('<CanvasMoreAddMenu')
+    // 菜单内容只来自 canvasMoreAddSections（= 「空间」一组），不在别处另列一份。
+    const menu = toolbar.slice(toolbar.indexOf('export function CanvasMoreAddMenu'), toolbar.indexOf('type NodeAddMenuProps'))
+    expect(menu).toContain('canvasMoreAddSections(preference)')
+    expect(emptyState).not.toContain('canvasMoreAddSections')
   })
 })

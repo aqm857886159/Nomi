@@ -77,12 +77,13 @@ describe('planGroupLinkEdges — 纯函数', () => {
   })
 
   it('过不了能力校验的进 skipped，不静默丢', () => {
-    // 文本→文本：不是 isTextPromptEdge（那条只放行文本→图/视频），且文本节点产不出可参考资产
-    // → source_not_referenceable。注意图片节点**没有产物照样可参考**（依赖波次会先把它跑出来）。
+    // 文本→文本：文本卡不收任何输入（种类定义 connects.input=false，2026-10-08 拍板「文本没有左环」）
+    // → target_takes_no_input（以前判成 source_not_referenceable：结论一样拒，原因说得更准了）。
+    // 注意图片节点**没有产物照样可参考**（依赖波次会先把它跑出来）。
     const nodes = [textNode('src'), textNode('m1')]
     const plan = planGroupLinkEdges({ link: { sourceNodeId: 'src' }, targets: [nodes[1]!], nodes, edges: [] })
     expect(plan.connect).toEqual([])
-    expect(plan.skipped).toEqual([{ targetNodeId: 'm1', reason: 'source_not_referenceable' }])
+    expect(plan.skipped).toEqual([{ targetNodeId: 'm1', reason: 'target_takes_no_input' }])
   })
 
   it('源节点不存在 → 空计划，不抛', () => {

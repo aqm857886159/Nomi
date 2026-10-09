@@ -34,6 +34,8 @@ type ClipNodeTimelineProps = {
   onResizeClip: (clipId: string, edge: 'left' | 'right', deltaFrame: number) => void
   onScrubPlayhead?: (frame: number) => void
   onAddMaterial?: () => void
+  /** 还没有片段时轨道里放什么（ClipNode 给「把视频节点连进来」+「在画布上点选」）。 */
+  emptyState?: React.ReactNode
 }
 
 type ClipDragPreview = {
@@ -366,6 +368,7 @@ export default function ClipNodeTimeline({
   onResizeClip,
   onScrubPlayhead,
   onAddMaterial,
+  emptyState,
 }: ClipNodeTimelineProps): JSX.Element {
   const { t } = useTranslation()
   const track = timeline.tracks[0]
@@ -520,7 +523,7 @@ export default function ClipNodeTimeline({
                 />
               )
             })}
-            {!clips.length ? <div className="absolute inset-0 grid place-items-center text-micro text-nomi-ink/55">{t('generationCommon.nodeEmpty.clip.description')}</div> : null}
+            {!clips.length && emptyState ? <div className="pointer-events-none absolute inset-0 grid place-items-center">{emptyState}</div> : null}
           </div>
           {/* 播放头抓取带：永远压在片段之上（z 高于拖动中的片段 z-40），线本身仍是 1px 不变。 */}
           <span
