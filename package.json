@@ -66,7 +66,7 @@
     "check:ledger": "node --test ./scripts/build-delivery-ledger.node-test.mjs && node ./scripts/build-delivery-ledger.mjs --check",
     "gen:ledger": "node ./scripts/build-delivery-ledger.mjs",
     "ledger:brief": "node ./scripts/build-delivery-ledger.mjs --brief",
-    "check:i18n": "node --test ./scripts/check-i18n-no-cost-claims.node-test.mjs && node ./scripts/check-i18n-no-cost-claims.mjs && node ./scripts/check-i18n-visible-text.mjs && tsx ./scripts/check-i18n-key-parity.ts && tsx ./scripts/check-i18n-key-refs.ts && node ./scripts/check-i18n-fragile-match.mjs",
+    "check:i18n": "node --test ./scripts/check-i18n-no-cost-claims.node-test.mjs ./scripts/check-test-copy-literals.node-test.mjs && node ./scripts/check-i18n-no-cost-claims.mjs && node ./scripts/check-i18n-visible-text.mjs && tsx ./scripts/check-i18n-key-parity.ts && tsx ./scripts/check-i18n-key-refs.ts && node ./scripts/check-i18n-fragile-match.mjs && node ./scripts/check-test-copy-literals.mjs",
     "check:test-waits": "node --test ./scripts/check-test-waits.node-test.mjs && node ./scripts/check-test-waits.mjs",
     "check:real-media-fixture": "node --test ./scripts/check-real-media-fixture.node-test.mjs && node ./scripts/check-real-media-fixture.mjs",
     "check:rule-aliases": "node --test ./scripts/check-rule-aliases.node-test.mjs && node ./scripts/check-rule-aliases.mjs",

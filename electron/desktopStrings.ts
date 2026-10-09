@@ -11,7 +11,8 @@
 
 import { getDesktopLocale, type DesktopLocale } from "./desktopLocale";
 
-const translations = {
+// 导出只为门岗读（scripts/check-test-copy-literals.mjs：测试不许手抄这里的文案）；运行时取词仍只走 desktopT。
+export const desktopTranslations = {
   "zh-CN": {
     "agent.legacySummary": "旧版摘要：",
     "agent.legacyUnverifiedTool": "旧版工具结果未验证。",
@@ -409,10 +410,10 @@ const translations = {
   },
 } as const;
 
-export type DesktopTranslationKey = keyof (typeof translations)["zh-CN"];
+export type DesktopTranslationKey = keyof (typeof desktopTranslations)["zh-CN"];
 
 export function desktopT(key: DesktopTranslationKey, values: Record<string, string | number> = {}, locale: DesktopLocale = getDesktopLocale()): string {
-  let text: string = translations[locale][key];
+  let text: string = desktopTranslations[locale][key];
   for (const [name, value] of Object.entries(values)) {
     text = text.replace(new RegExp(`\\{\\{${name}\\}\\}`, 'g'), String(value));
   }
