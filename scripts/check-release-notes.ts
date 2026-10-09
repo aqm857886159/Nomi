@@ -10,6 +10,9 @@ import { digestReleaseNotesHtml } from "../electron/shared/releaseNotesDigest";
 import { compareVersions } from "../electron/shared/updateReminder";
 
 const FIRST_GATED_VERSION = "0.23.0";
+// 从这一版起，标题句和条目里不许出现内部用词（它们会原样显示在更新弹窗、横幅和「已更新」卡上）。0.23.1 已发布，标题里的旧写法追不回来。
+const FIRST_PLAIN_WORDING_VERSION = "0.23.2";
+const INTERNAL_TERMS = /攒批|热修|hotfix|batch release|批量发版|灰度/i;
 const root = path.resolve(process.cwd(), "docs/release-notes");
 const problems: string[] = [];
 
@@ -23,6 +26,11 @@ for (const file of fs.readdirSync(root).sort()) {
   if (!notes.en.title) fail("缺英文标题句（「## What changed」下面先写一段英文一句话标题）");
   if (!notes.zh.groups.some((group) => group.items.length > 0)) fail("中文段没有加粗开头的条目（`- **短语**：说明`）");
   if (!notes.en.groups.some((group) => group.items.length > 0)) fail("英文段没有加粗开头的条目（`- **Phrase**: detail`）");
+  if (compareVersions(match[1], FIRST_PLAIN_WORDING_VERSION) >= 0) {
+    const shown = [notes.zh.title, notes.en.title, ...[...notes.zh.groups, ...notes.en.groups].flatMap((group) => [group.heading, ...group.items])]
+    const leaked = shown.find((text) => text && INTERNAL_TERMS.test(text))
+    if (leaked) fail(`标题 / 分组 / 条目里有内部用词「${leaked}」：这些文字会原样显示给用户，换成用户看得懂的说法（如「修复」「常规更新」）`)
+  }
   if (/^(?:适用平台|平台|Platforms?)\s*[:：]/im.test(markdown) && notes.platforms === null) fail("「适用平台」写了但认不出平台（可用 Mac / Windows / Linux）");
 }
 

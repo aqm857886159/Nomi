@@ -76,7 +76,10 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // （失败面那条路不再套带标题的 modal 外壳，直接呈现反馈卡）；② `FeedbackShareContent` 的
   // `variant` prop 只剩一个合法值，删掉之后这里的 `variant="embedded"` 也跟着去掉。
   // 布局、区块顺序、文案一个字没动。更新这颗钉子是因为它钉的是整份文件的内容。
-  'AboutSection.tsx': 'f355cbcbd965dd5b49593b04b7044605f08efa5cc36df288b9d169d91d9c26b5',
+  // 2026-10-09 协调会话批准：关于页更新入口收进共享弹窗，同一件事只留一个界面（关于页只报一句状态 + 「查看」，
+  //             下载 / 重启 / 去官网 / 重试 / 发版说明都在 UpdateDialog 里，功能一个没少）。
+  //             截图见 docs/evidence/2026-10-09-update-reminder/；正向断言见下方 hands every update action in the About section over to the shared update dialog。
+  'AboutSection.tsx': '6b1c647f0a9cef977541d4cf4f91eb961fa159f5241ae2f65a15b98f4af25523',
 } as const
 
 describe('settings dialog structure', () => {
@@ -307,7 +310,7 @@ describe('settings dialog structure', () => {
 
   // 2026-10-09（#1135 更新提醒）：About 里原来自带一整套下载 / 重启 / 重试 / 发版说明 UI（与更新弹窗各说各话），
   // 改为只报一句状态 + 「查看」，下载 / 重启 / 去官网 / 重试的唯一入口是共享的 UpdateDialog。
-  // （AboutSection 基线哈希的更新等协调会话拍板，见 PR 正文。）
+  // （基线哈希已于 2026-10-09 经协调会话批准更新，见上方 APPROVED_NON_MODEL_SECTION_SHA256 的注释。）
   it('hands every update action in the About section over to the shared update dialog', () => {
     expect(aboutSource).toContain('updater.openDialog()')
     expect(aboutSource).toContain('updater.retry')
