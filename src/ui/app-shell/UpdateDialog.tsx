@@ -17,8 +17,10 @@ import {
 } from '@tabler/icons-react'
 import { DecisionBar, DesignProgress, useOverlayEscape, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { dialogDigest, type LocaleDigest, type UpdaterErrorReason, type UpdaterErrorStage } from '../../../electron/shared/updateReminder'
+import { getDesktopBridge } from '../../desktop/bridge'
 import { useUpdateStore } from './updateStore'
 import { useRunningTaskCount } from './useRunningTaskCount'
+import { deriveDialogView } from './updateDialogView'
 import { formatInstallerSize } from './formatInstallerSize'
 import { useUpdateLocale } from './useUpdateLocale'
 import { useUpdater } from './useUpdater'
@@ -276,22 +278,16 @@ export function UpdateDialog(): JSX.Element | null {
   const macStepsShown = useUpdateStore((state) => state.macStepsShown)
   const locale = useUpdateLocale()
   const runningTasks = useRunningTaskCount()
+  // 把「画布这边还有几个排队 / 生成中的任务」报给主进程；能不能立刻重启安装由主进程判（这里只负责提示）。
+  const reportBusy = getDesktopBridge()?.update?.reportBusy
+  React.useEffect(() => { void reportBusy?.(runningTasks)?.catch(() => undefined) }, [reportBusy, runningTasks])
   const dialogRef = React.useRef<HTMLElement | null>(null)
-  const { phase } = updater
-  const visible = updater.dialogOpen && (phase === 'available' || phase === 'downloading' || phase === 'downloaded' || (phase === 'error' && updater.errorStage !== 'check'))
+  const view = deriveDialogView({ dialogOpen: updater.dialogOpen, phase: updater.phase, errorStage: updater.errorStage, canAutoInstall: updater.canAutoInstall, macStepsShown })
+  const visible = view !== null
   // Esc = 右上角「关闭」（更新提示是可推迟的，不是不可逆动作），让位规则走共用原语。
   useOverlayEscape(dialogRef, visible, updater.closeDialog)
-  if (!visible || !updater.latestVersion) return null
+  if (!view || !updater.latestVersion) return null
 
-  const view: UpdateDialogView = phase === 'error'
-    ? 'failed'
-    : phase === 'downloading'
-      ? 'downloading'
-      : phase === 'downloaded'
-        ? 'ready'
-        : !updater.canAutoInstall && macStepsShown
-          ? 'mac-steps'
-          : 'available'
   return (
     <div className="fixed inset-0 z-[130] grid place-items-center bg-nomi-ink/20 p-4" role="presentation" data-updater-dialog="true">
       <UpdateDialogCard

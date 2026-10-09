@@ -13,6 +13,8 @@ export type InstallOnQuitDeps = {
   registerDrain: (name: string, drain: () => void | Promise<void>, options?: QuitDrainOptions) => () => void;
   /** 同步起装包程序（electron-updater 的 install(isSilent=true, forceRunAfter=false)）。成功起了返回 true。 */
   install: () => boolean;
+  /** 有活没干完（任务 / 制作流程 / 导出）：退出时不装，等下次退出。 */
+  isBusy?: () => boolean;
 };
 
 export type InstallOnQuit = {
@@ -26,6 +28,8 @@ export type InstallOnQuit = {
   markInstallStarted(): void;
   /** 起装包程序失败：撤销上一条，退出时还可以再试一次。 */
   markInstallFailed(): void;
+  /** 已经下好、还没装上（安装失败后仍然是 true，重试 / 下次退出才有东西可装）。 */
+  isDownloaded(): boolean;
   isArmed(): boolean;
 };
 
@@ -36,8 +40,15 @@ export function createInstallOnQuit(deps: InstallOnQuitDeps): InstallOnQuit {
 
   const drain = (): void => {
     if (!downloaded || installStarted) return;
+    if (deps.isBusy?.()) return;
     installStarted = true;
-    if (!deps.install()) throw new Error("update installer did not start");
+    // 失败（返回 false 或抛错）要原子地撤回「已开始」，保留「已下载」：点一次重试、下次退出才都装得上。
+    try {
+      if (!deps.install()) throw new Error("update installer did not start");
+    } catch (error) {
+      installStarted = false;
+      throw error;
+    }
   };
 
   return {
@@ -58,6 +69,9 @@ export function createInstallOnQuit(deps: InstallOnQuitDeps): InstallOnQuit {
     },
     markInstallFailed() {
       installStarted = false;
+    },
+    isDownloaded() {
+      return downloaded;
     },
     isArmed() {
       return Boolean(unregister) && downloaded && !installStarted;

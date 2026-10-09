@@ -2,6 +2,7 @@
 // 「已更新」卡、设置→关于都读它。弹窗开关也放这里——胶囊、横幅、关于页都能点开同一个弹窗。
 // 真相源在主进程（electron/update/updateHub.ts），这里不推断、不自己维护第二份状态机。
 import { create } from 'zustand'
+import { isDialogPhase } from './updateDialogView'
 import { getDesktopBridge } from '../../desktop/bridge'
 import {
   reduceUpdaterState,
@@ -43,7 +44,12 @@ export function startUpdateSync(bridge: UpdateSyncBridge): () => void {
   let eventSeen = false
   const off = bridge.onEvent((event) => {
     eventSeen = true
-    useUpdateStore.setState((prev) => ({ updater: reduceUpdaterState(prev.updater, event) }))
+    useUpdateStore.setState((prev) => {
+      const updater = reduceUpdaterState(prev.updater, event)
+      // 检查开始 / 已是最新这类状态没有可看的详情：把还开着的旧弹窗收掉，别留一个过期弹窗。
+      const stale = !isDialogPhase(updater.phase, updater.errorStage)
+      return { updater, dialogOpen: stale ? false : prev.dialogOpen, macStepsShown: stale ? false : prev.macStepsShown }
+    })
   })
   void bridge.snapshot().then((snapshot) => {
     if (!alive) return

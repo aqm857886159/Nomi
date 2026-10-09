@@ -44,7 +44,7 @@
 | 下载中退出 | 不装半截；下次启动重新检查，缓存的包由库校验复用 | 库行为，unverified（真机） |
 | 下好后正常退出 | 排空项静默安装（不自动重开） | `installOnQuit.test.ts`（真实退出 owner） |
 | 系统关机 / 登出 | 只跑关键排空项，不装 | `installOnQuit.test.ts` |
-| 有任务在跑时 | 弹窗不给「重启」，说明「退出时自动装」；退出安装由用户自己退出触发 | 组件 + 夹具截图 |
+| 有任务在跑时 | 主进程判（`updateBusyGate` + `hasInFlightProductionWork`：任务缓存 / 制作流程 / 导出 + 渲染层报的排队 / 生成中节点数；没报数或读状态失败按忙算）：安装 IPC 拒绝、退出排空项不装；弹窗不给「重启」，只说明「退出时自动装」 | `autoUpdater.flow.test.ts`、`updateBusyGate.test.ts`、`backgroundLaunch.inflight.test.ts`、`UpdateDialog.test.tsx` |
 | 装包程序没起来 | 排空项报失败（退出收据可见），下次退出再试 | `installOnQuit.test.ts` |
 | 装的时候断电 | NSIS 自己的行为，unverified | — |
 | 排空项顺序 | 点下载时才登记，排在启动期排空项之后，装包程序启动时 Nomi 已收尾 | 同上顺序断言 |

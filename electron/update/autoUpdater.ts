@@ -7,7 +7,9 @@ import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
 import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/telemetryEvents";
 import type { TelemetryResult } from "../shared/contracts/telemetry";
 import { classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
+import { hasInFlightProductionWork } from "../backgroundLaunch";
 import { createInstallOnQuit } from "./installOnQuit";
+import { createUpdateBusyGate } from "./updateBusyGate";
 import { digestReleaseNotesHtml } from "../shared/releaseNotesDigest";
 import { currentUpdaterState, publishUpdateEvent } from "./updateHub";
 import { openUpdateReminderStore, type UpdateReminderStore } from "./updateReminderStore";
@@ -81,11 +83,21 @@ function installerSizeBytes(info: UpdateInfo): number | null {
   return (exe ?? files.reduce((largest, file) => ((file.size ?? 0) > (largest.size ?? 0) ? file : largest))).size ?? null;
 }
 
+const busySenders = new Set<number>();
+const busyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork });
+
 const installOnQuit = createInstallOnQuit({
   registerDrain: registerQuitDrain,
+  isBusy: () => busyGate.isBusyAtQuit(),
   install: () => {
-    const updater = loadedUpdater as unknown as { install?: (isSilent: boolean, isForceRunAfter: boolean) => boolean } | null;
-    const started = updater?.install?.(true, false) ?? false;
+    const updater = loadedUpdater as unknown as { install?: (isSilent: boolean, isForceRunAfter: boolean) => boolean; quitAndInstallCalled?: boolean } | null;
+    let started = false;
+    try {
+      started = updater?.install?.(true, false) ?? false;
+    } finally {
+      // electron-updater 在 install() 抛错的路径上不复位它的「已调用」旗，之后每次重试都会被它自己忽略。
+      if (!started && updater) updater.quitAndInstallCalled = false;
+    }
     trackUpdate("install", started ? "success" : "failure");
     return started;
   },
@@ -179,6 +191,18 @@ export function registerUpdaterIpc(): void {
     return { state: currentUpdaterState(), memory: reminderStore?.memory() ?? { dismissedBanners: [], updatedCard: null } };
   });
 
+  // 渲染层报「我这边还有几个排队 / 生成中的任务」：只报事实，能不能重启由主进程判。
+  ipcMain.handle("nomi:update:report-busy", (event, count: unknown) => {
+    assertTrustedSender(event);
+    const senderId = event.sender.id;
+    busyGate.report(senderId, typeof count === "number" ? count : 1);
+    if (!busySenders.has(senderId)) {
+      busySenders.add(senderId);
+      event.sender.once("destroyed", () => { busySenders.delete(senderId); busyGate.forget(senderId); });
+    }
+    return { ok: true };
+  });
+
   // 热修横幅 ✕ / 「已更新」卡 ✕：只记「看过了」，一次性。
   ipcMain.handle("nomi:update:dismiss", (event, payload: unknown) => {
     assertTrustedSender(event);
@@ -259,8 +283,12 @@ export function registerUpdaterIpc(): void {
   ipcMain.handle("nomi:update:install", (event) => {
     // 装更新会立刻重启整个应用，是最强的一条控制权。
     assertTrustedSender(event);
-    // 连点「重启以更新」只触发一次；还没下好不装。
-    if (installRequested || currentUpdaterState().phase !== "downloaded") return { ok: false };
+    // 连点「重启以更新」只触发一次；还没下好不装；安装失败后（phase=error、stage=install）允许再点一次重试。
+    const state = currentUpdaterState();
+    const retryingInstall = state.phase === "error" && state.errorStage === "install" && installOnQuit.isDownloaded();
+    if (installRequested || (state.phase !== "downloaded" && !retryingInstall)) return { ok: false };
+    // 有任务在跑就拒绝（判断只在主进程这一处；判不准按忙算），渲染层只负责提示。
+    if (busyGate.isBusyForInstall(event.sender.id)) return { ok: false, reason: "busy" };
     installRequested = true;
     stage = "install";
     installOnQuit.markInstallStarted();

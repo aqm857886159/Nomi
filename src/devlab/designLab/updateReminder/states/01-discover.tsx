@@ -2,7 +2,7 @@
 // 格子渲染的是生产组件的 View 件（夹具数据）；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
 import React from 'react'
 import type { LabState } from '../../labScreen'
-import { AppBarStage, hotfixBannerTop, LibraryStage } from '../updateReminderLabKit'
+import { AppBarStage, LibraryStage } from '../updateReminderLabKit'
 
 const SOURCE = '协调会话 10-08 brief-D-update：应用内更新提醒推荐方案（胶囊进顶栏 / 热修横幅 / 当前语言摘要弹窗 / 退出时装 / Mac 三步 / 更新后卡片）'
 
@@ -56,14 +56,14 @@ export const UPDATE_DISCOVER_STATES: readonly LabState[] = [
     name: '② 热修版 0.23.1：胶囊 + 项目库顶部一次性横幅（发版说明标题句 + 看看 + ✕）（中文）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <LibraryStage locale={'zh-CN'} badge={{ phase: 'available', version: '0.23.1' }} top={hotfixBannerTop('0.23.1')} />,
+    render: () => <LibraryStage locale={'zh-CN'} badge={{ phase: 'available', version: '0.23.1' }} scenario={{ platform: 'darwin' }} />,
   },
   {
     id: 'update-02-hotfix-banner-en',
     name: '② 热修版 0.23.1：胶囊 + 项目库顶部一次性横幅（发版说明标题句 + 看看 + ✕）（English）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <LibraryStage locale={'en'} badge={{ phase: 'available', version: '0.23.1' }} top={hotfixBannerTop('0.23.1')} />,
+    render: () => <LibraryStage locale={'en'} badge={{ phase: 'available', version: '0.23.1' }} scenario={{ platform: 'darwin' }} />,
   },
   {
     id: 'update-02-hotfix-banner-zh-dark',
@@ -71,7 +71,7 @@ export const UPDATE_DISCOVER_STATES: readonly LabState[] = [
     source: SOURCE,
     coverage: 'component-only',
     scheme: 'dark',
-    render: () => <LibraryStage locale={'zh-CN'} badge={{ phase: 'available', version: '0.23.1' }} top={hotfixBannerTop('0.23.1')} />,
+    render: () => <LibraryStage locale={'zh-CN'} badge={{ phase: 'available', version: '0.23.1' }} scenario={{ platform: 'darwin' }} />,
   },
   {
     id: 'update-05-badge-downloading-zh',

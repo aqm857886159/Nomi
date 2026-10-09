@@ -324,6 +324,8 @@ export type DesktopBridge = DesktopMediaBridge &
     openDownload: () => Promise<{ ok: boolean }>
     /** 挂载时补上已发生的更新状态 + 跨重启记住的提醒（热修横幅 ✕ 过的版本、「已更新」卡）。 */
     snapshot: () => Promise<UpdateSnapshot>
+    /** 渲染层报告画布里排队 / 生成中、导出中的任务数；主进程据此（和它自己知道的任务）判断能不能立刻重启安装。 */
+    reportBusy: (count: number) => Promise<{ ok: boolean }>
     /** 热修横幅 / 「已更新」卡 ✕：只记「看过了」，返回最新的记忆。 */
     dismiss: (request: { kind: 'banner'; version: string } | { kind: 'updated-card' }) => Promise<UpdateReminderMemory | null>
     onEvent: (callback: (event: DesktopUpdateEvent) => void) => () => void

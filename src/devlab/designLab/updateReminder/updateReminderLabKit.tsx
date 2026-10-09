@@ -71,7 +71,7 @@ const PROJECT_NAMES: Record<LabLocale, readonly string[]> = {
 const HOURS_AGO = [0.4, 3, 26, 50, 120, 300]
 const HUES = [210, 28, 160, 330, 260, 95]
 
-function installLibraryBridge(locale: LabLocale, badge?: BadgeSpec): void {
+function installLibraryBridge(locale: LabLocale, badge?: BadgeSpec, scenario?: NoticeScenario): void {
   const now = Date.now()
   const projects = PROJECT_NAMES[locale].map((name, index) => {
     const url = cover(HUES[index])
@@ -84,7 +84,7 @@ function installLibraryBridge(locale: LabLocale, badge?: BadgeSpec): void {
     platform: 'win32',
     projects: { ...((host.nomiDesktop?.projects as object) ?? {}), list: () => projects },
   }
-  installUpdateBridge(badge)
+  installUpdateBridge(badge, scenario)
 }
 
 /**
@@ -92,7 +92,7 @@ function installLibraryBridge(locale: LabLocale, badge?: BadgeSpec): void {
  * 把夹具状态当作「主进程快照」喂进去，胶囊由真顶栏 / 真项目库窗口栏自己渲染在它们现役的位置上。
  * 窄屏图标态靠 CSS 视口断点，实验室视口固定 1440，那一格走插槽强制 compact（下面 InjectedSlot）。
  */
-function installUpdateBridge(badge?: BadgeSpec): void {
+function installUpdateBridge(badge?: BadgeSpec, scenario?: NoticeScenario): void {
   const host = window as unknown as { nomiDesktop?: Record<string, unknown> }
   const live = badge && !badge.compact ? badge : null
   const state = live
@@ -107,18 +107,22 @@ function installUpdateBridge(badge?: BadgeSpec): void {
         errorReason: live.phase === 'error' ? ('interrupted' as const) : null,
       }
     : UPDATER_INITIAL_STATE
+  const card = scenario?.updatedCard
+    ? { fromVersion: scenario.updatedCard.from ?? '0.23.0', toVersion: scenario.updatedCard.to, notes: scenario.updatedCard.chain.map((version) => NOTES[version]) }
+    : null
   const noopAsync = async (): Promise<{ ok: boolean }> => ({ ok: true })
   host.nomiDesktop = {
     ...(host.nomiDesktop ?? {}),
     update: {
-      appInfo: async () => ({ version: '0.23.0', platform: 'win32', arch: 'x64', canAutoInstall: true, canCheckUpdates: true }),
-      snapshot: async () => ({ state, memory: { dismissedBanners: [], updatedCard: null } }),
+      appInfo: async () => ({ version: '0.23.0', platform: scenario?.platform ?? 'win32', arch: 'x64', canAutoInstall: true, canCheckUpdates: true }),
+      snapshot: async () => ({ state, memory: { dismissedBanners: scenario?.dismissed ?? [], updatedCard: card } }),
       onEvent: () => () => undefined,
       check: noopAsync,
       download: noopAsync,
       install: noopAsync,
       openDownload: noopAsync,
       dismiss: async () => null,
+      reportBusy: noopAsync,
     },
   }
 }
@@ -157,24 +161,30 @@ function InjectedSlot({ root, placement, children }: { root: React.RefObject<HTM
 
 /** 项目库窗口栏右侧那组按钮（libraryTopActions）。 */
 const LIBRARY_TOP_ACTIONS: SlotPlacement = { selector: '.nomi-library-page__windowbar .app-no-drag.flex', where: 'prepend' }
-/** 项目库标题行（品牌 + 「项目库」）下面——页面顶部第一条。 */
-const LIBRARY_BELOW_HEADER: SlotPlacement = { selector: '.nomi-library-page__main > section', where: 'after' }
 /** 项目顶栏右簇的最前面（任务组之前）。 */
 const APPBAR_RIGHT: SlotPlacement = { selector: '.nomi-appbar__right', where: 'prepend' }
+
+/** 项目库通知位的场景：真 HotfixBanner / UpdatedCard 由真项目库页自己渲染，这里只决定主进程「快照」里有什么。 */
+export type NoticeScenario = Readonly<{
+  /** 平台过滤：Mac-only 的 0.23.1 说明在 win32 上不出。默认 win32（实验室窗口平台）。 */
+  platform?: string
+  dismissed?: readonly string[]
+  updatedCard?: { from?: string; to: '0.23.1'; chain: readonly ('0.23.0' | '0.23.1')[] }
+}>
 
 export type BadgeSpec = Readonly<{ phase: UpdatePillPhase; version: string; percent?: number; compact?: boolean; failedStage?: 'download' | 'install' }>
 
 const noop = (): void => undefined
 
-export function LibraryStage({ locale = 'zh-CN', badge, top, clipHeight }: {
+export function LibraryStage({ locale = 'zh-CN', badge, scenario, clipHeight }: {
   locale?: LabLocale
   badge?: BadgeSpec
-  /** 标题行下面那一条：热修横幅或更新后卡片。 */
-  top?: (locale: LabLocale) => React.ReactNode
+  /** 项目库通知位的场景（热修横幅 / 更新后卡片）。 */
+  scenario?: NoticeScenario
   /** 只看窗口栏那一截（胶囊状态）时裁掉下面。 */
   clipHeight?: number
 }): JSX.Element {
-  React.useMemo(() => installLibraryBridge(locale, badge), [locale, badge])
+  React.useMemo(() => installLibraryBridge(locale, badge, scenario), [locale, badge, scenario])
   const localeReady = useLabLocale(locale)
   const root = React.useRef<HTMLDivElement | null>(null)
   return (
@@ -202,7 +212,6 @@ export function LibraryStage({ locale = 'zh-CN', badge, top, clipHeight }: {
               <UpdatePillView host="library" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
             </InjectedSlot>
           ) : null}
-          {top ? <InjectedSlot root={root} placement={LIBRARY_BELOW_HEADER}>{top(locale)}</InjectedSlot> : null}
         </div>
       ) : null}
     </div>
@@ -278,28 +287,5 @@ export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = 
         ) : null}
       </div>
     </div>
-  )
-}
-
-/** 热修横幅的那句话：发版说明里「修好了什么」的标题句（生产同一个 deriveHotfixBanner 规则：没有标题句就不出）。 */
-export function hotfixHeadline(version: '0.23.1', locale: LabLocale): string {
-  return NOTES[version][updateLocale(locale)].title ?? ''
-}
-
-export const hotfixBannerTop = (version: '0.23.1') => (locale: LabLocale): React.ReactNode => (
-  <HotfixBannerView version={version} headline={hotfixHeadline(version, locale)} />
-)
-
-export const updatedCardTop = (input: { from?: string; to: '0.23.1'; chain: readonly ('0.23.0' | '0.23.1')[] }) => (locale: LabLocale): React.ReactNode => {
-  const card = deriveUpdatedCard({ fromVersion: input.from ?? '0.23.0', toVersion: input.to, notes: input.chain.map((version) => NOTES[version]) }, updateLocale(locale))
-  if (!card) return null
-  return (
-    <UpdatedCardView
-      fromVersion={card.fromVersion}
-      toVersion={card.toVersion}
-      headline={card.headline}
-      items={card.items}
-      releaseUrl={RELEASE_URL(input.to)}
-    />
   )
 }

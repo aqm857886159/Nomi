@@ -110,12 +110,43 @@ describe("退出时自动装更新（走退出 owner 的排空项）", () => {
     expect(app.exit).toHaveBeenCalled();
   });
 
-  it("装包程序没起来：排空项报失败，退出照常结束", async () => {
+  it("装包程序没起来：排空项报失败，退出照常结束；「已开始」被原子撤回、「已下载」保留（还能再试）", async () => {
     const { app, emit, gate } = setup(false);
     gate.consent();
     gate.markDownloaded();
     emit("will-quit");
     await settle();
+    expect(app.exit).toHaveBeenCalledWith(0);
+    expect(gate.isDownloaded()).toBe(true);
+    expect(gate.isArmed()).toBe(true);
+  });
+
+  it("装包程序抛错同样原子撤回「已开始」", async () => {
+    const { emit, gate, install } = setup();
+    install.mockImplementation(() => { throw new Error("spawn EACCES"); });
+    gate.consent();
+    gate.markDownloaded();
+    emit("will-quit");
+    await settle();
+    expect(gate.isArmed()).toBe(true);
+  });
+
+  it("有活在跑（isBusy）：退出时不装，状态保留", async () => {
+    const { app, emit } = fakeApp();
+    installQuitTeardown(app as never, {
+      disposeBackgroundLifecycle: () => undefined,
+      stopDesktopCapabilityCore: () => undefined,
+      abortAllActiveExports: () => 0,
+      disposeDesktopLaneIpc: async () => undefined,
+    });
+    const install = vi.fn(() => true);
+    const gate = createInstallOnQuit({ registerDrain: registerQuitDrain, install, isBusy: () => true });
+    gate.consent();
+    gate.markDownloaded();
+    emit("will-quit");
+    await settle();
+    expect(install).not.toHaveBeenCalled();
+    expect(gate.isArmed()).toBe(true);
     expect(app.exit).toHaveBeenCalledWith(0);
   });
 });
