@@ -19,4 +19,4 @@
 ## 一键换钩子
 
 `pnpm run hooks:reinstall-all`（= `node scripts/install-git-hooks.cjs --all-worktrees`）：遍历 `git worktree list`，对每个 worktree 重新生成钩子；只写各自的 hooks 目录，不碰用户资料。
-注意：老分支没有 `scripts/git-hook.mjs`，换上新钩子后会「跳过并打印原因」，合并最新 origin/main 后恢复。
+注意：分支里还没有 `scripts/git-hook.mjs` 的 worktree 会被跳过（打印路径，保留旧钩子，pre-commit 敏感扫描不中断），合并 main 后再跑一次。

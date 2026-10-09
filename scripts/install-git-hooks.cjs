@@ -167,6 +167,12 @@ function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
   const skipped = []
   for (const root of roots) {
     if (!fs.existsSync(root)) { skipped.push({ root, reason: 'missing_dir' }); continue }
+    // 分支里还没有分发入口：不换它的钩子，保留它现在能用的旧钩子（换了会让它连 pre-commit 敏感扫描都停掉）
+    if (!fs.existsSync(path.join(root, DISPATCHER))) {
+      logger.log(`跳过 ${root}：分支还没有分发入口，合并 main 后再跑一次`)
+      skipped.push({ root, reason: 'no_dispatcher' })
+      continue
+    }
     const result = installHooks({ repoRoot: root, logger })
     if (result.skipped) skipped.push({ root, reason: result.reason ?? 'skipped' })
     else updated.push(root)

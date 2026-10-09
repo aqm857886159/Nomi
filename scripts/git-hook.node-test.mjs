@@ -105,3 +105,24 @@ test('一键换钩子：--all-worktrees 把主仓和每个 linked worktree 的�
   assert.match(fs.readFileSync(path.join(wtHooks, 'pre-push'), 'utf8'), /scripts\/git-hook\.mjs/)
   assert.doesNotMatch(fs.readFileSync(path.join(wtHooks, 'pre-push'), 'utf8'), /gone\.mjs/)
 })
+
+test('一键换钩子：分支里还没有分发入口的 worktree 跳过并打印路径，旧钩子原样保留', () => {
+  const main = makeRepo()
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' })
+  git(main, 'config', 'user.name', 't'); git(main, 'config', 'user.email', 't@example.com')
+  git(main, 'config', 'extensions.worktreeConfig', 'true')
+  put(main, 'a.txt', 'a')
+  git(main, 'add', '-A'); git(main, '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'init')
+  const old = path.join(makeTempDir('nomi-git-hook-old-'), 'old')
+  git(main, 'worktree', 'add', '-q', '-b', 'old-branch', old)
+  fs.rmSync(path.join(old, 'scripts/git-hook.mjs'))
+  const oldHooks = path.join(git(old, 'rev-parse', '--absolute-git-dir').trim(), 'hooks')
+  fs.mkdirSync(oldHooks, { recursive: true })
+  const legacy = '#!/usr/bin/env bash\n# LEGACY-HOOK\nexit 0\n'
+  fs.writeFileSync(path.join(oldHooks, 'pre-commit'), legacy)
+  const lines = []
+  const result = installer.installAllWorktrees({ repoRoot: main, logger: { log: (line) => lines.push(line), warn() {} } })
+  assert.equal(fs.readFileSync(path.join(oldHooks, 'pre-commit'), 'utf8'), legacy, '旧钩子不许被换掉')
+  assert.ok(result.skipped.some((item) => item.reason === 'no_dispatcher' && item.root.endsWith('old')), JSON.stringify(result))
+  assert.ok(lines.some((line) => line.includes('跳过') && line.includes('分支还没有分发入口') && line.includes('old')), lines.join('\n'))
+})

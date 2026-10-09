@@ -115,9 +115,9 @@
     ],
     "rationale": "安装器里写死脚本名的 HOOKS.commands 与 legacyFallback、每个脚本一条 `[ -f ] || exit 0` 的静默守卫已同提交删除，改为只分发。"
   },
-  "migration": "老分支没有 scripts/git-hook.mjs，换上新钩子后会跳过并打印原因，合并最新 origin/main 即恢复；协调会话在本 PR 合入 main 后跑 pnpm run hooks:reinstall-all 一次。",
+  "migration": "一键换钩子跳过还没有 scripts/git-hook.mjs 的分支（保留旧钩子），合并 main 后再跑一次；协调会话在本 PR 合入 main 后跑 pnpm run hooks:reinstall-all 一次。",
   "residual_risks": [
-    "合入 main 之前就换钩子的老分支会失去 pre-commit 敏感数据扫描（有 stderr 提示）；所以换钩子要在合入之后。"
+    "一键换钩子会跳过还没有 scripts/git-hook.mjs 的分支并打印路径，这些分支继续用旧钩子（旧钩子仍写死脚本名，若其脚本被删仍会静默放行），合并 main 后再跑一次 hooks:reinstall-all 才换成新版。"
   ],
   "invariant_owner_layer": {
     "layer": "scripts/git-hook.mjs",
