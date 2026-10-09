@@ -1,4 +1,4 @@
-// 创作页编辑器工具条最左：当前文稿名 ▾（样张 design/shell-space）。
+// 创作页编辑器工具条最左：当前文稿名 ▾（10-08 外壳重设计 CreationDoc 板；文稿树本身在左栏「文稿」抽屉）。
 // 「创作内容」整列住进左栏「文稿」抽屉之后，换文稿不必开抽屉——这里一颗下拉直接切。
 // 菜单用 WorkbenchMenu（Radix），写口与抽屉里那棵树同一组 store 动作（setActiveDocumentId / setActiveStoryboardId）。
 import React, { type JSX } from 'react'
@@ -27,7 +27,7 @@ export function CreationDocumentSwitcher(): JSX.Element {
     {
       kind: 'radio',
       id: 'documents',
-      label: t('shellSpace.docSwitcher.documents'),
+      label: t('appShell.docSwitcher.documents'),
       value: active?.id ?? '',
       onValueChange: (id) => {
         setActiveDocumentId(id)
@@ -41,7 +41,7 @@ export function CreationDocumentSwitcher(): JSX.Element {
       {
         kind: 'group' as const,
         id: 'designs',
-        label: t('shellSpace.docSwitcher.storyboards'),
+        label: t('appShell.docSwitcher.storyboards'),
         items: designs.map((design) => ({
           id: `design:${design.id}`,
           label: design.title || t('storyboardEditor.planCard.defaultTitle'),
@@ -54,7 +54,7 @@ export function CreationDocumentSwitcher(): JSX.Element {
       },
     ] : []),
     { kind: 'separator', id: 'sep-new' },
-    { id: 'new', label: t('shellSpace.docSwitcher.newDocument'), icon: IconPlus, onSelect: () => addWorkbenchDocument() },
+    { id: 'new', label: t('appShell.docSwitcher.newDocument'), icon: IconPlus, onSelect: () => addWorkbenchDocument() },
   ]
   return (
     <>
@@ -65,7 +65,7 @@ export function CreationDocumentSwitcher(): JSX.Element {
           'inline-flex h-7 min-w-0 max-w-[220px] shrink-0 items-center gap-1.5 rounded-nomi-sm px-2',
           'bg-transparent text-body-sm font-medium text-nomi-ink hover:bg-nomi-ink-05',
         )}
-        aria-label={t('shellSpace.docSwitcher.aria', { title })}
+        aria-label={t('appShell.docSwitcher.aria', { title })}
         aria-haspopup="menu"
         aria-expanded={open}
         data-creation-document-switcher
@@ -80,7 +80,7 @@ export function CreationDocumentSwitcher(): JSX.Element {
         <span className="min-w-0 truncate">{title}</span>
         <IconChevronDown size={14} stroke={1.8} className="shrink-0 text-nomi-ink-40" />
       </button>
-      <WorkbenchMenu open={open} onOpenChange={setOpen} anchorRect={rect} items={items} className="min-w-[220px]" ariaLabel={t('shellSpace.docSwitcher.aria', { title })} />
+      <WorkbenchMenu open={open} onOpenChange={setOpen} anchorRect={rect} items={items} className="min-w-[220px]" ariaLabel={t('appShell.docSwitcher.aria', { title })} />
     </>
   )
 }

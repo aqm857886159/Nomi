@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AGENT_FORM_DEFAULTS, BALL_SIZE, EDGE_GAP, FLOAT_MIN, clampBall, clampRect, defaultBallPoint, defaultFloatRect } from './agentFormStore'
 
-describe('Agent 三形态的几何（样张 design/shell-space）', () => {
+describe('Agent 三形态的几何（10-08 外壳重设计）', () => {
   it('默认：画布 / 列表是小球，创作、分镜、预览停靠', () => {
     expect(AGENT_FORM_DEFAULTS).toEqual({ creation: 'dock', storyboard: 'dock', generation: 'ball', preview: 'dock' })
   })

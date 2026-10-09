@@ -70,6 +70,9 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-ink-20': 'oklch(0.88 0.005 80)',
       '--nomi-ink-10': 'oklch(0.94 0.003 80)',
       '--nomi-ink-05': 'oklch(0.97 0.003 80)',
+      // 外壳底色（10-08 外壳重设计）：顶栏、左栏和工作面四周那一圈；内容是浮在它上面的圆角工作面，层次靠底色不靠线。
+      // 浅色恰与 ink-05 同值，暗色比 bg 再深一档（0.155 < 0.18），所以单立一个 token、不借 ink-05。
+      '--nomi-chrome': 'oklch(0.97 0.003 80)',
       '--nomi-line': 'oklch(0.91 0.004 80)',
       '--nomi-line-soft': 'oklch(0.95 0.003 80)',
       '--nomi-accent': 'oklch(0.55 0.13 250)',
@@ -347,6 +350,7 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-ink-20': 'oklch(0.42 0.006 85)',
       '--nomi-ink-10': 'oklch(0.34 0.006 85)',
       '--nomi-ink-05': 'oklch(0.30 0.006 85)',
+      '--nomi-chrome': 'oklch(0.155 0.006 80)',
       '--nomi-line': 'oklch(0.36 0.007 80)',
       '--nomi-line-soft': 'oklch(0.31 0.007 80)',
       '--nomi-accent': 'oklch(0.70 0.13 250)',
@@ -733,6 +737,7 @@ export default {
           'ink-20': tokenColor('--nomi-ink-20'),
           'ink-10': tokenColor('--nomi-ink-10'),
           'ink-05': tokenColor('--nomi-ink-05'),
+          chrome: tokenColor('--nomi-chrome'),
           line: tokenColor('--nomi-line'),
           'line-soft': tokenColor('--nomi-line-soft'),
           accent: tokenColor('--nomi-accent'),

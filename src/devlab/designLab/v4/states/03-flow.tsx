@@ -9,8 +9,7 @@ import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { AgentPanelV4Panel } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { AgentPanelV4Composer } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
 import { V4Intervention } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
-import { AgentTopbarChip } from '../../../../ui/app-shell/AgentTopbarChip'
-import { agentTopbarChipBadge } from '../../../../ui/app-shell/agentTopbarChipBadge'
+import { AgentBallFace } from '../../../../ui/app-shell/shell/AgentBallFace'
 import { TooltipProvider } from '../../../../design'
 import { dockStatusLabel } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
@@ -89,43 +88,18 @@ function DarkPanel(): JSX.Element {
  * 两处对不上，收起态就是在撒谎。
  */
 function CollapsedScene(): JSX.Element {
-  const fx = useV4Fixtures()
   const labels = useV4Labels()
   const tooltip = `${labels.dock.open} · ${dockStatusLabel('needs-confirm', 1, labels.dock)}`
+  // 10-08 外壳重设计：收起 = 内容区右下一颗小球；等用户确认花钱时变「等你确认 N」胶囊，不自己弹开。
+  // 原来横在页面上的那条输入坞已删（用户 10-08：「横在页面上……没法用，不解决问题」）。
   return (
-    <TooltipProvider delayDuration={250} disableHoverableContent>
-      <div className="flex flex-col bg-nomi-ink-05" style={{ width: 620, height: 360 }}>
-        {/* 顶栏右簇的那一段：浏览器 │ 角标 │ 设置。落点就是这一格，四个面都一样。 */}
-        <div className="flex shrink-0 items-center justify-end gap-2.5 border-b border-nomi-line-soft bg-nomi-paper px-2.5 py-1.5">
-          <span className="grid size-[30px] place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--nomi-ink-80)]" aria-hidden="true">
-            <IconBrowser size={15} stroke={1.8} />
-          </span>
-          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
-          <AgentTopbarChip
-            reason="resident-collapsed"
-            label="Nomi"
-            tooltip={tooltip}
-            status="needs-confirm"
-            badge={agentTopbarChipBadge(1, 1)}
-            onOpen={() => undefined}
-          />
-          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
-          <span className="grid size-[30px] place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--nomi-ink-80)]" aria-hidden="true">
-            <IconSettings size={15} stroke={1.8} />
-          </span>
-        </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end gap-2 p-3">
-          <V4Intervention {...V4_LAB_SLOT_HANDLERS} data={fx.slots.reversible} labels={labels.intervention} />
-          <AgentPanelV4Composer
-            panelHeight={360}
-            dock
-            mode="idle"
-            permission="step"
-            value={fx.t('agentPanelV4.fixtureUserTrim')}
-          />
+    <div className="relative bg-nomi-chrome p-2" style={{ width: 620, height: 360 }}>
+      <div className="relative size-full overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft">
+        <div className="absolute bottom-4 right-4">
+          <AgentBallFace status="needs-confirm" pendingCount={1} label={labels.dock.needsConfirm(1)} title={tooltip} />
         </div>
       </div>
-    </TooltipProvider>
+    </div>
   )
 }
 

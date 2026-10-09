@@ -32,9 +32,6 @@ export type EditingPanelLayoutSlice = {
    */
   projectAgentDockCollapsed: boolean
   setProjectAgentDockCollapsed: (collapsed: boolean) => void
-  /** 用户级输入坞关闭偏好；不随项目布局恢复或面板开合重置。 */
-  agentDockHidden: boolean
-  setAgentDockHidden: (hidden: boolean) => void
   previewSourceTab: PreviewSourceTab
   /** 切 tab；顺带保证左栏是展开的——收起状态下切 tab 等于什么都没发生。 */
   openPreviewSourceTab: (tab: PreviewSourceTab) => void
@@ -67,13 +64,6 @@ export type EditingPanelLayoutSlice = {
 
 type LayoutHostState = { persistRevision: number } & EditingPanelLayoutSlice
 
-const AGENT_DOCK_HIDDEN_KEY = 'nomi.agentDockHidden'
-
-function readAgentDockHidden(): boolean {
-  try { return globalThis.localStorage?.getItem(AGENT_DOCK_HIDDEN_KEY) === '1' }
-  catch { return false }
-}
-
 const UNDO_LIMIT = 20
 
 const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): EditingPanelLayout[] =>
@@ -102,13 +92,6 @@ export const createEditingPanelLayoutSlice: StateCreator<
   EditingPanelLayoutSlice
 > = (set, get) => ({
   editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-  agentDockHidden: readAgentDockHidden(),
-  setAgentDockHidden: (hidden) => {
-    // 用户偏好不是项目内容：直接记住，不触发项目 persistRevision。
-    try { globalThis.localStorage?.setItem(AGENT_DOCK_HIDDEN_KEY, hidden ? '1' : '0') }
-    catch { /* 存储不可用时，本次会话仍可关闭。 */ }
-    set({ agentDockHidden: hidden })
-  },
   // 默认展开，因为 EDITING_PANEL_DEFAULTS.visibility.assistant 是 true——两处不许各写一个默认。
   projectAgentDockCollapsed: !EDITING_PANEL_DEFAULTS.visibility.assistant,
   setProjectAgentDockCollapsed: (collapsed) => set((state) => {

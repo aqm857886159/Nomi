@@ -63,11 +63,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       }
     },
   },
-  // 窗口控制（Windows 自绘标题栏用；mac 原生 chrome 不调用）。窄面：仅 min/max/close + 最大化态订阅。
+  // 窗口：按钮是系统原生的（Windows titleBarOverlay / macOS 红绿灯）；渲染层只报主题色、接关窗确认。
   window: {
-    minimize: () => ipcRenderer.invoke("nomi:window:minimize"),
-    maximize: () => ipcRenderer.invoke("nomi:window:maximize"),
-    close: () => ipcRenderer.invoke("nomi:window:close"),
+    setTitleBarOverlay: (colors: { color: string; symbolColor: string }) => ipcRenderer.invoke("nomi:window:set-titlebar-overlay", colors),
     confirmClose: (requestId: string) =>
       ipcRenderer.send("nomi:window:close-response", { requestId, confirmed: true }),
     cancelClose: (requestId: string) =>
@@ -79,11 +77,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       };
       ipcRenderer.on("nomi:window:close-request", listener);
       return () => ipcRenderer.removeListener("nomi:window:close-request", listener);
-    },
-    onMaximized: (cb: (maximized: boolean) => void) => {
-      const listener = (_: unknown, v: boolean) => cb(v);
-      ipcRenderer.on("nomi:window:maximized", listener);
-      return () => ipcRenderer.removeListener("nomi:window:maximized", listener);
     },
     onCanvasZoomShortcut: (cb: (direction: -1 | 1) => void) => {
       const listener = (_: unknown, direction: -1 | 1) => cb(direction);

@@ -1,42 +1,34 @@
 /**
- * [INPUT]: 依赖 window.nomiDesktop?.platform（运行时读，判断是不是自绘窗口栏那面）
- * [OUTPUT]: 对外提供 WORKBENCH_TOPBAR_HEIGHT / WINDOWS_WINDOWBAR_HEIGHT、
- *           workbenchFloatingTopOffset / currentWorkbenchFloatingTopOffset（浮卡让开窗口栏 + 应用栏）、
- *           fullscreenOverlayTopOffset / currentFullscreenOverlayTopOffset（全屏浮层让开窗口栏）
- * [POS]: app-shell 的窗口几何单一真相：Windows frame:false 下那条自绘窗口栏占多高、谁必须让开它。
- *        窗口栏是系统级拖拽带（-webkit-app-region 的命中测试看几何不看 DOM 层级），压上去的东西
- *        点击会被当成拖窗口吃掉，所以「让开多少」必须只有一个来源，不许各处自己写 32。
+ * [INPUT]: 外壳几何（shellGeometry：40px 合一顶栏）
+ * [OUTPUT]: workbenchFloatingTopOffset / currentWorkbenchFloatingTopOffset（浮卡让开顶栏）、
+ *           fullscreenOverlayTopOffset / currentFullscreenOverlayTopOffset（全屏浮层让开顶栏）
+ * [POS]: 「谁必须让开顶栏、让多少」的单一来源。
+ *        10-08 外壳重设计起，窗口栏与应用栏合成一条 40px 顶栏，两平台同高：Windows 的原生窗口按钮
+ *        （titleBarOverlay）和 macOS 的红绿灯都住在这条栏里，它同时是系统拖拽带——命中测试看几何、
+ *        不看 DOM 层级，压上去的东西点击会被当成拖窗口吃掉、也会把窗口按钮埋住。
+ *        所以全屏浮层（导演台 / 白板 / 整页设置 / 全景 / 素材预览）一律从顶栏下方开始，各浮层不许自己写数。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { SHELL_SPACE_SPECIMEN, SHELL_TOPBAR_HEIGHT } from './shellSpaceSpecimen'
+import { SHELL_TOPBAR_HEIGHT } from './shellGeometry'
 
-export const WORKBENCH_TOPBAR_HEIGHT = 56
-export const WINDOWS_WINDOWBAR_HEIGHT = 32
-
-export function workbenchFloatingTopOffset(platform: string | undefined, gap = 8): number {
-  // 样张（design/shell-space）：窗口栏与应用栏合成一条 40px，两平台一样高。
-  if (SHELL_SPACE_SPECIMEN) return SHELL_TOPBAR_HEIGHT + gap
-  const windowbarHeight = platform === 'win32' ? WINDOWS_WINDOWBAR_HEIGHT : 0
-  return windowbarHeight + WORKBENCH_TOPBAR_HEIGHT + gap
+/** 浮卡（任务中心、通知）贴顶栏下沿再空 gap。两平台同值。 */
+export function workbenchFloatingTopOffset(gap = 8): number {
+  return SHELL_TOPBAR_HEIGHT + gap
 }
 
+/** 渲染时现算（不在模块作用域定死：#58 那一类「import 那一刻读到的平台不对」的坑）。 */
 export function currentWorkbenchFloatingTopOffset(gap = 8): number {
-  const platform = typeof window === 'undefined' ? undefined : window.nomiDesktop?.platform
-  return workbenchFloatingTopOffset(platform, gap)
+  return workbenchFloatingTopOffset(gap)
 }
 
 /**
- * 全屏浮层（导演台 / 白板 / 整页设置 / 全景 / 素材预览这类铺满整窗的壳）的顶偏移。
- * 只让开窗口栏，不让开应用栏：全屏浮层本就取代应用栏那一层，但**不能**取代窗口栏——
- * 窗口控件（最小化 / 最大化 / 关闭）只有窗口栏那一份，盖住它用户就没法收起或关掉应用了。
+ * 全屏浮层的顶偏移：只让开顶栏（它同时是窗口栏），浮层本身取代顶栏以下的整块。
+ * 窗口控件（Windows 原生三键 / macOS 红绿灯）只有顶栏那一份，盖住它用户就没法收起或关掉应用了。
  */
-export function fullscreenOverlayTopOffset(platform: string | undefined): number {
-  // 样张：窗口按钮住在合一顶栏里，全屏浮层一律从顶栏下方开始、不再各自画窗口按钮（两平台同）。
-  if (SHELL_SPACE_SPECIMEN) return SHELL_TOPBAR_HEIGHT
-  return platform === 'win32' ? WINDOWS_WINDOWBAR_HEIGHT : 0
+export function fullscreenOverlayTopOffset(): number {
+  return SHELL_TOPBAR_HEIGHT
 }
 
 export function currentFullscreenOverlayTopOffset(): number {
-  const platform = typeof window === 'undefined' ? undefined : window.nomiDesktop?.platform
-  return fullscreenOverlayTopOffset(platform)
+  return fullscreenOverlayTopOffset()
 }

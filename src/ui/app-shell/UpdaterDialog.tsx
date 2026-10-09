@@ -7,36 +7,32 @@ import type { Updater } from './useUpdater'
 import { shouldShowUpdaterDialog } from './useUpdater'
 import { cn } from '../../utils/cn'
 
-export function UpdaterDialog({ updater, hasRunningTask }: { updater: Updater; hasRunningTask: boolean }): JSX.Element | null {
+/**
+ * 更新详情弹窗。入口是顶栏右簇的「新版本」胶囊（ShellTopBar 里的 UpdaterPill）——
+ * 胶囊和弹窗共用一份 requested 状态，由顶栏持有；后台更新事件从不自己弹开（shouldShowUpdaterDialog）。
+ */
+export function UpdaterDialog({ updater, hasRunningTask, requested, onRequestedChange }: {
+  updater: Updater
+  hasRunningTask: boolean
+  requested: boolean
+  onRequestedChange: (requested: boolean) => void
+}): JSX.Element | null {
   const { t } = useTranslation()
-  const [requested, setRequested] = React.useState(false)
+  const setRequested = onRequestedChange
   const visible = shouldShowUpdaterDialog({ phase: updater.phase, requested })
   // Esc = 右上角「关闭」（更新提示是可推迟的，不是不可逆动作），让位规则走共用原语。
   const dialogRef = React.useRef<HTMLElement | null>(null)
   useOverlayEscape(dialogRef, visible, () => setRequested(false))
   React.useEffect(() => {
     if (updater.phase === 'idle' || updater.phase === 'up-to-date') setRequested(false)
-  }, [updater.phase])
+  }, [setRequested, updater.phase])
 
-  const badgeVisible = !visible && (updater.phase === 'available' || updater.phase === 'downloading' || updater.phase === 'downloaded' || updater.phase === 'error')
-  if (!visible && !badgeVisible) return null
+  if (!visible) return null
 
   const title = updater.phase === 'error' ? t('updaterDialog.errorTitle') : updater.phase === 'downloading' ? t('updaterDialog.downloadingTitle') : updater.phase === 'downloaded' ? t('updaterDialog.downloadedTitle') : t('updaterDialog.availableTitle')
 
   return (
     <>
-      {badgeVisible ? (
-        <button
-          type="button"
-          data-updater-badge="true"
-          className="fixed right-4 top-[calc(var(--workbench-topbar-height)+0.75rem)] z-[140] inline-flex items-center gap-1.5 rounded-pill border border-nomi-accent bg-nomi-accent-soft px-3 py-1.5 text-caption font-medium text-nomi-accent shadow-nomi-sm"
-          title={hasRunningTask ? t('updaterDialog.runningHint') : title}
-          onClick={() => setRequested(true)}
-        >
-          <IconDownload size={14} stroke={1.8} aria-hidden="true" />
-          {t('updaterDialog.badge')}
-        </button>
-      ) : null}
       {visible ? (
         <div className="fixed inset-0 z-[130] grid place-items-center bg-nomi-ink/20 p-4" role="presentation" data-updater-dialog="true">
           <section

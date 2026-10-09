@@ -329,7 +329,6 @@
 .workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2__navigation-stack,
 .workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2__selection-toolbar,
 .workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2-node__composer,
-.workbench-generation__canvas[data-media-preview-open='true'] [data-node-floating-toolbar],
-.workbench-generation__canvas[data-media-preview-open='true'] .workbench-generation__timeline-handle {
+.workbench-generation__canvas[data-media-preview-open='true'] [data-node-floating-toolbar] {
   visibility: hidden;
 }

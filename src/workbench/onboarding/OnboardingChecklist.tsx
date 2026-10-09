@@ -1,332 +1,95 @@
 /**
  * 上手 4 步进度（被动指示，不带走查——引导走查归首页触发的 JourneyTour）。
  *
- * 形态：**停靠在顶栏右簇**的一颗紧凑「上手 N/4」入口（始终高、不遮画布、不撞 AI 启动器/
- * 时间轴/创作助手——工作区每个角落都被占了，顶栏是唯一干净又显眼的位置）。点开是下拉清单，
+ * 10-08 外壳重设计：入口从顶栏右簇的「上手 N/4」下拉**收纳进设置「通用」最上面**（设计卡归位表；
+ * 09-08 A1 Rail 板「上手清单 → 设置 › 上手，未完成时在设置钮上冒一个点」）。所以这里拆成两件：
+ *   - `useOnboardingProgress()`：**常驻**在顶栏里跑（只为设置钮上那个点 + 把达成的步落盘），不画任何东西；
+ *   - `OnboardingChecklistSection`：设置「通用」里那一块清单（步骤、下一步高亮、手册入口、不再提示）。
  * 四步随**真实行为**自动打勾：
  *   1 接入模型   = 有可用文本模型（hasTextModel）
  *   2 拆一个镜头 = 画布出现节点
  *   3 生成一张   = 任一节点 status === 'success'
  *   4 导出成片   = 一次 MP4 导出成功（TimelinePreview 处 markChecklistStep）
- *
- * 入口消失的三条退出路：① 4/4 全做完；② 用户点「不再提示」；③ 首次显示满 2 天仍未
- * 完成 → 自动永久关闭。后两条写 nomi:checklist-dismissed，关了不再回来（onboardingState）。
- * 打勾单调持久（localStorage）。挂载位置按平台分流：win32 渲染在 WorkbenchShell 自绘标题栏内，
- * 非 win32（mac/Linux）渲染在 NomiAppBar 右簇内——两边都在 React 树内，保 --nomi-* token。
+ * 退出三条路不变：① 4/4 全做完；② 用户点「不再提示」；③ 首次显示满 2 天仍未完成 → 自动永久关闭。
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconChevronDown, IconListCheck, IconMap } from '@tabler/icons-react'
+import { IconCheck, IconMap } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { selectStableCanvasNodes } from '../generationCanvas/store/canvasNodeProjection'
-import { useHasTextModel } from '../library/useHasTextModel'
-import { useJourneyTourActive } from './journeyTourActivity'
 import { DesignProgress } from '../../design'
-import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
-import {
-  type ChecklistStep,
-  type ChecklistState,
-  readChecklist,
-  markChecklistStep,
-  readChecklistCollapsed,
-  writeChecklistCollapsed,
-  isChecklistDismissed,
-  markChecklistDismissed,
-  isChecklistExpired,
-} from './onboardingState'
+import type { ChecklistStep } from './onboardingState'
+import { useOnboardingProgress } from './useOnboardingProgress'
 
-type StepMeta = {
-  key: ChecklistStep
-  label: string
-  hint: string
-}
-
-const ALL_KEYS: ChecklistStep[] = ['model', 'storyboard', 'generated', 'exported']
-
-export function OnboardingChecklist(): JSX.Element | null {
+/** 设置「通用」最上面那一块：上手清单。做完 / 关掉 / 过期后整块不出现。 */
+export function OnboardingChecklistSection(): JSX.Element | null {
   const { t } = useTranslation()
-  const steps = React.useMemo<StepMeta[]>(
-    () => [
-      { key: 'model', label: t('onboarding.steps.model.label'), hint: t('onboarding.steps.model.hint') },
-      { key: 'storyboard', label: t('onboarding.steps.storyboard.label'), hint: t('onboarding.steps.storyboard.hint') },
-      { key: 'generated', label: t('onboarding.steps.generated.label'), hint: t('onboarding.steps.generated.hint') },
-      { key: 'exported', label: t('onboarding.steps.exported.label'), hint: t('onboarding.steps.exported.hint') },
-    ],
-    [t],
-  )
-  // 清单只看 nodes.length>0 与「有没有 success 节点」，不读 position → 位置稳定投影（suspect #1）。
-  const nodes = useGenerationCanvasStore(selectStableCanvasNodes)
-  const { hasTextModel: textModelReady } = useHasTextModel()
-  // 引导旅途进行时让位：清单是被动进度，tour 在演同一条流程，两者同屏会叠成一团（真机走查抓出）。
-  const journeyTourActive = useJourneyTourActive()
-
-  const live = React.useMemo<ChecklistState>(
-    () => ({
-      model: textModelReady === true,
-      storyboard: nodes.length > 0,
-      generated: nodes.some((node) => node.status === 'success'),
-      exported: false, // 导出 fire-and-forget 无 live 源，只走 TimelinePreview 持久标记
-    }),
-    [textModelReady, nodes],
-  )
-
-  const [persisted, setPersisted] = React.useState<ChecklistState>(() => readChecklist())
-  const [dismissed, setDismissed] = React.useState<boolean>(() => isChecklistDismissed())
-  const [open, setOpen] = React.useState<boolean>(() => !readChecklistCollapsed())
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
-  const [anchor, setAnchor] = React.useState<{ top: number; right: number } | null>(null)
-
-  // live 新达成 → 落盘 + 刷新；跨组件写盘（导出）靠 storage/focus 回读。
-  React.useEffect(() => {
-    let changed = false
-    for (const key of ALL_KEYS) {
-      if (live[key] && !persisted[key]) {
-        markChecklistStep(key)
-        changed = true
-      }
-    }
-    if (changed) setPersisted(readChecklist())
-  }, [live, persisted])
-
-  React.useEffect(() => {
-    const sync = () => setPersisted(readChecklist())
-    window.addEventListener('storage', sync)
-    window.addEventListener('focus', sync)
-    return () => {
-      window.removeEventListener('storage', sync)
-      window.removeEventListener('focus', sync)
-    }
-  }, [])
-
-  const effective = React.useMemo<ChecklistState>(
-    () => ({
-      model: persisted.model || live.model,
-      storyboard: persisted.storyboard || live.storyboard,
-      generated: persisted.generated || live.generated,
-      exported: persisted.exported || live.exported,
-    }),
-    [persisted, live],
-  )
-
-  const doneCount = ALL_KEYS.filter((key) => effective[key]).length
-  const allDone = doneCount === ALL_KEYS.length
-  const nextKey = steps.find((s) => !effective[s.key])?.key ?? null
-
-  // 下拉锚定在触发钮正下方、右对齐（实测触发钮几何，精准跟随顶栏布局）。
-  const measureAnchor = React.useCallback(() => {
-    const el = triggerRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    setAnchor({
-      top: Math.max(r.bottom + 8, currentWorkbenchFloatingTopOffset()),
-      right: Math.max(8, window.innerWidth - r.right),
-    })
-  }, [])
-
-  React.useEffect(() => {
-    if (!open) return
-    measureAnchor()
-    window.addEventListener('resize', measureAnchor)
-    return () => window.removeEventListener('resize', measureAnchor)
-  }, [open, measureAnchor])
-
-  // 点下拉外 → 关闭（不影响聚光，聚光有自己的 dismiss）。
-  React.useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => {
-      const el = e.target as Element | null
-      if (el && el.closest('[data-onboarding-checklist-root]')) return
-      setOpen(false)
-    }
-    window.addEventListener('pointerdown', onDown, true)
-    return () => window.removeEventListener('pointerdown', onDown, true)
-  }, [open])
-
-  // 用户一开始工作（编辑器聚焦 / 输入 / 选中文字）→ 让开覆盖层（2026-08-25 走查 F4 根因：
-  // 面板盖住创作区右侧「拆成镜头·落画布」按钮并吞掉点击）。这正是「用户照引导去点按钮」那一刻，
-  // 把 fixed 覆盖层收起，动作按钮才点得着。收起=写折叠态，跨会话记住。判据宽松（聚焦可编辑元素 /
-  // 敲字 / 产生非空选区任一），因为目标就是「只要用户去操作创作区就别挡路」。
-  React.useEffect(() => {
-    if (!open) return
-    const collapse = () => {
-      setOpen(false)
-      writeChecklistCollapsed(true)
-    }
-    const isEditable = (node: EventTarget | null): boolean => {
-      const el = node as HTMLElement | null
-      if (!el || typeof el.closest !== 'function') return false
-      // 别把清单/顶栏自己的控件误判成「开始工作」——点清单里的按钮不该把清单收起。
-      if (el.closest('[data-onboarding-checklist-root]')) return false
-      return Boolean(
-        el.closest('input, textarea, [contenteditable="true"], [contenteditable=""], .ProseMirror'),
-      )
-    }
-    const onFocusIn = (e: FocusEvent) => {
-      if (isEditable(e.target)) collapse()
-    }
-    const onSelectionChange = () => {
-      const sel = window.getSelection?.()
-      if (sel && !sel.isCollapsed && String(sel).trim().length > 0) collapse()
-    }
-    window.addEventListener('focusin', onFocusIn, true)
-    document.addEventListener('selectionchange', onSelectionChange)
-    return () => {
-      window.removeEventListener('focusin', onFocusIn, true)
-      document.removeEventListener('selectionchange', onSelectionChange)
-    }
-  }, [open])
-
-  const toggleOpen = React.useCallback(() => {
-    setOpen((prev) => {
-      const next = !prev
-      writeChecklistCollapsed(!next)
-      return next
-    })
-  }, [])
-
-  const handleDismiss = React.useCallback(() => {
-    markChecklistDismissed()
-    setDismissed(true)
-  }, [])
-
-  // 首次显示落时间戳；满 2 天仍未完成 → 自动永久关闭（写持久标记，不再回来）。
-  React.useEffect(() => {
-    if (dismissed || allDone) return
-    if (isChecklistExpired(Date.now())) {
-      markChecklistDismissed()
-      setDismissed(true)
-    }
-  }, [dismissed, allDone])
-
-  if (allDone || journeyTourActive || dismissed) return null
-
+  const progress = useOnboardingProgress()
+  const steps: { key: ChecklistStep; label: string; hint: string }[] = [
+    { key: 'model', label: t('onboarding.steps.model.label'), hint: t('onboarding.steps.model.hint') },
+    { key: 'storyboard', label: t('onboarding.steps.storyboard.label'), hint: t('onboarding.steps.storyboard.hint') },
+    { key: 'generated', label: t('onboarding.steps.generated.label'), hint: t('onboarding.steps.generated.hint') },
+    { key: 'exported', label: t('onboarding.steps.exported.label'), hint: t('onboarding.steps.exported.hint') },
+  ]
+  if (!progress.active) return null
   return (
-    <div data-onboarding-checklist-root="true" className="contents">
-      <button
-        type="button"
-        ref={triggerRef}
-        onClick={toggleOpen}
-        data-onboarding-checklist-trigger="true"
-        aria-label={t('onboarding.progressLabel', { done: doneCount, total: ALL_KEYS.length })}
-        aria-expanded={open}
-        className={cn(
-          'inline-flex items-center gap-1.5 h-7 px-2.5 cursor-pointer font-inherit',
-          'rounded-nomi-sm border border-transparent bg-transparent',
-          'text-body-sm text-nomi-ink-80 transition-[background,color] duration-nomi-fast ease-nomi-fast',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          open && 'bg-nomi-ink-05 text-nomi-ink',
-        )}
-      >
-        <IconListCheck size={18} stroke={1.8} aria-hidden="true" />
-        <span className="max-[1600px]:hidden">{t('onboarding.trigger')}</span>
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-nomi-accent-soft text-nomi-accent text-micro font-semibold tabular-nums">
-          {doneCount}/{ALL_KEYS.length}
-        </span>
-      </button>
-
-      {open && anchor ? (
-        <section
-          data-onboarding-checklist="panel"
-          aria-label={t('onboarding.panelLabel')}
-          style={{ top: anchor.top, right: anchor.right }}
-          className={cn(
-            'fixed z-[180] w-64 overflow-hidden',
-            'rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-lg',
-          )}
+    <section
+      data-onboarding-checklist="settings"
+      aria-label={t('onboarding.panelLabel')}
+      className="mb-5 overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper"
+    >
+      <header className="flex items-center gap-2 px-4 pb-2 pt-3">
+        <span className="text-body-sm font-semibold text-nomi-ink">{t('onboarding.panelLabel')}</span>
+        <span className="text-caption font-medium tabular-nums text-nomi-ink-40">{progress.doneCount} / {progress.total}</span>
+      </header>
+      <DesignProgress value={(progress.doneCount / progress.total) * 100} size="xs" className="mx-4 mb-2" />
+      <ul className="m-0 grid list-none gap-0.5 px-1.5 pb-2 sm:grid-cols-2">
+        {steps.map((step) => {
+          const done = progress.effective[step.key]
+          const isNext = !done && step.key === progress.nextKey
+          return (
+            <li
+              key={step.key}
+              data-step={step.key}
+              data-done={done ? 'true' : 'false'}
+              className={cn('flex items-start gap-2.5 rounded-nomi-sm p-2', isNext && 'bg-nomi-accent-soft')}
+            >
+              <span
+                className={cn(
+                  'mt-px grid size-5 shrink-0 place-items-center rounded-full',
+                  done ? 'bg-nomi-accent text-nomi-paper' : isNext ? 'border-2 border-nomi-accent' : 'border-2 border-nomi-ink-20',
+                )}
+              >
+                {done ? <IconCheck size={12} stroke={1.8} aria-hidden="true" /> : null}
+              </span>
+              <span className="min-w-0">
+                <span className={cn('block text-body-sm font-medium leading-snug', done ? 'text-nomi-ink-40' : isNext ? 'text-nomi-accent' : 'text-nomi-ink')}>
+                  {step.label}
+                </span>
+                {!done ? <span className="mt-px block text-caption leading-snug text-nomi-ink-40">{step.hint}</span> : null}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="flex items-center justify-between border-t border-nomi-line-soft px-3 py-2">
+        {/* 手册入口：开同一个 nomi-open-handbook 事件。 */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('nomi-open-handbook'))}
+          className="inline-flex cursor-pointer items-center gap-1 rounded-nomi-sm border-0 bg-transparent px-1.5 py-0.5 text-caption text-nomi-accent transition-colors hover:text-nomi-ink"
         >
-          <header className="flex items-center gap-2 pl-4 pr-2 pt-3 pb-2">
-            <span className="text-body font-semibold text-nomi-ink">{t('onboarding.panelLabel')}</span>
-            <span className="text-caption font-medium text-nomi-ink-40 tabular-nums">
-              {doneCount} / {ALL_KEYS.length}
-            </span>
-            <button
-              type="button"
-              onClick={() => toggleOpen()}
-              aria-label={t('onboarding.collapse')}
-              className={cn(
-                'ml-auto grid place-items-center size-6 rounded-nomi-sm border-0 bg-transparent cursor-pointer',
-                'text-nomi-ink-40 transition-colors hover:bg-nomi-ink-10 hover:text-nomi-ink',
-              )}
-            >
-              <IconChevronDown size={16} stroke={1.8} aria-hidden="true" />
-            </button>
-          </header>
-
-          <DesignProgress value={(doneCount / ALL_KEYS.length) * 100} size="xs" className="mx-4 mb-2" />
-
-          <ul className="flex flex-col px-1.5 pb-2 m-0 list-none">
-            {steps.map((step) => {
-              const done = effective[step.key]
-              const isNext = !done && step.key === nextKey
-              return (
-                <li
-                  key={step.key}
-                  data-step={step.key}
-                  data-done={done ? 'true' : 'false'}
-                  className={cn('flex flex-col gap-1.5 p-2 rounded-nomi-sm', isNext && 'bg-nomi-accent-soft')}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span
-                      className={cn(
-                        'shrink-0 grid place-items-center size-5 rounded-full mt-px',
-                        done
-                          ? 'bg-nomi-accent text-nomi-paper'
-                          : isNext
-                            ? 'border-2 border-nomi-accent'
-                            : 'border-2 border-nomi-ink-20',
-                      )}
-                    >
-                      {done ? <IconCheck size={12} stroke={1.8} aria-hidden="true" /> : null}
-                    </span>
-                    <span className="min-w-0">
-                      <span
-                        className={cn(
-                          'block text-body-sm font-medium leading-snug',
-                          done ? 'text-nomi-ink-40' : isNext ? 'text-nomi-accent' : 'text-nomi-ink',
-                        )}
-                      >
-                        {step.label}
-                      </span>
-                      {!done ? (
-                        <span className="block text-caption text-nomi-ink-40 leading-snug mt-px">{step.hint}</span>
-                      ) : null}
-                    </span>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-
-          <div className="flex items-center justify-between border-t border-nomi-line-soft px-3 py-2">
-            {/* 新手最显眼处的手册入口：清单本就是上手时盯着的面板，开同一个 nomi-open-handbook 事件。 */}
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('nomi-open-handbook'))
-                setOpen(false)
-              }}
-              className={cn(
-                'inline-flex items-center gap-1 rounded-nomi-sm border-0 bg-transparent px-1.5 py-0.5 cursor-pointer',
-                'text-caption text-nomi-accent transition-colors hover:text-nomi-ink',
-              )}
-            >
-              <IconMap size={13} stroke={1.8} aria-hidden="true" />
-              {t('onboarding.fullHandbook')}
-            </button>
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className={cn(
-                'rounded-nomi-sm border-0 bg-transparent px-1.5 py-0.5 cursor-pointer',
-                'text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink',
-              )}
-            >
-              {t('onboarding.dismiss')}
-            </button>
-          </div>
-        </section>
-      ) : null}
-    </div>
+          <IconMap size={13} stroke={1.8} aria-hidden="true" />
+          {t('onboarding.fullHandbook')}
+        </button>
+        <button
+          type="button"
+          onClick={progress.dismiss}
+          className="cursor-pointer rounded-nomi-sm border-0 bg-transparent px-1.5 py-0.5 text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink"
+          data-onboarding-dismiss
+        >
+          {t('onboarding.dismiss')}
+        </button>
+      </div>
+    </section>
   )
 }

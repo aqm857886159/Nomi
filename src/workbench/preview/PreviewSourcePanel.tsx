@@ -53,7 +53,7 @@ function ShotCover({ source }: { source: CanvasShotSource }): JSX.Element {
   return <div className="absolute inset-0 bg-nomi-ink-05" aria-hidden="true" />
 }
 
-/** 样张（design/shell-space）：剪辑页的「镜头」并进左栏「镜头与分组」抽屉，抽屉在预览页复用这一格。 */
+/** 剪辑页的「镜头」也进左栏「目录」抽屉（10-08 外壳重设计，协调裁决第 32 项）：抽屉在预览页复用这一格，可拖进时间轴 / 点击追加。 */
 export function ShotGrid(): JSX.Element {
   const { t } = useTranslation()
   // 镜头栏按 result/shotIndex 派生已出片镜头；无号镜头（参考卡/首帧图/非分镜产物）按真实

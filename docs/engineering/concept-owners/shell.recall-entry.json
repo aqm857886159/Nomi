@@ -7,19 +7,21 @@
   "fact_kind": "projection",
   "migration_status": "converged",
   "owner": {
-    "path": "src/ui/app-shell/CollapsedAiChip.tsx",
-    "symbol": "CollapsedAiChip"
+    "path": "src/ui/app-shell/shell/agentFormStore.ts",
+    "symbol": "useAgentFormStore"
   },
   "write_api": [
     {
-      "path": "src/ui/app-shell/CollapsedAiChip.tsx",
-      "symbol": "CollapsedAiChip"
+      "path": "src/ui/app-shell/shell/agentFormStore.ts",
+      "symbol": "useAgentFormStore"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
-    "src/ui/app-shell/NomiAppBar.tsx"
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/ui/app-shell/shell/AgentBallFace.tsx"
   ],
-  "since": "2026-09-25",
-  "notes": "收起 Nomi 后只有顶栏角标一个叫回入口（09-01 定稿 §11.2；用户 09-25 拍板删掉剪辑页右侧 32px 竖条）。页面不许再各放一个叫回按钮；走查按「入口只有一个」计数断言。"
+  "since": "2026-10-08",
+  "notes": "10-08 外壳重设计：收起 Nomi = 内容区右下的小球（等你确认 N / 处理中 / 出错四态，都不自己弹开）；顶栏不再放 Agent 角标，原来横在页面上的输入坞删除。形态（小球 / 浮窗 / 停靠）只由 agentFormStore 一个 owner 写；Mod+J 打开并聚焦，Mod+\\ 停靠 ↔ 小球。页面不许再各放一个叫回按钮。"
 }

@@ -29,6 +29,9 @@ export function clampAssistantWidth(width: number, viewportWidth: number): numbe
   return Math.max(ASSISTANT_WIDTH_MIN, Math.min(assistantWidthMaxFor(viewportWidth), Math.round(width)))
 }
 
-/** p-4 on both sides, derived from the design spacing token for pixel-based panel APIs. */
-export const ASSISTANT_PANE_GUTTER = Number.parseFloat(nomiDesignTokens.spacing[4]) * 2
+/**
+ * 停靠栏左边那条 8px 缝（10-08 外壳重设计：工作面之间隔 8px，宽度把手就画在这条缝里）。
+ * 与外壳 SHELL_GUTTER 同值，取设计间距 token 2。
+ */
+export const ASSISTANT_PANE_GUTTER = Number.parseFloat(nomiDesignTokens.spacing[2])
 export function assistantPaneWidth(width: number): number { return width + ASSISTANT_PANE_GUTTER }

@@ -32,7 +32,7 @@ function LabFrame({ children }: { children: React.ReactNode }): JSX.Element {
 }
 
 function UpdateState({ phase, running = false }: { phase: UpdaterPhase; running?: boolean }): JSX.Element {
-  return <LabFrame><UpdaterDialog updater={updater(phase)} hasRunningTask={running} /></LabFrame>
+  return <LabFrame><UpdaterDialog updater={updater(phase)} hasRunningTask={running} requested onRequestedChange={() => undefined} /></LabFrame>
 }
 
 /**

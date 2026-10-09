@@ -52,7 +52,6 @@ import { useGenerationCanvasStore } from './generationCanvas/store/generationCan
 import type { AgentContextHandle } from '../../electron/shared/agentContextSnapshot'
 import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, type ProjectAgentApprovalPolicy } from '../../electron/shared/agentCapabilities/capabilityApprovalPolicy';
 import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
-import { createCreationResourceTreeSlice, type CreationResourceTreeSlice } from './creation/creationResourceTreeCollapse'
 import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
 import { readDockCollapsed, writeDockCollapsed } from './generation/dockCollapsePrefs'
 import { TIMELINE_PANEL_DEFAULT, clampTimelinePanelHeight } from './timeline/timelinePanelBounds'
@@ -86,19 +85,14 @@ export type ProjectAgentReference = Readonly<{
   contextHandle?: AgentContextHandle
 }>
 
-type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & CreationResourceTreeSlice & TimelineClipWritesSlice & ProjectAgentDraftRecoveryState & {
+type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & TimelineClipWritesSlice & ProjectAgentDraftRecoveryState & {
   persistRevision: number
   workspaceMode: WorkspaceMode
   /** 生成/预览区右侧助手侧栏宽度（px，可拖宽）。 */
-  /** 左侧项目/素材侧栏展开态宽度覆盖值（px，可拖宽；null = 跟随 tab 默认：库 500 / 分组 300）。
-      2026-08-08 飞书反馈「素材库宽度锁死不能拖拽」。 */
-  projectSidebarWidth: number | null
   /** Phase E: which directory-tree category is currently selected */
   activeCategoryId: string
   /** 顶层分类列表（内置 5 + 用户自定义）。单一真相源，持久化随项目。 */
   categories: ProjectCategory[]
-  /** Phase E: collapsed (icon-only) vs expanded sidebar */
-  sidebarCollapsed: boolean
   /** Phase E: viewport (zoom + offset) per graph-canvas-type category */
   categoryViewports: Record<string, GraphViewport>
   setActiveCategoryId: (id: string) => void
@@ -110,8 +104,6 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Creatio
   renameCategory: (id: string, name: string) => void
   /** 删自定义分类（内置不可删）：其下节点改派回「分镜」、子组解散，不丢节点。 */
   deleteCategory: (id: string) => void
-  toggleSidebarCollapsed: () => void
-  setSidebarCollapsed: (collapsed: boolean) => void
   rememberCategoryViewport: (categoryId: string, viewport: GraphViewport) => void
   creationSelectionText: string; storyboardPlannerLauncher: ((displayPrompt?: string) => void) | null
   creationAiModeId: string
@@ -162,7 +154,6 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Creatio
   redoTimeline: () => void
   setWorkspaceMode: (mode: unknown) => void
   setAssistantWidth: (width: number) => void
-  setProjectSidebarWidth: (width: number) => void
   setCreationSelectionText: (text: string) => void; setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
   setCreationAiModeId: (modeId: string) => void
   setCreationActiveSkill: (skill: { key: string; contentHash?: string } | null) => void
@@ -250,10 +241,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   )),
   persistRevision: 0,
   workspaceMode: 'generation',
-  projectSidebarWidth: null,
   activeCategoryId: 'shots',
   categories: cloneBuiltinCategories(),
-  sidebarCollapsed: true,
   categoryViewports: {},
   setActiveCategoryId: (id) => {
     if (typeof id !== 'string' || !id.trim()) return
@@ -300,12 +289,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       activeCategoryId: state.activeCategoryId === id ? DEFAULT_CATEGORY_ID : state.activeCategoryId,
       persistRevision: state.persistRevision + 1,
     }))
-  },
-  toggleSidebarCollapsed: () => {
-    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
-  },
-  setSidebarCollapsed: (sidebarCollapsed) => {
-    set({ sidebarCollapsed: Boolean(sidebarCollapsed) })
   },
   rememberCategoryViewport: (categoryId, viewport) => {
     if (!categoryId) return
@@ -358,7 +341,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   timelinePanelHeight: TIMELINE_PANEL_DEFAULT,
   setTimelinePanelHeight: (height) => set({ timelinePanelHeight: clampTimelinePanelHeight(height) }),
   ...createEditingPanelLayoutSlice(set, get, store),
-  ...createCreationResourceTreeSlice(set, get, store),
   exportResolution: '1080p',
   exportQuality: 'standard',
   setExportResolution: (exportResolution) => set({ exportResolution }),
@@ -374,7 +356,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setAssistantWidth: (width) => get().syncEditingPanelSize({
     assistantWidth: clampAssistantWidth(width, typeof window === 'undefined' ? 0 : window.innerWidth),
   }),
-  setProjectSidebarWidth: (width) => set({ projectSidebarWidth: Math.max(240, Math.min(720, Math.round(width))) }),
   setCreationSelectionText: (text) => {
     set({ creationSelectionText: typeof text === 'string' ? text.trim() : '' })
   },

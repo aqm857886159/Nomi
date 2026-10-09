@@ -1,8 +1,6 @@
 import React, { type JSX } from 'react'
 import { workspacePanelFrame, workspacePanelHeader } from '../WorkspacePanelFrame'
-import { CreationResourceTreeToggle } from './CreationResourceTreeToggle'
 import { CreationDocumentSwitcher } from './CreationDocumentSwitcher'
-import { SHELL_SPACE_SPECIMEN } from '../../ui/app-shell/shellSpaceSpecimen'
 import { useTranslation } from 'react-i18next'
 import { EditorContent, type Editor, type JSONContent } from '@tiptap/react'
 import SelectionGeneratePopover from './SelectionGeneratePopover'
@@ -72,9 +70,9 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
         )}
         aria-label={t('creationAi.editor.toolbarAria')}
       >
-        {/* 左栏收起时唯一的回头路，必须无条件常驻——哪怕工具栏本身是空的。 */}
-        {/* 样张（design/shell-space）：树进了左栏「文稿」抽屉，这里换成「当前文稿名 ▾」。 */}
-      {SHELL_SPACE_SPECIMEN ? <><CreationDocumentSwitcher /><ToolbarDivider /></> : <CreationResourceTreeToggle placement="panel" />}
+        {/* 创作内容树住左栏「文稿」抽屉；这一行最左是「当前文稿名 ▾」，换文稿不必开抽屉（10-08 外壳重设计）。 */}
+      <CreationDocumentSwitcher />
+      <ToolbarDivider />
       </div>
     )
   }
@@ -91,8 +89,9 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
       )}
       aria-label={t('creationAi.editor.toolbarAria')}
     >
-      {/* 样张（design/shell-space）：树进了左栏「文稿」抽屉，这里换成「当前文稿名 ▾」。 */}
-      {SHELL_SPACE_SPECIMEN ? <><CreationDocumentSwitcher /><ToolbarDivider /></> : <CreationResourceTreeToggle placement="panel" />}
+      {/* 创作内容树住左栏「文稿」抽屉；这一行最左是「当前文稿名 ▾」，换文稿不必开抽屉（10-08 外壳重设计）。 */}
+      <CreationDocumentSwitcher />
+      <ToolbarDivider />
       {leftGroups.map((group, index) => (
         <React.Fragment key={group[0]?.id ?? index}>
           {index > 0 ? <ToolbarDivider /> : null}

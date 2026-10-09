@@ -2,7 +2,6 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { getAppLocale } from '../../i18n'
 import {
-  IconBrowser,
   IconAlertTriangle,
   IconFolderOpen,
   IconFolderShare,
@@ -11,14 +10,14 @@ import {
   IconPlugConnected,
   IconPlus,
   IconRefresh,
-  IconSettings,
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, NomiSkeleton } from '../../design'
+import { ActionCard, DesignEmptyState, NomiSkeleton } from '../../design'
 import { NomiImage } from '../../design/media'
-import { WindowControls } from '../../ui/app-shell/WindowControls'
-import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
+import { ShellFrame } from '../../ui/app-shell/shell/ShellFrame'
+import { ShellTopBar } from '../../ui/app-shell/shell/ShellTopBar'
+import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import { useLocalProjects } from './localProjectStore'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
@@ -30,6 +29,14 @@ import ProjectSyncBadge from './ProjectSyncBadge'
 import { syncStatusBlocksOpen } from './projectSyncFace'
 import type { WorkspaceSyncInspection } from '../../../electron/shared/workspaceSyncContracts'
 
+const SkillLibraryContent = lazyWithChunkBoundary('i18n:sidebar.skillLibrary', () =>
+  import('../skillLibrary/SkillLibraryPanel').then((module) => ({ default: module.SkillLibraryContent })))
+const PromptLibraryContent = lazyWithChunkBoundary('i18n:sidebar.promptLibrary', () =>
+  import('../promptLibrary/PromptLibraryPanel').then((module) => ({ default: module.PromptLibraryContent })))
+
+/** 项目库左上页签（10-08 外壳拍板稿 Library 板）：项目库不放左栏，Skill / 提示词在这里是页签，进项目后在左栏抽屉里。 */
+type LibraryTab = 'projects' | 'skills' | 'prompts'
+
 type Props = {
   projectFeedback?: { projectId: string | null; message: string } | null
   onOpenProject: (projectId: string) => void
@@ -40,6 +47,11 @@ type Props = {
   onOpenFolder?: () => void
   onRevealProjectFolder?: (projectId: string) => void
   onOpenModelCatalog?: () => void
+  /**
+   * 项目库页顶部的一次性通知位（10-08 Library 板）：热修横幅、「已更新到 x.y.z」卡由更新提醒线
+   * （I-update 的 HotfixBanner / UpdatedCard）从这里摆进来；本页只管位置，不判断出不出。没有就不占位。
+   */
+  notices?: React.ReactNode
   /** 打开集中设置页（顶栏齿轮）；缺省则不渲染齿轮入口。 */
   onOpenSettings?: () => void
   /** 看「60 秒预置回放」引导旅途（建示例项目 + 走一遍全流程）；缺省则不渲染该卡 */
@@ -122,6 +134,7 @@ export default function ProjectLibraryPage({
   onPlayJourneyTour,
   journeyTourSeen = false,
   hasTextModel = null,
+  notices = null,
 }: Props): JSX.Element {
   const { t } = useTranslation()
   // 项目列表由本页自己读：它是这份数据的唯一消费者，外壳不该当数据管道（R9）。
@@ -230,187 +243,183 @@ export default function ProjectLibraryPage({
     onOpenProject(projectId)
     markLibraryUsed('project', projectId)
   }, [onOpenProject, syncInspectionByProject])
-  // 单一入口互斥：缺文本模型时弱入口隐藏，模型入口 = 状态条（有项目）/ 主 CTA 自动带入（空库）
-  const showModelEntry = Boolean(onOpenModelCatalog) && !textModelMissing
-  // Windows：库窗也 frame:false，需自绘标题栏才能拖动/关窗。mac/Linux：原生 chrome，右上操作留在 header 原位。
-  const isWindows = window.nomiDesktop?.platform === 'win32'
-  const openBrowser = React.useCallback(() => {
-    window.dispatchEvent(new CustomEvent('nomi-open-browser'))
-  }, [])
-
-  // 弱入口 6 → 3（§1.5）：「看看 Nomi」（重放开屏动画）归位到设置「关于」——它和主卡
-  // 「重看一遍引导」是两个不同功能却名字撞车（后者会建 demo 项目回放整条流水线），
-  // 搬走后主卡独占「引导」语义；语言/外观归位到设置「通用」。剩下=模型 · 浏览器 · 设置。
-  const libraryTopActions = (
-    <div className="app-no-drag flex items-center gap-1">
-      {showModelEntry ? (
-        <button
-          type="button"
-          onClick={onOpenModelCatalog}
-          data-testid="open-model-settings"
-          className={cn(
-            'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-            'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-          )}
-          aria-label={t('library.models')}
-        >
-          <IconPlugConnected size={14} stroke={1.8} aria-hidden="true" />
-          {t('library.models')}
-        </button>
+  // 10-08 外壳重设计：模型接入 / 浏览器 / 设置都在 40px 合一顶栏或设置里；这里只剩「缺文本模型」那条提示条。
+  const [tab, setTab] = React.useState<LibraryTab>('projects')
+  // 第一次打开（没有项目、没在读、没读错、没在搜）= LibraryEmpty 板：三张大动作卡；有项目后收成右上两颗按钮。
+  const firstRun = !projectsError && !projectsLoading && projects.length === 0
+  const tabs: Array<{ id: LibraryTab; label: string }> = [
+    { id: 'projects', label: t('appShell.library.tabProjects') },
+    { id: 'skills', label: t('appShell.library.tabSkills') },
+    { id: 'prompts', label: t('appShell.library.tabPrompts') },
+  ]
+  const actionCards = (
+    <section className="flex flex-wrap items-stretch justify-center gap-4" aria-label={t('library.startProject')}>
+      <ActionCard
+        variant="primary"
+        icon={<IconPlus size={18} stroke={1.8} />}
+        title={t('library.newBlankProject')}
+        description={t('library.newBlankProjectDescription')}
+        onClick={() => onNewProject()}
+      />
+      {onOpenFolder ? (
+        <ActionCard
+          icon={<IconFolderOpen size={18} stroke={1.6} />}
+          title={t('library.openFolder')}
+          description={t('library.openFolderDescription')}
+          onClick={onOpenFolder}
+        />
       ) : null}
+      {onPlayJourneyTour ? (
+        <ActionCard
+          icon={<IconPlayerPlay size={18} stroke={1.6} />}
+          title={journeyTourSeen ? t('library.replayGuide') : t('library.watchHow')}
+          description={t('library.watchNomiDescription')}
+          onClick={onPlayJourneyTour}
+        />
+      ) : null}
+    </section>
+  )
+  // ── 缺文本模型 → 提示条（模型接入在项目库的唯一入口形态；生成失败卡仍可直达设置 › 模型接入） ──
+  const modelBanner = textModelMissing && onOpenModelCatalog ? (
+    <section
+      className="flex min-h-11 items-center gap-2.5 rounded-panel bg-nomi-info-soft py-1.5 pl-3.5 pr-2 text-body-sm text-nomi-info-ink ring-1 ring-inset ring-nomi-info-edge"
+      aria-label={t('library.modelStatus')}
+      data-model-banner="true"
+    >
+      <IconPlugConnected size={16} stroke={1.5} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="font-medium">{t('library.textModelMissing')}</span>
+        <span className="ml-1.5 text-nomi-info-ink/80">{t('library.textModelMissingHint')}</span>
+      </span>
       <button
         type="button"
-        onClick={openBrowser}
-        className={cn(
-          'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-          'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-        )}
-        aria-label={t('library.openBrowser')}
+        onClick={onOpenModelCatalog}
+        data-testid="open-model-settings"
+        className="h-7 shrink-0 rounded-pill border-0 bg-nomi-paper px-3 text-caption font-medium text-nomi-info-ink ring-1 ring-nomi-info-edge transition-colors hover:bg-nomi-info-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent"
       >
-        <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
-        {t('library.browser')}
+        {t('library.connectTextModel')}
       </button>
-      {onOpenSettings ? (
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          aria-label={t('settings.title')}
-          title={t('settings.title')}
-          className={cn(
-            'size-7 rounded-pill grid place-items-center border-0 bg-transparent cursor-pointer',
-            'text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-          )}
-        >
-          <IconSettings size={15} stroke={1.8} aria-hidden="true" />
-        </button>
-      ) : null}
-    </div>
-  )
+    </section>
+  ) : null
 
-  return (
-    <div className="nomi-library-page flex flex-col h-screen overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans text-body-sm leading-normal antialiased">
-      {isWindows ? (
-        <div
-          className="nomi-library-page__windowbar app-drag relative shrink-0 flex items-center gap-2 h-8 w-full bg-nomi-bg pl-3"
-          onDoubleClick={handleWindowTitlebarDoubleClick}
-        >
-          <div
-            className="app-drag relative z-[1] h-full min-w-0 flex-1"
-            data-window-drag-region="true"
-            aria-hidden="true"
-          />
-          <div className="relative z-[2]">{libraryTopActions}</div>
-          <WindowControls className="relative z-[2]" />
-        </div>
-      ) : null}
-      <main className="nomi-library-page__main flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-14 pt-[60px] pb-20 flex flex-col gap-5">
+  const page = (
+    <div className="nomi-library-page flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-panel bg-nomi-paper font-nomi-sans text-body-sm leading-normal text-nomi-ink antialiased ring-1 ring-nomi-line-soft" data-library-tab={tab}>
+      <main className="nomi-library-page__main flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 pb-12 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {notices ? <div className="flex shrink-0 flex-col gap-3" data-library-notices>{notices}</div> : null}
         {projectFeedback?.message && !filteredProjects.some((project) => project.id === projectFeedback.projectId) ? <p role="alert" className="m-0 text-caption text-nomi-danger">{projectFeedback.message}</p> : null}
-        {/* ── Header：品牌 + 右上弱入口（模型接入；Windows 时移到自绘标题栏） ── */}
-        <section className="shrink-0 flex items-start justify-between gap-6 mb-1">
-          <h1 className="flex items-center gap-3 font-nomi-display text-display font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
-            <NomiLogoMark size={28} />
-            <span>
-              <NomiWordmark /> {t('library.wordmarkSuffix')}
-            </span>
-          </h1>
-          {!isWindows ? libraryTopActions : null}
-        </section>
-
-        {/* 进来直接落项目库：空库与有项目走同一套布局（新建空白/打开文件夹 + 最近项目，空库显空态）。
-            产品理念交给开屏动画 + 顶栏「上手」引导，不再来一整屏介绍页。 */}
-        <>
-          {/* ── 主入口：动作卡片（O2 拍板，尺寸/形态/位置三重区隔） ── */}
-          <section className="shrink-0 flex items-center gap-3" aria-label={t('library.startProject')}>
-            <ActionCard
-              variant="primary"
-              icon={<IconPlus size={18} stroke={1.8} />}
-              title={t('library.newBlankProject')}
-              description={t('library.newBlankProjectDescription')}
-              onClick={() => onNewProject()}
-            />
-            {onOpenFolder ? (
-              <ActionCard
-                icon={<IconFolderOpen size={18} stroke={1.6} />}
-                title={t('library.openFolder')}
-                description={t('library.openFolderDescription')}
-                onClick={onOpenFolder}
-              />
-            ) : null}
-            {onPlayJourneyTour ? (
-              <ActionCard
-                icon={<IconPlayerPlay size={18} stroke={1.6} />}
-                title={journeyTourSeen ? t('library.replayGuide') : t('library.watchHow')}
-                description={t('library.watchNomiDescription')}
-                onClick={onPlayJourneyTour}
-              />
-            ) : null}
-          </section>
-
-          {/* ── 缺文本模型 → 状态条升权（模型接入的唯一入口形态） ── */}
-          {textModelMissing && onOpenModelCatalog ? (
-            <section
-              className={cn(
-                'shrink-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3',
-                'border border-nomi-line rounded-nomi bg-nomi-paper shadow-nomi-sm',
-              )}
-              aria-label={t('library.modelStatus')}
-              data-model-banner="true"
-            >
-              <div>
-                <div className="text-body-sm font-semibold text-nomi-ink">{t('library.textModelMissing')}</div>
-                <div className="mt-0.5 text-caption text-nomi-ink-60">
-                  {t('library.textModelMissingHint')}
-                </div>
-              </div>
+        {/* ── 页签行：项目 · Skill · 提示词；项目页签有项目时同一行是筛选、搜索与右上两颗按钮 ── */}
+        <section className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-baseline gap-5" role="tablist" aria-label={t('appShell.library.tabsAria')}>
+            {tabs.map((item) => (
               <button
+                key={item.id}
                 type="button"
-                onClick={onOpenModelCatalog}
-                data-testid="open-model-settings"
+                role="tab"
+                aria-selected={tab === item.id}
+                data-library-tab-button={item.id}
+                onClick={() => setTab(item.id)}
                 className={cn(
-                  'inline-flex items-center h-8 px-4 rounded-pill border-0 cursor-pointer font-inherit',
-                  'bg-nomi-ink text-nomi-paper text-body-sm font-medium transition-colors hover:bg-nomi-accent',
+                  'h-8 border-0 bg-transparent p-0 text-title font-semibold transition-colors',
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nomi-accent',
+                  tab === item.id ? 'text-nomi-ink' : 'text-nomi-ink-40 hover:text-nomi-ink-80',
                 )}
               >
-                {t('library.connectTextModel')}
+                {item.label}
               </button>
-            </section>
-          ) : null}
-
-          {/* ── 最近项目：标题 + 来源筛选（名词，与动作动词区隔）｜搜索同行 ── */}
-          <LibraryDiscoveryToolbar
-            query={query}
-            onQueryChange={setQuery}
-            placeholder={t('library.searchPlaceholder')}
-            ariaLabel={t('library.searchPlaceholder')}
-            searchSize="md"
-            searchClassName="w-[280px] max-w-full flex-none"
-            leading={(
-              <div className="inline-flex items-center gap-8 flex-wrap">
-                <h2 className="m-0 text-caption font-medium text-nomi-ink-60">{t('library.recentProjects')}</h2>
-                <div
-                  className="inline-flex items-center gap-1 p-1 rounded-full border border-nomi-line bg-nomi-paper"
-                  aria-label={t('library.sourceFilter')}
-                >
-                  {sourceOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      aria-pressed={sourceFilter === option.id}
-                      onClick={() => setSourceFilter(option.id)}
-                      className={cn(
-                        'h-7 px-3 rounded-full border-0 bg-transparent text-caption font-medium font-inherit cursor-pointer',
-                        'text-nomi-ink-60 transition-[background,color] duration-150',
-                        sourceFilter === option.id && 'bg-nomi-ink-10 text-nomi-ink',
-                        option.count === 0 && 'text-nomi-ink-30',
-                      )}
-                    >
-                      {option.label} {option.count}
-                    </button>
-                  ))}
-                </div>
+            ))}
+          </div>
+          {tab === 'projects' && !firstRun ? (
+            <>
+              <div
+                className="ml-1 inline-flex h-7 items-center gap-0.5 rounded-pill bg-nomi-ink-05 p-0.5"
+                aria-label={t('library.sourceFilter')}
+              >
+                {sourceOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={sourceFilter === option.id}
+                    onClick={() => setSourceFilter(option.id)}
+                    className={cn(
+                      'inline-flex h-6 items-center gap-1 rounded-pill border-0 bg-transparent px-2.5 text-caption font-inherit cursor-pointer',
+                      'text-nomi-ink-60 transition-[background,color,box-shadow] duration-150 hover:text-nomi-ink',
+                      sourceFilter === option.id && 'bg-nomi-paper font-medium text-nomi-ink shadow-nomi-sm',
+                    )}
+                  >
+                    {option.label}
+                    <span className="tabular-nums text-nomi-ink-40">{option.count}</span>
+                  </button>
+                ))}
               </div>
-            )}
-          />
+              <LibraryDiscoveryToolbar
+                query={query}
+                onQueryChange={setQuery}
+                placeholder={t('library.searchPlaceholder')}
+                ariaLabel={t('library.searchPlaceholder')}
+                searchSize="sm"
+                className="min-w-0 flex-none"
+                searchClassName="w-[200px] max-w-full flex-none"
+              />
+              <span className="flex-1" />
+              <div className="flex shrink-0 items-center gap-2">
+                {onPlayJourneyTour ? (
+                  // 「看一遍怎么做」在 Library 板上只画在空库；有项目后它原来是第三张动作卡——功能不丢，收成一颗文字按钮（设计卡对账：有意不同）。
+                  <button
+                    type="button"
+                    onClick={onPlayJourneyTour}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-transparent px-2.5 text-caption text-nomi-ink-60 transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink"
+                    data-library-tour
+                  >
+                    <IconPlayerPlay size={14} stroke={1.5} aria-hidden="true" />
+                    {journeyTourSeen ? t('library.replayGuide') : t('library.watchHow')}
+                  </button>
+                ) : null}
+                {onOpenFolder ? (
+                  <button
+                    type="button"
+                    onClick={onOpenFolder}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-nomi-paper px-3 text-caption font-medium text-nomi-ink-80 ring-1 ring-nomi-line transition-colors hover:bg-nomi-ink-05 focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent"
+                    data-library-open-folder
+                  >
+                    <IconFolderOpen size={14} stroke={1.5} className="text-nomi-ink-60" aria-hidden="true" />
+                    {t('appShell.library.openFolder')}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onNewProject()}
+                  className="inline-flex h-7 items-center gap-1 rounded-pill border-0 bg-nomi-ink pl-2.5 pr-3.5 text-caption font-medium text-nomi-paper transition-colors hover:bg-nomi-ink-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nomi-accent"
+                  data-library-new-project
+                >
+                  <IconPlus size={14} stroke={1.8} aria-hidden="true" />
+                  {t('appShell.library.newProject')}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </section>
+
+        {tab === 'skills' ? (
+          <React.Suspense fallback={null}>
+            <SkillLibraryContent active showHeader={false} className="min-h-0 flex-1" />
+          </React.Suspense>
+        ) : tab === 'prompts' ? (
+          <React.Suspense fallback={null}>
+            <PromptLibraryContent active showHeader={false} className="min-h-0 flex-1" />
+          </React.Suspense>
+        ) : firstRun ? (
+          // LibraryEmpty 板：第一次打开 = 三张大动作卡（设计系统：起始页 / 空状态用 ActionCard）。
+          <section className="mx-auto flex w-full max-w-[880px] flex-col items-center gap-5 pt-4" data-library-first-run>
+            <div className="text-center">
+              <h1 className="m-0 text-h2 font-semibold text-nomi-ink">{t('library.startProject')}</h1>
+              <p className="m-0 mt-1.5 text-body-sm text-nomi-ink-60">{t('appShell.library.startSubtitle')}</p>
+            </div>
+            {actionCards}
+            {modelBanner ? <div className="w-full">{modelBanner}</div> : null}
+          </section>
+        ) : (
+        <>
+          {modelBanner}
 
           {/* 四态顺序不能变：error → loading → empty。读取失败时 projects 是 fallback []，
               先判空态就会把「读不到」渲染成首启空库引导屏（用户读作「我的项目全没了」）。 */}
@@ -483,7 +492,7 @@ export default function ProjectLibraryPage({
               }
             />
           ) : null}
-          <div className="shrink-0 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+          <div className="shrink-0 grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 min-[1200px]:grid-cols-[repeat(auto-fill,248px)]">
             {filteredProjects.map((project) => {
               const urls = project.thumbnailUrls || (project.thumbnail ? [project.thumbnail] : [])
               return (
@@ -495,11 +504,9 @@ export default function ProjectLibraryPage({
                   // 所以身份要在 DOM 上拿得到——这条 data 属性就是那个锚点。
                   data-project-id={project.id}
                   className={cn(
-                    'group relative bg-nomi-paper border border-nomi-line rounded-nomi-lg overflow-visible text-left',
-                    'transition-[box-shadow,transform,border-color] duration-150',
-                    project.missing
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'cursor-pointer hover:shadow-nomi-md hover:border-nomi-ink-20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-none',
+                    'group relative overflow-visible rounded-panel text-left',
+                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-nomi-accent',
+                    project.missing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
                   )}
                   role={project.missing ? undefined : 'button'}
                   tabIndex={project.missing ? undefined : 0}
@@ -508,7 +515,11 @@ export default function ProjectLibraryPage({
                 >
                   {projectFeedback?.projectId === project.id && projectFeedback.message ? <p role="alert" className="m-0 px-3 py-2 text-caption text-nomi-danger">{projectFeedback.message}</p> : null}
                   <div
-                    className="aspect-video relative overflow-hidden bg-nomi-ink-05"
+                    className={cn(
+                      'aspect-video relative overflow-hidden rounded-panel bg-nomi-ink-05 ring-1 ring-inset ring-nomi-line-soft',
+                      'transition-[box-shadow,transform] duration-150',
+                      !project.missing && 'group-hover:-translate-y-0.5 group-hover:shadow-nomi-md',
+                    )}
                     style={urls.length === 0 && project.thumbStyle ? { background: project.thumbStyle } : undefined}
                   >
                     <ThumbnailMosaic urls={urls} videoUrl={project.coverVideoUrl} />
@@ -558,7 +569,7 @@ export default function ProjectLibraryPage({
                       )}
                     </div>
                   </div>
-                  <div className="px-3 pt-2.5 pb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                  <div className="pt-2.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                     <div className="min-w-0">
                       {editingId === project.id ? (
                         <input
@@ -582,7 +593,7 @@ export default function ProjectLibraryPage({
                       ) : (
                         <div
                           className={cn(
-                            'text-body-sm font-medium text-nomi-ink truncate mb-0.5',
+                            'text-body-sm font-semibold text-nomi-ink truncate mb-0.5',
                             onRenameProject && !project.missing && 'cursor-text',
                           )}
                           title={onRenameProject && !project.missing ? t('library.renameHint') : undefined}
@@ -643,7 +654,16 @@ export default function ProjectLibraryPage({
             })}
           </div>
         </>
+        )}
       </main>
+    </div>
+  )
+  // 10-08 外壳重设计：项目库与项目内同一条 40px 顶栏；项目库不放左栏（Skill / 提示词在上面的页签里）。
+  return (
+    <div className="h-screen w-full bg-nomi-chrome">
+      <ShellFrame topBar={<ShellTopBar workspaceMode={null} onOpenSettings={onOpenSettings} />}>
+        {page}
+      </ShellFrame>
     </div>
   )
 }
