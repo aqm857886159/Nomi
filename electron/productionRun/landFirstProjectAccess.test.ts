@@ -77,6 +77,8 @@ type AppHooks = Readonly<{
   duringHydrate?: (tick: number, window: AppWindow) => void;
   /** 项目认下之后、请渲染层落地之前（host 读 Run 的那一刻）发生的事。 */
   beforeMaterialize?: (window: AppWindow) => void;
+  /** 写回绑定（plan.bind-shot-nodes）的 await 期间发生的事。 */
+  duringBind?: (window: AppWindow) => void;
 }>;
 
 /** 一个只有一个主窗口的 App：它此刻开着哪个项目、用户看不看得见它、第几代。渲染层只在目标项目开着时落得下来。 */
@@ -92,7 +94,11 @@ function app(base: Setup, window: AppWindow, hooks: AppHooks = {}) {
       if (window.openProject === PROJECT && opened.length > 0 && readsAfterOpen++ === 0) hooks.beforeMaterialize?.(window);
       return base.repository.read(projectId, runId);
     },
-    command: async (projectId, runId, command) => base.repository.execute(projectId, runId, command as Parameters<typeof base.repository.execute>[2]),
+    command: async (projectId, runId, command) => {
+      const result = base.repository.execute(projectId, runId, command as Parameters<typeof base.repository.execute>[2]);
+      if ((command as { type?: string }).type === "plan.bind-shot-nodes") hooks.duringBind?.(window);
+      return result;
+    },
     requestRenderer: async (_op, payload) => {
       const wire = payload as MaterializeShotsWirePayload;
       if (window.openProject !== wire.projectId) throw new Error("storyboard_project_changed");
@@ -261,5 +267,30 @@ describe("C′ lease: anything that changes while the hidden window is opening t
 
     expect(payloads).toHaveLength(1);
     expect(base.submit).toHaveBeenCalledTimes(1);
+  });
+});
+
+// 第二轮复审遗漏 1：写回绑定的 await 期间窗口被叫出来——租约在落地写完、绑定写回之后再核一次，失效就这一趟 0 派发、
+// landing_failed；节点已经在画布上（绑定也在），之后「继续 / 再开一次」直接认它再派。租约只管到这里为止（设计卡）。
+describe("C′ lease after the bind is written back", () => {
+  it("the window is shown while the bind is being written → this round sends nothing; the placed node stays and the next start sends exactly once", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: OTHER, hiddenFromUser: true };
+    const { host, payloads } = app(base, window, { hydrateTicks: 2, duringBind: (w) => { w.hiddenFromUser = false; } });
+
+    const first = await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+
+    expect(payloads).toHaveLength(1);
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(first).toMatchObject({ nextAction: "canvas_landing_failed", landingFailure: { code: "landing_lease_revoked" } });
+    const run = base.repository.read(PROJECT, RUN)!;
+    expect(run.stop?.reason).toBe("landing_failed");
+    expect(run.generationPlan!.nodeId).toBe("node-candidate-1");
+
+    // 用户现在看着这个项目（窗口已叫出、项目开着）：再开一次不再落地，认那个已放好的节点直接派。
+    const second = await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+    expect(second).toMatchObject({ nextAction: "observe" });
+    expect(base.submit).toHaveBeenCalledTimes(1);
+    expect(payloads).toHaveLength(1);
   });
 });

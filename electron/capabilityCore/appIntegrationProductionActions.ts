@@ -18,6 +18,7 @@ import { IllegalProductionTransitionError } from '../productionRun/productionRun
 import { ProductionRunControlRefusedError } from '../productionRun/productionRunControl'
 import { retryLiftsStop } from '../productionRun/productionRunLifecycle'
 import { runStopReason } from '../shared/productionRunStop'
+import { shotsAwaitingDispatch } from '../productionRun/shotLandingAdmission'
 import { logError, logWarn } from '../logging/logger'
 
 /** 这个 Run 现在驱动得起来吗；起不来是缺什么（与调度器构造同一份判断：appIntegration.submissionReadinessForRun）。 */
@@ -32,6 +33,11 @@ type ActionDeps = {
   driverReadiness: (run: ProductionRun) => ProductionDriverReadiness
   /** 给这个 Run 的批次调度器一个 tick（已经有一趟在跑就记一笔，收尾时补踢）。 */
   kickScheduler: (projectId: string, runId: string) => void
+  /**
+   * 因为落地失败停下的批次，「继续」那一下先把还没落下的镜落到画布上（与开拍同一个准入点）。返回 null = 全落下了；
+   * 否则逐镜报回（一镜都没落下时这次不继续、如实回「没放到画布上」）。
+   */
+  landBeforeResume?: (projectId: string, runId: string) => Promise<{ allNotPlaced: boolean } | null>
   receiptAuthority?: ApprovalReceiptAuthority
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
 }
@@ -215,6 +221,14 @@ export function createProductionActionHooks(deps: ActionDeps): {
     if (run.status === 'completed' || run.status === 'cancelled') return failed('run_finished')
     const stopReason = runStopReason(run)
     if (stopReason === null && run.status !== 'running') return failed('not_stopped')
+    if (stopReason === 'landing_failed') {
+      // 落地失败停下的那一批（#1139 第二轮复审第 3 条）：继续 = 重落再派，不许只回一个 resumed 却什么都不发生。
+      // 剩下没发的镜节点都被删掉了（detached）→ 制作流程不再派它们，没有可继续的，如实说；
+      // 这一次还是一镜都落不下 → 不继续，如实说「没放到画布上」，再点一次就是重试。
+      if (shotsAwaitingDispatch(run).length === 0) return failed('nothing_to_resume')
+      const landing = await deps.landBeforeResume?.(projectId, runId)
+      if (landing?.allNotPlaced) return failed('canvas_landing_failed')
+    }
     if (stopReason !== null) {
       // 驱动不起来就别把 Run 改成 running——那只会是一次假继续。
       const readiness = deps.driverReadiness(run)

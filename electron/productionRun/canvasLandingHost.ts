@@ -211,7 +211,10 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       // isCurrent 在发 materialize 之前、写回绑定之前各核一次（landCanvasForRunOrThrow）；渲染层自己再按报文里的
       // projectId 核一次它认下的项目（materializeShots 的 binding 栅栏）。
       const landed = await landCanvasForRunOrThrow(run, { ...landingDeps(projectId, run), placeDocumentPlan: true, isCurrent: lease.isCurrent });
-      if (!landed) lease.assertCurrent();
+      // 写回绑定之后再核一次（第二轮复审遗漏 1）：bind 的 await 期间窗口被叫出来 / 项目换了，这一趟就不算落好——
+      // 抛出去，准入点把这几镜记成没落下（这一趟 0 派发、landing_failed）；节点已经在画布上，「继续」时直接认它再派。
+      // 租约只管到「落地写完、绑定写回」为止：之后的派发不看窗口状态（节点已经在画布上，生成那一刻 = 落画布那一刻已经成立）。
+      lease.assertCurrent();
       if (landed && signature) projectedSignature.set(runKey(projectId, runId), signature);
       return landed;
     });

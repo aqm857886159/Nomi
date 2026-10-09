@@ -29,21 +29,22 @@ function shotLabel(locale: "zh-CN" | "en", shot: LandingShotLabel): string {
 }
 
 /**
- * 一批镜头里有的落下了、有的没落下（#1139 B1：按镜头算）。**逐镜**说：哪几镜放到画布上发出了、哪几镜没放上（没发）。
- * 一镜都没发出时才说「这次没有发出生成请求」（交给 landingFailureNotice）。不谈钱。
+ * 开拍那一刻的逐镜说法（#1139 B1：按镜头算）：哪几镜已放到画布、开始生成，哪几镜没放上（没发）。
+ * 这一句在入口当场回——调度器和供应商都还没跑（driveScheduler 是 fire-and-forget），所以**不说「已发出」**（第二轮复审）；
+ * 没放上的那几镜确实 0 派发，「没有发出」那半句是真的。一镜都没放上时才说「这次没有发出生成请求」。不谈钱。
  */
 export function landingOutcomeNotice(
   locale: "zh-CN" | "en",
-  outcome: Readonly<{ sent: readonly LandingShotLabel[]; notPlaced: readonly LandingShotLabel[]; failure: LandingFailureCopyInput }>,
+  outcome: Readonly<{ placed: readonly LandingShotLabel[]; notPlaced: readonly LandingShotLabel[]; failure: LandingFailureCopyInput }>,
 ): string {
-  if (outcome.sent.length === 0) return landingFailureNotice(locale, outcome.failure);
+  if (outcome.placed.length === 0) return landingFailureNotice(locale, outcome.failure);
   const name = outcome.failure.projectName?.trim();
-  const sent = outcome.sent.map((shot) => shotLabel(locale, shot)).join(locale === "en" ? ", " : "、");
+  const placed = outcome.placed.map((shot) => shotLabel(locale, shot)).join(locale === "en" ? ", " : "、");
   const notPlaced = outcome.notPlaced.map((shot) => shotLabel(locale, shot)).join(locale === "en" ? ", " : "、");
   if (locale === "en") {
-    return `${outcome.sent.length} shot(s) were placed on the canvas and sent: ${sent}. ${outcome.notPlaced.length} shot(s) were not placed on the canvas and were not sent: ${notPlaced}. `
+    return `Placed on the canvas and starting to generate ${outcome.placed.length} shot(s): ${placed}. ${outcome.notPlaced.length} shot(s) were not placed on the canvas and were not sent: ${notPlaced}. `
       + `${name ? `Open the project "${name}" in Nomi, then click Continue` : "Click Continue in Nomi"} to retry only the shots that were not sent.`;
   }
-  return `已放到画布并发出 ${outcome.sent.length} 镜：${sent}。有 ${outcome.notPlaced.length} 镜没放到画布上，没有发出：${notPlaced}。`
+  return `已放到画布、开始生成 ${outcome.placed.length} 镜：${placed}。有 ${outcome.notPlaced.length} 镜没放到画布上，没有发出：${notPlaced}。`
     + `${name ? `在 Nomi 里打开项目「${name}」后点「继续」` : "在 Nomi 里点「继续」"}，只会重试没发出的这几镜。`;
 }

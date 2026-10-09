@@ -629,6 +629,7 @@ export async function startCapabilityCore(
         return readiness.ready ? 'ready' : readiness.missing
       },
       kickScheduler: kickSchedulerForRun,
+      landBeforeResume: (projectId, runId) => landBatchBeforeKick({ repository: generationService.repository, landShots: canvasLanding.landBeforeDispatch, projectId, runId }),
       receiptAuthority: defaults.approvalReceiptAuthority,
       confirmGenerationInNomi: defaults.confirmGenerationInNomi,
     })

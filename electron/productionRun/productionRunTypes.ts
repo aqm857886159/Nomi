@@ -543,6 +543,7 @@ export type ProductionShotActionFailure =
   | "plan_not_submitted" // 方案还没开拍
   | "ledger_write_failed" // 写不进项目记录（磁盘满 / 没有写入权限）
   | "canvas_landing_failed" // 没放到画布上，这次没有发出生成请求（先落节点、再发请求）
+  | "nothing_to_resume" // 剩下没发的镜，节点都已从画布上删掉：这一批没有可以继续的
   | "internal_error"; // Nomi 自己的 bug（不变量断言没过）
 
 /** 返工 / 续拍的结构化结果（appIntegration 编排 → IPC → 渲染层）。declined = 用户在确认框里说了不，不扣费、不报错。 */

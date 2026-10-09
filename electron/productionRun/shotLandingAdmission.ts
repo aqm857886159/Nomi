@@ -13,7 +13,7 @@
 import { logWarn } from "../logging/logger";
 import { isStoppedRunStatus, runStopReason } from "../shared/productionRunStop";
 import type { ProductionRun } from "./productionRunTypes";
-import { latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
+import { isUnsubmittedJobStatus, jobMayHaveReachedProvider, latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
 import type { ProductionRunRepository } from "./productionRunRepository";
 
 declare const landedShotAdmissionBrand: unique symbol;
@@ -146,7 +146,10 @@ export async function admitShotsForDispatch(input: Readonly<{
   let run = readRun();
   const addresses = [...new Set(input.shotIds.map((shotId) => shotAddress(run, shotId)).filter((address): address is string => Boolean(address)))];
   let landingFailure: LandingFailure | undefined;
-  if (addresses.some((address) => !landedNodeOf(run, address))) {
+  // 这一次要落的镜。落地器抛了（包括写回绑定之后租约才失效的那一种），这几镜这一趟一律算没落下——
+  // 哪怕绑定已经写进了 Run：落地没在租约之内完成，就不派（下一次「继续」认那个已绑的节点再派）。
+  const needed = new Set(addresses.filter((address) => !landedNodeOf(run, address)));
+  if (needed.size > 0) {
     try {
       await input.land(input.projectId, input.runId);
     } catch (error) {
@@ -158,7 +161,7 @@ export async function admitShotsForDispatch(input: Readonly<{
   const admitted = new Map<string, LandedShotAdmission>();
   const unlanded: string[] = [];
   for (const address of addresses) {
-    const nodeId = landedNodeOf(run, address);
+    const nodeId = landingFailure && needed.has(address) ? undefined : landedNodeOf(run, address);
     if (nodeId) admitted.set(address, admissionFor(run, address, nodeId));
     else unlanded.push(address);
   }
@@ -169,13 +172,13 @@ export async function admitShotsForDispatch(input: Readonly<{
 export type LandingShotRef = Readonly<{ shotId: string; index: number; title?: string }>;
 
 export type ShotLandingFacts = Readonly<{
-  /** 已经交出去（或交过）的镜：最新一次尝试走过了「已授权」。 */
+  /** 可能已经到过供应商的镜（唯一判据 jobMayHaveReachedProvider：没写出去 / 当场被拒 / 同意过期没发的都不算）。 */
   sent: readonly LandingShotRef[];
-  /** 批过、还没交、画布上也没有节点的镜：这一批里「没放到画布上、没有发出」的那几镜。 */
+  /** 批过、还没交、画布上也没有节点的镜：这一批里「没放到画布上、没有发出」的那几镜（「继续」会重落再派）。 */
   notPlaced: readonly LandingShotRef[];
+  /** 节点被用户从画布上删掉了（记着 detached）的没发的镜：这一批不再派它们，「继续」也不会（删除事实优先）。 */
+  removed: readonly LandingShotRef[];
 }>;
-
-const NOT_YET_SENT: ReadonlySet<string> = new Set(["planned", "authorization_required", "authorized"]);
 
 /**
  * 一批里哪几镜发出了、哪几镜没放到画布上（#1139 B1：按镜头算，不整批说）。只读耐久 Run，回执、Agent 读 Run、
@@ -183,18 +186,20 @@ const NOT_YET_SENT: ReadonlySet<string> = new Set(["planned", "authorization_req
  */
 export function shotLandingFacts(run: ProductionRun): ShotLandingFacts {
   const plan = run.generationPlan;
-  if (!plan) return { sent: [], notPlaced: [] };
+  if (!plan) return { sent: [], notPlaced: [], removed: [] };
   const shots = plan.shots && plan.shots.length > 0
     ? plan.shots.filter(shotIncluded).map((shot, index) => ({ shotId: shot.shotId, index: index + 1, ...(shot.title?.trim() ? { title: shot.title.trim() } : {}) }))
     : [{ shotId: plan.candidate.candidateId, index: 1 }];
   const sent: LandingShotRef[] = [];
   const notPlaced: LandingShotRef[] = [];
+  const removed: LandingShotRef[] = [];
   for (const shot of shots) {
     const job = latestJobForShot(run, shot.shotId) ?? (plan.shots?.length ? undefined : run.jobs[run.jobs.length - 1]);
-    if (job && !NOT_YET_SENT.has(job.status)) sent.push(shot);
+    if (job && jobMayHaveReachedProvider(job)) sent.push(shot);
+    else if (shotRemovedFromCanvas(run, shot.shotId)) removed.push(shot);
     else if (!landedNodeOf(run, shot.shotId)) notPlaced.push(shot);
   }
-  return { sent, notPlaced };
+  return { sent, notPlaced, removed };
 }
 
 /** 这几镜在计划里的称呼（序号按勾进这一批的镜数，与 shotLandingFacts 同一套）。 */
@@ -208,11 +213,22 @@ export function landingShotRefs(run: ProductionRun, shotIds: readonly string[]):
   });
 }
 
-/** 这一批里批过、还没交的镜（有任务、最新一次还停在已授权之前）——开拍那一刻要先落画布、随后要派的就是它们。 */
+/** 用户把这一镜的节点从画布上删掉了（Run 记着 detached）：制作流程不再派它（认领判据 canvas_detached），也不会替他再落。 */
+export function shotRemovedFromCanvas(run: Pick<ProductionRun, "generationPlan">, shotId: string): boolean {
+  const plan = run.generationPlan;
+  if (!plan) return false;
+  if (!plan.shots || plan.shots.length === 0) return plan.canvasDetached === true && plan.candidate.candidateId === shotId;
+  return plan.shots.some((shot) => shot.shotId === shotId && shot.canvasDetached === true);
+}
+
+/**
+ * 这一批里批过、还没交、制作流程还会派的镜（有任务、最新一次还停在已授权之前、节点没被用户删掉）——
+ * 开拍 / 继续那一刻要先落画布、随后要派的就是它们。
+ */
 export function shotsAwaitingDispatch(run: ProductionRun): string[] {
   const shots = run.generationPlan?.shots ?? [];
-  return shots.filter(shotIncluded).map((shot) => shot.shotId).filter((shotId) => {
+  return shots.filter(shotIncluded).map((shot) => shot.shotId).filter((shotId) => !shotRemovedFromCanvas(run, shotId)).filter((shotId) => {
     const job = latestJobForShot(run, shotId);
-    return Boolean(job && NOT_YET_SENT.has(job.status));
+    return Boolean(job && isUnsubmittedJobStatus(job.status));
   });
 }

@@ -42,7 +42,11 @@ import { decideGenerationSpend } from "./generationSpendDecision";
 import { productionShotActionFailureOf } from "./appIntegrationProductionActions";
 import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised } from "../shared/contracts/pendingSpendConfirm";
 import { cardActionsSettled, serializeCardAction } from "./spendCardActionQueue";
+
 import { admitShotsForDispatch, type LandShotsOnCanvas } from "../productionRun/shotLandingAdmission";
+
+/** 让出一拍事件循环：排在这之前到达的 IPC（比如 ×）先处理完。 */
+const yieldToIncomingActions = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 type RunReader = Readonly<{
   read(projectId: string, runId: string): ProductionRun | null;
@@ -545,7 +549,11 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       }
       const seen = new Map(onCard.map((shotId) => [shotId, shownShot(pending, shotId)]));
       let sent = 0;
-      for (const shotId of input.shotIds) {
+      for (const [index, shotId] of input.shotIds.entries()) {
+        // 两张之间先让出一拍事件循环（#1139 CI eval:journey）：× 是另一条 IPC，主进程空出一拍才处理得到。以前每批一张都要
+        // 等一次渲染层落地（真 I/O），这一拍是碰巧有的；节点先落之后这一叠全是微任务，× 要等整叠批完才轮得到——停不下来。
+        // 让一拍之后再看卡还在不在：× 到了就停在这里，之后没批的一张都不再生成。
+        if (index > 0) await yieldToIncomingActions();
         const current = pendingFor(input.projectId, input.operationId);
         // 卡已经关了（用户点了 ×，或宿主把这一次出价收回了）：剩下的没决定，不再生成。照实说批下去几张、没发几张。
         if (!current || !current.shots.some((shot) => shot.shotId === shotId)) {

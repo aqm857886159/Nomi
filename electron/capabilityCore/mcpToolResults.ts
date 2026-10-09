@@ -60,10 +60,17 @@ function landingHint(value: Record<string, unknown>): (typeof STOP_REASON_HINT)[
   const sent = Array.isArray(landing.sent) ? (landing.sent as LandingRef[]) : null
   const notPlaced = Array.isArray(landing.notPlaced) ? (landing.notPlaced as LandingRef[]) : null
   if (!sent || !notPlaced) return null
+  const removed = Array.isArray(landing.removed) ? (landing.removed as LandingRef[]) : []
   const label = (ref: LandingRef, en: boolean) => typeof ref.title === 'string' && ref.title
     ? (en ? `"${ref.title}"` : `「${ref.title}」`)
     : (en ? `shot ${String(ref.index ?? '?')}` : `第 ${String(ref.index ?? '?')} 镜`)
   const list = (refs: LandingRef[], en: boolean) => refs.map((ref) => label(ref, en)).join(en ? ', ' : '、')
+  // 剩下没发的镜节点都被用户删掉了：制作流程不再派它们，「继续」也不会——如实说，别让 Agent 叫用户去点一个没用的继续。
+  if (sent.length === 0 && notPlaced.length === 0 && removed.length > 0) {
+    return { ...STOP_REASON_HINT.landing_failed, zh: '没发出的镜头节点已从画布上删掉', en: 'the unsent shots were deleted from the canvas',
+      nextZh: `没有发出、节点也已从画布上删掉：${list(removed, false)}。这一批不会再生成它们；要生成请用户在画布上直接生成那一镜`,
+      nextEn: `Not sent and deleted from the canvas: ${list(removed, true)}. This batch will not generate them; ask the user to generate that shot directly on the canvas`, action: 'ask_user_to_generate_on_canvas' }
+  }
   if (sent.length === 0) {
     return { ...STOP_REASON_HINT.landing_failed, zh: '没放到画布上', en: 'not placed on the canvas',
       nextZh: '没放到画布上，这次没有发出生成请求。请用户在 Nomi 里打开这个项目，再点一下「继续」重试',

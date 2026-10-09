@@ -356,6 +356,8 @@ export async function landCanvasForRunOrThrow(run: ProductionRun, deps: CanvasLa
   if (bindings.length > 0) {
     if (deps.isCurrent && !deps.isCurrent()) return false;
     await deps.bindShotNodes(run.projectId, run.runId, run.revision, bindings);
+    // bind 的 await 期间生命周期变了（派发前落地的项目租约失效）：如实回「没落好」，由调用方决定怎么处置。
+    if (deps.isCurrent && !deps.isCurrent()) return false;
   }
   return true;
 }

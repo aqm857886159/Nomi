@@ -92,6 +92,8 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
     const submits: string[] = [];
     let closeAfterFirst = true;
     let discarding: Promise<unknown> | undefined;
+    // (#1139 CI eval:journey 红：zh「× 真的停下了」6 张全发) 这一条把 × 在动作里面等着，所以从来测不到那种红——
+    // 真的 × 是另一条 IPC，只有主进程事件循环空出一拍才处理得到。下一条测试照真样子来。
     const built = buildActions(base, vendor.origin, submits, {
       // × 从 IPC 来，不在这一下动作的里面被等着：发出去、等卡关上，就让这一镜接着走完。
       afterAuthorize: async () => {
@@ -117,6 +119,47 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
         generating: ["shot-1"],
         undecided: [{ shotId: "shot-2", reason: "user_closed" }, { shotId: "shot-3", reason: "user_closed" }],
       });
+    } finally {
+      await vendor.close();
+    }
+  });
+
+  // #1139 CI eval:journey（zh「× 真的停下了」6 张全发）：× 是另一条 IPC，主进程得空出一拍才处理得到。
+  // 以前每批一张都要等一次渲染层落地（真 I/O），那一拍是碰巧有的；落地前移之后节点已在画布上，这一叠全是微任务，
+  // × 要等六张全批完才轮得到。这里不在动作里等 ×，只在第 1 张批下之后把它排成下一拍到来的 IPC。
+  it("× arrives as a separate IPC after the 1st approval (not awaited inside the action): the batch stops, sent < total and equals what was approved before ×", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    let approvedBeforeStop = -1;
+    let discarding: Promise<unknown> | undefined;
+    let armed = true;
+    const built = buildActions(base, vendor.origin, submits, {
+      // 与真 App 同形：批下之后派发是另起的（调度器 fire-and-forget），这一下动作里没有任何真 I/O。
+      holdDispatch: () => true,
+      afterAuthorize: async () => {
+        if (!armed) return;
+        armed = false;
+        setImmediate(() => {
+          const open = built.withWindow.listPendingSpend(PROJECT_ID)[0];
+          if (!open) return;
+          approvedBeforeStop = 6 - open.shots.length;
+          discarding = built.withWindow.discardPendingSpend({ ...TARGET, quoteId: open.quoteId });
+        });
+      },
+    });
+    const { withWindow, handler } = built;
+    try {
+      await imageDraft(base, handler, 6);
+      const card = withWindow.listPendingSpend(PROJECT_ID)[0];
+      advanceClock(1000);
+      const result = await withWindow.confirmRemainingShots({ ...TARGET, quoteId: card.quoteId, shotIds: card.shots.map((shot) => shot.shotId) });
+      await discarding;
+      const outcome = generationPresentationOutcome(base.repository.read(PROJECT_ID, OPERATION_ID)!)!;
+      expect(approvedBeforeStop, "× 真的在批完之前到了").toBeGreaterThan(0);
+      expect(outcome.generating.length, "× 之后没批的不再生成").toBeLessThan(6);
+      expect(outcome.generating.length, "批下的就是 × 到之前批下的那几张").toBe(approvedBeforeStop);
+      expect(result).toMatchObject({ ok: true, batchStopped: { sent: approvedBeforeStop, notSent: 6 - approvedBeforeStop } });
     } finally {
       await vendor.close();
     }

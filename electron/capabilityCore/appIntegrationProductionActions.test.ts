@@ -60,6 +60,8 @@ type SetupOptions = {
   project?: WorkspaceProjectRecordV2 | null;
   /** 项目此刻的版本（Run 服务的收据核对读它）。缺省恒为 0。 */
   projectRevision?: () => number;
+  /** 落地失败停下的批次「继续」那一下先落画布（生产里是 landBatchBeforeKick）。 */
+  landBeforeResume?: (projectId: string, runId: string) => Promise<{ allNotPlaced: boolean } | null>;
 };
 
 /** 批过的付费门上记的「谁续过同意」（付费卡① 第 13 条）。 */
@@ -68,7 +70,7 @@ const renewedBy = (repository: ReturnType<typeof createProductionRunRepository>)
   .map((gate) => gate.consentRenewedBy);
 
 /** 两镜整批已确认、已提交、已开跑（running），还没有一镜交给供应商。 */
-function setup({ withReceipts = false, providers = [provider], readiness = "ready", project, projectRevision = () => 0 }: SetupOptions = {}) {
+function setup({ withReceipts = false, providers = [provider], readiness = "ready", project, projectRevision = () => 0, landBeforeResume }: SetupOptions = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-production-actions-"));
   roots.push(root);
   const repository = createProductionRunRepository({ projectDirResolver: (projectId) => (projectId === PROJECT ? root : null), now });
@@ -112,6 +114,7 @@ function setup({ withReceipts = false, providers = [provider], readiness = "read
     resolveShotPrice: () => ({ known: false }),
     driverReadiness: () => readiness,
     kickScheduler,
+    ...(landBeforeResume ? { landBeforeResume } : {}),
     ...(withReceipts ? { receiptAuthority: receipts, confirmGenerationInNomi } : {}),
   });
   return { repository, service, hooks, kickScheduler, confirmGenerationInNomi };
@@ -312,5 +315,46 @@ describe("失败归类：只认源头的类型与系统错误码，认不出的�
 
   it("英文原话里带着「revision conflict」也不算：只认类型", () => {
     expect(productionShotActionFailureOf(new Error("Production run revision conflict: expected 1, actual 2"))).toBe("internal_error");
+  });
+});
+
+// #1139 第二轮复审第 3 条（V-1139b 记录）：落地失败停下的批次，「继续」不许只回一个 resumed 却什么都不发生。
+describe("「继续」一批因为落地失败停下的镜：说的就是会发生的", () => {
+  it("这一次还是一镜都落不下：不继续，如实回「没放到画布上」，调度器不踢", async () => {
+    const landBeforeResume = vi.fn(async () => ({ allNotPlaced: true }));
+    const { repository, hooks, kickScheduler } = setup({ landBeforeResume });
+    stop(repository, "needs_attention", "landing_failed");
+
+    await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: false, code: "failed", failure: "canvas_landing_failed" });
+    expect(landBeforeResume).toHaveBeenCalledTimes(1);
+    expect(kickScheduler).not.toHaveBeenCalled();
+    expect(repository.read(PROJECT, RUN)).toMatchObject({ status: "needs_attention", stop: { reason: "landing_failed" } });
+  });
+
+  it("V-1139b 那一种：剩下没发的那一镜节点已被删掉（detached）——制作流程不会再派它，如实回「没有可继续的」，不落、不踢", async () => {
+    const landBeforeResume = vi.fn(async () => null);
+    const { repository, hooks, kickScheduler } = setup({ landBeforeResume });
+    let run = repository.read(PROJECT, RUN)!;
+    const job1 = run.jobs.find((job) => job.metadata?.shotId === "shot-1")!;
+    for (const status of ["submit_intent_persisted", "submitting", "provider_accepted", "polling", "downloading", "validating_technical", "validating_content", "ready"] as const) {
+      run = repository.execute(PROJECT, RUN, { commandId: `job1-${status}`, expectedRevision: run.revision, type: "job.status", payload: { jobId: job1.jobId, status }, issuedAt: now() }).run;
+    }
+    run = repository.execute(PROJECT, RUN, { commandId: "bind-2", expectedRevision: run.revision, type: "plan.bind-shot-nodes", payload: { bindings: [{ shotId: "shot-2", nodeId: "node-2" }] }, issuedAt: now() }).run;
+    repository.execute(PROJECT, RUN, { commandId: "detach-2", expectedRevision: run.revision, type: "plan.detach-shot-nodes", payload: { nodeIds: ["node-2"] }, issuedAt: now() });
+    stop(repository, "needs_attention", "landing_failed");
+
+    await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: false, code: "failed", failure: "nothing_to_resume" });
+    expect(landBeforeResume).not.toHaveBeenCalled();
+    expect(kickScheduler).not.toHaveBeenCalled();
+  });
+
+  it("对照：这一次落下了 → 照常继续、踢调度器", async () => {
+    const landBeforeResume = vi.fn(async () => null);
+    const { repository, hooks, kickScheduler } = setup({ landBeforeResume });
+    stop(repository, "needs_attention", "landing_failed");
+
+    await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: true, code: "resumed" });
+    expect(landBeforeResume).toHaveBeenCalledTimes(1);
+    expect(repository.read(PROJECT, RUN)!.status).toBe("running");
   });
 });

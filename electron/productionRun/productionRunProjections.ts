@@ -32,7 +32,7 @@ export type ProductionRunProjection = {
   /** 停着时停下的原因（Run 在停下那一刻记下的事实，经 runStopReason 读）；没停 = null；上一版停下没记 = 'unknown'。 */
   stopReason: ReturnType<typeof runStopReason>
   /** 停在 landing_failed 时：逐镜哪几镜发出了、哪几镜没放到画布上（#1139 B1，按镜头算）。 */
-  landing?: { sent: LandingRefProjection[]; notPlaced: LandingRefProjection[] }
+  landing?: { sent: LandingRefProjection[]; notPlaced: LandingRefProjection[]; removed: LandingRefProjection[] }
   stageId: string
   playbook: ProductionRun['playbook']
   origin: ProductionRun['origin']
@@ -179,9 +179,9 @@ export function eventProjection(event: RunEvent): ProductionEventProjection {
   }
 }
 
-function landingProjection(run: ProductionRun): { sent: LandingRefProjection[]; notPlaced: LandingRefProjection[] } {
+function landingProjection(run: ProductionRun): { sent: LandingRefProjection[]; notPlaced: LandingRefProjection[]; removed: LandingRefProjection[] } {
   const facts = shotLandingFacts(run)
   const safe = (ref: { shotId: string; index: number; title?: string }): LandingRefProjection =>
     ({ shotId: safeShotId(ref.shotId) ?? '', index: ref.index, ...(ref.title ? { title: safeExternalText(ref.title) } : {}) })
-  return { sent: facts.sent.map(safe), notPlaced: facts.notPlaced.map(safe) }
+  return { sent: facts.sent.map(safe), notPlaced: facts.notPlaced.map(safe), removed: facts.removed.map(safe) }
 }

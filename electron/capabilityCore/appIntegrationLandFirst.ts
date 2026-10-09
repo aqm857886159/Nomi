@@ -44,7 +44,7 @@ export type BatchLandingReport = Readonly<{
   shotsPlaced: readonly string[];
   shotsNotPlaced: readonly string[];
   landingFailure: { code: string; projectId: string; projectName?: string };
-  /** 逐镜那一句（落下并发出哪几镜、没放上没发哪几镜）；一镜都没发时才说「这次没有发出生成请求」。 */
+  /** 逐镜那一句（已放到画布、开始生成哪几镜；没放上没发哪几镜）；一镜都没放上时才说「这次没有发出生成请求」。不说「已发出」。 */
   notice: string;
 }>;
 
@@ -71,6 +71,6 @@ export async function landBatchBeforeKick(input: Readonly<{
     shotsPlaced,
     shotsNotPlaced: outcome.unlanded,
     landingFailure,
-    notice: landingOutcomeNotice(desktopNoticeLocale(), { sent: landingShotRefs(after, shotsPlaced), notPlaced: landingShotRefs(after, outcome.unlanded), failure: landingFailure }),
+    notice: landingOutcomeNotice(desktopNoticeLocale(), { placed: landingShotRefs(after, shotsPlaced), notPlaced: landingShotRefs(after, outcome.unlanded), failure: landingFailure }),
   };
 }
