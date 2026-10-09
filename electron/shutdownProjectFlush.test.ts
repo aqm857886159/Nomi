@@ -66,7 +66,6 @@ function harness(options: { renderer?: "answers" | "silent"; windows?: Array<"an
 describe("OS session end silently saves the project", () => {
   let projectsRoot = "";
   let settingsRoot = "";
-  let prev: Array<string | undefined> = [];
   let projectId = "";
   let saveSpy: ReturnType<typeof vi.fn>;
   let dispose: () => Promise<void>;
@@ -74,11 +73,10 @@ describe("OS session end silently saves the project", () => {
   beforeEach(() => {
     Object.assign(globalThis, { window: { addEventListener: vi.fn(), removeEventListener: vi.fn() } });
     resetQuitTeardownForTests();
-    prev = [process.env.NOMI_PROJECTS_DIR, process.env.NOMI_SETTINGS_DIR];
     projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-shutdown-proj-"));
     settingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-shutdown-set-"));
-    process.env.NOMI_PROJECTS_DIR = projectsRoot;
-    process.env.NOMI_SETTINGS_DIR = settingsRoot;
+    vi.stubEnv("NOMI_PROJECTS_DIR", projectsRoot);
+    vi.stubEnv("NOMI_SETTINGS_DIR", settingsRoot);
     projectId = createProject({ name: "shutdown-save" }).id;
     saveSpy = vi.fn(async (id: string, payload: unknown) => saveProject(id, { ...readProject(id)!, payload }) as never);
     dispose = subscribeWorkbenchProjectPersistence({
@@ -89,8 +87,6 @@ describe("OS session end silently saves the project", () => {
   afterEach(async () => {
     await dispose().catch(() => undefined);
     bridge.current = null;
-    if (prev[0] === undefined) delete process.env.NOMI_PROJECTS_DIR; else process.env.NOMI_PROJECTS_DIR = prev[0];
-    if (prev[1] === undefined) delete process.env.NOMI_SETTINGS_DIR; else process.env.NOMI_SETTINGS_DIR = prev[1];
     fs.rmSync(projectsRoot, { recursive: true, force: true });
     fs.rmSync(settingsRoot, { recursive: true, force: true });
   });
