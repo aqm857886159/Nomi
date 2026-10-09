@@ -12,12 +12,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 const guard = path.join(path.dirname(fileURLToPath(import.meta.url)), 'walkthrough-network-guard.cjs')
 const temps = []
 
-function runGuarded(code) {
+function runGuarded(code, extraEnv = {}) {
   const dir = makeTempDir('nomi-net-guard-')
   temps.push(dir)
   const log = path.join(dir, 'net.jsonl')
   const result = spawnSync(process.execPath, ['-r', guard, '-e', code], {
-    env: { ...process.env, NOMI_WALK_NET_LOG: log, HTTPS_PROXY: '', HTTP_PROXY: '', ALL_PROXY: '', https_proxy: '', http_proxy: '', all_proxy: '' },
+    env: { ...process.env, NOMI_WALK_NET_LOG: log, HTTPS_PROXY: '', HTTP_PROXY: '', ALL_PROXY: '', https_proxy: '', http_proxy: '', all_proxy: '', ...extraEnv },
     encoding: 'utf8',
   })
   const entries = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []
@@ -34,6 +34,15 @@ describe('walkthrough network guard', () => {
     const loaded = entries.filter((entry) => entry.kind === 'guard-loaded')
     expect(loaded).toHaveLength(1)
     expect(loaded[0].layers).toEqual(expect.arrayContaining(['fetch', 'http', 'https', 'socket']))
+  })
+
+  it('NOMI_WALK_ALLOW_ORIGINS lets exactly the authorised provider through (paid real-model walks) and still blocks everything else', () => {
+    const { entries } = runGuarded(`
+      fetch('https://allowed.invalid/v1/chat/completions', { method: 'POST', body: '{}' }).catch(() => undefined)
+        .then(() => fetch('https://other.invalid/v1/x')).catch(() => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1' })
+    const blocked = entries.filter((entry) => entry.kind === 'blocked')
+    expect(blocked.map((entry) => entry.host)).toEqual(['other.invalid'])
   })
 
   it('blocks fetch to a public host and records who called it', () => {

@@ -8,6 +8,8 @@ import { createDirectorStore } from './model/directorStore'
 import { createDefaultScene } from './model/directorProject'
 import { useAiSceneBuilder } from './useAiSceneBuilder'
 import { importWorkbenchLocalAssetFile } from '../../../api/assetUploadApi'
+import { getTextBrain } from '../../../api/promptLibraryApi'
+import { toast } from '../../../../ui/toast'
 import { createProjectCanvasReadSurfaceCoordinator, registerProjectCanvasReadSurfaceCoordinator } from '../../../project/projectCanvasReadSurface'
 import type { CanvasReadSurfaceBridge } from '../../../../../electron/shared/surfacePortBinding'
 
@@ -51,6 +53,20 @@ beforeEach(async () => {
   await openProject('project-a')
 })
 afterEach(() => { unregister(); vi.unstubAllGlobals() })
+
+describe('AI scene text model (spending path)', () => {
+  it('asks for the Agent-chosen model strictly and shows the real error instead of swallowing it', async () => {
+    vi.stubGlobal('window', { localStorage: { getItem: () => '1' }, setInterval: () => 1, clearInterval: () => {} })
+    const store = createDirectorStore({ defaultSceneName: 'S1' })
+    let builder!: ReturnType<typeof useAiSceneBuilder>
+    function Host() { builder = useAiSceneBuilder(); return null }
+    renderToString(React.createElement(DirectorStoreContext.Provider, { value: store }, React.createElement(Host)))
+    vi.mocked(getTextBrain).mockRejectedValueOnce(new Error('No usable text model: the model chosen in the Agent panel (b/gone) is unavailable. Enable it in Settings → Models.'))
+    await expect(builder.run('cafe', [], 'current_layer')).resolves.toBe(false)
+    expect(getTextBrain).toHaveBeenCalledWith({ strict: true })
+    expect(toast).toHaveBeenCalledWith('director.ai.failedWithReason', 'error')
+  })
+})
 
 describe('AI scene request ownership (real hook callbacks)', () => {
   it('result stays in the scene selected when the request started', async () => {
