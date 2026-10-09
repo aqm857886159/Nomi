@@ -7,10 +7,13 @@
 // 和视觉基线道不同，几何不随字体栅格化变，所以**所有平台都跑**（CI 的 linux 也跑）。
 //
 // 用法：node tests/ux/design-lab/popupGeometry.census.mjs   （SCREEN=node-quick-actions 只跑一屏）
+//       node tests/ux/design-lab/popupGeometry.census.mjs --shard 2/4   （CI 分片：只量计划分给第 2 片的格，计划见 scripts/lib/e2eShardPlan.mjs）
 import { chromium } from 'playwright'
 import { spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
-import { LAB_SCREEN_IDS, readLabStates, REPO_ROOT } from './labStates.mjs'
+import { REPO_ROOT } from './labStates.mjs'
+import { listMeasurableTargets, listViewportTargets, staleUnmeasurableKeys, UNMEASURABLE } from './popupGeometryTargets.mjs'
+import { censusCellsForShard, parseShardArg } from '../../../scripts/lib/e2eShardPlan.mjs'
 import { assertLabPortOwnership, labOriginFor } from './labServer.mjs'
 import { probePopupGeometry } from './popupGeometry.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
@@ -26,26 +29,19 @@ const ONLY_SCREEN = process.env.SCREEN || ''
 const DIRECTOR_SCREENS = new Set(['director-3dbox', 'director-refine'])
 const VIEWPORT = { width: 1440, height: 1000 }
 
-/**
- * 量不了的格（写明为什么；格子改名 / 删掉时这里没跟上就当场红，豁免不许过期留着）。
- * 只收「这一格在 headless 软渲染下到不了就绪」这一种，不收「量出来压住了」——那是要修的。
- */
-const UNMEASURABLE = Object.freeze({
-  // 3D 精修：脚本步骤（选中侍卫的片段）要等 WebGL 场景与片段轨道加载，CI 的软渲染与慢机器上 60 秒内到不了就绪
-  // （CI #1051 与本机各超时一次）；这一格画的是导演台片段轨道，没有浮条下拉。
-  'director-refine/d3a-clip-zh': '3D 精修脚本步骤在 headless 软渲染下到不了就绪；格内没有浮条下拉',
-})
-
-const allTargets = LAB_SCREEN_IDS
-  .filter((screen) => !ONLY_SCREEN || screen === ONLY_SCREEN)
-  .flatMap((screen) => readLabStates(screen).filter((state) => state.capture === 'viewport').map((state) => ({ screen, state })))
-const known = new Set(LAB_SCREEN_IDS.flatMap((screen) => readLabStates(screen).map((state) => `${screen}/${state.id}`)))
-const staleExemptions = Object.keys(UNMEASURABLE).filter((key) => !known.has(key))
+const staleExemptions = staleUnmeasurableKeys()
 if (staleExemptions.length) throw new Error(`弹层几何普查的豁免指向不存在的格（改名或删了，把豁免一起删掉）：${staleExemptions.join('、')}`)
-const targets = allTargets.filter(({ screen, state }) => !UNMEASURABLE[`${screen}/${state.id}`])
-for (const { screen, state } of allTargets) {
+for (const { screen, state } of listViewportTargets(ONLY_SCREEN)) {
   const why = UNMEASURABLE[`${screen}/${state.id}`]
   if (why) console.log(`  ↷ ${screen}/${state.id}：不量（${why}）`)
+}
+const shardFlag = process.argv.indexOf('--shard')
+const shard = shardFlag === -1 ? null : parseShardArg(process.argv[shardFlag + 1])
+const assigned = shard ? new Set(censusCellsForShard(shard.index, shard.total)) : null
+const targets = listMeasurableTargets(ONLY_SCREEN).filter(({ screen, state }) => !assigned || assigned.has(`${screen}/${state.id}`))
+if (!targets.length && shard) {
+  console.log(`第 ${shard.index}/${shard.total} 片没有分到要量的格，直接通过。`)
+  process.exit(0)
 }
 if (!targets.length) throw new Error(`没有要量的格（SCREEN=${ONLY_SCREEN || '全部'}）`)
 
