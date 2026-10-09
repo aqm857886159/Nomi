@@ -8,13 +8,12 @@
 // 在哪些改动下才需要跑」。
 //
 // 三条边界（写死，别靠猜）：
-//   · 没有绕过开关。--only 只是把跑的范围缩到你点名的几项（重跑失败项用），点名的项失败照样拦；
-//     不认识的名字当场报错，不会静默变成「什么都没跑」。
+//   · 没有绕过开关，也没有任何让门岗集合变小的参数：入口只认 --list，其余参数（含空值）一律报错退出。
 //   · 取不到 origin/main = 全部门岗都跑（宁可多跑，不拿算不出来当通过）。
 //   · 超过 60 秒的门岗不放进推送前（见 SLOW_GATES），它们仍在 CI 的 Contracts 里；清单和理由写在下面。
 //
 // 用法（钩子自动调；手动重跑同一套）：
-//   node scripts/pre-push-contracts.mjs [--only=check:filesize,lint:changed] [--list]
+//   node scripts/pre-push-contracts.mjs [--list]
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -88,15 +87,21 @@ export function parsePushRefs(text) {
 const ZERO_SHA = /^0+$/
 
 /**
- * 这次推送要不要判：只推 tag / 删分支 = 没有新内容，不判；推的分支提交 ≠ 当前 HEAD = 判不了（门岗只会看当前这棵树）→ 拦。
- * 返回 { check: boolean, reason? }。
+ * 这次推送要不要判。依据是「远端 ref + 本地 SHA」，不看 localRef 的写法（`HEAD:refs/heads/x` 的 localRef 就是 HEAD）：
+ *   · 本地 SHA 为零 = 删除 → 跳过（没有新内容）；
+ *   · 远端是 refs/heads/* → 一定判；
+ *   · 其余（tag 等）→ 判，除非要推的 SHA 已在 origin/main 里（inMain(sha) 为真）；
+ *   · 凡是要判的，SHA 必须等于当前工作树 HEAD——门岗跑的是工作树，不一致就拒绝（fail-closed），不是放行。
+ * 没有任何 ref 行（手动重跑）= 判当前 HEAD。返回 { check, reason?, blocked? }。
  */
-export function pushDecision(refs, headSha) {
-  const branchPushes = refs.filter((ref) => ref.localRef.startsWith('refs/heads/') && !ZERO_SHA.test(ref.localSha))
-  if (refs.length > 0 && branchPushes.length === 0) return { check: false, reason: '这次只推 tag / 删分支，没有新提交' }
-  const elsewhere = branchPushes.filter((ref) => ref.localSha !== headSha)
+export function pushDecision(refs, headSha, inMain = () => false) {
+  const live = refs.filter((ref) => !ZERO_SHA.test(ref.localSha))
+  if (refs.length > 0 && live.length === 0) return { check: false, reason: '这次只是删除远端 ref，没有新提交' }
+  const toCheck = live.filter((ref) => ref.remoteRef.startsWith('refs/heads/') || !inMain(ref.localSha))
+  if (refs.length > 0 && toCheck.length === 0) return { check: false, reason: '要推的 tag / ref 指向的提交已在 origin/main 里，没有新内容' }
+  const elsewhere = toCheck.filter((ref) => ref.localSha !== headSha)
   if (elsewhere.length > 0) {
-    return { check: true, blocked: `推送的 ${elsewhere.map((ref) => ref.localRef).join('、')} 不是当前 HEAD（${headSha.slice(0, 12)}），本机门岗只会判当前这棵树——请在要推的分支所在的工作树里推送` }
+    return { check: true, blocked: `要推的 ${elsewhere.map((ref) => `${ref.localRef}（${ref.localSha.slice(0, 12)}）`).join('、')} 不是当前工作树的 HEAD（${headSha.slice(0, 12)}），门岗跑的是工作树、查不到要推的东西——先 checkout 要推的提交再推` }
   }
   return { check: true }
 }
@@ -154,6 +159,9 @@ async function pool(tasks, limit) {
 
 const tail = (text, lines) => String(text).trimEnd().split('\n').slice(-lines).join('\n')
 
+/** 单道门岗的重跑命令（不走钩子入口：钩子不接受缩小门岗集合的参数）。 */
+export const rerunCommand = (name) => (name === LINT_GATE.name ? `node ${LINT_GATE.script}` : `pnpm run ${name}`)
+
 export function formatSummary(results) {
   const failed = results.filter((result) => result.status !== 0)
   const out = []
@@ -162,33 +170,30 @@ export function formatSummary(results) {
   out.push('')
   for (const result of failed) out.push(`──── ✖ ${result.name} ────`, tail(result.output, FAILURE_TAIL_LINES), '')
   out.push(`[pre-push] BLOCKED：${failed.length} 项没过：${failed.map((result) => result.name).join('、')}`)
-  out.push('先在本机改好（这些都是几秒到几十秒的事），别推出去换一轮 40 分钟的 CI。重跑失败项：')
-  out.push(`  node scripts/pre-push-contracts.mjs --only=${failed.map((result) => result.name).join(',')}`)
+  out.push('先在本机改好（这些都是几秒到几十秒的事），别推出去换一轮 40 分钟的 CI。单独重跑失败的那道：')
+  for (const result of failed) out.push(`  ${rerunCommand(result.name)}`)
   return { text: out.join('\n'), failed }
 }
 
 export async function main(argv = process.argv.slice(2), { stdinText = null } = {}) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
   const known = [...PRE_PUSH_GATES.map((gate) => gate.name), LINT_GATE.name, ...BODY_GATES]
+  // 入口只认 --list；任何别的参数（含空值）一律报错——推送钩子不能有让门岗集合变小的开关（P1）
+  const bad = argv.filter((arg) => arg !== '--list')
+  if (bad.length > 0) {
+    console.error(`[pre-push] 不接受参数：${bad.map((arg) => JSON.stringify(arg)).join('、')}（只有 --list；要单独重跑某道门岗请直接 pnpm run check:xxx）`)
+    return 2
+  }
   if (argv.includes('--list')) {
     console.log(`推送前门岗：${known.join('、')}\n${SLOW_GATES_NOTE}`)
     return 0
   }
-  const onlyArg = argv.find((arg) => arg.startsWith('--only='))
-  const only = onlyArg ? onlyArg.slice('--only='.length).split(',').filter(Boolean) : null
-  if (only) {
-    const unknown = only.filter((name) => !known.includes(name))
-    if (unknown.length) {
-      console.error(`[pre-push] 不认识的门岗：${unknown.join('、')}（可选：${known.join('、')}）`)
-      return 2
-    }
-  }
-
   const headSha = git(['rev-parse', 'HEAD']).trim()
   if (stdinText === null && !process.stdin.isTTY) {
     try { stdinText = fs.readFileSync(0, 'utf8') } catch { stdinText = '' }
   }
-  const decision = pushDecision(parsePushRefs(stdinText), headSha)
+  const inMain = (sha) => { try { git(['merge-base', '--is-ancestor', sha, 'origin/main']); return true } catch { return false } }
+  const decision = pushDecision(parsePushRefs(stdinText), headSha, inMain)
   if (!decision.check) {
     console.error(`[pre-push] 跳过：${decision.reason}`)
     return 0
@@ -200,7 +205,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
 
   const files = changedFiles()
   if (files === null) console.error('[pre-push] 算不出 origin/main...HEAD 的改动（本地没有 origin/main？）——全部门岗都跑')
-  const selected = new Set(only ?? [...selectGates(files), ...BODY_GATES])
+  const selected = new Set([...selectGates(files), ...BODY_GATES])
   const changed = files ?? []
   console.error(`[pre-push] 改动 ${files === null ? '（未知）' : `${files.length} 个文件`}，跑：${[...selected].join('、')}`)
 

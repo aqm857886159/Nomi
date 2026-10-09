@@ -68,14 +68,17 @@ test('按改动选门岗：该片地没动就不跑；纯文档只跑登记类�
   assert.ok(everything.includes('lint:changed'))
 })
 
-test('推送内容：只推 tag / 删分支不判；推的不是当前 HEAD 就拦（门岗只会看当前这棵树）', () => {
+test('推送判定：依据远端 ref + 本地 SHA，不看 localRef 写法；删除跳过；tag 看是否已在 origin/main；SHA ≠ HEAD 拒绝', () => {
   const head = 'a'.repeat(40)
   const zero = '0'.repeat(40)
-  assert.equal(pushDecision(parsePushRefs(`refs/heads/x ${head} refs/heads/x ${zero}\n`), head).check, true)
-  assert.equal(pushDecision(parsePushRefs(`refs/heads/x ${head} refs/heads/x ${zero}\n`), head).blocked, undefined)
-  assert.equal(pushDecision(parsePushRefs(`refs/tags/v1 ${head} refs/tags/v1 ${zero}\n`), head).check, false)
-  assert.equal(pushDecision(parsePushRefs(`(delete) ${zero} refs/heads/x ${head}\n`), head).check, false)
-  assert.match(pushDecision(parsePushRefs(`refs/heads/y ${'b'.repeat(40)} refs/heads/y ${zero}\n`), head).blocked, /不是当前 HEAD/)
+  const decide = (line, inMain) => pushDecision(parsePushRefs(line + '\n'), head, inMain)
+  assert.deepEqual(decide(`HEAD ${head} refs/heads/x ${zero}`), { check: true })
+  assert.deepEqual(decide(`refs/heads/x ${head} refs/heads/x ${zero}`), { check: true })
+  assert.equal(decide(`(delete) ${zero} refs/heads/x ${head}`).check, false)
+  assert.equal(decide(`refs/tags/v1 ${head} refs/tags/v1 ${zero}`, () => false).check, true)
+  assert.equal(decide(`refs/tags/v1 ${head} refs/tags/v1 ${zero}`, () => true).check, false)
+  assert.match(decide(`refs/heads/y ${'b'.repeat(40)} refs/heads/y ${zero}`).blocked, /先 checkout/)
+  assert.match(decide(`HEAD ${'b'.repeat(40)} refs/heads/y ${zero}`).blocked, /先 checkout/)
 })
 
 test('汇总：失败项一次全部列出（不是第一项红就停），并给出只重跑失败项的命令', () => {
@@ -86,7 +89,9 @@ test('汇总：失败项一次全部列出（不是第一项红就停），并�
   ])
   assert.equal(failed.length, 2)
   assert.match(text, /BLOCKED：2 项没过：check:filesize、check:ipc-sender-binding/)
-  assert.match(text, /--only=check:filesize,check:ipc-sender-binding/)
+  assert.match(text, /pnpm run check:filesize/)
+  assert.match(text, /pnpm run check:ipc-sender-binding/)
+  assert.doesNotMatch(text, /--only/, '重跑提示不走钩子入口，也没有缩小门岗集合的参数')
 })
 
 test('lint 子集：错误一律拦；警告只在比 base 多时拦并指出新增的那几条', () => {
@@ -144,11 +149,11 @@ function commitChange(edit) {
   git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'test change')
 }
 
-function prePush({ only, body, cwd = work } = {}) {
+function prePush({ body, cwd = work, args = [], refLine } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
   const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
-  return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...(only ? [`--only=${only}`] : [])], {
-    input: `refs/heads/topic ${sha} refs/heads/topic ${ZERO}\n`,
+  return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
+    input: refLine ? refLine(sha) : `refs/heads/topic ${sha} refs/heads/topic ${ZERO}\n`,
     env,
   })
 }
@@ -160,7 +165,7 @@ test('必红：改了 electron/main.ts 超出基线 → 推送前检查红，且
     const file = path.join(work, 'electron/main.ts')
     fs.appendFileSync(file, `${Array.from({ length: 80 }, (_, i) => `export const prepushPadding${i} = ${i}`).join('\n')}\n`)
   })
-  const result = prePush({ only: 'check:filesize' })
+  const result = prePush()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:filesize/)
   assert.match(result.stderr, /BLOCKED/)
@@ -168,20 +173,20 @@ test('必红：改了 electron/main.ts 超出基线 → 推送前检查红，且
 
 test('对照：没改任何东西时同一个门岗是绿的（红不是环境造成的）', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
-  const result = prePush({ only: 'check:filesize' })
+  const result = prePush()
   assert.equal(result.status, 0, result.stderr)
 })
 
 test('必红：新增未加固的 ipcMain.on → 推送前红', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'electron/prepushUnboundIpc.ts'), "import { ipcMain } from 'electron'\nipcMain.on('prepush:unbound', () => {})\n"))
-  const result = prePush({ only: 'check:ipc-sender-binding' })
+  const result = prePush()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:ipc-sender-binding/)
 })
 
 test('必红：PR 正文用英文「## Design card」→ 推送前就红，并点明要中文标题（以前只有合并前红）', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
-  const result = prePush({ only: 'check:pr-judgement', body: CARD.replace('## 设计卡', '## Design card') })
+  const result = prePush({ body: CARD.replace('## 设计卡', '## Design card') })
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /没有 `## 设计卡` 一节/)
   assert.match(result.stderr, /英文标题/)
@@ -189,17 +194,53 @@ test('必红：PR 正文用英文「## Design card」→ 推送前就红，并�
 
 test('必红：设计卡没有 ★ 格 → 推送前就红；写全了才绿（同一份正文，两边同一个口径）', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
-  const empty = prePush({ only: 'check:pr-judgement', body: '## 设计卡\n随便写写\n' })
+  const empty = prePush({ body: '## 设计卡\n随便写写\n' })
   assert.equal(empty.status, 1, empty.stderr)
   assert.match(empty.stderr, /设计卡缺格：1、2、3、4、9/)
-  const full = prePush({ only: 'check:pr-judgement', body: CARD })
+  const full = prePush({ body: CARD })
   assert.equal(full.status, 0, full.stderr)
 })
 
-test('钩子本体：未知门岗名当场报错（不会静默变成什么都没跑）', () => {
-  const result = run(repoRoot, process.execPath, [path.join(repoRoot, 'scripts/pre-push-contracts.mjs'), '--only=check:nope'], { input: '' })
-  assert.equal(result.status, 2)
-  assert.match(result.stderr, /不认识的门岗/)
+test('钩子入口不接受缩小门岗集合的参数：--only 被拒、空值被拒、未知值被拒（只认 --list）', () => {
+  for (const arg of ['--only=check:filesize', '--only=', '--only', '', 'check:filesize']) {
+    const result = prePush({ args: [arg] })
+    assert.equal(result.status, 2, `参数 ${JSON.stringify(arg)} 应被拒：${result.stderr}`)
+    assert.match(result.stderr, /不接受参数/)
+  }
+})
+
+test('真入口：分离 HEAD 推分支（本地 ref 写 HEAD）照样跑门岗；红了就拦', () => {
+  commitChange(() => fs.appendFileSync(path.join(work, 'electron/main.ts'), `${Array.from({ length: 80 }, (_, i) => `export const detached${i} = ${i}`).join('\n')}\n`))
+  const result = prePush({ refLine: (sha) => `HEAD ${sha} refs/heads/topic ${ZERO}\n` })
+  assert.equal(result.status, 1, result.stderr)
+  assert.match(result.stderr, /✖ check:filesize/)
+})
+
+test('真入口：删分支（本地 SHA 为零）跳过，不跑门岗', () => {
+  const result = prePush({ refLine: (sha) => `(delete) ${ZERO} refs/heads/topic ${sha}\n` })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /跳过/)
+  assert.doesNotMatch(result.stderr, /check:filesize/)
+})
+
+test('真入口：推 tag——指向的提交不在 origin/main 就跑门岗；已在 origin/main 里才跳过', () => {
+  commitChange(() => fs.appendFileSync(path.join(work, 'electron/main.ts'), `${Array.from({ length: 80 }, (_, i) => `export const tagged${i} = ${i}`).join('\n')}\n`))
+  const tagLine = (sha) => `refs/tags/v9 ${sha} refs/tags/v9 ${ZERO}\n`
+  const fresh = prePush({ refLine: tagLine })
+  assert.equal(fresh.status, 1, fresh.stderr)
+  assert.match(fresh.stderr, /✖ check:filesize/)
+  git('reset', '-q', '--hard', baseSha)
+  const merged = prePush({ refLine: tagLine })
+  assert.equal(merged.status, 0, merged.stderr)
+  assert.match(merged.stderr, /已在 origin\/main/)
+})
+
+test('真入口：要推的 SHA 和工作树 HEAD 不一致 → 拒绝（fail-closed），提示先 checkout', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  const result = prePush({ refLine: () => `refs/heads/other ${'b'.repeat(40)} refs/heads/other ${ZERO}\n` })
+  assert.equal(result.status, 1, result.stderr)
+  assert.match(result.stderr, /先 checkout 要推的提交再推/)
+  assert.doesNotMatch(result.stderr, /✅ check:/, '拒绝时一道门岗都不跑')
 })
 
 // ── 过渡期：老分支（还没有新入口）走它自己的旧正文门岗 ─────────────────────────────

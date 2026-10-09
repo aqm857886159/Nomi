@@ -15,7 +15,7 @@
 | `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
 | `node scripts/merge-preflight.mjs <PR 号>` | 协调会话合并前扫描：四类判定、设计卡格、独立验收、逃逸合同、规则与门岗改动范围（正文 `## 碰到的规则与门岗` 逐个点名，账本条目不许消失）；只打印结论 |
 | `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
-| `node scripts/pre-push-contracts.mjs [--only=check:x,...]` | 推送前自动跑（pre-push 钩子，无需手动）：按 origin/main...HEAD 的改动选出本机 Contracts 门岗（filesize / self-written / boundary-owners / test-waits / mjs-parse / ipc-sender-binding / 改动文件 lint / prior-art / pr-judgement），并行跑、一次列出全部失败项，典型 < 60 秒；PR 正文取 `gh pr view`，还没有 PR 就读仓库根 `.tmp-pr-body.md`。`--only` 只用来重跑失败项，没有跳过开关 |
+| `node scripts/pre-push-contracts.mjs` | 推送前自动跑（pre-push 钩子，无需手动）：按 origin/main...HEAD 的改动选出本机 Contracts 门岗（filesize / self-written / boundary-owners / test-waits / mjs-parse / ipc-sender-binding / 改动文件 lint / prior-art / pr-judgement），并行跑、一次列出全部失败项，典型 < 60 秒；PR 正文取 `gh pr view`，还没有 PR 就读仓库根 `.tmp-pr-body.md`。入口不接受任何缩小门岗集合的参数（只有 `--list`，其余报错）；单独重跑某道请直接 `pnpm run check:xxx` |
 | `pnpm run delivery:verify-merged -- --expected-sha <SHA>` | 在真实 merged-main 上记录 exact-SHA CI checks 收据，不本地重跑 |
 | `pnpm run test:e2e` | Playwright smoke（零额度，CI-ready） |
 | `pnpm run lint:ci` | Lint + max-warnings=98 棘轮（新增 1 个 warning 即红）|
