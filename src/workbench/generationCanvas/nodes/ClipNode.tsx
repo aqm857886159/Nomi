@@ -61,7 +61,6 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const { t } = useTranslation()
   const canvasNodes = useGenerationCanvasStore((state) => state.nodes)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const addNode = useGenerationCanvasStore((state) => state.addNode)
   const addDerivedOutput = useGenerationCanvasStore((state) => state.addDerivedOutput)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
