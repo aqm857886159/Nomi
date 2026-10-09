@@ -109,7 +109,8 @@ export async function checkSpendScopeJourney(walk, win) {
     expect(plan.filter(shot => requestedIds.includes(shot.shotId)).every(shot => shot.included === true), `${label}：被点名的镜是 included`).toBe(true)
   }
   await expectPlanKept('摆上卡之后')
-  await expect(card.locator('[data-v4-price="total"]')).toContainText('0.90')
+  // 合同 contract-moneycopy（#1099）：卡上不出 Nomi 按价目表算的金额（原断言 0.90 已随合同删除）。
+  await expect(card.locator('[data-v4-price="total"]'), '确认控件不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   // 只有一层改动：每一页改的只落在那一镜上（「逐镜 / 全部」切换和「全部」那一层已删）。
   await pageTo(2)
   await expect(input).toHaveText('CJ1_anchor_2 原始画面')

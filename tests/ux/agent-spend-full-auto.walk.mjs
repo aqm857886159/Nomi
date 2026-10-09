@@ -92,7 +92,8 @@ try {
   // 草稿也确实落到了画布上：卡上问的那件事是真的存在的。
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
     { timeout: DEFAULT_TIMEOUT_MS }).toBe(1)
-  await expect(card.locator(PRICE_TOTAL), '「自动改」档下那张卡照旧印着宿主按目录算的价').toContainText('0.30')
+  // 合同 contract-moneycopy（#1099）：卡上不出 Nomi 按价目表算的金额（原断言 0.30 已随合同删除）。
+  await expect(card.locator(PRICE_TOTAL), '「自动改」档下那张卡的确认控件不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   // 阴性对照：这一档下宿主**根本不去碰那道门**，所以不该有任何失败。
   // ③ 里同一个定位器要变成「有」——两次之间唯一的变量就是档位。
   //

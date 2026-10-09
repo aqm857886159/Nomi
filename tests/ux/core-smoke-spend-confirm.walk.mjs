@@ -17,7 +17,6 @@
 // 用法：
 //   pnpm run build && pnpm run test:core-smoke -- --fixture empty
 //   pnpm run build && node tests/ux/core-smoke-spend-confirm.walk.mjs   （单跑，默认 empty + confirm 例）
-import { readFileSync } from 'node:fs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import {
   expectCanvasViewportHeld, recordCanvasViewportWrites, sameCanvasViewport, waitForCanvasViewportSettled,
@@ -28,14 +27,11 @@ import {
   expandResidentPanel, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const ASK = 'CORE_SMOKE_SPEND：帮我生成一张六棱柱的图。'
 const PLAN_CALL = 'core-smoke-spend-plan'
 const GENERATE_CALL = `${PLAN_CALL}-generate`
-// 新文案取自 i18n 词典源文件（zh 块在文件里排第一）：walk 跑在纯 node 下，import 不了 .ts，也不在这里写死中文。
-const CONFIRM_LABEL = /^ *spendConfirmThisImage: *'([^']+)'/m.exec(
-  readFileSync(new URL('../../src/i18n/locales/agentPanelV4.ts', import.meta.url), 'utf8'))?.[1]
-if (!CONFIRM_LABEL) throw new Error('读不到 spendConfirmThisImage 文案')
 const PROMPT = '一个悬浮的六棱柱，柔和的演播室灯光'
 
 const smoke = await launchCoreSmoke({
@@ -109,7 +105,9 @@ try {
   // 所以不再断言卡上有「0.30」。改断言：按钮可见、文案是新文案（取自 i18n 键）、按钮上没有任何金额 / 货币符号。
   const confirmButton = card.locator(INTERVENTION_CONFIRM)
   await expect(confirmButton, '确认按钮在卡上可见').toBeVisible()
-  await expect(confirmButton, '确认按钮文案是新文案（i18n 键 spendConfirmThisImage）').toHaveText(CONFIRM_LABEL)
+  // 按控件名字认（键取词典值）：按钮里还有 aria-hidden 的 ⏎ 键帽，整段可见文字不是它的名字。
+  const confirmLabel = uiText(smoke.locale === 'en' ? 'en' : 'zh-CN', 'agentPanelV4.spendConfirmThisImage')
+  await expect(confirmButton, '确认按钮的名字是词典键 spendConfirmThisImage 的值').toHaveAccessibleName(confirmLabel)
   expect((await confirmButton.innerText()), '确认按钮上不含金额或货币符号').not.toMatch(/[¥￥$€£]|[0-9]/)
   await expect(card, '卡体就是那张生成框整件：提示词在卡上').toContainText('六棱柱')
   expect(fixture.images, '卡还没答，一次媒体请求都不许发').toHaveLength(0)
