@@ -40,7 +40,7 @@ export type CanvasDocumentWrite =
   /** 撤销 / 重做：目标位置的投影 + 之后的落地。 */
   | Readonly<{ kind: 'rewind'; restore: UndoRestore; direction: 'undo' | 'redo' }>
   /** 外部 MCP 整张写回：base = 外部读到的那份，next = 它算出的整张；只合它自己改了的编辑。 */
-  | Readonly<{ kind: 'external'; base: CanvasDocLike; next: CanvasDocLike }>
+  | Readonly<{ kind: 'external'; base: CanvasDocLike; next: CanvasDocLike; restoredEdgeIds?: readonly string[] }>
   /** 按原 id 放回被删的节点 / 边（已在的跳过，不覆盖现状）。 */
   | Readonly<{ kind: 'put-back'; nodes: readonly GenerationCanvasNode[]; edges: readonly GenerationCanvasEdge[] }>
   /** 把一个仍在的节点的 meta / prompt 放回某一刻（编辑层），事实层取活的。 */
@@ -228,6 +228,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           base: write.base,
           next: write.next,
           current: live.readDocumentSnapshot(),
+          ...(write.restoredEdgeIds ? { restoredEdgeIds: write.restoredEdgeIds } : {}),
           onRejectedEdges: (rejected) => reportSkippedEdges(rejected, live.projectId),
         })
         const normalized = normalizeStoreSnapshot(merged)
@@ -295,7 +296,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
       const restore = popRedo()
       if (restore) commit({ kind: 'rewind', restore, direction: 'redo' })
     },
-    applyExternalGraph: ({ base, next }) => commit({ kind: 'external', base, next }),
+    applyExternalGraph: ({ base, next, restoredEdgeIds }) => commit({ kind: 'external', base, next, ...(restoredEdgeIds ? { restoredEdgeIds } : {}) }),
     restoreGraph: (nodes, edges) => commit({ kind: 'put-back', nodes, edges }),
     restoreNodeFields: (nodeId, meta, prompt) => commit({ kind: 'node-fields', nodeId, meta, prompt }),
   }

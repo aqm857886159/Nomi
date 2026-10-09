@@ -22,7 +22,11 @@
     "src/workbench/generationCanvas/store/canvasNodeActions.ts",
     "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
     "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
-    "src/workbench/generationCanvas/model/derivedOutput.ts"
+    "src/workbench/generationCanvas/model/derivedOutput.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/gateway.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "scripts/check-canvas-edge-writers.mjs"
   ],
   "entry_points": [
     "MCP connect_canvas_edges / create nodes with edges -> capabilityCore/core.connectProjectNodes -> canvasGraph.connectNodes",
@@ -36,7 +40,8 @@
   "invariants": [
     "A new edge reaches the canvas only through writeCanvasEdge, appendAdmittedEdges, headless canvasGraph.connectNodes, or mergeExternalCanvasWrite; each calls the one rule in electron/shared/canvas/edgeAdmission.",
     "Edges already on the canvas (old projects) are never deleted by the gate; execution ignores kind-illegal ones except provenance (derived-output) edges.",
-    "check:canvas-edge-writers fails when a file outside the registered list writes .edges, when a listed file stops calling the gate, or when a bulk-append shape appears outside the allowed files."
+    "check:canvas-edge-writers fails when a file outside the registered list writes .edges, when a listed file stops calling the gate, or when a bulk-append shape appears outside the allowed files.",
+    "Edges already on the canvas keep their id only while source/target/mode are unchanged; an external write that rewires an existing id is judged as a new edge (the original stays when refused). Undo/put-back goes through an explicit restoredEdgeIds restore write, not the external-new path."
   ],
   "doors": [
     {
@@ -142,6 +147,12 @@
       "entry_point": "rewind / put-back / load",
       "disposition": "not-affected",
       "evidence": "Restore doors bring back edges that already existed; gating them would delete user data. Tests keep a legacy illegal edge across delete + undo + redo + restoreGraph."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "undo_canvas_delete",
+      "disposition": "enforced",
+      "evidence": "Restore write passes restoredEdgeIds through gateway.apply (disk and renderer) so legacy illegal edges come back; test in mcpSemanticOperationMatrix.test.ts."
     }
   ],
   "recurrence": {
@@ -191,7 +202,8 @@
   "migration": "No data migration: old edges stay on the canvas and in project files; execution ignores kind-illegal ones. No file-format change.",
   "residual_risks": [
     "No UI marks old illegal edges yet (product decision pending).",
-    "Restore doors (undo / load) are intentionally ungated; a future restore that fabricates edges would not be caught by this gate."
+    "Restore doors (undo / load) are intentionally ungated; a future restore that fabricates edges would not be caught by this gate.",
+    "Provenance (derived-output) edges carry no marker, so resolveGenerationReferences keeps them by kind pair (derivedOutput rules): an old hand-drawn clip -> video edge is treated as provenance and may become a video reference. A marker field would need a product/data decision and was not invented here."
   ],
   "structural_evidence": {
     "affected_paths": [

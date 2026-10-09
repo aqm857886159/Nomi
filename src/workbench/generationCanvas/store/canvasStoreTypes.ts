@@ -170,7 +170,7 @@ export type CanvasDocumentActions = {
    * A 模式实时桥：外部 MCP 读到 `base`、算出整张 `next`，这里只把它自己改了的编辑合到此刻的画布
    * （与盘上同一个合并函数），事实层取此刻的。会话中应用：保留视口、入撤销历史、触发防抖落盘。
    */
-  applyExternalGraph: (write: Readonly<{ base: CanvasDocLike; next: CanvasDocLike }>) => void
+  applyExternalGraph: (write: Readonly<{ base: CanvasDocLike; next: CanvasDocLike; restoredEdgeIds?: readonly string[] }>) => void
   /** 把被删的节点 / 边按原 id 放回（已在的跳过）；节点不在期间到达的结局随之落上。 */
   restoreGraph: (nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[]) => void
   /** 把一个仍在的节点的 meta / prompt 放回某一刻；结果、运行态、跟主图走的媒体尺寸取此刻的。 */

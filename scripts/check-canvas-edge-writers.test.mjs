@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { EDGE_APPEND_CALLERS, EDGE_WRITERS, scanEdgeWriters } from './check-canvas-edge-writers.mjs'
+import { EDGE_APPEND_CALLERS, EDGE_WRITERS, findEdgeWrites, scanEdgeWriters } from './check-canvas-edge-writers.mjs'
 
 const dirs = []
 afterEach(() => { for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
@@ -65,5 +65,49 @@ describe('画布写边门岗', () => {
   it('应经 appendAdmittedEdges 的文件没调它：红', () => {
     const root = tree({ 'src/workbench/generationCanvas/store/group.ts': 'export const x = 1' })
     expect(scanEdgeWriters(root, {}, ['src/workbench/generationCanvas/store/group.ts']).join('\n')).toContain('appendAdmittedEdges')
+  })
+
+  // 2026-10-10 复审（PR #1147）：Codex 实跑过的三种绕过写法，原来的正则门岗不报红。
+  describe('AST 判定：换写法绕不过', () => {
+    it.each([
+      ['对象字面量展开再覆盖 edges', 'const next = { ...state, edges: [...state.edges, edge] }', true],
+      ["方括号赋值", "state['edges'] = [...state.edges, edge]", true],
+      ['Object.assign 覆盖 edges', 'Object.assign(state, { edges: [...state.edges, edge] })', true],
+      ['set({ edges })', 'set({ edges: [...get().edges, edge] })', true],
+      ['concat 赋值（非追加形态也算写）', 'state.edges = state.edges.concat(edge)', false],
+      ['edges.push', 'draft.edges.push(edge)', true],
+      ["['edges'].push", "draft['edges'].push(edge)", true],
+      ['复合赋值', 'state.edges += x', true],
+    ])('%s：被识别为写边', (_name, code, append) => {
+      const writes = findEdgeWrites(code)
+      expect(writes.length).toBeGreaterThan(0)
+      if (append) expect(writes.some((write) => write.append)).toBe(true)
+    })
+
+    it('只读用法不算写：{ nodes, edges: state.edges } 传给解析函数、读取 state.edges、注释和字符串', () => {
+      expect(findEdgeWrites(`
+        // state.edges = []
+        const text = "state.edges = []"
+        const edges = state.edges
+        resolve(node, { nodes: state.nodes, edges: state.edges })
+        const count = state.edges.length
+      `)).toEqual([])
+    })
+
+    it.each([
+      "const next = { ...state, edges: [...state.edges, edge] }",
+      "state['edges'] = [...state.edges, edge]",
+      'Object.assign(state, { edges: [...state.edges, edge] })',
+    ])('名单外文件用这种写法：整仓扫描报红 — %s', (code) => {
+      const root = tree({ 'src/workbench/generationCanvas/store/rogue.ts': code })
+      const out = scanEdgeWriters(root, {}, [])
+      expect(out).toHaveLength(1)
+      expect(out[0]).toContain('rogue.ts')
+    })
+
+    it('名单内文件用这三种写法做整批追加：红', () => {
+      const root = tree({ 'src/workbench/generationCanvas/store/ok.ts': 'admitNewEdges(x); Object.assign(state, { edges: [...state.edges, edge] })' })
+      expect(scanEdgeWriters(root, writers, []).join(' ')).toContain('整批追加')
+    })
   })
 })

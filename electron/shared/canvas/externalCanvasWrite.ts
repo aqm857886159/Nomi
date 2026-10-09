@@ -66,6 +66,8 @@ export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonl
   current: T
   /** 外部新增、但过不了连线总闸的边（调用方想告诉用户 / 模型就接这个）。 */
   onRejectedEdges?: (rejected: readonly RejectedEdge[]) => void
+  /** 撤销 / 放回：这些边是把原来就有的边放回来（恢复语义，与 UI 的 restoreGraph 一致），不当「外部新增」过闸。 */
+  restoredEdgeIds?: readonly string[]
 }>): T {
   const { base, next, current } = input
   const nodes = mergeKeyed(base.nodes, next.nodes, current.nodes, withLiveNodeFacts)
@@ -74,15 +76,31 @@ export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonl
     const { source, target } = edge as { source?: unknown; target?: unknown }
     return typeof source === 'string' && typeof target === 'string' && nodeIds.has(source) && nodeIds.has(target)
   })
-  // 已在 base / 当前画布上的边是旧边，原样保留（老项目里的老非法边不删，只是不再能新建）；其余是外部这次新加的。
-  const known = new Set([...base.edges, ...current.edges].filter(isKeyed).map((edge) => edge.id))
+  // 「已知旧边」= 当前画布上已有、且端点和语义没被这次外部写入改动的边（老项目里的老非法边不删，只是不再能新建），
+  // 加上明确标成「放回」的边。同 id 但端点 / mode 被改了的边是外部新造的连接，必须重新过闸。
+  const currentById = new Map(current.edges.filter(isKeyed).map((edge) => [edge.id, edge]))
+  const sameLink = (left: Keyed, right: Keyed) => left.source === right.source && left.target === right.target && (left.mode ?? 'reference') === (right.mode ?? 'reference')
+  const known = new Set<string>(input.restoredEdgeIds ?? [])
+  for (const edge of connected) {
+    if (!isKeyed(edge)) continue
+    const live = currentById.get(edge.id)
+    if (live && sameLink(live, edge)) known.add(edge.id)
+  }
   const verdict = admitNewEdges({
     nodes: nodes.filter(isKeyed) as unknown as (EdgeEndpoint & { id: string })[],
     known,
     next: connected as unknown as EdgeRecord[],
   })
   if (verdict.rejected.length) input.onRejectedEdges?.(verdict.rejected)
-  const edges = verdict.rejected.length ? verdict.edges : connected
+  // 被拒的边若原本就在画布上（外部想把它改成非法），回到画布上的原样，不整条丢掉。
+  const edges = verdict.rejected.length
+    ? connected.flatMap((edge) => {
+        const rejected = verdict.rejected.some((item) => item.edge === (edge as unknown as EdgeRecord))
+        if (!rejected) return [edge]
+        const live = isKeyed(edge) ? currentById.get(edge.id) : undefined
+        return live ? [live] : []
+      })
+    : connected
   const groups = mergeKeyed(base.groups ?? [], next.groups ?? [], current.groups ?? [])
   return { ...current, nodes, edges, groups }
 }

@@ -32,6 +32,7 @@
 | 组复制（拖动） | `canvasGroupMoveActions.duplicateGroupForDrag` | **不过** | 过 |
 | 复制为变体 | `canvasNodeActions.duplicateNodeForRegeneration` | **不过** | 过 |
 | 工作流模板落画布 | `canvasNodeActions.instantiateWorkflowTemplateSnapshot` | **不过** | 过 |
+| MCP 删除后撤销（undo_canvas_delete） | 借道外部写回，恢复边被当新边过闸而丢失 | 明确的放回写：gateway.apply 带 restoredEdgeIds，磁盘与渲染层一致，旧非法边原样回来 |
 | 撤销 / 重做 / 放回被删节点 | `canvasDocumentCommit` rewind / put-back | 不过 | 不过（有意）：恢复原来就有的边；测试钉住含旧非法边也原样回来 |
 | 项目加载 / 迁移 | `canvasDocumentCommit` load、`projectV51ToV60Migration` | 不过 | 不过（有意）：旧边不删；执行侧忽略（见下） |
 | 事件重放 | `canvasEventReducer` | 不过 | 不过（有意）：重放的是已记录的事实 |
