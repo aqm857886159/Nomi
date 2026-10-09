@@ -314,7 +314,7 @@ try {
     await confirmExit.waitFor({ timeout: stationTimeout({ operations: 1 }) }).then(() => confirmExit.click(), () => {})
     await win.locator('[data-testid="director-editor"]').waitFor({ state: 'hidden', timeout: stationTimeout({ operations: 2 }) })
   }, 3000)
-  await step('回项目库', async () => {
+  await step('切回项目库', async () => {
     await win.getByText('项目库', { exact: true }).first().click()
     await win.getByRole('button', { name: /新建空白项目/ }).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   })

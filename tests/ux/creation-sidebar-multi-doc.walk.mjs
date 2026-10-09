@@ -172,7 +172,7 @@ try {
   await snap('05-back-to-script.png')
 
   // ─────────── 腿 B：老项目形状 ───────────
-  await clickOrFail(win.getByRole('button', { name: /项目库|返回项目库/ }).first(), '回项目库')
+  await clickOrFail(win.getByRole('button', { name: /项目库|返回项目库/ }).first(), '切回项目库')
   await openProject(win, '老项目形状')
   await expectResourceTreeReachable(win, '老项目创作页', {
     documents: 1, storyboards: 1,

@@ -7,11 +7,12 @@
 //   环境：WALK_LOCALE=zh-CN|en  WALK_SCHEME=light|dark  WALK_SIZE=1280x800|1000x700|1440x900
 //         WALK_SHOTS=逗号分隔的屏名（缺省全拍）：library-empty,library,main,canvas-agent,creation-doc,
 //         chrome-assets,chrome-rail-collapsed,chrome-ball-running,chrome-ball-failed,chrome-ball-pending,preview-catalog
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -141,7 +142,7 @@ if (want('library-empty')) {
     await shoot(win, 'library-empty')
   } finally {
     await close?.().catch(() => {})
-    fs.rmSync(root, { recursive: true, force: true })
+    cleanupTestTemp(root)
   }
 }
 
@@ -177,7 +178,7 @@ try {
     await expect(other, '#47 改名没生效').toContainText(T('天台·改名', 'Rooftop renamed'), { timeout: DEFAULT_TIMEOUT_MS })
     const mainCard = win.locator('[data-project-card][data-project-id="shell-redesign"]')
     await mainCard.hover()
-    await expect(mainCard.getByRole('button', { name: T('打开项目文件夹', 'Open project folder'), exact: false }).first(), '#48 打开项目文件夹入口不在').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(mainCard.getByRole('button', { name: uiText(locale, 'library.openProjectFolder').replace('{{name}}', '').trim(), exact: false }).first(), '#48 打开项目文件夹入口不在').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     measures.parity = { ...(measures.parity ?? {}), projectCard: 'delete-confirm, dblclick-rename, reveal-folder' }
     await shoot(win, 'check-parity-project-card')
     await win.mouse.move(5, 300)
@@ -279,10 +280,10 @@ try {
     await win.waitForTimeout(300)
 
     // Chrome 板：左栏收起
-    await clickOrFail(win.locator('[data-shell-rail-collapse]'), '收起左栏')
+    await clickOrFail(win.locator('[data-shell-rail-collapse]'), '#rail 收起')
     await expect(win.locator('[data-shell-rail-expand]'), '收起后顶栏没有「展开左栏」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await shoot(win, 'chrome-rail-collapsed')
-    await clickOrFail(win.locator('[data-shell-rail-expand]'), '展开左栏')
+    await clickOrFail(win.locator('[data-shell-rail-expand]'), '#rail 展开')
   }
 
   // 协调裁决第 11 项：抽屉右边缘拖宽（键盘同一个把手：→ 每次 +16，宽度记在 shellLayoutStore）。
@@ -492,7 +493,7 @@ try {
     // #16 素材文件夹：项目素材页签里新建 / 拖进 / 打开 / 删除文件夹。
     await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#16 打开素材抽屉')
     const assets = win.locator('[data-shell-drawer="assets"]')
-    await clickOrFail(assets.getByRole('tab', { name: '项目素材' }), '#16 切到项目素材')
+    await clickOrFail(assets.getByRole('tab', { name: uiText('zh-CN', 'browserAssets.projectAssets') }), '#16 切到项目素材页')
     await clickOrFail(assets.locator('button[aria-label="新建文件夹"]'), '#16 新建文件夹')
     const nameInput = assets.locator('input[aria-label="新文件夹名称"]')
     await nameInput.fill('走查文件夹')
@@ -511,7 +512,7 @@ try {
     await folderTile.hover()
     await clickOrFail(assets.locator('button[aria-label="删除 走查文件夹"]'), '#16 删除文件夹')
     await clickOrFail(win.locator('[data-confirm-dialog-confirm]').first(), '#16 确认删除文件夹')
-    const folderProof = await proveProbe(assets.getByRole('tab', { name: '项目素材' }), '素材抽屉还开着（判文件夹没了之前先证探针活着）')
+    const folderProof = await proveProbe(assets.getByRole('tab', { name: uiText('zh-CN', 'browserAssets.projectAssets') }), '素材抽屉还开着（判文件夹没了之前先证探针活着）')
     await expectAbsent(folderTile, { provenBy: folderProof, message: '#16 删除后文件夹还在' })
     await expect(assets, '#16 确认卡关掉后素材抽屉被收起了').toBeVisible()
     parity.assetFolders = 'create, drag-in, open, back, delete'
@@ -533,7 +534,7 @@ try {
     await expect(browser, '#2 浏览器没打开').toBeVisible({ timeout: stationTimeout() })
     const browserRect = await rectOf(browser)
     expect(browserRect.top >= 40 - 1, `#2 浏览器浮层压住了顶栏（${JSON.stringify(browserRect)}）`).toBe(true)
-    await clickOrFail(browser.getByRole('button', { name: '关闭浏览器' }), '#2 关闭浏览器')
+    await clickOrFail(browser.getByRole('button', { name: uiText('zh-CN', 'browserAssets.closeBrowser') }), '#2 关掉浏览器')
     const canvasForBrowser = await proveProbe(win.locator('.workbench-generation__canvas'), '画布在（判浏览器关掉之前先证探针活着）')
     await expectAbsent(browser, { provenBy: canvasForBrowser, message: '#2 浏览器关不掉' })
     parity2.browser = browserRect
@@ -576,7 +577,7 @@ try {
     await zoomRange.focus()
     for (let i = 0; i < 4; i += 1) await win.keyboard.press('ArrowRight')
     await expect.poll(scaleOf, { message: '#42 缩放滑杆没改变画布缩放', timeout: stationTimeout() }).not.toBe(scale0)
-    await clickOrFail(win.getByRole('button', { name: '适应视图' }).first(), '#42 适应视图')
+    await clickOrFail(win.getByRole('button', { name: uiText('zh-CN', 'generationCommon.navigation.fitView') }).first(), '#42 适应全部')
     parity2.canvas = { added: 'image', moreKinds, zoomFrom: scale0, zoomTo: await scaleOf() }
 
     // #14 素材拖进画布、双击全屏预览；#50 素材全屏预览不被外壳裁切。
@@ -636,7 +637,7 @@ try {
     const docs = win.locator('[data-shell-drawer="docs"]')
     const docRows = docs.locator('[data-document-row]')
     const docs0 = await docRows.count()
-    await clickOrFail(docs.getByRole('button', { name: '新建一篇原稿' }), '#22 新建文稿')
+    await clickOrFail(docs.getByRole('button', { name: uiText('zh-CN', 'creationAi.documentList.newDocumentAria') }), '#22 新建文稿')
     await expect.poll(() => docRows.count(), { message: '#22 新建文稿没多一行', timeout: stationTimeout() }).toBe(docs0 + 1)
     const newDoc = docRows.last()
     await newDoc.locator('[data-document-id] [data-document-title]').dblclick()
@@ -701,15 +702,15 @@ try {
     await clickOrFail(bar.getByRole('button', { name: '下一帧' }), '#33 下一帧')
     await clickOrFail(bar.getByRole('button', { name: '上一帧' }), '#33 上一帧')
     await clickOrFail(bar.getByRole('button', { name: '静音' }), '#33 静音')
-    await expect(bar.getByRole('button', { name: '取消静音' }), '#33 静音后没变取消静音').toBeVisible()
-    await clickOrFail(bar.getByRole('button', { name: '取消静音' }), '#33 取消静音')
+    await expect(bar.getByRole('button', { name: uiText('zh-CN', 'timelinePreview.unmute') }), '#33 静音后按钮没翻面').toBeVisible()
+    await clickOrFail(bar.getByRole('button', { name: uiText('zh-CN', 'timelinePreview.unmute') }), '#33 解除静音')
     await clickOrFail(bar.getByRole('button', { name: '全屏' }), '#33 全屏')
     await expect.poll(() => win.evaluate(() => Boolean(document.fullscreenElement)), { message: '#33 全屏没进去', timeout: stationTimeout() }).toBe(true)
     await win.evaluate(() => document.exitFullscreen?.())
     parity2.player = { timeBeforeStep: t0, timeAfterStep: await timeText() }
 
     // #34 文字层：加一条字幕、在画面上拖动、双击改字。
-    await clickOrFail(bar.getByRole('button', { name: '添加文字' }), '#34 打开「文字」')
+    await clickOrFail(bar.getByRole('button', { name: uiText('zh-CN', 'timelinePreview.addText') }), '#34 打开「文字」')
     await clickOrFail(bar.getByRole('menuitem', { name: '字幕' }), '#34 加字幕')
     // 新加的字幕直接进编辑态（现役：addText 后立刻 setEditingTextId），先写一句再拖。
     const firstEditor = win.locator('.workbench-preview-player textarea').first()
@@ -744,5 +745,5 @@ try {
   console.log(JSON.stringify({ tail, measures, shots: shotsTaken }))
 } finally {
   await close?.().catch(() => {})
-  fs.rmSync(root, { recursive: true, force: true })
+  cleanupTestTemp(root)
 }
