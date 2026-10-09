@@ -39,6 +39,8 @@ export type GenerationAssetImportResult = {
   /** Project replacement is a handled cancellation, never an upload failure or fallback request. */
   cancelled?: true
   created: GenerationAssetImportItem[]
+  /** `created` 里**真的导入成功**的节点 id（上传 / 落盘成功，含小图 data-url 兜底）。失败的卡留在画布上成 error（可重试），但不在这里——调用方据此决定要不要接线。 */
+  succeededNodeIds: string[]
   skippedDuplicateCount: number
   /** 准入闸拒收的文件（类型不对 / 硬上限 / 磁盘装不下）。 */
   rejected: GenerationAssetImportSkip[]
@@ -348,7 +350,7 @@ export async function importLocalMediaFilesToGenerationCanvas(
     return await importFilesInProject(inputFiles, options, context)
   } catch (error) {
     if (!context.signal.aborted && !isProjectImportCancellation(error)) throw error
-    return { cancelled: true, created: [], skippedDuplicateCount: 0, rejected: [], skippedOverLimitCount: 0, failedCount: 0 }
+    return { cancelled: true, created: [], succeededNodeIds: [], skippedDuplicateCount: 0, rejected: [], skippedOverLimitCount: 0, failedCount: 0 }
   }
 }
 
@@ -374,6 +376,7 @@ async function importFilesInProject(
   if (!accepted.length) {
     return {
       created,
+      succeededNodeIds: [],
       skippedDuplicateCount: filtered.skippedDuplicateCount,
       rejected: filtered.rejected,
       skippedOverLimitCount,
@@ -437,13 +440,16 @@ async function importFilesInProject(
   })
 
   let failedCount = 0
+  const succeeded = new Set<string>()
   await Promise.all(created.map(async ({ node, file, kind }) => {
     const ok = await uploadAndApplyAssetToNode(node.id, file, kind, { uploadFile, recoverFile, probeVideoDuration }, context)
-    if (!ok) failedCount += 1
+    if (ok) succeeded.add(node.id)
+    else failedCount += 1
   }))
 
   return {
     created,
+    succeededNodeIds: created.map((item) => item.node.id).filter((id) => succeeded.has(id)),
     skippedDuplicateCount: filtered.skippedDuplicateCount,
     rejected: filtered.rejected,
     skippedOverLimitCount,

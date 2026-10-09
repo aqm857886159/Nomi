@@ -22,7 +22,8 @@
     "src/workbench/generationCanvas/quickActions/nodeTryRecipes.ts",
     "src/workbench/generationCanvas/nodes/completeNodeConnection.ts",
     "src/workbench/generationCanvas/runner/referenceSlots.ts",
-    "src/workbench/generationCanvas/store/canvasGraphActions.ts"
+    "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+    "src/workbench/generationCanvas/model/derivedOutput.ts"
   ],
   "entry_points": [
     "Ring click → openHandleMenu → NodeDeriveMenu (left / right)",
@@ -134,14 +135,14 @@
       "disposition": "not-affected",
       "evidence": "The main-process MCP connect path never ran validateReferenceEdge (pre-existing gap of the wider class, not introduced here); it cannot import the renderer registry. Recorded in residual_risks."
     },
-    "store.connectNodes (17 write doors): the connects.input gate now sits at the store write boundary for every caller (no parameter slots needed); system provenance edges (panorama screenshot, director / whiteboard / clip-export outputs, shot table) opt out explicitly with { provenance: true }"
+    "store.connectNodes (17 write doors): the connects.input gate now sits at the store write boundary for every caller (no parameter slots needed); there is NO bypass flag. System provenance edges (panorama screenshot, director / whiteboard / clip-export outputs, shot table) go through store.connectDerivedOutput, which only connects when the target's own data (meta.derivedFrom = { nodeId, kind }, written by the producer when it creates the derived node) says exactly this source derived it, the source / target kinds fit the model/derivedOutput rule table, and the derived node has no other origin; an ordinary card pretending to be one is refused. Old projects: their existing provenance edges are plain snapshot edges and load / show / disconnect as before; old derived nodes have no derivedFrom, so only NEW provenance edges need it"
   ],
   "recurrence": {
     "classification": "recurring",
     "reason": "Any new entry (the coming @ → canvas node pick, new node kinds) would otherwise infer input / output again; the clip node was already a second inference site.",
     "same_class_scan": [
       "node scripts/door-map.mjs validateReferenceEdge → 5 write doors after the edge-mode pill was removed (was 6), all converge",
-      "node scripts/door-map.mjs connectNodes → 17 write doors; system provenance edges (panorama screenshot → asset, director / clip / whiteboard outputs) use store.connectNodes without the gate and are intentionally untouched",
+      "node scripts/door-map.mjs connectNodes → 17 write doors; system provenance edges (panorama screenshot → asset, director / clip / whiteboard outputs, shot table) now use store.connectDerivedOutput (identity from data, see model/derivedOutput.ts); store.connectNodes has no bypass",
       "git grep providesImageReference / referenceAssetKindForNode → referenceAssetKindForNode now gated by connects.output"
     ]
   },
@@ -167,7 +168,10 @@
     "tests/ux/canvas-handle-menus.walk.mjs",
     "src/workbench/generationCanvas/store/canvasConnectRegression.test.ts",
     "src/workbench/generationCanvas/quickActions/nodeInputActions.upload.test.ts",
-    "src/workbench/generationCanvas/runner/referenceSlotsFirstFrameTag.test.ts"
+    "src/workbench/generationCanvas/runner/referenceSlotsFirstFrameTag.test.ts",
+    "src/workbench/generationCanvas/model/derivedOutput.test.ts",
+    "src/workbench/generationCanvas/adapters/assetImportAdapter.test.ts",
+    "src/workbench/generationCanvas/components/canvasStageDrop.importResult.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",

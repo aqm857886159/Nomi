@@ -27,6 +27,7 @@ import type { DirectorLinkedAsset, DirectorProject } from './model/directorTypes
 import type { DirectorOutput } from './OutputsContext'
 import type { CanvasImage } from './panels/CanvasImagesContext'
 import { collectCanvasImages } from './bridge/canvasImages'
+import { derivedFromMeta } from '../../model/derivedOutput'
 
 // 资产节点连进来的文件只认泼溅 / 模型（全景走全景节点，场景 JSON 不从连线来）
 function linkedAssetKindOf(url: string): DirectorLinkedAsset['kind'] | null {
@@ -123,8 +124,8 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
       })
       const createdAt = Date.now()
       const result = { id: `director-output-${output.id}-${createdAt}`, type: output.kind, url: output.assetUrl, createdAt, ...(output.kind === 'video' ? { durationSeconds: output.duration } : {}) }
-      canvas.updateNode(created.id, { result, history: [result], status: 'success', meta: { ...(created.meta || {}), source: 'director', sourceNodeId: node.id } })
-      canvas.connectNodes(node.id, created.id, 'reference', undefined, undefined, { provenance: true })
+      canvas.updateNode(created.id, { result, history: [result], status: 'success', meta: { ...(created.meta || {}), source: 'director', sourceNodeId: node.id, ...derivedFromMeta('director-output', node.id) } })
+      canvas.connectDerivedOutput(node.id, created.id, 'reference')
     },
     [node.id, t],
   )

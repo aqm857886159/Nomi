@@ -17,6 +17,7 @@ import {
   releaseDeconstructionRun,
 } from './deconstructionLifecycle'
 import i18n from '../../../../i18n'
+import { derivedFromMeta } from '../../model/derivedOutput'
 
 async function writeTable(
   tableNodeId: string,
@@ -56,9 +57,9 @@ export function ensureDeconstructionShotTable(sourceNodeId: string): string | un
     const node = store.addNode({
       kind: 'shot_table', title: source.title, categoryId: source.categoryId,
       position: { x: source.position.x + resolveNodeVisualSize(source).width + 80, y: source.position.y },
-      meta: { shotTable: table },
+      meta: { shotTable: table, ...derivedFromMeta('shot-table', sourceNodeId) },
     })
-    store.connectNodes(sourceNodeId, node.id, undefined, undefined, undefined, { provenance: true })
+    store.connectDerivedOutput(sourceNodeId, node.id)
     store.selectNodes([node.id])
     return node.id
   })

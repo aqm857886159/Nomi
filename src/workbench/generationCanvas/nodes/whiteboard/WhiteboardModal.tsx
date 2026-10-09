@@ -36,6 +36,7 @@ import { readWhiteboardState, serializeWhiteboardState } from './whiteboardState
 import { getCanvasDimensions } from './lib/canvas'
 import { computeMediaMetaPatch, mediaNodeSize } from '../nodeSizing'
 import i18n from '../../../../i18n'
+import { derivedFromMeta } from '../../model/derivedOutput'
 
 type WhiteboardModalProps = {
   nodeId: string
@@ -81,7 +82,7 @@ export default function WhiteboardModal({
   const [screenshotBusy, setScreenshotBusy] = React.useState(false)
   const addNode = useGenerationCanvasStore((state) => state.addNode)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const connectDerivedOutput = useGenerationCanvasStore((state) => state.connectDerivedOutput)
   const sourceNode = useGenerationCanvasStore((state) => state.nodes.find((node) => node.id === nodeId) || null)
   const canvasImageItems = useGenerationCanvasStore((state) => getAllCanvasImageResults(state.nodes, nodeId))
   const resultItems = useGenerationCanvasStore((state) => getConnectedImageResults(state.nodes, state.edges, nodeId))
@@ -277,6 +278,7 @@ export default function WhiteboardModal({
             ...(created.meta || {}),
             source: 'whiteboard-screenshot',
             sourceNodeId: nodeId,
+            ...derivedFromMeta('whiteboard-snapshot', nodeId),
             ...(screenshotMeta || {}),
           },
         })
@@ -291,7 +293,7 @@ export default function WhiteboardModal({
             ...(sourceMeta ? { meta: sourceMeta } : {}),
           })
         }
-        connectNodes(nodeId, created.id, 'reference', undefined, undefined, { provenance: true })
+        connectDerivedOutput(nodeId, created.id, 'reference')
 
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
@@ -305,7 +307,7 @@ export default function WhiteboardModal({
   }, [
     addNode,
     captureFile,
-    connectNodes,
+    connectDerivedOutput,
     nodeId,
     persistWhiteboardState,
     saveImageWhiteboardSnapshot,

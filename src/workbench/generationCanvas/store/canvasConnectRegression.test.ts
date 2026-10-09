@@ -39,10 +39,41 @@ describe('connectNodes: connects.input gate at the store write boundary', () => 
     expect(store().edges).toEqual([])
   })
 
-  it('still lets system provenance edges into an input-less derived node through (explicit opt-out)', () => {
+  it('ordinary connectNodes has no provenance switch: passing one does not get an edge into an asset card', () => {
     store().restoreSnapshot({ nodes: [node('source', 'panorama'), node('shot', 'asset')], edges: [], groups: [] })
-    store().connectNodes('source', 'shot', 'reference', undefined, undefined, { provenance: true })
-    expect(store().edges).toMatchObject([{ source: 'source', target: 'shot' }])
+    ;(store().connectNodes as (...args: unknown[]) => void)('source', 'shot', 'reference', undefined, undefined, { provenance: true })
+    expect(store().edges).toEqual([])
+  })
+
+  describe('connectDerivedOutput: the only door for system provenance edges (identity comes from data, not from a caller flag)', () => {
+    const withDerived = (kind: string, from: string, targetKind: GenerationCanvasNode['kind'] = 'asset'): GenerationCanvasNode =>
+      ({ ...node('shot', targetKind), meta: { derivedFrom: { nodeId: from, kind } } })
+
+    it('connects when the target recorded that exactly this source derived it', () => {
+      store().restoreSnapshot({ nodes: [node('source', 'panorama'), withDerived('panorama-screenshot', 'source')], edges: [], groups: [] })
+      expect(store().connectDerivedOutput('source', 'shot')).toBe(true)
+      expect(store().edges).toMatchObject([{ source: 'source', target: 'shot' }])
+    })
+
+    it.each([
+      ['an ordinary card pretending (no derivedFrom)', () => [node('source', 'panorama'), node('shot', 'asset')]],
+      ['derivedFrom names another node', () => [node('source', 'panorama'), withDerived('panorama-screenshot', 'other')]],
+      ['source kind does not fit the declared derivation', () => [node('source', 'image'), withDerived('panorama-screenshot', 'source')]],
+      ['target kind does not fit the declared derivation', () => [node('source', 'panorama'), withDerived('panorama-screenshot', 'source', 'text')]],
+    ])('refuses %s', (_label, nodes) => {
+      store().restoreSnapshot({ nodes: nodes(), edges: [], groups: [] })
+      expect(store().connectDerivedOutput('source', 'shot')).toBe(false)
+      expect(store().edges).toEqual([])
+    })
+
+    it('refuses a second origin: a derived node already fed by a different source', () => {
+      store().restoreSnapshot({
+        nodes: [node('source', 'panorama'), node('intruder'), withDerived('panorama-screenshot', 'source')],
+        edges: [{ id: 'old', source: 'intruder', target: 'shot', mode: 'reference' }],
+        groups: [],
+      })
+      expect(store().connectDerivedOutput('source', 'shot')).toBe(false)
+    })
   })
 
   it('old projects: an existing edge into an asset card loads, shows and disconnects', () => {

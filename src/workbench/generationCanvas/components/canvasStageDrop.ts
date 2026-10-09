@@ -409,7 +409,8 @@ export function importLocalFilesToGenerationCanvas(
       for (const message of mediaImportRejectionMessages(result.rejected)) notes.push(message)
       if (result.failedCount > 0) notes.push(`${result.failedCount} 个导入失败`)
       if (notes.length) reportCanvasFeedback(notes.join('；'), result.failedCount > 0 ? 'error' : 'warning', { projectId: projectContext.binding.projectId, identity: 'canvas-import', reason: 'import-incomplete' })
-      return result.created.map((item) => item.node.id)
+      // 只返回导入**成功**的：失败的卡留在画布上（error，可重试），不算导入好了。
+      return result.succeededNodeIds
     })
     .catch(() => [])
 }

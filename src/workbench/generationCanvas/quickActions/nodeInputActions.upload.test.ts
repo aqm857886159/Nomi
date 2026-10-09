@@ -5,13 +5,14 @@ import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from
 // 2026-10-09 对抗评审 B1。设计卡「素材选择器上传中关闭……文件已导入的留成素材卡，不连线」说的是**上传途中把选择器关掉**这一种：
 // 那时已导入的留成素材卡、不连线。选择器一直开到上传完成的正常情形，左环「给它加输入」就是要接上，
 // 而且「导入 + 连线」必须是一步撤销（Ctrl+Z 一次撤干净）。
-const imported = vi.hoisted(() => ({ ids: [] as string[] }))
+const imported = vi.hoisted(() => ({ ids: [] as string[], failed: false }))
 vi.mock('../components/canvasStageDrop', () => ({
   importLocalFilesToGenerationCanvas: async () => {
     const store = (await import('../store/generationCanvasStore')).useGenerationCanvasStore.getState()
     const created = store.addNode({ kind: 'asset', title: 'uploaded', position: { x: 0, y: 0 }, categoryId: 'shots', select: false })
     imported.ids = [created.id]
-    return [created.id]
+    // 上传失败的卡留在画布上（error）但导入 API 不把它算作成功。
+    return imported.failed ? [] : [created.id]
   },
 }))
 
@@ -22,6 +23,7 @@ const file = new File(['x'], 'a.png', { type: 'image/png' })
 
 beforeEach(() => {
   __resetGenerationCanvasHistoryForTests()
+  imported.failed = false
   store().restoreSnapshot({ nodes: [target], edges: [], groups: [] })
 })
 
@@ -32,6 +34,13 @@ describe('addUploadedInput', () => {
     expect(store().edges).toMatchObject([{ source: imported.ids[0], target: 'target' }])
     store().undo()
     expect(store().nodes.map((n) => n.id)).toEqual(['target'])
+    expect(store().edges).toEqual([])
+  })
+
+  it('upload failed (the card stays as an error card) → NOT wired in', async () => {
+    imported.failed = true
+    await addUploadedInput('target', file, { shouldConnect: () => true })
+    expect(store().nodes.map((n) => n.id)).toContain(imported.ids[0])
     expect(store().edges).toEqual([])
   })
 

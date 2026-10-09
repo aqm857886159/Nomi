@@ -64,3 +64,9 @@
 - `src/workbench/generationCanvas/store/canvasConnectRegression.test.ts`（S5 图 → 视频连线，保持）
 - `src/workbench/generationCanvas/store/canvasBatchGestures.test.ts`（多选连线一步撤销，保持）
 - `src/workbench/generationCanvas/quickActions/deriveFromNode.noMoneyDoor.test.ts`（快捷动作目录不碰花钱入口；「试试」放进同一目录，被它覆盖）
+
+## 追加（评审复审 B2，2026-10-09）：自写登记 canvas-undo-journal-write-boundary
+
+本轮在 `events/canvasWriteBoundary.ts` 只加了**一行**：新 store 动作 `connectDerivedOutput` 在「动作 → 撤销层」表里登记为 `edit`（该表要求每个 store 动作都登记，少一个编译就红）。没有改撤销日志、提交口或写边界本身。
+
+为什么现在不换现成方案：这个登记条目 `canvas-undo-journal-write-boundary`（under-review，reviewBy 2026-11-06）的评估方向是「撤销栈改成 Immer 反向补丁」，结论还没出；本轮的改动与它的评估无关（只是新动作按现有规则登记一行）。哪天换：该评估出结论时一并处理——届时「动作 → 层」表随撤销栈一起重写，本轮这一行不会成为迁移负担（它只表达「这个动作是用户可撤销的编辑」）。

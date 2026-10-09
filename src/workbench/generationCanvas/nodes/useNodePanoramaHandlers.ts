@@ -7,6 +7,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { PanoramaScreenshot } from './PanoramaViewer'
 import { computeMediaMetaPatch, mediaNodeSize } from './nodeSizing'
+import { derivedFromMeta } from '../model/derivedOutput'
 
 /**
  * 全景节点的两个回调（上传换图 / 视口截图建节点）从 BaseGenerationNode 抽出（R9 防巨壳）。
@@ -23,7 +24,7 @@ export function useNodePanoramaHandlers(
   const { t } = useTranslation()
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const addNode = useGenerationCanvasStore((state) => state.addNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const connectDerivedOutput = useGenerationCanvasStore((state) => state.connectDerivedOutput)
 
   const handlePanoramaFileChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,18 +99,19 @@ export function useNodePanoramaHandlers(
             ...(mediaMeta || {}),
             source: screenshot.source || 'panorama-screenshot',
             sourceNodeId: node.id,
+            ...derivedFromMeta('panorama-screenshot', node.id),
             localOnly: stored.localOnly,
             ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
           },
         })
-        connectNodes(node.id, screenshotNode.id, 'reference', undefined, undefined, { provenance: true })
+        connectDerivedOutput(node.id, screenshotNode.id, 'reference')
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
         if (screenshotNodeId) updateNode(screenshotNodeId, { status: 'error', error: t('generationCommon.panorama.captureFailed') })
         reportFeedback(t('generationCommon.panorama.captureFailed'))
       }
     },
-    [addNode, t, node.position.x, node.position.y, node.id, visualSize.width, updateNode, connectNodes, reportFeedback],
+    [addNode, t, node.position.x, node.position.y, node.id, visualSize.width, updateNode, connectDerivedOutput, reportFeedback],
   )
 
   return { handlePanoramaFileChange, handlePanoramaScreenshot }

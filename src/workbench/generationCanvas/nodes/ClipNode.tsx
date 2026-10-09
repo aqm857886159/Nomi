@@ -62,7 +62,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const canvasNodes = useGenerationCanvasStore((state) => state.nodes)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const addNode = useGenerationCanvasStore((state) => state.addNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const connectDerivedOutput = useGenerationCanvasStore((state) => state.connectDerivedOutput)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -398,7 +398,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             durationSeconds: task.durationFrames / Math.max(1, task.timeline.fps),
           }))
           // Default reference edges retain the canvas's light, label-free resting state.
-          connectNodes(node.id, outputNode.id, undefined, undefined, undefined, { provenance: true })
+          connectDerivedOutput(node.id, outputNode.id)
         }
       }
       setExportMenuOpen(false)

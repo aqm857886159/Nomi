@@ -260,3 +260,31 @@ describe('importLocalMediaFilesToGenerationCanvas', () => {
     expect(node.meta?.retryableImport).toBe(true)
   })
 })
+
+// 2026-10-09 对抗评审 B1（复审）：导入结果要说清**每个节点**成没成——上传失败（节点留成 error）的不许被当成「导入好了」去接线。
+describe('importLocalMediaFilesToGenerationCanvas · per-node success', () => {
+  beforeEach(async () => {
+    coordinator = makeCoordinator(); unregister = registerProjectCanvasReadSurfaceCoordinator(coordinator)
+    await switchProject('project-a')
+    __resetGenerationCanvasHistoryForTests()
+  })
+
+  it('a failed upload stays an error card and is NOT in succeededNodeIds', async () => {
+    const result = await importLocalMediaFilesToGenerationCanvas([makeVideoFile()], { projectContext: currentProject(),
+      basePosition: { x: 0, y: 0 }, capacity: null, uploadFile: async () => { throw new Error('disk failed') }, recoverFile: async () => null,
+    })
+    expect(result.created).toHaveLength(1)
+    expect(result.failedCount).toBe(1)
+    expect(result.succeededNodeIds).toEqual([])
+    expect(useGenerationCanvasStore.getState().nodes[0].status).toBe('error')
+  })
+
+  it('a successful upload is reported as succeeded', async () => {
+    const result = await importLocalMediaFilesToGenerationCanvas([makeImageFile()], { projectContext: currentProject(),
+      basePosition: { x: 0, y: 0 }, capacity: null, createObjectUrl: () => 'blob:test', revokeObjectUrl: vi.fn(), readImageDimensions: async () => null,
+      uploadFile: async () => asset, recoverFile: async () => null,
+    })
+    expect(result.succeededNodeIds).toEqual(result.created.map((item) => item.node.id))
+    expect(result.failedCount).toBe(0)
+  })
+})
