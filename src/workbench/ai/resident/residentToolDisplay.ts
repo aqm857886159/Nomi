@@ -256,7 +256,7 @@ const VERB_DISPLAY = {
   export_video: { name: 'agentResident.toolExport', summary: 'agentResident.toolExportSummary' },
 } as const satisfies Record<string, { name: TranslationKey; summary: TranslationKey }>
 
-function verbDisplay(name: string): { name: TranslationKey; summary: TranslationKey } | undefined {
+function verbDisplay(name: string): (typeof VERB_DISPLAY)[keyof typeof VERB_DISPLAY] | undefined {
   return Object.prototype.hasOwnProperty.call(VERB_DISPLAY, name) ? VERB_DISPLAY[name as keyof typeof VERB_DISPLAY] : undefined
 }
 
