@@ -303,7 +303,7 @@ export function writeVerbs(): VerbDeclaration[] {
     name: "arrange_canvas", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
     describe: {
-      does: "Change how existing nodes relate and sit on the canvas: connect reference links or tidy the layout.",
+      does: "Connect reference links between existing nodes or tidy the layout.",
       useWhen: "The user asks to connect, link or tidy.",
       notWhen: "It cannot create shots or any generating node — such a request is rejected and draft_shots is named instead. Not for hand-authored artifacts (make_artifact) or staging and camera references (stage_shot).",
       params: "links[] (fromId, toId, role) connect existing nodes; tidy true re-lays out the canvas (optionally one categoryId). All ids from look_at_canvas.",
@@ -314,7 +314,7 @@ export function writeVerbs(): VerbDeclaration[] {
         fromId: z.string().trim().min(1).describe("Source node id."),
         toId: z.string().trim().min(1).describe("Target node id."),
         role: plannedEdgeSchema.shape.mode,
-      }).strict()).max(48).optional().describe("Reference links to add between existing nodes."),
+      }).strict()).max(48).optional().describe("Reference links between existing nodes."),
       tidy: z.boolean().optional().describe("Re-lay out the canvas."),
       categoryId: z.string().trim().min(1).optional().describe("With tidy: only this canvas category."),
     }).strict().superRefine((value, context) => {
@@ -359,18 +359,18 @@ export function writeVerbs(): VerbDeclaration[] {
   const writeNodeText: VerbDeclaration = {
     name: "write_node_text", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     describe: {
-      does: "Write the body text of an existing text node on the canvas — replace it or append to it. Only edits the text; it does not generate and costs nothing.",
-      useWhen: "The user asks you to write or revise the words inside a text node (a prompt, description or style note kept on the canvas).",
-      notWhen: "Not for image or video shot prompts (draft_shots), not for the creation-page script (write_script), not for new nodes (make_artifact) and never to start generation (generate).",
-      params: "nodeId of a text node from look_at_canvas; text is the exact body; mode is replace (default) or append.",
+      does: "Replace or append a text node's body. Text only: it generates nothing and costs nothing.",
+      useWhen: "The user asks you to write or revise the words inside a text node.",
+      notWhen: "Not for shot prompts (draft_shots), the script (write_script) or new nodes (make_artifact); never to start generation.",
+      params: "nodeId of a text node from look_at_canvas; text is the exact body; mode replace (default) or append.",
     },
     promptGuidelines: CANVAS_WRITE_GUIDELINES,
     schema: z.object({
-      nodeId: z.string().trim().min(1).describe("Id of an existing text node, from look_at_canvas."),
-      text: z.string().min(1).max(20_000).describe("The exact body text. Plain text; line breaks become paragraphs."),
-      mode: z.enum(["replace", "append"]).optional().describe("replace (default) overwrites the body; append adds after it."),
+      nodeId: z.string().trim().min(1).describe("Text node id (look_at_canvas)."),
+      text: z.string().min(1).max(20_000).describe("Exact body; newlines become paragraphs."),
+      mode: z.enum(["replace", "append"]).optional().describe("replace (default) or append."),
     }).strict(),
-    examples: [{ when: "Rewrite a style note:", arguments: { nodeId: "node-text-1", text: "Warm film grain, soft backlight, muted teal and amber.", mode: "replace" } }],
+    examples: [{ when: "Rewrite a style note:", arguments: { nodeId: "node-text-1", text: "Warm film grain, soft backlight." } }],
     prepareArguments: modelArgumentTolerance({ fieldAliases: { text: ["content", "body"] } }),
     semanticInputOf: (args) => canvasWriteInputOf("write_node_text", args),
   };

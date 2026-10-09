@@ -83,7 +83,10 @@ try {
   check('新建并进入隔离项目', enteredStudio, win.url())
   if (!enteredStudio) throw new Error('未进入项目工作台')
   if (await generationTab.getAttribute('data-state') !== 'active') {
-    await generationTab.click({ timeout: 4000, force: true })
+    // 点击本身不等整次导航（慢盘 / 慢 CI 上「等待已排期的导航」会把成功的点击误报成 4s 超时，同上），
+    // 到没到「生成」用页签自己的 active 态收敛。
+    await generationTab.click({ timeout: 4000, force: true, noWaitAfter: true })
+    await win.waitForFunction(() => document.querySelector('[data-mode="generation"]')?.getAttribute('data-state') === 'active', undefined, { timeout: 15_000 })
   }
   await win.waitForTimeout(1200)
 

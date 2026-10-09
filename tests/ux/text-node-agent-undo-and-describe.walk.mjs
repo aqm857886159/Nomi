@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
@@ -114,7 +115,7 @@ try {
   // 本地图片夹具 → 「导入文件」→ 画布上多一个带图的节点。
   const before = new Set(await nodeIds())
   const chooser = win.waitForEvent('filechooser', { timeout: stationTimeout({ operations: 1 }) })
-  await clickOrFail(win.getByRole('button', { name: '导入文件' }).first(), '左缘「导入文件」')
+  await clickOrFail(win.getByRole('button', { name: uiText('zh-CN', 'canvas.importFileAction') }).first(), '左缘「导入文件」')
   await (await chooser).setFiles([IMAGE])
   await expect.poll(async () => (await nodeIds()).filter((id) => !before.has(id)).length, { timeout: stationTimeout({ operations: 2 }) }).toBe(1)
   const imageId = (await nodeIds()).find((id) => !before.has(id))
