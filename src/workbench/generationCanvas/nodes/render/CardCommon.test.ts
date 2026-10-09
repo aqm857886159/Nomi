@@ -54,6 +54,9 @@ describe('empty node layout (Claude Design EmptyStates)', () => {
     expect(out).toContain('justify-start')
     expect(out).not.toContain('justify-center py')
     expect(out).toContain('>·<')
+    // 动作行永远单行（结构上不许折行：nowrap；文案按最小节点宽度写短，走查量每种节点两种语言下都是单行）。
+    expect(out).toContain('flex-nowrap')
+    expect(out).not.toContain('flex-wrap')
     // 不套胶囊框：动作按钮没有边框 / 圆角胶囊 / 底色，悬停才出浅底。
     expect(out).not.toContain('rounded-full bg-nomi-paper')
     expect(out).not.toContain('border-nomi-line')

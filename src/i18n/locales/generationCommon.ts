@@ -1727,9 +1727,9 @@ export const enGenerationCommon = {
   },
   nodeTry: {
     label: 'Try',
-    image: { text: 'Text to image', reference: 'From a reference image' },
-    video: { firstFrame: 'First frame to video', firstLast: 'First + last frame', text: 'Text to video' },
-    text: { toImage: 'Make an image from it', toVideo: 'Make a video from it' },
+    image: { text: 'Text to image', reference: 'Reference to image' },
+    video: { firstFrame: 'First frame', firstLast: 'First + last', text: 'From text' },
+    text: { toImage: 'Image from it', toVideo: 'Video from it' },
     status: { image: 'Not generated yet', video: 'Not generated yet', text: 'Nothing here yet', clip: 'No clips yet' },
     clip: { fromLibrary: 'Add from library' },
   },

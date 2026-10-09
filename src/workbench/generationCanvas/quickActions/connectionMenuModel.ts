@@ -8,7 +8,7 @@ import {
   connectionCreateVerdictsForTarget,
   type ConnectionCreateVerdict,
 } from '../agent/referenceEdgeCapability'
-import { NODE_DERIVE_KINDS, type NodeDeriveKind } from '../quickActions/nodeDeriveMenuModel'
+import { NODE_DERIVE_KINDS, type NodeDeriveKind } from './nodeDeriveMenuModel'
 
 /** 菜单是从哪儿出的：哪张卡（或哪个编组）的哪一侧。 */
 export type ConnectionMenuStart = { nodeId: string; side: 'left' | 'right'; sourceKind: 'node' | 'group' }

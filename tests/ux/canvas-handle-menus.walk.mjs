@@ -29,6 +29,7 @@ const scheme = argValue('--scheme', 'light')
 const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}`
 const zh = locale !== 'en'
 const evidence = path.join(repoRoot, 'docs/evidence/2026-10-08-canvas-handles')
+const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
 const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-handle-menus-'))
@@ -39,6 +40,7 @@ const assetsDir = path.join(projectRoot, 'assets/generated')
 fs.mkdirSync(assetsDir, { recursive: true })
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(evidence, { recursive: true })
+fs.mkdirSync(failShotDir, { recursive: true })
 execFileSync(ffmpeg.path, ['-y', '-f', 'lavfi', '-i', 'testsrc2=size=640x360', '-frames:v', '1', path.join(assetsDir, 'street.png')], { stdio: 'pipe' })
 execFileSync(ffmpeg.path, ['-y', '-f', 'lavfi', '-i', 'smptebars=size=640x360', '-frames:v', '1', path.join(assetsDir, 'portrait.png')], { stdio: 'pipe' })
 const url = (file) => `nomi-local://asset/${projectId}/assets/generated/${file}`
@@ -83,7 +85,8 @@ async function task(name, body) {
   try { await body(); results.push({ name, pass: true }) }
   catch (error) {
     results.push({ name, pass: false, error: String(error?.message ?? error).split('\n').filter(Boolean).slice(0, 8).join(' | ') })
-    await win.screenshot({ path: path.join(evidence, `FAIL-${name}-${tag}.png`) }).catch(() => {})
+    // 失败截图写到不进库的 .tmp/，不落进 docs/evidence（证据目录只放拍板过的图）。
+    await win.screenshot({ path: path.join(failShotDir, `FAIL-${name}-${tag}.png`) }).catch(() => {})
     await win.keyboard.press('Escape').catch(() => {})
   }
   console.log(JSON.stringify(results.at(-1)))
@@ -114,7 +117,7 @@ async function undo() {
 
 try {
   await win.locator('[data-project-card]', { hasText: project.name }).first().click()
-  await expect.poll(() => app.windows().some((page) => /projectId=/.test(page.url())), { timeout: 30_000 }).toBe(true)
+  await expect.poll(() => app.windows().some((page) => /projectId=/.test(page.url())), { timeout: stationTimeout({ operations: 4 }) }).toBe(true)
   win = app.windows().find((page) => /projectId=/.test(page.url()))
   win.setDefaultTimeout(stationTimeout({ operations: 2 }))
   await win.locator('.generation-canvas-v2__stage').waitFor()
@@ -175,6 +178,14 @@ try {
     await waitForVisualQuiescence(win)
     for (const [id, kind] of [['h-image', 'image'], ['h-video', 'video'], ['h-text', 'text'], ['h-clip', 'clip']]) {
       await expect(win.locator(`${nodeSel(id)} [data-node-try="${kind}"]`), `${id} shows 试试`).toBeVisible()
+      // 「试试」那一行必须单行（中英文都是；文案按最小宽度写短，不靠 JS 动态藏点）：所有动作同一个 top，且不溢出自己的容器。
+      const row = await win.locator(`${nodeSel(id)} [data-node-try="${kind}"]`).evaluate((el) => {
+        const tops = new Set([...el.querySelectorAll('button')].map((button) => Math.round(button.getBoundingClientRect().top)))
+        const frame = el.closest('[data-node-empty-state], .generation-canvas-v2-node')?.getBoundingClientRect()
+        const rect = el.getBoundingClientRect()
+        return { lines: tops.size, overflow: el.scrollWidth > el.clientWidth + 1, insideFrame: !frame || (rect.left >= frame.left - 1 && rect.right <= frame.right + 1) }
+      })
+      expect(row, `${id} 动作行单行、不溢出`).toEqual({ lines: 1, overflow: false, insideFrame: true })
     }
     await shot('05-empty-image', win.locator(nodeSel('h-image')))
     await shot('06-empty-video', win.locator(nodeSel('h-video')))

@@ -8,7 +8,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import type { ConnectionCreateVerdict } from '../agent/referenceEdgeCapability'
 import type { NodeDeriveKind } from '../quickActions/nodeDeriveMenuModel'
-import { connectionMenuVerdicts, resolveRingMenuPlacement, type ConnectionMenuStart } from './connectionMenuModel'
+import { connectionMenuVerdicts, resolveRingMenuPlacement, type ConnectionMenuStart } from '../quickActions/connectionMenuModel'
 import { addInputAcceptedAssets } from '../quickActions/nodeDeriveMenuModel'
 import { pickCanvasInputFor } from '../quickActions/nodeInputActions'
 import {

@@ -20,7 +20,7 @@ function TrySeparator(): JSX.Element {
 
 /**
  * 空节点「试试」——所有种类**一个**列表组件（2026-10-08 拍板 ③ + 同日 Claude Design 拍板稿）。
- * 排法：纯文字按钮用「·」隔开、悬停才出浅底、不套框；一行放得下就一行（视频三项），放不下换行仍居中；
+ * 排法：纯文字按钮用「·」隔开、悬停才出浅底、不套框；**永远单行**（flex-nowrap，不靠 JS 量）——中英文文案按最小节点宽度写短，走查断言每种节点两种语言下动作行都是单行；
  * 「试试」两个字只留给读屏的分组名。点一下跑配方（只搭结构、一步撤销）；没有配方的种类不出现（返回 null）。
  */
 export function NodeTryList({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
@@ -30,7 +30,7 @@ export function NodeTryList({ node }: { node: GenerationCanvasNode }): JSX.Eleme
   return (
     <ul
       data-node-try={node.kind}
-      className="pointer-events-auto m-0 flex max-w-full list-none flex-wrap items-center justify-center gap-x-0.5 p-0"
+      className="pointer-events-auto m-0 flex max-w-full list-none flex-nowrap items-center justify-center gap-x-0.5 p-0"
       aria-label={t('generationCommon.nodeTry.label')}
     >
       {recipes.map((recipe, index) => (
@@ -64,7 +64,7 @@ export function NodeTryList({ node }: { node: GenerationCanvasNode }): JSX.Eleme
 export function ClipEmptyTry({ nodeId, readOnly = false, onAddMaterial }: { nodeId: string; readOnly?: boolean; onAddMaterial?: () => void }): JSX.Element {
   const { t } = useTranslation()
   return (
-    <span className="pointer-events-auto inline-flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5" data-node-try="clip">
+    <span className="pointer-events-auto inline-flex flex-nowrap items-center justify-center gap-x-1" data-node-try="clip">
       <span className="text-caption text-nomi-ink-40">{t('generationCommon.nodeTry.status.clip')}</span>
       {readOnly ? null : (
         <>

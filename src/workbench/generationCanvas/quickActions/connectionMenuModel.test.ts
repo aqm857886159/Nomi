@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from '../store/generationCanvasStore'
 import { connectionMenuVerdicts, handleMenuAnchor, resolveRingMenuPlacement } from './connectionMenuModel'
-import { createConnectedNode } from '../quickActions/nodeInputActions'
+import { createConnectedNode } from './nodeInputActions'
 
 const state = () => useGenerationCanvasStore.getState()
 function node(id: string, kind: GenerationNodeKind, meta: Record<string, unknown> = {}): GenerationCanvasNode {

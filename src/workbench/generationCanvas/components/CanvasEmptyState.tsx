@@ -77,7 +77,7 @@ export function CanvasEmptyState({ activeCategoryId, getInsertionPosition }: Can
           </button>
           {moreOpen ? (
             <CanvasMoreAddMenu
-              className="absolute top-[calc(100%+8px)] right-0"
+              className="absolute top-0 left-[calc(100%+8px)]"
               onClose={closeMore}
               onPick={(intent) => { setMoreOpen(false); addIntent.run(intent) }}
             />

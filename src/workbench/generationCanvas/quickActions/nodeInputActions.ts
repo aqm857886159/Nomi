@@ -7,7 +7,7 @@ import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { enterCanvasPickMode } from '../store/canvasPickMode'
 import { addAssetLibraryNode, importLocalFilesToGenerationCanvas } from '../components/canvasStageDrop'
-import { resolveRingMenuPlacement } from '../reactFlow/connectionMenuModel'
+import { resolveRingMenuPlacement } from './connectionMenuModel'
 
 /**
  * 「给一张卡接东西」的几种动作——两侧拉环菜单、空节点「试试」、点选模式、素材选择器共用这一处，

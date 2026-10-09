@@ -31,7 +31,7 @@ import {
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { selectFlowZoom } from './canvasViewportScale'
 import { GenerationFlowNodeScope, useGenerationFlowHandleMenu } from './generationFlowNodeContext'
-import { handleMenuAnchor } from './connectionMenuModel'
+import { handleMenuAnchor } from '../quickActions/connectionMenuModel'
 import { useCanvasPickNodeState } from '../store/canvasPickMode'
 import { readGroupPort } from '../model/groupPort'
 import { sameGenerationFlowNodeRender } from '../nodes/flowNodeRenderGate'

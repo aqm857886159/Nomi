@@ -15,7 +15,7 @@
     "src/workbench/generationCanvas/model/generationNodeKinds.ts",
     "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
-    "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts",
+    "src/workbench/generationCanvas/quickActions/connectionMenuModel.ts",
     "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
     "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
@@ -103,7 +103,7 @@
   ],
   "same_class_entry_points": [
     {
-      "path": "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts",
+      "path": "src/workbench/generationCanvas/quickActions/connectionMenuModel.ts",
       "entry_point": "connectionMenuVerdicts",
       "disposition": "enforced",
       "evidence": "Replaces createVerdictsForStart; left side calls connectionCreateVerdictsForTarget (connectionMenuModel.test.ts)."
@@ -153,13 +153,13 @@
       "src/workbench/generationCanvas/nodes/registry.ts",
       "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
       "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
-      "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts"
+      "src/workbench/generationCanvas/quickActions/connectionMenuModel.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",
     "src/workbench/generationCanvas/agent/referenceEdgeCapability.target.test.ts",
-    "src/workbench/generationCanvas/reactFlow/connectionMenuModel.test.ts",
+    "src/workbench/generationCanvas/quickActions/connectionMenuModel.test.ts",
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
     "tests/ux/canvas-handle-menus.walk.mjs"
   ],
@@ -202,7 +202,7 @@
       "src/workbench/generationCanvas/model/generationNodeKinds.ts",
       "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
       "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
-      "src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts",
+      "src/workbench/generationCanvas/quickActions/connectionMenuModel.ts",
       "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
       "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
       "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",

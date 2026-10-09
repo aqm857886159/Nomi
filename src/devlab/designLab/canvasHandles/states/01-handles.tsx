@@ -5,7 +5,7 @@ import { FIXTURES, HandlesStage } from '../canvasHandlesLabKit'
 
 const SOURCE = '用户 10-08 拍板 ①②（Design 画布）；设计卡 docs/plan/2026-10-08-canvas-handles.md'
 const MIRRORS = 'src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts:35'
-const MENU_MIRRORS = 'src/workbench/generationCanvas/reactFlow/connectionMenuModel.ts:23'
+const MENU_MIRRORS = 'src/workbench/generationCanvas/quickActions/connectionMenuModel.ts:23'
 const PICK_MIRRORS = 'src/workbench/generationCanvas/components/CanvasPickModeLayer.tsx:12'
 
 export const HANDLE_STATES: readonly LabState[] = [
