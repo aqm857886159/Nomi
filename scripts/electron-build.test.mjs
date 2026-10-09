@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -19,7 +20,7 @@ function write(root, relative, content) {
 }
 
 function fixture(main = 'dist-electron/main.js') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-electron-build-'))
+  const root = makeTempDir('nomi-electron-build-')
   temporaryRoots.push(root)
   write(root, 'package.json', { main })
   const compilerOptions = { target: 'ES2022', rootDir: '.', outDir: '../dist-electron', strict: true,
@@ -47,7 +48,7 @@ async function artifactCheck() {
 
 function build(root) {
   // `write-intake-config.mjs` 从 2026-09-17 起也是 build-electron 的一部分（出厂配置烤进产物，W-01）。
-  for (const name of ['build-electron.mjs', 'electron-build-artifacts.mjs', 'package-build-stamp.mjs', 'write-intake-config.mjs', 'write-feature-flags.mjs']) {
+  for (const name of ['_test-temp.mjs', 'build-electron.mjs', 'electron-build-artifacts.mjs', 'package-build-stamp.mjs', 'write-intake-config.mjs', 'write-feature-flags.mjs']) {
     const file = path.join(repoRoot, 'scripts', name)
     expect(fs.existsSync(file), 'CJS and private NodeNext must share one build entry').toBe(true)
     fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })

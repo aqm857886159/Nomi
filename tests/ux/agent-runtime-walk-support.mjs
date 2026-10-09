@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Shared, isolated Electron setup for the pi cutover's real user-task walks.
 // Business actions stay in the walks: this file only launches, observes and records.
 import fs from 'node:fs'
@@ -402,7 +403,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
   // `profileDir`：「从上一版升级上来的资料」——上一版留下的整份资料（userData / 项目 / 设置）原地换新版本打开。
   // 必须原地：工作区登记里存的是项目的绝对路径，拷到别处会指回旧目录。模型目录每次按这台夹具的端口重写。
   if (profileDir && !fs.existsSync(path.join(profileDir, 'user-data'))) throw new Error(`profileDir 不是一份走查资料：${profileDir}`)
-  const tempRoot = profileDir ?? fs.mkdtempSync(path.join(os.tmpdir(), `nomi-pi-${name}-`))
+  const tempRoot = profileDir ?? makeTempDir(`nomi-pi-${name}-`)
   const settingsDir = path.join(tempRoot, 'settings')
   if (profileDir) fs.rmSync(path.join(settingsDir, 'model-catalog.json'), { force: true })
   // 显式给出、并原样交给启动器：付费走查要在起 App 之前往这里放凭据钥匙（Windows 的 Local State，

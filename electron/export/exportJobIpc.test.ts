@@ -90,11 +90,11 @@ async function exportProjectIdentity(projectId = "project-1"): Promise<ExportJob
 beforeEach(() => {
   vi.clearAllMocks();
   tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-export-job-ipc-test-"));
-  process.env.NOMI_PROJECTS_DIR = tempRoot;
+  vi.stubEnv("NOMI_PROJECTS_DIR", tempRoot);
 });
 
 afterEach(() => {
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 

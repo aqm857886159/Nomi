@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 走查：生成面底部带横贯整个工作区，右侧 AI 面板被它顶上去，右下角不空。
 //
 // 真实用户任务（2026-09-13 19:27 真机反馈原话）：「打开右侧 AI 栏和中间的时间轴之后页面被
@@ -31,7 +32,7 @@ const EXPECTED_DEFAULT_HEIGHT = 240
 /** 主窗最小宽（electron/main.ts）之上的一个常规窗口，两态都够宽。 */
 const WINDOW = { width: 1440, height: 920 }
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-layout-span-'))
+const root = makeTempDir('nomi-layout-span-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

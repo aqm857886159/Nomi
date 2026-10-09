@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R16: real user tasks for local ComfyUI, from first connection to restart recovery.
 //
 // This script intentionally uses a clean Nomi profile and a real official ComfyUI. It checks
@@ -19,7 +20,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outputDir = path.join(repoRoot, '.comfyui-real-user-journey')
 fs.mkdirSync(outputDir, { recursive: true })
 
-const profileRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-comfyui-user-journey-'))
+const profileRoot = makeTempDir('nomi-comfyui-user-journey-')
 const userDataDir = path.join(profileRoot, 'user-data')
 const settingsDir = path.join(profileRoot, 'settings')
 const projectsDir = path.join(profileRoot, 'projects')

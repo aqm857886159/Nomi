@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 项目库封面回归：「只含本地导入视频素材（+时间轴）」的项目，项目卡封面曾显示「加载失败」——
 // 根因是封面派生无视 result.type，把 mp4 的 url 塞进 <img>（NomiImage）必然 decode 失败。
 // 修后：无可 <img> 封面时派生 coverVideoUrl，卡片用 <video> 首帧当封面。
@@ -16,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cover-walk-'))
+const root = makeTempDir('nomi-cover-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const outDir = path.join(repoRoot, '.library-cover-walk-lab')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // IR-02: real built Electron, original editor/store/IPC, real keyboard and cold reopen.
 // Isolated synthetic plan setup uses original repositories; no generation or supplier requests.
 import fs from 'node:fs'
@@ -15,7 +16,7 @@ import { waitForVisualQuiescence, proveProbe, expectAbsent } from './_assert.mjs
 import { createAgentRuntimeFixture, FIXTURE_VENDOR, FIXTURE_IMAGE_MODEL } from './agent-runtime-fixture.mjs'
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
 const { createProductionRunRepository } = tsxRequire('../../electron/productionRun/productionRunRepository.ts', import.meta.url)
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ir02-electron-'))
+const tempRoot = makeTempDir('nomi-ir02-electron-')
 const settingsDir = path.join(tempRoot, 'settings'), projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'ir02-storyboard', projectRoot = path.join(projectsDir, projectId)
 const outputDir = process.env.NOMI_IR02_EVIDENCE_DIR || path.join(tempRoot, 'evidence')

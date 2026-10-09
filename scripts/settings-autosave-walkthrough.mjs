@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：集中设置页 + 自动另存（2026-08-01 用户拍板）。
 // 验证链：项目库顶栏齿轮 → 设置页出现（左tab右内容）→ 目录显示预设值 → 开自动另存开关 →
 // download-prefs.json 落 autoSaveEnabled=true → 切「通用」tab（占位）→ Esc 关闭。
@@ -11,9 +12,9 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-autosave-walk')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'settings-walk-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'settings-projects-'))
-const saveTargetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'autosave-target-'))
+const settingsDir = makeTempDir('settings-walk-')
+const projectsDir = makeTempDir('settings-projects-')
+const saveTargetDir = makeTempDir('autosave-target-')
 // 预写 download-prefs.json：给目录一个初值（让设置页目录行显示有值），开关关（走查里开它验证持久化）。
 const prefsFile = path.join(settingsDir, 'download-prefs.json')
 fs.writeFileSync(prefsFile, JSON.stringify({ autoSaveEnabled: false, autoSaveDir: saveTargetDir }, null, 2))

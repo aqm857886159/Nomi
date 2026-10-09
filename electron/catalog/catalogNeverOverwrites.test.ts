@@ -21,12 +21,12 @@ const siblings = (pattern: RegExp): string[] => fs.readdirSync(root).filter((nam
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-catalog-loss-"));
-  process.env.NOMI_SETTINGS_DIR = root;
+  vi.stubEnv("NOMI_SETTINGS_DIR", root);
   vi.resetModules();
 });
 
 afterEach(() => {
-  delete process.env.NOMI_SETTINGS_DIR;
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // F3 + F16b 真 UI 走查：选区入口与合并后的单张确认卡。
 // 这条走查只用本地文稿与 E2E spend bridge，不调用供应商；四路隔离目录由启动器统一注入。
 import { launchNomiApp } from './_launchApp.mjs'
@@ -6,7 +7,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-f3-f16b-'))
+const root = makeTempDir('nomi-f3-f16b-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectRoot = path.join(projectsDir, 'f3-f16b-project')

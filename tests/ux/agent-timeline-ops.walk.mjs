@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 · 设计合同 §2.6：剪辑面里「让 Nomi 改时间轴」的完整闭环，走真实 loopback Agent 链——
 // 选中片段 → Agent 提计划 → 时间轴高亮（尚未落盘）→ 介入槽审批卡「应用这次」→ 收据 toast → 撤销。
 //
@@ -25,7 +26,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-timeline-ops')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-agent-timeline-ops-'))
+const root = makeTempDir('nomi-agent-timeline-ops-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // M0-M5 red-stage vertical spine.
 //
 // This runner intentionally stops at the first unmet production seam. It starts
@@ -39,7 +40,7 @@ const packagedApp = packagedInput
   ? path.resolve(packagedInput.endsWith('.app') ? path.join(packagedInput, 'Contents', 'MacOS', 'Nomi') : packagedInput)
   : null
 const requestedPhase = process.argv.includes('--packaged') ? 'packaged' : 'development'
-const evidenceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-agent-vertical-spine-red-'))
+const evidenceRoot = makeTempDir('nomi-agent-vertical-spine-red-')
 
 const gaps = {
   H: { status: 'not-reached', reason: 'later user-visible actions are blocked by the first failed seam', next: 'make the real storyboard surface and row selection reachable after project creation' },

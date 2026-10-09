@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 拆解视频 v1 —— 真实用户任务闭环 + 共存态截图（R16 + R13）。
 //
 // 一条参考视频 → 拆解 → 看懂结构表 → 勾选镜头 → 加入画布逐个冒出 + 自动编组（整批一个 Cmd+Z）→ 起稿。
@@ -31,7 +32,7 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/deconstruction-panel')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-deconstruct-panel-'))
+const tempRoot = makeTempDir('nomi-deconstruct-panel-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

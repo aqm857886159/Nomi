@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from './_test-temp.mjs'
 // push 闸（scripts/claude-hooks/pre-push-check.sh）的行为测试。
 //
 // 为什么值得为一个 hook 写测试：它是 R11 的执行体，而它的失效是**静默**的——
@@ -56,7 +57,7 @@ function runHook(command, cwd = sandbox) {
 const stamp = (cwd) => execFileSync('node', [STAMP], { cwd, encoding: 'utf8' })
 
 before(() => {
-  sandbox = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'nomi-push-gate-'))
+  sandbox = makeTempDir('nomi-push-gate-')
   const origin = path.join(sandbox, 'origin')
   fs.mkdirSync(origin)
   git(origin, 'init', '-q', '-b', 'main')

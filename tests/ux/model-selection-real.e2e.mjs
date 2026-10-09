@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 目录模型选择走查：验证创作助手和生成节点都保留模型入口，且选中的身份来自 catalog。
 // 不发生成请求、不消耗额度；fixture 使用已知 provider 的模型 id（DeepSeek V4 Pro / GPT-5.2 /
 // GPT Image 2 / Nano Banana），只验证 catalog 身份、退役项清理、选择和持久化。
@@ -6,7 +7,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-model-selection-'))
+const tempRoot = makeTempDir('nomi-model-selection-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

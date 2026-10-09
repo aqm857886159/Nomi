@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：PR#55 ComfyUI 自定义工作流「生成时可调参数」。
 // 路径：模型接入 → 本地 ComfyUI（mock 探测）→ 导入自定义工作流 → 贴 LTX 常量节点形态 JSON →
 // 分析 → 参数区（空态+常用 chips）→ 一键加 宽/高/秒/帧率 → 添加参数/删除参数 → 导入 →
@@ -13,7 +14,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-workflow-params-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-params-walk-'))
+const settingsDir = makeTempDir('comfyui-params-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 // LTX 2.3 常量节点形态（同 comfyuiWorkflowImport.test.ts 固件）：宽高/秒数/帧率藏在常量节点 value。
@@ -42,7 +43,7 @@ const mock = http.createServer((req, res) => {
 })
 await new Promise((r) => mock.listen(8188, '127.0.0.1', r))
 
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-params-proj-'))
+const projectsDir = makeTempDir('comfyui-params-proj-')
 const { app, win } = await launchNomiApp({
   name: 'comfyui-workflow-params',
   settingsDir,

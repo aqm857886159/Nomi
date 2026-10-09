@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 走查（Phase B·方案门 surfacing）：外部 MCP agent 往画布**批量落节点**时，运行中的 Nomi
 // 弹出应用内「方案门」确认卡（复用付费卡漏斗，kind=plan、分镜图标），真人点了才落——不再静默写画布。
 // 起真 GUI app（写 instance 广告）+ 另起 stdio MCP 子进程（同 NOMI_CAPABILITY_DIR → 探到运行中的
@@ -19,7 +20,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/plan-gate')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-plangate-'))
+const base = makeTempDir('nomi-plangate-')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 const capDir = path.join(base, 'capability-core')

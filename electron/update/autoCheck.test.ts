@@ -73,7 +73,7 @@ describe('autoUpdater.ts 接线（真实模块，假 electron）', () => {
     vi.resetModules()
     sent.length = 0
     telemetry.length = 0
-    process.env.NOMI_E2E = opts.automated ? '1' : ''
+    vi.stubEnv("NOMI_E2E", opts.automated ? '1' : '')
     updater = Object.assign(new EventEmitter(), { checkForUpdates: vi.fn(async () => undefined), downloadUpdate: vi.fn(async () => undefined), quitAndInstall: vi.fn() })
     vi.doMock('electron', () => ({
       app: { isPackaged: opts.packaged, getName: () => opts.name ?? 'Nomi', getVersion: () => '0.22.5' },
@@ -89,7 +89,7 @@ describe('autoUpdater.ts 接线（真实模块，假 electron）', () => {
   }
 
   beforeEach(() => vi.useFakeTimers())
-  afterEach(() => { vi.useRealTimers(); process.env.NOMI_E2E = '' })
+  afterEach(() => { vi.useRealTimers(); vi.stubEnv("NOMI_E2E", '') })
 
   it('打包正式版：30 秒后静默检查；发现新版只广播一次 available；不闪 checking', async () => {
     const mod = await load({ packaged: true })

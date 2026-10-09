@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /**
  * Agent UI A 段零额度真实 Electron 走查：composer 五按钮、权限弹层、`/` 命令菜单、运行反馈和
  * storyboard 入口。这条走查只使用本地 loopback fixture，不调用供应商。
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const outputDir = path.join(root, '.tmp', 'agent-ui-a')
 fs.mkdirSync(outputDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-agent-ui-a-'))
+const tempRoot = makeTempDir('nomi-agent-ui-a-')
 const settingsDir = path.join(tempRoot, 'settings')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')

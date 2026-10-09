@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -11,7 +12,7 @@ const require = createRequire(import.meta.url)
 const MB = 1024 * 1024
 
 function tempDir(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  return makeTempDir(prefix)
 }
 
 function peHeader(machine) {

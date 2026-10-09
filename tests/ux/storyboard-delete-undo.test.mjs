@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real original editor in Chromium; persistence/host ports are controlled, not Electron acceptance.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +13,7 @@ import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs
 freshTailwindCss()
 let server, browser, cacheDir
 beforeAll(async () => {
-  cacheDir = mkdtempSync(path.join(tmpdir(), 'nomi-storyboard-undo-vite-'))
+  cacheDir = makeTempDir('nomi-storyboard-undo-vite-')
   server = await createServer({ configFile: false, cacheDir, server: { host: '127.0.0.1', port: 0, hmr: false, watch: null } })
   await server.listen()
   browser = await chromium.launch({ headless: true })

@@ -48,7 +48,7 @@ function zipOf(files: Record<string, Buffer>): Buffer {
 const sha = (bytes: Buffer): string => crypto.createHash("sha256").update(bytes).digest("hex");
 
 beforeEach(async () => {
-  process.env.NOMI_SETTINGS_DIR = fs.mkdtempSync(path.join(root, "settings-"));
+  vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "settings-")));
   routes.clear();
   server = createServer((request, response) => {
     const bytes = routes.get(request.url || "");

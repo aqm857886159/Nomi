@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 「刚打开项目、马上选中图片节点」整块画布崩（React #185 无限更新）的真机复现 / 回归循环。
 //
 // 走的是生产构建（dist + dist-electron，先 `pnpm run build`），隔离资料目录、窗口挂屏幕外不抢焦点，
@@ -32,7 +33,7 @@ const shot = process.argv.includes('--shot')
 const GENERATE_TAB = /^(生成|Generate)$/
 const BACK_TO_LIBRARY = /^(返回项目库|Back to projects)$/
 const offscreen = path.resolve('tests/ux/full-walk/offscreenWindow.cjs')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-toolbar-open-select-'))
+const root = makeTempDir('nomi-toolbar-open-select-')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'toolbar-open-select'
 const projectRoot = path.join(projectsDir, projectId)

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /* global process, localStorage, console */
 // Opt-in real-provider acceptance. All writes/spend use the original UI/runner.
 // NOMI_SPEND_OK=1 node tests/ux/core-a-storyboard.paid.mjs [--packaged /absolute/Nomi] [--first-frame] [--resume-report /absolute/report.json]
@@ -29,7 +30,7 @@ const { values } = parseArgs({ options: { packaged: { type: 'string' }, 'first-f
 if (values.packaged) assert.ok(path.isAbsolute(values.packaged), '--packaged requires an absolute executable path')
 const resumed = values['resume-report'] ? JSON.parse(fs.readFileSync(path.resolve(values['resume-report']), 'utf8')) : null
 if (values['verify-only']) assert.ok(resumed?.firstFrame?.referenceProof && values['first-frame'], '--verify-only requires a completed first-frame receipt and --first-frame')
-const tempRoot = resumed ? path.resolve(resumed.tempRoot) : fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-a-paid-'))
+const tempRoot = resumed ? path.resolve(resumed.tempRoot) : makeTempDir('nomi-core-a-paid-')
 // Never prepareIsolation on resume: that owner intentionally deletes its target.
 const iso = resumed ? (resumed.isolation ?? { projectsDir: path.join(tempRoot, 'projects'), settingsDir: path.join(tempRoot, 'settings'), chromiumDir: path.join(tempRoot, 'chromium'), capabilityDir: path.join(tempRoot, 'capability') }) : prepareIsolation(tempRoot)
 if (resumed) {

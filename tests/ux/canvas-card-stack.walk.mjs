@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户任务：多版本结果卡组 + 收起编组 + 重开持久化。
 // 零模型额度；使用隔离项目与本地 SVG/MP4。先 pnpm build，再 node 本文件。
 import fs from 'node:fs'
@@ -18,7 +19,7 @@ import {
 import { stationTimeout } from './_station-budget.mjs'
 import { expectArrivalsReachable, expectCanvasViewportHeld, expectToolbarInsideStageEverywhere, findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-card-stack-walk-'))
+const root = makeTempDir('nomi-card-stack-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'canvas-card-stack-walk'

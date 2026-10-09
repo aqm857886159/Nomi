@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -52,7 +53,7 @@ function commit(cwd, message, value) {
 }
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-git-delivery-'))
+  const root = makeTempDir('nomi-git-delivery-')
   const remote = path.join(root, 'remote.git')
   const seed = path.join(root, 'seed')
   const work = path.join(root, 'work')

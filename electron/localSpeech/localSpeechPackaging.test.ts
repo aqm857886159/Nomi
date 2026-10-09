@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,7 +37,7 @@ describe("本地转写的打包边界", () => {
   });
 
   it("引擎与权重落在 userData 的缓存里，不在 resourcesPath —— 随包分发与按需下载只能有一条路（P1）", async () => {
-    process.env.NOMI_SETTINGS_DIR = "/tmp/nomi-localstt-packaging-test";
+    vi.stubEnv("NOMI_SETTINGS_DIR", "/tmp/nomi-localstt-packaging-test");
     const { localSpeechEngineDir, localSpeechExecutablePath } = await import("./localSpeechInstall");
     const engine = LOCAL_SPEECH_ENGINE_PLATFORMS[0];
     expect(localSpeechEngineDir(engine)).toContain("/tmp/nomi-localstt-packaging-test/model-cache/local-speech");
@@ -46,7 +46,7 @@ describe("本地转写的打包边界", () => {
   });
 
   it("目录名带 release 号：换引擎版本 = 换目录，旧版本不会被误当成新版本", () => {
-    process.env.NOMI_SETTINGS_DIR = "/tmp/nomi-localstt-packaging-test";
+    vi.stubEnv("NOMI_SETTINGS_DIR", "/tmp/nomi-localstt-packaging-test");
     return import("./localSpeechInstall").then(({ localSpeechEngineDir }) => {
       expect(localSpeechEngineDir(LOCAL_SPEECH_ENGINE_PLATFORMS[0])).toMatch(/engine-\d+\.\d+\.\d+-/);
     });

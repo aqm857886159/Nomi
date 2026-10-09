@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：画布操作语义（#832 二选一，2026-07-31 用户拍板 / 2026-08-03 补齐）。
 // A 档 wheel-zoom（默认）：① 空白拖 = 平移；② 滚轮 = 缩放且锚在光标；
 //   ③ Shift+拖空白 = 框选、Shift+点节点 = 多选切换、纯点空白 = 清选区；④ 空格+拖 = 平移（压在节点上也行）。
@@ -15,8 +16,8 @@ const shot = async (win, name) => { await win.screenshot({ path: path.join(outDi
 
 const { app, win } = await launchNomiApp({
   name: 'canvas-gestures',
-  settingsDir: mkdtempSync(path.join(os.tmpdir(), 'canvas-gestures-settings-')),
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'canvas-gestures-proj-')),
+  settingsDir: makeTempDir('canvas-gestures-settings-'),
+  projectsDir: makeTempDir('canvas-gestures-proj-'),
 })
 const errors = []
 let failed = false

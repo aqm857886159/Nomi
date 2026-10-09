@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -13,7 +14,7 @@ afterEach(() => {
 })
 
 function check(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-file-sizes-'))
+  const root = makeTempDir('nomi-file-sizes-')
   temporaryRoots.push(root)
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
   fs.copyFileSync(path.join(repoRoot, 'scripts/check-file-sizes.mjs'), path.join(root, 'scripts/check-file-sizes.mjs'))

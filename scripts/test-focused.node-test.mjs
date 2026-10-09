@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -15,7 +16,7 @@ import {
 const temporaryRoots = []
 
 function makeProject() {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-focused-'))
+  const projectRoot = makeTempDir('nomi-focused-')
   temporaryRoots.push(projectRoot)
   return projectRoot
 }

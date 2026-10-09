@@ -12,7 +12,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -44,7 +44,6 @@ describe("nomi_try_model 遇到异步供应商", () => {
 
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-try-async-"));
-    process.env.NOMI_SETTINGS_DIR = root;
     server = http.createServer((request, response) => {
       const url = String(request.url);
       if (url === "/art.png") {
@@ -84,6 +83,11 @@ describe("nomi_try_model 遇到异步供应商", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 
+
+  });
+
+  beforeEach(async () => {
+    vi.stubEnv("NOMI_SETTINGS_DIR", root);
     const { dispatch } = await import("../dispatcher");
     const docs = "https://docs.example-async.com/api";
     const ctx = { origin: { host: "claude" } } as never;
@@ -126,7 +130,7 @@ describe("nomi_try_model 遇到异步供应商", () => {
   });
 
   afterAll(async () => {
-    delete process.env.NOMI_SETTINGS_DIR;
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
     await new Promise<void>((resolve) => server.close(() => resolve()));
     fs.rmSync(root, { recursive: true, force: true });
   });

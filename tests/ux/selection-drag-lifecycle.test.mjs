@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -7,7 +8,7 @@ import { createServer } from 'vite'
 
 let server, browser, page, cacheDir
 beforeAll(async () => {
-  cacheDir = mkdtempSync(path.join(tmpdir(), 'nomi-selection-drag-vite-'))
+  cacheDir = makeTempDir('nomi-selection-drag-vite-')
   server = await createServer({
     configFile: false,
     cacheDir,

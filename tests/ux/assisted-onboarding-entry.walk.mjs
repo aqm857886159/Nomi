@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 「我想接一个新模型，能不能让我已经在用的 AI 助手替我接」的真实用户旅程（2026-09-11）。
 //
 // 设计定稿：docs/design/2026-09-11-ai-assisted-onboarding-entry.md
@@ -25,7 +26,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/assisted-onboarding-entry')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-assisted-onboarding-'))
+const root = makeTempDir('nomi-assisted-onboarding-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

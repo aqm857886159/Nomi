@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,7 +10,7 @@ const stampName = 'build-stamp.json'
 const hint = '构建产物缺失、过期或构建失败；先 `pnpm build`。'
 
 export function sourceIdentity(root) {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-build-index-'))
+  const scratch = makeTempDir('nomi-build-index-')
   const git = (args, env = process.env) => execFileSync('git', args, { cwd: root, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   try {
     const head = git(['rev-parse', 'HEAD'])

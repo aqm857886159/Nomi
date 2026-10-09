@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实用户任务：「我不想每开一张新卡都重选模型」（用户 2026-08-18 看样张后拍板的功能）。
 //
 // 任务闭环：进设置 → AI 策略 → 给「文生图」设一个默认模型 → 回画布新建一张图片卡
@@ -17,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/default-generation-model')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-default-model-'))
+const tempRoot = makeTempDir('nomi-default-model-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

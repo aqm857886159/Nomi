@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -19,7 +20,7 @@ function write(root, relative, content) {
 }
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-test-types-'))
+  const root = makeTempDir('nomi-test-types-')
   temporaryRoots.push(root)
   write(root, 'scripts/check-test-types.mjs', fs.readFileSync(path.join(repoRoot, 'scripts/check-test-types.mjs'), 'utf8'))
   write(root, 'scripts/test-types-baseline.json', { 'legacy.test.ts': 1 })

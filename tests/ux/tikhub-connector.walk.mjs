@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 真页面走查（零额度）：TikHub 数据 connector 的 UI 亲验，两处重点：
 //   ① 归位：TikHub 卡的家在 **设置 → 模型 → 数据源** 区（2026-09-01 从「AI 策略」搬来——它是数据源接入，不是 AI 策略）。
 //   ② 假成功已修：保存一个**乱填的 key** → 得到**诚实错误态**（不再显示「已连接」、不出现「线路」行）。
@@ -19,7 +20,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/tikhub-connector')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-tikhub-walk-'))
+const tempRoot = makeTempDir('nomi-tikhub-walk-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

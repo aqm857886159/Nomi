@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 // Real built Electron + real MCP stdio Production Run journey. No provider calls: the fixture is
 // double-gated and disabled in packaged builds. This test owns the GUI direction / script / storyboard /
@@ -15,7 +16,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-mcp-e2e-'))
+const tempRoot = makeTempDir('nomi-production-mcp-e2e-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 const capabilityDir = path.join(tempRoot, 'capability')

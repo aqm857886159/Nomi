@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13: one real Electron window, UI-created project and real model storyboard.
 // No store writes, fixture projects, mocked provider responses, reloads, or paid media generation.
 import fs from 'node:fs'
@@ -12,7 +13,7 @@ import { AGENT_PANEL, COMPOSER_MODEL, CREATION_PANEL, MODEL_POPOVER, TOOL_RECEIP
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/shot-table-storyboard-projection')
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shot-table-storyboard-'))
+const base = makeTempDir('nomi-shot-table-storyboard-')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 const userDataDir = path.join(base, 'user')

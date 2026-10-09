@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real production UI: import three media inputs, connect three canvas assets, restart, submit.
 // Local HTTP emulates ComfyUI upload/history only; this is NOT a GPU inference test.
 import fs from 'node:fs'
@@ -12,7 +13,7 @@ import { expect, clickOrFail, screenshotSettled } from './_assert.mjs'
 const require = createRequire(import.meta.url)
 const withVideo = process.argv.includes('--with-video')
 const projectName = withVideo ? 'ComfyUI 三图与视频闭环' : 'ComfyUI 三图真实闭环'
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-comfy-multiref-'))
+const root = makeTempDir('nomi-comfy-multiref-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const shotsDir = path.join(root, 'shots')

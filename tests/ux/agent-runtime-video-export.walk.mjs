@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 独立真实视频闭环：loopback provider 返回可播放 MP4，真实 UI 生成→时间轴→预览→导出→冷重启。
 // loopback 只替代外部 HTTP 传输；所有项目写入、媒体探针、时间轴、导出和持久化均走生产路径。
 import fs from 'node:fs'
@@ -11,7 +12,7 @@ import { expect, screenshotSettled } from './_assert.mjs'
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-runtime-video-export')
 fs.mkdirSync(shotsDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-agent-video-export-'))
+const tempRoot = makeTempDir('nomi-agent-video-export-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

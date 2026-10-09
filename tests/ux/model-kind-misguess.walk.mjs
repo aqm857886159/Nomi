@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 + R16 真实用户任务闭环：「接了个中转，想生图，但图像模型被猜成了文本」。
 // 零额度——只操作目录与界面，绝不触发任何真实生成。
 //
@@ -25,7 +26,7 @@ fs.mkdirSync(outDir, { recursive: true })
 
 const WIN_W = 1680
 const WIN_H = 1050
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-kind-walk-'))
+const root = makeTempDir('nomi-kind-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,7 +8,7 @@ import { laneDiskSnapshot, laneMessages, readLaneTranscripts } from './agent-lan
 const folders = []
 afterEach(() => { for (const folder of folders.splice(0)) fs.rmSync(folder, { recursive: true, force: true }) })
 function fixture(records) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-lane-observer-'))
+  const root = makeTempDir('nomi-lane-observer-')
   folders.push(root)
   const folder = path.join(root, '.nomi', 'agent-sessions', '--nomi-lane-main--')
   fs.mkdirSync(folder, { recursive: true })

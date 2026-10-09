@@ -214,6 +214,34 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "AssignmentExpression[left.type='MemberExpression'][left.object.type='MemberExpression'][left.object.object.name='process'][left.object.property.name='env']",
+          message: 'Use vi.stubEnv(name, value) so Vitest restores process.env after each test.',
+        },
+        {
+          selector: "UnaryExpression[operator='delete'][argument.type='MemberExpression'][argument.object.type='MemberExpression'][argument.object.object.name='process'][argument.object.property.name='env']",
+          message: 'Use vi.stubEnv(name, undefined) so Vitest restores process.env after each test.',
+        },
+        {
+          selector: "CallExpression[callee.name='beforeAll'] CallExpression[callee.object.name='vi'][callee.property.name='stubEnv']",
+          message: 'unstubEnvs: true restores env after each test; put vi.stubEnv in beforeEach.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='vi'][callee.property.name='hoisted'] CallExpression[callee.object.name='vi'][callee.property.name='stubEnv']",
+          message: 'unstubEnvs: true restores env after each test; put vi.stubEnv in beforeEach.',
+        },
+        {
+          selector: "Program > ExpressionStatement > CallExpression[callee.object.name='vi'][callee.property.name='stubEnv']",
+          message: 'unstubEnvs: true restores env after each test; put vi.stubEnv in beforeEach.',
+        },
+      ],
+    },
+  },
+  {
     // 渲染层失败证据只有一个出口：src/desktop/rendererLog.ts（→ 主进程日志 → 诊断包）。
     // console.error/warn 在打包版里没人接——2026-09-24 用户诊断包里看得到「保存失败」、看不到为什么，就是这么丢的。
     // 硬零（存量 54 处已全部迁完）；log/info/debug 不是失败证据，放行。主进程那一半由 check:main-console 守。

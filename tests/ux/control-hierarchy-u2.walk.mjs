@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：控件分层法 U2（顶栏 + 项目库 + 设置归位）落地后的真机取证。
 // 零额度——只截静态界面，绝不触发任何生成。
 //   ① 项目库顶栏：弱入口 6 → 3（接入模型 · 浏览器 · 设置）
@@ -19,7 +20,7 @@ fs.mkdirSync(outDir, { recursive: true })
 
 const WIN_W = 1680
 const WIN_H = 1050
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-u2-walk-'))
+const root = makeTempDir('nomi-u2-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

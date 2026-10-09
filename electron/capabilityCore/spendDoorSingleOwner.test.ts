@@ -15,7 +15,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // 读到的是真人数据，写下去就是改真人数据，而且一台机器一个结果：`mcpOnboardingLoopback`
 // 就是这么在这台机器上红、在别处绿的。给它一个本轮独有的空目录。
 const capabilityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-spend-door-cap-"));
-process.env.NOMI_CAPABILITY_DIR = capabilityRoot;
 
 let mockedDocumentsRoot = ''
 let mockedUserDataRoot = ''
@@ -46,20 +45,21 @@ describe('付费放行单一 owner（删掉客户端自报的第二扇门）', (
   const tempRoots: string[] = []
 
   beforeEach(() => {
+    vi.stubEnv("NOMI_CAPABILITY_DIR", capabilityRoot)
     mockedDocumentsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-spend-door-docs-'))
     mockedUserDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-spend-door-data-'))
     tempRoots.push(mockedDocumentsRoot, mockedUserDataRoot)
-    delete process.env.NOMI_LOOP_SPEND_OK
+    vi.stubEnv("NOMI_LOOP_SPEND_OK", undefined)
   })
 
   afterEach(() => {
-    delete process.env.NOMI_LOOP_SPEND_OK
+    vi.stubEnv("NOMI_LOOP_SPEND_OK", undefined)
     for (const dir of tempRoots.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
     vi.resetModules()
   })
 
   it('网关没有付费口：磁盘 / 混合 / 渲染层网关都不再有 confirmSpend（设了 NOMI_LOOP_SPEND_OK=1 也一样）', async () => {
-    process.env.NOMI_LOOP_SPEND_OK = '1'
+    vi.stubEnv("NOMI_LOOP_SPEND_OK", '1')
     const { createDiskGateway, createHybridGateway, createRendererGateway } = await import('./gateway')
     for (const gateway of [createDiskGateway('p1'), createHybridGateway('p1'), createRendererGateway('p1')]) {
       expect('confirmSpend' in gateway).toBe(false)

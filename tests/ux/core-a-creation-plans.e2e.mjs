@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real Electron + loopback Agent tool responses; original UI actions, isolated profile, zero paid media.
 import fs from 'node:fs'
 import os from 'node:os'
@@ -15,7 +16,7 @@ import { createAgentRuntimeFixture, FIXTURE_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_
 import { waitForV4TurnIdle, recorded, sendCreation, readProject, AGENT_PANEL } from './agent-runtime-walk-support.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-a-creation-'))
+const tempRoot = makeTempDir('nomi-core-a-creation-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const userDataDir = path.join(tempRoot, 'user-data')

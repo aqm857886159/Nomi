@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../../scripts/_test-temp.mjs'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,7 +8,7 @@ import { captureScenarioFailure } from './failureDiagnostics.mjs'
 afterEach(() => vi.restoreAllMocks())
 
 it('persists the complete assertion and DOM counts even when the screenshot fails', async () => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'canvas-failure-'))
+  const directory = await makeTempDirAsync('canvas-failure-')
   vi.spyOn(console, 'error').mockImplementation(() => {})
   const message = 'expect(locator).toHaveCount(expected) failed\nLocator: [data-process-static-grid]\nExpected: 8\nReceived: 4\nCall log:\n  retry'
   try {
@@ -24,7 +25,7 @@ it('persists the complete assertion and DOM counts even when the screenshot fail
 })
 
 it('still captures a screenshot when the DOM evaluation fails', async () => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'canvas-failure-'))
+  const directory = await makeTempDirAsync('canvas-failure-')
   vi.spyOn(console, 'error').mockImplementation(() => {})
   const screenshot = vi.fn(async () => {})
   try {

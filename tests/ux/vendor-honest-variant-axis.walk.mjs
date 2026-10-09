@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 穿透走查（规则 13）—— 「变体轴按渠道收窄」+「提案面板与画布同一套收窄」，**零额度**（全程不点生成）。
 //
 // ── 这份走查在证什么 ────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-honest-variant-axis'
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-variant-axis-'))
+const tempRoot = makeTempDir('nomi-variant-axis-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 const capabilityDir = path.join(tempRoot, 'capability')

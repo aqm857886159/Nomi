@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：素材库跨项目视频封面 + 全部素材预览 + 预览页点击入轨。
 //
 // 复现条件必须是两个项目：旧实现会拿「当前项目 id」解析另一个项目的视频，
@@ -17,7 +18,7 @@ import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-asset-video-preview-'))
+const root = makeTempDir('nomi-asset-video-preview-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const shotsDir = path.join(repoRoot, 'tests', 'ux', 'shots', 'asset-video-preview')

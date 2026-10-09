@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 画布框工具（Frame）第一档的真实用户任务串。
 // 用法: node tests/ux/canvas-frame.walk.mjs   产出: tests/ux/shots/canvas-frame/*.png
 //
@@ -23,7 +24,7 @@ import { expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame')
 fs.rmSync(shotsDir, { recursive: true, force: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-frame-'))
+const tempRoot = makeTempDir('nomi-canvas-frame-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
