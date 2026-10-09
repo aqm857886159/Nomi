@@ -71,11 +71,12 @@ export function isTextPromptEdge(
 }
 
 /**
- * 文本节点收什么输入：文字（上面的 isTextPromptEdge）、图片、视频。图 / 视频是给「看图写描述」的画面；
- * 声音不收（文本模型听不了）。这是文本节点左环的能力表——拉环按它决定这一侧能不能接。
+ * 文本节点收什么输入：文字（上面的 isTextPromptEdge）、图片。图是给「看图写描述」的画面。
+ * 视频和声音都不收：运行时只把图片送给模型，收了视频就是说得比做得多（铁律⑩）；等视频真能送进模型再加。
+ * 这是文本节点左环的能力表——拉环按它决定这一侧能不能接。
  */
 function textTargetAcceptsAsset(asset: ReferenceAssetKind): boolean {
-  return asset === 'image' || asset === 'video'
+  return asset === 'image'
 }
 
 /** 每种参考槽能被哪种源资产喂。first_frame 收视频=尾帧接力(resolver 抽帧),故收 image+video。 */

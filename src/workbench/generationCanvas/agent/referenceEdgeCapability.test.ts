@@ -402,20 +402,22 @@ describe('connectionCreateVerdictsForSource — 接不上的要说原因（2026-
     expect(connectionCreateVerdictsForSources([], ['image'] as const)[0]).toMatchObject({ ok: false, reason: 'source_not_referenceable' })
   })
 
-  it('文本节点的左环收文字、图、视频；声音接不进来且给出原因，而不是从菜单里消失', () => {
+  it('文本节点的左环收文字、图；视频、声音接不进来且给出原因，而不是从菜单里消失', () => {
     const fromImage = connectionCreateVerdictsForSource(node('i', 'image'), ALL)
     expect(fromImage.map((v) => v.kind)).toEqual([...ALL])
     expect(fromImage.find((v) => v.kind === 'text')).toEqual({ kind: 'text', ok: true })
-    expect(connectionCreateVerdictsForSource(node('v', 'video'), ALL).find((v) => v.kind === 'text')).toEqual({ kind: 'text', ok: true })
+    expect(connectionCreateVerdictsForSource(node('v', 'video'), ALL).find((v) => v.kind === 'text'))
+      .toMatchObject({ ok: false, reason: 'no_model_accepts', asset: 'video' })
     expect(connectionCreateVerdictsForSource(node('a', 'audio'), ALL).find((v) => v.kind === 'text'))
       .toMatchObject({ ok: false, reason: 'no_model_accepts', asset: 'audio' })
   })
 
-  it('文本节点作为目标：文字 / 图 / 视频能连，声音不能（新建连线的总闸）', () => {
+  it('文本节点作为目标：文字 / 图能连，视频、声音不能（新建连线的总闸）', () => {
     const target = node('t', 'text')
     expect(validateReferenceEdge(node('s', 'text'), target, 'reference')).toEqual({ ok: true })
     expect(validateReferenceEdge(node('i', 'image'), target, 'reference')).toEqual({ ok: true })
-    expect(validateReferenceEdge(node('v', 'video'), target, 'reference')).toEqual({ ok: true })
+    // 视频、声音都不收：运行时只把图片送给模型，收了视频就是说得比做得多。
+    expect(validateReferenceEdge(node('v', 'video'), target, 'reference')).toEqual({ ok: false, reason: 'unsupported_reference' })
     expect(validateReferenceEdge(node('a', 'audio'), target, 'reference')).toEqual({ ok: false, reason: 'unsupported_reference' })
   })
 

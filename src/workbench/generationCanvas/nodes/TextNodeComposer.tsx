@@ -231,7 +231,7 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
           'flex flex-col rounded-nomi-lg bg-nomi-paper px-3 pb-2.5 pt-2.5 shadow-nomi-md ring-1 ring-inset ring-nomi-line-soft',
         )}
       >
-        <div className="-ml-1.5 flex flex-wrap items-center gap-x-0.5 gap-y-0.5" data-text-process-presets>
+        <div className="-ml-1.5 flex min-w-0 flex-nowrap items-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-process-presets>
           {TEXT_PROCESS_PRESET_IDS.map((id) => {
             const blocked = TEXT_PROCESS_PRESETS[id].needsImage && imageCount === 0
             return (

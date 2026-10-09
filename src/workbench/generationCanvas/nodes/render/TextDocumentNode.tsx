@@ -191,7 +191,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
                 title={t('generationCommon.nodeEmpty.text.title')}
                 description={t('generationCommon.nodeEmpty.text.description')}
                 action={(
-                  <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-0.5" data-text-empty-try>
+                  <div className="pointer-events-auto flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-empty-try>
                     {EMPTY_TRY_PRESETS.map((id, index) => (
                       <React.Fragment key={id}>
                         {index > 0 ? <span aria-hidden="true" className="text-caption text-nomi-ink-30">·</span> : null}

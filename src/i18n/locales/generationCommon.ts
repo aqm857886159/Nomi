@@ -1742,8 +1742,8 @@ export const enGenerationCommon = {
   // Text node: processing box / states / downstream reference chip (Claude Design "Text node: processes, visible").
   textProcess: {
     boxAria: 'Text tools',
-    preset: { expand: 'Expand to prompt', describe: 'Describe image', translate: 'Translate', split: 'Split up' },
-    modeMenu: 'Continue / Revise',
+    preset: { expand: 'Expand', describe: 'Describe image', translate: 'Translate', split: 'Split' },
+    modeMenu: 'Revise',
     modeMenuAria: 'Continue and revise modes',
     placeholder: 'Or just say what to change',
     send: 'Go',
