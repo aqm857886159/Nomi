@@ -40,7 +40,7 @@ describe('one storyboard shot, one label everywhere (two storyboards in the proj
     const server = useWorkbenchStore.getInitialState() as unknown as Record<string, unknown>
     const saved = server.storyboardDesignsByDocumentId
     server.storyboardDesignsByDocumentId = designs
-    const html = renderToStaticMarkup(React.createElement(NodeShotLabel, { node: shot, shotIndex: 7, shotRole: 'image' }))
+    const html = renderToStaticMarkup(React.createElement(NodeShotLabel, { node: shot, shotRole: 'image' }))
     server.storyboardDesignsByDocumentId = saved
     expect(html).toContain('雨夜 · 镜 03')
     expect(html).not.toContain('镜头 7')
@@ -56,7 +56,7 @@ describe('one storyboard shot, one label everywhere (two storyboards in the proj
     const read = projectCanvasRead({ nodes: [shot], edges: [], selectedNodeIds: [], groups: [], storyboards: storyboardLabelSourceFromDesigns(designs) })
     const node = read.nodes[0] as typeof read.nodes[0] & { shotLabel?: string }
     expect(node.shotLabel).toBe('雨夜 · 镜 03')
-    expect(node.shotIndex).toBeUndefined()
+    expect(node).not.toHaveProperty('shotIndex')
     const text = formatCanvasForAgent(read)
     expect(text).toContain('雨夜 · 镜 03')
     expect(text).not.toMatch(/镜\s?7\b/)

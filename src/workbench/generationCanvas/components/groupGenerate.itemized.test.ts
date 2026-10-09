@@ -59,7 +59,7 @@ function userEdits(untick: readonly string[] = [], tick: readonly string[] = [])
 }
 
 const dispatchedIds = (): string[] => vi.mocked(runGenerationNodesByPlan).mock.calls.flatMap(([plan]) => plan.waves.flat())
-const consentedIds = (): string[] => mocks.consentCanvasShots.mock.calls.flatMap(([input]) => (input as { shots: Array<{ nodeId: string }> }).shots.map((shot) => shot.nodeId))
+const consentedIds = (): string[] => mocks.consentCanvasShots.mock.calls.flatMap(([input]) => (input as unknown as { shots: Array<{ nodeId: string }> }).shots.map((shot) => shot.nodeId))
 const allIds = (): string[] => mocks.nodes.map((candidate) => candidate.id)
 
 describe('「生成全部」确认卡逐项勾选', () => {
