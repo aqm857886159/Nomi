@@ -28,7 +28,6 @@
     { "path": "tests/ux/pr720-ux-geometry.walk.mjs", "category": "B", "reason": "requires the developer machine's real model catalog and credentials" },
     { "path": "tests/ux/prompt-translate.walk.mjs", "category": "B", "reason": "requires a live DeepSeek API key" },
     { "path": "tests/ux/provider-adapter-doctor.walk.mjs", "category": "B", "reason": "requires a completed live adapter harness directory" },
-    { "path": "tests/ux/shot-table-storyboard-projection.walk.mjs", "category": "B", "reason": "requires the developer machine's real model catalog and credentials" },
     { "path": "tests/ux/tikhub-connector.walk.mjs", "category": "B", "reason": "requires a live TikHub API key and network" },
     { "path": "tests/ux/video-ops.walk.mjs", "category": "B", "reason": "requires a locally generated ffmpeg media fixture" }
   ]

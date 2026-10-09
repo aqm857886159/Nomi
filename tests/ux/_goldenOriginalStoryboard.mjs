@@ -1,5 +1,5 @@
-// Original-editor branch of the golden journey. The separate production-table
-// mode remains in golden-path.e2e.mjs with its table-specific assertions intact.
+// Original-editor branch of the golden journey. The separate production-canvas
+// mode remains in golden-path.e2e.mjs (canvas nodes only, no shot table).
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
@@ -47,16 +47,12 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   expect(originalPlan.shots.filter(row => 'title' in row), 'plan 行不带逐镜标题（planShotSchema 没有这一格）').toHaveLength(0)
   expect(originalPlan.title, '模型拟的标题成为方案名，不是被静默丢掉').toBe(titles[0])
   expect(originalPlan.shots.map(row => row.modelKey)).toEqual(prompts.map(() => FIXTURE_IMAGE_MODEL))
-  // 2026-09-21 合并 ①：这条原先断言「拆完镜头画布上一个节点都没有」。实测有一个，`kind=shot_table`
-  // ——那是**这份方案的表格视图**，由 `ensureStoryboardShotTable` 在「显式写入一份方案」时建一张；
-  // 那个文件在 origin/main 上逐字节同一份，手建分镜走的也是它，不是 Pass 2 长出来的副作用。
-  // 用户拍的「Agent 产出先成方案、显式『放入画布』才落节点」说的是**生成节点**（会花钱、占画布的镜头卡），
-  // 不是方案自己的表。所以断言收窄到它真正要守的那条，并把表视图**正着**钉下来——
-  // 它没了或变成两张，同样是回归（判据：产品没回归，是断言写得太宽）。
+  // 2026-10-08 用户：「我们经常莫名其妙生成分镜表，这个可以删掉吧」。写方案不再往画布放任何节点（含分镜表视图）；
+  // 「Agent 产出先成方案、显式『放入画布』才落节点」。断言回到原话：拆完镜头画布上一个节点都没有。
   await expect.poll(async () => {
     const nodes = (await readProject(win, projectId)).payload.generationCanvas.nodes ?? []
     return { generation: nodes.filter(node => node.kind !== 'shot_table').length, tables: nodes.filter(node => node.kind === 'shot_table').length }
-  }, { timeout: stationTimeout({ operations: 1 }) }).toEqual({ generation: 0, tables: 1 })
+  }, { timeout: stationTimeout({ operations: 1 }) }).toEqual({ generation: 0, tables: 0 })
   expect(walk.fixture.images, 'Saving a storyboard submits no media').toHaveLength(0)
   const openEditor = async () => {
     await win.getByRole('button', { name: '创作', exact: true }).click()

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Default: document draft → saved Run → original editor/placement → original runner.
-// --production-table: original canvas Agent → production shot table compatibility;
-// retains full table density, selection, viewport, generation and cold-restart assertions.
+// --production-canvas: original canvas Agent → production canvas nodes (no shot table since 2026-10-08);
+// retains selection, viewport, generation and cold-restart assertions.
 // 金路径 · 每日走查（第二刀）。
 //
 // 这是**一条固定的、不许缩水的真实用户路径**，每天跑一次当门；红了当天修。
@@ -11,16 +11,15 @@
 // 剧本（一个字不许缩）：
 //   ① 新建空项目
 //   ② 在创作区文本编辑器写三句剧本
-//   ③ 默认：划词拆镜保存Run→原编辑器→显式放置。production-table模式：画布Agent建三镜及表。
-//   ④ 选中第 2 镜（在画布的分镜表里勾选）
+//   ③ 默认：划词拆镜保存Run→原编辑器→显式放置。production-canvas模式：画布Agent建三镜节点和分组。
+//   ④ 选中第 2 镜（在画布上点那个镜头节点）
 //   ⑤ 改第 2 镜的一句提示词——经 Agent 的 `draft_shots(draftId, shots[{shotId}])`
 //   ⑥ 第 2 镜生成一张图片（loopback fixture 供应商，零额度）
 //   ⑦ 结果回到该行
 //   ⑧ 关闭 Nomi 重启
 //   ⑨ 图和修改仍在
 //
-// production-table兼容模式的原账本：Run generationPlan落成production画布节点；
-// 分镜表（`shot_table` · source=production）是那组节点的表格表示版，行从节点 derive、零缓存。
+// production-canvas模式的原账本：Run generationPlan落成production画布节点（2026-10-08 起不再附带分镜表）。
 // 所以这里所有「落盘真相」都读 `generationCanvas.nodes`，**不**读 `storyboardDesignsByDocumentId`
 // （那是用户手写方案的账本，Agent 不写它；多认一份就是给假绿开后门）。
 //
@@ -47,7 +46,7 @@ import path from 'node:path'
 
 import { clickOrFail, expect, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { CANVAS_STAGE_SELECTOR, findCanvasBlankPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findNodeHitPoint, panCanvasUntilInside, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
@@ -85,14 +84,13 @@ const SHOT_2_ID = 'shot-2'
 const TARGET_ASSERTION = '重启后盘上第 2 镜的提示词丢了'
 
 const SHOT_TABLE = '[data-testid="shot-table-node"]'
-/** 分镜表的第 N 行（行 id = 节点 id；行序 = 落地序 = 镜序）。不带表前缀：调用处自己决定是从表还是从窗口找。 */
-const row = (nodeId) => `[data-shot-table-row="${nodeId}"]`
+const nodeCard = (nodeId) => `.generation-canvas-v2-node[data-node-id="${nodeId}"]`
 
 // ── 参数解析。createRuntimeWalk 自己会校验 process.argv（只认 `--packaged <abs>`），
 //    所以本脚本的旗标必须在它读之前摘掉，否则它会以「用法错误」报红。 ────────────────
 const POSITIVE_CONTROL = process.argv.includes('--positive-control')
-const PRODUCTION_TABLE = process.argv.includes('--production-table')
-process.argv = process.argv.filter((arg) => !['--positive-control', '--production-table'].includes(arg))
+const PRODUCTION_CANVAS = process.argv.includes('--production-canvas')
+process.argv = process.argv.filter((arg) => !['--positive-control', '--production-canvas'].includes(arg))
 
 const walk = await createRuntimeWalk('golden-path')
 // 截图与 report.json 落在剧本自己的目录里（.tmp/golden-path-<ts>/），
@@ -101,7 +99,7 @@ const outputDir = path.join(process.cwd(), '.tmp', `golden-path-${Date.now()}`)
 fs.mkdirSync(outputDir, { recursive: true })
 walk.report.outputDir = outputDir
 walk.report.positiveControl = POSITIVE_CONTROL
-walk.report.journey = PRODUCTION_TABLE ? 'production-table-compatibility' : 'original-storyboard-editor'
+walk.report.journey = PRODUCTION_CANVAS ? 'production-canvas' : 'original-storyboard-editor'
 
 // 当前活着的窗口。刻意**不**挂在 report 上：report 会被 JSON 序列化落盘，
 // 塞一个 Playwright Page 进去会当场炸成循环引用。
@@ -136,10 +134,9 @@ function shotNode(payload, shotId) {
   return landedShotNodes(payload).find((node) => node.meta?.productionShotId === shotId) ?? null
 }
 
-/** 那张只认 Run 的分镜表节点（source.kind === 'production'）。 */
-function productionShotTable(payload) {
-  return (payload?.generationCanvas?.nodes ?? []).find((node) =>
-    node.kind === 'shot_table' && node.meta?.shotTable?.source?.kind === 'production') ?? null
+/** 盘上的分镜表节点：2026-10-08 起任何落地路径都不该留下它。 */
+function shotTables(payload) {
+  return (payload?.generationCanvas?.nodes ?? []).filter((node) => node.kind === 'shot_table')
 }
 
 function projectFiles(projectRoot) {
@@ -153,63 +150,13 @@ function readPersistedPayload(projectRoot) {
   return JSON.parse(fs.readFileSync(files[0], 'utf8')).payload
 }
 
-// ── 画布：把分镜表带进视口并铺开。React Flow 开着 onlyRenderVisibleElements（视口外的节点连 DOM 都不进），
-//    表在低缩放（<80%）下又只剩镜号/关键帧两列（compact），画面与状态列都不在。所以按用户会做的三下来：
-//    ① 先等画布停下：落节点本身不再挪画布（2026-09-25 拍板，以前这里等的是落地后那次延迟自动 fit），
-//       但进画布 / 重开项目那一刻，若记住的视角里一个节点都看不见，画布会一次性摆全貌（useAutoFitOnLoad，
-//       画布量完节点后判一次）——人是看它摆好了才动手的；Agent 在创作页落的镜头若在屏外，舞台边会出一颗
-//       「新节点在…」的边缘提示，这里不点它（下一步的「适应视图」是同样由用户发起、且框住全部节点的那一下）；
-//    ② 「适应视图」——全部节点入视口，证明表在；
-//    ③ 在空白处按住拖动，把表拖到舞台正中，再把缩放滑块（产品自己的控件）拨到 80%——滑块绕视口中心缩放，
-//       ≥80% 表就铺开成完整表格（shotTableDensityForZoom 的 full 档），而 100% 时 960px 宽的表在 800px 的舞台里
-//       左沿会出界、第一列的勾选框点不到（真机量到的）。不用「重置视图」：它回到画布原点，表并不在那儿。 ──────
-async function bringShotTableIntoFullView(win) {
+// ── 画布：把镜头节点带进视口。React Flow 开着 onlyRenderVisibleElements（视口外的节点连 DOM 都不进），
+//    所以按用户会做的两下来：先等画布停下（进画布 / 重开项目那一刻画布可能还在摆全貌），再点「适应视图」框住全部节点。
+async function bringShotNodesIntoView(win, nodeIds) {
   await waitForCanvasViewportSettled(win)
   await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '适应全部节点')
-  const table = win.locator(SHOT_TABLE)
-  await proveProbe(table, '画布上没有出现分镜表节点')
   await waitForCanvasViewportSettled(win)
-
-  const centers = async () => win.evaluate(({ tableSelector, stageSelector }) => {
-    const rect = (el) => el?.getBoundingClientRect()
-    const stage = rect(document.querySelector(stageSelector))
-    const node = rect(document.querySelector(tableSelector))
-    if (!stage || !node) return null
-    return { stage: { x: stage.left + stage.width / 2, y: stage.top + stage.height / 2, left: stage.left, top: stage.top, right: stage.right, bottom: stage.bottom },
-      table: { x: node.left + node.width / 2, y: node.top + node.height / 2, left: node.left, top: node.top, right: node.right, bottom: node.bottom } }
-  }, { tableSelector: SHOT_TABLE, stageSelector: CANVAS_STAGE_SELECTOR })
-  // 拖到正中（最多三次逼近：起点必须是空白处，而空白处离边太近时一次拖不完整段）。
-  for (let pass = 0; pass < 3; pass += 1) {
-    const before = await centers()
-    expect(before, '拖动前读不到舞台或分镜表的位置').toBeTruthy()
-    const delta = { x: before.stage.x - before.table.x, y: before.stage.y - before.table.y }
-    if (Math.abs(delta.x) < 8 && Math.abs(delta.y) < 8) break
-    const blank = await findCanvasBlankPoint(win, { inset: 24 })
-    expect(blank, '画布上找不到可以按住拖动的空白处').toBeTruthy()
-    const clamp = (value, low, high) => Math.min(high, Math.max(low, value))
-    const target = { x: clamp(blank.x + delta.x, before.stage.left + 12, before.stage.right - 12), y: clamp(blank.y + delta.y, before.stage.top + 12, before.stage.bottom - 12) }
-    await win.mouse.move(blank.x, blank.y)
-    await win.mouse.down()
-    await win.mouse.move(target.x, target.y, { steps: 12 })
-    await win.mouse.up()
-  }
-  const centered = await centers()
-  expect(Math.hypot(centered.stage.x - centered.table.x, centered.stage.y - centered.table.y), '分镜表没有被拖到舞台正中').toBeLessThan(24)
-
-  // 滑块 → 80%：绕视口中心（此刻 = 表的中心）缩放。走真实 input 事件（同 app-page-zoom.e2e.mjs）。
-  const slider = win.getByRole('slider', { name: '缩放比例', exact: true })
-  await slider.evaluate((element) => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-    setter?.call(element, '80')
-    element.dispatchEvent(new Event('input', { bubbles: true }))
-    element.dispatchEvent(new Event('change', { bubbles: true }))
-  })
-  await expect(slider, '缩放没有到 80%').toHaveValue('80')
-  await expect(table, '80% 下分镜表没有铺开成完整表格').toHaveAttribute('data-density', 'full')
-  const final = await centers()
-  expect(final.table.left >= final.stage.left && final.table.right <= final.stage.right && final.table.top >= final.stage.top && final.table.bottom <= final.stage.bottom,
-    `80% 下分镜表没有整张落在舞台内（表 ${JSON.stringify(final.table)} · 舞台 ${JSON.stringify(final.stage)}）`).toBe(true)
-  return table
+  for (const nodeId of nodeIds) await proveProbe(win.locator(nodeCard(nodeId)), `画布上没有出现镜头节点 ${nodeId}`)
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -241,7 +188,7 @@ async function stepWriteScript(win) {
 /**
  * ③ 显式拆成 3 镜。现役链路：选中正文 → 划词浮条「拆成镜头」→ Agent 发一次 `draft_shots`。
  * `draft_shots` 是 reversible_local、默认 safe-auto 档自动放行——**没有**审批卡：草稿直接落画布
- * （3 个占位节点 + 分镜组 + 一张分镜表，一个撤销步），带单价角标，不出报价卡、不花钱。
+ * （3 个占位节点 + 分镜组，一个撤销步），带单价角标，不出报价卡、不花钱。
  */
 async function stepSplitIntoThreeShots(win, projectId) {
   const planner = walk.fixture.expectText({
@@ -266,12 +213,12 @@ async function stepSplitIntoThreeShots(win, projectId) {
   // no document admission. Document drafting is tested by the default journey.
   await openCanvas(win)
   await win.locator(`${CANVAS_PANEL} ${COMPOSER_INPUT}`).fill(`把以下故事做成三个画布镜头：${SCRIPT_TEXT}`)
-  await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_SEND}`), '从画布Agent建立原production分镜表')
+  await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_SEND}`), '从画布Agent建立production三镜节点')
   await recorded(planner.received, '分镜规划请求')
   await recorded(plannerDone.received, '分镜规划工具结果')
 
-  // 账本 A：3 个镜头节点同属一个 Run，提示词逐字等于草稿；一张 production 分镜表指着同一个 Run；
-  // 一个带幂等章的分镜组。三者缺一都是「Agent 说落了、用户看不到」。
+  // 账本 A：3 个镜头节点同属一个 Run，提示词逐字等于草稿；
+  // 一个带幂等章的分镜组。缺一都是「Agent 说落了、用户看不到」。
   await expect.poll(async () => shotPrompts((await readProject(win, projectId)).payload).length,
     { message: '草稿没有落成 3 个镜头节点', timeout: stationTimeout({ operations: 2 }) }).toBe(3)
   const payload = (await readProject(win, projectId)).payload
@@ -284,10 +231,8 @@ async function stepSplitIntoThreeShots(win, projectId) {
   const runId = nodes[0].meta.productionRunId
   expect(nodes.map((node) => node.meta.productionRunId), '三镜不属于同一个 Run').toEqual([runId, runId, runId])
   expect(nodes.map((node) => node.meta.productionShotId), '镜头 id 不是宿主按序派的稳定 id').toEqual(['shot-1', SHOT_2_ID, 'shot-3'])
-  const table = productionShotTable(payload)
-  expect(table, '画布上没有落下只认 Run 的分镜表').toBeTruthy()
-  expect(table.meta.shotTable.source.runId, '分镜表指的不是这个 Run').toBe(runId)
-  expect(table.meta.shotTable, '分镜表不许缓存行（行必须从节点 derive）').not.toHaveProperty('rows')
+  // 2026-10-08 用户：「我们经常莫名其妙生成分镜表，这个可以删掉吧」——落地只落节点和分组，不再冒出分镜表。
+  expect(shotTables(payload), '多镜草稿落地不许冒出分镜表').toHaveLength(0)
   const group = (payload.generationCanvas?.groups ?? []).find((item) => item.materializationOperationId === `canvas-landing:${runId}`)
   expect(group, '三镜没有编成带幂等章的分镜组').toBeTruthy()
   expect(walk.fixture.images, '规划阶段不得发生任何图片生成调用').toHaveLength(0)
@@ -296,27 +241,27 @@ async function stepSplitIntoThreeShots(win, projectId) {
   return { runId, nodeIds: nodes.map((node) => node.id) }
 }
 
-/** 进画布，把分镜表铺开，并断言表里就是 3 行、行序即镜序。 */
-async function stepOpenShotTable(win, nodeIds) {
+/** 进画布，把镜头节点带进视口，并断言画布上是这三个节点、没有分镜表。 */
+async function stepOpenShotNodes(win, nodeIds) {
   await openCanvas(win)
   await shot('canvas-opened-after-landing')
-  const table = await bringShotTableIntoFullView(win)
-  await expect(table.locator('[data-shot-table-row]'), '分镜表不是 3 行').toHaveCount(3)
-  const rowIds = await table.locator('[data-shot-table-row]').evaluateAll((rows) => rows.map((el) => el.getAttribute('data-shot-table-row')))
-  expect(rowIds, '分镜表的行不是那三个镜头节点（按落地序）').toEqual(nodeIds)
-  // 表是节点的投影：那一行的画面列必须就是那一镜节点的提示词（不是别的行、不是缓存的旧值）。
-  await expect(table.locator(row(nodeIds[1])), '表里第 2 行的画面列不是第 2 镜的提示词').toContainText(SHOT_PROMPTS[1].slice(0, 10))
-  await expect(table, '表头没有说这是 3 镜').toContainText('3 镜')
-  say('已进入画布，分镜表 3 行')
-  await shot('shot-table-three-rows')
+  await bringShotNodesIntoView(win, nodeIds)
+  await expect(win.locator(SHOT_TABLE), '画布上不该有分镜表节点').toHaveCount(0)
+  say('已进入画布，三个镜头节点在，没有分镜表')
+  await shot('canvas-three-shot-nodes')
 }
 
 /** ④ 选中第 2 镜。选中态是第 ⑥ 步的前提——先证明「我确实选中了它」。 */
 async function stepSelectShot2(win, nodeIds) {
-  const table = win.locator(SHOT_TABLE)
-  await clickOrFail(table.locator(`${row(nodeIds[1])} [aria-label="选择第 2 镜"]`), '勾选第 2 镜')
-  await expect(table.locator(`${row(nodeIds[1])} input[type="checkbox"]`), '第 2 行没有进入选中态').toBeChecked()
-  await expect(table.locator('footer'), '选中作用域不是 1 镜').toContainText('已选 1 镜')
+  // 落地会选中最后新建的节点并开着它的 composer；先点空白处收起，再点第 2 镜。
+  const blank = await findCanvasBlankPoint(win, { preference: 'top-left', inset: 48 })
+  expect(blank, '画布上找不到空白处收起 composer').toBeTruthy()
+  await win.mouse.click(blank.x, blank.y)
+  await waitForCanvasViewportSettled(win)
+  const point = await findNodeHitPoint(win, { nodeSelector: nodeCard(nodeIds[1]) })
+  expect(point, '第 2 镜节点没有可点的位置').toBeTruthy()
+  await win.mouse.click(point.x, point.y)
+  await expect(win.locator(`${nodeCard(nodeIds[1])}[data-selected="true"]`), '第 2 镜节点没有进入选中态').toHaveCount(1)
   say('已选中第 2 镜')
   await shot('shot2-selected')
 }
@@ -324,7 +269,7 @@ async function stepSelectShot2(win, nodeIds) {
 /**
  * ⑤ 改第 2 镜的一句提示词 —— 经 Agent 的 `draft_shots(draftId=Run, shots[{shotId:'shot-2'}])`。
  * 走的是 Run 账本那扇门（那一镜候选 revision +1 → 已落的节点按它重绑定），不是另一份方案。
- * 断言分三层：工具确实是 draft_shots / 只有第 2 个节点变 / 1、3 逐字未变 / 表里那一行跟着变。
+ * 断言分三层：工具确实是 draft_shots / 只有第 2 个节点变 / 1、3 逐字未变 / 节点的提示词跟着变。
  */
 async function stepAgentPatchShot2(win, projectId, runId, nodeIds) {
   const patch = walk.fixture.expectText({
@@ -334,7 +279,7 @@ async function stepAgentPatchShot2(win, projectId, runId, nodeIds) {
       type: 'tool', id: PATCH_CALL_ID, name: 'draft_shots',
       // 20 动词：改一镜提示词 = draft_shots(operationId, shots[{shotId}])。
       // 字段名用 main 改名后的 operationId；值仍从真实 Run 账本读回（runId / SHOT_2_ID），
-      // 不写字面量——这条走查的意义就是「Agent 改的那一镜真的回到了表里」。
+      // 不写字面量——这条走查的意义就是「Agent 改的那一镜真的回到了节点上」。
       args: { operationId: runId, shots: [{ shotId: SHOT_2_ID, prompt: SHOT_2_NEW_PROMPT }] },
     },
   })
@@ -366,28 +311,30 @@ async function stepAgentPatchShot2(win, projectId, runId, nodeIds) {
   // 真有程序移动，停下来的那一帧就和改前不同；抢在动画中途比会漏掉它。
   await waitForCanvasViewportSettled(win)
   await expect(viewport, '仅改已有镜头提示词不应移动或缩放画布').toHaveCSS('transform', beforeViewport)
-  await expect(win.locator(SHOT_TABLE), '改提示词后完整表格应继续可读').toHaveAttribute('data-density', 'full')
-  await expect(win.locator(SHOT_TABLE).locator(row(nodeIds[1])), '分镜表第 2 行没有显示改后的提示词').toContainText('逆光下的侧脸')
-  say('第 2 镜提示词已经 Agent 改掉（Run 账本 → 节点 → 表），1/3 镜逐字未变')
+  say('第 2 镜提示词已经 Agent 改掉（Run 账本 → 节点），1/3 镜逐字未变')
   await shot('shot2-prompt-patched')
 }
 
 /**
  * ⑥⑦ 第 2 镜生成一张图片（loopback，零额度），结果回到该行。
- * 表里的「生成 N 镜」走节点自己那扇既有的付费门（confirmAndRunPlan → 画布批次 runner）。
- * 2026-09-26 用户拍板（TODO T-QA-36，#891）：批次跑完**不再**自动调文本模型审片——用户点的是「生成」，只花生成的钱。
+ * 节点自己的生成钮走既有的付费门（confirmAndRunPlan → 画布批次 runner）。
+ * 2026-09-26 用户拍板（#891）：批次跑完**不再**自动调文本模型审片——用户点的是「生成」，只花生成的钱。
  * 这里刻意不预登记审片请求：产品若又发了，夹具收尾按「未登记的模型请求」报红，那一刀就是守这条拍板的。
  * 「改后的提示词真的抵达了」改由图片生成请求本身证明（以前借审片的提示词顺手断）。
  */
 async function stepGenerateShot2Image(win, projectId, nodeIds) {
-  const table = win.locator(SHOT_TABLE)
-  await expect(table.locator(row(nodeIds[1])), '第 2 镜不在未生成态').toContainText('未生成')
+  expect(shotNode((await readProject(win, projectId)).payload, SHOT_2_ID)?.result, '第 2 镜在点生成之前就已经有结果').toBeFalsy()
   expect(walk.fixture.images, '点生成之前不得发生任何图片生成调用').toHaveLength(0)
   // 「生成 1 镜」= 一次只跑 1 份、用户自己点的：不弹付费确认卡，直接开始（2026-09-25 拍板，判据按份数不按入口）。
   // 证据是下面「这一行变成已生成、供应商恰好收到 1 次」——若中间弹了卡而走查不去点，请求永远发不出去。
-  await clickOrFail(table.locator('footer').getByRole('button', { name: '生成 1 镜', exact: true }), '生成选中的第 2 镜')
-
-  await expect(table.locator(row(nodeIds[1])), '第 2 镜没有变成已生成').toContainText('已生成', { timeout: stationTimeout({ operations: 4 }) })
+  // 第 2 镜节点在上一步已选中；点它自己的生成钮（节点那扇既有的付费门）。
+  // 浮框钉在节点正下方、被挡就挡（2026-09-25 拍板，见 _canvasHit.mjs 的 panCanvasUntilInside）：节点靠近舞台下沿时，
+  // 生成钮会落到底部停靠区（时间轴胶囊）底下，点不到——人会自己把画布拖上来，走查照做。拖的目标是生成钮本身，
+  // 下沿留白 72 让开胶囊（CI #1129 上正是这一颗盖在 ↑ 上）。
+  const generateButton = win.locator('[data-bar-segment="generate"]').first()
+  const panned = await panCanvasUntilInside(win, generateButton)
+  expect(panned.ok, `生成钮拖不进可点区：${JSON.stringify(panned)}`).toBe(true)
+  await clickOrFail(generateButton, '生成选中的第 2 镜')
   await expect.poll(async () => shotNode((await readProject(win, projectId)).payload, SHOT_2_ID)?.result?.url ?? null,
     { message: '第 2 镜的生成结果没有回到它的节点', timeout: stationTimeout({ operations: 4 }) }).toMatch(/^nomi-local:\/\//)
   const resultUrl = shotNode((await readProject(win, projectId)).payload, SHOT_2_ID).result.url
@@ -395,7 +342,7 @@ async function stepGenerateShot2Image(win, projectId, nodeIds) {
     .toEqual([SHOT_PROMPTS[0], SHOT_2_NEW_PROMPT, SHOT_PROMPTS[2]])
   expect(walk.fixture.images, '这一步应当恰好发生 1 次图片生成调用').toHaveLength(1)
   expect(JSON.stringify(walk.fixture.images[0].body), '发给供应商的图片请求里不是改后的提示词').toContain(SHOT_2_NEW_PROMPT)
-  say(`第 2 镜（${SHOT_2_ID}）已生成，结果回到该行；发给供应商的就是改后的提示词，批次跑完没有自动审片`)
+  say(`第 2 镜（${SHOT_2_ID}）已生成，结果回到该节点；发给供应商的就是改后的提示词，批次跑完没有自动审片`)
   await shot('shot2-generated')
   return { resultUrl }
 }
@@ -444,7 +391,7 @@ async function stepRestartAndVerify(projectRoot, projectId, nodeIds, { resultUrl
   const persisted = readPersistedPayload(projectRoot)
   expect(shotPrompts(persisted)[1], TARGET_ASSERTION).toBe(SHOT_2_NEW_PROMPT)
   expect(shotNode(persisted, SHOT_2_ID)?.result?.url, '重启后盘上第 2 镜的结果图丢了').toBe(resultUrl)
-  expect(productionShotTable(persisted), '重启后盘上那张分镜表丢了').toBeTruthy()
+  expect(shotTables(persisted), '重启后盘上冒出了分镜表').toHaveLength(0)
 
   // 冷启动落在项目库。走用户真实入口回到工程：卡片上的「继续创作」。
   const card = win.locator('[data-project-card]').first()
@@ -466,18 +413,16 @@ async function stepRestartAndVerify(projectRoot, projectId, nodeIds, { resultUrl
 
   // 盘对了还不够：用户看得见的那一屏也得对。
   await openCanvas(win)
-  const table = await bringShotTableIntoFullView(win)
-  await expect(table.locator('[data-shot-table-row]'), '重启后分镜表不是 3 行').toHaveCount(3)
-  await expect(table.locator(row(nodeIds[1])), '重启后第 2 行没有显示改后的提示词').toContainText('逆光下的侧脸')
-  await expect(table.locator(row(nodeIds[1])), '重启后第 2 镜不是已生成态').toContainText('已生成', { timeout: stationTimeout({ operations: 2 }) })
+  await bringShotNodesIntoView(win, nodeIds)
+  await expect(win.locator(SHOT_TABLE), '重启后画布上冒出了分镜表').toHaveCount(0)
   // 只比 src 字符串会假绿：src 在、图挂了也照样通过。判据取 naturalWidth——它 >0 意味着这张图**真的解码出来了**。
-  const restoredImage = table.locator(`${row(nodeIds[1])} img`).first()
+  const restoredImage = win.locator(`${nodeCard(nodeIds[1])} img`).first()
   await expect.poll(async () => restoredImage.evaluate((el) => el.naturalWidth),
-    { message: '重启后第 2 行的关键帧格没有真的把那张图解码出来', timeout: stationTimeout({ operations: 2 }) })
+    { message: '重启后第 2 镜节点上的图没有真的解码出来', timeout: stationTimeout({ operations: 2 }) })
     .toBeGreaterThan(0)
   const restored = await restoredImage.evaluate((el) => ({ src: el.getAttribute('src'), w: el.naturalWidth, h: el.naturalHeight, complete: el.complete }))
-  console.log('  · 重启后关键帧格 img：', JSON.stringify(restored))
-  expect(restored.src, '重启后第 2 行关键帧格的图不是本地资产').toContain('nomi-local://')
+  console.log('  · 重启后节点 img：', JSON.stringify(restored))
+  expect(restored.src, '重启后第 2 镜节点的图不是本地资产').toContain('nomi-local://')
   const restoredSession = readLaneTranscripts(projectRoot).find((session) => session.sessionId === sessionBeforeRestart.sessionId)
   expect(restoredSession, '重启后的 Agent 面必须仍用原 SDK session').toBeTruthy()
   expect(laneMessages(restoredSession), '冷重启不能补造旧工具结果或重跑分镜').toEqual(messagesBeforeRestart)
@@ -492,13 +437,13 @@ let failure
 try {
   console.log(POSITIVE_CONTROL
     ? '▶ 金路径走查（阳性对照模式：破坏落盘，最后一条断言必须报红）'
-    : '▶ 金路径走查（新建空项目 → 三句剧本 → 拆 3 镜落画布 → 表里选第 2 镜 → Agent 改它 → 生成 → 重启）')
+    : '▶ 金路径走查（新建空项目 → 三句剧本 → 拆 3 镜落画布 → 选第 2 镜 → Agent 改它 → 生成 → 重启）')
   const { projectId, projectRoot } = await stepNewProject()
   const win = currentWin
   await stepWriteScript(win)
-  if (PRODUCTION_TABLE) {
+  if (PRODUCTION_CANVAS) {
     const { runId, nodeIds } = await stepSplitIntoThreeShots(win, projectId)
-    await stepOpenShotTable(win, nodeIds)
+    await stepOpenShotNodes(win, nodeIds)
     await stepSelectShot2(win, nodeIds)
     await stepAgentPatchShot2(win, projectId, runId, nodeIds)
     const generated = await stepGenerateShot2Image(win, projectId, nodeIds)
@@ -515,9 +460,9 @@ try {
     // 那条断言就是死的——它没有在测它命名的那件事。
     throw new Error('阳性对照失效：盘上第 2 镜的修改已被抹回旧值，重启断言却依然通过 —— 这条断言是死的，先修尺子再谈门。')
   }
-  if (PRODUCTION_TABLE) walk.report.verified = [
-    'new-empty-project', 'three-line-script', 'draft-shots-land-on-canvas-with-shot-table',
-    'shot2-selection-in-shot-table', 'draft-shots-patch-one-shot', 'loopback-image-generation',
+  if (PRODUCTION_CANVAS) walk.report.verified = [
+    'new-empty-project', 'three-line-script', 'draft-shots-land-on-canvas-no-shot-table',
+    'shot2-selection-on-canvas', 'draft-shots-patch-one-shot', 'loopback-image-generation',
     'cold-restart-persistence',
   ]
   console.log(`\n✅ 金路径全绿。截图与 report.json 在 ${outputDir}`)

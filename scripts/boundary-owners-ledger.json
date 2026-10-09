@@ -371,6 +371,15 @@
         "symbol": "BODY_GATES"
       },
       "reason": "2026-10-08 pre-push 钩子入口并成 scripts/pre-push-contracts.mjs（本机 Contracts 门岗 + 正文门岗一次跑完、一次列出全部失败项）；旧的 check-pr-body-gates.mjs 同提交删除。「push 前在本地跑同一批正文判据、用同一份正文」由它的 BODY_GATES 承担，正文仍只经 lib/prBody.mjs 的 resolvePullRequestBody 现取。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-10-storyboard-projection-receipt-composition.root-cause.json",
+      "path": "src/workbench/creation/storyboard/exec/ensureStoryboardShotTable.ts",
+      "symbol": "applyStoryboardPlanProjection",
+      "anchor": {
+        "path": "src/workbench/creation/storyboard/exec/applyStoryboardPlanProjection.ts",
+        "symbol": "applyStoryboardPlanProjection"
+      }
     }
   ],
   "retirements": [
