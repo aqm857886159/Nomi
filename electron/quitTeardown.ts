@@ -14,13 +14,23 @@ export interface QuitLifecycleApp {
 }
 
 export type QuitReceiptEvent = "quit-step" | "quit-exit";
-export type QuitDrainOptions = { required?: boolean; timeoutMs?: number };
+export type QuitDrainOptions = {
+  required?: boolean;
+  timeoutMs?: number;
+  /**
+   * Runs ONLY when the OS ends the session (Windows session-end, Linux shutdown), never on a normal quit
+   * (will-quit skips critical entries). Nobody can confirm anything there and the whole budget is `CRITICAL_EXIT_TIMEOUT_MS`. It runs beside the built-in critical
+   * chain, so it neither delays nor is delayed by the Agent lane close.
+   */
+  critical?: boolean;
+};
 
 type QuitDrain = {
   name: string;
   drain: () => void | Promise<void>;
   required: boolean;
   timeoutMs?: number;
+  critical: boolean;
 };
 
 export interface QuitTeardownDependencies {
@@ -64,7 +74,7 @@ export const CRITICAL_EXIT_TIMEOUT_MS = 500;
 
 export function registerQuitDrain(name: string, drain: () => void | Promise<void>, options: QuitDrainOptions = {}): () => void {
   if (!name.trim()) throw new Error("quit drain name is required");
-  const entry = { name, drain, required: options.required ?? true, timeoutMs: options.timeoutMs } satisfies QuitDrain;
+  const entry = { name, drain, required: options.required ?? true, timeoutMs: options.timeoutMs, critical: options.critical ?? false } satisfies QuitDrain;
   registeredDrains.set(name, entry);
   return () => { if (registeredDrains.get(name) === entry) registeredDrains.delete(name); };
 }
@@ -191,8 +201,8 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     BUILTIN_FAST_DRAIN_TIMEOUT_CAP_MS,
     Math.max(1, Math.floor(ownerTimeoutMs / (BUILTIN_FAST_DRAIN_COUNT + 1))),
   );
-  const backgroundLifecycle: QuitDrain = { name: "background-lifecycle", drain: dependencies.disposeBackgroundLifecycle, required: true, timeoutMs: fastTimeoutMs };
-  const capabilityCore: QuitDrain = { name: "capability-core", drain: dependencies.stopDesktopCapabilityCore, required: true, timeoutMs: fastTimeoutMs };
+  const backgroundLifecycle: QuitDrain = { name: "background-lifecycle", drain: dependencies.disposeBackgroundLifecycle, required: true, timeoutMs: fastTimeoutMs, critical: false };
+  const capabilityCore: QuitDrain = { name: "capability-core", drain: dependencies.stopDesktopCapabilityCore, required: true, timeoutMs: fastTimeoutMs, critical: false };
   const activeExports: QuitDrain = {
     name: "active-exports",
     drain: () => {
@@ -201,10 +211,11 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     },
     required: true,
     timeoutMs: fastTimeoutMs,
+    critical: false,
   };
   // workspace.close records the pending Agent turn under .nomi/agent-sessions before
   // trace/harness close, so it takes whatever budget remains.
-  const desktopLane: QuitDrain = { name: "desktop-lane-ipc", drain: dependencies.disposeDesktopLaneIpc, required: true };
+  const desktopLane: QuitDrain = { name: "desktop-lane-ipc", drain: dependencies.disposeDesktopLaneIpc, required: true, critical: false };
   const builtInDrains = [backgroundLifecycle, capabilityCore, activeExports, desktopLane];
   const criticalDrains = [activeExports, desktopLane];
 
@@ -249,7 +260,9 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
       report(dependencies.onError, "quit-timeout", { timeoutMs: ownerTimeoutMs });
       finish("deadline", requestedExitCode ?? 0);
     });
-    const registered = [...registeredDrains.values()];
+    // critical drains belong to the unattended-exit entry only (exitWithCriticalDrains): a normal quit
+    // has already closed the windows through the close confirmation, so there is nobody left to ask.
+    const registered = [...registeredDrains.values()].filter((entry) => !entry.critical);
     // Optional drains are best effort: they run beside the serial chain and never delay the exit.
     for (const entry of registered.filter((drain) => !drain.required)) {
       void runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError, onReceipt);
@@ -277,7 +290,10 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     teardownStarted = true;
     quitRequested = true;
     teardownStartedAt = Date.now();
-    void runSerially(criticalDrains, critical, dependencies.onError, onReceipt).then((timedOut) => {
+    const registeredCritical = [...registeredDrains.values()].filter((entry) => entry.critical);
+    const beside = registeredCritical.map((entry) => runDrain(entry, quitTeardownTimeoutMs(), dependencies.onError, onReceipt));
+    void Promise.all([runSerially(criticalDrains, critical, dependencies.onError, onReceipt), ...beside]).then((outcomes) => {
+      const timedOut = outcomes.some(Boolean);
       if (teardownFinished) return;
       if (timedOut) report(dependencies.onError, "critical-exit-timeout", { reason, timeoutMs: budgetMs });
       finish(reason, 0);
