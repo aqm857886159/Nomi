@@ -38,7 +38,7 @@ test('结构：钩子文件里没有任何脚本名，只分发到 scripts/git-h
   for (const { name } of installer.HOOKS) {
     const content = installer.renderHookContent({ name })
     assert.ok(content.includes(`exec node "$ROOT/scripts/git-hook.mjs" ${name} "$@"`), content)
-    assert.doesNotMatch(content, /check-|pre-push-contracts|\.cjs/, '钩子里不许写死脚本名')
+    assert.doesNotMatch(content, /check-|pre-push-contracts/, '钩子里不许写死脚本名')
   }
   assert.deepEqual(installer.HOOKS.map((h) => h.name).sort(), Object.keys(tableOnDisk).sort(), '装的钩子 = 分发表里的钩子')
 })

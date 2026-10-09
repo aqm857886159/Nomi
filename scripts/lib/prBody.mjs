@@ -29,9 +29,12 @@ function readLocalDraft(cwd) {
   try { return fs.readFileSync(path.join(cwd, LOCAL_PR_BODY_DRAFT), 'utf8') } catch { return null }
 }
 
-/** `gh pr view` 的默认实现；测试里换成假的。 */
-function ghPullRequestBody(args, cwd) {
-  return execFileSync('gh', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+/** gh 最多等多久。手动跑挂 600–1700 秒的事故（2026-10-09）里 gh 没有超时是原因之一：超时 = 明确报错，不是继续等。 */
+export const GH_TIMEOUT_MS = 20_000
+
+/** `gh pr view` 的默认实现；测试里换成假的（opts.bin / opts.args 让测试用真子进程模拟「一直不返回」）。 */
+export function ghPullRequestBody(args, cwd, opts = {}) {
+  return execFileSync(opts.bin ?? 'gh', opts.args ?? args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: opts.timeoutMs ?? GH_TIMEOUT_MS, killSignal: 'SIGKILL' })
 }
 
 /**
@@ -45,11 +48,20 @@ export function resolvePullRequestBody({
   cwd = process.cwd(),
   fetchBody = ghPullRequestBody,
   readDraft = readLocalDraft,
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
 } = {}) {
   // 显式喂正文（测试与 --body-file 之类的本地用法）。空字符串是合法输入：
   // 「正文是空的」本身就是一个应该报红的事实，不是「没拿到」。
   const injected = env.NOMI_PR_BODY
   if (typeof injected === 'string') return { available: true, body: injected, source: 'NOMI_PR_BODY' }
+
+  // 手动跑也可以把正文放文件里（NOMI_PR_BODY_FILE）。指了文件却读不了 = 明确的红，不回落到 gh / 草稿（指错了文件不能当没指）。
+  const bodyFile = env.NOMI_PR_BODY_FILE
+  if (typeof bodyFile === 'string' && bodyFile !== '') {
+    try { return { available: true, body: readFile(bodyFile), source: 'NOMI_PR_BODY_FILE' } } catch (error) {
+      return { available: false, required: true, reason: `NOMI_PR_BODY_FILE 指向的文件读不了：${String(error instanceof Error ? error.message : error).split('\n')[0]}` }
+    }
+  }
 
   const inPullRequest = env.GITHUB_EVENT_NAME === 'pull_request'
   const asked = argv.includes('--pr')
@@ -65,6 +77,10 @@ export function resolvePullRequestBody({
   try {
     return { available: true, body: fetchBody(args, cwd), source: number ? `gh pr view ${number}` : 'gh pr view' }
   } catch (error) {
+    // 超时不是「没有 PR」：不回落到草稿，明确报错（调用方按 required 处理）
+    if (error && error.code === 'ETIMEDOUT') {
+      return { available: false, required: true, reason: `gh pr view 超时（${GH_TIMEOUT_MS / 1000} 秒没有返回）；网络或 gh 登录有问题，改用 NOMI_PR_BODY / NOMI_PR_BODY_FILE 直接给正文` }
+    }
     // 本地、这条分支还没有 PR：有草稿就用草稿（CI 里没有这个文件，也永远不走这条）
     const draft = inPullRequest ? null : readDraft(cwd)
     if (draft !== null) return { available: true, body: draft, source: LOCAL_PR_BODY_DRAFT }

@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "external_sources": [],
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本批改的是本仓自己的 git 钩子分发；husky / lefthook 的做法（钩子文件固定一行、转交配置）已参考，但引入它们要连带换掉三个已有钩子脚本与 worktree 隔离安装逻辑，不值得。",
+    "exit_criteria": []
+  },
+  "id": "2026-10-09-git-hook-pins-script-names",
+  "problem_type": "长寿命的生成物里写死了会变的名字",
+  "symptom": "#1134 删除 scripts/check-pr-body-gates.mjs 后，旧 worktree 的 pre-push 钩子 `[ -f ... ] || exit 0` 静默放行，一次推送一道门岗都没跑；另有手动跑 pre-push-contracts.mjs 因读永不关闭的 stdin 挂 600–1700 秒。",
+  "direct_cause": "钩子文件由安装器在 pnpm install 时生成一次、住在 .git 里不随分支更新，里面写死了脚本名并带「文件不在就放行」的静默分支；入口脚本只要 stdin 不是 TTY 就读 stdin。",
+  "class_root": "把会变的东西（脚本名、跑哪几步）固化进不随分支更新的生成物，并让「找不到」默认静默放行；以及入口脚本用「stdin 是不是 TTY」猜自己是不是被钩子调用，而不是看显式参数。",
+  "affected_population": [
+    "所有 worktree 的 pre-push / pre-commit / commit-msg 钩子",
+    "所有手动重跑推送前门岗的 agent 会话"
+  ],
+  "scope_paths": [
+    "scripts/git-hook.mjs",
+    "scripts/git-hooks.json",
+    "scripts/install-git-hooks.cjs",
+    "scripts/pre-push-contracts.mjs",
+    "scripts/lib/prBody.mjs"
+  ],
+  "entry_points": [
+    "scripts/install-git-hooks.cjs（生成钩子）",
+    "scripts/git-hook.mjs（分发）",
+    "scripts/pre-push-contracts.mjs（推送前入口）"
+  ],
+  "internal_only_reason": "钩子分发是本仓自己的交付流水线纪律；git 的 pre-push 参数与 stdin 约定按 githooks 文档使用。",
+  "invariants": [
+    "钩子文件里不出现任何脚本名，只 exec scripts/git-hook.mjs <钩子名> \"$@\"",
+    "任何跳过都在 stderr 说原因，不静默",
+    "推送前入口只在收到 <remote名> <url> 两个参数时才读 stdin",
+    "PR 正文取不到 / 指定文件读不了 / gh 超时 = 明确红，gh 有超时"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/install-git-hooks.cjs",
+      "symbol": "renderHookContent"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/git-hook.mjs",
+      "symbol": "runHook"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "生成钩子（安装器）与分发（git-hook.mjs）是两个必须分开的时刻：前者一次性写进 .git，后者每次钩子触发时按当前树决定；合并就又回到「脚本名固化在生成物里」。"
+  },
+  "generality_proof": "脚本名只存在于 scripts/git-hooks.json 一处，随分支走；以后加 / 改名 / 删任何一个门岗脚本都只改这张表，不需要重装任何钩子。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/git-hook.mjs",
+      "symbol": "runHook",
+      "responsibility": "钩子名 → 要跑的脚本的唯一分发处（按当前树现查分发表，找不到就打印原因）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/install-git-hooks.cjs",
+      "entry_point": "renderHookContent",
+      "disposition": "enforced",
+      "evidence": "生成的三个钩子只 exec scripts/git-hook.mjs；每个 exit 0 前都有 stderr 原因；git-hook.node-test.mjs 逐个钩子断言。"
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "entry_point": "main",
+      "disposition": "enforced",
+      "evidence": "只有收到 <remote名> <url> 才读 stdin；永不关闭 stdin + 无参数的必红测试钉住。"
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "pre-push-check",
+      "disposition": "not-affected",
+      "evidence": "它是 Claude Code 的 PreToolUse 闸，由 .claude/settings.json 直指仓内脚本，不是生成进 .git 的文件。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要还有生成进 .git 的钩子文件写死脚本名，下一次改名 / 删脚本就会重演。",
+    "same_class_scan": [
+      "git grep -n 'exit 0' scripts/install-git-hooks.cjs：生成的钩子里唯一的 exit 0 前面有 stderr 原因。",
+      "git grep -n 'readFileSync(0' scripts/*.mjs：只剩钩子形态下读 stdin 的一处。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/git-hook.mjs",
+    "invariant": "钩子文件不含脚本名；分发入口存在且不可删除 / 改名（boundary-owners 每次核 path+symbol）。",
+    "failure_mode": "入口不在 = 退出 0 + stderr 原因；脚本不在 = 跳过该步 + stderr 原因；脚本红 = 原样返回退出码。",
+    "exception_policy": "none",
+    "strategy": "结构上让「钩子写死脚本名」做不出来：生成物里没有可写的位置。",
+    "artifacts": [
+      "scripts/git-hook.mjs",
+      "scripts/git-hooks.json",
+      "scripts/install-git-hooks.cjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/git-hook.node-test.mjs",
+    "scripts/pre-push-contracts.node-test.mjs",
+    "scripts/pr-body-gates.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/git-hook.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/install-git-hooks.cjs"
+    ],
+    "rationale": "安装器里写死脚本名的 HOOKS.commands 与 legacyFallback、每个脚本一条 `[ -f ] || exit 0` 的静默守卫已同提交删除，改为只分发。"
+  },
+  "migration": "老分支没有 scripts/git-hook.mjs，换上新钩子后会跳过并打印原因，合并最新 origin/main 即恢复；协调会话在本 PR 合入 main 后跑 pnpm run hooks:reinstall-all 一次。",
+  "residual_risks": [
+    "合入 main 之前就换钩子的老分支会失去 pre-commit 敏感数据扫描（有 stderr 提示）；所以换钩子要在合入之后。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/git-hook.mjs",
+    "tests": [
+      "scripts/git-hook.node-test.mjs"
+    ]
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-08"
+}
