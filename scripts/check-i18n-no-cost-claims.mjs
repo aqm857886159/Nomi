@@ -4,63 +4,14 @@
 // 现在都走中转站，扣没扣钱 Nomi 不知道，界面只说事实和下一步。
 // 以前这条扫描在 vitest 里，只在 Unit CI 跑，违例要上了 PR 才被拦；现在进 check:i18n，本地 gates / pre-push 都会跑到。
 // 匹配器不在这里写第二份：NO_COST_CLAIMS 来自 tests/ux/full-walk/outcomeText.mjs（走查监视器同一份）。
-// 白名单只有这里一份。
+// 例外键（NOT_MONEY / NON_MONEY_KEYS）也住在 outcomeText.mjs：本门岗按键豁免，走查监视器按同一批键从词典取值豁免——同一份事实只有一份。
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { NO_COST_CLAIMS } from '../tests/ux/full-walk/outcomeText.mjs'
+import { NO_COST_CLAIMS, NON_MONEY_KEYS, NOT_MONEY } from '../tests/ux/full-walk/outcomeText.mjs'
 
-/** 只有转述上游原文才可登记；每条必须说明它是服务商错误/账号状态，不是 Nomi 的花费判断。 */
-export const NOT_MONEY = Object.freeze({
-  'generationCommon.error.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.error.quota': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.error.balance.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.error.balance.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.error.quota.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.error.quota.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.observability.error.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.observability.error.quota': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.observability.error.balance.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.observability.error.balance.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.observability.error.quota.reason': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'generationCommon.observability.error.quota.hint': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.adapterVerification.why.balance': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.adapterVerification.why.quota': '转述服务商返回，不是 Nomi 对某一步花费的断言',
-  'assetLibrary.pasteLink.errQuota': '转述 TikHub 返回，不是 Nomi 对某一步花费的断言',
-  'assetLibrary.pasteLink.errRateLimited': '转述 TikHub 返回，不是 Nomi 对某一步花费的断言',
-  'antigravity.errors.quota': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
-  'antigravity.check.limited': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
-  'antigravity.notice.limited': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
-  'antigravity.accountUsage': '转述 agy 账号状态，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.agnes.credentialHint': '服务商账户前置条件与额度由 Agnes 账户决定，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.modelscope.tagline': '服务商账户前置条件与推理额度由 ModelScope/阿里云账户决定，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.modelscope.promoText': '服务商账户前置条件与推理额度由 ModelScope/阿里云账户决定，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.fal.credentialHint': '服务商账户前置条件与模型额度、区域和价格由 fal.ai 账户决定，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.runway.credentialHint': '服务商账户前置条件与 credits 由 Runway 账户决定，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.runninghub.promoText': '服务商账户前置条件与用量、计费由 RunningHub 账户决定，不是 Nomi 对某一步花费的断言',
-  'onboardingProviders.knownVendors.replicate.promoText': '服务商账户前置条件与用量、计费由 Replicate 账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.agnes.credentialHint': '服务商账户前置条件与额度由 Agnes 账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.modelscope.tagline': '服务商账户前置条件与推理额度由 ModelScope/阿里云账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.modelscope.promoText': '服务商账户前置条件与推理额度由 ModelScope/阿里云账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.fal.credentialHint': '服务商账户前置条件与模型额度、区域和价格由 fal.ai 账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.runway.credentialHint': '服务商账户前置条件与 credits 由 Runway 账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.runninghub.promoText': '服务商账户前置条件与用量、计费由 RunningHub 账户决定，不是 Nomi 对某一步花费的断言',
-  'knownVendors.replicate.promoText': '服务商账户前置条件与用量、计费由 Replicate 账户决定，不是 Nomi 对某一步花费的断言',
-})
-/** 非金钱同形词：这些 key 的 free 只描述空间、方向、视图或惯用语，不表达费用。 */
-export const NON_MONEY_KEYS = Object.freeze([
-  'director.aspect.free',
-  'taskCenter.exportJob.diskFull',
-  'assetLibrary.rejectedNoDiskSpace',
-  'assetLibrary.pasteLink.message',
-  'settings.ai.tikhub.description',
-  'settings.general.diagnostics.contentNotice',
-  'director.timeline.screenshotNameFree',
-  'director.timeline.toast.noSpace',
-  'director.timelineInspector.freeOrientation',
-  'director.camera.captureNeedsFree',
-  'generationCommon.production.canvasLanding.actionFailure.ledgerWriteFailed',
-])
+export { NON_MONEY_KEYS, NOT_MONEY }
+
 /** 不能把“可用/已提交/取回”改写成零元承诺；这些变体也必须命中。 */
 export const ADDITIONAL_SPEND_CLAIMS = Object.freeze({
   'zh-CN': /免费(?:解锁|上传|重取|取回)/,
