@@ -25,7 +25,7 @@ import { pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { findCanvasChange } from '../events/canvasUndoJournal'
 import { makeChangeId, parseChangeId } from '../../../../electron/shared/agentCapabilities/changeId'
 import { ownPendingCanvasWrite } from '../events/canvasWriteBoundary'
-import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { GenerationCanvasEdge, GenerationCanvasNode, TiptapDocJson } from '../model/generationCanvasTypes'
 import { laneReceiptClient } from '../../ai/lane/laneReceiptClient'
 import { laneClient } from '../../ai/lane/laneClient'
 import { compensationFromBeforeImage } from './beforeImageCompensation'
@@ -438,6 +438,9 @@ export function applyCompensationOps(compensation: readonly ProjectAgentProposal
       }
     } else if (op.kind === 'restore-prompt') {
       useGenerationCanvasStore.getState().updateNodePrompt(op.nodeId, op.prompt, op.promptOverridden)
+    } else if (op.kind === 'restore-text') {
+      // 正文放回提议之前的样子（和 Agent 写入同一个写口）；节点已被删 = no-op。
+      useGenerationCanvasStore.getState().restoreNodeBody(op.nodeId, op.contentJson as TiptapDocJson | null)
     } else if (op.kind === 'restore-node-fields') {
       // 整节点放回只放编辑层；结果、运行态、跟主图走的媒体尺寸取此刻的（统一提交口）。节点已被删 = no-op。
       useGenerationCanvasStore.getState().restoreNodeFields(op.nodeId, op.meta, op.prompt)

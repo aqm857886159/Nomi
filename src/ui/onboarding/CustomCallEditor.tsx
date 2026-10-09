@@ -180,7 +180,8 @@ export function CustomCallEditor({
       const editingModeId = selectedModeId
       abortRef.current = ctrl
       try {
-        const brain = await getTextBrain()
+        // strict：起草脚本会用 Agent 的文本模型花 token（target 是被接入的目标，不是写脚本的脑），选中的模型不可用就如实报错。
+        const brain = await getTextBrain({ strict: true })
         if (!brain) {
           setAiError(t('onboardingProviders.customCall.aiNeedTextModel'))
           return

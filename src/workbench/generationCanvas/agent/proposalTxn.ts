@@ -37,6 +37,7 @@ export type CompensationOp =
   | { kind: 'delete-nodes'; nodeIds: string[] }
   | { kind: 'disconnect-edges'; pairs: { source: string; target: string }[] }
   | { kind: 'restore-prompt'; nodeId: string; prompt: string; promptOverridden?: boolean }
+  | { kind: 'restore-text'; nodeId: string; contentJson: Record<string, unknown> | null }
   | { kind: 'restore-graph'; nodes: unknown[]; edges: unknown[] }
   | { kind: 'restore-node-fields'; nodeId: string; meta: Record<string, unknown>; prompt: string }
 
@@ -82,6 +83,14 @@ function captureStepCompensation(
     const current = after.nodes.find((node) => node.id === nodeId)
     if (previous && current && previous.prompt !== current.prompt)
       ops.push({ kind: 'restore-prompt', nodeId, prompt: previous.prompt || '', ...(isStoryboardOriginal(previous) ? { promptOverridden: overriddenShotFields(previous).includes('prompt') } : {}) })
+  }
+  if (step.toolName === 'set_node_text') {
+    const nodeId = resolveCanvasToolNodeId(String(step.effectiveArgs.nodeId || '').trim())
+    const previous = before.nodes.find((node) => node.id === nodeId)
+    const current = after.nodes.find((node) => node.id === nodeId)
+    if (previous && current && previous.contentJson !== current.contentJson) {
+      ops.push({ kind: 'restore-text', nodeId, contentJson: previous.contentJson ? JSON.parse(JSON.stringify(previous.contentJson)) : null })
+    }
   }
   if (step.toolName === 'delete_canvas_nodes') {
     const remaining = new Set(after.nodes.map((node) => node.id))

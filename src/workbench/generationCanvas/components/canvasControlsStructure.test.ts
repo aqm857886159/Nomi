@@ -336,7 +336,8 @@ describe('generation canvas control structure', () => {
     expect(modeBar).toContain('min-h-7 rounded-nomi-sm px-3 py-1 text-caption')
     expect(parameterBody).toContain('style={{ height: 28 }}')
     expect(parameterBody).toContain('density="compact"')
-    expect(composer).toContain('min-h-7 rounded-nomi-sm px-2.5 py-1 text-caption')
+    // 文本节点的续写 / 改写 / 重写按钮搬进了加工框的下拉（TextNodeComposer），不再是通用浮框里的一排按钮。
+    expect(source('../nodes/TextNodeComposer.tsx')).toContain('h-6 items-center gap-0.5 whitespace-nowrap rounded-nomi-sm px-1.5 text-caption')
     expect(composer).not.toContain('NomiSegmented')
     expect(composer).not.toContain('h-[22px]')
   })

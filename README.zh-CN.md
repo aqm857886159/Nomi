@@ -136,7 +136,7 @@ Nomi 自带 MCP 服务（24 个 MCP 工具）：Claude Code、Codex、Cursor 都
 扫左边的码加入用户群，反馈直接进迭代。群码过期了，或者要做 AGPL 合规的定制开发、部署和长期迭代，加右边的维护者微信 **TZ857886159**。
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-10-09.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-10-09.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-10-17.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-10-17.jpg" alt="Nomi 用户群微信二维码" width="220" /></a>
   &nbsp;&nbsp;
   <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi 维护者微信二维码" width="180" /></a>
 </p>

@@ -57,7 +57,7 @@ export function referenceAssetKindForNode(node: GenerationCanvasNode): Reference
 /**
  * 文本节点的通用 reference 出边不是“参考素材”，而是下游生成 prompt 的上下文补充。
  * 只允许喂给图片/视频/3D 生成节点（吃 prompt 的媒体生成面）；其它边语义仍走正常参考能力校验。
- * 口径与 collectConnectedTextPromptParts 的目标判定一致，改必同改。
+ * 口径与 projectConnectedTextInputs 的目标判定一致，改必同改。
  */
 export function isTextPromptEdge(
   source: GenerationCanvasNode,
@@ -66,7 +66,8 @@ export function isTextPromptEdge(
 ): boolean {
   if ((mode ?? 'reference') !== 'reference' || source.kind !== 'text') return false
   const targetExec = getGenerationNodeExecutionKind(target.kind)
-  return targetExec === 'image' || targetExec === 'video' || targetExec === 'model3d'
+  // 文本接文本：上一段文字当下一个文本节点加工时的背景（加工框「扩写 / 翻译 / 拆成多条」的输入）。
+  return targetExec === 'image' || targetExec === 'video' || targetExec === 'model3d' || targetExec === 'text'
 }
 
 /** 每种参考槽能被哪种源资产喂。first_frame 收视频=尾帧接力(resolver 抽帧),故收 image+video。 */
@@ -213,9 +214,13 @@ export function connectionCreateVerdictsForSource<K extends GenerationNodeKind>(
   return kinds.map((kind): ConnectionCreateVerdict<K> => {
     if (isTextPromptEdge(source, { ...source, kind })) return { kind, ok: true }
     if (!asset) return { kind, ok: false, reason: 'source_not_referenceable', asset }
-    const accepted = MODEL_ARCHETYPES.some((archetype) =>
-      archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
-    )
+    // 目标自己读上游边的种类（文本 / 剪辑 / 导演台）→ 看种类定义的素材列表；其余看模型档案。
+    const targetInput = getGenerationNodeDefinition(kind).connects.input
+    const accepted = Array.isArray(targetInput)
+      ? targetInput.includes(asset)
+      : MODEL_ARCHETYPES.some((archetype) =>
+        archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
+      )
     return accepted ? { kind, ok: true } : { kind, ok: false, reason: 'no_model_accepts', asset }
   })
 }
