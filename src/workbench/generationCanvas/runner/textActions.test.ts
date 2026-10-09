@@ -9,6 +9,11 @@ const PROJECT_ID = 'project-test'
 
 const disk = vi.hoisted(() => new Map<string, unknown>())
 const applyCanvasNodePatch = vi.hoisted(() => vi.fn())
+const textBrain = vi.hoisted(() => ({ current: null as { vendor: string; modelKey: string } | null }))
+vi.mock('../../api/promptLibraryApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/promptLibraryApi')>()),
+  getTextBrain: async () => textBrain.current,
+}))
 vi.mock('../../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ projects: { applyCanvasNodePatch } }),
 }))
@@ -187,5 +192,123 @@ describe('generateText — 流式增量落地', () => {
     const saved = (disk.get(PROJECT_ID) as { payload: { generationCanvas: { nodes: GenerationCanvasNode[] } } }).payload.generationCanvas.nodes
     const content = (saved.find((n) => n.id === node.id)?.contentJson?.content || []) as Array<{ content?: Array<{ text?: string }> }>
     expect(content.map((block) => (block.content || []).map((c) => c.text || '').join('')).join('\n')).toBe('开头\n生成的全文')
+  })
+})
+
+describe('generateText — 加工框预设与「跟随 Agent 的模型」', () => {
+  const doc = (text: string) => ({ type: 'doc' as const, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
+  type Captured = { vendor: string; request: { kind: string; prompt: string; extras?: Record<string, unknown> } }
+  const capturing = (reply: string) => {
+    const calls: Captured[] = []
+    const runTask = async (vendor: string, request: Captured['request']): Promise<TaskResultDto> => {
+      calls.push({ vendor, request })
+      return { id: 'task-p', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: reply } }] } }
+    }
+    return { calls, runTask }
+  }
+  function addPlainTextNode(meta: Record<string, unknown> | undefined, body: string): GenerationCanvasNode {
+    const store = useGenerationCanvasStore.getState()
+    const created = store.addNode({ kind: 'text', title: '', prompt: '', position: { x: 0, y: 0 } })
+    store.updateNode(created.id, { ...(meta ? { meta } : {}), contentJson: doc(body) })
+    return useGenerationCanvasStore.getState().nodes.find((n) => n.id === created.id)!
+  }
+
+  beforeEach(() => { textBrain.current = null })
+
+  it('扩写预设：整篇换成新的一版，给模型的话带着预设要求和现有正文', async () => {
+    const node = addTextNode({ meta: { textGenPreset: 'expand' }, contentJson: doc('雨夜便利店') })
+    const { calls, runTask } = capturing('一条写得很细的提示词')
+    await generateText(node, { projectTarget, runTask })
+    expect(nodeText(node.id)).toBe('一条写得很细的提示词')
+    expect(calls[0]!.request.kind).toBe('chat')
+    expect(calls[0]!.request.prompt).toContain('扩写成一条可以直接交给图片 / 视频生成模型的提示词')
+    expect(calls[0]!.request.prompt).toContain('雨夜便利店')
+  })
+
+  it('拆成多条预设：结果是一个有序列表（节点里按条显示）', async () => {
+    const node = addTextNode({ meta: { textGenPreset: 'split' }, contentJson: doc('一段很长的故事') })
+    const { runTask } = capturing('1. 雨夜便利店门口\n2. 林薇推门进店\n3. 怀表滑落')
+    await generateText(node, { projectTarget, runTask })
+    const content = useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)!.contentJson!.content as Array<{ type: string; content?: unknown[] }>
+    expect(content).toHaveLength(1)
+    expect(content[0]!.type).toBe('orderedList')
+    expect(content[0]!.content).toHaveLength(3)
+  })
+
+  it('看图写描述：连了图 → 同一条文本流改走 image_to_prompt，图作为参考一并发给模型', async () => {
+    const node = addTextNode({ meta: { textGenPreset: 'describe' }, contentJson: doc('') })
+    const image = { id: 'img', kind: 'image', title: '林薇', position: { x: 0, y: 0 }, prompt: '', result: { id: 'r1', type: 'image', url: 'https://x/a.png' } } as GenerationCanvasNode
+    const edge = { id: 'e1', source: 'img', target: node.id, mode: 'reference', order: 0 } as never
+    const { calls, runTask } = capturing('一位穿深色外套的女子')
+    await generateText(node, { projectTarget, runTask, referenceContext: { nodes: [image, node], edges: [edge] } })
+    expect(calls[0]!.request.kind).toBe('image_to_prompt')
+    expect(calls[0]!.request.extras?.referenceImages).toEqual(['https://x/a.png'])
+    expect(nodeText(node.id)).toBe('一位穿深色外套的女子')
+  })
+
+  it('看图写描述：没连图就当场说清缺什么，不发请求', async () => {
+    const node = addTextNode({ meta: { textGenPreset: 'describe' } })
+    const { calls, runTask } = capturing('不会被用到')
+    await expect(generateText(node, { projectTarget, runTask, referenceContext: { nodes: [node], edges: [] } })).rejects.toThrow()
+    expect(calls).toHaveLength(0)
+  })
+
+  it('连进来的文字当背景一起发给模型（与下游小签、拼提示词同一个投影）', async () => {
+    const node = addTextNode({ meta: { textGenPreset: 'translate' }, contentJson: doc('今晚下雨') })
+    const source = { id: 'src', kind: 'text', title: '风格说明', position: { x: 0, y: 0 }, prompt: '', contentJson: doc('冷色夜景，胶片颗粒') } as GenerationCanvasNode
+    const edge = { id: 'e2', source: 'src', target: node.id, mode: 'reference', order: 0 } as never
+    const { calls, runTask } = capturing('Rain tonight')
+    await generateText(node, { projectTarget, runTask, referenceContext: { nodes: [source, node], edges: [edge] } })
+    expect(calls[0]!.request.prompt).toContain('冷色夜景，胶片颗粒')
+    expect(calls[0]!.request.prompt).toContain('今晚下雨')
+  })
+
+  it('节点没选文本模型 = 跟随 Agent 的模型：这一次用 Agent 的文本大脑，不写回节点', async () => {
+    textBrain.current = { vendor: 'agent-vendor', modelKey: 'agent-model' }
+    const node = addPlainTextNode(undefined, '一句话')
+    const { calls, runTask } = capturing('ok')
+    await generateText(node, { projectTarget, runTask })
+    expect(calls[0]!.vendor).toBe('agent-vendor')
+    expect(calls[0]!.request.extras?.modelKey).toBe('agent-model')
+    const after = useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)!
+    expect(after.meta?.modelKey).toBeUndefined()
+  })
+
+  it('节点自己选了模型：用它，不去问 Agent', async () => {
+    textBrain.current = { vendor: 'agent-vendor', modelKey: 'agent-model' }
+    const node = addTextNode({ meta: { modelVendor: 'mine', modelKey: 'my-model' } })
+    const { calls, runTask } = capturing('ok')
+    await generateText(node, { projectTarget, runTask })
+    expect(calls[0]!.vendor).toBe('mine')
+  })
+
+  it('没有任何可用的文本模型：报「没有可用的文本模型」（错误卡会给去设置的入口），不静默失败也不发请求', async () => {
+    const node = addPlainTextNode(undefined, '一句话')
+    const { calls, runTask } = capturing('不会被用到')
+    await expect(generateText(node, { projectTarget, runTask })).rejects.toThrow(/No usable text model/)
+    expect(calls).toHaveLength(0)
+  })
+})
+
+describe('generateText — 「停止」真的掐断流', () => {
+  it('点停止：abort 信号送到流上，运行以「已取消」收尾，不是红色错误', async () => {
+    const node = addTextNode({ contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '开头' }] }] } })
+    let seenSignal: AbortSignal | undefined
+    const streamRun = (_v: string, _r: unknown, _p: unknown, opts: { onDelta?: (d: string) => void; signal?: AbortSignal }): Promise<TaskResultDto> => {
+      seenSignal = opts.signal
+      opts.onDelta?.('写到一半')
+      return new Promise((_resolve, reject) => {
+        opts.signal?.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')), { once: true })
+      })
+    }
+    const running = generateText(node, { projectTarget, onTextDelta: () => {}, runTextStream: streamRun })
+    const outcome = running.then(() => 'resolved', (error: unknown) => error)
+    await vi.waitFor(() => expect(seenSignal).toBeDefined())
+    const { requestTaskCancel, clearTaskCancel } = await import('./localTaskControl')
+    requestTaskCancel({ id: node.id }, () => {})
+    const error = await outcome
+    clearTaskCancel(node.id)
+    expect(seenSignal?.aborted).toBe(true)
+    expect((error as Error).name).toBe('LocalTaskCancelledError')
   })
 })

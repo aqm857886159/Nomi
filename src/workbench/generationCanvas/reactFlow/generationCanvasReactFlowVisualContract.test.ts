@@ -31,12 +31,13 @@ describe('React Flow canvas connection affordance contract', () => {
     }
   })
 
-  it('an uploaded asset has only the right ring; a clip only the left; a text card only the right', () => {
+  it('an uploaded asset has only the right ring; a clip only the left; a text card both', () => {
     expect(resolveGenerationFlowConnectionAffordance(node('asset'), 'left', true, '')).toBe('hidden')
     expect(resolveGenerationFlowConnectionAffordance(node('asset'), 'right', true, '')).toBe('magnetic')
     expect(resolveGenerationFlowConnectionAffordance(node('clip'), 'right', true, '')).toBe('hidden')
     expect(resolveGenerationFlowConnectionAffordance(node('clip'), 'left', true, '')).toBe('magnetic')
-    expect(resolveGenerationFlowConnectionAffordance(node('text'), 'left', true, '')).toBe('hidden')
+    expect(resolveGenerationFlowConnectionAffordance(node('text'), 'left', true, '')).toBe('magnetic')
+    expect(resolveGenerationFlowConnectionAffordance(node('text'), 'right', true, '')).toBe('magnetic')
   })
 
   it('keeps the source card on the compact dot while its own connection is in progress', () => {

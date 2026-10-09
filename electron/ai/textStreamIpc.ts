@@ -30,7 +30,12 @@ function sendTextEvent(session: TextStreamSession, event: unknown): void {
 export function registerTextStreamIpc(): void {
   ipcMain.handle("nomi:tasks:text:stream", async (event, payload: Record<string, unknown>) => {
     assertTrustedSender(event);
-    const streamId = `text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // 流 id 由渲染层先定、先订阅、再发起：失败得快（被拦 / 凭据 / DNS 一毫秒内就错）的流，事件在 invoke 回包之前就已发出，
+    // 渲染层若等回包才订阅就永远收不到 error，节点卡在「提交中」。没带合法 id（旧调用方）才由这里生成。
+    const requested = typeof payload?.streamId === "string" ? payload.streamId : "";
+    const streamId = /^text-[A-Za-z0-9-]{8,64}$/.test(requested) && !textStreamSessions.has(requested)
+      ? requested
+      : `text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const session: TextStreamSession = {
       streamId,
       webContentsId: event.sender.id,
@@ -58,9 +63,14 @@ export function registerTextStreamIpc(): void {
         });
       })()
         .then((result) => {
+          // 用户点了「停止」：底层流被掐断后会带着已收到的残文本正常返回，但那不是一次成功——
+          // 不发 done（否则把半截文字当终态送给渲染层）；渲染层自己按取消收尾。
+          if (session.abortController.signal.aborted) return;
           sendTextEvent(session, { type: "done", result });
         })
         .catch(async (error: unknown) => {
+          // 用户点了「停止」：取消只清理 session，不当错误上报（渲染层自己按取消收尾）。
+          if (session.abortController.signal.aborted) return;
           // 同根因1：透出上游 responseBody 人话，而非裸状态文本。
           // vendorKey 传下去 → 错误带结构化 category 穿到渲染层，文本节点的错误卡不再靠正则猜。
           const { describeAgentError } = await import("./agentError");

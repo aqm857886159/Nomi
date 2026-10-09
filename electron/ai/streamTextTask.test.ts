@@ -35,3 +35,52 @@ describe("text task local image input", () => {
     expect(mocks.stream).not.toHaveBeenCalled();
   });
 });
+
+describe("provider request that never leaves the process", () => {
+  // ai@4：fetch 本身抛（网闸拦 / DNS / 断网）时 textStream 静默结束、finishReason 永不 settle，错误只走 onError。
+  it("surfaces the onError error instead of hanging on a finishReason that never settles", async () => {
+    mocks.stream.mockImplementation((options: { onError: (event: { error: unknown }) => void }) => {
+      options.onError({ error: new Error("Test network blocked: blocked.example.com") });
+      return { textStream: (async function* () { /* 静默结束 */ })(), finishReason: new Promise(() => undefined), reasoning: new Promise(() => undefined) };
+    });
+    await expect(streamTextTask({ vendor: {} as Vendor, model: {} as Model, apiKey: "test", prompt: "hi" }))
+      .rejects.toThrow("Test network blocked");
+  }, 5000);
+});
+
+describe("every way a stream ends settles the await", () => {
+  const never = () => new Promise<never>(() => undefined);
+  const base = { vendor: {} as Vendor, model: {} as Model, apiKey: "test", prompt: "hi" };
+  const withTimeout = <T,>(promise: Promise<T>, ms: number) => Promise.race([promise, new Promise<"HUNG">((resolve) => setTimeout(() => resolve("HUNG"), ms))]);
+
+  // 复审 BLOCKER：停止时 SDK 的 finishReason 可能永不 settle，旧实现 abort 之后仍无条件 await 它，主进程任务永久悬挂。
+  it("stop before the first token: returns promptly as an AbortError (neither success nor error), even if the SDK never settles anything", async () => {
+    mocks.stream.mockImplementation(() => ({ textStream: (async function* () { await never(); yield ""; })(), finishReason: never(), reasoning: never() }));
+    const controller = new AbortController();
+    const running = streamTextTask(base, { abortSignal: controller.signal }).then(() => "RESOLVED", (error: Error) => error.name);
+    setTimeout(() => controller.abort(), 20);
+    expect(await withTimeout(running, 1500)).toBe("AbortError");
+  }, 5000);
+
+  it("stop after the text ended but metadata never settles: still an AbortError, promptly", async () => {
+    mocks.stream.mockImplementation(() => ({ textStream: (async function* () { yield "半截"; })(), finishReason: never(), reasoning: never() }));
+    const controller = new AbortController();
+    controller.abort();
+    expect(await withTimeout(streamTextTask(base, { abortSignal: controller.signal }).then(() => "RESOLVED", (error: Error) => error.name), 1500)).toBe("AbortError");
+  }, 5000);
+
+  // 复审 2 阻断 1：只在读流结束后查一次取消，等元数据那 2 秒里再点停止，旧实现约 2 秒后返回成功。
+  it("stop while waiting for metadata (after the text was read): AbortError right away, never a success", async () => {
+    mocks.stream.mockImplementation(() => ({ textStream: (async function* () { yield "读完了"; })(), finishReason: never(), reasoning: never() }));
+    const controller = new AbortController();
+    const running = streamTextTask(base, { abortSignal: controller.signal }).then(() => "RESOLVED", (error: Error) => error.name);
+    setTimeout(() => controller.abort(), 200);
+    expect(await withTimeout(running, 1500)).toBe("AbortError");
+  }, 5000);
+
+  it("a clean finish whose metadata never settles still returns the text (metadata is best-effort)", async () => {
+    mocks.stream.mockImplementation(() => ({ textStream: (async function* () { yield "完整文本"; })(), finishReason: never(), reasoning: never() }));
+    const result = await withTimeout(streamTextTask(base), 4000);
+    expect(result).toMatchObject({ text: "完整文本" });
+  }, 6000);
+});

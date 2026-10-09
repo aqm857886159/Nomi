@@ -4,6 +4,7 @@ import { resolveShotIdentities } from "../canvas/shotNumbering";
 import { generationNodeStatusSchema, parseGenerationNodeStatus } from "../canvas/generationNodeStatus";
 import { DIRECTOR_PREVIEW_STATUSES } from "../director/directorPreviewStatus";
 import type { CapabilityContract } from "./capabilityContract";
+import { textNodeBody } from "../canvas/textNodeBody";
 import { director3dBoxFaceEnabled } from "../featureFlags/director3dboxFace";
 
 const URI_SCHEME_RESULT_ID = /^[a-z][a-z0-9+.-]*:/i;
@@ -11,6 +12,9 @@ const trimmedNonEmptyStringSchema = z.string().trim().min(1);
 const opaqueResultIdSchema = trimmedNonEmptyStringSchema.refine((id) => !URI_SCHEME_RESULT_ID.test(id), {
   message: "Result identity must be opaque",
 });
+
+/** 文本节点正文给 Agent 的上限（字符）。 */
+export const MAX_CANVAS_TEXT_NODE_CHARACTERS = 4_000;
 
 const canvasReadPositionSchema = z
   .object({
@@ -48,6 +52,9 @@ const canvasReadNodeSchema = z
     shotIndex: z.number().int().positive().safe().optional(),
     shotRole: z.enum(["first_frame", "video", "image"]).optional(),
     shotOwnerNodeIds: z.array(trimmedNonEmptyStringSchema).optional(),
+    /** 文本节点的正文（纯文本，和下游拼进提示词的是同一份）；超长截断并带 textTruncated。 */
+    text: z.string().optional(),
+    textTruncated: z.literal(true).optional(),
     hasResult: z.boolean(),
     currentResultId: opaqueResultIdSchema.optional(),
     resultIds: z.array(opaqueResultIdSchema).optional(),
@@ -317,6 +324,8 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
   const prompt = typeof node.prompt === "string" ? node.prompt : "";
   const runId = nonEmptyString(asRecord(node.meta)?.productionRunId);
   const model = projectNodeModel(asRecord(node.meta));
+  const body = kind === "text" ? textNodeBody(node as Parameters<typeof textNodeBody>[0]) : "";
+  const textTruncated = body.length > MAX_CANVAS_TEXT_NODE_CHARACTERS;
   const director = kind === "director" ? projectDirectorBox(asRecord(node.meta)) : undefined;
 
   return {
@@ -327,6 +336,8 @@ function projectNode(value: unknown, seen: Set<string>): CanvasReadNode | undefi
     status,
     position,
     locked: node.locked === true,
+    ...(body ? { text: textTruncated ? `${body.slice(0, MAX_CANVAS_TEXT_NODE_CHARACTERS - 1)}…` : body } : {}),
+    ...(textTruncated ? { textTruncated: true as const } : {}),
     hasResult: asRecord(node.result) !== undefined,
     ...(currentResultId ? { currentResultId } : {}),
     ...(resultIds.length ? { resultIds } : {}),

@@ -7,10 +7,12 @@ import {
   readableToolName,
   readableToolPreview,
   readableToolSummary,
+  REGISTERED_VERB_DISPLAY_NAMES,
 } from './residentToolDisplay'
+import { enAgentResident, zhAgentResident } from '../../../i18n/locales/agentResident'
 import { partitionResidentProposalFields } from './residentProposalDisplay'
 import { CAPABILITY_ALIAS_ENTRIES, CAPABILITY_CONTRACTS } from '../../../../electron/shared/agentCapabilities/registry'
-import { modelFacingToolSpecs } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
+import { modelFacingToolSpecs, resolveModelToolCapabilityId } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 
 const translate = (key: string, options?: Record<string, unknown>): string => {
   if (!options) return key
@@ -27,6 +29,49 @@ describe('resident tool display projection', () => {
     expect(isReadOnlyToolName('read_full_text')).toBe(true)
     expect(readableToolName(translate, 'nomi_request_tools')).toBe('agentResident.toolPrepareTools')
     expect(readableToolName(translate, 'bash')).toBe('agentResident.toolGeneric')
+  })
+
+  // 2026-10-09 真模型走查：Agent 调的是 write_node_text，面板回执却写「创建或修改镜头卡 · 把镜头卡写入当前画布」。
+  // 根因是按契约桶 / 子串说话：几个动词共用 canvas.write，新动词默认继承别人的话。类修法：确切动词名查表 +
+  // 遍历整个 lane 目录——每个工具说的话（名字 + 摘要）都必须和别的工具不同，共用桶的新动词不登记就红。
+  it('every lane tool says its own thing: no two tools share the same name + summary', () => {
+    const seen = new Map<string, string>()
+    const clashes: string[] = []
+    for (const spec of modelFacingToolSpecs('internal')) {
+      const said = `${readableToolName(translate, spec.name)} | ${readableToolSummary(translate, spec.name, {})}`
+      const other = seen.get(said)
+      if (other) clashes.push(`${other} = ${spec.name}`)
+      seen.set(said, spec.name)
+    }
+    expect(clashes).toEqual([])
+  })
+
+  it('verbs that share one contract bucket are registered (exact table or bucket-native), never riding another verb bucket text', () => {
+    const groups = new Map<string, string[]>()
+    for (const spec of modelFacingToolSpecs('internal')) {
+      const contract = resolveModelToolCapabilityId(spec.name) ?? spec.name
+      groups.set(contract, [...(groups.get(contract) ?? []), spec.name])
+    }
+    const registered = new Set(REGISTERED_VERB_DISPLAY_NAMES)
+    const ridingTheBucket = [...groups].filter(([, names]) => names.length > 1)
+      .map(([contract, names]) => ({ contract, unregistered: names.filter((name) => !registered.has(name)) }))
+      .filter((group) => group.unregistered.length > 0)
+    expect(ridingTheBucket).toEqual([])
+  })
+
+  it('registered exact verb names are real lane tools, and text-node edits are named as such (zh + en, undoable)', () => {
+    const lane = new Set(modelFacingToolSpecs('internal').map((spec) => spec.name))
+    expect(REGISTERED_VERB_DISPLAY_NAMES.filter((name) => !lane.has(name))).toEqual([])
+    const args = { nodeId: 'gen-v2-text-1', text: 'x' }
+    expect(readableToolName(translate, 'write_node_text', args)).toBe('agentResident.toolNodeTextWrite')
+    expect(readableToolSummary(translate, 'write_node_text', args)).toBe('agentResident.toolNodeTextWriteSummary')
+    expect(readableToolPreview(translate, 'write_node_text', args)).toBe('agentResident.toolNodeTextWriteSummary')
+    for (const locale of [zhAgentResident, enAgentResident] as Array<Record<string, string>>) {
+      expect(locale.toolNodeTextWrite).toBeTruthy()
+      expect(locale.toolNodeTextWrite).not.toMatch(/镜头卡|shot card/i)
+      expect(locale.toolNodeTextWriteSummary).toMatch(/可撤销|undone/)
+      expect(locale.toolNodeTextWriteSummary).not.toMatch(/镜头卡|shot card/i)
+    }
   })
 
   // 真实测试 ④：撤销一笔画布改动，面板那一行写「调整时间线」——撤销与编辑计划同属 timeline.write，按契约名认就认错了。
