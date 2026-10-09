@@ -70,6 +70,7 @@
       "git grep -n \"setPointerCapture\" -- src/workbench"
     ]
   },
+  "detected_by": "user",
   "generality_proof": "时间轴 / 剪辑节点的所有指针手势入口都只能经 beginPointerSession（结构测试禁止在 timeline/ 与 ClipNode*.tsx 里手写 setPointerCapture / pointerup 监听），打断监听来自画布租约、不再有第二份；命中宽度与换算只在 clipNodeGestureModel 一处，层叠把播放头放在片段之上；因此新手势、新缩放档、新打断来源都落在同一条路径上。",
   "shared_boundaries": [
     {
