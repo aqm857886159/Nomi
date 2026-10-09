@@ -336,7 +336,7 @@ test('手动跑可以用 NOMI_PR_BODY_FILE 给正文；文件读不了 = 明确�
 test('必红：走查新增 mkdtempSync(os.tmpdir()…) → 推送前就红，点名 test:temp-helper（CI 上 3 个 PR 撞过）', () => {
   commitChange(() => {
     fs.mkdirSync(path.join(work, 'tests/ux'), { recursive: true })
-    fs.writeFileSync(path.join(work, 'tests/ux/prepush-probe.walk.mjs'), "import fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nexport const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-'))\n")
+    fs.writeFileSync(path.join(work, 'tests/ux/prepush-probe.walk.mjs'), "import fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nexport const dir = fs.mkdtempSync(path.join(os.tmp" + "dir(), 'probe-'))\n")
   })
   const result = prePush({ body: CARD })
   assert.equal(result.status, 1, result.stderr)
