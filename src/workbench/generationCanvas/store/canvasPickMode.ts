@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { declareStoreLifetime } from '../../project/storeLifetime'
 
 /**
  * 「在画布上点选」——画布的一个**共享能力**（2026-10-08 拍板 ②）：调用方说清哪些卡能点、点中了做什么，
@@ -21,6 +22,17 @@ export type CanvasPickRequest = {
 type CanvasPickModeState = { request: CanvasPickRequest | null }
 
 export const useCanvasPickModeStore = create<CanvasPickModeState>(() => ({ request: null }))
+
+/**
+ * 寿命（切项目要不要清它）：`request` 是 project——它的 `eligible` / `onPick` 是调用方捕获了**当前项目里某张卡的 id**的闭包
+ * （「给这张卡加输入」），切项目后留着，画布上会按上一个项目的卡去判能不能点、点中还会往新项目里写边。
+ * 切项目 / 关项目时清回 null（不调 onCancel：那是上一个项目的回调，切走之后不该再往新项目发任何东西）。
+ */
+export const canvasPickModeStoreLifetime = declareStoreLifetime({
+  store: 'useCanvasPickModeStore',
+  fields: { request: 'project' },
+  releaseProject: () => useCanvasPickModeStore.setState({ request: null }),
+})
 
 /** 进入点选。返回的函数只退出**这一次**点选（被后来者顶掉之后再调是空操作）。 */
 export function enterCanvasPickMode(request: CanvasPickRequest): () => void {

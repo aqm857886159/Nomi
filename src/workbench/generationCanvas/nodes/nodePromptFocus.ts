@@ -1,5 +1,6 @@
 import React from 'react'
 import { create } from 'zustand'
+import { declareStoreLifetime } from '../../project/storeLifetime'
 
 /**
  * 「把光标放进这张卡的提示词框」的一次请求（空节点「试试」配方的最后一步）。
@@ -11,6 +12,17 @@ import { create } from 'zustand'
 type NodePromptFocusState = { request: { nodeId: string; seq: number } | null }
 
 export const useNodePromptFocusStore = create<NodePromptFocusState>(() => ({ request: null }))
+
+/**
+ * 寿命（切项目要不要清它）：`request` 是 project——它里面是**某张卡的节点 id**，切到别的项目后那个 id 指向的是上一个项目的卡，
+ * 留着只会在新项目里落空（或误聚焦同 id 的卡）；一次请求本来就该在编辑器挂好时被取走，没取走的不该跨项目留。
+ * 切项目 / 关项目时清回 null。（`seq` 是模块内计数器，不是 store 字段。）
+ */
+export const nodePromptFocusStoreLifetime = declareStoreLifetime({
+  store: 'useNodePromptFocusStore',
+  fields: { request: 'project' },
+  releaseProject: () => useNodePromptFocusStore.setState({ request: null }),
+})
 
 let seq = 0
 
