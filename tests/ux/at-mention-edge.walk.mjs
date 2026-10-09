@@ -7,15 +7,18 @@ import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/at-mention')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const base = '/tmp/nomi-atmention'
+const base = path.join(os.tmpdir(), 'nomi-atmention') // 不写死 /tmp：Windows 上会变成盘符相对路径，Electron 起不来
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 fs.rmSync(base, { recursive: true, force: true })
@@ -70,19 +73,20 @@ const videoTarget = {
     size: '16:9', resolution: '720p', duration: 5, generate_audio: true,
   },
 }
-const project = {
-  id: projectId, name: '@候选连线图走查', version: 2,
-  createdAt: 1, updatedAt: 1, savedAt: 1, revision: 1, lastKnownRootPath: projDir,
-  payload: {
+const projectPayload = {
     workbenchDocument: null, timeline: null,
     generationCanvas: {
       nodes: [imgBad, imgGood, videoSource, videoTarget],
       edges: [{ id: 'edge-good-to-video', source: imgGood.id, target: videoTarget.id }],
       selectedNodeIds: [], groups: [],
     },
-    categories: [{ id: 'shots', label: '分镜' }],
     storyboardPlan: null, storyboardPlanCommitted: false,
-  },
+}
+// 现行项目文件形状：载荷字段在顶层和 payload 里各一份（与 canvas-handle-menus 等走查同一写法）；只有 payload 会被判成「项目暂时无法打开」。
+const project = {
+  id: projectId, name: '@候选连线图走查', version: 2,
+  createdAt: 1, updatedAt: 1, savedAt: 1, revision: 1, lastKnownRootPath: projDir,
+  ...projectPayload, payload: projectPayload,
 }
 // 顶层 project.json（legacy 发现入口，discoverLegacyProjectsOnce 扫它注册）+ .nomi/project.json（workspace）。
 fs.writeFileSync(path.join(projDir, 'project.json'), JSON.stringify(project, null, 2))
@@ -130,7 +134,9 @@ if (await card.count()) {
   await projectCard.hover({ timeout: 4000 }).catch(() => {})
   const continueButton = projectCard.getByRole('button', { name: /继续创作/ }).first()
   if (await continueButton.count()) await continueButton.click({ timeout: 4000 }).catch(() => {})
-  await win.waitForTimeout(2500)
+  // 画布要等项目读完才出节点；固定睡 2.5s 会在加载屏上就去验占位 / 点节点（旧写法被「项目库缩略图里的加载失败」蒙混过关过）。
+  await win.locator('.react-flow__node').first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 3 }) })
+  await win.getByText(uiText('zh-CN', 'media.loadFailed'), { exact: false }).first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) })
   console.log(`  → 进画布 via 继续创作: ${await inCanvas()}`)
 }
 console.log('  body head:', (await win.evaluate(() => document.body.innerText.slice(0, 120))).replace(/\n/g, ' '))

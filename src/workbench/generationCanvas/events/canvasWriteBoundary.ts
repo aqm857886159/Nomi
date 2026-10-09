@@ -29,7 +29,7 @@ export const CANVAS_ACTION_LAYERS = {
   clearSelection: 'session', selectAllNodes: 'session',
   duplicateNodeForRegeneration: 'edit', reassignNodeCategory: 'edit', copyNodeToCategory: 'edit', deleteNode: 'edit',
   saveSelectedAsWorkflowTemplate: 'edit', instantiateWorkflowTemplate: 'edit', instantiateWorkflowTemplateSnapshot: 'edit',
-  startConnection: 'session', startGroupConnection: 'session', cancelConnection: 'session', connectToNode: 'edit', connectNodes: 'edit',
+  startConnection: 'session', startGroupConnection: 'session', cancelConnection: 'session', connectToNode: 'edit', connectNodes: 'edit', addDerivedOutput: 'edit',
   connectToGroup: 'edit', updateEdgeMode: 'edit', disconnectEdge: 'edit', moveGroupNodes: 'edit', duplicateGroupForDrag: 'edit',
   createGroup: 'edit', createFrame: 'edit', groupSelectedNodes: 'edit', renameGroup: 'edit', setGroupDescription: 'edit',
   setGroupColor: 'edit', arrangeGroup: 'edit', setGroupCollapsed: 'edit',

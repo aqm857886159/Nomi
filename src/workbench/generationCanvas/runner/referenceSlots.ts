@@ -66,6 +66,18 @@ function assignEdgeToSlot(
 }
 
 /**
+ * 删掉连线中点的用途胶囊后，「这张图是首帧」要在节点上看得见（用户 10-08 拍板，铁律⑩）。
+ * 只有没有独立首帧槽、首帧落在 image_ref[0] 的档案（如 runway-gen4.5）才需要：槽里看不出来。
+ * 返回要给第一张缩略图标「首帧」的那个 image_ref 槽；没有 first_frame 边（或那张图还没生成）→ null。
+ */
+export function firstFrameTaggedSlot(resolved: readonly ResolvedReferenceSlot[]): ResolvedReferenceSlot | null {
+  if (resolved.some((slot) => slot.slotKind === 'first_frame')) return null
+  const refs = resolved.find((slot) => slot.slotKind === 'image_ref')
+  const first = refs?.fills[0]
+  return refs && first && first.position === 0 && first.url && first.origin.type === 'edge' && first.origin.semantic === 'first_frame' ? refs : null
+}
+
+/**
  * 一条**首帧边**（图片源）落进这组声明槽里的哪一个——就是上面 `assignEdgeToSlot` 的判据，不另写一份。
  * 首帧槽优先，没有就是 image_ref[0]；这与发送侧一致：generationReferenceResolver 把首帧边的图同时放进
  * `firstFrameUrl`（喂首帧槽）与 `referenceImages`（喂 image_ref 数组槽），而没有模式同时声明这两种槽

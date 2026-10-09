@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { canvasToolbarNodeKinds, type CanvasToolbarNodeKind } from '../workbench/generationCanvas/components/canvasToolbarModel'
 import { getGenerationNodeIcon } from '../workbench/generationCanvas/nodes/renderRegistry'
 import { NodeEmptyState } from '../workbench/generationCanvas/nodes/render/NodeEmptyState'
+import { ClipEmptyTry, NodeTryList } from '../workbench/generationCanvas/quickActions/NodeTryList'
+import type { GenerationCanvasNode } from '../workbench/generationCanvas/model/generationCanvasTypes'
 
 export type UiShellLabState = Readonly<{ id: string; name: string; render: () => JSX.Element }>
 
@@ -21,25 +23,26 @@ function LabFrame({ children }: { children: React.ReactNode }): JSX.Element {
  * 文案与图标都不在这里自造：图标走 `getGenerationNodeIcon`（左侧栏那颗按钮的同一个出口），
  * 文案走各节点在生产里真正渲染的 i18n 键。实验室要照出现役的样子，不是再画一版（P1）。
  *
- * 已知落差（诚实标注）：剪辑节点的空态提示挤在 40px 高的轨道里，生产只渲染 description 那一行，
- * 不渲染标题；这里按统一节奏连标题一起显示。
+ * 图片 / 视频 / 文本 / 剪辑四种（2026-10-08 拍板 ③）不再是「标题 + 一句说明」：空节点显示「试试」（剪辑是
+ * 「把视频节点连进来」+「在画布上点选」）——这里挂的就是生产那几个组件本体（NodeTryList / ClipEmptyTry），不抄文案。
  */
-const NODE_EMPTY_COPY: Record<CanvasToolbarNodeKind, {
-  name: string
-  titleKey: string
-  descriptionKey: string
-  actionKey?: string
-}> = {
-  text: { name: '文本节点空态', titleKey: 'generationCommon.nodeEmpty.text.title', descriptionKey: 'generationCommon.nodeEmpty.text.description' },
-  image: { name: '图片节点空态', titleKey: 'generationCommon.nodeEmpty.image.title', descriptionKey: 'generationCommon.nodeEmpty.image.description' },
-  video: { name: '视频节点空态', titleKey: 'generationCommon.nodeEmpty.video.title', descriptionKey: 'generationCommon.nodeEmpty.video.description' },
-  clip: { name: '剪辑节点空态', titleKey: 'generationCommon.nodeEmpty.clip.title', descriptionKey: 'generationCommon.nodeEmpty.clip.description' },
+type NodeEmptyCopy =
+  | { name: string; tryList: true }
+  | { name: string; titleKey: string; descriptionKey: string; actionKey?: string }
+
+const NODE_EMPTY_COPY: Record<CanvasToolbarNodeKind, NodeEmptyCopy> = {
+  text: { name: '文本节点空态', tryList: true },
+  image: { name: '图片节点空态', tryList: true },
+  video: { name: '视频节点空态', tryList: true },
+  clip: { name: '剪辑节点空态', tryList: true },
   audio: { name: '声音节点空态', titleKey: 'generationCommon.nodeEmpty.audio.title', descriptionKey: 'generationCommon.nodeEmpty.audio.description' },
   model3d: { name: '3D 模型节点空态', titleKey: 'generationCommon.nodeEmpty.model3d.title', descriptionKey: 'generationCommon.nodeEmpty.model3d.description' },
   whiteboard: { name: '画板节点空态', titleKey: 'generationCommon.nodeEmpty.whiteboard.title', descriptionKey: 'generationCommon.nodeEmpty.whiteboard.description', actionKey: 'generationCommon.nodeEmpty.whiteboard.action' },
   panorama: { name: '全景节点空态', titleKey: 'generationCommon.nodeEmpty.panorama.title', descriptionKey: 'generationCommon.nodeEmpty.panorama.description', actionKey: 'generationCommon.node.uploadPanorama' },
   director: { name: '导演台节点空态', titleKey: 'generationCommon.nodeEmpty.director.title', descriptionKey: 'generationCommon.nodeEmpty.director.description', actionKey: 'generationCommon.nodeEmpty.director.action' },
 }
+
+const labNode = (kind: CanvasToolbarNodeKind): GenerationCanvasNode => ({ id: `lab-empty-${kind}`, kind, title: '', position: { x: 0, y: 0 }, categoryId: 'shots', meta: {} })
 
 function NodeEmptyLabCell({ kind }: { kind: CanvasToolbarNodeKind }): JSX.Element {
   const { t } = useTranslation()
@@ -49,14 +52,20 @@ function NodeEmptyLabCell({ kind }: { kind: CanvasToolbarNodeKind }): JSX.Elemen
   return (
     <LabFrame>
       <div className="h-64 w-[26rem] rounded-nomi border border-nomi-line bg-nomi-paper">
-        <NodeEmptyState
-          icon={<Icon size={20} stroke={1.6} />}
-          title={t(copy.titleKey as typeof literal)}
-          description={t(copy.descriptionKey as typeof literal)}
-          action={copy.actionKey
-            ? <span className="rounded-nomi-sm bg-nomi-ink px-3 py-1.5 text-caption font-medium text-nomi-paper">{t(copy.actionKey as typeof literal)}</span>
-            : undefined}
-        />
+        {'tryList' in copy ? (
+          kind === 'clip'
+            ? <div className="grid h-full place-items-center"><ClipEmptyTry nodeId={labNode(kind).id} /></div>
+            : <NodeEmptyState icon={<Icon size={20} stroke={1.6} />} action={<NodeTryList node={labNode(kind)} />} />
+        ) : (
+          <NodeEmptyState
+            icon={<Icon size={20} stroke={1.6} />}
+            title={t(copy.titleKey as typeof literal)}
+            description={t(copy.descriptionKey as typeof literal)}
+            action={copy.actionKey
+              ? <span className="rounded-nomi-sm bg-nomi-ink px-3 py-1.5 text-caption font-medium text-nomi-paper">{t(copy.actionKey as typeof literal)}</span>
+              : undefined}
+          />
+        )}
       </div>
     </LabFrame>
   )

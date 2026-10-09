@@ -33,6 +33,7 @@ import { useCanvasBottomDockRects } from './useCanvasBottomDockRects'
 import { CANVAS_DRAGGING_OWNER, beginCanvasDragging, type CanvasDragLease } from '../components/canvasDraggingFlag'
 import { syncCanvasNodeProjection } from './canvasNodeProjectionSync'
 import { ProjectOpenFlowProbe } from '../../project/projectOpenFlowProbe'
+import { CanvasPickModeDim } from '../components/CanvasPickModeLayer'
 
 type GenerationCanvasReactFlowViewportProps = {
   flowNodes: GenerationFlowNode[]
@@ -300,6 +301,7 @@ export function GenerationCanvasReactFlowViewport({
     >
       <CanvasNodeProjectionSync flowNodes={flowNodes} isNodeDragging={isNodeDragging} />
       <ProjectOpenFlowProbe />
+      <CanvasPickModeDim />
       <ViewportPortal>
         <CanvasGroupProjectionLayer
           boxes={groupBoxes}
