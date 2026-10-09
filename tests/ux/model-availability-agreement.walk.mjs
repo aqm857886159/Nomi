@@ -251,9 +251,10 @@ async function disconnectLikeAHuman() {
 async function assertAgentDropdown(brainReady, shot) {
   await closeSettings()
   await clickOrFail(getWin().getByRole('button', { name: /^新建空白项目/ }), '创建真实项目检查 Agent 模型')
+  // 画布上 Agent 默认是右下的小球（10-08 外壳重设计）：先点开，面板才在。
+  const ball = getWin().locator('[data-agent-ball]').first()
+  if (await ball.isVisible().catch(() => false)) await ball.click()
   await expectVisible(getWin().locator('[data-v4-panel]').first(), '项目 Agent 面板')
-  const dock = getWin().locator('[data-v4-control="dock-open"]').first()
-  if (await dock.isVisible()) await dock.click()
   await clickOrFail(getWin().locator('[data-v4-control="model"]:visible').first(), 'Agent 模型入口')
   const popover = getWin().locator('[data-v4-popover="model"]:visible').first()
   await expectVisible(popover, 'Agent 模型弹层')

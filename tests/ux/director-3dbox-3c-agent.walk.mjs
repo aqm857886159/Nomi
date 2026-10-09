@@ -135,7 +135,7 @@ try {
   await win.getByText('新建画面', { exact: false }).first().click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), null, { timeout: stationTimeout({ operations: 2 }) })
   const input = win.locator('textarea[data-v4-control="input"]').first()
-  if (!(await input.count())) await win.evaluate(() => document.querySelector('[data-v4-control="dock-open"]')?.click())
+  if (!(await input.count())) await win.evaluate(() => document.querySelector('[data-agent-ball]')?.click())
   await input.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
   const panelConsent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await panelConsent.isVisible().catch(() => false)) await panelConsent.click()

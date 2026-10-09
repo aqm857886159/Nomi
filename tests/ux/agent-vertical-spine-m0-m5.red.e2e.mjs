@@ -401,10 +401,8 @@ async function runPhase(phase, executablePath = undefined) {
     })
 
     currentStep = 'M3.select-skill-and-model'
-    const collapsed = win.locator(COLLAPSED_SHELL).first()
-    if (await collapsed.isVisible().catch(() => false)) {
-      await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
-    }
+    const ball = win.locator(COLLAPSED_DOCK).first()
+    if (await ball.isVisible().catch(() => false)) await ball.click()
     const panel = win.locator(AGENT_PANEL).first()
     await panel.waitFor({ state: 'visible', timeout: 10_000 })
     // 2026-09-06 拍板①③：工作方式三档已删；技能与提示词并进 composer 的 `/` 命令菜单。

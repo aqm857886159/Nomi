@@ -150,7 +150,7 @@ async function setAgentPanel(expanded) {
   await expect.poll(async () => {
     const isOpen = await panel.isVisible().catch(() => false)
     if (isOpen === expanded) return isOpen
-    const toggle = expanded ? win.locator('[data-agent-dock-reason="resident-collapsed"]').first() : win.locator('[data-v4-control="collapse"]').first()
+    const toggle = expanded ? win.locator('[data-agent-ball]').first() : win.locator('[data-v4-control="collapse"]').first()
     await toggle.click({ timeout: 2000 }).catch(() => {})
     await win.waitForTimeout(500)
     return panel.isVisible().catch(() => false)

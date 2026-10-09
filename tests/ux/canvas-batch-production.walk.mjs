@@ -239,7 +239,7 @@ try {
   })
   await win.evaluate(() => document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null
-    if (target?.closest('.react-flow__node, .workbench-generation__timeline-handle')) {
+    if (target?.closest('.react-flow__node, [data-timeline-strip]')) {
       console.log('CANVAS_CLICK_DIAGNOSTIC', JSON.stringify({
         tag: target.tagName, label: target.closest('[aria-label]')?.getAttribute('aria-label'),
         nodeId: target.closest('.react-flow__node')?.getAttribute('data-id'), x: event.clientX, y: event.clientY,

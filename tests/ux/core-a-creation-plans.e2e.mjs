@@ -44,7 +44,7 @@ const check = (condition, message) => { assert(condition, message); passed++; co
 const openProject = async win => {
   if (!win.url().includes(`projectId=${projectId}`)) await win.locator('[data-project-card]', { hasText: 'Core A creation acceptance' }).click()
   await win.getByRole('button', { name: /^(创作|Create)$/ }).click()
-  const expandTree = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+  const expandTree = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
   if (await expandTree.isVisible()) await expandTree.click()
   await expect(win.locator('[data-document-row="a"]')).toBeVisible()
   await expect(win.locator(`${AGENT_PANEL} [data-v4-panel="true"]`)).toBeVisible()
@@ -60,7 +60,7 @@ try {
   await openProject(win)
   await win.screenshot({path:path.join(shotsDir,'zh-creation-agent-aligned.png')})
   for (const [label,documentId] of [['a1','a'],['a2','a'],['b1','b'],['b2','b']]) {
-    const expand=win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+    const expand=win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if(await expand.isVisible())await expand.click()
     await win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`).click()
     const before=new Set((await designsOf(win,documentId)).map(design=>design.id))
@@ -78,7 +78,7 @@ try {
     check((await designById(win,ids[label])).title===`Plan ${label}`,`${label} is named by the model, not by a numbering scheme`)
   }
   for (const documentId of ['a','b']) {
-    const expand=win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+    const expand=win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if(await expand.isVisible())await expand.click()
     await win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`).click()
     await expect(win.locator(`[data-storyboard-id][data-document-id="${documentId}"]`)).toHaveCount(2)
@@ -106,7 +106,7 @@ try {
   }), { timeout: stationTimeout({ operations: 1 }), intervals: [500] }).toEqual({ observedFullWindow: true, calls: 0 })
   check(true, 'The creation surface polls the Run list zero times while showing its plans')
   for (const id of ['a1', 'a2', 'b1', 'b2', 'a1']) {
-    const expandTree = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+    const expandTree = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if (await expandTree.isVisible()) await expandTree.click()
     await win.locator(`[data-document-row="${id.startsWith('a') ? 'a' : 'b'}"] button[data-document-id]`).click()
     await win.locator(`[data-storyboard-id="${ids[id]}"]`).click()
@@ -122,7 +122,7 @@ try {
     await expect(sharedEditor.locator('[data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText(`Prompt ${id}`)
   }
   check(true, 'Selecting plans loads each exact plan without sibling content')
-  const expandForEdit = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+  const expandForEdit = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
   if (await expandForEdit.isVisible()) await expandForEdit.click()
   await win.locator('[data-document-row="a"] button[data-document-id]').click()
   await win.locator(`[data-storyboard-id="${ids.a1}"]`).click()
@@ -136,14 +136,14 @@ try {
   // PR #808 owns the width budget: collapse the existing resource tree, leaving
   // the original Agent open. Manual navigation above deliberately reopened it.
   const treeRowsBeforeCollapse = await win.locator('[data-storyboard-id]').count()
-  await win.locator('[data-creation-resource-tree-toggle="collapse"]:visible').click()
-  await expect(win.locator('[data-creation-resource-tree-toggle="expand"]:visible')).toBeVisible()
+  await win.locator('[data-shell-rail-item="docs"][aria-pressed="true"]').click()
+  await expect(win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')).toBeVisible()
   await expect.poll(()=>editor.locator('[data-storyboard-generate-state]').evaluate(button=>{
     const rect=button.getBoundingClientRect(), hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)
     return Boolean(hit && button.contains(hit))
   })).toBe(true)
   await win.screenshot({path:path.join(shotsDir,'zh-original-storyboard.png')})
-  await win.locator('[data-creation-resource-tree-toggle="expand"]:visible').click()
+  await win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]').click()
   await expect(win.locator('[data-storyboard-id]')).toHaveCount(treeRowsBeforeCollapse)
   await expect(editor.locator('[data-storyboard-prompt-block] [contenteditable="true"]').first()).toHaveText('Edited A1')
   check(true,'Original sidebar collapse frees the controls and expansion preserves every plan and edited prompt')
@@ -189,7 +189,7 @@ try {
   await expect(restoredEditor.locator('[data-storyboard-frame] img').first()).toBeVisible()
   await expect.poll(()=>restoredEditor.locator('[data-storyboard-frame] img').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true)
   check(true,'Single-shot generation uses the original runner and decodes the returned real JPG')
-  const expandForBatch = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+  const expandForBatch = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
   if(await expandForBatch.isVisible()) await expandForBatch.click()
   await win.locator(`[data-storyboard-id="${ids.a2}"]`).click()
   const batchEditor = win.locator('[data-storyboard-editor="true"]')
@@ -213,7 +213,7 @@ try {
   await expect(win.locator('[data-storyboard-editor="true"] [data-storyboard-frame]').first()).toHaveAttribute('data-storyboard-frame','done')
   assert.equal((await canvasNodes())[0].result.id,generated[0].result.id,'Cold restart preserves the same generated result')
   await win.screenshot({ path: path.join(shotsDir, 'en-restored.png') })
-  await win.locator('[data-creation-resource-tree-toggle="collapse"]:visible').click()
+  await win.locator('[data-shell-rail-item="docs"][aria-pressed="true"]').click()
   await win.screenshot({path:path.join(shotsDir,'en-original-storyboard-restored.png')})
   fixture.assertClean()
   assert.equal(fixture.images.length,submissionsBeforeReopen,'Reopening the project must not submit media')

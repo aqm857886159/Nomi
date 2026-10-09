@@ -12,6 +12,7 @@ import {
   templateCanProduce,
 } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
+import { findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -110,5 +111,39 @@ describe('positional-project-open：多项目下的位置式选择', () => {
   it('.nth()/.last() 同属位置式，一并抓', () => {
     const code = `${MULTI}\nwin.locator('[data-project-card]').nth(1)\nwin.locator('[data-project-card]').last()`
     assert.equal(findPositionalProjectOpens(code).length, 2)
+  })
+})
+
+// dead-data-attr（2026-10-08 外壳重设计：删组件时 data 属性锚点在十几份走查里悬空，前两条规则都看不见）。
+describe('dead-data-attr：data 属性锚点存活', () => {
+  const SRC_ATTRS = `
+    <button data-agent-ball={status} data-v4-control="history" />
+    <div data-clip-id={clip.id} />
+    el.dataset.timelineStrip = ''
+  `
+  const dead = (code) => findDeadDataAttributes(code, SRC_ATTRS).map((hit) => hit.text)
+
+  it('阳性对照：src 里零命中的属性名被报出来', () => {
+    assert.deepEqual(dead(`win.locator('[data-agent-topbar-badge="true"]')`), ['[data-agent-topbar-badge="true"]'])
+  })
+
+  it('阳性对照：属性还在、但写死的枚举值已无人渲染 → 报出来', () => {
+    assert.deepEqual(dead(`document.querySelector('[data-v4-control="dock-open"]')`), ['[data-v4-control="dock-open"]'])
+  })
+
+  it('活着的属性名 / 枚举值不报', () => {
+    assert.deepEqual(dead(`win.locator('[data-agent-ball]'); win.locator('[data-v4-control="history"]')`), [])
+  })
+
+  it('数据驱动的值（src 里没写死过字面量值）不判值', () => {
+    assert.deepEqual(dead(`win.locator('[data-clip-id="clip-a"]')`), [])
+  })
+
+  it('dataset.camelCase 写法算活', () => {
+    assert.deepEqual(dead(`win.locator('[data-timeline-strip]')`), [])
+  })
+
+  it('第三方运行时属性与走查自己 setAttribute 造的标记不报', () => {
+    assert.deepEqual(dead(`win.locator('[data-highlighted]'); el.setAttribute('data-walk-mark', '1'); win.locator('[data-walk-mark]')`), [])
   })
 })

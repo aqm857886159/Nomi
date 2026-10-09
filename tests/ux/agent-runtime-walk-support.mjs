@@ -25,24 +25,18 @@ export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
 export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
-/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩画面下沿那一坞。 */
+/**
+ * 收起态（10-08 外壳重设计：小球形态）：面板仍挂着（回执效果、计划预览、角标投影都还在），
+ * 但挂在一个 `hidden` 的容器里——判「在」用 `toBeAttached`，**不用** `toBeVisible`。
+ */
 export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
 /**
- * 收起角标 = **顶栏**右簇「浏览器」与「设置」之间那一格（09-01 定稿 §11.2）。
- *
- * 注意它**不在** `COLLAPSED_SHELL` 里面：顶栏在整个工作区外面。从收起外壳里找它永远找不到——
- * 那正是这一版返工要修的事（此前它画在面板自己的地盘上，切面就换落点）。
+ * 收起后叫回 Nomi 的唯一入口 = 内容区右下角那颗 Agent 小球（Chrome 板「四种状态，都不会自己弹开」）。
+ * 顶栏不再放 Agent 角标（协调裁决第 59 项）。小球上的走查锚：
+ *   `data-agent-ball` = idle / running / done / failed / pending（pending = 「等你确认 N」胶囊）；
+ *   `data-agent-dock-status` = 注意力状态词（V4DockStatus）；`data-agent-dock-count` = 待确认条数。
  */
-export const COLLAPSED_DOCK = '[data-agent-topbar-badge="true"]'
-export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
-/** 角标上那一格：`data-agent-dock-badge` = dot（蓝点 8px）/ count（数字徽标）。 */
-export const COLLAPSED_DOCK_BADGE = '[data-agent-dock-badge]'
-/** 「刚变过」那 420ms 里才挂的属性（单次 settle 脉冲）。 */
-export const COLLAPSED_DOCK_SETTLE = '[data-agent-dock-settle="true"]'
-/** hover 才冒的 tooltip。它落在 portal 里，**从窗口根找**，不要从角标的子树里找。 */
-export const COLLAPSED_DOCK_HINT = '[data-agent-dock-hint="true"]'
-/** 顶栏右簇（判角标落位用）。 */
-export const APP_BAR_RIGHT = '.nomi-appbar__right'
+export const COLLAPSED_DOCK = '[data-agent-ball]'
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -124,7 +118,8 @@ export const ACTIVE_PERMISSION_TIER = `${PERMISSION_POPOVER} [data-tier][data-ac
 
 /** 头部两个图标钮。 */
 export const HISTORY_BUTTON = '[data-v4-control="history"]'
-export const COLLAPSE_BUTTON = '[data-v4-control="collapse"]'
+/** 收起 = 头部形态三选一里的「小球」（外壳挂进面板头部的 FormSwitch）。 */
+export const COLLAPSE_BUTTON = '[data-agent-form-to="ball"]'
 
 /** The real desktop assembly publishes domain and native schemas from the first request. */
 export function residentToolNames() {
@@ -281,9 +276,9 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
  * （`COLLAPSED_DOCK`，09-01 定稿 §11.2）——所以点的是它，不是从收起外壳里找。
  */
 export async function expandResidentPanel(win) {
-  const collapsed = win.locator(COLLAPSED_SHELL)
-  if (await collapsed.isVisible().catch(() => false)) {
-    await clickOrFail(win.locator(COLLAPSED_DOCK_OPEN).first(), '展开常驻 Agent 面板')
+  const ball = win.locator(COLLAPSED_DOCK)
+  if (await ball.isVisible().catch(() => false)) {
+    await clickOrFail(ball.first(), '点 Agent 小球展开常驻面板')
   }
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
 }

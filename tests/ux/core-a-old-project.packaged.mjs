@@ -306,9 +306,9 @@ export async function openCopiedStoryboardEditor(win, { original, design, copyRo
     await clickOrFail(win.locator('[data-project-card]').filter({ hasText: original.name }), '打开旧项目副本')
   }
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '原创作区')
-  const treeToggle = win.locator('[data-creation-resource-tree-toggle]:visible')
+  const treeToggle = win.locator('[data-shell-rail-item="docs"]')
   await expect(treeToggle).toBeVisible()
-  if (await treeToggle.getAttribute('data-creation-resource-tree-toggle') === 'expand') await clickOrFail(treeToggle, '展开原文稿侧栏')
+  if (await treeToggle.getAttribute('aria-pressed') === 'false') await clickOrFail(treeToggle, '展开原文稿侧栏')
   await clickOrFail(win.locator(`[data-storyboard-id="${design.id}"]`), '打开原分镜方案')
   const editor = win.locator('[data-storyboard-editor="true"]')
   await expect(editor).toBeVisible()

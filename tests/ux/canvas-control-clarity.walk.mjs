@@ -122,7 +122,7 @@ async function ensureParameterPanel(composer) {
     const nodeRect = nodeEl?.getBoundingClientRect()
     // 画布缩放读 React Flow 视口自己的 transform（DOMMatrix.a），与 node-composer-placement.walk.mjs 同一口径。
     const zoom = viewportEl ? new DOMMatrixReadOnly(getComputedStyle(viewportEl).transform).a : 1
-    const handle = document.querySelector('.workbench-generation__timeline-handle')
+    const handle = document.querySelector('[data-timeline-strip]')
     const handleRect = handle?.getBoundingClientRect()
     const overlapWidth = handleRect ? Math.min(rect.right, handleRect.right) - Math.max(rect.left, handleRect.left) : 0
     const overlapHeight = handleRect ? Math.min(rect.bottom, handleRect.bottom) - Math.max(rect.top, handleRect.top) : 0
@@ -354,16 +354,15 @@ try {
   await getWin().getByRole('option', { name: '3 个', exact: true }).click()
   assert((await countSelect.textContent())?.includes('3 个'), '可直接选择 3 个并在触发器显示')
 
-  // ④ 顶栏语义分组与任务按钮：任务独立，设置和模型接入相邻，主组只负责去出片。
+  // ④ 40px 合一顶栏右簇（10-08 外壳重设计）：任务 · 浏览器 · 设置常驻；「去出片」「接入模型」「上手清单」已归位删除。
   const actionGroups = await getWin().evaluate(() => ({
-    assist: document.querySelector('.nomi-appbar__group--assist')?.getAttribute('data-actions'),
-    config: document.querySelector('.nomi-appbar__group--config')?.getAttribute('data-actions'),
-    primary: document.querySelector('.nomi-appbar__group--primary')?.getAttribute('data-actions'),
+    browser: Boolean(document.querySelector('[data-shell-topbar] [data-shell-browser]')),
+    settings: Boolean(document.querySelector('[data-shell-topbar] [data-shell-settings]')),
+    goToProduce: [...document.querySelectorAll('[data-shell-topbar] button')].some((button) => /去出片/.test(button.textContent || '')),
     idleTaskVisible: Boolean(document.querySelector('[data-task-center-trigger="true"]')),
   }))
-  assert(actionGroups.assist === 'onboarding browser', '上手与浏览器归入创作辅助组')
-  assert(actionGroups.config === 'settings modelAccess', '设置与模型接入归入配置组')
-  assert(actionGroups.primary === 'goToProduce', '去出片是唯一主动作')
+  assert(actionGroups.browser && actionGroups.settings, '浏览器与设置常驻顶栏右簇')
+  assert(!actionGroups.goToProduce, '「去出片」已删（预览页「导出 MP4」是唯一导出入口）')
   assert(actionGroups.idleTaskVisible, '完全无任务历史时仍保留“任务”入口')
 
   const nodeId = await node.getAttribute('data-node-id')
@@ -380,7 +379,7 @@ try {
   assert(await taskButton.isVisible(), '有任务时显示“任务”入口')
   assert((await taskButton.textContent())?.replace(/\s+/g, '').includes('任务2'), '任务入口显示名称与待处理数量 2')
 
-  const darkTopbar = getWin().locator('.nomi-appbar').first()
+  const darkTopbar = getWin().locator('[data-shell-topbar]').first()
   await snap('01-dark-topbar.png', darkTopbar)
 
   // ⑤ 紧凑宽度：文字折叠后仍有统一 styled tooltip，不出现无名图标。

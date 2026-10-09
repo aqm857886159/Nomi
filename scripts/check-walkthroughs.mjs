@@ -12,6 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
+import { findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -174,6 +175,18 @@ const RULES = [
       return collectAriaLabelLiterals(code)
         .filter(({ literal }) => !isAriaLabelAlive(literal, { srcText: SRC_TEXT, templates: SRC_INTERPOLATED }))
         .map(({ literal, line }) => ({ line, text: `[aria-label="${literal}"] —— src/ 里零命中（含 i18n 译文与模板）`, file }))
+    },
+  },
+  {
+    id: 'dead-data-attr',
+    label: '走查在等一个源码里已无人渲染的 data 属性锚点（删组件时锚点悬空：断言「在」假红，catch 包着点假绿）',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    // 2026-10-08 外壳重设计：删顶栏 Agent 角标 / 横向收起坞 / 创作资源树开关时，十几份走查里的
+    // [data-agent-topbar-badge] [data-v4-control="dock-open"] [data-creation-resource-tree-toggle] 全部悬空，
+    // 上面两条只认 BEM 类名与 aria-label，看不见 data 属性——而本仓走查绝大多数锚点恰恰是 data 属性。
+    // 判定逻辑住 scripts/lib/deadDataAttributes.mjs（可单测）。
+    scan(code, file) {
+      return findDeadDataAttributes(code, SRC_TEXT).map((hit) => ({ line: hit.line, text: `${hit.text} —— src/ 里零命中`, file }))
     },
   },
   {

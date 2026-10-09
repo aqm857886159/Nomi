@@ -81,11 +81,11 @@ try {
 
   // ── 问题 1&2：流程库 rail 标签走 i18n、不泄漏 raw key ──
   // 基线：rail 上「流程」这颗按钮存在（aria-label 已本地化为「流程库」——修复前它是 raw key）。
-  const workflowRail = getWin().locator('button[aria-label="流程库"]')
+  const workflowRail = getWin().locator('[data-shell-rail-item="flows"]')
   await proveProbe(workflowRail, 'rail 上有「流程库」按钮（aria-label 已本地化）')
   // 断言：整个侧栏 aside 里不存在任何 raw i18n key 文本（`sidebar.workflows` / `sidebar.workflowLibrary`）。
   const rawKeyNode = getWin().locator('aside :text("sidebar.workflow")')
-  const railProbe = await proveProbe(getWin().locator('aside button[aria-label="素材库"]'), 'rail 至少有「素材库」按钮（探针活性）')
+  const railProbe = await proveProbe(getWin().locator('[data-shell-rail-item="assets"]'), 'rail 至少有「素材库」按钮（探针活性）')
   await expectAbsent(rawKeyNode, { provenBy: railProbe, message: 'rail/面板不该出现未翻译的 raw key sidebar.workflow*' })
   await clickOrFail(workflowRail.first(), '流程库 rail 按钮')
   await getWin().waitForTimeout(1000)
@@ -94,7 +94,7 @@ try {
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '01-workflow-library-i18n.png') })
 
   // ── 问题 4①：提示词库精选按来源分类导航 ──
-  await clickOrFail(getWin().locator('button[aria-label="提示词库"]').first(), '提示词库 rail 按钮')
+  await clickOrFail(getWin().locator('[data-shell-rail-item="prompts"]').first(), '提示词库 rail 按钮')
   await getWin().waitForTimeout(1000)
   await clickOrFail(getWin().getByRole('tab', { name: 'Nomi 精选' }).first(), 'Nomi 精选来源标签')
   // 精选是网络拉取——等来源分类 chip 行出现（「全部来源」这颗一定在，只要来源数 > 1）。

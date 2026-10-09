@@ -171,9 +171,9 @@ try {
   const timelinePanel = win.locator('.workbench-preview .workbench-timeline').first()
   await expect(timelinePanel, '预览时间轴未出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const agent = win.locator(PREVIEW_PANEL)
-  // 收起态叫回 Nomi 的唯一入口是顶栏角标（09-01 定稿 §11.2；与它重复的右侧竖条 2026-09-25 已删）。
-  const topbarBadge = win.locator('[data-agent-topbar-badge="true"]')
-  if (await topbarBadge.count()) await clickOrFail(topbarBadge.first(), '从顶栏角标展开 Nomi')
+  // 收起态叫回 Nomi 的唯一入口是内容区右下的小球（10-08 外壳重设计）。
+  const ball = win.locator(COLLAPSED_DOCK)
+  if (await ball.count()) await clickOrFail(ball.first(), '点小球展开 Nomi')
   await expect(agent, '剪辑面常驻 Agent 未挂载').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 
@@ -283,45 +283,26 @@ try {
   await expect(timelinePanel.locator('.workbench-timeline-text-clip').first()).toContainText('他终于推开了门')
   await screenshotSettled(win, { path: path.join(shotsDir, '06-three-ops-applied.png') })
 
-  // ⑥ Nomi 收起 = 结果全屏：输入框落到预览下沿居中，介入槽仍在其上，叫回的入口只有右侧图标条
-  await clickOrFail(agent.locator(COLLAPSE_BUTTON), '收起 Nomi')
-  const collapsed = win.locator(COLLAPSED_SHELL)
-  await expect(collapsed, '收起后常驻 Agent 仍在预览面上').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  // 定稿 Collapsed 板：右栏收成 32px 图标条，**同一个 composer 落到画面下沿居中、对话不中断**。
-  // composer 的 dock 形态（AgentPanelV4Composer 的 `dock` prop）已经存在，缺的是外壳把它挂上去。
+  // ⑥ Nomi 收起 = 结果全屏：面板让出位置，叫回入口只剩右下那颗小球（10-08 外壳重设计；原「输入框落到预览下沿」那条坞已删）。
+  await clickOrFail(agent.locator(COLLAPSE_BUTTON), '收起 Nomi（头部形态切到小球）')
+  await expect(win.locator(COLLAPSED_SHELL), '收起后常驻 Agent 仍挂着（不卸载）').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
   const dock = win.locator(COLLAPSED_DOCK)
-  await expect(dock, '收起后仍留一根图标条').toBeVisible()
-  await expect(win.locator(`${COLLAPSED_SHELL} ${COMPOSER_INPUT}`), '收起后输入框必须落到预览下沿（对话不中断）').toHaveCount(1)
-  await expect(win.locator(COMPOSER_INPUT), '收起不该多造一个 composer').toHaveCount(1)
-  // 一功能一个家：叫回 Nomi 只有顶栏角标这一个入口，且它带运行状态（data-agent-dock-status）。
-  // 数的是「界面上有几个能把 Nomi 叫回来的控件」——这是个**计数**断言，多一个入口就红；
-  // 写成「旧竖条不存在」那种缺席断言只会恒真（旧选择器已随组件一起删）。
-  const topbarEntry = win.locator('[data-agent-topbar-badge="true"]')
-  await expect(topbarEntry, '收起后必须留下顶栏角标这一个入口').toHaveCount(1)
-  await expect(topbarEntry, '顶栏角标要带运行状态').toHaveAttribute('data-agent-dock-status', /.+/)
-  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('button, [role="button"]')]
-    .filter((node) => node.getBoundingClientRect().width > 0)
-    .map((node) => `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''}`)
-    .filter((name) => /展开 Nomi|叫回 Nomi/.test(name)).length)
-  expect(recallEntries, '收起态「叫回 Nomi」的入口必须只有一个（顶栏角标），不许再有第二个').toBe(1)
-  // 量的是**预览列**（`.workbench-preview-player`），不是早已不存在的 `.workbench-preview__stage`
-  // ——T1 把剪辑面迁到面板系统后那个类名就没了，而 querySelector 拿到 null 只会在
-  // getBoundingClientRect 那一行炸，看起来像产品坏了。锚点跟着真实结构走。
+  await expect(dock, '收起后右下必须有小球').toBeVisible()
+  await expect(dock, '小球要带运行状态').toHaveAttribute('data-agent-dock-status', /.+/)
+  // 计数断言：多一个入口就红（写成「旧入口不存在」只会恒真）。
+  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-agent-ball]')]
+    .filter((node) => node.getBoundingClientRect().width > 0).length)
+  expect(recallEntries, '收起态「叫回 Nomi」的入口必须只有一个（小球）').toBe(1)
+  // 结果全屏：小球不许压住播放控件。
   const geometry = await dock.evaluate((node) => {
-    const column = document.querySelector('.workbench-preview-player')
     const transport = document.querySelector('.workbench-preview-player__control-bar')
-    const dockRect = node.getBoundingClientRect()
-    if (!column) throw new Error('找不到预览列 .workbench-preview-player')
-    const columnRect = column.getBoundingClientRect()
-    return {
-      centreOffset: Math.abs((dockRect.left + dockRect.right) / 2 - (columnRect.left + columnRect.right) / 2),
-      transportOverlap: transport ? dockRect.bottom - transport.getBoundingClientRect().top : Number.NEGATIVE_INFINITY,
-    }
+    const ballRect = node.getBoundingClientRect()
+    const t = transport ? transport.getBoundingClientRect() : null
+    const overlaps = Boolean(t) && ballRect.left < t.right && ballRect.right > t.left && ballRect.top < t.bottom && ballRect.bottom > t.top
+    return { overlaps }
   })
-  expect(geometry.centreOffset, '收起后的输入框必须在预览下沿居中').toBeLessThan(2)
-  expect(geometry.transportOverlap, '收起后的输入框不许压住播放控件——结果全屏正是为了把它们还给用户').toBeLessThanOrEqual(0)
-  expect(geometry.transportOverlap, '收起后的输入框要贴着预览下沿的播放条，不是浮在画面中间').toBeGreaterThan(-24)
-  await screenshotSettled(win, { path: path.join(shotsDir, '07-collapsed-floating-composer.png') })
+  expect(geometry.overlaps, '小球不许压住播放控件——结果全屏正是为了把它们还给用户').toBe(false)
+  await screenshotSettled(win, { path: path.join(shotsDir, '07-collapsed-ball.png') })
 
   console.log(`agent timeline ops walkthrough passed; screenshots: ${shotsDir}`)
 } catch (error) {

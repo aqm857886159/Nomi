@@ -1,13 +1,14 @@
-// Playwright Electron check for the frameless top drag region.
-// Success means BrowserWindow bounds changed after dragging the top windowbar.
+// Playwright Electron check for the 40px merged top bar's drag region (10-08 shell redesign).
+// Windows uses native window controls (titleBarOverlay); the whole top bar is the drag region and every
+// button inside it is no-drag. Success means BrowserWindow bounds changed after dragging the top bar.
 import { launchNomiApp } from "./_launchApp.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// 平台守卫：自绘标题栏/拖拽区只在 Windows（frame:false）渲染。mac/Linux 用原生窗口 chrome，
-// 这条测试不适用 → 干净跳过（exit 0），不在非 Windows 机器误报红。
+// 平台守卫：titleBarOverlay 只在 Windows 生效（mac 是 hiddenInset 红绿灯，Linux 保留原生框）。
+// 非 Windows 机器干净跳过（exit 0），不误报红。
 if (process.platform !== "win32") {
   console.log("[window-drag] 跳过：非 Windows 平台用原生窗口 chrome，无自绘标题栏可测。");
   process.exit(0);
@@ -339,112 +340,68 @@ try {
   await primaryCard.waitFor({ timeout: 15000 });
 
   const libraryLayout = await win.evaluate(() => {
-    const library = document.querySelector(".nomi-library-page");
+    const topbar = document.querySelector("[data-shell-topbar]");
     const main = document.querySelector(".nomi-library-page__main");
-    const windowbar = document.querySelector(".nomi-library-page__windowbar");
-    const controls = document.querySelector(".nomi-library-page__windowbar [aria-label='窗口控制']");
-    const libraryRect = library?.getBoundingClientRect() ?? null;
     const mainRect = main?.getBoundingClientRect() ?? null;
+    const topbarRect = topbar?.getBoundingClientRect() ?? null;
     return {
       viewportWidth: window.innerWidth,
       documentClientWidth: document.documentElement.clientWidth,
-      bodyClientWidth: document.body.clientWidth,
       bodyScrollWidth: document.body.scrollWidth,
-      library: libraryRect ? { left: libraryRect.left, right: libraryRect.right, width: libraryRect.width } : null,
+      topbar: topbarRect ? { top: topbarRect.top, height: topbarRect.height, right: topbarRect.right } : null,
+      topbarAppRegion: topbar ? getComputedStyle(topbar).getPropertyValue("-webkit-app-region") : null,
+      selfDrawnControls: Boolean(document.querySelector("[aria-label='窗口控制']")),
       main: mainRect ? {
-        left: mainRect.left,
-        right: mainRect.right,
-        width: mainRect.width,
         clientWidth: main instanceof HTMLElement ? main.clientWidth : null,
         offsetWidth: main instanceof HTMLElement ? main.offsetWidth : null,
-        overflowY: main ? getComputedStyle(main).overflowY : null,
         scrollbarWidth: main ? getComputedStyle(main).scrollbarWidth : null,
       } : null,
-      hasWindowbar: Boolean(windowbar),
-      hasControlsInWindowbar: Boolean(controls),
-      windowbarAppRegion: windowbar ? getComputedStyle(windowbar).getPropertyValue("-webkit-app-region") : null,
-      controlsAppRegion: controls ? getComputedStyle(controls).getPropertyValue("-webkit-app-region") : null,
     };
   });
 
   assert(libraryLayout.documentClientWidth === libraryLayout.viewportWidth, `library document width fills viewport (${libraryLayout.documentClientWidth}/${libraryLayout.viewportWidth})`);
-  assert(libraryLayout.bodyClientWidth === libraryLayout.viewportWidth, `library body width fills viewport (${libraryLayout.bodyClientWidth}/${libraryLayout.viewportWidth})`);
   assert(libraryLayout.bodyScrollWidth === libraryLayout.viewportWidth, `library body has no horizontal overflow (${libraryLayout.bodyScrollWidth}/${libraryLayout.viewportWidth})`);
-  assert(Boolean(libraryLayout.library), "project library page is mounted");
-  assert(Math.abs(libraryLayout.library.right - libraryLayout.viewportWidth) <= 1, `project library reaches right edge (${libraryLayout.library.right}/${libraryLayout.viewportWidth})`);
+  assert(Boolean(libraryLayout.topbar), "project library shares the 40px top bar");
+  assert(Math.abs(libraryLayout.topbar.top) <= 1 && Math.abs(libraryLayout.topbar.height - 40) <= 1, `library top bar is 40px at the window top (top=${libraryLayout.topbar.top}, height=${libraryLayout.topbar.height})`);
+  assert(libraryLayout.topbarAppRegion === "drag", `library top bar is the native drag region (${libraryLayout.topbarAppRegion})`);
+  assert(!libraryLayout.selfDrawnControls, "no self-drawn window controls (native titleBarOverlay)");
   assert(Boolean(libraryLayout.main), "project library scroll area is mounted");
-  assert(Math.abs(libraryLayout.main.right - libraryLayout.viewportWidth) <= 1, `project library scroll area reaches right edge (${libraryLayout.main.right}/${libraryLayout.viewportWidth})`);
   assert(libraryLayout.main.clientWidth === libraryLayout.main.offsetWidth, `project library scroll area has no reserved scrollbar gutter (${libraryLayout.main.clientWidth}/${libraryLayout.main.offsetWidth})`);
   assert(libraryLayout.main.scrollbarWidth === "none", `project library scrollbar is hidden (${libraryLayout.main.scrollbarWidth})`);
-  assert(libraryLayout.hasWindowbar, "project library has a separate top windowbar");
-  assert(libraryLayout.hasControlsInWindowbar, "project library window controls live in its top windowbar");
-  assert(libraryLayout.windowbarAppRegion === "drag", `project library windowbar uses native drag region (${libraryLayout.windowbarAppRegion})`);
-  assert(libraryLayout.controlsAppRegion === "no-drag", `project library window controls are excluded from native drag (${libraryLayout.controlsAppRegion})`);
 
   await primaryCard.click();
-  await win.locator(".nomi-appbar").waitFor({ timeout: 20000 });
+  await win.locator("[data-shell-topbar]").waitFor({ timeout: 20000 });
   await win.bringToFront();
 
   await resetMainWindowBounds(app);
   await win.waitForTimeout(300);
 
   const layout = await win.evaluate(() => {
-    const windowbar = document.querySelector(".workbench-windowbar");
-    const header = document.querySelector(".nomi-appbar");
-    const controls = document.querySelector(".workbench-windowbar [aria-label='窗口控制']");
-    const headerControls = document.querySelector(".nomi-appbar [aria-label='窗口控制']");
-    if (!windowbar || !header) return null;
-
-    const windowbarRect = windowbar.getBoundingClientRect();
+    const header = document.querySelector("[data-shell-topbar]");
+    if (!header) return null;
     const headerRect = header.getBoundingClientRect();
-    const shellRect = document.querySelector(".workbench-shell")?.getBoundingClientRect() ?? null;
-    const bodyRect = document.querySelector(".workbench-shell__body")?.getBoundingClientRect() ?? null;
-
+    const buttons = [...header.querySelectorAll("button")];
     return {
       viewportWidth: window.innerWidth,
       documentClientWidth: document.documentElement.clientWidth,
-      windowbar: {
-        top: windowbarRect.top,
-        bottom: windowbarRect.bottom,
-        height: windowbarRect.height,
-        right: windowbarRect.right,
-      },
-      header: {
-        top: headerRect.top,
-        height: headerRect.height,
-        right: headerRect.right,
-      },
-      shellRight: shellRect?.right ?? null,
-      bodyRight: bodyRect?.right ?? null,
-      hasControlsInWindowbar: Boolean(controls),
-      hasControlsInHeader: Boolean(headerControls),
-      windowbarAppRegion: getComputedStyle(windowbar).getPropertyValue("-webkit-app-region"),
+      header: { top: headerRect.top, height: headerRect.height, right: headerRect.right },
       headerAppRegion: getComputedStyle(header).getPropertyValue("-webkit-app-region"),
-      controlsAppRegion: controls ? getComputedStyle(controls).getPropertyValue("-webkit-app-region") : null,
+      buttonsNoDrag: buttons.every((button) => getComputedStyle(button).getPropertyValue("-webkit-app-region") === "no-drag"),
+      selfDrawnControls: Boolean(document.querySelector("[aria-label='窗口控制']")),
     };
   });
 
-  assert(Boolean(layout), "workbench titlebar and app header are mounted");
-  assert(layout.hasControlsInWindowbar, "window controls live in the separate top titlebar");
-  assert(!layout.hasControlsInHeader, "project header no longer contains window controls");
-  assert(layout.windowbarAppRegion === "drag", `workbench titlebar uses native drag region (${layout.windowbarAppRegion})`);
-  assert(layout.headerAppRegion !== "drag", `functional app header is not a native drag region (${layout.headerAppRegion || "auto"})`);
-  assert(layout.controlsAppRegion === "no-drag", `workbench window controls are excluded from native drag (${layout.controlsAppRegion})`);
-  assert(Math.abs(layout.windowbar.top) <= 1, `titlebar starts at window top (top=${layout.windowbar.top})`);
-  assert(layout.windowbar.height >= 30 && layout.windowbar.height <= 34, `titlebar height is 32px-ish (height=${layout.windowbar.height})`);
-  assert(layout.header.top >= layout.windowbar.bottom - 1, `project header is below titlebar (headerTop=${layout.header.top}, titlebarBottom=${layout.windowbar.bottom})`);
+  assert(Boolean(layout), "workbench 40px top bar is mounted");
+  assert(Math.abs(layout.header.top) <= 1, `top bar starts at window top (top=${layout.header.top})`);
+  assert(Math.abs(layout.header.height - 40) <= 1, `top bar is 40px (height=${layout.header.height})`);
+  assert(layout.headerAppRegion === "drag", `top bar is the native drag region (${layout.headerAppRegion})`);
+  assert(layout.buttonsNoDrag, "every top bar button is excluded from native drag");
+  assert(!layout.selfDrawnControls, "no self-drawn window controls (native titleBarOverlay)");
   assert(layout.documentClientWidth === layout.viewportWidth, `document client width fills viewport (${layout.documentClientWidth}/${layout.viewportWidth})`);
-  assert(Math.abs(layout.windowbar.right - layout.viewportWidth) <= 1, `titlebar reaches right edge (${layout.windowbar.right}/${layout.viewportWidth})`);
-  assert(Math.abs(layout.header.right - layout.viewportWidth) <= 1, `project header reaches right edge (${layout.header.right}/${layout.viewportWidth})`);
-  if (layout.shellRight !== null) {
-    assert(Math.abs(layout.shellRight - layout.viewportWidth) <= 1, `workbench shell reaches right edge (${layout.shellRight}/${layout.viewportWidth})`);
-  }
-  if (layout.bodyRight !== null) {
-    assert(Math.abs(layout.bodyRight - layout.viewportWidth) <= 1, `workbench body reaches right edge (${layout.bodyRight}/${layout.viewportWidth})`);
-  }
+  assert(Math.abs(layout.header.right - layout.viewportWidth) <= 1, `top bar reaches right edge (${layout.header.right}/${layout.viewportWidth})`);
 
   const dragPoint = await win.evaluate(() => {
-    const header = document.querySelector(".workbench-windowbar");
+    const header = document.querySelector("[data-shell-topbar]");
     if (!header) return null;
 
     function box(selector) {
@@ -463,10 +420,9 @@ try {
     const y = Math.round(rect.top + rect.height / 2);
     const candidates = [];
 
-    const controls = box(".workbench-windowbar [aria-label='窗口控制']");
-    if (controls && controls.left - rect.left > 40) {
-      candidates.push(Math.round((rect.left + controls.left) / 2));
-    }
+    // 中间分段器两侧的空白最稳：先试分段器左右，再按比例扫。
+    const stepper = box("[data-shell-topbar] .nomi-stepper");
+    if (stepper) candidates.push(Math.round(stepper.left - 40), Math.round(stepper.right + 60));
     for (let ratio = 0.1; ratio <= 0.75; ratio += 0.05) {
       candidates.push(Math.round(rect.left + rect.width * ratio));
     }
@@ -496,7 +452,7 @@ try {
     return null;
   });
 
-  assert(Boolean(dragPoint), "separate top titlebar has a non-interactive drag point");
+  assert(Boolean(dragPoint), "40px top bar has a non-interactive drag point");
   assert(dragPoint.appRegion === "drag", `drag point itself uses native drag region (${dragPoint.tag}.${dragPoint.className} -> ${dragPoint.appRegion})`);
 
   const before = await resetMainWindowBounds(app);

@@ -81,7 +81,7 @@ try {
   await win.waitForTimeout(2400)
   await win.keyboard.press('Escape').catch(() => {})
   // 限定 studio 顶栏（.nomi-appbar）——项目库是 hidden 切换不卸载，getByRole first() 会误点隐藏的项目库齿轮。
-  const studioGear = win.locator('.nomi-appbar').getByRole('button', { name: '设置', exact: true }).first()
+  const studioGear = win.locator('[data-shell-topbar]').getByRole('button', { name: '设置', exact: true }).first()
   await studioGear.waitFor({ timeout: 8000 })
   await studioGear.click()
   await win.waitForTimeout(700)

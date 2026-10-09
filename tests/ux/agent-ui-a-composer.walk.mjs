@@ -45,9 +45,9 @@ try {
   await blank.waitFor({ state: 'visible', timeout: 15000 }); await blank.click(); await page.waitForTimeout(2400)
   const panel = page.locator(AGENT_PANEL).first()
   await panel.waitFor({ state: 'visible', timeout: 10000 })
-  const collapsed = page.locator(COLLAPSED_SHELL).first()
-  if (await collapsed.isVisible().catch(() => false)) {
-    await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
+  const ball = page.locator(COLLAPSED_DOCK).first()
+  if (await ball.isVisible().catch(() => false)) {
+    await ball.click()
     await page.waitForTimeout(400)
   }
   const composer = panel.locator(COMPOSER)

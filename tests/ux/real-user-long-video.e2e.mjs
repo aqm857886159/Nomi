@@ -148,12 +148,10 @@ async function enterProject(win) {
 }
 
 async function openAgent(win) {
-  // v4 收起态：一根 32px 图标条，第一颗钮把面板叫回来。
+  // 收起态 = 内容区右下的小球（10-08 外壳重设计），点它把面板叫回来。
   const expand = async () => {
-    const collapsed = win.locator(COLLAPSED_SHELL).first()
-    if (await collapsed.isVisible().catch(() => false)) {
-      await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
-    }
+    const ball = win.locator(COLLAPSED_DOCK).first()
+    if (await ball.isVisible().catch(() => false)) await ball.click()
   }
   await expand()
   let panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()

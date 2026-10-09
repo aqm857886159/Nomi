@@ -62,7 +62,7 @@ async function snap(name, clip) {
 /** 只截顶栏那一条（右簇细节在全屏图上看不清）。 */
 async function snapTopBar(name) {
   const box = await getWin().evaluate(() => {
-    const bar = document.querySelector('.nomi-appbar') || document.querySelector('.nomi-library-page__main section')
+    const bar = document.querySelector('[data-shell-topbar]') || document.querySelector('.nomi-library-page__main section')
     if (!bar) return null
     const r = bar.getBoundingClientRect()
     return { x: 0, y: Math.max(0, Math.round(r.top) - 4), width: Math.round(window.innerWidth), height: Math.round(r.height) + 12 }
@@ -143,17 +143,14 @@ try {
   await getWin().waitForTimeout(3000)
   await dismissTour()
   await resizeWindow()
-  await getWin().locator('.nomi-appbar').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  await getWin().locator('[data-shell-topbar]').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
 
   const rightCluster = await getWin().evaluate(() => {
-    const right = document.querySelector('.nomi-appbar__right')
+    const right = document.querySelector('[data-shell-topbar] [role="toolbar"]')
     if (!right) return null
-    // 只数**真正可见**的分隔线，避免只数 DOM 把 CSS 隐藏的节点也算进去。
-    const dividers = [...right.querySelectorAll('.nomi-appbar__divider')]
-      .filter((el) => el.getClientRects().length > 0).length
-    const groups = right.querySelectorAll('.nomi-appbar__group').length
+    // 10-08 外壳重设计：右簇不再分组画分隔线（层次靠间距与外壳底色），这里只记按钮清单。
     const labels = [...right.querySelectorAll('button')].map((b) => (b.textContent || '').trim() || b.getAttribute('aria-label') || '?')
-    return { dividers, groups, labels }
+    return { dividers: 0, groups: 0, labels }
   })
   note('studio 顶栏右簇', rightCluster ? `按钮 ${rightCluster.labels.length} 个 / 分隔线 ${rightCluster.dividers} / 分组 ${rightCluster.groups}：${rightCluster.labels.join(' | ')}` : '未找到')
 
@@ -174,7 +171,7 @@ try {
   ;(await getWin().getByRole('button', { name: '预览', exact: false }).first().click({ timeout: 4000 }).catch(() => {}))
   await getWin().waitForTimeout(2200)
   const previewState = await getWin().evaluate(() => {
-    const right = document.querySelector('.nomi-appbar__right')
+    const right = document.querySelector('[data-shell-topbar] [role="toolbar"]')
     const topLabels = right ? [...right.querySelectorAll('button')].map((b) => (b.textContent || '').trim() || b.getAttribute('aria-label') || '?') : []
     const exportButtons = [...document.querySelectorAll('button')]
       .map((b) => (b.textContent || '').trim())

@@ -165,7 +165,7 @@ try {
 
   // ─── ⑤⑥⑦ 切到 modifier-zoom 档：走真设置 UI，不直接改 localStorage ───
   const hintBefore = await win.locator('.generation-canvas-v2__gesture-hint').textContent().catch(() => '')
-  await win.locator('.nomi-appbar__ghost[aria-label="设置"]').first().click()
+  await win.locator('[data-shell-settings]').first().click()
   await win.waitForTimeout(800)
   // 必须锚在对话框内：'通用' 这两个字在别处也有（隐藏的 caption span），全局 getByText 会选中它然后死等可见。
   const settingsDialog = win.locator('[role="dialog"][aria-label="设置"]')

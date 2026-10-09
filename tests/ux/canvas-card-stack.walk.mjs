@@ -523,20 +523,18 @@ try {
   check('收起状态写入项目', persistedGroup?.collapsed === true)
   check('断开的编组声明不再持久化', !persistedGroup?.inputLinks?.length)
 
-  const sidebar = win.locator('aside[aria-label="项目资源管理器"]')
-  const expandSidebar = sidebar.getByRole('button', { name: '展开侧栏' })
-  if (await expandSidebar.isVisible().catch(() => false)) await expandSidebar.click()
-  await expect.poll(() => sidebar.getAttribute('data-collapsed'), { message: '素材库操作前左侧栏应展开' }).toBe('false')
-  const assetLibraryTab = sidebar.getByRole('button', { name: '素材库' }).first()
-  if (await assetLibraryTab.getAttribute('aria-pressed') !== 'true') await clickOrFail(assetLibraryTab, '切换到左侧素材库')
-  await expect.poll(() => assetLibraryTab.getAttribute('aria-pressed'), { message: '素材库标签应成为当前侧栏面板' }).toBe('true')
-  const assetLibraryPanel = sidebar.locator('section[aria-label="素材库"]')
+  // 10-08 外壳重设计：素材库住左栏「素材」抽屉（60px 图标栏 + 抽屉），不再是可展开的资源管理器侧栏。
+  const assetLibraryTab = win.locator('[data-shell-rail-item="assets"]').first()
+  if (await assetLibraryTab.getAttribute('aria-pressed') !== 'true') await clickOrFail(assetLibraryTab, '点左栏「素材」打开素材抽屉')
+  await expect.poll(() => assetLibraryTab.getAttribute('aria-pressed'), { message: '「素材」应成为当前打开的抽屉' }).toBe('true')
+  const assetLibraryPanel = win.locator('[data-shell-drawer="assets"] section[aria-label="素材库"]')
   await expectVisible(assetLibraryPanel, '切换标签后素材库面板应完成渲染')
   check('展开后素材库面板可见', true)
   await backToLibrary()
   await openProjectCanvas('第二个项目 · F8 切换验收')
-  const secondSidebar = win.locator('aside[aria-label="项目资源管理器"]')
-  check('切换项目后左侧栏自动收起', await secondSidebar.getAttribute('data-collapsed') === 'true')
+  // 换项目时抽屉自动关上（ShellRail 跟着 projectId 关抽屉），不把上一个项目的素材抽屉开着带过来。
+  check('切换项目后左栏抽屉自动关上', (await win.locator('[data-shell-drawer]').count()) === 0
+    && await win.locator('[data-shell-rail-item="assets"]').first().getAttribute('aria-pressed') === 'false')
   await screenshotSettled(win, { path: path.join(outputDir, '06-real-project-switch-sidebar-collapsed.png') })
   fs.writeFileSync(path.join(outputDir, 'walk-report.json'), JSON.stringify({ checks, projectRoot }, null, 2))
   console.log(JSON.stringify({ ok: true, checks }, null, 2))

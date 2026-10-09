@@ -337,7 +337,7 @@ try {
   await win.waitForTimeout(900)
   const widened = await rectsOf({
     ...SEL,
-    handle: '.workbench-generation__timeline-handle',
+    handle: '[data-timeline-strip]',
     navStack: '.generation-canvas-v2__navigation-stack',
     canvas: '.workbench-generation__canvas',
   })

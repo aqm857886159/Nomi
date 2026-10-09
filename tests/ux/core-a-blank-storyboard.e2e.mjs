@@ -45,8 +45,8 @@ async function start() {
   await win.getByRole('button', { name: /^(创作|Create)$/ }).click()
 }
 async function expandSidebar() {
-  await expect(win.locator('[data-creation-resource-tree-toggle]:visible')).toBeVisible()
-  const expand = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+  await expect(win.locator('[data-shell-rail-item="docs"]')).toBeVisible()
+  const expand = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
   if (await expand.isVisible()) await expand.click()
 }
 async function screenshot(name) {
@@ -131,7 +131,7 @@ try {
   // Existing projectV51ToV60Migration infers renderKind from categoryId on load.
   // Compare every other field and the exact inferred value, not only node counts.
   assert.deepEqual(disk().generationCanvas.nodes, savedGraph.nodes.map(node => ({ ...node, renderKind: node.renderKind ?? 'shot-frame' })), 'Cold reopen preserves exact tables apart from the baseline renderKind backfill')
-  await win.locator('[data-creation-resource-tree-toggle="collapse"]:visible').click()
+  await win.locator('[data-shell-rail-item="docs"][aria-pressed="true"]').click()
   await screenshot('en-reopened-sidebar-collapsed')
   await gui.app.close(); gui = null
   assertNoExecution(expected.length)

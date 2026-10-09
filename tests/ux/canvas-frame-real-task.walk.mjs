@@ -89,7 +89,7 @@ async function fitView(win) {
 
 /** 底部停靠区自己挂的标记（真相在 reactFlow/useCanvasBottomDockRects.ts，这里不另抄一份名单）。 */
 const BOTTOM_DOCK_SELECTOR = '[data-canvas-bottom-dock]'
-const TIMELINE_CAPSULE_SELECTOR = '.workbench-generation__timeline-handle'
+const TIMELINE_CAPSULE_SELECTOR = '[data-timeline-strip]'
 
 /**
  * 量「选择浮条」此刻有没有和底部那排常驻控件叠在一起。

@@ -72,22 +72,18 @@ await expectVisible(win.locator('[data-testid="director-editor"]'), '全屏导�
 await win.waitForFunction(() => Boolean(window.__nomiDirectorE2E), null, { timeout: stationTimeout({ operations: 4 }) })
 await snap('editor-open')
 
-// ── 量几何：窗口栏 / 全屏壳 / 顶栏按钮 / 窗口控件 四者的真实矩形 ──
+// ── 量几何：40px 合一顶栏（同时是窗口栏，Windows 原生窗口按钮 titleBarOverlay 浮在它右端）/ 全屏壳 / 导演台顶栏按钮 ──
 const geometry = await win.evaluate(() => {
   const rect = (element) => {
     if (!element) return null
     const { top, bottom, left, right, width, height } = element.getBoundingClientRect()
     return { top, bottom, left, right, width, height }
   }
-  const windowbar = document.querySelector('.workbench-windowbar')
+  const windowbar = document.querySelector('[data-shell-topbar]')
   const editor = document.querySelector('[data-testid="director-editor"]')
   // 2026-09-09 起常驻控件全在悬浮顶栏 director-topbar 里（2026-10-04 起是精修「选中才出」四簇顶栏）
   const header = document.querySelector('[data-testid="director-topbar"]')
   const headerControls = header ? Array.from(header.querySelectorAll('button')) : []
-  const windowControlLabels = ['最小化', '最大化', '还原', '关闭']
-  const windowControls = windowbar
-    ? Array.from(windowbar.querySelectorAll('button')).filter((button) => windowControlLabels.some((label) => (button.getAttribute('aria-label') ?? '').includes(label)))
-    : []
   return {
     platform: window.nomiDesktop?.platform ?? null,
     windowbar: rect(windowbar),
@@ -95,11 +91,11 @@ const geometry = await win.evaluate(() => {
     header: rect(header),
     headerControlCount: headerControls.length,
     headerControlMinTop: headerControls.length ? Math.min(...headerControls.map((button) => button.getBoundingClientRect().top)) : null,
-    windowControls: windowControls.map((button) => ({ label: button.getAttribute('aria-label'), ...rect(button) })),
   }
 })
 
-const bandHeight = geometry.platform === 'win32' ? (geometry.windowbar?.height ?? 0) : 0
+// 两平台都是 40px 顶栏（窗口按钮在里面）：全屏壳与导演台顶栏都必须落在它下面。
+const bandHeight = geometry.windowbar?.height ?? 0
 console.log(`  · platform=${geometry.platform} 窗口栏高度=${bandHeight} 全屏壳 top=${geometry.editor?.top}`)
 
 check(
@@ -114,12 +110,11 @@ check(
   `${geometry.headerControlCount} 个按钮，最高的 top=${geometry.headerControlMinTop} 需 ≥ ${bandHeight}`,
 )
 
-const controls = geometry.windowControls
-const controlsUncovered = controls.length > 0 && controls.every((control) => control.bottom <= (geometry.editor?.top ?? 0) && control.width > 0)
+// 窗口按钮是系统原生的（titleBarOverlay），不在 DOM 里：「没被盖住」等价于全屏壳从 40px 顶栏下沿起画（①）。
 check(
-  '③ 最小化 / 最大化 / 关闭 三颗窗口控件露在全屏壳之上',
-  geometry.platform === 'win32' ? controlsUncovered : true,
-  geometry.platform === 'win32' ? controls.map((control) => `${control.label}@${Math.round(control.top)}..${Math.round(control.bottom)}`).join(' ') || '一颗都没找到' : '非 Windows：窗口控件交系统，跳过',
+  '③ 顶栏（含原生窗口按钮那一段）整条露在全屏壳之上',
+  Boolean(geometry.windowbar) && Math.abs((geometry.windowbar?.height ?? 0) - 40) <= 1 && (geometry.editor?.top ?? 0) >= (geometry.windowbar?.bottom ?? 0) - 1,
+  `topbar.height=${geometry.windowbar?.height} editor.top=${geometry.editor?.top}`,
 )
 
 // 顶栏工具真的还能用（渲染层行为回归；证不了原生命中测试，只证没把交互改坏）
@@ -135,4 +130,4 @@ if (failures.length) {
   console.error(`\n✗ 走查失败 ${failures.length} 条：\n  ${failures.join('\n  ')}`)
   process.exit(1)
 }
-console.log('\n✅ 导演台与 Windows 窗口栏共存走查通过（截图仍需人眼核对）')
+console.log('\n✅ 导演台与 40px 合一顶栏共存走查通过（截图仍需人眼核对；原生窗口按钮的命中在真机验）')
