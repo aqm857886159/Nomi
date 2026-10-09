@@ -10,9 +10,9 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Drawer } from '@mantine/core'
-import { useClickOutside } from '@mantine/hooks'
+import { useClickOutside, useWindowEvent } from '@mantine/hooks'
 import { IconBooks, IconBulb, IconFileText, IconFolder, IconLayoutSidebarLeftCollapse, IconListTree, IconPlus, IconRoute } from '@tabler/icons-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchIconButton } from '../../../design'
+import { NOMI_OVERLAY_Z_INDEX, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { lazyWithChunkBoundary } from '../../chunkBoundary'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
@@ -185,6 +185,15 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
     setOpen(null)
   }, null, [railNode, drawerNode])
 
+  // Esc 收抽屉——但抽屉上面还叠着别的弹层（素材全屏预览、确认卡…）时，这一下 Esc 归那一层，抽屉不跟着关
+  // （#1136 复核实测：在素材抽屉里双击开全屏预览，按 Esc 预览和抽屉一起没了）。所以不用 Drawer 自带的 closeOnEscape。
+  useWindowEvent('keydown', (event) => {
+    if (event.key !== 'Escape' || !open) return
+    const ownDialog = drawerNode?.closest('[role="dialog"]') ?? null
+    const otherLayer = [...document.querySelectorAll('[role="dialog"], [role="menu"]')].some((node) => node !== ownDialog && !ownDialog?.contains(node))
+    if (!otherLayer) setOpen(null)
+  })
+
   // 切项目 = 收起抽屉（旧探索栏「切项目收起左栏」那一条的新家）。
   React.useEffect(() => { setOpen(null) }, [projectId])
 
@@ -251,7 +260,10 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
         withCloseButton={false}
         trapFocus={false}
         lockScroll={false}
-        closeOnEscape
+        closeOnEscape={false}
+        // 层级合同（overlayLayers.ts）：抽屉是浮在内容上的面板（floatingPanel 4000），不是对话框——主题给 Drawer 的默认层级是
+        // dialog（9100），会把素材全屏预览（applicationModal 9000）和抽屉里点出的菜单压在下面（#1136 复核实测）。
+        zIndex={NOMI_OVERLAY_Z_INDEX.floatingPanel}
         transitionProps={{ transition: 'slide-right', duration: 160 }}
         classNames={{
           inner: 'pointer-events-none',

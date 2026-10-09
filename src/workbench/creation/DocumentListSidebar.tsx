@@ -180,7 +180,7 @@ export default function DocumentListSidebar(): JSX.Element {
     return createPortal(
       <div
         role="menu"
-        className="fixed z-50 min-w-[176px] overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper py-1 shadow-workbench-pop"
+        className="fixed z-popover min-w-[176px] overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper py-1 shadow-workbench-pop"
         style={{ left: menu.x, top: menu.y }}
         onPointerDown={(event) => event.stopPropagation()}
         onContextMenu={(event) => event.preventDefault()}

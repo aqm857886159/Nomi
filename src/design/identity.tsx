@@ -182,11 +182,15 @@ export function NomiStepper({ value, onChange, meta }: NomiStepperProps): JSX.El
           aria-current={visibleValue === tab.mode ? 'page' : undefined}
           data-state={visibleValue === tab.mode ? 'active' : 'idle'}
           data-mode={tab.mode}
+          // 无障碍名只是阶段名（「生成」）：进度（「5/6」）是附属信息，进名字会让「按名字找这一步」的读屏与走查全部对不上
+          // （10-09 实测：getByRole('button', { name: 'Generate', exact: true }) 因名字变成「Generate 0/1」而落空）。
+          aria-label={tab.label}
+          title={tab.mode !== 'storyboard' && meta?.[tab.mode] ? `${tab.label} · ${meta[tab.mode]}` : undefined}
           onClick={() => onChange(tab.mode)}
         >
           {tab.label}
           {tab.mode !== 'storyboard' && meta?.[tab.mode] ? (
-            <span className="text-micro font-normal tabular-nums text-nomi-ink-40" data-stepper-meta={tab.mode}>{meta[tab.mode]}</span>
+            <span className="text-micro font-normal tabular-nums text-nomi-ink-40" data-stepper-meta={tab.mode} aria-hidden="true">{meta[tab.mode]}</span>
           ) : null}
         </button>
       ))}

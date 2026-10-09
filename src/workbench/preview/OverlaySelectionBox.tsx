@@ -23,6 +23,11 @@ type OverlaySelectionBoxProps = {
   /** 吸附引导线变化（归一化坐标，null=无）。*/
   onSnapGuides: (guides: { x: number | null; y: number | null }) => void
   children: React.ReactNode
+  /**
+   * 双击（改字）挂在框本身：拖动开始时框对指针 setPointerCapture，之后的 click / dblclick 都派发给框、不再落到里层内容，
+   * 里层的 onDoubleClick 永远收不到（#1136 复核实测：选中态双击字幕进不了编辑）。
+   */
+  onDoubleClick?: () => void
 }
 
 const HANDLE_KEYS = ['nw', 'ne', 'se', 'sw'] as const
@@ -44,6 +49,7 @@ export default function OverlaySelectionBox({
   stageHeight,
   onTransform,
   onSnapGuides,
+  onDoubleClick,
   children,
 }: OverlaySelectionBoxProps): JSX.Element {
   const beginBodyDrag = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
@@ -111,6 +117,7 @@ export default function OverlaySelectionBox({
         transform: 'translate(-50%, -50%)',
       }}
       onPointerDown={beginBodyDrag}
+      onDoubleClick={onDoubleClick ? (event) => { event.stopPropagation(); onDoubleClick() } : undefined}
     >
       {children}
       {HANDLE_KEYS.map((key) => (

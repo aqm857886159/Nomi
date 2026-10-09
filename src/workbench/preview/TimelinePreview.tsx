@@ -563,8 +563,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
                     stageHeight={stageSize.height}
                     onTransform={(patch, commit) => updateTimelineTextClipTransform(clip.id, patch, { commit })}
                     onSnapGuides={setTextSnapGuides}
+                    onDoubleClick={() => beginEditText(clip.id, clip.text)}
                   >
-                    <div style={contentStyle} onDoubleClick={(event) => { event.stopPropagation(); beginEditText(clip.id, clip.text) }} title={t('timelinePreview.moveResizeEdit')}>
+                    <div style={contentStyle} title={t('timelinePreview.moveResizeEdit')}>
                       {clip.text}
                     </div>
                   </OverlaySelectionBox>
