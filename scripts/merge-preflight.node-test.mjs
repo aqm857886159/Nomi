@@ -8,16 +8,13 @@ import {
   checkEscapeContract,
   settledContracts,
   checkIndependentAcceptance,
-  checkProtectedScope,
   classifyChange,
-  extractSection,
   implementationLine,
   isGrandfathered,
-  escapeLedgerFromTree,
   ledgerChanges,
-  parsePullFileRows,
   renderReport,
-} from './merge-preflight.mjs'
+} from './pr-body-criteria.mjs'
+import { checkProtectedScope, escapeLedgerFromTree, extractSection, parsePullFileRows } from './merge-preflight.mjs'
 
 const FULL_CARD = [
   '## 设计卡',
