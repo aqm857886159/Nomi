@@ -2,6 +2,7 @@
 // 「已更新」卡、设置→关于都读它。弹窗开关也放这里——胶囊、横幅、关于页都能点开同一个弹窗。
 // 真相源在主进程（electron/update/updateHub.ts），这里不推断、不自己维护第二份状态机。
 import { create } from 'zustand'
+import { declareStoreLifetime } from '../../workbench/project/storeLifetime'
 import { isDialogPhase } from './updateDialogView'
 import { getDesktopBridge } from '../../desktop/bridge'
 import {
@@ -118,3 +119,15 @@ export async function requestInstall(update: { install: () => Promise<{ ok: bool
     // 通信失败：什么都没装，界面保持原样，用户可以再点。
   }
 }
+
+/**
+ * 寿命声明（C1）：
+ * - updater / memory：主进程「更新状态 / 提醒记忆」在这个窗口里的镜像，跟随进程，**不随项目切换清空**——
+ *   更新是整个 App 的事，换项目不该让「有新版」「上次没装上」「已 ✕ 的横幅」消失或重现。真相源在主进程，这里只是订阅。
+ * - dialogOpen / macStepsShown / installBlocked：这个窗口里更新弹窗的开合与它的小状态，活到窗口关闭；
+ *   关弹窗或更新状态变化时自己清（closeUpdateDialog / 事件 reducer），也不跟项目走。
+ */
+export const updateStoreLifetime = declareStoreLifetime({
+  store: 'useUpdateStore',
+  fields: { updater: 'process', memory: 'process', dialogOpen: 'window', macStepsShown: 'window', installBlocked: 'window' },
+})
