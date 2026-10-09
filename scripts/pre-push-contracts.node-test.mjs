@@ -574,3 +574,10 @@ test('推送前输出点名：只在 CI 跑的门共 N 道，部分覆盖的（c
   assert.match(result.stderr, /check:i18n（本机只跑了 check:test-copy-literals）/)
   assert.match(result.stderr, /CI 才是最终裁判/)
 })
+
+test('解析器：gates:contracts 的门不按名字前缀过滤（test: / run: 开头的新门也解析得出来），--advisory 是参数不是门', () => {
+  const parsed = parseContractGates('python3 scripts/with-gates-lock.py -- node scripts/run-gates-contracts.mjs --advisory=check:a check:b test:new-gate run:policy typecheck')
+  assert.deepEqual(parsed.gates, ['check:b', 'test:new-gate', 'run:policy', 'typecheck'])
+  assert.deepEqual(parsed.advisory, ['--advisory=check:a'])
+  assert.throws(() => parseContractGates('node something-else.mjs a b'), /找不到 run-gates-contracts/)
+})
