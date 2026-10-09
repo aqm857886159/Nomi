@@ -135,11 +135,12 @@ test('判据库被两边共用：推送前入口（check-pr-judgement）与合�
   assert.ok(!fs.existsSync(path.join(repoRoot, 'scripts/check-pr-body-gates.mjs')), '旧的正文门岗入口应已并入 pre-push-contracts.mjs（P1）')
 })
 
-test('钩子入口：install-git-hooks 的 pre-push 只指向 pre-push-contracts.mjs，没有绕过开关', () => {
-  const installer = read('scripts/install-git-hooks.cjs')
-  assert.match(installer, /name: 'pre-push'[\s\S]*?target: 'scripts\/pre-push-contracts\.mjs'/)
+test('钩子入口：pre-push 由分发入口 git-hook.mjs 指向 pre-push-contracts.mjs，钩子文件里不写脚本名，也没有绕过开关', () => {
+  const table = JSON.parse(read('scripts/git-hooks.json'))
+  assert.deepEqual(table['pre-push'], [['scripts/pre-push-contracts.mjs']])
+  assert.doesNotMatch(read('scripts/install-git-hooks.cjs'), /pre-push-contracts/, '安装器不许再写死脚本名')
   const entry = read('scripts/pre-push-contracts.mjs')
-  assert.doesNotMatch(entry, /SKIP|NO_VERIFY|BYPASS|process\.env\.(?!NOMI_PR_BODY)\w*(?:SKIP|DISABLE|OFF)/i)
+  assert.doesNotMatch(entry, /SKIP|NO_VERIFY|BYPASS|process.env.(?!NOMI_PR_BODY)w*(?:SKIP|DISABLE|OFF)/i)
 })
 
 // ── 真实路径：真 git 仓库副本里跑真入口 ──────────────────────────────────────────
@@ -166,7 +167,9 @@ function commitChange(edit) {
   git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'test change')
 }
 
-function prePush({ body, cwd = work, args = [], refLine } = {}) {
+// 真钩子调用时 git 会把 <remote名> <url> 作为参数传进来；脚本只有收到这两个参数才读 stdin 的 ref 行
+const HOOK_ARGS = ['origin', 'https://example.invalid/r.git']
+function prePush({ body, cwd = work, args = HOOK_ARGS, refLine } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
   const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
   return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
@@ -272,29 +275,37 @@ test('真入口：要推的 SHA 和工作树 HEAD 不一致 → 拒绝（fail-cl
   assert.doesNotMatch(result.stderr, /✅ check:/, '拒绝时一道门岗都不跑')
 })
 
-// ── 过渡期：老分支（还没有新入口）走它自己的旧正文门岗 ─────────────────────────────
+// ── 手动跑不许挂住 / 正文来源 ────────────────────────────────────────────────────
 
-test('钩子模板：有新入口跑新入口；老分支只有旧门岗就退回旧门岗；两个都没有才放行', async () => {
-  const { HOOKS, renderHookContent } = (await import('./install-git-hooks.cjs')).default
-  const content = renderHookContent(HOOKS.find((h) => h.name === 'pre-push'))
-  const root = makeTempDir('nomi-hook-fallback-')
-  execFileSync('git', ['init', '-q'], { cwd: root })
-  const hookFile = path.join(root, 'hook.sh')
-  fs.writeFileSync(hookFile, content)
-  const put = (rel, text) => {
-    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
-    fs.writeFileSync(path.join(root, rel), text)
-  }
-  const runHook = () => spawnSync('bash', [hookFile], { cwd: root, encoding: 'utf8', input: '' })
+test('必红：手动跑（无参数）+ 一个永远不关的 stdin 管道 → 几十秒内退出，不读 stdin（以前会挂 600–1700 秒）', async () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  const { spawn } = await import('node:child_process')
+  const child = spawn(process.execPath, [path.join(work, 'scripts/pre-push-contracts.mjs')], {
+    cwd: work, env: { ...process.env, NOMI_PR_BODY: CARD }, stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  child.stdin.on('error', () => {})
+  let stderr = ''
+  child.stderr.on('data', (chunk) => { stderr += chunk })
+  const outcome = await new Promise((resolve) => {
+    const timer = setTimeout(() => { child.kill(); resolve('HUNG') }, 90_000)
+    child.on('close', (code) => { clearTimeout(timer); resolve(code) })
+  })
+  child.stdin.destroy()
+  assert.equal(outcome, 0, `应正常退出，实际：${outcome}
+${stderr}`)
+  assert.match(stderr, /✅ check:filesize/)
+})
 
-  assert.equal(runHook().status, 0, '两个脚本都没有：放行')
-  put('scripts/check-pr-body-gates.mjs', "console.error('LEGACY-GATE'); process.exit(7)")
-  const legacy = runHook()
-  assert.equal(legacy.status, 7, '老分支必须真的跑到旧门岗（它红就拦），不是安静放行')
-  assert.match(legacy.stderr, /LEGACY-GATE/)
-  put('scripts/pre-push-contracts.mjs', "console.error('NEW-ENTRY'); process.exit(0)")
-  const fresh = runHook()
-  assert.equal(fresh.status, 0)
-  assert.match(fresh.stderr, /NEW-ENTRY/)
-  assert.doesNotMatch(fresh.stderr, /LEGACY-GATE/, '有新入口时旧门岗不再跑')
+const envWithoutBody = () => { const env = { ...process.env }; delete env.NOMI_PR_BODY; return env }
+
+test('手动跑可以用 NOMI_PR_BODY_FILE 给正文；文件读不了 = 明确报错退出，不是跳过', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  const bodyFile = path.join(path.dirname(work), 'body.md')
+  fs.writeFileSync(bodyFile, CARD)
+  const ok = run(work, process.execPath, [path.join(work, 'scripts/pre-push-contracts.mjs')], { input: '', env: { ...envWithoutBody(), NOMI_PR_BODY_FILE: bodyFile } })
+  assert.equal(ok.status, 0, ok.stderr)
+  assert.match(ok.stderr, /PR 正文取自 NOMI_PR_BODY_FILE/)
+  const missing = run(work, process.execPath, [path.join(work, 'scripts/pre-push-contracts.mjs')], { input: '', env: { ...envWithoutBody(), NOMI_PR_BODY_FILE: path.join(path.dirname(work), 'nope.md') } })
+  assert.equal(missing.status, 1, missing.stderr)
+  assert.match(missing.stderr, /NOMI_PR_BODY_FILE/)
 })

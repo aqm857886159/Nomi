@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { LOCAL_PR_BODY_DRAFT, resolvePullRequestBody } from './lib/prBody.mjs'
+import { LOCAL_PR_BODY_DRAFT, ghPullRequestBody, resolvePullRequestBody } from './lib/prBody.mjs'
 
 // 这一组钉死的是 2026-09-18 之前那个坑的反面：正文**现取**，而且「取不到」和「正文是空的」
 // 是两件不同的事。旧写法把 `github.event.pull_request.body`（push 那一刻的快照）当唯一来源，
@@ -75,4 +75,33 @@ test('还没有 PR：本地 --pr 取不到时读 .tmp-pr-body.md 草稿，按合
   const ci = resolvePullRequestBody({ env: { GITHUB_EVENT_NAME: 'pull_request' }, argv: ['node', 'x.mjs'], fetchBody: failing, readDraft: () => '草稿' })
   assert.equal(ci.available, false, 'CI 里取不到就是红，不能被一个本地草稿文件顶替')
   assert.equal(ci.required, true)
+})
+
+// ── 2026-10-09 手动跑挂死：gh 没有超时、NOMI_PR_BODY_FILE 不被认 ──────────────────────
+
+test('NOMI_PR_BODY_FILE：从文件读正文；NOMI_PR_BODY 优先；读不了 = required 的红，不回落到 gh', () => {
+  const fromFile = resolvePullRequestBody({ env: { NOMI_PR_BODY_FILE: 'b.md' }, argv: ['node', 'x.mjs'], readFile: () => '## 设计卡\n文件', fetchBody: () => { throw new Error('不该调 gh') } })
+  assert.equal(fromFile.available, true)
+  assert.equal(fromFile.source, 'NOMI_PR_BODY_FILE')
+  assert.match(fromFile.body, /文件/)
+  const both = resolvePullRequestBody({ env: { NOMI_PR_BODY: '直接给', NOMI_PR_BODY_FILE: 'b.md' }, argv: ['node', 'x.mjs'], readFile: () => '文件' })
+  assert.equal(both.body, '直接给')
+  const unreadable = resolvePullRequestBody({ env: { NOMI_PR_BODY_FILE: 'nope.md' }, argv: ['node', 'x.mjs'], readFile: () => { throw new Error('ENOENT') }, fetchBody: () => { throw new Error('不该调 gh') } })
+  assert.equal(unreadable.available, false)
+  assert.equal(unreadable.required, true)
+  assert.match(unreadable.reason, /NOMI_PR_BODY_FILE/)
+})
+
+test('必红：gh 一直不返回 → 在超时内明确报错（required），不挂、不回落到草稿', () => {
+  const started = Date.now()
+  const result = resolvePullRequestBody({
+    env: {},
+    argv: ['node', 'x.mjs', '--pr'],
+    fetchBody: (args, cwd) => ghPullRequestBody(args, cwd, { bin: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], timeoutMs: 1500 }),
+    readDraft: () => '草稿',
+  })
+  assert.ok(Date.now() - started < 15_000, '超时没生效')
+  assert.equal(result.available, false)
+  assert.equal(result.required, true)
+  assert.match(result.reason, /超时/)
 })
