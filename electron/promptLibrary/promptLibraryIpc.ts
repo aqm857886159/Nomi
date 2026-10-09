@@ -57,10 +57,14 @@ export function registerPromptLibraryIpc(): void {
 
   // 节点提示词优化用的文本大脑(vendor/modelKey,不含 apiKey)。这里只回答 catalog 是否已配置，
   // 不为首屏 readiness 解密；locked 由首次真实文本请求以结构化错误报告。
-  ipcMain.handle("nomi:prompt-library:text-brain", async (event) => {
+  ipcMain.handle("nomi:prompt-library:text-brain", async (event, preference?: { vendorKey?: unknown; modelKey?: unknown }) => {
     assertTrustedSender(event);
     const { resolveTextBrainStatus } = await import("../ai/textBrainResolver");
-    const resolved = resolveTextBrainStatus();
+    const resolved = resolveTextBrainStatus(
+      typeof preference?.vendorKey === "string" && typeof preference.modelKey === "string"
+        ? { vendorKey: preference.vendorKey, modelKey: preference.modelKey }
+        : undefined,
+    );
     return resolved.status === "ok"
       ? { ok: true, brain: resolved.brain, status: "ok" as const }
       : { ok: false, brain: null, status: resolved.status };

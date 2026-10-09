@@ -3,6 +3,7 @@
 import type { SkillCuration } from '../../../electron/shared/skillCuration'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
+import { getAssistantModelPref } from '../ai/assistantModelPref'
 import { matchesLibraryQuery } from '../library/libraryDiscovery'
 import { promptSourceKey } from '../promptLibrary/promptDisplay'
 
@@ -114,10 +115,13 @@ export async function deleteUserPrompt(id: string): Promise<LibraryPrompt[]> {
   return mapUserPrompts(await desktop.promptLibrary!.userDelete(id))
 }
 
-/** 节点提示词优化用的已配置文本大脑键(与创作助手同脑);未配文本模型返回 null。 */
+/**
+ * 「跟随 Agent 的模型」唯一入口（文本节点 / 提示词优化 / 翻译 / 提取都走它）：Agent 面板选了谁就是谁
+ * （assistantModelPref，与 lane 同一份选择），没选或选的此刻不可用才回落到默认文本模型；未配文本模型返回 null。
+ */
 export async function getTextBrain(): Promise<{ vendor: string; modelKey: string } | null> {
   const desktop = requireDesktopRuntime('prompt optimize')
-  const res = await desktop.promptLibrary!.textBrain()
+  const res = await desktop.promptLibrary!.textBrain(getAssistantModelPref() ?? undefined)
   return res?.ok && res.brain ? res.brain : null
 }
 

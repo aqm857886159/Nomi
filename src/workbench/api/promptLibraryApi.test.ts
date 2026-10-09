@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { fetchPromptLibrary, fetchUserPrompts, filterPrompts, promptSourceOptions, PROMPT_SOURCE_ALL, type LibraryPrompt } from './promptLibraryApi'
+import { setAssistantModelPref } from '../ai/assistantModelPref'
+import { getTextBrain, fetchPromptLibrary, fetchUserPrompts, filterPrompts, promptSourceOptions, PROMPT_SOURCE_ALL, type LibraryPrompt } from './promptLibraryApi'
 
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: vi.fn() }))
 
@@ -16,6 +17,21 @@ function mountBridge() {
 describe('promptLibraryApi', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('asks the text brain with the model the Agent panel picked, so 「跟随 Agent」 follows it', async () => {
+    const textBrain = vi.fn().mockResolvedValue({ ok: true, brain: { vendor: 'b', modelKey: 'chat-b' }, status: 'ok' })
+    mockedBridge.mockReturnValue({ promptLibrary: { textBrain } } as never)
+    const store = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) })
+    vi.stubGlobal('window', { dispatchEvent: () => true })
+    setAssistantModelPref({ vendorKey: 'b', modelKey: 'chat-b' })
+    await expect(getTextBrain()).resolves.toEqual({ vendor: 'b', modelKey: 'chat-b' })
+    expect(textBrain).toHaveBeenLastCalledWith({ vendorKey: 'b', modelKey: 'chat-b' })
+    setAssistantModelPref(null)
+    await getTextBrain()
+    expect(textBrain).toHaveBeenLastCalledWith(undefined)
+    vi.unstubAllGlobals()
   })
 
   it('maps valid public and user rows while dropping malformed payloads', async () => {

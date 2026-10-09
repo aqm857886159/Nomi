@@ -241,10 +241,21 @@ function resolveConfiguredTextBrain(
 }
 
 /** Read-only catalog readiness. Locked is learned only by the first real request, never by startup probing. */
-export function resolveTextBrainStatus():
+export function resolveTextBrainStatus(preference?: TextModelPreference):
   | { status: "ok"; brain: { vendor: string; modelKey: string } }
   | { status: "missing" } {
-  const brain = resolveConfiguredTextBrain(readCatalog());
+  const state = readCatalog();
+  // 「跟随 Agent 的模型」= Agent 面板里选的那个：和 lane 的 chooseTextModel 同一个候选选择器（selectTextModelCandidates），
+  // 不另取「排第一的可用模型」。没选 / 选的那个此刻不可用才回落到默认判据。
+  if (preference?.modelKey?.trim() && preference.vendorKey?.trim()) {
+    try {
+      const chosen = selectTextModelCandidates(state, preference)[0];
+      if (chosen) return { status: "ok", brain: { vendor: chosen.vendor.key, modelKey: chosen.model.modelKey } };
+    } catch (error) {
+      if (!(error instanceof TextModelUnavailableError)) throw error;
+    }
+  }
+  const brain = resolveConfiguredTextBrain(state);
   if (brain) return { status: "ok", brain };
   return { status: "missing" };
 }

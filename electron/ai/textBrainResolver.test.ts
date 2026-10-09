@@ -264,6 +264,23 @@ describe("Nomi text brain resolver", () => {
     expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
   });
 
+  // 2026-10-09 真模型走查：Agent 面板选了 B，文本节点「跟随 Agent」却用了清单排第一的 A。
+  // 「跟随」读的必须是 Agent 当前选的那个（与 lane 同一个候选选择器），不是另取「第一个可用」。
+  it("follows the Agent's chosen model instead of the first usable one", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("a"), vendor("b")],
+      models: [model("a", "chat"), model("b", "chat-b")],
+      apiKeysByVendor: { a: key("a", "dGVzdC1h", "safeStorage"), b: key("b", "dGVzdC1i", "safeStorage") },
+    }));
+    expect(resolver.resolveTextBrainStatus()).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+    expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "chat-b" }))
+      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "chat-b" } });
+    // 选的那个此刻不可用 → 才回落默认判据。
+    expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "gone" }))
+      .toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+  });
+
   it("preserves the stable missing-model error signature", () => {
     expect(() => resolver.chooseTextModel()).toThrow("Model is not configured: no usable text model. Open model settings and add an API key.");
     expect(resolver.resolveTextBrainKeys()).toBeNull();
