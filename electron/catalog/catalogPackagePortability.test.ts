@@ -29,13 +29,13 @@ const catalogFile = (): string => path.join(root, "model-catalog.json");
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-catalog-portability-"));
-  process.env.NOMI_SETTINGS_DIR = root;
+  vi.stubEnv("NOMI_SETTINGS_DIR", root);
   safeStorageState.available = true;
   vi.resetModules();
 });
 
 afterEach(() => {
-  delete process.env.NOMI_SETTINGS_DIR;
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -1,0 +1,135 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-model-listing-parity-fixture",
+  "problem_type": "Vitest test environment state crosses files in a reused forks worker",
+  "symptom": "modelListingParity's two expected-failure assertions changed result when another test file left NOMI_SETTINGS_DIR set in the same child process.",
+  "direct_cause": "Tests assigned or deleted process.env directly; Vitest reset modules between files but the process environment survived, so later settings reads used the previous file's root.",
+  "class_root": "All test environment mutations must use Vitest's stubEnv API and the shared Vitest lane must restore stubs after every test before a reused worker runs another file.",
+  "affected_population": [
+    "All Vitest test files that set NOMI_* or other process environment values.",
+    "Forks workers that execute more than one test file, including the CI default lane.",
+    "Future tests that add a direct process.env assignment or delete."
+  ],
+  "scope_paths": [
+    "vitest.config.ts",
+    "eslint.config.mjs",
+    "electron/testEnvironmentIsolation.test.ts",
+    "electron/parity/modelListingParity.test.ts",
+    "electron/parity/parityElectronMock.ts",
+    "electron/localSpeech/localSpeechPackaging.test.ts",
+    "electron/localSpeech/localSpeechInstall.test.ts",
+    "docs/fixes/2026-10-07-model-listing-parity-fixture.root-cause.json"
+  ],
+  "entry_points": [
+    "Every vi.stubEnv call in the converted Vitest test files.",
+    "The modelListingParity beforeAll catalog and preference persistence fixture.",
+    "The Vitest config that owns the worker lifecycle."
+  ],
+  "internal_only_reason": "The invariant is entirely in this repository's Vitest fixture harness; no external service decides process environment lifetime.",
+  "invariants": [
+    "A test may override process.env only through vi.stubEnv.",
+    "Vitest restores stubbed environment values before the next test in a reused worker.",
+    "modelListingParity resolves its catalog and preference paths under the mocked Electron userData root when no inherited override exists."
+  ],
+  "doors": [
+    {"kind": "write", "path": "electron/localSpeech/localSpeechPackaging.test.ts", "symbol": "vi.stubEnv"},
+    {"kind": "write", "path": "electron/localSpeech/localSpeechInstall.test.ts", "symbol": "vi.stubEnv"},
+    {"kind": "write", "path": "electron/testEnvironmentIsolation.test.ts", "symbol": "vi.stubEnv"},
+    {"kind": "read", "path": "electron/settings/settingsRoot.ts", "symbol": "getSettingsRoot"},
+    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "catalogPath"},
+    {"kind": "read", "path": "electron/parity/modelListingParity.test.ts", "symbol": "modelBoxPreferenceSettingsPath"}
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "The environment writes, shared settings-root read, and two persisted fixture reads are distinct doors. The repair makes every test write converge through Vitest's restore boundary; it does not delete a legitimate catalog or settings read."
+  },
+  "generality_proof": "The direct-assignment scan found 72 affected Vitest files spanning NOMI_SETTINGS_DIR, NOMI_PROJECTS_DIR, capability, telemetry, proxy, and timeout variables. Converting every write/delete to vi.stubEnv and enabling unstubEnvs at the shared config covers each caller regardless of variable name, file order, or forks worker reuse.",
+  "shared_boundaries": [
+    {
+      "path": "vitest.config.ts",
+      "symbol": "test.unstubEnvs",
+      "responsibility": "Restore every vi.stubEnv mutation after each test across all Vitest lanes."
+    },
+    {
+      "path": "eslint.config.mjs",
+      "symbol": "no-restricted-syntax",
+      "responsibility": "Reject direct process.env assignments and deletes in test files and require vi.stubEnv."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/localSpeech/localSpeechPackaging.test.ts",
+      "entry_point": "packaging boundary tests",
+      "disposition": "enforced",
+      "evidence": "The two former direct NOMI_SETTINGS_DIR assignments now use vi.stubEnv and are restored by the shared config."
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.test.ts",
+      "entry_point": "beforeEach settings-root fixture",
+      "disposition": "enforced",
+      "evidence": "The beforeEach NOMI_SETTINGS_DIR mutation now uses vi.stubEnv; the old file had no explicit cleanup."
+    },
+    {
+      "path": "tests/ux/**",
+      "entry_point": "ignored browser and walk scripts",
+      "disposition": "not-affected",
+      "evidence": "These scripts are outside the Vitest lane and remain governed by their browser/process runner; the ESLint test-file rule intentionally does not claim them."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "process.env is process-global while forks workers can run multiple files in one child. Any new direct assignment or delete can contaminate a later file, so the mechanism is reusable and not a one-off parity fixture mistake.",
+    "same_class_scan": [
+      "rg -n --glob '*.{test,spec}.{ts,tsx}' 'process\\.env.*=|delete process\\.env' electron tests found 72 files before the conversion.",
+      "The scan covered NOMI_SETTINGS_DIR, NOMI_PROJECTS_DIR, NOMI_CAPABILITY_DIR, NOMI_* timeout/feature variables, proxy variables, and computed environment keys.",
+      "The converted direct-write scan is empty; electron/testEnvironmentIsolation.test.ts proves restoration between two tests."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "eslint.config.mjs",
+    "invariant": "Test files cannot assign to or delete process.env directly; all changes enter through vi.stubEnv and Vitest restores them via unstubEnvs.",
+    "failure_mode": "ESLint fails with a vi.stubEnv message at the direct assignment/delete, and the regression test fails if restoration is disabled.",
+    "exception_policy": "none",
+    "strategy": "Put lifecycle restoration in the shared Vitest config and the write prohibition in the shared ESLint test-file rule, so individual fixtures cannot forget cleanup.",
+    "artifacts": [
+      "vitest.config.ts",
+      "eslint.config.mjs",
+      "electron/testEnvironmentIsolation.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/parity/modelListingParity.test.ts",
+    "electron/testEnvironmentIsolation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/testEnvironmentIsolation.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The parity-only pin was deleted as obsolete test-fixture code, but no production or compatibility path needs migration."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Vitest 4.1.8",
+    "target": "Keep the repository-pinned Vitest major while unstubEnvs remains supported.",
+    "rationale": "The required lifecycle primitive is already provided by the installed Vitest runtime; upgrading would not add the missing invariant.",
+    "exit_criteria": [
+      "If a future Vitest major removes unstubEnvs or changes fork lifecycle semantics, replace it with the supported equivalent and rerun electron/testEnvironmentIsolation.test.ts plus the 50-run lane evidence."
+    ]
+  },
+  "migration": "No product data changes. Existing tests migrate from direct process.env writes to vi.stubEnv in the same commit; Vitest restores the caller's original values automatically.",
+  "residual_risks": [
+    "tests/ux/** and scripts are outside ESLint's test-file rule and remain an explicitly listed non-Vitest surface.",
+    "The two B1 parity assertions remain intentional expected failures; this repair stabilizes their fixture environment and does not change product listing behavior."
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-10-07",
+  "invariant_owner_layer": {
+    "layer": "vitest.config.ts",
+    "tests": ["electron/testEnvironmentIsolation.test.ts", "electron/parity/modelListingParity.test.ts"],
+    "why": "The class root is process environment lifetime across test files, so ownership belongs at the shared runner and static write boundary rather than one parity fixture."
+  }
+}

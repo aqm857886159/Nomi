@@ -9,17 +9,17 @@ const ORIGINAL = { root: process.env[SETTINGS_ROOT_ENV], endpoint: process.env.N
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-intake-queue-'))
-  process.env[SETTINGS_ROOT_ENV] = root
-  process.env.NOMI_INTAKE_ENDPOINT = 'https://intake.example'
-  process.env.NOMI_INTAKE_TOKEN = 'tok'
+  vi.stubEnv(SETTINGS_ROOT_ENV, root)
+  vi.stubEnv("NOMI_INTAKE_ENDPOINT", 'https://intake.example')
+  vi.stubEnv("NOMI_INTAKE_TOKEN", 'tok')
   vi.resetModules()
 })
 
 afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true })
   for (const [key, value] of [[SETTINGS_ROOT_ENV, ORIGINAL.root], ['NOMI_INTAKE_ENDPOINT', ORIGINAL.endpoint], ['NOMI_INTAKE_TOKEN', ORIGINAL.token]] as const) {
-    if (value === undefined) delete process.env[key]
-    else process.env[key] = value
+    if (value === undefined) vi.stubEnv(key, undefined)
+    else vi.stubEnv(key, value)
   }
   vi.restoreAllMocks()
 })
@@ -78,7 +78,7 @@ describe('反馈/轨迹的落盘队列', () => {
   })
 
   it('端点没配就不发（也不清队列）—— 等打好包配上再发', async () => {
-    delete process.env.NOMI_INTAKE_ENDPOINT
+    vi.stubEnv("NOMI_INTAKE_ENDPOINT", undefined)
     const queue = await load()
     const client = await import('./intakeClient')
     const post = vi.spyOn(client, 'postIntake')

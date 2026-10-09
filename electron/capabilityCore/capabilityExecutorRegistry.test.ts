@@ -53,7 +53,7 @@ function expectExecutionError(code: CapabilityExecutionError["code"]) {
 function makeHarness() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-capability-executor-"));
   tempDirs.push(dir);
-  process.env[CAPABILITY_DIR_ENV] = path.join(dir, "capability");
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(dir, "capability"));
   ensureToken();
   const proof = signMcpClient("codex")!;
   const connection = createMcpConnectionContext({
@@ -109,8 +109,8 @@ function makeHarness() {
 }
 
 afterEach(() => {
-  if (previousCapabilityDir === undefined) delete process.env[CAPABILITY_DIR_ENV];
-  else process.env[CAPABILITY_DIR_ENV] = previousCapabilityDir;
+  if (previousCapabilityDir === undefined) vi.stubEnv(CAPABILITY_DIR_ENV, undefined);
+  else vi.stubEnv(CAPABILITY_DIR_ENV, previousCapabilityDir);
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 

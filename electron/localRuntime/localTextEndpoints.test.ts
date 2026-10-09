@@ -3,7 +3,7 @@
 // 不 mock fetch——用真 node:http server + appFetch 真的发请求，证明 wire 对得上。
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   probeLocalTextEndpoints,
   localTextBaseUrl,
@@ -122,13 +122,13 @@ describe("NOMI_LOCAL_TEXT_PROBE_BASE_URLS env 覆盖（走查把探测指向 stu
   it("env 覆盖下真的探到 stub（不占用真实端口）", async () => {
     const stub = await startStub({ models: ["env-model"] });
     servers.push(stub);
-    process.env.NOMI_LOCAL_TEXT_PROBE_BASE_URLS = `http://127.0.0.1:${stub.port}/v1`;
+    vi.stubEnv("NOMI_LOCAL_TEXT_PROBE_BASE_URLS", `http://127.0.0.1:${stub.port}/v1`);
     try {
       const result = await probeLocalTextEndpoints();
       expect(result.hits).toHaveLength(1);
       expect(result.hits[0].models).toEqual(["env-model"]);
     } finally {
-      delete process.env.NOMI_LOCAL_TEXT_PROBE_BASE_URLS;
+      vi.stubEnv("NOMI_LOCAL_TEXT_PROBE_BASE_URLS", undefined);
     }
   });
 });

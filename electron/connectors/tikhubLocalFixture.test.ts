@@ -1,5 +1,5 @@
 import http from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getTikhubTestOrigin, resolveShareVideo, TikhubConnectorError } from "./tikhubConnector";
 import { imageEditGuardError } from "../catalog/taskParams";
 
@@ -17,26 +17,26 @@ async function startLocalServer(handler: (request: http.IncomingMessage, respons
 }
 
 function useLocalOrigin(origin: string): string {
-  process.env.NOMI_E2E = "1";
-  process.env.NOMI_TIKHUB_TEST_ORIGIN = origin;
+  vi.stubEnv("NOMI_E2E", "1");
+  vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", origin);
   return new URL(origin).host;
 }
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
-  if (previousEnv.e2e === undefined) delete process.env.NOMI_E2E;
-  else process.env.NOMI_E2E = previousEnv.e2e;
-  if (previousEnv.origin === undefined) delete process.env.NOMI_TIKHUB_TEST_ORIGIN;
-  else process.env.NOMI_TIKHUB_TEST_ORIGIN = previousEnv.origin;
+  if (previousEnv.e2e === undefined) vi.stubEnv("NOMI_E2E", undefined);
+  else vi.stubEnv("NOMI_E2E", previousEnv.e2e);
+  if (previousEnv.origin === undefined) vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", undefined);
+  else vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", previousEnv.origin);
 });
 
 describe("TikHub local upstream contract", () => {
   it("N: refuses a malformed or non-E2E test origin before any network call", () => {
-    process.env.NOMI_TIKHUB_TEST_ORIGIN = "http://127.0.0.1:43100";
+    vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", "http://127.0.0.1:43100");
     expect(() => getTikhubTestOrigin()).toThrow(/E2E/);
 
-    process.env.NOMI_E2E = "1";
-    process.env.NOMI_TIKHUB_TEST_ORIGIN = "not a URL";
+    vi.stubEnv("NOMI_E2E", "1");
+    vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", "not a URL");
     expect(() => getTikhubTestOrigin()).toThrow(/无效/);
   });
 
@@ -62,8 +62,8 @@ describe("TikHub local upstream contract", () => {
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
     const host = `127.0.0.1:${(server.address() as { port: number }).port}`;
-    process.env.NOMI_E2E = "1";
-    process.env.NOMI_TIKHUB_TEST_ORIGIN = `http://${host}`;
+    vi.stubEnv("NOMI_E2E", "1");
+    vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", `http://${host}`);
 
     const result = await resolveShareVideo("https://v.douyin.com/local-fixture/", "fixture-key", {
       resolveHost: async () => host,
@@ -126,7 +126,7 @@ describe("TikHub local upstream contract", () => {
       failover: async () => null,
     })).rejects.toMatchObject({ kind: "no-route" });
 
-    process.env.NOMI_TIKHUB_TEST_ORIGIN = "https://not-loopback.example.test";
+    vi.stubEnv("NOMI_TIKHUB_TEST_ORIGIN", "https://not-loopback.example.test");
     await expect(resolveShareVideo("https://v.douyin.com/local-fixture/", "fixture-key", {
       resolveHost: async () => "api.tikhub.io",
     })).rejects.toMatchObject({ kind: "bad-response" });

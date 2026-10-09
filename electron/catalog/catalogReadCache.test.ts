@@ -33,14 +33,14 @@ async function seededStore() {
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-catalog-cache-"));
-  process.env.NOMI_SETTINGS_DIR = root;
+  vi.stubEnv("NOMI_SETTINGS_DIR", root);
   keychain.unlocked = true;
   keychain.decrypts = 0;
   vi.resetModules();
 });
 
 afterEach(() => {
-  delete process.env.NOMI_SETTINGS_DIR;
+  vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
