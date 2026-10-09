@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查 · 模型身份合并 + Sora 2 退役（2026-09-28）。零供应商调用、零花费、不碰真实资料与真密钥。
 //
 // 夹具（全部在临时目录里现造）：
@@ -37,7 +38,7 @@ const outDir = path.join(repoRoot, '.model-identity-walk')
 fs.rmSync(outDir, { recursive: true, force: true })
 fs.mkdirSync(outDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-model-identity-walk-'))
+const tempRoot = makeTempDir('nomi-model-identity-walk-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

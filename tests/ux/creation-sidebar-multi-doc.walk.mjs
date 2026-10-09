@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 创作资源树可达性走查（R13/R16）——用户 2026-09-06 报回归：
 // 「我们原来左边不是有剧本和分镜都能点吗？我们现在只能有这个方案，点不到原来那些地方了。」
 //
@@ -18,7 +19,7 @@ import { clickOrFail, expectCount, expectText, expectVisible, screenshotSettled 
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-sidebar-'))
+const tempRoot = makeTempDir('nomi-creation-sidebar-')
 const projectsDir = path.join(tempRoot, 'projects')
 const settingsDir = path.join(tempRoot, 'settings')
 const outDir = process.env.CREATION_SIDEBAR_OUT || path.join(repoRoot, 'tests/ux/shots/creation-sidebar-multi-doc')

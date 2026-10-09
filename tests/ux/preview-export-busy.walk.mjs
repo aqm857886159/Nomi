@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 导出 MP4 忙态契约（设计系统 §1.6 C1）—— R13 零额度真机走查。
 // 用法: node tests/ux/preview-export-busy.walk.mjs
 // 产出: tests/ux/shots/preview-export-busy/*.png（自己 Read 亲眼看）
@@ -29,7 +30,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/preview-export-busy')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-export-busy-'))
+const tempRoot = makeTempDir('nomi-export-busy-')
 const settingsDir = path.join(tempRoot, 'settings')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')

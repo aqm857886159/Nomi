@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 群反馈回归：「导入的视频播不了」「生成的视频过段时间打开播不了」——两者在没挂播放守卫的面上
 // 都长成同一副样子：纯灰壳 / 纯黑 + 一个字提示都没有，用户既判断不了也修不了。
 //
@@ -20,7 +21,7 @@ import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-video-heal-'))
+const root = makeTempDir('nomi-video-heal-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'video-playback-heal-walk'

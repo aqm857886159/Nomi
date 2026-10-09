@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Tests the walk's real setup/finally, substituting only its UI task body.
 // Synthetic files only: no app, provider, user settings or credentials are accessed.
 import fs from 'node:fs'
@@ -24,7 +25,7 @@ const testTree = ts.factory.updateSourceFile(tree, tree.statements.filter((state
     ))]), statement.catchClause, statement.finallyBlock)
 }))
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-const execute = new AsyncFunction('fs', 'os', 'path', 'createHash', 'repoRoot', 'process',
+const execute = new AsyncFunction('fs', 'os', 'path', 'createHash', 'repoRoot', 'process', 'makeTempDir',
   'finalizeRuntimeWalk', 'stopRuntimeApp', 'runUiTask', 'expect', 'realNomiProfile', 'removeRealCredentials', 'seedRealCredentialStore',
   ts.createPrinter().printFile(testTree))
 const variableIndex = (name) => uiTry.tryBlock.statements.findIndex((statement) => ts.isVariableStatement(statement)
@@ -70,7 +71,7 @@ let originalExitCode
 const originalWrite = fs.writeFileSync.bind(fs)
 
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-provider-cleanup-test-'))
+  root = makeTempDir('nomi-provider-cleanup-test-')
   sourceFile = path.join(root, 'source', 'model-catalog.json')
   fs.mkdirSync(path.dirname(sourceFile))
   originalWrite(sourceFile, JSON.stringify({
@@ -95,7 +96,7 @@ afterEach(() => {
 async function run(runUiTask = async () => {}) {
   const isolatedProcess = { argv: ['node', 'walk', '--packaged', '/synthetic/Nomi.app/Contents/MacOS/Nomi'],
     env: { NOMI_AGENT_LIVE: '1', NOMI_REAL_PROFILE_USER_DATA: path.dirname(sourceFile) } }
-  await execute(fs, { ...os, tmpdir: () => root }, path, createHash, root, isolatedProcess,
+  await execute(fs, { ...os, tmpdir: () => root }, path, createHash, root, isolatedProcess, makeTempDir,
     finalizeRuntimeWalk, stopRuntimeApp, runUiTask, expect, realNomiProfile, removeRealCredentials, seedRealCredentialStore)
   const output = fs.readdirSync(path.join(root, '.tmp'))
   expect(output).toHaveLength(1)

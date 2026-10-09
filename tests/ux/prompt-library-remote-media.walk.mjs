@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 验收走查（提示词库第三方示例媒体 · 2026-09-25 用户 Mac 控制台：
 // cdn.openai.com/sora/videos/*.mp4 被 COEP 拦、video.twimg.com/*.mp4 403）。
 //
@@ -17,7 +18,7 @@ const shotsDir = path.join(repoRoot, `tests/ux/shots/prompt-library-remote-media
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-prompt-media-'))
+const tempRoot = makeTempDir('nomi-prompt-media-')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'walk-prompt-media'
 const projectName = locale === 'en' ? 'Prompt media' : '提示词示例媒体'

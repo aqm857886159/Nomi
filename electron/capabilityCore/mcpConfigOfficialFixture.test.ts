@@ -38,11 +38,11 @@ const roots: string[] = []
 beforeEach(() => {
   homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-official-mcp-'))
   roots.push(homeDir)
-  process.env[CAPABILITY_DIR_ENV] = path.join(homeDir, '.nomi-cap')
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(homeDir, '.nomi-cap'))
   ensureToken()
 })
 afterEach(() => {
-  delete process.env[CAPABILITY_DIR_ENV]
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 「读 git 路径列表」门岗的阳性对照（2026-09-07）。
 //
 // 一道只会绿的门岗和没有门岗是一回事，所以这里两个方向都钉：
@@ -56,7 +57,7 @@ test('真仓库当下是干净的；任意一处退回默认写法 → 门岗必
   // realpath：macOS 的 tmpdir 是 /var → /private/var 的符号链接，而门岗的「我是不是主模块」
   // 判据比的是 `path.resolve(process.argv[1])` 与 `import.meta.url`，前者不解符号链接。
   // 不 realpath 的话 CLI 那段根本不执行，测试拿到的 exit 0 是「没跑」而不是「跑了没问题」。
-  const fixture = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-quotepath-gate-')))
+  const fixture = makeTempDir('nomi-quotepath-gate-')
   t.after(() => fs.rmSync(fixture, { recursive: true, force: true }))
   fs.mkdirSync(path.join(fixture, 'scripts/claude-hooks'), { recursive: true })
   const fixtureGate = path.join(fixture, 'scripts/check-git-path-quoting.mjs')

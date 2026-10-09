@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getGlobalDispatcher, setGlobalDispatcher, type Dispatcher } from "undici";
 // 从纯模块导入，避免触发 electron 运行时（CI 纯 Node 会失败）。Session 仅类型引用，已被擦除。
 // ⚠️ 本模块**刻意不引 proxySettings**（那条链 → runtimePaths → electron），偏好由调用方注入。
@@ -241,11 +241,11 @@ describe("resolveProxy — 用户偏好先于系统探测", () => {
   const PROXY_ENV_KEYS = ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"];
   function withoutProxyEnv<T>(run: () => T): T {
     const saved = new Map(PROXY_ENV_KEYS.map((k) => [k, process.env[k]] as const));
-    for (const k of PROXY_ENV_KEYS) delete process.env[k];
+    for (const k of PROXY_ENV_KEYS) vi.stubEnv(k, undefined);
     try {
       return run();
     } finally {
-      for (const [k, v] of saved) if (v !== undefined) process.env[k] = v;
+      for (const [k, v] of saved) if (v !== undefined) vi.stubEnv(k, v);
     }
   }
 
@@ -261,14 +261,14 @@ describe("resolveProxy — 用户偏好先于系统探测", () => {
   it("跟随系统 · env 有值 → env 优先，不再问 session（用户显式设置压过系统）", async () => {
     const calls: string[] = [];
     const saved = process.env.HTTPS_PROXY;
-    process.env.HTTPS_PROXY = "http://10.1.1.1:8080";
+    vi.stubEnv("HTTPS_PROXY", "http://10.1.1.1:8080");
     try {
       const r = await resolveProxy(askedSession("PROXY 127.0.0.1:7897", calls), { mode: "system", customUrl: "" });
       expect(r).toEqual({ kind: "http", url: "http://10.1.1.1:8080", source: "env" });
       expect(calls).toEqual([]);
     } finally {
-      if (saved === undefined) delete process.env.HTTPS_PROXY;
-      else process.env.HTTPS_PROXY = saved;
+      if (saved === undefined) vi.stubEnv("HTTPS_PROXY", undefined);
+      else vi.stubEnv("HTTPS_PROXY", saved);
     }
   });
 });

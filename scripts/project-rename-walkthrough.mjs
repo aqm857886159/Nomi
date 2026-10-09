@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：项目库列表双击改名（#888，群反馈「现在需要点击去才能改名字」）。
 // 验证链：项目库 → 双击项目名 → 变输入框 → 改名 Enter → 卡片名更新 + 磁盘 project.json name 改了。
 // 用法：node scripts/project-rename-walkthrough.mjs（需先 pnpm build）
@@ -10,8 +11,8 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.project-rename-walk')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rename-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rename-projects-'))
+const settingsDir = makeTempDir('rename-settings-')
+const projectsDir = makeTempDir('rename-projects-')
 
 const { app, win } = await launchNomiApp({
   name: 'project-rename',

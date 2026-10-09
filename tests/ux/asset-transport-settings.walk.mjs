@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 真页面走查：设置里的「素材上传通道」卡是否**如实**说出素材现在往哪传，
 // 以及「去配置 KIE」是否真把人送到 Key 输入框（而不是丢在模型列表页让人自己找）。零额度。
 //
@@ -13,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/asset-transport-settings')
 fs.mkdirSync(shotsDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-asset-transport-settings-'))
+const tempRoot = makeTempDir('nomi-asset-transport-settings-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

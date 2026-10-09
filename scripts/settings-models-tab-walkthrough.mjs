@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：设置新增「模型」tab（2026-08-12 用户拍板）。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 //
@@ -18,8 +19,8 @@ const shot = async (win, name) => { await win.screenshot({ path: path.join(outDi
 
 const { app, win } = await launchNomiApp({
   name: 'settings-models',
-  settingsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-models-set-')),
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-models-proj-')),
+  settingsDir: makeTempDir('settings-models-set-'),
+  projectsDir: makeTempDir('settings-models-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

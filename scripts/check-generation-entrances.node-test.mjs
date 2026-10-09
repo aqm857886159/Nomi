@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 门岗自测：**先验它会红**（R17）。三条判据各一条阳性对照 + 一条现状为绿的对照。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -12,7 +13,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 /** 把门岗读的四样东西复制到一个临时根上，这样阳性对照不碰真仓库。 */
 function sandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-entrances-gate-'))
+  const root = makeTempDir('nomi-entrances-gate-')
   for (const relative of [
     'scripts/generation-entrances-ledger.json',
     'electron/parity/generationEntrances.ts',

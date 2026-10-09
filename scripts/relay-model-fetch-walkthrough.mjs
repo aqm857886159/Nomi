@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：中转站接入的两条根因（都由「用户接了个只有视频模型的 new-api 中转」暴露）。
 //
 // 根因 1｜拉模型：new-api/one-api 的后台是 SPA，**未知路径一律 200 + index.html**。旧实现只看
@@ -22,7 +23,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.relay-fetch-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'relay-fetch-walk-'))
+const settingsDir = makeTempDir('relay-fetch-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 const REAL_URL = 'https://sd.dawnloadai.com:8443' // 用户报障的真实中转（裸地址）

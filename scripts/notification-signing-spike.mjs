@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 否决门 spike：打包后的 Nomi.app 在当前签名状态下，macOS 通知还弹不弹。
 //
 // 为什么需要它：Electron 42 把 macOS 通知从 NSUserNotification 迁到 UNNotification，
@@ -41,7 +42,7 @@ const grab = (re) => (sig.match(re)?.[1] ?? '?').trim()
 console.log(`  🔏 被测物：${bundlePath}`)
 console.log(`     Identifier=${grab(/Identifier=(.+)/)}  Signature=${grab(/Signature=(.+)/)}  Team=${grab(/TeamIdentifier=(.+)/)}`)
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-notif-spike-'))
+const tempRoot = makeTempDir('nomi-notif-spike-')
 const { app } = await launchNomiApp({
   name: 'notification-signing-spike',
   executablePath,

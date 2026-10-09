@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 钉住脚手架与 validator 的咬合（2026-09-02）：buildSkeleton 的字段面必须和
 // scripts/root-cause-contracts.mjs 的结构层要求一一对齐——validator 加了必填字段而骨架没跟上，
 // 这里的「填完即绿」用例会当场红；骨架带着 TODO 想混过门，「未填必红」用例保证它混不过。
@@ -105,7 +106,7 @@ test('结构变更骨架包含路径、行为保持和验证局限证据，而�
 })
 
 test('writeSkeleton 落盘为合法 JSON、拒绝覆盖、拒绝越界 id', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-contract-scaffold-'))
+  const dir = makeTempDir('nomi-contract-scaffold-')
   try {
     const target = writeSkeleton('2026-09-02-demo', dir)
     const parsed = JSON.parse(fs.readFileSync(target, 'utf8'))

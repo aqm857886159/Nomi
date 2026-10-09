@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：dreamina CLI「exit=0 只吐错误行」→ 节点立刻报人话错误（91bb7695 修复验证）。
 // 本机此刻 CLI 登录态真实失效（authsdk: refresh failed）= 活体故障注入，不花任何积分。
 // 期望：视频节点用「即梦 Seedance 2.0（会员）」提交后 **不再**空转「仍在生成」，
@@ -12,8 +13,8 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.dreamina-error-lab')
 fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dreamina-walk-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dreamina-walk-projects-'))
+const settingsDir = makeTempDir('dreamina-walk-settings-')
+const projectsDir = makeTempDir('dreamina-walk-projects-')
 
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 

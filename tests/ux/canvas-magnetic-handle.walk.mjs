@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实 Electron：磁吸把手的「迁移前设计」验收。
 //
 // 合同（2026-09-11 用户拍板恢复）：
@@ -17,7 +18,7 @@ import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fi
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const evidence = path.join(root, 'docs/plan/canvas-magnetic-handle-evidence')
 const phase = process.argv.includes('--red') ? 'red' : 'restored'
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-magnetic-'))
+const temp = makeTempDir('nomi-magnetic-')
 const fixture = createCanvasPerformanceFixture({ projectsDir: path.join(temp, 'projects'), scale: 'S', projectName: '磁吸连线验收' })
 const images = fixture.record.payload.generationCanvas.nodes.filter((node) => node.kind === 'image').slice(0, 3)
 // 目标卡与源卡**只隔 150 画布像素**：这正是被否掉的常驻带子吞掉整条连线的间距。

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 浮层层级契约 —— R13 零额度真机走查。
 // 用法: node tests/ux/overlay-z-order.walk.mjs
 // 产出: tests/ux/shots/overlay-z-order/*.png（自己 Read 亲眼看）
@@ -35,7 +36,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/overlay-z-order')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-overlay-z-order-'))
+const tempRoot = makeTempDir('nomi-overlay-z-order-')
 const settingsDir = path.join(tempRoot, 'settings')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 新项目默认位置真机旅程：设置页可见 → 新项目落到自定义根 → 恢复默认不搬旧项目。
 // 目录选择器本身由主进程单测覆盖；本旅程预写同一设置文件，避免自动化操纵系统原生对话框。
 import { launchNomiApp } from './_launchApp.mjs'
@@ -11,7 +12,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-07-project-location')
 fs.mkdirSync(outDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-project-location-walk-'))
+const tempRoot = makeTempDir('nomi-project-location-walk-')
 const settingsRoot = path.join(tempRoot, 'settings')
 const customProjectsRoot = path.join(tempRoot, 'projects-on-another-drive')
 const defaultDocumentsRoot = path.join(tempRoot, 'documents')

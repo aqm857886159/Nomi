@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：同名 modelKey 跨厂商互吞/翻家修复（2026-07-31 群反馈）。
 // 场景照抄用户报障：先接「中转甲」再接「中转乙」，两家都提供 gpt-image-2。
 // 修前：甲的选项被乙整条吞掉（picker 只剩乙）、锁定下拉两项撞值锁不住、vendor 同步 effect
@@ -51,8 +52,8 @@ function catalogFixture() {
   }
 }
 
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'model-dedup-walk-settings-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'model-dedup-walk-projects-'))
+const settingsDir = makeTempDir('model-dedup-walk-settings-')
+const projectsDir = makeTempDir('model-dedup-walk-projects-')
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify(catalogFixture(), null, 2))
 
 const { app, win } = await launchNomiApp({

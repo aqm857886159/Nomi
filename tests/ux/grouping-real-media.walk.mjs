@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 编组优化的真实媒体验收：真实 Electron + 持久化画布节点 + 仓库登记的真实 AI 视频/抽帧。
 // 不调用供应商、不触发付费生成；验的是编组交互是否承载真实图片与视频节点。
 import fs from 'node:fs'
@@ -19,7 +20,7 @@ if (!fs.existsSync(sourceVideo)) throw new Error(`真实视频缺失：${sourceV
 fs.rmSync(outputDir, { recursive: true, force: true })
 fs.mkdirSync(outputDir, { recursive: true })
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-grouping-real-media-'))
+const temp = makeTempDir('nomi-grouping-real-media-')
 const projectsDir = path.join(temp, 'projects')
 const projectId = 'grouping-real-media'
 const projectRoot = path.join(projectsDir, projectId)

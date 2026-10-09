@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实用户任务走查（应用内完整闭环）：剧本 → 拆镜头 → 落画布 → 逐镜真出图 → 排时间轴出初稿。
 // 全程走**真实 UI**（用户点的那些按钮），不 stub agent/模型：创作区点「拆成镜头·落画布」→ 规划师(真文本大脑)
 // 出方案 → 分镜页 footer「生成未生成的 N 镜」→ 按需 materialize 落节点(定妆卡+镜头) → 付费确认 → 真出图(依赖波次
@@ -24,7 +25,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
 
 // 隔离 userData（不撞真实运行实例/项目），拷真 model-catalog.json 复用已连模型 + safeStorage key
 // （Windows 连同 Local State 钥匙一起拷，否则密文解不开；真实资料目录在哪只问 _realProfile.mjs）。
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-draftloop-'))
+const base = makeTempDir('nomi-draftloop-')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

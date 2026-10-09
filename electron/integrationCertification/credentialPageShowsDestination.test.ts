@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createCredentialElicitationStore, withCredentialElicitationTicket } from "./credentialElicitation";
 import { handleIntegrationCredentialHttpRequest } from "./credentialElicitationHttp";
@@ -54,7 +54,7 @@ async function renderCredentialPage(baseUrl: string): Promise<{ status: number; 
 
 describe("贴 key 页把「这把 key 要去哪」摆出来", () => {
   beforeEach(() => {
-    process.env.NOMI_CAPABILITY_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-credential-page-"));
+    vi.stubEnv("NOMI_CAPABILITY_DIR", fs.mkdtempSync(path.join(os.tmpdir(), "nomi-credential-page-")));
   });
 
   it("私网（LAN 中转 / 本地 ComfyUI）地址也原样显示——否则「亲眼确认」在这些用户身上不成立", async () => {

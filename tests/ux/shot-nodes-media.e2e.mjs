@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Real Electron decoding + actual complete StoryboardShotRow host, fixed renderer props.
 // No production generation request; all profile/project/media writes are isolated.
 import fs from 'node:fs'
@@ -6,7 +7,7 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shot-nodes-media-'))
+const tempRoot = makeTempDir('nomi-shot-nodes-media-')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'shot-nodes-media'
 const projectDir = path.join(projectsDir, projectId)

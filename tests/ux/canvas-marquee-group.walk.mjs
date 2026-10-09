@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 框选 →（在框选罩子上）右键 → 建组：一条真实用户任务的端到端走查。
 //
 // 它证的是什么（2026-09-06 真机取证，取证截图见 tests/ux/shots/group-frame-now/00b2、00b3）：
@@ -33,7 +34,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-marquee-group')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-marquee-group-'))
+const tempRoot = makeTempDir('nomi-marquee-group-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 fs.mkdirSync(userDataDir, { recursive: true })

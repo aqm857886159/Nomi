@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16: a creator reviews a rough cut and can tell what was trimmed,
 // which authored transitions render, and which ones need revision.
 // Zero-spend fixture: persisted timeline metadata only, no generation or media decoding.
@@ -13,7 +14,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/timeline-visual-feedback')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-timeline-feedback-'))
+const root = makeTempDir('nomi-timeline-feedback-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

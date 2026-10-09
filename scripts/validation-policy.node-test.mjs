@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -415,7 +416,7 @@ test('mixed changes merge risks monotonically and preserve normalized Git entrie
 })
 
 test('GitHub output exposes every policy dimension with stable snake-case names', (t) => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-validation-output-'))
+  const tempRoot = makeTempDir('nomi-validation-output-')
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }))
   const outputPath = path.join(tempRoot, 'output')
   writeGithubOutput(classifyValidationPolicy(['electron/preload.ts']), outputPath)

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -7,7 +8,7 @@ import { createServer } from 'vite'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 let server, browser, page, cacheDir
 beforeAll(async () => {
-  cacheDir = mkdtempSync(path.join(tmpdir(), 'nomi-t7-vite-lifecycle-'))
+  cacheDir = makeTempDir('nomi-t7-vite-lifecycle-')
   server = await createServer({ configFile: false, cacheDir, server: { host: '127.0.0.1', port: 0, hmr: false, watch: null } })
   await server.listen()
   browser = await chromium.launch({ headless: true })

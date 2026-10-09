@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 760x560 Settings shell + 880x640 third-level model dialog + stale-model recovery.
 // Usage: pnpm build && node scripts/settings-fixed-shell-walkthrough.mjs
 import { mkdirSync, mkdtempSync } from 'node:fs'
@@ -12,8 +13,8 @@ mkdirSync(outDir, { recursive: true })
 
 const { app, win } = await launchNomiApp({
   name: 'settings-fixed-shell',
-  settingsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-fixed-shell-set-')),
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'settings-fixed-shell-proj-')),
+  settingsDir: makeTempDir('settings-fixed-shell-set-'),
+  projectsDir: makeTempDir('settings-fixed-shell-proj-'),
   env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist', 'index.html')}` },
   syntheticCredentialStorage: true,
   settleMs: 1600,

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 后台生成 / 截图热键提交后切项目（PR 802 根因修复的真实入口验收）。
 // 用法: node tests/ux/project-switch-background-run.walk.mjs   产出: tests/ux/shots/project-switch-background-run/*.png
 //
@@ -23,7 +24,7 @@ if (!['single', 'variants', 'storyboard-first-frame', 'storyboard-batch'].includ
 const shotsDir = process.env.NOMI_BACKGROUND_OUT || path.join(repoRoot, `tests/ux/shots/project-switch-background-run-${mode}`)
 const expectedRequests = mode === 'variants' ? 3 : mode === 'storyboard-first-frame' ? 2 : mode === 'storyboard-batch' ? 7 : 1
 fs.rmSync(shotsDir, { recursive: true, force: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-project-switch-run-'))
+const tempRoot = makeTempDir('nomi-project-switch-run-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
