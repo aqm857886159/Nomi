@@ -1,3 +1,4 @@
+import { UpdatePill } from '../../ui/app-shell/UpdatePill'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { getAppLocale } from '../../i18n'
@@ -243,6 +244,7 @@ export default function ProjectLibraryPage({
   // 搬走后主卡独占「引导」语义；语言/外观归位到设置「通用」。剩下=模型 · 浏览器 · 设置。
   const libraryTopActions = (
     <div className="app-no-drag flex items-center gap-1">
+      <UpdatePill host="library" />
       {showModelEntry ? (
         <button
           type="button"

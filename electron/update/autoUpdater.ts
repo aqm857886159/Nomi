@@ -6,7 +6,7 @@ import { assertTrustedSender } from "../ipcSenderGuard";
 import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
 import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/telemetryEvents";
 import type { TelemetryResult } from "../shared/contracts/telemetry";
-import { classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate } from "./autoCheck";
+import { classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
 import { createInstallOnQuit } from "./installOnQuit";
 import { digestReleaseNotesHtml } from "../shared/releaseNotesDigest";
 import { currentUpdaterState, publishUpdateEvent } from "./updateHub";
@@ -62,8 +62,7 @@ let loadedUpdater: Awaited<ReturnType<typeof loadAutoUpdater>> | null = null;
 let reminderStore: UpdateReminderStore | null = null;
 
 function publishError(error: unknown, at: UpdaterErrorStage = stage): void {
-  const reason = classifyUpdateError(error) === "network" ? "network" : "other";
-  publishUpdateEvent({ type: "error", message: describeError(error), stage: at, reason });
+  publishUpdateEvent({ type: "error", message: describeError(error), stage: at, reason: describeUpdateFailure(error) });
 }
 
 /** 从 electron-updater 给的 releaseNotes（单段 HTML，或 fullChangelog 下每个新版本一段）摘出每个版本的两种语言摘要。 */

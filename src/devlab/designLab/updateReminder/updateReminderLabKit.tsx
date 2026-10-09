@@ -19,7 +19,7 @@ import { holdDesignLabReady } from '../labReadyHold'
 import notes0230 from '../../../../docs/release-notes/v0.23.0.md?raw'
 import notes0231 from '../../../../docs/release-notes/v0.23.1.md?raw'
 import { digestReleaseNotesHtml } from '../../../../electron/shared/releaseNotesDigest'
-import { buildReleaseNotesUrl, dialogDigest, deriveUpdatedCard, type UpdateLocale, type UpdaterErrorReason, type UpdaterErrorStage, type VersionNotes } from '../../../../electron/shared/updateReminder'
+import { UPDATER_INITIAL_STATE, buildReleaseNotesUrl, dialogDigest, deriveUpdatedCard, type UpdateLocale, type UpdaterErrorReason, type UpdaterErrorStage, type VersionNotes } from '../../../../electron/shared/updateReminder'
 import { UpdatePillView, type UpdatePillPhase } from '../../../ui/app-shell/UpdatePill'
 import { UpdateDialogCard, type UpdateDialogView } from '../../../ui/app-shell/UpdateDialog'
 import { HotfixBannerView } from '../../../ui/app-shell/HotfixBanner'
@@ -71,7 +71,7 @@ const PROJECT_NAMES: Record<LabLocale, readonly string[]> = {
 const HOURS_AGO = [0.4, 3, 26, 50, 120, 300]
 const HUES = [210, 28, 160, 330, 260, 95]
 
-function installLibraryBridge(locale: LabLocale): void {
+function installLibraryBridge(locale: LabLocale, badge?: BadgeSpec): void {
   const now = Date.now()
   const projects = PROJECT_NAMES[locale].map((name, index) => {
     const url = cover(HUES[index])
@@ -83,6 +83,43 @@ function installLibraryBridge(locale: LabLocale): void {
     ...(host.nomiDesktop ?? {}),
     platform: 'win32',
     projects: { ...((host.nomiDesktop?.projects as object) ?? {}), list: () => projects },
+  }
+  installUpdateBridge(badge)
+}
+
+/**
+ * 胶囊走**生产的连接件**（UpdatePill 读 useUpdater，useUpdater 读主进程快照）：这里只装一个假的更新桥，
+ * 把夹具状态当作「主进程快照」喂进去，胶囊由真顶栏 / 真项目库窗口栏自己渲染在它们现役的位置上。
+ * 窄屏图标态靠 CSS 视口断点，实验室视口固定 1440，那一格走插槽强制 compact（下面 InjectedSlot）。
+ */
+function installUpdateBridge(badge?: BadgeSpec): void {
+  const host = window as unknown as { nomiDesktop?: Record<string, unknown> }
+  const live = badge && !badge.compact ? badge : null
+  const state = live
+    ? {
+        ...UPDATER_INITIAL_STATE,
+        phase: live.phase,
+        latestVersion: live.version,
+        percent: live.percent ?? 0,
+        notes: [NOTES['0.23.1']],
+        errorMessage: live.phase === 'error' ? 'net::ERR_CONNECTION_RESET' : '',
+        errorStage: live.phase === 'error' ? (live.failedStage ?? 'download') : null,
+        errorReason: live.phase === 'error' ? ('interrupted' as const) : null,
+      }
+    : UPDATER_INITIAL_STATE
+  const noopAsync = async (): Promise<{ ok: boolean }> => ({ ok: true })
+  host.nomiDesktop = {
+    ...(host.nomiDesktop ?? {}),
+    update: {
+      appInfo: async () => ({ version: '0.23.0', platform: 'win32', arch: 'x64', canAutoInstall: true, canCheckUpdates: true }),
+      snapshot: async () => ({ state, memory: { dismissedBanners: [], updatedCard: null } }),
+      onEvent: () => () => undefined,
+      check: noopAsync,
+      download: noopAsync,
+      install: noopAsync,
+      openDownload: noopAsync,
+      dismiss: async () => null,
+    },
   }
 }
 
@@ -137,7 +174,7 @@ export function LibraryStage({ locale = 'zh-CN', badge, top, clipHeight }: {
   /** 只看窗口栏那一截（胶囊状态）时裁掉下面。 */
   clipHeight?: number
 }): JSX.Element {
-  React.useMemo(() => installLibraryBridge(locale), [locale])
+  React.useMemo(() => installLibraryBridge(locale, badge), [locale, badge])
   const localeReady = useLabLocale(locale)
   const root = React.useRef<HTMLDivElement | null>(null)
   return (
@@ -160,7 +197,7 @@ export function LibraryStage({ locale = 'zh-CN', badge, top, clipHeight }: {
             journeyTourSeen
             hasTextModel
           />
-          {badge ? (
+          {badge?.compact ? (
             <InjectedSlot root={root} placement={LIBRARY_TOP_ACTIONS}>
               <UpdatePillView host="library" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
             </InjectedSlot>
@@ -173,6 +210,7 @@ export function LibraryStage({ locale = 'zh-CN', badge, top, clipHeight }: {
 }
 
 export function AppBarStage({ locale = 'zh-CN', badge }: { locale?: LabLocale; badge: BadgeSpec }): JSX.Element {
+  React.useMemo(() => installUpdateBridge(badge), [badge])
   const localeReady = useLabLocale(locale)
   const root = React.useRef<HTMLDivElement | null>(null)
   return (
@@ -193,12 +231,14 @@ export function AppBarStage({ locale = 'zh-CN', badge }: { locale?: LabLocale; b
             onOpenModelCatalog={noop}
             onOpenSettings={noop}
           />
-          <InjectedSlot root={root} placement={APPBAR_RIGHT}>
+          {badge.compact ? (
+            <InjectedSlot root={root} placement={APPBAR_RIGHT}>
             <span className="inline-flex items-center gap-2.5">
               <UpdatePillView host="appbar" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
               <span className="w-px h-[18px] bg-workbench-border" aria-hidden="true" />
             </span>
-          </InjectedSlot>
+            </InjectedSlot>
+          ) : null}
         </>
       ) : null}
     </div>

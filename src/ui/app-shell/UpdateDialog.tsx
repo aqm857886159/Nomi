@@ -6,6 +6,8 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconAlertTriangle,
+  IconChevronDown,
+  IconChevronRight,
   IconDownload,
   IconExternalLink,
   IconPackage,
@@ -74,6 +76,14 @@ function MetaRow({ icon, children }: { icon: React.ReactNode; children: React.Re
   )
 }
 
+/** 失败话术：先说原因，再说下一步（不承诺「会接着下」）。 */
+function failureKey(stage: UpdaterErrorStage | null | undefined, reason: UpdaterErrorReason | null | undefined): string {
+  if (stage === 'install') return 'updateReminder.dialog.failedInstall'
+  if (reason === 'offline') return 'updateReminder.dialog.failedOffline'
+  if (reason === 'interrupted') return 'updateReminder.dialog.failedInterrupted'
+  return 'updateReminder.dialog.failedOther'
+}
+
 export type UpdateDialogCardProps = {
   view: UpdateDialogView
   version: string
@@ -119,6 +129,7 @@ export function UpdateDialogCard({
 }: UpdateDialogCardProps): JSX.Element {
   const { t } = useTranslation()
   const noop = (): void => undefined
+  const [showRaw, setShowRaw] = React.useState(false)
   const shown = version
   const title = view === 'ready'
     ? t('updateReminder.dialog.readyTitle', { version: shown })
@@ -190,13 +201,28 @@ export function UpdateDialogCard({
       ) : null}
 
       {view === 'failed' ? (
-        <div className="mt-4 flex items-start gap-2 rounded-nomi-sm bg-workbench-danger-soft p-3 text-body-sm text-workbench-danger">
-          <IconAlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-          {/* 主进程的错误原文是英文技术串，不当正文：正文给人话，原文退成一行小字供反馈时引用。 */}
-          <span className="min-w-0">
-            <span className="block">{t(errorReason === 'network' ? 'updateReminder.dialog.failedNetwork' : 'updateReminder.dialog.failedBody')}</span>
-            {errorMessage ? <span className="mt-1 block break-all font-nomi-mono text-caption opacity-80">{errorMessage}</span> : null}
-          </span>
+        <div className="mt-4 rounded-nomi-sm bg-workbench-danger-soft p-3 text-body-sm text-workbench-danger">
+          <p className="m-0 flex items-start gap-2">
+            <IconAlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0" data-update-failure={errorReason ?? 'other'}>{t(failureKey(errorStage, errorReason))}</span>
+          </p>
+          {/* 原文是英文技术串，不当正文：折叠在「技术详情」里，和节点错误卡同一个做法。 */}
+          {errorMessage ? (
+            <div className="mt-2 pl-6">
+              <button
+                type="button"
+                onClick={() => setShowRaw((value) => !value)}
+                aria-expanded={showRaw}
+                className="inline-flex items-center gap-0.5 border-0 bg-transparent p-0 text-micro text-nomi-ink-40 hover:text-nomi-ink-60"
+              >
+                {t('generationCommon.error.technicalDetails')}
+                {showRaw ? <IconChevronDown size={13} stroke={1.6} /> : <IconChevronRight size={13} stroke={1.6} />}
+              </button>
+              {showRaw ? (
+                <pre className="mb-0 mt-1.5 max-h-[88px] select-text overflow-auto whitespace-pre-wrap break-all rounded-nomi-sm bg-nomi-ink-05 p-2 font-nomi-mono text-micro text-nomi-ink-60">{errorMessage}</pre>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

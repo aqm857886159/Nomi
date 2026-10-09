@@ -52,4 +52,5 @@
 ## 已知取舍
 
 - 非 0 退出码（致命错误退出）时排空项也会装：退出 owner 未暴露退出码，不为此改热点文件；后果是装一个用户已同意的更新。
-- 外壳线合入后：删 `UpdateReminderHost` 的 `floatingPill`，把 `<UpdatePill host="appbar|library" />`、`<HotfixBanner />`、`<UpdatedCard />` 摆进新顶栏 / 项目库通知位。
+- 外壳线合入后：把 `NomiAppBar` 右簇、`ProjectLibraryPage` 窗口栏里各一行 `<UpdatePill />` 按新顶栏重摆；把 `<HotfixBanner />`、`<UpdatedCard />` 摆进项目库通知位。
+- 失败话术按原因分三种（没连上网 / 连接中断了 / 其他）+ 安装失败一种；原文折叠在「技术详情」里，不承诺「会接着下」（缓存复用 unverified）。

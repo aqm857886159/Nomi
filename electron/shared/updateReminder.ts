@@ -30,7 +30,8 @@ export type VersionNotes = Readonly<{
 
 export type UpdaterPhase = "idle" | "checking" | "up-to-date" | "available" | "downloading" | "downloaded" | "error";
 export type UpdaterErrorStage = "check" | "download" | "install";
-export type UpdaterErrorReason = "network" | "other";
+/** 失败的人话分类：没连上网 / 连接中途断了 / 其他。界面按它挑话术，不把技术原文当正文。 */
+export type UpdaterErrorReason = "offline" | "interrupted" | "other";
 
 /** 主进程广播的更新事件（渲染层只读）。 */
 export type UpdateEvent =

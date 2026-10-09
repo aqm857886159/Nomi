@@ -32,8 +32,8 @@ describe("reduceUpdaterState", () => {
 
   it("下载失败保留版本与说明（重试直接重下，不用先重新检查），并记下是哪一步、什么原因", () => {
     const avail = reduceUpdaterState(UPDATER_INITIAL_STATE, { type: "available", version: "0.11.0", notes: [], sizeBytes: null, releaseUrl: null });
-    const failed = reduceUpdaterState(reduceUpdaterState(avail, { type: "progress", percent: 30 }), { type: "error", message: "ENOTFOUND", stage: "download", reason: "network" });
-    expect(failed).toMatchObject({ phase: "error", latestVersion: "0.11.0", errorStage: "download", errorReason: "network", errorMessage: "ENOTFOUND" });
+    const failed = reduceUpdaterState(reduceUpdaterState(avail, { type: "progress", percent: 30 }), { type: "error", message: "ENOTFOUND", stage: "download", reason: "offline" });
+    expect(failed).toMatchObject({ phase: "error", latestVersion: "0.11.0", errorStage: "download", errorReason: "offline", errorMessage: "ENOTFOUND" });
   });
 
   it("up-to-date 不残留上一次的版本号", () => {

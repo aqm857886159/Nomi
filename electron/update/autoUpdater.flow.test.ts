@@ -130,7 +130,7 @@ describe("更新流程：下载 → 退出时装 / 重启装 / 失败重试", ()
     });
     expect(await call("nomi:update:download")).toEqual({ ok: false });
     const failed = (await call("nomi:update:snapshot") as { state: Record<string, unknown> }).state;
-    expect(failed).toMatchObject({ phase: "error", errorStage: "download", errorReason: "network", latestVersion: "0.24.0" });
+    expect(failed).toMatchObject({ phase: "error", errorStage: "download", errorReason: "offline", latestVersion: "0.24.0" });
     await quit();
     expect(updater.install).not.toHaveBeenCalled(); // 失败撤销了同意
 

@@ -158,7 +158,7 @@ function UpdateBody({ updater, onClose }: { updater: ReturnType<typeof useUpdate
       <div>
         <div className="flex items-start gap-1.5 text-body-sm text-workbench-danger">
           <IconAlertTriangle size={16} className="mt-0.5 shrink-0" />
-          <span className="min-w-0 break-words">{updater.errorReason === 'network' ? t('updateReminder.dialog.failedNetwork') : updater.errorMessage || t('about.updateError')}</span>
+          <span className="min-w-0 break-words">{updater.errorReason === 'offline' ? t('updateReminder.dialog.failedOffline') : t('about.updateError')}</span>
         </div>
         <div className="mt-2.5 flex justify-end">
           <WorkbenchButton variant="default" onClick={updater.retry}>{t('common.retry')}</WorkbenchButton>

@@ -84,14 +84,14 @@ export const UPDATE_DIALOG_STATES: readonly LabState[] = [
     name: '⑧ 下载失败的弹窗：人话 + 原始错误一行小字，稍后 · 重试（中文）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" errorStage="download" errorReason="other" />,
+    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" errorStage="download" errorReason="interrupted" />,
   },
   {
     id: 'update-08-failed-dialog-en',
     name: '⑧ 下载失败的弹窗：人话 + 原始错误一行小字，稍后 · 重试（English）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" errorStage="download" errorReason="other" />,
+    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" errorStage="download" errorReason="interrupted" />,
   },
   {
     id: 'update-05-dialog-downloading-zh',
@@ -112,14 +112,14 @@ export const UPDATE_DIALOG_STATES: readonly LabState[] = [
     name: '⑧ 离线 / 断网时的下载失败：说「网络没连上」，稍后 · 重试，一次点击就重下（中文）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="getaddrinfo ENOTFOUND github.com" errorStage="download" errorReason="network" />,
+    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="getaddrinfo ENOTFOUND github.com" errorStage="download" errorReason="offline" />,
   },
   {
     id: 'update-08-failed-offline-en',
     name: '⑧ 离线 / 断网时的下载失败：说「网络没连上」，稍后 · 重试，一次点击就重下（English）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="getaddrinfo ENOTFOUND github.com" errorStage="download" errorReason="network" />,
+    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="getaddrinfo ENOTFOUND github.com" errorStage="download" errorReason="offline" />,
   },
   {
     id: 'update-08-install-failed-zh',

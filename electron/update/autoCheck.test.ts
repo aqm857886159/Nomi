@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { AUTO_CHECK_FIRST_DELAY_MS, AUTO_CHECK_INTERVAL_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate } from './autoCheck'
+import { AUTO_CHECK_FIRST_DELAY_MS, AUTO_CHECK_INTERVAL_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from './autoCheck'
 
 describe('自动检查调度（假时钟）', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -50,6 +50,17 @@ describe('失败原因只落枚举', () => {
     expect(classifyUpdateError(Object.assign(new Error('x'), { code: 'ERR_UPDATER_INVALID_UPDATE_INFO' }))).toBe('parse')
     expect(classifyUpdateError(new Error('something odd'))).toBe('other')
     expect(classifyUpdateError(null)).toBe('other')
+  })
+})
+
+describe('describeUpdateFailure · 给界面选话术', () => {
+  it('没连上网 / 连接中途断了 / 其他三类', () => {
+    expect(describeUpdateFailure(Object.assign(new Error('getaddrinfo ENOTFOUND github.com'), { code: 'ENOTFOUND' }))).toBe('offline')
+    expect(describeUpdateFailure(new Error('net::ERR_INTERNET_DISCONNECTED'))).toBe('offline')
+    expect(describeUpdateFailure(new Error('net::ERR_CONNECTION_RESET'))).toBe('interrupted')
+    expect(describeUpdateFailure(Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }))).toBe('interrupted')
+    expect(describeUpdateFailure(new Error('spawn EACCES'))).toBe('other')
+    expect(describeUpdateFailure(null)).toBe('other')
   })
 })
 
