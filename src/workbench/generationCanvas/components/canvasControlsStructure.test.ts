@@ -312,15 +312,14 @@ describe('generation canvas control structure', () => {
     expect(groupContract).toContain("group's semantic color")
   })
 
-  it('keeps React Flow edge labels explicit and accessible', () => {
+  it('keeps the edge disconnect control icon-only and accessible, with no mode pill or menu', () => {
     const edgeRenderer = source('../reactFlow/GenerationCanvasReactFlowNodes.tsx')
 
-    expect(edgeRenderer).toContain(
-      "const showLabel = !readOnly && (menuOpen || (mode !== 'reference' && (incident || selected)))",
-    )
-    expect(edgeRenderer).toContain('{!readOnly ? (')
-    expect(edgeRenderer).toContain("aria-label={t('generationCommon.canvas.edge.modeMenu')}")
-    expect(edgeRenderer).toContain("aria-label={t('generationCommon.canvas.edge.changeMode'")
+    expect(edgeRenderer).toContain('const showDisconnect = !readOnly && Boolean(edge) && (Boolean(selected) || hovered)')
+    expect(edgeRenderer).toContain('label={disconnectLabel}')
+    expect(edgeRenderer).not.toContain('edge-tag-pill')
+    expect(edgeRenderer).not.toContain('edge-menu')
+    expect(edgeRenderer).not.toContain('changeMode')
     expect(edgeRenderer).not.toContain('EDGE_TAG_DENSE_THRESHOLD')
     expect(edgeRenderer).not.toContain('hoveredEdgeId')
   })

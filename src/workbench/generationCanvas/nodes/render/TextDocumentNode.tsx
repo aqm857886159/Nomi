@@ -27,6 +27,7 @@ import { presetBlockHint, runTextPreset, useTextPresetBlocks } from '../textProc
 import { TEXT_PROCESS_PRESET_LABEL_KEY, countSplitItems, type TextProcessPresetId } from '../../runner/textProcessPresets'
 import { docToPlainText } from '../../runner/textGenerationDocument'
 import { NomiLoadingMark } from '../../../../design'
+import { useNodePromptFocusRequest } from '../nodePromptFocus'
 import { landSelectionRewrite } from '../../runner/textActions'
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [] }
@@ -102,6 +103,14 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
     // 换好的整篇是这次付费改写的落地：走同一个落地写口，撤销 / 重做不撤掉它。
     landSelectionRewrite(node.id, resultId, text && editor ? editor.getJSON() as unknown as TiptapDocJson : null)
   }, [resultId, pendingApplyId, node.id, node.result?.text, tools, editor])
+
+  // 配方 / 节点提示词聚焦请求要把光标放进正文（nodes/nodePromptFocus）。
+  const focusEditor = React.useMemo(() => (editor ? () => {
+    if (editor.isDestroyed) return false
+    editor.commands.focus('end')
+    return true
+  } : null), [editor])
+  useNodePromptFocusRequest(node.id, focusEditor)
 
   const showPlaceholder = isDocEmpty(node.contentJson)
   const presetBlocks = useTextPresetBlocks(node.id)
@@ -186,13 +195,14 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
           onBlur={() => commitPersistedChange()}
         >
           {showPlaceholder && !isFocused ? (
+            // 2026-10-08 拍板 ③：空文本卡用「试试」替换那句说明。外层不接指针（点空白处照样落进正文去写），只有列表项能点。
             <div className="pointer-events-none absolute inset-0">
               <NodeEmptyState
-                icon={<IconWriting size={20} stroke={1.6} />}
-                title={t('generationCommon.nodeEmpty.text.title')}
-                description={t('generationCommon.nodeEmpty.text.description')}
+                icon={<IconWriting size={18} stroke={1.5} />}
+                title={t('canvas.nodeKinds.text')}
+                description={t('generationCommon.nodeTry.status.text')}
                 action={(
-                  <div className="pointer-events-auto flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-empty-try>
+                  <div className="pointer-events-auto flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-empty-try data-node-try="text" role="group" aria-label={t('generationCommon.nodeTry.label')}>
                     {EMPTY_TRY_PRESETS.map((id, index) => (
                       <React.Fragment key={id}>
                         {index > 0 ? <span aria-hidden="true" className="text-caption text-nomi-ink-30">·</span> : null}

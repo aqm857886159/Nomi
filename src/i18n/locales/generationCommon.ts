@@ -114,13 +114,19 @@ export const zhGenerationCommon = {
     refAria: '引用文本节点「{{title}}」',
     refUntitled: '文本',
   },
+  // 空节点「试试」（2026-10-08 拍板 ③）：只搭结构（建好上下游空节点、切模式、聚焦提示词），不生成、不花钱。
+  nodeTry: {
+    label: '试试',
+    image: { text: '文字生图', reference: '参考图生图' },
+    video: { firstFrame: '首帧生视频', firstLast: '首尾帧生视频', text: '文字生视频' },
+    status: { image: '还没生成', video: '还没生成', text: '还没有内容', clip: '还没有片段' },
+    clip: { pick: '点选', library: '素材库', fromLibrary: '从素材库添加' },
+  },
   nodeEmpty: {
     derivedReady: { title: '提示词已填好', description: '选中它，点 ↑ 才开始生成' },
-    image: { title: '图片节点', description: '在下方输入提示词，点击生成。' },
-    video: { title: '视频节点', description: '在下方输入提示词，点击生成视频。' },
+    image: { title: '图片节点' },
+    video: { title: '视频节点' },
     audio: { title: '音频节点', description: '放入声音，为作品添加配乐或旁白。' },
-    text: { title: '文本', description: '还没有内容' },
-    clip: { title: '剪辑节点', description: '把视频节点连进来，或从素材库添加图片/视频。' },
     model3d: { title: '3D 模型节点', description: '描述想要的模型或连入参考图，生成一个 3D 模型。' },
     whiteboard: { title: '画板节点', description: '手绘草图或涂改参考，作为构图参考。', action: '打开画板' },
     director: { title: '导演台节点', description: '摆放角色与机位，出图出片当参考。', action: '进入导演台' },
@@ -129,10 +135,11 @@ export const zhGenerationCommon = {
     prop: { title: '道具节点', description: '放入道具参考图，让关键物件保持一致。' },
     panorama: { title: '全景节点', description: '放入全景图，作为环境参考。' },
     waiting: '已连接输入，等上游产出后继续。',
-    firstFrame: '先添加一张图片作为视频首帧。',
   },
   canvas: {
     aria: 'AI 影像创作画布',
+    // 「在画布上点选」顶栏（store/canvasPickMode；左「+」菜单、剪辑空态、@ 画布节点共用）。
+    pickMode: { title: '选择要引用的节点', exit: '退出点选', escKey: 'Esc' },
     // 画布边缘提示（新东西落在屏外 / 别的分类时，点它才过去）。一个 / 多个分开写：中文没有单复数，
     // 「1 个新节点在右侧」读着别扭，单个就不带数。
     arrival: {
@@ -149,9 +156,6 @@ export const zhGenerationCommon = {
     edge: {
       select: '选择连接线：{{source}} 到 {{target}}',
       disconnect: '断开连接：{{source}} 到 {{target}}',
-      disconnectAction: '断开连接',
-      changeMode: '修改连接语义：当前为{{mode}}',
-      modeMenu: '连接语义',
       modes: {
         reference: '素材参考',
         first_frame: '首帧',
@@ -171,9 +175,7 @@ export const zhGenerationCommon = {
         fallback: '节点',
       },
       title: '这里还没有{{category}}',
-      description: '添加第一个节点开始创作，之后可以拖动、分组、跨分组复制。',
-      createAria: '新建一个{{category}}节点',
-      create: '+ 新建{{category}}',
+      dropHint: '或者把图片、视频直接拖进来',
     },
     controlsHelp: {
       aria: '画布操作帮助',
@@ -566,6 +568,14 @@ export const zhGenerationCommon = {
         video: '视频',
         audio: '声音',
       },
+    },
+    // 左「+」：给这张卡加输入（2026-10-08 拍板 ②，判据 = 以本卡为目标）。
+    addInput: {
+      title: '给它加输入',
+      fromAssets: '从素材库添加…',
+      pickOnCanvas: '在画布上点选',
+      notAccepted: '{{target}}节点不收{{source}}',
+      modelRejects: '当前模型不收{{asset}}',
     },
     duplicateVariantHint: '带上游连线，不带结果',
     derivedTitle: '{{action}} · {{source}}',
@@ -1761,13 +1771,18 @@ export const enGenerationCommon = {
     refAria: 'Referenced text node “{{title}}”',
     refUntitled: 'Text',
   },
+  nodeTry: {
+    label: 'Try',
+    image: { text: 'Text to image', reference: 'Reference to image' },
+    video: { firstFrame: 'First frame', firstLast: 'First + last', text: 'From text' },
+    status: { image: 'Not generated yet', video: 'Not generated yet', text: 'Nothing here yet', clip: 'No clips yet' },
+    clip: { pick: 'Pick', library: 'Library', fromLibrary: 'Add from library' },
+  },
   nodeEmpty: {
     derivedReady: { title: 'Prompt ready', description: 'Select it and press ↑ to generate' },
-    image: { title: 'Image node', description: 'Enter a prompt below, then generate.' },
-    video: { title: 'Video node', description: 'Enter a prompt below, then generate a video.' },
+    image: { title: 'Image node' },
+    video: { title: 'Video node' },
     audio: { title: 'Audio node', description: 'Add sound for music, effects, or voiceover.' },
-    text: { title: 'Text', description: 'Nothing here yet' },
-    clip: { title: 'Clip node', description: 'Connect a video node or add image/video from your library.' },
     model3d: { title: '3D model node', description: 'Describe the model you want or connect a reference image to generate a 3D model.' },
     whiteboard: { title: 'Whiteboard node', description: 'Sketch or mark up a reference for composition.', action: 'Open whiteboard' },
     director: { title: 'Director node', description: 'Place characters and cameras, then capture a reference image or clip.', action: 'Open director' },
@@ -1776,10 +1791,10 @@ export const enGenerationCommon = {
     prop: { title: 'Prop node', description: 'Add a prop reference to keep key objects consistent.' },
     panorama: { title: 'Panorama node', description: 'Add a panorama image as an environment reference.' },
     waiting: 'Input connected. Waiting for the upstream result.',
-    firstFrame: 'Add an image first as the video first frame.',
   },
   canvas: {
     aria: 'AI visual creation canvas',
+    pickMode: { title: 'Pick a node to reference', exit: 'Stop picking', escKey: 'Esc' },
     arrival: {
       one: { right: 'New node to the right', left: 'New node to the left', up: 'New node above', down: 'New node below' },
       many: { right: '{{count}} new nodes to the right', left: '{{count}} new nodes to the left', up: '{{count}} new nodes above', down: '{{count}} new nodes below' },
@@ -1794,9 +1809,6 @@ export const enGenerationCommon = {
     edge: {
       select: 'Select connection: {{source}} to {{target}}',
       disconnect: 'Disconnect: {{source}} to {{target}}',
-      disconnectAction: 'Disconnect',
-      changeMode: 'Change connection meaning: currently {{mode}}',
-      modeMenu: 'Connection meaning',
       modes: {
         reference: 'Asset reference',
         first_frame: 'First frame',
@@ -1816,9 +1828,7 @@ export const enGenerationCommon = {
         fallback: 'nodes',
       },
       title: 'No {{category}} here yet',
-      description: 'Add the first node to begin, then drag, group, and copy nodes across categories.',
-      createAria: 'Create a {{category}} node',
-      create: '+ New {{category}}',
+      dropHint: 'Or drop images and videos right in',
     },
     controlsHelp: {
       aria: 'Canvas controls help',
@@ -2201,6 +2211,13 @@ export const enGenerationCommon = {
         video: 'video',
         audio: 'audio',
       },
+    },
+    addInput: {
+      title: 'Add input',
+      fromAssets: 'Add from Assets…',
+      pickOnCanvas: 'Pick on canvas',
+      notAccepted: '{{target}} nodes do not take {{source}}',
+      modelRejects: 'The current model does not take {{asset}}',
     },
     duplicateVariantHint: 'Keeps incoming links, not results',
     derivedTitle: '{{action}} · {{source}}',

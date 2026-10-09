@@ -260,3 +260,60 @@ describe('importLocalMediaFilesToGenerationCanvas', () => {
     expect(node.meta?.retryableImport).toBe(true)
   })
 })
+
+// 2026-10-09 对抗评审 B1（复审）：导入结果要说清**每个节点**成没成——上传失败（节点留成 error）的不许被当成「导入好了」去接线。
+describe('importLocalMediaFilesToGenerationCanvas · per-node success', () => {
+  beforeEach(async () => {
+    coordinator = makeCoordinator(); unregister = registerProjectCanvasReadSurfaceCoordinator(coordinator)
+    await switchProject('project-a')
+    __resetGenerationCanvasHistoryForTests()
+  })
+
+  it('a failed upload stays an error card and is NOT in succeededNodeIds', async () => {
+    const result = await importLocalMediaFilesToGenerationCanvas([makeVideoFile()], { projectContext: currentProject(),
+      basePosition: { x: 0, y: 0 }, capacity: null, uploadFile: async () => { throw new Error('disk failed') }, recoverFile: async () => null,
+    })
+    expect(result.created).toHaveLength(1)
+    expect(result.failedCount).toBe(1)
+    expect(result.succeededNodeIds).toEqual([])
+    expect(useGenerationCanvasStore.getState().nodes[0].status).toBe('error')
+  })
+
+  it('a successful upload is reported as succeeded', async () => {
+    const result = await importLocalMediaFilesToGenerationCanvas([makeImageFile()], { projectContext: currentProject(),
+      basePosition: { x: 0, y: 0 }, capacity: null, createObjectUrl: () => 'blob:test', revokeObjectUrl: vi.fn(), readImageDimensions: async () => null,
+      uploadFile: async () => asset, recoverFile: async () => null,
+    })
+    expect(result.succeededNodeIds).toEqual(result.created.map((item) => item.node.id))
+    expect(result.failedCount).toBe(0)
+  })
+})
+
+// V-1133c（真 Electron 实测）：素材选择器上传 + 接线按一次 Ctrl+Z 只撤了连线、导入的素材卡还在——
+// 导入自己的建卡 / 落盘结果各起了撤销点，接线那次的压屏障盖不住它们。undoTxn = 整次导入一个撤销点。
+describe('importLocalMediaFilesToGenerationCanvas · undoTxn (one undo step for the whole import)', () => {
+  beforeEach(async () => {
+    coordinator = makeCoordinator(); unregister = registerProjectCanvasReadSurfaceCoordinator(coordinator)
+    await switchProject('project-a')
+    __resetGenerationCanvasHistoryForTests()
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
+  })
+  const run = (undoTxn?: string) => importLocalMediaFilesToGenerationCanvas([makeImageFile()], { projectContext: currentProject(),
+    basePosition: { x: 0, y: 0 }, capacity: null, createObjectUrl: () => 'blob:test', revokeObjectUrl: vi.fn(), readImageDimensions: async () => null,
+    uploadFile: async () => asset, recoverFile: async () => null, ...(undoTxn ? { undoTxn } : {}),
+  })
+
+  it('with undoTxn: one undo removes the imported card entirely', async () => {
+    const result = await run('upload-input-test')
+    expect(result.succeededNodeIds).toHaveLength(1)
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(1)
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
+  })
+
+  it('without undoTxn: the old behaviour (separate undo points) is untouched', async () => {
+    await run()
+    useGenerationCanvasStore.getState().undo()
+    expect(useGenerationCanvasStore.getState().nodes.length).toBeGreaterThan(0) // 一次撤不干净——这正是 undoTxn 要解决的
+  })
+})

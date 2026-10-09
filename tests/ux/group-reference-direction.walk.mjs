@@ -202,37 +202,15 @@ try {
   check('编组内部的连线命中区不再被组框盖住', Boolean(clickableEdgePoint))
   if (!clickableEdgePoint) throw new Error('找不到编组内可点的连线')
 
-  await win.mouse.move(clickableEdgePoint.x, clickableEdgePoint.y)
-  await win.mouse.down()
-  await win.waitForTimeout(120)
-  await win.mouse.up()
-  const modeMenu = win.getByRole('menu', { name: '连接语义' })
-  await modeMenu.waitFor({ state: 'visible', timeout: 4000 })
-  const styleOption = modeMenu.getByRole('menuitemradio', { name: '风格', exact: true })
-  const optionHit = await styleOption.evaluate((element) => {
-    const rect = element.getBoundingClientRect()
-    const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
-    return {
-      edgeId: element.closest('[data-edge-id]')?.getAttribute('data-edge-id'),
-      topTag: top?.tagName,
-      topRole: top?.getAttribute('role'),
-      topText: top?.textContent,
-      same: top === element || Boolean(top && element.contains(top)),
-    }
-  })
-  check('边菜单选项是指针命中顶层', optionHit.same, JSON.stringify(optionHit))
-  await styleOption.click()
-  await win.waitForTimeout(450)
-  const modesAfterEdit = await win.evaluate(async () => {
-    const { useGenerationCanvasStore } = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
-    return useGenerationCanvasStore.getState().edges.map((edge) => edge.mode)
-  })
-  check('真实点标签可切换，且只改命中的一条边', modesAfterEdit.filter((mode) => mode === 'style_ref').length === 1, JSON.stringify(modesAfterEdit))
-  await screenshotSettled(win, { path: path.join(shotsDir, '04-edge-label-changed.png') })
-
-  const styleTag = win.getByRole('button', { name: /修改连接语义：当前为风格/ }).first()
-  await styleTag.click()
-  await win.getByRole('menu', { name: '连接语义' }).getByRole('menuitem', { name: /断开连接/ }).click()
+  // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点的模式菜单（改语义 / 断开）已删。
+  // 旧断言「真实点标签可切换语义、只改命中的一条边」作废（用途改在目标节点的参考槽里设置）；断开走中点的「×」。
+  await win.mouse.click(clickableEdgePoint.x, clickableEdgePoint.y)
+  await win.waitForTimeout(300)
+  const disconnectButton = win.locator('[data-edge-disconnect]').first()
+  await disconnectButton.waitFor({ state: 'visible', timeout: 4000 })
+  check('点编组内的连线 = 选中并出「×」，中点没有任何文字（不弹模式菜单）', (await win.locator('.generation-canvas-v2__edge-control').innerText()).trim() === '')
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-edge-selected-x.png') })
+  await disconnectButton.click()
   await win.waitForTimeout(500)
   const disconnected = await win.evaluate(async () => {
     const { useGenerationCanvasStore } = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')

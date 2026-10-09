@@ -80,7 +80,7 @@ describe('planGroupLinkEdges — 纯函数', () => {
   })
 
   it('过不了能力校验的进 skipped，不静默丢', () => {
-    // 声音 → 文本：文本节点的左环收文字、图、视频，不收声音（文本模型听不了）→ unsupported_reference。
+    // 声音 → 文本：文本节点的左环收文字和图，不收视频和声音（文本模型听不了）→ unsupported_reference。
     // 注意图片节点**没有产物照样可参考**（依赖波次会先把它跑出来）。
     const nodes = [audioNode('src'), textNode('m1')]
     const plan = planGroupLinkEdges({ link: { sourceNodeId: 'src' }, targets: [nodes[1]!], nodes, edges: [] })

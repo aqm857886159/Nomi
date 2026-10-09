@@ -224,45 +224,54 @@ export function importBrowserAssetsToGenerationCanvas(
   }
 }
 
-/** 素材库条目（已是当前项目的引用）→ 画布素材卡，网格排开、整批选中。 */
+/** 一条素材库条目（已是当前项目的引用：画布产物或项目文件）→ 一张画布素材卡。拖到画布与左「+」「从素材库添加…」共用这一条。 */
+export function addAssetLibraryNode(
+  assetDrag: Pick<AssetLibraryDragPayload, 'kind' | 'name' | 'renderUrl' | 'thumbUrl' | 'dimensions' | 'origin'>,
+  position: { x: number; y: number },
+  categoryId?: string,
+  exactPosition = false,
+): string {
+  const store = useGenerationCanvasStore.getState()
+  const node = store.addNode({
+    kind: 'asset',
+    title: assetDrag.name.replace(/\.[^.]+$/, '') || (assetDrag.kind === 'video' ? '参考视频' : '参考图片'),
+    prompt: '',
+    position,
+    categoryId,
+    exactPosition,
+    select: false,
+  })
+  const result = {
+    id: `asset-ref-${node.id}-${Date.now()}`,
+    type: assetDrag.kind,
+    url: assetDrag.renderUrl,
+    // 画布挂落盘边界派生的预览；源留在 url 给编辑/导出/大图。跨项目复制来的条目由复制品的 DTO 重新派生，
+    // 不会带着别的项目的封面地址（见 assetLibraryMaterialize）。
+    ...(assetDrag.thumbUrl ? { thumbnailUrl: assetDrag.thumbUrl } : {}),
+    createdAt: Date.now(),
+  }
+  const originMeta =
+    assetDrag.origin.source === 'project'
+      ? { source: 'workspace-file', fileName: assetDrag.name, workspaceRelativePath: assetDrag.origin.relativePath }
+      : { source: 'asset-library', fileName: assetDrag.name, referencedNodeId: assetDrag.origin.nodeId }
+  const mediaMeta = assetDrag.dimensions
+    ? computeMediaMetaPatch({ resultType: result.type, meta: node.meta || {}, ...assetDrag.dimensions })?.meta
+    : undefined
+  store.updateNode(node.id, {
+    result,
+    history: [result],
+    status: 'success',
+    meta: { ...(node.meta || {}), ...originMeta, ...(mediaMeta || {}) },
+  })
+  return node.id
+}
+
+/** 素材库条目 → 画布素材卡，网格排开、整批选中。 */
 function addAssetLibraryNodes(items: readonly AssetLibraryDragPayload[], basePosition: { x: number; y: number }, categoryId?: string): void {
   if (!items.length) return
-  const store = useGenerationCanvasStore.getState()
   const positions = layoutBrowserAssetDropPositions(basePosition, items.length)
-  const nodeIds = items.map((assetDrag, index) => {
-    const node = store.addNode({
-      kind: 'asset',
-      title: assetDrag.name.replace(/\.[^.]+$/, '') || (assetDrag.kind === 'video' ? '参考视频' : '参考图片'),
-      prompt: '',
-      position: positions[index],
-      categoryId,
-      exactPosition: true,
-      select: false,
-    })
-    const result = {
-      id: `asset-ref-${node.id}-${Date.now()}`,
-      type: assetDrag.kind,
-      url: assetDrag.renderUrl,
-      // 画布挂落盘边界派生的预览；源留在 url 给编辑/导出/大图。跨项目复制来的条目由复制品的 DTO 重新派生，
-      // 不会带着别的项目的封面地址（见 assetLibraryMaterialize）。
-      ...(assetDrag.thumbUrl ? { thumbnailUrl: assetDrag.thumbUrl } : {}),
-      createdAt: Date.now(),
-    }
-    const originMeta =
-      assetDrag.origin.source === 'project'
-        ? { source: 'workspace-file', fileName: assetDrag.name, workspaceRelativePath: assetDrag.origin.relativePath }
-        : { source: 'asset-library', fileName: assetDrag.name, referencedNodeId: assetDrag.origin.nodeId }
-    const mediaMeta = assetDrag.dimensions
-      ? computeMediaMetaPatch({ resultType: result.type, meta: node.meta || {}, ...assetDrag.dimensions })?.meta
-      : undefined
-    store.updateNode(node.id, {
-      result,
-      history: [result],
-      status: 'success',
-      meta: { ...(node.meta || {}), ...originMeta, ...(mediaMeta || {}) },
-    })
-    return node.id
-  })
+  const nodeIds = items.map((assetDrag, index) => addAssetLibraryNode(assetDrag, positions[index], categoryId, true))
+  const store = useGenerationCanvasStore.getState()
   nodeIds.forEach((nodeId, index) => store.selectNode(nodeId, index > 0))
 }
 
@@ -373,22 +382,25 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
  * 不为按钮另造一条建 asset 节点的路径（P1：无并行版）。
  * C5：超限截断 / 上传失败不再静默——聚合成一句人话提示（此前 >8 张悄悄丢、失败只在节点上红）。
  */
+/** 返回这次建出来的素材卡 id（左「+」素材选择器上传后要把它们接进目标卡）。 */
 export function importLocalFilesToGenerationCanvas(
   files: readonly File[],
-  options: { basePosition: { x: number; y: number }; categoryId?: string; exactPosition?: boolean; anchor?: { xRatio: number; yRatio: number } },
-): Promise<void> {
+  options: { basePosition: { x: number; y: number }; categoryId?: string; exactPosition?: boolean; anchor?: { xRatio: number; yRatio: number }; undoTxn?: string },
+): Promise<string[]> {
   // 拖入 / 导入钮即动作起点：此刻签发原项目，下游全程只认它（没有打开的项目就什么都不做）。
   // 先同步签发、再挂 .catch：这个命令不会把拒绝丢给调用它的控件。
   const projectContext = withProjectAction((issued) => issued)
-  if (!projectContext) return Promise.resolve()
+  if (!projectContext) return Promise.resolve([])
   return importLocalMediaFilesToGenerationCanvas([...files], { ...options, projectContext })
     .then((result) => {
-      if (result.cancelled) return
+      if (result.cancelled) return []
       const notes: string[] = []
       if (result.skippedOverLimitCount > 0) notes.push(`超过 8 个，已忽略 ${result.skippedOverLimitCount} 个`)
       for (const message of mediaImportRejectionMessages(result.rejected)) notes.push(message)
       if (result.failedCount > 0) notes.push(`${result.failedCount} 个导入失败`)
       if (notes.length) reportCanvasFeedback(notes.join('；'), result.failedCount > 0 ? 'error' : 'warning', { projectId: projectContext.binding.projectId, identity: 'canvas-import', reason: 'import-incomplete' })
+      // 只返回导入**成功**的：失败的卡留在画布上（error，可重试），不算导入好了。
+      return result.succeededNodeIds
     })
-    .catch(() => {})
+    .catch(() => [])
 }
