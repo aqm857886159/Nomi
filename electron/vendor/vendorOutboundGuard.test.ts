@@ -3,7 +3,7 @@
 // 那样只在有人愿意付钱时手工跑一次。
 //
 // 它守的不是「函数返回了什么」，而是**钱**：
-//   · 拦下来的那一刻请求还没离开本机 → 用户读到的必须是「没扣费」，而不是取回侧那句「钱已经付过」；
+//   · 拦下来的那一刻请求还没离开本机 → 用户读到的必须是提交侧那句「这次生成没有发出去」，而不是取回侧那句；
 //   · 用户自己配的本地后端（ComfyUI）不能被这条判据误伤，否则等于把私有部署整类用户挡在门外；
 //   · 169.254 元数据段哪怕被写进 baseUrl 也不许放行——提交请求带着用户的 API Key。
 //
@@ -15,7 +15,8 @@ import {
   setSubmitOutboundDepsForTests,
 } from "./vendorOutboundGuard";
 import { matchNomiErrorCode, stripNomiErrorCode } from "../shared/nomiErrorCodes";
-import type { OutboundEnvironment } from "../networkOutboundPolicy";
+import { coarseAddressLabel, type OutboundEnvironment } from "../networkOutboundPolicy";
+import { desktopT } from "../desktopStrings";
 
 const NO_LOCAL_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
 const FAKE_IP_PROXY: OutboundEnvironment = { syntheticResolver: true, syntheticSample: "198.18.0.7" };
@@ -39,7 +40,7 @@ function seed(options: {
 
 const apimart = { baseUrlHint: "https://api.apimart.ai" };
 
-describe("提交侧出站授权：被拦 = 没扣费", () => {
+describe("提交侧出站授权：被拦 = 没发出去", () => {
   beforeEach(() => setSubmitOutboundDepsForTests(null));
 
   it("fake-ip 合成地址 + 没有代理证据 → 拦下，且挂的是**提交侧**的码", async () => {
@@ -53,8 +54,11 @@ describe("提交侧出站授权：被拦 = 没扣费", () => {
     // 码认对了才算数：取回侧的 `outbound-blocked` 会让渲染层说「钱已经付过、免费重取」——
     // 在提交侧那是一句方向完全相反的假话，还会指向一颗根本不存在的按钮。
     expect(matchNomiErrorCode(refusal as string)).toBe("outbound-blocked-submit");
-    // 人话里必须真的写着「没有扣费」。这一条看似在测文案，实际测的是两套词表没有被接错线。
-    expect(stripNomiErrorCode(refusal as string)).toMatch(/没有扣费|nothing was charged/i);
+    // 人话必须是**提交侧**那条词典键（「这次生成没有发出去」），不是取回侧那句——测的是两套词表没有被接错线。
+    // 按键取值比对，不抄字面：文案改了这条照旧成立，接错线照旧红。
+    expect(stripNomiErrorCode(refusal as string)).toBe(
+      desktopT("outbound.submitFakeIpBlocked", { host: "api.apimart.ai", address: coarseAddressLabel("198.18.0.140") }),
+    );
   });
 
   it("【阳性对照】同一个地址 + 探到了 fake-ip 代理 → 放行（否则这条判据只是「一律拦」）", async () => {

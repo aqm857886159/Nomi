@@ -21,7 +21,6 @@ export type DesktopModelCatalogSurface = CustomCallBridge & {
    * 「验这家的 key 要不要花钱、大概多少」。旧 preload 没有这个方法 → 可选，调用方须兜住
    * undefined（兜不住时按「说不准」显示，**不许**默认显示「免费验证」）。
    */
-  credentialProbePlan?: (vendorKey: string) => Promise<{ cost: 'free' | 'paid'; amount: number | null }>
   upsertModel: (payload: unknown) => unknown
   /**
    * 改类型 = 改 kind + 按新 kind 重建调用通道（单事务，见 electron/catalog/modelRetype.ts）。

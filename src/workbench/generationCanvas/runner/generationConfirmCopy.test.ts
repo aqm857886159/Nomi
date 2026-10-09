@@ -55,8 +55,8 @@ describe('generation confirmation copy', () => {
     await confirmAndRunNode(node.id, { initiator: 'agent' })
     await regenerateNodeInPlace(node.id, { initiator: 'agent' })
     expect(confirmMessages).toEqual([
-      '将生成 1 段文本 · 会消耗模型额度',
-      '将生成 1 段文本 · 会消耗模型额度',
+      '将生成 1 段文本',
+      '将生成 1 段文本',
     ])
   })
 
@@ -65,8 +65,8 @@ describe('generation confirmation copy', () => {
     const image = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '画面' })
     expect(spendCostKindForNodes([text.id])).toBe('text')
     expect(spendCostKindForNodes([text.id, image.id])).toBe('mixed')
-    expect(describeGenerationCost(2, spendCostKindForNodes([text.id]))).toBe('将生成 2 段文本 · 会消耗模型额度')
-    expect(describeGenerationCost(1, spendCostKindForNodes([image.id]))).toBe('将生成 1 张画面 · 预计约 1–3 分钟 · 会消耗模型额度')
+    expect(describeGenerationCost(2, spendCostKindForNodes([text.id]))).toBe('将生成 2 段文本')
+    expect(describeGenerationCost(1, spendCostKindForNodes([image.id]))).toBe('将生成 1 张画面 · 预计约 1–3 分钟')
   })
 
   it('localizes text confirmation counts in English without a made-up duration', async () => {
@@ -75,7 +75,7 @@ describe('generation confirmation copy', () => {
     const node = useGenerationCanvasStore.getState().addNode({ kind: 'text', prompt: 'Rewrite' })
     // 确认卡的文案只在会弹卡的路径上出现：用户自己点的单个生成不弹（2026-09-25），所以单个入口用 Agent 发起来验卡上写什么。
     await confirmAndRunNode(node.id, { initiator: 'agent' })
-    expect(confirmMessages).toEqual(['Will generate 1 text result · Uses model credits'])
-    expect(describeGenerationCost(3, 'text')).toBe('Will generate 3 text results · Uses model credits')
+    expect(confirmMessages).toEqual(['Will generate 1 text result'])
+    expect(describeGenerationCost(3, 'text')).toBe('Will generate 3 text results')
   })
 })

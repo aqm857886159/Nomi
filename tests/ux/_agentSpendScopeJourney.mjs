@@ -84,13 +84,13 @@ export async function checkSpendScopeJourney(walk, win) {
   expect(originalShots).toHaveLength(33)
   expect(originalShots.filter(shot => shot.role === 'anchor')).toHaveLength(3)
   const requestedIds = originalShots.slice(0, 3).map(shot => shot.shotId)
-  // draft_shots on the canvas creates 33 media nodes and the existing shot table.
+  // draft_shots on the canvas creates 33 media nodes (no shot table since 2026-10-08).
   // generate only presents the three requested confirmations; it must reuse them.
-  await expect.poll(async () => (await graph()).nodes.length).toBe(baselineGraph.nodes.length + 34)
+  await expect.poll(async () => (await graph()).nodes.length).toBe(baselineGraph.nodes.length + 33)
   const draftedGraph = await graph()
   const baselineIds = new Set(baselineGraph.nodes.map(node => node.id))
   const createdNodes = draftedGraph.nodes.filter(node => !baselineIds.has(node.id))
-  expect(createdNodes.filter(node => node.kind === 'shot_table')).toHaveLength(1)
+  expect(createdNodes.filter(node => node.kind === 'shot_table')).toHaveLength(0)
   expect(createdNodes.filter(node => node.kind === 'image').map(node => node.prompt).sort())
     .toEqual(originalShots.map(shot => shot.candidate.prompt).sort())
   const firstTurn = await present(operationId, requestedIds)
@@ -109,7 +109,8 @@ export async function checkSpendScopeJourney(walk, win) {
     expect(plan.filter(shot => requestedIds.includes(shot.shotId)).every(shot => shot.included === true), `${label}：被点名的镜是 included`).toBe(true)
   }
   await expectPlanKept('摆上卡之后')
-  await expect(card.locator('[data-v4-price="total"]')).toContainText('0.90')
+  // 合同 contract-moneycopy（#1099）：卡上不出 Nomi 按价目表算的金额（原断言 0.90 已随合同删除）。
+  await expect(card.locator('[data-v4-price="total"]'), '确认控件不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   // 只有一层改动：每一页改的只落在那一镜上（「逐镜 / 全部」切换和「全部」那一层已删）。
   await pageTo(2)
   await expect(input).toHaveText('CJ1_anchor_2 原始画面')

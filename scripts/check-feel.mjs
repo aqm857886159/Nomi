@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { feelMode, feelSurfaceKey } from '../tests/ux/_feel-observer.mjs'
+import { exemptionEvidenceGrowth, feelMode, feelSurfaceKey } from '../tests/ux/_feel-observer.mjs'
 import { execFileSync } from 'node:child_process'
 
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -35,12 +35,7 @@ for (const file of ['tests/ux/feel-baseline.json', 'tests/ux/feel-exemptions.jso
       const old = previous.entries.find((item) => isBaseline ? feelSurfaceKey(item) === key : item.label === entry.label && item.rule === entry.rule)
       if (!old || (entry.count ?? 1) > (old.count ?? 1)) throw new Error(`Feel ratchet may only decrease: ${key}`)
       if (file.includes('exemptions')) {
-        const remaining = [...old.findings]
-        for (const finding of entry.findings) {
-          const index = remaining.findIndex((known) => JSON.stringify(known) === JSON.stringify(finding))
-          if (index < 0) throw new Error(`Feel exemption evidence may only decrease: ${key}`)
-          remaining.splice(index, 1)
-        }
+        if (exemptionEvidenceGrowth(old.findings, entry.findings).length) throw new Error(`Feel exemption evidence may only decrease: ${key}`)
       }
     }
   }

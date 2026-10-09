@@ -12,7 +12,8 @@
 //
 // 两个数怎么算（都按**首次**调用算，重试不冲淡首错）：
 //   · 工具写对率 = 首次 `nomi_generation_plan` 通过运行时校验且真落成一份待确认草稿 / 有效样本
-//   · 回合成功率 = 这一回合停在「面板上出现带真实价格的付费卡 + 模型说了句话」/ 有效样本
+//   · 回合成功率 = 这一回合停在「面板上出现带确认按钮的付费卡 + 模型说了句话」/ 有效样本
+//     （合同 contract-moneycopy，#1099 提交 184ea8997：卡上不再印金额，原先拿「卡上有个真实金额」当落卡证据，现改认确认按钮的名字）
 //     （阴性对照反过来：没有卡、模型正常回话 = 成功）
 //
 // 两档共用同一套判据与同一批话术，唯一的区别是**谁在回话**：loopback 档由夹具照话术派发
@@ -26,7 +27,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_TEXT_MODEL_LABEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import {
-  APPROVAL_CARD, CANVAS_PANEL, COMPOSER, chooseAssistantModel, createRuntimeWalk,
+  APPROVAL_CARD, CANVAS_PANEL, COMPOSER, INTERVENTION_CONFIRM, chooseAssistantModel, createRuntimeWalk,
   openCanvas, readProject, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { SPEND_R30_CASES } from './agent-spend-r30-cases.mjs'
@@ -67,7 +68,6 @@ function toolRouteCensus(projectRoot) {
 const DEEPSEEK = process.env.NOMI_R30_ARM === 'deepseek'
 /** 真实档的大脑：APIMart（内置供应商，谁的机器上都有）上的 DeepSeek，真实目录里的那一行原样用。 */
 const DEEPSEEK_BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }
-const PRICE_TOTAL = '[data-v4-price="total"]'
 const CARD = `${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`
 
 /**
@@ -170,20 +170,23 @@ try {
     // 阴性对照那两句等满同一段时间才判「没出卡」——不等就判，等于用仪器的慢换一个假绿。
     const card = win.locator(CARD).first()
     const cardVisible = await card.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).then(() => true, () => false)
-    const priceText = cardVisible ? await win.locator(`${CARD} ${PRICE_TOTAL}`).first().innerText().catch(() => '') : ''
+    const confirmLabel = cardVisible
+      ? (await win.locator(`${CARD} ${INTERVENTION_CONFIRM}`).first().getAttribute('aria-label').catch(() => null))
+        ?? (await win.locator(`${CARD} ${INTERVENTION_CONFIRM}`).first().innerText().catch(() => '')).replace(/⏎/g, '').trim()
+      : ''
     // 这一句到底有没有**新**落下一份草稿。这是两个数唯一的判据——
     // 卡是否在屏幕上不能当判据：草稿留在画布上不清，介入槽里那张卡从第一句起就一直在。
     // 阴性对照因此会在这里等满一整段时间才判「没长出新的」（不等就判 = 假绿）。
     const grew = await settled(before + 1)
     if (grew) expected = before + 1
     const said = await win.locator(`${CANVAS_PANEL} [data-v4-block="assistant"]`).last().innerText().catch(() => '')
-    // 「写对」= 草稿真的落下来了（节点 + 卡 + 一个真实的数），不是「模型说了它要生成」。
-    const drafted = grew && cardVisible && /\d+\.\d{2}/.test(priceText)
+    // 「写对」= 草稿真的落下来了（节点 + 卡 + 卡上那颗确认按钮），不是「模型说了它要生成」。
+    const drafted = grew && cardVisible && confirmLabel.length > 0
     const toolCorrect = sample.expectsDraft ? drafted : !drafted
     const turnOk = sample.expectsDraft ? drafted : (!drafted && said.trim().length > 0)
     // 回合的最后一句话留在行里：两个数说「不对」的时候，得看得出是模型没写对、还是这条链根本没通。
-    rows.push({ id: sample.id, expectsDraft: sample.expectsDraft, landed: grew, drafted, price: priceText, toolCorrect, turnOk, said: said.slice(0, 200) })
-    console.log(`[r30] ${sample.id} ${toolCorrect ? '写对' : '写错'} · ${turnOk ? '回合成' : '回合败'} · ${priceText || '无卡'}`)
+    rows.push({ id: sample.id, expectsDraft: sample.expectsDraft, landed: grew, drafted, confirm: confirmLabel, toolCorrect, turnOk, said: said.slice(0, 200) })
+    console.log(`[r30] ${sample.id} ${toolCorrect ? '写对' : '写错'} · ${turnOk ? '回合成' : '回合败'} · ${confirmLabel || '无卡'}`)
 
   }
 
@@ -202,7 +205,7 @@ try {
       // 第三个数**不是**验收门，是读数的注脚：它把「模型压根没动手」和「动了手但没走这条链」分开。
       draftLandedRate: `${landed}/${positives.length} (${Math.round((landed / positives.length) * 1000) / 10}%)`,
       toolRoutes: toolRouteCensus(walk.report.projectRoot ?? ''),
-      scope: '判据=这一句是否新落下一份待确认草稿（画布节点 +1）且介入槽里那张卡印着真实金额；回合成功另要求模型正常回话。草稿不清场，所以卡是否在屏幕上不能当per-case判据，节点增量才是。含 2 条阴性对照。',
+      scope: '判据=这一句是否新落下一份待确认草稿（画布节点 +1）且介入槽里那张卡有确认按钮（卡上不出金额，合同 contract-moneycopy）；回合成功另要求模型正常回话。草稿不清场，所以卡是否在屏幕上不能当per-case判据，节点增量才是。含 2 条阴性对照。',
       rows,
     },
   })

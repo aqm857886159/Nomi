@@ -23,7 +23,7 @@ import {
 import { laneMessages, readLaneTranscripts } from '../agent-lane-observer.mjs'
 import { appFramesOf, classifyEgress, REQUIRED_GUARD_LAYERS, vendorHostsOf } from './egress.mjs'
 import { INVARIANTS, invariantById, loadDictionaries, loadLimits, UI_LOCALES, uiText, uiTextPattern } from './invariants.mjs'
-import { activeDebt, collectVisibleTextInPage, findLeaks } from './outcomeText.mjs'
+import { activeDebt, collectVisibleTextInPage, compileExemptions, findLeaks } from './outcomeText.mjs'
 import { ensurePageProbe, readPageProbe } from './pageProbe.mjs'
 import { unseenPromptAdditions } from './promptTruth.mjs'
 import { finishedNodeSpinner, snapshotAgeMs } from './spinnerVerdict.mjs'
@@ -1183,8 +1183,10 @@ export function createInvariantMonitor(options) {
     const regions = await win().evaluate(collectVisibleTextInPage).catch(() => [])
     const debts = JSON.parse(fs.readFileSync(new URL('./outcomeDebts.json', import.meta.url), 'utf8')).debts
     const today = new Date().toISOString().slice(0, 10)
+    // 例外键与 check:i18n 同一份（outcomeText.mjs 的 NOT_MONEY / NON_MONEY_KEYS），按键从词典取值豁免，不在这里另抄一份。
+    const exemptions = compileExemptions(loadDictionaries())
     for (const { source, text } of regions) {
-      for (const leak of findLeaks(text)) {
+      for (const leak of findLeaks(text, { exemptions })) {
         const debt = activeDebt(debts, { rule: 'ui-leaked-internals', kind: leak.kind, text, today })
         if (debt) {
           if (!knownDebts.some((entry) => entry.kind === leak.kind && entry.match === leak.match)) {

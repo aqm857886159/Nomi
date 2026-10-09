@@ -53,7 +53,7 @@ export const DREAMINA_IMAGE_ARCHETYPE: ModelArchetype = {
       id: "t2i",
       intent: "text",
       vendorTerm: "文生图",
-      hint: "用即梦会员积分，纯文字生成图像",
+      hint: "用即梦接入，纯文字生成图像",
       promptRequired: true,
       transportTaskKind: "text_to_image",
       slots: [],
