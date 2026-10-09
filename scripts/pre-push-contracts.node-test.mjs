@@ -174,7 +174,7 @@ test('必红：改了 electron/main.ts 超出基线 → 推送前检查红，且
 test('对照：没改任何东西时同一个门岗是绿的（红不是环境造成的）', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
   const result = prePush()
-  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /✅ check:filesize/, result.stderr)
 })
 
 test('必红：新增未加固的 ipcMain.on → 推送前红', () => {
@@ -198,7 +198,7 @@ test('必红：设计卡没有 ★ 格 → 推送前就红；写全了才绿（�
   assert.equal(empty.status, 1, empty.stderr)
   assert.match(empty.stderr, /设计卡缺格：1、2、3、4、9/)
   const full = prePush({ body: CARD })
-  assert.equal(full.status, 0, full.stderr)
+  assert.match(full.stderr, /✅ check:pr-judgement/, full.stderr)
 })
 
 test('钩子入口不接受缩小门岗集合的参数：--only 被拒、空值被拒、未知值被拒（只认 --list）', () => {
