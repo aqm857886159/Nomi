@@ -50,18 +50,13 @@ function sourceMeta(source: GenerationCanvasNode, request: VideoFrameRequest): R
   return { sourceVideoNodeId: source.id, sourceFrame: kind, ...(time !== undefined ? { sourceTime: time } : {}) }
 }
 
-/** IPC 的报错带着 Electron 的外壳（Error invoking remote method …: Error: …），只留里面人能读的那段。 */
-function technicalDetail(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error)
-  return text.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, '').trim()
-}
-
 /**
  * 失败文案 = 第一行人话（标题）+ 其后的技术细节（只进失败卡的「技术详情」）。
  * 带本机处理码：这一步在本机，失败卡只留「重试」。
  */
 function failureMessage(human: string, error?: unknown): { human: string; stored: string } {
-  const detail = error === undefined ? '' : technicalDetail(error)
+  // 技术细节原样留给「技术详情」（IPC 外壳不在这里剥：分类器只在展示用的首行剥它，raw 保留原样）。
+  const detail = error === undefined ? '' : error instanceof Error ? error.message : String(error)
   return { human, stored: localProcessingError(detail ? `${human}\n${detail}` : human) }
 }
 

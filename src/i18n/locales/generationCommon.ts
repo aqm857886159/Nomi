@@ -2283,7 +2283,7 @@ export const enGenerationCommon = {
     extractFrame: {
       first: 'first frame',
       last: 'last frame',
-      current: 'frame {{time}}',
+      current: 'Frame {{time}}',
       missingProject: 'Frame capture failed: no current project was found. Save the project and try again.',
       desktopOnly: 'Frame capture failed: this environment is unsupported. Use the desktop app.',
       failed: 'Frame capture failed. Original untouched.',

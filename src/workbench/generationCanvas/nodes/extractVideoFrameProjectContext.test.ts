@@ -16,7 +16,7 @@ vi.mock('../../project/projectCanvasReadSurface', () => ({
   })()),
 }))
 import { extractVideoFrameToNode, retryVideoFrameCapture } from './extractVideoFrameToNode'
-import { localRetryOf } from './localRetry'
+import { localStepRedoOf } from './localStepRedo'
 
 const video = {
   id: 'video', kind: 'video', title: 'Rain', categoryId: 'shots', position: { x: 0, y: 0 }, status: 'success',
@@ -99,7 +99,7 @@ describe('截帧落卡', () => {
     fixture.extract.mockRejectedValueOnce(new Error('boom'))
     await extractVideoFrameToNode(video, { atSeconds: 7.2 }, vi.fn())
     const [failed] = frameCards()
-    const retry = localRetryOf(state().nodes.find((node) => node.id === failed.id)!, vi.fn())
+    const retry = localStepRedoOf(state().nodes.find((node) => node.id === failed.id)!, vi.fn())
     expect(retry).not.toBeNull()
     fixture.extract.mockResolvedValueOnce({ url: 'nomi-local://frame-retried' })
     await retryVideoFrameCapture(failed.id, vi.fn())

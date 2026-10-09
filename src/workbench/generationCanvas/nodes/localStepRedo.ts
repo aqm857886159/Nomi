@@ -10,7 +10,7 @@ import { retryVideoFrameCapture } from './extractVideoFrameToNode'
  * 现在：节点上记着 `meta.retryableXxx`（只有失败时才为 true）→ 这里一张表找到对应的重试动作；
  * 没有命中返回 null，调用方再走原来的「重新生成」。
  */
-export function localRetryOf(node: GenerationCanvasNode, reportFeedback: (message: string) => void): (() => void) | null {
+export function localStepRedoOf(node: GenerationCanvasNode, reportFeedback: (message: string) => void): (() => void) | null {
   if (node.meta?.retryableImport === true) return () => { void retryLocalAssetImport(node.id) }
   if (node.meta?.retryableFrame === true) return () => { void retryVideoFrameCapture(node.id, reportFeedback) }
   return null
