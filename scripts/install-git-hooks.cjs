@@ -8,8 +8,10 @@
  * linked worktree 且启用 extensions.worktreeConfig 时使用该 worktree 的
  * 专属 hooks 目录，避免安装一个分支时改坏其他并行分支；无法隔离时跳过。
  * 在非 git 工作目录（如 CI 缓存还原阶段）静默退出，不报错。
+ * 所有写入都经过 installHooks 里的目录检查（外部 core.hooksPath / 符号链接 / junction 一律拒绝）；装失败返回非零（CI 环境只告警）。
  */
 'use strict'
+
 
 const fs = require('node:fs')
 const path = require('node:path')
@@ -22,9 +24,29 @@ const REPO_ROOT = path.resolve(__dirname, '..')
 //   · commit-msg = 提交信息进度校验 + 方向检查 trailer；pre-commit = 敏感数据扫描；pre-push = 本机 Contracts 门岗 + PR 正文门岗。
 //     放在 pre-push 的理由见 package.json 的 gates:contracts 与推送前入口脚本的头注释。
 const DISPATCHER = 'scripts/git-hook.mjs'
-const HOOKS = Object.freeze(
-  Object.keys(JSON.parse(fs.readFileSync(path.join(__dirname, 'git-hooks.json'), 'utf8'))).map((name) => Object.freeze({ name })),
-)
+/** 必须装的钩子：分发表缺任何一个、或分发器不在，安装器直接失败（空表不能悄悄装出一个没有 pre-push 的仓库）。 */
+const REQUIRED_HOOKS = Object.freeze(['commit-msg', 'pre-commit', 'pre-push'])
+
+/** 校验分发表：返回问题列表（空 = 通过）。结构测试与加载时都用它。 */
+function hookTableProblems(table, { dispatcherExists = fs.existsSync(path.join(__dirname, 'git-hook.mjs')) } = {}) {
+  const problems = []
+  if (!table || typeof table !== 'object' || Array.isArray(table)) return ['scripts/git-hooks.json 不是对象']
+  for (const name of REQUIRED_HOOKS) {
+    const steps = table[name]
+    if (!Array.isArray(steps) || steps.length === 0) problems.push(`分发表缺必需钩子或步骤为空：${name}`)
+  }
+  if (!dispatcherExists) problems.push(`分发入口 ${DISPATCHER} 不存在`)
+  return problems
+}
+
+function loadHookTable() {
+  const table = JSON.parse(fs.readFileSync(path.join(__dirname, 'git-hooks.json'), 'utf8'))
+  const problems = hookTableProblems(table)
+  if (problems.length > 0) throw new Error(`钩子安装配置不合法：${problems.join('；')}`)
+  return table
+}
+
+const HOOKS = Object.freeze(Object.keys(loadHookTable()).map((name) => Object.freeze({ name })))
 
 function renderHookContent(hook) {
   if (!hook || !hook.name) throw new TypeError('Hook definition must have a name')
@@ -102,72 +124,15 @@ function resolveHookDir(repoRoot, exec = execSync) {
   return resolveHookInfo(repoRoot, exec)?.hookDir ?? null
 }
 
-function installHooks({ repoRoot = REPO_ROOT, exec = execSync, execFile = execFileSync, logger = console } = {}) {
-  const info = resolveHookInfo(repoRoot, exec)
-  if (!info) {
-    logger.log('Not a git repository. Skipping hook install.')
-    return { installed: [], skipped: true }
-  }
+const normalizeDir = (dir) => (process.platform === 'win32' ? path.resolve(dir).toLowerCase() : path.resolve(dir))
 
-  if (info.linkedWorktree && !info.configureWorktreePath) {
-    logger.warn('Linked worktree has no worktreeConfig isolation. Skipping shared hook install.')
-    return { installed: [], skipped: true, reason: 'worktree_hooks_unavailable' }
-  }
-
-  const hookDir = info.hookDir
-  if (!fs.existsSync(hookDir)) {
-    try {
-      fs.mkdirSync(hookDir, { recursive: true })
-    } catch (_err) {
-      logger.log('Cannot create hook dir. Skipping.')
-      return { installed: [], skipped: true }
-    }
-  }
-
-  // Create the isolated directory before changing worktree config.  A failed
-  // mkdir must never leave Git pointing at a hooks path that does not exist.
-  if (info.configureWorktreePath) {
-    try {
-      execFile('git', ['config', '--worktree', 'core.hooksPath', hookDir], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      })
-    } catch (err) {
-      logger.warn(`Cannot isolate linked worktree hooks. Skipping: ${err.message}`)
-      return { installed: [], skipped: true, reason: 'worktree_hooks_unavailable' }
-    }
-  }
-
-  const installed = []
-  for (const hook of HOOKS) {
-    const hookPath = path.join(hookDir, hook.name)
-    const hookContent = renderHookContent(hook)
-    try {
-      fs.writeFileSync(hookPath, hookContent)
-      fs.chmodSync(hookPath, 0o755)
-      installed.push(hook.name)
-      logger.log(`Installed ${hook.name} hook → ${DISPATCHER}`)
-    } catch (err) {
-      // postinstall 不阻塞 pnpm install；某个 hook 装失败不影响其余
-      logger.warn(`Failed to install ${hook.name} hook: ${err.message}`)
-    }
-  }
-  return { installed, skipped: false, hookDir }
-}
-
-/**
- * 一键把本机所有 worktree（含主仓）的钩子换成当前版本：只写各自的 hooks 目录（.git/hooks 与 .git/worktrees 下各自的 hooks），不碰别的。
- * 用法：pnpm run hooks:reinstall-all
- */
-/** 一键换钩子允许写的目录只有两种：主仓 <common>/hooks，或该 worktree 自己的 <git-dir>/hooks（= .git/worktrees/<名>/hooks）。配置出来的 core.hooksPath 指到别处一律不认。 */
+/** 允许写钩子的目录只有两种：主仓 <common>/hooks，或该 worktree 自己的 <git-dir>/hooks（= .git/worktrees/<名>/hooks）。配置出来的 core.hooksPath 指到别处一律不认。 */
 function allowedHookDirs(root) {
   const out = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
   const gitDir = path.resolve(root, out(['rev-parse', '--absolute-git-dir']))
   const common = path.resolve(root, out(['rev-parse', '--git-common-dir']))
   return [path.join(common, 'hooks'), path.join(gitDir, 'hooks')].map(normalizeDir)
 }
-const normalizeDir = (dir) => (process.platform === 'win32' ? path.resolve(dir).toLowerCase() : path.resolve(dir))
 
 /**
  * 词法上在 .git 里还不够：.git/hooks（或它的任一上级，直到 git 公共目录）若是符号链接 / junction，写进去会落到 .git 外面。
@@ -194,11 +159,99 @@ function unsafeHooksDir(root, target) {
   return null
 }
 
+/**
+ * 所有写入都经过的共享边界（普通安装 / postinstall / 一键换钩子同一个入口）：目标目录必须是允许目录之一，
+ * 且它和它的上级不能是符号链接 / junction。返回 { reason, detail } 或 null。
+ */
+function hooksDirViolation(root, target) {
+  let allowed = []
+  try { allowed = allowedHookDirs(root) } catch { allowed = [] }
+  if (!allowed.includes(normalizeDir(target))) {
+    return { reason: 'external_hooks_path', detail: `钩子目录（${target}）不是主仓 .git/hooks 或该 worktree 自己的 hooks（core.hooksPath 指到外面也不认）` }
+  }
+  let unsafe = null
+  try { unsafe = unsafeHooksDir(root, target) } catch (error) { unsafe = `检查失败：${error.message}` }
+  if (unsafe) return { reason: 'unsafe_hooks_dir', detail: `钩子目录不安全（${unsafe}）` }
+  return null
+}
+
+/**
+ * 安装当前 checkout 的钩子。返回 { installed, skipped, failed, reason?, hookDir? }：
+ *   · skipped = 这次没装（不是 git 仓库 / worktree 无法隔离配置）——不算失败；
+ *   · failed = 该装却没装成（目录越界、mkdir / 写入 / chmod 失败）——调用方（CLI）必须非零退出（CI 里只告警，见 main）。
+ */
+function installHooks({ repoRoot = REPO_ROOT, exec = execSync, execFile = execFileSync, logger = console } = {}) {
+  const info = resolveHookInfo(repoRoot, exec)
+  if (!info) {
+    logger.log('Not a git repository. Skipping hook install.')
+    return { installed: [], skipped: true, failed: [], reason: 'not_git' }
+  }
+
+  if (info.linkedWorktree && !info.configureWorktreePath) {
+    logger.warn('Linked worktree has no worktreeConfig isolation. Skipping shared hook install.')
+    return { installed: [], skipped: true, failed: [], reason: 'worktree_hooks_unavailable' }
+  }
+
+  const hookDir = info.hookDir
+  const violation = hooksDirViolation(repoRoot, hookDir)
+  if (violation) {
+    logger.warn(`拒绝写入：${violation.detail}`)
+    return { installed: [], skipped: true, failed: [violation.reason], reason: violation.reason }
+  }
+
+  if (!fs.existsSync(hookDir)) {
+    try {
+      fs.mkdirSync(hookDir, { recursive: true })
+    } catch (err) {
+      logger.warn(`Cannot create hook dir ${hookDir}: ${err.message}`)
+      return { installed: [], skipped: true, failed: ['mkdir_failed'], reason: 'mkdir_failed' }
+    }
+  }
+
+  // Create the isolated directory before changing worktree config.  A failed
+  // mkdir must never leave Git pointing at a hooks path that does not exist.
+  if (info.configureWorktreePath) {
+    try {
+      execFile('git', ['config', '--worktree', 'core.hooksPath', hookDir], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    } catch (err) {
+      logger.warn(`Cannot isolate linked worktree hooks: ${err.message}`)
+      return { installed: [], skipped: true, failed: ['worktree_config_failed'], reason: 'worktree_hooks_unavailable' }
+    }
+  }
+
+  const installed = []
+  const failed = []
+  for (const hook of HOOKS) {
+    const hookPath = path.join(hookDir, hook.name)
+    const hookContent = renderHookContent(hook)
+    try {
+      fs.writeFileSync(hookPath, hookContent)
+      fs.chmodSync(hookPath, 0o755)
+      installed.push(hook.name)
+      logger.log(`Installed ${hook.name} hook → ${DISPATCHER}`)
+    } catch (err) {
+      // 写不进去 = 这个钩子没装上 = 之后的提交 / 推送少一道检查：必须让调用方知道（不再只 warn）
+      failed.push(hook.name)
+      logger.warn(`Failed to install ${hook.name} hook: ${err.message}`)
+    }
+  }
+  return { installed, skipped: false, failed, hookDir }
+}
+
+/**
+ * 一键把本机所有 worktree（含主仓）的钩子换成当前版本：写入走和普通安装同一个共享边界（installHooks），只写各自的 hooks 目录。
+ * 用法：pnpm run hooks:reinstall-all
+ */
 function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
   const list = execFileSync('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot, encoding: 'utf8' })
   const roots = list.split('\n').filter((line) => line.startsWith('worktree ')).map((line) => line.slice('worktree '.length).trim())
   const updated = []
   const skipped = []
+  const failed = []
   for (const root of roots) {
     if (!fs.existsSync(root)) { skipped.push({ root, reason: 'missing_dir' }); continue }
     // 分支里还没有分发入口：不换它的钩子，保留它现在能用的旧钩子（换了会让它连 pre-commit 敏感扫描都停掉）
@@ -207,32 +260,21 @@ function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
       skipped.push({ root, reason: 'no_dispatcher' })
       continue
     }
-    let target = null
-    try { target = resolveHookInfo(root)?.hookDir ?? null } catch { target = null }
-    let allowed = []
-    try { allowed = allowedHookDirs(root) } catch { allowed = [] }
-    if (target === null || !allowed.includes(normalizeDir(target))) {
-      logger.log(`跳过 ${root}：钩子目录（${target ?? '解析不出'}）不是主仓 .git/hooks 或该 worktree 自己的 hooks，不写（core.hooksPath 指到外面也不认）`)
-      skipped.push({ root, reason: 'external_hooks_path' })
-      continue
-    }
-    let unsafe = null
-    try { unsafe = unsafeHooksDir(root, target) } catch (error) { unsafe = `检查失败：${error.message}` }
-    if (unsafe) {
-      logger.log(`跳过 ${root}：钩子目录不安全（${unsafe}），不写`)
-      skipped.push({ root, reason: 'unsafe_hooks_dir' })
-      continue
-    }
     const result = installHooks({ repoRoot: root, logger })
-    if (result.skipped) skipped.push({ root, reason: result.reason ?? 'skipped' })
-    else updated.push(root)
+    if (result.failed.length > 0) failed.push({ root, failed: result.failed })
+    if (result.skipped || result.failed.length > 0) {
+      if (result.failed.length > 0) logger.log(`跳过 ${root}：${result.reason ?? result.failed.join('、')}，没有写入（core.hooksPath / junction / 写入失败，详见上面的告警）`)
+      skipped.push({ root, reason: result.reason ?? 'write_failed' })
+    } else updated.push(root)
   }
   logger.log(`已换新版钩子的 worktree：${updated.length}；跳过：${skipped.length}${skipped.map((item) => `\n  - ${item.root}（${item.reason}）`).join('')}`)
-  return { updated, skipped }
+  return { updated, skipped, failed }
 }
 
 module.exports = {
   HOOKS,
+  REQUIRED_HOOKS,
+  hookTableProblems,
   installAllWorktrees,
   renderHookContent,
   resolveHookDir,
@@ -240,6 +282,14 @@ module.exports = {
 }
 
 if (require.main === module) {
-  if (process.argv.includes('--all-worktrees')) installAllWorktrees()
-  else installHooks()
+  const result = process.argv.includes('--all-worktrees') ? installAllWorktrees() : installHooks()
+  if (result.failed.length > 0) {
+    // CI 里的 postinstall 只告警：钩子在 CI 里没有用，不能因为 .git 的怪形状把每个人的安装都弄坏；本机一律非零退出。
+    if (process.env.CI === 'true' || process.env.CI === '1') {
+      console.warn(`[install-git-hooks] 钩子没装成功（${JSON.stringify(result.failed)}）；CI 环境只告警`)
+    } else {
+      console.error(`[install-git-hooks] 钩子没装成功：${JSON.stringify(result.failed)}——修好后重跑 node scripts/install-git-hooks.cjs`)
+      process.exitCode = 1
+    }
+  }
 }

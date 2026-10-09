@@ -33,7 +33,11 @@
     "分发器在场 = fail-closed；只有「分支里没有分发器」由钩子壳打印原因后放行",
     "推送前入口必须同时见到分发器设的 NOMI_GIT_HOOK_DISPATCH=pre-push 和两个参数才读 stdin；缺一律按当前 HEAD 检查",
     "PR 正文只有「gh 明确说这个分支没有 PR」才允许走草稿 / 跳过；超时、没装、没登录、没权限一律红并写明下一步",
-    "一键换钩子只写主仓 .git/hooks 或该 worktree 自己的 hooks，不认外部 core.hooksPath"
+    "一键换钩子只写主仓 .git/hooks 或该 worktree 自己的 hooks，不认外部 core.hooksPath",
+    "所有写钩子的路径（普通安装 / postinstall / 一键换钩子）都经过 installHooks 里的目录检查；装失败返回非零（CI 环境只告警）",
+    "分发表必须含 commit-msg / pre-commit / pre-push 且分发器存在，否则安装器加载即失败",
+    "推送前选择范围从正本派生：typecheck 取自 TYPECHECK_PROJECTS 指向的 tsconfig 实际展开的文件；门清单取自 gates:contracts 的完整列表；每道门恰好声明一次",
+    "推送前每道门、整个钩子都有硬超时，超时终止子进程、点名并返回非零"
   ],
   "doors": [
     {
@@ -92,7 +96,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "scripts/git-hook.mjs",
     "invariant": "钩子文件不含脚本名；分发入口存在且不可删除 / 改名（boundary-owners 每次核 path+symbol）；推送前入口只在「分发器内部标记 + 两个参数」同时满足时才读 stdin。",
-    "failure_mode": "分发入口在场时一律 fail-closed：分发表读不到 / 解析失败 / 没有这个钩子 / 步骤为空 / 某一步的候选脚本全不在 = 非零退出 + 原因；脚本红 = 原样返回退出码。唯一允许「打印原因后放行」的是钩子壳发现分支里根本没有 scripts/git-hook.mjs（很老的分支）。",
+    "failure_mode": "分发入口在场时一律 fail-closed：分发表读不到 / 解析失败 / 没有这个钩子 / 步骤为空 / 某一步的候选脚本全不在 = 非零退出 + 原因；脚本红 = 原样返回退出码。唯一允许「打印原因后放行」的是钩子壳发现分支里根本没有 scripts/git-hook.mjs（很老的分支）。 安装器写入失败、目录越界（外部 core.hooksPath / 符号链接 / junction）= 非零退出（CI 里只告警）；推送前任何一道门超时 = 终止 + 点名 + 非零。",
     "exception_policy": "none",
     "strategy": "结构上让「钩子写死脚本名」做不出来：生成物里没有可写的位置。",
     "artifacts": [

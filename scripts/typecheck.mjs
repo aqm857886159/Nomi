@@ -18,14 +18,16 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { TYPECHECK_PROJECTS } from './lib/typecheckProjects.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(import.meta.url)
 
 /** 四份检查。顺序只影响输出顺序；少一份就是静默少查一块，scripts/typecheck.node-test.mjs 钉死名单。 */
 export const TYPECHECK_JOBS = Object.freeze([
-  Object.freeze({ name: 'tsc app', kind: 'tsc', args: ['-p', 'tsconfig.app.json'] }),
-  Object.freeze({ name: 'tsc electron', kind: 'tsc', args: ['-p', 'electron/tsconfig.json'] }),
-  Object.freeze({ name: 'tsc electron-pi', kind: 'tsc', args: ['-p', 'electron/tsconfig.pi.json', '--noEmit'] }),
+  Object.freeze({ name: 'tsc app', kind: 'tsc', args: ['-p', TYPECHECK_PROJECTS.app] }),
+  Object.freeze({ name: 'tsc electron', kind: 'tsc', args: ['-p', TYPECHECK_PROJECTS.electron] }),
+  Object.freeze({ name: 'tsc electron-pi', kind: 'tsc', args: ['-p', TYPECHECK_PROJECTS.electronPi, '--noEmit'] }),
   Object.freeze({ name: 'check:test-types', kind: 'script', script: 'scripts/check-test-types.mjs' }),
 ])
 

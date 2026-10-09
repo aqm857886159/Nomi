@@ -25,10 +25,12 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 
+import { TYPECHECK_PROJECTS } from './lib/typecheckProjects.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/test-types-baseline.json')
-const PROJECT = 'tsconfig.test.json'
-const NATIVE_PROJECT = 'tests/agent-runtime/tsconfig.json'
+const PROJECT = TYPECHECK_PROJECTS.test
+const NATIVE_PROJECT = TYPECHECK_PROJECTS.nativeTest
 const require = createRequire(import.meta.url)
 const tscBin = require.resolve('typescript/bin/tsc')
 

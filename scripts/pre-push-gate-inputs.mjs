@@ -7,6 +7,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { touchesTypecheck } from './lib/typecheckCoverage.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 const SOURCE_EXTS = ['ts', 'tsx', 'mts', 'cts']
@@ -32,8 +34,6 @@ export const GATE_INPUTS = Object.freeze({
   'check:store-lifetime': { roots: ['src'], exts: ['ts', 'tsx'], files: [], entries: ['scripts/check-store-lifetime.mjs'] },
   // check-icon-semantics.mjs：src / electron 下的 .tsx（图标用法）与词典；基线 icon-semantics-baseline.json；设计系统文档里的图标登记表
   'check:icon-semantics': { roots: ['src', 'electron'], exts: ['ts', 'tsx'], files: ['scripts/icon-semantics-baseline.json', 'docs/design/nomi-design-system.md'], entries: ['scripts/check-icon-semantics.mjs'] },
-  // scripts/typecheck.mjs：tsconfig.app / electron / electron.pi / test 四份；输入是所有 ts 源与这些配置
-  'typecheck': { roots: ['src', 'electron', 'tests', 'scripts', 'evals', 'packages'], exts: ['ts', 'tsx', 'mts', 'cts'], files: ['package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.base.json', 'tsconfig.test.json', 'tsconfig.devlab.json', 'electron/tsconfig.json', 'electron/tsconfig.pi.json', 'tests/agent-runtime/tsconfig.json', 'scripts/test-types-baseline.json'], entries: ['scripts/typecheck.mjs', 'scripts/check-test-types.mjs'] },
   // check-error-surface.mjs：错误码词表、翻译与键映射，扫 src / electron
   'check:error-surface': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/error-surface-baseline.json'], entries: ['scripts/check-error-surface.mjs'] },
   // check-heavy-path.mjs：src / electron 下非测试 ts 源
@@ -60,17 +60,22 @@ export const GATE_INPUTS = Object.freeze({
   'check:dangling-tailwind': { roots: ['src'], exts: ['css','ts','tsx'], files: ['tailwind.config.ts','scripts/dangling-tailwind-baseline.json'], entries: ['scripts/check-dangling-tailwind.mjs'] },
   // check-walkthroughs.mjs：tests/ux（含 g1）的走查质量 + src 的 ts / tsx / css（比对类名是否存在）
   'check:walkthroughs': { roots: ['tests/ux','src'], exts: ['mjs','js','ts','tsx','css','json'], files: ['scripts/walkthrough-baseline.json'], entries: ['scripts/check-walkthroughs.mjs'] },
+  // check-design-lab.mjs --mirrors-only：实验室注册表 / 基线 / 陈列格 mirrors 行号（任何 src 文件挪了位置都可能让行号越界），3 秒级
+  'check:design-lab-mirrors': { roots: ['src', 'tests/ux/design-lab'], exts: ['ts', 'tsx', 'json', 'png', 'mjs'], files: ['docs/design/nomi-design-system.md'], entries: ['scripts/check-design-lab.mjs'] },
   // electron/quitLifecycleGuard.test.ts：用仓库的 eslint 配置去 lint 反例，所以 eslint 配置与 electron 下的代码都算输入
   'test:quit-lifecycle-guard': { roots: ['electron'], exts: SOURCE_EXTS, files: ['eslint.config.mjs'], entries: ['electron/quitLifecycleGuard.test.ts'] },
 })
 
 const IMPORT = /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g
-const CANDIDATE_EXTS = ['', '.mjs', '.js', '.cjs', '.ts', '.tsx', '/index.mjs', '/index.ts']
+const CANDIDATE_EXTS = ['', '.mjs', '.js', '.cjs', '.mts', '.cts', '.ts', '.tsx', '.jsx', '.json', '/index.mjs', '/index.js', '/index.cjs', '/index.mts', '/index.cts', '/index.ts', '/index.tsx']
+// TS 的写法：import './x.js' 实际指向 x.ts（.mjs → .mts，.cjs → .cts）
+const JS_TO_TS = { '.js': ['.ts', '.tsx'], '.mjs': ['.mts'], '.cjs': ['.cts'] }
 
 function resolveImport(fromFile, spec, root) {
   const base = path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), spec))
-  for (const suffix of CANDIDATE_EXTS) {
-    const candidate = `${base}${suffix}`
+  const extension = path.posix.extname(base)
+  const swapped = (JS_TO_TS[extension] ?? []).map((replacement) => `${base.slice(0, -extension.length)}${replacement}`)
+  for (const candidate of [...CANDIDATE_EXTS.map((suffix) => `${base}${suffix}`), ...swapped]) {
     try { if (fs.statSync(path.join(root, candidate)).isFile()) return candidate } catch { /* 下一个候选 */ }
   }
   return null
@@ -94,13 +99,17 @@ export function implementationFiles(entries, root = repoRoot) {
   return seen
 }
 
+/** 输入范围不手写、从真实正本现算的门岗：typecheck 取自 TYPECHECK_PROJECTS 指向的 tsconfig 实际展开的根文件（scripts/lib/typecheckCoverage.mjs）。 */
+export const DERIVED_INPUT_GATES = Object.freeze(['typecheck'])
+
 /** 某道门岗的选择器：改动里有任何一个文件落在它的输入范围里就选中。 */
 export function touchesGateInputs(name, changedFiles, root = repoRoot) {
+  if (name === 'typecheck') return touchesTypecheck(changedFiles, root)
   const input = GATE_INPUTS[name]
   if (!input) throw new Error(`没有登记输入范围的门岗：${name}`)
   const impl = implementationFiles(input.entries, root)
   const fixed = new Set(input.files)
-  return changedFiles.some((file) => {
+  return changedFiles.map((file) => file.split(path.win32.sep).join('/')).some((file) => {
     if (fixed.has(file) || impl.has(file)) return true
     const ext = path.posix.extname(file).slice(1)
     return input.exts.includes(ext) && input.roots.some((dir) => file.startsWith(`${dir}/`))

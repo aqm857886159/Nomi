@@ -180,3 +180,78 @@ test('必红：.git/hooks 被换成指向外部的 junction → 一键换钩子�
     fs.rmdirSync(hooks) // 只摘链接，不跟进目标
   }
 })
+
+// ── 复审 2：写入边界在 installHooks（所有写入都经过），装失败要非零，分发表不许缺必需钩子 ───────────────────
+
+function initMain() {
+  const main = makeRepo()
+  const git = (...args) => execFileSync('git', args, { cwd: main, encoding: 'utf8' })
+  git('config', 'user.name', 't'); git('config', 'user.email', 't@example.com')
+  put(main, 'a.txt', 'a')
+  git('add', '-A'); git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'init')
+  return { main, git }
+}
+const quiet = { log() {}, warn() {} }
+
+test('必红：普通安装（直接调 installHooks，不是 --all-worktrees）遇到外部 core.hooksPath → failed + 不写', () => {
+  const { main, git } = initMain()
+  const outside = makeTempDir('nomi-direct-external-')
+  git('config', 'core.hooksPath', outside)
+  const result = installer.installHooks({ repoRoot: main, logger: quiet })
+  assert.ok(result.failed.includes('external_hooks_path'), JSON.stringify(result))
+  assert.deepEqual(fs.readdirSync(outside), [])
+})
+
+test('必红：普通安装遇到 .git/hooks 是指向外部的 junction → failed + 外部目录始终为空', () => {
+  const { main } = initMain()
+  const outside = makeTempDir('nomi-direct-junction-')
+  const hooks = path.join(main, '.git', 'hooks')
+  fs.rmSync(hooks, { recursive: true, force: true })
+  fs.symlinkSync(outside, hooks, 'junction')
+  try {
+    const result = installer.installHooks({ repoRoot: main, logger: quiet })
+    assert.ok(result.failed.includes('unsafe_hooks_dir'), JSON.stringify(result))
+    assert.deepEqual(fs.readdirSync(outside), [])
+  } finally {
+    fs.rmdirSync(hooks)
+  }
+})
+
+test('必红：钩子写不进去（pre-push 的位置被一个目录占着）→ failed 里点名 pre-push，不再只 warn 就返回成功', () => {
+  const { main } = initMain()
+  const hooks = path.join(main, '.git', 'hooks')
+  fs.mkdirSync(hooks, { recursive: true })
+  fs.rmSync(path.join(hooks, 'pre-push'), { force: true })
+  fs.mkdirSync(path.join(hooks, 'pre-push'))
+  const result = installer.installHooks({ repoRoot: main, logger: quiet })
+  assert.deepEqual(result.failed, ['pre-push'])
+  assert.deepEqual(result.installed.sort(), ['commit-msg', 'pre-commit'])
+})
+
+test('命令行：装失败 → 退出码非零；CI=true 的 postinstall 只告警（钩子在 CI 里没用，不能因 .git 的怪形状弄坏所有人的安装）', () => {
+  const { main } = initMain()
+  fs.copyFileSync(path.join(repoRoot, 'scripts/install-git-hooks.cjs'), path.join(main, 'scripts/install-git-hooks.cjs'))
+  const hooks = path.join(main, '.git', 'hooks')
+  fs.mkdirSync(hooks, { recursive: true })
+  fs.rmSync(path.join(hooks, 'pre-push'), { force: true })
+  fs.mkdirSync(path.join(hooks, 'pre-push'))
+  const base = { ...process.env }
+  delete base.CI
+  const local = spawnSync(process.execPath, [path.join(main, 'scripts/install-git-hooks.cjs')], { cwd: main, encoding: 'utf8', env: base })
+  assert.equal(local.status, 1, local.stderr)
+  assert.match(local.stderr, /钩子没装成功/)
+  const ci = spawnSync(process.execPath, [path.join(main, 'scripts/install-git-hooks.cjs')], { cwd: main, encoding: 'utf8', env: { ...base, CI: 'true' } })
+  assert.equal(ci.status, 0, ci.stderr)
+  assert.match(ci.stderr, /CI 环境只告警/)
+})
+
+test('结构：分发表必须含全部必需钩子（pre-push 在内）且分发器存在；空表 / 缺 pre-push / 分发器缺失都红', () => {
+  assert.deepEqual(installer.hookTableProblems(tableOnDisk), [], '真表必须通过')
+  assert.deepEqual(installer.REQUIRED_HOOKS, ['commit-msg', 'pre-commit', 'pre-push'])
+  assert.ok(installer.hookTableProblems({}).length >= 3, '空表要红')
+  const withoutPush = { ...tableOnDisk }
+  delete withoutPush['pre-push']
+  assert.match(installer.hookTableProblems(withoutPush).join('\n'), /pre-push/)
+  assert.match(installer.hookTableProblems({ ...tableOnDisk, 'pre-push': [] }).join('\n'), /pre-push/)
+  assert.match(installer.hookTableProblems(tableOnDisk, { dispatcherExists: false }).join('\n'), /分发入口/)
+})

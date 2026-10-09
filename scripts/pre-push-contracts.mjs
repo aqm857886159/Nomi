@@ -18,7 +18,7 @@
 // 用法（钩子自动调；手动重跑同一套）：
 //   node scripts/pre-push-contracts.mjs [--list]          手动跑；正文用 NOMI_PR_BODY / NOMI_PR_BODY_FILE，都没给则 gh 现取（有超时）
 //   node scripts/pre-push-contracts.mjs <remote名> <url>   钩子调用（git 通过 stdin 传 ref 行）
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -26,6 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { touchesGateInputs } from './pre-push-gate-inputs.mjs'
+import { CI_ONLY, PARTIAL_LOCAL } from './pre-push-gate-table.mjs'
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -114,6 +115,8 @@ const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
  * 它只在改到它自己的文件时由 gateCommands 带上（见 gateCommands）。
  */
 export const SCAN_TESTS = Object.freeze([
+  // 设计实验室的纯 node 结构检查（#1145 在 CI 才撞到 mirrors 行号越界）；完整的 check:design-lab（tsc + 像素比对 + python 锁）留在 CI
+  { name: 'check:design-lab-mirrors', argv: ['scripts/check-design-lab.mjs', '--mirrors-only'], rerun: 'node scripts/check-design-lab.mjs --mirrors-only', when: (files) => touchesGateInputs('check:design-lab-mirrors', files) },
   // 整库类型检查（10-09 #1137 合 main 后 3 处 TS2345，推送前不跑 typecheck）：增量模式复用 node_modules/.cache/nomi-typecheck 的缓存，首次约 100 秒、之后约 30 秒；最慢，排在任务队列最前
   { name: 'typecheck', argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
   { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
@@ -212,15 +215,44 @@ export function changedFiles() {
   }
 }
 
-function runNode(argv, env = {}) {
+/** 单道门岗的硬超时（冷缓存首次 typecheck 约 100 秒是最长的一项）；超时终止子进程、打印门名和耗时、该门按红处理。 */
+export const GATE_TIMEOUT_MS = 240_000
+/** 整个钩子的硬超时：超过就终止所有仍在跑的子进程、点名它们、返回非零，不会无限挂住。 */
+export const HOOK_TIMEOUT_MS = 600_000
+
+/** 仍在跑的子进程：{ child → { name, started } }，给整体超时点名并终止用。 */
+const running = new Map()
+
+function killTree(child) {
+  try {
+    if (process.platform === 'win32' && child.pid) spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    else child.kill('SIGKILL')
+  } catch { /* 已经退出 */ }
+}
+
+export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = argv.join(' ') } = {}) {
   return new Promise((resolve) => {
     const started = Date.now()
     const child = spawn(process.execPath, argv, { cwd: repoRoot, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
+    running.set(child, { name, started })
     let output = ''
+    let settled = false
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      running.delete(child)
+      resolve(result)
+    }
+    const timer = setTimeout(() => {
+      killTree(child)
+      finish({ status: 124, output: `${output}
+[pre-push] 超时：${name} 跑了 ${((Date.now() - started) / 1000).toFixed(1)} 秒仍未结束（上限 ${timeoutMs / 1000} 秒），已终止`, ms: Date.now() - started })
+    }, timeoutMs)
     child.stdout.on('data', (chunk) => { output += chunk })
     child.stderr.on('data', (chunk) => { output += chunk })
-    child.on('error', (error) => resolve({ status: 1, output: `${output}${error.message}`, ms: Date.now() - started }))
-    child.on('close', (status) => resolve({ status: status ?? 1, output, ms: Date.now() - started }))
+    child.on('error', (error) => finish({ status: 1, output: `${output}${error.message}`, ms: Date.now() - started }))
+    child.on('close', (status) => finish({ status: status ?? 1, output, ms: Date.now() - started }))
   })
 }
 
@@ -236,6 +268,22 @@ async function pool(tasks, limit) {
   }
   await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker))
   return results
+}
+
+/** 跑完所有任务，但整体最多 deadlineMs：到点就终止仍在跑的子进程并点名。返回 { results, timedOut, stillRunning }。 */
+export async function runWithDeadline(tasks, limit, deadlineMs) {
+  let timer
+  const deadline = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      const stillRunning = [...running.values()].map((entry) => `${entry.name}（${((Date.now() - entry.started) / 1000).toFixed(0)}s）`)
+      for (const child of [...running.keys()]) killTree(child)
+      resolve({ results: [], timedOut: true, stillRunning })
+    }, deadlineMs)
+  })
+  const finished = pool(tasks, limit).then((results) => ({ results, timedOut: false, stillRunning: [] }))
+  const outcome = await Promise.race([finished, deadline])
+  clearTimeout(timer)
+  return outcome
 }
 
 const tail = (text, lines) => String(text).trimEnd().split('\n').slice(-lines).join('\n')
@@ -260,7 +308,7 @@ export function formatSummary(results) {
   return { text: out.join('\n'), failed }
 }
 
-export async function main(argv = process.argv.slice(2), { stdinText = null } = {}) {
+export async function main(argv = process.argv.slice(2), { stdinText = null, hookTimeoutMs = HOOK_TIMEOUT_MS } = {}) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
   const known = [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, ...BODY_GATES]
   // 入口只认 --list；任何别的参数（含空值）一律报错——推送钩子不能有让门岗集合变小的开关（P1）
@@ -309,7 +357,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
       const started = Date.now()
       let last = { status: 0, output: '' }
       for (const commandArgv of gateCommands(script, changed)) {
-        last = await runNode(commandArgv)
+        last = await runNode(commandArgv, {}, { name: gate.name })
         if (last.status !== 0) break
       }
       return { name: gate.name, status: last.status, output: last.output, ms: Date.now() - started }
@@ -317,12 +365,12 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
   }
   for (const scan of SCAN_TESTS) {
     if (!selected.has(scan.name)) continue
-    const task = async () => ({ name: scan.name, ...(await runNode(scan.argv)) })
+    const task = async () => ({ name: scan.name, ...(await runNode(scan.argv, {}, { name: scan.name })) })
     if (scan.name === 'typecheck') tasks.unshift(task)
     else tasks.push(task)
   }
   if (selected.has(LINT_GATE.name)) {
-    tasks.push(async () => ({ name: LINT_GATE.name, ...(await runNode([path.join(repoRoot, LINT_GATE.script)])) }))
+    tasks.push(async () => ({ name: LINT_GATE.name, ...(await runNode([path.join(repoRoot, LINT_GATE.script)], {}, { name: LINT_GATE.name })) }))
   }
   // 正文类：正文一次取好（本机优先 gh pr view，没有 PR 就读 .tmp-pr-body.md 草稿），两道门岗用同一份
   const bodyGates = BODY_GATES.filter((name) => selected.has(name))
@@ -339,16 +387,24 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {
         const script = name === 'check:prior-art' ? 'scripts/check-prior-art.mjs' : 'scripts/check-pr-judgement.mjs'
-        tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body })) }))
+        tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body }, { name })) }))
       }
     }
   }
 
   const started = Date.now()
-  const results = await pool(tasks, CONCURRENCY)
+  const outcome = await runWithDeadline(tasks, CONCURRENCY, hookTimeoutMs)
+  if (outcome.timedOut) {
+    console.error(`[pre-push] BLOCKED：整个钩子超过 ${hookTimeoutMs / 1000} 秒仍未结束，已终止。仍在跑：${outcome.stillRunning.join('、') || '（无）'}`)
+    return 1
+  }
+  const results = outcome.results
   const { text, failed } = formatSummary(results)
   console.error(text)
+  const ciOnlyCount = CI_ONLY.reduce((total, group) => total + group.gates.length, 0)
+  const partial = Object.entries(PARTIAL_LOCAL).map(([gate, { by }]) => `${gate}（本机只跑了 ${by}）`).join('、')
   console.error(`[pre-push] 共 ${((Date.now() - started) / 1000).toFixed(1)}s；${SLOW_GATES_NOTE}`)
+  console.error(`[pre-push] 只在 CI 跑的门共 ${ciOnlyCount} 道（名单与理由：scripts/pre-push-gate-table.mjs）；完整版只在 CI、本机只跑了一部分的：${partial}。推送前钩子是加速器，CI 才是最终裁判。`)
   return failed.length === 0 ? 0 : 1
 }
 

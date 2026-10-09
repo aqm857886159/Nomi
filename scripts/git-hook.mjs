@@ -17,7 +17,10 @@ import { fileURLToPath } from 'node:url'
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(scriptDir, '..')
 
-export function runHook(hookName, args, { root = repoRoot, table = path.join(scriptDir, 'git-hooks.json') } = {}) {
+/** 每一步的硬超时：pre-push 要比 pre-push-contracts.mjs 自己的整体超时（600 秒）略长，让它先自己收拾子进程；其余钩子 2 分钟。 */
+export const STEP_TIMEOUT_MS = Object.freeze({ 'pre-push': 660_000, default: 120_000 })
+
+export function runHook(hookName, args, { root = repoRoot, table = path.join(scriptDir, 'git-hooks.json'), stepTimeoutMs = STEP_TIMEOUT_MS[hookName] ?? STEP_TIMEOUT_MS.default } = {}) {
   // fail-closed：分发器既然在，就必须有可跑的东西——表读不到 / 坏了 / 没这个钩子 / 某一步的候选全不在，都是非零 + 原因。
   // 唯一允许「打印原因后放行」的情形是「分支里根本没有分发器」，那由生成的钩子壳判断（见 install-git-hooks.cjs），不在这里。
   const fail = (text) => { console.error(`[${hookName}] BLOCKED：${text}`); return 1 }
@@ -31,8 +34,11 @@ export function runHook(hookName, args, { root = repoRoot, table = path.join(scr
   for (const candidates of steps) {
     const found = candidates.find((rel) => fs.existsSync(path.join(root, rel)))
     if (!found) return fail(`${candidates.join(' / ')} 都不在本分支；脚本改名或删除后请同步改 scripts/git-hooks.json`)
+    const stepStarted = Date.now()
     // 内部标记：脚本只有同时见到它和 git 传入的参数，才把自己当作被钩子调用（读 stdin 的 ref 行）
-    const result = spawnSync(process.execPath, [path.join(root, found), ...args], { cwd: process.cwd(), stdio: 'inherit', env: { ...process.env, NOMI_GIT_HOOK_DISPATCH: hookName } })
+    const result = spawnSync(process.execPath, [path.join(root, found), ...args], { cwd: process.cwd(), stdio: 'inherit', env: { ...process.env, NOMI_GIT_HOOK_DISPATCH: hookName }, timeout: stepTimeoutMs, killSignal: 'SIGKILL' })
+    const spentSeconds = ((Date.now() - stepStarted) / 1000).toFixed(1)
+    if (result.error && result.error.code === 'ETIMEDOUT') return fail(`${found} 跑了 ${spentSeconds} 秒仍未结束（上限 ${stepTimeoutMs / 1000} 秒），已终止`)
     if (result.error) return fail(`${found} 没能启动：${result.error.message}`)
     if (result.status !== 0) return result.status ?? 1
   }

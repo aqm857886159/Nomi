@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url'
 
 import { makeTempDir } from './_test-temp.mjs'
 import { judgeLint } from './lint-changed.mjs'
-import { GATE_INPUTS, touchesGateInputs } from './pre-push-gate-inputs.mjs'
-import { CI_ONLY, PRE_PUSH_ALIASES } from './pre-push-gate-table.mjs'
+import { DERIVED_INPUT_GATES, GATE_INPUTS, touchesGateInputs } from './pre-push-gate-inputs.mjs'
+import { CI_ONLY, PARTIAL_LOCAL, PRE_PUSH_ALIASES, TYPECHECK_NOT_COVERED, declarationProblems, parseContractGates } from './pre-push-gate-table.mjs'
 import {
   BODY_GATES,
   LINT_GATE,
@@ -21,6 +21,8 @@ import {
   formatSummary,
   gateCommands,
   parsePushRefs,
+  runNode,
+  runWithDeadline,
   pushDecision,
   selectGates,
 } from './pre-push-contracts.mjs'
@@ -400,7 +402,6 @@ test('有标记 + 两个参数才算钩子：同一条删除 ref 这时才允许
 const SCANNER_READS = {
   'check:store-lifetime': ['src/workbench/x/useXStore.ts', 'src/ui/Y.tsx', 'scripts/check-store-lifetime.mjs'],
   'check:icon-semantics': ['src/ui/Icon.tsx', 'electron/x.ts', 'scripts/check-icon-semantics.mjs', 'scripts/icon-semantics-baseline.json', 'docs/design/nomi-design-system.md'],
-  'typecheck': ['src/a.ts', 'src/b.tsx', 'electron/c.ts', 'tests/ux/d.ts', 'scripts/e.ts', 'tsconfig.app.json', 'electron/tsconfig.json', 'electron/tsconfig.pi.json', 'package.json', 'scripts/typecheck.mjs', 'scripts/check-test-types.mjs'],
   'check:error-surface': ['src/a.tsx', 'electron/b.ts', 'scripts/error-surface-baseline.json', 'scripts/check-error-surface.mjs'],
   'check:heavy-path': ['src/a.ts', 'electron/b.mts', 'electron/c.cts', 'scripts/heavy-path-baseline.json'],
   'check:builtin-vendor-literals': ['src/a.tsx', 'electron/b.ts', 'scripts/check-builtin-vendor-literals.mjs'],
@@ -413,6 +414,7 @@ const SCANNER_READS = {
   'check:media-import-owner': ['electron/a.ts', 'src/b.tsx', 'scripts/media-import-owner-baseline.json'],
   'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
+  'check:design-lab-mirrors': ['src/devlab/designLab/a.tsx', 'src/workbench/x/Y.tsx', 'tests/ux/design-lab/baselines/a.png', 'scripts/check-design-lab.mjs'],
   'check:walkthroughs': ['tests/ux/a.walk.mjs', 'tests/ux/g1/cases.node-test.mjs', 'tests/ux/x.json', 'src/a.css', 'src/b.tsx', 'scripts/walkthrough-baseline.json', 'scripts/check-walkthroughs.mjs'],
   'check:tokens': ['src/theme/nomi-tokens.css', 'src/ui/A.tsx', 'src/a.ts', 'src/a.mts', 'electron/x.ts', 'electron/theme.css', 'tailwind.config.ts', 'scripts/check-design-tokens.mjs', 'scripts/lib/colorMixHue.mjs', 'scripts/lib/scopedTokenScan.mjs', 'scripts/lib/gitPaths.mjs'],
   'check:vocabularies': ['src/a.ts', 'src/a.tsx', 'src/a.mts', 'src/a.cts', 'electron/b.cts', 'electron/b.mts', 'scripts/check-vocabularies.mjs', 'scripts/check-vocabularies-scan.mjs', 'scripts/vocabularies-baseline.json'],
@@ -433,7 +435,7 @@ test('契约：每道按路径选的新门岗都在 GATE_INPUTS 里登记，且�
 
 test('契约：选择器只用 GATE_INPUTS，pre-push-contracts.mjs 里没有手写的这七道门岗的路径正则', () => {
   const entry = read('scripts/pre-push-contracts.mjs')
-  for (const name of Object.keys(GATE_INPUTS)) {
+  for (const name of [...Object.keys(GATE_INPUTS), ...DERIVED_INPUT_GATES]) {
     const line = entry.split('\n').find((text) => text.includes(`name: '${name}'`))
     assert.ok(line, `${name} 应在入口里登记`)
     assert.match(line, /touchesGateInputs\(/, `${name} 的选择器必须来自 GATE_INPUTS`)
@@ -443,23 +445,42 @@ test('契约：选择器只用 GATE_INPUTS，pre-push-contracts.mjs 里没有手
 
 // ── 本机与 CI 对齐：gates:contracts 的每一道门都必须在推送前表态（10-09：#1135 / #1133 / #1137 推送前全绿、CI 才红）────────────
 
-const CI_ITEMS = pkg.scripts['gates:contracts'].split(/\s+/).filter((item) => /^(?:check:|lint:|typecheck)/.test(item))
+const { gates: CI_GATES } = parseContractGates(pkg.scripts['gates:contracts'])
 const PRE_PUSH_NAMES = new Set([...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, ...BODY_GATES])
 
-test('结构：gates:contracts 里每道门都得声明「推送前跑」或「只在 CI 跑 + 理由」，没声明就红（新门不会再悄悄只在 CI 跑）', () => {
-  const ciOnly = CI_ONLY.flatMap((group) => group.gates)
-  const undeclared = CI_ITEMS.filter((item) => !PRE_PUSH_NAMES.has(item) && !(item in PRE_PUSH_ALIASES) && !ciOnly.includes(item))
-  assert.deepEqual(undeclared, [], `这些门在 gates:contracts 里，却没在推送前选择表声明（加进 PRE_PUSH_GATES / SCAN_TESTS，或在 scripts/pre-push-gate-table.mjs 的 CI_ONLY 写明理由）：${undeclared.join('、')}`)
-  for (const group of CI_ONLY) assert.ok(group.reason.length >= 10, '每组 CI_ONLY 都要写理由')
+test('结构：gates:contracts 的完整门列表（不按名字前缀过滤）里，每道门恰好声明一次——推送前跑 / 别名 / 只在 CI + 理由', () => {
+  assert.ok(CI_GATES.length > 90, `解析出的门数量不对：${CI_GATES.length}`)
+  assert.deepEqual(declarationProblems(CI_GATES, PRE_PUSH_NAMES), [])
 })
 
-test('结构：声明不自相矛盾——只在 CI 的门不在推送前里、不重复；CI_ONLY / 别名里没有已不在 gates:contracts 的陈旧项；别名指向真实存在的推送前门岗', () => {
-  const ciOnly = CI_ONLY.flatMap((group) => group.gates)
-  assert.deepEqual(ciOnly.filter((item, index) => ciOnly.indexOf(item) !== index), [], 'CI_ONLY 里有重复项')
-  assert.deepEqual(ciOnly.filter((item) => PRE_PUSH_NAMES.has(item) || item in PRE_PUSH_ALIASES), [], '同一道门不能既推送前跑又只在 CI')
-  assert.deepEqual(ciOnly.filter((item) => !CI_ITEMS.includes(item)), [], 'CI_ONLY 里有已不在 gates:contracts 的陈旧项')
-  assert.deepEqual(Object.keys(PRE_PUSH_ALIASES).filter((item) => !CI_ITEMS.includes(item)), [], '别名里有陈旧项')
-  for (const [item, { by }] of Object.entries(PRE_PUSH_ALIASES)) assert.ok(PRE_PUSH_NAMES.has(by), `${item} 的别名指向不存在的推送前门岗 ${by}`)
+test('必红：新登记的门（不管叫 check: / test: / run: 什么）没在选择表声明就红；改名、重复声明、别名指向无关门、陈旧项都红', () => {
+  const base = { aliases: PRE_PUSH_ALIASES, ciOnly: CI_ONLY, partial: PARTIAL_LOCAL }
+  // 新门：名字不带 check: 前缀也必须被要求声明
+  assert.match(declarationProblems([...CI_GATES, 'test:new-gate'], PRE_PUSH_NAMES).join('\n'), /test:new-gate：没有声明/)
+  assert.match(declarationProblems([...CI_GATES, 'run:policy'], PRE_PUSH_NAMES).join('\n'), /run:policy：没有声明/)
+  // 改名：旧名还在声明里 = 陈旧项；新名没声明
+  const renamed = CI_GATES.map((gate) => (gate === 'check:site' ? 'check:site-v2' : gate))
+  const renamedProblems = declarationProblems(renamed, PRE_PUSH_NAMES).join('\n')
+  assert.match(renamedProblems, /check:site-v2：没有声明/)
+  assert.match(renamedProblems, /check:site：CI_ONLY 里的陈旧项/)
+  // 重复声明：同一道门既推送前跑又只在 CI
+  const dup = [...PRE_PUSH_NAMES].find((name) => CI_GATES.includes(name))
+  assert.ok(dup)
+  const dupOnly = [...CI_ONLY, { reason: '重复声明探针（故意）', gates: [dup] }]
+  assert.match(declarationProblems(CI_GATES, PRE_PUSH_NAMES, { ...base, ciOnly: dupOnly }).join('\n'), new RegExp(`${dup}：重复声明`))
+  // 别名指向不存在的推送前门岗
+  const badAlias = { ...PRE_PUSH_ALIASES, 'check:test-temp-static': { by: 'check:no-such-gate', note: 'x' } }
+  assert.match(declarationProblems(CI_GATES, PRE_PUSH_NAMES, { ...base, aliases: badAlias }).join('\n'), /别名指向不存在的推送前门岗/)
+  // PARTIAL_LOCAL 里的门必须同时是 CI_ONLY
+  const badPartial = { ...PARTIAL_LOCAL, 'check:filesize': { by: 'lint:changed', note: 'x' } }
+  assert.match(declarationProblems(CI_GATES, PRE_PUSH_NAMES, { ...base, partial: badPartial }).join('\n'), /check:filesize：PARTIAL_LOCAL 里的门必须同时是 CI_ONLY/)
+})
+
+test('check:i18n 如实标成「只在 CI 跑」：不再有同名别名掩盖只覆盖了一部分，部分覆盖单独点名', () => {
+  assert.ok(!('check:i18n' in PRE_PUSH_ALIASES))
+  assert.ok(CI_ONLY.some((group) => group.gates.includes('check:i18n')))
+  assert.equal(PARTIAL_LOCAL['check:i18n'].by, 'check:test-copy-literals')
+  assert.ok(PRE_PUSH_NAMES.has('check:test-copy-literals'))
 })
 
 test('必红：新增一个没有 declareStoreLifetime 的 zustand store → 推送前红，点名 check:store-lifetime（#1135 / #1133 在 CI 才撞到）', () => {
@@ -471,4 +492,85 @@ test('必红：新增一个没有 declareStoreLifetime 的 zustand store → 推
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:store-lifetime/)
   assert.match(result.stderr, /useProbeStore/, '红的原因要是这个新 store')
+})
+
+// ── typecheck 的选择范围从真实 tsconfig 派生：被选中就一定真被某个 program 编译 ────────────────────────────────
+
+test('探针：每份被 typecheck 实际编译的 tsconfig，取一个它展开的根文件——选择器选中它，且 tsc --listFilesOnly 真的列出它（选择范围 = 实际覆盖）', async () => {
+  const { spawn } = await import('node:child_process')
+  const { programRootFiles } = await import('./lib/typecheckCoverage.mjs')
+  const { TYPECHECK_PROJECTS } = await import('./lib/typecheckProjects.mjs')
+  const tscBin = path.join(repoRoot, 'node_modules/typescript/bin/tsc')
+  const probes = Object.entries(TYPECHECK_PROJECTS).map(async ([label, config]) => {
+    const roots = programRootFiles(config, repoRoot)
+    assert.ok(roots.length > 0, `${config} 没有展开出任何根文件`)
+    const sample = roots[roots.length - 1]
+    assert.ok(touchesGateInputs('typecheck', [sample]), `${label}：${sample} 应选中 typecheck`)
+    const listed = await new Promise((resolve) => {
+      let out = ''
+      const child = spawn(process.execPath, [tscBin, '-p', config, '--listFilesOnly'], { cwd: repoRoot })
+      child.stdout.on('data', (chunk) => { out += chunk })
+      child.on('close', () => resolve(out))
+    })
+    const normalized = listed.split(path.sep).join('/').toLowerCase()
+    assert.ok(normalized.includes(sample.toLowerCase()), `${label}（${config}）：tsc 没有编译 ${sample}——选择范围大于实际覆盖`)
+  })
+  await Promise.all(probes)
+})
+
+test('typecheck 不覆盖的目录诚实地不选中（tests/ux 的 tsx、evals 非 test、packages 等），tsconfig.devlab.json 这种没人跑的配置也不选', () => {
+  for (const file of ['tests/ux/fixtures/foo.tsx', 'tests/ux/walk.ts', 'tests/agent-system/schema.mts', 'evals/director/binding.ts', 'packages/p/index.ts', 'workers/w.ts', 'tsconfig.devlab.json']) {
+    assert.equal(touchesGateInputs('typecheck', [file]), false, `${file} 不在任何 tsc program 里，不该选中 typecheck`)
+  }
+  assert.ok(TYPECHECK_NOT_COVERED.length >= 4, '不覆盖的目录要在选择表里如实标明')
+  // 影响结果的非根文件：依赖版本、棘轮基线、公共配置
+  for (const file of ['package.json', 'pnpm-lock.yaml', 'scripts/test-types-baseline.json', 'tsconfig.base.json', 'tsconfig.app.json']) assert.ok(touchesGateInputs('typecheck', [file]), file)
+})
+
+// ── 硬超时：任何一道门、整个钩子都不会无限挂住 ───────────────────────────────────────────────────────────
+
+test('必红：一道门挂住（子进程永不退出）→ 超时被终止，门名和耗时写进输出，状态非零（不是无限等）', async () => {
+  const started = Date.now()
+  const result = await runNode(['-e', 'setInterval(() => {}, 1000)'], {}, { timeoutMs: 1500, name: 'probe:hang' })
+  assert.ok(Date.now() - started < 20_000, '超时没生效')
+  assert.notEqual(result.status, 0)
+  assert.match(result.output, /超时：probe:hang/)
+  assert.match(result.output, /已终止/)
+})
+
+test('必红：整个钩子超过期限 → 点名仍在跑的门、终止子进程、返回 timedOut（不会无限挂住）', async () => {
+  const tasks = [
+    async () => ({ name: 'probe:a', ...(await runNode(['-e', 'setInterval(() => {}, 1000)'], {}, { timeoutMs: 60_000, name: 'probe:a' })) }),
+    async () => ({ name: 'probe:b', ...(await runNode(['-e', 'setInterval(() => {}, 1000)'], {}, { timeoutMs: 60_000, name: 'probe:b' })) }),
+  ]
+  const started = Date.now()
+  const outcome = await runWithDeadline(tasks, 2, 1500)
+  assert.ok(Date.now() - started < 20_000)
+  assert.equal(outcome.timedOut, true)
+  assert.equal(outcome.stillRunning.length, 2)
+  assert.match(outcome.stillRunning.join(' '), /probe:a/)
+  assert.match(outcome.stillRunning.join(' '), /probe:b/)
+})
+
+test('分发器每一步也有硬超时：脚本挂住 → 非零 + 原因 + 耗时', async () => {
+  const gitHook = await import('./git-hook.mjs')
+  const root = makeTempDir('nomi-hook-timeout-')
+  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'scripts/hang.mjs'), 'setInterval(() => {}, 1000)\n')
+  fs.writeFileSync(path.join(root, 'scripts/t.json'), JSON.stringify({ 'pre-commit': [['scripts/hang.mjs']] }))
+  const started = Date.now()
+  const code = gitHook.runHook('pre-commit', [], { root, table: path.join(root, 'scripts/t.json'), stepTimeoutMs: 1500 })
+  assert.ok(Date.now() - started < 20_000)
+  assert.notEqual(code, 0)
+})
+
+// ── 推送前输出要如实说「哪些只在 CI」 ───────────────────────────────────────────────────────────────────
+
+test('推送前输出点名：只在 CI 跑的门共 N 道，部分覆盖的（check:i18n、lint:ci）本机只跑了哪一部分；钩子是加速器、CI 是最终裁判', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  const result = prePush()
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /只在 CI 跑的门共 \d+ 道/)
+  assert.match(result.stderr, /check:i18n（本机只跑了 check:test-copy-literals）/)
+  assert.match(result.stderr, /CI 才是最终裁判/)
 })
