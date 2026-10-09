@@ -27,7 +27,19 @@ export function judgeBaselineGrowth({ ruleIds, baseline, baseBaseline, measureOn
   return errors
 }
 
-/** merge-base（HEAD 与 origin/main）；拿不到（浅克隆 / 没有 origin）返回 null，调用方降级为只比当前数。 */
+/**
+ * merge-base 或它上面的基线拿不到时（浅克隆 / 没有 origin/main）的判法——**fail-closed**（#1136 复审阻断）。
+ * 之前这里只打 warning 就跳过 judgeBaselineGrowth：提交者在没有 origin/main 的环境里把新规则的首发基线写成当前命中数，
+ * 门岗照样放行。认不出「哪条规则是新的」时，只能把「带 merge-base 实测能力的规则」里基线非零的一律当作无法核对 → 红。
+ * 基线为 0 的规则本来就没有可豁免的债，不拦。
+ */
+export function judgeBaseUnavailable({ rules, baseline }) {
+  return rules
+    .filter((rule) => rule.measurable && (baseline[rule.id] ?? 0) > 0)
+    .map((rule) => `「${rule.id}」基线 ${baseline[rule.id]}：拿不到 merge-base（或它上面的走查基线），无法核对这是不是新规则的自报豁免。先 git fetch origin main 再跑`)
+}
+
+/** merge-base（HEAD 与 origin/main）；拿不到（浅克隆 / 没有 origin）返回 null，调用方走 judgeBaseUnavailable（红，不放行）。 */
 export function resolveMergeBase(repoRoot) {
   try {
     return execFileSync('git', ['merge-base', 'HEAD', 'origin/main'], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null

@@ -13,7 +13,12 @@ import {
 } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 import { findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
-import { judgeBaselineGrowth } from './lib/walkthroughBaselineGuard.mjs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { judgeBaselineGrowth, judgeBaseUnavailable } from './lib/walkthroughBaselineGuard.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -190,5 +195,32 @@ describe('走查基线只减不增（#1136 评审阻断 2）', () => {
 
   it('首发基线等于 merge-base 实测、已有规则只降不升 → 不报', () => {
     assert.deepEqual(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-selector': 0, 'dead-data-attr': 56 }, baseBaseline: { 'dead-selector': 1 }, measureOnBase: () => 56 }), [])
+  })
+})
+
+describe('merge-base 拿不到时 fail-closed（#1136 复审阻断）', () => {
+  const rules = [{ id: 'dead-selector', measurable: false }, { id: 'dead-data-attr', measurable: true }]
+
+  it('有 merge-base 实测能力的规则基线非零 → 红；基线为 0 或没有实测能力的规则 → 不拦', () => {
+    assert.equal(judgeBaseUnavailable({ rules, baseline: { 'dead-selector': 5, 'dead-data-attr': 97 } }).length, 1)
+    assert.deepEqual(judgeBaseUnavailable({ rules, baseline: { 'dead-selector': 5, 'dead-data-attr': 0 } }), [])
+  })
+
+  it('集成：真实脚本在没有 origin/main 的仓库里跑，必须红（旧行为是 warning + exit 0）', () => {
+    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+    const emptyGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-no-origin-'))
+    try {
+      execFileSync('git', ['init', '-q', '--bare', emptyGitDir], { stdio: 'ignore' })
+      // GIT_DIR 指向一个空仓库：merge-base / show 全部失败，等价于「浅克隆 / 没有 origin/main」；脚本读的是工作区文件，不受影响。
+      const run = spawnSync(process.execPath, [path.join(repoRoot, 'scripts', 'check-walkthroughs.mjs')], {
+        cwd: repoRoot,
+        env: { ...process.env, GIT_DIR: emptyGitDir },
+        encoding: 'utf8',
+      })
+      assert.notEqual(run.status, 0, run.stdout + run.stderr)
+      assert.match(run.stderr, /走查基线无法核对/)
+    } finally {
+      fs.rmSync(emptyGitDir, { recursive: true, force: true, maxRetries: 5 })
+    }
   })
 })

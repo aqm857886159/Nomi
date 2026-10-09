@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 import { collectRenderText, countDeadDataAttributesAtRevision, findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
-import { judgeBaselineGrowth, readJsonAtRevision, resolveMergeBase } from './lib/walkthroughBaselineGuard.mjs'
+import { judgeBaselineGrowth, judgeBaseUnavailable, readJsonAtRevision, resolveMergeBase } from './lib/walkthroughBaselineGuard.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -330,7 +330,12 @@ let failed = false
   const base = resolveMergeBase(repoRoot)
   const baseBaseline = base ? readJsonAtRevision(repoRoot, base, 'scripts/walkthrough-baseline.json') : null
   if (!baseBaseline) {
-    console.warn('⚠ 拿不到 merge-base 上的走查基线（浅克隆 / 没有 origin/main），本次不核「基线只减不增」。')
+    // fail-closed：拿不到就不能当作没事。只放行「没有任何带 merge-base 实测规则的基线是非零」的情形（见 judgeBaseUnavailable）。
+    for (const message of judgeBaseUnavailable({ rules: RULES.map((rule) => ({ id: rule.id, measurable: Boolean(rule.measureAtRevision) })), baseline })) {
+      failed = true
+      console.error(`
+✖ 走查基线无法核对：${message}`)
+    }
   } else {
     const measured = {}
     for (const rule of RULES) {
