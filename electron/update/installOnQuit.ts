@@ -5,16 +5,18 @@
 // 装包程序（NSIS）启动时 Nomi 已把项目、导出、Agent 都收尾完，不会被安装程序强杀在半路。
 // 只在正常退出（will-quit）走到这里：系统关机 / 登出这类只跑关键排空项的无人值守退出不会触发安装。
 import type { QuitDrainOptions } from "../quitTeardown";
+import type { InstallOutcome } from "./installGate";
 
 export const INSTALL_ON_QUIT_DRAIN = "update-install-on-quit";
 export const INSTALL_ON_QUIT_TIMEOUT_MS = 1500;
 
 export type InstallOnQuitDeps = {
   registerDrain: (name: string, drain: () => void | Promise<void>, options?: QuitDrainOptions) => () => void;
-  /** 同步起装包程序（electron-updater 的 install(isSilent=true, forceRunAfter=false)）。成功起了返回 true。 */
-  install: () => boolean;
-  /** 有活没干完（任务 / 制作流程 / 导出）：退出时不装，等下次退出。 */
-  isBusy?: () => boolean;
+  /**
+   * 退出时安装：走唯一安装入口 installGate.installIfIdleNow("quit")——同步判忙、同步调用库。
+   * busy = 有活没干完，不装、状态保留，等下次退出；failed = 装包程序没起来。
+   */
+  install: () => InstallOutcome;
 };
 
 export type InstallOnQuit = {
@@ -40,15 +42,8 @@ export function createInstallOnQuit(deps: InstallOnQuitDeps): InstallOnQuit {
 
   const drain = (): void => {
     if (!downloaded || installStarted) return;
-    if (deps.isBusy?.()) return;
-    installStarted = true;
-    // 失败（返回 false 或抛错）要原子地撤回「已开始」，保留「已下载」：点一次重试、下次退出才都装得上。
-    try {
-      if (!deps.install()) throw new Error("update installer did not start");
-    } catch (error) {
-      installStarted = false;
-      throw error;
-    }
+    // 「已开始」的登记 / 撤回都在安装入口的同步块里做（失败原子撤回，保留「已下载」，之后点一次重试、下次退出才都装得上）。
+    if (deps.install() === "failed") throw new Error("update installer did not start");
   };
 
   return {

@@ -880,6 +880,7 @@
         "electron/update/installOnQuit.ts",
         "electron/update/updateBusyGate.ts",
         "electron/update/updateReminderStore.ts",
+      "electron/update/installGate.ts",
         "src/ui/app-shell/useRunningTaskCount.ts",
         "src/ui/app-shell/useUpdateLocale.ts"
       ],

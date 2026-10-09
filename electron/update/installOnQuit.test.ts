@@ -1,6 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { exitWithoutConfirmation, installQuitTeardown, quitStartProbeResult, registerQuitDrain, registerQuitStartProbe, resetQuitTeardownForTests } from "../quitTeardown";
-import { createInstallOnQuit } from "./installOnQuit";
+import { createInstallGate, type UpdaterInstaller } from "./installGate";
+import { createInstallOnQuit, type InstallOnQuit } from "./installOnQuit";
+
+/** 和生产同一条接线：退出排空项 → 唯一安装入口 → 库。busy() 是入口里同步判忙用的。 */
+function wireGate(updater: UpdaterInstaller, busy: () => boolean): InstallOnQuit {
+  const ref: { gate?: InstallOnQuit } = {};
+  const installGate = createInstallGate({
+    getUpdater: () => updater,
+    isBusy: () => busy(),
+    markStarted: () => ref.gate?.markInstallStarted(),
+    markFailed: () => ref.gate?.markInstallFailed(),
+  });
+  ref.gate = createInstallOnQuit({ registerDrain: registerQuitDrain, install: () => installGate.installIfIdleNow("quit") });
+  return ref.gate;
+}
 
 // 走真实的退出 owner（installQuitTeardown）：排空项是不是真的在 will-quit 里、在别的排空项之后、被调用，
 // 不靠假的 registerDrain 自说自话。
@@ -32,7 +46,7 @@ function setup(installResult = true) {
   });
   registerQuitDrain("startup-drain", () => { order.push("startup-drain"); });
   const install = vi.fn(() => { order.push("install"); return installResult; });
-  const gate = createInstallOnQuit({ registerDrain: registerQuitDrain, install });
+  const gate = wireGate({ quitAndInstall: vi.fn(), install: install as unknown as UpdaterInstaller["install"] }, () => false);
   return { app, emit, order, install, gate };
 }
 
@@ -131,7 +145,7 @@ describe("退出时自动装更新（走退出 owner 的排空项）", () => {
     expect(gate.isArmed()).toBe(true);
   });
 
-  it("有活在跑（isBusy）：退出时不装，状态保留", async () => {
+  it("有活在跑（入口里同步判忙为真）：退出时不装，状态保留", async () => {
     const { app, emit } = fakeApp();
     installQuitTeardown(app as never, {
       disposeBackgroundLifecycle: () => undefined,
@@ -140,7 +154,7 @@ describe("退出时自动装更新（走退出 owner 的排空项）", () => {
       disposeDesktopLaneIpc: async () => undefined,
     });
     const install = vi.fn(() => true);
-    const gate = createInstallOnQuit({ registerDrain: registerQuitDrain, install, isBusy: () => true });
+    const gate = wireGate({ quitAndInstall: vi.fn(), install }, () => true);
     gate.consent();
     gate.markDownloaded();
     emit("will-quit");
@@ -163,11 +177,7 @@ describe("退出时自动装更新（走退出 owner 的排空项）", () => {
     });
     registerQuitStartProbe("update-busy", () => exportsRunning.count > 0);
     const install = vi.fn(() => { order.push("install"); return true; });
-    const gate = createInstallOnQuit({
-      registerDrain: registerQuitDrain,
-      install,
-      isBusy: () => (quitStartProbeResult("update-busy") ?? false) || exportsRunning.count > 0,
-    });
+    const gate = wireGate({ quitAndInstall: vi.fn(), install }, () => (quitStartProbeResult("update-busy") ?? false) || exportsRunning.count > 0);
     gate.consent();
     gate.markDownloaded();
     emit("before-quit");
@@ -188,7 +198,7 @@ describe("退出时自动装更新（走退出 owner 的排空项）", () => {
     });
     registerQuitStartProbe("update-busy", () => false);
     const install = vi.fn(() => true);
-    const gate = createInstallOnQuit({ registerDrain: registerQuitDrain, install, isBusy: () => quitStartProbeResult("update-busy") ?? false });
+    const gate = wireGate({ quitAndInstall: vi.fn(), install }, () => quitStartProbeResult("update-busy") ?? false);
     gate.consent();
     gate.markDownloaded();
     emit("before-quit");

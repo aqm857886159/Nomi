@@ -94,6 +94,8 @@ describe('autoUpdater.ts 接线（真实模块，假 electron）', () => {
     }))
     vi.doMock('electron-updater', () => ({ autoUpdater: updater }))
     vi.doMock('../i18n', () => ({ desktopT: (k: string) => k }))
+    // 判忙只需要这一个函数；别把任务缓存 / 制作流程 / 导出整串模块图拖进这个定时器测试里（假时钟下导入慢会让首测超时）。
+    vi.doMock('../backgroundLaunch', () => ({ hasInFlightProductionWork: () => false }))
     vi.doMock('../ipcSenderGuard', () => ({ assertTrustedSender: vi.fn() }))
     vi.doMock('../telemetry/telemetryOutbox', () => ({ recordTelemetryEvent: (e: Record<string, unknown>) => telemetry.push(e) }))
     return import('./autoUpdater')

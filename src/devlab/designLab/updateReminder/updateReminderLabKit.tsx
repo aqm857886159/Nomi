@@ -254,12 +254,13 @@ export function AppBarStage({ locale = 'zh-CN', badge }: { locale?: LabLocale; b
   )
 }
 
-export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = true, runningTasks, errorMessage, percent, errorStage, errorReason }: {
+export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = true, runningTasks, installBlocked, errorMessage, percent, errorStage, errorReason }: {
   locale?: LabLocale
   view: UpdateDialogView
   version: '0.23.0' | '0.23.1'
   canAutoInstall?: boolean
   runningTasks?: number
+  installBlocked?: boolean
   errorMessage?: string
   percent?: number
   errorStage?: UpdaterErrorStage
@@ -279,6 +280,7 @@ export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = 
             sizeLabel={canAutoInstall && version === '0.23.0' ? WIN_INSTALLER_SIZE_0230 : null}
             canAutoInstall={canAutoInstall}
             runningTasks={runningTasks}
+            installBlocked={installBlocked}
             errorMessage={errorMessage}
             percent={percent}
             errorStage={errorStage}

@@ -9,6 +9,7 @@ import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/teleme
 import type { TelemetryResult } from "../shared/contracts/telemetry";
 import { AUTO_CHECK_FIRST_DELAY_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
 import { hasInFlightProductionWork } from "../backgroundLaunch";
+import { createInstallGate, type UpdaterInstaller } from "./installGate";
 import { createInstallOnQuit } from "./installOnQuit";
 import { createUpdateBusyGate } from "./updateBusyGate";
 import { digestReleaseNotesHtml } from "../shared/releaseNotesDigest";
@@ -90,20 +91,19 @@ const busyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork }
 
 const installOnQuit = createInstallOnQuit({
   registerDrain: registerQuitDrain,
-  // 读退出开始那一刻的快照（owner 在跑任何排空项之前读的）：别的排空项 abort 导出之后，这里不会读到 0。
-  isBusy: () => (quitStartProbeResult(UPDATE_BUSY_PROBE) ?? false) || busyGate.isBusyAtQuit(),
-  install: () => {
-    const updater = loadedUpdater as unknown as { install?: (isSilent: boolean, isForceRunAfter: boolean) => boolean; quitAndInstallCalled?: boolean } | null;
-    let started = false;
-    try {
-      started = updater?.install?.(true, false) ?? false;
-    } finally {
-      // electron-updater 在 install() 抛错的路径上不复位它的「已调用」旗，之后每次重试都会被它自己忽略。
-      if (!started && updater) updater.quitAndInstallCalled = false;
-    }
-    trackUpdate("install", started ? "success" : "failure");
-    return started;
-  },
+  install: () => installGate.installIfIdleNow("quit"),
+});
+
+/** 全仓唯一的安装入口：判忙和调用库在同一个同步块里（见 installGate.ts）。 */
+const installGate = createInstallGate({
+  getUpdater: () => loadedUpdater as unknown as UpdaterInstaller | null,
+  isBusy: (mode, senderId) => mode === "restart"
+    ? busyGate.isBusyForInstall(senderId ?? -1)
+    // 退出时：读退出开始那一刻的快照（owner 在任何排空项之前读的）+ 现在的读数；别的排空项 abort 导出之后也不会读到 0。
+    : (quitStartProbeResult(UPDATE_BUSY_PROBE) ?? false) || busyGate.isBusyAtQuit(),
+  markStarted: () => installOnQuit.markInstallStarted(),
+  markFailed: () => installOnQuit.markInstallFailed(),
+  onAttempt: (_mode, outcome) => { if (outcome !== "busy") trackUpdate("install", outcome === "started" ? "success" : "failure"); },
 });
 
 let eventsWired = false;
@@ -177,20 +177,40 @@ const autoCheckScheduler = createAutoCheckScheduler({
  * 启动时如果当前版本还低于目标版本、缓存包还在，就把「退出时安装」重新设好——核对缓存用库自己的
  * check + downloadUpdate（缓存命中不会重下），不自己写更新器能力。返回错误对象，null = 成功。
  */
-async function prepareCachedInstall(version: string): Promise<unknown | null> {
+type PrepareResult = { kind: "ready" } | { kind: "superseded" } | { kind: "failed"; error: unknown };
+
+async function prepareCachedInstall(version: string): Promise<PrepareResult> {
   quietPrepare = true;
   silentCheck = true;
   try {
     const updater = await loadAutoUpdater();
     const result = await updater.checkForUpdates();
-    if (result?.updateInfo?.version !== version) return new Error("cached update is no longer the latest release");
+    const latest = result?.updateInfo?.version;
+    if (latest !== version) {
+      // 缓存的那一版已经不是最新（或根本没有更新了）：旧的待装记录作废，走正常的「有新版 / 已是最新」流程，
+      // 不再反复显示「上次没装上」。
+      installOnQuit.revoke();
+      reminderStore?.clearPendingInstall();
+      if (result?.isUpdateAvailable && result.updateInfo) {
+        publishUpdateEvent({
+          type: "available",
+          version: result.updateInfo.version,
+          notes: toVersionNotes(result.updateInfo),
+          sizeBytes: installerSizeBytes(result.updateInfo),
+          releaseUrl: buildReleaseNotesUrl(result.updateInfo.version),
+        });
+      } else {
+        publishUpdateEvent({ type: "up-to-date" });
+      }
+      return { kind: "superseded" };
+    }
     installOnQuit.consent();
     await updater.downloadUpdate();
     installOnQuit.markDownloaded();
-    return null;
+    return { kind: "ready" };
   } catch (error) {
     installOnQuit.revoke();
-    return error;
+    return { kind: "failed", error };
   } finally {
     quietPrepare = false;
     silentCheck = false;
@@ -338,36 +358,32 @@ export function registerUpdaterIpc(): void {
     const restored = !installOnQuit.isDownloaded() ? reminderStore?.pendingInstall() ?? null : null;
     const retryingInstall = state.phase === "error" && state.errorStage === "install" && (installOnQuit.isDownloaded() || restored !== null);
     if (installRequested || (state.phase !== "downloaded" && !retryingInstall)) return { ok: false };
-    // 有任务在跑就拒绝（判断只在主进程这一处；判不准按忙算），渲染层只负责提示。
-    if (busyGate.isBusyForInstall(event.sender.id)) return { ok: false, reason: "busy" };
     installRequested = true;
-    // 上个进程留下的「没装上」：这个进程还没核对过缓存包，先核对（命中缓存不重下），核对不过就老实报错、可再点。
-    if (restored) {
-      const failure = await prepareCachedInstall(restored.version);
-      if (failure) {
-        installRequested = false;
-        publishError(failure, "download");
+    let started = false;
+    try {
+      // ── 异步准备：全部在安装入口前面做完 ──
+      // 上个进程留下的「没装上」：这个进程还没核对过缓存包，先核对（命中缓存不重下）。
+      if (restored) {
+        const prepared = await prepareCachedInstall(restored.version);
+        if (prepared.kind === "superseded") return { ok: false, reason: "superseded" };
+        if (prepared.kind === "failed") {
+          publishError(prepared.error, "download");
+          return { ok: false };
+        }
+      }
+      await loadAutoUpdater();
+      // ── 唯一安装入口：从这里开始到调用库之间没有 await；判忙在里面同步做（任务可能在上面的 await 期间开始）──
+      stage = "install";
+      const outcome = installGate.installIfIdleNow("restart", event.sender.id);
+      if (outcome === "busy") return { ok: false, reason: "busy" };
+      if (outcome === "failed") {
+        publishError(new Error("update installer did not start"), "install");
         return { ok: false };
       }
+      started = true;
+      return { ok: true };
+    } finally {
+      if (!started) installRequested = false;
     }
-    stage = "install";
-    installOnQuit.markInstallStarted();
-    trackUpdate("install", "success");
-    // 立即重启并安装（非静默）。mac 未签名会被 Gatekeeper 拦——降级实况以真机为准。
-    setImmediate(() => {
-      try {
-        void loadAutoUpdater()
-          // ESLint exemption (eslint.config.mjs directQuitExemptionFiles): electron-updater 6.8.9
-          // BaseUpdater.quitAndInstall spawns the installer then calls app.quit(); MacUpdater hands
-          // off to Squirrel, which closes windows then app.quit(). Both re-enter the quit owner.
-          .then((autoUpdater) => autoUpdater.quitAndInstall())
-          .catch((error) => { installRequested = false; installOnQuit.markInstallFailed(); publishError(error, "install"); });
-      } catch (error) {
-        installRequested = false;
-        installOnQuit.markInstallFailed();
-        publishError(error, "install");
-      }
-    });
-    return { ok: true };
   });
 }

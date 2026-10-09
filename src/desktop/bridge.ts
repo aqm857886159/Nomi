@@ -321,7 +321,7 @@ export type DesktopBridge = DesktopMediaBridge &
     appInfo: () => Promise<DesktopAppInfo>
     check: () => Promise<{ ok: boolean; reason?: string }>
     download: () => Promise<{ ok: boolean }>
-    install: () => Promise<{ ok: boolean }>
+    install: () => Promise<{ ok: boolean; reason?: 'busy' | 'superseded' }>
     /** 手动更新兜底：开官网并按主进程提供的平台/架构直接下载安装包。 */
     openDownload: () => Promise<{ ok: boolean }>
     /** 挂载时补上已发生的更新状态 + 跨重启记住的提醒（热修横幅 ✕ 过的版本、「已更新」卡）。 */

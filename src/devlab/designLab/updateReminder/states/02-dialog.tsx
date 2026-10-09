@@ -135,4 +135,18 @@ export const UPDATE_DIALOG_STATES: readonly LabState[] = [
     coverage: 'component-only',
     render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="spawn EACCES" errorStage="install" errorReason="other" />,
   },
+  {
+    id: 'update-07-dialog-blocked-zh',
+    name: '⑦ 点「重启以更新」被主进程拒绝（有任务在跑、数量未知）：回到「有任务在跑，退出时自动装好」，只有「知道了」（中文）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'zh-CN'} view="ready" version="0.23.0" installBlocked />,
+  },
+  {
+    id: 'update-07-dialog-blocked-en',
+    name: '⑦ 点「重启以更新」被主进程拒绝（有任务在跑、数量未知）：回到「有任务在跑，退出时自动装好」，只有「知道了」（English）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'en'} view="ready" version="0.23.0" installBlocked />,
+  },
 ]

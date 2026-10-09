@@ -2,7 +2,7 @@ import React from 'react'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopAppInfo } from '../../desktop/bridge'
 import { UPDATER_INITIAL_STATE, type UpdaterState } from '../../../electron/shared/updateReminder'
-import { closeUpdateDialog, openUpdateDialog, retainUpdateSync, useUpdateStore } from './updateStore'
+import { closeUpdateDialog, openUpdateDialog, requestInstall, retainUpdateSync, useUpdateStore } from './updateStore'
 
 // 更新提醒对外的唯一状态 hook：顶栏胶囊 / 弹窗 / 横幅 / 已更新卡 / 设置→关于都读它。
 // UI 纯 derive 自主进程的更新状态（单一真相源），不在组件里 hardcode 平台或文案分支。
@@ -18,6 +18,8 @@ export type Updater = UpdaterState & {
   /** Preview/RC side-by-side builds do not subscribe to the stable updater feed. */
   canCheckUpdates: boolean
   dialogOpen: boolean
+  /** 主进程拒绝了立即安装（有任务在跑）。 */
+  installBlocked: boolean
   openDialog: () => void
   closeDialog: () => void
   check: () => void
@@ -34,6 +36,7 @@ export function useUpdater(): Updater {
   const supported = Boolean(update)
   const updater = useUpdateStore((state) => state.updater)
   const dialogOpen = useUpdateStore((state) => state.dialogOpen)
+  const installBlocked = useUpdateStore((state) => state.installBlocked)
   const [appInfo, setAppInfo] = React.useState<DesktopAppInfo | null>(null)
 
   React.useEffect(() => retainUpdateSync(update), [update])
@@ -58,7 +61,7 @@ export function useUpdater(): Updater {
     useUpdateStore.setState((prev) => ({ updater: { ...prev.updater, phase: 'downloading', percent: 0, errorMessage: '', errorStage: null, errorReason: null } }))
     void update?.download().catch(() => undefined)
   }, [update])
-  const install = React.useCallback(() => { void update?.install().catch(() => undefined) }, [update])
+  const install = React.useCallback(() => { void requestInstall(update) }, [update])
   const openDownload = React.useCallback(() => {
     void update?.openDownload().then((result) => {
       if (result.ok) useUpdateStore.setState({ macStepsShown: true })
@@ -79,6 +82,7 @@ export function useUpdater(): Updater {
     canAutoInstall: appInfo?.canAutoInstall ?? true,
     canCheckUpdates: appInfo?.canCheckUpdates ?? true,
     dialogOpen,
+    installBlocked,
     openDialog: openUpdateDialog,
     closeDialog: closeUpdateDialog,
     check,

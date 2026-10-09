@@ -97,6 +97,8 @@ export type UpdateDialogCardProps = {
   canAutoInstall: boolean
   percent?: number
   runningTasks?: number
+  /** 主进程拒绝了立即重启安装（有任务在跑，数量未知）：显示「有任务在跑」说明，不给重启按钮。 */
+  installBlocked?: boolean
   errorMessage?: string
   errorStage?: UpdaterErrorStage | null
   errorReason?: UpdaterErrorReason | null
@@ -119,6 +121,7 @@ export function UpdateDialogCard({
   canAutoInstall,
   percent = 0,
   runningTasks = 0,
+  installBlocked = false,
   errorMessage,
   errorStage,
   errorReason,
@@ -131,6 +134,7 @@ export function UpdateDialogCard({
 }: UpdateDialogCardProps): JSX.Element {
   const { t } = useTranslation()
   const noop = (): void => undefined
+  const blocked = runningTasks > 0 || installBlocked
   const [showRaw, setShowRaw] = React.useState(false)
   const shown = version
   const title = view === 'ready'
@@ -192,17 +196,17 @@ export function UpdateDialogCard({
         </div>
       ) : null}
 
-      {view === 'ready' ? (
-        runningTasks > 0 ? (
-          <p className="m-0 mt-4 rounded-nomi-sm bg-nomi-ink-05 p-3 text-body-sm text-nomi-ink-80" data-update-running={runningTasks}>
-            {t('updateReminder.dialog.running', { count: runningTasks })}
-          </p>
-        ) : (
-          <p className="m-0 mt-4 text-body-sm text-nomi-ink-80">{t('updateReminder.dialog.installOnQuit')}</p>
-        )
+      {(view === 'ready' && blocked) || (view === 'failed' && installBlocked) ? (
+        <p className="m-0 mt-4 rounded-nomi-sm bg-nomi-ink-05 p-3 text-body-sm text-nomi-ink-80" data-update-running={runningTasks || 'unknown'}>
+          {runningTasks > 0 ? t('updateReminder.dialog.running', { count: runningTasks }) : t('updateReminder.dialog.runningUnknown')}
+        </p>
       ) : null}
 
-      {view === 'failed' ? (
+      {view === 'ready' && !blocked ? (
+        <p className="m-0 mt-4 text-body-sm text-nomi-ink-80">{t('updateReminder.dialog.installOnQuit')}</p>
+      ) : null}
+
+      {view === 'failed' && !installBlocked ? (
         <div className="mt-4 rounded-nomi-sm bg-workbench-danger-soft p-3 text-body-sm text-workbench-danger">
           <p className="m-0 flex items-start gap-2">
             <IconAlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -251,11 +255,13 @@ export function UpdateDialogCard({
         ) : view === 'downloading' ? (
           <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
         ) : view === 'ready' ? (
-          runningTasks > 0
+          blocked
             ? <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
             : <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('updateReminder.dialog.restart')} onPrimary={onInstall ?? noop} />
         ) : view === 'failed' ? (
-          <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('common.retry')} onPrimary={onRetry ?? noop} />
+          installBlocked
+            ? <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
+            : <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('common.retry')} onPrimary={onRetry ?? noop} />
         ) : (
           <DecisionBar
             leading={(
@@ -300,6 +306,7 @@ export function UpdateDialog(): JSX.Element | null {
         canAutoInstall={updater.canAutoInstall}
         percent={updater.percent}
         runningTasks={runningTasks}
+        installBlocked={updater.installBlocked}
         errorMessage={updater.errorMessage}
         errorStage={updater.errorStage}
         errorReason={updater.errorReason}

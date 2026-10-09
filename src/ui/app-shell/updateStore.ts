@@ -19,6 +19,8 @@ export type UpdateStoreState = {
   dialogOpen: boolean
   /** Mac：点「去下载新版」后弹窗停在第二屏显示三步。 */
   macStepsShown: boolean
+  /** 主进程拒绝了立即重启安装（有任务在跑）：弹窗如实回到「有任务在跑，退出时自动装好」。关弹窗或状态变了就清掉。 */
+  installBlocked: boolean
 }
 
 const EMPTY_MEMORY: UpdateReminderMemory = { dismissedBanners: [], updatedCard: null }
@@ -28,6 +30,7 @@ export const useUpdateStore = create<UpdateStoreState>(() => ({
   memory: EMPTY_MEMORY,
   dialogOpen: false,
   macStepsShown: false,
+  installBlocked: false,
 }))
 
 export type UpdateSyncBridge = {
@@ -48,7 +51,7 @@ export function startUpdateSync(bridge: UpdateSyncBridge): () => void {
       const updater = reduceUpdaterState(prev.updater, event)
       // 检查开始 / 已是最新这类状态没有可看的详情：把还开着的旧弹窗收掉，别留一个过期弹窗。
       const stale = !isDialogPhase(updater.phase, updater.errorStage)
-      return { updater, dialogOpen: stale ? false : prev.dialogOpen, macStepsShown: stale ? false : prev.macStepsShown }
+      return { updater, dialogOpen: stale ? false : prev.dialogOpen, macStepsShown: stale ? false : prev.macStepsShown, installBlocked: false }
     })
   })
   void bridge.snapshot().then((snapshot) => {
@@ -80,7 +83,7 @@ export function openUpdateDialog(): void {
 }
 
 export function closeUpdateDialog(): void {
-  useUpdateStore.setState({ dialogOpen: false, macStepsShown: false })
+  useUpdateStore.setState({ dialogOpen: false, macStepsShown: false, installBlocked: false })
 }
 
 /** 只给测试用：回到出厂状态。 */
@@ -88,7 +91,7 @@ export function resetUpdateStoreForTests(): void {
   stopSync?.()
   stopSync = null
   subscribers = 0
-  useUpdateStore.setState({ updater: UPDATER_INITIAL_STATE, memory: EMPTY_MEMORY, dialogOpen: false, macStepsShown: false })
+  useUpdateStore.setState({ updater: UPDATER_INITIAL_STATE, memory: EMPTY_MEMORY, dialogOpen: false, macStepsShown: false, installBlocked: false })
 }
 
 /** ✕ 热修横幅：先在本地立刻收起，再让主进程记住（一次性，之后不再出）。 */
@@ -101,4 +104,17 @@ export function dismissHotfixBanner(version: string): void {
 export function dismissUpdatedCard(): void {
   useUpdateStore.setState((prev) => ({ memory: { ...prev.memory, updatedCard: null } }))
   void getDesktopBridge()?.update?.dismiss({ kind: 'updated-card' }).catch(() => undefined)
+}
+
+/**
+ * 点「重启以更新」：能不能装由主进程判。被拒（有任务在跑）时弹窗回到「有任务在跑，退出时自动装好」，不装、不装作没事。
+ */
+export async function requestInstall(update: { install: () => Promise<{ ok: boolean; reason?: string }> } | undefined): Promise<void> {
+  if (!update) return
+  try {
+    const result = await update.install()
+    if (!result.ok && result.reason === 'busy') useUpdateStore.setState({ installBlocked: true })
+  } catch {
+    // 通信失败：什么都没装，界面保持原样，用户可以再点。
+  }
 }

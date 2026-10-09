@@ -334,4 +334,85 @@ describe("更新流程：下载 → 退出时装 / 重启装 / 失败重试", ()
       expect(JSON.parse(fs.readFileSync(path.join(root, "update-reminder.json"), "utf8")).pendingInstall).toBeNull();
     });
   });
+
+  describe("判忙和安装不许隔着 await：核对缓存期间任务变忙 / 缓存版本已过期", () => {
+    function cacheFile(): string {
+      const file = path.join(root, "Nomi-Setup-0.24.0.exe");
+      fs.writeFileSync(file, "installer");
+      return file;
+    }
+
+    /** 第一个进程：同意并下载好，退出时装包程序起不来（这里直接同步失败，进程结束，记录留在磁盘上）。 */
+    async function leaveFailedInstallOnDisk() {
+      const first = await load();
+      await first.reportBusy(0);
+      await first.announceAvailable();
+      first.updater.downloadUpdate.mockImplementation(async () => {
+        first.updater.emit("update-downloaded", { version: "0.24.0", downloadedFile: cacheFile() });
+      });
+      await first.call("nomi:update:download");
+      first.updater.install.mockImplementation(() => false);
+      await first.quit();
+    }
+
+    it("新进程点「重试」→ 核对缓存（check + downloadUpdate）期间任务开始 → 不装、不 quitAndInstall，并告诉界面是因为有任务在跑", async () => {
+      await leaveFailedInstallOnDisk();
+      const second = await load();
+      second.updater.checkForUpdates.mockImplementation(async () => {
+        mainBusy.value = true; // 就在这个 await 期间，一个任务开始了
+        return { updateInfo: { version: "0.24.0" } } as never;
+      });
+      second.updater.downloadUpdate.mockImplementation(async () => {
+        second.updater.emit("update-downloaded", { version: "0.24.0", downloadedFile: path.join(root, "Nomi-Setup-0.24.0.exe") });
+      });
+      second.mod.startAutoUpdateCheck();
+      await second.reportBusy(0); // 点击那一刻渲染层报的是 0、主进程那一刻也不忙
+      expect(await second.call("nomi:update:install")).toEqual({ ok: false, reason: "busy" });
+      await flush(); await new Promise((resolve) => setImmediate(resolve)); await flush();
+      expect(second.updater.quitAndInstall).not.toHaveBeenCalled();
+      expect(second.updater.install).not.toHaveBeenCalled();
+      // 之后任务做完，再点一次就能装（状态没有被这次拒绝弄坏）
+      mainBusy.value = false;
+      expect(await second.call("nomi:update:install")).toEqual({ ok: true });
+      await flush(); await new Promise((resolve) => setImmediate(resolve)); await flush();
+      expect(second.updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it("缓存的那一版已经不是最新：旧的「没装上」记录作废、界面走正常的「有新版」流程，下次启动不再显示「上次没装上」", async () => {
+      await leaveFailedInstallOnDisk();
+      const second = await load();
+      second.updater.checkForUpdates.mockResolvedValue({
+        isUpdateAvailable: true,
+        updateInfo: { version: "0.25.0", releaseNotes: [{ version: "0.25.0", note: NOTES_HTML }], files: [] },
+      } as never);
+      second.mod.startAutoUpdateCheck();
+      await second.reportBusy(0);
+      expect(await second.call("nomi:update:install")).toEqual({ ok: false, reason: "superseded" });
+      const state = (await second.call("nomi:update:snapshot") as { state: Record<string, unknown> }).state;
+      expect(state).toMatchObject({ phase: "available", latestVersion: "0.25.0", errorStage: null });
+      expect(JSON.parse(fs.readFileSync(path.join(root, "update-reminder.json"), "utf8")).pendingInstall).toBeNull();
+      expect(second.updater.quitAndInstall).not.toHaveBeenCalled();
+
+      const third = await load();
+      third.mod.startAutoUpdateCheck();
+      expect((await third.call("nomi:update:snapshot") as { state: { phase: string } }).state.phase).toBe("idle");
+    });
+
+    it("后台核对时（30 秒定时）发现缓存版本已过期：同样清掉旧记录、不再显示「上次没装上」", async () => {
+      await leaveFailedInstallOnDisk();
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+      try {
+        const second = await load();
+        second.updater.checkForUpdates.mockResolvedValue({ isUpdateAvailable: false, updateInfo: { version: "0.23.1" } } as never);
+        second.mod.startAutoUpdateCheck();
+        expect((await second.call("nomi:update:snapshot") as { state: { phase: string } }).state.phase).toBe("error");
+        await vi.advanceTimersByTimeAsync(30_000);
+        await flush();
+        expect((await second.call("nomi:update:snapshot") as { state: { phase: string } }).state.phase).not.toBe("error");
+        expect(JSON.parse(fs.readFileSync(path.join(root, "update-reminder.json"), "utf8")).pendingInstall).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
