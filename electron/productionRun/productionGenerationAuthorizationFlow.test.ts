@@ -15,6 +15,7 @@ import { prepareProductionGenerationAuthorization, prepareProductionGenerationRe
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunRepository } from "./productionRunRepository";
+import { landedAdmission } from "./landFirstTestUtils";
 
 const NOW = "2026-08-23T00:00:00.000Z";
 const roots: string[] = [];
@@ -495,12 +496,14 @@ describe("Run-owned paid generation authorization", () => {
 
   it("rejects provider payload drift before any durable or provider side effect", async () => {
     const { root, repository, authorization, submission, submit, setDrifted } = setup();
+    // 先落节点（派发前的那一步，属于开拍、不属于提交出口）；之后提交出口什么都不许再写。
+    const admission = await landedAdmission(repository, "project-1", "op-1");
     const beforeRun = structuredClone(repository.read("project-1", "op-1"));
     const beforeApprovals = structuredClone(repository.readApprovals("project-1", "op-1"));
     const beforeLedger = structuredClone(repository.readBudgetLedger("project-1", "op-1"));
     setDrifted(true);
 
-    await expect(submission.start({ projectId: "project-1", operationId: "op-1" }))
+    await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission }))
       .rejects.toThrow("Provider wire payload no longer matches the approved authorization");
 
     expect(repository.read("project-1", "op-1")).toEqual(beforeRun);
@@ -515,7 +518,7 @@ describe("Run-owned paid generation authorization", () => {
   it("submits the already-verified prepared request without creating another Approval or authorization", async () => {
     const { repository, submission, submit } = setup();
     const approvalsBefore = repository.readApprovals("project-1", "op-1");
-    await expect(submission.start({ projectId: "project-1", operationId: "op-1" }))
+    await expect(submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") }))
       .resolves.toMatchObject({ providerTaskId: "provider-task-1", nextAction: "observe" });
     expect(submit).toHaveBeenCalledTimes(1);
     expect(repository.readApprovals("project-1", "op-1")).toEqual(approvalsBefore);
@@ -547,7 +550,7 @@ describe("Run-owned paid generation authorization", () => {
 
   it("rework uses a fresh digest, gate, Approval and budget before dispatching only attempt 2", async () => {
     const { repository, authorization: initial, submission, submit, provider } = setup(true, 12);
-    await submission.start({ projectId: "project-1", operationId: "op-1" });
+    await submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     let run = repository.read("project-1", "op-1")!;
     const firstJob = run.jobs[0];
     run = repository.execute("project-1", "op-1", {
@@ -611,7 +614,7 @@ describe("Run-owned paid generation authorization", () => {
       maxSpend: 6,
     }));
 
-    await submission.start({ projectId: "project-1", operationId: "op-1", attempt: 2 });
+    await submission.start({ projectId: "project-1", operationId: "op-1", attempt: 2, admission: await landedAdmission(repository, "project-1", "op-1") });
     expect(submit).toHaveBeenCalledTimes(2);
     const final = repository.read("project-1", "op-1")!;
     expect(final.jobs.find((job) => job.attempt === 1)?.status).toBe("ready");

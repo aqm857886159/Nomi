@@ -32,6 +32,7 @@ import type { ProductionGenerationShot } from "./productionRunTypes";
 import { applySystemProxy, createFreshConnectionDispatcher } from "../systemProxy";
 import { describeOutboundFailure } from "../outboundDispatchEvidence";
 import { setSubmitOutboundDepsForTests } from "../vendor/vendorOutboundGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 const roots: string[] = [];
 const now = () => new Date(Date.parse("2026-09-18T00:00:00.000Z")).toISOString();
@@ -134,7 +135,7 @@ function scheduler(root: string, repository: ReturnType<typeof createProductionR
     now,
   });
   return createMultiShotBatchScheduler({
-    repository, submission, projectId: "project-1", runId: "op-batch",
+    repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-batch",
     now,
   });
 }

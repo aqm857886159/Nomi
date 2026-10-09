@@ -12,6 +12,7 @@ function attentionTaskStatus(run: ProductionRun): LaneTaskStatus {
   const reason = runStopReason(run)
   switch (reason) {
     case 'consent_expired':
+    case 'landing_failed':
     case 'user_paused':
     case 'user_cancelled':
       return 'stopped'

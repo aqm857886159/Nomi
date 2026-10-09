@@ -28,7 +28,8 @@ import { sameProjectAgentBinding } from '../shared/projectBinding';
 //
 // 见 `productionRunReducer.ts` 的 `generation.revise`：改了载荷还沿用旧授权，
 // 面板收据上写的和真正跑的就分叉了，而用户是照着收据点的头。
-import { logWarn } from "../logging/logger";
+import { logInfo, logWarn } from "../logging/logger";
+import { awaitShotHandover } from "../productionRun/shotProviderHandover";
 import type { ApprovalReceiptAuthority } from "./approvalReceipt";
 import type { DispatchContext } from "./dispatcher";
 import type { GenerationOperationStore, GenerationReviseInput } from "./mcpGenerationTools";
@@ -42,6 +43,11 @@ import { decideGenerationSpend } from "./generationSpendDecision";
 import { productionShotActionFailureOf } from "./appIntegrationProductionActions";
 import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised } from "../shared/contracts/pendingSpendConfirm";
 import { cardActionsSettled, serializeCardAction } from "./spendCardActionQueue";
+
+import { admitShotsForDispatch, type LandShotsOnCanvas } from "../productionRun/shotLandingAdmission";
+
+/** 让出一拍事件循环：排在这之前到达的 IPC（比如 ×）先处理完。 */
+const yieldToIncomingActions = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 type RunReader = Readonly<{
   read(projectId: string, runId: string): ProductionRun | null;
@@ -72,6 +78,11 @@ export type PendingSpendActionDeps = Readonly<{
    * 带参考图的那一下在出站前被拒（2026-10-02 pb02）。必填：少接一根线编译期就红。
    */
   normalizePatch: (base: PlanCandidate, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>) => Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
+  /**
+   * 先落节点、再发请求（架构③）：确认那一下先把这一镜落到画布上（唯一准入点的落地器），落下了才批、才派。
+   * 落不下来卡就留在原地（这一镜没决定、什么都没批），再按一次「生成」就是重试。必填：少接编译期就红。
+   */
+  landShots: LandShotsOnCanvas;
   now?: () => string;
 }>;
 
@@ -217,6 +228,7 @@ export function pendingSpendDependencies(input: Readonly<{
   leaseFor: (binding: ProjectBinding) => Promise<ProjectLeaseV2>;
   resolvePricing: (providerId: string, modelId: string) => ModelPricing | undefined;
   normalizePatch: PendingSpendActionDeps["normalizePatch"];
+  landShots: LandShotsOnCanvas;
 }>): PendingSpendActionDeps {
   return {
     isProjectOpen: input.isProjectOpen,
@@ -241,6 +253,7 @@ export function pendingSpendDependencies(input: Readonly<{
     leaseFor: input.leaseFor,
     resolvePricing: input.resolvePricing,
     normalizePatch: input.normalizePatch,
+    landShots: input.landShots,
   };
 }
 
@@ -474,8 +487,12 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     // 这一下点的是哪一镜：卡上只剩一镜时可以不点名；点名的必须就在卡上（还没决定）。
     const shotId = input.shotId ?? (pending.shots.length === 1 ? pending.shots[0].shotId : undefined);
     if (!shotId || !pending.shots.some((shot) => shot.shotId === shotId)) return failed(new Error("generation_scope_invalid"), false);
-    noteReplacing(input.projectId, input.operationId, pending.quoteId);
     const multiShot = Boolean(deps.runs.read(input.projectId, input.operationId)?.generationPlan?.shots?.length);
+    // 确认 = 放到画布（10-08 拍板）：先经唯一准入点把这一镜落上画布，落下了才批、才派。落不下来什么都不批，
+    // 卡留在原地、这一镜还没决定——再按一次就是重试。卡上说的只是事实：没放到画布上、这次没有发出生成请求。
+    const landing = await admitShotsForDispatch({ repository: deps.runs, land: deps.landShots, projectId: input.projectId, runId: input.operationId, shotIds: [multiShot ? shotId : undefined] });
+    if (landing.unlanded.length > 0) return { ok: false, code: "failed", message: "generation_not_started", reason: landing.landingFailure?.code ?? "canvas_landing_failed", failure: "canvas_landing_failed" };
+    noteReplacing(input.projectId, input.operationId, pending.quoteId);
     const target = deps.rendererTarget();
     if (!target) return { ok: false, code: "unavailable" };
     try {
@@ -518,7 +535,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
    * 用户按下去的那一刻看到的就是要发的：`quoteId` 必须是此刻这张卡、点名的必须恰好是卡上那一叠；
    * 每张开拍前再核一次它在卡上的样子没被别人改过（前面几张批下去会换报价，但不该换这一张要发的内容）。
    * 哪一张没成就停在那一张——它和它后面的镜照旧留在卡上，和逐张点到那里停下一模一样。用户中途点 × 收回出价，
-   * 剩下的不再生成（× 不排队，正是为了能打断它）。
+   * 剩下的不再生成（× 不排队，正是为了能打断它）。一张一张交：上一张供应商受理了才批下一张（`awaitShotHandover`）。
    */
   const confirmRemainingShots = (input: SpendCardActionInput & { shotIds: readonly string[] }): Promise<ProductionActionResult> =>
     serializeCardAction(input.projectId, input.operationId, async () => {
@@ -533,7 +550,11 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       }
       const seen = new Map(onCard.map((shotId) => [shotId, shownShot(pending, shotId)]));
       let sent = 0;
-      for (const shotId of input.shotIds) {
+      for (const [index, shotId] of input.shotIds.entries()) {
+        // 两张之间先让出一拍事件循环（#1139 CI eval:journey）：× 是另一条 IPC，主进程空出一拍才处理得到。以前每批一张都要
+        // 等一次渲染层落地（真 I/O），这一拍是碰巧有的；节点先落之后这一叠全是微任务，× 要等整叠批完才轮得到——停不下来。
+        // 让一拍之后再看卡还在不在：× 到了就停在这里，之后没批的一张都不再生成。
+        if (index > 0) await yieldToIncomingActions();
         const current = pendingFor(input.projectId, input.operationId);
         // 卡已经关了（用户点了 ×，或宿主把这一次出价收回了）：剩下的没决定，不再生成。照实说批下去几张、没发几张。
         if (!current || !current.shots.some((shot) => shot.shotId === shotId)) {
@@ -550,6 +571,14 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
           return closedUnderIt ? { ok: true, code: "spend_confirmed", batchStopped: { sent, notSent: input.shotIds.length - sent } } : result;
         }
         sent += 1;
+        // 一张一张交（10-09 拍板 B）：这一张真的交到供应商手里了才批下一张——× 停得住还没交的，「正在发出 k/N」是真话。
+        // 只等受理、不等生成完；等的这段 × 照样进得来（真 I/O 的等待），这一张已经在交就让它交完，后面的不再批。
+        const approvedAt = Date.now();
+        const handover = await awaitShotHandover({ readRun: () => deps.runs.read(input.projectId, input.operationId), shotId });
+        logInfo("production-run", "spend-batch-shot-handover", { shotId, handover, approvedToHandoverMs: Date.now() - approvedAt });
+        // 批了却不会再派了（Run 停了）：这一张没发出，照实说，剩下的不再批。
+        if (handover === "not_dispatched") return { ok: true, code: "spend_confirmed", batchStopped: { sent: sent - 1, notSent: input.shotIds.length - sent + 1 } };
+        if (handover === "timed_out") return { ok: true, code: "spend_confirmed", batchStopped: { sent, notSent: input.shotIds.length - sent } };
       }
       return { ok: true, code: "spend_confirmed" };
     });
