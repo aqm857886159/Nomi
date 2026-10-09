@@ -87,7 +87,7 @@ function ClipHandle({
   onPointerDown: (event: React.PointerEvent<HTMLButtonElement>, edge: 'left' | 'right') => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const hitWidth = clipHandleHitWidth({ clipWidth, canvasZoom })
+  const hitWidth = clipHandleHitWidth({ clipWidth, canvasZoom, selected })
   const label = edge === 'left' ? t('generationCommon.clipNode.resizeStart') : t('generationCommon.clipNode.resizeEnd')
 
   return (
@@ -106,7 +106,6 @@ function ClipHandle({
       aria-label={label}
       title={label}
       onPointerDown={(event) => onPointerDown(event, edge)}
-      onClick={(event) => event.stopPropagation()}
     >
       <span className="block h-6 w-1 rounded-full bg-nomi-paper shadow-nomi-sm" aria-hidden="true" />
     </button>
@@ -220,6 +219,7 @@ function ClipItem({
     const originX = event.clientX
     let lastTarget: ClipNodeResizeTarget | null = null
     let didResize = false
+    didDragRef.current = false
     let animationFrame = 0
     let pendingMove: { clientX: number; shiftKey: boolean } | null = null
     lastSnapKeyRef.current = null
@@ -238,6 +238,7 @@ function ClipItem({
       })
       if (!resolved) return
       didResize = true
+      didDragRef.current = true
       lastTarget = resolved
       setResizingEdge(edge)
       const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
@@ -280,6 +281,8 @@ function ClipItem({
         setResizingEdge(null)
         onResizePreview(null)
         lastSnapKeyRef.current = null
+        // 裁剪后跟来的 click 不算「点了片段」（与拖动同一个抑制标记）；被打断没有 click，下一拍就清掉。
+        if (didResize) window.setTimeout(() => { didDragRef.current = false }, 0)
       },
     })
   }

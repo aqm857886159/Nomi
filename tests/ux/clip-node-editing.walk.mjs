@@ -653,11 +653,16 @@ try {
   if (!movableHit) throw new Error('找不到可拖动片段的可点击位置')
   await win.mouse.click(movableHit.x, movableHit.y)
   await win.waitForFunction((id) => document.querySelector(`[data-clip-id="${id}"]`)?.getAttribute('data-selected') === 'true', movableId)
-  await win.mouse.move(movableHit.x, movableHit.y)
+  // 拖的是片段身体：取片段正中。findElementHitPoint 的第一个候选点离左缘只有 5px，那里是裁剪手柄（选中后 14px 宽），
+  // 按下去拖的是手柄不是片段；点击也把播放头放在了点击处，播放头抓取带（合同：播放头永远优先于片段）压在那一带上。
+  const dragBox = await movable.boundingBox()
+  if (!dragBox) throw new Error('找不到可拖动片段的位置')
+  const dragHit = { x: dragBox.x + dragBox.width / 2, y: dragBox.y + dragBox.height / 2 }
+  await win.mouse.move(dragHit.x, dragHit.y)
   await win.mouse.down()
   // 只把片段移出原位，不把它推到时间轴右边界；否则后面的 trim 会只剩 1 帧，
   // 测试的是边界夹紧而不是正常裁剪。
-  await win.mouse.move(movableHit.x + 30, movableHit.y, { steps: 8 })
+  await win.mouse.move(dragHit.x + 30, dragHit.y, { steps: 8 })
   await win.mouse.up()
   await win.waitForTimeout(250)
   const moved = clip.locator(`[data-clip-id="${movableId}"]`)

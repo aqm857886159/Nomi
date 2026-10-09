@@ -12,6 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findCanvasBlankPoint, panCanvasUntilInside, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ZOOMS = (process.env.CLIP_GESTURE_ZOOMS ?? '50,100,150').split(',').map(Number)
@@ -43,8 +44,8 @@ function buildProject(root) {
   fs.copyFileSync(path.join(repoRoot, 'tests/ux/fixtures/test-upload.png'), path.join(generatedDir, 'fixture.png'))
   const imageUrl = `nomi-local://asset/${encodeURIComponent(PROJECT_ID)}/assets/generated/fixture.png`
   const image = (id, x, y) => ({ id, kind: 'image', categoryId: 'shots', title: id, position: { x, y }, exactPosition: true, size: { width: 200, height: 140 }, status: 'success', result: { id: `${id}-result`, type: 'image', url: imageUrl, createdAt: 1 } })
-  const sourceA = image('source-a', 320, 10)
-  const sourceB = image('source-b', 560, 10)
+  const sourceA = image('source-a', 320, 430)
+  const sourceB = image('source-b', 560, 430)
   const clipRecords = ['a', 'b', 'c'].map((key, index) => ({ id: `clip-${key}`, sourceNodeId: index === 1 ? sourceB.id : sourceA.id, type: 'image', label: key.toUpperCase(), url: imageUrl, durationSeconds: 4, trimStart: 0, trimEnd: 4 }))
   const clipNode = { id: 'clip-node', kind: 'clip', categoryId: 'shots', title: 'Clip editor', position: { x: 320, y: 180 }, exactPosition: true, size: { width: 520, height: 180 }, status: 'idle', meta: { clip: { nodeRole: 'clip', sourceNodeIds: clipRecords.map((c) => c.id), clips: clipRecords } } }
   const timelineClip = { id: 'timeline-a', type: 'image', sourceNodeId: sourceA.id, label: 'A', startFrame: 0, endFrame: 60, frameCount: 60, offsetStartFrame: 0, offsetEndFrame: 0, url: imageUrl }
@@ -76,7 +77,7 @@ async function runZoom(zoomPercent) {
     initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', 'nomi-color-scheme': SCHEME, 'nomi:locale:v1': LOCALE },
   })
   const { app, win } = launched
-  win.setDefaultTimeout(5000)
+  win.setDefaultTimeout(stationTimeout({ operations: 1 }))
   // 屏外窗口只收 CDP 送来的输入，真实光标一律忽略——别人动一下鼠标不会插进按屏幕像素算的拖拽里。
   await (await app.browserWindow(win)).evaluate((window) => window.setIgnoreMouseEvents(true))
   const z = zoomPercent
@@ -86,11 +87,11 @@ async function runZoom(zoomPercent) {
   try {
     await win.waitForLoadState('domcontentloaded')
     const card = win.locator('[data-project-card]', { hasText: PROJECT_NAME }).first()
-    await card.waitFor({ state: 'visible', timeout: 15000 })
+    await card.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) })
     await card.dblclick()
     await win.locator('nav.nomi-stepper [data-mode="generation"]').first().click()
     const node = win.locator('[data-clip-node="true"][data-node-id="clip-node"]')
-    await node.waitFor({ state: 'visible', timeout: 15000 })
+    await node.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) })
     await waitForCanvasViewportSettled(win)
 
     // 缩放像用户一样用缩放条的滑块（界面唯一的精确缩放入口）。
@@ -99,7 +100,7 @@ async function runZoom(zoomPercent) {
     const viewport = await waitForCanvasViewportSettled(win)
     const zoom = viewport.zoom
     if (Math.abs(zoom - z / 100) > 0.02) throw new Error(`缩放没到 ${z}%：${JSON.stringify(viewport)}`)
-    // 先把上方的素材节点、再把剪辑节点拖进舞台（两个都要能被真鼠标点到）。
+    // 先把下方的素材节点（选中它时参数浮板在它下面，不会盖住剪辑节点）、再把剪辑节点拖进舞台（两个都要能被真鼠标点到）。
     for (const target of [win.locator('[data-node-id="source-a"]'), node]) {
       const pan = await panCanvasUntilInside(win, target, { margin: { left: 40, right: 16, top: 16, bottom: 90 } })
       if (!pan.ok) throw new Error(`节点拖不进舞台：${JSON.stringify(pan)}`)
@@ -117,7 +118,17 @@ async function runZoom(zoomPercent) {
       dragging: el.getAttribute('data-dragging'),
       resizing: el.getAttribute('data-resizing'),
     }))
+    // 每一步都从同一个起点开始：节点没选中，播放头停在轨道起点（0 帧，只压着第一个片段的左缘 4px）。
+    // 播放头压在哪，哪里就归播放头抓（合同 4），所以被测的片段 B / C 的身体不能被上一步留下的播放头盖住。
     const deselectAll = async () => {
+      const lane = node.getByTestId('clip-node-media-lane')
+      const laneBox = await box(lane)
+      if (laneBox) {
+        await win.mouse.click(laneBox.x + 1, laneBox.y - 14 * zoom) // 标尺行（轨道上沿往上 14 设计像素）：点一下 = 把播放头放回 0 帧
+        await win.waitForTimeout(150)
+        await win.keyboard.press('Escape') // 收起 scrub 展开的预览浮层
+        await win.waitForTimeout(150)
+      }
       const blank = await findCanvasBlankPoint(win, { inset: 60 })
       await win.mouse.click(blank.x, blank.y)
       await win.waitForTimeout(150)
@@ -350,7 +361,7 @@ async function runZoom(zoomPercent) {
     if (wanted('P7')) {
       await win.locator('nav.nomi-stepper [data-mode="preview"]').first().click()
       const globalClip = win.locator('[data-testid="timeline-clip"]').first()
-      await globalClip.waitFor({ state: 'visible', timeout: 10000 })
+      await globalClip.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) })
       await win.waitForTimeout(500)
       for (const kind of ['pointercancel', 'blur', 'lostpointercapture']) {
         const gb = await box(globalClip)
@@ -372,7 +383,7 @@ async function runZoom(zoomPercent) {
           { draggingBefore, draggingAfter, draggingAfterMove, xBefore: Math.round(gb.x), xAfter: Math.round(afterBox.x) })
       }
       await win.locator('nav.nomi-stepper [data-mode="generation"]').first().click()
-      await node.waitFor({ state: 'visible', timeout: 10000 })
+      await node.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) })
     }
     await snap('end')
     void persisted

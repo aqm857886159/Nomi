@@ -1,0 +1,154 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-09-clip-gesture-ownership",
+  "problem_type": "指针手势没有共享边界：命中所有权、选中准入、缩放换算、生命周期各写各的",
+  "symptom": "用户 10-09：剪辑节点和时间轴「拖动不灵、有时拖不动、有时没法用」。屏外真 Electron 实测：播放头压在片段上拖不动（点中片段或打开预览）；未选中的剪辑节点里能拖片段但节点与片段一直没被选中；裁剪手柄要先选中片段才出现，缩放后宽度与可见位置对不上；全局时间轴拖动被 pointercancel / 失焦 / 丢 capture 打断后卡在拖动态、松手后落在拖到一半的位置。",
+  "direct_cause": "ClipNodeTimeline 的播放头竖线是 pointer-events-none 且 scrub 主动排除片段（命中一律给片段）；选中只发生在松手 click、拖动会吞掉 click；手柄只给已选中片段渲染、宽度 clamp(12/zoom,16,28) 设计像素；TimelineClip.beginDrag / beginResize 只摘 pointerup（TimelineTextTrack 同），ClipNodeTimeline 的 scrub 把监听挂在元素上、不处理 blur / lostpointercapture / Esc。",
+  "class_root": "「一次按住指针的手势」没有唯一入口：capture、window 监听、提交 / 回滚语义、屏幕像素到节点内像素的换算、命中宽度各在 5 个文件 8 处各写一份，写全的只有一份。下一处新手势抄哪一份是掷硬币——这一类问题（打断后卡死、命中区随缩放变小、视觉位置与命中位置不一致）可以从任何新手势、任何缩放档、任何打断来源再次出现。",
+  "migration": "同一提交里把 ClipNodeTimeline（移动 / 裁剪 / scrub）、TimelineClip（移动 / 裁剪）、TimelinePanel scrub、TimelineTextTrack（移动 / 裁剪）共 8 处手写收尾换成 timelineGesture 的会话入口，旧实现当场删除；没有并行版、没有 fallback；不涉及持久化数据。",
+  "affected_population": [
+    "在画布剪辑节点里拖片段 / 拖播放头 / 拉裁剪手柄的所有用户，画布缩放 20%–300% 全档",
+    "在预览页全局时间轴拖片段、裁剪、拖播放头、拖文字片段的所有用户（被系统打断时）"
+  ],
+  "scope_paths": [
+    "src/workbench/timeline/timelineGesture.ts",
+    "src/workbench/timeline/TimelineClip.tsx",
+    "src/workbench/timeline/TimelinePanel.tsx",
+    "src/workbench/timeline/TimelineTextTrack.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+    "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+    "src/workbench/generationCanvas/components/canvasDraggingFlag.ts",
+    "src/workbench/timeline/timelineClipWritesSlice.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx:162 ClipItem.beginDrag / beginResize、:402 beginScrub",
+    "src/workbench/timeline/TimelineClip.tsx:78 beginResize / beginDrag",
+    "src/workbench/timeline/TimelinePanel.tsx:266 beginScrub",
+    "src/workbench/timeline/TimelineTextTrack.tsx:24 beginDrag / beginResize"
+  ],
+  "invariants": [
+    "时间轴 / 剪辑节点里的每一次按住手势只经过 beginPointerSession：松手提交，其它任何终止（pointercancel、窗口失焦、丢 capture、页面隐藏、Esc、组件卸载）都回到拖之前并清掉监听",
+    "按下的那一刻节点与片段的选中态跟上手势；播放头抓取带永远层叠在片段之上；任何可抓取对象在屏幕上至少 8px，不随画布缩放变小"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineGesture.ts",
+      "symbol": "beginPointerSession"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 1,
+    "why_not": "8 处手写的 capture / window 监听收尾合并成 1 扇门（beginPointerSession）；入口只剩这一扇，不存在「必须各自存在」的剩余入口。"
+  },
+  "regression_tests": [
+    "src/workbench/timeline/timelineGesture.test.ts",
+    "src/workbench/timeline/timelineGesture.structure.test.ts",
+    "src/workbench/generationCanvas/nodes/clipNodeGestureModel.test.ts"
+  ],
+  "residual_risks": [
+    "预览区 OverlaySelectionBox / TimelinePreview 的拖动仍是各自的 window 监听（不在时间轴手势里），同类但本片未迁",
+    "全局时间轴的裁剪手柄仍只在片段选中时渲染，与画布剪辑节点的「悬停即现」不一致，待统一",
+    "素材拖进剪辑节点（卡点 4）、拖放把手悬停才可命中（卡点 5）、缩小后片段太窄与自动滚动（卡点 6）在第二片处理",
+    "lostpointercapture 在 Chromium 里由下一个指针事件派发，走查靠补一次真实移动触发；真实系统打断（切窗口、弹框）用 DOM 事件复现，未接 OS 级打断"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/pmndrs/use-gesture/blob/main/packages/core/src/actions/DragAction.ts",
+      "checked_at": "2026-10-09",
+      "purpose": "确认 use-gesture 把 pointercancel 当作松手（同一条 pointerUp 路径），且不处理 blur / lostpointercapture / Esc——据此不接，复用仓库已有的打断租约"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "手势入口随新功能增加（时间轴文字轨、剪辑节点轴、预览浮层），每处都要自己写生命周期；没有共享入口时必然有人漏掉一格，8 处里 7 处漏过至少一种打断。",
+    "same_class_scan": [
+      "git grep -n \"addEventListener('pointerup'\" -- src/workbench/timeline src/workbench/generationCanvas/nodes",
+      "git grep -n \"setPointerCapture\" -- src/workbench"
+    ]
+  },
+  "generality_proof": "时间轴 / 剪辑节点的所有指针手势入口都只能经 beginPointerSession（结构测试禁止在 timeline/ 与 ClipNode*.tsx 里手写 setPointerCapture / pointerup 监听），打断监听来自画布租约、不再有第二份；命中宽度与换算只在 clipNodeGestureModel 一处，层叠把播放头放在片段之上；因此新手势、新缩放档、新打断来源都落在同一条路径上。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/timeline/timelineGesture.ts",
+      "symbol": "beginPointerSession",
+      "responsibility": "一次按住指针手势的 capture、move / up 监听与提交 / 回滚收尾；打断监听复用 canvasDraggingFlag 租约。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "clipHandleHitWidth",
+      "responsibility": "屏幕像素 -> 节点内像素换算、手柄 / 播放头命中宽度、手势准入的唯一真相。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "entry_point": "beginDrag / beginResize",
+      "disposition": "enforced",
+      "evidence": "原先只摘 pointerup；现经 usePointerSession，被打断时 cancelTimelineGesture 弹回撤销栈顶（走查 P7 全局时间轴 3 种打断 x 3 档缩放）。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineTextTrack.tsx",
+      "entry_point": "beginDrag / beginResize",
+      "disposition": "enforced",
+      "evidence": "同 TimelineClip：原先只摘 pointerup；现经 usePointerSession + revertCapturedTimelineEdit（结构测试覆盖）。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "entry_point": "beginScrub",
+      "disposition": "enforced",
+      "evidence": "原先 window pointerup + pointercancel；现经 usePointerSession，补上 blur / lostpointercapture / Esc。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "entry_point": "onPointerDown",
+      "disposition": "not-affected",
+      "evidence": "面板高度分隔条的 move / up / cancel 都挂在元素上并随 capture 走，没有 window 监听可泄漏；结构测试里登记为例外。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/timeline/timelineGesture.ts",
+    "invariant": "时间轴 / 剪辑节点的指针手势只经 beginPointerSession；松手提交，任何其它终止回滚并清监听。",
+    "failure_mode": "timelineGesture.structure.test.ts 在 timeline/ 与 ClipNode*.tsx 里发现手写 setPointerCapture / pointerup 监听就红；走查 tests/ux/clip-gesture-ownership.walk.mjs 在 50 / 100 / 150% 下按卡点逐步断言，任何一步回到卡在拖动态都红。",
+    "exception_policy": "none",
+    "strategy": "把手势生命周期收成一个入口（删旧不留并行版），再用结构测试把「手写第二份」变成当场红。",
+    "artifacts": [
+      "src/workbench/timeline/timelineGesture.ts",
+      "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "src/workbench/timeline/timelineGesture.structure.test.ts",
+      "tests/ux/clip-gesture-ownership.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/timeline/timelineGesture.structure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+      "src/workbench/timeline/TimelineClip.tsx",
+      "src/workbench/timeline/TimelinePanel.tsx",
+      "src/workbench/timeline/TimelineTextTrack.tsx"
+    ],
+    "rationale": "旧的手写 capture + window 监听收尾在这 4 个文件里原地删除（同一提交），没有保留并行实现。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有新增依赖；@use-gesture/react 评估后不接（见设计卡「先查别人」）。",
+    "exit_criteria": []
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-09",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/timeline/timelineGesture.ts",
+    "tests": [
+      "src/workbench/timeline/timelineGesture.test.ts",
+      "src/workbench/timeline/timelineGesture.structure.test.ts"
+    ],
+    "why": "手势生命周期的唯一入口；单测钉住松手 / 五种打断 / 卸载的收尾，结构测试钉住「不许再手写第二份」。"
+  }
+}

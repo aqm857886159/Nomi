@@ -8,7 +8,7 @@
 
 /** 任何可抓取的东西，在屏幕上至少这么宽（不随画布缩放变小）。 */
 export const CLIP_GESTURE_MIN_HIT_PX = 8
-/** 裁剪手柄的屏幕宽度上限（片段够宽时的常态宽度，等于缩放 100% 时原来的 16 设计像素）。 */
+/** 已选中片段的裁剪手柄屏幕宽度上限（片段够宽时的常态宽度，等于缩放 100% 时原来的 16 设计像素）。未选中（悬停）只给最小的 8px。 */
 export const CLIP_HANDLE_MAX_HIT_PX = 16
 /** 手柄最多占片段屏幕宽度的这一比例（两侧加起来不超过 68%，中间一定留得出可拖的片段身体）。 */
 const CLIP_HANDLE_MAX_SHARE = 0.34
@@ -31,15 +31,16 @@ export function clientXToDesignPx(clientX: number, elementClientLeft: number, ca
 
 /**
  * 裁剪手柄的命中宽度（设计像素）。
- * 屏幕上至少 8px、最多 16px；片段窄时按片段宽度的 34% 收缩，保证两个手柄之间还有可拖的片段身体。
- * 但永远不会因为片段窄而小于 8 屏幕像素——除非片段本身已窄到一半都不足 8px（此时每侧各占一半）。
+ * 屏幕上至少 8px：未选中（悬停）片段正好给 8px——悬停就能拉，又不把片段身体挤光（用户是来拖片段的，
+ * 手柄不能抢走大半个片段）；已选中片段最多 16px，片段窄时按片段宽度的 34% 收缩，两个手柄之间留得出可拖的身体。
+ * 永远不会因为片段窄而小于 8 屏幕像素——除非片段本身已窄到一半都不足 8px（此时每侧各占一半）。
  */
-export function clipHandleHitWidth(input: { clipWidth: number; canvasZoom: number }): number {
+export function clipHandleHitWidth(input: { clipWidth: number; canvasZoom: number; selected: boolean }): number {
   const zoom = safeZoom(input.canvasZoom)
   const clipWidth = Math.max(0, input.clipWidth)
   const clipScreenWidth = clipWidth * zoom
   const screenWidth = Math.min(
-    CLIP_HANDLE_MAX_HIT_PX,
+    input.selected ? CLIP_HANDLE_MAX_HIT_PX : CLIP_GESTURE_MIN_HIT_PX,
     Math.max(CLIP_GESTURE_MIN_HIT_PX, clipScreenWidth * CLIP_HANDLE_MAX_SHARE),
   )
   return Math.min(screenWidth / zoom, clipWidth / 2)
