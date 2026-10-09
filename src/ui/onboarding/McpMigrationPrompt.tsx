@@ -26,7 +26,7 @@ function failureLines(
 
 export type McpMigrationPromptProps =
   | { phase: 'ask'; hosts: readonly string[]; busy: boolean; onDefer: () => void; onConfirm: () => void }
-  | { phase: 'done'; labels: Readonly<Record<string, string>>; results: readonly McpMigrationResult[] }
+  | { phase: 'done'; labels: Readonly<Record<string, string>>; results: readonly McpMigrationResult[]; busy: boolean; onRetry: () => void }
 
 export function McpMigrationPrompt(props: McpMigrationPromptProps): JSX.Element {
   const { t } = useTranslation()
@@ -79,6 +79,19 @@ export function McpMigrationPrompt(props: McpMigrationPromptProps): JSX.Element 
           <span>{t(`onboardingProviders.assistant.migration.failed.${FAILURE_I18N[line.reason]}`, { client: line.clients })}</span>
         </div>
       ))}
+      {failed.length > 0 ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-assistant-migration-retry
+            onClick={props.onRetry}
+            disabled={props.busy}
+            className="h-8 px-3 text-caption text-nomi-ink-60 hover:text-nomi-ink disabled:opacity-50"
+          >
+            {t('onboardingProviders.assistant.migration.retry')}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

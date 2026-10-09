@@ -656,6 +656,7 @@ export const zhOnboardingProviders = {
       askHint: '改之前会先备份；不改也照样能用到下个版本。',
       defer: '以后再说',
       confirm: '改过去',
+      retry: '再试一次',
       done: '已改好 {{count}} 个，原配置的备份放在各自旁边，重启它们后生效。',
       failed: {
         unavailable: '{{client}} 没改：新连接方式现在用不了，原来的连接照常可用。稍后再试。',
@@ -1928,6 +1929,7 @@ export const enOnboardingProviders = {
       askHint: 'We back up first. Leaving it as is keeps working until the next version.',
       defer: 'Not now',
       confirm: 'Switch over',
+      retry: 'Try again',
       done: 'Switched {{count}}. Each original config is backed up next to it. Restart them to take effect.',
       failed: {
         unavailable: 'Not changed ({{client}}): the new way to connect is not available right now. The old connection keeps working. Try again later.',

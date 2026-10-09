@@ -31,6 +31,7 @@ import {
 } from './assistantActivationState'
 import { genericMcpSnippet } from './mcpGenericSnippet'
 import { McpMigrationPrompt } from './McpMigrationPrompt'
+import { mergeRetryResults, retryTargets } from './mcpMigrationFailureKeys'
 
 const GUIDE_URL = 'https://github.com/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md'
 type ClientKey = AssistantClientKey
@@ -234,6 +235,19 @@ export function ConnectAssistantCard({
       .finally(() => setBusy(false))
   }
 
+  const handleRetryMigration = () => {
+    if (!capability.migrateMcpHosts || !migrationResults) return
+    setBusy(true)
+    void capability.migrateMcpHosts(retryTargets(migrationResults))
+      .then((retried) => {
+        setMigrationResults((prev) => mergeRetryResults(prev ?? [], retried))
+        onChanged()
+        setCheckNonce((n) => n + 1)
+      })
+      .catch((e: unknown) => setError(t('onboardingProviders.assistant.connectFailed', { message: e instanceof Error ? e.message : String(e) })))
+      .finally(() => setBusy(false))
+  }
+
   const handleUninstall = () => {
     if (!capability.uninstallMcp) return
     setBusy(true)
@@ -286,7 +300,7 @@ export function ConnectAssistantCard({
             : t('onboardingProviders.assistant.status.configured')
 
   const migrationBlock = migrationResults ? (
-    <McpMigrationPrompt phase="done" labels={migrationLabels.current} results={migrationResults} />
+    <McpMigrationPrompt phase="done" labels={migrationLabels.current} results={migrationResults} busy={busy} onRetry={handleRetryMigration} />
   ) : migration && migration.hosts.length > 0 && deferred !== migration.appVersion ? (
     <McpMigrationPrompt
       phase="ask"

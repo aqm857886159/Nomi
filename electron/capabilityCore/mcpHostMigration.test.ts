@@ -257,6 +257,21 @@ describe('失败只影响那一个宿主，且原文件一个字节都不动', (
   })
 })
 
+describe('再试一次只动失败的宿主', () => {
+  it('第一次 cursor 失败；修好后只重试 cursor：claude 已改好的字节不变', () => {
+    seedAll()
+    fs.writeFileSync(cfg('cursor'), '{ not json')
+    const first = migrateMcpHostsToHttp(['claude', 'cursor'])
+    expect(first.map((r) => r.ok)).toEqual([true, false])
+    const claudeMigrated = bytes(cfg('claude'))
+    seedStdioHost('cursor')
+    const retried = migrateMcpHostsToHttp(first.filter((r) => !r.ok).map((r) => r.client))
+    expect(retried).toHaveLength(1)
+    expect(retried[0]).toMatchObject({ client: 'cursor', ok: true })
+    expect(bytes(cfg('claude'))).toEqual(claudeMigrated)
+  })
+})
+
 describe('迁移前备份与恢复', () => {
   it('备份是迁移前逐字节原文；之后再写（重装、再迁移）不覆盖它', () => {
     seedAll()
