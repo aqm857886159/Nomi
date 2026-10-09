@@ -103,3 +103,57 @@ test('阳性对照⑤：入口指向一个不发请求的 dispatchSite → 红',
   const problems = checkGenerationEntrances(root)
   assert.ok(problems.some((problem) => problem.includes('不在反向扫到的调用点文件里')), problems.join(' | '))
 })
+
+// 架构③（协调会话 10-08，用户拍板「生成那一刻 = 落画布那一刻」）：每个生成入口都要说清「请求发出之前，画布上有没有这一镜的节点」。
+// 入口表每条带 `landing`：`{ kind: "node-first", owner: "<文件> <符号>" }`（谁保证先有节点）或 `{ kind: "exception" }`，
+// 例外的理由住在登记表 `landingExceptions`（门岗只认那里写了理由的）。今天唯一批准的例外是接入试跑（try-model）。
+const withSources = (root) => {
+  fs.cpSync(path.join(repoRoot, 'electron'), path.join(root, 'electron'), { recursive: true })
+  fs.cpSync(path.join(repoRoot, 'src'), path.join(root, 'src'), { recursive: true })
+  return root
+}
+const entrancesFile = (root) => path.join(root, 'electron/parity/generationEntrances.ts')
+const entranceBlock = (source, id) => {
+  const start = source.indexOf(`    id: "${id}",`)
+  return source.slice(start, source.indexOf('\n  },', start))
+}
+
+test('落地：真仓库上每个入口都声明了落地方式；例外只有 try-model，且登记表里写着理由', () => {
+  const source = fs.readFileSync(entrancesFile(repoRoot), 'utf8')
+  const ids = [...source.matchAll(/^\s{4}id: "([^"]+)",$/gm)].map((match) => match[1])
+  for (const id of ids) assert.match(entranceBlock(source, id), /\n\s{4}landing: \{ kind: "(node-first|exception)"/, `${id} 没有 landing`)
+  const exceptions = ids.filter((id) => /landing: \{ kind: "exception"/.test(entranceBlock(source, id)))
+  assert.deepEqual(exceptions, ['try-model'])
+  const reason = readLedger(repoRoot).landingExceptions?.['try-model']
+  assert.ok(typeof reason === 'string' && reason.trim().length >= 20, `try-model 的例外理由缺失：${reason}`)
+})
+
+test('阳性对照⑥：新入口不声明落地方式 → 红', () => {
+  const root = withSources(sandbox())
+  const file = entrancesFile(root)
+  const source = fs.readFileSync(file, 'utf8')
+  const block = entranceBlock(source, 'canvas-node')
+  fs.writeFileSync(file, source.replace(block, block.replace(/\n\s{4}landing: [^\n]*/, '')))
+  const problems = checkGenerationEntrances(root)
+  assert.ok(problems.some((problem) => problem.includes('canvas-node') && problem.includes('没有声明落地方式')), problems.join(' | '))
+})
+
+test('阳性对照⑦：入口自称例外、登记表里却没有理由（不落地就派发）→ 红', () => {
+  const root = withSources(sandbox())
+  const file = entrancesFile(root)
+  const source = fs.readFileSync(file, 'utf8')
+  const block = entranceBlock(source, 'continue-batch')
+  fs.writeFileSync(file, source.replace(block, block.replace(/\n\s{4}landing: [^\n]*/, '\n    landing: { kind: "exception" },')))
+  const problems = checkGenerationEntrances(root)
+  assert.ok(problems.some((problem) => problem.includes('continue-batch') && problem.includes('落地例外')), problems.join(' | '))
+})
+
+test('阳性对照⑧：node-first 指向一个不存在的落地 owner → 红', () => {
+  const root = withSources(sandbox())
+  const file = entrancesFile(root)
+  const source = fs.readFileSync(file, 'utf8')
+  const block = entranceBlock(source, 'auto-run-batch')
+  fs.writeFileSync(file, source.replace(block, block.replace(/\n\s{4}landing: [^\n]*/, '\n    landing: { kind: "node-first", owner: "electron/nowhere/ghostLanding.ts landGhost" },')))
+  const problems = checkGenerationEntrances(root)
+  assert.ok(problems.some((problem) => problem.includes('auto-run-batch') && problem.includes('落地 owner')), problems.join(' | '))
+})
