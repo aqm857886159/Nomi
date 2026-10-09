@@ -1,4 +1,4 @@
-import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai';
+import { createModels, getSupportedThinkingLevels, clampThinkingLevel } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
 import { LANE_STREAM_WATCHDOG } from './laneProviderGuard.mjs';
 import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig.js';
@@ -22,6 +22,7 @@ export async function runLaneSingleShot(options: {
   const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model, options.fetch, LANE_STREAM_WATCHDOG);
   const models = createModels({ credentials });
   models.setProvider(provider);
+  const thinkingLevel = clampThinkingLevel(model, options.model.thinkingLevel ?? 'off');
   if (captured && options.input?.prepare) captured = await options.input.prepare(captured);
   if (captured) options.input?.activate(captured);
   const content = captured && options.input
@@ -34,6 +35,7 @@ export async function runLaneSingleShot(options: {
     tools: [],
   }, {
     signal: options.signal,
+    ...(thinkingLevel !== 'off' ? { reasoning: thinkingLevel } : {}),
     ...(options.input ? { onPayload: (payload: unknown) => options.input!.rewritePayload(payload, model.api) } : {}),
   }).result();
   options.signal?.throwIfAborted();
@@ -42,5 +44,5 @@ export async function runLaneSingleShot(options: {
     pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
     ...(options.model.contextWindow === undefined ? {} : { contextWindow: options.model.contextWindow }),
-  });
+  }, thinkingLevel);
 }

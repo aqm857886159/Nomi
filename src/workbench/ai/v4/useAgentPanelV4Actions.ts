@@ -214,7 +214,8 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
           : !capturedSkill ? getCreationAiMode(state.creationAiModeId).prompt : undefined
       pendingAdmission.current!.dispatched = true
       await checked(laneClient.say(text, options?.choice ?? 'primary', {
-        ...(data.selectedModel ? { model: { vendorKey: data.selectedModel.vendorKey, modelKey: data.selectedModel.modelKey } } : {}),
+        ...(data.selectedModel ? { model: { vendorKey: data.selectedModel.vendorKey, modelKey: data.selectedModel.modelKey,
+          ...(data.reasoning ? { thinkingLevel: data.reasoning.level } : {}) } } : {}),
         approvalPolicy: state.projectAgentApprovalPolicy,
         documentId: captured.activeDocumentId,
         ...(storyboardTarget ? { storyboardTarget } : {}),
@@ -256,7 +257,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
         useWorkbenchStore.setState({ projectAgentAdmissionId: null })
       }
     }
-  }, [checked, data.selectedModel, surface, t])
+  }, [checked, data.reasoning, data.selectedModel, surface, t])
 
   const answer = (action: 'allow-once' | 'allow-session' | 'deny' | 'answer', reason?: string) => {
     const pending = data.primaryPending

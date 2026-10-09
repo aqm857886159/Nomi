@@ -11,6 +11,7 @@ import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completio
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
 import { z } from 'zod';
+import { LANE_THINKING_LEVELS } from '../shared/agentLane/laneContracts.js';
 import type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { guardProviderStreams, type NomiStreamGuard } from './laneProviderGuard.mjs';
 
@@ -38,6 +39,7 @@ export const modelConfigSchema = z.object({
   free: z.literal(true).optional(),
   reasoning: z.boolean().optional(),
   thinkingLevelMap: z.record(z.string().nullable()).optional(),
+  thinkingLevel: z.enum(LANE_THINKING_LEVELS).optional(),
 }).superRefine((model, ctx) => {
   // 一个模型不能既有价目又声明免费：那样「花费」这一行有两个互相矛盾的答案，
   // 而下游必须在两者之间挑一个——挑哪个都是我们在替用户猜。

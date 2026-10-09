@@ -64,7 +64,7 @@ export function chatModelChoices(
 }
 
 /** Shared catalog-to-row projection used by the resident shell and visual fixtures. */
-export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendors' | 'orderedVendorKeys' | 'selectedModel' | 'modelLabel' | 'selectModel' | 'generationModels' | 'generationDefaults' | 'setGenerationDefault'>, t: (key: string, options?: Record<string, unknown>) => string): readonly V4ModelRow[] {
+export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendors' | 'orderedVendorKeys' | 'selectedModel' | 'modelLabel' | 'reasoning' | 'selectModel' | 'generationModels' | 'generationDefaults' | 'setGenerationDefault'>, t: (key: string, options?: Record<string, unknown>) => string): readonly V4ModelRow[] {
   const generationOptions = buildDefaultModelOptions(data.generationModels, key => data.vendors[key] ?? key, t('agentPanelV4.modelAuto'))
   const rows: V4ModelRow[] = []
   const chatChoices = chatModelChoices(
@@ -89,6 +89,18 @@ export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendor
           },
         }
       : { empty: t('agentPanelV4.modelNone') }),
+  })
+  const reasoning = data.reasoning
+  if (reasoning && reasoning.levels.length > 1) rows.push({
+    slot: t('agentPanelV4.reasoningLevel'),
+    name: t(`agentPanelV4.reasoningLevels.${reasoning.level}`),
+    options: reasoning.levels.map(level => ({ value: level, label: t(`agentPanelV4.reasoningLevels.${level}`) })),
+    selectedValue: reasoning.level,
+    disabled: reasoning.disabled,
+    onChange: value => {
+      const level = reasoning.levels.find(candidate => candidate === value)
+      if (level && !reasoning.disabled) reasoning.select(level)
+    },
   })
   for (const [slot, taskKind] of [
     [t('agentPanelV4.imageDefault'), 'text_to_image'],

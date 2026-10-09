@@ -371,14 +371,14 @@ export function projectLaneSnapshot(
 }
 
 /** A one-shot response has no session. Reuse the same native-message projection and accounting. */
-export function projectSingleShotResponse(message: AssistantMessage, facts: LaneModelFacts): LaneProjection {
+export function projectSingleShotResponse(message: AssistantMessage, facts: LaneModelFacts, thinkingLevel: LaneThinkingLevel = 'off'): LaneProjection {
   return projectLaneSnapshot({
     lane: 'single-shot',
     // This local ordinal is projection identity only; it is never saved or admitted to a user lane.
     transcript: [{ type: 'message', id: 'single-shot', parentId: null, seq: 1,
       timestamp: message.timestamp, message }],
     tipId: null, operation: null, queues: [], faulted: false,
-    configuration: { model: { provider: message.provider, modelId: message.model }, thinkingLevel: 'off', activeToolNames: [] },
+    configuration: { model: { provider: message.provider, modelId: message.model }, thinkingLevel, activeToolNames: [] },
     stats: { messageCount: 1, usage: message.usage },
   }, facts);
 }
