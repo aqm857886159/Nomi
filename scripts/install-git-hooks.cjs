@@ -160,6 +160,15 @@ function installHooks({ repoRoot = REPO_ROOT, exec = execSync, execFile = execFi
  * 一键把本机所有 worktree（含主仓）的钩子换成当前版本：只写各自的 hooks 目录（.git/hooks 与 .git/worktrees 下各自的 hooks），不碰别的。
  * 用法：pnpm run hooks:reinstall-all
  */
+/** 一键换钩子允许写的目录只有两种：主仓 <common>/hooks，或该 worktree 自己的 <git-dir>/hooks（= .git/worktrees/<名>/hooks）。配置出来的 core.hooksPath 指到别处一律不认。 */
+function allowedHookDirs(root) {
+  const out = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+  const gitDir = path.resolve(root, out(['rev-parse', '--absolute-git-dir']))
+  const common = path.resolve(root, out(['rev-parse', '--git-common-dir']))
+  return [path.join(common, 'hooks'), path.join(gitDir, 'hooks')].map(normalizeDir)
+}
+const normalizeDir = (dir) => (process.platform === 'win32' ? path.resolve(dir).toLowerCase() : path.resolve(dir))
+
 function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
   const list = execFileSync('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot, encoding: 'utf8' })
   const roots = list.split('\n').filter((line) => line.startsWith('worktree ')).map((line) => line.slice('worktree '.length).trim())
@@ -171,6 +180,15 @@ function installAllWorktrees({ repoRoot = REPO_ROOT, logger = console } = {}) {
     if (!fs.existsSync(path.join(root, DISPATCHER))) {
       logger.log(`跳过 ${root}：分支还没有分发入口，合并 main 后再跑一次`)
       skipped.push({ root, reason: 'no_dispatcher' })
+      continue
+    }
+    let target = null
+    try { target = resolveHookInfo(root)?.hookDir ?? null } catch { target = null }
+    let allowed = []
+    try { allowed = allowedHookDirs(root) } catch { allowed = [] }
+    if (target === null || !allowed.includes(normalizeDir(target))) {
+      logger.log(`跳过 ${root}：钩子目录（${target ?? '解析不出'}）不是主仓 .git/hooks 或该 worktree 自己的 hooks，不写（core.hooksPath 指到外面也不认）`)
+      skipped.push({ root, reason: 'external_hooks_path' })
       continue
     }
     const result = installHooks({ repoRoot: root, logger })

@@ -30,9 +30,10 @@
   "internal_only_reason": "钩子分发是本仓自己的交付流水线纪律；git 的 pre-push 参数与 stdin 约定按 githooks 文档使用。",
   "invariants": [
     "钩子文件里不出现任何脚本名，只 exec scripts/git-hook.mjs <钩子名> \"$@\"",
-    "任何跳过都在 stderr 说原因，不静默",
-    "推送前入口只在收到 <remote名> <url> 两个参数时才读 stdin",
-    "PR 正文取不到 / 指定文件读不了 / gh 超时 = 明确红，gh 有超时"
+    "分发器在场 = fail-closed；只有「分支里没有分发器」由钩子壳打印原因后放行",
+    "推送前入口必须同时见到分发器设的 NOMI_GIT_HOOK_DISPATCH=pre-push 和两个参数才读 stdin；缺一律按当前 HEAD 检查",
+    "PR 正文只有「gh 明确说这个分支没有 PR」才允许走草稿 / 跳过；超时、没装、没登录、没权限一律红并写明下一步",
+    "一键换钩子只写主仓 .git/hooks 或该 worktree 自己的 hooks，不认外部 core.hooksPath"
   ],
   "doors": [
     {
@@ -90,8 +91,8 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "scripts/git-hook.mjs",
-    "invariant": "钩子文件不含脚本名；分发入口存在且不可删除 / 改名（boundary-owners 每次核 path+symbol）。",
-    "failure_mode": "入口不在 = 退出 0 + stderr 原因；脚本不在 = 跳过该步 + stderr 原因；脚本红 = 原样返回退出码。",
+    "invariant": "钩子文件不含脚本名；分发入口存在且不可删除 / 改名（boundary-owners 每次核 path+symbol）；推送前入口只在「分发器内部标记 + 两个参数」同时满足时才读 stdin。",
+    "failure_mode": "分发入口在场时一律 fail-closed：分发表读不到 / 解析失败 / 没有这个钩子 / 步骤为空 / 某一步的候选脚本全不在 = 非零退出 + 原因；脚本红 = 原样返回退出码。唯一允许「打印原因后放行」的是钩子壳发现分支里根本没有 scripts/git-hook.mjs（很老的分支）。",
     "exception_policy": "none",
     "strategy": "结构上让「钩子写死脚本名」做不出来：生成物里没有可写的位置。",
     "artifacts": [
@@ -110,10 +111,8 @@
   ],
   "legacy_paths": {
     "status": "removed",
-    "removed_paths": [
-      "scripts/install-git-hooks.cjs"
-    ],
-    "rationale": "安装器里写死脚本名的 HOOKS.commands 与 legacyFallback、每个脚本一条 `[ -f ] || exit 0` 的静默守卫已同提交删除，改为只分发。"
+    "removed_paths": [],
+    "rationale": "没有整文件删除：scripts/install-git-hooks.cjs 仍在，被删的是它里面的旧路径——HOOKS.commands 与 legacyFallback 写死的脚本名、每个脚本一条 [ -f ] || exit 0 的静默守卫（同提交删，不留并行版）。"
   },
   "migration": "一键换钩子跳过还没有 scripts/git-hook.mjs 的分支（保留旧钩子），合并 main 后再跑一次；协调会话在本 PR 合入 main 后跑 pnpm run hooks:reinstall-all 一次。",
   "residual_risks": [

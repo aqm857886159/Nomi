@@ -29,6 +29,9 @@ function readLocalDraft(cwd) {
   try { return fs.readFileSync(path.join(cwd, LOCAL_PR_BODY_DRAFT), 'utf8') } catch { return null }
 }
 
+/** gh 对「这个分支没有 PR」的固定说法；只有它才允许走草稿 / 跳过。 */
+const NO_PR_FOR_BRANCH = /no pull requests found/i
+
 /** gh 最多等多久。手动跑挂 600–1700 秒的事故（2026-10-09）里 gh 没有超时是原因之一：超时 = 明确报错，不是继续等。 */
 export const GH_TIMEOUT_MS = 20_000
 
@@ -77,14 +80,22 @@ export function resolvePullRequestBody({
   try {
     return { available: true, body: fetchBody(args, cwd), source: number ? `gh pr view ${number}` : 'gh pr view' }
   } catch (error) {
-    // 超时不是「没有 PR」：不回落到草稿，明确报错（调用方按 required 处理）
+    // 只有能识别出的「这个分支没有 PR」才允许走草稿 / 跳过；其余（超时、没装 gh、没登录、没权限、网络错）一律是明确的红，写清下一步
+    const stderrText = `${error && error.stderr ? error.stderr : ''}${'\n'}${error instanceof Error ? error.message : String(error)}`
+    const nextStep = '改用 NOMI_PR_BODY / NOMI_PR_BODY_FILE 直接给正文，或先修好 gh（gh auth status）'
     if (error && error.code === 'ETIMEDOUT') {
-      return { available: false, required: true, reason: `gh pr view 超时（${GH_TIMEOUT_MS / 1000} 秒没有返回）；网络或 gh 登录有问题，改用 NOMI_PR_BODY / NOMI_PR_BODY_FILE 直接给正文` }
+      return { available: false, required: true, reason: `gh pr view 超时（${GH_TIMEOUT_MS / 1000} 秒没有返回）；${nextStep}` }
+    }
+    if (error && error.code === 'ENOENT') {
+      return { available: false, required: true, reason: `找不到 gh 命令；安装 GitHub CLI 并 gh auth login，或${nextStep}` }
+    }
+    if (!NO_PR_FOR_BRANCH.test(stderrText)) {
+      const first = stderrText.trim().slice(0, 200)
+      return { available: false, required: true, reason: `gh pr view 失败（${first}）；${nextStep}` }
     }
     // 本地、这条分支还没有 PR：有草稿就用草稿（CI 里没有这个文件，也永远不走这条）
     const draft = inPullRequest ? null : readDraft(cwd)
     if (draft !== null) return { available: true, body: draft, source: LOCAL_PR_BODY_DRAFT }
-    const detail = error instanceof Error ? String(error.message).split('\n')[0] : String(error)
-    return { available: false, required: inPullRequest, reason: `gh pr view 取不到正文：${detail}` }
+    return { available: false, required: inPullRequest, reason: '这条分支还没有 PR（gh：no pull requests found），也没有 .tmp-pr-body.md 草稿' }
   }
 }

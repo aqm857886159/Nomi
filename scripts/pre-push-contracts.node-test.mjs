@@ -140,7 +140,18 @@ test('钩子入口：pre-push 由分发入口 git-hook.mjs 指向 pre-push-contr
   assert.deepEqual(table['pre-push'], [['scripts/pre-push-contracts.mjs']])
   assert.doesNotMatch(read('scripts/install-git-hooks.cjs'), /pre-push-contracts/, '安装器不许再写死脚本名')
   const entry = read('scripts/pre-push-contracts.mjs')
-  assert.doesNotMatch(entry, /SKIP|NO_VERIFY|BYPASS|process.env.(?!NOMI_PR_BODY)w*(?:SKIP|DISABLE|OFF)/i)
+  assert.doesNotMatch(entry, BYPASS_PATTERN)
+})
+
+// 入口里不许有绕过开关：SKIP / NO_VERIFY / BYPASS 字样，或读任何带 SKIP / DISABLE / OFF 的环境变量（正文来源 NOMI_PR_BODY* 除外）
+const BYPASS_PATTERN = /SKIP|NO_VERIFY|BYPASS|process\.env\.(?!NOMI_PR_BODY)\w*(?:SKIP|DISABLE|OFF)/i
+
+test('绕过开关的判据本身有牙：NOMI_SKIP / NOMI_DISABLE / NOMI_OFF 都被拒，正文变量不误伤', () => {
+  assert.match('process.env.NOMI_SKIP', BYPASS_PATTERN)
+  assert.match('process.env.NOMI_DISABLE_GATES', BYPASS_PATTERN)
+  assert.match('process.env.NOMI_OFF', BYPASS_PATTERN)
+  assert.doesNotMatch('process.env.NOMI_PR_BODY_FILE', BYPASS_PATTERN)
+  assert.doesNotMatch('process.env.NOMI_GIT_HOOK_DISPATCH', BYPASS_PATTERN)
 })
 
 // ── 真实路径：真 git 仓库副本里跑真入口 ──────────────────────────────────────────
@@ -174,11 +185,14 @@ function commitChange(edit) {
 
 // 真钩子调用时 git 会把 <remote名> <url> 作为参数传进来；脚本只有收到这两个参数才读 stdin 的 ref 行
 const HOOK_ARGS = ['origin', 'https://example.invalid/r.git']
-function prePush({ body, cwd = work, args = HOOK_ARGS, refLine } = {}) {
+function prePush({ body, cwd = work, args = HOOK_ARGS, refLine, dispatched = true } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
   // 外层 node --test 会设 NODE_TEST_CONTEXT，子进程里再 node --test 就不真跑了（假绿）——必须清掉
   const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
   delete env.NODE_TEST_CONTEXT
+  // 真钩子由分发器设内部标记；只给两个参数、没有标记的不算钩子
+  if (dispatched) env.NOMI_GIT_HOOK_DISPATCH = 'pre-push'
+  else delete env.NOMI_GIT_HOOK_DISPATCH
   return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
     input: refLine ? refLine(sha) : `refs/heads/topic ${sha} refs/heads/topic ${ZERO}\n`,
     env,
@@ -348,4 +362,19 @@ test('按改动路径选门岗：只改 docs 不跑新增的；改 tests/ 跑临
   assert.ok(selectGates(['electron/main.ts']).includes('test:quit-lifecycle-guard'))
   assert.ok(selectGates(['scripts/control-contract-copy.mjs']).includes('test:control-contract'))
   assert.ok(selectGates(null).includes('test:control-contract'), '算不出改动 = 全跑')
+})
+
+test('必红：伪造两个参数、没有分发器标记，再从 stdin 塞一条删除 ref → 门岗照跑，不许当「只是删除」跳过', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  const result = prePush({ body: CARD, dispatched: false, refLine: () => `(delete) ${ZERO} refs/heads/topic ${'c'.repeat(40)}\n` })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /✅ check:filesize/, '门岗必须真的跑了')
+  assert.doesNotMatch(result.stderr, /只是删除远端 ref/)
+})
+
+test('有标记 + 两个参数才算钩子：同一条删除 ref 这时才允许跳过（对照）', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  const result = prePush({ body: CARD, refLine: () => `(delete) ${ZERO} refs/heads/topic ${'c'.repeat(40)}\n` })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /只是删除远端 ref/)
 })

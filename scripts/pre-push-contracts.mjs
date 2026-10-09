@@ -10,7 +10,7 @@
 // 三条边界（写死，别靠猜）：
 //   · 没有绕过开关，也没有任何让门岗集合变小的参数：入口只认 --list，以及 git 钩子传入的 <remote名> <url> 两个位置参数
 //     （不改变门岗集合），其余参数（含空值）一律报错退出。
-//   · 只有作为钩子被调用（收到 <remote名> <url>）才读 stdin 的 ref 行；手动跑（无参数）不读 stdin、按「推当前 HEAD」检查——
+//   · 只有作为钩子被调用（分发器设的 NOMI_GIT_HOOK_DISPATCH=pre-push 标记 + 收到 <remote名> <url>，缺一不可）才读 stdin 的 ref 行；手动跑（无参数）不读 stdin、按「推当前 HEAD」检查——
 //     子 agent 的 shell 里 stdin 是永不关闭的管道，读它会一直挂（2026-10-09 挂了 600–1700 秒）。
 //   · 取不到 origin/main = 全部门岗都跑（宁可多跑，不拿算不出来当通过）。
 //   · 超过 60 秒的门岗不放进推送前（见 SLOW_GATES），它们仍在 CI 的 Contracts 里；清单和理由写在下面。
@@ -212,8 +212,10 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
   const known = [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, ...BODY_GATES]
   // 入口只认 --list；任何别的参数（含空值）一律报错——推送钩子不能有让门岗集合变小的开关（P1）
   // 钩子形态 = 恰好两个位置参数 <remote名> <url>（git githooks 文档的 pre-push 约定），它们不影响门岗集合
-  const hooked = argv.length === 2 && argv.every((arg) => arg !== '' && !arg.startsWith('-'))
-  const bad = hooked ? [] : argv.filter((arg) => arg !== '--list')
+  const shaped = argv.length === 2 && argv.every((arg) => arg !== '' && !arg.startsWith('-'))
+  // 光有两个参数不算钩子（谁都能伪造）：必须同时见到分发器设的内部标记，才读 stdin、才走 ref 判定；否则一律按当前 HEAD 检查、不读 stdin
+  const hooked = shaped && process.env.NOMI_GIT_HOOK_DISPATCH === 'pre-push'
+  const bad = shaped ? [] : argv.filter((arg) => arg !== '--list')
   if (bad.length > 0) {
     console.error(`[pre-push] 不接受参数：${bad.map((arg) => JSON.stringify(arg)).join('、')}（只有 --list，或 git 钩子传入的 <remote名> <url>；要单独重跑某道门岗请直接 pnpm run check:xxx）`)
     return 2
@@ -276,7 +278,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
       return 1
     }
     if (!pr.available) {
-      console.error(`[pre-push] 正文类门岗跳过：${pr.reason}（这条分支还没有 PR、也没有 ${'.tmp-pr-body.md'} 草稿；CI 侧仍会查）`)
+      console.error(`[pre-push] 正文类门岗跳过：${pr.reason}；CI 侧仍会查`)
     } else {
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {

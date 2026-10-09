@@ -67,24 +67,42 @@ test('必红：分发入口不存在（很老的分支）→ 退出 0，但 stde
     assert.ok(result.stderr.includes(`[${name}]`) && result.stderr.includes('scripts/git-hook.mjs') && result.stderr.includes('跳过'), `${name} 不许静默跳过：${result.stderr}`)
   }
 })
-
-test('必红：分发表里的脚本全都不在 → 退出 0，但点名说「没有可跑的入口」，不静默', () => {
+test('必红：分发器在场、某一步的候选脚本全都不在 → 非零 + 点名，不放行（fail-closed）', () => {
   const root = makeRepo({ table: { 'pre-push': [['scripts/gone-a.mjs', 'scripts/gone-b.mjs']] } })
   const result = runHook(root, 'pre-push')
-  assert.equal(result.status, 0)
-  assert.match(result.stderr, /\[pre-push\].*scripts\/gone-a\.mjs.*跳过/)
+  assert.notEqual(result.status, 0)
+  assert.ok(result.stderr.includes('[pre-push] BLOCKED') && result.stderr.includes('scripts/gone-a.mjs'), result.stderr)
 })
 
-test('分发表里没有的钩子名 → 退出 0 且打印原因；多步钩子按顺序跑，前一步红就停', () => {
-  const root = makeRepo({ table: { 'commit-msg': [['scripts/step-a.mjs'], ['scripts/step-b.mjs']] } })
+test('必红：分发表损坏（不是 JSON）→ 非零 + 原因，不放行', () => {
+  const root = makeRepo()
+  put(root, 'scripts/git-hooks.json', '{ 这不是 JSON')
+  const result = runHook(root, 'pre-push')
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /BLOCKED.*分发表/)
+})
+
+test('必红：分发表里没有这个钩子名 / 步骤是空的 → 非零 + 原因；多步钩子按顺序跑，前一步红就停', () => {
+  const root = makeRepo({ table: { 'commit-msg': [['scripts/step-a.mjs'], ['scripts/step-b.mjs']], 'pre-push': [] } })
   put(root, 'scripts/step-a.mjs', "console.error('STEP-A'); process.exit(3)")
   put(root, 'scripts/step-b.mjs', "console.error('STEP-B')")
   const stopped = runHook(root, 'commit-msg')
   assert.equal(stopped.status, 3)
   assert.doesNotMatch(stopped.stderr, /STEP-B/)
   const unknown = runHook(root, 'pre-commit')
-  assert.equal(unknown.status, 0)
-  assert.match(unknown.stderr, /\[pre-commit\].*分发表.*跳过/)
+  assert.notEqual(unknown.status, 0)
+  assert.ok(unknown.stderr.includes('[pre-commit] BLOCKED') && unknown.stderr.includes('分发表'), unknown.stderr)
+  const empty = runHook(root, 'pre-push')
+  assert.notEqual(empty.status, 0)
+  assert.match(empty.stderr, /BLOCKED/)
+})
+
+test('分发器给被调用的脚本设内部标记 NOMI_GIT_HOOK_DISPATCH=<钩子名>，并透传参数', () => {
+  const root = makeRepo({ table: { 'pre-push': [['scripts/probe.mjs']] } })
+  put(root, 'scripts/probe.mjs', "console.error('MARK=' + process.env.NOMI_GIT_HOOK_DISPATCH + ' ARGS=' + process.argv.slice(2).join(','))")
+  const result = runHook(root, 'pre-push', ['origin', 'url'])
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stderr, /MARK=pre-push ARGS=origin,url/)
 })
 
 test('一键换钩子：--all-worktrees 把主仓和每个 linked worktree 的钩子都写成新版（只动 .git 下的钩子目录）', () => {
@@ -125,4 +143,19 @@ test('一键换钩子：分支里还没有分发入口的 worktree 跳过并打�
   assert.equal(fs.readFileSync(path.join(oldHooks, 'pre-commit'), 'utf8'), legacy, '旧钩子不许被换掉')
   assert.ok(result.skipped.some((item) => item.reason === 'no_dispatcher' && item.root.endsWith('old')), JSON.stringify(result))
   assert.ok(lines.some((line) => line.includes('跳过') && line.includes('分支还没有分发入口') && line.includes('old')), lines.join('\n'))
+})
+
+test('必红：--all-worktrees 遇到外部 core.hooksPath（指到仓库 .git 之外）→ 跳过、不写进那个目录', () => {
+  const main = makeRepo()
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' })
+  git(main, 'config', 'user.name', 't'); git(main, 'config', 'user.email', 't@example.com')
+  put(main, 'a.txt', 'a')
+  git(main, 'add', '-A'); git(main, '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'init')
+  const outside = makeTempDir('nomi-external-hooks-')
+  git(main, 'config', 'core.hooksPath', outside)
+  const lines = []
+  const result = installer.installAllWorktrees({ repoRoot: main, logger: { log: (line) => lines.push(line), warn() {} } })
+  assert.deepEqual(fs.readdirSync(outside), [], '外部目录里不许出现任何文件')
+  assert.ok(result.skipped.some((item) => item.reason === 'external_hooks_path'), JSON.stringify(result))
+  assert.ok(lines.some((line) => line.includes('跳过') && line.includes('core.hooksPath')), lines.join('\n'))
 })
