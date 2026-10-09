@@ -42,7 +42,7 @@ describe('3D-BOX tool face', () => {
       const before = off[index]
       if (tool.name === 'nomi_canvas_edit') {
         expect({ ...tool, description: '' }).toEqual({ ...before, description: '' })
-        expect(String(before.description).startsWith('Change how existing nodes relate')).toBe(true)
+        expect(String(before.description).startsWith('Connect reference links between existing nodes')).toBe(true)
         expect(String(tool.description)).not.toContain('Attach a staging')
       } else {
         expect(tool).toEqual(before)
