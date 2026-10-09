@@ -46,7 +46,8 @@ export function beginPointerSession(input: PointerSessionInput): PointerSession 
 
   try { target?.setPointerCapture(pointerId) } catch { /* 元素已离开文档：没有 capture 也能靠 window 监听收尾 */ }
 
-  const lease = beginCanvasDragging(target, CANVAS_DRAGGING_OWNER.timelineGesture, {
+  // 没有触发元素也要装上打断监听（租约只在有 origin 时才监听 window）：挂到 body 上。
+  const lease = beginCanvasDragging(target ?? document.body, CANVAS_DRAGGING_OWNER.timelineGesture, {
     pointerId,
     active: false,
     onCancel: () => finish('interrupted', null),

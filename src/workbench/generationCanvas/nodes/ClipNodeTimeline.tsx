@@ -103,6 +103,7 @@ function ClipHandle({
       )}
       style={{ width: hitWidth }}
       tabIndex={selected ? 0 : -1}
+      aria-hidden={selected ? undefined : true}
       aria-label={label}
       title={label}
       onPointerDown={(event) => onPointerDown(event, edge)}
