@@ -51,7 +51,7 @@
 
 - **路径推类别是下限**：`pathRules` 按改动路径推出一组类别（四类沿用旧判定，`legacy` 字段），设计卡 `### 功能分类` 里勾的只能比它多。
 - **缺工具的证据**：接受「未验证：工具未建」，同时 `node scripts/check-pr-judgement.mjs --gaps` 和 PR 扫描输出都会列出缺口——缺工具不是永久豁免，缺口账一直挂着，直到工具建成、该证据改成 `exists`。
-- **判据两处同源**：合并前扫描（协调会话）与 CI（`check:pr-judgement`，Contracts 里；push 前 `check-pr-body-gates` 也跑）调 `scripts/pr-judgement-lib.mjs`。#1033 的「规则与门岗改动范围」也在这份里。
+- **判据两处同源**：推送前（pre-push 钩子 → `scripts/pre-push-contracts.mjs` → `check:pr-judgement`）、CI（`check:pr-judgement`，Contracts 里）与合并前扫描（协调会话）都调 `scripts/pr-body-criteria.mjs`（设计卡 ★ 格 / 独立验收 / 逃逸合同 detected_by / 中文标题）和 `scripts/pr-judgement-lib.mjs`（路由 / 规则与门岗范围）。#1094 的形状（推送放行、合并才红）靠这一份消灭。#1033 的「规则与门岗改动范围」也在这里。
 - **生效日**：`effectiveFrom`（表里）之前开的 PR 路由只警告；规则与门岗范围不吃宽限。
 - **其他层的工具决定**（调研结论）：功能分类 = 自写路由表 + Playwright tag / annotation 打类别标签（不接 Kiwi、TestLink）；交互预期 = ⑫ `catalog.mjs` + Playwright role/name 定位；体验指标 = 主指标逃逸数 + 关键时刻 User Timing + 用户每次亲手用 30 分钟后填 SUS；测试体系体检 = 汇总 Playwright JSON 报告（每层多久没跑、哪些用例时好时坏），Stryker 先不上、继续手动变异校验。
 

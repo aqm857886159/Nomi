@@ -168,6 +168,20 @@ test('体检：路由表里的缺工具清单（tool: missing 的证据 + 层级
   assert.match(run.stdout, /perf-real-scale/)
 })
 
+// 推送前 / CI 与合并前扫描同一口径后（2026-10-08），端到端正文里也要有设计卡 ★ 格（四类 9 格）与独立验收
+const CARD_LINES = [
+  '| ★1 用户怎么用 | 谁在什么时刻 | 创作者批量生成时先看到总价以便决定要不要继续 | 人工 |',
+  '| ★2 谁说了算 | 状态归谁 | 生成批次归主进程的生产队列 owner | door-map |',
+  '| ★3 一致与复用 | 同类别处 | 复用现有花钱卡，没有第二份定义 | git grep |',
+  '| ★4 全状态 | 每个状态 | 空 加载 成功 失败 取消中 各一句话 | 截图 |',
+  '| 5 中途表 | 打断 | 关窗时不扣费，回执在账本里留痕 | 脚本 |',
+  '| 6 外部数据与失败 | 外部来源 | 供应商返回异常时提示重试，不甩锅给 key | 文档 |',
+  '| 7 性能预算 | 规模 | 不适用：本改动不碰渲染热路径 | 人工 |',
+  '| 8 真实条件 | 条件 | Windows 英文界面最小窗口已跑 | 截图 |',
+  '| ★9 验收与回滚 | 验收 | 另一条线跑核心冒烟，回滚 revert 本提交 | 命令 |',
+]
+const ACCEPTANCE_LINES = ['## 独立验收', '报告：https://example.com/report 验收线：线 B', '实现线：线 A']
+
 function git(cwd, ...args) {
   const run = spawnSync('git', args, { cwd, encoding: 'utf8' })
   assert.equal(run.status, 0, `git ${args.join(' ')}: ${run.stderr}`)
@@ -198,7 +212,7 @@ test('端到端：临时 git 仓库里跑 CI 脚本——没勾分类 / 缺证�
   assert.match(red.stdout, /功能分类/)
   assert.match(red.stdout, /scripts\/check-x\.mjs/)
   const full = [
-    '## 设计卡', '### 功能分类', '- [x] 花钱',
+    '## 设计卡', ...CARD_LINES, '### 功能分类', '- [x] 花钱', ...ACCEPTANCE_LINES,
     '## 验收证据', '- spend-walks：tests/ux/agent-spend-card.walk.mjs', '- spend-paid-sample：run 987654', '- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs',
     '## 碰到的规则与门岗', '- scripts/check-x.mjs：改了判据',
   ].join('\n')
@@ -230,7 +244,7 @@ test('端到端：逃逸账本一条一个文件——条目文件被删（base 
   const base = git(root, 'rev-parse', 'HEAD').trim()
   const run = () => spawnSync(process.execPath, [path.join(here, 'check-pr-judgement.mjs')], {
     encoding: 'utf8',
-    env: { ...process.env, PR_JUDGEMENT_REPO_ROOT: root, PR_JUDGEMENT_BASE_REF: base, PR_JUDGEMENT_CREATED_AT: '2026-10-08T00:00:00Z', NOMI_PR_BODY: '## 为什么\n加一条逃逸', GITHUB_EVENT_NAME: '' },
+    env: { ...process.env, PR_JUDGEMENT_REPO_ROOT: root, PR_JUDGEMENT_BASE_REF: base, PR_JUDGEMENT_CREATED_AT: '2026-10-08T00:00:00Z', NOMI_PR_BODY: ['## 设计卡', ...CARD_LINES, '## 为什么', '加一条逃逸'].join('\n'), GITHUB_EVENT_NAME: '' },
   })
   put('LAW12-a.json', { id: 'LAW12-a', status: 'reviewed' })
   put('LAW12-c.json', { id: 'LAW12-c', status: 'candidate' })

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// 门岗（PR 正文判据族，CI 与 push 前都跑）：按功能分类决定测试路由 + 规则与门岗的改动范围。
-// 判据全在 scripts/pr-judgement-lib.mjs，合并前扫描（scripts/merge-preflight.mjs）调同一份；这里只负责取数：
+// 门岗（PR 正文判据族，CI 与 push 前都跑）：设计卡 / 独立验收 / 逃逸合同 + 功能分类决定的测试路由 + 规则与门岗的改动范围。
+// 判据全在 scripts/pr-body-criteria.mjs（与 scripts/pr-judgement-lib.mjs），合并前扫描（scripts/merge-preflight.mjs）调同一份，
+// 所以推送时判什么、合并前就判什么（#1094：两边口径不一，推送放行、合并才红）；这里只负责从本地 git 取数：
 //   · PR 正文：scripts/lib/prBody.mjs 的唯一取法（pull_request 事件里必查、取不到 = 红；本地没有 PR 就跳过）；
 //   · 改动文件 / 状态 / package.json 被删行 / 逃逸账本被删条目（条目文件被删）：对 merge-base(HEAD, origin/main) 做 git diff；
 //   · PR 创建时间（决定路由规则是否已生效）：gh pr view；取不到按已生效处理（fail-closed）。
@@ -14,9 +15,11 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { escapeIdOfPath } from './escape-ledger-lib.mjs'
+import { ESCAPE_LEDGER_DIR, escapeIdOfPath, loadEscapeLedger } from './escape-ledger-lib.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
-import { addedLinesByFile, evaluatePrJudgement, loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
+import { evaluatePrBody, ledgerChanges, settledContracts } from './pr-body-criteria.mjs'
+import { addedLinesByFile, loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
 
 const repoRoot = process.env.PR_JUDGEMENT_REPO_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const git = (args) => execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -61,19 +64,36 @@ function main() {
   const nameStatus = git(['diff', '--name-status', '--no-renames', '-z', base, 'HEAD']).split('\0').filter(Boolean)
   const files = []
   for (let i = 0; i + 1 < nameStatus.length; i += 2) files.push({ path: nameStatus[i + 1], status: nameStatus[i][0] })
-  // 新增行按文件取（AbortController 只在非测试文件里认，#1038）
-  const addedByFile = addedLinesByFile(git(['diff', '-U0', '--no-renames', base, 'HEAD', '--', 'src', 'electron']))
+  // 新增行按文件取（AbortController 只在非测试文件里认，#1038）；全量 diff，与合并前扫描同一口径
+  const addedByFile = addedLinesByFile(git(['diff', '-U0', '--no-renames', base, 'HEAD']))
   let packageRemovedLines = []
   if (files.some((file) => file.path === 'package.json')) {
     packageRemovedLines = git(['diff', '-U0', base, 'HEAD', '--', 'package.json']).split('\n').filter((line) => line.startsWith('-') && !line.startsWith('---')).map((line) => line.slice(1))
   }
-  // 逃逸账本一条一个文件：条目被删 = 条目文件在 base 有、HEAD 没有（name-status 的 D）。文件名就是 id，
-  // 文件名和内容里的 id 对不上由 check:escape-ledger 报红，所以这里按文件名认 id 不会被改名绕过。
-  const ledgerRemovedIds = files.filter((file) => file.status === 'D').map((file) => escapeIdOfPath(file.path)).filter(Boolean)
-  const result = evaluatePrJudgement({ body: pr.body, files, addedByFile, packageRemovedLines, ledgerRemovedIds, createdAt: prCreatedAt() })
-  const categories = result.inferred.categories.map((category) => category.label)
+  const show = (ref, file) => { try { return git(['show', `${ref}:${file}`]) } catch { return null } }
+  // 逃逸账本一条一个文件：条目被删 = 条目文件在 base 有、HEAD 没有；转 fixed 看两版（同一份 ledgerChanges）。
+  const ledger = { transitions: [], ids: [], removed: [], settledContracts: [] }
+  if (files.some((file) => escapeIdOfPath(file.path))) {
+    const changes = ledgerChanges(files, (file, side) => show(side === 'base' ? base : 'HEAD', file))
+    ledger.transitions = changes.transitions
+    ledger.removed = changes.removed
+    ledger.ids = gitPaths(['ls-tree', '--name-only', 'HEAD', `${ESCAPE_LEDGER_DIR}/`], { cwd: repoRoot }).map((name) => escapeIdOfPath(name)).filter(Boolean)
+  }
+  const contracts = files
+    .filter((file) => file.status !== 'D' && /^docs\/fixes\/.+\.root-cause\.json$/.test(file.path))
+    .map((file) => {
+      let detectedBy
+      try { detectedBy = JSON.parse(show('HEAD', file.path)).detected_by } catch { detectedBy = undefined }
+      return { file: file.path, added: file.status === 'A', detected_by: detectedBy }
+    })
+  // 「修订已结账的合同」才需要知道 base 上哪些合同已结账
+  if (contracts.some((contract) => !contract.added && ['user', 'post-release'].includes(contract.detected_by)) && ledger.transitions.length === 0) {
+    try { ledger.settledContracts = settledContracts(loadEscapeLedger(repoRoot, { ref: base })) } catch { /* 取不到 = 不当已结账（fail-closed） */ }
+  }
+  const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt() })
+  const categories = result.judgement.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
-  for (const line of [...result.routing.lines, ...result.scope.lines]) console.log(line)
+  for (const line of result.lines) console.log(line)
   if (result.blocked) {
     console.error('✖ PR 正文判据没过：先把 PR 正文改好（十秒），改完重跑这个 job 即可，不必重推。')
     return 1
