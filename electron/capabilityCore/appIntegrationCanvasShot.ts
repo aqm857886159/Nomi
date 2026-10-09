@@ -37,6 +37,7 @@ import type { AutomationPolicy, ProductionArtifact, ProductionJob, ProductionRun
 import { markSingleShotAttention, markSingleShotCompleted } from "../productionRun/singleShotRunLifecycle";
 import type { ShotPrice } from "../shared/contracts/shotPricingRule";
 import { decideShotClaim } from "../shared/decideShotClaim";
+import { admitShotsForDispatch } from "../productionRun/shotLandingAdmission";
 import { presentationIsOpen, undecidedShotIds } from "../shared/productionGenerationPresentation";
 import { canvasShotClaimCommandId } from "../shared/productionRunCommandId";
 import { productionJobPhase } from "../shared/productionShotPhase";
@@ -297,7 +298,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       } else {
         candidate = canvasCandidate(runId, vendor, modelKey, request, request.kind, 1);
         run = deps.service.createGenerationDraft({
-          operationId: runId, projectId, origin: { host: "canvas" }, candidate, cardHidden: true, policy: canvasPolicy(providerId, modelKey),
+          operationId: runId, projectId, origin: { host: "canvas", nodeId }, candidate, cardHidden: true, policy: canvasPolicy(providerId, modelKey),
         });
       }
       const contract = freezeCanvasExecutionContract(candidate);
@@ -318,11 +319,23 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         receipts: deps.receipts, lease, operationId: runId, authorization, gesture: input.gesture,
         display: { model: modelKey }, commandPrefix: "canvas-shot", issuedAt,
       }));
+      // 先落节点、再发请求：画布节点发起的 Run，来源节点就是它的落点（origin.nodeId）——与制作流程同一个准入点。
+      // 封、批之前就问：没有来源节点的（升级前留下的同意草稿）什么都不写、不交，画布那头按「没交」收尾。
+      const admission = (await admitShotsForDispatch({
+        repository: repository(), projectId, runId, shotIds: [undefined],
+        land: async () => { throw coded(`canvas_run_without_origin_node: ${runId}`, "shot_not_landed", "shot_not_landed"); },
+      })).admitted.values().next().value;
+      if (!admission) {
+        // 升级前留下的批量确认草稿：建它的那一版没记来源节点。不发，按「没交」收尾（下面 catch 收回出价），
+        // 而且如实告诉画布：这批升级后没有发出，需要重新确认——不能悄悄没了。
+        if (consented && !consented.origin.nodeId) throw coded(`canvas_consent_predates_upgrade: ${runId}`, "canvas_consent_predates_upgrade", "predates_upgrade");
+        throw coded(`shot_not_landed: ${runId}`, "shot_not_landed", "shot_not_landed");
+      }
       repository().executeBatch(projectId, runId, run.revision, commands);
       const submission = submissionFor(projectId);
       let started;
       try {
-        started = await submission.start({ projectId, operationId: runId });
+        started = await submission.start({ projectId, operationId: runId, admission });
       } catch (error) {
         const after = repository().read(projectId, runId);
         const job = after ? latestJob(after) : undefined;
@@ -450,7 +463,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         const modelKey = shot.modelKey || "unknown";
         markCanvasRunOpen(projectRoot, runId, shot.nodeId);
         deps.service.createGenerationDraft({
-          operationId: runId, projectId: input.projectId, origin: { host: "canvas" },
+          operationId: runId, projectId: input.projectId, origin: { host: "canvas", nodeId: shot.nodeId },
           candidate: canvasCandidate(runId, shot.vendor, modelKey, null, shot.kind, 1),
           policy: canvasPolicy(canvasProviderId(shot.vendor), modelKey),
         });

@@ -42,7 +42,6 @@ import { createGenerationPlanningHandler } from './mcpGenerationTools'
 import { planStoryboardFromScript } from './mcpStoryboardPlanner'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
-import { createProductionShotDispatchGuard } from '../productionRun/productionShotDispatchGuard'
 import { requestQuit } from '../quitTeardown'
 import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { prepareProductionGenerationAuthorizationWithReferences } from '../productionRun/prepareProductionGenerationAuthorization'
@@ -68,6 +67,9 @@ import type { VerifiedProjectSessionBinding } from './projectSessionRuntime'
 import { createRunOwnedGenerationGateAuthority } from './runOwnedGenerationGateAuthority'
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
+import { desktopNoticeLocale, landBatchBeforeKick } from './appIntegrationLandFirst'
+import { refuseLandingWithoutRenderer } from '../productionRun/landingProjectAccess'
+import { startSingleShotProduction } from '../productionRun/singleShotProductionStart'
 import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
@@ -76,9 +78,6 @@ import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 import { logWarn } from '../logging/logger'
 
 const productionRuns = getProductionRunService()
-const assertProductionShotCanDispatch = createProductionShotDispatchGuard({
-  readRun: (projectId, runId) => productionRuns.repository.read(projectId, runId) ?? undefined,
-})
 
 // 档案解析要目录行里的 meta（fal/* 这类键靠 meta.archetypeId 钉档案）。装配期接一次。
 installCatalogRowLookup()
@@ -356,7 +355,6 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         }
         const submission = createProductionGenerationSubmission({
           repository: productionRuns.repository,
-          beforeDispatch: assertProductionShotCanDispatch,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
           projectGeneration: lease.projectGeneration,
@@ -369,8 +367,13 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         // only the top-level contract while falsely reporting the whole plan
         // as running (the old stdio-only gap). The helper persists the
         // sealed→submitted transition before any per-shot provider call.
+        // 架构③ 先落节点、再发请求：这条进程内路没有渲染层，落不了画布（10-09 拍板：拒，不派）。准入点照走——
+        // Run 停在 landing_failed，回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（打开后点继续 = 重落再派）。
+        const refuseProject = refuseLandingWithoutRenderer((projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.name)
+        const landShots = async (projectId: string): Promise<void> => { await refuseProject(projectId) }
         if (operation.shots && operation.shots.length > 0) {
-          return startSemanticMultiShotBatch(operation, {
+          const landing = await landBatchBeforeKick({ repository: productionRuns.repository, landShots, projectId: lease.projectId, runId: operation.operationId })
+          const started = await startSemanticMultiShotBatch(operation, {
             readRun: (projectId, runId) => productionRuns.repository.read(projectId, runId),
             submitPlan: (run) => productionRuns.command(lease.projectId, operation.operationId, {
               commandId: `generation.submit:${operation.operationId}:v${run.planVersion}`,
@@ -386,6 +389,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
                 submission,
                 projectId: lease.projectId,
                 runId: operation.operationId,
+                landShots,
                 onBatchComplete: () => productionRuns.advanceSemanticProduction(lease.projectId, operation.operationId),
               })
             },
@@ -395,9 +399,13 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
               })
             },
           })
+          return landing ? { ...started, nextAction: landing.allNotPlaced ? 'canvas_landing_failed' : 'observe', ...landing } : started
         }
-        // 受理那一刻单镜 Run 已经记成进行中（提交出口和「已受理」同一次落盘，GUI 与 stdio 同一处）。
-        return await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
+        // 单镜与 GUI 同一个开拍口、同一个准入点（受理那一刻单镜 Run 已经记成进行中，提交出口同一处）。
+        return await startSingleShotProduction({
+          repository: productionRuns.repository, submission, landShots,
+          projectId: lease.projectId, runId: operation.operationId, now: () => new Date().toISOString(), locale: desktopNoticeLocale(),
+        })
       },
       reconcile: async (operation, outcome, lease) => {
         const providerBootstrap = readProviderBootstrap()
@@ -409,7 +417,6 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         if (!provider.query || !provider.capabilities.query) return { operationId: operation.operationId, outcome, nextAction: 'manual_review', recoveryNotice: '该供应商没有可用的任务查询；请到供应商核对。' }
         const submission = createProductionGenerationSubmission({
           repository: productionRuns.repository,
-          beforeDispatch: assertProductionShotCanDispatch,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
           projectGeneration: lease.projectGeneration,

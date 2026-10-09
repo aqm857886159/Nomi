@@ -6,6 +6,19 @@ import { OTHER_LANES, findOrphanTests, listTestStyleFiles } from "../vitest.conf
 
 const repoRoot = join(__dirname, "..");
 
+/** 从某个 package.json 脚本出发，沿 `pnpm run <name>` 引用能跑到的全部脚本名（含自己）。 */
+function scriptsReachableFrom(start: string, scripts: Record<string, string>): Set<string> {
+  const seen = new Set<string>();
+  const queue = [start];
+  while (queue.length) {
+    const name = queue.pop()!;
+    if (seen.has(name) || !scripts[name]) continue;
+    seen.add(name);
+    for (const m of scripts[name].matchAll(/pnpm run ([\w:.-]+)/g)) queue.push(m[1]);
+  }
+  return seen;
+}
+
 describe("测试文件必须有车道认领（vitest.config.ts 配置期自检）", () => {
   test("当前仓库没有孤儿测试文件", () => {
     expect(findOrphanTests(listTestStyleFiles(repoRoot))).toEqual([]);
@@ -30,6 +43,7 @@ describe("测试文件必须有车道认领（vitest.config.ts 配置期自检�
     const scripts = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).scripts as Record<string, string>;
     expect(scripts["test:agent-runtime"]).toContain("tests/agent-runtime/*.test.mjs");
     expect(readFileSync(join(repoRoot, "tests/agent-runtime/tsconfig.json"), "utf8")).toContain("**/*.mts");
-    expect(scripts.test).toContain("test:agent-runtime");
+    // pnpm test 经 test:node-suites 这层间接才到 agent-runtime：沿 `pnpm run X` 引用把 test 能跑到的脚本全展开再查。
+    expect(scriptsReachableFrom("test", scripts)).toContain("test:agent-runtime");
   });
 });

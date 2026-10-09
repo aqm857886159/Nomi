@@ -12,6 +12,7 @@ import { createProductionGenerationSubmission } from "./productionGenerationSubm
 import { createProductionRunRepository } from "./productionRunRepository";
 import { SubmissionReceiptUnknownError, SubmissionReconciliationRequiredError } from "./submissionOutbox";
 import { jobMayHaveReachedProvider } from "../shared/productionShotJobs";
+import { landedAdmission } from "./landFirstTestUtils";
 
 // 提交出口对「供应商当场明确拒绝」的回答（发动机收敛第一刀 F3，2026-10-05 用户拍板）：
 // 收到了响应、4xx 或 2xx + 失败信封、没有任务号 → 确定没受理：job 落确定的 needs_attention（provider_rejected），
@@ -62,7 +63,7 @@ describe("制作那台：供应商当场明确拒绝", () => {
   it("4xx：确定没受理——失败带原话、预留释放、记成没花钱，供应商只收到 1 次", async () => {
     const { repository, submission, submits } = setup(400);
 
-    await expect(submission.start({ projectId: "p", operationId: "op-1" })).rejects.toBeInstanceOf(CatalogGenerationProviderError);
+    await expect(submission.start({ projectId: "p", operationId: "op-1", admission: await landedAdmission(repository, "p", "op-1") })).rejects.toBeInstanceOf(CatalogGenerationProviderError);
 
     const run = repository.read("p", "op-1")!;
     expect(run.jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "provider_rejected", errorMessage: expect.stringContaining("content policy") });
@@ -74,10 +75,10 @@ describe("制作那台：供应商当场明确拒绝", () => {
   it("5xx：照旧是结果未知、这一镜再发被拦", async () => {
     const { repository, submission, submits } = setup(502);
 
-    await expect(submission.start({ projectId: "p", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
+    await expect(submission.start({ projectId: "p", operationId: "op-1", admission: await landedAdmission(repository, "p", "op-1") })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
     expect(repository.read("p", "op-1")?.jobs[0]?.status).toBe("submission_unknown");
 
-    await expect(submission.start({ projectId: "p", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
+    await expect(submission.start({ projectId: "p", operationId: "op-1", admission: await landedAdmission(repository, "p", "op-1") })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
     expect(submits).toHaveLength(1);
   });
 });

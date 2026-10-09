@@ -21,6 +21,7 @@ import { prepareProductionGenerationAuthorization } from "../productionRun/prepa
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
 import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
+import { landingThatBinds } from "../productionRun/landFirstTestUtils";
 
 // P4 验收门 §5.1 变体 4「用已有锚开新计划」(跨集同脸) — end-to-end over the REAL semantic create entrance +
 // the REAL durable scheduler (NOT test injection). The reused anchor is NOT a role:"anchor" shot (there is
@@ -164,7 +165,7 @@ function harness(vendorOrigin: string, submits: string[]) {
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
-  const buildScheduler = () => createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-reuse", now });
+  const buildScheduler = () => createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-reuse", now });
   const handler = createGenerationPlanningHandler({
     registry,
     operations,

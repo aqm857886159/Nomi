@@ -38,6 +38,8 @@ function stoppedCopyOf(reason: Extract<ProductionShotState, { phase: 'stopped' }
   switch (reason) {
     case 'consent_expired':
       return { message: 'generationCommon.production.canvasLanding.stoppedConsentExpired', action: { label: 'generationCommon.production.canvasLanding.resume', kind: 'resume-consent' } }
+    case 'landing_failed':
+      return { message: 'generationCommon.production.canvasLanding.stoppedLandingFailed', action: { label: 'generationCommon.production.canvasLanding.resume', kind: 'resume-manual' } }
     case 'user_paused':
       return { message: 'generationCommon.production.canvasLanding.stoppedManual', action: { label: 'generationCommon.production.canvasLanding.continueRemaining', kind: 'resume-manual' } }
     case 'failed':

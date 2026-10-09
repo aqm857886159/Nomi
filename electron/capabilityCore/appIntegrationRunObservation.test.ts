@@ -149,14 +149,5 @@ describe('batch scheduler kicks', () => {
     built.stop()
   })
 
-  it('一趟驱动在跑时又被踢（例如用户点了继续）：这一趟收尾后补踢一次，不丢这一下', async () => {
-    const { built, runToQuiescence, finishDrive } = drivers(() => batchRun('running'))
-    built.kickSchedulerForRun('proj-1', 'run-1')
-    built.kickSchedulerForRun('proj-1', 'run-1')
-    expect(runToQuiescence, '同一时刻只跑一趟').toHaveBeenCalledTimes(1)
-    finishDrive()
-    await vi.waitFor(() => expect(runToQuiescence).toHaveBeenCalledTimes(2))
-    finishDrive()
-    built.stop()
-  })
+  // 「一趟驱动在跑时又被踢，不丢这一下」搬进了调度器本身（drivesInFlight，#1139）：见 landFirstMultiShot.test.ts 的 one drive 两条。
 })

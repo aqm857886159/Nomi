@@ -542,6 +542,8 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       const taskId = `agent-runtime-${++taskSequence}`
       tasks.set(taskId, { body: record.body, behavior })
       record.taskId = taskId
+      // 受理时刻（回了任务号）：走查拿它和宿主批下那一刻对出「批准 → 受理」的耗时。
+      record.acceptedAt = Date.now()
       jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
       return
     }
@@ -554,6 +556,8 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       const taskId = `agent-runtime-video-${++taskSequence}`
       tasks.set(taskId, { body: record.body, kind: 'video', behavior })
       record.taskId = taskId
+      // 受理时刻（回了任务号）：走查拿它和宿主批下那一刻对出「批准 → 受理」的耗时。
+      record.acceptedAt = Date.now()
       jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
       return
     }

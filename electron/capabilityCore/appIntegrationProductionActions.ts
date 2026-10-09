@@ -18,6 +18,7 @@ import { IllegalProductionTransitionError } from '../productionRun/productionRun
 import { ProductionRunControlRefusedError } from '../productionRun/productionRunControl'
 import { retryLiftsStop } from '../productionRun/productionRunLifecycle'
 import { runStopReason } from '../shared/productionRunStop'
+import { NothingToResumeError, resumeOutlook } from '../productionRun/resumeOutlook'
 import { logError, logWarn } from '../logging/logger'
 
 /** 这个 Run 现在驱动得起来吗；起不来是缺什么（与调度器构造同一份判断：appIntegration.submissionReadinessForRun）。 */
@@ -32,6 +33,11 @@ type ActionDeps = {
   driverReadiness: (run: ProductionRun) => ProductionDriverReadiness
   /** 给这个 Run 的批次调度器一个 tick（已经有一趟在跑就记一笔，收尾时补踢）。 */
   kickScheduler: (projectId: string, runId: string) => void
+  /**
+   * 因为落地失败停下的批次，「继续」那一下先把还没落下的镜落到画布上（与开拍同一个准入点）。返回 null = 全落下了；
+   * 否则逐镜报回（一镜都没落下时这次不继续、如实回「没放到画布上」）。
+   */
+  landBeforeResume?: (projectId: string, runId: string) => Promise<{ allNotPlaced: boolean } | null>
   receiptAuthority?: ApprovalReceiptAuthority
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
 }
@@ -45,6 +51,7 @@ const LEDGER_WRITE_ERRNO = new Set(['ENOSPC', 'EDQUOT', 'EROFS', 'EACCES', 'EPER
  */
 export function productionShotActionFailureOf(error: unknown): ProductionShotActionFailure {
   if (error instanceof GenerationReworkRefusedError) return error.refusal
+  if (error instanceof NothingToResumeError) return 'nothing_to_resume'
   if (error instanceof ProductionRunRevisionConflictError
     || error instanceof ProductionRunLockBusyError
     || error instanceof IllegalProductionTransitionError
@@ -215,6 +222,15 @@ export function createProductionActionHooks(deps: ActionDeps): {
     if (run.status === 'completed' || run.status === 'cancelled') return failed('run_finished')
     const stopReason = runStopReason(run)
     if (stopReason === null && run.status !== 'running') return failed('not_stopped')
+    // 这一下继续实际会做什么，只问唯一判定（resumeOutlook，run.control 的写口也问它）：不论因为什么停下、还是已经在跑，
+    // 一镜都不会派、也没有在等的 → 如实说没有可继续的（#1139 V-1139c：以前只在落地失败那一种停下里问过）。
+    // 要派的镜里有还没放到画布上的 → 先落；一镜都落不下 → 不继续，如实说「没放到画布上」，再点一次就是重试。
+    const outlook = resumeOutlook(run)
+    if (outlook.kind === 'nothing_to_resume') return failed('nothing_to_resume')
+    if (outlook.notPlaced.length > 0) {
+      const landing = await deps.landBeforeResume?.(projectId, runId)
+      if (landing?.allNotPlaced) return failed('canvas_landing_failed')
+    }
     if (stopReason !== null) {
       // 驱动不起来就别把 Run 改成 running——那只会是一次假继续。
       const readiness = deps.driverReadiness(run)

@@ -31,5 +31,5 @@
     "electron/productionRun/productionShotDispatchGuard.ts"
   ],
   "since": "2026-09-28",
-  "notes": "PR #921（同上合同）：每条制作提交路径都经 submitOnce，它在预留预算、落提交意向（这次尝试的第一笔耐久写）之前先调派发闸 beforeDispatch；闸排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。beforeDispatch 是 SubmissionOutboxDependencies 里声明的钩子槽位，生产侧由 productionGenerationSubmission 接到 productionShotDispatchGuard；槽位在依赖里是可选成员，漏接不会有编译期信号（R17 那一类），装配点目前靠派发闸的 e2e 测试守。"
+  "notes": "PR #921（同上合同）：每条制作提交路径都经 submitOnce，它在预留预算、落提交意向（这次尝试的第一笔耐久写）之前先调派发闸 beforeDispatch；闸排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。beforeDispatch 是 SubmissionOutboxDependencies 里声明的钩子槽位，生产侧由 productionGenerationSubmission 接到 productionShotDispatchGuard；槽位在依赖里是可选成员，漏接不会有编译期信号（R17 那一类），装配点目前靠派发闸的 e2e 测试守。 2026-10-09（#1139）：上面那个「漏接没有编译期信号」的洞补上了——productionGenerationSubmission 自己接上 productionShotDispatchGuard（不再是装配方注入的依赖），它的 beforeDispatch 只剩测试观察用的可选钩子（先跑它、再跑认领闸）；生产三处装配不再传闸。"
 }

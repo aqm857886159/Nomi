@@ -151,6 +151,13 @@ jobs:
     needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    # 2026-10-09：full 档按 vitest 原生 `--shard` 分 3 片并行（实测此前单机 16.3 分钟，其中 vitest 7.6 分钟）。
+    # vitest 按文件路径哈希把测试文件无重叠无遗漏地分到各片（脚本侧证据见 PR 正文）；focused 档只有一片，照旧。
+    # 非 vitest 的 node:test 套件（agent-runtime 等）不属于 vitest 的分片，固定放在第 1 片。
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.scope.outputs.unit == 'full' && '[1,2,3]' || '[1]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -167,9 +174,12 @@ jobs:
       - name: Install Chromium for browser integration tests
         run: bash scripts/ci-install-chromium.sh
         timeout-minutes: 15
-      - name: Unit and agent runtime tests (full lane)
+      - name: Unit tests (full lane, vitest shard)
         if: needs.scope.outputs.unit == 'full'
-        run: pnpm run test:system:unit
+        run: pnpm run test:unit:shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - name: Agent runtime and node:test suites (full lane, shard 1)
+        if: needs.scope.outputs.unit == 'full' && matrix.shard == 1
+        run: pnpm run test:node-suites
       - name: Changed and related tests (fast lane)
         if: needs.scope.outputs.unit == 'focused'
         env:
@@ -190,6 +200,13 @@ jobs:
       needs.scope.outputs.canvas == 'critical'
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # 2026-10-09：按 4 片并行（实测此前单机串行 38.9 分钟）。每片跑哪些走查、哪些普查格由
+    # scripts/lib/e2eShardPlan.mjs 按历史耗时装箱，这里不写死；每个步骤只靠 `Plan shard` 的输出决定跑不跑。
+    # 每片各自 build（~65 秒，与 Canvas Acceptance 同写法）：共享 artifact 要多一个串行上游 job，墙钟更长。
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -203,6 +220,9 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Plan shard
+        id: plan
+        run: node scripts/e2e-shards.mjs --shard ${{ matrix.shard }}/${{ strategy.job-total }} --github-output
       - name: Build selected desktop surfaces once
         run: pnpm run build
       - name: Install Chromium for browser mechanism tests
@@ -217,40 +237,46 @@ jobs:
       - name: Browser feel mechanism
         id: feel
         continue-on-error: true
-        run: pnpm run test:feel:browser
+        if: contains(steps.plan.outputs.units, '|feel|')
+        run: pnpm run test:feel:mechanism
+      # 弹层几何普查：格子按分片计划摊到每一片（计划里的单位是格，不是步骤）。
+      - name: Popup geometry census
+        id: census
+        continue-on-error: true
+        run: pnpm run test:popup-geometry -- --shard ${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Electron smoke
         id: smoke
         continue-on-error: true
-        if: needs.scope.outputs.desktop == 'true'
+        if: needs.scope.outputs.desktop == 'true' && contains(steps.plan.outputs.units, '|smoke|')
         run: xvfb-run -a pnpm run test:e2e
       - name: CI-safe user journeys
         id: journeys
         continue-on-error: true
-        if: needs.scope.outputs.journeys == 'true'
+        if: needs.scope.outputs.journeys == 'true' && contains(steps.plan.outputs.units, '|journeys|')
         run: xvfb-run -a pnpm run test:journeys
       - name: MCP L1 handshake journey
         id: mcp-journey
         continue-on-error: true
-        if: needs.scope.outputs.journeys == 'true'
+        if: needs.scope.outputs.journeys == 'true' && contains(steps.plan.outputs.units, '|mcp-journey|')
         run: xvfb-run -a pnpm run test:mcp-journey
       - name: MCP elicitation-first journey
         id: mcp-elicitation
         continue-on-error: true
-        if: needs.scope.outputs.journeys == 'true'
+        if: needs.scope.outputs.journeys == 'true' && contains(steps.plan.outputs.units, '|mcp-elicitation|')
         run: xvfb-run -a pnpm run test:mcp-elicitation
       - name: Real user loopback journey gate
         id: real-user-journeys
         continue-on-error: true
-        if: needs.scope.outputs.journeys == 'true'
+        if: needs.scope.outputs.journeys == 'true' && contains(steps.plan.outputs.units, '|real-user-journeys|')
         run: xvfb-run -a pnpm run test:real-user-journeys:ci
       # 金路径（2026-09-18 接进 CI）：Agent 拆镜 → 草稿落画布 + 分镜表 → 表里选镜 → Agent 改一镜 → 生成 → 冷重启。
       # 它从 09-15 改成 draft_shots 起就没在任何工作流里跑过（package.json 之外零引用）——改完又是一条没人跑的走查。
       - name: Golden path (Agent storyboard lands on canvas)
-        if: needs.scope.outputs.journeys == 'true'
+        if: needs.scope.outputs.journeys == 'true' && contains(steps.plan.outputs.units, '|golden|')
         run: xvfb-run -a pnpm run test:golden
       # The routing table owns both the walk list and the blocking subset.
       - name: Spending path walkthroughs (blocking subset)
-        if: needs.scope.outputs.spend_walks == 'true'
+        if: needs.scope.outputs.spend_walks == 'true' && contains(steps.plan.outputs.units, '|spend-walks|')
         run: |
           set -o pipefail
           mkdir -p outputs/spend-walks
@@ -267,7 +293,7 @@ jobs:
       - name: Critical canvas acceptance
         id: canvas-critical
         continue-on-error: true
-        if: needs.scope.outputs.canvas == 'critical'
+        if: needs.scope.outputs.canvas == 'critical' && contains(steps.plan.outputs.units, '|canvas-critical|')
         run: xvfb-run -a pnpm run test:canvas:critical
 
       # 这一步才是 job 的结论。`continue-on-error` 只改 conclusion，不改 outcome——
@@ -276,8 +302,10 @@ jobs:
       - name: E2E chain summary
         if: always()
         env:
+          CHAIN_LABEL: E2E 走查链（分片 ${{ matrix.shard }}/${{ strategy.job-total }}）
           CHAIN: >-
             feel:${{ steps.feel.outcome }}
+            census:${{ steps.census.outcome }}
             smoke:${{ steps.smoke.outcome }}
             journeys:${{ steps.journeys.outcome }}
             mcp-journey:${{ steps.mcp-journey.outcome }}
@@ -293,7 +321,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: linux-walkthrough-evidence
+          name: linux-walkthrough-evidence-${{ matrix.shard }}
           path: |
             artifacts/feel/**
             evals/runs/**/screenshots/**
@@ -308,10 +336,11 @@ jobs:
             tests/ux/shots/group-ports/**
             tests/ux/shots/react-flow-read-only/**
             tests/ux/perf-results/canvas-*.json
-          if-no-files-found: warn
+          # 分片后有的片没分到会产生证据的走查（比如只有普查），warn 会在 CI 注解里留一条无关警告。
+          if-no-files-found: ignore
           retention-days: 7
       - name: Upload spending walkthrough evidence
-        if: always() && needs.scope.outputs.spend_walks == 'true'
+        if: always() && needs.scope.outputs.spend_walks == 'true' && contains(steps.plan.outputs.units, '|spend-walks|')
         uses: actions/upload-artifact@v7
         with:
           name: spend-walk-evidence
