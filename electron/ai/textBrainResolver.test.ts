@@ -281,6 +281,22 @@ describe("Nomi text brain resolver", () => {
       .toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
   });
 
+  it("strict (spending paths) reports the chosen model unavailable instead of silently switching; read-only checks still fall back", () => {
+    safeStorageMocks.decryptString.mockImplementation((value: Buffer) => value.toString("utf8"));
+    vi.mocked(readCatalog).mockReturnValue(catalog({
+      vendors: [vendor("a"), vendor("b")],
+      models: [model("a", "chat"), model("b", "chat-b")],
+      apiKeysByVendor: { a: key("a", "dGVzdC1h", "safeStorage"), b: key("b", "dGVzdC1i", "safeStorage") },
+    }));
+    const gone = { vendorKey: "b", modelKey: "gone" };
+    expect(resolver.resolveTextBrainStatus(gone, { strict: true })).toEqual({ status: "missing", preferredUnavailable: true });
+    expect(resolver.resolveTextBrainStatus(gone)).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+    // 选的可用时 strict 照常返回它；没选时 strict 也走默认判据。
+    expect(resolver.resolveTextBrainStatus({ vendorKey: "b", modelKey: "chat-b" }, { strict: true }))
+      .toEqual({ status: "ok", brain: { vendor: "b", modelKey: "chat-b" } });
+    expect(resolver.resolveTextBrainStatus(undefined, { strict: true })).toEqual({ status: "ok", brain: { vendor: "a", modelKey: "chat" } });
+  });
+
   it("preserves the stable missing-model error signature", () => {
     expect(() => resolver.chooseTextModel()).toThrow("Model is not configured: no usable text model. Open model settings and add an API key.");
     expect(resolver.resolveTextBrainKeys()).toBeNull();

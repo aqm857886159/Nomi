@@ -30,7 +30,12 @@ function sendTextEvent(session: TextStreamSession, event: unknown): void {
 export function registerTextStreamIpc(): void {
   ipcMain.handle("nomi:tasks:text:stream", async (event, payload: Record<string, unknown>) => {
     assertTrustedSender(event);
-    const streamId = `text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // 流 id 由渲染层先定、先订阅、再发起：失败得快（被拦 / 凭据 / DNS 一毫秒内就错）的流，事件在 invoke 回包之前就已发出，
+    // 渲染层若等回包才订阅就永远收不到 error，节点卡在「提交中」。没带合法 id（旧调用方）才由这里生成。
+    const requested = typeof payload?.streamId === "string" ? payload.streamId : "";
+    const streamId = /^text-[A-Za-z0-9-]{8,64}$/.test(requested) && !textStreamSessions.has(requested)
+      ? requested
+      : `text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const session: TextStreamSession = {
       streamId,
       webContentsId: event.sender.id,

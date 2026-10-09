@@ -364,7 +364,8 @@ export async function runWorkbenchTextTaskStream(
     vendor: normalizedVendor,
     request: withTaskProjectIdentity(request, projectId),
   }
-  const { streamId } = await desktop.tasks.runTextStream(payload)
+  // 先订阅、后发起：流 id 由这里定。失败得快的流（一毫秒内就错）事件早于 invoke 回包，等回包再订阅会永远收不到 error。
+  const streamId = `text-${globalThis.crypto.randomUUID()}`
   return new Promise<TaskResultDto>((resolve, reject) => {
     let settled = false
     const finish = (fn: () => void) => {
@@ -383,6 +384,7 @@ export async function runWorkbenchTextTaskStream(
         finish(() => reject(new Error(evt.message || describeOpaqueFailure(null))))
       }
     })
+    desktop.tasks.runTextStream({ ...payload, streamId }).catch((error: unknown) => finish(() => reject(error)))
     // 外部取消：通知主进程真中断流 + 兜底 reject。
     if (opts.signal) {
       const onAbort = () => finish(() => {

@@ -87,3 +87,17 @@ describe("文本流取消（主进程）", () => {
     expect(mocks.providerSignal?.aborted).toBe(false);
   });
 });
+
+describe("文本流 id 由渲染层先定", () => {
+  it("带合法 streamId 就沿用它（渲染层才能先订阅再发起）；不合法的由主进程另生成", async () => {
+    mocks.handlers.clear();
+    registerTextStreamIpc();
+    mocks.mode = "finite";
+    const handler = mocks.handlers.get("nomi:tasks:text:stream")!;
+    const mine = (await handler({ sender: owner }, { prompt: "hi", streamId: "text-0123abcd-4567" })) as { streamId: string };
+    expect(mine.streamId).toBe("text-0123abcd-4567");
+    const bad = (await handler({ sender: owner }, { prompt: "hi", streamId: "../evil" })) as { streamId: string };
+    expect(bad.streamId).not.toBe("../evil");
+    expect(bad.streamId).toMatch(/^text-/);
+  });
+});

@@ -300,7 +300,7 @@ export type DesktopBridge = DesktopMediaBridge &
    *  textBrain=节点提示词优化用的文本大脑键(不含 apiKey,渲染层据此走现成文本流式)。 */
   promptLibrary?: {
     list: () => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
-    textBrain: (preference?: { vendorKey: string; modelKey: string }) => Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null; status: 'ok' | 'missing' }>
+    textBrain: (preference?: { vendorKey: string; modelKey: string; strict?: boolean }) => Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null; status: 'ok' | 'missing'; preferredUnavailable?: boolean }>
     /** 我的库(用户级·跨项目):手写攒的提示词 CRUD,返回全量供渲染层本地过滤。 */
     userList: () => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
     userAdd: (input: {

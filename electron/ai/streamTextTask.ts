@@ -131,7 +131,12 @@ export async function streamTextTask(
   const timeoutError = () =>
     new Error(`文本生成超时（${timeoutReason}），已中断。请重试或更换模型。`);
 
+  // ai@4 的 streamText 在请求发不出去（被测试网闸拦、DNS、断网——fetch 本身抛）时不抛也不关：textStream 静默结束、
+  // finishReason 永远不 settle，下面一 await 它整个任务就永远挂住（节点永远「提交中」）。错误只通过 onError 交出来，
+  // 所以必须在这里接住，流一结束就当错抛给调用方（真模型走查 2026-10-09 复现：fetch 抛错后 70 秒无任何事件）。
+  let streamError: unknown;
   const result = streamText({
+    onError: ({ error }) => { streamError ??= error; },
     model,
     messages: [{ role: "user", content }],
     temperature: typeof input.temperature === "number" ? input.temperature : 0.7,
@@ -169,6 +174,7 @@ export async function streamTextTask(
   // abort 导致的静默结束在这里兜：是我们的超时 abort 就抛错（落 node error 可重试），
   // 不能把空/残文本当成功返回。外部取消(timeoutReason 为空)则由渲染层的取消路径收尾。
   if (timeoutReason) throw timeoutError();
+  if (streamError !== undefined && !controller.signal.aborted) throw streamError; // 用户点停止（外部 abort）不是错误
   // 流已跑完，这两个 promise 立即可解；individual provider 不给就当没有，绝不因此让整个任务失败。
   const [finishReason, reasoning] = await Promise.all([finishReasonPromise, reasoningPromise]);
   return {

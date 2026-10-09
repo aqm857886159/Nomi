@@ -35,3 +35,15 @@ describe("text task local image input", () => {
     expect(mocks.stream).not.toHaveBeenCalled();
   });
 });
+
+describe("provider request that never leaves the process", () => {
+  // ai@4：fetch 本身抛（网闸拦 / DNS / 断网）时 textStream 静默结束、finishReason 永不 settle，错误只走 onError。
+  it("surfaces the onError error instead of hanging on a finishReason that never settles", async () => {
+    mocks.stream.mockImplementation((options: { onError: (event: { error: unknown }) => void }) => {
+      options.onError({ error: new Error("Test network blocked: blocked.example.com") });
+      return { textStream: (async function* () { /* 静默结束 */ })(), finishReason: new Promise(() => undefined), reasoning: new Promise(() => undefined) };
+    });
+    await expect(streamTextTask({ vendor: {} as Vendor, model: {} as Model, apiKey: "test", prompt: "hi" }))
+      .rejects.toThrow("Test network blocked");
+  }, 5000);
+});

@@ -34,6 +34,19 @@ describe('promptLibraryApi', () => {
     vi.unstubAllGlobals()
   })
 
+  it('strict: throws a settings-pointing error when the chosen model is unavailable; non-strict falls back', async () => {
+    const textBrain = vi.fn().mockResolvedValue({ ok: false, brain: null, status: 'missing', preferredUnavailable: true })
+    mockedBridge.mockReturnValue({ promptLibrary: { textBrain } } as never)
+    const store = new Map<string, string>([['nomi.assistantModel', JSON.stringify({ vendorKey: 'b', modelKey: 'gone' })]])
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null })
+    await expect(getTextBrain({ strict: true })).rejects.toThrow(/no usable text model.*Settings → Models/i)
+    expect(textBrain).toHaveBeenLastCalledWith({ vendorKey: 'b', modelKey: 'gone', strict: true })
+    textBrain.mockResolvedValue({ ok: true, brain: { vendor: 'a', modelKey: 'chat' }, status: 'ok' })
+    await expect(getTextBrain()).resolves.toEqual({ vendor: 'a', modelKey: 'chat' })
+    expect(textBrain).toHaveBeenLastCalledWith({ vendorKey: 'b', modelKey: 'gone' })
+    vi.unstubAllGlobals()
+  })
+
   it('maps valid public and user rows while dropping malformed payloads', async () => {
     const { list, userList } = mountBridge()
     list.mockResolvedValue({

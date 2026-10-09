@@ -81,7 +81,7 @@ export async function generateText(
 async function withFollowedAgentModel(meta: GenerationCanvasNode['meta']): Promise<GenerationCanvasNode['meta']> {
   const probe = { meta } as GenerationCanvasNode
   if (selectedVendor(probe) && selectedModelKey(probe)) return meta
-  const brain = await getTextBrain()
+  const brain = await getTextBrain({ strict: true })
   if (!brain) throw new Error('No usable text model: enable one in Settings → Models.')
   return { ...(meta || {}), modelVendor: brain.vendor, modelKey: brain.modelKey }
 }

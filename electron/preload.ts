@@ -269,11 +269,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   promptLibrary: {
     list: () =>
       ipcRenderer.invoke("nomi:prompt-library:list") as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
-    textBrain: (preference?: { vendorKey: string; modelKey: string }) =>
+    textBrain: (preference?: { vendorKey: string; modelKey: string; strict?: boolean }) =>
       ipcRenderer.invoke("nomi:prompt-library:text-brain", preference) as Promise<{
         ok: boolean;
         brain: { vendor: string; modelKey: string } | null;
         status: "ok" | "locked" | "missing";
+        preferredUnavailable?: boolean;
       }>,
     userList: () =>
       ipcRenderer.invoke("nomi:prompt-library:user-list") as Promise<{
