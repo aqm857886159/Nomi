@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-09-clip-drop-zoom",
+  "problem_type": "剪辑节点轴的拖放接收口、窄片段命中下限、边缘自动滚动没有共享边界，且同类手势入口未迁",
+  "symptom": "用户 10-09：剪辑节点拖动不灵。素材从画布节点 / 素材库拖进剪辑节点没有反应（还会被画布舞台当成「新建素材节点」）；「拖到时间轴」把手要悬停才可命中；画布缩小后窄片段点不中、拖到轴边缘不滚动；全局时间轴手柄要先选中；预览取景 / 叠加层拖动被 pointercancel 打断时当成松手提交。",
+  "direct_cause": "ClipNodeTimeline 没有 dragover / drop，载荷冒泡到画布舞台；NodeTimelineDragHandles 的 pointer-events-none 到 group-hover 才开；片段命中宽度等于视觉宽度；拖动位置只看指针位移、不看轴自己滚过的距离；TimelineClip 手柄 isSelected 才渲染；OverlaySelectionBox / TimelinePreview 的 pointercancel 走提交路径。",
+  "class_root": "接收、命中、滚动这三格各调用者各写各的（或没写）：全局时间轴有接收口、剪辑节点轴没有；命中按设计像素；滚动不产生指针事件所以没人重算。第一片只收了手势生命周期，这三格与两个同类入口仍可从新的入口、缩放档或载荷来源再次出问题。",
+  "migration": "同一提交里：剪辑节点轴新增唯一接收口（clipNodeDrop + ClipNode.dropMedia）；命中垫与边缘滚动并进 clipNodeGestureModel / clipNodeEdgeScroll；预览区两处拖动换成 usePointerSession，旧的元素级 / window 监听删除；全局手柄改常驻渲染（悬停显形）。不涉及持久化数据格式（片段仍写 timelineStartFrame / timelineEndFrame）。",
+  "affected_population": [
+    "把画布素材 / 素材库素材拖进剪辑节点的用户",
+    "画布缩放 20%–300% 下操作窄片段、拖到轴边缘的用户",
+    "在预览页拖取景、叠加层、全局时间轴手柄的用户"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+    "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+    "src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts",
+    "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+    "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
+    "src/workbench/generationCanvas/nodes/NodeTimelineDragHandles.tsx",
+    "src/workbench/timeline/TimelineClip.tsx",
+    "src/workbench/preview/OverlaySelectionBox.tsx",
+    "src/workbench/preview/TimelinePreview.tsx"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx handleDragOver / handleDrop",
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx ClipItem.beginDrag / beginResize / beginScrub（边缘滚动）",
+    "src/workbench/preview/OverlaySelectionBox.tsx beginBodyDrag / beginHandleScale",
+    "src/workbench/preview/TimelinePreview.tsx beginDrag"
+  ],
+  "invariants": [
+    "素材载荷在剪辑节点轴上只经 readClipDropPayload + insertClipNodeSourceAt：落点指示与松手插入读同一个 resolveClipNodeDropFrame，插入后不重叠",
+    "任何可抓取的片段在屏幕上至少 24px 可点（窄片段补命中垫）；拖到轴边缘时轴自己滚并按同一指针位置重算落点",
+    "timeline / preview 里的指针手势只经 timelineGesture 会话：松手提交、打断回滚"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
+      "symbol": "insertClipNodeSourceAt"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1,
+    "why_not": "本片新增的写入只此一扇（剪辑节点轴的拖放落点）；连线自动灌入与素材选择器的 append 是既有入口，不在本类（拖放接收）内，未合并也未新增。"
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/clipNodeSequence.test.ts",
+    "src/workbench/generationCanvas/nodes/clipNodeGestureModel.test.ts",
+    "src/workbench/timeline/timelineGesture.structure.test.ts"
+  ],
+  "residual_risks": [
+    "Electron 里 Playwright 的鼠标只能触发到 dragstart，dragenter / dragover / drop 用同 MIME 的事件派发（落在真实屏幕坐标、按最顶层元素收）；真实 OS 级原生拖放没有被走查覆盖",
+    "窄片段命中垫只在有空档处生效（相邻紧挨时垫在邻居之下），视觉宽度未变",
+    "被选中素材节点的参数浮板会盖住它下面的节点——素材节点正选着时往下面的剪辑节点拖，落点会被浮板挡住（产品里本来的行为，未改）",
+    "边缘滚动时内容会随片段后移而变长（无上限），速度已限制在每帧 4 设计像素"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/clauderic/dnd-kit",
+      "checked_at": "2026-10-09",
+      "purpose": "评估拖放接收是否接 dnd-kit：来源是原生 draggable、接收只有两处，且它不懂帧 / 插入位置 / 撤销栈，不接"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每多一个拖放来源 / 接收面 / 手势入口，就要再写一遍载荷判断、命中与滚动；此前全局轨道有而剪辑节点轴没有，预览区也各自处理打断。",
+    "same_class_scan": [
+      "git grep -n \"onDrop=\\|onDragOver=\" -- src/workbench",
+      "git grep -n \"addEventListener('pointer\" -- src/workbench/timeline src/workbench/preview"
+    ]
+  },
+  "detected_by": "user",
+  "generality_proof": "剪辑节点轴的拖放入口只有 ClipNodeTimeline 的一组 dragenter / over / leave / drop，统一经 clipNodeDrop 读载荷、经 insertClipNodeSourceAt 写入；命中垫与边缘滚动对 ClipItem 的移动 / 裁剪 / scrub 三条手势统一生效；预览区两处拖动并入第一片的会话入口，结构测试扫描范围覆盖它们。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+      "symbol": "readClipDropPayload",
+      "responsibility": "认哪些拖放载荷（画布节点把手 / 素材库）并读出内容。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
+      "symbol": "insertClipNodeSourceAt",
+      "responsibility": "在落点帧插入片段，只在重叠时后推后面的片段。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/timeline/TimelineTrack.tsx",
+      "entry_point": "onDrop / onDragOver",
+      "disposition": "not-affected",
+      "evidence": "全局时间轴的接收口原本就认同一对 MIME 并有落点指示，本片不改；剪辑节点轴补齐同一规矩。"
+    },
+    {
+      "path": "src/workbench/preview/OverlaySelectionBox.tsx",
+      "entry_point": "beginBodyDrag / beginHandleScale",
+      "disposition": "enforced",
+      "evidence": "原 window pointerup 监听、没有打断处理；现经 usePointerSession，被打断回到拖之前。"
+    },
+    {
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "entry_point": "beginDrag",
+      "disposition": "enforced",
+      "evidence": "原元素级 onPointerCancel=endDrag（当松手提交）；现经 usePointerSession，被打断恢复取景偏移（走查 O1）。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "entry_point": "裁剪手柄渲染",
+      "disposition": "enforced",
+      "evidence": "原 isSelected 才渲染；现常驻、悬停显形（走查 G1）。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+    "invariant": "素材载荷在剪辑节点轴上只经 readClipDropPayload 读、insertClipNodeSourceAt 写；落点指示与插入同一个函数。",
+    "failure_mode": "走查 tests/ux/clip-drop-zoom.walk.mjs 在 50 / 100 / 150% 下：载荷落下没有指示 / 没有插入 / 压到别的片段、窄片段点不中、边缘不滚动都红；timelineGesture.structure.test.ts 在 preview 两处出现手写 setPointerCapture / pointerup 监听就红。",
+    "exception_policy": "none",
+    "strategy": "接收口、命中几何、边缘滚动各收一处，预览区并入既有手势入口，用走查矩阵与结构测试守住。",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+      "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
+      "src/workbench/timeline/timelineGesture.structure.test.ts",
+      "tests/ux/clip-drop-zoom.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/timeline/timelineGesture.structure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/preview/OverlaySelectionBox.tsx",
+      "src/workbench/preview/TimelinePreview.tsx"
+    ],
+    "rationale": "预览区两处手写的 window 监听 / 元素级 move-up-cancel 处理在原文件里同提交删除，没有并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有新增依赖；dnd-kit 评估后不接。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-11-09",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/clipNodeSequence.test.ts",
+      "src/workbench/timeline/timelineGesture.structure.test.ts"
+    ],
+    "why": "接收口与落点写入的唯一入口；单测钉住插入语义，结构测试钉住手势入口。"
+  }
+}
