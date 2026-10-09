@@ -11,6 +11,10 @@
 //   · 默认导入、`import x = require('ai')`、`require('ai')`、动态 `import('ai')`（拿到的是整个模块，追不住就当违规）；
 //   · 重导出：`export { streamText } from 'ai'`、`export * from 'ai'`、`export * as ns from 'ai'`。
 // 只引类型 / 错误类（APICallError 等）/ generateObject 不算。零基线，新增即红。
+//
+// 管什么 / 不管什么（2026-10-09 复审 2 裁定）：管**不小心**直接用——上面每一种写得出来的拿法都拦。
+// 不管**故意**绕：`import(变量)`、`import("a" + "i")`、`const load = require; load("ai")` 这类非字面量的模块加载，
+// 静态扫描追不住，也不追（追了就是无止境的猫鼠游戏），靠评审抓；残留风险写在 PR 正文「## 自审」。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

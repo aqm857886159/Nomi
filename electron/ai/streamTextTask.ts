@@ -190,11 +190,14 @@ export async function streamTextTask(
   if (streamError !== undefined) throw streamError;
   // 元数据（finishReason / reasoning）只是附带信息：正常读完它应当立刻可解；SDK 若不给就当没有，
   // 绝不因此挂住整个任务，也不因此让任务失败。
+  // 取消优先于一切：等元数据的这 2 秒里用户点停止，也要立刻收口、并且结果是 AbortError（不是成功）。
   let graceTimer: ReturnType<typeof setTimeout> | undefined;
   const [finishReason, reasoning] = await Promise.race([
     Promise.all([finishReasonPromise, reasoningPromise]),
     new Promise<[undefined, undefined]>((resolve) => { graceTimer = setTimeout(() => resolve([undefined, undefined]), METADATA_GRACE_MS); }),
+    aborted.then((): [undefined, undefined] => [undefined, undefined]),
   ]).finally(() => clearTimeout(graceTimer));
+  if (external?.aborted) throw new DOMException("text stream aborted", "AbortError");
   return {
     text,
     raw: { choices: [{ message: { role: "assistant", content: text } }] },

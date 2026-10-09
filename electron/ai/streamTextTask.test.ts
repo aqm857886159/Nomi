@@ -69,6 +69,15 @@ describe("every way a stream ends settles the await", () => {
     expect(await withTimeout(streamTextTask(base, { abortSignal: controller.signal }).then(() => "RESOLVED", (error: Error) => error.name), 1500)).toBe("AbortError");
   }, 5000);
 
+  // 复审 2 阻断 1：只在读流结束后查一次取消，等元数据那 2 秒里再点停止，旧实现约 2 秒后返回成功。
+  it("stop while waiting for metadata (after the text was read): AbortError right away, never a success", async () => {
+    mocks.stream.mockImplementation(() => ({ textStream: (async function* () { yield "读完了"; })(), finishReason: never(), reasoning: never() }));
+    const controller = new AbortController();
+    const running = streamTextTask(base, { abortSignal: controller.signal }).then(() => "RESOLVED", (error: Error) => error.name);
+    setTimeout(() => controller.abort(), 200);
+    expect(await withTimeout(running, 1500)).toBe("AbortError");
+  }, 5000);
+
   it("a clean finish whose metadata never settles still returns the text (metadata is best-effort)", async () => {
     mocks.stream.mockImplementation(() => ({ textStream: (async function* () { yield "完整文本"; })(), finishReason: never(), reasoning: never() }));
     const result = await withTimeout(streamTextTask(base), 4000);
