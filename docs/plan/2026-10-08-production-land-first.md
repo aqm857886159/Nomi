@@ -34,6 +34,8 @@
 - **落地器** `canvasLandingHost.landBeforeDispatch`：不再 best-effort；文稿来源计划也真建节点（Q3 确认即落）；草稿投影 / Run 跟随 / 打开项目对账仍是 best-effort，且不替用户放文稿计划。
 - **项目没打开（Q1 = A + C′）** `landingProjectAccess.ts`：主窗口隐藏且用户从没叫出来过（`backgroundLaunch.mainWindowHiddenFromUser`）→ 经现有 `nomi:production-deep-link` 通道让它打开目标项目（不 show、不 focus）再落地；用户看得见的窗口开着别的项目 → 拒，绝不切换；进程内 stdio 路 → `refuseLandingWithoutRenderer` 拒。拒绝回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（`electron/productionRun/landingFailureCopy.ts`，中英两套，不谈钱）。
 - **付费卡（Q2）**：确认那一下先过准入；落不下来什么都不批，卡留在原地、这一镜没决定，再按一次就是重试；卡上那一句复用现有失败行（`actionFailure.canvasLandingFailed`），不加新界面、不加任务中心行。
+- **按镜头身份去重（10-09）**：文稿方案的那一镜如果已经经分镜行「放到画布」落过节点（方案 id = Run id，节点身份 = storyboardDesignId × shotId / anchorId，判据只用 `storyboardNodeBinding.findShotNode / findAnchorNode`），确认时认那个节点、绑到 Run 上，不再落第二份；认来的节点不重绑定候选、不拉进分镜组。镜头 id 不是稳定 id 时不猜，照常新建。
+- **升级（10-09）**：升级前那一版建的画布批量确认草稿没记 `origin.nodeId`：不发、按「没交」收尾（收回出价），并带码 `canvas_consent_predates_upgrade` 回给画布，节点上如实说「升级后这批没有发出，需要重新确认」（中英，不谈钱）。已经交出去的旧 Run 不受影响（准入只在新一次派发之前）。
 - **结局回填**：落地报文带上 Run 绑着的 `nodeId`；节点不在时出片结果 / 确定失败按 nodeId 暂存（同一份结局只暂存一次），撤销 / 放回时由 `canvasDocumentCommit` 落上。
 - **门岗**：入口表每条加 `landing`（`node-first` + owner，或 `exception`）；例外理由只认 `scripts/generation-entrances-ledger.json#landingExceptions`。
 

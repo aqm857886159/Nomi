@@ -32,6 +32,8 @@ import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSes
 import { isProductionRunRecord } from '../../../electron/shared/productionShotPhase'
 import type { MediaDimensions } from '../generationCanvas/nodes/nodeSizing'
 import type { HeldNodeOutcome } from '../generationCanvas/store/nodeRunOutcome'
+import { findAnchorNode, findShotNode } from '../creation/storyboard/exec/storyboardNodeBinding'
+import { stableShotId, type PlanAnchor, type PlanShot } from '../generationCanvas/agent/storyboardPlan'
 
 /**
  * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
@@ -181,6 +183,24 @@ async function rebindLandedShots(
   }
 }
 
+/**
+ * 文稿方案的镜头已经经分镜行落在画布上的那些节点（shotId → 节点 id）。只认本 op 章还没认领的镜；
+ * 方案 id 就是 Run id（草稿与方案同一套 id，见 generationDocumentPlan）。镜头 id 不是稳定 id 时不猜（照常新建）。
+ */
+function adoptStoryboardNodes(shots: readonly MaterializeShotInput[], runId: string | undefined, stamped: ReadonlyMap<string, string>): Map<string, string> {
+  const adopted = new Map<string, string>()
+  if (!runId) return adopted
+  const nodes = useGenerationCanvasStore.getState().nodes
+  for (const shot of shots) {
+    if (stamped.has(shot.shotId)) continue
+    const node = shot.role === 'anchor'
+      ? findAnchorNode(nodes, runId, { id: shot.shotId, name: '' } as PlanAnchor)
+      : stableShotId({ shotId: shot.shotId, index: -1 }) === shot.shotId ? findShotNode(nodes, runId, { shotId: shot.shotId, index: -1 } as PlanShot) : null
+    if (node) adopted.set(shot.shotId, node.id)
+  }
+  return adopted
+}
+
 /** 主进程按项目寻址的落地，最多等这个窗口认下那个项目多久（主进程那头的 RPC 期限是 60s）。 */
 const PROJECT_ADOPTION_WAIT_MS = 30_000
 
@@ -209,10 +229,15 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   interruptPendingCanvasWrite()
   // 本 op 章已经落过的 shotId → 节点 id。**只用来决定撤销步与重绑定**：
   // 「这次要不要真建节点」的判据不在这里，在写边界 applyCanvasToolCall（P1 一个 owner）。
-  const existingByShot = materializedNodeIdsByClientId(
+  const stampedByShot = materializedNodeIdsByClientId(
     useGenerationCanvasStore.getState().nodes,
     materializationOperationId,
   )
+  // 按镜头身份去重：文稿方案的那一镜如果用户已经经分镜行「放到画布」落过节点（方案 id = 这个 Run 的 id，
+  // 节点身份 = storyboardDesignId × shotId / anchorId，唯一判据在 storyboardNodeBinding），就认那个节点、
+  // 把它绑到 Run 上——不再落第二份。认来的节点不重绑定候选、不拉进分镜组（它归分镜行管）。
+  const adoptedByShot = adoptStoryboardNodes(incoming, payload.runId, stampedByShot)
+  const existingByShot = new Map([...stampedByShot, ...adoptedByShot])
 
   // 分锚/镜：参考行（锚）在上、镜头折行网格（复用 storyboard 布局的 anchorCount 约定）。构造序=先锚后镜。
   const existingOnly = (shot: MaterializeShotInput): boolean => payload.existingOnly === true || shot.existingOnly === true
@@ -227,7 +252,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 这条闸是「打开项目补齐」这类幂等重放不会覆盖用户手改的原因。
   const rebindable = ordered.filter((shot) => {
     const nodeId = existingByShot.get(shot.shotId)
-    if (existingOnly(shot) || !nodeId || !shot.candidate) return false
+    if (existingOnly(shot) || !nodeId || !shot.candidate || adoptedByShot.has(shot.shotId)) return false
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
     const stored = nodeCandidateRevision(node?.meta as Record<string, unknown> | undefined)
     return stored === null || shot.candidate.revision > stored
@@ -245,7 +270,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 只在本次真会落东西时打 barrier（有缺失节点 / 有要重绑定的 / 要新建分镜组）——纯回填/幂等空跑不该占一个撤销步。
   // 节点全落 groupCategoryId(shots) → ≥2 个就够建组（锚+镜同组，靠 referenceSheet 区分）。
   const groupExists = useGenerationCanvasStore.getState().groups.some((group) => group.materializationOperationId === materializationOperationId)
-  const willCreateGroup = !payload.existingOnly && !groupExists && ordered.length >= 2
+  const willCreateGroup = !payload.existingOnly && !groupExists && ordered.filter((shot) => !adoptedByShot.has(shot.shotId)).length >= 2
   // 「这次落地结构性地改了画布吗」——一个判据两处用：打不打撤销步、要不要立刻落盘（见末尾 flush 注释）。
   // 回填已完成镜的 result **不算**：那是「打开项目补齐」每次都会做的幂等重放，把它算进来等于每开一次
   // 项目就白推高一次 revision（projectPersistenceService 头注释里那条「漂到 706」的自激振荡）。
@@ -310,7 +335,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   project.assertCurrent()
 
   // 编组（幂等章）：先按 op 章找已建的分镜组复用；没有才建。名字即时命名「分镜组·<计划名>」。
-  const allNodeIds = ordered.map((shot) => clientIdToNodeId[shot.shotId]).filter((id): id is string => Boolean(id))
+  const allNodeIds = ordered.filter((shot) => !adoptedByShot.has(shot.shotId)).map((shot) => clientIdToNodeId[shot.shotId]).filter((id): id is string => Boolean(id))
   const shotsCategoryNodeIds = allNodeIds.filter((nodeId) => {
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
     return node && (node.categoryId || 'shots') === groupCategoryId

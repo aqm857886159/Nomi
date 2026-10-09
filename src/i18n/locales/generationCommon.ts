@@ -434,6 +434,8 @@ export const zhGenerationCommon = {
       },
       nodeInFlight: { reason: '这个节点还在生成', hint: '上一次生成还没回来，这一次还没发出去。等它出结果再决定要不要重新生成。' },
       previewBlocked: { hint: '这一次没发出去。等 3D-BOX 预演挂好再生成。' },
+      // 升级前留下的批量确认（没记来源节点）：先落节点、再发请求之后它不能发——如实说没发出去，要他再确认一次。
+      consentPredatesUpgrade: { reason: '升级后这批没有发出', hint: '这一镜是升级前确认的，按新的规则没能发出生成请求。在画布上重新生成它，再确认一次。' },
       shotClaimed: {
         generic: { reason: '这一镜由制作流程持有', hint: '请先查看制作任务状态，再决定下一步。' },
         queued: { reason: '这一镜已在制作流程中排队', hint: '请先等制作流程完成，或去任务中心查看进度。' },
@@ -2053,6 +2055,7 @@ export const enGenerationCommon = {
       },
       nodeInFlight: { reason: 'This node is still generating', hint: 'The previous generation has not come back yet. Nothing was sent this time; wait for its result before generating again.' },
       previewBlocked: { hint: 'Nothing was sent. Generate again once the 3D-BOX preview is attached.' },
+      consentPredatesUpgrade: { reason: 'This batch was not sent after the update', hint: 'This shot was confirmed before the update and could not be sent under the new rules. Generate it again on the canvas and confirm once more.' },
       shotClaimed: {
         generic: { reason: 'This shot is owned by the production workflow', hint: 'Check the production task status before deciding what to do next.' },
         queued: { reason: 'This shot is queued in the production workflow', hint: 'Wait for production to finish, or check its progress in the task center.' },

@@ -35,7 +35,8 @@
     "electron/agentLane/laneDesktopTasks.ts",
     "electron/backgroundLaunch.ts",
     "src/workbench/capability/multiShotCanvasLanding.ts",
-    "electron/productionRun/landFirstTestUtils.ts"
+    "electron/productionRun/landFirstTestUtils.ts",
+    "src/workbench/observability/classifyError.ts"
   ],
   "entry_points": [
     "GUI multi-shot start (appIntegration planning start)",
@@ -211,7 +212,10 @@
     "electron/productionRun/landFirstOneAdmission.test.ts",
     "electron/productionRun/landFirstProjectAccess.test.ts",
     "src/workbench/capability/productionOutcomeOnDeletedNode.test.ts",
-    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts"
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "src/workbench/capability/storyboardPlacedShotLandsOnce.test.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+    "src/workbench/generationCanvas/runner/nodeSubmitInFlight.test.ts"
   ],
   "class_regression_tests": [
     "electron/productionRun/landFirstOneAdmission.test.ts",
@@ -241,10 +245,10 @@
     ],
     "rationale": "shotLandingAdmission owns the admission token, its durable re-check (called from the submission exit) and the landing_failed stop; the four test files cover forged tokens, multi/single landing failure and retry, project-not-open handling and the structural callers."
   },
-  "migration": "No data migration. Runs already dispatched are unaffected (the check sits before a new dispatch). Canvas consent drafts created by an older build lack origin.nodeId and are not dispatched (the renderer settles them as not sent); consent drafts do not outlive their window, so this only affects an upgrade mid-batch.",
+  "migration": "No data migration. Runs already dispatched are unaffected (the check sits before a new dispatch). Canvas consent drafts created by an older build lack origin.nodeId: they are not dispatched, the consent is withdrawn, and the canvas is told canvas_consent_predates_upgrade (\"this batch was not sent after the update, confirm again\"). Document-plan shots already placed from a storyboard row are adopted by shot identity instead of landing a second node.",
   "residual_risks": [
     "Real Electron paid run (multi 2 + single 1 + forced landing failure + MCP cold start hidden window) is unverified in this line; the coordinator runs it.",
-    "A document plan placed on the canvas through storyboard row actions but never bound to its Run could be landed a second time by confirm-time landing.",
-    "Writing nodes into a project that is not open (option B) is out of scope; those starts are refused."
+    "Writing nodes into a project that is not open (option B) is out of scope; those starts are refused.",
+    "Storyboard-placed nodes are adopted only when the shot id is a stable id (storyboardSubjectIdentity STABLE_ID); otherwise the confirm-time landing creates a node, as before."
   ]
 }

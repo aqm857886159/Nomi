@@ -325,7 +325,12 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         repository: repository(), projectId, runId, shotIds: [undefined],
         land: async () => { throw coded(`canvas_run_without_origin_node: ${runId}`, "shot_not_landed", "shot_not_landed"); },
       })).admitted.values().next().value;
-      if (!admission) throw coded(`shot_not_landed: ${runId}`, "shot_not_landed", "shot_not_landed");
+      if (!admission) {
+        // 升级前留下的批量确认草稿：建它的那一版没记来源节点。不发，按「没交」收尾（下面 catch 收回出价），
+        // 而且如实告诉画布：这批升级后没有发出，需要重新确认——不能悄悄没了。
+        if (consented && !consented.origin.nodeId) throw coded(`canvas_consent_predates_upgrade: ${runId}`, "canvas_consent_predates_upgrade", "predates_upgrade");
+        throw coded(`shot_not_landed: ${runId}`, "shot_not_landed", "shot_not_landed");
+      }
       repository().executeBatch(projectId, runId, run.revision, commands);
       const submission = submissionFor(projectId);
       let started;
