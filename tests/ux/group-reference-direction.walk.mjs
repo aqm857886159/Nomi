@@ -204,7 +204,7 @@ try {
   await win.waitForTimeout(300)
   const disconnectButton = win.locator('[data-edge-disconnect]').first()
   await disconnectButton.waitFor({ state: 'visible', timeout: 4000 })
-  check('点编组内的连线 = 选中并出「×」，不弹模式菜单', (await win.getByRole('menu', { name: '连接语义' }).count()) === 0)
+  check('点编组内的连线 = 选中并出「×」，中点没有任何文字（不弹模式菜单）', (await win.locator('.generation-canvas-v2__edge-control').innerText()).trim() === '')
   await screenshotSettled(win, { path: path.join(shotsDir, '04-edge-selected-x.png') })
   await disconnectButton.click()
   await win.waitForTimeout(500)

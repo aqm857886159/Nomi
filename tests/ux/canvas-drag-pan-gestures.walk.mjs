@@ -983,25 +983,17 @@ try {
   const blankForDeselect = await findBlankPoint()
   await getWin().mouse.click(blankForDeselect.x, blankForDeselect.y)
   await getWin().waitForTimeout(300)
-  // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线上不再有类型标签；闲置时也没有「×」。
-  const labelsWhenIdle = await getWin().evaluate(
-    () => document.querySelectorAll('.generation-canvas-v2__edge-tag-pill, [data-edge-disconnect]').length,
-  )
-  await snap('03-edge-labels-hidden.png')
-  assert(labelsWhenIdle === 0, '没选中任何节点时，画布上一个连线标签 / 「×」都没有')
 
   const videoHit = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
   assert(Boolean(videoHit), '视频卡上找得到真正点得到的一点', JSON.stringify(videoHit))
   await getWin().mouse.click(videoHit.x, videoHit.y)
   await getWin().waitForTimeout(400)
   const selectedEdgeState = await getWin().evaluate(() => ({
-    labels: document.querySelectorAll('.generation-canvas-v2__edge-tag-pill').length,
     incident: document.querySelectorAll('.generation-canvas-v2__edge[data-incident="true"]').length,
   }))
   await snap('04-edge-labels-on-selection.png')
   assert(selectedEdgeState.incident >= 1, '选中节点后其关联边点亮（data-incident）')
-  // 旧断言「选中节点后关联边的类型标签浮出、12px accent 文字与下拉图标」作废：用户 10-08「连线之间的标签似乎没用」，标签整体删除。
-  assert(selectedEdgeState.labels === 0, '选中节点后连线上不再有类型标签', JSON.stringify(selectedEdgeState))
+  // 旧断言「选中节点后关联边的类型标签浮出、12px accent 文字与下拉图标」作废：用户 10-08「连线之间的标签似乎没用」，标签整体删除（后面「悬停出 ×」那步是正向断言）。
 
   // 同一条真实任务继续：断开 / 锁定，各按一次 Cmd+Z，不能撤掉前一笔。
   // （旧的「改边模式 → Cmd+Z」整段作废：连线中点的模式胶囊与菜单已删，用途改在目标节点的参考槽里设置。）

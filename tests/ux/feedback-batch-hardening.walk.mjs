@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = path.join(repoRoot, '.feedback-batch-walk')
@@ -104,15 +104,14 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
     if (Math.abs(actual - expected) > 0.05) throw new Error(`${state}: expected ${expected}, received ${actual}`)
   }
 
-  // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点不再有类型标签；闲置时没有任何中点控件，悬停才出断开「×」。
-  if (await edgeControl.count() !== 0) throw new Error('idle edge shows a midpoint control')
+  // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点不再有类型标签；悬停才出断开「×」（下面悬停时先证明探针测得到，之后再证「不悬停就没有」）。
   await expectNear(strokeOpacityOf(edgePath), 0.18, 'idle edge opacity')
   await shot(win, '01-edge-label-collapsed.png')
 
   await edgeHit.hover({ force: true })
   await win.waitForTimeout(220)
-  await edgeControl.locator('[data-edge-disconnect]').waitFor({ state: 'visible', timeout: 3000 })
-  if (await edgeControl.locator('.generation-canvas-v2__edge-tag-pill').count() !== 0) throw new Error('hovered edge still shows a mode pill')
+  const xProof = await proveProbe(edgeControl.locator('[data-edge-disconnect]'), '悬停一条线时中点出「×」')
+  if ((await edgeControl.innerText()).trim() !== '') throw new Error('hovered edge midpoint carries text')
   await expectNear(strokeOpacityOf(edgePath), 1, 'hovered edge opacity')
   await shot(win, '02-edge-label-hover.png')
 
@@ -123,7 +122,7 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
 
   await win.locator('.generation-canvas-v2__stage').click({ position: { x: 500, y: 760 }, force: true })
   await win.waitForTimeout(220)
-  if (await edgeControl.count() !== 0) throw new Error('cleared selection left a midpoint control')
+  await expectAbsent(edgeControl, { provenBy: xProof, message: '放掉选择、鼠标离开后中点没有任何控件' })
 
   await win.locator('[data-node-id="shot-node"]').click()
   await win.waitForTimeout(600)
@@ -132,7 +131,7 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
   // 旧的「点标签 → 连接语义菜单」整段作废（同上，用户 10-08）：点线只选中，不弹菜单。
   await edgeHit.click({ force: true })
   await win.waitForTimeout(250)
-  if (await win.getByRole('menu', { name: '连接语义' }).count() !== 0) throw new Error('clicking an edge still opens a mode menu')
+  if ((await edgeControl.innerText()).trim() !== '') throw new Error('clicking an edge put text on its midpoint')
   await win.keyboard.press('Escape')
 
   const stackButton = win.getByRole('button', { name: '3 张堆叠图片' })

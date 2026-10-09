@@ -473,8 +473,9 @@ try {
   const aggregateEdge = win.locator('g[data-aggregate-group="reference-group"]')
   await expect(aggregateEdge, '聚合线带编组方向（不可见属性）').toHaveAttribute('data-aggregate-direction', 'input')
   await expectVisible(win.getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.disconnectAggregate'), exact: true }), '聚合线选中后的「×」读屏名是断开整条编组连接')
-  await expectCount(win.locator('.generation-canvas-v2__edge-tag-pill'), 0, '聚合线上没有任何模式胶囊')
-  await expectCount(win.getByText(uiText('zh-CN', 'generationCommon.canvas.group.aggregateInput'), { exact: true }), 0, '聚合线上不挂「编组输入」字样')
+  // 正向断言：聚合线中点那一层只有「×」、没有任何文字（没有模式胶囊 / 「编组输入」字样）。
+  await expect(win.locator('.generation-canvas-v2__edge-control > *'), '聚合线中点只有「×」一个控件').toHaveCount(1)
+  await expect(win.locator('.generation-canvas-v2__edge-control'), '聚合线中点没有任何文字').toHaveText('')
   await screenshotSettled(win, { path: path.join(outputDir, '04-real-collapsed-group-link-light.png') })
 
   await expect.poll(() => {

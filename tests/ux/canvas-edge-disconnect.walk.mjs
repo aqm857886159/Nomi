@@ -142,8 +142,9 @@ try {
     await waitForVisualQuiescence(win)
     await expect(win.locator('.generation-canvas-v2__edge[data-edge-id="e-gen"]')).toHaveAttribute('data-active', 'true')
     const xProof = await proveProbe(xButton(), '选中一条线后中点出「×」', 3_000)
-    await expect(win.locator('.generation-canvas-v2__edge-tag-pill')).toHaveCount(0)
-    await expect(win.locator('.generation-canvas-react-flow__edge-menu')).toHaveCount(0)
+    // 正向断言（线中点什么字都不挂）：中点那一层里只有「×」这一个控件、没有任何文字。
+    await expect(win.locator('.generation-canvas-v2__edge-control > *')).toHaveCount(1)
+    await expect(win.locator('.generation-canvas-v2__edge-control')).toHaveText('')
     await expect(xButton()).toHaveCount(1)
     expect(await xButton().textContent(), '「×」只有图标、没有文字').toBe('')
     expect(await xButton().getAttribute('aria-label')).toContain(uiText(zh ? 'zh-CN' : 'en', 'generationCommon.canvas.edge.disconnect').split('{{')[0])
