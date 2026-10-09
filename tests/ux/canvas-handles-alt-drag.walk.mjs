@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 走查：连线「+」拉环 + Alt/⌥ 拖动复制 + 粘贴到鼠标处（2026-09-21）。
 //
 // 用户拍板（两条）：
@@ -35,7 +36,7 @@ fs.mkdirSync(shotsDir, { recursive: true })
 const { assets } = requireRealMediaAssets(['video-4k-hevc-10bit', 'image-4k-png'])
 const sourceVideo = assets.get('video-4k-hevc-10bit').file
 const derivedSpec = assets.get('image-4k-png').spec
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-handles-alt-'))
+const temp = makeTempDir('nomi-handles-alt-')
 const PROJECT_ID = 'project-handles-alt-drag'
 const fixture = createCanvasPerformanceFixture({ projectsDir: path.join(temp, 'projects'), scale: 'empty', projectId: PROJECT_ID, projectName: 'Alt 拖动复制验收' })
 const mediaDir = path.join(fixture.projectRoot, 'assets', 'imported')

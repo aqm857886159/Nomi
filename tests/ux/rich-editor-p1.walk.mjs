@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // P1 编辑器增强走查（R13：截图 + 人眼判断，不是只跑 expect）。
 // 验证四件事：
 //   A 工具栏扩充：新增的删除线/行内代码/高亮/h3/分隔线/待办/表格/链接按钮真实渲染
@@ -12,7 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-rich-editor-'))
+const tempRoot = makeTempDir('nomi-rich-editor-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'rich-editor-p1'

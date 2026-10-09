@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 验收走查（素材库交互回归 · 2026-09-25 用户原话「拖不出图片和视频来了；项目素材只能点击一个删除，
 // 点击对勾无法取消，拖出也无法复制」）。
 //
@@ -28,7 +29,7 @@ const shotsDir = path.join(repoRoot, `tests/ux/shots/asset-library-interactions-
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-asset-interactions-'))
+const tempRoot = makeTempDir('nomi-asset-interactions-')
 const projectsDir = path.join(tempRoot, 'projects')
 
 const localUrl = (projectId, relative) =>

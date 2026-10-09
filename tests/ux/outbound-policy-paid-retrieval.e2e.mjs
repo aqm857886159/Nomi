@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 出站策略修复的**真实付费**验收：证明「提交 → 轮询 → 取回产物 → 落盘」这条核心链路
 // 在本机真实网络下走得通（R13 真机走查 / P3 全绿≠完成）。
 //
@@ -22,7 +23,7 @@ if (!process.env.APIMART_E2E) {
   process.exit(0);
 }
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-outbound-paid-"));
+const root = makeTempDir("nomi-outbound-paid-");
 const userDataDir = path.join(root, "settings");
 const projectsDir = path.join(root, "projects");
 fs.mkdirSync(userDataDir, { recursive: true });

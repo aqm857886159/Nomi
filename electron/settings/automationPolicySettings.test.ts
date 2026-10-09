@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_AUTOMATION_POLICY_SETTINGS,
@@ -16,13 +16,13 @@ const previousSettingsRoot = process.env.NOMI_SETTINGS_DIR;
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-automation-settings-"));
-  process.env.NOMI_SETTINGS_DIR = root;
+  vi.stubEnv("NOMI_SETTINGS_DIR", root);
 });
 
 afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true });
-  if (previousSettingsRoot === undefined) delete process.env.NOMI_SETTINGS_DIR;
-  else process.env.NOMI_SETTINGS_DIR = previousSettingsRoot;
+  if (previousSettingsRoot === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+  else vi.stubEnv("NOMI_SETTINGS_DIR", previousSettingsRoot);
 });
 
 describe("automation policy settings", () => {

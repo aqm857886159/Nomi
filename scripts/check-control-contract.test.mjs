@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 规则三（被静默丢弃的命令）的红/绿证明。
 //
 // R17 要求「加规则必须先验它会红」，而且这个红要**留得住**——所以红证明不是一次手工跑，
@@ -22,7 +23,7 @@ afterEach(() => {
 
 /** 造一棵最小仓库：真闸口 src/desktop/bridge.ts + 若干模块 + 一个组件。 */
 function fixture(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-control-contract-'))
+  const root = makeTempDir('nomi-control-contract-')
   roots.push(root)
   const write = (rel, text) => {
     const full = path.join(root, rel)
@@ -268,7 +269,7 @@ it('全仓没有被静默丢弃的命令', async () => {
 
 /** 造一棵带 i18n 词典与 GLOSSARY 的最小仓库。 */
 function copyFixture(labels, componentSource) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-control-copy-'))
+  const root = makeTempDir('nomi-control-copy-')
   roots.push(root)
   const write = (rel, text) => {
     const full = path.join(root, rel)

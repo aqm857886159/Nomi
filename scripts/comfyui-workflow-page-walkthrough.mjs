@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：ComfyUI「工作流设置」整页（2026-08-12 用户拍板样张）。
 // plan: docs/plan/2026-08-12-model-settings-home-and-comfyui-workflow-page.md
 //
@@ -101,8 +102,8 @@ await new Promise((r) => mock.listen(8188, '127.0.0.1', r))
 
 const { app, win } = await launchNomiApp({
   name: 'comfyui-workflow-page',
-  settingsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-wf-page-set-')),
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-wf-page-proj-')),
+  settingsDir: makeTempDir('comfyui-wf-page-set-'),
+  projectsDir: makeTempDir('comfyui-wf-page-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

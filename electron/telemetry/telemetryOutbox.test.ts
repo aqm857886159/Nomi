@@ -11,7 +11,7 @@ describe('telemetry outbox', () => {
   it('does not make a network request while disabled', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-telemetry-'))
     roots.push(root)
-    process.env.NOMI_SETTINGS_DIR = root
+    vi.stubEnv("NOMI_SETTINGS_DIR", root)
     const fetch = vi.spyOn(globalThis, 'fetch')
     const settings = await import('../telemetry/telemetrySettings')
     const outbox = await import('./telemetryOutbox')
@@ -19,13 +19,13 @@ describe('telemetry outbox', () => {
     expect(outbox.recordTelemetryEvent({ eventName: 'feature.used', props: { featureId: 'generation', result: 'success' } }, '1.0.0')).toBe(false)
     await outbox.flushTelemetry()
     expect(fetch).not.toHaveBeenCalled()
-    delete process.env.NOMI_SETTINGS_DIR
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   })
 
   it('keeps a local summary and deletes it', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-telemetry-'))
     roots.push(root)
-    process.env.NOMI_SETTINGS_DIR = root
+    vi.stubEnv("NOMI_SETTINGS_DIR", root)
     const settings = await import('../telemetry/telemetrySettings')
     const outbox = await import('./telemetryOutbox')
     settings.writeTelemetrySettings({ enabled: true })
@@ -34,6 +34,6 @@ describe('telemetry outbox', () => {
     expect(outbox.readTelemetrySummary().pendingCount).toBe(1)
     expect(outbox.deleteTelemetryData().deletedCount).toBe(1)
     expect(outbox.readTelemetrySummary().pendingCount).toBe(0)
-    delete process.env.NOMI_SETTINGS_DIR
+    vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   })
 })

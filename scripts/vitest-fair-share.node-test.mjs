@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 钉住 vitest 让路策略（2026-09-03）。
 //
 // 这个东西的失败模式是**静默的**：算错了没人会发现——测试照样跑、照样绿，只是机器继续被压垮、
@@ -55,7 +56,7 @@ test('参数非法要抛，别静默算出个荒唐值', () => {
 })
 
 test('countLivePeers 只数活着的，并顺手清掉死条目（崩溃后自愈，不需要过期时间）', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fair-share-test-'))
+  const dir = makeTempDir('fair-share-test-')
   try {
     for (const pid of ['1001', '1002', '1003', 'not-a-pid']) fs.writeFileSync(path.join(dir, pid), 'x')
     const alive = new Set([1001, 1003])

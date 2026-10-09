@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 图片/视频节点浮条一行放下走查（用户 10-03 拍板）：选中图片/视频/锚卡，断言浮条只有一行，
 // 并展开 更多效果▾ 改图▾ 宫格▾ 抽帧▾ 截图。零额度：本地 SVG/mp4 夹具。
 // 用法：pnpm run build && NOMI_WALK_LOCALE=zh|en node tests/ux/node-toolbar-one-row.walk.mjs
@@ -13,7 +14,7 @@ import { stationTimeout } from './_station-budget.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-toolbar-row-'))
+const root = makeTempDir('nomi-toolbar-row-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'toolbar-row-walk'

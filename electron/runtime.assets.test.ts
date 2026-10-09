@@ -76,12 +76,12 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-05-31T12:00:00Z"));
   mockedDocumentsRoot = makeTempDir("nomi-runtime-assets-documents-");
   mockedUserDataRoot = makeTempDir("nomi-runtime-assets-user-data-");
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  delete process.env.NOMI_PROJECTS_DIR;
+  vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }

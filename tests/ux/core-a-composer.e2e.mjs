@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { proveProbe, expectAbsent, waitForVisualQuiescence } from './_assert.mjs'
 // Partial CJ4 / T7: real Electron UI and project persistence, no provider submissions.
 // Bundled history and terminal blur/result clearing are explicitly controlled setup;
@@ -12,7 +13,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-core-a-composer-'))
+const tempRoot = makeTempDir('nomi-core-a-composer-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'core-a-composer'

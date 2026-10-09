@@ -82,8 +82,8 @@ import { registerRendererLogIpc } from "./logging/rendererLog";
 import { createProjectInteractionCapture } from "./assets/projectInteractionCapture";
 import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
-import { installQuitTeardown, registerQuitDrain, requestQuit } from "./quitTeardown";
-import { quitTeardownLogSinks } from "./quitTeardownLog";
+import { registerQuitDrain, requestQuit } from "./quitTeardown";
+import { installMainQuitOwner } from "./quitOwnerMain";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
@@ -668,11 +668,10 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 // 退出唯一 owner：导出 abort → ffmpegRunner kill 子进程（否则变孤儿）；Agent lane 关闭时落盘会话。
-installQuitTeardown(app, {
+installMainQuitOwner(app, {
   disposeBackgroundLifecycle,
   stopDesktopCapabilityCore,
   disposeDesktopLaneIpc: () => desktopLaneIpc?.dispose() ?? Promise.resolve(),
   abortAllActiveExports: () => (require("./export/exportJobs") as typeof import("./export/exportJobs")).abortAllActiveExports(),
-  ...quitTeardownLogSinks, // 失败按字段记；每步 quit-step、结束一条 quit-exit 回执
   systemSession: { platform: process.platform, powerMonitor: () => powerMonitor }, // Windows 关机/注销不发 will-quit
 });

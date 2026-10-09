@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 五门戳契约的类级回归测试（2026-09-02）。
 //
 // 报告到的那一例是「gates 写 .claude/.gates-ok、hook 读 <gitdir>/nomi-gates-ok」，
@@ -31,7 +32,7 @@ const LIB_REL = 'scripts/claude-hooks/_bash-command-analysis.sh'
 
 /** 造一棵一次性 git 仓库，避免动到真仓库的戳。 */
 function makeTempRepo(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-push-gate-'))
+  const dir = makeTempDir('nomi-push-gate-')
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
   const run = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
   run('init', '-q')
@@ -48,7 +49,7 @@ function makeTempRepo(t) {
  * 注意 hook 必须是真文件——门岗会**实际执行**它。
  */
 function makeContractFixture(t, { mutateHook, mutateLib } = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gates-contract-'))
+  const dir = makeTempDir('nomi-gates-contract-')
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
   fs.mkdirSync(path.join(dir, 'scripts', 'claude-hooks'), { recursive: true })
   fs.copyFileSync(path.join(repoRoot, 'scripts/stamp-gates-ok.mjs'), path.join(dir, 'scripts/stamp-gates-ok.mjs'))
@@ -210,7 +211,7 @@ test('读戳方推荐了不存在的补盖脚本 → 门岗报红（报告到的
 
 /** 造一棵只有 hook 契约面的假项目根：脚本齐、settings 可按需改写。 */
 function makeSettingsFixture(t, rewriteCommand) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-hook-settings-'))
+  const dir = makeTempDir('nomi-hook-settings-')
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
   fs.mkdirSync(path.join(dir, 'scripts', 'claude-hooks'), { recursive: true })
   fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })

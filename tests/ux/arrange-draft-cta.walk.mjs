@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查（零额度）：空态「一键拼成初稿」提示行。
 // 种一个「画布已有 3 个已出图镜头 + 空时间轴」的项目，开预览区 → 空时间轴应浮出提示行
 // 「有 3 个镜头可拼成初稿 [一键拼成初稿]」；点它 → 镜头排进时间轴、提示行随即隐去（纯增益空态）。
@@ -14,7 +15,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/arrange-cta')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-arrangecta-'))
+const base = makeTempDir('nomi-arrangecta-')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

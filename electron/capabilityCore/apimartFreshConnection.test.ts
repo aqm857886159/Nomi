@@ -133,7 +133,7 @@ describe("APIMart 付费提交：每次新连接", () => {
   });
 
   it("⑤ 供应商接了请求却一直不回话：到点超时，结果未知（不自动重发），只收到 1 次 POST", async () => {
-    process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS = "400";
+    vi.stubEnv("NOMI_VENDOR_HTTP_TIMEOUT_MS", "400");
     try {
       const fx = await loopback("hang");
       const { send } = providerFor(fx.origin);
@@ -145,7 +145,7 @@ describe("APIMart 付费提交：每次新连接", () => {
       expect(outboundRequestWasNeverWritten(error)).toBe(false);
       expect(fx.requests.filter((request) => request.method === "POST")).toHaveLength(1);
     } finally {
-      delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS;
+      vi.stubEnv("NOMI_VENDOR_HTTP_TIMEOUT_MS", undefined);
     }
   });
 

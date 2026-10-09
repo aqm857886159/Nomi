@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from './_test-temp.mjs'
 // 每日雷达 hook 的行为测试。最要紧的几条：
 //  · 脚本跑败时输出必须明说「今天没查成」，绝不出现会被读成「没有新东西」的措辞；
 //  · 同一天两个不同工作树先后开会话，第二个拿到第一个的摘要（含新增数），不再跑（否则「新反馈」被先开的会话吃掉，
@@ -18,7 +19,7 @@ const NOW = new Date(2026, 9, 2, 9, 5) // 2026-10-02 09:05 本机时间
 const LATER = new Date(2026, 9, 2, 14, 30)
 const allSkills = () => true
 const noSkills = () => false
-const tmp = (prefix) => fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+const tmp = (prefix) => makeTempDir(prefix)
 const cleanup = (...dirs) => dirs.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }))
 
 const okRun = (outputs = {}) => async (_root, radar) => ({ status: 0, stdout: outputs[radar.key] ?? `${radar.script} 结果行\n新增 0` })
@@ -231,7 +232,7 @@ describe('技能在不在：不存在的技能不能叫人去跑；论文雷达�
 
   test('真实仓库里：hook 还会查的两个技能确实存在', () => {
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-empty-home-'))
+    const home = makeTempDir('nomi-empty-home-')
     try {
       assert.equal(skillExists('nomi-intake-radar', { root: repo, home }), true)
       assert.equal(skillExists('nomi-competitive-radar', { root: repo, home }), true)

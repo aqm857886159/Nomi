@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   CAPABILITY_DIR_ENV,
@@ -16,12 +16,12 @@ let root = ''
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-client-proof-'))
-  process.env[CAPABILITY_DIR_ENV] = root
+  vi.stubEnv(CAPABILITY_DIR_ENV, root)
   ensureToken()
 })
 
 afterEach(() => {
-  delete process.env[CAPABILITY_DIR_ENV]
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
   fs.rmSync(root, { recursive: true, force: true })
 })
 

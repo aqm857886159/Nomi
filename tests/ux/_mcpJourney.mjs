@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 // Shared infra for real-process MCP journeys — the ONE spawn/framing/teardown/mock-vendor implementation
 // (P1: no copy-paste) driven by the L1/L2 MCP journeys and production-mcp-journey.e2e.mjs, plus
@@ -517,7 +518,7 @@ export function parseToolResult(result) {
 
 /** Make an isolated temp root with the four sandbox dirs J-MCP1 needs. */
 export function makeIsolatedDirs(prefix = 'nomi-mcp-journey-') {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  const tempRoot = makeTempDir(prefix)
   const dirs = {
     tempRoot,
     settingsDir: tempRoot,

@@ -169,6 +169,8 @@ export type DesktopBridge = DesktopMediaBridge &
     confirmClose?: (requestId: string) => void
     cancelClose?: (requestId: string) => void
     onCloseRequest?: (cb: (payload: { requestId: string }) => void) => () => void
+    /** 关机 / 注销：主进程请求静默存项目；cb 存完才回执，抛错回执失败。老 preload 可能无此口。 */
+    onProjectFlushRequest?: (cb: () => Promise<void>) => () => void
     onMaximized: (cb: (maximized: boolean) => void) => () => void
     onCanvasZoomShortcut?: (cb: (direction: -1 | 1) => void) => () => void
   }

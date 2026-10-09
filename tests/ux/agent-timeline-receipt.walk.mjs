@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户任务（R13）：**「让 Nomi 把这段素材劈成两半」——它说的和我看到的是不是同一件事？**
 //
 // 2026-09-12 用户实录：模型回「已生成剪辑预览，请在确认卡中批准后写入时间线」，
@@ -32,7 +33,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-timeline-receipt')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-agent-timeline-receipt-'))
+const root = makeTempDir('nomi-agent-timeline-receipt-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

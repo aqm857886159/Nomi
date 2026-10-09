@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
@@ -18,7 +19,7 @@ const python = process.platform === 'win32' ? 'python' : 'python3'
 // wrapper itself must keep matching whatever console a developer really has.
 const childEnv = { PYTHONIOENCODING: 'utf-8' }
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-lock-test-'))
+  const root = makeTempDir('nomi-lock-test-')
   const lock = path.join(root, 'gates.lock')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   return { root, lock }

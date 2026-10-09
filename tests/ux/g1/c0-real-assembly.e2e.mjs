@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import { watchCredential } from './credential-precheck.mjs'
 // Zero-paid-call assembly check: actual isolated Electron catalog encryption/decryption and
 // C0 guard installation, with both transports replaced by a local function before attachment.
@@ -7,7 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from '../_launchApp.mjs'
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'c0-real-assembly-'))
+const tempRoot = makeTempDir('c0-real-assembly-')
 const bridge = path.join(tempRoot, 'bridge.cjs')
 fs.writeFileSync(bridge, `module.exports = import(${JSON.stringify(new URL('./c0-real-main.mjs', import.meta.url).href)});`)
 let launched, blocked = false

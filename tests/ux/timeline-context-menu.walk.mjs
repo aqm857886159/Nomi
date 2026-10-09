@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：时间轴右键菜单迁到 `WorkbenchMenu`（Radix）之后，**形态一条没变、行为多了三样**。
 //
 // 为什么要它（2026-09-08 刀 1）：这个菜单迁移前是全仓最坏的一个——
@@ -25,7 +26,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/timeline-context-menu')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-timeline-menu-'))
+const root = makeTempDir('nomi-timeline-menu-')
 const userDataDir = path.join(root, 'user-data')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')

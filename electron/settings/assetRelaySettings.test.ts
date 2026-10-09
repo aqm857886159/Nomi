@@ -19,13 +19,13 @@ describe("asset relay settings", () => {
 
   beforeEach(() => {
     userDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-asset-relay-settings-"));
-    process.env.NOMI_SETTINGS_DIR = userDataRoot;
+    vi.stubEnv("NOMI_SETTINGS_DIR", userDataRoot);
     vi.resetModules();
   });
 
   afterEach(() => {
-    if (previousSettingsRoot === undefined) delete process.env.NOMI_SETTINGS_DIR;
-    else process.env.NOMI_SETTINGS_DIR = previousSettingsRoot;
+    if (previousSettingsRoot === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
+    else vi.stubEnv("NOMI_SETTINGS_DIR", previousSettingsRoot);
     fs.rmSync(userDataRoot, { recursive: true, force: true });
   });
 

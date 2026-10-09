@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16 走查（零额度）：**dev 模式下创作区富文本编辑器真实挂载并可输入**。
 //
 // 为什么这条走查存在（2026-09-01 事故复盘）：一个 ProseMirror 双实例 bug 让 `pnpm dev` 里点开
@@ -29,7 +30,7 @@ const appUrl = `http://127.0.0.1:${port}/`
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-mount-'))
+const base = makeTempDir('nomi-creation-mount-')
 const settingsDir = path.join(base, 'settings')
 const projectsDir = path.join(base, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

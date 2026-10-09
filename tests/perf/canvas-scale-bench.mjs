@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 /**
  * 画布「东西多了就卡」的规模基准（2026-09-12）。
  *
@@ -687,7 +688,7 @@ async function main() {
   }
   const results = []
   for (const scale of scales) {
-    const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-canvas-scale-${scale}-`))
+    const fixtureRoot = makeTempDir(`nomi-canvas-scale-${scale}-`)
     const projectsDir = path.join(fixtureRoot, 'projects')
     fs.mkdirSync(projectsDir, { recursive: true })
     const fixture = createCanvasPerformanceFixture({ projectsDir, scale })

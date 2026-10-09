@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Playwright _electron 冒烟 e2e（规则 13/14）—— 可断言、可重复、零额度。
 // 启动构建产物 → 断言主链路的关键 UI 真实渲染（项目库 → 开项目 → 画布工具栏/导出入口）。
 // 任一断言失败即抛错、非零退出（CI-ready）。不触发真实 AI 生成/导出（不花额度）。
@@ -12,7 +13,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), "nomi-smoke-e2e-"));
+const tempRoot = makeTempDir("nomi-smoke-e2e-");
 const userDataDir = path.join(tempRoot, "user-data");
 const projectsDir = path.join(tempRoot, "projects");
 const evidenceDir = path.resolve("outputs/canvas-smoke");

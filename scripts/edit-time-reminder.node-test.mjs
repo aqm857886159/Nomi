@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from './_test-temp.mjs'
 // 「动手那一刻」两个提醒的行为测试：判决（给不给提醒）+ 真跑 hook 看它吐的 JSON。
 //
 // 为什么要真跑：这个 hook 的失效是静默的——机制不对（比如把提醒写到普通 stdout，PreToolUse 不会把它送进上下文）时，
@@ -83,7 +84,7 @@ describe('(b) 同一文件反复修', () => {
   })
 
   test('真 git：三次 fix 提交的文件被数出 3（共享计数器 fix-churn）', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-fixcount-'))
+    const dir = makeTempDir('nomi-fixcount-')
     try {
       const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
       git('init', '-q')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 // 逃逸账本的追加：只加新的、同 id 不覆盖、类别必须登记过、id 必须能当文件名；一条一个文件（新增不碰别的条目）。
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,7 +12,7 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '../../..')
 
 /** 临时仓库根：把真实账本目录整个拷过去。 */
 function copyLedger() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-escape-ledger-'))
+  const root = makeTempDir('nomi-escape-ledger-')
   fs.cpSync(path.join(REPO_ROOT, ESCAPE_LEDGER_DIR), path.join(root, ESCAPE_LEDGER_DIR), { recursive: true })
   return root
 }

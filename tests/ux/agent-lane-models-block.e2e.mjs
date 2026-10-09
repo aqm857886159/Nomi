@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 // Real resident storyboard launch -> IPC -> native lane -> loopback HTTP.
 // The fixture supplies directory rows and a remote response, never composer context.
@@ -12,7 +13,7 @@ import { expect } from './_assert.mjs'
 import { DOCUMENT } from './agent-runtime-walk-support.mjs'
 
 const root = process.cwd()
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-models-block-'))
+const tempRoot = makeTempDir('nomi-models-block-')
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = await createAgentRuntimeFixture({ rootDir: root, settingsDir })
 const catalogPath = path.join(settingsDir, 'model-catalog.json')

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 一次性 IA 走查取证：把 4 个界面的真实截图拍下来供出设计样张逐项对账（禁脑补）。
 // 零额度——只截静态界面，绝不触发任何真实生成。
 //   ① 项目库首页（顶栏弱入口 + 主入口卡 + 最近项目卡，含一张卡 hover 态）
@@ -21,7 +22,7 @@ fs.mkdirSync(outDir, { recursive: true })
 const WIN_W = 1680
 const WIN_H = 1050
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ia-shots-'))
+const root = makeTempDir('nomi-ia-shots-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

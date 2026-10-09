@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真模型数字 · 「设置里图片默认设成 X，同一句『画一张…』跑 N 次，Agent 起草的付费卡上是不是 X」
 //
 //   NOMI_SPEND_OK=1 node tests/ux/agent-default-model-real.paid.mjs （NOMI_REAL_ROUNDS=10 NOMI_REAL_LABEL=after 可选）
@@ -37,7 +38,7 @@ const IMAGE_OTHER = { vendorKey: 'apimart', modelKey: 'gpt-image-2' }
 const ASK = process.env.NOMI_REAL_ASK || '帮我画一张雨后水洼里漂着一只红色纸船的图，1:1，就一张。起草好就直接提交生成，我在确认卡上点头。'
 const ARG_REJECTED = /Validation failed for tool|capability_input_invalid|generation_input_invalid|Unrecognized key\(s\)|must be (array|string|number|object)|Required/i
 
-const imageTmp = fs0.mkdtempSync(path.join(os.tmpdir(), 'real-two-images-'))
+const imageTmp = makeTempDir('real-two-images-')
 /** 每一轮两张**内容不同**的图（同内容会被素材库按内容去重，第二轮就挂不上新的）。 */
 const twoImagesFor = (round) => [0, 1].map((slot) => {
   const file = path.join(imageTmp, `r${round}-${slot}.png`)

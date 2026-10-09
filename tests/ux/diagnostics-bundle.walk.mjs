@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16/R13 真实旅程：出了问题 → 设置 → 隐私与诊断 → 导出诊断包 → 打开 zip 看看里面是什么。
 //
 // 这条走查存在的理由，是单测证不了的那一半：单测钉的是「给定这些输入，组包函数产出什么」；
@@ -17,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/diagnostics-bundle')
 fs.mkdirSync(shotsDir, { recursive: true })
-const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-diagnostics-walk-'))
+const outDir = makeTempDir('nomi-diagnostics-walk-')
 const targetZip = path.join(outDir, 'bundle.zip')
 
 const failures = []

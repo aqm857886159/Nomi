@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Original sidebar -> original editor -> project IPC/disk -> a new Electron process.
 // Only vendor services are loopback; no plan/store write is injected after launch.
 import fs from 'node:fs'
@@ -12,7 +13,7 @@ import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-blank-storyboard-'))
+const tempRoot = makeTempDir('nomi-blank-storyboard-')
 const settingsDir = path.join(tempRoot, 'settings'), projectsDir = path.join(tempRoot, 'projects')
 const outputDir = process.env.NOMI_BLANK_PLAN_EVIDENCE_DIR || path.join(tempRoot, 'evidence')
 fs.mkdirSync(outputDir, { recursive: true })
@@ -53,15 +54,13 @@ async function screenshot(name) {
   const file = path.join(outputDir, `${name}.png`)
   await win.screenshot({ path: file }); report.screenshots.push(file)
 }
-function assertNoExecution(editedCount) {
+function assertNoExecution() {
   assert.equal(fixture.requests.length, 0, 'Manual creation/edit/reopen must not request an LLM')
   assert.equal(fixture.images.length, 0, 'Manual creation/edit/reopen must not generate media')
   fixture.assertClean()
   const graph = disk().generationCanvas
-  // Baseline dc113e712 creates a read-through shot_table on explicit author edits.
-  // Preserve that original view; blank creation must add nothing and media nodes are forbidden.
-  assert.equal(graph.nodes.length, editedCount, 'Only existing authored-plan table views may be present')
-  assert(graph.nodes.every(node => node.kind === 'shot_table'), 'No image/video/execution nodes')
+  // 2026-10-08 用户：「我们经常莫名其妙生成分镜表，这个可以删掉吧」——写方案不再往画布放任何节点（含分镜表）。
+  assert.equal(graph.nodes.length, 0, 'Authoring a plan adds no canvas node: no table view, no image/video/execution node')
   assert.deepEqual(graph.edges, [])
   assert.deepEqual(disk().workbenchDocuments, documents, 'Source documents must stay unchanged')
 }
@@ -95,7 +94,7 @@ try {
       for (const previous of expected.filter(plan => plan.documentId === document.id)) {
         assert.notEqual(previous.title.trim(), blank.title.trim(), 'Two rows in one document must not share a label')
       }
-      assertNoExecution(count)
+      assertNoExecution()
       await screenshot(`zh-${document.id}-${index}-blank`)
       const title = `${document.id} plan ${index}`, text = `Keep ${document.id} prompt ${index}`
       await editor().locator('header input').fill(title)
@@ -109,7 +108,7 @@ try {
       assert.equal(saved.plan.title, title)
       expected.push(structuredClone(saved))
       for (const previous of expected) assert.deepEqual(savedPlans().find(plan => plan.id === previous.id), previous)
-      assertNoExecution(expected.length)
+      assertNoExecution()
       report.checks.push({ scenario: 'manual new / original editor / saved to original document / zero requests', documentId: document.id, designId: blank.id, title })
     }
   }
@@ -127,14 +126,14 @@ try {
     report.checks.push({ scenario: 'cold process / exact identity and content restored through original sidebar', designId: previous.id })
   }
   await screenshot('en-four-plans-reopened')
-  assertNoExecution(expected.length)
+  assertNoExecution()
   // Existing projectV51ToV60Migration infers renderKind from categoryId on load.
   // Compare every other field and the exact inferred value, not only node counts.
   assert.deepEqual(disk().generationCanvas.nodes, savedGraph.nodes.map(node => ({ ...node, renderKind: node.renderKind ?? 'shot-frame' })), 'Cold reopen preserves exact tables apart from the baseline renderKind backfill')
   await win.locator('[data-creation-resource-tree-toggle="collapse"]:visible').click()
   await screenshot('en-reopened-sidebar-collapsed')
   await gui.app.close(); gui = null
-  assertNoExecution(expected.length)
+  assertNoExecution()
   report.status = 'passed'
 } catch (error) {
   report.status = 'failed'; report.error = String(error?.stack || error)
