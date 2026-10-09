@@ -45,16 +45,16 @@ export const askUserOptionSchema = z.object({
    * 留着它是因为答案要带一个结构化的「他点的是哪一颗」，而 `label` 会重复。
    */
   id: z.string().trim().min(1).optional()
-    .describe("Your own id for this option, echoed back when the user picks it. Omit it and Nomi numbers them."),
+    .describe("Your id for this option, echoed back on pick. Omit and Nomi numbers them."),
   label: z.string().trim().min(1)
-    .describe("The words printed on the chip. Answering with this option sends exactly these words back to you."),
+    .describe("Chip text. Picking it sends exactly these words back."),
   description: z.string().trim().min(1).optional()
-    .describe("One short line under the label: what picking this one means. Leave it out rather than restating the label."),
+    .describe("One short line on what picking means; omit rather than restate the label."),
   // `z.literal(true)` 生成的是 `const`，而 Google 的 OpenAPI 3.03 路径不认它
   // （`check:model-schema` 的 `const-instead-of-enum`：这一族只有真模型会用一次失败告诉你）。
   // 所以这里是真 boolean，`false` 与缺席同义——「这一项我不特别推荐」本来就没有第三种意思。
   recommended: z.boolean().optional()
-    .describe("Set true on at most one option: the one you would pick. It is only a mark — nothing is preselected and nothing is answered for the user."),
+    .describe("True on at most one option, the one you would pick. Only a mark: nothing is preselected or answered for him."),
 }).strict();
 
 export type AskUserOption = z.infer<typeof askUserOptionSchema>;
@@ -68,13 +68,13 @@ export type AskUserOption = z.infer<typeof askUserOptionSchema>;
  */
 export const askUserQuestionSchema = z.object({
   question: z.string().trim().min(1)
-    .describe("The question, in the user's own language, as one sentence he can answer without reading anything else."),
+    .describe("One sentence in the user's language, answerable on its own."),
   options: z.array(askUserOptionSchema).optional()
-    .describe("Two to four answers he can pick with one click. Leave it out when there is no short list of answers — he can always type instead."),
+    .describe("Two to four one-click answers; omit if there is no short list (he can always type)."),
   multiSelect: z.boolean().optional()
-    .describe("True when he may pick several of these at once. Default is one answer only, which submits as soon as he picks it."),
+    .describe("True when he may pick several. Default is one answer, submitted on pick."),
   note: z.string().trim().min(1).optional()
-    .describe("One optional line of why you are asking this one. Not a second question."),
+    .describe("Optional: why you ask. Not a second question."),
 }).strict();
 
 export type AskUserQuestion = z.infer<typeof askUserQuestionSchema>;
@@ -93,7 +93,7 @@ export const ASK_USER_QUESTION_RANGE = Object.freeze({ min: 1, max: 3 });
 
 export const askUserInputSchema = z.object({
   questions: z.array(askUserQuestionSchema).min(1)
-    .describe("One to three questions, asked on one card, one at a time. Put related questions together in a single call rather than asking, waiting, and asking again."),
+    .describe("One to three questions on one card, one at a time. Put related questions in a single call, not ask-wait-ask."),
 }).strict();
 
 export type AskUserInput = z.infer<typeof askUserInputSchema>;

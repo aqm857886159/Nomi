@@ -47,13 +47,26 @@ describe('connectionCreateVerdictsForTarget (left 「+」)', () => {
 
   it('a card that takes no input accepts nothing', () => {
     expect(okKinds(connectionCreateVerdictsForTarget(node('a', 'asset'), KINDS))).toEqual([])
-    expect(okKinds(connectionCreateVerdictsForTarget(node('t', 'text'), KINDS))).toEqual([])
+  })
+
+  // 2026-10-09 用户拍板：文本卡有左环，收文字和图（不收视频 / 声音：运行时只把图片送给模型）。
+  it('a text card takes images and text; video / audio are greyed with the kind-level reason', () => {
+    const verdicts = connectionCreateVerdictsForTarget(node('t', 'text'), KINDS)
+    expect(okKinds(verdicts)).toEqual(['image', 'text'])
+    expect(verdicts.find((verdict) => verdict.kind === 'video')).toMatchObject({ ok: false, reason: 'not_accepted' })
+    expect(verdicts.find((verdict) => verdict.kind === 'audio')).toMatchObject({ ok: false, reason: 'not_accepted' })
   })
 })
 
 describe('validateReferenceEdge rejects input into kinds that take none', () => {
   const image = node('src', 'image', {}, { id: 'r', type: 'image', url: 'nomi-local://a.png', createdAt: 1 })
-  it.each(['asset', 'text', 'panorama', 'whiteboard', 'shot', 'output', 'shot_table', 'agent-artifact'] as const)('image → %s is rejected', (kind) => {
+  it('a text target takes an image and text, not video or audio', () => {
+    expect(validateReferenceEdge(image, node('t', 'text'), 'reference')).toEqual({ ok: true })
+    expect(validateReferenceEdge(node('src2', 'text'), node('t', 'text'), 'reference')).toEqual({ ok: true })
+    const video = node('v', 'video', {}, { id: 'rv', type: 'video', url: 'nomi-local://a.mp4', createdAt: 1 })
+    expect(validateReferenceEdge(video, node('t', 'text'), 'reference')).toEqual({ ok: false, reason: 'unsupported_reference' })
+  })
+  it.each(['asset', 'panorama', 'whiteboard', 'shot', 'output', 'shot_table', 'agent-artifact'] as const)('image → %s is rejected', (kind) => {
     expect(validateReferenceEdge(image, node('t', kind), 'reference')).toEqual({ ok: false, reason: 'target_takes_no_input' })
   })
 

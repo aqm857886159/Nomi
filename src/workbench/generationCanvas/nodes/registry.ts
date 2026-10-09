@@ -57,7 +57,7 @@ export type GenerationNodePluginDefinition<TKind extends string = string> = {
    * 新加一种节点不写清这两件事就编译不过，免得又在某个入口里就地推断一遍。
    * - `input: 'models'`：收什么由这一类的模型档案的参考槽决定（生成类节点；吃提示词的还收文本上下文）；
    * - `input: [...]`：节点自己读上游边，只收这几种素材（剪辑、导演台）；
-   * - `input: false`：不收任何输入（上传素材、文本……）。已存在的旧边照常加载显示，只是不再能新建。
+   * - `input: false`：不收任何输入（上传素材……）。已存在的旧边照常加载显示，只是不再能新建。
    * - `output`：有没有能给下游用的产出（图 / 视频 / 声音素材，或文本给下游当提示词上下文）。
    */
   connects: { input: 'models' | readonly ReferenceAssetKind[] | false; output: boolean }

@@ -48,6 +48,7 @@
     "read_skill",
     "save_skill",
     "stage_shot",
-    "undo"
+    "undo",
+    "write_node_text"
   ]
 }

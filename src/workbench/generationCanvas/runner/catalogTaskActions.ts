@@ -561,12 +561,24 @@ async function runCatalogGenerationTaskWithFeedback(
     const onTextDelta = options.onTextDelta
     report('requesting')
     // 流式文本每来一段就是一次进展：计时重新起算——长文本流得久是正常的，一段都不来才是卡住。
-    const streamed = await awaitWithinPhase(runTextStream(vendor, request, projectId, {
-      onDelta: (delta) => {
-        clock.heartbeat()
-        onTextDelta(delta)
-      },
-    }), guard)
+    // 点「停止」要真的掐断主进程那条流（不只是渲染层不等了）：停止请求 → abort → 主进程 cancelTextStream。
+    const abort = new AbortController()
+    const stopListening = onTaskCancelRequested(node.id, () => abort.abort())
+    let streamed: TaskResultDto
+    try {
+      streamed = await awaitWithinPhase(runTextStream(vendor, request, projectId, {
+        onDelta: (delta) => {
+          clock.heartbeat()
+          onTextDelta(delta)
+        },
+        signal: abort.signal,
+      }), guard)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw new LocalTaskCancelledError()
+      throw error
+    } finally {
+      stopListening()
+    }
     report('finalizing', streamed.id)
     return normalizeCatalogTaskResult(streamed, executableNode, options.onMediaDimensions)
   }

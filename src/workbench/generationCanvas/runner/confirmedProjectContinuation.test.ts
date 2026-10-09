@@ -2,7 +2,7 @@ import { docToPlainText, generateText, type GenerateTextOptions } from './textAc
 import { generationNodeRunRecordSchema } from '../model/generationCanvasSchema'
 import { textDocumentDigest } from './textGenerationDocument'
 import { buildDependencyWaves } from './dependencyWaves'
-import { collectConnectedTextPromptParts } from './connectedTextPrompt'
+import { projectConnectedTextInputs } from './connectedTextPrompt'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { confirmAndRunNode } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -227,7 +227,7 @@ it('planned text manual draft edit must not replace approved connected prompt', 
   const plan = buildDependencyWaves([text.id, image.id], graph)
   await confirmAndRunPlan(plan, { initiator: 'user' as const, concurrency: 1, assertCurrent: async () => {}, assertAuthorCurrent })
   const last = calls.execute.mock.calls.at(-1)
-  expect(last && collectConnectedTextPromptParts(last[0], last[1])).not.toContain('MANUAL UNAPPROVED DRAFT')
+  expect(last && projectConnectedTextInputs(last[0], last[1]).map((input) => input.text)).not.toContain('MANUAL UNAPPROVED DRAFT')
   expect(calls.execute).toHaveBeenCalledTimes(1)
 })
 
@@ -263,7 +263,7 @@ it.each(['append', 'replace'] as const)('original generateText %s output is seal
   expect(generationNodeRunRecordSchema.parse(completed.runs?.[0]).textDocumentDigest).toBe(textDocumentDigest(completed.contentJson))
   expect(completed.runs?.[0].resultId).toBe(completed.result?.id)
   const last = calls.execute.mock.calls.at(-1)!
-  expect(collectConnectedTextPromptParts(last[0], last[1])).toEqual([mode === 'append' ? 'original\ngenerated output' : 'generated output'])
+  expect(projectConnectedTextInputs(last[0], last[1]).map((input) => input.text)).toEqual([mode === 'append' ? 'original\ngenerated output' : 'generated output'])
 })
 
 it.each(['append', 'replace'] as const)('manual edits after original generateText %s output cannot replace a sealed batch dependency', async mode => {
@@ -333,7 +333,7 @@ it('same-wave downstream accepts the actual streaming body atomically sealed by 
         return { id: 'text-task', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: 'streamed chunk' } }] } }
       },
     })
-    expect(collectConnectedTextPromptParts(node, context)).toEqual(['streamed chunk'])
+    expect(projectConnectedTextInputs(node, context).map((input) => input.text)).toEqual(['streamed chunk'])
     releaseImage()
     return { id: 'image-result', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
   })

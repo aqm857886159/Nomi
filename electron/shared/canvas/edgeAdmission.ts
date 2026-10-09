@@ -17,7 +17,8 @@ export type NodeKindConnects = { input: 'models' | readonly ReferenceAssetKind[]
 
 export const NODE_KIND_CONNECTS = {
   shot_table: { input: false, output: false },
-  text: { input: false, output: true },
+  // 文本卡左环收**文字和图**（2026-10-09 拍板）：图在素材列表里（看图写描述），文字不在列表里——文字上下文走 isTextPromptEdge。
+  text: { input: ['image'], output: true },
   character: { input: 'models', output: true },
   scene: { input: 'models', output: true },
   image: { input: 'models', output: true },
@@ -69,12 +70,13 @@ export function referenceAssetKindForNode(node: EdgeEndpoint): ReferenceAssetKin
 
 /**
  * 文本节点的通用 reference 出边不是“参考素材”，而是下游生成 prompt 的上下文补充。
- * 只允许喂给图片/视频/3D 生成节点（吃 prompt 的媒体生成面）；口径与 collectConnectedTextPromptParts 的目标判定一致，改必同改。
+ * 只允许喂给图片/视频/3D 生成节点（吃 prompt 的媒体生成面）；口径与 projectConnectedTextInputs 的目标判定一致，改必同改。
  */
 export function isTextPromptEdge(source: EdgeEndpoint, target: EdgeEndpoint, mode: EdgeAdmissionMode | undefined = 'reference'): boolean {
   if ((mode ?? 'reference') !== 'reference' || source.kind !== 'text') return false
   const targetExec = executionKindOf(target.kind)
-  return targetExec === 'image' || targetExec === 'video' || targetExec === 'model3d'
+  // 文本接文本：上一段文字当下一个文本节点加工时的背景（加工框「扩写 / 翻译 / 拆成多条」的输入）。
+  return targetExec === 'image' || targetExec === 'video' || targetExec === 'model3d' || targetExec === 'text'
 }
 
 /**

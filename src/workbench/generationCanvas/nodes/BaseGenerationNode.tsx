@@ -493,7 +493,7 @@ function BaseGenerationNodeImpl({
         />
       ) : null}
 
-      {!localImageOpPending ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} motion={waitingMotion} preset={waitingPreset} /> : null}
+      {!localImageOpPending && !isTextKind ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} motion={waitingMotion} preset={waitingPreset} /> : null}
 
       <ProductionShotOverlays reportFeedback={reportFeedback} node={node} selected={selected && !isMultiSelectActive} />{/* P4 S5+S6 多镜叠加：占位三态 + 版本条（非多镜早退零开销） */}
       {/* composer：生成类节点 + **单选**时浮出。多选(框选)一律不挂——否则每个选中节点都弹自己的

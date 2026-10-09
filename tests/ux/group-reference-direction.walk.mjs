@@ -1,6 +1,7 @@
 // R13 走查：从目标节点左输入端拖到两图编组，编组成员应成为目标参考，而不是反向连边。
 // 用法：node tests/ux/group-reference-direction.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { createServer } from 'vite'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -83,7 +84,10 @@ try {
   check('新建并进入隔离项目', enteredStudio, win.url())
   if (!enteredStudio) throw new Error('未进入项目工作台')
   if (await generationTab.getAttribute('data-state') !== 'active') {
-    await generationTab.click({ timeout: 4000, force: true })
+    // 点击本身不等整次导航（慢盘 / 慢 CI 上「等待已排期的导航」会把成功的点击误报成 4s 超时，同上），
+    // 到没到「生成」用页签自己的 active 态收敛。
+    await generationTab.click({ timeout: 4000, force: true, noWaitAfter: true })
+    await win.waitForFunction(() => document.querySelector('[data-mode="generation"]')?.getAttribute('data-state') === 'active', undefined, { timeout: stationTimeout({ operations: 1 }) })
   }
   await win.waitForTimeout(1200)
 

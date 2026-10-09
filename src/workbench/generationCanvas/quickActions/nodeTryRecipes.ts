@@ -1,10 +1,10 @@
 import type { ArchetypeIntent, ArchetypeMode, ModelArchetype } from '../../../../electron/shared/modelArchetypes'
-import { archetypeForNode, connectionCreateVerdictsForSource, connectionCreateVerdictsForTarget } from '../agent/referenceEdgeCapability'
+import { archetypeForNode, connectionCreateVerdictsForTarget } from '../agent/referenceEdgeCapability'
 import type { GenerationCanvasEdgeMode, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { applyArchetypeModeSwitch, currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { requestNodePromptFocus } from '../nodes/nodePromptFocus'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { addDownstreamNode, addUpstreamNodes, runAsSingleUndoStep } from './nodeInputActions'
+import { addUpstreamNodes, runAsSingleUndoStep } from './nodeInputActions'
 
 /**
  * 空节点「试试」（2026-10-08 用户拍板 ③）：用 2–3 个创作任务替换那一句操作说明。
@@ -17,7 +17,6 @@ import { addDownstreamNode, addUpstreamNodes, runAsSingleUndoStep } from './node
 export type NodeTryRecipeId =
   | 'image.text' | 'image.reference'
   | 'video.firstFrame' | 'video.firstLast' | 'video.text'
-  | 'text.toImage' | 'text.toVideo'
 
 export type NodeTryRecipe = {
   id: NodeTryRecipeId
@@ -60,7 +59,6 @@ function switchMode(nodeId: string, found: { archetype: ModelArchetype; mode: Ar
 }
 
 const takesInput = (node: GenerationCanvasNode, kind: 'image' | 'text') => connectionCreateVerdictsForTarget(node, [kind])[0].ok
-const feeds = (node: GenerationCanvasNode, kind: 'image' | 'video') => connectionCreateVerdictsForSource(node, [kind])[0].ok
 /** 有模型时这个模型得有这一种生成方式；没模型 → 只看连线判据。 */
 const modelAllows = (node: GenerationCanvasNode, accepts: (mode: ArchetypeMode) => boolean) => !archetypeForNode(node) || Boolean(findMode(node, accepts))
 
@@ -71,11 +69,12 @@ function addFrames(node: GenerationCanvasNode, found: { archetype: ModelArchetyp
 }
 
 /**
+/**
  * 类型 → 「试试」动作列表：**唯一的一张表**，组件（NodeTryList）只读它，改某类节点的动作只改这里那一行。
- * 文本这一行是**过渡态**（用户 10-08 23:00Z）：先只放现在就能用的「拿它生图 · 拿它生视频」；剧本归创作页，不放跳转链接；
- * 文本节点线第 2 步（左环 + 加工框）落地时，由它把这一行换成「扩写成提示词 · 看图写描述 · 拆成多条」。
+ * 文本卡不在这张表里：它的「试试」是加工框那一行（扩写成提示词 · 看图写描述 · 拆成多条，2026-10-08 文本节点拍板），
+ * 那三个动作要调文本模型、并且缺内容 / 缺图时得灰着说原因，属于文本节点自己的加工（TextDocumentNode + textProcessRun），不是只搭结构的配方。
  */
-const RECIPES: Record<'image' | 'video' | 'text', readonly RecipeDefinition[]> = {
+const RECIPES: Record<'image' | 'video', readonly RecipeDefinition[]> = {
   image: [
     {
       id: 'image.text', labelKey: 'generationCommon.nodeTry.image.text', icon: 'text',
@@ -109,22 +108,10 @@ const RECIPES: Record<'image' | 'video' | 'text', readonly RecipeDefinition[]> =
       run: (node) => switchMode(node.id, findMode(node, byIntent('text'))),
     },
   ],
-  text: [
-    {
-      id: 'text.toImage', labelKey: 'generationCommon.nodeTry.text.toImage', icon: 'image',
-      available: (node) => feeds(node, 'image'),
-      run: (node) => { addDownstreamNode(node.id, 'image') },
-    },
-    {
-      id: 'text.toVideo', labelKey: 'generationCommon.nodeTry.text.toVideo', icon: 'video',
-      available: (node) => feeds(node, 'video'),
-      run: (node) => { addDownstreamNode(node.id, 'video') },
-    },
-  ],
 }
 
 function recipesFor(kind: GenerationNodeKind): readonly RecipeDefinition[] {
-  return kind === 'image' || kind === 'video' || kind === 'text' ? RECIPES[kind] : []
+  return kind === 'image' || kind === 'video' ? RECIPES[kind] : []
 }
 
 /** 这张空卡此刻能做的「试试」（按显示顺序）。 */
@@ -140,10 +127,8 @@ export function runNodeTryRecipe(nodeId: string, recipeId: NodeTryRecipeId): voi
   const node = store().nodes.find((candidate) => candidate.id === nodeId)
   const recipe = node ? recipesFor(node.kind).find((candidate) => candidate.id === recipeId) : undefined
   if (!node || !recipe || !recipe.available(node)) return
-  const before = new Set(store().nodes.map((candidate) => candidate.id))
   runAsSingleUndoStep(`node-try-${recipe.id}-${Date.now()}`, () => recipe.run(node))
-  const downstream = node.kind === 'text' ? store().nodes.find((candidate) => !before.has(candidate.id)) : undefined
-  const focusId = downstream?.id ?? node.id
+  const focusId = node.id
   store().selectNode(focusId)
   requestNodePromptFocus(focusId)
 }

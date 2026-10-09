@@ -10,6 +10,8 @@ import {
 import {
   canvasWriteSemanticInputSchema,
   type CanvasWriteInput,
+  isNodeTargetedWriteOperation,
+  type NodeTargetedWriteOperation,
   type CanvasWriteOperation,
   type CanvasWriteResult,
 } from '../../../../electron/shared/agentCapabilities/canvasWrite'
@@ -32,6 +34,7 @@ import {
 } from '../../../../electron/shared/agentCapabilities/directorWrite'
 import { surfacePortFailure, SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import type { GenerationCanvasSnapshot, GenerationNodeResult } from '../model/generationCanvasTypes'
+import { textDocumentDigest } from '../runner/textGenerationDocument'
 import { buildStepDetailLabels, summarizeToolCall } from '../components/toolCallSummary'
 import { resolveCanvasToolNodeId } from './clientIdRegistry'
 import { createProposalReceiptCoordinator } from './proposalUndo'
@@ -104,7 +107,7 @@ function captureStoryboardTarget(input: CanvasWriteInput): CanvasWriteBatchRawEv
 
 export function captureCanvasWriteBatchRawEvidence(
   snapshot: GenerationCanvasSnapshot,
-  input?: Exclude<CanvasWriteInput, { operation: 'set_node_prompt' }>,
+  input?: Exclude<CanvasWriteInput, { operation: NodeTargetedWriteOperation }>,
 ): CanvasWriteBatchRawEvidence {
   const requestedIds = (() => {
     if (!input || input.operation === 'tidy_canvas' || input.operation === 'propose_storyboard_plan' || input.operation === 'patch_shots') return []
@@ -192,7 +195,7 @@ export function captureCanvasWriteRawEvidence(
   resolveNodeId: (nodeId: string) => string = resolveCanvasToolNodeId,
 ): CanvasWriteRawEvidence | CanvasWriteBatchRawEvidence {
   if (typeof requestedNodeId !== 'string') {
-    if (requestedNodeId.operation === 'set_node_prompt') {
+    if (isNodeTargetedWriteOperation(requestedNodeId.operation)) {
       const input =
         requestedNodeId.input && typeof requestedNodeId.input === 'object'
           ? (requestedNodeId.input as Record<string, unknown>)
@@ -202,7 +205,8 @@ export function captureCanvasWriteRawEvidence(
     const parsed = canvasWriteSemanticInputSchema.safeParse(requestedNodeId.input)
     return captureCanvasWriteBatchRawEvidence(
       snapshot,
-      parsed.success && parsed.data.operation !== 'set_node_prompt' ? parsed.data : undefined,
+      parsed.success && !isNodeTargetedWriteOperation(parsed.data.operation)
+        ? (parsed.data as Exclude<CanvasWriteInput, { operation: NodeTargetedWriteOperation }>) : undefined,
     )
   }
   const canonicalNodeId = resolveNodeId(requestedNodeId.trim())
@@ -220,6 +224,7 @@ export function captureCanvasWriteRawEvidence(
       kind: node.kind,
       title: node.title,
       prompt: node.prompt ?? '',
+      ...(node.kind === 'text' ? { bodyHash: textDocumentDigest(node.contentJson) } : {}),
       locked: Boolean(node.locked),
       categoryId: trimmedString(node.categoryId),
       groupId: trimmedString(node.groupId),
@@ -315,7 +320,7 @@ export async function executeCanvasWriteTarget(
             const admission = assertCanvasWriteAdmissionMatches(
               captureCanvasWriteRawEvidence(
                 readSnapshot(),
-                input.operation === 'set_node_prompt' ? input.nodeId : { operation: input.operation, input },
+                input.operation === 'set_node_prompt' || input.operation === 'set_node_text' ? input.nodeId : { operation: input.operation, input },
               ),
               { target: request.target, preconditions: request.preconditions },
               input,
@@ -336,7 +341,7 @@ export async function executeCanvasWriteTarget(
     ok: outcome.reconciliation.ok,
     deviationCount: outcome.reconciliation.deviations.length,
   }
-  if (input.operation === 'set_node_prompt') {
+  if (input.operation === 'set_node_prompt' || input.operation === 'set_node_text') {
     if (!admittedNodeId) throw new SurfacePortWireError('capability_receipt_unresolved')
     return {
       applied: true,

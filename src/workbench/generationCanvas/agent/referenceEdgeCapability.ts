@@ -84,9 +84,13 @@ export function connectionCreateVerdictsForSource<K extends GenerationNodeKind>(
   return kinds.map((kind): ConnectionCreateVerdict<K> => {
     if (isTextPromptEdge(source, { ...source, kind })) return { kind, ok: true }
     if (!asset) return { kind, ok: false, reason: 'source_not_referenceable', asset }
-    const accepted = MODEL_ARCHETYPES.some((archetype) =>
-      archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
-    )
+    // 目标自己读上游边的种类（文本 / 剪辑 / 导演台）→ 看种类定义的素材列表；其余看模型档案。
+    const targetInput = getGenerationNodeDefinition(kind).connects.input
+    const accepted = Array.isArray(targetInput)
+      ? targetInput.includes(asset)
+      : MODEL_ARCHETYPES.some((archetype) =>
+        archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
+      )
     return accepted ? { kind, ok: true } : { kind, ok: false, reason: 'no_model_accepts', asset }
   })
 }
