@@ -73,3 +73,42 @@ export function resolveClipGestureAdmission(input: {
     selectClipId: input.targetClipId && input.targetClipId !== input.selectedClipId ? input.targetClipId : null,
   }
 }
+
+// ───────── 窄片段的点击下限 / 边缘自动滚动 / 落点 ─────────
+
+/** 片段能被点中 / 抓起的屏幕宽度下限：窄于它的片段两侧各补一条看不见的命中垫。 */
+export const CLIP_MIN_CLICK_PX = 24
+/** 拖到轴边缘多少屏幕像素以内开始自动滚动。 */
+export const EDGE_SCROLL_ZONE_PX = 28
+/** 贴着边缘时每帧滚动的屏幕像素上限（越靠外越快）。 */
+export const EDGE_SCROLL_MAX_STEP_PX = 4
+
+/** 窄片段每侧要补的命中垫宽度（设计像素）；片段本身够宽就是 0。 */
+export function clipHitPadWidth(input: { clipWidth: number; canvasZoom: number }): number {
+  const zoom = safeZoom(input.canvasZoom)
+  const missingScreen = CLIP_MIN_CLICK_PX - Math.max(0, input.clipWidth) * zoom
+  return missingScreen > 0 ? missingScreen / 2 / zoom : 0
+}
+
+/**
+ * 指针贴近轴的左 / 右边缘时，每帧该滚多少（设计像素，负 = 向左）。不在边缘带内为 0。
+ * 指针拖出轴外也按最快速度滚，所以拖得越远越不会「滚不动」。
+ */
+export function edgeScrollStep(input: { clientX: number; viewportLeft: number; viewportRight: number; canvasZoom: number }): number {
+  const zone = EDGE_SCROLL_ZONE_PX
+  const intoLeft = input.viewportLeft + zone - input.clientX
+  const intoRight = input.clientX - (input.viewportRight - zone)
+  const depth = intoLeft > 0 ? -Math.min(1, intoLeft / zone) : intoRight > 0 ? Math.min(1, intoRight / zone) : 0
+  return screenPxToDesignPx(depth * EDGE_SCROLL_MAX_STEP_PX, input.canvasZoom)
+}
+
+/**
+ * 素材落在轴上的哪一帧：落在某个片段上 = 吸到离落点近的那条边（插在它前面或后面）；落在空白 = 落点所在帧。
+ * 插入指示画在这一帧，松手也插在这一帧——预览与落点是同一个函数的返回值，不会各算一份。
+ */
+export function resolveClipNodeDropFrame(clips: ReadonlyArray<{ startFrame: number; endFrame: number }>, dropFrame: number): number {
+  const frame = Math.max(0, Math.round(dropFrame))
+  const over = clips.find((clip) => frame > clip.startFrame && frame < clip.endFrame)
+  if (!over) return frame
+  return frame - over.startFrame <= over.endFrame - frame ? over.startFrame : over.endFrame
+}

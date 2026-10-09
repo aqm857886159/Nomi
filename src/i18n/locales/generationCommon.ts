@@ -597,6 +597,7 @@ export const zhGenerationCommon = {
     exportToCanvasComplete: '已向画布导出 {{count}} 个视频节点。',
     exportFailed: '导出失败，请重试。',
     uploadFailed: '素材复制失败，请重试导入。',
+    dropUnsupported: '剪辑轴只接收图片和视频素材。',
     retryUpload: '重试导入',
   },
   cropGrid: {
@@ -2215,6 +2216,7 @@ export const enGenerationCommon = {
     exportToCanvasComplete: 'Exported {{count}} video nodes to canvas.',
     exportFailed: 'Export failed. Try again.',
     uploadFailed: 'The material could not be copied. Try importing it again.',
+    dropUnsupported: 'The clip axis only takes images and videos.',
     retryUpload: 'Retry import',
   },
   cropGrid: {
