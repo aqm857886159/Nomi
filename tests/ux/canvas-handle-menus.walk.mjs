@@ -21,6 +21,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
@@ -124,7 +125,7 @@ try {
   await expect(win.locator('.react-flow__node')).toHaveCount(nodes.length)
   // 打开项目会一次性「摆全貌」（最左一列会贴到左缘工具条底下）；像人一样点「重置视图」回到 1:1。
   await waitForCanvasViewportSettled(win)
-  await win.getByRole('button', { name: zh ? '重置视图' : 'Reset view', exact: true }).first().click()
+  await win.getByRole('button', { name: uiText(zh ? 'zh-CN' : 'en', 'generationCommon.navigation.resetView'), exact: true }).first().click()
   await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 

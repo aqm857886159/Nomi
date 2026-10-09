@@ -18,6 +18,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'outputs/canvas-s5-walkthrough')
@@ -236,7 +237,7 @@ try {
   // 用真实用户路径连线：选中源节点让磁吸把手浮出 → 从源右把手拖到目标节点。
   // live 把手（R23）：命中区 __handle-hit（112px 宽带）、图标 __handle-icon。
   // 拖完第一张卡后它的右把手可能落在右侧助手面板底下（点不到）；像人一样点「适应视图」把两张卡摆进画布，再取坐标。
-  await getWin().getByRole('button', { name: '适应视图', exact: true }).first().click()
+  await getWin().getByRole('button', { name: uiText('zh-CN', 'generationCommon.navigation.fitView'), exact: true }).first().click()
   await getWin().waitForTimeout(900)
   nodes = await nodeInfo()
   const source = nodes[0]
@@ -291,7 +292,7 @@ try {
   // 先点空白取消选中，免得把手/浮层挡住空白拖拽。
   const blankForClear = await findBlankPoint()
   if (blankForClear) { await getWin().mouse.click(blankForClear.x, blankForClear.y); await getWin().waitForTimeout(250) }
-  await waitForCanvasViewportSettled(getWin()) // 适应视图的动画收住后再量平移前的变换
+  await waitForCanvasViewportSettled(getWin(), { holdMs: 2000 }) // 新节点自动让位 / 适应视图的动画收住后再量平移前的变换
   const panBefore = await readTransform()
   const blank = await findBlankPoint()
   assert(Boolean(blank), '找得到一块画布空白用于平移', JSON.stringify(blank))

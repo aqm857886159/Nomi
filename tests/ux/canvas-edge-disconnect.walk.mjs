@@ -12,6 +12,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint, findEdgeHitPoint, findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
@@ -131,7 +132,7 @@ try {
   await win.locator('.generation-canvas-v2__stage').waitFor()
   await expect(win.locator('.react-flow__node')).toHaveCount(nodes.length)
   await waitForCanvasViewportSettled(win)
-  await win.getByRole('button', { name: zh ? '重置视图' : 'Reset view', exact: true }).first().click()
+  await win.getByRole('button', { name: uiText(zh ? 'zh-CN' : 'en', 'generationCommon.navigation.resetView'), exact: true }).first().click()
   await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 
@@ -145,7 +146,7 @@ try {
     await expect(win.locator('.generation-canvas-react-flow__edge-menu')).toHaveCount(0)
     await expect(xButton()).toHaveCount(1)
     expect(await xButton().textContent(), '「×」只有图标、没有文字').toBe('')
-    expect(await xButton().getAttribute('aria-label')).toContain(zh ? '断开连接' : 'Disconnect')
+    expect(await xButton().getAttribute('aria-label')).toContain(uiText(zh ? 'zh-CN' : 'en', 'generationCommon.canvas.edge.disconnect').split('{{')[0])
     void xProof
     // Claude Design 拍板稿 Edges：选中 / 悬停这一条线 = 深灰（ink-60）略粗，不是强调色（强调色只给「选中节点的连线」）。
     const stroke = await win.evaluate(() => {
