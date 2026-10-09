@@ -1,9 +1,9 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实 Electron：连线中点的「模式胶囊 + 模式菜单」已删（用户 10-08：「删掉连线中间的标签吗，没有作用」「连线之间的标签似乎没用」）。
 // 断言：点线 = 选中并高亮、不弹菜单；悬停 / 选中出一个只有图标的「×」，点了真断开；选中边按 Delete 断开、节点不受影响。
 // 用法：node tests/ux/canvas-edge-disconnect.walk.mjs [--locale en] [--scheme dark]
 // 截图：docs/evidence/2026-10-08-canvas-handles/edge-<序号>-<状态>-<zh|en>[-dark].png
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +24,7 @@ const evidence = path.join(repoRoot, 'docs/evidence/2026-10-08-canvas-handles')
 const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
 const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-edge-disconnect-'))
+const temp = makeTempDir('nomi-edge-disconnect-')
 const projectsDir = path.join(temp, 'projects')
 const projectId = 'edge-disconnect'
 const projectRoot = path.join(projectsDir, projectId)

@@ -1,47 +1,37 @@
 import type { GenerationCanvasNode, GenerationNodeKind } from './generationCanvasTypes'
 
 /**
- * 系统出处边（评审 B2，2026-10-09）：全景 / 白板截图、导演台产物、剪辑导出、事实表这几类**派生节点**，
- * 在产出方建它的那一刻把「我是谁派生的」记在节点自己的数据上（`meta.derivedFrom`），
- * store 的 `connectDerivedOutput` 只在 target **确实是** source 派生出来的、种类也对得上时才连这条边——
- * 校验靠数据，不靠调用方自报一个布尔值；普通卡拿不到这条路（没有 derivedFrom / 指向别的节点 / 种类对不上，一律拒）。
+ * 派生输出的规则表（评审 B2 第 3 轮，2026-10-09）。
  *
- * 为什么派生节点不能走 `connectNodes` 的 connects.input 总闸：全景截图是 asset 卡、事实表是 shot_table，
- * 它们的种类本身「不收用户的输入」（input:false）——出处边不是用户加的输入，是产出方写下的「谁生出了我」。
- * 老项目里已有的出处边是快照里的普通边，照常加载 / 显示 / 断开；这条规则只管新建（老节点没有 derivedFrom，不影响它们已有的边）。
+ * 全景 / 白板截图、导演台产物、剪辑导出、事实表这几类**派生节点**，它们和产出方之间的出处边**不是用户加的输入**
+ * （全景截图是 asset 卡、事实表是 shot_table，种类本身 input:false，过不了 connects.input 总闸）。
+ *
+ * 旧写法（已删）：先建节点，再凭节点 meta 里一个可写的身份字段去连边——那个字段任何写路径（Agent 建节点、复制粘贴、导入、外部合并）都造得出来。
+ * 现在的写法：**建节点 + 连出处边是一个原子 store 动作 `addDerivedOutput`**：动作里按本表核源种类、新节点种类，建节点，连边；
+ * 目标一定是刚建出来的新节点（天然没有别的来源），不持久化任何身份字段，也没有公开的「给已有节点补出处边」的动作。
+ * 老项目里已有的出处边是快照里的普通边，照常加载 / 显示 / 断开；这条规则只管新建。
  */
-export type DerivedFromKind = 'panorama-screenshot' | 'director-output' | 'whiteboard-snapshot' | 'clip-export' | 'shot-table'
+export type DerivedOutputKind = 'panorama-screenshot' | 'director-output' | 'whiteboard-snapshot' | 'clip-export' | 'shot-table'
 
-export type DerivedFrom = { nodeId: string; kind: DerivedFromKind }
+type DerivedRule = {
+  sources: readonly GenerationNodeKind[]
+  targets: readonly GenerationNodeKind[]
+  /** 源节点的结果必须是这种媒体（事实表拆解的入口是一段视频）。 */
+  sourceResultType?: 'video'
+}
 
-type DerivedRule = { sources: readonly GenerationNodeKind[] | 'any'; targets: readonly GenerationNodeKind[] }
-
-/** 每一类派生的合法「源种类 → 目标种类」。表外的组合一律不是出处边。 */
-export const DERIVED_OUTPUT_RULES: Readonly<Record<DerivedFromKind, DerivedRule>> = {
+/** 每一类派生的合法「源种类 → 新节点种类」。表外的组合一律不是出处边。 */
+export const DERIVED_OUTPUT_RULES: Readonly<Record<DerivedOutputKind, DerivedRule>> = {
   'panorama-screenshot': { sources: ['panorama'], targets: ['asset'] },
   'director-output': { sources: ['director'], targets: ['image', 'video'] },
-  'whiteboard-snapshot': { sources: ['whiteboard', 'image'], targets: ['image'] },
+  'whiteboard-snapshot': { sources: ['whiteboard'], targets: ['image'] },
   'clip-export': { sources: ['clip'], targets: ['video'] },
-  'shot-table': { sources: 'any', targets: ['shot_table'] },
+  'shot-table': { sources: ['video', 'asset'], targets: ['shot_table'], sourceResultType: 'video' },
 }
 
-/** 产出方建派生节点时写进它 meta 的那一块。 */
-export function derivedFromMeta(kind: DerivedFromKind, sourceNodeId: string): { derivedFrom: DerivedFrom } {
-  return { derivedFrom: { nodeId: sourceNodeId, kind } }
-}
-
-export function readDerivedFrom(meta: unknown): DerivedFrom | null {
-  const raw = meta && typeof meta === 'object' ? (meta as Record<string, unknown>).derivedFrom : null
-  if (!raw || typeof raw !== 'object') return null
-  const { nodeId, kind } = raw as Record<string, unknown>
-  if (typeof nodeId !== 'string' || typeof kind !== 'string' || !(kind in DERIVED_OUTPUT_RULES)) return null
-  return { nodeId, kind: kind as DerivedFromKind }
-}
-
-/** target 是不是 source 派生出来的（数据说了算：derivedFrom 指向 source、源 / 目标种类都在表里）。 */
-export function isDerivedOutputOf(source: GenerationCanvasNode, target: GenerationCanvasNode): boolean {
-  const derived = readDerivedFrom(target.meta)
-  if (!derived || derived.nodeId !== source.id || source.id === target.id) return false
-  const rule = DERIVED_OUTPUT_RULES[derived.kind]
-  return rule.targets.includes(target.kind) && (rule.sources === 'any' ? source.kind !== target.kind : rule.sources.includes(source.kind))
+export function canDeriveOutput(kind: DerivedOutputKind, source: GenerationCanvasNode, targetKind: GenerationNodeKind): boolean {
+  const rule = DERIVED_OUTPUT_RULES[kind]
+  if (!rule) return false
+  if (!rule.sources.includes(source.kind) || !rule.targets.includes(targetKind)) return false
+  return !rule.sourceResultType || source.result?.type === rule.sourceResultType
 }

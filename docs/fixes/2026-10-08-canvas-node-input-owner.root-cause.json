@@ -135,14 +135,14 @@
       "disposition": "not-affected",
       "evidence": "The main-process MCP connect path never ran validateReferenceEdge (pre-existing gap of the wider class, not introduced here); it cannot import the renderer registry. Recorded in residual_risks."
     },
-    "store.connectNodes (17 write doors): the connects.input gate now sits at the store write boundary for every caller (no parameter slots needed); there is NO bypass flag. System provenance edges (panorama screenshot, director / whiteboard / clip-export outputs, shot table) go through store.connectDerivedOutput, which only connects when the target's own data (meta.derivedFrom = { nodeId, kind }, written by the producer when it creates the derived node) says exactly this source derived it, the source / target kinds fit the model/derivedOutput rule table, and the derived node has no other origin; an ordinary card pretending to be one is refused. Old projects: their existing provenance edges are plain snapshot edges and load / show / disconnect as before; old derived nodes have no derivedFrom, so only NEW provenance edges need it"
+    "store.connectNodes (17 write doors): the connects.input gate now sits at the store write boundary for every caller (no parameter slots needed); there is NO bypass flag and NO persisted identity field. System provenance edges (panorama screenshot, director / whiteboard / clip-export outputs, shot table) are written by ONE atomic store action, store.addDerivedOutput({ sourceNodeId, kind, node }): it checks the source kind and the NEW node kind against the rule table in model/derivedOutput.ts, builds the node and connects source -> new node in the same action. The target is always the freshly built node, so it has no other origin, and nothing is stored on the node that an Agent write, a copy-paste, an import or an external merge could forge or copy. There is no public action that adds a provenance edge to an EXISTING node. Old projects: their existing provenance edges are plain snapshot edges and load / show / disconnect as before; reused output nodes (a re-export of the same clip, an existing shot table) keep their edge or the user's disconnect and are not re-connected"
   ],
   "recurrence": {
     "classification": "recurring",
     "reason": "Any new entry (the coming @ → canvas node pick, new node kinds) would otherwise infer input / output again; the clip node was already a second inference site.",
     "same_class_scan": [
       "node scripts/door-map.mjs validateReferenceEdge → 5 write doors after the edge-mode pill was removed (was 6), all converge",
-      "node scripts/door-map.mjs connectNodes → 17 write doors; system provenance edges (panorama screenshot → asset, director / clip / whiteboard outputs, shot table) now use store.connectDerivedOutput (identity from data, see model/derivedOutput.ts); store.connectNodes has no bypass",
+      "node scripts/door-map.mjs connectNodes → 17 write doors; system provenance edges (panorama screenshot → asset, director / clip / whiteboard outputs, shot table) now use store.addDerivedOutput (one atomic build-and-connect action, see model/derivedOutput.ts); store.connectNodes has no bypass",
       "git grep providesImageReference / referenceAssetKindForNode → referenceAssetKindForNode now gated by connects.output"
     ]
   },
@@ -195,7 +195,8 @@
   "residual_risks": [
     "electron/capabilityCore/canvasGraph.ts connectNodes (external MCP connect) still has no capability gate at all; enforcing connects there needs the kind facts in a main-process-readable layer.",
     "test:canvas:performance not run on this Windows line (unverified).",
-    "referenceSlots.ts firstFrameTaggedSlot: display-only helper added when the edge-mode pill was removed (the edge purpose is shown on the target node reference thumbnail instead); it reads resolveReferenceSlots output and writes nothing."
+    "referenceSlots.ts firstFrameTaggedSlot: display-only helper added when the edge-mode pill was removed (the edge purpose is shown on the target node reference thumbnail instead); it reads resolveReferenceSlots output and writes nothing.",
+    "applyExternalGraph / mergeExternalCanvasWrite (electron/shared/canvas/externalCanvasWrite.ts): edges merged from an external whole-graph write are only checked for existing endpoints, not for connects.input / reference capability. Pre-existing on main, not introduced here; fixing it needs the node-kind definitions in the shared (electron-free) layer, so it is left as a follow-up card."
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-11-08",

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实 Electron：画布左右拉环 / 拉环菜单 / 空节点「试试」/ 在画布上点选（2026-10-08 用户拍板，设计卡
 // docs/plan/2026-10-08-canvas-handles.md）。走生产构建（先 `pnpm run build`），隔离资料目录，窗口在屏幕外不抢焦点，
 // 零花费：全程不点生成，配方只搭结构。
@@ -12,7 +13,6 @@
 // 用法：node tests/ux/canvas-handle-menus.walk.mjs [--locale en] [--scheme dark]
 // 截图：docs/evidence/2026-10-08-canvas-handles/<序号>-<状态>-<zh|en>[-dark].png
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -33,7 +33,7 @@ const evidence = path.join(repoRoot, 'docs/evidence/2026-10-08-canvas-handles')
 const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
 const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-handle-menus-'))
+const temp = makeTempDir('nomi-handle-menus-')
 const projectsDir = path.join(temp, 'projects')
 const projectId = 'handle-menus'
 const projectRoot = path.join(projectsDir, projectId)

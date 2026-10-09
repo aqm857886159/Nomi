@@ -17,6 +17,7 @@ import {
 } from '../components/useCanvasContextNodeMenu'
 import { buildCanvasMenuActions } from '../components/useCanvasMenuActions'
 import { resolveCanvasDropTargetFromDom } from './canvasConnectionDropTarget'
+import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
 type ConnectionSide = 'left' | 'right'
 
@@ -41,7 +42,7 @@ export type CanvasConnectionCreateMenu = {
 type ConnectionStart = ConnectionMenuStart
 
 /** 左「+」「从素材库添加…」打开的素材选择器：接进哪张卡、锚在哪、只列这张卡收得下的种类。 */
-export type CanvasAssetInputPicker = { targetNodeId: string; clientX: number; clientY: number; accept: ('image' | 'video' | 'audio')[] }
+export type CanvasAssetInputPicker = { targetNodeId: string; /** 打开选择器那一刻签发的原项目（动作起点签发，不是显示时现读当前项目）。 */ projectId: string | null; clientX: number; clientY: number; accept: ('image' | 'video' | 'audio')[] }
 
 type UseGenerationCanvasReactFlowMenusArgs = {
   readOnly: boolean
@@ -359,6 +360,7 @@ export function useGenerationCanvasReactFlowMenus({
     if (!connectionCreateMenu) return
     setAssetInputPicker({
       targetNodeId: connectionCreateMenu.sourceNodeId,
+      projectId: withProjectAction((project) => project.binding.projectId) ?? null,
       clientX: connectionCreateMenu.clientX,
       clientY: connectionCreateMenu.clientY,
       accept: addInputAcceptedAssets(connectionCreateMenu.verdicts),

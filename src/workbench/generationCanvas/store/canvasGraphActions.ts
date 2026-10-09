@@ -2,7 +2,7 @@ import { materializeGroupLink, materializeGroupOutputLink, type GroupMaterialize
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
 import { normalizeParameterEdges, readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { resolveCanvasReferenceConnection } from '../model/canvasReferenceConnection'
-import { isDerivedOutputOf } from '../model/derivedOutput'
+import { canDeriveOutput } from '../model/derivedOutput'
 import { archetypeForNode, resolveTargetModeForEdge, validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
@@ -310,7 +310,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     return { ok: true, connected: outcome.connected.length, skipped: outcome.skipped, alreadyConnected: outcome.alreadyConnected }
   },
   connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey, order) => {
-    // **新边的唯一写边边界**：不管目标有没有参数槽都先过总闸（没有任何「我是系统出处边」的开关——出处边走 connectDerivedOutput，校验靠数据）。
+    // **新边的唯一写边边界**：不管目标有没有参数槽都先过总闸（没有任何「我是系统出处边」的开关——出处边走 addDerivedOutput：建节点 + 连边一个原子动作）。
     writeCanvasEdge(set, get, sourceNodeId, targetNodeId, mode, targetParamKey, order, (state) => {
       const target = state.nodes.find((node) => node.id === targetNodeId)
       const source = state.nodes.find((node) => node.id === sourceNodeId)
@@ -322,18 +322,14 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
           : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
     })
   },
-  connectDerivedOutput: (sourceNodeId, targetNodeId, mode) => {
-    // 系统出处边（全景 / 白板截图、导演台产物、剪辑导出、事实表）的唯一入口：只在 target 数据上记着「就是 source 派生了我」
-    // （meta.derivedFrom + 种类表，见 model/derivedOutput）、并且这个派生节点没有别的来源时才连；普通卡伪装调用 → 拒。
-    writeCanvasEdge(set, get, sourceNodeId, targetNodeId, mode, undefined, undefined, (state) => {
-      const target = state.nodes.find((node) => node.id === targetNodeId)
-      const source = state.nodes.find((node) => node.id === sourceNodeId)
-      const soleOrigin = state.edges.every((edge) => edge.target !== targetNodeId || edge.source === sourceNodeId)
-      return source && target && soleOrigin && isDerivedOutputOf(source, target)
-        ? { ok: true as const, mode: mode ?? 'reference', targetParamKey: undefined }
-        : { ok: false as const }
-    })
-    return get().edges.some((edge) => edge.source === sourceNodeId && edge.target === targetNodeId)
+  addDerivedOutput: ({ sourceNodeId, kind, node, mode }) => {
+    // 系统出处边的**唯一**写法：建派生节点 + 连出处边是一个原子动作——按规则表（model/derivedOutput）核源种类和新节点种类，
+    // 建节点，连边。目标一定是刚建出来的新节点（天然没有别的来源），不持久化任何身份字段，也没有「给已有节点补出处边」的入口。
+    const source = get().nodes.find((candidate) => candidate.id === sourceNodeId)
+    if (!source || !canDeriveOutput(kind, source, node.kind)) return null
+    const created = get().addNode(node)
+    writeCanvasEdge(set, get, sourceNodeId, created.id, mode, undefined, undefined, () => ({ ok: true as const, mode: mode ?? 'reference', targetParamKey: undefined }))
+    return created
   },
   updateEdgeMode: (edgeId, mode) => {
     const existing = get().edges.find((candidate) => candidate.id === edgeId)

@@ -1,5 +1,4 @@
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
-import { derivedFromMeta } from '../model/derivedOutput'
 
 export type ClipNodeOutputInput = {
   sourceClipNodeId: string
@@ -23,7 +22,6 @@ export function buildClipNodeOutputPatch(input: ClipNodeOutputInput): Pick<Gener
     status: 'success',
     meta: {
       sourceClipNodeId: input.sourceClipNodeId,
-      ...derivedFromMeta('clip-export', input.sourceClipNodeId),
       ...(input.sourceClipId ? { sourceClipId: input.sourceClipId } : {}),
       outputRelativePath: input.relativePath,
       outputKind: 'clip-node-export',

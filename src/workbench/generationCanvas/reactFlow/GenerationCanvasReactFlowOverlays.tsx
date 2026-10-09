@@ -16,7 +16,6 @@ import type { CanvasAssetInputPicker, CanvasConnectionCreateMenu } from './useGe
 import { CanvasPickModeLayer } from '../components/CanvasPickModeLayer'
 import AssetPicker from '../../assets/AssetPicker'
 import AssetPickerPopover from '../../assets/AssetPickerPopover'
-import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { addAssetInput, addUploadedInput } from '../quickActions/nodeInputActions'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 
@@ -109,7 +108,6 @@ export function GenerationCanvasReactFlowOverlays({
   arrivalHint,
   onGoToArrivals,
 }: GenerationCanvasReactFlowOverlaysProps): JSX.Element {
-  const openProjectId = useOpenProjectId()
   // 「从素材库添加…」选择器上传期间保持打开（显示上传中）；完成时它还开着才接线。
   const [uploadingInput, setUploadingInput] = React.useState(false)
   const latestPickerRef = React.useRef(assetInputPicker)
@@ -177,7 +175,7 @@ export function GenerationCanvasReactFlowOverlays({
         <div className="fixed z-[60]" style={{ left: assetInputPicker.clientX, top: assetInputPicker.clientY }}>
           <AssetPickerPopover onClose={onCloseAssetInputPicker}>
             <AssetPicker
-              projectId={openProjectId}
+              projectId={assetInputPicker.projectId}
               accept={assetInputPicker.accept}
               onPick={(asset) => { addAssetInput(assetInputPicker.targetNodeId, asset); onCloseAssetInputPicker() }}
               uploading={uploadingInput}

@@ -72,6 +72,7 @@ export function ClipEmptyTry({ nodeId, readOnly = false, onAddMaterial }: { node
           <button
             type="button"
             data-node-try-recipe="clip.pick"
+            title={t('generationCommon.quickActions.addInput.pickOnCanvas')}
             className={TRY_ACTION_CLASS}
             onPointerDown={stopCanvasGesture}
             onClick={(event) => {
@@ -79,7 +80,7 @@ export function ClipEmptyTry({ nodeId, readOnly = false, onAddMaterial }: { node
               pickCanvasInputFor(nodeId)
             }}
           >
-            {t('generationCommon.quickActions.addInput.pickOnCanvas')}
+            {t('generationCommon.nodeTry.clip.pick')}
           </button>
           {onAddMaterial ? (
             <>
@@ -87,6 +88,7 @@ export function ClipEmptyTry({ nodeId, readOnly = false, onAddMaterial }: { node
               <button
                 type="button"
                 data-node-try-recipe="clip.library"
+                title={t('generationCommon.nodeTry.clip.fromLibrary')}
                 className={TRY_ACTION_CLASS}
                 onPointerDown={stopCanvasGesture}
                 onClick={(event) => {
@@ -94,7 +96,7 @@ export function ClipEmptyTry({ nodeId, readOnly = false, onAddMaterial }: { node
                   onAddMaterial()
                 }}
               >
-                {t('generationCommon.nodeTry.clip.fromLibrary')}
+                {t('generationCommon.nodeTry.clip.library')}
               </button>
             </>
           ) : null}

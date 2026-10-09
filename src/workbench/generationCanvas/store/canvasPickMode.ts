@@ -36,14 +36,14 @@ export function isCanvasPickModeActive(): boolean {
   return useCanvasPickModeStore.getState().request !== null
 }
 
-/** 点选中这张卡的样子：可点 / 不可点；不在点选里 → null。 */
-export function canvasPickNodeState(nodeId: string, request = useCanvasPickModeStore.getState().request): 'eligible' | 'ineligible' | null {
+/** 点选中这张卡能不能点：true 可点 / false 不可点；不在点选里 → null。 */
+export function canvasPickNodeState(nodeId: string, request = useCanvasPickModeStore.getState().request): boolean | null {
   if (!request) return null
-  return request.eligible(nodeId) ? 'eligible' : 'ineligible'
+  return request.eligible(nodeId)
 }
 
 /** 每张卡订阅自己那一格（不在点选时恒为 null，卡不重渲）。 */
-export function useCanvasPickNodeState(nodeId: string): 'eligible' | 'ineligible' | null {
+export function useCanvasPickNodeState(nodeId: string): boolean | null {
   return useCanvasPickModeStore((state) => canvasPickNodeState(nodeId, state.request))
 }
 

@@ -39,40 +39,46 @@ describe('connectNodes: connects.input gate at the store write boundary', () => 
     expect(store().edges).toEqual([])
   })
 
-  it('ordinary connectNodes has no provenance switch: passing one does not get an edge into an asset card', () => {
-    store().restoreSnapshot({ nodes: [node('source', 'panorama'), node('shot', 'asset')], edges: [], groups: [] })
-    ;(store().connectNodes as (...args: unknown[]) => void)('source', 'shot', 'reference', undefined, undefined, { provenance: true })
-    expect(store().edges).toEqual([])
-  })
+  describe('addDerivedOutput: build the derived node and its provenance edge as ONE atomic action (no identity field, no door for existing nodes)', () => {
+    const video = (id: string): GenerationCanvasNode => ({ ...node(id, 'video'), result: { id: 'r', type: 'video', url: 'u', createdAt: 1 } })
+    const CASES: Array<[string, GenerationCanvasNode, GenerationCanvasNode['kind']]> = [
+      ['panorama-screenshot', node('source', 'panorama'), 'asset'],
+      ['director-output', node('source', 'director'), 'image'],
+      ['whiteboard-snapshot', node('source', 'whiteboard'), 'image'],
+      ['clip-export', node('source', 'clip'), 'video'],
+      ['shot-table', video('source'), 'shot_table'],
+    ]
 
-  describe('connectDerivedOutput: the only door for system provenance edges (identity comes from data, not from a caller flag)', () => {
-    const withDerived = (kind: string, from: string, targetKind: GenerationCanvasNode['kind'] = 'asset'): GenerationCanvasNode =>
-      ({ ...node('shot', targetKind), meta: { derivedFrom: { nodeId: from, kind } } })
-
-    it('connects when the target recorded that exactly this source derived it', () => {
-      store().restoreSnapshot({ nodes: [node('source', 'panorama'), withDerived('panorama-screenshot', 'source')], edges: [], groups: [] })
-      expect(store().connectDerivedOutput('source', 'shot')).toBe(true)
-      expect(store().edges).toMatchObject([{ source: 'source', target: 'shot' }])
+    it.each(CASES)('%s: builds the new node and connects source → new node, nothing else', (kind, source, targetKind) => {
+      store().restoreSnapshot({ nodes: [source], edges: [], groups: [] })
+      const created = store().addDerivedOutput({ sourceNodeId: 'source', kind: kind as never, node: { kind: targetKind, title: 'out', categoryId: 'shots', position: { x: 400, y: 0 } } })
+      expect(created?.kind).toBe(targetKind)
+      expect(store().nodes).toHaveLength(2)
+      expect(store().edges).toMatchObject([{ source: 'source', target: created?.id }])
+      expect(JSON.stringify(created?.meta ?? {})).not.toMatch(/source|origin|derive/i) // 节点上没有任何身份字段
     })
 
     it.each([
-      ['an ordinary card pretending (no derivedFrom)', () => [node('source', 'panorama'), node('shot', 'asset')]],
-      ['derivedFrom names another node', () => [node('source', 'panorama'), withDerived('panorama-screenshot', 'other')]],
-      ['source kind does not fit the declared derivation', () => [node('source', 'image'), withDerived('panorama-screenshot', 'source')]],
-      ['target kind does not fit the declared derivation', () => [node('source', 'panorama'), withDerived('panorama-screenshot', 'source', 'text')]],
-    ])('refuses %s', (_label, nodes) => {
-      store().restoreSnapshot({ nodes: nodes(), edges: [], groups: [] })
-      expect(store().connectDerivedOutput('source', 'shot')).toBe(false)
+      ['source kind does not fit', node('source', 'image'), 'panorama-screenshot', 'asset'],
+      ['new node kind does not fit', node('source', 'panorama'), 'panorama-screenshot', 'text'],
+      ['shot-table from a non-video source', node('source', 'text'), 'shot-table', 'shot_table'],
+    ] as const)('refuses when %s: no node is created, no edge', (_label, source, kind, targetKind) => {
+      store().restoreSnapshot({ nodes: [source], edges: [], groups: [] })
+      expect(store().addDerivedOutput({ sourceNodeId: 'source', kind, node: { kind: targetKind, title: 'x', categoryId: 'shots', position: { x: 0, y: 0 } } })).toBeNull()
+      expect(store().nodes).toHaveLength(1)
       expect(store().edges).toEqual([])
     })
 
-    it('refuses a second origin: a derived node already fed by a different source', () => {
-      store().restoreSnapshot({
-        nodes: [node('source', 'panorama'), node('intruder'), withDerived('panorama-screenshot', 'source')],
-        edges: [{ id: 'old', source: 'intruder', target: 'shot', mode: 'reference' }],
-        groups: [],
-      })
-      expect(store().connectDerivedOutput('source', 'shot')).toBe(false)
+    it('an ordinary card cannot fake provenance: connectNodes into an input-less card is refused, and a pasted copy of a derived card carries nothing', () => {
+      store().restoreSnapshot({ nodes: [node('source', 'panorama')], edges: [], groups: [] })
+      const created = store().addDerivedOutput({ sourceNodeId: 'source', kind: 'panorama-screenshot', node: { kind: 'asset', title: 'shot', categoryId: 'shots', position: { x: 400, y: 0 } } })!
+      store().selectNodes([created.id])
+      store().duplicateSelectedNodes()
+      const copy = store().nodes.find((candidate) => candidate.id !== 'source' && candidate.id !== created.id)!
+      expect(copy.meta).toEqual(created.meta)
+      const edgesBefore = store().edges.length
+      store().connectNodes('source', copy.id, 'reference') // 复制出来的卡没有任何出处身份，普通连线又过不了总闸
+      expect(store().edges).toHaveLength(edgesBefore)
     })
   })
 

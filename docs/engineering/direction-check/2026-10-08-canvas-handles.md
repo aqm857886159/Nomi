@@ -70,3 +70,23 @@
 本轮在 `events/canvasWriteBoundary.ts` 只加了**一行**：新 store 动作 `connectDerivedOutput` 在「动作 → 撤销层」表里登记为 `edit`（该表要求每个 store 动作都登记，少一个编译就红）。没有改撤销日志、提交口或写边界本身。
 
 为什么现在不换现成方案：这个登记条目 `canvas-undo-journal-write-boundary`（under-review，reviewBy 2026-11-06）的评估方向是「撤销栈改成 Immer 反向补丁」，结论还没出；本轮的改动与它的评估无关（只是新动作按现有规则登记一行）。哪天换：该评估出结论时一并处理——届时「动作 → 层」表随撤销栈一起重写，本轮这一行不会成为迁移负担（它只表达「这个动作是用户可撤销的编辑」）。
+
+## 第 3 轮：派生出处改原子动作（评审 B2，2026-10-09）
+
+**类根因**：派生关系原来用「先建节点、再凭节点 meta 里一个可写的身份字段（derivedFrom）去连边」两步表达。中间那个身份字段，任何写路径——Agent 建节点、复制粘贴（structuredClone 带走）、导入、外部整图合并——都造得出来、拷得走；而 `connectDerivedOutput` 又是公开的 store 动作。第 1 轮是调用方自报布尔值（provenance），第 2 轮换成数据字段，都是在同一个错误形状上补：身份信息放在一个能被别人写的地方。按 P1 第 3 轮停补、改类根因。
+
+**结构修法（删 > 结构）**：建派生节点 + 连出处边做成**一个原子 store 动作** `addDerivedOutput({ sourceNodeId, kind, node })`——动作里按规则表（`model/derivedOutput.ts`）核源种类和新节点种类，建节点，连边。目标一定是刚建出来的新节点，天然没有别的来源；**不持久化任何身份字段，也没有公开的「给已有节点补出处边」的动作**。删掉了 `meta.derivedFrom`、`connectDerivedOutput`、`isDerivedOutputOf`。5 个产出方（全景截图、导演台产物、白板截图、剪辑导出、事实表）都改用它；复用已有节点的两处（同一段剪辑重复导出、已存在的事实表）沿用旧节点，不替用户重连（它的边要么还在，要么是用户自己断开的）。事实表的允许源从 `any` 收窄成「结果是视频的 video / asset 卡」。
+
+**旧项目**：已有的出处边是快照里的普通边，按普通边加载 / 显示 / 断开；这条规则只管新建。
+
+**「边进入画布文档」的入口清单**（`node scripts/door-map.mjs` 数的）：
+| 入口 | 门数 | 现在谁拦 |
+|---|---|---|
+| `store.connectNodes`（Agent / @ 引用 / 自动引用 / 3D 站位等） | 12 写 + 3 读 | `validateReferenceEdge` 总闸（无参数槽也先校验），没有任何绕过开关 |
+| `store.addDerivedOutput`（5 个产出方） | 5 写 + 3 读 | 规则表：源种类 + 新节点种类 + 事实表的视频源 |
+| `store.connectToNode`（拖线 / 菜单 / 点选 / 上传后接线） | 4 写 | `resolveCanvasReferenceConnection` |
+| 编组连线（materializeGroupLink / OutputLink） | 经 connectToNode | 同一套能力校验 |
+| 事件重放、meta → 边迁移（model 层 graphOps 纯算子） | 不是 store 入口 | 不校验：重放的是已落库的历史 |
+| `restoreSnapshot`（装载 / 撤销 / 重做） | 2 写 | 不校验：老项目的旧边必须能加载 |
+| 粘贴 / 复制（pasteNodes） | 3 写 + 3 读 | 只复制已有结构，不凭空造出处身份（现在也没有身份字段可带） |
+| `applyExternalGraph`（外部整图合并，`externalCanvasWrite.ts:59-66`） | 1 写 | **不校验类型，只查端点存在**——main 上就有，不是本 PR 引入；要补得在 electron 共享层拿到节点种类定义，不是小改，列为遗留，另开卡 |

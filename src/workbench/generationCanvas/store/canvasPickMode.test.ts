@@ -17,8 +17,8 @@ describe('canvas pick mode', () => {
     expect(canvasPickNodeState('a')).toBeNull()
     enterCanvasPickMode({ eligible: (id) => id === 'a', onPick: () => {} })
     expect(isCanvasPickModeActive()).toBe(true)
-    expect(canvasPickNodeState('a')).toBe('eligible')
-    expect(canvasPickNodeState('target')).toBe('ineligible')
+    expect(canvasPickNodeState('a')).toBe(true)
+    expect(canvasPickNodeState('target')).toBe(false)
   })
 
   it('picking an eligible node calls back exactly once and exits', () => {

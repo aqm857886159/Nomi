@@ -27,7 +27,6 @@ import type { DirectorLinkedAsset, DirectorProject } from './model/directorTypes
 import type { DirectorOutput } from './OutputsContext'
 import type { CanvasImage } from './panels/CanvasImagesContext'
 import { collectCanvasImages } from './bridge/canvasImages'
-import { derivedFromMeta } from '../../model/derivedOutput'
 
 // 资产节点连进来的文件只认泼溅 / 模型（全景走全景节点，场景 JSON 不从连线来）
 function linkedAssetKindOf(url: string): DirectorLinkedAsset['kind'] | null {
@@ -116,16 +115,22 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
     (output: DirectorOutput) => {
       const canvas = useGenerationCanvasStore.getState()
       const current = canvas.nodes.find((candidate) => candidate.id === node.id)
-      const created = canvas.addNode({
-        kind: output.kind === 'image' ? 'image' : 'video',
-        title: output.kind === 'image' ? t('director.timeline.screenshotNodeTitle') : t('director.timeline.videoNodeTitle'),
-        prompt: output.name,
-        position: { x: Math.round((current?.position.x ?? 0) + 420), y: Math.round(current?.position.y ?? 0) },
+      // 产物卡 + 出处边是一个原子动作（addDerivedOutput）。
+      const created = canvas.addDerivedOutput({
+        sourceNodeId: node.id,
+        kind: 'director-output',
+        mode: 'reference',
+        node: {
+          kind: output.kind === 'image' ? 'image' : 'video',
+          title: output.kind === 'image' ? t('director.timeline.screenshotNodeTitle') : t('director.timeline.videoNodeTitle'),
+          prompt: output.name,
+          position: { x: Math.round((current?.position.x ?? 0) + 420), y: Math.round(current?.position.y ?? 0) },
+        },
       })
+      if (!created) return
       const createdAt = Date.now()
       const result = { id: `director-output-${output.id}-${createdAt}`, type: output.kind, url: output.assetUrl, createdAt, ...(output.kind === 'video' ? { durationSeconds: output.duration } : {}) }
-      canvas.updateNode(created.id, { result, history: [result], status: 'success', meta: { ...(created.meta || {}), source: 'director', sourceNodeId: node.id, ...derivedFromMeta('director-output', node.id) } })
-      canvas.connectDerivedOutput(node.id, created.id, 'reference')
+      canvas.updateNode(created.id, { result, history: [result], status: 'success', meta: { ...(created.meta || {}), source: 'director', sourceNodeId: node.id } })
     },
     [node.id, t],
   )

@@ -210,7 +210,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   // 卡面压不压自己的把手看「有没有一侧是磁吸」（见 CSS 同名选择器）。
   const connectionAffordance = leftAffordance === 'magnetic' || rightAffordance === 'magnetic' ? 'magnetic' : leftAffordance === 'dot' || rightAffordance === 'dot' ? 'dot' : 'hidden'
   // 「在画布上点选」进行中：可点的卡描边（悬停加粗）、其余变灰（含正在编辑的那张）——store/canvasPickMode。
-  const pickState = useCanvasPickNodeState(node.id)
+  const pickable = useCanvasPickNodeState(node.id) // true 可点 / false 不可点 / null 不在点选里
   const isPendingConnectionSource = pendingConnectionSourceId === node.id
   const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource)
   const startConnectionLabel = t('generationCommon.node.startConnection')
@@ -231,10 +231,10 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
     <div
       className={cn(
         'generation-canvas-react-flow__node-shell',
-        pickState === 'eligible' && 'cursor-pointer rounded-nomi ring-2 ring-nomi-accent/60 ring-offset-2 ring-offset-workbench-bg hover:ring-[3px] hover:ring-nomi-accent',
-        pickState === 'ineligible' && 'opacity-40 grayscale',
+        pickable === true && 'cursor-pointer rounded-nomi ring-2 ring-nomi-accent/60 ring-offset-2 ring-offset-workbench-bg hover:ring-[3px] hover:ring-nomi-accent',
+        pickable === false && 'opacity-40 grayscale',
       )}
-      data-pick={pickState ?? undefined}
+      data-pick={pickable === null ? undefined : pickable ? 'eligible' : 'ineligible'}
       onDragStart={blockImplicitNativeDrag}
       // 卡面与自己把手的上下层由把手档位派生（见 generationCanvasReactFlow.css 的同名选择器）：
       // 只有磁吸档才把卡面抬到带子之上，小圆点档的把手必须压在卡面上。
@@ -365,7 +365,7 @@ function EdgeDisconnectLayer({ id, labelX, labelY, onPointerEnter, onPointerLeav
   return (
     <EdgeLabelRenderer>
       <div
-        className="generation-canvas-v2__edge-control absolute z-10 pointer-events-auto"
+        className="generation-canvas-v2__edge-control absolute z-10 flex items-center gap-1 pointer-events-auto"
         style={{ transform: edgeLabelTransform(labelX, labelY, zoom) }}
         data-edge-id={id}
         onPointerEnter={onPointerEnter}
@@ -396,6 +396,11 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
     () => t('generationCommon.canvas.edge.select', { source: sourceLabel, target: targetLabel }),
     [sourceLabel, t, targetLabel],
   )
+  // 编组聚合线（组的输入 / 输出）要让人看出「这是整个组的关系」：选中 / 悬停时「×」旁带一枚小字（普通连线中点什么都不挂）。
+  const aggregateDirection = data?.aggregateDirection
+  const aggregateLabel = React.useMemo(() => aggregateDirection
+    ? t(`generationCommon.canvas.group.aggregate${aggregateDirection === 'input' ? 'Input' : 'Output'}`)
+    : null, [aggregateDirection, t])
   const disconnectLabel = data?.aggregateDirection
     ? t('generationCommon.canvas.group.disconnectAggregate')
     : t('generationCommon.canvas.edge.disconnect', { source: sourceLabel, target: targetLabel })
@@ -465,6 +470,9 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
               if (edge) disconnectEdge(edge.id)
             }}
           />
+          {aggregateLabel ? (
+            <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill bg-nomi-paper px-2 text-micro text-nomi-ink-60 shadow-nomi-sm ring-1 ring-inset ring-nomi-line">{aggregateLabel}</span>
+          ) : null}
         </EdgeDisconnectLayer>
       ) : null}
     </g>

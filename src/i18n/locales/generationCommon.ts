@@ -98,7 +98,7 @@ export const zhGenerationCommon = {
     video: { firstFrame: '首帧生视频', firstLast: '首尾帧生视频', text: '文字生视频' },
     text: { toImage: '拿它生图', toVideo: '拿它生视频' },
     status: { image: '还没生成', video: '还没生成', text: '还没有内容', clip: '还没有片段' },
-    clip: { fromLibrary: '从素材库添加' },
+    clip: { pick: '点选', library: '素材库', fromLibrary: '从素材库添加' },
   },
   nodeEmpty: {
     derivedReady: { title: '提示词已填好', description: '选中它，点 ↑ 才开始生成' },
@@ -1730,7 +1730,7 @@ export const enGenerationCommon = {
     video: { firstFrame: 'First frame', firstLast: 'First + last', text: 'From text' },
     text: { toImage: 'Image from it', toVideo: 'Video from it' },
     status: { image: 'Not generated yet', video: 'Not generated yet', text: 'Nothing here yet', clip: 'No clips yet' },
-    clip: { fromLibrary: 'Add from library' },
+    clip: { pick: 'Pick', library: 'Library', fromLibrary: 'Add from library' },
   },
   nodeEmpty: {
     derivedReady: { title: 'Prompt ready', description: 'Select it and press ↑ to generate' },

@@ -36,6 +36,8 @@ export type GroupConnectResult = {
   reason?: 'dangling' | 'group_missing' | 'group_empty' | 'all_skipped'
 }
 
+import type { DerivedOutputKind } from '../model/derivedOutput'
+
 export type CreateNodeInput = {
   kind: GenerationNodeKind
   title?: string
@@ -97,10 +99,10 @@ export type CanvasGraphActions = {
   /** 连一条边——**新边的唯一写边边界**：不管目标有没有参数槽，都先过 validateReferenceEdge（目标这一类收不收输入 connects.input、档案收不收这种素材）。没有任何绕过开关。 */
   connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode'], targetParamKey?: string, order?: number) => void
   /**
-   * 系统出处边的**唯一**入口（全景 / 白板截图、导演台产物、剪辑导出、事实表）：只在 target 的数据上记着「就是 source 派生了我」
-   * （meta.derivedFrom，见 model/derivedOutput）时才连，返回有没有这条边；普通卡伪装调用 → 拒。
+   * 系统出处边的**唯一**写法：建派生节点 + 连出处边是一个原子动作（全景 / 白板截图、导演台产物、剪辑导出、事实表）。
+   * 按 model/derivedOutput 的规则表核源种类和新节点种类，不符返回 null（什么都不建）；目标一定是刚建的新节点，没有任何身份字段可伪造、可复制。
    */
-  connectDerivedOutput: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode']) => boolean
+  addDerivedOutput: (request: { sourceNodeId: string; kind: DerivedOutputKind; node: CreateNodeInput; mode?: GenerationCanvasEdge['mode'] }) => GenerationCanvasNode | null
   /**
    * 把待连的线落到**一个组**上：给组内每个成员各连一根真边，并记下组入参
    * （以后新进组的成员自动补一根）。图结构不变——组只是输入手势的语法糖，见 model/groupInputLinks.ts。
