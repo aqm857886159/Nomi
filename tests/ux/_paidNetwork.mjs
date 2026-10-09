@@ -10,7 +10,11 @@
 //   · 结果下载域名——供应商把成品放在另一个域名上，目录里没有，只能这里放一张「供应商 → 域名」小表（只放域名）。
 import fs from 'node:fs'
 import os from 'node:os'
+import { createRequire } from 'node:module'
 import path from 'node:path'
+
+// 判定函数与走查闸四层共用同一份（electron/shared/walkAllowlist.cjs），诊断不再自己写一套匹配。
+const { listsHost, parseAllowlist } = createRequire(import.meta.url)('../../electron/shared/walkAllowlist.cjs')
 
 /** 供应商 key → 它的成品下载域名。写法同闸：精确 origin，或 `*.域名`（含子域）。只放域名。 */
 export const VENDOR_RESULT_DOMAINS = Object.freeze({
@@ -48,14 +52,14 @@ export function paidWalkAllowlist(catalog, vendorKeys) {
 /** 账本里的被挡行 → 一句人话（host + 哪一层拦的 + 是不是授权供应商自己）。 */
 export function describeBlocked(entry, allow) {
   const host = String(entry.host ?? '')
-  const ownHost = allow.some((item) => { try { return new URL(item).hostname === host } catch { return false } })
-  const who = ownHost ? '授权供应商自己的地址也被挡（放行名单与闸对不上）' : '授权供应商之外的出网'
+  const ownHost = listsHost(parseAllowlist(allow.join(',')), host)
+  const who = ownHost ? '授权供应商的主机也被挡（端口或协议与放行名单不符，或名单与闸对不上）' : '授权供应商之外的出网'
   const layer = {
     fetch: '走查闸 · fetch 层', 'http.request': '走查闸 · http 层', 'http.get': '走查闸 · http 层',
     'https.request': '走查闸 · https 层', 'https.get': '走查闸 · https 层', socket: '走查闸 · 连接层',
     chromium: '走查闸 · Chromium 层', 'product-guard': '产品自带测试网闸（electron/testNetworkGuard.ts）',
   }[entry.via] ?? `层 ${entry.via}`
-  return `${host}（${layer}；${who}）`
+  return `${entry.url ?? host}（${layer}；${who}）`
 }
 
 export function blockedEntries(entries) {
@@ -95,4 +99,16 @@ export function watchNetLog(file, onBlocked, { intervalMs = 300 } = {}) {
   }
   const timer = setInterval(check, intervalMs)
   return { stop: () => { clearInterval(timer); return check() } }
+}
+
+/** 闸真的装上了、账本真的写得进：账本里要有 guard-loaded 行且几层齐全。缺了就当场判红，别等超时（产品闸写账本失败是静默的，靠这条发现）。 */
+export const REQUIRED_PAID_GUARD_LAYERS = Object.freeze(['fetch', 'socket', 'chromium'])
+export function guardLoadedError(entries) {
+  const loaded = entries.filter((entry) => entry?.kind === 'guard-loaded')
+  const layers = new Set(loaded.flatMap((entry) => entry.layers ?? []))
+  const missing = REQUIRED_PAID_GUARD_LAYERS.filter((layer) => !layers.has(layer))
+  if (loaded.length > 0 && missing.length === 0) return null
+  return new Error(loaded.length === 0
+    ? '付费走查的网络闸账本里没有 guard-loaded：闸没装上，或账本文件写不进——不能证明出网受控，一分钱没花前就停'
+    : `付费走查的网络闸缺这几层：${missing.join('、')}`)
 }

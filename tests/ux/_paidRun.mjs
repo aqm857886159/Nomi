@@ -16,7 +16,7 @@ import path from 'node:path'
 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { blockedError, newNetLogFile, paidWalkAllowlist, watchNetLog } from './_paidNetwork.mjs'
+import { blockedError, guardLoadedError, newNetLogFile, paidWalkAllowlist, readNetLog, watchNetLog } from './_paidNetwork.mjs'
 import { readRealCatalog, realNomiIsRunning, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
 export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
@@ -106,6 +106,9 @@ export async function openPaidWalk(script, name, models) {
   console.log(`[paid] 隔离副本装了：${walk.report.seededModels.join(' · ')}`)
   const label = (vendorKey, modelKey) => seeded.find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey)?.labelZh
   async function lockToAuthorizedModels(win) {
+    // 花第一分钱之前先确认闸装上了、账本写得进（否则被挡也没人知道）。
+    const unguarded = guardLoadedError(readNetLog(netLog))
+    if (unguarded) throw unguarded
     walk.report.disabledUnauthorizedModels = await lockSpendToModels(win, seeded)
   }
   async function finish(error) {

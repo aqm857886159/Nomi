@@ -1,4 +1,5 @@
 import { appendFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { URL } from "node:url";
 
 export type TestNetworkRedirect = { from: string; to: string };
@@ -33,39 +34,32 @@ function parseOrigins(raw: string | undefined): Set<string> {
 }
 
 /**
- * 付费真跑走查的放行名单（NOMI_WALK_ALLOW_ORIGINS，与 scripts/walkthrough-network-guard.cjs 同一个变量、同一套写法）：
- * 逗号分隔，每项是精确 origin，或 `*.域名`（该域名本身及其子域；`getapib.org.evil.test` 不算）。CI 里一律忽略。
- * 两道闸认同一份名单，由走查（tests/ux/_paidRun.mjs）按授权供应商算出来传下来，调用方不手配。
+ * 付费真跑走查的放行名单（NOMI_WALK_ALLOW_ORIGINS）。判定的唯一正本是 electron/shared/walkAllowlist.cjs，
+ * 走查网络闸与本闸共用它（构建把它拷进 dist-electron/shared/）。惰性加载：只有测试闸开着且设了名单才会 require，
+ * 正式包启动不依赖它。
  */
-function walkAllowlist(env: NodeJS.ProcessEnv): { origins: Set<string>; suffixes: string[] } {
-  const origins = new Set<string>();
-  const suffixes: string[] = [];
-  if (env.CI) return { origins, suffixes };
-  for (const value of String(env.NOMI_WALK_ALLOW_ORIGINS || "").split(",").map((item) => item.trim()).filter(Boolean)) {
-    if (value.startsWith("*.")) {
-      const suffix = value.slice(2).toLowerCase();
-      if (/^[a-z0-9.-]+$/.test(suffix)) suffixes.push(suffix);
-      continue;
-    }
-    try { origins.add(new URL(value).origin); } catch { /* ignored: fails closed below */ }
-  }
-  return { origins, suffixes };
-}
+type WalkAllowlistModule = {
+  parseAllowlist: (raw: string | undefined, options?: { ci?: boolean }) => unknown;
+  allowsUrl: (list: unknown, url: URL) => boolean;
+};
 
 function walkAllows(url: URL, env: NodeJS.ProcessEnv): boolean {
-  const { origins, suffixes } = walkAllowlist(env);
-  const host = url.hostname.toLowerCase();
-  return origins.has(url.origin) || suffixes.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+  if (!env.NOMI_WALK_ALLOW_ORIGINS) return false;
+  const shared = createRequire(__filename)("./shared/walkAllowlist.cjs") as WalkAllowlistModule;
+  return shared.allowsUrl(shared.parseAllowlist(env.NOMI_WALK_ALLOW_ORIGINS, { ci: Boolean(env.CI) }), url);
 }
 
-/** 被挡记一笔到走查账本（同闸的 blocked 行格式），让走查能立刻说出「谁在哪一层被挡」。只在走查设了账本路径时写。 */
+/**
+ * 被挡记一笔到走查账本（同闸的 blocked 行格式）。只在走查设了账本路径时写；写失败不影响被测 App，
+ * 由走查侧发现：账本里没有 guard-loaded 行（同一个路径）就当场判红，见 tests/ux/_paidNetwork.mjs assertGuardLoaded。
+ */
 function noteBlocked(url: URL, env: NodeJS.ProcessEnv): void {
   const log = env.NOMI_WALK_NET_LOG;
   if (!log) return;
+  const entry = { kind: "blocked", via: "product-guard", url: `${url.origin}${url.pathname}`, host: url.hostname, pid: process.pid, at: new Date().toISOString() };
   try {
-    appendFileSync(log, `${JSON.stringify({ kind: "blocked", via: "product-guard", url: `${url.origin}${url.pathname}`, host: url.hostname, pid: process.pid, at: new Date().toISOString() })}
-`);
-  } catch { /* 记账失败不影响被测 App */ }
+    appendFileSync(log, `${JSON.stringify(entry)}\n`);
+  } catch { /* 见上：走查侧核对 */ }
 }
 
 function parseRedirects(raw: string | undefined): TestNetworkRedirect[] {

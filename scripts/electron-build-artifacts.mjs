@@ -21,7 +21,7 @@ export function assertElectronBuildArtifacts(repoRoot) {
   if (!sources.length) throw new Error('Electron private pi runtime has no source modules')
   const outputs = sources.map((file) => path.join(outDir, path.relative(rootDir, file)
     .replace(/\.mts$/, '.mjs').replace(/\.cts$/, '.cjs')))
-  const missing = [path.resolve(repoRoot, main), ...outputs, path.join(repoRoot, 'dist-electron', 'feature-flags.json')]
+  const missing = [path.resolve(repoRoot, main), ...outputs, path.join(repoRoot, 'dist-electron', 'feature-flags.json'), path.join(repoRoot, 'dist-electron', 'shared', 'walkAllowlist.cjs')]
     .filter((file) => !fs.statSync(file, { throwIfNoEntry: false })?.isFile())
   if (missing.length) {
     throw new Error(`Electron 构建产物不完整：\n${missing.map((file) => path.relative(repoRoot, file)).join('\n')}\n` +

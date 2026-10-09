@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { blockedError, describeBlocked, paidWalkAllowlist, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
+import { blockedError, describeBlocked, guardLoadedError, paidWalkAllowlist, VENDOR_RESULT_DOMAINS } from './_paidNetwork.mjs'
 
 const catalog = {
   vendors: [
@@ -32,8 +32,19 @@ describe('paidWalkAllowlist', () => {
 describe('blocked-request report', () => {
   const allow = paidWalkAllowlist(catalog, ['apimart'])
   it('names host and layer, and tells the vendor-itself case from an outside host', () => {
-    expect(describeBlocked({ host: 'api.apimart.ai', via: 'chromium' }, allow)).toContain('授权供应商自己')
+    expect(describeBlocked({ host: 'api.apimart.ai', via: 'chromium' }, allow)).toContain('授权供应商的主机')
     expect(describeBlocked({ host: 'telemetry.invalid', via: 'product-guard' }, allow)).toMatch(/telemetry\.invalid.*产品自带测试网闸.*授权供应商之外/)
+  })
+
+  it('classifies a blocked wildcard subdomain (or a wrong port) as the vendor own host, via the shared matcher', () => {
+    expect(describeBlocked({ host: 'img.getapib.org', via: 'socket', url: 'tcp://img.getapib.org:8443' }, allow)).toContain('授权供应商的主机')
+    expect(describeBlocked({ host: 'getapib.org.evil.test', via: 'fetch' }, allow)).toContain('授权供应商之外')
+  })
+
+  it('demands guard-loaded with the key layers in the ledger (a ledger that cannot be written must not pass silently)', () => {
+    expect(guardLoadedError([])).toBeInstanceOf(Error)
+    expect(guardLoadedError([{ kind: 'guard-loaded', layers: ['fetch', 'http'] }]).message).toContain('chromium')
+    expect(guardLoadedError([{ kind: 'guard-loaded', layers: ['fetch', 'http', 'https', 'socket', 'chromium'] }])).toBeNull()
   })
 
   it('is null without a blocked line and an error with one', () => {
@@ -89,6 +100,15 @@ describe('openPaidWalk wiring', () => {
     await vi.waitFor(() => expect(calls.stopped).toBe(1), { timeout: 3000 })
     await paid.finish(new Error('Target closed'))
     expect(calls.finishedWith.message).toMatch(/img\.unlisted\.invalid.*产品自带测试网闸/s)
+  })
+
+  it('refuses to spend when the guard never wrote guard-loaded to the ledger', async () => {
+    const { calls, paid } = await open()
+    await expect(paid.lockToAuthorizedModels({})).rejects.toThrow('guard-loaded')
+    fs.appendFileSync(calls.options.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'guard-loaded', layers: ['fetch', 'socket', 'chromium'] })}
+`)
+    await expect(paid.lockToAuthorizedModels({ evaluate: async () => [] })).rejects.not.toThrow('guard-loaded')
+    await paid.finish(undefined)
   })
 
   it('still catches a block that lands after the last poll', async () => {
