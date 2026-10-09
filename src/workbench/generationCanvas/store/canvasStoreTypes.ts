@@ -94,7 +94,12 @@ export type CanvasGraphActions = {
   // 返回连边能力校验结果:ok=已连;否则带 reason(手动连线总闸,UI 据此提示)。
   /** 完成一条待连线。`options.mode` = 调用方指定边语义（「试试」首尾帧配方：首帧 / 尾帧），仍过同一道连线总闸。 */
   connectToNode: (targetNodeId: string, options?: { mode?: GenerationCanvasEdge['mode'] }) => EdgeCapabilityResult | GroupConnectResult
-  connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode'], targetParamKey?: string, order?: number) => void
+  /**
+   * 连一条边——**新边的唯一写边边界**：不管目标有没有参数槽，都先过 validateReferenceEdge（目标这一类收不收输入 connects.input、档案收不收这种素材）。
+   * `provenance: true` = 系统产物的出处边（全景截图 → 素材卡、导演台 / 画板 / 剪辑导出 → 输出卡、事实表……）：目标本来就是只读的派生卡，
+   * 不是「用户加输入」，显式跳过总闸；其余一律不许绕。
+   */
+  connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode'], targetParamKey?: string, order?: number, options?: { provenance?: boolean }) => void
   /**
    * 把待连的线落到**一个组**上：给组内每个成员各连一根真边，并记下组入参
    * （以后新进组的成员自动补一根）。图结构不变——组只是输入手势的语法糖，见 model/groupInputLinks.ts。

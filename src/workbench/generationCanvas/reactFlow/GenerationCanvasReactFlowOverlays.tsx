@@ -110,6 +110,10 @@ export function GenerationCanvasReactFlowOverlays({
   onGoToArrivals,
 }: GenerationCanvasReactFlowOverlaysProps): JSX.Element {
   const openProjectId = useOpenProjectId()
+  // 「从素材库添加…」选择器上传期间保持打开（显示上传中）；完成时它还开着才接线。
+  const [uploadingInput, setUploadingInput] = React.useState(false)
+  const latestPickerRef = React.useRef(assetInputPicker)
+  latestPickerRef.current = assetInputPicker
   // 左「+」菜单要说「剪辑节点不收文字」，得知道本卡是哪一类。
   const menuTarget = connectionCreateMenu?.sourceSide === 'left' && connectionCreateMenu.sourceKind === 'node'
     ? allNodes.find((node) => node.id === connectionCreateMenu.sourceNodeId)
@@ -176,7 +180,14 @@ export function GenerationCanvasReactFlowOverlays({
               projectId={openProjectId}
               accept={assetInputPicker.accept}
               onPick={(asset) => { addAssetInput(assetInputPicker.targetNodeId, asset); onCloseAssetInputPicker() }}
-              onUpload={(file) => { void addUploadedInput(assetInputPicker.targetNodeId, file); onCloseAssetInputPicker() }}
+              uploading={uploadingInput}
+              onUpload={(file) => {
+                // 选择器开到上传完成：完成时它还开着就接线，途中被用户关掉就只留素材卡（nodeInputActions.addUploadedInput）。
+                const session = assetInputPicker
+                setUploadingInput(true)
+                void addUploadedInput(session.targetNodeId, file, { shouldConnect: () => latestPickerRef.current === session })
+                  .finally(() => { setUploadingInput(false); if (latestPickerRef.current === session) onCloseAssetInputPicker() })
+              }}
             />
           </AssetPickerPopover>
         </div>

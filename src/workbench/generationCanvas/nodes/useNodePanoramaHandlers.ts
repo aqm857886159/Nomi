@@ -102,7 +102,7 @@ export function useNodePanoramaHandlers(
             ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
           },
         })
-        connectNodes(node.id, screenshotNode.id, 'reference')
+        connectNodes(node.id, screenshotNode.id, 'reference', undefined, undefined, { provenance: true })
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
         if (screenshotNodeId) updateNode(screenshotNodeId, { status: 'error', error: t('generationCommon.panorama.captureFailed') })

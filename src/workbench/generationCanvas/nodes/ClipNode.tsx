@@ -398,7 +398,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             durationSeconds: task.durationFrames / Math.max(1, task.timeline.fps),
           }))
           // Default reference edges retain the canvas's light, label-free resting state.
-          connectNodes(node.id, outputNode.id)
+          connectNodes(node.id, outputNode.id, undefined, undefined, undefined, { provenance: true })
         }
       }
       setExportMenuOpen(false)

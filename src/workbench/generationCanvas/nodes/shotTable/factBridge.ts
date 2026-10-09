@@ -58,7 +58,7 @@ export function ensureDeconstructionShotTable(sourceNodeId: string): string | un
       position: { x: source.position.x + resolveNodeVisualSize(source).width + 80, y: source.position.y },
       meta: { shotTable: table },
     })
-    store.connectNodes(sourceNodeId, node.id)
+    store.connectNodes(sourceNodeId, node.id, undefined, undefined, undefined, { provenance: true })
     store.selectNodes([node.id])
     return node.id
   })

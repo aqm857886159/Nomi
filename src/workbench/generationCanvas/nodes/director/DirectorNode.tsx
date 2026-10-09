@@ -124,7 +124,7 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
       const createdAt = Date.now()
       const result = { id: `director-output-${output.id}-${createdAt}`, type: output.kind, url: output.assetUrl, createdAt, ...(output.kind === 'video' ? { durationSeconds: output.duration } : {}) }
       canvas.updateNode(created.id, { result, history: [result], status: 'success', meta: { ...(created.meta || {}), source: 'director', sourceNodeId: node.id } })
-      canvas.connectNodes(node.id, created.id, 'reference')
+      canvas.connectNodes(node.id, created.id, 'reference', undefined, undefined, { provenance: true })
     },
     [node.id, t],
   )

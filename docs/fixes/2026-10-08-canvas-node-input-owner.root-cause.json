@@ -20,7 +20,9 @@
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
     "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
     "src/workbench/generationCanvas/quickActions/nodeTryRecipes.ts",
-    "src/workbench/generationCanvas/nodes/completeNodeConnection.ts"
+    "src/workbench/generationCanvas/nodes/completeNodeConnection.ts",
+    "src/workbench/generationCanvas/runner/referenceSlots.ts",
+    "src/workbench/generationCanvas/store/canvasGraphActions.ts"
   ],
   "entry_points": [
     "Ring click → openHandleMenu → NodeDeriveMenu (left / right)",
@@ -131,7 +133,8 @@
       "entry_point": "connectNodes",
       "disposition": "not-affected",
       "evidence": "The main-process MCP connect path never ran validateReferenceEdge (pre-existing gap of the wider class, not introduced here); it cannot import the renderer registry. Recorded in residual_risks."
-    }
+    },
+    "store.connectNodes (17 write doors): the connects.input gate now sits at the store write boundary for every caller (no parameter slots needed); system provenance edges (panorama screenshot, director / whiteboard / clip-export outputs, shot table) opt out explicitly with { provenance: true }"
   ],
   "recurrence": {
     "classification": "recurring",
@@ -161,7 +164,10 @@
     "src/workbench/generationCanvas/agent/referenceEdgeCapability.target.test.ts",
     "src/workbench/generationCanvas/quickActions/connectionMenuModel.test.ts",
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
-    "tests/ux/canvas-handle-menus.walk.mjs"
+    "tests/ux/canvas-handle-menus.walk.mjs",
+    "src/workbench/generationCanvas/store/canvasConnectRegression.test.ts",
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.upload.test.ts",
+    "src/workbench/generationCanvas/runner/referenceSlotsFirstFrameTag.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/model/nodeConnectionSides.test.ts",
@@ -184,7 +190,8 @@
   "migration": "No data migration. Old edges into kinds that no longer take input keep loading and rendering (target handles stay mounted, hidden source handles stay mounted for anchoring) and can be disconnected; only new ones are refused.",
   "residual_risks": [
     "electron/capabilityCore/canvasGraph.ts connectNodes (external MCP connect) still has no capability gate at all; enforcing connects there needs the kind facts in a main-process-readable layer.",
-    "test:canvas:performance not run on this Windows line (unverified)."
+    "test:canvas:performance not run on this Windows line (unverified).",
+    "referenceSlots.ts firstFrameTaggedSlot: display-only helper added when the edge-mode pill was removed (the edge purpose is shown on the target node reference thumbnail instead); it reads resolveReferenceSlots output and writes nothing."
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-11-08",

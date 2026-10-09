@@ -277,7 +277,7 @@ try {
   await composer.waitFor({ timeout: 5000 })
   const modelSelect = composer.getByRole('button', { name: '模型', exact: true }).first()
   await modelSelect.click()
-  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?!s*Lite)/ }).first()
+  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?!\s*Lite)/ }).first()
   await expectVisible(nanoBanana2, '模型目录必须提供跨供应商 Nano Banana 2')
   await nanoBanana2.click()
   await getWin().waitForTimeout(400)

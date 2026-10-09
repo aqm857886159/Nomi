@@ -291,7 +291,7 @@ export default function WhiteboardModal({
             ...(sourceMeta ? { meta: sourceMeta } : {}),
           })
         }
-        connectNodes(nodeId, created.id, 'reference')
+        connectNodes(nodeId, created.id, 'reference', undefined, undefined, { provenance: true })
 
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return

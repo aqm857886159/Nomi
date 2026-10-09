@@ -2,7 +2,7 @@ import { materializeGroupLink, materializeGroupOutputLink, type GroupMaterialize
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
 import { normalizeParameterEdges, readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { resolveCanvasReferenceConnection } from '../model/canvasReferenceConnection'
-import { archetypeForNode, resolveTargetModeForEdge } from '../agent/referenceEdgeCapability'
+import { archetypeForNode, resolveTargetModeForEdge, validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { groupMemberNodes, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
@@ -270,7 +270,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     }
     return { ok: true, connected: outcome.connected.length, skipped: outcome.skipped, alreadyConnected: outcome.alreadyConnected }
   },
-  connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey, order) => {
+  connectNodes: (sourceNodeId, targetNodeId, mode, targetParamKey, order, options) => {
     const beforeEdges = get().edges
     set((state) => {
       const target = state.nodes.find((node) => node.id === targetNodeId)
@@ -278,7 +278,9 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       const slots = readParameterReferenceSlots(target?.meta)
       const connection = slots.length && source && target
         ? resolveCanvasReferenceConnection(source, target, state.nodes, state.edges, mode, targetParamKey)
-        : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
+        : source && target && !options?.provenance && !validateReferenceEdge(source, target, mode).ok
+          ? { ok: false as const }
+          : { ok: true as const, mode: mode ?? 'reference', targetParamKey }
       if (!connection.ok) return
       const key = connection.targetParamKey
       let nextEdges = connectNodes(state.edges, sourceNodeId, targetNodeId, connection.mode, key, order)

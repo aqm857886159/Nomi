@@ -134,8 +134,8 @@ if (await card.count()) {
   const continueButton = projectCard.getByRole('button', { name: /继续创作/ }).first()
   if (await continueButton.count()) await continueButton.click({ timeout: 4000 }).catch(() => {})
   // 画布要等项目读完才出节点；固定睡 2.5s 会在加载屏上就去验占位 / 点节点（旧写法被「项目库缩略图里的加载失败」蒙混过关过）。
-  await win.locator('.react-flow__node').first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 3 }) }).catch(() => {})
-  await win.getByText('加载失败', { exact: false }).first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) }).catch(() => {})
+  await win.locator('.react-flow__node').first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 3 }) })
+  await win.getByText('加载失败', { exact: false }).first().waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) })
   console.log(`  → 进画布 via 继续创作: ${await inCanvas()}`)
 }
 console.log('  body head:', (await win.evaluate(() => document.body.innerText.slice(0, 120))).replace(/\n/g, ' '))

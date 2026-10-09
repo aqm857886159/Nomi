@@ -132,10 +132,26 @@ export function addAssetInput(targetId: string, asset: AssetRef): string | null 
   })
 }
 
-/** 素材选择器里上传：走画布现有的本地文件导入（复制进项目 + 建素材卡），导入完成后把新卡接进来。 */
-export async function addUploadedInput(targetId: string, file: File): Promise<void> {
+/**
+ * 上传完成后把新建的素材卡接进来：**不另起撤销点**（只压住连线自己的撤销屏障、不再 pushUndoSnapshot），
+ * 并进导入那一步——Ctrl+Z 一次撤干净「导入 + 连线」。
+ */
+export function connectUploadedInputs(createdIds: readonly string[], targetId: string): void {
+  withCanvasGestureContext({ source: 'user', txnId: txn('upload-input'), suppressUndoBarriers: true }, () => {
+    for (const nodeId of createdIds) {
+      store().startConnection(targetId, 'left')
+      completeNodeConnection(nodeId)
+    }
+  })
+}
+
+/**
+ * 素材选择器里上传：走画布现有的本地文件导入（复制进项目 + 建素材卡）；导入完成时选择器还开着（`shouldConnect()`）→ 把新卡接进来
+ * （左环「给它加输入」就是这个意思）；上传途中用户把选择器关掉了 → 已导入的留成素材卡、不连线（设计卡 ★5 中途表）。
+ */
+export async function addUploadedInput(targetId: string, file: File, options: { shouldConnect: () => boolean }): Promise<void> {
   const target = store().nodes.find((node) => node.id === targetId)
   if (!target) return
   const created = await importLocalFilesToGenerationCanvas([file], { basePosition: resolveRingMenuPlacement(target, 'left', 'asset'), categoryId: target.categoryId })
-  for (const nodeId of created) connectExistingInput(nodeId, targetId)
+  if (created.length && options.shouldConnect()) connectUploadedInputs(created, targetId)
 }
