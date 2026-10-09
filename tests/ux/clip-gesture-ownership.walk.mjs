@@ -154,7 +154,11 @@ async function runZoom(zoomPercent) {
 
     // ───────── V 外观取证（不判对错）：手柄「悬停即现」是这次唯一的可见变化，改前改后各截一张节点 ─────────
     if (wanted('V')) {
-      await deselectAll()
+      // 起点就是刚打开的节点：没有任何片段被选中（不走 deselectAll——它会为了别的步骤把播放头放回 0 帧、顺手选中第一个片段）。
+      const blankPoint = await findCanvasBlankPoint(win, { inset: 60 })
+      await win.mouse.click(blankPoint.x, blankPoint.y)
+      await win.waitForTimeout(150)
+      await win.keyboard.press('Escape')
       const cBox = await box(clip('c'))
       await win.mouse.move(center(cBox).x, center(cBox).y)
       await win.waitForTimeout(250)
@@ -202,6 +206,8 @@ async function runZoom(zoomPercent) {
       const handle = clip('c').locator('[data-clip-handle-edge="right"]')
       const handleCount = await handle.count()
       const hb = handleCount ? await box(handle) : null
+      // 悬停要能「看见」：手柄的不透明度跟着悬停变 1（命中不依赖显形，但用户得知道它在那儿）。
+      const handleOpacity = handleCount ? Number(await handle.evaluate((el) => getComputedStyle(el).opacity)) : 0
       if (hb) {
         await win.mouse.move(center(hb).x, center(hb).y)
         await win.mouse.down()
@@ -212,9 +218,9 @@ async function runZoom(zoomPercent) {
       await snap('p3-trim-while-unselected')
       if (hb) await release()
       const after = await clipState('c')
-      record('P3', z, '未选中片段上悬停即有手柄、拖得动、屏幕宽度不小于 8px',
-        Boolean(hb) && hb.width >= MIN_HIT_PX - 0.5 && resizingMid === 'right' && after.end < before.end,
-        { handleCount, handleScreenWidth: hb?.width ?? null, resizingMid, endBefore: before.end, endAfter: after.end })
+      record('P3', z, '未选中片段上悬停即显出手柄、拖得动、屏幕宽度不小于 8px',
+        Boolean(hb) && hb.width >= MIN_HIT_PX - 0.5 && handleOpacity > 0.99 && resizingMid === 'right' && after.end < before.end,
+        { handleCount, handleScreenWidth: hb?.width ?? null, handleOpacity, resizingMid, endBefore: before.end, endAfter: after.end })
     }
 
     // ───────── P1 播放头压在片段上：拖的是播放头，不是片段，也不打开预览 ─────────

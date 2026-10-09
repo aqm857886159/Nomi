@@ -13,7 +13,7 @@
   "status": "candidate",
   "manualReview": "pending",
   "evidence": [
-    "屏外真 Electron 走查 tests/ux/clip-gesture-ownership.walk.mjs 在 main 上 33 步红 23（卡点 1 / 2 / 3 / 8 与全局时间轴被打断，缩放 50 / 100 / 150% 各一遍），修后全绿",
+    "屏外真 Electron 走查 tests/ux/clip-gesture-ownership.walk.mjs 在 main 上 36 步红 23（卡点 1 / 2 / 3 / 8 与全局时间轴被打断，缩放 50 / 100 / 150% 各一遍），修后全绿",
     "Codex 实测报告 R-clip-drag-report.md 的 8 个卡点；本片修 1 / 2 / 3 / 7 / 8，4 / 5 / 6 在第二片"
   ],
   "completionCommits": [],
