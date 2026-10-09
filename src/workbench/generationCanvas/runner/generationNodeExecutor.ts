@@ -58,7 +58,7 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
     return generateVideo(promptNode, { references, ...gate, ...(onProgress ? { onProgress } : {}), ...(context.onMediaDimensions ? { onMediaDimensions: context.onMediaDimensions } : {}) })
   }
   if (executionKind === 'text') {
-    return generateText(node, { projectTarget, ...(onProgress ? { onProgress } : {}) })
+    return generateText(node, { projectTarget, referenceContext: gate.referenceContext, ...(onProgress ? { onProgress } : {}) })
   }
   if (executionKind === 'audio') {
     const references = resolveGenerationReferences(node, context)

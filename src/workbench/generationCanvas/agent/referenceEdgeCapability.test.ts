@@ -396,15 +396,27 @@ describe('connectionCreateVerdictsForSource — 接不上的要说原因（2026-
     const blind = GENERATION_NODE_KINDS.find((kind) => kind !== 'text' && !referenceAssetKindForNode(node('x', kind)))!
     const verdicts = connectionCreateVerdictsForSources([node('n', blind), node('i', 'image')], ['image', 'text'] as const)
     expect(verdicts[0]).toEqual({ kind: 'image', ok: true })
-    expect(verdicts[1]).toMatchObject({ ok: false })
+    // 图片成员接得上文本节点（文本节点的左环收图），所以整组算接得上；只剩不产素材的成员时才报它的原因。
+    expect(verdicts[1]).toEqual({ kind: 'text', ok: true })
+    expect(connectionCreateVerdictsForSources([node('n', blind)], ['text'] as const)[0]).toMatchObject({ ok: false, reason: 'source_not_referenceable' })
     expect(connectionCreateVerdictsForSources([], ['image'] as const)[0]).toMatchObject({ ok: false, reason: 'source_not_referenceable' })
   })
 
-  it('图片源接不出文本节点时给出「没有模型收」的原因，而不是从菜单里消失', () => {
-    const verdicts = connectionCreateVerdictsForSource(node('i', 'image'), ALL)
-    expect(verdicts.map((v) => v.kind)).toEqual([...ALL])
-    const text = verdicts.find((v) => v.kind === 'text')
-    expect(text).toMatchObject({ ok: false, reason: 'no_model_accepts', asset: 'image' })
+  it('文本节点的左环收文字、图、视频；声音接不进来且给出原因，而不是从菜单里消失', () => {
+    const fromImage = connectionCreateVerdictsForSource(node('i', 'image'), ALL)
+    expect(fromImage.map((v) => v.kind)).toEqual([...ALL])
+    expect(fromImage.find((v) => v.kind === 'text')).toEqual({ kind: 'text', ok: true })
+    expect(connectionCreateVerdictsForSource(node('v', 'video'), ALL).find((v) => v.kind === 'text')).toEqual({ kind: 'text', ok: true })
+    expect(connectionCreateVerdictsForSource(node('a', 'audio'), ALL).find((v) => v.kind === 'text'))
+      .toMatchObject({ ok: false, reason: 'no_model_accepts', asset: 'audio' })
+  })
+
+  it('文本节点作为目标：文字 / 图 / 视频能连，声音不能（新建连线的总闸）', () => {
+    const target = node('t', 'text')
+    expect(validateReferenceEdge(node('s', 'text'), target, 'reference')).toEqual({ ok: true })
+    expect(validateReferenceEdge(node('i', 'image'), target, 'reference')).toEqual({ ok: true })
+    expect(validateReferenceEdge(node('v', 'video'), target, 'reference')).toEqual({ ok: true })
+    expect(validateReferenceEdge(node('a', 'audio'), target, 'reference')).toEqual({ ok: false, reason: 'unsupported_reference' })
   })
 
   it('不产可参考素材的源：原因是源本身，而不是目标', () => {

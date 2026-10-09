@@ -66,7 +66,16 @@ export function isTextPromptEdge(
 ): boolean {
   if ((mode ?? 'reference') !== 'reference' || source.kind !== 'text') return false
   const targetExec = getGenerationNodeExecutionKind(target.kind)
-  return targetExec === 'image' || targetExec === 'video' || targetExec === 'model3d'
+  // 文本接文本：上一段文字当下一个文本节点加工时的背景（加工框「扩写 / 翻译 / 拆成多条」的输入）。
+  return targetExec === 'image' || targetExec === 'video' || targetExec === 'model3d' || targetExec === 'text'
+}
+
+/**
+ * 文本节点收什么输入：文字（上面的 isTextPromptEdge）、图片、视频。图 / 视频是给「看图写描述」的画面；
+ * 声音不收（文本模型听不了）。这是文本节点左环的能力表——拉环按它决定这一侧能不能接。
+ */
+function textTargetAcceptsAsset(asset: ReferenceAssetKind): boolean {
+  return asset === 'image' || asset === 'video'
 }
 
 /** 每种参考槽能被哪种源资产喂。first_frame 收视频=尾帧接力(resolver 抽帧),故收 image+video。 */
@@ -164,6 +173,9 @@ export function validateReferenceEdge(
   if (isTextPromptEdge(source, target, mode)) return { ok: true }
   const asset = referenceAssetKindForNode(source)
   if (!asset) return { ok: false, reason: 'source_not_referenceable' }
+  if (getGenerationNodeExecutionKind(target.kind) === 'text') {
+    return textTargetAcceptsAsset(asset) ? { ok: true } : { ok: false, reason: 'unsupported_reference' }
+  }
   const slotKinds = targetSlotKinds(target)
   if (!slotKinds) return { ok: true }
   const required = EDGE_MODE_SLOTS[mode ?? 'reference']
@@ -200,9 +212,11 @@ export function connectionCreateVerdictsForSource<K extends GenerationNodeKind>(
   return kinds.map((kind): ConnectionCreateVerdict<K> => {
     if (isTextPromptEdge(source, { ...source, kind })) return { kind, ok: true }
     if (!asset) return { kind, ok: false, reason: 'source_not_referenceable', asset }
-    const accepted = MODEL_ARCHETYPES.some((archetype) =>
-      archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
-    )
+    const accepted = getGenerationNodeExecutionKind(kind) === 'text'
+      ? textTargetAcceptsAsset(asset)
+      : MODEL_ARCHETYPES.some((archetype) =>
+        archetype.kind === kind && archetype.modes.some((mode) => mode.slots.some((slot) => SLOT_ACCEPTS[slot.kind].includes(asset))),
+      )
     return accepted ? { kind, ok: true } : { kind, ok: false, reason: 'no_model_accepts', asset }
   })
 }

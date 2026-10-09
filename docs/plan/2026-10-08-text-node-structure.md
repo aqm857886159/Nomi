@@ -24,6 +24,34 @@
 
 - 文本节点「生成」没选模型就生成不了（`catalogTaskActions.ts`）→ 第 2 步 B3 处理。
 
-## B. 第 2 步：界面（在第 1 步提交之后补充，随实现更新）
+## B. 第 2 步：界面（按画板「文本节点：会加工、看得见」，用户 10-08 23:08Z 确认）
 
-见本文件后续小节。
+类别：[花钱（加工框调用文本模型，口径同原文本节点「生成」）][新界面]。9 格：
+
+| 格 | 结论 | 证据 |
+|---|---|---|
+| ★1 用户怎么用 | 当我想把一句想法变成能直接喂图 / 视频的提示词，选中文本节点点「扩写成提示词」；想让它看图写描述，把图连到左边点「看图写描述」；翻译、拆成多条同理；要自己说怎么改就写一句按 ↑。不做：写剧本（归创作页）；拆成多条后为每条建节点（第 3 步，等编组「生成全部」）。真实任务：①风格说明 → 下游镜头 → 小签悬停看到接进去的正文；②林薇定妆图 → 文本 → 看图写描述；③长故事 → 拆成 4 条。 | 单测 + 截图 |
+| ★2 谁说了算 | 加工预设与顺序的 owner = runner/textProcessPresets.ts；点预设的唯一入口 = nodes/textProcessRun.ts（加工框与空节点「试试」共用）；浮框定位 owner 仍是 composerCanvasPlacement（加 match-node 变体）；↑ 之后的唯一路径 = composerRun.startGenerationFromComposer（图片 / 视频浮框也走它，原内联逻辑删除）。 | door-map |
+| ★3 一致与复用 | 复用：WorkbenchMenu（下拉）、AnchoredPopover（悬停小窗）、GENERATE_BUTTON_CLASS（圆形 ↑）、NodeErrorReport（出错 + 去设置入口）、requestTaskCancel（停止）、getTextBrain（跟随 Agent 的模型，与提示词优化同源）。文本节点原来夹在通用浮框里的「续写 / 改写 / 重写」按钮与占位文案同提交删除，功能收进下拉。 | git grep |
+| ★4 全状态 | 空：图标 + 文本 / 还没有内容 + 试试（扩写成提示词 · 看图写描述 · 拆成多条）；正在写：字逐个长出来 + 底部「正在写 · 停止」（停止真的掐断主进程文本流）；出错：节点错误卡（没文本模型 = 「模型没配好」+「检查模型」去设置）；拆成多条：编号列表 + 「拆成 N 条」；超长（≥600 字）：节点内滚动 + 「共 N 字」；能力不可用：没图点看图写描述 = 当场说「先把图片连到这个节点的左边」，没内容点扩写 = 「先写点内容，或连一段文字进来」；锁定 / 只读：全部禁用。zh / en / 光 / 暗 各一套。 | 截图 12 张 + 2 张下拉 |
+| 5 中途表 | 正在写时：预设与下拉禁用，↑ 显示 ···；停止 = 取消（不进刹车计数、不是红色错误）；关窗 / 重启 = 草稿流式内容 persist:false 不落盘，原文保留；连点预设 = 第二下被「正在写」挡住。 | textActions.test |
+| 6 外部数据与失败 | 外部 = 文本模型服务。没有可用文本模型 → 内部签名 No usable text model → 错误卡 + 设置入口；图进文字出走 image_to_prompt，主进程已支持 nomi-local 图与多图。 | classifyError |
+| 7 性能预算 | 加工框只在选中时挂载；下游小签订阅一个字符串，不随无关画布写入重渲。无新增常驻订阅。 | 人工 |
+| 8 真实条件 | Windows / 英文界面 / 暗色：截图已拍；真模型调用、真 Electron 窗口拖线与选中环：unverified。 | 截图 |
+| ★9 验收与回滚 | 验收：另一条线跑上面列的三个测试文件 + check:tool-face / model-face-frozen / mcp-payload，并对照截图；回滚：revert 第 2 步提交（第 1 步独立）。 | 命令 |
+
+### 与画板的对账（逐项）
+
+- 加工框：同宽、间距 8、预设纯文字用「·」隔开、最后一个是下拉、一句话输入、模型 chip、右下圆形 ↑：一致。有意不同：英文预设行放不下一行时折行（画板只画了中文）；英文预设名缩短（Expand to prompt / Describe image / Translate / Split up）。
+- 节点：画板无「文本」拖拽条；我们保留顶部「⠿ 文本」条，因为正文是编辑器，需要一个不会误入编辑的拖拽把手（有意不同）。节点默认高度沿用现有默认尺寸（用户可拖），画板是贴着三行字的紧凑高度（有意不同，未改默认尺寸）。
+- 正文排版：13px / 20px、12px 内边距，一致。
+- 正在写：画板是圆圈转子，我们用现有品牌加载标（NomiLoadingMark），其余一致。
+- 下游小签：「引用 · 文本名」、悬停小窗「生成时接在提示词后面」+ 正文：一致。有意不同：画板里小签在提示词下面、参考缩略图上面；我们的浮框里参考缩略图本来在提示词上面，小签放在提示词下面。
+- 选中蓝框 / 连线 / 拉环：不在本 PR（拉环线负责）；实验室页里没有。
+
+### 先查别人
+
+- Freepik Spaces · Text 节点：https://www.freepik.com/ai/docs/introduction-to-spaces 、https://ru.freepik.com/ai/docs/text-nodes
+- Figma Weave（Weavy）Text / Array 数据类型：https://help.weavy.ai/en/articles/12268346-datatypes
+- Krea Node Agent：https://www.krea.ai/blog/ai-workflow-agent
+- Runway Workflows with Agent：https://help.runwayml.com/hc/en-us/articles/53645211363475-Building-and-running-Workflows-with-Agent
