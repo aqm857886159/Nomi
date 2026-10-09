@@ -356,5 +356,6 @@ describe("「继续」一批因为落地失败停下的镜：说的就是会发�
     await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: true, code: "resumed" });
     expect(landBeforeResume).toHaveBeenCalledTimes(1);
     expect(repository.read(PROJECT, RUN)!.status).toBe("running");
+    expect(kickScheduler).toHaveBeenCalledTimes(1);
   });
 });
