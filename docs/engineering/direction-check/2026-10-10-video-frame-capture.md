@@ -64,3 +64,11 @@
 - `src/workbench/generationCanvas/adapters/assetImportAdapter.test.ts`（素材复制失败 / 重试，保持）。
 - `src/workbench/generationCanvas/nodes/extractVideoFrameProjectContext.test.ts`（换项目即取消，保持并扩成截帧全链路）。
 - `tests/ux/node-toolbar-one-row.walk.mjs`（浮条一排，按钮名改「截帧」）。
+
+## 追加：主进程截帧秒数夹取（`electron/video/extractVideoFrame.ts`，目录 14 天第 3 个 fix）
+
+触发：`fix-churn` 命中 `electron/video/`（近 14 天 2 个 fix）。那两个是退出时的收尾归属（`videoIpc` 会话 / `will-quit`），与抽帧取哪一秒无关，不是同一概念；这一刀是本片新入口暴露的缺口。
+
+- **类根因**：「抽哪一秒才合法」没有唯一主人。`resolveSeekSeconds` 的 `last` 分支自己留 0.1 秒余量，`number` 分支只做 `Math.max(0, n)`——两个分支各管一半。设计卡 ★6 写的是「秒数超出时长 → 夹到末尾前 0.1 秒（已有同类处理）」，把「尾帧有」读成了「数字也有」，没人核实过。以前没有入口会给 `number` 传到片尾，所以没暴露；本片「当前帧」就是这个入口（播到最后一刻 `currentTime == 时长`，ffmpeg 的 `-ss` 落在 EOF 之后一帧都出不来，实测 `Output file is empty`）。
+- **同类还能从哪回来**：另一个调用者传数字秒（审片环、拆镜头抽帧，`which: number` 的现有调用）、浮点误差、变帧率素材尾部。修在最早共享边界：两个分支共用 `clampSeekSeconds` 与同一个余量常量，之后任何调用者传数字都过它。
+- **补法强弱**：结构上做不出来（只有一个函数决定最终秒数）+ 纯函数单测 `electron/video/clampSeekSeconds.test.ts` + 真 Electron 走查 08（播放头停在片尾）。

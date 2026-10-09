@@ -281,6 +281,22 @@ try {
     if (Math.abs(seconds - 7.2) > 0.06) throw new Error(`the retried frame reads ${seconds.toFixed(2)}s, expected 7.2s`)
     await expect(win.locator(`${nodeSel(card.id)} [role="alert"]`)).toHaveCount(0)
   })
+  await task('08-playhead-at-the-very-end-still-captures-the-last-frame', async () => {
+    // 播到片尾（currentTime == 时长）：主进程把秒数夹到末尾前 0.1 秒，不是「一帧都出不来」的截帧失败。
+    await select('src-video')
+    await parkPlayhead('src-video', DURATION)
+    const before = (await snapshot()).nodes.length
+    await captureButton().click()
+    await expect(menuItem(L.current)).toContainText('0:12.0')
+    await menuItem(L.current).click()
+    await expect.poll(async () => (await snapshot()).nodes.length, { timeout: stationTimeout({ operations: 3 }) }).toBe(before + 1)
+    const state = await snapshot()
+    const card = state.nodes.find((node) => node.title.includes('0:12.0'))
+    if (!card) throw new Error('no card titled 0:12.0')
+    expect(card.status).toBe('success')
+    const seconds = timeOfFrame(card.resultUrl)
+    if (seconds < DURATION - 0.3 || seconds > DURATION) throw new Error(`end-of-video frame reads ${seconds.toFixed(2)}s`)
+  })
 } finally {
   await app.close().catch(() => {})
 }
