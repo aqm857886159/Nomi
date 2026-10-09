@@ -159,6 +159,29 @@ try {
   measures.library = { topbar: await box(win, '[data-shell-topbar]'), main: await box(win, '.nomi-library-page__main') }
   await shoot(win, 'library')
 
+  // 功能全表 #47（#1136 验收复核）：项目卡的删除入口、双击改名、打开项目文件夹，在新项目库页原样可用。
+  if (want('check-parity')) {
+    // 按身份定位（改名时名字变成输入框的值，按文字找会丢）。
+    const other = win.locator('[data-project-card][data-project-id="shell-redesign-other"]')
+    await other.hover()
+    await clickOrFail(other.getByRole('button', { name: T('删除项目 天台', 'Delete project Rooftop'), exact: false }).first(), '#47 项目卡悬停出删除钮')
+    const confirmCancel = win.locator('[data-confirm-dialog-cancel]').first()
+    await expect(confirmCancel, '#47 删除要先出确认卡').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await clickOrFail(confirmCancel, '#47 确认卡取消（不真删）')
+    await other.getByText(T('天台', 'Rooftop'), { exact: true }).dblclick()
+    const renameInput = other.locator('input[type="text"]').first()
+    await expect(renameInput, '#47 双击名字没进改名').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await renameInput.fill(T('天台·改名', 'Rooftop renamed'))
+    await renameInput.press('Enter')
+    await expect(other, '#47 改名没生效').toContainText(T('天台·改名', 'Rooftop renamed'), { timeout: DEFAULT_TIMEOUT_MS })
+    const mainCard = win.locator('[data-project-card][data-project-id="shell-redesign"]')
+    await mainCard.hover()
+    await expect(mainCard.getByRole('button', { name: T('打开项目文件夹', 'Open project folder'), exact: false }).first(), '#48 打开项目文件夹入口不在').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    measures.parity = { ...(measures.parity ?? {}), projectCard: 'delete-confirm, dblclick-rename, reveal-folder' }
+    await shoot(win, 'check-parity-project-card')
+    await win.mouse.move(5, 300)
+  }
+
   await card.hover()
   await clickOrFail(card.getByRole('button', { name: /继续创作|Continue/ }).first(), '打开走查项目')
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
@@ -352,6 +375,146 @@ try {
       measures.previewAppend = { before, after: await clips.count() }
       await shoot(win, 'check-preview-append')
     }
+  }
+
+  // ── #1136 验收复核：其余 5 行（中文轨跑，文案按中文找）──
+  if (want('check-parity') && zh) {
+    const parity = measures.parity ?? (measures.parity = {})
+    // #35 剪辑页布局菜单：顶栏右簇「剪辑布局」图标钮（窄于 1440 只剩图标 + ▾）。
+    await clickOrFail(win.locator('.nomi-stepper__step[data-mode="preview"]'), '#35 切到剪辑页')
+    await win.waitForTimeout(800)
+    const layoutTrigger = win.locator('[data-shell-topbar] button[aria-label="布局"]').first()
+    await clickOrFail(layoutTrigger, '#35 顶栏剪辑布局菜单')
+    const layoutMenu = win.locator('[data-shell-topbar] [role="menu"][aria-label="布局"]').first()
+    await expect(layoutMenu, '#35 布局菜单没打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const panelToggles = await layoutMenu.locator('[role="menuitemcheckbox"]').count()
+    const presets = await layoutMenu.locator('[role="menuitemradio"]').count()
+    expect(panelToggles, '#35 面板显隐项不在').toBeGreaterThan(0)
+    expect(presets, '#35 布局预设不在').toBeGreaterThan(0)
+    await expect(layoutMenu.locator('[role="menuitem"]').last(), '#35 恢复默认不在').toBeVisible()
+    const firstToggle = layoutMenu.locator('[role="menuitemcheckbox"]').first()
+    const checkedBefore = await firstToggle.getAttribute('aria-checked')
+    await clickOrFail(firstToggle, '#35 切一个面板显隐')
+    await expect(firstToggle, '#35 面板显隐点了没变').not.toHaveAttribute('aria-checked', checkedBefore ?? '')
+    await shoot(win, 'check-parity-layout-menu')
+    await clickOrFail(layoutMenu.locator('[role="menuitem"]').last(), '#35 恢复默认')
+    parity.layoutMenu = { panelToggles, presets }
+
+    // #44 / #45 时间轴：回生成页点窄条 ^ 展开，工具条、右键、拖播放头都在（上一步剪辑页已追加了一段）。
+    await clickOrFail(win.locator('.nomi-stepper__step[data-mode="generation"]'), '#44 回生成页')
+    // 时间轴有片段后可能已经是展开态（窄条只在收起时出现）；收起着就点窄条 ^ 展开。
+    const strip = win.locator('[data-timeline-strip]')
+    await win.waitForTimeout(600)
+    if (await strip.isVisible().catch(() => false)) await clickOrFail(strip, '#44 点窄条展开时间轴')
+    const panel = win.locator('.workbench-generation__timeline .workbench-timeline').first()
+    await expect(panel, '#44 窄条展开后没有时间轴面板').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const toolbar = panel.locator('[data-timeline-toolbar-row]')
+    const labels = await toolbar.locator('button').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label') || ''))
+    for (const want of [/在播放头处分割/, /创建副本/, /^删除$/, /AI 拼片/, /撤销时间轴编辑/, /重做时间轴编辑/, /吸附/, /缩小时间轴/, /重置缩放/, /放大时间轴/]) {
+      expect(labels.some((label) => want.test(label)), `#44 时间轴工具条缺「${want.source}」（实际：${labels.join(' / ')}）`).toBe(true)
+    }
+    const clip = panel.locator('[data-testid="timeline-clip"]').first()
+    await clickOrFail(clip, '#44 选中片段')
+    await expect(toolbar.locator('button[aria-label="在播放头处分割"]'), '#44 选中片段后分割仍不可用').toBeEnabled({ timeout: DEFAULT_TIMEOUT_MS })
+    await clip.click({ button: 'right' })
+    const contextMenu = win.locator('[data-testid="timeline-context-menu"]')
+    await expect(contextMenu, '#45 片段右键菜单没出来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const contextItems = await contextMenu.getByRole('menuitem').count()
+    await shoot(win, 'check-parity-timeline')
+    await win.keyboard.press('Escape')
+    const playhead = panel.locator('.workbench-timeline__playhead').first()
+    const before = await playhead.evaluate((node) => Math.round(node.getBoundingClientRect().left))
+    const ruler = await panel.locator('.workbench-timeline__ruler-content').first().boundingBox()
+    if (!ruler) throw new Error('#45 时间轴标尺不在')
+    // 按住 Shift 拖（关吸附）：只有一段片段时吸附会把播放头吸回片段边，量不出「拖得动」。
+    await win.keyboard.down('Shift')
+    await win.mouse.move(ruler.x + 40, ruler.y + ruler.height / 2)
+    await win.mouse.down()
+    await win.mouse.move(ruler.x + 220, ruler.y + ruler.height / 2, { steps: 8 })
+    await win.mouse.up()
+    await win.keyboard.up('Shift')
+    const after = await playhead.evaluate((node) => Math.round(node.getBoundingClientRect().left))
+    expect(Math.abs(after - before), `#45 拖标尺播放头没动（before=${before} after=${after} ruler=${JSON.stringify(ruler)}）`).toBeGreaterThan(40)
+    parity.timeline = { toolbar: labels.length, contextItems, playheadMoved: after - before }
+    await clickOrFail(panel.locator('[data-timeline-collapse]').first(), '#44 收起时间轴')
+
+    // #11 抽屉右缘拖宽：六个抽屉都能拖，关掉再开宽度还在。
+    const drawerWidths = {}
+    for (const item of ['docs', 'catalog', 'assets', 'flows', 'skills', 'prompts']) {
+      await clickOrFail(win.locator(`[data-shell-rail-item="${item}"]`), `#11 打开 ${item} 抽屉`)
+      const drawer = win.locator(`[data-shell-drawer="${item}"]`)
+      await expect(drawer, `#11 ${item} 抽屉没打开`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+      await win.waitForTimeout(250)
+      const w0 = (await drawer.boundingBox())?.width ?? 0
+      const grip = await win.locator('[data-shell-drawer-resize]').boundingBox()
+      if (!grip) throw new Error(`#11 ${item} 抽屉右缘没有拖宽把手`)
+      await win.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+      await win.mouse.down()
+      await win.mouse.move(grip.x + grip.width / 2 + 48, grip.y + grip.height / 2, { steps: 6 })
+      await win.mouse.up()
+      await win.waitForTimeout(200)
+      const w1 = (await drawer.boundingBox())?.width ?? 0
+      await clickOrFail(win.locator(`[data-shell-rail-item="${item}"]`), `#11 关掉 ${item} 抽屉`)
+      await win.waitForTimeout(300)
+      await clickOrFail(win.locator(`[data-shell-rail-item="${item}"]`), `#11 再开 ${item} 抽屉`)
+      await expect(drawer, `#11 ${item} 抽屉没再打开`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+      await win.waitForTimeout(250)
+      const w2 = (await drawer.boundingBox())?.width ?? 0
+      drawerWidths[item] = { w0: Math.round(w0), w1: Math.round(w1), reopened: Math.round(w2) }
+      expect(w1 - w0, `#11 ${item} 拖右缘没变宽`).toBeGreaterThan(30)
+      expect(Math.abs(w2 - w1), `#11 ${item} 关掉再开宽度没记住`).toBeLessThan(2)
+      await clickOrFail(win.locator(`[data-shell-rail-item="${item}"]`), `#11 收起 ${item} 抽屉`)
+      await win.waitForTimeout(250)
+    }
+    parity.drawerWidths = drawerWidths
+
+    // #13 目录里的拖拽：节点拖进分组、分组重排（抽屉是浮层，拖动不能被「点外面收起」打断）。
+    await win.evaluate(() => {
+      const store = window.__nomiCanvasStore?.getState()
+      store?.createGroup('shots', '走查组甲', { nodeIds: ['shot-1'] })
+      store?.createGroup('shots', '走查组乙')
+    })
+    await clickOrFail(win.locator('[data-shell-rail-item="catalog"]'), '#13 打开目录抽屉')
+    const catalog = win.locator('[data-shell-drawer="catalog"]')
+    await expect(catalog.locator('button[title="走查组乙"]'), '#13 目录里没有走查组').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const groupIds = () => win.evaluate(() => (window.__nomiCanvasStore?.getState().groups ?? []).filter((group) => group.name.startsWith('走查组')).map((group) => ({ name: group.name, nodeIds: group.nodeIds })))
+    await catalog.locator('button[data-node-id="shot-2"]').dragTo(catalog.locator('button[title="走查组乙"]'))
+    await expect.poll(async () => JSON.stringify(await groupIds()), { message: '#13 节点拖进分组没生效', timeout: stationTimeout() }).toContain('"name":"走查组乙","nodeIds":["shot-2"]')
+    await expect(catalog, '#13 拖动时抽屉被「点外面收起」关掉了').toBeVisible()
+    const orderBefore = (await groupIds()).map((group) => group.name).join(',')
+    await catalog.locator('button[title="走查组乙"]').dragTo(catalog.locator('button[title="走查组甲"]'))
+    await expect.poll(async () => (await groupIds()).map((group) => group.name).join(','), { message: '#13 分组重排没生效', timeout: stationTimeout() }).not.toBe(orderBefore)
+    parity.catalogDnD = { groups: await groupIds() }
+    await shoot(win, 'check-parity-catalog-dnd')
+    await clickOrFail(win.locator('[data-shell-rail-item="catalog"]'), '#13 收起目录抽屉')
+
+    // #16 素材文件夹：项目素材页签里新建 / 拖进 / 打开 / 删除文件夹。
+    await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#16 打开素材抽屉')
+    const assets = win.locator('[data-shell-drawer="assets"]')
+    await clickOrFail(assets.getByRole('tab', { name: '项目素材' }), '#16 切到项目素材')
+    await clickOrFail(assets.locator('button[aria-label="新建文件夹"]'), '#16 新建文件夹')
+    const nameInput = assets.locator('input[aria-label="新文件夹名称"]')
+    await nameInput.fill('走查文件夹')
+    await nameInput.press('Enter')
+    const folderTile = assets.locator('[role="button"][aria-label="打开文件夹 走查文件夹"]')
+    await expect(folderTile, '#16 新建的文件夹没出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const assetTile = assets.locator('div[draggable="true"]').first()
+    await expect(assetTile, '#16 项目素材里没有可拖的素材').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await assetTile.dragTo(folderTile)
+    await expect(folderTile, '#16 拖进文件夹后计数没变').toContainText('1', { timeout: stationTimeout() })
+    await clickOrFail(folderTile, '#16 打开文件夹')
+    const back = assets.locator('button[aria-label="返回全部项目素材"]')
+    await expect(back, '#16 进文件夹后没有返回钮').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await shoot(win, 'check-parity-asset-folder')
+    await clickOrFail(back, '#16 回到全部项目素材')
+    await folderTile.hover()
+    await clickOrFail(assets.locator('button[aria-label="删除 走查文件夹"]'), '#16 删除文件夹')
+    await clickOrFail(win.locator('[data-confirm-dialog-confirm]').first(), '#16 确认删除文件夹')
+    const folderProof = await proveProbe(assets.getByRole('tab', { name: '项目素材' }), '素材抽屉还开着（判文件夹没了之前先证探针活着）')
+    await expectAbsent(folderTile, { provenBy: folderProof, message: '#16 删除后文件夹还在' })
+    await expect(assets, '#16 确认卡关掉后素材抽屉被收起了').toBeVisible()
+    parity.assetFolders = 'create, drag-in, open, back, delete'
+    await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#16 收起素材抽屉')
   }
 
   console.log(JSON.stringify({ tail, measures, shots: shotsTaken }))

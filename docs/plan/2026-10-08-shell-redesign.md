@@ -81,12 +81,12 @@
 | 8 | 旧「去出片」 | 删（设计卡归位表；canvas-control-clarity.walk 断言不在） |
 | 9 | 收起后状态 / 未读 / 出错 + 叫回 | 右下小球四态 + 未读点（chrome-ball-*、chrome-ball-unread-*；agent-v4-short-film.walk） |
 | 10 | 左栏各库页签 | 60px 左栏 + 抽屉，再点同一项收起（chrome-assets-*） |
-| 11 | 拖宽 | 抽屉右缘拖宽，按项记忆（check-drawer-resize-zh-light-1280：440→520） |
+| 11 | 拖宽 | 六个抽屉右缘都能拖宽、关掉再开宽度还在（走查 check-parity：docs/catalog/flows/skills/prompts 280→328，assets 440→488，再开不变；check-drawer-resize-*） |
 | 12 | 分组新建 / 重命名 / 删除 | 「目录」抽屉 CategoryTree + 抽屉头「+ 新建分组」（preview-catalog-*） |
-| 13 | 节点拖入分组、重排 | 同上，CategoryTree 原件（拖放代码未改） |
+| 13 | 节点拖入分组、重排 | 「目录」抽屉里节点拖进分组、分组拖动重排都生效，拖动时抽屉不被「点外面收起」打断（走查 check-parity；check-parity-catalog-dnd-zh-light-1280） |
 | 14 | 素材上传 / 链接 / 删除 / 搜索 / 预览 / 拖拽 | 「素材」抽屉 AssetLibraryContent 原件（chrome-assets-*；canvas-card-stack.walk） |
 | 15 | 素材筛选 | 同上（筛选钮在搜索框右侧） |
-| 16 | 素材文件夹 | 同上（原件） |
+| 16 | 素材文件夹 | 「素材」抽屉 › 项目素材：新建、拖素材进文件夹、打开、返回、删除（含确认卡）都在，确认卡关掉后抽屉不收（走查 check-parity；check-parity-asset-folder-zh-light-1280） |
 | 17 | 提示词筛选 / 新建 / 重载 | 「提示词」抽屉 + 项目库「提示词」页签，同一个 PromptLibraryContent |
 | 18 | 提示词预览发给 Agent / 复制 | 同上（原件） |
 | 19 | Skill 来源 / 导入 / 新建 | 「Skill」抽屉 + 项目库「Skill」页签，同一个 SkillLibraryContent |
@@ -101,15 +101,15 @@
 | 32 | 拖镜头进时间轴 / 点击追加 | 剪辑页「目录」抽屉顶部镜头格可拖、点击追加；「素材」抽屉带音频（check-preview-append-zh-light-1280：时间轴 0→1 段） |
 | 33 | 播放器控制 | 原样（preview-catalog-*） |
 | 34 | 文本层编辑 | 原样 |
-| 35 | 剪辑页布局菜单 | 剪辑页顶栏右侧（preview-catalog-*） |
+| 35 | 剪辑页布局菜单 | 剪辑页顶栏右簇「布局」钮（窄于 1440 只剩图标 + ▾）：面板显隐 3 项、预设 4 项、恢复默认都在、点了生效（走查 check-parity；check-parity-layout-menu-zh-light-1280） |
 | 36 | 检查器 | 原样（preview-catalog-*） |
 | 37 | Cmd+\ / Cmd+Z | Ctrl(⌘)+\ 停靠↔小球、Ctrl(⌘)+J 打开并聚焦输入框（check-mod-j / check-mod-backslash-dock；editing-real-user-pass.walk）；布局撤销原样 |
 | 38 | 画布 / 列表切换 | 顶栏「生成」旁 `viewSwitcher` 位（列表线填） |
 | 39–42 | 画布添加节点 / 更多 / 流程模板 / 缩放 | 画布内部原样（main-*） |
 | 43 | 时间轴开 / 收 | 底边窄条点 ^ 展开（main-*；layout-timeline-panel-span.walk） |
-| 44–45 | 时间轴工具与交互 | 展开后就是现役 TimelinePanel，工具一个不少 |
+| 44–45 | 时间轴工具与交互 | 窄条 ^ 展开后就是现役 TimelinePanel：工具条 10 颗（分割 / 副本 / 删除 / AI 拼片 / 撤销 / 重做 / 吸附 / 缩小 / 重置 / 放大）、选中后分割可用、右键 8 项、拖标尺播放头会动（走查 check-parity；check-parity-timeline-zh-light-1280） |
 | 46 | 新建 / 打开文件夹 / 筛选 / 搜索 / 打开项目 | 项目库（library-*） |
-| 47–48 | 删除 / 改名 / 打开文件夹 / 同步徽标 / 重查 | 项目卡原样（library-* 卡上「已就绪」徽标） |
+| 47–48 | 删除 / 改名 / 打开文件夹 / 同步徽标 / 重查 | 项目卡原样：悬停出删除钮（先出确认卡）、双击名字改名生效、悬停出「打开项目文件夹」、同步徽标在（走查 check-parity；check-parity-project-card-zh-light-1280）。main 上项目卡本来就没有「更多」菜单 |
 | 49 | 页签、重试、清空搜索、空态动作卡 | Library / LibraryEmpty（library-*、library-empty-*） |
 | 50 | 全屏浮层让开顶栏 | `fullscreenOverlayTopOffset()` = 40（windowChrome.test；director-windowbar.walk） |
 | 51 | 素材预览前后切换 / 下载 3D / Esc | 原样，只改顶偏移 |
