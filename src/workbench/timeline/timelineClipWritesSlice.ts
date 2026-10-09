@@ -3,7 +3,7 @@ import { setClipFraming } from './timelineEdit'
 import type { ClipFraming } from './clipFraming'
 import { applyTimelineOperation } from './kernel/timelineKernel'
 import type { TimelineClipAudio, TimelineState } from './timelineTypes'
-import type { TimelineUndoEntry } from './timelineUndoHistory'
+import { timelineUndoTimeline, type TimelineUndoEntry } from './timelineUndoHistory'
 
 /**
  * 片段级写入：取景（适应/填充 · 缩放 · 平移）与音频（音量 · 静音 · 淡入淡出）。
@@ -21,6 +21,11 @@ export type TimelineClipWritesSlice = {
   setTimelineClipFraming: (clipId: string, patch: Partial<ClipFraming>, options?: { commit?: boolean }) => void
   /** 写入 clip.audio，经内核校验；图片片段直接忽略（clip_audio_unsupported）。 */
   setTimelineClipAudio: (clipId: string, patch: Partial<TimelineClipAudio>, options?: { commit?: boolean }) => void
+  /**
+   * 拖拽手势被打断：弹回手势首次真动时压入的撤销快照（= 手势开始前的那一帧），且不留 redo——
+   * 半截拖动不该能被「重做」出来。只由 timelineGesture.revertCapturedTimelineEdit 调用。
+   */
+  cancelTimelineGesture: () => void
 }
 
 type ClipWritesHostState = {
@@ -35,6 +40,13 @@ export function createTimelineClipWritesSlice(
   pushTimelineUndo: (stack: TimelineUndoEntry[], entry: TimelineState) => TimelineUndoEntry[],
 ): StateCreator<ClipWritesHostState, [['zustand/subscribeWithSelector', never]], [], TimelineClipWritesSlice> {
   return (set) => ({
+    cancelTimelineGesture: () => {
+      set((state) => {
+        const stack = state.timelineUndoStack
+        if (stack.length === 0) return state
+        return { timeline: timelineUndoTimeline(stack[stack.length - 1]), timelineUndoStack: stack.slice(0, -1), persistRevision: state.persistRevision + 1 }
+      })
+    },
     setTimelineClipFraming: (clipId, patch, options) => {
       const commit = options?.commit !== false
       set((state) => {

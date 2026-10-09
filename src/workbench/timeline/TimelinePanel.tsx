@@ -1,4 +1,5 @@
 import React, { type JSX } from 'react'
+import { usePointerSession } from './timelineGesture'
 import { useTranslation } from 'react-i18next'
 import {
   IconArrowBackUp,
@@ -262,12 +263,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   }, [])
 
   // 可拖 playhead scrub：拖把手或在标尺上按下都能 scrub；吸附到片段边/起点；Shift 关吸附。
+  const startSession = usePointerSession()
   const beginScrub = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.preventDefault()
     event.stopPropagation()
-    const pointerId = event.pointerId
-    const target = event.currentTarget
-    target.setPointerCapture?.(pointerId)
 
     const applyAt = (clientX: number, shiftKey: boolean) => {
       const store = useWorkbenchStore.getState()
@@ -288,20 +287,13 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     }
 
     applyAt(event.clientX, event.shiftKey)
-    const handlePointerMove = (moveEvent: PointerEvent) => applyAt(moveEvent.clientX, moveEvent.shiftKey)
-    const stopScrubListeners = () => {
-      target.releasePointerCapture?.(pointerId)
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', stopScrubListeners)
-      // 系统打断（触控手势/alt-tab）发 pointercancel 而非 pointerup——只摘 up 会泄漏
-      // 两个 window 监听并让 snap guide 残留。
-      window.removeEventListener('pointercancel', stopScrubListeners)
-      useWorkbenchStore.getState().setTimelineSnapGuide(null)
-    }
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', stopScrubListeners)
-    window.addEventListener('pointercancel', stopScrubListeners)
-  }, [frameFromClientX, snapEnabled])
+    startSession({
+      event,
+      onMove: (moveEvent) => applyAt(moveEvent.clientX, moveEvent.shiftKey),
+      // 松手与被系统打断（触控手势 / alt-tab / 失焦）都清掉吸附线；播放头停在最后一个位置，本就是非破坏性的。
+      onEnd: () => useWorkbenchStore.getState().setTimelineSnapGuide(null),
+    })
+  }, [frameFromClientX, snapEnabled, startSession])
 
   React.useEffect(() => {
     const onHelp = (event: KeyboardEvent) => {
