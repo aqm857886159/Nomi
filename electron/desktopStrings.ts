@@ -11,7 +11,8 @@
 
 import { getDesktopLocale, type DesktopLocale } from "./desktopLocale";
 
-const translations = {
+// 导出只为门岗读（scripts/check-test-copy-literals.mjs：测试不许手抄这里的文案）；运行时取词仍只走 desktopT。
+export const desktopTranslations = {
   "zh-CN": {
     "agent.legacySummary": "旧版摘要：",
     "agent.legacyUnverifiedTool": "旧版工具结果未验证。",
@@ -50,19 +51,19 @@ const translations = {
     // ⚠️ 长度纪律：错误卡大标题走 classifyError.truncateLine，**超 100 字会被截尾**（那正是
     // 「该怎么办」那半句）。这两条 key 因此写得短，完整上下文留在 raw / 上游原话里。
     "tasks.noQueryOperation": "这个模型没有配置「查询结果」接口，而本次创建也没有返回任何产物——没有第二次查询可发，已按失败处理。请检查该模型的接入配置。",
-    "outbound.fakeIpBlocked": "取片被安全策略拦下：{{host}} 解析到 {{address}}（RFC 2544 段，本地代理 fake-ip 常用它做合成地址），Nomi 无法确认这是代理而不是内网，于是拒绝了下载。**已付费的任务没有丢**，上游多半已经生成好了——请到「模型设置 → 网络」确认本地代理已开启，再用「重新拉取」免费取回，不用重新生成。",
-    "outbound.privateAddress": "取片被安全策略拦下：{{host}} 解析到内网地址 {{address}}，Nomi 不会向内网下载产物（防止被诱导去探测你的路由器/NAS）。已付费的任务没有丢，修好 DNS 或代理后可用「重新拉取」免费取回。",
+    "outbound.fakeIpBlocked": "取片被安全策略拦下：{{host}} 解析到 {{address}}（RFC 2544 段，本地代理 fake-ip 常用它做合成地址），Nomi 无法确认这是代理而不是内网，于是拒绝了下载。**任务没有丢**，上游多半已经生成好了——请到「模型设置 → 网络」确认本地代理已开启，再用「重新拉取」取回，不用重新生成。",
+    "outbound.privateAddress": "取片被安全策略拦下：{{host}} 解析到内网地址 {{address}}，Nomi 不会向内网下载产物（防止被诱导去探测你的路由器/NAS）。任务没有丢，修好 DNS 或代理后可用「重新拉取」取回。",
     "outbound.privateHost": "这个地址指向本机或内网（{{host}}），Nomi 不会从这里下载产物。若这是你自己的本地生成后端，请在模型设置里把它配置成供应商，而不是直接填链接。",
-    "outbound.unresolvable": "找不到 {{host}} 的服务器地址（DNS 没有返回任何结果）。请检查网络或代理是否正常，然后用「重新拉取」免费重试。",
-    "outbound.submitFakeIpBlocked": "这次生成**没有发出去，也没有扣费**：{{host}} 解析到 {{address}}（RFC 2544 段，本地代理 fake-ip 常用它做合成地址），Nomi 无法确认这是代理而不是内网，于是在请求发出前就拦下了。请到「模型接入 → 网络」确认本地代理已开启（那一行会写「检测到本地代理」），然后重新生成。",
-    "outbound.submitPrivateAddress": "这次生成**没有发出去，也没有扣费**：{{host}} 解析到内网地址 {{address}}，Nomi 不会把带着密钥的请求发往内网。请检查 DNS 或代理；如果这确实是你自己的服务，请在模型设置里把它的完整地址配成供应商接入地址。",
-    "outbound.submitPrivateHost": "这次生成**没有发出去，也没有扣费**：接入地址指向本机或内网（{{host}}）。如果这是你自己的本地后端，请在「模型接入」里把它配置成供应商；链路本地/元数据地址（169.254.x）永远不会被放行。",
-    "outbound.submitUnresolvable": "这次生成**没有发出去，也没有扣费**：找不到 {{host}} 的服务器地址（DNS 没有返回任何结果）。请检查网络或代理，然后重新生成。",
+    "outbound.unresolvable": "找不到 {{host}} 的服务器地址（DNS 没有返回任何结果）。请检查网络或代理是否正常，然后用「重新拉取」重试。",
+    "outbound.submitFakeIpBlocked": "这次生成**没有发出去**：{{host}} 解析到 {{address}}（RFC 2544 段，本地代理 fake-ip 常用它做合成地址），Nomi 无法确认这是代理而不是内网，于是在请求发出前就拦下了。请到「模型接入 → 网络」确认本地代理已开启（那一行会写「检测到本地代理」），然后重新生成。",
+    "outbound.submitPrivateAddress": "这次生成**没有发出去**：{{host}} 解析到内网地址 {{address}}，Nomi 不会把带着密钥的请求发往内网。请检查 DNS 或代理；如果这确实是你自己的服务，请在模型设置里把它的完整地址配成供应商接入地址。",
+    "outbound.submitPrivateHost": "这次生成**没有发出去**：接入地址指向本机或内网（{{host}}）。如果这是你自己的本地后端，请在「模型接入」里把它配置成供应商；链路本地/元数据地址（169.254.x）永远不会被放行。",
+    "outbound.submitUnresolvable": "这次生成**没有发出去**：找不到 {{host}} 的服务器地址（DNS 没有返回任何结果）。请检查网络或代理，然后重新生成。",
     "tasks.completedWithoutOutput": "供应商报告任务完成，但没有返回可用产物；已按失败处理。请检查该模型的结果接口。",
     "tasks.modelUnresolvable": "模型当前不可执行（已下架或凭证失效），无法续查该任务的结果；已按失败处理。请到供应商后台核对任务，或重新配置该模型。",
     "tasks.missingTaskId": "供应商没有返回任务编号，无法安全查询结果；已按失败处理。请检查该模型的创建接口。",
     "tasks.upstreamSaid": "（上游原话：{{detail}}）",
-    "deconstruct.spendDeclined": "这次拆解没有经过付费确认，一次请求都没有发出。",
+    "deconstruct.spendDeclined": "这次拆解没有确认，因此没有发出请求。",
     "deconstruct.noTranscribeModel": "对白没取到：这台机器上还没有可用的转写模型。去「接入模型」启用一个后重试；画面那半仍然拆好了。",
     "textTask.imagesUnreadable": "参考图都读不出来（{{count}} 张），没法让模型看图作答。请检查素材是否还在项目里。",
     "vendor.apimartOmni.imageUrlsArray": "APIMart Omni 参考图必须是图片数组。",
@@ -248,19 +249,19 @@ const translations = {
     "tasks.pollTimedOut": "Timed out waiting for the result (waited {{seconds}}s, last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
     "tasks.pollFailed": "Failed to fetch the generation result for {{seconds}}s in a row (last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
     "tasks.noQueryOperation": "This model has no result-query operation and the create call returned nothing. Check its setup.",
-    "outbound.fakeIpBlocked": "The download was blocked by Nomi's own network policy: {{host}} resolved to {{address}} (the RFC 2544 range that local fake-IP proxies use for synthetic addresses). Nomi could not confirm a proxy is running, so it refused the download. **Your paid task is not lost** - confirm your local proxy under Model settings > Network, then use \"Re-fetch result\" to retrieve it for free. Do not regenerate.",
-    "outbound.privateAddress": "The download was blocked by Nomi's own network policy: {{host}} resolved to the private address {{address}}, and Nomi never downloads results from private networks. Your paid task is not lost - fix DNS or the proxy, then use \"Re-fetch result\" to retrieve it for free.",
+    "outbound.fakeIpBlocked": "The download was blocked by Nomi's own network policy: {{host}} resolved to {{address}} (the RFC 2544 range that local fake-IP proxies use for synthetic addresses). Nomi could not confirm a proxy is running, so it refused the download. **The task is not lost** - confirm your local proxy under Model settings > Network, then use \"Re-fetch result\" to retrieve it. Do not regenerate.",
+    "outbound.privateAddress": "The download was blocked by Nomi's own network policy: {{host}} resolved to the private address {{address}}, and Nomi never downloads results from private networks. The task is not lost - fix DNS or the proxy, then use \"Re-fetch result\" to retrieve it.",
     "outbound.privateHost": "This address points at your own machine or private network ({{host}}), so Nomi will not download results from it. If it is your own local backend, configure it as a provider in model settings instead of pasting the link.",
-    "outbound.unresolvable": "No server address found for {{host}} (DNS returned nothing). Check your network or proxy, then use \"Re-fetch result\" to retry for free.",
-    "outbound.submitFakeIpBlocked": "This generation **was never sent, and nothing was charged**: {{host}} resolved to {{address}} (the RFC 2544 range local fake-IP proxies use for synthetic addresses), and Nomi could not confirm a proxy is running, so it stopped the request before it left your machine. Confirm your local proxy under Model Access > Network (that row reads \"Local proxy detected\"), then generate again.",
-    "outbound.submitPrivateAddress": "This generation **was never sent, and nothing was charged**: {{host}} resolved to the private address {{address}}, and Nomi never sends a credential-bearing request into a private network. Check DNS or your proxy; if this really is your own service, configure its full address as a provider endpoint in model settings.",
-    "outbound.submitPrivateHost": "This generation **was never sent, and nothing was charged**: the endpoint points at your own machine or private network ({{host}}). If it is your own local backend, configure it as a provider under Model Access. Link-local / metadata addresses (169.254.x) are never allowed.",
-    "outbound.submitUnresolvable": "This generation **was never sent, and nothing was charged**: no server address was found for {{host}} (DNS returned nothing). Check your network or proxy, then generate again.",
+    "outbound.unresolvable": "No server address found for {{host}} (DNS returned nothing). Check your network or proxy, then use \"Re-fetch result\" to retry.",
+    "outbound.submitFakeIpBlocked": "This generation **was never sent**: {{host}} resolved to {{address}} (the RFC 2544 range local fake-IP proxies use for synthetic addresses), and Nomi could not confirm a proxy is running, so it stopped the request before it left your machine. Confirm your local proxy under Model Access > Network (that row reads \"Local proxy detected\"), then generate again.",
+    "outbound.submitPrivateAddress": "This generation **was never sent**: {{host}} resolved to the private address {{address}}, and Nomi never sends a credential-bearing request into a private network. Check DNS or your proxy; if this really is your own service, configure its full address as a provider endpoint in model settings.",
+    "outbound.submitPrivateHost": "This generation **was never sent**: the endpoint points at your own machine or private network ({{host}}). If it is your own local backend, configure it as a provider under Model Access. Link-local / metadata addresses (169.254.x) are never allowed.",
+    "outbound.submitUnresolvable": "This generation **was never sent**: no server address was found for {{host}} (DNS returned nothing). Check your network or proxy, then generate again.",
     "tasks.completedWithoutOutput": "The provider reported completion but returned no usable output. Check this model's result endpoint.",
     "tasks.modelUnresolvable": "The model is no longer executable (removed or its credential is invalid), so the task result cannot be fetched; treated as failed. Check your provider dashboard or reconfigure the model.",
     "tasks.missingTaskId": "The provider did not return a task ID, so Nomi cannot safely query the result. Check this model's create endpoint.",
     "tasks.upstreamSaid": " (Upstream said: {{detail}})",
-    "deconstruct.spendDeclined": "This deconstruction was never confirmed for spending, so no request was sent.",
+    "deconstruct.spendDeclined": "This deconstruction was not confirmed, so no request was sent.",
     "deconstruct.noTranscribeModel": "Dialogue was skipped: no transcription model is available on this machine. Enable one under model access and retry; the visual half is still done.",
     "textTask.imagesUnreadable": "None of the {{count}} reference image(s) could be read, so the model cannot answer from the image. Check that the assets are still in the project.",
     "vendor.apimartOmni.imageUrlsArray": "APIMart Omni reference images must be an image array.",
@@ -409,10 +410,10 @@ const translations = {
   },
 } as const;
 
-export type DesktopTranslationKey = keyof (typeof translations)["zh-CN"];
+export type DesktopTranslationKey = keyof (typeof desktopTranslations)["zh-CN"];
 
 export function desktopT(key: DesktopTranslationKey, values: Record<string, string | number> = {}, locale: DesktopLocale = getDesktopLocale()): string {
-  let text: string = translations[locale][key];
+  let text: string = desktopTranslations[locale][key];
   for (const [name, value] of Object.entries(values)) {
     text = text.replace(new RegExp(`\\{\\{${name}\\}\\}`, 'g'), String(value));
   }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { resolvePullRequestBody } from './lib/prBody.mjs'
+import { LOCAL_PR_BODY_DRAFT, resolvePullRequestBody } from './lib/prBody.mjs'
 
 // 这一组钉死的是 2026-09-18 之前那个坑的反面：正文**现取**，而且「取不到」和「正文是空的」
 // 是两件不同的事。旧写法把 `github.event.pull_request.body`（push 那一刻的快照）当唯一来源，
@@ -44,6 +44,7 @@ test('本地默认跳过；加 --pr 才查，取不到也只是「今天没查�
     env: {},
     argv: ['node', 'check-prior-art.mjs', '--pr'],
     fetchBody: () => { throw new Error('gh: command not found') },
+    readDraft: () => null,
   })
   assert.equal(asked.available, false)
   assert.equal(asked.required, false, '本地不是最后一道闸：CI 侧仍然 fail-closed')
@@ -63,4 +64,15 @@ test('空正文是「查过了而且是空的」，不是「没查成」', () =>
   const result = resolvePullRequestBody({ env: { NOMI_PR_BODY: '' }, argv: ['node', 'x.mjs'] })
   assert.equal(result.available, true)
   assert.equal(result.body, '')
+})
+
+test('还没有 PR：本地 --pr 取不到时读 .tmp-pr-body.md 草稿，按合并前的标准提前判；CI 里不读草稿', () => {
+  const failing = () => { throw new Error('no pull requests found for branch') }
+  const local = resolvePullRequestBody({ env: {}, argv: ['node', 'x.mjs', '--pr'], fetchBody: failing, readDraft: () => '## 设计卡\n草稿' })
+  assert.equal(local.available, true)
+  assert.equal(local.source, LOCAL_PR_BODY_DRAFT)
+  assert.match(local.body, /草稿/)
+  const ci = resolvePullRequestBody({ env: { GITHUB_EVENT_NAME: 'pull_request' }, argv: ['node', 'x.mjs'], fetchBody: failing, readDraft: () => '草稿' })
+  assert.equal(ci.available, false, 'CI 里取不到就是红，不能被一个本地草稿文件顶替')
+  assert.equal(ci.required, true)
 })

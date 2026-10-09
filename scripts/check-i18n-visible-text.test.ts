@@ -108,14 +108,18 @@ afterEach(() => {
   tempDir = null
 })
 
-type Mutations = { script?: (source: string) => string; seam?: (source: string) => string; baseline?: string }
+type Mutations = { script?: (source: string) => string; seam?: (source: string) => string; baseline?: string; files?: Record<string, string> }
 
 /** 跑一份（可选被改动的）门岗副本，对着夹具语料，返回退出码与合并输出。 */
-function runGate({ script = (s) => s, seam = (s) => s, baseline }: Mutations = {}): { code: number; output: string; baselineAfter: string } {
+function runGate({ script = (s) => s, seam = (s) => s, baseline, files = {} }: Mutations = {}): { code: number; output: string; baselineAfter: string } {
   fs.mkdirSync(SCRATCH_ROOT, { recursive: true })
   tempDir = fs.mkdtempSync(path.join(SCRATCH_ROOT, 'nomi-i18n-gate-'))
   const corpus = path.join(tempDir, 'corpus')
   makeCorpus(corpus)
+  for (const [relative, content] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(corpus, relative)), { recursive: true })
+    fs.writeFileSync(path.join(corpus, relative), content)
+  }
 
   // 「改词典」那几条负例作用在语料的词典副本上；作用不到就会静默变成假绿，故断言改动确实落地。
   const seamFile = path.join(corpus, 'src/i18n/locales/modelDisplayText.ts')
@@ -220,4 +224,27 @@ describe('electron 基线自动收缩（只减不增）', () => {
     expect(JSON.parse(baselineAfter)).toEqual({})
   })
 
+})
+
+// 第 8 轮验收抓到：src/config/knownVendors.ts 被整文件豁免，又用 tagline / text / ctaLabel 这类
+// 不在「可见属性名」名单里的字段装中文，两道网一起漏，英文界面直接显示中文。
+// 类修法：src/config/ 里的展示目录对汉字硬零——不按属性名猜，任何汉字字面量都红；界面文字住 i18n。
+describe('src/config 展示目录不许写死界面中文', () => {
+  it('阳性对照：只有拉丁字面量的目录是绿的', () => {
+    const { code, output } = runGate({ files: { 'src/config/vendorDirectory.ts': "export const V = [{ vendorKey: 'x', glyph: 'X', url: 'https://x' }]\n" } })
+    expect(code, output).toBe(0)
+  })
+
+  it('目录对象里任何字段写死中文 → 红，并指出文件和那句话', () => {
+    const { code, output } = runGate({ files: { 'src/config/vendorDirectory.ts': "export const V = [{ vendorKey: 'x', tagline: '一个 key，解锁全部模型', promo: { ctaLabel: '用我们的链接' } }]\n" } })
+    expect(code).not.toBe(0)
+    expect(output).toContain('src/config/vendorDirectory.ts')
+    expect(output).toContain('一个 key，解锁全部模型')
+    expect(output).toContain('用我们的链接')
+  })
+
+  it('注释里的中文不算界面文字', () => {
+    const { code, output } = runGate({ files: { 'src/config/vendorDirectory.ts': "// 已知供应商目录\nexport const V = [{ vendorKey: 'x' }] /* 说明 */\n" } })
+    expect(code, output).toBe(0)
+  })
 })

@@ -2,7 +2,7 @@ export const zhSettings = {
   sound: {
     title: '提醒与声音', brand: 'Nomi 提醒音', description: '需要你决定的时候，轻轻响一声',
     preview: '试听', stop: '停止', enabled: '需要我时响一声', events: '响哪些',
-    decision: '需要你决定（审批、付费确认、失败要处理）', completed: '生成完成', slow: '比平时久',
+    decision: '需要你决定（审批、失败要处理）', completed: '生成完成', slow: '比平时久',
     custom: '用自己的声音', replace: '换一个…', reset: '恢复默认', duration: '{{seconds}} 秒',
     formats: 'WAV / MP3 / AIFF / M4A · 最长 10 秒 · 最大 2 MB',
     enableFirst: '开启提醒音后可选择', unavailable: '正在连接桌面声音设置',
@@ -69,7 +69,7 @@ export const zhSettings = {
         kieConnected: 'KIE 已接入',
         configure: '去配置 KIE',
         upsell: '优先使用你已配置供应商自己的上传 API。都不可用时，Nomi 才使用受限公共 Relay；最后才尝试匿名图床。',
-        settled: '素材优先走供应商自己的私有上传。Nomi Relay 只作受限兜底，超过额度会停止，不会继续上传。',
+        settled: '素材优先走供应商自己的私有上传。Nomi Relay 只作受限兜底，达到服务限制会停止，不会继续上传。',
       },
       customRelay: {
         title: '自定义 Relay（高级）',
@@ -119,12 +119,12 @@ export const zhSettings = {
       saveFailed: '保存失败，请重试（可能是系统钥匙串未解锁）。',
       // 真实校验失败态（保存前打一发验 key 得到的诚实结果，不再乱填也「已连接」）。
       keyInvalid: 'Key 无效，未通过 TikHub 验证。请核对后重新粘贴。',
-      keyQuota: 'Key 有效，但账户额度不足或权限受限。请到 TikHub 充值或检查权限。',
+      keyQuota: 'Key 有效，但当前请求被账户状态或权限限制。请检查 TikHub 权限后再试。',
       verifyNetwork: '连不上 TikHub，无法验证这把 Key。请检查网络或代理后重试（可在下方线路里手动指定线路）。',
       connected: '已连接',
       replace: '更换',
       disconnect: '断开',
-      honestNote: 'TikHub 是第三方抓取型接口（非平台官方授权），解析出的直链短时有效、可能随平台风控波动。按次计费，费用发生在你自己的 TikHub 账户。',
+      honestNote: 'TikHub 是第三方抓取型接口（非平台官方授权），解析出的直链短时有效、可能随平台风控波动。请求由你的 TikHub 账户处理。',
       route: {
         label: '线路',
         // 收起态状态胶囊：一眼看到「现在实际走哪条线」。
@@ -248,7 +248,7 @@ export const enSettings = {
   sound: {
     title: 'Alerts & sound', brand: 'Nomi attention sound', description: 'A gentle note when a decision needs you',
     preview: 'Preview', stop: 'Stop', enabled: 'Play a sound when I’m needed', events: 'Play for',
-    decision: 'Your decision (approval, spending, or a failure)', completed: 'Generation complete', slow: 'Taking longer than usual',
+    decision: 'Your decision (approval or a failure)', completed: 'Generation complete', slow: 'Taking longer than usual',
     custom: 'Use your own sound', replace: 'Choose…', reset: 'Restore default', duration: '{{seconds}} sec',
     formats: 'WAV / MP3 / AIFF / M4A · Up to 10 seconds · Up to 2 MB',
     enableFirst: 'Enable sound to choose events', unavailable: 'Connecting to desktop sound settings',
@@ -315,7 +315,7 @@ export const enSettings = {
         kieConnected: 'KIE connected',
         configure: 'Configure KIE',
         upsell: 'Nomi first uses upload APIs from providers you configured. Only then does it try the limited public Relay, followed by anonymous hosts.',
-        settled: 'Assets first use provider-owned private uploads. Nomi Relay is only a limited fallback and stops at its quota.',
+        settled: 'Assets first use provider-owned private uploads. Nomi Relay is only a limited fallback and stops at the service limit.',
       },
       customRelay: {
         title: 'Custom Relay (advanced)',
@@ -366,12 +366,12 @@ export const enSettings = {
       saveFailed: 'Could not save — try again (the system keychain may be locked).',
       // Real-verification failure states (a key check runs before saving, so an invalid key never shows "Connected").
       keyInvalid: 'Invalid key — it did not pass TikHub verification. Check it and paste again.',
-      keyQuota: 'The key is valid, but the account is out of quota or lacks permission. Top up on TikHub or check permissions.',
+      keyQuota: 'The key is valid, but this request is blocked by account state or permissions. Check TikHub permissions and try again.',
       verifyNetwork: 'Cannot reach TikHub to verify this key. Check your network or proxy and retry (you can force a route below).',
       connected: 'Connected',
       replace: 'Replace',
       disconnect: 'Disconnect',
-      honestNote: 'TikHub is a third-party scraping API (not official platform access). Resolved URLs are short-lived and can fluctuate with platform anti-bot changes. It bills per request against your own TikHub account.',
+      honestNote: 'TikHub is a third-party scraping API (not official platform access). Resolved URLs are short-lived and can fluctuate with platform anti-bot changes. Requests use your TikHub account.',
       route: {
         label: 'Route',
         pillAuto: 'Auto route',
