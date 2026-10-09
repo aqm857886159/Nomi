@@ -68,6 +68,7 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:main-console', when: (files) => touchesGateInputs('check:main-console', files) },
   { name: 'check:asset-evidence', when: (files) => touchesGateInputs('check:asset-evidence', files) },
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
+  { name: 'check:canvas-edge-writers', when: (files) => touchesGateInputs('check:canvas-edge-writers', files) },
   { name: 'check:dangling-tokens', when: (files) => touchesGateInputs('check:dangling-tokens', files) },
   { name: 'check:dangling-tailwind', when: (files) => touchesGateInputs('check:dangling-tailwind', files) },
   { name: 'check:walkthroughs', when: (files) => touchesGateInputs('check:walkthroughs', files) },
