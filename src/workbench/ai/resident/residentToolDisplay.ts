@@ -238,7 +238,41 @@ function isAllArtifactDelivery(args: unknown): boolean {
   return nodes.every((node) => !!node && typeof node === 'object' && (node as Record<string, unknown>).kind === 'agent-artifact')
 }
 
+/**
+ * 确切动词名 → 它自己的说法。按名字**精确**查表，不走下面的子串 / 契约桶：
+ * 几个动词共用同一份契约（canvas.write 一桶就有 arrange_canvas / make_artifact / write_node_text / stage_shot；
+ * generation.plan 一桶有 draft_shots / generate），按契约桶说话，新动词默认继承别人的话——
+ * 改文本节点正文的回执说成「创建或修改镜头卡 · 把镜头卡写入当前画布」（2026-10-09 真模型走查）。
+ * 新动词进 lane 目录而没有登记：residentToolDisplay.test.ts 的「每个 lane 工具说的话都不同」会红。
+ * 没登记的旧动词仍走下面的老判断（只登记会被桶说错的；其余已有独立的人话）。
+ */
+const VERB_DISPLAY = {
+  write_node_text: { name: 'agentResident.toolNodeTextWrite', summary: 'agentResident.toolNodeTextWriteSummary' },
+  arrange_canvas: { name: 'agentResident.toolCanvasArrange', summary: 'agentResident.toolCanvasArrangeSummary' },
+  make_artifact: { name: 'agentResident.toolCanvasWriteArtifact', summary: 'agentResident.toolCanvasWriteArtifactSummary' },
+  stage_shot: { name: 'agentResident.toolStageShot', summary: 'agentResident.toolStageShotSummary' },
+  draft_shots: { name: 'agentResident.toolShotsDraft', summary: 'agentResident.toolShotsDraftSummary' },
+  cancel_job: { name: 'agentResident.toolJobCancel', summary: 'agentResident.toolJobCancelSummary' },
+  export_video: { name: 'agentResident.toolExport', summary: 'agentResident.toolExportSummary' },
+} as const satisfies Record<string, { name: TranslationKey; summary: TranslationKey }>
+
+function verbDisplay(name: string): { name: TranslationKey; summary: TranslationKey } | undefined {
+  return Object.prototype.hasOwnProperty.call(VERB_DISPLAY, name) ? VERB_DISPLAY[name as keyof typeof VERB_DISPLAY] : undefined
+}
+
+/**
+ * 契约桶里**本来就该这么说**、并且带着按 args 展开的专门分支的动词（不进上面的静态表）：
+ * edit_timeline（调整时间线 + 细节）、undo（按 changeId 分撤画布 / 撤时间线）、generate（准备生成 + 模型 / 参数）。
+ * 新动词不在这里也不在表里、却和别人共用一个契约桶，就是继承别人的话——测试会红。
+ */
+export const BUCKET_NATIVE_VERBS = ['edit_timeline', 'undo', 'generate'] as const
+
+/** 测试用：有自己说法的动词名（确切登记 + 桶内原生）。 */
+export const REGISTERED_VERB_DISPLAY_NAMES: readonly string[] = [...Object.keys(VERB_DISPLAY), ...BUCKET_NATIVE_VERBS]
+
 export function readableToolName(t: Translate, name: string, rawArgs?: unknown): string {
+  const exact = verbDisplay(name)
+  if (exact) return t(exact.name)
   const args = semanticArgsOf(name, rawArgs)
   if (name === 'nomi_request_tools') return t('agentResident.toolPrepareTools')
   if (name === 'read' || name === 'ls') return t('agentResident.toolFileRead')
@@ -299,6 +333,8 @@ export function readableToolName(t: Translate, name: string, rawArgs?: unknown):
 }
 
 export function readableToolSummary(t: Translate, name: string, rawArgs?: unknown): string {
+  const exact = verbDisplay(name)
+  if (exact) return t(exact.summary)
   const args = semanticArgsOf(name, rawArgs)
   if (isStoryboardPlanWrite(name, args)) return t('agentResident.toolStoryboardWriteSummary')
   if (isReadOnlyToolName(name, args)) return t('agentResident.toolReadNoChange')
@@ -344,6 +380,8 @@ export function readableToolSummary(t: Translate, name: string, rawArgs?: unknow
  * 认不出的工具至少说清「它要做哪件事、动的是谁」（合同 §2.6：逐条给人话）。
  */
 export function readableToolPreview(t: Translate, name: string, rawArgs?: unknown): string {
+  const exact = verbDisplay(name)
+  if (exact) return t(exact.summary)
   const args = semanticArgsOf(name, rawArgs)
   const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
