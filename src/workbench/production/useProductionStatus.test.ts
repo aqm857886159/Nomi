@@ -16,7 +16,7 @@ vi.mock('../generationCanvas/spend/productionContractView', () => ({ buildProduc
 vi.mock('../generationCanvas/spend/anchorCheckpointView', () => ({ buildAnchorCheckpointCard: vi.fn() }))
 vi.mock('../workbenchStore', () => ({ useWorkbenchStore: {} }))
 vi.mock('./productionRunApi', () => ({ productionRunApi: { read: vi.fn(), command: vi.fn() } }))
-vi.mock('./productionRunCommands', () => ({ executeProductionRunCommand: mocks.command }))
+vi.mock('./productionRunCommands', async (importOriginal) => ({ ...(await importOriginal<typeof import('./productionRunCommands')>()), executeProductionRunCommand: mocks.command }))
 vi.mock('./productionRunStore', () => ({ useProductionRunStore: { getState: () => ({ loadRun: mocks.loadRun }) } }))
 vi.mock('./productionRunView', () => ({ buildProductionRunView: () => ({ targetId: null }), gateKindOf: vi.fn() }))
 vi.mock('./useActiveProductionRun', () => ({ useActiveProductionRun: () => ({ run: mocks.run, navigationTarget: null }) }))
@@ -41,6 +41,16 @@ describe('production command feedback', () => {
       expect(input.present).toBeTypeOf('function')
     }
     expect(mocks.confirm).not.toHaveBeenCalled()
+  })
+  // #1139 V-1139c：主进程的唯一判定说「继续了也一镜都不会派」——制作面板的「从断点继续」说那句真话，不报「操作失败」、不贴原文。
+  it('resume with nothing to continue says so, not "action failed" with raw text', async () => {
+    mocks.command.mockRejectedValueOnce(new Error("Error invoking remote method 'nomi:production-runs:command': NothingToResumeError: nothing_to_resume: removed=shot-2 canvas=- failed=-"))
+    const status = mount()
+    await status.onPrimaryAction('resume-run')
+    expect(mocks.notify).toHaveBeenCalledTimes(1)
+    const [input] = mocks.notify.mock.calls[0]
+    expect(input).toMatchObject({ reason: 'generationCommon.production.canvasLanding.actionFailure.nothingToResume', message: 'generationCommon.production.canvasLanding.actionFailure.nothingToResume' })
+    expect(input.message).not.toContain('nothing_to_resume')
   })
   it('still confirms cancellation before executing it', async () => {
     const status = mount()

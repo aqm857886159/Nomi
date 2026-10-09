@@ -18,7 +18,7 @@ import { IllegalProductionTransitionError } from '../productionRun/productionRun
 import { ProductionRunControlRefusedError } from '../productionRun/productionRunControl'
 import { retryLiftsStop } from '../productionRun/productionRunLifecycle'
 import { runStopReason } from '../shared/productionRunStop'
-import { shotsAwaitingDispatch } from '../productionRun/shotLandingAdmission'
+import { NothingToResumeError, resumeOutlook } from '../productionRun/resumeOutlook'
 import { logError, logWarn } from '../logging/logger'
 
 /** 这个 Run 现在驱动得起来吗；起不来是缺什么（与调度器构造同一份判断：appIntegration.submissionReadinessForRun）。 */
@@ -51,6 +51,7 @@ const LEDGER_WRITE_ERRNO = new Set(['ENOSPC', 'EDQUOT', 'EROFS', 'EACCES', 'EPER
  */
 export function productionShotActionFailureOf(error: unknown): ProductionShotActionFailure {
   if (error instanceof GenerationReworkRefusedError) return error.refusal
+  if (error instanceof NothingToResumeError) return 'nothing_to_resume'
   if (error instanceof ProductionRunRevisionConflictError
     || error instanceof ProductionRunLockBusyError
     || error instanceof IllegalProductionTransitionError
@@ -221,11 +222,12 @@ export function createProductionActionHooks(deps: ActionDeps): {
     if (run.status === 'completed' || run.status === 'cancelled') return failed('run_finished')
     const stopReason = runStopReason(run)
     if (stopReason === null && run.status !== 'running') return failed('not_stopped')
-    if (stopReason === 'landing_failed') {
-      // 落地失败停下的那一批（#1139 第二轮复审第 3 条）：继续 = 重落再派，不许只回一个 resumed 却什么都不发生。
-      // 剩下没发的镜节点都被删掉了（detached）→ 制作流程不再派它们，没有可继续的，如实说；
-      // 这一次还是一镜都落不下 → 不继续，如实说「没放到画布上」，再点一次就是重试。
-      if (shotsAwaitingDispatch(run).length === 0) return failed('nothing_to_resume')
+    // 这一下继续实际会做什么，只问唯一判定（resumeOutlook，run.control 的写口也问它）：不论因为什么停下、还是已经在跑，
+    // 一镜都不会派、也没有在等的 → 如实说没有可继续的（#1139 V-1139c：以前只在落地失败那一种停下里问过）。
+    // 要派的镜里有还没放到画布上的 → 先落；一镜都落不下 → 不继续，如实说「没放到画布上」，再点一次就是重试。
+    const outlook = resumeOutlook(run)
+    if (outlook.kind === 'nothing_to_resume') return failed('nothing_to_resume')
+    if (outlook.notPlaced.length > 0) {
       const landing = await deps.landBeforeResume?.(projectId, runId)
       if (landing?.allNotPlaced) return failed('canvas_landing_failed')
     }

@@ -1,3 +1,7 @@
+import { resumeOutlook, NothingToResumeError } from "../productionRun/resumeOutlook";
+import { isNothingToResume } from "../../src/workbench/production/productionRunCommands";
+import { dispatch } from "./dispatcher";
+import { buildToolOutcome } from "./mcpToolResults";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -356,5 +360,64 @@ describe("「继续」一批因为落地失败停下的镜：说的就是会发�
     await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: true, code: "resumed" });
     expect(landBeforeResume).toHaveBeenCalledTimes(1);
     expect(repository.read(PROJECT, RUN)!.status).toBe("running");
+  });
+});
+
+// #1139 V-1139c：「继续」三扇门（画布占位卡的「继续」、制作面板 / 渲染层 run.control、外部 Agent 的 nomi_run_control）
+// 只问一个判定（resumeOutlook）。验收跑到的那一种：Run 已经在跑（或因别的原因停着），剩下没发的那一镜节点被删了——
+// 一镜都不会派。以前只有落地失败那一种停下问过，其余照样回「已继续」。
+describe("V-1139c: every resume door asks the one judgement and says nothing will be sent", () => {
+  /** 第 1 镜出片了；第 2 镜批过、还没发，节点被用户从画布上删掉（detached）。Run 仍是 running。 */
+  function removedSecondShot(repository: ReturnType<typeof createProductionRunRepository>) {
+    let run = repository.read(PROJECT, RUN)!;
+    const job1 = run.jobs.find((job) => job.metadata?.shotId === "shot-1")!;
+    for (const status of ["submit_intent_persisted", "submitting", "provider_accepted", "polling", "downloading", "validating_technical", "validating_content", "ready"] as const) {
+      run = repository.execute(PROJECT, RUN, { commandId: `c-job1-${status}`, expectedRevision: run.revision, type: "job.status", payload: { jobId: job1.jobId, status }, issuedAt: now() }).run;
+    }
+    run = repository.execute(PROJECT, RUN, { commandId: "c-bind-2", expectedRevision: run.revision, type: "plan.bind-shot-nodes", payload: { bindings: [{ shotId: "shot-2", nodeId: "node-2" }] }, issuedAt: now() }).run;
+    return repository.execute(PROJECT, RUN, { commandId: "c-detach-2", expectedRevision: run.revision, type: "plan.detach-shot-nodes", payload: { nodeIds: ["node-2"] }, issuedAt: now() }).run;
+  }
+
+  it("the one judgement: nothing to resume, and which shots are why", () => {
+    const { repository } = setup();
+    expect(resumeOutlook(removedSecondShot(repository))).toEqual({ kind: "nothing_to_resume", removed: ["shot-2"], canvas: [], failed: [] });
+  });
+
+  for (const stopped of [null, "failed", "consent_expired"] as const) {
+    it(`door 1 — the canvas Continue (resume-batch IPC), Run ${stopped ? `stopped (${stopped})` : "already running"}: nothing_to_resume, nothing written, nothing kicked`, async () => {
+      const { repository, hooks, kickScheduler } = setup({ landBeforeResume: vi.fn(async () => null) });
+      removedSecondShot(repository);
+      if (stopped) stop(repository, "needs_attention", stopped);
+      const before = repository.read(PROJECT, RUN)!;
+
+      await expect(hooks.resumeProductionBatch({ projectId: PROJECT, runId: RUN })).resolves.toEqual({ ok: false, code: "failed", failure: "nothing_to_resume" });
+      expect(kickScheduler).not.toHaveBeenCalled();
+      expect(repository.read(PROJECT, RUN)!.revision).toBe(before.revision);
+    });
+  }
+
+  it("door 2 — run.control resume (the production panel's Continue and every other writer): refused with the judgement, the Run is not touched", async () => {
+    const { repository, service } = setup();
+    removedSecondShot(repository);
+    const before = stop(repository, "needs_attention", "failed");
+
+    await expect(service.command(PROJECT, RUN, { commandId: "panel-resume", expectedRevision: before.revision, type: "run.control", payload: { action: "resume" }, issuedAt: now(), humanGesture: true }))
+      .rejects.toBeInstanceOf(NothingToResumeError);
+    expect(repository.read(PROJECT, RUN)).toMatchObject({ revision: before.revision, status: "needs_attention" });
+    // 渲染层隔着 IPC 只看得到原文：按码认得出来，说那句真话，不报「操作失败」。
+    expect(isNothingToResume(new Error("Error invoking remote method 'nomi:production-runs:command': NothingToResumeError: nothing_to_resume: removed=shot-2 canvas=- failed=-"))).toBe(true);
+  });
+
+  it("door 3 — the external Agent's nomi_run_control resume: a structured reason, not resumed", async () => {
+    const { repository, service } = setup();
+    removedSecondShot(repository);
+
+    const value = await dispatch("production.control", { projectId: PROJECT, runId: RUN, action: "resume" }, { productionRuns: service } as never) as Record<string, unknown>;
+    expect(value.resume).toEqual({ outcome: "nothing_to_resume", removed: ["shot-2"], canvas: [], failed: [] });
+    const zh = buildToolOutcome("nomi_run_control", { action: "resume", projectId: PROJECT, runId: RUN }, value);
+    expect(zh.outcome).toMatchObject({ kind: "run_control", action: "resume", resumed: false, reason: "nothing_to_resume", removedShots: ["shot-2"], dispatching: 0 });
+    expect(zh.text).toContain("没有可继续的");
+    expect(zh.text).not.toContain("已继续");
+    expect(buildToolOutcome("nomi_run_control", { action: "resume", projectId: PROJECT, runId: RUN }, value, "en").text).toContain("Nothing to continue");
   });
 });

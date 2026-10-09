@@ -614,6 +614,30 @@ export function buildToolOutcome(
 
   if (toolName === 'nomi_run_control') {
     const action = str(args.action)
+    // 「继续」了也一镜都不会派（唯一判定 resumeOutlook）：不说「已继续」，照结构化原因说真话（#1139 V-1139c）。
+    const refusedResume = rec(value.resume)
+    if (action === 'resume' && refusedResume.outcome === 'nothing_to_resume') {
+      const removed = Array.isArray(refusedResume.removed) ? refusedResume.removed.map(String) : []
+      const canvasShots = Array.isArray(refusedResume.canvas) ? refusedResume.canvas.map(String) : []
+      const failedShots = Array.isArray(refusedResume.failed) ? refusedResume.failed.map(String) : []
+      const why = [
+        removed.length ? L(ctx, `${removed.length} 镜的节点已从画布上删掉，不会再派`, `${removed.length} shot(s) were deleted from the canvas and will not be sent`) : null,
+        canvasShots.length ? L(ctx, `${canvasShots.length} 镜已经在画布上直接生成，制作流程不再派`, `${canvasShots.length} shot(s) are being generated directly on the canvas and will not be sent by this batch`) : null,
+        failedShots.length ? L(ctx, `${failedShots.length} 镜已经失败或要核对，要在那一镜上单独处理`, `${failedShots.length} shot(s) failed or need checking and must be handled on that shot`) : null,
+      ].filter(Boolean).join(L(ctx, '；', '; '))
+      return {
+        text: [
+          L(ctx, `没有可继续的 · ${runId}：这一批剩下的镜一镜都不会再派，这次没有发出生成请求`, `Nothing to continue · ${runId}: no remaining shot in this batch will be sent; no generation request was made`),
+          why || null,
+          L(ctx, '要生成就在画布上直接生成那一镜', 'To generate it, generate that shot directly on the canvas'),
+        ].filter(Boolean).join('\n') + openLine,
+        outcome: {
+          kind: 'run_control', runId, projectId, action, status: str(value.status) || null,
+          resumed: false, reason: 'nothing_to_resume', removedShots: removed, canvasShots, failedShots, dispatching: 0,
+          nextActions: [],
+        },
+      }
+    }
     const status = str(value.status)
     const hint = RUN_STATUS_HINT[status]
     const budget = rec(value.budget)

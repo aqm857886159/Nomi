@@ -10,7 +10,7 @@ import { buildAnchorCheckpointCard } from '../generationCanvas/spend/anchorCheck
 import { useWorkbenchStore } from '../workbenchStore'
 import { productionRunApi } from './productionRunApi'
 import { nodeIdOfJob, releaseUnknownSubmission } from './releaseUnknownSubmission'
-import { executeProductionRunCommand } from './productionRunCommands'
+import { executeProductionRunCommand, isNothingToResume } from './productionRunCommands'
 import { buildProductionPolicySettingsTarget, isProductionPolicyError } from './productionPolicyRecovery'
 import { useProductionRunStore } from './productionRunStore'
 import { buildProductionRunView, gateKindOf, type ProductionRunPrimaryAction } from './productionRunView'
@@ -149,7 +149,11 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
             })
             await useProductionRunStore.getState().loadRun(run.projectId, run.runId)
           } catch (error) {
-            reportFailure(error, 'generationCommon.production.control.failed')
+            // 继续了也一镜都不会派（主进程唯一判定 resumeOutlook，#1139 V-1139c）：说真话，不报「操作失败」、不贴原文。
+            if (isNothingToResume(error)) {
+              const reason = 'generationCommon.production.canvasLanding.actionFailure.nothingToResume'
+              notify({ identity, reason, level: 'inline', type: 'error', message: t(reason), present: (message) => setFailure({ identity, message }) })
+            } else reportFailure(error, 'generationCommon.production.control.failed')
           }
           return
         }

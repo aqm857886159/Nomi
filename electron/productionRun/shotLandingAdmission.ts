@@ -13,7 +13,7 @@
 import { logWarn } from "../logging/logger";
 import { isStoppedRunStatus, runStopReason } from "../shared/productionRunStop";
 import type { ProductionRun } from "./productionRunTypes";
-import { isUnsubmittedJobStatus, jobMayHaveReachedProvider, latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
+import { currentShotAttempt, isUnsubmittedJobStatus, jobMayHaveReachedProvider, latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
 import type { ProductionRunRepository } from "./productionRunRepository";
 
 declare const landedShotAdmissionBrand: unique symbol;
@@ -221,14 +221,22 @@ export function shotRemovedFromCanvas(run: Pick<ProductionRun, "generationPlan">
   return plan.shots.some((shot) => shot.shotId === shotId && shot.canvasDetached === true);
 }
 
+/** 这一镜当前这一次尝试已经被画布接手（用户在画布上直接生成了它）：制作流程不再派它（认领判据 canvas_claimed）。 */
+export function shotTakenOverByCanvas(run: ProductionRun, shotId: string): boolean {
+  const shot = run.generationPlan?.shots?.find((candidate) => candidate.shotId === shotId);
+  return shot?.claim?.by === "canvas" && shot.claim.attempt === currentShotAttempt(run, shotId);
+}
+
 /**
- * 这一批里批过、还没交、制作流程还会派的镜（有任务、最新一次还停在已授权之前、节点没被用户删掉）——
+ * 这一批里批过、还没交、制作流程还会派的镜（有任务、最新一次还停在已授权之前、节点没被用户删掉、没被画布接手）——
  * 开拍 / 继续那一刻要先落画布、随后要派的就是它们。
  */
 export function shotsAwaitingDispatch(run: ProductionRun): string[] {
   const shots = run.generationPlan?.shots ?? [];
-  return shots.filter(shotIncluded).map((shot) => shot.shotId).filter((shotId) => !shotRemovedFromCanvas(run, shotId)).filter((shotId) => {
-    const job = latestJobForShot(run, shotId);
-    return Boolean(job && isUnsubmittedJobStatus(job.status));
-  });
+  return shots.filter(shotIncluded).map((shot) => shot.shotId)
+    .filter((shotId) => !shotRemovedFromCanvas(run, shotId) && !shotTakenOverByCanvas(run, shotId))
+    .filter((shotId) => {
+      const job = latestJobForShot(run, shotId);
+      return Boolean(job && isUnsubmittedJobStatus(job.status));
+    });
 }

@@ -47,6 +47,7 @@ import { buildOnboardingKit } from './modelOnboarding/kit'
 import { readTask } from './readTask'
 import { dispatchModelSpec } from './modelSpecRead'
 import { makeChangeId } from '../shared/agentCapabilities/changeId'
+import { NothingToResumeError } from '../productionRun/resumeOutlook'
 
 /** 带 id = 读那一个；不带 = 列出这个客户端自己的会话。 */
 const readIntegrationSession = (sessions: IntegrationSessionService, sessionId: unknown, owner: CapabilityOriginHost) =>
@@ -510,13 +511,19 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         })
         return ctx.productionRuns.readProjection(projectId, runId)
       }
-      await ctx.productionRuns.command(projectId, runId, {
-        commandId: `mcp-control-${action}-${full.revision}`,
-        expectedRevision: full.revision,
-        type: 'run.control',
-        payload: { action },
-        issuedAt: new Date().toISOString(),
-      })
+      try {
+        await ctx.productionRuns.command(projectId, runId, {
+          commandId: `mcp-control-${action}-${full.revision}`,
+          expectedRevision: full.revision,
+          type: 'run.control',
+          payload: { action },
+          issuedAt: new Date().toISOString(),
+        })
+      } catch (error) {
+        // 「继续」了也一镜都不会派（唯一判定 resumeOutlook，写口拒绝）：不是出错，回结构化原因，Agent 照它说真话（#1139 V-1139c）。
+        if (!(error instanceof NothingToResumeError)) throw error
+        return { ...ctx.productionRuns.readProjection(projectId, runId), resume: { outcome: 'nothing_to_resume', removed: error.outlook.removed, canvas: error.outlook.canvas, failed: error.outlook.failed } }
+      }
       return ctx.productionRuns.readProjection(projectId, runId)
     }
     case 'production.decide-gate': {
