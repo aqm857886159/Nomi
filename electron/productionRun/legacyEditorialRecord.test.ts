@@ -63,13 +63,13 @@ it('a historical document-admitted record with bindings still reconciles onto th
     resolveProjectRoot: () => root,
     isProjectOpen: () => true,
   })
-  expect(await host.landCanvasBestEffort('project-1', 'op-legacy')).toBe(true)
+  expect(await host.reconcileExistingCanvas('project-1', 'op-legacy')).toBe(true)
   expect(requested, 'a record whose shots already carry nodeIds stays reconcilable').toEqual(['production.materialize-shots'])
 
   repository().createGenerationDraft({ projectId: 'project-1', operationId: 'op-unplaced', candidate,
     origin: { host: 'nomi', sourceDocument: { documentId: 'doc', revision: 1, contentHash: 'hash' } },
     shots: [{ shotId: 'shot-1', candidate }], cardHidden: true })
   requested.length = 0
-  expect(await host.landCanvasBestEffort('project-1', 'op-unplaced')).toBe(false)
+  expect(await host.reconcileExistingCanvas('project-1', 'op-unplaced')).toBe(false)
   expect(requested, 'a document-admitted plan the user never placed must stay off the canvas').toEqual([])
 })

@@ -6,6 +6,7 @@
 import type { ProductionRunRepository } from './productionRunRepository'
 import type { ProductionRun, RunCommand, RunCommandResult } from './productionRunTypes'
 import { renewDispatchConsent } from './productionDispatchConsentEdits'
+import { NothingToResumeError, resumeOutlook } from './resumeOutlook'
 
 // 已提交给供应商的任务**无法撤回、钱已花出**——暂停/取消都只能让它们跑完收尾（结果保留不浪费），能守住的边界是
 // 「不再提交新任务」。pausing → paused 那一步不在这里、也不在任何驱动里：它是生命周期 owner
@@ -40,6 +41,10 @@ export function applyRunControl(
     return repository.execute(projectId, runId, { ...runCommand, type: 'run.status', payload: { status: 'pausing', reason: 'user_paused' } })
   }
   if (action === 'resume') {
+    // 这一下继续实际会不会做事，只问唯一判定（resumeOutlook）：一镜都不会派、也没有在等的 → 不写、不说「已继续」，
+    // 抛出带结果的拒绝，各入口按它说真话（#1139 V-1139c：以前这里照样改成 running、回「已继续」）。
+    const outlook = resumeOutlook(current)
+    if (outlook.kind === 'nothing_to_resume') throw new NothingToResumeError(outlook)
     // 用户在 Nomi 窗口里点的「继续」（受信边界盖了真人手势章）同时续上批过、还没发出去的那几镜的同意
     // （付费卡① 第 13 条）。MCP 宿主 / Agent 的 resume 没有这个章，不续：没人点，同意就不该被延长。
     const renew = (run: ProductionRun) => (runCommand.humanGesture === true

@@ -184,7 +184,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   function createGenerationDraft(input: {
     operationId: string
     projectId: string
-    origin: { host: string; actorId?: string }
+    origin: { host: string; actorId?: string; nodeId?: string }
     candidate: ProductionGenerationPlan['candidate']
     currency?: string
     policy?: Partial<AutomationPolicy>

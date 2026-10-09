@@ -11,6 +11,7 @@ import { sealAndApproveProductionGeneration } from "./productionGenerationAuthor
 import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import type { ProductionGenerationShot } from "./productionRunTypes";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 // P4 S4 — batch scheduler orchestrator over a REAL repository + mock provider (zero quota). TDD:
 // these lock the SAFETY invariants — stop dispatches nothing new,
@@ -132,7 +133,7 @@ function scheduler(root: string, repository: ReturnType<typeof createProductionR
     now: () => NOW,
   });
   return createMultiShotBatchScheduler({
-    repository,
+    repository, landShots: landingThatBinds(repository),
     submission,
     projectId: "project-1",
     runId: "op-batch",
@@ -174,7 +175,7 @@ function schedulerWithCompletion(
     now: () => NOW,
   });
   return createMultiShotBatchScheduler({
-    repository,
+    repository, landShots: landingThatBinds(repository),
     submission,
     projectId: "project-1",
     runId: "op-batch",

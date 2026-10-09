@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 本地按 **CI 同序** 跑完那七条走查（2026-09-18）。入口：`pnpm run test:e2e:ci-chain`。
+// 本地按 **CI 同序** 跑完那几条走查（2026-09-18）。入口：`pnpm run test:e2e:ci-chain`。
 //
 // 为什么要它：CI 的 desktop-linux job 跑的这七步，**本地 `pnpm run gates` 一步都不含**。
 // 于是「本地五门全绿」和「CI 会不会红」是两件互不相干的事——2026-09-17 PR #804
@@ -33,7 +33,9 @@ const LOG_DIR = path.join(repoRoot, 'outputs', 'ci-e2e-chain')
  * 两份清单各写各的，就是下一个「本地跑的和 CI 跑的不是同一套」。
  */
 export const CI_E2E_CHAIN = Object.freeze([
-  Object.freeze({ id: 'feel', script: 'test:feel:browser', display: false }),
+  Object.freeze({ id: 'feel', script: 'test:feel:mechanism', display: false }),
+  // CI 把普查按分片计划摊到几台机器上（scripts/lib/e2eShardPlan.mjs）；本地一台机器跑全量，所以不带 --shard。
+  Object.freeze({ id: 'census', script: 'test:popup-geometry', display: false }),
   Object.freeze({ id: 'smoke', script: 'test:e2e', display: true }),
   Object.freeze({ id: 'journeys', script: 'test:journeys', display: true }),
   Object.freeze({ id: 'mcp-journey', script: 'test:mcp-journey', display: true }),

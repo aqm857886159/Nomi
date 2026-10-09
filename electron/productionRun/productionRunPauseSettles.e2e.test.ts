@@ -33,6 +33,7 @@ import { waitForProduction } from "./productionRunTestHelpers";
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionGenerationShot, type ProductionJob, type ProductionRun } from "./productionRunTypes";
 import { registerBatchSchedulerKicker } from "./batchSchedulerKick";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 const PROJECT = "project-1";
 const RUN = "op-pause";
@@ -117,7 +118,7 @@ function schedulerFor(root: string, repository: Repository, provider: Generation
     now,
   });
   // 观察窗压到 10ms、等待不真睡：慢供应商「一趟驱动歇下、过会儿再踢」的那条路，一格一格地走。
-  return createMultiShotBatchScheduler({ repository, submission, projectId: PROJECT, runId: RUN, now, sleep: async () => {}, options: { pollHorizonMs: 10 } });
+  return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: PROJECT, runId: RUN, now, sleep: async () => {}, options: { pollHorizonMs: 10 } });
 }
 
 function pressPause(repository: Pick<Repository, "read" | "execute">): ProductionRun {
