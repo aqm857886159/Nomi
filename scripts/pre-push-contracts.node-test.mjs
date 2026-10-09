@@ -60,7 +60,8 @@ test('命令选取：平时只跑检查脚本本体；改到门岗自己的单�
 })
 
 test('按改动选门岗：该片地没动就不跑；纯文档只跑登记类；算不出改动全跑', () => {
-  const always = ['check:filesize', 'check:self-written', 'check:boundary-owners']
+  const always = PRE_PUSH_GATES.filter((gate) => gate.when === null).map((gate) => gate.name)
+  assert.ok(always.includes('check:filesize') && always.includes('check:self-written') && always.includes('check:boundary-owners'))
   assert.deepEqual(selectGates(['docs/engineering/x.md']), always)
   const electron = selectGates(['electron/main.ts'])
   assert.ok(electron.includes('check:ipc-sender-binding') && electron.includes('check:test-waits') && electron.includes('lint:changed'))
@@ -143,7 +144,8 @@ test('钩子入口：pre-push 由分发入口 git-hook.mjs 指向 pre-push-contr
   assert.deepEqual(table['pre-push'], [['scripts/pre-push-contracts.mjs']])
   assert.doesNotMatch(read('scripts/install-git-hooks.cjs'), /pre-push-contracts/, '安装器不许再写死脚本名')
   const entry = read('scripts/pre-push-contracts.mjs')
-  assert.doesNotMatch(entry, BYPASS_PATTERN)
+  // 门岗名（如 check:push-bypass）是被跑的对象，不是旁路开关：先摘掉带引号的 check: 名字再查
+  assert.doesNotMatch(entry.replace(/'check:[a-z-]+'/g, "''"), BYPASS_PATTERN)
 })
 
 // 入口里不许有绕过开关：SKIP / NO_VERIFY / BYPASS 字样，或读任何带 SKIP / DISABLE / OFF 的环境变量（正文来源 NOMI_PR_BODY* 除外）
