@@ -12,14 +12,14 @@ import {
   type NodeProps,
 } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconChevronDown, IconPlus, IconScissors } from '@tabler/icons-react'
+import { IconPlus, IconX } from '@tabler/icons-react'
+import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { getGenerationNodeComponentForNode } from '../nodes/renderRegistry'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { CARD_FIXED_WIDTH, getNodeResizeBounds, readNodeMediaAspectRatio, resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { availableEdgeModes } from '../components/edgeModeMenu'
 import { LightweightGenerationNode } from '../components/LightweightGenerationNode'
 import {
   isLargeCanvas,
@@ -30,7 +30,9 @@ import {
 } from '../components/canvasNodeLevelOfDetail'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { selectFlowZoom } from './canvasViewportScale'
-import { GenerationFlowNodeScope } from './generationFlowNodeContext'
+import { GenerationFlowNodeScope, useGenerationFlowHandleMenu } from './generationFlowNodeContext'
+import { handleMenuAnchor } from '../quickActions/connectionMenuModel'
+import { useCanvasPickNodeState } from '../store/canvasPickMode'
 import { readGroupPort } from '../model/groupPort'
 import { sameGenerationFlowNodeRender } from '../nodes/flowNodeRenderGate'
 import { resolveGenerationFlowConnectionAffordance, type GenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
@@ -66,6 +68,7 @@ function resetMagneticHandlePosition(event: React.PointerEvent<HTMLSpanElement>)
 }
 
 type GenerationFlowConnectionHandleProps = {
+  nodeId: string
   side: 'left' | 'right'
   type: 'source' | 'target'
   affordance: GenerationFlowConnectionAffordance
@@ -76,6 +79,7 @@ type GenerationFlowConnectionHandleProps = {
 }
 
 function GenerationFlowConnectionHandle({
+  nodeId,
   side,
   type,
   affordance,
@@ -91,6 +95,17 @@ function GenerationFlowConnectionHandle({
   // 它们曾共用 `data-active`，于是吸附不可观测：正向断言对任意候选都过（假绿），反向永远清不掉（真红）。
   const snapped = activeHandleId === id
   const homeX = side === 'left' ? 'calc(100% - 28px)' : '28px'
+  const openHandleMenu = useGenerationFlowHandleMenu()
+  // 点一下「+」（不拖）= 出这一侧的菜单，锚在圈下（bug ①：以前把手没有点击，xyflow 要移动 >1px 才起线，纯点击什么都不发生）。
+  // 拖线照旧归 xyflow：移动过阈值才会起线，此时不会再有 click。
+  const handleRingClick = type === 'source' && affordance === 'magnetic' && openHandleMenu
+    ? (event: React.MouseEvent<HTMLSpanElement>) => {
+        event.stopPropagation()
+        const ring = event.currentTarget.querySelector('.generation-canvas-react-flow__handle-icon')?.getBoundingClientRect()
+        const anchor = ring ? handleMenuAnchor(ring) : { x: event.clientX, y: event.clientY }
+        openHandleMenu({ nodeId, side, clientX: anchor.x, clientY: anchor.y })
+      }
+    : undefined
   return (
     <Handle
       id={id}
@@ -99,6 +114,8 @@ function GenerationFlowConnectionHandle({
       isConnectableStart={type === 'source'}
       isConnectableEnd={type === 'target'}
       aria-label={label}
+      // 用不上的那一侧（拉环只出现在用得上的一侧）：把手元素挂着只为画旧边，对读屏也不存在。
+      aria-hidden={type === 'source' && affordance === 'hidden' ? true : undefined}
       data-side={side}
       data-affordance={type === 'source' ? affordance : 'target'}
       data-active={active ? 'true' : undefined}
@@ -130,6 +147,7 @@ function GenerationFlowConnectionHandle({
           onPointerMove={affordance === 'magnetic' ? updateMagneticHandlePosition : undefined}
           onPointerLeave={affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
           onPointerCancel={affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
+          onClick={handleRingClick}
         >
           <span className="generation-canvas-react-flow__handle-icon" aria-hidden="true">
             {affordance === 'magnetic' ? <IconPlus size={18} stroke={1.8} /> : null}
@@ -187,7 +205,12 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
     selected,
     primarySelection,
   })
-  const connectionAffordance = resolveGenerationFlowConnectionAffordance(node, primarySelection, pendingConnectionSourceId)
+  const leftAffordance = resolveGenerationFlowConnectionAffordance(node, 'left', primarySelection, pendingConnectionSourceId)
+  const rightAffordance = resolveGenerationFlowConnectionAffordance(node, 'right', primarySelection, pendingConnectionSourceId)
+  // 卡面压不压自己的把手看「有没有一侧是磁吸」（见 CSS 同名选择器）。
+  const connectionAffordance = leftAffordance === 'magnetic' || rightAffordance === 'magnetic' ? 'magnetic' : leftAffordance === 'dot' || rightAffordance === 'dot' ? 'dot' : 'hidden'
+  // 「在画布上点选」进行中：可点的卡描边（悬停加粗）、其余变灰（含正在编辑的那张）——store/canvasPickMode。
+  const pickable = useCanvasPickNodeState(node.id) // true 可点 / false 不可点 / null 不在点选里
   const isPendingConnectionSource = pendingConnectionSourceId === node.id
   const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource)
   const startConnectionLabel = t('generationCommon.node.startConnection')
@@ -206,7 +229,12 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
 
   return (
     <div
-      className="generation-canvas-react-flow__node-shell"
+      className={cn(
+        'generation-canvas-react-flow__node-shell',
+        pickable === true && 'cursor-pointer rounded-nomi ring-2 ring-nomi-accent/60 ring-offset-2 ring-offset-workbench-bg hover:ring-[3px] hover:ring-nomi-accent',
+        pickable === false && 'opacity-40 grayscale',
+      )}
+      data-pick={pickable === null ? undefined : pickable ? 'eligible' : 'ineligible'}
       onDragStart={blockImplicitNativeDrag}
       // 卡面与自己把手的上下层由把手档位派生（见 generationCanvasReactFlow.css 的同名选择器）：
       // 只有磁吸档才把卡面抬到带子之上，小圆点档的把手必须压在卡面上。
@@ -261,8 +289,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       />
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
         </>
       ) : null}
       {!groupPort ? (
@@ -304,8 +332,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       ) : null}
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="left" type="source" affordance={leftAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle nodeId={node.id} activeHandleId={activeHandleId} side="right" type="source" affordance={rightAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
         </>
       ) : null}
     </div>
@@ -313,34 +341,35 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
 }
 
 /**
- * 边模式胶囊的壳：落点 + 恒定屏幕尺寸。
+ * 连线「×」（断开）的壳：落在贝塞尔中点 + 恒定屏幕尺寸。
  *
- * **落点**（2026-09-11 拍板，迁移等价审计 §③ 行 11）：胶囊恒落在贝塞尔中点，
- * 而不是旧版的「用户点下去的那一点」。中点是这条边的身份位置——同一条边无论从哪里点开，
- * 标签都在同一处，多条边同时亮起时也不会挤成一堆；代价是点长边的一端时菜单弹在边中间。
- * 有意保留，不必再改。
+ * 连线只表达「谁连到谁」；它的用途（首帧 / 尾帧 / 参考）由目标节点自己的参考槽显示和设置（2026-10-08 用户：
+ * 「删掉连线中间的标签吗，没有作用」），所以这里只剩一个断开的小按钮。
  *
  * **尺寸**：`EdgeLabelRenderer` 把内容 portal 进 `.react-flow__edgelabel-renderer`，
- * 那个容器在 `.react-flow__viewport` 里面，**跟着视口一起缩放**——固定 12px 字号于是
- * 缩到 30% 小得看不清、放到 300% 大得离谱（迁移前旧边层用 `scale(1/zoom)` 抵消过）。
- * 这里用同一条：`edgeLabelTransform` 反缩放回恒定屏幕尺寸。
+ * 那个容器在 `.react-flow__viewport` 里面，**跟着视口一起缩放**——固定尺寸于是
+ * 缩到 30% 小得看不清、放到 300% 大得离谱。这里用 `edgeLabelTransform` 反缩放回恒定屏幕尺寸。
  *
  * 订阅收在这一层（而不是提到 `GenerationFlowEdgeView`）是刻意的：
- * 胶囊只给「选中节点的边」画，缩放时因此只重渲这几条，不惊动整张图的边。
+ * 「×」只给选中或悬停的那一条边画，缩放时因此只重渲它，不惊动整张图的边。
  */
-function EdgeModeLabelLayer({ id, labelX, labelY, children }: {
+function EdgeDisconnectLayer({ id, labelX, labelY, onPointerEnter, onPointerLeave, children }: {
   id: string
   labelX: number
   labelY: number
+  onPointerEnter: () => void
+  onPointerLeave: () => void
   children: React.ReactNode
 }): JSX.Element {
   const zoom = useCanvasLiveZoom()
   return (
     <EdgeLabelRenderer>
       <div
-        className="generation-canvas-react-flow__edge-label generation-canvas-v2__edge-control"
+        className="generation-canvas-v2__edge-control absolute z-10 pointer-events-auto"
         style={{ transform: edgeLabelTransform(labelX, labelY, zoom) }}
         data-edge-id={id}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
       >
         {children}
       </div>
@@ -353,28 +382,35 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
   const edge = data?.generationEdge
   const readOnly = Boolean(data?.readOnly)
-  const [menuOpen, setMenuOpen] = React.useState(false)
-  const updateEdgeMode = useGenerationCanvasStore((state) => state.updateEdgeMode)
+  const [hovered, setHovered] = React.useState(false)
+  const leaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const disconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
   const source = data?.sourceNode
   const target = data?.targetNode
-  // 拖动时连到被拖节点的每条边每帧都重渲（端点坐标变了，路径必须重算）；这里的派生只依赖两端节点和文案，
-  // 不依赖坐标。可选连线模式要按目标模型的档案逐个校验（全选拖 320 张卡时累计 2.5 秒），只在菜单打开时才算；
-  // 无障碍标签等文案按它们真正依赖的值缓存，不每帧重新解析（2026-10-06 L-perf）。
-  const modes = React.useMemo(() => (menuOpen && source && target ? availableEdgeModes(source, target) : []), [menuOpen, source, target])
   const incident = Boolean(data?.incident)
   const mode = edge?.mode || 'reference'
-  const aggregateDirection = data?.aggregateDirection
-  const aggregateLabel = React.useMemo(() => aggregateDirection
-    ? t(`generationCommon.canvas.group.aggregate${aggregateDirection === 'input' ? 'Input' : 'Output'}`)
-    : null, [aggregateDirection, t])
   const sourceLabel = source?.title || edge?.source || ''
   const targetLabel = target?.title || edge?.target || ''
+  // 无障碍标签等文案按它们真正依赖的值缓存，拖动时每帧重渲不重新解析（2026-10-06 L-perf）。
   const selectLabel = React.useMemo(
     () => t('generationCommon.canvas.edge.select', { source: sourceLabel, target: targetLabel }),
     [sourceLabel, t, targetLabel],
   )
-  const showLabel = !readOnly && (menuOpen || (mode !== 'reference' && (incident || selected)))
+  const disconnectLabel = data?.aggregateDirection
+    ? t('generationCommon.canvas.group.disconnectAggregate')
+    : t('generationCommon.canvas.edge.disconnect', { source: sourceLabel, target: targetLabel })
+  // 悬停从线移到「×」要穿过一小段空隙：离开延迟一拍再收，「×」自己也算悬停。
+  const enter = React.useCallback(() => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    leaveTimer.current = null
+    setHovered(true)
+  }, [])
+  const leave = React.useCallback(() => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    leaveTimer.current = setTimeout(() => setHovered(false), 160)
+  }, [])
+  React.useEffect(() => () => { if (leaveTimer.current) clearTimeout(leaveTimer.current) }, [])
+  const showDisconnect = !readOnly && Boolean(edge) && (Boolean(selected) || hovered)
 
   return (
     <g
@@ -382,14 +418,17 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       data-mode={mode}
       data-edge-id={id}
       data-aggregate-group={data?.aggregateGroupId}
+      // 编组聚合线的关系只用不可见的方式表达（连线中点不挂任何字）：这两个属性给走查 / 辅助技术读，「×」的 aria-label 说「断开整条编组连接」。
+      data-aggregate-direction={data?.aggregateDirection}
       data-active={selected ? 'true' : undefined}
+      data-hovered={hovered && !readOnly ? 'true' : undefined}
       data-incident={incident ? 'true' : undefined}
     >
       <BaseEdge
         id={id}
         path={path}
         interactionWidth={30}
-        className={cn('generation-canvas-v2__edge-path', selected ? 'generation-canvas-react-flow__edge--selected' : undefined)}
+        className="generation-canvas-v2__edge-path"
       />
       {!readOnly ? (
         <path
@@ -401,85 +440,34 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
           role="button"
           tabIndex={0}
           aria-label={selectLabel}
-          onPointerDown={(event) => {
-            event.stopPropagation()
-            setMenuOpen(true)
-          }}
-          onClick={(event) => {
-            event.stopPropagation()
-            setMenuOpen(true)
-          }}
+          onPointerEnter={enter}
+          onPointerLeave={leave}
+          onPointerDown={(event) => event.stopPropagation()}
+          // 点线 = 选中（React Flow 的 onEdgeClick 接住并高亮），不弹任何菜单。
           onKeyDown={(event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return
             event.preventDefault()
-            setMenuOpen(true)
+            event.currentTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }))
           }}
         />
       ) : null}
       <circle className="generation-canvas-v2__edge-dot" cx={targetX} cy={targetY} r={3.2} />
-      {showLabel ? (
-        <EdgeModeLabelLayer id={id} labelX={labelX} labelY={labelY}>
-            <button
-              type="button"
-              className="generation-canvas-react-flow__edge-label-button generation-canvas-v2__edge-tag-pill"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label={t('generationCommon.canvas.edge.changeMode', {
-                mode: t(`generationCommon.canvas.edge.modes.${mode}`),
-              })}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation()
-                setMenuOpen((open) => !open)
-              }}
-            >
-              <span>{aggregateLabel || t(`generationCommon.canvas.edge.modes.${mode}`)}</span>
-              <IconChevronDown size={12} stroke={1.8} className={menuOpen ? 'rotate-180' : undefined} aria-hidden="true" />
-            </button>
-            {menuOpen ? (
-              <div
-                className="generation-canvas-react-flow__edge-menu"
-                role="menu"
-                aria-label={t('generationCommon.canvas.edge.modeMenu')}
-              >
-                {modes.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={mode === edge?.mode}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      if (edge) updateEdgeMode(edge.id, mode)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    <span>{t(`generationCommon.canvas.edge.modes.${mode}`)}</span>
-                    {mode === edge?.mode ? <IconCheck size={14} stroke={2} aria-hidden="true" /> : null}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="generation-canvas-react-flow__edge-menu-delete"
-                  role={data?.aggregateDirection ? 'button' : 'menuitem'}
-                  aria-label={data?.aggregateDirection
-                    ? t('generationCommon.canvas.group.disconnectAggregate')
-                    : t('generationCommon.canvas.edge.disconnect', {
-                      source: source?.title || edge?.source || '',
-                      target: target?.title || edge?.target || '',
-                    })}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    if (edge) disconnectEdge(edge.id)
-                    setMenuOpen(false)
-                  }}
-                >
-                  <IconScissors size={14} stroke={1.8} aria-hidden="true" />
-                  <span>{t('generationCommon.canvas.edge.disconnectAction')}</span>
-                </button>
-              </div>
-            ) : null}
-        </EdgeModeLabelLayer>
+      {showDisconnect ? (
+        <EdgeDisconnectLayer id={id} labelX={labelX} labelY={labelY} onPointerEnter={enter} onPointerLeave={leave}>
+          {/* Claude Design 拍板稿 Edges：22px 圆形 × （纸白底、1px 描边 + 轻阴影、灰 12px 图标），悬停变深。 */}
+          <WorkbenchIconButton
+            size="sm"
+            className="size-[22px] rounded-full bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm ring-1 ring-inset ring-nomi-line hover:bg-nomi-paper hover:text-nomi-ink [&>svg]:size-3"
+            data-edge-disconnect=""
+            icon={<IconX size={12} stroke={2} aria-hidden="true" />}
+            label={disconnectLabel}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              if (edge) disconnectEdge(edge.id)
+            }}
+          />
+        </EdgeDisconnectLayer>
       ) : null}
     </g>
   )

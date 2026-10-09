@@ -184,12 +184,22 @@ function commitChange(edit) {
   git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'test change')
 }
 
+/**
+ * 这些测试要的是「夹具仓库里这一次提交」的判据。CI 的 Contracts job 把 PR 的 base SHA 放进
+ * PRIOR_ART_BASE_REF / ROOT_CAUSE_BASE_REF 等环境变量，子进程继承后会拿整个 PR 的 diff 当夹具的 diff
+ * （比如 PR 改过 self-written.json，夹具里的 check:prior-art 就判「改了登记表、要先查别人」而变红）。
+ * 所以把所有 *_BASE_REF / NOMI_CHANGED_BASE 从子进程环境里拿掉，让每道门岗回到「夹具自己的 origin/main」。断言一字未动。
+ */
+function isolatedFromCiBaseRefs(env) {
+  return Object.fromEntries(Object.entries(env).filter(([key]) => !/_BASE_REF$/.test(key) && key !== 'NOMI_CHANGED_BASE'))
+}
+
 // 真钩子调用时 git 会把 <remote名> <url> 作为参数传进来；脚本只有收到这两个参数才读 stdin 的 ref 行
 const HOOK_ARGS = ['origin', 'https://example.invalid/r.git']
 function prePush({ body = CARD, cwd = work, args = HOOK_ARGS, refLine, dispatched = true } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
   // 外层 node --test 会设 NODE_TEST_CONTEXT，子进程里再 node --test 就不真跑了（假绿）——必须清掉
-  const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
+  const env = { ...isolatedFromCiBaseRefs(process.env), ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
   delete env.NODE_TEST_CONTEXT
   // 真钩子由分发器设内部标记；只给两个参数、没有标记的不算钩子
   if (dispatched) env.NOMI_GIT_HOOK_DISPATCH = 'pre-push'

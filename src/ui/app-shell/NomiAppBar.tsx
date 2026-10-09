@@ -1,3 +1,4 @@
+import { UpdatePill } from './UpdatePill'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowRight, IconBrowser, IconDownload, IconPlugConnected, IconSettings } from '@tabler/icons-react'
@@ -237,6 +238,7 @@ export default function NomiAppBar({
           role="toolbar"
           aria-label={t('appBar.globalActions')}
         >
+        <UpdatePill host="appbar" />
         {/* 剪辑面「布局」菜单（合同 §2.1/§2.2：五块开关 + 四预设，固定在顶栏，不塞进 Nomi 面板头）。
             只在预览页出现——它调的是剪辑面那五块面板，别处没有对象可调。 */}
         {workspaceMode === 'preview' ? (

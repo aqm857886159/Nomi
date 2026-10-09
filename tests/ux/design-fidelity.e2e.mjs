@@ -425,7 +425,8 @@ try {
   });
   await win.getByRole("button", { name: "生成", exact: false }).first().click().catch(() => {});
   await win.waitForTimeout(800);
-  await win.getByText("新建画面", { exact: false }).first().click().catch(() => {});
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click().catch(() => {});
   await win.waitForTimeout(1000);
   console.log("\n── 上手 4 步引导（顶栏入口 + 带我去 spotlight）──");
   // 触发钮在顶栏(始终高、不遮画布)

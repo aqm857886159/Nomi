@@ -1,3 +1,5 @@
+import { UpdateNotices } from '../../ui/app-shell/UpdateNotices'
+import { UpdatePill } from '../../ui/app-shell/UpdatePill'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { getAppLocale } from '../../i18n'
@@ -243,6 +245,7 @@ export default function ProjectLibraryPage({
   // 搬走后主卡独占「引导」语义；语言/外观归位到设置「通用」。剩下=模型 · 浏览器 · 设置。
   const libraryTopActions = (
     <div className="app-no-drag flex items-center gap-1">
+      <UpdatePill host="library" />
       {showModelEntry ? (
         <button
           type="button"
@@ -315,6 +318,9 @@ export default function ProjectLibraryPage({
           </h1>
           {!isWindows ? libraryTopActions : null}
         </section>
+
+        {/* 更新通知位：热修横幅 / 已更新卡（没有要出的内容时自己隐藏）。 */}
+        <UpdateNotices />
 
         {/* 进来直接落项目库：空库与有项目走同一套布局（新建空白/打开文件夹 + 最近项目，空库显空态）。
             产品理念交给开屏动画 + 顶栏「上手」引导，不再来一整屏介绍页。 */}
