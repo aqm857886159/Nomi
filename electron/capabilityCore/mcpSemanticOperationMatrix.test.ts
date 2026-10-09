@@ -47,8 +47,8 @@ type Frame = {
 type Fault = 'timeout' | 'network'
 
 function restoreEnvironment(name: string, value: string | undefined): void {
-  if (value === undefined) delete process.env[name]
-  else process.env[name] = value
+  if (value === undefined) vi.stubEnv(name, undefined)
+  else vi.stubEnv(name, value)
 }
 
 function outcomeCode(frame: Frame): unknown {
@@ -58,9 +58,9 @@ function outcomeCode(frame: Frame): unknown {
 async function makeFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-semantic-matrix-'))
   tempDirs.push(root)
-  process.env[CAPABILITY_DIR_ENV] = path.join(root, 'capability')
-  process.env[PROJECT_ROOT_ENV] = path.join(root, 'projects')
-  process.env[SETTINGS_ROOT_ENV] = path.join(root, 'settings')
+  vi.stubEnv(CAPABILITY_DIR_ENV, path.join(root, 'capability'))
+  vi.stubEnv(PROJECT_ROOT_ENV, path.join(root, 'projects'))
+  vi.stubEnv(SETTINGS_ROOT_ENV, path.join(root, 'settings'))
 
   const deps = getWorkspaceRepositoryDeps()
   const projectRoot = path.join(deps.defaultProjectsRoot, 'fixture')

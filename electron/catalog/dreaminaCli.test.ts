@@ -20,7 +20,7 @@ const mockSpawn = vi.mocked(spawn);
 let envSnapshot: NodeJS.ProcessEnv;
 
 function restoreEnv(snapshot: NodeJS.ProcessEnv): void {
-  for (const key of Object.keys(process.env)) delete process.env[key];
+  for (const key of Object.keys(process.env)) vi.stubEnv(key, undefined);
   Object.assign(process.env, snapshot);
 }
 
@@ -101,9 +101,9 @@ describe("dreamina 子进程强制直连（buildDreaminaEnv）", () => {
 
 describe("runDreaminaCli", () => {
   it("spawn 时继续使用强制直连 env", async () => {
-    process.env.HTTP_PROXY = "http://127.0.0.1:7897";
-    process.env.HTTPS_PROXY = "http://127.0.0.1:7897";
-    process.env.ALL_PROXY = "socks5://127.0.0.1:7897";
+    vi.stubEnv("HTTP_PROXY", "http://127.0.0.1:7897");
+    vi.stubEnv("HTTPS_PROXY", "http://127.0.0.1:7897");
+    vi.stubEnv("ALL_PROXY", "socks5://127.0.0.1:7897");
 
     await runDreaminaCli(["user_credit"], { bin: "/tmp/dreamina", timeoutMs: 1000, retries: 0 });
 

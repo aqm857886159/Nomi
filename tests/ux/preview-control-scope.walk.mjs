@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：剪辑面「作用域」的真机取证。零额度——只用本地 ffmpeg 造的色块图，绝不触发任何生成。
 //
 // 2026-08-03 首版验的是**预览控制条**分成 4 个带名字的作用域组。2026-09-05 剪辑面合同 §2.2
@@ -22,7 +23,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-03-scope-after')
 fs.mkdirSync(outDir, { recursive: true })
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-scope-walk-'))
+const root = makeTempDir('nomi-scope-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })

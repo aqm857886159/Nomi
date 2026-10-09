@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 穿透走查（规则 13）—— 模型档案的「生成方式」模式分段条，**零额度**（全程不发生成请求）。
 //
 // 覆盖的真实功能（此前无任何自动化在验）：
@@ -45,7 +46,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/archetype-modebar')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-archetype-modebar-'))
+const tempRoot = makeTempDir('nomi-archetype-modebar-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 fs.mkdirSync(projectsDir, { recursive: true })

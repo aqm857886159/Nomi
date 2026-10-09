@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // Zero-cost live probe: uploads only synthetic media, then verifies returned URLs.
 // Run with: pnpm exec tsx scripts/probe-asset-upload-channels.mjs
 import fs from "node:fs";
@@ -62,7 +63,7 @@ async function putBinary(url, headers, bytes, contentType) {
 }
 
 function makeAssets() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-upload-probe-"));
+  const dir = makeTempDir("nomi-upload-probe-");
   const png = path.join(dir, "probe-64.png");
   const jpeg = path.join(dir, "probe-large.jpg");
   const mp4 = path.join(dir, "probe-1s.mp4");

@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户任务：拿三段不同结构的视频点「按镜头拆」，每一段都要走到「下一步」，不许出现死路。
 //
 // 为什么专门为空态建一条走查：这个面板最常见的结局就是「什么都没检出」——画布上绝大多数视频节点是
@@ -19,7 +20,7 @@ import { clickOrFail, expectAbsent, expectCount, expectText, expectVisible, prov
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shot-cut-walk-'))
+const root = makeTempDir('nomi-shot-cut-walk-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'shot-cut-empty-states'

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -9,7 +10,7 @@ import { invalidateBuild, sourceIdentity, stampedBuild, verifyBuild } from './pa
 
 const cli = fileURLToPath(new URL('./package-build-stamp.mjs', import.meta.url))
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-package-stamp-test-'))
+  const root = makeTempDir('nomi-package-stamp-test-')
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const git = (...args) => execFileSync('git', args, { cwd: root, stdio: 'pipe' }).toString().trim()
   git('init')

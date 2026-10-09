@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -8,7 +9,7 @@ import { analyzePackagedDeps, emitMainProcessBuild, validateAllowlist } from './
 import { externalPackageOf, scanModuleReferences } from './lib/moduleReferences.mjs'
 
 function tempDir(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  return makeTempDir(prefix)
 }
 
 /** 假安装树：name → { manifest }；resolvePackage 按名字查，不看 fromDir。 */

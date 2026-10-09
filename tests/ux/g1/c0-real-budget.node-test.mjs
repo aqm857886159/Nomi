@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { requestQuote, reserve, assertAffordable, REAL_MODELS } from './c0-real-budget.mjs'
@@ -52,7 +53,7 @@ test('dispatch reserves before forwarding, preserves real responses and never re
 test('mixed dispatch caps each quoted text tier at 3 and never forwards media', async () => {
   const { createDispatchWrapper } = await import('./c0-real-main.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mixed-boundary-'))
+  const dir = makeTempDir('mixed-boundary-')
   try {
     const file = path.join(dir, 'signal.mp4'); fs.writeFileSync(file, 'synthetic')
     for (const text of ['gpt-5-nano', 'deepseek-v4-pro']) {
@@ -75,7 +76,7 @@ test('mixed dispatch caps each quoted text tier at 3 and never forwards media', 
 test('transport evidence retains raw errors, HTTP prefixes and pre-dispatch budget refusals', async () => {
   const { createDispatchWrapper } = await import('./c0-real-main.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'transport-evidence-'))
+  const dir = makeTempDir('transport-evidence-')
   try {
     const ledger = { reservedCny: 0, requests: [] }
     const quote = { mediaDryRun: true, models: { text: 'gpt-5-nano' }, rates: { input: .1, output: 1 }, maxOutputTokens: 8192, budgetCny: 3 }
@@ -105,7 +106,7 @@ test('transport evidence retains raw errors, HTTP prefixes and pre-dispatch budg
 test('transport cancellation records the original signal reason and lifecycle without replacing it', async () => {
   const { createTransportEvidence } = await import('./c0-real-main.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'transport-abort-'))
+  const dir = makeTempDir('transport-abort-')
   try {
     const evidencePath = path.join(dir, 'transport-evidence.json')
     const observe = createTransportEvidence({ evidencePath, redact: s => String(s).replaceAll('fake-secret', '[REDACTED]') })
@@ -145,7 +146,7 @@ test('stage02 waits through reasoning and tool turns, but stops on approval or n
 test('mixed preflight refusals are evidence even before reaching paid budget dispatch', async () => {
   const { createDispatchWrapper } = await import('./c0-real-main.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'transport-refused-'))
+  const dir = makeTempDir('transport-refused-')
   try {
     const dispatch = createDispatchWrapper({ quote: { mediaDryRun: true }, ledger: {}, persist() {}, ledgerPath: path.join(dir, 'ledger.json') })(() => assert.fail('refusal must not dispatch'))
     await assert.rejects(dispatch('https://other.example/anything'), /C0_MIXED_OUTBOUND_REFUSED/)
@@ -160,7 +161,7 @@ test('planner wait polls through nonterminal state and returns at approval with 
   const { waitForPlannerTerminal } = await import('./sweep-c0.mjs')
   const { stationTimeout } = await import('../_station-budget.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'planner-state-'))
+  const dir = makeTempDir('planner-state-')
   try {
     let samples = 0
     const result = await waitForPlannerTerminal({ projectRoot: dir, directory: dir,
@@ -181,7 +182,7 @@ test('planner wait polls through nonterminal state and returns at approval with 
 test('export completion ignores decodable temporary files until atomic publication', async () => {
   const { completedExports } = await import('./sweep-timeline.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-terminal-'))
+  const dir = makeTempDir('export-terminal-')
   try {
     fs.mkdirSync(path.join(dir, 'exports'))
     const temporary = path.join(dir, 'exports/film.partial.mp4'), final = path.join(dir, 'exports/film.mp4')

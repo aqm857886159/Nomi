@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R16 real journey: append models to a saved connection without asking for its key again.
 // Also proves that an unavailable /models endpoint does not block manual model IDs.
 // Usage: pnpm build && node scripts/settings-existing-connection-add-walkthrough.mjs
@@ -11,8 +12,8 @@ import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.settings-existing-connection-add-walk')
 const rendererUrl = process.env.NOMI_WALK_RENDERER_URL || `file://${path.join(repoRoot, 'dist', 'index.html')}`
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-existing-connection-add-set-'))
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'settings-existing-connection-add-proj-'))
+const settingsDir = makeTempDir('settings-existing-connection-add-set-')
+const projectsDir = makeTempDir('settings-existing-connection-add-proj-')
 mkdirSync(outDir, { recursive: true })
 
 const vendorKey = 'saved-relay'

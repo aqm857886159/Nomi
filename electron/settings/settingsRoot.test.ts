@@ -9,19 +9,19 @@
 //
 // 本文件**故意不 vi.mock("electron")** —— 要验的正是「其它测试默认拿到的那个桩」是否忠实。
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getSettingsRoot, SETTINGS_ROOT_ENV } from "./settingsRoot";
 
 const previousSettingsRoot = process.env[SETTINGS_ROOT_ENV];
 afterEach(() => {
-  if (previousSettingsRoot === undefined) delete process.env[SETTINGS_ROOT_ENV];
-  else process.env[SETTINGS_ROOT_ENV] = previousSettingsRoot;
+  if (previousSettingsRoot === undefined) vi.stubEnv(SETTINGS_ROOT_ENV, undefined);
+  else vi.stubEnv(SETTINGS_ROOT_ENV, previousSettingsRoot);
 });
 
 describe("getSettingsRoot", () => {
   it("默认（无 env 覆盖）给出绝对目录，且不在仓库里 —— 单测不得往仓库根写文件", () => {
-    delete process.env[SETTINGS_ROOT_ENV];
+    vi.stubEnv(SETTINGS_ROOT_ENV, undefined);
     const root = getSettingsRoot();
 
     expect(path.isAbsolute(root)).toBe(true);
@@ -33,12 +33,12 @@ describe("getSettingsRoot", () => {
 
   it("env 覆盖是绝对路径时原样返回", () => {
     const absolute = path.join(path.sep, "tmp", "nomi-settings-root-test");
-    process.env[SETTINGS_ROOT_ENV] = absolute;
+    vi.stubEnv(SETTINGS_ROOT_ENV, absolute);
     expect(getSettingsRoot()).toBe(absolute);
   });
 
   it("拿到相对路径时当场抛错，而不是静默写进 process.cwd()", () => {
-    process.env[SETTINGS_ROOT_ENV] = "relative-settings-dir";
+    vi.stubEnv(SETTINGS_ROOT_ENV, "relative-settings-dir");
     expect(() => getSettingsRoot()).toThrow(/absolute/i);
   });
 });

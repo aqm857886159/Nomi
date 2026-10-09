@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -13,7 +14,7 @@ import {
 } from './check-workflow-script-refs.mjs'
 
 function withRepo(run) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-refs-gate-'))
+  const root = makeTempDir('workflow-refs-gate-')
   try {
     fs.mkdirSync(path.join(root, WORKFLOW_DIR), { recursive: true })
     return run(root)

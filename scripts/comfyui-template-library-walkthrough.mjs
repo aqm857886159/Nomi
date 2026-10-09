@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：模板库 + 任意格式（T 轨）。**打真 ComfyUI**（不是 mock）——
 // 这条链的价值全靠"真的能读到你机器上的模板、真的能把界面格式转过来"，mock 证明不了。
 // 前置：真 ComfyUI 跑在 127.0.0.1:8188（`/tmp/comfyui-venv/bin/python main.py --cpu --port 8188`）。
@@ -13,7 +14,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-template-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-template-walk-'))
+const settingsDir = makeTempDir('comfyui-template-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 const BASE = 'http://127.0.0.1:8188'
@@ -31,7 +32,7 @@ console.log(`  真 ComfyUI 模板总数：${total}`)
 const uiWorkflowText = await (await fetch(`${BASE}/templates/default.json`)).text()
 console.log(`  取到界面格式模板 default.json（${uiWorkflowText.length} 字节，含 nodes[]）`)
 
-const projectsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-template-proj-'))
+const projectsDir = makeTempDir('comfyui-template-proj-')
 const { app, win } = await launchNomiApp({
   name: 'comfyui-template-library',
   settingsDir,

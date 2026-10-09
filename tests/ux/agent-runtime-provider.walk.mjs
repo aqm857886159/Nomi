@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Separate, explicitly enabled paid smoke. Uses a formal Nomi.app and synthetic text only.
 // Never prints credentials or opens/copies a user's projects. No transport or model is mocked.
 import fs from 'node:fs'
@@ -45,7 +46,7 @@ if (sourceEndpoint.origin !== 'https://api.apimart.ai' || vendor.providerKind !=
   throw new Error('This smoke is limited to the verified official APIMart endpoint/protocol')
 }
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pi-provider-'))
+const tempRoot = makeTempDir('nomi-pi-provider-')
 const settingsDir = path.join(tempRoot, 'settings')
 // 显式给出并交给启动器：Windows 的钥匙（Local State）要在 App 起来之前放进它真正用的 userData。
 const userDataDir = path.join(tempRoot, 'user-data')

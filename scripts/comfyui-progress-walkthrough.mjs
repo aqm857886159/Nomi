@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：ComfyUI ws 进度环 + 活预览帧 + 遮罩取消（P 轨 · 拍板 A 位）。
 // mock ComfyUI：HTTP(/prompt /history /object_info /queue /api/jobs/{id}/cancel) + 手搓 RFC6455 ws
 // 服务器（零依赖）持续推 executing/progress 事件与二进制预览帧；/history 永不完成 →
@@ -18,7 +19,7 @@ const mockPort = Number(process.env.COMFY_PROGRESS_PORT || 8188)
 if (!Number.isInteger(mockPort) || mockPort < 1 || mockPort > 65535) throw new Error('COMFY_PROGRESS_PORT 必须是有效端口')
 const mockBaseUrl = `http://127.0.0.1:${mockPort}`
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-progress-walk-'))
+const settingsDir = makeTempDir('comfyui-progress-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 // 预置 catalog：只启用 comfyui-local（seed 会补 curated 模型/映射）→ 图片节点默认模型 = 本地文生图。
@@ -128,7 +129,7 @@ const pump = setInterval(() => {
 const { app, win } = await launchNomiApp({
   name: 'comfyui-progress',
   settingsDir,
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-progress-proj-')),
+  projectsDir: makeTempDir('comfyui-progress-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

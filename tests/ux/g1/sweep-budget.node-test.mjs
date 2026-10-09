@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../../scripts/_test-temp.mjs'
 import './credential-precheck.node-test.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -33,7 +34,7 @@ test('media, foreign endpoints, unknown models and unknown budget cannot spend',
   }
 })
 test('real-text bridge cleans executable scratch on both attachment success and failure', async () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sweep-bridge-'))
+  const directory = makeTempDir('sweep-bridge-')
   const profile = path.join(directory, 'profile')
   fs.mkdirSync(profile)
   try {
@@ -54,7 +55,7 @@ test('real-text bridge cleans executable scratch on both attachment success and 
 test('mixed dispatch caps each quoted text tier at 1.5 and never forwards media', async () => {
   const { createDispatchWrapper } = await import('./c0-real-main.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mixed-boundary-'))
+  const dir = makeTempDir('mixed-boundary-')
   try {
     const file = path.join(dir, 'signal.mp4'); fs.writeFileSync(file, 'synthetic')
     for (const text of ['gpt-5-nano', 'deepseek-v4-pro']) {
@@ -90,7 +91,7 @@ test('C0 invocation passes the selected real text tier and budget; default stays
 test('real-text without a configured enabled key fails explicitly before any request', async () => {
   const { requireCredential } = await import('./credential-precheck.mjs')
   const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path')
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mixed-key-')), file = path.join(dir, 'catalog.json')
+  const dir = makeTempDir('mixed-key-'), file = path.join(dir, 'catalog.json')
   try {
     assert.throws(() => requireCredential(file, dir), /CREDENTIAL_BLOCKED/)
     for (const apimart of [undefined, { enc: 'safeStorage', enabled: false }]) {

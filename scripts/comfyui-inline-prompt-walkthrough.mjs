@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：识别缺口三根因的**用户可见效果**（259 张真实语料逼出来的修复）。
 // 贴一张「云端 API 节点」形态的工作流（prompt 直接写在节点上，没有独立 CLIPTextEncode）——
 // 这类图占语料失败的 73%，修前面板会显示「未识别到提示词节点」，修后应自动绑上。
@@ -13,7 +14,7 @@ import os from 'node:os'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.comfyui-inline-prompt-walk')
 mkdirSync(outDir, { recursive: true })
-const settingsDir = mkdtempSync(path.join(os.tmpdir(), 'comfyui-inline-walk-'))
+const settingsDir = makeTempDir('comfyui-inline-walk-')
 const shot = async (win, name) => { await win.screenshot({ path: path.join(outDir, name) }); console.log('  📸 ' + name) }
 
 // 云端 API 节点形态（真实语料里 112 张同款）：prompt 是节点自己的 widget。
@@ -46,7 +47,7 @@ await new Promise((r) => mock.listen(8188, '127.0.0.1', r))
 const { app, win } = await launchNomiApp({
   name: 'comfyui-inline-prompt',
   settingsDir,
-  projectsDir: mkdtempSync(path.join(os.tmpdir(), 'comfyui-inline-proj-')),
+  projectsDir: makeTempDir('comfyui-inline-proj-'),
   env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 1800,
 })

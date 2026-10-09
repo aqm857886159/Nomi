@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // Lane D 生成质量评测(VBench 维度)。扫真实项目里已生成的图/视频,VLM 按解耦维度 1-5 打分,
 // 出质量分卡。报告型脚本:不写事件(单写者纪律),产出 JSONL+分卡供人复核。
 // 只花 VLM 额度(生成早已发生),与主评测循环物理隔离,不碰 zeroVendorCalls。
@@ -59,7 +60,7 @@ function buildPromptMap(dir) {
 /** ffmpeg 抽样最多 4 帧(每 2s 一帧),返回 base64 data URL 数组;失败返回 []。 */
 function sampleVideoFrames(file) {
   if (!hasFfmpeg) return [];
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-frames-"));
+  const tmp = makeTempDir("nomi-frames-");
   try {
     const r = spawnSync("ffmpeg", ["-i", file, "-vf", "fps=1/2", "-frames:v", "4", "-y", path.join(tmp, "f_%02d.png")], { encoding: "utf8" });
     if (r.status !== 0) return [];

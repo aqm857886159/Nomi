@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 钉住「真实资料目录」与「付费走查护栏」两个 owner 的判据。全部用合成目录，不碰任何真实资料、不起 App、不花钱。
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,7 +12,7 @@ import { paidRunRefusal, spendReceipt } from './_paidRun.mjs'
 const roots = []
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
 function tempRoot() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-real-profile-test-'))
+  const root = makeTempDir('nomi-real-profile-test-')
   roots.push(root)
   return root
 }

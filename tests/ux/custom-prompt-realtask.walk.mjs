@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R16 真实任务闭环：自定义提示词到底有没有真的作用到模型上（2026-08-18）。
 //
 // 前面那份 prompt-picker.walk.mjs 只证明了「选得到」。这份要证明「选了有用」——
@@ -20,7 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-r16-'))
+const tempRoot = makeTempDir('nomi-r16-')
 const settingsDir = path.join(tempRoot, 'settings')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')

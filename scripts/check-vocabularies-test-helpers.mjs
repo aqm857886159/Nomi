@@ -1,7 +1,7 @@
+import { makeTempDir } from './_test-temp.mjs'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,7 +11,7 @@ export const repositoryRoot = path.resolve(path.dirname(checker), '..')
 export const repositoryBaselinePath = path.join(repositoryRoot, 'scripts/vocabularies-baseline.json')
 
 export function makeFixture(files, baseline = { debtCap: 0, registered: [], debt: [] }) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-vocabularies-'))
+  const root = makeTempDir('nomi-vocabularies-')
   for (const [relativePath, contents] of Object.entries(files)) {
     const target = path.join(root, relativePath)
     fs.mkdirSync(path.dirname(target), { recursive: true })

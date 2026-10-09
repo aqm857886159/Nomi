@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查 —— 接模型「失焦自动拉取」+ ByteString 人话（2026-06-27）。
 // 对着忠实 mock new-api（零额度）驱动真实弹窗：填地址+Key 失焦 → 自动拉取 → 列表出现 → 保存可点；
 // 再粘带全角字符的 key 测连接 → 显示人话而非原始 ByteString。
@@ -19,7 +20,7 @@ const mock = spawn(process.execPath, [path.join(repoRoot, 'tests/transport-spike
 })
 await new Promise((r) => setTimeout(r, 800))
 
-const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-autofetch-'))
+const userData = makeTempDir('nomi-autofetch-')
 const results = []
 const check = (name, ok, detail) => { results.push({ name, ok }); console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ' — ' + detail : ''}`) }
 let n = 0

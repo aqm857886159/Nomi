@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 群反馈回归（症状「生成的视频过段时间打开播不了」根治的存量抢救半边）：
 // 打开项目时后台体检，把此前漏落进节点的厂商临时 URL（会过期）就地下载成本地 nomi-local 资产。
 //
@@ -22,7 +23,7 @@ import { stationTimeout } from './_station-budget.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-healthcheck-'))
+const root = makeTempDir('nomi-healthcheck-')
 const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'asset-healthcheck-walk'

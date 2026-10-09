@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../../scripts/_test-temp.mjs'
 // Real product tasks, isolated storage, existing loopback providers. No seeded results.
 import fs from 'node:fs/promises'
 import { performance } from 'node:perf_hooks'
@@ -23,7 +24,7 @@ import {
 import { startFixtureServer } from '../model-access-journeys/fixture-server.mjs'
 
 export async function runJourney(journey, collector) {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-experience-'))
+  const tempRoot = await makeTempDirAsync('nomi-experience-')
   const settingsDir = path.join(tempRoot, 'settings')
   let launched, fixture, error, outcome
   try {

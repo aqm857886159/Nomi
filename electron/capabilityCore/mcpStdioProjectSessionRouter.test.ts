@@ -26,7 +26,7 @@ import { CAPABILITY_DIR_ENV, ensureToken, signMcpClient } from './security'
 const tempDirs: string[] = []
 
 afterEach(() => {
-  delete process.env[CAPABILITY_DIR_ENV]
+  vi.stubEnv(CAPABILITY_DIR_ENV, undefined)
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
 })
 
@@ -42,7 +42,7 @@ describe('MCP stdio project-session router', () => {
   it('keeps one secret-derived transport connection across both RPC→direct and direct→RPC route flips', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-stdio-route-flip-'))
     tempDirs.push(dir)
-    process.env[CAPABILITY_DIR_ENV] = path.join(dir, 'capability')
+    vi.stubEnv(CAPABILITY_DIR_ENV, path.join(dir, 'capability'))
     ensureToken()
     const proof = signMcpClient('codex')!
     const secret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'

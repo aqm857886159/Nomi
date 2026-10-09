@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Phase C 端到端「参考宿主渲染」验证（不花额度）：证实我们这侧合规——真 Nomi MCP server
 // （app 二进制 NOMI_MCP_STDIO）吐出的 widget，在一个符合 MCP Apps 规范的宿主里真的能渲染。
 // 绕开 Claude 桌面版当前的 #671 前端 bug（custom server 不渲 iframe，Claude 侧未修）——那不是我们的问题。
@@ -23,7 +24,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/mcp-apps-host')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-mcpapps-'))
+const tmp = makeTempDir('nomi-mcpapps-')
 let passed = 0
 const ok = (c, l) => { if (!c) throw new Error(`FAIL: ${l}`); passed += 1; console.log(`  ✓ ${l}`) }
 const UI_EXT = 'io.modelcontextprotocol/ui'

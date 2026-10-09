@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 穿透走查（规则 13）—— Runway 十行视频模型「按真实身份收窄模式栏」，**零额度**（全程不发生成请求）。
 //
 // ── 这份走查在证什么 ──────────────────────────────────────────────────────
@@ -61,7 +62,7 @@ const shotsDir = path.join(repoRoot, 'tests/ux/shots/runway-vendor-honest-modes'
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-runway-honest-'))
+const tempRoot = makeTempDir('nomi-runway-honest-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 const capabilityDir = path.join(tempRoot, 'capability')

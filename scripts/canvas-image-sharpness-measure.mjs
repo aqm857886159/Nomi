@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // 诊断探针（非断言）：画布里的图为什么发虚？
 //
 // 反馈 2026-08-20 G2#434/436：「画布里这个图片有点模糊，实际图片很清晰的」。
@@ -21,7 +22,7 @@ import { findCanvasBlankPoint } from '../tests/ux/_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-image-sharpness')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-sharp-'))
+const tempRoot = makeTempDir('nomi-sharp-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

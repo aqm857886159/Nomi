@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13 走查：画布 复制/粘贴/撤销/删除后撤销 —— Cmd 与 Ctrl **两套修饰键都得成立**。
 //
 // 来历（2026-08-19 画布群 #4968/#4982/#4983）：用户报「ctrl+c 没有用」「所有快捷键都不好使」
@@ -31,7 +32,7 @@ import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-shortcuts')
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-shortcuts-'))
+const tempRoot = makeTempDir('nomi-shortcuts-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })

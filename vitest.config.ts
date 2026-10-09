@@ -95,12 +95,16 @@ export default defineConfig({
     // 跑它：`pnpm run test:real-media`（缺素材照样硬红，不 skip）。
     exclude: [...REAL_MEDIA_TESTS, ...BUILD_ARTIFACTS],
     environment: "node",
+    // Fork workers reuse a child process across files; restore every vi.stubEnv mutation
+    // before the next test can observe it.
+    unstubEnvs: true,
     // 单测不做真 fsync：临时目录的数据没人需要它跨掉电存活，但 fsync 会让墙钟随磁盘队列漂移，
     // 把 productionRun 的编排测试顶过 5000ms testTimeout（flake 根因）。见该文件顶部注释。
     setupFiles: [fileURLToPath(new URL("./tests/setup/durability.ts", import.meta.url)),
       fileURLToPath(new URL("./tests/setup/networkTransport.ts", import.meta.url)),
       // 技能目录的 CJS→岛桥在源码上不存在（要编译产物）；单测里把 readSkillRecords 直接接到岛上（见文件头）。
       fileURLToPath(new URL("./tests/setup/skillCatalogBridge.ts", import.meta.url))],
+    globalSetup: fileURLToPath(new URL("./tests/setup/tempWorkspace.ts", import.meta.url)),
     // flake 的另一条腿：测试自己不 fsync 了，但**邻居进程**打满文件系统时（这台机器 20+ worktree
     // 并行跑 gates 是常态），最重的编排测试仍会被外部负载从 ~300ms 拖过 5s——2026-08-25 实测：
     // 8 个 fsync 锤子进程加载下，durability 修复后 productionGateIdempotency / productionQaVerify

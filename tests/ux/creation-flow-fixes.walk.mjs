@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 2026-08-17 创作链路五修的真机走查（R13：截图 + 人眼判断，不是只跑 expect）。
 //
 // 覆盖用户实测反馈的五条：
@@ -15,7 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-flow-'))
+const tempRoot = makeTempDir('nomi-creation-flow-')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'creation-flow-fixes'

@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 // R13 真机走查：token 色透明度修饰符（Issue #32「部分 UI 看不清」根治验证）。
 // 场景：深色分镜图滚到画布手势提示条正下 → 提示条必须有真实玻璃底（此前 bg-nomi-paper/95
 // 被 Tailwind JIT 静默丢弃 = 透明裸字）。断言 computed background 非透明 + 截图人眼判定。
@@ -16,8 +17,8 @@ return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',ihdr),c
 import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.token-alpha-lab'); fs.mkdirSync(outDir, { recursive: true })
-const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'i32-s-'))
-const projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'i32-p-'))
+const settingsDir = makeTempDir('i32-s-')
+const projectsDir = makeTempDir('i32-p-')
 const { app, win } = await launchNomiApp({
   name: 'token-alpha',
   settingsDir,

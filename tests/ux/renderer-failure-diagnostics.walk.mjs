@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实旅程：保存失败 → 导出诊断包 → 包里的日志说得出「为什么」（2026-09-24 Windows 用户反馈的那个缺口）。
 //
 // 那天用户看到「项目保存失败，请检查本地磁盘权限」，发来的诊断包里却只有主进程日志——真因
@@ -28,7 +29,7 @@ const DOCUMENT = `[aria-label="${UI.document}"] .tiptap[contenteditable="true"]`
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/renderer-failure-diagnostics', LOCALE)
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
-const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-renderer-failure-walk-'))
+const outDir = makeTempDir('nomi-renderer-failure-walk-')
 const targetZip = path.join(outDir, 'bundle.zip')
 
 const failures = []

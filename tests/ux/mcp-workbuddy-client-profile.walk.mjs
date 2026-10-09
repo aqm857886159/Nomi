@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // R13/R16: Pi 客户端走查的 WorkBuddy 版本，固定跑本分支开发构建。
 // 用户旅程：设置 → MCP → 一键接入 → 重开仍配置 → 撤销。
 // 默认隔离 HOME；--real-workbuddy 仅把 .workbuddy 映射到真实目录，finally 字节级还原。
@@ -15,7 +16,7 @@ const real = process.argv.includes('--real-workbuddy')
 const shotsDir = path.resolve(process.argv.find((arg) => arg.startsWith('--shots-out='))?.split('=').slice(1).join('=')
   || 'tests/ux/shots/mcp-workbuddy-client-profile')
 fs.mkdirSync(shotsDir, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-workbuddy-walk-'))
+const tempRoot = makeTempDir('nomi-mcp-workbuddy-walk-')
 const testHome = path.join(tempRoot, 'home')
 fs.mkdirSync(testHome)
 const workbuddyDir = path.join(testHome, '.workbuddy')

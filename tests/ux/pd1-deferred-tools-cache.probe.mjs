@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 手动探针，付费 ≤¥0.3；不进 CI。NOMI_AGENT_LIVE=1 node tests/ux/pd1-deferred-tools-cache.probe.mjs
 // Prerequisites: pnpm build; pnpm exec tsc -p tests/agent-runtime/tsconfig.json.
 // Real Electron + existing probe lane; attachment unlock is probe-only, not shipped UI wiring.
@@ -297,7 +298,7 @@ async function main() {
   const { realNomiProfile } = await import('./_realProfile.mjs')
   const { launchNomiApp } = await import('./_launchApp.mjs')
   const realCatalog = realNomiProfile().catalogPath
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pd1-cache-'))
+  const tempRoot = makeTempDir('nomi-pd1-cache-')
   const output = path.join(root, '.tmp', `pd1-cache-${Date.now()}.json`)
   const sourceHash = createHash('sha256').update(fs.readFileSync(realCatalog)).digest('hex')
   let launched, report

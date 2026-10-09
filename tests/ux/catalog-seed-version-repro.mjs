@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 最小复现：旧走查边界会把 future seed 交给 Electron，修复后的共享边界先 quarantine。
 import fs from 'node:fs'
 import os from 'node:os'
@@ -6,7 +7,7 @@ import { prepareIsolatedCatalog } from './_launchApp.mjs'
 
 const roots = []
 const makeCase = () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-catalog-repro-'))
+  const root = makeTempDir('nomi-catalog-repro-')
   roots.push(root)
   fs.writeFileSync(path.join(root, 'model-catalog.json'), JSON.stringify({
     version: 12,

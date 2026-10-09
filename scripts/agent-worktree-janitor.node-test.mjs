@@ -1,3 +1,4 @@
+import { makeTempDir } from './_test-temp.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -190,7 +191,7 @@ test('finds build output as reclaimable, not just installed dependencies', () =>
   // 这条测的是「找得到哪些目录」，而不是 decideAction 拿到清单后怎么判——后者收的是参数，
   // 无论清单怎么退化都会绿。今天真实烧掉磁盘的形态正是这种树：依赖早清过，
   // 但 6 轮 gates 把 dist/release 堆到了几百 MB，旧实现会判它「没有可回收物」整棵跳过。
-  const root = mkdtempSync(join(tmpdir(), 'janitor-reclaim-'))
+  const root = makeTempDir('janitor-reclaim-')
   try {
     for (const dir of ['node_modules', 'dist', 'release', 'src']) {
       mkdirSync(join(root, dir), { recursive: true })

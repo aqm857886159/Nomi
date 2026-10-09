@@ -1,3 +1,4 @@
+import { makeTempDirAsync } from '../../scripts/_test-temp.mjs'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -11,7 +12,7 @@ import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/shot-nodes-evidence')
 await fs.mkdir(out, { recursive: true })
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'nomi-shot-nodes-'))
+const tempRoot = await makeTempDirAsync('nomi-shot-nodes-')
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = await createProcessFixture(root, settingsDir)
 const app = await launchNomiApp({ name: 'shot-nodes-lifecycle', tempRoot, settingsDir, settleMs: 0,

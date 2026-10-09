@@ -1,5 +1,5 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { localAssetUrl } from "../../electron/assets/assetPaths.ts";
@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 function tempRoot(name) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), name));
+  const root = makeTempDir(name);
   roots.push(root);
   return root;
 }

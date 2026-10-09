@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
 // Real Electron journey for canvas batch production — the only batch entrance is the group toolbar's「生成整组」.
 // Each node runs with the model it already carries (no bulk model picker, no concurrency picker). The UI, spend gate, IPC, queue, HTTP transport,
@@ -13,7 +14,7 @@ import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.m
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-batch-production')
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-batch-'))
+const tempRoot = makeTempDir('nomi-canvas-batch-')
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')

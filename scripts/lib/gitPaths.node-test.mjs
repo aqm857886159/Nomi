@@ -1,3 +1,4 @@
+import { makeTempDir } from '../_test-temp.mjs'
 // gitPaths 的行为对照（2026-09-07）：拿一棵真仓库里含中文 / 空格的路径来验，
 // 不是验字符串处理——被修的正是「git 默认怎么输出路径」这件事。
 import assert from 'node:assert/strict'
@@ -13,7 +14,7 @@ const CN_DOC = 'docs/中文附件说明.md'
 const SPACED = 'docs/note with space.md'
 
 function makeRepo(t) {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gitpaths-')))
+  const dir = makeTempDir('nomi-gitpaths-')
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' })
   git('init', '-q', '-b', 'main')

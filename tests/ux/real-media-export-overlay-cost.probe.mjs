@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实素材导出回归（R13「四件真实」第④件的 export 类 · R17 棘轮）。守一条不变量：
 //
 //   **导出成本不随文字叠加层的条数成倍涨。**
@@ -165,7 +166,7 @@ async function main() {
   const { compileFfmpegFiltergraph } = await import(pathToFileURL(path.join(repoRoot, 'electron/export/ffmpegFiltergraph.ts')).href)
   const { buildWebmToMp4Args } = await import(pathToFileURL(path.join(repoRoot, 'electron/export/ffmpegCommandBuilder.ts')).href)
 
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-overlay-cost-'))
+  const workDir = makeTempDir('nomi-overlay-cost-')
   // 导出画幅由真实素材推出来（竖屏成片：宽 = 源高的一半，再按 9:16 推高），不写死。
   const exportWidth = Math.round(sourceGeometry.height / 4) * 2
   const exportHeight = Math.round((exportWidth * 16) / 9 / 2) * 2

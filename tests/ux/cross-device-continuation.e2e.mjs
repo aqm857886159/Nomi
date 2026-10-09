@@ -1,3 +1,4 @@
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 跨设备继续编辑真实旅程：两个隔离 profile 共享同一份项目镜像。
 // 运行：pnpm run build && node tests/ux/cross-device-continuation.e2e.mjs
 import { launchNomiApp } from './_launchApp.mjs'
@@ -5,7 +6,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, cpSync, existsSync, readFileSync
 import os from 'node:os'
 import path from 'node:path'
 
-const root = mkdtempSync(path.join(os.tmpdir(), 'nomi-cross-device-e2e-'))
+const root = makeTempDir('nomi-cross-device-e2e-')
 const shared = path.join(root, 'shared')
 const machineA = path.join(root, 'machine-a')
 const machineB = path.join(root, 'machine-b')
