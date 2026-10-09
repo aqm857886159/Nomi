@@ -17,14 +17,15 @@ import { getGenerationNodeExecutionKind } from '../../generationCanvas/model/gen
 import { resultIdentity } from '../../generationCanvas/model/nodeResultLifecycle'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
-import { formatSeconds, ListCardMedia, ListStatusTag, readAspect, readDurationSeconds } from './GenerationListParts'
-import { useModelLabels } from './GenerationListCard'
+import { ListCardMedia, ListStatusTag } from './GenerationListParts'
+import { formatSeconds, readAspect, readDurationSeconds } from './generationListMediaFacts'
+import { useNodeModelLabel } from './generationListModelLabels'
 import { shotLabel, type GenerationListCard, type GenerationListSection } from './generationListModel'
 import { viewNodeInCanvas } from './generationListSource'
 
 const NO_FEEDBACK = (): void => undefined
-export const DETAIL_PREVIEW_WIDTH = 624
-export const DETAIL_PREVIEW_HEIGHT = 351
+const DETAIL_PREVIEW_WIDTH = 624
+const DETAIL_PREVIEW_HEIGHT = 351
 
 /** 提示词的一行纯文字（参考 chip 去掉）——窄列用，不为每一行起一个编辑器。 */
 function plainPrompt(prompt: string | undefined): string {
@@ -136,7 +137,7 @@ function DetailVersions({ node, width }: { node: GenerationCanvasNode; width: nu
 export function GenerationListDetail({ card, onBack, leadInset = false }: { card: GenerationListCard; onBack: () => void; leadInset?: boolean }): JSX.Element {
   const { t } = useTranslation()
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === card.nodeId))
-  const modelLabel = useModelLabels()(node)
+  const modelLabel = useNodeModelLabel(node)
   const execution = node ? getGenerationNodeExecutionKind(node.kind) : undefined
   const duration = node && (execution === 'video' || execution === 'audio') ? readDurationSeconds(node) : null
   const running = node?.status === 'queued' || node?.status === 'running'
@@ -164,7 +165,7 @@ export function GenerationListDetail({ card, onBack, leadInset = false }: { card
           {node ? <DetailVersions node={node} width={previewWidth} /> : null}
           {node ? (
             nodeHasGenerationComposer(node.kind) ? (
-              <div className="mx-auto mt-4 w-full rounded-panel bg-nomi-paper p-3 ring-1 ring-nomi-line" style={{ maxWidth: DETAIL_PREVIEW_WIDTH }} data-inspector-composer>
+              <div className="mx-auto mt-4 w-full rounded-panel bg-nomi-paper p-3 ring-1 ring-nomi-line [&_[data-node-composer-references]:empty]:hidden" style={{ maxWidth: DETAIL_PREVIEW_WIDTH }} data-inspector-composer>
                 <LazyNodeGenerationComposer node={node} visualSize={node.size ?? { width: 340, height: 192 }} host="panel" onFeedback={NO_FEEDBACK} />
                 {/* 生成钮：panel 宿主的生成框把「生成」交给宿主；这里接，按下去 = 画布「↑」同一个口（nodeComposerGenerate）。 */}
                 <div className="mt-3 flex justify-end">

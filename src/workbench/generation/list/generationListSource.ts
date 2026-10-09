@@ -15,6 +15,7 @@ export type ListRow =
   | { kind: 'assets'; key: string; nodeIds: string[] }
 
 export const CARD_WIDTH = 256
+export const CARD_MEDIA_HEIGHT = 144
 export const CARD_GAP = 24
 export const SIDE_PADDING = 32
 
@@ -59,4 +60,13 @@ export function viewNodeInCanvas(nodeId: string): void {
     dispatch: (id) => window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId: id } })),
     waitFrame: () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())),
   })
+}
+
+/** 这个分区「生成全部」要派发的节点：画布分组 = 组框的全部成员（与组工具条同一份）；分镜 / 未分组 = 分区里的卡。 */
+export function sectionGenerateNodeIds(section: GenerationListSection): string[] {
+  if (section.kind === 'group') {
+    const group = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === section.groupId)
+    return group ? [...group.nodeIds] : []
+  }
+  return section.cards.map((card) => card.nodeId)
 }

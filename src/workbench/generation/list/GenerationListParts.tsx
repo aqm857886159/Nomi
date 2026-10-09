@@ -18,7 +18,6 @@ import { DeferredNodeImage, DeferredNodeVideo } from '../../generationCanvas/nod
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
 import { docToPlainText } from '../../generationCanvas/runner/textGenerationDocument'
 import { getGenerationNodeExecutionKind } from '../../generationCanvas/model/generationNodeKinds'
-import { readAudioMeta } from '../../generationCanvas/model/nodeMetaFields'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import type { ShotRowStatus } from '../../creation/storyboard/exec/storyboardRowStatus'
@@ -43,23 +42,6 @@ export function ListStatusTag({ status }: { status: ShotRowStatus }): JSX.Elemen
   )
 }
 
-
-export function readAspect(node: GenerationCanvasNode | undefined): string | null {
-  const value = node?.meta?.aspect_ratio
-  return typeof value === 'string' && /^\d+:\d+$/.test(value) ? value : null
-}
-
-export function readDurationSeconds(node: GenerationCanvasNode): number | null {
-  const meta = node.meta ?? {}
-  const audio = readAudioMeta(node).durationSec
-  const value = node.kind === 'audio' ? audio : meta.duration
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
-}
-
-export function formatSeconds(seconds: number): string {
-  const whole = Math.round(seconds)
-  return whole >= 60 ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : `${whole}s`
-}
 
 function EmptyMedia({ kind }: { kind: string }): JSX.Element {
   const Icon = kind === 'video' ? IconVideo : kind === 'audio' ? IconWaveSine : kind === 'text' ? IconFileText : IconPhoto

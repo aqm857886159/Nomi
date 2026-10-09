@@ -12,15 +12,7 @@ import { eligibleGroupGenerateIds, runGroupGenerate } from '../../generationCanv
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { GenerationListAnchor, GenerationListSection } from './generationListModel'
-
-/** 这个分区「生成全部」要派发的节点：画布分组 = 组框的全部成员（与组工具条同一份）；分镜 / 未分组 = 分区里的卡。 */
-export function sectionGenerateNodeIds(section: GenerationListSection): string[] {
-  if (section.kind === 'group') {
-    const group = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === section.groupId)
-    return group ? [...group.nodeIds] : []
-  }
-  return section.cards.map((card) => card.nodeId)
-}
+import { sectionGenerateNodeIds } from './generationListSource'
 
 function AnchorChip({ anchor, onOpen }: { anchor: GenerationListAnchor; onOpen: (nodeId: string) => void }): JSX.Element {
   const { t } = useTranslation()

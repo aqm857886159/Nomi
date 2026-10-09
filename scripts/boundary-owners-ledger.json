@@ -380,6 +380,26 @@
         "path": "src/workbench/creation/storyboard/exec/applyStoryboardPlanProjection.ts",
         "symbol": "applyStoryboardPlanProjection"
       }
+    },
+    {
+      "contract": "docs/fixes/2026-09-18-agent-storyboard-single-ledger.root-cause.json",
+      "path": "electron/shared/canvas/shotTable.ts",
+      "symbol": "productionShotTableSchema",
+      "anchor": {
+        "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+        "symbol": "materializeShots"
+      },
+      "reason": "2026-10-09 画布分镜表节点退役（#1128）。该合同守的是「Agent 分镜只有一本账：Run 的 generationPlan 投到画布节点」。表节点是第二张展示、不存行，删掉之后这条账本不变量更严了：落地的唯一创建者 materializeShots 只落镜头节点和分组，不再建任何表视图（multiShotCanvasLanding.test.ts 断言落地后 shot_table 为 0）；旧项目里的 production 表在读取侧整节点丢弃、打开时迁移移除（project/storyboardTableRetirement，0.23.1 真写入夹具必红测试）。所以主人改锚到唯一创建者。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-18-agent-storyboard-single-ledger.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/shotTable/productionShotRows.ts",
+      "symbol": "selectProductionShotRows",
+      "anchor": {
+        "path": "src/workbench/generation/list/generationListModel.ts",
+        "symbol": "deriveGenerationList"
+      },
+      "reason": "2026-10-09 同上。「制作镜头的行状态词表 = 分镜行词表、由节点派生、Run 的任务阶段只在节点自己还没结果时补位」原来由表的行选择器承担；表没了，同一件事由生成页列表的投影承担：deriveGenerationList 读节点 + deriveNodeRowExec（storyboardRowStatus 的 SHOT_ROW_STATUSES），零存储、零缓存，列表卡一镜一行。"
     }
   ],
   "retirements": [

@@ -21,32 +21,19 @@ import {
 } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
-import { useModelOptionsState } from '../../../config/useModelOptions'
 import PromptEditor from '../../assets/PromptEditor'
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
 import { currentReferenceMedia } from '../../generationCanvas/nodes/mentionCandidates'
 import { getGenerationNodeExecutionKind, getGenerationNodeLabel } from '../../generationCanvas/model/generationNodeKinds'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
-import { formatSeconds, ListCardMedia, ListStatusTag, readAspect, readDurationSeconds } from './GenerationListParts'
+import { ListCardMedia, ListStatusTag } from './GenerationListParts'
+import { formatSeconds, readAspect, readDurationSeconds } from './generationListMediaFacts'
+import { CARD_MEDIA_HEIGHT } from './generationListSource'
 import { shotLabel, type GenerationListCard } from './generationListModel'
 
-export const CARD_MEDIA_HEIGHT = 144
 /** 卡上提示词是只读的，编辑器要求一个 onChange。 */
 const ignoreChange = (): void => undefined
-
-/** 节点上选好的模型 → 卡上那个显示名（找不到目录项就原样显示 key）。 */
-export function useModelLabels(): (node: GenerationCanvasNode | undefined) => string {
-  const image = useModelOptionsState('image').options
-  const video = useModelOptionsState('video').options
-  const audio = useModelOptionsState('audio').options
-  return React.useCallback((node) => {
-    const key = typeof node?.meta?.modelKey === 'string' ? node.meta.modelKey : ''
-    if (!key) return ''
-    const option = [...image, ...video, ...audio].find((candidate) => candidate.value === key || candidate.modelKey === key)
-    return option?.label || key
-  }, [image, video, audio])
-}
 
 /** 卡上的参考小图（取代卡间的链接图标）：最多 3 张，其余 +N。 */
 export function ReferenceThumbs({ nodeIds, size = 20 }: { nodeIds: readonly string[]; size?: number }): JSX.Element | null {
