@@ -5,9 +5,9 @@ const end = (kind: string, extra: Record<string, unknown> = {}) => ({ kind, ...e
 
 describe('validateReferenceEdge（主进程与渲染层同一份规则）', () => {
   it.each([
-    ['video', 'text', 'target_takes_no_input'],
-    ['audio', 'text', 'target_takes_no_input'],
-    ['image', 'text', 'target_takes_no_input'],
+    ['video', 'text', 'unsupported_reference'], // 文本卡左环只收文字和图（2026-10-09 拍板）
+    ['audio', 'text', 'unsupported_reference'],
+    ['clip', 'text', 'source_not_referenceable'],
     ['clip', 'image', 'source_not_referenceable'],
     ['clip', 'video', 'source_not_referenceable'],
     ['text', 'clip', 'source_not_referenceable'],
@@ -24,6 +24,8 @@ describe('validateReferenceEdge（主进程与渲染层同一份规则）', () =
     ['text', 'video'],
     ['video', 'clip'],
     ['image', 'clip'],
+    ['image', 'text'], // 看图写描述
+    ['text', 'text'], // 文字接文字：加工框的背景（isTextPromptEdge）
     ['asset', 'video'],
   ])('%s -> %s 过', (source, target) => {
     expect(validateReferenceEdge(end(source), end(target), 'reference')).toEqual({ ok: true })
@@ -56,7 +58,7 @@ describe('admitNewEdges', () => {
     const next = [e('old', 'v', 't'), e('bad', 'v', 't'), e('ok', 'i', 'w'), e('ghost', 'i', 'nope')]
     const out = admitNewEdges({ nodes, known: new Set(['old']), next })
     expect(out.edges.map((edge) => edge.id)).toEqual(['old', 'ok'])
-    expect(out.rejected.map((item) => [item.edge.id, item.reason])).toEqual([['bad', 'target_takes_no_input'], ['ghost', 'dangling']])
+    expect(out.rejected.map((item) => [item.edge.id, item.reason])).toEqual([['bad', 'unsupported_reference'], ['ghost', 'dangling']])
   })
 
   it('没有被拒的边时返回同一个数组引用', () => {
