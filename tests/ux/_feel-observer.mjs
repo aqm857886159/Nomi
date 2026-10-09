@@ -196,3 +196,20 @@ export function installFeelObserver(page, {
   installed.set(page, observer)
   return observer
 }
+
+// 例外证据的棘轮：返回相对 previous 多出来的 finding（空数组 = 只减不增）。
+// 元素身份 = (target, fontSizes)；text 只是说明，不参与比对——否则改文案就被误判成「例外变多」（PR #1099）。
+// 同一种 (target, fontSizes) 的个数只能减不能增。
+const exemptionIdentity = (finding) => JSON.stringify([finding.target, finding.fontSizes])
+export function exemptionEvidenceGrowth(previousFindings, currentFindings) {
+  const remaining = new Map()
+  for (const known of previousFindings) remaining.set(exemptionIdentity(known), (remaining.get(exemptionIdentity(known)) ?? 0) + 1)
+  const grown = []
+  for (const finding of currentFindings) {
+    const key = exemptionIdentity(finding)
+    const left = remaining.get(key) ?? 0
+    if (left <= 0) grown.push(finding)
+    else remaining.set(key, left - 1)
+  }
+  return grown
+}
