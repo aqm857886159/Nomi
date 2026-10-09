@@ -37,7 +37,18 @@
 - **按镜头身份去重（10-09）**：文稿方案的那一镜如果已经经分镜行「放到画布」落过节点（方案 id = Run id，节点身份 = storyboardDesignId × shotId / anchorId，判据只用 `storyboardNodeBinding.findShotNode / findAnchorNode`），确认时认那个节点、绑到 Run 上，不再落第二份；认来的节点不重绑定候选、不拉进分镜组。镜头 id 不是稳定 id 时不猜，照常新建。
 - **升级（10-09）**：升级前那一版建的画布批量确认草稿没记 `origin.nodeId`：不发、按「没交」收尾（收回出价），并带码 `canvas_consent_predates_upgrade` 回给画布，节点上如实说「升级后这批没有发出，需要重新确认」（中英，不谈钱）。已经交出去的旧 Run 不受影响（准入只在新一次派发之前）。
 - **结局回填**：落地报文带上 Run 绑着的 `nodeId`；节点不在时出片结果 / 确定失败按 nodeId 暂存（同一份结局只暂存一次），撤销 / 放回时由 `canvasDocumentCommit` 落上。
-- **门岗**：入口表每条加 `landing`（`node-first` + owner，或 `exception`）；例外理由只认 `scripts/generation-entrances-ledger.json#landingExceptions`。
+- **门岗**：入口表每条加 `landing`（`node-first` + owner，或 `exception`）；例外理由只认 `scripts/generation-entrances-ledger.json#landingExceptions`，而且例外按身份写死（`APPROVED_LANDING_EXCEPTIONS`：try-model、接入认证试跑两条），多一条、少一条、换成普通调用点都红（#1139 N3）。
+
+### #1139 评审后的语义（协调会话 10-09 裁决）
+
+- **B1 部分落地按镜头算，不整批拦**：一批里已经落下、已经批过的兄弟镜照常派发；没落下的那一镜这次派发 0 次，Run 歇下时停在 `landing_failed`，点「继续」只重试没发出的那几镜（已发出的不再交）。用户看到的话必须和真实派发一致：
+  - 一镜都没落下 → `nextAction: canvas_landing_failed`，那一句才说「这次没有发出生成请求」；
+  - 部分落下 → `nextAction: observe`，逐镜说「已放到画布并发出 N 镜：…；有 M 镜没放到画布上，没有发出：…」（`landingOutcomeNotice`，中英）；
+  - Agent 读 Run：投影带逐镜事实 `landing: { sent, notPlaced }`（`shotLandingFacts`，只读耐久 Run），转述按它说，一镜都没发出时才说「这次没有发出生成请求」；
+  - 画布占位卡、付费卡的那一句改成按这一镜 / 这一批里那几镜说，不再对整批断言。
+- **B2 C′ 租约**：拿到项目时同时拿一份租约（窗口代次 `backgroundWindowEpoch` + 仍对用户隐藏 + 窗口里开着的项目）。发 deep-link 之前、认下项目之后、排到落地队列时、发 materialize 之前、写回绑定之前都核；等待期间窗口被叫出来、用户切项目、窗口重建、hydrate 认下了别的项目，任一项就取消：`landing_failed`、派发 0 次、渲染层一次落地请求都不收。渲染层自己再按报文 `projectId` 核它认下的项目（`materializeShots` 的 binding 栅栏）。
+- **N1 观察拆开**：`submission.observeAccepted` 只观察已受理的那一次，不收准入、绝不调用供应商提交（节点删了也照样收结果）；`submission.start` 只给新派发，每次都先过准入，已受理的那一次再调它会被拒（`generation_already_accepted`）。单镜开拍口与调度器遇到已受理的先走 `observeAccepted`。
+- **N2 暂存只在本次会话**：节点不在时暂存的结局住在画布 store 的 `heldNodeOutcomes`，与普通画布同一份；项目装载（`canvasDocumentCommit` 的 load）对两者一起清空——撤销栈本来就只在内存里，重启后也撤销不了删除。结果本身不丢：出片照常物化进 Run 账本（artifact）和项目里的文件，重新装载后仍在（`landFirstResultDurable.test.ts`）。
 
 ## 设计卡（花钱 + 可打断，9 格）
 

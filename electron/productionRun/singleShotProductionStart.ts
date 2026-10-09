@@ -19,7 +19,7 @@ export type SingleShotLandingFailed = Readonly<{
 
 export async function startSingleShotProduction(input: Readonly<{
   repository: Pick<ProductionRunRepository, "read" | "execute">;
-  submission: Pick<ProductionGenerationSubmission, "start">;
+  submission: Pick<ProductionGenerationSubmission, "start" | "observeAccepted">;
   landShots: LandShotsOnCanvas;
   projectId: string;
   runId: string;
@@ -27,6 +27,9 @@ export async function startSingleShotProduction(input: Readonly<{
   locale?: "zh-CN" | "en";
 }>): Promise<GenerationSubmissionResult | SingleShotLandingFailed> {
   const { repository, projectId, runId, now } = input;
+  // 已经交出去、供应商受理过的那一次：只观察（不收准入、不落地、不再交）。节点后来被删了也照样把结果收回来。
+  const accepted = input.submission.observeAccepted({ projectId, operationId: runId });
+  if (accepted) return accepted;
   const outcome = await admitShotsForDispatch({ repository, land: input.landShots, projectId, runId, shotIds: [undefined] });
   const admission = [...outcome.admitted.values()][0];
   if (!admission) {

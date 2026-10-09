@@ -43,12 +43,36 @@ const RUN_STATUS_HINT: Record<string, { zh: string; en: string; nextZh: string; 
  */
 const STOP_REASON_HINT: Record<ProductionRunStopReason | 'unknown', { zh: string; en: string; nextZh: string; nextEn: string; action: string }> = {
   consent_expired: { zh: '需要用户再确认一次', en: 'needs the user to confirm again', nextZh: '批过的镜头还没开拍，离用户上一次确认已经太久了；请用户在 Nomi 里点一下「继续」，那一下就是确认（你替不了他）', nextEn: 'The approved shots have not started and the user\'s last confirmation is too old; ask the user to click Continue in Nomi — that click is the confirmation, you cannot give it for them', action: 'ask_user_to_continue' },
-  landing_failed: { zh: '没放到画布上', en: 'not placed on the canvas', nextZh: '有镜头没能先放到画布上，这次没有发出生成请求。请用户在 Nomi 里打开这个项目，再点一下「继续」重试', nextEn: 'Some shots could not be placed on the canvas first, so no generation request was sent for them. Ask the user to open this project in Nomi and click Continue to retry', action: 'ask_user_to_open_project_and_continue' },
+  // 按镜头算（#1139 B1）：这里是没有逐镜事实时的兜底，只说「没放上的那几镜没发」；有逐镜事实时见 landingHint。
+  landing_failed: { zh: '有镜头没放到画布上', en: 'some shots were not placed on the canvas', nextZh: '没放到画布上的那几镜没有发出生成请求，已放上的照常生成。请用户在 Nomi 里打开这个项目，再点一下「继续」，只会重试没发出的那几镜', nextEn: 'The shots that were not placed on the canvas were not sent; the placed ones run as usual. Ask the user to open this project in Nomi and click Continue — only the unsent shots are retried', action: 'ask_user_to_open_project_and_continue' },
   failed: { zh: '有镜头没生成成功', en: 'a shot failed', nextZh: '有镜头没生成成功，这一批停下了。可以在 Nomi 画布上重做那一镜，或取消这次制作', nextEn: 'A shot failed, so the batch stopped. Redo that shot on the Nomi canvas, or cancel the run', action: 'rework_or_cancel' },
   user_paused: { zh: '用户暂停了', en: 'paused by the user', nextZh: '已提交的花费不退但产物保留；未提交的不再花钱。可继续或取消', nextEn: 'Submitted spend is not refundable but its output is kept; nothing new will be charged. Resume or cancel', action: 'resume_or_cancel' },
   user_cancelled: { zh: '用户取消了', en: 'cancelled by the user', nextZh: '未提交的任务不计费', nextEn: 'Unsubmitted jobs are not charged', action: 'none' },
   restart_recovery: { zh: '重启后待核对', en: 'waiting for a post-restart check', nextZh: 'Nomi 重启后要先核对之前在跑的任务，看错误详情选恢复动作', nextEn: 'After a restart Nomi must verify the jobs that were running; check the error details for recovery actions', action: 'recover' },
   unknown: { zh: '已停（上一版没记原因）', en: 'stopped (reason not recorded by an older version)', nextZh: '这次制作是上一版停下的，没有记下原因；看错误详情选恢复动作，或取消', nextEn: 'An older version stopped this run without recording why; check the error details for recovery actions, or cancel', action: 'recover' },
+}
+
+type LandingRef = { index?: unknown; title?: unknown }
+
+/** 停在 landing_failed 的 Run：按投影里的逐镜事实说（一镜都没发出时才说「这次没有发出生成请求」）。 */
+function landingHint(value: Record<string, unknown>): (typeof STOP_REASON_HINT)['landing_failed'] | null {
+  const landing = rec(value.landing)
+  const sent = Array.isArray(landing.sent) ? (landing.sent as LandingRef[]) : null
+  const notPlaced = Array.isArray(landing.notPlaced) ? (landing.notPlaced as LandingRef[]) : null
+  if (!sent || !notPlaced) return null
+  const label = (ref: LandingRef, en: boolean) => typeof ref.title === 'string' && ref.title
+    ? (en ? `"${ref.title}"` : `「${ref.title}」`)
+    : (en ? `shot ${String(ref.index ?? '?')}` : `第 ${String(ref.index ?? '?')} 镜`)
+  const list = (refs: LandingRef[], en: boolean) => refs.map((ref) => label(ref, en)).join(en ? ', ' : '、')
+  if (sent.length === 0) {
+    return { ...STOP_REASON_HINT.landing_failed, zh: '没放到画布上', en: 'not placed on the canvas',
+      nextZh: '没放到画布上，这次没有发出生成请求。请用户在 Nomi 里打开这个项目，再点一下「继续」重试',
+      nextEn: 'Not placed on the canvas, so no generation request was sent. Ask the user to open this project in Nomi and click Continue to retry' }
+  }
+  return { ...STOP_REASON_HINT.landing_failed,
+    zh: `发出 ${sent.length} 镜，${notPlaced.length} 镜没放到画布上`, en: `${sent.length} sent, ${notPlaced.length} not placed on the canvas`,
+    nextZh: `已放到画布并发出：${list(sent, false)}。没放到画布上、没有发出：${list(notPlaced, false)}。请用户在 Nomi 里打开这个项目，再点一下「继续」，只会重试没发出的这几镜`,
+    nextEn: `Placed and sent: ${list(sent, true)}. Not placed on the canvas and not sent: ${list(notPlaced, true)}. Ask the user to open this project in Nomi and click Continue — only these unsent shots are retried` }
 }
 
 function str(value: unknown): string {
@@ -385,7 +409,9 @@ export function buildToolOutcome(
   if (toolName === 'nomi_read' && readTarget === 'run') {
     const status = str(value.status) || 'unknown'
     const stopReason = stopReasonOf(value)
-    const hint = stalledDraftHint(value) ?? (status === 'needs_attention' && stopReason ? STOP_REASON_HINT[stopReason] : RUN_STATUS_HINT[status])
+    const hint = stalledDraftHint(value) ?? (status === 'needs_attention' && stopReason
+      ? (stopReason === 'landing_failed' ? landingHint(value) ?? STOP_REASON_HINT.landing_failed : STOP_REASON_HINT[stopReason])
+      : RUN_STATUS_HINT[status])
     const artifacts = Array.isArray(value.artifacts) ? (value.artifacts as Array<Record<string, unknown>>) : []
     const latest = artifacts.at(-1)
     const preview = latest ? rec(latest.preview) : {}

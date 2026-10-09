@@ -73,6 +73,15 @@ export function scanDispatchSites(root = repoRoot) {
 
 const countLiterals = (source, pattern) => [...source.matchAll(pattern)].length
 
+/**
+ * 批准的「不落节点就发请求」例外（协调会话 2026-10-08 / 10-09 裁决），按身份写死：值说明它是入口 id 还是登记表调用点。
+ * 加一条 = 改这里 = 经协调会话；门岗自测钉住条数与身份。
+ */
+export const APPROVED_LANDING_EXCEPTIONS = Object.freeze({
+  'try-model': 'entrance',
+  'electron/integrationCertification/integrationSession.ts::runTask': 'site',
+})
+
 export function checkGenerationEntrances(root = repoRoot) {
   const problems = []
   const ledger = JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'generation-entrances-ledger.json'), 'utf8'))
@@ -139,9 +148,23 @@ export function checkGenerationEntrances(root = repoRoot) {
     const ownerFile = (landing[2] ?? '').split(' ')[0]
     if (!ownerFile || !fs.existsSync(path.join(root, ownerFile))) problems.push(`入口 ${id} 的落地 owner ${landing[2] ?? '(空)'} 不存在：node-first 必须指向真正保证「先有节点」的那个文件。`)
   }
+  // 例外按身份写死（#1139 N3）：只有协调会话批过的这几条能进 landingExceptions，条数也要对上。
+  // 以前「是登记表里的调用点」就能进，于是同一个 commit 就能把任何一个普通调用点悄悄变成第 N 条永久豁免。
   for (const [key, reason] of Object.entries(exceptions)) {
-    if (!exceptionEntrances.has(key) && !registered.has(key)) problems.push(`landingExceptions 里的 ${key} 既不是登记成例外的入口，也不是登记表里的调用点：同 commit 删掉，别留成永久豁免。`)
+    const approved = APPROVED_LANDING_EXCEPTIONS[key]
+    if (!approved) {
+      problems.push(`landingExceptions 里的 ${key} 不在批准的落地例外里（只认：${Object.keys(APPROVED_LANDING_EXCEPTIONS).join('、')}）：不落节点就发请求的新口子要先经协调会话裁决，再改门岗。`)
+      continue
+    }
+    if (approved === 'entrance' && !exceptionEntrances.has(key)) problems.push(`landingExceptions 里的 ${key} 应当是入口表里声明为 exception 的入口。`)
+    if (approved === 'site' && !registered.has(key)) problems.push(`landingExceptions 里的 ${key} 应当是登记表里的调用点。`)
     if (typeof reason !== 'string' || !reason.trim()) problems.push(`landingExceptions 里的 ${key} 没有理由。`)
+  }
+  const exceptionCount = Object.keys(exceptions).length
+  const approvedCount = Object.keys(APPROVED_LANDING_EXCEPTIONS).length
+  if (exceptionCount !== approvedCount) problems.push(`landingExceptions 有 ${exceptionCount} 条，批准的是 ${approvedCount} 条：例外只许按身份逐条批，不许多也不许少。`)
+  for (const id of exceptionEntrances) {
+    if (APPROVED_LANDING_EXCEPTIONS[id] !== 'entrance') problems.push(`入口 ${id} 自称落地例外，但它不在批准的例外入口里。`)
   }
   // 每个入口的 dispatchSite 文件必须是扫到过的那些文件之一（入口不能指向一个没人发请求的地方）。
   const dispatchFiles = new Set([...scanned.keys()].map((key) => key.split('::')[0]))

@@ -10,6 +10,7 @@ import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import { createProductionGenerationSubmission, type ProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
+import { landedAdmission } from "./landFirstTestUtils";
 
 // 架构③ 合同 2（协调会话 10-08）：单镜与多镜走**同一个**「镜头落地」准入点，不各写一份。
 //
@@ -128,5 +129,48 @@ describe("one land-first admission for every production dispatch", () => {
       expect(read(file), file).not.toMatch(/landCanvasBestEffort/);
     }
     expect(read("electron/productionRun/canvasLandingHost.ts")).not.toMatch(/landCanvasBestEffort/);
+  });
+});
+
+// #1139 对抗评审 N1，协调会话裁决「拆开」：已受理那一次的观察不收准入（节点删了，付过钱的那一次照样要收结果），
+// submission.start 只给新派发、每次都先过准入。
+describe("observing an accepted job is its own API: no admission, never a provider submit", () => {
+  async function acceptedThenDetached() {
+    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
+    const { repository, submission } = setupUnlanded(submit);
+    await submission.start({ projectId: PROJECT, operationId: RUN, admission: await landedAdmission(repository, PROJECT, RUN) });
+    // 交出去之后用户删了节点：Run 记 detached，这一镜再也拿不到准入。
+    const run = repository.read(PROJECT, RUN)!;
+    repository.execute(PROJECT, RUN, { commandId: "detach", expectedRevision: run.revision, type: "plan.detach-shot-nodes", payload: { nodeIds: [run.generationPlan!.nodeId!] }, issuedAt: NOW });
+    return { repository, submission, submit };
+  }
+
+  it("the node was deleted after acceptance: observeAccepted still answers observe, with no token and no second provider submit", async () => {
+    const { submission, submit } = await acceptedThenDetached();
+
+    expect(submission.observeAccepted({ projectId: PROJECT, operationId: RUN })).toMatchObject({ nextAction: "observe", providerTaskId: "provider-task-1" });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("start on an accepted job always passes admission first: a forged token is refused, and even a valid one never resubmits", async () => {
+    const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
+    const { repository, submission } = setupUnlanded(submit);
+    const admission = await landedAdmission(repository, PROJECT, RUN);
+    await submission.start({ projectId: PROJECT, operationId: RUN, admission });
+
+    await expect(submission.start({ projectId: PROJECT, operationId: RUN, admission: { projectId: PROJECT, runId: RUN, shotId: "candidate-1", nodeId: "forged" } } as never))
+      .rejects.toMatchObject({ code: "shot_not_landed" });
+    await expect(submission.start({ projectId: PROJECT, operationId: RUN, admission })).rejects.toMatchObject({ code: "generation_already_accepted" });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("after the node is deleted, start refuses (no admission) while observeAccepted keeps collecting", async () => {
+    const { repository, submission, submit } = await acceptedThenDetached();
+    const stale = { projectId: PROJECT, runId: RUN, shotId: "candidate-1", nodeId: `node-candidate-1` };
+
+    await expect(submission.start({ projectId: PROJECT, operationId: RUN, admission: stale } as never)).rejects.toMatchObject({ code: "shot_not_landed" });
+    expect(submission.observeAccepted({ projectId: PROJECT, operationId: RUN })).not.toBeNull();
+    expect(repository.read(PROJECT, RUN)!.generationPlan!.canvasDetached).toBe(true);
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 });

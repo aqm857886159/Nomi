@@ -13,6 +13,7 @@
 import { logWarn } from "../logging/logger";
 import { isStoppedRunStatus, runStopReason } from "../shared/productionRunStop";
 import type { ProductionRun } from "./productionRunTypes";
+import { latestJobForShot, shotIncluded } from "../shared/productionShotJobs";
 import type { ProductionRunRepository } from "./productionRunRepository";
 
 declare const landedShotAdmissionBrand: unique symbol;
@@ -162,4 +163,56 @@ export async function admitShotsForDispatch(input: Readonly<{
     else unlanded.push(address);
   }
   return { admitted, unlanded, ...(unlanded.length > 0 ? { landingFailure: landingFailure ?? { code: "canvas_landing_failed", projectId: input.projectId } } : {}) };
+}
+
+/** 一镜在「发出 / 没放上」那一句里怎么称呼：作者起的标题，或它在计划里的序号（第 N 镜）。 */
+export type LandingShotRef = Readonly<{ shotId: string; index: number; title?: string }>;
+
+export type ShotLandingFacts = Readonly<{
+  /** 已经交出去（或交过）的镜：最新一次尝试走过了「已授权」。 */
+  sent: readonly LandingShotRef[];
+  /** 批过、还没交、画布上也没有节点的镜：这一批里「没放到画布上、没有发出」的那几镜。 */
+  notPlaced: readonly LandingShotRef[];
+}>;
+
+const NOT_YET_SENT: ReadonlySet<string> = new Set(["planned", "authorization_required", "authorized"]);
+
+/**
+ * 一批里哪几镜发出了、哪几镜没放到画布上（#1139 B1：按镜头算，不整批说）。只读耐久 Run，回执、Agent 读 Run、
+ * 落地失败那一句都读它——「这次没有发出生成请求」只在一镜都没发出时才说。
+ */
+export function shotLandingFacts(run: ProductionRun): ShotLandingFacts {
+  const plan = run.generationPlan;
+  if (!plan) return { sent: [], notPlaced: [] };
+  const shots = plan.shots && plan.shots.length > 0
+    ? plan.shots.filter(shotIncluded).map((shot, index) => ({ shotId: shot.shotId, index: index + 1, ...(shot.title?.trim() ? { title: shot.title.trim() } : {}) }))
+    : [{ shotId: plan.candidate.candidateId, index: 1 }];
+  const sent: LandingShotRef[] = [];
+  const notPlaced: LandingShotRef[] = [];
+  for (const shot of shots) {
+    const job = latestJobForShot(run, shot.shotId) ?? (plan.shots?.length ? undefined : run.jobs[run.jobs.length - 1]);
+    if (job && !NOT_YET_SENT.has(job.status)) sent.push(shot);
+    else if (!landedNodeOf(run, shot.shotId)) notPlaced.push(shot);
+  }
+  return { sent, notPlaced };
+}
+
+/** 这几镜在计划里的称呼（序号按勾进这一批的镜数，与 shotLandingFacts 同一套）。 */
+export function landingShotRefs(run: ProductionRun, shotIds: readonly string[]): LandingShotRef[] {
+  const plan = run.generationPlan;
+  const included = plan?.shots && plan.shots.length > 0 ? plan.shots.filter(shotIncluded) : [];
+  return shotIds.map((shotId) => {
+    const at = included.findIndex((shot) => shot.shotId === shotId);
+    const title = at >= 0 ? included[at].title?.trim() : undefined;
+    return { shotId, index: at >= 0 ? at + 1 : 1, ...(title ? { title } : {}) };
+  });
+}
+
+/** 这一批里批过、还没交的镜（有任务、最新一次还停在已授权之前）——开拍那一刻要先落画布、随后要派的就是它们。 */
+export function shotsAwaitingDispatch(run: ProductionRun): string[] {
+  const shots = run.generationPlan?.shots ?? [];
+  return shots.filter(shotIncluded).map((shot) => shot.shotId).filter((shotId) => {
+    const job = latestJobForShot(run, shotId);
+    return Boolean(job && NOT_YET_SENT.has(job.status));
+  });
 }

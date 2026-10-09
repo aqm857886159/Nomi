@@ -69,13 +69,29 @@ function setup(origin: { host: string; sourceDocument?: { documentId: string; re
 
 type Setup = ReturnType<typeof setup>;
 
-/** 一个只有一个主窗口的 App：它此刻开着哪个项目、用户看不看得见它。渲染层只在目标项目开着时落得下来。 */
-function app(base: Setup, window: { openProject: string | null; hiddenFromUser: boolean }) {
+type AppWindow = { openProject: string | null; hiddenFromUser: boolean; epoch?: number };
+type AppHooks = Readonly<{
+  /** 隐藏窗口打开项目要几拍才认下（hydrate 是异步的）。缺省 = 当场认下。 */
+  hydrateTicks?: number;
+  /** 等它认下的每一拍里发生的事（窗口被叫出来、用户切项目、窗口重建）。 */
+  duringHydrate?: (tick: number, window: AppWindow) => void;
+  /** 项目认下之后、请渲染层落地之前（host 读 Run 的那一刻）发生的事。 */
+  beforeMaterialize?: (window: AppWindow) => void;
+}>;
+
+/** 一个只有一个主窗口的 App：它此刻开着哪个项目、用户看不看得见它、第几代。渲染层只在目标项目开着时落得下来。 */
+function app(base: Setup, window: AppWindow, hooks: AppHooks = {}) {
   const payloads: MaterializeShotsWirePayload[] = [];
   const opened: string[] = [];
-  const isProjectOpen = (projectId: string) => window.openProject === projectId;
+  let pendingOpen: { projectId: string; ticks: number } | null = null;
+  let tick = 0;
+  let readsAfterOpen = 0;
+  const committedProjectId = () => window.openProject;
   const host = createCanvasLandingHost({
-    readRun: (projectId, runId) => base.repository.read(projectId, runId),
+    readRun: (projectId, runId) => {
+      if (window.openProject === PROJECT && opened.length > 0 && readsAfterOpen++ === 0) hooks.beforeMaterialize?.(window);
+      return base.repository.read(projectId, runId);
+    },
     command: async (projectId, runId, command) => base.repository.execute(projectId, runId, command as Parameters<typeof base.repository.execute>[2]),
     requestRenderer: async (_op, payload) => {
       const wire = payload as MaterializeShotsWirePayload;
@@ -84,14 +100,29 @@ function app(base: Setup, window: { openProject: string | null; hiddenFromUser: 
       return { bindings: wire.existingOnly ? [] : wire.shots.map((shot) => ({ shotId: shot.shotId, nodeId: `node-${shot.shotId}` })) };
     },
     resolveProjectRoot: () => base.root,
-    isProjectOpen,
+    isProjectOpen: (projectId) => window.openProject === projectId,
     openProjectForLanding: createLandingProjectAccess({
-      isProjectOpen,
+      committedProjectId,
       mainWindowHiddenFromUser: () => window.hiddenFromUser,
-      // 隐藏主窗口经 deep-link 打开项目：渲染层 hydrate 完，主进程认下它。
-      openInHiddenWindow: (projectId) => { opened.push(projectId); window.openProject = projectId; },
+      windowEpoch: () => window.epoch ?? 0,
+      // 隐藏主窗口经 deep-link 打开项目：渲染层 hydrate 若干拍之后，主进程才认下它。
+      openInHiddenWindow: (projectId) => {
+        opened.push(projectId);
+        if (!hooks.hydrateTicks) window.openProject = projectId;
+        else pendingOpen = { projectId, ticks: hooks.hydrateTicks };
+      },
       projectName: () => "雨夜",
-      sleep: async () => undefined,
+      sleep: async () => {
+        tick += 1;
+        hooks.duringHydrate?.(tick, window);
+        if (pendingOpen && --pendingOpen.ticks <= 0) {
+          // 渲染层只会把自己正在 hydrate 的那个项目认下；用户中途切走了，它认下的是用户那个（见 duringHydrate）。
+          if (window.openProject === OTHER || window.openProject === null) window.openProject = pendingOpen.projectId;
+          pendingOpen = null;
+        }
+      },
+      pollMs: 1,
+      timeoutMs: 50,
     }),
   });
   return { host, payloads, opened };
@@ -135,7 +166,7 @@ describe("land first when the project is not open (A + C′)", () => {
   it("A (b): the in-process stdio path has no renderer — zero dispatch, landing_failed, English notice names the project", async () => {
     const base = setup();
     const result = await startSingleShotProduction({
-      repository: base.repository, submission: base.submission, landShots: refuseLandingWithoutRenderer(() => "Rain Night"),
+      repository: base.repository, submission: base.submission, landShots: async (projectId) => { await refuseLandingWithoutRenderer(() => "Rain Night")(projectId); },
       projectId: PROJECT, runId: RUN, now: () => NOW, locale: "en",
     });
     expect(base.submit).toHaveBeenCalledTimes(0);
@@ -155,6 +186,77 @@ describe("land first when the project is not open (A + C′)", () => {
     await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
 
     expect(payloads[0]?.existingOnly).toBeUndefined();
+    expect(base.submit).toHaveBeenCalledTimes(1);
+  });
+});
+
+// #1139 对抗评审 B2：C′ 只在入口查一次「窗口隐藏」不够——打开项目、hydrate、认下、落地之间隔着好几个 await。
+// 租约记下「窗口代次 + 仍隐藏 + 开着的项目」，发 deep-link 前、认下之后、落地前、写回绑定前都再核；任一项变了就取消：
+// landing_failed、派发 0 次、渲染层一次落地请求都不收。
+describe("C′ lease: anything that changes while the hidden window is opening the project cancels the landing", () => {
+  const start = (base: Setup, host: ReturnType<typeof app>["host"]) =>
+    startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+
+  it("the user brings the window up while it is still hydrating → cancelled, zero dispatch, nothing materialized", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: OTHER, hiddenFromUser: true };
+    const { host, payloads, opened } = app(base, window, { hydrateTicks: 3, duringHydrate: (tick, w) => { if (tick === 1) w.hiddenFromUser = false; } });
+
+    const result = await start(base, host);
+
+    expect(opened).toEqual([PROJECT]);
+    expect(payloads).toEqual([]);
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(base.repository.read(PROJECT, RUN)!.stop?.reason).toBe("landing_failed");
+    expect(result).toMatchObject({ nextAction: "canvas_landing_failed", landingFailure: { code: "landing_lease_revoked" } });
+  });
+
+  it("the user switches to another project in the middle of hydrate → cancelled, zero dispatch, his project is left alone", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: OTHER, hiddenFromUser: true };
+    const { host, payloads } = app(base, window, { hydrateTicks: 3, duringHydrate: (tick, w) => { if (tick === 1) w.openProject = "project-he-picked"; } });
+
+    await start(base, host);
+
+    expect(window.openProject).toBe("project-he-picked");
+    expect(payloads).toEqual([]);
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(base.repository.read(PROJECT, RUN)!.stop?.reason).toBe("landing_failed");
+  });
+
+  it("the window is recreated (new generation) while hydrating → cancelled, zero dispatch", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: OTHER, hiddenFromUser: true, epoch: 1 };
+    const { host, payloads } = app(base, window, { hydrateTicks: 2, duringHydrate: (tick, w) => { if (tick === 1) w.epoch = 2; } });
+
+    await start(base, host);
+
+    expect(payloads).toEqual([]);
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(base.repository.read(PROJECT, RUN)!.stop?.reason).toBe("landing_failed");
+  });
+
+  it("hydrate finished, then the window is shown right before materialize → the host fence cancels, zero dispatch, nothing materialized", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: OTHER, hiddenFromUser: true };
+    const { host, payloads } = app(base, window, { hydrateTicks: 2, beforeMaterialize: (w) => { w.hiddenFromUser = false; } });
+
+    await start(base, host);
+
+    expect(window.openProject).toBe(PROJECT);
+    expect(payloads).toEqual([]);
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(base.repository.read(PROJECT, RUN)!.stop?.reason).toBe("landing_failed");
+  });
+
+  it("control: hydrate takes a few ticks with nothing changing → lands and dispatches exactly once", async () => {
+    const base = setup();
+    const window: AppWindow = { openProject: OTHER, hiddenFromUser: true };
+    const { host, payloads } = app(base, window, { hydrateTicks: 3 });
+
+    await start(base, host);
+
+    expect(payloads).toHaveLength(1);
     expect(base.submit).toHaveBeenCalledTimes(1);
   });
 });

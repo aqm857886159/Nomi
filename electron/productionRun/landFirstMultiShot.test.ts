@@ -12,6 +12,9 @@ import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
 import { retryLiftsStop } from "./productionRunLifecycle";
 import type { ProductionGenerationShot, ProductionRunStopReason } from "./productionRunTypes";
+import { landBatchBeforeKick } from "../capabilityCore/appIntegrationLandFirst";
+import { safeRunProjection } from "./productionRunProjections";
+import { buildToolOutcome } from "../capabilityCore/mcpToolResults";
 
 // 架构③ 合同 1（协调会话 10-08）：制作流程多镜派发前必须有已落地的节点。落地失败 = 不派发 = 这一批停在
 // 「落地失败」（可重试、不扣钱）。以前确认那一下只做 best-effort 预落地，落不下照样派（appIntegration 的
@@ -187,5 +190,77 @@ describe("land first: a multi-shot production batch never dispatches a shot that
     const dispatchedShots = run.jobs.filter((job) => job.providerTaskId).map((job) => job.metadata?.shotId);
     expect(dispatchedShots).not.toContain("shot-b");
     expect(run.stop?.reason).toBe("landing_failed");
+  });
+});
+
+// #1139 对抗评审 B1，协调会话裁决：按镜头算，不整批拦。已落下、已批的兄弟镜照常派发；没落下的那镜派发 0 次、可重试。
+// 但用户看到的话必须和真实派发一致：一镜都没发出时才说「这次没有发出生成请求」；部分落下时逐镜说「哪几镜发出了、哪几镜没放上（没发）」。
+describe("partial landing is per shot: the words match what was really sent", () => {
+  const partialLanding = (repository: Repository): LandShots => async (projectId, runId) => {
+    const run = repository.read(projectId, runId)!;
+    if (run.generationPlan!.shots!.find((shot) => shot.shotId === "shot-a")?.nodeId) throw new Error("storyboard_project_changed");
+    repository.execute(projectId, runId, { commandId: `partial:${run.revision}`, expectedRevision: run.revision, type: "plan.bind-shot-nodes", payload: { bindings: [{ shotId: "shot-a", nodeId: "node-shot-a" }] }, issuedAt: NOW });
+    throw new Error("storyboard_project_changed");
+  };
+
+  it("start report: 1 placed + 1 not placed → not the whole-batch canvas_landing_failed; the per-shot notice counts exactly the shots the scheduler then sends", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a"), shotEntry("shot-b", "b")]);
+    const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length}` }));
+    const landShots = partialLanding(repository);
+
+    const report = await landBatchBeforeKick({ repository, landShots, projectId: PROJECT, runId: RUN });
+    await scheduler(root, repository, submit, landShots).runToQuiescence();
+
+    expect(report).toMatchObject({ allNotPlaced: false, shotsPlaced: ["shot-a"], shotsNotPlaced: ["shot-b"] });
+    expect(submit).toHaveBeenCalledTimes(report!.shotsPlaced.length);
+    expect(report!.notice).toContain("已放到画布并发出 1 镜：第 1 镜");
+    expect(report!.notice).toContain("有 1 镜没放到画布上，没有发出：第 2 镜");
+    expect(report!.notice).not.toContain("这次没有发出生成请求");
+
+    // Agent 读 Run：逐镜事实与真实派发一致（sent = 真交出去的那一镜）。
+    const run = repository.read(PROJECT, RUN)!;
+    expect(run.stop?.reason).toBe("landing_failed");
+    const projection = safeRunProjection(run);
+    expect(projection.landing).toEqual({ sent: [{ shotId: "shot-a", index: 1 }], notPlaced: [{ shotId: "shot-b", index: 2 }] });
+    const zh = buildToolOutcome("nomi_read", { target: "run", projectId: PROJECT, runId: RUN }, projection).text;
+    expect(zh).toContain("已放到画布并发出：第 1 镜");
+    expect(zh).toContain("没放到画布上、没有发出：第 2 镜");
+    expect(zh).not.toContain("这次没有发出生成请求");
+    const en = buildToolOutcome("nomi_read", { target: "run", projectId: PROJECT, runId: RUN }, projection, "en").text;
+    expect(en).toContain("Placed and sent: shot 1");
+    expect(en).toContain("Not placed on the canvas and not sent: shot 2");
+  });
+
+  it("whole batch not placed → canvas_landing_failed, and only then the notice says no request was sent", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a"), shotEntry("shot-b", "b")]);
+    const submit = vi.fn(async () => ({ providerTaskId: "unused" }));
+    const landShots: LandShots = async () => { throw new Error("storyboard_project_changed"); };
+
+    const report = await landBatchBeforeKick({ repository, landShots, projectId: PROJECT, runId: RUN });
+    await scheduler(root, repository, submit, landShots).runToQuiescence();
+
+    expect(report).toMatchObject({ allNotPlaced: true, shotsPlaced: [] });
+    expect(report!.notice).toContain("这次没有发出生成请求");
+    expect(submit).toHaveBeenCalledTimes(0);
+    const projection = safeRunProjection(repository.read(PROJECT, RUN)!);
+    expect(buildToolOutcome("nomi_read", { target: "run", projectId: PROJECT, runId: RUN }, projection).text).toContain("这次没有发出生成请求");
+  });
+
+  it("retry after a partial landing sends only the shot that was not placed", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a"), shotEntry("shot-b", "b")]);
+    const submits: string[] = [];
+    const submit = vi.fn(async () => { submits.push(`task-${submits.length + 1}`); return { providerTaskId: submits.at(-1)! }; });
+    await scheduler(root, repository, submit, partialLanding(repository)).runToQuiescence();
+    const firstShots = repository.read(PROJECT, RUN)!.jobs.filter((job) => job.providerTaskId).map((job) => job.metadata?.shotId);
+    expect(firstShots).toEqual(["shot-a"]);
+
+    const stopped = repository.read(PROJECT, RUN)!;
+    repository.execute(PROJECT, RUN, { commandId: `resume:${stopped.revision}`, expectedRevision: stopped.revision, type: "run.status", payload: { status: "running" }, issuedAt: NOW });
+    await scheduler(root, repository, submit, landingThatBinds(repository, [])).runToQuiescence();
+
+    const sentShots = repository.read(PROJECT, RUN)!.jobs.filter((job) => job.providerTaskId).map((job) => job.metadata?.shotId);
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(sentShots.filter((shotId) => shotId === "shot-a")).toHaveLength(1);
+    expect(sentShots.filter((shotId) => shotId === "shot-b")).toHaveLength(1);
   });
 });

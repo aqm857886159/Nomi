@@ -475,9 +475,32 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     };
   }
 
+  /**
+   * 只观察已经交给供应商、供应商已受理的那一次（#1139 N1：从 start 里拆出来）。**不收准入**：节点被删以后，已经交出去的
+   * 那一次照样要把结果收回来；它只读账本、必要时把计划记成已交，绝不调用供应商提交。没有已受理的这一次 = null。
+   */
+  function observeAccepted(input: GenerationSubmissionStartInput): GenerationSubmissionResult | null {
+    const shotId = input.shotId;
+    let run = requiredRun(deps.repository, input.projectId, input.operationId);
+    const contract = shotId ? run.generationPlan?.shots?.find((shot) => shot.shotId === shotId)?.contract : run.generationPlan?.contract;
+    if (!contract) return null;
+    const attempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
+    if (!Number.isInteger(attempt) || attempt < 1) return null;
+    const jobId = productionGenerationJobId(run.runId, contract.contractHash, attempt, shotId);
+    const existingJob = run.jobs.find((job) => job.jobId === jobId);
+    if (existingJob?.status !== "provider_accepted" || !existingJob.providerTaskId) return null;
+    if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
+    return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: existingJob.providerTaskId, attempt, nextAction: "observe" };
+  }
+
+  /**
+   * **只给新派发**（花钱那一下）。每一次都先过准入（#1139 N1）：这一镜此刻在画布上没有节点、或准入是伪造 / 过期的，
+   * 什么都不写、不交。已经受理过的那一次不再从这里回「观察」——那是 observeAccepted 的事，它不收准入。
+   */
   async function start(input: GenerationSubmissionDispatchInput): Promise<GenerationSubmissionResult> {
     const shotId = input.shotId;
     let run = requiredRun(deps.repository, input.projectId, input.operationId);
+    assertShotAdmission(run, shotId, input.admission);
     const contract = requiredContract(run, shotId);
     const attempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
     if (!Number.isInteger(attempt) || attempt < 1) throw new Error("Generation attempt is invalid");
@@ -488,15 +511,11 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       throw new Error("Historical generation execution is observation-only");
     }
     if (existingJob?.status === "provider_accepted" && existingJob.providerTaskId) {
-      if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
-      return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: existingJob.providerTaskId, attempt, nextAction: "observe" };
+      throw Object.assign(new Error("generation_already_accepted: observe it with observeAccepted"), { code: "generation_already_accepted" });
     }
     if (existingJob && ["submission_unknown", "reconciling", "needs_attention", "cancel_requested"].includes(existingJob.status)) {
       throw new SubmissionReconciliationRequiredError();
     }
-    // 先落节点、再发请求：这一镜此刻在画布上没有节点（或准入是伪造 / 过期的），什么都不写、不交。上面两支只是
-    // 对已交出去的那一次的观察 / 核对，不花新钱，不在这道闸里。
-    assertShotAdmission(run, shotId, input.admission);
     const runLock = lock(run.runId);
     return runLock.withLock(async (lease) => {
       run = requiredRun(deps.repository, input.projectId, input.operationId);
@@ -718,7 +737,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     return { operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash, nextAction: "completed" };
   }
 
-  return { start, poll, materialize };
+  return { start, observeAccepted, poll, materialize };
 }
 
 export type ProductionGenerationSubmission = ReturnType<typeof createProductionGenerationSubmission>;

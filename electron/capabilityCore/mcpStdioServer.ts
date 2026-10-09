@@ -374,7 +374,8 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         // sealed→submitted transition before any per-shot provider call.
         // 架构③ 先落节点、再发请求：这条进程内路没有渲染层，落不了画布（10-09 拍板：拒，不派）。准入点照走——
         // Run 停在 landing_failed，回给 Agent「需要在 Nomi 里打开项目「X」后再继续」（打开后点继续 = 重落再派）。
-        const landShots = refuseLandingWithoutRenderer((projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.name)
+        const refuseProject = refuseLandingWithoutRenderer((projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.name)
+        const landShots = async (projectId: string): Promise<void> => { await refuseProject(projectId) }
         if (operation.shots && operation.shots.length > 0) {
           const landing = await landBatchBeforeKick({ repository: productionRuns.repository, landShots, projectId: lease.projectId, runId: operation.operationId })
           const started = await startSemanticMultiShotBatch(operation, {
@@ -403,7 +404,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
               })
             },
           })
-          return landing ? { ...started, nextAction: 'canvas_landing_failed', ...landing } : started
+          return landing ? { ...started, nextAction: landing.allNotPlaced ? 'canvas_landing_failed' : 'observe', ...landing } : started
         }
         // 单镜与 GUI 同一个开拍口、同一个准入点（受理那一刻单镜 Run 已经记成进行中，提交出口同一处）。
         return await startSingleShotProduction({

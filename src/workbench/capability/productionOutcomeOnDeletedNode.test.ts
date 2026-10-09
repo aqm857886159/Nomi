@@ -134,3 +134,19 @@ describe('a production outcome that arrives while its node is deleted lands when
     arrival.assertLanded(node(nodeId))
   })
 })
+
+// #1139 N2：暂存只在本次会话有效——撤销栈本来就只在内存里，重启后本来也撤销不了删除。与普通画布同一个语义：
+// 重新装载项目（restoreSnapshot）时，普通画布与制作流程暂存的结局一起清空。结果本身不丢：它在 Run 账本与素材文件里
+// （主进程那一半见 electron/productionRun/landFirstResultDurable.test.ts）。
+it('held outcomes are session-only, for ordinary canvas runs and production shots alike: reloading the project clears both', async () => {
+  const nodeId = await landBatch()
+  useGenerationCanvasStore.getState().deleteNode(nodeId)
+  attachShotResult({ nodeId, result: RESULT })
+  useGenerationCanvasStore.getState().holdRunOutcome('ordinary-node', { kind: 'result', result: { ...RESULT, id: 'ordinary-result' } })
+  expect(Object.keys(useGenerationCanvasStore.getState().heldNodeOutcomes).sort()).toEqual([nodeId, 'ordinary-node'].sort())
+
+  const snapshot = useGenerationCanvasStore.getState().readDocumentSnapshot()
+  useGenerationCanvasStore.getState().restoreSnapshot(snapshot, PROJECT)
+
+  expect(useGenerationCanvasStore.getState().heldNodeOutcomes).toEqual({})
+})

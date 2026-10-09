@@ -230,7 +230,7 @@ export async function startCapabilityCore(
       requestRenderer,
       resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
       isProjectOpen,
-      openProjectForLanding: createGuiLandingProjectAccess(isProjectOpen),
+      openProjectForLanding: createGuiLandingProjectAccess(() => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId ?? null),
     })
     landDraftOnCanvas = canvasLanding.landDraftOnCanvas
     const assertProductionShotCanDispatch = createProductionShotDispatchGuard({
@@ -444,7 +444,8 @@ export async function startCapabilityCore(
             // Durable, restart-safe kick; slow providers are re-kicked until quiescent.
             driveScheduler(lease.projectId, operation.operationId, scheduler, 'batch scheduler tick')
             return landing
-              ? { operationId: operation.operationId, state: operation.state, nextAction: 'canvas_landing_failed', ...landing }
+              // 按镜头算（#1139 B1）：一镜都没落下才是整批的 canvas_landing_failed；落下了一部分就照常观察，逐镜那一句说清哪几镜没发。
+              ? { operationId: operation.operationId, state: operation.state, nextAction: landing.allNotPlaced ? 'canvas_landing_failed' : 'observe', ...landing }
               : { operationId: operation.operationId, state: operation.state, nextAction: 'observe' }
           }
           // 单镜与多镜同一个准入点：先落画布、落下了才交（以前是先交、后 best-effort 落）。落不下来 = 不交、停在 landing_failed。

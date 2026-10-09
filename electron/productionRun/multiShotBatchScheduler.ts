@@ -61,7 +61,7 @@ export type BatchSchedulerOptions = {
 
 export type BatchSchedulerDependencies = {
   repository: Pick<ProductionRunRepository, "read" | "execute">;
-  submission: Pick<ProductionGenerationSubmission, "start" | "poll" | "materialize">;
+  submission: Pick<ProductionGenerationSubmission, "start" | "observeAccepted" | "poll" | "materialize">;
   /**
    * 先落节点、再发请求（架构③）：每一趟派发前，没节点的镜先经它落到画布上（唯一准入点 `admitShotsForDispatch`）。
    * 落不下来的镜这一趟不派，批次歇下时停在 `landing_failed`。必填：没有落地器就造不出调度器。
@@ -173,6 +173,11 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
   /** Submit one unit (anchor or shot), then poll once: instant providers settle in the same tick; a slow
    * provider leaves the job at `polling` and the derivation's `observe` list + waiting rounds take over. */
   async function dispatchUnit(task: DispatchTask, admission: LandedShotAdmission): Promise<void> {
+    // 这一次其实已经受理过（重启 / 重踢赶上了）：只观察，不再交（submission.start 只给新派发）。
+    if (deps.submission.observeAccepted({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId, attempt: task.attempt })) {
+      await observeUnitOnce(task);
+      return;
+    }
     const started = await deps.submission.start({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId, attempt: task.attempt, admission });
     if (started.nextAction !== "observe") return;
     await observeUnitOnce(task);

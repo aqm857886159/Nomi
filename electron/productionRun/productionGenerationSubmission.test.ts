@@ -144,7 +144,7 @@ describe("Run-owned semantic generation submission", () => {
       },
       now: () => "2026-08-23T00:01:00.000Z",
     });
-    await expect(restarted.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({
+    expect(restarted.observeAccepted({ projectId: "project-1", operationId: "op-1" })).toMatchObject({
       providerTaskId: "provider-task-1",
       nextAction: "observe",
     });
@@ -200,7 +200,7 @@ describe("Run-owned semantic generation submission", () => {
     expect(restartedSubmit).not.toHaveBeenCalled();
   });
 
-  it("submits an observe-only provider once; asking to start it again answers with the same provider task id", async () => {
+  it("submits an observe-only provider once; observing the accepted job answers with the same provider task id (no token, no second submit)", async () => {
     const { root, repository } = setup();
     const submit = vi.fn(async () => ({ providerTaskId: "provider-task-observe-only" }));
     const runner = createProductionGenerationSubmission({
@@ -220,7 +220,7 @@ describe("Run-owned semantic generation submission", () => {
     });
 
     await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-observe-only" });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ nextAction: "observe", providerTaskId: "provider-task-observe-only" });
+    expect(runner.observeAccepted({ projectId: "project-1", operationId: "op-1" })).toMatchObject({ nextAction: "observe", providerTaskId: "provider-task-observe-only" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
@@ -454,7 +454,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:01:00.000Z",
     });
     await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    expect(runner.observeAccepted({ projectId: "project-1", operationId: "op-1" })).toMatchObject({ providerTaskId: "provider-task-1" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 

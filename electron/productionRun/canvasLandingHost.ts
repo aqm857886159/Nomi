@@ -17,6 +17,7 @@
 import { buildMaterializeShotsPayload, landCanvasForRun, landCanvasForRunOrThrow, materializeShotsSignature, runHasBeenOnCanvas, type CanvasLandingDeps } from "./multiShotCanvasLanding";
 import type { ProductionRun } from "./productionRunTypes";
 import type { DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
+import { openProjectLease, type LandingProjectAccess, type LandingProjectLease } from "./landingProjectAccess";
 
 export type CanvasLandingHostDeps = {
   /** 读 Run（读不到 / 已消失 → 静默不落）。 */
@@ -32,7 +33,7 @@ export type CanvasLandingHostDeps = {
    * 派发前落地要的项目还没打开时，在不打扰用户的前提下打开它（只有隐藏主窗口那一种，见 landingProjectAccess）；
    * 打不开就抛（用户可见的窗口开着别的项目 / 没有渲染层）。不给 = 只认已经打开的项目。
    */
-  openProjectForLanding?: (projectId: string) => Promise<void>;
+  openProjectForLanding?: LandingProjectAccess;
 };
 
 export type CanvasLandingHost = {
@@ -196,15 +197,21 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
     }));
   };
   const landBeforeDispatch = async (projectId: string, runId: string): Promise<void> => {
-    if (!deps.isProjectOpen(projectId)) {
-      if (!deps.openProjectForLanding) throw Object.assign(new Error(`landing_project_not_open: ${projectId}`), { code: "landing_project_not_open" });
-      await deps.openProjectForLanding(projectId);
-    }
+    // 项目访问租约（#1139 B2）：项目本来就开着 → 租约只看它还开着；没开 → 只在隐藏主窗口里替 Agent 打开（landingProjectAccess）。
+    let lease: LandingProjectLease;
+    if (deps.isProjectOpen(projectId)) lease = openProjectLease(projectId, () => (deps.isProjectOpen(projectId) ? projectId : null));
+    else if (deps.openProjectForLanding) lease = await deps.openProjectForLanding(projectId);
+    else throw Object.assign(new Error(`landing_project_not_open: ${projectId}`), { code: "landing_project_not_open" });
     const work = enqueue(runKey(projectId, runId), async () => {
+      // 主进程 host 栅栏：排到队之后、请渲染层落地之前再核一次租约（等队期间窗口可能被叫出来、项目可能换了）。
+      lease.assertCurrent();
       const run = deps.readRun(projectId, runId);
       if (!run) throw new Error(`Production run not found: ${runId}`);
       const signature = signatureOf(run, projectId);
-      const landed = await landCanvasForRunOrThrow(run, { ...landingDeps(projectId, run), placeDocumentPlan: true });
+      // isCurrent 在发 materialize 之前、写回绑定之前各核一次（landCanvasForRunOrThrow）；渲染层自己再按报文里的
+      // projectId 核一次它认下的项目（materializeShots 的 binding 栅栏）。
+      const landed = await landCanvasForRunOrThrow(run, { ...landingDeps(projectId, run), placeDocumentPlan: true, isCurrent: lease.isCurrent });
+      if (!landed) lease.assertCurrent();
       if (landed && signature) projectedSignature.set(runKey(projectId, runId), signature);
       return landed;
     });

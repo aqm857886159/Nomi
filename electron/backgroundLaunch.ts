@@ -10,6 +10,8 @@ export const isBackgroundLaunch = process.env.NOMI_LAUNCH_BACKGROUND === "1";
 let idleExit: BackgroundIdleExit | undefined;
 /** 后台冷启的主窗口有没有被用户叫出来过（一次 show 就算——从此它是用户在看的窗口）。 */
 let shownToUser = false;
+/** 主窗口代次：建一个新窗口、或窗口被叫出来，都加一。派发前落地的项目租约据它判断「还是不是那一个没人看的窗口」。 */
+let windowEpoch = 0;
 
 export function backgroundWindowOptions(): { show: boolean; backgroundThrottling: boolean } {
   return { show: !isBackgroundLaunch, backgroundThrottling: !isBackgroundLaunch };
@@ -17,8 +19,10 @@ export function backgroundWindowOptions(): { show: boolean; backgroundThrottling
 
 export function installBackgroundWindowBehavior(mainWindow: BrowserWindow): void {
   if (!isBackgroundLaunch) return;
+  windowEpoch += 1;
   mainWindow.on("show", () => {
     shownToUser = true;
+    windowEpoch += 1;
     idleExit?.markWindowShown();
     mainWindow.webContents.setBackgroundThrottling(true);
     if (process.platform === "darwin") app.dock?.show?.();
@@ -54,6 +58,11 @@ export function hasInFlightProductionWork(): boolean {
  */
 export function mainWindowHiddenFromUser(window: Pick<BrowserWindow, "isDestroyed" | "isVisible"> | null): boolean {
   return isBackgroundLaunch && !shownToUser && Boolean(window) && !window!.isDestroyed() && !window!.isVisible();
+}
+
+/** 主窗口代次（见 windowEpoch）。 */
+export function backgroundWindowEpoch(): number {
+  return windowEpoch;
 }
 
 export function touchBackgroundActivity(): void {
