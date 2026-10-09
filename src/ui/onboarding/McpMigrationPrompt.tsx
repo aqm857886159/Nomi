@@ -8,16 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
 import type { McpMigrationFailure, McpMigrationResult } from '../../desktop/mcpBridgeTypes'
 import { cn } from '../../utils/cn'
-
-export const FAILURE_I18N: Record<McpMigrationFailure, string> = {
-  'not-migratable': 'notMigratable',
-  'client-not-installed': 'notMigratable',
-  'isolated-instance': 'isolatedInstance',
-  'config-unreadable': 'configUnreadable',
-  'http-unavailable': 'unavailable',
-  'backup-failed': 'backupFailed',
-  'write-failed': 'writeFailed',
-}
+import { FAILURE_I18N } from './mcpMigrationFailureKeys'
 
 /** 「新连接方式用不了」对所有宿主都一样，合成一行；其余失败各说各的（原因和下一步不同）。 */
 function failureLines(

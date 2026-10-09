@@ -313,19 +313,17 @@ function assertHostConfigWritable(target: string): void {
   if (realHome && isInside(target, realHome)) throw new HostConfigWriteRefused('isolated-instance', `${marker} → ${target}`)
 }
 
-/** 写盘失败发生在哪一步（迁移据此如实报「备份没成」还是「写没成」）；挂在抛出的错误上。 */
-export type HostConfigWriteStage = 'backup' | 'write'
+/** 写盘失败时，是不是卡在「备份」这一步（迁移据此如实报「备份没成」还是「写没成」）；标记挂在抛出的错误上。 */
 /** suffix = 备份文件名后缀；overwrite=false = 已有就保留（迁移前那份原文只存第一次）。 */
 export type AtomicWriteBackup = Readonly<{ suffix: string; overwrite: boolean }>
 const DEFAULT_BACKUP: AtomicWriteBackup = { suffix: '.nomi-backup', overwrite: true }
 
-function tagStage(error: unknown, stage: HostConfigWriteStage): unknown {
-  if (error && typeof error === 'object') (error as { nomiWriteStage?: HostConfigWriteStage }).nomiWriteStage = stage
+function markBackupFailure(error: unknown, backupStep: boolean): unknown {
+  if (error && typeof error === 'object') (error as { nomiBackupFailed?: boolean }).nomiBackupFailed = backupStep
   return error
 }
-export function hostConfigWriteStage(error: unknown): HostConfigWriteStage | null {
-  const stage = (error as { nomiWriteStage?: unknown } | null)?.nomiWriteStage
-  return stage === 'backup' || stage === 'write' ? stage : null
+export function hostConfigBackupFailed(error: unknown): boolean {
+  return (error as { nomiBackupFailed?: unknown } | null)?.nomiBackupFailed === true
 }
 
 /** 宿主配置唯一写盘门：先备份（失败则原文件不动），再写临时文件、原子换名；换名失败清掉临时文件。 */
@@ -334,7 +332,12 @@ export function atomicWrite(target: string, content: string | Buffer, backup: At
   ensureDir(target)
   const backupPath = fs.existsSync(target) ? `${target}${backup.suffix}` : null
   if (backupPath && (backup.overwrite || !fs.existsSync(backupPath))) {
-    try { fs.copyFileSync(target, backupPath) } catch (error) { throw tagStage(error, 'backup') }
+    // 先写 .part 再换名：备份本身也是原子的，断电不会留下半份却被当成「已备份」。
+    const part = `${backupPath}.part`
+    try { fs.copyFileSync(target, part); renameSyncWithRetry(part, backupPath) } catch (error) {
+      try { fs.rmSync(part, { force: true }) } catch { /* 清不掉不盖过原错误 */ }
+      throw markBackupFailure(error, true)
+    }
   }
   const tmp = `${target}.nomi-tmp`
   try {
@@ -343,7 +346,7 @@ export function atomicWrite(target: string, content: string | Buffer, backup: At
     renameSyncWithRetry(tmp, target)
   } catch (error) {
     try { fs.rmSync(tmp, { force: true }) } catch { /* 清不掉不盖过原错误 */ }
-    throw tagStage(error, 'write')
+    throw markBackupFailure(error, false)
   }
   return backupPath
 }

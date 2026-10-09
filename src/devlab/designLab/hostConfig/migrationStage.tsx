@@ -5,8 +5,7 @@ import type { McpInfo, McpMigrationResult } from '../../../desktop/mcpBridgeType
 import { holdDesignLabReady } from '../labReadyHold'
 import { SETTINGS_CELL_WIDTH } from '../settings/settingsLabKit'
 
-export type MigrationPhase = 'ask' | 'done' | 'partial' | 'unavailable' | 'deferred'
-
+/** 取值：ask / done / partial / unavailable / deferred（每格一个，舞台据此点按钮、回对应结果）。 */
 // 宿主名与顺序是真实检测到的形状：三家还写着旧连接方式，WorkBuddy 保持旧方式（不在迁移名单里）。
 const HOSTS = [
   { client: 'claude', label: 'Claude Code' },
@@ -22,7 +21,7 @@ function clientInfo(configPath: string): McpInfo['clients'][string] {
 }
 
 /** 点「改过去」之后主进程会回的结果（形状同 mcpHostMigration.McpMigrationResult）。 */
-function resultsFor(phase: MigrationPhase): McpMigrationResult[] {
+function resultsFor(phase: string): McpMigrationResult[] {
   const ok = (client: string): McpMigrationResult => ({ client, ok: true, kind: 'http', backupPath: null })
   if (phase === 'done') return HOSTS.map((h) => ok(h.client))
   if (phase === 'partial') {
@@ -32,7 +31,7 @@ function resultsFor(phase: MigrationPhase): McpMigrationResult[] {
 }
 
 /** 生产里的 ConnectAssistantCard，喂它主进程会给的形状；按钮由舞台真点（走真实交互路径），不手摆结果。 */
-export function MigrationStage({ phase, locale }: { phase: MigrationPhase; locale: 'zh-CN' | 'en' }): JSX.Element {
+export function MigrationStage({ phase, locale }: { phase: string; locale: 'zh-CN' | 'en' }): JSX.Element {
   const { i18n } = useTranslation()
   const [localeReady, setLocaleReady] = React.useState(i18n.language === locale)
   React.useEffect(() => {
@@ -57,21 +56,34 @@ export function MigrationStage({ phase, locale }: { phase: MigrationPhase; local
       capability: {
         mcpInfo: () => info,
         // 每格一个版本号：「以后再说」按版本记，格与格之间不串。
-        mcpMigrationState: () => ({ hosts: [...HOSTS], appVersion: `lab-${phase}` }),
-        migrateMcpHosts: () => resultsFor(phase),
+        mcpMigrationState: () => Promise.resolve({ hosts: [...HOSTS], appVersion: `lab-${phase}` }),
+        migrateMcpHosts: () => Promise.resolve(resultsFor(phase)),
       },
     }
   }, [info, phase])
   const stageRef = React.useRef<HTMLDivElement>(null)
+  // 名单是异步读的：等按钮真出现再点（走真实交互路径），再等结果块 / 询问块消失才放行就绪旗。
   React.useEffect(() => {
-    if (!localeReady || phase === 'ask') return
+    const root = stageRef.current
+    if (!localeReady || phase === 'ask' || !root) return undefined
     const release = holdDesignLabReady(`host-config:migration:${phase}`)
-    const selector = phase === 'deferred' ? '[data-assistant-migration-defer]' : '[data-assistant-migration-confirm]'
-    const frame = window.requestAnimationFrame(() => {
-      stageRef.current?.querySelector<HTMLButtonElement>(selector)?.click()
-      window.requestAnimationFrame(release)
-    })
-    return () => { window.cancelAnimationFrame(frame); release() }
+    const button = phase === 'deferred' ? '[data-assistant-migration-defer]' : '[data-assistant-migration-confirm]'
+    let clicked = false
+    const settle = (): void => {
+      if (!clicked) {
+        const target = root.querySelector<HTMLButtonElement>(button)
+        if (!target) return
+        clicked = true
+        target.click()
+        return
+      }
+      const settled = phase === 'deferred' ? !root.querySelector('[data-assistant-migration]') : Boolean(root.querySelector('[data-assistant-migration="done"]'))
+      if (settled) { observer.disconnect(); window.requestAnimationFrame(release) }
+    }
+    const observer = new MutationObserver(settle)
+    observer.observe(root, { childList: true, subtree: true })
+    settle()
+    return () => { observer.disconnect(); release() }
   }, [localeReady, phase])
   return (
     <div ref={stageRef} style={{ width: SETTINGS_CELL_WIDTH }} data-design-lab-stage="host-config-migration">

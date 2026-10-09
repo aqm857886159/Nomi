@@ -18,7 +18,7 @@ import {
   atomicWrite,
   classifyMcpEntry,
   configuredMcpEntry,
-  hostConfigWriteStage,
+  hostConfigBackupFailed,
   mcpServerEntry,
   readJsonConfig,
   readText,
@@ -161,7 +161,7 @@ function migrateOne(client: string, port: number | null): McpMigrationResult {
     return { client, ok: true, kind: FORWARDER_HOSTS.has(client) ? 'forwarder' : 'http', backupPath }
   } catch (error) {
     if (error instanceof HostConfigWriteRefused) return fail(error.reason === 'isolated-instance' ? 'isolated-instance' : 'config-unreadable')
-    return fail(hostConfigWriteStage(error) === 'backup' ? 'backup-failed' : 'write-failed')
+    return fail(hostConfigBackupFailed(error) ? 'backup-failed' : 'write-failed')
   }
 }
 

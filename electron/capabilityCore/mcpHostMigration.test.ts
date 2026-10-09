@@ -235,7 +235,7 @@ describe('失败只影响那一个宿主，且原文件一个字节都不动', (
     const before = bytes(cfg('claude'))
     const real = fs.copyFileSync
     vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
-      if (String(dest).endsWith(PREMIGRATE)) throw EIO()
+      if (String(dest).includes(PREMIGRATE)) throw EIO()
       return real(src, dest, ...rest)
     }) as typeof fs.copyFileSync)
     expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: false, reason: 'backup-failed' })
@@ -245,7 +245,12 @@ describe('失败只影响那一个宿主，且原文件一个字节都不动', (
   it('临时文件换名失败：不改原文件，报 write-failed，不留临时文件', () => {
     seedAll()
     const before = bytes(cfg('codex'))
-    vi.spyOn(fs, 'renameSync').mockImplementation(() => { throw EIO() })
+    // 只让「临时文件换成配置本体」这一步失败（备份的换名放行），才是真的换名失败
+    const real = fs.renameSync
+    vi.spyOn(fs, 'renameSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      if (!String(to).includes('.nomi-backup')) throw EIO()
+      return real(from, to)
+    }) as typeof fs.renameSync)
     expect(migrateMcpHostsToHttp(['codex'])[0]).toMatchObject({ ok: false, reason: 'write-failed' })
     expect(bytes(cfg('codex'))).toEqual(before)
     expect(fs.existsSync(`${cfg('codex')}.nomi-tmp`)).toBe(false)
@@ -258,7 +263,12 @@ describe('迁移前备份与恢复', () => {
     const original = bytes(cfg('claude'))!
     expect(migrateMcpHostsToHttp(['claude'])[0].ok).toBe(true)
     expect(bytes(`${cfg('claude')}${PREMIGRATE}`)).toEqual(original)
-    expect(installMcp('claude').ok).toBe(true) // 用户之后又点了「重新连接」，.nomi-backup 会被换掉
+    // 用户之后又加了别的服务器、点了「重新连接」：配置内容已经和迁移前不同，.nomi-backup 也会被换掉
+    const later = JSON.parse(fs.readFileSync(cfg('claude'), 'utf8'))
+    later.mcpServers.later = { command: 'later' }
+    fs.writeFileSync(cfg('claude'), JSON.stringify(later, null, 2))
+    expect(installMcp('claude').ok).toBe(true)
+    expect(fs.readFileSync(cfg('claude'), 'utf8')).toContain('"later"')
     expect(migrateMcpHostsToHttp(['claude'])[0].ok).toBe(true)
     expect(bytes(`${cfg('claude')}${PREMIGRATE}`)).toEqual(original)
   })

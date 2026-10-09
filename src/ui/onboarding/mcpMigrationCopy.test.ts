@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { enOnboardingProviders, zhOnboardingProviders } from '../../i18n/locales/onboardingProviders'
-import { FAILURE_I18N } from './McpMigrationPrompt'
+import { FAILURE_I18N } from './mcpMigrationFailureKeys'
 
 const BANNED = /MCP|HTTP|口令|预算|价格|budget|price|token|proof/i
 const flat = (value: unknown): string[] =>

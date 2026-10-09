@@ -134,7 +134,9 @@ export function ConnectAssistantCard({
   const readMigration = capability?.mcpMigrationState
   React.useEffect(() => {
     if (!readMigration) return
-    try { setMigration(readMigration()) } catch { setMigration(null) }
+    let alive = true
+    void readMigration().then((state) => { if (alive) setMigration(state) }).catch(() => { if (alive) setMigration(null) })
+    return () => { alive = false }
   }, [readMigration, info])
 
   // 只列本机检测到的助手（注册表 installMarkers）；没装的不给「一键接入」这个假动作。
@@ -221,16 +223,15 @@ export function ConnectAssistantCard({
     if (!capability.migrateMcpHosts || !migration) return
     setBusy(true)
     setError('')
-    try {
-      migrationLabels.current = Object.fromEntries(migration.hosts.map((h) => [h.client, h.label]))
-      setMigrationResults(capability.migrateMcpHosts(migration.hosts.map((h) => h.client)))
-      onChanged()
-      setCheckNonce((n) => n + 1)
-    } catch (e) {
-      setError(t('onboardingProviders.assistant.connectFailed', { message: e instanceof Error ? e.message : String(e) }))
-    } finally {
-      setBusy(false)
-    }
+    migrationLabels.current = Object.fromEntries(migration.hosts.map((h) => [h.client, h.label]))
+    void capability.migrateMcpHosts(migration.hosts.map((h) => h.client))
+      .then((results) => {
+        setMigrationResults(results)
+        onChanged()
+        setCheckNonce((n) => n + 1)
+      })
+      .catch((e: unknown) => setError(t('onboardingProviders.assistant.connectFailed', { message: e instanceof Error ? e.message : String(e) })))
+      .finally(() => setBusy(false))
   }
 
   const handleUninstall = () => {

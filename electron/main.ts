@@ -46,7 +46,6 @@ import { registerExistingConnectionIpc } from "./providerAdapter/existingConnect
 import { registerUpdaterIpc, startAutoUpdateCheck } from "./update/autoUpdater";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
-import { migrateMcpHostsToHttp, readMcpMigrationState } from "./capabilityCore/mcpHostMigration";
 import { registerNomiProtocolClient } from "./protocolRegistration";
 import { verifyMcp } from "./capabilityCore/mcpVerify";
 import { startDesktopMcpHttp, stopDesktopMcpHttp } from "./capabilityCore/mcpHttpDesktop";
@@ -576,9 +575,6 @@ function registerIpc(): void {
   registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(capabilityPortCache));
   registerSyncIpc("nomi:capability:mcp-install", installMcp);
   registerSyncIpc("nomi:capability:mcp-uninstall", uninstallMcp);
-  // 迁移到本机 HTTP（第 3 段）：状态只读；写只在用户点「改过去」后由 mcp-migrate 触发，渲染层传来的名单逐个核对。
-  registerSyncIpc("nomi:capability:mcp-migration-state", readMcpMigrationState);
-  registerSyncIpc("nomi:capability:mcp-migrate", (clients: unknown) => migrateMcpHostsToHttp(Array.isArray(clients) ? clients.filter((c): c is string => typeof c === "string") : []));
   registerCustomMcpProfileIpc();
   // 实连验证（异步：真起一次配置里那条命令握手）。「配置里有这行字」≠「还连得上」，见 mcpVerify 头注释。
   ipcMain.handle("nomi:capability:mcp-verify", (event, client: unknown) => (assertTrustedSender(event), verifyMcp(typeof client === "string" ? client : undefined)));

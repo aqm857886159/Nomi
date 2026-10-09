@@ -379,9 +379,9 @@ export type DesktopBridge = DesktopMediaBridge &
     /** 撤销接入指定客户端：删 nomi 条目。默认 Claude Code。 */
     uninstallMcp: (client?: string) => McpUninstallResult
     /** 迁移提示：哪些宿主还写着旧连接方式（只读）；老 preload 无此口。 */
-    mcpMigrationState?: () => McpMigrationState
+    mcpMigrationState?: () => Promise<McpMigrationState>
     /** 用户点「改过去」后：把名单里的宿主改成本机直连；每个宿主独立返回结果。 */
-    migrateMcpHosts?: (clients: string[]) => McpMigrationResult[]
+    migrateMcpHosts?: (clients: string[]) => Promise<McpMigrationResult[]>
     listCustomMcpProfiles?: () => Promise<McpClientProfile[]>
     registerCustomMcpProfile?: (profile: unknown) => Promise<McpClientProfile | null>
     removeCustomMcpProfile?: (key: string) => Promise<boolean>
