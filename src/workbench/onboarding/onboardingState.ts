@@ -144,4 +144,3 @@ export function isChecklistExpired(now: number): boolean {
   const firstShown = ensureChecklistFirstShownAt(now)
   return now - firstShown >= CHECKLIST_TTL_MS
 }
-

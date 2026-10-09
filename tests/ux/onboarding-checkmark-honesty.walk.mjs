@@ -189,9 +189,9 @@ try {
   await clickOrFail(storyboardBtn, '拆成镜头·落画布', { timeout: 8000 })
 
   // 缺大脑是**确定性**失败（不发网络请求，chooseTextModel 直接抛）——很快落终态。
-  // recovery 卡锚点：data-recovery="no-text-model"；错误卡锚点：data-assistant-error。
+  // recovery 卡锚点：data-recovery="no-text-model"；错误卡锚点：面板级错误带 data-agent-error（v4 起错误由外壳那条带说）。
   const recovery = win.locator('[data-recovery="no-text-model"]').first()
-  const errorCard = win.locator('[data-assistant-error="true"]').first()
+  const errorCard = win.locator('[data-agent-error="true"]').first()
   // 等两者之一出现（都算「错误态被人话化的卡」，而不是原始英文串裸奔）。
   await expect
     .poll(

@@ -12,7 +12,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
-import { findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
+import { collectRenderText, countDeadDataAttributesAtRevision, findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
+import { judgeBaselineGrowth, readJsonAtRevision, resolveMergeBase } from './lib/walkthroughBaselineGuard.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -73,6 +74,9 @@ const SRC_TEXT = (() => {
   walk(path.join(repoRoot, 'src'))
   return chunks.join('\n')
 })()
+
+/** data 属性锚点判活用的渲染全文（src/ + 官网 marketing/ + 走查夹具 tests/ux/fixtures/）。 */
+const RENDER_TEXT = collectRenderText(repoRoot)
 
 /** src/ 里带 `{{插值}}` 的字符串值（i18n 模板）——「添加视频节点」这类拼出来的 label 靠它判活。 */
 const SRC_INTERPOLATED = extractInterpolatedValues(SRC_TEXT)
@@ -185,8 +189,10 @@ const RULES = [
     // [data-agent-topbar-badge] [data-v4-control="dock-open"] [data-creation-resource-tree-toggle] 全部悬空，
     // 上面两条只认 BEM 类名与 aria-label，看不见 data 属性——而本仓走查绝大多数锚点恰恰是 data 属性。
     // 判定逻辑住 scripts/lib/deadDataAttributes.mjs（可单测）。
+    // 新规则首发基线只认 merge-base 实测（见 walkthroughBaselineGuard）。
+    measureAtRevision: (rev) => countDeadDataAttributesAtRevision(repoRoot, rev),
     scan(code, file) {
-      return findDeadDataAttributes(code, SRC_TEXT).map((hit) => ({ line: hit.line, text: `${hit.text} —— src/ 里零命中`, file }))
+      return findDeadDataAttributes(code, RENDER_TEXT).map((hit) => ({ line: hit.line, text: `${hit.text} —— 渲染源（src/ · marketing/ · tests/ux/fixtures/）里零命中`, file }))
     },
   },
   {
@@ -318,6 +324,28 @@ if (!fs.existsSync(BASELINE_FILE)) {
 const baseline = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8'))
 
 let failed = false
+
+// 基线本身只减不增（#1136 评审阻断 2）：和 merge-base 上的基线逐条比；新规则的首发基线只认 merge-base 实测。
+{
+  const base = resolveMergeBase(repoRoot)
+  const baseBaseline = base ? readJsonAtRevision(repoRoot, base, 'scripts/walkthrough-baseline.json') : null
+  if (!baseBaseline) {
+    console.warn('⚠ 拿不到 merge-base 上的走查基线（浅克隆 / 没有 origin/main），本次不核「基线只减不增」。')
+  } else {
+    const measured = {}
+    for (const rule of RULES) {
+      if (rule.measureAtRevision && !Object.prototype.hasOwnProperty.call(baseBaseline, rule.id) && (baseline[rule.id] ?? 0) > 0) {
+        measured[rule.id] = await rule.measureAtRevision(base)
+      }
+    }
+    const growth = judgeBaselineGrowth({ ruleIds: RULES.map((rule) => rule.id), baseline, baseBaseline, measureOnBase: (id) => measured[id] })
+    for (const message of growth) {
+      failed = true
+      console.error(`\n✖ 走查基线被上调：${message}`)
+    }
+    for (const [id, count] of Object.entries(measured)) console.log(`  （新规则 ${id}：merge-base ${base.slice(0, 9)} 上实测 ${count}）`)
+  }
+}
 const improved = []
 for (const rule of RULES) {
   const now = counts[rule.id]

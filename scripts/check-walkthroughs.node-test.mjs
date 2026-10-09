@@ -13,6 +13,7 @@ import {
 } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 import { findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
+import { judgeBaselineGrowth } from './lib/walkthroughBaselineGuard.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -145,5 +146,49 @@ describe('dead-data-attr：data 属性锚点存活', () => {
 
   it('第三方运行时属性与走查自己 setAttribute 造的标记不报', () => {
     assert.deepEqual(dead(`win.locator('[data-highlighted]'); el.setAttribute('data-walk-mark', '1'); win.locator('[data-walk-mark]')`), [])
+  })
+})
+
+describe('dead-data-attr：判活口径的三处精度（#1136 复核）', () => {
+  const SRC_DYNAMIC = `
+    <div data-v4-control="history" />
+    rowAttributes={(row) => ({ 'data-v4-command': row.id })}
+    <a data-v4-command="literal" />
+  `
+  const dead = (code) => findDeadDataAttributes(code, SRC_DYNAMIC).map((hit) => hit.text)
+
+  it('对象键写成表达式的属性（数据驱动的值）不判值', () => {
+    assert.deepEqual(dead(`win.locator('[data-v4-command="skill:x"]')`), [])
+  })
+
+  it('expectAbsent 里的锚点是「删了不许回来」的防复发断言，不算悬空', () => {
+    assert.deepEqual(dead(`await expectAbsent(win.locator('[data-gone-forever]'), { provenBy: p })`), [])
+  })
+
+  it('同一个锚点不在 expectAbsent 里照样报（其它写法的「不存在」要换成带基线的 expectAbsent）', () => {
+    assert.deepEqual(dead(`check(document.querySelectorAll('[data-gone-forever]').length === 0)`), ['[data-gone-forever]'])
+  })
+})
+
+describe('走查基线只减不增（#1136 评审阻断 2）', () => {
+  const ids = ['dead-selector', 'dead-data-attr']
+
+  it('阳性对照：已有规则的基线被上调 → 报', () => {
+    const errors = judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-selector': 3 }, baseBaseline: { 'dead-selector': 1 } })
+    assert.equal(errors.length, 1)
+  })
+
+  it('阳性对照：新规则首发基线高于 merge-base 实测 → 报（不能「把当前数写进去」放宽）', () => {
+    const errors = judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-data-attr': 97 }, baseBaseline: {}, measureOnBase: () => 56 })
+    assert.equal(errors.length, 1)
+  })
+
+  it('新规则量不了 merge-base 上的数时，首发基线只能是 0', () => {
+    assert.equal(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-data-attr': 1 }, baseBaseline: {} }).length, 1)
+    assert.deepEqual(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-data-attr': 0 }, baseBaseline: {} }), [])
+  })
+
+  it('首发基线等于 merge-base 实测、已有规则只降不升 → 不报', () => {
+    assert.deepEqual(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-selector': 0, 'dead-data-attr': 56 }, baseBaseline: { 'dead-selector': 1 }, measureOnBase: () => 56 }), [])
   })
 })

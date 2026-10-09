@@ -89,7 +89,7 @@ if (await clickByText(win, 'button, [role="button"]', '模型接入')) {
   await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(400)
 }
 // About 弹层（含我新加的「外观」切换行）—— 点 Nomi 文字标志/版本
-for (const sel of ['[aria-label*="关于"]', 'text=Nomi', '[data-nomi-about]']) {
+for (const sel of ['[aria-label*="关于"]', 'text=Nomi']) {
   const b = win.locator(sel).first()
   if (await b.count()) { await b.click({ timeout: 2500 }).catch(() => {}); await win.waitForTimeout(600); break }
 }
