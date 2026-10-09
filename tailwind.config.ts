@@ -564,17 +564,6 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
     '.ai-character-library-root .mantine-Input-input, .ai-character-library-detail-root .mantine-Input-input': {
       'min-height': '24px',
     },
-    ':root[data-mantine-color-scheme="light"] .mantine-AppShell-main': {
-      background:
-        'radial-gradient(circle at 15% 15%, rgba(59,130,246,0.15), transparent 45%), radial-gradient(circle at 80% 0%, rgba(14,165,233,0.12), transparent 40%), var(--mantine-color-body) !important',
-    },
-    ':root[data-mantine-color-scheme="light"] .mantine-AppShell-header, :root[data-mantine-color-scheme="light"] .mantine-AppShell-navbar, :root[data-mantine-color-scheme="light"] .mantine-AppShell-aside': {
-      background: 'rgba(255, 255, 255, 0.86) !important',
-      border: 'none !important',
-      'box-shadow': '0 18px 40px rgba(15, 23, 42, 0.12)',
-      'backdrop-filter': 'blur(10px)',
-      '-webkit-backdrop-filter': 'blur(10px)',
-    },
     ':root[data-mantine-color-scheme="light"] .mantine-Button-root[data-variant="outline"]': {
       border: 'none !important',
       background: 'rgba(59, 130, 246, 0.06) !important',
@@ -709,10 +698,6 @@ export default {
     'mantine-Select-input',
     'ai-character-library-root',
     'ai-character-library-detail-root',
-    'mantine-AppShell-main',
-    'mantine-AppShell-header',
-    'mantine-AppShell-navbar',
-    'mantine-AppShell-aside',
     'mantine-NumberInput-input',
     'mantine-TextInput-input',
     'mantine-Stack-root',

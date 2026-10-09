@@ -266,6 +266,20 @@ export function ShellAgentHost({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [setForm, surface])
 
+  // E2E 专用桥（同 TaskCenterButton / ProductionCanvasLandingHost 的既有写法）：仅当 localStorage['__nomiE2E']==='1'
+  // 时把小球读的角标投影与形态 store 挂到 window，供零额度走查摆出小球四态截图（不跑真 Agent、不花钱）。生产从不置该标志。
+  React.useEffect(() => {
+    try {
+      if (window.localStorage?.getItem('__nomiE2E') === '1') {
+        const w = window as unknown as { __nomiResidentActivityStore?: unknown; __nomiAgentFormStore?: unknown }
+        w.__nomiResidentActivityStore = useResidentActivityStore
+        w.__nomiAgentFormStore = useAgentFormStore
+      }
+    } catch {
+      // localStorage 不可用 → 跳过
+    }
+  }, [])
+
   const slot = React.useMemo<AgentPanelHeaderSlot>(() => ({
     actions: <FormSwitch surface={surface} form={form} />,
     menuItems: [

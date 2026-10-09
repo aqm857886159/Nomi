@@ -52,7 +52,9 @@ export function ShellFrame({ topBar, rail, children }: {
     <AppShell
       mode="static"
       header={{ height: SHELL_TOPBAR_HEIGHT }}
-      navbar={{ width: SHELL_RAIL_WIDTH, breakpoint: 0, collapsed: { desktop: !hasRail, mobile: !hasRail } }}
+      // breakpoint 不能写 0：Mantine 的 static 模式只在 breakpoint 为真时才给 Navbar / Main 排网格列（assign-navbar-variables），
+      // 写 0 = 左栏退回 fixed 浮在工作面上、工作面从 x=0 起画（10-08 首轮截图实测）。App 最小宽远大于 xs(576px)。
+      navbar={{ width: SHELL_RAIL_WIDTH, breakpoint: 'xs', collapsed: { desktop: !hasRail, mobile: !hasRail } }}
       withBorder={false}
       padding={0}
       className="h-full overflow-hidden bg-nomi-chrome text-nomi-ink"
