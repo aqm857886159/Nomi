@@ -10,6 +10,7 @@ const frameLast = new URL('./fixtures/frame-last.jpg', import.meta.url).href
 const frameIn = new URL('./fixtures/frame-in.jpg', import.meta.url).href
 const filmstrip = new URL('./fixtures/filmstrip.jpg', import.meta.url).href
 const filmstripTrim = new URL('./fixtures/filmstrip-trim.jpg', import.meta.url).href
+const sheetVideo = new URL('./fixtures/sheet-video.jpg', import.meta.url).href
 const sheet = new URL('./fixtures/sheet.jpg', import.meta.url).href
 const seg1 = new URL('./fixtures/seg1.jpg', import.meta.url).href
 const seg2 = new URL('./fixtures/seg2.jpg', import.meta.url).href
@@ -22,6 +23,7 @@ export const FRAME = { first: frameFirst, current: frameCurrent, last: frameLast
 export const FILMSTRIP = filmstrip
 export const FILMSTRIP_TRIM = filmstripTrim
 export const SHEET = sheet
+export const SHEET_VIDEO = sheetVideo
 export const SEGMENT_POSTERS = [seg1, seg2, seg3, seg4, seg5] as const
 
 export const DURATION_SECONDS = 24.167

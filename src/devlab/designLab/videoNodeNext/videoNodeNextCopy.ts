@@ -21,7 +21,7 @@ type Copy = {
   splitImage: string
   splitVideo: string
   splitCommitImage: (count: number) => string
-  splitCommitVideo: (count: number) => string
+  splitCommitVideo: string
   frameTitle: (source: string, time: string) => string
   trimTitleCard: (source: string, from: string, to: string) => string
   segmentTitle: (source: string, index: number) => string
@@ -49,7 +49,7 @@ export const COPY: Record<VnLocale, Copy> = {
     splitImage: '图片',
     splitVideo: '视频片段',
     splitCommitImage: (count) => `加入画布（${count}）`,
-    splitCommitVideo: (count) => `拆成 ${count} 段视频`,
+    splitCommitVideo: '拆成 {{count}} 段视频',
     frameTitle: (source, time) => `${source} · 当前帧 ${time}`,
     trimTitleCard: (source, from, to) => `${source} · 剪辑 ${from}–${to}`,
     segmentTitle: (source, index) => `${source} · 片段 ${index}`,
@@ -75,7 +75,7 @@ export const COPY: Record<VnLocale, Copy> = {
     splitImage: 'Images',
     splitVideo: 'Video clips',
     splitCommitImage: (count) => `Add to canvas (${count})`,
-    splitCommitVideo: (count) => `Split into ${count} clips`,
+    splitCommitVideo: 'Split into {{count}} clips',
     frameTitle: (source, time) => `${source} · Frame ${time}`,
     trimTitleCard: (source, from, to) => `${source} · Trim ${from}–${to}`,
     segmentTitle: (source, index) => `${source} · Clip ${index}`,

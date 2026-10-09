@@ -15,8 +15,8 @@ import type { CanvasReadSurfaceBridge } from '../../../../electron/shared/surfac
 import i18n from '../../../i18n'
 import { holdDesignLabReady } from '../labReadyHold'
 import { installCatalogBridge } from '../nodeComposerBar/nodeComposerBarLabKit'
-import { COPY, type VnLocale } from './videoNodeNextCopy'
-import { CUT_SECONDS, DURATION_SECONDS, SHEET } from './videoNodeNextFixtures'
+import { COPY, timecode, type VnLocale } from './videoNodeNextCopy'
+import { CUT_SECONDS, DURATION_SECONDS, SHEET, SHEET_VIDEO } from './videoNodeNextFixtures'
 import { LabStage, NextVideoToolbar, useLocaleHold, useSeededSource, VideoCard, videoSourceNode, VN_CARD, VN_CELL_WIDTH } from './videoNodeNextToolbarKit'
 
 export type SplitMode = 'image' | 'video'
@@ -45,25 +45,52 @@ function useFakeOpenProject(): boolean {
   return ready
 }
 
-function installDetectBridge(): void {
+/**
+ * 假检测桥。图片模式 = 4 个切点（每个切点一张起点帧，和今天一样）；
+ * 视频片段模式 = 5 段（0:00 起的第一段也要有一格）：N 个切点切出 N+1 段，格子数、标题数、按钮数、结果卡数都是 5。
+ * 生产接线时这一点在面板里算：视频模式下在切点数组前补一个 0 秒的「起点」。
+ */
+function installDetectBridge(mode: SplitMode): void {
   installCatalogBridge()
+  const starts = mode === 'video' ? [0, ...CUT_SECONDS] : [...CUT_SECONDS]
   const host = window as unknown as { nomiDesktop: Record<string, unknown> }
   host.nomiDesktop.video = {
     detectShotCuts: async () => ({
-      cuts: CUT_SECONDS.map((seconds, index) => ({ seconds, score: [0.62, 0.48, 0.71, 0.55][index] ?? 0.5 })),
+      cuts: starts.map((seconds, index) => ({ seconds, score: [0.9, 0.62, 0.48, 0.71, 0.55][mode === 'video' ? index : index + 1] ?? 0.5 })),
       durationSeconds: DURATION_SECONDS,
-      sheetUrl: SHEET,
-      sheetColumns: CUT_SECONDS.length,
+      sheetUrl: mode === 'video' ? SHEET_VIDEO : SHEET,
+      sheetColumns: starts.length,
       sheetRows: 1,
-      coverage: { detectedCuts: CUT_SECONDS.length, keptCuts: CUT_SECONDS.length, appliedThreshold: 0.1, capped: false, coveredSeconds: DURATION_SECONDS, durationSeconds: DURATION_SECONDS },
+      coverage: { detectedCuts: starts.length, keptCuts: starts.length, appliedThreshold: 0.1, capped: false, coveredSeconds: DURATION_SECONDS, durationSeconds: DURATION_SECONDS },
     }),
   }
 }
 
-/** 视频模式下主按钮的字：「拆成 N 段视频」。N = 切点数 + 1（N 个切点把片子切成 N+1 段）；样张里 4 个切点全选 = 5 段。 */
+/** 视频模式：每格的时间写成起止区间（面板自己写的是单个起点 m:ss）。接线时这是面板里按模式换的一行文案。 */
+function useRangeLabels(enabled: boolean): void {
+  React.useEffect(() => {
+    if (!enabled) return undefined
+    const starts = [0, ...CUT_SECONDS]
+    const ends = [...CUT_SECONDS, DURATION_SECONDS]
+    const apply = (): void => {
+      document.querySelectorAll<HTMLElement>('[data-shot-cut]').forEach((tile) => {
+        const index = Number(tile.getAttribute('data-shot-cut'))
+        const label = tile.querySelector<HTMLElement>(':scope > span:last-child > span:first-child')
+        const text = `${timecode(starts[index] ?? 0)}–${timecode(ends[index] ?? DURATION_SECONDS)}`
+        if (label && label.textContent !== text) label.textContent = text
+      })
+    }
+    apply()
+    const observer = new MutationObserver(apply)
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true })
+    return () => observer.disconnect()
+  }, [enabled])
+}
+
+/** 视频模式下主按钮的字：「拆成 N 段视频」，N 取面板自己数的格子数（视频模式每段一格，全选 = 5）。 */
 function overrideCommitLabel(locale: VnLocale, mode: SplitMode): void {
   if (mode !== 'video') return
-  i18n.addResource(locale, 'translation', 'generationCommon.node.shotCuts.commit', COPY[locale].splitCommitVideo(CUT_SECONDS.length + 1))
+  i18n.addResource(locale, 'translation', 'generationCommon.node.shotCuts.commit', COPY[locale].splitCommitVideo)
 }
 
 /** 把一个宿主 span 插到面板底栏主按钮之前；返回它（面板重渲染把它挤掉时重新插）。 */
@@ -112,8 +139,9 @@ export function SplitStage({ locale, mode }: { locale: VnLocale; mode: SplitMode
   const ready = seeded && localeReady && projectReady
   // 语言切完、项目开好之后才改主按钮文案（同步写资源，面板首次渲染就读到）。
   // 种夹具的布局副作用会重装一次桥（`installCatalogBridge` 整个换掉 nomiDesktop），所以检测桥要在它之后、面板挂载之前装。
-  const labelled = React.useMemo(() => { if (ready) { installDetectBridge(); overrideCommitLabel(locale, mode) } return ready }, [locale, mode, ready])
+  const labelled = React.useMemo(() => { if (ready) { installDetectBridge(mode); overrideCommitLabel(locale, mode) } return ready }, [locale, mode, ready])
   const slot = useFooterSlot(labelled, releaseHold)
+  useRangeLabels(labelled && mode === 'video')
   return (
     <LabStage height={640}>
       {labelled ? (

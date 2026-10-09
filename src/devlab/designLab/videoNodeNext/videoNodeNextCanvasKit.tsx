@@ -62,7 +62,7 @@ type Seed = { nodes: GenerationCanvasNode[]; edges: { id: string; source: string
 
 function seedFor(scene: CanvasScene, locale: VnLocale): Seed {
   const c = COPY[locale]
-  const source = videoNode({ id: 'vn-source', title: c.sourceTitle, position: SOURCE_AT, poster: FRAME.first })
+  const source = videoNode({ id: 'vn-source', title: c.sourceTitle, position: SOURCE_AT, poster: FRAME.current })
   const link = (target: string) => ({ id: `vn-edge-${target}`, source: 'vn-source', target })
   switch (scene) {
     case 'frame-done': {

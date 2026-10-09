@@ -20,7 +20,7 @@ import type { TimelineState } from '../../../workbench/timeline/timelineTypes'
 import { cn } from '../../../utils/cn'
 import { holdDesignLabReady } from '../labReadyHold'
 import { COPY, timecode, type VnLocale } from './videoNodeNextCopy'
-import { DURATION_SECONDS, FILMSTRIP, FILMSTRIP_TRIM, FPS, TOTAL_FRAMES, VIDEO } from './videoNodeNextFixtures'
+import { DURATION_SECONDS, FILMSTRIP, FILMSTRIP_TRIM, FPS, TOTAL_FRAMES, TRIM_IN_SECONDS, TRIM_OUT_SECONDS, VIDEO } from './videoNodeNextFixtures'
 import { LabStage, NextVideoToolbar, PausedVideo, useLocaleHold, useMountHold, useSeededSource, VideoCard, videoSourceNode, VN_CARD, VN_CELL_WIDTH } from './videoNodeNextToolbarKit'
 
 const CLIP_ID = 'vn-clip'
@@ -29,8 +29,8 @@ const noop = (): void => undefined
 export type ClipScenario =
   /** 刚打开：入点在最左、出点在最右。 */
   | { kind: 'open' }
-  /** 按住入点手柄往右拖（`dragToSeconds` 秒处），还没松手。 */
-  | { kind: 'drag-in'; dragToSeconds: number }
+  /** 按住入点手柄往右拖（`dragToSeconds` 秒处），还没松手；出点已先设在 `outSeconds`。 */
+  | { kind: 'drag-in'; dragToSeconds: number; outSeconds: number }
   /** 已经设好 in–out，正在预览（播放头在保留区间里；视频冻在这一帧，界面显示「播放中」）。 */
   | { kind: 'preview'; fromSeconds: number; toSeconds: number; atSeconds: number }
 
@@ -58,7 +58,7 @@ function makeTimeline(title: string, startSeconds: number, endSeconds: number, p
         offsetStartFrame: startFrame,
         offsetEndFrame: Math.max(0, TOTAL_FRAMES - endFrame),
         url: VIDEO,
-        thumbnailUrl: startFrame > 0 || endFrame < TOTAL_FRAMES ? FILMSTRIP_TRIM : FILMSTRIP,
+        thumbnailUrl: startFrame === Math.round(TRIM_IN_SECONDS * FPS) && endFrame === Math.round(TRIM_OUT_SECONDS * FPS) ? FILMSTRIP_TRIM : FILMSTRIP,
       }],
     }],
   }
@@ -136,7 +136,7 @@ export function ClipPanel({ locale, scenario, title }: { locale: VnLocale; scena
   const c = COPY[locale]
   const rootRef = React.useRef<HTMLDivElement>(null)
   const initialStart = scenario.kind === 'preview' ? scenario.fromSeconds : 0
-  const initialEnd = scenario.kind === 'preview' ? scenario.toSeconds : DURATION_SECONDS
+  const initialEnd = scenario.kind === 'preview' ? scenario.toSeconds : scenario.kind === 'drag-in' ? scenario.outSeconds : DURATION_SECONDS
   const playheadSeconds = scenario.kind === 'preview' ? scenario.atSeconds : initialStart
   const timeline = React.useMemo(() => makeTimeline(title, initialStart, initialEnd, playheadSeconds), [initialEnd, initialStart, playheadSeconds, title])
   const live = useLiveTrim(rootRef, { start: Math.round(initialStart * FPS), end: Math.round(initialEnd * FPS) })

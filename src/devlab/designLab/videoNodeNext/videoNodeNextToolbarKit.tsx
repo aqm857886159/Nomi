@@ -8,7 +8,7 @@
 // 现役浮条一起渲出来，没法把新浮条挂上去）。外壳类名与现役卡逐字相同；里面是一个真 `<video>`，所以播放头是真的。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCut, IconDownload, IconMaximize, IconPhoto, IconPlayerTrackNext, IconPlayerTrackPrev, IconScissors, IconFocusCentered } from '@tabler/icons-react'
+import { IconCut, IconDownload, IconFocusCentered, IconLayoutRows, IconMaximize, IconPhoto, IconPlayerTrackNext, IconPlayerTrackPrev, IconTable } from '@tabler/icons-react'
 import { LabCanvasViewport } from '../labCanvasViewport'
 import '../../../workbench/generationCanvas/styles/generationCanvas.css'
 import {
@@ -73,12 +73,12 @@ export function NextVideoToolbar({ node, locale, playheadSeconds = PLAYHEAD_SECO
       <ToolbarButton icon={<IconCut size={I.size} stroke={I.stroke} />} label={c.trim} actionId="trim" accent={trimActive} onClick={onTrim} />
       <ToolbarActionMenu
         id="break-down"
-        icon={<IconScissors size={I.size} stroke={I.stroke} />}
+        icon={<IconLayoutRows size={I.size} stroke={I.stroke} />}
         label={t('generationCommon.videoToolbar.breakDown')}
         menuLabel={t('generationCommon.videoToolbar.breakDown')}
         items={[
-          { id: 'shot-cuts', icon: IconCut as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotCuts'), onSelect: noop },
-          { id: 'shot-table', icon: IconScissors as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotTable'), onSelect: noop },
+          { id: 'shot-cuts', icon: IconLayoutRows as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotCuts'), onSelect: noop },
+          { id: 'shot-table', icon: IconTable as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotTable'), onSelect: noop },
         ]}
       />
       <NodeDepthActionButton reportFeedback={noop} node={node} />

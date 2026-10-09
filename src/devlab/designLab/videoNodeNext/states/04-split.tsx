@@ -44,7 +44,7 @@ export const VN_SPLIT_STATES: readonly LabState[] = [
   },
   {
     id: 'vn-09-split-video-zh',
-    name: '按镜头拆 · 选「视频片段」，主按钮改说拆成 5 段视频（中文 · 浅色）',
+    name: '按镜头拆 · 选「视频片段」，面板按 5 段显示（每段一格、起止区间），标题 5 个镜头，主按钮拆成 5 段视频（中文 · 浅色）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:336',
     coverage: 'component-only',
@@ -52,7 +52,7 @@ export const VN_SPLIT_STATES: readonly LabState[] = [
   },
   {
     id: 'vn-09-split-video-en',
-    name: '按镜头拆 · 选「视频片段」，主按钮改说拆成 5 段视频（英文 · 浅色）',
+    name: '按镜头拆 · 选「视频片段」，面板按 5 段显示（每段一格、起止区间），标题 5 个镜头，主按钮拆成 5 段视频（英文 · 浅色）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:336',
     coverage: 'component-only',
@@ -60,7 +60,7 @@ export const VN_SPLIT_STATES: readonly LabState[] = [
   },
   {
     id: 'vn-09-split-video-zh-dark',
-    name: '按镜头拆 · 选「视频片段」，主按钮改说拆成 5 段视频（中文 · 暗色）',
+    name: '按镜头拆 · 选「视频片段」，面板按 5 段显示（每段一格、起止区间），标题 5 个镜头，主按钮拆成 5 段视频（中文 · 暗色）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:336',
     coverage: 'component-only',
@@ -69,7 +69,7 @@ export const VN_SPLIT_STATES: readonly LabState[] = [
   },
   {
     id: 'vn-09-split-video-en-dark',
-    name: '按镜头拆 · 选「视频片段」，主按钮改说拆成 5 段视频（英文 · 暗色）',
+    name: '按镜头拆 · 选「视频片段」，面板按 5 段显示（每段一格、起止区间），标题 5 个镜头，主按钮拆成 5 段视频（英文 · 暗色）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:336',
     coverage: 'component-only',
