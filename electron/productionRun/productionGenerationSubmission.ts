@@ -34,6 +34,7 @@ import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, t
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import { singleShotRunningCommand } from "./singleShotRunLifecycle";
 import { assertShotAdmission, type LandedShotAdmission } from "./shotLandingAdmission";
+import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
 
 export { SubmissionReceiptUnknownError, SubmissionReconciliationRequiredError };
 
@@ -134,10 +135,11 @@ export type ProductionGenerationSubmissionDependencies = {
   runtimeTaskId?: (input: { runId: string; contractHash: string; attempt?: number }) => string;
   afterProviderAcceptance?: (input: { providerTaskId: string; run: ProductionRun }) => void | Promise<void>;
   /**
-   * 派发准入闸（生产里是镜头认领闸）。由提交 outbox 在这次尝试的第一笔耐久写（预留 / 提交意向）之前调用，
-   * 看到的是还没落盘的 job；抛错 = 这一镜这次不提交，什么都没写（见 `SubmissionOutboxDependencies.beforeDispatch`）。
+   * 额外的派发前检查（只给测试观察 / 注入用）。**镜头认领闸不在这里注入**：它长在提交出口里（`start` 每交一镜都过），
+   * 调用方换不掉、漏不了——急停 / 取消 / 画布接手 / 节点删了，逐镜都按最新的耐久 Run 再判一次（#1139）。
+   * 先跑这个、再跑认领闸；抛错 = 这一镜这次不提交，什么都没写。
    */
-  beforeDispatch: (input: { run: ProductionRun; job: ProductionJob }) => void | Promise<void>;
+  beforeDispatch?: (input: { run: ProductionRun; job: ProductionJob }) => void | Promise<void>;
   /** Asset store owns bytes, identity and leases; the submission seam only commits its returned receipt. */
   materializeOutput?: (input: {
     projectId: string;
@@ -316,6 +318,9 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
   const providers = deps.providers ?? (deps.provider ? [deps.provider] : []);
   if (providers.length === 0) throw new Error("At least one generation provider is required");
   const adapter = createGenerationRuntimeAdapter({ providers });
+  // 交一镜的唯一边界自己带着认领闸（#1139）：以前它由装配方注入，生产三处都注入了，可测试夹具一律注入空函数，
+  // 「整批准入之后被停下」这一类在夹具里永远看不见；任何新装配方也能忘了接。现在它不是依赖，是提交出口的一部分。
+  const assertShotCanDispatch = createProductionShotDispatchGuard({ readRun: (projectId, runId) => deps.repository.read(projectId, runId) ?? undefined });
 
   function intentLog(runId: string) {
     return createProductionRunIntentLog({
@@ -537,6 +542,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         now,
         beforeDispatch: async (dispatchInput) => {
           await deps.beforeDispatch?.({ run: dispatchInput.run, job: dispatchInput.job });
+          assertShotCanDispatch({ run: dispatchInput.run, job: dispatchInput.job });
         },
         // 供应商档案真声明了幂等（并把键带到请求上）才允许在「结果未知」后用同一个键重发一次；
         // 目前没有任何生产供应商声明（APIMart 明确 false），所以生产里这条恒为 false。

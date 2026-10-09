@@ -78,7 +78,6 @@ export { revisePendingSpendConfirmation, discardPendingSpendConfirmation, confir
 import { repairStaleMcpConfigs } from './mcpConfig'
 import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
 import { markResidentSurfaceInstallFailed, markResidentSurfaceReady, markResidentSurfaceStarting, markResidentSurfaceStopped, readResidentSurfaceLifecycle } from './residentSurfaceLifecycle'
-import { createProductionShotDispatchGuard } from '../productionRun/productionShotDispatchGuard'
 import { productionFixtureBaseOriginFromEnv } from '../shared/productionRunE2eFixtureGate'
 
 let handle: RpcServerHandle | null = null
@@ -233,9 +232,6 @@ export async function startCapabilityCore(
       openProjectForLanding: createGuiLandingProjectAccess(() => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId ?? null),
     })
     landDraftOnCanvas = canvasLanding.landDraftOnCanvas
-    const assertProductionShotCanDispatch = createProductionShotDispatchGuard({
-      readRun: (projectId, runId) => generationService.repository.read(projectId, runId) ?? undefined,
-    })
     // 画布节点跟着 Run 走：每一次耐久变化（派发 / 受理 / 出片落盘 / 失败 / 停）都经过仓库 execute 的事件旁路，
     // 跟随者据此把「生成中 / 结果 / 失败」写进节点自己的运行记录——与普通生成同一份状态、同一套画法。
     // 它取代了以前只在「出片」那一下投递结果的专用通道（一件事一个 owner：Run → 画布只有落地这一条路）。
@@ -256,7 +252,6 @@ export async function startCapabilityCore(
       projectGeneration: input.projectGeneration,
       intentMacKey: ensureCapabilitySigningKey('generation-intent'),
       providers: input.providers,
-      beforeDispatch: assertProductionShotCanDispatch,
       // 画布那台交回来的产物已经落在项目里：记进 Run，不再下载一次；不是本地地址的走通用物化。
       materializeOutput: async ({ projectId, providerTaskId, output, job }) => (isCanvasProviderId(job.provider)
         && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }))

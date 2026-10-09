@@ -42,7 +42,6 @@ import { createGenerationPlanningHandler } from './mcpGenerationTools'
 import { planStoryboardFromScript } from './mcpStoryboardPlanner'
 import { createProductionGenerationOperationStore } from '../productionRun/productionGenerationOperationStore'
 import { createProductionGenerationSubmission } from '../productionRun/productionGenerationSubmission'
-import { createProductionShotDispatchGuard } from '../productionRun/productionShotDispatchGuard'
 import { requestQuit } from '../quitTeardown'
 import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { prepareProductionGenerationAuthorizationWithReferences } from '../productionRun/prepareProductionGenerationAuthorization'
@@ -79,9 +78,6 @@ import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 import { logWarn } from '../logging/logger'
 
 const productionRuns = getProductionRunService()
-const assertProductionShotCanDispatch = createProductionShotDispatchGuard({
-  readRun: (projectId, runId) => productionRuns.repository.read(projectId, runId) ?? undefined,
-})
 
 // 档案解析要目录行里的 meta（fal/* 这类键靠 meta.archetypeId 钉档案）。装配期接一次。
 installCatalogRowLookup()
@@ -359,7 +355,6 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         }
         const submission = createProductionGenerationSubmission({
           repository: productionRuns.repository,
-          beforeDispatch: assertProductionShotCanDispatch,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
           projectGeneration: lease.projectGeneration,
@@ -422,7 +417,6 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         if (!provider.query || !provider.capabilities.query) return { operationId: operation.operationId, outcome, nextAction: 'manual_review', recoveryNotice: '该供应商没有可用的任务查询；请到供应商核对。' }
         const submission = createProductionGenerationSubmission({
           repository: productionRuns.repository,
-          beforeDispatch: assertProductionShotCanDispatch,
           projectRoot,
           immutableProjectUuid: lease.immutableProjectUuid,
           projectGeneration: lease.projectGeneration,

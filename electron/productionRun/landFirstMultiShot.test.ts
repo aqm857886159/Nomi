@@ -7,6 +7,9 @@ import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
+import { applyRunControl } from "./productionRunControl";
+import { ProductionRunLockBusyError } from "./productionRunLock";
+import { landedAdmission } from "./landFirstTestUtils";
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import { createMultiShotBatchScheduler } from "./multiShotBatchScheduler";
@@ -289,5 +292,134 @@ describe("what counts as sent is the one shared judgement", () => {
     const zh = buildToolOutcome("nomi_read", { target: "run", projectId: PROJECT, runId: RUN }, projection).text;
     expect(zh).not.toContain("并发出");
     expect(zh).not.toContain("已发出");
+  });
+});
+
+// #1139 CI 回归的那一类：整批算一次（派生 / 准入 / 确认）之后、逐镜真正交出去之前，Run 被停下，后面的镜不许再交；
+// 同一个 Run 同时起好几趟驱动，抢输 Run 锁的那一镜不许被当成失败丢下（12 镜批了只发 10 镜）。
+describe("the one submit boundary re-checks the stop, and a Run has one drive at a time", () => {
+  const six = () => ["s1", "s2", "s3", "s4", "s5", "s6"].map((id) => shotEntry(id, id));
+
+  it("stop lands between two submits of one admitted batch → the shots after it are not submitted", async () => {
+    const { root, repository } = setupBatch(six());
+    const submit = vi.fn(async () => {
+      if (submit.mock.calls.length === 2) {
+        // 用户在第 2 镜交出去的这一刻点了急停（写进耐久 Run 的就是这条 run.control）。
+        const run = repository.read(PROJECT, RUN)!;
+        applyRunControl(repository, PROJECT, RUN, run, { commandId: "user-pause", expectedRevision: run.revision, type: "run.control", payload: { action: "pause" }, issuedAt: NOW });
+      }
+      return { providerTaskId: `task-${submit.mock.calls.length}` };
+    });
+
+    await scheduler(root, repository, submit, landingThatBinds(repository, [])).runToQuiescence();
+
+    expect(submit).toHaveBeenCalledTimes(2);
+    const run = repository.read(PROJECT, RUN)!;
+    expect(run.jobs.filter((job) => job.providerTaskId)).toHaveLength(2);
+  });
+
+  it("the submit boundary itself refuses a stopped Run even when the caller injects no gate: nothing is written, nothing is sent", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a")]);
+    const binds = landingThatBinds(repository, []);
+    await binds(PROJECT, RUN);
+    let run = repository.read(PROJECT, RUN)!;
+    run = repository.execute(PROJECT, RUN, { commandId: "running", expectedRevision: run.revision, type: "run.status", payload: { status: "running" }, issuedAt: NOW }).run;
+    applyRunControl(repository, PROJECT, RUN, run, { commandId: "user-pause", expectedRevision: run.revision, type: "run.control", payload: { action: "pause" }, issuedAt: NOW });
+    const before = repository.read(PROJECT, RUN)!;
+    const submit = vi.fn(async () => ({ providerTaskId: "task-1" }));
+    const submission = createProductionGenerationSubmission({
+      repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+      intentMacKey: "test-intent-key", provider: mockProvider(submit), now: () => NOW,
+      materializeOutput: async () => { throw new Error("unused"); },
+    });
+
+    await expect(submission.start({ projectId: PROJECT, operationId: RUN, shotId: "shot-a", admission: await landedAdmission(repository, PROJECT, RUN, "shot-a") }))
+      .rejects.toMatchObject({ code: "production_shot_claimed", reason: "run_stopped" });
+    expect(submit).not.toHaveBeenCalled();
+    expect(repository.read(PROJECT, RUN)!.revision).toBe(before.revision);
+  });
+
+  it("two drives kicked at once for the same Run (two approvals) → one drive; every shot sent exactly once", async () => {
+    const shots = Array.from({ length: 12 }, (_, index) => shotEntry(`s${index + 1}`, `p${index + 1}`));
+    const { root, repository } = setupBatch(shots);
+    const submit = vi.fn(async (input: { request?: { prompt?: string } }) => ({ providerTaskId: `task-${input.request?.prompt ?? submit.mock.calls.length}` }));
+    const landShots = landingThatBinds(repository, []);
+    // 两趟各拿各的提交门面（生产里每批下一镜就新建一个调度器）；数同一时刻有几次「交一镜」在跑：一趟驱动只会是 1。
+    let inFlight = 0;
+    let peak = 0;
+    const counted = (): Parameters<typeof createMultiShotBatchScheduler>[0]["submission"] => {
+      const inner = createProductionGenerationSubmission({
+        repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+        intentMacKey: "test-intent-key", provider: mockProvider(submit), now: () => NOW,
+        materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
+      });
+      return { ...inner, start: async (input) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        try { return await inner.start(input); } finally { inFlight -= 1; }
+      } };
+    };
+    const drive = () => createMultiShotBatchScheduler({ repository, submission: counted(), projectId: PROJECT, runId: RUN, now: () => NOW, landShots, sleep: async () => undefined }).runToQuiescence();
+
+    const [a, b] = await Promise.all([drive(), drive()]);
+
+    expect(a.quiescent && b.quiescent).toBe(true);
+    expect(peak).toBe(1);
+    expect(submit).toHaveBeenCalledTimes(12);
+    const run = repository.read(PROJECT, RUN)!;
+    expect(new Set(run.jobs.filter((job) => job.providerTaskId).map((job) => job.metadata?.shotId)).size).toBe(12);
+  });
+
+  it("a kick that arrives while the drive is running is not lost: the drive re-reads the Run once more before it rests", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a")]);
+    const landShots = landingThatBinds(repository, []);
+    const completions: number[] = [];
+    const make = (submit: ReturnType<typeof vi.fn>) => createMultiShotBatchScheduler({
+      repository, projectId: PROJECT, runId: RUN, now: () => NOW, landShots, sleep: async () => undefined,
+      onBatchComplete: () => { completions.push(completions.length + 1); },
+      submission: createProductionGenerationSubmission({
+        repository, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, intentMacKey: "test-intent-key", provider: mockProvider(submit), now: () => NOW,
+        materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
+      }),
+    });
+    let joined: Promise<unknown> | undefined;
+    const submit = vi.fn(async () => {
+      // 第一趟正在交这一镜：用户又点了一下（又批下一镜 / 继续）——另一个调度器实例来踢同一个 Run。
+      joined = make(vi.fn(async () => ({ providerTaskId: "never" }))).runToQuiescence();
+      return { providerTaskId: "task-a" };
+    });
+
+    const outcome = await make(submit).runToQuiescence();
+    await joined;
+
+    expect(outcome.quiescent).toBe(true);
+    expect(submit).toHaveBeenCalledTimes(1);
+    // 这一趟歇下前按最新的 Run 又走了一遍（整批完成的收尾因此也再问了一次；收尾本身幂等）。
+    expect(completions).toEqual([1, 2]);
+  });
+
+  it("a shot whose submit met a busy Run lock is not a failure: it is sent later in the same drive, and the drive rests quiescent", async () => {
+    const { root, repository } = setupBatch([shotEntry("shot-a", "a"), shotEntry("shot-b", "b"), shotEntry("shot-c", "c")]);
+    const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length}` }));
+    // 别的写者（另一个进程 / 另一条写口）这一下正拿着 shot-b 要用的 Run 锁：第一次交它时锁忙，什么都还没写。
+    const submission = createProductionGenerationSubmission({
+      repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+      intentMacKey: "test-intent-key", provider: mockProvider(submit), now: () => NOW,
+      materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
+    });
+    let busyOnce = true;
+    const flaky = { ...submission, start: async (input: Parameters<typeof submission.start>[0]) => {
+      if (input.shotId === "shot-b" && busyOnce) { busyOnce = false; throw new ProductionRunLockBusyError(); }
+      return submission.start(input);
+    } };
+    const sleeps: number[] = [];
+    const outcome = await createMultiShotBatchScheduler({ repository, submission: flaky, projectId: PROJECT, runId: RUN, now: () => NOW, landShots: landingThatBinds(repository, []), sleep: async (ms) => { sleeps.push(ms); } }).runToQuiescence();
+
+    expect(outcome.quiescent).toBe(true);
+    expect(submit).toHaveBeenCalledTimes(3);
+    const run = repository.read(PROJECT, RUN)!;
+    expect(run.jobs.filter((job) => job.providerTaskId).map((job) => job.metadata?.shotId).sort()).toEqual(["shot-a", "shot-b", "shot-c"]);
+    expect(run.stop).toBeUndefined();
+    expect(sleeps.length).toBeGreaterThan(0);
   });
 });
