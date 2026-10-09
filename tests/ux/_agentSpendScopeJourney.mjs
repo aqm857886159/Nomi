@@ -84,13 +84,13 @@ export async function checkSpendScopeJourney(walk, win) {
   expect(originalShots).toHaveLength(33)
   expect(originalShots.filter(shot => shot.role === 'anchor')).toHaveLength(3)
   const requestedIds = originalShots.slice(0, 3).map(shot => shot.shotId)
-  // draft_shots on the canvas creates 33 media nodes and the existing shot table.
+  // draft_shots on the canvas creates 33 media nodes (no shot table since 2026-10-08).
   // generate only presents the three requested confirmations; it must reuse them.
-  await expect.poll(async () => (await graph()).nodes.length).toBe(baselineGraph.nodes.length + 34)
+  await expect.poll(async () => (await graph()).nodes.length).toBe(baselineGraph.nodes.length + 33)
   const draftedGraph = await graph()
   const baselineIds = new Set(baselineGraph.nodes.map(node => node.id))
   const createdNodes = draftedGraph.nodes.filter(node => !baselineIds.has(node.id))
-  expect(createdNodes.filter(node => node.kind === 'shot_table')).toHaveLength(1)
+  expect(createdNodes.filter(node => node.kind === 'shot_table')).toHaveLength(0)
   expect(createdNodes.filter(node => node.kind === 'image').map(node => node.prompt).sort())
     .toEqual(originalShots.map(shot => shot.candidate.prompt).sort())
   const firstTurn = await present(operationId, requestedIds)

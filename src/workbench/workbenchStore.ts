@@ -1,5 +1,5 @@
 import type { LibraryPrompt } from './api/promptLibraryApi'
-import { applyStoryboardPlanProjection } from './creation/storyboard/exec/ensureStoryboardShotTable'
+import { applyStoryboardPlanProjection } from './creation/storyboard/exec/applyStoryboardPlanProjection'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { clampAssistantWidth } from './assistantWidthBounds'
