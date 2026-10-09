@@ -166,9 +166,19 @@ function commitChange(edit) {
   git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'test change')
 }
 
+/**
+ * 这些测试要的是「夹具仓库里这一次提交」的判据。CI 的 Contracts job 把 PR 的 base SHA 放进
+ * PRIOR_ART_BASE_REF / ROOT_CAUSE_BASE_REF 等环境变量，子进程继承后会拿整个 PR 的 diff 当夹具的 diff
+ * （比如 PR 改过 self-written.json，夹具里的 check:prior-art 就判「改了登记表、要先查别人」而变红）。
+ * 所以把所有 *_BASE_REF / NOMI_CHANGED_BASE 从子进程环境里拿掉，让每道门岗回到「夹具自己的 origin/main」。断言一字未动。
+ */
+function isolatedFromCiBaseRefs(env) {
+  return Object.fromEntries(Object.entries(env).filter(([key]) => !/_BASE_REF$/.test(key) && key !== 'NOMI_CHANGED_BASE'))
+}
+
 function prePush({ body, cwd = work, args = [], refLine } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
-  const env = { ...process.env, ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
+  const env = { ...isolatedFromCiBaseRefs(process.env), ...(body === undefined ? {} : { NOMI_PR_BODY: body }) }
   return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
     input: refLine ? refLine(sha) : `refs/heads/topic ${sha} refs/heads/topic ${ZERO}\n`,
     env,

@@ -22,6 +22,18 @@ export function classifyUpdateError(error: unknown): UpdateFailureReason {
   return 'other'
 }
 
+const INTERRUPTED_CODES = new Set(['ECONNRESET', 'EPIPE', 'ERR_CONNECTION_RESET', 'ERR_CONNECTION_CLOSED', 'ERR_CONNECTION_ABORTED', 'ERR_EMPTY_RESPONSE'])
+
+/** 给界面选话术用：没连上网（offline）/ 连接中途断了（interrupted）/ 其他。和上报用的 classifyUpdateError 各管各的。 */
+export function describeUpdateFailure(error: unknown): 'offline' | 'interrupted' | 'other' {
+  if (classifyUpdateError(error) !== 'network') return 'other'
+  const err = (error ?? {}) as { code?: unknown; message?: unknown }
+  const code = typeof err.code === 'string' ? err.code : ''
+  const message = typeof err.message === 'string' ? err.message : ''
+  const text = `${code} ${message}`
+  return [...INTERRUPTED_CODES].some((marker) => text.includes(marker)) ? 'interrupted' : 'offline'
+}
+
 export type AutoCheckTimers = {
   setTimeout: (fn: () => void, ms: number) => unknown
   clearTimeout: (handle: unknown) => void

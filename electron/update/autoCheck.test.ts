@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { AUTO_CHECK_FIRST_DELAY_MS, AUTO_CHECK_INTERVAL_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate } from './autoCheck'
+import { AUTO_CHECK_FIRST_DELAY_MS, AUTO_CHECK_INTERVAL_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from './autoCheck'
 
 describe('自动检查调度（假时钟）', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -53,6 +53,17 @@ describe('失败原因只落枚举', () => {
   })
 })
 
+describe('describeUpdateFailure · 给界面选话术', () => {
+  it('没连上网 / 连接中途断了 / 其他三类', () => {
+    expect(describeUpdateFailure(Object.assign(new Error('getaddrinfo ENOTFOUND github.com'), { code: 'ENOTFOUND' }))).toBe('offline')
+    expect(describeUpdateFailure(new Error('net::ERR_INTERNET_DISCONNECTED'))).toBe('offline')
+    expect(describeUpdateFailure(new Error('net::ERR_CONNECTION_RESET'))).toBe('interrupted')
+    expect(describeUpdateFailure(Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }))).toBe('interrupted')
+    expect(describeUpdateFailure(new Error('spawn EACCES'))).toBe('other')
+    expect(describeUpdateFailure(null)).toBe('other')
+  })
+})
+
 describe('同一版本只通知一次', () => {
   it('静默发现同一版本第二次不再通知；新版本再通知；手动永远通知', () => {
     const gate = createVersionNotifyGate()
@@ -83,6 +94,8 @@ describe('autoUpdater.ts 接线（真实模块，假 electron）', () => {
     }))
     vi.doMock('electron-updater', () => ({ autoUpdater: updater }))
     vi.doMock('../i18n', () => ({ desktopT: (k: string) => k }))
+    // 判忙只需要这一个函数；别把任务缓存 / 制作流程 / 导出整串模块图拖进这个定时器测试里（假时钟下导入慢会让首测超时）。
+    vi.doMock('../backgroundLaunch', () => ({ hasInFlightProductionWork: () => false }))
     vi.doMock('../ipcSenderGuard', () => ({ assertTrustedSender: vi.fn() }))
     vi.doMock('../telemetry/telemetryOutbox', () => ({ recordTelemetryEvent: (e: Record<string, unknown>) => telemetry.push(e) }))
     return import('./autoUpdater')
@@ -95,11 +108,17 @@ describe('autoUpdater.ts 接线（真实模块，假 electron）', () => {
     const mod = await load({ packaged: true })
     updater.checkForUpdates.mockImplementation(async () => {
       updater.emit('checking-for-update')
-      updater.emit('update-available', { version: '0.23.0', releaseNotes: 'n' })
+      updater.emit('update-available', { version: '0.23.0', releaseNotes: '<h1>Nomi v0.23.0 — 标题</h1><h2>组</h2><ul><li><strong>短语</strong>：说明</li></ul>', files: [{ url: 'Nomi.exe', size: 2048 }] })
     })
     mod.startAutoUpdateCheck()
     await vi.advanceTimersByTimeAsync(AUTO_CHECK_FIRST_DELAY_MS)
-    expect(sent).toEqual([{ type: 'available', version: '0.23.0', notes: 'n' }])
+    expect(sent).toEqual([{
+      type: 'available',
+      version: '0.23.0',
+      notes: [expect.objectContaining({ version: '0.23.0', zh: expect.objectContaining({ title: '标题', groups: [{ heading: '组', items: ['短语'] }] }) })],
+      sizeBytes: 2048,
+      releaseUrl: 'https://github.com/aqm857886159/Nomi/releases/tag/v0.23.0',
+    }])
     await vi.advanceTimersByTimeAsync(AUTO_CHECK_INTERVAL_MS)
     expect(updater.checkForUpdates).toHaveBeenCalledTimes(2)
     expect(sent).toHaveLength(1)

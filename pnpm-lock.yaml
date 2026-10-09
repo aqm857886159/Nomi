@@ -81,6 +81,9 @@ importers:
       onnxruntime-web:
         specifier: 1.21.0
         version: 1.21.0
+      parse5:
+        specifier: 7.3.0
+        version: 7.3.0
       qrcode:
         specifier: 1.5.4
         version: 1.5.4

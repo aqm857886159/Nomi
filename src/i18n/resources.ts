@@ -22,6 +22,7 @@ import { enFeedbackReport, zhFeedbackReport } from './locales/feedbackReport'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
 import { enAgentLaneError, zhAgentLaneError } from './locales/agentLaneError'
 import { enAgentToolFailure, zhAgentToolFailure } from './locales/agentToolFailure'
+import { enUpdateReminder, zhUpdateReminder } from './locales/updateReminder'
 
 export const zhCN = {
   shotTable: zhShotTable,
@@ -77,32 +78,12 @@ export const zhCN = {
     checking: '检查中',
     checkingEllipsis: '检查中…',
     upToDate: '已是最新版本',
-    available: '发现新版',
-    downloadUpdate: '下载更新',
-    openDownload: '去下载',
-    macManualUpdate: '将打开官网并自动下载适合这台 Mac 的安装包；下载后打开 DMG 替换旧版。',
     previewUpdatesDisabled: '这是独立的开发预览版，不接收正式版自动更新。',
-    downloading: '正在下载更新…',
-    downloadingHint: '后台下载，可继续创作 · {{percent}}%',
-    downloaded: '下载完成',
-    restartInstall: '重启安装',
     updateError: '更新出错',
     checkAvailable: '检查是否有新版本可用',
     checkUpdate: '检查更新',
     feedbackShare: '反馈',
     feedbackShareDescription: '遇到问题或想分享 Nomi？从这里开始',
-  },
-  updaterDialog: {
-    availableTitle: '有新版本可用',
-    downloadingTitle: '正在下载更新',
-    downloadedTitle: '更新已准备好',
-    errorTitle: '更新失败',
-    version: '版本 {{version}}',
-    progress: '下载进度 {{percent}}%',
-    errorBody: '暂时无法完成更新，请重试。',
-    restartInstall: '重启安装',
-    badge: '待更新',
-    runningHint: '当前有任务运行，完成后再更新',
   },
   taskCenter: {
     title: '任务',
@@ -444,6 +425,7 @@ export const zhCN = {
   agentPanelV4: zhAgentPanelV4,
   agentLaneError: zhAgentLaneError,
   agentToolFailure: zhAgentToolFailure,
+  updateReminder: zhUpdateReminder,
 } as const
 
 type TranslationShape<T> = {
@@ -504,33 +486,12 @@ export const en = {
     checking: 'Checking',
     checkingEllipsis: 'Checking…',
     upToDate: 'You are up to date',
-    available: 'New version available',
-    downloadUpdate: 'Download update',
-    openDownload: 'Download installer',
-    macManualUpdate:
-      'The website will download the installer for this Mac. Open the DMG and replace the old app manually.',
     previewUpdatesDisabled: 'This is an isolated preview build and does not receive stable updates.',
-    downloading: 'Downloading update…',
-    downloadingHint: 'Downloading in the background · {{percent}}%',
-    downloaded: 'Download complete',
-    restartInstall: 'Reinstall',
     updateError: 'Update failed',
     checkAvailable: 'Check whether a new version is available',
     checkUpdate: 'Check Updates',
     feedbackShare: 'Feedback',
     feedbackShareDescription: 'Report a problem or share Nomi',
-  },
-  updaterDialog: {
-    availableTitle: 'New version available',
-    downloadingTitle: 'Downloading update',
-    downloadedTitle: 'Update ready',
-    errorTitle: 'Update failed',
-    version: 'Version {{version}}',
-    progress: 'Download progress {{percent}}%',
-    errorBody: 'The update could not be completed. Try again.',
-    restartInstall: 'Reinstall',
-    badge: 'Update pending',
-    runningHint: 'A task is running. The update will wait until it finishes.',
   },
   taskCenter: {
     title: 'Tasks',
@@ -870,6 +831,7 @@ export const en = {
   agentPanelV4: enAgentPanelV4,
   agentLaneError: enAgentLaneError,
   agentToolFailure: enAgentToolFailure,
+  updateReminder: enUpdateReminder,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {
