@@ -22,9 +22,6 @@ export type AnchorCheckpointCardModel = {
   gateId: string
   projectId: string
   runId: string
-  /** 已批准硬预算（¥）——只有已知金额时说明行才提它（noteWithBudget）；未知为 null（不伪造金额，说明行也不提预算）。 */
-  approvedBudget: number | null
-  budgetCurrency: string
   /** 镜头数（非锚、included 的镜）——主按钮「开拍 N 镜」用。 */
   shotCount: number
   anchors: AnchorCardEntry[]
@@ -211,8 +208,6 @@ export function buildAnchorCheckpointCard(
     gateId: gate.gateId,
     projectId: run.projectId,
     runId: run.runId,
-    approvedBudget: Number.isFinite(run.budget.authorized) && run.budget.authorized > 0 ? run.budget.authorized : null,
-    budgetCurrency: run.budget.currency || 'CNY',
     shotCount: shots.length,
     anchors,
     freshCount,

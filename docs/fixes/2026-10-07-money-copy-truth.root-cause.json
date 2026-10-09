@@ -1,0 +1,172 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-07-money-copy-truth",
+  "problem_type": "User-facing money assertions in either direction",
+  "symptom": "User-visible copy asserted that this step was free, would spend credits, was paid, or had a known budget/amount, despite the 2026-10-08 rule that the interface must not talk about money.",
+  "direct_cause": "Money wording was duplicated across renderer locale dictionaries, model display labels, desktop translations, and confirmation-card branches; the gate only covered a subset of claim directions and the renderer still projected a probe cost plan.",
+  "class_root": "There was no shared invariant rejecting both zero-cost and positive-cost assertions at every user-facing locale boundary, and presentation layers still received money-only probe and checkpoint fields.",
+  "affected_population": [
+    "All users viewing zh-CN or English model onboarding, model labels, generation error recovery, or asset-upload failure copy."
+  ],
+  "scope_paths": [
+    "scripts/check-i18n-no-cost-claims.mjs",
+    "scripts/check-i18n-no-cost-claims.node-test.mjs",
+    "tests/ux/full-walk/outcomeText.mjs",
+    "scripts/check-test-copy-literals.mjs"
+  ],
+  "entry_points": [
+    "Renderer dictionaries loaded through src/i18n/resources.ts",
+    "desktopT translations consumed by Electron error and onboarding paths"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This remediation enforces Nomi's internal copy invariant; provider prices and quotas are deliberately not asserted without a scoped source.",
+  "invariants": [
+    "No user-facing copy asserts either a zero-cost outcome or a positive-cost outcome for the current step; copy states only observable actions and user choices.",
+    "Credential verification copy states the request that would be sent and asks again before sending; the key can remain saved as unverified.",
+    "Retrieval, offline processing, and blocked outbound copy describe the action/result without asserting charges, credits, budgets, or amounts."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "credentialProbePlan"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "credentialProbePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "buildAnchorCheckpointCard"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 3,
+    "why_not": "The two credential-probe main-process callers remain the shared behavior boundary for request strategy and confirmation; the renderer projection and amount branch were removed. buildAnchorCheckpointCard remains the single production presentation boundary, while approvedBudget and budgetCurrency were removed from its model."
+  },
+  "generality_proof": "The same rule is enforced over every loaded zh-CN and English dictionary value plus model-display keys, with positive and zero-cost patterns. The renderer probe and checkpoint boundaries no longer expose money-only presentation fields, and desktop recovery strings use action facts.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-i18n-no-cost-claims.mjs",
+      "symbol": "scanDictionaries",
+      "responsibility": "Scans every loaded locale value and model-display key for both zero-cost and positive-cost money assertions; only explicitly reasoned upstream raw errors may be exempted."
+    },
+    {
+      "path": "src/i18n/resources.ts",
+      "symbol": "resources",
+      "responsibility": "Loads the renderer's zh-CN and English dictionaries consumed by user-facing components."
+    },
+    {
+      "path": "electron/desktopStrings.ts",
+      "symbol": "desktopT",
+      "responsibility": "Single desktop translation table for main-process user-facing error and recovery copy."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/i18n/locales/onboardingProviders.ts",
+      "entry_point": "zhOnboardingProviders/enOnboardingProviders",
+      "disposition": "enforced",
+      "evidence": "Probe, provider onboarding, and model access copy is action-only in both locales; scanner covers all values."
+    },
+    {
+      "path": "src/i18n/locales/modelDisplayText.ts",
+      "entry_point": "model display keys",
+      "disposition": "enforced",
+      "evidence": "Chinese display keys are scanned directly so labels such as Qwen cannot reintroduce money claims."
+    },
+    {
+      "path": "src/i18n/locales/generationCommon.ts",
+      "entry_point": "zhGenerationCommon/enGenerationCommon",
+      "disposition": "enforced",
+      "evidence": "Generation and checkpoint copy no longer asserts a charge, budget, or amount; scanner covers both locales."
+    },
+    {
+      "path": "electron/desktopStrings.ts",
+      "entry_point": "desktopT",
+      "disposition": "enforced",
+      "evidence": "Outbound and deconstruction messages use action facts without charge assertions."
+    },
+    {
+      "path": "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
+      "entry_point": "KnownVendorKeyConnectPage",
+      "disposition": "enforced",
+      "evidence": "The page renders one action-fact probe message and no cost-plan branch."
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx",
+      "entry_point": "AnchorCheckpointCard",
+      "disposition": "enforced",
+      "evidence": "The card uses the single action-fact note and no approved budget fields."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same unsupported claim can be reintroduced through any new locale key or desktop translation entry.",
+    "same_class_scan": [
+      "rg -n \"免费|free|已付费|paid task|消耗.*额度|spend.*credits|预算|budget|价格|price|费用|cost\" src/i18n electron/desktopStrings.ts src/ui",
+      "node scripts/door-map.mjs credentialProbePlan",
+      "node scripts/door-map.mjs anchorCheckpointView"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-i18n-no-cost-claims.mjs",
+    "invariant": "Every loaded user-facing locale value and model-display key is rejected when it asserts either no money or money spent for the current step.",
+    "failure_mode": "The gate reports locale, key, text, and exits non-zero before merge.",
+    "exception_policy": "none",
+    "strategy": "Use one scanner boundary with zero-cost and positive-cost patterns, and remove obsolete renderer money projections in the same change.",
+    "artifacts": [
+      "scripts/check-i18n-no-cost-claims.mjs",
+      "scripts/check-i18n-no-cost-claims.node-test.mjs",
+      "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
+      "src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx",
+      "tests/ux/full-walk/outcomeText.mjs",
+      "scripts/check-test-copy-literals.mjs"
+    ],
+    "exception_policy_reason": "Exemptions are key-based and live in one place (NOT_MONEY / NON_MONEY_KEYS in tests/ux/full-walk/outcomeText.mjs): check:i18n exempts by key, the walk monitor exempts the same keys' dictionary values via compileExemptions; every NOT_MONEY entry must carry a reason and an actionable next step (validateNotMoneyEntries)."
+  },
+  "regression_tests": [
+    "scripts/check-i18n-no-cost-claims.node-test.mjs",
+    "tests/ux/full-walk/outcomeText.test.mjs",
+    "scripts/check-test-copy-literals.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-i18n-no-cost-claims.node-test.mjs",
+    "tests/ux/full-walk/outcomeText.test.mjs",
+    "scripts/check-test-copy-literals.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
+      "src/i18n/locales/onboardingProviders.ts",
+      "src/i18n/locales/generationCommon.ts",
+      "src/desktop/bridgeModelCatalogSurface.ts"
+    ],
+    "rationale": "Obsolete money-copy branches and renderer-only money fields were deleted; main-process request policy remains for behavior and confirmation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this copy invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Not needed; existing keys remain stable and only their displayed text changes.",
+  "residual_risks": [
+    "Provider-side pricing and quota failures may appear only in upstream raw error payloads; such keys are exempted only through reasoned NOT_MONEY entries, and the walk monitor uses the same key list.",
+    "The production run still stores internal budget policy for authorization, but user-facing checkpoint copy no longer renders its amount.",
+    "Tests that hand-copied user-visible copy broke on every wording change (#1099 round 9); scripts/check-test-copy-literals.mjs now rejects new test literals equal to a dictionary value (ratchet baseline 429 files / 1,490 occurrences, shrink-only)."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/check-i18n-no-cost-claims.mjs",
+    "tests": [
+      "scripts/check-i18n-no-cost-claims.node-test.mjs",
+      "tests/ux/full-walk/outcomeText.test.mjs"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06"
+}

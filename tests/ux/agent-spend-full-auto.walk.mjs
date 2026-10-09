@@ -36,6 +36,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER_PERMISSION, INTERVENTION_CONFIRM,
   PERMISSION_POPOVER, createRuntimeWalk, openCanvas, permissionTier, readProject, recorded, sendCanvas, closeSpendCard,
 } from './agent-runtime-walk-support.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const ASK_SAFE = 'S_AUTO_ASK_1：帮我生成一张六棱柱的图。'
 const ASK_FULL = 'S_AUTO_ASK_2：再来一张，换个角度。'
@@ -92,7 +93,8 @@ try {
   // 草稿也确实落到了画布上：卡上问的那件事是真的存在的。
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
     { timeout: DEFAULT_TIMEOUT_MS }).toBe(1)
-  await expect(card.locator(PRICE_TOTAL), '「自动改」档下那张卡照旧印着宿主按目录算的价').toContainText('0.30')
+  // 合同 contract-moneycopy（#1099）：卡上不出 Nomi 按价目表算的金额（原断言 0.30 已随合同删除）。
+  await expect(card.locator(PRICE_TOTAL), '「自动改」档下那张卡的确认控件不出金额').not.toHaveText(/[¥￥$€£]|\d+\.\d{2}/)
   // 阴性对照：这一档下宿主**根本不去碰那道门**，所以不该有任何失败。
   // ③ 里同一个定位器要变成「有」——两次之间唯一的变量就是档位。
   //
@@ -116,14 +118,15 @@ try {
   await clickOrFail(win.locator(`${CANVAS_PANEL} ${permissionTier('project')}`), '切到「全自动」')
   const switchCard = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="approval-reversible"]`)
   await expect(switchCard, '切档本身仍然要问一次——这一次点头就是他对之后每一笔付费的授权').toBeVisible()
-  await expect(switchCard, '切档确认必须说清「付费生成会直接跑」，不能还写着「付费仍然每次问」')
-    .toContainText('付费生成也会直接跑')
+  // 按键取值（uiText），不抄字面：#1099 把这句改成「生成也会直接跑」时，手抄的旧句在这里撞过红。
+  await expect(switchCard, '切档确认必须说清「生成会直接跑」，不能还写着「仍然每次问」')
+    .toContainText(uiText('zh-CN', 'agentPanelV4.autoModeConfirmBody').replace(/\*\*/g, ''))
   await walk.snap('full-auto-02-switch-says-paid-runs-directly')
   await clickOrFail(switchCard.locator(INTERVENTION_CONFIRM), '确认切到全自动')
 
   const banner = win.locator(`${CANVAS_PANEL} [data-v4-block="auto-mode"]`)
   await expect(banner, '全自动档要有常驻提醒——用户得一直知道自己在这一档').toBeVisible()
-  await expect(banner, '提醒那一行也要说实话：付费生成会直接跑').toContainText('付费生成会直接跑')
+  await expect(banner, '提醒那一行也要说实话：生成会直接跑').toContainText(uiText('zh-CN', 'agentPanelV4.autoModeBannerNote'))
 
   // ③ 再问一次。这一次宿主会**当场去决那道门**——在这台夹具上它会被诚实地拒绝，
   // 而拒绝必须是用户看得见的（沉默是这一族里最贵的回答）。
