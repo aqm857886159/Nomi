@@ -30,6 +30,7 @@ describe('本机处理失败 = 一类（失败卡只留「重试」）', () => {
   // 现有的本机处理入口：失败文案必须过 localProcessingError，否则会掉回「认不出」那一类、长出「换个模型」。
   // 新增入口时把它加进来；漏掉的话，这里不会替你发现——这是一张登记表，不是扫描（扫描要先定义「什么叫本机处理」）。
   it.each([
+    'src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts',
     'src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts',
     'src/workbench/generationCanvas/adapters/assetImportAdapter.ts',
   ])('%s 的失败走 localProcessingError', (file) => {

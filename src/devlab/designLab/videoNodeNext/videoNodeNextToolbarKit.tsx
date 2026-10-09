@@ -62,10 +62,10 @@ export function NextVideoToolbar({ node, locale, playheadSeconds = PLAYHEAD_SECO
       <ToolbarActionMenu
         id="capture-frame"
         icon={<IconPhoto size={I.size} stroke={I.stroke} />}
-        label={c.captureFrame}
-        menuLabel={c.captureFrame}
+        label={t('generationCommon.videoToolbar.captureFrame')}
+        menuLabel={t('generationCommon.videoToolbar.captureFrame')}
         items={[
-          { id: 'capture-current', icon: IconFocusCentered as WorkbenchMenuIcon, label: c.currentFrame, shortcut: timecode(playheadSeconds), onSelect: noop },
+          { id: 'capture-current', icon: IconFocusCentered as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.currentFrame'), shortcut: timecode(playheadSeconds), onSelect: noop },
           { id: 'capture-first', icon: IconPlayerTrackPrev as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.firstFrame'), onSelect: noop },
           { id: 'capture-last', icon: IconPlayerTrackNext as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.lastFrame'), onSelect: noop },
         ]}

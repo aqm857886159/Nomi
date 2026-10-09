@@ -19,7 +19,7 @@ import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { holdDesignLabReady } from '../labReadyHold'
 import { COMPOSER_CHUNK, installCatalogBridge } from '../nodeComposerBar/nodeComposerBarLabKit'
 import { useLabLocale } from '../versionCards/versionCardsFlowLabKit'
-import { COPY, timecode, type VnLocale } from './videoNodeNextCopy'
+import { COPY, frameCardTitle, frameFailureMessage, timecode, type VnLocale } from './videoNodeNextCopy'
 import { CUT_SECONDS, DURATION_SECONDS, FRAME, PLAYHEAD_SECONDS, SEGMENT_POSTERS, TRIM_IN_SECONDS, TRIM_OUT_SECONDS, VIDEO } from './videoNodeNextFixtures'
 
 export type CanvasScene = 'frame-done' | 'frame-failed' | 'trim-running' | 'trim-done' | 'trim-failed' | 'split-done'
@@ -68,7 +68,7 @@ function seedFor(scene: CanvasScene, locale: VnLocale): Seed {
     case 'frame-done': {
       const frame = imageNode({
         id: 'vn-frame',
-        title: c.frameTitle(c.sourceTitle, timecode(PLAYHEAD_SECONDS)),
+        title: frameCardTitle(locale, c.sourceTitle, PLAYHEAD_SECONDS),
         position: RESULT_AT,
         extra: { result: { id: 'vn-frame-r', type: 'image', url: FRAME.current, thumbnailUrl: FRAME.current, createdAt: 2 } as never },
       })
@@ -77,9 +77,9 @@ function seedFor(scene: CanvasScene, locale: VnLocale): Seed {
     case 'frame-failed': {
       const frame = imageNode({
         id: 'vn-frame',
-        title: c.frameTitle(c.sourceTitle, timecode(PLAYHEAD_SECONDS)),
+        title: frameCardTitle(locale, c.sourceTitle, PLAYHEAD_SECONDS),
         position: RESULT_AT,
-        extra: { status: 'error', error: c.frameFailed },
+        extra: { status: 'error', error: frameFailureMessage(locale, PLAYHEAD_SECONDS) },
       })
       return { nodes: [source, frame], edges: [link('vn-frame')] }
     }
