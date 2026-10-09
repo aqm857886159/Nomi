@@ -86,19 +86,24 @@ export function parsePushRefs(text) {
 
 const ZERO_SHA = /^0+$/
 
+/** 唯一的豁免规则（协调会话 2026-10-08 定）：tag 指向的提交已在 origin/main、CI 跑过，推 tag 不带进新内容。 */
+export const TAG_IN_MAIN_NOTICE = 'tag 指向已在 origin/main 的提交，不带新内容，跳过门岗'
+const isTagRef = (ref) => ref.remoteRef.startsWith('refs/tags/')
+
 /**
  * 这次推送要不要判。依据是「远端 ref + 本地 SHA」，不看 localRef 的写法（`HEAD:refs/heads/x` 的 localRef 就是 HEAD）：
  *   · 本地 SHA 为零 = 删除 → 跳过（没有新内容）；
- *   · 远端是 refs/heads/* → 一定判；
- *   · 其余（tag 等）→ 判，除非要推的 SHA 已在 origin/main 里（inMain(sha) 为真）；
- *   · 凡是要判的，SHA 必须等于当前工作树 HEAD——门岗跑的是工作树，不一致就拒绝（fail-closed），不是放行。
- * 没有任何 ref 行（手动重跑）= 判当前 HEAD。返回 { check, reason?, blocked? }。
+ *   · 具名豁免 TAG_IN_MAIN：只对 refs/tags/*，且本地 SHA 已是 origin/main 的祖先（inMain(sha)）→ 跳过并打印 TAG_IN_MAIN_NOTICE；
+ *   · 其余所有非零更新（分支、非 tag 的 ref、不在 main 的 tag）→ 都要判，且 SHA 必须等于当前工作树 HEAD——
+ *     门岗跑的是工作树，不一致就阻断（fail-closed），哪怕那个 SHA 在 main 上。
+ * 没有任何 ref 行（手动重跑）= 判当前 HEAD。返回 { check, reason?, blocked?, notices? }。
  */
 export function pushDecision(refs, headSha, inMain = () => false) {
   const live = refs.filter((ref) => !ZERO_SHA.test(ref.localSha))
   if (refs.length > 0 && live.length === 0) return { check: false, reason: '这次只是删除远端 ref，没有新提交' }
-  const toCheck = live.filter((ref) => ref.remoteRef.startsWith('refs/heads/') || !inMain(ref.localSha))
-  if (refs.length > 0 && toCheck.length === 0) return { check: false, reason: '要推的 tag / ref 指向的提交已在 origin/main 里，没有新内容' }
+  const exempt = live.filter((ref) => isTagRef(ref) && inMain(ref.localSha))
+  const toCheck = live.filter((ref) => !exempt.includes(ref))
+  if (refs.length > 0 && toCheck.length === 0) return { check: false, reason: TAG_IN_MAIN_NOTICE }
   const elsewhere = toCheck.filter((ref) => ref.localSha !== headSha)
   if (elsewhere.length > 0) {
     return { check: true, blocked: `要推的 ${elsewhere.map((ref) => `${ref.localRef}（${ref.localSha.slice(0, 12)}）`).join('、')} 不是当前工作树的 HEAD（${headSha.slice(0, 12)}），门岗跑的是工作树、查不到要推的东西——先 checkout 要推的提交再推` }

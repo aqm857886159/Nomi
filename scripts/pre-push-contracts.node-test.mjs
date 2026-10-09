@@ -14,6 +14,7 @@ import {
   BODY_GATES,
   LINT_GATE,
   PRE_PUSH_GATES,
+  TAG_IN_MAIN_NOTICE,
   formatSummary,
   gateCommands,
   parsePushRefs,
@@ -81,6 +82,23 @@ test('推送判定：依据远端 ref + 本地 SHA，不看 localRef 写法；�
   assert.match(decide(`HEAD ${'b'.repeat(40)} refs/heads/y ${zero}`).blocked, /先 checkout/)
 })
 
+test('具名豁免：只对「已在 origin/main 的 tag」；其余非零更新一律先校验 SHA === HEAD', () => {
+  const head = 'a'.repeat(40)
+  const old = 'c'.repeat(40)
+  const zero = '0'.repeat(40)
+  const inMain = (sha) => sha === old
+  const decide = (line) => pushDecision(parsePushRefs(line + '\n'), head, inMain)
+  const tagInMain = decide(`refs/tags/v1 ${old} refs/tags/v1 ${zero}`)
+  assert.equal(tagInMain.check, false)
+  assert.equal(tagInMain.reason, TAG_IN_MAIN_NOTICE)
+  assert.match(TAG_IN_MAIN_NOTICE, /tag 指向已在 origin\/main 的提交，不带新内容，跳过门岗/)
+  assert.deepEqual(decide(`refs/tags/v1 ${head} refs/tags/v1 ${zero}`), { check: true }, '不在 main 的 tag（= HEAD）要跑门岗')
+  assert.match(decide(`refs/tags/v1 ${'d'.repeat(40)} refs/tags/v1 ${zero}`).blocked, /先 checkout/, '不在 main 的 tag 且 ≠ HEAD：阻断')
+  assert.match(decide(`refs/heads/x ${old} refs/heads/x ${zero}`).blocked, /先 checkout/, '分支指向 main 上的旧提交也不豁免')
+  assert.match(decide(`refs/notes/x ${old} refs/notes/x ${zero}`).blocked, /先 checkout/, '非 tag 的其它 ref 同理')
+  assert.match(decide(`refs/tags/v1 ${old} refs/heads/x ${zero}`).blocked, /先 checkout/, '远端 ref 不是 tag 就不豁免（看远端 ref，不看本地写法）')
+})
+
 test('汇总：失败项一次全部列出（不是第一项红就停），并给出只重跑失败项的命令', () => {
   const { text, failed } = formatSummary([
     { name: 'check:filesize', status: 1, output: 'a\nb', ms: 1000 },
@@ -136,7 +154,6 @@ function gitSetup() {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim()
   work = path.join(makeTempDir('nomi-prepush-'), 'repo')
   execFileSync('git', ['clone', '-q', '--shared', '--no-checkout', repoRoot, work])
-  git('sparse-checkout', 'set', '--no-cone', '/scripts/', '/docs/engineering/', '/electron/', '/package.json', '/tests/ux/full-walk/escapeLedger/')
   git('checkout', '-q', '--detach', head)
   git('update-ref', 'refs/remotes/origin/main', head)
   baseSha = head
@@ -174,6 +191,7 @@ test('必红：改了 electron/main.ts 超出基线 → 推送前检查红，且
 test('对照：没改任何东西时同一个门岗是绿的（红不是环境造成的）', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
   const result = prePush()
+  assert.equal(result.status, 0, result.stderr)
   assert.match(result.stderr, /✅ check:filesize/, result.stderr)
 })
 
@@ -198,6 +216,7 @@ test('必红：设计卡没有 ★ 格 → 推送前就红；写全了才绿（�
   assert.equal(empty.status, 1, empty.stderr)
   assert.match(empty.stderr, /设计卡缺格：1、2、3、4、9/)
   const full = prePush({ body: CARD })
+  assert.equal(full.status, 0, full.stderr)
   assert.match(full.stderr, /✅ check:pr-judgement/, full.stderr)
 })
 
@@ -232,7 +251,17 @@ test('真入口：推 tag——指向的提交不在 origin/main 就跑门岗；
   git('reset', '-q', '--hard', baseSha)
   const merged = prePush({ refLine: tagLine })
   assert.equal(merged.status, 0, merged.stderr)
-  assert.match(merged.stderr, /已在 origin\/main/)
+  assert.ok(merged.stderr.includes(TAG_IN_MAIN_NOTICE), merged.stderr)
+  assert.doesNotMatch(merged.stderr, /✅ check:/, '豁免时一道门岗都不跑')
+})
+
+test('真入口：非 tag 的 ref 指向 main 上的旧提交、但 ≠ HEAD → 阻断（豁免只给 tag）', () => {
+  commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
+  for (const remoteRef of ['refs/heads/old', 'refs/notes/old']) {
+    const result = prePush({ refLine: () => `refs/heads/old ${baseSha} ${remoteRef} ${ZERO}\n` })
+    assert.equal(result.status, 1, result.stderr)
+    assert.match(result.stderr, /先 checkout 要推的提交再推/)
+  }
 })
 
 test('真入口：要推的 SHA 和工作树 HEAD 不一致 → 拒绝（fail-closed），提示先 checkout', () => {
