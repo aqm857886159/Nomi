@@ -28,6 +28,7 @@ import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
 import { clearTaskCancel, isTaskCancelRequested } from '../runner/localTaskControl'
 import { readMediaDimensions, resolveNodeVisualSize, type MediaDimensions } from '../nodes/nodeSizing'
 import i18n from '../../../i18n'
+import { localProcessingError } from '../../observability/localProcessingError'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { createVideoDepthWorkerChannel, runVideoDepth } from './videoDepthClient'
 import { videoDepthDerivedPosition, videoDepthDerivedTitle, videoDepthSourceFromNode } from './videoDepthDerivation'
@@ -189,9 +190,10 @@ async function runDerivation(input: {
     await deliverRunOutcome(target, nodeId, {
       kind: 'status',
       status: 'error',
-      error: finalState.error
+      // 本机推理失败：没有服务商，失败卡只留「重试」（见 observability/localProcessingError）。
+      error: localProcessingError(finalState.error
         ? i18n.t(`videoDepth.error.${finalState.error.code}` as 'videoDepth.error.media-failed')
-        : i18n.t('videoDepth.error.inference-failed'),
+        : i18n.t('videoDepth.error.inference-failed')),
     })
   } finally {
     finished = true

@@ -425,6 +425,13 @@ export const zhGenerationCommon = {
         reason: '已经生成，但结果没能取回到本机',
         hint: '服务商那边这一镜已经做完了，是 Nomi 把结果下载回项目这一步没成（地址不让访问、对方拒绝了下载，或者返回的不是能用的文件）。不要重新生成，那会另做一份新的。到任务面板点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。',
       },
+      // 本机处理失败（截帧 / 提取深度 / 本地素材复制）：没有服务商、没有模型参与——不说「换模型」，只留重试。
+      localProcessing: {
+        reason: '本机处理没成功',
+        // 生产者写的那句人话（失败文案的第一行）就是标题：「截取「当前帧 0:07.2」失败，原视频没动。」
+        reasonWithDetail: '{{detail}}',
+        hint: '这一步在你的电脑上完成，没有联系任何服务商，所以换模型帮不上忙。可以重试一次；具体原因在下方的「技术详情」里。',
+      },
       // 认不出的失败如实说「认不出」：不编原因（不是「服务商临时故障」，更不是「额度」——今天没有价格，猜额度只会把人引去查账）。
       // 服务商给了错误码就带上码（hintWithCode）；原文和完整报文留在「技术详情」里。重试 / 换模型是动作建议，不是对原因的判断。
       unknown: {
@@ -2050,6 +2057,11 @@ export const enGenerationCommon = {
       outputRetrievalFailed: {
         reason: 'Generated, but the result could not be retrieved',
         hint: 'The provider finished this shot; the step that failed is Nomi downloading the result into your project (the address was not allowed, the download was refused, or what came back was not a usable file). Do not generate again — that makes a brand-new one. Open the task panel and click “Retrieve again”: Nomi only checks the task and downloads it once more. The technical details below give the exact reason.',
+      },
+      localProcessing: {
+        reason: 'Local processing failed',
+        reasonWithDetail: '{{detail}}',
+        hint: 'This step runs on your computer and never contacted a provider, so switching models would not help. You can retry once; the exact reason is under “Technical details” below.',
       },
       unknown: {
         reason: 'Generation failed',
