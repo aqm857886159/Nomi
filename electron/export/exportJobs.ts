@@ -397,6 +397,11 @@ export function abortAllActiveExports(): number {
 const EXPORT_TEMP_INPUT_WRITABLE_STATUSES = new Set(["queued", "preparing", "planning", "rendering", "encoding", "muxing", "finalizing"]);
 const activeExportAbortControllers = new Map<string, AbortController>();
 
+/** 现在有几个导出在跑（后台自动退出、更新重启安装都据此判断「还有活没干完」）。 */
+export function activeExportCount(): number {
+  return activeExportAbortControllers.size;
+}
+
 function requireWritableExportJob(projectIdentity: ExportJobProjectIdentity, jobId: unknown): ExportJobSnapshot {
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");

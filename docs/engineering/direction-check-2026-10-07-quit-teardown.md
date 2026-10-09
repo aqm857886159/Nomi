@@ -66,3 +66,9 @@ The registry entry `gate-family` remains under review because the current quit b
 - 类级结论不变：退出只归 `quitTeardown` 一个 owner。以后任何「关机前必须落盘」的东西都走这一个登记口（`critical`），不许另起监听、另写一套超时。
 - 首个使用者：`renderer-project-flush`（`electron/shutdownProjectFlush.ts`），只冲渲染层已欠的项目保存，没有改动不写盘。
 - 测试钉住中途状态：保存进行中又来 session-end、两个窗口、有窗口不回执、存盘失败、无改动（`electron/shutdownProjectFlush.test.ts`）。
+
+## 2026-10-09 #1135 退出开始快照
+
+- 这是对 `quitTeardown.ts` 的第 14 次触碰：更新的「退出时安装」排空项要问「退出开始时有没有导出 / 任务在跑」，而前一个排空项 abort 导出后计数立刻归零，后面的排空项读到的是被改过的世界。
+- 仍在原方向内：退出只归 `quitTeardown` 一个 owner、分阶段。新增的 `registerQuitStartProbe` / `quitStartProbeResult` 是 owner 自己的「开始阶段」接口（在 before-quit / will-quit 开头、任何排空项之前读一次），不是在排空项旁边再补一刀；现有排空顺序和超时逻辑一行没改。
+- 回归测试：`electron/update/installOnQuit.test.ts`「退出开始时有导出在跑：owner 先 abort 导出（计数随即归零），更新排空项仍读到退出开始的快照 → 不装」，以及无活时照常装的对照。

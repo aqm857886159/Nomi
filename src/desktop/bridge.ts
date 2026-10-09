@@ -1,4 +1,5 @@
 import type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification } from '../../electron/export/exportJobManager'
+import type { UpdateEvent, UpdateReminderMemory, UpdateSnapshot } from '../../electron/shared/updateReminder'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
 import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyncContracts'
 import type { ProviderKind } from './providerKind'
@@ -141,14 +142,8 @@ export type DesktopBrowserPromptScreenshotSelection =
       message?: string
     }
 
-/** 主进程更新状态广播（功能需求2/3）。renderer 状态机纯 derive 自此事件。 */
-export type DesktopUpdateEvent =
-  | { type: 'checking' }
-  | { type: 'up-to-date' }
-  | { type: 'available'; version: string; notes: string }
-  | { type: 'progress'; percent: number }
-  | { type: 'downloaded'; version: string }
-  | { type: 'error'; message: string }
+/** 主进程更新状态广播（功能需求2/3）。形状与 reducer 在 electron/shared/updateReminder.ts，两端共用。 */
+export type DesktopUpdateEvent = UpdateEvent
 
 export type DesktopBridge = DesktopMediaBridge &
   DesktopVideoDepthBridge & DesktopConnectorBridge & {
@@ -326,9 +321,15 @@ export type DesktopBridge = DesktopMediaBridge &
     appInfo: () => Promise<DesktopAppInfo>
     check: () => Promise<{ ok: boolean; reason?: string }>
     download: () => Promise<{ ok: boolean }>
-    install: () => Promise<{ ok: boolean }>
+    install: () => Promise<{ ok: boolean; reason?: 'busy' | 'superseded' }>
     /** 手动更新兜底：开官网并按主进程提供的平台/架构直接下载安装包。 */
     openDownload: () => Promise<{ ok: boolean }>
+    /** 挂载时补上已发生的更新状态 + 跨重启记住的提醒（热修横幅 ✕ 过的版本、「已更新」卡）。 */
+    snapshot: () => Promise<UpdateSnapshot>
+    /** 渲染层报告画布里排队 / 生成中、导出中的任务数；主进程据此（和它自己知道的任务）判断能不能立刻重启安装。 */
+    reportBusy: (count: number) => Promise<{ ok: boolean }>
+    /** 热修横幅 / 「已更新」卡 ✕：只记「看过了」，返回最新的记忆。 */
+    dismiss: (request: { kind: 'banner'; version: string } | { kind: 'updated-card' }) => Promise<UpdateReminderMemory | null>
     onEvent: (callback: (event: DesktopUpdateEvent) => void) => () => void
   }
   /**

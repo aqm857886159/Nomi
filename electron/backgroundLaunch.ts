@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 
 import { createBackgroundIdleExit, setBackgroundIdleExitOwner, type BackgroundIdleExit } from "./backgroundIdleExit";
 import { hasInFlightTasks } from "./tasks/taskCache";
+import { activeExportCount } from "./export/exportJobs";
 import { listProjects } from "./projects/repository";
 import { getProductionRunService } from "./productionRun/productionRunRuntime";
 
@@ -42,7 +43,7 @@ export function installBackgroundLifecycle(deps: {
 export function hasInFlightProductionWork(): boolean {
   try {
     const service = getProductionRunService();
-    return hasInFlightTasks() || listProjects().some((project) => service.repository.list(project.id).some((run) =>
+    return hasInFlightTasks() || activeExportCount() > 0 || listProjects().some((project) => service.repository.list(project.id).some((run) =>
       ["ready", "running", "exporting", "pausing"].includes(String(run.status)),
     ));
   } catch {

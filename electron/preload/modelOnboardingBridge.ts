@@ -95,6 +95,9 @@ export const modelOnboardingBridge = {
     download: () => ipcRenderer.invoke("nomi:update:download"),
     install: () => ipcRenderer.invoke("nomi:update:install"),
     openDownload: () => ipcRenderer.invoke("nomi:update:open-download"),
+    snapshot: () => ipcRenderer.invoke("nomi:update:snapshot"),
+    reportBusy: (count: number) => ipcRenderer.invoke("nomi:update:report-busy", count),
+    dismiss: (request: unknown) => ipcRenderer.invoke("nomi:update:dismiss", request),
     onEvent: (callback: (event: unknown) => void) => {
       const listener = (_event: unknown, payload: unknown) => callback(payload);
       ipcRenderer.on("nomi:update:event", listener as never);
