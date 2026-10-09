@@ -111,8 +111,10 @@
   ],
   "legacy_paths": {
     "status": "removed",
-    "removed_paths": [],
-    "rationale": "没有整文件删除：scripts/install-git-hooks.cjs 仍在，被删的是它里面的旧路径——HOOKS.commands 与 legacyFallback 写死的脚本名、每个脚本一条 [ -f ] || exit 0 的静默守卫（同提交删，不留并行版）。"
+    "removed_paths": [
+      "scripts/install-git-hooks.cjs"
+    ],
+    "rationale": "注意：removed_paths 里的文件**仍然存在**，没有整文件删除；被删的是它里面的旧路径——HOOKS.commands 与 legacyFallback 写死的脚本名、每个脚本一条 [ -f ] || exit 0 的静默守卫（同提交删，不留并行版）。门岗要求列出本次改动里被删过旧路径的文件，所以列在这里。"
   },
   "migration": "一键换钩子跳过还没有 scripts/git-hook.mjs 的分支（保留旧钩子），合并 main 后再跑一次；协调会话在本 PR 合入 main 后跑 pnpm run hooks:reinstall-all 一次。",
   "residual_risks": [
