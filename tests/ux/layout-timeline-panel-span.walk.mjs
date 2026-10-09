@@ -18,6 +18,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { collapseAgentPanel } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/layout-timeline-panel-span')
@@ -418,7 +419,7 @@ try {
   await expect(panel, '④b 点了胶囊，时间轴应当回来').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
 
   // ② 只开时间轴：收起 Nomi 面板。底部带的宽度**一像素都不许变**（用户说的「跟着左右变动」）。
-  await clickOrFail(win.locator('.workbench-generation [data-v4-control="collapse"]').first(), '收起 Nomi 面板')
+  await collapseAgentPanel(win, '收起 Nomi 面板')
   await expect(
     win.locator('.workbench-generation').first(),
     '② Nomi 面板没收起（工作区还声明自己是停靠态）',

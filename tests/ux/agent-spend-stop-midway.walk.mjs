@@ -22,6 +22,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { BATCH, COPY, TITLE, createPresenter } from './_spendRemainingWalk.mjs'
 import { CANVAS_PANEL, createRuntimeWalk, expandResidentPanel, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -345,7 +346,7 @@ try {
     + await singleStopRound(walk, win, zhProject.projectId, 'zh')
 
   // 英文：回项目库、换成英文，在英文的项目库里新开一个项目（像英文用户一样点「New blank project」）。
-  await clickOrFail(win.getByRole('button', { name: '返回项目库' }), '返回项目库', { timeout: stationTimeout({ operations: 4 }) })
+  await backToLibrary(win, { timeout: stationTimeout({ operations: 4 }) })
   await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'en'))
   await win.reload()
   await clickOrFail(win.getByRole('button', { name: /^New blank project/ }), 'en：新建空白项目', { timeout: stationTimeout({ operations: 4 }) })

@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { leaveProjectIfOpen } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-creation-flow-')
@@ -167,11 +168,7 @@ async function dismissOnboarding() {
 
 async function openProject(name) {
   // 已经在某个项目里 → 先回项目库，再开目标项目。
-  const backToLibrary = win.getByRole('button', { name: '项目库', exact: false }).first()
-  if (await backToLibrary.isVisible().catch(() => false)) {
-    await backToLibrary.click().catch(() => {})
-    await win.waitForTimeout(1400)
-  }
+  if (await leaveProjectIfOpen(win)) await win.waitForTimeout(1400)
   const card = win.locator('[data-project-card]', { hasText: name }).first()
   await expectVisible(card, `项目库里找不到项目卡「${name}」`)
   await card.hover()

@@ -29,6 +29,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-shortcuts')
@@ -191,7 +192,7 @@ async function press(keys) {
 }
 
 async function checkC19GroupUndoAndFocus() {
-  await getWin().getByRole('button', { name: '返回项目库', exact: true }).click()
+  await backToLibrary(getWin())
   const projectCard = getWin().locator('[data-project-card]').filter({ hasText: 'C19 group Undo and focus' })
   await expect(projectCard).toBeVisible()
   await projectCard.hover()

@@ -12,6 +12,7 @@ import {
   templateCanProduce,
 } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
+import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -110,5 +111,27 @@ describe('positional-project-open：多项目下的位置式选择', () => {
   it('.nth()/.last() 同属位置式，一并抓', () => {
     const code = `${MULTI}\nwin.locator('[data-project-card]').nth(1)\nwin.locator('[data-project-card]').last()`
     assert.equal(findPositionalProjectOpens(code).length, 2)
+  })
+})
+
+describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红的类根因）', () => {
+  it('阳性对照：手抄「返回项目库」钮 / 面板收起展开钮 / 面板身份选择器都报', () => {
+    assert.equal(findRawShellAnchors(`await clickOrFail(win.getByRole('button', { name: '返回项目库', exact: true }), 'x')`).length, 1)
+    assert.equal(findRawShellAnchors(`await page.getByRole('button', { name: /返回项目库|Back to projects/ }).first().click()`).length, 1)
+    assert.equal(findRawShellAnchors(`await win.locator('[data-v4-control="collapse"]').first().click()`).length, 1)
+    assert.equal(findRawShellAnchors(`document.querySelector('[data-v4-control="dock-open"]')?.click()`).length, 1)
+    assert.equal(findRawShellAnchors(`const P = '[data-agent-resident="true"][data-agent-panel="true"]'`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('[data-agent-resident="true"][data-agent-collapsed="true"]')`).length, 1)
+  })
+
+  it('经出口函数 / 在断言文案里提到「返回项目库」都不报', () => {
+    assert.deepEqual(findRawShellAnchors(`await backToLibrary(win)`), [])
+    assert.deepEqual(findRawShellAnchors(`await expectVisible(entry, '没有返回项目库')`), [])
+    assert.deepEqual(findRawShellAnchors(`await ensureAgentPanelOpen(win)`), [])
+  })
+
+  it('豁免表每一条都写了原因，且出口文件在里面', () => {
+    assert.ok(RAW_SHELL_EXEMPT.has('tests/ux/_shell.mjs'))
+    for (const [file, reason] of RAW_SHELL_EXEMPT) assert.ok(reason.length >= 6, `${file} 的豁免原因太短`)
   })
 })

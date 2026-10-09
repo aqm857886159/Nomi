@@ -15,6 +15,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { expectCount, screenshotSettled } from './_assert.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { ensureAgentPanelOpen } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-real-ui')
 fs.mkdirSync(outDir, { recursive: true })
@@ -281,12 +282,8 @@ try {
 
   // 打开右侧助手栏（launcher 用原生 DOM click，避免 actionability 抖动）
   // Host cutover：画布内旧助手已退役，Agent 现居 ResidentShell dock（默认常驻，2026-09-05 起无发布闸）；
-  // 2026-09-06 v4：收起态是一根 32px 图标条（[data-agent-collapsed] 里的 [data-v4-block="dock"]），
-  // 第一颗钮就是「对话」。
-  await getWin().evaluate(() => {
-    const btn = document.querySelector('[data-agent-resident="true"][data-agent-collapsed="true"] [data-v4-block="dock"] button')
-    if (btn) btn.click()
-  }).catch(() => {})
+  // 收起着就点回来（经 _shell.mjs，不手抄外壳选择器）。
+  await ensureAgentPanelOpen(getWin(), '打开右侧助手栏')
   await getWin().waitForTimeout(1200)
   // 适应视图，让所有节点都进画面
   const fit = getWin().locator('[aria-label="适应视图"]').first()
