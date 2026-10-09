@@ -6,6 +6,7 @@
 //   · 精确 origin：协议 + 主机 + 端口三者都要对（https 缺省 443，http 缺省 80，wss 443，ws 80）；
 //   · `*.域名`：该域名本身及全部子域，**只放缺省端口 443 / 80**（成品下载走标准端口；别的端口要放就写精确 origin）。
 // CI 里一律为空名单：CI 从来没有真钱，继承来的环境变量不能在那里打开公网。
+/* global URL, module */
 'use strict'
 
 const DEFAULT_PORTS = { 'https:': 443, 'http:': 80, 'wss:': 443, 'ws:': 80 }
