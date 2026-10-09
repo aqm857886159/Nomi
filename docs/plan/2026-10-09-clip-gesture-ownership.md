@@ -29,7 +29,14 @@
 
 门数：`door-map ClipNodeTimeline` 1 扇读入口（`ClipNode.tsx`）；手势收尾入口 5 个文件 8 处 → 1 个会话入口。
 
-## 现成库评估
+## 先查别人（现成库评估）
+
+- 依赖里已有？`@use-gesture/react` 10.3.1 已在 lockfile（drei 的传递依赖）。`pointerDown` 把 capture 设在 `event.target`（node_modules/.pnpm/@use-gesture+core@10.3.1/node_modules/@use-gesture/core/dist/actions-fe213e88.esm.js:643），`pointerUp` 同时接 pointercancel（同文件 :714 起，`setupPointer` 把 'cancel' 绑到同一个 `pointerUp`）——取消和松手是同一条路径。
+- 仓库里已有？画布已有打断租约：blur / pointercancel / lostpointercapture / visibilitychange 监听在 src/workbench/generationCanvas/components/canvasDraggingFlag.ts:185，复用；时间轴手势这边没有任何共享入口（5 个文件 8 处各写一份）。
+- 生态里已有？use-gesture 的 `pointer.capture` / `filterTaps` / `cancel()` 选项文档 https://use-gesture.netlify.app/docs/options/ ，dnd-kit（MIT）https://github.com/clauderic/dnd-kit （第二片的跨容器拖放评估，倾向不接）。
+- TikHub 自媒体：未查（本任务不涉及用户行为调研）。
+- 结论：**复用租约 + 自写一个很薄的会话（提交 / 回滚语义）**，不接 use-gesture。
+
 
 - **`@use-gesture/react` 10.3.1（MIT，pmndrs；仓库里已作为 drei 的传递依赖存在）**：读了 `actions-*.esm.js` 源码——`pointerUp` 把 `pointercancel` 当成普通松手处理（走同一条 `pointerUp` → emit，半截拖动会被当作提交），**不处理** `blur`、`lostpointercapture`、`Esc`；capture 设在 `event.target`（可能是片段里的缩略图 / 标签）而非绑定元素。时间轴编辑的语义是「松手才落盘、任何打断必须回到拖之前」，要用它就得在外面再包一层补齐这三格并把 cancel 与 release 分开，包装层不比 `timelineGesture.ts`（约 80 行）短，还多一个直接依赖。**不接，理由是领域语义（提交 / 回滚）而非实现偏好。**
 - **`dnd-kit`（MIT）**：只用于第二片的跨容器拖放；评估结论放在第二片的设计里（现有原生 DnD + 一个统一接收方更小，倾向不接）。
