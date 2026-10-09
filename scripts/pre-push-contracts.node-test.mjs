@@ -11,10 +11,12 @@ import { fileURLToPath } from 'node:url'
 import { makeTempDir } from './_test-temp.mjs'
 import { judgeLint } from './lint-changed.mjs'
 import { GATE_INPUTS, touchesGateInputs } from './pre-push-gate-inputs.mjs'
+import { CI_ONLY, PRE_PUSH_ALIASES } from './pre-push-gate-table.mjs'
 import {
   BODY_GATES,
   LINT_GATE,
   PRE_PUSH_GATES,
+  SCAN_TESTS,
   TAG_IN_MAIN_NOTICE,
   formatSummary,
   gateCommands,
@@ -394,6 +396,22 @@ test('有标记 + 两个参数才算钩子：同一条删除 ref 这时才允许
 
 /** 每道门岗的扫描器「实际会读」的样例路径：新增 / 改动任何一个，选择器都必须选中它。改扫描范围不改 GATE_INPUTS，这条就红。 */
 const SCANNER_READS = {
+  'check:store-lifetime': ['src/workbench/x/useXStore.ts', 'src/ui/Y.tsx', 'scripts/check-store-lifetime.mjs'],
+  'check:icon-semantics': ['src/ui/Icon.tsx', 'electron/x.ts', 'scripts/check-icon-semantics.mjs', 'scripts/icon-semantics-baseline.json', 'docs/design/nomi-design-system.md'],
+  'typecheck': ['src/a.ts', 'src/b.tsx', 'electron/c.ts', 'tests/ux/d.ts', 'scripts/e.ts', 'tsconfig.app.json', 'electron/tsconfig.json', 'electron/tsconfig.pi.json', 'package.json', 'scripts/typecheck.mjs', 'scripts/check-test-types.mjs'],
+  'check:error-surface': ['src/a.tsx', 'electron/b.ts', 'scripts/error-surface-baseline.json', 'scripts/check-error-surface.mjs'],
+  'check:heavy-path': ['src/a.ts', 'electron/b.mts', 'electron/c.cts', 'scripts/heavy-path-baseline.json'],
+  'check:builtin-vendor-literals': ['src/a.tsx', 'electron/b.ts', 'scripts/check-builtin-vendor-literals.mjs'],
+  'check:read-path-writes': ['src/a.ts', 'electron/b.tsx', 'scripts/read-path-writes-baseline.json'],
+  'check:batch-machines': ['src/a.ts', 'electron/b.cts', 'scripts/batch-machines-baseline.json'],
+  'check:capability-lifecycle': ['src/a.tsx', 'electron/b.ts', 'scripts/check-capability-lifecycle.mjs'],
+  'check:no-default-overwrite': ['src/a.ts', 'electron/b.ts', 'workers/c.ts', 'scripts/no-default-overwrite-baseline.json'],
+  'check:main-console': ['electron/a.ts', 'electron/b.mts', 'scripts/check-main-console.mjs'],
+  'check:asset-evidence': ['electron/a.ts', 'electron/b.cts', 'scripts/asset-evidence-baseline.json'],
+  'check:media-import-owner': ['electron/a.ts', 'src/b.tsx', 'scripts/media-import-owner-baseline.json'],
+  'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
+  'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
+  'check:walkthroughs': ['tests/ux/a.walk.mjs', 'tests/ux/g1/cases.node-test.mjs', 'tests/ux/x.json', 'src/a.css', 'src/b.tsx', 'scripts/walkthrough-baseline.json', 'scripts/check-walkthroughs.mjs'],
   'check:tokens': ['src/theme/nomi-tokens.css', 'src/ui/A.tsx', 'src/a.ts', 'src/a.mts', 'electron/x.ts', 'electron/theme.css', 'tailwind.config.ts', 'scripts/check-design-tokens.mjs', 'scripts/lib/colorMixHue.mjs', 'scripts/lib/scopedTokenScan.mjs', 'scripts/lib/gitPaths.mjs'],
   'check:vocabularies': ['src/a.ts', 'src/a.tsx', 'src/a.mts', 'src/a.cts', 'electron/b.cts', 'electron/b.mts', 'scripts/check-vocabularies.mjs', 'scripts/check-vocabularies-scan.mjs', 'scripts/vocabularies-baseline.json'],
   'check:controls': ['src/ui/B.tsx', 'scripts/check-control-contract.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/control-copy-baseline.json'],
@@ -419,4 +437,36 @@ test('契约：选择器只用 GATE_INPUTS，pre-push-contracts.mjs 里没有手
     assert.match(line, /touchesGateInputs\(/, `${name} 的选择器必须来自 GATE_INPUTS`)
     assert.doesNotMatch(line, /\.test\(file\)/, `${name} 不许再手写路径正则`)
   }
+})
+
+// ── 本机与 CI 对齐：gates:contracts 的每一道门都必须在推送前表态（10-09：#1135 / #1133 / #1137 推送前全绿、CI 才红）────────────
+
+const CI_ITEMS = pkg.scripts['gates:contracts'].split(/\s+/).filter((item) => /^(?:check:|lint:|typecheck)/.test(item))
+const PRE_PUSH_NAMES = new Set([...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, ...BODY_GATES])
+
+test('结构：gates:contracts 里每道门都得声明「推送前跑」或「只在 CI 跑 + 理由」，没声明就红（新门不会再悄悄只在 CI 跑）', () => {
+  const ciOnly = CI_ONLY.flatMap((group) => group.gates)
+  const undeclared = CI_ITEMS.filter((item) => !PRE_PUSH_NAMES.has(item) && !(item in PRE_PUSH_ALIASES) && !ciOnly.includes(item))
+  assert.deepEqual(undeclared, [], `这些门在 gates:contracts 里，却没在推送前选择表声明（加进 PRE_PUSH_GATES / SCAN_TESTS，或在 scripts/pre-push-gate-table.mjs 的 CI_ONLY 写明理由）：${undeclared.join('、')}`)
+  for (const group of CI_ONLY) assert.ok(group.reason.length >= 10, '每组 CI_ONLY 都要写理由')
+})
+
+test('结构：声明不自相矛盾——只在 CI 的门不在推送前里、不重复；CI_ONLY / 别名里没有已不在 gates:contracts 的陈旧项；别名指向真实存在的推送前门岗', () => {
+  const ciOnly = CI_ONLY.flatMap((group) => group.gates)
+  assert.deepEqual(ciOnly.filter((item, index) => ciOnly.indexOf(item) !== index), [], 'CI_ONLY 里有重复项')
+  assert.deepEqual(ciOnly.filter((item) => PRE_PUSH_NAMES.has(item) || item in PRE_PUSH_ALIASES), [], '同一道门不能既推送前跑又只在 CI')
+  assert.deepEqual(ciOnly.filter((item) => !CI_ITEMS.includes(item)), [], 'CI_ONLY 里有已不在 gates:contracts 的陈旧项')
+  assert.deepEqual(Object.keys(PRE_PUSH_ALIASES).filter((item) => !CI_ITEMS.includes(item)), [], '别名里有陈旧项')
+  for (const [item, { by }] of Object.entries(PRE_PUSH_ALIASES)) assert.ok(PRE_PUSH_NAMES.has(by), `${item} 的别名指向不存在的推送前门岗 ${by}`)
+})
+
+test('必红：新增一个没有 declareStoreLifetime 的 zustand store → 推送前红，点名 check:store-lifetime（#1135 / #1133 在 CI 才撞到）', () => {
+  commitChange(() => {
+    fs.mkdirSync(path.join(work, 'src/workbench/prepushProbe'), { recursive: true })
+    fs.writeFileSync(path.join(work, 'src/workbench/prepushProbe/useProbeStore.ts'), "import { create } from 'zustand'\nexport const useProbeStore = create<{ value: number }>(() => ({ value: 1 }))\n")
+  })
+  const result = prePush()
+  assert.equal(result.status, 1, result.stderr)
+  assert.match(result.stderr, /✖ check:store-lifetime/)
+  assert.match(result.stderr, /useProbeStore/, '红的原因要是这个新 store')
 })

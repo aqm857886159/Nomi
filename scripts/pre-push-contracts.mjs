@@ -20,6 +20,7 @@
 //   node scripts/pre-push-contracts.mjs <remote名> <url>   钩子调用（git 通过 stdin 传 ref 行）
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -30,7 +31,7 @@ import { classifyValidationPolicy } from './validation-policy.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 同时跑几个门岗：mjs-parse 自己就开 8 个子进程，再叠太多反而更慢。 */
-export const CONCURRENCY = 3
+export const CONCURRENCY = Math.min(6, Math.max(3, os.availableParallelism() - 2))
 /** 失败时回放每个门岗输出的最后几行——够定位，不灌屏。 */
 export const FAILURE_TAIL_LINES = 25
 
@@ -54,6 +55,55 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:tokens', when: (files) => touchesGateInputs('check:tokens', files) },
   { name: 'check:vocabularies', when: (files) => touchesGateInputs('check:vocabularies', files) },
   { name: 'check:controls', when: (files) => touchesGateInputs('check:controls', files) },
+  { name: 'check:store-lifetime', when: (files) => touchesGateInputs('check:store-lifetime', files) },
+  { name: 'check:icon-semantics', when: (files) => touchesGateInputs('check:icon-semantics', files) },
+  { name: 'check:error-surface', when: (files) => touchesGateInputs('check:error-surface', files) },
+  { name: 'check:heavy-path', when: (files) => touchesGateInputs('check:heavy-path', files) },
+  { name: 'check:builtin-vendor-literals', when: (files) => touchesGateInputs('check:builtin-vendor-literals', files) },
+  { name: 'check:read-path-writes', when: (files) => touchesGateInputs('check:read-path-writes', files) },
+  { name: 'check:batch-machines', when: (files) => touchesGateInputs('check:batch-machines', files) },
+  { name: 'check:capability-lifecycle', when: (files) => touchesGateInputs('check:capability-lifecycle', files) },
+  { name: 'check:no-default-overwrite', when: (files) => touchesGateInputs('check:no-default-overwrite', files) },
+  { name: 'check:main-console', when: (files) => touchesGateInputs('check:main-console', files) },
+  { name: 'check:asset-evidence', when: (files) => touchesGateInputs('check:asset-evidence', files) },
+  { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
+  { name: 'check:dangling-tokens', when: (files) => touchesGateInputs('check:dangling-tokens', files) },
+  { name: 'check:dangling-tailwind', when: (files) => touchesGateInputs('check:dangling-tailwind', files) },
+  { name: 'check:walkthroughs', when: (files) => touchesGateInputs('check:walkthroughs', files) },
+  // 全仓登记一致性类的小门岗（本机 Windows 实测每项 1–5 秒、main 上是绿的）：它们看的是登记表 / 文档 / 工作流 / 清单，几乎任何改动都可能碰到 → 总跑（和 filesize / self-written 同一口径）
+  { name: 'check:gates-chain', when: null },
+  { name: 'check:desktop-rc-workflow', when: null },
+  { name: 'check:cla-workflow', when: null },
+  { name: 'check:workflow-script-refs', when: null },
+  { name: 'check:workflow-protected-writes', when: null },
+  { name: 'check:packaged-flags', when: null },
+  { name: 'check:icons', when: null },
+  { name: 'check:platform-archetypes', when: null },
+  { name: 'check:model-certification-coverage', when: null },
+  { name: 'check:symlinks', when: null },
+  { name: 'check:supply-chain-pins', when: null },
+  { name: 'check:escape-ledger', when: null },
+  { name: 'check:adoption-bridge', when: null },
+  { name: 'check:skill-ipc-coverage', when: null },
+  { name: 'check:skills-format', when: null },
+  { name: 'check:run-task-grant', when: null },
+  { name: 'check:announced-card', when: null },
+  { name: 'check:canvas-gesture-determinism', when: null },
+  { name: 'check:vitest-fair-share', when: null },
+  { name: 'check:agents-sync', when: null },
+  { name: 'check:rule-aliases', when: null },
+  { name: 'check:push-bypass', when: null },
+  { name: 'check:mockup-contracts', when: null },
+  { name: 'check:feel', when: null },
+  { name: 'check:full-walk-catalog', when: null },
+  { name: 'check:real-media-fixture', when: null },
+  { name: 'check:framework-boundary', when: null },
+  { name: 'check:tikhub-search', when: null },
+  { name: 'check:nul-bytes', when: null },
+  { name: 'check:git-path-quoting', when: null },
+  { name: 'check:model-availability', when: null },
+  { name: 'check:model-identity', when: null },
+  { name: 'check:outbound-policy', when: null },
 ])
 
 const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
@@ -64,6 +114,8 @@ const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
  * 它只在改到它自己的文件时由 gateCommands 带上（见 gateCommands）。
  */
 export const SCAN_TESTS = Object.freeze([
+  // 整库类型检查（10-09 #1137 合 main 后 3 处 TS2345，推送前不跑 typecheck）：增量模式复用 node_modules/.cache/nomi-typecheck 的缓存，首次约 100 秒、之后约 30 秒；最慢，排在任务队列最前
+  { name: 'typecheck', argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
   { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
   { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => touchesGateInputs('check:test-copy-literals', files) },
   { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => touchesGateInputs('test:control-contract', files) },
@@ -264,7 +316,10 @@ export async function main(argv = process.argv.slice(2), { stdinText = null } = 
     })
   }
   for (const scan of SCAN_TESTS) {
-    if (selected.has(scan.name)) tasks.push(async () => ({ name: scan.name, ...(await runNode(scan.argv)) }))
+    if (!selected.has(scan.name)) continue
+    const task = async () => ({ name: scan.name, ...(await runNode(scan.argv)) })
+    if (scan.name === 'typecheck') tasks.unshift(task)
+    else tasks.push(task)
   }
   if (selected.has(LINT_GATE.name)) {
     tasks.push(async () => ({ name: LINT_GATE.name, ...(await runNode([path.join(repoRoot, LINT_GATE.script)])) }))

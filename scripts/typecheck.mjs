@@ -29,16 +29,27 @@ export const TYPECHECK_JOBS = Object.freeze([
   Object.freeze({ name: 'check:test-types', kind: 'script', script: 'scripts/check-test-types.mjs' }),
 ])
 
-function commandOf(job) {
-  if (job.kind === 'tsc') return [process.execPath, [require.resolve('typescript/bin/tsc'), ...job.args]]
+/**
+ * 增量模式（推送前钩子用：`node scripts/typecheck.mjs --incremental`）：每份 tsc 加 --incremental，缓存放 node_modules/.cache/nomi-typecheck；
+ * 三份生产 tsc 另加 --noEmit（electron 那份平时会产出 dist-electron，推送前不该写产物）。判据（tsconfig、棘轮基线、失败即红）一字未动。
+ */
+export const INCREMENTAL_DIR = path.join(repoRoot, 'node_modules', '.cache', 'nomi-typecheck')
+
+function commandOf(job, incremental = false) {
+  if (job.kind === 'tsc') {
+    const extra = incremental ? ['--noEmit', '--incremental', '--tsBuildInfoFile', path.join(INCREMENTAL_DIR, `${job.name.replace(/[^A-Za-z0-9]+/g, '-')}.tsbuildinfo`)] : []
+    return [process.execPath, [require.resolve('typescript/bin/tsc'), ...job.args, ...extra]]
+  }
   return [process.execPath, [path.join(repoRoot, job.script)]]
 }
 
 function spawnJob(job) {
+  const incremental = process.argv.includes('--incremental')
   return new Promise((resolve) => {
     const startedAt = Date.now()
-    const [command, args] = commandOf(job)
-    const child = spawn(command, args, { cwd: repoRoot })
+    const [command, args] = commandOf(job, incremental)
+    const env = incremental ? { ...process.env, NOMI_TSC_BUILDINFO_DIR: INCREMENTAL_DIR } : process.env
+    const child = spawn(command, args, { cwd: repoRoot, env })
     let output = ''
     child.stdout.on('data', (chunk) => { output += chunk })
     child.stderr.on('data', (chunk) => { output += chunk })

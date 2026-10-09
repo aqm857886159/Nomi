@@ -28,6 +28,38 @@ export const GATE_INPUTS = Object.freeze({
   'check:test-copy-literals': { roots: ['src', 'electron', 'scripts', 'tests', 'evals', 'packages'], exts: [...SOURCE_EXTS, 'js', 'mjs', 'cjs', 'json'], files: [], entries: ['scripts/check-test-copy-literals.mjs'] },
   // check-control-contract.test.mjs：规则红绿证明，只依赖规则脚本本身
   'test:control-contract': { roots: [], exts: [], files: [], entries: ['scripts/check-control-contract.test.mjs'] },
+  // check-store-lifetime.mjs：src 下非测试的 ts / tsx（zustand store 的 declareStoreLifetime 声明与释放点）
+  'check:store-lifetime': { roots: ['src'], exts: ['ts', 'tsx'], files: [], entries: ['scripts/check-store-lifetime.mjs'] },
+  // check-icon-semantics.mjs：src / electron 下的 .tsx（图标用法）与词典；基线 icon-semantics-baseline.json；设计系统文档里的图标登记表
+  'check:icon-semantics': { roots: ['src', 'electron'], exts: ['ts', 'tsx'], files: ['scripts/icon-semantics-baseline.json', 'docs/design/nomi-design-system.md'], entries: ['scripts/check-icon-semantics.mjs'] },
+  // scripts/typecheck.mjs：tsconfig.app / electron / electron.pi / test 四份；输入是所有 ts 源与这些配置
+  'typecheck': { roots: ['src', 'electron', 'tests', 'scripts', 'evals', 'packages'], exts: ['ts', 'tsx', 'mts', 'cts'], files: ['package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.base.json', 'tsconfig.test.json', 'tsconfig.devlab.json', 'electron/tsconfig.json', 'electron/tsconfig.pi.json', 'tests/agent-runtime/tsconfig.json', 'scripts/test-types-baseline.json'], entries: ['scripts/typecheck.mjs', 'scripts/check-test-types.mjs'] },
+  // check-error-surface.mjs：错误码词表、翻译与键映射，扫 src / electron
+  'check:error-surface': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/error-surface-baseline.json'], entries: ['scripts/check-error-surface.mjs'] },
+  // check-heavy-path.mjs：src / electron 下非测试 ts 源
+  'check:heavy-path': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/heavy-path-baseline.json'], entries: ['scripts/check-heavy-path.mjs'] },
+  // check-builtin-vendor-literals.mjs：ROOTS = electron、src，扩展名 ts / tsx
+  'check:builtin-vendor-literals': { roots: ['electron','src'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-builtin-vendor-literals.mjs'] },
+  // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）
+  'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs'] },
+  // check-batch-machines.mjs：src / electron 下非测试 ts 源
+  'check:batch-machines': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/batch-machines-baseline.json'], entries: ['scripts/check-batch-machines.mjs'] },
+  // check-capability-lifecycle.mjs：组件 useEffect 发布 vs 非组件写入，扫 ts / tsx
+  'check:capability-lifecycle': { roots: ['src','electron'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-capability-lifecycle.mjs'] },
+  // check-no-default-overwrite.mjs：src / electron / workers 的 ts / tsx（AST）
+  'check:no-default-overwrite': { roots: ['src','electron','workers'], exts: ['ts','tsx'], files: ['scripts/no-default-overwrite-baseline.json'], entries: ['scripts/check-no-default-overwrite.mjs'] },
+  // check-main-console.mjs：electron 主进程里的 console 调用
+  'check:main-console': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: [], entries: ['scripts/check-main-console.mjs'] },
+  // check-asset-evidence.mjs：electron 下非测试 ts 源
+  'check:asset-evidence': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/asset-evidence-baseline.json'], entries: ['scripts/check-asset-evidence.mjs'] },
+  // check-media-import-owner.mjs：媒体导入口的唯一 owner，扫 electron / src
+  'check:media-import-owner': { roots: ['electron','src'], exts: ['ts','tsx'], files: ['scripts/media-import-owner-baseline.json'], entries: ['scripts/check-media-import-owner.mjs'] },
+  // check-dangling-tokens.mjs：src 的 css token 定义与 ts / tsx 里的引用
+  'check:dangling-tokens': { roots: ['src'], exts: ['css','ts','tsx'], files: ['tailwind.config.ts'], entries: ['scripts/check-dangling-tokens.mjs'] },
+  // check-dangling-tailwind.mjs：tailwind.config.ts 的键 vs src 里的类名
+  'check:dangling-tailwind': { roots: ['src'], exts: ['css','ts','tsx'], files: ['tailwind.config.ts','scripts/dangling-tailwind-baseline.json'], entries: ['scripts/check-dangling-tailwind.mjs'] },
+  // check-walkthroughs.mjs：tests/ux（含 g1）的走查质量 + src 的 ts / tsx / css（比对类名是否存在）
+  'check:walkthroughs': { roots: ['tests/ux','src'], exts: ['mjs','js','ts','tsx','css','json'], files: ['scripts/walkthrough-baseline.json'], entries: ['scripts/check-walkthroughs.mjs'] },
   // electron/quitLifecycleGuard.test.ts：用仓库的 eslint 配置去 lint 反例，所以 eslint 配置与 electron 下的代码都算输入
   'test:quit-lifecycle-guard': { roots: ['electron'], exts: SOURCE_EXTS, files: ['eslint.config.mjs'], entries: ['electron/quitLifecycleGuard.test.ts'] },
 })
