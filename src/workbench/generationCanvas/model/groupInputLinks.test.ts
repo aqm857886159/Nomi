@@ -21,6 +21,9 @@ function textNode(id: string): GenerationCanvasNode {
     contentJson: { type: 'doc', content: [] },
   } as GenerationCanvasNode
 }
+function audioNode(id: string): GenerationCanvasNode {
+  return { id, kind: 'audio', title: id, position: { x: 0, y: 0 }, prompt: '', categoryId: 'shots' } as GenerationCanvasNode
+}
 function referenceTarget(id: string): GenerationCanvasNode {
   return {
     id, kind: 'image', title: id, position: { x: 400, y: 0 }, prompt: '', categoryId: 'shots',
@@ -77,13 +80,12 @@ describe('planGroupLinkEdges — 纯函数', () => {
   })
 
   it('过不了能力校验的进 skipped，不静默丢', () => {
-    // 文本→文本：文本卡不收任何输入（种类定义 connects.input=false，2026-10-08 拍板「文本没有左环」）
-    // → target_takes_no_input（以前判成 source_not_referenceable：结论一样拒，原因说得更准了）。
+    // 声音 → 文本：文本节点的左环收文字和图，不收视频和声音（文本模型听不了）→ unsupported_reference。
     // 注意图片节点**没有产物照样可参考**（依赖波次会先把它跑出来）。
-    const nodes = [textNode('src'), textNode('m1')]
+    const nodes = [audioNode('src'), textNode('m1')]
     const plan = planGroupLinkEdges({ link: { sourceNodeId: 'src' }, targets: [nodes[1]!], nodes, edges: [] })
     expect(plan.connect).toEqual([])
-    expect(plan.skipped).toEqual([{ targetNodeId: 'm1', reason: 'target_takes_no_input' }])
+    expect(plan.skipped).toEqual([{ targetNodeId: 'm1', reason: 'unsupported_reference' }])
   })
 
   it('源节点不存在 → 空计划，不抛', () => {
@@ -171,7 +173,7 @@ describe('connectToGroup — 真 store', () => {
   })
 
   it('全被能力校验拦下 → all_skipped，且不记入参（免得后来的成员继续白试）', () => {
-    seed([textNode('src'), textNode('m1')], [group('g1', ['m1'])])
+    seed([audioNode('src'), textNode('m1')], [group('g1', ['m1'])])
     store().startConnection('src')
     expect(store().connectToGroup('g1')).toMatchObject({ ok: false, reason: 'all_skipped', skipped: 1 })
     expect(store().groups[0]?.inputLinks).toBeUndefined()

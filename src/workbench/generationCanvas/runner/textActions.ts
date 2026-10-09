@@ -1,10 +1,16 @@
 import type { GenerationCanvasNode, GenerationNodeResult, TiptapDocJson } from '../model/generationCanvasTypes'
+import i18n from '../../../i18n'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { markdownToTiptapContent } from '../../creation/markdownToTiptap'
 import { runCatalogGenerationTask, type CatalogTaskRunOptions } from './catalogTaskActions'
 import { nodeRunOutcomePatch } from '../store/nodeRunOutcome'
 import { deliverRunOutcome, whenRunTargetLoaded } from './runProjectDelivery'
 import { docToPlainText, getTextGenMode, textDocumentDigest, type TextGenMode } from './textGenerationDocument'
+import { projectConnectedTextInputs } from './connectedTextPrompt'
+import { resolveGenerationReferences } from './generationReferenceResolver'
+import { readTextProcessPreset, type TextProcessPreset } from './textProcessPresets'
+import { getTextBrain } from '../../api/promptLibraryApi'
+import { selectedModelKey, selectedVendor } from './catalogTaskResolve'
 export { docToPlainText, getTextGenMode, type TextGenMode } from './textGenerationDocument'
 
 export type GenerateTextOptions = CatalogTaskRunOptions
@@ -17,10 +23,19 @@ export async function generateText(
   const userPrompt = (node.prompt || '').trim()
   const docText = docToPlainText(node.contentJson)
   const selText = typeof node.meta?.textGenSelection === 'string' ? node.meta.textGenSelection.trim() : ''
+  // 加工框的预设（扩写 / 看图写描述 / 翻译 / 拆成多条）= 整篇重写成新的一版；没点预设就是原来的续写 / 改写 / 重写。
+  const preset = readTextProcessPreset(node.meta)
   // 改写但没有选区 → 退回续写（prompt 与落地都按续写）。
-  const mode: TextGenMode = getTextGenMode(node) === 'rewrite' && !selText ? 'append' : getTextGenMode(node)
+  const mode: TextGenMode = preset ? 'replace' : getTextGenMode(node) === 'rewrite' && !selText ? 'append' : getTextGenMode(node)
 
-  const prompt = buildTextPrompt(mode, { userPrompt, docText, selText })
+  // 连进来的文字与图：与「下游引用小签」「画布读」同一个投影（projectConnectedTextInputs / resolveGenerationReferences），
+  // 这里不另扫一遍边。
+  const graph = options.referenceContext
+  const connectedTexts = graph ? projectConnectedTextInputs(node, graph).map((input) => input.text) : []
+  const imageCount = graph ? resolveGenerationReferences(node, graph).referenceImages.length : 0
+  if (preset?.needsImage && imageCount === 0) throw new Error(i18n.t('generationCommon.textProcess.needImage'))
+
+  const prompt = buildTextPrompt(mode, { userPrompt, docText, selText, preset, connectedTexts })
 
   // 续写起点：流式期间把新文本接在「原有内容」之后逐块重渲染，原内容快照锁在开头。
   const baseContent = mode === 'append' && Array.isArray(node.contentJson?.content)
@@ -40,7 +55,7 @@ export async function generateText(
       }
 
   const result = await runCatalogGenerationTask(
-    { ...node, prompt },
+    { ...node, prompt, meta: await withFollowedAgentModel(node.meta) },
     { ...options, ...(onTextDelta ? { onTextDelta } : {}) },
   )
   const text = (result.text || '').trim()
@@ -58,11 +73,32 @@ export async function generateText(
   return result
 }
 
+/**
+ * 节点没选文本模型 = 「跟随 Agent 的模型」：用 Agent 同一个文本大脑（getTextBrain，与提示词优化 / 翻译同源）。
+ * 只对这一次运行生效，不写回节点——Agent 换了模型，下一次自然跟着换。一个文本模型都没有 → 报
+ * 「没有可用的文本模型」，错误卡自带去模型设置的入口（classifyError 的 model-config 签名），不静默失败。
+ */
+async function withFollowedAgentModel(meta: GenerationCanvasNode['meta']): Promise<GenerationCanvasNode['meta']> {
+  const probe = { meta } as GenerationCanvasNode
+  if (selectedVendor(probe) && selectedModelKey(probe)) return meta
+  const brain = await getTextBrain({ strict: true })
+  if (!brain) throw new Error('No usable text model: enable one in Settings → Models.')
+  return { ...(meta || {}), modelVendor: brain.vendor, modelKey: brain.modelKey }
+}
+
 function buildTextPrompt(
   mode: TextGenMode,
-  ctx: { userPrompt: string; docText: string; selText: string },
+  ctx: { userPrompt: string; docText: string; selText: string; preset?: TextProcessPreset | null; connectedTexts?: readonly string[] },
 ): string {
-  const { userPrompt, docText, selText } = ctx
+  const { userPrompt, docText, selText, preset, connectedTexts = [] } = ctx
+  if (preset) {
+    return [
+      preset.instruction,
+      userPrompt ? `补充要求：${userPrompt}` : '',
+      docText ? `"""\n${docText}\n"""` : '',
+      connectedTexts.length ? `连进来的文字（作为背景）：\n${connectedTexts.map((text) => `"""\n${text}\n"""`).join('\n')}` : '',
+    ].filter(Boolean).join('\n')
+  }
   if (mode === 'rewrite') {
     return [
       '请改写下面这段文字：',

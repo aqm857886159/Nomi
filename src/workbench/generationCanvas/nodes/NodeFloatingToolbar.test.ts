@@ -70,7 +70,8 @@ describe('按屏幕几何摆放的画布浮层只读 React Flow 的缩放', () =
     })
   }
   it('生成浮框只随缩放变（钉在节点下沿、不量屏幕）：订 useCanvasLiveZoom', () => {
-    expect(read('NodeGenerationComposer.tsx')).toContain('useCanvasLiveZoom()')
+    // 定位锚（图片 / 视频卡与文本加工框共用）住在 composerAnchor.tsx。
+    expect(read('composerAnchor.tsx')).toContain('useCanvasLiveZoom()')
   })
   // 浮条要「量屏幕 → 夹进舞台」，屏幕位置随平移也会变：只订缩放的话平移完不重渲、不重量，
   // 贴边时停在旧位置被裁（2026-10-07 CI 画布验收 canvas-card-stack「节点贴左边」box.x=38 < 舞台 60）。

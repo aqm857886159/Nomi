@@ -33,10 +33,16 @@ describe('connectNodes domain boundary', () => {
 describe('connectNodes: connects.input gate at the store write boundary', () => {
   const store = () => useGenerationCanvasStore.getState()
 
-  it.each(['asset', 'text'] as const)('refuses a new edge into a %s target (no parameter slots)', (kind) => {
-    store().restoreSnapshot({ nodes: [node('source'), node('target', kind)], edges: [], groups: [] })
+  it('refuses a new edge into an asset target (no parameter slots)', () => {
+    store().restoreSnapshot({ nodes: [node('source'), node('target', 'asset')], edges: [], groups: [] })
     store().connectNodes('source', 'target', 'reference')
     expect(store().edges).toEqual([])
+  })
+
+  it('a text target takes an image (10-09: the text card has a left ring)', () => {
+    store().restoreSnapshot({ nodes: [node('source'), node('target', 'text')], edges: [], groups: [] })
+    store().connectNodes('source', 'target', 'reference')
+    expect(store().edges).toHaveLength(1)
   })
 
   describe('addDerivedOutput: build the derived node and its provenance edge as ONE atomic action (no identity field, no door for existing nodes)', () => {

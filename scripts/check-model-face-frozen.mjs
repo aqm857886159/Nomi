@@ -36,12 +36,12 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const baselinePath = path.join(repoRoot, 'scripts', director3dBoxFaceEnabled() ? 'model-face-baseline.director3dbox.json' : 'model-face-baseline.json')
 
 /**
- * 内部面冻结为 21 个；对外专属数量从声明源派生，独立于装配结果，漏装配仍 fail-closed。
+ * 内部面冻结为 22 个；对外专属数量从声明源派生，独立于装配结果，漏装配仍 fail-closed。
  *
  * 20 → 21（2026-09-21）：新增 `ask_user`。这个数是**手写的**而不是从装配结果数出来的，
  * 理由正是「漏装配仍要红」——所以每次动它都等于一次「我知道模型面多了/少了一个工具」的签名。
  */
-const EXPECTED_INTERNAL_VERB_COUNT = 21
+const EXPECTED_INTERNAL_VERB_COUNT = 22
 const isMcpOnly = (verb) => verb.profiles?.length === 1 && verb.profiles[0] === 'mcp'
 const expectedMcpOnlyCount = onboardingVerbs().filter(isMcpOnly).length
 

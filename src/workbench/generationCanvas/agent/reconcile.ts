@@ -6,6 +6,8 @@
 // 白名单外的任何出入都如实报——尤其 modelKey/params 被校验丢弃(plannedNodeMeta 对不可用
 // 模型/非法参数回退默认):用户在计划卡上看到并批准了那些 chip,执行悄悄换掉=必须可见。
 
+import { textNodeBody, type TiptapDocShape } from '../../../../electron/shared/canvas/textNodeBody'
+
 export type ReconcileDeviation = {
   /** 人话定位:哪个节点/哪条边(边用节点标题,不是原始 id)。 */
   where: string
@@ -49,6 +51,7 @@ type NodeLike = {
   kind: string
   title: string
   prompt?: string
+  contentJson?: TiptapDocShape
   meta?: Record<string, unknown>
 }
 
@@ -186,6 +189,20 @@ export function reconcileProposal(input: {
       if (!node) deviations.push({ where: nodeId, field: '节点', expected: '存在', actual: '不存在' })
       else if ((node.prompt ?? '') !== prompt) {
         deviations.push({ where: node.title || nodeId, field: '提示词', expected: prompt, actual: node.prompt ?? '' })
+      }
+      continue
+    }
+
+    if (step.toolName === 'set_node_text') {
+      const nodeId = resolveId(String(step.effectiveArgs.nodeId || '').trim())
+      const node = nodeById.get(nodeId)
+      const wanted = typeof step.effectiveArgs.text === 'string' ? step.effectiveArgs.text : ''
+      if (!node) deviations.push({ where: nodeId, field: '节点', expected: '存在', actual: '不存在' })
+      else {
+        const actual = textNodeBody({ contentJson: node.contentJson })
+        // 接在后面时只核对「新写的那段」落在正文末尾；覆盖则整段相等。
+        const ok = step.effectiveArgs.mode === 'append' ? actual.endsWith(wanted.trim()) : actual === wanted.trim()
+        if (!ok) deviations.push({ where: node.title || nodeId, field: '正文', expected: wanted, actual })
       }
       continue
     }

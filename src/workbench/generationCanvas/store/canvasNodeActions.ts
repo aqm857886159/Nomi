@@ -4,10 +4,11 @@ import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { resolveInsertionPosition } from './resolveInsertionPosition'
 import { visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { tidyCanvasLayout } from './tidyCanvasLayout'
-import { getDefaultCategoryForNodeKind, type GenerationCanvasNode, type NodeGroup } from '../model/generationCanvasTypes'
+import { getDefaultCategoryForNodeKind, type GenerationCanvasNode, type NodeGroup, type TiptapDocJson } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { resultIdentity, setNodeMainResultPatch } from '../model/nodeResultLifecycle'
 import { assignClonedShotIndexes, backfillShotIndexes, changesShotIdentity, isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
+import { docToPlainText, tiptapDocFromPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { buildCanvasNode } from '../../../../electron/capabilityCore/canvasNodeFactory'
 import { RENDERER_NODE_FACTORY_DEPS } from './rendererNodeFactoryDeps'
 import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasIds'
@@ -261,6 +262,31 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // 专用事件(非 node.updated):锁是审计要点(谁锁的/何时锁的),日志里必须一眼可查。
     // title 随事件携带:S9 记忆提炼器增量扫描拿不到旧事件里的标题,事件自含可读。
     emitCanvasGesture([{ type: locked ? 'canvas.node.locked' : 'canvas.node.unlocked', payload: { nodeId, title: existing.title } }])
+  },
+  writeNodeBody: (nodeId, contentJson, options) => {
+    const existing = get().nodes.find((candidate) => candidate.id === nodeId)
+    if (!existing) return
+    if (options?.undoPoint) pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.contentJson = contentJson
+      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
+      if (options?.undoPoint) Object.assign(state, getHistoryFlags())
+    })
+    if (shouldEmitCanvasMutation(options)) {
+      emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { contentJson } } }])
+    }
+  },
+  restoreNodeBody: (nodeId, contentJson) => {
+    get().writeNodeBody(nodeId, contentJson ?? { type: 'doc', content: [] })
+  },
+  setNodeText: (nodeId, text, mode = 'replace') => {
+    const existing = get().nodes.find((candidate) => candidate.id === nodeId)
+    if (!existing) return
+    const added = tiptapDocFromPlainText(text) as TiptapDocJson
+    const kept = mode === 'append' && docToPlainText(existing.contentJson) ? (existing.contentJson?.content ?? []) : []
+    get().writeNodeBody(nodeId, { type: 'doc', content: [...kept, ...(added.content ?? [])] }, { undoPoint: true })
   },
   moveNode: (nodeId, position, options) => {
     // 守卫上移到 set 外(影子日志要与真实变更同真值;语义与原内嵌守卫等价)

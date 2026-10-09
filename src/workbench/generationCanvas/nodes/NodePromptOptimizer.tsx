@@ -67,7 +67,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
     const project = withProjectAction((issued) => issued)
     try {
       if (!project) return
-      const brain = await getTextBrain()
+      const brain = await getTextBrain({ strict: true })
       if (!brain) {
         setError(t('generationCommon.optimizer.configureTextModel'))
         return

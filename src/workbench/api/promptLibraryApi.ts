@@ -3,6 +3,7 @@
 import type { SkillCuration } from '../../../electron/shared/skillCuration'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
+import { getAssistantModelPref } from '../ai/assistantModelPref'
 import { matchesLibraryQuery } from '../library/libraryDiscovery'
 import { promptSourceKey } from '../promptLibrary/promptDisplay'
 
@@ -114,10 +115,18 @@ export async function deleteUserPrompt(id: string): Promise<LibraryPrompt[]> {
   return mapUserPrompts(await desktop.promptLibrary!.userDelete(id))
 }
 
-/** 节点提示词优化用的已配置文本大脑键(与创作助手同脑);未配文本模型返回 null。 */
-export async function getTextBrain(): Promise<{ vendor: string; modelKey: string } | null> {
+/**
+ * 「跟随 Agent 的模型」唯一入口（文本节点 / 提示词优化 / 翻译 / 提取都走它）：Agent 面板选了谁就是谁
+ * （assistantModelPref，与 lane 同一份选择），没选或选的此刻不可用才回落到默认文本模型；未配文本模型返回 null。
+ */
+export async function getTextBrain(options: { strict?: boolean } = {}): Promise<{ vendor: string; modelKey: string } | null> {
   const desktop = requireDesktopRuntime('prompt optimize')
-  const res = await desktop.promptLibrary!.textBrain()
+  const pref = getAssistantModelPref()
+  const res = await desktop.promptLibrary!.textBrain(pref ? { ...pref, ...(options.strict ? { strict: true } : {}) } : undefined)
+  // strict = 会花钱的运行路径：Agent 选的模型此刻不可用就直接报错（带去「设置 → 模型」的签名，错误卡自带入口），不换成别家。
+  if (options.strict && res?.preferredUnavailable) {
+    throw new Error(`No usable text model: the model chosen in the Agent panel (${pref?.vendorKey}/${pref?.modelKey}) is unavailable. Enable it in Settings → Models, or pick another model.`)
+  }
   return res?.ok && res.brain ? res.brain : null
 }
 
