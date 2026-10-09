@@ -201,3 +201,30 @@ test('钩子本体：未知门岗名当场报错（不会静默变成什么都�
   assert.equal(result.status, 2)
   assert.match(result.stderr, /不认识的门岗/)
 })
+
+// ── 过渡期：老分支（还没有新入口）走它自己的旧正文门岗 ─────────────────────────────
+
+test('钩子模板：有新入口跑新入口；老分支只有旧门岗就退回旧门岗；两个都没有才放行', async () => {
+  const { HOOKS, renderHookContent } = (await import('./install-git-hooks.cjs')).default
+  const content = renderHookContent(HOOKS.find((h) => h.name === 'pre-push'))
+  const root = makeTempDir('nomi-hook-fallback-')
+  execFileSync('git', ['init', '-q'], { cwd: root })
+  const hookFile = path.join(root, 'hook.sh')
+  fs.writeFileSync(hookFile, content)
+  const put = (rel, text) => {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
+    fs.writeFileSync(path.join(root, rel), text)
+  }
+  const runHook = () => spawnSync('bash', [hookFile], { cwd: root, encoding: 'utf8', input: '' })
+
+  assert.equal(runHook().status, 0, '两个脚本都没有：放行')
+  put('scripts/check-pr-body-gates.mjs', "console.error('LEGACY-GATE'); process.exit(7)")
+  const legacy = runHook()
+  assert.equal(legacy.status, 7, '老分支必须真的跑到旧门岗（它红就拦），不是安静放行')
+  assert.match(legacy.stderr, /LEGACY-GATE/)
+  put('scripts/pre-push-contracts.mjs', "console.error('NEW-ENTRY'); process.exit(0)")
+  const fresh = runHook()
+  assert.equal(fresh.status, 0)
+  assert.match(fresh.stderr, /NEW-ENTRY/)
+  assert.doesNotMatch(fresh.stderr, /LEGACY-GATE/, '有新入口时旧门岗不再跑')
+})
