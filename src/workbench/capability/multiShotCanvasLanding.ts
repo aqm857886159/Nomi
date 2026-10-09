@@ -29,7 +29,6 @@ import { pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
 import { interruptPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, type GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
-import { createProductionShotTable, readShotTable } from '../../../electron/shared/canvas/shotTable'
 import { isProductionRunRecord } from '../../../electron/shared/productionShotPhase'
 import type { MediaDimensions } from '../generationCanvas/nodes/nodeSizing'
 
@@ -88,7 +87,7 @@ export type MaterializeShotsPayload = {
   projectId?: string
   runId?: string
   materializationOperationId?: string
-  /** 计划名：分镜组名 = 它加「分镜组·」前缀，分镜表标题 = 它本身，两处都走 i18n。缺省 = 两处各用通用兜底。 */
+  /** 计划名：分镜组名 = 它加「分镜组·」前缀（走 i18n）。缺省 = 通用兜底。 */
   planName?: string
   shots?: MaterializeShotInput[]
 }
@@ -98,18 +97,6 @@ export type MaterializeShotsResult = {
   bindings: Array<{ shotId: string; nodeId: string; provider: string; model: string }>
   createdNodeIds: string[]
   groupId: string | null
-  /** 这批镜头的分镜表节点（与组同生；单镜草稿没有表）。 */
-  shotTableNodeId: string | null
-}
-
-/** 该 Run 已有的分镜表视图（按 source.runId 认，幂等：补齐重放绝不建第二张）。 */
-function findProductionShotTable(runId: string): string | null {
-  const node = useGenerationCanvasStore.getState().nodes.find((candidate) => {
-    if (candidate.kind !== 'shot_table') return false
-    const table = readShotTable(candidate.meta)
-    return table?.source.kind === 'production' && table.source.runId === runId
-  })
-  return node?.id ?? null
 }
 
 /** 候选身份写进节点入参（create_canvas_nodes 认 modelKey/vendor/modeId，由 buildPlannedNodeMeta 解析成 meta）。 */
@@ -199,7 +186,7 @@ const PROJECT_ADOPTION_WAIT_MS = 30_000
 export async function materializeShots(payload: MaterializeShotsPayload): Promise<MaterializeShotsResult> {
   const materializationOperationId = sanitizeMaterializationOperationId(payload.materializationOperationId)
   const incoming = Array.isArray(payload.shots) ? payload.shots.filter((shot) => shot && typeof shot.shotId === 'string' && shot.shotId.trim()) : []
-  if (!materializationOperationId || incoming.length === 0) return { bindings: [], createdNodeIds: [], groupId: null, shotTableNodeId: null }
+  if (!materializationOperationId || incoming.length === 0) return { bindings: [], createdNodeIds: [], groupId: null }
 
   // Renderer projection belongs to this project lifetime, not whichever canvas is focused
   // after a model/tool/persistence await. Main-process paid execution continues independently.
@@ -253,16 +240,10 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 节点全落 groupCategoryId(shots) → ≥2 个就够建组（锚+镜同组，靠 referenceSheet 区分）。
   const groupExists = useGenerationCanvasStore.getState().groups.some((group) => group.materializationOperationId === materializationOperationId)
   const willCreateGroup = !payload.existingOnly && !groupExists && ordered.length >= 2
-  // 分镜表与分镜组同生：**只在这次真建了节点时**建（`missing.length > 0`）。纯补齐重放不建——
-  // 用户删掉这张表是删掉一个视图（同 storyboard 表「删除仅移除视图」），重开项目不许把它复活。
-  // 表本身不存行：行从画布上 meta.productionRunId 的节点 derive（Agent 分镜只有 Run 这一份账本）。
-  const runId = typeof payload.runId === 'string' && payload.runId.trim() ? payload.runId.trim() : null
-  const existingShotTableId = runId ? findProductionShotTable(runId) : null
-  const willCreateTable = Boolean(runId) && !existingShotTableId && missing.length > 0 && ordered.length >= 2
   // 「这次落地结构性地改了画布吗」——一个判据两处用：打不打撤销步、要不要立刻落盘（见末尾 flush 注释）。
   // 回填已完成镜的 result **不算**：那是「打开项目补齐」每次都会做的幂等重放，把它算进来等于每开一次
   // 项目就白推高一次 revision（projectPersistenceService 头注释里那条「漂到 706」的自激振荡）。
-  const changedCanvasStructure = missing.length > 0 || rebindable.length > 0 || willCreateGroup || willCreateTable
+  const changedCanvasStructure = missing.length > 0 || rebindable.length > 0 || willCreateGroup
   if (changedCanvasStructure) pushUndoSnapshot()
 
   if (missing.length > 0) {
@@ -344,19 +325,6 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
     groupId = group?.id ?? null
   }
 
-  // 分镜表（同一 txn → 与节点/组同一个撤销步）。标题 = 计划名；行零缓存，全部从节点 derive。
-  // 「这个 Run 已有表吗」在**建表这一刻**再读一次：开头那次判在若干 await 之前，两次重叠的落地都会判成「没有」，各建一张。
-  let shotTableNodeId = existingShotTableId
-  if (willCreateTable && runId && !(shotTableNodeId = findProductionShotTable(runId))) {
-    const table = inLandingTxn(() => useGenerationCanvasStore.getState().addNode({
-      kind: 'shot_table',
-      title: (payload.planName || '').trim() || i18n.t('shotTable.title'),
-      categoryId: groupCategoryId,
-      meta: { shotTable: createProductionShotTable(runId, materializationOperationId) },
-    }))
-    shotTableNodeId = table?.id ?? null
-  }
-
   // 每一镜的运行状态落进节点自己的运行记录：出片了回填 result，没出片挂上「生成中 / 失败 / 已结束」。
   // 挂同一 txn（ctx 抑制其 barrier）→ 与占位节点/组同属一个撤销步。都是同步写，ctx 不跨 await（符合纪律）。
   for (const shot of ordered) {
@@ -396,7 +364,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   if (changedCanvasStructure) await persistActiveWorkbenchProjectNow().catch(() => {})
   project.assertCurrent()
 
-  return { bindings, createdNodeIds, groupId, shotTableNodeId }
+  return { bindings, createdNodeIds, groupId }
 }
 
 export type AttachShotResultPayload = {
