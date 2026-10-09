@@ -95,11 +95,17 @@ describe('autoUpdater.ts 接线（真实模块，假 electron）', () => {
     const mod = await load({ packaged: true })
     updater.checkForUpdates.mockImplementation(async () => {
       updater.emit('checking-for-update')
-      updater.emit('update-available', { version: '0.23.0', releaseNotes: 'n' })
+      updater.emit('update-available', { version: '0.23.0', releaseNotes: '<h1>Nomi v0.23.0 — 标题</h1><h2>组</h2><ul><li><strong>短语</strong>：说明</li></ul>', files: [{ url: 'Nomi.exe', size: 2048 }] })
     })
     mod.startAutoUpdateCheck()
     await vi.advanceTimersByTimeAsync(AUTO_CHECK_FIRST_DELAY_MS)
-    expect(sent).toEqual([{ type: 'available', version: '0.23.0', notes: 'n' }])
+    expect(sent).toEqual([{
+      type: 'available',
+      version: '0.23.0',
+      notes: [expect.objectContaining({ version: '0.23.0', zh: expect.objectContaining({ title: '标题', groups: [{ heading: '组', items: ['短语'] }] }) })],
+      sizeBytes: 2048,
+      releaseUrl: 'https://github.com/aqm857886159/Nomi/releases/tag/v0.23.0',
+    }])
     await vi.advanceTimersByTimeAsync(AUTO_CHECK_INTERVAL_MS)
     expect(updater.checkForUpdates).toHaveBeenCalledTimes(2)
     expect(sent).toHaveLength(1)

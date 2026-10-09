@@ -1,5 +1,5 @@
 // 设计实验室 · 屏「应用内更新提醒」· 更新后：第一次打开新版本，项目库顶部一次性卡片；跳了几版合成一张。
-// 改造件是样张（生产未接），所以 coverage 一律 component-only；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
+// 格子渲染的是生产组件的 View 件（夹具数据）；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
 import React from 'react'
 import type { LabState } from '../../labScreen'
 import { LibraryStage, updatedCardTop } from '../updateReminderLabKit'

@@ -15,11 +15,17 @@ export const zhUpdateReminder = {
     downloading: '更新下载中 {{percent}}%',
     ready: '重启以更新',
     failed: '更新没下完 · 重试',
+    installFailed: '更新没装上 · 重试',
   },
   dialog: {
     availableTitle: '新版本 {{version}}',
     readyTitle: '{{version}} 已下载好',
+    downloadingTitle: '正在下载 {{version}}',
     failedTitle: '更新没下完',
+    installFailedTitle: '更新没装上',
+    failedBody: '这次没能完成，点重试再来一次。',
+    failedNetwork: '网络没连上，连上后点重试。',
+    progress: '已下载 {{percent}}%，下载在后台进行，可以继续做片',
     macTitle: '去官网换上 {{version}}',
     size: '安装包 {{size}}',
     localData: '项目和素材都在你电脑上，更新只换 Nomi 本身',
@@ -47,6 +53,9 @@ export const zhUpdateReminder = {
     title: '已更新到 {{version}}',
     titleRange: '从 {{from}} 更新到 {{to}}',
   },
+  about: {
+    view: '查看',
+  },
 }
 
 export const enUpdateReminder: typeof zhUpdateReminder = {
@@ -55,11 +64,17 @@ export const enUpdateReminder: typeof zhUpdateReminder = {
     downloading: 'Downloading update {{percent}}%',
     ready: 'Restart to update',
     failed: 'Update incomplete · Retry',
+    installFailed: 'Update not installed · Retry',
   },
   dialog: {
     availableTitle: 'Nomi {{version}} is available',
     readyTitle: '{{version}} is downloaded',
+    downloadingTitle: 'Downloading {{version}}',
     failedTitle: 'The update did not finish downloading',
+    installFailedTitle: 'The update could not be installed',
+    failedBody: 'That did not finish. Retry to try again.',
+    failedNetwork: 'Nomi could not reach the network. Retry once you are back online.',
+    progress: '{{percent}}% downloaded. It continues in the background, so keep working',
     macTitle: 'Get {{version}} from the website',
     size: 'Installer {{size}}',
     localData: 'Your projects and media stay on your computer. Updating only replaces Nomi itself',
@@ -86,5 +101,8 @@ export const enUpdateReminder: typeof zhUpdateReminder = {
   updated: {
     title: 'Updated to {{version}}',
     titleRange: 'Updated from {{from}} to {{to}}',
+  },
+  about: {
+    view: 'View',
   },
 }

@@ -1,5 +1,5 @@
 // 设计实验室 · 屏「应用内更新提醒」· 发现：顶栏胶囊（攒批版只有胶囊）、热修版多一条项目库横幅、下载中、下载失败。
-// 改造件是样张（生产未接），所以 coverage 一律 component-only；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
+// 格子渲染的是生产组件的 View 件（夹具数据）；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
 import React from 'react'
 import type { LabState } from '../../labScreen'
 import { AppBarStage, hotfixBannerTop, LibraryStage } from '../updateReminderLabKit'
@@ -100,5 +100,33 @@ export const UPDATE_DISCOVER_STATES: readonly LabState[] = [
     source: SOURCE,
     coverage: 'component-only',
     render: () => <LibraryStage locale={'en'} clipHeight={140} badge={{ phase: 'error', version: '0.24.0' }} />,
+  },
+  {
+    id: 'update-01-badge-compact-zh',
+    name: '① 窄窗口：胶囊收成带点的图标（标签收起，点开仍是同一个弹窗）（中文）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <AppBarStage locale={'zh-CN'} badge={{ phase: 'available', version: '0.24.0', compact: true }} />,
+  },
+  {
+    id: 'update-01-badge-compact-en',
+    name: '① 窄窗口：胶囊收成带点的图标（标签收起，点开仍是同一个弹窗）（English）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <AppBarStage locale={'en'} badge={{ phase: 'available', version: '0.24.0', compact: true }} />,
+  },
+  {
+    id: 'update-01-badge-ready-zh',
+    name: '⑥ 下好了：胶囊变「重启以更新」（中文）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <AppBarStage locale={'zh-CN'} badge={{ phase: 'downloaded', version: '0.24.0' }} />,
+  },
+  {
+    id: 'update-01-badge-ready-en',
+    name: '⑥ 下好了：胶囊变「重启以更新」（English）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <AppBarStage locale={'en'} badge={{ phase: 'downloaded', version: '0.24.0' }} />,
   },
 ]

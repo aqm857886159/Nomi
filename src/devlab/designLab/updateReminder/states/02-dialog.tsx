@@ -1,5 +1,5 @@
 // 设计实验室 · 屏「应用内更新提醒」· 「为什么更新」弹窗（UpdaterDialog 改造版的身体）：只显示当前语言段、按分组每组 ≤3 条加粗短语。
-// 改造件是样张（生产未接），所以 coverage 一律 component-only；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
+// 格子渲染的是生产组件的 View 件（夹具数据）；真页面 / 真顶栏见 updateReminderLabKit.tsx 顶部说明。
 import React from 'react'
 import type { LabState } from '../../labScreen'
 import { DialogStage } from '../updateReminderLabKit'
@@ -84,13 +84,55 @@ export const UPDATE_DIALOG_STATES: readonly LabState[] = [
     name: '⑧ 下载失败的弹窗：人话 + 原始错误一行小字，稍后 · 重试（中文）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" />,
+    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" errorStage="download" errorReason="other" />,
   },
   {
     id: 'update-08-failed-dialog-en',
     name: '⑧ 下载失败的弹窗：人话 + 原始错误一行小字，稍后 · 重试（English）',
     source: SOURCE,
     coverage: 'component-only',
-    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" />,
+    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="net::ERR_CONNECTION_RESET" errorStage="download" errorReason="other" />,
+  },
+  {
+    id: 'update-05-dialog-downloading-zh',
+    name: '⑤ 下载中的弹窗：进度条 + 一句「下载在后台进行，可以继续做片」，只有「知道了」（中文）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'zh-CN'} view="downloading" version="0.23.0" percent={42} />,
+  },
+  {
+    id: 'update-05-dialog-downloading-en',
+    name: '⑤ 下载中的弹窗：进度条 + 一句「下载在后台进行，可以继续做片」，只有「知道了」（English）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'en'} view="downloading" version="0.23.0" percent={42} />,
+  },
+  {
+    id: 'update-08-failed-offline-zh',
+    name: '⑧ 离线 / 断网时的下载失败：说「网络没连上」，稍后 · 重试，一次点击就重下（中文）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="getaddrinfo ENOTFOUND github.com" errorStage="download" errorReason="network" />,
+  },
+  {
+    id: 'update-08-failed-offline-en',
+    name: '⑧ 离线 / 断网时的下载失败：说「网络没连上」，稍后 · 重试，一次点击就重下（English）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="getaddrinfo ENOTFOUND github.com" errorStage="download" errorReason="network" />,
+  },
+  {
+    id: 'update-08-install-failed-zh',
+    name: '⑧ 安装失败：标题「更新没装上」，重试直接再装（中文）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'zh-CN'} view="failed" version="0.23.0" errorMessage="spawn EACCES" errorStage="install" errorReason="other" />,
+  },
+  {
+    id: 'update-08-install-failed-en',
+    name: '⑧ 安装失败：标题「更新没装上」，重试直接再装（English）',
+    source: SOURCE,
+    coverage: 'component-only',
+    render: () => <DialogStage locale={'en'} view="failed" version="0.23.0" errorMessage="spawn EACCES" errorStage="install" errorReason="other" />,
   },
 ]

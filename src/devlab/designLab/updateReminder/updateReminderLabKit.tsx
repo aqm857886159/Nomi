@@ -4,35 +4,42 @@
 //   · 项目库整页是现役 `ProjectLibraryPage`（Windows 自绘窗口栏 + 窗口控制，平台由 labPlatform.ts 钉成 win32），
 //     项目列表从假桥 `projects.list()` 喂几条带封面的项目。
 //   · 项目内顶栏是现役 `NomiAppBar`（Windows 版：品牌 / 上手 / 浏览器在它上面那条自绘窗口栏里，这里没渲染那一条）。
-//   · 胶囊 / 横幅 / 更新后卡片 / 弹窗身体是改造后的样张件（updateReminderParts.tsx），生产还没有它们的插槽。
-//     为了让它们**落在真页面的真排版里**（而不是画在一张假页面上），取景台在真组件渲染完后
-//     往它的 DOM 里挂一个 `display:contents` 的插槽、再 portal 进去：
-//       项目库窗口栏右侧那组按钮的最前面 / 项目库标题行下面 / 项目顶栏右簇的最前面。
-//     这是**样张手段**：实现时要在 ProjectLibraryPage / NomiAppBar 上开正式插槽（报告里写明）。
-// 发版说明是仓库里的真文件（docs/release-notes/v0.23.0.md、v0.23.1.md），经 releaseNotesDigest 解析。
+//   · 胶囊 / 横幅 / 更新后卡片 / 弹窗身体是**生产组件**（src/ui/app-shell/UpdatePill、HotfixBanner、UpdatedCard、
+//     UpdateDialog 的 View 件），这里只喂夹具数据。它们在生产里的位置由外壳线（I-shell）摆；
+//     实验室为了让它们**落在真页面的真排版里**，在真组件渲染完后往它的 DOM 里挂一个 `display:contents`
+//     的插槽、再 portal 进去：项目库窗口栏右侧那组按钮的最前面 / 项目库标题行下面 / 项目顶栏右簇的最前面。
+// 发版说明是仓库里的真文件（docs/release-notes/v0.23.0.md、v0.23.1.md），经生产的摘要解析器（electron/shared/releaseNotesDigest）摘出。
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
+import { marked } from 'marked'
 import i18n from '../../../i18n'
 import ProjectLibraryPage from '../../../workbench/library/ProjectLibraryPage'
 import NomiAppBar from '../../../ui/app-shell/NomiAppBar'
 import { holdDesignLabReady } from '../labReadyHold'
 import notes0230 from '../../../../docs/release-notes/v0.23.0.md?raw'
 import notes0231 from '../../../../docs/release-notes/v0.23.1.md?raw'
-import { digestReleaseNotes, mergeDigests, type ReleaseNotesLocale } from './releaseNotesDigest'
-import { HotfixBanner, UpdateBadge, UpdateDialogCard, UpdatedCard, type UpdateBadgePhase, type UpdateDialogView } from './updateReminderParts'
+import { digestReleaseNotesHtml } from '../../../../electron/shared/releaseNotesDigest'
+import { buildReleaseNotesUrl, dialogDigest, deriveUpdatedCard, type UpdateLocale, type UpdaterErrorReason, type UpdaterErrorStage, type VersionNotes } from '../../../../electron/shared/updateReminder'
+import { UpdatePillView, type UpdatePillPhase } from '../../../ui/app-shell/UpdatePill'
+import { UpdateDialogCard, type UpdateDialogView } from '../../../ui/app-shell/UpdateDialog'
+import { HotfixBannerView } from '../../../ui/app-shell/HotfixBanner'
+import { UpdatedCardView } from '../../../ui/app-shell/UpdatedCard'
 
 /** 主窗口默认尺寸（electron/main.ts createWindow：1440×960）。 */
 export const UPDATE_REMINDER_WINDOW = { width: 1440, height: 960 } as const
 
 export type LabLocale = 'zh-CN' | 'en'
 
-const NOTES: Record<'0.23.0' | '0.23.1', string> = { '0.23.0': notes0230, '0.23.1': notes0231 }
-export const RELEASE_URL = (version: string): string => `https://github.com/aqm857886159/Nomi/releases/tag/v${version}`
-/** 0.23.0 Windows 安装包大小：发版说明「安装包变小」表里的 272.4 MB（实现时取 latest.yml 的 files[0].size）。 */
+const NOTES: Record<'0.23.0' | '0.23.1', VersionNotes> = {
+  '0.23.0': digestReleaseNotesHtml(marked.parse(notes0230, { async: false }), '0.23.0'),
+  '0.23.1': digestReleaseNotesHtml(marked.parse(notes0231, { async: false }), '0.23.1'),
+}
+export const RELEASE_URL = buildReleaseNotesUrl
+/** 0.23.0 Windows 安装包大小：发版说明「安装包变小」表里的 272.4 MB（生产取 latest.yml 的 files[].size）。 */
 export const WIN_INSTALLER_SIZE_0230 = '272 MB'
 
-const digestLocale = (locale: LabLocale): ReleaseNotesLocale => (locale === 'zh-CN' ? 'zh' : 'en')
-export const digestFor = (version: keyof typeof NOTES, locale: LabLocale) => digestReleaseNotes(NOTES[version], digestLocale(locale))
+const updateLocale = (locale: LabLocale): UpdateLocale => (locale === 'zh-CN' ? 'zh' : 'en')
+export const digestFor = (version: keyof typeof NOTES, locale: LabLocale) => dialogDigest([NOTES[version]], updateLocale(locale))
 
 function useLabLocale(locale: LabLocale): boolean {
   const [ready, setReady] = React.useState(i18n.language === locale)
@@ -118,7 +125,7 @@ const LIBRARY_BELOW_HEADER: SlotPlacement = { selector: '.nomi-library-page__mai
 /** 项目顶栏右簇的最前面（任务组之前）。 */
 const APPBAR_RIGHT: SlotPlacement = { selector: '.nomi-appbar__right', where: 'prepend' }
 
-export type BadgeSpec = Readonly<{ phase: UpdateBadgePhase; version: string; percent?: number }>
+export type BadgeSpec = Readonly<{ phase: UpdatePillPhase; version: string; percent?: number; compact?: boolean; failedStage?: 'download' | 'install' }>
 
 const noop = (): void => undefined
 
@@ -155,7 +162,7 @@ export function LibraryStage({ locale = 'zh-CN', badge, top, clipHeight }: {
           />
           {badge ? (
             <InjectedSlot root={root} placement={LIBRARY_TOP_ACTIONS}>
-              <UpdateBadge host="library" phase={badge.phase} version={badge.version} percent={badge.percent} />
+              <UpdatePillView host="library" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
             </InjectedSlot>
           ) : null}
           {top ? <InjectedSlot root={root} placement={LIBRARY_BELOW_HEADER}>{top(locale)}</InjectedSlot> : null}
@@ -188,7 +195,7 @@ export function AppBarStage({ locale = 'zh-CN', badge }: { locale?: LabLocale; b
           />
           <InjectedSlot root={root} placement={APPBAR_RIGHT}>
             <span className="inline-flex items-center gap-2.5">
-              <UpdateBadge host="appbar" phase={badge.phase} version={badge.version} percent={badge.percent} />
+              <UpdatePillView host="appbar" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
               <span className="w-px h-[18px] bg-workbench-border" aria-hidden="true" />
             </span>
           </InjectedSlot>
@@ -198,13 +205,16 @@ export function AppBarStage({ locale = 'zh-CN', badge }: { locale?: LabLocale; b
   )
 }
 
-export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = true, runningTasks, errorMessage }: {
+export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = true, runningTasks, errorMessage, percent, errorStage, errorReason }: {
   locale?: LabLocale
   view: UpdateDialogView
   version: '0.23.0' | '0.23.1'
   canAutoInstall?: boolean
   runningTasks?: number
   errorMessage?: string
+  percent?: number
+  errorStage?: UpdaterErrorStage
+  errorReason?: UpdaterErrorReason
 }): JSX.Element {
   const localeReady = useLabLocale(locale)
   return (
@@ -221,6 +231,9 @@ export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = 
             canAutoInstall={canAutoInstall}
             runningTasks={runningTasks}
             errorMessage={errorMessage}
+            percent={percent}
+            errorStage={errorStage}
+            errorReason={errorReason}
           />
         ) : null}
       </div>
@@ -228,24 +241,24 @@ export function DialogStage({ locale = 'zh-CN', view, version, canAutoInstall = 
   )
 }
 
-/** 热修横幅的那句话：H1 标题句；当前语言没有标题句（英文段）就取第一条加粗短语。 */
+/** 热修横幅的那句话：发版说明里「修好了什么」的标题句（生产同一个 deriveHotfixBanner 规则：没有标题句就不出）。 */
 export function hotfixHeadline(version: '0.23.1', locale: LabLocale): string {
-  const digest = digestFor(version, locale)
-  return digest.title ?? digest.groups[0]?.items[0] ?? `Nomi ${version}`
+  return NOTES[version][updateLocale(locale)].title ?? ''
 }
 
 export const hotfixBannerTop = (version: '0.23.1') => (locale: LabLocale): React.ReactNode => (
-  <HotfixBanner version={version} headline={hotfixHeadline(version, locale)} />
+  <HotfixBannerView version={version} headline={hotfixHeadline(version, locale)} />
 )
 
 export const updatedCardTop = (input: { from?: string; to: '0.23.1'; chain: readonly ('0.23.0' | '0.23.1')[] }) => (locale: LabLocale): React.ReactNode => {
-  const merged = mergeDigests(input.chain.map((version) => digestFor(version, locale)))
+  const card = deriveUpdatedCard({ fromVersion: input.from ?? '0.23.0', toVersion: input.to, notes: input.chain.map((version) => NOTES[version]) }, updateLocale(locale))
+  if (!card) return null
   return (
-    <UpdatedCard
-      fromVersion={input.from}
-      toVersion={input.to}
-      headline={merged.title}
-      items={merged.items}
+    <UpdatedCardView
+      fromVersion={card.fromVersion}
+      toVersion={card.toVersion}
+      headline={card.headline}
+      items={card.items}
       releaseUrl={RELEASE_URL(input.to)}
     />
   )
