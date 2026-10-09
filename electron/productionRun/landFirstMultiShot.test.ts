@@ -163,9 +163,9 @@ describe("land first: a multi-shot production batch never dispatches a shot that
     await scheduler(root, repository, submit, async () => { throw new Error("renderer_unavailable"); }).runToQuiescence();
     expect(submit).toHaveBeenCalledTimes(0);
 
-    // 用户点「继续」：与 resumeProductionBatch 同一条命令（人的这一下点击 = humanGesture）。
+    // 用户点「继续」：resumeProductionBatch 的 run.control resume 落到仓库就是这一步（needs_attention → running）。
     const stopped = repository.read(PROJECT, RUN)!;
-    repository.execute(PROJECT, RUN, { commandId: `resume:${stopped.revision}`, expectedRevision: stopped.revision, type: "run.control", payload: { action: "resume" }, issuedAt: NOW, humanGesture: true } as Parameters<Repository["execute"]>[2]);
+    repository.execute(PROJECT, RUN, { commandId: `resume:${stopped.revision}`, expectedRevision: stopped.revision, type: "run.status", payload: { status: "running" }, issuedAt: NOW });
     const order: string[] = [];
     await scheduler(root, repository, submit, landingThatBinds(repository, order)).runToQuiescence();
 

@@ -41,6 +41,8 @@ import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchSc
 import { registerBatchSchedulerKicker } from '../productionRun/batchSchedulerKick'
 import type { ProductionRun, ProductionShotActionResult } from '../productionRun/productionRunTypes'
 import { createCanvasLandingHost } from '../productionRun/canvasLandingHost'
+import { createGuiLandingProjectAccess, desktopNoticeLocale, landBatchBeforeKick } from './appIntegrationLandFirst'
+import { startSingleShotProduction } from '../productionRun/singleShotProductionStart'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
@@ -179,7 +181,7 @@ export async function startCapabilityCore(
     } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
-    // 建草稿 / 改草稿即刻落画布。真正的落地函数（landCanvasBestEffort）在下面才装配得起来
+    // 建草稿 / 改草稿即刻落画布。真正的落地函数（canvasLanding.landDraftOnCanvas）在下面才装配得起来
     // （它要 requestRenderer / projectRoot / 预览密钥），故这里留一个后填的钩子槽：
     // 装配完成前的调用是 no-op（能力核还没就绪时本来也没有渲染层可落）。
     let landDraftOnCanvas: ((projectId: string, runId: string) => void) | null = null
@@ -220,7 +222,7 @@ export async function startCapabilityCore(
     const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
     // P4 S5：只认 main-issued Surface 的完整 committed identity；renderer scalar 不是 authority。
     const isProjectOpen = (id: string) => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId === id
-    // P4 S5：三个落地时机（建/改草稿即投影 · 付费确认即落 · 打开项目补齐）共用的一条 best-effort 链。
+    // P4 S5 / 架构③：建/改草稿即投影 · 派发前落地（不再 best-effort，准入点判能不能派）· 打开项目补齐 共用一条链。
     // 实现住 productionRun/canvasLandingHost.ts（本文件守 800 行门岗 · R9），这里只做接线。
     const canvasLanding = createCanvasLandingHost({
       readRun: (projectId, runId) => generationService.repository.read(projectId, runId),
@@ -228,8 +230,8 @@ export async function startCapabilityCore(
       requestRenderer,
       resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
       isProjectOpen,
+      openProjectForLanding: createGuiLandingProjectAccess(isProjectOpen),
     })
-    const landCanvasBestEffort = canvasLanding.landCanvasBestEffort
     landDraftOnCanvas = canvasLanding.landDraftOnCanvas
     const assertProductionShotCanDispatch = createProductionShotDispatchGuard({
       readRun: (projectId, runId) => generationService.repository.read(projectId, runId) ?? undefined,
@@ -304,6 +306,7 @@ export async function startCapabilityCore(
         submission,
         projectId,
         runId,
+        landShots: canvasLanding.landBeforeDispatch,
         onBatchComplete: () => generationService.advanceSemanticProduction(projectId, runId),
       })
     }
@@ -415,18 +418,11 @@ export async function startCapabilityCore(
           // P4 S4: a multi-shot operation is driven by the durable batch scheduler (anchor → checkpoint →
           // shot batch, with budget halt + stop). A single-shot operation keeps the flat one-call start.
           if (operation.shots && operation.shots.length > 0) {
-            // P4 S5 确认即落（§3.4 / T2）：项目正开 → 尽力先把「锚 + 勾选镜」落成占位节点 + 组，并把
-            // shotId→nodeId 写回 Run（scheduler 随后建的 job 从 shot 继承 nodeId，供 reconcile/回填）。
-            // best-effort：项目没开 / 渲染层不可用 / 落地失败都只记 warn，**绝不阻断生成**（Job 从合同派生，§1）。
-            // 必须在 kick scheduler **之前**——否则 job 先建、shot 还没 nodeId，job 就不带 nodeId 了。
-            if (isProjectOpen(lease.projectId)) {
-              await landCanvasBestEffort(lease.projectId, operation.operationId)
-            }
-            // P4 S6.5 生产入口修根因：调度器只驱动 state==='submitted' 的多镜计划（multiShotBatchScheduler
-            // batchActive 判据）。单镜走 submission.start 内部会转 submitted；多镜这条分支此前**从不转
-            // submitted**，sealed+approved 的计划停在 sealed → batchActive 恒 false → 调度器空转（S4/S5
-            // e2e 用 setup 直发 generation.submit 绕过 appIntegration 才没暴露，正是「没有生产入口」的直接
-            // 后果）。故 kick 前先经 durable 命令转 submitted（幂等：已 submitted 直接跳过）。
+            // 架构③ 先落节点、再发请求：kick 之前先经唯一准入点把这批镜落到画布上（项目没开时只在隐藏主窗口里替 Agent 打开）。
+            // 落不下来的镜不派——调度器每一趟派发前都过同一个准入点，只派落下的，歇下时停在 landing_failed。
+            // 这里先落一次，是为了把「没放到画布上」当场如实回给 Agent（用户在 Agent 那边读到的就是这句）。
+            const landing = await landBatchBeforeKick({ repository: generationService.repository, landShots: canvasLanding.landBeforeDispatch, projectId: lease.projectId, runId: operation.operationId })
+            // P4 S6.5 生产入口修根因：调度器只驱动 state==='submitted' 的多镜计划。kick 前先经 durable 命令转 submitted（幂等）。
             const beforeKick = generationService.repository.read(lease.projectId, operation.operationId)
             if (beforeKick?.generationPlan?.state === 'sealed') {
               await generationService.command(lease.projectId, operation.operationId, {
@@ -442,23 +438,20 @@ export async function startCapabilityCore(
               submission,
               projectId: lease.projectId,
               runId: operation.operationId,
+              landShots: canvasLanding.landBeforeDispatch,
               onBatchComplete: () => generationService.advanceSemanticProduction(lease.projectId, operation.operationId),
             })
             // Durable, restart-safe kick; slow providers are re-kicked until quiescent.
             driveScheduler(lease.projectId, operation.operationId, scheduler, 'batch scheduler tick')
-            return { operationId: operation.operationId, state: operation.state, nextAction: 'observe' }
+            return landing
+              ? { operationId: operation.operationId, state: operation.state, nextAction: 'canvas_landing_failed', ...landing }
+              : { operationId: operation.operationId, state: operation.state, nextAction: 'observe' }
           }
-          // 受理那一刻 Run 已经记成进行中（提交出口和「已受理」同一次落盘）。
-          const started = await submission.start({ projectId: lease.projectId, operationId: operation.operationId })
-          // Single-shot semantic plans keep their candidate at the plan root,
-          // but they still belong to the same canvas materialization owner as
-          // multi-shot runs. Land the real placeholder after the durable
-          // provider acceptance so the node carries the run/job provenance.
-          // The semantic operation was initiated by the active resident
-          // surface; requestRenderer itself enforces the committed target
-          // identity. Do not gate this call on a transient surface snapshot
-          // (surface switches can lag the main-process selection by a tick).
-          await landCanvasBestEffort(lease.projectId, operation.operationId)
+          // 单镜与多镜同一个准入点：先落画布、落下了才交（以前是先交、后 best-effort 落）。落不下来 = 不交、停在 landing_failed。
+          const started = await startSingleShotProduction({
+            repository: generationService.repository, submission, landShots: canvasLanding.landBeforeDispatch,
+            projectId: lease.projectId, runId: operation.operationId, now: () => new Date().toISOString(), locale: desktopNoticeLocale(),
+          })
           if (started.nextAction === 'observe') observeSingleShotRun(submission, lease.projectId, operation.operationId)
           return started
         },
@@ -512,6 +505,7 @@ export async function startCapabilityCore(
         rendererTarget: rendererTargetIdentity, committedSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
         leaseFor: residentGeneration.leaseFor, resolvePricing: resolveModelPricing,
         // 卡上改一下与 Agent 改草稿走同一条并入规则（同一个目录、同一份视频候选）。
+        landShots: canvasLanding.landBeforeDispatch,
         normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry: generationRegistry, videoModelCandidates: deriveUsableVideoModelCandidates() }).normalizedPatch,
       }))
       // 两条面（lane 的生成适配器、面板的付费卡）装齐了才算 ready：它们由同一份相回答。

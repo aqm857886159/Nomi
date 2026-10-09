@@ -53,6 +53,7 @@ import { createProductionRunService } from "./productionRunService";
 import { registerProductionRunService, resetRegisteredProductionRunService } from "./productionRunServiceRegistry";
 import type { ProductionGenerationShot, ProductionRun, RunCommand, RunCommandResult } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 const PROJECT = "project-1";
 const RUN = "op-settle";
@@ -146,7 +147,7 @@ async function driveBatch(root: string, repository: Repository, service: ReturnT
     now,
   });
   return await createMultiShotBatchScheduler({
-    repository, submission, projectId: PROJECT, runId: RUN, now,
+    repository, landShots: landingThatBinds(repository), submission, projectId: PROJECT, runId: RUN, now,
     onBatchComplete: () => service.advanceSemanticProduction(PROJECT, RUN),
   }).runToQuiescence();
 }

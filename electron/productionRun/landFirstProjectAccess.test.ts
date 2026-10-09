@@ -1,0 +1,160 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/executionContract";
+import type { GenerationProvider } from "../capabilityCore/generationRuntimeAdapter";
+import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
+import { createCanvasLandingHost } from "./canvasLandingHost";
+import { createLandingProjectAccess, refuseLandingWithoutRenderer } from "./landingProjectAccess";
+import type { MaterializeShotsWirePayload } from "./multiShotCanvasLanding";
+import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
+import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
+import { createProductionRunRepository } from "./productionRunRepository";
+import { startSingleShotProduction } from "./singleShotProductionStart";
+
+// 架构③ Q1（用户 2026-10-09 拍板 A + C′）：派发前落地要的项目没打开时——
+//   C′：主窗口本来就隐藏、用户从没叫出来（MCP 冷启的后台实例）→ 让它打开目标项目，再落地、派发；
+//   A (a)：用户看得见的窗口开着别的项目 → 拒，**绝不切换他正在看的项目**；
+//   A (b)：没有渲染层的旧进程内 stdio 路 → 拒。
+// 拒绝 = 不派（供应商 0 次）、停在 landing_failed、回给 Agent「需要在 Nomi 里打开项目「X」后再继续」。
+// 另：Q3「确认即落」——文稿来源的计划在派发前落地时真建节点（投影 / 对账仍然不替用户放）。
+
+const NOW = "2026-10-09T00:00:00.000Z";
+const PROJECT = "project-1";
+const OTHER = "project-other";
+const RUN = "op-access";
+const roots: string[] = [];
+
+const registry = createModuleRegistry([{
+  moduleId: "generation.single-shot", version: "1.0.0", inputKinds: ["text"], outputKinds: ["image"], modes: ["text-to-image"],
+  parameterSchema: { aspectRatio: { type: "string" } }, assetInputSchema: { references: { kind: "image", max: 4 } },
+  providers: [{ providerId: "fixture-provider", models: [{ modelId: "fixture-model", modes: ["text-to-image"], parameterSchema: {}, capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true } }] }],
+}]);
+
+const candidate = (): PlanCandidate => ({
+  candidateId: "candidate-1", revision: 1, moduleId: "generation.single-shot", providerId: "fixture-provider", modelId: "fixture-model",
+  mode: "text-to-image", prompt: "A paper boat", parameters: { aspectRatio: "16:9" }, references: [],
+});
+
+function setup(origin: { host: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } } = { host: "nomi" }) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-land-access-"));
+  roots.push(root);
+  const repository = createProductionRunRepository({
+    projectDirResolver: (projectId) => (projectId === PROJECT ? root : null), now: () => NOW,
+    randomId: (() => { let n = 0; return () => `id-${++n}`; })(),
+  });
+  const planCandidate = candidate();
+  const contract = compileExecutionContract(planCandidate, registry);
+  repository.createGenerationDraft({
+    operationId: RUN, projectId: PROJECT, origin, candidate: planCandidate,
+    policy: { trustedHosts: [origin.host], allowedProviders: ["fixture-provider"], allowedModels: ["fixture-model"], maxSpend: 0, maxAttemptsPerJob: 2 },
+  });
+  const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
+  const provider: GenerationProvider = {
+    providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+    buildRequest: (input) => input, submit: submit as unknown as GenerationProvider["submit"],
+  };
+  sealAndApproveProductionGeneration({
+    repository, projectId: PROJECT, operationId: RUN, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, projectRevision: 0,
+    candidate: planCandidate, contract, providers: [provider], now: NOW,
+  });
+  const submission = createProductionGenerationSubmission({
+    repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1,
+    intentMacKey: "test-intent-key", provider, now: () => NOW,
+  });
+  return { root, repository, submission, submit };
+}
+
+type Setup = ReturnType<typeof setup>;
+
+/** 一个只有一个主窗口的 App：它此刻开着哪个项目、用户看不看得见它。渲染层只在目标项目开着时落得下来。 */
+function app(base: Setup, window: { openProject: string | null; hiddenFromUser: boolean }) {
+  const payloads: MaterializeShotsWirePayload[] = [];
+  const opened: string[] = [];
+  const isProjectOpen = (projectId: string) => window.openProject === projectId;
+  const host = createCanvasLandingHost({
+    readRun: (projectId, runId) => base.repository.read(projectId, runId),
+    command: async (projectId, runId, command) => base.repository.execute(projectId, runId, command as Parameters<typeof base.repository.execute>[2]),
+    requestRenderer: async (_op, payload) => {
+      const wire = payload as MaterializeShotsWirePayload;
+      if (window.openProject !== wire.projectId) throw new Error("storyboard_project_changed");
+      payloads.push(structuredClone(wire));
+      return { bindings: wire.existingOnly ? [] : wire.shots.map((shot) => ({ shotId: shot.shotId, nodeId: `node-${shot.shotId}` })) };
+    },
+    resolveProjectRoot: () => base.root,
+    isProjectOpen,
+    openProjectForLanding: createLandingProjectAccess({
+      isProjectOpen,
+      mainWindowHiddenFromUser: () => window.hiddenFromUser,
+      // 隐藏主窗口经 deep-link 打开项目：渲染层 hydrate 完，主进程认下它。
+      openInHiddenWindow: (projectId) => { opened.push(projectId); window.openProject = projectId; },
+      projectName: () => "雨夜",
+      sleep: async () => undefined,
+    }),
+  });
+  return { host, payloads, opened };
+}
+
+afterEach(() => {
+  for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+});
+
+describe("land first when the project is not open (A + C′)", () => {
+  it("C′: a hidden main window the user never saw opens the project, lands, and the provider is called exactly once", async () => {
+    const base = setup();
+    const window = { openProject: OTHER as string | null, hiddenFromUser: true };
+    const { host, opened } = app(base, window);
+
+    const result = await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+
+    expect(opened).toEqual([PROJECT]);
+    expect(result).toMatchObject({ nextAction: "observe" });
+    expect(base.submit).toHaveBeenCalledTimes(1);
+    expect(base.repository.read(PROJECT, RUN)!.generationPlan!.nodeId).toBe(`node-${candidate().candidateId}`);
+  });
+
+  it("A (a): a window the user can see showing another project is never switched; zero dispatch, landing_failed, the notice names the project", async () => {
+    const base = setup();
+    const window = { openProject: OTHER as string | null, hiddenFromUser: false };
+    const { host, opened, payloads } = app(base, window);
+
+    const result = await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+
+    expect(window.openProject).toBe(OTHER);
+    expect(opened).toEqual([]);
+    expect(payloads).toEqual([]);
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(base.repository.read(PROJECT, RUN)!.stop?.reason).toBe("landing_failed");
+    expect(result).toMatchObject({ nextAction: "canvas_landing_failed", landingFailure: { code: "landing_project_not_open", projectName: "雨夜" } });
+    expect((result as { notice: string }).notice).toContain("需要在 Nomi 里打开项目「雨夜」后再继续");
+    expect((result as { notice: string }).notice).not.toMatch(/扣|费|钱/);
+  });
+
+  it("A (b): the in-process stdio path has no renderer — zero dispatch, landing_failed, English notice names the project", async () => {
+    const base = setup();
+    const result = await startSingleShotProduction({
+      repository: base.repository, submission: base.submission, landShots: refuseLandingWithoutRenderer(() => "Rain Night"),
+      projectId: PROJECT, runId: RUN, now: () => NOW, locale: "en",
+    });
+    expect(base.submit).toHaveBeenCalledTimes(0);
+    expect(base.repository.read(PROJECT, RUN)!.stop?.reason).toBe("landing_failed");
+    expect((result as { notice: string }).notice).toContain('Open the project "Rain Night" in Nomi');
+    expect((result as { notice: string }).notice).not.toMatch(/charge|credit|refund/i);
+  });
+
+  it("Q3 confirm = place: a document-sourced plan really lands before dispatch, while projection/reconcile still leave it off the canvas", async () => {
+    const base = setup({ host: "nomi", sourceDocument: { documentId: "doc-1", revision: 1, contentHash: "hash" } });
+    const window = { openProject: PROJECT as string | null, hiddenFromUser: false };
+    const { host, payloads } = app(base, window);
+
+    expect(await host.reconcileExistingCanvas(PROJECT, RUN)).toBe(false);
+    expect(payloads).toEqual([]);
+
+    await startSingleShotProduction({ repository: base.repository, submission: base.submission, landShots: host.landBeforeDispatch, projectId: PROJECT, runId: RUN, now: () => NOW });
+
+    expect(payloads[0]?.existingOnly).toBeUndefined();
+    expect(base.submit).toHaveBeenCalledTimes(1);
+  });
+});

@@ -2,8 +2,9 @@
 // 这里只负责：① 从 Run 的 generationPlan.shots 投影出 materialize-shots 载荷（含已完成镜的本地 result）；
 // ② 经 requestRenderer 请求渲染层落节点/组；③ 把 shotId→nodeId 绑定经 plan.bind-shot-nodes 写回 Run。
 //
-// 铁律（§1）：Job 只从封存合同派生，**画布落地是 best-effort**——项目没开 / 窗口不可用 / 渲染层抛错都只记 warn，
-// 绝不阻断生成。故所有落点调用点都 try/catch 后继续。
+// 两种用法（架构③「先落节点、再发请求」，2026-10-08 起）：
+//   · 派发前的落地（`landCanvasForRunOrThrow`，经唯一准入点 shotLandingAdmission）：落不下来就抛，这一镜不派；
+//   · 派发之后的投影（草稿投影 / Run 跟随 / 打开项目对账，`landCanvasForRun`）：只让画布跟上账本，失败只记 warn。
 //
 // 幂等（§3.4）：materializationOperationId = `canvas-landing:{runId}`（每 Run 一个稳定 op），跑两次不重复建节点/组。
 import { generationShotKind, type GenerationShotKind } from "../shared/generationShotKind";
@@ -83,6 +84,11 @@ export type MaterializeShotWire = {
    * 「节点在不在画布上」只有画布文档说了算，Run 里那条记录不是第二个 owner（S1-5，2026-10-03）。
    */
   existingOnly?: true;
+  /**
+   * Run 里这一镜绑着的节点（`plan.bind-shot-nodes` 写回的那个）。节点此刻不在画布上（删了、还没撤销）时，渲染层
+   * 据它把这一镜到达的结局按 nodeId 暂存，撤销 / 放回时落上——与普通画布同一个语义（架构③ 合同 3）。
+   */
+  nodeId?: string;
 };
 
 export type MaterializeShotsWirePayload = {
@@ -214,7 +220,7 @@ function shotKind(shot: ProductionGenerationShot): GenerationShotKind {
  */
 export function buildMaterializeShotsPayload(
   run: ProductionRun,
-  deps: { projectRoot: string | null; planName?: string; existingOnly?: boolean },
+  deps: { projectRoot: string | null; planName?: string; existingOnly?: boolean; placeDocumentPlan?: true },
 ): MaterializeShotsWirePayload | null {
   const plan = run.generationPlan;
   if (!plan) return null;
@@ -225,7 +231,7 @@ export function buildMaterializeShotsPayload(
   // plan follows the same existing-only rule as a detached shot.
   const sourceShots: ProductionGenerationShot[] = plan.shots && plan.shots.length > 0
     ? plan.shots
-    : [{ shotId: plan.candidate.candidateId, candidate: plan.candidate, updatedAt: plan.updatedAt, ...(plan.canvasDetached ? { canvasDetached: true } : {}) }]
+    : [{ shotId: plan.candidate.candidateId, candidate: plan.candidate, updatedAt: plan.updatedAt, ...(plan.nodeId ? { nodeId: plan.nodeId } : {}), ...(plan.canvasDetached ? { canvasDetached: true } : {}) }]
   if (sourceShots.length === 0) return null;
 
   // shotId → 已完成镜的本地 result（从 artifacts 投影）。job 谱系：job.metadata.shotId → job → artifact.jobId。
@@ -281,6 +287,7 @@ export function buildMaterializeShotsPayload(
       ...(result && dimensionsByShot.get(shot.shotId) ? { mediaDimensions: dimensionsByShot.get(shot.shotId) } : {}),
       ...(generation ? { generation } : {}),
       ...(shot.canvasDetached ? { existingOnly: true as const } : {}),
+      ...(shot.nodeId ? { nodeId: shot.nodeId } : {}),
     };
   });
 
@@ -291,7 +298,8 @@ export function buildMaterializeShotsPayload(
     materializationOperationId: canvasLandingOperationId(run.runId),
     ...(planName ? { planName } : {}),
     shots,
-    ...(run.origin.sourceDocument || deps.existingOnly ? { existingOnly: true } : {}),
+    // 文稿来源的计划平时只动已有节点（用户点「放到画布」才落）；确认付费那一下就是放到画布（10-08 拍板），由派发前落地带 placeDocumentPlan。
+    ...((run.origin.sourceDocument && !deps.placeDocumentPlan) || deps.existingOnly ? { existingOnly: true } : {}),
   };
 }
 
@@ -308,36 +316,46 @@ export type CanvasLandingDeps = {
   /** Optional lifecycle guard for detached observers.  It is checked before
    * touching the renderer and again before the durable Run bind. */
   isCurrent?: () => boolean;
+  /** 派发前落地：文稿来源的计划也真建节点（确认 = 放到画布）。 */
+  placeDocumentPlan?: true;
 };
 
 /**
- * 尽力把一个 Run 的镜落成画布占位 + 组 + 回填已完成 result，并把绑定写回 Run。**永不抛**（best-effort）：
- * 渲染层不可用 / 落地失败 → 返回 false（调用方继续生成）。确认即落与打开项目补齐共用它（P1 一个家）。
+ * 派发之后的投影（草稿投影 / Run 跟随 / 打开项目对账）：把一个 Run 的镜落成画布占位 + 组 + 回填已完成 result，
+ * 并把绑定写回 Run。**永不抛**：渲染层不可用 / 落地失败 → 记 warn、返回 false。钱不经过这里（派发前的落地走
+ * `landCanvasForRunOrThrow`，由唯一准入点判能不能派）。
  */
 export async function landCanvasForRun(run: ProductionRun, deps: CanvasLandingDeps): Promise<boolean> {
-  if (deps.isCurrent && !deps.isCurrent()) return false;
-  const payload = buildMaterializeShotsPayload(run, { projectRoot: deps.projectRoot, planName: deps.planName, ...(deps.existingOnly ? { existingOnly: true } : {}) });
-  if (!payload) return false;
   try {
-    if (deps.isCurrent && !deps.isCurrent()) return false;
-    const rendered = (await deps.requestRenderer("production.materialize-shots", payload, 60_000)) as { bindings?: unknown } | null;
-    const rawBindings = Array.isArray(rendered?.bindings) ? rendered!.bindings : [];
-    const bindings = rawBindings
-      .map((raw) => (raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}))
-      .map((entry) => ({ shotId: typeof entry.shotId === "string" ? entry.shotId.trim() : "", nodeId: typeof entry.nodeId === "string" ? entry.nodeId.trim() : "" }))
-      .filter((binding) => binding.shotId && binding.nodeId);
-    if (deps.reportUnmatched) {
-      const unmatched = payload.shots.filter((shot) => !bindings.some((binding) => binding.shotId === shot.shotId)).length;
-      if (unmatched > 0) logInfo("production-run", "canvas-reconcile-unmatched-shots", { runId: run.runId, unmatched, shots: payload.shots.length });
-    }
-    if (bindings.length > 0) {
-      if (deps.isCurrent && !deps.isCurrent()) return false;
-      await deps.bindShotNodes(run.projectId, run.runId, run.revision, bindings);
-    }
-    return true;
+    return await landCanvasForRunOrThrow(run, deps);
   } catch (error) {
-    // 渲染层不可用（项目没开 / 窗口关）或落地失败：只记 warn，生成照跑（§1 铁律）。
     logWarn("production-run", "canvas-landing-skipped", undefined, error);
     return false;
   }
+}
+
+/**
+ * 同一条落地链，失败如实抛（渲染层不可用 / 项目没开 / 落地报错）。派发前落地用它：抛了这一镜就不派。
+ * 返回 false = 没有可落的（没有计划 / 已不是当前生命周期）。
+ */
+export async function landCanvasForRunOrThrow(run: ProductionRun, deps: CanvasLandingDeps): Promise<boolean> {
+  if (deps.isCurrent && !deps.isCurrent()) return false;
+  const payload = buildMaterializeShotsPayload(run, { projectRoot: deps.projectRoot, planName: deps.planName, ...(deps.existingOnly ? { existingOnly: true } : {}), ...(deps.placeDocumentPlan ? { placeDocumentPlan: true as const } : {}) });
+  if (!payload) return false;
+  if (deps.isCurrent && !deps.isCurrent()) return false;
+  const rendered = (await deps.requestRenderer("production.materialize-shots", payload, 60_000)) as { bindings?: unknown } | null;
+  const rawBindings = Array.isArray(rendered?.bindings) ? rendered!.bindings : [];
+  const bindings = rawBindings
+    .map((raw) => (raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}))
+    .map((entry) => ({ shotId: typeof entry.shotId === "string" ? entry.shotId.trim() : "", nodeId: typeof entry.nodeId === "string" ? entry.nodeId.trim() : "" }))
+    .filter((binding) => binding.shotId && binding.nodeId);
+  if (deps.reportUnmatched) {
+    const unmatched = payload.shots.filter((shot) => !bindings.some((binding) => binding.shotId === shot.shotId)).length;
+    if (unmatched > 0) logInfo("production-run", "canvas-reconcile-unmatched-shots", { runId: run.runId, unmatched, shots: payload.shots.length });
+  }
+  if (bindings.length > 0) {
+    if (deps.isCurrent && !deps.isCurrent()) return false;
+    await deps.bindShotNodes(run.projectId, run.runId, run.revision, bindings);
+  }
+  return true;
 }

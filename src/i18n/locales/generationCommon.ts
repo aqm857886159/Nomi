@@ -1526,6 +1526,8 @@ export const zhGenerationCommon = {
       stoppedUnknown: '已停，这镜还没开拍。',
       // 批过的镜离你上一次点头太久、没人替你续（付费卡① 第 13 条）：点「继续」那一下就是确认。
       stoppedConsentExpired: '这镜还没开拍，需要你再确认一次。',
+      // 先落节点、再发请求（架构③）：这一批有镜没落上画布，那几镜没有发出生成请求。点「继续」= 重落再派。
+      stoppedLandingFailed: '有镜头没放到画布上，这次没有发出生成请求。点「继续」重试。',
       resume: '继续',
       continueRemaining: '继续剩余',
       // 用户删掉占位节点、但这件事没能记进制作流程：被删的那一镜可能照样生成并计费。动作 = 打开任务面板（暂停 / 取消）。
@@ -1553,6 +1555,7 @@ export const zhGenerationCommon = {
         notStopped: '这一批现在没有停着，不用继续。',
         planNotSubmitted: '这份方案还没开拍，先在 Agent 面板里确认生成。',
         ledgerWriteFailed: '没能把这一步写进项目记录（磁盘满了，或项目文件夹不能写入），这次没做成。腾出空间或检查权限后再点一次。',
+        canvasLandingFailed: '没放到画布上，这次没有发出生成请求。再点一次重试。',
         internalError: '这是 Nomi 自己的问题：这一步没做成，错误已记进日志。可以从「反馈与分享」把它发给我们。',
       },
     },
@@ -3122,6 +3125,8 @@ export const enGenerationCommon = {
       // The approved shots waited too long after your last go-ahead and nobody renewed it (paid card rule 13): the
       // "Continue" click is the confirmation.
       stoppedConsentExpired: 'This shot hasn\'t started — it needs your go-ahead again.',
+      // Land first, then request (architecture 3): some shots were not placed on the canvas, so no request was sent for them.
+      stoppedLandingFailed: 'Some shots weren\'t placed on the canvas, so no generation request was sent. Click Continue to retry.',
       resume: 'Continue',
       continueRemaining: 'Continue remaining',
       // The user deleted a placeholder but the production run never recorded it: that shot may still generate and bill.
@@ -3150,6 +3155,7 @@ export const enGenerationCommon = {
         notStopped: 'This run isn\'t stopped, so there\'s nothing to continue.',
         planNotSubmitted: 'This plan hasn\'t started yet. Confirm it in the Agent panel first.',
         ledgerWriteFailed: 'Couldn\'t save this step to the project record (the disk is full or the project folder isn\'t writable). Nothing was done. Free up space or check permissions, then try again.',
+        canvasLandingFailed: 'Not placed on the canvas, so no generation request was sent. Click again to retry.',
         internalError: 'This is a problem in Nomi itself: the step didn\'t go through. The error is in the log - you can send it to us from Feedback & share.',
       },
     },

@@ -42,6 +42,7 @@ import { decideGenerationSpend } from "./generationSpendDecision";
 import { productionShotActionFailureOf } from "./appIntegrationProductionActions";
 import type { PendingSpendConfirm, PendingSpendRead, PendingSpendRevised } from "../shared/contracts/pendingSpendConfirm";
 import { cardActionsSettled, serializeCardAction } from "./spendCardActionQueue";
+import { admitShotsForDispatch, type LandShotsOnCanvas } from "../productionRun/shotLandingAdmission";
 
 type RunReader = Readonly<{
   read(projectId: string, runId: string): ProductionRun | null;
@@ -72,6 +73,11 @@ export type PendingSpendActionDeps = Readonly<{
    * 带参考图的那一下在出站前被拒（2026-10-02 pb02）。必填：少接一根线编译期就红。
    */
   normalizePatch: (base: PlanCandidate, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>) => Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
+  /**
+   * 先落节点、再发请求（架构③）：确认那一下先把这一镜落到画布上（唯一准入点的落地器），落下了才批、才派。
+   * 落不下来卡就留在原地（这一镜没决定、什么都没批），再按一次「生成」就是重试。必填：少接编译期就红。
+   */
+  landShots: LandShotsOnCanvas;
   now?: () => string;
 }>;
 
@@ -217,6 +223,7 @@ export function pendingSpendDependencies(input: Readonly<{
   leaseFor: (binding: ProjectBinding) => Promise<ProjectLeaseV2>;
   resolvePricing: (providerId: string, modelId: string) => ModelPricing | undefined;
   normalizePatch: PendingSpendActionDeps["normalizePatch"];
+  landShots: LandShotsOnCanvas;
 }>): PendingSpendActionDeps {
   return {
     isProjectOpen: input.isProjectOpen,
@@ -241,6 +248,7 @@ export function pendingSpendDependencies(input: Readonly<{
     leaseFor: input.leaseFor,
     resolvePricing: input.resolvePricing,
     normalizePatch: input.normalizePatch,
+    landShots: input.landShots,
   };
 }
 
@@ -474,8 +482,12 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
     // 这一下点的是哪一镜：卡上只剩一镜时可以不点名；点名的必须就在卡上（还没决定）。
     const shotId = input.shotId ?? (pending.shots.length === 1 ? pending.shots[0].shotId : undefined);
     if (!shotId || !pending.shots.some((shot) => shot.shotId === shotId)) return failed(new Error("generation_scope_invalid"), false);
-    noteReplacing(input.projectId, input.operationId, pending.quoteId);
     const multiShot = Boolean(deps.runs.read(input.projectId, input.operationId)?.generationPlan?.shots?.length);
+    // 确认 = 放到画布（10-08 拍板）：先经唯一准入点把这一镜落上画布，落下了才批、才派。落不下来什么都不批，
+    // 卡留在原地、这一镜还没决定——再按一次就是重试。卡上说的只是事实：没放到画布上、这次没有发出生成请求。
+    const landing = await admitShotsForDispatch({ repository: deps.runs, land: deps.landShots, projectId: input.projectId, runId: input.operationId, shotIds: [multiShot ? shotId : undefined] });
+    if (landing.unlanded.length > 0) return { ok: false, code: "failed", message: "generation_not_started", reason: landing.landingFailure?.code ?? "canvas_landing_failed", failure: "canvas_landing_failed" };
+    noteReplacing(input.projectId, input.operationId, pending.quoteId);
     const target = deps.rendererTarget();
     if (!target) return { ok: false, code: "unavailable" };
     try {

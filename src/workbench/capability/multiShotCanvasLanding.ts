@@ -31,6 +31,7 @@ import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, ty
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import { isProductionRunRecord } from '../../../electron/shared/productionShotPhase'
 import type { MediaDimensions } from '../generationCanvas/nodes/nodeSizing'
+import type { HeldNodeOutcome } from '../generationCanvas/store/nodeRunOutcome'
 
 /**
  * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
@@ -79,6 +80,11 @@ export type MaterializeShotInput = {
    * 节点还在就照常回填并回报绑定——画布文档才是「节点在不在」的 owner，主进程据绑定纠正那条记录。
    */
   existingOnly?: boolean
+  /**
+   * Run 里这一镜绑着的节点（主进程 MaterializeShotWire.nodeId）。节点此刻不在画布上（删了、还没撤销）时，这一镜到达的结局
+   * 按这个 nodeId 暂存，撤销 / 放回把节点带回来时落上——与普通画布同一个语义（架构③ 合同 3），不再静默跳过。
+   */
+  nodeId?: string
 }
 
 export type MaterializeShotsPayload = {
@@ -334,6 +340,16 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
     else if (shot.generation) inLandingTxn(() => applyShotGeneration(nodeId, shot.generation!))
   }
 
+  // 绑着的节点此刻不在画布上（删了、还没撤销）：这一镜到达的结局按 nodeId 暂存，节点回来时由统一提交口落上
+  // （与普通画布 runProjectDelivery 同一个暂存）。节点不复活——删除事实优先。
+  const liveNodeIds = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
+  for (const shot of incoming) {
+    const boundNodeId = typeof shot.nodeId === 'string' ? shot.nodeId.trim() : ''
+    if (!boundNodeId || liveNodeIds.has(boundNodeId) || clientIdToNodeId[shot.shotId]) continue
+    const held = heldOutcomeOf(shot)
+    if (held) holdOnce(boundNodeId, held)
+  }
+
   // 付费卡确认落地不再挪画布、不再切分类（2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到
   // 那个镜头生成去哪里了」——那一闪是单镜先聚焦放大、360ms 后再适应全图两次移动叠在一起）。
   // 新镜头落在可见区（落不下就在已有内容下方），屏外 / 别的分类由画布边缘提示指路，点它才过去。
@@ -379,7 +395,7 @@ export type AttachShotResultOutcome = { attached: true; nodeId: string } | { ski
  * 回填一镜的 result（生成完成一个填一个＝「逐个冒」的节奏载体）。
  * **运行时断言：result.url 必须 nomi-local://**（本地优先铁律；providerUrl 另存原始 CDN）。R17 的 grep 棘轮
  * 抓不住「把 https CDN 塞进 node.result.url」这类运行期错误，故断言写在这条唯一回填入口里当场炸。
- * 节点已被用户删（整批撤销/手动删）→ 静默跳过。
+ * 节点已被用户删（整批撤销/手动删）→ 按 nodeId 暂存，撤销 / 放回时落上（与普通画布同一语义）。
  *
  * **同一份产物只回填一次**：Run 每变一次画布就跟一次，已经在节点结果或版本历史里的那一份（同 id 同地址）
  * 不再回填——否则用户切回旧版本 / 在这个节点上重新生成之后，下一次跟随会把制作那一版硬塞回当前结果。
@@ -395,11 +411,30 @@ export function attachShotResult(payload: AttachShotResultPayload): AttachShotRe
   }
   interruptPendingCanvasWrite()
   const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return { skipped: 'node-removed' }
+  if (!node) {
+    // 节点在生成中被删了（钱已花）：结局按 nodeId 暂存，撤销把节点带回来时落上去（与普通画布同一语义）。
+    holdOnce(nodeId, { kind: 'result', result, ...(payload.mediaDimensions ? { mediaDimensions: payload.mediaDimensions } : {}) })
+    return { skipped: 'node-removed' }
+  }
   const known = [node.result, ...(node.history ?? [])].some((entry) => entry?.id === result.id && entry.url === result.url)
   if (known) return { skipped: 'already-attached' }
   useGenerationCanvasStore.getState().addNodeResult(nodeId, result, payload.mediaDimensions)
   return { attached: true, nodeId }
+}
+
+/** 一镜带来的结局里，节点不在时值得暂存的那一份：出片了的结果，或确定的失败。生成中 / 已结束 / 可找回是瞬态，跟着下一次投影走。 */
+function heldOutcomeOf(shot: MaterializeShotInput): HeldNodeOutcome | null {
+  if (shot.result) return { kind: 'result', result: shot.result, ...(shot.mediaDimensions ? { mediaDimensions: shot.mediaDimensions } : {}) }
+  if (shot.generation?.state === 'failed') return { kind: 'status', status: 'error', ...(shot.generation.message ? { error: shot.generation.message } : {}) }
+  return null
+}
+
+/** Run 每变一次就投影一次：同一份结局只暂存一次（否则节点回来时同一张图会落成两个版本）。 */
+function holdOnce(nodeId: string, outcome: HeldNodeOutcome): void {
+  const store = useGenerationCanvasStore.getState()
+  const already = (store.heldNodeOutcomes[nodeId] ?? []).some((held) => held.kind === outcome.kind
+    && (outcome.kind === 'result' ? held.kind === 'result' && held.result.id === outcome.result.id && held.result.url === outcome.result.url : JSON.stringify(held) === JSON.stringify(outcome)))
+  if (!already) store.holdRunOutcome(nodeId, outcome)
 }
 
 /**

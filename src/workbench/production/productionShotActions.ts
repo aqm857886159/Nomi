@@ -32,6 +32,7 @@ export const SHOT_ACTION_FAILURE_COPY = {
   not_stopped: 'generationCommon.production.canvasLanding.actionFailure.notStopped',
   plan_not_submitted: 'generationCommon.production.canvasLanding.actionFailure.planNotSubmitted',
   ledger_write_failed: 'generationCommon.production.canvasLanding.actionFailure.ledgerWriteFailed',
+  canvas_landing_failed: 'generationCommon.production.canvasLanding.actionFailure.canvasLandingFailed',
   internal_error: 'generationCommon.production.canvasLanding.actionFailure.internalError',
 } as const satisfies Record<ProductionShotActionFailure, TranslationKey>
 

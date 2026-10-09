@@ -6,6 +6,7 @@ import { currentAnchorCheckpointGate, buildAnchorCheckpointGate } from "./anchor
 import { logInfo, logWarn } from "../logging/logger";
 import { latestSpendAuthorizationDigest } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError } from "../shared/productionDispatchConsent";
+import { admitShotsForDispatch, recordLandingFailure, type LandedShotAdmission, type LandShotsOnCanvas } from "./shotLandingAdmission";
 
 /**
  * P4 S4 — the durable batch scheduler orchestrator (plan §3.3). It has NO persistent state of its own:
@@ -61,6 +62,11 @@ export type BatchSchedulerOptions = {
 export type BatchSchedulerDependencies = {
   repository: Pick<ProductionRunRepository, "read" | "execute">;
   submission: Pick<ProductionGenerationSubmission, "start" | "poll" | "materialize">;
+  /**
+   * 先落节点、再发请求（架构③）：每一趟派发前，没节点的镜先经它落到画布上（唯一准入点 `admitShotsForDispatch`）。
+   * 落不下来的镜这一趟不派，批次歇下时停在 `landing_failed`。必填：没有落地器就造不出调度器。
+   */
+  landShots: LandShotsOnCanvas;
   projectId: string;
   runId: string;
   now?: () => string;
@@ -166,8 +172,8 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
 
   /** Submit one unit (anchor or shot), then poll once: instant providers settle in the same tick; a slow
    * provider leaves the job at `polling` and the derivation's `observe` list + waiting rounds take over. */
-  async function dispatchUnit(task: DispatchTask): Promise<void> {
-    const started = await deps.submission.start({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId, attempt: task.attempt });
+  async function dispatchUnit(task: DispatchTask, admission: LandedShotAdmission): Promise<void> {
+    const started = await deps.submission.start({ projectId: deps.projectId, operationId: deps.runId, shotId: task.shotId, attempt: task.attempt, admission });
     if (started.nextAction !== "observe") return;
     await observeUnitOnce(task);
   }
@@ -208,9 +214,14 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
    * 视频镜永远「排队中」（2026-09-18 C9 与 2026-09-29 用户实见同一族）。2026-10-01 删掉了「预算不够 → 停在 budget」：
    * 授权按镜批之后，它只会停下一镜用户亲手批过的镜（见 batchScheduleDerivation 文件头）。
    */
-  function settleAtRest(result: BatchDerivationResult, consentLapsed: ReadonlySet<string>): void {
+  function settleAtRest(result: BatchDerivationResult, consentLapsed: ReadonlySet<string>, landingFailed: ReadonlySet<string>): void {
     if (consentLapsed.size > 0) {
       stopRun("consent_expired");
+      return;
+    }
+    // 有批过的镜没能先落到画布上：它们一个都没派（先落节点、再发请求）。停下等用户打开项目后点「继续」= 重落再派。
+    if (landingFailed.size > 0) {
+      recordLandingFailure(deps.repository, deps.projectId, deps.runId, now);
       return;
     }
     if (result.checkpoint.status === "waiting") return;
@@ -221,9 +232,9 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
    * 派一个单元；同意过了窗口（`DispatchConsentLapsedError`）不是失败，记进 `consentLapsed`，这一趟不再碰它。
    * 返回 false = 没派出去（同意过期）。其余错误原样抛给调用方处置。
    */
-  async function dispatchWithConsent(task: DispatchTask, consentLapsed: Set<string>): Promise<boolean> {
+  async function dispatchWithConsent(task: DispatchTask, admission: LandedShotAdmission, consentLapsed: Set<string>): Promise<boolean> {
     try {
-      await dispatchUnit(task);
+      await dispatchUnit(task, admission);
       return true;
     } catch (error) {
       if (!(error instanceof DispatchConsentLapsedError)) throw error;
@@ -233,6 +244,26 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     }
   }
 
+  /**
+   * 这一趟要派的单元先过唯一准入（没节点的先落画布）。落不下来的记进 `landingFailed`，这一趟不再碰它；
+   * 返回能派的那几个和各自的准入。
+   */
+  async function admitForDispatch(tasks: readonly DispatchTask[], landingFailed: Set<string>): Promise<Array<{ task: DispatchTask; admission: LandedShotAdmission }>> {
+    if (tasks.length === 0) return [];
+    const outcome = await admitShotsForDispatch({
+      repository: deps.repository, land: deps.landShots, projectId: deps.projectId, runId: deps.runId,
+      shotIds: tasks.map((task) => task.shotId),
+    });
+    for (const shotId of outcome.unlanded) {
+      landingFailed.add(shotId);
+      logInfo("production-run", "batch-dispatch-not-landed", { shotId });
+    }
+    return tasks.flatMap((task) => {
+      const admission = outcome.admitted.get(task.shotId);
+      return admission ? [{ task, admission }] : [];
+    });
+  }
+
   async function runToQuiescence(): Promise<BatchOutcome> {
     let dispatchedShots = 0;
     let lastResult: BatchDerivationResult | undefined;
@@ -240,6 +271,8 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     const failedShots = new Set<string>();
     // 这一趟里因为同意过了窗口没派出去的单元（参考卡或视频镜）：歇下来时据此停在 consent_expired。
     const consentLapsed = new Set<string>();
+    // 这一趟里没能先落到画布上的单元：一个都不派，歇下来时据此停在 landing_failed。
+    const landingFailed = new Set<string>();
 
     // A confirmed multi-shot plan drives the run. Gate approval already wrote the only budget
     // authorization; the scheduler may start execution but can never mint or raise spend authority.
@@ -286,11 +319,11 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       }
       // 2. Dispatch anchors first (fresh or a rejected-checkpoint re-attempt). One whose consent went stale is
       // left alone for the rest of this drive (re-dispatching it would only be refused again).
-      const pendingAnchors = result.anchorDispatch.filter((task) => !consentLapsed.has(task.shotId));
+      const pendingAnchors = result.anchorDispatch.filter((task) => !consentLapsed.has(task.shotId) && !landingFailed.has(task.shotId));
       if (pendingAnchors.length > 0) {
         if (!consumeTick()) break;
-        for (const task of pendingAnchors) {
-          await dispatchWithConsent(task, consentLapsed);
+        for (const { task, admission } of await admitForDispatch(pendingAnchors, landingFailed)) {
+          await dispatchWithConsent(task, admission, consentLapsed);
         }
         continue; // re-derive: anchors now have jobs; checkpoint may open next
       }
@@ -298,15 +331,15 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       // 3. Dispatch shots (the derivation only clears them once the checkpoint released / no anchors).
       // Reserve happens inside the Run lock; the ledger's reserve is the hard wall against spending more
       // than was approved — hitting it is a failure of that one shot, like any other dispatch error below.
-      const pendingDispatch = result.shotDispatch.filter((task) => !failedShots.has(task.shotId) && !consentLapsed.has(task.shotId));
+      const pendingDispatch = result.shotDispatch.filter((task) => !failedShots.has(task.shotId) && !consentLapsed.has(task.shotId) && !landingFailed.has(task.shotId));
       if (pendingDispatch.length > 0) {
         if (!consumeTick()) break;
-        for (const task of pendingDispatch) {
+        for (const { task, admission } of await admitForDispatch(pendingDispatch, landingFailed)) {
           if (options.maxShotsPerRun !== undefined && dispatchedShots >= options.maxShotsPerRun) {
             return { progress: result.progress, checkpoint: result.checkpoint, quiescent: true };
           }
           try {
-            if (await dispatchWithConsent(task, consentLapsed)) dispatchedShots += 1;
+            if (await dispatchWithConsent(task, admission, consentLapsed)) dispatchedShots += 1;
           } catch (error) {
             // 派不出去的失败**只带走这一镜**。此前这里 `throw error` 会逐出 `runToQuiescence`，
             // 上游只剩一行 logWarn、无人重踢——于是一次瞬时出站失败把整批带走：
@@ -355,7 +388,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       // pending_anchors here means anchors are neither dispatchable nor pollable (e.g. needs_attention)
       // — a genuine rest until the user re-attempts them; settleAtRest says whether that rest is a stop.
       if (result.checkpoint.status === "waiting" || result.checkpoint.status === "pending_anchors" || result.checkpoint.status === "rejected") {
-        settleAtRest(result, consentLapsed);
+        settleAtRest(result, consentLapsed, landingFailed);
         return { progress: result.progress, checkpoint: result.checkpoint, quiescent: true };
       }
 
@@ -363,7 +396,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       // person to renew consent). Keep QA/assembly/export in the owning production pipeline. This callback
       // is only emitted for a fully settled batch; checkpoint waits and partial test drives never trigger it.
       await notifyBatchComplete(result.progress);
-      settleAtRest(result, consentLapsed);
+      settleAtRest(result, consentLapsed, landingFailed);
       return { progress: result.progress, checkpoint: result.checkpoint, quiescent: true };
     }
 

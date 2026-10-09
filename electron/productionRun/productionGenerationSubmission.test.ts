@@ -14,6 +14,7 @@ import {
 } from "./productionGenerationSubmission";
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
+import { landedAdmission } from "./landFirstTestUtils";
 
 const roots: string[] = [];
 const registry = createModuleRegistry([{
@@ -116,7 +117,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:00:00.000Z",
     });
 
-    await expect(first.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
+    await expect(first.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({
       operationId: "op-1",
       providerTaskId: "provider-task-1",
       nextAction: "observe",
@@ -143,7 +144,7 @@ describe("Run-owned semantic generation submission", () => {
       },
       now: () => "2026-08-23T00:01:00.000Z",
     });
-    await expect(restarted.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
+    await expect(restarted.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({
       providerTaskId: "provider-task-1",
       nextAction: "observe",
     });
@@ -170,7 +171,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:00:00.000Z",
     });
 
-    await expect(first.start({ projectId: "project-1", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
+    await expect(first.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
     expect(repository.read("project-1", "op-1")).toMatchObject({ jobs: [{ status: "submission_unknown" }] });
     const unknownRun = repository.read("project-1", "op-1")!;
     expect(() => repository.execute("project-1", "op-1", { commandId: "unknown-next-batch", expectedRevision: unknownRun.revision,
@@ -195,7 +196,7 @@ describe("Run-owned semantic generation submission", () => {
       },
       now: () => "2026-08-23T00:01:00.000Z",
     });
-    await expect(restarted.start({ projectId: "project-1", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
+    await expect(restarted.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
     expect(restartedSubmit).not.toHaveBeenCalled();
   });
 
@@ -218,8 +219,8 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:00:00.000Z",
     });
 
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-observe-only" });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ nextAction: "observe", providerTaskId: "provider-task-observe-only" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-observe-only" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ nextAction: "observe", providerTaskId: "provider-task-observe-only" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
@@ -244,7 +245,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:03:00.000Z",
     });
 
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     await expect(runner.poll({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
       providerTaskId: "provider-task-poll",
       providerStatus: "processing",
@@ -273,7 +274,7 @@ describe("Run-owned semantic generation submission", () => {
       submit,
       ...(query ? { query } : {}),
     });
-    await createProductionGenerationSubmission({ ...deps, provider: provider() }).start({ projectId: "project-1", operationId: "op-1" });
+    await createProductionGenerationSubmission({ ...deps, provider: provider() }).start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     // 观察窗过了：一个**全新的**提交门面 + 全新的供应商实例（它没交过这笔任务，内存里什么都没记）。
     const query = vi.fn(async (_taskId: string, context?: { modelId?: string; mode?: string }) => (
       context?.modelId ? { status: "processing" } : Promise.reject(new Error("cannot poll task without the model it was submitted with"))
@@ -312,7 +313,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:03:30.000Z",
     });
 
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     await expect(runner.poll({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
       providerStatus: "mystery_state",
       nextAction: "attention",
@@ -359,7 +360,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:04:00.000Z",
     });
 
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     await runner.poll({ projectId: "project-1", operationId: "op-1" });
     await expect(runner.materialize({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ artifactId: "asset-image-1", nextAction: "completed" });
     await expect(runner.materialize({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ artifactId: "asset-image-1", nextAction: "completed" });
@@ -396,7 +397,7 @@ describe("Run-owned semantic generation submission", () => {
       now: () => "2026-08-23T00:05:00.000Z",
     });
 
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     await runner.poll({ projectId: "project-1", operationId: "op-1" });
     await expect(runner.materialize({ projectId: "project-1", operationId: "op-1" })).rejects.toMatchObject({ code: "provider_materialization_unsupported" });
     expect(materializeOutput).not.toHaveBeenCalled();
@@ -427,12 +428,12 @@ describe("Run-owned semantic generation submission", () => {
       beforeDispatch: () => undefined,
       now: () => "2026-08-23T00:00:00.000Z",
     });
-    await expect(make(crashing).start({ projectId: "project-1", operationId: "op-1" })).rejects.toThrow("crash before dispatch");
+    await expect(make(crashing).start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toThrow("crash before dispatch");
     expect(submit).not.toHaveBeenCalled();
     expect(repository.read("project-1", "op-1")).toMatchObject({ jobs: [{ status: "authorized" }] });
     expect(repository.readBudgetLedger("project-1", "op-1").reservations).toEqual({});
 
-    await expect(make(repository).start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    await expect(make(repository).start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
@@ -452,8 +453,8 @@ describe("Run-owned semantic generation submission", () => {
       beforeDispatch: () => undefined,
       now: () => "2026-08-23T00:01:00.000Z",
     });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "provider-task-1" });
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
@@ -479,7 +480,7 @@ describe("Run-owned semantic generation submission", () => {
       beforeDispatch: () => undefined,
       now: () => "2026-08-23T00:00:00.000Z",
     });
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     expect(batches.at(-1)).toEqual(["job.status:provider_accepted", "generation.submit:", "run.status:running"]);
     expect(repository.read("project-1", "op-1")).toMatchObject({ status: "running", generationPlan: { state: "submitted" }, jobs: [{ status: "provider_accepted" }] });
   });
@@ -502,7 +503,7 @@ describe("Run-owned semantic generation submission", () => {
       },
       now: () => "2026-08-23T00:00:00.000Z",
     });
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({ providerTaskId: "should-not-run" });
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({ providerTaskId: "should-not-run" });
     expect(submit).toHaveBeenCalledTimes(1);
     expect(repository.read("project-1", "op-1")).toMatchObject({ generationPlan: { contract: { contractHash: contract.contractHash } }, jobs: [{ status: "provider_accepted" }] });
   });
@@ -527,7 +528,7 @@ describe("Run-owned semantic generation submission", () => {
       afterProviderAcceptance: () => { throw new Error("receipt lost after acceptance"); },
       now: () => "2026-08-23T00:00:00.000Z",
     });
-    await expect(first.start({ projectId: "project-1", operationId: "op-1" })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
+    await expect(first.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
     const run = repository.read("project-1", "op-1")!;
     expect(() => prepareProductionGenerationReauthorization({
       lease: { projectId: "project-1", immutableProjectUuid: "project-uuid-1", projectGeneration: 1, revocationEpoch: 0 },
@@ -555,7 +556,7 @@ describe("historical batch observation", () => {
         materialize: async () => ({ outputs: [{ kind: "image", url: "https://fixture.invalid/out.png" }] }) },
     });
     const input = { projectId: "project-1", operationId: "op-1", attempt: 1 };
-    const started = await submission.start(input);
+    const started = await submission.start({ ...input, admission: await landedAdmission(repository, input.projectId, input.operationId) });
     await submission.poll(input);
     await submission.materialize(input);
     const run = repository.read(input.projectId, input.operationId)!;
@@ -564,7 +565,7 @@ describe("historical batch observation", () => {
     expect(repository.read(input.projectId, input.operationId)!.generationPlan!.contract).toBeUndefined();
     await expect(submission.poll(input)).resolves.toMatchObject({ jobId: started.jobId, nextAction: "materialize" });
     await expect(submission.materialize(input)).resolves.toMatchObject({ jobId: started.jobId, artifactId: "historic-artifact" });
-    await expect(submission.start(input)).rejects.toThrow(/Seal and confirm/);
+    await expect(submission.start({ ...input, admission: await landedAdmission(repository, input.projectId, input.operationId) })).rejects.toThrow(/Seal and confirm/);
     expect(materializeOutput.mock.calls[0][0].contract).toEqual(contract);
     expect(materializeOutput).toHaveBeenCalledTimes(1);
     expect(submit).toHaveBeenCalledTimes(1);

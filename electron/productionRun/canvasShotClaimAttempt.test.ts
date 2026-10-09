@@ -17,6 +17,7 @@ import { applyRunControl } from "./productionRunControl";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 // 画布 ↔ 制作「这一镜归谁」的写命令：同一镜的第 2、3 次认领 / 删除必须各自落盘。
 // 根因合同：docs/fixes/2026-10-05-canvas-claim-attempt-id.root-cause.json；复盘：docs/plan/2026-10-05-engine-convergence-cut1.md §3。
@@ -88,7 +89,7 @@ function scheduler(root: string, repository: Repository, submits: string[], opti
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
     now,
   });
-  return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", now, options });
+  return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-batch", now, options });
 }
 
 const read = (repository: Repository): ProductionRun => repository.read("project-1", "op-batch")!;

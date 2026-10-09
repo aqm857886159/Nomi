@@ -8,6 +8,8 @@ import { getProductionRunService } from "./productionRun/productionRunRuntime";
 export const isBackgroundLaunch = process.env.NOMI_LAUNCH_BACKGROUND === "1";
 
 let idleExit: BackgroundIdleExit | undefined;
+/** 后台冷启的主窗口有没有被用户叫出来过（一次 show 就算——从此它是用户在看的窗口）。 */
+let shownToUser = false;
 
 export function backgroundWindowOptions(): { show: boolean; backgroundThrottling: boolean } {
   return { show: !isBackgroundLaunch, backgroundThrottling: !isBackgroundLaunch };
@@ -16,6 +18,7 @@ export function backgroundWindowOptions(): { show: boolean; backgroundThrottling
 export function installBackgroundWindowBehavior(mainWindow: BrowserWindow): void {
   if (!isBackgroundLaunch) return;
   mainWindow.on("show", () => {
+    shownToUser = true;
     idleExit?.markWindowShown();
     mainWindow.webContents.setBackgroundThrottling(true);
     if (process.platform === "darwin") app.dock?.show?.();
@@ -43,6 +46,14 @@ export function hasInFlightProductionWork(): boolean {
     // terminating a provider job that the owner has not finished observing.
     return true;
   }
+}
+
+/**
+ * 主窗口此刻是隐藏的、而且用户从没把它叫出来过（外部 MCP 冷启的后台实例）。只有这时主进程可以替 Agent 在那个窗口里
+ * 打开项目再落画布（landingProjectAccess）：没有人在看它。用户见过的窗口一律不替他换项目。
+ */
+export function mainWindowHiddenFromUser(window: Pick<BrowserWindow, "isDestroyed" | "isVisible"> | null): boolean {
+  return isBackgroundLaunch && !shownToUser && Boolean(window) && !window!.isDestroyed() && !window!.isVisible();
 }
 
 export function touchBackgroundActivity(): void {

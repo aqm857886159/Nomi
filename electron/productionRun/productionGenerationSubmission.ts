@@ -33,6 +33,7 @@ import { createProductionExecutionBinding, validateProductionExecutionBinding, t
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import { singleShotRunningCommand } from "./singleShotRunLifecycle";
+import { assertShotAdmission, type LandedShotAdmission } from "./shotLandingAdmission";
 
 export { SubmissionReceiptUnknownError, SubmissionReconciliationRequiredError };
 
@@ -46,6 +47,14 @@ export type GenerationSubmissionStartInput = {
    * behaving exactly as the P1–P3 single-shot chain (top-level plan contract). Backward compatible.
    */
   shotId?: string;
+};
+
+/**
+ * 派发（花钱）那一下的入参：除了地址，还必须带这一镜「已落地」的准入（架构③ 先落节点、再发请求）。
+ * 准入只有 `shotLandingAdmission.admitShotsForDispatch` 造得出来——不经准入就派，编译不过；拿到了这里还按耐久 Run 复核。
+ */
+export type GenerationSubmissionDispatchInput = GenerationSubmissionStartInput & {
+  admission: LandedShotAdmission;
 };
 
 export type GenerationSubmissionResult = {
@@ -466,7 +475,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     };
   }
 
-  async function start(input: GenerationSubmissionStartInput): Promise<GenerationSubmissionResult> {
+  async function start(input: GenerationSubmissionDispatchInput): Promise<GenerationSubmissionResult> {
     const shotId = input.shotId;
     let run = requiredRun(deps.repository, input.projectId, input.operationId);
     const contract = requiredContract(run, shotId);
@@ -485,9 +494,14 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     if (existingJob && ["submission_unknown", "reconciling", "needs_attention", "cancel_requested"].includes(existingJob.status)) {
       throw new SubmissionReconciliationRequiredError();
     }
+    // 先落节点、再发请求：这一镜此刻在画布上没有节点（或准入是伪造 / 过期的），什么都不写、不交。上面两支只是
+    // 对已交出去的那一次的观察 / 核对，不花新钱，不在这道闸里。
+    assertShotAdmission(run, shotId, input.admission);
     const runLock = lock(run.runId);
     return runLock.withLock(async (lease) => {
       run = requiredRun(deps.repository, input.projectId, input.operationId);
+      // 锁里再按最新的耐久 Run 复核一次：等锁期间节点可能被删（detached）。
+      assertShotAdmission(run, shotId, input.admission);
       const lockedContract = requiredContract(run, shotId);
       if (lockedContract.contractHash !== contract.contractHash) throw new Error("Generation contract changed while waiting for the Run lock");
       const lockedAttempt = input.attempt ?? addressedGenerationAttempt(run, shotId);

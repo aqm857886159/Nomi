@@ -14,6 +14,9 @@
 //      或 `reason`（为什么它不是一个用户可达的生成入口）。二选一，不许都空。
 //   ③ 矩阵形状对账：登记表记着「几个入口 × 几个用例」，与那两个源文件里的真实条数必须相等。
 //      加了入口不加用例覆盖、或加了入口忘了跑矩阵，都在这里红。
+//   ④ 先落节点、再发请求（架构③，2026-10-08）：每个入口声明 `landing`——node-first（owner 必须存在）或 exception
+//      （理由只认登记表 `landingExceptions`）。不落节点就发请求的新入口在这里红；「编译期拦」那一半在提交出口的
+//      准入类型上（`submission.start` 不带 `LandedShotAdmission` 编译不过）。
 //
 // 期望值（每格该发什么）**不在这个门岗里**——判对错是矩阵测试的事，门岗只数格子。
 //
@@ -114,6 +117,31 @@ export function checkGenerationEntrances(root = repoRoot) {
   }
   for (const entrance of [...entranceIds]) {
     if (!entrancesSource.includes(`"${entrance}"`)) problems.push(`入口 ${entrance} 解析异常。`)
+  }
+  // ④ 先落节点、再发请求（架构③）：每个入口都要说清请求发出前画布上有没有节点。
+  //    node-first 的 owner 文件必须存在；exception 的理由只认登记表 landingExceptions 里写了的。
+  const exceptions = ledger.landingExceptions && typeof ledger.landingExceptions === 'object' ? ledger.landingExceptions : {}
+  const exceptionEntrances = new Set()
+  for (const id of entranceIds) {
+    const start = entrancesSource.indexOf(`    id: "${id}",`)
+    const block = entrancesSource.slice(start, entrancesSource.indexOf('\n  },', start))
+    const landing = block.match(/\n\s{4}landing: \{ kind: "(node-first|exception)"(?:, owner: "([^"]+)")? \},/)
+    if (!landing) {
+      problems.push(`入口 ${id} 没有声明落地方式（landing）：请求发出之前画布上有没有这一镜的节点，必须写清——node-first 给出保证它的 owner，或登记成例外。`)
+      continue
+    }
+    if (landing[1] === 'exception') {
+      exceptionEntrances.add(id)
+      const reason = exceptions[id]
+      if (typeof reason !== 'string' || !reason.trim()) problems.push(`入口 ${id} 自称落地例外（不落节点就发请求），登记表 landingExceptions 里却没有它的理由。`)
+      continue
+    }
+    const ownerFile = (landing[2] ?? '').split(' ')[0]
+    if (!ownerFile || !fs.existsSync(path.join(root, ownerFile))) problems.push(`入口 ${id} 的落地 owner ${landing[2] ?? '(空)'} 不存在：node-first 必须指向真正保证「先有节点」的那个文件。`)
+  }
+  for (const [key, reason] of Object.entries(exceptions)) {
+    if (!exceptionEntrances.has(key) && !registered.has(key)) problems.push(`landingExceptions 里的 ${key} 既不是登记成例外的入口，也不是登记表里的调用点：同 commit 删掉，别留成永久豁免。`)
+    if (typeof reason !== 'string' || !reason.trim()) problems.push(`landingExceptions 里的 ${key} 没有理由。`)
   }
   // 每个入口的 dispatchSite 文件必须是扫到过的那些文件之一（入口不能指向一个没人发请求的地方）。
   const dispatchFiles = new Set([...scanned.keys()].map((key) => key.split('::')[0]))
