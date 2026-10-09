@@ -5,7 +5,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconDownload, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { shortVersion } from '../../../electron/shared/updateReminder'
+import { shortVersion, type UpdaterErrorStage } from '../../../electron/shared/updateReminder'
 import { useUpdater } from './useUpdater'
 
 export type UpdatePillPhase = 'available' | 'downloading' | 'downloaded' | 'error'
@@ -34,7 +34,7 @@ export function UpdatePillView({ phase, version, percent = 0, failedStage = 'dow
   phase: UpdatePillPhase
   version: string
   percent?: number
-  failedStage?: 'download' | 'install'
+  failedStage?: Exclude<UpdaterErrorStage, 'check'>
   host: UpdatePillHost
   /** 强制收成图标态（外壳按自己的断点传）；不传时 < 900px 视口自动收。 */
   compact?: boolean

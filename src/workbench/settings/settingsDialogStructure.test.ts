@@ -305,6 +305,17 @@ describe('settings dialog structure', () => {
     expect(aiModelsSource).toContain('if (Array.isArray(values)) setModels(values)')
   })
 
+  // 2026-10-09（#1135 更新提醒）：About 里原来自带一整套下载 / 重启 / 重试 / 发版说明 UI（与更新弹窗各说各话），
+  // 改为只报一句状态 + 「查看」，下载 / 重启 / 去官网 / 重试的唯一入口是共享的 UpdateDialog。
+  // （AboutSection 基线哈希的更新等协调会话拍板，见 PR 正文。）
+  it('hands every update action in the About section over to the shared update dialog', () => {
+    expect(aboutSource).toContain('updater.openDialog()')
+    expect(aboutSource).toContain('updater.retry')
+    for (const removed of ['updater.download', 'updater.install', 'updater.openDownload', 'updater.notes']) {
+      expect(aboutSource, removed).not.toContain(removed)
+    }
+  })
+
   it('keeps all five non-model sections at their explicitly approved content baseline', () => {
     for (const [fileName, expectedHash] of Object.entries(APPROVED_NON_MODEL_SECTION_SHA256)) {
       const source = fs.readFileSync(path.join(settingsDirectory, fileName), 'utf8').replaceAll('\r\n', '\n')

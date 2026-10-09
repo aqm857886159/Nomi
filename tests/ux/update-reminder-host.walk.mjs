@@ -9,16 +9,16 @@
 // 用法：node tests/ux/update-reminder-host.walk.mjs（先 pnpm run build）
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const currentVersion = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).version
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-update-host-'))
+const tempRoot = makeTempDir('nomi-update-host-')
 const settingsDir = path.join(tempRoot, 'settings')
 const memoryFile = path.join(settingsDir, 'update-reminder.json')
 const shots = path.join(repoRoot, 'tests', 'ux', 'shots', 'update-reminder-host')
@@ -113,5 +113,5 @@ try {
   await app.close()
   console.log(JSON.stringify({ ok: true, checks: results }, null, 2))
 } finally {
-  fs.rmSync(tempRoot, { recursive: true, force: true })
+  cleanupTestTemp(tempRoot)
 }

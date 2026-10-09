@@ -41,7 +41,7 @@ export const zhUpdateReminder = {
     running_one: '还有 {{count}} 个任务在跑，现在重启会中断它。退出 Nomi 时会自动装好。',
     running_other: '还有 {{count}} 个任务在跑，现在重启会中断它们。退出 Nomi 时会自动装好。',
     runningUnknown: '还有任务在跑，现在重启会中断它们。退出 Nomi 时会自动装好。',
-    reopenDownload: '重新打开下载页',
+    reopenDownload: '下载页',
     macSteps: {
       open: '下载完成后，打开 .dmg 文件',
       replace: '把 Nomi 拖到「应用程序」，选择替换',
@@ -93,7 +93,7 @@ export const enUpdateReminder: typeof zhUpdateReminder = {
     running_one: '{{count}} task is still running. Restarting now would interrupt it. The update installs automatically when you quit Nomi.',
     running_other: '{{count}} tasks are still running. Restarting now would interrupt them. The update installs automatically when you quit Nomi.',
     runningUnknown: 'Tasks are still running. Restarting now would interrupt them. The update installs automatically when you quit Nomi.',
-    reopenDownload: 'Open download page again',
+    reopenDownload: 'Download page',
     macSteps: {
       open: 'When the download finishes, open the .dmg file',
       replace: 'Drag Nomi into Applications and choose Replace',

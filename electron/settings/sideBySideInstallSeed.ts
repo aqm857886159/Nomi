@@ -61,6 +61,7 @@ export const SEEDED_CONFIG_FILES = [
  * `provider-adapters.json`：适配运行的历史与租约，本机执行状态，带过去只会是一堆别人的记录；
  * `telemetry-outbox.json`：本机待上报队列，带过去 = 重复上报；
  * `telemetry-settings.json`：遥测选择**不继承**——换一个安装就让用户自己再决定一次，默认关；
+ * `update-reminder.json`：更新提醒的本机状态——上次运行的版本（用来生成「已更新」卡）、已 ✕ 的热修横幅、用户同意过的待装版本和**稳定版自己的安装包缓存路径**。带到 Preview / RC 会让它凭空出一张「已更新到 x」卡，或把稳定版的待装记录当成自己的（Preview 不接稳定版更新源，也没有那份缓存，只会反复显示「上次没装上」）；两份安装各记各的；
  * `project.json`：根本不在 settings 根下（它是项目目录里的工程文件），列在这里只为让扫描器闭嘴时有个交代。
  */
 export const DELIBERATELY_NOT_SEEDED = [
@@ -70,6 +71,7 @@ export const DELIBERATELY_NOT_SEEDED = [
   "provider-adapters.json",
   "telemetry-outbox.json",
   "telemetry-settings.json",
+  "update-reminder.json",
   "project.json",
 ] as const;
 

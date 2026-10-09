@@ -172,7 +172,7 @@ export type NoticeScenario = Readonly<{
   updatedCard?: { from?: string; to: '0.23.1'; chain: readonly ('0.23.0' | '0.23.1')[] }
 }>
 
-export type BadgeSpec = Readonly<{ phase: UpdatePillPhase; version: string; percent?: number; compact?: boolean; failedStage?: 'download' | 'install' }>
+export type BadgeSpec = Readonly<{ phase: UpdatePillPhase; version: string; percent?: number; compact?: boolean; failedStage?: Exclude<UpdaterErrorStage, 'check'> }>
 
 const noop = (): void => undefined
 
