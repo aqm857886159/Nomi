@@ -68,7 +68,15 @@ describe("Agent lane production cutover structure", () => {
     expect(residentShell).toContain("useAgentPanelV4Data");
     expect(residentShell).not.toContain("useProjectAgentSnapshot");
     expect(residentShell).toContain("projectAgentDraft");
-    expect(workbenchShell).toContain("createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock)");
+    // 常驻面板只有一个挂载点：工作区把它交给外壳的 Agent 宿主，宿主用 react-reverse-portal 只渲染一棵树
+    // （InPortal 一次），停靠 / 小球 / 浮窗只换 OutPortal 落在哪——切形态不卸载、不重挂，面板本地状态不丢。
+    const agentHost = source("src/ui/app-shell/shell/ShellAgentHost.tsx");
+    expect(workbenchShell.match(/<ProjectAgentResidentShell\b/g) ?? []).toHaveLength(1);
+    expect(workbenchShell).toContain("agent={<ProjectAgentResidentShell surface={agentSurface} />}");
+    expect(workbenchShell).not.toContain("createPortal(<ProjectAgentResidentShell");
+    expect(agentHost.match(/<InPortal node=\{panelNode\}>/g) ?? []).toHaveLength(1);
+    expect(agentHost.match(/<OutPortal node=\{panelNode\} \/>/g) ?? []).toHaveLength(1);
+    expect(agentHost).not.toMatch(/createPortal\(\s*(?:\{agent\}|agent\b|<AgentPanelHeaderSlotContext)/);
     expect(workbenchStore).not.toContain("creationAiDraft");
   });
 
