@@ -36,6 +36,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER_PERMISSION, INTERVENTION_CONFIRM,
   PERMISSION_POPOVER, createRuntimeWalk, openCanvas, permissionTier, readProject, recorded, sendCanvas, closeSpendCard,
 } from './agent-runtime-walk-support.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const ASK_SAFE = 'S_AUTO_ASK_1：帮我生成一张六棱柱的图。'
 const ASK_FULL = 'S_AUTO_ASK_2：再来一张，换个角度。'
@@ -117,14 +118,15 @@ try {
   await clickOrFail(win.locator(`${CANVAS_PANEL} ${permissionTier('project')}`), '切到「全自动」')
   const switchCard = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="approval-reversible"]`)
   await expect(switchCard, '切档本身仍然要问一次——这一次点头就是他对之后每一笔付费的授权').toBeVisible()
-  await expect(switchCard, '切档确认必须说清「付费生成会直接跑」，不能还写着「付费仍然每次问」')
-    .toContainText('付费生成也会直接跑')
+  // 按键取值（uiText），不抄字面：#1099 把这句改成「生成也会直接跑」时，手抄的旧句在这里撞过红。
+  await expect(switchCard, '切档确认必须说清「生成会直接跑」，不能还写着「仍然每次问」')
+    .toContainText(uiText('zh-CN', 'agentPanelV4.autoModeConfirmBody').replace(/\*\*/g, ''))
   await walk.snap('full-auto-02-switch-says-paid-runs-directly')
   await clickOrFail(switchCard.locator(INTERVENTION_CONFIRM), '确认切到全自动')
 
   const banner = win.locator(`${CANVAS_PANEL} [data-v4-block="auto-mode"]`)
   await expect(banner, '全自动档要有常驻提醒——用户得一直知道自己在这一档').toBeVisible()
-  await expect(banner, '提醒那一行也要说实话：付费生成会直接跑').toContainText('付费生成会直接跑')
+  await expect(banner, '提醒那一行也要说实话：生成会直接跑').toContainText(uiText('zh-CN', 'agentPanelV4.autoModeBannerNote'))
 
   // ③ 再问一次。这一次宿主会**当场去决那道门**——在这台夹具上它会被诚实地拒绝，
   // 而拒绝必须是用户看得见的（沉默是这一族里最贵的回答）。
