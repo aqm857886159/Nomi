@@ -11,6 +11,7 @@ import { repairStoryboard } from './sweep-repair.mjs'
 import { writeJson } from './sweep-evidence.mjs'
 import { providerFailure } from './sweep-response.mjs'
 import { sweepTimeline } from './sweep-timeline.mjs'
+import { openStoryboardEditor } from '../_creationResourceTree.mjs'
 
 export async function runSurface({ walk, win, input, fixture, realText, directory, payload, projectId }) {
   const surface = input.surface
@@ -52,7 +53,7 @@ export async function runSurface({ walk, win, input, fixture, realText, director
       run: () => repairStoryboard(win, projectId, { title: 'Sweep 分镜', shots: shots.map(s => ({ ...s, modelKey: realText ? 'MiniMax-H3' : FIXTURE_IMAGE_MODEL, params: realText ? { duration: 8, resolution: '768P', size: '16:9' } : { size: '16:9' } })) }) })
     await station('storyboard', '分镜可编辑并保留输入约束', async () => {
       if (!input.text) return
-      await clickOrFail(win.locator('[data-storyboard-id]').first(), '打开分镜表', { timeout: stationTimeout({ operations: 1 }) })
+      await openStoryboardEditor(win, { pick: 'first' }, '打开分镜表')
       if (!realText) await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('Sweep 分镜')
       await expect.poll(async () => {
         const p = await payload()

@@ -32,6 +32,7 @@ export const EDGE_WRITERS = {
   'src/workbench/generationCanvas/agent/storyboardPlan.ts': { why: '分镜方案的计划边（clientId 边），不是画布 edges；落画布时由 connect_nodes 工具过闸', mustCall: [] },
   'src/workbench/generationCanvas/runner/generationRunController.ts': { why: '把当前 edges 原样交给只读解析（对象字面量形态），不写画布', mustCall: [] },
   'src/workbench/project/projectCategoryMigration.ts': { why: '加载迁移：重映射已有边的分类，不造新边', mustCall: [] },
+  'src/workbench/project/storyboardTableRetirement.ts': { why: '打开项目的迁移：只把退役分镜表节点上的边删掉（过滤），不造新边', mustCall: [] },
   'src/workbench/project/projectV51ToV60Migration.ts': { why: '加载迁移：referenceImageUrls 还原成边，属于旧数据升级，不是用户新建', mustCall: [] },
 }
 

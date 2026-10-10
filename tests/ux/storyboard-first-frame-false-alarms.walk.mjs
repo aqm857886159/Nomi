@@ -34,6 +34,7 @@ import {
 } from './agent-runtime-fixture.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const LOCALE = process.env.WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const T = {
@@ -163,7 +164,7 @@ try {
   if (await cont.isVisible().catch(() => false)) await cont.click()
   else await projectCard.dblclick()
   await clickOrFail(win.getByRole('button', { name: T.creationTab, exact: true }), '切到创作页')
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '侧栏选中分镜设计')
+  await openStoryboardEditor(win, DESIGN, '侧栏选中分镜设计')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
 
   // ── A. 执行计划检查：就绪（有拆条建议），不是「执行计划检查失败」 ──

@@ -121,3 +121,17 @@ export async function openRailDrawer(win, item, label = `open ${item} drawer`) {
   if (await closed.first().isVisible().catch(() => false)) await clickOrFail(closed, label)
   await expect(win.locator(`${RAIL_ITEM(item)}[aria-pressed="true"]`).first(), `${label}：点完抽屉仍没开`).toBeVisible()
 }
+
+/**
+ * 生成页顶栏里「画布 ↔ 列表」那一个图标切换（外壳 viewSwitcher 槽，紧挨「生成」）。
+ * 走查切视图一律经这里，别自己按文案 / 图标猜：按钮上的 data-generation-view-switcher 写的是**当前**视图，
+ * 图标和 aria-label 显示的是点了会去的那个。已经在目标视图就什么也不做。
+ * @param {'canvas' | 'list'} to
+ */
+export async function switchGenerationView(win, to, label = `switch to ${to}`) {
+  const button = win.locator('[data-shell-topbar] [data-generation-view-switcher]')
+  await expect(button, `${label}：顶栏里没有「画布 ↔ 列表」切换（只有生成页有）`).toBeVisible()
+  if ((await button.getAttribute('data-generation-view-switcher')) === to) return
+  await clickOrFail(button, label)
+  await expect(button, `${label}：点完还没切过去`).toHaveAttribute('data-generation-view-switcher', to)
+}

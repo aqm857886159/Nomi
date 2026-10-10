@@ -89,6 +89,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/vitest-lanes.test.ts', match: TEST_STYLE_FILE }, // 全仓每个测试样式文件都必须被某条车道认领；vitest.config.ts 在闭包里
   { file: 'tests/ux/_launchApp.test.mjs', roots: ['tests/ux', 'scripts'], exts: ['mjs'] }, // 每个字面凭据夹具都显式声明隔离合成存储（3 秒）
   { file: 'tests/ux/_paidRun.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每个 *.paid.mjs 都走 openPaidWalk 或在例外表里
+  { file: 'tests/ux/storyboard-editor-entry.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 走查不许自己点方案行进编辑器，只经 openStoryboardEditor（1 秒）
   { file: 'tests/ux/design-lab/labFailureTriage.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每份设计实验室走查入口认领角色、不写死端口
 ])
 

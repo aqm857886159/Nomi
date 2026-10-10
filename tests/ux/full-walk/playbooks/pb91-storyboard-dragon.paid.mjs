@@ -19,6 +19,7 @@ import path from 'node:path'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect } from '../../_assert.mjs'
 import { openPaidWalk, spendReceipt } from '../../_paidRun.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
+import { openStoryboardEditor } from '../../_creationResourceTree.mjs'
 
 const SCRIPT = 'pb91-storyboard-dragon.paid.mjs'
 const CHEAPEST = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
@@ -50,7 +51,7 @@ try {
 
   // 像用户一样：创作页 → 点开方案 → 把第 1 镜的提示词改写成「巨龙」→ 点行内生成。
   await clickOrFail(win.locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`).first(), '侧栏选中分镜方案')
+  await openStoryboardEditor(win, DESIGN, '侧栏选中分镜方案')
   const editor = win.locator('[data-storyboard-editor="true"]:visible')
   await expect(editor, '分镜编辑器出现').toBeVisible({ timeout: stationTimeout() })
   const box = editor.locator('[data-storyboard-row="1"] [data-storyboard-prompt-block] [contenteditable="true"]').first()

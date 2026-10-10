@@ -71,7 +71,11 @@ import { useNodePromptFocusRequest } from './nodePromptFocus'
  * （不定位、不描边、不投影），并把「生成」交还给卡的底栏——「生成」和「不要」是同一个决定的
  * 两面，分在两处等于把一个决定拆成两个家（§1.5 一功能一个家）。
  *
- * 刻意用一个 host 字段而不是一堆 `hideX` 开关：宿主只有两种，两种各自成套。
+ * `inline` = **画布这张卡原样，只是放在普通内容流里**（生成页「列表」点开一镜后的大详情用它，用户 10-10：「排版完全复用我们画布里面的排版」）：
+ * 生成方式页签、提示词区、模型、参数、工具图标、右下角 `↑` 都和 `canvas` 一模一样（同一个组件、同一套排版），
+ * 唯一的差别是不钉在画布节点下沿（没有 React Flow、没有缩放）——宿主只给它一块地方。
+ *
+ * 刻意用一个 host 字段而不是一堆 `hideX` 开关：宿主只有三种，各自成套。
  * 散开成开关之后，第三个调用者一定会挑出一套没人验证过的组合。
  *
  * **`panel` 到底不渲染哪几件**（2026-09-10 用户 v2 反馈：「卡里不需要优化/运镜/更多——都写完了还优化啥」）：
@@ -89,7 +93,7 @@ import { useNodePromptFocusRequest } from './nodePromptFocus'
  * 其中「参数」在这个宿主是**逐参数 chip**（`parameterLayout='chips'`，2026-09-11 用户拍板：
  * 只改付费卡，画布节点的参数条不动）——正在确认「出什么、花多少」时，多一次点击最贵。
  */
-export type NodeComposerHost = 'canvas' | 'panel'
+export type NodeComposerHost = 'canvas' | 'panel' | 'inline'
 
 type Props = {
   onFeedback: (message: string) => void
@@ -117,8 +121,8 @@ function composerMaxHeight(kind: GenerationCanvasNode['kind']): number {
  * 两件东西没有共同的身体，所以按种类分开：文本走 TextNodeComposer，其余走下面这张。
  */
 export default function NodeGenerationComposer(props: Props): JSX.Element {
-  return props.node.kind === 'text' && (props.host ?? 'canvas') === 'canvas'
-    ? <TextNodeComposer onFeedback={props.onFeedback} node={props.node} visualSize={props.visualSize} readOnly={props.readOnly ?? false} />
+  return props.node.kind === 'text' && (props.host ?? 'canvas') !== 'panel'
+    ? <TextNodeComposer onFeedback={props.onFeedback} node={props.node} visualSize={props.visualSize} readOnly={props.readOnly ?? false} inFlow={props.host === 'inline'} />
     : <GenericNodeGenerationComposer {...props} />
 }
 
@@ -133,6 +137,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   }, [node.id, onFeedback])
   const { t } = useTranslation()
   const inPanel = host === 'panel'
+  // 不钉在画布节点下沿（面板 / 列表详情）：外层是普通内容流里的一个 div，不绝对定位、不随画布拖动隐身。
+  const inFlow = host !== 'canvas'
   // 写到哪儿由宿主接住（见 nodeWriteAccess）：画布宿主写 store，付费确认卡写它自己的草稿账本，
   // 直到用户按下「生成」才由主进程把改动投影回画布。组件这一侧两个宿主一条写入调用。
   const { updateNode: writeNode, latestNode, connectNodes } = useNodeWriteAccess()
@@ -338,17 +344,17 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   return (
     // 外层只做屏幕空间定位锚，反向缩放保持参数卡可读。
     <NodeWriteAccessProvider value={writeAccess}><ComposerAnchor
-      inPanel={inPanel}
+      inFlow={inFlow}
       anchorRef={anchorRef}
       visualSize={visualSize}
       className={cn(
         'generation-canvas-v2-node__composer nokey',
         // 面板里的卡由介入槽定位，这里只是一段普通内容流；画布上才是浮在节点下沿的绝对定位层。
-        inPanel ? 'w-full' : 'absolute z-[8]',
+        inFlow ? 'w-full' : 'absolute z-[8]',
         // 画布拖动期间隐身（拖节点、拖选区/组框、拖画布平移都算；状态源=stage 的 data-dragging，见 canvasDraggingFlag）。
         // 刻意用 visibility 而非条件卸载：里面是 TipTap 编辑器实例，卸载 = 丢未提交的输入 +
         // 每次拖动重建编辑器（拖动是最高频动作）。
-        !inPanel && 'group-data-[dragging=true]/canvas:invisible',
+        !inFlow && 'group-data-[dragging=true]/canvas:invisible',
       )}
       data-composer-host={host}
       style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
@@ -364,11 +370,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           'relative flex flex-col gap-1.5 min-w-0',
           // 面板宿主里**卡壳是介入槽的**：再描一层边就成了框中框，而里外说的是同一张卡。
           inPanel ? 'w-full p-0' : 'p-3 border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
+          // 内容流里（列表详情）：卡宽恒定、在所在列里水平居中，和上面的预览同一条竖直中线（画布上由定位锚负责，不走这里）。
+          inFlow && 'mx-auto',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}
         style={inPanel ? { cursor: 'default', userSelect: 'auto', touchAction: 'auto' } : {
           width: NODE_COMPOSER_WIDTH,
+          ...(inFlow ? { maxWidth: '100%' } : {}),
           ...(promptExpand.expanded ? {} : { maxHeight }),
           minHeight: Math.min(minUsableHeight, maxHeight),
           cursor: 'default',

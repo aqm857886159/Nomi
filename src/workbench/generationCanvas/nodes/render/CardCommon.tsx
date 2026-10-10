@@ -31,26 +31,18 @@ export const CHECKERBOARD_BG_CLASS =
   'bg-[repeating-conic-gradient(var(--nomi-ink-10)_0_25%,var(--nomi-paper)_0_50%)] bg-[length:16px_16px]'
 
 /**
- * 节点 body 左上角标题行（统一规格：可选「镜头 N」徽标 + text-body-sm font-semibold 标题）。
+ * 节点 body 左上角标题行（统一规格：text-body-sm font-semibold 标题；没有镜号——镜号只来自 storyboardShotLabel）。
  * 收口占位卡 / 画板 / 音频等非图片 body 的标题——此前各写一套字号字重，扫节点找标题没稳定落点。
  * 图片卡（角色/场景/道具）的标题压在图上/图下是刻意沉浸式，不走这里（仅字号字重经 EditableNodeTitle 对齐）。
  */
 export function NodeBodyHeader({
   title,
-  shotIndex,
 }: {
   title?: string
-  shotIndex?: number | null
 }): JSX.Element | null {
-  const { t } = useTranslation()
-  if (shotIndex == null && !title) return null
+  if (!title) return null
   return (
     <div className="flex flex-col gap-1 min-w-0">
-      {shotIndex != null ? (
-        <span className="self-start inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink text-nomi-paper text-micro font-bold tabular-nums">
-          {t('generationCommon.card.shot', { index: shotIndex })}
-        </span>
-      ) : null}
       {title ? <span className="text-body-sm font-semibold text-nomi-ink-80 truncate">{title}</span> : null}
     </div>
   )

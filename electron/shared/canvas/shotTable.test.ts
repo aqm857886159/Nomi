@@ -1,19 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { createProductionShotTable, createStoryboardShotTable, normalizeShotTableMeta, readShotTable, shotTableDocumentSchema } from './shotTable'
+import { isRetiredShotTableNode, normalizeShotTableMeta, readShotTable, shotTableDocumentSchema } from './shotTable'
 
-const table = () => createStoryboardShotTable('document-1', 'design-1', '2026-09-10T00:00:00.000Z')
+const table = () => ({
+  schemaVersion: 1, view: { selectedRowIds: [] as string[], density: 'auto' as 'auto' | 'compact' }, revision: 0, updatedAt: '2026-09-10T00:00:00.000Z',
+  source: { kind: 'deconstruction', sourceNodeId: 'video-1', title: 'Reference', status: 'ready' },
+  columnSetId: 'facts', columns: [], rows: [],
+})
 
 describe('shot table persistence ownership', () => {
-  it('round trips only a storyboard reference and view state, with no owned rows', () => {
+  it('round trips a deconstruction table with its view state', () => {
     const value = table()
     value.view.selectedRowIds = ['shot-3']
     value.view.density = 'compact'
     const restored = readShotTable(JSON.parse(JSON.stringify({ shotTable: value })))
     expect(restored).toEqual(value)
-    expect(restored).not.toHaveProperty('rows')
   })
 
-  it('rejects cached production rows at the shared persistence boundary', () => {
+  it('rejects malformed rows at the shared persistence boundary', () => {
     const meta = { shotTable: { ...table(), rows: [{ rowId: 'shot-3' }] } }
     expect(readShotTable(meta)).toBeUndefined()
     expect(() => normalizeShotTableMeta(meta)).toThrow()
@@ -122,23 +125,16 @@ describe('shot time precision is owned by the persistence boundary', () => {
   })
 })
 
-describe('production shot table (Agent 分镜的唯一账本是 Run 落地的节点)', () => {
-  it('round trips only a run reference and view state, with no owned rows', () => {
-    const value = createProductionShotTable('run-1', 'canvas-landing:run-1', '2026-09-18T00:00:00.000Z')
-    expect(value.source).toEqual({ kind: 'production', runId: 'run-1', materializationOperationId: 'canvas-landing:run-1' })
-    const restored = readShotTable(JSON.parse(JSON.stringify({ shotTable: value })))
-    expect(restored).toEqual(value)
-    expect(restored).not.toHaveProperty('rows')
+describe('retired table sources (0.23.1 storyboard / production tables)', () => {
+  const retired = (kind: string) => ({ kind: 'shot_table', meta: { shotTable: { schemaVersion: 1, source: { kind }, columnSetId: 'production', view: { selectedRowIds: [], density: 'auto' }, revision: 0, updatedAt: '2026-09-18T00:00:00.000Z' } } })
+  it('the current schema no longer reads them, and the owner recognizes them for removal', () => {
+    for (const kind of ['storyboard', 'production']) {
+      expect(readShotTable(retired(kind).meta)).toBeUndefined()
+      expect(isRetiredShotTableNode(retired(kind))).toBe(true)
+    }
   })
-
-  it('rejects cached rows for a production table at the shared persistence boundary', () => {
-    const meta = { shotTable: { ...createProductionShotTable('run-1', 'canvas-landing:run-1'), rows: [{ rowId: 'node-1' }] } }
-    expect(readShotTable(meta)).toBeUndefined()
-    expect(() => normalizeShotTableMeta(meta)).toThrow()
-  })
-
-  it('rejects a production source without its run identity', () => {
-    const value = { ...createProductionShotTable('run-1', 'canvas-landing:run-1'), source: { kind: 'production', runId: 'run-1' } }
-    expect(shotTableDocumentSchema.safeParse(value).success).toBe(false)
+  it('never flags a live deconstruction table or any other node', () => {
+    expect(isRetiredShotTableNode({ kind: 'shot_table', meta: { shotTable: table() } })).toBe(false)
+    expect(isRetiredShotTableNode({ kind: 'image', meta: { shotTable: { source: { kind: 'storyboard' } } } })).toBe(false)
   })
 })

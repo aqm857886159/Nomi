@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useWorkbenchStore } from '../../../workbenchStore'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import type { StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
-import { createStoryboardShotTable, readShotTable } from '../../../../../electron/shared/canvas/shotTable'
-import { openShotTableRow } from '../openShotTableRow'
 import { applyProposalBatch } from '../../../generationCanvas/agent/proposalTxn'
 import { abandonPendingCanvasWrite, ownPendingCanvasWrite, whenCanvasWriteBoundarySettled } from '../../../generationCanvas/events/canvasWriteBoundary'
 
@@ -52,26 +50,6 @@ describe('storyboard writes never put a shot table on the canvas', () => {
     release()
     await whenCanvasWriteBoundarySettled()
     expect(canvas().nodes).toHaveLength(0)
-  })
-  it('old projects keep their storyboard-sourced table: it loads, stays through plan edits, and can be deleted', () => {
-    const store = useWorkbenchStore.getState()
-    const design = store.setStoryboardPlan(plan)!
-    canvas().restoreSnapshot({ nodes: [{ id: 'old-table', kind: 'shot_table', title: design.title, position: { x: 0, y: 0 }, status: 'idle',
-      meta: { shotTable: createStoryboardShotTable(design.documentId, design.id, '2026-09-10T00:00:00.000Z') } }], edges: [], groups: [], selectedNodeIds: [] })
-    expect(readShotTable(tables()[0].meta)?.source).toEqual({ kind: 'storyboard', documentId: 'doc', designId: design.id })
-    store.setStoryboardPlan({ ...plan, title: '新版' })
-    expect(tables()).toHaveLength(1)
-    canvas().deleteNode('old-table')
-    expect(tables()).toHaveLength(0)
-    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId.doc[0].plan.shots).toHaveLength(1)
-  })
-  it('navigates by source and stable row id, rejecting deleted rows', () => {
-    const design = useWorkbenchStore.getState().setStoryboardPlan(plan)!
-    const source = { kind: 'storyboard' as const, documentId: 'doc', designId: design.id }
-    expect(openShotTableRow(source, 'missing')).toBe(false)
-    expect(useWorkbenchStore.getState().workspaceMode).toBe('generation')
-    expect(openShotTableRow(source, 'third')).toBe(true)
-    expect(useWorkbenchStore.getState()).toMatchObject({ activeStoryboardId: design.id, workspaceMode: 'storyboard', storyboardRowFocus: { designId: design.id, rowId: 'third' } })
   })
   it('plan edits continue through the existing projection to an original shot node', () => {
     const store = useWorkbenchStore.getState()

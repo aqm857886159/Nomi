@@ -7,13 +7,15 @@ const video = { id: 'video', kind: 'video', categoryId: 'shots', shotIndex: 4 }
 const edge = { id: 'pair', source: 'frame', target: 'video', mode: 'first_frame' }
 
 describe('Agent shot references match the paired canvas labels', () => {
-  it('reports one owner number with distinct frame/video roles and executable node IDs', () => {
+  it('reports distinct frame/video roles and executable node IDs, and never the global number', () => {
     const result = projectCanvasRead({ nodes: [frame, video], edges: [edge] })
-    expect(result.nodes[0]).toMatchObject({ id: 'frame', shotIndex: 4, shotRole: 'first_frame', shotOwnerNodeIds: ['video'] })
-    expect(result.nodes[1]).toMatchObject({ id: 'video', shotIndex: 4, shotRole: 'video' })
+    expect(result.nodes[0]).toMatchObject({ id: 'frame', shotRole: 'first_frame', shotOwnerNodeIds: ['video'] })
+    expect(result.nodes[1]).toMatchObject({ id: 'video', shotRole: 'video' })
+    for (const node of result.nodes) expect(node).not.toHaveProperty('shotIndex')
     const compact = formatCanvasForAgent(result)
-    expect(compact).toContain('镜4 · 首帧图')
-    expect(compact).toContain('镜4 · 视频')
+    expect(compact).toContain('首帧图')
+    expect(compact).toContain('视频')
+    expect(compact).not.toMatch(/镜s?d/)
     expect(compact).toContain('shotOwnerNodeIds: video')
     expect(compact).not.toContain('never expose')
   })

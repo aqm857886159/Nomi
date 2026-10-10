@@ -142,7 +142,12 @@ const confirmCard = await win.evaluate(() => {
 })
 console.log('  → 确认卡:', JSON.stringify(confirmCard))
 check('整组运行走现成的批量确认卡', typeof confirmCard === 'string' && /开始生成/.test(confirmCard), String(confirmCard))
-check('确认卡张数 = 组成员数 4', /生成\s*4\s*张/.test(confirmCard || ''), String(confirmCard))
+// 确认卡现在是逐项清单（每个节点一行、没生成的默认勾上），张数 = 清单行数；不再有一句「生成 N 张」。
+const confirmRows = await win.evaluate(() => {
+  const boxes = Array.from(document.querySelectorAll('.fixed.inset-0 [data-v4-block="plan-rows"] input[type="checkbox"]'))
+  return { rows: boxes.length, checked: boxes.filter((box) => box.checked).length }
+})
+check('确认卡张数 = 组成员数 4（4 行、都默认勾上）', confirmRows.rows === 4 && confirmRows.checked === 4, JSON.stringify(confirmRows))
 
 const cancelBtn = win.locator('button', { hasText: /^取消$/ }).first()
 if (await cancelBtn.count()) await cancelBtn.click({ timeout: 4000 }).catch(() => {})

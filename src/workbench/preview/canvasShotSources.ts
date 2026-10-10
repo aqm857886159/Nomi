@@ -16,7 +16,10 @@ import { isShotNumberedNode } from '../generationCanvas/model/shotNumbering'
  */
 export type CanvasShotSource = {
   nodeId: string
+  /** 内部排序键（画布全局镜号）。**不显示**：给人看的号只来自 storyboardShotLabel（见 `storyboard`）。 */
   shotIndex: number | null
+  /** 这个节点挂在哪份分镜的哪一镜（给显示用的编号从这里解析）；没挂 = 没有镜号。 */
+  storyboard: { designId: string; shotId: string } | null
   label: string
   mediaType: 'image' | 'video'
   /** 格子封面用（视频优先缩略图，缺则让封面组件自己抽帧）。 */
@@ -39,9 +42,12 @@ export function selectCanvasShotSources(nodes: readonly GenerationCanvasNode[]):
     if (!url) continue
     const numbered = isShotNumberedNode(node)
     const shotIndex = numbered && typeof node.shotIndex === 'number' ? node.shotIndex : null
+    const designId = typeof node.meta?.storyboardDesignId === 'string' ? node.meta.storyboardDesignId : ''
+    const shotId = typeof node.meta?.shotId === 'string' ? node.meta.shotId : ''
     sources.push({
       nodeId: node.id,
       shotIndex,
+      storyboard: designId && shotId ? { designId, shotId } : null,
       label: node.title?.trim() || '',
       mediaType,
       thumbnailUrl: typeof node.result?.thumbnailUrl === 'string' ? node.result.thumbnailUrl.trim() : '',
@@ -98,6 +104,8 @@ function shotSourcesEqual(a: readonly CanvasShotSource[], b: readonly CanvasShot
     if (
       left.nodeId !== right.nodeId ||
       left.shotIndex !== right.shotIndex ||
+      left.storyboard?.designId !== right.storyboard?.designId ||
+      left.storyboard?.shotId !== right.storyboard?.shotId ||
       left.label !== right.label ||
       left.mediaType !== right.mediaType ||
       left.thumbnailUrl !== right.thumbnailUrl ||

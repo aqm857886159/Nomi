@@ -10,6 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = process.env.REF_SLOTS_WALK_OUT || path.join(repoRoot, '.tmp', 'storyboard-reference-slots')
@@ -103,7 +104,7 @@ try {
     else await card.dblclick()
   }
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
-  await clickOrFail(win.locator(`[data-storyboard-id="${designId}"]`), '选中走查分镜')
+  await openStoryboardEditor(win, designId, '选中走查分镜')
   await clickOrFail(win.getByRole('button', { name: /打开分镜|再次编辑/ }).first(), '打开分镜页')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器未渲染')
 

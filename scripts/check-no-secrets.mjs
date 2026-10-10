@@ -253,7 +253,38 @@ function readContent(f, staged) {
   return raw.includes("\u0000") ? "" : raw; // 含 NUL = 二进制，跳过内容扫描（路径黑名单仍生效）
 }
 
+/**
+ * 一次读完 index 里这批文件的内容：一个 `git cat-file --batch` 进程。
+ * 以前每个文件起一个 `git show :path` 子进程，Windows 上 1000+ 文件的合并提交要 3 分钟以上，撞上 pre-commit 120 秒上限，
+ * 合并提交根本提交不了（2026-10-10 #1128 合 main 实遇）。读到的内容与 `git show :path` 逐字节一致。
+ */
+function readStagedBatch(files) {
+  const out = new Map();
+  if (files.length === 0) return out;
+  let buffer;
+  try {
+    buffer = execFileSync("git", ["cat-file", "--batch"], { input: files.map((f) => `:${f}`).join("\n") + "\n", maxBuffer: 1024 * 1024 * 1024 });
+  } catch {
+    return out;
+  }
+  let pos = 0;
+  for (const f of files) {
+    const eol = buffer.indexOf(10, pos);
+    if (eol < 0) break;
+    const header = buffer.toString("utf8", pos, eol);
+    pos = eol + 1;
+    if (header.endsWith(" missing")) continue;
+    const size = Number(header.split(" ")[2]);
+    if (!Number.isFinite(size)) break;
+    const raw = buffer.toString("utf8", pos, pos + size);
+    pos += size + 1;
+    out.set(f, raw);
+  }
+  return out;
+}
+
 function scan(files, staged) {
+  const stagedContents = staged ? readStagedBatch(files) : null;
   const hits = [];
   let inlineAllows = 0;
   for (const f of files) {
@@ -266,7 +297,7 @@ function scan(files, staged) {
         if (re.test(scanPath)) hits.push({ f, kind: "禁止路径", detail: why });
       }
     }
-    const content = readContent(f, staged);
+    const content = stagedContents ? (stagedContents.get(f)?.includes("\u0000") ? "" : stagedContents.get(f) ?? "") : readContent(f, staged);
     if (!content) continue;
     if (!allowed) {
       for (const { name, re } of SECRET_PATTERNS) {
@@ -393,7 +424,14 @@ function privateTodoHits(mode, files) {
   if (mode === "staged") {
     const added = gitDiffAdded(["--cached", "--diff-filter=AM"]) ?? new Map();
     const other = mergeHeadSha();
-    return scanPrivateTodoIds(other ? dropLinesInOtherParent(added, (file) => readFromCommit(other, file)) : added);
+    // 只有新增行里真有「私有待办编号」的文件才需要去读另一个父提交（一个 git show 子进程）：1000+ 文件的合并提交原来逐个读，
+    // 在 Windows 上 3 分钟、撞 pre-commit 120 秒上限（2026-10-10）。没命中的行本来就不会产生结果，先筛掉不改判据。
+    const hot = new Map();
+    for (const [file, lines] of added) {
+      const matching = lines.filter(({ text }) => new RegExp(PRIVATE_TODO_ID.source).test(text));
+      if (matching.length) hot.set(file, matching);
+    }
+    return scanPrivateTodoIds(other ? dropLinesInOtherParent(hot, (file) => readFromCommit(other, file)) : hot);
   }
   if (mode === "all") {
     const base = prDiffBase();

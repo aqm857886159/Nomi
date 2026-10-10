@@ -3,6 +3,8 @@ import { collectNodeContext } from '../model/nodeContext'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { validateReferenceEdge, type EdgeSkipReason } from './referenceEdgeCapability'
 import { sendGenerationNodeToTimeline, type SendGenerationNodeToTimelineOptions } from './sendGenerationNodeToTimeline'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { storyboardLabelSourceFromDesigns } from '../../../../electron/shared/canvas/storyboardShotLabel'
 
 export type CreateGenerationNodeToolInput = {
   kind: GenerationNodeKind
@@ -54,6 +56,17 @@ function findNode(nodeId: string): GenerationCanvasNode | null {
 /** Renderer-owned document snapshot primitive for local planning and write RMW. */
 export function readGenerationCanvasSnapshot() {
   return useGenerationCanvasStore.getState().readSnapshot()
+}
+
+/**
+ * Agent / MCP 的 canvas.read 源：画布快照 + 分镜编号源（`storyboards`）。
+ * 分镜镜头对模型只报分镜号（「<分镜名> · 镜 03」），编号在 canvasRead 投影里按同一个 owner 解析。
+ */
+export function readCanvasReadSource() {
+  return {
+    ...readGenerationCanvasSnapshot(),
+    storyboards: storyboardLabelSourceFromDesigns(useWorkbenchStore.getState().storyboardDesignsByDocumentId),
+  }
 }
 
 export const generationCanvasTools = {

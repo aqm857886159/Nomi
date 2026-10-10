@@ -4,31 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import i18n from '../../../../i18n'
 import { selectShotTableRows } from './selectShotTableRows'
-import { createStoryboardShotTable, shotTableDocumentSchema } from '../../../../../electron/shared/canvas/shotTable'
-import type { StoryboardDesign } from '../../../workbenchTypes'
-import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
+import { shotTableDocumentSchema } from '../../../../../electron/shared/canvas/shotTable'
 
-const design: StoryboardDesign = { id: 'design', documentId: 'doc', title: 'Shot', status: 'draft', committed: false, createdAt: 1, updatedAt: 1, sourceDocumentUpdatedAt: 1, plan: { title: 'Shot', anchors: [], shots: [{ index: 1, shotId: 'shot-1', prompt: 'Original', durationSec: 3, anchorIds: [] }] } }
-const table = createStoryboardShotTable('doc', 'design')
-function read(nodes: GenerationCanvasNode[] = [], current = design) {
-  return selectShotTableRows({ table, designs: { doc: [current] }, nodes, imageModelOptions: [], videoModelOptions: [] })
-}
 describe('shot table read-through view', () => {
-  it('reflects owner edits without mutating or storing rows', () => {
-    expect(read()[0].prompt).toBe('Original')
-    expect(read([], { ...design, plan: { ...design.plan, shots: [{ ...design.plan.shots[0], prompt: 'Changed' }] } })[0].prompt).toBe('Changed')
-    expect(table).not.toHaveProperty('rows')
-  })
-  it('honors original node overrides while ignoring variants', () => {
-    const node: GenerationCanvasNode = { id: 'original', kind: 'video', title: '', position: { x: 0, y: 0 }, status: 'idle', prompt: 'Hand edited', meta: { storyboardDesignId: 'design', shotId: 'shot-1', overriddenFields: ['prompt'] } }
-    const variant: GenerationCanvasNode = { ...node, id: 'variant', regeneratedFrom: node.id, prompt: 'Variant' }
-    expect(read([variant, node])[0].prompt).toBe('Hand edited')
-    expect(read([variant])[0].prompt).toBe('Original')
-  })
-  it('does not show a sibling design or resurrect a removed source', () => {
-    expect(read([], { ...design, id: 'sibling' })).toEqual([])
-  })
-
   // 精度归 electron/shared/canvas/shotTime.ts 管。这一层只搬数字：搬之前是什么样，搬之后就是什么样。
   it('passes the owner-quantized deconstruction seconds through without touching them', () => {
     const facts = shotTableDocumentSchema.parse({
@@ -38,7 +16,7 @@ describe('shot table read-through view', () => {
       rows: [{ rowId: 'fact-1', order: 1, startSeconds: 1.468126, endSeconds: 3.903333,
         durationSeconds: 2.435207, carriedOver: false, cells: { visual: 'A doorway' } }],
     })
-    const rows = selectShotTableRows({ table: facts, designs: {}, nodes: [], imageModelOptions: [], videoModelOptions: [] })
+    const rows = selectShotTableRows(facts)
     expect(rows.map((row) => [row.start, row.end, row.duration])).toEqual([[1.5, 3.9, 2.4]])
     // 用户真正看到的那一串：ShotTableGrid.tsx:41 就是这两条文案的唯一消费者。
     expect(i18n.t('shotTable.timeRange', { start: rows[0].start, end: rows[0].end })).toBe('1.5–3.9s')

@@ -11,6 +11,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 const locale = process.env.NOMI_AUDIT_LOCALE === 'en' ? 'en' : 'zh-CN'
@@ -103,7 +104,7 @@ try {
   await smoke.openProject()
   await win().locator('.nomi-stepper__step[data-mode="creation"]').first().click()
   await settle(700)
-  await win().locator(`[data-storyboard-id="${DESIGN}"]`).first().click()
+  await openStoryboardEditor(win(), DESIGN)
   await editor().waitFor({ timeout: stationTimeout({ operations: 2 }) })
   await settle(1000)
   await editor().locator('[data-storyboard-anchors-toggle="true"]').click()

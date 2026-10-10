@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { officialPlannerPrice, requestQuote, textUsageCost, CNY_PER_USD } from './g1/c0-real-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { newProjectEntry } from './_shell.mjs'
 
 const MODEL = 'deepseek-v4-pro'
@@ -252,7 +253,7 @@ async function run() {
     assert.deepEqual(plan, result.plan, 'The second production write must preserve the normalized planner IR')
     report.persisted = scoreAnchorPlan(plan, profile, referenceUrl)
     fs.writeFileSync(path.join(outputDir, 'persisted-plan.json'), JSON.stringify(plan, null, 2))
-    await win.locator('[data-storyboard-id]').first().click()
+    await openStoryboardEditor(win, { pick: 'first' })
     await screenshotSettled(win, { path: path.join(outputDir, 'after.png') })
     assert.equal(report.persisted.total, 8)
     assert.equal(report.persisted.consuming, 8)
@@ -355,7 +356,7 @@ async function replayOfficialOutput(sourceDir) {
     assert.deepEqual(persisted, result.normalized)
     report.persisted = scoreAnchorPlan(persisted, profile, referenceUrl)
     fs.writeFileSync(path.join(outputDir, 'persisted-plan.json'), JSON.stringify(persisted, null, 2))
-    await win.locator(`[data-storyboard-id="${result.receipt.storyboardDesignId}"]`).click()
+    await openStoryboardEditor(win, result.receipt.storyboardDesignId)
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
     const collapsePanel = win.getByRole('button', { name: '收起面板', exact: true })
     // Panel preference is stored in this same isolated project and may already be collapsed.

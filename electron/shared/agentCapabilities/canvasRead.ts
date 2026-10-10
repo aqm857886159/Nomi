@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { taskReferenceSchema } from './taskReference';
 import { resolveShotIdentities } from "../canvas/shotNumbering";
+import { formatStoryboardShotLabelForAgent, resolveStoryboardShotLabel, storyboardLabelSourceSchema } from "../canvas/storyboardShotLabel";
 import { generationNodeStatusSchema, parseGenerationNodeStatus } from "../canvas/generationNodeStatus";
 import { DIRECTOR_PREVIEW_STATUSES } from "../director/directorPreviewStatus";
 import type { CapabilityContract } from "./capabilityContract";
@@ -49,7 +50,11 @@ const canvasReadNodeSchema = z
     status: generationNodeStatusSchema,
     position: canvasReadPositionSchema,
     locked: z.boolean(),
-    shotIndex: z.number().int().positive().safe().optional(),
+    /**
+     * 分镜镜头的名字（「镜 03」/「<分镜名> · 镜 03」，owner = canvas/storyboardShotLabel）。
+     * 全局镜号（画布 shotIndex）只是内部排序键，读面一律不输出：没挂在分镜上的节点没有镜号，只有节点名。
+     */
+    shotLabel: z.string().min(1).optional(),
     shotRole: z.enum(["first_frame", "video", "image"]).optional(),
     shotOwnerNodeIds: z.array(trimmedNonEmptyStringSchema).optional(),
     /** 文本节点的正文（纯文本，和下游拼进提示词的是同一份）；超长截断并带 textTruncated。 */
@@ -429,9 +434,19 @@ export function projectCanvasRead(source: unknown): CanvasReadResult {
   const survivingNodeIds = new Set(nodes.map((node) => node.id));
   const edges = projectEdges(canvas?.edges, survivingNodeIds);
   const identities = resolveShotIdentities(identityInputs, edges);
+  // 读面随画布一起带来的分镜编号源（渲染层 readCanvasReadSource）；没有 = 旧读面 / 外部图，照旧只有全局号。
+  const storyboards = storyboardLabelSourceSchema.safeParse(canvas?.storyboards);
+  const labelSource = storyboards.success ? storyboards.data : [];
+  const metaById = new Map(identityInputs.map((input) => [input.id, input.meta]));
 
   return canvasReadResultSchema.parse({
-    nodes: nodes.map((node) => ({ ...node, ...identities.get(node.id) })),
+    nodes: nodes.map((node) => {
+      const identity = identities.get(node.id);
+      const label = resolveStoryboardShotLabel({ meta: metaById.get(node.id) }, labelSource);
+      // 内部排序键 shotIndex 不出读面：分镜镜头只有分镜号（shotLabel），其余节点没有镜号。
+      const { shotIndex: _internalOrder, ...rest } = identity ?? {};
+      return label ? { ...node, ...rest, shotLabel: formatStoryboardShotLabelForAgent(label) } : { ...node, ...rest };
+    }),
     edges,
     groups: projectGroups(canvas?.groups, survivingNodeIds),
     selectedNodeIds: survivingReferences(canvas?.selectedNodeIds, survivingNodeIds),

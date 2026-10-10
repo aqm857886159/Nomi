@@ -35,6 +35,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectVisible, screenshotSettl
 // 等待上限一律从 `_station-budget.mjs` 派生（R18/check:test-waits）：本文件不写任何硬闹钟数字，
 // 「一次本地操作 15s、一条要过 runner 的链 2×15s」是全仓共用的那一把尺子，改预算只改那一处。
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-film-aspect-')
@@ -146,7 +147,7 @@ try {
   }
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
   // 侧栏点中方案就直接进分镜页（草稿方案没有摘要卡那一跳）。
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '侧栏选中分镜设计')
+  await openStoryboardEditor(win, DESIGN, '侧栏选中分镜设计')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
 
   // ── 1. 起点：整片画幅还没定（批量条显「按模型默认」）──

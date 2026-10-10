@@ -8,6 +8,8 @@ export type PlanRow = Readonly<{
   detail?: string
   technical?: string
   checked: boolean
+  /** 锁住：不能勾也不能去掉（比如这一项正在生成，再派一次就是重复扣费）。 */
+  disabled?: boolean
   group?: string
   aside?: string
 }>
@@ -43,6 +45,7 @@ export function PlanRows({
               type="checkbox"
               aria-label={row.label}
               checked={row.checked}
+              disabled={row.disabled}
               onChange={(event) => onToggle(row, event.target.checked)}
               className="mt-0.5 size-3.5 shrink-0 accent-nomi-accent"
             />

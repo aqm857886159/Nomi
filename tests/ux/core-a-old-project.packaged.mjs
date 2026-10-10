@@ -1,5 +1,6 @@
 // Historical project COPY → original editor → cold restart → original MP4 export.
 // Uses the existing packaged launcher; never opens or changes the source project.
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -290,7 +291,7 @@ export async function openCopiedStoryboardEditor(win, { original, design, copyRo
   const treeToggle = win.locator('[data-shell-rail-item="docs"]')
   await expect(treeToggle).toBeVisible()
   if (await treeToggle.getAttribute('aria-pressed') === 'false') await clickOrFail(treeToggle, '展开原文稿侧栏')
-  await clickOrFail(win.locator(`[data-storyboard-id="${design.id}"]`), '打开原分镜方案')
+  await openStoryboardEditor(win, design.id, '打开原分镜方案')
   const editor = win.locator('[data-storyboard-editor="true"]')
   await expect(editor).toBeVisible()
   await expect(editor.locator('[data-storyboard-bulkbar]')).toBeVisible()

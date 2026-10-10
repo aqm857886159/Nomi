@@ -1,0 +1,31 @@
+{
+  "name": "生成页「列表」视图（分镜 → 画布分组 → 未分组的那份排法）",
+  "subject": "generation.list-view",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generation/list/generationListModel.ts",
+    "symbol": "deriveGenerationList"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generation/list/generationListModel.ts",
+      "symbol": "deriveGenerationList"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generation/list/generationListSource.ts",
+    "src/workbench/generation/list/GenerationListView.tsx",
+    "src/workbench/generation/list/GenerationListParts.tsx",
+    "src/workbench/generation/list/GenerationListCard.tsx",
+    "src/workbench/generation/list/GenerationListSectionHeader.tsx",
+    "src/workbench/generation/list/GenerationListDetail.tsx",
+    "src/workbench/generation/list/CanvasListLinks.tsx"
+  ],
+  "since": "2026-10-08",
+  "notes": "设计卡 docs/plan/2026-10-08-generation-list-view.md。列表没有第二份数据：卡读画布 store 的节点（只显示已落画布的），行状态读 storyboardRowStatus 的词表。零写入：大详情里的生成框（NodeGenerationComposer host=panel）不包 NodeWriteAccessProvider，写口就是画布 store；「生成」走 composerRun.startGenerationFromComposer（与画布「↑」同一个口），分区头「生成全部」走 groupGenerate（与画布组框同一个口，同一张付费确认）。视图状态（画布 / 列表、大详情开着哪张）归 useGenerationViewStore，不进项目文件。"
+}

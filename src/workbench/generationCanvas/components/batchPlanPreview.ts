@@ -18,8 +18,13 @@ import { buildDependencyWaves, type DependencyWavePlan } from '../runner/depende
 import type { GenerationRunOutcome } from '../runner/generationRunOutcome'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import i18n from '../../../i18n'
-import { normalizeCanvasBatchConcurrency } from './canvasProductionScope'
+import { isGenerationNodeBusy, normalizeCanvasBatchConcurrency } from './canvasProductionScope'
+import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { PlanRow } from '../../shared/PlanRows'
+
+/** 逐项勾选的批量：候选行（id = 节点 id）。默认勾哪些、哪些锁住由调用方在行里写好；确认后按用户勾的重建执行计划。 */
+export type ItemizedBatch = { rows: readonly PlanRow[] }
 
 export const BATCH_RUN_TOAST_ID = 'canvas-batch-run'
 
@@ -161,14 +166,19 @@ async function consentPaidNodes(ids: readonly string[], projectId: string): Prom
  */
 export async function confirmAndRunPlan(
   plan: DependencyWavePlan,
-  options: { concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean; deferredMaterialization?: DeferredStoryboardPlan } & GenerationConfirmationGuards,
+  options: { concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean; deferredMaterialization?: DeferredStoryboardPlan; /** 同一张付费确认里按项勾选（画布组框与列表分区头「生成全部」）。 */ itemized?: ItemizedBatch } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
   const project = withProjectAction((issued) => issued)
   if (!project) return 'unavailable'
   const deferred = options.deferredMaterialization
   let executionPlan = plan
-  let ids = deferred ? deferred.draftNodes.map((node) => node.id) : plan.waves.flat()
+  const itemized = options.itemized
+  // 逐项勾选时候选 = 行里没锁的全部（含默认没勾的）：托管披露、出价前的输入快照都按这个超集算，勾什么由用户在卡上定。
+  const selectableIds = itemized ? itemized.rows.filter((row) => !row.disabled && row.id).map((row) => row.id!) : []
+  let toggled = false
+  const checkedIds = new Set(itemized ? itemized.rows.filter((row) => row.checked && !row.disabled && row.id).map((row) => row.id!) : [])
+  let ids = deferred ? deferred.draftNodes.map((node) => node.id) : itemized ? selectableIds : plan.waves.flat()
   if (ids.length === 0) {
     // 无可跑 → 复用人话 toast 报「为什么不能跑」。零节点也就没有素材要上传。
     await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
@@ -194,6 +204,11 @@ export async function confirmAndRunPlan(
       }),
       confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
       ...hostingDisclosureFor(hosting),
+      ...(itemized ? {
+        message: '',
+        planRows: itemized.rows,
+        onPlanToggle: (row: PlanRow, checked: boolean) => { if (!row.id || row.disabled) return; toggled = true; if (checked) checkedIds.add(row.id); else checkedIds.delete(row.id) },
+      } : {}),
     })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
   // 「他点了取消」，`generate` 只好报 `generation_approval_unavailable`（见 `generationRunOutcome.ts`）。
@@ -201,6 +216,23 @@ export async function confirmAndRunPlan(
   await options.assertCurrent?.()
   project.assertCurrent()
   if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+  if (itemized) {
+    // 按用户在卡上勾的重建执行计划：取消的那一项不进计划、不开出价、不派发。派发前再读一次节点现状，打开卡之后在别处开始生成的不再派。
+    const live = useGenerationCanvasStore.getState()
+    const liveById = new Map(live.nodes.map((node) => [node.id, node]))
+    const chosen = selectableIds.filter((id) => checkedIds.has(id) && !isGenerationNodeBusy(liveById.get(id), useProductionCanvasLandingStore.getState().runs))
+    if (chosen.length === 0) {
+      // 用户在卡上亲手去掉了全部 = 他的决定，不吵；没弹卡（不要确认的批）而默认一个都没勾 = 要说一句为什么没动静。
+      if (!toggled) reportCanvasFeedback(i18n.t('generationCommon.canvas.group.generateEmpty'), 'warning', { projectId: project.binding.projectId, identity: `batch-plan:itemized-empty:${selectableIds.slice().sort().join(':')}`, reason: 'empty', nodeIds: selectableIds })
+      return 'declined'
+    }
+    executionPlan = buildDependencyWaves(chosen, { nodes: live.nodes, edges: live.edges })
+    ids = executionPlan.waves.flat()
+    if (ids.length === 0) {
+      await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
+      return 'nothing-to-run'
+    }
+  }
   if (deferred) {
     executionPlan = await deferred.materialize()
     ids = executionPlan.waves.flat()

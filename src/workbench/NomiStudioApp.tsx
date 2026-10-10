@@ -22,7 +22,7 @@ import {
   hydrateCommittedProposalReceipt,
   recoverPendingProposalReceipt,
 } from './generationCanvas/agent/proposalUndo'
-import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
+import { readCanvasReadSource, readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
 import {
   captureCanvasDeleteRawEvidence,
   captureCanvasWriteRawEvidence,
@@ -233,7 +233,7 @@ export default function NomiStudioApp(): JSX.Element {
     () =>
       registerProjectCanvasReadSurface(
         projectSurface,
-        readGenerationCanvasSnapshot,
+        readCanvasReadSource,
         // 文稿读写的 owner 是项目会话层（documentSessionPort）：基线随项目在，编辑器挂载只做增强覆盖。
         readDocumentThroughSessionPort,
         (request) => writeDocumentThroughSessionPort(request as Parameters<typeof writeDocumentThroughSessionPort>[0]),
@@ -361,6 +361,16 @@ export default function NomiStudioApp(): JSX.Element {
         // committed Surface; the guard prevents any late write after a switch.
         void runProjectAssetHealthCheck(hydrated.id, surfaceEpoch).catch(() => {})
         module.consumeCategoryMigrationDiagnostic(surfaceEpoch)
+        // 旧版（0.23.1 及更早）画布里的分镜表节点这次被收掉了：只说一句（镜头都还在、在哪看写在文案里），不放按钮：切换只有顶栏那一个图标。
+        const retiredTables = module.consumeRetiredStoryboardTableCount(surfaceEpoch)
+        if (retiredTables > 0) {
+          notify({
+            identity: `project:${hydrated.id}:retired-storyboard-tables`,
+            reason: 'migration',
+            level: 'status',
+            message: t('generationList.retiredTables.notice', { count: retiredTables }),
+          })
+        }
       } catch (error) {
         if (error instanceof ProjectHydrationSupersededError) throw error
         logRendererError('project-restore-failed', error)

@@ -2,20 +2,17 @@
  * 框的四个动作 + 那份菜单的开合：改名/说明、生成整框、整框进时间轴、折叠、解散。
  *
  * 两条不许破的纪律：
- *  · **生成整框是画布上唯一的批量生成入口**（groupEligibleNodeIds → buildDependencyWaves →
+ *  · **生成整框是画布上唯一的批量生成入口**（唯一执行口在 groupGenerate：eligibleGenerationNodeIds → buildDependencyWaves →
  *    confirmAndRunPlan）；每个节点用它自己已选好的模型和参数。右键菜单与组工具条共用这一份。
  *  · **解散 = ungroup，边一根都不撤**（model/groupInputLinks 的既有语义：解散的是组织方式，
  *    不是节点关系）。顺手把边也撤了，用户失去的是接线，而他以为自己只是拆了个框。
  */
-import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { reportCanvasFeedback } from './canvasFeedback'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { frameHasTimelineUnits, sendFrameToTimeline } from '../agent/sendFrameToTimeline'
-import { confirmAndRunPlan } from './batchPlanPreview'
-import { groupEligibleNodeIds } from './canvasProductionScope'
+import { hasGroupGenerateCandidates, runGroupGenerate } from './groupGenerate'
 import type { FrameContextMenuAction } from './FrameContextMenu'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 
@@ -33,9 +30,8 @@ const MENU_HEIGHT = 250
 const MENU_EDGE_GAP = 8
 
 function frameEligibleIds(groupId: string): string[] {
-  const state = useGenerationCanvasStore.getState()
-  const group = state.groups.find((candidate) => candidate.id === groupId)
-  return groupEligibleNodeIds(group, state.nodes, useProductionCanvasLandingStore.getState().runs)
+  const group = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === groupId)
+  return hasGroupGenerateCandidates(group?.nodeIds ?? []) ? group!.nodeIds : []
 }
 
 export function useCanvasFrameActions({
@@ -118,16 +114,9 @@ export function useCanvasFrameActions({
       return
     }
     if (action === 'generate') {
-      const eligibleIds = frameEligibleIds(groupId)
-      if (!eligibleIds.length) {
-        report(t('generationCommon.canvas.group.generateEmpty'))
-        return
-      }
-      const live = useGenerationCanvasStore.getState()
-      // 每个节点用它自己已选好的模型和参数，这里不弹模型选择、不改模型；并发交给调度器默认值。
-      void confirmAndRunPlan(buildDependencyWaves(eligibleIds, { nodes: live.nodes, edges: live.edges }), {
-        initiator: 'user',
-      })
+      // 每个节点用它自己已选好的模型和参数；唯一执行口在 groupGenerate（列表分区头共用）。
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (runGroupGenerate(group?.nodeIds ?? []) === 'empty') report(t('generationCommon.canvas.group.generateEmpty'))
       return
     }
     void sendFrameToTimeline(groupId).then((result) => {

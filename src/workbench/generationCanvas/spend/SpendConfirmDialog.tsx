@@ -23,6 +23,7 @@ export function SpendConfirmDialog() {
   const { t } = useTranslation()
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
+  const togglePlanRow = useSpendConfirmStore((state) => state.togglePlanRow)
   const [rememberHosting, setRememberHosting] = React.useState(false)
   // B1：方向门单选（默认选第一个候选）。换 pending 时重置到第一个。
   const directionCandidates = pending?.directionCandidates ?? []
@@ -209,7 +210,7 @@ export function SpendConfirmDialog() {
          <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
 
          {pending.planRows?.length ? (
-           <PlanRows rows={pending.planRows} onToggle={(row, checked) => pending.onPlanToggle?.(row, checked)} className="mb-3" />
+           <PlanRows rows={pending.planRows} onToggle={togglePlanRow} className="mb-3" />
          ) : null}
 
         {pending.hostingDisclosure ? (

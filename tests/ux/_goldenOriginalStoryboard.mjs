@@ -1,5 +1,6 @@
 // Original-editor branch of the golden journey. The separate production-canvas
 // mode remains in golden-path.e2e.mjs (canvas nodes only, no shot table).
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
@@ -58,7 +59,7 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
     await win.getByRole('button', { name: '创作', exact: true }).click()
     const expand = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if (await expand.isVisible()) await expand.click()
-    await win.locator(`[data-storyboard-id="${designId}"]`).click()
+    await openStoryboardEditor(win, designId)
     const editor = win.locator('[data-storyboard-editor="true"]')
     await expect(editor.locator('[data-storyboard-row]')).toHaveCount(3)
     return editor

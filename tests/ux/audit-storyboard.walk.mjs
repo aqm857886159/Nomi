@@ -18,6 +18,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 const locale = process.env.NOMI_AUDIT_LOCALE === 'en' ? 'en' : 'zh-CN'
@@ -107,7 +108,7 @@ const visibleOptions = () => win().evaluate(() => [...document.querySelectorAll(
 async function openEditor(designId = DESIGN) {
   await win().locator('.nomi-stepper__step[data-mode="creation"]').first().click()
   await settle(700)
-  await win().locator(`[data-storyboard-id="${designId}"]`).first().click()
+  await openStoryboardEditor(win(), designId)
   await editor().waitFor({ timeout: stationTimeout({ operations: 2 }) })
   await settle(1000)
 }
@@ -401,7 +402,7 @@ try {
     r.toolResult1 = (toolResultText(fixture.requests.at(-1)?.body, 'aud-1-0') || '').match(/"shots":\[[\s\S]*?\],"updatedAt"/)?.[0]?.replace(/"candidate":\{[^}]*\{[^}]*\}[^}]*\}/g, '"candidate":{…}').slice(0, 900) ?? null
     const design1 = readProject().storyboardDesignsByDocumentId[DOC].find((d) => d.id.startsWith('op-'))
     r.createdPlan = { id: design1.id.slice(0, 11), anchors: design1.plan.anchors.map((a) => ({ id: a.id, name: a.name })), shots: design1.plan.shots.map((s) => ({ index: s.index, shotId: s.shotId, prompt: s.prompt })) }
-    await win().locator(`[data-storyboard-id="${design1.id}"]`).first().click()
+    await openStoryboardEditor(win(), design1.id)
     await editor().waitFor({ timeout: stationTimeout() })
     await settle(1200)
     r.headerCount = (await editor().locator('header').innerText()).replace(/\n+/g, ' ')

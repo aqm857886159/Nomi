@@ -135,6 +135,7 @@ export default function DocumentListSidebar(): JSX.Element {
     setWorkspaceMode('creation')
   }
 
+  // 点一份「分镜方案」= 留在创作页打开这份方案（2026-10-08 22:40Z C3：方案视图做好前先开现役的方案编辑器）。
   const selectStoryboard = (id: string, documentId: string) => {
     setActiveStoryboardId(id, documentId)
     setWorkspaceMode('storyboard')

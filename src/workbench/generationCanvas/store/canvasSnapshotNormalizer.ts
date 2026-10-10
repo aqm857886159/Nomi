@@ -6,7 +6,7 @@ import i18n from '../../../i18n'
 // 画布快照归一化 + 种子节点。从 generationCanvasStore.ts 抽出。
 // 注意：这是 store 专用的深度归一化（过滤未知 kind、position 兜底、groups 走 zod、edges 校验端点），
 // 与 workbenchPersistence.ts 的轻量直通版 normalizeGenerationCanvasSnapshot 行为不同，故改名 normalizeStoreSnapshot。
-import { normalizeShotTableMeta } from '../../../../electron/shared/canvas/shotTable'
+import { isRetiredShotTableNode, normalizeShotTableMeta } from '../../../../electron/shared/canvas/shotTable'
 import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLifecycle'
 import { isGenerationNodeKind } from '../model/generationNodeKinds'
 import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
@@ -102,6 +102,8 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
     ? raw.nodes.flatMap((item): GenerationCanvasNode[] => {
         if (!item || typeof item !== 'object') return []
         const rawNode = item as Record<string, unknown>
+        // 0.23.1 写过的分镜表 / Agent 分镜表节点：现行 schema 不认，读取时丢掉（镜头节点、方案不动，镜头在生成页列表里）。
+        if (isRetiredShotTableNode(rawNode)) return []
         // 切换门（2026-09-03）：老 scene3d 节点在加载时迁成 director（kind + meta.directorProject），之后与普通 director 节点无异
         const node = (() => {
           if (!isLegacyScene3DNode(rawNode)) return rawNode

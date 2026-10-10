@@ -8,7 +8,6 @@ import * as modelLookup from '../generationCanvas/agent/availableModels'
 import * as projectPersistence from '../project/workbenchProjectSession'
 import * as canvasTools from '../generationCanvas/agent/applyCanvasToolCall'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../project/projectSessionTestHarness'
-import { createProductionShotTable } from '../../../electron/shared/canvas/shotTable'
 import { useWorkbenchStore } from '../workbenchStore'
 import { deriveNodeRowExec, deriveStoryboardBatch } from '../creation/storyboard/exec/storyboardRowStatus'
 import { eligibleGenerationNodeIds } from '../generationCanvas/components/canvasProductionScope'
@@ -224,7 +223,7 @@ describe('production landing never creates a shot table', () => {
 
   it('an old project production table is left alone by replay (not duplicated, not removed)', async () => {
     await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
-    useGenerationCanvasStore.getState().addNode({ kind: 'shot_table', meta: { shotTable: createProductionShotTable(runId, operationId) } })
+    useGenerationCanvasStore.getState().addNode({ kind: 'shot_table', meta: { shotTable: { schemaVersion: 1, source: { kind: 'production', runId, materializationOperationId: operationId }, columnSetId: 'production', view: { selectedRowIds: [], density: 'auto' }, revision: 0, updatedAt: '2026-09-18T00:00:00.000Z' } } })
     await materializeShots({ materializationOperationId: operationId, runId, planName: '旧书店', shots })
     expect(tables()).toHaveLength(1)
     useGenerationCanvasStore.getState().deleteNode(tables()[0].id)

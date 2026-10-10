@@ -23,6 +23,7 @@ import { AGENT_PANEL, DOCUMENT, chooseAssistantModel, expandResidentPanel, sendC
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { proveProbe, expectAbsent } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 // 开关、CI 拒跑、用户 Nomi 开着拒跑、原库指纹：付费走查唯一那一份（_paidRun.mjs）。
 const guard = assertPaidRunAllowed('core-a-storyboard.paid.mjs')
@@ -139,7 +140,7 @@ async function openPlan() {
   const treeToggle = win.locator('[data-shell-rail-item="docs"]')
   await expect(treeToggle).toBeVisible()
   if (await treeToggle.getAttribute('aria-pressed') === 'false') await treeToggle.click()
-  await win.locator(`[data-storyboard-id="${runId}"]`).click()
+  await openStoryboardEditor(win, runId)
   await expect(editor()).toBeVisible()
   const collapse = win.locator('[data-shell-rail-item="docs"][aria-pressed="true"]')
   if (await collapse.isVisible()) await collapse.click()

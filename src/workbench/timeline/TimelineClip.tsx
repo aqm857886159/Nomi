@@ -5,6 +5,8 @@ import { IconCrop } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { useWorkbenchStore } from '../workbenchStore'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { storyboardLabelSource, timelineClipDisplayName } from '../generation/list/storyboardLabels'
 import { frameToPixel, pixelToFrame, clampGroupDelta, clipVisibleFrames, type ClipOrigin } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames, type SnapResult } from './snapping'
 import type { TimelineClip as TimelineClipData } from './timelineTypes'
@@ -34,7 +36,10 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
   const lastSnapLabelRef = React.useRef<string | null>(null)
   const didDragRef = React.useRef(false)
 
-  const title = clip.label || clip.text || clip.sourceNodeId
+  // 来自分镜镜头的片段叫分镜号（「镜 03」/「<分镜名> · 镜 03」），与画布、列表、Agent 同一个名字。
+  const sourceNode = useGenerationCanvasStore((state) => clip.sourceNodeId ? state.nodes.find((node) => node.id === clip.sourceNodeId) : undefined)
+  const designs = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
+  const title = timelineClipDisplayName(clip, sourceNode, storyboardLabelSource(designs), t)
   const sourceWindow = resolveTimelineSourceWindow(clip)
   const sourceWindowLabel = sourceWindow.trimmed
     ? t('timelineEditor.clip.sourceWindow', {

@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { NodeGenerationStatus } from '../nodes/NodeGenerationStatus'
 import { NodeLabelRow } from '../nodes/NodeLabelRow'
 import { useShotIdentity } from '../hooks/useNodeRelationships'
-import { ShotPreviewOverlays } from '../nodes/ConvertShotToVideoButton'
+import { NodeShotLabel } from '../../generation/list/CanvasListLinks'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -59,8 +59,9 @@ export function LightweightGenerationNode({
       }}
     >
       <NodeLabelRow>
-        <ShotPreviewOverlays {...shotIdentity} />
-        <span className="min-w-0 flex-1 truncate font-normal text-nomi-ink-60">{node.title || t('generationCommon.lightweightNode.untitled')}</span>
+        <NodeShotLabel node={node} shotRole={shotIdentity.shotRole}>
+          <span className="min-w-0 flex-1 truncate font-normal text-nomi-ink-60">{node.title || t('generationCommon.lightweightNode.untitled')}</span>
+        </NodeShotLabel>
       </NodeLabelRow>
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
         <NodeGenerationStatus node={node} />

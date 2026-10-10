@@ -5,7 +5,6 @@ import type { ImageGenerationPreset } from 'img-fx'
 import { useTranslation } from 'react-i18next'
 import { IconCopy, IconDownload, IconMaximize, IconUpload } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
-import { ShotPreviewOverlays } from './ConvertShotToVideoButton'
 import { resolveNodeRenderKind, isCardRenderKind, nodeHasGenerationComposer } from './resolveRenderKind'
 import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
@@ -22,11 +21,7 @@ import { isLocalImageOpPending, isRemoveBackgroundPending, isRemoveBackgroundRes
 import { useNodeDragResize } from './useNodeDragResize'
 import { useHasFrameSourceEdge, useShotIdentity, useMountedCards } from '../hooks/useNodeRelationships'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
-import {
-  PendingGenerationPlaceholder,
-  LocalImageOpPendingStatus,
-  RemoveBackgroundPendingPlaceholder,
-} from './render/CardCommon'
+import { PendingGenerationPlaceholder, LocalImageOpPendingStatus, RemoveBackgroundPendingPlaceholder } from './render/CardCommon'
 import { previewBackgroundClass } from './render/previewBackground'
 import PanoramaUploadFallback from './PanoramaUploadFallback'
 import { TimelineNotchDragHandle } from './NodeTimelineDragHandles'
@@ -59,13 +54,9 @@ import { isDerivedPromptReady } from '../quickActions/deriveFromNode'
 import { canDragGenerationNodeToTimeline } from '../model/timelineDragAffordance'
 import { useResultDownload } from './useResultDownload'
 import { useArtifactNodeSlots } from './artifact/artifactNodeSlots'
-import {
-  RESIZE_DIRECTIONS,
-  getNodeSizeBounds,
-  FOCUS_GENERATION_NODE_EVENT,
-  resolveNodeVisualSize,
-} from './nodeSizing'
+import { RESIZE_DIRECTIONS, getNodeSizeBounds, FOCUS_GENERATION_NODE_EVENT, resolveNodeVisualSize } from './nodeSizing'
 import { NodeLabelRow } from './NodeLabelRow'
+import { NodeShotLabel } from '../../generation/list/CanvasListLinks'
 import { NodeInlineImageTitle } from './NodeImagePreviewActions'
 import { useNodeMediaMeasurement } from './useNodeMediaMeasurement'
 import { useNodeVideoPreviewIntent } from './useNodeVideoPreviewIntent'
@@ -315,8 +306,7 @@ function BaseGenerationNodeImpl({
       ) : null}
       {mediaPreviewControls}
       <NodeLabelRow>
-        <ShotPreviewOverlays {...shotIdentity} />
-        {!isCardKind && !isTextKind ? <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} readOnly={readOnly} /> : null}
+        <NodeShotLabel node={node} shotRole={shotIdentity.shotRole}>{!isCardKind && !isTextKind ? <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} readOnly={readOnly} /> : null}</NodeShotLabel>
         {!isCardKind ? <ShotMountBadges cards={mountedCards} /> : null}
         <TechnicalReviewBadge meta={node.meta} /><DerivedReadyBadge node={node} />
         {/* 拆解收起态（视图 07）：视频节点有拆解结果且面板未占槽时，挂「已拆解 · N 镜」角标 + 可点回浮条。 */}

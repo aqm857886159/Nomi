@@ -15,6 +15,7 @@ import { createAgentRuntimeFixture, FIXTURE_IMAGE_MODEL } from './agent-runtime-
 import { assertMockupContract, clickOrFail, expect, expectAbsent, expectCount, expectText, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import storyboardIntentContract from '../../docs/design/mockups/contracts/2026-09-01-storyboard-table-image-first.intent.mjs'
+import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { collapseAgentPanel } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -147,7 +148,7 @@ try {
     else await projectCard.dblclick()
   }
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN}"]`), '侧栏选中分镜设计')
+  await openStoryboardEditor(win, DESIGN, '侧栏选中分镜设计')
   // 侧栏点中方案就直接进分镜页——摘要卡（「再次编辑 / 打开分镜」那一跳）已随 805096d41 删除。
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
 

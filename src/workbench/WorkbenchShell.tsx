@@ -23,6 +23,7 @@ import { ShellRail } from '../ui/app-shell/shell/ShellRail';
 import { ShellAgentHost } from '../ui/app-shell/shell/ShellAgentHost';
 import { useEffectiveAgentForm } from '../ui/app-shell/shell/agentFormStore';
 import { useShellLayoutStore } from '../ui/app-shell/shell/shellLayoutStore';
+import { GenerationViewSwitcher } from './generation/list/GenerationViewSwitcher';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -351,6 +352,7 @@ export default function WorkbenchShell({
                             onNewProject={onNewProject}
                             onRenameProject={onRenameProject}
                             onOpenSettings={onOpenSettings}
+                            viewSwitcher={<GenerationViewSwitcher />}
                             railCollapsed={railCollapsed}
                             onExpandRail={() => setRailCollapsed(false)}
                         />

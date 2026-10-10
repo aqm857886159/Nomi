@@ -34,6 +34,8 @@ type Props = {
   node: GenerationCanvasNode
   visualSize: { width: number; height: number }
   readOnly: boolean
+  /** 放在普通内容流里（列表详情）：不钉在画布节点下沿，版面不变。 */
+  inFlow?: boolean
 }
 
 const MODE_LABEL_KEY = {
@@ -119,7 +121,7 @@ function MenuTrigger({
   )
 }
 
-export default function TextNodeComposer({ onFeedback, node, visualSize, readOnly }: Props): JSX.Element {
+export default function TextNodeComposer({ onFeedback, node, visualSize, readOnly, inFlow = false }: Props): JSX.Element {
   const { t } = useTranslation()
   const anchorRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
@@ -205,15 +207,16 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
 
   return (
     <ComposerAnchor
-      inPanel={false}
+      inFlow={inFlow}
       anchorRef={anchorRef}
       visualSize={visualSize}
       placement="match-node"
-      data-composer-host="canvas"
+      data-composer-host={inFlow ? 'inline' : 'canvas'}
       className={cn(
-        'generation-canvas-v2-node__composer nokey absolute z-[8]',
+        'generation-canvas-v2-node__composer nokey',
+        inFlow ? 'w-full' : 'absolute z-[8]',
         // 画布拖动期间隐身（拖节点、拖选区、拖画布平移）：用 visibility 而不是卸载，输入框里没发出去的字不丢。
-        'group-data-[dragging=true]/canvas:invisible',
+        !inFlow && 'group-data-[dragging=true]/canvas:invisible',
       )}
       style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
       onPointerDown={(event) => event.stopPropagation()}

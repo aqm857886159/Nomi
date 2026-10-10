@@ -15,6 +15,10 @@ const TimelinePanel = lazyWithChunkBoundary(
   'i18n:generationCommon.workspace.timelineChunk',
   () => import('../timeline/TimelinePanel'),
 )
+import { useGenerationViewStore } from './list/generationViewStore'
+
+const loadGenerationListView = () => import('./list/GenerationListView').then((module) => ({ default: module.GenerationListView }))
+const GenerationListView = lazyWithChunkBoundary('i18n:generationList.aria', loadGenerationListView)
 
 type GenerationWorkspaceProps = {
   canvas: React.ReactNode
@@ -57,6 +61,16 @@ export default function GenerationWorkspace({
   const setTimelineCollapsed = useWorkbenchStore((state) => state.setTimelinePanelCollapsed)
   const assistantTargetWidth = `${assistantPaneWidth(width)}px`
   const hasAssistant = Boolean(agentDockRef)
+  // 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。
+  const generationView = useGenerationViewStore((state) => state.view)
+  const listOpen = generationView === 'list'
+  // 列表块在生成页挂好后趁空闲先拉一下：第一次点「列表」不再等块下载 + 解析（200 节点实测的一部分）。
+  React.useEffect(() => {
+    const idle = (window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number; cancelIdleCallback?: (handle: number) => void })
+    if (typeof idle.requestIdleCallback !== 'function') return undefined
+    const handle = idle.requestIdleCallback(() => { void loadGenerationListView().catch(() => undefined) }, { timeout: 4000 })
+    return () => idle.cancelIdleCallback?.(handle)
+  }, [])
   const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '0px' : assistantTargetWidth) : '0px'
   const isDockedAssistant = hasAssistant
   const workspaceStyle = {
@@ -96,7 +110,17 @@ export default function GenerationWorkspace({
         )}
       >
         <div className={cn('workbench-generation__canvas', 'relative min-h-0 min-w-0 flex-1 overflow-hidden')}>
-          {canvas}
+          {/* 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。 */}
+          <div className={cn('absolute inset-0', listOpen && 'invisible [content-visibility:hidden]')} inert={listOpen} data-generation-canvas-surface>
+            {canvas}
+          </div>
+          {listOpen ? (
+            <div className="absolute inset-0 z-[8]">
+              <React.Suspense fallback={null}>
+                <GenerationListView />
+              </React.Suspense>
+            </div>
+          ) : null}
           {/* 时间轴展开时的迷你画面窗：跟播放头，治画布上盲剪（收起态自持久化）。 */}
           {timelineCollapsed ? null : <TimelineMiniPreview />}
           {/* Agent 小球 / 浮窗住这一层（外壳的 ShellAgentHost portal 进来）。 */}
