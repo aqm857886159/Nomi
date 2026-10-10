@@ -16,6 +16,7 @@ import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { createBlankProject, prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/director/windowbar')
@@ -52,7 +53,7 @@ await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
 })
 await win.reload()
-await expectVisible(win.getByText('新建空白项目', { exact: false }).first(), '项目库没起来', stationTimeout({ operations: 4 }))
+await expectVisible(newProjectEntry(win), '项目库没起来', stationTimeout({ operations: 4 }))
 
 await createBlankProject(win, iso.projectsDir)
 const generateTab = win.getByRole('button', { name: '生成', exact: true }).first()

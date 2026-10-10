@@ -7,7 +7,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
-import { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_SHELL, ensureAgentPanelOpen } from './_shell.mjs'
+import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
@@ -487,7 +487,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
 
   async function newProject() {
     const { win } = current
-    await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), '新建空白项目')
+    await clickOrFail(newProjectEntry(win), '新建空白项目')
     await expect(win.locator(DOCUMENT)).toBeVisible({ timeout: 30_000 })
     const projectId = await win.evaluate(() => {
       const url = new URL(location.href)

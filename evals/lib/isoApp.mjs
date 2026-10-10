@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { buildNomiLaunchEnv, launchNomiApp, prepareIsolatedCatalog } from "../../tests/ux/_launchApp.mjs";
 import { realNomiProfile, seedRealCredentials } from "../../tests/ux/_realProfile.mjs";
-import { ensureAgentPanelOpen } from "../../tests/ux/_shell.mjs";
+import { ensureAgentPanelOpen, newProjectEntry } from "../../tests/ux/_shell.mjs";
 
 /** 今天全部 5 个画布工具都免额度;将来出现 costy 工具(如 run_generation_batch)默认就被拒。 */
 export const TOOL_WHITELIST = new Set([
@@ -89,7 +89,7 @@ export async function dismissSplashIfPresent(win) {
 /** 起始页 → 新建空白项目 → 等项目目录落盘,返回 projectDir。 */
 export async function createBlankProject(win, projectsDir) {
   await dismissSplashIfPresent(win);
-  await win.getByText("新建空白项目", { exact: false }).first().click({ timeout: 10_000 });
+  await newProjectEntry(win).click({ timeout: 10_000 });
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
     const dirs = fs.existsSync(projectsDir)

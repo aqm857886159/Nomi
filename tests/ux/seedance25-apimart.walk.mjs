@@ -11,6 +11,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/seedance25-apimart')
@@ -83,7 +84,7 @@ console.log('  · 种子结果: ' + (seededModel
   ? `找到 kind=${seededModel.kind} enabled=${seededModel.enabled} archetypeId=${seededModel.meta?.archetypeId} mappings=[${seededMaps.map((x) => x.taskKind).join(',')}]`
   : '❌ 没被种进目录'))
 
-const newProject = win.getByText('新建空白项目', { exact: false }).first()
+const newProject = newProjectEntry(win)
 if (await newProject.count()) {
   await newProject.click({ timeout: 6000 }).catch(() => {})
   await win.waitForTimeout(2500)

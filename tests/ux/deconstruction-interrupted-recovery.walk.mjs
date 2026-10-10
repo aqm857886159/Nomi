@@ -28,6 +28,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const root = path.join(repoRoot, '.tmp', 'deconstruction-interrupted-recovery')
@@ -56,7 +57,7 @@ const check = (ok, label) => { console.log(`  ${ok ? '✓' : '✗'} ${label}`); 
 async function openBlankProjectCanvas(win) {
   await win.evaluate(() => localStorage.setItem('__nomiE2E', '1'))
   for (let i = 0; i < 4; i += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(160) }
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }), '新建空白项目', { noWaitAfter: true })
+  await clickOrFail(newProjectEntry(win), '新建空白项目', { noWaitAfter: true })
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   await clickOrFail(win.locator('[data-mode="generation"]'), '生成 tab')
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), undefined, { timeout: DEFAULT_TIMEOUT_MS })

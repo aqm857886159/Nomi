@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const key = process.env.TIKHUB_API_KEY?.trim()
 assert.ok(key, 'TIKHUB_API_KEY is required; this task cannot be validated with fixtures')
@@ -18,7 +19,7 @@ const run = await launchNomiApp({ name: 'pr619-reference-task', initialLocalStor
 const { win } = run
 const shot = async (name) => screenshotSettled(win, { path: path.join(evidence, `${name}.png`) })
 try {
-  await win.getByText('新建空白项目', { exact: true }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForURL(/projectId=/)
   const match = win.url().match(/projectId=([^&#]+)/)
   const projectId = match ? decodeURIComponent(match[1]) : null

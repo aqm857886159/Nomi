@@ -23,6 +23,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, expect, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
@@ -107,7 +108,7 @@ await win.reload()
 await win.waitForLoadState('domcontentloaded')
 // 等「项目库首页真的渲染出来」，别拿 sleep 当完成信号——真机耗时会变，睡不够就读到空，
 // 而「读到空」恰好让「不存在」类断言通过（假绿的经典来路，见 _assert.mjs 文件头）。
-const libraryReady = win.getByText('新建空白项目', { exact: false }).first()
+const libraryReady = newProjectEntry(win)
 await expectVisible(libraryReady, '项目库首页', 30_000)
 for (let i = 0; i < 4; i++) {
   await win.keyboard.press('Escape').catch(() => {})

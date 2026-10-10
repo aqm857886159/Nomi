@@ -14,6 +14,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-u2-after')
@@ -140,7 +141,7 @@ try {
   await getWin().waitForTimeout(500)
 
   // ========== ④ studio 顶栏（生成页）：右簇 3 组 + 「去出片」 ==========
-  const blankCta = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankCta = newProjectEntry(getWin())
   if (await blankCta.count()) await blankCta.click({ timeout: 6000 }).catch(() => {})
   await getWin().waitForTimeout(3000)
   await dismissTour()

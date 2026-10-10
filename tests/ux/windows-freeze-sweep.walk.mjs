@@ -35,6 +35,7 @@ import { placeCharacter } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const argv = process.argv.slice(2)
 const held = argv.includes('--held')
@@ -215,7 +216,7 @@ while ($true) { Get-ChildItem -LiteralPath $root -Recurse -Force | ForEach-Objec
 try {
   for (let index = 0; index < 3; index += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(120) }
   await step('新建空白项目 → 进生成画布', async () => {
-    await win.getByRole('button', { name: /新建空白项目/ }).click({ timeout: stationTimeout({ operations: 2 }) })
+    await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
     const deadline = Date.now() + 30_000
     while (Date.now() < deadline && !app.windows().some((page) => /projectId=/.test(page.url()))) await new Promise((resolve) => setTimeout(resolve, 200))
     win = projectWindow()
@@ -316,7 +317,7 @@ try {
   }, 3000)
   await step('切回项目库', async () => {
     await win.getByText('项目库', { exact: true }).first().click()
-    await win.getByRole('button', { name: /新建空白项目/ }).waitFor({ timeout: stationTimeout({ operations: 2 }) })
+    await newProjectEntry(win).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   })
   await step('重新打开这个项目', async () => {
     await win.locator('[data-project-card]').first().click()
@@ -329,7 +330,7 @@ try {
   })
   await step('回库 → 新建第二个项目 → 切回第一个', async () => {
     await win.getByText('项目库', { exact: true }).first().click()
-    await win.getByRole('button', { name: /新建空白项目/ }).click({ timeout: stationTimeout({ operations: 2 }) })
+    await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
     await win.getByRole('button', { name: '生成', exact: true }).first().waitFor({ timeout: stationTimeout({ operations: 2 }) })
     await win.getByText('项目库', { exact: true }).first().click()
     await win.locator('[data-project-card]').nth(1).click({ timeout: stationTimeout({ operations: 2 }) })

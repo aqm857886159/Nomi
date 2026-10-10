@@ -16,6 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectAbsent, proveProbe, scopedText, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-stalled-draft-')
@@ -88,7 +89,7 @@ try {
     settleMs: 0,
   }))
   await win.setViewportSize({ width: 1280, height: 860 })
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 15_000 })
   const projectId = await win.evaluate(() =>
     new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))

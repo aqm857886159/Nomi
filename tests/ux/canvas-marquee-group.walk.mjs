@@ -29,6 +29,7 @@ import {
 } from './_assert.mjs'
 import { findCanvasBlankPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-marquee-group')
@@ -145,7 +146,7 @@ async function zoomOutUntilNodesFit() {
 try {
   await getWin().waitForLoadState('domcontentloaded')
   await dismissFirstRun()
-  await clickOrFail(getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }), '新建空白项目')
+  await clickOrFail(newProjectEntry(getWin()), '新建空白项目')
   await dismissFirstRun()
   await clickOrFail(getWin().getByRole('button', { name: '生成', exact: true }), '生成（进画布）')
   await expectVisible(getWin().locator('.generation-canvas-v2-toolbar').first(), '画布工具条应当出现')

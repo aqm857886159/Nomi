@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { parseArgs } from 'node:util'
+import { newProjectEntry } from '../_shell.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const { values } = parseArgs({ options: {
@@ -143,7 +144,7 @@ try {
       for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen')
     })
     await win.reload({ waitUntil: 'domcontentloaded' })
-    await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), '创建 C0 空项目')
+    await clickOrFail(newProjectEntry(win), '创建 C0 空项目')
     await expect(win.locator(DOCUMENT)).toBeVisible()
     await scheduler.selectPlanner?.(win)
     const projects = await win.evaluate(() => window.nomiDesktop.projects.listAsync())

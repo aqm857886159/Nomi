@@ -6,6 +6,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const tempRoot = makeTempDir('nomi-model-selection-')
 const userDataDir = path.join(tempRoot, 'user-data')
@@ -117,7 +119,7 @@ try {
   assert(catalog.text.some((model) => model.modelKey === 'deepseek-v4-pro'), '真实文本模型 DeepSeek V4 Pro 在 catalog')
   assert(catalog.image.some((model) => model.modelKey === 'nano-banana'), '真实图片模型 Nano Banana 在 catalog')
 
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.waitForTimeout(2000)
 
   // 创作助手：模型入口必须存在，并且选择后写入完整 (vendorKey, modelKey) 偏好。

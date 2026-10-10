@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { newProjectEntry } from './_shell.mjs'
 
 // 平台守卫：titleBarOverlay 只在 Windows 生效（mac 是 hiddenInset 红绿灯，Linux 保留原生框）。
 // 非 Windows 机器干净跳过（exit 0），不误报红。
@@ -337,7 +338,7 @@ try {
     settleMs: 0,
   }));
 
-  const primaryCard = win.locator('[data-variant="primary"]', { hasText: "新建空白项目" });
+  const primaryCard = newProjectEntry(win);
   await primaryCard.waitFor({ timeout: 15000 });
 
   const libraryLayout = await win.evaluate(() => {

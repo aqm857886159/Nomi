@@ -12,6 +12,7 @@ export const RAW_SHELL_PATTERNS = [
   [/getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:\s*(?:\/[^/\n]*|['"])(?:返回项目库|Back to projects)/, 'backToLibrary()'],
   [/\[data-v4-control="(?:collapse|dock-open)"\]/, 'collapseAgentPanel() / ensureAgentPanelOpen()'],
   [/\[data-agent-resident="true"\]\[data-agent-(?:panel|collapsed)="true"\]/, 'AGENT_PANEL / COLLAPSED_SHELL（_shell.mjs 导出）'],
+  [/(?:getByText|getByRole|locator)\([^)]*新建空白项目/, 'newProjectEntry()'],
   [/data-testid="open-model-settings"|aria-label="打开模型设置"|name:\s*(?:\/|')打开模型设置/, 'openModelSettings() / modelSettingsEntry()'],
 ]
 
@@ -21,6 +22,10 @@ export const RAW_SHELL_PATTERNS = [
 export const RAW_SHELL_EXEMPT = new Map([
   ['tests/ux/_shell.mjs', '出口本身：这些串就是它定义的'],
   ['tests/ux/full-walk/pageProbe.mjs', '页内探针：整段在浏览器里 evaluate，拿不到 Node 侧 import'],
+  ['tests/ux/first-launch-system-locale.walk.mjs', '专门验空库首屏随系统语言出哪种文案：newProjectEntry 中英都认，会让这条断言失去判别力'],
+  ['tests/ux/library-language-switcher.walk.mjs', '专门验库页切语言后的文案：同上，不能用中英都认的助手'],
+  ['tests/ux/pr720-language-switch-mid-session.walk.mjs', '专门验会话中切语言后库页文案：同上'],
+  ['tests/ux/smoke.e2e.mjs', '专门验空库首屏主入口动作卡片本身（data-variant=primary），不是借它进项目'],
   ['tests/ux/memory.e2e.mjs', 'CDP 裸页面脚本，没有 Playwright locator，点按钮靠页内 DOM 脚本'],
 ])
 

@@ -11,7 +11,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
-import { openModelSettings } from './_shell.mjs'
+import { newProjectEntry, openModelSettings } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-batch-production')
@@ -249,7 +250,7 @@ try {
     }
   }, true))
 
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.waitForTimeout(2200)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 5000 })
   await win.waitForTimeout(1400)

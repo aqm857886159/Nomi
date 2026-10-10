@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { ensureAgentPanelOpen } from './_shell.mjs'
+import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 
 const API_KEY = process.env.DEEPSEEK_API_KEY
 if (!API_KEY) throw new Error('需要 DEEPSEEK_API_KEY（真实 Agent 模型，不许 mock）：set -a; . ~/.nomi-secrets.env; set +a')
@@ -112,7 +112,7 @@ const directorNode = (nodes) => nodes.filter((node) => node.kind === 'director' 
 const previewOf = (node) => node?.meta?.directorPreview
 
 try {
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: stationTimeout({ operations: 4 }) })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 4 }) })
   await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout({ operations: 2 }) })
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()

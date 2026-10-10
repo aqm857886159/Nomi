@@ -20,7 +20,7 @@ import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectHittable, proveProbe, expectAbsent, clickOrFail, expectVisible } from './_assert.mjs'
 
 import { fileURLToPath } from 'node:url'
-import { AGENT_PANEL } from './_shell.mjs'
+import { AGENT_PANEL, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
@@ -60,7 +60,7 @@ try {
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light'); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') })
   await win.reload(); await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(2500)
 
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await win.waitForTimeout(2500)
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成 标签')
   await win.waitForTimeout(2000)

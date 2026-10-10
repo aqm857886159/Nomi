@@ -15,6 +15,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = process.cwd()
 const port = 5291
@@ -74,7 +75,7 @@ try {
   const snap = async (name) => { await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) }) }
 
   for (let i = 0; i < 4; i += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(160) }
-  await clickOrFail(win.getByRole('button', { name: /新建空白项目/ }), '新建空白项目', { noWaitAfter: true })
+  await clickOrFail(newProjectEntry(win), '新建空白项目', { noWaitAfter: true })
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   await clickOrFail(win.locator('[data-mode="generation"]'), '生成 tab')
   await win.waitForTimeout(1200)

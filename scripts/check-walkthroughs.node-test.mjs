@@ -235,6 +235,9 @@ describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红�
     assert.equal(findRawShellAnchors(`win.locator('[data-agent-resident="true"][data-agent-collapsed="true"]')`).length, 1)
     assert.equal(findRawShellAnchors(`win.locator('[data-testid="open-model-settings"]').first()`).length, 1)
     assert.equal(findRawShellAnchors(`win.locator('[aria-label="打开模型设置"]')`).length, 1)
+    assert.equal(findRawShellAnchors(`await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), 'x')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('button, [role="button"]', { hasText: '新建空白项目' }).first()`).length, 1)
+    assert.equal(findRawShellAnchors(`win.getByText('新建空白项目', { exact: false }).first().click()`).length, 1)
     assert.equal(findRawShellAnchors(`win.getByRole('button', { name: '打开模型设置', exact: true })`).length, 1)
   })
 
@@ -242,6 +245,7 @@ describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红�
     assert.deepEqual(findRawShellAnchors(`await backToLibrary(win)`), [])
     assert.deepEqual(findRawShellAnchors(`await expectVisible(entry, '没有返回项目库')`), [])
     assert.deepEqual(findRawShellAnchors(`await ensureAgentPanelOpen(win)`), [])
+    assert.deepEqual(findRawShellAnchors(`await newProjectEntry(win).click()`), [])
     assert.deepEqual(findRawShellAnchors(`await openModelSettings(win, { label: '连接模型入口' })`), [])
   })
 

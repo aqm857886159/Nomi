@@ -5,6 +5,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { COMPOSER_SKILL, SKILL_POPOVER } from './agent-runtime-walk-support.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const out = path.resolve('docs/design/verification/2026-09-09-skill-ui-b')
 fs.mkdirSync(out, { recursive: true })
 const base = process.env.NOMI_SKILL_UI_DEV_URL
@@ -37,7 +38,7 @@ const page = run.win
 page.setDefaultTimeout(stationTimeout({ operations: 2 }))
 try {
   await (await run.app.browserWindow(page)).evaluate(w => w.setBounds({ x: 0, y: 0, width: 1680, height: 980 }))
-  await page.getByRole('button', { name: '新建空白项目', exact: false }).first().click()
+  await newProjectEntry(page).click()
   await page.locator(COMPOSER_SKILL).first().click()
   const picker = page.locator(SKILL_POPOVER).first()
   const expression = picker.locator('details[data-library-group*="source:builtin-expressions"]')

@@ -44,6 +44,8 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame-real-task')
@@ -310,14 +312,14 @@ try {
   })
   await win.reload()
   await win.waitForLoadState('domcontentloaded')
-  await win.getByText('新建空白项目', { exact: false }).first().waitFor({ timeout: 30_000 })
+  await newProjectEntry(win).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   for (let index = 0; index < 4; index += 1) {
     const skip = win.locator('button,[role="button"],a', { hasText: /跳过|开始创作|进入|完成|先逛逛/ }).first()
     if (await skip.count()) await skip.click({ timeout: 800 }).catch(() => {})
     await win.keyboard.press('Escape').catch(() => {})
     await win.waitForTimeout(200)
   }
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 8000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.locator('[aria-label="工作区切换"]').first().waitFor({ timeout: 30_000 })
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 8000 })
   await win.locator('.generation-canvas-v2-toolbar').first().waitFor({ timeout: 30_000 })

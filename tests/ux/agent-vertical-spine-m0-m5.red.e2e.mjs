@@ -20,6 +20,7 @@ import {
   INTERVENTION_CONFIRM_REJECT, INTERVENTION_REJECT, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
   USER_BUBBLE,
 } from './agent-runtime-walk-support.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const contractPath = path.resolve('tests/system/agent-vertical-spine-m0-m5.contract.json')
 const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'))
@@ -262,7 +263,7 @@ async function runPhase(phase, executablePath = undefined) {
     steps.push({ id: 'M0.start-electron', status: 'passed', evidence: 'real Electron window opened' })
 
     await dismissSplash(win)
-    const create = win.getByText('新建空白项目', { exact: true }).first()
+    const create = newProjectEntry(win)
     await create.waitFor({ state: 'visible', timeout: 15_000 })
     await create.click()
     await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: 15_000 })

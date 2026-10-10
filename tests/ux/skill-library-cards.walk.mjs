@@ -4,6 +4,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { COMPOSER_SKILL, SKILL_POPOVER } from './agent-runtime-walk-support.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const output = path.resolve('docs/design/verification/2026-09-09-skill-library')
 fs.mkdirSync(output, { recursive: true })
 const run = await launchNomiApp({ name: 'skill-library-cards', settleMs: 0,
@@ -18,7 +19,7 @@ page.setDefaultTimeout(stationTimeout({ operations: 2 }))
 try {
   const window = await run.app.browserWindow(page)
   await window.evaluate(w => w.setBounds({ x: 0, y: 0, width: 1680, height: 980 }))
-  await page.getByRole('button', { name: '新建空白项目', exact: false }).first().click()
+  await newProjectEntry(page).click()
   const skillButton = page.locator(COMPOSER_SKILL).first()
   await skillButton.click()
   const picker = page.locator(SKILL_POPOVER).first()
