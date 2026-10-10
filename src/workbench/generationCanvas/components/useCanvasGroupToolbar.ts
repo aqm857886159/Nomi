@@ -9,7 +9,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { groupEligibleNodeIds } from './canvasProductionScope'
 import { downloadGroupResults, groupDownloadTargets } from './groupDownload'
 import type { CanvasGroupToolbarModel } from './CanvasGroupToolbar'
-import type { FrameContextMenuAction } from './FrameContextMenu'
+import { FRAME_MENU_TOOLBAR_DUPLICATES, type FrameContextMenuAction } from './FrameContextMenu'
 
 export function useCanvasGroupToolbar({
   selectedGroup,
@@ -34,7 +34,7 @@ export function useCanvasGroupToolbar({
   stageHeight: number
   readOnly: boolean
   runFrameAction: (groupId: string, action: FrameContextMenuAction) => void
-  openFrameMenu: (groupId: string, point: { x: number; y: number }) => void
+  openFrameMenu: (groupId: string, point: { x: number; y: number }, exclude?: readonly FrameContextMenuAction[]) => void
 }): CanvasGroupToolbarModel | undefined {
   const { t } = useTranslation()
   const arrangeGroup = useGenerationCanvasStore((state) => state.arrangeGroup)
@@ -56,7 +56,8 @@ export function useCanvasGroupToolbar({
       onDissolve: () => runFrameAction(selectedGroup.id, 'dissolve'),
       onArrange: (mode: GroupArrangeMode) => arrangeGroup(selectedGroup.id, mode),
       onColor: (color: string) => setGroupColor(selectedGroup.id, color),
-      onOpenMenu: (point: { x: number; y: number }) => openFrameMenu(selectedGroup.id, point),
+      // 工具条「⋯」只留 改名 / 说明、折叠成卡、删除：生成整组、进时间轴、解组在工具条上已有，不重复（10-10 拍板）。
+      onOpenMenu: (point: { x: number; y: number }) => openFrameMenu(selectedGroup.id, point, FRAME_MENU_TOOLBAR_DUPLICATES),
       onDownload: () => {
         void downloadGroupResults(targets, selectedGroup.name || 'group', (count) => toast(t('generationCommon.canvas.group.toolbarDownloadSaved', { count }), 'success'))
       },

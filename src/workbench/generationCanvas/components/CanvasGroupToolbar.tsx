@@ -20,6 +20,7 @@ import { resolveGroupToolbarShiftX, type GroupToolbarPlacement } from './groupTo
 import { ToolbarActionMenu } from '../nodes/ToolbarActionMenu'
 import { ToolbarButton, ToolbarDivider, ToolbarIconButton, TOOLBAR_ICON } from '../nodes/NodeFloatingToolbar'
 import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
+import { groupFrameLabel, isStoryboardGroup } from './groupFrameLabel'
 
 export type CanvasGroupToolbarProps = {
   group: NodeGroup
@@ -75,6 +76,7 @@ export function CanvasGroupToolbar({
 }: CanvasGroupToolbarProps): JSX.Element {
   const { t } = useTranslation()
   const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const groupLabel = groupFrameLabel(t, { name: group.name, storyboard: isStoryboardGroup(group), memberCount, previewCount: null })
   const [toolbarWidth, setToolbarWidth] = React.useState(0)
   React.useLayoutEffect(() => {
     const element = rootRef.current
@@ -157,8 +159,9 @@ export function CanvasGroupToolbar({
         data-group-toolbar-count="true"
       >
         <IconStack2 {...iconProps} aria-hidden="true" />
-        <span>{group.name}</span>
-        <span className="text-nomi-ink-60 tabular-nums">· {memberCount}</span>
+        {/* 与框头同一显示函数：分镜组「分镜 · 名 · N 镜」，普通组「名 · N 个」。 */}
+        <span>{groupLabel.title}</span>
+        <span className="text-nomi-ink-60 tabular-nums">· {groupLabel.count}</span>
       </span>
       <ToolbarActionMenu
         id="group-color"

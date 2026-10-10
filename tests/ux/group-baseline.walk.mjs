@@ -12,6 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { GROUP_FRAME_HEADER_SELECTOR, GROUP_FRAME_SELECTOR, groupFrameHeader } from './_groupFrame.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-baseline')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -100,7 +101,7 @@ await win.waitForTimeout(900)
 await snap(win, 'canvas-grouped')
 const groupBox = win.locator('.generation-canvas-v2__group-box').first()
 await snapNear(win, 'group-frame-real', groupBox, 30)
-const groupLabel = win.locator('.generation-canvas-v2__group-box-label').first()
+const groupLabel = groupFrameHeader(win.locator(GROUP_FRAME_SELECTOR).first())
 await snapNear(win, 'group-label-real', groupLabel, 16)
 
 // 先证单选，再取 composer；旧尺寸 class 已退役，等待它只会吞掉定位超时。
@@ -147,9 +148,9 @@ await snap(win, 'effects-menu-reachable')
 await win.keyboard.press('Escape')
 
 // 组框的几何/配色实测（mockup 要用真值）
-const facts = await win.evaluate(() => {
-  const box = document.querySelector('.generation-canvas-v2__group-box')
-  const label = document.querySelector('.generation-canvas-v2__group-box-label')
+const facts = await win.evaluate(([frameSel, headerSel]) => {
+  const box = document.querySelector(frameSel)
+  const label = document.querySelector(headerSel)
   const cs = box ? getComputedStyle(box) : null
   const ls = label ? getComputedStyle(label) : null
   return {
@@ -157,7 +158,7 @@ const facts = await win.evaluate(() => {
     labelBg: ls?.backgroundColor, labelColor: ls?.color, labelFont: ls?.font, labelText: label?.textContent,
     accent: getComputedStyle(document.documentElement).getPropertyValue('--nomi-accent').trim(),
   }
-})
+}, [GROUP_FRAME_SELECTOR, GROUP_FRAME_HEADER_SELECTOR])
 console.log('  → 组框实测:', JSON.stringify(facts, null, 2))
 fs.writeFileSync(path.join(shotsDir, 'facts.json'), JSON.stringify(facts, null, 2))
 

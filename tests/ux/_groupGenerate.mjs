@@ -21,25 +21,3 @@ export async function groupSelectedNodesAndGenerate(win) {
   await groupSelectedNodes(win)
   await clickOrFail(groupGenerateButton(win), '组工具条「生成整组」')
 }
-
-// 框的菜单入口（10-10 拍板）：框头上的 ⋯ 与折叠钮已删。
-// 「折叠 / 编辑 / 删除」等整框动作：框边右键（同一份 FrameContextMenu）或分组工具条末尾的「⋯」。
-export const GROUP_TOOLBAR_MORE_NAME = /的更多操作$|More actions/
-
-/** 框体空白点：左下角内缩区（左上角压着节点名字标签，右下角常被成员卡盖住）。 */
-export async function frameBlankPosition(frame) {
-  const box = await frame.boundingBox()
-  return { x: 8, y: Math.max(8, (box?.height ?? 40) - 8) }
-}
-
-/** 右键框体空白打开框菜单。 */
-export async function openFrameMenuByRightClick(frame) {
-  await frame.click({ button: 'right', position: await frameBlankPosition(frame) })
-}
-
-/** 选中框（点框体空白）后，经工具条末尾「⋯」打开同一份框菜单。 */
-export async function openFrameMenuFromToolbar(win, frame) {
-  await frame.click({ position: await frameBlankPosition(frame) })
-  const more = win.locator(GROUP_TOOLBAR).getByRole('button', { name: GROUP_TOOLBAR_MORE_NAME }).first()
-  await clickOrFail(more, '分组工具条「⋯」')
-}

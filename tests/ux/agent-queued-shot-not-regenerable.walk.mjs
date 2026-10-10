@@ -20,7 +20,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
   chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
-import { openFrameMenuFromToolbar } from './_groupGenerate.mjs'
+import { openFrameMenuFromToolbar } from './_groupFrame.mjs'
 
 // 付费卡逐镜（2026-09-30）：第 1 页点「生成这张」（供应商受理被夹具压着），卡翻到第 2 页再点一次——第 2 镜批过、还没轮到，就是排队。
 

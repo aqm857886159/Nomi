@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findConnectionStartPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { GROUP_FRAME_SELECTOR, groupFrameHeader } from './_groupFrame.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -107,7 +108,7 @@ await expectVisible(win.locator('[data-group-toolbar="true"]'), '组工具条已
 const selectedText = await win.locator('[data-group-toolbar="true"]').first().textContent().catch(() => '')
 console.log('  → 点组框后组工具条:', JSON.stringify(selectedText))
 // 组名夹在中间（默认名「组 1」/ 英文「Group 1」），所以认「成员数 4」这个独立节点而不是拼全文。
-check('点组框 = 选中全部成员（组工具条出现）', (await win.locator('[data-group-toolbar-count="true"]').first().textContent().catch(() => '') || '').replace(/\s+/g, '').endsWith('·4'), String(selectedText))
+check('点组框 = 选中全部成员（组工具条出现）', (await win.locator('[data-group-toolbar-count="true"]').first().textContent().catch(() => '') || '').replace(/\s+/g, '').match(/·4(个)?$/) !== null, String(selectedText))
 check('工具条有「生成整组」', /生成整组/.test(selectedText || ''), String(selectedText))
 
 // 反并行版断言：整屏只应有**一个**「生成」动作，组标签上不许再挂第二个。
@@ -121,7 +122,7 @@ const groupToolbarProof = await proveProbe(win.locator('[data-group-toolbar="tru
 await expectAbsent(win.locator('.generation-canvas-v2__selection-toolbar'), { provenBy: groupToolbarProof, message: '选中整组后不出旧的框选浮条' })
 check('同屏只有一个批量生成入口「生成整组」', (await win.getByRole('button', { name: '生成整组', exact: true }).count()) === 1)
 {
-  const box = await win.locator('.generation-canvas-v2__group-box-label').first().boundingBox().catch(() => null)
+  const box = await groupFrameHeader(win.locator(GROUP_FRAME_SELECTOR).first()).boundingBox().catch(() => null)
   if (box) await snap(win, 'group-label-no-run-button', { x: Math.max(0, box.x - 14), y: Math.max(0, box.y - 14), width: 420, height: 120 })
 }
 

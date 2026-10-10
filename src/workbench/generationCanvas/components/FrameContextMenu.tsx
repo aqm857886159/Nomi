@@ -22,6 +22,12 @@ import { cn } from '../../../utils/cn'
 
 export type FrameContextMenuAction = 'edit' | 'generate' | 'timeline' | 'collapse' | 'dissolve' | 'delete'
 
+/**
+ * 工具条「⋯」打开时排除的动作：生成整组、进时间轴、解组已在工具条上，不在「⋯」里重复（10-10 拍板）。
+ * 右键菜单不排除，保持完整。
+ */
+export const FRAME_MENU_TOOLBAR_DUPLICATES: readonly FrameContextMenuAction[] = ['generate', 'timeline', 'dissolve']
+
 type FrameContextMenuProps = {
   className?: string
   style?: React.CSSProperties
@@ -30,6 +36,8 @@ type FrameContextMenuProps = {
   canGenerate: boolean
   /** 框里一段可进时间轴的画面都没有 → 同上。 */
   canSendToTimeline: boolean
+  /** 不显示的动作（同一份菜单，按入口排除）；右键菜单不传，保持完整。 */
+  exclude?: readonly FrameContextMenuAction[]
   onAction: (action: FrameContextMenuAction) => void
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void
@@ -41,6 +49,7 @@ export default function FrameContextMenu({
   frameName,
   canGenerate,
   canSendToTimeline,
+  exclude,
   onAction,
   onPointerDown,
   onContextMenu,
@@ -86,6 +95,9 @@ export default function FrameContextMenu({
     },
   ]
 
+  const visibleItems = items.filter((item) => !exclude?.includes(item.action))
+  // 分隔线放在「解散」前；工具条「⋯」排除了解散时，改放在「删除」前。
+  const dividerAction = visibleItems.some((item) => item.action === 'dissolve') ? 'dissolve' : 'delete'
   return (
     <div
       className={cn(
@@ -102,12 +114,12 @@ export default function FrameContextMenu({
       onContextMenu={onContextMenu}
       onPointerDown={onPointerDown}
     >
-      {items.map((item) => {
+      {visibleItems.map((item) => {
         const Icon = item.icon
         return (
           <React.Fragment key={item.action}>
             {/* 「拆掉 / 删掉框」那一段从解散起，前面画一条分隔线。 */}
-            {item.action === 'dissolve' ? (
+            {item.action === dividerAction ? (
               <div className={cn('h-px my-1 mx-2 bg-nomi-line')} aria-hidden="true" />
             ) : null}
             {/* 禁用的 <button> 自己不触发 title（浏览器行为）→ 外层包一层承载它（§1.6 C1）。 */}

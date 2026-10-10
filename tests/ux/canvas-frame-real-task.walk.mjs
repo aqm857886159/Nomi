@@ -45,6 +45,7 @@ import {
   screenshotSettled,
 } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { GROUP_FRAME_COUNT_SELECTOR, GROUP_FRAME_HEADER_SELECTOR, GROUP_FRAME_TITLE_SELECTOR, groupFrameHeader, groupFrameTitle } from './_groupFrame.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -134,9 +135,9 @@ async function measureToolbarDockOverlap(win, dockSelector, capsuleSelector) {
  * 上沿会切掉 52px（留白 24 + 标签带 28）——一个以「让我看全」为全部意义的按钮交出缺的画面。
  */
 async function measureFrameLabelClip(win, frameSelector) {
-  return win.evaluate((selector) => {
+  return win.evaluate(([selector, headerSelector]) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
-    const label = document.querySelector(`${selector} .generation-canvas-v2__group-box-label`)
+    const label = document.querySelector(`${selector} ${headerSelector}`)
     if (!stage || !label) return null
     const s = stage.getBoundingClientRect()
     const l = label.getBoundingClientRect()
@@ -147,7 +148,7 @@ async function measureFrameLabelClip(win, frameSelector) {
       bottom: Math.round(l.bottom - s.bottom),
       text: label.textContent?.trim() ?? '',
     }
-  }, frameSelector)
+  }, [frameSelector, GROUP_FRAME_HEADER_SELECTOR])
 }
 
 /**
@@ -178,7 +179,7 @@ async function zoomOutForFraming(win) {
 }
 
 async function readFrameState(win) {
-  return win.evaluate((selector) => {
+  return win.evaluate(([selector, titleSelector, countSelector]) => {
     const frame = document.querySelector(selector)
     if (!frame) return null
     const rect = frame.getBoundingClientRect()
@@ -186,8 +187,10 @@ async function readFrameState(win) {
       groupId: frame.getAttribute('data-group-id'),
       empty: frame.getAttribute('data-frame-empty') === 'true',
       membership: frame.getAttribute('data-frame-membership'),
-      count: frame.querySelector('[data-frame-count="true"]')?.textContent?.trim() ?? '',
-      title: frame.querySelector('[data-frame-title="true"]')?.textContent?.trim() ?? '',
+      // 计数带单位（「3 个」「3 镜」）：只取数字，断言对的是人数。
+      // 静止时只取数字（「3 个」→「3」）；拖动预览「3 → 4」原样保留。
+      count: (frame.querySelector(countSelector)?.textContent ?? '').trim().includes('→') ? (frame.querySelector(countSelector)?.textContent ?? '').trim() : ((frame.querySelector(countSelector)?.textContent ?? '').match(/\d+/)?.[0] ?? ''),
+      title: frame.querySelector(titleSelector)?.textContent?.trim() ?? '',
       borderStyle: getComputedStyle(frame).borderStyle,
       // 屏幕矩形：用户看见的那个。
       box: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
@@ -202,7 +205,7 @@ async function readFrameState(win) {
       },
       viewportTransform: document.querySelector('.react-flow__viewport')?.style.transform ?? null,
     }
-  }, CANVAS_FRAME_SELECTOR)
+  }, [CANVAS_FRAME_SELECTOR, GROUP_FRAME_TITLE_SELECTOR, GROUP_FRAME_COUNT_SELECTOR])
 }
 
 /** 从 React Flow 视口的 transform 串里取缩放。取不到就 fail-closed——猜一个 1 会让换算静默错掉。 */
@@ -364,7 +367,7 @@ try {
   await snap(win, 'three-loose-nodes')
 
   // ── ② 按 F，从三张卡**外面**起手，拖一圈把它们圈起来 ──
-  const frameButton = win.locator('.generation-canvas-v2__zoom-bar button[aria-label="画框"]').first()
+  const frameButton = win.locator('.generation-canvas-v2__zoom-bar button[aria-label="编组"]').first()
   await expectVisible(frameButton, '左下画布工具簇里有「画框」这颗钮')
   await win.keyboard.press('f')
   await win.waitForTimeout(400)
@@ -407,10 +410,10 @@ try {
   await snap(win, 'framed-three')
 
   // ── ③ 起个名 ──
-  const title = frameLocator(win).locator('[data-frame-title="true"]').first()
+  const title = groupFrameTitle(frameLocator(win))
   await title.dblclick({ timeout: 6000 })
   await win.waitForTimeout(300)
-  const nameInput = frameLocator(win).locator('input[aria-label^="重命名框"]').first()
+  const nameInput = frameLocator(win).locator('input[aria-label^="重命名组"]').first()
   await expectVisible(nameInput, '双击标题进了编辑态')
   await nameInput.fill('第三幕 · 雨夜')
   await win.keyboard.press('Enter')
@@ -551,7 +554,7 @@ try {
   const selectionToolbar = win.locator('.generation-canvas-v2__selection-toolbar').first()
   await expectVisible(selectionToolbar, '抓完框，选择浮条确实在这一屏（不然下一条就是句空话）')
   await expectOverlayReachable(
-    frameLocator(win).locator('.generation-canvas-v2__group-box-label').first(),
+    groupFrameHeader(frameLocator(win)),
     '框的名字与计数（选择浮条不该盖住你刚抓住的那个框的身份牌）',
   )
 

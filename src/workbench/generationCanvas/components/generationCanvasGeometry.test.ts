@@ -75,9 +75,9 @@ describe('几何调用点使用真实渲染尺寸', () => {
       updatedAt: 0,
     }
     const [box] = getCanvasGroupBoxes([group], [node])
-    // 包围盒 = 成员视觉尺寸 + 左右 padding(24*2)，高度再加顶部标签预留(28)。
+    // 包围盒 = 成员视觉尺寸 + 左右 padding(24*2)，高度再加顶部框头预留(FRAME_HEADER_RESERVE，10-10 起框头进框内)。
     expect(box.width).toBe(visualSize.width + 48)
-    expect(box.height).toBe(visualSize.height + 48 + 28)
+    expect(box.height).toBe(visualSize.height + 48 + 44)
   })
 })
 

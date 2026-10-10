@@ -65,3 +65,9 @@
 - 颜色（取代 10-06 组色方案 B）：框体无边框，底色用六色 soft token；选中不加任何描边，焦点环与落点反馈都不用蓝色。
 - 分镜组判断用 `materializationOperationId` 归属章；过程中发现 `nodeGroupSchema` 缺这个字段，读盘会被 zod 剥掉，已补并加测试钉住（见 `generationCanvasSchema.test.ts`）。
 - 框顶留白由 28 调到 44（`FRAME_HEADER_RESERVE`），让节点名字标签不压框头（D6），断言见 `groupHeaderClearance.test.ts`。
+
+## 自写登记 canvas-group-toolbar-actions（10-10 补，第三次修补）
+
+- 这次改的是分组工具条的动作与显示：「⋯」按入口排除重复动作（`FRAME_MENU_TOOLBAR_DUPLICATES`），工具条组名与计数改走框头的同一显示函数 `groupFrameLabel`。
+- 为什么现在换不了现成方案：工具条动作（生成整组、进时间轴、解组、排列、颜色）绑定 Nomi 的分组语义——花钱确认走同一执行口、时间轴落地、成员解组、同一份框菜单。通用工具栏库只给外壳与按钮，不管这些动作的语义与执行口，接入它只会把动作再抄一遍。这是领域约束。
+- 哪天换：工具条动作迁入统一按钮面（NodeFloatingToolbar 的 ToolbarButton 体系）时复查；届时把排除清单与显示函数并入那个面，删掉这里的重复定义。

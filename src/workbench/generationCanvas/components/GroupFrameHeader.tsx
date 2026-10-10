@@ -15,6 +15,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
+import { groupFrameLabel } from './groupFrameLabel'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -113,10 +114,8 @@ export function GroupFrameHeader({
     event.stopPropagation()
   }
 
-  const countLabel = previewCount === null
-    ? t(storyboard ? 'generationCommon.canvas.group.countShots' : 'generationCommon.canvas.group.countItems', { count: memberCount })
-    : t('generationCommon.canvas.group.countPreview', { from: memberCount, to: previewCount })
-  const titleText = storyboard ? `${t('generationCommon.canvas.group.storyboardPrefix')}${name}` : name
+  // 标题与计数走分组统一的显示函数（框头与分组工具条共用，见 groupFrameLabel.ts）。
+  const { title: titleText, count: countLabel } = groupFrameLabel(t, { name, storyboard, memberCount, previewCount })
 
   return (
     <div

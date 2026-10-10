@@ -27,7 +27,7 @@ const CENSUS: ReadonlyArray<readonly [string, () => void]> = [
   }],
   ['F3 组名在框内左上（data-frame-title）', () => {
       expect(header).toContain('data-frame-title="true"')
-      expect(header).toContain('storyboardPrefix')
+      expect(read('groupFrameLabel.ts')).toContain('storyboardPrefix')
   }],
   ['F4 双击组名改名', () => {
       expect(header).toContain('onDoubleClick={beginEditing}')
@@ -42,8 +42,8 @@ const CENSUS: ReadonlyArray<readonly [string, () => void]> = [
       expect(header).not.toContain('sr-only')
   }],
   ['F7 拖动预览计数「3 → 2」在框内显示（countPreview）', () => {
-      expect(header).toContain("'generationCommon.canvas.group.countPreview'")
-      expect(header).toContain('previewCount === null')
+      expect(read('groupFrameLabel.ts')).toContain("'generationCommon.canvas.group.countPreview'")
+      expect(header).toContain('groupFrameLabel(t, { name, storyboard, memberCount, previewCount })')
   }],
   ['F8 框头折叠钮已删；折叠在右键菜单「折叠成卡」', () => {
       expect(header).not.toContain('collapseNamed')

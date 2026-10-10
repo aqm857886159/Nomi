@@ -11,7 +11,8 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
 import { applyColorSchemeForShot, clickOrFail, expect, waitForVisualQuiescence } from './_assert.mjs'
-import { frameBlankPosition, GROUP_TOOLBAR, openFrameMenuFromToolbar } from './_groupGenerate.mjs'
+import { GROUP_TOOLBAR } from './_groupGenerate.mjs'
+import { frameBlankPosition, groupFrameCount, groupFrameHeader, groupFrameTitle, groupToolbarTitle, openFrameMenuFromToolbar } from './_groupFrame.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const CASES = {
@@ -119,6 +120,11 @@ try {
   await storyFrame.click({ position: await frameBlankPosition(storyFrame) })
   await waitForVisualQuiescence(win)
   await expect(win.locator(GROUP_TOOLBAR), '选中后工具条露出').toBeVisible()
+  // 工具条的组名与计数走框头同一显示函数：两边文字必须一致（10-10）。
+  const headerText = `${(await groupFrameTitle(storyFrame).textContent())?.trim()} · ${(await groupFrameCount(storyFrame).textContent())?.trim()}`
+  const squash = (text) => (text ?? '').replace(/\s+/g, '')
+  const toolbarText = await groupToolbarTitle(win).textContent()
+  check('工具条组名与计数 = 框头同一显示', squash(toolbarText) === squash(headerText), `toolbar=${toolbarText} header=${headerText}`)
   const selectedOutline = await storyFrame.evaluate((el) => {
     const cs = getComputedStyle(el)
     return { border: cs.borderTopWidth, outline: cs.outlineStyle, boxShadow: cs.boxShadow }
@@ -130,6 +136,8 @@ try {
   await openFrameMenuFromToolbar(win, storyFrame)
   const menu = win.locator('[data-frame-menu="true"]').first()
   await expect(menu, '工具条「⋯」打开框菜单').toBeVisible()
+  // 「⋯」只留 改名 / 说明、折叠成卡、删除（生成整组、进时间轴、解组已在工具条上，不重复）。
+  check('工具条「⋯」只剩三项：改名 / 折叠 / 删除', (await menu.locator('button').count()) === 3, `items=${await menu.locator('button').count()}`)
   await win.screenshot({ path: path.join(outDir, '03-toolbar-more-menu.png') })
   await win.keyboard.press('Escape')
   await waitForVisualQuiescence(win)

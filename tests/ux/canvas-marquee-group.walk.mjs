@@ -30,6 +30,7 @@ import {
 import { findCanvasBlankPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { groupFrameHeader } from './_groupFrame.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-marquee-group')
@@ -258,7 +259,7 @@ try {
   // ── ⑤ 真的把组建出来：用户任务闭环 ──
   await clickOrFail(groupItem, '建组')
   await expectVisible(getWin().locator(GROUP_BOX).first(), '点了「建组」之后画布上应当出现组框')
-  const groupLabel = getWin().locator('.generation-canvas-v2__group-box-label').first()
+  const groupLabel = groupFrameHeader(getWin().locator(GROUP_BOX).first())
   await expectVisible(groupLabel, '组框应当带头部胶囊（组名 + 计数）')
   const labelText = await scopedText(groupLabel)
   expect(labelText, `组头计数不是 ${NODE_COUNT}（读到「${labelText}」）：建出来的组没把框选的三个都收进去`).toContain(String(NODE_COUNT))
