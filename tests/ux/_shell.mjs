@@ -19,6 +19,9 @@ export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
 export const COLLAPSE_BUTTON = '[data-v4-control="collapse"]'
 
 const BACK_TO_LIBRARY = /^(返回项目库|Back to projects)$/
+const NEW_PROJECT_ENTRY = /^(新建空白项目|New blank project)/
+const MODEL_SETTINGS_ENTRY_IN_PROJECT = '[aria-label="打开模型设置"], [aria-label="Open model setup"]'
+const MODEL_SETTINGS_ENTRY = `[data-testid="open-model-settings"], ${MODEL_SETTINGS_ENTRY_IN_PROJECT}`
 
 /**
  * 从项目里回到项目库——像用户一样点。`repeat` > 1 = 连点（保存在等锁时的重复点击）。
@@ -54,4 +57,25 @@ export async function leaveProjectIfOpen(win, label = '回项目库') {
   if (!(await button.first().isVisible().catch(() => false))) return false
   await clickOrFail(button, label)
   return true
+}
+
+/**
+ * 「模型设置」入口（项目库右上 / 项目顶栏上那颗直达模型页的钮）。走查要等它出现、判它在不在时用——
+ * 它同时是「应用已就绪」的常用信号。`where: 'project'` = 只认项目里的那一颗（项目库上的不算）。
+ */
+export function modelSettingsEntry(win, { where = 'any' } = {}) {
+  return win.locator(where === 'project' ? MODEL_SETTINGS_ENTRY_IN_PROJECT : MODEL_SETTINGS_ENTRY).first()
+}
+
+/** 打开设置里的模型区：点入口、等设置弹窗出现。 */
+export async function openModelSettings(win, { label = '打开模型设置', timeout } = {}) {
+  await clickOrFail(modelSettingsEntry(win), label, timeout === undefined ? {} : { timeout })
+}
+
+/**
+ * 项目库里「新建一个项目」的入口（也是「已经回到项目库」的常用信号）。库里有没有项目、第一次打开还是回来，
+ * 它的长相可以不同——走查别自己按文案猜，经这里找。
+ */
+export function newProjectEntry(win) {
+  return win.getByRole('button', { name: NEW_PROJECT_ENTRY }).first()
 }

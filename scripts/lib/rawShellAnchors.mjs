@@ -12,6 +12,7 @@ export const RAW_SHELL_PATTERNS = [
   [/getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:\s*(?:\/[^/\n]*|['"])(?:返回项目库|Back to projects)/, 'backToLibrary()'],
   [/\[data-v4-control="(?:collapse|dock-open)"\]/, 'collapseAgentPanel() / ensureAgentPanelOpen()'],
   [/\[data-agent-resident="true"\]\[data-agent-(?:panel|collapsed)="true"\]/, 'AGENT_PANEL / COLLAPSED_SHELL（_shell.mjs 导出）'],
+  [/data-testid="open-model-settings"|aria-label="打开模型设置"|name:\s*(?:\/|')打开模型设置/, 'openModelSettings() / modelSettingsEntry()'],
 ]
 
 /**

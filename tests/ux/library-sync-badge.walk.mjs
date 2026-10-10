@@ -13,7 +13,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, clickOrFail, proveProbe, expectAbsent, expectOverlayReachable } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 const out = path.resolve('tests/ux/shots/library-sync-badge')
 fs.mkdirSync(out, { recursive: true })
@@ -32,7 +32,7 @@ try {
   await (await run.app.browserWindow(page)).evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1280, height: 900 }))
 
   // 建一个真项目：同步探测只对有 rootPath 的项目跑，所以必须有一张真卡片，不能灌状态。
-  await clickOrFail(page.getByRole('button', { name: '新建空白项目', exact: false }).first(), '新建空白项目')
+  await clickOrFail(newProjectEntry(page), '新建空白项目')
   await expectVisible(page.locator('[data-workspace-mode]').first(), '新项目没有进到工作区')
   await backToLibrary(page)
 
