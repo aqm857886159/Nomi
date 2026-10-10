@@ -183,7 +183,7 @@ export async function canvasZoomStep(win, direction, label = `zoom ${direction}`
   await clickOrFail(win.locator(CANVAS_ZOOM_BAR).getByRole('button', { name: navAny(direction === 'in' ? 'zoomIn' : 'zoomOut') }), label)
 }
 
-/** 开 ⋯（更多视图选项）。已经开着就不动。 */
+/** 开 ⋯（视图选项）。已经开着就不动。 */
 export async function openCanvasViewOptions(win, label = 'open view options') {
   if (await win.locator(CANVAS_VIEW_OPTIONS).first().isVisible().catch(() => false)) return
   await clickOrFail(win.locator(CANVAS_ZOOM_BAR).getByRole('button', { name: navAny('viewOptions') }), label)

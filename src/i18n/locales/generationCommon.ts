@@ -1032,7 +1032,7 @@ export const zhGenerationCommon = {
     canvasControls: '画布操作',
     zoomOut: '缩小',
     zoomIn: '放大',
-    viewOptions: '更多视图选项',
+    viewOptions: '视图选项',
   },
   cameraMove: {
     move: {
@@ -2701,7 +2701,7 @@ export const enGenerationCommon = {
     canvasControls: 'Canvas controls',
     zoomOut: 'Zoom out',
     zoomIn: 'Zoom in',
-    viewOptions: 'More view options',
+    viewOptions: 'View options',
   },
   cameraMove: {
     move: {

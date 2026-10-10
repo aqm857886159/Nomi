@@ -199,7 +199,7 @@ export function ShellTopBar({
     : t('timelinePreview.exportMp4')
   return (
     <header
-      className="app-drag relative flex w-full select-none items-center justify-between gap-2 bg-nomi-chrome text-nomi-ink"
+      className="app-drag relative grid w-full select-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-nomi-chrome text-nomi-ink"
       style={{
         height: SHELL_TOPBAR_HEIGHT,
         // Windows：原生窗口按钮（titleBarOverlay）盖在右端，按 env(titlebar-area-*) 让位；不支持时让位 0。
@@ -248,7 +248,7 @@ export function ShellTopBar({
           </div>
         ) : null}
 
-        <div className="flex h-full shrink-0 items-center justify-end gap-0.5 pr-2" role="toolbar" aria-label={t('appBar.globalActions')}>
+        <div className="flex h-full shrink-0 items-center justify-end gap-0.5 justify-self-end pr-2" role="toolbar" aria-label={t('appBar.globalActions')}>
           {workspaceMode === 'preview' ? (
             <>
               <span className="app-no-drag"><EditingLayoutMenu /></span>

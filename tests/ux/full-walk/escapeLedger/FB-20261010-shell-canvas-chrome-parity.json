@@ -10,14 +10,19 @@
   ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "屏外真 Electron 走查 tests/ux/shell-redesign.walk.mjs 的 check-canvas-chrome 段：分段中心与窗口中心偏差 ≤ 1px（槽里塞 96px 元素后仍 ≤ 1px）、加节点条横排居中贴底、缩放簇五控件与 ⋯ 里六项一个不丢；中英、光暗、1280 / 1000 截图并排对照拍板稿 Main 板",
     "scripts/pr-body-criteria.node-test.mjs 三条必红用例：正文承诺「后续提交 / 等 X 合入后」又没标已完成 / 移交，合并档判红",
-    "结账待办：PR 号落定后由协调会话把 status 改 fixed 并补 fixedInPr（本 PR 号在开 PR 前未知）"
+    "docs/fixes/2026-10-10-shell-canvas-chrome-parity.root-cause.json：合并档承诺判据 + 必红单测为结构性预防"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "21daf44ef",
+    "f8fb20463",
+    "4bb76ea14"
+  ],
+  "fixedInPr": 1166,
   "rootCauseContract": "docs/fixes/2026-10-10-shell-canvas-chrome-parity.root-cause.json",
   "classCheck": {
     "kind": "matrix",
