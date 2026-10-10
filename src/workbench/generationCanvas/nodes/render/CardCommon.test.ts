@@ -51,7 +51,8 @@ describe('empty node layout (Claude Design EmptyStates)', () => {
     expect(out).toContain('bg-nomi-ink-05')
     expect(out).toContain(`canvas.nodeKinds.${kind}`)
     expect(out).toContain(`nodeTry.status.${kind}`)
-    expect(out).toContain('justify-start')
+    // 2026-10-10 用户拍板 B：块顶由卡高定（视觉中心 45%，离顶 ≥44），不再顶对齐。
+    expect(out).toContain('data-empty-tier="full"')
     expect(out).not.toContain('justify-center py')
     expect(out).toContain('>·<')
     // 动作行永远单行（结构上不许折行：nowrap；文案按最小节点宽度写短，走查量每种节点两种语言下都是单行）。
@@ -67,5 +68,14 @@ describe('empty node layout (Claude Design EmptyStates)', () => {
   it('no striped hatch under an empty card', async () => {
     const { previewBackgroundClass } = await import('./previewBackground')
     expect(String(previewBackgroundClass(false, false))).not.toContain('repeating-linear-gradient')
+  })
+})
+
+// 2026-10-10 独立验收（V-ratio）：档位必须和渲染用的是同一个有效高度。
+// 240×103 的空卡实际渲染高度被钳到 MIN_NODE_HEIGHT=120，应按 120 判「紧凑」，不能按存的 103 判「只留第一行」。
+describe('empty state tier uses the rendered (clamped) height', () => {
+  it('240×103 空图片节点：按有效高度 120 判紧凑', () => {
+    const small = { ...node('image'), size: { width: 240, height: 103 } } as GenerationCanvasNode
+    expect(html({ node: small, selected: false })).toContain('data-empty-tier="compact"')
   })
 })

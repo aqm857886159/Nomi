@@ -93,6 +93,29 @@ function resolveImport(fromFile, spec, root) {
   return null
 }
 
+/**
+ * 单个文件的相对 import（已解析成仓库相对路径），按 路径 + mtime + 大小 缓存：推送前登记了几十个扫描型守卫测试，
+ * 每个的闭包都要走一遍 electron / src 的生产模块，不缓存的话选一次门岗要把同一批文件读几十遍。
+ */
+const importCache = new Map()
+function importsOf(file, root) {
+  const absolute = path.join(root, file)
+  let stat
+  try { stat = fs.statSync(absolute) } catch { return [] }
+  const key = `${root}|${file}`
+  const cached = importCache.get(key)
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) return cached.imports
+  let text = ''
+  try { text = fs.readFileSync(absolute, 'utf8') } catch { return [] }
+  const imports = []
+  for (const match of text.matchAll(IMPORT)) {
+    const resolved = resolveImport(file, match[1], root)
+    if (resolved) imports.push(resolved)
+  }
+  importCache.set(key, { mtimeMs: stat.mtimeMs, size: stat.size, imports })
+  return imports
+}
+
 /** 入口脚本 + 它的相对 import 传递闭包（仓库内文件，正斜杠相对路径）。 */
 export function implementationFiles(entries, root = repoRoot) {
   const seen = new Set()
@@ -101,12 +124,7 @@ export function implementationFiles(entries, root = repoRoot) {
     const file = queue.pop()
     if (seen.has(file)) continue
     seen.add(file)
-    let text = ''
-    try { text = fs.readFileSync(path.join(root, file), 'utf8') } catch { continue }
-    for (const match of text.matchAll(IMPORT)) {
-      const resolved = resolveImport(file, match[1], root)
-      if (resolved) queue.push(resolved)
-    }
+    queue.push(...importsOf(file, root))
   }
   return seen
 }

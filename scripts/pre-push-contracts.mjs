@@ -28,6 +28,7 @@ import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { implementationFiles, touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { CI_ONLY, PARTIAL_LOCAL } from './pre-push-gate-table.mjs'
 import { RELATED_TESTS_GATE, SOURCE_FILE, relatedTests, runRelatedTests } from './pre-push-related-tests.mjs'
+import { SCAN_GUARDS, SCAN_GUARDS_GATE, touchesScanGuard } from './pre-push-scan-guards.mjs'
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -117,6 +118,43 @@ export const PRE_PUSH_GATES = Object.freeze([
 const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'
 
 /**
+ * 一个实现闭包的缓存：门岗名（或守卫测试文件）→ 它的入口脚本及其相对 import 闭包。一次进程里只算一次：推送前登记了上百道门岗（含几十个扫描型守卫，
+ * 闭包要走 electron / src 的生产模块），选一次门岗就把闭包全走一遍的话，结构测试里循环调用 selectGates 几百次会慢到几分钟。
+ * 钩子是一次性进程，仓库文件在进程里不会变。
+ */
+const implementationCache = new Map()
+function closureOf(key, entries) {
+  let impl = implementationCache.get(key)
+  if (!impl) {
+    impl = entries.length === 0 ? new Set() : implementationFiles(entries, repoRoot)
+    implementationCache.set(key, impl)
+  }
+  return impl
+}
+
+/** 批量跑红了：失败输出只回放最后几行，会只剩最后一个红的；这里把所有红的守卫测试文件点名，并给出只重跑它们的命令（放在输出末尾，回放时一定看得到）。 */
+export function failedGuardSummary(output, ran) {
+  const lines = String(output).split('\n').filter((line) => line.includes('FAIL'))
+  const failed = ran.filter((file) => lines.some((line) => line.includes(file)))
+  if (failed.length === 0) return '[pre-push] 批量守卫红了，但输出里没认出是哪几个（看上面的 FAIL 行）'
+  return [`[pre-push] 红的守卫测试 ${failed.length} 个：`, ...failed.map((file) => `  ${file}`), `只重跑它们：node node_modules/vitest/vitest.mjs run ${failed.join(' ')}`].join('\n')
+}
+
+/**
+ * 扫全仓 / 扫目录的守卫测试（登记表与理由见 pre-push-scan-guards.mjs）：同一个 vitest 进程批量跑，改到哪几个守卫扫的目录（或守卫测试自己 / 它 import 的模块）就只带哪几个。
+ * 为什么要有：相关单测只挑「引用了改动文件」的测试，这类测试自己遍历源码，新增违规文件挑不中它（2026-10-10 一天漏 4 个）。
+ * 为什么批量：逐个起 vitest 进程，改一个 electron 文件要起 15 个进程（实测总和约 150 秒 CPU、墙钟 +29 秒）；一个进程跑同样 15 个文件 18 秒。
+ */
+export function scanGuardsToRun(files) {
+  if (files === null) return SCAN_GUARDS
+  return SCAN_GUARDS.filter((guard) => {
+    if (touchesScanGuard(guard, files)) return true
+    const impl = closureOf(`guard:${guard.file}`, [guard.file])
+    return files.some((file) => impl.has(file))
+  })
+}
+
+/**
  * 不是 package.json 的 check 脚本、但「整库扫描型 / 规则红绿证明型」的单测与扫描：按改动路径挑出来跑（同样只跑几秒到十几秒的）。
  * argv 是 node 的参数；rerun 是失败时给人看的重跑命令。超过 15 秒的（如 vocabularies 的 38 秒单测套件）不在这里，
  * 它只在改到它自己的文件时由 gateCommands 带上（见 gateCommands）。
@@ -132,6 +170,14 @@ export const SCAN_TESTS = Object.freeze([
   // 本文件与门表 / 输入声明 / package.json 的契约 + 结构用例（几秒；整份 pre-push-contracts.node-test.mjs > 90 秒只在 CI，快的部分拆到这里，#1147 / #1141 在 CI 才红）
   { name: 'test:pre-push-structure', argv: ['--test', 'scripts/pre-push-structure.node-test.mjs'], rerun: 'node --test scripts/pre-push-structure.node-test.mjs', when: (files) => touchesGateInputs('test:pre-push-structure', files) },
   { name: 'test:quit-lifecycle-guard', argv: [VITEST_ENTRY, 'run', 'electron/quitLifecycleGuard.test.ts'], rerun: 'node node_modules/vitest/vitest.mjs run electron/quitLifecycleGuard.test.ts', when: (files) => touchesGateInputs('test:quit-lifecycle-guard', files) },
+  // 扫全仓 / 扫目录的守卫测试（单跑 2–13 秒，批量一个进程）：入口文件 = 全部登记的守卫（给「实现闭包被改 → 选中」和相关单测排除用），实际要跑的由 argvFor 按改动挑
+  {
+    name: SCAN_GUARDS_GATE,
+    argv: [VITEST_ENTRY, 'run', ...SCAN_GUARDS.map((guard) => guard.file)],
+    argvFor: (files) => [VITEST_ENTRY, 'run', ...scanGuardsToRun(files).map((guard) => guard.file)],
+    rerun: 'node node_modules/vitest/vitest.mjs run <上面输出里 FAIL 点名的守卫测试文件>',
+    when: (files) => scanGuardsToRun(files).length > 0,
+  },
 ])
 
 /** 正文类（需要 PR 正文）：prior-art 与 pr-judgement，正文取不到时只说「今天没查成」（CI 侧仍然 fail-closed）。 */
@@ -217,9 +263,7 @@ export function gateEntryFiles(name) {
 }
 
 export function touchesImplementation(name, files) {
-  const entries = gateEntryFiles(name)
-  if (entries.length === 0) return false
-  const impl = implementationFiles(entries, repoRoot)
+  const impl = closureOf(name, gateEntryFiles(name))
   return files.some((file) => impl.has(file))
 }
 
@@ -419,8 +463,16 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   }
   for (const scan of SCAN_TESTS) {
     if (!selected.has(scan.name)) continue
-    const task = async () => softenTimeout(scan, { name: scan.name, ...(await runNode(scan.argv, {}, { name: scan.name })) })
-    if (scan.name === 'typecheck') tasks.unshift(task)
+    // 批量门岗（scan.argvFor）：按这次改动挑出要跑的守卫测试；files === null（算不出改动）= 全跑
+    const argv = scan.argvFor ? scan.argvFor(files) : scan.argv
+    const batch = scan.argvFor ? argv.length - 2 : 0
+    const task = async () => {
+      const result = softenTimeout(scan, { name: scan.name, ...(await runNode(argv, {}, { name: scan.name })) })
+      if (batch === 0) return result
+      if (result.status === 0) return { ...result, note: `${batch} 个扫描型守卫测试一个进程批量跑` }
+      return { ...result, output: [result.output, failedGuardSummary(result.output, argv.slice(2))].join('\n') }
+    }
+    if (scan.name === 'typecheck' || scan.argvFor) tasks.unshift(task)
     else tasks.push(task)
   }
   if (selected.has(RELATED_TESTS_GATE.name)) {
@@ -428,7 +480,8 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
     tasks.unshift(async () => {
       if (files === null) return { name: RELATED_TESTS_GATE.name, status: 0, output: '', ms: 0, note: '算不出改动，相关单测没挑，CI 会跑' }
       try {
-        const exclude = new Set(SCAN_TESTS.flatMap((scan) => gateEntryFiles(scan.name)))
+        // 只排除「这次真会由别的门岗跑」的测试：没被选中的扫描门岗不能连带吞掉相关单测对它的挑选
+        const exclude = new Set(SCAN_TESTS.filter((scan) => selected.has(scan.name)).flatMap((scan) => (scan.argvFor ? scan.argvFor(files).slice(2) : gateEntryFiles(scan.name))))
         return await runRelatedTests(relatedTests(files, { root: repoRoot, exclude }), runNode)
       } catch (error) {
         return { name: RELATED_TESTS_GATE.name, status: 0, output: '', ms: 0, note: `挑相关单测失败（${String(error.message).split(/\r?\n/)[0]}），相关单测没跑，CI 会跑` }
