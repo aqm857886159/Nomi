@@ -19,6 +19,7 @@ import path from 'node:path'
 
 import { launchNomiApp } from './_launchApp.mjs'
 import { assertBuilt, makeIsolatedDirs, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 assertBuilt()
 const dirs = makeIsolatedDirs('nomi-mcp-lease-binding-')
@@ -75,7 +76,7 @@ try {
     settleMs: 0,
   })
   const win = gui.win
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 15_000 })
   const openProjectId = await win.evaluate(
     () => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'),

@@ -16,6 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expectVisible, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-url-scheme-boot')
@@ -66,7 +67,7 @@ try {
     await getWin().keyboard.press('Escape').catch(() => {})
     await getWin().waitForTimeout(180)
   }
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   if (await blankProject.isVisible().catch(() => false)) await blankProject.click()
   await getWin().waitForTimeout(1200)
 

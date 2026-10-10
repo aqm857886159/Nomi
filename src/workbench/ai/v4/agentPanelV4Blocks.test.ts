@@ -561,7 +561,7 @@ describe('⑥ 队列行', () => {
 })
 
 // ⑦ 收起坞的「叫回面板」那颗钮已搬到顶栏（09-01 定稿 §11.2），断言随它走进
-// `src/ui/app-shell/AgentTopbarChip.test.tsx`——它现在的邻居是浏览器/设置那两颗钮，
+// `src/ui/app-shell/shell/AgentBallFace.tsx`（10-08 起收起态是内容区右下的小球）——它现在的邻居是浏览器/设置那两颗钮，
 // 断言该和它们放一起，不该留在面板积木这一叠里。本文件只剩画面下沿那一坞（无自有长相）。
 // （合并 origin/main 时这里冲突过：main 那侧还留着 `V4CollapsedRail` 的 32px 断言，
 //  而那个组件已在本分支随收起态返工删掉——保留删除，只取 main 对 Context 环的新说法。）

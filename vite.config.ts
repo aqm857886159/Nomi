@@ -291,6 +291,10 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         'framer-motion',
         'i18next',
         'react-i18next',
+        // 外壳 Agent 小球 / 浮窗（ShellAgentHost）：react-rnd 的 ESM 入口再 import 纯 CJS 的 react-draggable，
+        // noDiscovery 下漏掉它们，dev 服务器里整个工作台起不来（卡在加载标，CI 画布验收 / 走查全红）。
+        'react-rnd',
+        'react-reverse-portal',
         'streamdown',
         '@photo-sphere-viewer/core',
         'tailwind-merge',

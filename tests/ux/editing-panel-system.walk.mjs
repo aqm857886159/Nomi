@@ -148,8 +148,8 @@ const readGeometry = () => win.evaluate(() => {
     tabs,
     // 「收起」应当贴在左栏底部，不是浮在中间
     collapseFromAsideBottom: collapseRect && asideRect ? Math.round(asideRect.bottom - collapseRect.bottom) : null,
-    appBarExport: box('.nomi-appbar [aria-label="导出 MP4"]'),
-    appBarLayout: box('.nomi-appbar [aria-label="布局"]'),
+    appBarExport: box('[data-shell-topbar] [aria-label="导出 MP4"]'),
+    appBarLayout: box('[data-shell-topbar] [aria-label="布局"]'),
     // Nomi 面板头里不该再有这两个（合同：只留徽标 / 额度 / 历史 / 收起）
     exportInsideAssistant: Boolean(document.querySelector('[data-testid="editing-surface-assistant"] [aria-label="导出 MP4"]')),
     layoutInsideAssistant: Boolean(document.querySelector('[data-testid="editing-surface-assistant"] [aria-label="布局"]')),
@@ -261,7 +261,7 @@ try {
   await expectVisible(win.locator('[aria-label="展开属性"]').first(), '收起后没出现展开图标条')
   await screenshotSettled(win, { path: path.join(shotsDir, '03-inspector-collapsed.png') })
 
-  await clickOrFail(win.locator('.nomi-appbar [aria-label="布局"]').first(), '打开布局菜单')
+  await clickOrFail(win.locator('[data-shell-topbar] [aria-label="布局"]').first(), '打开布局菜单')
   await win.waitForTimeout(300)
   await screenshotSettled(win, { path: path.join(shotsDir, '04-layout-menu.png') })
   await clickOrFail(win.getByRole('menuitemradio', { name: '结果全屏' }).first(), '切到「结果全屏」预设')
@@ -274,7 +274,7 @@ try {
   await screenshotSettled(win, { path: path.join(shotsDir, '05-preset-result.png') })
 
   // 恢复默认，证明预设可逆
-  await clickOrFail(win.locator('.nomi-appbar [aria-label="布局"]').first(), '再次打开布局菜单')
+  await clickOrFail(win.locator('[data-shell-topbar] [aria-label="布局"]').first(), '再次打开布局菜单')
   await win.waitForTimeout(300)
   await clickOrFail(win.getByRole('menuitem', { name: '恢复默认' }).first(), '恢复默认布局')
   await win.waitForTimeout(700)

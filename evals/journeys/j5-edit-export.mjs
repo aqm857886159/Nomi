@@ -416,7 +416,8 @@ export default {
       id: "export-mp4",
       title: "进入时间轴并真实导出 MP4",
       async act(ctx) {
-        await ctx.win.locator('[aria-label="去出片"]:visible').first().click({ timeout: 5_000 });
+        // 旧的「去出片」跳转钮 10-08 外壳重设计里按设计删除：进预览页走顶栏阶段步骤器的「预览」。
+        await ctx.win.locator('.nomi-stepper__step[data-mode="preview"]').first().click({ timeout: 5_000 });
         await ctx.win.locator('[data-workspace-mode="preview"]').waitFor({ state: "attached", timeout: 8_000 });
         await ctx.win.locator(".workbench-timeline-clip").first().waitFor({ state: "visible", timeout: 10_000 });
         ctx.exportStartedAt = Date.now();

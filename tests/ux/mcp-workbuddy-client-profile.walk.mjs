@@ -11,6 +11,7 @@ import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const real = process.argv.includes('--real-workbuddy')
 const shotsDir = path.resolve(process.argv.find((arg) => arg.startsWith('--shots-out='))?.split('=').slice(1).join('=')
@@ -65,7 +66,7 @@ try {
   })
   const { win } = launched
   await win.setViewportSize({ width: 1180, height: 820 })
-  await clickOrFail(win.getByRole('button', { name: /新建空白项目|New blank project/ }), 'New blank project')
+  await clickOrFail(newProjectEntry(win), 'New blank project')
   await expect(win.getByText(/创作助手|Creative assistant/).first()).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
   let panel = await openMcpPanel(win)
   const connect = panel.getByRole('button', { name: /一键接入 WorkBuddy|Connect WorkBuddy/ })

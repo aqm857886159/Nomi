@@ -59,5 +59,5 @@ describe("custom call cancellation reaches the real HTTP socket", () => {
 
     await expect(pending).rejects.toThrow(/取消/);
     await closed;
-  }, 10_000);
+  });
 });

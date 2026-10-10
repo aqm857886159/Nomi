@@ -9,6 +9,18 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import globals from 'globals'
 import prettier from 'eslint-config-prettier'
 
+// 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
+// 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
+// ——2026-10-10 exportJobIpc：第一个用例 15 秒超时，后面 9 个全被「已有导出在进行」拖红。见 docs/lessons/timed-out-tests-keep-running-and-poison-the-next-one.md。
+export const VITEST_TIMEOUT_FLOOR_MS = 30_000
+const SHORTENED_TIMEOUT_MESSAGE = 'Do not pass a timeout shorter than the vitest global (vitest.config.ts testTimeout / hookTimeout); a timed-out test keeps running in the background and leaks into the next test. Drop the argument.'
+const TEST_CALL = "CallExpression:matches([callee.name=/^(it|test)$/], [callee.object.name=/^(it|test)$/], [callee.callee.object.name=/^(it|test)$/], [callee.callee.name=/^(it|test)$/])"
+const HOOK_CALL = "CallExpression[callee.name=/^(before|after)(Each|All)$/]"
+const shortenedTimeoutSelectors = [TEST_CALL, HOOK_CALL].flatMap((call) => [
+  { selector: `${call}[arguments.length>=2] > Literal.arguments:last-child[value<${VITEST_TIMEOUT_FLOOR_MS}]`, message: SHORTENED_TIMEOUT_MESSAGE },
+  { selector: `${call}[arguments.length>=2] > ObjectExpression.arguments:last-child > Property[key.name='timeout'] > Literal.value[value<${VITEST_TIMEOUT_FLOOR_MS}]`, message: SHORTENED_TIMEOUT_MESSAGE },
+])
+
 const windowsPathSelectors = [
   {
     selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
@@ -219,6 +231,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-syntax': [
         'error',
+        ...shortenedTimeoutSelectors,
         {
           selector: "AssignmentExpression[left.type='MemberExpression'][left.object.type='MemberExpression'][left.object.object.name='process'][left.object.property.name='env']",
           message: 'Use vi.stubEnv(name, value) so Vitest restores process.env after each test.',

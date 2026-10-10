@@ -7,7 +7,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
-import { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_DOCK_OPEN, COLLAPSED_SHELL, ensureAgentPanelOpen } from './_shell.mjs'
+import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
@@ -22,26 +22,18 @@ const { LANE_CODING_TOOL_NAMES } = tsxRequire('../../electron/agentLane/laneCodi
 // （docs/lessons/dead-selector-lies-both-ways.md），一处失效同时造假红和假绿。
 
 /** 外壳：仍然由 ProjectAgentResidentShell 自己发的三个身份属性。外壳位置（展开 / 收起 / 叫回钮）的唯一定义在 `_shell.mjs`，这里只再导出。 */
-export { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_DOCK_OPEN, COLLAPSED_SHELL }
+export { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_SHELL }
 export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
 export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
 /**
- * 收起角标 = **顶栏**右簇「浏览器」与「设置」之间那一格（09-01 定稿 §11.2）。
- *
- * 注意它**不在** `COLLAPSED_SHELL` 里面：顶栏在整个工作区外面。从收起外壳里找它永远找不到——
- * 那正是这一版返工要修的事（此前它画在面板自己的地盘上，切面就换落点）。
+ * 收起后叫回 Nomi 的唯一入口 = 内容区右下角那颗 Agent 小球（Chrome 板「四种状态，都不会自己弹开」）。
+ * 顶栏不再放 Agent 角标（协调裁决第 59 项）。小球上的走查锚：
+ *   `data-agent-ball` = idle / running / done / failed / pending（pending = 「等你确认 N」胶囊）；
+ *   `data-agent-dock-status` = 注意力状态词（V4DockStatus）；`data-agent-dock-count` = 待确认条数。
  */
-export const COLLAPSED_DOCK = '[data-agent-topbar-badge="true"]'
-/** 角标上那一格：`data-agent-dock-badge` = dot（蓝点 8px）/ count（数字徽标）。 */
-export const COLLAPSED_DOCK_BADGE = '[data-agent-dock-badge]'
-/** 「刚变过」那 420ms 里才挂的属性（单次 settle 脉冲）。 */
-export const COLLAPSED_DOCK_SETTLE = '[data-agent-dock-settle="true"]'
-/** hover 才冒的 tooltip。它落在 portal 里，**从窗口根找**，不要从角标的子树里找。 */
-export const COLLAPSED_DOCK_HINT = '[data-agent-dock-hint="true"]'
-/** 顶栏右簇（判角标落位用）。 */
-export const APP_BAR_RIGHT = '.nomi-appbar__right'
+export const COLLAPSED_DOCK = '[data-agent-ball]'
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -273,11 +265,7 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
   await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
 }
 
-/**
- * 展开常驻面板。收起态是**真实的两态偏好**（持久化），不是加载中间态：
- * 收起时工作区里只剩画面下沿那一坞（`COLLAPSED_SHELL`），叫回面板的钮在**顶栏**那一格
- * （`COLLAPSED_DOCK`，09-01 定稿 §11.2）——所以点的是它，不是从收起外壳里找。
- */
+/** 展开常驻面板（点小球；怎么点、点哪里归 `_shell.mjs`）。 */
 export async function expandResidentPanel(win) {
   await ensureAgentPanelOpen(win)
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
@@ -499,7 +487,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
 
   async function newProject() {
     const { win } = current
-    await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), '新建空白项目')
+    await clickOrFail(newProjectEntry(win), '新建空白项目')
     await expect(win.locator(DOCUMENT)).toBeVisible({ timeout: 30_000 })
     const projectId = await win.evaluate(() => {
       const url = new URL(location.href)

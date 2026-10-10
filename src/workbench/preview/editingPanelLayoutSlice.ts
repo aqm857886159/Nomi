@@ -32,9 +32,13 @@ export type EditingPanelLayoutSlice = {
    */
   projectAgentDockCollapsed: boolean
   setProjectAgentDockCollapsed: (collapsed: boolean) => void
-  /** 用户级输入坞关闭偏好；不随项目布局恢复或面板开合重置。 */
-  agentDockHidden: boolean
-  setAgentDockHidden: (hidden: boolean) => void
+  /**
+   * 「有人要把 Nomi 叫回来」的计数：收起 → 展开的**用户 / Agent 动作**（setProjectAgentDockCollapsed、切预设、翻可见性、撤销、
+   * layout.write）各 +1；**打开项目时的还原（setEditingPanelLayout(…, false)）和关项目时的整体重置不算**。
+   * 外壳的 Agent 小球靠它决定要不要自己展开——不能靠 `projectAgentDockCollapsed` 的翻转去猜，
+   * 因为重开项目时这个投影会被还原 / 重置翻一下，小球就会在用户什么也没点时自己弹成浮窗（评测 j5 重开项目后浮窗盖住生成钮）。
+   */
+  agentRecallNonce: number
   previewSourceTab: PreviewSourceTab
   /** 切 tab；顺带保证左栏是展开的——收起状态下切 tab 等于什么都没发生。 */
   openPreviewSourceTab: (tab: PreviewSourceTab) => void
@@ -67,13 +71,6 @@ export type EditingPanelLayoutSlice = {
 
 type LayoutHostState = { persistRevision: number } & EditingPanelLayoutSlice
 
-const AGENT_DOCK_HIDDEN_KEY = 'nomi.agentDockHidden'
-
-function readAgentDockHidden(): boolean {
-  try { return globalThis.localStorage?.getItem(AGENT_DOCK_HIDDEN_KEY) === '1' }
-  catch { return false }
-}
-
 const UNDO_LIMIT = 20
 
 const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): EditingPanelLayout[] =>
@@ -87,11 +84,16 @@ const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): Editi
  */
 const bumpPersist = (state: LayoutHostState) => ({ persistRevision: state.persistRevision + 1 })
 
+/** 这一下把 Nomi 栏从收起翻成展开：计一次「叫回」（见 agentRecallNonce）。 */
+const recallIfReopened = (state: LayoutHostState, nowVisible: boolean) =>
+  (state.projectAgentDockCollapsed && nowVisible ? { agentRecallNonce: state.agentRecallNonce + 1 } : {})
+
 /** 换上一整份布局：撤销栈、Nomi 栏开关、落盘游标一起对齐，避免几个 action 各写一遍写漏。 */
 const replaceLayout = (state: LayoutHostState, next: EditingPanelLayout) => ({
   editingPanelUndoStack: pushUndo(state.editingPanelUndoStack, state.editingPanelLayout),
   editingPanelLayout: next,
   projectAgentDockCollapsed: !next.visibility.assistant,
+  ...recallIfReopened(state, next.visibility.assistant),
   ...bumpPersist(state),
 })
 
@@ -102,21 +104,16 @@ export const createEditingPanelLayoutSlice: StateCreator<
   EditingPanelLayoutSlice
 > = (set, get) => ({
   editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-  agentDockHidden: readAgentDockHidden(),
-  setAgentDockHidden: (hidden) => {
-    // 用户偏好不是项目内容：直接记住，不触发项目 persistRevision。
-    try { globalThis.localStorage?.setItem(AGENT_DOCK_HIDDEN_KEY, hidden ? '1' : '0') }
-    catch { /* 存储不可用时，本次会话仍可关闭。 */ }
-    set({ agentDockHidden: hidden })
-  },
   // 默认展开，因为 EDITING_PANEL_DEFAULTS.visibility.assistant 是 true——两处不许各写一个默认。
   projectAgentDockCollapsed: !EDITING_PANEL_DEFAULTS.visibility.assistant,
+  agentRecallNonce: 0,
   setProjectAgentDockCollapsed: (collapsed) => set((state) => {
     const changed = state.editingPanelLayout.visibility.assistant === Boolean(collapsed)
-    if (!changed) return { projectAgentDockCollapsed: Boolean(collapsed) }
+    if (!changed) return { projectAgentDockCollapsed: Boolean(collapsed), ...recallIfReopened(state, !collapsed) }
     const visibility = { ...state.editingPanelLayout.visibility, assistant: !collapsed }
     return {
       projectAgentDockCollapsed: Boolean(collapsed),
+      ...recallIfReopened(state, !collapsed),
       editingPanelLayout: { ...state.editingPanelLayout, visibility },
       ...bumpPersist(state),
     }
@@ -154,6 +151,8 @@ export const createEditingPanelLayoutSlice: StateCreator<
       editingPanelLayout: next,
       editingPanelUndoStack: recordUndo && changed ? pushUndo(state.editingPanelUndoStack, state.editingPanelLayout) : state.editingPanelUndoStack,
       projectAgentDockCollapsed: !next.visibility.assistant,
+      // recordUndo === false 是「打开项目时还原落盘布局」的口（workbenchProjectSession），不是有人叫回 Nomi。
+      ...(recordUndo ? recallIfReopened(state, next.visibility.assistant) : {}),
       persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
     }
   }),
@@ -176,6 +175,7 @@ export const createEditingPanelLayoutSlice: StateCreator<
       editingPanelLayout: next,
       editingPanelUndoStack: stack.slice(0, -1),
       projectAgentDockCollapsed: !next.visibility.assistant,
+      ...recallIfReopened(state, next.visibility.assistant),
       ...bumpPersist(state),
     }))
     return true

@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = path.join(repoRoot, '.feedback-batch-walk')
@@ -40,7 +41,7 @@ const shot = async (win, name) => {
 // First boot creates a real registered workspace; the fixture then only replaces canvas content.
 {
   const { app, win } = await launch()
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForTimeout(1700)
   await win.keyboard.press('Escape').catch(() => {})
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()

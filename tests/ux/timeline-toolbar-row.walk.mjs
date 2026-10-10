@@ -198,7 +198,7 @@ try {
   await clickOrFail(win.locator('nav.nomi-stepper [data-mode="generation"]').first(), '进入生成画布')
 
   // ① 默认收起态：画布底部那颗胶囊是唯一入口——先证明它在，再点开。
-  const capsule = win.locator('.workbench-generation__timeline-handle')
+  const capsule = win.locator('[data-timeline-strip]')
   await expect(capsule, '折叠态底部把手没出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await clickOrFail(capsule, '展开时间轴')
 

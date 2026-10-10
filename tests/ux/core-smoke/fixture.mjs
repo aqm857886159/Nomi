@@ -376,7 +376,7 @@ export async function launchCoreSmoke({ name, seed = null, needs = [], preferenc
       throw new Error(`used 夹具前提不成立：窗口应为 ${viewport.width}×${viewport.height}，实际 ${actual.width}×${actual.height}`)
     }
     await expect(win.locator(TIMELINE_EXPANDED).first(), 'used 夹具前提：时间轴处于展开态（收起钮可见）').toBeVisible({ timeout: stationTimeout() })
-    await ensureAgentPanelOpen(win, 'used 夹具前提：Agent 面板开着', { timeout: stationTimeout() })
+    await ensureAgentPanelOpen(win, 'used 夹具前提：Agent 面板开着', { timeout: stationTimeout(), form: 'dock' })
     const counts = await win.evaluate(() => ({ nodes: document.querySelectorAll('.react-flow__node').length }))
     console.log(`[core-smoke] used 状态就位：${JSON.stringify({ ...project.summary, renderedNodes: counts.nodes, viewport: actual })}`)
   }

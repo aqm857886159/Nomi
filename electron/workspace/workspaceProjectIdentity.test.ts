@@ -494,7 +494,7 @@ describe("workspace project identity", () => {
       immutableProjectUuid: identityA.immutableProjectUuid,
       projectGeneration: 1,
     });
-  }, 15_000);
+  });
 
   it("turns bounded lock contention into project_identity_unavailable without writing", async () => {
     const root = makeTempDir();

@@ -1,22 +1,20 @@
 import { clickOrFail, expectVisible } from './_assert.mjs'
 
 /**
- * 「创作内容」那列在分镜页默认是收起的（A-1 刀 1，2026-09-17 用户拍板 grill ③b）。
- * 所以 09-06 那条可达性不变量的说法要跟着精确一档：
- * **不是「树必须一直在屏幕上」，是「在这两个面上，树最多一步就能回来」。**
- * 这个 helper 就是那一步——它点的是真界面上的展开钮，不灌 store、不改 localStorage。
+ * 文稿树（原「创作内容」列）10-08 外壳重设计后住在左栏「文稿」抽屉里：平时收着，点左栏「文稿」一步就回来。
+ * 09-06 那条可达性不变量照旧：**不是「树必须一直在屏幕上」，是「在这几个面上，树最多一步就能回来」。**
+ * 这个 helper 就是那一步——它点的是真界面上的左栏钮，不灌 store、不改 localStorage。
  */
 
 export async function ensureCreationResourceTree(win, where = '') {
   const tree = win.locator('[data-creation-resource-tree="true"]')
   if (await tree.isVisible().catch(() => false)) return false
-  // 非活动工作区只是 hidden、并没卸载（WorkspaceSlot 保活），所以必须挑**可见**的那一颗；
-  // `.first()` 会先命中隐藏槽里的那颗，等它可见等到超时，看起来像「钮不存在」。
-  const expand = win.locator('[data-creation-resource-tree-toggle="expand"]:visible').first()
+  // 按下态 = 抽屉开着；没按下的那颗才是「打开」。
+  const expand = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]').first()
   if (!(await expand.isVisible().catch(() => false))) {
-    throw new Error(`${where || '当前面'}：创作内容列收起了，可中间面板上没有展开钮——这就是回不去了`)
+    throw new Error(`${where || '当前面'}：文稿抽屉没开，可左栏上没有「文稿」钮——这就是回不去了`)
   }
-  await clickOrFail(expand, `${where || '当前面'}：点中间面板上的展开钮`)
-  await expectVisible(tree, `${where || '当前面'}：点了展开钮，创作内容列还是没回来`)
+  await clickOrFail(expand, `${where || '当前面'}：点左栏「文稿」`)
+  await expectVisible(tree, `${where || '当前面'}：点了左栏「文稿」，文稿树还是没出来`)
   return true
 }

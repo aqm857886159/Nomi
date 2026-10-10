@@ -2,8 +2,8 @@ import React from 'react'
 import type { LabState } from '../../labScreen'
 import { CreationColumnsStage } from '../CreationColumnsStage'
 
-const SOURCE = 'docs/design/2026-09-10-creation-workspace-columns.md'
-const DRAWER_SOURCE = 'docs/design/2026-09-17-creation-left-column-drawer-a1.md'
+// 10-08 外壳重设计：创作内容树进了左栏「文稿」抽屉，旧的「创作内容列收起 / 展开」两格随那一列一起删了。
+const SOURCE = 'docs/plan/2026-10-08-shell-redesign.md'
 export const CREATION_COLUMNS_STATES: readonly LabState[] = [
   {
     id: 'columns-current',
@@ -14,39 +14,24 @@ export const CREATION_COLUMNS_STATES: readonly LabState[] = [
   },
   {
     id: 'columns-specimen',
-    name: '已实施 · 统一外框',
+    name: '外壳 · 创作页（Agent 停靠）',
     source: SOURCE,
     coverage: 'shell',
     render: () => <CreationColumnsStage specimen />,
   },
   {
     id: 'columns-specimen-dark',
-    name: '已实施 · 暗色',
+    name: '外壳 · 创作页 · 暗色',
     source: SOURCE,
     coverage: 'shell',
     scheme: 'dark',
     render: () => <CreationColumnsStage specimen />,
   },
   {
-    id: 'columns-collapsed',
-    name: 'A-1 · 创作面收起「创作内容」',
-    source: DRAWER_SOURCE,
-    coverage: 'shell',
-    render: () => <CreationColumnsStage specimen treeCollapsed />,
-  },
-  {
-    id: 'columns-collapsed-dark',
-    name: 'A-1 · 收起态 · 暗色',
-    source: DRAWER_SOURCE,
-    coverage: 'shell',
-    scheme: 'dark',
-    render: () => <CreationColumnsStage specimen treeCollapsed />,
-  },
-  {
     id: 'columns-storyboard-tree',
-    name: 'A-1 · 分镜面左栏 = 同一张圆角卡片',
-    source: DRAWER_SOURCE,
+    name: '外壳 · 分镜面',
+    source: SOURCE,
     coverage: 'shell',
-    render: () => <CreationColumnsStage specimen mode="storyboard" treeCollapsed={false} />,
+    render: () => <CreationColumnsStage specimen mode="storyboard" />,
   },
 ]

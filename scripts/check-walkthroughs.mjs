@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
 import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
+import { collectRenderText, countDeadDataAttributesAtRevision, findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
+import { judgeBaselineGrowth, judgeBaseUnavailable, readJsonAtRevision, resolveMergeBase } from './lib/walkthroughBaselineGuard.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -79,6 +81,9 @@ const SRC_TEXT = (() => {
   walk(path.join(repoRoot, 'src'))
   return chunks.join('\n')
 })()
+
+/** data 属性锚点判活用的渲染全文（src/ + 官网 marketing/ + 走查夹具 tests/ux/fixtures/）。 */
+const RENDER_TEXT = collectRenderText(repoRoot)
 
 /** src/ 里带 `{{插值}}` 的字符串值（i18n 模板）——「添加视频节点」这类拼出来的 label 靠它判活。 */
 const SRC_INTERPOLATED = extractInterpolatedValues(SRC_TEXT)
@@ -181,6 +186,20 @@ const RULES = [
       return collectAriaLabelLiterals(code)
         .filter(({ literal }) => !isAriaLabelAlive(literal, { srcText: SRC_TEXT, templates: SRC_INTERPOLATED }))
         .map(({ literal, line }) => ({ line, text: `[aria-label="${literal}"] —— src/ 里零命中（含 i18n 译文与模板）`, file }))
+    },
+  },
+  {
+    id: 'dead-data-attr',
+    label: '走查在等一个源码里已无人渲染的 data 属性锚点（删组件时锚点悬空：断言「在」假红，catch 包着点假绿）',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    // 2026-10-08 外壳重设计：删顶栏 Agent 角标 / 横向收起坞 / 创作资源树开关时，十几份走查里的
+    // [data-agent-topbar-badge] [data-v4-control="dock-open"] [data-creation-resource-tree-toggle] 全部悬空，
+    // 上面两条只认 BEM 类名与 aria-label，看不见 data 属性——而本仓走查绝大多数锚点恰恰是 data 属性。
+    // 判定逻辑住 scripts/lib/deadDataAttributes.mjs（可单测）。
+    // 新规则首发基线只认 merge-base 实测（见 walkthroughBaselineGuard）。
+    measureAtRevision: (rev) => countDeadDataAttributesAtRevision(repoRoot, rev),
+    scan(code, file) {
+      return findDeadDataAttributes(code, RENDER_TEXT).map((hit) => ({ line: hit.line, text: `${hit.text} —— 渲染源（src/ · marketing/ · tests/ux/fixtures/）里零命中`, file }))
     },
   },
   {
@@ -321,6 +340,33 @@ if (!fs.existsSync(BASELINE_FILE)) {
 const baseline = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8'))
 
 let failed = false
+
+// 基线本身只减不增（#1136 评审阻断 2）：和 merge-base 上的基线逐条比；新规则的首发基线只认 merge-base 实测。
+{
+  const base = resolveMergeBase(repoRoot)
+  const baseBaseline = base ? readJsonAtRevision(repoRoot, base, 'scripts/walkthrough-baseline.json') : null
+  if (!baseBaseline) {
+    // fail-closed：拿不到就不能当作没事。只放行「没有任何带 merge-base 实测规则的基线是非零」的情形（见 judgeBaseUnavailable）。
+    for (const message of judgeBaseUnavailable({ rules: RULES.map((rule) => ({ id: rule.id, measurable: Boolean(rule.measureAtRevision) })), baseline })) {
+      failed = true
+      console.error(`
+✖ 走查基线无法核对：${message}`)
+    }
+  } else {
+    const measured = {}
+    for (const rule of RULES) {
+      if (rule.measureAtRevision && !Object.prototype.hasOwnProperty.call(baseBaseline, rule.id) && (baseline[rule.id] ?? 0) > 0) {
+        measured[rule.id] = await rule.measureAtRevision(base)
+      }
+    }
+    const growth = judgeBaselineGrowth({ ruleIds: RULES.map((rule) => rule.id), baseline, baseBaseline, measureOnBase: (id) => measured[id] })
+    for (const message of growth) {
+      failed = true
+      console.error(`\n✖ 走查基线被上调：${message}`)
+    }
+    for (const [id, count] of Object.entries(measured)) console.log(`  （新规则 ${id}：merge-base ${base.slice(0, 9)} 上实测 ${count}）`)
+  }
+}
 const improved = []
 for (const rule of RULES) {
   const now = counts[rule.id]

@@ -25,7 +25,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/narrowed-mode-guidance')
@@ -199,7 +199,7 @@ try {
   await waitForShell()
   await dismissFirstRun()
 
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   await blankProject.waitFor({ timeout: 8000 })
   await blankProject.click()
   // 等真实信号：项目建好会切到工作台（URL 带 projectId）并出现「生成」tab，不靠 sleep 猜。

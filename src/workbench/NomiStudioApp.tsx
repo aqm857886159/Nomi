@@ -336,9 +336,6 @@ export default function NomiStudioApp(): JSX.Element {
           return false
         }
         surfaceEpoch.assertCurrent()
-        // Sole home for "switching projects collapses the left rail": cutover flips view to 'library'
-        // mid-hydration (above), remounting the sidebar so its transition effect can't see the switch.
-        if ((activeProjectIdRef.current ?? null) !== hydrated.id) useWorkbenchStore.getState().setSidebarCollapsed(true)
         activeProjectIdRef.current = hydrated.id
         setActiveProject(hydrated)
         surfaceEpoch.assertCurrent()
@@ -733,9 +730,10 @@ export default function NomiStudioApp(): JSX.Element {
           projectId={activeProject?.id ?? null}
           projectName={activeProject?.name}
           onBackToLibrary={backToLibrary}
-          onOpenModelCatalog={settingsDialogController.openModelSettings}
           onOpenSettings={settingsDialogController.openDefaultSettings}
           onRenameProject={handleRenameProject}
+          onOpenProject={openProject}
+          onNewProject={() => void newProject()}
         />
 
         {settingsDialog}

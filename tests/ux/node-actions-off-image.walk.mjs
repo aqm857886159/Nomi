@@ -15,6 +15,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const require = createRequire(import.meta.url)
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-04-node-after')
@@ -77,7 +79,7 @@ try {
     await getWin().keyboard.press('Escape').catch(() => {})
     await getWin().waitForTimeout(200)
   }
-  await getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first().click({ timeout: 8000 }).catch(() => {})
+  await newProjectEntry(getWin()).click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
   await getWin().waitForTimeout(3000)
   for (let i = 0; i < 5; i++) { await getWin().keyboard.press('Escape').catch(() => {}); await getWin().waitForTimeout(180) }
   await resize()

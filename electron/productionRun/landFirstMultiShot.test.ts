@@ -425,7 +425,7 @@ describe("the one submit boundary re-checks the stop, and a Run has one drive at
     const [outcome] = await Promise.all([drive, kicked]);
     expect(outcome.quiescent).toBe(true);
     expect(queries).toBe(3);
-  }, 10_000);
+  });
 
   it("a shot whose submit met a busy Run lock is not a failure: it is sent later in the same drive, and the drive rests quiescent", async () => {
     const { root, repository } = setupBatch([shotEntry("shot-a", "a"), shotEntry("shot-b", "b"), shotEntry("shot-c", "c")]);

@@ -84,7 +84,7 @@ describe("runTask MiniMax H3 preflight", () => {
     expect(String((error as Error).message)).toMatch(/首尾帧.*参考素材/);
     expect(fetchFn).not.toHaveBeenCalled();
     expect(__spendGrantCountForTests()).toBe(1);
-  }, 15_000);
+  });
 
   it("preserves a valid UI first-frame projection without synthesizing image_urls", async () => {
     await seedApimartH3();
@@ -112,5 +112,5 @@ describe("runTask MiniMax H3 preflight", () => {
     const body = JSON.parse(String(fetchFn.mock.calls[0]?.[1]?.body || "{}")) as Record<string, unknown>;
     expect(body.first_frame_image).toBe("https://cdn.example.com/first.png");
     expect(body).not.toHaveProperty("image_urls");
-  }, 15_000);
+  });
 });

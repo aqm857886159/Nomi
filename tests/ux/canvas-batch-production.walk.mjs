@@ -11,7 +11,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
-import { openModelSettings } from './_shell.mjs'
+import { newProjectEntry, openModelSettings } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-batch-production')
@@ -241,7 +242,7 @@ try {
   })
   await win.evaluate(() => document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null
-    if (target?.closest('.react-flow__node, .workbench-generation__timeline-handle')) {
+    if (target?.closest('.react-flow__node, [data-timeline-strip]')) {
       console.log('CANVAS_CLICK_DIAGNOSTIC', JSON.stringify({
         tag: target.tagName, label: target.closest('[aria-label]')?.getAttribute('aria-label'),
         nodeId: target.closest('.react-flow__node')?.getAttribute('data-id'), x: event.clientX, y: event.clientY,
@@ -249,7 +250,7 @@ try {
     }
   }, true))
 
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.waitForTimeout(2200)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 5000 })
   await win.waitForTimeout(1400)
@@ -380,8 +381,10 @@ try {
   const runningBox = await batchFailureAlert.boundingBox()
   check(Boolean(runningBox && Math.abs(runningBox.width - 344) <= 1), '通知宽度为 344px', JSON.stringify(runningBox))
   const notificationRootTop = await notificationRoot.evaluate((element) => Number.parseFloat(getComputedStyle(element).top))
-  const expectedNotificationTop = process.platform === 'win32' ? 100 : 68
-  check(Math.abs(notificationRootTop - expectedNotificationTop) <= 1, `通知容器避开窗口栏和顶栏（top=${expectedNotificationTop}px）`, JSON.stringify({ notificationRootTop, runningBox }))
+  // 通知容器必须落在 40px 合一顶栏下面（外壳重设计前这里写死「Windows 100 / 其他 68」是旧的窗口栏 + 应用栏高度）。
+  const topbarBox = await win.locator('[data-shell-topbar]').first().boundingBox()
+  const topbarBottom = topbarBox ? topbarBox.y + topbarBox.height : Number.POSITIVE_INFINITY
+  check(notificationRootTop >= topbarBottom - 1, `通知容器避开顶栏（top ≥ 顶栏下沿 ${topbarBottom}px）`, JSON.stringify({ notificationRootTop, topbarBottom, runningBox }))
   check(Boolean(runningBox && runningBox.y >= notificationRootTop), '堆叠通知不会越过通知容器顶部', JSON.stringify({ notificationRootTop, runningBox }))
   const retryAction = batchFailureAlert.getByRole('button', { name: /重试失败的/ })
   check(await retryAction.count() === 1, '失败通知提供独立的重试按钮')

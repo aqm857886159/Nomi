@@ -11,18 +11,14 @@
 //
 // 用法：node tests/ux/agent-v4-short-film.walk.mjs
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { laneMessages, laneMessageText, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD,
   ASSISTANT_MESSAGE,
   CANVAS_PANEL,
-  APP_BAR_RIGHT,
   COLLAPSED_DOCK,
-  COLLAPSED_DOCK_BADGE,
-  COLLAPSED_DOCK_HINT,
-  COLLAPSED_DOCK_OPEN,
-  COLLAPSED_DOCK_SETTLE,
   COLLAPSED_SHELL,
   COMPOSER,
   COMPOSER_INPUT,
@@ -115,30 +111,20 @@ try {
   await walk.snap('01b-starter-filled')
   await panel.locator(COMPOSER_INPUT).fill('')
 
-  // 收起角标的**空闲**档（09-01 定稿 §11.2：收起态 = 顶栏右簇「浏览器」与「设置」之间那一格）。
-  // 什么都没发生时角标素着：一颗永远亮着的点等于没有状态。
-  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板')
+  // 收起 = 小球的**空闲**档（10-08 外壳重设计 Chrome 板）：什么都没发生时小球素着——一颗永远亮着的点等于没有状态。
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')
   const coldCollapsed = win.locator(COLLAPSED_SHELL)
   const coldDock = win.locator(COLLAPSED_DOCK)
-  await expect(coldDock, '收起后顶栏必须有那一格角标').toBeVisible()
-  // **落位**：它必须住顶栏右簇里，不是画在面板自己的地盘上（那样切一个面就换一个落点）。
-  await expect(win.locator(`${APP_BAR_RIGHT} ${COLLAPSED_DOCK}`), '角标必须在顶栏右簇').toBeVisible()
-  const collapsedShellDockCount = await coldCollapsed.locator(COLLAPSED_DOCK).count()
-  if (collapsedShellDockCount !== 0) throw new Error('收起角标不该再画在面板的地盘上（09-01 §11.2：家在顶栏）')
-  // 同格只出一颗：互斥角标与收起角标共用这一个组件，全窗口任何时候都只该有一颗。
+  await expect(coldDock, '收起后内容区右下必须有那颗小球').toBeVisible()
+  // 顶栏不再放 Agent 角标（协调裁决第 59 项）：叫回入口只有小球这一个。
   const dockCount = await win.locator(COLLAPSED_DOCK).count()
-  if (dockCount !== 1) throw new Error(`同格只出一颗角标，实测 ${dockCount} 颗`)
+  if (dockCount !== 1) throw new Error(`叫回 Nomi 的小球全窗口只该有一颗，实测 ${dockCount} 颗`)
   await expect(coldDock).toHaveAttribute('data-agent-dock-status', 'idle')
-  await expect(coldDock).toHaveAttribute('data-agent-dock-badge-kind', 'none')
-  const coldDockProof = await proveProbe(coldDock, '空闲态的收起角标确实渲出来了')
-  await expectAbsent(coldDock.locator(COLLAPSED_DOCK_BADGE), {
-    provenBy: coldDockProof,
-    message: '空闲的角标上不该叠任何东西',
-  })
-  // 收起藏的是对话流，不是对话：同一个 composer 掉到画面下沿。
-  await expect(coldCollapsed.locator(COMPOSER)).toBeVisible()
+  await expect(coldDock).toHaveAttribute('data-agent-ball', 'idle')
+  // 面板没卸载：收起支路仍挂着（回执 / 计划预览跟着它活），只是不占位、看不见。
+  await expect(coldCollapsed).toBeAttached()
   await walk.snap('01c-collapsed-idle')
-  await clickOrFail(coldDock, '点顶栏角标展开面板')
+  await clickOrFail(coldDock, '点小球展开面板')
   // 展开回来的面板必须是**有身量的**：收起时面板挂点从文档里摘掉、浏览器报 0×0，
   // 早先那版尺寸 hook 再也没重新量过它，于是展开后是一块 2×2 的空白面板（2026-09-06 实测）。
   // 断言宽度而不是「flow 可见」：flow 在 0 高的面板里照样"可见"。
@@ -198,65 +184,18 @@ try {
   await expect(slot).toHaveAttribute('data-kind', 'approval-reversible')
   await expect(slot).toContainText('只对这一个操作生效')
   await walk.snap('04-intervention-approval')
-  // 带着这条待决收起：logo 上的数字角标读的**就是**这批待决，不是一个自己会亮的装饰；
-  // 而介入槽跟着 composer 一起留在画面下沿——收起之后照样读得到、批得下。
+  // 带着这条待决收起：小球变成「等你确认 1」胶囊——读的**就是**这批待决，不是一个自己会亮的装饰；
+  // 它不会自己弹开（Chrome 板），点它回到面板里那张卡去批。
   await clickOrFail(panel.locator(COLLAPSE_BUTTON), '带着一条待确认收起面板')
-  const pendingCollapsed = win.locator(COLLAPSED_SHELL)
   const pendingDock = win.locator(COLLAPSED_DOCK)
   await expect(pendingDock).toHaveAttribute('data-agent-dock-status', 'needs-confirm')
-  // 数字徽标 = 未读条数，而这一刻的未读**就是**那条待决——两处对不上，收起态就是在撒谎。
+  await expect(pendingDock).toHaveAttribute('data-agent-ball', 'pending')
   await expect(pendingDock).toHaveAttribute('data-agent-dock-count', '1')
-  await expect(pendingDock.locator(COLLAPSED_DOCK_BADGE)).toHaveAttribute('data-agent-dock-badge', 'count')
-  await expect(pendingDock.locator(COLLAPSED_DOCK_BADGE)).toContainText('1')
-  // 「刚变过」是一段 420ms 的时间，不是一个常挂的属性：等它自己停，别把常闪当成状态。
-  await expect(pendingDock.locator(COLLAPSED_DOCK_SETTLE), 'settle 脉冲必须自己停下来').toHaveCount(0, { timeout: 5_000 })
-  // tooltip 用人话点名那条待决（角标本身只有点与数字两种长相，五档靠这句话分）。
-  await pendingDock.hover()
-  // Radix 的 tooltip 内容里那句话有两份（看得见的一份 + 给读屏的一份），所以判包含不判全等。
-  await expect(win.locator(COLLAPSED_DOCK_HINT)).toContainText('等你确认 1 条')
-  await expect(pendingDock).toHaveAttribute('aria-label', '展开 Nomi · 等你确认 1 条')
-  await expect(pendingCollapsed.locator(APPROVAL_CARD), '收起态也读得到介入槽').toBeVisible()
+  await expect(pendingDock).toContainText('等你确认 1')
   await walk.snap('04b-collapsed-needs-confirm')
-
-  // 「有新动静」这件事只有在**收起期间**真的来了东西时才验得到，所以就在收起态里把这条待决批掉：
-  // 介入槽本来就跟着 composer 留在下沿，批得下才是「收起没有中断对话」的证据。
-  //
-  // 脉冲用 MutationObserver 数**开关次数**，不用截图或 sleep 去撞那 420ms：
-  // 定稿说的是「settle 420ms **单次**」——要证的是「只闪一次然后停」，
-  // 而「某一帧看见它亮着」既证不了单次也证不了会停（`race-repro-needs-positive-control` 那族坑）。
-  await win.evaluate(() => {
-    const chip = document.querySelector('[data-agent-topbar-badge="true"]')
-    if (!chip) throw new Error('顶栏角标不在，装不了脉冲观察器')
-    window.__nomiSettlePulses = 0
-    const seen = new WeakSet()
-    const scan = () => {
-      for (const node of chip.querySelectorAll('[data-agent-dock-settle="true"]')) {
-        if (seen.has(node)) continue
-        seen.add(node)
-        window.__nomiSettlePulses += 1
-      }
-    }
-    scan()
-    window.__nomiSettleObserver = new MutationObserver(scan)
-    window.__nomiSettleObserver.observe(chip, { subtree: true, attributes: true, childList: true })
-  })
-  await approvePendingIntervention(win, COLLAPSED_SHELL)
-  // 待决批掉了 → 角标不再是那条待决；工具跑完 / 新回复落进流里 → 未读接上，角标改口。
-  await expect.poll(async () => await pendingDock.getAttribute('data-agent-dock-badge-kind'),
-    { message: '收起期间来了新动静，顶栏那格必须接住', timeout: 60_000 }).not.toBe('none')
-  await expect(pendingDock).not.toHaveAttribute('data-agent-dock-status', 'needs-confirm')
-  await walk.snap('04c-collapsed-new-activity')
-  // 脉冲必须自己停：420ms 之后属性不再挂在任何一格上。
-  await expect(pendingDock.locator(COLLAPSED_DOCK_SETTLE), 'settle 脉冲必须自己停下来').toHaveCount(0, { timeout: 5_000 })
-  const pulses = await win.evaluate(() => {
-    window.__nomiSettleObserver?.disconnect()
-    return window.__nomiSettlePulses
-  })
-  if (pulses < 1) throw new Error('收起期间来了新动静，角标一次脉冲都没有')
-  if (pulses > 3) throw new Error(`settle 应当是每次变化**单次**脉冲，实测 ${pulses} 次——那是常闪不是落定`)
-
-  await clickOrFail(pendingDock, '点顶栏角标展开面板')
+  await clickOrFail(pendingDock, '点「等你确认 1」胶囊回到面板')
   await expect(panel.locator(V4_FLOW)).toBeVisible()
+  await approvePendingIntervention(win, CREATION_PANEL)
   await recorded(tightenFollowup.received, 'approved document tool result')
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(TOOL_RECEIPT).last() })
   await expect(doc).toContainText(TIGHTEN_APPLIED)
@@ -385,35 +324,31 @@ try {
   // 收起前先量一下面板宽：定稿说「点角标 = **原宽**原状态还原」（collapse≠unmount），
   // 所以还原之后这个数必须一模一样，不是「又一个默认 340」。
   const beforeCollapseWidth = Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0)
-  await clickOrFail(canvas.locator(COLLAPSE_BUTTON), '收起面板')
-  const collapsed = win.locator(COLLAPSED_SHELL)
-  await expect(collapsed).toBeVisible()
-  await expect(collapsed.locator(COMPOSER)).toBeVisible()
+  await clickOrFail(canvas.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')
+  await expect(win.locator(COLLAPSED_SHELL)).toBeAttached()
   const dock = win.locator(COLLAPSED_DOCK)
-  await expect(dock, '收起后顶栏必须有那一格角标').toBeVisible()
-  await expect(win.locator(`${APP_BAR_RIGHT} ${COLLAPSED_DOCK}`), '生成面收起，角标还在顶栏同一格').toBeVisible()
+  await expect(dock, '收起后画布右下必须有那颗小球').toBeVisible()
   // 刚被停下的那一轮在面板上留了一条错误带。收起藏掉的是**面板**，不是那件事——
   // 角标必须把它接住，否则「收起」就成了一个悄悄吞掉坏消息的动作。
-  // 失败不另画第五种图形（8px 里画不出「失败」）：保底一颗蓝点，坏消息由无障碍名/tooltip 说清。
+  // 小球的「出错」档 = 右上一粒 danger 点（Chrome 板），坏消息由无障碍名 / tooltip 说清。
   await expect(dock).toHaveAttribute('data-agent-dock-status', 'failed')
-  await expect(dock).toHaveAttribute('data-agent-dock-badge-kind', 'dot')
-  await expect(dock.locator(COLLAPSED_DOCK_BADGE)).toHaveAttribute('data-agent-dock-badge', 'dot')
-  await expect(dock).toHaveAttribute('aria-label', '展开 Nomi · 有一步没成')
+  await expect(dock).toHaveAttribute('data-agent-ball', 'failed')
+  await expect(dock).toHaveAttribute('aria-label', /有一步没成/)
   await walk.snap('11-collapsed-failed')
 
   // 点顶栏角标展开：整条对话原样还在，收起从来没有中断过它。
   const widthBeforeCollapse = beforeCollapseWidth
-  await clickOrFail(dock, '点顶栏角标展开面板')
+  await clickOrFail(dock, '点小球展开面板')
   await expect(win.locator(`${CANVAS_PANEL} ${V4_FLOW}`)).toBeVisible()
   await expect.poll(async () => Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0),
-    { message: '点角标必须**原宽**还原，不是重置成默认宽', timeout: 30_000 }).toBe(widthBeforeCollapse)
+    { message: '点小球必须**原宽**原状态还原（浮窗记住的那个宽），不是重置成默认宽', timeout: stationTimeout({ operations: 2 }) }).toBe(widthBeforeCollapse)
   await expect(canvas.locator(USER_BUBBLE).last(), '展开后最后一句话还是收起前发的那句').toContainText('整体节奏')
   // 展开**动画结束之后**再截：还原是不是「原宽原状态」这件事，只有停下来的那一帧看得出来
   // （动画中途的任何一帧宽度都不是最终宽，截到它等于给拍板人看一张过程图）。
   // 上面那条 `expect.poll` 已经把宽度轮询到了收起前那个数，所以到这里布局必然已经落定。
   await expect(
-    win.locator('[data-agent-dock-reason="resident-collapsed"]'),
-    '展开后顶栏那一格必须让出来——角标和面板不能同时在（collapse≠unmount 说的是面板留着，不是角标留着）',
+    win.locator('[data-agent-ball]'),
+    '展开后小球必须让出来——小球和面板不能同时在',
   ).toHaveCount(0)
   await walk.snap('11b-expanded-restored')
 

@@ -240,7 +240,7 @@ try {
     await win().keyboard.press('End')
     await win().keyboard.type(' @', { delay: 60 })
     await settle(900)
-    r.mentionMenuGroups = await win().evaluate(() => [...document.querySelectorAll('[role=listbox] *, [data-mention-menu] *')].filter((e) => e.children.length === 0).map((e) => e.textContent.trim()).filter(Boolean).slice(0, 12))
+    r.mentionMenuGroups = await win().evaluate(() => [...document.querySelectorAll('[role=listbox] *')].filter((e) => e.children.length === 0).map((e) => e.textContent.trim()).filter(Boolean).slice(0, 12))
     await snap('15-at-mention-menu')
     await win().getByText('frame-2.png').first().click()
     await settle(800)

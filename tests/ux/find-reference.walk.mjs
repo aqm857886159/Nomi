@@ -12,6 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const KEY = (process.env.TIKHUB_API_KEY || '').trim()
 if (!KEY) {
@@ -60,7 +61,7 @@ win.on('pageerror', (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 3
 try {
   // ── 用户第一次打开，先建个项目 ─────────────────────────────────────────────
   // 等的是「入口出现了」，不是「过了 1.5 秒」——机器慢一点就读到空白的那种假绿。
-  const newProject = win.getByText('新建空白项目', { exact: true }).first()
+  const newProject = newProjectEntry(win)
   await newProject.waitFor({ state: 'visible', timeout: stationTimeout() })
   await shot(win, 'app-open', '刚打开的样子')
   await newProject.click()

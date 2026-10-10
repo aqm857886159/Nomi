@@ -116,10 +116,10 @@ try {
   await expect(win.locator(AGENT_PANEL)).toBeVisible()
   await walk.snap('empty-expanded')
   await win.locator(COLLAPSE_BUTTON).click()
-  await expect(win.locator(COLLAPSED_SHELL)).toBeVisible()
+  await expect(win.locator(COLLAPSED_DOCK)).toBeVisible()
   await walk.snap('collapsed')
-  // v4 收起态：32px 图标条，第一颗钮（「对话」）把面板叫回来。
-  await win.locator(`${COLLAPSED_SHELL} ${COLLAPSED_DOCK} button`).first().click()
+  // 收起态 = 内容区右下的小球（10-08 外壳重设计），点它把面板叫回来。
+  await win.locator(COLLAPSED_DOCK).first().click()
   await expect(win.locator(AGENT_PANEL)).toBeVisible()
 
   const reply = walk.fixture.expectText({
@@ -156,7 +156,7 @@ try {
     transport: 'real Electron renderer -> public projectAgent IPC -> production Host item.put/item.transition -> renderer patch',
     states: [
       { family: 'empty', evidence: '01-empty-expanded.png', selector: AGENT_PANEL },
-      { family: 'collapsed', evidence: '02-collapsed.png', selector: COLLAPSED_SHELL },
+      { family: 'collapsed', evidence: '02-collapsed.png', selector: COLLAPSED_DOCK },
       { family: 'loading', evidence: '03-loading-artifact.png', selector: TASK_CARD, hostItem: task },
       { family: 'error', evidence: '04-failure-card.png', selector: ERROR_BAR, hostItem: failed },
       { family: 'error', evidence: '05-failed-artifact-card.png', selector: `${TASK_CARD}[data-status]`, hostItem: transitioned },

@@ -8,12 +8,15 @@ import { test } from 'node:test'
 
 import { assertGateIsOnContracts, createGateMutationHarness } from './gate-mutation-harness.mjs'
 
-// 跑门岗 / 改生产文件 / 无论成败都还原 / 被中断时从恢复档复原——四件事的**唯一**一份实现
+// 跑门岗 / 在隔离副本上改生产文件 / 还原副本——这几件事的**唯一**一份实现，真实工作区一个字节都不碰
 // （2026-09-18 把它抽出来之前，这里、`check:model-face-frozen` 与
 // `check:mcp-operation-constructible` 各有一份抄的，正是 P1 说的并行版）。
+// 门岗只当数据读这些目录，不执行也不变异它们：junction 过去，省掉 20 多秒复制。
+const SHARED_DATA_DIRS = ['docs', 'src', 'tests', 'evals', '.design-sync', 'outputs', 'worker', 'workers', 'infra']
+
 const { runGate, withMutation } = createGateMutationHarness({
   gate: 'scripts/check-verb-host-conformance.mjs',
-  recoveryFile: '.tmp/verb-host-conformance-mutation-recovery.json',
+  shareDirs: SHARED_DATA_DIRS,
 })
 
 test('门岗在今天的代码上是绿的', () => {

@@ -29,6 +29,11 @@ type NomiAILabelProps = {
 type NomiStepperProps = {
   value: 'creation' | 'storyboard' | 'generation' | 'preview'
   onChange: (mode: 'creation' | 'storyboard' | 'generation' | 'preview') => void
+  /**
+   * 每段后面那格真实进度（10-08 外壳拍板稿：「生成 5/6」「预览 0:26」）。由宿主算好的事实，不在这里猜；
+   * 没有就不画（不填 0、不填占位）。
+   */
+  meta?: Partial<Record<'creation' | 'generation' | 'preview', string>>
 }
 
 type NomiWordmarkProps = {
@@ -147,7 +152,7 @@ export function NomiAILabel({ markSize = 22, wordSize = 14, className, suffix = 
   )
 }
 
-export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element {
+export function NomiStepper({ value, onChange, meta }: NomiStepperProps): JSX.Element {
   const { t } = useTranslation()
   const visibleValue = value === 'storyboard' ? 'creation' : value
   const tabs: { mode: NomiStepperProps['value']; label: string }[] = [
@@ -159,7 +164,7 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
     <nav
       className={cn(
         'nomi-stepper',
-        'inline-flex items-center gap-0.5 p-1 border border-nomi-line-soft rounded-full bg-[var(--nomi-ink-05)]',
+        'inline-flex h-7 items-center gap-0.5 p-0.5 rounded-full bg-nomi-ink-10',
       )}
       aria-label={t('workspace.switchLabel')}
     >
@@ -168,18 +173,25 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
           key={tab.mode}
           className={cn(
             'nomi-stepper__step',
-            'inline-flex items-center px-3.5 py-[5px] border-0 rounded-full bg-transparent text-nomi-ink-60 font-inherit text-body-sm font-medium cursor-pointer',
+            'inline-flex h-6 items-center gap-1.5 px-3 border-0 rounded-full bg-transparent text-nomi-ink-60 font-inherit text-body-sm cursor-pointer',
             'transition-[background,color,box-shadow] ease-nomi-fast',
-            'hover:text-nomi-ink',
-            'data-[state=active]:bg-nomi-paper data-[state=active]:text-nomi-ink data-[state=active]:shadow-nomi-sm',
+            'hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent',
+            'data-[state=active]:bg-nomi-paper data-[state=active]:font-medium data-[state=active]:text-nomi-ink data-[state=active]:shadow-nomi-sm',
           )}
           type="button"
           aria-current={visibleValue === tab.mode ? 'page' : undefined}
           data-state={visibleValue === tab.mode ? 'active' : 'idle'}
           data-mode={tab.mode}
+          // 无障碍名只是阶段名（「生成」）：进度（「5/6」）是附属信息，进名字会让「按名字找这一步」的读屏与走查全部对不上
+          // （10-09 实测：getByRole('button', { name: 'Generate', exact: true }) 因名字变成「Generate 0/1」而落空）。
+          aria-label={tab.label}
+          title={tab.mode !== 'storyboard' && meta?.[tab.mode] ? `${tab.label} · ${meta[tab.mode]}` : undefined}
           onClick={() => onChange(tab.mode)}
         >
           {tab.label}
+          {tab.mode !== 'storyboard' && meta?.[tab.mode] ? (
+            <span className="text-micro font-normal tabular-nums text-nomi-ink-40" data-stepper-meta={tab.mode} aria-hidden="true">{meta[tab.mode]}</span>
+          ) : null}
         </button>
       ))}
     </nav>

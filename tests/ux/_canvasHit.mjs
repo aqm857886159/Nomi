@@ -231,11 +231,12 @@ export async function findEdgeHitPoint(
  * @param {{ nodeSelector: string, withinSelector?: string | null }} options
  * @returns {Promise<{ x: number, y: number } | null>} 找不到返回 null（调用方须 fail-closed）
  */
-export async function findNodeHitPoint(page, { nodeSelector, withinSelector = CANVAS_STAGE_SELECTOR }) {
+export async function findNodeHitPoint(page, { nodeSelector, withinSelector = CANVAS_STAGE_SELECTOR, clearOfOtherNodes = 0 }) {
   return findElementHitPoint(page, {
     selector: nodeSelector,
     withinSelector,
     allowInteractive: false,
+    clearOfOtherNodes,
   })
 }
 
@@ -248,17 +249,24 @@ export async function findNodeHitPoint(page, { nodeSelector, withinSelector = CA
  * @param {{ selector: string, withinSelector?: string | null, allowInteractive?: boolean }} options
  * @returns {Promise<{ x: number, y: number } | null>}
  */
-export async function findElementHitPoint(page, { selector, withinSelector = null, allowInteractive = true }) {
-  return page.evaluate(({ selector: targetSelector, within, allow }) => {
+export async function findElementHitPoint(page, { selector, withinSelector = null, allowInteractive = true, clearOfOtherNodes = 0 }) {
+  return page.evaluate(({ selector: targetSelector, within, allow, clear }) => {
     const target = document.querySelector(targetSelector)
     const bounds = within ? document.querySelector(within)?.getBoundingClientRect() : null
     if (!target || (within && !bounds)) return null
     const rect = target.getBoundingClientRect()
+    // 拖线松手时 React Flow 会把线吸到光标周围 20px 内最近的把手——点离别的节点太近，线就连到邻居上了。
+    // 人会松在这张卡自己的、离别的卡远的地方；clear > 0 时按这个条件挑点。
+    const others = clear > 0
+      ? [...document.querySelectorAll('.generation-canvas-v2-node')].filter((node) => node !== target && !target.contains(node) && !node.contains(target)).map((node) => node.getBoundingClientRect())
+      : []
+    const nearOther = (x, y) => others.some((r) => x > r.left - clear && x < r.right + clear && y > r.top - clear && y < r.bottom + clear)
     const ratios = [0.12, 0.2, 0.3, 0.42, 0.5, 0.58, 0.7, 0.8, 0.88]
     for (const ratioY of ratios) {
       for (const ratioX of ratios) {
         const x = rect.left + rect.width * ratioX
         const y = rect.top + rect.height * ratioY
+        if (nearOther(x, y)) continue
         if (bounds && (x < bounds.left + 1 || x > bounds.right - 1 || y < bounds.top + 1 || y > bounds.bottom - 1)) continue
         const hit = document.elementFromPoint(x, y)
         if (!hit || !target.contains(hit)) continue
@@ -267,7 +275,7 @@ export async function findElementHitPoint(page, { selector, withinSelector = nul
       }
     }
     return null
-  }, { selector, within: withinSelector, allow: allowInteractive })
+  }, { selector, within: withinSelector, allow: allowInteractive, clear: clearOfOtherNodes })
 }
 
 /**

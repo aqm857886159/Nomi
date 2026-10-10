@@ -13,10 +13,11 @@
 //               gh 不可用 / 没登录 → 这一项写「—（今天没查成）」，不写成 0%。注意这是代理口径（只认「同 SHA 重跑就绿」），清点线的完整分类要高得多。
 //   · 到期合同 = recurrence_check_on（缺省为合同文件日期 + 30 天）已到的合同数；括号里是其中「到期前后 30 天内又有后来的同类合同」的份数。
 //               只数 2026-10-02 之后的合同或显式写了 recurrence_check_on 的合同（老合同不追溯）。
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+
+import { execGhReadSync } from './lib/transientRetry.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const DUE_TRACKING_SINCE = '2026-10-02'
@@ -204,7 +205,7 @@ export function fetchRuns({ today, cacheFile, refresh = false, ghRun = defaultGh
 }
 
 function defaultGhRun(args) {
-  return execFileSync('gh', args, { cwd: repoRoot, encoding: 'utf8', timeout: 20_000, maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+  return execGhReadSync(args, { cwd: repoRoot, timeout: 20_000, maxBuffer: 32 * 1024 * 1024 })
 }
 
 export function buildReport({ repo = repoRoot, today = localToday(), fixesCsv = null, noCi = false, refresh = false, ghRun } = {}) {
