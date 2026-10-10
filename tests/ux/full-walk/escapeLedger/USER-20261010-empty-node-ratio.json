@@ -1,0 +1,26 @@
+{
+  "id": "USER-20261010-empty-node-ratio",
+  "since": "2026-10-10",
+  "source": "2026-10-10 user report",
+  "category": "performance-coverage",
+  "problem": "图片节点的空态 logo 和引导随宽高比排版变形，比例不同位置不同（用户原话：这个设计没考虑到）",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "2026-10-10 user screenshot: 1:1 空图片节点，左上角状态小标，内容顶对齐",
+    "docs/evidence/2026-10-10-empty-node-ratios/zh-light.png"
+  ],
+  "completionCommits": [
+    "44dec5632"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-10-empty-node-ratios.root-cause.json",
+  "fixedInPr": 1164,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/devlab/designLab/emptyNodeRatios/labRatios.test.ts"
+  }
+}
