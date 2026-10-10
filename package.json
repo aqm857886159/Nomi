@@ -182,7 +182,7 @@
     "check:asset-evidence": "node ./scripts/check-asset-evidence.mjs",
     "check:mcp-payload": "pnpm exec tsx scripts/check-mcp-payload.ts",
     "check:mcp-operation-constructible": "node --test ./scripts/check-mcp-operation-constructible.node-test.mjs",
-    "check:model-face-frozen": "node --test ./scripts/check-model-face-frozen.node-test.mjs",
+    "check:model-face-frozen": "node --test ./scripts/check-model-face-frozen.node-test.mjs ./scripts/gate-mutation-harness.node-test.mjs",
     "check:verb-host-conformance": "node --test ./scripts/check-verb-host-conformance.node-test.mjs",
     "check:mcp-scope-reachable": "pnpm exec tsx scripts/check-mcp-scope-reachable.mjs",
     "check:mcp-tool-refs": "node --test ./scripts/check-mcp-tool-references.node-test.mjs && pnpm exec tsx scripts/check-mcp-tool-references.ts",

@@ -1,82 +1,138 @@
-// 门岗自检的**共用装置**：跑门岗、按变异改生产文件、无论成败都还原。
+// 门岗自检的**共用装置**：跑门岗、在**隔离副本**上按变异改生产文件。真实工作区一个字节都不碰。
 //
-// 为什么它必须只有一份（2026-09-18 评审 评审点出来的）：这套东西原来在
-// `check-verb-host-conformance.node-test.mjs` 里写过一遍，`check:model-face-frozen` 与
-// `check:mcp-operation-constructible` 两道新门各抄了一遍——**同一份实现三个副本**，正是 P1 说的并行版。
-// 更要命的是它抄的那部分恰好是「被中断时怎么把生产文件还原回去」：三份里任意一份改对了、另外两份没跟上，
-// 表现出来的是「某次 CI 挂了之后工作区里留着一处变异」，而那种事没有人会第一时间联想到门岗自检。
+// 为什么是副本（2026-10-10，同一天两次事故）：原来它在真实工作区里原地改生产文件，还原靠 finally、SIGTERM 处理和恢复档。
+// 推送前钩子因别的门红了或超时杀掉子进程时，Windows 上杀进程不会跑 SIGTERM 处理，工作区就留着变异后的生产代码
+// （一次 `mode: String(durationSec)`，一次 contentHash / version 改成必填）；两个进程并发跑还共用同一个恢复档、互相覆盖；
+// 变异期间并行的 typecheck 读到的是半途变异的代码；这段时间里谁 `git add -A` 就会把变异提交进去。
+// 三样兜底（finally / 信号 / 恢复档）在「被杀、并发、跨进程」下都兜不住——所以不兜底：让变异**根本没机会落到真实文件上**。
 //
-// 提供两样东西：
-//   · `runGate()`      跑一次门岗，返回 `{ red, output }`——**不抛**，因为「红了」是这里的正常结果；
-//   · `withMutation()` 在一组 [文件, 找, 换] 上改生产代码、跑 body、`finally` 还原。
+// 做法：
+//   · 副本放在系统临时目录（仓库共用的 makeTempDir），由 git 跟踪的文件复制而来；没有任何跟踪代码文件的目录用 junction 链过去
+//     （docs / marketing 等大头，门岗只读）；node_modules 同样 junction。含代码的目录必须真复制：ESM 加载器会把 junction 解析回
+//     真实路径，经 junction 加载的模块算出来的 repoRoot（scripts/lib/repoPaths.mjs 由文件位置推出）就会指回真实仓库。
+//   · 变异只写副本；副本每个测试文件建一次、复用；每次变异的 `finally` 只是把副本里的文件还原给下一个用例用，不是安全兜底。
+//   · 进程被杀时副本留在系统临时目录，对真实仓库没有任何影响。
+//   · 退出时先拆 junction 再删目录（docs/lessons/windows-worktree-remove-follows-junctions.md）。
 //
-// 中断兜底：变异前先把原文落盘成恢复档（`recoveryFile`），下一次启动先看有没有上一轮留下的恢复档，
-// 有就先还原。`finally` 兜得住抛异常那条路，兜不住 SIGKILL / 断电——恢复档兜的是那一条。
+// 提供：
+//   · `runGate()`      在副本里跑一次门岗，返回 `{ red, output }`——**不抛**，因为「红了」是这里的正常结果；
+//   · `withMutation()` 在副本的一组 [文件, 找, 换] 上改代码、跑 body、还原副本。
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { makeTempDir } from './_test-temp.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
 import { repoRoot } from './lib/repoPaths.mjs'
 
 export { repoRoot }
 
+const CODE_FILE = /\.(?:mjs|cjs|js|ts|mts|cts|tsx|jsx)$/
+
+/** 把 git 跟踪的相对路径列表排成树：{ files: Set<名字>, dirs: Map<名字, 子树>, hasCode: boolean }。 */
+function buildTree(paths) {
+  const root = { files: new Set(), dirs: new Map(), hasCode: false }
+  for (const relative of paths) {
+    const parts = relative.split('/')
+    let node = root
+    const isCode = CODE_FILE.test(relative)
+    if (isCode) node.hasCode = true
+    for (const part of parts.slice(0, -1)) {
+      if (!node.dirs.has(part)) node.dirs.set(part, { files: new Set(), dirs: new Map(), hasCode: false })
+      node = node.dirs.get(part)
+      if (isCode) node.hasCode = true
+    }
+    node.files.add(parts.at(-1))
+  }
+  return root
+}
+
+function unlinkLink(link) {
+  try { fs.unlinkSync(link) } catch { fs.rmdirSync(link) }
+}
+
 /**
  * @param {object} input
- * @param {string} input.gate         门岗脚本的仓库相对路径
- * @param {string} input.recoveryFile 恢复档的仓库相对路径（每道门各一份，互不覆盖）
+ * @param {string} input.gate 门岗脚本的仓库相对路径
+ * @param {string[]} [input.shareDirs] 顶层目录名：门岗只当**数据**读、不执行里面的代码，也不会变异它——这些目录整个 junction 过去不复制
+ *   （复制 src / tests 要多花 20 多秒）。变异目标落在这里面会被 copyPathOf 拒绝。
  */
-export function createGateMutationHarness({ gate, recoveryFile }) {
-  const gatePath = path.join(repoRoot, gate)
-  const recoveryPath = path.join(repoRoot, recoveryFile)
+export function createGateMutationHarness({ gate, shareDirs = [] }) {
+  let copyRoot = null
+  const links = []
+
+  // 必须在 makeTempDir 注册它自己的退出清理之前注册：先拆 junction，再让共用工具删目录。
+  process.once('exit', () => {
+    for (const link of links) { try { unlinkLink(link) } catch { /* 已经没了 */ } }
+  })
+
+  function plan(node, realDir, copyDir) {
+    fs.mkdirSync(copyDir, { recursive: true })
+    for (const name of node.files) {
+      const source = path.join(realDir, name)
+      if (fs.existsSync(source)) fs.copyFileSync(source, path.join(copyDir, name))
+    }
+    for (const [name, child] of node.dirs) {
+      const source = path.join(realDir, name)
+      const target = path.join(copyDir, name)
+      if (child.hasCode && !(node.isRoot && shareDirs.includes(name))) plan(child, source, target)
+      else {
+        fs.symlinkSync(source, target, 'junction')
+        links.push(target)
+      }
+    }
+  }
+
+  function ensureCopy() {
+    if (copyRoot) return copyRoot
+    copyRoot = makeTempDir('nomi-gate-mutation-')
+    const tree = buildTree(gitPaths(['ls-files'], { cwd: repoRoot }))
+    tree.isRoot = true
+    plan(tree, repoRoot, copyRoot)
+    const modules = path.join(repoRoot, 'node_modules')
+    if (fs.existsSync(modules)) {
+      fs.symlinkSync(modules, path.join(copyRoot, 'node_modules'), 'junction')
+      links.push(path.join(copyRoot, 'node_modules'))
+    }
+    return copyRoot
+  }
+
+  /** 副本里的路径；防呆：目标必须是副本里的真文件，不能是经 junction 指回真实仓库的。 */
+  function copyPathOf(relative) {
+    const full = path.join(ensureCopy(), relative)
+    const inside = path.relative(fs.realpathSync(ensureCopy()), fs.realpathSync(full))
+    assert.ok(!inside.startsWith('..') && !path.isAbsolute(inside), `变异目标 ${relative} 不在副本里（经 junction 指回了真实仓库），拒绝写入`)
+    return full
+  }
 
   function runGate() {
+    const root = ensureCopy()
     try {
       // 不经 pnpm：Windows 上 pnpm 是 pnpm.cmd，execFileSync('pnpm') 直接 ENOENT（输出为空，门岗自检于是在 Windows 上全红）。
       // 用当前 node + tsx 的 --import，与 `pnpm exec tsx <脚本>` 同一加载器，平台无关。
-      execFileSync(process.execPath, ['--import', 'tsx', gatePath], { cwd: repoRoot, encoding: 'utf8', stdio: 'pipe' })
+      execFileSync(process.execPath, ['--import', 'tsx', path.join(root, gate)], { cwd: root, encoding: 'utf8', stdio: 'pipe' })
       return { red: false, output: '' }
     } catch (error) {
       return { red: true, output: `${error.stdout ?? ''}${error.stderr ?? ''}` }
     }
   }
 
-  function restoreLeftoverMutation() {
-    if (!fs.existsSync(recoveryPath)) return
-    for (const [relative, content] of JSON.parse(fs.readFileSync(recoveryPath, 'utf8'))) {
-      fs.writeFileSync(path.join(repoRoot, relative), content)
-    }
-    fs.rmSync(recoveryPath, { force: true })
-    console.warn(`⚠ 上一轮变异测试被中断，已从恢复档还原生产文件（${recoveryFile}）`)
-  }
-
   function withMutation(edits, body) {
-    const originals = edits.map(([relative]) => [relative, fs.readFileSync(path.join(repoRoot, relative), 'utf8')])
-    const restore = () => {
-      for (const [relative, content] of originals) fs.writeFileSync(path.join(repoRoot, relative), content)
-      fs.rmSync(recoveryPath, { force: true })
-    }
-    const onSignal = () => { restore(); process.exit(130) }
-    fs.mkdirSync(path.dirname(recoveryPath), { recursive: true })
-    fs.writeFileSync(recoveryPath, JSON.stringify(originals))
-    process.on('SIGINT', onSignal)
-    process.on('SIGTERM', onSignal)
+    const originals = edits.map(([relative]) => [relative, fs.readFileSync(copyPathOf(relative), 'utf8')])
     try {
       for (const [relative, find, replace] of edits) {
-        const full = path.join(repoRoot, relative)
+        const full = copyPathOf(relative)
         const text = fs.readFileSync(full, 'utf8')
         assert.ok(text.includes(find), `变异目标不在 ${relative} 里了，这条变异已经过期：${find.slice(0, 70)}`)
         fs.writeFileSync(full, text.replace(find, replace))
       }
       return body()
     } finally {
-      restore()
-      process.off('SIGINT', onSignal)
-      process.off('SIGTERM', onSignal)
+      for (const [relative, content] of originals) fs.writeFileSync(copyPathOf(relative), content)
     }
   }
 
-  restoreLeftoverMutation()
-  return { runGate, withMutation, repoRoot }
+  return { runGate, withMutation, repoRoot, copyRootForTests: () => ensureCopy() }
 }
 
 /** 「这道门进了 contracts 档」——三道门各自都要核的同一句话。 */
