@@ -26,6 +26,7 @@ const FOCUS_DISPATCHERS: Record<string, string> = {
   'workbench/generationCanvas/nodes/completeNodeConnection.ts': 'toast 上的「定位」动作',
   'workbench/project/useProjectNotificationTarget.ts': '点系统通知 / 深链跳到节点',
   'workbench/generationCanvas/nodes/extractVideoFrameToNode.ts': '视频浮条点「首帧 / 尾帧」：用户点了才抽，新图片节点建好后对准它（之前落在视口外看不见）',
+  'workbench/generationCanvas/nodes/trimVideoToNode.ts': '剪辑面板点「确认」：用户点了才剪，旁边的新视频卡建好后对准它（和截帧同一个理由）',
 }
 
 function sourceFiles(dir: string): string[] {
