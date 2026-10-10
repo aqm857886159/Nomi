@@ -218,17 +218,33 @@ describe('阻断 1：锁租约过期后，两个独立 Nomi 进程不会同时�
 })
 
 /**
- * 复盘 docs/plan/2026-10-10-mcp-migration-consent-and-leftovers-direction-check.md 的特征测试（V-1142b 发现）：
- * 真 App（Electron 43）里 Cursor 的 mcp.json 设成只读后迁移，换名 EPERM；挂上的 .nomi-prev 硬链接与目标共用只读属性，
- * Electron 里删不掉（D:/v1142b-tmp 下实测留了 6 个 = 1 次 + 5 次共享冲突重试）。系统 Node 22 的 unlink 会无视只读，
- * 所以这里用「换名 EPERM + 删 .nomi-prev 失败」复刻 Electron 里的那两步。
- * it.fails = 「现在确实是坏的」：修好后这条会变红，届时把 it.fails 改回 it。
+ * 复盘 docs/plan/2026-10-10-mcp-migration-consent-and-leftovers-direction-check.md（V-1142b 发现）：
+ * 真 App（Electron 43）里 Cursor 的 mcp.json 设成只读后迁移，换名 EPERM；每次共享冲突重试都新挂一个 .nomi-prev 硬链接，
+ * 链接与目标共用只读属性，Electron 里删不掉（D:/v1142b-tmp 下实测留了 6 个 = 1 次 + 5 次重试）。
+ * 修法：换名前先看可不可写（只读直接拒绝、不挂链接）；同一次提交只挂一个链接；收不走就留给下一次写时的锁内清扫。
  */
-describe('特征（待修）：失败路径不在宿主目录里留下 .nomi-prev 残留', () => {
-  it.fails('换名一直失败、且挂上的链接删不掉时，目录里没有 .nomi-prev.* 残留', () => {
+describe('失败路径不在宿主目录里留下 .nomi-prev 残留', () => {
+  it.runIf(typeof process.getuid !== 'function' || process.getuid() !== 0)('目标只读：直接报只读，原文件不动，一个链接都不挂', () => {
+    fs.chmodSync(target, 0o444)
+    try {
+      expect(() => atomicWrite(target, () => OURS)).toThrow(expect.objectContaining({ reason: 'config-read-only' }))
+      expect(fs.readFileSync(target, 'utf8')).toBe(ORIGINAL)
+      expect(fs.readdirSync(dir).filter((n) => /\.nomi-(?:prev|tmp)/.test(n))).toEqual([])
+    } finally {
+      fs.chmodSync(target, 0o666)
+    }
+  })
+
+  it('换名一直失败、挂上的链接在本运行时删不掉（复刻 Electron）：同一次提交只留一个链接，下一次写时锁内清扫清掉', () => {
     const eperm = () => Object.assign(new Error('operation not permitted'), { code: 'EPERM' })
     const realRename = fs.renameSync
     const realRm = fs.rmSync
+    const linked: string[] = []
+    const realLink = fs.linkSync
+    vi.spyOn(fs, 'linkSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      if (String(to).includes('.nomi-prev')) linked.push(String(to))
+      return realLink(from, to)
+    }) as typeof fs.linkSync)
     vi.spyOn(fs, 'renameSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
       if (String(to) === target && String(from).includes('.nomi-tmp')) throw eperm()
       return realRename(from, to)
@@ -239,7 +255,33 @@ describe('特征（待修）：失败路径不在宿主目录里留下 .nomi-pre
     }) as typeof fs.rmSync)
     expect(() => atomicWrite(target, () => OURS)).toThrow()
     vi.restoreAllMocks()
+    expect(linked).toHaveLength(1) // 重试只重试换名，不再每次新挂一个（原先 1+5 = 6 个）
     expect(fs.readFileSync(target, 'utf8')).toBe(ORIGINAL)
+    expect(fs.readdirSync(dir).filter((n) => n.includes('.nomi-prev'))).toHaveLength(1)
+    atomicWrite(target, () => OURS) // 下一次写：锁内清扫把这个目标所有的 .nomi-prev 收走（不管是谁留的）
     expect(fs.readdirSync(dir).filter((n) => n.includes('.nomi-prev'))).toEqual([])
+    expect(fs.readFileSync(target, 'utf8')).toBe(OURS)
+  })
+
+  it('换名撞上短暂的共享冲突后成功：全程只挂一个链接，结束时一个不剩', () => {
+    const realRename = fs.renameSync
+    let failures = 2
+    const linked: string[] = []
+    const realLink = fs.linkSync
+    vi.spyOn(fs, 'linkSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      if (String(to).includes('.nomi-prev')) linked.push(String(to))
+      return realLink(from, to)
+    }) as typeof fs.linkSync)
+    vi.spyOn(fs, 'renameSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      if (String(to) === target && String(from).includes('.nomi-tmp') && failures > 0) {
+        failures -= 1
+        throw Object.assign(new Error('busy'), { code: 'EBUSY' })
+      }
+      return realRename(from, to)
+    }) as typeof fs.renameSync)
+    atomicWrite(target, () => OURS)
+    expect(linked).toHaveLength(1)
+    expect(fs.readFileSync(target, 'utf8')).toBe(OURS)
+    expect(fs.readdirSync(dir).filter((n) => /\.nomi-(?:prev|tmp)/.test(n))).toEqual([])
   })
 })

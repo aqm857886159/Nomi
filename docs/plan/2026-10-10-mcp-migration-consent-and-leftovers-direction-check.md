@@ -63,3 +63,12 @@
 - `electron/capabilityCore/mcpHostMigration.test.ts`「特征（待修）：迁移 → 界面刷新读一次状态 → 再试一次」——`it.fails`，现在确实报 `migration consent is missing…`；修好后改回 `it`。
 - `electron/capabilityCore/hostConfigWrite.test.ts`「特征（待修）：失败路径不在宿主目录里留下 .nomi-prev 残留」——`it.fails`，现在确实留 6 个（`config.json.nomi-prev.<pid>.<随机>` × 6）；修好后改回 `it`。
 - 两条都已临时去掉 `.fails` 跑过一次，确认失败原因正是上面两条，而不是别的错误。
+
+## 拍板与实施（2026-10-10）
+
+用户拍板**方案 B（删）**。同一提交做完：
+
+- **删凭据**：主进程的铸造 / 兑现 / TTL / 单槽位、`McpMigrationConsentError`、`migrateMcpHostsWithConsent`、`McpMigrationOutcome` 全删；`readMcpMigrationState()` 纯读；迁移 IPC 收宿主名单数组；preload、桥类型、`ConnectAssistantCard` 的重试凭据状态、设计实验室假桥同步删掉，没有留开关。
+- **「同意」靠什么**：①只有登记的主窗口主帧能调迁移 IPC（`assertTrustedSender`，`check:ipc-sender-binding` 守）；②主进程在锁里逐个重核资格（`migratedContent`：装了、是 Nomi 自己写的旧 stdio 条目、能迁移；不满足 `not-migratable`，已迁移幂等成功）；③**唯一入口结构测试** `electron/capabilityCore/mcpMigrationEntry.test.ts`：渲染端只有询问卡的 `handleMigrate` / `handleRetryMigration` 调迁移桥；迁移通道字面量只在 preload 与注册处；主进程只有迁移 IPC 处理器调 `migrateMcpHostsToHttp`，`mcpHostMigration` 只被 `mcpProfiles` import（修复 / 启动修复 / 撤销所在的 `mcpConfig`、`appIntegration` 不 import）。变异：在「修复」按钮里调迁移桥、在 `mcpConfig` 里 import 迁移模块 → 各自红。
+- **残留**：`hostConfigWrite.atomicWrite` 换名前先查可写（只读 → `HostConfigWriteRefused('config-read-only')`，迁移报 `read-only`，zh/en 文案进词表，不挂链接）；同一次提交只挂一个链接（链接还指着目标就沿用，只重试换名；目标被整份替换才先收走旧的再挂）；收链接失败在本次锁内再试一次；锁内清扫清掉这个目标所有的 `.nomi-prev.*`，`.nomi-conflict.*` 不碰。
+- **两条特征测试转正**：`mcpHostMigration.test.ts`「迁移 → 界面刷新读一次状态 → 再试一次」（原 `it.fails` → `it`，并断言读状态不改任何字节）；`hostConfigWrite.test.ts` 残留那条改成三条：只读零链接；复刻 Electron「换名一直 EPERM + 链接删不掉」时同一次提交只挂 1 个（原先 6 个）、下一次写时锁内清扫清掉；短暂共享冲突全程 1 个、结束为 0。原「删不掉也要求 0 个」的断言在运行时拒绝删除时物理上做不到，按修法改成「只 1 个 + 下次清掉」。

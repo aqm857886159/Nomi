@@ -84,6 +84,7 @@ const REFUSAL_I18N: Record<McpWriteRefusal, string> = {
   'config-unreadable': 'configUnreadable',
   'http-unavailable': 'httpUnavailable',
   'entry-not-owned': 'entryNotOwned',
+  'config-read-only': 'configReadOnly',
 }
 
 // 「以后再说」只记到下一版：存的是当时的应用版本号，版本一变就重新问。per-viewer 便利，存不下也照常显示。
@@ -123,8 +124,6 @@ export function ConnectAssistantCard({
   const [checkNonce, setCheckNonce] = React.useState(0)
   const [migration, setMigration] = React.useState<McpMigrationState | null>(null)
   const [migrationResults, setMigrationResults] = React.useState<McpMigrationResult[] | null>(null)
-  // 「再试一次」的确认凭据：主进程只认这次没改成的那几个宿主。
-  const [retryConsent, setRetryConsent] = React.useState<string | null>(null)
   const migrationLabels = React.useRef<Record<string, string>>({})
   const [deferred, setDeferred] = React.useState<string | null>(() => migrationDeferredFor())
 
@@ -225,14 +224,13 @@ export function ConnectAssistantCard({
   }
 
   const handleMigrate = () => {
-    if (!capability.migrateMcpHosts || !migration?.consent) return
+    if (!capability.migrateMcpHosts || !migration) return
     setBusy(true)
     setError('')
     migrationLabels.current = Object.fromEntries(migration.hosts.map((h) => [h.client, h.label]))
-    void capability.migrateMcpHosts(migration.consent, migration.hosts.map((h) => h.client))
-      .then((outcome) => {
-        setMigrationResults(outcome.results)
-        setRetryConsent(outcome.retryConsent)
+    void capability.migrateMcpHosts(migration.hosts.map((h) => h.client))
+      .then((results) => {
+        setMigrationResults(results)
         onChanged()
         setCheckNonce((n) => n + 1)
       })
@@ -241,12 +239,11 @@ export function ConnectAssistantCard({
   }
 
   const handleRetryMigration = () => {
-    if (!capability.migrateMcpHosts || !migrationResults || !retryConsent) return
+    if (!capability.migrateMcpHosts || !migrationResults) return
     setBusy(true)
-    void capability.migrateMcpHosts(retryConsent, retryTargets(migrationResults))
-      .then((outcome) => {
-        setMigrationResults((prev) => mergeRetryResults(prev ?? [], outcome.results))
-        setRetryConsent(outcome.retryConsent)
+    void capability.migrateMcpHosts(retryTargets(migrationResults))
+      .then((retried) => {
+        setMigrationResults((prev) => mergeRetryResults(prev ?? [], retried))
         onChanged()
         setCheckNonce((n) => n + 1)
       })

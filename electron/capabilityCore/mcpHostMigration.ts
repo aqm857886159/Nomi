@@ -8,7 +8,6 @@
 // - 条目形状与所有权判定住 mcpHostEntries（地址与身份头由第 2 段的 buildMcpHttpHostEntry 生成，不另写一份）。
 // - 写盘只走 hostConfigWrite.atomicWrite：每个文件一把锁、锁里只读一次、备份从同一份字节写出、提交前后核对宿主有没有插写。
 //   迁移前原文单独备份为 .nomi-backup-premigrate，排他创建、只存第一次；这次没写成就撤掉这次建的那份。
-import crypto from 'node:crypto'
 import fs from 'node:fs'
 
 import { app } from 'electron'
@@ -63,6 +62,8 @@ export type McpMigrationFailure =
   | 'write-failed'
   /** 读完之后宿主又改了这个文件：放弃，原文件不动，请重试。 */
   | 'host-changed'
+  /** 配置文件是只读的：不挂链接、不碰它。 */
+  | 'read-only'
 
 export type McpMigrationResult =
   | { client: string; ok: true; kind: 'http' | 'forwarder'; backupPath: string | null }
@@ -94,51 +95,13 @@ export type McpMigrationState = {
   hosts: { client: BuiltinMcpClient; label: string }[]
   /** 「以后再说」按它记：到下一版再问。 */
   appVersion: string
-  /** 这一次询问的确认凭据：只覆盖上面列出的宿主、只能用一次、有效期内。没有可迁移的宿主时为 null。 */
-  consent: string | null
 }
 
-/**
- * 用户同意绑定到主进程发出的那一次询问：凭据只认当时列出的宿主、只能用一次、过期作废。
- * 渲染层传来的名单多一个、凭据对不上、重放，都在写任何文件之前拒绝。主进程只记最近一次发出的那张。
- */
-type ConsentGrant = { token: string; clients: ReadonlySet<string>; expiresAt: number }
-const CONSENT_TTL_MS = 30 * 60_000
-let consentGrant: ConsentGrant | null = null
-
-function issueConsent(clients: readonly string[]): string | null {
-  if (clients.length === 0) {
-    consentGrant = null
-    return null
-  }
-  const token = crypto.randomUUID()
-  consentGrant = { token, clients: new Set(clients), expiresAt: Date.now() + CONSENT_TTL_MS }
-  return token
-}
-
-export class McpMigrationConsentError extends Error {
-  constructor() {
-    super('migration consent is missing, expired, already used, or does not cover these hosts')
-  }
-}
-
-function redeemConsent(consent: unknown, clients: unknown): string[] {
-  const grant = consentGrant
-  const requested = Array.isArray(clients) ? clients.filter((c): c is string => typeof c === 'string') : []
-  const valid = grant !== null && typeof consent === 'string' && consent === grant.token && Date.now() < grant.expiresAt
-    && requested.length > 0 && requested.length === (clients as unknown[]).length
-    && new Set(requested).size === requested.length && requested.every((client) => grant.clients.has(client))
-  if (!valid) throw new McpMigrationConsentError()
-  consentGrant = null
-  return requested
-}
-
+/** 纯读：读名单与版本号，不铸任何东西、不改任何状态（界面每刷新一次都会调它）。 */
 export function readMcpMigrationState(): McpMigrationState {
-  const hosts = listMigratableMcpHosts()
   return {
-    hosts: hosts.map((client) => ({ client, label: MCP_CLIENT_REGISTRY[client].label })),
+    hosts: listMigratableMcpHosts().map((client) => ({ client, label: MCP_CLIENT_REGISTRY[client].label })),
     appVersion: app.getVersion(),
-    consent: issueConsent(hosts),
   }
 }
 
@@ -197,29 +160,24 @@ function migrateOne(client: string, port: number | null): McpMigrationResult {
     return { client, ok: true, kind: FORWARDER_HOSTS.has(client) ? 'forwarder' : 'http', backupPath }
   } catch (error) {
     if (error instanceof MigrationDeclined) return fail(error.reason)
-    if (error instanceof HostConfigWriteRefused) return fail(error.reason === 'isolated-instance' ? 'isolated-instance' : 'config-unreadable')
+    if (error instanceof HostConfigWriteRefused) {
+      return fail(error.reason === 'isolated-instance' ? 'isolated-instance' : error.reason === 'config-read-only' ? 'read-only' : 'config-unreadable')
+    }
     if (error instanceof HostConfigChangedError) return fail('host-changed')
     if (error instanceof HostConfigBusyError || error instanceof HostConfigLockLostError) return fail('write-failed')
     return fail(hostConfigBackupFailed(error) ? 'backup-failed' : 'write-failed')
   }
 }
 
-/** 每个宿主独立：一个失败不影响别的，失败的原文件一个字节都不动。只经 migrateMcpHostsWithConsent 从界面到达。 */
+/**
+ * 用户在迁移询问卡上点「改过去」/「再试一次」才会走到这里（唯一入口：IPC `nomi:capability:mcp-migrate`，
+ * 由 mcpMigrationEntry.test.ts 钉死）。「同意」不靠凭据：只有登记的主窗口主帧能调（assertTrustedSender），
+ * 每个宿主在锁里重核资格（装了、是 Nomi 自己写的旧 stdio 条目、能迁移），不满足一律 not-migratable；已迁移的再迁移幂等成功。
+ * 每个宿主独立：一个失败不影响别的，失败的原文件一个字节都不动。
+ */
 export function migrateMcpHostsToHttp(clients: readonly string[]): McpMigrationResult[] {
   const port = stableMcpPort()
   return clients.map((client) => migrateOne(client, port))
-}
-
-export type McpMigrationOutcome = {
-  results: McpMigrationResult[]
-  /** 「再试一次」的凭据：只覆盖这次没改成的宿主。全成功时为 null。 */
-  retryConsent: string | null
-}
-
-/** 用户点了「改过去」/「再试一次」：先兑现那一次询问的凭据，再迁移。 */
-export function migrateMcpHostsWithConsent(consent: unknown, clients: unknown): McpMigrationOutcome {
-  const results = migrateMcpHostsToHttp(redeemConsent(consent, clients))
-  return { results, retryConsent: issueConsent(results.filter((r) => !r.ok).map((r) => r.client)) }
 }
 
 /** 恢复迁移前的配置：逐字节写回那份原文，同样走写盘门（锁 + 同一套提交）。主进程能力；这一版界面上没有入口。 */

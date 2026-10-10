@@ -18,10 +18,8 @@ vi.mock('node:os', async (importOriginal) => {
 
 import { installMcp, readMcpInfo, repairStaleMcpConfigs, uninstallMcp } from './mcpConfig'
 import {
-  McpMigrationConsentError,
   listMigratableMcpHosts,
   migrateMcpHostsToHttp,
-  migrateMcpHostsWithConsent,
   readMcpMigrationState,
   restorePreMigrationMcpConfig,
 } from './mcpHostMigration'
@@ -605,59 +603,12 @@ describe('复审阻断 2：迁移 / 恢复在宿主热写时的结果', () => {
   })
 })
 
-describe('同意绑定到主进程发出的那一次询问（IPC 一次性确认凭据）', () => {
-  it('凭据只认当时列出的宿主、只能用一次；伪造 / 重放 / 多塞一个宿主 / 过期都在写任何文件之前拒绝', () => {
-    seedAll()
-    fs.writeFileSync(cfg('cursor'), '{ not json') // cursor 不在名单里
-    const before = snapshotAll()
-    const state = readMcpMigrationState()
-    expect(state.consent).toEqual(expect.any(String))
-    const listed = state.hosts.map((h) => h.client)
-    expect(listed).not.toContain('cursor')
-    expect(() => migrateMcpHostsWithConsent('forged', listed)).toThrow(McpMigrationConsentError)
-    expect(() => migrateMcpHostsWithConsent(state.consent, [...listed, 'cursor'])).toThrow(McpMigrationConsentError)
-    expect(() => migrateMcpHostsWithConsent(state.consent, [])).toThrow(McpMigrationConsentError)
-    for (const c of HOSTS) expect(bytes(cfg(c)), c).toEqual(before.get(c))
-    vi.useFakeTimers({ toFake: ['Date'] })
-    try {
-      const fresh = readMcpMigrationState()
-      vi.setSystemTime(Date.now() + 31 * 60_000)
-      expect(() => migrateMcpHostsWithConsent(fresh.consent, listed)).toThrow(McpMigrationConsentError)
-    } finally {
-      vi.useRealTimers()
-    }
-    for (const c of HOSTS) expect(bytes(cfg(c)), c).toEqual(before.get(c))
-    const valid = readMcpMigrationState()
-    const outcome = migrateMcpHostsWithConsent(valid.consent, listed)
-    expect(outcome.results.every((r) => r.ok)).toBe(true)
-    expect(outcome.retryConsent).toBeNull()
-    expect(() => migrateMcpHostsWithConsent(valid.consent, listed)).toThrow(McpMigrationConsentError) // 重放
-  })
-
-  it('「再试一次」的凭据只覆盖这次没改成的宿主', () => {
-    seedAll()
-    const state = readMcpMigrationState()
-    const realWrite = fs.writeFileSync
-    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
-      if (String(file).startsWith(`${cfg('codex')}.nomi-tmp`)) throw EIO()
-      return realWrite(file, data, options)
-    }) as typeof fs.writeFileSync)
-    const first = migrateMcpHostsWithConsent(state.consent, state.hosts.map((h) => h.client))
-    vi.restoreAllMocks()
-    expect(first.results.filter((r) => !r.ok).map((r) => r.client)).toEqual(['codex'])
-    expect(() => migrateMcpHostsWithConsent(first.retryConsent, ['claude', 'codex'])).toThrow(McpMigrationConsentError)
-    const retried = migrateMcpHostsWithConsent(first.retryConsent, ['codex'])
-    expect(retried.results).toEqual([expect.objectContaining({ client: 'codex', ok: true })])
-  })
-})
-
 /**
- * 复盘 docs/plan/2026-10-10-mcp-migration-consent-and-leftovers-direction-check.md 的特征测试（V-1142b 第 2 项）：
- * 迁移凭据只有一个槽位，读状态（界面刷新）会铸新凭据顶掉「再试一次」那张，重试被拒。
- * it.fails = 「现在确实是坏的」：修好后这条会变红，届时把 it.fails 改回 it。
+ * 复盘 docs/plan/2026-10-10-mcp-migration-consent-and-leftovers-direction-check.md（V-1142b 第 2 项，用户 2026-10-10 拍板方案 B）：
+ * 原先迁移凭据只有一个槽位，读状态（界面刷新）会铸新凭据顶掉「再试一次」那张，重试被拒。凭据整套已删，读状态纯读。
  */
-describe('特征（待修）：迁移 → 界面刷新读一次状态 → 再试一次', () => {
-  it.fails('第一次部分失败后界面重读迁移状态，「再试一次」仍然能用第一次给的重试凭据改成', () => {
+describe('迁移 → 界面刷新读一次状态 → 再试一次', () => {
+  it('第一次部分失败后界面重读迁移状态，「再试一次」照样把失败的那个改成；读状态不改任何东西', () => {
     seedAll()
     const state = readMcpMigrationState()
     const realWrite = fs.writeFileSync
@@ -665,11 +616,27 @@ describe('特征（待修）：迁移 → 界面刷新读一次状态 → 再试
       if (String(file).startsWith(`${cfg('cursor')}.nomi-tmp`)) throw EIO()
       return realWrite(file, data, options)
     }) as typeof fs.writeFileSync)
-    const first = migrateMcpHostsWithConsent(state.consent, state.hosts.map((h) => h.client))
+    const first = migrateMcpHostsToHttp(state.hosts.map((h) => h.client))
     spy.mockRestore()
-    expect(first.results.filter((r) => !r.ok).map((r) => r.client)).toEqual(['cursor'])
-    readMcpMigrationState() // 界面在 onChanged 后刷新卡片，useEffect 再读一次迁移状态
-    const retried = migrateMcpHostsWithConsent(first.retryConsent, ['cursor'])
-    expect(retried.results).toEqual([expect.objectContaining({ client: 'cursor', ok: true })])
+    expect(first.filter((r) => !r.ok).map((r) => r.client)).toEqual(['cursor'])
+    const before = snapshotAll()
+    expect(readMcpMigrationState()).toEqual(readMcpMigrationState()) // 界面在 onChanged 后刷新卡片，再读一次迁移状态
+    for (const c of HOSTS) expect(bytes(cfg(c)), c).toEqual(before.get(c))
+    const retried = migrateMcpHostsToHttp(['cursor'])
+    expect(retried).toEqual([expect.objectContaining({ client: 'cursor', ok: true })])
+  })
+
+  it('配置文件只读：报 read-only，原文件一个字节不动，目录里不挂链接', () => {
+    seedAll()
+    const before = bytes(cfg('cursor'))
+    fs.chmodSync(cfg('cursor'), 0o444)
+    try {
+      expect(migrateMcpHostsToHttp(['cursor'])[0]).toMatchObject({ client: 'cursor', ok: false, reason: 'read-only' })
+      expect(bytes(cfg('cursor'))).toEqual(before)
+      expect(fs.readdirSync(path.dirname(cfg('cursor'))).filter((n) => /nomi-prev|nomi-tmp/.test(n))).toEqual([])
+      expect(fs.existsSync(`${cfg('cursor')}${PREMIGRATE}`)).toBe(false)
+    } finally {
+      fs.chmodSync(cfg('cursor'), 0o666)
+    }
   })
 })

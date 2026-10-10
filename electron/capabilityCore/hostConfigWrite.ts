@@ -37,6 +37,8 @@ export type McpWriteRefusal =
   | 'http-unavailable'
   /** 宿主里叫 nomi 的那一条不能确认是 Nomi 写的（混合两种写法 / 地址或身份对不上）：不改它。 */
   | 'entry-not-owned'
+  /** 配置文件是只读的（用户或宿主设的）：不挂链接、不碰它，如实说。 */
+  | 'config-read-only'
 
 export class HostConfigWriteRefused extends Error {
   constructor(readonly reason: McpWriteRefusal, detail: string) {
@@ -234,16 +236,54 @@ function processAlive(pid: number): boolean {
   }
 }
 
-/** 崩溃残渣（临时文件、被换下来的链接、备份半成品）：写它的进程已经死了才清；`.nomi-conflict.*` 是数据，永远不清。 */
-function sweepDeadLeftovers(target: string): void {
+/**
+ * 锁内清扫残渣（只在持有这个目标的锁时调用）：
+ * - `.nomi-prev.*`（提交时挂的链接）不分是谁留的一律清：它只在一次提交之内有意义，持锁时不可能有别的写入者在用它；
+ * - 临时文件、备份半成品：写它的进程已经死了才清；
+ * - `.nomi-conflict.*` 是宿主的数据，永远不清。
+ */
+function sweepLeftovers(target: string): void {
   const dir = path.dirname(target)
   const base = path.basename(target).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const leftover = new RegExp(`^${base}\\.nomi-(?:tmp|prev|backup\\.part|backup-premigrate\\.part)\\.(\\d+)\\.[0-9a-f]{8}$`)
+  const link = new RegExp(`^${base}\\.nomi-prev\\.\\d+\\.[0-9a-f]{8}$`)
+  const leftover = new RegExp(`^${base}\\.nomi-(?:tmp|backup\\.part|backup-premigrate\\.part)\\.(\\d+)\\.[0-9a-f]{8}$`)
   let names: string[]
   try { names = fs.readdirSync(dir) } catch { return }
   for (const name of names) {
+    if (link.test(name)) { rmQuiet(path.join(dir, name)); continue }
     const pid = Number(leftover.exec(name)?.[1])
     if (Number.isInteger(pid) && pid > 0 && !processAlive(pid)) rmQuiet(path.join(dir, name))
+  }
+}
+
+/** 收走提交时挂的链接：删不掉不吞——同一把锁里再试一次，仍不行就抛（交给调用方决定，下一次写时锁内清扫会再清）。 */
+function removeLink(link: string): void {
+  try {
+    retryOnSharingViolation(() => fs.rmSync(link, { force: true }))
+  } catch {
+    retryOnSharingViolation(() => fs.rmSync(link, { force: true }))
+  }
+}
+
+function sameFile(left: string, right: string): boolean {
+  try {
+    const a = fs.statSync(left, { bigint: true })
+    const b = fs.statSync(right, { bigint: true })
+    return a.ino === b.ino && a.dev === b.dev
+  } catch {
+    return false
+  }
+}
+
+/** 换名前先看目标可不可写（Windows 的只读属性在这里就看得见）：只读就直接拒绝，不挂链接、不碰它。 */
+function assertTargetWritable(target: string): void {
+  try {
+    fs.accessSync(target, fs.constants.W_OK)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code
+    if (code === 'ENOENT') return
+    if (code === 'EACCES' || code === 'EPERM') throw new HostConfigWriteRefused('config-read-only', target)
+    throw error
   }
 }
 
@@ -312,42 +352,54 @@ function linkOrChanged(from: string, to: string, target: string): void {
 
 /**
  * 提交：最后一次比对 → 挂链接 → 换名（这两个系统调用紧挨着）→ 事后核对被换下来的那份与读回的这份。
- * Windows 上撞共享冲突就整段重来（包括重新比对），重试不会把窗口拉长。
+ * Windows 上撞共享冲突就重来（每次都重新比对）。同一次提交只挂一个链接：它还指着目标就沿用，只重试换名；
+ * 目标在两次尝试之间被整份替换（换了文件）才先收走旧链接再挂新的。没换成就把链接收走，收不走就抛。
  */
 function commit(target: string, tmp: string, original: Buffer | null, content: Buffer, fence: LockFence, hooks: AtomicWriteOptions): void {
-  let aside: string | null
+  // 闭包里改的状态放进一个对象（TS 不追踪闭包里的赋值）。
+  const state: { aside: string | null; landed: boolean } = { aside: null, landed: false }
   try {
-    aside = retryOnSharingViolation(() => {
+    retryOnSharingViolation(() => {
       hooks.beforeCommit?.()
       fence.check()
       if (!sameBytes(readBytes(target), original)) throw new HostConfigChangedError(target)
       if (original === null) {
         linkOrChanged(tmp, target, target) // 排他创建：宿主同时建了它就失败
-        return null
+        state.landed = true
+        return
       }
-      const prev = ownedName(`${target}.nomi-prev`)
+      if (state.aside && !sameFile(state.aside, target)) {
+        removeLink(state.aside)
+        state.aside = null
+      }
       const windowStart = process.hrtime.bigint()
-      linkOrChanged(target, prev, target)
-      try {
-        fs.renameSync(tmp, target)
-      } catch (error) {
-        rmQuiet(prev)
-        throw error
+      if (!state.aside) {
+        const prev = ownedName(`${target}.nomi-prev`)
+        linkOrChanged(target, prev, target)
+        state.aside = prev
       }
+      fs.renameSync(tmp, target)
+      state.landed = true
       hooks.onCommitWindow?.(process.hrtime.bigint() - windowStart)
-      return prev
     })
+  } catch (error) {
+    if (state.aside && !state.landed) {
+      // 同一把锁里已经试了两轮；仍收不走（例如只读属性在本运行时下删不掉）就让原错误说话，链接交给下一次写时的锁内清扫。
+      try { removeLink(state.aside) } catch { /* 见上 */ }
+    }
+    throw error
   } finally {
     rmQuiet(tmp)
   }
   // 已经换上去了：下面任何失败都不能再走「整段重来」，也一律当作「Nomi 的内容落过盘」（备份留着）。
   try {
     let displaced: Buffer | null = null
-    if (aside) {
+    if (state.aside) {
+      const link: string = state.aside
       try {
-        displaced = retryOnSharingViolation(() => fs.readFileSync(aside!))
+        displaced = retryOnSharingViolation(() => fs.readFileSync(link))
       } finally {
-        rmQuiet(aside)
+        try { removeLink(link) } catch { /* 已经落盘：收不走留给下一次写时的锁内清扫，不把成功报成失败 */ }
       }
     }
     if (displaced !== null && !sameBytes(displaced, original)) {
@@ -371,11 +423,12 @@ export function atomicWrite(target: string, edit: HostConfigEdit, options: Atomi
   assertHostConfigWritable(target)
   fs.mkdirSync(path.dirname(target), { recursive: true })
   return withHostConfigLock(target, (fence) => {
-    sweepDeadLeftovers(target)
+    sweepLeftovers(target)
     const original = readBytes(target)
     const next = edit(original)
     if (next === null) return { written: false, backupPath: null }
     const content = Buffer.isBuffer(next) ? next : Buffer.from(next, 'utf8')
+    assertTargetWritable(target)
     fence.check()
     const backup = original ? placeBackup(target, original, options.backup ?? DEFAULT_BACKUP) : null
     const tmp = ownedName(`${target}.nomi-tmp`)

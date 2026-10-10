@@ -10,6 +10,7 @@ export const FAILURE_I18N: Record<McpMigrationFailure, string> = {
   'backup-failed': 'backupFailed',
   'write-failed': 'writeFailed',
   'host-changed': 'hostChanged',
+  'read-only': 'readOnly',
 }
 
 /** 「再试一次」只重试没改成的宿主；已改好的不再碰。 */
