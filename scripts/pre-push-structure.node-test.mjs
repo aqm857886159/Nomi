@@ -30,6 +30,7 @@ import {
   pushDecision,
   runNode,
   selectGates,
+  softenTimeout,
 } from './pre-push-contracts.mjs'
 import { MAX_RELATED_FILES, RELATED_TESTS_GATE, SLOW_TEST_FILES, relatedTests, runRelatedTests, stemOf } from './pre-push-related-tests.mjs'
 
@@ -381,4 +382,25 @@ test('登记（C）：相关单测与结构门岗在选择表 / 输入声明 / �
   assert.match(entry, /runRelatedTests\(relatedTests\(/, '入口没接相关单测')
   assert.match(entry, /--list[\s\S]*known/, '入口的 known 清单')
   assert.ok(entry.includes('RELATED_TESTS_GATE.name, ...BODY_GATES'), '相关单测要在入口的 known 清单里')
+})
+
+// ── 超时不等于红（10-10：合 main 后 typecheck 冷缓存 240.5 秒被当红拦推送，重推同一提交就过了）────────────────────
+
+test('必红：typecheck 超时 → 推送不被拦（状态 0）、输出写明「本机没跑完，CI 会跑」；其它门挂住照旧按红处理', async () => {
+  const typecheck = SCAN_TESTS.find((scan) => scan.name === 'typecheck')
+  assert.equal(typecheck.softTimeout, true, 'typecheck 要标 softTimeout')
+  const hung = await isolatedRun(['-e', 'setInterval(() => {}, 1000)'], {}, { timeoutMs: 1000, name: 'typecheck' })
+  assert.equal(hung.status, 124, '先确认这是真超时')
+  const softened = softenTimeout(typecheck, { name: 'typecheck', ...hung })
+  assert.equal(softened.status, 0)
+  assert.match(softened.note, /本机没跑完/)
+  assert.match(softened.note, /CI 会跑/)
+  const { text, failed } = formatSummary([softened])
+  assert.equal(failed.length, 0)
+  assert.match(text, /没跑完/)
+  // 不带 softTimeout 的门：超时仍是红；真红（非 124）的 typecheck 仍是红
+  const strict = SCAN_TESTS.find((scan) => scan.name !== 'typecheck')
+  assert.equal(softenTimeout(strict, { name: strict.name, ...hung }).status, 124)
+  assert.equal(softenTimeout(typecheck, { name: 'typecheck', status: 1, output: 'TS2345', ms: 5 }).status, 1)
+  assert.deepEqual(SCAN_TESTS.filter((scan) => scan.softTimeout).map((scan) => scan.name), ['typecheck'], '只有 typecheck 可以软超时')
 })

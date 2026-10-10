@@ -120,7 +120,7 @@ export const SCAN_TESTS = Object.freeze([
   // 设计实验室的纯 node 结构检查（#1145 在 CI 才撞到 mirrors 行号越界）；完整的 check:design-lab（tsc + 像素比对 + python 锁）留在 CI
   { name: 'check:design-lab-mirrors', argv: ['scripts/check-design-lab.mjs', '--mirrors-only'], rerun: 'node scripts/check-design-lab.mjs --mirrors-only', when: (files) => touchesGateInputs('check:design-lab-mirrors', files) },
   // 整库类型检查（10-09 #1137 合 main 后 3 处 TS2345，推送前不跑 typecheck）：增量模式复用 node_modules/.cache/nomi-typecheck 的缓存，首次约 100 秒、之后约 30 秒；最慢，排在任务队列最前
-  { name: 'typecheck', argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
+  { name: 'typecheck', softTimeout: true, argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
   { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
   { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => touchesGateInputs('check:test-copy-literals', files) },
   { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => touchesGateInputs('test:control-contract', files) },
@@ -290,6 +290,16 @@ export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = ar
   })
 }
 
+/**
+ * 冷缓存才慢的门（softTimeout：typecheck 合 main 后增量缓存是冷的，首次约 100 秒以上，机器忙时超过单门上限）：
+ * 超时 = 「本机没跑完」，不是「检查没过」——不拦推送，如实写明没跑完、CI 会跑。其它门挂住照旧按红处理。
+ * 10-10 实证：合 origin/main 后第一次推送 typecheck 240.5 秒被当红拦下，重推同一提交就过了。
+ */
+export function softenTimeout(scan, result) {
+  if (!scan.softTimeout || result.status !== 124) return result
+  return { ...result, status: 0, note: `${scan.name} 本机没跑完（超时，多半是增量缓存冷），CI 会跑；再推一次通常就热了` }
+}
+
 /** 简单并发池：按顺序启动，最多 limit 个同时跑。 */
 async function pool(tasks, limit) {
   const results = new Array(tasks.length)
@@ -400,7 +410,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   }
   for (const scan of SCAN_TESTS) {
     if (!selected.has(scan.name)) continue
-    const task = async () => ({ name: scan.name, ...(await runNode(scan.argv, {}, { name: scan.name })) })
+    const task = async () => softenTimeout(scan, { name: scan.name, ...(await runNode(scan.argv, {}, { name: scan.name })) })
     if (scan.name === 'typecheck') tasks.unshift(task)
     else tasks.push(task)
   }
