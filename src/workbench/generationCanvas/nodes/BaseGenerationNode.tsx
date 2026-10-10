@@ -44,7 +44,7 @@ import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_
 import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimelineEnd'
 import { confirmAndRunNode } from '../runner/generationRunController'
 import { selectCanvasNodeById, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
-import { retryLocalAssetImport } from '../adapters/assetImportAdapter'
+import { localStepRedoOf } from './localStepRedo'
 import { NodeErrorReport } from './NodeErrorReport'
 import { NodeRecoverableReport } from './NodeRecoverableReport'
 import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
@@ -355,8 +355,9 @@ function BaseGenerationNodeImpl({
             isAssetKind && node.meta?.source === 'clipboard-url'
               ? undefined
               // P4 S6：多镜物化节点走返工链（一功能一个家 §3.E）；否则本地重跑/素材重导入（单镜/普通节点不变=回归门）。
-              : productionRetry ?? (() => {
-                  void (node.meta?.retryableImport === true ? retryLocalAssetImport(node.id) : confirmAndRunNode(node.id, { initiator: 'user' }))
+              // 本机处理失败（素材复制 / 截帧）重试的是那一步本机处理，不是重新生成：见 localStepRedo。
+              : productionRetry ?? localStepRedoOf(node, reportFeedback) ?? (() => {
+                  void confirmAndRunNode(node.id, { initiator: 'user' })
                 })
           }
         />

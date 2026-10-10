@@ -48,6 +48,9 @@ export type NomiErrorCode =
   // 跳转 / 类型不对 / 超上限）。与 outbound-blocked 不同：那条只说「策略拦了、去看网络」；这条覆盖整个
   // 取回失败族，而且下一步只有一个——在任务面板点「重新取回」（免费、不重新生成）。绝不给重试（= 再生成再付钱）。
   | 'output-retrieval-failed'
+  // 这一步完全在用户这台电脑上做（ffmpeg 截帧 / 本机深度推理 / 本地素材复制），没有任何服务商参与。
+  // 失败原因不在「模型」，所以错误卡只留「重试」，不给「换个模型」。生产者一律走 tagLocalProcessingError（渲染层单一入口）。
+  | 'local-processing'
 
 const MARKER_PREFIX = 'NOMI_ERR::'
 const MARKER_SUFFIX = '::'
