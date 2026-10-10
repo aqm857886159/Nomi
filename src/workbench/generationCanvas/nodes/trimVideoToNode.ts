@@ -35,6 +35,13 @@ export function normalizeTrimRange(range: VideoTrimRange): VideoTrimRange | null
 }
 
 let jobSeq = 0
+
+/** 正在跑的剪辑（卡 id → 叫停它的函数）：关窗 / 切走项目时一起叫停，不让 ffmpeg 白跑到收工。 */
+const runningTrims = new Map<string, () => void>()
+if (typeof window !== 'undefined') {
+  // 窗口关掉：进程会随主进程一起没，但状态先收口（叫停 → 杀 ffmpeg）；存盘里留下的 running 由载入收口兜底（store/canvasSnapshotNormalizer）。
+  window.addEventListener('pagehide', () => { for (const cancel of [...runningTrims.values()]) cancel() })
+}
 let txnSeq = 0
 
 function progressMessage(percent: number | undefined): string {
@@ -146,7 +153,11 @@ async function runTrimOnCard(input: {
     }))
   })
   // 遮罩上的「取消」只在这张卡上登记一笔（localTaskControl），真正杀 ffmpeg 的是这里：登记一到立刻叫停主进程那一个任务。
-  const unsubscribeCancel = onTaskCancelRequested(cardId, () => { void bridge.cancelTrim({ jobId }).catch(() => undefined) })
+  const cancelJob = (): void => { void bridge.cancelTrim({ jobId }).catch(() => undefined) }
+  const unsubscribeCancel = onTaskCancelRequested(cardId, cancelJob)
+  // 切走项目（原项目的签发信号中止）：旧任务立刻叫停——主进程发布前本来就会拒绝，但没必要让 ffmpeg 白跑完。
+  signalOf.addEventListener('abort', cancelJob, { once: true })
+  runningTrims.set(cardId, cancelJob)
   try {
     const result = await bridge.trim({ videoUrl, startSeconds: range.startSeconds, endSeconds: range.endSeconds, projectId: target.projectId, projectBinding: target, jobId })
     if (isTaskCancelRequested(cardId)) {
@@ -184,6 +195,8 @@ async function runTrimOnCard(input: {
   } finally {
     unsubscribeProgress()
     unsubscribeCancel()
+    signalOf.removeEventListener('abort', cancelJob)
+    runningTrims.delete(cardId)
     clearTaskCancel(cardId)
   }
 }

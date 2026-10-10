@@ -1140,6 +1140,10 @@ export const zhGenerationCommon = {
     promptChanged: '翻译期间提示词被改动了，没替换',
   },
   // 视频节点「直接剪辑」：浮条「剪辑」→ 贴着节点弹出的面板 → 确认后旁边落一张新视频卡（本机 ffmpeg，不扣费）。
+  // 本机处理（剪辑……）被打断：关窗 / 切走项目时进程已经没了，重开项目时由载入收口把还在「进行中」的卡变成这句话 + 重试。
+  localProcessing: {
+    interrupted: '上次没做完就被打断了，原视频没动。',
+  },
   videoTrim: {
     toolbar: '剪辑',
     panelAria: '剪辑',
@@ -2800,6 +2804,10 @@ export const enGenerationCommon = {
     failedWithReason: 'Translation failed ({{reason}}). The prompt was not changed.',
     placeholderMismatch: 'Media references in the translation did not match, so the prompt was left unchanged to keep your references.',
     promptChanged: 'The prompt changed during translation, so nothing was replaced.',
+  },
+  // 本机处理（剪辑……）被打断：关窗 / 切走项目时进程已经没了，重开项目时由载入收口把还在「进行中」的卡变成这句话 + 重试。
+  localProcessing: {
+    interrupted: 'Interrupted last time. Original untouched.',
   },
   videoTrim: {
     toolbar: 'Trim',

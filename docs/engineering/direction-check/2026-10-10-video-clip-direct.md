@@ -59,3 +59,11 @@
 - `tests/ux/video-depth-real-task.walk.mjs`（提取深度真任务，保持）。
 - `src/workbench/generationCanvas/nodes/ClipNodeTimeline` 相关测试与 `tests/ux/` 剪辑手势走查（只加回调、改小牌色）。
 - 第一片的 `tests/ux/video-frame-capture.walk.mjs`（浮条按钮仍在）。
+
+## 追加：载入收口（V-clip1 阻断的修复）与自写登记 canvas-undo-journal-write-boundary
+
+触发：修复提交碰了 `store/canvasDocumentCommit.ts`（命中自写登记 `canvas-undo-journal-write-boundary`，under-review，评估方向是「撤销栈改成 Immer 反向补丁」）与 `store/canvasSnapshotNormalizer.ts`、`runner/localTaskControl.ts`、`electron/video/videoIpc.ts`。
+
+- 为什么现在换不了现成方案：本次在 `canvasDocumentCommit.ts` 只改了「事件尾巴重放（`load-tail`）」那一行——重放之后对整张画布再调一次共享的收口函数 `convergeStuckMidFlightNodes`（此前只收口拆解表）。没有碰撤销日志、提交口或写边界本身；这一行是「载入后状态收敛」，与撤销栈用不用 Immer 反向补丁无关。
+- 哪天换：该评估出结论时一并处理；届时撤销栈改写不会让这一行成为迁移负担（它只读重放后的节点，不读也不写日志）。
+- 类根因与修法见 `docs/fixes/2026-10-10-local-task-interrupted-on-reopen.root-cause.json`：载入有两道门（快照 / 事件尾巴），收口只在第一道跑，第二道把存盘时的 running 写回；本机任务没有远端 job，也没人登记「被打断」的含义。现在两道门共用同一个函数，带重来事实（`hasLocalRedoFacts`）的 running 卡收成「被打断」失败卡（只留重试）；关窗 / 切走项目时把在跑的任务走同一个取消入口。

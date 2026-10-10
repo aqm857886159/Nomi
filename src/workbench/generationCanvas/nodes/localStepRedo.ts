@@ -2,6 +2,7 @@ import { retryLocalAssetImport } from '../adapters/assetImportAdapter'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { retryVideoFrameCapture } from './extractVideoFrameToNode'
 import { retryVideoTrim } from './trimVideoToNode'
+import { hasLocalRedoFacts } from '../model/localProcessingPhase'
 
 /**
  * 本机处理失败卡的「重试」该做什么——**单一出处**（BaseGenerationNode 的失败卡读它）。
@@ -15,6 +16,6 @@ export function localStepRedoOf(node: GenerationCanvasNode, reportFeedback: (mes
   if (node.meta?.retryableImport === true) return () => { void retryLocalAssetImport(node.id) }
   if (node.meta?.retryableFrame === true) return () => { void retryVideoFrameCapture(node.id, reportFeedback) }
   // 剪辑：卡上记着区间、却没有结果 = 这次剪辑没成，重试 = 同一段再剪一次（不用事后清的旗：见 trimVideoToNode）。
-  if (typeof node.meta?.trimStart === 'number' && typeof node.meta?.trimEnd === 'number' && !node.result) return () => { retryVideoTrim(node.id, reportFeedback) }
+  if (hasLocalRedoFacts(node)) return () => { retryVideoTrim(node.id, reportFeedback) }
   return null
 }

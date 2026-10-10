@@ -17,3 +17,12 @@ export function videoTrimProgressPhase(phase: 'running'): string {
 export function isLocalProcessingProgressPhase(phase: string | undefined): boolean {
   return isVideoDepthProgressPhase(phase) || (typeof phase === 'string' && phase.startsWith(VIDEO_TRIM_PROGRESS_PREFIX))
 }
+
+/**
+ * 本机处理被打断（关窗 / 切走项目）后，这张卡「重来一次」要用的事实：有就可以重试，没有就只能清掉幽灵转圈。
+ * 剪辑卡出生就记着区间（`meta.trimStart` / `trimEnd`）；截帧是抽完才落卡、从不以 running 落盘，深度处理没有「重试」这回事。
+ * 唯一出处：载入收口（store/canvasSnapshotNormalizer）与失败卡的重试（nodes/localStepRedo）读同一份判断。
+ */
+export function hasLocalRedoFacts(node: { meta?: Record<string, unknown> | undefined; result?: unknown }): boolean {
+  return typeof node.meta?.trimStart === 'number' && typeof node.meta?.trimEnd === 'number' && !node.result
+}

@@ -26,7 +26,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../m
 import { bumpPersistRevision } from './canvasGuards'
 import { clearClipboard } from './canvasClipboard'
 import { reportSkippedEdges } from './canvasEdgeWrite'
-import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
+import { convergeStuckMidFlightNodes, normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
 import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
@@ -206,7 +206,8 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         assertProductionCanvasProjectIdentity(state.projectId, projection.nodes, 'load event tail')
         // 拆解进度的每一下写都走 canvas.node.updated 进了事件日志，重放会把 `status: 'running'` 原样写回来——
         // 终态判定的 owner 只有一份，重放完再问它一次；已终态的表它原样返回，幂等（重启后拆解表卡在「进行中」就是这一下）。
-        set({ nodes: convergeDeconstructionNodes(projection.nodes), edges: projection.edges, groups: projection.groups })
+        // 同一个坑的另一半：存盘时在跑的本机处理 / 生成节点，重放后也要再收口一次（只在装载时收口会被尾巴盖回去，永久 running）。
+        set({ nodes: convergeStuckMidFlightNodes(convergeDeconstructionNodes(projection.nodes)), edges: projection.edges, groups: projection.groups })
         return
       }
       case 'rewind': {
