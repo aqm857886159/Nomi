@@ -1,9 +1,10 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconDownload, IconFocusCentered, IconLayoutRows, IconMaximize, IconPhoto, IconPlayerTrackNext, IconPlayerTrackPrev, IconTable } from '@tabler/icons-react'
+import { IconCut, IconDownload, IconFocusCentered, IconLayoutRows, IconMaximize, IconPhoto, IconPlayerTrackNext, IconPlayerTrackPrev, IconTable } from '@tabler/icons-react'
 import {
   FloatingToolbarShell,
   TOOLBAR_ICON as I,
+  ToolbarButton,
   ToolbarDivider,
   ToolbarDuplicateVariantButton,
   ToolbarIconButton,
@@ -14,6 +15,8 @@ import { extractVideoFrameToNode, type VideoFrameRequest } from './extractVideoF
 import { frameTimecode, roundFrameSeconds } from './frameTimecode'
 import { readNodeVideoPlayheadSeconds } from './nodeVideoPlayback'
 import NodeShotCutPanel from './NodeShotCutPanel'
+import NodeVideoClipPanel from './NodeVideoClipPanel'
+import { startVideoTrim } from './trimVideoToNode'
 import NodeDepthActionButton from '../videoDepth/NodeDepthActionButton'
 import { deconstructToShotTable } from './shotTable/factBridge'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
@@ -45,6 +48,7 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
   const { t } = useTranslation()
   const [busy, setBusy] = React.useState(false)
   const [shotCutOpen, setShotCutOpen] = React.useState(false)
+  const [clipOpen, setClipOpen] = React.useState(false)
   // 菜单打开那一刻取一次播放头（取整到 0.1 秒）：菜单上显示的和点下去截的是同一个数，播放中也对得上。
   const [playhead, setPlayhead] = React.useState(0)
   const capture = (request: VideoFrameRequest) => {
@@ -55,6 +59,13 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
   return (
     <>
 
+    {clipOpen ? (
+      <NodeVideoClipPanel
+        node={node}
+        onClose={() => setClipOpen(false)}
+        onConfirm={(range) => { if (startVideoTrim(node, range, reportFeedback)) setClipOpen(false) }}
+      />
+    ) : null}
     {shotCutOpen ? <NodeShotCutPanel onFeedback={reportFeedback} node={node} onClose={() => setShotCutOpen(false)} /> : null}
     <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} lockNodeId={node.id}>
       <ToolbarActionMenu
@@ -70,6 +81,14 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
           { id: 'capture-last', icon: IconPlayerTrackNext as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.lastFrame'), onSelect: () => capture('last') },
         ]}
       />
+      <ToolbarButton
+        icon={<IconCut size={I.size} stroke={I.stroke} />}
+        label={t('generationCommon.videoTrim.toolbar')}
+        actionId="trim"
+        accent={clipOpen}
+        disabled={busy}
+        onClick={() => { setShotCutOpen(false); setClipOpen((open) => !open) }}
+      />
       <ToolbarActionMenu
         id="break-down"
         icon={<IconLayoutRows size={I.size} stroke={I.stroke} />}
@@ -77,7 +96,7 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
         menuLabel={t('generationCommon.videoToolbar.breakDown')}
         disabled={busy}
         items={[
-          { id: 'shot-cuts', icon: IconLayoutRows as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotCuts'), description: t('generationCommon.videoToolbar.shotCutsHint'), onSelect: () => setShotCutOpen(true) },
+          { id: 'shot-cuts', icon: IconLayoutRows as WorkbenchMenuIcon, label: t('generationCommon.videoToolbar.shotCuts'), description: t('generationCommon.videoToolbar.shotCutsHint'), onSelect: () => { setClipOpen(false); setShotCutOpen(true) } },
           {
             id: 'shot-table',
             icon: IconTable as WorkbenchMenuIcon,

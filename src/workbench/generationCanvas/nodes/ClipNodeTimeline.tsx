@@ -35,6 +35,8 @@ type ClipNodeTimelineProps = {
   onMoveClip: (clipId: string, startFrame: number) => void
   onResizeClip: (clipId: string, edge: 'left' | 'right', deltaFrame: number) => void
   onScrubPlayhead?: (frame: number) => void
+  /** 拖手柄的每一帧：当前预览的入点 / 出点（松手或被打断 = null）。读数（「入点 0:06.0」）跟着它走，不去读 DOM。 */
+  onResizeLive?: (live: { edge: 'left' | 'right'; startFrame: number; endFrame: number } | null) => void
   onAddMaterial?: () => void
   /** 素材（画布节点 / 素材库）落在轴上：boundaryFrame 是插入指示画的那一帧，也是松手要插的那一帧。 */
   onDropMedia?: (payload: ClipDropPayload, boundaryFrame: number) => void
@@ -384,12 +386,12 @@ function ClipItem({
     >
       <ClipThumb clip={clip} pxPerFrame={pxPerFrame} />
       {dragging ? (
-        <span className="pointer-events-none absolute right-1 top-1 z-20 rounded-nomi-sm bg-[var(--nomi-snap-tag)] px-1 py-px font-mono text-micro tabular-nums text-[var(--nomi-paper)]">
+        <span className="pointer-events-none absolute right-1 top-1 z-20 rounded-nomi-sm bg-nomi-ink-80 px-1 py-px font-mono text-micro tabular-nums text-nomi-paper">
           {formatClipNodeDuration(previewStartFrame ?? clip.startFrame, timeline.fps || 30)}
         </span>
       ) : null}
       {resizingEdge && resizePreview ? (
-        <span className="pointer-events-none absolute right-1 top-1 z-20 rounded-nomi-sm bg-[var(--nomi-snap-tag)] px-1 py-px font-mono text-micro tabular-nums text-[var(--nomi-paper)]">
+        <span className="pointer-events-none absolute right-1 top-1 z-20 rounded-nomi-sm bg-nomi-ink-80 px-1 py-px font-mono text-micro tabular-nums text-nomi-paper">
           {resizeDurationLabel}
         </span>
       ) : null}
@@ -410,6 +412,7 @@ export default function ClipNodeTimeline({
   onMoveClip,
   onResizeClip,
   onScrubPlayhead,
+  onResizeLive,
   onAddMaterial,
   onDropMedia,
   emptyState,
@@ -624,6 +627,7 @@ export default function ClipNodeTimeline({
                   onResizePreview={(preview) => {
                     setDragPreview(null)
                     setResizePreview(preview)
+                    onResizeLive?.(preview ? { edge: preview.edge, startFrame: preview.clip.startFrame, endFrame: preview.clip.endFrame } : null)
                   }}
                 />
               )
@@ -646,7 +650,7 @@ export default function ClipNodeTimeline({
               aria-hidden="true"
             >
               <span className="absolute inset-y-0 left-0 w-px -translate-x-1/2 bg-[repeating-linear-gradient(var(--nomi-snap)_0_4px,transparent_4px_8px)]" />
-              <span className="absolute left-1 top-0.5 whitespace-nowrap rounded-nomi-sm bg-[var(--nomi-snap-tag)] px-1 font-mono text-micro leading-[14px] text-[var(--nomi-paper)]">
+              <span className="absolute left-1 top-0.5 whitespace-nowrap rounded-nomi-sm bg-nomi-ink-80 px-1 font-mono text-micro leading-[14px] text-nomi-paper">
                 {activeSnap.point.label}
               </span>
             </div>
