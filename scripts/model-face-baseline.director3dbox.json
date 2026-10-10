@@ -1472,7 +1472,7 @@
                               "type": "number"
                             },
                             "direction": {
-                              "description": "Direction requested by the user.",
+                              "description": "Move direction.",
                               "enum": [
                                 "left",
                                 "right",
@@ -1485,7 +1485,7 @@
                             },
                             "easing": {
                               "default": "linear",
-                              "description": "Camera movement easing.",
+                              "description": "Easing.",
                               "enum": [
                                 "linear",
                                 "ease_in",
@@ -1495,7 +1495,7 @@
                               "type": "string"
                             },
                             "kind": {
-                              "description": "Camera movement using the supported vocabulary.",
+                              "description": "Camera movement.",
                               "enum": [
                                 "orbit_left",
                                 "orbit_right",
@@ -1521,7 +1521,7 @@
                             },
                             "speed": {
                               "default": "medium",
-                              "description": "Camera movement speed.",
+                              "description": "Speed.",
                               "enum": [
                                 "slow",
                                 "medium",
@@ -1536,7 +1536,7 @@
                           "type": "object"
                         },
                         "size": {
-                          "description": "Requested shot size, widest \"远景\" to tightest \"大特写\".",
+                          "description": "Widest \"远景\" to tightest \"大特写\".",
                           "enum": [
                             "远景",
                             "全景",
@@ -1554,7 +1554,7 @@
                           "type": "string"
                         },
                         "subjects": {
-                          "description": "Other actors simultaneously framed in this shot.",
+                          "description": "Other actors in frame.",
                           "items": {
                             "minLength": 1,
                             "type": "string"
@@ -1562,7 +1562,7 @@
                           "type": "array"
                         },
                         "transitionIn": {
-                          "description": "Cut or continuous transition from the previous shot.",
+                          "description": "Transition from the previous shot.",
                           "enum": [
                             "cut",
                             "continuous"
@@ -1570,7 +1570,7 @@
                           "type": "string"
                         },
                         "window": {
-                          "description": "Increasing [start,end] time window in seconds.",
+                          "description": "[start,end] seconds, end after start.",
                           "items": [
                             {
                               "minimum": 0,
@@ -1637,7 +1637,7 @@
                           "type": "string"
                         },
                         "id": {
-                          "description": "Stable ASCII role id derived from the user noun.",
+                          "description": "Stable ASCII id from the user noun.",
                           "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
                           "type": "string"
                         },
@@ -1661,7 +1661,7 @@
                               "type": "string"
                             },
                             "relation": {
-                              "description": "Spatial relation to the reference.",
+                              "description": "Relation to ref.",
                               "enum": [
                                 "near",
                                 "in_front_of",
@@ -1694,7 +1694,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "id": {
-                          "description": "Stable id of this named scene piece.",
+                          "description": "Stable piece id.",
                           "minLength": 1,
                           "type": "string"
                         },
@@ -1713,7 +1713,7 @@
                               "type": "string"
                             },
                             "type": {
-                              "description": "Spatial relation to the reference.",
+                              "description": "Relation to ref.",
                               "enum": [
                                 "near",
                                 "in_front_of",
@@ -1750,7 +1750,7 @@
                             "type": "string"
                           },
                           "actor": {
-                            "description": "Actor performing this action.",
+                            "description": "Acting actor.",
                             "minLength": 1,
                             "type": "string"
                           },
@@ -1775,7 +1775,7 @@
                             "type": "string"
                           },
                           "window": {
-                            "description": "Increasing [start,end] time window in seconds.",
+                            "description": "[start,end] seconds, end after start.",
                             "items": [
                               {
                                 "minimum": 0,
@@ -1902,7 +1902,7 @@
                       "type": "string"
                     },
                     "id": {
-                      "description": "Stable ASCII role id derived from the user noun.",
+                      "description": "Stable ASCII id from the user noun.",
                       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
                       "type": "string"
                     },
@@ -1926,7 +1926,7 @@
                           "type": "string"
                         },
                         "relation": {
-                          "description": "Spatial relation to the reference.",
+                          "description": "Relation to ref.",
                           "enum": [
                             "near",
                             "in_front_of",
@@ -1971,7 +1971,7 @@
                       "type": "string"
                     },
                     "actor": {
-                      "description": "Actor performing this action.",
+                      "description": "Acting actor.",
                       "minLength": 1,
                       "type": "string"
                     },
@@ -1996,7 +1996,7 @@
                       "type": "string"
                     },
                     "window": {
-                      "description": "Increasing [start,end] time window in seconds.",
+                      "description": "[start,end] seconds, end after start.",
                       "items": [
                         {
                           "minimum": 0,
@@ -2026,7 +2026,7 @@
                 "description": "Setting, lighting, and scene objects.",
                 "properties": {
                   "environment": {
-                    "description": "Lighting context: day, night, or studio.",
+                    "description": "Lighting context.",
                     "enum": [
                       "day",
                       "night",
@@ -2041,7 +2041,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "id": {
-                          "description": "Stable id of this named scene piece.",
+                          "description": "Stable piece id.",
                           "minLength": 1,
                           "type": "string"
                         },
@@ -2060,7 +2060,7 @@
                               "type": "string"
                             },
                             "type": {
-                              "description": "Spatial relation to the reference.",
+                              "description": "Relation to ref.",
                               "enum": [
                                 "near",
                                 "in_front_of",
@@ -2188,7 +2188,7 @@
                           "type": "number"
                         },
                         "direction": {
-                          "description": "Direction requested by the user.",
+                          "description": "Move direction.",
                           "enum": [
                             "left",
                             "right",
@@ -2201,7 +2201,7 @@
                         },
                         "easing": {
                           "default": "linear",
-                          "description": "Camera movement easing.",
+                          "description": "Easing.",
                           "enum": [
                             "linear",
                             "ease_in",
@@ -2211,7 +2211,7 @@
                           "type": "string"
                         },
                         "kind": {
-                          "description": "Camera movement using the supported vocabulary.",
+                          "description": "Camera movement.",
                           "enum": [
                             "orbit_left",
                             "orbit_right",
@@ -2237,7 +2237,7 @@
                         },
                         "speed": {
                           "default": "medium",
-                          "description": "Camera movement speed.",
+                          "description": "Speed.",
                           "enum": [
                             "slow",
                             "medium",
@@ -2252,7 +2252,7 @@
                       "type": "object"
                     },
                     "size": {
-                      "description": "Requested shot size, widest \"远景\" to tightest \"大特写\".",
+                      "description": "Widest \"远景\" to tightest \"大特写\".",
                       "enum": [
                         "远景",
                         "全景",
@@ -2270,7 +2270,7 @@
                       "type": "string"
                     },
                     "subjects": {
-                      "description": "Other actors simultaneously framed in this shot.",
+                      "description": "Other actors in frame.",
                       "items": {
                         "minLength": 1,
                         "type": "string"
@@ -2278,7 +2278,7 @@
                       "type": "array"
                     },
                     "transitionIn": {
-                      "description": "Cut or continuous transition from the previous shot.",
+                      "description": "Transition from the previous shot.",
                       "enum": [
                         "cut",
                         "continuous"
@@ -2286,7 +2286,7 @@
                       "type": "string"
                     },
                     "window": {
-                      "description": "Increasing [start,end] time window in seconds.",
+                      "description": "[start,end] seconds, end after start.",
                       "items": [
                         {
                           "minimum": 0,
