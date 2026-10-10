@@ -64,8 +64,10 @@ function Harness() {
   })
   return (
     <div ref={stageRef} className="generation-canvas-v2__stage" id="stage" hidden={hidden}>
+      {/* 假 React Flow 包裹层：属性名必须与真库一致（RF 12 打 `data-id`），
+          这里曾写成 `data-node-id`，把生产里同名的选择器 bug 一起锁成了「绿」。 */}
       {['one', 'two'].map((id) => (
-        <div key={id} className="react-flow__node" data-node-id={id}>
+        <div key={id} className="react-flow__node" data-id={id}>
           <div className="generation-canvas-react-flow__node-shell" />
         </div>
       ))}
@@ -94,7 +96,7 @@ Object.assign(window, {
       dragging: document.querySelector('#stage')?.getAttribute('data-dragging') ?? null,
       groupPreview: (document.querySelector('#group') as HTMLElement | null)?.style.translate ?? '',
       selectionPreview:
-        (document.querySelector('[data-node-id="one"] .generation-canvas-react-flow__node-shell') as HTMLElement | null)
+        (document.querySelector('[data-id="one"] .generation-canvas-react-flow__node-shell') as HTMLElement | null)
           ?.style.translate ?? '',
     }),
     unmount: () => root.unmount(),
