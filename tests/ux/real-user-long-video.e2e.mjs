@@ -21,7 +21,7 @@ import {
   liveCanaryReadiness,
   runRealUserLongVideoJourney,
 } from './real-user-long-video.runner.mjs'
-import { ensureAgentPanelOpen } from './_shell.mjs'
+import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 
 const FIXTURE_VIDEO = path.join(repoRoot, REAL_USER_LONG_VIDEO_MANIFEST.sample.path)
 const FIXTURE_VENDOR = 'real-user-loopback-vision'
@@ -136,7 +136,7 @@ async function dismissChrome(win) {
 
 async function enterProject(win) {
   await dismissChrome(win)
-  const create = win.getByText('新建空白项目', { exact: true }).first()
+  const create = newProjectEntry(win)
   await create.waitFor({ state: 'visible', timeout: 15_000 })
   await create.click()
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: 15_000 })

@@ -1,5 +1,5 @@
 // 顶栏上的「新版本」胶囊：发现更新的唯一常驻入口（画布里不出任何提示）。
-// 外壳线把它摆进顶栏 / 项目库窗口栏：`<UpdatePill host="appbar" />` 或 `host="library"`，不用传别的。
+// 外壳顶栏右簇里摆一份：`<UpdatePill host="appbar" />`。
 // 窄屏（< 900px）自动收成带点的图标，点开是同一个弹窗。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,16 +11,12 @@ import { useUpdater } from './useUpdater'
 export type UpdatePillPhase = 'available' | 'downloading' | 'downloaded' | 'error'
 
 /**
- * 宿主顶栏两种：项目库窗口栏（h-7 胶囊、text-caption）与项目顶栏右簇（nomi-appbar__ghost：h-30 方角、
- * text-body-sm）。胶囊照抄宿主那一族的骨架，不在两个顶栏里长成两种陌生控件。
+ * 宿主只有外壳那一条 40px 合一顶栏（项目库与项目内共用，旧的项目库窗口栏 / NomiAppBar 已随外壳重设计删除）。
+ * 胶囊照抄顶栏右簇那一族的骨架，不长成陌生控件。
  */
-export type UpdatePillHost = 'library' | 'appbar'
+export type UpdatePillHost = 'appbar'
 
 const HOST_CLASS: Record<UpdatePillHost, string> = {
-  library: cn(
-    'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-    'text-caption font-medium transition-colors',
-  ),
   appbar: cn(
     'inline-flex items-center gap-1.5 h-[30px] px-2.5',
     'border border-transparent rounded-[var(--nomi-radius-sm)]',
@@ -41,7 +37,7 @@ export function UpdatePillView({ phase, version, percent = 0, failedStage = 'dow
   onClick?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const iconSize = host === 'library' ? 14 : 15
+  const iconSize = 15
   const label = phase === 'downloading'
     ? t('updateReminder.badge.downloading', { percent })
     : phase === 'downloaded'

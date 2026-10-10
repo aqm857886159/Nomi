@@ -1,11 +1,8 @@
 import React, { type JSX } from "react";
 import { WorkspacePanelFrameContext } from "./WorkspacePanelFrame";
-import { createPortal } from 'react-dom';
 import { useTranslation } from "react-i18next";
 import "./workbench.css";
-import { IconBrowser } from "@tabler/icons-react";
-import { NomiBrand, NomiLoadingMark } from "../design";
-import NomiAppBar from "../ui/app-shell/NomiAppBar";
+import { NomiLoadingMark } from "../design";
 import {
     isWorkspaceMode,
     useWorkbenchStore,
@@ -14,15 +11,18 @@ import {
 import { assistantWidthMaxFor } from "./assistantWidthBounds";
 import { cn } from "../utils/cn";
 import { cancelCanvasDraggingWithin } from "./generationCanvas/components/canvasDraggingFlag";
-import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
-import DocumentListSidebar from "./creation/DocumentListSidebar";
+import { getGenerationNodeExecutionKind } from "./generationCanvas/model/generationNodeKinds";
 import { workspaceModeCarriesCreationResourceTree } from "./creation/creationResourceTreeModes";
-import { useCreationResourceTreeCollapsed } from "./creation/useCreationResourceTreeCollapsed";
+import { computeTimelineDuration } from "./timeline/timelineMath";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
-import { WindowControls } from "../ui/app-shell/WindowControls";
-import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
-import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
 import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
+import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore';
+import { ShellFrame } from '../ui/app-shell/shell/ShellFrame';
+import { ShellTopBar } from '../ui/app-shell/shell/ShellTopBar';
+import { ShellRail } from '../ui/app-shell/shell/ShellRail';
+import { ShellAgentHost } from '../ui/app-shell/shell/ShellAgentHost';
+import { useEffectiveAgentForm } from '../ui/app-shell/shell/agentFormStore';
+import { useShellLayoutStore } from '../ui/app-shell/shell/shellLayoutStore';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -47,9 +47,11 @@ type WorkbenchShellProps = {
     projectId?: string | null;
     projectName?: string;
     onBackToLibrary?: () => void;
-    onOpenModelCatalog?: () => void;
     onOpenSettings?: () => void;
     onRenameProject?: (name: string) => void;
+    /** 顶栏项目菜单：最近项目 / 新建。 */
+    onOpenProject?: (projectId: string) => void;
+    onNewProject?: () => void;
 };
 
 const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
@@ -144,8 +146,38 @@ function writeWorkspaceModeToUrl(mode: WorkspaceMode): void {
     window.history.replaceState(null, "", url.toString());
 }
 
-function openBrowser(): void {
-    window.dispatchEvent(new CustomEvent("nomi-open-browser"));
+/** m:ss（顶栏「预览 0:26」）。 */
+function formatDuration(seconds: number): string {
+    const whole = Math.max(0, Math.round(seconds));
+    return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+/**
+ * 顶栏阶段段后面的真实进度（10-08 外壳拍板稿「生成 5/6」「预览 0:26」）：
+ * 生成 = 画布上出了结果的生成节点 / 全部生成节点（图 / 视频 / 声音）；预览 = 时间轴总时长。没有就不显示。
+ */
+function useStepperMeta(): Partial<Record<"creation" | "generation" | "preview", string>> {
+    const generation = useGenerationCanvasStore((state) => {
+        let total = 0;
+        let done = 0;
+        for (const node of state.nodes) {
+            const kind = getGenerationNodeExecutionKind(node.kind);
+            if (kind !== "image" && kind !== "video" && kind !== "audio") continue;
+            total += 1;
+            if (node.status === "success" && node.result?.url) done += 1;
+        }
+        return total > 0 ? `${done}/${total}` : "";
+    });
+    const timeline = useWorkbenchStore((state) => state.timeline);
+    const preview = React.useMemo(() => {
+        const clips = (timeline.tracks ?? []).reduce((sum, track) => sum + (track.clips?.length ?? 0), 0);
+        if (clips === 0) return "";
+        return formatDuration(computeTimelineDuration(timeline) / Math.max(1, timeline.fps));
+    }, [timeline]);
+    return React.useMemo(() => ({
+        ...(generation ? { generation } : {}),
+        ...(preview ? { preview } : {}),
+    }), [generation, preview]);
 }
 
 export default function WorkbenchShell({
@@ -154,17 +186,16 @@ export default function WorkbenchShell({
     projectId,
     projectName,
     onBackToLibrary,
-    onOpenModelCatalog,
     onOpenSettings,
     onRenameProject,
+    onOpenProject,
+    onNewProject,
 }: WorkbenchShellProps): JSX.Element {
     const { t } = useTranslation();
     const workspaceMode = useWorkbenchStore((state) => state.workspaceMode);
     const setWorkspaceMode = useWorkbenchStore(
         (state) => state.setWorkspaceMode,
     );
-    const categories = useWorkbenchStore((state) => state.categories);
-    const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
     // 常驻 Agent 无条件渲染（2026-09-05 开闸）：发布闸 agentHostPreference 已随开闸删除——
     // 它曾让「用户日常用的产品」和「测试跑的产品」变成两条路（并行版，P1）。
     // 未完成的能力用 header 上的 Beta 徽标明说（D4 诚实交付），不再靠藏整套 UI 遮掩。
@@ -189,12 +220,17 @@ export default function WorkbenchShell({
                 ? 'storyboard'
                 : 'creation';
     const agentDock = agentDockTargets[agentSurface];
+    // 小球 / 浮窗的坐标系：生成页给画布那一格（让开底边时间轴），其余页用整块内容区。
+    const [generationAgentLayer, setGenerationAgentLayer] = React.useState<HTMLDivElement | null>(null);
+    // Agent 占不占右栏由这一页的形态决定（停靠才占）。
+    const agentForm = useEffectiveAgentForm(agentSurface);
+    const workspaceAiCollapsed = agentForm !== 'dock';
+    const railCollapsed = useShellLayoutStore((state) => state.railCollapsed);
+    const setRailCollapsed = useShellLayoutStore((state) => state.setRailCollapsed);
+    const stepperMeta = useStepperMeta();
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
-
-    // 仅 win32 自绘标题栏：mac/Linux 保持原生窗口 chrome，不渲染 windowbar（P4 通用·按平台分流）。
-    const isWindows = window.nomiDesktop?.platform === "win32";
 
     React.useEffect(() => {
         // store 是 workspaceMode 的唯一真相源：打开项目时各入口已显式设好模式
@@ -254,21 +290,12 @@ export default function WorkbenchShell({
     // 正是 `customEventWiring` 那条不变量要抓的死码（有监听没派发 = 这个入口永远打不开）。
     // 要恢复这条能力，得先在设计里给它一个控件，再同时补派发方与监听方。
 
+    // 「去 Skill 库」：Skill 现在是左栏「所有项目共用」的抽屉，四个面都在——不必再切到生成页。
     React.useEffect(() => {
-        const onOpenSkillLibrary = () => {
-            if (workspaceMode !== "generation") {
-                setWorkspaceMode("generation");
-                writeWorkspaceModeToUrl("generation");
-            }
-            window.setTimeout(() => window.dispatchEvent(new Event("nomi-open-skill-library")), 0);
-        };
+        const onOpenSkillLibrary = () => window.dispatchEvent(new Event("nomi-open-skill-library"));
         window.addEventListener("nomi-focus-skill-library", onOpenSkillLibrary);
         return () => window.removeEventListener("nomi-focus-skill-library", onOpenSkillLibrary);
-    }, [setWorkspaceMode, workspaceMode]);
-
-    // 「创作内容」那列收没收起：偏好 → 按面默认（创作展开 / 分镜收起）。
-    // 收起 = 整列不挂载（宽度归 0、不留 rail、不留 0 宽残壳），回头的钮在中间面板头部。
-    const creationResourceTreeCollapsed = useCreationResourceTreeCollapsed();
+    }, []);
 
     const handleWorkspaceModeChange = React.useCallback(
         (mode: WorkspaceMode) => {
@@ -279,140 +306,73 @@ export default function WorkbenchShell({
         [setWorkspaceMode],
     );
 
+    // 四个工作区槽。外壳（ShellFrame）给它们一块被外壳底色包住的区域；圆角工作面各自画。
+    const workspaceSlots = (
+        <>
+            {mountedWorkspaceModes.includes("creation") ? (
+                <WorkspaceSlot active={workspaceMode === "creation"} label={t("workspace.creation")}>
+                    <CreationWorkspace aiCollapsed={workspaceAiCollapsed} agentDockRef={agentDockRefs.creation} />
+                </WorkspaceSlot>
+            ) : null}
+            {mountedWorkspaceModes.includes("storyboard") ? (
+                <WorkspaceSlot active={workspaceMode === "storyboard"} label={t("workspace.storyboard")}>
+                    <StoryboardWorkspace projectId={projectId} aiCollapsed={workspaceAiCollapsed} agentDockRef={agentDockRefs.storyboard} />
+                </WorkspaceSlot>
+            ) : null}
+            {mountedWorkspaceModes.includes("generation") ? (
+                <WorkspaceSlot active={workspaceMode === "generation"} label={t("workspace.generation")}>
+                    <GenerationWorkspace canvas={generation} aiCollapsed={workspaceAiCollapsed} agentDockRef={agentDockRefs.generation} agentLayerRef={setGenerationAgentLayer} />
+                </WorkspaceSlot>
+            ) : null}
+            {mountedWorkspaceModes.includes("preview") ? (
+                <WorkspaceSlot active={workspaceMode === "preview"} label={t("workspace.preview")}>
+                    <PreviewWorkspace aiCollapsed={workspaceAiCollapsed} agentDockRef={agentDockRefs.preview} />
+                </WorkspaceSlot>
+            ) : null}
+        </>
+    );
+
+    // 10-08 外壳重设计：一条 40px 顶栏 + 60px 左栏（抽屉浮在内容上）+ Agent 三形态（小球 / 浮窗 / 停靠）。
     return (
         <WorkspacePanelFrameContext.Provider value={workspaceModeCarriesCreationResourceTree(workspaceMode)}>
-        <div
-            className={cn(
-                "workbench-shell",
-                "flex flex-col w-full h-full min-h-0",
-                "bg-workbench-bg text-workbench-ink",
-                'font-nomi-sans [font-feature-settings:"cv02","cv03","cv04","tnum"]',
-            )}
-            data-workspace-mode={workspaceMode}>
-            {isWindows ? (
-                <div
-                    className={cn(
-                        "workbench-windowbar",
-                        "app-drag",
-                        "relative flex h-8 w-full shrink-0 items-center",
-                        "bg-workbench-surface text-workbench-ink",
+            <div
+                className={cn("workbench-shell", "w-full h-full min-h-0", "bg-nomi-chrome text-workbench-ink", 'font-nomi-sans [font-feature-settings:"cv02","cv03","cv04","tnum"]')}
+                data-workspace-mode={workspaceMode}>
+                <ShellFrame
+                    topBar={(
+                        <ShellTopBar
+                            workspaceMode={workspaceMode}
+                            onWorkspaceModeChange={handleWorkspaceModeChange}
+                            stepperMeta={stepperMeta}
+                            projectId={projectId}
+                            projectName={projectName}
+                            onBackToLibrary={onBackToLibrary}
+                            onOpenProject={onOpenProject}
+                            onNewProject={onNewProject}
+                            onRenameProject={onRenameProject}
+                            onOpenSettings={onOpenSettings}
+                            railCollapsed={railCollapsed}
+                            onExpandRail={() => setRailCollapsed(false)}
+                        />
                     )}
-                    aria-label={t("appBar.windowTitleBar")}
-                    onDoubleClick={handleWindowTitlebarDoubleClick}
+                    rail={railCollapsed ? undefined : <ShellRail projectId={projectId ?? null} />}
                 >
-                    {/* 品牌回归纯品牌（§1.5 归位）：过去这颗钮一钮四用（品牌 + 上手手册 + 明暗 + 检查更新），
-                        四件事已各自归位到设置「关于」/「通用」。mac 那面（NomiAppBar）同步处理，两平台一致。 */}
-                    <span
-                        className={cn(
-                            "workbench-windowbar__brand",
-                            "app-no-drag relative z-[2] inline-flex h-full items-center pl-4 pr-3",
-                            "text-workbench-ink",
-                        )}
-                    >
-                        <NomiBrand markSize={18} wordSize={14} />
-                    </span>
-                    <div
-                        className="app-drag relative z-[1] h-full min-w-0 flex-1"
-                        data-window-drag-region="true"
-                        aria-hidden="true"
-                    />
-                    <div className="app-no-drag relative z-[2] inline-flex h-full items-center pt-0.5 pb-0.5">
-                        <OnboardingChecklist />
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        {projectFeedback}
+                        <main className="workbench-shell__body relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+                            <div className="relative min-h-0 min-w-0 flex-1" data-shell-content>
+                                {workspaceSlots}
+                                <ShellAgentHost
+                                    surface={agentSurface}
+                                    dockTarget={agentDock}
+                                    layerTarget={agentSurface === 'generation' ? generationAgentLayer : null}
+                                    agent={<ProjectAgentResidentShell surface={agentSurface} />}
+                                />
+                            </div>
+                        </main>
                     </div>
-                    <div
-                        className={cn(
-                            "app-no-drag relative z-[2] inline-flex h-full items-center gap-1 pt-0.5 pb-0.5",
-                            "text-workbench-muted",
-                        )}
-                        role="toolbar"
-                        aria-label={t("appBar.projectQuickActions")}
-                    >
-                        <button
-                            type="button"
-                            className={cn(
-                                "inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-transparent px-2",
-                                "cursor-pointer font-inherit text-caption text-workbench-muted",
-                                "transition-colors hover:text-workbench-ink",
-                            )}
-                            aria-label={t("appBar.openBrowser")}
-                            title={t("appBar.browser")}
-                            onClick={openBrowser}
-                        >
-                            <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
-                            <span>{t("appBar.browser")}</span>
-                        </button>
-                    </div>
-                    <WindowControls className="relative z-[2]" />
-                </div>
-            ) : null}
-            <NomiAppBar
-                workspaceMode={workspaceMode}
-                onWorkspaceModeChange={handleWorkspaceModeChange}
-                projectName={projectName}
-                projectId={projectId}
-                onBackToLibrary={onBackToLibrary}
-                onOpenModelCatalog={onOpenModelCatalog}
-                onOpenSettings={onOpenSettings}
-                onRenameProject={onRenameProject}
-            />
-            {projectFeedback}
-
-            {/* 左侧面板重做: 分类导航 + 文件树统一收进 ProjectExplorerSidebar 的双 Tab。
-          创作模式是纯文稿写作，不挂项目资源树（仅生成/预览显示）。 */}
-            <main
-                className={cn(
-                    "workbench-shell__body",
-                    "relative min-w-0 min-h-0 overflow-hidden flex flex-1",
-                    workspaceModeCarriesCreationResourceTree(workspaceMode) && "p-4 gap-4",
-                )}>
-                {/* 文件树只在生成区显示：创作是纯文稿、预览/剪辑是回看时间轴，都不需要左侧资源树。 */}
-                {workspaceMode === "generation" ? (
-                    <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
-                ) : null}
-                {/* 创作资源树（原稿 + 各自的分镜方案）：写剧本和编分镜表是同一批资源的两个视图，
-                    所以树归 shell 所有、跨这两个模式常驻——挂在任一工作区里都会让另一个工作区
-                    没有树（2026-09-06 回归：点开一个方案就再也点不到别的剧本/分镜）。 */}
-                {workspaceModeCarriesCreationResourceTree(workspaceMode) && !creationResourceTreeCollapsed ? <DocumentListSidebar /> : null}
-                <div className='flex-1 min-w-0 min-h-0 relative'>
-                    {mountedWorkspaceModes.includes("creation") ? (
-                        <WorkspaceSlot
-                            active={workspaceMode === "creation"}
-                            label={t("workspace.creation")}>
-                            <CreationWorkspace aiCollapsed={agentDockCollapsed} agentDockRef={agentDockRefs.creation} />
-                        </WorkspaceSlot>
-                    ) : null}
-                    {mountedWorkspaceModes.includes("storyboard") ? (
-                        <WorkspaceSlot
-                            active={workspaceMode === "storyboard"}
-                            label={t("workspace.storyboard")}>
-                                <StoryboardWorkspace projectId={projectId} aiCollapsed={agentDockCollapsed} agentDockRef={agentDockRefs.storyboard} />
-                        </WorkspaceSlot>
-                    ) : null}
-                    {mountedWorkspaceModes.includes("generation") ? (
-                        <WorkspaceSlot
-                            active={workspaceMode === "generation"}
-                            label={t("workspace.generation")}>
-                            <GenerationWorkspace
-                                canvas={generation}
-                                aiCollapsed={agentDockCollapsed}
-                                agentDockRef={agentDockRefs.generation}
-                            />
-                        </WorkspaceSlot>
-                    ) : null}
-                    {mountedWorkspaceModes.includes("preview") ? (
-                        <WorkspaceSlot
-                            active={workspaceMode === "preview"}
-                            label={t("workspace.preview")}>
-                            <PreviewWorkspace
-                                aiCollapsed={agentDockCollapsed}
-                                agentDockRef={agentDockRefs.preview}
-                            />
-                        </WorkspaceSlot>
-                    ) : null}
-                </div>
-                {agentDock ? createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock) : null}
-            </main>
-        </div>
+                </ShellFrame>
+            </div>
         </WorkspacePanelFrameContext.Provider>
     );
 }

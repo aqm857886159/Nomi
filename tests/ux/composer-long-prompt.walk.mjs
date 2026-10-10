@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
 import { screenshotSettled } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/composer-long-prompt')
@@ -110,7 +111,7 @@ try {
   console.log('  起始页按钮:', JSON.stringify(startButtons))
   await getWin().screenshot({ path: path.join(shotsDir, 'start.png') }).catch(() => {})
   // 多策略进项目：新建空白 → 新建项目 → 示例项目卡 → 任意项目卡
-  const entryCandidates = ['新建空白项目', '新建项目', '新建', '示例', '空白项目']
+  const entryCandidates = ['新建空白项目', uiText('zh-CN', 'appShell.topbar.newProject'), '新建', '示例', '空白项目']
   for (const label of entryCandidates) {
     if ((/projectId=([^&]+)/.exec(getWin().url()) || [])[1]) break
     await getWin().locator('button, [role="button"]', { hasText: label }).first().click({ timeout: 3000 }).catch(() => {})

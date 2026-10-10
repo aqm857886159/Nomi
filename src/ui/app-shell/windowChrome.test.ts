@@ -1,30 +1,22 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { WINDOWS_WINDOWBAR_HEIGHT, fullscreenOverlayTopOffset, workbenchFloatingTopOffset } from './windowChrome'
+import { fullscreenOverlayTopOffset, workbenchFloatingTopOffset } from './windowChrome'
+import { SHELL_TOPBAR_HEIGHT } from './shellGeometry'
 
 const read = (relativePath: string): string => readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8')
 
 describe('workbench floating surface top offset', () => {
-  it('leaves the Windows self-drawn windowbar and app bar clear', () => {
-    expect(workbenchFloatingTopOffset('win32')).toBe(96)
-    expect(workbenchFloatingTopOffset('win32', 12)).toBe(100)
+  // 10-08 外壳重设计：窗口栏与应用栏合成一条 40px 顶栏，两平台同高——浮卡一律贴它下沿。
+  it('clears the single 40px top bar on every platform', () => {
+    expect(workbenchFloatingTopOffset()).toBe(48)
+    expect(workbenchFloatingTopOffset(12)).toBe(52)
   })
 
-  it('keeps the existing topbar baseline on native-chrome platforms', () => {
-    expect(workbenchFloatingTopOffset('darwin')).toBe(64)
-    expect(workbenchFloatingTopOffset(undefined, 12)).toBe(68)
-  })
-
-  it('keeps drag semantics on the dedicated windowbar and routes top floating surfaces through one offset', () => {
-    const appBar = read('./NomiAppBar.tsx')
-    expect(appBar).not.toContain("isWindows && 'app-drag'")
-    expect(appBar).not.toContain('handleWindowTitlebarDoubleClick')
-
+  it('routes top floating surfaces through one offset', () => {
     for (const source of [
       read('../../NomiAppProviders.tsx'),
       read('../../workbench/taskCenter/TaskCenterPanel.tsx'),
-      read('../../workbench/onboarding/OnboardingChecklist.tsx'),
     ]) {
       expect(source).toContain('currentWorkbenchFloatingTopOffset')
     }
@@ -67,11 +59,9 @@ const FULLSCREEN_OVERLAYS = [
   ['素材预览', '../../workbench/assets/AssetPreviewDialog.tsx'],
 ] as const
 
-describe('全屏浮层不盖住 Windows 自绘窗口栏（导演台顶栏点不动）', () => {
-  it('窗口栏高度是全屏浮层顶偏移的唯一来源', () => {
-    expect(fullscreenOverlayTopOffset('win32')).toBe(WINDOWS_WINDOWBAR_HEIGHT)
-    expect(fullscreenOverlayTopOffset('darwin')).toBe(0)
-    expect(fullscreenOverlayTopOffset(undefined)).toBe(0)
+describe('全屏浮层不盖住合一顶栏（它同时是窗口栏：导演台顶栏点不动那一类）', () => {
+  it('顶栏高度是全屏浮层顶偏移的唯一来源', () => {
+    expect(fullscreenOverlayTopOffset()).toBe(SHELL_TOPBAR_HEIGHT)
   })
 
   it.each(FULLSCREEN_OVERLAYS)('%s 让开窗口栏而不是 inset-0 铺满', (_name, file) => {

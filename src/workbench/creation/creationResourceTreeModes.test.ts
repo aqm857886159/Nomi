@@ -20,11 +20,12 @@ describe('creation resource tree reachability', () => {
     expect([...CREATION_RESOURCE_TREE_MODES]).toEqual(['creation', 'storyboard'])
   })
 
-  it('mounts the tree once, at the shell, for exactly those modes', () => {
-    const shell = read('src/workbench/WorkbenchShell.tsx')
-    // A-1 刀 1 之后挂载条件多了一个收起闸，但「归属由这个 owner 判断、只在 shell 挂一次」没变。
-    expect(shell).toMatch(/workspaceModeCarriesCreationResourceTree\(workspaceMode\)\s*&&\s*!creationResourceTreeCollapsed\s*\?\s*<DocumentListSidebar\b[^>]*\/>\s*:\s*null/)
-    expect(shell.match(/<DocumentListSidebar\b/g)).toHaveLength(1)
+  it('mounts the tree once, in the shell rail drawer', () => {
+    // 10-08 外壳重设计：文稿树住左栏「文稿」抽屉（ShellRail），任何一页点「文稿」一步就回来；
+    // 「只有一个家」没变——外壳挂一次，WorkbenchShell 与两个工作区都不许再各挂一棵。
+    const rail = read('src/ui/app-shell/shell/ShellRail.tsx')
+    expect(rail.match(/<DocumentListSidebar\b/g)).toHaveLength(1)
+    expect(read('src/workbench/WorkbenchShell.tsx')).not.toContain('<DocumentListSidebar')
     // 一个家：两个工作区都不许自己再挂一棵（挂两棵 = 又能各自漂）。
     for (const file of [
       'src/workbench/creation/CreationWorkspace.tsx',

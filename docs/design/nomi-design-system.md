@@ -1110,6 +1110,9 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 这一步**还没轮到**（多步进度里尚未开始的那几行）| `IconCircleDashed` | `AssistedIntegrationProgress` 五步进度的 `pending` 行（§Progress）。词典里没有现成的：`IconCircleFilled` 是「有内容/已占位」、`IconCircleCheck` 是已完成、`IconAlertCircle` 是出事了——虚线圈才说得出「位置留着、还没发生」，而实心或空心圆都会被读成一个已存在的状态 |
 | 展开 / 收起提示词（原地变高显示全文）| `IconArrowsDiagonal` / `IconArrowsDiagonalMinimize2` | 生成节点浮框提示词区右上角那一颗（2026-09-25 用户拍板，参考 LibTV）。选对角双箭头而不是 `IconMaximize`：后者在本仓已是「全屏打开编辑器」（`scene3d.fullscreen.openEditor`），这里是原地变高、不离开当前面；收起用同族的收拢形，一眼看出是同一颗钮的两态 |
 | 画布外那一侧有新东西（点了过去）| `IconArrowDown`（与 `IconArrowUp` / `IconArrowLeft` / `IconArrowRight` 同族按方向取）| 画布边缘提示胶囊 `CanvasArrivalHint` 尾部那一颗（2026-09-25 用户拍板，样张 v1）。箭头只指方向、不是按钮本身的动作；不用 `IconChevron*`：那族在本仓是「展开/折叠」示能 |
+| 左栏「目录」（镜头与分组的树：分组 / 节点的层级清单）| `IconListTree` | 外壳左栏 `ShellRail` 的「目录」项（2026-10-08 外壳拍板稿 Main 板点名 Tabler list-tree）。词典里没有现成的：`IconList` 读成平铺列表、`IconFolder` 已是「素材」——缩进的树形线才说得出「有层级的目录」 |
+| Agent 形态：浮窗（可拖动、可改大小的小窗）| `IconPictureInPicture` | Agent 面板头部三选一、小球右键菜单（`ShellAgentHost`，2026-10-08 CanvasAgent 板）。画中画图形 = 「浮在内容上的一块小窗」，`IconAppWindow` 读成整窗 |
+| Agent 形态：停靠在右侧 | `IconLayoutSidebarRight` | 同上三选一与右键菜单。与左栏收起用的 `IconLayoutSidebarLeftCollapse` 同族，方向说明停在哪一边 |
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
 | 你的项目和素材留在本机、这次操作不动它（一句保证，放在动作前的说明行里）| `IconShieldCheck` | 应用内更新弹窗 `UpdateDialog` 的「项目和素材都在你电脑上，更新只换 Nomi 本身」那一行（2026-10-09）。词典里没有现成的：`IconLock` 已是「自动化与权限 / 受限」的语义，在这里会读成「被锁住」；`IconFolder` 读成「文件夹入口」而不是「保证」；`IconCircleCheck` 只表状态完成，不表保护。|
 | 剪辑（取视频的一段，拖入点 / 出点）| `IconCut` | 视频节点浮条「剪辑」钮（样张 `video-node-next`，2026-10-09 待拍板）。与剪辑节点「分割片段」同一把刀：都是在时间轴上切 |

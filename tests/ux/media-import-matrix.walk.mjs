@@ -189,7 +189,7 @@ async function runCell(win, entry, medium, act, previousRow) {
   while (Date.now() < deadline) {
     // 有没有进度反馈：面板/节点上出现「导入中 / 处理中 / %」之类的可见状态。
     if (!sawProgress) {
-      const progressCount = await win.locator('[data-asset-import-progress], [data-node-upload-progress], text=/导入中|处理中|转码/').count().catch(() => 0)
+      const progressCount = await win.locator('text=/导入中|处理中|转码/').count().catch(() => 0)
       if (progressCount > 0) sawProgress = true
     }
     const now = assetFiles().filter((f) => !before.has(f))

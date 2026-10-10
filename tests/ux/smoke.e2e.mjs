@@ -80,8 +80,8 @@ try {
     await win.getByText("新建空白项目", { exact: false }).first().click();
   }
   await win.waitForTimeout(2500);
-  // 「导出」在控件层级梳理（U 系列）里拆成诚实的「去出片」跳转钮（预览页隐藏，真导出=预览页「导出 MP4」）
-  for (const name of ["创作", "生成", "预览", "去出片"]) {
+  // 阶段步骤器上的三个阶段（旧的「去出片」跳转钮 10-08 外壳重设计里按设计删除：真导出在预览页顶栏「导出 MP4」）
+  for (const name of ["创作", "生成", "预览"]) {
     assert(await win.getByRole("button", { name, exact: false }).first().isVisible(), `工作台工具栏「${name}」可见`);
   }
   assert(/projectId=/.test(win.url()), "工作台 URL 含 projectId");

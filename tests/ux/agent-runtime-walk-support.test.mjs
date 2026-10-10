@@ -215,11 +215,14 @@ test('the resident shell keeps the surface identity anchors every walkthrough sc
   // composer，没有第九个「空状态」积木。这里改钉**外壳身份**——它是所有走查作用域的根据，
   // 丢一个就会让整批走查报「面板没渲染」而实际是选择器过期。
   const source = fs.readFileSync(new URL('../../src/workbench/ai/ProjectAgentResidentShell.tsx', import.meta.url), 'utf8')
+  // 外壳换成一棵稳定树（react-reverse-portal）后，展开 / 收起不再是两个分支、而是同一个根上互斥的两枚锚点：
+  // 展开只发 data-agent-panel="true"（AGENT_PANEL），收起只发 data-agent-collapsed="true"（COLLAPSED_SHELL）。
+  // 两枚同时在、或收起时还挂着面板锚点，走查的「面板开着 / 收起了」就会互相误判，所以把互斥写死在这里。
   for (const anchor of [
     'data-agent-resident="true"',
-    'data-agent-panel="true"',
+    "data-agent-panel={collapsed ? undefined : 'true'}",
     'data-agent-surface={surface}',
-    'data-agent-collapsed="true"',
+    "data-agent-collapsed={collapsed ? 'true' : undefined}",
     'data-agent-approval-mode={actions.permission}',
     'data-agent-thread-menu="true"',
     'data-agent-error="true"',

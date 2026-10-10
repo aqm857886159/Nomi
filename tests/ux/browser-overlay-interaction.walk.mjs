@@ -15,6 +15,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/browser-overlay')
@@ -55,7 +56,7 @@ try {
   await win.keyboard.press('Escape').catch(() => {})
   const skip = win.getByText('跳过').first()
   if (await skip.count()) { await skip.click().catch(() => {}); await win.waitForTimeout(700) }
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForTimeout(2500)
   await win.keyboard.press('Escape').catch(() => {})
   const g = win.getByRole('button', { name: '生成', exact: false }).first()

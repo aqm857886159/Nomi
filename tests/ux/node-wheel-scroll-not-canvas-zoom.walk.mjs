@@ -19,6 +19,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'docs/plan/2026-09-11-triage-board-evidence')
@@ -88,7 +89,7 @@ try {
   check('应用 mount（起始页就绪）', ready, `console 错误 ${consoleErrors.length} 条`)
   await dismiss()
 
-  const entryCandidates = ['新建空白项目', '新建项目', '新建', '示例', '空白项目']
+  const entryCandidates = ['新建空白项目', uiText('zh-CN', 'appShell.topbar.newProject'), '新建', '示例', '空白项目']
   for (const label of entryCandidates) {
     if ((/projectId=([^&]+)/.exec(getWin().url()) || [])[1]) break
     await getWin().locator('button, [role="button"]', { hasText: label }).first().click({ timeout: 3000 }).catch(() => {})

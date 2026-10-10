@@ -7,6 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
 import { findConnectionStartPoint, findEdgeHitPoint } from './_canvasHit.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const repoRoot = process.cwd()
 const tempRoot = path.join(repoRoot, '.tmp', 'nomi-group-reference-direction')
 const settingsDir = path.join(tempRoot, 'settings')
@@ -73,7 +74,7 @@ try {
     await win.keyboard.press('Escape').catch(() => {})
     await win.waitForTimeout(180)
   }
-  const blank = win.getByRole('button', { name: /新建空白项目/ }).first()
+  const blank = newProjectEntry(win)
   await blank.waitFor({ state: 'visible', timeout: 12_000 })
   // 创建会立刻触发 hash 导航并异步 hydrate；点击本身不等待整次页面导航，后面用 URL +
   // 工作台真实入口分别收敛，避免慢磁盘下 Playwright 把成功的点击误报为超时。

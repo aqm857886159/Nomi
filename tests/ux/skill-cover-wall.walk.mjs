@@ -4,6 +4,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { COMPOSER_SKILL, SKILL_POPOVER } from './agent-runtime-walk-support.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const out = path.resolve('docs/design/verification/2026-09-09-skill-ui-b')
 fs.mkdirSync(out, { recursive: true })
 const run = await launchNomiApp({ name: 'skill-cover-wall', settleMs: 0,
@@ -14,7 +15,7 @@ page.setDefaultTimeout(stationTimeout({ operations: 2 }))
 const media = []
 try {
   await (await run.app.browserWindow(page)).evaluate(w => w.setBounds({ x: 0, y: 0, width: 1680, height: 980 }))
-  await page.getByRole('button', { name: '新建空白项目', exact: false }).first().click()
+  await newProjectEntry(page).click()
   await page.locator(COMPOSER_SKILL).first().click()
   await page.locator(SKILL_POPOVER).first().getByRole('button', { name: '新建 · 管理', exact: false }).click()
   const gallery = page.locator('[data-skill-drop-zone]')

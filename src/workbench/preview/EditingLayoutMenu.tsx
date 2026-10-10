@@ -51,21 +51,21 @@ export default function EditingLayoutMenu(): JSX.Element {
     <div className="relative" ref={rootRef}>
       <WorkbenchButton
         className={cn(
-          'nomi-appbar__ghost app-no-drag',
-          'inline-flex items-center gap-1.5 h-[30px] px-2.5',
-          'border border-transparent rounded-[var(--nomi-radius-sm)]',
-          'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+          'app-no-drag',
+          'inline-flex h-7 items-center gap-1 px-1.5',
+          'rounded-nomi-sm border-0 bg-transparent font-inherit text-body-sm text-nomi-ink-60',
           'transition-[background,color] duration-nomi-fast ease-nomi-fast',
-          'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+          'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent',
+          open && 'bg-nomi-ink-10 text-nomi-ink',
         )}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('timelinePreview.previewLayout.title')}
         onClick={() => setOpen(!open)}
       >
-        <IconLayoutDashboard size={15} stroke={1.8} />
-        <span className="nomi-appbar__action-text max-[1600px]:hidden">{t('timelinePreview.previewLayout.title')}</span>
-        <IconChevronDown size={12} />
+        <IconLayoutDashboard size={18} stroke={1.5} />
+        <span className="max-[1440px]:hidden">{t('timelinePreview.previewLayout.title')}</span>
+        <IconChevronDown size={12} stroke={1.5} />
       </WorkbenchButton>
       {open ? (
         <div

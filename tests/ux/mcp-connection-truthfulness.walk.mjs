@@ -20,6 +20,7 @@ import { expect } from '@playwright/test'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const shotsDir = path.resolve(process.argv.find((arg) => arg.startsWith('--shots-out='))?.split('=').slice(1).join('=')
   || 'tests/ux/shots/mcp-connection-truthfulness')
@@ -73,7 +74,7 @@ try {
   })
   const { app, win } = launched
   await win.setViewportSize({ width: 1180, height: 820 })
-  await clickOrFail(win.getByRole('button', { name: /新建空白项目|New blank project/ }), 'New blank project')
+  await clickOrFail(newProjectEntry(win), 'New blank project')
   await expect(win.getByText(/创作助手|Creative assistant/).first()).toBeVisible({ timeout: stationTimeout({ operations: 1 }) })
 
   // ① 读路径零写盘：开两次，字节不变；③ 没装的 WorkBuddy 不在列表、目录没被建出来。

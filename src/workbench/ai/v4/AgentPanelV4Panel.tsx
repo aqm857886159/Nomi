@@ -27,6 +27,9 @@ import { V4ErrorBar, V4Process, V4ReceiptNotice, V4ToolGroup, V4ToolReceipt } fr
 import { flowItemNotices } from './useDirectorPatchNotices'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
+import { AGENT_HEADER_COMPACT_WIDTH, AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from '../../../ui/app-shell/shell/agentPanelHeaderSlot'
+import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
+import { IconDots } from '@tabler/icons-react'
 import type { V4QuestionReply } from './agentPanelV4Question'
 import { useV4Labels } from './agentPanelV4Labels'
 import type { V4FlowScrollMemoryBox } from './agentPanelV4ScrollMemory'
@@ -244,6 +247,7 @@ export function AgentPanelV4Panel({
 }: AgentPanelV4PanelProps): JSX.Element {
   const { t } = useTranslation()
   const workspaceFrame = useWorkspacePanelFrame()
+  const headerSlot = React.useContext(AgentPanelHeaderSlotContext)
   const labels = useV4Labels()
   const flowHandlersRef = React.useRef(flowHandlers)
   flowHandlersRef.current = flowHandlers
@@ -385,10 +389,13 @@ export function AgentPanelV4Panel({
       style={{ width, height }}
       data-v4-panel="true"
     >
-      <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3')}>
+      <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3', headerSlot?.dragHandleClassName)}>
         <NomiBrand markSize={18} wordSize={14} />
         <V4ContextRing usage={context} labels={labels.context} />
         <span className="flex-1" />
+        {headerSlot ? (
+          <V4HeaderShellActions slot={headerSlot} compact={width < AGENT_HEADER_COMPACT_WIDTH} onHistory={onHistory} historyLabel={t('agentPanelV4.history')} moreLabel={t('agentPanelV4.headerMore')} />
+        ) : (
         <span className="flex shrink-0 gap-2 text-nomi-ink-40">
           <button type="button" aria-label={t('agentPanelV4.history')} onClick={onHistory} data-v4-control="history">
             <IconHistory size={15} />
@@ -397,6 +404,7 @@ export function AgentPanelV4Panel({
             <IconLayoutSidebarRightCollapse size={15} />
           </button>
         </span>
+        )}
       </header>
       {legacyNotice ? <p className="shrink-0 truncate px-3 pt-2 text-micro text-nomi-ink-60" title={legacyNotice} data-v4-legacy="true">{legacyNotice}</p> : null}
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-2.5 [&>*]:shrink-0" data-v4-flow="true">
@@ -439,5 +447,54 @@ export function AgentPanelV4Panel({
         />
       </div>
     </section>
+  )
+}
+
+/**
+ * 外壳插口给了形态切换时的头部右端（10-08 外壳拍板稿 CanvasAgent / CreationDoc）：历史 · 小球 / 浮窗 / 停靠。
+ * 浮窗被拖窄（< AGENT_HEADER_COMPACT_WIDTH）时两样一起收进一颗「⋯」，菜单里是同几件事（协调裁决第 57 项）。
+ */
+function V4HeaderShellActions({ slot, compact, onHistory, historyLabel, moreLabel }: {
+  slot: AgentPanelHeaderSlot
+  compact: boolean
+  onHistory?: () => void
+  historyLabel: string
+  moreLabel: string
+}): JSX.Element {
+  const [menu, setMenu] = React.useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  const iconButton = 'grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent'
+  if (compact) {
+    const items: WorkbenchMenuNode[] = [
+      { id: 'history', label: historyLabel, icon: IconHistory, onSelect: () => onHistory?.() },
+      { kind: 'separator', id: 'sep' },
+      ...(slot.menuItems ?? []).map((item) => ({ id: item.id, label: item.label, onSelect: item.onSelect })),
+    ]
+    return (
+      <>
+        <button
+          type="button"
+          className={iconButton}
+          aria-label={moreLabel}
+          title={moreLabel}
+          aria-haspopup="menu"
+          data-v4-control="more"
+          onClick={(event) => {
+            const box = event.currentTarget.getBoundingClientRect()
+            setMenu(menu ? null : { left: box.left, top: box.top, width: box.width, height: box.height })
+          }}
+        >
+          <IconDots size={16} stroke={1.5} />
+        </button>
+        <WorkbenchMenu open={menu !== null} onOpenChange={(next) => { if (!next) setMenu(null) }} anchorRect={menu ?? { left: 0, top: 0, width: 0, height: 0 }} items={items} ariaLabel={moreLabel} />
+      </>
+    )
+  }
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      <button type="button" className={iconButton} aria-label={historyLabel} title={historyLabel} onClick={onHistory} data-v4-control="history">
+        <IconHistory size={16} stroke={1.5} />
+      </button>
+      {slot.actions}
+    </span>
   )
 }

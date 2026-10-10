@@ -20,6 +20,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { findCanvasBlankPoint, findCanvasBlankRect, findNodeHitPoint } from './_canvasHit.mjs'
 import { expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame')
@@ -242,14 +244,14 @@ try {
   await win.reload()
   await win.waitForLoadState('domcontentloaded')
   // 等项目库真的画出来（有「新建空白项目」这个入口），不是睡两秒赌它渲染完了。
-  await win.getByText('新建空白项目', { exact: false }).first().waitFor({ timeout: 30_000 })
+  await newProjectEntry(win).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   for (let index = 0; index < 4; index += 1) {
     const skip = win.locator('button,[role="button"],a', { hasText: /跳过|开始创作|进入|完成|先逛逛/ }).first()
     if (await skip.count()) await skip.click({ timeout: 800 }).catch(() => {})
     await win.keyboard.press('Escape').catch(() => {})
     await win.waitForTimeout(200)
   }
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 8000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   // 等真信号（工作区切换出现 = 项目开好了），不是「睡 2.4 秒应该够了」：
   // 项目初始化耗时随机器负载变，睡不够就在一个还没开的项目上继续点，然后一路「通过」。
   await win.locator('[aria-label="工作区切换"]').first().waitFor({ timeout: 30_000 })

@@ -19,6 +19,7 @@ export const zhAgentPanelV4 = {
   history: '历史会话',
   historyLoadFailed: '历史消息加载失败，请重新打开此对话。',
   collapsePanel: '收起面板',
+  headerMore: '更多',
   // 收起坞 · 右上角那枚 Nomi logo 钮（2026-09-06 用户改：收起态回到 logo + 状态叠加）
   dockOpen: '展开 Nomi',
   dockClose: '关闭输入坞',
@@ -544,6 +545,7 @@ export const enAgentPanelV4 = {
   history: 'Conversation history',
   historyLoadFailed: 'Could not load earlier messages. Reopen this conversation.',
   collapsePanel: 'Collapse panel',
+  headerMore: 'More',
   dockOpen: 'Open Nomi',
   dockClose: 'Close input dock',
   dockIdle: 'Nomi is here',

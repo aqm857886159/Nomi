@@ -9,21 +9,21 @@ const SOURCE = '协调会话 10-08 brief-D-update：应用内更新提醒推荐�
 export const UPDATE_DISCOVER_STATES: readonly LabState[] = [
   {
     id: 'update-01-badge-library-zh',
-    name: '① 攒批版 0.24：项目库窗口栏右侧多一颗「新版本 0.24」，和模型 / 浏览器 / 设置同一族，不浮在内容上（中文）',
+    name: '① 攒批版 0.24：顶栏右侧多一颗「新版本 0.24」，和浏览器 / 设置同一族，不浮在内容上（中文）',
     source: SOURCE,
     coverage: 'component-only',
     render: () => <LibraryStage locale={'zh-CN'} badge={{ phase: 'available', version: '0.24.0' }} />,
   },
   {
     id: 'update-01-badge-library-en',
-    name: '① 攒批版 0.24：项目库窗口栏右侧多一颗「新版本 0.24」，和模型 / 浏览器 / 设置同一族，不浮在内容上（English）',
+    name: '① 攒批版 0.24：顶栏右侧多一颗「新版本 0.24」，和浏览器 / 设置同一族，不浮在内容上（English）',
     source: SOURCE,
     coverage: 'component-only',
     render: () => <LibraryStage locale={'en'} badge={{ phase: 'available', version: '0.24.0' }} />,
   },
   {
     id: 'update-01-badge-library-zh-dark',
-    name: '① 攒批版 0.24：项目库窗口栏右侧多一颗「新版本 0.24」，和模型 / 浏览器 / 设置同一族，不浮在内容上（中文 · 暗色）',
+    name: '① 攒批版 0.24：顶栏右侧多一颗「新版本 0.24」，和浏览器 / 设置同一族，不浮在内容上（中文 · 暗色）',
     source: SOURCE,
     coverage: 'component-only',
     scheme: 'dark',

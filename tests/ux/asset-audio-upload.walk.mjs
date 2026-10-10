@@ -7,6 +7,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/asset-audio')
@@ -70,7 +71,7 @@ try {
   } else {
     // This isolated profile starts with zero projects; create the real blank
     // project through the same library CTA instead of assuming seeded state.
-    await getWin().getByRole('button', { name: /新建空白项目/ }).first().click({ timeout: 4000 })
+    await newProjectEntry(getWin()).click({ timeout: 4000 })
   }
   await win.waitForTimeout(2600)
   await dismiss()
