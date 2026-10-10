@@ -338,7 +338,8 @@ try {
     await openPanel('moved-video')
     // 预览播放器把整段读进来之后再拿走源文件（卡上还能预览，本机 ffmpeg 读不到了 = 真实的本机失败）
     await expect.poll(() => win.evaluate(() => { const v = document.querySelector('[data-video-clip-panel] video'); return v ? (v.buffered.length ? v.buffered.end(v.buffered.length - 1) : 0) : 0 }), { timeout: 15000 }).toBeGreaterThan(DURATION - 0.5)
-    fs.renameSync(movedFile, hiddenFile)
+    // Windows 上播放器还握着文件时改名会 EBUSY：等它放手（预览读完之后通常几百毫秒内）
+    await expect.poll(() => { try { fs.renameSync(movedFile, hiddenFile); return true } catch (error) { if (error?.code === 'EBUSY' || error?.code === 'EPERM') return false; throw error } }, { timeout: 15000 }).toBe(true)
     await win.getByRole('button', { name: L.confirm, exact: true }).click()
     await expect.poll(async () => newCards(await snapshot())[0]?.status, { timeout: stationTimeout({ operations: 4 }) }).toBe('error')
     const card = newCards(await snapshot())[0]
