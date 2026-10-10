@@ -194,7 +194,7 @@ try {
   await clickOrFail(win.locator('[data-list-detail-view-canvas]'), '去画布')
   await expect(win.locator('[data-generation-list]'), '没有切回画布').toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-node-id="shot-4"] [data-storyboard-shot-label="4"]'), '镜 04 角标没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(win.locator('[data-view-in-list]'), '页面里不该再有「去列表」入口').toHaveCount(0)
+  await expect(win.getByRole('button', { name: /^(去列表|在列表里看|Open list|View in list)$/ }), '页面里不该再有「去列表」入口').toHaveCount(0)
   await expect(win.locator('[data-shell-topbar] [data-generation-view-switcher="canvas"]'), '画布上顶栏图标显示的应是「切到列表」').toHaveAttribute('aria-label', /切到列表|Switch to list/)
   await shot('canvas')
 
