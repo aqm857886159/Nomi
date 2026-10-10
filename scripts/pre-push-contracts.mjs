@@ -107,6 +107,8 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:model-availability', when: null },
   { name: 'check:model-identity', when: null },
   { name: 'check:outbound-policy', when: null },
+  // 2026-10-10：scripts/ 里 gh / git 网络 / GitHub·Cloudflare API 调用必须走共用瞬断重试（#1155 后 main 上一次 fetch failed 判红的同类）；纯 node，本机约 3 秒，只在动到 scripts 时跑
+  { name: 'check:script-network-retry', when: (files) => touchesGateInputs('check:script-network-retry', files) },
 ])
 
 const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'

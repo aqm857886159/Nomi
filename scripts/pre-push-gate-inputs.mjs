@@ -64,6 +64,8 @@ export const GATE_INPUTS = Object.freeze({
   'check:walkthroughs': { roots: ['tests/ux','src'], exts: ['mjs','js','ts','tsx','css','json'], files: ['scripts/walkthrough-baseline.json'], entries: ['scripts/check-walkthroughs.mjs'] },
   // check-design-lab.mjs --mirrors-only：实验室注册表 / 基线 / 陈列格 mirrors 行号（任何 src 文件挪了位置都可能让行号越界），3 秒级
   'check:design-lab-mirrors': { roots: ['src', 'tests/ux/design-lab'], exts: ['ts', 'tsx', 'json', 'png', 'mjs'], files: ['docs/design/nomi-design-system.md'], entries: ['scripts/check-design-lab.mjs'] },
+  // check-script-network-retry.mjs：扫 scripts 下所有 mjs / cjs / js / ts 源文件里的 gh / git 网络 / 控制面 fetch 调用；共用边界与两份单测一并算输入
+  'check:script-network-retry': { roots: ['scripts'], exts: ['mjs','cjs','js','ts','mts','cts'], files: [], entries: ['scripts/check-script-network-retry.mjs', 'scripts/check-script-network-retry.node-test.mjs', 'scripts/lib/transientRetry.node-test.mjs'] },
   // pre-push-structure.node-test.mjs：钩子自己的契约 / 结构用例。读 package.json 的 gates:contracts、门表、输入声明、入口脚本（entries 的 import 闭包已含后三者），还有钩子分发表
   'test:pre-push-structure': { roots: [], exts: [], files: ['package.json', 'scripts/git-hooks.json', 'scripts/install-git-hooks.cjs'], entries: ['scripts/pre-push-structure.node-test.mjs'] },
   // electron/quitLifecycleGuard.test.ts：用仓库的 eslint 配置去 lint 反例，所以 eslint 配置与 electron 下的代码都算输入

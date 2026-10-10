@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import cp from 'node:child_process'
+import { execGhReadSync, execGhWriteSync } from './lib/transientRetry.mjs'
 
 export function readRows(root) {
   const rows = []
@@ -28,7 +28,8 @@ export function summarizeRows(rows) {
 }
 
 function gh(args) {
-  return cp.execFileSync('gh', args, { encoding: 'utf8' })
+  // 只有 issue list 是读：读走带重试的共用边界，评论 / 编辑 / 新建是写，只试一次。
+  return args[0] === 'issue' && args[1] === 'list' ? execGhReadSync(args) : execGhWriteSync(args)
 }
 
 export function updateIssue({ failed, repo, summary }) {
