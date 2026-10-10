@@ -19,6 +19,7 @@ import {
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expectArrivalsReachable, expectCanvasViewportHeld, expectToolbarInsideStageEverywhere, findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const root = makeTempDir('nomi-card-stack-walk-')
 const settingsDir = path.join(root, 'settings')
@@ -150,8 +151,8 @@ async function openCanvas() {
   await openProjectCanvas('卡片堆叠体验验收')
 }
 
-async function backToLibrary() {
-  await clickOrFail(win.getByRole('button', { name: '返回项目库' }), '返回项目库')
+async function returnToLibrary() {
+  await backToLibrary(win)
   await win.locator('[data-project-card]').first().waitFor({ state: 'visible', timeout: 10_000 })
 }
 
@@ -482,7 +483,7 @@ try {
     const current = JSON.parse(fs.readFileSync(path.join(projectRoot, '.nomi', 'project.json'), 'utf8'))
     return current.payload.generationCanvas.groups.find((entry) => entry.id === 'reference-group')?.collapsed
   }, { message: '重开前收起状态应已持久化' }).toBe(true)
-  await backToLibrary()
+  await returnToLibrary()
   check('返回项目库仍能看到两个项目', await win.locator('[data-project-card]').count() === 2)
   await openProjectCanvas('卡片堆叠体验验收')
   const reopenedImageNode = win.locator('[data-node-id="image-versions"]')
@@ -542,7 +543,7 @@ try {
   const assetLibraryPanel = sidebar.locator('section[aria-label="素材库"]')
   await expectVisible(assetLibraryPanel, '切换标签后素材库面板应完成渲染')
   check('展开后素材库面板可见', true)
-  await backToLibrary()
+  await returnToLibrary()
   await openProjectCanvas('第二个项目 · F8 切换验收')
   const secondSidebar = win.locator('aside[aria-label="项目资源管理器"]')
   check('切换项目后左侧栏自动收起', await secondSidebar.getAttribute('data-collapsed') === 'true')

@@ -1,0 +1,29 @@
+PASS V @50% 外观取证截图已落盘 {"dir":"D:/Nomi-clipdrag/.tmp/drop-before"}
+FAIL P5 @50% 没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷 {"box":{"w":36,"h":11},"top":{"isNotch":false,"tag":"DIV"},"mimes":["application/x-tapcanvas-generation-node"]}
+FAIL P4 @50% 画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前 {"prevented":false,"caretOk":false,"caretX":null,"bLeftX":385,"before":[0,120,240],"after":[0,120,240],"insertedStart":null}
+FAIL P4 @50% 拖到最后一个片段之后：追加在末尾，不重叠（同一份素材可再次入轴） {"count":3,"lastStart":240,"prevEnd":240}
+FAIL P4 @50% 素材库载荷落进剪辑节点：接收口接收、出插入指示、追加一个片段 {"prevented":true,"caret":false,"libBefore":3,"libAfter":3}
+FAIL P6A @50% 窄片段（屏幕宽 7px < 24px）外侧 1px 按下能拖动它 {"screenWidth":7,"dragging":"false","startBefore":270,"startAfter":270}
+FAIL P6B @50% 片段拖到轴右边缘停住，轴自动向右滚动，片段跟着走远 {"scrollBefore":0,"scrollMid":0,"startBefore":90,"startAfter":90}
+FAIL G1 @50% 全局时间轴：未选中片段悬停即显出右手柄并能拉长 {"selectedBefore":"false","handleCount":0,"opacity":0,"widthBefore":250,"widthAfter":250}
+FAIL O1 @50% 预览取景拖动被 pointercancel 打断后回到拖之前 {"moved":false,"restored":true,"stayed":true}
+PASS V @100% 外观取证截图已落盘 {"dir":"D:/Nomi-clipdrag/.tmp/drop-before"}
+FAIL P5 @100% 没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷 {"box":{"w":73,"h":21},"top":{"isNotch":false,"tag":"DIV"},"mimes":["application/x-tapcanvas-generation-node"]}
+FAIL P4 @100% 画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前 {"prevented":false,"caretOk":false,"caretX":null,"bLeftX":310,"before":[0,120,240],"after":[0,120,240],"insertedStart":null}
+FAIL P4 @100% 拖到最后一个片段之后：追加在末尾，不重叠（同一份素材可再次入轴） {"count":3,"lastStart":240,"prevEnd":240}
+FAIL P4 @100% 素材库载荷落进剪辑节点：接收口接收、出插入指示、追加一个片段 {"prevented":true,"caret":false,"libBefore":3,"libAfter":3}
+FAIL P6A @100% 窄片段（屏幕宽 14px < 24px）外侧 1px 按下能拖动它 {"screenWidth":14,"dragging":"false","startBefore":270,"startAfter":270}
+FAIL P6B @100% 片段拖到轴右边缘停住，轴自动向右滚动，片段跟着走远 {"scrollBefore":0,"scrollMid":0,"startBefore":90,"startAfter":90}
+FAIL G1 @100% 全局时间轴：未选中片段悬停即显出右手柄并能拉长 {"selectedBefore":"false","handleCount":0,"opacity":0,"widthBefore":250,"widthAfter":250}
+FAIL O1 @100% 预览取景拖动被 pointercancel 打断后回到拖之前 {"moved":true,"restored":false,"stayed":false}
+PASS V @150% 外观取证截图已落盘 {"dir":"D:/Nomi-clipdrag/.tmp/drop-before"}
+FAIL P5 @150% 没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷 {"box":{"w":109,"h":32},"top":{"isNotch":false,"tag":"DIV"},"mimes":["application/x-tapcanvas-generation-node"]}
+FAIL P4 @150% 画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前 {"prevented":false,"caretOk":false,"caretX":null,"bLeftX":297,"before":[0,120,240],"after":[0,120,240],"insertedStart":null}
+FAIL P4 @150% 拖到最后一个片段之后：追加在末尾，不重叠（同一份素材可再次入轴） {"count":3,"lastStart":240,"prevEnd":240}
+FAIL P4 @150% 素材库载荷落进剪辑节点：接收口接收、出插入指示、追加一个片段 {"prevented":true,"caret":false,"libBefore":3,"libAfter":3}
+FAIL P6A @150% 窄片段（屏幕宽 21px < 24px）外侧 1px 按下能拖动它 {"screenWidth":21,"dragging":"false","startBefore":270,"startAfter":270}
+FAIL P6B @150% 片段拖到轴右边缘停住，轴自动向右滚动，片段跟着走远 {"scrollBefore":0,"scrollMid":0,"startBefore":90,"startAfter":90}
+FAIL G1 @150% 全局时间轴：未选中片段悬停即显出右手柄并能拉长 {"selectedBefore":"false","handleCount":0,"opacity":0,"widthBefore":250,"widthAfter":250}
+FAIL O1 @150% 预览取景拖动被 pointercancel 打断后回到拖之前 {"moved":false,"restored":true,"stayed":true}
+RESULT 3/27 passed
+FAILED P5@50 P4@50 P4@50 P4@50 P6A@50 P6B@50 G1@50 O1@50 P5@100 P4@100 P4@100 P4@100 P6A@100 P6B@100 G1@100 O1@100 P5@150 P4@150 P4@150 P4@150 P6A@150 P6B@150 G1@150 O1@150

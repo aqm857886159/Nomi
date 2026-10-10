@@ -25,6 +25,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/narrowed-mode-guidance')
@@ -285,8 +286,7 @@ try {
     const rows = projects?.listAsync ? await projects.listAsync() : projects?.list() || []
     return rows.find((row) => row?.id === id)?.name || ''
   }, projectId)
-  const backToLibrary = getWin().getByRole('button', { name: '项目库', exact: false }).first()
-  await backToLibrary.click()
+  await backToLibrary(getWin())
   const reopenedCard = getWin().locator('[data-project-card]', { hasText: projectName }).first()
   await reopenedCard.waitFor({ timeout: 10_000 })
   await reopenedCard.click()

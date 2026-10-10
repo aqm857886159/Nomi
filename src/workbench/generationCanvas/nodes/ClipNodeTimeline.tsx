@@ -6,6 +6,8 @@ import { useFilmstrip } from '../../../media/useFilmstrip'
 import { cn } from '../../../utils/cn'
 import { canvasDragExceededThreshold } from '../components/canvasPointerGestureModel'
 import { usePointerSession } from '../../timeline/timelineGesture'
+import { acceptsClipDropTypes, readClipDropPayload, type ClipDropPayload } from './clipNodeDrop'
+import { startEdgeAutoScroll } from './clipNodeEdgeScroll'
 import type { TimelineClip, TimelineState } from '../../timeline/timelineTypes'
 import type { SnapResult } from '../../timeline/snapping'
 import {
@@ -20,7 +22,7 @@ import {
   type ClipNodeResizeTarget,
 } from './clipNodeDragModel'
 import { formatClipNodeDuration } from './clipNodeVisual'
-import { clientXToDesignPx, clipHandleHitWidth, playheadHitWidth } from './clipNodeGestureModel'
+import { clientXToDesignPx, clipHandleHitWidth, clipHitPadWidth, playheadHitWidth, resolveClipNodeDropFrame } from './clipNodeGestureModel'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 type ClipNodeTimelineProps = {
@@ -34,6 +36,8 @@ type ClipNodeTimelineProps = {
   onResizeClip: (clipId: string, edge: 'left' | 'right', deltaFrame: number) => void
   onScrubPlayhead?: (frame: number) => void
   onAddMaterial?: () => void
+  /** 素材（画布节点 / 素材库）落在轴上：boundaryFrame 是插入指示画的那一帧，也是松手要插的那一帧。 */
+  onDropMedia?: (payload: ClipDropPayload, boundaryFrame: number) => void
   /** 还没有片段时轨道里放什么（ClipNode 给「把视频节点连进来」+「在画布上点选」）。 */
   emptyState?: React.ReactNode
 }
@@ -99,7 +103,7 @@ function ClipHandle({
       data-clip-handle-edge={edge}
       // 手柄常驻、悬停片段或选中后显形：命中不依赖「先选中」，显隐只管外观。
       className={cn(
-        'absolute inset-y-0 z-30 grid cursor-ew-resize place-items-center border-0 bg-nomi-paper/10 p-0 transition-[opacity,background-color] hover:bg-nomi-accent/30 focus-visible:bg-nomi-accent/30 focus-visible:opacity-100 focus-visible:outline-none',
+        'absolute inset-y-0 z-30 grid cursor-ew-resize place-items-center border-0 bg-nomi-accent/25 p-0 transition-[opacity,background-color] hover:bg-nomi-accent/45 focus-visible:bg-nomi-accent/45 focus-visible:opacity-100 focus-visible:outline-none',
         selected ? 'opacity-100' : 'opacity-0 group-hover/clip:opacity-100',
         edge === 'left' ? 'left-0' : 'right-0',
       )}
@@ -131,7 +135,9 @@ function ClipItem({
   onResizeClip,
   onDragPreview,
   onResizePreview,
+  getScroller,
 }: Pick<ClipNodeTimelineProps, 'onSelectClip' | 'onAdmitGesture' | 'onMoveClip' | 'onResizeClip'> & {
+  getScroller: () => HTMLElement | null
   clip: TimelineClip
   selected: boolean
   timeline: TimelineState
@@ -175,37 +181,50 @@ function ClipItem({
     let didDrag = false
     didDragRef.current = false
     lastSnapKeyRef.current = null
+    const scroller = getScroller()
+    const scrollOrigin = scroller?.scrollLeft ?? 0
+    let lastPoint = { clientX: originX, shiftKey: false }
+    let stopEdgeScroll: (() => void) | null = null
+
+    // 落点 = 指针位移 + 拖动中轴自己滚过的距离（滚动不产生指针事件，所以位置由这里统一重算）。
+    const applyPoint = () => {
+      const screenPxPerFrame = pxPerFrame * Math.max(0.1, canvasZoom)
+      const scrolledFrames = Math.round(((scroller?.scrollLeft ?? 0) - scrollOrigin) / Math.max(0.01, pxPerFrame))
+      const desiredStartFrame = originStart + clipNodeClientDeltaToFrames(lastPoint.clientX - originX, pxPerFrame, canvasZoom) + scrolledFrames
+      const resolved = resolveClipNodeDragTarget({
+        timeline,
+        clipId: clip.id,
+        desiredStartFrame,
+        pxPerFrame: screenPxPerFrame,
+        snapping: !lastPoint.shiftKey,
+      })
+      if (!resolved) return
+      lastTarget = resolved
+      const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
+      if (snapKey && snapKey !== lastSnapKeyRef.current) pulseSnap()
+      lastSnapKeyRef.current = snapKey
+      onDragPreview({ clipId: clip.id, ...resolved })
+    }
 
     startSession({
       event,
       onMove: (moveEvent) => {
         if (!didDrag && !canvasDragExceededThreshold(originX, originY, moveEvent.clientX, moveEvent.clientY)) return
         moveEvent.preventDefault()
+        lastPoint = { clientX: moveEvent.clientX, shiftKey: moveEvent.shiftKey }
         if (!didDrag) {
           didDrag = true
           didDragRef.current = true
           setDragging(true)
+          stopEdgeScroll = startEdgeAutoScroll({ scroller, canvasZoom, getClientX: () => lastPoint.clientX, onScrolled: applyPoint })
         }
-        const screenPxPerFrame = pxPerFrame * Math.max(0.1, canvasZoom)
-        const desiredStartFrame = originStart + clipNodeClientDeltaToFrames(moveEvent.clientX - originX, pxPerFrame, canvasZoom)
-        const resolved = resolveClipNodeDragTarget({
-          timeline,
-          clipId: clip.id,
-          desiredStartFrame,
-          pxPerFrame: screenPxPerFrame,
-          snapping: !moveEvent.shiftKey,
-        })
-        if (!resolved) return
-        lastTarget = resolved
-        const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
-        if (snapKey && snapKey !== lastSnapKeyRef.current) pulseSnap()
-        lastSnapKeyRef.current = snapKey
-        onDragPreview({ clipId: clip.id, ...resolved })
+        applyPoint()
       },
       onCommit: () => {
         if (didDrag && lastTarget.startFrame !== originStart) onMoveClip(clip.id, lastTarget.startFrame)
       },
       onEnd: () => {
+        stopEdgeScroll?.()
         setDragging(false)
         onDragPreview(null)
         lastSnapKeyRef.current = null
@@ -226,9 +245,14 @@ function ClipItem({
     let animationFrame = 0
     let pendingMove: { clientX: number; shiftKey: boolean } | null = null
     lastSnapKeyRef.current = null
+    const scroller = getScroller()
+    const scrollOrigin = scroller?.scrollLeft ?? 0
+    let lastPoint = { clientX: originX, shiftKey: false }
+    let stopEdgeScroll: (() => void) | null = null
 
     const applyMove = (move: { clientX: number; shiftKey: boolean }) => {
-      const desiredDeltaFrame = clipNodeClientDeltaToFrames(move.clientX - originX, pxPerFrame, canvasZoom)
+      const scrolledFrames = Math.round(((scroller?.scrollLeft ?? 0) - scrollOrigin) / Math.max(0.01, pxPerFrame))
+      const desiredDeltaFrame = clipNodeClientDeltaToFrames(move.clientX - originX, pxPerFrame, canvasZoom) + scrolledFrames
       if (!didResize && Math.abs(move.clientX - originX) < 2) return
       const screenPxPerFrame = pxPerFrame * Math.max(0.1, canvasZoom)
       const resolved = resolveClipNodeResizeTarget({
@@ -242,6 +266,7 @@ function ClipItem({
       if (!resolved) return
       didResize = true
       didDragRef.current = true
+      stopEdgeScroll ??= startEdgeAutoScroll({ scroller, canvasZoom, getClientX: () => lastPoint.clientX, onScrolled: () => applyMove(lastPoint) })
       lastTarget = resolved
       setResizingEdge(edge)
       const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
@@ -263,7 +288,8 @@ function ClipItem({
       event,
       onMove: (moveEvent) => {
         moveEvent.preventDefault()
-        pendingMove = { clientX: moveEvent.clientX, shiftKey: moveEvent.shiftKey }
+        lastPoint = { clientX: moveEvent.clientX, shiftKey: moveEvent.shiftKey }
+        pendingMove = lastPoint
         if (animationFrame) return
         animationFrame = window.requestAnimationFrame(() => {
           animationFrame = 0
@@ -278,6 +304,7 @@ function ClipItem({
         if (didResize && lastTarget && lastTarget.deltaFrame !== 0) onResizeClip(clip.id, edge, lastTarget.deltaFrame)
       },
       onEnd: () => {
+        stopEdgeScroll?.()
         if (animationFrame) window.cancelAnimationFrame(animationFrame)
         animationFrame = 0
         pendingMove = null
@@ -308,7 +335,22 @@ function ClipItem({
   const resizeDuration = resizePreview ? (resizePreview.clip.endFrame - resizePreview.clip.startFrame) / Math.max(1, timeline.fps || 30) : 0
   const resizeDurationLabel = `${resizeDurationDelta >= 0 ? '+' : '-'}${Math.abs(resizeDurationDelta / Math.max(1, timeline.fps || 30)).toFixed(1)}s · ${resizeDuration.toFixed(1)}s`
 
+  // 窄片段的点击下限：片段本身窄于 24 屏幕像素时，两侧各补一条看不见的命中垫（垫在片段之下，邻居的手柄不被盖）。
+  const hitPad = clipHitPadWidth({ clipWidth: width, canvasZoom })
+
   return (
+    <>
+    {hitPad > 0 ? (['left', 'right'] as const).map((side) => (
+      <div
+        key={side}
+        data-clip-hit-pad={side}
+        className="absolute inset-y-1 z-[9] cursor-grab touch-none"
+        style={{ left: side === 'left' ? left - hitPad : left + width, width: hitPad }}
+        onPointerDown={beginDrag}
+        onClick={handleClick}
+        aria-hidden="true"
+      />
+    )) : null}
     <div
       ref={ref}
       role="button"
@@ -355,6 +397,7 @@ function ClipItem({
       <ClipHandle edge="left" canvasZoom={canvasZoom} clipWidth={width} selected={selected} onPointerDown={beginResize} />
       <ClipHandle edge="right" canvasZoom={canvasZoom} clipWidth={width} selected={selected} onPointerDown={beginResize} />
     </div>
+    </>
   )
 }
 
@@ -368,6 +411,7 @@ export default function ClipNodeTimeline({
   onResizeClip,
   onScrubPlayhead,
   onAddMaterial,
+  onDropMedia,
   emptyState,
 }: ClipNodeTimelineProps): JSX.Element {
   const { t } = useTranslation()
@@ -407,6 +451,40 @@ export default function ClipNodeTimeline({
   }, [timeline.fps, viewport])
 
   const startSession = usePointerSession()
+  const getScroller = React.useCallback(() => axisRef.current, [])
+  // 素材拖进来时的插入指示：画在哪一帧，松手就插在哪一帧（同一个 resolveClipNodeDropFrame）。
+  const [dropFrame, setDropFrame] = React.useState<number | null>(null)
+
+  const dropFrameAtClientX = (clientX: number): number => {
+    const content = axisRef.current?.firstElementChild
+    if (!(content instanceof HTMLElement)) return 0
+    const localPixel = clientXToDesignPx(clientX, content.getBoundingClientRect().left, canvasZoom)
+    return resolveClipNodeDropFrame(clips, viewport.pixelToFrame(localPixel))
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!onDropMedia || !acceptsClipDropTypes(event.dataTransfer.types)) return
+    // 轴自己接：不让事件冒泡到画布舞台（舞台会把同一个素材载荷变成一个新的素材节点）。
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'copy'
+    setDropFrame(dropFrameAtClientX(event.clientX))
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) return
+    setDropFrame(null)
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!onDropMedia || !acceptsClipDropTypes(event.dataTransfer.types)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const boundary = dropFrameAtClientX(event.clientX)
+    setDropFrame(null)
+    const payload = readClipDropPayload(event.dataTransfer)
+    if (payload) onDropMedia(payload, boundary)
+  }
 
   const scrubAtClientX = (clientX: number): void => {
     const content = axisRef.current?.firstElementChild
@@ -424,7 +502,21 @@ export default function ClipNodeTimeline({
     event.stopPropagation()
     onAdmitGesture?.(null)
     scrubAtClientX(event.clientX - grabOffsetPx)
-    startSession({ event, onMove: (moveEvent) => scrubAtClientX(moveEvent.clientX - grabOffsetPx) })
+    let lastClientX = event.clientX
+    const stopEdgeScroll = startEdgeAutoScroll({
+      scroller: axisRef.current,
+      canvasZoom,
+      getClientX: () => lastClientX,
+      onScrolled: () => scrubAtClientX(lastClientX - grabOffsetPx),
+    })
+    startSession({
+      event,
+      onMove: (moveEvent) => {
+        lastClientX = moveEvent.clientX
+        scrubAtClientX(moveEvent.clientX - grabOffsetPx)
+      },
+      onEnd: stopEdgeScroll,
+    })
   }
 
   const beginLaneScrub = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -455,8 +547,20 @@ export default function ClipNodeTimeline({
           className="relative h-full"
           style={{ width: viewport.contentWidth, minWidth: '100%' }}
           onPointerDown={beginLaneScrub}
+          onDragEnter={handleDragOver}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           data-testid="clip-node-axis-content"
         >
+          {dropFrame != null ? (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-[46] w-0.5 -translate-x-1/2 rounded-full bg-[var(--workbench-accent)] opacity-80"
+              style={{ left: viewport.frameToPixel(dropFrame) }}
+              data-testid="clip-node-drop-caret"
+              aria-hidden="true"
+            />
+          ) : null}
           <div className="absolute top-1.5 h-5" style={{ left: viewport.leadingSlotWidth + viewport.axisInset, width: viewport.timelineWidth }} data-testid="clip-node-ruler" aria-label={t('generationCommon.clipNode.scrub')}>
             {ticks.map((tick, index) => (
               <span
@@ -509,6 +613,7 @@ export default function ClipNodeTimeline({
                   previewStartFrame={previewStartFrame}
                   resizePreview={clipResizePreview}
                   onSelectClip={onSelectClip}
+                  getScroller={getScroller}
                   onAdmitGesture={onAdmitGesture}
                   onMoveClip={onMoveClip}
                   onResizeClip={onResizeClip}

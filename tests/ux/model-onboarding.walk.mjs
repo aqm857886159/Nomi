@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { modelSettingsEntry } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/onboarding')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -47,7 +48,7 @@ async function snap(win, name) {
 // 且这个入口是**二选一**的——缺文本模型时右上弱入口隐藏、改由状态条「接入文本模型」承担
 // （ProjectLibraryPage.tsx:157 showModelEntry = !textModelMissing），两颗共用同一个 testid。
 async function openPanel(win) {
-  const trigger = win.locator('[data-testid="open-model-settings"]').first()
+  const trigger = modelSettingsEntry(win)
   if (await trigger.count()) await trigger.click({ timeout: 4000 }).catch(() => {})
   await win.waitForTimeout(800)
   // 开没开也不认标题文案（标题现在是「模型」，随时会再改）——认结构标记。

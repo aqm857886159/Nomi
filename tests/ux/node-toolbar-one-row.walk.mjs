@@ -56,8 +56,8 @@ fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify
 
 const LOCALE = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh'
 const L = LOCALE === 'en'
-  ? { img: 'Image actions', vid: 'Video actions', presets: 'More effects', refine: 'Edit', grid: 'Grid', extract: 'Extract frame', breakDown: 'Break down', first: 'First frame', last: 'Last frame', freeze: 'Confirm look' }
-  : { img: '图片操作', vid: '视频操作', presets: '更多效果', refine: '改图', grid: '宫格', extract: '抽帧', breakDown: '拆解', first: '首帧', last: '尾帧', freeze: '定妆' }
+  ? { img: 'Image actions', vid: 'Video actions', presets: 'More effects', refine: 'Edit', grid: 'Grid', extract: 'Capture frame', breakDown: 'Break down', first: 'First frame', last: 'Last frame', freeze: 'Confirm look' }
+  : { img: '图片操作', vid: '视频操作', presets: '更多效果', refine: '改图', grid: '宫格', extract: '截帧', breakDown: '拆解', first: '首帧', last: '尾帧', freeze: '定妆' }
 const { app, win } = await launchNomiApp({
   name: 'node-toolbar-one-row',
   userDataDir: settingsDir,

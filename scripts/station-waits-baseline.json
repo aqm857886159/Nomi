@@ -232,7 +232,6 @@
     "98fa3fb7db16fb73f008a678138064c15543b86727f95cc730ed1fc633a188f8": 1,
     "fe163f6542c02a34c6ee85aadc4b1205f83fa774503d1a64d26aeca638821bf2": 1,
     "156522cf57a9e6768c41fe63445bb86fefc8d33ba08ade87ae647dfa7f634452": 1,
-    "8d26c0841b71ffd9fdd41df07ad6e679ac3dc5bce684965b51eafb16f4e6569b": 1,
     "2ec7e17b476ad626734e92f32188f1225d86b01547032fb48e2172da43388b08": 1
   },
   "tests/ux/canvas-card-stack.walk.mjs": {
@@ -740,7 +739,6 @@
     "c0fd6e60694a721365095cfa77696f6110106893ff614f501a72b084b8cf3540": 1
   },
   "tests/ux/provider-model-discovery.walk.mjs": {
-    "373a98b43c472f54e2de768ec36841c33d35126c9bcaf9cdd5b1300de28ff88e": 2,
     "d74c6e1447beda3ac956c681c3740e41975ec577c522443cc0ac1f599ef9810a": 1
   },
   "tests/ux/react-flow-read-only.walk.mjs": {

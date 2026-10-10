@@ -8,13 +8,14 @@ const node = (id: string, kind: GenerationNodeKind, extra: Partial<GenerationCan
   ({ id, kind, title: id, position: { x: 0, y: 0 }, categoryId: 'shots', meta: {}, ...extra })
 const videoResult = { id: 'r', type: 'video' as const, url: 'u', createdAt: 1 }
 
-// 五类各一条合法放行 + 错的源 / 错的新节点种类被拒。
+// 各类各一条合法放行 + 错的源 / 错的新节点种类被拒。
 const SAMPLE: Record<DerivedOutputKind, { source: GenerationCanvasNode; target: GenerationNodeKind; wrongSource: GenerationNodeKind; wrongTarget: GenerationNodeKind }> = {
   'panorama-screenshot': { source: node('s', 'panorama'), target: 'asset', wrongSource: 'text', wrongTarget: 'text' },
   'director-output': { source: node('s', 'director'), target: 'image', wrongSource: 'text', wrongTarget: 'asset' },
   'whiteboard-snapshot': { source: node('s', 'whiteboard'), target: 'image', wrongSource: 'text', wrongTarget: 'asset' },
   'clip-export': { source: node('s', 'clip'), target: 'video', wrongSource: 'text', wrongTarget: 'asset' },
   'shot-table': { source: node('s', 'video', { result: videoResult }), target: 'shot_table', wrongSource: 'text', wrongTarget: 'asset' },
+  'video-frame': { source: node('s', 'video', { result: videoResult }), target: 'image', wrongSource: 'text', wrongTarget: 'video' },
 }
 
 describe('derived output rules', () => {

@@ -1,0 +1,26 @@
+{
+  "name": "拖放进行中画布浮层不吃命中（旗 + 浮层清单）",
+  "subject": "canvas.drop-active",
+  "lifecycle": "live-interaction",
+  "authority_kind": "lease",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/components/canvasDropActiveFlag.ts",
+    "symbol": "watchCanvasDropActive"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasDropActiveFlag.ts",
+      "symbol": "watchCanvasDropActive"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/components/canvasDropActiveFlag.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+  ],
+  "since": "2026-10-09",
+  "notes": "带着可接收载荷的 dragstart 升旗（stage 的 data-drop-active），dragend / drop / Esc / 窗口失焦 / 页面隐藏摘旗；旗在期间 CANVAS_DROP_PASS_THROUGH_SELECTORS 里的浮层（参数浮板、节点浮条、版本卡动作条与卡、连接把手命中区、多选浮条、组框工具条）整体不接收命中，事件穿过去落在下面的接收目标上，视觉不变。新增会盖在节点上的浮层，加进清单。与 canvas.gesture-lifetime（指针手势寿命）互补：那个管按住指针的拖动，这个管原生拖放。"
+}

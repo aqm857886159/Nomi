@@ -1,0 +1,5 @@
+FAIL D1 @50% 素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点 {"coveredBefore":{"inAxis":false,"inComposer":true},"flagDuring":null,"topDuring":{"inAxis":false,"inComposer":false},"insertedStart":null,"flagAfter":null,"composerBack":true}
+FAIL D1 @100% 素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点 {"coveredBefore":{"inAxis":false,"inComposer":true},"flagDuring":null,"topDuring":{"inAxis":true,"inComposer":false},"insertedStart":null,"flagAfter":null,"composerBack":true}
+FAIL D1 @150% 素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点 {"coveredBefore":{"inAxis":false,"inComposer":true},"flagDuring":null,"topDuring":{"inAxis":true,"inComposer":false},"insertedStart":null,"flagAfter":null,"composerBack":true}
+RESULT 0/3 passed
+FAILED D1@50 D1@100 D1@150

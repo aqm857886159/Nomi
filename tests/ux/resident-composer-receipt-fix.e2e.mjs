@@ -17,6 +17,7 @@ import {
   INTERVENTION_ESCALATE, INTERVENTION_REJECT, INTERVENTION_REJECT_REASON,
   createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded, sendCanvas, toolNames,
 } from './agent-runtime-walk-support.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const ORIGINAL = '真实用户任务基线：创作者准备在文末补充收尾。'
 const RESIDENT_INTENT = '请在文末补一句收尾，保留原文并等待我确认。'
@@ -366,12 +367,12 @@ try {
   await sendCanvas(win, abandonedIntent)
   await recorded(abandonedRequest.received, 'approval before project switch')
   await expect(win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`)).toHaveCount(1)
-  await clickOrFail(win.getByRole('button', { name: '返回项目库', exact: true }), '离开有待审批的项目 A')
+  await backToLibrary(win, { label: '离开有待审批的项目 A' })
   const otherProject = await walk.newProject()
   expect(otherProject.projectId).not.toBe(projectId)
   await expect(win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`)).toHaveCount(0)
   expect((await readProject(win, otherProject.projectId)).payload.generationCanvas?.nodes ?? []).toHaveLength(0)
-  await clickOrFail(win.getByRole('button', { name: '返回项目库', exact: true }), '离开项目 B')
+  await backToLibrary(win, { label: '离开项目 B' })
   await clickOrFail(win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`), '返回项目 A')
   await openCanvas(win)
   await expect(fixtureNode).toBeVisible()

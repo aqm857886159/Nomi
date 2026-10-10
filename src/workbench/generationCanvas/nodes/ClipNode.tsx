@@ -18,6 +18,7 @@ import {
   appendClipNodeSource,
   clipNodeSourceFromAsset,
   readClipNodeMeta,
+  type ClipNodeSource,
 } from './clipNodeModel'
 import { getNodeSizeBounds, resolveNodeVisualSize } from './nodeSizing'
 import { useNodeDragResize } from './useNodeDragResize'
@@ -28,11 +29,15 @@ import { buildWorkspaceFileUrl } from '../../explorer/workspaceFileDrag'
 import ClipNodePreview from './ClipNodePreview'
 import ClipNodeTimeline from './ClipNodeTimeline'
 import { resolveClipGestureAdmission } from './clipNodeGestureModel'
+import { clipNodeSourceFromGenerationNode, type ClipDropPayload } from './clipNodeDrop'
+import { materializeAssetLibraryItems } from '../../assets/assetLibraryMaterialize'
+import { assetRefFromDragPayload } from '../../timeline/addAssetToTimeline'
 import ClipNodeActionToolbar from './ClipNodeActionToolbar'
 import { createExclusiveClipNodeUpload, importClipNodeAsset } from './clipNodeUpload'
 import {
   clipNodeTimelineFromMeta,
   duplicateClipNode,
+  insertClipNodeSourceAt,
   moveClipNode,
   nudgeClipNode,
   removeClipNode,
@@ -249,6 +254,55 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
       }
     })
   }, [addAsset, refresh, t])
+
+  // 素材（画布节点的拖到时间轴把手 / 素材库）拖进轴：在落点插入。别的项目的素材先复制进本项目（同全局时间轴的唯一关口）。
+  const dropMedia = React.useCallback((payload: ClipDropPayload, boundaryFrame: number) => {
+    const project = withProjectAction((issued) => issued)
+    if (!project) return
+    void (async () => {
+      try {
+        const sources: ClipNodeSource[] = []
+        let failedCopies = 0
+        if (payload.nodeId) {
+          const live = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === payload.nodeId) ?? payload.node
+          const source = live ? clipNodeSourceFromGenerationNode(live) : null
+          if (source) sources.push(source)
+        }
+        if (payload.assets.length) {
+          const { items, failed } = await materializeAssetLibraryItems(payload.assets, project)
+          failedCopies = failed
+          project.assertCurrent()
+          for (const item of items) {
+            const ref = assetRefFromDragPayload(item)
+            if (!ref || (ref.kind !== 'image' && ref.kind !== 'video')) continue
+            const seconds = ref.kind === 'video' ? await readVideoDurationSeconds(ref.renderUrl) : null
+            project.assertCurrent()
+            const source = clipNodeSourceFromAsset(ref, seconds)
+            if (source) sources.push(source)
+          }
+        }
+        if (!sources.length) {
+          reportFeedback(failedCopies ? t('generationCommon.clipNode.uploadFailed') : t('generationCommon.clipNode.dropUnsupported'))
+          return
+        }
+        const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
+        if (!current) return
+        let nextMeta = readClipNodeMeta(current.meta)
+        let at = boundaryFrame
+        for (const source of sources) {
+          nextMeta = insertClipNodeSourceAt(nextMeta, source, at)
+          const added = clipNodeTimelineFromMeta(nextMeta).tracks[0]?.clips.find((clip) => clip.id === `clip-${nextMeta.selectedClipId}`)
+          if (added) at = added.endFrame
+        }
+        captureHistory()
+        updateNode(node.id, { meta: { ...(current.meta ?? {}), clip: nextMeta } }, { history: false })
+        setEditingOpen(false)
+        if (failedCopies) reportFeedback(t('generationCommon.clipNode.uploadFailed'))
+      } catch (error) {
+        if (isProjectExecutionContextCurrent(project) && !isProjectImportCancellation(error)) reportFeedback(t('generationCommon.clipNode.uploadFailed'))
+      }
+    })()
+  }, [captureHistory, node.id, reportFeedback, t, updateNode])
 
   const closePicker = React.useCallback(() => {
     if (uploading) return
@@ -574,6 +628,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             onMoveClip={handleMoveClip}
             onResizeClip={handleResizeClip}
             onScrubPlayhead={selectFrame}
+            onDropMedia={readOnly ? undefined : dropMedia}
             onAddMaterial={readOnly ? undefined : () => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }}
             emptyState={<ClipEmptyTry nodeId={node.id} readOnly={readOnly} onAddMaterial={() => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }} />}
           />

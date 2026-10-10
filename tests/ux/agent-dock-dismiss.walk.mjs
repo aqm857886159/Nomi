@@ -5,6 +5,7 @@ import path from 'node:path'
 import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { backToLibrary } from './_shell.mjs'
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/b2d-dock-evidence')
 await fs.mkdir(out, { recursive: true })
@@ -127,7 +128,7 @@ try {
     return useWorkbenchStore.getState().agentDockHidden
   })
   expect(receipt.persistedDismissal).toBe(true)
-  await page.getByRole('button', { name: '返回项目库', exact: true }).click()
+  await backToLibrary(page)
   await page.getByRole('button', { name: /新建空白项目/ }).click()
   await expect(page.locator('[data-v4-panel]')).toBeVisible()
   await page.getByRole('button', { name: '收起面板', exact: true }).click()

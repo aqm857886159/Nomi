@@ -25,6 +25,7 @@ import { findCanvasBlankPoint, findFrameDragHandlePoint, findNodeHitPoint, CANVA
 import { stationTimeout } from './_station-budget.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
+import { collapseAgentPanel } from './_shell.mjs'
 
 const LOCALE = process.argv[2] === 'en' ? 'en' : 'zh-CN'
 const LABEL = process.argv[3] || 'run'
@@ -568,7 +569,7 @@ try {
     if (!helpHittable.ok) {
       console.log(`FINDING 画布操作帮助按钮被盖住（Agent 面板展开、舞台变窄时）：${JSON.stringify(helpHittable)}；收起 Agent 面板再点`)
       await shot('09a-help-button-covered')
-      await win.locator('[data-v4-control="collapse"]').first().click()
+      await collapseAgentPanel(win)
       await waitForVisualQuiescence(win)
     }
     await help.click()
