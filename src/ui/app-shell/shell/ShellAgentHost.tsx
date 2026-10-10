@@ -249,10 +249,10 @@ export function ShellAgentHost({
     if (store.projectAgentDockCollapsed !== collapsed) store.setProjectAgentDockCollapsed(collapsed)
   }, [form])
   // 别处叫回面板（任务中心「定位到制作」、Agent 自己的 layout.write）：小球 → 这一页的默认展开形态。
-  React.useEffect(() => useWorkbenchStore.subscribe((state, previous) => {
-    if (previous.projectAgentDockCollapsed && !state.projectAgentDockCollapsed && useAgentFormStore.getState().bySurface[surface].form === 'ball') {
-      setForm(surface, openFormFor(surface))
-    }
+  // 看的是「叫回」计数（agentRecallNonce），不是 projectAgentDockCollapsed 的翻转：重开项目时那个投影会被还原 / 重置翻一下，
+  // 按翻转去猜，小球就会在用户什么也没点时自己弹成浮窗（评测 j5 重开项目后浮窗盖住生成钮）。
+  React.useEffect(() => useWorkbenchStore.subscribe((state) => state.agentRecallNonce, () => {
+    if (useAgentFormStore.getState().bySurface[surface].form === 'ball') setForm(surface, openFormFor(surface))
   }), [setForm, surface])
   // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：停靠 ↔ 小球（浮窗时收成小球）。
   React.useEffect(() => {

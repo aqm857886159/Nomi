@@ -16,6 +16,7 @@ import { uiText } from './full-walk/invariants.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { AGENT_PANEL, backToLibrary } from './_shell.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'shots/shell-redesign')
@@ -189,6 +190,16 @@ try {
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-agent-ball]'), '画布页默认不是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await win.waitForTimeout(1200)
+
+  // 回项目库再开同一个项目：小球形态不许自己弹成浮窗。2026-10-09 评测 j5 栽过——重开项目时投影 projectAgentDockCollapsed
+  // 被「关项目重置 / 开项目还原」翻了一下，小球误读成「有人叫回 Nomi」，浮窗盖住了节点的生成钮。
+  await backToLibrary(win, { label: '回项目库再重开（小球不许自己弹开）' })
+  await card.hover()
+  await clickOrFail(card.getByRole('button', { name: /继续创作|Continue/ }).first(), '重开走查项目')
+  await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
+  await expect(win.locator('[data-agent-ball]'), '重开项目后小球不见了（被弹成了浮窗 / 停靠）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await win.waitForTimeout(1200)
+  await expect(win.locator(AGENT_PANEL).first(), '重开项目后 Agent 自己弹开了').toBeHidden()
 
   // Main 板：画布 + 小球 + 底边时间轴窄条
   measures.main = {

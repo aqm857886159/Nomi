@@ -35,6 +35,8 @@ export const workbenchStoreLifetime = declareStoreLifetime({
     exportQuality: 'window',
     timelineSnapEnabled: 'window',
     previewSourceTab: 'window',
+    // 「叫回 Nomi」的单调计数：只增不清，重置它会被订阅方读成「又有人叫回」。
+    agentRecallNonce: 'window',
     // 项目级：离开项目必须清。
     workspaceMode: 'project',
     activeCategoryId: 'project',
