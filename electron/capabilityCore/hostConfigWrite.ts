@@ -182,6 +182,11 @@ export type AtomicWriteOptions = Readonly<{
   backup?: AtomicWriteBackup
   /** 测试缝：每次提交尝试的最开头（续租核验与最后一次比对之前）调用。生产调用方不传。 */
   beforeCommit?: () => void
+  /**
+   * 测量缝（只给 scripts/measure-host-config-commit-window.mjs 用）：本次提交「挂链接」调用开始到「换名」调用返回的
+   * 纳秒数——宿主整份替换落在这段里就测不到（设计卡中途表的剩余窗口）。生产调用方不传。
+   */
+  onCommitWindow?: (nanoseconds: bigint) => void
 }>
 
 export type AtomicWriteResult = Readonly<{ written: boolean; backupPath: string | null }>
@@ -309,11 +314,11 @@ function linkOrChanged(from: string, to: string, target: string): void {
  * 提交：最后一次比对 → 挂链接 → 换名（这两个系统调用紧挨着）→ 事后核对被换下来的那份与读回的这份。
  * Windows 上撞共享冲突就整段重来（包括重新比对），重试不会把窗口拉长。
  */
-function commit(target: string, tmp: string, original: Buffer | null, content: Buffer, fence: LockFence, beforeCommit?: () => void): void {
+function commit(target: string, tmp: string, original: Buffer | null, content: Buffer, fence: LockFence, hooks: AtomicWriteOptions): void {
   let aside: string | null
   try {
     aside = retryOnSharingViolation(() => {
-      beforeCommit?.()
+      hooks.beforeCommit?.()
       fence.check()
       if (!sameBytes(readBytes(target), original)) throw new HostConfigChangedError(target)
       if (original === null) {
@@ -321,6 +326,7 @@ function commit(target: string, tmp: string, original: Buffer | null, content: B
         return null
       }
       const prev = ownedName(`${target}.nomi-prev`)
+      const windowStart = process.hrtime.bigint()
       linkOrChanged(target, prev, target)
       try {
         fs.renameSync(tmp, target)
@@ -328,6 +334,7 @@ function commit(target: string, tmp: string, original: Buffer | null, content: B
         rmQuiet(prev)
         throw error
       }
+      hooks.onCommitWindow?.(process.hrtime.bigint() - windowStart)
       return prev
     })
   } finally {
@@ -374,7 +381,7 @@ export function atomicWrite(target: string, edit: HostConfigEdit, options: Atomi
     const tmp = ownedName(`${target}.nomi-tmp`)
     try {
       fs.writeFileSync(tmp, content, { flag: 'wx' })
-      commit(target, tmp, original, content, fence, options.beforeCommit)
+      commit(target, tmp, original, content, fence, options)
     } catch (error) {
       rmQuiet(tmp)
       const landed = error instanceof HostConfigChangedError ? error.committed : (error as { nomiLanded?: boolean } | null)?.nomiLanded === true
