@@ -208,10 +208,13 @@ try {
   // 加节点条在内容区底部正中（拍板稿 Main 板）：节点右下角的缩放把手若正好落在它底下，真人也点不到——
   // 人会先把节点往上拖开再缩放，走查照做（把手上最顶层不是它自己就把整张卡往上拖 140px）。
   const handleCovered = () => win.evaluate(({ x, y }) => !document.elementFromPoint(x, y)?.closest('.react-flow__resize-control'), { x: resizeBox.x + resizeBox.width / 2, y: resizeBox.y + resizeBox.height / 2 })
+  // 先确认这张卡上有一个真人点得到的抓取点——找不到就是卡被别的东西整个盖住 / 不在画布内，后面的拖拽没有意义。
+  const fixtureHit = await findNodeHitPoint(win, { nodeSelector: `.generation-canvas-v2-node[data-node-id="${original}"]` })
+  expect(fixtureHit, `找不到节点 ${original} 上能抓取的点（整张卡被别的控件盖住，或不在可见画布内），缩放把手之前的拖拽无从做起`).not.toBeNull()
   let liftedAwayFromDock = false
   if (await handleCovered()) {
     liftedAwayFromDock = true
-    const grab = await findNodeHitPoint(win, { nodeSelector: `.generation-canvas-v2-node[data-node-id="${original}"]` })
+    const grab = fixtureHit
     await win.mouse.move(grab.x, grab.y)
     await win.mouse.down()
     await win.mouse.move(grab.x, grab.y - 140, { steps: 12 })

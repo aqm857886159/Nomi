@@ -239,12 +239,14 @@ try {
     expect(buttons.map((b) => b.intent), '常驻位：图片 视频 声音 文字 剪辑 导入').toEqual(['image', 'video', 'audio', 'text', 'clip', 'import-file'])
     expect(new Set(buttons.map((b) => b.top)).size, '加节点条不是一条横排').toBe(1)
     expect(Math.abs(addBar.cx - (stage.left + stage.width / 2)), `加节点条中心 ${addBar.cx} 没落在内容区中线 ${stage.left + stage.width / 2}`).toBeLessThanOrEqual(2)
-    expect(stage.bottom - addBar.bottom, '加节点条没贴着底').toBeLessThanOrEqual(24)
+    // 舞台窄于 820 时加节点条整体上抬 44px，让出左下缩放簇和右下小球同一排（CanvasToolbar 的 ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH）。
+    const lifted = stage.width < 820
+    expect(stage.bottom - addBar.bottom, '加节点条没贴着底').toBeLessThanOrEqual(lifted ? 24 + 44 : 24)
     // ② 缩放簇：左下，五个控件；⋯ 里原来的控件都在。
     const zoomBar = await rect(CANVAS_ZOOM_BAR)
     expect(zoomBar.left - stage.left, '缩放簇不在左下').toBeLessThanOrEqual(24)
     expect(stage.bottom - zoomBar.bottom, '缩放簇没贴着底').toBeLessThanOrEqual(24)
-    expect(Math.abs(zoomBar.bottom - addBar.bottom), '缩放簇与加节点条底边不齐').toBeLessThanOrEqual(1)
+    if (!lifted) expect(Math.abs(zoomBar.bottom - addBar.bottom), '缩放簇与加节点条底边不齐').toBeLessThanOrEqual(1)
     const zoomBefore = await canvasZoomPercent(win)
     await canvasZoomStep(win, 'in')
     await expect.poll(() => canvasZoomPercent(win), { message: '点 + 没放大', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(zoomBefore)
@@ -258,6 +260,9 @@ try {
     await expect.poll(() => canvasZoomPercent(win), { message: '滑块没把缩放调到 60%', timeout: DEFAULT_TIMEOUT_MS }).toBe(60)
     await canvasResetView(win)
     await expect.poll(() => canvasZoomPercent(win), { message: '重置视图没回到 100%', timeout: DEFAULT_TIMEOUT_MS }).toBe(100)
+    // 滑块值也要是 100（deconstruction 走查用同一组出口读它；那条走查在本机停在更早一步，这里先证出口可用）。
+    await expect(await canvasZoomSlider(win), '重置后 ⋯ 里的缩放滑块不是 100').toHaveValue('100')
+    await closeCanvasViewOptions(win)
     await canvasToggleFrameTool(win)
     await openCanvasViewOptions(win)
     await expect(canvasViewOption(win, 'frame-tool'), '画框没进入就绪态').toHaveAttribute('aria-pressed', 'true')
@@ -273,7 +278,40 @@ try {
     await shoot(win, 'check-canvas-add-more')
     await win.keyboard.press('Escape')
     await expect(canvasFitViewButton(win), '适应视图钮不在').toBeVisible()
-    measures.canvasChrome = { stepperCenter: stepperBefore.cx, windowCenter: windowWidth / 2, addBar, zoomBar, stage }
+    // 生成框永远在外框控件之上（协调会话 10-10 验收规则）：适应视图后选中底行的节点，生成框与加节点条 / 缩放簇相交的地方，
+    // 最顶层必须是生成框。相交面积为 0 不算过——那说明复现场景没了、断言空转。
+    await canvasFitViewButton(win).click()
+    await expect.poll(async () => win.evaluate(() => document.querySelectorAll('.generation-canvas-v2-node').length), { message: '画布上没有节点', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(3)
+    const lowNode = await win.evaluate(() => {
+      const cards = [...document.querySelectorAll('.generation-canvas-v2-node')].map((el) => { const b = el.getBoundingClientRect(); return { id: el.getAttribute('data-node-id'), left: b.left, top: b.top } })
+      cards.sort((a, b) => b.top - a.top || a.left - b.left)
+      return cards[0]
+    })
+    await win.mouse.click(lowNode.left + 10, lowNode.top + 10)
+    const composerSelector = '.generation-canvas-v2-node__composer'
+    await expect(win.locator(composerSelector).first(), '选中底行节点后没有生成框').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    const measureOverlaps = () => win.evaluate(({ composerSel, docks }) => {
+      const composer = document.querySelector(composerSel)
+      const c = composer.getBoundingClientRect()
+      return docks.map((sel) => {
+        const dock = document.querySelector(sel)
+        const d = dock.getBoundingClientRect()
+        const left = Math.max(c.left, d.left); const right = Math.min(c.right, d.right)
+        const top = Math.max(c.top, d.top); const bottom = Math.min(c.bottom, d.bottom)
+        if (right - left < 1 || bottom - top < 1) return { sel, area: 0 }
+        const x = (left + right) / 2; const y = (top + bottom) / 2
+        const hit = document.elementFromPoint(x, y)
+        return { sel, area: (right - left) * (bottom - top), x: Math.round(x), y: Math.round(y), inComposer: !!hit?.closest(composerSel), hit: hit ? `${hit.tagName.toLowerCase()}.${String(hit.className).slice(0, 60)}` : null }
+      })
+    }, { composerSel: composerSelector, docks: [CANVAS_ADD_BAR, CANVAS_ZOOM_BAR] })
+    // 外框控件的裁剪按帧更新，轮询到它跟上；超时就是真没盖住。
+    await expect.poll(async () => (await measureOverlaps()).every((o) => o.area === 0 || o.inComposer), { message: `生成框与外框控件相交处最顶层始终不是生成框：${JSON.stringify(await measureOverlaps())}`, timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
+    const overlaps = await measureOverlaps()
+    expect(overlaps.some((o) => o.area > 0), `生成框没有和任何外框控件相交，断言空转：${JSON.stringify(overlaps)}`).toBe(true)
+    for (const o of overlaps.filter((x) => x.area > 0)) expect(o.inComposer, `生成框与 ${o.sel} 相交处（${o.x},${o.y}）最顶层是 ${o.hit}，不是生成框`).toBe(true)
+    await shoot(win, 'check-composer-over-docks')
+    measures.canvasChrome = { ...measures.canvasChrome, composerOverlaps: overlaps }
+    measures.canvasChrome = { ...measures.canvasChrome, stepperCenter: stepperBefore.cx, windowCenter: windowWidth / 2, addBar, zoomBar, stage }
   }
 
   // Chrome 板：小球三态（显示态注入，见文件头）

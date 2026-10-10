@@ -28,7 +28,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
-import { canvasFitViewButton, canvasResetView, canvasZoomPercent, newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, canvasResetView, canvasZoomPercent, canvasZoomSlider, closeCanvasViewOptions, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const root = path.join(repoRoot, '.tmp', 'deconstruction-interrupted-recovery')
@@ -139,6 +139,9 @@ try {
   // 适应视图会缩到看不清字；截图要的是人眼能读的那一档，所以回到 100%。
   await canvasResetView(win, '重置为 100%')
   await expect.poll(() => canvasZoomPercent(win), { message: '重置后缩放不是 100%' }).toBe(100)
+  // 老断言验的是滑块值（缩放比例滑块 toHaveValue('100')）；滑块如今在 ⋯ 里，经 _shell.mjs 的出口打开读它，读完关回去。
+  await expect(await canvasZoomSlider(win), '重置后 ⋯ 里的缩放滑块不是 100').toHaveValue('100')
+  await closeCanvasViewOptions(win)
 
   const restarted = win.locator('[data-testid="shot-table-node"]').first()
   await proveProbe(restarted, '重启后分镜表节点还在（证据没丢）')
