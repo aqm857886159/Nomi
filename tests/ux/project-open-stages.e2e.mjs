@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '../..')
@@ -151,11 +152,6 @@ function summarizeWrites(events) {
     targets: [...new Set(events.filter((event) => !event.target.startsWith('fd:')).map((event) => `${event.op} ${shortTarget(event.target)}`))],
     firstFrames: events.slice(0, 40).map((event) => ({ op: event.op, target: shortTarget(event.target), frames: event.frames })),
   }
-}
-
-async function backToLibrary(page) {
-  const back = page.getByRole('button', { name: /返回项目库|Back to projects/ }).first()
-  await back.click()
 }
 
 function percentile(sorted, p) {

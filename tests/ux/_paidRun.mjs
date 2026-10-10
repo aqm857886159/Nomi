@@ -16,7 +16,8 @@ import path from 'node:path'
 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
-import { realNomiIsRunning, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
+import { blockedError, guardLoadedError, newNetLogFile, paidWalkAllowlist, readNetLog, watchNetLog } from './_paidNetwork.mjs'
+import { readRealCatalog, realNomiIsRunning, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
 export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
 
@@ -83,20 +84,38 @@ export async function lockSpendToModels(win, seeded) {
  */
 export async function openPaidWalk(script, name, models) {
   const guard = assertPaidRunAllowed(script)
-  const walk = await createRuntimeWalk(name)
+  // 出网名单按本场授权的供应商自动算（见 _paidNetwork.mjs），连同账本路径一起交给被测 App 的闸；调用方什么都不用配。
+  const allow = paidWalkAllowlist(readRealCatalog(), models.map((model) => model.vendorKey))
+  const netLog = newNetLogFile()
+  const walk = await createRuntimeWalk(name, { env: { NOMI_WALK_ALLOW_ORIGINS: allow.join(','), NOMI_WALK_NET_LOG: netLog } })
+  walk.report.networkAllowlist = allow
+  let blocked = null
+  // 被挡就地失败：别等 UI 超时（以前一次连接被挡要干等 600 多秒）。关掉 App，让走查脚本里正在等的那一步立刻报错，
+  // finish 再把真正的原因（被挡的 host 与层）换到报告里。
+  const netWatch = watchNetLog(netLog, (entries) => {
+    blocked = blockedError(entries, allow)
+    console.error(`[paid] ${blocked.message}`)
+    walk.stopApp().catch(() => {})
+  })
   const removeCredentialCopy = () => removeRealCredentials({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir })
   let seeded
   try { seeded = seedRealModels({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, models }) }
-  catch (error) { removeCredentialCopy(); await walk.fixture.close(); throw error }
+  catch (error) { netWatch.stop(); removeCredentialCopy(); await walk.fixture.close(); throw error }
   walk.report.seededModels = seeded.map((row) => `${row.vendorKey}/${row.modelKey}`)
   walk.report.realProfileBefore = guard.realProfileBefore
   console.log(`[paid] 隔离副本装了：${walk.report.seededModels.join(' · ')}`)
   const label = (vendorKey, modelKey) => seeded.find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey)?.labelZh
   async function lockToAuthorizedModels(win) {
+    // 花第一分钱之前先确认闸装上了、账本写得进（否则被挡也没人知道）。
+    const unguarded = guardLoadedError(readNetLog(netLog))
+    if (unguarded) throw unguarded
     walk.report.disabledUnauthorizedModels = await lockSpendToModels(win, seeded)
   }
   async function finish(error) {
-    await walk.finish(error, {
+    const finalEntries = netWatch.stop()
+    blocked ??= blockedError(finalEntries, allow)
+    walk.report.networkBlocked = finalEntries.filter((entry) => entry.kind === 'blocked').map(({ via, host, url }) => ({ via, host, url }))
+    await walk.finish(blocked ?? error, {
       unscriptedFixture: true,
       collect: async () => {
         // App 已经关了：凭据副本（目录里的 key 密文 + 钥匙）当场删掉，项目与截图留作证据。
@@ -200,4 +219,40 @@ export async function watchSpendDialogs(win, { selector, attribute }) {
     new MutationObserver(sample).observe(document.body, { childList: true, subtree: true, attributes: true })
   }, { dialog: SPEND_DIALOG, selector, attribute, slot })
   return { read: () => win.evaluate((key) => window[key], slot) }
+}
+
+// ── 不走 openPaidWalk 的付费走查：例外表（唯一一份）──────────────────────────────
+// openPaidWalk 自动配好出网名单、被挡当场失败、花钱前核对闸已装上（_paidNetwork.mjs）。下面两条不走它，
+// 各自的原因与它们**自己**的出网护栏写在这里；tests/ux/_paidRun.test.mjs 逐个 *.paid.mjs 核对：
+// 要么调用 openPaidWalk、要么在这张表里，表里的文件不存在了也红（不留死条目）。
+export const PAID_WALKS_WITHOUT_OPEN_PAID_WALK = Object.freeze([
+  {
+    file: 'tests/ux/apimart-domestic-line.paid.mjs',
+    why: '在打好的安装包上，故意真出网到 APIMart 国内线路（要证明请求真的发往国内主机），不能用「只放授权名单、其余全拦」的闸。',
+    networkGuard: '主进程出站走 scripts/apimart-line-netsim.cjs 的「只记账不拦截」档（RECORD_ONLY），脚本自己核对记账已在主入口前装上、官方主域 0 次；花钱面用 lockSpendToModels 收窄到被授权的一个模型。',
+  },
+  {
+    file: 'tests/ux/core-a-storyboard.paid.mjs',
+    why: '分镜表整条真旅程（可从上一场续跑、可在安装包上跑），整份真实目录按字节拷进隔离副本，自己管理凭据副本的生灭。',
+    networkGuard: '没有出网闸：不挂 walkthrough-network-guard，也不开 NOMI_TEST_NETWORK_GUARD，真网直连。护栏只有 assertPaidRunAllowed（CI 拒跑、NOMI_SPEND_OK、用户 Nomi 开着拒跑、原库指纹）、确认框观察（watchSpendDialogs）与收据（spendReceipt）。这是已知缺口：不会自动配名单，也不会因被挡当场失败（因为根本不拦）。',
+  },
+])
+
+/**
+ * 纯判据（结构测试钉它）：给定仓库里所有 *.paid.mjs（相对路径）和读文件的函数，返回问题清单。
+ * 每个文件要么调用 openPaidWalk，要么在例外表里；例外表里的文件必须存在，且确实没有调用 openPaidWalk（否则条目已过期）。
+ */
+export function paidWalkCoverageProblems(files, readFile, exceptions = PAID_WALKS_WITHOUT_OPEN_PAID_WALK) {
+  const listed = new Map(exceptions.map((entry) => [entry.file, entry]))
+  const problems = []
+  for (const file of files) {
+    const usesOpenPaidWalk = /\bopenPaidWalk\s*\(/.test(readFile(file))
+    if (!usesOpenPaidWalk && !listed.has(file)) problems.push(`${file}：既没调用 openPaidWalk，也不在例外表里——花钱前核闸、被挡即失败都没覆盖到`)
+    if (usesOpenPaidWalk && listed.has(file)) problems.push(`${file}：已经调用 openPaidWalk，例外表里的条目过期了，删掉`)
+  }
+  for (const entry of exceptions) {
+    if (!files.includes(entry.file)) problems.push(`${entry.file}：例外表里的文件不存在了，删掉死条目`)
+    if (!entry.why || !entry.networkGuard) problems.push(`${entry.file}：例外表条目缺理由或缺它自己的网络护栏说明`)
+  }
+  return problems
 }

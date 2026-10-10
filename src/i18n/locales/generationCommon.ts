@@ -137,6 +137,8 @@ export const zhGenerationCommon = {
     waiting: '已连接输入，等上游产出后继续。',
   },
   canvas: {
+    // 粘贴 / 复制 / 拖动复制时，目标节点不收的连线会被跳过（electron/shared/canvas/edgeAdmission）；节点照常粘贴，说清几条没带过来。
+    edgesSkippedOnPaste: '节点已照常放下，有 {{count}} 条连线没带过来（目标节点不接收这种输入）',
     aria: 'AI 影像创作画布',
     // 「在画布上点选」顶栏（store/canvasPickMode；左「+」菜单、剪辑空态、@ 画布节点共用）。
     pickMode: { title: '选择要引用的节点', exit: '退出点选', escKey: 'Esc' },
@@ -628,6 +630,7 @@ export const zhGenerationCommon = {
     exportToCanvasComplete: '已向画布导出 {{count}} 个视频节点。',
     exportFailed: '导出失败，请重试。',
     uploadFailed: '素材复制失败，请重试导入。',
+    dropUnsupported: '剪辑轴只接收图片和视频素材。',
     retryUpload: '重试导入',
   },
   cropGrid: {
@@ -1831,6 +1834,7 @@ export const enGenerationCommon = {
     waiting: 'Input connected. Waiting for the upstream result.',
   },
   canvas: {
+    edgesSkippedOnPaste: 'Nodes placed as usual; {{count}} connection(s) were left behind (the target node does not take that input).',
     aria: 'AI visual creation canvas',
     pickMode: { title: 'Pick a node to reference', exit: 'Stop picking', escKey: 'Esc' },
     arrival: {
@@ -2305,6 +2309,7 @@ export const enGenerationCommon = {
     exportToCanvasComplete: 'Exported {{count}} video nodes to canvas.',
     exportFailed: 'Export failed. Try again.',
     uploadFailed: 'The material could not be copied. Try importing it again.',
+    dropUnsupported: 'The clip axis only takes images and videos.',
     retryUpload: 'Retry import',
   },
   cropGrid: {

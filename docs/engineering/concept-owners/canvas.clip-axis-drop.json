@@ -1,0 +1,31 @@
+{
+  "name": "素材拖进剪辑节点轴（接收口：认哪些载荷、怎么变成轴上的片段、插在哪）",
+  "subject": "canvas.clip-axis-drop",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+    "symbol": "readClipDropPayload"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
+      "symbol": "readClipDropPayload"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
+      "symbol": "insertClipNodeSourceAt"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/nodes/clipNodeSequence.test.ts",
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx"
+  ],
+  "since": "2026-10-09",
+  "notes": "画布素材节点的「拖到时间轴」把手（TIMELINE_GENERATION_NODE_DRAG_MIME）与素材库（ASSET_LIBRARY_DRAG_MIME）的载荷在剪辑节点轴上只经这里：轴自己接（stopPropagation，不让画布舞台把同一个载荷变成新素材节点）、别的项目的素材先经 materializeAssetLibraryItems 复制进本项目；落点吸最近边，只在重叠时把后面的片段整体后推；同一份素材可再次入轴（实例 id 加 ~n，sourceNodeId 仍指向原素材）。"
+}

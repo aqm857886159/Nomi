@@ -25,6 +25,7 @@ import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLi
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { bumpPersistRevision } from './canvasGuards'
 import { clearClipboard } from './canvasClipboard'
+import { reportSkippedEdges } from './canvasEdgeWrite'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
 import { nodeRunOutcomePatch, reapplyLandedOutcomes, type HeldNodeOutcome } from './nodeRunOutcome'
 import type { CanvasDocumentActions, CanvasSliceCreator, GenerationCanvasState, HeldNodeOutcomes } from './canvasStoreTypes'
@@ -39,7 +40,7 @@ export type CanvasDocumentWrite =
   /** 撤销 / 重做：目标位置的投影 + 之后的落地。 */
   | Readonly<{ kind: 'rewind'; restore: UndoRestore; direction: 'undo' | 'redo' }>
   /** 外部 MCP 整张写回：base = 外部读到的那份，next = 它算出的整张；只合它自己改了的编辑。 */
-  | Readonly<{ kind: 'external'; base: CanvasDocLike; next: CanvasDocLike }>
+  | Readonly<{ kind: 'external'; base: CanvasDocLike; next: CanvasDocLike; restoredEdgeIds?: readonly string[] }>
   /** 按原 id 放回被删的节点 / 边（已在的跳过，不覆盖现状）。 */
   | Readonly<{ kind: 'put-back'; nodes: readonly GenerationCanvasNode[]; edges: readonly GenerationCanvasEdge[] }>
   /** 把一个仍在的节点的 meta / prompt 放回某一刻（编辑层），事实层取活的。 */
@@ -222,7 +223,14 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // A 模式实时桥：外部 MCP 改动经主进程算好整张，这里按它读到的那份三方合并到此刻的画布（与盘上同一个合并函数）。
         // 规范化里的「重启收敛」只对装载成立；会话中途应用时事实层一律以此刻的为准（下面 settleNodeFacts）。
         const live = get()
-        const merged = mergeExternalCanvasWrite({ base: write.base, next: write.next, current: live.readDocumentSnapshot() })
+        // 外部新增的边在合并里过连线总闸（口径同 edgeAdmission）：被拒的不写，说一句。
+        const merged = mergeExternalCanvasWrite({
+          base: write.base,
+          next: write.next,
+          current: live.readDocumentSnapshot(),
+          ...(write.restoredEdgeIds ? { restoredEdgeIds: write.restoredEdgeIds } : {}),
+          onRejectedEdges: (rejected) => reportSkippedEdges(rejected, live.projectId),
+        })
         const normalized = normalizeStoreSnapshot(merged)
         const settled = settleNodeFacts(normalized.nodes, live.nodes, live.heldNodeOutcomes, withLiveNodeFacts)
         const next = { nodes: settled.nodes, edges: normalized.edges, groups: normalized.groups }
@@ -288,7 +296,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
       const restore = popRedo()
       if (restore) commit({ kind: 'rewind', restore, direction: 'redo' })
     },
-    applyExternalGraph: ({ base, next }) => commit({ kind: 'external', base, next }),
+    applyExternalGraph: ({ base, next, restoredEdgeIds }) => commit({ kind: 'external', base, next, ...(restoredEdgeIds ? { restoredEdgeIds } : {}) }),
     restoreGraph: (nodes, edges) => commit({ kind: 'put-back', nodes, edges }),
     restoreNodeFields: (nodeId, meta, prompt) => commit({ kind: 'node-fields', nodeId, meta, prompt }),
   }

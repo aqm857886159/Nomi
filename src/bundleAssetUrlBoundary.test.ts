@@ -28,6 +28,8 @@ const RENDER_ONLY_ALLOWLIST: Record<string, string> = {
   'lib/removeBackground.ts': 'Worker 脚本地址：new Worker 当场消费，不是资产 URL。',
   'workbench/generationCanvas/videoDepth/videoDepthClient.ts':
     '深度推理 worker 的脚本地址：new Worker 当场消费，随这次运行结束即弃，不进节点结果也不落项目。',
+  'devlab/designLab/videoNodeNext/videoNodeNextFixtures.ts':
+    '设计实验室「视频节点的下一步」屏的样张素材（街景视频、截帧 / 胶片条 / 分段图）：只喂实验室里的生产组件当场渲染，实验室不存项目、不写节点结果。',
 }
 
 const BUNDLE_ASSET_URL = /new URL\(\s*['"`][^'"`\n]+['"`]\s*,\s*import\.meta\.url\s*\)/

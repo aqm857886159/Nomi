@@ -15,6 +15,7 @@ import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shots = path.join(root, 'tests/ux/shots/canvas-open-fit')
@@ -117,7 +118,7 @@ try {
   check('离开前视口不在 1:1（点了「适应视图」）', Math.abs(leaving.zoom - 1) > 0.05, { zoom: leaving.zoom })
 
   // ② 重开：返回项目库，再点同一个项目。
-  await win.getByRole('button', { name: '返回项目库', exact: true }).first().click()
+  await backToLibrary(win)
   await openFromLibrary()
   await expect.poll(async () => (await readWholeView()).mounted, { message: `重开后 ${totalNodes} 张卡全部挂出（没摆全貌时只挂视野里那几张）` }).toBe(totalNodes)
   const reopened = await readWholeView()

@@ -13,6 +13,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, proveProbe, expectVisible, expectHidden, clickOrFail } from './_assert.mjs'
+import { modelSettingsEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/provider-proxy')
@@ -55,7 +56,7 @@ try {
   }
 
   // 打开模型设置首页。
-  const openSettings = win.locator('[data-testid="open-model-settings"]').first()
+  const openSettings = modelSettingsEntry(win)
   if (!(await openSettings.count())) { failures.push('找不到模型设置入口'); throw new Error('no settings entry') }
   await openSettings.click({ timeout: 4000 }).catch(() => {})
   await win.waitForTimeout(800)
