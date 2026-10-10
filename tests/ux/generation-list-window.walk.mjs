@@ -4,7 +4,7 @@
 //   WALK_LOCALE=en 英文；WALK_SCHEME=dark 暗色（四轨：中光 / 中暗 / 英光 / 英暗）。
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expect, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { switchGenerationView } from './_shell.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -194,7 +194,9 @@ try {
   await clickOrFail(win.locator('[data-list-detail-view-canvas]'), '去画布')
   await expect(win.locator('[data-generation-list]'), '没有切回画布').toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-node-id="shot-4"] [data-storyboard-shot-label="4"]'), '镜 04 角标没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(win.getByRole('button', { name: /^(去列表|在列表里看|Open list|View in list)$/ }), '页面里不该再有「去列表」入口').toHaveCount(0)
+  // 探针要先证明「按名字找按钮」在这一屏是活的：顶栏那个切换钮（画布上叫「切到列表」）找得到。
+  const switcherProof = await proveProbe(win.getByRole('button', { name: /^(切到列表|Switch to list)$/ }), '顶栏的「切到列表」按钮（同一种按名字找按钮的探针）')
+  await expectAbsent(win.getByRole('button', { name: /^(去列表|在列表里看|Open list|View in list)$/ }), { provenBy: switcherProof, message: '页面里不该再有「去列表」入口（只有顶栏那一个图标）' })
   await expect(win.locator('[data-shell-topbar] [data-generation-view-switcher="canvas"]'), '画布上顶栏图标显示的应是「切到列表」').toHaveAttribute('aria-label', /切到列表|Switch to list/)
   await shot('canvas')
 
