@@ -370,6 +370,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           'relative flex flex-col gap-1.5 min-w-0',
           // 面板宿主里**卡壳是介入槽的**：再描一层边就成了框中框，而里外说的是同一张卡。
           inPanel ? 'w-full p-0' : 'p-3 border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
+          // 内容流里（列表详情）：卡宽恒定、在所在列里水平居中，和上面的预览同一条竖直中线（画布上由定位锚负责，不走这里）。
+          inFlow && 'mx-auto',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}

@@ -33,8 +33,7 @@ export const zhGenerationList = {
     referenceOnly: '这是一张参考素材，生成框在画布上。',
   },
   retiredTables: {
-    notice: '旧版画布里的 {{count}} 张分镜表已收进生成页「列表」，镜头都还在。',
-    action: '去列表看',
+    notice: '旧版画布里的 {{count}} 张分镜表已收进生成页的列表，镜头都还在；点顶栏「生成」旁的切换图标就能看。',
   },
 }
 
@@ -73,7 +72,6 @@ export const enGenerationList = {
     referenceOnly: 'This is a reference asset. Its generation box is on the canvas.',
   },
   retiredTables: {
-    notice: '{{count}} storyboard tables from the old canvas now live in the generation List. Every shot is still there.',
-    action: 'Open list',
+    notice: '{{count}} storyboard tables from the old canvas now live in the generation list. Every shot is still there; use the switch icon next to Generate in the top bar.',
   },
 }

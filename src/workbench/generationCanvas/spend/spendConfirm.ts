@@ -130,6 +130,11 @@ export type SpendConfirmState = {
   requestConfirm: (req: SpendConfirmRequest) => Promise<boolean>
   /** 对话框按钮回调：ok=确认。决议队首后自动晋升下一个。 */
   resolvePending: (ok: boolean, rememberHosting?: boolean) => void
+  /**
+   * 清单行的勾选：显示的状态只来自队首那一份行数据（受控框），调用方的 onPlanToggle 只是观察者。
+   * 锁住的行不翻转。所有带清单的确认（画布组框 / 列表分区头 / 分镜批量）共用这一个口。
+   */
+  togglePlanRow: (row: PlanRow, checked: boolean) => void
 }
 
 export const useSpendConfirmStore = create<SpendConfirmState>()((set, get) => ({
@@ -155,6 +160,12 @@ export const useSpendConfirmStore = create<SpendConfirmState>()((set, get) => ({
     })
     if (ok && rememberHosting) void p?.hostingDisclosure?.onRemember?.()
     p?.resolve(ok)
+  },
+  togglePlanRow: (row, checked) => {
+    const p = get().pending
+    if (!p?.planRows || row.disabled) return
+    set({ pending: { ...p, planRows: p.planRows.map((candidate) => (candidate === row || (row.id !== undefined && candidate.id === row.id) ? { ...candidate, checked } : candidate)) } })
+    p.onPlanToggle?.(row, checked)
   },
 }))
 

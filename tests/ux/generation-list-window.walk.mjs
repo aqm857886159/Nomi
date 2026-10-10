@@ -7,6 +7,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { switchGenerationView } from './_shell.mjs'
 import fs from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,6 +27,50 @@ for (const dir of [userDataDir, settingsDir, projectsDir, capabilityDir]) fs.mkd
 
 const art = (from, to, w = 320, h = 180) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#g)"/><circle cx="${w * 0.66}" cy="${h * 0.3}" r="${Math.min(w, h) * 0.15}" fill="rgba(255,235,192,.28)"/><path d="M0 ${h * 0.78} Q ${w * 0.28} ${h * 0.58}, ${w * 0.54} ${h * 0.78} T ${w} ${h * 0.7} V ${h} H0Z" fill="rgba(16,20,27,.42)"/></svg>`)
+// 假供应商（本机回环，零真实付费）+ 两个可选图片模型：让生成框里的模式 / 画幅 / 清晰度 / 模型选择都出现，并能核对「换模型后请求里的 model 跟着变」。
+const NOW = '2026-10-10T00:00:00.000Z'
+const VENDOR = 'list-mock'
+const IMAGE_A = 'list-image-a'
+const IMAGE_B = 'list-image-b'
+const wireCalls = []
+const imageBytes = fs.readFileSync(path.join(repoRoot, 'resources/onboarding-demo/shot-4.jpg'))
+const vendorServer = http.createServer((req, res) => {
+  const chunks = []
+  req.on('data', (chunk) => chunks.push(chunk))
+  req.on('end', () => {
+    let body = {}
+    try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch { /* 非 JSON 当空 */ }
+    if (req.method !== 'POST' || req.url !== '/v1/images/generations') {
+      res.writeHead(404, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: { message: 'No route' } }))
+      return
+    }
+    wireCalls.push({ model: String(body.model || ''), prompt: String(body.prompt || '') })
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ data: [{ url: 'data:image/jpeg;base64,' + imageBytes.toString('base64') }] }))
+  })
+})
+await new Promise((resolve) => vendorServer.listen(0, '127.0.0.1', resolve))
+const vendorPort = vendorServer.address().port
+const imageMapping = (modelKey, taskKind) => ({
+  id: modelKey + '-' + taskKind, vendorKey: VENDOR, taskKind, modelKey, name: modelKey + ' ' + taskKind, enabled: true,
+  create: {
+    method: 'POST', path: '/v1/images/generations', headers: { 'Content-Type': 'application/json' },
+    body: { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', size: '{{request.params.size}}', extra_body: { response_format: 'url', ...(taskKind === 'image_edit' ? { image: '{{request.params.image}}' } : {}) } },
+    response_mapping: { image_url: 'data.0.url' }, defaultParams: { size: '1024x1024' },
+  },
+  createdAt: NOW, updatedAt: NOW,
+})
+fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
+  version: 8,
+  vendors: [{ key: VENDOR, name: 'List Mock', enabled: true, baseUrlHint: 'http://127.0.0.1:' + vendorPort, assetIngestion: { strategy: 'inline-base64', accepts: ['image'] }, authType: 'none', authHeader: null, authQueryParam: null, providerKind: 'openai-compatible', createdAt: NOW, updatedAt: NOW }],
+  models: [
+    { modelKey: IMAGE_A, vendorKey: VENDOR, labelZh: '列表图片 A', kind: 'image', enabled: true, meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW },
+    { modelKey: IMAGE_B, vendorKey: VENDOR, labelZh: '列表图片 B', kind: 'image', enabled: true, meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW },
+  ],
+  mappings: [IMAGE_A, IMAGE_B].flatMap((modelKey) => [imageMapping(modelKey, 'text_to_image'), imageMapping(modelKey, 'image_edit')]),
+  apiKeysByVendor: {},
+}, null, 2))
 const zh = locale !== 'en'
 const T = (a, b) => (zh ? a : b)
 const projectId = 'generation-list-window'
@@ -42,7 +87,7 @@ const shots = [
   T('特写，表链在指间垂下，指针停在三点十分', 'Insert, the watch chain hangs from her fingers, hands stopped at ten past three'),
 ]
 const tones = [['#384d67', '#111827'], ['#704b45', '#201312'], ['#5d526f', '#1b1726'], ['#506a63', '#162622'], ['#87613e', '#2b1c12'], ['#476274', '#121c26']]
-const modelMeta = { modelKey: 'gpt-image-2', modelVendor: 'apimart', aspect_ratio: '16:9' }
+const modelMeta = { modelKey: IMAGE_A, modelVendor: VENDOR, aspect_ratio: '16:9' }
 const nodes = shots.map((prompt, index) => ({
   id: `shot-${index + 1}`, kind: 'image', title: '', prompt, categoryId: 'shots', shotIndex: index + 1,
   position: { x: 80 + (index % 3) * 420, y: 120 + Math.floor(index / 3) * 360 }, size: { width: 360, height: 203 },
@@ -56,7 +101,7 @@ const groupNodes = [0, 1].map((index) => ({
   id: `look-${index + 1}`, kind: 'image', title: T(['林薇 · 定妆', '便利店 · 夜景'][index], ['Lin Wei · look', 'Store · night'][index]),
   prompt: T(['林薇，雨夜外套，短发，半身', '雨夜便利店外观，霓虹灯招牌'][index], ['Lin Wei, rain coat, short hair, half body', 'Convenience store exterior at night, neon sign'][index]),
   categoryId: 'shots', position: { x: 80 + index * 420, y: 900 }, size: { width: 360, height: 203 }, status: 'success',
-  meta: { modelKey: 'gpt-image-2', modelVendor: 'apimart', aspect_ratio: '16:9' },
+  meta: { modelKey: IMAGE_A, modelVendor: VENDOR, aspect_ratio: '16:9' },
   result: { id: `look-r${index + 1}`, type: 'image', url: art(...tones[(index + 2) % 6]), createdAt: 20 + index },
 }))
 const anchorNodes = [
@@ -116,6 +161,62 @@ async function dismissToasts() {
 }
 const shot = async (name) => { await dismissToasts(); await screenshotSettled(win, { path: path.join(outDir, `listview-${name}-${suffix}.png`) }) }
 
+// 生成框的几个状态（框本身 / 参数面板：画幅 + 清晰度 / 模型选择），用于画布与列表详情逐个对比。
+async function composerStates(scope) {
+  const root = win.locator(scope).first()
+  const grab = async () => {
+    const box = await root.boundingBox()
+    const x = Math.max(0, box.x - 24)
+    const y = Math.max(0, box.y - 260)
+    return win.screenshot({ clip: { x, y, width: Math.min(1280 - x, box.width + 48), height: Math.min(800 - y, box.y - y + box.height + 110) } })
+  }
+  const base = await grab()
+  await root.locator('[data-parameter-summary]').click()
+  await win.waitForTimeout(500)
+  const params = await grab()
+  await root.locator('[data-node-composer-prompt]').click()
+  await win.waitForTimeout(300)
+  await root.locator('button[aria-haspopup="listbox"]').click()
+  await win.waitForTimeout(500)
+  const models = await grab()
+  await root.locator('[data-node-composer-prompt]').click()
+  await win.waitForTimeout(300)
+  return [base, params, models]
+}
+// 换模型并生成：认假供应商那头收到的请求里 model 是不是跟着变。
+async function pickModelAndGenerate(scope, label, expectedModel, callsBefore) {
+  const root = win.locator(scope).first()
+  await root.locator('button[aria-haspopup="listbox"]').click()
+  await win.waitForTimeout(500)
+  if (process.env.WALK_DEBUG) await win.screenshot({ path: process.env.WALK_DEBUG + '/pick.png' })
+  await clickOrFail(win.getByRole('option', { name: label }), '选模型 ' + label)
+  await clickOrFail(root.locator('[data-bar-segment="generate"]'), '生成框的 ↑')
+  await win.waitForFunction((n) => window.__walkWireCount?.() > n, callsBefore, { timeout: 30000 }).catch(() => {})
+  const deadline = Date.now() + 30000
+  while (wireCalls.length <= callsBefore && Date.now() < deadline) await win.waitForTimeout(250)
+  expect(wireCalls.length, '假供应商没收到请求').toBe(callsBefore + 1)
+  expect(wireCalls[callsBefore].model, '请求里的 model 没有跟着生成框里选的模型走').toBe(expectedModel)
+}
+
+// 顶栏切换图标的悬停 tooltip：列表里应是「切到画布」，画布上应是「切到列表」（Radix 只在指针重新进入时才开，所以先挪开再进入）。
+async function hoverSwitcher(view) {
+  const switcherButton = win.locator('[data-shell-topbar] [data-generation-view-switcher]')
+  const box = await switcherButton.boundingBox()
+  const tip = win.locator('[role="tooltip"]', { hasText: view === 'list' ? /^(切到画布|Switch to canvas)$/ : /^(切到列表|Switch to list)$/ }).last()
+  // 悬停偶发赶在页面还在布局时落空：最多重进三次。
+  for (let attempt = 0; attempt < 3 && !(await tip.isVisible().catch(() => false)); attempt += 1) {
+    await win.mouse.move(640, 500)
+    await win.waitForTimeout(400)
+    await win.mouse.move(box.x + box.width / 2 - 3, box.y + box.height / 2)
+    await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 })
+    await win.waitForTimeout(700)
+  }
+  await expect(tip, '悬停后没有 tooltip').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await dismissToasts()
+  await win.screenshot({ path: path.join(outDir, `listview-switcher-hover${view === 'list' ? '' : '-canvas'}-${suffix}.png`) })
+  await win.mouse.move(640, 500)
+}
+
 try {
   await launch('generation-list-window-prime')
   await win.evaluate(({ scheme, locale }) => {
@@ -142,15 +243,7 @@ try {
   await expect(win.locator('[data-section-generate]').first(), '分区头没有「生成全部」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await shot('list')
   // 顶栏那个图标：悬停看 tooltip（列表里显示的是「切到画布」）。
-  const switcherButton = win.locator('[data-shell-topbar] [data-generation-view-switcher]')
-  const box = await switcherButton.boundingBox()
-  await win.mouse.move(640, 500) // 点过切换钮的指针还停在它上面，Radix 只在指针重新进入时才开 tooltip：先挪开
-  await win.waitForTimeout(300)
-  await win.mouse.move(box.x + box.width / 2 - 3, box.y + box.height / 2)
-  await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 })
-  await expect(win.locator('[role="tooltip"]', { hasText: /切到列表|切到画布|Switch to (list|canvas)/ }).last(), '悬停后没有 tooltip').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await dismissToasts()
-  await win.screenshot({ path: path.join(outDir, `listview-switcher-hover-${suffix}.png`) })
+  await hoverSwitcher('list')
   await win.mouse.move(640, 500)
 
   // ①b 分区头「生成全部」→ 同一张付费确认、按项勾选（没生成的勾上、已生成的不勾）；取消 = 什么都不发生。
@@ -160,6 +253,12 @@ try {
   expect(await checklist.count(), 'one checkbox per shot of the section').toBe(6)
   expect(await win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count(), 'idle + failed shots ticked by default').toBe(2)
   await shot('confirm')
+  // 点一下，受控的框必须真翻转（以前行数据只传一次、点了被弹回，派发对而框不动）。
+  const ticked = win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').first()
+  await ticked.click()
+  expect(await win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count(), '点掉一项后框没有翻转').toBe(1)
+  await win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:not(:checked):not(:disabled)').first().click()
+  expect(await win.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count(), '勾上一项后框没有翻转').toBe(2)
   await win.keyboard.press('Escape')
   await expect(checklist.first(), 'the card did not close').toBeHidden({ timeout: DEFAULT_TIMEOUT_MS })
 
@@ -191,6 +290,21 @@ try {
   await shot('detail-draft')
   // 同一个节点（镜 04）的生成框：先抓列表详情里的（host=inline），下面再抓画布上的，并排放进一张图对版面。
   const inlineComposer = await win.locator('[data-inspector-composer] [data-composer-host="inline"]').screenshot()
+  // 预览和生成框在同一条竖直中线上（窗口 1280 与 1600 两档，差 <= 1px）。
+  const centerGap = () => win.evaluate(() => {
+    const centerOf = (selector) => { const rect = document.querySelector(selector).getBoundingClientRect(); return rect.left + rect.width / 2 }
+    return Math.abs(centerOf('[data-list-detail-preview]') - centerOf('[data-inspector-composer] .generation-canvas-v2-node__composer-card'))
+  })
+  const gap1280 = await centerGap()
+  expect(gap1280 <= 1, '1280 宽：预览与生成框的水平中心差 ' + gap1280.toFixed(1) + 'px，超过 1px').toBe(true)
+  const browserWindowRef = await app.browserWindow(win)
+  await browserWindowRef.evaluate((windowRef, bounds) => windowRef.setBounds(bounds), { x: 0, y: 0, width: 1600, height: 800 })
+  await win.waitForTimeout(700)
+  const gap1600 = await centerGap()
+  expect(gap1600 <= 1, '1600 宽：预览与生成框的水平中心差 ' + gap1600.toFixed(1) + 'px，超过 1px').toBe(true)
+  await browserWindowRef.evaluate((windowRef, bounds) => windowRef.setBounds(bounds), { x: 0, y: 0, width: 1280, height: 800 })
+  await win.waitForTimeout(700)
+  const listStates = await composerStates('[data-inspector-composer] [data-composer-host="inline"]')
 
   // ⑥ 「去画布」→ 画布，镜 04 被选中：分镜号角标；页面里没有任何「去列表」入口，只有顶栏那一个图标。
   await clickOrFail(win.locator('[data-list-detail-view-canvas]'), '去画布')
@@ -201,7 +315,9 @@ try {
   await expectAbsent(win.getByRole('button', { name: /^(去列表|在列表里看|Open list|View in list)$/ }), { provenBy: switcherProof, message: '页面里不该再有「去列表」入口（只有顶栏那一个图标）' })
   await expect(win.locator('[data-shell-topbar] [data-generation-view-switcher="canvas"]'), '画布上顶栏图标显示的应是「切到列表」').toHaveAttribute('aria-label', /切到列表|Switch to list/)
   await shot('canvas')
+  await hoverSwitcher('canvas')
   const canvasComposer = await win.locator('[data-composer-host="canvas"]').first().screenshot()
+  const canvasStates = await composerStates('[data-composer-host="canvas"]')
 
   // ⑦ 顶栏图标 → 回列表（详情还开着这一张）。
   await switchGenerationView(win, 'list')
@@ -209,13 +325,26 @@ try {
   // ⑧ 返回列表。
   await clickOrFail(win.locator('[data-list-detail-back]'), 'back from detail')
   await expect(win.locator('[data-list-layout="grid"]'), '返回之后不是列表网格').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // ⑨ 换模型并生成（零真实付费：假供应商在本机回环上）：列表详情选 B → 发的是 B；画布生成框选回 A → 发的是 A。
+  await clickOrFail(win.locator('[data-list-card="shot-4"]'), '打开镜 04 详情')
+  await expect(win.locator('[data-list-inspector="shot-4"]'), '镜 04 详情没打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await pickModelAndGenerate('[data-inspector-composer] [data-composer-host="inline"]', '列表图片 B', IMAGE_B, 0)
+  await switchGenerationView(win, 'canvas')
+  await win.locator('[data-node-id="shot-4"]').click()
+  // 生成后画布里这张图被拉高，生成框落在时间轴条后面：把画布往上推一点让整个生成框可点。
+  await win.mouse.move(640, 300)
+  await win.mouse.wheel(0, 320)
+  await win.waitForTimeout(500)
+  await pickModelAndGenerate('[data-composer-host="canvas"]', '列表图片 A', IMAGE_A, 1)
   // 并排：左 = 画布节点的生成框，右 = 列表详情里的（同一个组件、同一套排版）。无头 Chromium 渲染一张对比图，不开可见窗口。
   const { chromium } = await import('playwright')
   const browser = await chromium.launch()
   try {
-    const page = await browser.newPage({ viewport: { width: 1240, height: 460 }, deviceScaleFactor: 1 })
+    const page = await browser.newPage({ viewport: { width: 1240, height: 900 }, deviceScaleFactor: 1 })
     const dataUri = (buffer) => `data:image/png;base64,${buffer.toString('base64')}`
-    await page.setContent(`<body style="margin:0;padding:16px;background:${scheme === 'dark' ? '#1d1c1a' : '#f4f2ef'};color:${scheme === 'dark' ? '#ddd' : '#333'};font:12px sans-serif"><div style="display:flex;gap:24px;align-items:flex-start"><div><div style="margin-bottom:6px">${T('画布节点的生成框', 'Canvas node composer')}</div><img src="${dataUri(canvasComposer)}"></div><div><div style="margin-bottom:6px">${T('列表详情里的生成框', 'List detail composer')}</div><img src="${dataUri(inlineComposer)}"></div></div></body>`)
+    const rowLabels = [T('生成框', 'Composer'), T('参数面板（画幅 / 清晰度）', 'Parameters (ratio / size)'), T('模型选择', 'Model picker')]
+    const rows = [canvasComposer, ...canvasStates.slice(1)].map((left, index) => `<div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:14px"><div><div style="margin-bottom:6px">${T('画布', 'Canvas')} · ${rowLabels[index]}</div><img src="${dataUri(left)}"></div><div><div style="margin-bottom:6px">${T('列表详情', 'List detail')} · ${rowLabels[index]}</div><img src="${dataUri(index === 0 ? inlineComposer : listStates[index])}"></div></div>`).join('')
+    await page.setContent(`<body style="margin:0;padding:16px;background:${scheme === 'dark' ? '#1d1c1a' : '#f4f2ef'};color:${scheme === 'dark' ? '#ddd' : '#333'};font:12px sans-serif">${rows}</body>`)
     await page.screenshot({ path: path.join(outDir, `listview-composer-sidebyside-${suffix}.png`), fullPage: true })
   } finally {
     await browser.close()
@@ -223,5 +352,6 @@ try {
   console.log(`✓ generation-list-window ${suffix} → ${outDir}`)
 } finally {
   await shutdown()
+  await new Promise((resolve) => vendorServer.close(resolve))
   fs.rmSync(root, { recursive: true, force: true })
 }

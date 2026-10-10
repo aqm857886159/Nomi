@@ -219,6 +219,15 @@ describe("canvas.read canonical contract", () => {
 
     // 全局镜号（内部排序键）不属于读面：结果里带着它就是不合法（schema 里没有这一格）。
     expect(shotIndexResult.success).toBe(false);
+    if (!shotIndexResult.success) {
+      // 精确：错误码、被拒的键、位置、文案都断言（不是任何一个失败都算数）。
+      expect(shotIndexResult.error.issues).toContainEqual({
+        code: "unrecognized_keys",
+        keys: ["shotIndex"],
+        path: ["nodes", 0],
+        message: "Unrecognized key(s) in object: 'shotIndex'",
+      });
+    }
     expect(orderResult.success).toBe(false);
     if (!orderResult.success) {
       expect(orderResult.error.issues.map((issue) => issue.path)).toContainEqual(["edges", 0, "order"]);

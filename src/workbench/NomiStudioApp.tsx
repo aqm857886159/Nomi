@@ -53,7 +53,6 @@ import { setCanvasEventProjectIdProvider } from './generationCanvas/events/canva
 import { handleCapabilityApply, registerCapabilityApplyHandler } from './capability/capabilityApplyHandler'
 import { cn } from '../utils/cn'
 import { notify } from '../ui/notificationPolicy'
-import { useGenerationViewStore } from './generation/list/generationViewStore'
 import { useProjectNotificationTarget } from './project/useProjectNotificationTarget'
 import { getDesktopBridge } from '../desktop/bridge'
 import { logRendererError } from '../desktop/rendererLog'
@@ -362,19 +361,14 @@ export default function NomiStudioApp(): JSX.Element {
         // committed Surface; the guard prevents any late write after a switch.
         void runProjectAssetHealthCheck(hydrated.id, surfaceEpoch).catch(() => {})
         module.consumeCategoryMigrationDiagnostic(surfaceEpoch)
-        // 旧版（0.23.1 及更早）画布里的分镜表节点这次被收掉了：说一句，并给一个去列表看的出口（镜头都还在）。
+        // 旧版（0.23.1 及更早）画布里的分镜表节点这次被收掉了：只说一句（镜头都还在、在哪看写在文案里），不放按钮：切换只有顶栏那一个图标。
         const retiredTables = module.consumeRetiredStoryboardTableCount(surfaceEpoch)
         if (retiredTables > 0) {
           notify({
             identity: `project:${hydrated.id}:retired-storyboard-tables`,
             reason: 'migration',
-            level: 'background',
+            level: 'status',
             message: t('generationList.retiredTables.notice', { count: retiredTables }),
-            actionLabel: t('generationList.retiredTables.action'),
-            onAction: () => {
-              useWorkbenchStore.getState().setWorkspaceMode('generation')
-              useGenerationViewStore.getState().setView('list')
-            },
           })
         }
       } catch (error) {
