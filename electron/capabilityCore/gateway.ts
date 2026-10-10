@@ -33,7 +33,7 @@ export interface ProjectGateway {
    * 写回只把 base → snapshot 里外部自己改了的东西合到**此刻的**画布上（shared/canvas/externalCanvasWrite），
    * 读图之后落地的生成结局、用户新建的节点不会被整张覆盖抹掉。
    */
-  apply(snapshot: CanvasSnapshot, base: CanvasSnapshot): Promise<void>
+  apply(snapshot: CanvasSnapshot, base: CanvasSnapshot, options?: { restoredEdgeIds?: readonly string[] }): Promise<void>
   /**
    * 方案门（免费、可撤）：确认后返回 true 落画布，否则 false 不落。
    * app 开着 → 弹应用内方案卡；app 关着（headless）→ true 放行（自由可撤操作，无人值守不阻断，
@@ -66,14 +66,14 @@ function readDiskSnapshot(projectId: string): CanvasSnapshot {
   return normalizeSnapshot(payload.generationCanvas)
 }
 
-async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot, base: CanvasSnapshot): Promise<void> {
+async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot, base: CanvasSnapshot, restoredEdgeIds?: readonly string[]): Promise<void> {
   await serializeProjectCanvasWrite(projectId, async () => {
   const record = readProject(projectId)
   if (!record) throw new Error(`项目不存在: ${projectId}`)
   const payload = record.payload && typeof record.payload === 'object' ? { ...(record.payload as Record<string, unknown>) } : {}
   // 盘上此刻的画布可能已经被别的写者改过（后台项目的生成结局投递写的就是这一份）：合并，不整张覆盖。
   const raw = payload.generationCanvas && typeof payload.generationCanvas === 'object' ? payload.generationCanvas as Record<string, unknown> : {}
-  payload.generationCanvas = { ...raw, ...mergeExternalCanvasWrite({ base, next: snapshot, current: normalizeSnapshot(raw) }) }
+  payload.generationCanvas = { ...raw, ...mergeExternalCanvasWrite({ base, next: snapshot, current: normalizeSnapshot(raw), ...(restoredEdgeIds ? { restoredEdgeIds } : {}) }) }
   await saveProject(projectId, { ...record, payload })
   })
 }
@@ -93,8 +93,8 @@ export function createDiskGateway(projectId: string): ProjectGateway {
     async readDoc() {
       return readDiskSnapshot(projectId)
     },
-    async apply(snapshot, base) {
-      await writeDiskSnapshot(projectId, snapshot, base)
+    async apply(snapshot, base, options) {
+      await writeDiskSnapshot(projectId, snapshot, base, options?.restoredEdgeIds)
     },
     async confirmPlan() {
       // 无窗口可弹方案卡（headless）。方案是免费可撤操作 → 放行（不像付费门要拒发）。
@@ -127,8 +127,8 @@ export function createRendererGateway(projectId: string): ProjectGateway {
     async readDoc() {
       return normalizeSnapshot(await requestRenderer('canvas.read-doc', { projectId }, RENDERER_APPLY_TIMEOUT_MS))
     },
-    async apply(snapshot, base) {
-      await requestRenderer('canvas.apply', { projectId, snapshot, base }, RENDERER_APPLY_TIMEOUT_MS)
+    async apply(snapshot, base, options) {
+      await requestRenderer('canvas.apply', { projectId, snapshot, base, ...(options?.restoredEdgeIds ? { restoredEdgeIds: options.restoredEdgeIds } : {}) }, RENDERER_APPLY_TIMEOUT_MS)
     },
     async confirmPlan(info) {
       try {
