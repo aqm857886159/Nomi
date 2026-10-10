@@ -80,6 +80,7 @@ export const CI_ONLY = Object.freeze([
     reason: '要网络 / 浏览器 / 构建产物 / python 锁 / electron 二进制，或随机器环境而变',
     gates: [
       'check:design-lab',
+      'check:board-parity', // 要 Playwright 无界面浏览器抽 12 张板的候选
       'check:package-budget',
       'check:feedback-worker',
       'check:e2e-launch',
