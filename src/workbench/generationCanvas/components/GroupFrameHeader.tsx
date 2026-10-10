@@ -20,6 +20,7 @@ import { IconDots, IconStack2 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
 import { groupColorClass } from '../model/groupColor'
+import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -149,14 +150,15 @@ export function GroupFrameHeader({
       className={cn(
         'generation-canvas-v2__group-box-label',
         outside
-          ? 'absolute left-0 top-[-30px] z-[4] inline-flex min-h-6 max-w-[calc(100%-24px)] items-center gap-2 border-0 px-0 py-0 text-body-sm font-medium leading-[1.25] shadow-none'
-          : 'absolute left-3 top-2 z-[4] inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2 rounded-full border px-[9px] py-[3px] text-micro font-[650] leading-[1.25]',
+          ? 'absolute left-0 top-[-30px] inline-flex min-h-6 max-w-[calc(100%-24px)] items-center gap-2 border-0 px-0 py-0 text-body-sm font-medium leading-[1.25] shadow-none'
+          : 'absolute left-3 top-2 inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2 rounded-full border px-[9px] py-[3px] text-micro font-[650] leading-[1.25]',
         'pointer-events-auto select-none',
         outside ? 'bg-transparent' : GROUP_VISUAL_CLASS.label,
         connectable ? 'cursor-copy' : readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
       )}
       // 编辑中不许把头部当拖动把手——否则点进输入框的那一下就把整个框拖走了。
       onPointerDown={editingField ? (event) => event.stopPropagation() : undefined}
+      style={{ zIndex: CANVAS_LAYER.groupHeader }}
     >
       <span className={cn('size-2 shrink-0 rounded-full', groupColorClass(colorToken).dot)} data-group-color-dot="true" aria-hidden="true" />
       <IconStack2 className="shrink-0" size={outside ? 15 : 12} stroke={outside ? 1.8 : 1.9} aria-hidden="true" />

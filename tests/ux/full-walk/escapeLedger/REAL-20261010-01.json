@@ -1,0 +1,24 @@
+{
+  "id": "REAL-20261010-01",
+  "since": "2026-10-10",
+  "source": "2026-10-10 user report",
+  "category": "overlay-legibility",
+  "problem": "分组左上角的图标与节点的提示词框叠在一起：分组框头压住了别组节点的生成框",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "confirmed-by-user-2026-10-10",
+  "fixedInPr": null,
+  "structuralPrevention": [
+    "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts（层级表唯一 owner）",
+    "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts（顺序断言 + 散落数字守卫）",
+    "tests/ux/group-layer-order.walk.mjs（真 Electron elementFromPoint 走查）"
+  ],
+  "evidence": [
+    "2026-10-10 probe on real Electron (before fix): group B header z=4 topAtIntersect over group A selected node composer (node z=5 inside node layer z=2)",
+    "2026-10-10 user: 分组左上角的icon会和节点框提示词框叠在一起"
+  ],
+  "completionCommits": []
+}

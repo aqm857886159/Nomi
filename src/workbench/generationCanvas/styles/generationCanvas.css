@@ -59,7 +59,6 @@
 }
 
 .generation-canvas-v2__nodes {
-  z-index: 3;
   pointer-events: none;
 }
 

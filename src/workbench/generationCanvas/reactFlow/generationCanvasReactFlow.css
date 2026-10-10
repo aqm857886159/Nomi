@@ -32,7 +32,7 @@
 }
 
 .generation-canvas-react-flow .react-flow__node.selected {
-  z-index: 5 !important;
+  z-index: var(--canvas-z-node-selected) !important;
 }
 
 .generation-canvas-react-flow .react-flow__selection {
@@ -74,7 +74,7 @@
 }
 
 .generation-canvas-react-flow .react-flow__nodes {
-  z-index: 2;
+  z-index: var(--canvas-z-nodes);
 }
 
 .generation-canvas-react-flow .generation-canvas-react-flow__node-shell {

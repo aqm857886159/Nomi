@@ -34,6 +34,7 @@ import { CANVAS_DRAGGING_OWNER, beginCanvasDragging, type CanvasDragLease } from
 import { syncCanvasNodeProjection } from './canvasNodeProjectionSync'
 import { ProjectOpenFlowProbe } from '../../project/projectOpenFlowProbe'
 import { CanvasPickModeDim } from '../components/CanvasPickModeLayer'
+import { CANVAS_LAYER_CSS_VARS } from './canvasLayerOrder'
 
 type GenerationCanvasReactFlowViewportProps = {
   flowNodes: GenerationFlowNode[]
@@ -199,6 +200,7 @@ export function GenerationCanvasReactFlowViewport({
     : null
   return (
     <ReactFlow
+      style={CANVAS_LAYER_CSS_VARS}
       defaultNodes={flowNodes}
       edges={flowEdges}
       nodeTypes={nodeTypes}

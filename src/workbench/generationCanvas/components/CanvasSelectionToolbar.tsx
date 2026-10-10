@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { SelectionToolbarFrame } from './SelectionToolbarFrame'
 import { ToolbarButton, ToolbarIconButton } from '../nodes/NodeFloatingToolbar'
+import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 
 type CanvasSelectionToolbarProps = {
   selectedCount: number
@@ -30,7 +31,8 @@ export function CanvasSelectionToolbar({
   const { t } = useTranslation()
   return (
     <SelectionToolbarFrame
-      className="generation-canvas-v2__selection-toolbar absolute z-[11] max-w-[760px]"
+      className="generation-canvas-v2__selection-toolbar absolute max-w-[760px]"
+      zIndex={CANVAS_LAYER.selectionToolbar}
       transform={transform}
       maxWidth={maxWidth}
       ariaLabel={t('generationCommon.selection.aria')}

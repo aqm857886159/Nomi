@@ -1,0 +1,21 @@
+{
+  "id": "REAL-20261010-02",
+  "since": "2026-10-10",
+  "source": "2026-10-10 user report",
+  "category": "interaction-semantics",
+  "problem": "分组框外左上角保留了冗余的标签图标与功能，实际已转移到分组工具栏",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "confirmed-by-user-2026-10-10",
+  "fixedInPr": null,
+  "structuralPrevention": [
+    "框头功能普查表（docs/plan/2026-10-10-group-header-board-parity.md）逐项写明去处，改版后框外标签整体删除（同 commit）"
+  ],
+  "evidence": [
+    "2026-10-10 user: 删掉了左上角那个冗余logo和功能，已经转移到分组的工具栏里面了"
+  ],
+  "completionCommits": []
+}

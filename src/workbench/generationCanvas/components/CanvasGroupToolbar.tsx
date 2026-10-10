@@ -18,6 +18,7 @@ import { GROUP_COLOR_IDS, resolveGroupColor, groupColorClass, type GroupColorId 
 import { resolveGroupToolbarShiftX, type GroupToolbarPlacement } from './groupToolbarPlacement'
 import { ToolbarActionMenu } from '../nodes/ToolbarActionMenu'
 import { ToolbarButton, ToolbarDivider, ToolbarIconButton, TOOLBAR_ICON } from '../nodes/NodeFloatingToolbar'
+import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 
 export type CanvasGroupToolbarProps = {
   group: NodeGroup
@@ -126,7 +127,7 @@ export function CanvasGroupToolbar({
     <div
       ref={rootRef}
       className={cn(
-        'generation-canvas-v2__group-toolbar absolute left-1/2 z-[12] -translate-x-1/2',
+        'generation-canvas-v2__group-toolbar absolute left-1/2 -translate-x-1/2',
         'inline-flex w-max flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1',
         'rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md',
       )}
@@ -135,6 +136,7 @@ export function CanvasGroupToolbar({
       role="toolbar"
       data-group-toolbar-side={placement.side}
       style={{
+        zIndex: CANVAS_LAYER.groupToolbar,
         left: `calc(50% + ${shiftX}px)`,
         transform: `translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
         // 外壳（投影层里和组框同大的锚点）：above 从框上沿往上抬，below 从框下沿往下放，inside 从框上沿往下放。

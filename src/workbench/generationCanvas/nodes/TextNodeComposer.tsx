@@ -28,6 +28,7 @@ import { presetBlockHint, runTextPreset, useTextPresetBlocks } from './textProce
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
+import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 
 type Props = {
   onFeedback: (message: string) => void
@@ -211,11 +212,11 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
       placement="match-node"
       data-composer-host="canvas"
       className={cn(
-        'generation-canvas-v2-node__composer nokey absolute z-[8]',
+        'generation-canvas-v2-node__composer nokey absolute',
         // 画布拖动期间隐身（拖节点、拖选区、拖画布平移）：用 visibility 而不是卸载，输入框里没发出去的字不丢。
         'group-data-[dragging=true]/canvas:invisible',
       )}
-      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
+      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto', zIndex: CANVAS_LAYER.nodeComposer }}
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
     >

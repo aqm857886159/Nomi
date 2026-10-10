@@ -7,6 +7,7 @@ type SelectionToolbarFrameProps = React.PropsWithChildren<{
   dataStoryboardSelectionToolbar?: boolean
   transform?: string
   maxWidth?: number
+  zIndex?: number
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void
 }>
 
@@ -17,6 +18,7 @@ export function SelectionToolbarFrame({
   dataStoryboardSelectionToolbar,
   transform,
   maxWidth,
+  zIndex,
   onPointerDown,
   children,
 }: SelectionToolbarFrameProps): JSX.Element {
@@ -27,7 +29,7 @@ export function SelectionToolbarFrame({
         'bg-nomi-paper/[0.96] px-2.5 py-1.5 shadow-nomi-md pointer-events-auto',
         className,
       )}
-      style={{ transform, maxWidth }}
+      style={{ transform, maxWidth, zIndex }}
       aria-label={ariaLabel}
       data-storyboard-selection-toolbar={dataStoryboardSelectionToolbar ? 'true' : undefined}
       onPointerDown={onPointerDown}

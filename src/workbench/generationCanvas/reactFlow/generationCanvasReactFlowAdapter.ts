@@ -6,6 +6,7 @@ import type {
 } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { readGroupPort } from '../model/groupPort'
+import { CANVAS_LAYER } from './canvasLayerOrder'
 
 /**
  * React Flow is a rendering adapter. The persisted canvas model remains the
@@ -86,10 +87,10 @@ export function toGenerationFlowNode(
     style: groupPort
       ? { width: size.width, height: size.height, pointerEvents: 'none' }
       : { width: size.width, height: size.height },
-    ...(groupPort ? { draggable: false, zIndex: -1 } : {}),
+    ...(groupPort ? { draggable: false, zIndex: CANVAS_LAYER.groupPort } : {}),
     // 版本卡片铺开着：整组盖在普通节点（0）上面（09-28 拍板「盖在上面」）；选中节点由层级表抬到 5
     // （generationCanvasReactFlow.css 的 .selected !important），点中谁谁浮上来。不另加全局 CSS。
-    ...(!groupPort && node.resultStackOpen ? { zIndex: 4 } : {}),
+    ...(!groupPort && node.resultStackOpen ? { zIndex: CANVAS_LAYER.nodeResultStack } : {}),
     className: 'generation-canvas-react-flow__node',
   }
 }

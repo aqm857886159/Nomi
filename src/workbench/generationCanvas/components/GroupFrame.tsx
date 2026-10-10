@@ -20,6 +20,7 @@ import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
 import { groupColorClass } from '../model/groupColor'
 import { GroupFrameHeader, type FrameMembershipPreview } from './GroupFrameHeader'
+import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 
 export type CanvasGroupBox = {
   group: NodeGroup
@@ -123,6 +124,7 @@ export default function GroupFrame({
         top: box.top,
         width: box.width,
         height: box.height,
+        zIndex: CANVAS_LAYER.groupBody,
       }}
       role={readOnly ? undefined : 'button'}
       tabIndex={readOnly ? undefined : 0}

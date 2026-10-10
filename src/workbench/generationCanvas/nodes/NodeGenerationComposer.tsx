@@ -58,6 +58,7 @@ import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
 import { shotClaimCopy } from '../../observability/shotClaimCopy'
 import { useNodePromptFocusRequest } from './nodePromptFocus'
+import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 
 // 生成节点的浮动 composer：references + 提示词 + 参数 + 生成/重新生成按钮。
 // 从 BaseGenerationNode 抽出（A1.5 接缝）：只有「生成类」节点挂它，素材节点不挂。
@@ -344,14 +345,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       className={cn(
         'generation-canvas-v2-node__composer nokey',
         // 面板里的卡由介入槽定位，这里只是一段普通内容流；画布上才是浮在节点下沿的绝对定位层。
-        inPanel ? 'w-full' : 'absolute z-[8]',
+        inPanel ? 'w-full' : 'absolute',
         // 画布拖动期间隐身（拖节点、拖选区/组框、拖画布平移都算；状态源=stage 的 data-dragging，见 canvasDraggingFlag）。
         // 刻意用 visibility 而非条件卸载：里面是 TipTap 编辑器实例，卸载 = 丢未提交的输入 +
         // 每次拖动重建编辑器（拖动是最高频动作）。
         !inPanel && 'group-data-[dragging=true]/canvas:invisible',
       )}
       data-composer-host={host}
-      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
+      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto', zIndex: inPanel ? undefined : CANVAS_LAYER.nodeComposer }}
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
       {...(acceptsDrop ? dropHandlers : {})}
