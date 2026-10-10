@@ -1,0 +1,519 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-10T19:09:33.434Z",
+  "commit": "9d50e4c41461336a3feb89c4adb7cc1761d4aee4",
+  "runner": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+  "measurement": {
+    "warmup": 0,
+    "runs": 1,
+    "launchTimeoutMs": 5000,
+    "viewport": {
+      "width": 1280,
+      "height": 933
+    },
+    "cache": "isolated profile; synthetic local media; no paid model calls"
+  },
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "logicalCpus": 5,
+    "memoryBytes": 18882699264,
+    "display": null,
+    "waylandDisplay": null,
+    "xServerProbe": false
+  },
+  "scales": [
+    {
+      "scale": "small",
+      "documents": 2,
+      "plans": 2,
+      "shots": 24,
+      "images": 4,
+      "videos": 2,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "REAL",
+      "canvasNodes": 6,
+      "canvasEdges": 5,
+      "scenarios": [
+        {
+          "id": "P1",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "P2",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "D1",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "D2",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "B1",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "B2",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C1",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C2",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C3",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A1",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A2",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A3",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A4",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "R1",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "R2",
+          "scale": "small",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        }
+      ]
+    },
+    {
+      "scale": "typical",
+      "documents": 5,
+      "plans": 5,
+      "shots": 240,
+      "images": 24,
+      "videos": 24,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "S",
+      "canvasNodes": 48,
+      "canvasEdges": 96,
+      "scenarios": [
+        {
+          "id": "P1",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "P2",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "D1",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "D2",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "B1",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "B2",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C1",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C2",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C3",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A1",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A2",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A3",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A4",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "R1",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "R2",
+          "scale": "typical",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        }
+      ]
+    },
+    {
+      "scale": "heavy",
+      "documents": 12,
+      "plans": 10,
+      "shots": 3200,
+      "images": 160,
+      "videos": 160,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "XL",
+      "canvasNodes": 320,
+      "canvasEdges": 640,
+      "scenarios": [
+        {
+          "id": "P1",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "P2",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "D1",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "D2",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "B1",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "B2",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C1",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C2",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "C3",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A1",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A2",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A3",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "A4",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "R1",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        },
+        {
+          "id": "R2",
+          "scale": "heavy",
+          "fixture": {
+            "agent": "local-timer/loopback contract only; no paid provider"
+          },
+          "samples": [],
+          "status": "blocked",
+          "reason": "launch_error: \n❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!"
+        }
+      ]
+    }
+  ]
+}
