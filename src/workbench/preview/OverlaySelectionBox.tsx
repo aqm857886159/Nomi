@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { cn } from '../../utils/cn'
+import { usePointerSession } from '../timeline/timelineGesture'
 import {
   clampCenter,
   clampScale,
@@ -52,15 +53,16 @@ export default function OverlaySelectionBox({
   onDoubleClick,
   children,
 }: OverlaySelectionBoxProps): JSX.Element {
+  const startSession = usePointerSession()
+
   const beginBodyDrag = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     if ((event.target as HTMLElement).closest('[data-handle]')) return
     event.preventDefault()
     event.stopPropagation()
-    const target = event.currentTarget
-    target.setPointerCapture?.(event.pointerId)
     const startX = event.clientX
     const startY = event.clientY
     const startCenterPx = { x: centerNorm.x * stageWidth, y: centerNorm.y * stageHeight }
+    const startCenter = { x: centerNorm.x, y: centerNorm.y }
 
     const apply = (clientX: number, clientY: number, commit: boolean) => {
       const px = { x: startCenterPx.x + (clientX - startX), y: startCenterPx.y + (clientY - startY) }
@@ -68,23 +70,19 @@ export default function OverlaySelectionBox({
       onSnapGuides({ x: snapped.guideX, y: snapped.guideY })
       onTransform({ position: snapped.center }, commit)
     }
-    const move = (e: PointerEvent) => apply(e.clientX, e.clientY, false)
-    const up = (e: PointerEvent) => {
-      apply(e.clientX, e.clientY, true)
-      onSnapGuides({ x: null, y: null })
-      target.releasePointerCapture?.(event.pointerId)
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }, [centerNorm.x, centerNorm.y, onSnapGuides, onTransform, stageHeight, stageWidth])
+    startSession({
+      event,
+      onMove: (move) => apply(move.clientX, move.clientY, false),
+      onCommit: (up) => apply(up.clientX, up.clientY, true),
+      // 被打断：位置回到拖之前（并落盘一次，把拖动中的临时值盖掉）。
+      onCancel: () => onTransform({ position: startCenter }, true),
+      onEnd: () => onSnapGuides({ x: null, y: null }),
+    })
+  }, [centerNorm.x, centerNorm.y, onSnapGuides, onTransform, startSession, stageHeight, stageWidth])
 
   const beginHandleScale = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.preventDefault()
     event.stopPropagation()
-    const target = event.currentTarget
-    target.setPointerCapture?.(event.pointerId)
     const centerPx = { x: centerNorm.x * stageWidth, y: centerNorm.y * stageHeight }
     const startDist = Math.hypot(event.clientX - centerPx.x, event.clientY - centerPx.y) || 1
     const startScale = scale
@@ -93,16 +91,13 @@ export default function OverlaySelectionBox({
       const dist = Math.hypot(clientX - centerPx.x, clientY - centerPx.y)
       onTransform({ scale: clampScale(startScale * (dist / startDist)) }, commit)
     }
-    const move = (e: PointerEvent) => apply(e.clientX, e.clientY, false)
-    const up = (e: PointerEvent) => {
-      apply(e.clientX, e.clientY, true)
-      target.releasePointerCapture?.(event.pointerId)
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }, [centerNorm.x, centerNorm.y, onTransform, scale, stageHeight, stageWidth])
+    startSession({
+      event,
+      onMove: (move) => apply(move.clientX, move.clientY, false),
+      onCommit: (up) => apply(up.clientX, up.clientY, true),
+      onCancel: () => onTransform({ scale: startScale }, true),
+    })
+  }, [centerNorm.x, centerNorm.y, onTransform, scale, startSession, stageHeight, stageWidth])
 
   return (
     <div

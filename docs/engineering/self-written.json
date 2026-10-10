@@ -1742,7 +1742,9 @@
       "status": "justified",
       "paths": [
         "src/workbench/timeline/timelineGesture.ts",
-        "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts"
+        "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+        "src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts",
+        "src/workbench/generationCanvas/nodes/clipNodeDrop.ts"
       ],
       "alternativesChecked": [
         {

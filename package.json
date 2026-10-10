@@ -78,7 +78,7 @@
     "check:ipc-sender-binding": "node ./scripts/check-ipc-sender-binding.mjs",
     "check:skill-ipc-coverage": "node --test ./scripts/check-skill-ipc-coverage.node-test.mjs && node ./scripts/check-skill-ipc-coverage.mjs",
     "check:agents-sync": "node ./scripts/gen-agents-md.mjs --check",
-    "check:claude-hooks": "node --test ./scripts/pre-push-check.node-test.mjs ./scripts/pre-push-contracts.node-test.mjs ./scripts/claude-hooks/commit-bypass-check.node-test.mjs ./scripts/install-claude-hooks.node-test.mjs ./scripts/edit-time-reminder.node-test.mjs ./scripts/fix-churn.node-test.mjs ./scripts/check-dispatch-brief.node-test.mjs ./scripts/build-capability-index.node-test.mjs ./scripts/daily-radar-session.node-test.mjs ./scripts/self-check-hook.node-test.mjs && node ./scripts/install-claude-hooks.cjs --check",
+    "check:claude-hooks": "node --test ./scripts/pre-push-check.node-test.mjs ./scripts/pre-push-contracts.node-test.mjs ./scripts/pre-push-structure.node-test.mjs ./scripts/claude-hooks/commit-bypass-check.node-test.mjs ./scripts/install-claude-hooks.node-test.mjs ./scripts/edit-time-reminder.node-test.mjs ./scripts/fix-churn.node-test.mjs ./scripts/check-dispatch-brief.node-test.mjs ./scripts/build-capability-index.node-test.mjs ./scripts/daily-radar-session.node-test.mjs ./scripts/self-check-hook.node-test.mjs && node ./scripts/install-claude-hooks.cjs --check",
     "check:push-bypass": "node ./scripts/check-push-bypass.mjs",
     "check:vocabularies": "node --test ./scripts/check-vocabularies*.node-test.mjs && node ./scripts/check-vocabularies.mjs",
     "check:store-lifetime": "node ./scripts/check-store-lifetime.mjs",

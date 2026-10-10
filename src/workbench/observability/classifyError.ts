@@ -591,6 +591,12 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (outboundCode === 'submission-unknown') return reportFor('submission-unknown', cleanRaw, '')
   // 已生成、取回失败（#975 A2）：机器码先判，upstream 给 ''——失败在我们取回这一侧，不印「服务商原话」。
   if (outboundCode === 'output-retrieval-failed') return reportFor('output-retrieval-failed', cleanRaw, '')
+  // 本机处理失败：没有服务商参与，upstream 给 ''（不印「服务商原话」）；原因就是码后面那句人话，已经在 raw / 标题里。
+  if (outboundCode === 'local-processing') {
+    // 第一行 = 生产者写的那句人话（标题）；其余行是技术细节，只进「技术详情」。先切行再剥码——剥码会把换行压成空格。
+    const detail = stripNomiErrorCode(cleanRaw.split('\n')[0] ?? '')
+    return reportFor('local-processing', cleanRaw, '', detail ? { detail } : undefined)
+  }
   // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
   // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
   // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。

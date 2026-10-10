@@ -1,5 +1,5 @@
 {
-  "name": "剪辑节点内手势的命中几何（手柄 / 播放头抓取带宽度、屏幕像素换算、手势准入）",
+  "name": "剪辑节点内手势的命中几何（手柄 / 播放头抓取带宽度、窄片段点击下限、屏幕像素换算、边缘自动滚动、落点帧、手势准入）",
   "subject": "canvas.clip-gesture-geometry",
   "lifecycle": "derived",
   "authority_kind": "derivation",
@@ -26,14 +26,31 @@
     {
       "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
       "symbol": "resolveClipGestureAdmission"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "clipHitPadWidth"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "edgeScrollStep"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts",
+      "symbol": "resolveClipNodeDropFrame"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts",
+      "symbol": "startEdgeAutoScroll"
     }
   ],
   "forbidden_derivations": [],
   "parity_test": "src/workbench/generationCanvas/nodes/clipNodeGestureModel.test.ts",
   "allowed_consumers": [
     "src/workbench/generationCanvas/nodes/ClipNode.tsx",
-    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx"
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+    "src/workbench/generationCanvas/nodes/clipNodeEdgeScroll.ts"
   ],
   "since": "2026-10-09",
-  "notes": "节点在画布里被整体缩放（0.2–3），节点内部像素是设计像素、用户手指落在屏幕像素上：可抓取对象（裁剪手柄 8–16px、播放头抓取带 8px）的宽度按屏幕像素定、只在这里除以 zoom，不再各写各的 clamp。手势准入 = 按下的那一刻节点与片段的选中态先跟上（拖动会吞掉 click）。"
+  "notes": "节点在画布里被整体缩放（0.2–3），节点内部像素是设计像素、用户手指落在屏幕像素上：可抓取对象（裁剪手柄 8–16px、播放头抓取带 8px）的宽度按屏幕像素定、只在这里除以 zoom，不再各写各的 clamp。手势准入 = 按下的那一刻节点与片段的选中态先跟上（拖动会吞掉 click）。 2026-10-09 第二片：窄于 24 屏幕像素的片段两侧各补一条看不见的命中垫（clipHitPadWidth，垫在片段之下）；拖到轴边缘自动滚动（edgeScrollStep，滚完按同一指针位置重算落点）；素材落点吸最近边（resolveClipNodeDropFrame）——预览指示与松手插入读同一个返回值。"
 }
