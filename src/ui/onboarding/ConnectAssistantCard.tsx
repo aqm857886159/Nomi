@@ -22,7 +22,7 @@ import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { FoldableModelCard } from './FoldableModelCard'
 import { DesignSegmentedControl, DesignSwitch } from '../../design'
-import type { McpConfigState, McpInfo, McpVerifyReason, McpWriteRefusal } from '../../desktop/mcpBridgeTypes'
+import type { McpConfigState, McpInfo, McpMigrationResult, McpMigrationState, McpVerifyReason, McpWriteRefusal } from '../../desktop/mcpBridgeTypes'
 import {
   ASSISTANT_CLIENT_LABEL,
   ASSISTANT_CLIENT_ORDER,
@@ -30,6 +30,8 @@ import {
   type AssistantClientKey,
 } from './assistantActivationState'
 import { genericMcpSnippet } from './mcpGenericSnippet'
+import { McpMigrationPrompt } from './McpMigrationPrompt'
+import { mergeRetryResults, retryTargets } from './mcpMigrationFailureKeys'
 
 const GUIDE_URL = 'https://github.com/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md'
 type ClientKey = AssistantClientKey
@@ -80,6 +82,15 @@ const REFUSAL_I18N: Record<McpWriteRefusal, string> = {
   'client-not-installed': 'clientNotInstalled',
   'isolated-instance': 'isolatedInstance',
   'config-unreadable': 'configUnreadable',
+  'http-unavailable': 'httpUnavailable',
+  'entry-not-owned': 'entryNotOwned',
+  'config-read-only': 'configReadOnly',
+}
+
+// 「以后再说」只记到下一版：存的是当时的应用版本号，版本一变就重新问。per-viewer 便利，存不下也照常显示。
+const MIGRATION_DEFERRED_KEY = 'nomi.mcpMigration.deferredForVersion'
+function migrationDeferredFor(): string | null {
+  try { return window.localStorage.getItem(MIGRATION_DEFERRED_KEY) } catch { return null }
 }
 
 // 桥类型单一真相源在 desktop/mcpBridgeTypes（此前这里手抄过一份，两处会各自漂移）。
@@ -111,6 +122,10 @@ export function ConnectAssistantCard({
   const [error, setError] = React.useState('')
   const [verify, setVerify] = React.useState<VerifyState | null>(null)
   const [checkNonce, setCheckNonce] = React.useState(0)
+  const [migration, setMigration] = React.useState<McpMigrationState | null>(null)
+  const [migrationResults, setMigrationResults] = React.useState<McpMigrationResult[] | null>(null)
+  const migrationLabels = React.useRef<Record<string, string>>({})
+  const [deferred, setDeferred] = React.useState<string | null>(() => migrationDeferredFor())
 
   const capability = getDesktopBridge()?.capability
 
@@ -118,6 +133,15 @@ export function ConnectAssistantCard({
     window.addEventListener('nomi-automation-policy-changed', onChanged)
     return () => window.removeEventListener('nomi-automation-policy-changed', onChanged)
   }, [onChanged])
+
+  // 迁移名单：宿主里还写着旧连接方式的（主进程按真实配置读，只读）。改完 / 重读信息后跟着刷新。
+  const readMigration = capability?.mcpMigrationState
+  React.useEffect(() => {
+    if (!readMigration) return
+    let alive = true
+    void readMigration().then((state) => { if (alive) setMigration(state) }).catch(() => { if (alive) setMigration(null) })
+    return () => { alive = false }
+  }, [readMigration, info])
 
   // 只列本机检测到的助手（注册表 installMarkers）；没装的不给「一键接入」这个假动作。
   const detected = React.useMemo(
@@ -193,6 +217,40 @@ export function ConnectAssistantCard({
     }
   }
 
+  const handleDeferMigration = () => {
+    if (!migration) return
+    try { window.localStorage.setItem(MIGRATION_DEFERRED_KEY, migration.appVersion) } catch { /* 存不下就本次会话内不再问 */ }
+    setDeferred(migration.appVersion)
+  }
+
+  const handleMigrate = () => {
+    if (!capability.migrateMcpHosts || !migration) return
+    setBusy(true)
+    setError('')
+    migrationLabels.current = Object.fromEntries(migration.hosts.map((h) => [h.client, h.label]))
+    void capability.migrateMcpHosts(migration.hosts.map((h) => h.client))
+      .then((results) => {
+        setMigrationResults(results)
+        onChanged()
+        setCheckNonce((n) => n + 1)
+      })
+      .catch((e: unknown) => setError(t('onboardingProviders.assistant.connectFailed', { message: e instanceof Error ? e.message : String(e) })))
+      .finally(() => setBusy(false))
+  }
+
+  const handleRetryMigration = () => {
+    if (!capability.migrateMcpHosts || !migrationResults) return
+    setBusy(true)
+    void capability.migrateMcpHosts(retryTargets(migrationResults))
+      .then((retried) => {
+        setMigrationResults((prev) => mergeRetryResults(prev ?? [], retried))
+        onChanged()
+        setCheckNonce((n) => n + 1)
+      })
+      .catch((e: unknown) => setError(t('onboardingProviders.assistant.connectFailed', { message: e instanceof Error ? e.message : String(e) })))
+      .finally(() => setBusy(false))
+  }
+
   const handleUninstall = () => {
     if (!capability.uninstallMcp) return
     setBusy(true)
@@ -243,6 +301,18 @@ export function ConnectAssistantCard({
           : verify?.phase === 'ok' && !hostApprovalPending
             ? t('onboardingProviders.assistant.status.connected')
             : t('onboardingProviders.assistant.status.configured')
+
+  const migrationBlock = migrationResults ? (
+    <McpMigrationPrompt phase="done" labels={migrationLabels.current} results={migrationResults} busy={busy} onRetry={handleRetryMigration} />
+  ) : migration && migration.hosts.length > 0 && deferred !== migration.appVersion ? (
+    <McpMigrationPrompt
+      phase="ask"
+      hosts={migration.hosts.map((h) => h.label)}
+      busy={busy}
+      onDefer={handleDeferMigration}
+      onConfirm={handleMigrate}
+    />
+  ) : null
 
   const genericSection = (
     <div data-assistant-generic-clients className="border-t border-nomi-line-soft pt-3">
@@ -300,6 +370,7 @@ export function ConnectAssistantCard({
         </>
       ) : (
         <>
+          {migrationBlock}
           <DesignSegmentedControl
             size="xs"
             fullWidth
@@ -467,6 +538,7 @@ export function ConnectAssistantCard({
       )}
 
       {error ? <div className="text-caption text-workbench-danger">{error}</div> : null}
+      <div data-assistant-open-nomi-first className="text-caption leading-relaxed text-nomi-ink-40">{t('onboardingProviders.assistant.openNomiFirst')}</div>
     </FoldableModelCard>
   )
 }

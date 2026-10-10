@@ -579,7 +579,10 @@ describe('capabilityCore/mcpConfig', () => {
 
     it('still writes when the walkthrough also moved HOME to a throwaway directory', () => {
       isPackaged = true
-      vi.stubEnv("NOMI_E2E", '1') // realHome 保持本机真值；临时 HOME 不在它下面 → 写的是临时文件，无害
+      // 「真实主目录」显式给一个和临时 HOME 不重叠的位置：本机真值在 Windows 上恰好是临时目录的祖先
+      // （C:\Users\<名>\AppData\Local\Temp 在 C:\Users\<名> 下面），用真值会把临时 HOME 误判成真实主目录。
+      realHome = path.join(path.dirname(homeDir), 'unrelated-real-home')
+      vi.stubEnv("NOMI_E2E", '1') // 临时 HOME 不在真实主目录下面 → 写的是临时文件，无害
       fs.writeFileSync(claudeJson(), stale)
       expect(repairStaleMcpConfigs().changed).toBe(true)
       expect(installMcp('claude').ok).toBe(true)

@@ -267,6 +267,7 @@
     "merge:preflight": "node ./scripts/merge-preflight.mjs",
     "eval:director": "tsx evals/director/run.ts",
     "eval:director:judge": "tsx evals/director/judge/run.ts",
+    "measure:host-config-commit-window": "node scripts/measure-host-config-commit-window.mjs",
     "check:test-temp-static": "node --test ./scripts/check-test-temp-static.node-test.mjs ./scripts/_test-temp.node-test.mjs"
   },
   "dependencies": {

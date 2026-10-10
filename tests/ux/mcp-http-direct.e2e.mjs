@@ -140,20 +140,38 @@ async function main() {
     check(webOrigin.status === 403, '网页来源 Origin → 403')
 
     // H3 · Desktop 转发口（Electron 自带 Node 跑编译产物，与打包后宿主拉起它的方式相同）
+    // 环境照生产写进 Claude Desktop 配置的那一条（mcpHostEntries.forwarderEntry）：地址 + 端口 + 隔离 capability 目录 + 身份。
+    // 转发口只认「端口 = 稳定端口、端点文件记的正是它、写它的 Nomi 进程还活着」（#1142 复审 3）；这里的端口是本次随机出来的那个。
+    const forwarderEnv = (port) => ({
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      NOMI_CAPABILITY_DIR: capabilityDir,
+      NOMI_MCP_HTTP_URL: `http://127.0.0.1:${port}/mcp`,
+      NOMI_MCP_HTTP_PORT: String(port),
+      NOMI_MCP_CLIENT: 'claude',
+      NOMI_MCP_CLIENT_PROOF: proofFor(token, 'claude'),
+    })
     const forwarder = new StdioClientTransport({
       command: require('electron'),
       args: [path.join(repoRoot, 'dist-electron', 'capabilityCore', 'mcpHttpForwarder.js')],
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: '1',
-        NOMI_CAPABILITY_DIR: capabilityDir,
-        NOMI_MCP_CLIENT: 'claude',
-        NOMI_MCP_CLIENT_PROOF: proofFor(token, 'claude'),
-      },
+      env: forwarderEnv(endpoint.port),
       stderr: 'pipe',
     })
     const forwardedClient = await exerciseClient('Desktop 转发口', forwarder, nomi.projectsDir)
     await forwardedClient.close()
+
+    // H3b · 转发口的地址被改成本机别的端口：不带身份连出去，直接回「请先打开 Nomi」
+    const strayPort = endpoint.port === 65000 ? 65001 : 65000
+    const stray = new StdioClientTransport({
+      command: require('electron'),
+      args: [path.join(repoRoot, 'dist-electron', 'capabilityCore', 'mcpHttpForwarder.js')],
+      env: forwarderEnv(strayPort),
+      stderr: 'pipe',
+    })
+    const strayClient = new Client({ name: 'stray-forwarder', version: '1' })
+    const strayError = await strayClient.connect(stray).then(() => null, (error) => error)
+    check(/open the Nomi app first|请先打开 Nomi/.test(String(strayError?.message ?? strayError)), 'Desktop 转发口: 地址不是活着的 Nomi 稳定地址 → 不连出去，回「请先打开 Nomi」')
+    await strayClient.close().catch(() => {})
 
     console.log(`MCP-HTTP PASS: ${results.length} 条断言`)
   } finally {

@@ -27,6 +27,7 @@
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
 | `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
 | `node scripts/door-map.mjs <符号或文件>` | 数门（列出一份状态的全部写/读入口，输出直接粘进根因合同 `doors`）|
+| `pnpm run measure:host-config-commit-window -- [--n 300] [--size-kb 80] [--host-interval-s 5] [--out <收据.json>]` | 手动测量（不进任何门岗）：宿主配置写盘门提交时「挂链接 → 换名」那段测不到的窗口，直接调生产 `hostConfigWrite.atomicWrite` 的测量缝；输出原始样本、p50/p95/p99/最大、平台 / Node / 文件系统、按宿主写入频率假设算的撞击概率与公式。收据在 `docs/evidence/2026-10-10-host-config-commit-window/`；防烂测试 `scripts/measure-host-config-commit-window.test.mjs` |
 | `pnpm run check:real-media-fixture` | 真实素材门岗（画布性能/导入/导出/走查四类各至少一条真素材测试；合成夹具棘轮只减不增；缺素材硬红不许 skip，CI 未就位期只能记带到期日的债）|
 | `pnpm run check:rule-aliases` | 规则编号解析门岗（家规文件里任何 `R<数字>` 都要解析得到——合并规则不许留悬空引用）|
 | `node scripts/fix-churn.mjs <路径>` / `--staged` / `--range <base>..HEAD --warn` | 方向检查计数器：文件 / 概念目录 / concept-owners 概念 14 天内、自写登记条目 30 天内（第 2 个就命中）的 fix 与 revert-fix 数，命中就改派类根因复盘（RW，编排手册 §20） |

@@ -1082,9 +1082,11 @@
         "launcher-broken",
         "launcher-elsewhere",
         "legacy-launcher",
+        "migrated-forwarder",
+        "migrated-http",
         "stale-development"
       ],
-      "reason": "McpConfigState 的中立 owner。launcher-broken 表示启动器或 profile 已损坏，可启动自愈；launcher-elsewhere 表示另一份有效 Nomi 或 profile，只显示归属，由用户主动切换。其余历史形状保持原判定；custom 永不自动改写。主进程和渲染层从此 tuple derive，与实连诊断 McpVerifyReason 独立。",
+      "reason": "McpConfigState 的中立 owner。2026-10-09 加 migrated-http / migrated-forwarder：用户同意迁移后的条目（HTTP 直连 / Claude Desktop 转发口）有自己的形状，不能被旧分类器当成 launcher-elsewhere（评审阻断 4）。launcher-broken 表示启动器或 profile 已损坏，可启动自愈；launcher-elsewhere 表示另一份有效 Nomi 或 profile，只显示归属，由用户主动切换。其余历史形状保持原判定；custom 永不自动改写。主进程和渲染层从此 tuple derive，与实连诊断 McpVerifyReason 独立。",
       "site": "electron/shared/mcpConnectionContract.ts::variable:MCP_CONFIG_STATES/as-const"
     },
     {

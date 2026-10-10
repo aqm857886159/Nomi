@@ -92,6 +92,8 @@ export const runtimeBridge = {
     mcpInfo: () => invokeSync("nomi:capability:mcp-info"),
     installMcp: (client?: string) => invokeSync("nomi:capability:mcp-install", client),
     uninstallMcp: (client?: string) => invokeSync("nomi:capability:mcp-uninstall", client),
+    mcpMigrationState: () => ipcRenderer.invoke("nomi:capability:mcp-migration-state"),
+    migrateMcpHosts: (clients: string[]) => ipcRenderer.invoke("nomi:capability:mcp-migrate", clients),
     // 自定义 MCP 客户端 profile（方案 A：任意支持 MCP stdio 的工具接入）。
     listCustomMcpProfiles: () => ipcRenderer.invoke("nomi:capability:mcp-custom-profiles"),
     registerCustomMcpProfile: (profile: unknown) => ipcRenderer.invoke("nomi:capability:mcp-custom-profile-register", profile),
