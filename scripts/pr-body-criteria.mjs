@@ -167,6 +167,38 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
  * 规则生效时刻 = 引入本套规则的 PR（#961）的合并时间（2026-10-03T06:49:25Z，写死：推送前没有 gh 也得判）。
  * 比它更早开的 PR（#947、#962 等）没有机会照新模板写，只给警告、不判红。effectiveAt 显式传 null = 规则尚未生效（测试用）。
  */
+/**
+ * 正文里的「承诺」：写下「后续提交 / 等 X 合入后再做」，合并时没人回头核对——#1136 正文自己写了「加节点条等 #1133 合入后作为本 PR 后续提交」，
+ * 结果没做就合进去了，用户看真 App 才发现（2026-10-10，逃逸账本 FB-20261010-shell-canvas-chrome-parity）。
+ * 判据：正文某一行出现承诺措辞，且这一行没有标「已完成 <提交号>」或「移交 <PR / 待办 / 文档>」，合并档判红（推送档只警告）。
+ * 标法只认这两种——「已完成」要带提交号（让人能核）；「移交」要有去处（#PR、待办编号、docs/ 路径），不许一句「以后再说」。
+ */
+export const DEFERRED_PROMISE = /后续提交|后续\s*PR|后面(?:再)?(?:补|做|提交)|之后(?:再)?(?:补|做)|稍后(?:补|提交)|(?:等|待)\s*[^。\n;；]{0,30}?(?:合入|合并|落地)\s*后/
+const PROMISE_SETTLED = /已完成\s*[`(（]?\s*[0-9a-f]{7,40}\b|移交\s*[：:]?\s*(?:#\d+|PR\s*#?\d+|待办\s*\S+|docs\/\S+)/
+/** 这条规则生效日：之前开的 PR 只警告（它们的正文不是按这条写的）。 */
+export const PROMISE_RULE_EFFECTIVE_AT = '2026-10-10T00:00:00Z'
+
+export function checkDeferredPromises(body, { stage = 'merge', createdAt = null, enforce = false } = {}) {
+  const offending = []
+  let inFence = false
+  for (const raw of String(body || '').split(/\r?\n/)) {
+    if (/^\s*```/.test(raw)) { inFence = !inFence; continue }
+    if (inFence) continue
+    if (DEFERRED_PROMISE.test(raw) && !PROMISE_SETTLED.test(raw)) offending.push(raw.trim().slice(0, 120))
+  }
+  if (offending.length === 0) return { ok: true, lines: [] }
+  const grandfathered = !enforce && createdAt && new Date(createdAt) < new Date(PROMISE_RULE_EFFECTIVE_AT)
+  const soft = stage === 'push' || grandfathered
+  const head = soft ? '⚠' : '✖'
+  return {
+    ok: soft,
+    lines: [
+      `${head} PR 正文里有没落实的承诺（「后续提交 / 等 … 合入后」这类），每一条要标「已完成 <提交号>」或「移交 <#PR / 待办编号 / docs 路径>」：${grandfathered ? '（规则生效前开的 PR，只警告）' : stage === 'push' ? '（推送时只警告，合并前扫描判红）' : ''}`,
+      ...offending.map((line) => `    - ${line}`),
+    ],
+  }
+}
+
 export const RULES_INTRODUCED_BY_PR = 961
 export const RULES_EFFECTIVE_AT = '2026-10-03T06:49:25Z'
 
@@ -177,7 +209,7 @@ export function isGrandfathered({ createdAt, effectiveAt = RULES_EFFECTIVE_AT })
 }
 
 /** 正文判据的逐行输出与是否判红；renderReport（合并前）和推送前各自加抬头 / 结论。 */
-export function renderBodyLines({ classification, design, acceptance, escape, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, grandfathered = false }) {
+export function renderBodyLines({ classification, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, grandfathered = false }) {
   const lines = []
   lines.push(classification.fourClass
     ? `· 四类：命中（${classification.classes.join('、')}）——${classification.hits.slice(0, 5).map((hit) => hit.path).join('、')}${classification.hits.length > 5 ? ' …' : ''}`
@@ -186,12 +218,13 @@ export function renderBodyLines({ classification, design, acceptance, escape, sc
   lines.push(...soften(design.lines))
   if (classification.fourClass) lines.push(...soften(acceptance.lines))
   lines.push(...soften(escape.lines))
+  lines.push(...promises.lines)
   // 路由（功能分类 / 验收证据）：生效日之前开的 PR 已在 routing.lines 里降成警告
   lines.push(...routing.lines)
   // 规则与门岗的改动范围不吃「规则生效前开的 PR」那条宽限：#1032 这种回退正是旧分支带出来的。
   lines.push(...scope.lines)
   if (grandfathered) lines.push('· 这是规则生效（#961 合并）之前开的 PR：缺项只给警告，不判红')
-  const blocked = !scope.ok || routing.blocking || (!grandfathered && (!design.ok || (classification.fourClass && !acceptance.ok) || !escape.ok))
+  const blocked = !scope.ok || !promises.ok || routing.blocking || (!grandfathered && (!design.ok || (classification.fourClass && !acceptance.ok) || !escape.ok))
   return { lines, blocked }
 }
 
@@ -228,6 +261,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     design: checkDesignCard(body, classification),
     acceptance: checkIndependentAcceptance(body, { stage }),
     escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? []),
+    promises: checkDeferredPromises(body, { stage, createdAt, enforce }),
     scope: judgement.scope,
     routing: judgement.routing,
     grandfathered: !enforce && isGrandfathered({ createdAt }),
