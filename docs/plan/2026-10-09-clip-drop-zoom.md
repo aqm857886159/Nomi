@@ -1,5 +1,7 @@
 # 剪辑节点第二片：拖放接收 / 窄片段命中 / 边缘滚动 / 同类入口（设计卡 + 走查结果）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 第一片（#1145）的设计与手势入口表：`docs/plan/2026-10-09-clip-gesture-ownership.md`。本片落地其中「第二片设计」，并收第一片留下的同类入口。
 > 方向检查（同一条线、同一类根因，沿用第一片结论）：`docs/engineering/direction-checks/2026-10-09-clip-drop-zoom.md`。
 

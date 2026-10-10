@@ -1,5 +1,7 @@
 # 方向检查：Agent 起草分镜方案（L-sbplan · 审计批 B6）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs electron/capabilityCore/mcpGenerationTools.ts` → 近 14 天已有 9 个 fix，这一刀是第 10 个。
 > 来源：逃逸账本 AUD-20261005-01（用户 10-05「分镜方案经常做错：建了好几个方案、数量不对，最后才合到一个」；审计 PR #1030）。
 > 设计卡：`docs/plan/2026-10-05-storyboard-plan-single-owner.md`；根因合同：`docs/fixes/2026-10-05-storyboard-plan-single-owner.root-cause.json`。

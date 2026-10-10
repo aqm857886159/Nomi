@@ -1,5 +1,7 @@
 # MCP 连接程序：找得到活 Nomi、转得对请求（设计卡 + 方向检查）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 线：L-mcplauncher　类别：[长跑][可打断]　合同：`docs/fixes/2026-10-04-mcp-launcher-relaunch.root-cause.json`
 
 ## 设计卡（9 格）
