@@ -4,7 +4,7 @@ import { CANVAS_PERF_SCALES, createCanvasPerformanceFixture } from './canvas-per
 
 export const NOMI_WORKFLOW_SCALES = Object.freeze({
   small: Object.freeze({ canvasScale: 'REAL', documents: 2, plans: 2, shotsPerPlan: 12, images: 4, videos: 2 }),
-  typical: Object.freeze({ canvasScale: 'M', documents: 5, plans: 5, shotsPerPlan: 48, images: 24, videos: 24 }),
+  typical: Object.freeze({ canvasScale: 'S', documents: 5, plans: 5, shotsPerPlan: 48, images: 24, videos: 24 }),
   heavy: Object.freeze({ canvasScale: 'XL', documents: 12, plans: 10, shotsPerPlan: 320, images: 160, videos: 160 }),
 })
 

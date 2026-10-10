@@ -15,6 +15,9 @@ test('workflow scale contract is fixed and complete', () => {
     assert.equal(typeof validateWorkflowFixtureSummary, 'function')
     assert.equal(scale.length > 0, true)
   }
+  assert.equal(NOMI_WORKFLOW_SCALES.small.canvasScale, 'REAL')
+  assert.equal(NOMI_WORKFLOW_SCALES.typical.canvasScale, 'S')
+  assert.equal(NOMI_WORKFLOW_SCALES.heavy.canvasScale, 'XL')
 })
 
 test('small fixture persists document, plan and mixed media counts', () => {
