@@ -13,6 +13,12 @@ export const MINIMAX_H3_REGENERATION_ARCHETYPE: ModelArchetype = {
   kind: "video",
   sources: [
     {
+      url: "https://platform.minimax.io/docs/api-reference/video-generation-v2-regeneration",
+      checkedAt: "2026-09-26",
+      vendorKey: "minimax",
+      covers: "任务 ID 再生成要求同账号成功的 MiniMax-H3 768P 源任务；不是任意视频超分",
+    },
+    {
       url: "https://docs.apimart.ai/cn/api-reference/videos/minimax-h3/generation",
       checkedAt: "2026-08-11",
       vendorKey: "apimart",
@@ -29,6 +35,7 @@ export const MINIMAX_H3_REGENERATION_ARCHETYPE: ModelArchetype = {
       vendorTerm: "再生成（768P → 2K）",
       hint: "只接受本账号 MiniMax-H3 768P 成片的 task_id",
       promptRequired: false,
+      sourceTask: { inputKey: "source_task_id", modelKey: "MiniMax-H3", params: { resolution: "768P" } },
       transportTaskKind: "text_to_video",
       slots: [],
       params: PARAMS,
