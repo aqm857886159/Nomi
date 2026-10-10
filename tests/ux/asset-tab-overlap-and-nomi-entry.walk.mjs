@@ -119,7 +119,7 @@ try {
   await win.waitForTimeout(1500)
   await win.locator('[role="tab"]', { hasText: en ? /^Assets$/ : /^素材$/ }).first().click()
   await win.waitForTimeout(800)
-  const handle = win.locator('#editing-surface-stage-row [data-separator], #editing-surface-stage-row [role="separator"]').first()
+  const handle = win.locator('#editing-surface-stage-row [role="separator"]').first()
   const sourcePanel = win.locator('#editing-surface-source')
   const widthBefore = Math.round((await sourcePanel.boundingBox()).width)
   await dragHandle(win, handle, 240 - widthBefore)

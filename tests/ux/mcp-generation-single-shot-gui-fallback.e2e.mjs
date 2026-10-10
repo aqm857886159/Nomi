@@ -12,6 +12,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, parseToolResult, repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { writeIsolatedCatalog } from './_mcpJourney.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const dirs = makeIsolatedDirs('nomi-semantic-gui-fallback-')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/mcp-generation-single-shot-gui-fallback')
@@ -103,7 +104,7 @@ try {
     settleMs: 0,
   })
   const window = gui.win
-  await window.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(window).click()
   await window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
   const projectId = await window.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))
   check(Boolean(projectId), '当前 Nomi 窗口打开了隔离项目')

@@ -6,6 +6,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, expectAbsent, proveProbe } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const root = path.resolve('.')
 const evidence = path.join(root, 'docs/plan/process-feedback-evidence/imgfx/real')
@@ -23,14 +25,14 @@ async function shot(name) {
 }
 try {
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await expectVisible(page.getByRole('button', { name: /新建空白项目/ }), '隔离实例项目库', 30000)
+  await expectVisible(newProjectEntry(page), '隔离实例项目库', stationTimeout({ operations: 4 }))
   await page.evaluate(() => {
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(key, 'seen')
     localStorage.setItem('__nomiE2E', '1')
   })
   const skip = page.locator('[data-splash-skip=true]')
   if (await skip.isVisible()) await skip.click()
-  await page.getByRole('button', { name: /新建空白项目/ }).click()
+  await newProjectEntry(page).click()
   await page.getByRole('button', { name: '生成', exact: true }).click()
   await expectVisible(page.locator('.generation-canvas-v2__stage'), '真实生成画布')
   const blank = await findCanvasBlankPoint(page)

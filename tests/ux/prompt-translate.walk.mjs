@@ -23,6 +23,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectVisible, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const API_KEY = process.env.DEEPSEEK_API_KEY
 if (!API_KEY) throw new Error('需要 DEEPSEEK_API_KEY（真实文本模型走查，不许 mock）：set -a; . ~/.nomi-secrets.env; set +a')
@@ -81,7 +82,7 @@ async function launchWithDeepSeek(locale) {
 }
 
 async function openBlankGenerationCanvas(win, english) {
-  await clickOrFail(win.getByText(english ? /New blank project/i : '新建空白项目', { exact: false }), english ? 'New blank project' : '新建空白项目')
+  await clickOrFail(newProjectEntry(win), english ? 'New blank project' : '新建空白项目')
   await clickOrFail(win.getByRole('button', { name: english ? 'Generate' : '生成', exact: true }), english ? 'Generate tab' : '生成 标签')
   await expectVisible(win.locator('.generation-canvas-v2-toolbar').first(), '生成画布左缘工具条就绪')
   // 首启遥测征询卡按最保护隐私的一档答，免得盖住画布。

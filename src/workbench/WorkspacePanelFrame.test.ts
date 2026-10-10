@@ -17,7 +17,7 @@ describe('creation workspace frame boundary', () => {
   it('shares the approved frame and header for all descendants of the creation host', () => {
     const html = renderToStaticMarkup(React.createElement(WorkspacePanelFrameContext.Provider, { value: true }, React.createElement(Probe), React.createElement(Probe), React.createElement(Probe)))
     expect(html.match(/data-enabled="true"/g)).toHaveLength(3)
-    expect(workspacePanelFrame).toContain('rounded-nomi border border-nomi-line')
+    expect(workspacePanelFrame).toContain('rounded-panel bg-nomi-paper ring-1 ring-nomi-line-soft')
     expect(workspacePanelFrame).toContain('shadow-none')
     expect(workspacePanelHeader).toContain('h-12 px-3 py-0')
   })

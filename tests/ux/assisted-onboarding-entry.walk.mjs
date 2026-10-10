@@ -20,6 +20,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/assisted-onboarding-entry')
@@ -57,7 +58,7 @@ await win.evaluate(() => {
 await win.reload()
 await win.waitForLoadState('domcontentloaded')
 
-const libraryReady = win.getByText('新建空白项目', { exact: false }).first()
+const libraryReady = newProjectEntry(win)
 await expectVisible(libraryReady, '项目库首页')
 for (let i = 0; i < 4; i++) {
   await win.keyboard.press('Escape').catch(() => {})

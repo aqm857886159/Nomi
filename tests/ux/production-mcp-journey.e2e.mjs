@@ -15,6 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const tempRoot = makeTempDir('nomi-production-mcp-e2e-')
 const userDataDir = path.join(tempRoot, 'user-data')
@@ -140,7 +141,7 @@ let exitCode = 0
 try {
   gui = await launchGui()
   const window = gui.window
-  await window.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(window).click()
   await window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
   const projectId = await window.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))
   check(Boolean(projectId), 'isolated local project opens in built Nomi')

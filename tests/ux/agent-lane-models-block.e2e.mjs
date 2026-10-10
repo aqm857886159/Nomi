@@ -11,6 +11,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture, FIXTURE_VENDOR, FIXTURE_TEXT_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { expect } from './_assert.mjs'
 import { DOCUMENT } from './agent-runtime-walk-support.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const root = process.cwd()
 const tempRoot = makeTempDir('nomi-models-block-')
@@ -49,7 +50,7 @@ try {
     localStorage.setItem('nomi.assistantModel', JSON.stringify({ vendorKey, modelKey }))
   }, { vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_TEXT_MODEL })
   await win.reload({ waitUntil: 'domcontentloaded' })
-  await win.getByRole('button', { name: /^新建空白项目/ }).click()
+  await newProjectEntry(win).click()
   await expect(win.locator(DOCUMENT)).toBeVisible()
   fixture.expectText({ label: 'resident storyboard launch', reply: { type: 'text', text: 'MODELS_BLOCK_VERIFIED' } })
   await win.locator(DOCUMENT).fill('小禾来到河边修鞋摊，拍摄修鞋师傅。请拆成分镜。')

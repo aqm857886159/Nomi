@@ -22,9 +22,11 @@ import { enFeedbackReport, zhFeedbackReport } from './locales/feedbackReport'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
 import { enAgentLaneError, zhAgentLaneError } from './locales/agentLaneError'
 import { enAgentToolFailure, zhAgentToolFailure } from './locales/agentToolFailure'
+import { enAppShell, zhAppShell } from './locales/appShell'
 import { enUpdateReminder, zhUpdateReminder } from './locales/updateReminder'
 
 export const zhCN = {
+  appShell: zhAppShell,
   shotTable: zhShotTable,
   common: {
     language: '语言',
@@ -349,20 +351,12 @@ export const zhCN = {
   },
   sidebar: {
     categoryPanel: '分类面板',
-    explorer: '项目资源管理器',
-    navigation: '项目侧栏导航',
     assetLibrary: '素材库',
-    groups: '分组',
     promptLibrary: '提示词库',
-    prompts: '提示词',
     skillLibrary: '技能库',
-    skills: '技能',
-    // ProjectExplorerSidebar 的流程库导轨/面板标题——与同组 assetLibrary/promptLibrary/skillLibrary
+    // 左栏「流程」抽屉的标题（原 ProjectExplorerSidebar 流程库页签）——与同组 assetLibrary/promptLibrary/skillLibrary
     // 同住顶层 sidebar 命名空间(此前误引 libraries.sidebar.* 的死副本,渲染出原始 key,2026-09-01 归位)。
     workflowLibrary: '流程库',
-    workflows: '流程',
-    expand: '展开侧栏',
-    collapse: '收起侧栏',
     newGroup: '新建分组',
     categoryName: '分类名称',
     derivedNode: '派生节点',
@@ -434,6 +428,7 @@ type TranslationShape<T> = {
 }
 
 export const en = {
+  appShell: enAppShell,
   shotTable: enShotTable,
   common: {
     language: 'Language',
@@ -755,21 +750,13 @@ export const en = {
   },
   sidebar: {
     categoryPanel: 'Category panel',
-    explorer: 'Project resource explorer',
-    navigation: 'Project sidebar navigation',
     assetLibrary: 'Asset library',
-    groups: 'Groups',
     promptLibrary: 'Prompt library',
-    prompts: 'Prompts',
     skillLibrary: 'Skill library',
-    skills: 'Skills',
-    // ProjectExplorerSidebar workflow-library rail/panel titles — they live in the top-level sidebar
+    // Sidebar "Flows" drawer titles (formerly the ProjectExplorerSidebar workflow-library tab) — they live in the top-level sidebar
     // namespace alongside assetLibrary/promptLibrary/skillLibrary (previously mis-referenced the dead
     // libraries.sidebar.* copies and rendered the raw key; relocated 2026-09-01).
     workflowLibrary: 'Workflow library',
-    workflows: 'Workflows',
-    expand: 'Expand sidebar',
-    collapse: 'Collapse sidebar',
     newGroup: 'New group',
     categoryName: 'Category name',
     derivedNode: 'Derived Node',

@@ -8,9 +8,12 @@ import { test } from 'node:test'
 
 import { assertGateIsOnContracts, createGateMutationHarness } from './gate-mutation-harness.mjs'
 
+// 门岗只当数据读这些目录，不执行也不变异它们：junction 过去，省掉 20 多秒复制。
+const SHARED_DATA_DIRS = ['docs', 'src', 'tests', 'evals', '.design-sync', 'outputs', 'worker', 'workers', 'infra']
+
 const { runGate, withMutation } = createGateMutationHarness({
   gate: 'scripts/check-mcp-operation-constructible.mjs',
-  recoveryFile: '.tmp/mcp-fillable-mutation-recovery.json',
+  shareDirs: SHARED_DATA_DIRS,
 })
 
 test('门岗在今天的代码上是绿的', () => {

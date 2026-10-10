@@ -6,6 +6,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect } from '@playwright/test'
 import { proveProbe, expectAbsent } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const phase = process.env.NOTIFICATION_POLICY_PHASE || 'after'
 const output = path.resolve('.tmp/toast-policy-evidence')
@@ -29,7 +30,7 @@ try {
   else assert.ok(count > 0, 'baseline must reproduce duplicate global feedback')
   await win.screenshot({ path: path.join(output, `${phase}-directory-check.png`) })
   await win.keyboard.press('Escape')
-  await win.getByRole('button', { name: /新建空白项目|New blank project/ }).first().click()
+  await newProjectEntry(win).click()
   await expect(win.locator('[data-task-center-trigger]')).toBeVisible()
   await app.evaluate(({ BrowserWindow }) => {
     for (const window of BrowserWindow.getAllWindows()) {

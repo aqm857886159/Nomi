@@ -416,21 +416,19 @@ try {
   await win.waitForTimeout(250)
   check('缩放键 ＋ / 0 真的绑上了（tooltip 上写了十几天的键位不再是假的）', zoomed.length > 0, `scaleBefore=${scaleBefore} width=${zoomed}`)
 
-  // ⌘\ 归 Nomi：按一次面板收起、顶栏角标出现，而吸附**不该**跟着一起翻
+  // ⌘\ 归 Nomi：停靠 ↔ 小球（10-08 外壳重设计），而吸附**不该**跟着一起翻
   const snapBeforeMeta = (await snapButton.getAttribute('class') ?? '').includes('accent-soft')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)
-  const topbarEntry = win.locator('[data-agent-topbar-badge="true"]')
-  await expectVisible(topbarEntry, '⌘\\ 没有把 Nomi 收起到顶栏角标')
+  const topbarEntry = win.locator('[data-agent-ball]')
+  await expectVisible(topbarEntry, '⌘\\ 没有把 Nomi 收成小球')
   check('⌘\\ 收起 Nomi 时不再顺手把吸附也翻掉（两个功能不再抢同一个键）',
     ((await snapButton.getAttribute('class') ?? '').includes('accent-soft')) === snapBeforeMeta)
-  check('收起后叫回 Nomi 的入口只有顶栏角标一个，且带运行状态',
+  check('收起后叫回 Nomi 的入口只有小球一个，且带运行状态',
     (await topbarEntry.count()) === 1 && Boolean(await topbarEntry.getAttribute('data-agent-dock-status')))
-  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('button, [role="button"]')]
-    .filter((node) => node.getBoundingClientRect().width > 0)
-    .map((node) => `${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''}`)
-    .filter((name) => /展开 Nomi|叫回 Nomi/.test(name)).length)
-  check('全屏上只有一个「叫回 Nomi」入口（旧的浮动胶囊与右侧竖条都已删）', recallEntries === 1, `count=${recallEntries}`)
+  const recallEntries = await win.evaluate(() => [...document.querySelectorAll('[data-agent-ball]')]
+    .filter((node) => node.getBoundingClientRect().width > 0).length)
+  check('全屏上只有一个「叫回 Nomi」入口（小球；顶栏角标、浮动胶囊与右侧竖条都已删）', recallEntries === 1, `count=${recallEntries}`)
   await snap('07-collapsed-single-entry')
   await win.keyboard.press('Meta+\\')
   await win.waitForTimeout(500)
@@ -585,7 +583,7 @@ try {
   await clickOrFail(inspector.getByLabel('导出分辨率'), '打开导出分辨率下拉')
   await clickOrFail(win.getByRole('option', { name: '720p' }).first(), '把导出分辨率选成 720p')
   const exportedBefore = Date.now()
-  await clickOrFail(win.locator('.nomi-appbar [aria-label="导出 MP4"]').first(), '导出 MP4（720p）')
+  await clickOrFail(win.locator('[data-shell-topbar] [aria-label="导出 MP4"]').first(), '导出 MP4（720p）')
   const exported720 = await findExport(exportedBefore)
   check('导出真的产出了 MP4 文件', Boolean(exported720), exported720 ?? '未找到导出产物')
   if (exported720) {
@@ -635,7 +633,7 @@ try {
   await clickOrFail(inspector.getByLabel('导出分辨率'), '打开导出分辨率下拉')
   await clickOrFail(win.getByRole('option', { name: '1080p' }).first(), '把导出分辨率改成 1080p')
   const exported1080Before = Date.now()
-  await clickOrFail(win.locator('.nomi-appbar [aria-label="导出 MP4"]').first(), '导出 MP4（1080p）')
+  await clickOrFail(win.locator('[data-shell-topbar] [aria-label="导出 MP4"]').first(), '导出 MP4（1080p）')
   const exported1080 = await findExport(exported1080Before)
   if (exported1080) {
     const probe = JSON.parse(execFileSync(ffprobePath, ['-v', 'error', '-show_streams', '-of', 'json', exported1080], { encoding: 'utf8' }))

@@ -15,7 +15,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { expectCount, screenshotSettled } from './_assert.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
-import { ensureAgentPanelOpen } from './_shell.mjs'
+import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-real-ui')
 fs.mkdirSync(outDir, { recursive: true })
@@ -224,7 +224,7 @@ try {
   // 画布/预览/3D 三屏都用「新建空白项目 + 运行时真拖放」建内容：播种 project.json 的画布快照
   // 在本机 hydrate 链路里到画布 store 是竞态的（源面板读 live store，偶尔读到偶尔读空）——
   // 空白项目 + 运行时投放则确定性：canvas store 里就恰好是我投的那几个节点，源面板/时间轴同源。
-  const blankCta = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankCta = newProjectEntry(getWin())
   if (await blankCta.count()) { await blankCta.click({ timeout: 6000 }).catch(() => {}) }
   await getWin().waitForTimeout(3000)
   await dismissTour()

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/b2c-form-evidence')
 await fs.mkdir(out, { recursive: true })
@@ -31,8 +32,8 @@ async function shot(name) {
 try {
   page.setDefaultTimeout(stationTimeout())
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await expect(page.getByRole('button', { name: /新建空白项目/ })).toBeVisible({ timeout: stationTimeout() })
-  await page.getByRole('button', { name: /新建空白项目/ }).click()
+  await expect(newProjectEntry(page)).toBeVisible({ timeout: stationTimeout() })
+  await newProjectEntry(page).click()
   await expect(page.locator('[data-v4-panel]')).toBeVisible({ timeout: stationTimeout() })
   for (const [surface, label] of [['creation','创作'], ['storyboard','分镜'], ['generation','生成'], ['preview','预览']]) {
     if (surface === 'storyboard') await page.getByText('分镜方案', { exact: true }).first().click()

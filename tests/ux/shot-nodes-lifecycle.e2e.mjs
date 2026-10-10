@@ -8,6 +8,7 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
 import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/shot-nodes-evidence')
@@ -31,7 +32,7 @@ async function capture(state) {
 try {
   page.setDefaultTimeout(stationTimeout({ operations: 4 }))
   await page.setViewportSize({ width: 1600, height: 1000 })
-  await page.getByRole('button', { name: /新建空白项目/ }).click()
+  await newProjectEntry(page).click()
   await page.locator('[data-project-card]').first().dblclick()
   await page.getByRole('button', { name: '生成', exact: true }).click()
   await expect(page.locator('.generation-canvas-v2__stage')).toBeVisible()

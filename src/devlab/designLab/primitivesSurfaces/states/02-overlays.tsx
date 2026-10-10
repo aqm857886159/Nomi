@@ -129,7 +129,7 @@ function AnchoredPopoverSpecimen(): JSX.Element {
 function TooltipSpecimen(): JSX.Element {
   return (
     <OverlayBackdrop note="TooltipContent（Radix Portal；本仓浮层的第三套定位机制之一）">
-      {/* Provider 的真实位置是**外壳级**，且带调好的 delay（NomiAppBar:222），不是每颗按钮各包一个。
+      {/* Provider 的真实位置是**外壳级**，且带调好的 delay（ShellTopBar 的 TooltipProvider），不是每颗按钮各包一个。
 
           `open` 是**取景手段**，不是形态主张：19/19 真实调用点都是悬停触发的非受控 tooltip，
           但截图截不到鼠标悬停，气泡不打开这一格就是一张空舞台（走查那条断言防的正是它）。
@@ -221,7 +221,7 @@ export const OVERLAY_STATES: readonly LabState[] = [
     source: SOURCE_OVERLAYS,
     mirrors: [
       'src/workbench/generationCanvas/components/CanvasNavigationTooltipButton.tsx:32',
-      'src/ui/app-shell/NomiAppBar.tsx:222',
+      'src/ui/app-shell/shell/ShellTopBar.tsx:257',
       'src/workbench/promptLibrary/PromptCard.tsx:83',
     ],
     coverage: 'shell',

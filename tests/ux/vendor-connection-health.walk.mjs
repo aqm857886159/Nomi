@@ -16,6 +16,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-health')
@@ -62,7 +63,7 @@ async function enterStudioOnce(win) {
   if ((await win.locator('[aria-label="打开模型接入"]').count()) > 0) return
   if ((await win.locator('button', { hasText: '模型接入' }).count()) > 0) return
   // 项目库首页 →「新建空白项目」进工作台（同 smoke.e2e.mjs）。模型设置浮层只在 studio 内。
-  const card = win.getByText('新建空白项目', { exact: false }).first()
+  const card = newProjectEntry(win)
   if (await card.count()) {
     await card.click({ timeout: 6000 }).catch(() => {})
     await win.waitForTimeout(4000)

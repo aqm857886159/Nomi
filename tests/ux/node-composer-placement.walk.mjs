@@ -25,6 +25,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/node-composer-placement')
@@ -268,7 +269,7 @@ try {
   check('应用 mount（起始页就绪）', mounted, `console 错误 ${consoleErrors.length} 条`)
   await dismissFirstRun()
 
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   await blankProject.waitFor()
   await blankProject.click()
   await getWin().waitForTimeout(2200)

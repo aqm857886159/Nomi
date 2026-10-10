@@ -1,20 +1,20 @@
 // 设计实验室 · 屏「应用内更新提醒」的取景台与夹具（D-update 样张，2026-10-08）。
 //
 // 真组件 vs 夹具：
-//   · 项目库整页是现役 `ProjectLibraryPage`（Windows 自绘窗口栏 + 窗口控制，平台由 labPlatform.ts 钉成 win32），
+//   · 项目库整页是现役 `ProjectLibraryPage`（顶部就是外壳的 40px 合一顶栏 ShellTopBar，平台由 labPlatform.ts 钉成 win32），
 //     项目列表从假桥 `projects.list()` 喂几条带封面的项目。
-//   · 项目内顶栏是现役 `NomiAppBar`（Windows 版：品牌 / 上手 / 浏览器在它上面那条自绘窗口栏里，这里没渲染那一条）。
+//   · 项目内顶栏是现役 `ShellTopBar`（40px 合一顶栏：项目名 / 阶段步骤器 / 右簇）。
 //   · 胶囊 / 横幅 / 更新后卡片 / 弹窗身体是**生产组件**（src/ui/app-shell/UpdatePill、HotfixBanner、UpdatedCard、
 //     UpdateDialog 的 View 件），这里只喂夹具数据。它们在生产里的位置由外壳线（I-shell）摆；
 //     实验室为了让它们**落在真页面的真排版里**，在真组件渲染完后往它的 DOM 里挂一个 `display:contents`
-//     的插槽、再 portal 进去：项目库窗口栏右侧那组按钮的最前面 / 项目库标题行下面 / 项目顶栏右簇的最前面。
+//     的插槽、再 portal 进去：顶栏右簇的最前面 / 项目库标题行下面。
 // 发版说明是仓库里的真文件（docs/release-notes/v0.23.0.md、v0.23.1.md），经生产的摘要解析器（electron/shared/releaseNotesDigest）摘出。
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { marked } from 'marked'
 import i18n from '../../../i18n'
 import ProjectLibraryPage from '../../../workbench/library/ProjectLibraryPage'
-import NomiAppBar from '../../../ui/app-shell/NomiAppBar'
+import { ShellTopBar } from '../../../ui/app-shell/shell/ShellTopBar'
 import { holdDesignLabReady } from '../labReadyHold'
 import notes0230 from '../../../../docs/release-notes/v0.23.0.md?raw'
 import notes0231 from '../../../../docs/release-notes/v0.23.1.md?raw'
@@ -159,10 +159,8 @@ function InjectedSlot({ root, placement, children }: { root: React.RefObject<HTM
   return host ? createPortal(children, host) : null
 }
 
-/** 项目库窗口栏右侧那组按钮（libraryTopActions）。 */
-const LIBRARY_TOP_ACTIONS: SlotPlacement = { selector: '.nomi-library-page__windowbar .app-no-drag.flex', where: 'prepend' }
-/** 项目顶栏右簇的最前面（任务组之前）。 */
-const APPBAR_RIGHT: SlotPlacement = { selector: '.nomi-appbar__right', where: 'prepend' }
+/** 外壳顶栏右簇的最前面（项目库与项目内是同一条 ShellTopBar）。 */
+const TOPBAR_RIGHT: SlotPlacement = { selector: '[data-shell-topbar] [role="toolbar"]', where: 'prepend' }
 
 /** 项目库通知位的场景：真 HotfixBanner / UpdatedCard 由真项目库页自己渲染，这里只决定主进程「快照」里有什么。 */
 export type NoticeScenario = Readonly<{
@@ -208,8 +206,8 @@ export function LibraryStage({ locale = 'zh-CN', badge, scenario, clipHeight }: 
             hasTextModel
           />
           {badge?.compact ? (
-            <InjectedSlot root={root} placement={LIBRARY_TOP_ACTIONS}>
-              <UpdatePillView host="library" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
+            <InjectedSlot root={root} placement={TOPBAR_RIGHT}>
+              <UpdatePillView host="appbar" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
             </InjectedSlot>
           ) : null}
         </div>
@@ -231,17 +229,16 @@ export function AppBarStage({ locale = 'zh-CN', badge }: { locale?: LabLocale; b
     >
       {localeReady ? (
         <>
-          <NomiAppBar
+          <ShellTopBar
             workspaceMode="generation"
             onWorkspaceModeChange={noop}
             projectName={locale === 'zh-CN' ? '雨夜入场 · 第二版' : 'Night entrance · v2'}
             projectId="lab-update-0"
             onBackToLibrary={noop}
-            onOpenModelCatalog={noop}
             onOpenSettings={noop}
           />
           {badge.compact ? (
-            <InjectedSlot root={root} placement={APPBAR_RIGHT}>
+            <InjectedSlot root={root} placement={TOPBAR_RIGHT}>
             <span className="inline-flex items-center gap-2.5">
               <UpdatePillView host="appbar" phase={badge.phase} version={badge.version} percent={badge.percent} compact={badge.compact} failedStage={badge.failedStage} />
               <span className="w-px h-[18px] bg-workbench-border" aria-hidden="true" />

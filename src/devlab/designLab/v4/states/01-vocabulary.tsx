@@ -10,8 +10,7 @@ import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
 import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { V4Intervention, V4Queue, V4TaskCard } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
 import { V4ContextRing } from '../../../../workbench/ai/v4/AgentPanelV4Context'
-import { AgentTopbarChip } from '../../../../ui/app-shell/AgentTopbarChip'
-import { agentTopbarChipBadge } from '../../../../ui/app-shell/agentTopbarChipBadge'
+import { AgentBallFace } from '../../../../ui/app-shell/shell/AgentBallFace'
 import { TooltipProvider } from '../../../../design'
 import { dockStatusLabel, type V4DockStatus } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from '../../../../workbench/ai/v4/AgentPanelV4Message'
@@ -274,42 +273,24 @@ function NeighborGhostButton({ icon }: { icon: React.ReactNode }): JSX.Element {
 }
 
 /**
- * ⑦ 收起坞 · **顶栏那一格角标**（09-01 定稿 §11.2 收起态 · 样张「屏 E · B①」）。
- *
- * 取景框里垫一条顶栏色的横条并把角标放进去，是因为这颗钮的对错只有**在它的邻居旁边**才看得出来：
- * 它必须和「浏览器 / 设置」同高（30px）、同圆角、同 ghost 底。裸着截一颗 logo，
- * 高矮不一致这种最刺眼的毛病恰好是看不出来的那种。
- *
- * 五档状态各一格，但**长相只有两种**（点 / 数字）——这正是要被截下来钉住的事：
- * 一格 8px 的角标分不出五种意思，分档的活儿归 tooltip 那句人话。
+ * ⑦ 收起态 · **Agent 小球**（10-08 外壳拍板稿 Chrome 板「Agent 小球 · 四种状态，都不会自己弹开」）。
+ * 顶栏不再放 Agent 角标；收起 = 内容区右下一颗小球。取景框垫一块外壳底色，看它在工作面上读不读得出来。
+ * 五档注意力状态的长相：空闲 / 处理中（accent 环）/ 出错（danger 点）/ 等你确认 N（warning 胶囊）；
+ * 「刚做完」与空闲同一张脸，区别只在 tooltip 那句人话。
  */
-function DockCell({ status, pendingCount = 0, unreadCount = 0 }: {
+function DockCell({ status, pendingCount = 0 }: {
   status: V4DockStatus
   pendingCount?: number
   unreadCount?: number
 }): JSX.Element {
   const labels = useV4Labels()
   const tooltip = `${labels.dock.open} · ${dockStatusLabel(status, pendingCount, labels.dock)}`
+  const pill = status === 'needs-confirm' && pendingCount > 0
   return (
     <Piece>
-      <TooltipProvider delayDuration={250} disableHoverableContent>
-        <div className="flex items-center justify-end gap-2.5 rounded-nomi-sm border border-nomi-line-soft bg-nomi-paper px-2.5 py-1.5">
-          <NeighborGhostButton icon={<IconBrowser size={15} stroke={1.8} />} />
-          {/* 分隔线**只有左边这一条**，右边没有——真机就是这样：分隔线是「创作辅助」那一组
-              自己的收尾（`NomiAppBar.tsx` 的 assist 组末尾），而「配置」组开头不带分隔线。
-              摆两条会在接触表上凭空造出一条真机没有的竖线，拍板人看到的就不是他将来看到的那个顶栏。 */}
-          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
-          <AgentTopbarChip
-            reason="resident-collapsed"
-            label="Nomi"
-            tooltip={tooltip}
-            status={status}
-            badge={agentTopbarChipBadge(unreadCount, pendingCount, status === 'failed')}
-            onOpen={() => undefined}
-          />
-          <NeighborGhostButton icon={<IconSettings size={15} stroke={1.8} />} />
-        </div>
-      </TooltipProvider>
+      <div className="flex items-center justify-end rounded-nomi-sm bg-nomi-chrome p-4">
+        <AgentBallFace status={status} pendingCount={pendingCount} label={pill ? labels.dock.needsConfirm(pendingCount) : labels.dock.open} title={tooltip} />
+      </div>
     </Piece>
   )
 }
