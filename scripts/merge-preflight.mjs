@@ -7,12 +7,12 @@
 // 判四类的字符串规则与设计卡模板末尾那段一致（docs/engineering/design-card.md），宁可多报；误报由协调会话人工划掉。
 //
 // 用法：node scripts/merge-preflight.mjs <PR 号> [--repo owner/name] [--enforce]
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { ESCAPE_LEDGER_DIR, assembleEscapeLedger, escapeIdOfPath } from './escape-ledger-lib.mjs'
 import { META_FILE } from './lib/entryDirectory.mjs'
+import { execGhReadSync } from './lib/transientRetry.mjs'
 import { RULES_INTRODUCED_BY_PR, evaluatePrBody, ledgerChanges, mergeReport, settledContracts } from './pr-body-criteria.mjs'
 import {
   PROTECTED_PATHS,
@@ -41,12 +41,12 @@ export function parsePullFileRows(text) {
 
 function gh(args, { repo } = {}) {
   const full = repo ? [...args, '--repo', repo] : args
-  return execFileSync('gh', full, { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  return execGhReadSync(full, { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 })
 }
 
 function ghApiFile(repoSlug, filePath, ref) {
   try {
-    const raw = execFileSync('gh', ['api', `repos/${repoSlug}/contents/${filePath}?ref=${ref}`, '--jq', '.content'], { cwd: repoRoot, encoding: 'utf8' })
+    const raw = execGhReadSync(['api', `repos/${repoSlug}/contents/${filePath}?ref=${ref}`, '--jq', '.content'], { cwd: repoRoot })
     return Buffer.from(raw.replace(/\s/g, ''), 'base64').toString('utf8')
   } catch {
     return null
@@ -56,7 +56,7 @@ function ghApiFile(repoSlug, filePath, ref) {
 /** 某个 ref 上一个目录里的文件名（contents API 列目录，一次请求，不取内容）；取不到 = null。 */
 function ghApiDirectoryNames(repoSlug, dirPath, ref) {
   try {
-    const raw = execFileSync('gh', ['api', `repos/${repoSlug}/contents/${dirPath}?ref=${ref}`, '--jq', '.[] | select(.type == "file") | .name'], { cwd: repoRoot, encoding: 'utf8' })
+    const raw = execGhReadSync(['api', `repos/${repoSlug}/contents/${dirPath}?ref=${ref}`, '--jq', '.[] | select(.type == "file") | .name'], { cwd: repoRoot })
     return raw.split('\n').filter(Boolean)
   } catch {
     return null
@@ -84,7 +84,7 @@ function ghEscapeLedger(repoSlug, ref) {
   const [owner, name] = String(repoSlug).split('/')
   const query = 'query($owner:String!,$name:String!,$expr:String!){repository(owner:$owner,name:$name){object(expression:$expr){... on Tree{entries{name object{... on Blob{text}}}}}}}'
   try {
-    const raw = execFileSync('gh', ['api', 'graphql', '-f', `query=${query}`, '-F', `owner=${owner}`, '-F', `name=${name}`, '-f', `expr=${ref}:${ESCAPE_LEDGER_DIR}`], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    const raw = execGhReadSync(['api', 'graphql', '-f', `query=${query}`, '-F', `owner=${owner}`, '-F', `name=${name}`, '-f', `expr=${ref}:${ESCAPE_LEDGER_DIR}`], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 })
     return escapeLedgerFromTree(JSON.parse(raw)?.data?.repository?.object?.entries)
   } catch {
     return null

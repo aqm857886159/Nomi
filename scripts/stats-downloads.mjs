@@ -26,6 +26,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { fetchWithRetry } from "./lib/transientRetry.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HTML_PATH = path.join(ROOT, "docs", "stats", "dashboard.html");
@@ -69,7 +70,7 @@ async function fetchReleases(repo) {
 
   const all = [];
   for (let page = 1; page <= 20; page++) {
-    const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`, { headers });
+    const res = await fetchWithRetry(`https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`, { headers });
     if (!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
     const batch = await res.json();
     if (batch.length === 0) break;
