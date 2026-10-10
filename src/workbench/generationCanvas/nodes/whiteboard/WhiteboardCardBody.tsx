@@ -47,6 +47,7 @@ function WhiteboardCardBodyImpl({
           label={t('generationCommon.nodeEmpty.whiteboard.action')}
           hint={t('generationCommon.nodeEmpty.whiteboard.description')}
           testId="whiteboard-empty-action"
+          height={node.size?.height}
           activateAriaLabel={t('generationCommon.whiteboard.openAria')}
           onActivate={handleOpen}
         />

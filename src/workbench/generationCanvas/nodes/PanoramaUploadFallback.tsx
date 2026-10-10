@@ -10,8 +10,11 @@ import { NodeEmptyState } from './render/NodeEmptyState'
  */
 export default function PanoramaUploadFallback({
   onChange,
+  height,
 }: {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  /** 所在节点卡高（给了才按档位收矮）。 */
+  height?: number
 }): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -21,6 +24,7 @@ export default function PanoramaUploadFallback({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <NodeEmptyState
+        height={height}
           icon={<IconPhoto size={20} stroke={1.6} />}
           title={t('generationCommon.nodeEmpty.panorama.title')}
           description={t('generationCommon.nodeEmpty.panorama.description')}

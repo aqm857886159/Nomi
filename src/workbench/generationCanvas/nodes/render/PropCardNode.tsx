@@ -44,7 +44,7 @@ function PropCardNodeImpl({ node }: Props): JSX.Element {
             className="w-full h-full object-contain object-center select-none pointer-events-none"
           />
         ) : (
-          <UploadFallback accept="image/*" label={t('generationCommon.card.prop.image')} onUpload={handleUpload} kind="prop" />
+          <UploadFallback accept="image/*" label={t('generationCommon.card.prop.image')} onUpload={handleUpload} kind="prop" height={node.size?.height} />
         )}
       </div>
 

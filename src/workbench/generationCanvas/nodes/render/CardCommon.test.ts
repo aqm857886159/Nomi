@@ -51,7 +51,8 @@ describe('empty node layout (Claude Design EmptyStates)', () => {
     expect(out).toContain('bg-nomi-ink-05')
     expect(out).toContain(`canvas.nodeKinds.${kind}`)
     expect(out).toContain(`nodeTry.status.${kind}`)
-    expect(out).toContain('justify-start')
+    // 2026-10-10 用户拍板 B：块顶由卡高定（视觉中心 45%，离顶 ≥44），不再顶对齐。
+    expect(out).toContain('top:max(44px')
     expect(out).not.toContain('justify-center py')
     expect(out).toContain('>·<')
     // 动作行永远单行（结构上不许折行：nowrap；文案按最小节点宽度写短，走查量每种节点两种语言下都是单行）。

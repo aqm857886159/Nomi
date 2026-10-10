@@ -71,6 +71,7 @@ export function EmptyStateLauncher({
   onPreload,
   activateAriaLabel,
   testId,
+  height,
 }: {
   icon: React.ReactNode
   label?: string
@@ -79,11 +80,13 @@ export function EmptyStateLauncher({
   onPreload?: () => void
   activateAriaLabel?: string
   testId?: string
+  /** 所在节点的卡高（给了才按档位收矮，见 NodeEmptyState）。 */
+  height?: number
 }): JSX.Element {
   const { t } = useTranslation()
-  const cluster = <NodeEmptyState icon={icon} title={label || ''} description={hint || ''} />
+  const cluster = <NodeEmptyState icon={icon} title={label || ''} description={hint || ''} height={height} />
   if (!onActivate) {
-    return <div className="flex flex-col items-center justify-center gap-2 text-center">{cluster}</div>
+    return <div className="h-full w-full">{cluster}</div>
   }
   return (
     <button
@@ -91,7 +94,7 @@ export function EmptyStateLauncher({
       data-testid={testId}
       aria-label={activateAriaLabel || label || t('generationCommon.card.open')}
       className={cn(
-        'flex flex-col items-center justify-center gap-2 text-center rounded-nomi px-4 py-3 bg-transparent border-0 cursor-pointer',
+        'flex h-full w-full flex-col items-center justify-center gap-2 text-center rounded-nomi px-4 py-3 bg-transparent border-0 cursor-pointer',
         'transition-[background] duration-nomi-fast ease-nomi-fast hover:bg-nomi-ink-05',
         'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
       )}
@@ -161,6 +164,7 @@ export function PendingGenerationPlaceholder({
     return (
       <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
         <NodeEmptyState
+          height={node.size?.height}
           icon={icon}
           title={t(isVideo ? 'canvas.nodeKinds.video' : 'canvas.nodeKinds.image')}
           description={t(isVideo ? 'generationCommon.nodeTry.status.video' : 'generationCommon.nodeTry.status.image')}
@@ -185,7 +189,7 @@ export function PendingGenerationPlaceholder({
       : undefined
   return (
     <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
-      <NodeEmptyState icon={icon} title={titleText} description={description} />
+      <NodeEmptyState height={node.size?.height} icon={icon} title={titleText} description={description} />
     </div>
   )
 }
@@ -386,11 +390,14 @@ export function UploadFallback({
   label,
   onUpload,
   kind,
+  height,
 }: {
   accept: string
   label: string
   onUpload: (dataUrl: string, file: File, context: ProjectExecutionContext) => void
   kind: 'character' | 'scene' | 'prop'
+  /** 所在节点卡高（给了才按档位收矮）。 */
+  height?: number
 }): JSX.Element {
   const { t } = useTranslation()
   const handleChange = React.useCallback(
@@ -423,6 +430,7 @@ export function UploadFallback({
   return (
     <label className="block h-full w-full cursor-pointer text-nomi-ink-60 transition-colors hover:text-nomi-ink hover:bg-nomi-ink-05/50">
       <NodeEmptyState
+        height={height}
         icon={icon}
         title={nodeCopy.title}
         description={nodeCopy.description}
