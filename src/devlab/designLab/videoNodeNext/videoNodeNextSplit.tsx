@@ -134,6 +134,9 @@ export function SplitStage({ locale, mode }: { locale: VnLocale; mode: SplitMode
     holdRef.current = holdDesignLabReady('video-node-next:split')
     return () => { holdRef.current?.(); holdRef.current = null }
   }, [])
+  // 二选一是真有状态的：点哪边哪边高亮（样张只管摆在底栏里的样子，选中项由这一格的初值给出）。
+  const [chosen, setChosen] = React.useState<SplitMode>(mode)
+  React.useEffect(() => { setChosen(mode) }, [mode])
   const releaseHold = React.useCallback(() => { holdRef.current?.(); holdRef.current = null }, [])
   const projectReady = useFakeOpenProject()
   const ready = seeded && localeReady && projectReady
@@ -155,8 +158,8 @@ export function SplitStage({ locale, mode }: { locale: VnLocale; mode: SplitMode
                 ariaLabel={c.splitInto}
                 density="compact"
                 fit="content"
-                value={mode}
-                onChange={() => undefined}
+                value={chosen}
+                onChange={(next) => setChosen(next as SplitMode)}
                 options={[
                   { value: 'image', label: c.splitImage },
                   { value: 'video', label: c.splitVideo },

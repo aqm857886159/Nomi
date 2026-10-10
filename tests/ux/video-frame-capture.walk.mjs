@@ -20,7 +20,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -251,9 +251,10 @@ try {
     expect(state.edges).toEqual([{ source: 'moved-video', target: card.id }])
     const alert = win.locator(`${nodeSel(card.id)} [role="alert"]`)
     await expect(alert).toBeVisible()
-    await expect(alert.getByRole('button', { name: L.retry })).toBeVisible()
+    // 先证明探针测得到东西（失败卡里的按钮确实在），再断言「换个模型」不存在。
+    const buttonsProof = await proveProbe(alert.getByRole('button', { name: L.retry }), '失败卡里有「重试」按钮')
     await expect(win.locator(nodeSel(card.id))).toContainText(L.failedTitle)
-    for (const label of L.switchModel) await expect(alert.getByText(label, { exact: true })).toHaveCount(0)
+    for (const label of L.switchModel) await expectAbsent(alert.getByText(label, { exact: true }), { provenBy: buttonsProof, message: `本机处理失败卡不该有「${label}」` })
     await resetView()
     await shot('11-frame-failed')
     // 原视频没动：节点还是成功态、结果没变。
@@ -274,12 +275,13 @@ try {
     expect(card.status).toBe('error')
     fs.renameSync(hiddenFile, movedFile)
     const alert = win.locator(`${nodeSel(card.id)} [role="alert"]`)
+    const alertProof = await proveProbe(alert, '失败卡在')
     await alert.getByRole('button', { name: L.retry }).click()
     await expect.poll(async () => (await snapshot()).nodes.find((node) => node.id === card.id)?.status, { timeout: stationTimeout({ operations: 3 }) }).toBe('success')
     const done = (await snapshot()).nodes.find((node) => node.id === card.id)
     const seconds = timeOfFrame(done.resultUrl)
     if (Math.abs(seconds - 7.2) > 0.06) throw new Error(`the retried frame reads ${seconds.toFixed(2)}s, expected 7.2s`)
-    await expect(win.locator(`${nodeSel(card.id)} [role="alert"]`)).toHaveCount(0)
+    await expectAbsent(win.locator(`${nodeSel(card.id)} [role="alert"]`), { provenBy: alertProof, message: '重试成功后失败卡应当消失' })
   })
   await task('08-playhead-at-the-very-end-still-captures-the-last-frame', async () => {
     // 播到片尾（currentTime == 时长）：主进程把秒数夹到末尾前 0.1 秒，不是「一帧都出不来」的截帧失败。
