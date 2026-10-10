@@ -1,0 +1,38 @@
+{
+  "name": "制作镜头派发前的落地准入（先落节点、再发请求）",
+  "subject": "production.shot-landing-admission",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/shotLandingAdmission.ts",
+    "symbol": "admitShotsForDispatch"
+  },
+  "write_api": [
+    { "path": "electron/productionRun/shotLandingAdmission.ts", "symbol": "admitShotsForDispatch" },
+    { "path": "electron/productionRun/shotLandingAdmission.ts", "symbol": "assertShotAdmission" },
+    { "path": "electron/productionRun/shotLandingAdmission.ts", "symbol": "recordLandingFailure" },
+    { "path": "electron/productionRun/shotLandingAdmission.ts", "symbol": "liftLandingFailure" },
+    { "path": "electron/productionRun/shotLandingAdmission.ts", "symbol": "landedNodeOf" }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "landCanvasBestEffort",
+      "kind": "definition",
+      "why": "开拍路径上「尽力预落地、落不下照派」的旧口子（2026-10-08 删）：确认那一下落地失败照样派发，单镜还是先交后落，钱花了画布上没有这一镜。派发前的落地只许经 admitShotsForDispatch。"
+    }
+  ],
+  "parity_test": "electron/productionRun/landFirstOneAdmission.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/productionRun/singleShotProductionStart.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/appIntegrationLandFirst.ts"
+  ],
+  "since": "2026-10-08",
+  "notes": "架构③（用户拍板「生成那一刻 = 落画布那一刻」，协调会话合同 brief-I-landfirst，根因合同 docs/fixes/2026-10-08-production-land-first.root-cause.json）。一镜能不能派只问 admitShotsForDispatch：没节点的先经落地器（canvasLandingHost.landBeforeDispatch）落一次，落下了发 LandedShotAdmission（品牌类型），落不下来报回、由 recordLandingFailure 把 Run 停在 landing_failed。提交出口 submission.start 的入参类型必须带这份准入（不带编译不过），并在第一笔耐久写之前、拿到 Run 锁之后各按耐久 Run 复核一次（assertShotAdmission）——不依赖可注入的 beforeDispatch。画布节点发起的 Run 以来源节点为落点（origin.nodeId，landedNodeOf 唯一判据）。多镜调度器每一趟派发前、单镜开拍口、付费卡确认（批之前）、画布单节点都经它；项目没打开时只在隐藏且用户从没叫出来的主窗口里替 Agent 打开（landingProjectAccess），其余拒。"
+}

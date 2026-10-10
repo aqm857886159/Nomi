@@ -1,37 +1,48 @@
 // 画布落地的**宿主装配**（从 appIntegration 拆出，守 800 行门岗 · R9）。
 //
-// 这里只做一件事：把「一个 Run → 落成画布占位/组/回填 result，并把 shotId→nodeId 写回 Run」
-// 这条 best-effort 链装配成两个可调用的口子，让能力核那边保持是接线而不是实现。
+// 这里只做一件事：把「一个 Run → 落成画布占位/组/回填 result，并把 shotId→nodeId 写回 Run」这条链装配成可调用的口子，
+// 让能力核那边保持是接线而不是实现。派发前的那一次（landBeforeDispatch）失败如实抛——由唯一准入点
+// shotLandingAdmission 判这一镜能不能派（架构③ 先落节点、再发请求）；其余投影失败只记 warn。
 //
 // 四个落地时机共用同一条链、同一个 operationId（`canvas-landing:{runId}`）：
 //   ① 画布 agent 建/改草稿（landDraftOnCanvas）——用户当场看见，不必等重开项目；
-//      （文稿来源的草稿走不到这里：它的方案住在项目记录里，由用户点「放入画布」才落。）
-//   ② 付费确认即落；③ 打开项目补齐（reconcile）；
+//      （文稿来源的草稿走不到这里：它的方案住在项目记录里，由用户点「放入画布」或确认付费才落。）
+//   ② 派发前落地（landBeforeDispatch，准入点调；不再 best-effort）；③ 打开项目补齐（reconcile）；
 //   ④ Run 每一次耐久变化之后（followRunChange）——派发、供应商受理、出片落盘、失败、预算触顶、急停……
 //      每一次状态转移都经过仓库的同一个 execute，所以这里挂在它的事件旁路上，而不是在每个转移点各补一次投递。
 //      2026-09-25 之前只有「出片」那一下会投递（pushShotResultToRenderer），「在生成」那一段由渲染层自己轮询
 //      一份 Run 快照另画一套；两份真相各判各的，供应商早出片了节点还在转。
 // 共用是刻意的（P1 一个家）：几条各写一份的话，任何一份漏了幂等章就会堆出重复节点。
 // 同一个 Run 的落地**逐个排队**：并发的两次 materialize 都会看见「节点还没建」，然后各建一份。
-import { buildMaterializeShotsPayload, landCanvasForRun, materializeShotsSignature, runHasBeenOnCanvas } from "./multiShotCanvasLanding";
+import { buildMaterializeShotsPayload, landCanvasForRun, landCanvasForRunOrThrow, materializeShotsSignature, runHasBeenOnCanvas, type CanvasLandingDeps } from "./multiShotCanvasLanding";
 import type { ProductionRun } from "./productionRunTypes";
+import { ProductionRunRevisionConflictError } from "./productionRunRepository";
 import type { DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
+import { openProjectLease, type LandingProjectAccess, type LandingProjectLease } from "./landingProjectAccess";
 
 export type CanvasLandingHostDeps = {
   /** 读 Run（读不到 / 已消失 → 静默不落）。 */
   readRun: (projectId: string, runId: string) => ProductionRun | null | undefined;
   /** 执行一条 durable Run 命令（这里只用来写 plan.bind-shot-nodes）。 */
   command: (projectId: string, runId: string, command: Record<string, unknown>) => Promise<unknown>;
-  /** 向渲染层发一次窄 RPC（项目没开 / 窗口不可用时会抛，由 landCanvasForRun 记 warn 吞掉）。 */
+  /** 向渲染层发一次窄 RPC（项目没开 / 窗口不可用时会抛：投影记 warn 吞掉，派发前落地如实抛）。 */
   requestRenderer: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>;
   resolveProjectRoot: (projectId: string) => string | null;
   /** 该项目此刻是不是打开着的（草稿投影只在项目开着时落，其余交给 reconcile 补齐）。 */
   isProjectOpen: (projectId: string) => boolean;
+  /**
+   * 派发前落地要的项目还没打开时，在不打扰用户的前提下打开它（只有隐藏主窗口那一种，见 landingProjectAccess）；
+   * 打不开就抛（用户可见的窗口开着别的项目 / 没有渲染层）。不给 = 只认已经打开的项目。
+   */
+  openProjectForLanding?: LandingProjectAccess;
 };
 
 export type CanvasLandingHost = {
-  /** 尽力把一个 Run 的镜落成画布占位/组/回填 result（**永不抛**）。 */
-  landCanvasBestEffort: (projectId: string, runId: string, isCurrent?: () => boolean) => Promise<boolean>;
+  /**
+   * 派发前落地（唯一准入点 `admitShotsForDispatch` 的落地器）：把这个 Run 没落的镜落成画布节点并写回绑定。
+   * **失败就抛**（项目打不开 / 渲染层不在 / 落地报错）——抛了这一镜就不派。文稿来源的计划也真建节点（确认 = 放到画布）。
+   */
+  landBeforeDispatch: (projectId: string, runId: string) => Promise<void>;
   /** 草稿账本的投影钩子：agent 一建/一改草稿就投影一次。永不 await（落地不得阻断草稿命令）。 */
   landDraftOnCanvas: (projectId: string, runId: string) => void;
   /**
@@ -78,6 +89,11 @@ export function draftCanvasLandingOfRun(run: ProductionRun, projectOpen: boolean
   return { state: "not_placed", reason: projectOpen ? "not_landed" : "project_closed" };
 }
 
+/** 写回撞上了并发写入（仓库的乐观并发检查）。按错误类型认，不读原话。 */
+function isRevisionConflict(error: unknown): boolean {
+  return error instanceof ProductionRunRevisionConflictError;
+}
+
 /** Run 里这一镜是不是记着 detached（单镜计划的地址是候选 id，与落地投影同一条约定）。 */
 function shotIsDetached(run: ProductionRun, shotId: string): boolean {
   const plan = run.generationPlan;
@@ -115,10 +131,42 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
     void settled.then(() => { if (chainByRun.get(key) === settled) chainByRun.delete(key); });
     return next;
   };
-  const runLanding = (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> =>
-    enqueue(runKey(projectId, runId), () => landOnce(projectId, runId, isCurrent, false));
-  const landOnce = async (projectId: string, runId: string, isCurrent: (() => boolean) | undefined, existingOnly: boolean, reportUnmatched = false): Promise<boolean> => {
-    if (isCurrent && !isCurrent()) return false;
+  const runLanding = (projectId: string, runId: string): Promise<boolean> =>
+    enqueue(runKey(projectId, runId), () => landOnce(projectId, runId, false));
+  /** 一份落地依赖：渲染层、项目根、计划名，以及把绑定写回 Run 的那条命令。投影与派发前落地共用（P1 一个家）。 */
+  const landingDeps = (projectId: string, landing: ProductionRun): CanvasLandingDeps => ({
+    requestRenderer: deps.requestRenderer,
+    projectRoot: deps.resolveProjectRoot(projectId),
+    planName: landing.authoring?.title ?? landing.brief?.goal,
+    bindShotNodes: async (boundProjectId, boundRunId, expectedRevision, bindings) => {
+      // 命令号按「绑到哪」去重：同一份绑定反复落地只记一次。可一镜被记过 detached 之后又回报「节点还在」，
+      // 那是一次**新的**纠正——绑定串和当初一字不差，按旧号会被仓库的幂等重放原样吞掉，detached 永远纠正不回来
+      // （S1-5）。所以纠正带上它纠正的那个 revision，号放在绑定串前面，截断也截不掉。
+      const reattach = bindings.some((binding) => shotIsDetached(landing, binding.shotId));
+      const kind = reattach ? `reattach-${expectedRevision}` : "bind";
+      // 落节点要等渲染层（真 I/O），这段时间里 Run 常被别的写入推进（批下一张、派发一张）。绑定是幂等的事实写回：
+      // 撞上 revision 冲突就按最新的 Run 重写一次——不能把并发写入误判成「没落下」（那几镜会停在 landing_failed
+      // 再也不派；#1139 第二轮走查 12 张只发出 9 张）。命令号不随 revision 变，已经写进去的那一份按幂等原样认。
+      let revision = expectedRevision;
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          await deps.command(boundProjectId, boundRunId, {
+            commandId: `canvas-landing:${boundRunId}:${kind}:${bindings.map((binding) => `${binding.shotId}=${binding.nodeId}`).join(",")}`.slice(0, 200),
+            expectedRevision: revision,
+            type: "plan.bind-shot-nodes",
+            payload: { bindings },
+            issuedAt: new Date().toISOString(),
+          });
+          return;
+        } catch (error) {
+          const latest = attempt < 4 && isRevisionConflict(error) ? deps.readRun(boundProjectId, boundRunId) : undefined;
+          if (!latest) throw error;
+          revision = latest.revision;
+        }
+      }
+    },
+  });
+  const landOnce = async (projectId: string, runId: string, existingOnly: boolean, reportUnmatched = false): Promise<boolean> => {
     let run: ProductionRun | null | undefined;
     try {
       run = deps.readRun(projectId, runId);
@@ -126,35 +174,15 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       return false;
     }
     if (!run) return false;
-    // Document-admitted plans land only after the user explicitly chooses
-    // "put on canvas" — that gesture runs through the plan's own row actions, not through here.
-    // Historical runs that already have a binding remain reconcilable so reopening a project
-    // does not strand their nodes. **This gate has no bypass**: a bypass is the difference
-    // between "the agent drafted a plan for you" and "the agent rearranged your canvas".
+    // 投影（草稿 / 跟随 / 对账）不替用户把文稿来源的计划放到画布上：那是用户点「放到画布」或确认付费那一下的事
+    // （后者走 landBeforeDispatch，10-08 拍板「确认即落」）。已经落过的照常对账，免得重开项目把节点晾着。
+    // 这道闸在投影上没有旁路：旁路就是「Agent 替你拟了方案」和「Agent 改了你的画布」的区别。
     if (run.origin.sourceDocument && !runHasBeenOnCanvas(run)) return false;
-    const landing = run;
     const signature = signatureOf(run, projectId);
     const landed = await landCanvasForRun(run, {
-      requestRenderer: deps.requestRenderer,
-      projectRoot: deps.resolveProjectRoot(projectId),
-      planName: run.authoring?.title ?? run.brief?.goal,
+      ...landingDeps(projectId, run),
       ...(existingOnly ? { existingOnly: true } : {}),
       ...(reportUnmatched ? { reportUnmatched: true } : {}),
-      ...(isCurrent ? { isCurrent } : {}),
-      bindShotNodes: async (boundProjectId, boundRunId, expectedRevision, bindings) => {
-        // 命令号按「绑到哪」去重：同一份绑定反复落地只记一次。可一镜被记过 detached 之后又回报「节点还在」，
-        // 那是一次**新的**纠正——绑定串和当初一字不差，按旧号会被仓库的幂等重放原样吞掉，detached 永远纠正不回来
-        // （S1-5）。所以纠正带上它纠正的那个 revision，号放在绑定串前面，截断也截不掉。
-        const reattach = bindings.some((binding) => shotIsDetached(landing, binding.shotId));
-        const kind = reattach ? `reattach-${expectedRevision}` : "bind";
-        await deps.command(boundProjectId, boundRunId, {
-          commandId: `canvas-landing:${boundRunId}:${kind}:${bindings.map((binding) => `${binding.shotId}=${binding.nodeId}`).join(",")}`.slice(0, 200),
-          expectedRevision,
-          type: "plan.bind-shot-nodes",
-          payload: { bindings },
-          issuedAt: new Date().toISOString(),
-        });
-      },
     });
     if (landed && signature) projectedSignature.set(runKey(projectId, runId), signature);
     return landed;
@@ -184,13 +212,33 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       if (!current || !deps.isProjectOpen(current.projectId)) return false;
       const signature = signatureOf(current, current.projectId);
       if (!signature || projectedSignature.get(key) === signature) return false;
-      return landOnce(current.projectId, current.runId, undefined, true);
+      return landOnce(current.projectId, current.runId, true);
     }));
   };
-  const landCanvasBestEffort = (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> => {
-    const work = runLanding(projectId, runId, isCurrent);
+  const landBeforeDispatch = async (projectId: string, runId: string): Promise<void> => {
+    // 项目访问租约（#1139 B2）：项目本来就开着 → 租约只看它还开着；没开 → 只在隐藏主窗口里替 Agent 打开（landingProjectAccess）。
+    let lease: LandingProjectLease;
+    if (deps.isProjectOpen(projectId)) lease = openProjectLease(projectId, () => (deps.isProjectOpen(projectId) ? projectId : null));
+    else if (deps.openProjectForLanding) lease = await deps.openProjectForLanding(projectId);
+    else throw Object.assign(new Error(`landing_project_not_open: ${projectId}`), { code: "landing_project_not_open" });
+    const work = enqueue(runKey(projectId, runId), async () => {
+      // 主进程 host 栅栏：排到队之后、请渲染层落地之前再核一次租约（等队期间窗口可能被叫出来、项目可能换了）。
+      lease.assertCurrent();
+      const run = deps.readRun(projectId, runId);
+      if (!run) throw new Error(`Production run not found: ${runId}`);
+      const signature = signatureOf(run, projectId);
+      // isCurrent 在发 materialize 之前、写回绑定之前各核一次（landCanvasForRunOrThrow）；渲染层自己再按报文里的
+      // projectId 核一次它认下的项目（materializeShots 的 binding 栅栏）。
+      const landed = await landCanvasForRunOrThrow(run, { ...landingDeps(projectId, run), placeDocumentPlan: true, isCurrent: lease.isCurrent });
+      // 写回绑定之后再核一次（第二轮复审遗漏 1）：bind 的 await 期间窗口被叫出来 / 项目换了，这一趟就不算落好——
+      // 抛出去，准入点把这几镜记成没落下（这一趟 0 派发、landing_failed）；节点已经在画布上，「继续」时直接认它再派。
+      // 租约只管到「落地写完、绑定写回」为止：之后的派发不看窗口状态（节点已经在画布上，生成那一刻 = 落画布那一刻已经成立）。
+      lease.assertCurrent();
+      if (landed && signature) projectedSignature.set(runKey(projectId, runId), signature);
+      return landed;
+    });
     track(projectId, work);
-    return work;
+    await work;
   };
   const reconcileExistingCanvas = (projectId: string, runId: string): Promise<boolean> => {
     const key = runKey(projectId, runId);
@@ -203,7 +251,7 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       }
       if (!run || !runHasBeenOnCanvas(run)) return false;
       projectedSignature.delete(key);
-      return landOnce(projectId, runId, undefined, true, true);
+      return landOnce(projectId, runId, true, true);
     });
     track(projectId, work);
     return work;
@@ -218,7 +266,7 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
     }
   };
   return {
-    landCanvasBestEffort,
+    landBeforeDispatch,
     followRunChange,
     reconcileExistingCanvas,
     landDraftOnCanvas: (projectId, runId) => {

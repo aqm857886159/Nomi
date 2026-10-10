@@ -26,7 +26,7 @@ afterEach(() => {
 })
 
 const PRE_3DBOX_CAPTURE_OPERATIONS = [
-  'set_node_prompt', 'create_canvas_nodes', 'connect_canvas_edges', 'tidy_canvas', 'propose_storyboard_plan',
+  'set_node_prompt', 'set_node_text', 'create_canvas_nodes', 'connect_canvas_edges', 'tidy_canvas', 'propose_storyboard_plan',
   'patch_shots', 'arrange_storyboard_to_timeline', 'create_staging_reference', 'create_camera_move', 'delete_canvas_nodes',
 ]
 
@@ -42,7 +42,7 @@ describe('3D-BOX tool face', () => {
       const before = off[index]
       if (tool.name === 'nomi_canvas_edit') {
         expect({ ...tool, description: '' }).toEqual({ ...before, description: '' })
-        expect(String(before.description).startsWith('Change how existing nodes relate')).toBe(true)
+        expect(String(before.description).startsWith('Connect reference links between existing nodes')).toBe(true)
         expect(String(tool.description)).not.toContain('Attach a staging')
       } else {
         expect(tool).toEqual(before)

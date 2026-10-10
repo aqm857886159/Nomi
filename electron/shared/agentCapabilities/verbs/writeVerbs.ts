@@ -1,5 +1,5 @@
 import { storyboardAuthorFieldsSchema } from '../generationPlanSchemas'
-// 十三个写动词（设计正本 §5.2）：一个动词一种状态一种效果。执行那一半住 `electron/agentLane/`：常驻的
+// 十四个写动词（设计正本 §5.2）：一个动词一种状态一种效果。执行那一半住 `electron/agentLane/`：常驻的
 // （write_script / 三个画布写 / start_model_setup）在 `laneDocumentTools.ts` / `laneCanvasTools.ts` /
 // `laneDesktopTools.ts` 各自绑定；延迟组的经 `laneVerbTransport.ts` 翻成传输方法，`laneExtendedDesktopPorts.ts` 执行。
 //
@@ -303,7 +303,7 @@ export function writeVerbs(): VerbDeclaration[] {
     name: "arrange_canvas", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
     describe: {
-      does: "Change how existing nodes relate and sit on the canvas: connect reference links or tidy the layout.",
+      does: "Connect reference links between existing nodes or tidy the layout.",
       useWhen: "The user asks to connect, link or tidy.",
       notWhen: "It cannot create shots or any generating node — such a request is rejected and draft_shots is named instead. Not for hand-authored artifacts (make_artifact) or staging and camera references (stage_shot).",
       params: "links[] (fromId, toId, role) connect existing nodes; tidy true re-lays out the canvas (optionally one categoryId). All ids from look_at_canvas.",
@@ -314,7 +314,7 @@ export function writeVerbs(): VerbDeclaration[] {
         fromId: z.string().trim().min(1).describe("Source node id."),
         toId: z.string().trim().min(1).describe("Target node id."),
         role: plannedEdgeSchema.shape.mode,
-      }).strict()).max(48).optional().describe("Reference links to add between existing nodes."),
+      }).strict()).max(48).optional().describe("Reference links between existing nodes."),
       tidy: z.boolean().optional().describe("Re-lay out the canvas."),
       categoryId: z.string().trim().min(1).optional().describe("With tidy: only this canvas category."),
     }).strict().superRefine((value, context) => {
@@ -353,6 +353,26 @@ export function writeVerbs(): VerbDeclaration[] {
     examples: [{ when: "A shot comparison table:", arguments: { fileType: "table", title: "Shot comparison", content: "| Shot | Content |\n|---|---|\n| 1 | Opening |" } }],
     prepareArguments: rejectGeneratingNodes("make_artifact", modelArgumentTolerance({ fieldAliases: { content: ["text", "body"] } })),
     semanticInputOf: (args) => canvasWriteInputOf("make_artifact", args),
+  };
+
+  // 只改画布上「文本节点」的正文：不生成、不花钱、不出确认卡；写入可撤销（和其它画布写一样走提议回执）。
+  const writeNodeText: VerbDeclaration = {
+    name: "write_node_text", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "canvas.write", effect: "reversible_local", nextAction: "none",
+    describe: {
+      does: "Replace or append a text node's body. Text only: it generates nothing and costs nothing.",
+      useWhen: "The user asks you to write or revise the words inside a text node.",
+      notWhen: "Not for shot prompts (draft_shots), the script (write_script) or new nodes (make_artifact); never to start generation.",
+      params: "nodeId of a text node from look_at_canvas; text is the exact body; mode replace (default) or append.",
+    },
+    promptGuidelines: CANVAS_WRITE_GUIDELINES,
+    schema: z.object({
+      nodeId: z.string().trim().min(1).describe("Text node id (look_at_canvas)."),
+      text: z.string().min(1).max(20_000).describe("Exact body; newlines become paragraphs."),
+      mode: z.enum(["replace", "append"]).optional().describe("replace (default) or append."),
+    }).strict(),
+    examples: [{ when: "Rewrite a style note:", arguments: { nodeId: "node-text-1", text: "Warm film grain, soft backlight." } }],
+    prepareArguments: modelArgumentTolerance({ fieldAliases: { text: ["content", "body"] } }),
+    semanticInputOf: (args) => canvasWriteInputOf("write_node_text", args),
   };
 
   const stageShot: VerbDeclaration = {
@@ -549,5 +569,5 @@ export function writeVerbs(): VerbDeclaration[] {
     prepareArguments: modelArgumentTolerance({}),
   };
 
-  return [writeScript, draftShots, generate, arrangeCanvas, makeArtifact, director3dBoxFaceEnabled() ? directorStageShot : stageShot, editTimeline, undo, deleteFromCanvas, exportVideo, cancelJob, saveSkill, startModelSetup];
+  return [writeScript, draftShots, generate, arrangeCanvas, makeArtifact, writeNodeText, director3dBoxFaceEnabled() ? directorStageShot : stageShot, editTimeline, undo, deleteFromCanvas, exportVideo, cancelJob, saveSkill, startModelSetup];
 }

@@ -1,4 +1,4 @@
-import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH } from './nodeSizing'
+import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH, TEXT_COMPOSER_GAP, TEXT_COMPOSER_MAX_WIDTH, TEXT_COMPOSER_MIN_WIDTH } from './nodeSizing'
 
 /**
  * 画布生成浮框的位置——**唯一 owner**。
@@ -12,7 +12,12 @@ import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH } from './nodeSizing'
  * 变换顺序：先 translateX(-50%) 把自身中线挪到 left 上，再以左上角为原点 scale(1/zoom)——
  * 屏幕上的中线恰好落在节点中线，屏幕宽恒为 NODE_COMPOSER_WIDTH。
  */
-export function composerCanvasPlacement(visualSize: { width: number; height: number }, zoom: number): {
+export function composerCanvasPlacement(
+  visualSize: { width: number; height: number },
+  zoom: number,
+  /** 'match-node'：文本节点的加工框——和节点同宽（屏幕宽，夹在上下限里）、紧贴在下面（间距 8）。 */
+  variant: 'standard' | 'match-node' = 'standard',
+): {
   left: number
   top: number
   width: number
@@ -20,6 +25,15 @@ export function composerCanvasPlacement(visualSize: { width: number; height: num
   transformOrigin: 'top left'
 } {
   const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1
+  if (variant === 'match-node') {
+    return {
+      left: visualSize.width / 2,
+      top: visualSize.height + TEXT_COMPOSER_GAP,
+      width: Math.min(TEXT_COMPOSER_MAX_WIDTH, Math.max(TEXT_COMPOSER_MIN_WIDTH, visualSize.width * safeZoom)),
+      transform: `scale(${1 / safeZoom}) translateX(-50%)`,
+      transformOrigin: 'top left',
+    }
+  }
   return {
     left: visualSize.width / 2,
     top: visualSize.height + NODE_COMPOSER_GAP,

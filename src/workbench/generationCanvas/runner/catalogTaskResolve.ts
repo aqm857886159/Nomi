@@ -70,7 +70,7 @@ export type CatalogTaskActionOptions = {
     vendor: string,
     request: TaskRequestDto,
     projectId: TaskProjectIdentity,
-    opts: { onDelta?: (delta: string) => void },
+    opts: { onDelta?: (delta: string) => void; signal?: AbortSignal },
   ) => Promise<TaskResultDto>
 }
 
@@ -299,7 +299,8 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
     return hasReference ? 'image_edit' : 'text_to_image'
   }
   // C5: 文本节点走 chat（runtime 的 wantedKind=text 分支 → /v1/chat/completions）。
-  if (executionKind === 'text') return 'chat'
+  // 连了图（加工框「看图写描述」）= 图进文字出：同一条文本流，只是把图作为多模态输入一并喂给模型。
+  if (executionKind === 'text') return (references.referenceImages?.length || 0) > 0 ? 'image_to_prompt' : 'chat'
   // 音频节点档案缺失时的兜底（正常 AUDIO_MODELS 都带档案，走上面的 transportTaskKind）。
   if (executionKind === 'audio') return 'text_to_audio'
   // 3D 档案缺失时的兜底（自定义直连），启发式与 image/video 同口径：有图参考 → 图生3D。

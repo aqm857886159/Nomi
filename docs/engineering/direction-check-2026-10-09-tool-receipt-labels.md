@@ -1,0 +1,66 @@
+# 方向检查：Agent 回执标签说错（2026-10-09）
+
+> 按 docs/engineering/direction-check-template.md 填，一页。拍板人：协调会话，2026-10-09（用户已授权实现细节由协调会话定）。
+> 触发：src/workbench/ai/resident/residentToolDisplay.ts 近 14 天第 3 个 fix；src/i18n/locales/agentResident.ts 同期第 7 个。
+
+## 0. 一句话根因
+
+回执按「契约桶 + 子串」说话：共用同一个契约的新动词默认继承桶里已有的说法，没人登记也不报错，说的和做的就对不上（铁律 ⑩ 说的 = 做的）。
+
+## 症状 / 直接原因
+
+- 症状：真模型走查里 Agent 调的是 `write_node_text`，面板回执写「创建或修改镜头卡 · 把镜头卡写入当前画布」。
+- 直接原因：`readableToolName` / `readableToolSummary` 先把动词解析成契约 `canvas.write`，再命中「镜头卡写入」那一桶；`write_node_text` 没有自己的说法。
+- 顺带查出同类：`arrange_canvas`、`make_artifact`、`stage_shot` 同桶、`draft_shots` 被说成「准备生成」、`cancel_job` / `export_video` 摘要都是「正在准备…」。
+
+## 1. 归类表（该文件 14 天内前几次 fix）
+
+| 提交 / bug | 直接原因 | 类 |
+|---|---|---|
+| f4f8178f6（10-06）说「撤销」就撤销 | 撤销与编辑计划同属 `timeline.write` 桶，被说成「调整时间线」 | 同桶动词互相继承说法 |
+| 372ac66a7（10-07）去掉多余的 saved / shell 提示 | 回执里多出一句不属于该动作的话 | 回执文字与动作不对应 |
+| 本次 write_node_text | 同属 `canvas.write` 桶，继承「镜头卡写入」 | 同桶动词互相继承说法 |
+
+## 2. 为什么这一类会一直出现
+
+表示层缺一张「动词 → 它自己的说法」的表，靠契约桶和子串去猜；新动词进 lane 目录不会触发任何检查。落在铁律 ⑩（说的 = 摆的）：面板上的字必须与实际执行的动作逐条一致。样张只画节点本身、任务书只写写入路径与撤销、测试只核对「调了哪个工具」，三处都没覆盖「面板写的字」。
+
+## 3. 不改结构的话会冒出什么
+
+| 预测 | 怎么验证 |
+|---|---|
+| 下一个加入 `canvas.write` 的动词又被说成镜头卡写入 | 往 lane 目录加一个同桶动词不登记，跑 `residentToolDisplay.test.ts` |
+| `timeline.write` / `generation.plan` 桶里同样会出新的错话 | 同上，看「共用契约桶的动词必须登记」那条 |
+
+## 4. 靶子独立性
+
+测试由同一条线写，但断言的是从 lane 目录（`modelFacingToolSpecs('internal')`）派生的事实，不是手抄清单；中英文案另有 `check:i18n`（界面不谈钱）把关。
+
+## 5. P0：这是我们独有的吗
+
+不是通用能力，是我们 Agent 面板自己的回执文案；没有现成库可接。文案本身是领域内容，自写。
+
+## 6. 补 / 重写 对比
+
+| 选项 | 做什么 | 代价 | 推荐 |
+|---|---|---|---|
+| 补 | 只给 write_node_text 加一个 if | 小 | 否：第 3 次补丁，下个同桶动词照旧出错 |
+| **结构修（本次）** | 确切动词名登记表 `VERB_DISPLAY` + 遍历 lane 目录的测试：每个工具「名字 + 摘要」互不相同；共用契约桶的动词必须登记（桶内原生的列入 `BUCKET_NATIVE_VERBS`）。新工具没登记，测试里就红 | 约 100 行 + 中英文案 | **是** |
+| 重写 | 把其余子串判断全部改成按确切身份查表 | 大（646 行文件） | 下一片，本次不做 |
+
+## 7. 用户要权衡的核心
+
+回执是合同的一部分：新增 Agent 工具时，回执文案（中英）必须同时交付，否则测试红。
+
+## 没做的下一片
+
+其余子串判断（读类、文稿、时间线等）改成全表。设计卡同步新增了 ★1b「连带界面」，独立验收模板新增必查「说的 = 做的」。
+
+## 特征测试
+
+`src/workbench/ai/resident/residentToolDisplay.test.ts`：每个 lane 工具说的话不同；共用桶的动词必须登记；write_node_text 中英文案不含「镜头卡」且写明可撤销。删掉登记，这两条必红（已验证）。
+
+## 补：自写登记条目（2026-10-09 复审后的两刀）
+
+- 登记 `ai-sdk-text-stack`（to-replace）：`streamTextTask` 是文本流的唯一 owner，包的是 ai@4 的 `streamText`。本刀让「读完 / 出错 / 超时 / 停止」都收口，并把 ai 的流式函数收进这一个文件。现成方案就是 ai SDK 本身；它的缺口（fetch 抛错 / abort 时 `finishReason` 永不 settle，错误只走 `onError`）是上游行为，换不了——升级到 ai@5/6 是另立的 SDK 升级片（与协调会话已定的「SDK 升级脱钩」一致），升级后这层收口可以删或变薄；在那之前只有这一个文件能碰它，由门岗锁住。
+- 登记 `gate-family`（under-review）：`check:llm-stream-owner` 从正则改成 TypeScript 语法树判定，是复审的阻断项（正则可被命名空间 / 动态 import / 重导出绕过）。语法树判定用的是现成的 `typescript` 编译器 API，没有自写解析器；同族门岗的合并评估不在这一刀。

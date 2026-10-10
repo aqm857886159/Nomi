@@ -11,6 +11,7 @@ import { createProductionGenerationSubmission } from "./productionGenerationSubm
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
+import { landedAdmission } from "./landFirstTestUtils";
 
 // P4 S2 wiring: the seal precheck (reducer, hard-cap enforced at the single source of truth) and the
 // real-number ledger on the submission seam (approval.maxSpend / budget authorize / reserve = derived
@@ -228,7 +229,7 @@ function sealedApprovedSingleShot(priceAmount: number | null) {
 describe("P4 S2 real-number ledger on submission", () => {
   it("authorizes + reserves the derived price and records it as the approval's maxSpend", async () => {
     const { repository, runner } = sealedApprovedSingleShot(12);
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
 
     const run = repository.read("project-1", "op-1")!;
     // Ledger authorized to the derived price, and the shot's price reserved (no longer ¥0).
@@ -243,7 +244,7 @@ describe("P4 S2 real-number ledger on submission", () => {
   // 而且账本里那一笔是「未知」不是「0 元」——两件事必须同时成立，缺一条这次改动就白做了。
   it("submits an unpriced shot and books it as an unknown-price liability, never ¥0", async () => {
     const { repository, runner, submit } = sealedApprovedSingleShot(null);
-    await runner.start({ projectId: "project-1", operationId: "op-1" });
+    await runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") });
     expect(submit).toHaveBeenCalledTimes(1);
 
     const run = repository.read("project-1", "op-1")!;

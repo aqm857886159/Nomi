@@ -5,7 +5,7 @@ import { resolveRenderedControls } from '../nodes/nodeModelArchetype'
 import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import { applyArchetypeModeSwitch, currentArchetypeMode, currentArchetypeVariant } from '../nodes/controls/archetypeMeta'
 import { resolveGenerationReferences } from './generationReferenceResolver'
-import { collectConnectedTextPromptParts } from './connectedTextPrompt'
+import { projectConnectedTextInputs } from './connectedTextPrompt'
 import { getTextGenMode, textDocumentDigest } from './textGenerationDocument'
 // 后台运行（已提交的生成 / 找回 / 本地派生）的项目归属与结局投递——唯一实现。
 //
@@ -151,7 +151,7 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
         dialogue: meta.dialogue,
         edges: edges.filter(edge => edge.target === id),
         resolved: resolveGenerationReferences(node, { nodes, edges }),
-        connectedText: collectConnectedTextPromptParts(node, { nodes, edges }),
+        connectedText: projectConnectedTextInputs(node, { nodes, edges }),
       }
     }))))
   }

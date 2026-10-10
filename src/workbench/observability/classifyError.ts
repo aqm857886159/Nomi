@@ -698,6 +698,17 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
       ...narrateGenerationErrorActions('unknown'),
     }
   }
+  // 升级前留下的批量确认草稿（没记来源节点）：先落节点、再发请求之后主进程不发它，按「没交」收尾——如实说，要他再确认一次。
+  if (structured?.code === 'canvas_consent_predates_upgrade') {
+    return {
+      kind: 'unknown',
+      reason: i18n.t('generationCommon.observability.error.consentPredatesUpgrade.reason'),
+      hint: i18n.t('generationCommon.observability.error.consentPredatesUpgrade.hint'),
+      vendorSide: false,
+      raw,
+      ...narrateGenerationErrorActions('unknown'),
+    }
+  }
   // 3D-BOX 预演没好，主进程准入拒了这一次（还没发出去、没花钱）：说的是哪一步没好，不当成供应商失败。
   if (structured?.code === 'director_preview_blocked') {
     return {

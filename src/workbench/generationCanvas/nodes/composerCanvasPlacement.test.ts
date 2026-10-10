@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { composerCanvasPlacement } from './composerCanvasPlacement'
-import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH } from './nodeSizing'
+import { NODE_COMPOSER_GAP, NODE_COMPOSER_WIDTH, TEXT_COMPOSER_GAP, TEXT_COMPOSER_MAX_WIDTH, TEXT_COMPOSER_MIN_WIDTH } from './nodeSizing'
 
 /**
  * 把 CSS 变换在屏幕上的效果算出来：节点左上角在屏幕 (nodeX, nodeY)、画布缩放 zoom。
@@ -56,12 +56,28 @@ describe('composerCanvasPlacement', () => {
     }
   })
 
+  it('文本加工框：和节点同宽（屏幕宽夹在上下限里）、紧贴在下面（间距 8），位置仍只是节点尺寸与缩放的函数', () => {
+    const wide = composerCanvasPlacement({ width: 404, height: 120 }, 1, 'match-node')
+    expect(wide.width).toBe(404)
+    expect(wide.top).toBe(120 + TEXT_COMPOSER_GAP)
+    expect(wide.left).toBe(202)
+    // 缩小到看不清时不跟着缩成一条缝；放大到比标准浮框还宽时不撑出 560。
+    expect(composerCanvasPlacement({ width: 404, height: 120 }, 0.4, 'match-node').width).toBe(TEXT_COMPOSER_MIN_WIDTH)
+    expect(composerCanvasPlacement({ width: 404, height: 120 }, 3, 'match-node').width).toBe(TEXT_COMPOSER_MAX_WIDTH)
+    // 标准（图片 / 视频）浮框一个字不变。
+    expect(composerCanvasPlacement({ width: 404, height: 120 }, 1).width).toBe(NODE_COMPOSER_WIDTH)
+  })
+
   // 不变量的结构面：浮框这一侧不许再长回「量屏幕 → 躲东西」的放置层。
   it('the canvas composer derives its position without measuring the screen', () => {
-    const source = stripComments(fs.readFileSync(path.join(__dirname, 'NodeGenerationComposer.tsx'), 'utf8'))
-    expect(source).toContain('composerCanvasPlacement(visualSize, canvasZoom)')
-    for (const forbidden of ['getBoundingClientRect', 'requestAnimationFrame', 'resolveAnchoredPlacement', 'w-max']) {
-      expect(source, forbidden).not.toContain(forbidden)
+    // 画布宿主的定位锚住在 composerAnchor.tsx（图片 / 视频卡与文本加工框共用同一个锚）。
+    const anchor = stripComments(fs.readFileSync(path.join(__dirname, 'composerAnchor.tsx'), 'utf8'))
+    expect(anchor).toContain('composerCanvasPlacement(visualSize, canvasZoom, placement)')
+    for (const file of ['composerAnchor.tsx', 'NodeGenerationComposer.tsx']) {
+      const source = stripComments(fs.readFileSync(path.join(__dirname, file), 'utf8'))
+      for (const forbidden of ['getBoundingClientRect', 'requestAnimationFrame', 'resolveAnchoredPlacement', 'w-max']) {
+        expect(source, `${file} ${forbidden}`).not.toContain(forbidden)
+      }
     }
   })
 })

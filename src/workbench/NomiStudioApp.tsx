@@ -30,6 +30,7 @@ import {
   executeCanvasWriteTarget,
 } from './generationCanvas/agent/canvasWriteTarget'
 import { canvasDeleteSemanticInputSchema } from '../../electron/shared/agentCapabilities/canvasDelete'
+import { isNodeTargetedWriteOperation } from '../../electron/shared/agentCapabilities/canvasWrite'
 import { directorWriteSemanticInputSchema, isDirectorWriteOperation } from '../../electron/shared/agentCapabilities/directorWrite'
 import {
   executeTimelineReadTarget,
@@ -250,7 +251,7 @@ export default function NomiStudioApp(): JSX.Element {
             }
             return captureCanvasWriteRawEvidence(
               readGenerationCanvasSnapshot(),
-              operation === 'set_node_prompt' ? (nodeId ?? '') : { operation, input },
+              isNodeTargetedWriteOperation(operation) ? (nodeId ?? '') : { operation, input },
             )
           } catch (error) {
             const code =

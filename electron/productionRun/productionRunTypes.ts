@@ -82,11 +82,13 @@ export type ProductionRunStatus =
  * - `restart_recovery`：Nomi 重启后要先核对之前在跑的任务；
  * - `consent_expired`：批过的镜离用户最后一次点头已经过了同意窗口还没发出去，没有人替他续——停下来等他再点一次
  *   （2026-10-01 付费卡① 第 13 条，判据在 `productionDispatchConsent`）。
+ * - `landing_failed`：批过的镜没能先落到画布上——「先落节点、再发请求」（架构③，2026-10-08），所以没有发出生成请求；
+ *   停下来等用户打开项目后再点一次（重落、再派）。唯一写口 `shotLandingAdmission`。
  *
  * 2026-10-01 删掉了 `budget`（「批过的额度用完了」）：授权按镜存之后，一镜派不派只看批它的那一份，Run 级的额度停
  * 没有剩下的用处，今天又根本没有价格。上一版记成 `budget` 的旧 Run 读盘时当作没记原因（中性的「已停」）。
  */
-export type ProductionRunStopReason = "failed" | "user_paused" | "user_cancelled" | "restart_recovery" | "consent_expired";
+export type ProductionRunStopReason = "failed" | "user_paused" | "user_cancelled" | "restart_recovery" | "consent_expired" | "landing_failed";
 
 export type ProductionRunStop = {
   reason: ProductionRunStopReason;
@@ -438,7 +440,8 @@ export type ProductionRun = {
   status: ProductionRunStatus;
   stageId: string;
   playbook: { name: string; version: string };
-  origin: { host: string; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } };
+  /** `nodeId`：画布节点发起的 Run（host canvas）的来源节点——先有节点、请求才发出（shotLandingAdmission.landedNodeOf）。 */
+  origin: { host: string; actorId?: string; nodeId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } };
   brief?: ProductionBrief;
   policy: AutomationPolicy;
   budget: BudgetLedgerSummary;
@@ -539,6 +542,8 @@ export type ProductionShotActionFailure =
   | "not_stopped" // 这一批没停着，不用继续
   | "plan_not_submitted" // 方案还没开拍
   | "ledger_write_failed" // 写不进项目记录（磁盘满 / 没有写入权限）
+  | "canvas_landing_failed" // 没放到画布上，这次没有发出生成请求（先落节点、再发请求）
+  | "nothing_to_resume" // 剩下没发的镜，节点都已从画布上删掉：这一批没有可以继续的
   | "internal_error"; // Nomi 自己的 bug（不变量断言没过）
 
 /** 返工 / 续拍的结构化结果（appIntegration 编排 → IPC → 渲染层）。declined = 用户在确认框里说了不，不扣费、不报错。 */
@@ -596,7 +601,8 @@ export type CreateProductionRunInput = {
   runId?: string;
   projectId: string;
   playbook: { name: string; version: string };
-  origin: { host: string; actorId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } };
+  /** `nodeId`：画布节点发起的 Run（host canvas）的来源节点——先有节点、请求才发出（shotLandingAdmission.landedNodeOf）。 */
+  origin: { host: string; actorId?: string; nodeId?: string; sourceDocument?: { documentId: string; revision: number; contentHash: string } };
   brief?: ProductionBrief;
   policy?: Partial<AutomationPolicy>;
   currency?: string;

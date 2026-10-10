@@ -29,7 +29,7 @@ describe('task project identity is explicit at the taskApi boundary', () => {
     await runWorkbenchTaskByVendor('v', { kind: 'text_to_image', prompt: 'p', extras: { modelKey: 'm' } }, null)
     expect(run).toHaveBeenCalledWith({ vendor: 'v', request: { kind: 'text_to_image', prompt: 'p', extras: { modelKey: 'm' } } })
     void runWorkbenchTextTaskStream('v', { kind: 'prompt_refine', prompt: 'p', extras: {} }, null)
-    await vi.waitFor(() => expect(runTextStream).toHaveBeenCalledWith({ vendor: 'v', request: { kind: 'prompt_refine', prompt: 'p', extras: {} } }))
+    await vi.waitFor(() => expect(runTextStream).toHaveBeenCalledWith({ vendor: 'v', request: { kind: 'prompt_refine', prompt: 'p', extras: {} }, streamId: expect.stringMatching(/^text-/) }))
   })
 
   it('polling repeats the task identity it is given and nothing else', async () => {

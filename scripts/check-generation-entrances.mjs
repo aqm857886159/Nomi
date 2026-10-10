@@ -14,6 +14,9 @@
 //      或 `reason`（为什么它不是一个用户可达的生成入口）。二选一，不许都空。
 //   ③ 矩阵形状对账：登记表记着「几个入口 × 几个用例」，与那两个源文件里的真实条数必须相等。
 //      加了入口不加用例覆盖、或加了入口忘了跑矩阵，都在这里红。
+//   ④ 先落节点、再发请求（架构③，2026-10-08）：每个入口声明 `landing`——node-first（owner 必须存在）或 exception
+//      （理由只认登记表 `landingExceptions`）。不落节点就发请求的新入口在这里红；「编译期拦」那一半在提交出口的
+//      准入类型上（`submission.start` 不带 `LandedShotAdmission` 编译不过）。
 //
 // 期望值（每格该发什么）**不在这个门岗里**——判对错是矩阵测试的事，门岗只数格子。
 //
@@ -70,6 +73,15 @@ export function scanDispatchSites(root = repoRoot) {
 
 const countLiterals = (source, pattern) => [...source.matchAll(pattern)].length
 
+/**
+ * 批准的「不落节点就发请求」例外（协调会话 2026-10-08 / 10-09 裁决），按身份写死：值说明它是入口 id 还是登记表调用点。
+ * 加一条 = 改这里 = 经协调会话；门岗自测钉住条数与身份。
+ */
+export const APPROVED_LANDING_EXCEPTIONS = Object.freeze({
+  'try-model': 'entrance',
+  'electron/integrationCertification/integrationSession.ts::runTask': 'site',
+})
+
 export function checkGenerationEntrances(root = repoRoot) {
   const problems = []
   const ledger = JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'generation-entrances-ledger.json'), 'utf8'))
@@ -114,6 +126,45 @@ export function checkGenerationEntrances(root = repoRoot) {
   }
   for (const entrance of [...entranceIds]) {
     if (!entrancesSource.includes(`"${entrance}"`)) problems.push(`入口 ${entrance} 解析异常。`)
+  }
+  // ④ 先落节点、再发请求（架构③）：每个入口都要说清请求发出前画布上有没有节点。
+  //    node-first 的 owner 文件必须存在；exception 的理由只认登记表 landingExceptions 里写了的。
+  const exceptions = ledger.landingExceptions && typeof ledger.landingExceptions === 'object' ? ledger.landingExceptions : {}
+  const exceptionEntrances = new Set()
+  for (const id of entranceIds) {
+    const start = entrancesSource.indexOf(`    id: "${id}",`)
+    const block = entrancesSource.slice(start, entrancesSource.indexOf('\n  },', start))
+    const landing = block.match(/\n\s{4}landing: \{ kind: "(node-first|exception)"(?:, owner: "([^"]+)")? \},/)
+    if (!landing) {
+      problems.push(`入口 ${id} 没有声明落地方式（landing）：请求发出之前画布上有没有这一镜的节点，必须写清——node-first 给出保证它的 owner，或登记成例外。`)
+      continue
+    }
+    if (landing[1] === 'exception') {
+      exceptionEntrances.add(id)
+      const reason = exceptions[id]
+      if (typeof reason !== 'string' || !reason.trim()) problems.push(`入口 ${id} 自称落地例外（不落节点就发请求），登记表 landingExceptions 里却没有它的理由。`)
+      continue
+    }
+    const ownerFile = (landing[2] ?? '').split(' ')[0]
+    if (!ownerFile || !fs.existsSync(path.join(root, ownerFile))) problems.push(`入口 ${id} 的落地 owner ${landing[2] ?? '(空)'} 不存在：node-first 必须指向真正保证「先有节点」的那个文件。`)
+  }
+  // 例外按身份写死（#1139 N3）：只有协调会话批过的这几条能进 landingExceptions，条数也要对上。
+  // 以前「是登记表里的调用点」就能进，于是同一个 commit 就能把任何一个普通调用点悄悄变成第 N 条永久豁免。
+  for (const [key, reason] of Object.entries(exceptions)) {
+    const approved = APPROVED_LANDING_EXCEPTIONS[key]
+    if (!approved) {
+      problems.push(`landingExceptions 里的 ${key} 不在批准的落地例外里（只认：${Object.keys(APPROVED_LANDING_EXCEPTIONS).join('、')}）：不落节点就发请求的新口子要先经协调会话裁决，再改门岗。`)
+      continue
+    }
+    if (approved === 'entrance' && !exceptionEntrances.has(key)) problems.push(`landingExceptions 里的 ${key} 应当是入口表里声明为 exception 的入口。`)
+    if (approved === 'site' && !registered.has(key)) problems.push(`landingExceptions 里的 ${key} 应当是登记表里的调用点。`)
+    if (typeof reason !== 'string' || !reason.trim()) problems.push(`landingExceptions 里的 ${key} 没有理由。`)
+  }
+  const exceptionCount = Object.keys(exceptions).length
+  const approvedCount = Object.keys(APPROVED_LANDING_EXCEPTIONS).length
+  if (exceptionCount !== approvedCount) problems.push(`landingExceptions 有 ${exceptionCount} 条，批准的是 ${approvedCount} 条：例外只许按身份逐条批，不许多也不许少。`)
+  for (const id of exceptionEntrances) {
+    if (APPROVED_LANDING_EXCEPTIONS[id] !== 'entrance') problems.push(`入口 ${id} 自称落地例外，但它不在批准的例外入口里。`)
   }
   // 每个入口的 dispatchSite 文件必须是扫到过的那些文件之一（入口不能指向一个没人发请求的地方）。
   const dispatchFiles = new Set([...scanned.keys()].map((key) => key.split('::')[0]))

@@ -1,5 +1,13 @@
 import type { ProductionRun, RunCommand } from '../../../electron/productionRun/productionRunTypes'
 
+/**
+ * 主进程的唯一判定（resumeOutlook）说「继续了也一镜都不会派」时，run.control 写口抛 NothingToResumeError（码 `nothing_to_resume`）。
+ * 跨 IPC 只剩错误原文，这里按码认它（与 isRevisionConflict 同一种认法）。
+ */
+export function isNothingToResume(error: unknown): boolean {
+  return /\bnothing_to_resume\b/.test(error instanceof Error ? error.message : String(error))
+}
+
 type ProductionCommandResult = {
   run: ProductionRun
   events: unknown[]
