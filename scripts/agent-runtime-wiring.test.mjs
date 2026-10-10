@@ -10,6 +10,8 @@ import { VITEST_LANE, ruleClaims } from '../vitest.config.ts'
 // 正则闭包，gates:contracts 改成 runner 实参清单后它立刻报出「typecheck 不可达」的假红——
 // 两份判据必然漂移（R14.1）。要改可达性语义只改 scripts/check-gates-chain.mjs。
 import { resolveReachable } from './check-gates-chain.mjs'
+import { TYPECHECK_PROJECTS } from './lib/typecheckProjects.mjs'
+import { TYPECHECK_JOBS } from './typecheck.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), 'utf8')
@@ -103,12 +105,14 @@ describe('private pi build and test wiring', () => {
   test('production and zero-error native test types remain reachable from root gates', () => {
     // 2026-10-01：typecheck 由编排器并发拉起四份检查（生产 tsc x3 + check:test-types），不再是一条 && 链。
     expect(pkg.scripts.typecheck).toBe('node ./scripts/typecheck.mjs')
-    const orchestrator = read('scripts/typecheck.mjs')
-    expect(orchestrator).toContain("'electron/tsconfig.pi.json', '--noEmit'")
-    expect(orchestrator).toContain('scripts/check-test-types.mjs')
+    // 读编排器导出的任务表本身，不 grep 源码文本：tsconfig 名单收进 lib/typecheckProjects.mjs 之后源码里只剩常量名，
+    // 文本断言会假红；import 也让「改 typecheck.mjs → 跑这条测试」进 vitest 的依赖图。
+    expect(TYPECHECK_JOBS.find((job) => job.name === 'tsc electron-pi')?.args).toEqual(['-p', 'electron/tsconfig.pi.json', '--noEmit'])
+    expect(TYPECHECK_JOBS.some((job) => job.kind === 'script' && job.script === 'scripts/check-test-types.mjs')).toBe(true)
     expect(reachable('gates').has('typecheck')).toBe(true)
     expect(pkg.scripts['check:test-types']).toContain('check-test-types.mjs')
-    expect(read('scripts/check-test-types.mjs')).toContain('tests/agent-runtime/tsconfig.json')
+    expect(TYPECHECK_PROJECTS.nativeTest).toBe('tests/agent-runtime/tsconfig.json')
+    expect(read('scripts/check-test-types.mjs')).toContain('TYPECHECK_PROJECTS.nativeTest')
     const parsed = ts.getParsedCommandLineOfConfigFile(path.join(repoRoot, 'tests/agent-runtime/tsconfig.json'), {}, {
       ...ts.sys, onUnRecoverableConfigFileDiagnostic: (diagnostic) => { throw new Error(String(diagnostic.messageText)) },
     })

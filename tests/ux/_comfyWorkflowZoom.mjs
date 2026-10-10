@@ -1,5 +1,6 @@
 // Called by the real production Electron feedback walk; no React/store test bridge.
 import { expect, clickOrFail } from './_assert.mjs'
+import { openModelSettings } from './_shell.mjs'
 
 export function zoomWorkflowFixtures(graph, binding, buildImportedWorkflow, buildMapping) {
   return [48, 80].map((count) => {
@@ -211,7 +212,7 @@ export async function walkWorkflowZoom(win, snap, readCatalog) {
 }
 
 export async function verifySavedWorkflowZoom(win, snap) {
-  await clickOrFail(win.getByRole('button', { name: '打开模型设置', exact: true }), '冷启动后核对工作流设置')
+  await openModelSettings(win, { label: '冷启动后核对工作流设置' })
   const settings = win.getByRole('dialog', { name: '设置', exact: true })
   await clickOrFail(settings.getByRole('button').filter({ hasText: '本地 ComfyUI' }).first(), '打开 ComfyUI')
   await clickOrFail(settings.getByRole('button', { name: '打开「缩放验收 48 节点」的工作流设置', exact: true }), '重新打开已保存的大图')

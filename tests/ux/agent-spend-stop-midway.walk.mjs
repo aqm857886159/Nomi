@@ -22,7 +22,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { BATCH, COPY, TITLE, createPresenter } from './_spendRemainingWalk.mjs'
 import { CANVAS_PANEL, createRuntimeWalk, expandResidentPanel, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -349,7 +349,7 @@ try {
   await backToLibrary(win, { timeout: stationTimeout({ operations: 4 }) })
   await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'en'))
   await win.reload()
-  await clickOrFail(win.getByRole('button', { name: /^New blank project/ }), 'en：新建空白项目', { timeout: stationTimeout({ operations: 4 }) })
+  await clickOrFail(newProjectEntry(win), 'en：新建空白项目', { timeout: stationTimeout({ operations: 4 }) })
   await clickOrFail(win.getByRole('button', { name: 'Generate', exact: true }), 'en：生成工作区', { timeout: stationTimeout({ operations: 4 }) })
   const stage = win.locator('.generation-canvas-v2__stage')
   await expect(stage, 'en：生成画布').toBeVisible({ timeout: stationTimeout({ operations: 4 }) })

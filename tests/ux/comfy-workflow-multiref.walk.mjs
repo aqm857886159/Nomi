@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, clickOrFail, screenshotSettled } from './_assert.mjs'
+import { openModelSettings } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const withVideo = process.argv.includes('--with-video')
@@ -165,7 +166,7 @@ try {
   })
   await win.reload()
   await openProject()
-  await clickOrFail(win.getByRole('button', { name: '打开模型设置', exact: true }), '导入三图工作流')
+  await openModelSettings(win, { label: '导入三图工作流' })
   const settings = win.getByRole('dialog', { name: '设置', exact: true })
   await clickOrFail(settings.getByRole('button').filter({ hasText: '本地 ComfyUI' }).first(), '打开 ComfyUI 接入')
   await clickOrFail(settings.getByRole('button', { name: '自定义', exact: true }), '打开 JSON 导入入口')

@@ -44,7 +44,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { backToLibrary, ensureAgentPanelOpen } from './_shell.mjs'
+import { backToLibrary, ensureAgentPanelOpen, newProjectEntry, openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
@@ -168,7 +168,7 @@ async function closeSettings() {
 /** 像真人一样点开设置 → 模型（入口锚点用 data-testid，不认文案）。 */
 async function openSettings() {
   await closeSettings()
-  await clickOrFail(getWin().locator('[data-testid="open-model-settings"]').first(), '模型设置入口')
+  await openModelSettings(getWin(), { label: '模型设置入口' })
   await expectVisible(getWin().locator('[data-model-settings-page]').first(), '模型设置页打开')
   await getWin().waitForTimeout(900)
 }
@@ -252,7 +252,7 @@ async function disconnectLikeAHuman() {
  */
 async function assertAgentDropdown(brainReady, shot) {
   await closeSettings()
-  await clickOrFail(getWin().getByRole('button', { name: /^新建空白项目/ }), '创建真实项目检查 Agent 模型')
+  await clickOrFail(newProjectEntry(getWin()), '创建真实项目检查 Agent 模型')
   await ensureAgentPanelOpen(getWin())
   await expectVisible(getWin().locator('[data-v4-panel]').first(), '项目 Agent 面板')
   await clickOrFail(getWin().locator('[data-v4-control="model"]:visible').first(), 'Agent 模型入口')
@@ -276,7 +276,7 @@ async function assertAgentDropdown(brainReady, shot) {
   await getWin().keyboard.press('Escape')
   await getWin().keyboard.press('Escape')
   await backToLibrary(getWin(), { label: '返回真实项目库' })
-  await expectVisible(getWin().getByRole('button', { name: /^新建空白项目/ }), '已返回项目库')
+  await expectVisible(newProjectEntry(getWin()), '已返回项目库')
 }
 
 async function assertAgreement(label, { usable, reasons, brainReady, settingsUsable, settingsPending, shot }) {

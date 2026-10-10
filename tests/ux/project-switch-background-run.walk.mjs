@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const mode = process.env.NOMI_BACKGROUND_MODE || 'single'
@@ -157,7 +157,7 @@ function mediaFiles(root) {
 }
 
 async function newBlankProject(win) {
-  await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }).first(), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await expect.poll(() => currentProjectId(win), { message: '新建后地址栏带上新项目 id', timeout: stationTimeout({ operations: 2 }) }).toMatch(/^project-/)
   await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '切到生成区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
@@ -165,7 +165,7 @@ async function newBlankProject(win) {
 }
 async function leaveToLibrary(win) {
   await backToLibrary(win)
-  await expect(win.getByRole('button', { name: /^新建空白项目/ }).first()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+  await expect(newProjectEntry(win)).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
 }
 async function openFromLibrary(win, projectId) {
   const card = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)

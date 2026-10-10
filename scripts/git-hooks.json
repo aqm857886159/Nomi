@@ -1,0 +1,5 @@
+{
+  "commit-msg": [["scripts/check-progress-update.cjs"], ["scripts/check-direction-trailer.mjs"]],
+  "pre-commit": [["scripts/check-no-secrets.mjs"]],
+  "pre-push": [["scripts/pre-push-contracts.mjs"]]
+}

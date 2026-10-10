@@ -86,6 +86,7 @@
     "check:read-path-writes": "node ./scripts/check-read-path-writes.mjs",
     "check:no-default-overwrite": "node ./scripts/check-no-default-overwrite.mjs",
     "gen:agents": "node ./scripts/gen-agents-md.mjs",
+    "hooks:reinstall-all": "node ./scripts/install-git-hooks.cjs --all-worktrees",
     "gen:archetype-defaults": "tsx scripts/gen-archetype-wire-defaults.ts",
     "experience:report": "node tests/ux/experience/report.mjs",
     "experience:test": "node --test tests/ux/experience/*.node-test.mjs",

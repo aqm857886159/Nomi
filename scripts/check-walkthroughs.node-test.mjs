@@ -234,12 +234,16 @@ describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红�
     assert.equal(findRawShellAnchors(`document.querySelector('[data-v4-control="dock-open"]')?.click()`).length, 1)
     assert.equal(findRawShellAnchors(`const P = '[data-agent-resident="true"][data-agent-panel="true"]'`).length, 1)
     assert.equal(findRawShellAnchors(`win.locator('[data-agent-resident="true"][data-agent-collapsed="true"]')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('[data-testid="open-model-settings"]').first()`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('[aria-label="打开模型设置"]')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.getByRole('button', { name: '打开模型设置', exact: true })`).length, 1)
   })
 
   it('经出口函数 / 在断言文案里提到「返回项目库」都不报', () => {
     assert.deepEqual(findRawShellAnchors(`await backToLibrary(win)`), [])
     assert.deepEqual(findRawShellAnchors(`await expectVisible(entry, '没有返回项目库')`), [])
     assert.deepEqual(findRawShellAnchors(`await ensureAgentPanelOpen(win)`), [])
+    assert.deepEqual(findRawShellAnchors(`await openModelSettings(win, { label: '连接模型入口' })`), [])
   })
 
   it('豁免表每一条都写了原因，且出口文件在里面', () => {
