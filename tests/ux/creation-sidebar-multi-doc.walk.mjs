@@ -18,6 +18,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-creation-sidebar-')
@@ -173,7 +174,7 @@ try {
   await snap('05-back-to-script.png')
 
   // ─────────── 腿 B：老项目形状 ───────────
-  await clickOrFail(win.getByRole('button', { name: /项目库|返回项目库/ }).first(), '回项目库')
+  await backToLibrary(win)
   await openProject(win, '老项目形状')
   await expectResourceTreeReachable(win, '老项目创作页', {
     documents: 1, storyboards: 1,

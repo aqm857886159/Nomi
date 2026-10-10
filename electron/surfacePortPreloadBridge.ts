@@ -103,9 +103,10 @@ function documentWriteRequest(value: unknown): DocumentWriteSurfaceRequestWire |
   return request as unknown as DocumentWriteSurfaceRequestWire;
 }
 
-/** 画布写取证的操作白名单（手写，preload 是信任边界）。开关关时就是这 10 个，一个不多。 */
+/** 画布写取证的操作白名单（手写，preload 是信任边界）。开关关时就是这 11 个，一个不多。 */
 export const CANVAS_WRITE_CAPTURE_OPERATIONS = Object.freeze([
   "set_node_prompt",
+  "set_node_text",
   "create_canvas_nodes",
   "connect_canvas_edges",
   "tidy_canvas",
@@ -122,15 +123,18 @@ export function canvasWriteCaptureOperations(director3dbox: boolean): readonly s
   return director3dbox ? [...CANVAS_WRITE_CAPTURE_OPERATIONS, ...DIRECTOR_WRITE_OPERATIONS] : CANVAS_WRITE_CAPTURE_OPERATIONS;
 }
 
+/** 取证只带 nodeId（不带 input）的两个单节点 operation。preload 是信任边界，名单手写在这里。 */
+const NODE_TARGETED_CAPTURE_OPERATIONS: ReadonlySet<string> = new Set(["set_node_prompt", "set_node_text"]);
+
 function canvasWriteCaptureRequest(value: unknown, allowed: readonly string[]): CanvasWriteCaptureSurfaceRequestWire | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const request = value as Record<string, unknown>;
   if (typeof request.requestId !== "string" || !request.requestId.trim()) return null;
   if (!request.binding || typeof request.binding !== "object" || Array.isArray(request.binding)) return null;
   if (typeof request.operation !== "string" || !allowed.includes(request.operation)) return null;
-  if (request.operation === "set_node_prompt" && (typeof request.nodeId !== "string" || !request.nodeId.trim()))
+  if (NODE_TARGETED_CAPTURE_OPERATIONS.has(request.operation) && (typeof request.nodeId !== "string" || !request.nodeId.trim()))
     return null;
-  if (request.operation !== "set_node_prompt" && !Object.prototype.hasOwnProperty.call(request, "input")) return null;
+  if (!NODE_TARGETED_CAPTURE_OPERATIONS.has(request.operation) && !Object.prototype.hasOwnProperty.call(request, "input")) return null;
   return request as unknown as CanvasWriteCaptureSurfaceRequestWire;
 }
 

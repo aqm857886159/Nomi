@@ -1,6 +1,4 @@
 import React, { type JSX } from 'react'
-import { workspacePanelFrame, workspacePanelHeader } from '../WorkspacePanelFrame'
-import { CreationResourceTreeToggle } from './CreationResourceTreeToggle'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -29,6 +27,10 @@ type ResourceMenu = {
   y: number
 } | null
 
+/**
+ * 创作内容树（原稿 + 各自的分镜方案）。10-08 外壳重设计起住在左栏「文稿」抽屉里——
+ * 抽屉自带标题、外框与「新建文稿」，这里只画树本身。
+ */
 export default function DocumentListSidebar(): JSX.Element {
   const { t } = useTranslation()
   const documents = useWorkbenchStore((state) => state.workbenchDocuments)
@@ -39,7 +41,6 @@ export default function DocumentListSidebar(): JSX.Element {
   const setActiveDocumentId = useWorkbenchStore((state) => state.setActiveDocumentId)
   const setActiveStoryboardId = useWorkbenchStore((state) => state.setActiveStoryboardId)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
-  const addWorkbenchDocument = useWorkbenchStore((state) => state.addWorkbenchDocument)
   const deleteWorkbenchDocument = useWorkbenchStore((state) => state.deleteWorkbenchDocument)
   const renameWorkbenchDocument = useWorkbenchStore((state) => state.renameWorkbenchDocument)
   const addStoryboardDesign = useWorkbenchStore((state) => state.addStoryboardDesign)
@@ -180,7 +181,7 @@ export default function DocumentListSidebar(): JSX.Element {
     return createPortal(
       <div
         role="menu"
-        className="fixed z-50 min-w-[176px] overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper py-1 shadow-workbench-pop"
+        className="fixed z-popover min-w-[176px] overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper py-1 shadow-workbench-pop"
         style={{ left: menu.x, top: menu.y }}
         onPointerDown={(event) => event.stopPropagation()}
         onContextMenu={(event) => event.preventDefault()}
@@ -243,26 +244,11 @@ export default function DocumentListSidebar(): JSX.Element {
 
   return (
     <aside
-      className={cn('flex h-full w-[240px] shrink-0 flex-col', workspacePanelFrame)}
+      className="flex min-h-0 flex-1 flex-col"
       aria-label={t('creationAi.documentList.aria')}
       data-creation-resource-tree="true"
     >
-      <div className={cn('flex shrink-0 items-center justify-between gap-1', workspacePanelHeader)}>
-        <div className="min-w-0">
-          <div className="truncate text-body-sm font-semibold text-nomi-ink">{t('creationAi.documentList.title')}</div>
-          <div className="text-micro text-nomi-ink-40">{t('creationAi.documentList.count', { count: documents.length })}</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <WorkbenchIconButton
-            icon={<IconPlus size={16} stroke={1.6} />}
-            label={t('creationAi.documentList.newDocumentAria')}
-            onClick={addWorkbenchDocument}
-          />
-          <CreationResourceTreeToggle placement="column" />
-        </div>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-2 py-2" aria-label={t('creationAi.documentList.aria')}>
+      <nav className="flex-1 overflow-y-auto px-2 pb-2" aria-label={t('creationAi.documentList.aria')}>
         {documents.length === 0 ? (
           <div className="px-2 py-3 text-caption text-nomi-ink-40">{t('creationAi.documentList.empty')}</div>
         ) : documents.map((doc) => {

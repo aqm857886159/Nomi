@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { load } from 'js-yaml'
 
 import { CI_E2E_CHAIN } from './run-ci-e2e-chain.mjs'
+import { assertPartition, E2E_UNITS, listShardItems, planShards } from './lib/e2eShardPlan.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_CHECK_NAMES, CORE_SMOKE_FIXTURES, coreSmokeCheckName } from './validation-policy.mjs'
 import { REQUIRED_MERGED_CHECKS } from './git-delivery.mjs'
 import { CHROMIUM_INSTALL_STEP as PLAYWRIGHT_INSTALL_STEP } from './ci-browser-install.mjs'
@@ -23,7 +24,10 @@ test('the unit lane provisions Chromium before either browser integration test e
   const install = steps.findIndex(step => step.run === PLAYWRIGHT_INSTALL_STEP)
   assert.ok(install >= 0, 'Unit runs real browser integration tests and must provision Chromium')
   assert.equal(steps[install].if, undefined, 'Both focused and full lanes need the browser')
-  for (const command of ['pnpm run test:system:unit', 'pnpm run test:system:focused']) {
+  for (const command of [
+    'pnpm run test:unit:shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}',
+    'pnpm run test:system:focused',
+  ]) {
     assert.ok(steps.findIndex(step => step.run === command) > install, `${command} must run after browser installation`)
   }
 })
@@ -129,8 +133,17 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
   const focused = unit.steps.find((step) => step.name?.includes('fast lane'))
   assert.equal(full.if, "needs.scope.outputs.unit == 'full'")
   assert.equal(focused.if, "needs.scope.outputs.unit == 'focused'")
-  assert.equal(full.run, 'pnpm run test:system:unit')
+  // 2026-10-09：full 档按 vitest 原生 --shard 分片（文件无重叠无遗漏由 vitest 的哈希区间切分保证），focused 档仍一片。
+  assert.equal(full.run, 'pnpm run test:unit:shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}')
   assert.equal(focused.run, 'pnpm run test:system:focused')
+  assert.equal(unit.strategy['fail-fast'], false)
+  assert.match(unit.strategy.matrix.shard, /unit == 'full' && '\[1,2,3\]' \|\| '\[1\]'/)
+  // vitest 之外的 node:test 套件不归 vitest 分片管，必须恰好跑一次：固定第 1 片，且 `test` 脚本本身仍含它们（本地全量不丢）。
+  const nodeSuites = unit.steps.find((step) => step.run === 'pnpm run test:node-suites')
+  assert.equal(nodeSuites.if, "needs.scope.outputs.unit == 'full' && matrix.shard == 1")
+  assert.match(packageJson.scripts.test, /vitest-fair-share\.mjs && pnpm run test:node-suites/)
+  assert.match(packageJson.scripts['test:node-suites'], /test:agent-runtime/)
+  assert.match(packageJson.scripts['test:unit:shard'], /vitest-fair-share\.mjs$/)
 })
 
 test('Linux walkthrough job builds once and keeps only smoke, journey, and critical canvas surfaces', () => {
@@ -147,6 +160,8 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
   assert.equal(selectedSteps['Build selected desktop surfaces once'].run, 'pnpm run build')
   assert.deepEqual(
     [
+      selectedSteps['Browser feel mechanism'].run,
+      selectedSteps['Popup geometry census'].run,
       selectedSteps['Electron smoke'].run,
       selectedSteps['CI-safe user journeys'].run,
       selectedSteps['MCP L1 handshake journey'].run,
@@ -156,6 +171,8 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
       selectedSteps['Critical canvas acceptance'].run,
     ],
     [
+      'pnpm run test:feel:mechanism',
+      'pnpm run test:popup-geometry -- --shard ${{ matrix.shard }}/${{ strategy.job-total }}',
       'xvfb-run -a pnpm run test:e2e',
       'xvfb-run -a pnpm run test:journeys',
       'xvfb-run -a pnpm run test:mcp-journey',
@@ -168,7 +185,7 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
   // 2026-09-18（B 件）：七步一律 continue-on-error，job 的结论交给末尾那一步。
   // 串行 fail-fast 让每轮 CI 只暴露一条红（#804 连三轮各红一条不同走查）。
   const chainSteps = [
-    'Browser feel mechanism', 'Electron smoke', 'CI-safe user journeys', 'MCP L1 handshake journey',
+    'Browser feel mechanism', 'Popup geometry census', 'Electron smoke', 'CI-safe user journeys', 'MCP L1 handshake journey',
     'MCP elicitation-first journey', 'Real user loopback journey gate', 'Critical canvas acceptance',
   ]
   for (const name of chainSteps) {
@@ -192,13 +209,16 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
     chainSteps.map((name) => /pnpm run ([\w:-]+)/.exec(selectedSteps[name].run)[1]),
   )
 
-  assert.equal(selectedSteps['Electron smoke'].if, "needs.scope.outputs.desktop == 'true'")
-  assert.equal(selectedSteps['CI-safe user journeys'].if, "needs.scope.outputs.journeys == 'true'")
-  assert.equal(selectedSteps['MCP L1 handshake journey'].if, "needs.scope.outputs.journeys == 'true'")
-  assert.equal(selectedSteps['MCP elicitation-first journey'].if, "needs.scope.outputs.journeys == 'true'")
-  assert.equal(selectedSteps['Real user loopback journey gate'].if, "needs.scope.outputs.journeys == 'true'")
-  assert.equal(selectedSteps['Golden path (Agent storyboard lands on canvas)'].if, "needs.scope.outputs.journeys == 'true'")
-  assert.equal(selectedSteps['Critical canvas acceptance'].if, "needs.scope.outputs.canvas == 'critical'")
+  // 每个步骤 = 风险面条件 && 本片计划里有它（计划见 scripts/lib/e2eShardPlan.mjs，不在 yml 里写死）。
+  const inShard = (id) => `contains(steps.plan.outputs.units, '|${id}|')`
+  assert.equal(selectedSteps['Browser feel mechanism'].if, inShard('feel'))
+  assert.equal(selectedSteps['Electron smoke'].if, `needs.scope.outputs.desktop == 'true' && ${inShard('smoke')}`)
+  assert.equal(selectedSteps['CI-safe user journeys'].if, `needs.scope.outputs.journeys == 'true' && ${inShard('journeys')}`)
+  assert.equal(selectedSteps['MCP L1 handshake journey'].if, `needs.scope.outputs.journeys == 'true' && ${inShard('mcp-journey')}`)
+  assert.equal(selectedSteps['MCP elicitation-first journey'].if, `needs.scope.outputs.journeys == 'true' && ${inShard('mcp-elicitation')}`)
+  assert.equal(selectedSteps['Real user loopback journey gate'].if, `needs.scope.outputs.journeys == 'true' && ${inShard('real-user-journeys')}`)
+  assert.equal(selectedSteps['Golden path (Agent storyboard lands on canvas)'].if, `needs.scope.outputs.journeys == 'true' && ${inShard('golden')}`)
+  assert.equal(selectedSteps['Critical canvas acceptance'].if, `needs.scope.outputs.canvas == 'critical' && ${inShard('canvas-critical')}`)
   assert.equal(runCommands(desktop).filter((command) => command === 'pnpm run build').length, 1)
   // full/performance 面已拆到并行 job；本 job 不得再串行执行它们（那是 22 分钟关键路径的根因）。
   assert.equal(selectedSteps['Full functional canvas acceptance'], undefined)
@@ -206,8 +226,54 @@ test('Linux walkthrough job builds once and keeps only smoke, journey, and criti
 
   const evidence = desktop.steps.find((step) => step.uses === 'actions/upload-artifact@v7')
   assert.equal(evidence.if, 'always()')
-  assert.equal(evidence.with.name, 'linux-walkthrough-evidence')
+  assert.equal(evidence.with.name, 'linux-walkthrough-evidence-${{ matrix.shard }}')
   assert.match(evidence.with.path, /outputs\/canvas-acceptance\/\*\*/)
+})
+
+test('E2E walkthrough job is a shard matrix whose plan covers every walkthrough exactly once', () => {
+  const desktop = workflow.jobs['desktop-linux']
+  assert.deepEqual(desktop.strategy, { 'fail-fast': false, matrix: { shard: [1, 2, 3, 4] } })
+  const plan = desktop.steps.find((step) => step.id === 'plan')
+  assert.equal(plan.run, 'node scripts/e2e-shards.mjs --shard ${{ matrix.shard }}/${{ strategy.job-total }} --github-output')
+  // 计划步必须排在所有走查步之前。
+  const order = desktop.steps.map((step) => step.id ?? step.name)
+  assert.ok(order.indexOf('plan') < order.indexOf('feel'))
+
+  // yml 里每个 `contains(steps.plan.outputs.units, '|id|')` 条件引用的 id，与计划里的单元集合完全一致：
+  // 计划里多一个单元而 yml 没有步骤认领 = 那条走查被分到某片却没人跑；反过来 = 步骤永远跳过。
+  const referenced = new Set(
+    desktop.steps.map((step) => /contains\(steps\.plan\.outputs\.units, '\|([\w-]+)\|'\)/.exec(step.if ?? '')?.[1]).filter(Boolean),
+  )
+  assert.deepEqual([...referenced].sort(), E2E_UNITS.map((unit) => unit.id).sort())
+  // 普查按格摊到每一片，所以每片都跑（不带 plan 条件）。
+  assert.equal(desktop.steps.find((step) => step.id === 'census').if, undefined)
+
+  // 划分性质：任何片数下，每个单元、每个普查格恰好落在一片。
+  const items = listShardItems()
+  assert.ok(items.filter((item) => item.kind === 'census').length > 50, '普查格列表空了——枚举器坏了会让整条普查静默消失')
+  for (let total = 1; total <= 8; total += 1) {
+    const bins = assertPartition(total, items)
+    assert.equal(bins.length, total)
+    assert.equal(bins.reduce((n, bin) => n + bin.units.length + bin.census.length, 0), items.length)
+  }
+  // 新增一条走查 / 一个普查格会自动进某一片。
+  const grown = [...items, { kind: 'unit', id: 'brand-new-walk', seconds: 90 }, { kind: 'census', id: 'new-screen/new-state', seconds: 4 }]
+  const bins = assertPartition(4, grown)
+  assert.equal(bins.filter((bin) => bin.units.includes('brand-new-walk')).length, 1)
+  assert.equal(bins.filter((bin) => bin.census.includes('new-screen/new-state')).length, 1)
+  // 计划自己坏了（重分）会当场抛错，不会静默少跑。
+  assert.throws(() => assertPartition(4, [{ kind: 'unit', id: 'x', seconds: 1 }, { kind: 'unit', id: 'x', seconds: 1 }]), /不是一个划分/)
+
+  // 均衡：最重一片不超过平均的 1.15 倍（按历史耗时装箱，不是按名字平分）。
+  const heaviest = Math.max(...planShards(4, items).map((bin) => bin.seconds))
+  const average = items.reduce((sum, item) => sum + item.seconds, 0) / 4
+  assert.ok(heaviest <= average * 1.15, `最重一片 ${heaviest}s，平均 ${average}s`)
+
+  // 汇总判定不变：Quality Gate 仍只看 needs['desktop-linux'].result，矩阵里任何一片红整个 job 就红。
+  assert.match(
+    workflow.jobs.quality.steps.find((step) => step.name === 'Require every validation surface').run,
+    /needs\['desktop-linux'\]\.result/,
+  )
 })
 
 test('full canvas acceptance runs as a fail-closed two-shard matrix that partitions every scenario', () => {
@@ -434,16 +500,17 @@ test('取消式并发组不得按共用 ref 分组：push 触发的 workflow 必
 test('browser feel fixtures run in the Chromium-equipped desktop lane, never Unit', () => {
   const commands = runCommands(workflow.jobs['desktop-linux'])
   const install = commands.indexOf(PLAYWRIGHT_INSTALL_STEP)
-  const run = commands.indexOf('pnpm run test:feel:browser')
+  const run = commands.indexOf('pnpm run test:feel:mechanism')
   assert.ok(install >= 0 && run > install)
+  assert.ok(commands.findIndex((command) => command.startsWith('pnpm run test:popup-geometry')) > install)
   for (const [name, job] of Object.entries(workflow.jobs)) {
     // Feel's node:test fixtures stay in desktop. Unit also has Vitest browser
     // integration suites, which need Chromium without running Feel twice.
-    if (/unit/i.test(name)) assert.doesNotMatch(runCommands(job).join('\n'), /test:feel:browser/)
+    if (/unit/i.test(name)) assert.doesNotMatch(runCommands(job).join('\n'), /test:feel:(browser|mechanism)/)
   }
   for (const name of ['_feel', '_feel-observer']) {
     assert.ok(!fs.existsSync(path.join(repoRoot, `tests/ux/${name}.test.mjs`)))
-    assert.match(packageJson.scripts['test:feel:browser'], new RegExp(`${name}\\.browser\\.mjs`))
+    assert.match(packageJson.scripts['test:feel:mechanism'], new RegExp(`${name}\\.browser\\.mjs`))
   }
   const evidence = workflow.jobs['desktop-linux'].steps.find((step) => step.uses === 'actions/upload-artifact@v7')
   assert.match(evidence.with.path, /artifacts\/feel\/\*\*/)
@@ -497,12 +564,12 @@ test('spending and nightly workflows use shared routing, browser setup, timeouts
   const quality = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/quality-gate.yml'), 'utf8'))
   const desktop = quality.jobs['desktop-linux']
   const spend = desktop.steps.find((step) => step.name === 'Spending path walkthroughs (blocking subset)')
-  assert.equal(spend.if, "needs.scope.outputs.spend_walks == 'true'")
+  assert.equal(spend.if, "needs.scope.outputs.spend_walks == 'true' && contains(steps.plan.outputs.units, '|spend-walks|')")
   assert.match(spend.run, /validation-policy\.mjs --print-spend-walks blocking/)
   assert.match(spend.run, /timeout 600/)
   // 证据上传和跑走查必须同一个条件：走查没跑时上传会报「No files were found」warning，被 CI 注解卫生当成意外（main 1d32e1b93）。
   const upload = desktop.steps.find((step) => step.name === 'Upload spending walkthrough evidence')
-  assert.equal(upload.if, "always() && needs.scope.outputs.spend_walks == 'true'")
+  assert.equal(upload.if, "always() && needs.scope.outputs.spend_walks == 'true' && contains(steps.plan.outputs.units, '|spend-walks|')")
   const nightly = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/nightly-walkthroughs.yml'), 'utf8'))
   assert.equal(nightly.jobs.walks.steps.find((step) => step.name === 'Install Chromium').run, PLAYWRIGHT_INSTALL_STEP)
   assert.match(nightly.jobs.walks.steps.find((step) => step.name === 'Run non-paid walkthrough batch').run, /timeout 600/)

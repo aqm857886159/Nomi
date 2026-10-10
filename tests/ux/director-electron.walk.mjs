@@ -21,6 +21,7 @@ import { addCameraPreset, addTrack, placeCharacter } from './_directorLab.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { createBlankProject, prepareIsolation, readProjectPayload } from '../../evals/lib/isoApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/director/electron')
@@ -86,8 +87,8 @@ await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
 })
 await win.reload()
-await expectVisible(win.getByText('新建空白项目', { exact: false }).first(), '项目库没起来', stationTimeout({ operations: 4 }))
-const libraryEntry = win.getByText('新建空白项目', { exact: false }).first()
+await expectVisible(newProjectEntry(win), '项目库没起来', stationTimeout({ operations: 4 }))
+const libraryEntry = newProjectEntry(win)
 const libraryProof = await proveProbe(libraryEntry, '项目库的新建入口')
 await snap('library')
 
@@ -269,7 +270,7 @@ const heldLease = await acquireWorkspaceManifestLock(projectDir, { ownerId: 'dir
 try {
   await clickOrFail(win.locator('[data-node-kind="image"]').first(), '返回前添加待保存图片节点')
   await expect.poll(() => win.evaluate(() => window.__nomiCanvasStore?.getState().nodes.length)).toBe(beforeLeaveIds.length + 1)
-  await win.getByRole('button', { name: '返回项目库', exact: true }).dblclick()
+  await backToLibrary(win, { repeat: 2 })
   await expectAbsent(libraryEntry, { provenBy: libraryProof, message: '保存持锁等待时双击返回不能提前进入项目库' })
   await expectVisible(win.getByRole('button', { name: '生成', exact: true }), '保存等待期间工作台应保持打开')
 } finally {

@@ -20,6 +20,7 @@ import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectHittable, proveProbe, expectAbsent, clickOrFail, expectVisible } from './_assert.mjs'
 
 import { fileURLToPath } from 'node:url'
+import { AGENT_PANEL, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
@@ -59,7 +60,7 @@ try {
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light'); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') })
   await win.reload(); await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(2500)
 
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await win.waitForTimeout(2500)
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成 标签')
   await win.waitForTimeout(2000)
@@ -90,8 +91,9 @@ try {
   // 先造一个节点 composer 在场（复现「后挂载的 composer 盖住菜单」那一幕）
   await win.keyboard.press('Escape').catch(() => {})
   await win.waitForTimeout(300)
-  const newBoard = win.locator('button', { hasText: '新建画面' }).first()
-  if (await newBoard.count()) { await clickOrFail(newBoard, '新建画面'); await win.waitForTimeout(1500) }
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  const newBoard = win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first()
+  if (await newBoard.count()) { await clickOrFail(newBoard, '空画布任务卡「图片」'); await win.waitForTimeout(1500) }
   await clickOrFail(rail.locator('button[aria-label="添加图片节点"]'), '左缘「添加图片节点」')
   await win.waitForTimeout(1800)
   const composerCardCount = await win.locator('.generation-canvas-v2-node__composer-card').count()
@@ -190,7 +192,7 @@ try {
     send: '[data-v4-control="send"]',
     permission: '[data-v4-control="permission"]',
     model: '[data-v4-control="model"]',
-    panel: '[data-agent-resident="true"][data-agent-panel="true"]',
+    panel: AGENT_PANEL,
   }
   const input = win.locator(SEL.input).first()
   await expectVisible(input, 'agent 面板输入框')
@@ -338,7 +340,7 @@ try {
   await win.waitForTimeout(900)
   const widened = await rectsOf({
     ...SEL,
-    handle: '.workbench-generation__timeline-handle',
+    handle: '[data-timeline-strip]',
     navStack: '.generation-canvas-v2__navigation-stack',
     canvas: '.workbench-generation__canvas',
   })

@@ -53,6 +53,7 @@ import {
   CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, CREATION_PANEL, DOCUMENT,
   createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded,
 } from './agent-runtime-walk-support.mjs'
+import { collapseAgentPanel } from './_shell.mjs'
 
 // ── 剧本常量。标记串（GOLDEN_*）让 fixture 的 match 钉死「这一条请求确实是这一步发出的」，
 //    而不是「随便哪条文本请求都算」。 ──────────────────────────────────────────────
@@ -331,6 +332,8 @@ async function stepGenerateShot2Image(win, projectId, nodeIds) {
   // 浮框钉在节点正下方、被挡就挡（2026-09-25 拍板，见 _canvasHit.mjs 的 panCanvasUntilInside）：节点靠近舞台下沿时，
   // 生成钮会落到底部停靠区（时间轴胶囊）底下，点不到——人会自己把画布拖上来，走查照做。拖的目标是生成钮本身，
   // 下沿留白 72 让开胶囊（CI #1129 上正是这一颗盖在 ↑ 上）。
+  // Agent 刚改完提示词，面板还以浮窗盖在画布右下（外壳重设计后画布页的 Agent 是浮窗 / 小球）：人要点画布上的钮之前会先把它收成小球。
+  await collapseAgentPanel(win, '点生成前收起 Agent 浮窗')
   const generateButton = win.locator('[data-bar-segment="generate"]').first()
   const panned = await panCanvasUntilInside(win, generateButton)
   expect(panned.ok, `生成钮拖不进可点区：${JSON.stringify(panned)}`).toBe(true)

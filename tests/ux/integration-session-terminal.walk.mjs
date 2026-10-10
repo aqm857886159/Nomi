@@ -16,6 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { openModelSettings } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/integration-session-terminal')
@@ -54,7 +55,7 @@ const { app, win } = await launchNomiApp({
 try {
   await win.locator('button', { hasText: /跳过/ }).first().click({ timeout: 4000 }).catch(() => {})
   await win.waitForTimeout(800)
-  await clickOrFail(win.locator('[data-testid="open-model-settings"]').first(), '连接模型入口')
+  await openModelSettings(win, { label: '连接模型入口' })
   await win.waitForTimeout(1500)
   await expectVisible(win.locator('[data-model-settings-page]').first(), '模型设置页')
   // 真机那次认证的结果：DeepSeek 连接出现在「已接入」里，而不是一直转圈。

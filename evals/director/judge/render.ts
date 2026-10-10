@@ -42,6 +42,7 @@ function startVite(repoRoot: string): ChildProcess {
   return spawn('pnpm', ['exec', 'vite', '--host', '127.0.0.1', '--port', '5187'], {
     cwd: repoRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
+    shell: process.platform === 'win32', // pnpm 在 Windows 上是 .cmd
   })
 }
 

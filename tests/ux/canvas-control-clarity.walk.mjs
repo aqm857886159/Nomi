@@ -12,6 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
@@ -123,7 +124,7 @@ async function ensureParameterPanel(composer) {
     const nodeRect = nodeEl?.getBoundingClientRect()
     // 画布缩放读 React Flow 视口自己的 transform（DOMMatrix.a），与 node-composer-placement.walk.mjs 同一口径。
     const zoom = viewportEl ? new DOMMatrixReadOnly(getComputedStyle(viewportEl).transform).a : 1
-    const handle = document.querySelector('.workbench-generation__timeline-handle')
+    const handle = document.querySelector('[data-timeline-strip]')
     const handleRect = handle?.getBoundingClientRect()
     const overlapWidth = handleRect ? Math.min(rect.right, handleRect.right) - Math.max(rect.left, handleRect.left) : 0
     const overlapHeight = handleRect ? Math.min(rect.bottom, handleRect.bottom) - Math.max(rect.top, handleRect.top) : 0
@@ -179,10 +180,10 @@ try {
   await resize(1600, 1000)
   await dismissFirstRun()
 
-  // 两家都只写占位 key：让同一个 Nano Banana 2 出现 15 档比例 + 多供应商选择；全程不点生成。
+  // 两家（kie + fal：都是「首次使用才验」的内置家，存 key 不发验证请求；apimart 有凭据探测端点，占位 key 会被拒）都只写占位 key：让同一个 Nano Banana 2 出现 15 档比例 + 多供应商选择；全程不点生成。
   const keyStatuses = await getWin().evaluate(() => Promise.all([
     window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
-    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('apimart', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
+    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('fal', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
   ]))
   assert(keyStatuses.every((status) => Boolean(status?.hasApiKey)), '隔离模型目录已启用两家图像供应商（不发生成请求）')
   await getWin().reload()
@@ -190,7 +191,7 @@ try {
   await getWin().waitForTimeout(1500)
   await dismissFirstRun()
 
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   await blankProject.waitFor({ timeout: 8000 })
   await blankProject.click()
   await getWin().waitForTimeout(2200)
@@ -207,10 +208,10 @@ try {
     ['image', '图片节点'],
     ['video', '视频节点'],
     ['audio', '声音节点'],
+    ['text', '文字节点'],
     ['clip', '剪辑节点'],
   ]
   const moreTools = [
-    ['text', '文字'],
     ['director', '导演台'],
     ['model3d', '3D 模型'],
     ['panorama', '全景图'],
@@ -219,7 +220,7 @@ try {
   const residentButtons = toolbar.locator('[data-add-intent]')
   assert(
     (await residentButtons.count()) === residentTools.length + 1,
-    '左侧常驻恰好 5 个（四种生成 + 导入）',
+    '左侧常驻恰好 6 个（五种生成 + 导入；09-10 起文字回到常驻）',
     `实测 ${await residentButtons.count()} 个`,
   )
   for (const [kind, tooltipText] of residentTools) {
@@ -237,7 +238,7 @@ try {
     '导入钮说得清按下去会发生什么',
   )
 
-  // 「更多」：先展开、证明收进去的 5 个都在（这是基线），再收起来证明它们真的不占常驻位。
+  // 「更多」：先展开、证明收进去的 4 个都在（这是基线），再收起来证明它们真的不占常驻位。
   // 顺序不能反——没有基线的「没看到」和「探针根本没生效」在观测上一模一样。
   const moreButton = toolbar.locator('[data-canvas-add-more="true"]')
   await expectVisible(moreButton, '左侧栏底部必须有一颗「更多」')
@@ -252,7 +253,8 @@ try {
     moreProofs.push([kind, label, await proveProbe(toolbar.locator(`[data-node-kind="${kind}"]`), `展开时${label}在工具条里`)])
   }
   // §1.5.3「分段要有名字」：两段各自带名字，不是一条看不见的分隔线。
-  for (const sectionLabel of ['更多', '空间 · 草图']) {
+  // 2026-10-08 Claude Design 拍板稿：「+」点开 = 「空间」一组（导演台 / 3D 模型 / 全景 / 白板），文字在常驻里，不再有「更多」那一段。
+  for (const sectionLabel of ['空间']) {
     assert(
       (await moreMenu.locator(`[role="group"][aria-label="${sectionLabel}"]`).count()) === 1,
       `「更多」菜单里有名为「${sectionLabel}」的一段`,
@@ -276,7 +278,7 @@ try {
   await composer.waitFor({ timeout: 5000 })
   const modelSelect = composer.getByRole('button', { name: '模型', exact: true }).first()
   await modelSelect.click()
-  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?:\s*\d+ 家)?$/ }).first()
+  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?!\s*Lite)/ }).first()
   await expectVisible(nanoBanana2, '模型目录必须提供跨供应商 Nano Banana 2')
   await nanoBanana2.click()
   await getWin().waitForTimeout(400)
@@ -355,16 +357,15 @@ try {
   await getWin().getByRole('option', { name: '3 个', exact: true }).click()
   assert((await countSelect.textContent())?.includes('3 个'), '可直接选择 3 个并在触发器显示')
 
-  // ④ 顶栏语义分组与任务按钮：任务独立，设置和模型接入相邻，主组只负责去出片。
+  // ④ 40px 合一顶栏右簇（10-08 外壳重设计）：任务 · 浏览器 · 设置常驻；「去出片」「接入模型」「上手清单」已归位删除。
   const actionGroups = await getWin().evaluate(() => ({
-    assist: document.querySelector('.nomi-appbar__group--assist')?.getAttribute('data-actions'),
-    config: document.querySelector('.nomi-appbar__group--config')?.getAttribute('data-actions'),
-    primary: document.querySelector('.nomi-appbar__group--primary')?.getAttribute('data-actions'),
+    browser: Boolean(document.querySelector('[data-shell-topbar] [data-shell-browser]')),
+    settings: Boolean(document.querySelector('[data-shell-topbar] [data-shell-settings]')),
+    goToProduce: [...document.querySelectorAll('[data-shell-topbar] button')].some((button) => /去出片/.test(button.textContent || '')),
     idleTaskVisible: Boolean(document.querySelector('[data-task-center-trigger="true"]')),
   }))
-  assert(actionGroups.assist === 'onboarding browser', '上手与浏览器归入创作辅助组')
-  assert(actionGroups.config === 'settings modelAccess', '设置与模型接入归入配置组')
-  assert(actionGroups.primary === 'goToProduce', '去出片是唯一主动作')
+  assert(actionGroups.browser && actionGroups.settings, '浏览器与设置常驻顶栏右簇')
+  assert(!actionGroups.goToProduce, '「去出片」已删（预览页「导出 MP4」是唯一导出入口）')
   assert(actionGroups.idleTaskVisible, '完全无任务历史时仍保留“任务”入口')
 
   const nodeId = await node.getAttribute('data-node-id')
@@ -381,7 +382,7 @@ try {
   assert(await taskButton.isVisible(), '有任务时显示“任务”入口')
   assert((await taskButton.textContent())?.replace(/\s+/g, '').includes('任务2'), '任务入口显示名称与待处理数量 2')
 
-  const darkTopbar = getWin().locator('.nomi-appbar').first()
+  const darkTopbar = getWin().locator('[data-shell-topbar]').first()
   await snap('01-dark-topbar.png', darkTopbar)
 
   // ⑤ 紧凑宽度：文字折叠后仍有统一 styled tooltip，不出现无名图标。

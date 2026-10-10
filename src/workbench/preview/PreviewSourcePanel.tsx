@@ -61,7 +61,9 @@ function shotNumberOf(source: CanvasShotSource, labelSource: ReturnType<typeof s
   return resolveStoryboardShotLabel({ meta: { storyboardDesignId: source.storyboard.designId, shotId: source.storyboard.shotId } }, labelSource)?.number ?? null
 }
 
-function ShotGrid(): JSX.Element {
+
+/** 剪辑页的「镜头」也进左栏「目录」抽屉（10-08 外壳重设计，协调裁决第 32 项）：抽屉在预览页复用这一格，可拖进时间轴 / 点击追加。 */
+export function ShotGrid(): JSX.Element {
   const { t } = useTranslation()
   // 镜头栏按 result/shotIndex 派生已出片镜头；无号镜头（参考卡/首帧图/非分镜产物）按真实
   // position.y/x 排序 → 必须读真节点，不能喂位置无关投影（S3 F1：投影冻结旧位置 → 拖动后

@@ -17,6 +17,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { proveProbe, expectAbsent } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const CAP_DIR = path.join(os.tmpdir(), 'nomi-f15-freeze-capdir') // 防与用户真 Nomi 经 loopback RPC 串库（memory 记）
 
@@ -67,7 +69,7 @@ try {
   // 跳过开屏 + 建空白项目 + 进生成区（复用最短路：直接找「新建空白项目」→「生成」tab）。
   const skip = win.locator('[data-splash-skip="true"]')
   if (await skip.count().catch(() => 0)) await skip.click({ timeout: 4000 }).catch(() => {})
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 15000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.waitForTimeout(1200) // 项目落地（默认停在「创作」工作区）
   // 切到「生成」工作区（顶栏 stepper 的「生成」按钮，exact），画布 + landing host 才挂载。
   await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: 8000 })

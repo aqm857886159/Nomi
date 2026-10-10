@@ -53,12 +53,17 @@ export function ensureDeconstructionShotTable(sourceNodeId: string): string | un
   interruptPendingCanvasWrite()
   pushUndoSnapshot()
   return withCanvasGestureContext({ source: 'user', txnId: `shot-table-${sourceNodeId}-${Date.now()}`, suppressUndoBarriers: true }, () => {
-    const node = store.addNode({
-      kind: 'shot_table', title: source.title, categoryId: source.categoryId,
-      position: { x: source.position.x + resolveNodeVisualSize(source).width + 80, y: source.position.y },
-      meta: { shotTable: table },
+    // 事实表 + 出处边是一个原子动作；源不是视频（拆解入口）→ 返回 null，什么都不建。已有的表走上面的 existing 分支，不再连边。
+    const node = store.addDerivedOutput({
+      sourceNodeId,
+      kind: 'shot-table',
+      node: {
+        kind: 'shot_table', title: source.title, categoryId: source.categoryId,
+        position: { x: source.position.x + resolveNodeVisualSize(source).width + 80, y: source.position.y },
+        meta: { shotTable: table },
+      },
     })
-    store.connectNodes(sourceNodeId, node.id)
+    if (!node) return undefined
     store.selectNodes([node.id])
     return node.id
   })

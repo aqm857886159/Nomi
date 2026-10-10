@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { check } from "../lib/journeyRunner.mjs";
 import { dismissSplashIfPresent, waitForPersistedCanvas } from "../lib/isoApp.mjs";
+import { backToLibrary } from "../../tests/ux/_shell.mjs";
 
 const require = createRequire(import.meta.url);
 const ffprobePath = require("@ffprobe-installer/ffprobe").path;
@@ -338,7 +339,7 @@ export default {
       id: "reopen-project",
       title: "回到项目库并重开验证持久化",
       async act(ctx) {
-        await ctx.win.getByRole("button", { name: "返回项目库", exact: true }).click();
+        await backToLibrary(ctx.win);
         const card = ctx.win.locator('[data-project-card="true"]', { hasText: PROJECT_NAME }).first();
         await card.waitFor({ state: "visible", timeout: 8_000 });
         await card.click();
@@ -415,7 +416,8 @@ export default {
       id: "export-mp4",
       title: "进入时间轴并真实导出 MP4",
       async act(ctx) {
-        await ctx.win.locator('[aria-label="去出片"]:visible').first().click({ timeout: 5_000 });
+        // 旧的「去出片」跳转钮 10-08 外壳重设计里按设计删除：进预览页走顶栏阶段步骤器的「预览」。
+        await ctx.win.locator('.nomi-stepper__step[data-mode="preview"]').first().click({ timeout: 5_000 });
         await ctx.win.locator('[data-workspace-mode="preview"]').waitFor({ state: "attached", timeout: 8_000 });
         await ctx.win.locator(".workbench-timeline-clip").first().waitFor({ state: "visible", timeout: 10_000 });
         ctx.exportStartedAt = Date.now();

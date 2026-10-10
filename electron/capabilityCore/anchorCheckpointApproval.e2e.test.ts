@@ -16,6 +16,7 @@ import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
 import { registerBatchSchedulerKicker } from "../productionRun/batchSchedulerKick";
 import { sealAndApproveProductionGeneration } from "../productionRun/productionGenerationAuthorizationTestUtils";
 import type { ProductionGenerationShot } from "../productionRun/productionRunTypes";
+import { landingThatBinds } from "../productionRun/landFirstTestUtils";
 
 // P4 §3.2 — 锚定妆照检查点的**生产审批入口** E2E（修 §8.5 停死 gap 的验收）。此前所有测试都用
 // repository.execute 直发 gate.decide 或那个现已删除的自动放行超时绕过检查点，正好把「生产没有入口」盖住。
@@ -124,7 +125,7 @@ function buildScheduler(root: string, repository: ReturnType<typeof createProduc
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
-  return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", now });
+  return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-batch", now });
 }
 
 /** 真 dispatcher 的最小 ctx：productionRuns = 真 service（与生产同一条 ctx.productionRuns.command 路）。 */

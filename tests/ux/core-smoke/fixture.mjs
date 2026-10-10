@@ -26,6 +26,7 @@ import { stationTimeout } from '../_station-budget.mjs'
 import { requireRealMediaAssets } from '../fixtures/realMedia.mjs'
 import { provisionNeeds } from './needs.mjs'
 import { CORE_SMOKE_FIXTURES, LOCAL_ONLY_FIXTURES } from './scenarios.mjs'
+import { ensureAgentPanelOpen } from '../_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const FFMPEG = require('@ffmpeg-installer/ffmpeg').path
@@ -35,7 +36,6 @@ const FFPROBE = require('@ffprobe-installer/ffprobe').path
 export const USED_VIEWPORT = Object.freeze({ width: 1280, height: 800 })
 const SNAPSHOT_FILE = path.join(repoRoot, 'tests/ux/fixtures/perf-heavy.project.json')
 const FRAME_TIMES = Object.freeze(['0.5', '1.3', '2.1', '2.9', '3.7', '4.5'])
-const AGENT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"]'
 const TIMELINE_EXPANDED = '[data-timeline-collapse="true"]'
 
 /** 本次进程由 runner 指派的夹具 / 用例 / 依赖。单独跑走查时默认 empty。 */
@@ -376,7 +376,7 @@ export async function launchCoreSmoke({ name, seed = null, needs = [], preferenc
       throw new Error(`used 夹具前提不成立：窗口应为 ${viewport.width}×${viewport.height}，实际 ${actual.width}×${actual.height}`)
     }
     await expect(win.locator(TIMELINE_EXPANDED).first(), 'used 夹具前提：时间轴处于展开态（收起钮可见）').toBeVisible({ timeout: stationTimeout() })
-    await expect(win.locator(AGENT_PANEL).first(), 'used 夹具前提：Agent 面板开着').toBeVisible({ timeout: stationTimeout() })
+    await ensureAgentPanelOpen(win, 'used 夹具前提：Agent 面板开着', { timeout: stationTimeout(), form: 'dock' })
     const counts = await win.evaluate(() => ({ nodes: document.querySelectorAll('.react-flow__node').length }))
     console.log(`[core-smoke] used 状态就位：${JSON.stringify({ ...project.summary, renderedNodes: counts.nodes, viewport: actual })}`)
   }

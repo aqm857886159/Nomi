@@ -15,6 +15,7 @@ import { createGroupId } from './canvasIds'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
 import i18n from '../../../i18n'
+import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 
 type CanvasGroupMoveActions = Pick<CanvasGraphActions, 'moveGroupNodes' | 'duplicateGroupForDrag'>
 
@@ -107,9 +108,10 @@ export const createCanvasGroupMoveActions: CanvasSliceCreator<CanvasGroupMoveAct
       updatedAt: now,
     }
     pushUndoSnapshot(current)
+    let landed: AppendedEdges = { added: [], rejected: [] }
     set((state) => {
       state.nodes = [...state.nodes, ...copies]
-      state.edges = [...state.edges, ...cloned.edges]
+      landed = appendAdmittedEdges(state, cloned.edges)
       state.groups.push(group)
       state.selectedNodeIds = copies.map((node) => node.id)
       state.pendingConnectionSourceId = ''
@@ -118,9 +120,10 @@ export const createCanvasGroupMoveActions: CanvasSliceCreator<CanvasGroupMoveAct
     })
     emitCanvasGesture([
       ...copies.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
-      ...cloned.edges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
+      ...landed.added.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
       { type: 'canvas.group.created', payload: { group } },
     ])
+    reportSkippedEdges(landed.rejected, current.projectId)
     return nextGroupId
   },
 })

@@ -52,6 +52,8 @@ import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { hasPendingDirectorCameraMoveCapture, hasPendingDirectorStagingCapture } from '../components/directorCaptureHostActivation'
 import CanvasToolbar from '../components/CanvasToolbar'
+import { CANVAS_DROP_ACTIVE_CLASS_NAME, watchCanvasDropActive } from '../components/canvasDropActiveFlag'
+import { acceptsClipDropTypes } from '../nodes/clipNodeDrop'
 import { CANVAS_DRAGGING_OWNER, beginCanvasDragging, type CanvasDragLease } from '../components/canvasDraggingFlag'
 import {
   BROWSER_ASSET_DRAG_MIME,
@@ -73,6 +75,7 @@ import {
   overlayCanvasDragDraft,
 } from './canvasDragDraft'
 import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, isKeyboardMoveBatch, keyboardMoveScope, restoreDisownedKernelPositions } from './canvasDragWriteback'
+import { GenerationFlowHandleMenuScope } from './generationFlowNodeContext'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
@@ -387,6 +390,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     handleNodeContextAction,
     handleAddConnectedNode,
     openAddNodeMenuAt,
+    openHandleMenu, assetInputPicker, closeAssetInputPicker, handleAddInputFromAssets, handleAddInputPickOnCanvas,
   } = useGenerationCanvasReactFlowMenus({
     readOnly,
     hostRef,
@@ -482,10 +486,15 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     selectNodes(flow.getNodes().filter((node) => node.selected).map((node) => node.id))
   }, [flow, readOnly, selectNodes])
 
+  // 选中节点 = 放掉选中的线（一次只有一个「当前选中」，Delete 才知道删谁）。
+  React.useEffect(() => { if (selectedNodeIds.length) setSelectedEdgeId(null) }, [selectedNodeIds])
+
   const handleEdgeClick = React.useCallback((_event: React.MouseEvent, edge: GenerationFlowEdge) => {
     if (readOnly) return
+    // 点线 = 选中这条线、放掉节点选择：Delete 只认「没有选中节点」时的选中边（useCanvasShortcuts），否则会删掉节点。
+    selectNodes([])
     setSelectedEdgeId(edge.id)
-  }, [readOnly])
+  }, [readOnly, selectNodes])
 
   const handleEdgesDelete: OnEdgesDelete<GenerationFlowEdge> = React.useCallback((deletedEdges) => {
     if (readOnly) return
@@ -586,6 +595,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     if (readOnly || canvasPanMovedRef.current) return
     clearSelection()
     selectCanvasFrame(null)
+    setSelectedEdgeId(null)
   }, [canvasPanMovedRef, clearSelection, readOnly, selectCanvasFrame])
 
   // ⌘D：副本落在屏外时由边缘提示指路，不再替用户挪画布（2026-09-25）。
@@ -640,10 +650,13 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     })
   }, [activeCategoryId, getCanvasPointFromClientPoint, readOnly])
 
+  // 拖放进行中（可接收的载荷）画布浮层不吃命中，别挡住真正的接收目标（剪辑节点轴等）。
+  React.useEffect(() => (hostRef.current ? watchCanvasDropActive(hostRef.current, acceptsClipDropTypes) : undefined), [])
+
   return (
     <section
       ref={hostRef}
-      className={cn('generation-canvas-react-flow', 'generation-canvas-v2__stage', 'group/canvas', 'relative w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink')}
+      className={cn('generation-canvas-react-flow', 'generation-canvas-v2__stage', 'group/canvas', CANVAS_DROP_ACTIVE_CLASS_NAME, 'relative w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink')}
       aria-label={t('generationCommon.canvas.aria')}
       data-shortcut-surface="canvas"
       data-ready={isReady ? 'true' : undefined}
@@ -672,6 +685,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         </React.Suspense>
       ) : null}
       {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} /> : null}
+      <GenerationFlowHandleMenuScope open={openHandleMenu}>
       <GenerationCanvasReactFlowViewport
         flowNodes={renderedFlowNodes}
         isNodeDragging={nodeDragActive}
@@ -723,6 +737,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onClearSelection={clearSelection}
         groupToolbar={groupToolbar}
       />
+      </GenerationFlowHandleMenuScope>
       <GenerationCanvasReactFlowOverlays
         readOnly={readOnly}
         activeCategoryId={activeCategoryId}
@@ -735,7 +750,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         screenshotOverlay={screenshotOverlay}
         contextNodeMenu={contextNodeMenu}
         connectionCreateMenu={connectionCreateMenu} onCloseConnectionCreateMenu={closeConnectionCreateMenu}
-        onCreateEmpty={() => useGenerationCanvasStore.getState().addNode({ kind: 'image', categoryId: activeCategoryId, select: true })}
+        onAddInputFromAssets={handleAddInputFromAssets} onAddInputPickOnCanvas={handleAddInputPickOnCanvas}
+        assetInputPicker={assetInputPicker} onCloseAssetInputPicker={closeAssetInputPicker}
+        getInsertionPosition={getInsertionPosition}
         onNodeContextAction={handleNodeContextAction}
         onCloseContextNodeMenu={closeContextNodeMenu}
         onAddContextNode={handleAddContextNode}

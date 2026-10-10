@@ -22,6 +22,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-companion-required')
@@ -128,7 +129,7 @@ try {
   })
 
   // ── 进场：新建空白项目 → 生成画布 → 视频节点 → Seedance 2.0 → 全能参考 ──────
-  await clickOrFail(win.locator('button, [role="button"]', { hasText: '新建空白项目' }), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '顶栏「生成」')
   await expectVisible(win.locator('.generation-canvas-v2-toolbar'), '生成画布工具栏出现')
   await clickOrFail(win.locator('.generation-canvas-v2-toolbar button[data-node-kind="video"]'), '工具条「视频」')

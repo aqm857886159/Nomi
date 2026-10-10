@@ -25,13 +25,11 @@ import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel, type V4InterventionHandlers } from './v4/AgentPanelV4Panel'
 import { planConfirmDecision } from './v4/agentPanelV4Intervention'
 import { flowScrollMemoryFor } from './v4/agentPanelV4ScrollMemory'
-import { V4Intervention, V4Queue } from './v4/AgentPanelV4Cards'
 import { laneClient } from './lane/laneClient'
 import { discardRecoveredAgentDraft, takeRecoveredAgentDraft, settleProjectAgentAttachment } from './projectAgentDraftRecovery'
 import { laneConversationOf } from '../../../electron/shared/agentLane/laneConversation'
-import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
 import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
-import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
+import { V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
 import { AgentPanelV4FocusTag } from './v4/AgentPanelV4FocusTag'
 import { useDirectorPatchNotices } from './v4/useDirectorPatchNotices'
 import { useShotFocusTag } from '../generationCanvas/nodes/director/panels/shotStrip/useShotFocusTag'
@@ -99,8 +97,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const trace = useAgentTraceDirectory()
   const size = usePanelSize()
   const collapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
-  const dockHidden = useWorkbenchStore((state) => state.agentDockHidden)
-  const setDockHidden = useWorkbenchStore((state) => state.setAgentDockHidden)
   const setCollapsed = useWorkbenchStore((state) => state.setProjectAgentDockCollapsed)
   const draft = useWorkbenchStore((state) => state.projectAgentDraft)
   const setDraft = useWorkbenchStore((state) => state.setProjectAgentDraft)
@@ -354,14 +350,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     : 0
 
   /**
-   * 把这三个数投到顶栏那格角标去（09-01 定稿 §11.2：收起态的家是顶栏右簇「浏览器 / 设置」之间）。
-   *
-   * 为什么要投而不是就地渲：顶栏不在这棵子树里。之前那一版把 logo 画在内容区右上角——
-   * 它跟着面板走，于是每换一个面落点就换一个地方，用户得重新找它。顶栏是唯一四个面都在的那条 chrome。
-   *
-   * 展开时报 `null`（不是报 `idle`）：`idle` 是「收着但没事」，`null` 是「压根没收起」——
-   * 顶栏据此决定那一格出不出角标，两者不能混。卸载时也报 `null`，否则关掉项目后
-   * 顶栏还挂着一颗指向已经不存在的面板的角标。
+   * 把这三个数投到收起后的 Agent 小球去（10-08 外壳重设计：小球住在外壳 ShellAgentHost，不在这棵子树里）。
+   * 小球读它画四态 +「N 条新消息」未读点；展开时报 `null`（不是 `idle`），卸载时也报 `null`，
+   * 否则关掉项目后小球还挂着上一个项目的未读。
    */
   const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
   React.useEffect(() => {
@@ -508,59 +499,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   }
   const attachmentInput = <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT}
     className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
-  // 收起 = 藏起**对话流**，不是藏起对话（定稿 Collapsed 板）。同一个 composer 掉到画面下沿
-  // 居中，介入槽跟着它——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
-  // 用户可独立关闭这条坞；关闭选择跨项目记住，提醒仍由顶栏角标承担。
-  //
-  // 叫回它的入口只有一个，而且**不在这里**：顶栏右簇「浏览器」与「设置」之间那一格
-  // （`src/ui/app-shell/CollapsedAiChip.tsx`，09-01 定稿 §11.2）。收起态的家跟着 chrome 走、
-  // 不跟着面板走——顶栏是唯一四个面都在的那条，切面时角标不挪窝。
-  if (collapsed) {
-    return (
-      <section
-        id="project-agent-resident"
-        className="pointer-events-none relative h-full w-full overflow-visible"
-        aria-label={t('agentResident.aria')}
-        data-agent-resident="true"
-        data-agent-surface={surface}
-        data-agent-collapsed="true"
-      >
-        <TimelineAgentReceiptEffect />
-        {timelinePlanPreviewPortal}
-        {attachmentInput}
-        {!dockHidden && <V4CollapsedDock onClose={() => setDockHidden(true)}>
-          {activeSlot ? (
-            <V4Intervention
-              data={activeSlot}
-              labels={labels.intervention}
-              {...(!autoMode.slot && spend.slot && spendComposer ? { composer: spendComposer } : {})}
-              {...slotHandlers}
-            />
-          ) : null}
-          {autoModeBanner}
-          <V4Queue rows={queue} labels={labels.queue} {...queueHandlers} />
-          <AgentPanelV4Composer
-            dock
-            admitting={admitting}
-            panelHeight={size.height}
-            mode={data.running ? 'running' : data.liveChips.length ? 'reference' : 'idle'}
-            permission={actions.permission}
-            chips={data.liveChips}
-            focusTag={focusTag}
-            value={draft}
-            onValueChange={setDraft}
-            onSubmit={submit}
-            onStop={actions.stop}
-            onAddFile={() => attachmentApi.inputRef.current?.click()}
-            onRemoveChip={removeComposerChip}
-            modelLabel={data.modelLabel}
-            skillSelected={Boolean(activeSkill || actions.selectedLibraryPrompt)}
-          />
-        </V4CollapsedDock>}
-      </section>
-    )
-  }
-
+  // 收起 = 外壳把 Agent 收成内容区右下的小球（10-08 外壳重设计：小球 / 浮窗 / 停靠三形态，src/ui/app-shell/shell/ShellAgentHost.tsx）。
+  // 收起时**不换一棵树**：同一个面板原样挂着，只是外壳把它的 DOM 挪进看不见的容器——待确认卡的勾选与折叠、
+  // 滚动、历史分页、线程菜单、草稿都不丢（#1136 评审阻断 1）。时间轴回执、计划预览、附件选择器照常跑。
   return (
     <div
       ref={size.measure}
@@ -568,7 +509,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col text-nomi-ink"
       aria-label={t('agentResident.aria')}
       data-agent-resident="true"
-      data-agent-panel="true"
+      data-agent-panel={collapsed ? undefined : 'true'}
+      data-agent-collapsed={collapsed ? 'true' : undefined}
       data-agent-surface={surface}
       data-agent-approval-mode={actions.permission}
       onKeyDownCapture={(event) => {

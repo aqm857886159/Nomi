@@ -1,5 +1,5 @@
 // 生成页列表视图的实验室取景台：把夹具灌进**现役** store（画布 + 工作台 + 视图），渲染**现役**
-// GenerationListView / GenerationViewToggle——格子里没有一件样张自己画的零件。
+// GenerationListView——格子里没有一件样张自己画的零件。
 // 夹具覆盖画布上的**每一种节点**（生成节点 / 工具节点 / 素材与参考），以及每种的空 / 失败 / 生成中态。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +9,6 @@ import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/st
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { useGenerationViewStore } from '../../../workbench/generation/list/generationViewStore'
 import { GenerationListView } from '../../../workbench/generation/list/GenerationListView'
-import { GenerationViewToggle } from '../../../workbench/generation/list/GenerationViewToggle'
 import { holdDesignLabReady } from '../labReadyHold'
 import { COMPOSER_CHUNK, installCatalogBridge } from '../nodeComposerBar/nodeComposerBarLabKit'
 import { ART_LIN_WEI, ART_PENDING, ART_STORE_NEON, ART_WATCH, shotArt } from './generationListArt'
@@ -163,10 +162,7 @@ export function GenerationListStage({ fixture, locale = 'zh-CN', inspectorKey, w
   return (
     <div data-design-lab-stage="generation-list" className="relative overflow-hidden bg-nomi-bg" style={{ width, height }}>
       {seeded && chunkReady && languageReady ? (
-        <>
-          <div className="absolute inset-0"><GenerationListView /></div>
-          <GenerationViewToggle />
-        </>
+        <div className="absolute inset-0"><GenerationListView /></div>
       ) : null}
     </div>
   )

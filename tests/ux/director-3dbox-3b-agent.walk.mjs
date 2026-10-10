@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 
 const API_KEY = process.env.DEEPSEEK_API_KEY
 if (!API_KEY) throw new Error('需要 DEEPSEEK_API_KEY（真实 Agent 模型，不许 mock）：set -a; . ~/.nomi-secrets.env; set +a')
@@ -111,14 +112,15 @@ const directorNode = (nodes) => nodes.filter((node) => node.kind === 'director' 
 const previewOf = (node) => node?.meta?.directorPreview
 
 try {
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: stationTimeout({ operations: 4 }) })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 4 }) })
   await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout({ operations: 2 }) })
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()
-  await win.getByText('新建画面', { exact: false }).first().click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), null, { timeout: stationTimeout({ operations: 2 }) })
   const input = win.locator('textarea[data-v4-control="input"]').first()
-  if (!(await input.count())) await win.evaluate(() => document.querySelector('[data-v4-control="dock-open"]')?.click())
+  await ensureAgentPanelOpen(win)
   await input.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
   // 面板里的「帮 Nomi 变好」征询卡：选不分享（隐私优先）
   const panelConsent = win.getByRole('button', { name: '不分享', exact: true }).first()

@@ -30,7 +30,7 @@ type SidebarMenuPayload =
 
 /**
  * 分类导航的完整内容（分类 → 节点/子组、右键菜单、跨分类拖拽、点节点定位画布）。
- * 不含 aside/折叠/标题外壳——外壳由承载它的 Tab 面板（ProjectExplorerSidebar）提供。
+ * 不含 aside/折叠/标题外壳——外壳由左栏「目录」抽屉（src/ui/app-shell/shell/ShellRail.tsx）提供。
  * 仅在面板展开 + 「分类」tab 激活时挂载，故始终按展开态渲染。
  */
 export default function CategoryTree({ categories, createCategoryNonce = 0 }: Props): JSX.Element {

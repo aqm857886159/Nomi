@@ -46,6 +46,7 @@ import { writeDeterministicAsset } from "../assets/projectAssetStore";
 import { deriveProductionShotState } from "../shared/productionShotPhase";
 import { buildMaterializeShotsPayload } from "./multiShotCanvasLanding";
 import type { ProductionGenerationShot } from "./productionRunTypes";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 const NOW_BASE = Date.parse("2026-10-04T00:00:00.000Z");
 const roots: string[] = [];
@@ -147,7 +148,7 @@ function wire(input: {
     now,
   });
   return createMultiShotBatchScheduler({
-    repository: input.repository, submission, projectId: "project-1", runId: "op-batch", now,
+    repository: input.repository, landShots: landingThatBinds(input.repository), submission, projectId: "project-1", runId: "op-batch", now,
     sleep: async (ms) => { clock += ms; },
     options: { pollHorizonMs: 120_000 },
   });

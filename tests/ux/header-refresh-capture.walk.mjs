@@ -4,6 +4,7 @@ import { launchNomiApp } from "./_launchApp.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const outDir = process.env.NOMI_SHOT_DIR || path.join(repoRoot, ".tmp", "header-refresh-shots");
@@ -24,7 +25,7 @@ try {
   // ② 开项目 → 工作台
   const projectCard = win.locator("[data-project-card]").first();
   if ((await projectCard.count()) > 0) await projectCard.click();
-  else await win.getByText("新建空白项目", { exact: false }).first().click();
+  else await newProjectEntry(win).click();
   await win.waitForTimeout(2800);
   await shot(win, "02-workbench");
 

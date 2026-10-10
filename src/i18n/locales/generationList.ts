@@ -1,5 +1,5 @@
 export const zhGenerationList = {
-  view: { toList: '切到列表', toCanvas: '切到画布' },
+  view: { canvas: '画布', list: '列表', aria: '画布与列表' },
   aria: '生成节点列表',
   anchorPending: '等定妆',
   storyboardSection: '分镜 · {{title}}',
@@ -42,7 +42,7 @@ export const zhGenerationList = {
 }
 
 export const enGenerationList = {
-  view: { toList: 'Switch to list', toCanvas: 'Switch to canvas' },
+  view: { canvas: 'Canvas', list: 'List', aria: 'Canvas and list' },
   aria: 'Generation node list',
   anchorPending: 'Awaiting look',
   storyboardSection: 'Storyboard · {{title}}',

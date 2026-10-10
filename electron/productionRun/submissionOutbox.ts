@@ -84,7 +84,7 @@ export type SubmissionOutboxDependencies = {
   /**
    * 派发准入闸：在这次尝试的**第一笔耐久写**（预算预留 / 提交意向）之前调用，拿到的是还没落盘的 Run 与 job。
    * 抛错 = 这一镜这次不提交：什么都没写，job 原样停在原状态，没有要释放或对账的东西。
-   * 生产里接的是镜头认领闸 `createProductionShotDispatchGuard`（画布接手 / 删节点 / 急停）。
+   * 生产里由提交出口（`productionGenerationSubmission`）自己接上镜头认领闸（画布接手 / 删节点 / 急停），装配方换不掉。
    */
   beforeDispatch?: (input: ProviderDispatchInput) => void | Promise<void>;
   afterDispatch?: (result: ProviderDispatchResult, input: ProviderDispatchInput) => void | Promise<void>;

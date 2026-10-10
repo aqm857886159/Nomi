@@ -70,3 +70,50 @@ describe('常驻 Nomi 栏的开合偏好', () => {
     expect(useWorkbenchStore.getState().persistRevision).toBe(rev + 1)
   })
 })
+
+/**
+ * 「叫回 Nomi」计数（agentRecallNonce）：外壳的 Agent 小球靠它决定要不要自己展开。
+ * 事故（2026-10-09，评测 j5）：小球用户回项目库再重开项目，投影 `projectAgentDockCollapsed` 被「关项目重置」和「开项目还原」
+ * 翻了一下，小球按翻转去猜，自己弹成浮窗盖住了生成钮。所以这三条钉死：还原 / 重置不计数，用户或 Agent 的动作才计数。
+ */
+describe('叫回 Nomi 的计数（别在重开项目时自己弹开）', () => {
+  beforeEach(() => {
+    useWorkbenchStore.setState({
+      editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
+      editingPanelUndoStack: [],
+      projectAgentDockCollapsed: false,
+      agentRecallNonce: 0,
+    })
+  })
+
+  it('收起 → 展开的动作（任务中心定位到制作 / 翻可见性）各计一次；展开着再展开、收起都不计', () => {
+    const state = () => useWorkbenchStore.getState()
+    state().setProjectAgentDockCollapsed(false)
+    expect(state().agentRecallNonce).toBe(0)
+    state().setProjectAgentDockCollapsed(true)
+    expect(state().agentRecallNonce).toBe(0)
+    state().setProjectAgentDockCollapsed(false)
+    expect(state().agentRecallNonce).toBe(1)
+    state().toggleEditingPanel('assistant')
+    expect(state().agentRecallNonce).toBe(1)
+    state().toggleEditingPanel('assistant')
+    expect(state().agentRecallNonce).toBe(2)
+  })
+
+  it('打开项目时还原落盘布局（setEditingPanelLayout(…, false)）不计，哪怕投影因此从收起翻成展开', () => {
+    useWorkbenchStore.getState().setProjectAgentDockCollapsed(true)
+    const before = useWorkbenchStore.getState().agentRecallNonce
+    const saved = cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS)
+    expect(saved.visibility.assistant).toBe(true)
+    useWorkbenchStore.getState().setEditingPanelLayout(saved, false)
+    expect(useWorkbenchStore.getState().projectAgentDockCollapsed).toBe(false)
+    expect(useWorkbenchStore.getState().agentRecallNonce).toBe(before)
+  })
+
+  it('关项目时的整体重置（releaseProject 直接 setState）不计', () => {
+    useWorkbenchStore.getState().setProjectAgentDockCollapsed(true)
+    const before = useWorkbenchStore.getState().agentRecallNonce
+    useWorkbenchStore.setState({ projectAgentDockCollapsed: false, editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS) })
+    expect(useWorkbenchStore.getState().agentRecallNonce).toBe(before)
+  })
+})

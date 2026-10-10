@@ -15,6 +15,7 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { realNomiProfile, removeRealCredentials, seedRealCredentialStore } from './_realProfile.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 if (process.env.NOMI_AGENT_LIVE !== '1') throw new Error('Explicit paid evaluation requires NOMI_AGENT_LIVE=1')
 const [flag, executablePath, ...extra] = process.argv.slice(2)
@@ -95,7 +96,7 @@ try {
   }, { vendorKey, modelKey })
   await win.reload({ waitUntil: 'domcontentloaded' })
   expect(win.url().startsWith('file:')).toBe(true)
-  await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), '创建隔离真模型验收项目')
+  await clickOrFail(newProjectEntry(win), '创建隔离真模型验收项目')
   await expect(win.locator(DOCUMENT)).toBeVisible({ timeout: 120_000 })
   const projectId = await win.evaluate(() => {
     const url = new URL(location.href)

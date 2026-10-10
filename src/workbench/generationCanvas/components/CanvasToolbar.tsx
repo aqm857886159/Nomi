@@ -2,15 +2,13 @@ import { CanvasAddPreferenceActions } from './CanvasAddPreferenceActions'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { cn } from '../../../utils/cn'
-import { IconPlus, IconRoute, IconUpload } from '../../../vendor/tablerIcons'
+import { IconPlus, IconRoute } from '../../../vendor/tablerIcons'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
-import { getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../design'
-import { importLocalFilesToGenerationCanvas } from './canvasStageDrop'
+import { intentActionLabel, intentIcon, intentLabel, nodeKindLabel, useCanvasAddIntentAction, useLocalFilePicker } from './canvasAddIntentActions'
 import {
   canvasFullAddSections,
   canvasMoreAddSections,
@@ -20,75 +18,11 @@ import {
   type CanvasAddSectionView,
 } from './canvasToolbarModel'
 
-const QUICK_ADD_NODE_ITEMS = getQuickAddGenerationNodePlugins()
-
 // 左缘工具条与右键菜单**同源**：两边都从 canvasToolbarModel 的意图表 derive，永远不会分叉。
 // 2026-06-15：左侧栏瘦身为「纯创建节点」——复制/剪切走快捷键(⌘C/⌘X)、批量生成移到选中浮条、
 // 发送到时间轴删除(节点可直接拖入时间轴)。
 // 2026-09-06「第三档」：9 个平铺 → 5 常驻 + 一个「更多」，每段带名字（§1.5.1 常驻预算 / §1.5.3 分段要有名字）。
-
-function nodeKindLabel(kind: GenerationNodeKind, t: TFunction): string {
-  if (kind === 'text') return t('canvas.nodeKinds.text')
-  if (kind === 'image') return t('canvas.nodeKinds.image')
-  if (kind === 'video') return t('canvas.nodeKinds.video')
-  if (kind === 'clip') return t('canvas.nodeKinds.clip')
-  if (kind === 'audio') return t('canvas.nodeKinds.audio')
-  if (kind === 'model3d') return t('canvas.nodeKinds.model3d')
-  if (kind === 'whiteboard') return t('canvas.nodeKinds.whiteboard')
-  if (kind === 'panorama') return t('canvas.nodeKinds.panorama')
-  if (kind === 'director') return t('canvas.nodeKinds.director')
-  return kind
-}
-
-/** 菜单里这一条写什么字（节点用种类名；导入那条是「文件…」，段名已经说了「导入」）。 */
-function intentLabel(intent: CanvasAddIntent, t: TFunction): string {
-  return intent.kind ? nodeKindLabel(intent.kind, t) : t('canvas.importFile')
-}
-
-/** 无障碍名 / tooltip：脱离段名单独读也说得清「按下去会发生什么」。 */
-function intentActionLabel(intent: CanvasAddIntent, t: TFunction): string {
-  return intent.kind ? t('canvas.addNode', { type: nodeKindLabel(intent.kind, t) }) : t('canvas.importFileAction')
-}
-
-type IntentIcon = (props: { size?: number; stroke?: number }) => JSX.Element
-
-function intentIcon(intent: CanvasAddIntent): IntentIcon {
-  if (!intent.kind) return IconUpload as unknown as IntentIcon
-  const plugin = QUICK_ADD_NODE_ITEMS.find((item) => item.kind === intent.kind)
-  return (plugin?.icon ?? IconPlus) as unknown as IntentIcon
-}
-
-/**
- * 「挑本地文件」的共享小钩子：左缘「导入」钮与右键菜单「导入 · 文件…」用的是**同一个**受控
- * `<input type="file">` 形态与同一套过滤，只是落点不同。选完交给调用方决定落在哪一点。
- */
-function useLocalFilePicker(onFiles: (files: File[]) => void): { input: JSX.Element; open: () => void } {
-  const ref = React.useRef<HTMLInputElement>(null)
-  const open = React.useCallback(() => {
-    ref.current?.click()
-  }, [])
-  const input = (
-    <input
-      ref={ref}
-      type="file"
-      multiple
-      // 画布上只有图片 / 视频有落点（音频的家是素材库 → 时间轴），让选择器自己筛掉，
-      // 而不是让用户选完再被静默丢弃。
-      accept="image/*,video/*"
-      className="hidden"
-      aria-hidden="true"
-      tabIndex={-1}
-      onChange={(event) => {
-        // 不在这里筛：选中了却落不下的（音频在画布上没有节点可落）必须由导入那条路报出理由。
-        // 此前这里先筛一遍、筛空就什么都不做——用户选完一个 mp3，界面一个字都没有（实测静默）。
-        const files = Array.from(event.currentTarget.files || [])
-        event.currentTarget.value = ''
-        if (files.length) onFiles(files)
-      }}
-    />
-  )
-  return { input, open }
-}
+// 意图的名字 / 图标 / 执行（建节点或挑本地文件）在 canvasAddIntentActions：左缘、右键菜单、空画布任务卡共用。
 
 /** 一段带名字的菜单（§1.5.3：光加 `w-px` 分隔线不够，段要有名字）。 */
 function CanvasAddSectionList({
@@ -105,7 +39,7 @@ function CanvasAddSectionList({
     <>
       {sections.map((section) => (
         <div key={section.id} role="group" aria-label={t(section.labelKey)} data-add-section={section.id}>
-          <div className="px-1.5 pt-1 pb-0.5 text-micro font-medium uppercase tracking-wide text-nomi-ink-40">
+          <div className="px-2 pt-1.5 pb-1 text-micro font-semibold text-nomi-ink-40">
             {t(section.labelKey)}
           </div>
           {section.intents.map((intent, index) => {
@@ -119,9 +53,9 @@ function CanvasAddSectionList({
                   className={cn(
                     'inline-flex items-center justify-start gap-1.5',
                     'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
-                    'bg-transparent text-workbench-ink font-[inherit] text-caption cursor-pointer',
-                    'hover:bg-nomi-ink-05',
-                    '[&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-nomi-ink-60 [&>svg]:stroke-[1.8]',
+                    'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm cursor-pointer',
+                    'hover:bg-nomi-ink-05 active:bg-nomi-ink-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-nomi-accent',
+                    '[&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-nomi-ink-60 [&>svg]:stroke-[1.5]',
                   )}
                   role="menuitem"
                   aria-label={intentActionLabel(intent, t)}
@@ -129,7 +63,7 @@ function CanvasAddSectionList({
                   onKeyDown={(event) => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); setEditing(intent.id) } }}
                   onClick={() => onPick(intent)}
                 >
-                  <Icon size={14} stroke={1.6} />
+                  <Icon size={16} stroke={1.5} />
                   <span>{intentLabel(intent, t)}</span>
                 </button>
                 {editing === intent.id && <CanvasAddPreferenceActions intentId={intent.id} previousIntentId={section.intents[index - 1]?.id} onFeedback={setFeedback} onDone={() => setEditing((current) => current === intent.id ? null : current)} />}
@@ -141,6 +75,52 @@ function CanvasAddSectionList({
       <CanvasAddPreferenceActions onFeedback={setFeedback} />
       {feedback ? <p role="status" className="m-0 px-2 text-micro text-nomi-danger">{feedback}</p> : null}
     </>
+  )
+}
+
+/**
+ * 「+」点开的菜单 = 「空间」一组（导演台 / 3D 模型 / 全景 / 白板，canvasMoreAddSections 同一份数据）。
+ * 底部加节点条最后的「+」和空画布起步行的「更多」**同一个**菜单组件（Claude Design 拍板稿 EmptyStates），不另写一份。
+ * 点开 / Esc / 点外面收起；位置由调用方的 className 定。
+ */
+export function CanvasMoreAddMenu({ onPick, onClose, className }: {
+  onPick: (intent: CanvasAddIntent) => void
+  onClose: () => void
+  className?: string
+}): JSX.Element {
+  const { t } = useTranslation()
+  const preference = useCanvasMenuPreferenceStore((state) => state.preference)
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null
+      // 点在触发它的「+」/「更多」上由那颗按钮自己切换，这里只管点到别处。
+      if (ref.current?.contains(target) || target?.closest?.('[data-canvas-add-more]')) return
+      onClose()
+    }
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onClose])
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'generation-canvas-v2-toolbar__more-menu',
+        // 提到节点浮条（z-[12]）之上，免得被 composer / 浮条盖住点不到。
+        'z-[13] grid gap-0.5 w-[176px] p-[6px]',
+        'border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop',
+        className,
+      )}
+      role="menu"
+      aria-label={t('canvas.moreMenu')}
+    >
+      <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={onPick} />
+    </div>
   )
 }
 
@@ -209,14 +189,13 @@ type CanvasToolbarProps = {
   categoryId?: string
 }
 
-/** hover 展开的延迟：短到顺手、长到不会「路过就弹」。 */
-const MORE_MENU_HOVER_DELAY_MS = 200
-/**
- * hover 收起的延迟 = `--nomi-duration-fast`（140ms，与全局过渡同一档）。
- * 它不是「让缝隙来得及穿过去」的补丁——几何已经由下面那条 hover 容器管死了；
- * 它兜的是「指针在容器边界上抖一帧」和「菜单比工具条还高时顶部那一小段」。
- */
-const MORE_MENU_CLOSE_DELAY_MS = 140
+const TOOLBAR_BUTTON_CLASS = cn(
+  'grid size-8 min-h-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-80 cursor-pointer',
+  'transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink active:bg-nomi-ink-10',
+  'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-nomi-accent',
+  'disabled:cursor-not-allowed disabled:opacity-40',
+  '[&>svg]:size-[18px]',
+)
 
 export default function CanvasToolbar({ getInsertionPosition, categoryId }: CanvasToolbarProps): JSX.Element {
   const { t } = useTranslation()
@@ -226,41 +205,13 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   React.useEffect(() => { void useCanvasMenuPreferenceStore.getState().load().catch(() => {}) }, [])
   const [moreOpen, setMoreOpen] = React.useState(false)
-  const openTimerRef = React.useRef<number | null>(null)
-  const closeTimerRef = React.useRef<number | null>(null)
+  const closeMore = React.useCallback(() => setMoreOpen(false), [])
 
-  const clearOpenTimer = React.useCallback(() => {
-    if (openTimerRef.current === null) return
-    window.clearTimeout(openTimerRef.current)
-    openTimerRef.current = null
-  }, [])
-  const clearCloseTimer = React.useCallback(() => {
-    if (closeTimerRef.current === null) return
-    window.clearTimeout(closeTimerRef.current)
-    closeTimerRef.current = null
-  }, [])
-  const closeMore = React.useCallback(() => {
-    clearOpenTimer()
-    clearCloseTimer()
-    setMoreOpen(false)
-  }, [clearCloseTimer, clearOpenTimer])
-  React.useEffect(() => () => { clearOpenTimer(); clearCloseTimer() }, [clearCloseTimer, clearOpenTimer])
-
-  const handleAddNode = (kind: GenerationNodeKind) => {
-    addNode({ kind, position: getInsertionPosition(), categoryId })
-  }
-
-  // 「导入」= 系统文件选择器 → **画布现有那条本地文件路径**（拖进画布走的同一条：
-  // importLocalMediaFilesToGenerationCanvas，复制进项目 + 上传 + 建 asset 节点）。
-  // 这里不另建 asset 节点，也不另起一套提示（P1：无并行版）。
-  const picker = useLocalFilePicker((files) => {
-    void importLocalFilesToGenerationCanvas(files, { basePosition: getInsertionPosition(), categoryId })
-  })
+  const addIntent = useCanvasAddIntentAction({ getInsertionPosition, categoryId })
 
   const handlePick = (intent: CanvasAddIntent) => {
-    closeMore()
-    if (intent.kind) handleAddNode(intent.kind)
-    else picker.open()
+    setMoreOpen(false)
+    addIntent.run(intent)
   }
 
   return (
@@ -273,114 +224,56 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
         'max-h-[calc(100%-32px)]',
       )}
       aria-label={t('canvas.toolbar')}
-      // hover 容器 = **整条工具条**（菜单与它的间隙桥都是它的 DOM 后代，故指针在
-      // 「工具条 ∪ 间隙桥 ∪ 菜单」这块连通区域里移动时一个 pointerleave 都不会发）。
-      // 2026-09-11 走查根因：容器原来只有「更多」那颗 32×32 的按钮，而菜单向上高出它
-      // 133px——指针从按钮斜着奔顶部那一项，必然先离开按钮上沿、又还没进菜单左沿，
-      // 落在工具条上的空白点就被立刻判成 pointerleave 关掉。把容器换成本来就覆盖菜单
-      // 全高的工具条后，起点与终点都在同一块凸区域里，直线段全程在内：斜着走、慢走、
-      // 快走都不再有「缝」可掉。P1：原来那条 8px `before` 桥同 commit 删掉，不留两套。
-      onPointerEnter={clearCloseTimer}
-      onPointerLeave={() => {
-        clearOpenTimer()
-        clearCloseTimer()
-        closeTimerRef.current = window.setTimeout(() => setMoreOpen(false), MORE_MENU_CLOSE_DELAY_MS)
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') closeMore()
-      }}
     >
-      {picker.input}
+      {addIntent.pickerInput}
       <TooltipProvider delayDuration={250} disableHoverableContent>
-        {canvasResidentAddIntents(preference).map((intent) => {
+        {canvasResidentAddIntents(preference).map((intent, index) => {
           const Icon = intentIcon(intent)
           const action = intentActionLabel(intent, t)
           const tip = intent.kind ? t('canvas.nodeName', { type: nodeKindLabel(intent.kind, t) }) : action
           return (
-            <Tooltip key={intent.id}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  data-add-intent={intent.id}
-                  {...(intent.kind ? { 'data-node-kind': intent.kind } : {})}
-                  className={cn(
-                    'grid size-8 min-h-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-60 cursor-pointer',
-                    'transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                    '[&>svg]:size-[18px] [&>svg]:stroke-[1.8]',
-                  )}
-                  aria-label={action}
-                  onClick={() => (intent.kind ? handleAddNode(intent.kind) : picker.open())}
-                >
-                  <Icon size={18} stroke={1.6} />
-                  <span className="hidden">{intentLabel(intent, t)}</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{tip}</TooltipContent>
-            </Tooltip>
+            <React.Fragment key={intent.id}>
+              {/* 导入和「生成什么」不是一类：Claude Design 拍板稿里它前面有一道竖线（这里是横线）。 */}
+              {intent.id === 'import-file' && index > 0 ? <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" /> : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    data-add-intent={intent.id}
+                    {...(intent.kind ? { 'data-node-kind': intent.kind } : {})}
+                    className={TOOLBAR_BUTTON_CLASS}
+                    aria-label={action}
+                    onClick={() => addIntent.run(intent)}
+                  >
+                    <Icon size={18} stroke={1.5} />
+                    <span className="hidden">{intentLabel(intent, t)}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{tip}</TooltipContent>
+              </Tooltip>
+            </React.Fragment>
           )
         })}
-        {(
-          <>
-            <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />
-            <div
-              className="relative"
-              // 只管**开**：进这颗按钮（或已展开的菜单）才展开。收起归工具条那层管——
-              // 收起判据一旦跟着这颗 32×32 的按钮走，就又回到「按几何缝隙判定」的老路。
-              onPointerEnter={() => {
-                clearCloseTimer()
-                clearOpenTimer()
-                openTimerRef.current = window.setTimeout(() => setMoreOpen(true), MORE_MENU_HOVER_DELAY_MS)
-              }}
-              onPointerLeave={clearOpenTimer}
-            >
+        {/* 最后一颗「+」：和常驻项同色同尺寸，点开 = 「空间」一组（Claude Design 拍板稿；以前是悬停才出的「更多」）。 */}
+        <div className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
               <button
                 type="button"
                 data-canvas-add-more="true"
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
                 aria-label={t('canvas.moreMenu')}
-                className={cn(
-                  'grid size-8 min-h-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 cursor-pointer',
-                  // 灰一档：它不是第 6 个常驻功能，是「还有什么」的入口。
-                  'text-nomi-ink-40 transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                  moreOpen && 'bg-nomi-ink-05 text-nomi-ink',
-                  '[&>svg]:size-[18px] [&>svg]:stroke-[1.8]',
-                )}
-                onClick={() => {
-                  clearOpenTimer()
-                  clearCloseTimer()
-                  setMoreOpen((open) => !open)
-                }}
+                className={cn(TOOLBAR_BUTTON_CLASS, moreOpen && 'bg-nomi-ink-10 text-nomi-ink')}
+                onClick={() => setMoreOpen((open) => !open)}
               >
-                <IconPlus size={18} stroke={1.6} />
+                <IconPlus size={18} stroke={1.5} />
               </button>
-              {moreOpen ? (
-                // 间隙桥：`left-full` + `pl-2` 把「按钮右沿 → 菜单左沿」那 8px 视觉空隙补成
-                // hit-area，且**沿菜单全高**，不再只补按钮那条 32px 横带。它是菜单的父层而不是
-                // 伪元素，高度天然等于菜单高度，菜单加几项都不会漏；也刻意不往左盖住工具条本体，
-                // 免得菜单开着时把上面几颗常驻钮的点击吞掉。
-                <div
-                  className="absolute bottom-0 left-full z-[13] pl-2"
-                  data-canvas-more-hover-bridge="true"
-                >
-                  <div
-                    className={cn(
-                      'generation-canvas-v2-toolbar__more-menu',
-                      // 2026-09-10 走查反馈：菜单 z-[9] 会被节点 composer（z-[8] 同层后挂）
-                      // 和节点浮条（z-[12]）盖住，hover「＋」点不到菜单项——提到浮条之上。
-                      'relative z-[13] grid gap-0.5 w-[148px] p-[6px]',
-                      'border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop',
-                    )}
-                    role="menu"
-                    aria-label={t('canvas.moreMenu')}
-                  >
-                    <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={handlePick} />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </>
-        )}
+            </TooltipTrigger>
+            {moreOpen ? null : <TooltipContent side="right">{t('canvas.moreMenu')}</TooltipContent>}
+          </Tooltip>
+          {moreOpen ? <CanvasMoreAddMenu className="absolute bottom-0 left-[calc(100%+8px)]" onPick={handlePick} onClose={closeMore} /> : null}
+        </div>
         {workflowTemplates.length ? (
           <>
             <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />
@@ -407,7 +300,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
               <button
                 type="button"
                 data-plugin-type="nomi.workflow/checkpoint"
-                className="grid size-8 min-h-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-60 cursor-pointer transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink"
+                className={TOOLBAR_BUTTON_CLASS}
                 aria-label={t('generationCommon.workflowPlugin.addCheckpoint')}
                 onClick={() => addNode({
                   kind: 'text',

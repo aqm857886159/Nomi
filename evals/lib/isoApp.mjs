@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { buildNomiLaunchEnv, launchNomiApp, prepareIsolatedCatalog } from "../../tests/ux/_launchApp.mjs";
 import { realNomiProfile, seedRealCredentials } from "../../tests/ux/_realProfile.mjs";
+import { ensureAgentPanelOpen, newProjectEntry } from "../../tests/ux/_shell.mjs";
 
 /** 今天全部 5 个画布工具都免额度;将来出现 costy 工具(如 run_generation_batch)默认就被拒。 */
 export const TOOL_WHITELIST = new Set([
@@ -88,7 +89,7 @@ export async function dismissSplashIfPresent(win) {
 /** 起始页 → 新建空白项目 → 等项目目录落盘,返回 projectDir。 */
 export async function createBlankProject(win, projectsDir) {
   await dismissSplashIfPresent(win);
-  await win.getByText("新建空白项目", { exact: false }).first().click({ timeout: 10_000 });
+  await newProjectEntry(win).click({ timeout: 10_000 });
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
     const dirs = fs.existsSync(projectsDir)
@@ -122,20 +123,8 @@ export async function openGenerationAiPanel(win) {
     await win.waitForTimeout(1200);
   }
   if (await input.count()) return;
-  // 面板若处于收起态，点击顶栏唯一的 dock-open 入口。使用页面内原生 DOM
-  // click，避免顶栏 tooltip/拖拽层带来的 actionability 干扰。
-  // 外裹重试轮询直到输入框真出现,绝不在超时上谎报。
-  const deadline = Date.now() + 12_000;
-  let opened = false;
-  while (Date.now() < deadline) {
-    if (await input.count()) { opened = true; break; }
-    await win.evaluate(() => {
-      const btn = document.querySelector('[data-v4-control="dock-open"]');
-      if (btn) (btn).click();
-    });
-    await win.waitForTimeout(600);
-  }
-  if (!opened) throw new Error("生成区 AI 面板未能展开(启动器点击后输入框始终未挂载)");
+  // 面板若处于收起态，经 tests/ux/_shell.mjs 叫回来（外壳位置的唯一出口，外壳换了只改那一处）。
+  await ensureAgentPanelOpen(win, "展开生成区 AI 面板");
   await input.first().waitFor({ state: "visible", timeout: 8000 });
 }
 

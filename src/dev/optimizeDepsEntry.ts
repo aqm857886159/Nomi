@@ -28,6 +28,8 @@ import 'clsx';
 import 'framer-motion';
 import 'i18next';
 import 'react-i18next';
+import 'react-rnd';
+import 'react-reverse-portal';
 import 'streamdown';
 import '@photo-sphere-viewer/core';
 import 'tailwind-merge';

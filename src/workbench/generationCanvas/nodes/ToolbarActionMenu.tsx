@@ -53,6 +53,8 @@ export type ToolbarActionMenuProps = ToolbarMenuContent & {
   /** 点开的东西的无障碍名（比触发钮的字长一点，说清这一组是干什么的）。 */
   menuLabel: string
   disabled?: boolean
+  /** 菜单**打开的那一刻**（不含关闭）。菜单项要写出「此刻的事实」（例：截帧菜单里的播放头时间码）时，在这里取一次。 */
+  onOpen?: () => void
   /** 只画图标 + ▾，不写字（title / aria-label 用 `menuLabel`）。 */
   iconOnly?: boolean
   /** 分体按钮的主体：点它直接做这件事；▾ 只开菜单。 */
@@ -118,6 +120,7 @@ export function ToolbarActionMenu(props: ToolbarActionMenuProps): JSX.Element {
     }
     const element = zone()
     if (element) setAnchorRect(toMenuRect(toolbarMenuAnchorRect(element)))
+    props.onOpen?.()
     setOpen(true)
   }
 

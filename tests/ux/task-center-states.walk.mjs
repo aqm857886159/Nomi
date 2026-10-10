@@ -24,6 +24,7 @@ import { DEFAULT_TIMEOUT_MS, assertMockupContract, clickOrFail, expect, expectAb
 // 获批样张（2026-09-25「设计没问题」）的意图契约：等你处理排最上面、重新拉取常驻在那一组。
 import taskCenterIntentContract from '../../docs/design/mockups/contracts/2026-09-25-agent-panel-tidy-task-center.intent.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 标签走环境变量：runtime walk 的启动器只认 `--packaged <path>` 一种参数。
@@ -151,7 +152,7 @@ try {
     },
   }))
   await win.setViewportSize({ width: 1280, height: 860 })
-  await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   const projectId = await win.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))
   const project = (await win.evaluate(() => window.nomiDesktop.projects.listAsync())).find((item) => item.id === projectId)

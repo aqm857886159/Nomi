@@ -91,13 +91,42 @@ export const zhGenerationCommon = {
     missing: '图没加载出来',
     someMissing: '{{count}} 张图片加载失败，总览图中已留空',
   },
+  // 文本节点：加工框 / 状态 / 下游引用小签（Claude Design「文本节点：会加工、看得见」）。
+  textProcess: {
+    boxAria: '文本加工',
+    preset: { expand: '扩写成提示词', describe: '看图写描述', translate: '翻译', split: '拆成多条' },
+    modeMenu: '续写 / 改写',
+    modeMenuAria: '续写与改写方式',
+    placeholder: '或者直接说要怎么改',
+    send: '开始',
+    followAgent: '跟随 Agent 的模型',
+    modelMenuAria: '选择文本模型',
+    needImage: '先把图片连到这个节点的左边',
+    needImageHint: '先把图片连到左边',
+    needText: '先写点内容，或连一段文字进来',
+    running: '正在写',
+    stop: '停止',
+    splitCount: '拆成 {{count}} 条',
+    longText: '共 {{count}} 字，在节点里滚动查看',
+    tryLabel: '试试',
+    refKind: '引用',
+    refHint: '生成时接在提示词后面',
+    refAria: '引用文本节点「{{title}}」',
+    refUntitled: '文本',
+  },
+  // 空节点「试试」（2026-10-08 拍板 ③）：只搭结构（建好上下游空节点、切模式、聚焦提示词），不生成、不花钱。
+  nodeTry: {
+    label: '试试',
+    image: { text: '文字生图', reference: '参考图生图' },
+    video: { firstFrame: '首帧生视频', firstLast: '首尾帧生视频', text: '文字生视频' },
+    status: { image: '还没生成', video: '还没生成', text: '还没有内容', clip: '还没有片段' },
+    clip: { pick: '点选', library: '素材库', fromLibrary: '从素材库添加' },
+  },
   nodeEmpty: {
     derivedReady: { title: '提示词已填好', description: '选中它，点 ↑ 才开始生成' },
-    image: { title: '图片节点', description: '在下方输入提示词，点击生成。' },
-    video: { title: '视频节点', description: '在下方输入提示词，点击生成视频。' },
+    image: { title: '图片节点' },
+    video: { title: '视频节点' },
     audio: { title: '音频节点', description: '放入声音，为作品添加配乐或旁白。' },
-    text: { title: '文本节点', description: '写下脚本、对白或制作备注。' },
-    clip: { title: '剪辑节点', description: '把视频节点连进来，或从素材库添加图片/视频。' },
     model3d: { title: '3D 模型节点', description: '描述想要的模型或连入参考图，生成一个 3D 模型。' },
     whiteboard: { title: '画板节点', description: '手绘草图或涂改参考，作为构图参考。', action: '打开画板' },
     director: { title: '导演台节点', description: '摆放角色与机位，出图出片当参考。', action: '进入导演台' },
@@ -106,10 +135,13 @@ export const zhGenerationCommon = {
     prop: { title: '道具节点', description: '放入道具参考图，让关键物件保持一致。' },
     panorama: { title: '全景节点', description: '放入全景图，作为环境参考。' },
     waiting: '已连接输入，等上游产出后继续。',
-    firstFrame: '先添加一张图片作为视频首帧。',
   },
   canvas: {
+    // 粘贴 / 复制 / 拖动复制时，目标节点不收的连线会被跳过（electron/shared/canvas/edgeAdmission）；节点照常粘贴，说清几条没带过来。
+    edgesSkippedOnPaste: '节点已照常放下，有 {{count}} 条连线没带过来（目标节点不接收这种输入）',
     aria: 'AI 影像创作画布',
+    // 「在画布上点选」顶栏（store/canvasPickMode；左「+」菜单、剪辑空态、@ 画布节点共用）。
+    pickMode: { title: '选择要引用的节点', exit: '退出点选', escKey: 'Esc' },
     // 画布边缘提示（新东西落在屏外 / 别的分类时，点它才过去）。一个 / 多个分开写：中文没有单复数，
     // 「1 个新节点在右侧」读着别扭，单个就不带数。
     arrival: {
@@ -126,9 +158,6 @@ export const zhGenerationCommon = {
     edge: {
       select: '选择连接线：{{source}} 到 {{target}}',
       disconnect: '断开连接：{{source}} 到 {{target}}',
-      disconnectAction: '断开连接',
-      changeMode: '修改连接语义：当前为{{mode}}',
-      modeMenu: '连接语义',
       modes: {
         reference: '素材参考',
         first_frame: '首帧',
@@ -148,9 +177,7 @@ export const zhGenerationCommon = {
         fallback: '节点',
       },
       title: '这里还没有{{category}}',
-      description: '添加第一个节点开始创作，之后可以拖动、分组、跨分组复制。',
-      createAria: '新建一个{{category}}节点',
-      create: '+ 新建{{category}}',
+      dropHint: '或者把图片、视频直接拖进来',
     },
     controlsHelp: {
       aria: '画布操作帮助',
@@ -422,6 +449,13 @@ export const zhGenerationCommon = {
         reason: '已经生成，但结果没能取回到本机',
         hint: '服务商那边这一镜已经做完了，是 Nomi 把结果下载回项目这一步没成（地址不让访问、对方拒绝了下载，或者返回的不是能用的文件）。不要重新生成，那会另做一份新的。到任务面板点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。',
       },
+      // 本机处理失败（截帧 / 提取深度 / 本地素材复制）：没有服务商、没有模型参与——不说「换模型」，只留重试。
+      localProcessing: {
+        reason: '本机处理没成功',
+        // 生产者写的那句人话（失败文案的第一行）就是标题：「截取「当前帧 0:07.2」失败，原视频没动。」
+        reasonWithDetail: '{{detail}}',
+        hint: '这一步在你的电脑上完成，没有联系任何服务商，所以换模型帮不上忙。可以重试一次；具体原因在下方的「技术详情」里。',
+      },
       // 认不出的失败如实说「认不出」：不编原因（不是「服务商临时故障」，更不是「额度」——今天没有价格，猜额度只会把人引去查账）。
       // 服务商给了错误码就带上码（hintWithCode）；原文和完整报文留在「技术详情」里。重试 / 换模型是动作建议，不是对原因的判断。
       unknown: {
@@ -434,6 +468,8 @@ export const zhGenerationCommon = {
       },
       nodeInFlight: { reason: '这个节点还在生成', hint: '上一次生成还没回来，这一次还没发出去。等它出结果再决定要不要重新生成。' },
       previewBlocked: { hint: '这一次没发出去。等 3D-BOX 预演挂好再生成。' },
+      // 升级前留下的批量确认（没记来源节点）：先落节点、再发请求之后它不能发——如实说没发出去，要他再确认一次。
+      consentPredatesUpgrade: { reason: '升级后这批没有发出', hint: '这一镜是升级前确认的，按新的规则没能发出生成请求。在画布上重新生成它，再确认一次。' },
       shotClaimed: {
         generic: { reason: '这一镜由制作流程持有', hint: '请先查看制作任务状态，再决定下一步。' },
         queued: { reason: '这一镜已在制作流程中排队', hint: '请先等制作流程完成，或去任务中心查看进度。' },
@@ -544,6 +580,14 @@ export const zhGenerationCommon = {
         audio: '声音',
       },
     },
+    // 左「+」：给这张卡加输入（2026-10-08 拍板 ②，判据 = 以本卡为目标）。
+    addInput: {
+      title: '给它加输入',
+      fromAssets: '从素材库添加…',
+      pickOnCanvas: '在画布上点选',
+      notAccepted: '{{target}}节点不收{{source}}',
+      modelRejects: '当前模型不收{{asset}}',
+    },
     duplicateVariantHint: '带上游连线，不带结果',
     derivedTitle: '{{action}} · {{source}}',
     labDerivedPrompt: '这是一张 3×3 机位联系表：同一时刻、同一场景、同一批人物，只换九个机位……',
@@ -586,6 +630,7 @@ export const zhGenerationCommon = {
     exportToCanvasComplete: '已向画布导出 {{count}} 个视频节点。',
     exportFailed: '导出失败，请重试。',
     uploadFailed: '素材复制失败，请重试导入。',
+    dropUnsupported: '剪辑轴只接收图片和视频素材。',
     retryUpload: '重试导入',
   },
   cropGrid: {
@@ -642,12 +687,14 @@ export const zhGenerationCommon = {
     extractFrame: {
       first: '首帧',
       last: '尾帧',
-      missingProject: '抽帧失败：找不到当前项目（请先保存项目后重试）',
-      desktopOnly: '抽帧失败：当前环境不支持（需桌面端）',
-      failed: '抽{{frame}}失败：{{message}}',
-      empty: '抽{{frame}}失败：未能从视频取到帧',
+      current: '当前帧 {{time}}',
+      missingProject: '截帧失败：找不到当前项目（请先保存项目后重试）',
+      desktopOnly: '截帧失败：当前环境不支持（需桌面端）',
+      failed: '截帧失败，原视频没动。',
+      empty: '截帧失败：没能从视频里读出这一帧，原视频没动。',
+      retrySourceGone: '重试不了：这张图的来源视频已经不在画布上了',
       defaultVideoTitle: '视频',
-      nodeTitle: '{{title}}·{{frame}}',
+      nodeTitle: '{{title}} · {{frame}}',
     },
     shotCuts: {
       title: '按镜头拆',
@@ -936,6 +983,8 @@ export const zhGenerationCommon = {
       connectEdgesWithModes_other: '连接 {{count}} 条引用线（{{parts}}）',
       setNodePrompt: '改写「{{title}}」的提示词',
       setNodePromptGeneric: '改写节点提示词',
+      setNodeText: '改写「{{title}}」的正文',
+      setNodeTextGeneric: '改写文本节点正文',
       deleteNodes_one: '删除 {{count}} 个节点',
       deleteNodes_other: '删除 {{count}} 个节点',
       runGenerationBatch_one: '批量生成 {{count}} 个节点',
@@ -1094,14 +1143,13 @@ export const zhGenerationCommon = {
     aria: '视频操作',
     fullscreen: '全屏预览',
     fullscreenAria: '全屏预览视频',
-    extracting: '抽帧中…',
+    capturing: '截帧中…',
+    currentFrame: '当前帧',
     firstFrame: '首帧',
-    firstFrameHint: '抽取这段视频的第一帧 → 落成独立图片节点（可当首帧/参考）',
     lastFrame: '尾帧',
-    lastFrameHint: '抽取这段视频的最后一帧 → 落成独立图片节点（可当尾帧/接力源/参考）',
     shotCuts: '按镜头拆',
     shotCutsHint: '找出这段视频的画面切点 → 先预览勾选，再把选中的帧落成画布节点',
-    extractFrame: '抽帧',
+    captureFrame: '截帧',
     breakDown: '拆解',
     shotTable: '拆成镜头表',
     deconstructHint: '把这条视频拆成一张镜头结构表（景别/情绪/画面/字幕/对白/提示词）→ 勾选镜头加进画布学着做',
@@ -1525,6 +1573,8 @@ export const zhGenerationCommon = {
       stoppedUnknown: '已停，这镜还没开拍。',
       // 批过的镜离你上一次点头太久、没人替你续（付费卡① 第 13 条）：点「继续」那一下就是确认。
       stoppedConsentExpired: '这镜还没开拍，需要你再确认一次。',
+      // 先落节点、再发请求（架构③）：这一批有镜没落上画布，那几镜没有发出生成请求。点「继续」= 重落再派。
+      stoppedLandingFailed: '这一批有镜头没放到画布上，没放上的那几镜没有发出。点「继续」只重试它们。',
       resume: '继续',
       continueRemaining: '继续剩余',
       // 用户删掉占位节点、但这件事没能记进制作流程：被删的那一镜可能照样生成并计费。动作 = 打开任务面板（暂停 / 取消）。
@@ -1552,6 +1602,8 @@ export const zhGenerationCommon = {
         notStopped: '这一批现在没有停着，不用继续。',
         planNotSubmitted: '这份方案还没开拍，先在 Agent 面板里确认生成。',
         ledgerWriteFailed: '没能把这一步写进项目记录（磁盘满了，或项目文件夹不能写入），这次没做成。腾出空间或检查权限后再点一次。',
+        canvasLandingFailed: '这一镜没放到画布上，没有发出生成请求。再点一次重试。',
+        nothingToResume: '这一批没有可以继续发出的镜头：剩下没完成的那几镜，节点已经从画布上删掉、已经在画布上直接生成，或者已经失败、要在那一镜上单独重做。这次没有发出生成请求。',
         internalError: '这是 Nomi 自己的问题：这一步没做成，错误已记进日志。可以从「反馈与分享」把它发给我们。',
       },
     },
@@ -1713,13 +1765,41 @@ export const enGenerationCommon = {
     missing: 'Image failed to load',
     someMissing: '{{count}} images failed to load; those cells were left blank in the overview',
   },
+  // Text node: processing box / states / downstream reference chip (Claude Design "Text node: processes, visible").
+  textProcess: {
+    boxAria: 'Text tools',
+    preset: { expand: 'Expand', describe: 'Describe image', translate: 'Translate', split: 'Split' },
+    modeMenu: 'Revise',
+    modeMenuAria: 'Continue and revise modes',
+    placeholder: 'Or just say what to change',
+    send: 'Go',
+    followAgent: "Follow Agent's model",
+    modelMenuAria: 'Choose text model',
+    needImage: 'Connect an image to the left of this node first',
+    needImageHint: 'Connect an image on the left first',
+    needText: 'Write something first, or connect a text node',
+    running: 'Writing',
+    stop: 'Stop',
+    splitCount: 'Split into {{count}}',
+    longText: '{{count}} characters — scroll inside the node',
+    tryLabel: 'Try',
+    refKind: 'Reference',
+    refHint: 'Added after the prompt when generating',
+    refAria: 'Referenced text node “{{title}}”',
+    refUntitled: 'Text',
+  },
+  nodeTry: {
+    label: 'Try',
+    image: { text: 'Text to image', reference: 'Reference to image' },
+    video: { firstFrame: 'First frame', firstLast: 'First + last', text: 'From text' },
+    status: { image: 'Not generated yet', video: 'Not generated yet', text: 'Nothing here yet', clip: 'No clips yet' },
+    clip: { pick: 'Pick', library: 'Library', fromLibrary: 'Add from library' },
+  },
   nodeEmpty: {
     derivedReady: { title: 'Prompt ready', description: 'Select it and press ↑ to generate' },
-    image: { title: 'Image node', description: 'Enter a prompt below, then generate.' },
-    video: { title: 'Video node', description: 'Enter a prompt below, then generate a video.' },
+    image: { title: 'Image node' },
+    video: { title: 'Video node' },
     audio: { title: 'Audio node', description: 'Add sound for music, effects, or voiceover.' },
-    text: { title: 'Text node', description: 'Write a script, dialogue, or production note.' },
-    clip: { title: 'Clip node', description: 'Connect a video node or add image/video from your library.' },
     model3d: { title: '3D model node', description: 'Describe the model you want or connect a reference image to generate a 3D model.' },
     whiteboard: { title: 'Whiteboard node', description: 'Sketch or mark up a reference for composition.', action: 'Open whiteboard' },
     director: { title: 'Director node', description: 'Place characters and cameras, then capture a reference image or clip.', action: 'Open director' },
@@ -1728,10 +1808,11 @@ export const enGenerationCommon = {
     prop: { title: 'Prop node', description: 'Add a prop reference to keep key objects consistent.' },
     panorama: { title: 'Panorama node', description: 'Add a panorama image as an environment reference.' },
     waiting: 'Input connected. Waiting for the upstream result.',
-    firstFrame: 'Add an image first as the video first frame.',
   },
   canvas: {
+    edgesSkippedOnPaste: 'Nodes placed as usual; {{count}} connection(s) were left behind (the target node does not take that input).',
     aria: 'AI visual creation canvas',
+    pickMode: { title: 'Pick a node to reference', exit: 'Stop picking', escKey: 'Esc' },
     arrival: {
       one: { right: 'New node to the right', left: 'New node to the left', up: 'New node above', down: 'New node below' },
       many: { right: '{{count}} new nodes to the right', left: '{{count}} new nodes to the left', up: '{{count}} new nodes above', down: '{{count}} new nodes below' },
@@ -1746,9 +1827,6 @@ export const enGenerationCommon = {
     edge: {
       select: 'Select connection: {{source}} to {{target}}',
       disconnect: 'Disconnect: {{source}} to {{target}}',
-      disconnectAction: 'Disconnect',
-      changeMode: 'Change connection meaning: currently {{mode}}',
-      modeMenu: 'Connection meaning',
       modes: {
         reference: 'Asset reference',
         first_frame: 'First frame',
@@ -1768,9 +1846,7 @@ export const enGenerationCommon = {
         fallback: 'nodes',
       },
       title: 'No {{category}} here yet',
-      description: 'Add the first node to begin, then drag, group, and copy nodes across categories.',
-      createAria: 'Create a {{category}} node',
-      create: '+ New {{category}}',
+      dropHint: 'Or drop images and videos right in',
     },
     controlsHelp: {
       aria: 'Canvas controls help',
@@ -2039,6 +2115,11 @@ export const enGenerationCommon = {
         reason: 'Generated, but the result could not be retrieved',
         hint: 'The provider finished this shot; the step that failed is Nomi downloading the result into your project (the address was not allowed, the download was refused, or what came back was not a usable file). Do not generate again — that makes a brand-new one. Open the task panel and click “Retrieve again”: Nomi only checks the task and downloads it once more. The technical details below give the exact reason.',
       },
+      localProcessing: {
+        reason: 'Local processing failed',
+        reasonWithDetail: '{{detail}}',
+        hint: 'This step runs on your computer and never contacted a provider, so switching models would not help. You can retry once; the exact reason is under “Technical details” below.',
+      },
       unknown: {
         reason: 'Generation failed',
         hint: 'Nomi could not tell what caused this failure, so it will not guess. The full original response is kept under “Technical details” on the error card. You can retry once, or choose another model.',
@@ -2049,6 +2130,7 @@ export const enGenerationCommon = {
       },
       nodeInFlight: { reason: 'This node is still generating', hint: 'The previous generation has not come back yet. Nothing was sent this time; wait for its result before generating again.' },
       previewBlocked: { hint: 'Nothing was sent. Generate again once the 3D-BOX preview is attached.' },
+      consentPredatesUpgrade: { reason: 'This batch was not sent after the update', hint: 'This shot was confirmed before the update and could not be sent under the new rules. Generate it again on the canvas and confirm once more.' },
       shotClaimed: {
         generic: { reason: 'This shot is owned by the production workflow', hint: 'Check the production task status before deciding what to do next.' },
         queued: { reason: 'This shot is queued in the production workflow', hint: 'Wait for production to finish, or check its progress in the task center.' },
@@ -2154,6 +2236,13 @@ export const enGenerationCommon = {
         audio: 'audio',
       },
     },
+    addInput: {
+      title: 'Add input',
+      fromAssets: 'Add from Assets…',
+      pickOnCanvas: 'Pick on canvas',
+      notAccepted: '{{target}} nodes do not take {{source}}',
+      modelRejects: 'The current model does not take {{asset}}',
+    },
     duplicateVariantHint: 'Keeps incoming links, not results',
     derivedTitle: '{{action}} · {{source}}',
     labDerivedPrompt: 'A 3×3 contact sheet: same moment, same scene, same people, only the nine camera positions change...',
@@ -2196,6 +2285,7 @@ export const enGenerationCommon = {
     exportToCanvasComplete: 'Exported {{count}} video nodes to canvas.',
     exportFailed: 'Export failed. Try again.',
     uploadFailed: 'The material could not be copied. Try importing it again.',
+    dropUnsupported: 'The clip axis only takes images and videos.',
     retryUpload: 'Retry import',
   },
   cropGrid: {
@@ -2251,10 +2341,12 @@ export const enGenerationCommon = {
     extractFrame: {
       first: 'first frame',
       last: 'last frame',
-      missingProject: 'Frame extraction failed: no current project was found. Save the project and try again.',
-      desktopOnly: 'Frame extraction failed: this environment is unsupported. Use the desktop app.',
-      failed: 'Failed to extract the {{frame}}: {{message}}',
-      empty: 'Failed to extract the {{frame}}: no frame could be read from the video',
+      current: 'Frame {{time}}',
+      missingProject: 'Frame capture failed: no current project was found. Save the project and try again.',
+      desktopOnly: 'Frame capture failed: this environment is unsupported. Use the desktop app.',
+      failed: 'Frame capture failed. Original untouched.',
+      empty: 'Frame capture failed: no frame could be read. Original untouched.',
+      retrySourceGone: 'Cannot retry: the source video of this frame is no longer on the canvas',
       defaultVideoTitle: 'Video',
       nodeTitle: '{{title}} · {{frame}}',
     },
@@ -2529,6 +2621,8 @@ export const enGenerationCommon = {
       connectEdgesWithModes_other: 'Connect {{count}} reference links ({{parts}})',
       setNodePrompt: 'Rewrite the prompt for “{{title}}”',
       setNodePromptGeneric: 'Rewrite the node prompt',
+      setNodeText: 'Rewrite the text in “{{title}}”',
+      setNodeTextGeneric: 'Rewrite the text node body',
       deleteNodes_one: 'Delete 1 node',
       deleteNodes_other: 'Delete {{count}} nodes',
       runGenerationBatch_one: 'Generate 1 node',
@@ -2687,15 +2781,13 @@ export const enGenerationCommon = {
     aria: 'Video actions',
     fullscreen: 'Fullscreen preview',
     fullscreenAria: 'Preview video fullscreen',
-    extracting: 'Extracting frame…',
+    capturing: 'Capturing frame…',
+    currentFrame: 'Current frame',
     firstFrame: 'First frame',
-    firstFrameHint: 'Extract the first frame into a separate image node for use as a first frame or reference',
     lastFrame: 'Last frame',
-    lastFrameHint:
-      'Extract the last frame into a separate image node for use as an end frame, continuation source, or reference',
     shotCuts: 'Split at cuts',
     shotCutsHint: 'Find this video’s shot changes — preview and pick, then drop the chosen frames onto the canvas',
-    extractFrame: 'Extract frame',
+    captureFrame: 'Capture frame',
     breakDown: 'Break down',
     shotTable: 'Shot table',
     deconstructHint: 'Break this video into a shot-structure table (framing / mood / visuals / captions / dialogue / prompts) → pick shots to bring onto the canvas and learn from',
@@ -3119,6 +3211,8 @@ export const enGenerationCommon = {
       // The approved shots waited too long after your last go-ahead and nobody renewed it (paid card rule 13): the
       // "Continue" click is the confirmation.
       stoppedConsentExpired: 'This shot hasn\'t started — it needs your go-ahead again.',
+      // Land first, then request (architecture 3): some shots were not placed on the canvas, so no request was sent for them.
+      stoppedLandingFailed: 'Some shots in this batch weren\'t placed on the canvas; those shots were not sent. Click Continue to retry only them.',
       resume: 'Continue',
       continueRemaining: 'Continue remaining',
       // The user deleted a placeholder but the production run never recorded it: that shot may still generate and bill.
@@ -3147,6 +3241,8 @@ export const enGenerationCommon = {
         notStopped: 'This run isn\'t stopped, so there\'s nothing to continue.',
         planNotSubmitted: 'This plan hasn\'t started yet. Confirm it in the Agent panel first.',
         ledgerWriteFailed: 'Couldn\'t save this step to the project record (the disk is full or the project folder isn\'t writable). Nothing was done. Free up space or check permissions, then try again.',
+        canvasLandingFailed: 'This shot was not placed on the canvas, so no generation request was sent for it. Click again to retry.',
+        nothingToResume: 'Nothing in this batch can be continued: the remaining shots were deleted from the canvas, are being generated directly on the canvas, or already failed and must be redone on that shot. No generation request was sent.',
         internalError: 'This is a problem in Nomi itself: the step didn\'t go through. The error is in the log - you can send it to us from Feedback & share.',
       },
     },

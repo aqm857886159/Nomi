@@ -40,8 +40,8 @@ export const STRUCTURE_STATES: readonly LabState[] = [
     name: 'Nomi 身份族 · 字标 / 品牌 / 标记 / 转圈 / AI 标 / 步进',
     source: SOURCE_IDENTITY,
     mirrors: [
-      'src/ui/app-shell/NomiAppBar.tsx:119',
-      'src/ui/app-shell/NomiAppBar.tsx:218',
+      'src/ui/app-shell/shell/ShellTopBar.tsx:260',
+      'src/ui/app-shell/shell/ShellTopBar.tsx:285',
       'src/workbench/promptLibrary/PromptLibraryPanel.tsx:288',
       'src/workbench/generationCanvas/nodes/render/CardCommon.tsx:379',
     ],

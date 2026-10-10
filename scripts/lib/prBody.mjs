@@ -18,9 +18,10 @@
 //     一个拿不到证据的门岗只能报它真拿到的那个结论 —— 拿不到就说拿不到，别假装通过）。
 //   · 本地默认跳过（本地没有 PR 这个东西）；显式 `--pr` 时用 gh 取当前分支的 PR 正文，
 //     取不到就明说「今天没查成」并跳过 —— 本地不是最后一道闸，CI 侧仍然 fail-closed。
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+
+import { execGhReadSync } from './transientRetry.mjs'
 
 /** 还没有 PR 时，实现线按约定把 PR 正文草稿写在仓库根的这个文件（已 gitignore）；推送前就用它按合并前的标准判。 */
 export const LOCAL_PR_BODY_DRAFT = '.tmp-pr-body.md'
@@ -29,9 +30,15 @@ function readLocalDraft(cwd) {
   try { return fs.readFileSync(path.join(cwd, LOCAL_PR_BODY_DRAFT), 'utf8') } catch { return null }
 }
 
-/** `gh pr view` 的默认实现；测试里换成假的。 */
-function ghPullRequestBody(args, cwd) {
-  return execFileSync('gh', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+/** gh 对「这个分支没有 PR」的固定说法；只有它才允许走草稿 / 跳过。 */
+const NO_PR_FOR_BRANCH = /no pull requests found/i
+
+/** gh 最多等多久。手动跑挂 600–1700 秒的事故（2026-10-09）里 gh 没有超时是原因之一：超时 = 明确报错，不是继续等。 */
+export const GH_TIMEOUT_MS = 20_000
+
+/** `gh pr view` 的默认实现；测试里换成假的（opts.bin / opts.args 让测试用真子进程模拟「一直不返回」）。 */
+export function ghPullRequestBody(args, cwd, opts = {}) {
+  return execGhReadSync(opts.args ?? args, { bin: opts.bin ?? 'gh', cwd, timeout: opts.timeoutMs ?? GH_TIMEOUT_MS, killSignal: 'SIGKILL' })
 }
 
 /**
@@ -45,11 +52,20 @@ export function resolvePullRequestBody({
   cwd = process.cwd(),
   fetchBody = ghPullRequestBody,
   readDraft = readLocalDraft,
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
 } = {}) {
   // 显式喂正文（测试与 --body-file 之类的本地用法）。空字符串是合法输入：
   // 「正文是空的」本身就是一个应该报红的事实，不是「没拿到」。
   const injected = env.NOMI_PR_BODY
   if (typeof injected === 'string') return { available: true, body: injected, source: 'NOMI_PR_BODY' }
+
+  // 手动跑也可以把正文放文件里（NOMI_PR_BODY_FILE）。指了文件却读不了 = 明确的红，不回落到 gh / 草稿（指错了文件不能当没指）。
+  const bodyFile = env.NOMI_PR_BODY_FILE
+  if (typeof bodyFile === 'string' && bodyFile !== '') {
+    try { return { available: true, body: readFile(bodyFile), source: 'NOMI_PR_BODY_FILE' } } catch (error) {
+      return { available: false, required: true, reason: `NOMI_PR_BODY_FILE 指向的文件读不了：${String(error instanceof Error ? error.message : error).split('\n')[0]}` }
+    }
+  }
 
   const inPullRequest = env.GITHUB_EVENT_NAME === 'pull_request'
   const asked = argv.includes('--pr')
@@ -65,10 +81,22 @@ export function resolvePullRequestBody({
   try {
     return { available: true, body: fetchBody(args, cwd), source: number ? `gh pr view ${number}` : 'gh pr view' }
   } catch (error) {
+    // 只有能识别出的「这个分支没有 PR」才允许走草稿 / 跳过；其余（超时、没装 gh、没登录、没权限、网络错）一律是明确的红，写清下一步
+    const stderrText = `${error && error.stderr ? error.stderr : ''}${'\n'}${error instanceof Error ? error.message : String(error)}`
+    const nextStep = '改用 NOMI_PR_BODY / NOMI_PR_BODY_FILE 直接给正文，或先修好 gh（gh auth status）'
+    if (error && error.code === 'ETIMEDOUT') {
+      return { available: false, required: true, reason: `gh pr view 超时（${GH_TIMEOUT_MS / 1000} 秒没有返回）；${nextStep}` }
+    }
+    if (error && error.code === 'ENOENT') {
+      return { available: false, required: true, reason: `找不到 gh 命令；安装 GitHub CLI 并 gh auth login，或${nextStep}` }
+    }
+    if (!NO_PR_FOR_BRANCH.test(stderrText)) {
+      const first = stderrText.trim().slice(0, 200)
+      return { available: false, required: true, reason: `gh pr view 失败（${first}）；${nextStep}` }
+    }
     // 本地、这条分支还没有 PR：有草稿就用草稿（CI 里没有这个文件，也永远不走这条）
     const draft = inPullRequest ? null : readDraft(cwd)
     if (draft !== null) return { available: true, body: draft, source: LOCAL_PR_BODY_DRAFT }
-    const detail = error instanceof Error ? String(error.message).split('\n')[0] : String(error)
-    return { available: false, required: inPullRequest, reason: `gh pr view 取不到正文：${detail}` }
+    return { available: false, required: inPullRequest, reason: '这条分支还没有 PR（gh：no pull requests found），也没有 .tmp-pr-body.md 草稿' }
   }
 }

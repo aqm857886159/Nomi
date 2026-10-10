@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
+import { usePointerSession } from '../timeline/timelineGesture'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
 import { resolveActiveTextClipsAtFrame } from '../timeline/timelineMath'
@@ -52,15 +53,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const playerRef = React.useRef<HTMLDivElement | null>(null)
   const stageRef = React.useRef<HTMLDivElement | null>(null)
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
-  const dragRef = React.useRef<{
-    pointerId: number
-    clipId: string
-    startX: number
-    startY: number
-    // 拖动起点时的取景偏移（归一化分数），moveDrag 据此 + 像素位移/stage 尺寸算新偏移
-    originOffsetX: number
-    originOffsetY: number
-  } | null>(null)
+  const startDragSession = usePointerSession()
   const [stageSize, setStageSize] = React.useState<{ width: number; height: number } | null>(null)
   // 导出阶段/进度的真相源在事件桥模块里（顶栏那颗按钮也读它），本组件不再私存一份（P1）。
   const { status: exportStatus, progress: exportProgress } = usePreviewExportState()
@@ -309,42 +302,28 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
     if (!clipId) return
     if ((event.target as HTMLElement).closest('button')) return
     event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
     if (clipId !== framingClipId) setTimelineSelection([clipId])
-    dragRef.current = {
-      pointerId: event.pointerId,
+    const drag = {
       clipId,
       startX: event.clientX,
       startY: event.clientY,
+      // 拖动起点时的取景偏移（归一化分数），拖动据此 + 像素位移 / stage 尺寸算新偏移
       originOffsetX: visibleFraming.offsetX,
       originOffsetY: visibleFraming.offsetY,
     }
-  }, [visibleMediaClip, visibleFraming.offsetX, visibleFraming.offsetY, framingClipId, setTimelineSelection])
-
-  // 拖动中 commit:false，松手 commit:true 落盘一次。
-  const applyDragOffset = React.useCallback((drag: NonNullable<typeof dragRef.current>, event: React.PointerEvent<HTMLDivElement>, commit: boolean) => {
-    if (!stageSize) return
-    const next = framingOffsetFromDrag(drag, { x: event.clientX - drag.startX, y: event.clientY - drag.startY }, stageSize)
-    setTimelineClipFraming(drag.clipId, next, { commit })
-  }, [stageSize, setTimelineClipFraming])
-
-  const moveDrag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    applyDragOffset(drag, event, false)
-  }, [applyDragOffset])
-
-  const endDrag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    applyDragOffset(drag, event, true)
-    dragRef.current = null
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    } catch {
-      // ignore
+    // 拖动中 commit:false，松手 commit:true 落盘一次；被打断（pointercancel / 失焦 / 丢 capture / Esc）回到拖之前。
+    const apply = (clientX: number, clientY: number, commit: boolean) => {
+      if (!stageSize) return
+      const next = framingOffsetFromDrag(drag, { x: clientX - drag.startX, y: clientY - drag.startY }, stageSize)
+      setTimelineClipFraming(drag.clipId, next, { commit })
     }
-  }, [applyDragOffset])
+    startDragSession({
+      event,
+      onMove: (move) => apply(move.clientX, move.clientY, false),
+      onCommit: (up) => apply(up.clientX, up.clientY, true),
+      onCancel: () => setTimelineClipFraming(drag.clipId, { offsetX: drag.originOffsetX, offsetY: drag.originOffsetY }, { commit: true }),
+    })
+  }, [visibleMediaClip, visibleFraming.offsetX, visibleFraming.offsetY, framingClipId, setTimelineSelection, startDragSession, stageSize, setTimelineClipFraming])
 
   const imageStyle = framingToMediaStyle(imageFraming, stageSize)
   const videoStyle = framingToMediaStyle(videoFraming, stageSize)
@@ -382,9 +361,6 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           ...(stageSize ? { width: `${stageSize.width}px`, height: `${stageSize.height}px` } : null),
         }}
         onPointerDown={beginDrag}
-        onPointerMove={moveDrag}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
       >
         <div className={cn(
           'workbench-preview-player__canvas',
@@ -563,8 +539,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
                     stageHeight={stageSize.height}
                     onTransform={(patch, commit) => updateTimelineTextClipTransform(clip.id, patch, { commit })}
                     onSnapGuides={setTextSnapGuides}
+                    onDoubleClick={() => beginEditText(clip.id, clip.text)}
                   >
-                    <div style={contentStyle} onDoubleClick={(event) => { event.stopPropagation(); beginEditText(clip.id, clip.text) }} title={t('timelinePreview.moveResizeEdit')}>
+                    <div style={contentStyle} title={t('timelinePreview.moveResizeEdit')}>
                       {clip.text}
                     </div>
                   </OverlaySelectionBox>

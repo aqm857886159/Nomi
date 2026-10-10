@@ -18,6 +18,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const mode = process.env.NOMI_BACKGROUND_MODE || 'single'
@@ -157,15 +158,15 @@ function mediaFiles(root) {
 }
 
 async function newBlankProject(win) {
-  await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }).first(), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await expect.poll(() => currentProjectId(win), { message: '新建后地址栏带上新项目 id', timeout: stationTimeout({ operations: 2 }) }).toMatch(/^project-/)
   await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '切到生成区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   return currentProjectId(win)
 }
-async function backToLibrary(win) {
-  await clickOrFail(win.getByRole('button', { name: '返回项目库', exact: true }), '返回项目库')
-  await expect(win.getByRole('button', { name: /^新建空白项目/ }).first()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+async function leaveToLibrary(win) {
+  await backToLibrary(win)
+  await expect(newProjectEntry(win)).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
 }
 async function openFromLibrary(win, projectId) {
   const card = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)
@@ -192,7 +193,7 @@ try {
   const rootA = await projectRoot(win, projectA)
   let nodeId
   if (mode.startsWith('storyboard-')) {
-    await backToLibrary(win)
+    await leaveToLibrary(win)
     await win.evaluate(async ({ projectId, designId, imageModel, videoModel, vendor, prompt, firstFrame }) => {
       const record = await window.nomiDesktop.projects.readAsync(projectId)
       const documentId = record.payload.activeDocumentId
@@ -275,7 +276,7 @@ try {
   await snap(win, 'a-generation-in-flight')
 
   // ── 幕二 · 请求在途时切到新项目 B ───────────────────────────────────────────────
-  await backToLibrary(win)
+  await leaveToLibrary(win)
   const projectB = await newBlankProject(win)
   check(projectB !== projectA, '切到的是另一个项目')
   const rootB = await projectRoot(win, projectB)
@@ -321,7 +322,7 @@ try {
   await snap(win, 'b-untouched-after-a-result')
 
   // ── 幕三 · 回到 A：节点上就是结果 ───────────────────────────────────────────────
-  await backToLibrary(win)
+  await leaveToLibrary(win)
   await openFromLibrary(win, projectA)
   await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '切到生成区')
   await expect(win.locator(`[data-node-id="${nodeId}"]`), '回到 A 节点显示成功').toHaveAttribute('data-status', 'success', { timeout: stationTimeout({ operations: 2 }) })
@@ -345,19 +346,19 @@ try {
     const cropProbe = await proveProbe(crop, '选区面板在 A 里确实可见')
     await win.keyboard.press('Escape')
     await expectAbsent(crop, { provenBy: cropProbe, message: 'Esc 关闭选区面板' })
-    await backToLibrary(win)
+    await leaveToLibrary(win)
     await openFromLibrary(win, projectB)
     await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '切到生成区')
     await expectAbsent(crop, { provenBy: cropProbe, message: 'B 里不会弹出 A 的选区面板' })
     check(canvasSha256(readCanvas(rootB)) === report.bCanvasSha256Before && JSON.stringify(mediaFiles(rootB)) === JSON.stringify(bFilesBefore), '截图后切到 B：B 完整画布与媒体文件仍零变化')
     // 抓屏在途时就切项目：不等 e2eCapture 返回，立刻回项目库打开 B。无论抓屏赶在切走前还是后完成，
     // B 都不能弹面板、不能多文件；A 是否多一张原图只记录不判定（取决于 desktopCapturer 快慢）。
-    await backToLibrary(win)
+    await leaveToLibrary(win)
     await openFromLibrary(win, projectA)
     await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '切到生成区')
     const aBeforeRace = new Set(Object.keys(mediaFiles(rootA)))
     const inFlightCapture = win.evaluate(() => window.nomiDesktop.screenshot.e2eCapture().then(() => 'ok', (error) => String(error)))
-    await backToLibrary(win)
+    await leaveToLibrary(win)
     await openFromLibrary(win, projectB)
     report.screenshotRaceCaptureResult = await inFlightCapture
     await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '切到生成区')

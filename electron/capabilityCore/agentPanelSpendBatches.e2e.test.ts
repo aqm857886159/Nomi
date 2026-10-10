@@ -3,6 +3,7 @@ import http from "node:http";
 import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchScheduler";
 import { waitForProduction } from "../productionRun/productionRunTestHelpers";
 import { PROJECT_ID, OPERATION_ID, lease, now, candidate, startLoopbackVendor, harness, buildActions, draft, resetSpendFixture } from "./agentPanelSpendConfirmTestUtils";
+import { landedAdmission } from "../productionRun/landFirstTestUtils";
 
 afterEach(resetSpendFixture);
 
@@ -97,11 +98,11 @@ it("S06: executes 3 anchors then the remaining 30 units in the same 33-shot Run,
     expect(nextGate.gateId).not.toBe(firstGate.gateId);
     second = base.repository.execute(PROJECT_ID, OPERATION_ID, { commandId: "second-look-approved", expectedRevision: second.revision,
       type: "gate.decide", payload: { gateId: nextGate.gateId, status: "approved" }, issuedAt: now() }).run;
-    const scheduler = createMultiShotBatchScheduler({ repository: base.repository, submission, projectId: PROJECT_ID,
+    const scheduler = createMultiShotBatchScheduler({ repository: base.repository, landShots: base.canvasLanding.landBeforeDispatch, submission, projectId: PROJECT_ID,
       runId: OPERATION_ID, now });
     await scheduler.runToQuiescence();
     await scheduler.runToQuiescence();
-    await base.canvasLanding.landCanvasBestEffort(PROJECT_ID, OPERATION_ID);
+    await base.canvasLanding.reconcileExistingCanvas(PROJECT_ID, OPERATION_ID);
     const done = base.repository.read(PROJECT_ID, OPERATION_ID)!;
     expect(done.jobs).toHaveLength(33);
     expect(done.jobs.slice(0, 3)).toEqual(first.jobs);
@@ -182,7 +183,7 @@ it("new confirmation of the same candidate uses a distinct attempt and command i
     expect(done.policy.maxSpend).toBe(1);
     expect([...base.renderer.nodes.entries()]).toEqual(nodes);
     // 第一轮那一次仍由它自己那道门盖着（每点一次一份），但它已经出片了：再发一次一律拒绝，供应商那边不多一笔。
-    await expect(submission.start({ projectId: PROJECT_ID, operationId: OPERATION_ID, attempt: 1 })).rejects.toThrow(/observation-only|cannot be submitted/);
+    await expect(submission.start({ projectId: PROJECT_ID, operationId: OPERATION_ID, attempt: 1, admission: await landedAdmission(base.repository, PROJECT_ID, OPERATION_ID) })).rejects.toThrow(/observation-only|cannot be submitted/);
     expect(submits).toHaveLength(2);
   } finally { await vendor.close(); }
 });

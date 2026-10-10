@@ -8,6 +8,8 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-runtime-video-export')
@@ -119,7 +121,7 @@ try {
     env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist/index.html')}`, NODE_ENV: 'production' },
   }))
   await dismissFirstRun(win)
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.waitForTimeout(2200)
   const projectId = decodeURIComponent((/projectId=([^&]+)/.exec(win.url()) || [])[1] || '')
   check(Boolean(projectId), '通过项目库创建真实项目')

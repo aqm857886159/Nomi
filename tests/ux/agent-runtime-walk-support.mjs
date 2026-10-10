@@ -7,6 +7,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
+import { AGENT_PANEL, COLLAPSED_SHELL, COLLAPSE_BUTTON, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
@@ -20,30 +21,19 @@ const { LANE_CODING_TOOL_NAMES } = tsxRequire('../../electron/agentLane/laneCodi
 // 走查里**禁止再手抄这些串**——2026-09-05 那次「面板没渲染」其实是选择器过期
 // （docs/lessons/dead-selector-lies-both-ways.md），一处失效同时造假红和假绿。
 
-/** 外壳：仍然由 ProjectAgentResidentShell 自己发的三个身份属性。 */
-export const AGENT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"]'
+/** 外壳：仍然由 ProjectAgentResidentShell 自己发的三个身份属性。外壳位置（展开 / 收起 / 叫回钮）的唯一定义在 `_shell.mjs`，这里只再导出。 */
+export { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_SHELL }
 export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
 export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
-/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩画面下沿那一坞。 */
-export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
 /**
- * 收起角标 = **顶栏**右簇「浏览器」与「设置」之间那一格（09-01 定稿 §11.2）。
- *
- * 注意它**不在** `COLLAPSED_SHELL` 里面：顶栏在整个工作区外面。从收起外壳里找它永远找不到——
- * 那正是这一版返工要修的事（此前它画在面板自己的地盘上，切面就换落点）。
+ * 收起后叫回 Nomi 的唯一入口 = 内容区右下角那颗 Agent 小球（Chrome 板「四种状态，都不会自己弹开」）。
+ * 顶栏不再放 Agent 角标（协调裁决第 59 项）。小球上的走查锚：
+ *   `data-agent-ball` = idle / running / done / failed / pending（pending = 「等你确认 N」胶囊）；
+ *   `data-agent-dock-status` = 注意力状态词（V4DockStatus）；`data-agent-dock-count` = 待确认条数。
  */
-export const COLLAPSED_DOCK = '[data-agent-topbar-badge="true"]'
-export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
-/** 角标上那一格：`data-agent-dock-badge` = dot（蓝点 8px）/ count（数字徽标）。 */
-export const COLLAPSED_DOCK_BADGE = '[data-agent-dock-badge]'
-/** 「刚变过」那 420ms 里才挂的属性（单次 settle 脉冲）。 */
-export const COLLAPSED_DOCK_SETTLE = '[data-agent-dock-settle="true"]'
-/** hover 才冒的 tooltip。它落在 portal 里，**从窗口根找**，不要从角标的子树里找。 */
-export const COLLAPSED_DOCK_HINT = '[data-agent-dock-hint="true"]'
-/** 顶栏右簇（判角标落位用）。 */
-export const APP_BAR_RIGHT = '.nomi-appbar__right'
+export const COLLAPSED_DOCK = '[data-agent-ball]'
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -125,7 +115,6 @@ export const ACTIVE_PERMISSION_TIER = `${PERMISSION_POPOVER} [data-tier][data-ac
 
 /** 头部两个图标钮。 */
 export const HISTORY_BUTTON = '[data-v4-control="history"]'
-export const COLLAPSE_BUTTON = '[data-v4-control="collapse"]'
 
 /** The real desktop assembly publishes domain and native schemas from the first request. */
 export function residentToolNames() {
@@ -276,16 +265,9 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
   await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
 }
 
-/**
- * 展开常驻面板。收起态是**真实的两态偏好**（持久化），不是加载中间态：
- * 收起时工作区里只剩画面下沿那一坞（`COLLAPSED_SHELL`），叫回面板的钮在**顶栏**那一格
- * （`COLLAPSED_DOCK`，09-01 定稿 §11.2）——所以点的是它，不是从收起外壳里找。
- */
+/** 展开常驻面板（点小球；怎么点、点哪里归 `_shell.mjs`）。 */
 export async function expandResidentPanel(win) {
-  const collapsed = win.locator(COLLAPSED_SHELL)
-  if (await collapsed.isVisible().catch(() => false)) {
-    await clickOrFail(win.locator(COLLAPSED_DOCK_OPEN).first(), '展开常驻 Agent 面板')
-  }
+  await ensureAgentPanelOpen(win)
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
 }
 
@@ -505,7 +487,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
 
   async function newProject() {
     const { win } = current
-    await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), '新建空白项目')
+    await clickOrFail(newProjectEntry(win), '新建空白项目')
     await expect(win.locator(DOCUMENT)).toBeVisible({ timeout: 30_000 })
     const projectId = await win.evaluate(() => {
       const url = new URL(location.href)
@@ -592,4 +574,43 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
   }
 
   return { fixture, report, outputDir, settingsDir, userDataDir, start, newProject, snap, resizeWindow, stopApp, finish }
+}
+
+// ── 「说的 = 做的」：Agent 写文本节点正文之后，面板回执的字要等于登记的文案（中英各核一次）──────────
+// 文案一律从词典按 key 取（uiText），不手抄字面量（copy-literals）。回执收在「用了 N 个工具」折里，要先点开。
+// 2026-10-09 逃逸：Agent 调的是 write_node_text，回执却写「创建或修改镜头卡 · 把镜头卡写入当前画布」。
+async function switchAppLocale(win, locale) {
+  await clickOrFail(win.getByRole('button', { name: /^(设置|Settings)$/ }).first(), '顶栏「设置」')
+  await clickOrFail(win.locator('[data-settings-tab-id="general"]'), '设置「通用」')
+  await clickOrFail(win.locator(`[data-settings-locale="${locale}"]`), `语言 ${locale}`)
+  await clickOrFail(win.locator('[data-settings-close]'), '关闭设置')
+}
+
+/** 展开最后一条「用了 N 个工具」并返回最后一行回执的文字。 */
+async function readLastReceipt(win, locale) {
+  const { uiText, uiTextPattern } = await import('./full-walk/invariants.mjs')
+  const folds = win.locator(CANVAS_PANEL).getByText(new RegExp(uiTextPattern(uiText(locale, 'agentPanelV4.processSummary'))))
+  const receipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
+  if (!(await receipt.isVisible().catch(() => false))) await clickOrFail(folds.last(), '展开「用了 N 个工具」')
+  await expect(receipt).toBeVisible()
+  return receipt
+}
+
+export async function assertNodeTextWriteReceipt(win, { snap }) {
+  const { uiText } = await import('./full-walk/invariants.mjs')
+  const rows = []
+  for (const locale of ['zh-CN', 'en']) {
+    if (locale === 'en') await switchAppLocale(win, 'en')
+    const title = uiText(locale, 'agentResident.toolNodeTextWrite')
+    const summary = uiText(locale, 'agentResident.toolNodeTextWriteSummary')
+    const wrong = uiText(locale, 'agentResident.toolCanvasWriteSummary')
+    const receipt = await readLastReceipt(win, locale)
+    const text = await receipt.innerText()
+    expect(text, `[${locale}] 回执标题 = write_node_text 的登记文案`).toContain(title)
+    expect(text, `[${locale}] 回执摘要 = write_node_text 的登记文案`).toContain(summary)
+    expect(text, `[${locale}] 回执不能套用镜头卡写入的话`).not.toContain(wrong)
+    rows.push({ locale, shot: await snap(`receipt-${locale}`) })
+  }
+  await switchAppLocale(win, 'zh-CN')
+  return rows
 }

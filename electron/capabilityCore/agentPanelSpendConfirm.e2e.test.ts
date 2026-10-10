@@ -111,6 +111,38 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
     }
   });
 
+  // 架构③ Q2（协调会话 10-09）：确认 = 先放到画布、落下了才批、才派。落不下来卡就留在原地（什么都没批），再按一次就是重试。
+  it("落不到画布上：确认不批不派，卡留在原地；再按一次就落下、只派一次", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    const { withWindow } = buildActions(base, vendor.origin, submits);
+    try {
+      base.renderer.setFailing(true);
+      await draft(base);
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+      advanceClock(1000);
+      const quoteId = withWindow.listPendingSpend(PROJECT_ID)[0]!.quoteId;
+      expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId }))
+        .toMatchObject({ ok: false, message: "generation_not_started", failure: "canvas_landing_failed" });
+      expect(submits).toHaveLength(0);
+      expect(vendor.bodies).toHaveLength(0);
+      const after = base.repository.read(PROJECT_ID, OPERATION_ID)!;
+      expect(spendAuthorizationGates(after)).toEqual([]);
+      expect(withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(1);
+
+      base.renderer.setFailing(false);
+      advanceClock(1000);
+      expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: withWindow.listPendingSpend(PROJECT_ID)[0]!.quoteId }))
+        .toMatchObject({ ok: true, code: "spend_confirmed" });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+      expect(submits).toHaveLength(1);
+      expect(base.repository.read(PROJECT_ID, OPERATION_ID)!.generationPlan!.nodeId).toBeTruthy();
+    } finally {
+      await vendor.close();
+    }
+  });
+
   it("确认过一次之后卡就不再出现，重复按也不会再发一次生成（幂等，不重复扣费）", async () => {
     const vendor = await startLoopbackVendor();
     const base = harness();
@@ -672,7 +704,7 @@ for (const pauseAt of ['lease','gate'] as const) it(`project replacement during 
   const actions=createPendingSpendActions({isProjectOpen:()=>true,runs:{read:base.repository.read,list:base.repository.list},operations:base.operations,
     planning:built.handler,receipts:built.receipts,rendererTarget:()=>({webContentsId:1,frameId:0,origin:'app://nomi'}),
     committedBinding:()=>binding,leaseFor:async()=>{if(pauseAt==='lease')await pause();return lease},resolvePricing:()=>PRICING,now,
-    normalizePatch:(baseCandidate,patch)=>resolvePlanPatch({baseCandidate,userPatch:patch,registry}).normalizedPatch,
+    normalizePatch:(baseCandidate,patch)=>resolvePlanPatch({baseCandidate,userPatch:patch,registry}).normalizedPatch,landShots:base.canvasLanding.landBeforeDispatch,
     requestGenerationGate:async input=>{const gate=await built.authority.requestGenerationGate(input);if(pauseAt==='gate')await pause();return gate},
     authorizeGeneration:async()=>{authorized++;throw new Error('authorization must not be reached')},
   });

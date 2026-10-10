@@ -14,6 +14,7 @@ import path from 'node:path'
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
 import { expect, screenshotSettled, expectNoCjkInEnglishDom } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const helpRequested = process.argv.includes('--help') || process.argv.includes('-h')
@@ -108,7 +109,7 @@ async function ensureWorkbench(win) {
     const close = settings.getByRole('button', { name: /关闭|Close/ }).last()
     if (await close.count()) await close.click()
   }
-  const blankProject = win.getByRole('button', { name: /新建空白项目|New blank project/ }).first()
+  const blankProject = newProjectEntry(win)
   if (await blankProject.count()) {
     await blankProject.click({ noWaitAfter: true })
     await win.getByText(/创作助手|Creative assistant/).first().waitFor({ state: 'visible', timeout: 8_000 })

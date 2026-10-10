@@ -18,6 +18,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/spend-confirm-a11y')
@@ -63,7 +64,7 @@ try {
   await win.waitForTimeout(1800)
 
   // 进 studio：花钱确认卡挂在 NomiStudioApp 根，库页上不存在。
-  const blank = win.locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blank = newProjectEntry(win)
   await blank.waitFor({ state: 'visible', timeout: 20_000 })
   await blank.click()
   await win.waitForTimeout(2600)

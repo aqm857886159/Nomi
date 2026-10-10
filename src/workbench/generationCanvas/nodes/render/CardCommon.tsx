@@ -10,13 +10,17 @@
 import React, { type JSX } from 'react'
 import { isProjectExecutionContextCurrent, withProjectAction, type ProjectExecutionContext } from '../../../project/projectCanvasReadSurface'
 import { useTranslation } from 'react-i18next'
-import { Icon3dCubeSphere, IconBox, IconMusic, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
+import { Icon3dCubeSphere, IconBox, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import i18n from '../../../../i18n'
 import { NodeEmptyState } from './NodeEmptyState'
+import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
+import { NodeTryList } from '../../quickActions/NodeTryList'
+import { nodeTryRecipes } from '../../quickActions/nodeTryRecipes'
 
-export const STRIPED_BG_CLASS =
-  'bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]'
+/** 没出图 / 没放素材的卡面：纸白底（Claude Design 拍板稿 EmptyStates：去掉斜线底纹，卡的描边由外壳给）。 */
+export const EMPTY_SURFACE_CLASS =
+  'bg-nomi-paper'
 
 /**
  * 透明图的棋盘格底（亮 / 暗两套 token 自动跟主题）。只垫在**抠图结果**下面：
@@ -123,25 +127,41 @@ export function VariantChip({ count }: { count: number }): JSX.Element | null {
   )
 }
 
-/** 空媒体只提示下一步操作；镜头号和标题属于共同框外标签行。 */
+/**
+ * 空媒体只给下一步；镜头号和标题属于共同框外标签行。
+ * 2026-10-08 拍板 ③：图片 / 视频空卡用「试试」（2–3 个只搭结构的创作任务）**替换**那一句操作说明——
+ * 标题和说明都不再出现（种类已由图标和框外标签行说了）。派生好待生成、已连上游等产出两种状态仍是一句话：
+ * 那是在告诉用户此刻的状态，不是教他怎么用。3D 模型还没有配方，保留原说明。
+ */
 export function PendingGenerationPlaceholder({
+  node,
   selected,
-  needsFirstFrame,
   waitingUpstream = false,
   derivedReady = false,
-  kind,
 }: {
+  node: GenerationCanvasNode
   selected: boolean
-  needsFirstFrame: boolean
   waitingUpstream?: boolean
   /** 派生出来、提示词已填好、还没生成（`isDerivedPromptReady`）。 */
   derivedReady?: boolean
-  kind: string
 }): JSX.Element {
   const { t } = useTranslation()
-  const isVideo = kind === 'video'
+  const isVideo = node.kind === 'video'
   // 3D 模型节点也走这条通用占位（无专属卡 body）。不按 kind 分就会拿图片文案自称「图片节点」。
-  const isModel3d = kind === 'model3d'
+  const isModel3d = node.kind === 'model3d'
+  const icon = isVideo ? <IconVideo size={20} stroke={1.6} /> : isModel3d ? <Icon3dCubeSphere size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />
+  if (!derivedReady && !waitingUpstream && nodeTryRecipes(node).length) {
+    return (
+      <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
+        <NodeEmptyState
+          icon={icon}
+          title={t(isVideo ? 'canvas.nodeKinds.video' : 'canvas.nodeKinds.image')}
+          description={t(isVideo ? 'generationCommon.nodeTry.status.video' : 'generationCommon.nodeTry.status.image')}
+          action={<NodeTryList node={node} />}
+        />
+      </div>
+    )
+  }
   const titleText = derivedReady
     ? t('generationCommon.nodeEmpty.derivedReady.title')
     : isVideo
@@ -153,20 +173,12 @@ export function PendingGenerationPlaceholder({
     ? t('generationCommon.nodeEmpty.derivedReady.description')
     : waitingUpstream
     ? t('generationCommon.nodeEmpty.waiting')
-    : needsFirstFrame
-      ? t('generationCommon.nodeEmpty.firstFrame')
-      : isVideo
-        ? t('generationCommon.nodeEmpty.video.description')
-        : isModel3d
-          ? t('generationCommon.nodeEmpty.model3d.description')
-          : t('generationCommon.nodeEmpty.image.description')
+    : isModel3d
+      ? t('generationCommon.nodeEmpty.model3d.description')
+      : undefined
   return (
     <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
-      <NodeEmptyState
-        icon={isVideo ? <IconVideo size={20} stroke={1.6} /> : isModel3d ? <Icon3dCubeSphere size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />}
-        title={titleText}
-        description={description}
-      />
+      <NodeEmptyState icon={icon} title={titleText} description={description} />
     </div>
   )
 }
@@ -358,21 +370,20 @@ export function GeneratingOverlay({
 }
 
 /**
- * v0.7.1: 卡片上传 CTA — 占位态时显示 + 上传按钮。
- * - image 卡（character/scene/prop）：accept=image/*
- * - audio 卡：accept=audio/*
+ * v0.7.1: 卡片上传 CTA — 角色 / 场景 / 道具卡占位态时显示 + 上传按钮（accept=image/*）。
  * 上传后通过 onUpload(dataUrl, file) 回调写到 node.result。
+ * 只有这三种卡用它（图片 / 视频 / 声音卡的空态各有自己的一套：「试试」/ 声音条），不再留它们的分支。
  */
 export function UploadFallback({
   accept,
   label,
   onUpload,
-  kind = 'image',
+  kind,
 }: {
   accept: string
   label: string
   onUpload: (dataUrl: string, file: File, context: ProjectExecutionContext) => void
-  kind?: 'image' | 'video' | 'audio' | 'character' | 'scene' | 'prop'
+  kind: 'character' | 'scene' | 'prop'
 }): JSX.Element {
   const { t } = useTranslation()
   const handleChange = React.useCallback(
@@ -395,21 +406,13 @@ export function UploadFallback({
   // v0.7.3 fix: 不 stopPropagation onPointerDown — 否则空卡片没法拖动。
   // 「短按弹文件框、长按拖动」由外壳 useNodeDragResize 保证：pointer capture 推迟到拖拽
   // 阈值(2px)跨过才抢——按下就抢会把 click 重定向到外壳，label 弹文件框整类失效（2026-08-03 群反馈）。
-  const isAudio = accept.startsWith('audio')
-  const isVideo = accept.startsWith('video')
-  const icon = isAudio ? <IconMusic size={20} stroke={1.6} /> : isVideo ? <IconVideo size={20} stroke={1.6} /> : kind === 'character' ? <IconUser size={20} stroke={1.6} /> : kind === 'scene' ? <IconMap size={20} stroke={1.6} /> : kind === 'prop' ? <IconBox size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />
+  const icon = kind === 'character' ? <IconUser size={20} stroke={1.6} /> : kind === 'scene' ? <IconMap size={20} stroke={1.6} /> : <IconBox size={20} stroke={1.6} />
   const action = t('generationCommon.card.upload', { label })
   const nodeCopy = kind === 'character'
     ? { title: t('generationCommon.nodeEmpty.character.title'), description: t('generationCommon.nodeEmpty.character.description') }
     : kind === 'scene'
       ? { title: t('generationCommon.nodeEmpty.scene.title'), description: t('generationCommon.nodeEmpty.scene.description') }
-      : kind === 'prop'
-        ? { title: t('generationCommon.nodeEmpty.prop.title'), description: t('generationCommon.nodeEmpty.prop.description') }
-        : isAudio
-          ? { title: t('generationCommon.nodeEmpty.audio.title'), description: t('generationCommon.nodeEmpty.audio.description') }
-          : isVideo
-            ? { title: t('generationCommon.nodeEmpty.video.title'), description: t('generationCommon.nodeEmpty.video.description') }
-            : { title: t('generationCommon.nodeEmpty.image.title'), description: t('generationCommon.nodeEmpty.image.description') }
+      : { title: t('generationCommon.nodeEmpty.prop.title'), description: t('generationCommon.nodeEmpty.prop.description') }
   return (
     <label className="block h-full w-full cursor-pointer text-nomi-ink-60 transition-colors hover:text-nomi-ink hover:bg-nomi-ink-05/50">
       <NodeEmptyState

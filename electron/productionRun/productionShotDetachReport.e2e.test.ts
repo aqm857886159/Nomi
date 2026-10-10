@@ -49,6 +49,7 @@ import { registerProductionRunIpc } from "./productionRunIpc";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun, RunCommand, RunCommandResult } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 const PROJECT = "project-1";
 const RUN = "op-batch";
@@ -124,7 +125,7 @@ async function runScheduler(root: string, repository: ReturnType<typeof createPr
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
     now,
   });
-  await createMultiShotBatchScheduler({ repository, submission, projectId: PROJECT, runId: RUN, now }).runToQuiescence();
+  await createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: PROJECT, runId: RUN, now }).runToQuiescence();
 }
 
 const shot2 = (run: ProductionRun | null) => ({

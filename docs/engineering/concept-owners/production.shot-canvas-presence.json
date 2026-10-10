@@ -22,7 +22,6 @@
     {
       "path": "src/workbench/capability/multiShotCanvasLanding.ts",
       "symbol": "materializeShots"
-
     }
   ],
   "forbidden_derivations": [],
@@ -31,8 +30,10 @@
     "electron/productionRun/productionRunCanvasLandingReducer.ts",
     "electron/capabilityCore/appIntegration.ts",
     "src/workbench/production/ProductionCanvasLandingHost.tsx",
-    "src/workbench/production/reportDetachedShotNodes.ts"
+    "src/workbench/production/reportDetachedShotNodes.ts",
+    "electron/productionRun/shotLandingAdmission.ts",
+    "electron/capabilityCore/appIntegrationLandFirst.ts"
   ],
   "since": "2026-10-03",
-  "notes": "「这一镜的节点在不在画布上」只有已装载的画布文档说了算；Run 里的 nodeId / canvasDetached 只是上报留下的记录（合同 docs/fixes/2026-10-03-switch-project-landing.root-cause.json，S1-5）。写这份记录的只有两条：删除手势通过 productionCanvasSignals 显式上报（装载 / 卸下只重记基线）和落地绑定（canvasLandingHost → plan.bind-shot-nodes）。每一次落地投影（确认即落 / 草稿 / 跟随 / 打开项目对账，含已结束的 Run）都把记了 detached 的镜投成 existingOnly：节点真不在不复活，节点还在就对上真实状态并回报绑定；纠正型绑定的命令号带它纠正的 revision，仓库的命令号幂等重放吞不掉它。不许再在别处按 canvasDetached 把一镜从投影里滤掉。"
+  "notes": "「这一镜的节点在不在画布上」只有已装载的画布文档说了算；Run 里的 nodeId / canvasDetached 只是上报留下的记录（合同 docs/fixes/2026-10-03-switch-project-landing.root-cause.json，S1-5）。写这份记录的只有两条：删除手势通过 productionCanvasSignals 显式上报（装载 / 卸下只重记基线）和落地绑定（canvasLandingHost → plan.bind-shot-nodes）。每一次落地投影（确认即落 / 草稿 / 跟随 / 打开项目对账，含已结束的 Run）都把记了 detached 的镜投成 existingOnly：节点真不在不复活，节点还在就对上真实状态并回报绑定；纠正型绑定的命令号带它纠正的 revision，仓库的命令号幂等重放吞不掉它。不许再在别处按 canvasDetached 把一镜从投影里滤掉。 2026-10-08 架构③：派发前的那一次落地（landBeforeDispatch）不再 best-effort——失败如实抛，由 shotLandingAdmission 判不派；文稿来源计划在这一次真建节点（确认 = 放到画布），草稿投影 / 跟随 / 对账仍不替用户放。落地报文带上 Run 绑着的 nodeId：节点不在时渲染层把这一镜的结局按 nodeId 暂存（holdRunOutcome），撤销 / 放回时落上，不再静默跳过。"
 }

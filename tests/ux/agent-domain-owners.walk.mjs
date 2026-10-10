@@ -24,6 +24,7 @@ import {
 import { lastUserText, operationIdOf, scriptTurn } from './full-walk/brain.mjs'
 import { startPlaybook } from './full-walk/launch.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -124,7 +125,7 @@ try {
   await row('attach-reopen', EN ? 'Close the project, reopen, look at that message' : '关掉项目再打开，看那条历史消息', EN ? 'The attachment is still there' : '附件还在', async (record) => {
     // 回项目库再打开是用户的动作：项目库里没有工作区（workspaceMode 读成空），打开后回到生成页——整段声明成用户动作。
     await pb.monitor.step('用户：回项目库、再打开这个项目', async () => {
-      await clickOrFail(win().getByRole('button', { name: /返回项目库|Back to (the )?(project )?library|Project library|Projects/i }), '顶栏「项目库」')
+      await backToLibrary(win(), { label: '顶栏「项目库」' })
       await smoke.openProject()
       await expandResidentPanel(win())
     }, { surfaces: ['*'] })

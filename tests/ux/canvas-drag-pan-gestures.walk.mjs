@@ -19,7 +19,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import {
-  CANVAS_PANE_SELECTOR, expectArrivalsReachable, findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled,
+  CANVAS_PANE_SELECTOR, expectArrivalsReachable, findCanvasBlankPoint, findEdgeHitPoint, findNodeHitPoint, waitForCanvasViewportSettled,
 } from './_canvasHit.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 
@@ -923,7 +923,7 @@ try {
   assert(handleHit.magnetic, '图片节点右侧握把可点', JSON.stringify(handleHit))
   // 松手点取视频卡上**真正露出来、点得到**的一点：选中图片卡时它的浮框钉在正下方、定宽 560（被挡就挡，09-25），
   // 在 1280×800 的 Linux 字体下会盖住视频卡的几何中心——落在浮框上松手，人也连不上。人会把线拖到看得见的那块卡面上。
-  const videoDropPoint = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
+  const videoDropPoint = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video, clearOfOtherNodes: 28 })
   assert(Boolean(videoDropPoint), '视频卡上找得到一处露出来的松手点', JSON.stringify({ videoBox }))
   await getWin().mouse.move(handlePoint.x, handlePoint.y)
   await getWin().mouse.down()
@@ -983,65 +983,30 @@ try {
   const blankForDeselect = await findBlankPoint()
   await getWin().mouse.click(blankForDeselect.x, blankForDeselect.y)
   await getWin().waitForTimeout(300)
-  const labelsWhenIdle = await getWin().evaluate(
-    () => document.querySelectorAll('.generation-canvas-v2__edge-tag-pill').length,
-  )
-  await snap('03-edge-labels-hidden.png')
-  assert(labelsWhenIdle === 0, '没选中任何节点时，画布上一个连线标签都没有')
 
   const videoHit = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
   assert(Boolean(videoHit), '视频卡上找得到真正点得到的一点', JSON.stringify(videoHit))
   await getWin().mouse.click(videoHit.x, videoHit.y)
   await getWin().waitForTimeout(400)
-  const selectedEdgeState = await getWin().evaluate(() => {
-    const label = document.querySelector('.generation-canvas-v2__edge-tag-pill')
-    const accentProbe = document.createElement('span')
-    accentProbe.style.color = 'var(--nomi-accent)'
-    document.body.appendChild(accentProbe)
-    const accent = getComputedStyle(accentProbe).color
-    accentProbe.remove()
-    const labelStyle = label ? getComputedStyle(label) : null
-    return {
-      labels: document.querySelectorAll('.generation-canvas-v2__edge-tag-pill').length,
-      incident: document.querySelectorAll('.generation-canvas-v2__edge[data-incident="true"]').length,
-      fontSize: labelStyle?.fontSize || null,
-      color: labelStyle?.color || null,
-      accent,
-      hasChevron: Boolean(label?.querySelector('svg')),
-    }
-  })
+  const selectedEdgeState = await getWin().evaluate(() => ({
+    incident: document.querySelectorAll('.generation-canvas-v2__edge[data-incident="true"]').length,
+  }))
   await snap('04-edge-labels-on-selection.png')
   assert(selectedEdgeState.incident >= 1, '选中节点后其关联边点亮（data-incident）')
-  assert(selectedEdgeState.labels >= 1, '选中节点后其关联边的类型标签浮出', JSON.stringify(selectedEdgeState))
-  assert(
-    selectedEdgeState.fontSize === '12px' && selectedEdgeState.color === selectedEdgeState.accent && selectedEdgeState.hasChevron,
-    '连线标签恢复 12px accent 文字与下拉图标',
-    JSON.stringify(selectedEdgeState),
-  )
+  // 旧断言「选中节点后关联边的类型标签浮出、12px accent 文字与下拉图标」作废：用户 10-08「连线之间的标签似乎没用」，标签整体删除（后面「悬停出 ×」那步是正向断言）。
 
-  // 同一条真实任务继续：改边模式 / 断开 / 锁定，各按一次 Cmd+Z，不能撤掉前一笔。
+  // 同一条真实任务继续：断开 / 锁定，各按一次 Cmd+Z，不能撤掉前一笔。
+  // （旧的「改边模式 → Cmd+Z」整段作废：连线中点的模式胶囊与菜单已删，用途改在目标节点的参考槽里设置。）
   const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
-  const edgeLabel = getWin().locator('.generation-canvas-v2__edge-tag-pill').first()
-  const historyEdge = getWin().locator(OWN.edge).first()
-  const originalMode = await historyEdge.getAttribute('data-mode')
-  const originalModeLabel = await edgeLabel.innerText()
-  await edgeLabel.click()
-  const alternativeMode = getWin().getByRole('menuitemradio', { checked: false }).first()
-  await expect(alternativeMode).toBeVisible()
-  await alternativeMode.click()
-  // 通用 reference 边按现行设计不显示标签；检查真实边语义，不能要求它强行露出。
-  await expect(historyEdge).not.toHaveAttribute('data-mode', originalMode)
-  await expect(historyEdge).toBeVisible()
-  await snap('04a-edge-mode-changed.png')
-  await getWin().keyboard.press(`${mod}+z`)
-  await expect(historyEdge).toHaveAttribute('data-mode', originalMode)
-  await expect(edgeLabel).toHaveText(originalModeLabel)
-  await expect.poll(async () => (await ownEdgeIds()).length).toBe(edgeCount)
-  await expect(getWin().locator(OWN.node)).toHaveCount(nodeIds.length)
-  await snap('04b-edge-mode-undone.png')
-
-  await edgeLabel.click()
-  await getWin().locator('.generation-canvas-react-flow__edge-menu-delete').click()
+  // 选中的卡两侧的磁吸带子会盖住近处的连线：先点空白放掉选择，再去点线（用户也是这么点的）。
+  const blankBeforeEdge = await findBlankPoint()
+  await getWin().mouse.click(blankBeforeEdge.x, blankBeforeEdge.y)
+  await getWin().waitForTimeout(300)
+  const edgeHit = await findEdgeHitPoint(getWin(), { edgeSelector: `${OWN.edge} .generation-canvas-v2__edge-hit`, margins: { left: 16, top: 80, right: 16, bottom: 16 } })
+  // 点的必须是刚连出来的那条（used 夹具里另有 27 条线，取第一条会点断别人的线）。
+  assert(Boolean(edgeHit), '连线上找得到真正点得到的一点', JSON.stringify(edgeHit))
+  await getWin().mouse.move(edgeHit.x, edgeHit.y)
+  await getWin().locator('[data-edge-disconnect]').first().click()
   await expect.poll(async () => (await ownEdgeIds()).length).toBe(edgeCount - 1)
   await snap('04c-edge-disconnected.png')
   await getWin().keyboard.press(`${mod}+z`)
@@ -1049,6 +1014,9 @@ try {
   await expect(getWin().locator(OWN.node)).toHaveCount(nodeIds.length)
   await snap('04d-edge-disconnect-undone.png')
 
+  // 前面为点线放掉了选择；锁定徽标在选中的视频卡上，重新点选它。
+  await getWin().mouse.click(videoHit.x, videoHit.y)
+  await getWin().waitForTimeout(300)
   const lockBadge = videoNode.locator('[data-node-lock]')
   await expect(lockBadge).toHaveAttribute('data-node-lock', 'unlocked')
   await lockBadge.click()
@@ -1057,7 +1025,7 @@ try {
   await expect(lockBadge).toHaveAttribute('data-node-lock', 'unlocked')
   await expect.poll(async () => (await ownEdgeIds()).length).toBe(edgeCount)
   await snap('04e-node-lock-undone.png')
-  console.log('  ✓ 改边模式、断线、锁定各按一次 Cmd+Z 还原，前一笔节点/连线保留')
+  console.log('  ✓ 断线、锁定各按一次 Cmd+Z 还原，前一笔节点/连线保留')
 
   // ── ④ 拖动节点：浮条 / 提示词面板隐身，松手回来 ─────────────────────────
   const composerBefore = await getWin().evaluate(() => {

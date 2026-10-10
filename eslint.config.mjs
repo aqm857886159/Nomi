@@ -66,9 +66,10 @@ const directQuitExemptionFiles = [
   // Separate one-shot headless Electron entry (spawned as "electron host.js"); the GUI owner is
   // never installed in that process and its finally block is the whole lifecycle.
   'electron/capabilityCore/host.ts',
+  // (the single install entry, see electron/update/installGate.ts)
   // electron-updater quitAndInstall closes windows and then calls app.quit(), so it re-enters the
   // owner's before-quit / will-quit; the restart itself is the updater's platform primitive.
-  'electron/update/autoUpdater.ts',
+  'electron/update/installGate.ts',
 ]
 
 export default tseslint.config(

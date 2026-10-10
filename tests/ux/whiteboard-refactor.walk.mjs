@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/whiteboard-refactor')
@@ -54,7 +55,7 @@ try {
   await win.reload(); await win.waitForTimeout(1500)
   await dismiss()
 
-  await getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first().click({ timeout: 4000 }).catch(() => {})
+  await newProjectEntry(getWin()).click({ timeout: 4000 }).catch(() => {})
   await dismiss()
   await getWin().waitForTimeout(1400)
   const projectId = (/projectId=([^&]+)/.exec(getWin().url()) || [])[1] || ''

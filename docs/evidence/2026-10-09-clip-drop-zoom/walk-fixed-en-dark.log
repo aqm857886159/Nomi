@@ -1,0 +1,34 @@
+PASS V @50% 外观取证截图已落盘 {"dir":"D:/Nomi-clipdrag/.tmp/d1-shots"}
+PASS D1 @50% 素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点 {"coveredBefore":{"inAxis":false,"inComposer":true},"flagDuring":"true","topDuring":{"inAxis":true,"inComposer":false},"insertedStart":120,"flagAfte
+PASS D1 @50% 拖放被取消（dragend / Esc）后旗摘掉 {"raised":"true","afterDragend":null,"afterEscape":null}
+PASS P5 @50% 没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷 {"box":{"w":36,"h":11},"top":{"isNotch":true,"tag":"svg"},"mimes":["application/x-tapcanvas-generation-node"]}
+PASS P4 @50% 画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前 {"prevented":true,"caretOk":true,"caretX":385,"bLeftX":385,"before":[0,120,240,360],"after":[0,120,240,360,480],"insertedStart":120}
+PASS P4 @50% 拖到最后一个片段之后：追加在末尾，不重叠（同一份素材可再次入轴） {"count":6,"lastStart":850,"prevEnd":600}
+PASS P4 @50% 素材库载荷落进剪辑节点：接收口接收、出插入指示、追加一个片段 {"prevented":true,"caret":true,"libBefore":6,"libAfter":7}
+PASS P6A @50% 窄片段（屏幕宽 7px < 24px）外侧 1px 按下能拖动它 {"screenWidth":7,"dragging":"true","startBefore":270,"startAfter":390}
+PASS P6B @50% 片段拖到轴右边缘停住，轴自动向右滚动，片段跟着走远 {"scrollBefore":0,"scrollMid":1018,"startBefore":90,"startAfter":3136}
+PASS G1 @50% 全局时间轴：未选中片段悬停即显出右手柄并能拉长 {"selectedBefore":"false","handleCount":1,"opacity":1,"widthBefore":250,"widthAfter":265}
+PASS O1 @50% 预览取景拖动被 pointercancel 打断后回到拖之前 {"moved":true,"restored":true,"stayed":true}
+PASS V @100% 外观取证截图已落盘 {"dir":"D:/Nomi-clipdrag/.tmp/d1-shots"}
+PASS D1 @100% 素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点 {"coveredBefore":{"inAxis":false,"inComposer":true},"flagDuring":"true","topDuring":{"inAxis":true,"inComposer":false},"insertedStart":120,"flagAft
+PASS D1 @100% 拖放被取消（dragend / Esc）后旗摘掉 {"raised":"true","afterDragend":null,"afterEscape":null}
+PASS P5 @100% 没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷 {"box":{"w":73,"h":21},"top":{"isNotch":true,"tag":"svg"},"mimes":["application/x-tapcanvas-generation-node"]}
+PASS P4 @100% 画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前 {"prevented":true,"caretOk":true,"caretX":310,"bLeftX":310,"before":[0,120,240,360],"after":[0,120,240,360,480],"insertedStart":120}
+PASS P4 @100% 拖到最后一个片段之后：追加在末尾，不重叠（同一份素材可再次入轴） {"count":6,"lastStart":875,"prevEnd":600}
+PASS P4 @100% 素材库载荷落进剪辑节点：接收口接收、出插入指示、追加一个片段 {"prevented":true,"caret":true,"libBefore":6,"libAfter":7}
+PASS P6A @100% 窄片段（屏幕宽 14px < 24px）外侧 1px 按下能拖动它 {"screenWidth":14,"dragging":"true","startBefore":270,"startAfter":330}
+PASS P6B @100% 片段拖到轴右边缘停住，轴自动向右滚动，片段跟着走远 {"scrollBefore":0,"scrollMid":456,"startBefore":90,"startAfter":1957}
+PASS G1 @100% 全局时间轴：未选中片段悬停即显出右手柄并能拉长 {"selectedBefore":"false","handleCount":1,"opacity":1,"widthBefore":250,"widthAfter":265}
+PASS O1 @100% 预览取景拖动被 pointercancel 打断后回到拖之前 {"moved":true,"restored":true,"stayed":true}
+PASS V @150% 外观取证截图已落盘 {"dir":"D:/Nomi-clipdrag/.tmp/d1-shots"}
+PASS D1 @150% 素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点 {"coveredBefore":{"inAxis":false,"inComposer":true},"flagDuring":"true","topDuring":{"inAxis":true,"inComposer":false},"insertedStart":120,"flagAft
+PASS D1 @150% 拖放被取消（dragend / Esc）后旗摘掉 {"raised":"true","afterDragend":null,"afterEscape":null}
+PASS P5 @150% 没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷 {"box":{"w":109,"h":32},"top":{"isNotch":true,"tag":"svg"},"mimes":["application/x-tapcanvas-generation-node"]}
+PASS P4 @150% 画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前 {"prevented":true,"caretOk":true,"caretX":297,"bLeftX":297,"before":[0,120,240,360],"after":[0,120,240,360,480],"insertedStart":120}
+PASS P4 @150% 拖到最后一个片段之后：追加在末尾，不重叠（同一份素材可再次入轴） {"count":6,"lastStart":883,"prevEnd":600}
+PASS P4 @150% 素材库载荷落进剪辑节点：接收口接收、出插入指示、追加一个片段 {"prevented":true,"caret":true,"libBefore":6,"libAfter":7}
+PASS P6A @150% 窄片段（屏幕宽 21px < 24px）外侧 1px 按下能拖动它 {"screenWidth":21,"dragging":"true","startBefore":270,"startAfter":312}
+PASS P6B @150% 片段拖到轴右边缘停住，轴自动向右滚动，片段跟着走远 {"scrollBefore":0,"scrollMid":300,"startBefore":90,"startAfter":1627}
+PASS G1 @150% 全局时间轴：未选中片段悬停即显出右手柄并能拉长 {"selectedBefore":"false","handleCount":1,"opacity":1,"widthBefore":250,"widthAfter":265}
+PASS O1 @150% 预览取景拖动被 pointercancel 打断后回到拖之前 {"moved":true,"restored":true,"stayed":true}
+RESULT 33/33 passed

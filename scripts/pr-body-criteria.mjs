@@ -68,14 +68,27 @@ export function implementationLine(body) {
   return match ? match[1].trim() : null
 }
 
-export function checkIndependentAcceptance(body) {
+/**
+ * 判据跑在哪一步：'push'（推送前钩子）或 'merge'（CI 的 check:pr-judgement、合并前扫描）。
+ * 独立验收的报告要等分支推上去、验收线跑完才有，推送时只能写「待出」——推送前只提醒，CI / 合并前照旧要链接。
+ * CI 里一律按 'merge'：继承来的环境变量不能在那里放宽判据。
+ */
+export function resolveJudgementStage(env = process.env) {
+  if (env.CI) return 'merge'
+  return env.NOMI_PR_JUDGEMENT_STAGE === 'push' ? 'push' : 'merge'
+}
+
+export function checkIndependentAcceptance(body, { stage = 'merge' } = {}) {
   const section = extractSection(body, '独立验收')
   if (section === null) return { ok: false, lines: [`✖ 四类改动缺 \`## 独立验收\` 一节（报告链接 + 验收线编号）${englishHeadingHint(body, '独立验收')}`] }
   const lines = []
   let ok = true
   if (!/https?:\/\/\S+|docs\/\S+\.md/.test(section)) {
-    ok = false
-    lines.push('✖ 独立验收没有带报告链接')
+    if (stage === 'push') lines.push('⚠ 独立验收还没有报告链接：推送时允许（报告要推送后才有），CI 的 check:pr-judgement 与合并前扫描会一直红到补上链接')
+    else {
+      ok = false
+      lines.push('✖ 独立验收没有带报告链接')
+    }
   }
   const verifier = /验收线\s*(?:编号)?\s*[:：]\s*([^，,；;|\r\n]+)/.exec(section)
   if (!verifier) {
@@ -197,7 +210,7 @@ export const renderReport = ({ pr, ...rest }) => mergeReport(pr, renderBodyLines
  *   contracts / ledger（transitions、ids、removed、settledContracts）见 checkEscapeContract / ledgerChanges；
  *   createdAt: PR 创建时间（拿不到 = 不宽限，fail-closed）；enforce: 假设规则已生效（回放用）。
  */
-export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false }) {
+export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge' }) {
   const normalized = files.map((file) => ({ ...file, status: file.status === 'added' ? 'A' : file.status }))
   const withAdded = addedByFile ? normalized.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })) : normalized
   const classification = classifyChange(withAdded, addedLines)
@@ -213,7 +226,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
   const result = renderBodyLines({
     classification,
     design: checkDesignCard(body, classification),
-    acceptance: checkIndependentAcceptance(body),
+    acceptance: checkIndependentAcceptance(body, { stage }),
     escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? []),
     scope: judgement.scope,
     routing: judgement.routing,

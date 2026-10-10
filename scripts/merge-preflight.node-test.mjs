@@ -13,6 +13,7 @@ import {
   isGrandfathered,
   ledgerChanges,
   renderReport,
+  resolveJudgementStage,
 } from './pr-body-criteria.mjs'
 import { checkProtectedScope, escapeLedgerFromTree, extractSection, parsePullFileRows } from './merge-preflight.mjs'
 
@@ -79,6 +80,24 @@ test('独立验收：要有报告链接和验收线编号，且不同于实现�
   const noLink = FULL_CARD.replace('https://example.com/report', '见群里')
   assert.match(checkIndependentAcceptance(noLink).lines.join('\n'), /没有带报告链接/)
   assert.equal(checkIndependentAcceptance('## 设计卡\nx').ok, false)
+})
+
+test('独立验收的报告链接：推送时只提醒（报告要推送后才有），合并时照旧必须有；CI 里不认推送档', () => {
+  const pending = FULL_CARD.replace('https://example.com/report', '未验证：待协调会话指派验收线')
+  const atPush = checkIndependentAcceptance(pending, { stage: 'push' })
+  assert.equal(atPush.ok, true)
+  assert.match(atPush.lines.join('\n'), /⚠ 独立验收还没有报告链接/)
+  assert.equal(checkIndependentAcceptance(pending).ok, false, '缺省按合并判')
+  assert.equal(checkIndependentAcceptance(pending, { stage: 'merge' }).ok, false)
+  // 推送档只放宽「链接」这一项：没有这一节、没写验收线、验收线等于实现线，推送时照样红
+  assert.equal(checkIndependentAcceptance('## 设计卡\nx', { stage: 'push' }).ok, false)
+  assert.equal(checkIndependentAcceptance(pending.replace(/验收线：线 B/, ''), { stage: 'push' }).ok, false)
+  const same = pending.replace('线/负责人：线 A', '实现线：线B').replace('验收线：线 B', '验收线：线B')
+  assert.equal(checkIndependentAcceptance(same, { stage: 'push' }).ok, false)
+  assert.equal(resolveJudgementStage({ NOMI_PR_JUDGEMENT_STAGE: 'push' }), 'push')
+  assert.equal(resolveJudgementStage({}), 'merge')
+  assert.equal(resolveJudgementStage({ NOMI_PR_JUDGEMENT_STAGE: 'push', CI: 'true' }), 'merge', 'CI 里继承来的变量不能放宽判据')
+  assert.equal(resolveJudgementStage({ NOMI_PR_JUDGEMENT_STAGE: 'merge-later' }), 'merge')
 })
 
 test('账本删除判定对 merge-base 比：main 后来新加的条目不算本 PR 删的（#1055 / #1065）——一条一个文件后由文件表天然保证', () => {

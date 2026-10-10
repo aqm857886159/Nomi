@@ -272,7 +272,7 @@ try {
         title: el.closest('span[title]')?.getAttribute('title') ?? null,
         label: el.getAttribute('aria-label'),
         text: el.textContent?.trim() ?? '',
-        hasLoadingMark: Boolean(el.querySelector('svg, [data-nomi-loading-mark]')) && el.dataset.exportBusy === 'true',
+        hasLoadingMark: Boolean(el.querySelector('svg')) && el.dataset.exportBusy === 'true',
         progressNow: bar?.getAttribute('aria-valuenow') ?? null,
         progressText: bar?.getAttribute('aria-valuetext') ?? null,
         stageText: document.querySelector('.workbench-preview-player__export-progress span')?.textContent?.trim() ?? null,

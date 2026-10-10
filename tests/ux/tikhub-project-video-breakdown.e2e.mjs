@@ -12,6 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const FIXTURE_VIDEO = path.join(repoRoot, 'tests/ux/fixtures/fixture-video.mp4')
 const TEMP_ROOT = makeTempDir('nomi-tikhub-video-breakdown-')
@@ -189,7 +190,7 @@ async function openAssets(win) {
 
 async function runJourney(app, win, tikhub, vision) {
   await dismissChrome(win)
-  const newProject = win.getByText('新建空白项目', { exact: true }).first()
+  const newProject = newProjectEntry(win)
   await newProject.waitFor({ state: 'visible', timeout: 15_000 })
   await newProject.click()
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: 15_000 })

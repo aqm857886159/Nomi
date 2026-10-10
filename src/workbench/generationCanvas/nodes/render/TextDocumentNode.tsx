@@ -21,9 +21,21 @@ import { useNomiRichTextEditor } from '../../../common/useNomiRichTextEditor'
 import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 import { buildRichTextActions } from '../../../common/richTextActions'
 import { NodeEmptyState } from './NodeEmptyState'
+import { toast } from '../../../../ui/toast'
+import { requestTaskCancel } from '../../runner/localTaskControl'
+import { presetBlockHint, runTextPreset, useTextPresetBlocks } from '../textProcessRun'
+import { TEXT_PROCESS_PRESET_LABEL_KEY, countSplitItems, type TextProcessPresetId } from '../../runner/textProcessPresets'
+import { docToPlainText } from '../../runner/textGenerationDocument'
+import { NomiLoadingMark } from '../../../../design'
+import { useNodePromptFocusRequest } from '../nodePromptFocus'
 import { landSelectionRewrite } from '../../runner/textActions'
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [] }
+
+/** 空文本节点的「试试」：只放它真能做好的三件（写剧本去创作页，不放这里）。 */
+const EMPTY_TRY_PRESETS = ['expand', 'describe', 'split'] as const satisfies readonly TextProcessPresetId[]
+/** 正文长到这个字数，底部提示「在节点里滚动」。 */
+const LONG_TEXT_CHARACTERS = 600
 type Props = {
   node: GenerationCanvasNode
 }
@@ -40,16 +52,16 @@ function isDocEmpty(doc?: TiptapDocJson): boolean {
 
 function TextDocumentNodeImpl({ node }: Props): JSX.Element {
   const { t } = useTranslation()
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  const writeNodeBody = useGenerationCanvasStore((state) => state.writeNodeBody)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
 
   const content = React.useMemo<JSONContent>(() => (node.contentJson ?? EMPTY_DOC) as JSONContent, [node.contentJson])
 
   const handleChange = React.useCallback(
     (json: JSONContent) => {
-      updateNode(node.id, { contentJson: json as unknown as TiptapDocJson }, { persist: false })
+      writeNodeBody(node.id, json as unknown as TiptapDocJson, { persist: false })
     },
-    [node.id, updateNode],
+    [node.id, writeNodeBody],
   )
 
   // 把最新选区文本存进 meta（persist:false），供「改写」生成时拼 prompt 用。去重避免抖动。
@@ -92,7 +104,21 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
     landSelectionRewrite(node.id, resultId, text && editor ? editor.getJSON() as unknown as TiptapDocJson : null)
   }, [resultId, pendingApplyId, node.id, node.result?.text, tools, editor])
 
+  // 配方 / 节点提示词聚焦请求要把光标放进正文（nodes/nodePromptFocus）。
+  const focusEditor = React.useMemo(() => (editor ? () => {
+    if (editor.isDestroyed) return false
+    editor.commands.focus('end')
+    return true
+  } : null), [editor])
+  useNodePromptFocusRequest(node.id, focusEditor)
+
   const showPlaceholder = isDocEmpty(node.contentJson)
+  const presetBlocks = useTextPresetBlocks(node.id)
+  const running = node.status === 'queued' || node.status === 'running'
+  const splitCount = node.meta?.textGenPreset === 'split' && !running ? countSplitItems(node.contentJson) : null
+  const characterCount = React.useMemo(() => (showPlaceholder ? 0 : docToPlainText(node.contentJson).length), [node.contentJson, showPlaceholder])
+  // 底部一行只说一件事：正在写（可停止）> 拆成几条 > 正文很长。都没有就不占位置。
+  const footer = running ? 'running' : splitCount !== null ? 'split' : characterCount >= LONG_TEXT_CHARACTERS ? 'long' : null
   const actions = buildRichTextActions(editor)
 
   return (
@@ -156,18 +182,78 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
             NODE_SCROLL_REGION_CLASS_NAME,
             'relative flex-1 min-h-0 overflow-auto cursor-text select-text touch-auto',
             '[&_.ProseMirror]:outline-none [&_.ProseMirror:focus]:outline-none [&_.ProseMirror:focus-visible]:outline-none',
+            // 节点里的字是紧凑的提示词 / 描述，不是创作页那种长文排版：13px / 20px、12px 内边距、不限列宽。
+            '[&_.ProseMirror]:m-0 [&_.ProseMirror]:min-h-0 [&_.ProseMirror]:max-w-none',
+            '[&_.ProseMirror]:p-3 [&_.ProseMirror]:text-body-sm [&_.ProseMirror]:leading-5',
+            '[&_.ProseMirror]:text-nomi-ink-80 [&_.ProseMirror_p]:mb-0',
+            // 拆成多条的结果：编号列表，编号灰、右对齐在一列里。
+            '[&_.ProseMirror_ol]:m-0 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-[22px]',
+            '[&_.ProseMirror_li]:py-0.5 [&_.ProseMirror_li::marker]:text-nomi-ink-40 [&_.ProseMirror_li_p]:m-0',
           )}
           onKeyDown={(event) => event.stopPropagation()}
           onKeyUp={(event) => event.stopPropagation()}
           onBlur={() => commitPersistedChange()}
         >
           {showPlaceholder && !isFocused ? (
+            // 2026-10-08 拍板 ③：空文本卡用「试试」替换那句说明。外层不接指针（点空白处照样落进正文去写），只有列表项能点。
             <div className="pointer-events-none absolute inset-0">
-              <NodeEmptyState icon={<IconWriting size={20} stroke={1.6} />} title={t('generationCommon.nodeEmpty.text.title')} description={t('generationCommon.nodeEmpty.text.description')} />
+              <NodeEmptyState
+                icon={<IconWriting size={18} stroke={1.5} />}
+                title={t('canvas.nodeKinds.text')}
+                description={t('generationCommon.nodeTry.status.text')}
+                action={(
+                  <div className="pointer-events-auto flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-0.5 overflow-hidden whitespace-nowrap" data-text-empty-try data-node-try="text" role="group" aria-label={t('generationCommon.nodeTry.label')}>
+                    {EMPTY_TRY_PRESETS.map((id, index) => (
+                      <React.Fragment key={id}>
+                        {index > 0 ? <span aria-hidden="true" className="text-caption text-nomi-ink-30">·</span> : null}
+                        <button
+                          type="button"
+                          data-preset={id}
+                          disabled={node.locked || Boolean(presetBlocks[id])}
+                          title={presetBlocks[id] ? presetBlockHint(presetBlocks[id]!) : undefined}
+                          className="inline-flex h-6 items-center whitespace-nowrap rounded-nomi-sm px-1.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:text-nomi-ink-30"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            runTextPreset(node.id, id, (message) => toast(message, 'info', `text-process:${node.id}`))
+                          }}
+                        >
+                          {t(TEXT_PROCESS_PRESET_LABEL_KEY[id])}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              />
             </div>
           ) : null}
           <EditorContent editor={editor} />
         </section>
+        {footer ? (
+          <footer
+            data-text-node-footer={footer}
+            className="grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 border-t border-nomi-line-soft pl-3.5 pr-2 text-caption text-nomi-ink-40"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {footer === 'running' ? (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <NomiLoadingMark size={12} label={t('generationCommon.textProcess.running')} />
+                  {t('generationCommon.textProcess.running')}
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex h-6 items-center rounded-nomi-sm px-1.5 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
+                  onClick={(event) => { event.stopPropagation(); requestTaskCancel(node, (message) => { if (message) toast(message, 'warning') }) }}
+                >
+                  {t('generationCommon.textProcess.stop')}
+                </button>
+              </>
+            ) : footer === 'split'
+              ? <span>{t('generationCommon.textProcess.splitCount', { count: splitCount ?? 0 })}</span>
+              : <span>{t('generationCommon.textProcess.longText', { count: characterCount })}</span>}
+          </footer>
+        ) : null}
       </div>
     </div>
   )

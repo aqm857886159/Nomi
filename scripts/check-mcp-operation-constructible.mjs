@@ -38,12 +38,10 @@
  * 两个方向都红：demand 了却没登记 = 有人往外发了一个没人填得出的必填字段；登记了却再没被 demand
  * = 一条过期的声明（那个字段已经不必填了，或者那个 operation 没了）。
  */
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { importLocal } from './lib/repoPaths.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const { MCP_TOOL_RESOLVER } = await import(path.join(repoRoot, 'electron/capabilityCore/mcpToolCatalog.ts'))
-const { validateToolArguments } = await import(path.join(repoRoot, 'electron/capabilityCore/mcpProtocol.ts'))
+const { MCP_TOOL_RESOLVER } = await importLocal('electron/capabilityCore/mcpToolCatalog.ts')
+const { validateToolArguments } = await importLocal('electron/capabilityCore/mcpProtocol.ts')
 
 /**
  * 外部调用方从哪拿到这个值。键是 `<工具名> :: <字段路径>`，数组路径写成 `[]`。
@@ -69,6 +67,8 @@ const MCP_INPUT_PROVENANCE = {
   'nomi_canvas_edit :: nodes': 'caller-authored',
   'nomi_canvas_edit :: summary': 'caller-authored',
   'nomi_canvas_edit :: prompt': 'caller-authored',
+  // set_node_text 的正文：外部模型自己写（nodeId 来自上面的只读投影）。
+  'nomi_canvas_edit :: text': 'caller-authored',
   'nomi_canvas_edit :: title': 'caller-authored',
   'nomi_canvas_edit :: anchors': 'caller-authored',
   'nomi_canvas_edit :: shots': 'caller-authored',

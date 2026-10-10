@@ -1,11 +1,11 @@
-// 顶栏「任务」入口。住 NomiAppBar 右栏 —— 那是唯一跨创作/生成/预览三区常驻的 chrome，
+// 顶栏「任务」入口。住 40px 合一顶栏右簇（src/ui/app-shell/shell/ShellTopBar.tsx） —— 那是唯一跨创作/生成/预览三区常驻的 chrome，
 // 正是「切到创作页就看不见生成跑到哪了」的解药。
 // 方案：docs/plan/2026-08-02-task-center-queue.md，样张 2026-08-02 拍板。
 //
-// 按钮同时表达“任务列表入口”和当前状态：名称常显，有活时 accent + 数字徽标，失败时转提醒色。
+// 按钮同时表达“任务列表入口”和当前状态（10-08 外壳拍板稿）：图标 + 数字徽标（info 底），有活时徽标转 accent，失败时转提醒色。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconListDetails } from '@tabler/icons-react'
+import { IconListCheck } from '@tabler/icons-react'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
 import type { ExportJobSnapshot } from '../../../electron/shared/contracts/exportJobManager'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, WorkbenchButton } from '../../design'
@@ -126,26 +126,28 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
           <TooltipTrigger asChild>
             <WorkbenchButton
               className={cn(
-                'nomi-appbar__ghost',
                 'app-no-drag',
-                'inline-flex items-center gap-1.5 h-[30px] px-2.5',
-                'border border-transparent rounded-[var(--nomi-radius-sm)]',
-                'font-inherit text-body-sm',
+                'inline-flex h-7 items-center gap-1 px-1.5',
+                'rounded-nomi-sm border-0 bg-transparent font-inherit text-body-sm',
                 'transition-[background,color] duration-nomi-fast ease-nomi-fast',
-                tone === 'busy'
-                  ? 'bg-nomi-accent text-nomi-paper hover:bg-nomi-accent'
-                  : tone === 'failed'
-                    ? 'bg-transparent text-nomi-danger hover:bg-nomi-ink-05'
-                    : 'bg-transparent text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                'hover:bg-nomi-ink-05 focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent',
+                opened && 'bg-nomi-ink-10',
+                tone === 'failed' ? 'text-nomi-danger' : 'text-nomi-ink-60 hover:text-nomi-ink',
               )}
+              data-task-center-tone={tone}
               aria-label={t('taskCenter.title')}
               data-task-center-trigger="true"
               onClick={() => setOpened((value) => !value)}
             >
-              <IconListDetails size={15} stroke={1.8} />
-              <span className="max-[1600px]:hidden">{t('taskCenter.title')}</span>
+              <IconListCheck size={18} stroke={1.5} aria-hidden="true" />
               {pending > 0 ? (
-                <span className="min-w-4 rounded-pill bg-nomi-paper px-1 text-center text-micro tabular-nums text-nomi-accent">
+                <span
+                  className={cn(
+                    'inline-flex h-4 min-w-4 items-center justify-center rounded-pill px-1 text-micro font-medium tabular-nums',
+                    tone === 'busy' ? 'bg-nomi-accent text-nomi-paper' : tone === 'failed' ? 'bg-nomi-danger-soft text-nomi-danger-ink' : 'bg-nomi-info-soft text-nomi-info-ink',
+                  )}
+                  data-task-center-count={pending}
+                >
                   {pending}
                 </span>
               ) : null}

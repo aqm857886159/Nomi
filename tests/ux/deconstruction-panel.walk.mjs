@@ -29,6 +29,7 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/deconstruction-panel')
@@ -89,7 +90,7 @@ try {
   await win.evaluate(() => localStorage.setItem('__nomiE2E', '1'))
   // 清掉首启开屏/引导，进空白项目 → 生成区。
   for (let i = 0; i < 4; i += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(160) }
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }), '新建空白项目', { noWaitAfter: true })
+  await clickOrFail(newProjectEntry(win), '新建空白项目', { noWaitAfter: true })
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   await clickOrFail(win.locator('[data-mode="generation"]'), '生成 tab')
   await win.waitForTimeout(1500)

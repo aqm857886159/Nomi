@@ -10,6 +10,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useAllProjectAssets } from '../../assets/useAllProjectAssets'
 import AssetPicker from '../../assets/AssetPicker'
 import AssetPickerPopover from '../../assets/AssetPickerPopover'
+import { ClipEmptyTry } from '../quickActions/NodeTryList'
 import type { AssetRef } from '../../assets/assetTypes'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
@@ -17,6 +18,7 @@ import {
   appendClipNodeSource,
   clipNodeSourceFromAsset,
   readClipNodeMeta,
+  type ClipNodeSource,
 } from './clipNodeModel'
 import { getNodeSizeBounds, resolveNodeVisualSize } from './nodeSizing'
 import { useNodeDragResize } from './useNodeDragResize'
@@ -26,11 +28,16 @@ import { getDesktopBridge } from '../../../desktop/bridge'
 import { buildWorkspaceFileUrl } from '../../explorer/workspaceFileDrag'
 import ClipNodePreview from './ClipNodePreview'
 import ClipNodeTimeline from './ClipNodeTimeline'
+import { resolveClipGestureAdmission } from './clipNodeGestureModel'
+import { clipNodeSourceFromGenerationNode, type ClipDropPayload } from './clipNodeDrop'
+import { materializeAssetLibraryItems } from '../../assets/assetLibraryMaterialize'
+import { assetRefFromDragPayload } from '../../timeline/addAssetToTimeline'
 import ClipNodeActionToolbar from './ClipNodeActionToolbar'
 import { createExclusiveClipNodeUpload, importClipNodeAsset } from './clipNodeUpload'
 import {
   clipNodeTimelineFromMeta,
   duplicateClipNode,
+  insertClipNodeSourceAt,
   moveClipNode,
   nudgeClipNode,
   removeClipNode,
@@ -60,8 +67,7 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const { t } = useTranslation()
   const canvasNodes = useGenerationCanvasStore((state) => state.nodes)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const addNode = useGenerationCanvasStore((state) => state.addNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const addDerivedOutput = useGenerationCanvasStore((state) => state.addDerivedOutput)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -249,6 +255,55 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
     })
   }, [addAsset, refresh, t])
 
+  // 素材（画布节点的拖到时间轴把手 / 素材库）拖进轴：在落点插入。别的项目的素材先复制进本项目（同全局时间轴的唯一关口）。
+  const dropMedia = React.useCallback((payload: ClipDropPayload, boundaryFrame: number) => {
+    const project = withProjectAction((issued) => issued)
+    if (!project) return
+    void (async () => {
+      try {
+        const sources: ClipNodeSource[] = []
+        let failedCopies = 0
+        if (payload.nodeId) {
+          const live = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === payload.nodeId) ?? payload.node
+          const source = live ? clipNodeSourceFromGenerationNode(live) : null
+          if (source) sources.push(source)
+        }
+        if (payload.assets.length) {
+          const { items, failed } = await materializeAssetLibraryItems(payload.assets, project)
+          failedCopies = failed
+          project.assertCurrent()
+          for (const item of items) {
+            const ref = assetRefFromDragPayload(item)
+            if (!ref || (ref.kind !== 'image' && ref.kind !== 'video')) continue
+            const seconds = ref.kind === 'video' ? await readVideoDurationSeconds(ref.renderUrl) : null
+            project.assertCurrent()
+            const source = clipNodeSourceFromAsset(ref, seconds)
+            if (source) sources.push(source)
+          }
+        }
+        if (!sources.length) {
+          reportFeedback(failedCopies ? t('generationCommon.clipNode.uploadFailed') : t('generationCommon.clipNode.dropUnsupported'))
+          return
+        }
+        const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
+        if (!current) return
+        let nextMeta = readClipNodeMeta(current.meta)
+        let at = boundaryFrame
+        for (const source of sources) {
+          nextMeta = insertClipNodeSourceAt(nextMeta, source, at)
+          const added = clipNodeTimelineFromMeta(nextMeta).tracks[0]?.clips.find((clip) => clip.id === `clip-${nextMeta.selectedClipId}`)
+          if (added) at = added.endFrame
+        }
+        captureHistory()
+        updateNode(node.id, { meta: { ...(current.meta ?? {}), clip: nextMeta } }, { history: false })
+        setEditingOpen(false)
+        if (failedCopies) reportFeedback(t('generationCommon.clipNode.uploadFailed'))
+      } catch (error) {
+        if (isProjectExecutionContextCurrent(project) && !isProjectImportCancellation(error)) reportFeedback(t('generationCommon.clipNode.uploadFailed'))
+      }
+    })()
+  }, [captureHistory, node.id, reportFeedback, t, updateNode])
+
   const closePicker = React.useCallback(() => {
     if (uploading) return
     setPickerOpen(false)
@@ -264,6 +319,13 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
     setEditingOpen(true)
     setExportMenuOpen(false)
   }, [meta, node.id, persist, selectNode, selected])
+
+  // 手势按下的那一刻就让节点与片段的选中态跟上：不等松手的 click（拖动会吞掉 click，选中态就一直落后于手势）。
+  const admitGesture = React.useCallback((clipId: string | null) => {
+    const admission = resolveClipGestureAdmission({ nodeSelected: selected, selectedClipId, targetClipId: clipId })
+    if (admission.selectNode) selectNode(node.id)
+    if (admission.selectClipId) persist({ ...meta, selectedClipId: admission.selectClipId.replace(/^clip-/, '') }, { history: false })
+  }, [meta, node.id, persist, selectNode, selected, selectedClipId])
 
   const selectFrame = React.useCallback((frame: number) => {
     if (!timelineClips.length) return
@@ -377,18 +439,25 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
               ? candidate.meta?.sourceClipId === task.sourceClipId
               : !candidate.meta?.sourceClipId)
           ))
-          const outputNode = existing ?? addNode({
-            kind: 'video',
-            title: task.sourceClipId
-              ? t('generationCommon.clipNode.outputClipTitle', { index: task.index + 1 })
-              : t('generationCommon.clipNode.outputNodeTitle'),
-            position: {
-              x: node.position.x + visualSize.width + 80,
-              y: node.position.y + (task.sourceClipId ? task.index * 180 : -180),
+          // 新输出卡 + 出处边是一个原子动作（addDerivedOutput）；已有的输出卡（重复导出同一段）沿用——它的边要么还在，
+          // 要么是用户自己断开的，不替他重连。
+          const outputNode = existing ?? addDerivedOutput({
+            sourceNodeId: node.id,
+            kind: 'clip-export',
+            node: {
+              kind: 'video',
+              title: task.sourceClipId
+                ? t('generationCommon.clipNode.outputClipTitle', { index: task.index + 1 })
+                : t('generationCommon.clipNode.outputNodeTitle'),
+              position: {
+                x: node.position.x + visualSize.width + 80,
+                y: node.position.y + (task.sourceClipId ? task.index * 180 : -180),
+              },
+              categoryId: node.categoryId,
+              select: false,
             },
-            categoryId: node.categoryId,
-            select: false,
           })
+          if (!outputNode) continue
           updateNode(outputNode.id, buildClipNodeOutputPatch({
             sourceClipNodeId: node.id,
             ...(task.sourceClipId ? { sourceClipId: task.sourceClipId } : {}),
@@ -396,8 +465,6 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             relativePath,
             durationSeconds: task.durationFrames / Math.max(1, task.timeline.fps),
           }))
-          // Default reference edges retain the canvas's light, label-free resting state.
-          connectNodes(node.id, outputNode.id)
         }
       }
       setExportMenuOpen(false)
@@ -557,10 +624,13 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
             canvasZoom={canvasZoom}
             selectedClipId={selectedClipId}
             onSelectClip={selectClip}
+            onAdmitGesture={readOnly ? undefined : admitGesture}
             onMoveClip={handleMoveClip}
             onResizeClip={handleResizeClip}
             onScrubPlayhead={selectFrame}
+            onDropMedia={readOnly ? undefined : dropMedia}
             onAddMaterial={readOnly ? undefined : () => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }}
+            emptyState={<ClipEmptyTry nodeId={node.id} readOnly={readOnly} onAddMaterial={() => { setUploadError(null); setRetryUploadFile(null); setPickerOpen(true) }} />}
           />
         </div>
       </div>

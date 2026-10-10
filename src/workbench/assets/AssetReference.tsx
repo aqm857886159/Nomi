@@ -47,6 +47,8 @@ type AssetReferenceProps = {
   onReorder?: (slot: AssetSlot, from: number, to: number) => void
   /** picker 里「浏览全部 →」打开素材面板。 */
   onBrowseAll?: () => void
+  /** 这个数组槽的第一张缩略图标「首帧」（image_ref[0] 里有 first_frame 连线时才传；见 firstFrameTaggedSlot）。 */
+  firstFrameSlotKey?: string
 }
 
 // 合并后的数组参考行用这个伪 key 记展开状态。
@@ -64,7 +66,7 @@ function kindFromFile(file: File): AssetKind {
 
 export default function AssetReference({
   slots, remainingCapacity, capacityMessage, valuesByKey, occupiedByKey, projectId, openSlotKey, uploadingSlotKey,
-  onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll,
+  onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll, firstFrameSlotKey,
 }: AssetReferenceProps): JSX.Element {
   const { t } = useTranslation()
   const dragRef = React.useRef<{ key: string; index: number } | null>(null)
@@ -138,6 +140,7 @@ export default function AssetReference({
                 key={`${slot.key}-${url}-${index}`}
                 asset={displayRef(url, slot.accept, `${slot.label}${index + 1}`)}
                 index={slot.numbered ? index + 1 : undefined}
+                tag={firstFrameSlotKey === slot.key && index === 0 ? t('generationCommon.parameters.firstFrame') : undefined}
                 onRemove={() => onRemove(slot, index)}
                 onClick={onInsertMention ? () => onInsertMention(url) : undefined}
                 dragProps={onReorder ? {

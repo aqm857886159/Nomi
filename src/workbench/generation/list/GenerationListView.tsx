@@ -20,10 +20,9 @@ import { GenerationListSectionHeader } from './GenerationListSectionHeader'
 
 /** 窗口窄到放不下窄列 + 详情时，窄列让位（详情独占，「返回」回列表）。 */
 const RAIL_MIN_TOTAL_WIDTH = 760
-/** 顶上给左上那颗「画布 | 列表」切换钮留的高度（它搬进顶栏之后这一条一起去掉）。 */
-const TOGGLE_LEAD = 48
-/** 底部留给浮在内容区底边的时间轴把手，最后一行不被它盖住。 */
-const BOTTOM_LEAD = 72
+/** 内容区顶 / 底的呼吸（「画布 | 列表」切换在 40px 顶栏里，时间轴收成底边窄条，都不压内容）。 */
+const TOP_LEAD = 12
+const BOTTOM_LEAD = 24
 
 /** 每个分区的默认画幅（分镜分区 = 这份分镜的默认；其余分区 = 项目里第一份分镜的默认；都没有 = 不标）。 */
 function useSectionDefaultAspects(sections: readonly GenerationListSection[]): Map<string, string | null> {
@@ -108,7 +107,7 @@ export function GenerationListView(): JSX.Element {
     return (
       <div ref={rootRef} className="flex h-full min-h-0 bg-nomi-paper" data-generation-list data-list-layout="detail" aria-label={t('generationList.aria')}>
         {showRail ? <DetailRail sections={model.sections} activeKey={card.key} onSelect={(key) => setInspectorKey(key)} /> : null}
-        <GenerationListDetail card={card} onBack={() => setInspectorKey(null)} leadInset={!showRail} />
+        <GenerationListDetail card={card} onBack={() => setInspectorKey(null)} />
       </div>
     )
   }
@@ -116,7 +115,7 @@ export function GenerationListView(): JSX.Element {
   return (
     <div ref={rootRef} className="flex h-full min-h-0 flex-col bg-nomi-paper" data-generation-list data-list-layout="grid" aria-label={t('generationList.aria')}>
       <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto" data-list-scroll>
-        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() + TOGGLE_LEAD + BOTTOM_LEAD }}>
+        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() + TOP_LEAD + BOTTOM_LEAD }}>
           {virtualizer.getVirtualItems().map((item) => {
             const row = rows[item.index]
             if (!row) return null
@@ -126,7 +125,7 @@ export function GenerationListView(): JSX.Element {
                 ref={virtualizer.measureElement}
                 data-index={item.index}
                 className="absolute left-0 top-0 w-full"
-                style={{ transform: `translateY(${item.start + TOGGLE_LEAD}px)`, paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}
+                style={{ transform: `translateY(${item.start + TOP_LEAD}px)`, paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}
               >
                 {row.kind === 'header' ? (
                   <div className={item.index === 0 ? 'pt-1' : 'pt-6'}>

@@ -7,7 +7,7 @@
 //
 // 用法:pnpm run build && node tests/ux/design-fidelity.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
-import { CANVAS_PANEL, COLLAPSED_DOCK, COLLAPSED_SHELL } from "./agent-runtime-walk-support.mjs";
+import { CANVAS_PANEL, COLLAPSED_DOCK } from "./agent-runtime-walk-support.mjs";
 
 let passed = 0;
 const fails = [];
@@ -278,55 +278,50 @@ try {
   // 2026-09-05 重定向：旧画布助手（aria-label「生成区 AI 助手」/「生成区 AI 启动器」）已随 Agent Host cutover
   // 退役，这两个 aria-label 在 src/ 里已无人渲染（原先这里「aside 未挂载」一条恒真=假绿，随后的
   // waitForSelector 恒超时=假红）。常驻壳是真实两态 UI（展开/收起偏好持久化）。
-  // 2026-09-06 v4：收起态不再是「药丸」而是一根 32px 图标条（定稿 Collapsed 板），
-  // 所以「整圆角」那条断言的对象已不存在——换成同样二值、同样来自定稿的那条：轨宽 32px。
+  // 2026-10-08 外壳重设计：收起态 = 画布右下那颗 44px 小球（Chrome 板），不再是 32px 图标条。
   const PANEL = `${CANVAS_PANEL}`;
-  const RAIL = `${COLLAPSED_SHELL} ${COLLAPSED_DOCK}`;
+  const RAIL = COLLAPSED_DOCK;
   const residentState = await win.evaluate(([panelSel, railSel]) => {
     const rail = Array.from(document.querySelectorAll(railSel)).find((el) => el.getClientRects().length > 0);
     const panel = Array.from(document.querySelectorAll(panelSel)).find((el) => el.getClientRects().length > 0);
     return {
       rail: Boolean(rail),
       panel: Boolean(panel),
-      // 定稿 Collapsed 板：结果全屏时右栏收成一根 32px 图标条。宽度是这块唯一的形态承诺。
+      // Chrome 板：小球 44px（「等你确认 N」时才变宽成胶囊）。
       railWidth: rail ? Math.round(rail.getBoundingClientRect().width) : null,
     };
   }, [PANEL, RAIL]);
-  console.log("\n── 生成区常驻 Agent(#C：图标条或面板恰有其一；收起图标条宽 32px) ──");
+  console.log("\n── 生成区常驻 Agent(#C：小球或面板恰有其一；小球 44px) ──");
   // 「恰有其一」同时是活性证明：两者都没有 = 根本没站在生成区（或 dock 没挂上），不能拿「没有」当过。
-  assert(residentState.rail !== residentState.panel, "常驻 Agent 在生成区恰处于收起图标条 / 展开面板之一", JSON.stringify(residentState));
+  assert(residentState.rail !== residentState.panel, "常驻 Agent 在生成区恰处于小球 / 展开面板之一", JSON.stringify(residentState));
   if (residentState.rail) {
-    assert(residentState.railWidth === 32, "收起图标条宽 32px（定稿 Collapsed 板）", `width=${residentState.railWidth}`);
-    await win.locator(`${RAIL} button`).first().click();
-  } else console.log("  ⊘ 收起图标条宽度 — 跳过（本次面板默认展开，没有图标条可量）");
+    assert(residentState.railWidth === 44, "小球宽 44px（Chrome 板）", `width=${residentState.railWidth}`);
+    await win.locator(RAIL).first().click();
+  } else console.log("  ⊘ 小球宽度 — 跳过（本次面板默认展开，没有小球可量）");
   await win.waitForSelector(PANEL, { state: "visible", timeout: 5_000 });
   const panelDisplay = await win.evaluate((panelSel) => getComputedStyle(document.querySelector(panelSel)).display, PANEL);
   console.log("\n── 生成区常驻 Agent 展开(#C：面板 flex 非 grid) ──");
   assert(panelDisplay === "flex", "常驻面板 display:flex（非 grid，修「上面空一大块」的根因点）", panelDisplay);
 
-  // ── 本会话回归点 #C(左栏)：收起后导航每项都有 svg 图标，不是被截成单字的文字 ──
-  // 2026-09-05 重定向：原断言锚 [aria-label="展开分类面板"] / [aria-label="展开文件面板"]，这两个
-  // aria-label 在 src/ 里已无人渲染（探针实测：收起栏是 素材库/分组/提示词库/技能库/流程库 五项，
-  // 没有「分类」「文件」这两个面）。锚点取自真机探针，不是照源码猜的。
-  await win.locator('[aria-label="收起侧栏"]').first().click().catch(() => {});
-  await win.waitForTimeout(400);
+  // ── 本会话回归点 #C(左栏)：每项都有 svg 图标，短名不被截成单字 ──
+  // 2026-10-08 外壳重设计：左栏是常驻 60px 图标栏（ShellRail，每项「图标 + 两字短名」，全名在 tooltip / aria-label），
+  // 原「收起侧栏」那条可展开的资源管理器已删。
   const railIcons = await win.evaluate(() => {
-    const nav = document.querySelector('[aria-label="项目侧栏导航"]');
-    const items = Array.from(nav?.querySelectorAll('button, [role="button"], [role="tab"]') || [])
+    const nav = document.querySelector('[data-shell-rail]');
+    const items = Array.from(nav?.querySelectorAll('[data-shell-rail-item]') || [])
       .filter((el) => el.getClientRects().length > 0);
     return {
       count: items.length,
-      // 每项都得有真图标；文字若被截成单字（「类」「文」这种）就是当年要修的那个病。
       bad: items
         .map((el) => ({ label: el.getAttribute("aria-label") || "", text: (el.textContent || "").trim(), svg: Boolean(el.querySelector("svg")) }))
-        .filter((it) => !it.svg || /^.$/.test(it.text)),
+        .filter((it) => !it.svg || !it.label),
       labels: items.map((el) => el.getAttribute("aria-label") || (el.textContent || "").trim()),
     };
   });
-  console.log("\n── 左栏收起(#C：导航每项有 svg 图标，文字不被截成单字) ──");
+  console.log("\n── 左栏(#C：每项有 svg 图标与全名) ──");
   // count>0 同时是活性证明：一个都没找到 = 探针没打中收起栏，不能拿「没有坏项」当过。
-  assert(railIcons.count > 0, "收起栏导航项可被探针找到（否则下面的检查恒真）", `count=${railIcons.count}`);
-  assert(railIcons.bad.length === 0, "收起栏每项都是 svg 图标且文字未被截成单字", JSON.stringify(railIcons.bad) + " of " + JSON.stringify(railIcons.labels));
+  assert(railIcons.count === 6, "左栏 6 项（文稿 / 目录 / 素材 / 流程 | Skill / 提示词）可被探针找到", `count=${railIcons.count}`);
+  assert(railIcons.bad.length === 0, "左栏每项都是 svg 图标且有全名", JSON.stringify(railIcons.bad) + " of " + JSON.stringify(railIcons.labels));
 
   // ── 本会话回归点 #C(#A 素材库)：来源 3 标签同一行不折行 + 面板 flex 列 ──
   // 2026-07-22 方案一重执行：右侧抽屉已删，素材库唯一门=侧栏 tab（nomi-open-files-panel 展开）；
@@ -376,7 +371,7 @@ try {
     const barRect = bar ? bar.getBoundingClientRect() : null;
     const columnRect = column ? column.getBoundingClientRect() : null;
     const timelineRect = timeline ? timeline.getBoundingClientRect() : null;
-    const appBarExport = document.querySelector('.nomi-appbar [aria-label="导出 MP4"]');
+    const appBarExport = document.querySelector('[data-shell-topbar] [aria-label="导出 MP4"]');
     return {
       barPresent: Boolean(bar),
       barHeight: bar ? Math.round(bar.getBoundingClientRect().height) : -1,
@@ -387,7 +382,7 @@ try {
       barToTimelineGap: barRect && timelineRect ? Math.round(timelineRect.top - barRect.bottom) : -1,
       exportInBar: Boolean(bar && bar.querySelector('[aria-label="导出 MP4"]')),
       exportInAppBar: Boolean(appBarExport),
-      layoutMenuInAppBar: Boolean(document.querySelector('.nomi-appbar [aria-label="布局"]')),
+      layoutMenuInAppBar: Boolean(document.querySelector('[data-shell-topbar] [aria-label="布局"]')),
       inspectorPresent: Boolean(inspector),
       aspectInInspector: Boolean(aspectChip),
       resolutionInInspector: Boolean(resolutionChip),
@@ -416,62 +411,33 @@ try {
   assert(!prev.barOverflowsX, "控制条横向无溢出（无多余滚动条「杠」）", `overflowsX=${prev.barOverflowsX}`);
   assert(prev.barInViewport, "控制条整体在视口内（不溢出/不被裁）", `barInViewport=${prev.barInViewport}`);
 
-  // ── 上手 4 步引导（顶栏入口 → 下拉清单 → 带我去 spotlight 精准指控件）──
-  // 清标记保证「未全完成」(否则 4/4 自动隐藏入口)。加一个空节点 → storyboard 打勾 →
-  // 当前步=「生成一张」→ 带我去会聚光到节点的「生成」按钮（验画布目标的精准）。
-  await win.evaluate(() => {
-    window.localStorage.removeItem("nomi:checklist:v1");
-    window.localStorage.removeItem("nomi:checklist-collapsed:v1");
-  });
-  await win.getByRole("button", { name: "生成", exact: false }).first().click().catch(() => {});
-  await win.waitForTimeout(800);
-  await win.getByText("新建画面", { exact: false }).first().click().catch(() => {});
-  await win.waitForTimeout(1000);
-  console.log("\n── 上手 4 步引导（顶栏入口 + 带我去 spotlight）──");
-  // 触发钮在顶栏(始终高、不遮画布)
+  console.log("\n── 上手 4 步清单（10-08：顶栏设置钮上的未完成点 → 设置「通用」最上面一块）──");
   const trig = await win.evaluate(() => {
-    const t = document.querySelector("[data-onboarding-checklist-trigger]");
+    const t = document.querySelector("[data-shell-settings]");
     if (!t) return { present: false };
     const r = t.getBoundingClientRect();
     return { present: true, inBar: r.top < 56, inViewport: r.right <= window.innerWidth + 1 };
   });
-  assert(trig.present, "上手入口已渲染", JSON.stringify(trig));
+  assert(trig.present, "顶栏设置入口已渲染", JSON.stringify(trig));
   if (trig.present) {
-    assert(trig.inBar, "上手入口停靠在顶栏内（不靠下）", `top<56=${trig.inBar}`);
-    await win.locator("[data-onboarding-checklist-trigger]").first().click().catch(() => {});
+    assert(trig.inBar, "设置入口停靠在 40px 顶栏内", `top<56=${trig.inBar}`);
+    await win.locator("[data-shell-settings]").first().click().catch(() => {});
+    await win.waitForTimeout(400);
+    await win.locator('[data-settings-tab-id="general"]').first().click().catch(() => {});
     await win.waitForTimeout(400);
     const panel = await win.evaluate(() => {
-      const p = document.querySelector('[data-onboarding-checklist="panel"]');
+      const p = document.querySelector('[data-onboarding-checklist="settings"]');
       if (!p) return { present: false };
       const r = p.getBoundingClientRect();
       return {
         present: true,
         rows: p.querySelectorAll("li[data-step]").length,
-        next: p.querySelector("[data-take-me-there]")?.getAttribute("data-take-me-there") || null,
         inViewport: r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1,
       };
     });
-    assert(panel.present && panel.rows === 4, "下拉清单恰为 4 步", JSON.stringify(panel));
-    assert(panel.inViewport, "下拉清单完整在视口内（不溢出/不被裁）", `inVp=${panel.inViewport}`);
-    if (panel.next) {
-      await win.locator(`[data-take-me-there="${panel.next}"]`).first().click().catch(() => {});
-      await win.waitForTimeout(1200);
-      const spot = await win.evaluate(() => {
-        const ring = document.querySelector("[data-onboarding-spotlight-ring]");
-        const callout = document.querySelector("[data-onboarding-spotlight-callout]");
-        if (!ring) return { ring: false };
-        const r = ring.getBoundingClientRect();
-        const c = callout ? callout.getBoundingClientRect() : null;
-        return {
-          ring: true,
-          ringInViewport: r.left >= -2 && r.top >= -2 && r.right <= window.innerWidth + 2 && r.bottom <= window.innerHeight + 2,
-          calloutInViewport: c ? c.left >= 0 && c.top >= 0 && c.right <= window.innerWidth + 1 && c.bottom <= window.innerHeight + 1 : null,
-        };
-      });
-      assert(spot.ring, `带我去「${panel.next}」聚光环出现`, JSON.stringify(spot));
-      assert(spot.ringInViewport, "聚光环精准落在视口内的目标上", `inVp=${spot.ringInViewport}`);
-      assert(spot.calloutInViewport !== false, "气泡不溢出视口", `co=${spot.calloutInViewport}`);
-    }
+    assert(panel.present && panel.rows === 4, "设置里的上手清单恰为 4 步", JSON.stringify(panel));
+    assert(panel.inViewport, "上手清单完整在视口内（不溢出/不被裁）", `inVp=${panel.inViewport}`);
+    await win.keyboard.press("Escape").catch(() => {});
   }
 
   console.log(`\n设计保真：${passed} 通过，${fails.length} 不一致`);

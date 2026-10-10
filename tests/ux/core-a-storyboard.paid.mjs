@@ -137,12 +137,12 @@ async function openPlan() {
     await win.locator('[data-project-card]').first().click()
   }
   await win.getByRole('button', { name: /^(创作|Create)$/ }).click()
-  const treeToggle = win.locator('[data-creation-resource-tree-toggle]:visible')
+  const treeToggle = win.locator('[data-shell-rail-item="docs"]')
   await expect(treeToggle).toBeVisible()
-  if (await treeToggle.getAttribute('data-creation-resource-tree-toggle') === 'expand') await treeToggle.click()
+  if (await treeToggle.getAttribute('aria-pressed') === 'false') await treeToggle.click()
   await openStoryboardEditor(win, runId)
   await expect(editor()).toBeVisible()
-  const collapse = win.locator('[data-creation-resource-tree-toggle="collapse"]:visible')
+  const collapse = win.locator('[data-shell-rail-item="docs"][aria-pressed="true"]')
   if (await collapse.isVisible()) await collapse.click()
 }
 function trajectory() {
@@ -222,7 +222,7 @@ async function firstFrameJourney() {
   await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'zh-CN'))
   await win.reload({ waitUntil: 'domcontentloaded' })
   await openPlan()
-  await win.locator('[data-creation-resource-tree-toggle="expand"]:visible').click()
+  await win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]').click()
   await win.locator(`button[data-document-id="${documentId}"]:not([data-storyboard-id])`).click()
   await expandResidentPanel(win)
   await chooseAssistantModel(win, textModel.labelZh)

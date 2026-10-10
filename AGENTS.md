@@ -3,7 +3,7 @@
 # Nomi — 工程纪律
 
 > 本文件常驻、每次 session 读完再动手；细节触发才查：`docs/engineering-rules.md`（规则详解）、`docs/engineering/`（命令全表、设计卡、交付与评审、编排手册）、`docs/lessons/INDEX.md`、`docs/ARCHITECTURE-NOW.md`、`docs/GLOSSARY.md`。每轮还会按用户消息关键词注入提示块（`scripts/claude-hooks/self-check.sh`）。
-> **维护纪律**：本文件是策展的，不是 append 的——只放「删掉它 Claude 就会犯错」的内容，加内容前先找能合并或删掉的，能减就减，实在减不了可以不减。新踩的坑进 `docs/lessons/` 或 hook 的 `violations.log`。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`。
+> **维护纪律**：本文件是策展的，不是 append 的——只放「删掉它 Claude 就会犯错」的内容，加内容前先找能合并或删掉的，能减就减，实在减不了可以不减。新踩的坑进 `docs/lessons/` 或 hook 的 `violations.log`；规则当天进仓库，不只记长期记忆，见 `rules.json` P2。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`。
 
 ## 项目概览
 

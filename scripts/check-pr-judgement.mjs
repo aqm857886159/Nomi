@@ -17,8 +17,9 @@ import { fileURLToPath } from 'node:url'
 
 import { ESCAPE_LEDGER_DIR, escapeIdOfPath, loadEscapeLedger } from './escape-ledger-lib.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
+import { execGhReadSync } from './lib/transientRetry.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
-import { evaluatePrBody, ledgerChanges, settledContracts } from './pr-body-criteria.mjs'
+import { evaluatePrBody, ledgerChanges, resolveJudgementStage, settledContracts } from './pr-body-criteria.mjs'
 import { addedLinesByFile, loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
 
 const repoRoot = process.env.PR_JUDGEMENT_REPO_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -36,7 +37,7 @@ function prCreatedAt() {
   if (process.env.PR_JUDGEMENT_CREATED_AT) return process.env.PR_JUDGEMENT_CREATED_AT // 测试用：不去问 gh（CI 里 gh 会取到真 PR 的创建时间）
   const number = String(process.env.NOMI_PR_NUMBER ?? '').trim()
   try {
-    return JSON.parse(execFileSync('gh', ['pr', 'view', ...(number ? [number] : []), '--json', 'createdAt'], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })).createdAt || null
+    return JSON.parse(execGhReadSync(['pr', 'view', ...(number ? [number] : []), '--json', 'createdAt'], { cwd: repoRoot })).createdAt || null
   } catch { return null }
 }
 
@@ -90,7 +91,7 @@ function main() {
   if (contracts.some((contract) => !contract.added && ['user', 'post-release'].includes(contract.detected_by)) && ledger.transitions.length === 0) {
     try { ledger.settledContracts = settledContracts(loadEscapeLedger(repoRoot, { ref: base })) } catch { /* 取不到 = 不当已结账（fail-closed） */ }
   }
-  const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt() })
+  const result = evaluatePrBody({ body: pr.body, files, addedByFile, packageRemovedLines, contracts, ledger, createdAt: prCreatedAt(), stage: resolveJudgementStage() })
   const categories = result.judgement.inferred.categories.map((category) => category.label)
   console.log(`PR 正文判据（正文取自 ${pr.source}）：路径推出的类别 = ${categories.length ? categories.join('、') : '（无）'}`)
   for (const line of result.lines) console.log(line)

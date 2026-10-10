@@ -25,6 +25,7 @@ import { createProductionGenerationSubmission } from "./productionGenerationSubm
 import { createProductionRunRepository } from "./productionRunRepository";
 import { readTrustGrantBinding } from "./productionRunTrustGrant";
 import type { ShotPrice } from "./shotPricing";
+import { landedAdmission } from "./landFirstTestUtils";
 
 const NOW = "2026-09-21T00:00:00.000Z";
 const LATER = "2026-09-21T00:01:00.000Z";
@@ -187,7 +188,7 @@ describe("未知价：每一条路径都能生成，而且没有一处把它写�
     expect(authorization.envelope.jobs[0].price.maximum).toBeNull();
     expect(authorization.envelope.budget).toMatchObject({ maximum: 0, unknownJobCount: 1 });
 
-    await base.submission.start({ projectId: "project-1", operationId: "op-1" });
+    await base.submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(base.repository, "project-1", "op-1") });
     expect(base.submit).toHaveBeenCalledTimes(1);
 
     const run = base.repository.read("project-1", "op-1")!;
@@ -200,7 +201,7 @@ describe("未知价：每一条路径都能生成，而且没有一处把它写�
   it("重拍：算不出价的那一镜重拍不再被拒，新信封仍如实标未知", async () => {
     const base = setup();
     sealAndApprove(base, () => ({ known: false }));
-    await base.submission.start({ projectId: "project-1", operationId: "op-1" });
+    await base.submission.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(base.repository, "project-1", "op-1") });
     let run = base.repository.read("project-1", "op-1")!;
     run = base.repository.execute("project-1", "op-1", {
       commandId: "first-ready",

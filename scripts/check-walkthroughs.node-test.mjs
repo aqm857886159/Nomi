@@ -12,6 +12,13 @@ import {
   templateCanProduce,
 } from './lib/ariaLabelLiterals.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
+import { findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
+import { judgeBaselineGrowth, judgeBaseUnavailable } from './lib/walkthroughBaselineGuard.mjs'
+import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -110,5 +117,140 @@ describe('positional-project-open：多项目下的位置式选择', () => {
   it('.nth()/.last() 同属位置式，一并抓', () => {
     const code = `${MULTI}\nwin.locator('[data-project-card]').nth(1)\nwin.locator('[data-project-card]').last()`
     assert.equal(findPositionalProjectOpens(code).length, 2)
+  })
+})
+
+// dead-data-attr（2026-10-08 外壳重设计：删组件时 data 属性锚点在十几份走查里悬空，前两条规则都看不见）。
+describe('dead-data-attr：data 属性锚点存活', () => {
+  const SRC_ATTRS = `
+    <button data-agent-ball={status} data-v4-control="history" />
+    <div data-clip-id={clip.id} />
+    el.dataset.timelineStrip = ''
+  `
+  const dead = (code) => findDeadDataAttributes(code, SRC_ATTRS).map((hit) => hit.text)
+
+  it('阳性对照：src 里零命中的属性名被报出来', () => {
+    assert.deepEqual(dead(`win.locator('[data-agent-topbar-badge="true"]')`), ['[data-agent-topbar-badge="true"]'])
+  })
+
+  it('阳性对照：属性还在、但写死的枚举值已无人渲染 → 报出来', () => {
+    assert.deepEqual(dead(`document.querySelector('[data-v4-control="dock-open"]')`), ['[data-v4-control="dock-open"]'])
+  })
+
+  it('活着的属性名 / 枚举值不报', () => {
+    assert.deepEqual(dead(`win.locator('[data-agent-ball]'); win.locator('[data-v4-control="history"]')`), [])
+  })
+
+  it('数据驱动的值（src 里没写死过字面量值）不判值', () => {
+    assert.deepEqual(dead(`win.locator('[data-clip-id="clip-a"]')`), [])
+  })
+
+  it('dataset.camelCase 写法算活', () => {
+    assert.deepEqual(dead(`win.locator('[data-timeline-strip]')`), [])
+  })
+
+  it('第三方运行时属性与走查自己 setAttribute 造的标记不报', () => {
+    assert.deepEqual(dead(`win.locator('[data-highlighted]'); el.setAttribute('data-walk-mark', '1'); win.locator('[data-walk-mark]')`), [])
+  })
+})
+
+describe('dead-data-attr：判活口径的三处精度（#1136 复核）', () => {
+  const SRC_DYNAMIC = `
+    <div data-v4-control="history" />
+    rowAttributes={(row) => ({ 'data-v4-command': row.id })}
+    <a data-v4-command="literal" />
+  `
+  const dead = (code) => findDeadDataAttributes(code, SRC_DYNAMIC).map((hit) => hit.text)
+
+  it('对象键写成表达式的属性（数据驱动的值）不判值', () => {
+    assert.deepEqual(dead(`win.locator('[data-v4-command="skill:x"]')`), [])
+  })
+
+  it('expectAbsent 里的锚点是「删了不许回来」的防复发断言，不算悬空', () => {
+    assert.deepEqual(dead(`await expectAbsent(win.locator('[data-gone-forever]'), { provenBy: p })`), [])
+  })
+
+  it('同一个锚点不在 expectAbsent 里照样报（其它写法的「不存在」要换成带基线的 expectAbsent）', () => {
+    assert.deepEqual(dead(`check(document.querySelectorAll('[data-gone-forever]').length === 0)`), ['[data-gone-forever]'])
+  })
+})
+
+describe('走查基线只减不增（#1136 评审阻断 2）', () => {
+  const ids = ['dead-selector', 'dead-data-attr']
+
+  it('阳性对照：已有规则的基线被上调 → 报', () => {
+    const errors = judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-selector': 3 }, baseBaseline: { 'dead-selector': 1 } })
+    assert.equal(errors.length, 1)
+  })
+
+  it('阳性对照：新规则首发基线高于 merge-base 实测 → 报（不能「把当前数写进去」放宽）', () => {
+    const errors = judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-data-attr': 97 }, baseBaseline: {}, measureOnBase: () => 56 })
+    assert.equal(errors.length, 1)
+  })
+
+  it('新规则量不了 merge-base 上的数时，首发基线只能是 0', () => {
+    assert.equal(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-data-attr': 1 }, baseBaseline: {} }).length, 1)
+    assert.deepEqual(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-data-attr': 0 }, baseBaseline: {} }), [])
+  })
+
+  it('首发基线等于 merge-base 实测、已有规则只降不升 → 不报', () => {
+    assert.deepEqual(judgeBaselineGrowth({ ruleIds: ids, baseline: { 'dead-selector': 0, 'dead-data-attr': 56 }, baseBaseline: { 'dead-selector': 1 }, measureOnBase: () => 56 }), [])
+  })
+})
+
+describe('merge-base 拿不到时 fail-closed（#1136 复审阻断）', () => {
+  const rules = [{ id: 'dead-selector', measurable: false }, { id: 'dead-data-attr', measurable: true }]
+
+  it('有 merge-base 实测能力的规则基线非零 → 红；基线为 0 或没有实测能力的规则 → 不拦', () => {
+    assert.equal(judgeBaseUnavailable({ rules, baseline: { 'dead-selector': 5, 'dead-data-attr': 97 } }).length, 1)
+    assert.deepEqual(judgeBaseUnavailable({ rules, baseline: { 'dead-selector': 5, 'dead-data-attr': 0 } }), [])
+  })
+
+  it('集成：真实脚本在没有 origin/main 的仓库里跑，必须红（旧行为是 warning + exit 0）', () => {
+    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+    const emptyGitDir = makeTempDir('nomi-no-origin-')
+    try {
+      execFileSync('git', ['init', '-q', '--bare', emptyGitDir], { stdio: 'ignore' })
+      // GIT_DIR 指向一个空仓库：merge-base / show 全部失败，等价于「浅克隆 / 没有 origin/main」；脚本读的是工作区文件，不受影响。
+      const run = spawnSync(process.execPath, [path.join(repoRoot, 'scripts', 'check-walkthroughs.mjs')], {
+        cwd: repoRoot,
+        env: { ...process.env, GIT_DIR: emptyGitDir },
+        encoding: 'utf8',
+      })
+      assert.notEqual(run.status, 0, run.stdout + run.stderr)
+      assert.match(run.stderr, /走查基线无法核对/)
+    } finally {
+      cleanupTestTemp(emptyGitDir)
+    }
+  })
+})
+
+describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红的类根因）', () => {
+  it('阳性对照：手抄「返回项目库」钮 / 面板收起展开钮 / 面板身份选择器都报', () => {
+    assert.equal(findRawShellAnchors(`await clickOrFail(win.getByRole('button', { name: '返回项目库', exact: true }), 'x')`).length, 1)
+    assert.equal(findRawShellAnchors(`await page.getByRole('button', { name: /返回项目库|Back to projects/ }).first().click()`).length, 1)
+    assert.equal(findRawShellAnchors(`await win.locator('[data-v4-control="collapse"]').first().click()`).length, 1)
+    assert.equal(findRawShellAnchors(`document.querySelector('[data-v4-control="dock-open"]')?.click()`).length, 1)
+    assert.equal(findRawShellAnchors(`const P = '[data-agent-resident="true"][data-agent-panel="true"]'`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('[data-agent-resident="true"][data-agent-collapsed="true"]')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('[data-testid="open-model-settings"]').first()`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('[aria-label="打开模型设置"]')`).length, 1)
+    assert.equal(findRawShellAnchors(`await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), 'x')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('button, [role="button"]', { hasText: '新建空白项目' }).first()`).length, 1)
+    assert.equal(findRawShellAnchors(`win.getByText('新建空白项目', { exact: false }).first().click()`).length, 1)
+    assert.equal(findRawShellAnchors(`win.getByRole('button', { name: '打开模型设置', exact: true })`).length, 1)
+  })
+
+  it('经出口函数 / 在断言文案里提到「返回项目库」都不报', () => {
+    assert.deepEqual(findRawShellAnchors(`await backToLibrary(win)`), [])
+    assert.deepEqual(findRawShellAnchors(`await expectVisible(entry, '没有返回项目库')`), [])
+    assert.deepEqual(findRawShellAnchors(`await ensureAgentPanelOpen(win)`), [])
+    assert.deepEqual(findRawShellAnchors(`await newProjectEntry(win).click()`), [])
+    assert.deepEqual(findRawShellAnchors(`await openModelSettings(win, { label: '连接模型入口' })`), [])
+  })
+
+  it('豁免表每一条都写了原因，且出口文件在里面', () => {
+    assert.ok(RAW_SHELL_EXEMPT.has('tests/ux/_shell.mjs'))
+    for (const [file, reason] of RAW_SHELL_EXEMPT) assert.ok(reason.length >= 6, `${file} 的豁免原因太短`)
   })
 })

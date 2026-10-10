@@ -15,7 +15,9 @@ export type GenerationNodeRenderProps<TNode = unknown> = {
 
 export type GenerationNodeComponent = ComponentType<GenerationNodeRenderProps<unknown>>
 // 生成种类词表的 owner 在中立层（主进程的 Agent 工具面也要判它）；这里只是再导出，对账测试保证插件表与它一致。
+import { NODE_KIND_CONNECTS } from '../../../../electron/shared/canvas/edgeAdmission'
 import type { GenerationNodeExecutionKind } from '../../../../electron/shared/canvas/nodeExecutionKinds'
+import type { ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 
 export type { GenerationNodeExecutionKind }
 export type GenerationNodeIconKey =
@@ -48,6 +50,17 @@ export type GenerationNodePluginDefinition<TKind extends string = string> = {
   agentCreatable?: boolean
   providesImageReference?: boolean
   promptPlaceholder?: string
+  /**
+   * 连线的两端——这一类节点**收不收输入**、**有没有能被下游引用的产出**的唯一 owner（2026-10-08 用户拍板：
+   * 拉环只出现在用得上的一侧）。读它的：拉环（generationCanvasReactFlowVisualContract）、左「+」判据
+   * （connectionCreateVerdictsForTarget）、连线总闸（validateReferenceEdge）、空节点「试试」配方。类型必填：
+   * 新加一种节点不写清这两件事就编译不过，免得又在某个入口里就地推断一遍。
+   * - `input: 'models'`：收什么由这一类的模型档案的参考槽决定（生成类节点；吃提示词的还收文本上下文）；
+   * - `input: [...]`：节点自己读上游边，只收这几种素材（剪辑、导演台）；
+   * - `input: false`：不收任何输入（上传素材……）。已存在的旧边照常加载显示，只是不再能新建。
+   * - `output`：有没有能给下游用的产出（图 / 视频 / 声音素材，或文本给下游当提示词上下文）。
+   */
+  connects: { input: 'models' | readonly ReferenceAssetKind[] | false; output: boolean }
 }
 
 function defineGenerationNodePlugins<
@@ -73,6 +86,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: false,
     agentCreatable: false,
+    connects: NODE_KIND_CONNECTS['shot_table'],
   },
   {
     kind: 'text',
@@ -87,6 +101,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Enter text...',
+    connects: NODE_KIND_CONNECTS['text'],
   },
   {
     kind: 'character',
@@ -102,6 +117,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe the character...',
+    connects: NODE_KIND_CONNECTS['character'],
   },
   {
     kind: 'scene',
@@ -117,6 +133,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe the scene...',
+    connects: NODE_KIND_CONNECTS['scene'],
   },
   {
     kind: 'image',
@@ -132,6 +149,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe this frame...',
+    connects: NODE_KIND_CONNECTS['image'],
   },
   {
     kind: 'keyframe',
@@ -146,6 +164,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: 'Describe the keyframe...',
+    connects: NODE_KIND_CONNECTS['keyframe'],
   },
   {
     kind: 'video',
@@ -160,6 +179,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Describe the video...',
+    connects: NODE_KIND_CONNECTS['video'],
   },
   {
     // 声音：配音生成（TTS，文→音）/ 转写（Whisper，音→文）/ 上传音频。渲染走 audio-strip（按 kind 强制，
@@ -176,6 +196,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Enter dialogue or narration...',
+    connects: NODE_KIND_CONNECTS['audio'],
   },
   {
     kind: 'clip',
@@ -189,6 +210,8 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: false,
     promptPlaceholder: 'Add media to edit...',
+    // 剪辑卡不走模型档案，自己读上游边（ClipNode：上游产物是图 / 视频才进时间轴）；导出的成片落成新的视频卡，它本身不给下游引用。
+    connects: NODE_KIND_CONNECTS['clip'],
   },
   {
     kind: 'shot',
@@ -201,6 +224,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: true,
     promptPlaceholder: 'Describe the shot...',
+    connects: NODE_KIND_CONNECTS['shot'],
   },
   {
     kind: 'output',
@@ -213,6 +237,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: true,
     promptPlaceholder: 'Add output notes...',
+    connects: NODE_KIND_CONNECTS['output'],
   },
   {
     kind: 'panorama',
@@ -226,6 +251,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: 'Add a panorama reference...',
+    connects: NODE_KIND_CONNECTS['panorama'],
   },
   {
     // 导演台（docs/plan/2026-09-02-director-console-v2.md）：Nomi 唯一的 3D 节点；老 scene3d 节点在快照加载时迁成它（director/migration）。
@@ -242,6 +268,8 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     agentCreatable: false,
     providesImageReference: true,
     promptPlaceholder: 'Block, move the camera and render in the 3D director...',
+    // 导演台自己读上游边：图片 / 全景 / 素材（splat、模型文件也挂在素材卡上），都按图参考算。
+    connects: NODE_KIND_CONNECTS['director'],
   },
   {
     kind: 'whiteboard',
@@ -257,6 +285,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: 'Draw a reference...',
+    connects: NODE_KIND_CONNECTS['whiteboard'],
   },
   {
     // 3D 模型：文生 / 图生 3D 生成节点（RunningHub 混元/HiTem/Meshy，输出 .glb）。是**生成节点**
@@ -274,6 +303,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Describe the 3D model...',
+    connects: NODE_KIND_CONNECTS['model3d'],
   },
   {
     // 素材：导入图 / 文件树拖入 / 本地切图裁剪旋转衍生物。它就是一张图，不是生成节点：
@@ -289,6 +319,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'image',
     quickAdd: false,
     providesImageReference: true,
+    connects: NODE_KIND_CONNECTS['asset'],
   },
   {
     // AI 手艺产物：Agent 不调模型、用代码/标记语言直接做出的表达物（SVG / 动态 HTML / Markdown /
@@ -312,6 +343,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     catalogKind: 'text',
     quickAdd: false,
     agentCreatable: true,
+    connects: NODE_KIND_CONNECTS['agent-artifact'],
   },
 ])
 

@@ -28,7 +28,7 @@ const expectCommunityConversion = (document, heading, nextHeading, language) => 
   expect(!conversion.includes('|:---'), `${language} conversion avoids a shrinking Markdown table`)
   expectBefore(
     conversion,
-    'docs/media/nomi-canvas-group-wechat-2026-10-09.jpg',
+    'docs/media/nomi-canvas-group-wechat-2026-10-17.jpg',
     'docs/media/qingyang-wechat.jpg',
     `${language} puts the user-group QR before maintainer contact`,
   )
@@ -55,9 +55,9 @@ const files = [
   'marketing/assets/promo-0.22/film-poster-en.jpg',
   'marketing/assets/social-preview-zh.jpg',
   'marketing/assets/social-preview-en.jpg',
-  'marketing/assets/group-wechat-2026-10-09.jpg',
+  'marketing/assets/group-wechat-2026-10-17.jpg',
   'marketing/assets/qingyang-wechat.jpg',
-  'docs/media/nomi-canvas-group-wechat-2026-10-09.jpg',
+  'docs/media/nomi-canvas-group-wechat-2026-10-17.jpg',
   'docs/media/qingyang-wechat.jpg',
   '.github/ISSUE_TEMPLATE/business_inquiry.yml',
   'marketing/quickstart.html',
@@ -111,7 +111,7 @@ for (const html of [zh, en]) {
     expect(html.includes(`/releases/latest/download/${installer}`), `${installer} direct link exists`)
   }
   expect(html.includes('business_inquiry.yml'), 'business CTA destination exists')
-  expect(html.includes('/assets/group-wechat-2026-10-09.jpg'), 'current group QR is used')
+  expect(html.includes('/assets/group-wechat-2026-10-17.jpg'), 'current group QR is used')
   expect(html.includes('<figure class="qr" id="community-qr"><img'), 'group QR is directly rendered in the page')
   expect(!html.includes('data-open-dialog="group'), 'group QR does not require a dialog trigger')
   expect(html.includes('/assets/qingyang-wechat.jpg'), 'maintainer QR destination exists')
@@ -158,8 +158,8 @@ for (const html of [zh, en, zhQuickstart, enQuickstart]) {
 for (const relativePath of files) expect(fs.existsSync(path.join(root, relativePath)), `${relativePath} exists`)
 expect(
   fs
-    .readFileSync(path.join(root, 'marketing/assets/group-wechat-2026-10-09.jpg'))
-    .equals(fs.readFileSync(path.join(root, 'docs/media/nomi-canvas-group-wechat-2026-10-09.jpg'))),
+    .readFileSync(path.join(root, 'marketing/assets/group-wechat-2026-10-17.jpg'))
+    .equals(fs.readFileSync(path.join(root, 'docs/media/nomi-canvas-group-wechat-2026-10-17.jpg'))),
   'website and README publish the identical current group QR',
 )
 expect(!zh.includes('/assets/group-wechat-2026-08-14.png') && !en.includes('/assets/group-wechat-2026-08-14.png'), 'old group QR is not published by the homepage')

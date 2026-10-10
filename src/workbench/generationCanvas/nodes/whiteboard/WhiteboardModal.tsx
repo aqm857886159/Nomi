@@ -79,9 +79,8 @@ export default function WhiteboardModal({
   }, [nodeId])
   const drawingRef = React.useRef<WhiteboardDrawingToolHandle | null>(null)
   const [screenshotBusy, setScreenshotBusy] = React.useState(false)
-  const addNode = useGenerationCanvasStore((state) => state.addNode)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
+  const addDerivedOutput = useGenerationCanvasStore((state) => state.addDerivedOutput)
   const sourceNode = useGenerationCanvasStore((state) => state.nodes.find((node) => node.id === nodeId) || null)
   const canvasImageItems = useGenerationCanvasStore((state) => getAllCanvasImageResults(state.nodes, nodeId))
   const resultItems = useGenerationCanvasStore((state) => getConnectedImageResults(state.nodes, state.edges, nodeId))
@@ -250,24 +249,31 @@ export default function WhiteboardModal({
           ? computeMediaMetaPatch({ resultType: 'image', meta: {}, width: dimensions.width, height: dimensions.height })?.meta
           : undefined
 
-        const created = addNode({
-          kind: 'image',
-          title: t('generationCommon.whiteboard.screenshotName', {
-            title: latestSource?.title || t('generationCommon.whiteboard.title'),
-          }),
-          prompt: '',
-          position: {
-            x: Math.round((latestSource?.position.x || 120) + (latestSource?.size?.width || 320) + 80),
-            y: Math.round((latestSource?.position.y || 360) + 260),
-          },
-          categoryId: latestSource?.categoryId || 'shots',
-          select: false,
-          meta: {
-            source: 'whiteboard-screenshot',
-            sourceNodeId: nodeId,
-            ...(screenshotMeta || {}),
+        // 截图卡 + 出处边是一个原子动作（addDerivedOutput）：源必须是白板节点。
+        const created = addDerivedOutput({
+          sourceNodeId: nodeId,
+          kind: 'whiteboard-snapshot',
+          mode: 'reference',
+          node: {
+            kind: 'image',
+            title: t('generationCommon.whiteboard.screenshotName', {
+              title: latestSource?.title || t('generationCommon.whiteboard.title'),
+            }),
+            prompt: '',
+            position: {
+              x: Math.round((latestSource?.position.x || 120) + (latestSource?.size?.width || 320) + 80),
+              y: Math.round((latestSource?.position.y || 360) + 260),
+            },
+            categoryId: latestSource?.categoryId || 'shots',
+            select: false,
+            meta: {
+              source: 'whiteboard-screenshot',
+              sourceNodeId: nodeId,
+              ...(screenshotMeta || {}),
+            },
           },
         })
+        if (!created) throw new Error(t('generationCommon.whiteboard.screenshotFailed'))
         const snapshotResult = makeWhiteboardSnapshotResult(created.id, snapshotUrl)
         updateNode(created.id, {
           result: snapshotResult,
@@ -291,8 +297,6 @@ export default function WhiteboardModal({
             ...(sourceMeta ? { meta: sourceMeta } : {}),
           })
         }
-        connectNodes(nodeId, created.id, 'reference')
-
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
         reportFeedback(
@@ -303,9 +307,8 @@ export default function WhiteboardModal({
       }
     })
   }, [
-    addNode,
+    addDerivedOutput,
     captureFile,
-    connectNodes,
     nodeId,
     persistWhiteboardState,
     saveImageWhiteboardSnapshot,

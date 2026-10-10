@@ -29,7 +29,7 @@
 - 画布分镜表节点退役：owner = `project/storyboardTableRetirement`（读盘迁移）+ `isRetiredShotTableNode`（读取侧丢弃）；写入侧（落地、方案写入）不再产生。拆解表（参考片事实）保留。
 
 ## ★3 一致与复用
-- 大详情正文 = 现役 `NodeGenerationComposer host="panel"`；「生成」= `nodeComposerGenerate`（与画布「↑」同口）；提示词 = `PromptEditor` 只读；媒体 = 画布轻量档同一套；版本 = `nodeVersionEntries` + `setNodeMainResult`；虚拟化 = `@tanstack/react-virtual`；菜单 = `WorkbenchMenu`。
+- 大详情正文 = 现役 `NodeGenerationComposer host="panel"`；「生成」= `composerRun.startGenerationFromComposer`（与画布「↑」同口）；提示词 = `PromptEditor` 只读；媒体 = 画布轻量档同一套；版本 = `nodeVersionEntries` + `setNodeMainResult`；虚拟化 = `@tanstack/react-virtual`；菜单 = `WorkbenchMenu`。
 - 自写：列表投影与布局（领域：分镜镜序 × 画布分组 × 参考归属）。
 
 ## ★4 全状态

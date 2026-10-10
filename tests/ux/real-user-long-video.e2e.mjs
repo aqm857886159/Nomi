@@ -12,7 +12,7 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import {
-  ASSISTANT_MESSAGE, COLLAPSED_DOCK, COLLAPSED_SHELL, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
+  ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
   COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
 } from './agent-runtime-walk-support.mjs'
 import {
@@ -21,6 +21,7 @@ import {
   liveCanaryReadiness,
   runRealUserLongVideoJourney,
 } from './real-user-long-video.runner.mjs'
+import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 
 const FIXTURE_VIDEO = path.join(repoRoot, REAL_USER_LONG_VIDEO_MANIFEST.sample.path)
 const FIXTURE_VENDOR = 'real-user-loopback-vision'
@@ -135,7 +136,7 @@ async function dismissChrome(win) {
 
 async function enterProject(win) {
   await dismissChrome(win)
-  const create = win.getByText('新建空白项目', { exact: true }).first()
+  const create = newProjectEntry(win)
   await create.waitFor({ state: 'visible', timeout: 15_000 })
   await create.click()
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: 15_000 })
@@ -149,19 +150,8 @@ async function enterProject(win) {
 }
 
 async function openAgent(win) {
-  // v4 收起态：一根 32px 图标条，第一颗钮把面板叫回来。
-  const expand = async () => {
-    const collapsed = win.locator(COLLAPSED_SHELL).first()
-    if (await collapsed.isVisible().catch(() => false)) {
-      await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
-    }
-  }
-  await expand()
-  let panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
-  if (!(await panel.isVisible().catch(() => false))) {
-    await expand()
-    panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
-  }
+  await ensureAgentPanelOpen(win)
+  const panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
   await panel.waitFor({ state: 'visible', timeout: 10_000 })
   return panel
 }

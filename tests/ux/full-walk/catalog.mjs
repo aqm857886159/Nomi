@@ -253,7 +253,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     id: 'J01-generate-image',
     title: Object.freeze({ 'zh-CN': '生成一张图', en: 'Generate an image' }),
     states: Object.freeze([
-      { id: 'composing', kind: 'user', visibleText: ['generationCommon.nodeEmpty.image.title', 'generationCommon.nodeEmpty.image.description'], actions: ['输入提示词', '选模型', '点 ↑ 生成'], owner: 'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx#NodeGenerationComposer', deadline: USER },
+      { id: 'composing', kind: 'user', visibleText: ['generationCommon.nodeTry.label', 'generationCommon.nodeTry.image.text'], actions: ['输入提示词', '选模型', '点 ↑ 生成'], owner: 'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx#NodeGenerationComposer', deadline: USER },
       { id: 'confirming-spend', kind: 'user', visibleText: ['generationCommon.spend.confirm', 'generationCommon.spend.cancel'], actions: ['确认生成', '取消'], owner: 'src/workbench/generationCanvas/spend/spendConfirm.ts#spendConfirmationRequirement', deadline: USER },
       { id: 'queued', kind: 'system', visibleText: ['generationCommon.observability.progress.queued'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'queued' } },
       { id: 'requesting', kind: 'system', visibleText: ['generationCommon.observability.progress.submitting'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'requesting' } },
@@ -272,7 +272,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     id: 'J02-image-to-video',
     title: Object.freeze({ 'zh-CN': '图转视频', en: 'Image to video' }),
     states: Object.freeze([
-      { id: 'connecting', kind: 'user', visibleText: ['generationCommon.nodeEmpty.video.title', 'generationCommon.nodeEmpty.video.description'], actions: ['把图连到视频卡', '点「转视频」'], owner: 'src/workbench/generationCanvas/nodes/completeNodeConnection.ts#completeNodeConnection', deadline: USER },
+      { id: 'connecting', kind: 'user', visibleText: ['generationCommon.nodeTry.label', 'generationCommon.nodeTry.video.firstFrame'], actions: ['把图连到视频卡', '点「转视频」'], owner: 'src/workbench/generationCanvas/nodes/completeNodeConnection.ts#completeNodeConnection', deadline: USER },
       { id: 'mode-picked', kind: 'user', visibleText: ['generationCommon.parameters.model', 'generationCommon.shotConversion.firstFrame'], actions: ['换模式', '改参数', '点 ↑ 生成'], owner: 'src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts#buildNodeModelChangePatch', deadline: USER },
       { id: 'resolving', kind: 'system', visibleText: ['generationCommon.observability.progress.submitting'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'resolving' } },
       { id: 'generating', kind: 'system', visibleText: ['generationCommon.observability.progress.generating', 'generationCommon.observability.progress.stillGenerating'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'generating' } },
@@ -401,7 +401,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
 export const FULL_WALK_INVENTORY = Object.freeze([
   ...[
     ['P01', '首次启动', { gap: '开屏 / 引导只在打包版首启出现，开发构建只能证入口在' }],
-    ['P02', '新建项目', { journey: 'J10-open-old-project' }],
+    ['P02', '项目新建', { journey: 'J10-open-old-project' }],
     ['P03', '项目管理（重命名 / 复制 / 删除 / 恢复）', { gap: '下一批剧本：项目库里的重命名、复制、删除和撤销还没有剧本' }],
     ['P04', '文稿与分镜', { journey: 'J04-agent-multishot-spend' }],
     ['P05', '单镜编辑（锁定 / 跳过 / 删除撤销）', { journey: 'J06-delete-shot' }],

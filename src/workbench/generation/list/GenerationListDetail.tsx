@@ -1,7 +1,7 @@
 // 点一张卡 = 大详情（样张板 ListDetail）：左边收成 288 窄列（同一份列表，点别的镜即切换），
 // 右边 = 大预览 + 版本行 + 完整输入框（画布节点那张现役 NodeGenerationComposer，host="panel"）+ 底部「生成 / 重新生成」。
 // 这里**不包 NodeWriteAccessProvider**——写口就是画布 store，改的就是画布上那个节点；列表与画布只有一份数据（概念 generation.list-view）。
-// 「生成」按下去走 nodeComposerGenerate——和画布生成框「↑」同一个口，不另写一份。
+// 「生成」按下去走 composerRun.startGenerationFromComposer——和画布生成框「↑」同一个口，不另写一份。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconEye, IconPhoto, IconPlayerPlay } from '@tabler/icons-react'
@@ -10,7 +10,7 @@ import { cn } from '../../../utils/cn'
 import { collapsePromptWhitespace, parsePromptSegments } from '../../assets/promptMentions'
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
 import LazyNodeGenerationComposer from '../../generationCanvas/nodes/LazyNodeGenerationComposer'
-import { runComposerGenerate } from '../../generationCanvas/nodes/nodeComposerGenerate'
+import { startGenerationFromComposer } from '../../generationCanvas/nodes/composerRun'
 import { nodeHasGenerationComposer } from '../../generationCanvas/nodes/resolveRenderKind'
 import { nodeVersionEntries } from '../../generationCanvas/nodes/versionCards/nodeVersionEntries'
 import { getGenerationNodeExecutionKind } from '../../generationCanvas/model/generationNodeKinds'
@@ -77,7 +77,7 @@ export function DetailRail({ sections, activeKey, onSelect }: { sections: readon
   const { t } = useTranslation()
   const rows = sections.filter((section) => section.cards.some((card) => card.variant !== 'tool'))
   return (
-    <nav className="flex w-[288px] shrink-0 flex-col overflow-y-auto border-r border-nomi-line-soft pb-3 pt-12" aria-label={t('generationList.aria')} data-list-detail-rail>
+    <nav className="flex w-[288px] shrink-0 flex-col overflow-y-auto border-r border-nomi-line-soft pb-3" aria-label={t('generationList.aria')} data-list-detail-rail>
       {rows.map((section) => (
         <div key={section.key} data-list-detail-rail-section={section.key}>
           <div className="flex h-[52px] shrink-0 items-center gap-2 px-4">
@@ -133,8 +133,7 @@ function DetailVersions({ node, width }: { node: GenerationCanvasNode; width: nu
   )
 }
 
-/** `leadInset`：窄列让位时详情独占整块，左上那颗切换钮会盖住返回钮，头部整体右挪一格。 */
-export function GenerationListDetail({ card, onBack, leadInset = false }: { card: GenerationListCard; onBack: () => void; leadInset?: boolean }): JSX.Element {
+export function GenerationListDetail({ card, onBack }: { card: GenerationListCard; onBack: () => void }): JSX.Element {
   const { t } = useTranslation()
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === card.nodeId))
   const modelLabel = useNodeModelLabel(node)
@@ -147,7 +146,7 @@ export function GenerationListDetail({ card, onBack, leadInset = false }: { card
   const previewWidth = Math.round(Math.min(DETAIL_PREVIEW_WIDTH, DETAIL_PREVIEW_HEIGHT * ((aw || 16) / (ah || 9))))
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-list-inspector={card.key} data-list-detail aria-label={shotLabel(t, card)}>
-      <header className={cn('flex h-[52px] shrink-0 items-center gap-2.5 px-3', leadInset && 'pl-14')}>
+      <header className="flex h-[52px] shrink-0 items-center gap-2.5 px-3">
         <WorkbenchIconButton icon={<IconArrowLeft size={16} stroke={1.8} />} label={t('generationList.backToList')} size="sm" onClick={onBack} data-list-detail-back />
         <h2 className="m-0 min-w-0 truncate text-title font-semibold tabular-nums text-nomi-ink">{shotLabel(t, card)}</h2>
         {card.status ? <ListStatusTag status={card.status} /> : null}
@@ -167,9 +166,9 @@ export function GenerationListDetail({ card, onBack, leadInset = false }: { card
             nodeHasGenerationComposer(node.kind) ? (
               <div className="mx-auto mt-4 w-full rounded-panel bg-nomi-paper p-3 ring-1 ring-nomi-line" style={{ maxWidth: DETAIL_PREVIEW_WIDTH }} data-inspector-composer>
                 <LazyNodeGenerationComposer node={node} visualSize={node.size ?? { width: 340, height: 192 }} host="panel" onFeedback={NO_FEEDBACK} />
-                {/* 生成钮：panel 宿主的生成框把「生成」交给宿主；这里接，按下去 = 画布「↑」同一个口（nodeComposerGenerate）。 */}
+                {/* 生成钮：panel 宿主的生成框把「生成」交给宿主；这里接，按下去 = 画布「↑」同一个口（composerRun）。 */}
                 <div className="mt-3 flex justify-end">
-                  <WorkbenchButton size="md" variant="primary" disabled={running} onClick={() => { void runComposerGenerate(node.id) }} data-list-detail-generate>
+                  <WorkbenchButton size="md" variant="primary" disabled={running} onClick={() => { void startGenerationFromComposer(node, Boolean(node.result?.url)) }} data-list-detail-generate>
                     <IconPlayerPlay size={14} aria-hidden /> {running ? t('generationList.generating') : node.result?.url ? t('generationList.regenerate') : t('generationList.generate')}
                   </WorkbenchButton>
                 </div>

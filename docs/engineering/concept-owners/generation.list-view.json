@@ -27,5 +27,5 @@
     "src/workbench/generation/list/CanvasListLinks.tsx"
   ],
   "since": "2026-10-08",
-  "notes": "设计卡 docs/plan/2026-10-08-generation-list-view.md。列表没有第二份数据：卡读画布 store 的节点（只显示已落画布的），行状态读 storyboardRowStatus 的词表。零写入：大详情里的生成框（NodeGenerationComposer host=panel）不包 NodeWriteAccessProvider，写口就是画布 store；「生成」走 nodeComposerGenerate（与画布「↑」同一个口），分区头「生成全部」走 groupGenerate（与画布组框同一个口，同一张付费确认）。视图状态（画布 / 列表、大详情开着哪张）归 useGenerationViewStore，不进项目文件。"
+  "notes": "设计卡 docs/plan/2026-10-08-generation-list-view.md。列表没有第二份数据：卡读画布 store 的节点（只显示已落画布的），行状态读 storyboardRowStatus 的词表。零写入：大详情里的生成框（NodeGenerationComposer host=panel）不包 NodeWriteAccessProvider，写口就是画布 store；「生成」走 composerRun.startGenerationFromComposer（与画布「↑」同一个口），分区头「生成全部」走 groupGenerate（与画布组框同一个口，同一张付费确认）。视图状态（画布 / 列表、大详情开着哪张）归 useGenerationViewStore，不进项目文件。"
 }

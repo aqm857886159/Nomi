@@ -41,6 +41,12 @@ import { DIRECTOR_REFINE_STATES } from './directorRefine/directorRefineStates'
 import { DIRECTOR_CROWD_ALL_STATES } from './directorCrowd/directorCrowdStates'
 import { DIRECTOR_CROWD_CELL_HEIGHT, DIRECTOR_CROWD_CELL_WIDTH } from './directorCrowd/directorCrowdConstants'
 import { CANVAS_GROUPING_STATES } from './canvasGrouping/canvasGroupingStates'
+import { CANVAS_HANDLES_STATES } from './canvasHandles/canvasHandlesStates'
+import { CANVAS_HANDLES_CELL_HEIGHT, CANVAS_HANDLES_CELL_WIDTH } from './canvasHandles/canvasHandlesLabKit'
+import { UPDATE_REMINDER_STATES } from './updateReminder/updateReminderStates'
+import { UPDATE_REMINDER_WINDOW } from './updateReminder/updateReminderLabKit'
+import { VIDEO_NODE_NEXT_STATES } from './videoNodeNext/videoNodeNextStates'
+import { VN_CELL_HEIGHT, VN_CELL_WIDTH } from './videoNodeNext/videoNodeNextToolbarKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -112,6 +118,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 六格取景一样大：框的几何是这一屏要看的东西，格子不同宽就没法一眼比出
     // 「空框 / 有内容 / 拖入 / 拖出」四态里框的边界有没有变。
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
+  },
+  {
+    id: 'canvas-handles',
+    label: '画布 · 左右拉环与空节点「试试」',
+    states: CANVAS_HANDLES_STATES,
+    cell: { width: CANVAS_HANDLES_CELL_WIDTH, height: CANVAS_HANDLES_CELL_HEIGHT },
   },
   {
     id: 'canvas-grouping',
@@ -217,6 +229,19 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     label: '导演台 · 群众并进加人',
     states: DIRECTOR_CROWD_ALL_STATES,
     cell: { width: DIRECTOR_CROWD_CELL_WIDTH, height: DIRECTOR_CROWD_CELL_HEIGHT },
+  },
+  {
+    id: 'update-reminder',
+    label: '应用内更新提醒（D-update 样张）',
+    states: UPDATE_REMINDER_STATES,
+    // 取景 = 主窗口默认尺寸（项目库整页）；弹窗格按弹窗自身大小截，顶栏格按真宽截。
+    cell: { width: UPDATE_REMINDER_WINDOW.width, height: UPDATE_REMINDER_WINDOW.height },
+  },
+  {
+    id: 'video-node-next',
+    label: '视频节点的下一步（截帧 / 剪辑 / 拆成视频片段）',
+    states: VIDEO_NODE_NEXT_STATES,
+    cell: { width: VN_CELL_WIDTH, height: VN_CELL_HEIGHT },
   },
 ]
 

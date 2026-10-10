@@ -57,7 +57,7 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   expect(walk.fixture.images, 'Saving a storyboard submits no media').toHaveLength(0)
   const openEditor = async () => {
     await win.getByRole('button', { name: '创作', exact: true }).click()
-    const expand = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
+    const expand = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if (await expand.isVisible()) await expand.click()
     await openStoryboardEditor(win, designId)
     const editor = win.locator('[data-storyboard-editor="true"]')
@@ -130,7 +130,7 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   editor = await openEditor()
   const secondRow = editor.locator('[data-storyboard-row="2"]')
   await expect(secondRow.locator('[data-storyboard-prompt-block] [contenteditable="true"]')).toHaveText(newPrompt)
-  const collapse = win.locator('[data-creation-resource-tree-toggle="collapse"]:visible')
+  const collapse = win.locator('[data-shell-rail-item="docs"][aria-pressed="true"]')
   if (await collapse.isVisible()) await collapse.click()
   expect(walk.fixture.images).toHaveLength(0)
   // 「生成」在内容列底栏右端（2026-10-06 #1042 改版后画面格里不再放一颗）。

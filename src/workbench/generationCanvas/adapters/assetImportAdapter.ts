@@ -23,6 +23,9 @@ import {
 import { readStorageCapacitySnapshot } from '../../assets/storageCapacitySnapshot'
 import { ensureAssetImportProgressBridge, useAssetImportProgressStore } from '../store/assetImportProgressStore'
 import { computeMediaMetaPatch, readMediaDimensions } from '../nodes/nodeSizing'
+import { withCanvasGestureContext } from '../events/canvasGestureContext'
+import { pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { localProcessingError } from '../../observability/localProcessingError'
 
 const DATA_URL_FALLBACK_MAX_BYTES = 512 * 1024
 
@@ -39,6 +42,8 @@ export type GenerationAssetImportResult = {
   /** Project replacement is a handled cancellation, never an upload failure or fallback request. */
   cancelled?: true
   created: GenerationAssetImportItem[]
+  /** `created` 里**真的导入成功**的节点 id（上传 / 落盘成功，含小图 data-url 兜底）。失败的卡留在画布上成 error（可重试），但不在这里——调用方据此决定要不要接线。 */
+  succeededNodeIds: string[]
   skippedDuplicateCount: number
   /** 准入闸拒收的文件（类型不对 / 硬上限 / 磁盘装不下）。 */
   rejected: GenerationAssetImportSkip[]
@@ -67,6 +72,16 @@ export type ImportImageFilesOptions = {
   anchor?: CanvasPlacementAnchor
   /** 磁盘余量（省一次 IPC 时可注入；不传则现取）。 */
   capacity?: StorageCapacity | null
+  /**
+   * 传了 = 这次导入是**一个撤销点**（Ctrl+Z 一次撤干净）：建卡前打一个屏障，之后导入自己的每一笔写（建卡 / 进度 / 落盘结果）都压住撤销屏障；
+   * 调用方（素材选择器上传后接线）把接线也放进同一个事务。不传 = 老行为（拖入 / 导入钮各笔各自起撤销点）。
+   */
+  undoTxn?: string
+}
+
+/** 这笔写属于导入事务就压住撤销屏障；不属于就原样执行。 */
+function inUndoTxn<T>(undoTxn: string | undefined, fn: () => T): T {
+  return undoTxn ? withCanvasGestureContext({ source: 'user', txnId: undoTxn, suppressUndoBarriers: true }, fn) : fn()
 }
 
 type ImageDimensions = {
@@ -235,6 +250,7 @@ async function uploadAndApplyAssetToNode(
   kind: 'image' | 'video',
   deps: AssetUploadDeps,
   context: ProjectExecutionContext,
+  undoTxn?: string,
 ): Promise<boolean> {
   context.assertCurrent()
   const store = useGenerationCanvasStore.getState()
@@ -260,10 +276,10 @@ async function uploadAndApplyAssetToNode(
     context.assertCurrent()
     if (fallbackResult) pendingRetryImports.delete(nodeId)
     else pendingRetryImports.set(nodeId, { file, kind, context })
-    store.updateNode(nodeId, {
+    inUndoTxn(undoTxn, () => store.updateNode(nodeId, {
       ...(fallbackResult ? { result: fallbackResult, history: [fallbackResult] } : {}),
       status: fallbackResult ? 'success' : 'error',
-      error: fallbackResult ? undefined : '本地素材复制失败，可点节点上的「重试导入」',
+      error: fallbackResult ? undefined : localProcessingError('本地素材复制失败，可点节点上的「重试导入」'),
       meta: {
         ...(useGenerationCanvasStore.getState().nodes.find((c) => c.id === nodeId)?.meta || {}),
         uploadStatus: 'local-only',
@@ -271,7 +287,7 @@ async function uploadAndApplyAssetToNode(
         persistable: Boolean(fallbackResult),
         retryableImport: !fallbackResult,
       },
-    })
+    }))
     // 节点已经换成最终形态（成图/失败卡）才丢进度：先丢会让渐显层提前卸载，闪一帧空卡。
     useAssetImportProgressStore.getState().clear(nodeId)
     return Boolean(fallbackResult)
@@ -295,7 +311,7 @@ async function uploadAndApplyAssetToNode(
     ? computeMediaMetaPatch({ resultType: kind, meta: currentMeta, ...hostedDimensions, durationSeconds: videoDuration || undefined })?.meta
     : undefined
   pendingRetryImports.delete(nodeId)
-  store.updateNode(nodeId, {
+  inUndoTxn(undoTxn, () => store.updateNode(nodeId, {
     result: hostedResult,
     history: [hostedResult],
     status: 'success',
@@ -308,7 +324,7 @@ async function uploadAndApplyAssetToNode(
       serverAssetId: hosted?.id,
       ...(videoDuration && videoDuration > 0 ? { videoDuration } : {}),
     },
-  })
+  }))
   useAssetImportProgressStore.getState().clear(nodeId)
   return true
 }
@@ -348,7 +364,7 @@ export async function importLocalMediaFilesToGenerationCanvas(
     return await importFilesInProject(inputFiles, options, context)
   } catch (error) {
     if (!context.signal.aborted && !isProjectImportCancellation(error)) throw error
-    return { cancelled: true, created: [], skippedDuplicateCount: 0, rejected: [], skippedOverLimitCount: 0, failedCount: 0 }
+    return { cancelled: true, created: [], succeededNodeIds: [], skippedDuplicateCount: 0, rejected: [], skippedOverLimitCount: 0, failedCount: 0 }
   }
 }
 
@@ -374,6 +390,7 @@ async function importFilesInProject(
   if (!accepted.length) {
     return {
       created,
+      succeededNodeIds: [],
       skippedDuplicateCount: filtered.skippedDuplicateCount,
       rejected: filtered.rejected,
       skippedOverLimitCount,
@@ -403,9 +420,11 @@ async function importFilesInProject(
     prepared.map((item) => item.size),
   )
 
+  // 一个撤销点：建第一张卡之前打一个屏障，之后这次导入的每一笔写都压住自己的屏障（见 undoTxn）。
+  if (options.undoTxn) pushUndoSnapshot()
   prepared.forEach(({ dimensions, file, kind, size }, index) => {
     context.assertCurrent()
-    const node = useGenerationCanvasStore.getState().addNode({
+    const node = inUndoTxn(options.undoTxn, () => useGenerationCanvasStore.getState().addNode({
       kind: 'asset',
       title:
         file.name ||
@@ -418,9 +437,9 @@ async function importFilesInProject(
       position: positions[index],
       categoryId: options.categoryId,
       exactPosition: options.exactPosition,
-    })
+    }))
     context.assertCurrent()
-    useGenerationCanvasStore.getState().updateNode(node.id, {
+    inUndoTxn(options.undoTxn, () => useGenerationCanvasStore.getState().updateNode(node.id, {
       ...(size ? { size } : {}),
       // 'queued' 是生成词表里的「排队等模型」；导入只是在拷文件，套上它整套生成过程反馈就会误挂上来。
       // 导入中的唯一真相是 meta.uploadStatus:'uploading'。
@@ -432,18 +451,21 @@ async function importFilesInProject(
         uploadStatus: 'uploading',
         ...imageMetaForDimensions(dimensions),
       },
-    }, { persist: false })
+    }, { persist: false }))
     created.push({ node, file, kind })
   })
 
   let failedCount = 0
+  const succeeded = new Set<string>()
   await Promise.all(created.map(async ({ node, file, kind }) => {
-    const ok = await uploadAndApplyAssetToNode(node.id, file, kind, { uploadFile, recoverFile, probeVideoDuration }, context)
-    if (!ok) failedCount += 1
+    const ok = await uploadAndApplyAssetToNode(node.id, file, kind, { uploadFile, recoverFile, probeVideoDuration }, context, options.undoTxn)
+    if (ok) succeeded.add(node.id)
+    else failedCount += 1
   }))
 
   return {
     created,
+    succeededNodeIds: created.map((item) => item.node.id).filter((id) => succeeded.has(id)),
     skippedDuplicateCount: filtered.skippedDuplicateCount,
     rejected: filtered.rejected,
     skippedOverLimitCount,

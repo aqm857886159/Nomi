@@ -83,17 +83,34 @@ export async function resolveVideoLocalPath(
   throw new VideoFrameError(`无法识别的视频地址：${videoUrl.slice(0, 80)}`);
 }
 
-/** 算出抽哪一秒。last 需先 probe 时长，取末尾 0.1s 处（避开 EOF 黑帧/解码边界）。 */
+/** 末尾留出的余量：避开 EOF 黑帧 / 解码边界（尾帧与「截帧 → 当前帧」播到最后一刻共用）。 */
+const END_MARGIN_SECONDS = 0.1;
+
+/**
+ * 夹到「最后一帧还在的位置」：超出时长（播放头停在片尾、浮点误差）的秒数不能直接喂给 ffmpeg——
+ * `-ss` 落在 EOF 之后一帧都出不来，用户看到的是「截帧失败」。时长未知（<= 0 / 非有限）原样放行，交给 ffmpeg 判。
+ */
+export function clampSeekSeconds(seconds: number, durationSeconds: number): number {
+  const wanted = Math.max(0, seconds);
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return wanted;
+  return Math.min(wanted, Math.max(0, durationSeconds - END_MARGIN_SECONDS));
+}
+
+async function probeDurationSeconds(filePath: string): Promise<number> {
+  const meta = await probeMediaMetadata(filePath);
+  return typeof meta.durationSeconds === "number" ? meta.durationSeconds : 0;
+}
+
+/** 算出抽哪一秒。last 需先 probe 时长，取末尾 0.1s 处；指定秒数超出时长时夹到同一个位置。 */
 async function resolveSeekSeconds(filePath: string, which: VideoFrameWhich): Promise<number> {
   if (which === "first") return 0;
-  if (typeof which === "number") return Math.max(0, which);
+  if (typeof which === "number") return clampSeekSeconds(which, await probeDurationSeconds(filePath).catch(() => 0));
   // which === 'last'
-  const meta = await probeMediaMetadata(filePath);
-  const duration = typeof meta.durationSeconds === "number" ? meta.durationSeconds : 0;
+  const duration = await probeDurationSeconds(filePath);
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new VideoFrameError("无法读取源视频时长，取不到尾帧");
   }
-  return Math.max(0, duration - 0.1);
+  return clampSeekSeconds(duration, duration);
 }
 
 function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {

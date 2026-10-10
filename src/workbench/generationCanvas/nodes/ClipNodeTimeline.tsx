@@ -5,6 +5,9 @@ import { WorkbenchIconButton } from '../../../design/actions'
 import { useFilmstrip } from '../../../media/useFilmstrip'
 import { cn } from '../../../utils/cn'
 import { canvasDragExceededThreshold } from '../components/canvasPointerGestureModel'
+import { usePointerSession } from '../../timeline/timelineGesture'
+import { acceptsClipDropTypes, readClipDropPayload, type ClipDropPayload } from './clipNodeDrop'
+import { startEdgeAutoScroll } from './clipNodeEdgeScroll'
 import type { TimelineClip, TimelineState } from '../../timeline/timelineTypes'
 import type { SnapResult } from '../../timeline/snapping'
 import {
@@ -19,6 +22,7 @@ import {
   type ClipNodeResizeTarget,
 } from './clipNodeDragModel'
 import { formatClipNodeDuration } from './clipNodeVisual'
+import { clientXToDesignPx, clipHandleHitWidth, clipHitPadWidth, playheadHitWidth, resolveClipNodeDropFrame } from './clipNodeGestureModel'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 type ClipNodeTimelineProps = {
@@ -26,10 +30,16 @@ type ClipNodeTimelineProps = {
   canvasZoom: number
   selectedClipId?: string
   onSelectClip: (clipId: string, frame: number) => void
+  /** 手势按下的那一刻调：节点与片段的选中态要先跟上手势（clipId 为 null = 只选节点，不改片段）。 */
+  onAdmitGesture?: (clipId: string | null) => void
   onMoveClip: (clipId: string, startFrame: number) => void
   onResizeClip: (clipId: string, edge: 'left' | 'right', deltaFrame: number) => void
   onScrubPlayhead?: (frame: number) => void
   onAddMaterial?: () => void
+  /** 素材（画布节点 / 素材库）落在轴上：boundaryFrame 是插入指示画的那一帧，也是松手要插的那一帧。 */
+  onDropMedia?: (payload: ClipDropPayload, boundaryFrame: number) => void
+  /** 还没有片段时轨道里放什么（ClipNode 给「把视频节点连进来」+「在画布上点选」）。 */
+  emptyState?: React.ReactNode
 }
 
 type ClipDragPreview = {
@@ -72,28 +82,37 @@ function ClipThumb({ clip, pxPerFrame }: { clip: TimelineClip; pxPerFrame: numbe
 function ClipHandle({
   edge,
   canvasZoom,
+  clipWidth,
+  selected,
   onPointerDown,
 }: {
   edge: 'left' | 'right'
   canvasZoom: number
+  clipWidth: number
+  selected: boolean
   onPointerDown: (event: React.PointerEvent<HTMLButtonElement>, edge: 'left' | 'right') => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const hitWidth = Math.min(28, Math.max(16, 12 / Math.max(0.2, canvasZoom)))
+  const hitWidth = clipHandleHitWidth({ clipWidth, canvasZoom, selected })
+  const label = edge === 'left' ? t('generationCommon.clipNode.resizeStart') : t('generationCommon.clipNode.resizeEnd')
 
   return (
     <button
       type="button"
       data-clip-handle="true"
+      data-clip-handle-edge={edge}
+      // 手柄常驻、悬停片段或选中后显形：命中不依赖「先选中」，显隐只管外观。
       className={cn(
-        'absolute inset-y-0 z-30 grid cursor-ew-resize place-items-center border-0 bg-nomi-paper/10 p-0 transition-colors hover:bg-nomi-accent/30 focus-visible:bg-nomi-accent/30 focus-visible:outline-none',
+        'absolute inset-y-0 z-30 grid cursor-ew-resize place-items-center border-0 bg-nomi-accent/25 p-0 transition-[opacity,background-color] hover:bg-nomi-accent/45 focus-visible:bg-nomi-accent/45 focus-visible:opacity-100 focus-visible:outline-none',
+        selected ? 'opacity-100' : 'opacity-0 group-hover/clip:opacity-100',
         edge === 'left' ? 'left-0' : 'right-0',
       )}
       style={{ width: hitWidth }}
-      aria-label={edge === 'left' ? t('generationCommon.clipNode.resizeStart') : t('generationCommon.clipNode.resizeEnd')}
-      title={edge === 'left' ? t('generationCommon.clipNode.resizeStart') : t('generationCommon.clipNode.resizeEnd')}
+      tabIndex={selected ? 0 : -1}
+      aria-hidden={selected ? undefined : true}
+      aria-label={label}
+      title={label}
       onPointerDown={(event) => onPointerDown(event, edge)}
-      onClick={(event) => event.stopPropagation()}
     >
       <span className="block h-6 w-1 rounded-full bg-nomi-paper shadow-nomi-sm" aria-hidden="true" />
     </button>
@@ -111,11 +130,14 @@ function ClipItem({
   previewStartFrame,
   resizePreview,
   onSelectClip,
+  onAdmitGesture,
   onMoveClip,
   onResizeClip,
   onDragPreview,
   onResizePreview,
-}: Pick<ClipNodeTimelineProps, 'onSelectClip' | 'onMoveClip' | 'onResizeClip'> & {
+  getScroller,
+}: Pick<ClipNodeTimelineProps, 'onSelectClip' | 'onAdmitGesture' | 'onMoveClip' | 'onResizeClip'> & {
+  getScroller: () => HTMLElement | null
   clip: TimelineClip
   selected: boolean
   timeline: TimelineState
@@ -145,62 +167,36 @@ function ClipItem({
     })
   }, [])
 
+  const startSession = usePointerSession()
+
   const beginDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if ((event.target as HTMLElement).closest('[data-clip-handle]')) return
+    if (event.button !== 0 || (event.target as HTMLElement).closest('[data-clip-handle]')) return
     event.preventDefault()
     event.stopPropagation()
-    const target = event.currentTarget
-    const pointerId = event.pointerId
+    onAdmitGesture?.(clip.id)
     const originX = event.clientX
     const originY = event.clientY
     const originStart = clip.startFrame
     let lastTarget = { startFrame: originStart, snap: null as SnapResult | null }
     let didDrag = false
-    let finished = false
     didDragRef.current = false
     lastSnapKeyRef.current = null
-    target.setPointerCapture(pointerId)
+    const scroller = getScroller()
+    const scrollOrigin = scroller?.scrollLeft ?? 0
+    let lastPoint = { clientX: originX, shiftKey: false }
+    let stopEdgeScroll: (() => void) | null = null
 
-    const cleanup = () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-      window.removeEventListener('pointercancel', handleCancel)
-      window.removeEventListener('keydown', handleKeyDown, true)
-      window.removeEventListener('blur', handleCancel)
-      target.removeEventListener('lostpointercapture', handleLostPointerCapture)
-    }
-
-    const finish = (commit: boolean) => {
-      if (finished) return
-      finished = true
-      cleanup()
-      if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId)
-      setDragging(false)
-      onDragPreview(null)
-      lastSnapKeyRef.current = null
-      if (didDrag) window.setTimeout(() => { didDragRef.current = false }, 0)
-      if (commit && didDrag && lastTarget.startFrame !== originStart) {
-        onMoveClip(clip.id, lastTarget.startFrame)
-      }
-    }
-
-    function handleMove(moveEvent: PointerEvent) {
-      if (moveEvent.pointerId !== pointerId) return
-      if (!didDrag && !canvasDragExceededThreshold(originX, originY, moveEvent.clientX, moveEvent.clientY)) return
-      moveEvent.preventDefault()
-      if (!didDrag) {
-        didDrag = true
-        didDragRef.current = true
-        setDragging(true)
-      }
+    // 落点 = 指针位移 + 拖动中轴自己滚过的距离（滚动不产生指针事件，所以位置由这里统一重算）。
+    const applyPoint = () => {
       const screenPxPerFrame = pxPerFrame * Math.max(0.1, canvasZoom)
-      const desiredStartFrame = originStart + clipNodeClientDeltaToFrames(moveEvent.clientX - originX, pxPerFrame, canvasZoom)
+      const scrolledFrames = Math.round(((scroller?.scrollLeft ?? 0) - scrollOrigin) / Math.max(0.01, pxPerFrame))
+      const desiredStartFrame = originStart + clipNodeClientDeltaToFrames(lastPoint.clientX - originX, pxPerFrame, canvasZoom) + scrolledFrames
       const resolved = resolveClipNodeDragTarget({
         timeline,
         clipId: clip.id,
         desiredStartFrame,
         pxPerFrame: screenPxPerFrame,
-        snapping: !moveEvent.shiftKey,
+        snapping: !lastPoint.shiftKey,
       })
       if (!resolved) return
       lastTarget = resolved
@@ -210,51 +206,53 @@ function ClipItem({
       onDragPreview({ clipId: clip.id, ...resolved })
     }
 
-    function handleUp(upEvent: PointerEvent) {
-      if (upEvent.pointerId !== pointerId) return
-      finish(true)
-    }
-
-    function handleCancel(cancelEvent: Event) {
-      if (cancelEvent instanceof PointerEvent && cancelEvent.pointerId !== pointerId) return
-      finish(false)
-    }
-
-    function handleKeyDown(keyEvent: KeyboardEvent) {
-      if (keyEvent.key !== 'Escape') return
-      keyEvent.preventDefault()
-      finish(false)
-    }
-
-    function handleLostPointerCapture(captureEvent: PointerEvent) {
-      if (captureEvent.pointerId !== pointerId) return
-      finish(false)
-    }
-
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    window.addEventListener('pointercancel', handleCancel)
-    window.addEventListener('keydown', handleKeyDown, true)
-    window.addEventListener('blur', handleCancel)
-    target.addEventListener('lostpointercapture', handleLostPointerCapture)
+    startSession({
+      event,
+      onMove: (moveEvent) => {
+        if (!didDrag && !canvasDragExceededThreshold(originX, originY, moveEvent.clientX, moveEvent.clientY)) return
+        moveEvent.preventDefault()
+        lastPoint = { clientX: moveEvent.clientX, shiftKey: moveEvent.shiftKey }
+        if (!didDrag) {
+          didDrag = true
+          didDragRef.current = true
+          setDragging(true)
+          stopEdgeScroll = startEdgeAutoScroll({ scroller, canvasZoom, getClientX: () => lastPoint.clientX, onScrolled: applyPoint })
+        }
+        applyPoint()
+      },
+      onCommit: () => {
+        if (didDrag && lastTarget.startFrame !== originStart) onMoveClip(clip.id, lastTarget.startFrame)
+      },
+      onEnd: () => {
+        stopEdgeScroll?.()
+        setDragging(false)
+        onDragPreview(null)
+        lastSnapKeyRef.current = null
+        if (didDrag) window.setTimeout(() => { didDragRef.current = false }, 0)
+      },
+    })
   }
 
   const beginResize = (event: React.PointerEvent<HTMLButtonElement>, edge: 'left' | 'right'): void => {
+    if (event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
-    const target = event.currentTarget
-    const pointerId = event.pointerId
+    onAdmitGesture?.(clip.id)
     const originX = event.clientX
     let lastTarget: ClipNodeResizeTarget | null = null
     let didResize = false
-    let finished = false
+    didDragRef.current = false
     let animationFrame = 0
     let pendingMove: { clientX: number; shiftKey: boolean } | null = null
     lastSnapKeyRef.current = null
-    target.setPointerCapture(pointerId)
+    const scroller = getScroller()
+    const scrollOrigin = scroller?.scrollLeft ?? 0
+    let lastPoint = { clientX: originX, shiftKey: false }
+    let stopEdgeScroll: (() => void) | null = null
 
     const applyMove = (move: { clientX: number; shiftKey: boolean }) => {
-      const desiredDeltaFrame = clipNodeClientDeltaToFrames(move.clientX - originX, pxPerFrame, canvasZoom)
+      const scrolledFrames = Math.round(((scroller?.scrollLeft ?? 0) - scrollOrigin) / Math.max(0.01, pxPerFrame))
+      const desiredDeltaFrame = clipNodeClientDeltaToFrames(move.clientX - originX, pxPerFrame, canvasZoom) + scrolledFrames
       if (!didResize && Math.abs(move.clientX - originX) < 2) return
       const screenPxPerFrame = pxPerFrame * Math.max(0.1, canvasZoom)
       const resolved = resolveClipNodeResizeTarget({
@@ -267,6 +265,8 @@ function ClipItem({
       })
       if (!resolved) return
       didResize = true
+      didDragRef.current = true
+      stopEdgeScroll ??= startEdgeAutoScroll({ scroller, canvasZoom, getClientX: () => lastPoint.clientX, onScrolled: () => applyMove(lastPoint) })
       lastTarget = resolved
       setResizingEdge(edge)
       const snapKey = resolved.snap ? `${resolved.snap.frame}:${resolved.snap.point.type}` : null
@@ -284,73 +284,37 @@ function ClipItem({
       applyMove(move)
     }
 
-    const cleanup = () => {
-      if (animationFrame) window.cancelAnimationFrame(animationFrame)
-      animationFrame = 0
-      pendingMove = null
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-      window.removeEventListener('pointercancel', handleCancel)
-      window.removeEventListener('keydown', handleKeyDown, true)
-      window.removeEventListener('blur', handleCancel)
-      target.removeEventListener('lostpointercapture', handleLostPointerCapture)
-    }
-
-    const finish = (commit: boolean) => {
-      if (finished) return
-      if (commit) flushPendingMove()
-      finished = true
-      cleanup()
-      if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId)
-      setResizingEdge(null)
-      onResizePreview(null)
-      lastSnapKeyRef.current = null
-      if (commit && didResize && lastTarget && lastTarget.deltaFrame !== 0) {
-        onResizeClip(clip.id, edge, lastTarget.deltaFrame)
-      }
-    }
-
-    function handleMove(moveEvent: PointerEvent) {
-      if (moveEvent.pointerId !== pointerId) return
-      moveEvent.preventDefault()
-      pendingMove = { clientX: moveEvent.clientX, shiftKey: moveEvent.shiftKey }
-      if (animationFrame) return
-      animationFrame = window.requestAnimationFrame(() => {
+    startSession({
+      event,
+      onMove: (moveEvent) => {
+        moveEvent.preventDefault()
+        lastPoint = { clientX: moveEvent.clientX, shiftKey: moveEvent.shiftKey }
+        pendingMove = lastPoint
+        if (animationFrame) return
+        animationFrame = window.requestAnimationFrame(() => {
+          animationFrame = 0
+          if (!pendingMove) return
+          const move = pendingMove
+          pendingMove = null
+          applyMove(move)
+        })
+      },
+      onCommit: () => {
+        flushPendingMove()
+        if (didResize && lastTarget && lastTarget.deltaFrame !== 0) onResizeClip(clip.id, edge, lastTarget.deltaFrame)
+      },
+      onEnd: () => {
+        stopEdgeScroll?.()
+        if (animationFrame) window.cancelAnimationFrame(animationFrame)
         animationFrame = 0
-        if (!pendingMove) return
-        const move = pendingMove
         pendingMove = null
-        applyMove(move)
-      })
-    }
-
-    function handleUp(upEvent: PointerEvent) {
-      if (upEvent.pointerId !== pointerId) return
-      finish(true)
-    }
-
-    function handleCancel(cancelEvent: Event) {
-      if (cancelEvent instanceof PointerEvent && cancelEvent.pointerId !== pointerId) return
-      finish(false)
-    }
-
-    function handleKeyDown(keyEvent: KeyboardEvent) {
-      if (keyEvent.key !== 'Escape') return
-      keyEvent.preventDefault()
-      finish(false)
-    }
-
-    function handleLostPointerCapture(captureEvent: PointerEvent) {
-      if (captureEvent.pointerId !== pointerId) return
-      finish(false)
-    }
-
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    window.addEventListener('pointercancel', handleCancel)
-    window.addEventListener('keydown', handleKeyDown, true)
-    window.addEventListener('blur', handleCancel)
-    target.addEventListener('lostpointercapture', handleLostPointerCapture)
+        setResizingEdge(null)
+        onResizePreview(null)
+        lastSnapKeyRef.current = null
+        // 裁剪后跟来的 click 不算「点了片段」（与拖动同一个抑制标记）；被打断没有 click，下一拍就清掉。
+        if (didResize) window.setTimeout(() => { didDragRef.current = false }, 0)
+      },
+    })
   }
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>): void => {
@@ -371,7 +335,22 @@ function ClipItem({
   const resizeDuration = resizePreview ? (resizePreview.clip.endFrame - resizePreview.clip.startFrame) / Math.max(1, timeline.fps || 30) : 0
   const resizeDurationLabel = `${resizeDurationDelta >= 0 ? '+' : '-'}${Math.abs(resizeDurationDelta / Math.max(1, timeline.fps || 30)).toFixed(1)}s · ${resizeDuration.toFixed(1)}s`
 
+  // 窄片段的点击下限：片段本身窄于 24 屏幕像素时，两侧各补一条看不见的命中垫（垫在片段之下，邻居的手柄不被盖）。
+  const hitPad = clipHitPadWidth({ clipWidth: width, canvasZoom })
+
   return (
+    <>
+    {hitPad > 0 ? (['left', 'right'] as const).map((side) => (
+      <div
+        key={side}
+        data-clip-hit-pad={side}
+        className="absolute inset-y-1 z-[9] cursor-grab touch-none"
+        style={{ left: side === 'left' ? left - hitPad : left + width, width: hitPad }}
+        onPointerDown={beginDrag}
+        onClick={handleClick}
+        aria-hidden="true"
+      />
+    )) : null}
     <div
       ref={ref}
       role="button"
@@ -387,7 +366,7 @@ function ClipItem({
       data-resizing={resizingEdge ?? 'false'}
       data-resize-limited={resizePreview?.limited ? 'true' : 'false'}
       className={cn(
-        'absolute inset-y-1 overflow-hidden rounded-nomi-sm border text-left shadow-nomi-sm',
+        'group/clip absolute inset-y-1 overflow-hidden rounded-nomi-sm border text-left shadow-nomi-sm',
         'cursor-grab select-none touch-none active:cursor-grabbing',
         clip.type === 'video' ? 'border-workbench-video/60 bg-workbench-video-soft' : 'border-nomi-accent/60 bg-nomi-accent-soft',
         selected ? 'ring-2 ring-inset ring-nomi-accent' : 'ring-1 ring-inset ring-transparent',
@@ -415,11 +394,10 @@ function ClipItem({
         </span>
       ) : null}
       <span className="absolute inset-x-0 bottom-0 truncate bg-nomi-paper/80 px-1.5 py-1 text-micro font-medium text-nomi-ink">{clip.label || t('generationCommon.clipNode.timeline')}</span>
-      {selected ? <>
-        <ClipHandle edge="left" canvasZoom={canvasZoom} onPointerDown={beginResize} />
-        <ClipHandle edge="right" canvasZoom={canvasZoom} onPointerDown={beginResize} />
-      </> : null}
+      <ClipHandle edge="left" canvasZoom={canvasZoom} clipWidth={width} selected={selected} onPointerDown={beginResize} />
+      <ClipHandle edge="right" canvasZoom={canvasZoom} clipWidth={width} selected={selected} onPointerDown={beginResize} />
     </div>
+    </>
   )
 }
 
@@ -428,10 +406,13 @@ export default function ClipNodeTimeline({
   canvasZoom,
   selectedClipId,
   onSelectClip,
+  onAdmitGesture,
   onMoveClip,
   onResizeClip,
   onScrubPlayhead,
   onAddMaterial,
+  onDropMedia,
+  emptyState,
 }: ClipNodeTimelineProps): JSX.Element {
   const { t } = useTranslation()
   const track = timeline.tracks[0]
@@ -469,35 +450,88 @@ export default function ClipNodeTimeline({
     })
   }, [timeline.fps, viewport])
 
+  const startSession = usePointerSession()
+  const getScroller = React.useCallback(() => axisRef.current, [])
+  // 素材拖进来时的插入指示：画在哪一帧，松手就插在哪一帧（同一个 resolveClipNodeDropFrame）。
+  const [dropFrame, setDropFrame] = React.useState<number | null>(null)
+
+  const dropFrameAtClientX = (clientX: number): number => {
+    const content = axisRef.current?.firstElementChild
+    if (!(content instanceof HTMLElement)) return 0
+    const localPixel = clientXToDesignPx(clientX, content.getBoundingClientRect().left, canvasZoom)
+    return resolveClipNodeDropFrame(clips, viewport.pixelToFrame(localPixel))
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!onDropMedia || !acceptsClipDropTypes(event.dataTransfer.types)) return
+    // 轴自己接：不让事件冒泡到画布舞台（舞台会把同一个素材载荷变成一个新的素材节点）。
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'copy'
+    setDropFrame(dropFrameAtClientX(event.clientX))
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) return
+    setDropFrame(null)
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!onDropMedia || !acceptsClipDropTypes(event.dataTransfer.types)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const boundary = dropFrameAtClientX(event.clientX)
+    setDropFrame(null)
+    const payload = readClipDropPayload(event.dataTransfer)
+    if (payload) onDropMedia(payload, boundary)
+  }
+
   const scrubAtClientX = (clientX: number): void => {
     const content = axisRef.current?.firstElementChild
     if (!(content instanceof HTMLElement)) return
-    const rect = content.getBoundingClientRect()
-    const localPixel = (clientX - rect.left) / Math.max(0.1, canvasZoom)
+    const localPixel = clientXToDesignPx(clientX, content.getBoundingClientRect().left, canvasZoom)
     const frame = Math.min(viewport.timelineEndFrame, viewport.pixelToFrame(localPixel))
     onScrubPlayhead?.(frame)
   }
 
-  const beginScrub = (event: React.PointerEvent<HTMLDivElement>): void => {
-    const target = event.target as HTMLElement
-    if (target.closest('[data-testid="clip-node-clip"]') || target.closest('button')) return
+  // 拖播放头的唯一入口：空白轨道、标尺、播放头抓取带都走这里。
+  // grabOffsetPx 是按下点离播放头线的屏幕距离——抓取带比线宽，抓偏了也不让播放头先跳一下。
+  const beginScrub = (event: React.PointerEvent<HTMLElement>, grabOffsetPx = 0): void => {
+    if (event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
-    const pointerId = event.pointerId
-    const currentTarget = event.currentTarget
-    currentTarget.setPointerCapture(pointerId)
-    scrubAtClientX(event.clientX)
-    const move = (moveEvent: PointerEvent) => scrubAtClientX(moveEvent.clientX)
-    const end = () => {
-      if (currentTarget.hasPointerCapture(pointerId)) currentTarget.releasePointerCapture(pointerId)
-      currentTarget.removeEventListener('pointermove', move)
-      currentTarget.removeEventListener('pointerup', end)
-      currentTarget.removeEventListener('pointercancel', end)
-    }
-    currentTarget.addEventListener('pointermove', move)
-    currentTarget.addEventListener('pointerup', end)
-    currentTarget.addEventListener('pointercancel', end)
+    onAdmitGesture?.(null)
+    scrubAtClientX(event.clientX - grabOffsetPx)
+    let lastClientX = event.clientX
+    const stopEdgeScroll = startEdgeAutoScroll({
+      scroller: axisRef.current,
+      canvasZoom,
+      getClientX: () => lastClientX,
+      onScrolled: () => scrubAtClientX(lastClientX - grabOffsetPx),
+    })
+    startSession({
+      event,
+      onMove: (moveEvent) => {
+        lastClientX = moveEvent.clientX
+        scrubAtClientX(moveEvent.clientX - grabOffsetPx)
+      },
+      onEnd: stopEdgeScroll,
+    })
   }
+
+  const beginLaneScrub = (event: React.PointerEvent<HTMLDivElement>): void => {
+    // 片段、手柄、播放头抓取带各自接管自己的像素；这里只收空白轨道与标尺。
+    if ((event.target as HTMLElement).closest('[data-testid="clip-node-clip"], button')) return
+    beginScrub(event)
+  }
+
+  const beginPlayheadScrub = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    const lineClientX = event.currentTarget.getBoundingClientRect().left + event.currentTarget.getBoundingClientRect().width / 2
+    beginScrub(event, event.clientX - lineClientX)
+  }
+
+  const playheadPixel = viewport.frameToPixel(timeline.playheadFrame)
+  const playheadHitPx = playheadHitWidth(canvasZoom)
 
   const activeSnap = dragPreview?.snap ?? resizePreview?.snap ?? null
 
@@ -512,9 +546,21 @@ export default function ClipNodeTimeline({
         <div
           className="relative h-full"
           style={{ width: viewport.contentWidth, minWidth: '100%' }}
-          onPointerDown={beginScrub}
+          onPointerDown={beginLaneScrub}
+          onDragEnter={handleDragOver}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           data-testid="clip-node-axis-content"
         >
+          {dropFrame != null ? (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-[46] w-0.5 -translate-x-1/2 rounded-full bg-[var(--workbench-accent)] opacity-80"
+              style={{ left: viewport.frameToPixel(dropFrame) }}
+              data-testid="clip-node-drop-caret"
+              aria-hidden="true"
+            />
+          ) : null}
           <div className="absolute top-1.5 h-5" style={{ left: viewport.leadingSlotWidth + viewport.axisInset, width: viewport.timelineWidth }} data-testid="clip-node-ruler" aria-label={t('generationCommon.clipNode.scrub')}>
             {ticks.map((tick, index) => (
               <span
@@ -567,6 +613,8 @@ export default function ClipNodeTimeline({
                   previewStartFrame={previewStartFrame}
                   resizePreview={clipResizePreview}
                   onSelectClip={onSelectClip}
+                  getScroller={getScroller}
+                  onAdmitGesture={onAdmitGesture}
                   onMoveClip={onMoveClip}
                   onResizeClip={onResizeClip}
                   onDragPreview={(preview) => {
@@ -580,8 +628,16 @@ export default function ClipNodeTimeline({
                 />
               )
             })}
-            {!clips.length ? <div className="absolute inset-0 grid place-items-center text-micro text-nomi-ink/55">{t('generationCommon.nodeEmpty.clip.description')}</div> : null}
+            {!clips.length && emptyState ? <div className="pointer-events-none absolute inset-0 grid place-items-center">{emptyState}</div> : null}
           </div>
+          {/* 播放头抓取带：永远压在片段之上（z 高于拖动中的片段 z-40），线本身仍是 1px 不变。 */}
+          <span
+            className="absolute inset-y-0 z-[45] cursor-ew-resize touch-none"
+            style={{ left: playheadPixel - playheadHitPx / 2, width: playheadHitPx }}
+            data-testid="clip-node-playhead-hit"
+            onPointerDown={beginPlayheadScrub}
+            aria-hidden="true"
+          />
           {activeSnap ? (
             <div
               className="pointer-events-none absolute inset-y-0 z-50 w-0"

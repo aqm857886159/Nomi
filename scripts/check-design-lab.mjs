@@ -57,6 +57,9 @@ const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(pathToFileURL(path.join(rep
 const UPDATE = process.argv.includes('--update')
 const requestedScreenArg = process.argv.find((arg, index) => arg === '--screen' ? process.argv[index + 1] : false)
 const SKIP_VISUAL = process.argv.includes('--structure-only')
+// 推送前钩子用（2026-10-09，#1145 在 CI 才撞到 mirrors 行号越界）：只跑注册表 / 基线 / mirrors 这些纯 node 的结构检查，跳过要几十秒的 tsc 和像素比对。
+// 判据一字未动，只是少跑两块；完整版仍是 pnpm run check:design-lab（CI）。
+const MIRRORS_ONLY = process.argv.includes('--mirrors-only')
 
 const errors = []
 const fail = (message) => errors.push(message)
@@ -67,7 +70,7 @@ const fail = (message) => errors.push(message)
 // （那正是它进不了安装包的原因）。副作用是：实验室代码此前一行都没被类型检查覆盖——
 // 一处少了一层 `../` 的相对路径能一路静默到 Playwright 跑十几分钟后整屏白屏。
 // 防线建在最早能拦住的那层（R28）：先跑一遍 tsconfig.devlab.json，再谈截图。
-{
+if (!MIRRORS_ONLY) {
   const typecheck = spawnSync(process.execPath, [path.join(repoRoot, 'node_modules/typescript/bin/tsc'), '--noEmit', '-p', 'tsconfig.devlab.json'], {
     cwd: repoRoot,
     encoding: 'utf8',
@@ -255,6 +258,10 @@ if (errors.length) {
   console.error('❌ 设计实验室门岗：')
   for (const message of errors) console.error(`   · ${message}`)
   process.exit(1)
+}
+if (MIRRORS_ONLY) {
+  console.log('✅ 设计实验室结构 + mirrors 行号检查通过（--mirrors-only：未跑 tsc 与像素比对，完整版在 CI）')
+  process.exit(0)
 }
 
 console.log(

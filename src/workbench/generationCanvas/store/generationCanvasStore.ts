@@ -23,6 +23,7 @@ import { createCanvasNodeActions, removeGroupsEmptiedByNodeDeletion } from './ca
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
 import { createCanvasDocumentActions } from './canvasDocumentCommit'
+import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
@@ -172,23 +173,26 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
           }))
     assertProductionCanvasProjectIdentity(currentState.projectId, pastedNodes, 'paste nodes')
     pushUndoSnapshot(currentState)
-    setClipboard({
-      nodes: pastedNodes,
-      edges: cloned.edges,
-    })
+    let landed: AppendedEdges = { added: [], rejected: [] }
     set((state) => {
       state.nodes = [...state.nodes, ...pastedNodes]
-      state.edges = [...state.edges, ...cloned.edges]
+      // 边过连线总闸再落（剪贴板里可能带着旧项目 / 旧规则的非法边）；被拒的不写，节点照常粘贴。
+      landed = appendAdmittedEdges(state, cloned.edges)
       state.selectedNodeIds = cloned.selectedNodeIds
       state.pendingConnectionSourceId = ''
       state.pendingConnectionSourceSide = 'right'
       bumpPersistRevision(state)
       Object.assign(state, getHistoryFlags())
     })
+    setClipboard({
+      nodes: pastedNodes,
+      edges: landed.added,
+    })
     emitCanvasGesture([
       ...pastedNodes.map((node) => ({ type: 'canvas.node.added', payload: { node } })),
-      ...cloned.edges.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
+      ...landed.added.map((edge) => ({ type: 'canvas.edge.added', payload: { edge } })),
     ])
+    reportSkippedEdges(landed.rejected, currentState.projectId)
   },
   readSnapshot: () => {
     // 工具/会话视图(agent read_canvas 用,含选区)

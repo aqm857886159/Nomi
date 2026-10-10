@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { buildSync } = createRequire(require.resolve('vite/package.json'))('esbuild');
@@ -17,7 +18,7 @@ import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDe
 import { createLaneFixture } from './laneFixture.mjs';
 
 async function catalogProjection() {
-  const fixtureModule = await import(path.resolve('tests/ux/agent-runtime-fixture.mjs'));
+  const fixtureModule = await import(pathToFileURL(path.resolve('tests/ux/agent-runtime-fixture.mjs')).href);
   const state = { version: 8, vendors: [{ key: 'apimart', name: 'APIMart', enabled: true, authType: 'none' }],
     models: [{ vendorKey: 'apimart', modelKey: 'MiniMax-H3', labelZh: 'MiniMax H3', kind: 'video', enabled: true, published: true }],
     mappings: [{ vendorKey: 'apimart', modelKey: 'MiniMax-H3', enabled: true, taskKind: 'text_to_video', create: { body: {} } }], apiKeysByVendor: {} } as unknown as CatalogState;

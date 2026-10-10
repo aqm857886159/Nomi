@@ -21,6 +21,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import yaml from 'js-yaml'
+import { toFileUrl } from './lib/repoPaths.mjs'
 
 /** Agent Skills 规范的顶层字段闭集（https://agentskills.io/specification）。 */
 export const SPEC_TOP_LEVEL_FIELDS = Object.freeze([
@@ -170,7 +171,7 @@ export async function checkPiLoader(skillsRoot, repoRoot) {
   if (!fs.existsSync(loaderPath)) {
     return { skipped: true, reason: `pi 加载器不在（${loaderPath}）——今天没查成，不当通过` }
   }
-  const { loadSkillsFromDir } = await import(`file://${loaderPath}`)
+  const { loadSkillsFromDir } = await import(toFileUrl(loaderPath))
   const expected = collectSkillDirectories(skillsRoot).length
   const result = loadSkillsFromDir({ dir: skillsRoot, source: 'path' })
   const errors = []

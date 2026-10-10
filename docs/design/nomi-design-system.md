@@ -284,6 +284,8 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 
 **窄位 / 英文长标签的换行规则（`DecisionBar` 自带，调用方不特判）**：取消 + 次动作 + 主动作是一个**不拆的整组**，放不下时整组掉到下一行并**靠右**——主动作永远在最后一行最右，不被裁、不掉到左下。行内用法（和输入框同一行）：父行写 `flex-wrap`、输入框写 `min-w-[10rem] flex-[1_1_10rem]`、决定栏传 `inline`；同一行放得下就靠右，放不下整组换行右对齐。
 
+**两个视图之间的切换**（如生成页「画布 | 列表」）只占**一个图标按钮**的位置：显示要切去的那个视图的图标 + 提示文字，必须有图标；不做分段控件，也不在里面再分格（用户 2026-10-08：空间不能因为按钮内部分格而减少）。
+
 **纯告知的单按钮写「知道了 / Got it」**（`runtime.design.gotIt`），不写「确认」。
 
 新写决定栏**直接用 `DecisionBar`**，不再手写一排按钮；`confirmDialog`、各行内编辑、凭证输入行、保存 / 取消成对的弹窗底栏已迁入。任务控制条（暂停 / 取消制作）、卡片内 × 关闭、行内「采纳 / 放弃」这类**不是决定栏**，不受 1.9.1 顺序约束，但 ✓ 与点击目标规则照样适用。
@@ -1108,7 +1110,13 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 这一步**还没轮到**（多步进度里尚未开始的那几行）| `IconCircleDashed` | `AssistedIntegrationProgress` 五步进度的 `pending` 行（§Progress）。词典里没有现成的：`IconCircleFilled` 是「有内容/已占位」、`IconCircleCheck` 是已完成、`IconAlertCircle` 是出事了——虚线圈才说得出「位置留着、还没发生」，而实心或空心圆都会被读成一个已存在的状态 |
 | 展开 / 收起提示词（原地变高显示全文）| `IconArrowsDiagonal` / `IconArrowsDiagonalMinimize2` | 生成节点浮框提示词区右上角那一颗（2026-09-25 用户拍板，参考 LibTV）。选对角双箭头而不是 `IconMaximize`：后者在本仓已是「全屏打开编辑器」（`scene3d.fullscreen.openEditor`），这里是原地变高、不离开当前面；收起用同族的收拢形，一眼看出是同一颗钮的两态 |
 | 画布外那一侧有新东西（点了过去）| `IconArrowDown`（与 `IconArrowUp` / `IconArrowLeft` / `IconArrowRight` 同族按方向取）| 画布边缘提示胶囊 `CanvasArrivalHint` 尾部那一颗（2026-09-25 用户拍板，样张 v1）。箭头只指方向、不是按钮本身的动作；不用 `IconChevron*`：那族在本仓是「展开/折叠」示能 |
+| 左栏「目录」（镜头与分组的树：分组 / 节点的层级清单）| `IconListTree` | 外壳左栏 `ShellRail` 的「目录」项（2026-10-08 外壳拍板稿 Main 板点名 Tabler list-tree）。词典里没有现成的：`IconList` 读成平铺列表、`IconFolder` 已是「素材」——缩进的树形线才说得出「有层级的目录」 |
+| Agent 形态：浮窗（可拖动、可改大小的小窗）| `IconPictureInPicture` | Agent 面板头部三选一、小球右键菜单（`ShellAgentHost`，2026-10-08 CanvasAgent 板）。画中画图形 = 「浮在内容上的一块小窗」，`IconAppWindow` 读成整窗 |
+| Agent 形态：停靠在右侧 | `IconLayoutSidebarRight` | 同上三选一与右键菜单。与左栏收起用的 `IconLayoutSidebarLeftCollapse` 同族，方向说明停在哪一边 |
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
+| 你的项目和素材留在本机、这次操作不动它（一句保证，放在动作前的说明行里）| `IconShieldCheck` | 应用内更新弹窗 `UpdateDialog` 的「项目和素材都在你电脑上，更新只换 Nomi 本身」那一行（2026-10-09）。词典里没有现成的：`IconLock` 已是「自动化与权限 / 受限」的语义，在这里会读成「被锁住」；`IconFolder` 读成「文件夹入口」而不是「保证」；`IconCircleCheck` 只表状态完成，不表保护。|
+| 剪辑（取视频的一段，拖入点 / 出点）| `IconCut` | 视频节点浮条「剪辑」钮（样张 `video-node-next`，2026-10-09 待拍板）。与剪辑节点「分割片段」同一把刀：都是在时间轴上切 |
+| 拆解（把一条视频按镜头分开）| `IconLayoutRows` | 视频节点浮条「拆解▾」及其「按镜头拆」项（同上样张）。取分镜分类图标（§7 shots）：拆出来的产物就是分镜，不再用剪刀，免得和「剪辑」并排两把剪刀 |
 
 ### 选图规则
 

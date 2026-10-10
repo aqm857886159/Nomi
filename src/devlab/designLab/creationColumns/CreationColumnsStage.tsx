@@ -11,11 +11,11 @@ const snapshot = labHostState({ items: [
 ] })
 
 /**
- * `mode` 决定这一格画的是哪一面（创作 / 分镜），`treeCollapsed` 决定「创作内容」那列收没收起。
- * 两根左栏在 A-1 刀 1 之后是**同一个组件同一套外框**（C76 圆角卡片），分镜那一格就是为了钉住这件事。
+ * `mode` 决定这一格画的是哪一面（创作 / 分镜）。10-08 外壳重设计起创作内容树住左栏「文稿」抽屉，
+ * 这一格只摆真实外壳（顶栏 + 左栏 + 编辑器 + 停靠的 Agent）。
  */
-export function CreationColumnsStage({ specimen = false, mode = 'creation', treeCollapsed = null }: {
-  specimen?: boolean; mode?: 'creation' | 'storyboard'; treeCollapsed?: boolean | null
+export function CreationColumnsStage({ specimen = false, mode = 'creation' }: {
+  specimen?: boolean; mode?: 'creation' | 'storyboard'
 }): JSX.Element {
   React.useMemo(() => {
     laneClient.connect({ onProjection: listener => { listener(snapshot); return () => undefined },
@@ -24,7 +24,6 @@ export function CreationColumnsStage({ specimen = false, mode = 'creation', tree
     const first = current.workbenchDocuments[0]
     useWorkbenchStore.setState({
       workspaceMode: mode, projectAgentDockCollapsed: false,
-      creationResourceTreeCollapsedPreference: treeCollapsed,
       editingPanelLayout: { ...current.editingPanelLayout, assistantWidth: 390 },
       workbenchDocuments: [{ ...first, id: 'columns-draft', title: '雨夜来信', updatedAt: 0,
         contentJson: { type: 'doc', content: [

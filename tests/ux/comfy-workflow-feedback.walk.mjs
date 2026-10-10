@@ -12,6 +12,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, clickOrFail, screenshotSettled } from './_assert.mjs'
 import { zoomWorkflowFixtures, walkWorkflowZoom, verifySavedWorkflowZoom } from './_comfyWorkflowZoom.mjs'
 import { walkWorkflowMacGestures, verifySavedMacGestures } from './_comfyWorkflowMacGestures.mjs'
+import { openModelSettings } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const { buildImportedWorkflow, buildComfyImportModelMapping } = tsxRequire('../../electron/catalog/comfyuiWorkflowImport.ts', import.meta.url)
@@ -163,7 +164,7 @@ try {
   expect(stored.models.find((m) => m.modelKey === modelKey).kind).toBe('video')
   expect(stored.mappings.find((m) => m.modelKey === modelKey).taskKind).toBe('text_to_video')
   await openProject()
-  await clickOrFail(win.getByRole('button', { name: '打开模型设置', exact: true }), '打开设置核对视频分类')
+  await openModelSettings(win, { label: '打开设置核对视频分类' })
   const settings = win.getByRole('dialog', { name: '设置', exact: true })
   await clickOrFail(settings.getByRole('button').filter({ hasText: '本地 ComfyUI' }).first(), '打开已接入的 ComfyUI')
   const oldRow = settings.getByRole('button', { name: '打开「视频工作流 · 参数验收」的工作流设置', exact: true })

@@ -18,6 +18,7 @@ import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 const roundsArg = process.argv.indexOf('--rounds')
 const rounds = roundsArg > 0 ? Number(process.argv[roundsArg + 1]) : 30
@@ -31,7 +32,6 @@ const localeArg = process.argv.indexOf('--locale')
 const locale = localeArg > 0 ? process.argv[localeArg + 1] : 'zh-CN'
 const shot = process.argv.includes('--shot')
 const GENERATE_TAB = /^(生成|Generate)$/
-const BACK_TO_LIBRARY = /^(返回项目库|Back to projects)$/
 const offscreen = path.resolve('tests/ux/full-walk/offscreenWindow.cjs')
 const root = makeTempDir('nomi-toolbar-open-select-')
 const projectsDir = path.join(root, 'projects')
@@ -176,7 +176,7 @@ try {
       await expectVisible(page.locator('[data-node-floating-toolbar="true"]'), '再次打开、摆全貌同一帧选中后浮条挂出来')
       await page.screenshot({ path: path.join(output, `open-select-toolbar-${locale}.png`) })
     }
-    await clickOrFail(page.getByRole('button', { name: BACK_TO_LIBRARY }), '返回项目库')
+    await backToLibrary(page)
     await page.locator('[data-project-card]', { hasText: '浮条打开即选' }).first().waitFor({ state: 'visible' })
   }
 } finally {

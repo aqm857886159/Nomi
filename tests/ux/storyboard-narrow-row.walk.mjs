@@ -157,17 +157,17 @@ async function measureRow(label) {
 }
 
 /**
- * 把左栏切到指定状态。开关只渲染**当前可做的那一个动作**（展开时它写 collapse，反之写 expand），
+ * 把「文稿」抽屉切到指定状态（10-08 外壳重设计：原「创作内容」列开关删了，文稿树进左栏「文稿」抽屉；按下态 = 开着）。
  * 所以「找不到 expand」= 已经展开了，不是出错。等它先出现，别在渲染完成前就问它在不在。
  */
 async function setSidebar(state) {
-  await win.locator('[data-creation-resource-tree-toggle]:visible').first()
+  await win.locator('[data-shell-rail-item="docs"]').first()
     .waitFor({ state: 'visible', timeout: stationTimeout() })
-  const toggle = win.locator(`[data-creation-resource-tree-toggle="${state}"]:visible`)
+  const toggle = win.locator(`[data-shell-rail-item="docs"][aria-pressed="${state === 'expand' ? 'false' : 'true'}"]`)
   if (await toggle.isVisible().catch(() => false)) await toggle.click()
   await win.waitForTimeout(500)
-  const wrong = win.locator(`[data-creation-resource-tree-toggle="${state}"]:visible`)
-  if (await wrong.isVisible().catch(() => false)) failures.push(`左栏没有切到 ${state}（开关还写着 ${state}）`)
+  const wrong = win.locator(`[data-shell-rail-item="docs"][aria-pressed="${state === 'expand' ? 'false' : 'true'}"]`)
+  if (await wrong.isVisible().catch(() => false)) failures.push(`「文稿」抽屉没有切到 ${state}（左栏「文稿」钮的按下态没变）`)
 }
 
 async function openEditor(locale) {

@@ -90,7 +90,7 @@ export const STATUS_STATES: readonly LabState[] = [
     name: 'DesignProgress / NomiSkeleton · 加载态两件（按真实调用点）',
     source: SOURCE_STATUS,
     mirrors: [
-      'src/ui/app-shell/UpdaterDialog.tsx:69',
+      'src/ui/app-shell/UpdateDialog.tsx:180',
       'src/ui/onboarding/AdapterVerificationScreen.tsx:141',
       'src/workbench/library/ProjectLibraryPage.tsx:454',
     ],

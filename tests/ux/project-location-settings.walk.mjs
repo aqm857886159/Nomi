@@ -7,6 +7,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-07-project-location')
@@ -99,7 +101,7 @@ try {
     englishSectionText,
   )
   await dialog().locator('button[aria-label*="Close"]').click()
-  await currentWindow().getByRole('button', { name: /新建空白项目|New blank project/ }).first().click({ timeout: 8000 })
+  await newProjectEntry(currentWindow()).click({ timeout: stationTimeout({ operations: 2 }) })
   await currentWindow().waitForTimeout(1800)
 
   const manifests = findProjectManifests(customProjectsRoot)
@@ -126,7 +128,7 @@ try {
   check('恢复默认后旧项目仍能从项目库重新打开', currentWindow().url().includes(customProject.id), currentWindow().url())
 
   await currentWindow().getByText(/项目库|Projects/, { exact: true }).first().click({ timeout: 8000 })
-  await currentWindow().getByRole('button', { name: /新建空白项目|New blank project/ }).first().click({ timeout: 8000 })
+  await newProjectEntry(currentWindow()).click({ timeout: stationTimeout({ operations: 2 }) })
   await currentWindow().waitForTimeout(1800)
   const defaultProjectsRoot = path.join(defaultDocumentsRoot, 'Nomi Projects')
   const defaultManifests = findProjectManifests(defaultProjectsRoot)

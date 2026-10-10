@@ -170,6 +170,9 @@
 - [MCP elicitation 的支持面（结论已反转）](claude-code-lacks-elicitation-capability.md) — CLI ≥2.1.76 已支持；旧结论别再当前提
 - [「参考图连了没用上」断在档案键 ↔ body 字段名的 join](reference-slot-to-body-key-join.md) — 先跑 `check:reference-contract` 别读码猜；含「reach=none 不等于 bug」「一次只种一个槽」两个假红坑
 - [真实付费验收只用 APIMart；`task_failed` 先怀疑素材本身，别先怀疑链路](paid-smoke-apimart-only.md) — 100×100 纯色占位图会被判 `invalid image content` 并一路吞成通用失败；换真实照片同一条链路（含 `audio_urls`）立刻出片；附本地代理限制、kie 余额坑、轮询会重复上传引用素材的副作用
+- [Windows 上跑 agent 与门岗的一组已踩过的坑](windows-agent-toolchain-traps.md) — 本机门岗零输出 / 莫名红 / 乱码 / python3 别名 / CRLF / BOM / 推送闸门误拦命令文字时；九条独立成因
+- [遗留的开发服务器会漏到几十 GB 内存](leftover-dev-server-eats-all-memory.md) — 并行线里 tsc / vite 起不来、OOM、提交内存接近上限时；用 `&` 甩后台的 vite 是首嫌
+- [worktree 不清理会撑满两个盘](worktree-sprawl-fills-both-drives.md) — 开新 worktree 前、出现 ENOSPC 时；清理脚本要纯 ASCII + CRLF
 
 ## E. 产品判断与对外表达
 
@@ -216,6 +219,12 @@
 - [真机走查里的失败先查自己这条分支的调用链，再怪环境](branch-failure-blame-your-own-call-chain-first.md) — #777 把自己造的 `generation_surface_unavailable` 写成凭据问题；错误码字面量先找产生点、环境归因必须带排除证据、修法加门岗不补名字
 
 - [协调会话运作手册](../engineering/agent-orchestration-playbook.md#19-协调会话运作手册用户只和一个会话说话2026-09-26-拍板) — 用户只和协调会话说话；总账与恢复例程、工人不建卡不直接问用户、合并加收据、归档、额度恢复后主动唤醒、发版前真实付费矩阵
+- [只记在长期记忆里的规则，其他 agent 一条都看不见](memory-only-rules-are-invisible-to-other-agents.md) — 想说“已记进长期记忆”时；工程 / 流程规则当天进仓库，记忆只留偏好、敏感、本机细节与指针
+- [起界面的测试会打扰用户，还可能连到真实应用](gui-and-mcp-tests-can-reach-the-users-real-app.md) — 派要起 Electron / MCP 外部宿主的测试前
+- [资料副本里的项目登记会指回用户的真实项目](profile-copy-registry-points-at-real-projects.md) — 用真实资料副本做候选版 / 升级 / 真付费验收前
+- [变异校验后别用 git checkout 目录还原](mutation-check-restore-one-file-not-the-directory.md) — 做“改回旧行为必红”变异校验时
+- [“以前能用、现在坏了”的热修：最小恢复，别重新设计](hotfix-restore-old-behavior-do-not-redesign.md) — 热修丢失的能力、开始想加新通道 / 新规则时
+
 ## 🤖 自动收录（待人工归位）
 
 > 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，

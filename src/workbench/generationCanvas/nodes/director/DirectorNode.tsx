@@ -115,16 +115,22 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
     (output: DirectorOutput) => {
       const canvas = useGenerationCanvasStore.getState()
       const current = canvas.nodes.find((candidate) => candidate.id === node.id)
-      const created = canvas.addNode({
-        kind: output.kind === 'image' ? 'image' : 'video',
-        title: output.kind === 'image' ? t('director.timeline.screenshotNodeTitle') : t('director.timeline.videoNodeTitle'),
-        prompt: output.name,
-        position: { x: Math.round((current?.position.x ?? 0) + 420), y: Math.round(current?.position.y ?? 0) },
+      // 产物卡 + 出处边是一个原子动作（addDerivedOutput）。
+      const created = canvas.addDerivedOutput({
+        sourceNodeId: node.id,
+        kind: 'director-output',
+        mode: 'reference',
+        node: {
+          kind: output.kind === 'image' ? 'image' : 'video',
+          title: output.kind === 'image' ? t('director.timeline.screenshotNodeTitle') : t('director.timeline.videoNodeTitle'),
+          prompt: output.name,
+          position: { x: Math.round((current?.position.x ?? 0) + 420), y: Math.round(current?.position.y ?? 0) },
+        },
       })
+      if (!created) return
       const createdAt = Date.now()
       const result = { id: `director-output-${output.id}-${createdAt}`, type: output.kind, url: output.assetUrl, createdAt, ...(output.kind === 'video' ? { durationSeconds: output.duration } : {}) }
       canvas.updateNode(created.id, { result, history: [result], status: 'success', meta: { ...(created.meta || {}), source: 'director', sourceNodeId: node.id } })
-      canvas.connectNodes(node.id, created.id, 'reference')
     },
     [node.id, t],
   )

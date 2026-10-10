@@ -1,3 +1,4 @@
+import { UpdateDialog } from '../ui/app-shell/UpdateDialog'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -29,6 +30,7 @@ import {
   executeCanvasWriteTarget,
 } from './generationCanvas/agent/canvasWriteTarget'
 import { canvasDeleteSemanticInputSchema } from '../../electron/shared/agentCapabilities/canvasDelete'
+import { isNodeTargetedWriteOperation } from '../../electron/shared/agentCapabilities/canvasWrite'
 import { directorWriteSemanticInputSchema, isDirectorWriteOperation } from '../../electron/shared/agentCapabilities/directorWrite'
 import {
   executeTimelineReadTarget,
@@ -250,7 +252,7 @@ export default function NomiStudioApp(): JSX.Element {
             }
             return captureCanvasWriteRawEvidence(
               readGenerationCanvasSnapshot(),
-              operation === 'set_node_prompt' ? (nodeId ?? '') : { operation, input },
+              isNodeTargetedWriteOperation(operation) ? (nodeId ?? '') : { operation, input },
             )
           } catch (error) {
             const code =
@@ -335,9 +337,6 @@ export default function NomiStudioApp(): JSX.Element {
           return false
         }
         surfaceEpoch.assertCurrent()
-        // Sole home for "switching projects collapses the left rail": cutover flips view to 'library'
-        // mid-hydration (above), remounting the sidebar so its transition effect can't see the switch.
-        if ((activeProjectIdRef.current ?? null) !== hydrated.id) useWorkbenchStore.getState().setSidebarCollapsed(true)
         activeProjectIdRef.current = hydrated.id
         setActiveProject(hydrated)
         surfaceEpoch.assertCurrent()
@@ -747,9 +746,10 @@ export default function NomiStudioApp(): JSX.Element {
           projectId={activeProject?.id ?? null}
           projectName={activeProject?.name}
           onBackToLibrary={backToLibrary}
-          onOpenModelCatalog={settingsDialogController.openModelSettings}
           onOpenSettings={settingsDialogController.openDefaultSettings}
           onRenameProject={handleRenameProject}
+          onOpenProject={openProject}
+          onNewProject={() => void newProject()}
         />
 
         {settingsDialog}
@@ -775,6 +775,7 @@ export default function NomiStudioApp(): JSX.Element {
       {globalBrowserDialog}
       {viewContent}
       <FeedbackShareHost />
+      <UpdateDialog />
       {/* 付费确认卡挂在公共根：制作任务的家是任务中心（顶栏常驻、创作/生成/预览都能开），
           门的兜底决策必须在任一视图都弹得出来。原先库页一处、生成区插槽内一处——创作/预览视图
           下根本没挂载，在那儿点确认永远没反应（本轮走查实测抓出）。单一挂载，不留并行版（P1）。 */}
