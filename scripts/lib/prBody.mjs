@@ -18,9 +18,10 @@
 //     一个拿不到证据的门岗只能报它真拿到的那个结论 —— 拿不到就说拿不到，别假装通过）。
 //   · 本地默认跳过（本地没有 PR 这个东西）；显式 `--pr` 时用 gh 取当前分支的 PR 正文，
 //     取不到就明说「今天没查成」并跳过 —— 本地不是最后一道闸，CI 侧仍然 fail-closed。
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+
+import { execGhReadSync } from './transientRetry.mjs'
 
 /** 还没有 PR 时，实现线按约定把 PR 正文草稿写在仓库根的这个文件（已 gitignore）；推送前就用它按合并前的标准判。 */
 export const LOCAL_PR_BODY_DRAFT = '.tmp-pr-body.md'
@@ -37,7 +38,7 @@ export const GH_TIMEOUT_MS = 20_000
 
 /** `gh pr view` 的默认实现；测试里换成假的（opts.bin / opts.args 让测试用真子进程模拟「一直不返回」）。 */
 export function ghPullRequestBody(args, cwd, opts = {}) {
-  return execFileSync(opts.bin ?? 'gh', opts.args ?? args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: opts.timeoutMs ?? GH_TIMEOUT_MS, killSignal: 'SIGKILL' })
+  return execGhReadSync(opts.args ?? args, { bin: opts.bin ?? 'gh', cwd, timeout: opts.timeoutMs ?? GH_TIMEOUT_MS, killSignal: 'SIGKILL' })
 }
 
 /**

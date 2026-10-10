@@ -5,6 +5,7 @@ import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import { gitNameStatus } from './lib/gitPaths.mjs'
+import { retryTransient } from './lib/transientRetry.mjs'
 import { classifyValidationPolicy, CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_BLOCKING_CHECK_NAMES } from './validation-policy.mjs'
 
 export const DEFAULT_FETCH_TIMEOUT_MS = 45_000
@@ -111,7 +112,7 @@ export function runBoundedCommand(
         reject(
           new DeliveryError(
             'transport_failed',
-            `Command failed once with exit code ${exitCode}; no automatic retry was used`,
+            `Command failed with exit code ${exitCode}; the runner itself never retries (read-only network callers wrap it in retryTransient)`,
             details,
           ),
         )
@@ -163,13 +164,15 @@ export async function fetchRemoteBase({
   base = 'main',
   timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
   runCommand = runBoundedCommand,
+  retryOptions,
 } = {}) {
   const refspec = `refs/heads/${base}:refs/remotes/${remote}/${base}`
-  return runCommand('git', ['fetch', '--no-tags', remote, refspec], {
+  // 只读取远端：网络瞬断走共用重试边界（scripts/lib/transientRetry.mjs）。
+  return retryTransient(() => runCommand('git', ['fetch', '--no-tags', remote, refspec], {
     cwd,
     timeoutMs,
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-  })
+  }), retryOptions)
 }
 
 export function classifyIdentity({ headCommit, headTree, remoteCommit, remoteTree }) {
@@ -392,8 +395,10 @@ export async function listCommitCheckRuns({
   commitSha,
   timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
   runCommand = runBoundedCommand,
+  retryOptions,
 } = {}) {
-  const response = await runCommand(
+  // verify-merged 取合并后检查结果：网络瞬断重试，4xx / 权限 / 形状不对立刻失败。
+  const response = await retryTransient(() => runCommand(
     'gh',
     [
       'api',
@@ -406,7 +411,7 @@ export async function listCommitCheckRuns({
       `/repos/${repository}/commits/${commitSha}/check-runs?per_page=100`,
     ],
     { timeoutMs, env: { ...process.env, GH_PROMPT_DISABLED: '1' } },
-  )
+  ), retryOptions)
   let payload
   try {
     payload = JSON.parse(response.stdout)

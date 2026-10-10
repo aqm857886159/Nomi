@@ -58,6 +58,7 @@ const SCANNER_READS = {
   'check:main-console': ['electron/a.ts', 'electron/b.mts', 'scripts/check-main-console.mjs'],
   'check:asset-evidence': ['electron/a.ts', 'electron/b.cts', 'scripts/asset-evidence-baseline.json'],
   'check:media-import-owner': ['electron/a.ts', 'src/b.tsx', 'scripts/media-import-owner-baseline.json'],
+  'check:script-network-retry': ['scripts/some-delivery-script.mjs', 'scripts/lib/transientRetry.mjs', 'scripts/probe.ts', 'scripts/check-script-network-retry.mjs'],
   'check:canvas-edge-writers': ['src/workbench/generationCanvas/store/x.ts', 'src/workbench/project/y.tsx', 'electron/capabilityCore/z.ts', 'electron/shared/canvas/w.ts', 'scripts/check-canvas-edge-writers.mjs'],
   'check:storyboard-owner': ['src/workbench/a.ts', 'src/workbench/creation/b.tsx', 'scripts/check-storyboard-owner.mjs', 'scripts/lib/repoPaths.mjs'],
   'check:transport-assembly': ['electron/capabilityCore/mcpProtocol.ts', 'electron/capabilityCore/mcpNodeLauncher.ts', 'electron/capabilityCore/mcpStdioServer.ts', 'electron/capabilityCore/mcpHttpServer.ts', 'scripts/check-transport-assembly.mjs', 'scripts/lib/repoPaths.mjs'],
