@@ -9,7 +9,8 @@ import { resolveNodeRenderKind, isCardRenderKind, nodeHasGenerationComposer } fr
 import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
 import { NodeCardBody } from './render/NodeCardBody'
-import ImageCropGridOverlay, { type CropGridResult } from './render/ImageCropGridOverlay'
+import ImageCropGridOverlay from './render/ImageCropGridOverlay'
+import ImageCropGridActionBar from './render/ImageCropGridActionBar'
 import { CROP_ONLY } from './render/cropGridGeometry'
 import { ImageQuickActionsToolbarHost } from '../quickActions/ImageQuickActionsToolbarHost'
 import { NodeVersionCardsHost } from './versionCards/NodeVersionCardsHost'
@@ -45,7 +46,7 @@ import { NodeErrorReport } from './NodeErrorReport'
 import { NodeRecoverableReport } from './NodeRecoverableReport'
 import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
-import { DecisionBar, WorkbenchButton } from '../../../design'
+import { WorkbenchButton } from '../../../design'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
@@ -92,8 +93,6 @@ function BaseGenerationNodeImpl({
   }, [node.id])
 
   const { t } = useTranslation()
-  // 切图/裁剪的取景框状态由浮层上报，确认条渲染在图片区之外（见下方 JSX）。
-  const [cropDraft, setCropDraft] = React.useState<CropGridResult | null>(null)
   const productionRetry = useProductionNodeRetry(node, reportFeedback) // P4 S6：多镜节点失败→返工链；非多镜/项目没开→null 退回本地重跑（回归门）
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
@@ -465,41 +464,14 @@ function BaseGenerationNodeImpl({
           <ImageCropGridOverlay
             imageUrl={node.result.url}
             gridSize={imageEditing.editGrid}
-            onDraftChange={setCropDraft}
+            onDraftChange={imageEditing.reportDraft}
           />
         ) : null}
         {localImageOpPending && hasResult ? (
           <LocalImageOpPendingStatus message={node.progress?.message} progress={node.progress?.percent} />
         ) : null}
       </div>
-      {/* 切图 / 裁剪的确认条：渲染在图片区**之外**（卡片正下方），不再像以前那样压住右上角那一格。
-          取景框状态由 ImageCropGridOverlay 上报（2026-10-11 走查 §5）。 */}
-      {imageEditing.editGrid !== null && cropDraft ? (
-        <div
-          className="absolute inset-x-0 top-[calc(100%+8px)] z-[15] flex justify-center"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="rounded-nomi bg-nomi-paper p-1 shadow-nomi-md">
-            <DecisionBar
-              inline
-              cancelLabel={t('generationCommon.cropGrid.cancel')}
-              onCancel={() => {
-                setCropDraft(null)
-                imageEditing.cancelEdit()
-              }}
-              primaryLabel={
-                imageEditing.editGrid.rows === 1 && imageEditing.editGrid.cols === 1
-                  ? t('generationCommon.cropGrid.confirmCrop')
-                  : t('generationCommon.cropGrid.confirmSplit')
-              }
-              onPrimary={() => {
-                void imageEditing.handleEditConfirm(cropDraft)
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
+      <ImageCropGridActionBar editing={imageEditing} />
       {showVersionCards ? (
         <NodeVersionCardsHost onFeedback={reportFeedback} node={node} readOnly={readOnly} nodeSize={visualSize} entryHidden={imageEditing.editGrid !== null} />
       ) : null}

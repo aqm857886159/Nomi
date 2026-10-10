@@ -113,6 +113,9 @@ function loadImageForCanvas(url: string): Promise<HTMLImageElement> {
 export type NodeImageEditing = {
   /** 当前打开的可调框：null=未开，{1,1}=裁剪，其余=切成 rows×cols 张。 */
   editGrid: CropGridSize | null
+  /** 浮层上报的当前取景框：确认条读它（确认/取消由浮层之外的动作条触发）。 */
+  draft: CropGridResult | null
+  reportDraft: (draft: CropGridResult) => void
   openEdit: (gridSize: CropGridSize) => void
   cancelEdit: () => void
   imageOpBusy: boolean
@@ -128,9 +131,14 @@ export function useNodeImageEditing(
 ): NodeImageEditing {
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const [editGrid, setEditGrid] = React.useState<CropGridSize | null>(null)
+  const [draft, setDraft] = React.useState<CropGridResult | null>(null)
   const [imageOpBusy, setImageOpBusy] = React.useState(false)
   const openEdit = React.useCallback((gridSize: CropGridSize) => setEditGrid(gridSize), [])
-  const cancelEdit = React.useCallback(() => setEditGrid(null), [])
+  const cancelEdit = React.useCallback(() => {
+    setEditGrid(null)
+    setDraft(null)
+  }, [])
+  const reportDraft = React.useCallback((next: CropGridResult) => setDraft(next), [])
 
   const visualWidth = visualSize.width
   const nodeId = node.id
@@ -513,6 +521,8 @@ export function useNodeImageEditing(
 
   return {
     editGrid,
+    draft,
+    reportDraft,
     openEdit,
     cancelEdit,
     imageOpBusy,
