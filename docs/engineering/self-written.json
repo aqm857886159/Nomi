@@ -1180,6 +1180,18 @@
       "revisitWhen": "监视器规则能以 Playwright 自定义 matcher / reporter 的形式表达而不损失「违反不中断」语义时"
     },
     {
+      "id": "walk-network-allowlist",
+      "capability": "走查出网放行名单的判定（精确 origin 含端口 + 通配域名只放 443/80），走查网络闸四层与产品测试网闸共用的唯一正本",
+      "status": "justified",
+      "paths": ["electron/shared/walkAllowlist.cjs"],
+      "alternativesChecked": [
+        { "name": "Chromium URL 匹配模式（webRequest filter / match patterns）：只管 Chromium 一层，管不到 Node 的 fetch / http / socket", "source": "https://www.electronjs.org/docs/latest/api/web-request" },
+        { "name": "为什么是一个文件而不是各层各写：评审 B1 就是各写造成的（连接层少判端口）", "source": "docs/engineering/direction-checks/2026-10-10-walk-network-allowlist.md" }
+      ],
+      "whyNotIntegrated": "领域约束：付费走查的放行语义由「授权供应商的 API 基址 + 成品下载域名」决定，要在 Node 的 fetch / http(s) / 连接层与 Chromium 同时执行同一个答案；现成匹配器只覆盖其中一层。判定只有 30 行，不值得再引入依赖。",
+      "revisitWhen": "走查改为统一走一层代理（例如 Chromium 与 Node 都指向同一个本地出口代理）时，名单可以挪到代理里"
+    },
+    {
       "id": "mcp-protocol",
       "capability": "MCP 在 Nomi 这一侧剩下的装配：方法处理器（目录 / 资源 / 提示的领域投影）、tools/call 里的审批与派发、入口拒未验证客户端、两个 stdio 启动器；协议本身（握手、路由、取消、进度帧、请求关联、stdio 分帧、参数校验引擎）已交给官方 SDK v2",
       "status": "to-replace",

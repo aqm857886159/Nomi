@@ -52,6 +52,70 @@ describe('walkthrough network guard', () => {
     expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host)).toEqual(['allowed.invalid'])
   })
 
+  it('"*.domain" lets the domain and its subdomains through, and nothing that merely looks like it', () => {
+    const { entries } = runGuarded(`
+      const urls = ['https://getapib.org/a', 'https://img.getapib.org/a.png', 'https://a.b.getapib.org/a.png',
+        'https://getapib.org.evil.test/a', 'https://evilgetapib.org/a', 'https://getapib.org.evil.test/b']
+      Promise.all(urls.map((url) => fetch(url).catch(() => undefined)))
+    `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host).sort())
+      .toEqual(['evilgetapib.org', 'getapib.org.evil.test', 'getapib.org.evil.test'])
+  })
+
+  it('"*.domain" also opens the connection layer for subdomains but not look-alikes', () => {
+    const { entries } = runGuarded(`
+      const net = require('node:net')
+      for (const host of ['cdn.getapib.org', 'getapib.org.evil.test']) net.connect(443, host).on('error', () => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
+    expect(entries.filter((entry) => entry.kind === 'blocked' && entry.via === 'socket').map((entry) => entry.host)).toEqual(['getapib.org.evil.test'])
+  })
+
+  it('"*.domain" is ignored under CI too', () => {
+    const { entries } = runGuarded(`fetch('https://img.getapib.org/a.png').catch(() => undefined)`, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: 'true' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.host)).toEqual(['img.getapib.org'])
+  })
+
+  it('an exact origin pins the port on every layer: another port is blocked and recorded (fetch, http, socket)', () => {
+    const { entries } = runGuarded(`
+      const net = require('node:net')
+      const https = require('node:https')
+      fetch('https://allowed.invalid:8443/ok').catch(() => undefined)
+      fetch('https://allowed.invalid:9999/x').catch(() => undefined)
+      fetch('https://allowed.invalid/default-443').catch(() => undefined)
+      try { https.request({ hostname: 'allowed.invalid', port: 9999, path: '/x' }).on('error', () => undefined).destroy() } catch {}
+      net.connect(8443, 'allowed.invalid').on('error', () => undefined)
+      net.connect(9999, 'allowed.invalid').on('error', () => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid:8443', CI: '' })
+    const blocked = entries.filter((entry) => entry.kind === 'blocked').map((entry) => `${entry.via} ${entry.url}`).sort()
+    expect(blocked).toEqual([
+      'fetch https://allowed.invalid/default-443',
+      'fetch https://allowed.invalid:9999/x',
+      'https.request https://allowed.invalid:9999/x',
+      'socket tcp://allowed.invalid:9999',
+    ].sort())
+  })
+
+  it('a default-port origin means 443 for https: socket on 443 passes, other ports are blocked', () => {
+    const { entries } = runGuarded(`
+      const net = require('node:net')
+      net.connect(443, 'allowed.invalid').on('error', () => undefined)
+      net.connect(9999, 'allowed.invalid').on('error', () => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1', CI: '' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.url)).toEqual(['tcp://allowed.invalid:9999'])
+  })
+
+  it('"*.domain" only opens the standard ports (443 / 80) on fetch and socket', () => {
+    const { entries } = runGuarded(`
+      const net = require('node:net')
+      fetch('https://img.getapib.org/a').catch(() => undefined)
+      fetch('https://img.getapib.org:8443/a').catch(() => undefined)
+      net.connect(443, 'img.getapib.org').on('error', () => undefined)
+      net.connect(8443, 'img.getapib.org').on('error', () => undefined)
+    `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
+    expect(entries.filter((entry) => entry.kind === 'blocked').map((entry) => entry.url).sort())
+      .toEqual(['https://img.getapib.org:8443/a', 'tcp://img.getapib.org:8443'].sort())
+  })
+
   it('blocks fetch to a public host and records who called it', () => {
     const { stdout, entries } = runGuarded(`
       function probeVendorModels() { return fetch('https://api.vendor.invalid/models?key=secret') }

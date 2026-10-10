@@ -107,6 +107,18 @@ describe('shared Electron compiler', () => {
       .toContain('exports.boundary')
   })
 
+  test('hand-written electron/**/*.cjs is copied to the same relative path, and the artifact check demands it', async () => {
+    const root = fixture()
+    write(root, 'electron/shared/plain.cjs', 'module.exports = { plain: true }\n')
+    const check = await artifactCheck()
+    const result = build(root)
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0)
+    expect(fs.readFileSync(path.join(root, 'dist-electron/shared/plain.cjs'), 'utf8')).toContain('plain: true')
+    expect(() => check(root)).not.toThrow()
+    fs.rmSync(path.join(root, 'dist-electron/shared/plain.cjs'))
+    expect(() => check(root)).toThrow(/plain.cjs/)
+  })
+
   test('a private compiler failure stays nonzero even when stale artifacts exist', () => {
     const root = fixture()
     write(root, 'electron/agentLane/session.mts', 'export const session: number = "wrong";\n')
