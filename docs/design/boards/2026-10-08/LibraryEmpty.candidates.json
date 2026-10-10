@@ -1,0 +1,469 @@
+{
+  "board": "LibraryEmpty",
+  "extractor": "board-extract@1",
+  "source": "preview/LibraryEmpty.html",
+  "sourceSha256": "1257c5ac9adc9fd8322eb72b8ec19b99dc456847637127f0360204b177dc5d3b",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-svg-Nomi",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "Nomi",
+      "bbox": [
+        12,
+        10,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "002-span-项目库",
+      "kind": "text",
+      "tag": "span",
+      "text": "项目库",
+      "bbox": [
+        40,
+        12,
+        39,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-button-任务",
+      "kind": "text",
+      "tag": "button",
+      "text": "任务",
+      "bbox": [
+        1046,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1051,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "003-button-任务"
+    },
+    {
+      "id": "005-button-浏览器",
+      "kind": "text",
+      "tag": "button",
+      "text": "浏览器",
+      "bbox": [
+        1076,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1081,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "005-button-浏览器"
+    },
+    {
+      "id": "007-button-设置",
+      "kind": "text",
+      "tag": "button",
+      "text": "设置",
+      "bbox": [
+        1106,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1111,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "007-button-设置"
+    },
+    {
+      "id": "009-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1160,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "010-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1206,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "011-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1252,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "012-div-库",
+      "kind": "text",
+      "tag": "div",
+      "role": "tablist",
+      "text": "库",
+      "bbox": [
+        40,
+        60,
+        152,
+        33
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-button-项目",
+      "kind": "text",
+      "tag": "button",
+      "role": "tab",
+      "text": "项目",
+      "bbox": [
+        40,
+        60,
+        32,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-button-Skill",
+      "kind": "text",
+      "tag": "button",
+      "role": "tab",
+      "text": "Skill",
+      "bbox": [
+        92,
+        61,
+        32,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-button-提示词",
+      "kind": "text",
+      "tag": "button",
+      "role": "tab",
+      "text": "提示词",
+      "bbox": [
+        144,
+        60,
+        48,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-span-开始一个项目",
+      "kind": "text",
+      "tag": "span",
+      "text": "开始一个项目",
+      "bbox": [
+        580,
+        112,
+        120,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-span-从一段文字一个文件夹或者",
+      "kind": "text",
+      "tag": "span",
+      "text": "从一段文字、一个文件夹，或者先看一遍怎么做",
+      "bbox": [
+        504,
+        144,
+        273,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        204,
+        189,
+        872,
+        88
+      ],
+      "region": "card"
+    },
+    {
+      "id": "019-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        204,
+        189,
+        280,
+        88
+      ],
+      "region": "card"
+    },
+    {
+      "id": "020-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        234,
+        223,
+        20,
+        20
+      ],
+      "region": "card",
+      "iconOf": "019-button"
+    },
+    {
+      "id": "021-div-新建空白项目",
+      "kind": "text",
+      "tag": "div",
+      "text": "新建空白项目",
+      "bbox": [
+        278,
+        214,
+        120,
+        19
+      ],
+      "region": "card"
+    },
+    {
+      "id": "022-div-从一段文字或想法开始",
+      "kind": "text",
+      "tag": "div",
+      "text": "从一段文字或想法开始",
+      "bbox": [
+        278,
+        236,
+        120,
+        16
+      ],
+      "region": "card"
+    },
+    {
+      "id": "023-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        500,
+        189,
+        280,
+        88
+      ],
+      "region": "card"
+    },
+    {
+      "id": "024-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        530,
+        223,
+        20,
+        20
+      ],
+      "region": "card",
+      "iconOf": "023-button"
+    },
+    {
+      "id": "025-div-打开已有文件夹",
+      "kind": "text",
+      "tag": "div",
+      "text": "打开已有文件夹",
+      "bbox": [
+        574,
+        214,
+        120,
+        19
+      ],
+      "region": "card"
+    },
+    {
+      "id": "026-div-把素材文件夹变成项目",
+      "kind": "text",
+      "tag": "div",
+      "text": "把素材文件夹变成项目",
+      "bbox": [
+        574,
+        236,
+        120,
+        16
+      ],
+      "region": "card"
+    },
+    {
+      "id": "027-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        796,
+        189,
+        280,
+        88
+      ],
+      "region": "card"
+    },
+    {
+      "id": "028-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        826,
+        223,
+        20,
+        20
+      ],
+      "region": "card",
+      "iconOf": "027-button"
+    },
+    {
+      "id": "029-div-看一遍怎么做",
+      "kind": "text",
+      "tag": "div",
+      "text": "看一遍怎么做",
+      "bbox": [
+        870,
+        214,
+        126,
+        19
+      ],
+      "region": "card"
+    },
+    {
+      "id": "030-div-60秒从一句话到成片",
+      "kind": "text",
+      "tag": "div",
+      "text": "60 秒，从一句话到成片",
+      "bbox": [
+        870,
+        236,
+        126,
+        16
+      ],
+      "region": "card"
+    },
+    {
+      "id": "031-div-创作助手还没连接模型写剧",
+      "kind": "text",
+      "tag": "div",
+      "text": "创作助手还没连接模型：写剧本、拆分镜前先连一个",
+      "bbox": [
+        204,
+        297,
+        872,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "032-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        218,
+        311,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "031-div-创作助手还没连接模型写剧"
+    },
+    {
+      "id": "033-button-连接模型",
+      "kind": "text",
+      "tag": "button",
+      "text": "连接模型",
+      "bbox": [
+        996,
+        305,
+        72,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "034-span-也可以把一个文件夹直接拖",
+      "kind": "text",
+      "tag": "span",
+      "text": "也可以把一个文件夹直接拖进窗口",
+      "bbox": [
+        550,
+        377,
+        180,
+        16
+      ],
+      "region": "root"
+    }
+  ]
+}

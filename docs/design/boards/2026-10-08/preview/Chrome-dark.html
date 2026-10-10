@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>外壳零件</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--chrome:oklch(0.97 0.003 80);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--accent:oklch(0.55 0.13 250);--accentSoft:color-mix(in srgb, oklch(0.55 0.13 250) 12%, white);--infoInk:oklch(0.45 0.13 250);--infoSoft:oklch(0.957 0.021 250);--warnInk:oklch(0.45 0.085 72);--warnSoft:oklch(0.968 0.024 72);--warnEdge:oklch(0.905 0.07 72);--danger:oklch(0.55 0.13 25);--logo:oklch(0.22 0.01 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--shMd:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);--shLg:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;width:1280px;height:760px;overflow:hidden;background:var(--bg);padding:32px 40px;box-sizing:border-box}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--chrome:oklch(0.155 0.006 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--accent:oklch(0.70 0.13 250);--accentSoft:color-mix(in srgb, oklch(0.70 0.13 250) 26%, oklch(0.235 0.007 80));--infoInk:oklch(0.82 0.13 250);--infoSoft:oklch(0.295 0.045 250);--warnInk:oklch(0.82 0.085 72);--warnSoft:oklch(0.295 0.04 72);--warnEdge:oklch(0.395 0.058 72);--danger:oklch(0.72 0.13 25);--logo:oklch(0.30 0.01 80);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--shMd:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32);--shLg:0 4px 10px oklch(0 0 0 / 0.30),0 24px 64px oklch(0 0 0 / 0.40)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i14{width:14px;height:14px}.i16{width:16px;height:16px}.i18{width:18px;height:18px}
+.tnum{font-variant-numeric:tabular-nums}
+.lbl{font-size:12px;font-weight:600;color:var(--ink40);height:20px;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.lbl b{font-weight:600;color:var(--ink80)}
+.strip{position:relative;height:40px;background:var(--chrome);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);overflow:hidden;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:20px}
+.tb-l{display:flex;align-items:center;gap:6px;padding-left:12px}
+.tb-c{display:flex;align-items:center;gap:8px}
+.tb-r{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+.proj{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px 0 8px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink)}
+.proj .i{color:var(--ink40)}
+.seg{display:flex;align-items:center;gap:2px;height:28px;padding:2px;border-radius:999px;background:var(--ink10)}
+.seg>button{height:24px;padding:0 12px;border-radius:999px;font-size:13px;color:var(--ink60);display:flex;align-items:center;gap:6px}
+.seg>button.on{background:var(--paper);color:var(--ink);font-weight:500;box-shadow:var(--shSm)}
+.seg .cnt{font-size:11px;color:var(--ink40);font-weight:400}
+.seg.sm{height:24px}.seg.sm>button{height:20px;padding:0 10px;font-size:12px}
+.ib{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink60);position:relative}
+.badge{height:16px;min-width:16px;padding:0 5px;border-radius:999px;background:var(--infoSoft);color:var(--infoInk);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center}
+.tasks{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px;border-radius:6px;color:var(--ink60)}
+.upd{display:flex;align-items:center;gap:4px;height:24px;padding:0 10px 0 8px;margin:0 4px;border-radius:999px;background:var(--infoSoft);color:var(--infoInk);font-size:12px;font-weight:500}
+.updi{color:var(--infoInk)}
+.dotmark{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--chrome)}
+.wc{display:flex;margin-left:6px}
+.wc span{width:46px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink80)}
+.wc svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1}
+.tl{display:flex;gap:8px;padding:0 6px 0 14px}
+.tl span{width:12px;height:12px;border-radius:50%}
+.mini{position:relative;height:300px;border-radius:10px;background:var(--chrome);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.rail{position:absolute;left:0;top:0;bottom:0;width:60px;display:flex;flex-direction:column;align-items:center;padding:8px 0}
+.ri{width:48px;height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink60)}
+.ri span{font-size:11px;line-height:13px}
+.ri.on{background:var(--accentSoft);color:var(--accent)}
+.work{position:absolute;top:8px;right:8px;bottom:8px;border-radius:10px;background:var(--bg);box-shadow:0 0 0 1px var(--lineSoft)}
+.drw{position:absolute;left:64px;top:8px;bottom:8px;width:300px;border-radius:12px;background:var(--paper);box-shadow:var(--shLg),0 0 0 1px var(--lineSoft);padding:12px}
+.drw-h{display:flex;align-items:center;gap:6px;height:28px}
+.drw-t{font-size:13px;font-weight:600}
+.search{display:flex;align-items:center;gap:6px;height:28px;margin-top:8px;padding:0 10px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line);font-size:12px;color:var(--ink40)}
+.fseg{display:flex;gap:2px;margin-top:10px}
+.fseg span{height:24px;padding:0 10px;border-radius:999px;font-size:12px;color:var(--ink60);display:flex;align-items:center}
+.fseg span.on{background:var(--ink10);color:var(--ink);font-weight:500}
+.ag{display:grid;grid-template-columns:repeat(3,86px);gap:8px;margin-top:10px}
+.at{height:58px;border-radius:6px;box-shadow:0 0 0 1px oklch(0 0 0 / 0.05)}
+.an{font-size:11px;color:var(--ink60);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.orbs{display:flex;align-items:flex-start;gap:28px}
+.ob{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{font-size:12px;color:var(--ink40)}
+.orb{width:44px;height:44px;border-radius:50%;background:var(--paper);box-shadow:var(--shMd),0 0 0 1px var(--lineSoft);display:flex;align-items:center;justify-content:center;position:relative}
+.orb.run{box-shadow:var(--shMd),0 0 0 2px var(--accent)}
+.orb .err{position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--paper)}
+.wait{height:44px;padding:0 16px 0 11px;border-radius:999px;background:var(--warnSoft);box-shadow:var(--shMd),0 0 0 1px var(--warnEdge);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--warnInk)}
+</style>
+</helmet>
+<div class="nm dark">
+  <div class="lbl"><b>顶栏 · Windows</b>窗口按钮用系统原生的（Electron titleBarOverlay），颜色跟着光 / 暗切换</div>
+  <div class="strip" style="width:1200px">
+    <div class="tb-l">
+      <svg width="20" height="20" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <button class="proj" type="button">雨夜来信<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+    <div class="tb-c">
+      <div class="seg"><button type="button">创作</button><button type="button" class="on">生成<span class="cnt tnum">5/6</span></button><button type="button">预览<span class="cnt tnum">0:26</span></button></div>
+      <div class="seg sm"><button type="button" class="on">画布</button><button type="button">列表</button></div>
+    </div>
+    <div class="tb-r">
+      <button class="tasks" type="button" aria-label="任务"><svg class="i i18" viewBox="0 0 24 24"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/></svg><span class="badge tnum">1</span></button>
+      <button class="ib" type="button" aria-label="浏览器"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 8h16"/><path d="M8 4v4"/></svg></button>
+      <button class="upd" type="button"><svg class="i i14" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>新版本</button>
+      <button class="ib" type="button" aria-label="设置"><svg class="i i18" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg><span class="dotmark"></span></button>
+      <div class="wc" aria-hidden="true"><span><svg viewBox="0 0 10 10"><path d="M0 5.5h10"/></svg></span><span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9"/></svg></span><span><svg viewBox="0 0 10 10"><path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/></svg></span></div>
+    </div>
+  </div>
+
+  <div class="lbl"><b>顶栏 · macOS</b>红绿灯在最左，标志让在它后面；右边没有窗口按钮</div>
+  <div class="strip" style="width:1200px">
+    <div class="tb-l" style="padding-left:0">
+      <div class="tl" aria-hidden="true"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div>
+      <svg width="20" height="20" viewBox="0 0 28 28" style="margin-left:6px"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <button class="proj" type="button">雨夜来信<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+    <div class="tb-c">
+      <div class="seg"><button type="button">创作</button><button type="button" class="on">生成<span class="cnt tnum">5/6</span></button><button type="button">预览<span class="cnt tnum">0:26</span></button></div>
+      <div class="seg sm"><button type="button" class="on">画布</button><button type="button">列表</button></div>
+    </div>
+    <div class="tb-r" style="padding-right:12px">
+      <button class="tasks" type="button" aria-label="任务"><svg class="i i18" viewBox="0 0 24 24"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/></svg><span class="badge tnum">1</span></button>
+      <button class="ib" type="button" aria-label="浏览器"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 8h16"/><path d="M8 4v4"/></svg></button>
+      <button class="upd" type="button"><svg class="i i14" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>新版本</button>
+      <button class="ib" type="button" aria-label="设置"><svg class="i i18" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg><span class="dotmark"></span></button>
+    </div>
+  </div>
+
+  <div class="lbl"><b>窄窗口</b>放不下时「新版本」先收成一个带点的图标，其它不动</div>
+  <div class="strip" style="width:1000px">
+    <div class="tb-l">
+      <svg width="20" height="20" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <button class="proj" type="button">雨夜来信<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+    <div class="tb-c">
+      <div class="seg"><button type="button">创作</button><button type="button" class="on">生成<span class="cnt tnum">5/6</span></button><button type="button">预览<span class="cnt tnum">0:26</span></button></div>
+      <div class="seg sm"><button type="button" class="on">画布</button><button type="button">列表</button></div>
+    </div>
+    <div class="tb-r">
+      <button class="tasks" type="button" aria-label="任务"><svg class="i i18" viewBox="0 0 24 24"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/></svg><span class="badge tnum">1</span></button>
+      <button class="ib" type="button" aria-label="浏览器"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 8h16"/><path d="M8 4v4"/></svg></button>
+      <button class="ib updi" type="button" aria-label="有新版本"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg><span class="dotmark"></span></button>
+      <button class="ib" type="button" aria-label="设置"><svg class="i i18" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg><span class="dotmark"></span></button>
+      <div class="wc" aria-hidden="true"><span><svg viewBox="0 0 10 10"><path d="M0 5.5h10"/></svg></span><span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9"/></svg></span><span><svg viewBox="0 0 10 10"><path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/></svg></span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:24px;margin-top:4px">
+    <div>
+      <div class="lbl"><b>左栏 · 素材抽屉打开</b>浮在内容上，不挤画布</div>
+      <div class="mini" style="width:440px">
+        <nav class="rail">
+          <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/></svg><span>文稿</span></button>
+          <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M9 6h11"/><path d="M12 12h8"/><path d="M15 18h5"/><path d="M5 6v.01"/><path d="M8 12v.01"/><path d="M11 18v.01"/></svg><span>目录</span></button>
+          <button class="ri on" type="button" aria-expanded="true"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/></svg><span>素材</span></button>
+          <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg><span>流程</span></button>
+        </nav>
+        <div class="work" style="left:60px"></div>
+        <section class="drw" aria-label="素材">
+          <div class="drw-h"><span class="drw-t">素材</span><span style="flex:1"></span><button class="ib" type="button" aria-label="导入"><svg class="i i16" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg></button></div>
+          <div class="search"><svg class="i i14" viewBox="0 0 24 24"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>搜索素材</div>
+          <div class="fseg"><span class="on">全部</span><span>图片</span><span>视频</span><span>声音</span></div>
+          <div class="ag">
+            <div><div class="at" style="background:radial-gradient(42% 60% at 50% 46%,#d9b9a3 0 38%,transparent 39%),linear-gradient(180deg,#e9e4dc,#cfc6ba)"></div><div class="an">林薇 · 定妆</div></div>
+            <div><div class="at" style="background:repeating-linear-gradient(90deg,#273445 0 14px,#e2f0ff 14px 16px)"></div><div class="an">便利店 · 外景</div></div>
+            <div><div class="at" style="background:linear-gradient(165deg,#c9b38a,#6b5634)"></div><div class="an">怀表.jpg</div></div>
+            <div><div class="at" style="background:linear-gradient(165deg,#3b4b67 0%,#1a2232 72%)"></div><div class="an">镜 01</div></div>
+            <div><div class="at" style="background:linear-gradient(165deg,#6a4a40 0%,#2a1d1a 72%)"></div><div class="an">镜 02</div></div>
+            <div><div class="at" style="background:linear-gradient(165deg,#5a4c6a 0%,#1d1826 72%)"></div><div class="an">镜 03</div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl"><b>左栏收起</b>只剩顶栏里一颗「展开左栏」</div>
+      <div class="mini" style="width:300px">
+        <div style="position:absolute;left:0;top:0;right:0;height:40px;display:flex;align-items:center;gap:6px;padding-left:12px">
+          <svg width="20" height="20" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+          <button class="ib" type="button" aria-label="展开左栏"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M9 4v16"/><path d="M14 10l2 2l-2 2"/></svg></button>
+          <button class="proj" type="button">雨夜来信<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+        </div>
+        <div class="work" style="left:8px;top:40px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl"><b>Agent 小球</b>四种状态，都不会自己弹开</div>
+      <div class="orbs" style="padding-top:20px">
+        <div class="ob"><button class="orb" type="button" aria-label="打开 Nomi Agent"><svg width="22" height="22" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg></button><span class="cap">空闲</span></div>
+        <div class="ob"><button class="orb run" type="button" aria-label="Nomi Agent 正在处理"><svg width="22" height="22" viewBox="0 0 28 28" style="transform:rotate(-18deg)"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg></button><span class="cap">处理中</span></div>
+        <div class="ob"><button class="orb" type="button" aria-label="Nomi Agent 出错了"><svg width="22" height="22" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg><span class="err"></span></button><span class="cap">出错</span></div>
+      </div>
+      <div class="orbs" style="padding-top:24px">
+        <div class="ob" style="align-items:flex-start"><button class="wait" type="button"><svg width="22" height="22" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>等你确认<span class="tnum">2</span></button><span class="cap">要花钱的事等你点头时，变成这颗胶囊</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>

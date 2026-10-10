@@ -1,0 +1,410 @@
+{
+  "board": "Chrome",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/Chrome.html",
+  "elements": [
+    {
+      "id": "topbar.project-title",
+      "label": "项目名（顶栏）",
+      "candidates": [
+        "005-button-雨夜来信",
+        "032-button-雨夜来信",
+        "056-button-雨夜来信",
+        "114-button-雨夜来信",
+        "006-svg",
+        "033-svg",
+        "057-svg",
+        "115-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里找不到字样「雨夜来信」，初判缺；待真 App 核"
+    },
+    {
+      "id": "topbar.phase-switch",
+      "label": "阶段切换（三种窗宽）",
+      "candidates": [
+        "008-button-创作",
+        "009-button-生成",
+        "011-button-预览",
+        "035-button-创作",
+        "036-button-生成",
+        "038-button-预览",
+        "059-button-创作",
+        "060-button-生成",
+        "062-button-预览"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "topbar.phase-counters",
+      "label": "阶段进度与时长",
+      "candidates": [
+        "010-span-56",
+        "012-span-026",
+        "037-span-56",
+        "039-span-026",
+        "061-span-56",
+        "063-span-026"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「5/6」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.view-switch",
+      "label": "视图 画布/列表",
+      "candidates": [
+        "014-button-画布",
+        "015-button-列表",
+        "041-button-画布",
+        "042-button-列表",
+        "065-button-画布",
+        "066-button-列表"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「画布」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.tasks",
+      "label": "任务（带计数）",
+      "candidates": [
+        "016-button-任务",
+        "018-span-1",
+        "043-button-任务",
+        "045-span-1",
+        "067-button-任务",
+        "069-span-1",
+        "017-svg",
+        "044-svg",
+        "068-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「任务」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.browser",
+      "label": "浏览器",
+      "candidates": [
+        "019-button-浏览器",
+        "046-button-浏览器",
+        "070-button-浏览器",
+        "020-svg",
+        "047-svg",
+        "071-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「浏览器」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.update",
+      "label": "新版本（窄窗口收成带点图标）",
+      "candidates": [
+        "021-button-新版本",
+        "048-button-新版本",
+        "072-button-有新版本",
+        "022-svg",
+        "049-svg",
+        "073-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「新版本」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.settings",
+      "label": "设置",
+      "candidates": [
+        "023-button-设置",
+        "050-button-设置",
+        "074-button-设置",
+        "024-svg",
+        "051-svg",
+        "075-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「设置」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "leftrail.docs",
+      "label": "左栏 文稿",
+      "candidates": [
+        "083-span-文稿",
+        "084-button",
+        "085-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「文稿」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "leftrail.catalog",
+      "label": "左栏 目录",
+      "candidates": [
+        "086-span-目录",
+        "087-button",
+        "088-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「目录」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "leftrail.assets",
+      "label": "左栏 素材（抽屉入口）",
+      "candidates": [
+        "081-button",
+        "089-span-素材",
+        "090-button",
+        "093-section-素材",
+        "094-span-素材",
+        "082-svg",
+        "091-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「素材」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "leftrail.flow",
+      "label": "左栏 流程",
+      "candidates": [
+        "092-span-流程"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「流程」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "leftrail.collapse-toggle",
+      "label": "左栏收起后展开按钮",
+      "candidates": [
+        "112-button-展开左栏",
+        "113-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「展开左栏」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "assets-drawer.search",
+      "label": "素材抽屉 搜索",
+      "candidates": [
+        "097-div-搜索素材",
+        "098-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「搜索素材」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "assets-drawer.filters",
+      "label": "素材抽屉 类型筛选",
+      "candidates": [
+        "099-span-全部",
+        "100-span-图片",
+        "101-span-视频",
+        "102-span-声音"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「全部」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "assets-drawer.import",
+      "label": "素材抽屉 导入",
+      "candidates": [
+        "095-button-导入",
+        "096-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「导入」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "assets-drawer.items",
+      "label": "素材抽屉 条目与镜头",
+      "candidates": [
+        "103-div-林薇定妆",
+        "104-div-便利店外景",
+        "105-div-怀表jpg",
+        "106-div-镜01",
+        "107-div-镜02",
+        "108-div-镜03"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「林薇·定妆」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.orb",
+      "label": "Agent 小球四态（空闲/处理中/出错/等你确认）",
+      "candidates": [
+        "118-button-打开NomiAgent",
+        "120-span-空闲",
+        "121-button-NomiAgent正在处",
+        "123-span-处理中",
+        "124-button-NomiAgent出错了",
+        "126-span-出错",
+        "127-button-等你确认",
+        "129-span-2",
+        "119-svg",
+        "122-svg",
+        "125-svg",
+        "128-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「打开NomiAg」，初判缺；待真 App 核"
+    }
+  ],
+  "decor": [
+    "001-div-窗口按钮用系统原生的El",
+    "002-b-顶栏Windows",
+    "003-div",
+    "004-svg",
+    "007-div",
+    "013-div",
+    "025-svg",
+    "026-svg",
+    "027-svg",
+    "028-div-红绿灯在最左标志让在它后",
+    "029-b-顶栏macOS",
+    "030-div",
+    "031-svg",
+    "034-div",
+    "040-div",
+    "052-div-放不下时新版本先收成一个",
+    "053-b-窄窗口",
+    "054-div",
+    "055-svg",
+    "058-div",
+    "064-div",
+    "076-svg",
+    "077-svg",
+    "078-svg",
+    "079-div-浮在内容上不挤画布",
+    "080-b-左栏素材抽屉打开",
+    "109-div-只剩顶栏里一颗展开左栏",
+    "110-b-左栏收起",
+    "111-svg",
+    "116-div-四种状态都不会自己弹开",
+    "117-b-Agent小球",
+    "130-span-要花钱的事等你点头时变成"
+  ],
+  "functionCensus": [
+    {
+      "function": "顶栏：窄窗口收起新版本",
+      "before": "窄窗口顶栏",
+      "after": "topbar.update"
+    },
+    {
+      "function": "左栏：素材抽屉",
+      "before": "左栏素材抽屉",
+      "after": "leftrail.assets"
+    },
+    {
+      "function": "Agent 小球状态",
+      "before": "Agent 小球四态",
+      "after": "agent.orb"
+    }
+  ]
+}

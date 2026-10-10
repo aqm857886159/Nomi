@@ -47,7 +47,7 @@ const VALIDATION_INFRASTRUCTURE_POLICY = Object.freeze({
 
 const VALIDATION_INFRASTRUCTURE_PATTERNS = [
   /^\.github\/(?:actions|workflows)\//,
-  /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|real-user-test-gates|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|.*walkthrough)(?:\.|$)/,
+  /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|real-user-test-gates|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|check-board-parity|board-extract|.*walkthrough)(?:\.|$)/,
   /^tests\/system(?:\/|$)/,
   // 核心冒烟的清单 / 夹具 / 跑法：改它等于改每个 PR 都要过的那道闸。
   /^tests\/ux\/core-smoke\//,

@@ -1,0 +1,959 @@
+{
+  "board": "TextNode",
+  "extractor": "board-extract@1",
+  "source": "preview/TextNode.html",
+  "sourceSha256": "7ed979cf3d2a60f3ee849affa569b2bf10ab4ef00ef8bc2100c9231c013daed4",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-div-左边能接图视频文本当输入",
+      "kind": "text",
+      "tag": "div",
+      "text": "左边能接图、视频、文本当输入；下面的加工框给几个现成用法，不用先选模型",
+      "bbox": [
+        40,
+        36,
+        820,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-b-有内容选中",
+      "kind": "text",
+      "tag": "b",
+      "text": "有内容 · 选中",
+      "bbox": [
+        40,
+        38,
+        69,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        40,
+        66,
+        820,
+        300
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "004-div-定妆",
+      "kind": "text",
+      "tag": "div",
+      "text": "定妆",
+      "bbox": [
+        64,
+        146,
+        48,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-b-林薇",
+      "kind": "text",
+      "tag": "b",
+      "text": "林薇",
+      "bbox": [
+        64,
+        147,
+        22,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-div-文本",
+      "kind": "text",
+      "tag": "div",
+      "text": "文本",
+      "bbox": [
+        250,
+        116,
+        86,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        250,
+        118,
+        12,
+        12
+      ],
+      "region": "root",
+      "iconOf": "006-div-文本"
+    },
+    {
+      "id": "008-b-风格说明",
+      "kind": "text",
+      "tag": "b",
+      "text": "风格说明",
+      "bbox": [
+        266,
+        117,
+        44,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-div-冷色夜景霓虹在积水里拉出",
+      "kind": "text",
+      "tag": "div",
+      "text": "冷色夜景，霓虹在积水里拉出长长的反光；胶片颗粒、低饱和，人物肤色保留一点暖调；镜头偏低，缓慢推进。",
+      "bbox": [
+        262,
+        148,
+        380,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-button-扩写成提示词",
+      "kind": "text",
+      "tag": "button",
+      "text": "扩写成提示词",
+      "bbox": [
+        256,
+        218,
+        84,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "·",
+      "bbox": [
+        342,
+        223,
+        3,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-button-看图写描述",
+      "kind": "text",
+      "tag": "button",
+      "text": "看图写描述",
+      "bbox": [
+        347,
+        218,
+        72,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "·",
+      "bbox": [
+        421,
+        223,
+        3,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-button-翻译",
+      "kind": "text",
+      "tag": "button",
+      "text": "翻译",
+      "bbox": [
+        427,
+        218,
+        36,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "·",
+      "bbox": [
+        465,
+        223,
+        3,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-button-拆成多条",
+      "kind": "text",
+      "tag": "button",
+      "text": "拆成多条",
+      "bbox": [
+        470,
+        218,
+        60,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "·",
+      "bbox": [
+        532,
+        223,
+        3,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-button-续写改写",
+      "kind": "text",
+      "tag": "button",
+      "text": "续写 / 改写",
+      "bbox": [
+        537,
+        218,
+        85,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        604,
+        224,
+        12,
+        12
+      ],
+      "region": "root",
+      "iconOf": "018-button-续写改写"
+    },
+    {
+      "id": "020-div-或者直接说要怎么改",
+      "kind": "text",
+      "tag": "div",
+      "text": "或者直接说要怎么改",
+      "bbox": [
+        262,
+        250,
+        380,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "021-button-跟随Agent的模型",
+      "kind": "text",
+      "tag": "button",
+      "text": "跟随 Agent 的模型",
+      "bbox": [
+        254,
+        290,
+        135,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        367,
+        297,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "021-button-跟随Agent的模型"
+    },
+    {
+      "id": "023-button-开始",
+      "kind": "text",
+      "tag": "button",
+      "text": "开始",
+      "bbox": [
+        614,
+        290,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "024-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        621,
+        297,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "023-button-开始"
+    },
+    {
+      "id": "025-div-视频",
+      "kind": "text",
+      "tag": "div",
+      "text": "视频",
+      "bbox": [
+        740,
+        76,
+        54,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "026-b-镜03",
+      "kind": "text",
+      "tag": "b",
+      "text": "镜 03",
+      "bbox": [
+        740,
+        77,
+        28,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-div-图片",
+      "kind": "text",
+      "tag": "div",
+      "text": "图片",
+      "bbox": [
+        740,
+        166,
+        54,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-b-镜05",
+      "kind": "text",
+      "tag": "b",
+      "text": "镜 05",
+      "bbox": [
+        740,
+        167,
+        28,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-div-镜03的输入框接进来的文",
+      "kind": "text",
+      "tag": "div",
+      "text": "镜 03 的输入框：接进来的文字看得见",
+      "bbox": [
+        884,
+        36,
+        356,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-b-下游",
+      "kind": "text",
+      "tag": "b",
+      "text": "下游",
+      "bbox": [
+        884,
+        38,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "031-div-低机位怀表落在积水里车灯",
+      "kind": "text",
+      "tag": "div",
+      "text": "低机位，怀表落在积水里，车灯扫过。",
+      "bbox": [
+        896,
+        78,
+        332,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "032-span-风格说明",
+      "kind": "text",
+      "tag": "span",
+      "text": "风格说明",
+      "bbox": [
+        896,
+        106,
+        110,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        902,
+        111,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "032-span-风格说明"
+    },
+    {
+      "id": "034-span-引用",
+      "kind": "text",
+      "tag": "span",
+      "text": "引用",
+      "bbox": [
+        921,
+        110,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-span-首帧",
+      "kind": "text",
+      "tag": "span",
+      "text": "首帧",
+      "bbox": [
+        899,
+        169,
+        30,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "036-button-加参考",
+      "kind": "text",
+      "tag": "button",
+      "text": "加参考",
+      "bbox": [
+        952,
+        140,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "037-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        968,
+        156,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "036-button-加参考"
+    },
+    {
+      "id": "038-button-模型21",
+      "kind": "text",
+      "tag": "button",
+      "text": "模型 2.1",
+      "bbox": [
+        888,
+        200,
+        76,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "039-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        942,
+        207,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "038-button-模型21"
+    },
+    {
+      "id": "040-button-1694s",
+      "kind": "text",
+      "tag": "button",
+      "text": "16:9 · 4s",
+      "bbox": [
+        968,
+        200,
+        82,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "041-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1028,
+        207,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "040-button-1694s"
+    },
+    {
+      "id": "042-div-接进来的是哪段话一眼看到",
+      "kind": "text",
+      "tag": "div",
+      "text": "接进来的是哪段话，一眼看到",
+      "bbox": [
+        884,
+        258,
+        356,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "043-b-悬停引用时",
+      "kind": "text",
+      "tag": "b",
+      "text": "悬停「引用」时",
+      "bbox": [
+        884,
+        260,
+        84,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-div",
+      "kind": "box",
+      "tag": "div",
+      "role": "tooltip",
+      "text": "",
+      "bbox": [
+        884,
+        288,
+        356,
+        76
+      ],
+      "region": "root"
+    },
+    {
+      "id": "045-div-生成时接在提示词后面",
+      "kind": "text",
+      "tag": "div",
+      "text": "生成时接在提示词后面",
+      "bbox": [
+        896,
+        298,
+        332,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "046-div-冷色夜景霓虹在积水里拉出",
+      "kind": "text",
+      "tag": "div",
+      "text": "冷色夜景，霓虹在积水里拉出长长的反光；胶片颗粒、低饱和，人物肤色保留一点暖调；镜头偏低，缓慢推进。",
+      "bbox": [
+        896,
+        318,
+        332,
+        36
+      ],
+      "region": "root"
+    },
+    {
+      "id": "047-div-空的时候试试只放它真能做",
+      "kind": "text",
+      "tag": "div",
+      "text": "空的时候「试试」只放它真能做好的；写剧本去创作页",
+      "bbox": [
+        40,
+        394,
+        1200,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "048-b-三种状态",
+      "kind": "text",
+      "tag": "b",
+      "text": "三种状态",
+      "bbox": [
+        40,
+        396,
+        48,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "049-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        40,
+        424,
+        1200,
+        160
+      ],
+      "region": "root"
+    },
+    {
+      "id": "050-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        40,
+        424,
+        285,
+        160
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        174,
+        459,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "050-div"
+    },
+    {
+      "id": "052-span-文本",
+      "kind": "text",
+      "tag": "span",
+      "text": "文本",
+      "bbox": [
+        170,
+        494,
+        26,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-span-还没有内容",
+      "kind": "text",
+      "tag": "span",
+      "text": "还没有内容",
+      "bbox": [
+        153,
+        513,
+        60,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-button-扩写成提示词",
+      "kind": "text",
+      "tag": "button",
+      "text": "扩写成提示词",
+      "bbox": [
+        67,
+        541,
+        84,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "·",
+      "bbox": [
+        153,
+        546,
+        3,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "056-button-看图写描述",
+      "kind": "text",
+      "tag": "button",
+      "text": "看图写描述",
+      "bbox": [
+        159,
+        541,
+        72,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "·",
+      "bbox": [
+        233,
+        546,
+        3,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "058-button-拆成多条",
+      "kind": "text",
+      "tag": "button",
+      "text": "拆成多条",
+      "bbox": [
+        238,
+        541,
+        60,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "059-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        345,
+        424,
+        285,
+        160
+      ],
+      "region": "card"
+    },
+    {
+      "id": "060-div-冷色夜景霓虹在积水里拉出",
+      "kind": "text",
+      "tag": "div",
+      "text": "冷色夜景，霓虹在积水里拉出长长的反光；胶片颗粒、低饱和",
+      "bbox": [
+        359,
+        436,
+        257,
+        40
+      ],
+      "region": "card"
+    },
+    {
+      "id": "061-div-正在写",
+      "kind": "text",
+      "tag": "div",
+      "text": "正在写",
+      "bbox": [
+        345,
+        548,
+        285,
+        36
+      ],
+      "region": "card"
+    },
+    {
+      "id": "062-button-停止",
+      "kind": "text",
+      "tag": "button",
+      "text": "停止",
+      "bbox": [
+        586,
+        555,
+        36,
+        24
+      ],
+      "region": "card"
+    },
+    {
+      "id": "063-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        650,
+        424,
+        285,
+        160
+      ],
+      "region": "card"
+    },
+    {
+      "id": "064-li-雨夜便利店门口霓虹招牌闪",
+      "kind": "text",
+      "tag": "li",
+      "text": "雨夜便利店门口，霓虹招牌闪烁",
+      "bbox": [
+        664,
+        436,
+        257,
+        24
+      ],
+      "region": "card"
+    },
+    {
+      "id": "065-span-1",
+      "kind": "text",
+      "tag": "span",
+      "text": "1",
+      "bbox": [
+        664,
+        438,
+        14,
+        20
+      ],
+      "region": "card"
+    },
+    {
+      "id": "066-li-林薇推门进店水珠沿发梢落",
+      "kind": "text",
+      "tag": "li",
+      "text": "林薇推门进店，水珠沿发梢落下",
+      "bbox": [
+        664,
+        460,
+        257,
+        24
+      ],
+      "region": "card"
+    },
+    {
+      "id": "067-span-2",
+      "kind": "text",
+      "tag": "span",
+      "text": "2",
+      "bbox": [
+        664,
+        462,
+        14,
+        20
+      ],
+      "region": "card"
+    },
+    {
+      "id": "068-li-货架之间怀表从口袋里滑落",
+      "kind": "text",
+      "tag": "li",
+      "text": "货架之间，怀表从口袋里滑落",
+      "bbox": [
+        664,
+        484,
+        257,
+        24
+      ],
+      "region": "card"
+    },
+    {
+      "id": "069-span-3",
+      "kind": "text",
+      "tag": "span",
+      "text": "3",
+      "bbox": [
+        664,
+        486,
+        14,
+        20
+      ],
+      "region": "card"
+    },
+    {
+      "id": "070-li-积水里的怀表车灯扫过",
+      "kind": "text",
+      "tag": "li",
+      "text": "积水里的怀表，车灯扫过",
+      "bbox": [
+        664,
+        508,
+        257,
+        24
+      ],
+      "region": "card"
+    },
+    {
+      "id": "071-span-4",
+      "kind": "text",
+      "tag": "span",
+      "text": "4",
+      "bbox": [
+        664,
+        510,
+        14,
+        20
+      ],
+      "region": "card"
+    },
+    {
+      "id": "072-div-拆成4条",
+      "kind": "text",
+      "tag": "div",
+      "text": "拆成 4 条",
+      "bbox": [
+        650,
+        548,
+        285,
+        36
+      ],
+      "region": "card"
+    }
+  ]
+}

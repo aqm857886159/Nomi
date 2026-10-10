@@ -1,0 +1,602 @@
+{
+  "board": "Library",
+  "extractor": "board-extract@1",
+  "source": "preview/Library.html",
+  "sourceSha256": "c3661836923f7d6a2f6463495d0862939c041e6951ae324d607e65903c3288f1",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-svg-Nomi",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "Nomi",
+      "bbox": [
+        12,
+        10,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "002-span-项目库",
+      "kind": "text",
+      "tag": "span",
+      "text": "项目库",
+      "bbox": [
+        40,
+        12,
+        39,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-button-任务",
+      "kind": "text",
+      "tag": "button",
+      "text": "任务",
+      "bbox": [
+        962,
+        6,
+        30,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        968,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "003-button-任务"
+    },
+    {
+      "id": "005-button-浏览器",
+      "kind": "text",
+      "tag": "button",
+      "text": "浏览器",
+      "bbox": [
+        994,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        999,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "005-button-浏览器"
+    },
+    {
+      "id": "007-button-新版本",
+      "kind": "text",
+      "tag": "button",
+      "text": "新版本",
+      "bbox": [
+        1028,
+        8,
+        72,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1036,
+        13,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "007-button-新版本"
+    },
+    {
+      "id": "009-button-设置",
+      "kind": "text",
+      "tag": "button",
+      "text": "设置",
+      "bbox": [
+        1106,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1111,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "009-button-设置"
+    },
+    {
+      "id": "011-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1160,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "012-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1206,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "013-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1252,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "014-div-库",
+      "kind": "text",
+      "tag": "div",
+      "role": "tablist",
+      "text": "库",
+      "bbox": [
+        40,
+        64,
+        152,
+        33
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-button-项目",
+      "kind": "text",
+      "tag": "button",
+      "role": "tab",
+      "text": "项目",
+      "bbox": [
+        40,
+        64,
+        32,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-button-Skill",
+      "kind": "text",
+      "tag": "button",
+      "role": "tab",
+      "text": "Skill",
+      "bbox": [
+        92,
+        64,
+        32,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-button-提示词",
+      "kind": "text",
+      "tag": "button",
+      "role": "tab",
+      "text": "提示词",
+      "bbox": [
+        144,
+        64,
+        48,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-div-筛选",
+      "kind": "text",
+      "tag": "div",
+      "role": "tablist",
+      "text": "筛选",
+      "bbox": [
+        208,
+        66,
+        235,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-button-全部",
+      "kind": "text",
+      "tag": "button",
+      "text": "全部",
+      "bbox": [
+        210,
+        68,
+        56,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-span-3",
+      "kind": "text",
+      "tag": "span",
+      "text": "3",
+      "bbox": [
+        248,
+        73,
+        8,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "021-button-本地新建",
+      "kind": "text",
+      "tag": "button",
+      "text": "本地新建",
+      "bbox": [
+        268,
+        68,
+        80,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-span-2",
+      "kind": "text",
+      "tag": "span",
+      "text": "2",
+      "bbox": [
+        330,
+        73,
+        8,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "023-button-外部文件夹",
+      "kind": "text",
+      "tag": "button",
+      "text": "外部文件夹",
+      "bbox": [
+        350,
+        68,
+        92,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "024-span-1",
+      "kind": "text",
+      "tag": "span",
+      "text": "1",
+      "bbox": [
+        424,
+        73,
+        8,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "025-div-搜索项目",
+      "kind": "text",
+      "tag": "div",
+      "text": "搜索项目",
+      "bbox": [
+        459,
+        66,
+        200,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "026-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        469,
+        73,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "025-div-搜索项目"
+    },
+    {
+      "id": "027-button-打开文件夹",
+      "kind": "text",
+      "tag": "button",
+      "text": "打开文件夹",
+      "bbox": [
+        1030,
+        66,
+        104,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1042,
+        73,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "027-button-打开文件夹"
+    },
+    {
+      "id": "029-button-新建项目",
+      "kind": "text",
+      "tag": "button",
+      "text": "新建项目",
+      "bbox": [
+        1150,
+        66,
+        90,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1160,
+        73,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "029-button-新建项目"
+    },
+    {
+      "id": "031-div-创作助手还没连接模型写剧",
+      "kind": "text",
+      "tag": "div",
+      "text": "创作助手还没连接模型：写剧本、拆分镜前先连一个",
+      "bbox": [
+        40,
+        116,
+        1200,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "032-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        54,
+        130,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "031-div-创作助手还没连接模型写剧"
+    },
+    {
+      "id": "033-button-连接模型",
+      "kind": "text",
+      "tag": "button",
+      "text": "连接模型",
+      "bbox": [
+        1160,
+        124,
+        72,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "034-div-雨夜来信",
+      "kind": "text",
+      "tag": "div",
+      "text": "雨夜来信",
+      "bbox": [
+        40,
+        334,
+        248,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-div-刚刚7镜030",
+      "kind": "text",
+      "tag": "div",
+      "text": "刚刚 · 7 镜 · 0:30",
+      "bbox": [
+        40,
+        354,
+        248,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "036-div-城市晨跑",
+      "kind": "text",
+      "tag": "div",
+      "text": "城市晨跑",
+      "bbox": [
+        312,
+        334,
+        248,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "037-div-昨天12镜058",
+      "kind": "text",
+      "tag": "div",
+      "text": "昨天 · 12 镜 · 0:58",
+      "bbox": [
+        312,
+        354,
+        248,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "038-div-山里的小店",
+      "kind": "text",
+      "tag": "div",
+      "text": "山里的小店",
+      "bbox": [
+        584,
+        334,
+        248,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "039-div-10月3日素材46",
+      "kind": "text",
+      "tag": "div",
+      "text": "10 月 3 日 · 素材 46",
+      "bbox": [
+        584,
+        354,
+        248,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "040-span-外部文件夹",
+      "kind": "text",
+      "tag": "span",
+      "text": "外部文件夹",
+      "bbox": [
+        584,
+        354,
+        67,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "041-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        856,
+        184,
+        248,
+        140
+      ],
+      "region": "root"
+    },
+    {
+      "id": "042-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        968,
+        242,
+        24,
+        24
+      ],
+      "region": "root",
+      "iconOf": "041-div"
+    },
+    {
+      "id": "043-div-未命名项目",
+      "kind": "text",
+      "tag": "div",
+      "text": "未命名项目",
+      "bbox": [
+        856,
+        334,
+        248,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-div-10月1日还没有内容",
+      "kind": "text",
+      "tag": "div",
+      "text": "10 月 1 日 · 还没有内容",
+      "bbox": [
+        856,
+        354,
+        248,
+        16
+      ],
+      "region": "root"
+    }
+  ]
+}

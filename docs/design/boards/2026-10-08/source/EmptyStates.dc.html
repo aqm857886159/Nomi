@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>空节点与空画布</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--dot:oklch(0.86 0.005 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;width:1280px;height:1120px;overflow:hidden;background:var(--bg);padding:36px 40px;box-sizing:border-box}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--dot:oklch(0.27 0.006 85);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i14{width:14px;height:14px}.i16{width:16px;height:16px}.i18{width:18px;height:18px}.i20{width:20px;height:20px}
+.lbl{font-size:12px;font-weight:600;color:var(--ink40);height:20px;display:flex;align-items:center;gap:8px}
+.lbl b{font-weight:600;color:var(--ink80)}
+.row{display:flex;gap:20px;margin-top:10px}
+.before{width:267px;height:150px;border-radius:10px;object-fit:cover;box-shadow:0 0 0 1px var(--line);display:block}
+.empty{width:285px;height:160px;border-radius:10px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 12px}
+.k{display:flex;align-items:center;gap:6px;color:var(--ink40);font-size:12px}
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:12px}
+.chip{height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);font-size:12px;color:var(--ink80);display:flex;align-items:center;gap:5px}
+.chip .i{color:var(--ink60)}
+.cv{width:580px;height:280px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);overflow:hidden;position:relative}
+.bcanvas{background:url(/_blob/451e132d6d2a32dc872a1d2eabb60fdb) -205px -242px / 1260px auto no-repeat}
+.dots{background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px, transparent 1.2px);background-size:16px 16px}
+.start{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.st{font-size:14px;font-weight:600;color:var(--ink80)}
+.tiles{display:flex;gap:8px;margin-top:16px}
+.tile{width:68px;height:64px;border-radius:10px;background:var(--paper);box-shadow:var(--shSm),inset 0 0 0 1px var(--lineSoft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--ink80)}
+.tile .i{color:var(--ink60)}
+.cap{margin-top:12px;font-size:12px;color:var(--ink40)}
+.k{display:flex!important;flex-direction:column;align-items:center;gap:0!important}
+.kic{width:36px;height:36px;border-radius:50%;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);color:var(--ink80);display:flex;align-items:center;justify-content:center}
+.kn{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink80);line-height:18px}
+.ks{margin-top:1px;font-size:12px;color:var(--ink40);line-height:16px}
+.empty{justify-content:flex-start!important;padding-top:26px!important}
+.acts{display:flex;align-items:center;justify-content:center;gap:2px;margin-top:12px;white-space:nowrap}
+.act{height:24px;padding:0 6px;border-radius:6px;font-size:12px;color:var(--ink80);display:flex;align-items:center}
+.act:hover{background:var(--ink05)}
+.sep{font-size:12px;color:var(--ink30)}
+.pal{display:flex;align-items:center;gap:2px;height:40px;padding:4px;background:var(--paper);border-radius:10px;box-shadow:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06),0 0 0 1px var(--lineSoft);width:max-content}
+.tool{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink80)}
+.tool.on{background:var(--ink10);color:var(--ink)}
+.vdiv{width:1px;height:18px;background:var(--line);margin:0 4px}
+.menu{width:176px;padding:6px;background:var(--paper);border-radius:10px;box-shadow:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08),0 0 0 1px var(--lineSoft)}
+.mh{font-size:11px;font-weight:600;color:var(--ink40);padding:6px 8px 4px}
+.mi{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:6px;font-size:13px;color:var(--ink80);width:100%}
+.mi .i{color:var(--ink60)}
+.mi.hv{background:var(--ink05)}
+.msep{height:1px;background:var(--lineSoft);margin:4px 2px}
+.mi.sub{color:var(--ink60);font-size:12px}
+.i18{width:18px;height:18px}
+</style>
+</helmet>
+<div class="{{rootClass}}">
+  <div class="lbl"><b>空节点</b>改前</div>
+  <div class="row">
+    <img class="before" src="/_blob/67b4482e0cda5f31f9a6198b35aecaab" alt="改前：空图片节点">
+    <img class="before" src="/_blob/963fee31881f686edaf4d8b2cbda170c" alt="改前：空视频节点">
+    <img class="before" src="/_blob/3b54545b0cab97bb876d050fa522095a" alt="改前：空文本节点">
+  </div>
+
+  <div class="lbl" style="margin-top:28px"><b>空节点</b>改后：去掉斜纹和黑色大圆，所有内容对齐一条中线</div>
+  <div class="row">
+    <div class="empty">
+      <div class="k"><span class="kic"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg></span><span class="kn">图片</span><span class="ks">还没生成</span></div>
+      <div class="acts"><button class="act" type="button">文字生图</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">参考图生图</button></div>
+    </div>
+    <div class="empty">
+      <div class="k"><span class="kic"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/></svg></span><span class="kn">视频</span><span class="ks">还没生成</span></div>
+      <div class="acts"><button class="act" type="button">首帧生视频</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">首尾帧生视频</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">文字生视频</button></div>
+    </div>
+    <div class="empty">
+      <div class="k"><span class="kic"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg></span><span class="kn">文本</span><span class="ks">还没有内容</span></div>
+      <div class="acts"><button class="act" type="button">扩写成提示词</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">看图写描述</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">拆成多条</button></div>
+    </div>
+    <div class="empty">
+      <div class="k"><span class="kic"><svg class="i i18" viewBox="0 0 24 24"><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg></span><span class="kn">剪辑</span><span class="ks">还没有片段</span></div>
+      <div class="acts"><button class="act" type="button">在画布上点选</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">从素材库添加</button></div>
+    </div>
+  </div>
+
+  <div class="lbl" style="margin-top:28px"><b>空画布</b>改前 → 改后：和空节点同一种样子</div>
+  <div class="row">
+    <div class="cv bcanvas" role="img" aria-label="改前：空画布"></div>
+    <div class="cv dots">
+      <div class="start">
+        <span class="st">这里还没有画面</span>
+        <div class="tiles">
+          <button class="tile" type="button"><svg class="i i20" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg>图片</button>
+          <button class="tile" type="button"><svg class="i i20" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/></svg>视频</button>
+          <button class="tile" type="button"><svg class="i i20" viewBox="0 0 24 24"><path d="M21 12h-2c-.894 0 -1.662 -.857 -1.761 -2c-.296 -3.45 -.749 -6 -2.749 -6s-2.5 3.582 -2.5 8s-.5 8 -2.5 8s-2.452 -2.547 -2.749 -6c-.1 -1.147 -.867 -2 -1.763 -2h-2"/></svg>声音</button>
+          <button class="tile" type="button"><svg class="i i20" viewBox="0 0 24 24"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg>文字</button>
+          <button class="tile" type="button"><svg class="i i20" viewBox="0 0 24 24"><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg>剪辑</button>
+          <button class="tile" type="button"><svg class="i i20" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>导入</button>
+          <button class="tile" type="button" aria-haspopup="menu"><svg class="i i20" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>更多</button>
+        </div>
+        <span class="cap">或者把图片、视频直接拖进来</span>
+      </div>
+    </div>
+  </div>
+  <div class="lbl" style="margin-top:28px"><b>加节点</b>常用的直接在工具条上；导演台、3D 模型、全景、白板收在最后的「+」里，空画布也一样</div>
+  <div class="row" style="align-items:flex-end;gap:24px;margin-top:14px">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div class="menu" role="menu" aria-label="更多节点">
+        <div class="mh">空间</div>
+        <button class="mi hv" type="button" role="menuitem"><svg class="i i16" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/><path d="M4 8l4 0"/><path d="M4 16l4 0"/><path d="M4 12l16 0"/><path d="M16 8l4 0"/><path d="M16 16l4 0"/></svg>导演台</button>
+        <button class="mi" type="button" role="menuitem"><svg class="i i16" viewBox="0 0 24 24"><path d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718z"/><path d="M12 22v-10"/><path d="M12 12l8.73 -5.04"/><path d="M3.27 6.96l8.73 5.04"/></svg>3D 模型</button>
+        <button class="mi" type="button" role="menuitem"><svg class="i i16" viewBox="0 0 24 24"><path d="M4.338 5.53c5.106 1.932 10.211 1.932 15.317 0a1 1 0 0 1 1.345 .934v11c0 .692 -.692 1.2 -1.34 .962c-5.107 -1.932 -10.214 -1.932 -15.321 0c-.648 .246 -1.339 -.242 -1.339 -.935v-11.027a1 1 0 0 1 1.338 -.935z"/></svg>全景</button>
+        <button class="mi" type="button" role="menuitem"><svg class="i i16" viewBox="0 0 24 24"><path d="M8 19h-3a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v11a1 1 0 0 1 -1 1"/><path d="M11 16m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v1a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/></svg>白板</button>
+      </div>
+      <div class="pal">
+        <button class="tool" type="button" aria-label="图片"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg></button>
+        <button class="tool" type="button" aria-label="视频"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/></svg></button>
+        <button class="tool" type="button" aria-label="声音"><svg class="i i18" viewBox="0 0 24 24"><path d="M21 12h-2c-.894 0 -1.662 -.857 -1.761 -2c-.296 -3.45 -.749 -6 -2.749 -6s-2.5 3.582 -2.5 8s-.5 8 -2.5 8s-2.452 -2.547 -2.749 -6c-.1 -1.147 -.867 -2 -1.763 -2h-2"/></svg></button>
+        <button class="tool" type="button" aria-label="文字"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg></button>
+        <button class="tool" type="button" aria-label="剪辑"><svg class="i i18" viewBox="0 0 24 24"><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg></button>
+        <span class="vdiv"></span>
+        <button class="tool" type="button" aria-label="导入文件"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg></button>
+        <button class="tool on" type="button" aria-label="更多节点" aria-expanded="true"><svg class="i i18" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":1120}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>
