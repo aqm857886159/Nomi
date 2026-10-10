@@ -1,3 +1,5 @@
+import { CANVAS_CHROME_LAYERS } from './canvasChromeLayers'
+import { useCanvasChromeOcclusion } from './useCanvasChromeOcclusion'
 import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM } from '../model/canvasFitBounds'
 // 画布左下角导航竖列（navigation-stack）：小地图 + 紧凑缩放条（⛶ | − 100% + | ⋯），从 GenerationCanvas 抽出
 // 以守住外壳 ≤800 行（R9）。容器负责定位（absolute left-4 bottom-3），minimap 改 relative 靠它定位。
@@ -68,12 +70,16 @@ export function CanvasNavigationStack({
   const showMinimap = minimapVisible && hasMinimapContent
   const [viewOptionsOpen, setViewOptionsOpen] = React.useState(false)
   const moreAnchorRef = React.useRef<HTMLSpanElement>(null)
+  const dockRef = React.useRef<HTMLDivElement>(null)
+  useCanvasChromeOcclusion(dockRef)
 
   return (
     <div
+      ref={dockRef}
+      style={{ zIndex: CANVAS_CHROME_LAYERS.chromeDock }}
       className={cn(
         'generation-canvas-v2__navigation-stack',
-        'absolute left-4 bottom-4 z-[8] flex flex-col items-start gap-2 pointer-events-none',
+        'absolute left-4 bottom-4 flex flex-col items-start gap-2 pointer-events-none',
       )}
       // 常驻底部：选择浮条得让开这一块（量法见 reactFlow/useCanvasBottomDockRects.ts）。
       data-canvas-bottom-dock="true"

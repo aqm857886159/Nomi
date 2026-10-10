@@ -1,3 +1,5 @@
+import { CANVAS_CHROME_LAYERS } from './canvasChromeLayers'
+import { useCanvasChromeOcclusion } from './useCanvasChromeOcclusion'
 import { CanvasAddPreferenceActions } from './CanvasAddPreferenceActions'
 import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import React, { type JSX } from 'react'
@@ -222,14 +224,18 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId, stageW
     addIntent.run(intent)
   }
 
+  const dockRef = React.useRef<HTMLDivElement>(null)
+  useCanvasChromeOcclusion(dockRef)
   const lifted = stageWidth !== undefined && stageWidth < ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH
 
   return (
     <div
+      ref={dockRef}
+      style={{ zIndex: CANVAS_CHROME_LAYERS.chromeDock }}
       className={cn(
         'generation-canvas-v2-toolbar',
         // 拍板稿 Main 板：加节点条是内容区底部正中的一条横排（图片 视频 声音 文字 剪辑 | 导入 +），贴着时间轴窄条上沿。
-        'absolute left-1/2 z-[8] inline-flex h-10 items-center gap-0.5 p-1 -translate-x-1/2',
+        'absolute left-1/2 inline-flex h-10 items-center gap-0.5 p-1 -translate-x-1/2',
         lifted ? 'bottom-[60px]' : 'bottom-4',
         'border border-workbench-border rounded-nomi',
         'bg-nomi-paper shadow-workbench-md',

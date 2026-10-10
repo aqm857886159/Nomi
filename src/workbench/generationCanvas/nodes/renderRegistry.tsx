@@ -11,7 +11,7 @@ import {
   IconUser,
   IconVideo,
   IconWaveSine,
-  IconWriting,
+  IconTypography,
   IconScissors,
   type IconProps,
 } from '@tabler/icons-react'
@@ -46,7 +46,7 @@ export type GenerationNodeRenderPlugin = Omit<
 }
 
 const NODE_ICONS: Record<GenerationNodeIconKey, GenerationNodeIcon> = {
-  text: IconWriting,
+  text: IconTypography,
   character: IconUser,
   scene: IconLayoutGrid,
   image: IconPhoto,
