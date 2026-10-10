@@ -68,6 +68,7 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:main-console', when: (files) => touchesGateInputs('check:main-console', files) },
   { name: 'check:asset-evidence', when: (files) => touchesGateInputs('check:asset-evidence', files) },
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
+  { name: 'check:canvas-edge-writers', when: (files) => touchesGateInputs('check:canvas-edge-writers', files) },
   { name: 'check:dangling-tokens', when: (files) => touchesGateInputs('check:dangling-tokens', files) },
   { name: 'check:dangling-tailwind', when: (files) => touchesGateInputs('check:dangling-tailwind', files) },
   { name: 'check:walkthroughs', when: (files) => touchesGateInputs('check:walkthroughs', files) },
@@ -412,7 +413,8 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {
         const script = name === 'check:prior-art' ? 'scripts/check-prior-art.mjs' : 'scripts/check-pr-judgement.mjs'
-        tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body }, { name })) }))
+        // 推送这一步：独立验收的报告链接还不可能有，pr-judgement 只提醒（CI 照旧要），见 resolveJudgementStage。
+        tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body, NOMI_PR_JUDGEMENT_STAGE: 'push' }, { name })) }))
       }
     }
   }

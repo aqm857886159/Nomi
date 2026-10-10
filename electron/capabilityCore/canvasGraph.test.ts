@@ -120,6 +120,30 @@ describe('capabilityCore/canvasGraph', () => {
     expect(second.skipped.map((item) => item.reason).sort()).toEqual(['不能自连', '端点节点不存在', '重复连线'])
   })
 
+  // 2026-10-10：MCP / headless 写图必须过与 store 手动连线同一道闸（electron/shared/canvas/edgeAdmission）。
+  it.each([
+    ['video', 'text'],
+    ['audio', 'text'],
+    ['clip', 'image'],
+  ])('connectNodes 拒 %s -> %s，原因带种类，边不写入', (sourceKind, targetKind) => {
+    const built = addNodes(emptyCanvasSnapshot(), [{ kind: sourceKind }, { kind: targetKind }])
+    const [source, target] = built.ids
+    const result = connectNodes(built.snapshot, [{ source, target }])
+    expect(result.edgeIds).toEqual([])
+    expect(result.snapshot.edges).toEqual([])
+    expect(result.skipped).toHaveLength(1)
+    expect(result.skipped[0].reason).toMatch(/^(target_takes_no_input|source_not_referenceable|unsupported_reference): /)
+    expect(result.skipped[0].reason).toContain(sourceKind + ' -> ' + targetKind)
+  })
+
+  it('connectNodes 合法边照常（图片 -> 视频、文本 -> 图片），非法边只跳自己', () => {
+    const built = addNodes(emptyCanvasSnapshot(), [{ kind: 'image' }, { kind: 'video' }, { kind: 'text' }])
+    const [image, video, text] = built.ids
+    const result = connectNodes(built.snapshot, [{ source: image, target: video }, { source: video, target: text }, { source: text, target: image }])
+    expect(result.edgeIds).toHaveLength(2)
+    expect(result.skipped.map((item) => item.connection.target)).toEqual([text])
+  })
+
   it('connectNodes 非法 mode 显式拒绝', () => {
     const built = addNodes(emptyCanvasSnapshot(), [{ kind: 'image' }, { kind: 'video' }])
     expect(() => connectNodes(built.snapshot, [{ source: built.ids[0], target: built.ids[1], mode: 'bogus' }])).toThrowError(/Unknown canvas edge mode/)
