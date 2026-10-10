@@ -15,6 +15,7 @@
 | ★2 谁说了算 | 「哪些工具属于哪个场景」→ 工具声明（`VerbDeclaration.residentScene`，`verbDeclaration.ts`）是唯一 owner；「用户此刻站在哪个场景」→ 渲染端的导演台会话登记（`directorSessionRegistry.isAnyDirectorSessionOpen`）是唯一事实源，随每次发送带一个布尔 `directorOpen`；「这一轮清单是什么」→ 宿主 `createLaneSceneTools().sync`（`laneToolGroups.mts`，由 `laneHost.mts` 在每次准入时调用）。存一份、不推断（不靠“东西不见了”去猜意图）。门岗与宿主共用 `laneSceneToolNames`。 | `node scripts/door-map.mjs residentScene` |
 | ★3 一致与复用 | 复用 pi 公开的 `lane.setActiveTools`（与 `nomi_request_tools` / 旧会话升级同一支笔），不写第二套激活状态；没有自研工具检索。pi 0.85.1 没有 tool-search 扩展 / MCP 暴露模式，见下「pi 0.85.1 核实」。 | `git grep residentScene` |
 | ★4 全状态 | 导演台关：清单无 `stage_shot`，提示词里有「本轮不可用」一句。导演台开：清单有，提示词无该句。刚进 / 刚出：前缀变一次（缓存冷一次），之后同场景内稳定（循环测试里 6 轮：冷、热、**进=冷**、热、**出=冷**、热）。恢复旧会话：旧会话里持久化的清单可能带着 `stage_shot`，打开时按「关」收一次。隐藏的工具被模型硬调：pi 当作未知工具报错，工具不执行（测试 3）。能力不可用：开关关的构建没有导演台版 `stage_shot`，行为与今天逐字相同。 | 测试 1–4 |
+| ★4b 运行中进出导演台 | 所有把用户消息送进 lane 的入口（idle prompt、steer、follow-up；`door-map inputMessage`）共用 `inputMessage`，在那一处按**本条消息**的 admission 同步场景。pi 支持运行中换激活清单（`lane.setActiveTools`），生效点 = 下一次模型请求；正在飞的那次请求和正在执行的工具调用不变（场景工具照旧可执行）。提示里的“本轮不可用”交代按场景签名在同一回合内重拼（回合内不变原则的唯一例外，不刷新技能索引），所以清单与提示同时变，模型不会以为还能用刚被收走的工具；审批说明（authority 段）只列当前可见的工具。 | `lane-scene-tools` 测试 5–8（steer / follow-up × 开→关 / 关→开）；变异：去掉准入同步或提示重拼都红 |
 | ★9 验收与回滚 | 验收：另一条线跑 `pnpm exec tsx scripts/check-model-schema.ts`（开关开 / 关各一遍，见 PR 正文数字）、`lane-scene-tools` 四条、`check-model-schema.node-test.mjs`。回滚：revert 本 PR 的提交；不涉及数据格式（旧会话里的 `activeToolNames` 配置条目照常可读）。 | PR 正文 |
 
 ### 缓存代价（合同第 3 条要求写清）

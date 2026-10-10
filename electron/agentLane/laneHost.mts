@@ -269,11 +269,18 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
    */
   const composeClosing = (): string => typeof options.systemPromptClosing === 'function' ? options.systemPromptClosing() : options.systemPromptClosing ?? '';
   let promptRunId: string | undefined;
+  let promptSceneKey = '';
   let promptForRun = composeSystemPrompt();
   let closingForRun = composeClosing();
   const systemPromptForRun = async (runId: string): Promise<string> => {
-    if (runId === promptRunId) return promptForRun;
+    // 回合内不变的唯一例外：运行中进出场景时，「本轮不可用」交代要与清单同步（只重拼，不刷新技能索引）。
+    const sceneKey = scenes.hidden().join(',');
+    if (runId === promptRunId) {
+      if (sceneKey !== promptSceneKey) { promptSceneKey = sceneKey; promptForRun = composeSystemPrompt(); }
+      return promptForRun;
+    }
     promptRunId = runId;
+    promptSceneKey = sceneKey;
     await native?.skillIndex.refresh();
     promptForRun = composeSystemPrompt();
     closingForRun = composeClosing();
@@ -420,7 +427,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     const { quote, input, catalogInput } = await laneInputIntent(session, laneName, event.runId, event.messages, hookContext);
     consumedContext = input?.context;
     if (input && options.input) options.input.activate(input.context);
-    const authority = gate ? tools.filter(tool => options.tools.some(spec => spec.name === tool.name))
+    const hiddenScene = scenes.hidden();
+    const authority = gate ? tools.filter(tool => options.tools.some(spec => spec.name === tool.name) && !hiddenScene.includes(tool.name))
       .flatMap(tool => {
         const operation = (tool.parameters as unknown as { properties?: Record<string, { enum?: unknown[] }> }).properties?.operation;
         const operations = operation?.enum?.filter((value): value is string => typeof value === 'string') ?? [undefined];
@@ -559,7 +567,14 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
 
   let admissionScenes: readonly LaneToolScene[] = [];
 
-  async function inputMessage(text: string): Promise<string | LaneInputMessage> {
+  /** 用户消息进 lane 的唯一入口（prompt / steer / follow-up）：按本条消息的 admission 同步场景工具，下一次模型请求生效。 */
+  async function inputMessage(text: string, ctx: Context): Promise<string | LaneInputMessage> {
+    const message = await buildInputMessage(text);
+    await awaitWithContext(scenes.sync(lane, admissionScenes, ctx), ctx);
+    return message;
+  }
+
+  async function buildInputMessage(text: string): Promise<string | LaneInputMessage> {
     admissionScenes = [];
     if (!options.input) return text;
     const captured = structuredClone(options.input.capture());
@@ -651,11 +666,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       const admission = inputs.capture(executionOptions?.admissionSignal);
       if (command.kind === 'history-older') { await history.older(command.before); publish(); return {}; }
       if (command.kind === 'prompt' && !projection.running && !pending) {
-        const message = await awaitWithContext(inputMessage(command.text), admission);
+        const message = await awaitWithContext(inputMessage(command.text, admission), admission);
         // 「这条技能要不要 coding 工具」判在准入这一刻，而用户可能就是刚导入它的——
         // 所以先把索引刷到这个回合，再问。不刷的症状是模型说「我去跑它的 selftest」，然后说它没有工具。
         await awaitWithContext(Promise.resolve(native?.skillIndex.refresh()), admission);
-        await awaitWithContext(scenes.sync(lane, admissionScenes, admission), admission);
         const unlock = typeof message !== 'string' ? laneSkillUnlockReason(currentSkills(), [message.context.skillKey ?? '']) : null;
         if (native && unlock) {
           await native.unlockCoding(admission);
@@ -707,7 +721,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // 所以只要有闸在等，两种手势同义——都是「先别做那件事，听我这句」。
         const steering = command.kind !== 'follow-up' || Boolean(gate?.pending());
         failures.reset();
-        const message = await awaitWithContext(inputMessage(command.text), admission);
+        const message = await awaitWithContext(inputMessage(command.text, admission), admission);
         admission.abortSignal?.throwIfAborted();
         const queued = steering
           ? await lane.steer(message, undefined, admission)

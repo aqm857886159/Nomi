@@ -94,3 +94,29 @@ test('entering and leaving the director changes the prefix once each; staying pu
     'cold, warm, cold on entering, warm, cold on leaving, warm');
   t.diagnostic(`loopback simulated prefix cache: ${JSON.stringify(usageTable)}`);
 });
+
+// 运行中进出场景：steer / follow-up 与 idle prompt 走同一个准入边界，按**这条消息**的场景同步。
+// 生效点 = 下一次模型请求（正在飞的那一次不变）；隐藏提示与清单同时变，模型不会以为还能用刚被收走的工具。
+for (const kind of ['steer', 'follow-up'] as const) {
+  for (const [from, to] of [[true, false], [false, true]] as const) {
+    test(`${kind} while running: director ${from ? 'open -> closed' : 'closed -> open'} changes the next request's tools and notice`, async t => {
+      let release!: () => void;
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      const held: FixtureReply = { type: 'deferred', beforeReply: async () => { await gate; return { type: 'text', text: 'first done' }; } };
+      const { fixture, lane, setDirectorOpen } = await openSceneLane(t, [held, { type: 'text', text: 'after' }]);
+      setDirectorOpen(from);
+      const running = lane.execute({ kind: 'prompt', text: 'Start.' });
+      while (fixture.http.requests.length < 1) await new Promise(resolve => setTimeout(resolve, 20));
+      setDirectorOpen(to);
+      await lane.execute({ kind, text: 'Now this.' });
+      release();
+      await running;
+      while (fixture.http.requests.length < 2) await new Promise(resolve => setTimeout(resolve, 20));
+      await lane.execute({ kind: 'abort' }).catch(() => undefined);
+      const [before, after] = fixture.http.requests.map(request => request.body);
+      assert.equal(toolNames(before).includes(PROBE), from, 'the in-flight request keeps its list');
+      assert.equal(toolNames(after).includes(PROBE), to, 'the next request follows the new scene');
+      assert.equal(/Not available this turn/.test(systemText(after)), !to, 'the notice follows the new scene in the same request');
+    });
+  }
+}
