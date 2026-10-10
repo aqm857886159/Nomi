@@ -145,6 +145,8 @@ export function failedGuardSummary(output, ran) {
  * 为什么要有：相关单测只挑「引用了改动文件」的测试，这类测试自己遍历源码，新增违规文件挑不中它（2026-10-10 一天漏 4 个）。
  * 为什么批量：逐个起 vitest 进程，改一个 electron 文件要起 15 个进程（实测总和约 150 秒 CPU、墙钟 +29 秒）；一个进程跑同样 15 个文件 18 秒。
  */
+const SCAN_GUARDS_TEST_TIMEOUT = '--testTimeout=180000'
+
 export function scanGuardsToRun(files) {
   if (files === null) return SCAN_GUARDS
   return SCAN_GUARDS.filter((guard) => {
@@ -173,8 +175,9 @@ export const SCAN_TESTS = Object.freeze([
   // 扫全仓 / 扫目录的守卫测试（单跑 2–13 秒，批量一个进程）：入口文件 = 全部登记的守卫（给「实现闭包被改 → 选中」和相关单测排除用），实际要跑的由 argvFor 按改动挑
   {
     name: SCAN_GUARDS_GATE,
-    argv: [VITEST_ENTRY, 'run', ...SCAN_GUARDS.map((guard) => guard.file)],
-    argvFor: (files) => [VITEST_ENTRY, 'run', ...scanGuardsToRun(files).map((guard) => guard.file)],
+    // 扫描型测试的耗时跟着机器负载走（单跑最长约 13 秒，本机同时跑走查 / 构建时同一条超过 30 秒——2026-10-10 #1128 推送被它假红）。超时不是它们要报的信号，放宽到 3 分钟；真卡死由推送前钩子的总时限兜。
+    argv: [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...SCAN_GUARDS.map((guard) => guard.file)],
+    argvFor: (files) => [VITEST_ENTRY, 'run', SCAN_GUARDS_TEST_TIMEOUT, ...scanGuardsToRun(files).map((guard) => guard.file)],
     rerun: 'node node_modules/vitest/vitest.mjs run <上面输出里 FAIL 点名的守卫测试文件>',
     when: (files) => scanGuardsToRun(files).length > 0,
   },
