@@ -459,7 +459,12 @@ test('扫描型守卫：仓库里每个「遍历源码并对全集断言」的�
 test('扫描型守卫登记：每条的测试文件、扫描目录、固定文件真实存在（改名或挪目录后这里红，不会悄悄不跑）；批量门岗按改动只带该带的', () => {
   const batch = SCAN_TESTS.find((scan) => scan.name === SCAN_GUARDS_GATE)
   assert.ok(batch && typeof batch.argvFor === 'function', 'SCAN_TESTS 里缺批量门岗 test:scan-guards')
-  assert.deepEqual(batch.argvFor(null).slice(2), SCAN_GUARDS.map((guard) => guard.file), '算不出改动 = 全部守卫都跑')
+  assert.deepEqual(batch.argvFor(null).slice(2).filter((arg) => !arg.startsWith('--')), SCAN_GUARDS.map((guard) => guard.file), '算不出改动 = 全部守卫都跑')
+  // 扫描耗时跟着机器负载走：批量必须带放宽的用例超时，否则满载时假红（2026-10-10 #1128 推送被 30 秒默认超时拦过一次）
+  for (const argv of [batch.argv, batch.argvFor(null)]) {
+    const timeout = argv.find((arg) => arg.startsWith('--testTimeout='))
+    assert.ok(timeout && Number(timeout.split('=')[1]) >= 120000, '批量门岗没带放宽的 --testTimeout（≥ 120 秒）')
+  }
   for (const guard of SCAN_GUARDS) {
     assert.ok(fs.existsSync(path.join(repoRoot, guard.file)), `${guard.file} 不存在`)
     for (const dir of guard.roots ?? []) assert.ok(fs.existsSync(path.join(repoRoot, dir)), `${guard.file} 登记的扫描目录 ${dir} 不存在`)
