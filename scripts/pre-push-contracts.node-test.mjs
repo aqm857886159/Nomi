@@ -320,7 +320,7 @@ test('必红：手动跑（无参数）+ 一个永远不关的 stdin 管道 → 
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
   const { spawn } = await import('node:child_process')
   const child = spawn(process.execPath, [path.join(work, 'scripts/pre-push-contracts.mjs')], {
-    cwd: work, env: { ...process.env, NOMI_PR_BODY: CARD }, stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: work, env: { ...isolatedFromCiBaseRefs(process.env), NOMI_PR_BODY: CARD }, stdio: ['pipe', 'pipe', 'pipe'],
   })
   child.stdin.on('error', () => {})
   let stderr = ''
@@ -335,7 +335,8 @@ ${stderr}`)
   assert.match(stderr, /✅ check:filesize/)
 })
 
-const envWithoutBody = () => { const env = { ...process.env }; delete env.NOMI_PR_BODY; return env }
+// 手动跑的两条也要和 prePush() 一样隔离 CI 的 *_BASE_REF：否则 CI 上拿整个 PR 的 diff 当夹具的 diff（PR 改了 self-written.json → 夹具里 check:prior-art 红）
+const envWithoutBody = () => { const env = isolatedFromCiBaseRefs(process.env); delete env.NOMI_PR_BODY; return env }
 
 test('手动跑可以用 NOMI_PR_BODY_FILE 给正文；文件读不了 = 明确报错退出，不是跳过', () => {
   commitChange(() => fs.writeFileSync(path.join(work, 'docs/engineering/prepush-note.md'), '# note\n'))
@@ -413,6 +414,7 @@ const SCANNER_READS = {
   'check:main-console': ['electron/a.ts', 'electron/b.mts', 'scripts/check-main-console.mjs'],
   'check:asset-evidence': ['electron/a.ts', 'electron/b.cts', 'scripts/asset-evidence-baseline.json'],
   'check:media-import-owner': ['electron/a.ts', 'src/b.tsx', 'scripts/media-import-owner-baseline.json'],
+  'check:canvas-edge-writers': ['src/workbench/generationCanvas/store/x.ts', 'src/workbench/project/y.tsx', 'electron/capabilityCore/z.ts', 'electron/shared/canvas/w.ts', 'scripts/check-canvas-edge-writers.mjs'],
   'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
   'check:design-lab-mirrors': ['src/devlab/designLab/a.tsx', 'src/workbench/x/Y.tsx', 'tests/ux/design-lab/baselines/a.png', 'scripts/check-design-lab.mjs'],

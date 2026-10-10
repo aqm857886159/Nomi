@@ -55,7 +55,7 @@ function outcomeCode(frame: Frame): unknown {
   return frame.result?.structuredContent?.nomiOutcome?.errorCode
 }
 
-async function makeFixture() {
+async function makeFixture(canvasEdges: unknown[] = []) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-semantic-matrix-'))
   tempDirs.push(root)
   vi.stubEnv(CAPABILITY_DIR_ENV, path.join(root, 'capability'))
@@ -75,7 +75,7 @@ async function makeFixture() {
             { id: 'node-a', kind: 'text', title: 'Initial text', prompt: '原始节点' },
             { id: 'node-b', kind: 'image', title: 'Keep me', prompt: '保留节点' },
           ],
-          edges: [],
+          edges: canvasEdges,
           groups: [],
           selectedNodeIds: [],
         },
@@ -309,6 +309,28 @@ describe('MCP semantic operation production-path matrix', () => {
     expect(missingDocumentNoArray.result?.isError).toBe(true)
     expect(outcomeCode(missingDocumentNoArray)).toBe('document_not_found')
     expect(() => readProjectDocument('missing-project', undefined, 'full')).toThrow(/project not found/i)
+    client.protocol.dispose()
+  })
+
+  // 2026-10-10 复审（PR #1147）：MCP 删除后撤销是「放回」，旧项目里的老非法边（图片 -> 文本）必须原样回来，
+  // 不能被「外部新增边」的连线总闸静默丢掉。
+  it('undo_canvas_delete puts a legacy illegal edge back (restore semantics, not external-new)', async () => {
+    const fixture = await makeFixture([{ id: 'legacy-edge', source: 'node-b', target: 'node-a', mode: 'reference', order: 0 }])
+    const client = makeClient({
+      runTask: vi.fn(),
+      makeGateway: (projectId: string) => createDiskGateway(projectId),
+      productionRuns: {},
+      origin: { host: 'codex' as const },
+      projectSession: { authority: fixture.runtime.authority, connection: fixture.connection },
+    } as never)
+    await client.initialize()
+    const leaseHandle = await openLease(client)
+    const deleted = await client.call(13, 'nomi_canvas_maintenance', { leaseHandle, projectId: PROJECT_ID, operation: 'delete_canvas_nodes', nodeIds: ['node-a'] })
+    const receipt = deleted.result?.structuredContent as { undoToken?: string }
+    expect(JSON.stringify(readWorkspaceProject(PROJECT_ID, fixture.deps)?.payload)).not.toContain('legacy-edge')
+    const undone = await client.call(14, 'nomi_canvas_maintenance', { leaseHandle, projectId: PROJECT_ID, operation: 'undo_canvas_delete', undoToken: receipt.undoToken })
+    expect(undone.result?.isError).not.toBe(true)
+    expect(JSON.stringify(readWorkspaceProject(PROJECT_ID, fixture.deps)?.payload)).toContain('legacy-edge')
     client.protocol.dispose()
   })
 

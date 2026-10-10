@@ -459,7 +459,8 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     case 'canvas.apply': {
       // 外部写入只改它自己改了的东西：画布写边界的统一提交口按它读到的那份（base）三方合并到此刻的画布，事实层以此刻的为准。
       if (!isCanvasDocument(data.snapshot) || !isCanvasDocument(data.base)) throw new SurfacePortWireError('capability_input_invalid')
-      useGenerationCanvasStore.getState().applyExternalGraph({ base: data.base, next: data.snapshot })
+      const restoredEdgeIds = Array.isArray(data.restoredEdgeIds) ? data.restoredEdgeIds.filter((id): id is string => typeof id === 'string') : undefined
+      useGenerationCanvasStore.getState().applyExternalGraph({ base: data.base, next: data.snapshot, ...(restoredEdgeIds ? { restoredEdgeIds } : {}) })
       return { ok: true }
     }
     case 'spend.confirm':

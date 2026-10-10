@@ -19,6 +19,7 @@
 'use strict'
 const fs = require('node:fs')
 const net = require('node:net')
+const { allowsHostPort, allowsUrl, parseAllowlist } = require('../electron/shared/walkAllowlist.cjs')
 
 const LOG = process.env.NOMI_WALK_NET_LOG || ''
 
@@ -40,14 +41,12 @@ function isLocalHost(host) {
 }
 
 /**
- * 付费真跑走查专用：NOMI_WALK_ALLOW_ORIGINS = 逗号分隔的 origin，只放行被授权的那几家供应商
+ * 付费真跑走查专用：NOMI_WALK_ALLOW_ORIGINS = 逗号分隔的放行名单，只放行被授权的那几家供应商
  * （tests/ux/_paidRun 类走查要真的出门；其余公网照旧一律拦）。没设 = 一家都不放，老走查一个字不变。
+ * 写法与端口语义见 walkthrough-allowlist.cjs（四层共用同一个判定；CI 下名单恒空）。
+ * 名单由 tests/ux/_paidRun.mjs 按授权的供应商自动算出，走查作者不手配。
  */
-// CI 里一律忽略：CI 从来没有真钱（与 tests/ux/_paidRun.mjs 同一条），继承来的环境变量不能在那里打开公网。
-const ALLOWED_ORIGINS = new Set(String(process.env.CI ? '' : process.env.NOMI_WALK_ALLOW_ORIGINS || '').split(',').map((value) => {
-  try { return new URL(value.trim()).origin } catch { return '' }
-}).filter(Boolean))
-const ALLOWED_HOSTS = new Set([...ALLOWED_ORIGINS].map((origin) => new URL(origin).hostname.toLowerCase()))
+const ALLOWLIST = parseAllowlist(process.env.NOMI_WALK_ALLOW_ORIGINS, { ci: Boolean(process.env.CI) })
 
 function isLocal(rawUrl) {
   let url
@@ -57,7 +56,7 @@ function isLocal(rawUrl) {
     return true
   }
   if (['file:', 'data:', 'blob:', 'nomi-local:'].includes(url.protocol)) return true
-  if (ALLOWED_ORIGINS.has(url.origin)) return true
+  if (allowsUrl(ALLOWLIST, url)) return true
   return isLocalHost(url.hostname)
 }
 
@@ -131,6 +130,12 @@ if (typeof realFetch === 'function') {
   layers.push('fetch')
 }
 
+/** options 形式的 http(s).request：主机 + 端口（端口单给时拼上，别丢——名单按端口判）。 */
+function requestAuthority(options) {
+  const host = (options && (options.hostname || options.host)) || 'localhost'
+  return options && options.port && !/:\d+$/.test(String(host)) && !String(host).includes(']:') ? `${host}:${options.port}` : host
+}
+
 for (const moduleName of ['http', 'https']) {
   const mod = require(moduleName)
   for (const fn of ['request', 'get']) {
@@ -141,7 +146,7 @@ for (const moduleName of ['http', 'https']) {
         ? first
         : first instanceof URL
           ? first.href
-          : `${moduleName}://${(first && (first.hostname || first.host)) || 'localhost'}${(first && first.path) || '/'}`
+          : `${moduleName}://${requestAuthority(first)}${(first && first.path) || '/'}`
       if (!isLocal(target)) {
         note({ kind: 'blocked', via: `${moduleName}.${fn}`, url: redact(target), host: hostOf(target), stack: callerStack() })
         throw new Error('network request blocked by walkthrough network guard')
@@ -164,7 +169,7 @@ function describeConnectArgs(args) {
 const originalConnect = net.Socket.prototype.connect
 net.Socket.prototype.connect = function walkthroughGuardedConnect(...args) {
   const target = describeConnectArgs(args)
-  if (target.path || isLocalHost(target.host) || ALLOWED_HOSTS.has(String(target.host).toLowerCase())) return originalConnect.apply(this, args)
+  if (target.path || isLocalHost(target.host) || allowsHostPort(ALLOWLIST, target.host, target.port)) return originalConnect.apply(this, args)
   note({ kind: 'blocked', via: 'socket', url: `tcp://${target.host}:${target.port ?? ''}`, host: String(target.host), stack: callerStack() })
   const error = Object.assign(
     new Error(`connect ECONNREFUSED ${target.host}:${target.port} (blocked by walkthrough network guard)`),
