@@ -1,5 +1,8 @@
 import { backfillShotIndexes } from '../model/shotNumbering'
 import { isNodeSubmitInFlight } from '../runner/nodeSubmitInFlight'
+import { hasLocalRedoFacts } from '../model/localProcessingPhase'
+import { localProcessingError } from '../../observability/localProcessingError'
+import i18n from '../../../i18n'
 // 画布快照归一化 + 种子节点。从 generationCanvasStore.ts 抽出。
 // 注意：这是 store 专用的深度归一化（过滤未知 kind、position 兜底、groups 走 zod、edges 校验端点），
 // 与 workbenchPersistence.ts 的轻量直通版 normalizeGenerationCanvasSnapshot 行为不同，故改名 normalizeStoreSnapshot。
@@ -39,12 +42,16 @@ import { isProductionRunRecord } from '../../../../electron/shared/productionSho
  * 它的「生成中 / 失败 / 结束 / 出片」只由制作投影写（`applyShotGeneration`）：App 重启时主进程重新补齐一次，
  * 窗口重开期间 Run 的每次变化都由跟随者投影过来。
  */
-function convergeStuckMidFlightNode(
-  node: Omit<GenerationCanvasNode, 'categoryId'>,
-): Omit<GenerationCanvasNode, 'categoryId'> {
+export function convergeStuckMidFlightNode<T extends Omit<GenerationCanvasNode, 'categoryId'>>(node: T): T {
   if (node.status !== 'running' && node.status !== 'queued') return node
   // 这个窗口的提交口上还挂着这个节点的一笔请求（切项目再切回来，不是重启）：它不是幽灵，照旧在生成。
   if (isNodeSubmitInFlight(node.id)) return node
+  // 本机处理（剪辑……）没有远端任务可续：进程随窗口一起没了，没人会再把这张卡写完。
+  // 有重来要用的事实 → 变成「被打断」的失败卡（本机处理失败类，只留重试）；没有 → 落到下面清掉幽灵转圈。
+  // （不看 progress.phase：事件尾巴重放回来的 running 快照里没有进度，进度本来就是不进日志的瞬态。）
+  if (hasLocalRedoFacts(node)) {
+    return { ...node, status: 'error', progress: undefined, error: localProcessingError(i18n.t('generationCommon.localProcessing.interrupted')) }
+  }
   const runs: GenerationNodeRunRecord[] = Array.isArray(node.runs) ? node.runs : []
   if (isProductionRunRecord(runs[0])) return node
   const taskId = (runs[0]?.taskId || (node.progress as GenerationNodeProgress | undefined)?.taskId || '').trim()
@@ -54,6 +61,11 @@ function convergeStuckMidFlightNode(
     ? [{ ...runs[0], status: nextRunStatus, progress: undefined }, ...runs.slice(1)]
     : runs
   return { ...node, status: nextStatus, progress: undefined, runs: nextRuns }
+}
+
+/** 一整张画布的收口（载入、事件尾巴重放之后各问一次：重放会把存盘时的 running 原样写回来）。 */
+export function convergeStuckMidFlightNodes<T extends Omit<GenerationCanvasNode, 'categoryId'>>(nodes: readonly T[]): T[] {
+  return nodes.map((node) => convergeStuckMidFlightNode(node))
 }
 
 /**

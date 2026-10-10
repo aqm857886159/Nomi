@@ -1,0 +1,145 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-10-local-task-interrupted-on-reopen",
+  "change_kind": "structural",
+  "problem_type": "A local (on-machine) task persisted as running had nobody to finish it after the window closed, so the card stayed running forever on reopen",
+  "symptom": "V-clip1 independent acceptance of the direct-trim slice: close the app in the middle of a trim, ffmpeg dies with it, the project reopens with the new card still running (edge from the source video present), and it never converges to done, failed or removed.",
+  "direct_cause": "The restart convergence (convergeStuckMidFlightNode) ran only in normalizeStoreSnapshot at load; the event-tail replay (applyEventTail) then wrote the saved running status back and only deconstruction nodes were converged afterwards. Even when the first pass ran, a local task has no taskId, so it fell to 'idle' (an empty shell), and a trim card was never given a retry fact path.",
+  "class_root": "Convergence of 'in flight when the app died' lived at one of the two load doors only, and it knew only remote jobs (taskId -> recoverable, none -> idle). A local task has no remote job to resume and no one registered what 'interrupted' means for it, so each local task would need its own patch.",
+  "affected_population": [
+    "Every user who closes the window or switches project while a local task (trim now; split-into-clips later) is running",
+    "Old projects whose event tail holds a node still running"
+  ],
+  "scope_paths": [
+    "electron/video/videoIpc.ts",
+    "electron/video/trimVideo.ts",
+    "electron/video/trimVideoArgs.ts",
+    "electron/preload/mediaBridge.ts",
+    "src/desktop/bridgeMedia.ts",
+    "src/workbench/generationCanvas/runner/localTaskControl.ts",
+    "src/workbench/generationCanvas/model/localProcessingPhase.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+    "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+    "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+    "src/workbench/generationCanvas/nodes/localStepRedo.ts"
+  ],
+  "entry_points": [
+    "Project load: normalizeStoreSnapshot (load) -> convergeStuckMidFlightNode",
+    "Project load: applyEventTail (load-tail) -> replayCanvasEvents -> convergeStuckMidFlightNodes (new, was deconstruction only)",
+    "Window close (pagehide) and project switch (issued signal abort): runningTrims / abort listener -> bridge.cancelTrim -> cancelTrimJob -> AbortController -> ffmpeg kill",
+    "Explicit cancel on the card overlay: requestTaskCancel -> onTaskCancelRequested -> bridge.cancelTrim (unchanged route, now the same cancel function)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "What 'interrupted' means for a Nomi canvas node (status, retry facts, failure class) is Nomi's own node model; no third-party runtime decides it.",
+  "invariants": [
+    "After any load path (snapshot or event-tail replay) no node stays running because of a task that no longer exists in this window.",
+    "A running node that carries local redo facts (trimStart / trimEnd, no result) converges to a local-processing error card (retry only); other stuck nodes keep the old rule (taskId -> recoverable, none -> idle).",
+    "Closing the window or leaving the project cancels the running local job through the same cancel function as the card's Cancel button."
+  ],
+  "doors": [
+    { "kind": "write", "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts", "symbol": "convergeStuckMidFlightNode" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts", "symbol": "convergeStuckMidFlightNodes" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts", "symbol": "cancelTrim" },
+    { "kind": "write", "path": "electron/video/videoIpc.ts", "symbol": "nomi:video:trim-cancel" }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 1,
+    "why_not": "Load has two doors by design (snapshot, then event-tail replay, because the replay can rewrite status); what was merged is the rule: both call the one convergeStuckMidFlightNode(s) function instead of the tail running a deconstruction-only copy."
+  },
+  "generality_proof": "Any node reaching the canvas through load or tail replay passes convergeStuckMidFlightNode; a future local task only has to record its redo facts (hasLocalRedoFacts) to get the interrupted failure card, and the real-Electron reopen walk plus the replay unit test turn a skipped door into a red test.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "symbol": "convergeStuckMidFlightNode",
+      "responsibility": "The one rule for what a node that was in flight when the app died becomes at load."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/localProcessingPhase.ts",
+      "symbol": "hasLocalRedoFacts",
+      "responsibility": "Whether an interrupted local step can be redone (shared by load convergence and the failure card retry)."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "entry_point": "startVideoDepthDerivation",
+      "disposition": "accepted-with-reason",
+      "evidence": "Depth cards have no redo facts, so an interrupted one still converges to idle (empty shell) as before; giving depth a redo path is a separate decision."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts",
+      "entry_point": "extractVideoFrameToNode",
+      "disposition": "enforced",
+      "evidence": "The card is created only after the sub-second extraction finishes, so it is never persisted as running."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/localTaskControl.ts",
+      "entry_point": "requestTaskCancel",
+      "disposition": "enforced",
+      "evidence": "Cancel for any local-processing phase marks the cancel request; trimVideoToNode subscribes and calls the same cancelTrim used by pagehide and project switch."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new local task would otherwise add its own persisted running state with no owner at reopen; the deconstruction table had the same replay-overwrites-convergence bug (the deconstruction table stuck on in-progress).",
+    "same_class_scan": [
+      "grep for status: 'running' writers that survive save: only generation runs (taskId path), deconstruction (own owner), depth (idle), trim (this change)",
+      "node scripts/door-map.mjs convergeStuckMidFlightNode: load and load-tail now share it",
+      "real-Electron close-and-reopen walk tests/ux/video-clip-reopen.walk.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+    "invariant": "No saved running node outlives the window that ran it.",
+    "failure_mode": "The card becomes a local-processing failure card (retry only) or an idle shell; never a permanent spinner.",
+    "exception_policy": "none",
+    "strategy": "Convergence at both load doors, redo facts decide retry vs clear, and the running job is cancelled when the window or project goes away so the saved state and the process agree.",
+    "artifacts": [
+      "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "src/workbench/generationCanvas/model/localProcessingPhase.ts",
+      "tests/ux/video-clip-reopen.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.test.ts",
+    "src/workbench/generationCanvas/nodes/trimVideoToNode.test.ts",
+    "tests/ux/video-clip-reopen.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/video-clip-direct.walk.mjs",
+    "electron/video/trimVideoArgs.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Nothing was replaced; the load-tail door gained the same convergence the snapshot door already had."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration: saved running trim cards are converged when read; the file format is unchanged.",
+  "residual_risks": [
+    "Paid-landing vs local-landing is still chosen by the caller (deliverRunOutcome vs updateNode in the creation transaction); no automatic gate. There is no paid call in the trim path today, so this is a hypothetical risk (decided not to build a gate now).",
+    "A window killed without pagehide (crash, force quit) still relies on load convergence alone; the process dies with the app, so the two agree.",
+    "Depth cards keep the old idle-shell outcome after an interruption."
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "src/workbench/generationCanvas/model/localProcessingPhase.ts",
+      "src/workbench/generationCanvas/nodes/localStepRedo.ts",
+      "src/workbench/generationCanvas/nodes/trimVideoToNode.ts"
+    ],
+    "preserved_exports": [
+      { "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts", "name": "normalizeStoreSnapshot" }
+    ],
+    "behavior_preservation": "Nodes without redo facts converge exactly as before (taskId -> recoverable, none -> idle, production records untouched). The new rule only fires for running nodes that carry trim redo facts and no result.",
+    "verification_limits": "Windows only; real-Electron reopen walk covers zh/light (and a second locale/theme pass was run for the clip walk); no macOS run, no crash-kill (no pagehide) test."
+  }
+}

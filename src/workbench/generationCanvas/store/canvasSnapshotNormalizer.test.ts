@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { productionRunRecordId } from '../../../../electron/shared/productionShotPhase'
 import { normalizeStoreSnapshot } from './canvasSnapshotNormalizer'
+import { __resetGenerationCanvasHistoryForTests, useGenerationCanvasStore } from './generationCanvasStore'
+import { classifyGenerationError } from '../../observability/classifyError'
+import { localStepRedoOf } from '../nodes/localStepRedo'
 
 // 重启收敛：磁盘里 status 仍 running/queued 的节点（上次退出时正在生成，已无活轮询循环）→
 // 有 taskId 收敛成 recoverable（可重新拉取，重启后也能），无 taskId 收敛成 idle。progress 一律清空。
@@ -151,5 +154,42 @@ describe('normalizeStoreSnapshot — 组颜色读盘归一化', () => {
   it('用户亲手选过的颜色（colorToken）保留；非法值回到灰', () => {
     const snap = normalizeStoreSnapshot({ nodes: [], groups: [group({ colorToken: 'teal' }), group({ id: 'g2', colorToken: '#14b8a6' }), group({ id: 'g3', colorToken: 'neutral' })] })
     expect(snap.groups.map((g) => g.colorToken)).toEqual(['teal', undefined, undefined])
+  })
+})
+
+// 本机处理（剪辑）没有远端任务可续：关窗 / 切走项目后进程已经没了。存盘里留下的 running 卡必须在重开时收口成
+// 「被打断」的失败卡（本机处理失败类，只留重试），而不是永远转圈（V-clip1 阻断）——载入与事件尾巴重放之后各收口一次。
+describe('重启收敛 — 被打断的本机处理（剪辑）', () => {
+  const trimCard = (extra: Record<string, unknown> = {}) => ({
+    id: 'trim', kind: 'video', title: '剪辑 0:03.0–0:09.0', position: { x: 0, y: 0 }, status: 'running',
+    progress: { phase: 'video-trim-running', message: '剪辑中 · 25%', percent: 25, updatedAt: 1 },
+    meta: { sourceVideoNodeId: 'src', trimStart: 3, trimEnd: 9 },
+    ...extra,
+  })
+
+  it('载入：running 的剪辑卡 → 被打断的错误卡，只留重试，进度清空', () => {
+    const [node] = normalizeStoreSnapshot({ nodes: [trimCard()] }).nodes
+    expect(node.status).toBe('error')
+    expect(node.progress).toBeUndefined()
+    const report = classifyGenerationError(node.error ?? '')
+    expect(report.kind).toBe('local-processing')
+    expect([report.primary, report.secondary]).toEqual(['retry', null])
+    expect(localStepRedoOf(node, () => undefined)).not.toBeNull()
+  })
+
+  it('已经出片的剪辑卡 / 没有区间的普通 running 卡不受影响（后者照旧收成 idle）', () => {
+    const done = normalizeStoreSnapshot({ nodes: [trimCard({ status: 'success', result: { id: 'r', type: 'video', url: 'u', createdAt: 1 }, progress: undefined })] }).nodes[0]
+    expect(done.status).toBe('success')
+    const plain = normalizeStoreSnapshot({ nodes: [{ id: 'p', kind: 'video', title: 'p', position: { x: 0, y: 0 }, status: 'running' }] }).nodes[0]
+    expect(plain.status).toBe('idle')
+  })
+
+  it('事件尾巴重放把存盘时的 running（没有进度）写回来之后，再收口一次：不会永久 running', () => {
+    __resetGenerationCanvasHistoryForTests()
+    const store = useGenerationCanvasStore.getState()
+    store.restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
+    store.applyEventTail([{ type: 'canvas.node.added', payload: { node: { ...trimCard(), progress: undefined, categoryId: 'shots' } } }])
+    const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'trim')
+    expect(node?.status).toBe('error')
   })
 })
