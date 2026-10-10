@@ -1,14 +1,14 @@
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 import { EDGE_APPEND_CALLERS, EDGE_WRITERS, findEdgeWrites, scanEdgeWriters } from './check-canvas-edge-writers.mjs'
 
 const dirs = []
-afterEach(() => { for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
+afterEach(() => { for (const dir of dirs.splice(0)) cleanupTestTemp(dir) })
 
 function tree(files) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'edge-writers-'))
+  const root = makeTempDir('edge-writers-')
   dirs.push(root)
   for (const [rel, content] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
