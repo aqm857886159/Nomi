@@ -16,6 +16,7 @@ import { resolvePlanPatch } from "./generationPlanPatch";
 import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
 import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { createCanvasLandingHost } from "../productionRun/canvasLandingHost";
+import { startSingleShotProduction } from "../productionRun/singleShotProductionStart";
 import { type MaterializeShotsWirePayload } from "../productionRun/multiShotCanvasLanding";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
@@ -168,8 +169,11 @@ function recordingRenderer() {
   const nodes = new Map<string, string>();
   const resultsByNode = new Map<string, { url: string }>();
   let nodeSequence = 0;
+  /** 渲染层落不下来（窗口不在 / 项目不对）：materialize-shots 当场抛，与生产 requestRenderer 失败同形。 */
+  let failing = false;
   const requestRenderer = async (op: string, payload: unknown): Promise<unknown> => {
     if (op !== "production.materialize-shots") return null;
+    if (failing) throw new Error("Nomi window unavailable");
     const wire = payload as MaterializeShotsWirePayload;
     payloads.push(structuredClone(wire));
     const bindings = wire.shots.map((shot) => {
@@ -182,7 +186,7 @@ function recordingRenderer() {
     });
     return { bindings };
   };
-  return { payloads, nodes, resultsByNode, requestRenderer };
+  return { payloads, nodes, resultsByNode, requestRenderer, setFailing: (value: boolean) => { failing = value; } };
 }
 
 function harness() {
@@ -232,6 +236,11 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
    */
   holdDispatch?: () => boolean;
   /**
+   * 批准之后派发另起、不在这一下动作里等它（与真 App 同形：appIntegration 的 driveScheduler 是 fire-and-forget）。
+   * 缺省 = 在 start 里等这一轮调度跑完（老夹具的样子）。
+   */
+  detachDispatch?: boolean;
+  /**
    * 换一份模块目录（缺省 = 本文件那份只有两个夹具模型的目录）。铁律 ⑩ 的宿主矩阵用真内置目录种子建的目录
    * （`createCatalogModuleRegistry`），好让「键名不同 / 没有该参数 / 像素档」这几类真模型走同一条宿主链。
    */
@@ -270,10 +279,12 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
   const runBatch = async (operationId: string) => {
     const scheduler = createMultiShotBatchScheduler({
       repository, submission, projectId: PROJECT_ID, runId: operationId,
+      landShots: canvasLanding.landBeforeDispatch,
       now,
     });
     await scheduler.runToQuiescence();
-    await canvasLanding.landCanvasBestEffort(PROJECT_ID, operationId);
+    // 出片之后让已落的节点跟上 Run（生产里是 followRunChange；夹具不挂仓库事件旁路，这里显式对一次账）。
+    await canvasLanding.reconcileExistingCanvas(PROJECT_ID, operationId);
   };
   const handler = createGenerationPlanningHandler({
     registry: moduleRegistry,
@@ -296,7 +307,7 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
       },
       now: now(),
     }),
-    // appIntegration 的**单镜 start 分支**原样搬过来：start → 确认即落 → 观察到底（这里无需等待，
+    // appIntegration 的**单镜 start 分支**原样搬过来：先落画布、落下了才交（同一个开拍口）→ 观察到底（这里无需等待，
     // loopback 一次就 succeeded）。多镜那条由 multiShotBatchScheduler 的 e2e 覆盖。
     start: async (operation: GenerationOperation) => {
       if (operation.shots?.length) {
@@ -305,15 +316,17 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
           commandId: `fixture:submit:v${run.planVersion}`, expectedRevision: run.revision,
           type: "generation.submit", payload: {}, issuedAt: now(),
         });
-        if (!hooks.holdDispatch?.()) await runBatch(operation.operationId);
+        if (!hooks.holdDispatch?.()) {
+          if (hooks.detachDispatch) void runBatch(operation.operationId).catch(() => undefined);
+          else await runBatch(operation.operationId);
+        }
         return { operationId: operation.operationId, state: "submitted", nextAction: "observe" };
       }
-      const started = await submission.start({ projectId: PROJECT_ID, operationId: operation.operationId }) as { nextAction: string };
-      await canvasLanding.landCanvasBestEffort(PROJECT_ID, operation.operationId);
+      const started = await startSingleShotProduction({ repository, submission, landShots: canvasLanding.landBeforeDispatch, projectId: PROJECT_ID, runId: operation.operationId, now });
       if (started.nextAction === "observe") {
         const polled = await submission.poll({ projectId: PROJECT_ID, operationId: operation.operationId }) as { nextAction: string };
         if (polled.nextAction === "materialize") await submission.materialize({ projectId: PROJECT_ID, operationId: operation.operationId });
-        await canvasLanding.landCanvasBestEffort(PROJECT_ID, operation.operationId);
+        await canvasLanding.reconcileExistingCanvas(PROJECT_ID, operation.operationId);
       }
       return started;
     },
@@ -350,6 +363,7 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     resolvePricing: () => (hooks.unpriced ? undefined : PRICING),
     // 与生产同一条并入规则（同一个目录）：卡上改一下也过 resolvePlanPatch。
     normalizePatch: (base, patch) => resolvePlanPatch({ baseCandidate: base, userPatch: patch, registry: moduleRegistry }).normalizedPatch,
+    landShots: canvasLanding.landBeforeDispatch,
     referenceAssets: harnessReferenceAssets,
     now,
   });

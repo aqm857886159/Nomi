@@ -184,6 +184,29 @@ describe("批量卡：一张卡一份授权，盖住卡上列出的镜", () => {
     expect(runOf(repository, "run-b")!.generationPlan!.contract!.parameters).toEqual({ vendor: "acme", request: request("node-b", "a blue cube") });
   });
 
+  // 先落节点、再发请求（架构③）之后，画布单节点 Run 以来源节点为落点（origin.nodeId）。升级前那一版建的批量确认草稿没记它：
+  // 不发、按「没交」收尾，但不能悄悄没了——画布那一镜如实说「升级后这批没有发出，需要重新确认」（协调会话 10-09）。
+  it("升级前留下的批量确认（没记来源节点）：不发、收回出价，并带着「升级后没有发出」的码回给画布", async () => {
+    const { repository, vendor, consent, submit } = setup();
+    consent([{ nodeId: "node-a", runRecordId: "run-a" }]);
+    const runId = canvasRunIdFor("run-a");
+    // 模拟上一版写下的 Run：origin 里没有 nodeId。
+    const read = repository.read.bind(repository);
+    repository.read = ((projectId: string, id: string) => {
+      const run = read(projectId, id);
+      if (!run || id !== runId) return run;
+      const { nodeId: _dropped, ...origin } = run.origin;
+      return { ...run, origin };
+    }) as typeof repository.read;
+
+    await expect(submit("node-a", "run-a")).rejects.toMatchObject({ code: "canvas_consent_predates_upgrade" });
+
+    expect(vendor.executes).toHaveLength(0);
+    const after = read(PROJECT, runId)!;
+    expect(after.jobs).toEqual([]);
+    expect(generationPresentationOutcome(after)).toMatchObject({ generating: [], undecided: [{ reason: "stopped" }] });
+  });
+
   it("reported case: 去掉一项就不发那一项——主进程拒交，供应商一次都收不到", async () => {
     const { repository, vendor, consent, withdraw, submit } = setup();
     consent([{ nodeId: "node-a", runRecordId: "run-a" }, { nodeId: "node-b", runRecordId: "run-b" }]);

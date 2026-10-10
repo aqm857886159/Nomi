@@ -42,6 +42,13 @@ export type GenerationEntrance = {
    * 所以矩阵对同组额外加一条硬断言。
    */
   dispatchProfile: string;
+  /**
+   * 请求发出之前，画布上有没有这一镜的节点（架构③，用户 2026-10-08 拍板「生成那一刻 = 落画布那一刻」）。
+   *   · `node-first`：先有节点、请求才发出；`owner` = 保证这一点的那一个文件（和符号）。
+   *   · `exception`：批准的例外，理由只住在 scripts/generation-entrances-ledger.json 的 `landingExceptions` 里。
+   * 门岗 check:generation-entrances 逐条核：不声明 / 例外没理由 / owner 不存在都红。
+   */
+  landing: { kind: "node-first"; owner: string } | { kind: "exception" };
 };
 
 export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
@@ -54,6 +61,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: true,
     appendsRetryDirective: false,
     dispatchProfile: "runtime+projection",
+    landing: { kind: "node-first", owner: "src/workbench/generationCanvas/runner/generationRunController.ts" },
   },
   {
     id: "canvas-node-run",
@@ -64,6 +72,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: true,
     appendsRetryDirective: false,
     dispatchProfile: "runtime+projection",
+    landing: { kind: "node-first", owner: "electron/productionRun/shotLandingAdmission.ts admitShotsForDispatch" },
   },
   {
     id: "shot-table-row",
@@ -74,6 +83,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: true,
     appendsRetryDirective: false,
     dispatchProfile: "runtime+projection",
+    landing: { kind: "node-first", owner: "src/workbench/generationCanvas/runner/generationRunController.ts" },
   },
   {
     id: "retake",
@@ -84,6 +94,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: true,
     appendsRetryDirective: true,
     dispatchProfile: "runtime+projection+retry",
+    landing: { kind: "node-first", owner: "src/workbench/generationCanvas/runner/generationRunController.ts" },
   },
   {
     id: "try-model",
@@ -94,6 +105,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: false,
     appendsRetryDirective: false,
     dispatchProfile: "runtime+raw",
+    landing: { kind: "exception" },
   },
   {
     id: "agent-panel-spend-confirm",
@@ -104,6 +116,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: false,
     appendsRetryDirective: false,
     dispatchProfile: "provider",
+    landing: { kind: "node-first", owner: "electron/productionRun/shotLandingAdmission.ts admitShotsForDispatch" },
   },
   {
     id: "submit-execution-plan",
@@ -114,6 +127,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: false,
     appendsRetryDirective: false,
     dispatchProfile: "provider",
+    landing: { kind: "node-first", owner: "electron/productionRun/shotLandingAdmission.ts admitShotsForDispatch" },
   },
   {
     id: "external-mcp-start-generation",
@@ -124,6 +138,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: false,
     appendsRetryDirective: false,
     dispatchProfile: "provider",
+    landing: { kind: "node-first", owner: "electron/productionRun/shotLandingAdmission.ts admitShotsForDispatch" },
   },
   {
     id: "auto-run-batch",
@@ -134,6 +149,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: false,
     appendsRetryDirective: false,
     dispatchProfile: "provider",
+    landing: { kind: "node-first", owner: "electron/productionRun/shotLandingAdmission.ts admitShotsForDispatch" },
   },
   {
     id: "continue-batch",
@@ -144,6 +160,7 @@ export const GENERATION_ENTRANCES: readonly GenerationEntrance[] = [
     projectsPromptMentions: false,
     appendsRetryDirective: false,
     dispatchProfile: "provider",
+    landing: { kind: "node-first", owner: "electron/productionRun/shotLandingAdmission.ts admitShotsForDispatch" },
   },
 ];
 

@@ -45,9 +45,6 @@ export function createRunObservationDrivers(deps: {
   buildSchedulerForRun: (projectId: string, runId: string, run: ProductionRun) => Pick<MultiShotBatchScheduler, 'runToQuiescence'> | null;
 }): RunObservationDrivers {
   const { repository, buildSchedulerForRun } = deps
-  const activeBatchDrives = new Set<string>()
-  // 一趟驱动还在跑时又有人踢了一次（例如用户点了继续）：那一下可能恰好落在这一趟最后一轮派生之后，收尾时补踢一次。
-  const kickedDuringDrive = new Set<string>()
   // 单镜与多镜共用的「过一会儿再来问一次」定时器。**两半必须是同一条规则**：
   // 供应商在观察窗（默认 300s）内没给结论，就歇一歇再接着问，直到它给出终态。
   // 2026-09-25 之前只有多镜这一半——单镜观察窗一过就静静退出、没有人再问，
@@ -116,8 +113,8 @@ export function createRunObservationDrivers(deps: {
     scheduler: Pick<MultiShotBatchScheduler, 'runToQuiescence'>,
     label: string,
   ): void => {
-    const key = `${projectId}:${runId}`
-    activeBatchDrives.add(key)
+    // 一个 Run 一趟驱动由调度器自己保证（`multiShotBatchScheduler` 的 drivesInFlight）：已经在跑就并进去，
+    // 它歇下前按最新的 Run 再走一遍——这里不另记「谁在跑」。#1139 以前只有重踢先查在不在跑，开拍那条直接起新的一趟，每批下一镜就多一趟抢锁。
     void scheduler.runToQuiescence()
       .then((outcome) => {
         if (!outcome.quiescent) scheduleBatchRekick(projectId, runId)
@@ -125,17 +122,8 @@ export function createRunObservationDrivers(deps: {
       .catch((error) => {
         logWarn('production-run', 'observation-step-failed', { step: label }, error)
       })
-      .finally(() => {
-        activeBatchDrives.delete(key)
-        if (kickedDuringDrive.delete(key)) kickSchedulerForRun(projectId, runId)
-      })
   }
   const kickSchedulerForRun = (projectId: string, runId: string): void => {
-    const key = `${projectId}:${runId}`
-    if (activeBatchDrives.has(key)) {
-      kickedDuringDrive.add(key) // 已有长跑 drive：它的下一轮派生多半会接住新状态；接不住的那一下由它收尾时补踢
-      return
-    }
     let run
     try {
       run = repository.read(projectId, runId)

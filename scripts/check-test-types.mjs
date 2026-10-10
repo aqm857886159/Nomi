@@ -25,10 +25,12 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 
+import { TYPECHECK_PROJECTS } from './lib/typecheckProjects.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/test-types-baseline.json')
-const PROJECT = 'tsconfig.test.json'
-const NATIVE_PROJECT = 'tests/agent-runtime/tsconfig.json'
+const PROJECT = TYPECHECK_PROJECTS.test
+const NATIVE_PROJECT = TYPECHECK_PROJECTS.nativeTest
 const require = createRequire(import.meta.url)
 const tscBin = require.resolve('typescript/bin/tsc')
 
@@ -38,9 +40,16 @@ const tscBin = require.resolve('typescript/bin/tsc')
  * 不兼容（electron 是 CommonJS + 顶层 await 冲突，见上），塞不进同一个 TS program，能合的是**墙钟**——
  * 这里并发，外层 scripts/typecheck.mjs 再把整个 check:test-types 与 app / electron / pi 三份生产类型检查并发。
  */
+/** 推送前入口（scripts/typecheck.mjs --incremental）通过环境变量给的 tsbuildinfo 目录：同一份判据，只是复用上次的增量缓存。 */
+function incrementalArgs(project) {
+  const dir = process.env.NOMI_TSC_BUILDINFO_DIR
+  if (!dir) return []
+  return ['--incremental', '--tsBuildInfoFile', path.join(dir, `${project.replace(/[^A-Za-z0-9]+/g, '-')}.tsbuildinfo`)]
+}
+
 function runTypecheck(project) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [tscBin, '-p', project, '--noEmit', '--pretty', 'false'], { cwd: repoRoot })
+    const child = spawn(process.execPath, [tscBin, '-p', project, '--noEmit', '--pretty', 'false', ...incrementalArgs(project)], { cwd: repoRoot })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (chunk) => { stdout += chunk })

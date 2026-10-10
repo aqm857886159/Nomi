@@ -38,6 +38,7 @@ const STOP_REASONS: Readonly<Record<ProductionRunStopReason, true>> = {
   user_cancelled: true,
   restart_recovery: true,
   consent_expired: true,
+  landing_failed: true,
 };
 
 /** 命令里带来的原因：只认这张表里的词，别的一律当作没给。 */

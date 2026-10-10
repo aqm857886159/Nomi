@@ -13,6 +13,7 @@ import { createProductionGenerationSubmission } from "./productionGenerationSubm
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
+import { landedAdmission } from "./landFirstTestUtils";
 
 // P4 S1: multi-shot generationPlan schema + shot addressing.
 // TDD: these lock the contract that S1 must satisfy — shot-grained keys never collide, legacy
@@ -134,7 +135,7 @@ describe("P4 S1 multi-shot generation plan schema", () => {
     const submit = vi.fn(async () => ({ providerTaskId: "provider-task-1", raw: { accepted: true } }));
     const runner = submission(root, repository, submit);
     // A start() with no shotId must address the default (legacy) shot and behave exactly as today.
-    await expect(runner.start({ projectId: "project-1", operationId: "op-1" })).resolves.toMatchObject({
+    await expect(runner.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).resolves.toMatchObject({
       operationId: "op-1",
       providerTaskId: "provider-task-1",
       nextAction: "observe",
@@ -201,8 +202,8 @@ describe("P4 S1 multi-shot generation plan schema", () => {
 
     const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length}` }));
     const runner = submission(root, repository, submit);
-    await runner.start({ projectId: "project-1", operationId: "op-multi", shotId: "shot-a" });
-    await runner.start({ projectId: "project-1", operationId: "op-multi", shotId: "shot-b" });
+    await runner.start({ projectId: "project-1", operationId: "op-multi", shotId: "shot-a", admission: await landedAdmission(repository, "project-1", "op-multi", "shot-a") });
+    await runner.start({ projectId: "project-1", operationId: "op-multi", shotId: "shot-b", admission: await landedAdmission(repository, "project-1", "op-multi", "shot-b") });
 
     const run = repository.read("project-1", "op-multi")!;
     const jobs = run.jobs;

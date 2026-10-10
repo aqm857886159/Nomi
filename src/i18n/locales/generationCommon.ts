@@ -459,6 +459,8 @@ export const zhGenerationCommon = {
       },
       nodeInFlight: { reason: '这个节点还在生成', hint: '上一次生成还没回来，这一次还没发出去。等它出结果再决定要不要重新生成。' },
       previewBlocked: { hint: '这一次没发出去。等 3D-BOX 预演挂好再生成。' },
+      // 升级前留下的批量确认（没记来源节点）：先落节点、再发请求之后它不能发——如实说没发出去，要他再确认一次。
+      consentPredatesUpgrade: { reason: '升级后这批没有发出', hint: '这一镜是升级前确认的，按新的规则没能发出生成请求。在画布上重新生成它，再确认一次。' },
       shotClaimed: {
         generic: { reason: '这一镜由制作流程持有', hint: '请先查看制作任务状态，再决定下一步。' },
         queued: { reason: '这一镜已在制作流程中排队', hint: '请先等制作流程完成，或去任务中心查看进度。' },
@@ -1561,6 +1563,8 @@ export const zhGenerationCommon = {
       stoppedUnknown: '已停，这镜还没开拍。',
       // 批过的镜离你上一次点头太久、没人替你续（付费卡① 第 13 条）：点「继续」那一下就是确认。
       stoppedConsentExpired: '这镜还没开拍，需要你再确认一次。',
+      // 先落节点、再发请求（架构③）：这一批有镜没落上画布，那几镜没有发出生成请求。点「继续」= 重落再派。
+      stoppedLandingFailed: '这一批有镜头没放到画布上，没放上的那几镜没有发出。点「继续」只重试它们。',
       resume: '继续',
       continueRemaining: '继续剩余',
       // 用户删掉占位节点、但这件事没能记进制作流程：被删的那一镜可能照样生成并计费。动作 = 打开任务面板（暂停 / 取消）。
@@ -1588,6 +1592,8 @@ export const zhGenerationCommon = {
         notStopped: '这一批现在没有停着，不用继续。',
         planNotSubmitted: '这份方案还没开拍，先在 Agent 面板里确认生成。',
         ledgerWriteFailed: '没能把这一步写进项目记录（磁盘满了，或项目文件夹不能写入），这次没做成。腾出空间或检查权限后再点一次。',
+        canvasLandingFailed: '这一镜没放到画布上，没有发出生成请求。再点一次重试。',
+        nothingToResume: '这一批没有可以继续发出的镜头：剩下没完成的那几镜，节点已经从画布上删掉、已经在画布上直接生成，或者已经失败、要在那一镜上单独重做。这次没有发出生成请求。',
         internalError: '这是 Nomi 自己的问题：这一步没做成，错误已记进日志。可以从「反馈与分享」把它发给我们。',
       },
     },
@@ -2108,6 +2114,7 @@ export const enGenerationCommon = {
       },
       nodeInFlight: { reason: 'This node is still generating', hint: 'The previous generation has not come back yet. Nothing was sent this time; wait for its result before generating again.' },
       previewBlocked: { hint: 'Nothing was sent. Generate again once the 3D-BOX preview is attached.' },
+      consentPredatesUpgrade: { reason: 'This batch was not sent after the update', hint: 'This shot was confirmed before the update and could not be sent under the new rules. Generate it again on the canvas and confirm once more.' },
       shotClaimed: {
         generic: { reason: 'This shot is owned by the production workflow', hint: 'Check the production task status before deciding what to do next.' },
         queued: { reason: 'This shot is queued in the production workflow', hint: 'Wait for production to finish, or check its progress in the task center.' },
@@ -3188,6 +3195,8 @@ export const enGenerationCommon = {
       // The approved shots waited too long after your last go-ahead and nobody renewed it (paid card rule 13): the
       // "Continue" click is the confirmation.
       stoppedConsentExpired: 'This shot hasn\'t started — it needs your go-ahead again.',
+      // Land first, then request (architecture 3): some shots were not placed on the canvas, so no request was sent for them.
+      stoppedLandingFailed: 'Some shots in this batch weren\'t placed on the canvas; those shots were not sent. Click Continue to retry only them.',
       resume: 'Continue',
       continueRemaining: 'Continue remaining',
       // The user deleted a placeholder but the production run never recorded it: that shot may still generate and bill.
@@ -3216,6 +3225,8 @@ export const enGenerationCommon = {
         notStopped: 'This run isn\'t stopped, so there\'s nothing to continue.',
         planNotSubmitted: 'This plan hasn\'t started yet. Confirm it in the Agent panel first.',
         ledgerWriteFailed: 'Couldn\'t save this step to the project record (the disk is full or the project folder isn\'t writable). Nothing was done. Free up space or check permissions, then try again.',
+        canvasLandingFailed: 'This shot was not placed on the canvas, so no generation request was sent for it. Click again to retry.',
+        nothingToResume: 'Nothing in this batch can be continued: the remaining shots were deleted from the canvas, are being generated directly on the canvas, or already failed and must be redone on that shot. No generation request was sent.',
         internalError: 'This is a problem in Nomi itself: the step didn\'t go through. The error is in the log - you can send it to us from Feedback & share.',
       },
     },

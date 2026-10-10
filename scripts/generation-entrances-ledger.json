@@ -3,6 +3,11 @@
   "//2": "每条二选一：entrances = 对等矩阵里要跑的入口 id（electron/parity/generationEntrances.ts）；reason = 为什么它不是一个用户可达的生成入口。",
   "//3": "count 是当前扫到的调用次数，只许减不许增——同一个文件里新长出第二处调用同样要有人裁决。",
   "matrix": { "entrances": 10, "cases": 7 },
+  "//landing": "落地例外表（架构③ 先落节点、再发请求）：入口表里 landing.kind=exception 的入口、以及不建节点的试跑调用点，理由只写在这里；门岗只认这里写了理由的。",
+  "landingExceptions": {
+    "try-model": "配置模型时的「试一下」（nomi_try_model / model.onboarding.try，同一个函数两个口）：可以没有项目、不建画布节点。条件：只从这两个口进；钱照样走唯一的钱闸与现有确认（spendDecidedByPolicy + assertAndConsumeQuotedSpend）；结果与回执按任务号可查（nomi_read target=task → task.read）。协调会话 2026-10-08 裁决。",
+    "electron/integrationCertification/integrationSession.ts::runTask": "接入认证会话的试跑：与 try-model 同一类（配置期验证模型能用、不产出作品、不建节点），同一个执行器与钱闸。协调会话 2026-10-09 裁决按 try-model 例外处理，单独列这一行。"
+  },
   "sites": [
     {
       "site": "electron/capabilityCore/canvasTransportProvider.ts::runTask",

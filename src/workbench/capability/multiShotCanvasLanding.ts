@@ -31,6 +31,9 @@ import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, ty
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 import { isProductionRunRecord } from '../../../electron/shared/productionShotPhase'
 import type { MediaDimensions } from '../generationCanvas/nodes/nodeSizing'
+import type { HeldNodeOutcome } from '../generationCanvas/store/nodeRunOutcome'
+import { findAnchorNode, findShotNode } from '../creation/storyboard/exec/storyboardNodeBinding'
+import { stableShotId, type PlanAnchor, type PlanShot } from '../generationCanvas/agent/storyboardPlan'
 
 /**
  * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
@@ -79,6 +82,11 @@ export type MaterializeShotInput = {
    * 节点还在就照常回填并回报绑定——画布文档才是「节点在不在」的 owner，主进程据绑定纠正那条记录。
    */
   existingOnly?: boolean
+  /**
+   * Run 里这一镜绑着的节点（主进程 MaterializeShotWire.nodeId）。节点此刻不在画布上（删了、还没撤销）时，这一镜到达的结局
+   * 按这个 nodeId 暂存，撤销 / 放回把节点带回来时落上——与普通画布同一个语义（架构③ 合同 3），不再静默跳过。
+   */
+  nodeId?: string
 }
 
 export type MaterializeShotsPayload = {
@@ -175,6 +183,24 @@ async function rebindLandedShots(
   }
 }
 
+/**
+ * 文稿方案的镜头已经经分镜行落在画布上的那些节点（shotId → 节点 id）。只认本 op 章还没认领的镜；
+ * 方案 id 就是 Run id（草稿与方案同一套 id，见 generationDocumentPlan）。镜头 id 不是稳定 id 时不猜（照常新建）。
+ */
+function adoptStoryboardNodes(shots: readonly MaterializeShotInput[], runId: string | undefined, stamped: ReadonlyMap<string, string>): Map<string, string> {
+  const adopted = new Map<string, string>()
+  if (!runId) return adopted
+  const nodes = useGenerationCanvasStore.getState().nodes
+  for (const shot of shots) {
+    if (stamped.has(shot.shotId)) continue
+    const node = shot.role === 'anchor'
+      ? findAnchorNode(nodes, runId, { id: shot.shotId, name: '' } as PlanAnchor)
+      : stableShotId({ shotId: shot.shotId, index: -1 }) === shot.shotId ? findShotNode(nodes, runId, { shotId: shot.shotId, index: -1 } as PlanShot) : null
+    if (node) adopted.set(shot.shotId, node.id)
+  }
+  return adopted
+}
+
 /** 主进程按项目寻址的落地，最多等这个窗口认下那个项目多久（主进程那头的 RPC 期限是 60s）。 */
 const PROJECT_ADOPTION_WAIT_MS = 30_000
 
@@ -203,10 +229,15 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   interruptPendingCanvasWrite()
   // 本 op 章已经落过的 shotId → 节点 id。**只用来决定撤销步与重绑定**：
   // 「这次要不要真建节点」的判据不在这里，在写边界 applyCanvasToolCall（P1 一个 owner）。
-  const existingByShot = materializedNodeIdsByClientId(
+  const stampedByShot = materializedNodeIdsByClientId(
     useGenerationCanvasStore.getState().nodes,
     materializationOperationId,
   )
+  // 按镜头身份去重：文稿方案的那一镜如果用户已经经分镜行「放到画布」落过节点（方案 id = 这个 Run 的 id，
+  // 节点身份 = storyboardDesignId × shotId / anchorId，唯一判据在 storyboardNodeBinding），就认那个节点、
+  // 把它绑到 Run 上——不再落第二份。认来的节点不重绑定候选、不拉进分镜组（它归分镜行管）。
+  const adoptedByShot = adoptStoryboardNodes(incoming, payload.runId, stampedByShot)
+  const existingByShot = new Map([...stampedByShot, ...adoptedByShot])
 
   // 分锚/镜：参考行（锚）在上、镜头折行网格（复用 storyboard 布局的 anchorCount 约定）。构造序=先锚后镜。
   const existingOnly = (shot: MaterializeShotInput): boolean => payload.existingOnly === true || shot.existingOnly === true
@@ -221,7 +252,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 这条闸是「打开项目补齐」这类幂等重放不会覆盖用户手改的原因。
   const rebindable = ordered.filter((shot) => {
     const nodeId = existingByShot.get(shot.shotId)
-    if (existingOnly(shot) || !nodeId || !shot.candidate) return false
+    if (existingOnly(shot) || !nodeId || !shot.candidate || adoptedByShot.has(shot.shotId)) return false
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
     const stored = nodeCandidateRevision(node?.meta as Record<string, unknown> | undefined)
     return stored === null || shot.candidate.revision > stored
@@ -239,7 +270,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 只在本次真会落东西时打 barrier（有缺失节点 / 有要重绑定的 / 要新建分镜组）——纯回填/幂等空跑不该占一个撤销步。
   // 节点全落 groupCategoryId(shots) → ≥2 个就够建组（锚+镜同组，靠 referenceSheet 区分）。
   const groupExists = useGenerationCanvasStore.getState().groups.some((group) => group.materializationOperationId === materializationOperationId)
-  const willCreateGroup = !payload.existingOnly && !groupExists && ordered.length >= 2
+  const willCreateGroup = !payload.existingOnly && !groupExists && ordered.filter((shot) => !adoptedByShot.has(shot.shotId)).length >= 2
   // 「这次落地结构性地改了画布吗」——一个判据两处用：打不打撤销步、要不要立刻落盘（见末尾 flush 注释）。
   // 回填已完成镜的 result **不算**：那是「打开项目补齐」每次都会做的幂等重放，把它算进来等于每开一次
   // 项目就白推高一次 revision（projectPersistenceService 头注释里那条「漂到 706」的自激振荡）。
@@ -304,7 +335,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   project.assertCurrent()
 
   // 编组（幂等章）：先按 op 章找已建的分镜组复用；没有才建。名字即时命名「分镜组·<计划名>」。
-  const allNodeIds = ordered.map((shot) => clientIdToNodeId[shot.shotId]).filter((id): id is string => Boolean(id))
+  const allNodeIds = ordered.filter((shot) => !adoptedByShot.has(shot.shotId)).map((shot) => clientIdToNodeId[shot.shotId]).filter((id): id is string => Boolean(id))
   const shotsCategoryNodeIds = allNodeIds.filter((nodeId) => {
     const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
     return node && (node.categoryId || 'shots') === groupCategoryId
@@ -332,6 +363,16 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
     if (!nodeId) continue
     if (shot.result) inLandingTxn(() => attachShotResult({ nodeId, result: shot.result!, mediaDimensions: shot.mediaDimensions }))
     else if (shot.generation) inLandingTxn(() => applyShotGeneration(nodeId, shot.generation!))
+  }
+
+  // 绑着的节点此刻不在画布上（删了、还没撤销）：这一镜到达的结局按 nodeId 暂存，节点回来时由统一提交口落上
+  // （与普通画布 runProjectDelivery 同一个暂存）。节点不复活——删除事实优先。
+  const liveNodeIds = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
+  for (const shot of incoming) {
+    const boundNodeId = typeof shot.nodeId === 'string' ? shot.nodeId.trim() : ''
+    if (!boundNodeId || liveNodeIds.has(boundNodeId) || clientIdToNodeId[shot.shotId]) continue
+    const held = heldOutcomeOf(shot)
+    if (held) holdOnce(boundNodeId, held)
   }
 
   // 付费卡确认落地不再挪画布、不再切分类（2026-09-25 用户：「付费卡点击之后画布就闪动一下，然后我就找不到
@@ -379,7 +420,7 @@ export type AttachShotResultOutcome = { attached: true; nodeId: string } | { ski
  * 回填一镜的 result（生成完成一个填一个＝「逐个冒」的节奏载体）。
  * **运行时断言：result.url 必须 nomi-local://**（本地优先铁律；providerUrl 另存原始 CDN）。R17 的 grep 棘轮
  * 抓不住「把 https CDN 塞进 node.result.url」这类运行期错误，故断言写在这条唯一回填入口里当场炸。
- * 节点已被用户删（整批撤销/手动删）→ 静默跳过。
+ * 节点已被用户删（整批撤销/手动删）→ 按 nodeId 暂存，撤销 / 放回时落上（与普通画布同一语义）。
  *
  * **同一份产物只回填一次**：Run 每变一次画布就跟一次，已经在节点结果或版本历史里的那一份（同 id 同地址）
  * 不再回填——否则用户切回旧版本 / 在这个节点上重新生成之后，下一次跟随会把制作那一版硬塞回当前结果。
@@ -395,11 +436,30 @@ export function attachShotResult(payload: AttachShotResultPayload): AttachShotRe
   }
   interruptPendingCanvasWrite()
   const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return { skipped: 'node-removed' }
+  if (!node) {
+    // 节点在生成中被删了（钱已花）：结局按 nodeId 暂存，撤销把节点带回来时落上去（与普通画布同一语义）。
+    holdOnce(nodeId, { kind: 'result', result, ...(payload.mediaDimensions ? { mediaDimensions: payload.mediaDimensions } : {}) })
+    return { skipped: 'node-removed' }
+  }
   const known = [node.result, ...(node.history ?? [])].some((entry) => entry?.id === result.id && entry.url === result.url)
   if (known) return { skipped: 'already-attached' }
   useGenerationCanvasStore.getState().addNodeResult(nodeId, result, payload.mediaDimensions)
   return { attached: true, nodeId }
+}
+
+/** 一镜带来的结局里，节点不在时值得暂存的那一份：出片了的结果，或确定的失败。生成中 / 已结束 / 可找回是瞬态，跟着下一次投影走。 */
+function heldOutcomeOf(shot: MaterializeShotInput): HeldNodeOutcome | null {
+  if (shot.result) return { kind: 'result', result: shot.result, ...(shot.mediaDimensions ? { mediaDimensions: shot.mediaDimensions } : {}) }
+  if (shot.generation?.state === 'failed') return { kind: 'status', status: 'error', ...(shot.generation.message ? { error: shot.generation.message } : {}) }
+  return null
+}
+
+/** Run 每变一次就投影一次：同一份结局只暂存一次（否则节点回来时同一张图会落成两个版本）。 */
+function holdOnce(nodeId: string, outcome: HeldNodeOutcome): void {
+  const store = useGenerationCanvasStore.getState()
+  const already = (store.heldNodeOutcomes[nodeId] ?? []).some((held) => held.kind === outcome.kind
+    && (outcome.kind === 'result' ? held.kind === 'result' && held.result.id === outcome.result.id && held.result.url === outcome.result.url : JSON.stringify(held) === JSON.stringify(outcome)))
+  if (!already) store.holdRunOutcome(nodeId, outcome)
 }
 
 /**
