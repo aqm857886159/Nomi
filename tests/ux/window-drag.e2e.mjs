@@ -371,7 +371,9 @@ try {
   assert(libraryLayout.main.scrollbarWidth === "none", `project library scrollbar is hidden (${libraryLayout.main.scrollbarWidth})`);
 
   await primaryCard.click();
-  await win.locator("[data-shell-topbar]").waitFor({ timeout: stationTimeout({ operations: 2 }) });
+  // 项目库与项目里是同一条顶栏（都有 data-shell-topbar），所以不能拿它当「项目已打开」的信号——
+  // 只有项目里才有项目名菜单；否则下面会量到切换途中还没画出来的空顶栏（height=0）。
+  await win.locator("[data-shell-project-menu]").waitFor({ timeout: stationTimeout({ operations: 2 }) });
   await win.bringToFront();
 
   await resetMainWindowBounds(app);
