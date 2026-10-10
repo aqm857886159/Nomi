@@ -267,6 +267,10 @@ export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = ar
     // env 里值为 undefined 的键 = 从子进程环境里删掉（如 NODE_TEST_CONTEXT：外层 node --test 设了它，子进程里的 node --test 就不真跑，假绿）
     const childEnv = { ...process.env, ...env }
     for (const [key, value] of Object.entries(childEnv)) if (value === undefined) delete childEnv[key]
+    // git 跑钩子时会导出 GIT_DIR / GIT_INDEX_FILE 等（worktree 里指向真仓库）。子进程里的测试在临时目录 git init / git config，
+    // 继承了它们就落到真仓库上：2026-10-10 推送时 check-vocabularies.node-test.mjs 的 `git init` 把真仓库重初始化成 core.bare=true、
+    // `git config user.name Test` 写进真仓库配置，所有 worktree 一起失效。门岗与测试都按 cwd 找仓库，一律不继承 GIT_*。
+    for (const key of Object.keys(childEnv)) if (/^GIT_/.test(key)) delete childEnv[key]
     const child = spawn(process.execPath, argv, { cwd: repoRoot, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     running.set(child, { name, started })
     let output = ''

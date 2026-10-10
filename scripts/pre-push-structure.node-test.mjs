@@ -312,6 +312,13 @@ test('结构：本文件里只有 isolatedRun 一处直接起子进程（runNode
   assert.doesNotMatch(source.replace(/^\s*\/\/.*$/gm, ''), /\b(?:spawn|spawnSync|execFileSync|execSync|exec)\(/, '本文件不许直接起子进程')
 })
 
+test('必红：钩子环境里的 GIT_DIR / GIT_INDEX_FILE 等不传给门岗与测试子进程（10-10 测试的 git init 把真仓库改成 bare）', async () => {
+  const probe = ['-e', 'process.stdout.write(JSON.stringify(Object.keys(process.env).filter((k) => /^GIT_/.test(k))))']
+  const result = await isolatedRun(probe, { GIT_DIR: 'C:/should-not-leak/.git', GIT_INDEX_FILE: 'x', GIT_WORK_TREE: 'y', GIT_COMMON_DIR: 'z' }, { name: 'git-env-probe', timeoutMs: 20_000 })
+  assert.equal(result.status, 0, result.output)
+  assert.deepEqual(JSON.parse(result.output), [])
+})
+
 test('必红：造一个改了 build 脚本的改动集 → 选中 scripts/electron-build.test.mjs（vitest 依赖图看不见它：它用计算路径动态 import + 拷贝文件名清单）', () => {
   for (const changed of ['scripts/build-electron.mjs', 'scripts/electron-build-artifacts.mjs']) {
     const selection = relatedTests([changed], { root: repoRoot })
