@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nomi.local/schemas/module-feature-evaluation/report.v1.json",
+  "title": "Nomi Module/Feature Evaluation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reportVersion",
+    "contractId",
+    "runId",
+    "commit",
+    "subject",
+    "automatedChecks",
+    "humanJudgments",
+    "evidence",
+    "decision",
+    "failureReason"
+  ],
+  "properties": {
+    "reportVersion": { "const": "module-feature-report/v1" },
+    "contractId": { "type": "string" },
+    "runId": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "subject": { "type": "string", "minLength": 1 },
+    "automatedChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "pass", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "pass": { "type": "boolean" },
+          "evidence": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "humanJudgments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "score", "note"],
+        "properties": { "id": { "type": "string" }, "score": { "type": "number" }, "note": { "type": "string" } }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["screenshots", "videos", "logs"],
+      "properties": {
+        "screenshots": { "type": "array", "items": { "type": "string" } },
+        "videos": { "type": "array", "items": { "type": "string" } },
+        "logs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "decision": { "enum": ["pass", "fail", "blocked", "unverified"] },
+    "failureReason": { "type": ["string", "null"] }
+  }
+}

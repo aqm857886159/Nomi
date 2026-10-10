@@ -123,6 +123,8 @@
     "eval:review-images": "node ./scripts/eval-review-images.mjs",
     "eval:generate-quality": "node ./scripts/eval-review-images.mjs",
     "eval:journey": "python3 scripts/with-gates-lock.py -- node ./scripts/eval-journey.mjs",
+    "eval:director": "node ./scripts/eval-director.mjs",
+    "test:eval-director": "node --test ./scripts/eval-director.node-test.mjs",
     "dist": "node scripts/package-build-stamp.mjs verify && pnpm run check:electron-install && electron-builder",
     "dist:mac:dir": "python3 scripts/with-gates-lock.py --command \"node scripts/package-build-stamp.mjs verify && pnpm run check:electron-install && electron-builder --mac dir --arm64 && node tests/ux/packaged-mcp-smoke.e2e.mjs release/mac-arm64/Nomi.app\"",
     "postinstall": "node ./scripts/install-electron-runtime.mjs && node ./scripts/install-git-hooks.cjs && node ./scripts/install-claude-hooks.cjs",
