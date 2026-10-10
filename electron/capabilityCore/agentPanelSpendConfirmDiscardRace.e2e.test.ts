@@ -110,3 +110,55 @@ describe("确认与 × 交错：每一镜只有一个终态，× 之后没交出
     expectOneTruth(r);
   });
 });
+
+describe("确认与改参数交错：同一个队，只有一个终态，报价不半新半旧", () => {
+  const REVISE = { parameters: { size: "1536x1024" } } as const;
+
+  it("确认进行中来了改参数：改排在确认后面；确认发的是改之前那一版，改读不到可改的出价（只有一个终态）", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let entered!: () => void;
+    const inGate = new Promise<void>((resolve) => { entered = resolve; });
+    const built = buildActions(base, vendor.origin, submits, { beforeGate: async () => { entered(); await gate; } });
+    try {
+      await draft(base);
+      const quote = built.withWindow.listPendingSpend(PROJECT_ID)[0];
+      advanceClock(1000);
+      const confirming = built.withWindow.confirmPendingSpend({ ...TARGET, quoteId: quote.quoteId });
+      await inGate;
+      const revising = built.withWindow.revisePendingSpend({ ...TARGET, quoteId: quote.quoteId, patch: REVISE });
+      release();
+      const [confirmed, revised] = await Promise.all([confirming, revising]);
+      expect(confirmed).toMatchObject({ ok: true });
+      expect(revised.ok, "改排在确认后面，出价已决，改不动").toBe(false);
+      expect(submits).toHaveLength(1);
+      expect(JSON.stringify(vendor.bodies[0]), "发出去的是改之前那一版").not.toContain("1536");
+    } finally { release(); await vendor.close(); }
+  });
+
+  it("改参数进行中来了确认：确认排在后面，用旧报价被拒、一镜不发；用改后的报价再确认，发的是改后那一版", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    const built = buildActions(base, vendor.origin, submits);
+    try {
+      await draft(base);
+      const quote = built.withWindow.listPendingSpend(PROJECT_ID)[0];
+      advanceClock(1000);
+      const revising = built.withWindow.revisePendingSpend({ ...TARGET, quoteId: quote.quoteId, patch: REVISE });
+      const staleConfirm = built.withWindow.confirmPendingSpend({ ...TARGET, quoteId: quote.quoteId });
+      const [revised, stale] = await Promise.all([revising, staleConfirm]);
+      expect(revised).toMatchObject({ ok: true, code: "revised" });
+      expect(stale, "旧报价的确认在改之后被拒，不会拿半新半旧去批").toMatchObject({ ok: false });
+      expect(submits, "被拒的确认一镜不发").toHaveLength(0);
+      advanceClock(1000);
+      const fresh = (revised as { quoteId: string }).quoteId;
+      expect(await built.withWindow.confirmPendingSpend({ ...TARGET, quoteId: fresh })).toMatchObject({ ok: true });
+      expect(submits).toHaveLength(1);
+      expect(JSON.stringify(vendor.bodies[0]), "发的是改后那一版").toContain("1536");
+    } finally { await vendor.close(); }
+  });
+});

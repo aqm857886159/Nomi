@@ -355,7 +355,7 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
   };
 
 
-  const revisePendingSpend = async (input: Readonly<{
+  const reviseOneShot = async (input: Readonly<{
     projectId: string;
     operationId: string;
     quoteId: string;
@@ -462,6 +462,10 @@ export function createPendingSpendActions(deps: PendingSpendActionDeps) {
       release();
     }
   };
+
+  /** 卡上改参数：和确认、去掉同一个队——改与确认不会交错，确认读到的报价要么是改之前那一版、要么是改之后那一版，不会半新半旧。 */
+  const revisePendingSpend = (input: Parameters<typeof reviseOneShot>[0]): ReturnType<typeof reviseOneShot> =>
+    serializeCardAction(input.projectId, input.operationId, () => reviseOneShot(input));
 
   const readSealedOutcome = (input: Readonly<{ projectId: string; operationId: string }>) => () => {
     const run = deps.runs.read(input.projectId, input.operationId);

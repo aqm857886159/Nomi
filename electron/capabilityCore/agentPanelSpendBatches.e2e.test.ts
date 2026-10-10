@@ -141,16 +141,20 @@ describe("S08: pending spend decisions have one durable winner", () => {
             : withWindow.revisePendingSpend({ quoteId: quote.quoteId, projectId: PROJECT_ID, operationId: OPERATION_ID, patch: { parameters: { size: "1536x1024" } } });
           // × 收回出价之后要等手上那一下落定才回（结局照宿主最终批下的那一份说，`spendOperationArbiter`）：
           // 放开那一下之前只等这一改真的落下了——已经回了，或者卡已经收走了。
-          let answered = false;
-          void changing.finally(() => { answered = true; });
-          await waitForProduction(() => answered || withWindow.listPendingSpend(PROJECT_ID).length === 0);
+          // 改参数和确认同一个队（仲裁器）：改排在确认后面，不会在确认进行中插进去，所以不等它回——直接放开确认。
+          if (action === "discard") {
+            let answered = false;
+            void changing.finally(() => { answered = true; });
+            await waitForProduction(() => answered || withWindow.listPendingSpend(PROJECT_ID).length === 0);
+          }
           latch.release();
           const [changed, confirmed] = await Promise.all([changing, confirming]);
           // × 来晚了（授权已落账）：不报错，如实说已发出 1 张（仲裁器的封存终态）；改参数来晚了才是错误。
-          expect(changed.ok).toBe(action === "discard" || phase === "beforeAuthorize");
+          // 改参数排在确认后面：确认先落账，出价随之 resolved，改读不到可改的出价，只有一个终态。
+          expect(changed.ok).toBe(action === "discard");
           if (action === "discard" && phase === "afterAuthorize") expect(changed).toMatchObject({ code: "discarded", batchStopped: { sent: 1, notSent: 0 } });
-          expect(confirmed.ok).toBe(phase === "afterAuthorize");
-          expect(submits).toHaveLength(phase === "afterAuthorize" ? 1 : 0);
+          expect(confirmed.ok).toBe(action === "revise" || phase === "afterAuthorize");
+          expect(submits).toHaveLength(action === "revise" || phase === "afterAuthorize" ? 1 : 0);
           expect(vendor.bodies).toHaveLength(submits.length);
           expect([...base.renderer.nodes.entries()]).toEqual(nodes);
         } finally { latch.release(); await vendor.close(); }

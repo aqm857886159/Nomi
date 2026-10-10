@@ -35,7 +35,7 @@ approved_in: 协调会话转达用户「按推荐走方案 A」
 ## 2. 为什么这一类会一直出现
 
 - 写入口：5 扇 IPC 门（`productionActionIpc`：revise / discard / confirm / confirmRemaining / removeShot）+ 2 处读结局的门（`generationTransportAdapters.readPresentationOutcome`、lane 的 `laneSpendCardClose`）+ 装配（`appIntegration`），`door-map` 数出写入口 11 扇。
-- 其中 4 个进 `serializeCardAction` 队列，1 个（discard）刻意不进。队列只能串行已入队的动作；discard 先 `withdraw` 再 `cardActionsSettled`——withdraw 与队里正在 await 的 authorize 之间没有原子性。
+- 实现前：confirm / confirmRemaining / removeShot 进 `serializeCardAction` 队列；discard 刻意不进；revise 也不进、不登记令牌（main 上本来如此）。实现后：这 5 扇里 4 扇进同一个队（含 revise），discard 不排队但同步登记令牌。队列只能串行已入队的动作；discard 先 `withdraw` 再 `cardActionsSettled`——withdraw 与队里正在 await 的 authorize 之间没有原子性。
 - 我们的铁律对号：**⑫ 点了 = 以为的**（点 × 看到停了，钱照花）。最小证据：特征测试落点 2 / 4 / 5。
 - 现状实测（特征测试，loopback，真账本）：
 
@@ -73,7 +73,7 @@ approved_in: 协调会话转达用户「按推荐走方案 A」
 
 | 选项 | 做什么 | 要改多少 / 删什么 | 用户看到的变化 | 风险 | 推荐 |
 |---|---|---|---|---|---|
-| A 换（用户已拍板） | 新增 `electron/capabilityCore/spendOperationArbiter.ts`：每 operation 一份 {取消令牌, 每镜封存终态, 队列}。5 扇写入口全经它；discard 同步登记令牌（保留立即打断）再 withdraw；confirm 在 admit 前、lease 后、封印前、授权前各问一次令牌；封存后 UI / 回执 / lane 只读这份终态 | 新增约 150–200 行；`appIntegrationSpendConfirm.ts` 改约 100 行（删 discard 不排队分支、`cardActionsSettled` 调用、批量里的 pending 再读与 `yieldToIncomingActions`）；`generationTransportAdapters` / `laneSpendCardClose` 改读终态约 30 行；删 `spendCardActionQueue.ts`（38 行）；渲染层 hook 约 30 行显示「正在停止」。**生产净增约 300 行** | 确认中点 ×：卡显示「正在停止」直到终态回来，而不是先假装已停；× 之后的未交镜一定不发；派发后迟到的 × 如实说「已发出 N 张」，不再报错 | 令牌检查点漏一处则窗口仍在 → 用四落点并发测试 + 必红变异兜住；改了批量路径的时序 → 同类走查回归 | **推荐** |
+| A 换（用户已拍板） | 新增 `electron/capabilityCore/spendOperationArbiter.ts`：每 operation 一份 {取消令牌, 每镜封存终态, 队列}。5 扇 IPC 写入口全经它（revise / confirm / confirmRemaining / removeShot 进同一个队，discard 不排队但同步登记令牌）；discard 同步登记令牌（保留立即打断）再 withdraw；confirm 在 admit 前、lease 后、封印前、授权前各问一次令牌；封存后 UI / 回执 / lane 只读这份终态 | 新增约 150–200 行；`appIntegrationSpendConfirm.ts` 改约 100 行（删 discard 不排队分支、`cardActionsSettled` 调用、批量里的 pending 再读与 `yieldToIncomingActions`）；`generationTransportAdapters` 改读终态约 10 行（lane 走 `readPresentationOutcome` → `sealedOutcome`，`laneSpendCardClose` 没有改）；删 `spendCardActionQueue.ts`（38 行）；渲染层 hook 约 30 行显示「正在停止」。**生产净增约 300 行** | 确认中点 ×：卡显示「正在停止」直到终态回来，而不是先假装已停；× 之后的未交镜一定不发；派发后迟到的 × 如实说「已发出 N 张」，不再报错 | 令牌检查点漏一处则窗口仍在 → 用四落点并发测试 + 必红变异兜住；改了批量路径的时序 → 同类走查回归 | **推荐** |
 | B 补 | 在 confirm 里再加令牌检查 | 约 40 行，不删任何特例 | 无 | 第 9 个补丁；写入口仍分散，下个新动作又漏 | 否 |
 | C 接 XState 做付费卡状态机 | 引入 xstate，把卡的状态与动作建成 machine | 新依赖 + 约 400 行 + 接线；仍要自写「await 前问令牌」 | 无直接变化 | 内存第二份事实；与账本对账又是新的竞态 | 否（见 §5） |
 
@@ -137,3 +137,7 @@ approved_in: 协调会话转达用户「按推荐走方案 A」
 
 - 已钉住：`agentPanelSpendConfirmDiscardRace.e2e.test.ts`——最初的特征提交（`test(spend)`）里落点 1、3 当时行为正确（`it`），落点 2、4、5 是已知失败（`it.fails`）；仲裁器落地后五个落点全是正常 `it`，必红变异（令牌检查恒为否）使落点 2 与 `agentPanelSpendRemaining` 两条用例变红。
 - 没钉住：CI 上「lane 收不到 closed 结果」本机未复现（原因见 §2），不伪造断言。
+
+## 补：改参数（revise）也进仲裁器（协调会话 2026-10-10 裁定）
+
+复核（V-spendarbiter）指出 `revisePendingSpend` 没走仲裁器，和 §2 / §6「5 扇 IPC 门全经它」对不上。已接入：revise 放进 `serializeCardAction`，和确认 / 去掉 / 生成剩下同一个队。效果：确认进行中来的改参数排在确认后面，确认发的是改之前那一版，改读不到可改的出价（只有一个终态）；改参数进行中来的确认排在后面，用旧报价被拒、一镜不发，用改后的报价再确认发的是改后那一版，报价不会半新半旧。revise 不登记取消令牌（它只动候选、永远不提交，没有「交出去」这回事）。测试：`agentPanelSpendConfirmDiscardRace.e2e.test.ts` 新增两条交错用例；`agentPanelSpendBatches` S08 里 revise 两条改为新终态；去掉队列包装的变异使两处变红。

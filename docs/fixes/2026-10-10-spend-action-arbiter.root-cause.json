@@ -122,6 +122,12 @@
       "entry_point": "removePendingSpendShot",
       "disposition": "not-affected",
       "evidence": "Only edits the offer record and never reaches authorization or the provider; it stays on the same queue."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "revisePendingSpend",
+      "disposition": "enforced",
+      "evidence": "Runs on the same serializeCardAction queue as confirm; agentPanelSpendConfirmDiscardRace.e2e.test.ts confirm-during-revise and revise-during-confirm interleavings fail without the queue (mutation verified)."
     }
   ],
   "prevention": {
