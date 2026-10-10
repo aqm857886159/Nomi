@@ -9,7 +9,9 @@
 // - 外部没碰的、以及读图之后才出现的节点 / 边 / 组：保持当前的样子；
 // - 节点上的事实层（landedNodeFields：运行态 / 落地 / 跟主图走的媒体尺寸）外部写入永远改不动：
 //   合出来的每个已有节点再过一遍 withLiveNodeFacts，以当前真实值为准（与渲染层统一提交口同一个函数）。
+// - 外部新增的边过连线总闸（edgeAdmission）：目标不收这种输入的写不进来，被拒的从 `onRejectedEdges` 报出；已经在画布上的旧边不动；
 // 合完把两端已不在的边去掉，免得悬挂。
+import { admitNewEdges, type EdgeEndpoint, type RejectedEdge } from './edgeAdmission'
 import { withLiveNodeFacts } from './landedNodeFields'
 
 type Keyed = { id: string } & Record<string, unknown>
@@ -56,14 +58,49 @@ function mergeKeyed(
   return merged
 }
 
-export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonly<{ base: CanvasDocLike; next: CanvasDocLike; current: T }>): T {
+type EdgeRecord = { id: string; source: string; target: string; mode?: string }
+
+export function mergeExternalCanvasWrite<T extends CanvasDocLike>(input: Readonly<{
+  base: CanvasDocLike
+  next: CanvasDocLike
+  current: T
+  /** 外部新增、但过不了连线总闸的边（调用方想告诉用户 / 模型就接这个）。 */
+  onRejectedEdges?: (rejected: readonly RejectedEdge[]) => void
+  /** 撤销 / 放回：这些边是把原来就有的边放回来（恢复语义，与 UI 的 restoreGraph 一致），不当「外部新增」过闸。 */
+  restoredEdgeIds?: readonly string[]
+}>): T {
   const { base, next, current } = input
   const nodes = mergeKeyed(base.nodes, next.nodes, current.nodes, withLiveNodeFacts)
   const nodeIds = new Set(nodes.filter(isKeyed).map((node) => node.id))
-  const edges = mergeKeyed(base.edges, next.edges, current.edges).filter((edge) => {
+  const connected = mergeKeyed(base.edges, next.edges, current.edges).filter((edge) => {
     const { source, target } = edge as { source?: unknown; target?: unknown }
     return typeof source === 'string' && typeof target === 'string' && nodeIds.has(source) && nodeIds.has(target)
   })
+  // 「已知旧边」= 当前画布上已有、且端点和语义没被这次外部写入改动的边（老项目里的老非法边不删，只是不再能新建），
+  // 加上明确标成「放回」的边。同 id 但端点 / mode 被改了的边是外部新造的连接，必须重新过闸。
+  const currentById = new Map(current.edges.filter(isKeyed).map((edge) => [edge.id, edge]))
+  const sameLink = (left: Keyed, right: Keyed) => left.source === right.source && left.target === right.target && (left.mode ?? 'reference') === (right.mode ?? 'reference')
+  const known = new Set<string>(input.restoredEdgeIds ?? [])
+  for (const edge of connected) {
+    if (!isKeyed(edge)) continue
+    const live = currentById.get(edge.id)
+    if (live && sameLink(live, edge)) known.add(edge.id)
+  }
+  const verdict = admitNewEdges({
+    nodes: nodes.filter(isKeyed) as unknown as (EdgeEndpoint & { id: string })[],
+    known,
+    next: connected as unknown as EdgeRecord[],
+  })
+  if (verdict.rejected.length) input.onRejectedEdges?.(verdict.rejected)
+  // 被拒的边若原本就在画布上（外部想把它改成非法），回到画布上的原样，不整条丢掉。
+  const edges = verdict.rejected.length
+    ? connected.flatMap((edge) => {
+        const rejected = verdict.rejected.some((item) => item.edge === (edge as unknown as EdgeRecord))
+        if (!rejected) return [edge]
+        const live = isKeyed(edge) ? currentById.get(edge.id) : undefined
+        return live ? [live] : []
+      })
+    : connected
   const groups = mergeKeyed(base.groups ?? [], next.groups ?? [], current.groups ?? [])
   return { ...current, nodes, edges, groups }
 }

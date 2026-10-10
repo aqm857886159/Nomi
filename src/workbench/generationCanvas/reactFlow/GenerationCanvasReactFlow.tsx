@@ -52,6 +52,8 @@ import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { hasPendingDirectorCameraMoveCapture, hasPendingDirectorStagingCapture } from '../components/directorCaptureHostActivation'
 import CanvasToolbar from '../components/CanvasToolbar'
+import { CANVAS_DROP_ACTIVE_CLASS_NAME, watchCanvasDropActive } from '../components/canvasDropActiveFlag'
+import { acceptsClipDropTypes } from '../nodes/clipNodeDrop'
 import { CANVAS_DRAGGING_OWNER, beginCanvasDragging, type CanvasDragLease } from '../components/canvasDraggingFlag'
 import {
   BROWSER_ASSET_DRAG_MIME,
@@ -648,10 +650,13 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     })
   }, [activeCategoryId, getCanvasPointFromClientPoint, readOnly])
 
+  // 拖放进行中（可接收的载荷）画布浮层不吃命中，别挡住真正的接收目标（剪辑节点轴等）。
+  React.useEffect(() => (hostRef.current ? watchCanvasDropActive(hostRef.current, acceptsClipDropTypes) : undefined), [])
+
   return (
     <section
       ref={hostRef}
-      className={cn('generation-canvas-react-flow', 'generation-canvas-v2__stage', 'group/canvas', 'relative w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink')}
+      className={cn('generation-canvas-react-flow', 'generation-canvas-v2__stage', 'group/canvas', CANVAS_DROP_ACTIVE_CLASS_NAME, 'relative w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink')}
       aria-label={t('generationCommon.canvas.aria')}
       data-shortcut-surface="canvas"
       data-ready={isReady ? 'true' : undefined}

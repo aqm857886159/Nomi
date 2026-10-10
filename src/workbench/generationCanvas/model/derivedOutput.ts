@@ -31,6 +31,11 @@ export const DERIVED_OUTPUT_RULES: Readonly<Record<DerivedOutputKind, DerivedRul
   'video-frame': { sources: ['video', 'asset'], targets: ['image'], sourceResultType: 'video' },
 }
 
+/** 这一对（源节点 → 目标种类）是不是任一类派生输出的出处边——旧项目里这类边种类上过不了连线总闸，但是合法的。 */
+export function isDerivedOutputPair(source: GenerationCanvasNode, targetKind: GenerationNodeKind): boolean {
+  return (Object.keys(DERIVED_OUTPUT_RULES) as DerivedOutputKind[]).some((kind) => canDeriveOutput(kind, source, targetKind))
+}
+
 export function canDeriveOutput(kind: DerivedOutputKind, source: GenerationCanvasNode, targetKind: GenerationNodeKind): boolean {
   const rule = DERIVED_OUTPUT_RULES[kind]
   if (!rule) return false

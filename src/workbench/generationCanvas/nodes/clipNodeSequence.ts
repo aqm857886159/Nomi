@@ -153,3 +153,43 @@ export function nudgeClipNode(meta: ClipNodeMeta, clipId: string, deltaFrame: nu
     (compatible) => nudgeClipById(compatible, clipId, deltaFrame),
   ), fps)
 }
+
+/**
+ * 在 boundaryFrame 处插入一个新片段（素材拖进剪辑节点）。新片段占 [boundary, boundary + 时长)；
+ * 起点不早于 boundary 的片段只在会重叠时整体后推（够放就不动，空档不被无谓挤掉）。
+ * 同一份素材可以多次拖入：已有同 id 时给实例起新 id，sourceNodeId 仍指向原素材。
+ */
+export function insertClipNodeSourceAt(meta: ClipNodeMeta, source: ClipNodeSource, boundaryFrame: number, fps = DEFAULT_FPS): ClipNodeMeta {
+  const taken = new Set(meta.clips.map((clip) => clip.id))
+  let id = source.id
+  for (let n = 2; taken.has(id); n += 1) id = `${source.id}~${n}`
+  const instance: ClipNodeSource = { ...source, id, sourceNodeId: source.sourceNodeId ?? source.id }
+  const withSource: ClipNodeMeta = {
+    ...meta,
+    sourceNodeIds: [...meta.sourceNodeIds, id],
+    clips: [...meta.clips, instance],
+    excludedSourceNodeIds: (meta.excludedSourceNodeIds ?? []).filter((excluded) => excluded !== source.id && excluded !== source.sourceNodeId),
+    selectedClipId: id,
+  }
+  const timeline = clipNodeTimelineFromMeta(withSource, fps)
+  const newClipId = `clip-${id}`
+  const clips = timeline.tracks[0]?.clips ?? []
+  const added = clips.find((clip) => clip.id === newClipId)
+  if (!added) return meta
+  const length = added.endFrame - added.startFrame
+  const boundary = Math.max(0, Math.round(boundaryFrame))
+  const later = clips.filter((clip) => clip.id !== newClipId && clip.startFrame >= boundary)
+  const nextStart = later.length ? Math.min(...later.map((clip) => clip.startFrame)) : Infinity
+  const shift = Math.max(0, boundary + length - nextStart)
+  const edited: TimelineState = {
+    ...timeline,
+    tracks: timeline.tracks.map((track, index) => index !== 0 ? track : {
+      ...track,
+      clips: track.clips.map((clip) => {
+        if (clip.id === newClipId) return { ...clip, startFrame: boundary, endFrame: boundary + length }
+        return clip.startFrame >= boundary && shift > 0 ? { ...clip, startFrame: clip.startFrame + shift, endFrame: clip.endFrame + shift } : clip
+      }),
+    }),
+  }
+  return clipNodeMetaFromTimeline(withSource, edited, fps)
+}

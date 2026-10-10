@@ -277,7 +277,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
 
   const clipBaseClasses = cn(
     'workbench-timeline-clip',
-    'absolute bottom-[5px] flex items-center gap-0 p-0',
+    'group/tlclip absolute bottom-[5px] flex items-center gap-0 p-0',
     'rounded text-[var(--workbench-ink)] text-micro font-medium',
     'shadow-[inset_0_1px_0_var(--workbench-bevel)] cursor-grab select-none active:cursor-grabbing',
     clip.type === 'image' &&
@@ -304,7 +304,11 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
   const handleClasses = cn(
     'workbench-timeline-clip__handle',
     'absolute top-0 bottom-0 z-[2] w-4 p-0 m-0 border-0 bg-transparent appearance-none',
-    'inline-flex items-center justify-center cursor-ew-resize',
+    'inline-flex items-center justify-center cursor-ew-resize transition-opacity',
+    // 手柄常驻、悬停片段或选中后显形：命中不依赖「先选中」（与画布剪辑节点同一规矩）。
+    isSelected ? 'opacity-100' : 'opacity-0 group-hover/tlclip:opacity-100 focus-visible:opacity-100',
+    // 剪刀模式：点击 = 在光标处分割，边缘的手柄不抢这一下。
+    splitMode && 'pointer-events-none',
   )
   const gripClasses = cn(
     'block w-[3px] h-3.5 rounded-full pointer-events-none',
@@ -375,17 +379,17 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
       onPointerLeave={splitMode ? () => setCutPx(null) : undefined}
       onPointerDown={beginDrag}
     >
-      {isSelected ? (
-        <button
-          type="button"
-          className={cn(handleClasses, 'workbench-timeline-clip__handle--left', 'left-0 rounded-l-[5px]')}
-          aria-label={t('timelineEditor.clip.resizeStart')}
-          title={t('timelineEditor.clip.resizeStart')}
-          onPointerDown={(event) => beginResize(event, 'left')}
-        >
-          <span className={gripClasses} aria-hidden="true" />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        tabIndex={isSelected ? 0 : -1}
+        aria-hidden={isSelected ? undefined : true}
+        className={cn(handleClasses, 'workbench-timeline-clip__handle--left', 'left-0 rounded-l-[5px]')}
+        aria-label={t('timelineEditor.clip.resizeStart')}
+        title={t('timelineEditor.clip.resizeStart')}
+        onPointerDown={(event) => beginResize(event, 'left')}
+      >
+        <span className={gripClasses} aria-hidden="true" />
+      </button>
       {thumbContent}
       {sourceWindow.trimmed ? (
         <span
@@ -444,17 +448,17 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
           aria-hidden="true"
         />
       ) : null}
-      {isSelected ? (
-        <button
-          type="button"
-          className={cn(handleClasses, 'workbench-timeline-clip__handle--right', 'right-0 rounded-r-[5px]')}
-          aria-label={t('timelineEditor.clip.resizeEnd')}
-          title={t('timelineEditor.clip.resizeEnd')}
-          onPointerDown={(event) => beginResize(event, 'right')}
-        >
-          <span className={gripClasses} aria-hidden="true" />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        tabIndex={isSelected ? 0 : -1}
+        aria-hidden={isSelected ? undefined : true}
+        className={cn(handleClasses, 'workbench-timeline-clip__handle--right', 'right-0 rounded-r-[5px]')}
+        aria-label={t('timelineEditor.clip.resizeEnd')}
+        title={t('timelineEditor.clip.resizeEnd')}
+        onPointerDown={(event) => beginResize(event, 'right')}
+      >
+        <span className={gripClasses} aria-hidden="true" />
+      </button>
       {resizeTag ? (
         <span
           className={cn(

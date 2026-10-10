@@ -1,0 +1,244 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-10-edge-validation-all-entries",
+  "change_kind": "structural",
+  "problem_type": "New edges could enter the canvas through doors that never passed the connection admission gate",
+  "symptom": "MCP / headless connect_canvas_edges wrote video -> text and audio -> text; paste, drag-duplicate, group duplicate, duplicate-as-variant and workflow-template instantiation copied illegal edges verbatim (Codex review 2 of #1137).",
+  "direct_cause": "validateReferenceEdge lived in the renderer only; the headless canvasGraph.connectNodes checked endpoints / self-loop / duplicates, and four store actions appended cloned edges with state.edges = [...state.edges, ...cloned.edges].",
+  "class_root": "There was no rule about which doors may put a new edge into the canvas and no admission function the main process could call, so each door either remembered to validate or did not.",
+  "affected_population": [
+    "Every user / agent / MCP client that creates edges by any path other than manual connect and the Agent tool",
+    "Old projects holding edges the gate would refuse today (kept, ignored at execution)"
+  ],
+  "scope_paths": [
+    "electron/shared/canvas/edgeAdmission.ts",
+    "electron/shared/canvas/externalCanvasWrite.ts",
+    "electron/capabilityCore/canvasGraph.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+    "src/workbench/generationCanvas/nodes/registry.ts",
+    "src/workbench/generationCanvas/store/canvasEdgeWrite.ts",
+    "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+    "src/workbench/generationCanvas/store/canvasGroupMoveActions.ts",
+    "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+    "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+    "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+    "src/workbench/generationCanvas/model/derivedOutput.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/gateway.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "scripts/check-canvas-edge-writers.mjs"
+  ],
+  "entry_points": [
+    "MCP connect_canvas_edges / create nodes with edges -> capabilityCore/core.connectProjectNodes -> canvasGraph.connectNodes",
+    "External whole-graph write-back (renderer applyExternalGraph and the on-disk gateway) -> mergeExternalCanvasWrite",
+    "Paste / Cmd+D / drag-duplicate -> store.pasteNodes; group duplicate -> duplicateGroupForDrag; duplicate-as-variant; workflow template instantiate -> appendAdmittedEdges",
+    "Manual connect / ring menu / @ / auto-reference / Agent connect_nodes / group links -> store.connectNodes / writeCanvasEdge (unchanged, already gated)",
+    "Undo / redo / restoreGraph / load / migration -> restore doors, deliberately not gated (they bring back edges that already existed)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Which node kind accepts which asset is a Nomi-domain rule (node-kind definitions), not decided by any third-party documentation.",
+  "invariants": [
+    "A new edge reaches the canvas only through writeCanvasEdge, appendAdmittedEdges, headless canvasGraph.connectNodes, or mergeExternalCanvasWrite; each calls the one rule in electron/shared/canvas/edgeAdmission.",
+    "Edges already on the canvas (old projects) are never deleted by the gate; execution ignores kind-illegal ones except provenance (derived-output) edges.",
+    "check:canvas-edge-writers fails when a file outside the registered list writes .edges, when a listed file stops calling the gate, or when a bulk-append shape appears outside the allowed files.",
+    "Edges already on the canvas keep their id only while source/target/mode are unchanged; an external write that rewires an existing id is judged as a new edge (the original stays when refused). Undo/put-back goes through an explicit restoredEdgeIds restore write, not the external-new path."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasGraph.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/canvas/externalCanvasWrite.ts",
+      "symbol": "admitNewEdges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasEdgeWrite.ts",
+      "symbol": "admitNewEdges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "appendAdmittedEdges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasGroupMoveActions.ts",
+      "symbol": "appendAdmittedEdges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "symbol": "appendAdmittedEdges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/generationCanvasTools.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+      "symbol": "validateReferenceEdge"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "symbol": "validateReferenceEdge"
+    }
+  ],
+  "door_reduction": {
+    "before": 12,
+    "after": 11,
+    "why_not": "The doors are different user actions (MCP, paste, group duplicate, variant, template, manual connect) that must keep existing; what was merged is the rule (one function in shared) and the whole-edge append (one function, four former copies). Former gap doors now call the same gate."
+  },
+  "generality_proof": "Every door that adds a new edge ends in validateReferenceEdge via admitNewEdges / writeCanvasEdge / headless connectNodes, and check:canvas-edge-writers makes a new unregistered writer, an ungated listed writer, or a bulk-append shape a red gate. Another vendor, platform or old project cannot bring a new path in without the list changing.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/canvas/edgeAdmission.ts",
+      "symbol": "validateReferenceEdge",
+      "responsibility": "The one rule for whether a new edge may exist (target kind takes the input, source is referenceable, model archetype has a slot)."
+    },
+    {
+      "path": "electron/shared/canvas/edgeAdmission.ts",
+      "symbol": "admitNewEdges",
+      "responsibility": "Batch admission: new ids pass the rule, known ids are kept untouched."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasEdgeWrite.ts",
+      "symbol": "appendAdmittedEdges",
+      "responsibility": "The only store function that appends whole edges to the canvas."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/canvasGraph.ts",
+      "entry_point": "connectNodes",
+      "disposition": "enforced",
+      "evidence": "Calls validateReferenceEdge before pushing; skipped carries the reason code. Tests: canvasGraph.test.ts video/audio -> text, clip -> image."
+    },
+    {
+      "path": "electron/shared/canvas/externalCanvasWrite.ts",
+      "entry_point": "mergeExternalCanvasWrite",
+      "disposition": "enforced",
+      "evidence": "Externally added edges go through admitNewEdges; used by both the renderer store and the on-disk gateway."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "entry_point": "pasteNodes",
+      "disposition": "enforced",
+      "evidence": "Appends via appendAdmittedEdges; covers drag-duplicate and Cmd+D which borrow the clipboard."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "entry_point": "rewind / put-back / load",
+      "disposition": "not-affected",
+      "evidence": "Restore doors bring back edges that already existed; gating them would delete user data. Tests keep a legacy illegal edge across delete + undo + redo + restoreGraph."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "undo_canvas_delete",
+      "disposition": "enforced",
+      "evidence": "Restore write passes restoredEdgeIds through gateway.apply (disk and renderer) so legacy illegal edges come back; test in mcpSemanticOperationMatrix.test.ts."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new action, MCP tool or import that appends edges can skip the gate; earlier rounds (T8, B2) each patched one door.",
+    "same_class_scan": [
+      "grep for .edges assignment and .edges.push in src and electron (non-test): every hit is registered in check:canvas-edge-writers or was routed through appendAdmittedEdges",
+      "node scripts/door-map.mjs connectNodes addEdge validateReferenceEdge: write doors enumerated and tabled in docs/plan/2026-10-10-edge-validation-all-entries.md",
+      "Probes from the review (video/audio -> text via the pure function, clipboard with illegal edge) turned into tests and mutation-checked red"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/canvas/edgeAdmission.ts",
+    "invariant": "No new edge exists unless validateReferenceEdge accepts it for the two endpoint nodes.",
+    "failure_mode": "Rejected edges are skipped with a reason code (headless / agent) or a one-line notice (paste / copy / external write); nodes are still created.",
+    "exception_policy": "none",
+    "strategy": "One rule in the neutral layer, one append function in the store, the headless and merge paths call the same function, and a gate pins the list of files that may write .edges.",
+    "artifacts": [
+      "electron/shared/canvas/edgeAdmission.ts",
+      "src/workbench/generationCanvas/store/canvasEdgeWrite.ts",
+      "scripts/check-canvas-edge-writers.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasEdgeAdmission.test.ts",
+    "electron/capabilityCore/canvasGraph.test.ts",
+    "electron/shared/canvas/externalCanvasWrite.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/canvas/edgeAdmission.test.ts",
+    "scripts/check-canvas-edge-writers.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "src/workbench/generationCanvas/nodes/registry.ts"
+    ],
+    "rationale": "The renderer copy of validateReferenceEdge and its helpers and the 17 inline connects literals were deleted; both now reference electron/shared/canvas/edgeAdmission."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration: old edges stay on the canvas and in project files; execution ignores kind-illegal ones. No file-format change.",
+  "residual_risks": [
+    "No UI marks old illegal edges yet (product decision pending).",
+    "Restore doors (undo / load) are intentionally ungated; a future restore that fabricates edges would not be caught by this gate.",
+    "Provenance (derived-output) edges carry no marker, so resolveGenerationReferences keeps them by kind pair (derivedOutput rules): an old hand-drawn clip -> video edge is treated as provenance and may become a video reference. A marker field would need a product/data decision and was not invented here."
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/shared/canvas/edgeAdmission.ts",
+      "electron/shared/canvas/externalCanvasWrite.ts",
+      "electron/capabilityCore/canvasGraph.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "src/workbench/generationCanvas/nodes/registry.ts",
+      "src/workbench/generationCanvas/store/canvasEdgeWrite.ts",
+      "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "src/workbench/generationCanvas/store/canvasGroupMoveActions.ts",
+      "src/workbench/generationCanvas/store/canvasNodeActions.ts",
+      "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "src/workbench/generationCanvas/model/derivedOutput.ts"
+    ],
+    "preserved_exports": [
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "validateReferenceEdge"
+      },
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "referenceAssetKindForNode"
+      },
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "archetypeForNode"
+      },
+      {
+        "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+        "name": "isTextPromptEdge"
+      }
+    ],
+    "behavior_preservation": "validateReferenceEdge keeps its order of checks (input false, text prompt edge, referenceable source, asset list, archetype slots); it is now split into validateEdgeKinds plus the archetype-slot half called inside the same function. Renderer callers import the same names from referenceEdgeCapability (re-exported). The only intended change: unknown node kinds are refused instead of depending on the registry lookup.",
+    "verification_limits": "Unit tests, typecheck, i18n, boundaries and the wide vitest run over generationCanvas / capability / project / creation / electron ran on Windows; no real-Electron walk and no macOS run on this line."
+  }
+}
