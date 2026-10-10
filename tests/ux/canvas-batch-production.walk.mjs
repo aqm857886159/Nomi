@@ -340,7 +340,9 @@ try {
   const modelsBefore = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.map((node) => [node.id, node.meta?.modelKey, node.meta?.modelVendor]))
   await generateGroup.click()
   let dialog = await spendDialog(win)
-  check(/3\s*(张|个|项|次|份)/.test(await dialog.innerText()), '确认卡覆盖整组 3 张', await dialog.innerText())
+  // 确认卡现在是逐项清单（每个节点一行、没生成的默认勾上），数量就是清单行数；不再有一句「N 张」的话。
+  const planBoxes = '[data-v4-block="plan-rows"] input[type="checkbox"]'
+  check(await dialog.locator(planBoxes).count() === 3 && await dialog.locator(`${planBoxes}:checked`).count() === 3, '确认卡覆盖整组 3 张（3 行、都默认勾上）', await dialog.innerText())
   await snap(win, 'spend-confirm-before-cancel')
   await dialog.getByRole('button', { name: '取消', exact: true }).click()
   await win.waitForTimeout(700)

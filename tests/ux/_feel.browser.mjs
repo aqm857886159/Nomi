@@ -262,7 +262,7 @@ test('media badges: transparent and translucent text fail; OKLCH overlay passes 
   } finally { await browser.close() }
 })
 
-test('production shot number, mounted names and overflow exceed 4.5 over any media in light/dark', async () => {
+test('production shot role badge, mounted names and overflow exceed 4.5 over any media in light/dark', async () => {
   const { createRequire } = await import('node:module')
   const require = createRequire(import.meta.url)
   const { build } = createRequire(require.resolve('vite/package.json'))('esbuild')
@@ -272,7 +272,7 @@ test('production shot number, mounted names and overflow exceed 4.5 over any med
       const { ShotPreviewOverlays } = require('./src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx');
       const ShotMountBadges = require('./src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx').default;
       module.exports = renderToStaticMarkup(React.createElement('div', null,
-        React.createElement(ShotPreviewOverlays, {shotIndex: 1}),
+        React.createElement(ShotPreviewOverlays, {shotRole: 'first_frame'}),
         React.createElement(ShotMountBadges, { cards: [{id:'a',title:'Actor',kind:'character'}, {id:'b',title:'Scene',kind:'scene'}, {id:'c',title:'Prop',kind:'scene'}] })));`, resolveDir: process.cwd() },
     bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external',
     plugins: [{ name: 'translation-fixture', setup(builder) {
