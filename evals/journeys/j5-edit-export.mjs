@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { check } from "../lib/journeyRunner.mjs";
 import { dismissSplashIfPresent, waitForPersistedCanvas } from "../lib/isoApp.mjs";
-import { backToLibrary } from "../../tests/ux/_shell.mjs";
+import { backToLibrary, canvasFitViewButton } from "../../tests/ux/_shell.mjs";
 
 const require = createRequire(import.meta.url);
 const ffprobePath = require("@ffprobe-installer/ffprobe").path;
@@ -204,7 +204,7 @@ async function placeNodeNearStageTop(win) {
   const { findCanvasBlankPoint } = await import("../../tests/ux/_canvasHit.mjs");
   // 先点真实的「适应视图」把节点收回视野（只渲染可见节点：节点在视野外时 DOM 里根本没有它，量不到也点不到）。
   // 这里以前点的是「适应画布」——那颗按钮不存在（真名是「适应视图」），`.catch(() => {})` 把它静默吞成了空操作。
-  await win.getByLabel("适应视图", { exact: true }).first().click({ timeout: 8_000 });
+  await canvasFitViewButton(win).click({ timeout: 8_000 });
   let lastTransform = null;
   await expect.poll(async () => {
     const transform = await win.evaluate(() => {

@@ -20,7 +20,7 @@ import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectHittable, proveProbe, expectAbsent, clickOrFail, expectVisible } from './_assert.mjs'
 
 import { fileURLToPath } from 'node:url'
-import { AGENT_PANEL, newProjectEntry } from './_shell.mjs'
+import { AGENT_PANEL, CANVAS_ADD_MORE_MENU, CANVAS_NAV_STACK, canvasAddBar, canvasAddMoreMenu, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
@@ -67,7 +67,7 @@ try {
   await screenshotSettled(win, { path: path.join(shots, '00-generation-workspace.png') })
 
   // ───────── #16 文字节点回常驻区 ─────────
-  const rail = win.locator('.generation-canvas-v2-toolbar').first()
+  const rail = canvasAddBar(win)
   await expectVisible(rail, '左缘生成画布工具条')
   const residentLabels = await rail.locator('button').evaluateAll((bs) => bs.map((b) => (b.getAttribute('aria-label') || b.textContent || '').trim()))
   const moreButton = rail.locator('button[aria-label="更多"]').first()
@@ -78,7 +78,7 @@ try {
   // 打开「更多」菜单，确认文字不在其中（同一现场的对偶断言，不是空断言）
   await moreButton.hover()
   await win.waitForTimeout(500)
-  const moreMenu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+  const moreMenu = canvasAddMoreMenu(win)
   const moreVisible = await moreMenu.isVisible().catch(() => false)
   const moreLabels = moreVisible
     ? await moreMenu.locator('button').evaluateAll((bs) => bs.map((b) => (b.getAttribute('aria-label') || b.textContent || '').trim()))
@@ -131,12 +131,12 @@ try {
 
   const openedFirst = await hoverOpenMenu()
   const menuBox = openedFirst ? await moreMenu.boundingBox() : null
-  const zOrder = await win.evaluate(() => {
-    const menu = document.querySelector('.generation-canvas-v2-toolbar__more-menu')
+  const zOrder = await win.evaluate((menuSelector) => {
+    const menu = document.querySelector(menuSelector)
     const card = document.querySelector('.generation-canvas-v2-node__composer-card')
     const zi = (el) => { if (!el) return null; const v = getComputedStyle(el).zIndex; return v === 'auto' ? 'auto' : Number.parseInt(v, 10) }
     return { menuZ: zi(menu), cardZ: zi(card), cardPresent: Boolean(card) }
-  })
+  }, CANVAS_ADD_MORE_MENU)
 
   // 四条真人路径 = {最顶项, 最底项} × {慢, 快}。
   //  · 最顶项在按钮**上沿之上** 100+px，指针必须斜着往上走 —— 2026-09-11 走查红的就是它；
@@ -341,7 +341,7 @@ try {
   const widened = await rectsOf({
     ...SEL,
     handle: '[data-timeline-strip]',
-    navStack: '.generation-canvas-v2__navigation-stack',
+    navStack: CANVAS_NAV_STACK,
     canvas: '.workbench-generation__canvas',
   })
   const overlap = intersects(widened.handle, widened.navStack)

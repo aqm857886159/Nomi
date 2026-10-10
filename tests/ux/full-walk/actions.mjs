@@ -3,6 +3,7 @@
 import { clickOrFail, expect, waitForVisualQuiescence } from '../_assert.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
 import { findCanvasBlankPoint, findConnectionStartPoint, findNodeHitPoint, panCanvasUntilInside } from '../_canvasHit.mjs'
+import { canvasFitViewButton } from '../_shell.mjs'
 
 export const nodeSelector = (id) => `.react-flow__node[data-id="${id}"]`
 export const SPEND_DIALOG = '[data-spend-confirm-dialog]'
@@ -42,7 +43,7 @@ export async function clickBlank(win) {
  * 不先适应视图就去找它，只会得出「画布上没有这张卡」的假结论。
  */
 export async function fitCanvasView(win) {
-  const fit = win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first()
+  const fit = canvasFitViewButton(win)
   await clickOrFail(fit, '画布「适应视图」')
   await waitForVisualQuiescence(win)
 }

@@ -13,6 +13,11 @@ export const RAW_SHELL_PATTERNS = [
   [/\[data-v4-control="(?:collapse|dock-open)"\]/, 'collapseAgentPanel() / ensureAgentPanelOpen()'],
   [/\[data-agent-resident="true"\]\[data-agent-(?:panel|collapsed)="true"\]/, 'AGENT_PANEL / COLLAPSED_SHELL（_shell.mjs 导出）'],
   [/(?:getByText|getByRole|locator)\([^)]*新建空白项目/, 'newProjectEntry()'],
+  // 画布底部（拍板稿 Main 板，2026-10-10 用户看真 App 指出加节点条还在左侧、缩放没收紧）：位置一变，这些选择器 / 控件名同时悬空。
+  [/generation-canvas-v2-toolbar(?!__node-menu)|generation-canvas-v2__(?:zoom-bar|navigation-stack)/, 'canvasAddBar() / canvasFitViewButton() / CANVAS_* 常量（_shell.mjs）'],
+  [/getBy(?:Role|Label)\([^)]*(?:适应视图|Fit view|重置视图|Reset view|缩放比例|Zoom level|画布操作|Canvas controls|画框|Draw Frame)/, 'canvasFitView / canvasResetView / canvasZoomSlider / canvasControlsHelpTrigger…（_shell.mjs）'],
+  [/aria-label=\\?"(?:适应视图|重置视图|缩放比例|画框)\\?"/, 'canvasFitViewButton / canvasResetView / canvasZoomSlider（_shell.mjs）'],
+  [/generationCommon\.navigation\.(?:resetView|zoomRatio|fitView|zoomIn|zoomOut|viewOptions)|generationCommon\.canvas\.controlsHelp\.aria/, '_shell.mjs 的 canvasResetView / canvasZoomSlider / canvasFitViewButton / canvasControlsHelpDialog…'],
   [/data-testid="open-model-settings"|aria-label="打开模型设置"|name:\s*(?:\/|')打开模型设置/, 'openModelSettings() / modelSettingsEntry()'],
 ]
 

@@ -14,6 +14,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint, findEdgeHitPoint, findNodeHitPoint, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
+import { canvasResetView } from './_shell.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const evidence = path.join(root, 'docs/plan/canvas-magnetic-handle-evidence')
@@ -132,7 +133,7 @@ try {
   // 打开项目那一刻画布会一次性摆全貌（useAutoFitOnLoad：没有记住的视角 → 量完节点后适应一次）。这条走查量的是
   // 1:1 下握把 / 带子的屏幕像素，像人一样先点「重置视图」回到 100%，再开始。
   await waitForCanvasViewportSettled(win)
-  await win.getByRole('button', { name: '重置视图', exact: true }).first().click()
+  await canvasResetView(win)
   await waitForCanvasViewportSettled(win)
   expect((await readCanvasViewport(win))?.zoom, '重置视图后缩放回到 100%').toBeCloseTo(1, 3)
 

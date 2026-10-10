@@ -1,5 +1,6 @@
 import { findCanvasBlankPoint, findNodeHitPoint } from '../_canvasHit.mjs'
 import { AUTO_PAN_SAFE_MARGIN_PX } from './gestureGeometry.mjs'
+import { canvasFitViewButton, canvasResetView } from '../_shell.mjs'
 
 // New drag scenarios for eval v2 (U1). These are action runners layered on the
 // existing benchmark harness: they reuse its mouse-driven drag mechanic but add
@@ -324,7 +325,7 @@ async function stageBox(page) {
  */
 export async function fitCanvasView(page, { expectZoomBelow = 0.9 } = {}) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await page.getByLabel('适应视图').first().click()
+    await canvasFitViewButton(page).click()
     await sleep(page, 800)
     const zoom = await readCanvasZoom(page)
     if (zoom !== null && zoom < expectZoomBelow) return zoom
@@ -339,7 +340,7 @@ export async function fitCanvasView(page, { expectZoomBelow = 0.9 } = {}) {
  */
 export async function resetCanvasView(page) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await page.getByRole('button', { name: '重置视图', exact: true }).first().click()
+    await canvasResetView(page)
     await sleep(page, 800)
     const zoom = await readCanvasZoom(page)
     if (zoom !== null && Math.abs(zoom - 1) < 0.001) return zoom

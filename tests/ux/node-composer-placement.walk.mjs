@@ -25,7 +25,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasAddMoreMenu, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/node-composer-placement')
@@ -280,7 +280,7 @@ try {
   const generationTab = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generationTab.waitFor()
   await generationTab.click()
-  const toolbar = getWin().locator('.generation-canvas-v2-toolbar').first()
+  const toolbar = canvasAddBar(getWin())
   await toolbar.waitFor()
   await getWin().locator('.react-flow').first().waitFor()
   check('生成画布就绪（React Flow 已挂载）', true)
@@ -293,7 +293,7 @@ try {
       await resident.click({ timeout: 4000 })
     } else {
       await toolbar.locator('[data-canvas-add-more="true"]').first().click({ timeout: 4000 })
-      await getWin().locator(`.generation-canvas-v2-toolbar__more-menu [data-node-kind="${kind}"]`).first().click({ timeout: 4000 })
+      await canvasAddMoreMenu(getWin()).locator(`[data-node-kind="${kind}"]`).first().click({ timeout: 4000 })
     }
     await expect.poll(() => getWin().locator('[data-node-id]').count(), { message: `添加${label}节点后画布节点数必须增加` }).toBeGreaterThan(before)
   }

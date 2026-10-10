@@ -25,7 +25,7 @@ import { findCanvasBlankPoint, findFrameDragHandlePoint, findNodeHitPoint, CANVA
 import { stationTimeout } from './_station-budget.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
-import { collapseAgentPanel } from './_shell.mjs'
+import { canvasControlsHelpDialog, canvasControlsHelpTrigger, collapseAgentPanel } from './_shell.mjs'
 
 const LOCALE = process.argv[2] === 'en' ? 'en' : 'zh-CN'
 const LABEL = process.argv[3] || 'run'
@@ -558,7 +558,7 @@ try {
   // ═══ B5 提示：画布操作帮助里有「⌥ Option + 拖动 / Alt + 拖动」一行 ═══
   {
     await clickBlank()
-    const help = win.getByRole('button', { name: LOCALE === 'en' ? 'Canvas controls' : '画布操作', exact: true }).first()
+    const help = await canvasControlsHelpTrigger(win)
     // 真人只能点露在外面的那部分：先量按钮中心最顶层是不是它自己。
     const helpHittable = await help.evaluate((button) => {
       const r = button.getBoundingClientRect()
@@ -573,7 +573,7 @@ try {
       await waitForVisualQuiescence(win)
     }
     await help.click()
-    const panel = win.getByLabel(LOCALE === 'en' ? 'Canvas controls help' : '画布操作帮助')
+    const panel = canvasControlsHelpDialog(win)
     await expect(panel, '画布操作帮助没打开').toBeVisible()
     const text = await panel.innerText()
     const keyName = process.platform === 'darwin' ? '⌥ Option' : 'Alt'

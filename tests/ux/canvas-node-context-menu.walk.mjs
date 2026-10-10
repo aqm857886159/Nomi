@@ -19,7 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-node-context-menu')
@@ -82,7 +82,7 @@ try {
   await dismissFirstRun()
   await resize(1600, 1000)
   await getWin().getByRole('button', { name: '生成', exact: true }).first().click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
 
   // ── 先用「右键空白 → 添加节点」建一个节点（顺带守住这条路没被带坏）──
   const blank = await findBlankPoint()

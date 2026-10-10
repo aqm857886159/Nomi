@@ -20,6 +20,7 @@ import {
   CANVAS_PANEL, TOOL_RECEIPT, chooseAssistantModel, createRuntimeWalk, expandResidentPanel, hasToolResult, openCanvas, readProject, recorded,
   sendCanvas, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
+import { canvasAddBar } from './_shell.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const IMAGE = path.join(here, 'fixtures', 'test-upload.png')
@@ -42,7 +43,7 @@ try {
   await openCanvas(win)
   await expandResidentPanel(win)
 
-  const rail = win.locator('.generation-canvas-v2-toolbar').first()
+  const rail = canvasAddBar(win)
   const nodeIds = () => win.evaluate(() => (window.__nomiCanvasStore?.getState().nodes || []).map((node) => node.id))
   const editorOf = (id) => win.locator(`[data-node-id="${id}"] .ProseMirror`).first()
 

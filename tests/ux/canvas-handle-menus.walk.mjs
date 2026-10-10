@@ -21,7 +21,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { uiText } from './full-walk/invariants.mjs'
+import { canvasAddBar, canvasAddMoreMenu, canvasResetView } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
@@ -125,7 +125,7 @@ try {
   await expect(win.locator('.react-flow__node')).toHaveCount(nodes.length)
   // 打开项目会一次性「摆全貌」（最左一列会贴到左缘工具条底下）；像人一样点「重置视图」回到 1:1。
   await waitForCanvasViewportSettled(win)
-  await win.getByRole('button', { name: uiText(zh ? 'zh-CN' : 'en', 'generationCommon.navigation.resetView'), exact: true }).first().click()
+  await canvasResetView(win)
   await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 
@@ -307,17 +307,17 @@ try {
   const spaceKinds = async (menu) => menu.locator('[data-node-kind]').evaluateAll((items) => items.map((item) => item.getAttribute('data-node-kind')))
   await task('07b-toolbar-plus-opens-space-menu', async () => {
     await win.evaluate(() => /** @type {any} */ (window).__nomiCanvasStore.getState().selectNodes([]))
-    const plus = win.locator('.generation-canvas-v2-toolbar [data-canvas-add-more="true"]')
+    const plus = canvasAddBar(win).locator('[data-canvas-add-more="true"]')
     await plus.click()
-    const menu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+    const menu = canvasAddMoreMenu(win)
     await expect(menu).toBeVisible()
     expect(await spaceKinds(menu)).toEqual(SPACE_KINDS)
     await shot('11-plus-menu-toolbar')
     await win.keyboard.press('Escape')
-    await expect(win.locator('.generation-canvas-v2-toolbar__more-menu')).toHaveCount(0)
+    await expect(canvasAddMoreMenu(win)).toHaveCount(0)
     await plus.hover()
     await win.waitForTimeout(500)
-    await expect(win.locator('.generation-canvas-v2-toolbar__more-menu'), '只悬停不开（点开才出菜单）').toHaveCount(0)
+    await expect(canvasAddMoreMenu(win), '只悬停不开（点开才出菜单）').toHaveCount(0)
   })
 
   await task('08-empty-canvas-task-cards', async () => {
@@ -333,12 +333,12 @@ try {
     await shot('10-empty-canvas')
     const more = win.locator('[data-empty-canvas-tasks] [data-canvas-add-more="true"]')
     await more.click()
-    const moreMenu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+    const moreMenu = canvasAddMoreMenu(win)
     await expect(moreMenu).toBeVisible()
     expect(await spaceKinds(moreMenu), '空画布「更多」与加节点条「+」同一个菜单').toEqual(SPACE_KINDS)
     await shot('12-plus-menu-empty-canvas')
     await win.keyboard.press('Escape')
-    await expect(win.locator('.generation-canvas-v2-toolbar__more-menu')).toHaveCount(0)
+    await expect(canvasAddMoreMenu(win)).toHaveCount(0)
   })
 } finally {
   await run.close().catch(() => {})

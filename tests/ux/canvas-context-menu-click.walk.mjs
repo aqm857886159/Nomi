@@ -23,7 +23,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-context-menu-click')
@@ -106,7 +106,7 @@ try {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 8000 })
   await generation.click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
   await snap('01-canvas.png')
 
   // ── 右键空白 → 菜单必须弹出 ───────────────────────────────────────────

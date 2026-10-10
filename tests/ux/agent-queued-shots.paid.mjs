@@ -25,6 +25,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER, INTERVENTION_CONFIRM,
   chooseAssistantModel, closeSpendCard, openCanvas, readProject, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const MODEL_TURN_MS = stationTimeout({ turns: 1 })
 const VIDEO_LANDS_MS = stationTimeout({ turns: 2 })
@@ -95,7 +96,7 @@ try {
   if (blankBeforeZoom) await win.mouse.click(blankBeforeZoom.x, blankBeforeZoom.y)
   await waitForVisualQuiescence(win)
   // 常驻 Agent 面板会盖住画布右侧；像用户一样先「适应视图」，再点第 2 镜上真正点得到的那一处。
-  await clickOrFail(win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first(), '适应视图')
+  await clickOrFail(canvasFitViewButton(win), '适应视图')
   await waitForVisualQuiescence(win)
   // 适应视图之后两镜在框里很小（点下去会选中框而不是镜头）：像用户一样按住 Ctrl 滚轮、锚在第 2 镜上放大到看得清再点。
   const shot2Node = win.locator(`[data-node-id="${shot2}"]`).first()

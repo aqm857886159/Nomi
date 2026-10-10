@@ -16,7 +16,11 @@ import { uiText } from './full-walk/invariants.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { AGENT_PANEL, backToLibrary } from './_shell.mjs'
+import {
+  CANVAS_ADD_BAR, CANVAS_ADD_MORE_MENU, CANVAS_ZOOM_BAR, canvasAddMoreMenu, canvasZoomSlider,
+  AGENT_PANEL, backToLibrary, canvasAddBar, canvasFitViewButton, canvasToggleFrameTool, canvasViewOption, canvasZoomPercent, canvasZoomStep,
+  closeCanvasViewOptions, openCanvasViewOptions, canvasResetView, canvasSetZoomPercent,
+} from './_shell.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'shots/shell-redesign')
@@ -211,6 +215,66 @@ try {
     ball: await box(win, '[data-agent-ball]'),
   }
   await shoot(win, 'main')
+
+  // 拍板稿 Main 板对账（用户 10-10 看真 App 指出三处没对齐）：
+  //   ① 加节点条在内容区底部正中、横排；② 缩放收成「⛶ | − 100% + | ⋯」放左下，其余控件一个不丢收在 ⋯；
+  //   ③ 创作 | 生成 | 预览 按整个窗口宽度居中（生成页右边那个槽不参与居中）。
+  if (want('check-canvas-chrome')) {
+    const rect = (selector) => win.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height, cx: b.left + b.width / 2 } }, selector)
+    const windowWidth = await win.evaluate(() => document.documentElement.clientWidth)
+    // ③ 居中：分段中心与窗口中心偏差 ≤ 1px；往槽里塞一个宽元素（列表线的 icon 位）之后仍然 ≤ 1px。
+    const stepperBefore = await rect('[data-shell-stage-center] .nomi-stepper')
+    expect(Math.abs(stepperBefore.cx - windowWidth / 2), `分段中心 ${stepperBefore.cx} 偏离窗口中心 ${windowWidth / 2}`).toBeLessThanOrEqual(1)
+    await win.evaluate(() => { const slot = document.querySelector('[data-shell-view-switcher-slot]'); const probe = document.createElement('span'); probe.id = 'walk-slot-probe'; probe.style.cssText = 'display:inline-block;width:96px;height:26px;background:#888'; slot?.appendChild(probe) })
+    const stepperAfter = await rect('[data-shell-stage-center] .nomi-stepper')
+    const probeBox = await rect('#walk-slot-probe')
+    expect(Math.abs(stepperAfter.cx - windowWidth / 2), `槽里放了东西，分段被推歪了：${stepperAfter.cx}`).toBeLessThanOrEqual(1)
+    expect(probeBox.left, '槽没挂在分段右边').toBeGreaterThan(stepperAfter.right)
+    await shoot(win, 'check-topbar-slot')
+    await win.evaluate(() => document.getElementById('walk-slot-probe')?.remove())
+    // ① 加节点条：横排、水平居中于内容区、贴底（在时间轴窄条之上）。
+    const stage = await rect('.workbench-generation__canvas')
+    const addBar = await rect(CANVAS_ADD_BAR)
+    const buttons = await win.evaluate((bar) => [...document.querySelectorAll(`${bar} [data-add-intent]`)].map((el) => ({ intent: el.getAttribute('data-add-intent'), top: Math.round(el.getBoundingClientRect().top), left: Math.round(el.getBoundingClientRect().left) })), CANVAS_ADD_BAR)
+    expect(buttons.map((b) => b.intent), '常驻位：图片 视频 声音 文字 剪辑 导入').toEqual(['image', 'video', 'audio', 'text', 'clip', 'import-file'])
+    expect(new Set(buttons.map((b) => b.top)).size, '加节点条不是一条横排').toBe(1)
+    expect(Math.abs(addBar.cx - (stage.left + stage.width / 2)), `加节点条中心 ${addBar.cx} 没落在内容区中线 ${stage.left + stage.width / 2}`).toBeLessThanOrEqual(2)
+    expect(stage.bottom - addBar.bottom, '加节点条没贴着底').toBeLessThanOrEqual(24)
+    // ② 缩放簇：左下，五个控件；⋯ 里原来的控件都在。
+    const zoomBar = await rect(CANVAS_ZOOM_BAR)
+    expect(zoomBar.left - stage.left, '缩放簇不在左下').toBeLessThanOrEqual(24)
+    expect(stage.bottom - zoomBar.bottom, '缩放簇没贴着底').toBeLessThanOrEqual(24)
+    expect(Math.abs(zoomBar.bottom - addBar.bottom), '缩放簇与加节点条底边不齐').toBeLessThanOrEqual(1)
+    const zoomBefore = await canvasZoomPercent(win)
+    await canvasZoomStep(win, 'in')
+    await expect.poll(() => canvasZoomPercent(win), { message: '点 + 没放大', timeout: DEFAULT_TIMEOUT_MS }).toBeGreaterThan(zoomBefore)
+    await canvasZoomStep(win, 'out')
+    await openCanvasViewOptions(win)
+    for (const option of ['reset-view', 'frame-tool', 'tidy', 'minimap', 'controls-help']) await expect(canvasViewOption(win, option), `⋯ 里少了「${option}」`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expect(win.locator('[data-canvas-view-options] input[type="range"]'), '⋯ 里少了缩放滑块').toBeVisible()
+    await shoot(win, 'check-canvas-view-options')
+    await closeCanvasViewOptions(win)
+    await canvasSetZoomPercent(win, 60)
+    await expect.poll(() => canvasZoomPercent(win), { message: '滑块没把缩放调到 60%', timeout: DEFAULT_TIMEOUT_MS }).toBe(60)
+    await canvasResetView(win)
+    await expect.poll(() => canvasZoomPercent(win), { message: '重置视图没回到 100%', timeout: DEFAULT_TIMEOUT_MS }).toBe(100)
+    await canvasToggleFrameTool(win)
+    await openCanvasViewOptions(win)
+    await expect(canvasViewOption(win, 'frame-tool'), '画框没进入就绪态').toHaveAttribute('aria-pressed', 'true')
+    await closeCanvasViewOptions(win)
+    await canvasToggleFrameTool(win)
+    // 「+」：空间一组（导演台 / 3D 模型 / 全景 / 白板），向上展开。
+    await canvasAddBar(win).locator('[data-canvas-add-more="true"]').click()
+    const moreMenu = canvasAddMoreMenu(win)
+    await expect(moreMenu, '「+」没展开空间一组').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    expect(await moreMenu.locator('[data-node-kind]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-kind'))), '「+」里的分法').toEqual(['director', 'model3d', 'panorama', 'whiteboard'])
+    const menuBox = await rect(CANVAS_ADD_MORE_MENU)
+    expect(menuBox.bottom, '「+」菜单没往上展开').toBeLessThanOrEqual(addBar.top)
+    await shoot(win, 'check-canvas-add-more')
+    await win.keyboard.press('Escape')
+    await expect(canvasFitViewButton(win), '适应视图钮不在').toBeVisible()
+    measures.canvasChrome = { stepperCenter: stepperBefore.cx, windowCenter: windowWidth / 2, addBar, zoomBar, stage }
+  }
 
   // Chrome 板：小球三态（显示态注入，见文件头）
   const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, n, u), [status, pending, unread])
@@ -576,7 +640,7 @@ try {
     await expect.poll(nodeCount, { message: '#39 左栏加图片节点没生效', timeout: stationTimeout() }).toBe(before39 + 1)
     await win.keyboard.press('Escape')
     await clickOrFail(win.locator('[data-canvas-add-more="true"]').first(), '#40 打开「更多」')
-    const moreMenu = win.locator('.generation-canvas-v2-toolbar__more-menu').first()
+    const moreMenu = canvasAddMoreMenu(win).first()
     await expect(moreMenu, '#40 「更多」菜单没展开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     const moreKinds = await moreMenu.locator('[data-node-kind]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-node-kind')))
     expect(moreKinds.includes('director'), `#40 「更多」里没有导演台（${moreKinds.join(',')}）`).toBe(true)
@@ -585,11 +649,12 @@ try {
     await win.mouse.click(700, 80)
     const scaleOf = () => win.evaluate(() => { const t = getComputedStyle(document.querySelector('.react-flow__viewport')).transform; const m = /matrix\(([^,]+)/.exec(t); return m ? Number(m[1]) : 1 })
     const scale0 = await scaleOf()
-    const zoomRange = win.locator('input[aria-label="缩放比例"]').first()
+    const zoomRange = await canvasZoomSlider(win)
     await zoomRange.focus()
     for (let i = 0; i < 4; i += 1) await win.keyboard.press('ArrowRight')
     await expect.poll(scaleOf, { message: '#42 缩放滑杆没改变画布缩放', timeout: stationTimeout() }).not.toBe(scale0)
-    await clickOrFail(win.getByRole('button', { name: uiText('zh-CN', 'generationCommon.navigation.fitView') }).first(), '#42 适应全部')
+    await closeCanvasViewOptions(win)
+    await clickOrFail(canvasFitViewButton(win), '#42 适应全部')
     parity2.canvas = { added: 'image', moreKinds, zoomFrom: scale0, zoomTo: await scaleOf() }
 
     // #14 素材拖进画布、双击全屏预览；#50 素材全屏预览不被外壳裁切。

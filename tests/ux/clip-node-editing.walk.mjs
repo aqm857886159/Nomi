@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
 import { findEdgeHitPoint, findElementHitPoint, followArrivalHint, readArrivalLedger, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { canvasResetView, canvasZoomSlider } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const require = createRequire(import.meta.url)
@@ -136,7 +137,7 @@ async function openCanvas() {
   // 打开项目那一刻画布会摆一次全貌（useAutoFitOnLoad，v0.22.1）：缩放随窗口大小而变（CI 1280×933 约 0.6、Windows 本机约 1.07）。
   // 这条走查按屏幕像素拖片段、量吸附（「拖到离轨道起点 3px」），前提是 1:1。像用户一样先点「重置视图」回到 100%，再开始。
   await waitForCanvasViewportSettled(win)
-  await win.getByRole('button', { name: '重置视图', exact: true }).first().click()
+  await canvasResetView(win)
   const reset = await waitForCanvasViewportSettled(win)
   if (!reset || Math.abs(reset.zoom - 1) > 0.001) throw new Error(`重置视图后缩放没有回到 100%：${JSON.stringify(await readCanvasViewport(win))}`)
   await node.click({ position: { x: 20, y: 20 } })
@@ -581,7 +582,7 @@ try {
   // 刚才点边缘提示把视口带到了输出区域；先走真实的「重置视图」动作回到片段，
   // 再从当前 DOM 几何取命中点。固定中心坐标可能已经落到窗口外，Playwright
   // 会报 html 拦截点击，但用户从可见画布点片段本身仍然是可用的。
-  await win.getByRole('button', { name: '重置视图', exact: true }).click()
+  await canvasResetView(win)
   await win.waitForTimeout(400)
   const firstBox = await first.boundingBox()
   if (!firstBox) throw new Error('找不到首个片段')
@@ -700,7 +701,7 @@ try {
   const importUsesRealDuration = Boolean(importedClipBox && importedClipBox.width >= 220)
   await screenshotSettled(win, { path: screenshots.imported })
 
-  const canvasZoom = win.getByRole('slider', { name: '缩放比例' }).first()
+  const canvasZoom = await canvasZoomSlider(win)
   await canvasZoom.evaluate((element) => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
     setter?.call(element, '50')

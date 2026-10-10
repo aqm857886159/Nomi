@@ -1,5 +1,6 @@
 import { expect, expectAbsent, proveProbe } from '../_assert.mjs'
 import { tsImport } from 'tsx/esm/api'
+import { canvasFitViewButton } from '../_shell.mjs'
 
 const { readProcessMotionCapability, shouldReduceProcessMotion } = await tsImport(
   '../../../src/workbench/generationCanvas/nodes/processMotionCapability.ts', import.meta.url,
@@ -32,7 +33,7 @@ export async function prepareWaitingFx(page) {
   }, WAITING_NODE_COUNT)
   // Native window bounds may be clamped by the display (e.g. Linux Xvfb).
   // Fit the selected visible-node workload before React Flow culls offscreen nodes.
-  await page.getByRole('button', { name: '适应视图', exact: true }).click()
+  await canvasFitViewButton(page).click()
   await expect.poll(() => page.evaluate(count => {
     const stage = document.querySelector('.generation-canvas-v2__stage').getBoundingClientRect()
     const nodes = [...document.querySelectorAll('article[data-node-id]')]

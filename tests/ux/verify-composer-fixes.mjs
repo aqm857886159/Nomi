@@ -3,6 +3,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { canvasResetView } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots')
@@ -41,7 +42,7 @@ try {
   await win.getByRole('button', { name: '生成', exact: false }).first().click().catch(() => {})
   await win.waitForTimeout(1200)
   // 重置到 100% 缩放，截图清晰 + 几何判断不被 scale 干扰
-  await win.getByRole('button', { name: '重置视图', exact: false }).first().click().catch(() => {})
+  await canvasResetView(win).catch(() => {})
   await win.waitForTimeout(400)
 
   // 图片节点

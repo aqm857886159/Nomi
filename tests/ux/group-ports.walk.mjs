@@ -9,7 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findConnectionStartPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -158,7 +158,7 @@ const allIds = await win.evaluate(() =>
 const srcId = allIds[allIds.length - 1]
 console.log('  → 连线源:', srcId)
 // 先「适应视图」：组框比视口还大时它的标签在视口外，截图就拍不到改动区（R13 眼见链第四问）。
-const fitBtn = win.locator('[aria-label="适应视图"]').first()
+const fitBtn = canvasFitViewButton(win)
 if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await waitForCanvasViewportSettled(win) }
 await win.locator(`[data-node-id="${srcId}"]`).first().click({ timeout: 4000 })
 await expect.poll(() => win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle`).count()).toBeGreaterThan(0)

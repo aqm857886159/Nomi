@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpeg = require('@ffmpeg-installer/ffmpeg').path
@@ -189,7 +190,7 @@ try {
   await card.waitFor({ state: 'visible' })
   await card.dblclick()
   await win.getByRole('button', { name: '生成', exact: true }).click()
-  await win.getByLabel('适应视图', { exact: true }).click()
+  await canvasFitViewButton(win).click()
   await expect(win.locator('[data-node-id]')).toHaveCount(4)
   await expect.poll(() => win.locator('[data-node-id] img').count()).toBe(4)
   await expect

@@ -7,7 +7,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasZoomSlider, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tmp = makeTempDir('nomi-page-zoom-')
@@ -111,7 +111,7 @@ try {
   await win.keyboard.press('Escape').catch(() => {})
   const generationTab = win.getByRole('button', { name: '生成', exact: false }).first()
   if ((await generationTab.count()) > 0) await generationTab.click()
-  const canvasZoom = win.getByRole('slider', { name: '缩放比例' }).first()
+  const canvasZoom = await canvasZoomSlider(win)
   await canvasZoom.waitFor({ state: 'visible', timeout: 8000 })
   const beforeCanvasZoom = Number(await canvasZoom.inputValue())
   const targetCanvasZoom = beforeCanvasZoom === 150 ? 125 : 150

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { CANVAS_ADD_BAR, canvasAddBar } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/react-flow-read-only')
@@ -93,13 +94,13 @@ try {
     }
   })
   check('只读画布仍渲染节点、边和编组', initial.nodes.length === 2 && initial.edges.length === 1 && initial.groups.length === 1, JSON.stringify(initial))
-  check('只读画布不显示新增工具栏', await win.locator('.generation-canvas-v2-toolbar').count() === 0)
+  check('只读画布不显示新增工具栏', await canvasAddBar(win).count() === 0)
   check('只读画布不暴露素材导入落点', await win.locator('[data-nomi-generation-canvas-import-target]').count() === 0)
   const interactionSurface = await source.evaluate((element) => ({
     className: element.className,
     handles: element.querySelectorAll('.generation-canvas-react-flow__handle').length,
   }))
-  await expectAbsent(win.locator('.generation-canvas-v2-toolbar'), {
+  await expectAbsent(canvasAddBar(win), {
     provenBy: canvasProbe,
     message: '只读画布不显示新增工具栏',
   })
@@ -156,12 +157,12 @@ try {
     return { nodes: state.nodes.length, edges: state.edges.length, groups: state.groups.length }
   })
   const reloadProbe = await proveProbe(win.locator('.react-flow__node[data-id="readonly-source"]'), '刷新后只读节点仍已渲染')
-  await expectAbsent(win.locator('.generation-canvas-v2-toolbar, [data-nomi-generation-canvas-import-target]'), {
+  await expectAbsent(win.locator(`${CANVAS_ADD_BAR}, [data-nomi-generation-canvas-import-target]`), {
     provenBy: reloadProbe,
     message: '刷新后仍无编辑入口',
   })
   check('刷新后只读投影完整恢复', afterReload.nodes === 2 && afterReload.edges === 1 && afterReload.groups === 1, JSON.stringify(afterReload))
-  check('刷新后仍无编辑入口', await win.locator('.generation-canvas-v2-toolbar, [data-nomi-generation-canvas-import-target]').count() === 0)
+  check('刷新后仍无编辑入口', await win.locator(`${CANVAS_ADD_BAR}, [data-nomi-generation-canvas-import-target]`).count() === 0)
   await screenshotSettled(win, { path: path.join(shotsDir, '02-after-reload.png') })
 } catch (error) {
   failures.push(String(error))

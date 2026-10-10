@@ -7,7 +7,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { expectNodeInsideCanvas, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -23,7 +23,7 @@ async function blank() {
   return point
 }
 async function fit() {
-  await win.getByRole('button', { name: '适应视图', exact: true }).click()
+  await canvasFitViewButton(win).click()
   await screenshotSettled(win, { path: path.join(shots, 'fixture.png') })
 }
 async function position(id) {
@@ -53,10 +53,10 @@ try {
   const browserWindow = await app.browserWindow(win)
   await browserWindow.evaluate((window) => window.setBounds({ x: 0, y: 0, width: 1600, height: 1000 }))
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 30000 })
-  await expect(win.locator('.generation-canvas-v2-toolbar')).toBeVisible()
+  await expect(canvasAddBar(win)).toBeVisible()
 
   // Customize in the existing menu, then verify the real IPC and rail see the same preference.
-  const railAudio = win.locator('.generation-canvas-v2-toolbar [data-add-intent="audio"]')
+  const railAudio = canvasAddBar(win).locator('[data-add-intent="audio"]')
   const railAudioProof = await proveProbe(railAudio, 'default rail contains audio')
   let menu = await openMenu()
   const menuAudioProof = await proveProbe(menu.locator('[data-add-intent="audio"]'), 'default full menu contains audio')
@@ -75,7 +75,7 @@ try {
   menu = await openMenu()
   await menu.locator('[data-add-menu-reset]').click()
   await win.keyboard.press('Escape')
-  await expect(win.locator('.generation-canvas-v2-toolbar [data-add-intent="audio"]')).toHaveCount(1)
+  await expect(canvasAddBar(win).locator('[data-add-intent="audio"]')).toHaveCount(1)
   console.log('PASS: hide, order, persistence and restore default')
 
   // Alt copy must appear at the pointer; the source and clipboard are not moved.
@@ -124,17 +124,7 @@ try {
   await addCanvasNodeFromRail(win, 'text')
   await expect(nodes()).toHaveCount(3)
   await fit()
-  // fitView uses the whole pane, including the overlaid add rail. Place this
-  // fixture's left handle beyond the rail before exercising that handle.
-  const fixtureImage = await node(original).boundingBox()
-  const rail = await win.locator('.generation-canvas-v2-toolbar').boundingBox()
-  const imageShift = Math.max(0, rail.x + rail.width + 40 - fixtureImage.x)
-  const fixtureHit = await findNodeHitPoint(win, { nodeSelector: `.generation-canvas-v2-node[data-node-id="${original}"]` })
-  expect(fixtureHit).not.toBeNull()
-  await win.mouse.move(fixtureHit.x, fixtureHit.y)
-  await win.mouse.down()
-  await win.mouse.move(fixtureHit.x + imageShift, fixtureHit.y, { steps: 12 })
-  await win.mouse.up()
+  // 加节点条在内容区底部正中（拍板稿 Main 板），不再盖在左缘：fitView 之后左侧把手露在外面，不用把夹具图片挪开。
   const textIds = await win.locator('.generation-canvas-v2-node[data-kind="text"]').evaluateAll((elements) => elements.map((element) => element.dataset.nodeId))
   const clear = await blank()
   await win.mouse.click(clear.x, clear.y)
@@ -214,7 +204,21 @@ try {
   await expect.poll(attachedEdges).toEqual([...textIds].sort())
   const resizeHandle = resizeNode.locator('.react-flow__resize-control.handle.bottom.right')
   await expect(resizeHandle).toBeVisible()
-  const resizeBox = await resizeHandle.boundingBox()
+  let resizeBox = await resizeHandle.boundingBox()
+  // 加节点条在内容区底部正中（拍板稿 Main 板）：节点右下角的缩放把手若正好落在它底下，真人也点不到——
+  // 人会先把节点往上拖开再缩放，走查照做（把手上最顶层不是它自己就把整张卡往上拖 140px）。
+  const handleCovered = () => win.evaluate(({ x, y }) => !document.elementFromPoint(x, y)?.closest('.react-flow__resize-control'), { x: resizeBox.x + resizeBox.width / 2, y: resizeBox.y + resizeBox.height / 2 })
+  let liftedAwayFromDock = false
+  if (await handleCovered()) {
+    liftedAwayFromDock = true
+    const grab = await findNodeHitPoint(win, { nodeSelector: `.generation-canvas-v2-node[data-node-id="${original}"]` })
+    await win.mouse.move(grab.x, grab.y)
+    await win.mouse.down()
+    await win.mouse.move(grab.x, grab.y - 140, { steps: 12 })
+    await win.mouse.up()
+    resizeBox = await resizeHandle.boundingBox()
+    expect(await handleCovered(), '把节点往上拖开之后缩放把手仍被盖住').toBe(false)
+  }
   await win.mouse.move(resizeBox.x + resizeBox.width / 2, resizeBox.y + resizeBox.height / 2)
   await win.mouse.down()
   await win.mouse.move(resizeBox.x + 60, resizeBox.y + 40, { steps: 12 })
@@ -235,6 +239,7 @@ try {
   await expect.poll(attachedEdges).toEqual([...textIds].sort())
   console.log('PASS: real resize updates both edge endpoints, survives deselection and undoes once')
   await win.keyboard.press('Meta+z')
+  if (liftedAwayFromDock) await win.keyboard.press('Meta+z') // 走查自己为躲开底部加节点条做的那一次上移，也在撤销栈里
   await expectAbsent(win.locator('.generation-canvas-v2__edge'), { provenBy: edgeProof })
   console.log('PASS: reverse body drop also previews ×2 and undoes once')
 } catch (error) {

@@ -9,7 +9,7 @@ import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, clickOrFail, screenshotSettled } from './_assert.mjs'
-import { openModelSettings } from './_shell.mjs'
+import { canvasFitViewButton, openModelSettings } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const withVideo = process.argv.includes('--with-video')
@@ -154,7 +154,7 @@ async function openProject() {
   await clickOrFail(win.getByRole('button', { name: /继续创作/ }).first(), '打开隔离三图项目')
   await win.waitForFunction(() => /projectId=/.test(location.href))
   await clickOrFail(win.locator('nav.nomi-stepper [data-mode="generation"]'), '进入真实生成画布')
-  await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '让三张图和目标都可见')
+  await clickOrFail(canvasFitViewButton(win), '让三张图和目标都可见')
   await clickOrFail(win.locator('[data-node-id="target"]').first(), '选中目标视频节点')
 }
 

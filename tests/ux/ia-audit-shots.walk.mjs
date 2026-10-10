@@ -15,7 +15,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { expectCount, screenshotSettled } from './_assert.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
-import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-real-ui')
 fs.mkdirSync(outDir, { recursive: true })
@@ -286,7 +286,7 @@ try {
   await ensureAgentPanelOpen(getWin(), '打开右侧助手栏')
   await getWin().waitForTimeout(1200)
   // 适应视图，让所有节点都进画面
-  const fit = getWin().locator('[aria-label="适应视图"]').first()
+  const fit = canvasFitViewButton(getWin())
   if (await fit.count()) { await fit.click({ timeout: 3000 }).catch(() => {}); await getWin().waitForTimeout(1200) }
   await resizeWindow()
   await snap('02-canvas-full.png')

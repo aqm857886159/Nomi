@@ -20,6 +20,7 @@ import { groupGenerateButton, groupSelectedNodes } from './_groupGenerate.mjs'
 import { PRICE_LINE, SPEND_DIALOG, openPaidWalk, watchSpendDialogs } from './_paidRun.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
 const NODE_GENERATE = '[data-composer-host="canvas"] [data-bar-segment="generate"]'
@@ -136,7 +137,7 @@ try {
   const taskIds = new Set(finalNodes.map((node) => node.result?.taskId).filter(Boolean))
   expect(taskIds.size, '整场恰好三笔供应商任务（T1 一笔 + T2 两笔）').toBe(3)
   // 画布只渲染视口里的卡；像用户一样点「适应视图」把三张都收进来再看（程序不替用户挪画布）。
-  await clickOrFail(win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first(), 'Fit view')
+  await clickOrFail(canvasFitViewButton(win), 'Fit view')
   await waitForVisualQuiescence(win)
   for (const id of [nodeA, nodeB, nodeC]) {
     const image = win.locator(`[data-node-id="${id}"] img`).first()

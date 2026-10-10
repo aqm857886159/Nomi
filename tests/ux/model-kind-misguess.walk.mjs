@@ -19,7 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-11-model-kind-misguess')
@@ -234,7 +234,7 @@ try {
   const toGeneration = getWin().getByRole('button', { name: '生成', exact: true }).first()
   if (await toGeneration.count()) {
     await toGeneration.click()
-    await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 }).catch(() => {})
+    await canvasAddBar(getWin()).waitFor().catch(() => {})
     await getWin().waitForTimeout(800)
   }
   const imageTool = getWin().locator('[data-node-kind="image"]').first()

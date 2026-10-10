@@ -16,7 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expectVisible, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-url-scheme-boot')
@@ -74,7 +74,7 @@ try {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 15_000 })
   await generation.click()
-  const toolbar = getWin().locator('.generation-canvas-v2-toolbar').first()
+  const toolbar = canvasAddBar(getWin())
   await expectVisible(toolbar, '生成画布工具栏渲染出来了（画布 chunk 加载成功）')
   check(true, '生成画布工具栏可见')
 

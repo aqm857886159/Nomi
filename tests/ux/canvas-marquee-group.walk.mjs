@@ -29,7 +29,7 @@ import {
 } from './_assert.mjs'
 import { findCanvasBlankPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-marquee-group')
@@ -149,7 +149,7 @@ try {
   await clickOrFail(newProjectEntry(getWin()), '新建空白项目')
   await dismissFirstRun()
   await clickOrFail(getWin().getByRole('button', { name: '生成', exact: true }), '生成（进画布）')
-  await expectVisible(getWin().locator('.generation-canvas-v2-toolbar').first(), '画布工具条应当出现')
+  await expectVisible(canvasAddBar(getWin()), '画布工具条应当出现')
 
   // ── 布置现场：3 个节点，足够框选、也足够让「建组」可用（阈值是 ≥2）──
   // 左缘工具条只走共享点法（_canvasRail.mjs）：常驻位与「更多」里的种类由它自己分辨，找不到就抛。
@@ -157,7 +157,7 @@ try {
     await addCanvasNodeFromRail(getWin(), kind)
   }
   await expectCount(getWin().locator('.generation-canvas-v2-node'), NODE_COUNT, `画布上应当有 ${NODE_COUNT} 个节点`)
-  await clickOrFail(getWin().locator('[aria-label="适应视图"]'), '适应视图')
+  await clickOrFail(canvasFitViewButton(getWin()), '适应视图')
   await clearSelection()
   // 「适应视图」不放大到 1 以上，三张卡在默认缩放下装不进视口；装不下视口的节点，
   // 不管 selectionMode 是 Full 还是 Partial，屏幕坐标的框选矩形都够不着它——那一步

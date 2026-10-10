@@ -19,7 +19,7 @@ import {
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expectArrivalsReachable, expectCanvasViewportHeld, expectToolbarInsideStageEverywhere, findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, canvasFitViewButton } from './_shell.mjs'
 
 const root = makeTempDir('nomi-card-stack-walk-')
 const settingsDir = path.join(root, 'settings')
@@ -360,7 +360,7 @@ try {
 
   // 复制本身不挪画布；但若刚才走了边缘提示，视角停在变体那里，视频节点可能已在屏外。
   // 像用户一样点「适应视图」找回全部节点，再去铺开另一个节点的版本卡片。
-  await clickOrFail(win.getByLabel('适应视图', { exact: true }), '找回视频节点后查看历史版本')
+  await clickOrFail(canvasFitViewButton(win), '找回视频节点后查看历史版本')
   await clickOrFail(videoNode.locator('[data-version-badge]'), '点视频节点的角标铺开版本')
   const videoGrid = win.locator('[data-version-grid="video-versions"]')
   await videoGrid.waitFor({ state: 'visible', timeout: stationTimeout() })

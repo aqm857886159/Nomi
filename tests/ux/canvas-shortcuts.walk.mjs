@@ -29,7 +29,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
-import { backToLibrary, newProjectEntry, openRailDrawer } from './_shell.mjs'
+import { backToLibrary, canvasAddBar, newProjectEntry, openRailDrawer } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-shortcuts')
@@ -325,7 +325,7 @@ try {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 8000 })
   await generation.click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
 
   // 两套修饰键都要测：Windows 用户按 Ctrl，mac 用户按 Cmd，`mod = metaKey||ctrlKey` 承诺两者等价。
   for (const mod of ['Meta', 'Control']) {

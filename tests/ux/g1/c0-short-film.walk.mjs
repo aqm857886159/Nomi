@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { parseArgs } from 'node:util'
-import { newProjectEntry } from '../_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from '../_shell.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const { values } = parseArgs({ options: {
@@ -234,7 +234,7 @@ try {
     expect((await payload()).generationCanvas.nodes.every((n) => n.meta.modelKey === MODEL)).toBe(true)
     await scheduler.generationCompleted({ expect, readyNodeIds, complete: readyNodeIds.length === nodeIds.length })
     await openCanvas(win)
-    await clickOrFail(win.getByLabel('适应视图').first(), '检查画布全貌')
+    await clickOrFail(canvasFitViewButton(win), '检查画布全貌')
     expect(observations.every(row => row.ready)).toBe(true)
   }, values.real ? '预算内生成确认 1 次' : '零额度生成确认 1 次')
   await step('05', '按叙事加入时间轴并预览', '八段引用对应节点、无空隙、64秒；预览真实推进', async () => {

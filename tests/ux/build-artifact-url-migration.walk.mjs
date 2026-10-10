@@ -13,6 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const locale = process.argv.includes('--locale') ? process.argv[process.argv.indexOf('--locale') + 1] : 'zh-CN'
 const shotsDir = path.join(repoRoot, `tests/ux/shots/build-artifact-url-migration-${locale}`)
@@ -95,7 +96,7 @@ try {
   const stage = win.locator('.react-flow__pane').first()
   if (!(await stage.isVisible().catch(() => false))) await win.locator('.nomi-stepper__step[data-mode="generation"]').first().click()
   await stage.waitFor({ state: 'visible', timeout: stationTimeout() })
-  await win.locator(`button[aria-label="${locale === 'en' ? 'Fit view' : '适应视图'}"]`).first().click().catch(() => {})
+  await canvasFitViewButton(win).click().catch(() => {})
   await win.waitForTimeout(3000)
   const images = await win.evaluate(() => [...document.querySelectorAll('.react-flow__node img')].map((img) => ({ src: img.getAttribute('src') || '', loaded: img.complete && img.naturalWidth > 0 })))
   await snap(win, '02-canvas-cards')
