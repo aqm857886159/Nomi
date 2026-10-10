@@ -35,7 +35,7 @@ export async function run({
   env = process.env,
   now = () => new Date(),
   resolveCredentialsImpl = () => resolveCredentials({ env }),
-  fetchImpl = fetch,
+  fetchImpl,
   cacheDirOverride,
   log = console.log,
   errorLog = console.error,
