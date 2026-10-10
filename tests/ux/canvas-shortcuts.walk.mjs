@@ -29,7 +29,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
-import { backToLibrary, newProjectEntry } from './_shell.mjs'
+import { backToLibrary, newProjectEntry, openRailDrawer } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-shortcuts')
@@ -221,7 +221,7 @@ async function checkC19GroupUndoAndFocus() {
     groups: backfillGroupFrameBounds(c19SeedGroups, id => seedRects.get(id) ?? null),
   }
   expect(before).toEqual(initialHydratedGraph)
-  await getWin().getByRole('button', { name: '分组', exact: true }).click()
+  await openRailDrawer(getWin(), 'catalog', 'C19 分组列表')
   const groupRow = getWin().locator('button[title="C19 restore whole group"]')
   await expect(groupRow).toBeVisible()
   const groupProof = await proveProbe(groupRow, 'C19 real sidebar group exists before deletion')

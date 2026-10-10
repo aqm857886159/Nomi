@@ -14,6 +14,8 @@
 //     生成页默认是小球，创作 / 分镜 / 预览默认停靠。面板在小球形态下仍挂着，但在 hidden 容器里——「在不在」用 attached、
 //     「看得见」用 visible，别混。
 //   · 模型设置 = 顶栏齿轮（`data-shell-settings`）→ 设置弹窗里的「模型」页签（项目库右上那颗直达模型页的钮没有了）。
+//   · 左栏抽屉：左栏的 `data-shell-rail-item="docs|catalog|assets|flows|skills|prompts"`，点一下开、再点收；
+//     画布分组 / 分类目录在「目录」（catalog）里。
 //   · 新建项目：空库是三张动作卡里的「新建空白项目」；库里有项目时是右上角的「新建项目」钮。
 import { clickOrFail, expect } from './_assert.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -41,6 +43,7 @@ const PROJECT_MENU = '[data-shell-project-menu]'
 const BACK_TO_LIBRARY_ITEM = new RegExp(`^(${alternatives(['appShell.topbar.backToLibrary'])})$`)
 const SETTINGS_BUTTON = '[data-shell-settings]'
 const MODELS_TAB = '[data-settings-tab-id="models"]'
+const RAIL_ITEM = (item) => `[data-shell-rail-item="${item}"]`
 const NEW_PROJECT_ENTRY = new RegExp(`^(${alternatives(['library.newBlankProject', 'appShell.library.newProject'])})`)
 
 /**
@@ -70,7 +73,7 @@ export async function ensureAgentPanelOpen(win, label = '展开常驻 Agent 面�
     await clickOrFail(win.locator(AGENT_BALL).first(), `${label}（点 Agent 小球）`, budget)
   }
   await expect(win.locator(AGENT_PANEL).first(), `${label}：点完面板仍没有展开`).toBeVisible(budget)
-  if (form === 'dock' && !(await win.locator(DOCK_LAYER).first().isAttached().catch(() => false))) {
+  if (form === 'dock' && (await win.locator(DOCK_LAYER).count()) === 0) {
     await clickOrFail(win.locator(`${AGENT_PANEL} ${TO_DOCK}`).first(), `${label}（切到停靠）`, budget)
     await expect(win.locator(DOCK_LAYER).first(), `${label}：点了「停靠」仍不是停靠形态`).toBeAttached(budget)
   }
@@ -105,4 +108,16 @@ export async function openModelSettings(win, { label = 'open model settings', ti
  */
 export function newProjectEntry(win) {
   return win.getByRole('button', { name: NEW_PROJECT_ENTRY }).first()
+}
+
+/**
+ * 打开左栏抽屉里的某一项（走查为了找分组 / 目录等去的）。目前只登记了走查用到的：
+ * 'catalog'（画布分组 / 分类目录）。别处要用别的项，在这里加映射，不要在走查里抄钮。
+ * 已经开着（按下态）就什么也不做。
+ */
+export async function openRailDrawer(win, item, label = `open ${item} drawer`) {
+  if (item !== 'catalog') throw new Error(`openRailDrawer 还没登记「${item}」`)
+  const closed = win.locator(`${RAIL_ITEM(item)}[aria-pressed="false"]`)
+  if (await closed.first().isVisible().catch(() => false)) await clickOrFail(closed, label)
+  await expect(win.locator(`${RAIL_ITEM(item)}[aria-pressed="true"]`).first(), `${label}：点完抽屉仍没开`).toBeVisible()
 }
