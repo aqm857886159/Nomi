@@ -8,14 +8,17 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "2026-10-10 user screenshot: 1:1 空图片节点，左上角状态小标，内容顶对齐",
     "docs/evidence/2026-10-10-empty-node-ratios/zh-light.png"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "44dec5632"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-10-empty-node-ratios.root-cause.json",
+  "fixedInPr": 1164,
   "classCheck": {
     "kind": "matrix",
     "file": "src/devlab/designLab/emptyNodeRatios/labRatios.test.ts"
