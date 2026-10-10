@@ -17,6 +17,7 @@ import { resizeClipEdge } from '../../timeline/timelineEdit'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
 import { frameTimecode } from './frameTimecode'
+import { useNodeAttachedPanel } from './nodeAttachedPanel'
 import { MIN_TRIM_SECONDS, type VideoTrimRange } from './trimVideoToNode'
 import { CLIP_PANEL_WIDTH, TRIM_CLIP_ID, TRIM_FPS, knownTrimDuration, makeTrimTimeline } from './videoTrimModel'
 
@@ -26,6 +27,7 @@ export default function NodeVideoClipPanel({ node, onClose, onConfirm }: { node:
   const { t } = useTranslation()
   const { zoom: canvasZoom } = useViewport()
   const zoom = canvasZoom || 1
+  useNodeAttachedPanel(node.id) // 打开期间本节点的生成面板收起（见 nodeAttachedPanel）
   const videoRef = React.useRef<HTMLVideoElement>(null)
   const [duration, setDuration] = React.useState(() => knownTrimDuration(node))
   const [inFrame, setInFrame] = React.useState(0)

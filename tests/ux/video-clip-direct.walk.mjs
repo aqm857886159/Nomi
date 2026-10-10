@@ -91,6 +91,7 @@ const L = {
   play: tr('generationCommon.videoTrim.play'),
   pause: tr('generationCommon.videoTrim.pause'),
   confirm: tr('generationCommon.videoTrim.confirm'),
+  close: tr('generationCommon.videoTrim.close'),
   retry: tr('generationCommon.observability.action.retry.main'),
   switchModel: [tr('generationCommon.observability.action.switchModel.main'), tr('generationCommon.observability.action.switchModel.alt')],
   failedTitle: tr('generationCommon.videoTrim.failed'),
@@ -160,6 +161,7 @@ async function place(id) {
   }, id)
   await waitForVisualQuiescence(win)
 }
+const composerOf = (id) => win.locator(`${nodeSel(id)} .generation-canvas-v2-node__composer`)
 async function openPanel(id) {
   await place(id)
   await select(id)
@@ -222,7 +224,19 @@ try {
   await resetView()
 
   await task('01-panel-opens-beside-node-with-full-range', async () => {
-    await openPanel('src-video')
+    await place('src-video')
+    await select('src-video')
+    // 剪辑面板打开前：选中节点的生成面板在（探针活着），打开后收起（不是被盖住），关掉后恢复
+    const composerProof = await proveProbe(composerOf('src-video'), '选中的视频卡下面有它的生成面板')
+    await trimButton().click()
+    await expect(panel()).toBeVisible()
+    await expectAbsent(composerOf('src-video'), { provenBy: composerProof, message: '剪辑面板打开时，同一节点的生成面板应当收起' })
+    await panel().getByRole('button', { name: L.close, exact: true }).click()
+    await expect(panel()).toHaveCount(0)
+    await expect(composerOf('src-video')).toBeVisible()
+    await trimButton().click()
+    await expect(panel()).toBeVisible()
+    await expect.poll(async () => (await readouts()).out).toBeGreaterThan(1)
     const r = await readouts()
     expect(r.in).toBe(0)
     expect(Math.abs(r.out - DURATION)).toBeLessThan(0.15)
