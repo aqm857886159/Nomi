@@ -1,0 +1,760 @@
+{
+  "board": "CanvasAgent",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/CanvasAgent.html",
+  "elements": [
+    {
+      "id": "topbar.project-title",
+      "label": "项目名（顶栏）",
+      "candidates": [
+        "002-button-雨夜来信",
+        "003-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里找不到字样「雨夜来信」，初判缺；待真 App 核"
+    },
+    {
+      "id": "topbar.phase-switch",
+      "label": "阶段切换",
+      "candidates": [
+        "004-div-阶段",
+        "005-button-创作",
+        "006-button-生成",
+        "008-button-预览"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "topbar.phase-counters",
+      "label": "阶段进度与时长",
+      "candidates": [
+        "007-span-56",
+        "009-span-026"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「5/6」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.view-switch",
+      "label": "视图 画布/列表",
+      "candidates": [
+        "010-div-视图",
+        "011-button-画布",
+        "012-button-列表"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「视图」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.tasks",
+      "label": "任务",
+      "candidates": [
+        "013-button-任务",
+        "015-span-1",
+        "014-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「任务」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.browser",
+      "label": "浏览器",
+      "candidates": [
+        "016-button-浏览器",
+        "017-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「浏览器」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.update",
+      "label": "新版本",
+      "candidates": [
+        "018-button-新版本",
+        "019-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「新版本」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.settings",
+      "label": "设置",
+      "candidates": [
+        "020-button-设置",
+        "021-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「设置」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.resources",
+      "label": "左栏 资源",
+      "candidates": [
+        "025-nav-资源",
+        "026-button",
+        "027-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「资源」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.docs",
+      "label": "左栏 文稿",
+      "candidates": [
+        "028-span-文稿",
+        "029-button",
+        "030-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「文稿」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.catalog",
+      "label": "左栏 目录",
+      "candidates": [
+        "031-span-目录",
+        "032-button",
+        "033-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「目录」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.assets",
+      "label": "左栏 素材",
+      "candidates": [
+        "034-span-素材",
+        "035-button",
+        "036-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「素材」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.flow",
+      "label": "左栏 流程",
+      "candidates": [
+        "037-span-流程",
+        "038-button",
+        "039-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「流程」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.skill",
+      "label": "左栏 Skill",
+      "candidates": [
+        "040-span-Skill",
+        "041-button",
+        "042-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「Skill」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.prompts",
+      "label": "左栏 提示词",
+      "candidates": [
+        "043-span-提示词"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「提示词」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.collapse",
+      "label": "收起左栏",
+      "candidates": [
+        "044-button-收起左栏",
+        "045-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「收起左栏」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "group.header.title-inside",
+      "label": "分组框头：框内左上组名与计数",
+      "candidates": [
+        "046-span-分镜雨夜便利店",
+        "047-span-6镜"
+      ],
+      "status": "missing",
+      "owner": "I-groupheader",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "分组框头未做：框内左上组名与计数、框内右上「生成全部」；框外「● ≋ 组 1 ⊜ ⋯」标签应删"
+    },
+    {
+      "id": "group.header.generate-all",
+      "label": "分组框头：框内右上「生成全部」",
+      "candidates": [
+        "048-button-生成全部"
+      ],
+      "status": "missing",
+      "owner": "I-groupheader",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "分组框头未做：框内左上组名与计数、框内右上「生成全部」；框外「● ≋ 组 1 ⊜ ⋯」标签应删"
+    },
+    {
+      "id": "canvas.node.shot-01",
+      "label": "镜头节点 镜 01",
+      "candidates": [
+        "049-span-镜01",
+        "050-span-雨棚",
+        "051-div"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「镜01」，初判缺；待真 App 核"
+    },
+    {
+      "id": "canvas.node.shot-02",
+      "label": "镜头节点 镜 02",
+      "candidates": [
+        "052-span-镜02",
+        "053-span-侧脸",
+        "054-div"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「镜02」，初判缺；待真 App 核"
+    },
+    {
+      "id": "canvas.node.shot-03",
+      "label": "镜头节点 镜 03",
+      "candidates": [
+        "055-span-镜03",
+        "056-span-怀表",
+        "057-div"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「镜03」，初判缺；待真 App 核"
+    },
+    {
+      "id": "canvas.node.shot-04-empty",
+      "label": "空镜头节点 镜 04（等你确认）",
+      "candidates": [
+        "058-span-镜04",
+        "059-span-车道",
+        "060-div",
+        "062-span-图片",
+        "063-span-还没生成",
+        "064-span-等你确认",
+        "061-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "产品代码里找不到字样「镜04」，初判缺；待真 App 核"
+    },
+    {
+      "id": "canvas.node.shot-05",
+      "label": "镜头节点 镜 05",
+      "candidates": [
+        "065-span-镜05",
+        "066-span-转身",
+        "067-div"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「镜05」，初判缺；待真 App 核"
+    },
+    {
+      "id": "canvas.node.shot-06",
+      "label": "镜头节点 镜 06",
+      "candidates": [
+        "068-span-镜06",
+        "069-span-表链",
+        "070-div"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「镜06」，初判缺；待真 App 核"
+    },
+    {
+      "id": "canvas.zoom.fit",
+      "label": "缩放簇 适应画布",
+      "candidates": [
+        "071-button-适应画布",
+        "073-button-缩小",
+        "075-span-100",
+        "076-button-放大",
+        "078-button-更多视图选项",
+        "072-svg",
+        "074-svg",
+        "077-svg",
+        "079-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.image",
+      "label": "底部节点条 图片",
+      "candidates": [
+        "080-button-图片",
+        "081-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.video",
+      "label": "底部节点条 视频",
+      "candidates": [
+        "082-button-视频",
+        "083-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.sound",
+      "label": "底部节点条 声音",
+      "candidates": [
+        "084-button-声音",
+        "085-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.text",
+      "label": "底部节点条 文字",
+      "candidates": [
+        "086-button-文字",
+        "087-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.clip",
+      "label": "底部节点条 剪辑",
+      "candidates": [
+        "088-button-剪辑",
+        "089-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.import",
+      "label": "底部节点条 导入文件",
+      "candidates": [
+        "090-button-导入文件",
+        "091-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "canvas.nodebar.more",
+      "label": "底部节点条 更多节点",
+      "candidates": [
+        "092-button-更多节点",
+        "093-svg"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "agent.float.header",
+      "label": "Agent 浮窗 标题与身份",
+      "candidates": [
+        "094-section-NomiAgent",
+        "098-span-Nomi",
+        "099-button-内置Agent",
+        "095-svg",
+        "096-svg",
+        "097-svg",
+        "100-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「NomiAgen」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.float.history",
+      "label": "Agent 浮窗 历史对话",
+      "candidates": [
+        "101-button-历史对话",
+        "102-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「历史对话」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.float.form",
+      "label": "Agent 浮窗 形态",
+      "candidates": [
+        "103-div-Agent形态",
+        "104-button-缩成小球",
+        "106-button-浮窗",
+        "108-button-停靠在右侧",
+        "105-svg",
+        "107-svg",
+        "109-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「Agent形态」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.float.transcript",
+      "label": "Agent 浮窗 对话记录",
+      "candidates": [
+        "110-div-镜04车道也出一张跟前面",
+        "111-div-读了6镜的提示词",
+        "114-div-改写了镜04的提示词",
+        "117-div-照镜03的光线写了镜04",
+        "112-svg",
+        "113-svg",
+        "115-svg",
+        "116-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "产品代码里找不到字样「镜04车道也出一」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.float.confirm-card",
+      "label": "Agent 浮窗 生成确认卡",
+      "candidates": [
+        "118-div",
+        "119-div-生成这1张",
+        "121-span",
+        "122-span-镜04车道",
+        "123-span-图像模型40",
+        "124-button-取消",
+        "125-button-生成",
+        "120-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「生成这1张？」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.float.composer.input",
+      "label": "Agent 浮窗 输入框",
+      "candidates": [
+        "126-div-继续告诉Nomi要改什么"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "产品代码里找不到字样「继续告诉Nomi」，初判缺；待真 App 核"
+    },
+    {
+      "id": "agent.float.composer.add",
+      "label": "Agent 浮窗 添加",
+      "candidates": [
+        "127-button-添加",
+        "128-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「添加」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "agent.float.composer.model",
+      "label": "Agent 浮窗 选择模型",
+      "candidates": [
+        "129-button-选择模型",
+        "130-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「选择模型」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "agent.float.composer.auto",
+      "label": "Agent 浮窗 自动改",
+      "candidates": [
+        "131-button-自动改",
+        "132-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「自动改」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "agent.float.composer.send",
+      "label": "Agent 浮窗 发送",
+      "candidates": [
+        "133-button-发送",
+        "134-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「发送」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "timeline.strip",
+      "label": "时间轴窄条",
+      "candidates": [
+        "135-div-时间轴",
+        "137-span-时间轴",
+        "138-span-5段026",
+        "139-button-展开时间轴",
+        "136-svg",
+        "140-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「时间轴」，待真 App 核并补走查断言（下一刀）"
+    }
+  ],
+  "decor": [
+    "001-svg-Nomi",
+    "022-svg",
+    "023-svg",
+    "024-svg"
+  ],
+  "functionCensus": [
+    {
+      "function": "Agent 浮窗：确认生成",
+      "before": "生成确认卡",
+      "after": "agent.float.confirm-card"
+    },
+    {
+      "function": "Agent 浮窗：形态切换",
+      "before": "小球/浮窗/停靠切换",
+      "after": "agent.float.form"
+    }
+  ]
+}

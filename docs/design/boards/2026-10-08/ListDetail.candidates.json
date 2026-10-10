@@ -1,0 +1,1353 @@
+{
+  "board": "ListDetail",
+  "extractor": "board-extract@1",
+  "source": "preview/ListDetail.html",
+  "sourceSha256": "eb794b375c1e2cfccb77b35c48ee61599aee74b7bfea0cdbf4645dc830643354",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-svg-Nomi",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "Nomi",
+      "bbox": [
+        12,
+        10,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "002-button-雨夜来信",
+      "kind": "text",
+      "tag": "button",
+      "text": "雨夜来信",
+      "bbox": [
+        38,
+        6,
+        84,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        102,
+        13,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "002-button-雨夜来信"
+    },
+    {
+      "id": "004-div-阶段",
+      "kind": "text",
+      "tag": "div",
+      "role": "tablist",
+      "text": "阶段",
+      "bbox": [
+        483,
+        6,
+        213,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-button-创作",
+      "kind": "text",
+      "tag": "button",
+      "text": "创作",
+      "bbox": [
+        485,
+        8,
+        50,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-button-生成",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成",
+      "bbox": [
+        537,
+        8,
+        74,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-span-56",
+      "kind": "text",
+      "tag": "span",
+      "text": "5/6",
+      "bbox": [
+        581,
+        13,
+        18,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-button-预览",
+      "kind": "text",
+      "tag": "button",
+      "text": "预览",
+      "bbox": [
+        613,
+        8,
+        80,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-span-026",
+      "kind": "text",
+      "tag": "span",
+      "text": "0:26",
+      "bbox": [
+        657,
+        13,
+        24,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-div-视图",
+      "kind": "text",
+      "tag": "div",
+      "role": "tablist",
+      "text": "视图",
+      "bbox": [
+        703,
+        8,
+        94,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-button-画布",
+      "kind": "text",
+      "tag": "button",
+      "text": "画布",
+      "bbox": [
+        705,
+        10,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-button-列表",
+      "kind": "text",
+      "tag": "button",
+      "text": "列表",
+      "bbox": [
+        751,
+        10,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-button-任务",
+      "kind": "text",
+      "tag": "button",
+      "text": "任务",
+      "bbox": [
+        941,
+        6,
+        51,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        947,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "013-button-任务"
+    },
+    {
+      "id": "015-span-1",
+      "kind": "text",
+      "tag": "span",
+      "text": "1",
+      "bbox": [
+        969,
+        12,
+        17,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-button-浏览器",
+      "kind": "text",
+      "tag": "button",
+      "text": "浏览器",
+      "bbox": [
+        994,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        999,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "016-button-浏览器"
+    },
+    {
+      "id": "018-button-新版本",
+      "kind": "text",
+      "tag": "button",
+      "text": "新版本",
+      "bbox": [
+        1028,
+        8,
+        72,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1036,
+        13,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "018-button-新版本"
+    },
+    {
+      "id": "020-button-设置",
+      "kind": "text",
+      "tag": "button",
+      "text": "设置",
+      "bbox": [
+        1106,
+        6,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "021-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1111,
+        11,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "020-button-设置"
+    },
+    {
+      "id": "022-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1160,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "023-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1206,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "024-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1252,
+        15,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "025-nav-资源",
+      "kind": "text",
+      "tag": "nav",
+      "text": "资源",
+      "bbox": [
+        0,
+        40,
+        60,
+        760
+      ],
+      "region": "root"
+    },
+    {
+      "id": "026-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        6,
+        46,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        53,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "026-button"
+    },
+    {
+      "id": "028-span-文稿",
+      "kind": "text",
+      "tag": "span",
+      "text": "文稿",
+      "bbox": [
+        19,
+        74,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        6,
+        94,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        101,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "029-button"
+    },
+    {
+      "id": "031-span-目录",
+      "kind": "text",
+      "tag": "span",
+      "text": "目录",
+      "bbox": [
+        19,
+        122,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "032-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        6,
+        142,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        149,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "032-button"
+    },
+    {
+      "id": "034-span-素材",
+      "kind": "text",
+      "tag": "span",
+      "text": "素材",
+      "bbox": [
+        19,
+        170,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        6,
+        190,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "036-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        197,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "035-button"
+    },
+    {
+      "id": "037-span-流程",
+      "kind": "text",
+      "tag": "span",
+      "text": "流程",
+      "bbox": [
+        19,
+        218,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "038-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        6,
+        255,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "039-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        262,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "038-button"
+    },
+    {
+      "id": "040-span-Skill",
+      "kind": "text",
+      "tag": "span",
+      "text": "Skill",
+      "bbox": [
+        20,
+        283,
+        21,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "041-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        6,
+        303,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "042-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        310,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "041-button"
+    },
+    {
+      "id": "043-span-提示词",
+      "kind": "text",
+      "tag": "span",
+      "text": "提示词",
+      "bbox": [
+        14,
+        331,
+        33,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-button-收起左栏",
+      "kind": "text",
+      "tag": "button",
+      "text": "收起左栏",
+      "bbox": [
+        16,
+        762,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "045-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        21,
+        767,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "044-button-收起左栏"
+    },
+    {
+      "id": "046-aside-镜头列表",
+      "kind": "text",
+      "tag": "aside",
+      "text": "镜头列表",
+      "bbox": [
+        60,
+        40,
+        288,
+        752
+      ],
+      "region": "root"
+    },
+    {
+      "id": "047-span-分镜雨夜便利店",
+      "kind": "text",
+      "tag": "span",
+      "text": "分镜 · 雨夜便利店",
+      "bbox": [
+        76,
+        58,
+        101,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "048-span-6",
+      "kind": "text",
+      "tag": "span",
+      "text": "6",
+      "bbox": [
+        185,
+        59,
+        8,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "049-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        60,
+        92,
+        287,
+        352
+      ],
+      "region": "root"
+    },
+    {
+      "id": "050-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        68,
+        92,
+        271,
+        57
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-span-镜01",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 01",
+      "bbox": [
+        166,
+        104,
+        31,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "052-span-4s",
+      "kind": "text",
+      "tag": "span",
+      "text": "4s",
+      "bbox": [
+        203,
+        106,
+        13,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-div-远景雨后便利店门口林薇站",
+      "kind": "text",
+      "tag": "div",
+      "text": "远景，雨后便利店门口，林薇站在雨棚下",
+      "bbox": [
+        166,
+        122,
+        165,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        68,
+        151,
+        271,
+        57
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-span-镜02",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 02",
+      "bbox": [
+        166,
+        163,
+        31,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "056-span-3s",
+      "kind": "text",
+      "tag": "span",
+      "text": "3s",
+      "bbox": [
+        203,
+        165,
+        13,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-div-近景林薇侧脸水珠沿发梢滑",
+      "kind": "text",
+      "tag": "div",
+      "text": "近景，林薇侧脸，水珠沿发梢滑下",
+      "bbox": [
+        166,
+        181,
+        165,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "058-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        68,
+        210,
+        271,
+        57
+      ],
+      "region": "root"
+    },
+    {
+      "id": "059-span-镜03",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 03",
+      "bbox": [
+        166,
+        222,
+        31,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "060-span-4s",
+      "kind": "text",
+      "tag": "span",
+      "text": "4s",
+      "bbox": [
+        203,
+        224,
+        13,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "061-div-低机位怀表落在积水里车灯",
+      "kind": "text",
+      "tag": "div",
+      "text": "低机位，怀表落在积水里，车灯扫过",
+      "bbox": [
+        166,
+        240,
+        165,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "062-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        68,
+        269,
+        271,
+        57
+      ],
+      "region": "root"
+    },
+    {
+      "id": "063-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        108,
+        290,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "062-div"
+    },
+    {
+      "id": "064-span-镜04",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 04",
+      "bbox": [
+        166,
+        281,
+        31,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "065-span-还没生成",
+      "kind": "text",
+      "tag": "span",
+      "text": "还没生成",
+      "bbox": [
+        203,
+        282,
+        44,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "066-div-俯拍霓虹映在湿漉漉的车道",
+      "kind": "text",
+      "tag": "div",
+      "text": "俯拍，霓虹映在湿漉漉的车道上",
+      "bbox": [
+        166,
+        299,
+        165,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "067-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        68,
+        328,
+        271,
+        57
+      ],
+      "region": "root"
+    },
+    {
+      "id": "068-span-镜05",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 05",
+      "bbox": [
+        166,
+        340,
+        31,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "069-span-5s",
+      "kind": "text",
+      "tag": "span",
+      "text": "5s",
+      "bbox": [
+        203,
+        342,
+        13,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "070-div-中景林薇转身走进雨里",
+      "kind": "text",
+      "tag": "div",
+      "text": "中景，林薇转身走进雨里",
+      "bbox": [
+        166,
+        358,
+        165,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "071-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        68,
+        387,
+        271,
+        57
+      ],
+      "region": "root"
+    },
+    {
+      "id": "072-span-镜06",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 06",
+      "bbox": [
+        166,
+        399,
+        31,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "073-span-6s",
+      "kind": "text",
+      "tag": "span",
+      "text": "6s",
+      "bbox": [
+        203,
+        401,
+        13,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "074-div-特写表链在指间垂下指针停",
+      "kind": "text",
+      "tag": "div",
+      "text": "特写，表链在指间垂下，指针停在三点十分",
+      "bbox": [
+        166,
+        417,
+        165,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "075-section-镜03",
+      "kind": "text",
+      "tag": "section",
+      "text": "镜 03",
+      "bbox": [
+        348,
+        40,
+        924,
+        752
+      ],
+      "region": "root"
+    },
+    {
+      "id": "076-button-回到列表",
+      "kind": "text",
+      "tag": "button",
+      "text": "回到列表",
+      "bbox": [
+        360,
+        52,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "077-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        365,
+        57,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "076-button-回到列表"
+    },
+    {
+      "id": "078-span-镜03",
+      "kind": "text",
+      "tag": "span",
+      "text": "镜 03",
+      "bbox": [
+        398,
+        56,
+        41,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "079-span-已生成",
+      "kind": "text",
+      "tag": "span",
+      "text": "已生成",
+      "bbox": [
+        449,
+        56,
+        49,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "080-span-4s模型21",
+      "kind": "text",
+      "tag": "span",
+      "text": "4s · 模型 2.1",
+      "bbox": [
+        508,
+        58,
+        70,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "081-button-在画布里看",
+      "kind": "text",
+      "tag": "button",
+      "text": "在画布里看",
+      "bbox": [
+        1118,
+        52,
+        104,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "082-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1130,
+        59,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "081-button-在画布里看"
+    },
+    {
+      "id": "083-button-更多",
+      "kind": "text",
+      "tag": "button",
+      "text": "更多",
+      "bbox": [
+        1232,
+        52,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "084-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1237,
+        57,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "083-button-更多"
+    },
+    {
+      "id": "085-button-上一版",
+      "kind": "text",
+      "tag": "button",
+      "text": "上一版",
+      "bbox": [
+        498,
+        455,
+        24,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "086-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        503,
+        460,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "085-button-上一版"
+    },
+    {
+      "id": "087-span-第2版共2版",
+      "kind": "text",
+      "tag": "span",
+      "text": "第 2 版 · 共 2 版",
+      "bbox": [
+        528,
+        459,
+        87,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "088-button-下一版",
+      "kind": "text",
+      "tag": "button",
+      "text": "下一版",
+      "bbox": [
+        621,
+        455,
+        24,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "089-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        626,
+        460,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "088-button-下一版"
+    },
+    {
+      "id": "090-div-低机位落在积水里表盖半开",
+      "kind": "text",
+      "tag": "div",
+      "text": "低机位， 落在积水里，表盖半开；一辆车从画面右侧驶过，车灯扫过水面，冷色夜景，浅景深。",
+      "bbox": [
+        510,
+        507,
+        600,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "091-span-怀表",
+      "kind": "text",
+      "tag": "span",
+      "text": "怀表",
+      "bbox": [
+        562,
+        507,
+        52,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "092-span-首帧",
+      "kind": "text",
+      "tag": "span",
+      "text": "首帧",
+      "bbox": [
+        513,
+        586,
+        30,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "093-button-加参考",
+      "kind": "text",
+      "tag": "button",
+      "text": "加参考",
+      "bbox": [
+        614,
+        561,
+        44,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "094-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        628,
+        575,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "093-button-加参考"
+    },
+    {
+      "id": "095-button-模型21",
+      "kind": "text",
+      "tag": "button",
+      "text": "模型 2.1",
+      "bbox": [
+        510,
+        619,
+        76,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "096-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        564,
+        626,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "095-button-模型21"
+    },
+    {
+      "id": "097-button-1691080P4s",
+      "kind": "text",
+      "tag": "button",
+      "text": "16:9 · 1080P · 4s",
+      "bbox": [
+        590,
+        619,
+        134,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "098-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        702,
+        626,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "097-button-1691080P4s"
+    },
+    {
+      "id": "099-button-生成",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成",
+      "bbox": [
+        1048,
+        617,
+        62,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "100-button-打开NomiAgent",
+      "kind": "text",
+      "tag": "button",
+      "text": "打开 Nomi Agent",
+      "bbox": [
+        1212,
+        734,
+        44,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "101-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1223,
+        745,
+        22,
+        22
+      ],
+      "region": "root",
+      "iconOf": "100-button-打开NomiAgent"
+    }
+  ]
+}

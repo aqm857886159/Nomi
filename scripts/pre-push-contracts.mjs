@@ -49,6 +49,7 @@ const SCRIPT_FILE = /^(?:scripts|tests|evals)\/.*\.(?:mjs|cjs)$/
  */
 export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:filesize', when: null },
+  { name: 'check:board-parity', when: null },
   { name: 'check:self-written', when: null },
   { name: 'check:boundary-owners', when: null },
   { name: 'check:test-waits', when: (files) => files.some((file) => CODE_FILE.test(file)) },

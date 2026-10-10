@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>文本节点：会加工、看得见</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--accent:oklch(0.55 0.13 250);--dot:oklch(0.86 0.005 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--shMd:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);--shLg:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;width:1280px;height:620px;overflow:hidden;background:var(--bg);padding:36px 40px;box-sizing:border-box}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--accent:oklch(0.70 0.13 250);--dot:oklch(0.27 0.006 85);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--shMd:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32);--shLg:0 4px 10px oklch(0 0 0 / 0.34),0 24px 60px oklch(0 0 0 / 0.40)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i12{width:12px;height:12px}.i14{width:14px;height:14px}.i16{width:16px;height:16px}.i18{width:18px;height:18px}
+.lbl{font-size:12px;font-weight:600;color:var(--ink40);height:20px;display:flex;align-items:center;gap:8px}
+.lbl b{font-weight:600;color:var(--ink80)}
+.top{display:flex;gap:24px}
+.col{display:flex;flex-direction:column;gap:10px}
+.stage{position:relative;width:820px;height:300px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px, transparent 1.2px);background-size:16px 16px;overflow:hidden}
+.wire{position:absolute;left:0;top:0}
+.nd{position:absolute;width:112px;height:63px;border-radius:8px;overflow:hidden;box-shadow:var(--shSm),0 0 0 1px oklch(0 0 0 / 0.05)}
+.nl{position:absolute;font-size:11px;color:var(--ink60);height:16px;display:flex;align-items:center;gap:4px}
+.nl b{font-weight:600;color:var(--ink80)}
+.hd{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1.5px var(--ink40)}
+.hd.on{box-shadow:0 0 0 1.5px var(--accent)}
+.ma{background:radial-gradient(42% 60% at 50% 46%,#d9b9a3 0 38%,transparent 39%),radial-gradient(60% 60% at 50% 110%,#2c3442 0 60%,transparent 61%),linear-gradient(180deg,#e9e4dc,#cfc6ba)}
+.mb{background:radial-gradient(circle at 70% 30%,rgba(236,226,255,.26) 0 8px,transparent 9px),radial-gradient(130% 70% at 30% 112%,rgba(10,8,16,.55) 0 55%,transparent 56%),linear-gradient(165deg,#5a4c6a 0%,#1d1826 72%)}
+.mc{background:radial-gradient(circle at 30% 28%,rgba(255,226,180,.35) 0 7px,transparent 8px),radial-gradient(120% 70% at 60% 115%,rgba(12,10,8,.6) 0 55%,transparent 56%),linear-gradient(170deg,#6c5a44 0%,#241d16 75%)}
+.tgrp{position:absolute;width:404px;display:flex;flex-direction:column;gap:8px}
+.tn{position:relative;width:404px;border-radius:10px;background:var(--paper);box-shadow:var(--shSm),0 0 0 1px oklch(0 0 0 / 0.05);padding:12px}
+.tn.sel{box-shadow:0 0 0 1.5px var(--accent),var(--shMd)}
+.tb{font-size:13px;line-height:20px;color:var(--ink80)}
+.cmpn{position:relative;width:404px;border-radius:12px;background:var(--paper);box-shadow:var(--shMd),0 0 0 1px var(--lineSoft);padding:10px 12px 10px}
+.pre{display:flex;align-items:center;gap:2px;white-space:nowrap;margin-left:-6px}
+.act{height:24px;padding:0 6px;border-radius:6px;font-size:12px;color:var(--ink80);display:flex;align-items:center;gap:2px}
+.act.hv{background:var(--ink05)}
+.act .i{color:var(--ink40)}
+.sep{font-size:12px;color:var(--ink30)}
+.ph{margin-top:8px;height:40px;font-size:13px;line-height:20px;color:var(--ink40)}
+.cbar{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink80)}
+.cbtn{height:28px;padding:0 8px;border-radius:6px;display:flex;align-items:center;gap:4px;margin-left:-8px}
+.cbtn .i{color:var(--ink60)}
+.go{margin-left:auto;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center}
+.cmp{position:relative;width:356px;border-radius:12px;box-shadow:0 0 0 1px var(--line);background:var(--paper);padding:12px}
+.prompt{font-size:13px;line-height:20px;color:var(--ink80)}
+.tref{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px 0 6px;margin-top:8px;border-radius:6px;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);font-size:12px;color:var(--ink80)}
+.tref .i{color:var(--ink60)}
+.tref .k{color:var(--ink40)}
+.tref.hv{background:var(--ink10)}
+.pop .tref{margin-top:0}
+.refs{display:flex;align-items:center;gap:8px;margin-top:10px}
+.rt{width:48px;height:48px;border-radius:6px;position:relative;overflow:hidden;box-shadow:0 0 0 1px oklch(0 0 0 / 0.06)}
+.tag{position:absolute;left:3px;bottom:3px;height:16px;padding:0 4px;border-radius:4px;background:oklch(0.18 0.01 80 / 0.64);color:white;font-size:11px;line-height:16px}
+.addref{width:48px;height:48px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink40)}
+.cmp .cbar{margin-top:12px}
+.pop{width:356px;border-radius:10px;background:var(--paper);box-shadow:var(--shLg),0 0 0 1px var(--lineSoft);padding:10px 12px}
+.poph{font-size:11px;font-weight:600;color:var(--ink40);line-height:16px}
+.popb{margin-top:4px;font-size:12px;line-height:18px;color:var(--ink80)}
+.row{display:flex;gap:20px;margin-top:10px;align-items:flex-start}
+.empty{width:285px;height:160px;border-radius:10px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:26px 12px 0}
+.k2{display:flex;flex-direction:column;align-items:center}
+.kic{width:36px;height:36px;border-radius:50%;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);color:var(--ink80);display:flex;align-items:center;justify-content:center}
+.kn{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink80);line-height:18px}
+.ks{margin-top:1px;font-size:12px;color:var(--ink40);line-height:16px}
+.acts{display:flex;align-items:center;justify-content:center;gap:2px;margin-top:12px;white-space:nowrap}
+.card{width:285px;min-height:160px;border-radius:10px;background:var(--paper);box-shadow:var(--shSm),0 0 0 1px oklch(0 0 0 / 0.05);display:flex;flex-direction:column}
+.cb{padding:12px 14px;flex:1}
+.cf{height:36px;padding:0 8px 0 14px;border-top:1px solid var(--lineSoft);display:flex;align-items:center;font-size:12px;color:var(--ink40);gap:6px}
+.cf .r{margin-left:auto}
+.caret{display:inline-block;width:1.5px;height:15px;background:var(--accent);vertical-align:-2px;margin-left:1px}
+.spin{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink20);border-top:1.5px solid var(--accent);flex:none}
+.ol{list-style:none;margin:0;padding:0;font-size:13px;line-height:20px;color:var(--ink80)}
+.ol li{display:flex;gap:8px;padding:2px 0}
+.ol .n{width:14px;flex:none;color:var(--ink40);font-variant-numeric:tabular-nums;text-align:right}
+.tbtn{height:24px;padding:0 6px;border-radius:6px;font-size:12px;color:var(--ink80);display:flex;align-items:center}
+</style>
+</helmet>
+<div class="nm">
+  <div class="top">
+    <div class="col">
+      <div class="lbl"><b>有内容 · 选中</b>左边能接图、视频、文本当输入；下面的加工框给几个现成用法，不用先选模型</div>
+      <div class="stage">
+        <svg class="wire" width="820" height="300" aria-hidden="true">
+          <path d="M136 131.5 C 173 131.5, 173 102, 210 102" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+          <path d="M614 102 C 657 102, 657 61.5, 700 61.5" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+          <path d="M614 102 C 657 102, 657 151.5, 700 151.5" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+        </svg>
+        <div class="nl" style="left:24px;top:80px"><b>林薇</b>定妆</div>
+        <div class="nd" style="left:24px;top:100px"><div class="ma" style="position:absolute;inset:0"></div></div>
+        <span class="hd" style="left:132px;top:127.5px"></span>
+
+        <div class="nl" style="left:210px;top:50px"><svg class="i i12" viewBox="0 0 24 24" style="color:var(--ink40)"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg><b>风格说明</b>文本</div>
+        <div class="tgrp" style="left:210px;top:70px">
+          <div class="tn sel">
+            <div class="tb">冷色夜景，霓虹在积水里拉出长长的反光；胶片颗粒、低饱和，人物肤色保留一点暖调；镜头偏低，缓慢推进。</div>
+          </div>
+          <div class="cmpn">
+            <div class="pre">
+              <button class="act hv" type="button">扩写成提示词</button><span class="sep" aria-hidden="true">·</span>
+              <button class="act" type="button">看图写描述</button><span class="sep" aria-hidden="true">·</span>
+              <button class="act" type="button">翻译</button><span class="sep" aria-hidden="true">·</span>
+              <button class="act" type="button">拆成多条</button><span class="sep" aria-hidden="true">·</span>
+              <button class="act" type="button" aria-haspopup="menu">续写 / 改写<svg class="i i12" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+            </div>
+            <div class="ph">或者直接说要怎么改</div>
+            <div class="cbar">
+              <button class="cbtn" type="button">跟随 Agent 的模型<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+              <button class="go" type="button" aria-label="开始"><svg class="i i14" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <span class="hd on" style="left:206px;top:98px"></span>
+        <span class="hd on" style="left:610px;top:98px"></span>
+
+        <div class="nl" style="left:700px;top:10px"><b>镜 03</b>视频</div>
+        <div class="nd" style="left:700px;top:30px"><div class="mb" style="position:absolute;inset:0"></div></div>
+        <span class="hd" style="left:696px;top:57.5px"></span>
+        <div class="nl" style="left:700px;top:100px"><b>镜 05</b>图片</div>
+        <div class="nd" style="left:700px;top:120px"><div class="mc" style="position:absolute;inset:0"></div></div>
+        <span class="hd" style="left:696px;top:147.5px"></span>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="lbl"><b>下游</b>镜 03 的输入框：接进来的文字看得见</div>
+      <div class="cmp">
+        <div class="prompt">低机位，怀表落在积水里，车灯扫过。</div>
+        <span class="tref"><svg class="i i14" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/></svg><span class="k">引用</span>风格说明</span>
+        <div class="refs">
+          <div class="rt ma"><span class="tag">首帧</span></div>
+          <button class="addref" type="button" aria-label="加参考"><svg class="i i16" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+        </div>
+        <div class="cbar">
+          <button class="cbtn" type="button">模型 2.1<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+          <button class="cbtn" type="button" style="color:var(--ink60);margin-left:0">16:9 · 4s<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+        </div>
+      </div>
+      <div class="lbl" style="margin-top:8px"><b>悬停「引用」时</b>接进来的是哪段话，一眼看到</div>
+      <div class="pop" role="tooltip">
+        <div class="poph">生成时接在提示词后面</div>
+        <div class="popb">冷色夜景，霓虹在积水里拉出长长的反光；胶片颗粒、低饱和，人物肤色保留一点暖调；镜头偏低，缓慢推进。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lbl" style="margin-top:28px"><b>三种状态</b>空的时候「试试」只放它真能做好的；写剧本去创作页</div>
+  <div class="row">
+    <div class="empty">
+      <div class="k2"><span class="kic"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg></span><span class="kn">文本</span><span class="ks">还没有内容</span></div>
+      <div class="acts"><button class="act" type="button">扩写成提示词</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">看图写描述</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">拆成多条</button></div>
+    </div>
+
+    <div class="card">
+      <div class="cb"><div class="tb">冷色夜景，霓虹在积水里拉出长长的反光；胶片颗粒、低饱和<span class="caret" aria-hidden="true"></span></div></div>
+      <div class="cf"><span class="spin" aria-hidden="true"></span>正在写<button class="tbtn r" type="button">停止</button></div>
+    </div>
+
+    <div class="card">
+      <div class="cb">
+        <ol class="ol">
+          <li><span class="n">1</span>雨夜便利店门口，霓虹招牌闪烁</li>
+          <li><span class="n">2</span>林薇推门进店，水珠沿发梢落下</li>
+          <li><span class="n">3</span>货架之间，怀表从口袋里滑落</li>
+          <li><span class="n">4</span>积水里的怀表，车灯扫过</li>
+        </ol>
+      </div>
+      <div class="cf">拆成 4 条</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>

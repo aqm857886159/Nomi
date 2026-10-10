@@ -1,0 +1,306 @@
+{
+  "board": "TextNode",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/TextNode.html",
+  "elements": [
+    {
+      "id": "text.node.header",
+      "label": "文本节点 标题（定妆 / 林薇 / 文本）",
+      "candidates": [
+        "004-div-定妆",
+        "005-b-林薇",
+        "006-div-文本",
+        "007-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「定妆」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.node.body",
+      "label": "文本节点 风格说明正文",
+      "candidates": [
+        "008-b-风格说明",
+        "009-div-冷色夜景霓虹在积水里拉出"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "产品代码里找不到字样「风格说明」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.process.presets",
+      "label": "加工框预设 扩写/看图写描述/翻译/拆成多条/续写改写",
+      "candidates": [
+        "010-button-扩写成提示词",
+        "011-span",
+        "012-button-看图写描述",
+        "013-span",
+        "014-button-翻译",
+        "015-span",
+        "016-button-拆成多条",
+        "017-span",
+        "018-button-续写改写",
+        "019-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「扩写成提示词」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.process.free-text",
+      "label": "加工框 自由输入「或者直接说要怎么改」",
+      "candidates": [
+        "020-div-或者直接说要怎么改"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「或者直接说要怎么」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.process.model",
+      "label": "加工框 模型跟随 Agent",
+      "candidates": [
+        "021-button-跟随Agent的模型",
+        "022-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「跟随Agent的」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.process.start",
+      "label": "加工框「开始」",
+      "candidates": [
+        "023-button-开始",
+        "024-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「开始」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.downstream.inputs",
+      "label": "下游节点 接入的输入框",
+      "candidates": [
+        "025-div-视频",
+        "026-b-镜03",
+        "027-div-图片",
+        "028-b-镜05"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「视频」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.downstream.label",
+      "label": "下游 标签",
+      "candidates": [
+        "030-b-下游"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「下游」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.downstream.input-preview",
+      "label": "下游输入框 接入的文字",
+      "candidates": [
+        "031-div-低机位怀表落在积水里车灯"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「低机位，怀表落在」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.quote-chip",
+      "label": "引用 小签（风格说明/引用/首帧/加参考）",
+      "candidates": [
+        "032-span-风格说明",
+        "034-span-引用",
+        "035-span-首帧",
+        "036-button-加参考",
+        "033-svg",
+        "037-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「风格说明」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.downstream.params",
+      "label": "下游 模型与参数",
+      "candidates": [
+        "038-button-模型21",
+        "040-button-1694s",
+        "039-svg",
+        "041-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「模型2.1」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.quote-hover.box",
+      "label": "悬停「引用」小窗",
+      "candidates": [
+        "044-div"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "动态内容或无固定文字，待真 App 核"
+    },
+    {
+      "id": "text.quote-hover.text",
+      "label": "悬停「引用」小窗 正文",
+      "candidates": [
+        "046-div-冷色夜景霓虹在积水里拉出"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "产品代码里找不到字样「冷色夜景，霓虹在」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.state.empty",
+      "label": "空态 文本 还没有内容",
+      "candidates": [
+        "052-span-文本",
+        "053-span-还没有内容",
+        "054-button-扩写成提示词",
+        "055-span",
+        "056-button-看图写描述",
+        "057-span",
+        "058-button-拆成多条"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "产品代码里有字样「文本」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "text.state.writing",
+      "label": "正在写 状态",
+      "candidates": [
+        "059-div",
+        "060-div-冷色夜景霓虹在积水里拉出",
+        "061-div-正在写",
+        "062-button-停止"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "产品代码里找不到字样「冷色夜景，霓虹在」，初判缺；待真 App 核"
+    },
+    {
+      "id": "text.state.split",
+      "label": "拆成 4 条 状态",
+      "candidates": [
+        "063-div",
+        "064-li-雨夜便利店门口霓虹招牌闪",
+        "065-span-1",
+        "066-li-林薇推门进店水珠沿发梢落",
+        "067-span-2",
+        "068-li-货架之间怀表从口袋里滑落",
+        "069-span-3",
+        "070-li-积水里的怀表车灯扫过",
+        "071-span-4",
+        "072-div-拆成4条"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「雨夜便利店门口，」，初判缺；待真 App 核"
+    }
+  ],
+  "decor": [
+    "001-div-左边能接图视频文本当输入",
+    "002-b-有内容选中",
+    "003-svg",
+    "029-div-镜03的输入框接进来的文",
+    "042-div-接进来的是哪段话一眼看到",
+    "043-b-悬停引用时",
+    "045-div-生成时接在提示词后面",
+    "047-div-空的时候试试只放它真能做",
+    "048-b-三种状态",
+    "049-div",
+    "050-div",
+    "051-svg"
+  ],
+  "functionCensus": [
+    {
+      "function": "文本节点：加工预设",
+      "before": "扩写成提示词 / 看图写描述 / 翻译 / 拆成多条 / 续写",
+      "after": "text.process.presets"
+    },
+    {
+      "function": "文本节点：开始",
+      "before": "加工框开始",
+      "after": "text.process.start"
+    }
+  ]
+}

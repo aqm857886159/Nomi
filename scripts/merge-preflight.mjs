@@ -11,6 +11,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { ESCAPE_LEDGER_DIR, assembleEscapeLedger, escapeIdOfPath } from './escape-ledger-lib.mjs'
+import { checkPrBoardClaims, loadManifests } from './check-board-parity.mjs'
 import { META_FILE } from './lib/entryDirectory.mjs'
 import { execGhReadSync } from './lib/transientRetry.mjs'
 import { RULES_INTRODUCED_BY_PR, evaluatePrBody, ledgerChanges, mergeReport, settledContracts } from './pr-body-criteria.mjs'
@@ -179,7 +180,12 @@ export function main(argv = process.argv.slice(2)) {
     enforce: argv.includes('--enforce'), // --enforce：假设路由规则已生效，看这个 PR 会不会红（回放用）
   }))
   console.log(report.text)
-  return report.blocked ? 1 : 0
+  // 拍板图认领（check-board-parity R8）：PR 正文 `## 拍板图` 认领的元素，在 PR 头上必须有去处。
+  const boardErrors = checkPrBoardClaims(body, loadManifests())
+  if (boardErrors.length) {
+    console.log(`拍板图认领未过（${boardErrors.length} 条）：\n${boardErrors.map((e) => `  ✗ ${e}`).join('\n')}`)
+  }
+  return report.blocked || boardErrors.length ? 1 : 0
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = main()

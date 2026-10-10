@@ -1,0 +1,247 @@
+{
+  "board": "EmptyStates",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/EmptyStates.html",
+  "elements": [
+    {
+      "id": "empty.node.image",
+      "label": "空节点 图片（四种入口）",
+      "candidates": [
+        "009-span-图片",
+        "010-span-还没生成",
+        "011-button-文字生图",
+        "012-span",
+        "013-button-参考图生图",
+        "014-div",
+        "015-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "empty.node.video",
+      "label": "空节点 视频（三种入口）",
+      "candidates": [
+        "016-span-视频",
+        "017-span-还没生成",
+        "018-button-首帧生视频",
+        "019-span",
+        "020-button-首尾帧生视频",
+        "021-span",
+        "022-button-文字生视频",
+        "023-div",
+        "024-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "empty.node.text",
+      "label": "空节点 文本（加工预设）",
+      "candidates": [
+        "025-span-文本",
+        "026-span-还没有内容",
+        "027-button-扩写成提示词",
+        "028-span",
+        "029-button-看图写描述",
+        "030-span",
+        "031-button-拆成多条",
+        "032-div",
+        "033-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "empty.node.clip",
+      "label": "空节点 剪辑",
+      "candidates": [
+        "034-span-剪辑",
+        "035-span-还没有片段",
+        "036-button-在画布上点选",
+        "037-span",
+        "038-button-从素材库添加"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "canvas.empty.hint",
+      "label": "空画布 提示「这里还没有画面」",
+      "candidates": [
+        "043-span-这里还没有画面"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "canvas.empty.starter-row",
+      "label": "空画布起步行 图片 视频 声音 文字 剪辑 导入 更多",
+      "candidates": [
+        "044-button-图片",
+        "046-button-视频",
+        "048-button-声音",
+        "050-button-文字",
+        "052-button-剪辑",
+        "054-button-导入",
+        "056-button-更多",
+        "045-svg",
+        "047-svg",
+        "049-svg",
+        "051-svg",
+        "053-svg",
+        "055-svg",
+        "057-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "canvas.empty.drop-hint",
+      "label": "空画布 拖拽提示",
+      "candidates": [
+        "058-span-或者把图片视频直接拖进来"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "canvas.add-menu.trigger",
+      "label": "加节点「+」",
+      "candidates": [
+        "060-b-加节点"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "canvas.add-menu.space-group",
+      "label": "「+」里的空间组 导演台/3D/全景/白板",
+      "candidates": [
+        "061-div",
+        "062-div-更多节点",
+        "063-div-空间",
+        "064-button-导演台",
+        "066-button-3D模型",
+        "068-button-全景",
+        "070-button-白板",
+        "065-svg",
+        "067-svg",
+        "069-svg",
+        "071-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "canvas.add-menu.common",
+      "label": "「+」里的常驻节点 图片…导入文件",
+      "candidates": [
+        "072-button-图片",
+        "074-button-视频",
+        "076-button-声音",
+        "078-button-文字",
+        "080-button-剪辑",
+        "082-button-导入文件",
+        "084-button-更多节点",
+        "073-svg",
+        "075-svg",
+        "077-svg",
+        "079-svg",
+        "081-svg",
+        "083-svg",
+        "085-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    }
+  ],
+  "decor": [
+    "001-div-改前",
+    "002-b-空节点",
+    "003-div",
+    "004-div-改后去掉斜纹和黑色大圆所",
+    "005-b-空节点",
+    "006-div",
+    "007-div",
+    "008-svg",
+    "039-div-改前改后和空节点同一种样",
+    "040-b-空画布",
+    "041-div",
+    "042-div-改前空画布",
+    "059-div-常用的直接在工具条上导演"
+  ],
+  "functionCensus": [
+    {
+      "function": "空节点：试试",
+      "before": "空节点「试试」入口",
+      "after": "empty.node.text"
+    },
+    {
+      "function": "加节点菜单",
+      "before": "「+」菜单",
+      "after": "canvas.add-menu.common"
+    }
+  ]
+}
