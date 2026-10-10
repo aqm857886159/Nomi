@@ -409,7 +409,7 @@ function BaseGenerationNodeImpl({
               />
             </React.Suspense>
           ) : (
-            <PanoramaUploadFallback onChange={handlePanoramaFileChange} />
+            <PanoramaUploadFallback onChange={handlePanoramaFileChange} height={resolveNodeVisualSize(node).height} />
           )
         ) : node.result?.url ? (
           node.result.type === 'model3d' ? (

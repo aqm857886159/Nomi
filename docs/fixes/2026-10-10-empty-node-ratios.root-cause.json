@@ -1,0 +1,15 @@
+{
+  "detected_by": "user",
+  "symptom": "图片节点空态随宽高比变形：1:1 / 16:9 / 9:16 / 21:9 下 logo 与引导位置不一致，左上角小标压到内容",
+  "direct_cause": "设计样张只画了 1:1 一种比例，排版按顶对齐写死（pt-[26px]），没有按卡高决定位置或收矮",
+  "class_root_cause": "设计验收只看一个比例，样张的比例清单是手写的，没有从生产的比例表派生，所以生产有的比例样张可以不出现",
+  "prevention": {
+    "kind": "matrix",
+    "file": "src/devlab/designLab/emptyNodeRatios/labRatios.test.ts",
+    "description": "样张比例清单从生产 COMMON_RATIO_ORDER 派生；结构测试断言两者相等，生产加比例样张自动出格"
+  },
+  "classCheck": {
+    "file": "src/devlab/designLab/emptyNodeRatios/labRatios.test.ts"
+  },
+  "remaining": "视觉基线（darwin 上录）未录；卡高未知的调用处只有 CSS 兜底，无按档位的测试"
+}

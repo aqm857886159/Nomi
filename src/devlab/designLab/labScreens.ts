@@ -47,6 +47,8 @@ import { UPDATE_REMINDER_STATES } from './updateReminder/updateReminderStates'
 import { UPDATE_REMINDER_WINDOW } from './updateReminder/updateReminderLabKit'
 import { VIDEO_NODE_NEXT_STATES } from './videoNodeNext/videoNodeNextStates'
 import { VN_CELL_HEIGHT, VN_CELL_WIDTH } from './videoNodeNext/videoNodeNextToolbarKit'
+import { EMPTY_NODE_RATIOS_STATES } from './emptyNodeRatios/emptyNodeRatiosStates'
+import { EMPTY_NODE_RATIOS_HEIGHT, EMPTY_NODE_RATIOS_WIDTH } from './emptyNodeRatios/emptyNodeRatiosLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -55,6 +57,7 @@ import type { LabScreen, LabState } from './labScreen'
  * 只改一处 = 那一屏要么截不出图、要么孤儿基线）。
  */
 export const LAB_SCREENS: readonly LabScreen[] = [
+  { id: 'empty-node-ratios', label: '空节点比例', states: EMPTY_NODE_RATIOS_STATES, cell: { width: EMPTY_NODE_RATIOS_WIDTH, height: EMPTY_NODE_RATIOS_HEIGHT } },
   { id: 'find-reference', label: '找参考', states: FIND_REFERENCE_STATES, cell: { width: 1260, height: 650 } },
   { id: 'shot-table', label: '画布 · 拆解表', states: SHOT_TABLE_STATES, cell: { width: 992, height: 452 } },
   { id: 'generation-list', label: '生成页 · 列表视图', states: GENERATION_LIST_STATES, cell: { width: GENERATION_LIST_CELL_WIDTH, height: GENERATION_LIST_CELL_HEIGHT } },
