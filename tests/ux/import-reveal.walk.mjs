@@ -5,6 +5,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expectVisible, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 // 证据目录由调用方给（截图 + 逐帧量测 + 那两个真实素材都住在那里）。没给就明说，
 // 别让 path.join(undefined) 抛一句看不懂的话。
@@ -44,7 +45,7 @@ try {
   const reduced = cap.prefersReduced || cap.renderer === null || /swiftshader|llvmpipe|software/i.test(cap.renderer || '')
   log('CAPABILITY', JSON.stringify({ ...cap, shouldReduceProcessMotion: reduced }))
 
-  const newProject = win.locator('text=新建空白项目').first()
+  const newProject = newProjectEntry(win)
   await newProject.waitFor({ timeout: stationTimeout({ operations: 2 }) })
   await newProject.click()
   await win.waitForTimeout(2500)

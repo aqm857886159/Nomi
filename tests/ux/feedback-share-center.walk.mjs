@@ -23,6 +23,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clickOrFail, expectVisible, proveProbe, expectAbsent, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = path.join(repoRoot, '.feedback-share-center-walk')
@@ -120,7 +121,7 @@ function assertUrlIsBoundedAndClean(url, label) {
   const { app, win } = await launch()
   const skip = win.getByText('跳过', { exact: true }).first()
   if (await skip.isVisible().catch(() => false)) await skip.click()
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }).first(), '新建空白项目')
+  await clickOrFail(newProjectEntry(win), '新建空白项目')
   await win.waitForTimeout(1700)
   await win.keyboard.press('Escape').catch(() => {})
   await app.close()

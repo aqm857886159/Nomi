@@ -48,8 +48,8 @@ try {
   const projectDir = await createBlankProject(win, iso.projectsDir)
   await win.waitForTimeout(1200)
   const inWorkbench = await win.evaluate(() => {
-    // 主工作台挂载后 body 上有工作台根;用「创作」标签存在与否粗判已进工作台(中文态)。
-    return Boolean(document.querySelector('[data-workbench-root], [data-studio-root], main'))
+    // 进了项目就有外壳左栏（项目库页没有左栏），用它判「已进工作台」。
+    return Boolean(document.querySelector('[data-shell-rail]'))
   })
   check('新建空白项目后落进主工作台', inWorkbench, `project=${path.basename(projectDir)}`)
   // 现场对照:切换前顶栏应是中文——用顶栏「创作」标签(中文原文)在不在做锚点,

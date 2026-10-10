@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'outputs/canvas-s5-walkthrough')
@@ -141,7 +142,7 @@ try {
   await dismissFirstRun()
 
   // ── 空白新项目 ─────────────────────────────────────────────────────────
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   await blankProject.waitFor({ timeout: 8000 })
   await blankProject.click()
   await getWin().waitForTimeout(2200)

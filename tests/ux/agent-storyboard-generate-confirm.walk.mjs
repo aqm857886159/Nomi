@@ -29,6 +29,7 @@
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import { createRuntimeWalk, openCanvas, readProject } from './agent-runtime-walk-support.mjs'
+import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 
 const DESIGN_ID = 'walk-storyboard-design'
 const SPEND_DIALOG = '[data-spend-confirm-dialog]'
@@ -112,8 +113,7 @@ try {
 
   // ── ② 他先在创作页点「放入画布」──────────────────────────────────────────────────────
   await clickOrFail(win.getByRole('button', { name: /^(创作|Create)$/ }), '去创作页')
-  const expandTree = win.locator('[data-creation-resource-tree-toggle="expand"]:visible')
-  if (await expandTree.isVisible()) await clickOrFail(expandTree, '展开左栏')
+  await ensureCreationResourceTree(win, '创作页')
   await clickOrFail(win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`), '选中这份文稿')
   await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN_ID}"]`), '打开这份文稿方案')
   await clickOrFail(win.locator(`[data-place-storyboard="${DESIGN_ID}"]`), '在方案页头点那颗「放到画布上」的按钮')

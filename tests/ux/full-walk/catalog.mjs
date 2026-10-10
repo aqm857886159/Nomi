@@ -401,7 +401,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
 export const FULL_WALK_INVENTORY = Object.freeze([
   ...[
     ['P01', '首次启动', { gap: '开屏 / 引导只在打包版首启出现，开发构建只能证入口在' }],
-    ['P02', '新建项目', { journey: 'J10-open-old-project' }],
+    ['P02', '项目新建', { journey: 'J10-open-old-project' }],
     ['P03', '项目管理（重命名 / 复制 / 删除 / 恢复）', { gap: '下一批剧本：项目库里的重命名、复制、删除和撤销还没有剧本' }],
     ['P04', '文稿与分镜', { journey: 'J04-agent-multishot-spend' }],
     ['P05', '单镜编辑（锁定 / 跳过 / 删除撤销）', { journey: 'J06-delete-shot' }],

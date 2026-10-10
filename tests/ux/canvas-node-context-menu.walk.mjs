@@ -19,6 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-node-context-menu')
@@ -76,7 +77,7 @@ try {
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
   await dismissFirstRun()
-  await getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first().click()
+  await newProjectEntry(getWin()).click()
   await getWin().waitForTimeout(2200)
   await dismissFirstRun()
   await resize(1600, 1000)

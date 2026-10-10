@@ -4,6 +4,7 @@ import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/grouping-optimization')
@@ -18,7 +19,7 @@ const { app, win } = await launchNomiApp({
 })
 
 try {
-  await win.getByRole('button', { name: '新建空白项目', exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.getByRole('button', { name: '生成', exact: true }).click()
   const addImage = win.locator('[aria-label="添加图片节点"]').first()
   await expectVisible(addImage, '生成画布已可添加节点')

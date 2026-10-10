@@ -97,7 +97,7 @@ export const TOUR_BEATS: TourBeat[] = [
     id: 'export',
     mode: 'preview',
     kind: 'spotlight',
-    selectors: ['.workbench-preview-player__export-button', '.nomi-appbar__primary'],
+    selectors: ['.workbench-preview-player__export-button', '[data-shell-export]'],
   },
 ]
 

@@ -155,7 +155,7 @@ try {
   await snap(win, '05-asset-library-all-assets')
 
   // —— ② 迁移·提示词：侧栏提示词库出现旧卡 ——
-  const promptRail = win.locator('button[aria-label="提示词库"]').first()
+  const promptRail = win.locator('[data-shell-rail-item="prompts"]').first()
   if (await promptRail.count()) {
     await promptRail.click({ timeout: 2000 }).catch(() => {})
     await win.waitForTimeout(900)

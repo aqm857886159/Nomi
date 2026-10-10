@@ -7,6 +7,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { expectNodeInsideCanvas, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shots = path.join(root, 'tests/ux/shots/canvas-three-gestures')
@@ -44,9 +46,9 @@ try {
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1', 'nomi-onboarding-checklist:v1']) localStorage.setItem(key, 'seen')
   })
   await win.reload()
-  await win.getByText('新建空白项目', { exact: false }).first().waitFor({ timeout: 30000 })
+  await newProjectEntry(win).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   await win.keyboard.press('Escape')
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
   const browserWindow = await app.browserWindow(win)
   await browserWindow.evaluate((window) => window.setBounds({ x: 0, y: 0, width: 1600, height: 1000 }))

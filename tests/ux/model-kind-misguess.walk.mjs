@@ -19,6 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-11-model-kind-misguess')
@@ -224,7 +225,7 @@ try {
   // 点生成会在 findExecutableModel 处直接抛错（连 HTTP 都不发），零额度。
   await getWin().keyboard.press('Escape')
   await getWin().waitForTimeout(400)
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   if (await blankProject.count()) {
     await blankProject.click()
     await getWin().waitForTimeout(2500)

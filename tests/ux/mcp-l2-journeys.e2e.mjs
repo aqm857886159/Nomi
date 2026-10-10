@@ -7,6 +7,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, packagedMcpRuntime, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { startFakeApimartServer, writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { expectAbsent, expectHidden, expectVisible, proveProbe } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 // 断连取消那条诊断的事件名派生自真相源（两条启动路共用的常量），不手抄散文：
 // 手抄的那份在日志收口时静默漂成假红，正是本轨踩到的坑。
 const { MCP_CANCELLED_IN_FLIGHT_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
@@ -79,7 +80,7 @@ try {
     ...(mcpRuntime ? { executablePath: mcpRuntime.executablePath } : {}),
   })
   const win = gui.win
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
   const projectId = await win.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'))
   console.log('  GUI hash=', await win.evaluate(() => window.location.hash))

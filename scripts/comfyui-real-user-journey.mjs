@@ -138,7 +138,7 @@ async function screenshot(win, name) {
 }
 
 async function assertAppBarDoesNotOverlap(win, label) {
-  const geometry = await win.locator('.nomi-appbar').evaluate((header) => {
+  const geometry = await win.locator('[data-shell-topbar]').evaluate((header) => {
     const [left, center, right] = Array.from(header.children)
     const rect = (element) => {
       const box = element.getBoundingClientRect()

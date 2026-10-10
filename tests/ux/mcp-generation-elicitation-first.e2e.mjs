@@ -22,6 +22,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, parseToolResult, repoRoot, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 
@@ -110,7 +111,7 @@ try {
     args: ['--disable-gpu', '--disable-software-rasterizer'], settleMs: 0, syntheticCredentialStorage: true,
   })
   const win = gui.win
-  await win.getByText('新建空白项目', { exact: false }).first().click()
+  await newProjectEntry(win).click()
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
   await win.waitForTimeout(1_000)
   const token = fs.readFileSync(path.join(dirs.capabilityDir, 'token'), 'utf8').trim()

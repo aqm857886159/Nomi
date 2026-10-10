@@ -21,7 +21,7 @@ import { addCameraPreset, addTrack, placeCharacter } from './_directorLab.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { createBlankProject, prepareIsolation, readProjectPayload } from '../../evals/lib/isoApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/director/electron')
@@ -87,8 +87,8 @@ await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
 })
 await win.reload()
-await expectVisible(win.getByText('新建空白项目', { exact: false }).first(), '项目库没起来', stationTimeout({ operations: 4 }))
-const libraryEntry = win.getByText('新建空白项目', { exact: false }).first()
+await expectVisible(newProjectEntry(win), '项目库没起来', stationTimeout({ operations: 4 }))
+const libraryEntry = newProjectEntry(win)
 const libraryProof = await proveProbe(libraryEntry, '项目库的新建入口')
 await snap('library')
 

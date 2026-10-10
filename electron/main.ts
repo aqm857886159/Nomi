@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, powerMonitor, protocol, session, shell } from "electron";
 import { mainWindowWebPreferences } from "./mainWindowWebPreferences";
+import { mainWindowChromeOptions, registerMainWindowChromeIpc } from "./mainWindowChrome";
 import { startCatalogReconciliation } from "./ai/onboarding/vendorHealth";
 import type { Rectangle, WebContents } from "electron";
 import path from "node:path";
@@ -286,9 +287,8 @@ async function createWindow(
     minHeight: 720,
     backgroundColor: "#f6f3ee",
     title: "Nomi",
-    // Windows：去原生标题栏，改用渲染层自绘 windowbar（WindowControls）。
-    // macOS/Linux：保留原生窗口 chrome（红绿灯/拖拽/缩放全交系统，零回归）。
-    frame: process.platform !== "win32",
+    // 40px 合一顶栏：Windows 原生窗口按钮浮在顶栏右端、macOS 红绿灯落在顶栏左端（见 mainWindowChrome.ts）。
+    ...mainWindowChromeOptions(process.platform),
     icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: mainWindowWebPreferences(__dirname),
     ...backgroundWindowOptions(),
@@ -299,10 +299,6 @@ async function createWindow(
   mainWindow.on("closed", () => {
     if (getMainWindow() === mainWindow) setMainWindow(null);
   });
-
-  // Windows 自绘标题栏需要知道最大化态来切「最大化/还原」图标。窗口级监听随窗口销毁回收（无泄漏）。
-  mainWindow.on("maximize", () => mainWindow.webContents.send("nomi:window:maximized", true));
-  mainWindow.on("unmaximize", () => mainWindow.webContents.send("nomi:window:maximized", false));
 
   const rendererUrl = options.rendererUrl || getRendererUrl();
   installWindowNavigation(mainWindow, rendererUrl);
@@ -400,16 +396,8 @@ function registerIpc(): void {
   registerIntegrationSessionIpc(installIntegrationSessionRuntime());
   // 渲染层失败与崩溃的唯一日志通道（崩溃另进崩溃日志，P0-8）；注册与 sender 守卫住在 logging/rendererLog（main.ts 巨壳只减不增）。
   registerRendererLogIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
-  // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），
-  // 而非闭包捕获某个窗口实例——后者会在第二次 createWindow（重开库/activate）时重复注册 handle 抛错、崩窗。
-  ipcMain.handle("nomi:window:minimize", (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
-  ipcMain.handle("nomi:window:maximize", (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    if (!win) return;
-    if (win.isMaximized()) win.unmaximize();
-    else win.maximize();
-  });
-  ipcMain.handle("nomi:window:close", (event) => BrowserWindow.fromWebContents(event.sender)?.close());
+  // 窗口按钮是系统原生的（titleBarOverlay / 红绿灯）；渲染层只报主题色，作用于发起请求的那个窗口。
+  registerMainWindowChromeIpc();
   registerProjectsIpc({
     registerSyncIpc,
     listProjects,

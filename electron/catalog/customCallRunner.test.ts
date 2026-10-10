@@ -159,7 +159,7 @@ describe("失败姿态", () => {
   it("超时中断 sleep 中的脚本", async () => {
     const err = await run("await sleep(60000)\nreturn 'x'", {}, 120).catch((e) => e);
     expect(String(err.message)).toMatch(/超时/);
-  }, 10000);
+  });
   it("标准 TimeoutError 信号不依赖墙钟越界也归类为超时", async () => {
     const controller = new AbortController();
     controller.abort(new DOMException("deadline", "TimeoutError"));

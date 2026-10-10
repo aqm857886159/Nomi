@@ -218,7 +218,8 @@ export const ActionCard = forwardRef<HTMLButtonElement, ActionCardProps>(functio
         <span className="block text-body font-semibold line-clamp-2 leading-snug">{title}</span>
         <span
           className={cn(
-            'block mt-0.5 text-caption truncate',
+            // 说明同样给 2 行：EN 说明（「Start from a line of text or an idea」）在 280 宽里单行必截（10-08 外壳验收截图实测）。
+            'block mt-0.5 text-caption leading-snug line-clamp-2',
             isPrimary
               ? 'text-[color-mix(in_oklch,var(--nomi-paper)_72%,transparent)]'
               : 'text-nomi-ink-60',

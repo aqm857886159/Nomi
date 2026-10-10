@@ -37,6 +37,7 @@ const OnboardingDrawer = lazyWithChunkBoundary('模型', () =>
 )
 // 纯类型（`import type` 会被编译期抹掉），不会把上面那个 160KB chunk 拽进首屏。
 import type { ModelPageRequest } from '../../ui/onboarding/useModelPageRequest'
+import { OnboardingChecklistSection } from '../onboarding/OnboardingChecklist'
 
 // 语言用「母语名」直读，不随界面语言翻译——换语言时两个名字都稳定可认（沿用 PR#50 的判断）。
 const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese', en: 'common.english' }
@@ -355,6 +356,8 @@ export function SettingsDialog({
             ) : tab === 'general' ? (
               <div>
                 <div className="mb-4 text-body font-medium text-nomi-ink">{t('settings.general.title')}</div>
+                {/* 上手清单（10-08 外壳重设计：从顶栏收纳到这里；没做完时顶栏设置钮上冒一个点）。 */}
+                <OnboardingChecklistSection />
                 <AgentTraceSection />
                 <ScreenshotHotkeySection />
                 <CanvasGestureSection />

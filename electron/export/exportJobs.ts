@@ -1,3 +1,4 @@
+import { registerInflightProbe } from "../inflightProbe";
 import { sameCommittedProjectSelection } from "../shared/projectBinding";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -66,6 +67,16 @@ type ProductionRunExportInput = Readonly<{
 }>;
 
 const exportJobManager = new ExportJobManager();
+// 测试 setup 每个用例后核它：用例结束时导出任务表里不许留着没落定的任务（否则下一个用例在同一项目上建任务会被拒）。
+registerInflightProbe("export-jobs", {
+  count: () => exportJobManager.activeJobIds().length,
+  settle: async () => {
+    for (const controller of activeExportAbortControllers.values()) controller.abort();
+    for (const id of exportJobManager.activeJobIds()) {
+      try { await exportJobManager.cancelJob(id); } catch { /* 尽力收尾 */ }
+    }
+  },
+});
 
 function bufferFromExportBytes(input: TimelineMp4ExportRequest["webmBytes"]): Buffer {
   if (input instanceof ArrayBuffer) return Buffer.from(input);

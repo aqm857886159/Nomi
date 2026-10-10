@@ -141,7 +141,7 @@ describe("a model that really hangs", () => {
     released?.();
     await execution;
     service.stopWatchdog();
-  }, 20_000);
+  });
 
   // 2026-09-22 换场景：这条用例原本靠一次真实 socket hang 撞 executeSubmission 的
   // 「execute 超时就判 uncertain → reconciling」把 run 卡在非终态，再靠看门狗把 reconciling
@@ -250,5 +250,5 @@ describe("a model that really hangs", () => {
     expect(settled.error).toContain("deadline");
 
     service.stopWatchdog();
-  }, 20_000);
+  });
 });

@@ -274,7 +274,8 @@ describe("ProjectLeaseStore immutable per-token records", () => {
 
     expect(results).toEqual(Array.from({ length: 4 }, () => ({ ok: true, result: { issued: 40 } })));
     expect(makeStore(rootPath, { maxRecords: 1_000, maxRecordsPerProject: 1_000 } as never).list()).toHaveLength(160);
-  }, 20_000);
+    // 四个真子进程各发 40 条：Windows 上单跑就要约 28 秒（起 tsx 子进程慢），给到 2 分钟；只防死锁，不当性能判据。
+  }, 120_000);
 
   it("treats only ENOENT as a legitimate formal-token disappearance during concurrent expiry pruning", () => {
     const rootPath = makeRoot("nomi-project-lease-formal-expiry-race-");
@@ -342,7 +343,7 @@ describe("ProjectLeaseStore immutable per-token records", () => {
     const restarted = makeStore(rootPath);
     expect(restarted.read(issued.tokenHash)).toMatchObject({ revokedAt: "2026-08-23T00:01:00.000Z" });
     expect(() => restarted.recordIssued(issued)).toThrow(/already revoked/);
-  }, 20_000);
+  });
 
   it("makes concurrent revocations first-writer-wins across separate processes", async () => {
     const rootPath = makeRoot("nomi-project-lease-double-revoke-");
@@ -364,7 +365,7 @@ describe("ProjectLeaseStore immutable per-token records", () => {
       final?.revokedAt,
       final?.revokedAt,
     ]);
-  }, 20_000);
+  });
 
   it.each(["EPERM", "EACCES", "EBUSY"] as const)(
     "accepts a Windows %s target-exists race only after the complete issued record verifies",
@@ -578,7 +579,8 @@ describe("ProjectLeaseStore immutable per-token records", () => {
 
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-lease-outside-"));
     tempDirs.push(outside);
-    fs.symlinkSync(outside, tokenDir(rootPath, tokenHash(40)), "dir");
+    // Windows 上建目录符号链接要管理员 / 开发者模式；junction 不要特权，lstat 一样认成符号链接，被测的拒绝逻辑相同。
+    fs.symlinkSync(outside, tokenDir(rootPath, tokenHash(40)), process.platform === "win32" ? "junction" : "dir");
     expect(() => store.list()).toThrow(ProjectLeaseStoreIntegrityError);
   });
 

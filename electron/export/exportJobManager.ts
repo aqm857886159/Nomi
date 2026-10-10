@@ -369,6 +369,11 @@ export class ExportJobManager {
     return this.saveAndEmit(completed, ["status", "progress", "result"]);
   }
 
+  /** 还没落定（queued / planning / encoding …）的任务 id。 */
+  activeJobIds(): string[] {
+    return [...this.jobs.values()].filter((job) => isActive(job.status)).map((job) => job.id);
+  }
+
   async cancelJob(jobId: string): Promise<ExportJobSnapshot> {
     const current = this.requireJob(jobId);
     if (!isActive(current.status)) {

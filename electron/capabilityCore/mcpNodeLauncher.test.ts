@@ -445,7 +445,7 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     expect(message).toContain(hijackLibrary)
     expect(message).toMatch(/重启 Nomi/)
     expect(message).toMatch(/关掉/)
-  }, 20_000)
+  })
 
   it('namespace isolation: a default-root reader ignores a custom-root advert entirely', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-mcp-namespace-'))
@@ -494,7 +494,7 @@ setTimeout(() => process.exit(0), 5_000)
     const serialized = JSON.stringify(response)
     expect(serialized).not.toContain('CUSTOM-only') // 自定义库广告被无视
     expect(serialized).toContain('DEFAULT-lib') // 只连了默认库广告
-  }, 20_000)
+  })
 })
 
 describe('mcpNodeLauncher cold start', () => {
@@ -518,5 +518,5 @@ describe('mcpNodeLauncher cold start', () => {
       expect(JSON.stringify(response.result)).toContain('race-project')
     }
     expect(fs.readFileSync(path.join(capabilityDir, 'launch-env'), 'utf8')).toBe('1')
-  }, 15_000)
+  })
 })

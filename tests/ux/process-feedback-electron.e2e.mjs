@@ -7,6 +7,8 @@ import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.m
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
 import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
+import { newProjectEntry } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const root = path.resolve('.')
 const evidence = path.join(root, 'docs/plan/process-feedback-evidence/neighbor-placement/real')
@@ -80,11 +82,11 @@ try {
     }
   }, root)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await expect(page.getByRole('button', { name: /新建空白项目/ })).toBeVisible({ timeout: 30000 })
+  await expect(newProjectEntry(page)).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   await page.evaluate(() => { for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen'); localStorage.setItem('__nomiE2E', '1') })
   const skip = page.locator('[data-splash-skip=true]')
   if (await skip.isVisible()) await skip.click()
-  await page.getByRole('button', { name: /新建空白项目/ }).click()
+  await newProjectEntry(page).click()
   await expect(page.getByRole('button', { name: '生成', exact: true })).toBeVisible({ timeout: 30000 })
   await page.getByRole('button', { name: '生成', exact: true }).click()
   await expect(page.locator('.generation-canvas-v2__stage')).toBeVisible()

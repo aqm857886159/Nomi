@@ -32,6 +32,7 @@ import { expect, screenshotSettled } from './_assert.mjs'
 import { CANVAS_PANE_SELECTOR, CANVAS_STAGE_SELECTOR, CANVAS_VIEWPORT_TOLERANCE, followArrivalHint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const LOCALE = process.argv[2] === 'en' ? 'en' : 'zh-CN'
 const LABEL = process.argv[3] || 'run'
@@ -303,7 +304,7 @@ try {
   await getWin().waitForLoadState('domcontentloaded')
   await dismissFirstRun()
 
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: LOCALE === 'en' ? 'New blank project' : '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   await expect(blankProject, '首页上找不到「新建空白项目」').toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   await blankProject.click()
   await dismissFirstRun()

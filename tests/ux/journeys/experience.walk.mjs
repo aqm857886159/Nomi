@@ -22,6 +22,7 @@ import {
   readProject,
 } from '../agent-runtime-walk-support.mjs'
 import { startFixtureServer } from '../model-access-journeys/fixture-server.mjs'
+import { newProjectEntry } from '../_shell.mjs'
 
 export async function runJourney(journey, collector) {
   const tempRoot = await makeTempDirAsync('nomi-experience-')
@@ -58,7 +59,7 @@ export async function runJourney(journey, collector) {
       localStorage.setItem('nomi:canvas-gesture-hint:v1', 'seen')
     })
     const skip = win.locator('[data-splash-skip="true"]')
-    const firstAction = (await skip.isVisible()) ? skip : win.getByRole('button', { name: /^新建空白项目/ })
+    const firstAction = (await skip.isVisible()) ? skip : newProjectEntry(win)
     await firstAction.click({ trial: true })
     collector.run.startup.firstActionableFromLaunchMs = performance.now() - launchStarted
     collector.run.startup.firstActionableScope =
@@ -98,7 +99,7 @@ export async function runJourney(journey, collector) {
       expect(fixture.requests.some((r) => r.method === 'GET' && r.path.endsWith('/models'))).toBe(true)
       outcome = { passed: true, assertion: 'UI selected model persisted enabled; loopback GET /models observed' }
     } else {
-      await click('new-project', win.getByRole('button', { name: /^新建空白项目/ }), {
+      await click('new-project', newProjectEntry(win), {
         complete: () => expect(win.locator(DOCUMENT)).toBeVisible(),
       })
       const projectId = await win.evaluate(() => {

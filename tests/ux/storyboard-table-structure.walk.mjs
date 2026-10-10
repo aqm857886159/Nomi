@@ -148,8 +148,8 @@ async function expectReachable(locator, label) {
 }
 
 async function setSidebar(state) {
-  await win.locator('[data-creation-resource-tree-toggle]:visible').first().waitFor({ state: 'visible', timeout: stationTimeout() })
-  const toggle = win.locator(`[data-creation-resource-tree-toggle="${state}"]:visible`)
+  await win.locator('[data-shell-rail-item="docs"]').first().waitFor({ state: 'visible', timeout: stationTimeout() })
+  const toggle = win.locator(`[data-shell-rail-item="docs"][aria-pressed="${state === 'expand' ? 'false' : 'true'}"]`)
   if (await toggle.isVisible().catch(() => false)) await toggle.click()
   await win.waitForTimeout(500)
 }

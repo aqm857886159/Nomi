@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp } from '../_launchApp.mjs'
 import { JourneyFailure } from './evidence.mjs'
+import { newProjectEntry } from '../_shell.mjs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model-access UI driver — reconfigured 2026-09-01 to main's current IA.
@@ -251,7 +252,7 @@ export async function launchJourneyUi({ journey, recorder }) {
     if (await canvasToolbar.isVisible().catch(() => false)) return
     const existing = win.locator('[data-project-card]').first()
     if (await existing.count()) await existing.click()
-    else await win.getByText('新建空白项目', { exact: false }).first().click()
+    else await newProjectEntry(win).click()
     await win.waitForTimeout(1800)
     // Land on the generation canvas so the node toolbar (添加X节点) is present.
     const generate = win.getByRole('button', { name: '生成', exact: false }).first()

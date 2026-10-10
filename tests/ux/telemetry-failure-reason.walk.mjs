@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import net from 'node:net'
 import path from 'node:path'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = process.cwd()
 const evidenceDir = process.env.EVIDENCE_DIR || path.join(repoRoot, 'tests/ux/shots/telemetry-failure-reason')
@@ -108,7 +109,7 @@ try {
   await snap('01-consent-on-configured')
 
   for (let i = 0; i < 4; i += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(160) }
-  await clickOrFail(win.getByRole('button', { name: /新建空白项目/ }), '新建空白项目', { noWaitAfter: true })
+  await clickOrFail(newProjectEntry(win), '新建空白项目', { noWaitAfter: true })
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   await clickOrFail(win.locator('[data-mode="generation"]'), '生成 tab')
   await win.waitForTimeout(1200)
