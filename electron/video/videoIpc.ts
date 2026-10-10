@@ -24,6 +24,23 @@ export function registerVideoIpc(captureInteraction: ProjectInteractionCapture):
     const { framesToVideoAsset } = await import("./framesToVideo");
     return framesToVideoAsset(payload, { assertCurrent });
   });
+  // 直接剪辑（入点—出点 → 新素材 mp4）：长任务，进度按 jobId 推回发起窗口，取消按 jobId 杀 ffmpeg。
+  ipcMain.handle("nomi:video:trim", async (event, payload) => {
+    assertTrustedSender(event);
+    const assertCurrent = captureInteraction(event, payload);
+    const { trimVideoToAsset } = await import("./trimVideo");
+    return trimVideoToAsset(payload, {
+      assertCurrent,
+      onProgress: (ratio) => {
+        if (!event.sender.isDestroyed()) event.sender.send("nomi:video:trim-progress", { jobId: payload.jobId, ratio });
+      },
+    });
+  });
+  ipcMain.handle("nomi:video:trim-cancel", async (event, payload) => {
+    assertTrustedSender(event);
+    const { cancelTrimJob } = await import("./trimVideo");
+    return { ok: cancelTrimJob(String(payload?.jobId ?? "")) };
+  });
   ipcMain.handle("nomi:video:extract-filmstrip", async (event, payload) => {
     assertTrustedSender(event);
     const { extractVideoFilmstripToAsset } = await import("./extractVideoFrame");

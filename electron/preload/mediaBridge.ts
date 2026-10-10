@@ -147,6 +147,15 @@ export const mediaBridge = {
   video: {
     extractFrame: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:extract-frame", payload) as Promise<{ url: string }>,
+    trim: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:video:trim", payload) as Promise<{ url: string; assetId?: string; durationSeconds: number }>,
+    cancelTrim: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:video:trim-cancel", payload) as Promise<{ ok: boolean }>,
+    onTrimProgress: (callback: (event: { jobId: string; ratio: number }) => void) => {
+      const listener = (_event: unknown, payload: { jobId: string; ratio: number }) => callback(payload);
+      ipcRenderer.on("nomi:video:trim-progress", listener);
+      return () => { ipcRenderer.removeListener("nomi:video:trim-progress", listener); };
+    },
     extractFilmstrip: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:extract-filmstrip", payload) as Promise<{ url: string; tiles: number; tileHeight: number }>,
     detectShotCuts: (payload: unknown) =>
