@@ -1,0 +1,111 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-10-group-header-chrome",
+  "problem_type": "The group header carried a redundant logo, a color dot, a collapse button and a more button outside the frame, and several of their functions also lived in the group toolbar and the right-click menu, so the same action had two entries that could drift apart",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-10",
+  "symptom": "User 10-10: the redundant logo at the top-left of the group frame had already moved into the group toolbar; the group chrome showed duplicated entries.",
+  "direct_cause": "The header was designed outside the frame in a separate branch (outside prop) that kept chrome from an older design after the toolbar and context menu absorbed its functions; no check listed which header function had a destination.",
+  "class_root": "Feature census for a UI surface lived only in a plan document; nothing tied each removed or moved function to a destination, so a redesign could drop a function or keep a duplicate entry without any test noticing.",
+  "migration": "Header moved inside the frame; outside branch, color dot, collapse button and more button deleted in the same change. Toolbar gained a trailing more button opening the same FrameContextMenu. Description moved into the menu edit state. Generate-all added inside the frame on the same runFrameAction path.",
+  "affected_population": [
+    "Anyone who used the outside label, the collapse button or the more button",
+    "Anyone expecting description editing on double click of the label"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/"
+  ],
+  "entry_points": [
+    "GroupFrameHeader.tsx: in-frame header and edit draft",
+    "CanvasGroupToolbar.tsx: trailing more button",
+    "FrameContextMenu.tsx: edit / collapse / delete items",
+    "useCanvasFrameActions.ts: runFrameAction generate and delete"
+  ],
+  "invariants": [
+    "Every header function has a destination in the frame, the toolbar or the context menu (F1–F19)",
+    "Generate all uses the same execution path as the toolbar generate",
+    "Deleting a group from the menu deletes its members in one undo step"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/GroupFrameHeader.tsx",
+      "symbol": "GroupFrameHeader"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/CanvasGroupToolbar.tsx",
+      "symbol": "CanvasGroupToolbar"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 3,
+    "why_not": "Each surface keeps its own entry point; what was removed is the duplicate header entry for collapse and more."
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/groupFrameCensus.test.ts",
+    "tests/ux/group-header-real-app.walk.mjs"
+  ],
+  "residual_risks": [
+    "The census is a source assertion: it proves each function has code at its destination, not that the user finds it. The real-app walk covers the visible paths for zh-light and en-dark only."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Destinations are product decisions made by the user on 10-10 (P1–P3); no external protocol is involved.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Each redesign of the group chrome moved functions between the frame, the toolbar and the menu without a list; the outside-label design had accumulated duplicates over several releases.",
+    "same_class_scan": [
+      "grep -rn \"outside|data-frame-more|collapseNamed\" src/workbench/generationCanvas"
+    ]
+  },
+  "generality_proof": "Each header function must map to a census row; the census test asserts that each row points at live code, so a removed function without a destination fails the test.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/FrameContextMenu.tsx",
+      "symbol": "FrameContextMenu",
+      "responsibility": "Single menu for rename, description, collapse, generate, timeline, dissolve and delete on a group."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasGroupToolbar.tsx",
+      "entry_point": "trailing more button",
+      "disposition": "enforced",
+      "evidence": "groupFrameCensus.test.ts F9"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/FrameContextMenu.tsx",
+      "entry_point": "right-click frame menu",
+      "disposition": "enforced",
+      "evidence": "groupFrameCensus.test.ts F10 F13 F15"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "src/workbench/generationCanvas/components/groupFrameCensus.test.ts",
+    "invariant": "Each group header function has a live destination (F1–F19).",
+    "failure_mode": "A header function is removed or moved without a destination, or a removed entry comes back."
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/groupFrameCensus.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Removed declarations are inside GroupFrameHeader.tsx (outside branch, color dot, collapse and more buttons); no file was deleted, and the outside prop is gone with them."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added or changed.",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/components/groupFrameCensus.test.ts",
+    "tests": [
+      "src/workbench/generationCanvas/components/groupFrameCensus.test.ts",
+      "tests/ux/group-header-real-app.walk.mjs"
+    ]
+  },
+  "change_kind": "corrective"
+}

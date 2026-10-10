@@ -55,7 +55,7 @@ describe('CollapsedGroupCard', () => {
     )
     expect(html).toContain('bg-nomi-group-ocean-soft')
     expect(html).not.toContain('bg-nomi-group-neutral-soft')
-    expect(html).not.toContain('border-nomi-group-')
+    for (const id of ['neutral', 'teal', 'amber', 'coral', 'violet', 'rose']) expect(html, `no ${id} border`).not.toContain(`border-nomi-group-${id}`)
     expect(html).not.toMatch(/style="[^"]*(color|background)/)
   })
 })

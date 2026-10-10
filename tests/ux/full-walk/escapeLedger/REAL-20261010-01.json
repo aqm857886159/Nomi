@@ -9,7 +9,7 @@
   "useCases": [],
   "fullWalkJourneys": [],
   "status": "fixed",
-  "manualReview": "confirmed-by-user-2026-10-10",
+  "manualReview": "reviewed",
   "fixedInPr": 1169,
   "structuralPrevention": [
     "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts（层级表唯一 owner）",
@@ -23,8 +23,9 @@
   "completionCommits": [
     "ee1368885"
   ],
-  "classCheck": [
-    "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts",
-    "tests/ux/group-layer-order.walk.mjs"
-  ]
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts"
+  },
+  "rootCauseContract": "docs/fixes/2026-10-10-group-layer-stacking.root-cause.json"
 }

@@ -97,7 +97,7 @@ export function CanvasFrameStage({
     >
       <div className="absolute inset-0" style={{ transform: `translate(${-STAGE_ORIGIN.x}px, ${-STAGE_ORIGIN.y}px)` }}>
         {box ? (
-          <GroupFrame box={box} onPointerDown={NOOP} onCollapse={NOOP} frame={frameInteraction} />
+          <GroupFrame box={box} onPointerDown={NOOP} frame={frameInteraction} />
         ) : null}
         {nodes.map((node) => {
           // 占位块必须用**和框同一个**尺寸解析器。读 `node.size` 会得出另一份真相：

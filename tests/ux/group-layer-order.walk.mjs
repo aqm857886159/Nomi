@@ -12,6 +12,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
 import { expect, waitForVisualQuiescence } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shots = path.join(root, 'tests/ux/shots/group-layer-order')
@@ -56,7 +57,7 @@ try {
   expect(win, '项目窗口打开').toBeTruthy()
   await win.locator('.generation-canvas-v2__stage').waitFor()
   await waitForVisualQuiescence(win)
-  await win.getByRole('button', { name: '重置视图', exact: true }).first().click()
+  await win.getByRole('button', { name: uiText('zh-CN', 'generationCommon.navigation.resetView'), exact: true }).first().click()
   await waitForVisualQuiescence(win)
   await expect(win.locator('.generation-canvas-v2__group-box[data-group-id="gB"]'), '分组 B 已渲染').toBeVisible()
 

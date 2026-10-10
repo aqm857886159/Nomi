@@ -1,0 +1,161 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-10-group-layer-stacking",
+  "problem_type": "A group header painted over another group's node prompt box: the group header's hard-coded z-index competed with the node layer's hard-coded z-index on the same viewport layer, so the header covered every node regardless of selection",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-10",
+  "symptom": "User 10-10: the icon at the top-left of a group sometimes overlaps the prompt box of a node in another group. Reproduced on real Electron: group B header (z-[4]) topAtIntersect over group A selected node composer (node layer z-index 2, selected node z 5 inside it).",
+  "direct_cause": "GroupFrameHeader wrote z-[4] while .react-flow__nodes wrote z-index:2 in generationCanvasReactFlow.css; both live in the ViewportPortal/viewport stacking context, so the header outranked the entire node layer and the selected node's z 5 could not escape the node layer's z 2.",
+  "class_root": "Overlay z-index numbers were scattered across CSS and TSX (about nine places) with no single owner, and the relative order of group chrome against the node layer was never written down anywhere a test could read, so each local fix could reintroduce the collision.",
+  "migration": "New canvasLayerOrder.ts is the single owner (CANVAS_LAYER and CANVAS_LAYER_CSS_VARS). GroupFrame, GroupFrameHeader, CanvasGroupToolbar, CanvasSelectionToolbar, SelectionToolbarFrame, NodeGenerationComposer, TextNodeComposer and the RF adapter read from it; the node layer and selected node reach CSS through variables injected on the ReactFlow root. Dead rule .generation-canvas-v2__nodes z-index:3 deleted.",
+  "affected_population": [
+    "Any group whose header or toolbar overlaps a node on another group (the reported case)",
+    "Selected nodes inside a group whose composer sits under another group's header"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/components/GroupFrame.tsx: group body zIndex",
+    "src/workbench/generationCanvas/components/GroupFrameHeader.tsx: header zIndex",
+    "src/workbench/generationCanvas/components/CanvasGroupToolbar.tsx: group toolbar zIndex",
+    "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx: selection toolbar zIndex",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx: composer zIndex",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css: node layer and selected node variables"
+  ],
+  "invariants": [
+    "The node layer paints above every group header and body on the viewport layer",
+    "The selected node paints above other nodes inside the node layer",
+    "Canvas toolbars paint above the node layer",
+    "Every overlay z number used by these files comes from CANVAS_LAYER"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts",
+      "symbol": "CANVAS_LAYER"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/GroupFrameHeader.tsx",
+      "symbol": "GroupFrameHeader"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "NodeGenerationComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+      "symbol": "TextNodeComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "GenerationCanvasReactFlow"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "GenerationCanvasReactFlowViewport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "symbol": ".react-flow__nodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
+      "symbol": "toGenerationFlowNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/styles/generationCanvas.css",
+      "symbol": ".generation-canvas-v2__nodes"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 2,
+    "why_not": "Each overlay still has its own element; what was merged is the number. The toolbars and composers still render where they did, but read their z from one table."
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts",
+    "tests/ux/group-layer-order.walk.mjs"
+  ],
+  "residual_risks": [
+    "The collapsed group card (z-[3] in the viewport layer) is not in the table yet; it can still overlap node cards if placed under a node layer edge case.",
+    "The walk runs only on the Windows build used by this worktree."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "React Flow has no unified z management across ViewportPortal and the node layer; checked @xyflow/react 12.11.5 style.css and the viewport render order in the installed dist.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new overlay in the viewport layer can again pick a number that collides with the node layer; the header collision was the third overlay-order fix on this file set within 14 days.",
+    "same_class_scan": [
+      "grep -rn \"zIndex|z-\\[\" src/workbench/generationCanvas --include=*.tsx --include=*.ts"
+    ]
+  },
+  "generality_proof": "Every overlay on the canvas viewport layer takes its z from CANVAS_LAYER; the guard test rejects literal z numbers in the owned files, so a new overlay needs a table entry to ship.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts",
+      "symbol": "CANVAS_LAYER",
+      "responsibility": "Defines the order of the canvas overlay layers in one place."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts",
+      "symbol": "CANVAS_LAYER_CSS_VARS",
+      "responsibility": "Injects the node layer and selected node z into CSS through variables on the ReactFlow root."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasGroupToolbar.tsx",
+      "entry_point": "group toolbar root",
+      "disposition": "enforced",
+      "evidence": "reads CANVAS_LAYER.groupToolbar; canvasLayerOrder.test.ts scans for literal z"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "composer anchor",
+      "disposition": "enforced",
+      "evidence": "reads CANVAS_LAYER.nodeComposer; the single allowed local z-[10] (drop zone) is whitelisted"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts",
+    "invariant": "Canvas overlay z order is defined by one table; the owned files cannot write literal z numbers.",
+    "failure_mode": "A new overlay writes its own z-index and sorts above or below the node layer by accident.",
+    "exception_policy": "none",
+    "strategy": "Single table (CANVAS_LAYER) read by every overlay, guarded by a test that scans the owned file list for literal z numbers.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts",
+      "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No module was removed; the removed declarations were CSS lines (.generation-canvas-v2__nodes z-index:3, .react-flow__nodes z-index:2 and .react-flow__node.selected z-index:5 now read variables)."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency added or changed.",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts",
+      "tests/ux/group-layer-order.walk.mjs"
+    ]
+  },
+  "change_kind": "corrective"
+}

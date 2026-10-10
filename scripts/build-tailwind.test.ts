@@ -31,7 +31,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
  */
 const SENTINELS = [
   // src/workbench/generationCanvas/components/groupVisualContract.ts —— 分组框的半透明底
-  { source: 'bg-nomi-paper/[0.32]', selector: '.bg-nomi-paper\\/\\[0\\.32\\]' },
+  { source: 'bg-nomi-group-ocean-soft', selector: '.bg-nomi-group-ocean-soft' },
   // src/ui/browser/popover/browserAssetPopoverConstants.ts —— 浮窗上/下边 resize 手柄的右锚
   { source: 'right-5', selector: '.right-5' },
   // 曾经还有第三条：`max-w-[86%]`（residentShellDisplay.ts，最早暴露这个坑的那条）。

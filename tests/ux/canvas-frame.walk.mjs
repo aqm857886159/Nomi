@@ -23,6 +23,7 @@ import { expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled
 import { newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openFrameMenuByRightClick, openFrameMenuFromToolbar } from './_groupGenerate.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame')
@@ -552,7 +553,7 @@ try {
   // ── ⑥ 折叠腾地方，再展开 ──
   // 折叠入口 = 框边右键菜单「折叠成卡」（框头上的折叠钮已删，10-10 拍板）。
   await openFrameMenuByRightClick(frameLocator(win).first())
-  await win.locator('[data-frame-menu="true"]').getByRole('button', { name: '折叠成卡' }).first().click({ timeout: 6000 })
+  await win.locator('[data-frame-menu="true"]').getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.menuCollapse') }).first().click()
   await win.waitForTimeout(900)
   await expectCount(win.locator('[data-collapsed-group-id]'), 1, '折叠成一张卡')
   await snap(win, 'collapsed')
@@ -617,8 +618,8 @@ try {
   check(generated >= 1, '整框生成真的出了片（loopback 供应商 → 落盘 → 节点上放得出来）', `videos=${generated}`)
   await snap(win, 'frame-generated')
 
-  // ── ⑨ ⋯ 菜单：整框进时间轴 ──
-  await moreButton.click({ timeout: 6000 })
+  // ── ⑨ ⋯ 菜单：整框进时间轴（工具条末尾「⋯」）──
+  await openFrameMenuFromToolbar(win, frameLocator(win).first())
   await win.waitForTimeout(500)
   const menu2 = win.locator('[data-frame-menu="true"]').first()
   await expectVisible(menu2, '⋯ 菜单再次打开')
@@ -641,7 +642,7 @@ try {
   // ── ⑩ ⋯ 菜单：解散（节点和连线都留着） ──
   const edgesBefore = await win.evaluate(() => document.querySelectorAll('.react-flow__edge').length)
   const nodesBefore = await win.evaluate(() => document.querySelectorAll('.react-flow__node[data-id]').length)
-  await moreButton.click({ timeout: 6000 })
+  await openFrameMenuFromToolbar(win, frameLocator(win).first())
   await win.waitForTimeout(500)
   await win.locator('[data-frame-menu="true"] button', { hasText: '解散' }).first().click({ timeout: 6000 })
   await win.waitForTimeout(900)

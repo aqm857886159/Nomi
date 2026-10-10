@@ -437,6 +437,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const selectedGroup = React.useMemo(() => visibleGroups.find((group) => group.id === selectedGroupId) ?? null, [selectedGroupId, visibleGroups])
   const groupToolbar = useCanvasGroupToolbar({ selectedGroup, allNodes, visibleNodeIds, canvasZoom: liveViewport.zoom, canvasOffsetX: liveViewport.x, canvasOffsetY: liveViewport.y, stageWidth: stageSize.width, stageHeight: stageSize.height, readOnly, runFrameAction: frameActions.runFrameAction, openFrameMenu: frameActions.openFrameMenu })
+  const { runFrameAction } = frameActions
   const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
     membershipPreview: frameMembership.membershipPreview,
     editingGroupId: frameActions.editingFrameId,
@@ -444,10 +445,10 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     onRename: renameGroup,
     onDescribe: setGroupDescription,
     onOpenMenu: frameActions.openFrameMenu,
-    onGenerate: (groupId: string) => frameActions.runFrameAction(groupId, 'generate'),
+    onGenerate: (groupId: string) => runFrameAction(groupId, 'generate'),
     // Both complete-member and empty/collapsed selection must drive the same frame chrome.
     selectedGroupId,
-  }), [selectedGroupId, frameActions.editingFrameId, frameActions.openFrameMenu, frameActions.runFrameAction, frameActions.setEditingFrameId, frameMembership.membershipPreview, renameGroup, setGroupDescription])
+  }), [selectedGroupId, frameActions.editingFrameId, frameActions.openFrameMenu, runFrameAction, frameActions.setEditingFrameId, frameMembership.membershipPreview, renameGroup, setGroupDescription])
 
   const { screenshotOverlay } = useCanvasScreenshotCapture({
     readOnly,

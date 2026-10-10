@@ -9,7 +9,7 @@
   "useCases": [],
   "fullWalkJourneys": [],
   "status": "fixed",
-  "manualReview": "confirmed-by-user-2026-10-10",
+  "manualReview": "reviewed",
   "fixedInPr": 1169,
   "structuralPrevention": [
     "框头功能普查表（docs/plan/2026-10-10-group-header-board-parity.md）逐项写明去处，改版后框外标签整体删除（同 commit）"
@@ -17,10 +17,12 @@
   "evidence": [
     "2026-10-10 user: 删掉了左上角那个冗余logo和功能，已经转移到分组的工具栏里面了"
   ],
-  "completionCommits": [],
-  "classCheck": [
-    "src/workbench/generationCanvas/components/groupFrameCensus.test.ts",
-    "tests/ux/group-header-real-app.walk.mjs",
-    "tests/ux/canvas-frame.walk.mjs"
-  ]
+  "completionCommits": [
+    "e3390853a"
+  ],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/components/groupFrameCensus.test.ts"
+  },
+  "rootCauseContract": "docs/fixes/2026-10-10-group-header-chrome.root-cause.json"
 }

@@ -53,6 +53,7 @@ describe('canvas layer order (single owner: canvasLayerOrder.ts)', () => {
       { file: 'nodes/TextNodeComposer.tsx', localZClasses: 0 },
       { file: 'reactFlow/generationCanvasReactFlowAdapter.ts', localZClasses: 0 },
     ]
+    // 遍历「归表管的文件清单」：每个文件的 z-[n] 类个数与数字 zIndex 都要过守卫。
     for (const { file, localZClasses } of owned) {
       const text = source(file)
       expect(text.match(/\bz-\[-?\d+\]/g)?.length ?? 0, `${file} z-[n] classes`).toBe(localZClasses)

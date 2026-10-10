@@ -205,7 +205,7 @@ export function CanvasGroupingStage(): JSX.Element {
       <div className="relative h-full w-full" style={{ transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)` }}>
         {grouped && box ? (
           <>
-            <GroupFrame box={box} onPointerDown={handleGroupPointerDown} frame={frameInteraction} onCollapse={NOOP} />
+            <GroupFrame box={box} onPointerDown={handleGroupPointerDown} frame={frameInteraction} />
             <div className="pointer-events-none absolute" style={{ left: box.left, top: box.top, width: box.width }}>
               <div className="pointer-events-auto">
                   <CanvasGroupToolbar
@@ -229,6 +229,7 @@ export function CanvasGroupingStage(): JSX.Element {
                       setStatus(`编组颜色已切换为 ${color}。`)
                     }}
                     onDownload={() => setStatus('下载编组结果。')}
+                    onOpenMenu={() => setStatus('打开框菜单。')}
                   />
               </div>
             </div>

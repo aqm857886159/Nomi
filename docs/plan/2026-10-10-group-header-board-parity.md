@@ -82,3 +82,9 @@
 功能普查里的 P1（说明去处）、P2（⋯ 是否保留）、P3（生成全部付费语义）仍待拍板，见上文「需要拍板」。
 
 **停在这里**：生产代码未动（`GroupFrameHeader.tsx` 等仍是框外标签）。等用户对 D1、D3、D4、P1、P2 拍板，再开实现段。
+
+## 先查别人
+
+1. 依赖里已有？`node_modules/@xyflow/react/dist/style.css:123`（`.react-flow__viewport` 为 z-index 2）、`node_modules/@xyflow/react/dist/style.css:211`（`.react-flow__nodes` 无 z）、`node_modules/@xyflow/react/dist/style.css:342`（`.react-flow__viewport-portal` 无 z）。框架只给层叠上下文，没有跨 ViewportPortal 与节点层的统一 z 接口：层级表必须自己写，但只是几十个数字，不含通用逻辑。
+2. 仓库里已有？`src/design/actions.tsx:268`（`WorkbenchButton`，设计系统现役按钮）直接复用，不加胶囊变体（D3）。`src/design/overlayLayers.ts:7`（`NOMI_OVERLAY_Z_INDEX`）管模态浮层（弹窗、菜单），不管画布内的框与节点层，不复用。
+3. 生态里已有？`node_modules/@xyflow/react/dist/esm/index.mjs:3273`：视口的子元素顺序是 EdgeRenderer、NodeRenderer（节点层）、viewport-portal（我们的框层挂在这里），框架自己不给框与节点之间的先后。在线文档本次没有检索（Context7 未用），这是诚实的缺口；若框架日后提供跨层 z 管理，按 `docs/engineering/self-written.json` 的 `canvas-layer-order` 条目的 revisitWhen 复查。

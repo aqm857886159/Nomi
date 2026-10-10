@@ -420,7 +420,7 @@ try {
   const referenceFrame = win.locator('.generation-canvas-v2__group-box[data-group-id="reference-group"]').first()
   await referenceFrame.scrollIntoViewIfNeeded()
   await openFrameMenuByRightClick(referenceFrame)
-  await clickOrFail(win.locator('[data-frame-menu="true"]').getByRole('button', { name: '折叠成卡' }).first(), '把雨夜参考组收成节点卡组')
+  await clickOrFail(win.locator('[data-frame-menu="true"]').getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.menuCollapse') }).first(), '把雨夜参考组收成节点卡组')
   const collapsed = win.locator('[data-collapsed-group-id="reference-group"]')
   await expectVisible(collapsed, '收起后应显示一张编组卡')
   await expectCount(collapsed, 1, '收起后只保留一张编组卡')
