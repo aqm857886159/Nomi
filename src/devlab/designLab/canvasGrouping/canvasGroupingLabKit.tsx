@@ -69,7 +69,7 @@ function demoGroup(nodeIds: readonly string[]): NodeGroup {
   }
 }
 
-function seedGroupingFixture(): void {
+function seedGroupingFixture(initialGrouped: boolean): void {
   const image = demoNode(NODE_IDS[0], 'image', '首帧 · 海边公路', { x: 76, y: 178 }, '/prompt-media/expressions/builtin-expr-joy-1.webp')
   const video = demoNode(NODE_IDS[1], 'video', '视频 · 推近', { x: 388, y: 178 }, '/prompt-media/expressions/builtin-expr-surprise-1.webp')
   const secondImage = demoNode(NODE_IDS[2], 'image', '参考 · 沙漠公路', { x: 700, y: 178 }, '/prompt-media/expressions/builtin-expr-fear-1.webp')
@@ -78,8 +78,8 @@ function seedGroupingFixture(): void {
     isReady: true,
     nodes: [image, video, secondImage],
     edges: [],
-    groups: [],
-    selectedNodeIds: [...NODE_IDS],
+    groups: initialGrouped ? [demoGroup(NODE_IDS)] : [],
+    selectedNodeIds: initialGrouped ? [] : [...NODE_IDS],
   })
 }
 
@@ -106,18 +106,19 @@ function DemoSelectionToolbar({ onGroup, onClear }: { onGroup: () => void; onCle
   )
 }
 
-export function CanvasGroupingStage(): JSX.Element {
+/** `initialGrouped`：从「已编组、整组被选中」开场（no-accent-outline 的分组格用；默认仍是临时多选）。 */
+export function CanvasGroupingStage({ initialGrouped = false }: { initialGrouped?: boolean }): JSX.Element {
   const nodes = useGenerationCanvasStore((state) => state.nodes.filter((node) => NODE_IDS.includes(node.id as (typeof NODE_IDS)[number])))
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
-  const [grouped, setGrouped] = React.useState(false)
+  const [grouped, setGrouped] = React.useState(initialGrouped)
   const [group, setGroup] = React.useState<NodeGroup>(() => demoGroup(NODE_IDS))
-  const [selectedGroupId, setSelectedGroupId] = React.useState<string | null>(null)
+  const [selectedGroupId, setSelectedGroupId] = React.useState<string | null>(initialGrouped ? GROUP_ID : null)
   const [canvasOffset, setCanvasOffset] = React.useState({ x: 0, y: 0 })
   const [dragState, setDragState] = React.useState<{ pointerId: number; startX: number; startY: number; offset: { x: number; y: number } } | null>(null)
   const [status, setStatus] = React.useState('临时多选：虚线只表示这一次选择，不会改变节点归属。')
 
   React.useLayoutEffect(() => {
-    seedGroupingFixture()
+    seedGroupingFixture(initialGrouped)
     return () => {
       useGenerationCanvasStore.setState({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
     }
