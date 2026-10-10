@@ -39,6 +39,7 @@
             { "path": "tests/ux/agent-panel-missing-card.walk.mjs", "blocking": false, "reason": "Agent panel missing-card regression; scheduled coverages sufficient" },
             { "path": "tests/ux/agent-spend-card.walk.mjs", "blocking": true, "reason": "Spend approval card is a payment safety boundary" },
             { "path": "tests/ux/agent-spend-confirm-executes.walk.mjs", "blocking": true, "reason": "Post-confirm execution exactly once is a payment safety boundary" },
+            { "path": "tests/ux/agent-spend-confirm-then-close.walk.mjs", "blocking": false, "reason": "Confirm-then-immediate-close race (arbiter); scheduled coverage first, promote after five clean runs" },
             { "path": "tests/ux/agent-spend-full-auto.walk.mjs", "blocking": true, "reason": "Full-auto mode still needs the approval boundary" },
             { "path": "tests/ux/agent-spend-generate-remaining.walk.mjs", "blocking": true, "reason": "Remaining-shot generation must reuse the approval boundary" },
             { "path": "tests/ux/agent-spend-long-output-name.walk.mjs", "blocking": false, "reason": "Long output name presentation regression; scheduled coverage is sufficient" },

@@ -1764,6 +1764,30 @@
       "revisitWhen": "use-gesture（或 dnd-kit）提供区分 release / cancel 并覆盖 blur、lostpointercapture、Esc 的会话原语时；或预览区 OverlaySelectionBox / TimelinePreview 的拖动也迁入同一会话、需要把它抽成通用手势层时"
     },
     {
+      "id": "spend-card-action-arbiter",
+      "capability": "付费卡每一次出价的仲裁器：卡上动作的队、× 的取消令牌、封存终态（UI / 回执 / lane 读同一个口）",
+      "status": "justified",
+      "paths": [
+        "electron/capabilityCore/spendOperationArbiter.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "XState v5（状态机 / actor 库：停掉 actor 只丢弃在飞 Promise 的结果，不中止已在 await 的账本写入；快照是内存里的第二份事实）",
+          "source": "https://github.com/statelyai/xstate/blob/main/packages/core/src/actors/promise.ts"
+        },
+        {
+          "name": "仓库已有的 Run 锁（跨进程落盘的 fencing 互斥，管「谁拥有这个 Run」，× 不该去等它）",
+          "source": "electron/productionRun/productionRunLock.ts:1"
+        },
+        {
+          "name": "项目租约 ProjectLeaseV2（同上，confirm 已持有；仲裁器要的是同进程的取消令牌）",
+          "source": "electron/capabilityCore/projectLease.ts:1"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：同一镜的「交 / 不交」要在授权落账那一点上由账本裁决，× 要在每个有副作用的 await 之前被问到、又不能排队等前一个动作；状态机库和租约都不提供「在飞的账本写入之前问一枚同步令牌」。事实仍在 Run 账本（事件溯源 reducer），仲裁器只是同进程协调者，不落盘、不存第二份事实。方案对比与拍板：docs/plan/2026-10-10-spend-arbiter.md。",
+      "revisitWhen": "卡的界面态（stopping / sending / confirm 的纯界面状态机）要做时评估 XState；那里没有账本事实，可以接。"
+    },
+    {
       "id": "inflight-probe-registry",
       "capability": "模块级后台任务表的「还有几件没落定」探针登记表：单例（导出任务表等）登记 count / settle，测试共享 setup 每个用例后核，残留就收尾并让泄漏的用例红",
       "status": "justified",
