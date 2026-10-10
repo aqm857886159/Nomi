@@ -16,17 +16,20 @@
 //   主进程 `presentStoryboardAuthoring` 打的那一个 op）/ 真 `SpendConfirmDialog` / 真 loopback 供应商。
 //   不灌 store、不伪造回包、不直调 `confirmAndRunPlan`。
 //
-// 两条真人任务：
-//   ① 卡出来 → **点取消** → 回包 `decision: 'declined'`；画布节点**一个不多也一个不少**，
-//      方案还在左栏、还是 draft，零供应商请求（他没同意，就不该花钱）；
-//   ② 卡再出来 → **点确认** → 回包 `decision: 'started'`，loopback 真的收到了生成请求。
+// 三段真人任务：
+//   ① 卡出来 → **点取消** → 回包 `decision: 'declined'`；画布一个节点都不多（批准之前不落占位，
+//      ad7ae74a7 2026-10-08「defer row materialization until approval」），方案还在左栏，零供应商请求；
+//   ② 他在创作页点「放入画布」→ 两镜各落一个节点（还没生成）；
+//   ③ 卡再出来 → **点确认** → 回包 `decision: 'started'`，loopback 真的收到两次生成请求，而且**每镜仍只有 1 个节点**
+//      （先放到画布再确认，不再落第二份——#1139 验收项「文稿计划先放画布再确认只出 1 个节点」）。
 //
 // 零额度：供应商是 loopback 夹具。
 //
 // Run: pnpm run build && node tests/ux/agent-storyboard-generate-confirm.walk.mjs
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
-import { createRuntimeWalk, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
+import { createRuntimeWalk, openCanvas, readProject } from './agent-runtime-walk-support.mjs'
+import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 
 const DESIGN_ID = 'walk-storyboard-design'
 const SPEND_DIALOG = '[data-spend-confirm-dialog]'
@@ -77,15 +80,22 @@ try {
   }, { projectId, documentId, designId: DESIGN_ID, label })
   const settled = async (label) => win.evaluate(l => window.__nomiStoryboardPresent[l], label)
   const graph = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.map(node => node.id).sort()
+  /** 每一镜在画布上有几个节点（按分镜绑定键 storyboardDesignId × shotId 数，与生产判据 storyboardNodeBinding 同一键）。 */
+  const nodesPerShot = async () => {
+    const nodes = (await readProject(win, projectId)).payload.generationCanvas.nodes
+    return Object.fromEntries(plan.shots.map(shot => [shot.shotId,
+      nodes.filter(node => node.meta?.storyboardDesignId === DESIGN_ID && node.meta?.shotId === shot.shotId && node.meta?.storyboardKeyframe !== true).length]))
+  }
 
   // ── ① 他点取消 ─────────────────────────────────────────────────────────────────────
   await present('declined')
   await expect(dialog, '文稿方案的 generate 停的就是这张全屏花钱确认框').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const dialogProof = await proveProbe(dialog, '那张全屏花钱确认框真的会出现')
   await walk.snap('storyboard-spend-dialog')
-  // 占位是 present 这一步落的（草稿的东西）；取消之后它们一个都不该少——与 × 同一条裁决。
+  // 批准之前不落占位（ad7ae74a7：行物化推迟到批准之后）：卡在等他点头时，画布上还没有这两镜的节点。
+  // 这里原先的探针「两镜各有一个占位」是那次改动之前的形状，origin/main 上同样数到 0（#1139 验收对照）。
   const beforeDecline = await graph()
-  expect(beforeDecline.length, '探针：两镜各有一个占位落在画布上').toBeGreaterThanOrEqual(2)
+  expect(await nodesPerShot(), '确认之前一镜都不落').toEqual({ 'shot-1': 0, 'shot-2': 0 })
   await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]').first(), '在花钱确认框上点取消')
   await expectAbsent(dialog, { provenBy: dialogProof, message: '点完取消这张框就走了' })
   const declined = await expect.poll(async () => await settled('declined'),
@@ -101,16 +111,22 @@ try {
     '方案还在左栏，两镜一个不丢').toBe(2)
   await walk.snap('storyboard-declined-nothing-changed')
 
-  // ── ② 他点确认 ─────────────────────────────────────────────────────────────────────
+  // ── ② 他先在创作页点「放入画布」──────────────────────────────────────────────────────
+  await clickOrFail(win.getByRole('button', { name: /^(创作|Create)$/ }), '去创作页')
+  await ensureCreationResourceTree(win, '创作页')
+  await clickOrFail(win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`), '选中这份文稿')
+  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN_ID}"]`), '打开这份文稿方案')
+  await clickOrFail(win.locator(`[data-place-storyboard="${DESIGN_ID}"]`), '在方案页头点那颗「放到画布上」的按钮')
+  await expect.poll(nodesPerShot, { timeout: DEFAULT_TIMEOUT_MS, message: '放入画布：两镜各落一个节点' }).toEqual({ 'shot-1': 1, 'shot-2': 1 })
+  const placed = await graph()
+  expect(walk.fixture.images, '只是摆上画布，不花钱').toHaveLength(0)
+  await walk.snap('storyboard-placed-on-canvas')
+  await openCanvas(win)
+
+  // ── ③ 他点确认 ─────────────────────────────────────────────────────────────────────
   //
-  // 真出图之后会跟着两次「审片」（每镜一次，`shotVerifyStore`）。它们是**真开跑的下游证据**：
-  // 没跑过就不会有画面要审。先挂上等它们，别让它们落成「计划外请求」。
-  const reviews = [1, 2].map(index => walk.fixture.expectText({
-    label: `shot ${index} really came back and got reviewed`,
-    match: body => JSON.stringify(body).includes(`一只悬浮的六棱柱，第 ${index} 镜`)
-      && JSON.stringify(body).includes('资深影视分镜审片'),
-    reply: { type: 'text', text: '{"identity":5,"aesthetics":4,"intent":5}' },
-  }))
+  // 真出图之后**不再**自动审片（4c1c90b7c 2026-09-26 用户拍板：「生成全部」只花生成的钱）。原先这里等两次审片当作
+  // 「真开跑」的下游证据，那是旧形状；现在的证据是两次生成请求真的到了 loopback、两个节点真的拿到了结果。
   await present('started')
   await expect(dialog).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await clickOrFail(dialog.locator('[data-spend-confirm-action="confirm"]').first(), '在花钱确认框上点确认')
@@ -121,13 +137,18 @@ try {
   expect(started, '同意之后回包说的是「开跑了」').toMatchObject({ status: 'presented', decision: 'started' })
   await expect.poll(() => walk.fixture.images.length,
     { timeout: DEFAULT_TIMEOUT_MS, message: '确认之后 loopback 供应商真的收到了生成请求' }).toBe(2)
-  for (const [index, review] of reviews.entries()) {
-    await recorded(review.received, `shot ${index + 1} came back and got reviewed`)
-  }
+  await expect.poll(async () => {
+    const nodes = (await readProject(win, projectId)).payload.generationCanvas.nodes
+    return placed.filter(id => nodes.find(node => node.id === id)?.result?.url).length
+  }, { timeout: DEFAULT_TIMEOUT_MS, message: '放上去的两个节点真的拿到了这次的结果' }).toBe(2)
+  // 先放到画布再确认：每镜仍只有 1 个节点，就是放上去的那两个（没有第二份）。
+  expect(await nodesPerShot(), '确认之后每镜仍只有 1 个节点').toEqual({ 'shot-1': 1, 'shot-2': 1 })
+  expect(await graph(), '确认用的就是放上去的那两个节点').toEqual(placed)
   await walk.snap('storyboard-confirmed-really-runs')
 
   walk.report.verified = ['storyboard-present-shows-the-real-spend-dialog',
-    'cancel-reports-declined-and-changes-nothing', 'confirm-reports-started-and-really-runs']
+    'cancel-reports-declined-and-changes-nothing', 'place-on-canvas-lands-one-node-per-shot',
+    'confirm-after-placing-reuses-the-placed-nodes', 'confirm-reports-started-and-really-runs']
 } catch (error) {
   failure = error
   process.exitCode = 1

@@ -10,6 +10,7 @@ import { buildProductionDeepLink } from './productionDeepLink'
 import { safeExternalText, safeProductionContract, safeShotId } from './productionRunProjectionSanitizer'
 import { trustLevelOf } from './productionRunTypes'
 import { runStopReason } from '../shared/productionRunStop'
+import { shotLandingFacts } from './shotLandingAdmission'
 import { createArtifactProjection, type ArtifactProjection } from './artifactProjection'
 import { metadataProjection } from './productionRunArtifactHelpers'
 import type { ProductionRun, RunEvent } from './productionRunTypes'
@@ -21,6 +22,7 @@ type SafeProductionJob = Pick<ProductionRun['jobs'][number], 'jobId' | 'stageId'
   // metadata 只投影 shotId 这一格，故显式写死形状——不 Pick 整个 metadata：那是 Record<string, unknown> 袋子
   // （还装着 ffDesc/dialogue/retryDirective 等未脱敏长文本），类型上承诺全量、实际只发一格 = 类型说谎。
   & { metadata?: { shotId: string } }
+type LandingRefProjection = { shotId: string; index: number; title?: string }
 export type ProductionRunProjection = {
   schemaVersion: number
   runId: string
@@ -29,6 +31,8 @@ export type ProductionRunProjection = {
   status: ProductionRun['status']
   /** 停着时停下的原因（Run 在停下那一刻记下的事实，经 runStopReason 读）；没停 = null；上一版停下没记 = 'unknown'。 */
   stopReason: ReturnType<typeof runStopReason>
+  /** 停在 landing_failed 时：逐镜哪几镜发出了、哪几镜没放到画布上（#1139 B1，按镜头算）。 */
+  landing?: { sent: LandingRefProjection[]; notPlaced: LandingRefProjection[]; removed: LandingRefProjection[] }
   stageId: string
   playbook: ProductionRun['playbook']
   origin: ProductionRun['origin']
@@ -78,6 +82,7 @@ export function safeRunProjection(run: ProductionRun): Omit<ProductionRunProject
     revision: run.revision,
     status: run.status,
     stopReason: runStopReason(run),
+    ...(runStopReason(run) === 'landing_failed' ? { landing: landingProjection(run) } : {}),
     stageId: run.stageId,
     playbook: { name: run.playbook.name, version: run.playbook.version },
     origin: { host: run.origin.host, ...(run.origin.actorId ? { actorId: run.origin.actorId } : {}) },
@@ -172,4 +177,11 @@ export function eventProjection(event: RunEvent): ProductionEventProjection {
     ...(event.attemptId ? { attemptId: event.attemptId } : {}),
     ...(event.providerOccurredAt ? { providerOccurredAt: event.providerOccurredAt } : {}),
   }
+}
+
+function landingProjection(run: ProductionRun): { sent: LandingRefProjection[]; notPlaced: LandingRefProjection[]; removed: LandingRefProjection[] } {
+  const facts = shotLandingFacts(run)
+  const safe = (ref: { shotId: string; index: number; title?: string }): LandingRefProjection =>
+    ({ shotId: safeShotId(ref.shotId) ?? '', index: ref.index, ...(ref.title ? { title: safeExternalText(ref.title) } : {}) })
+  return { sent: facts.sent.map(safe), notPlaced: facts.notPlaced.map(safe), removed: facts.removed.map(safe) }
 }

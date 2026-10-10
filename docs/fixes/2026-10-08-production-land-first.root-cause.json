@@ -1,0 +1,254 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-08-production-land-first",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-08",
+  "problem_type": "A paid generation request can leave Nomi for a shot that has no node on the canvas",
+  "symptom": "Production runs (agent paid card, external MCP, batch continue / recovery) dispatched shots whose canvas landing had failed or never happened: multi-shot landing was best-effort and failures still dispatched, single-shot submitted first and landed afterwards, the in-process stdio MCP never landed, and a result arriving for a deleted node was silently dropped.",
+  "direct_cause": "appIntegration start called landCanvasBestEffort (swallowing failures) before kicking the scheduler and after submission.start for single shots; the batch scheduler and submission.start never looked at the shot's node binding; attachShotResult returned node-removed without holding the outcome.",
+  "class_root": "The paid dispatch boundary (submission.start) only checked Run-ledger facts (claim, authorization, consent) and never required that the shot is bound to a landed canvas node, so canvas landing was an optional side path every new dispatch caller could skip.",
+  "affected_population": [
+    "Agent panel paid-card confirmations (single and multi-shot)",
+    "External MCP nomi_start_generation through the GUI or the in-process stdio entry",
+    "Batch continue / rework / restart-recovery drives",
+    "Document-sourced plans confirmed before being placed on the canvas"
+  ],
+  "scope_paths": [
+    "electron/productionRun/shotLandingAdmission.ts",
+    "electron/productionRun/singleShotProductionStart.ts",
+    "electron/productionRun/landingProjectAccess.ts",
+    "electron/productionRun/landingFailureCopy.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/productionRun/canvasLandingHost.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/productionRun/productionRunLifecycle.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/shared/productionRunStop.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationLandFirst.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/mcpToolResults.ts",
+    "electron/agentLane/laneDesktopTasks.ts",
+    "electron/backgroundLaunch.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "electron/productionRun/landFirstTestUtils.ts",
+    "src/workbench/observability/classifyError.ts"
+  ],
+  "entry_points": [
+    "GUI multi-shot start (appIntegration planning start)",
+    "GUI single-shot start (appIntegration planning start)",
+    "In-process stdio MCP start (mcpStdioServer)",
+    "Batch scheduler drives: start / continue / rework / restart recovery",
+    "Agent panel paid-card confirm (confirmOneShot)",
+    "Canvas node generation (createCanvasShotRuns dispatch)",
+    "Production result backfill for a deleted node (materializeShots follow / attachShotResult)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.typescriptlang.org/play/?#example/nominal-typing",
+      "checked_at": "2026-10-08",
+      "purpose": "Branded (nominal-ish) types so only the admission function can construct the token submission.start requires."
+    }
+  ],
+  "invariants": [
+    "submission.start only accepts a LandedShotAdmission and re-verifies it against the durable Run before the first durable write and again under the Run lock.",
+    "A shot that could not land is never dispatched; the Run rests at needs_attention with stop reason landing_failed, which a retry lifts.",
+    "A production outcome arriving while its bound node is absent is held by nodeId and lands when undo / restore brings the node back."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "admitShotsForDispatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotProductionStart.ts",
+      "symbol": "admitShotsForDispatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "admitShotsForDispatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "admitShotsForDispatch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationLandFirst.ts",
+      "symbol": "admitShotsForDispatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "landBeforeDispatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "landBeforeDispatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "assertShotAdmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "recordLandingFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "landCanvasForRunOrThrow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "startSingleShotProduction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/landingProjectAccess.ts",
+      "symbol": "createLandingProjectAccess"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "holdOnce"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 13,
+    "why_not": "Dispatch callers of submission.start shrank from four files (appIntegration, mcpStdioServer, scheduler, canvas shot) to three (scheduler, singleShotProductionStart, canvas shot), all forced through one admission by type; the best-effort pre-landing doors in appIntegration are gone. The remaining doors each have one job: five admission callers are distinct user moments that must land before acting (scheduler drive incl. recovery, single-shot start for GUI and stdio, canvas node runs, the paid card before approving, the multi-shot start reporting to the agent); the submission exit re-checks the admission; recordLandingFailure is the single writer of landing_failed; landCanvasForRunOrThrow / landBeforeDispatch / createLandingProjectAccess are the one landing path and its project access; holdOnce is the renderer hold for deleted nodes."
+  },
+  "generality_proof": "Every paid production dispatch converges on submission.start, whose input type requires a LandedShotAdmission that only admitShotsForDispatch constructs, and whose runtime re-verifies node binding against the durable Run independent of the injectable beforeDispatch hook. A new caller cannot compile without the admission and cannot forge one past the runtime check; the generation-entrances gate additionally requires every entrance to declare node-first or a ledgered exception.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "admitShotsForDispatch",
+      "responsibility": "Land unbound shots once, issue admissions only for bound shots, report the rest."
+    },
+    {
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "assertShotAdmission",
+      "responsibility": "Re-verify an admission against the durable Run inside the submission exit."
+    },
+    {
+      "path": "electron/productionRun/shotLandingAdmission.ts",
+      "symbol": "recordLandingFailure",
+      "responsibility": "Single writer of the landing_failed stop."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "runToQuiescence",
+      "disposition": "enforced",
+      "evidence": "admitForDispatch runs before anchors and shots are dispatched; landFirstMultiShot.test.ts."
+    },
+    {
+      "path": "electron/productionRun/singleShotProductionStart.ts",
+      "entry_point": "startSingleShotProduction",
+      "disposition": "enforced",
+      "evidence": "Shared by appIntegration and mcpStdioServer; landFirstSingleShot.test.ts and landFirstProjectAccess.test.ts."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "confirmOneShot",
+      "disposition": "enforced",
+      "evidence": "Admission before decideGenerationSpend; agentPanelSpendConfirm.e2e.test.ts landing-failure retry case."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "entry_point": "createCanvasShotRuns",
+      "disposition": "enforced",
+      "evidence": "origin.nodeId recorded at creation and admitted before sealing."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "not-affected",
+      "evidence": "Approved exception (configuration-time try, no project); reason in scripts/generation-entrances-ledger.json landingExceptions."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new start moment (ACP agents, new MCP tools, recovery paths) reaches submission.start; without a structural requirement each would have to remember to land first.",
+    "same_class_scan": [
+      "git grep submission.start( in electron non-test: appIntegration, mcpStdioServer, multiShotBatchScheduler, appIntegrationCanvasShot before; scheduler, singleShotProductionStart, appIntegrationCanvasShot after",
+      "git grep landCanvasBestEffort: two appIntegration start paths before; zero after",
+      "node scripts/door-map.mjs submitCanvasShotRun landCanvasForRun dispatchUnit",
+      "R-gen-doors report (coordinator handoff) plus stdio and paid-card entries found in this line"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/productionRun/shotLandingAdmission.ts",
+    "invariant": "submission.start requires a LandedShotAdmission and re-verifies it against the durable Run.",
+    "failure_mode": "Missing admission fails typecheck; a forged or stale admission throws shot_not_landed before any durable write or provider call.",
+    "exception_policy": "none",
+    "strategy": "Make landing a precondition of the only paid exit, owned by one admission module that also owns the landing_failed state.",
+    "artifacts": [
+      "electron/productionRun/shotLandingAdmission.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/multiShotBatchScheduler.ts",
+      "electron/productionRun/singleShotProductionStart.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/landFirstMultiShot.test.ts",
+    "electron/productionRun/landFirstSingleShot.test.ts",
+    "electron/productionRun/landFirstOneAdmission.test.ts",
+    "electron/productionRun/landFirstProjectAccess.test.ts",
+    "src/workbench/capability/productionOutcomeOnDeletedNode.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "src/workbench/capability/storyboardPlacedShotLandsOnce.test.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+    "src/workbench/generationCanvas/runner/nodeSubmitInFlight.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/landFirstOneAdmission.test.ts",
+    "src/workbench/capability/productionOutcomeOnDeletedNode.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/canvasLandingHost.ts",
+      "electron/capabilityCore/appIntegration.ts"
+    ],
+    "rationale": "landCanvasBestEffort (best-effort pre-landing that dispatched anyway) is deleted from the host and both appIntegration start paths in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is Nomi's own canvas/Run domain rule; no third-party runtime controls it.",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/shotLandingAdmission.ts",
+    "has_tests": true,
+    "tests": [
+      "electron/productionRun/landFirstOneAdmission.test.ts",
+      "electron/productionRun/landFirstMultiShot.test.ts",
+      "electron/productionRun/landFirstSingleShot.test.ts",
+      "electron/productionRun/landFirstProjectAccess.test.ts"
+    ],
+    "rationale": "shotLandingAdmission owns the admission token, its durable re-check (called from the submission exit) and the landing_failed stop; the four test files cover forged tokens, multi/single landing failure and retry, project-not-open handling and the structural callers."
+  },
+  "migration": "No data migration. Runs already dispatched are unaffected (the check sits before a new dispatch). Canvas consent drafts created by an older build lack origin.nodeId: they are not dispatched, the consent is withdrawn, and the canvas is told canvas_consent_predates_upgrade (\"this batch was not sent after the update, confirm again\"). Document-plan shots already placed from a storyboard row are adopted by shot identity instead of landing a second node.",
+  "residual_risks": [
+    "Real Electron paid run (multi 2 + single 1 + forced landing failure + MCP cold start hidden window) is unverified in this line; the coordinator runs it.",
+    "Writing nodes into a project that is not open (option B) is out of scope; those starts are refused.",
+    "Storyboard-placed nodes are adopted only when the shot id is a stable id (storyboardSubjectIdentity STABLE_ID); otherwise the confirm-time landing creates a node, as before."
+  ]
+}

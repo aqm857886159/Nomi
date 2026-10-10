@@ -7,6 +7,7 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
+import { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_SHELL, ensureAgentPanelOpen } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_NON_APIMART_VENDOR, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
@@ -20,17 +21,12 @@ const { LANE_CODING_TOOL_NAMES } = tsxRequire('../../electron/agentLane/laneCodi
 // 走查里**禁止再手抄这些串**——2026-09-05 那次「面板没渲染」其实是选择器过期
 // （docs/lessons/dead-selector-lies-both-ways.md），一处失效同时造假红和假绿。
 
-/** 外壳：仍然由 ProjectAgentResidentShell 自己发的三个身份属性。 */
-export const AGENT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"]'
+/** 外壳：仍然由 ProjectAgentResidentShell 自己发的三个身份属性。外壳位置（展开 / 收起 / 叫回钮）的唯一定义在 `_shell.mjs`，这里只再导出。 */
+export { AGENT_PANEL, COLLAPSE_BUTTON, COLLAPSED_SHELL }
 export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
 export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
-/**
- * 收起态（10-08 外壳重设计：小球形态）：面板仍挂着（回执效果、计划预览、角标投影都还在），
- * 但挂在一个 `hidden` 的容器里——判「在」用 `toBeAttached`，**不用** `toBeVisible`。
- */
-export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
 /**
  * 收起后叫回 Nomi 的唯一入口 = 内容区右下角那颗 Agent 小球（Chrome 板「四种状态，都不会自己弹开」）。
  * 顶栏不再放 Agent 角标（协调裁决第 59 项）。小球上的走查锚：
@@ -119,8 +115,6 @@ export const ACTIVE_PERMISSION_TIER = `${PERMISSION_POPOVER} [data-tier][data-ac
 
 /** 头部两个图标钮。 */
 export const HISTORY_BUTTON = '[data-v4-control="history"]'
-/** 收起 = 头部形态三选一里的「小球」（外壳挂进面板头部的 FormSwitch）。 */
-export const COLLAPSE_BUTTON = '[data-agent-form-to="ball"]'
 
 /** The real desktop assembly publishes domain and native schemas from the first request. */
 export function residentToolNames() {
@@ -271,16 +265,9 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
   await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
 }
 
-/**
- * 展开常驻面板。收起态是**真实的两态偏好**（持久化），不是加载中间态：
- * 收起时工作区里只剩画面下沿那一坞（`COLLAPSED_SHELL`），叫回面板的钮在**顶栏**那一格
- * （`COLLAPSED_DOCK`，09-01 定稿 §11.2）——所以点的是它，不是从收起外壳里找。
- */
+/** 展开常驻面板（点小球；怎么点、点哪里归 `_shell.mjs`）。 */
 export async function expandResidentPanel(win) {
-  const ball = win.locator(COLLAPSED_DOCK)
-  if (await ball.isVisible().catch(() => false)) {
-    await clickOrFail(ball.first(), '点 Agent 小球展开常驻面板')
-  }
+  await ensureAgentPanelOpen(win)
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
 }
 

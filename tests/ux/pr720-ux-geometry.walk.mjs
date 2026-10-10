@@ -20,6 +20,7 @@ import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectHittable, proveProbe, expectAbsent, clickOrFail, expectVisible } from './_assert.mjs'
 
 import { fileURLToPath } from 'node:url'
+import { AGENT_PANEL } from './_shell.mjs'
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
 fs.mkdirSync(shots, { recursive: true })
@@ -191,7 +192,7 @@ try {
     send: '[data-v4-control="send"]',
     permission: '[data-v4-control="permission"]',
     model: '[data-v4-control="model"]',
-    panel: '[data-agent-resident="true"][data-agent-panel="true"]',
+    panel: AGENT_PANEL,
   }
   const input = win.locator(SEL.input).first()
   await expectVisible(input, 'agent 面板输入框')

@@ -44,6 +44,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { backToLibrary, ensureAgentPanelOpen } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/model-availability-agreement')
@@ -252,9 +253,7 @@ async function disconnectLikeAHuman() {
 async function assertAgentDropdown(brainReady, shot) {
   await closeSettings()
   await clickOrFail(getWin().getByRole('button', { name: /^新建空白项目/ }), '创建真实项目检查 Agent 模型')
-  // 画布上 Agent 默认是右下的小球（10-08 外壳重设计）：先点开，面板才在。
-  const ball = getWin().locator('[data-agent-ball]').first()
-  if (await ball.isVisible().catch(() => false)) await ball.click()
+  await ensureAgentPanelOpen(getWin())
   await expectVisible(getWin().locator('[data-v4-panel]').first(), '项目 Agent 面板')
   await clickOrFail(getWin().locator('[data-v4-control="model"]:visible').first(), 'Agent 模型入口')
   const popover = getWin().locator('[data-v4-popover="model"]:visible').first()
@@ -276,7 +275,7 @@ async function assertAgentDropdown(brainReady, shot) {
   check(!labels.some(x => x.includes('MCP 接了一半')), '未发布模型不进入 Agent 候选', JSON.stringify(labels))
   await getWin().keyboard.press('Escape')
   await getWin().keyboard.press('Escape')
-  await clickOrFail(getWin().getByRole('button', { name: '返回项目库', exact: true }), '返回真实项目库')
+  await backToLibrary(getWin(), { label: '返回真实项目库' })
   await expectVisible(getWin().getByRole('button', { name: /^新建空白项目/ }), '已返回项目库')
 }
 

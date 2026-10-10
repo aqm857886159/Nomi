@@ -12,7 +12,7 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import {
-  ASSISTANT_MESSAGE, COLLAPSED_DOCK, COLLAPSED_SHELL, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
+  ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
   COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
 } from './agent-runtime-walk-support.mjs'
 import {
@@ -21,6 +21,7 @@ import {
   liveCanaryReadiness,
   runRealUserLongVideoJourney,
 } from './real-user-long-video.runner.mjs'
+import { ensureAgentPanelOpen } from './_shell.mjs'
 
 const FIXTURE_VIDEO = path.join(repoRoot, REAL_USER_LONG_VIDEO_MANIFEST.sample.path)
 const FIXTURE_VENDOR = 'real-user-loopback-vision'
@@ -149,17 +150,8 @@ async function enterProject(win) {
 }
 
 async function openAgent(win) {
-  // 收起态 = 内容区右下的小球（10-08 外壳重设计），点它把面板叫回来。
-  const expand = async () => {
-    const ball = win.locator(COLLAPSED_DOCK).first()
-    if (await ball.isVisible().catch(() => false)) await ball.click()
-  }
-  await expand()
-  let panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
-  if (!(await panel.isVisible().catch(() => false))) {
-    await expand()
-    panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
-  }
+  await ensureAgentPanelOpen(win)
+  const panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
   await panel.waitFor({ state: 'visible', timeout: 10_000 })
   return panel
 }

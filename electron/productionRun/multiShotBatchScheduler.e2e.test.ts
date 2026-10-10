@@ -20,6 +20,7 @@ import { applyRunControl } from "./productionRunControl";
 import { deriveProductionShotState } from "../shared/productionShotPhase";
 import { SubmissionReconciliationRequiredError } from "./submissionOutbox";
 import type { ProductionGenerationShot } from "./productionRunTypes";
+import { landedAdmission, landingThatBinds } from "./landFirstTestUtils";
 
 // P4 S4 — J1/J3 end-to-end over a REAL loopback vendor (zero quota). This drives the FULL durable chain:
 // scheduler → real submission facade (real Run lock + real ledger + durable jobs) → REAL runtime adapter
@@ -154,7 +155,7 @@ function approveCheckpoint(repository: ReturnType<typeof createProductionRunRepo
 
 function scheduler(root: string, repository: ReturnType<typeof createProductionRunRepository>, origin: string, submits: string[], options: Parameters<typeof createMultiShotBatchScheduler>[0]["options"] = {}) {
   const submission = buildSubmission(root, repository, origin, submits);
-  return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", now, options });
+  return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-batch", now, options });
 }
 
 async function dispatchCanvasOnce(repository: ReturnType<typeof createProductionRunRepository>, origin: string, shotId: string, submits: string[]) {
@@ -204,7 +205,7 @@ describe("B3 production/canvas claim integration matrix", () => {
       const decision = decideShotClaim(repository.read("project-1", "op-batch"), "shot-1", "canvas");
       expect(decision).toMatchObject({ granted: false, holder: "production", reason: "needs_reconcile" });
       expect(submits).toHaveLength(0);
-      await expect(guarded.start({ projectId: "project-1", operationId: "op-batch" })).rejects.toThrow();
+      await expect(guarded.start({ projectId: "project-1", operationId: "op-batch", shotId: "shot-1", admission: await landedAdmission(repository, "project-1", "op-batch", "shot-1") })).rejects.toThrow();
       expect(submits).toHaveLength(0);
     } finally { await vendor.close(); }
   });
@@ -566,7 +567,7 @@ describe("P4 slow provider — the batch waits (not spins) and still materialize
       now,
     });
     const sleep = async (ms: number) => { clock += ms; };
-    return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", now, sleep, options });
+    return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-batch", now, sleep, options });
   }
 
   it("materializes a 2-shot batch from a minutes-scale provider: waits between polls, ≤1 submit per job", async () => {

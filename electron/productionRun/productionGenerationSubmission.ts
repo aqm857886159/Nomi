@@ -33,6 +33,8 @@ import { createProductionExecutionBinding, validateProductionExecutionBinding, t
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 import { singleShotRunningCommand } from "./singleShotRunLifecycle";
+import { assertShotAdmission, type LandedShotAdmission } from "./shotLandingAdmission";
+import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
 
 export { SubmissionReceiptUnknownError, SubmissionReconciliationRequiredError };
 
@@ -46,6 +48,14 @@ export type GenerationSubmissionStartInput = {
    * behaving exactly as the P1–P3 single-shot chain (top-level plan contract). Backward compatible.
    */
   shotId?: string;
+};
+
+/**
+ * 派发（花钱）那一下的入参：除了地址，还必须带这一镜「已落地」的准入（架构③ 先落节点、再发请求）。
+ * 准入只有 `shotLandingAdmission.admitShotsForDispatch` 造得出来——不经准入就派，编译不过；拿到了这里还按耐久 Run 复核。
+ */
+export type GenerationSubmissionDispatchInput = GenerationSubmissionStartInput & {
+  admission: LandedShotAdmission;
 };
 
 export type GenerationSubmissionResult = {
@@ -125,10 +135,11 @@ export type ProductionGenerationSubmissionDependencies = {
   runtimeTaskId?: (input: { runId: string; contractHash: string; attempt?: number }) => string;
   afterProviderAcceptance?: (input: { providerTaskId: string; run: ProductionRun }) => void | Promise<void>;
   /**
-   * 派发准入闸（生产里是镜头认领闸）。由提交 outbox 在这次尝试的第一笔耐久写（预留 / 提交意向）之前调用，
-   * 看到的是还没落盘的 job；抛错 = 这一镜这次不提交，什么都没写（见 `SubmissionOutboxDependencies.beforeDispatch`）。
+   * 额外的派发前检查（只给测试观察 / 注入用）。**镜头认领闸不在这里注入**：它长在提交出口里（`start` 每交一镜都过），
+   * 调用方换不掉、漏不了——急停 / 取消 / 画布接手 / 节点删了，逐镜都按最新的耐久 Run 再判一次（#1139）。
+   * 先跑这个、再跑认领闸；抛错 = 这一镜这次不提交，什么都没写。
    */
-  beforeDispatch: (input: { run: ProductionRun; job: ProductionJob }) => void | Promise<void>;
+  beforeDispatch?: (input: { run: ProductionRun; job: ProductionJob }) => void | Promise<void>;
   /** Asset store owns bytes, identity and leases; the submission seam only commits its returned receipt. */
   materializeOutput?: (input: {
     projectId: string;
@@ -307,6 +318,9 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
   const providers = deps.providers ?? (deps.provider ? [deps.provider] : []);
   if (providers.length === 0) throw new Error("At least one generation provider is required");
   const adapter = createGenerationRuntimeAdapter({ providers });
+  // 交一镜的唯一边界自己带着认领闸（#1139）：以前它由装配方注入，生产三处都注入了，可测试夹具一律注入空函数，
+  // 「整批准入之后被停下」这一类在夹具里永远看不见；任何新装配方也能忘了接。现在它不是依赖，是提交出口的一部分。
+  const assertShotCanDispatch = createProductionShotDispatchGuard({ readRun: (projectId, runId) => deps.repository.read(projectId, runId) ?? undefined });
 
   function intentLog(runId: string) {
     return createProductionRunIntentLog({
@@ -466,9 +480,32 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     };
   }
 
-  async function start(input: GenerationSubmissionStartInput): Promise<GenerationSubmissionResult> {
+  /**
+   * 只观察已经交给供应商、供应商已受理的那一次（#1139 N1：从 start 里拆出来）。**不收准入**：节点被删以后，已经交出去的
+   * 那一次照样要把结果收回来；它只读账本、必要时把计划记成已交，绝不调用供应商提交。没有已受理的这一次 = null。
+   */
+  function observeAccepted(input: GenerationSubmissionStartInput): GenerationSubmissionResult | null {
     const shotId = input.shotId;
     let run = requiredRun(deps.repository, input.projectId, input.operationId);
+    const contract = shotId ? run.generationPlan?.shots?.find((shot) => shot.shotId === shotId)?.contract : run.generationPlan?.contract;
+    if (!contract) return null;
+    const attempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
+    if (!Number.isInteger(attempt) || attempt < 1) return null;
+    const jobId = productionGenerationJobId(run.runId, contract.contractHash, attempt, shotId);
+    const existingJob = run.jobs.find((job) => job.jobId === jobId);
+    if (existingJob?.status !== "provider_accepted" || !existingJob.providerTaskId) return null;
+    if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
+    return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: existingJob.providerTaskId, attempt, nextAction: "observe" };
+  }
+
+  /**
+   * **只给新派发**（花钱那一下）。每一次都先过准入（#1139 N1）：这一镜此刻在画布上没有节点、或准入是伪造 / 过期的，
+   * 什么都不写、不交。已经受理过的那一次不再从这里回「观察」——那是 observeAccepted 的事，它不收准入。
+   */
+  async function start(input: GenerationSubmissionDispatchInput): Promise<GenerationSubmissionResult> {
+    const shotId = input.shotId;
+    let run = requiredRun(deps.repository, input.projectId, input.operationId);
+    assertShotAdmission(run, shotId, input.admission);
     const contract = requiredContract(run, shotId);
     const attempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
     if (!Number.isInteger(attempt) || attempt < 1) throw new Error("Generation attempt is invalid");
@@ -479,8 +516,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       throw new Error("Historical generation execution is observation-only");
     }
     if (existingJob?.status === "provider_accepted" && existingJob.providerTaskId) {
-      if (run.generationPlan?.state !== "submitted") run = command(run, "generation.submit", {}, `plan-submit:v${run.planVersion}`);
-      return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: existingJob.providerTaskId, attempt, nextAction: "observe" };
+      throw Object.assign(new Error("generation_already_accepted: observe it with observeAccepted"), { code: "generation_already_accepted" });
     }
     if (existingJob && ["submission_unknown", "reconciling", "needs_attention", "cancel_requested"].includes(existingJob.status)) {
       throw new SubmissionReconciliationRequiredError();
@@ -488,6 +524,8 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     const runLock = lock(run.runId);
     return runLock.withLock(async (lease) => {
       run = requiredRun(deps.repository, input.projectId, input.operationId);
+      // 锁里再按最新的耐久 Run 复核一次：等锁期间节点可能被删（detached）。
+      assertShotAdmission(run, shotId, input.admission);
       const lockedContract = requiredContract(run, shotId);
       if (lockedContract.contractHash !== contract.contractHash) throw new Error("Generation contract changed while waiting for the Run lock");
       const lockedAttempt = input.attempt ?? addressedGenerationAttempt(run, shotId);
@@ -504,6 +542,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
         now,
         beforeDispatch: async (dispatchInput) => {
           await deps.beforeDispatch?.({ run: dispatchInput.run, job: dispatchInput.job });
+          assertShotCanDispatch({ run: dispatchInput.run, job: dispatchInput.job });
         },
         // 供应商档案真声明了幂等（并把键带到请求上）才允许在「结果未知」后用同一个键重发一次；
         // 目前没有任何生产供应商声明（APIMart 明确 false），所以生产里这条恒为 false。
@@ -704,7 +743,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     return { operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash, nextAction: "completed" };
   }
 
-  return { start, poll, materialize };
+  return { start, observeAccepted, poll, materialize };
 }
 
 export type ProductionGenerationSubmission = ReturnType<typeof createProductionGenerationSubmission>;

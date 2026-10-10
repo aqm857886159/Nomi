@@ -35,6 +35,7 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { realNomiIsRunning, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { ensureAgentPanelOpen } from './_shell.mjs'
 
 const rendererUrl = process.env.NOMI_WALK_RENDERER_URL
 if (!rendererUrl) throw new Error('需要 NOMI_WALK_RENDERER_URL（本仓 vite dev 地址），见文件头用法')
@@ -136,7 +137,7 @@ try {
   await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click({ timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), null, { timeout: stationTimeout({ operations: 2 }) })
   const input = win.locator('textarea[data-v4-control="input"]').first()
-  if (!(await input.count())) await win.evaluate(() => document.querySelector('[data-agent-ball]')?.click())
+  await ensureAgentPanelOpen(win)
   await input.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
   const panelConsent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await panelConsent.isVisible().catch(() => false)) await panelConsent.click()
