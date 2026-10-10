@@ -279,3 +279,25 @@ describe('InlineParameterBar semantic option presentation wiring', () => {
     expect(body).toContain('<ParameterControlBody')
   })
 })
+
+// 2026-10-11 走查 §4：清单「加载中」不许被画成「没有模型」——那是点节点先闪空态的根因。
+// 特征钉子（方向检查 docs/engineering/direction-check-2026-10-11-model-catalog-lifecycle.md §4）。
+describe('InlineParameterBar 清单空态（走查 §4）', () => {
+  function renderEmpty(status: 'loading' | 'ready') {
+    return renderToStaticMarkup(React.createElement(InlineParameterBar, {
+      modelOptions: [], selectedModelOption: null,
+      modelCatalogStatus: { status, message: '加载模型清单' },
+      renderedControls: [], archetype: null, meta: {},
+      onModelChange: vi.fn(), onCatalogControlChange: vi.fn(), onParameterControlChange: vi.fn(),
+    }))
+  }
+
+  it('加载中画骨架，不画配置入口', () => {
+    const html = renderEmpty('loading')
+    expect(html).toContain('data-model-chip-loading')
+  })
+
+  it('确认没有清单（非加载）时不画骨架', () => {
+    expect(renderEmpty('ready')).not.toContain('data-model-chip-loading')
+  })
+})

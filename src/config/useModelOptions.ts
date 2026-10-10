@@ -6,7 +6,13 @@ import {
   normalizeCatalogLoadError,
   type ModelCatalogStatus,
 } from './modelCatalogStatus'
-import { MODEL_REFRESH_EVENT, getCatalogHealth, preloadModelOptions, type ModelQueryMode } from './modelCatalogCache'
+import {
+  MODEL_REFRESH_EVENT,
+  getCatalogHealth,
+  peekCatalogModelOptions,
+  preloadModelOptions,
+  type ModelQueryMode,
+} from './modelCatalogCache'
 
 // 重导出：实现已拆到兄弟模块（resolvers / mappers / status / cache），
 // 但 useModelOptions.ts 对外公共导出面保持不变，外部 import 路径无需改动。
@@ -45,14 +51,23 @@ export type ModelOptionsState = {
  * `keepUsableModelRows` 挡掉了（2026-09-06 用户拍板），这里没有放宽口，调用方也不需要自己再滤。
  */
 export function useModelOptionsState(kind?: NodeKind, requiredMode?: ModelQueryMode): ModelOptionsState {
-  const [options, setOptions] = useState<ModelOption[]>([])
+  // 同步首值：缓存里有就直接当初始 state（选中节点时 composer 重新挂载也拿得到），
+  // 免得第一帧画「无模型·配置模型」（2026-10-11 走查第 4 条）。
+  const [options, setOptions] = useState<ModelOption[]>(() => peekCatalogModelOptions(kind, requiredMode) ?? [])
   const [error, setError] = useState<Error | null>(null)
   const [healthError, setHealthError] = useState<Error | null>(null)
   const [health, setHealth] = useState<ModelCatalogHealthDto | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => peekCatalogModelOptions(kind, requiredMode) === null)
   const [refreshSeq, setRefreshSeq] = useState(0)
 
   useEffect(() => {
+    const cached = peekCatalogModelOptions(kind, requiredMode)
+    if (cached) {
+      // 有缓存就别归零：归零会让界面退回到「无模型」那一帧。
+      setOptions(cached)
+      setLoading(false)
+      return
+    }
     setOptions([])
     setError(null)
     setHealthError(null)
@@ -69,7 +84,8 @@ export function useModelOptionsState(kind?: NodeKind, requiredMode?: ModelQueryM
 
   useEffect(() => {
     let canceled = false
-    setLoading(true)
+    // 已有缓存值时**不要**翻回 loading：那会把真实芯片换成骨架（同一类闪烁的另一面）。
+    if (!peekCatalogModelOptions(kind, requiredMode)) setLoading(true)
     ;(async () => {
       try {
         const catalogOptions = await preloadModelOptions(kind, requiredMode)
