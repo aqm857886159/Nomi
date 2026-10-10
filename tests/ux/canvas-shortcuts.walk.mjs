@@ -29,6 +29,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import { backToLibrary, newProjectEntry, openRailDrawer } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-shortcuts')
@@ -191,7 +192,7 @@ async function press(keys) {
 }
 
 async function checkC19GroupUndoAndFocus() {
-  await getWin().getByRole('button', { name: '返回项目库', exact: true }).click()
+  await backToLibrary(getWin())
   const projectCard = getWin().locator('[data-project-card]').filter({ hasText: 'C19 group Undo and focus' })
   await expect(projectCard).toBeVisible()
   await projectCard.hover()
@@ -220,7 +221,7 @@ async function checkC19GroupUndoAndFocus() {
     groups: backfillGroupFrameBounds(c19SeedGroups, id => seedRects.get(id) ?? null),
   }
   expect(before).toEqual(initialHydratedGraph)
-  await getWin().getByRole('button', { name: '分组', exact: true }).click()
+  await openRailDrawer(getWin(), 'catalog', 'C19 分组列表')
   const groupRow = getWin().locator('button[title="C19 restore whole group"]')
   await expect(groupRow).toBeVisible()
   const groupProof = await proveProbe(groupRow, 'C19 real sidebar group exists before deletion')
@@ -314,7 +315,7 @@ try {
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
   await dismissFirstRun()
-  const blankProject = getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first()
+  const blankProject = newProjectEntry(getWin())
   await blankProject.waitFor({ timeout: 8000 })
   await blankProject.click()
   await getWin().waitForTimeout(2200)

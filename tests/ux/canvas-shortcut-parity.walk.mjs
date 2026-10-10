@@ -26,6 +26,7 @@ import { findCanvasBlankPoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR } from '.
 import { stationTimeout } from './_station-budget.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
+import { collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 
 const LOCALE = process.argv[2] === 'en' ? 'en' : 'zh-CN'
 const EN = LOCALE === 'en'
@@ -146,16 +147,8 @@ async function resize(width, height) {
   await waitForVisualQuiescence(win)
 }
 async function setAgentPanel(expanded) {
-  const panel = win.locator('[data-v4-panel]')
-  // 面板挂载与首屏动画期间点不中开关：点一下、等一下，直到状态真的变了（像人一样再点一次）。
-  await expect.poll(async () => {
-    const isOpen = await panel.isVisible().catch(() => false)
-    if (isOpen === expanded) return isOpen
-    const toggle = expanded ? win.locator('[data-agent-dock-reason="resident-collapsed"]').first() : win.locator('[data-v4-control="collapse"]').first()
-    await toggle.click({ timeout: 2000 }).catch(() => {})
-    await win.waitForTimeout(500)
-    return panel.isVisible().catch(() => false)
-  }, { message: `Agent 面板没能${expanded ? '展开' : '收起'}`, timeout: stationTimeout() }).toBe(expanded)
+  if (expanded) await ensureAgentPanelOpen(win)
+  else await collapseAgentPanel(win)
   await waitForVisualQuiescence(win)
 }
 

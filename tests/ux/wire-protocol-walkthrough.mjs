@@ -14,6 +14,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
+import { modelSettingsEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const shotDir = path.join(repoRoot, "tests/ux/__shots__");
@@ -66,7 +67,7 @@ const { app, win } = await launchNomiApp({ name: "wire-protocol-walkthrough", se
 // 下面那行 click 必然超时——一个死锚点同时造了假绿和真红。
 async function enterStudioOnce() {
   // app 开在项目库首页：用户点一个项目进 studio（模型设置浮层只在 studio 内）。
-  if (await win.locator('[aria-label="打开模型设置"]').count() === 0) {
+  if (await modelSettingsEntry(win).count() === 0) {
     await win.getByRole("button", { name: /继续创作/ }).first().click().catch(() => {});
     await win.waitForTimeout(3500);
   }
@@ -74,7 +75,7 @@ async function enterStudioOnce() {
 
 async function openWizard() {
   await enterStudioOnce();
-  await win.locator('[aria-label="打开模型设置"]').first().click();
+  await modelSettingsEntry(win).first().click();
   await win.waitForTimeout(700);
   // drawer 里的「添加模型」按钮才开 wizard modal（getByText 会误中标题 span）。
   await win.getByRole("button", { name: "添加模型", exact: true }).first().click();

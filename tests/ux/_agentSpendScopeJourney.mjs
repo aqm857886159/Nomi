@@ -8,12 +8,13 @@ import { APPROVAL_CARD, CANVAS_PANEL, COMPOSER, COMPOSER_PERMISSION, INTERVENTIO
   createRuntimeWalk, hasToolResult, openCanvas, permissionTier, readProject, recorded, sendCanvas,
   waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
+import { backToLibrary } from './_shell.mjs'
 
 /** @param {Awaited<ReturnType<typeof createRuntimeWalk>>} walk */
 export async function checkSpendScopeJourney(walk, win) {
   await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'zh-CN'))
   await win.reload({ waitUntil: 'domcontentloaded' })
-  await clickOrFail(win.getByRole('button', { name: '返回项目库', exact: true }), '回原项目库建立独立 CJ1 项目')
+  await backToLibrary(win, { label: '回原项目库建立独立 CJ1 项目' })
   const { projectId, projectRoot } = await walk.newProject()
   await openCanvas(win)
   const panel = win.locator(CANVAS_PANEL)

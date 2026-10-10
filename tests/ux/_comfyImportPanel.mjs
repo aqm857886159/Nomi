@@ -11,6 +11,7 @@ import path from 'node:path'
 import http from 'node:http'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, clickOrFail, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { openModelSettings } from './_shell.mjs'
 
 /** 面板上走查要点的几处可见文案（按语言）。 */
 export const PANEL_TEXT = {
@@ -72,7 +73,7 @@ export async function openComfyImportPanel({ name, baseUrl, locale = 'zh-CN' }) 
   }
 
   const text = PANEL_TEXT[locale]
-  await clickOrFail(win.locator('[data-testid="open-model-settings"]').first(), '模型设置 入口', { timeout: DEFAULT_TIMEOUT_MS })
+  await openModelSettings(win, { label: '模型设置 入口' })
   const comfyRow = win.locator('[data-model-home-available="comfyui-local"]').first()
   if (!(await comfyRow.isVisible().catch(() => false))) {
     await clickOrFail(win.locator('[data-model-home-action="other-ways"]').first(), '「其他方式」分组', { timeout: DEFAULT_TIMEOUT_MS })

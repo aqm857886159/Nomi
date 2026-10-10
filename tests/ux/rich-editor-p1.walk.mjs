@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { leaveProjectIfOpen } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = makeTempDir('nomi-rich-editor-')
@@ -158,11 +159,7 @@ async function closeApp() {
 
 // 打开项目：先回项目库（若已在某项目里），再点「继续创作」卡片 → 等到顶部「创作」导航。
 async function openProject(name) {
-  const backToLibrary = win.getByRole('button', { name: '项目库', exact: false }).first()
-  if (await backToLibrary.isVisible().catch(() => false)) {
-    await backToLibrary.click().catch(() => {})
-    await win.waitForTimeout(1400)
-  }
+  if (await leaveProjectIfOpen(win)) await win.waitForTimeout(1400)
   const card = win.locator('[data-project-card]', { hasText: name }).first()
   await expectVisible(card, `项目库里找不到项目卡「${name}」`)
   await card.hover()
