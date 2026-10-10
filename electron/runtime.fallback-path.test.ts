@@ -108,7 +108,7 @@ describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {
     expect(headers.Authorization).toBe("Bearer sk-relay");
     expect(headers["HTTP-Referer"]).toBe("https://nomi.app");
     expect(headers["X-Title"]).toBe("Nomi");
-  }, 15_000);
+  });
 
   it("#1 fallback 路径 HTTP 401 → 抛结构化 VendorRequestError（auth/不可重试），不是裸 Error", async () => {
     await seedFallbackImageVendor();

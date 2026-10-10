@@ -274,7 +274,7 @@ describe("ProjectLeaseStore immutable per-token records", () => {
 
     expect(results).toEqual(Array.from({ length: 4 }, () => ({ ok: true, result: { issued: 40 } })));
     expect(makeStore(rootPath, { maxRecords: 1_000, maxRecordsPerProject: 1_000 } as never).list()).toHaveLength(160);
-  }, 20_000);
+  });
 
   it("treats only ENOENT as a legitimate formal-token disappearance during concurrent expiry pruning", () => {
     const rootPath = makeRoot("nomi-project-lease-formal-expiry-race-");
@@ -342,7 +342,7 @@ describe("ProjectLeaseStore immutable per-token records", () => {
     const restarted = makeStore(rootPath);
     expect(restarted.read(issued.tokenHash)).toMatchObject({ revokedAt: "2026-08-23T00:01:00.000Z" });
     expect(() => restarted.recordIssued(issued)).toThrow(/already revoked/);
-  }, 20_000);
+  });
 
   it("makes concurrent revocations first-writer-wins across separate processes", async () => {
     const rootPath = makeRoot("nomi-project-lease-double-revoke-");
@@ -364,7 +364,7 @@ describe("ProjectLeaseStore immutable per-token records", () => {
       final?.revokedAt,
       final?.revokedAt,
     ]);
-  }, 20_000);
+  });
 
   it.each(["EPERM", "EACCES", "EBUSY"] as const)(
     "accepts a Windows %s target-exists race only after the complete issued record verifies",
