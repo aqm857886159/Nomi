@@ -56,6 +56,12 @@ export const GATE_INPUTS = Object.freeze({
   'check:media-import-owner': { roots: ['electron','src'], exts: ['ts','tsx'], files: ['scripts/media-import-owner-baseline.json'], entries: ['scripts/check-media-import-owner.mjs'] },
   // check-canvas-edge-writers.mjs：画布领地里谁能直接写 .edges（TS 语法树），扫这四个根目录
   'check:canvas-edge-writers': { roots: ['src/workbench/generationCanvas','src/workbench/project','electron/capabilityCore','electron/shared/canvas'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-canvas-edge-writers.mjs'] },
+  // check-storyboard-owner.mjs：src/workbench 下的 ts / tsx（谁直接读 shot.params），2026-10-10 修好 Windows 路径后接入
+  'check:storyboard-owner': { roots: ['src/workbench'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-storyboard-owner.mjs'] },
+  // check-transport-assembly.mjs：受检接口与它的生产装配点，固定四个 electron/capabilityCore 文件
+  'check:transport-assembly': { roots: [], exts: [], files: ['electron/capabilityCore/mcpProtocol.ts','electron/capabilityCore/mcpNodeLauncher.ts','electron/capabilityCore/mcpStdioServer.ts','electron/capabilityCore/mcpHttpServer.ts'], entries: ['scripts/check-transport-assembly.mjs'] },
+  // check-spend-confirmation-receipt.mjs：花钱确认收据的受检文件 + 存量基线
+  'check:spend-receipt': { roots: [], exts: [], files: ['electron/capabilityCore/mcpGateConfirmation.ts','electron/capabilityCore/mcpSemanticGenerationFlow.ts','electron/capabilityCore/generationDispatcher.ts','scripts/spend-confirmation-receipt-baseline.json'], entries: ['scripts/check-spend-confirmation-receipt.mjs'] },
   // check-dangling-tokens.mjs：src 的 css token 定义与 ts / tsx 里的引用
   'check:dangling-tokens': { roots: ['src'], exts: ['css','ts','tsx'], files: ['tailwind.config.ts'], entries: ['scripts/check-dangling-tokens.mjs'] },
   // check-dangling-tailwind.mjs：tailwind.config.ts 的键 vs src 里的类名

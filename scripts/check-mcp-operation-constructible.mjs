@@ -38,12 +38,10 @@
  * 两个方向都红：demand 了却没登记 = 有人往外发了一个没人填得出的必填字段；登记了却再没被 demand
  * = 一条过期的声明（那个字段已经不必填了，或者那个 operation 没了）。
  */
-import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { importLocal } from './lib/repoPaths.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const { MCP_TOOL_RESOLVER } = await import(pathToFileURL(path.join(repoRoot, 'electron/capabilityCore/mcpToolCatalog.ts')).href)
-const { validateToolArguments } = await import(pathToFileURL(path.join(repoRoot, 'electron/capabilityCore/mcpProtocol.ts')).href)
+const { MCP_TOOL_RESOLVER } = await importLocal('electron/capabilityCore/mcpToolCatalog.ts')
+const { validateToolArguments } = await importLocal('electron/capabilityCore/mcpProtocol.ts')
 
 /**
  * 外部调用方从哪拿到这个值。键是 `<工具名> :: <字段路径>`，数组路径写成 `[]`。

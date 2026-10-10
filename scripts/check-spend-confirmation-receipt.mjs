@@ -21,7 +21,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+import { repoRoot } from './lib/repoPaths.mjs'
 const TARGET = 'electron/capabilityCore/mcpGateConfirmation.ts'
 // 下游真正的放行者：它们的存在就是本门岗的理由，路径变了要同步（找不到即报红，不静默通过）。
 const DOWNSTREAM = [

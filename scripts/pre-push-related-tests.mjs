@@ -24,6 +24,14 @@ export const SOURCE_FILE = /^(?:src|electron|evals|scripts|tests)\/.*\.(?:[cm]?[
 export const NODE_TEST_FILE = /\.node-test\.mjs$/
 export const VITEST_TEST_FILE = /\.test\.[cm]?[jt]sx?$/
 
+/**
+ * node:test 文件的启动参数前缀。必须能跑下 CI 里任何一个 node-test 文件：package.json 里有的用 `node --test`、
+ * 有的用 `pnpm exec tsx --test`（check:model-schema / check:tool-face 的 node-test 会加载 .ts / .mts），
+ * 推送前不分档、不手写第二张名单，统一用 tsx 加载器——它是 `node --test` 的超集（纯 .mjs 照跑）。
+ * 以前这里写死 `--test`，被选中的 check-model-schema.node-test.mjs 报 ERR_UNKNOWN_FILE_EXTENSION 误红。
+ */
+export const NODE_TEST_ARGV_PREFIX = Object.freeze(['--import', 'tsx', '--test'])
+
 /** 推送前入口里这一项的名字（登记在 pre-push-contracts.mjs 的 known 清单里；结构测试盯着它不被删）。 */
 export const RELATED_TESTS_GATE = Object.freeze({ name: 'test:related' })
 /** 整个「相关单测」阶段的时间上限（毫秒）：vitest 与 node:test 两路并行，各自受它限制。 */
@@ -120,7 +128,7 @@ export function relatedTests(files, { root, exclude = new Set(), maxFiles = MAX_
 export function relatedRuns(selection) {
   const runs = []
   if (selection.vitest.length > 0) runs.push({ label: 'vitest', files: selection.vitest, argv: ['node_modules/vitest/vitest.mjs', 'run', '--reporter=dot', '--passWithNoTests', ...selection.vitest] })
-  if (selection.node.length > 0) runs.push({ label: 'node:test', files: selection.node, argv: ['--test', ...selection.node] })
+  if (selection.node.length > 0) runs.push({ label: 'node:test', files: selection.node, argv: [...NODE_TEST_ARGV_PREFIX, ...selection.node] })
   return runs
 }
 
