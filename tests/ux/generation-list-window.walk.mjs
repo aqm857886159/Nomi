@@ -5,6 +5,7 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
+import { switchGenerationView } from './_shell.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -131,16 +132,26 @@ try {
   await projectCard.hover()
   await clickOrFail(win.getByRole('button', { name: /继续创作|Continue/ }).first(), '打开走查项目')
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
-  // 「画布 | 列表」在 40px 顶栏里（外壳 viewSwitcher 槽），生成页才出现。
-  const switcher = win.locator('[data-shell-topbar] [data-generation-view-switcher]')
-  await expect(switcher, '顶栏里没有「画布 | 列表」切换').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // 「画布 ↔ 列表」是 40px 顶栏里的一个图标（外壳 viewSwitcher 槽），生成页才出现；切换一律经 _shell.mjs 的 switchGenerationView。
+  await expect(win.locator('[data-shell-topbar] [data-generation-view-switcher]'), '顶栏里没有「画布 ↔ 列表」切换').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
 
   // ① 切到列表：画布区换成列表，其余不动。
-  await clickOrFail(switcher.locator('[data-view="list"]'), 'switch to list')
+  await switchGenerationView(win, 'list')
   await expect(win.locator('[data-generation-list]'), '列表没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-list-card="shot-1"]'), '列表里没有镜 01').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-section-generate]').first(), '分区头没有「生成全部」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await shot('list')
+  // 顶栏那个图标：悬停看 tooltip（列表里显示的是「切到画布」）。
+  const switcherButton = win.locator('[data-shell-topbar] [data-generation-view-switcher]')
+  const box = await switcherButton.boundingBox()
+  await win.mouse.move(640, 500) // 点过切换钮的指针还停在它上面，Radix 只在指针重新进入时才开 tooltip：先挪开
+  await win.waitForTimeout(300)
+  await win.mouse.move(box.x + box.width / 2 - 3, box.y + box.height / 2)
+  await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 })
+  await expect(win.locator('[role="tooltip"]', { hasText: /切到列表|切到画布|Switch to (list|canvas)/ }).last(), '悬停后没有 tooltip').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await dismissToasts()
+  await win.screenshot({ path: path.join(outDir, `listview-switcher-hover-${suffix}.png`) })
+  await win.mouse.move(640, 500)
 
   // ①b 分区头「生成全部」→ 同一张付费确认、按项勾选（没生成的勾上、已生成的不勾）；取消 = 什么都不发生。
   await clickOrFail(win.locator('[data-section-generate]').first(), 'generate all')
@@ -179,16 +190,17 @@ try {
   await expect(win.locator('[data-list-inspector="shot-4"]'), '切到镜 04 的大详情失败').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await shot('detail-draft')
 
-  // ⑥ 「去画布」→ 画布，镜 04 被选中：角标 +「去列表」。
+  // ⑥ 「去画布」→ 画布，镜 04 被选中：分镜号角标；页面里没有任何「去列表」入口，只有顶栏那一个图标。
   await clickOrFail(win.locator('[data-list-detail-view-canvas]'), '去画布')
   await expect(win.locator('[data-generation-list]'), '没有切回画布').toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-node-id="shot-4"] [data-storyboard-shot-label="4"]'), '镜 04 角标没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(win.locator('[data-view-in-list="shot-4"]'), '选中的镜 04 没有「去列表」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(win.locator('[data-view-in-list]'), '页面里不该再有「去列表」入口').toHaveCount(0)
+  await expect(win.locator('[data-shell-topbar] [data-generation-view-switcher="canvas"]'), '画布上顶栏图标显示的应是「切到列表」').toHaveAttribute('aria-label', /切到列表|Switch to list/)
   await shot('canvas')
 
-  // ⑦ 「去列表」→ 回列表并打开它。
-  await clickOrFail(win.locator('[data-view-in-list="shot-4"]'), '去列表')
-  await expect(win.locator('[data-list-inspector="shot-4"]'), '「去列表」没有打开这一张').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // ⑦ 顶栏图标 → 回列表（详情还开着这一张）。
+  await switchGenerationView(win, 'list')
+  await expect(win.locator('[data-list-inspector="shot-4"]'), '切回列表后详情没了').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   // ⑧ 返回列表。
   await clickOrFail(win.locator('[data-list-detail-back]'), 'back from detail')
   await expect(win.locator('[data-list-layout="grid"]'), '返回之后不是列表网格').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })

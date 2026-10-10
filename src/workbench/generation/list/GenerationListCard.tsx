@@ -72,7 +72,7 @@ function CardPrompt({ node, lines }: { node: GenerationCanvasNode; lines: 2 | 3 
         const labelKey = reference?.kind === 'video' ? 'assetLibrary.referenceVideoIndexed' : reference?.kind === 'audio' ? 'assetLibrary.referenceAudioIndexed' : 'assetLibrary.referenceImageIndexed'
         return (
           <span key={index} className="mx-0.5 inline-flex h-[18px] items-center gap-1 rounded-nomi-sm bg-nomi-ink-05 px-1 align-[-4px] text-micro text-nomi-ink-80" data-card-prompt-chip>
-            {reference?.kind === 'image' || !reference ? <img src={segment.url} alt="" className="size-3.5 rounded-[3px] object-cover" /> : null}
+            {reference?.kind === 'image' || !reference ? <img src={segment.url} alt="" className="size-3.5 rounded-nomi-sm object-cover" /> : null}
             {reference ? t(labelKey, { index: reference.index }) : t('assetLibrary.referenceImage')}
           </span>
         )

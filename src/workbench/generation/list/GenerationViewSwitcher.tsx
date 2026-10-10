@@ -1,35 +1,31 @@
-// 顶栏里的「画布 | 列表」小分段（外壳 #1136 在 40px 顶栏留的 viewSwitcher 槽，样张板 List 的 .seg.sm：24px 高、药丸槽）。
-// 只在生成页出现（ShellTopBar 自己判）。两态同一个位置、各占一格，当前视图高亮；点另一格切过去。
+// 顶栏里「画布 ↔ 列表」的一个图标切换（外壳 #1136 在 40px 顶栏留的 viewSwitcher 槽，紧挨着「生成」，只在生成页出现）。
+// 用户 10-10 拍板：「只需要一个 icon 转换就行」「页面里面也不需要什么去列表」——这是画布 / 列表之间**唯一**的切换入口。
+// 图标显示**点了会切到的那个视图**（画布上显示列表图标、列表上显示画布图标），tooltip / aria-label 写明动作「切到列表 / 切到画布」，
+// 避免「图标是指当前在哪还是点了去哪」的歧义。外观与顶栏右簇的图标按钮同一个（BAR_ICON_BUTTON）。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '../../../utils/cn'
-import { useGenerationViewStore, type GenerationView } from './generationViewStore'
+import { IconLayoutBoard, IconLayoutList } from '@tabler/icons-react'
+import { BarTooltip } from '../../../ui/app-shell/shell/ShellTopBar'
+import { BAR_ICON_BUTTON } from '../../../ui/app-shell/shell/barIconButton'
+import { useGenerationViewStore } from './generationViewStore'
 
 export function GenerationViewSwitcher(): JSX.Element {
   const { t } = useTranslation()
   const view = useGenerationViewStore((state) => state.view)
   const setView = useGenerationViewStore((state) => state.setView)
-  const tabs: Array<{ value: GenerationView; label: string }> = [
-    { value: 'canvas', label: t('generationList.view.canvas') },
-    { value: 'list', label: t('generationList.view.list') },
-  ]
+  const toList = view === 'canvas'
+  const label = toList ? t('generationList.view.toList') : t('generationList.view.toCanvas')
   return (
-    <nav className="inline-flex h-6 items-center gap-0.5 rounded-full bg-nomi-ink-10 p-0.5" aria-label={t('generationList.view.aria')} data-generation-view-switcher={view}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.value}
-          type="button"
-          aria-pressed={view === tab.value}
-          data-view={tab.value}
-          onClick={() => setView(tab.value)}
-          className={cn(
-            'inline-flex h-5 items-center rounded-full px-2.5 text-caption text-nomi-ink-60 transition-[background,color,box-shadow] hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent',
-            view === tab.value && 'bg-nomi-paper font-medium text-nomi-ink shadow-nomi-sm',
-          )}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </nav>
+    <BarTooltip label={label}>
+      <button
+        type="button"
+        className={BAR_ICON_BUTTON}
+        aria-label={label}
+        data-generation-view-switcher={view}
+        onClick={() => setView(toList ? 'list' : 'canvas')}
+      >
+        {toList ? <IconLayoutList size={18} stroke={1.5} aria-hidden="true" /> : <IconLayoutBoard size={18} stroke={1.5} aria-hidden="true" />}
+      </button>
+    </BarTooltip>
   )
 }

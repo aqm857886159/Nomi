@@ -1,5 +1,5 @@
 export const zhGenerationList = {
-  view: { canvas: '画布', list: '列表', aria: '画布与列表' },
+  view: { toList: '切到列表', toCanvas: '切到画布' },
   aria: '生成节点列表',
   anchorPending: '等定妆',
   storyboardSection: '分镜 · {{title}}',
@@ -22,7 +22,6 @@ export const zhGenerationList = {
   regenerate: '重新生成',
   openInCanvas: '去画布',
   viewInCanvas: '去画布',
-  viewInList: '去列表',
   backToList: '返回列表',
   unreferencedAssets: '未被引用的素材',
   empty: '暂无生成节点',
@@ -42,7 +41,7 @@ export const zhGenerationList = {
 }
 
 export const enGenerationList = {
-  view: { canvas: 'Canvas', list: 'List', aria: 'Canvas and list' },
+  view: { toList: 'Switch to list', toCanvas: 'Switch to canvas' },
   aria: 'Generation node list',
   anchorPending: 'Awaiting look',
   storyboardSection: 'Storyboard · {{title}}',
@@ -65,7 +64,6 @@ export const enGenerationList = {
   regenerate: 'Regenerate',
   openInCanvas: 'Open canvas',
   viewInCanvas: 'Open canvas',
-  viewInList: 'Open list',
   backToList: 'Back to list',
   unreferencedAssets: 'Unreferenced assets',
   empty: 'No generation nodes yet',

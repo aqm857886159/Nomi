@@ -1,15 +1,11 @@
-// 画布节点上与列表相关的两件小东西：
+// 画布节点标题行上的镜头号（用户 10-10：页面里不再有「去列表」入口，切换只在顶栏那一个图标）：
 //   - 镜头号：分镜镜头只显示分镜号（「镜 03」/「<分镜名> · 镜 03」，2026-10-08 用户「只留分镜里的号」），
 //     不再显示画布全局号「镜头 N」；默认标题「镜头 N」也不再重复一遍。不是分镜镜头的节点照旧。
-//   - 选中时标题行右端的「在列表里看」：切到列表并打开这一张。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLayoutList } from '@tabler/icons-react'
 import type { ShotIdentity } from '../../../../electron/shared/canvas/shotNumbering'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 import { ShotPreviewOverlays } from '../../generationCanvas/nodes/ConvertShotToVideoButton'
-import { generationListRole } from './generationListModel'
-import { useGenerationViewStore } from './generationViewStore'
 import { formatStoryboardShotLabel, isAutoStoryboardShotTitle, useStoryboardShotLabel } from './storyboardLabels'
 
 /**
@@ -31,29 +27,6 @@ export function NodeShotLabel({ node, shotRole, children }: {
         {formatStoryboardShotLabel(t, label)}
       </span>
       {isAutoStoryboardShotTitle(node.title, label.number) ? null : children}
-    </>
-  )
-}
-
-export function ViewInListButton({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
-  const { t } = useTranslation()
-  if (generationListRole(node) === 'asset') return null
-  return (
-    <>
-    <span className="min-w-0 flex-1" aria-hidden />
-    <button
-      type="button"
-      data-view-in-list={node.id}
-      className="nodrag inline-flex shrink-0 items-center gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-1.5 py-0.5 text-caption text-nomi-accent hover:bg-nomi-accent-soft"
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => {
-        event.stopPropagation()
-        useGenerationViewStore.getState().openListAt(node.id)
-      }}
-    >
-      <IconLayoutList size={13} stroke={1.7} aria-hidden />
-      {t('generationList.viewInList')}
-    </button>
     </>
   )
 }

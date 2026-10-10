@@ -29,7 +29,7 @@
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import { createRuntimeWalk, openCanvas, readProject } from './agent-runtime-walk-support.mjs'
-import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
+import { ensureCreationResourceTree, openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const DESIGN_ID = 'walk-storyboard-design'
 const SPEND_DIALOG = '[data-spend-confirm-dialog]'
@@ -115,7 +115,7 @@ try {
   await clickOrFail(win.getByRole('button', { name: /^(创作|Create)$/ }), '去创作页')
   await ensureCreationResourceTree(win, '创作页')
   await clickOrFail(win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`), '选中这份文稿')
-  await clickOrFail(win.locator(`[data-storyboard-id="${DESIGN_ID}"]`), '打开这份文稿方案')
+  await openStoryboardEditor(win, DESIGN_ID, '打开这份文稿方案')
   await clickOrFail(win.locator(`[data-place-storyboard="${DESIGN_ID}"]`), '在方案页头点那颗「放到画布上」的按钮')
   await expect.poll(nodesPerShot, { timeout: DEFAULT_TIMEOUT_MS, message: '放入画布：两镜各落一个节点' }).toEqual({ 'shot-1': 1, 'shot-2': 1 })
   const placed = await graph()

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 const UX = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '_creationResourceTree.mjs'
 // 一条语句里同时出现方案行选择器和一次点击（.click( / clickOrFail(）。`:not([data-storyboard-id])` 是在点原稿行，不算。
-const ROW_CLICK = /(clickOrFail\([^;\n]*(?<!:not\(\[)data-storyboard-id|(?<!:not\(\[)data-storyboard-id[^;\n]*\.click\()/
+const ROW_CLICK = /(clickOrFail\([^;\n]*(?<!:not\(\[)data-storyboard-id|(?<!:not\(\[)data-storyboard-id[^;\n]*\.click\((?!\{ button: 'right' \}))/
 
 function walkFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
