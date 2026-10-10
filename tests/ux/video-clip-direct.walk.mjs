@@ -27,6 +27,7 @@ import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuies
 import { findNodeHitPoint, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { canvasResetView, canvasSetZoomPercent } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
@@ -129,7 +130,7 @@ async function task(name, body) {
   console.log(JSON.stringify(results.at(-1)))
 }
 async function resetView() {
-  await win.getByRole('button', { name: uiText(locale, 'generationCommon.navigation.resetView'), exact: true }).first().click()
+  await canvasResetView(win)
   await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 }
@@ -377,15 +378,7 @@ try {
     await place('src-video')
     await select('src-video')
     // 缩到 50%：画布底栏的缩放滑杆
-    const sliderSelector = `input[type="range"][aria-label="${tr('generationCommon.navigation.zoomRatio')}"]`
-    const slider = win.locator(sliderSelector).first()
-    await slider.waitFor()
-    await win.evaluate((selector) => {
-      const input = /** @type {HTMLInputElement} */ (document.querySelector(selector))
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
-      setter.call(input, '50')
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-    }, sliderSelector)
+    await canvasSetZoomPercent(win, 50)
     await waitForCanvasViewportSettled(win)
     const viewport = await readCanvasViewport(win)
     if (viewport.zoom > 0.6) throw new Error(`canvas zoom is ${viewport.zoom}, not scaled down`)

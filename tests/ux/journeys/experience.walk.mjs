@@ -22,7 +22,7 @@ import {
   readProject,
 } from '../agent-runtime-walk-support.mjs'
 import { startFixtureServer } from '../model-access-journeys/fixture-server.mjs'
-import { newProjectEntry } from '../_shell.mjs'
+import { canvasAddBar, newProjectEntry } from '../_shell.mjs'
 
 export async function runJourney(journey, collector) {
   const tempRoot = await makeTempDirAsync('nomi-experience-')
@@ -164,7 +164,7 @@ export async function runJourney(journey, collector) {
         await click('open-canvas', win.getByRole('button', { name: '生成', exact: true }), {
           complete: () => expect(win.locator('.generation-canvas-v2__stage')).toBeVisible(),
         })
-        await click('add-image', win.locator('.generation-canvas-v2-toolbar [data-add-intent="image"]'))
+        await click('add-image', canvasAddBar(win).locator('[data-add-intent="image"]'))
         const composer = win.locator('.generation-canvas-v2-node__composer-card').last()
         await click('select-model', composer.getByRole('button', { name: '模型', exact: true }))
         await click('choose-model', win.getByText(FIXTURE_IMAGE_MODEL_LABEL, { exact: true }).last())

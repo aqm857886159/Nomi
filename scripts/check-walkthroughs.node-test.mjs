@@ -238,6 +238,13 @@ describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红�
     assert.equal(findRawShellAnchors(`await clickOrFail(win.getByRole('button', { name: /^新建空白项目/ }), 'x')`).length, 1)
     assert.equal(findRawShellAnchors(`win.locator('button, [role="button"]', { hasText: '新建空白项目' }).first()`).length, 1)
     assert.equal(findRawShellAnchors(`win.getByText('新建空白项目', { exact: false }).first().click()`).length, 1)
+    // 画布底部（2026-10-10）：加节点条 / 缩放簇的选择器与控件名
+    assert.equal(findRawShellAnchors(`win.locator('.generation-canvas-v2-toolbar [data-add-intent="image"]')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.locator('.generation-canvas-v2__zoom-bar button').first()`).length, 1)
+    assert.equal(findRawShellAnchors(`document.querySelector('.generation-canvas-v2__navigation-stack')`).length, 1)
+    assert.equal(findRawShellAnchors(`win.getByRole('button', { name: '适应视图', exact: true })`).length, 1)
+    assert.equal(findRawShellAnchors(`win.getByRole('slider', { name: '缩放比例' })`).length, 1)
+    assert.equal(findRawShellAnchors(`page.locator('button[aria-label="重置视图"]')`).length, 1)
     assert.equal(findRawShellAnchors(`win.getByRole('button', { name: '打开模型设置', exact: true })`).length, 1)
   })
 
@@ -246,6 +253,8 @@ describe('raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红�
     assert.deepEqual(findRawShellAnchors(`await expectVisible(entry, '没有返回项目库')`), [])
     assert.deepEqual(findRawShellAnchors(`await ensureAgentPanelOpen(win)`), [])
     assert.deepEqual(findRawShellAnchors(`await newProjectEntry(win).click()`), [])
+    assert.deepEqual(findRawShellAnchors(`await canvasAddBar(win).locator('[data-add-intent="image"]').click()`), [])
+    assert.deepEqual(findRawShellAnchors(`win.locator('.generation-canvas-v2-toolbar__node-menu')`), [])
     assert.deepEqual(findRawShellAnchors(`await openModelSettings(win, { label: '连接模型入口' })`), [])
   })
 

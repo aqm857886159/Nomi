@@ -10,6 +10,7 @@ import { buildProject } from './fixture.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
 import { panCanvasUntilInside } from '../_canvasHit.mjs'
 import { readLiveWalkInstances } from '../_walkInstances.mjs'
+import { canvasFitViewButton } from '../_shell.mjs'
 
 export const EDITOR = '[data-composer-host] .ProseMirror[contenteditable="true"]'
 export const STAGE = '.generation-canvas-v2__stage'
@@ -143,7 +144,7 @@ async function openProjectFromLibrary(app, libraryWin, name) {
 
 /** 缩放到全部节点在屏上，并等视口停稳。 */
 export async function fitAll(s) {
-  await s.win.locator('button[aria-label="适应视图"]').first().click()
+  await canvasFitViewButton(s.win).click()
   let last = ''
   for (let i = 0; i < 30; i++) {
     await sleep(150)

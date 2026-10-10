@@ -28,6 +28,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER_PERMISSION, INTERVENTION_CONFIRM, PERMISSION_POPOVER, permissionTier,
   chooseAssistantModel, createRuntimeWalk, openCanvas, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const SCENARIO = process.env.NOMI_PFF_SCENARIO || 'checkpoint'
 const SCENARIOS = new Set(['checkpoint', 'anchor-fail', 'pause-settle', 'pause-resume-early', 'upgrade-open', 'consent-late-release', 'consent-late-resume'])
@@ -96,7 +97,7 @@ async function setLocale(win, locale) {
 async function fitView(win) {
   const blank = await findCanvasBlankPoint(win)
   if (blank) await win.mouse.click(blank.x, blank.y)
-  const fit = win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first()
+  const fit = canvasFitViewButton(win)
   if (await fit.isVisible().catch(() => false)) await fit.click()
   await waitForVisualQuiescence(win)
 }

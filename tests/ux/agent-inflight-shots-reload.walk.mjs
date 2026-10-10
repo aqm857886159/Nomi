@@ -20,6 +20,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
   chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const VIDEO_MODEL = 'kling-v3'
 const ASK = 'S_INFLIGHT_ASK：做两个视频镜头：镜1 清晨的渔港；镜2 码头上晒太阳的猫。先别生成。'
@@ -135,7 +136,7 @@ async function observe(win, walk, label, { shot1, shot2, projectId }) {
   const persisted = await persistedNodes(win, projectId, [shot1, shot2])
   const blank = await findCanvasBlankPoint(win)
   if (blank) await win.mouse.click(blank.x, blank.y)
-  await clickOrFail(win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first(), `${label}：适应视图`)
+  await clickOrFail(canvasFitViewButton(win), `${label}：适应视图`)
   await waitForVisualQuiescence(win)
   await zoomOnto(win, shot1)
   const faces = { shot1: await nodeFace(win, shot1), shot2: await nodeFace(win, shot2) }

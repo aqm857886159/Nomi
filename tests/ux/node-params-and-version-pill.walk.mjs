@@ -31,6 +31,7 @@ import { expect, expectAbsent, expectHittable, proveProbe, screenshotSettled, wa
 import { findCanvasBlankPoint, findFrameDragHandlePoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const REQUESTED_LOCALE = process.argv[2] === 'en' ? 'en' : 'zh-CN'
 const LABEL = process.argv[3] || 'run'
@@ -155,7 +156,7 @@ async function humanClick(p) {
   await win.mouse.up()
 }
 async function fitView() {
-  await win.getByLabel(EN ? 'Fit view' : '适应视图', { exact: true }).first().click()
+  await canvasFitViewButton(win).click()
   await waitForVisualQuiescence(win)
 }
 /** 浮层「真的看得见」：Playwright 的 isVisible 把 `visibility:hidden`（`invisible` 的 DOM 仍在）与零尺寸都算不可见。 */

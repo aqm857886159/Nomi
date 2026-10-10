@@ -8,7 +8,7 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
 import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 
 const root = path.resolve('.')
 const out = path.join(root, 'docs/plan/shot-nodes-evidence')
@@ -74,7 +74,7 @@ try {
   await expect.poll(() => fixture.jobs.length).toBe(1)
   const first = page.locator(`article[data-node-id="${ids[0]}"]`)
   const second = page.locator(`article[data-node-id="${ids[1]}"]`)
-  await page.getByRole('button', { name: '适应视图', exact: true }).click()
+  await canvasFitViewButton(page).click()
   await expect(second.locator('[data-node-inline-status] [data-generation-message]')).toHaveText('排队中')
   await capture('queued')
   await expect(first.locator('[data-node-inline-status] [data-generation-message]')).toContainText(/生成中.*已等 (1[2-9]|[2-9][0-9]) 秒/, { timeout: stationTimeout({ operations: 6 }) })

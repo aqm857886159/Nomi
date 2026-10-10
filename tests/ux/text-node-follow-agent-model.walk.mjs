@@ -16,6 +16,7 @@ import { FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-
 import {
   CANVAS_PANEL, assertNodeTextWriteReceipt, chooseAssistantModel, createRuntimeWalk, hasToolResult, openCanvas, recorded, sendCanvas, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
+import { canvasAddBar } from './_shell.mjs'
 
 const SECOND_KEY = 'agent-runtime-text-b'
 const SECOND_LABEL = 'Fixture 文本 B'
@@ -44,7 +45,7 @@ try {
     match: (body) => flattenRequestText(body).includes('扩写成一条'),
     reply: { type: 'text', text: EXPANDED },
   })
-  const rail = win.locator('.generation-canvas-v2-toolbar').first()
+  const rail = canvasAddBar(win)
   await clickOrFail(rail.locator('button[aria-label="添加文字节点"]'), '左缘「添加文字节点」')
   const id = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.at(-1).id)
   const editor = win.locator(`[data-node-id="${id}"] .ProseMirror`).first()

@@ -11,6 +11,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 import { expect } from '@playwright/test'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import { canvasAddBar, canvasAddMoreMenu, canvasFitViewButton } from './_shell.mjs'
 
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
 const tempRoot = makeTempDir('nomi-core-a-composer-')
@@ -162,12 +163,12 @@ try {
   await observeCanvasInputs(win)
   for (const kind of ['image', 'video']) {
     const beforeIds = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.map(node => node.id))
-    const toolbar = win.locator('.generation-canvas-v2-toolbar')
+    const toolbar = canvasAddBar(win)
     const add = toolbar.locator(`[data-node-kind="${kind}"]`)
     if (await add.isVisible()) await add.click()
     else {
       await toolbar.locator('[data-canvas-add-more="true"]').click()
-      await win.locator(`.generation-canvas-v2-toolbar__more-menu [data-node-kind="${kind}"]`).click()
+      await canvasAddMoreMenu(win).locator(`[data-node-kind="${kind}"]`).click()
     }
     const newlyCreatedIds = () => win.evaluate(previous => window.__nomiCanvasStore.getState().nodes
       .map(node => node.id).filter(id => !previous.includes(id)), beforeIds)
@@ -203,7 +204,7 @@ try {
     await selectNode(win,id)
     await expect((await checkEditor(win)).input).toHaveText(prompt)
   }
-  await win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).click()
+  await canvasFitViewButton(win).click()
   await selectNode(win,edited[0].id)
   const singleComposerProof = await proveProbe(win.locator(composerSelector), 'single selected node exposes its real composer before multi selection')
   await selectNode(win,edited[1].id,{multi:true})
@@ -323,7 +324,7 @@ try {
   await expect.poll(() => win.evaluate(() => window.__nomiCanvasStore.getState().nodes.map(node => node.id).sort())).toEqual(edited.map(item => item.id).sort())
   // NodeWrapper owns arrow-key movement; Composer's native nokey scope must not
   // disable keyboard access on the node itself. Use the original multi-selection.
-  await win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).click()
+  await canvasFitViewButton(win).click()
   await selectNode(win, edited[0].id)
   await selectNode(win, edited[1].id, { multi: true })
   const ids = edited.map(item => item.id).sort()
@@ -371,7 +372,7 @@ try {
   await observeCanvasInputs(win)
   for (const item of edited) {
     // Offscreen nodes are virtualized; use the user's existing fit action before selecting.
-    await win.getByRole('button', { name: 'Fit view', exact: true }).click()
+    await canvasFitViewButton(win).click()
     await selectNode(win,item.id)
     await expect((await checkEditor(win)).input).toHaveText(item.prompt)
     const restored = readNodes().find(node => node.id === item.id)

@@ -16,6 +16,8 @@
 //   · 模型设置 = 顶栏齿轮（`data-shell-settings`）→ 设置弹窗里的「模型」页签（项目库右上那颗直达模型页的钮没有了）。
 //   · 左栏抽屉：左栏的 `data-shell-rail-item="docs|catalog|assets|flows|skills|prompts"`，点一下开、再点收；
 //     画布分组 / 分类目录在「目录」（catalog）里。
+//   · 画布底部（拍板稿 Main 板）：加节点条在内容区底部正中（横排，`.generation-canvas-v2-toolbar`：图片 视频 声音 文字 剪辑 | 导入 +，
+//     「+」里是空间一组）；左下缩放簇「⛶ | − 100% + | ⋯」（`.generation-canvas-v2__zoom-bar`），重置视图 / 画框 / 整理 / 小地图 / 操作帮助 / 缩放滑块都收在 ⋯ 里。
 //   · 新建项目：空库是三张动作卡里的「新建空白项目」；库里有项目时是右上角的「新建项目」钮。
 import { clickOrFail, expect } from './_assert.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -120,4 +122,146 @@ export async function openRailDrawer(win, item, label = `open ${item} drawer`) {
   const closed = win.locator(`${RAIL_ITEM(item)}[aria-pressed="false"]`)
   if (await closed.first().isVisible().catch(() => false)) await clickOrFail(closed, label)
   await expect(win.locator(`${RAIL_ITEM(item)}[aria-pressed="true"]`).first(), `${label}：点完抽屉仍没开`).toBeVisible()
+}
+
+// ── 画布底部：加节点条 + 缩放簇 ───────────────────────────────────────────────────────────────
+
+/** 选择器常量：给 page.evaluate 里量几何用（页内拿不到 Node 侧的 import，选择器串得从这里传进去）。 */
+export const CANVAS_ADD_BAR = '.generation-canvas-v2-toolbar'
+export const CANVAS_ADD_MORE_MENU = '.generation-canvas-v2-toolbar__more-menu'
+export const CANVAS_ZOOM_BAR = '.generation-canvas-v2__zoom-bar'
+export const CANVAS_NAV_STACK = '.generation-canvas-v2__navigation-stack'
+const CANVAS_VIEW_OPTIONS = '[data-canvas-view-options]'
+const navAny = (key) => new RegExp(`^(${alternatives([`generationCommon.navigation.${key}`])})$`)
+
+/** 加节点条（内容区底部正中那条横排）。 */
+export function canvasAddBar(win) {
+  return win.locator(CANVAS_ADD_BAR).first()
+}
+
+/**
+ * 从加节点条新建一个节点：常驻位的直接点；收在「+」里的（导演台 / 3D 模型 / 全景 / 白板）先开「+」再点。
+ * 找不到就抛，不返回 false（软守卫会让后面每一步在空画布上「通过」）。
+ * @returns {Promise<'resident'|'more'>}
+ */
+export async function addCanvasNode(win, kind, { timeout = 5000 } = {}) {
+  const bar = canvasAddBar(win)
+  await bar.waitFor({ timeout })
+  const resident = bar.locator(`[data-add-intent="${kind}"]`).first()
+  if ((await resident.count()) > 0) {
+    await resident.click()
+    return 'resident'
+  }
+  const more = bar.locator('[data-canvas-add-more="true"]').first()
+  await more.waitFor({ timeout })
+  await more.click()
+  const item = win.locator(`${CANVAS_ADD_MORE_MENU} [data-node-kind="${kind}"]`).first()
+  await item.waitFor({ timeout })
+  await item.click()
+  return 'more'
+}
+
+/** 左下缩放簇里的「适应视图」钮（只返回定位器，点不点、断言什么由走查自己写）。 */
+export function canvasFitViewButton(win) {
+  return win.locator(CANVAS_ZOOM_BAR).getByRole('button', { name: navAny('fitView') }).first()
+}
+
+export async function canvasFitView(win, label = 'fit view') {
+  await clickOrFail(canvasFitViewButton(win), label)
+}
+
+/** 左下缩放簇上显示的百分数（数字，不带 %）。 */
+export async function canvasZoomPercent(win) {
+  const text = await win.locator(`${CANVAS_ZOOM_BAR} [data-canvas-zoom-percent]`).first().innerText()
+  const value = Number.parseFloat(text)
+  if (!Number.isFinite(value)) throw new Error(`读不到缩放百分数：「${text}」`)
+  return value
+}
+
+/** 点 − / + 一下（direction = 'in' | 'out'）。 */
+export async function canvasZoomStep(win, direction, label = `zoom ${direction}`) {
+  await clickOrFail(win.locator(CANVAS_ZOOM_BAR).getByRole('button', { name: navAny(direction === 'in' ? 'zoomIn' : 'zoomOut') }), label)
+}
+
+/** 开 ⋯（视图选项）。已经开着就不动。 */
+export async function openCanvasViewOptions(win, label = 'open view options') {
+  if (await win.locator(CANVAS_VIEW_OPTIONS).first().isVisible().catch(() => false)) return
+  await clickOrFail(win.locator(CANVAS_ZOOM_BAR).getByRole('button', { name: navAny('viewOptions') }), label)
+  await expect(win.locator(CANVAS_VIEW_OPTIONS).first(), `${label}：点完面板没出来`).toBeVisible()
+}
+
+/**
+ * 收起 ⋯。没开就不动。点 ⋯ 自己（再点一下 = 收起）而不是按 Esc：Esc 同时是画布上「取消画框 / 清选择」的键，
+ * 读完画框就绪态再按 Esc 会把被读的状态一起清掉。
+ */
+export async function closeCanvasViewOptions(win) {
+  if (!(await win.locator(CANVAS_VIEW_OPTIONS).first().isVisible().catch(() => false))) return
+  await win.locator(CANVAS_ZOOM_BAR).getByRole('button', { name: navAny('viewOptions') }).click()
+  await expect(win.locator(CANVAS_VIEW_OPTIONS).first()).toBeHidden()
+}
+
+/** ⋯ 里的某一项（`reset-view` | `frame-tool` | `tidy` | `minimap` | `controls-help`）的定位器；调用前要先 openCanvasViewOptions。 */
+export function canvasViewOption(win, option) {
+  return win.locator(`${CANVAS_VIEW_OPTIONS} [data-view-option="${option}"]`).first()
+}
+
+/** 点 ⋯ 里的一项，点完收起 ⋯。 */
+export async function runCanvasViewOption(win, option, label = `view option ${option}`) {
+  await openCanvasViewOptions(win, `${label}（开 ⋯）`)
+  await clickOrFail(option === 'controls-help' ? canvasViewOption(win, option).locator('button') : canvasViewOption(win, option), label)
+  if (option !== 'controls-help') await closeCanvasViewOptions(win)
+}
+
+export const canvasResetView = (win, label = 'reset view') => runCanvasViewOption(win, 'reset-view', label)
+export const canvasToggleFrameTool = (win, label = 'toggle frame tool') => runCanvasViewOption(win, 'frame-tool', label)
+export const canvasTidy = (win, label = 'tidy canvas') => runCanvasViewOption(win, 'tidy', label)
+export const canvasToggleMinimap = (win, label = 'toggle minimap') => runCanvasViewOption(win, 'minimap', label)
+
+/** 打开「画布操作」帮助浮层（经 ⋯ 里的那一行）；浮层开着时 ⋯ 保持开着，关帮助用 Esc。 */
+export async function openCanvasControlsHelp(win, label = 'open canvas controls help') {
+  await runCanvasViewOption(win, 'controls-help', label)
+}
+
+/** 把缩放调到某个百分数（拖 ⋯ 里的滑块）。调完收起 ⋯。 */
+export async function canvasSetZoomPercent(win, percent, label = 'set zoom') {
+  await openCanvasViewOptions(win, `${label}（开 ⋯）`)
+  const slider = win.locator(`${CANVAS_VIEW_OPTIONS} input[type="range"]`).first()
+  await slider.fill(String(percent))
+  await closeCanvasViewOptions(win)
+}
+
+/** 「+」点开的空间一组菜单（导演台 / 3D 模型 / 全景 / 白板）。 */
+export function canvasAddMoreMenu(win) {
+  return win.locator(CANVAS_ADD_MORE_MENU).first()
+}
+
+/** 缩放滑块（在 ⋯ 里）：自动开 ⋯ 并返回滑块定位器；⋯ 保持开着，用完调 closeCanvasViewOptions。 */
+export async function canvasZoomSlider(win) {
+  await openCanvasViewOptions(win, 'open view options for the zoom slider')
+  return win.locator(`${CANVAS_VIEW_OPTIONS} input[type="range"]`).first()
+}
+
+/** 「画框」工具的开关钮（在 ⋯ 里，带 aria-pressed）：自动开 ⋯ 并返回定位器；⋯ 保持开着。 */
+export async function canvasFrameToolButton(win) {
+  await openCanvasViewOptions(win, 'open view options for the frame tool')
+  return canvasViewOption(win, 'frame-tool')
+}
+
+/** 「画布操作」帮助那一行（在 ⋯ 里）里的触发钮：自动开 ⋯ 并返回定位器；⋯ 保持开着。 */
+export async function canvasControlsHelpTrigger(win) {
+  await openCanvasViewOptions(win, 'open view options for the controls help')
+  return canvasViewOption(win, 'controls-help').locator('button')
+}
+
+/** 画框工具此刻是不是就绪（读 ⋯ 里那一行的 aria-pressed，读完收起 ⋯）。 */
+export async function canvasFrameToolPressed(win) {
+  const button = await canvasFrameToolButton(win)
+  const pressed = await button.getAttribute('aria-pressed')
+  await closeCanvasViewOptions(win)
+  return pressed === 'true'
+}
+
+/** 「画布操作」帮助浮层（role=dialog）。 */
+export function canvasControlsHelpDialog(win) {
+  return win.getByRole('dialog', { name: new RegExp(`^(${alternatives(['generationCommon.canvas.controlsHelp.aria'])})$`) })
 }

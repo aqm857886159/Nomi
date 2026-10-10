@@ -1,3 +1,4 @@
+import { CANVAS_CHROME_LAYERS } from '../components/canvasChromeLayers'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -344,14 +345,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       className={cn(
         'generation-canvas-v2-node__composer nokey',
         // 面板里的卡由介入槽定位，这里只是一段普通内容流；画布上才是浮在节点下沿的绝对定位层。
-        inPanel ? 'w-full' : 'absolute z-[8]',
+        inPanel ? 'w-full' : 'absolute',
         // 画布拖动期间隐身（拖节点、拖选区/组框、拖画布平移都算；状态源=stage 的 data-dragging，见 canvasDraggingFlag）。
         // 刻意用 visibility 而非条件卸载：里面是 TipTap 编辑器实例，卸载 = 丢未提交的输入 +
         // 每次拖动重建编辑器（拖动是最高频动作）。
         !inPanel && 'group-data-[dragging=true]/canvas:invisible',
       )}
       data-composer-host={host}
-      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
+      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto', ...(inPanel ? null : { zIndex: CANVAS_CHROME_LAYERS.composer }) }}
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
       {...(acceptsDrop ? dropHandlers : {})}

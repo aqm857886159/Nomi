@@ -44,7 +44,7 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasFitViewButton, canvasFrameToolButton, canvasFrameToolPressed, canvasZoomSlider, closeCanvasViewOptions, newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -86,7 +86,7 @@ const frameLocator = (win) => win.locator(CANVAS_FRAME_SELECTOR).first()
 const membershipProbe = (win) => win.locator(`${CANVAS_FRAME_SELECTOR}[data-frame-membership]`)
 
 async function fitView(win) {
-  await win.locator('.generation-canvas-v2__zoom-bar button[aria-label="适应视图"]').first().click({ timeout: 6000 })
+  await canvasFitViewButton(win).click()
   await win.waitForTimeout(1200)
 }
 
@@ -170,10 +170,11 @@ async function checkFitViewKeepsFrameLabel(win, when) {
  * 不是 `setCanvasZoom` 走后门——后门改的是 store，改不出用户手上那一下。
  */
 async function zoomOutForFraming(win) {
-  const slider = win.locator('.generation-canvas-v2__zoom-bar input[aria-label="缩放比例"]').first()
+  const slider = await canvasZoomSlider(win)
   const current = Number(await slider.inputValue())
   if (!Number.isFinite(current) || current <= 0) throw new Error('读不到当前缩放比例（fail-closed）')
   await slider.fill(String(Math.max(20, Math.round(current * 0.72))))
+  await closeCanvasViewOptions(win)
   await win.waitForTimeout(700)
 }
 
@@ -322,7 +323,7 @@ try {
   await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
   await win.locator('[aria-label="工作区切换"]').first().waitFor({ timeout: 30_000 })
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 8000 })
-  await win.locator('.generation-canvas-v2-toolbar').first().waitFor({ timeout: 30_000 })
+  await canvasAddBar(win).waitFor()
   await win.waitForTimeout(600)
 
   // ── ① 先摆三样东西：一段提示词文字 + 一张参考图 + 一个视频镜头 ──
@@ -364,11 +365,11 @@ try {
   await snap(win, 'three-loose-nodes')
 
   // ── ② 按 F，从三张卡**外面**起手，拖一圈把它们圈起来 ──
-  const frameButton = win.locator('.generation-canvas-v2__zoom-bar button[aria-label="画框"]').first()
-  await expectVisible(frameButton, '左下画布工具簇里有「画框」这颗钮')
+  await expectVisible(await canvasFrameToolButton(win), '左下缩放簇的 ⋯ 里有「画框」这一项')
+  await closeCanvasViewOptions(win)
   await win.keyboard.press('f')
   await win.waitForTimeout(400)
-  check(await frameButton.getAttribute('aria-pressed') === 'true', '按 F，画框工具就绪')
+  check(await canvasFrameToolPressed(win), '按 F，画框工具就绪')
 
   const nodeSelectors = nodeIds.map((id) => `.react-flow__node[data-id="${id}"]`)
   let drawRect = await findFrameDrawRectAround(win, { nodeSelectors, margin: 56 })
@@ -403,7 +404,7 @@ try {
   check(drawn?.count === '3', '★ 圈进去的三样**都进了这个框**（用户圈了 3 个，框就说 3）', `count=${drawn?.count}`)
   check(drawn?.empty === false, '圈住了东西 = 不是空框（实线，不是刚画完那种虚线）', `empty=${drawn?.empty}`)
   check(drawn?.borderStyle === 'solid', '有成员的框画实线', `borderStyle=${drawn?.borderStyle}`)
-  check(await frameButton.getAttribute('aria-pressed') === 'false', '画完一次工具自动收起')
+  check(!(await canvasFrameToolPressed(win)), '画完一次工具自动收起')
   await snap(win, 'framed-three')
 
   // ── ③ 起个名 ──

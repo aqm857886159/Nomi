@@ -78,7 +78,7 @@ try {
   const collapse = page.getByRole('button', { name: '收起面板', exact: true })
   if ((related || lod) && await collapse.isVisible()) await collapse.click()
   if (lod) {
-    const zoom = page.getByRole('slider', { name: '缩放比例', exact: true })
+    const zoom = await canvasZoomSlider(page)
     await zoom.focus()
     await zoom.press('Home')
     for (let step = 0; step < 20; step++) await zoom.press('ArrowRight')

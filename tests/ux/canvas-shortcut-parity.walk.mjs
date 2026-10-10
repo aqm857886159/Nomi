@@ -26,7 +26,7 @@ import { findCanvasBlankPoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR } from '.
 import { stationTimeout } from './_station-budget.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
-import { collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
+import { canvasControlsHelpDialog, canvasControlsHelpTrigger, canvasFitViewButton, canvasFrameToolPressed, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 
 const LOCALE = process.argv[2] === 'en' ? 'en' : 'zh-CN'
 const EN = LOCALE === 'en'
@@ -86,7 +86,7 @@ const shot = (name) => screenshotSettled(win, { path: path.join(shotsDir, `${nam
 // 画布只渲染视口里的卡（onlyRenderVisibleElements）：数卡 / 数边 / 读位置之前先点「适应视图」把全部卡框进来，
 // 否则数到的是「此刻看得见几张」而不是「画布上有几张」。
 async function fitAll() {
-  await win.getByRole('button', { name: EN ? 'Fit view' : '适应视图', exact: true }).first().click()
+  await canvasFitViewButton(win).click()
   await waitForVisualQuiescence(win)
 }
 async function nodeIds() {
@@ -248,9 +248,7 @@ try {
     await waitForVisualQuiescence(win)
     check(true, '⌥⇧F·整理画布改变了排布', { before, after: await positions() })
     // 正向读那颗按钮自己的开关态（先证明按钮在，再读它是 false），不数「不存在」。
-    const frameToolButton = win.getByRole('button', { name: EN ? 'Draw Frame' : '画框', exact: true }).first()
-    await expect(frameToolButton, '左下「画框」按钮没找到，读不了它的开关态').toBeVisible()
-    const frameToolPressed = await frameToolButton.getAttribute('aria-pressed')
+    const frameToolPressed = String(await canvasFrameToolPressed(win))
     check(frameToolPressed === 'false', '⌥⇧F 没有顺手把「画框」工具（裸 F）打开', { frameToolPressed })
     await shot('04-alt-shift-f-tidy')
     await undoOnce()
@@ -303,7 +301,7 @@ try {
   }
 
   // ═══ 帮助面板：新键都写着；各布局下整块可见、按钮点得到、行内不重叠 ═══
-  const helpButton = () => win.getByRole('button', { name: EN ? 'Canvas controls' : '画布操作', exact: true }).first()
+  const helpButton = () => canvasControlsHelpTrigger(win)
   const expectedRows = ['modG', 'modShiftG', 'modL', 'modD', 'tab', 'optShiftF', 'frameKey', 'modPlusMinus', 'modZ', 'modShiftZ', 'modX', 'altDrag']
   const layouts = [
     { name: '1280-agent-open', width: 1280, height: 900, agent: true },
@@ -322,7 +320,7 @@ try {
     layout.name = `${layout.name}-${layout.selection}`
     const row = { layout: layout.name }
     try {
-      await expectHittable(helpButton(), `画布操作帮助按钮（${layout.name}）`)
+      await expectHittable(await helpButton(), `画布操作帮助按钮（${layout.name}）`)
       row.buttonHittable = true
     } catch (error) {
       row.buttonHittable = false
@@ -331,8 +329,8 @@ try {
       results.help.push(row)
       continue
     }
-    await helpButton().click()
-    const panel = win.getByRole('dialog', { name: EN ? 'Canvas controls help' : '画布操作帮助', exact: true })
+    await (await helpButton()).click()
+    const panel = canvasControlsHelpDialog(win)
     try {
       const reach = await expectOverlayReachable(panel, `画布操作帮助面板（${layout.name}）`)
       row.reach = `${reach.hits}/${reach.samples}`
@@ -360,8 +358,8 @@ try {
   }
   const helpText = await (async () => {
     await resize(1280, 900)
-    await helpButton().click()
-    const panel = win.getByRole('dialog', { name: EN ? 'Canvas controls help' : '画布操作帮助', exact: true })
+    await (await helpButton()).click()
+    const panel = canvasControlsHelpDialog(win)
     const text = await panel.innerText()
     await win.keyboard.press('Escape')
     return text

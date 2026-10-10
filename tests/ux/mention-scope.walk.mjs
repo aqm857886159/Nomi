@@ -10,6 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { screenshotSettled } from './_assert.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -103,7 +104,7 @@ check('画布上有 2 张素材 + 1 个目标节点', ids.length === 3, `实得 
 await win.locator(`[data-node-id="${targetId}"]`).first().click({ timeout: 4000 })
 await win.waitForTimeout(1500)
 // 目标节点可能落在视口外（默认位置会滑出去）→ 先「适应视图」再点，否则 composer 点不到。
-const fitBtn = win.locator('[aria-label="适应视图"]').first()
+const fitBtn = canvasFitViewButton(win)
 if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1200) }
 await win.locator(`[data-node-id="${targetId}"]`).first().click({ timeout: 4000 }).catch(() => {})
 await win.waitForTimeout(1200)

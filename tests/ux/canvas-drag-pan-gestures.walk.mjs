@@ -22,6 +22,7 @@ import {
   CANVAS_PANE_SELECTOR, expectArrivalsReachable, findCanvasBlankPoint, findEdgeHitPoint, findNodeHitPoint, waitForCanvasViewportSettled,
 } from './_canvasHit.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
+import { canvasAddBar, canvasControlsHelpDialog, canvasFitViewButton, canvasResetView, openCanvasControlsHelp } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 语言与 node-params 走查同一套约定：位置参数 argv[2]，夹具再让 NOMI_CORE_SMOKE_LOCALE（runner 的 --locale）覆盖。
@@ -232,7 +233,7 @@ async function findMarqueeGesture() {
  * used 夹具里适应视图要装下 26 张卡，两张卡只有指甲盖大——人会凑近了再连线，走查也照做。
  */
 async function frameOwnCards() {
-  await getWin().locator('.generation-canvas-v2__zoom-bar button').first().click()
+  await canvasFitViewButton(getWin()).click()
   await getWin().waitForTimeout(420)
   const measure = () => getWin().evaluate(({ ownNode, paneSelector }) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
@@ -332,7 +333,7 @@ async function addNode(kind) {
   const knownIds = [...SEEDED_NODE_IDS, ...CREATED_NODE_IDS]
   // 基线必须在点之前、且视口停稳时读：打开项目那一刻若摆过一次全貌（useAutoFitOnLoad），它得先落地。
   const viewportBefore = await waitForCanvasViewportSettled(getWin())
-  await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
+  await canvasAddBar(getWin()).locator(`[data-node-kind="${kind}"]`).first().click()
   const arrival = await expectArrivalsReachable(getWin(), {
     knownIds, expectedCount: 1, viewportBefore, label: `工具条新建${kind === 'image' ? '图片' : '视频'}卡`,
   })
@@ -403,7 +404,7 @@ try {
   win = await smoke.openProject()
   await dismissFirstRun()
   await resize(1600, 1000)
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
 
   // ── 任务准备：摆一个图片节点 + 一个视频节点 ─────────────────────────────
   // 2026-09-25 用户拍板「程序不再主动平移 / 缩放画布」：以前每建一张卡画布会自己露出平移过去，这里等的是
@@ -572,7 +573,7 @@ try {
   )
 
   // Shift 框选：先用真实「适应视图」收回所有节点，再从空白角落包围它们。
-  await getWin().locator('.generation-canvas-v2__zoom-bar button').first().click()
+  await canvasFitViewButton(getWin()).click()
   await getWin().waitForTimeout(420)
   // 适应视图只保证节点**在**视口里，不保证**离边够远**：窄画布下它留的余量可能比 React Flow
   // 的自动平移带还小，于是「框得住两张卡」和「端点别落进自动平移带」直接打架
@@ -730,7 +731,7 @@ try {
   )
 
   // 适应视图可能在宽屏把两个节点放大到接近上限；重置视图后，后面两轮滚轮都有缩放余量。
-  await getWin().locator('.generation-canvas-v2__zoom-bar button').nth(1).click()
+  await canvasResetView(getWin())
   await getWin().waitForTimeout(420)
 
   // ── ① 滚轮以光标为锚缩放 ───────────────────────────────────────────────
@@ -1291,8 +1292,8 @@ try {
       await batchDockDismiss.click()
       await expect(batchDockDismiss).toBeHidden()
     }
-    await getWin().getByRole('button', { name: EN ? 'Canvas controls' : '画布操作', exact: true }).first().click()
-    const panel = getWin().getByRole('dialog', { name: EN ? 'Canvas controls help' : '画布操作帮助', exact: true })
+    await openCanvasControlsHelp(getWin())
+    const panel = canvasControlsHelpDialog(getWin())
     await expect(panel).toBeVisible()
     await evidence(name)
     const text = (await panel.innerText()).replace(/\s+/g, ' ')
@@ -1349,7 +1350,7 @@ try {
   // `data-dragging` 就永远摘不掉，浮框 / 浮条 / 版本托盘全部隐身（docs/fixes/2026-09-22-canvas-dragging-flag-outlives-gesture.root-cause.json）。
   // 本文件别处每次平移后都等 ≥260ms 才下一步，正好错过那 150ms——所以这里刻意「松手即点」。
   {
-    await getWin().getByLabel(EN ? 'Fit view' : '适应视图', { exact: true }).first().click()
+    await canvasFitViewButton(getWin()).click()
     await getWin().waitForTimeout(500)
     const panStart = await findBlankPoint()
     const target = await getWin().evaluate(() => {

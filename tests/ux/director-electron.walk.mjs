@@ -21,7 +21,7 @@ import { addCameraPreset, addTrack, placeCharacter } from './_directorLab.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { createBlankProject, prepareIsolation, readProjectPayload } from '../../evals/lib/isoApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { backToLibrary, newProjectEntry } from './_shell.mjs'
+import { backToLibrary, canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/director/electron')
@@ -216,7 +216,7 @@ check('② 截图落成画布 image 节点 + reference 边（磁盘）', sent)
 
 // ③ 视频镜头 → 运镜芯片 → 应用 → 常驻 Host 出 mp4 + 喂目标镜头
 // 退出导演台后视口停在导演台节点上，视频节点在视口外（React Flow 视口外节点不可见）→ 先适应视图
-await clickOrFail(win.getByRole('button', { name: '适应视图' }).first(), '画布·适应视图')
+await clickOrFail(canvasFitViewButton(win), '画布·适应视图')
 await clickOrFail(win.locator(`[data-node-id="${VIDEO_ID}"]`).first(), '画布·选中视频节点')
 await clickOrFail(win.locator('[aria-label="运镜"]').first(), '视频 composer·运镜芯片')
 await clickOrFail(win.locator('button', { hasText: /^应用$/ }).first(), '运镜弹层·应用')
@@ -312,7 +312,7 @@ try {
     return restored
   }, { timeout: stationTimeout({ operations: 2 }) }).toEqual({ nodes: expect.arrayContaining(expectedNodes), edges: savedCanvas.edges })
   expect(restored.nodes).toHaveLength(savedCanvas.nodes.length)
-  await clickOrFail(reopened.getByRole('button', { name: '适应视图' }).first(), '冷启动画布适应视图')
+  await clickOrFail(canvasFitViewButton(reopened), '冷启动画布适应视图')
   const sentImageId = savedCanvas.nodes.find((node) => node.meta?.source === 'director' && node.kind === 'image').id
   const restoredImage = reopened.locator(`[data-node-id="${sentImageId}"] img`).first()
   await expectVisible(restoredImage, '冷启动后导演截图没有在画布显示')

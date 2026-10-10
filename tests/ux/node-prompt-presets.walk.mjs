@@ -4,7 +4,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectOverlayReachable, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasAddMoreMenu, newProjectEntry } from './_shell.mjs'
 
 const before = process.argv.includes('--before')
 const output = path.resolve('tests/ux/shots/node-prompt-presets')
@@ -19,13 +19,13 @@ const search = () => picker().locator('[data-library-search]')
 const editor = () => page.locator('.generation-canvas-v2-node__composer [contenteditable="true"]').last()
 async function addNode(kind) {
   const count = await page.locator('[data-node-id]').count()
-  const toolbar = page.locator('.generation-canvas-v2-toolbar').first()
+  const toolbar = canvasAddBar(page)
   await expect(toolbar).toBeVisible()
   const trigger = toolbar.locator(`[data-node-kind="${kind}"]`).first()
   if (await trigger.isVisible()) await trigger.click()
   else {
     await toolbar.locator('[data-canvas-add-more="true"]').click()
-    await page.locator(`.generation-canvas-v2-toolbar__more-menu [data-node-kind="${kind}"]`).click()
+    await canvasAddMoreMenu(page).locator(`[data-node-kind="${kind}"]`).click()
   }
   await expect.poll(() => page.locator('[data-node-id]').count()).toBeGreaterThan(count)
   await page.locator('[data-node-id]').last().click()

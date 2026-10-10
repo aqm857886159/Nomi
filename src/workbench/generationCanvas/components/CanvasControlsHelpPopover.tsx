@@ -18,7 +18,7 @@ import { canvasControlsHelpSections } from './canvasControlsHelpModel'
  * 所以任何语言的长说明都只会变高、不会压到右边的键位上（英文界面「Box select」那一行就是被两边
  * 都 `nowrap` 挤出来的重叠）。
  */
-export function CanvasControlsHelpPopover(): JSX.Element {
+export function CanvasControlsHelpPopover({ asRow = false, rowClassName }: { asRow?: boolean; rowClassName?: string } = {}): JSX.Element {
   const { t } = useTranslation()
   const scheme = useCanvasGestureScheme()
   const [open, setOpen] = React.useState(false)
@@ -33,19 +33,34 @@ export function CanvasControlsHelpPopover(): JSX.Element {
   const label = t('generationCommon.navigation.canvasControls')
 
   return (
-    <div className="relative inline-flex">
+    <div className={asRow ? 'relative block w-full' : 'relative inline-flex'}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span ref={anchorRef} className="inline-flex">
-            <WorkbenchButton
-              aria-label={label}
-              aria-haspopup="dialog"
-              aria-expanded={open}
-              aria-pressed={open}
-              onClick={() => setOpen((value) => !value)}
-            >
-              <IconKeyboard size={15} stroke={1.8} aria-hidden="true" />
-            </WorkbenchButton>
+          <span ref={anchorRef} className={asRow ? 'block w-full' : 'inline-flex'}>
+            {asRow ? (
+              // 收进「⋯」菜单里的一行：同一个帮助浮层，只是触发钮换成带文字的整行。
+              <button
+                type="button"
+                className={rowClassName}
+                aria-label={label}
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+              >
+                <IconKeyboard size={16} stroke={1.5} aria-hidden="true" />
+                <span>{label}</span>
+              </button>
+            ) : (
+              <WorkbenchButton
+                aria-label={label}
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                aria-pressed={open}
+                onClick={() => setOpen((value) => !value)}
+              >
+                <IconKeyboard size={15} stroke={1.8} aria-hidden="true" />
+              </WorkbenchButton>
+            )}
           </span>
         </TooltipTrigger>
         <TooltipContent side="top">{label}</TooltipContent>

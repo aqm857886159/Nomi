@@ -13,6 +13,7 @@ import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuies
 import { findCanvasBlankPoint, findEdgeHitPoint, findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { canvasResetView } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
@@ -132,7 +133,7 @@ try {
   await win.locator('.generation-canvas-v2__stage').waitFor()
   await expect(win.locator('.react-flow__node')).toHaveCount(nodes.length)
   await waitForCanvasViewportSettled(win)
-  await win.getByRole('button', { name: uiText(zh ? 'zh-CN' : 'en', 'generationCommon.navigation.resetView'), exact: true }).first().click()
+  await canvasResetView(win)
   await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 

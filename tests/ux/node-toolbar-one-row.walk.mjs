@@ -11,6 +11,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled, expectVisible, clickOrFail, expectCount } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -117,7 +118,7 @@ try {
   assert(afterIds.some((id) => !['img-node', 'vid-node', 'anchor-node'].includes(id)), 'first frame produced and focused a new image node')
   const after = afterIds.length
   await screenshotSettled(win, { path: path.join(outDir, `${LOCALE}-6-after-extract.png`) })
-  await win.getByRole('button', { name: /适应视图|Fit view/ }).click()
+  await canvasFitViewButton(win).click()
   await select('vid-node', L.vid)
   await win.locator(barSel(L.vid)).getByRole('button', { name: L.extract }).first().click()
   await win.getByRole('menuitem', { name: L.last }).click()

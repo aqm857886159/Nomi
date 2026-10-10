@@ -11,7 +11,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findCanvasBlankPoint, panCanvasUntilInside, readCanvasViewport, waitForCanvasViewportSettled } from './_canvasHit.mjs'
-import { uiText } from './full-walk/invariants.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -95,8 +94,7 @@ async function runZoom(zoomPercent) {
     await waitForCanvasViewportSettled(win)
 
     // 缩放像用户一样用缩放条的滑块（界面唯一的精确缩放入口）。
-    const slider = win.getByRole('slider', { name: uiText(LOCALE, 'generationCommon.navigation.zoomRatio') })
-    await slider.fill(String(z))
+    await canvasSetZoomPercent(win, z)
     const viewport = await waitForCanvasViewportSettled(win)
     const zoom = viewport.zoom
     if (Math.abs(zoom - z / 100) > 0.02) throw new Error(`缩放没到 ${z}%：${JSON.stringify(viewport)}`)

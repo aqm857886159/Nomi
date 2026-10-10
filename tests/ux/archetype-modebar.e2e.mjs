@@ -39,7 +39,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/archetype-modebar')
@@ -124,9 +124,9 @@ try {
   // ── 进场：新建空白项目 → 生成画布 → 加一个视频节点 ──────────────────────
   await clickOrFail(newProjectEntry(win), '新建空白项目')
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '顶栏「生成」')
-  await expectVisible(win.locator('.generation-canvas-v2-toolbar'), '生成画布工具栏出现')
+  await expectVisible(canvasAddBar(win), '生成画布工具栏出现')
   // data-node-kind 是结构锚点，不随语言变（aria-label「添加视频节点」走 i18n，英文界面下会变）。
-  await clickOrFail(win.locator('.generation-canvas-v2-toolbar button[data-node-kind="video"]'), '工具条「视频」')
+  await clickOrFail(canvasAddBar(win).locator('button[data-node-kind="video"]'), '工具条「视频」')
   await expectVisible(composer, '视频节点的浮动 composer 出现')
   record('新建空白项目 → 生成画布 → 加视频节点')
   await shot('video-node')

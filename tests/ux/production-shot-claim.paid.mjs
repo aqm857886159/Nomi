@@ -50,6 +50,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER, COMPOSER_PERMISSION, INTERVENTION_CONFIRM, PERMISSION_POPOVER,
   chooseAssistantModel, closeSpendCard, openCanvas, permissionTier, readProject, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const { resolveArchetypeVariant } = tsxRequire('../../electron/shared/modelArchetypes/variantResolution.ts', import.meta.url)
 const { SEEDANCE_2_APIMART_ARCHETYPE } = tsxRequire('../../electron/shared/videoCapabilities/seedanceApimart.ts', import.meta.url)
@@ -211,7 +212,7 @@ function createContext({ id, win, walk, projectId, projectRoot }) {
   }
 
   async function fitView() {
-    await clickOrFail(win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).first(), '适应视图')
+    await clickOrFail(canvasFitViewButton(win), '适应视图')
     await waitForVisualQuiescence(win)
   }
   /** 像用户一样：先点空白处取消选中，适应视图，再按住 Ctrl 滚轮锚在这张卡上放大到看得清（≥ 240px 宽）。 */

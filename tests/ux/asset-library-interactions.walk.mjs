@@ -20,6 +20,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const FFMPEG = require('@ffmpeg-installer/ffmpeg').path
@@ -102,7 +103,7 @@ async function snap(page, name) {
 
 // 画布开着 onlyRenderVisibleElements：视口外的卡不进 DOM。先「适应视图」把全部卡收进视口再数。
 const canvasNodeCount = async (page) => {
-  await page.locator(`button[aria-label="${locale === 'en' ? 'Fit view' : '适应视图'}"]`).first().click().catch(() => {})
+  await canvasFitViewButton(page).click().catch(() => {})
   await page.waitForTimeout(600)
   return page.locator('.react-flow__node').count()
 }

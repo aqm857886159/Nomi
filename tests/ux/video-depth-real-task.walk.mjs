@@ -39,6 +39,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { findConnectionStartPoint } from './_canvasHit.mjs'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
+import { canvasAddBar, canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
@@ -203,7 +204,7 @@ try {
   await clickOrFail(projectCard.getByRole('button', { name: /继续创作/ }).first(), `打开${projectName}`)
   await win.locator('[aria-label="工作区切换"]').first().waitFor({ timeout: 60_000 })
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 10_000 })
-  await win.locator('.generation-canvas-v2-toolbar').first().waitFor({ timeout: 60_000 })
+  await canvasAddBar(win).waitFor()
   await win.waitForTimeout(800)
 
   // ── ① 动作挂在素材上：选中那段视频，浮条上就有「提取深度」 ──────────────────
@@ -398,7 +399,7 @@ try {
   // 新建那张卡会把视口推走：2026-09-07 实测这一步的固定坐标点击落到了视口外，
   // Playwright 报「<html> intercepts pointer events」——那是「这个点上什么都没有」，
   // 不是「有东西挡住了」。所以先「适应视图」把三张卡都收回可视区，再量坐标。
-  const fitView = win.getByLabel('适应视图').first()
+  const fitView = canvasFitViewButton(win)
   if (await fitView.count()) await fitView.click()
   await win.waitForTimeout(900)
   await derivedCard.click({ position: { x: 36, y: 16 } })

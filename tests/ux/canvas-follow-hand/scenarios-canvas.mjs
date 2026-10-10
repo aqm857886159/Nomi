@@ -3,6 +3,7 @@
 import { beginMeasure, endMeasure, maxGapIn, median, maxOf, pct, r1, firstAfter, renderSummary } from './probe.mjs'
 import { census, processMemory, nodeRect, storeNode, sleep, fitAll, EDITOR, STAGE } from './session.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from '../_canvasHit.mjs'
+import { canvasResetView } from '../_shell.mjs'
 
 const vid = (n) => `gen-v2-video-${String(n).padStart(3, '0')}`
 
@@ -375,7 +376,7 @@ export async function stackDragOut(s, { rounds = 4, shotDir = null } = {}) {
  * 挑一张前面没被悬停 / 拖过、且在 100% 视图里整张露着的卡（被碰过的卡带着别的状态，拍出来不代表「平时」）。
  */
 export async function posterAndPlayShots(s, dir, { candidates = [1, 2, 3, 4, 6, 7, 8, 18, 19, 25, 26, 27, 28] } = {}) {
-  await s.win.locator('button[aria-label="重置视图"]').first().click(); await sleep(1200)
+  await canvasResetView(s.win); await sleep(1200)
   const blank = await blankPoint(s)
   await s.win.mouse.move(blank.x, blank.y); await sleep(1500)
   const stage = await s.win.locator(STAGE).first().boundingBox()

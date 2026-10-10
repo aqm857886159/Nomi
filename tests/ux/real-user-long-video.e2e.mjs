@@ -21,7 +21,7 @@ import {
   liveCanaryReadiness,
   runRealUserLongVideoJourney,
 } from './real-user-long-video.runner.mjs'
-import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 
 const FIXTURE_VIDEO = path.join(repoRoot, REAL_USER_LONG_VIDEO_MANIFEST.sample.path)
 const FIXTURE_VENDOR = 'real-user-loopback-vision'
@@ -145,7 +145,7 @@ async function enterProject(win) {
   await win.getByRole('button', { name: '生成', exact: true }).click().catch(async () => {
     await win.locator('[data-mode="generation"]').click()
   })
-  await win.locator('.generation-canvas-v2-toolbar').waitFor({ state: 'visible', timeout: 15_000 })
+  await canvasAddBar(win).waitFor({ state: 'visible' })
   return projectId
 }
 

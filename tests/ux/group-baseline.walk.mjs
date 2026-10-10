@@ -11,7 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-baseline')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -74,7 +74,7 @@ if (arrivals.path === 'hint-pending') {
 }
 // 这一页要拍的是「四张卡 + 选择浮条 / 组框」的真实样子，全选也只选得中已渲染的卡（onlyRenderVisibleElements）：
 // 用户想一眼看全四张，就点「适应视图」——这是他自己的动作，不是画布替他挪。
-await clickOrFail(win.getByLabel('适应视图', { exact: true }), '适应视图：一眼看全四张')
+await clickOrFail(canvasFitViewButton(win), '适应视图：一眼看全四张')
 await waitForCanvasViewportSettled(win)
 await expect(win.locator('.generation-canvas-v2-node[data-node-id]'), '适应视图后四张卡都在画布上').toHaveCount(4)
 for (const id of await win.locator('.generation-canvas-v2-node[data-node-id]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-node-id')))) {

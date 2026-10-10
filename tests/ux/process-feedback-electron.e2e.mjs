@@ -7,7 +7,7 @@ import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.m
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { createProcessFixture } from './process-feedback-real-fixture.mjs'
 import { groupSelectedNodesAndGenerate } from './_groupGenerate.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasZoomSlider, newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const root = path.resolve('.')
@@ -43,7 +43,7 @@ async function shot(name) {
   console.log('SHOT', name)
 }
 async function setZoom(percent) {
-  const zoom = page.locator('.generation-canvas-v2__zoom-bar input[type=range]')
+  const zoom = await canvasZoomSlider(page)
   await zoom.evaluate((el, value) => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(value))
     el.dispatchEvent(new Event('input', { bubbles: true }))

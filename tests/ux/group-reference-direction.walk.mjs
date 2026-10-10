@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
 import { findConnectionStartPoint, findEdgeHitPoint } from './_canvasHit.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 const repoRoot = process.cwd()
 const tempRoot = path.join(repoRoot, '.tmp', 'nomi-group-reference-direction')
 const settingsDir = path.join(tempRoot, 'settings')
@@ -136,7 +136,7 @@ try {
   }).catch((error) => ({ error: String(error) }))
   check('注入两张成图 + 文生图目标', !injected.error, injected.error || '')
   await win.waitForTimeout(1200)
-  const fit = win.getByLabel('适应视图').first()
+  const fit = canvasFitViewButton(win)
   if (await fit.count()) await fit.click()
   await win.waitForTimeout(900)
   await screenshotSettled(win, { path: path.join(shotsDir, '01-before.png') })

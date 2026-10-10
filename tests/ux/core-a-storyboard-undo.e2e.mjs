@@ -14,6 +14,7 @@ import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { waitForVisualQuiescence, proveProbe, expectAbsent } from './_assert.mjs'
 import { createAgentRuntimeFixture, FIXTURE_VENDOR, FIXTURE_IMAGE_MODEL } from './agent-runtime-fixture.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 const { createWorkspaceProject } = tsxRequire('../../electron/workspace/workspaceRepository.ts', import.meta.url)
 const { createProductionRunRepository } = tsxRequire('../../electron/productionRun/productionRunRepository.ts', import.meta.url)
 const tempRoot = makeTempDir('nomi-ir02-electron-')
@@ -103,7 +104,7 @@ async function checkEditor() {
   // Prove the original storyboard stayed mounted but hidden, the actual bug's host lifetime.
   await expect(editor()).toHaveCount(1)
   await expectAbsent(win.locator('[data-storyboard-editor="true"]:visible'), { provenBy: editorProof, message: 'Workspace switch hides the still-mounted original editor' })
-  await win.getByRole('button', { name: /^(适应视图|Fit view)$/ }).click()
+  await canvasFitViewButton(win).click()
   await waitForVisualQuiescence(win)
   const point = await findNodeHitPoint(win, { nodeSelector: '.generation-canvas-v2-node[data-node-id="node-unrelated"]' })
   assert(point, 'Existing unrelated node has a real click surface')

@@ -22,7 +22,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot } from './_mcpJourney.mjs'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/p4-s5-canvas-landing')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -185,7 +185,7 @@ try {
       .catch(() => false)
   let inView = false
   for (let attempt = 0; attempt < 6 && !inView; attempt += 1) {
-    await clickOrFail(win.getByRole('button', { name: '适应视图' }).first(), '适应视图：把四个占位都带进视口')
+    await clickOrFail(canvasFitViewButton(win), '适应视图：把四个占位都带进视口')
     inView = await placeholdersInView(3_000)
     if (inView) break
     // 适应视图还不够就再往外滚一格——真实用户看不全时就是这么干的。

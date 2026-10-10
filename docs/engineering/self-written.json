@@ -1812,6 +1812,30 @@
       ],
       "whyNotIntegrated": "Domain constraint: 「没落定」是 Nomi 导出任务表的领域语义（同一项目同时只允许一个导出，queued / planning / encoding 都算在途），只有单例自己知道；测试框架只能看句柄与 promise。登记表本身 20 行（globalThis 上一张 Map），核对用 vitest 现成的 setupFiles + afterEach。",
       "revisitWhen": "Vitest 提供按用例的「自定义在途资源」钩子，或导出任务表改成按项目实例化、不再是模块级单例时"
+    },
+    {
+      "id": "canvas-chrome-occlusion",
+      "capability": "画布外框控件（加节点条、缩放簇）被节点生成框压住的那一块自动裁掉，让生成框在视觉和命中上都盖在外框控件之上（用户 2026-10-10 验收规则：生成框是正在操作的东西，任何画布外框控件不得盖住它）。",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/components/useCanvasChromeOcclusion.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "调 z-index：生成框在 React Flow 渲染层（z-4）的层叠上下文里，节点视口自带 transform 又是一层，生成框对外只有「渲染层」这一个层级；加节点条 / 缩放簇是舞台的直接子元素，生成框写多大 z 都盖不过。实测定位（走查 elementFromPoint）也证实。",
+          "source": "node_modules/@xyflow/react/dist/style.css（.react-flow__renderer z-index:4、.react-flow__viewport transform）；src/workbench/generationCanvas/components/canvasChromeLayers.ts 顶部说明"
+        },
+        {
+          "name": "把生成框 portal 出节点层、单独渲染在舞台级图层：能让层级值真正生效，但生成框是 59 个走查 / 单测按「在节点 DOM 里」定位的（.generation-canvas-v2-node__composer），位置要改成按屏幕坐标换算，TipTap 编辑器还要保持挂载不丢输入，blast radius 太大，这一刀不走。",
+          "source": "tests/ux、src 内对 generation-canvas-v2-node__composer / data-composer-host 的引用共 59 个文件（git grep）"
+        },
+        {
+          "name": "CSS clip-path 本身是浏览器标准能力，已直接用，没有再造裁剪；自写的只有「量生成框与控件的相交矩形」这一小段几何。",
+          "source": "https://developer.mozilla.org/docs/Web/CSS/clip-path"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint：生成框与外框控件的相交关系只有画布自己知道（哪个节点被选中、生成框此刻的屏幕矩形、控件是否上抬），通用的 z-index / 层叠机制在 React Flow 的层叠上下文边界处做不到；没有现成库做「画布外框控件让位于节点浮层」这件事。",
+      "revisitWhen": "生成框挪出节点层单独渲染后删除（2026-11-15 复查一次：画布层级表合入、生成框能直接用层级值盖住外框控件时，删本文件与 canvasChromeLayers 里的说明）"
     }
   ]
 }

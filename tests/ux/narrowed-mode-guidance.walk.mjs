@@ -25,7 +25,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
-import { backToLibrary, newProjectEntry } from './_shell.mjs'
+import { backToLibrary, canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/narrowed-mode-guidance')
@@ -114,7 +114,7 @@ async function newVideoNodeWithModel(optionLabel) {
   const existingNodeIds = await getWin().locator('.react-flow__node[data-id]').evaluateAll((nodes) =>
     nodes.map((node) => node.getAttribute('data-id')).filter(Boolean),
   )
-  await getWin().locator('.generation-canvas-v2-toolbar [data-node-kind="video"]').click()
+  await canvasAddBar(getWin()).locator('[data-node-kind="video"]').click()
   await getWin().waitForTimeout(800)
   await getWin().waitForFunction(
     (knownIds) => [...document.querySelectorAll('.react-flow__node[data-id]')]
@@ -212,7 +212,7 @@ try {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 8000 })
   await generation.click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
   await expectVisible(getWin().locator('.react-flow').first(), '生成画布已挂载')
 
   // ① 阴性对照：先选一个**没有任何模式被藏**的模型，证明这时提示不该出现。

@@ -18,8 +18,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
-import { uiText } from './full-walk/invariants.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'outputs/canvas-s5-walkthrough')
@@ -108,7 +107,7 @@ async function nodeInfo() {
 }
 
 async function addNode(kind) {
-  await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
+  await canvasAddBar(getWin()).locator(`[data-node-kind="${kind}"]`).first().click()
   await getWin().waitForTimeout(700)
 }
 
@@ -152,7 +151,7 @@ try {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 8000 })
   await generation.click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
 
   // ── 步骤 01：添加图片节点（节点上屏）───────────────────────────────────
   await addNode('image')
@@ -238,7 +237,7 @@ try {
   // 用真实用户路径连线：选中源节点让磁吸把手浮出 → 从源右把手拖到目标节点。
   // live 把手（R23）：命中区 __handle-hit（112px 宽带）、图标 __handle-icon。
   // 拖完第一张卡后它的右把手可能落在右侧助手面板底下（点不到）；像人一样点「适应视图」把两张卡摆进画布，再取坐标。
-  await getWin().getByRole('button', { name: uiText('zh-CN', 'generationCommon.navigation.fitView'), exact: true }).first().click()
+  await canvasFitViewButton(getWin()).click()
   await getWin().waitForTimeout(900)
   nodes = await nodeInfo()
   const source = nodes[0]

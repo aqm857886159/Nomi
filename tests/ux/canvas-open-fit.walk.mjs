@@ -15,7 +15,7 @@ import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
-import { backToLibrary } from './_shell.mjs'
+import { backToLibrary, canvasFitViewButton, canvasResetView } from './_shell.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shots = path.join(root, 'tests/ux/shots/canvas-open-fit')
@@ -104,7 +104,7 @@ try {
   check('冷开：全部卡片都在舞台里（摆了全貌）', cold.mounted === totalNodes && cold.outside === 0 && cold.zoom < 0.95, cold)
 
   // 用户开始干活：回到 1:1。之后离开项目、再从项目库打开。
-  await win.getByRole('button', { name: '重置视图', exact: true }).first().click()
+  await canvasResetView(win)
   const working = await waitForCanvasViewportSettled(win)
   check('重置视图回到 100%', Math.abs(working.zoom - 1) < 0.001, { zoom: working.zoom })
   const beforeReopen = await readWholeView()
@@ -113,7 +113,7 @@ try {
   // 离开时视口不在 1:1：用户点「适应视图」看全貌后走人（这是真正坏过的那条路——停在 1:1 离开时同步没有东西要推，
   // 抓不到）。2026-09-26：离开时 store 清空、画布还停在这里，「store → React Flow」同步把它推回 1:1 兜底，
   // 回声把 1:1 记成了「用户留下的视角」，重开时适应就按「有记忆」保留了它。
-  await win.getByRole('button', { name: '适应视图', exact: true }).first().click()
+  await canvasFitViewButton(win).click()
   const leaving = await waitForCanvasViewportSettled(win)
   check('离开前视口不在 1:1（点了「适应视图」）', Math.abs(leaving.zoom - 1) > 0.05, { zoom: leaving.zoom })
 

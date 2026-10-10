@@ -10,6 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { screenshotSettled } from './_assert.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -116,7 +117,7 @@ await win.waitForTimeout(6000)
 // placed to the right of the selected sources, so fit before asserting the new
 // node; counting the current viewport would otherwise report the four sources
 // while the real overview already exists off-screen.
-const fitBtn = win.locator('[aria-label="适应视图"]').first()
+const fitBtn = canvasFitViewButton(win)
 if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1500) }
 await snap(win, 'after-build')
 const built = await win.evaluate(() => document.querySelectorAll('[data-node-id]').length)

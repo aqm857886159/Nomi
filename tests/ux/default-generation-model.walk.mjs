@@ -15,7 +15,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/default-generation-model')
@@ -119,8 +119,8 @@ try {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 8000 })
   await generation.click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
-  await clickOrFail(getWin().locator('.generation-canvas-v2-toolbar button').nth(1), '工具条上的「图片」')
+  await canvasAddBar(getWin()).waitFor()
+  await clickOrFail(canvasAddBar(getWin()).locator('button').nth(1), '工具条上的「图片」')
   await getWin().waitForTimeout(1400)
 
   const baseline = await readSelectedModel()
@@ -169,7 +169,7 @@ try {
   // ── 回画布新建一张图片卡：必须开成刚设的那个模型 ───────────────────────
   await getWin().keyboard.press('Escape')
   await getWin().waitForTimeout(700)
-  await clickOrFail(getWin().locator('.generation-canvas-v2-toolbar button').nth(1), '工具条上的「图片」')
+  await clickOrFail(canvasAddBar(getWin()).locator('button').nth(1), '工具条上的「图片」')
   // 等「第二张卡出现」这个**事实**，而不是睡一个够长的觉——真实耗时会变，
   // sleep 不够长时读到的是 1 张，断言反而会把「还没渲染」当成「功能坏了」。
   await getWin().locator('.generation-canvas-v2-node').nth(1).waitFor({ state: 'visible', timeout: 15_000 })

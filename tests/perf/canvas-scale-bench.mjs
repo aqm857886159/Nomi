@@ -24,6 +24,7 @@ import { launchNomiApp, closeNomiApp } from '../ux/_launchApp.mjs'
 import { createCanvasPerformanceFixture, CANVAS_PERF_SCALES } from '../ux/fixtures/canvas-performance-fixture.mjs'
 import { findCanvasBlankPoint } from '../ux/_canvasHit.mjs'
 import { AUTO_PAN_SAFE_MARGIN_PX } from '../ux/canvas-perf/gestureGeometry.mjs'
+import { canvasFitViewButton } from '../ux/_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/perf/results')
@@ -248,7 +249,7 @@ async function stageBox(page) {
  */
 async function fitView(page, { expectZoomBelow = 0.9 } = {}) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await page.getByLabel('适应视图').first().click({ timeout: 15_000 })
+    await canvasFitViewButton(page).click({ timeout: 15_000 })
     await sleep(page, 800)
     const viewport = await readViewport(page)
     if (viewport.zoom !== null && viewport.zoom < expectZoomBelow) return viewport

@@ -9,6 +9,7 @@ import { waitForCanvasViewportSettled, findCanvasBlankPoint, findNodeHitPoint } 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, DOCUMENT, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 const { createProductionRunRepository } = tsxRequire('../../electron/productionRun/productionRunRepository.ts', import.meta.url)
 
 export async function runOriginalStoryboardGolden({ walk, win, projectId, projectRoot, shot, setCurrentWin,
@@ -88,7 +89,7 @@ export async function runOriginalStoryboardGolden({ walk, win, projectId, projec
   // 舞台边只出一颗边缘提示。用户要看全三镜，自己点「适应视图」——它和点提示一样是用户发起的移动，且框住全部。
   // 先等视口停稳：进画布那一刻若要一次性摆全貌（useAutoFitOnLoad，画布量完节点后判一次），别让它落在我们这一下之后。
   await waitForCanvasViewportSettled(win)
-  await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '适应视图：看全放入画布的三镜')
+  await clickOrFail(canvasFitViewButton(win), '适应视图：看全放入画布的三镜')
   await waitForCanvasViewportSettled(win)
   const second = originalNodes.find(node => node.meta.shotId === shotId)
   // Materialization selects the last newly created node so its composer is ready. Close that

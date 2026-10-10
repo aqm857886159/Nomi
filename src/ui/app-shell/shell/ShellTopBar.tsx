@@ -1,7 +1,7 @@
 // 全 App 同一条 40px 顶栏：应用栏与窗口栏合一（10-08 外壳拍板稿 Main / Chrome / Library 三块板）。
 //
 //   左：（macOS 红绿灯位）Nomi 标 ·（左栏收起时）展开左栏 · 项目名 ▾（最近项目 / 回项目库 / 新建 / 重命名）；项目库页是「项目库」
-//   中：创作 | 生成 5/6 | 预览 0:26（真实进度）；生成页旁边一颗「画布 | 列表」（列表线挂进来的 viewSwitcher）
+//   中：创作 | 生成 5/6 | 预览 0:26（真实进度），按整个窗口宽度居中；生成页分段右边的槽挂「画布 | 列表」（列表线的 viewSwitcher，不参与居中）
 //   右：（预览页的布局 + 导出 MP4）任务 · 浏览器 · 新版本（只由更新器真状态决定）· 设置（上手没做完冒点）·（Windows 原生窗口按钮位）
 //
 // 拖窗：整条 `app-drag`，所有按钮 `app-no-drag`；双击空白最大化交给系统（titleBarOverlay / hiddenInset 都是真标题栏区域）。
@@ -199,7 +199,7 @@ export function ShellTopBar({
     : t('timelinePreview.exportMp4')
   return (
     <header
-      className="app-drag relative grid w-full select-none grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 bg-nomi-chrome text-nomi-ink"
+      className="app-drag relative grid w-full select-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-nomi-chrome text-nomi-ink"
       style={{
         height: SHELL_TOPBAR_HEIGHT,
         // Windows：原生窗口按钮（titleBarOverlay）盖在右端，按 env(titlebar-area-*) 让位；不支持时让位 0。
@@ -210,7 +210,7 @@ export function ShellTopBar({
       data-shell-platform={platform}
     >
       <TooltipProvider delayDuration={250} disableHoverableContent>
-        <div className="flex h-full min-w-0 items-center gap-1.5 justify-self-start" style={{ paddingLeft: platform === 'mac' ? SHELL_MAC_TRAFFIC_WIDTH : 12 }}>
+        <div className="flex h-full min-w-0 max-w-[calc(50%-136px)] items-center gap-1.5" style={{ paddingLeft: platform === 'mac' ? SHELL_MAC_TRAFFIC_WIDTH : 12 }}>
           <span className="app-no-drag inline-flex shrink-0 items-center" data-shell-brand aria-hidden="true">
             <NomiLogoMark size={20} />
           </span>
@@ -235,14 +235,20 @@ export function ShellTopBar({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {workspaceMode && onWorkspaceModeChange ? (
+        {/* 创作 | 生成 | 预览 按**整个窗口宽度**居中（拍板稿 Main 板），不是在左右两簇之间剩下的空间里居中：
+            绝对定位 + left-1/2，参照的是整条顶栏的 padding box（含 Windows 原生窗口按钮让位的 padding），
+            两簇宽度怎么变、有没有更新胶囊都不推它。生成页的「画布 | 列表」挂在分段右边的槽里，同样绝对定位、
+            不占位、不参与居中（槽在分段的右沿之外）。 */}
+        {workspaceMode && onWorkspaceModeChange ? (
+          <div className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-center" data-shell-stage-center>
             <span className="app-no-drag"><NomiStepper value={workspaceMode} onChange={onWorkspaceModeChange} meta={stepperMeta} /></span>
-          ) : null}
-          {workspaceMode === 'generation' && viewSwitcher ? <span className="app-no-drag">{viewSwitcher}</span> : null}
-        </div>
+            {workspaceMode === 'generation' ? (
+              <span className="app-no-drag absolute left-full top-1/2 ml-2 -translate-y-1/2" data-shell-view-switcher-slot>{viewSwitcher}</span>
+            ) : null}
+          </div>
+        ) : null}
 
-        <div className="flex h-full min-w-0 items-center justify-end gap-0.5 justify-self-end pr-2" role="toolbar" aria-label={t('appBar.globalActions')}>
+        <div className="flex h-full shrink-0 items-center justify-end gap-0.5 justify-self-end pr-2" role="toolbar" aria-label={t('appBar.globalActions')}>
           {workspaceMode === 'preview' ? (
             <>
               <span className="app-no-drag"><EditingLayoutMenu /></span>

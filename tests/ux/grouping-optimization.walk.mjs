@@ -4,7 +4,7 @@ import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/grouping-optimization')
@@ -24,7 +24,7 @@ try {
   const addImage = win.locator('[aria-label="添加图片节点"]').first()
   await expectVisible(addImage, '生成画布已可添加节点')
   for (let i = 0; i < 4; i += 1) await addImage.click()
-  await win.getByLabel('适应视图', { exact: true }).click()
+  await canvasFitViewButton(win).click()
   await waitForCanvasViewportSettled(win)
   await win.mouse.click(420, 420)
   await win.keyboard.press('Control+a')

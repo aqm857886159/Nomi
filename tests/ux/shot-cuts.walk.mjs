@@ -10,6 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { screenshotSettled } from './_assert.mjs'
+import { canvasFitViewButton } from './_shell.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -194,7 +195,7 @@ check('自动成一组（拍板：拆出来直接能整组运行）', after.grou
 check('组名说清来自哪段视频', /拆自/.test(after.groupLabel || ''), String(after.groupLabel))
 check('落完面板自动关掉', !after.panelOpen)
 
-const fitBtn = win.locator('[aria-label="适应视图"]').first()
+const fitBtn = canvasFitViewButton(win)
 if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1200) }
 await snap(win, 'canvas-final')
 {

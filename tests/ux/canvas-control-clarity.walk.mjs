@@ -12,7 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasAddMoreMenu, newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
@@ -91,7 +91,7 @@ async function ensureGenerationWorkspace() {
   const generation = getWin().getByRole('button', { name: '生成', exact: true }).first()
   await generation.waitFor({ timeout: 8000 })
   await generation.click()
-  await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
+  await canvasAddBar(getWin()).waitFor()
 }
 
 async function ensureParameterPanel(composer) {
@@ -203,7 +203,7 @@ try {
   // ① 左侧栏（2026-09-06 第三档）：**5 个常驻 + 一个「更多」**，常驻每颗悬浮名称完整；
   //    收起去的 5 个必须在「更多」里、且每段有名字。原来那条「9 个平铺」的断言随设计一起退役
   //    （P1：不留两套期望）——它当时钉的是「没有省略号」，现在钉的是「收纳之后仍然找得到」。
-  const toolbar = getWin().locator('.generation-canvas-v2-toolbar').first()
+  const toolbar = canvasAddBar(getWin())
   const residentTools = [
     ['image', '图片节点'],
     ['video', '视频节点'],
@@ -243,7 +243,7 @@ try {
   const moreButton = toolbar.locator('[data-canvas-add-more="true"]')
   await expectVisible(moreButton, '左侧栏底部必须有一颗「更多」')
   await moreButton.click()
-  const moreMenu = getWin().locator('.generation-canvas-v2-toolbar__more-menu').first()
+  const moreMenu = canvasAddMoreMenu(getWin())
   await expectVisible(moreMenu, '「更多」点开必须弹出菜单')
   const moreProofs = []
   for (const [kind, label] of moreTools) {

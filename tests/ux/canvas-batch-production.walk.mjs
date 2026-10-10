@@ -11,7 +11,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry, openModelSettings } from './_shell.mjs'
+import { canvasFitViewButton, newProjectEntry, openModelSettings } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -311,7 +311,7 @@ try {
       patch: { meta: { ...(store.nodes.find((node) => node.id === nodeId)?.meta ?? {}), modelKey, modelVendor: vendor } },
     })))
   }, { models: MODEL_OF, vendor: VENDOR })
-  await win.getByRole('button', { name: '适应视图', exact: true }).first().click()
+  await canvasFitViewButton(win).click()
   await waitForCanvasViewportSettled(win)
   await clickCanvasBlank(win)
   await win.keyboard.press('Control+a')

@@ -54,3 +54,48 @@ test('合并前报告：抬头 + 判据行 + 结论', () => {
   assert.match(report.text, /^合并前扫描 · PR #7/)
   assert.match(report.text, /扫描干净/)
 })
+
+// 2026-10-10：#1136 正文写「加节点条等 #1133 合入后作为本 PR 后续提交」，没做就合了（逃逸账本 FB-20261010-shell-canvas-chrome-parity）。
+// 承诺必须落实或移交，否则合并档判红——必红测试（先证它会红，再证两种标法放行）。
+const PROMISE_BODY = (line) => `${STAR}\n\n## 做了什么\n${line}\n`
+const FRESH = '2026-10-11T00:00:00Z'
+
+test('必红：正文承诺「后续提交 / 等 X 合入后再做」又没标已完成或移交 → 合并档判红', () => {
+  for (const line of [
+    '- 加节点条等 #1133 合入后作为本 PR 后续提交，长相用 #1133 的。',
+    '- 列表视图的细节后续 PR 再补。',
+    '- 项目库横幅待更新线合并后接。',
+    '- 这块后面再做。',
+  ]) {
+    const result = evaluatePrBody({ body: PROMISE_BODY(line), files: docsChange, createdAt: FRESH, stage: 'merge' })
+    assert.equal(result.blocked, true, `没拦住：${line}\n${result.lines.join('\n')}`)
+    assert.match(result.lines.join('\n'), /没落实的承诺/)
+  }
+})
+
+test('标法放行：已完成 <提交号>、移交 <#PR / 待办编号 / docs 路径> 都算落实；只写「已完成」没提交号、只写「移交」没去处照样红', () => {
+  for (const line of [
+    '- 加节点条等 #1133 合入后作为后续提交——已完成 82c87d82e。',
+    '- 列表视图细节后续 PR 再补：移交 #1128。',
+    '- 项目库横幅等更新线合入后接：移交 待办 T-123。',
+    '- 后面再做，移交 docs/plan/2026-10-10-list-view.md。',
+  ]) {
+    const result = evaluatePrBody({ body: PROMISE_BODY(line), files: docsChange, createdAt: FRESH, stage: 'merge' })
+    assert.equal(result.blocked, false, `误拦：${line}\n${result.lines.join('\n')}`)
+  }
+  for (const line of ['- 后续提交——已完成。', '- 后续 PR 再补，移交。']) {
+    assert.equal(evaluatePrBody({ body: PROMISE_BODY(line), files: docsChange, createdAt: FRESH, stage: 'merge' }).blocked, true, line)
+  }
+})
+
+test('推送档只警告不判红；生效日之前开的 PR 只警告；代码块里的示例不算；没有承诺措辞的正文不受影响', () => {
+  const promise = PROMISE_BODY('- 后续提交再补。')
+  const push = evaluatePrBody({ body: promise, files: docsChange, createdAt: FRESH, stage: 'push' })
+  assert.equal(push.blocked, false)
+  assert.match(push.lines.join('\n'), /⚠ PR 正文里有没落实的承诺/)
+  const old = evaluatePrBody({ body: promise, files: docsChange, createdAt: '2026-10-08T00:00:00Z', stage: 'merge' })
+  assert.equal(old.blocked, false)
+  const fenced = evaluatePrBody({ body: PROMISE_BODY('```\n后续提交再补\n```'), files: docsChange, createdAt: FRESH, stage: 'merge' })
+  assert.equal(fenced.blocked, false)
+  assert.equal(evaluatePrBody({ body: PROMISE_BODY('- 全部做完，没有遗留。'), files: docsChange, createdAt: FRESH, stage: 'merge' }).blocked, false)
+})

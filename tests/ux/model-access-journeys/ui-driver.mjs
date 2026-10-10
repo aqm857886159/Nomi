@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp } from '../_launchApp.mjs'
 import { JourneyFailure } from './evidence.mjs'
-import { newProjectEntry } from '../_shell.mjs'
+import { canvasAddBar, newProjectEntry } from '../_shell.mjs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model-access UI driver — reconfigured 2026-09-01 to main's current IA.
@@ -246,7 +246,7 @@ export async function launchJourneyUi({ journey, recorder }) {
     // for the video/recovery step. If the generation-canvas toolbar is already
     // mounted we are on it — re-running project navigation from the canvas would
     // hunt for a project-library card that is not on screen and time out.
-    const canvasToolbar = win.locator('.generation-canvas-v2-toolbar')
+    const canvasToolbar = canvasAddBar(win)
     if (await canvasToolbar.isVisible().catch(() => false)) return
     await closeSettings()
     if (await canvasToolbar.isVisible().catch(() => false)) return

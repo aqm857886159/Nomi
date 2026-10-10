@@ -12,7 +12,8 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconGripVertical, IconWriting } from '@tabler/icons-react'
+import { IconGripVertical } from '@tabler/icons-react'
+import { getGenerationNodeIcon } from '../renderRegistry'
 import { EditorContent, useEditorState, type JSONContent } from '@tiptap/react'
 import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode, TiptapDocJson } from '../../model/generationCanvasTypes'
@@ -200,7 +201,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
             <div className="pointer-events-none absolute inset-0">
               <NodeEmptyState
                 height={resolveNodeVisualSize(node).height}
-                icon={<IconWriting size={18} stroke={1.5} />}
+                icon={React.createElement(getGenerationNodeIcon('text'), { size: 18, stroke: 1.5 })}
                 title={t('canvas.nodeKinds.text')}
                 description={t('generationCommon.nodeTry.status.text')}
                 action={(

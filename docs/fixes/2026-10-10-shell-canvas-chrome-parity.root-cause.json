@@ -1,0 +1,182 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-10-shell-canvas-chrome-parity",
+  "problem_type": "PR 正文里「后续提交 / 等 X 合入后再做」的承诺合并时没人核对，已拍板的设计件没做就合了",
+  "symptom": "用户 10-10 看真 App：拍板稿 Main 板的加节点条在内容区底部正中、横排，真 App 里它还竖排在左侧；缩放簇板上是「⛶ | − 100% + | ⋯」，真 App 是左下一长条 7 个控件；创作 | 生成 | 预览 板上按整个窗口居中，真 App 在左右两簇之间的剩余空间里居中（生成页右边多一个视图切换还会把分段推歪）。",
+  "direct_cause": "#1136 正文第 69 行自己写了「加节点条横排到内容区底部中间……等拉环线 #1133 合入 main 后作为本 PR 后续提交」，#1133 合入后这条承诺没人兑现，#1136 就合了；设计卡「拍板稿对账」又把加节点条写成「不归本线」，与正文「归本线」互相矛盾，两边对不上也没人发现。缩放簇与顶栏居中同样是对账时漏掉的两处（CanvasNavigationStack 的 7 控件长条、ShellTopBar 的三列 grid）。",
+  "class_root": "合并流程只核「结构化项」（设计卡格子、独立验收、逃逸合同），不核正文里自然语言写的承诺；「等 X 合入后再做」这种延期话没有落点，谁写谁忘，评审与合并扫描都看不见。同一份计划在设计卡和正文里各写一遍、写成相反的话，也没有机器比对。",
+  "migration": "同一提交里：加节点条改成内容区底部正中横排（CanvasToolbar，沿用 #1133 的组件与 CANVAS_ADD_SECTIONS 分法）；缩放簇收成「⛶ | − 100% + | ⋯」，重置视图 / 画框 / 整理 / 小地图 / 操作帮助 / 缩放滑块一个不丢收进 ⋯（CanvasViewOptionsPopover）；顶栏分段改按整窗居中，视图切换槽挂在分段右边不参与居中。旧的竖排工具条样式、7 控件长条、三列 grid 同提交删除，没有并行版。走查里这些位置一律经 tests/ux/_shell.mjs。",
+  "affected_population": [
+    "打开生成画布的每个用户（加节点条与缩放簇的位置、形态）",
+    "任何页的顶栏分段（居中参照）",
+    "写 / 改走查的人（画布底部控件的定位出口）"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+    "src/workbench/generationCanvas/components/CanvasViewOptionsPopover.tsx",
+    "src/workbench/generationCanvas/components/CanvasControlsHelpPopover.tsx",
+    "src/ui/app-shell/shell/ShellTopBar.tsx",
+    "scripts/pr-body-criteria.mjs",
+    "tests/ux/_shell.mjs"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx CanvasToolbar",
+    "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx CanvasNavigationStack",
+    "src/ui/app-shell/shell/ShellTopBar.tsx ShellTopBar（data-shell-stage-center）",
+    "scripts/pr-body-criteria.mjs checkDeferredPromises"
+  ],
+  "invariants": [
+    "正文里出现承诺措辞（后续提交 / 后续 PR / 等 … 合入后 / 后面再做）的每一行，必须同行标「已完成 <提交号>」或「移交 <#PR / 待办编号 / docs 路径>」，否则合并档判红",
+    "加节点条在内容区底部正中的一条横排（图片 视频 声音 文字 剪辑 | 导入 +），中心与内容区中线偏差 ≤ 2px；缩放簇在左下，五个控件，其余视图控件一个不丢收在 ⋯",
+    "顶栏分段中心与窗口中心偏差 ≤ 1px，视图切换槽挂在分段右边、不参与居中；走查里画布底部控件只经 tests/ux/_shell.mjs 定位"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx",
+      "symbol": "CanvasToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/canvasAddMenu/states/01-add-menu.tsx",
+      "symbol": "NodeAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/updateReminder/updateReminderLabKit.tsx",
+      "symbol": "ShellTopBar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasEmptyState.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+      "symbol": "CanvasViewOptionsPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasMoreAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasViewOptionsPopover.tsx",
+      "symbol": "CanvasControlsHelpPopover"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "CanvasToolbar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "NodeAddMenu"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "CanvasNavigationStack"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "ShellTopBar"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "ShellTopBar"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 13
+  },
+  "regression_tests": [
+    "scripts/pr-body-criteria.node-test.mjs",
+    "scripts/check-walkthroughs.node-test.mjs",
+    "src/ui/app-shell/shell/shellCanvasChrome.structure.test.ts"
+  ],
+  "residual_risks": [
+    "设计卡与正文互相矛盾（本次的另一半：「不归本线」vs「归本线」）仍没有机器比对，靠独立验收按设计卡逐项对账；判据只拦「承诺没落实」",
+    "承诺措辞靠关键词清单，换一种说法（如「下一步再接」）拦不住；清单随新漏网说法追加",
+    "「已完成 <提交号>」只核格式（7–40 位十六进制），不核该提交真的在分支上；由合并前扫描人读",
+    "顶栏居中在 1000 宽下左簇最大宽度被收窄（项目名更早被省略号截断）；右簇不收缩，极窄窗口下与居中的分段仍可能相碰"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯内部流程与布局问题：判据是对 PR 正文文本的关键词匹配，布局用 CSS 绝对定位 / 现有组件，没有需要查官方文档或源码的外部能力。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「正文承诺没人核」是流程层的机制：每个拆分交付的 PR（#1136 的加节点条、#1139 系的后续项）都可能这么写；#1136 之前，合并扫描没有任何一条看自然语言承诺。",
+    "same_class_scan": [
+      "git grep -nE \"后续提交|后续 PR|合入后\" -- docs/plan scripts/pr-body-criteria.mjs",
+      "git grep -n \"checkDeferredPromises\" -- scripts"
+    ]
+  },
+  "detected_by": "user",
+  "generality_proof": "判据住在 PR 正文判据库 scripts/pr-body-criteria.mjs 的 checkDeferredPromises，推送前（check:pr-judgement）与合并前扫描（merge-preflight）都经 evaluatePrBody 走同一个入口，不会各有一套口径；任何 PR 正文只要含承诺措辞又没标落点，合并档一律红，与改了哪块界面无关。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/pr-body-criteria.mjs",
+      "symbol": "checkDeferredPromises",
+      "responsibility": "拦住正文里没标「已完成 <提交号>」或「移交 <去处>」的承诺措辞（合并档红、推送档警告、规则生效前开的 PR 只警告）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/merge-preflight.mjs",
+      "entry_point": "evaluatePrBody 调用",
+      "disposition": "enforced",
+      "evidence": "合并前扫描经 evaluatePrBody 取同一份判据，promises 一项随 renderBodyLines 判红；未另写第二份。"
+    },
+    {
+      "path": "scripts/check-pr-judgement.mjs",
+      "entry_point": "evaluatePrBody 调用（推送前）",
+      "disposition": "enforced",
+      "evidence": "推送前同一入口，stage=push 时只警告，让作者当场补标；CI 与合并前仍判红。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/pr-body-criteria.mjs",
+    "invariant": "正文里的承诺措辞必须同行标已完成（带提交号）或移交（带去处），合并档不标就红。",
+    "failure_mode": "merge-preflight / check:pr-judgement 输出「✖ PR 正文里有没落实的承诺」并列出原文行，结论「有项没过，先别合」。",
+    "exception_policy": "none",
+    "strategy": "把自然语言承诺变成合并档的结构化判据，写下承诺的人必须同时写下落点。",
+    "artifacts": [
+      "scripts/pr-body-criteria.mjs",
+      "scripts/pr-body-criteria.node-test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/pr-body-criteria.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "加节点条的竖排左缘样式、缩放簇的 7 控件长条、顶栏三列 grid 都是就地替换：旧写法在同一提交里从原文件里删掉，没有并行版；没有整份可删的旧文件。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有新增或升级依赖。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "scripts/pr-body-criteria.mjs",
+    "tests": [
+      "scripts/pr-body-criteria.node-test.mjs"
+    ],
+    "why": "PR 正文判据只此一处，推送前与合并前共用；测试里的必红用例钉住「承诺不标落点就红」。"
+  }
+}

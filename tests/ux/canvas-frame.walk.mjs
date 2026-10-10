@@ -20,7 +20,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { findCanvasBlankPoint, findCanvasBlankRect, findNodeHitPoint } from './_canvasHit.mjs'
 import { expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { canvasAddBar, canvasFitViewButton, canvasFrameToolButton, canvasFrameToolPressed, closeCanvasViewOptions, newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -133,7 +133,7 @@ const frameLocator = (win) => win.locator('.generation-canvas-v2__group-box[data
  * 后面每一条「节点上有没有片子」「框还在不在」都会读到 0，看着像功能坏了。
  */
 async function fitView(win) {
-  await win.locator('.generation-canvas-v2__zoom-bar button[aria-label="适应视图"]').first().click({ timeout: 6000 })
+  await canvasFitViewButton(win).click()
   await win.waitForTimeout(1200)
 }
 
@@ -256,7 +256,7 @@ try {
   // 项目初始化耗时随机器负载变，睡不够就在一个还没开的项目上继续点，然后一路「通过」。
   await win.locator('[aria-label="工作区切换"]').first().waitFor({ timeout: 30_000 })
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 8000 })
-  await win.locator('.generation-canvas-v2-toolbar').first().waitFor({ timeout: 30_000 })
+  await canvasAddBar(win).waitFor()
   await win.waitForTimeout(600)
 
   // ── ① 先摆三个镜头（这一段戏的素材），再去空地上画框 ──
@@ -286,14 +286,14 @@ try {
   // 这里**刻意不写**「画之前没有框」那条断言：新项目里它从第一次取样就恒真，
   // 与「探针根本没生效」在观测上完全一样（expectAbsent 的 provenBy 挡的正是这种空话）。
   // 真正的证据是下一段——同一把选择器在画完之后命中 1 个；那个 proof 留到最后验解散。
-  const frameButton = win.locator('.generation-canvas-v2__zoom-bar button[aria-label="画框"]').first()
-  await expectVisible(frameButton, '左下画布工具簇里有「画框」这颗钮')
-  check(await frameButton.getAttribute('aria-pressed') === 'false', '未按 F 时框工具是未就绪态')
+  await expectVisible(await canvasFrameToolButton(win), '左下缩放簇的 ⋯ 里有「画框」这一项')
+  await closeCanvasViewOptions(win)
+  check(!(await canvasFrameToolPressed(win)), '未按 F 时框工具是未就绪态')
 
   await win.locator('.generation-canvas-v2__stage').first().click({ position: { x: 8, y: 8 } }).catch(() => {})
   await win.keyboard.press('f')
   await win.waitForTimeout(400)
-  check(await frameButton.getAttribute('aria-pressed') === 'true', '按 F 之后工具钮变成就绪态（键与钮是同一个状态）')
+  check(await canvasFrameToolPressed(win), '按 F 之后工具钮变成就绪态（键与钮是同一个状态）')
   await snap(win, 'frame-tool-armed')
 
   // ── ②a 手势归属：就绪期间这次拖动不归内核（R29 §6.2） ──
@@ -327,7 +327,7 @@ try {
       `${before.viewportTransform} → ${after.viewportTransform}`,
     )
     check(
-      await frameButton.getAttribute('aria-pressed') === 'true',
+      await canvasFrameToolPressed(win),
       '这次拖动没有把工具弄丢（压在卡上不算画框，工具仍就绪）',
     )
     // 收工：刚才那一下把卡选中了，选中的卡会在下方展开提示词面板，把后面要找的那片空白吃掉。
@@ -337,12 +337,12 @@ try {
     await win.mouse.click(blank.x, blank.y)
     await win.waitForTimeout(500)
     check(
-      await frameButton.getAttribute('aria-pressed') === 'false',
+      !(await canvasFrameToolPressed(win)),
       '就绪后在空白上只点一下（没拖出矩形）= 什么都不建，工具收起',
     )
     await win.keyboard.press('f')
     await win.waitForTimeout(400)
-    check(await frameButton.getAttribute('aria-pressed') === 'true', '再按一次 F 重新就绪，接着画')
+    check(await canvasFrameToolPressed(win), '再按一次 F 重新就绪，接着画')
   }
 
   const blankRect = await findCanvasBlankRect(win, { width: 560, height: 300 })
@@ -364,7 +364,7 @@ try {
   check(drawn?.empty === true, '刚画完是空框（data-frame-empty）')
   check(drawn?.count === '0', '空框的计数如实显示 0，不藏起来', `count=${drawn?.count}`)
   check(drawn?.dashed === 'dashed', '空框画的是虚线', `borderStyle=${drawn?.dashed}`)
-  check(await frameButton.getAttribute('aria-pressed') === 'false', '画完一次工具自动收起（不留一个出不去的模式）')
+  check(!(await canvasFrameToolPressed(win)), '画完一次工具自动收起（不留一个出不去的模式）')
   check(
     viewportBeforeDraw === (await readNodeAndViewport(win, nodeIds[0])).viewportTransform,
     '画框那一拖没有顺手把画布也拖走（内核的平移被声明式关掉了，不是被我们偷走事件）',

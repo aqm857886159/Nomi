@@ -53,7 +53,7 @@ import {
   CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_SEND, CREATION_PANEL, DOCUMENT,
   createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded,
 } from './agent-runtime-walk-support.mjs'
-import { collapseAgentPanel } from './_shell.mjs'
+import { canvasFitViewButton, collapseAgentPanel } from './_shell.mjs'
 
 // ── 剧本常量。标记串（GOLDEN_*）让 fixture 的 match 钉死「这一条请求确实是这一步发出的」，
 //    而不是「随便哪条文本请求都算」。 ──────────────────────────────────────────────
@@ -155,7 +155,7 @@ function readPersistedPayload(projectRoot) {
 //    所以按用户会做的两下来：先等画布停下（进画布 / 重开项目那一刻画布可能还在摆全貌），再点「适应视图」框住全部节点。
 async function bringShotNodesIntoView(win, nodeIds) {
   await waitForCanvasViewportSettled(win)
-  await clickOrFail(win.getByRole('button', { name: '适应视图', exact: true }), '适应全部节点')
+  await clickOrFail(canvasFitViewButton(win), '适应全部节点')
   await waitForCanvasViewportSettled(win)
   for (const nodeId of nodeIds) await proveProbe(win.locator(nodeCard(nodeId)), `画布上没有出现镜头节点 ${nodeId}`)
 }

@@ -6,6 +6,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled, proveProbe, expectAbsent } from './_assert.mjs'
 import { scanFeel } from './_feel.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { canvasFitViewButton, canvasZoomSlider } from './_shell.mjs'
 
 /** Persisted project -> project library -> real React Flow canvas -> rename/drag/preview. */
 export async function runNodeLabelProjectJourney(origin, out, { largeCanvas = false } = {}) {
@@ -42,7 +43,7 @@ export async function runNodeLabelProjectJourney(origin, out, { largeCanvas = fa
     await expect(image).toBeVisible()
     await expect(image.locator('img').first()).toBeVisible()
     if (!largeCanvas) {
-    await win.getByRole('button', { name: '适应视图', exact: true }).click()
+    await canvasFitViewButton(win).click()
     await expect.poll(async () => {
       const video = await win.locator('article[data-node-id="label-video"]').boundingBox()
       const canvas = await win.locator('.generation-canvas-v2__stage').boundingBox()
@@ -51,7 +52,7 @@ export async function runNodeLabelProjectJourney(origin, out, { largeCanvas = fa
     }
     if (largeCanvas) {
       await screenshotSettled(win, { path: path.join(out, 'large-canvas-before-zoom.png') })
-      const zoom = win.locator('.generation-canvas-v2__zoom-bar input[type=range]')
+      const zoom = await canvasZoomSlider(win)
       await zoom.focus()
       await zoom.press('Home')
       await expect.poll(async () => Number(await zoom.inputValue())).toBeLessThanOrEqual(55)

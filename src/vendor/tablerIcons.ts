@@ -235,7 +235,6 @@ export { default as IconVolumeOff } from '@tabler/icons-react/dist/esm/icons/Ico
 export { default as IconWand } from '@tabler/icons-react/dist/esm/icons/IconWand.mjs'
 export { default as IconWaveSine } from '@tabler/icons-react/dist/esm/icons/IconWaveSine.mjs'
 export { default as IconWorld } from '@tabler/icons-react/dist/esm/icons/IconWorld.mjs'
-export { default as IconWriting } from '@tabler/icons-react/dist/esm/icons/IconWriting.mjs'
 export { default as IconX } from '@tabler/icons-react/dist/esm/icons/IconX.mjs'
 export { default as IconZoomIn } from '@tabler/icons-react/dist/esm/icons/IconZoomIn.mjs'
 export { default as IconZoomInArea } from '@tabler/icons-react/dist/esm/icons/IconZoomInArea.mjs'

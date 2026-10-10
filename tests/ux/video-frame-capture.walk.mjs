@@ -24,6 +24,7 @@ import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuies
 import { findNodeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { canvasResetView } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
@@ -111,7 +112,7 @@ async function task(name, body) {
 }
 async function resetView() {
   // 落卡会把视口移向新卡（FOCUS 事件，老行为）；像人一样点「重置视图」回来再选下一张。
-  await win.getByRole('button', { name: uiText(locale, 'generationCommon.navigation.resetView'), exact: true }).first().click()
+  await canvasResetView(win)
   await waitForCanvasViewportSettled(win)
   await waitForVisualQuiescence(win)
 }

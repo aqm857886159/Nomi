@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
 import { findCanvasBlankPoint, findEdgeHitPoint } from './_canvasHit.mjs'
+import { CANVAS_ADD_BAR, CANVAS_NAV_STACK, canvasFitViewButton } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const evidenceDir = path.join(repoRoot, 'docs/plan/2026-09-11-triage-board-evidence')
@@ -75,8 +76,8 @@ const project = {
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project, null, 2))
 
-const TOOLBAR = '.generation-canvas-v2-toolbar'
-const NAV_STACK = '.generation-canvas-v2__navigation-stack'
+const TOOLBAR = CANVAS_ADD_BAR
+const NAV_STACK = CANVAS_NAV_STACK
 const NODE_FLOATING_TOOLBAR = '[data-node-floating-toolbar]'
 // 2026-10-08 用户「删掉连线中间的标签吗，没有作用」：连线中点的模式胶囊已删，剩下的中点控件是断开用的「×」；
 // ③ 量的「恒定屏幕尺寸」判据不变，量它。
@@ -176,7 +177,7 @@ try {
   await dismissFirstRun()
   await clickOrFail(getWin().getByRole('button', { name: '生成', exact: true }), '生成（进画布）')
   await expectVisible(getWin().locator(TOOLBAR).first(), '画布工具条应当出现')
-  await clickOrFail(getWin().locator('[aria-label="适应视图"]'), '适应视图')
+  await clickOrFail(canvasFitViewButton(getWin()), '适应视图')
   await getWin().waitForTimeout(400)
   await snap('00-canvas-ready')
 
@@ -210,7 +211,7 @@ try {
   expect(ratio, `片段走过头了（比值 ${ratio.toFixed(3)}）：反向补偿也是错的`).toBeLessThan(1.3)
 
   // ── ② 灯箱打开时收起画布 chrome ──
-  await clickOrFail(getWin().locator('[aria-label="适应视图"]'), '适应视图（回到看得清的一档）')
+  await clickOrFail(canvasFitViewButton(getWin()), '适应视图（回到看得清的一档）')
   await getWin().waitForTimeout(400)
   const shotNode = getWin().locator('.generation-canvas-v2-node[data-node-id="backfill-shot"]').first()
   await shotNode.click()

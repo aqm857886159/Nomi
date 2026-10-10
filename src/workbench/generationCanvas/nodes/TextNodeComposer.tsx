@@ -11,6 +11,7 @@
  *   · 续写 / 改写 / 重写三种原有写法收进最后那个下拉，功能一个不少；
  *   · 模型默认「跟随 Agent 的模型」（节点上没选文本模型 = 运行时用 Agent 的文本大脑，见 textActions），也可以手动换。
  */
+import { CANVAS_CHROME_LAYERS } from '../components/canvasChromeLayers'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowUp, IconChevronDown } from '@tabler/icons-react'
@@ -211,11 +212,11 @@ export default function TextNodeComposer({ onFeedback, node, visualSize, readOnl
       placement="match-node"
       data-composer-host="canvas"
       className={cn(
-        'generation-canvas-v2-node__composer nokey absolute z-[8]',
+        'generation-canvas-v2-node__composer nokey absolute',
         // 画布拖动期间隐身（拖节点、拖选区、拖画布平移）：用 visibility 而不是卸载，输入框里没发出去的字不丢。
         'group-data-[dragging=true]/canvas:invisible',
       )}
-      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
+      style={{ cursor: 'default', userSelect: 'auto', touchAction: 'auto', zIndex: CANVAS_CHROME_LAYERS.composer }}
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
     >
