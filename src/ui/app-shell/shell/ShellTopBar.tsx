@@ -9,7 +9,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconBrowser, IconChevronDown, IconDownload, IconLayoutSidebarLeftExpand, IconSettings } from '@tabler/icons-react'
-import { BAR_ICON_BUTTON } from './barIconButton'
 import {
   NomiLogoMark,
   NomiStepper,
@@ -39,9 +38,15 @@ import { UpdatePill } from '../UpdatePill'
 import { SHELL_MAC_TRAFFIC_WIDTH, SHELL_TOPBAR_HEIGHT, shellChromePlatform } from '../shellGeometry'
 
 /** 顶栏图标钮一族：28px 方块、圆角 6、图标 18 / 1.5（拍板稿 .ib）。 */
+const BAR_ICON_BUTTON = cn(
+  'app-no-drag relative grid size-7 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0',
+  'text-nomi-ink-60 transition-[background,color] duration-nomi-fast ease-nomi-fast',
+  'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomi-accent',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+)
 
 /** 右上角那个小点（设置：上手没做完；窄窗下的新版本）。外圈描一圈外壳底色，压在图标上也读得出。 */
-export function BarTooltip({ label, children }: { label: string; children: JSX.Element }): JSX.Element {
+function BarTooltip({ label, children }: { label: string; children: JSX.Element }): JSX.Element {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>

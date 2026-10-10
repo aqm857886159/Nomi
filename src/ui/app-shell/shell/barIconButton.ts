@@ -1,4 +1,4 @@
-// 顶栏图标按钮的外观（顶栏右簇、左栏展开、生成页「画布 ↔ 列表」切换共用一个，UI 统一）。
+// 顶栏图标按钮的外观——与 ShellTopBar 里的 BAR_ICON_BUTTON 同一份样式（生成页「画布 ↔ 列表」切换用；外壳线下次动 ShellTopBar 时让它改引这里，避免两份）。
 import { cn } from '../../../utils/cn'
 
 export const BAR_ICON_BUTTON = cn(

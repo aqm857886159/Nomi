@@ -46,7 +46,7 @@ export function useCanvasGroupToolbar({
       canvasZoom,
       memberCount: selectedGroup.nodeIds.filter((nodeId) => visibleNodeIds.has(nodeId)).length,
       // 与点击后真正派发的集合同一份推导（useCanvasFrameActions 的 generate）。
-      canGenerate: hasGroupGenerateCandidates(selectedGroup.nodeIds),
+      canGenerate: hasGroupGenerateCandidates(selectedGroup.nodeIds, allNodes, productionRuns),
       canSendToTimeline: frameHasTimelineUnits(selectedGroup.id),
       canDownload: targets.length > 0,
       onGenerate: () => runFrameAction(selectedGroup.id, 'generate'),

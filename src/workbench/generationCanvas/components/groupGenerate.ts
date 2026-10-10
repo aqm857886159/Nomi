@@ -57,11 +57,14 @@ export function groupGenerateRows(nodeIds: readonly string[]): PlanRow[] {
 }
 
 /** 这批节点里有没有能勾的（不是全在生成中）。按钮可用态与点击后卡上的候选共用这一份。 */
-export function hasGroupGenerateCandidates(nodeIds: readonly string[]): boolean {
+export function hasGroupGenerateCandidates(
+  nodeIds: readonly string[],
+  nodes: readonly GenerationCanvasNode[] = useGenerationCanvasStore.getState().nodes,
+  runs: ReturnType<typeof useProductionCanvasLandingStore.getState>['runs'] = useProductionCanvasLandingStore.getState().runs,
+): boolean {
   if (nodeIds.length === 0) return false
-  const runs = useProductionCanvasLandingStore.getState().runs
   const wanted = new Set(nodeIds)
-  return useGenerationCanvasStore.getState().nodes.some((node) => wanted.has(node.id) && isCandidate(node, runs))
+  return nodes.some((node) => wanted.has(node.id) && isCandidate(node, runs))
 }
 
 /** 确认卡还开着（或刚确认、还在开出价）的批：同一批再点一次不再开第二张卡（两张卡各确认一次 = 同一批花两份钱）。 */

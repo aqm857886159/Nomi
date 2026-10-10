@@ -39,7 +39,6 @@ export function NodeBodyHeader({
 }: {
   title?: string
 }): JSX.Element | null {
-  const { t } = useTranslation()
   if (!title) return null
   return (
     <div className="flex flex-col gap-1 min-w-0">
