@@ -8,26 +8,13 @@ import React, { type JSX } from 'react'
 import { cn } from '../../../utils/cn'
 import { EMPTY_SURFACE_CLASS, PendingGenerationPlaceholder } from '../../../workbench/generationCanvas/nodes/render/CardCommon'
 import { ProductionShotPlaceholder } from '../../../workbench/generationCanvas/nodes/ProductionShotPlaceholder'
-import { nodeWidthForAspectRatio } from '../../../workbench/generationCanvas/nodes/nodeSizing'
 import { useProductionCanvasLandingStore } from '../../../workbench/production/productionCanvasLandingStore'
 import type { GenerationCanvasNode, GenerationNodeKind } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 import { useLabLocale } from '../versionCards/versionCardsFlowLabKit'
-import { LAB_RATIOS, type LabRatio } from './labRatios'
+import { LAB_RATIOS, ratioFrame, renderedFrame, smallRatioFrame, type FrameSize, type LabRatio } from './labRatios'
 
 export const EMPTY_NODE_RATIOS_WIDTH = 2320
 export const EMPTY_NODE_RATIOS_HEIGHT = 4300
-export const SMALL_NODE_WIDTH = 240
-
-export type FrameSize = { width: number; height: number }
-/** 画布上按比例落的节点尺寸：宽按生产规则，高 = 宽 / 比例。 */
-export function ratioFrame(ratio: LabRatio): FrameSize {
-  const width = nodeWidthForAspectRatio(ratio.value)
-  return { width, height: Math.round(width / ratio.value) }
-}
-/** 小尺寸：同一比例、宽取最小 240，按 1:1 实际像素。 */
-export function smallRatioFrame(ratio: LabRatio): FrameSize {
-  return { width: SMALL_NODE_WIDTH, height: Math.round(SMALL_NODE_WIDTH / ratio.value) }
-}
 
 export type LabLocaleTag = 'zh-CN' | 'en'
 export function labLangFromUrl(): LabLocaleTag {
@@ -75,12 +62,14 @@ function fixtureNode(kind: 'image' | 'video', size: FrameSize): GenerationCanvas
 
 function Cell({ caption, kind, size }: { caption: string; kind: 'image' | 'video'; size: FrameSize }): JSX.Element {
   const node = fixtureNode(kind, size)
+  // 框用渲染的有效尺寸（和生产外壳同一个真相源）：存的 103 高会被钳到 120，样张照实画 120。
+  const frame: FrameSize = renderedFrame(kind, size)
   return (
     <figure className="m-0 flex flex-col gap-2">
-      <figcaption className="text-caption text-nomi-ink-60">{caption}</figcaption>
+      <figcaption className="text-caption text-nomi-ink-60">{frame.height !== size.height ? `${caption} → 渲染 ${frame.height}` : caption}</figcaption>
       <div
         className={cn('relative overflow-hidden rounded-nomi shadow-nomi-md ring-1 ring-inset ring-nomi-line', EMPTY_SURFACE_CLASS)}
-        style={{ width: size.width, height: size.height }}
+        style={{ width: frame.width, height: frame.height }}
         data-lab-node-frame={kind}
       >
         <div className="h-full w-full">
@@ -98,14 +87,14 @@ const COPY: Record<LabLocaleTag, Record<string, string>> = {
     real: '图片节点 · 生产比例表全部比例 · 节点宽按生产规则',
     small: '小尺寸 · 节点宽 240（最小）· 1:1 实际像素',
     video: '视频节点 · 16:9 与 9:16',
-    tiers: '档位（卡高）：完整 ≥ 166px · 紧凑 ≥ 108px · 只留第一行 < 108px · 块中心在卡高 45%，离顶 ≥ 44px',
+    tiers: '档位（渲染卡高）：完整 ≥ 166px · 紧凑 < 166px（渲染下限 120）· 块中心在卡高 45%，离顶 ≥ 44px',
   },
   en: {
     title: 'Empty node ratios · visual centre (B, shipped to production)',
     real: 'Image nodes · every ratio in the production table · width by production rule',
     small: 'Small · node width 240 (minimum) · 1:1 actual pixels',
     video: 'Video nodes · 16:9 and 9:16',
-    tiers: 'Tiers (card height): full ≥ 166px · compact ≥ 108px · first row only < 108px · block centre at 45% of card height, ≥ 44px from top',
+    tiers: 'Tiers (rendered card height): full ≥ 166px · compact < 166px (render floor 120) · block centre at 45% of card height, ≥ 44px from top',
   },
 }
 

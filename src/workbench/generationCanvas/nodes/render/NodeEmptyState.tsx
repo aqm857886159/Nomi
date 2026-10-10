@@ -17,7 +17,7 @@ export type NodeEmptyStateProps = {
 /**
  * 空节点的统一排法（2026-10-10 用户拍板 B「视觉中心」）：内容块中心放在卡高 45%、离顶至少 44px、水平居中，
  * 左上角状态小标永远碰不到图标。矮卡分档（纯函数 `emptyStateTier`，见 nodeEmptyStateLayout.ts）：
- * 完整 → 图标 / 类型名 / 状态 / 动作；紧凑 → 图标 + 「类型 · 状态」一行 + 动作；只留第一行 → 图标 + 「类型 · 状态」。
+ * 完整 → 图标 / 类型名 / 状态 / 动作；紧凑 → 图标 + 「类型 · 状态」一行 + 动作。height 必须是渲染用的有效卡高（resolveNodeVisualSize），见 nodeEmptyStateLayout.ts。
  * compact（音频条）是一行的横向变体，不走档位。
  */
 export function NodeEmptyState({ icon, title, description, action, className, compact = false, height }: NodeEmptyStateProps): JSX.Element {
@@ -75,7 +75,7 @@ export function NodeEmptyState({ icon, title, description, action, className, co
               {iconBadge}
               {label ? <span className="min-w-0 truncate whitespace-nowrap">{label}</span> : null}
             </div>
-            {tier === 'compact' && action ? <div className="mt-2 flex max-w-full justify-center">{action}</div> : null}
+            {action ? <div className="mt-2 flex max-w-full justify-center">{action}</div> : null}
           </>
         )}
       </div>

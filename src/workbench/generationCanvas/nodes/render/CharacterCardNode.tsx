@@ -20,6 +20,7 @@ import { useNodeImageUpload } from '../../adapters/useNodeImageUpload'
 import { EditableNodeTitle } from './EditableNodeTitle'
 import { useNodeMediaMeasurement } from '../useNodeMediaMeasurement'
 import { DeferredNodeImage } from '../DeferredNodeMedia'
+import { resolveNodeVisualSize } from '../nodeSizing'
 
 type Props = {
   node: GenerationCanvasNode
@@ -51,7 +52,7 @@ function CharacterCardNodeImpl({ node }: Props): JSX.Element {
             className="w-full h-full object-contain object-center select-none pointer-events-none"
           />
         ) : (
-          <UploadFallback accept="image/*" label={t('generationCommon.card.character.image')} onUpload={handleUpload} kind="character" height={node.size?.height} />
+          <UploadFallback accept="image/*" label={t('generationCommon.card.character.image')} onUpload={handleUpload} kind="character" height={resolveNodeVisualSize(node).height} />
         )}
       </div>
 

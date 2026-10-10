@@ -17,6 +17,7 @@ import { NodeEmptyState } from './NodeEmptyState'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { NodeTryList } from '../../quickActions/NodeTryList'
 import { nodeTryRecipes } from '../../quickActions/nodeTryRecipes'
+import { resolveNodeVisualSize } from '../nodeSizing'
 
 /** 没出图 / 没放素材的卡面：纸白底（Claude Design 拍板稿 EmptyStates：去掉斜线底纹，卡的描边由外壳给）。 */
 export const EMPTY_SURFACE_CLASS =
@@ -164,7 +165,7 @@ export function PendingGenerationPlaceholder({
     return (
       <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
         <NodeEmptyState
-          height={node.size?.height}
+          height={resolveNodeVisualSize(node).height}
           icon={icon}
           title={t(isVideo ? 'canvas.nodeKinds.video' : 'canvas.nodeKinds.image')}
           description={t(isVideo ? 'generationCommon.nodeTry.status.video' : 'generationCommon.nodeTry.status.image')}
@@ -189,7 +190,7 @@ export function PendingGenerationPlaceholder({
       : undefined
   return (
     <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
-      <NodeEmptyState height={node.size?.height} icon={icon} title={titleText} description={description} />
+      <NodeEmptyState height={resolveNodeVisualSize(node).height} icon={icon} title={titleText} description={description} />
     </div>
   )
 }

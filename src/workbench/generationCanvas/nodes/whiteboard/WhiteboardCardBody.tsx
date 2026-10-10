@@ -7,6 +7,7 @@ import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { NodeBodyHeader, EmptyStateLauncher } from '../render/CardCommon'
 import WhiteboardModal from './WhiteboardModal'
 import { readWhiteboardState } from './whiteboardState'
+import { resolveNodeVisualSize } from '../nodeSizing'
 
 /**
  * 画板节点的 body —— 只画「毛笔启动器」，外壳(header/ring/把手/缩放/聚焦闪光)全由 BaseGenerationNode 提供，
@@ -47,7 +48,7 @@ function WhiteboardCardBodyImpl({
           label={t('generationCommon.nodeEmpty.whiteboard.action')}
           hint={t('generationCommon.nodeEmpty.whiteboard.description')}
           testId="whiteboard-empty-action"
-          height={node.size?.height}
+          height={resolveNodeVisualSize(node).height}
           activateAriaLabel={t('generationCommon.whiteboard.openAria')}
           onActivate={handleOpen}
         />

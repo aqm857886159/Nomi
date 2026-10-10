@@ -2017,10 +2017,9 @@
     {
         "members": [
             "compact",
-            "full",
-            "icon"
+            "full"
         ],
-        "reason": "空节点占位按卡高收矮的三档（完整 / 紧凑 / 只留第一行），由 nodeEmptyStateLayout.ts 的 emptyStateTier 算出，唯一读者是 NodeEmptyState。没有复用 ShotTableZoomDensity（full / compact / card）：那是分镜表缩放档，轴不同，且没有 icon 这一档；TimelinePanel 的 density 只有两档。成员集是这一处真实的三档，不是抄别处。",
+        "reason": "空节点占位按渲染卡高收成两档（完整 / 紧凑），由 nodeEmptyStateLayout.ts 的 emptyStateTier 算出，唯一读者是 NodeEmptyState。「只留第一行」档已删：用到的节点渲染高度下限是 120（resolveNodeVisualSize 钳高），高于紧凑阈值 108，那一档进不去。没有复用 ShotTableZoomDensity（full / compact / card）：那是分镜表缩放档，轴不同。",
         "site": "src/workbench/generationCanvas/nodes/render/nodeEmptyStateLayout.ts::type:EmptyStateTier/type-union"
     }
   ],

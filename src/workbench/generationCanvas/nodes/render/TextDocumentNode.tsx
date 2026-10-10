@@ -29,6 +29,7 @@ import { docToPlainText } from '../../runner/textGenerationDocument'
 import { NomiLoadingMark } from '../../../../design'
 import { useNodePromptFocusRequest } from '../nodePromptFocus'
 import { landSelectionRewrite } from '../../runner/textActions'
+import { resolveNodeVisualSize } from '../nodeSizing'
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [] }
 
@@ -198,7 +199,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
             // 2026-10-08 拍板 ③：空文本卡用「试试」替换那句说明。外层不接指针（点空白处照样落进正文去写），只有列表项能点。
             <div className="pointer-events-none absolute inset-0">
               <NodeEmptyState
-                height={node.size?.height}
+                height={resolveNodeVisualSize(node).height}
                 icon={<IconWriting size={18} stroke={1.5} />}
                 title={t('canvas.nodeKinds.text')}
                 description={t('generationCommon.nodeTry.status.text')}
