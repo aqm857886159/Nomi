@@ -15,13 +15,14 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { dirOfMetaUrl } from '../../scripts/lib/repoPaths.mjs'
 import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, COLLAPSED_DOCK, COMPOSER_INPUT, COMPOSER_SEND, PREVIEW_PANEL, TOOL_RECEIPT, USER_BUBBLE,
   ASSISTANT_MESSAGE, chooseAssistantModel, hasToolResult, recorded,
 } from './agent-runtime-walk-support.mjs'
 
-const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+const here = dirOfMetaUrl(import.meta.url)
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-form-switch-state')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
