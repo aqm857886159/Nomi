@@ -14,9 +14,30 @@
 // Codex 是 TOML，用块级文本合并（按 [表头] 边界只换我们自己的 [mcp_servers.nomi] 块），不引 TOML 依赖（P1）。
 import { app } from 'electron'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
+import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
+import {
+  HostConfigWriteRefused,
+  atomicWrite,
+  isolatedInstanceMarker,
+  parseJsonConfig,
+  readJsonConfig,
+  readText,
+  tomlEscapeValue,
+  type McpWriteRefusal,
+} from './hostConfigWrite'
+import {
+  codexHttpBlock,
+  forwarderEntry,
+  httpJsonEntry,
+  isOwnedForwarderEntry,
+  looksLikeForwarderEntry,
+  namesNomiHttpAddress,
+  nomiEntryTransport,
+  parseNomiEntry,
+  stableMcpPort,
+  type RawNomiEntry,
+} from './mcpHostEntries'
 import {
   BUILTIN_MCP_CLIENTS,
   MCP_CLIENT_ENV,
@@ -33,7 +54,10 @@ import { SETTINGS_ROOT_ENV, getSettingsRoot } from '../settings/settingsRoot'
 import { MCP_CLIENT_REGISTRY, isBuiltinMcpClient, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 import type { McpConfigState } from '../shared/mcpConnectionContract'
 
-const SERVER_NAME = 'nomi'
+// 写盘门与读写工具住在 hostConfigWrite；这里转出，老的导入点（协议登记、迁移）不用改。
+export { HostConfigWriteRefused, atomicWrite, isolatedInstanceMarker, readJsonConfig, readText }
+export type { McpWriteRefusal }
+export const SERVER_NAME = 'nomi'
 export const MCP_CONFIG_VERSION_ENV = 'NOMI_MCP_CONFIG_VERSION'
 export const MCP_CONFIG_KIND_ENV = 'NOMI_MCP_CONFIG_KIND'
 export const MCP_CONFIG_VERSION = '3'
@@ -264,86 +288,7 @@ export function mcpServerEntry(client?: McpClientKey, runtime?: McpLauncherRunti
   }
 }
 
-function ensureDir(filePath: string): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-}
-
-/** 写盘被拒的原因（UI 按它走 i18n）。 */
-export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
-
-export class HostConfigWriteRefused extends Error {
-  constructor(readonly reason: McpWriteRefusal, detail: string) {
-    super(`host config write refused (${reason}): ${detail}`)
-  }
-}
-
-/** 隔离实例的判据（唯一一份；协议登记等也问它）：走查/评测启动器钉死的 NOMI_E2E，或设置根不是本机 Electron 的 userData。 */
-export function isolatedInstanceMarker(): string | null {
-  if (process.env.NOMI_E2E === '1') return 'NOMI_E2E=1'
-  const settingsRoot = String(process.env[SETTINGS_ROOT_ENV] || '').trim()
-  if (settingsRoot && path.resolve(settingsRoot) !== path.resolve(app.getPath('userData'))) return `${SETTINGS_ROOT_ENV}=${settingsRoot}`
-  return null
-}
-
-/** 真实用户主目录——取 passwd/profile 那份，不取 HOME 环境变量（走查会把 HOME 换成临时目录）。 */
-function realUserHome(): string | null {
-  try {
-    const home = os.userInfo().homedir
-    return home && path.isAbsolute(home) ? path.resolve(home) : null
-  } catch {
-    return null
-  }
-}
-
-function isInside(target: string, root: string): boolean {
-  const relative = path.relative(root, path.resolve(target))
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
-}
-
-/**
- * 隔离实例（走查 / 评测 / 临时 profile）不得改写**真实用户主目录**下的宿主配置——那会把开发者本机的
- * Claude Code / Codex / Cursor 全指到一个跑完就删的临时 profile（2026-09-13 本机 5 个文件全指向死掉的
- * /tmp/nomi-real-agent-*，就是这么来的）。HOME 已换成临时目录的走查照常可写（目标不在真实主目录里）。
- * 守卫住在唯一的写盘门上，而不是某个包装层：包装层可以被绕（此前 readMcpInfo 就绕过了 repair 的守卫）。
- */
-function assertHostConfigWritable(target: string): void {
-  const marker = isolatedInstanceMarker()
-  if (!marker) return
-  const realHome = realUserHome()
-  if (realHome && isInside(target, realHome)) throw new HostConfigWriteRefused('isolated-instance', `${marker} → ${target}`)
-}
-
-function atomicWrite(target: string, content: string): string | null {
-  assertHostConfigWritable(target)
-  ensureDir(target)
-  let backupPath: string | null = null
-  if (fs.existsSync(target)) {
-    backupPath = `${target}.nomi-backup`
-    fs.copyFileSync(target, backupPath)
-  }
-  const tmp = `${target}.nomi-tmp`
-  fs.writeFileSync(tmp, content, 'utf8')
-  // Windows：目标（如 Claude/Cursor 配置）被杀毒/编辑器短暂持有会 EPERM，共享重试收口（P2）。
-  renameSyncWithRetry(tmp, target)
-  return backupPath
-}
-
 // ── JSON 客户端（Claude Code / Cursor）：root.mcpServers.nomi ─────────────
-
-/**
- * 文件不存在 → `{}`（可以新建）；文件存在但不是一个 JSON 对象 → `null`（**不许写**）。
- * 此前解析失败也回 `{}`，随后整份 `{mcpServers:{nomi}}` 被当作整个文件写回——`~/.claude.json` 里
- * Claude Code 的登录会话和逐项目信任全没了（有 .nomi-backup，但用户不会知道）。
- */
-function readJsonConfig(target: string): Record<string, unknown> | null {
-  if (!fs.existsSync(target)) return {}
-  try {
-    const parsed = JSON.parse(fs.readFileSync(target, 'utf8'))
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
-}
 
 function jsonInstalled(target: string): boolean {
   const servers = readJsonConfig(target)?.mcpServers
@@ -354,29 +299,29 @@ function jsonSnippet(server: McpServerEntry): string {
   return JSON.stringify({ mcpServers: { [SERVER_NAME]: server } }, null, 2)
 }
 
-function jsonInstall(target: string, client: McpClientKey): string | null {
-  const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
-  const config = readJsonConfig(target)
-  if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
+/** 把 Nomi 那一条合并进 JSON 配置（保留其它服务器与顶层字段）。调用方已确认原文是合法 JSON 对象。 */
+function mergeJsonEntry(original: Buffer | null, entry: unknown): string {
+  const config = parseJsonConfig(original)!
   const servers = (config.mcpServers && typeof config.mcpServers === 'object' && !Array.isArray(config.mcpServers)
     ? (config.mcpServers as Record<string, unknown>)
     : {}) as Record<string, unknown>
-  servers[SERVER_NAME] = mcpServerEntry(client)
+  servers[SERVER_NAME] = entry
   config.mcpServers = servers
-  atomicWrite(target, JSON.stringify(config, null, 2))
-  return backupPath
+  return JSON.stringify(config, null, 2)
 }
 
 function jsonUninstall(target: string): void {
   if (!fs.existsSync(target)) return
-  const config = readJsonConfig(target)
-  if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
-  const servers = config.mcpServers as Record<string, unknown> | undefined
-  if (servers && typeof servers === 'object' && servers[SERVER_NAME]) {
+  // 读—改—写整段在写盘门的锁里、只读一次：撤销也不能盖掉宿主刚写的内容。
+  atomicWrite(target, (original) => {
+    const config = parseJsonConfig(original)
+    if (!config) throw new HostConfigWriteRefused('config-unreadable', target)
+    const servers = config.mcpServers as Record<string, unknown> | undefined
+    if (!servers || typeof servers !== 'object' || !servers[SERVER_NAME]) return null
     delete servers[SERVER_NAME]
     config.mcpServers = servers
-    atomicWrite(target, JSON.stringify(config, null, 2))
-  }
+    return JSON.stringify(config, null, 2)
+  })
 }
 
 // ── TOML 客户端（Codex）：[mcp_servers.nomi]，块级合并不引依赖 ──────────────
@@ -385,9 +330,7 @@ const CODEX_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*\]
 const CODEX_TABLE_HEADER_RE = /^\s*(?:\[[^\]]+\]|\[\[[^\]]+\]\])\s*(?:#.*)?$/
 const CODEX_FAMILY_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*(?:\.\s*[^\]]+)?\]\s*(?:#.*)?$/
 
-function tomlEscape(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-}
+export const tomlEscape = tomlEscapeValue
 
 /**
  * Codex 的三个默认值对 Nomi 全都不成立，不显式写就是三种「看着接上了其实用不了」（官方文档核实：
@@ -401,8 +344,8 @@ function tomlEscape(value: string): string {
  *    设 "writes" = 只对**没标 readOnlyHint** 的工具弹确认（标注在 mcpProtocol 的 READ_ONLY_TOOLS）：
  *    查询类静默通过，写入与生成门仍由各自权限边界确认——不拿用户的钱换顺滑。
  */
-const CODEX_STARTUP_TIMEOUT_SEC = 60
-const CODEX_TOOL_TIMEOUT_SEC = 600
+export const CODEX_STARTUP_TIMEOUT_SEC = 60
+export const CODEX_TOOL_TIMEOUT_SEC = 600
 
 function codexBlock(server: McpServerEntry): string {
   const args = server.args.map((arg) => `"${tomlEscape(arg)}"`).join(', ')
@@ -418,14 +361,6 @@ function codexBlock(server: McpServerEntry): string {
   return block
 }
 
-function readText(target: string): string {
-  try {
-    return fs.readFileSync(target, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
 function codexInstalled(target: string): boolean {
   return readText(target).split('\n').some((line) => CODEX_HEADER_RE.test(line))
 }
@@ -436,7 +371,7 @@ function codexInstalled(target: string): boolean {
  * Codex 也接受 `[mcp_servers.nomi.env]`。如果只删父表、留下 env 子表，再写
  * `env = { ... }`，整个 config.toml 会因重复 env 键而无法解析。
  */
-function removeCodexBlock(text: string): string {
+export function removeCodexBlock(text: string): string {
   const out: string[] = []
   let skipping = false
   for (const line of text.split('\n')) {
@@ -450,19 +385,19 @@ function removeCodexBlock(text: string): string {
   return out.join('\n')
 }
 
-function codexInstall(target: string, client: McpClientKey): string | null {
-  const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
-  const base = removeCodexBlock(readText(target)).replace(/\s*$/, '')
-  const next = (base ? `${base}\n\n` : '') + codexBlock(mcpServerEntry(client))
-  atomicWrite(target, next)
-  return backupPath
+/** 换掉（或加上）[mcp_servers.nomi] 块，其它内容原样保留。 */
+function mergeCodexBlock(original: Buffer | null, block: string): string {
+  const base = removeCodexBlock(original === null ? '' : String(original)).replace(/\s*$/, '')
+  return (base ? `${base}\n\n` : '') + block
 }
 
 function codexUninstall(target: string): void {
   if (!fs.existsSync(target)) return
-  if (!codexInstalled(target)) return
-  const next = removeCodexBlock(readText(target)).replace(/\s*$/, '') + '\n'
-  atomicWrite(target, next)
+  atomicWrite(target, (original) => {
+    const text = original === null ? '' : String(original)
+    if (!text.split('\n').some((line) => CODEX_HEADER_RE.test(line))) return null
+    return removeCodexBlock(text).replace(/\s*$/, '') + '\n'
+  })
 }
 
 // ── 对外 API ───────────────────────────────────────────────────────────
@@ -496,7 +431,10 @@ function clientInfo(client: McpClientKey): McpClientInfo {
   const server = mcpServerEntry(client)
   const launcherKind = server.env?.[MCP_CONFIG_KIND_ENV] === 'development' ? 'development' : 'packaged'
   const configured = configuredMcpEntry(client)
-  const configState = classifyMcpEntry(client, configured, server)
+  // 所有权先于形状：混合 / 未证明的条目一律 custom（不认、不改），Nomi 生成的直连条目是 migrated-http。
+  const raw = parseNomiEntry(spec.format, readConfigText(target, spec.format))
+  const transport = nomiEntryTransport(client, raw === 'unreadable' ? null : raw)
+  const configState = transport === 'unowned' ? 'custom' : transport === 'http' ? 'migrated-http' : classifyMcpEntry(client, configured, server)
   const installed = configured !== null || (spec.format === 'toml' ? codexInstalled(target) : jsonInstalled(target))
   const snippet = spec.format === 'toml' ? codexBlock(server) : jsonSnippet(server)
   return { installed, appInstalled: isMcpClientAppInstalled(client), configPath: target, snippet, configState, launcherKind,
@@ -528,18 +466,46 @@ export function readMcpInfo(rpcPort: number | null): McpInfo {
 
 /**
  * 唯一的「写一条 nomi 条目」入口：installMcp（用户点连接/重连）与 repairStaleMcpConfigs（启动修复）
- * 都走这里；这里再走 codexInstall / jsonInstall → atomicWrite。门表见根因合同 doors。
+ * 都走这里；这里再走 atomicWrite（锁里只读一次，rewriteNomiEntry 按所有权决定写什么）。门表见根因合同 doors。
  */
 function writeClientConfig(client: McpClientKey, spec: ClientSpec): { ok: true; backupPath: string | null } | { ok: false; reason: McpWriteRefusal } {
   if (isBuiltinMcpClient(client) && !isMcpClientAppInstalled(client)) return { ok: false, reason: 'client-not-installed' }
   const target = spec.configPath()
   try {
-    const backupPath = spec.format === 'toml' ? codexInstall(target, client) : jsonInstall(target, client)
+    const { backupPath } = atomicWrite(target, (original) => rewriteNomiEntry(client, spec.format, target, original))
     return { ok: true, backupPath }
   } catch (error) {
     if (error instanceof HostConfigWriteRefused) return { ok: false, reason: error.reason }
     throw error
   }
+}
+
+/**
+ * 共用写入门上的「写什么」：在锁里、拿着唯一一次读到的那份字节判所有权，**只保持可确认的原传输**。
+ * 传输方式只由用户的迁移同意改变（mcpHostMigration）：Nomi 生成的直连 / 转发口条目按同一种传输重签；
+ * Nomi 的 stdio 条目、别人的 stdio 条目、没有条目 → 写 stdio（没有传输被改变）；
+ * 两种写法混在一起、或长得像直连 / 转发口但地址或身份对不上 → 拒绝（不知道宿主实际走哪条，改了就是替用户换了传输）。
+ * 降回旧方式只有显式的恢复函数。
+ */
+function rewriteNomiEntry(client: McpClientKey, format: 'json' | 'toml', target: string, original: Buffer | null): string {
+  const raw = parseNomiEntry(format, original)
+  if (raw === 'unreadable') throw new HostConfigWriteRefused('config-unreadable', target)
+  // 条目指着 Nomi 的直连地址，而本实例此刻没有稳定地址：既核不了它是不是我们的，也写不出同传输的新条目。
+  if (namesNomiHttpAddress(raw) && stableMcpPort() === null) throw new HostConfigWriteRefused('http-unavailable', target)
+  const transport = nomiEntryTransport(client, raw)
+  if (transport === 'unowned' || (transport === 'forwarder' && format === 'toml')) {
+    throw new HostConfigWriteRefused('entry-not-owned', target)
+  }
+  const port = transport === 'http' || transport === 'forwarder' ? stableMcpPort() : null
+  const stdio = mcpServerEntry(client)
+  if (format === 'toml') {
+    const block = transport === 'http' ? codexHttpBlock(client, port!, CODEX_TOOL_TIMEOUT_SEC) : codexBlock(stdio)
+    if (!block) throw new HostConfigWriteRefused('http-unavailable', target)
+    return mergeCodexBlock(original, block)
+  }
+  const entry = transport === 'http' ? httpJsonEntry(client, port!) : transport === 'forwarder' ? forwarderEntry(client, port!, stdio) : stdio
+  if (!entry) throw new HostConfigWriteRefused('http-unavailable', target)
+  return mergeJsonEntry(original, entry)
 }
 
 /**
@@ -581,34 +547,6 @@ export function repairStaleMcpConfigs(): McpConfigRepairResult {
   return { changed: repaired.length > 0, repaired }
 }
 
-function tomlUnescape(value: string): string {
-  return value.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-}
-
-/** 取 [mcp_servers.nomi] 块的正文（到下一个 [表头] 或 EOF）；没这块回 null。 */
-function codexBlockBody(text: string): string | null {
-  const lines = text.split('\n')
-  const start = lines.findIndex((line) => CODEX_HEADER_RE.test(line))
-  if (start < 0) return null
-  const rest = lines.slice(start + 1)
-  const end = rest.findIndex((line) => /^\s*\[/.test(line))
-  return (end < 0 ? rest : rest.slice(0, end)).join('\n')
-}
-
-function codexConfiguredEntry(target: string): McpServerEntry | null {
-  const body = codexBlockBody(readText(target))
-  if (body === null) return null
-  const command = body.match(/^\s*command\s*=\s*"((?:[^"\\]|\\.)*)"\s*$/m)?.[1]
-  if (!command) return null
-  const argsRaw = body.match(/^\s*args\s*=\s*\[(.*)\]\s*$/m)?.[1] ?? ''
-  const args = [...argsRaw.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => tomlUnescape(m[1]))
-  const env: Record<string, string> = {}
-  // 只认我们写的行内表；用户手改成 [mcp_servers.nomi.env] 子表时 env 留空（不影响 command 可执行性判断）。
-  const envRaw = body.match(/^\s*env\s*=\s*\{(.*)\}\s*$/m)?.[1] ?? ''
-  for (const m of envRaw.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"/g)) env[m[1]] = tomlUnescape(m[2])
-  return { command: tomlUnescape(command), args, env }
-}
-
 /**
  * 读回该客户端**实际会启动的那条命令**——注意不是 mcpServerEntry()（那是「我们现在会写什么」）。
  * 两者可能天差地别：老版本 Nomi 写过 `node <repo>/scripts/nomi-mcp.mjs`（该脚本已随 5a40acbc 删除）、
@@ -618,21 +556,23 @@ function codexConfiguredEntry(target: string): McpServerEntry | null {
 export function configuredMcpEntry(client?: string): McpServerEntry | null {
   const key = resolveClient(client)
   const spec = key ? resolveClientSpec(key) : null
-  if (!spec) return null
-  const target = spec.configPath()
-  if (spec.format === 'toml') return codexConfiguredEntry(target)
-  const servers = readJsonConfig(target)?.mcpServers as Record<string, unknown> | undefined
-  const entry = servers && typeof servers === 'object' ? servers[SERVER_NAME] : undefined
-  if (!entry || typeof entry !== 'object') return null
-  const record = entry as Record<string, unknown>
-  const command = typeof record.command === 'string' ? record.command : ''
-  if (!command) return null
-  const args = Array.isArray(record.args) ? record.args.filter((a): a is string => typeof a === 'string') : []
-  const env: Record<string, string> = {}
-  if (record.env && typeof record.env === 'object') {
-    for (const [k, v] of Object.entries(record.env as Record<string, unknown>)) if (typeof v === 'string') env[k] = v
-  }
-  return { command, args, env }
+  if (!key || !spec) return null
+  const raw = parseNomiEntry(spec.format, readConfigText(spec.configPath(), spec.format))
+  if (!raw || raw === 'unreadable') return null
+  // 混合 / 未证明的条目不当成「会启动的那条命令」：验证、启动修复、迁移名单都不认它。
+  const transport = nomiEntryTransport(key, raw)
+  if (transport !== 'stdio' && transport !== 'forwarder') return null
+  return stdioShape(raw)
+}
+
+function stdioShape(raw: RawNomiEntry): McpServerEntry {
+  return { command: raw.command ?? '', args: raw.args ?? [], env: { ...(raw.env ?? {}) } }
+}
+
+/** 读路径拿配置文本：JSON 文件不存在当「空」，存在就原样（坏 JSON 由解析判成 unreadable）。 */
+function readConfigText(target: string, format: 'json' | 'toml'): string | null {
+  if (format === 'toml') return readText(target)
+  return fs.existsSync(target) ? readText(target) : null
 }
 
 /** 同一条启动命令（command + args）。 */
@@ -699,6 +639,8 @@ export function classifyMcpEntry(
   expected = mcpServerEntry(client),
 ): McpConfigState {
   if (!entry) return 'absent'
+  // 迁移后的 Claude Desktop 转发口：自己的形状，不是「另一份 Nomi」；长得像转发口但地址 / 身份对不上的，不认。
+  if (looksLikeForwarderEntry(entry)) return isOwnedForwarderEntry(client, entry) ? 'migrated-forwarder' : 'custom'
   // Exact equality with Nomi's current launcher is authoritative even in test/dev runtimes whose
   // executable basename is `node` rather than Nomi/Electron. Historical shapes still use the
   // narrower recognizers below so an unrelated custom proxy is never claimed or migrated.

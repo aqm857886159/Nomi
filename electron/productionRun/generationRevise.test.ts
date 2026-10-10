@@ -182,10 +182,10 @@ describe("generation.revise · 卡上改参数", () => {
     const rejected: ProductionRun = { ...run, gates: run.gates.map((gate) => ({ ...gate, status: "rejected" as const })) };
     const revised = applyProductionCommand(rejected, {
       commandId: "revise-rejected", expectedRevision: rejected.revision, type: "generation.revise",
-      payload: { shotId: "shot-a", patch: { prompt: "再试一次" } }, issuedAt: NOW,
+      payload: { shotId: "shot-a", patch: { prompt: "换个机位重来" } }, issuedAt: NOW,
     }, NOW).run;
     const shot = revised.generationPlan!.shots!.find((entry) => entry.shotId === "shot-a")!;
-    expect(shot.candidate.prompt).toBe("再试一次");
+    expect(shot.candidate.prompt).toBe("换个机位重来");
     expect(shot.contract).toBeUndefined();
     expect(shot.candidate.sealedContractHash).toBeUndefined();
   });

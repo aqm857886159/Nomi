@@ -1205,19 +1205,21 @@
         "electron/capabilityCore/mcpHttpBridge.ts",
         "electron/capabilityCore/mcpHttpForwarder.ts",
         "electron/capabilityCore/mcpHttpDesktop.ts",
-        "electron/capabilityCore/mcpHttpEndpoint.ts"
+        "electron/capabilityCore/mcpHttpEndpoint.ts",
+        "electron/capabilityCore/mcpHostMigration.ts",
+        "electron/capabilityCore/hostConfigWrite.ts",
+        "electron/capabilityCore/mcpHostEntries.ts",
+        "electron/capabilityCore/mcpVerifyHttp.ts"
       ],
       "alternativesChecked": [
-        {
-          "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）",
-          "source": "https://ts.sdk.modelcontextprotocol.io/v2/"
-        },
-        {
-          "name": "SDK 低层 Server 手动列工具（目录是活的、标题按语言现算时的官方用法）",
-          "source": "https://ts.sdk.modelcontextprotocol.io/v2/advanced/low-level-server.md"
-        }
+        { "name": "官方 MCP TypeScript SDK v2（@modelcontextprotocol/server 2.3.0：Server、StdioServerTransport、fromJsonSchema、createMcpHandler、serveStdio）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/" },
+        { "name": "SDK 低层 Server 手动列工具（目录是活的、标题按语言现算时的官方用法）", "source": "https://ts.sdk.modelcontextprotocol.io/v2/advanced/low-level-server.md" },
+        { "name": "各宿主官方 MCP 配置文档（Claude Code / Codex / Cursor / WorkBuddy：只有手改文件或各自 CLI，没有「第三方应用往里写一条并保证备份与恢复」的库）", "source": "https://code.claude.com/docs/en/mcp" },
+        { "name": "Codex MCP 配置（TOML url + http_headers；官方 CLI 在 GUI 里 PATH / 登录态不稳）", "source": "https://learn.chatgpt.com/docs/extend/mcp?surface=cli" },
+        { "name": "proper-lockfile 4.1.2（mkdir 锁 + 定时刷 mtime；README「Compromised」一节自述不能发现「锁被删后他人重新拿到」，失效只在异步定时器里报，没有同步的「我还持有吗」）", "source": "https://github.com/moxystudio/node-proper-lockfile#compromised" },
+        { "name": "平台独占打开 / 文件锁：Node fs.constants 不暴露 UV_FS_O_EXLOCK（本机 Node 22 只有 UV_FS_O_FILEMAP），flock/LockFileEx 要 fs-ext / os-lock 这类原生模块", "source": "https://nodejs.org/api/fs.html#fs-constants" }
       ],
-      "whyNotIntegrated": "第 2 段（2026-10-05）本机 HTTP 同样接 SDK：Streamable HTTP 服务端传输、Host / Origin 防重绑定用 @modelcontextprotocol/node，转发口的 HTTP 客户端传输用 @modelcontextprotocol/client；Nomi 只写「谁能连（签名身份头，与回环 RPC 同一套）、按会话分配协议实例、会话里的领域调用走回环 RPC 同一扇门」，以及转发桥里两件传输本身要的事（把协商出的协议版本告诉 HTTP 传输、Nomi 没开时给宿主回一句）。第 1 段：（2026-10-05）手写的握手 / 路由 / 取消 / 在飞账本 / stdio 分帧 / Ajv 校验器已删，协议由 SDK 承担。剩下的是领域：tools/list 投影（zod v3 契约 → 对外 schema 的扁平超集，mcpTransportSchemaFromZod.ts；SDK 只认 zod v4 且字节必变）、审批只有 tools/call 一个入口、未验证客户端的判据。两个 stdio 启动器在第 2、3 段改成本机 HTTP + 转发口后收口。",
+      "whyNotIntegrated": "第 2 段（2026-10-05）本机 HTTP 同样接 SDK：Streamable HTTP 服务端传输、Host / Origin 防重绑定用 @modelcontextprotocol/node，转发口的 HTTP 客户端传输用 @modelcontextprotocol/client；Nomi 只写「谁能连（签名身份头，与回环 RPC 同一套）、按会话分配协议实例、会话里的领域调用走回环 RPC 同一扇门」，以及转发桥里两件传输本身要的事（把协商出的协议版本告诉 HTTP 传输、Nomi 没开时给宿主回一句）。第 1 段：（2026-10-05）手写的握手 / 路由 / 取消 / 在飞账本 / stdio 分帧 / Ajv 校验器已删，协议由 SDK 承担。剩下的是领域：tools/list 投影（zod v3 契约 → 对外 schema 的扁平超集，mcpTransportSchemaFromZod.ts；SDK 只认 zod v4 且字节必变）、审批只有 tools/call 一个入口、未验证客户端的判据。两个 stdio 启动器本版不改行为（隐藏实例冷启还靠它，见 docs/plan/2026-10-09-mcp-host-migration.md），删旧启动器那一版再收口。第 3 段（2026-10-09）宿主配置迁移（mcpHostMigration.ts）与 HTTP 条目验证（mcpVerifyHttp.ts）：往别家宿主配置里写 Nomi 自己那一条、迁移前备份与恢复、按稳定地址存活判断拒绝，这是「Nomi 与外部 AI 宿主的接入」领域，没有现成库管别家的配置文件；握手验证本身用 SDK Client。宿主配置写盘门（hostConfigWrite.ts）的互斥锁复用仓库已有的租约设施 productionRun/productionRunLock（带 nonce 的所有权核验 + 续租），不接 proper-lockfile：写盘门是同步的（启动修复与 IPC 里一次完成），proper-lockfile 的续租靠异步定时器、同步写期间跑不了，也没有同步的所有权核验，满足不了「锁丢了必须在换名之前失败」；平台文件锁要原生模块（每个架构的 Electron ABI 重编）且 Linux 没有对应的独占打开。普通文件系统上对外部写者没有 compare-and-swap，提交协议（挂链接 + 事后核对 + 放回）是 Nomi 往别家文件里写这一领域自己的部分。",
       "revisitWhen": "第 3 段（宿主配置迁移、旧启动器当转发器）完成后，mcpStdioServer.ts / mcpNodeLauncher.ts 收成一个薄转发口，本条改 justified 并只剩领域路径"
     },
     {
