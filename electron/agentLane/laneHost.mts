@@ -56,7 +56,7 @@ import { projectLaneSnapshot, type LaneModelFacts } from '../shared/agentLane/la
 type LaneNativeDesktop = Awaited<ReturnType<typeof import('./laneNativeDesktop.mjs').openLaneNativeDesktop>>;
 const loadLaneNativeDesktop = () => import('./laneNativeDesktop.mjs');
 import { LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog.js';
-import { createLaneSceneTools } from './laneSceneTools.mjs';
+import { createLaneSceneTools } from './laneToolGroups.mjs';
 import type { LaneToolScene } from '../shared/agentCapabilities/verbDeclaration.js';
 import { appendLaneContinuation, laneContinuationText } from './laneContinuation.mjs';
 
