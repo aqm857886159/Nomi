@@ -1,11 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-10T18:58:55.066Z",
-  "commit": "62ee6bc117561093f0608d0156e9f5983e7ce553",
+  "generatedAt": "2026-10-10T19:09:33.434Z",
+  "commit": "9d50e4c41461336a3feb89c4adb7cc1761d4aee4",
   "runner": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
   "measurement": {
     "warmup": 0,
     "runs": 1,
+    "launchTimeoutMs": 5000,
     "viewport": {
       "width": 1280,
       "height": 933
@@ -194,9 +195,9 @@
       "images": 24,
       "videos": 24,
       "mediaProfile": "synthetic-preview",
-      "canvasScale": "M",
-      "canvasNodes": 96,
-      "canvasEdges": 192,
+      "canvasScale": "S",
+      "canvasNodes": 48,
+      "canvasEdges": 96,
       "scenarios": [
         {
           "id": "P1",

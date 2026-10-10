@@ -64,3 +64,4 @@ Measured rows: 0; blocked rows: 45.
 
 - Model/network wait is represented by `fixture.agent` and must be read separately from UI timing.
 - No production optimization is claimed until a display-capable runner produces baseline samples for the same matrix.
+
