@@ -73,7 +73,7 @@ async function start() {
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(key, 'seen')
   })
   await win.reload()
-  await expect(modelSettingsEntry(win)).toBeVisible({ timeout: 30_000 })
+  await expect(modelSettingsEntry(win)).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
 }
 async function home() {
   await win.keyboard.press('Escape')
@@ -281,7 +281,7 @@ try {
     syntheticCredentialStorage: true,
   })
   win = instance.win
-  await expect(modelSettingsEntry(win)).toBeVisible({ timeout: 30_000 })
+  await expect(modelSettingsEntry(win)).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
   expect(await savedKeys('kie')).toContain('manual-discovery-model')
   expect(await savedKeys(replicateVendorKey)).toEqual(expect.arrayContaining(['owner/flux-discovery']))
   expect(await savedKeys(newConnectionKey)).toContain('gpt-discovery-text')

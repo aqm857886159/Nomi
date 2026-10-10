@@ -8,6 +8,12 @@
 // 范围：只放「走查为了到达别处而经过的外壳位置」（回项目库、叫出 / 收起 Agent 面板）。
 // 走查自己要验的外壳细节（几何、快捷键、拖动）写在对应走查里，不进这里。
 import { clickOrFail, expect } from './_assert.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+
+// 文案一律按词典键取（不抄词典原文——check:test-copy-literals），中英两种语言都认。
+const bothLocales = (key) => ['zh-CN', 'en'].map((locale) => uiText(locale, key))
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const anyOf = (key, { anchored = true } = {}) => new RegExp(`${anchored ? '^' : ''}(${bothLocales(key).map(escapeRegExp).join('|')})${anchored ? '$' : ''}`)
 
 /** 展开态的常驻 Agent 面板（外壳发的两枚身份属性）。 */
 export const AGENT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"]'
@@ -18,16 +24,17 @@ export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
 /** 面板头部的「收起」钮。 */
 export const COLLAPSE_BUTTON = '[data-v4-control="collapse"]'
 
-const BACK_TO_LIBRARY = /^(返回项目库|Back to projects)$/
-const NEW_PROJECT_ENTRY = /^(新建空白项目|New blank project)/
-const MODEL_SETTINGS_ENTRY_IN_PROJECT = '[aria-label="打开模型设置"], [aria-label="Open model setup"]'
+const BACK_TO_LIBRARY = anyOf('appBar.backToLibrary')
+const NEW_PROJECT_ENTRY = anyOf('library.newBlankProject', { anchored: false })
+const NEW_PROJECT_ENTRY_ANCHORED = new RegExp(`^${NEW_PROJECT_ENTRY.source}`)
+const MODEL_SETTINGS_ENTRY_IN_PROJECT = bothLocales('appBar.openModelAccess').map((label) => `[aria-label="${label}"]`).join(', ')
 const MODEL_SETTINGS_ENTRY = `[data-testid="open-model-settings"], ${MODEL_SETTINGS_ENTRY_IN_PROJECT}`
 
 /**
  * 从项目里回到项目库——像用户一样点。`repeat` > 1 = 连点（保存在等锁时的重复点击）。
  * 点不到就红（clickOrFail），不静默跳过。
  */
-export async function backToLibrary(win, { timeout, repeat = 1, label = '返回项目库' } = {}) {
+export async function backToLibrary(win, { timeout, repeat = 1, label = 'back to library' } = {}) {
   const button = win.getByRole('button', { name: BACK_TO_LIBRARY })
   if (repeat === 1) {
     await clickOrFail(button, label, timeout === undefined ? {} : { timeout })
@@ -68,7 +75,7 @@ export function modelSettingsEntry(win, { where = 'any' } = {}) {
 }
 
 /** 打开设置里的模型区：点入口、等设置弹窗出现。 */
-export async function openModelSettings(win, { label = '打开模型设置', timeout } = {}) {
+export async function openModelSettings(win, { label = 'open model settings', timeout } = {}) {
   await clickOrFail(modelSettingsEntry(win), label, timeout === undefined ? {} : { timeout })
 }
 
@@ -77,5 +84,5 @@ export async function openModelSettings(win, { label = '打开模型设置', tim
  * 它的长相可以不同——走查别自己按文案猜，经这里找。
  */
 export function newProjectEntry(win) {
-  return win.getByRole('button', { name: NEW_PROJECT_ENTRY }).first()
+  return win.getByRole('button', { name: NEW_PROJECT_ENTRY_ANCHORED }).first()
 }
