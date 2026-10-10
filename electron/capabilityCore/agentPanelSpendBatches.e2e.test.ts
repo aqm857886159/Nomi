@@ -139,14 +139,16 @@ describe("S08: pending spend decisions have one durable winner", () => {
           const changing = action === "discard"
             ? withWindow.discardPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: quote.quoteId })
             : withWindow.revisePendingSpend({ quoteId: quote.quoteId, projectId: PROJECT_ID, operationId: OPERATION_ID, patch: { parameters: { size: "1536x1024" } } });
-          // × 收回出价之后要等手上那一下落定才回（结局照宿主最终批下的那一份说，`spendCardActionQueue`）：
+          // × 收回出价之后要等手上那一下落定才回（结局照宿主最终批下的那一份说，`spendOperationArbiter`）：
           // 放开那一下之前只等这一改真的落下了——已经回了，或者卡已经收走了。
           let answered = false;
           void changing.finally(() => { answered = true; });
           await waitForProduction(() => answered || withWindow.listPendingSpend(PROJECT_ID).length === 0);
           latch.release();
           const [changed, confirmed] = await Promise.all([changing, confirming]);
-          expect(changed.ok).toBe(phase === "beforeAuthorize");
+          // × 来晚了（授权已落账）：不报错，如实说已发出 1 张（仲裁器的封存终态）；改参数来晚了才是错误。
+          expect(changed.ok).toBe(action === "discard" || phase === "beforeAuthorize");
+          if (action === "discard" && phase === "afterAuthorize") expect(changed).toMatchObject({ code: "discarded", batchStopped: { sent: 1, notSent: 0 } });
           expect(confirmed.ok).toBe(phase === "afterAuthorize");
           expect(submits).toHaveLength(phase === "afterAuthorize" ? 1 : 0);
           expect(vendor.bodies).toHaveLength(submits.length);

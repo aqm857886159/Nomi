@@ -92,6 +92,15 @@ approved_in: 协调会话转达用户「按推荐走方案 A」
 
 「× 之后就一定不再花钱」和「× 要立刻有反应」会打架：本方案让 × 立刻登记令牌（立即打断），但卡上显示「正在停止」要等仲裁器回终态（通常毫秒级，供应商受理中的那一镜除外，那一镜已交出，只如实说已发出）。
 
+## 落地结果与一处解释（实现后补）
+
+- 落地：新增 `electron/capabilityCore/spendOperationArbiter.ts`（由旧队列文件 `git mv` 而来，旧文件不再存在）：队 + × 的取消令牌（`registerCancel` 同步登记）+ 封存终态读口（`sealedOutcome`）。`discardPendingSpend` 不再绕过它；`confirmOneShot` 在开头、落画布后、拿租约后、开门前、开门后（× 在开门中途到：撤掉那道刚封上的门）、授权前问同一枚令牌；批量循环每张前问它；Agent 回执与 × 的回话都从 `sealedOutcome` 读。生产代码净增约 130 行，远低于 600 行阈值；渲染层没改。
+- **「交」的分界 = 授权落账**（任务书里「授权后、派发前」那一落点，这里与任务书不同，需要协调会话知情）：门批下来、账本里这一镜就是「正在生成」，之后派发是承诺。账本里没有「批了但不发」这个状态，硬撤只会让卡、回执、账本说不到一起。所以 × 在授权落账之前到：这一镜一定不发（落点 2、3）；在之后到：如实回 `ok + 已发出 N`，不报错、不撤（落点 4、5）。要做到「授权后也能不发」得新增账本状态与界面文案，属于改用户流程，本刀不做。
+- 一个行为变化：10-02（X2 / X4）当时的裁决是「× 落在核对之后、开门之前，这一镜照样批下」，现在改成不批。`agentPanelSpendRemaining` 里两条按旧裁决写的用例同提交改成新裁决；`agentPanelSpendBatches` S08 与 `agentPanelSpendConfirm` 里「× 来晚了」两处由报错改成如实终态。
+- 不改的：`yieldToIncomingActions`（批量两张之间让一拍）保留——它不是仲裁，是让 × 这条 IPC 在事件循环里有机会先被处理，令牌要先登记得上才有东西可问。
+- 「正在停止」：渲染层原本就有这个状态（批量的 `stopping`）；单张确认中点 ×，现有逻辑在 × 回话时推「发出了 N 张」一句。没新增界面状态，没改渲染层。
+- 走查：新增 `agent-spend-confirm-then-close.walk.mjs`（locator、不采样坐标，中英各一遍；本机屏外连跑 5 次全绿）；`agent-spend-stop-midway` 的单张轮改成 locator + 等宿主事实再 ×，共用读数抽到 `tests/ux/_spendStopRounds.mjs`。`agent-spend-per-shot` / `generate-remaining` 的等待边界核对过：都是点完等宿主事实（标题 / 供应商请求 / 卡关）再点下一步，不需要改。
+
 ## 设计卡（9 格）
 
 ```
@@ -126,5 +135,5 @@ approved_in: 协调会话转达用户「按推荐走方案 A」
 
 ## 特征测试清单
 
-- 已钉住：`agentPanelSpendConfirmDiscardRace.e2e.test.ts`——落点 1、3 当前行为正确（`it`）；落点 2、4、5 是已知失败（`it.fails`），仲裁器落地后翻成正常 `it`。
+- 已钉住：`agentPanelSpendConfirmDiscardRace.e2e.test.ts`——最初的特征提交（`test(spend)`）里落点 1、3 当时行为正确（`it`），落点 2、4、5 是已知失败（`it.fails`）；仲裁器落地后五个落点全是正常 `it`，必红变异（令牌检查恒为否）使落点 2 与 `agentPanelSpendRemaining` 两条用例变红。
 - 没钉住：CI 上「lane 收不到 closed 结果」本机未复现（原因见 §2），不伪造断言。

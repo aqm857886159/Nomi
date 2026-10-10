@@ -1,8 +1,8 @@
-// 特征测试（direction-check，docs/plan/2026-10-10-spend-arbiter.md）：同一张卡上「生成这张」与 × 交错的四个落点。
+// 花钱卡「生成这张」与 × 交错的五个落点（docs/plan/2026-10-10-spend-arbiter.md）。
 //
-// 真链路、零额度（真 Run 账本 / 封印 / 收据 / 决门，供应商是本机 loopback）。只钉住现状，不修：
-// 不变式（任务书）是「用户点 × 之后，还没交给供应商的一律不再交；× 回给卡的话、Agent 的回执、账本读到的是同一个终态」。
-// 现状违反这条的落点用 `it.fails` 标成已知失败——仲裁器落地后它们转绿，`it.fails` 会反过来红，提醒把标记换成 `it`。
+// 真链路、零额度（真 Run 账本 / 封印 / 收据 / 决门，供应商是本机 loopback）。不变式：每一镜最终只有一个终态；
+// 用户点 × 之后还没交给供应商的一律不再交；卡、× 回给卡的话、Agent 回合、账本说的是同一件事。
+// 仲裁器落地前这里的落点 2 / 4 / 5 是已知失败（`it.fails` 钉住现状，见该文档 §2 的现状表）。
 import { afterEach, describe, expect, it } from "vitest";
 import { generationPresentationOutcome } from "../shared/productionGenerationPresentation";
 import { waitForProduction } from "../productionRun/productionRunTestHelpers";
@@ -56,6 +56,7 @@ async function race(spot: Spot) {
     const outcome = generationPresentationOutcome(run);
     const result = {
       confirmResult, discardResult, submits: submits.length,
+      waitingGates: run.gates.filter((gate) => gate.scope === "budget_envelope" && gate.status === "waiting").length,
       cardClosed: built.withWindow.listPendingSpend(PROJECT_ID).length === 0,
       laneSawClosed: turn.closed(), outcome,
     };
@@ -74,37 +75,35 @@ function expectOneTruth(r: Awaited<ReturnType<typeof race>>) {
   expect((r.discardResult as { batchStopped?: { sent: number } }).batchStopped?.sent ?? 0, "× 回给卡的话 = 供应商收到几镜").toBe(sentToVendor);
 }
 
-describe("特征：生成这张 × 交错（现状）", () => {
+describe("确认与 × 交错：每一镜只有一个终态，× 之后没交出去的不再交", () => {
   it("落点 1 · × 紧跟确认到达（admit 前）：一镜都不发，卡、账本、Agent 回合一致", async () => {
     const r = await race("before_admit");
     expect(r.submits).toBe(0);
     expectOneTruth(r);
   });
 
-  // 已知失败：admit 之后、封印开门之前收回出价，没有门可撤；这一镜随后照样被批下、发出（10-02 X2 / X4 同形）。界面已经「停止」。
-  it.fails("落点 2 · admit 之后、封印开门之前：用户已点 ×，这一镜不该再交给供应商", async () => {
+  it("落点 2 · admit 之后、封印开门之前：用户已点 ×，这一镜不再交给供应商，也不留一道等人的门", async () => {
     const r = await race("admitted_before_gate");
     expect(r.submits, "× 之后没交出去的不再交").toBe(0);
+    expect(r.waitingGates, "× 收回之后才封上的门被撤掉").toBe(0);
     expectOneTruth(r);
   });
 
-  // 现状已经对：封印过的门被收回时一并撤掉，授权随后被拒，一镜不发。钉住它，别让仲裁器改坏。
-  it("落点 3 · 封印之后、授权派发之前：用户已点 ×，这一镜不该再交给供应商", async () => {
+  it("落点 3 · 封印之后、授权派发之前：封印过的门被一并撤掉，授权被拒，一镜不发", async () => {
     const r = await race("gated_before_authorize");
     expect(r.submits, "× 之后没交出去的不再交").toBe(0);
     expectOneTruth(r);
   });
 
-  // 已知失败：派发（授权与开跑在宿主里是一步）已交给供应商，× 随后到：该如实回 ok + sent=1，现状回 ok:false「no pending generation to discard」。
-  it.fails("落点 4 · 派发之后（确认还没返回）：已交给供应商的不能撤，× 如实说 sent=1，三方一致", async () => {
+  // 「交」的分界是授权落账：门批下来这一镜在账本里就是「正在生成」，派发是承诺。× 来晚了如实说已发出，不报错。
+  it("落点 4 · 授权落账之后、派发之前：已交的不能撤，× 如实说 sent=1，三方一致", async () => {
     const r = await race("during_dispatch");
     expect(r.submits).toBe(1);
     expect(r.discardResult).toMatchObject({ ok: true, batchStopped: { sent: 1 } });
     expectOneTruth(r);
   });
 
-  // 已知失败：同上，确认已经返回、卡已关之后的 ×（迟到的第二下）。
-  it.fails("落点 5 · 确认已落定之后迟到的 ×：如实说 sent=1，不报错", async () => {
+  it("落点 5 · 确认已落定之后迟到的 ×：如实说 sent=1，不报错", async () => {
     const r = await race("after_settled");
     expect(r.submits).toBe(1);
     expect(r.discardResult).toMatchObject({ ok: true, batchStopped: { sent: 1 } });

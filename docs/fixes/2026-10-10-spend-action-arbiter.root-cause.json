@@ -1,0 +1,164 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-10-spend-action-arbiter",
+  "problem_type": "On one paid card, 'Generate this one' (queued) and the close button (deliberately not queued) were two async actions with no shared arbiter, so interleaving them left the UI, the receipt and the vendor with different final states for the same shot",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-10",
+  "symptom": "CI walkthrough agent-spend-stop-midway failed intermittently: after Generate this one and the close button were clicked back to back, the Agent turn never received the generate tool result. Same race, other order: the card showed stopped while that shot was still sealed, authorized and handed to the provider (reproduced by the characterization test at the point between admit and gate).",
+  "direct_cause": "electron/capabilityCore/appIntegrationSpendConfirm.ts discardPendingSpend withdrew the offer without any token the queued confirmOneShot could see; confirmOneShot checked the card only at its start (pending re-read) and then went on through landing, lease, gate request and authorization, so a withdraw that landed between those awaits found no gate to revoke and the shot was still approved and sent. Once the shot was authorized, a late close got 'no pending generation to discard' instead of the sealed outcome.",
+  "class_root": "The same operation's shots had no single linearization point: the confirm queue, the unqueued withdraw, the pending re-reads and the outcome readers each kept their own view, so any new await between them reopened the window (eight fixes in 14 days each added one more re-check).",
+  "migration": "serializeCardAction/cardActionsSettled moved from spendCardActionQueue.ts into spendOperationArbiter.ts (git mv, old file gone) and gained the cancel token and the sealed-outcome reader; discardPendingSpend registers the token synchronously; confirmOneShot and the batch loop ask the same token before every side-effecting step; the Agent receipt reads the outcome through sealedOutcome.",
+  "affected_population": [
+    "Anyone who closes a paid card while Generate this one or Generate remaining is in flight: a shot could still be sent after the card showed stopped",
+    "The Agent turn waiting on that card: the generate tool result could be lost or contradict what the card said"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/"
+  ],
+  "entry_points": [
+    "electron/productionRun/productionActionIpc.ts: discard / confirm / confirmRemaining / removeShot / revise IPC handlers",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts: discardPendingSpend, confirmPendingSpend (confirmOneShot), confirmRemainingShots, removePendingSpendShot",
+    "electron/capabilityCore/generationTransportAdapters.ts: readPresentationOutcome (Agent receipt)"
+  ],
+  "invariants": [
+    "After the user's close is registered, no shot that has not been authorized is handed to the provider",
+    "A shot whose authorization is recorded is sent; a late close reports it as sent instead of failing",
+    "The card close answer, the Agent receipt and the ledger outcome are read from the same sealed outcome (after the queued actions have landed)",
+    "The close is never queued behind the action it interrupts"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "sealedOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "registerCancel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "serializeCardAction"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "spendCancelRequested"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "sealedOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/spendOperationArbiter.ts",
+      "symbol": "cardActionsSettled"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 6,
+    "why_not": "The five production-action IPC doors and the receipt reader remain separate entry points; what was merged is what they share: one module that owns the queue, the cancel token and the sealed outcome. Each door now only calls it (door-map lists the write doors into spendOperationArbiter.ts)."
+  },
+  "regression_tests": [
+    "electron/capabilityCore/agentPanelSpendConfirmDiscardRace.e2e.test.ts",
+    "electron/capabilityCore/spendOperationArbiter.test.ts",
+    "electron/capabilityCore/agentPanelSpendRemaining.e2e.test.ts",
+    "electron/capabilityCore/agentPanelSpendBatches.e2e.test.ts"
+  ],
+  "residual_risks": [
+    "The queue and token are in-process only: a process death mid-confirm is still handled by the startup sweep, not the arbiter.",
+    "Telling the outcome still waits for a queued action that hangs (a provider submit without timeout); the card itself closes at once.",
+    "A close that lands after the authorization is recorded cannot stop that shot: the ledger has no approved-but-not-sent state; the outcome is reported truthfully as sent.",
+    "Provider-side retry and offline behavior in the middle of a batch is not part of this arbiter."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The order in which Nomi paid-card actions and the Run ledger settle a shot has no external protocol; XState was checked (docs/plan/2026-10-10-spend-arbiter.md section 5) and does not abort in-flight awaits.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new paid-card action, closer or outcome reader can again act or read between two awaits of an in-flight confirm; eight fixes in 14 days each moved the window instead of removing it.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/capabilityCore/spendOperationArbiter.ts -> six write doors, all in appIntegrationSpendConfirm.ts and generationTransportAdapters.ts",
+      "rg operations.withdraw electron -> discardPendingSpend (registers the token first), laneExtendedDesktopPorts withdraw (before any confirm exists), stalePresentationSweep (startup)"
+    ]
+  },
+  "generality_proof": "Every card action and every reader of the final outcome goes through spendOperationArbiter: actions are serialized there, the cancel token is asked before each side-effecting step, and the outcome is read only after the queue has landed. Nothing depends on the model, provider, shot kind, batch size or who closes the card.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/spendOperationArbiter.ts",
+      "symbol": "registerCancel",
+      "responsibility": "Registers the user's cancel synchronously, before any await, so every queued step sees it."
+    },
+    {
+      "path": "electron/capabilityCore/spendOperationArbiter.ts",
+      "symbol": "sealedOutcome",
+      "responsibility": "The only place that tells a final outcome: waits for the queue, then reads the ledger."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "confirmOneShot",
+      "disposition": "enforced",
+      "evidence": "Asks the token at start, after landing, after the lease, before the gate request, after it (abandoning a gate opened after the withdraw) and before authorization; agentPanelSpendConfirmDiscardRace.e2e.test.ts point 2 fails without it."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "confirmRemainingShots",
+      "disposition": "enforced",
+      "evidence": "Stops between shots when the token is registered; agentPanelSpendRemaining.e2e.test.ts the close landing on the 2nd shot fails without it."
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "entry_point": "readPresentationOutcome",
+      "disposition": "enforced",
+      "evidence": "Reads through sealedOutcome, the same reader the close answer uses."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "removePendingSpendShot",
+      "disposition": "not-affected",
+      "evidence": "Only edits the offer record and never reaches authorization or the provider; it stays on the same queue."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/spendOperationArbiter.ts",
+    "invariant": "A user's cancel is visible to every queued paid-card step, and the final outcome is read from one place after the queue has landed.",
+    "failure_mode": "agentPanelSpendConfirmDiscardRace.e2e.test.ts goes red (a shot is sent after the cancel, or the three views disagree); making the token check a no-op turns three tests red (mutation verified).",
+    "exception_policy": "none",
+    "strategy": "One arbiter module owns the queue, the cancel token and the sealed outcome; the discard door no longer bypasses it.",
+    "artifacts": [
+      "electron/capabilityCore/spendOperationArbiter.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/capabilityCore/generationTransportAdapters.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/agentPanelSpendConfirmDiscardRace.e2e.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/spendCardActionQueue.ts"
+    ],
+    "rationale": "The old queue module is renamed into the arbiter in the same change; no parallel version remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "XState was evaluated and not adopted (docs/plan/2026-10-10-spend-arbiter.md section 5); no dependency added or changed.",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/spendOperationArbiter.ts",
+    "tests": [
+      "electron/capabilityCore/agentPanelSpendConfirmDiscardRace.e2e.test.ts",
+      "electron/capabilityCore/spendOperationArbiter.test.ts",
+      "electron/capabilityCore/agentPanelSpendRemaining.e2e.test.ts"
+    ],
+    "why": "The queue, the cancel token and the sealed outcome live in one module; the race test exercises five interleaving points against the real ledger and a loopback provider."
+  }
+}

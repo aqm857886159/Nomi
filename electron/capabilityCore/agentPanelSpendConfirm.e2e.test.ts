@@ -659,9 +659,9 @@ it('× withdraws the quote: the card is gone, nothing is submitted, and the same
   const displayed = withWindow.listPendingSpend(PROJECT_ID)[0];
   expect(await withWindow.discardPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: displayed.quoteId })).toMatchObject({ok:true});
   expect(withWindow.listPendingSpend(PROJECT_ID)).toEqual([]);
-  // × 第二次（用户连点、或面板晚到一拍）不许变成一个错误弹给他：那张卡已经不在了。
+  // × 第二次（用户连点、或面板晚到一拍）不许变成一个错误弹给他：那张卡已经不在了，如实回封存下来的终态（一张没发）。
   expect(await withWindow.discardPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID, quoteId: displayed.quoteId }))
-    .toMatchObject({ ok: false });
+    .toMatchObject({ ok: true, code: "discarded", batchStopped: { sent: 0, notSent: 1 } });
   await handler({capability:'present', params:{operationId:OPERATION_ID}, lease});
   const reopened = withWindow.listPendingSpend(PROJECT_ID)[0];
   expect(reopened.quoteId, '重新出价 = 新的报价身份（旧卡上那个数不许批这一张）').not.toBe(displayed.quoteId);
