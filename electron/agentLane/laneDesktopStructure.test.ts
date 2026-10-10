@@ -148,11 +148,26 @@ describe("一条 lane 的系统提示词每回合整体重新求值（2026-09-11
     expect(paths).toContain("export type LaneTrustedSkillRoots = readonly string[] | (() => readonly string[])");
   });
 
+  it("用户命令的唯一入口先同步场景工具，再碰任何恢复路径（审批 / 回答 / 改写 / steer / follow-up / prompt）", () => {
+    const host = source("electron/agentLane/laneHost.mts");
+    const execute = host.slice(host.indexOf("execute: async (command: LaneCommand"));
+    const sync = execute.indexOf("scenes.sync(lane, await sceneFacts()");
+    expect(sync).toBeGreaterThan(0);
+    for (const resume of ["gate.answer(", "gate.settleHold(", "lane.steer(", "lane.followUp(", "lane.accept("]) {
+      expect(execute.indexOf(resume), resume).toBeGreaterThan(sync);
+    }
+  });
+
   it("laneHost 在回合边界求值一次：runId 变才重扫技能库、重拼提示词；回合内不改口", () => {
     const host = source("electron/agentLane/laneHost.mts");
 
     const resolver = host.slice(host.indexOf("const systemPromptForRun"), host.indexOf("const systemPrompt = promptForRun"));
-    expect(resolver).toContain("if (runId === promptRunId) return promptForRun;");
+    // 同 runId 且场景签名没变 → 复用；签名变了（运行中进出场景）才重拼，且只重拼、不刷新技能索引。
+    expect(resolver).toContain("if (runId === promptRunId) {");
+    expect(resolver).toContain("if (sceneKey !== promptSceneKey) { promptSceneKey = sceneKey; promptForRun = composeSystemPrompt(); }");
+    const sameRun = resolver.slice(resolver.indexOf("if (runId === promptRunId) {"), resolver.indexOf("promptRunId = runId;"));
+    expect(sameRun).not.toContain("skillIndex.refresh");
+    expect(sameRun).toContain("return promptForRun;");
     expect(resolver).toContain("await native?.skillIndex.refresh();");
     expect(resolver).toContain("promptForRun = composeSystemPrompt();");
     // transform_context 每次模型请求都跑——它必须走那个按 runId 记账的解析器，

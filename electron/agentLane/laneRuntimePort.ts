@@ -153,6 +153,11 @@ export type LaneToolPreflightHost = Readonly<{
 export interface OpenLaneOptions {
   fetch: typeof globalThis.fetch
   /**
+   * 用户此刻站着的场景（今天只有 3D 导演台）。宿主在**每一条用户命令**（prompt / steer / follow-up / 审批 / 回答）
+   * 进来时现问一次，并据此同步场景工具；问不到就当作没开（fail closed）。缺省 = 没有场景。
+   */
+  sceneFacts?: () => Promise<readonly import('../shared/agentCapabilities/verbDeclaration').LaneToolScene[]>
+  /**
    * 桌面原生资源（沙箱、coding 工具、技能索引）。
    *
    * **`skills` 想跟着技能库变，就给函数不给快照**（与 `systemPrompt` / `tasks` 同一条纪律）：

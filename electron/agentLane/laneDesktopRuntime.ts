@@ -23,6 +23,7 @@ import { NOMI_AGENT_IDENTITY, buildLanguageRule, resolveRequestedSkill } from '.
 import type { SkillRecord } from '../skills/skillStore'
 import { getProjectMemory, formatMemoryForPrompt } from '../memory/projectMemory'
 import { createDesktopLaneInput, parseLaneComposerContext } from './laneDesktopInput'
+import { requestRenderer } from '../capabilityCore/rendererBridge'
 import { createDesktopLaneTools } from './laneDesktopTools'
 import type { OpenDesktopLaneWorkspace, RunLaneSingleShot } from './laneRuntimePort'
 import { createProjectAgentProposalReceiptService } from '../capabilityCore/projectAgentProposalReceiptStore'
@@ -188,6 +189,8 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           attachments: createDesktopLaneAttachments(binding.projectId),
           modelDefaults: readLaneDeclaredDefaults,
           approval: { hasUserInterface: true, policy: () => composer.approvalPolicy },
+          // 场景事实只问渲染端（导演台编辑器挂没挂着）；问不到 = 没开，场景工具不进清单。
+          sceneFacts: async () => ((await requestRenderer('lane.scene-facts', {}, 3_000).catch(() => null)) as { director?: unknown } | null)?.director === true ? ['director' as const] : [],
         }))
       } catch (error) { ports.dispose(); tasks.dispose(); spend.dispose(); throw error }
       const opened = workspace

@@ -232,6 +232,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // while the user stands in that scene (switched per admission by `scenes.sync`).
   const scenes = createLaneSceneTools(options.tools);
   const activeToolNames = scenes.initialActive(registeredToolNames);
+  const sceneFacts = async (): Promise<readonly LaneToolScene[]> => (await options.sceneFacts?.().catch(() => undefined)) ?? [];
   // `Available tools` / `Guidelines` 两段由宿主拼，不靠调用方记得（G-03 的后一半）。
   // 2026-09-07 合并评审实核：`composeLaneSystemPrompt` 此前零生产调用者——通道②③写满了，
   // 一个字都到不了模型。拼接点放在这里，是因为这里是唯一知道「这条 lane 装了哪些工具」的地方。
@@ -354,7 +355,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     }
   }
 
-  await scenes.sync(lane, [], context);
+  await scenes.sync(lane, await sceneFacts(), context);
 
   // 投影先立起来，闸才挂得上去：「它在等你」这一段**不在 pi 的快照里**（停在预检里的
   // 调用不在 `runningTools`，`operation.status` 只会写 `open`——探针 §2.1），所以它由
@@ -565,20 +566,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     return details ? { details: details as never } : undefined;
   });
 
-  let admissionScenes: readonly LaneToolScene[] = [];
-
-  /** 用户消息进 lane 的唯一入口（prompt / steer / follow-up）：按本条消息的 admission 同步场景工具，下一次模型请求生效。 */
-  async function inputMessage(text: string, ctx: Context): Promise<string | LaneInputMessage> {
-    const message = await buildInputMessage(text);
-    await awaitWithContext(scenes.sync(lane, admissionScenes, ctx), ctx);
-    return message;
-  }
-
-  async function buildInputMessage(text: string): Promise<string | LaneInputMessage> {
-    admissionScenes = [];
+  async function inputMessage(text: string): Promise<string | LaneInputMessage> {
     if (!options.input) return text;
     const captured = structuredClone(options.input.capture());
-    admissionScenes = captured.directorOpen === true ? ['director'] : [];
     const { restoredIntent, ...currentAdmission } = captured;
     if (restoredIntent && (captured.continueFromEntryId || captured.retryFromEntryId)) throw new Error('agent_lane_invalid_command');
     let message: LaneInputMessage;
@@ -664,9 +654,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     execute: async (command: LaneCommand, executionOptions): Promise<LaneCommandOutcome> => {
       if (command.kind === 'abort') inputs.cancel();
       const admission = inputs.capture(executionOptions?.admissionSignal);
+      // 用户命令的唯一入口：先按渲染端此刻的场景事实同步场景工具（含审批 / 回答 / 改写这类恢复请求的命令），下一次模型请求生效。
+      if (command.kind !== 'history-older' && command.kind !== 'abort') await awaitWithContext(scenes.sync(lane, await sceneFacts(), admission), admission);
       if (command.kind === 'history-older') { await history.older(command.before); publish(); return {}; }
       if (command.kind === 'prompt' && !projection.running && !pending) {
-        const message = await awaitWithContext(inputMessage(command.text, admission), admission);
+        const message = await awaitWithContext(inputMessage(command.text), admission);
         // 「这条技能要不要 coding 工具」判在准入这一刻，而用户可能就是刚导入它的——
         // 所以先把索引刷到这个回合，再问。不刷的症状是模型说「我去跑它的 selftest」，然后说它没有工具。
         await awaitWithContext(Promise.resolve(native?.skillIndex.refresh()), admission);
@@ -721,7 +713,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // 所以只要有闸在等，两种手势同义——都是「先别做那件事，听我这句」。
         const steering = command.kind !== 'follow-up' || Boolean(gate?.pending());
         failures.reset();
-        const message = await awaitWithContext(inputMessage(command.text, admission), admission);
+        const message = await awaitWithContext(inputMessage(command.text), admission);
         admission.abortSignal?.throwIfAborted();
         const queued = steering
           ? await lane.steer(message, undefined, admission)

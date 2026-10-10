@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bindLaneTool } from '../../electron/agentLane/laneRuntimePort.js';
-import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDesktopContracts.js';
 import { createLaneFixture } from './laneFixture.mjs';
 import type { FixtureReply } from './httpFixture.mjs';
 
-const policy = { mode: 'safe-auto' as const, spend: 'confirm' as const };
 const PROBE = 'director_probe';
 
 type ToolBody = { tools?: Array<{ function?: { name?: string } }>; messages?: Array<{ role: string; content?: unknown }> };
@@ -13,15 +11,16 @@ const toolNames = (body: unknown) => ((body as ToolBody).tools ?? []).map(tool =
 const systemText = (body: unknown) => JSON.stringify(((body as ToolBody).messages ?? []).filter(message => message.role === 'system'));
 
 /** One director-only tool next to the normal fixture tools. Execution is real (pi runs it); only its effect is a counter. */
-async function openSceneLane(t: Parameters<typeof createLaneFixture>[0], replies: FixtureReply[]) {
-  const fixture = await createLaneFixture(t, replies);
+async function openSceneLane(t: Parameters<typeof createLaneFixture>[0], replies: FixtureReply[], approval?: Parameters<typeof createLaneFixture>[2]) {
+  const fixture = await createLaneFixture(t, replies, approval);
   let ran = 0;
   const base = fixture.options.tools[0];
   const probe = bindLaneTool({ ...base, name: PROBE, residentScene: 'director' }, async () => { ran += 1; return { ok: true, text: 'staged' }; });
-  let captured: LaneComposerContext = { approvalPolicy: policy };
+  // The renderer's live fact, asked fresh at every user command (here: a variable the test flips).
+  let directorOpen = false;
   const lane = await fixture.openLane({ ...fixture.options, tools: [...fixture.options.tools, probe],
-    input: { capture: () => captured, activate: () => {}, providerContent: async message => message.content, rewritePayload: payload => payload } });
-  return { fixture, lane, ran: () => ran, setDirectorOpen: (open: boolean) => { captured = { approvalPolicy: policy, ...(open ? { directorOpen: true as const } : {}) }; } };
+    sceneFacts: async () => directorOpen ? ['director'] : [] });
+  return { fixture, lane, ran: () => ran, setDirectorOpen: (open: boolean) => { directorOpen = open; } };
 }
 
 test('a director-only tool is absent from the model tool list until the director is open, then leaves again', async t => {
@@ -119,4 +118,25 @@ for (const kind of ['steer', 'follow-up'] as const) {
       assert.equal(/Not available this turn/.test(systemText(after)), !to, 'the notice follows the new scene in the same request');
     });
   }
+}
+
+// 恢复同一回合的命令（审批 / 回答）也是用户命令：等待卡期间进出导演台，点完之后的下一次请求就得跟着变。
+for (const [from, to] of [[true, false], [false, true]] as const) {
+  test(`approval click while a card waits: director ${from ? 'open -> closed' : 'closed -> open'} changes the next request`, async t => {
+    const { fixture, lane, setDirectorOpen } = await openSceneLane(t, [
+      { type: 'tool', calls: [{ id: 'write-1', name: 'write_script', arguments: { where: 'end', content: ' More.' } }] },
+      { type: 'text', text: 'done' },
+    ], { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
+    setDirectorOpen(from);
+    const pending = new Promise<void>(resolve => { const off = lane.subscribe(projection => { if (projection.pending) { off(); resolve(); } }); });
+    const running = lane.execute({ kind: 'prompt', text: 'Append.' });
+    await pending;
+    setDirectorOpen(to);
+    await lane.execute({ kind: 'approval', toolCallId: 'write-1', action: 'allow-once' });
+    await running;
+    const [before, after] = fixture.http.requests.map(request => request.body);
+    assert.equal(toolNames(before).includes(PROBE), from);
+    assert.equal(toolNames(after).includes(PROBE), to, 'the request after the click follows the fact at the click');
+    assert.equal(/Not available this turn/.test(systemText(after)), !to);
+  });
 }
