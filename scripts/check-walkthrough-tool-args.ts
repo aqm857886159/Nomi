@@ -12,7 +12,7 @@ import { MODEL_FACING_TOOL_SPECS } from "../electron/shared/agentCapabilities/mo
 import { toPublishedJsonSchema } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
 import { collectWalkthroughToolArgViolations } from "./walkthrough-tool-args-lib.mjs";
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+import { repoRoot } from "./lib/repoPaths.mjs";
 const walkthroughRoot = path.join(repoRoot, "tests", "ux");
 
 function collectFiles(dir: string): string[] {

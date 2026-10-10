@@ -32,7 +32,7 @@ import {
   selectGates,
   softenTimeout,
 } from './pre-push-contracts.mjs'
-import { MAX_RELATED_FILES, RELATED_TESTS_GATE, SLOW_TEST_FILES, relatedTests, runRelatedTests, stemOf } from './pre-push-related-tests.mjs'
+import { MAX_RELATED_FILES, NODE_TEST_ARGV_PREFIX, RELATED_TESTS_GATE, SLOW_TEST_FILES, relatedTests, runRelatedTests, stemOf } from './pre-push-related-tests.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8')
@@ -59,6 +59,9 @@ const SCANNER_READS = {
   'check:asset-evidence': ['electron/a.ts', 'electron/b.cts', 'scripts/asset-evidence-baseline.json'],
   'check:media-import-owner': ['electron/a.ts', 'src/b.tsx', 'scripts/media-import-owner-baseline.json'],
   'check:canvas-edge-writers': ['src/workbench/generationCanvas/store/x.ts', 'src/workbench/project/y.tsx', 'electron/capabilityCore/z.ts', 'electron/shared/canvas/w.ts', 'scripts/check-canvas-edge-writers.mjs'],
+  'check:storyboard-owner': ['src/workbench/a.ts', 'src/workbench/creation/b.tsx', 'scripts/check-storyboard-owner.mjs', 'scripts/lib/repoPaths.mjs'],
+  'check:transport-assembly': ['electron/capabilityCore/mcpProtocol.ts', 'electron/capabilityCore/mcpNodeLauncher.ts', 'electron/capabilityCore/mcpStdioServer.ts', 'electron/capabilityCore/mcpHttpServer.ts', 'scripts/check-transport-assembly.mjs', 'scripts/lib/repoPaths.mjs'],
+  'check:spend-receipt': ['electron/capabilityCore/mcpGateConfirmation.ts', 'electron/capabilityCore/mcpSemanticGenerationFlow.ts', 'electron/capabilityCore/generationDispatcher.ts', 'scripts/spend-confirmation-receipt-baseline.json', 'scripts/check-spend-confirmation-receipt.mjs'],
   'check:dangling-tokens': ['src/theme/nomi-tokens.css', 'src/a.tsx', 'tailwind.config.ts', 'scripts/check-dangling-tokens.mjs'],
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
   'check:design-lab-mirrors': ['src/devlab/designLab/a.tsx', 'src/workbench/x/Y.tsx', 'tests/ux/design-lab/baselines/a.png', 'scripts/check-design-lab.mjs'],
@@ -366,6 +369,18 @@ test('必红：假慢测试（永不退出）→ 到上限被终止、不算红�
   assert.ok(timedOut.note.includes(slow), '要点名没跑的文件')
   const failed = await runRelatedTests({ vitest: [], node: [red], skipped: [], truncated: 0 }, isolatedRun, { budgetMs: 60_000 })
   assert.notEqual(failed.status, 0, '上限内真红必须拦')
+})
+
+test('必红：被选中的 node:test 要加载 .mts / .ts（CI 里是 tsx --test 跑的那类）→ 相关单测也能真跑通，不再 ERR_UNKNOWN_FILE_EXTENSION', async () => {
+  const dir = makeTempDir('nomi-related-tsx-')
+  const helper = path.join(dir, 'helper.mts')
+  const needsTsx = path.join(dir, 'needs-tsx.node-test.mjs')
+  fs.writeFileSync(helper, 'export const answer: number = 42')
+  fs.writeFileSync(needsTsx, ["import test from 'node:test'", "import assert from 'node:assert/strict'", "import { pathToFileURL } from 'node:url'", "test('加载 .mts', async () => {", `  const mod = await import(pathToFileURL(${JSON.stringify(helper)}).href)`, '  assert.equal(mod.answer, 42)', '})', ''].join(String.fromCharCode(10)))
+  const result = await runRelatedTests({ vitest: [], node: [needsTsx], skipped: [], truncated: 0 }, isolatedRun, { budgetMs: 60_000 })
+  assert.equal(result.status, 0, result.output)
+  assert.match(result.note, /node:test 1 个文件通过/)
+  assert.deepEqual([...NODE_TEST_ARGV_PREFIX], ['--import', 'tsx', '--test'])
 })
 
 test('登记（C）：相关单测与结构门岗在选择表 / 输入声明 / 入口里都登记了，删掉任何一处这里就红', () => {

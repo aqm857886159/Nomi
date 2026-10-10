@@ -23,7 +23,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+import { repoRoot } from './lib/repoPaths.mjs'
 
 /**
  * 受检的接口 → 它的生产装配点。

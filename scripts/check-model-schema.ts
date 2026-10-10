@@ -50,7 +50,7 @@ import {
 } from "../electron/shared/agentCapabilities/modelFacingToolRegistry";
 import { CAPABILITY_CONTRACTS } from "../electron/shared/agentCapabilities/registry";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+import { repoRoot } from "./lib/repoPaths.mjs";
 const baselinePath = path.join(repoRoot, "scripts", "model-schema-baseline.json");
 
 /** 描述够不够厚的门槛。上游 Anthropic 的原话是「by far the most important factor in tool performance」。 */

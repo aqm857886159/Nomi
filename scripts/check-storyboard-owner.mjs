@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { repoRelativePosix } from './lib/repoPaths.mjs'
 
 const root = process.cwd()
 const sourceRoot = path.join(root, 'src', 'workbench')
@@ -75,7 +76,7 @@ const rawParamsAllowed = new Set([
   'src/workbench/ai/resident/residentToolDisplay.ts',                 // 工具调用的人话展示
 ])
 for (const file of files) {
-  const relative = path.relative(root, file)
+  const relative = repoRelativePosix(file, root)
   if (rawParamsAllowed.has(relative) || /\.test\.tsx?$/.test(relative)) continue
   const source = fs.readFileSync(file, 'utf8')
   if (rawParamsPattern.test(source)) {
