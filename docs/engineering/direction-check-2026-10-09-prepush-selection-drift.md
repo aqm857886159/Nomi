@@ -93,3 +93,16 @@
   - 门表：storyboard-owner / transport-assembly / spend-receipt 实测 1–3 秒且输入范围精确，收回「Windows 假红只在 CI」的理由、接进推送前（GATE_INPUTS + SCANNER_READS + PRE_PUSH_GATES）；其余三道改写理由为「太贵」（TS 导入闭包 + 变异自检 5–43 秒、输入是 electron 全树）。
 - 为什么不换成现成库：路径 ↔ URL 转换用的就是 node:url 的 fileURLToPath / pathToFileURL，新模块只是把它们收成一个入口；没有现成库管「本仓脚本的相对路径规范」。
 - 命中的自写登记仍是 `gate-family`（门岗族）；换不换现成方案的结论同上文，不变。
+
+## 追记 2026-10-10（4）：扫全仓 / 扫目录的守卫测试，推送前「相关单测」挑不中它们
+
+- 症状：同一天漏 4 个，本机推送全绿、CI 才红（每次白耗约 40 分钟）：#1156 electron/offLedgerEgress.structure.test.ts（新增 child_process 出网口没登记）；#1142 electron/fileIdentity.test.ts（手写 dev / ino 比较）、electron/shared/mcpClientRegistry.test.ts（手抄客户端清单）、scripts/check-network-entry.test.mjs（Node 网络调用没走共用传输）。
+- 直接原因：推送前「相关单测」只挑「引用了改动文件」的测试（pre-push-related-tests.mjs 三种引用法）。这类守卫自己遍历源码、对全集断言，不引用任何具体文件；新增一个违规文件，没有测试「引用」它。SCAN_TESTS 本来就是给这类测试留的位置，但登记全靠人记得，没登记的没有任何东西报警。
+- 类根因：「哪些测试要在推送前跑」有两套正本——相关单测按引用挑，SCAN_TESTS 按人工登记挑；扫目录型测试天然落在两者的缝里，而且「某个测试是不是扫目录型」这件事没有任何自动判定，只能靠写测试的人事后想起来去登记。全仓实数：118 个测试文件被识别为扫描型，其中 54 个本来就在推送前某道门岗的命令或实现里，另外 64 个没有任何去处（本次：登记 52、CI_ONLY 2、被门岗覆盖 1、识别器误判 9）。
+- 改法（强弱依次）：
+  - 门岗自动拦：scripts/lib/scanGuardDetect.mjs 用 TypeScript 语法树识别「起点锚在仓库里的 readdir / glob / git ls-files / git grep」（沿同文件变量与函数形参追来路，临时目录不算，只钻拼路径的调用、不钻任意函数实参；间接扫描顺着 import 进 scripts / tests / evals 里的扫描器模块找），scripts/pre-push-scan-guards.mjs 的 scanGuardProblems 核对：每个扫描型测试必须在 SCAN_GUARDS（推送前跑，写明扫哪些目录）/ SCAN_GUARD_CI_ONLY（附理由）/ SCAN_GUARD_COVERED_BY_GATE / NOT_SOURCE_SCANS（附理由）之一，或本来就是推送前某门岗的命令；陈旧项、重复声明、空理由一并红。核对写在 pre-push-structure.node-test.mjs（它自己是推送前门岗），新写一个扫描型测试忘了登记，本机推送前就红。
+  - 补：SCAN_GUARDS 登记 52 个，扫描目录用运行时桩（给 fs.readdirSync 打桩记录）实测，不是读代码猜的；批量门岗 test:scan-guards（SCAN_TESTS 里一条，一个 vitest 进程）按改动只带该带的：改到它扫的目录、测试自己或它 import 的模块才带上它。逐个起进程实测改一个 electron 文件墙钟 +29 秒，批量跑同样 15 个文件 18 秒。
+  - 顺手修一个同类缝：相关单测的 exclude 原来无条件排除全部 SCAN_TESTS 的入口文件，没被选中的扫描门岗会连带吞掉相关单测对它的挑选；改为只排除这次真会被选中的。
+- 为什么不「删」/ 「结构上做不出来」：理想是所有扫仓库的测试都走同一个 scanRepo(roots) 助手，目录写在助手参数里、推送前直接从参数派生；那要改 50 多个存量测试，且每个的遍历写法不同，一次改风险大、收益和上面的自动识别重叠。留作后续（识别器 + 核对已经把「不走助手」变成红灯）。
+- 为什么不换成现成库：「测试是否遍历仓库」是本仓测试写法的领域事实，没有现成工具；vitest related 已在 pre-push-related-tests.mjs 里评估过（慢，且依赖图看不见 readdir）；ESLint 规则只能看单文件，看不到「这个测试导入的扫描器模块里在遍历」。识别器是本仓 gate-family 的一部分，沿用既有登记。
+- 命中的自写登记仍是 `gate-family`；换不换现成方案的结论同上文，不变。
