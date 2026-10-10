@@ -27,6 +27,7 @@ import {
   type ProductionRunLockLease,
 } from '../productionRun/productionRunLock'
 import { SETTINGS_ROOT_ENV } from '../settings/settingsRoot'
+import { sameFileIdentity } from '../fileIdentity'
 
 /** 写盘被拒的原因（UI 按它走 i18n）。 */
 export type McpWriteRefusal =
@@ -265,11 +266,10 @@ function removeLink(link: string): void {
   }
 }
 
+/** 两个路径是不是同一个文件（文件身份只走 fileIdentity 的共用判断：bigint ino，dev 缺值不当不同）。 */
 function sameFile(left: string, right: string): boolean {
   try {
-    const a = fs.statSync(left, { bigint: true })
-    const b = fs.statSync(right, { bigint: true })
-    return a.ino === b.ino && a.dev === b.dev
+    return sameFileIdentity(fs.statSync(left, { bigint: true }), fs.statSync(right, { bigint: true }))
   } catch {
     return false
   }

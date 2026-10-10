@@ -143,8 +143,9 @@ type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Re
  * 转发口的出站 fetch：**每一个**请求（POST / GET 流 / DELETE）发出前都重核 liveForwarderUrl，
  * 请求地址必须正是它；对上了才在这一步加身份头，不跟随重定向。对不上就抛，什么也不发。
  * 身份头不放进 requestInit：那样任何绕过这道检查的请求都会带上它。
+ * send 由转发口进程注入（它是一个只连本机的独立 Node 进程，见 scripts/check-network-entry.mjs 的边界登记）。
  */
-export function forwarderFetch(client: string, proof: string, env: NodeJS.ProcessEnv = process.env, send: FetchFn = fetch): FetchFn {
+export function forwarderFetch(client: string, proof: string, send: FetchFn, env: NodeJS.ProcessEnv = process.env): FetchFn {
   return async (input, init) => {
     const requested = new URL(input instanceof Request ? input.url : String(input))
     const live = liveForwarderUrl(env)

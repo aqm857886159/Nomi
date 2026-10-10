@@ -17,7 +17,8 @@ const proof = String(process.env[MCP_CLIENT_PROOF_ENV] || '').trim()
 // 身份只发往「本机此刻活着的那个 Nomi 的稳定地址」：每个出站请求都在 forwarderFetch 里重核（端口 = 稳定端口、
 // 端点文件记的就是它、写端点文件的进程还活着），对不上就一个字节都不发，桥给宿主回「请先打开 Nomi」。
 const upstream = new StreamableHTTPClientTransport(new URL(liveForwarderUrl() ?? mcpHttpUrl(MCP_HTTP_DEFAULT_PORT)), {
-  fetch: forwarderFetch(client, proof),
+  // 转发口是跑在宿主进程里的独立 Node 进程，只连本机回环（每个请求都由 forwarderFetch 核过），不走主进程的 appFetch / 代理。
+  fetch: forwarderFetch(client, proof, fetch),
   requestInit: { redirect: 'error' },
 })
 

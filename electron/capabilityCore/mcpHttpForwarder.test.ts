@@ -80,7 +80,7 @@ describe('forwarderFetch：每个出站请求发出前重核，身份头只在�
     const stray = await countingServer()
     const env = { NOMI_MCP_HTTP_PORT: String(live.port) }
     const proof = signMcpClient('claude-desktop')!
-    const send = forwarderFetch('claude-desktop', proof, env)
+    const send = forwarderFetch('claude-desktop', proof, fetch, env)
     writeMcpHttpEndpoint(live.port)
     await (await send(mcpHttpUrl(live.port), { method: 'POST', body: '{}' })).text()
     expect(live.seen).toEqual([{ method: 'POST', url: '/mcp', client: 'claude-desktop', proof }])

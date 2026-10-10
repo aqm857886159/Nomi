@@ -3,15 +3,15 @@ import { useTranslation } from 'react-i18next'
 import { ConnectAssistantCard } from '../../../ui/onboarding/ConnectAssistantCard'
 import type { McpInfo, McpMigrationResult } from '../../../desktop/mcpBridgeTypes'
 import { holdDesignLabReady } from '../labReadyHold'
+import { BUILTIN_MCP_CLIENTS, MCP_CLIENT_REGISTRY } from '../../../../electron/shared/mcpClientRegistry'
 import { SETTINGS_CELL_WIDTH } from '../settings/settingsLabKit'
 
 /** 取值：ask / done / partial / unavailable / deferred（每格一个，舞台据此点按钮、回对应结果）。 */
 // 宿主名与顺序是真实检测到的形状：三家还写着旧连接方式，WorkBuddy 保持旧方式（不在迁移名单里）。
-const HOSTS = [
-  { client: 'claude', label: 'Claude Code' },
-  { client: 'codex', label: 'Codex' },
-  { client: 'cursor', label: 'Cursor' },
-] as const
+// 名单从注册表派生（不另抄一份）：Claude Desktop 走转发口、WorkBuddy 不迁移，舞台只摆写直连的三家。
+const HOSTS = BUILTIN_MCP_CLIENTS
+  .filter((client) => client !== 'claude-desktop' && client !== 'workbuddy')
+  .map((client) => ({ client, label: MCP_CLIENT_REGISTRY[client].label }))
 
 function clientInfo(configPath: string): McpInfo['clients'][string] {
   return {

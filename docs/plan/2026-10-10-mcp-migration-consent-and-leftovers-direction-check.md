@@ -72,3 +72,18 @@
 - **「同意」靠什么**：①只有登记的主窗口主帧能调迁移 IPC（`assertTrustedSender`，`check:ipc-sender-binding` 守）；②主进程在锁里逐个重核资格（`migratedContent`：装了、是 Nomi 自己写的旧 stdio 条目、能迁移；不满足 `not-migratable`，已迁移幂等成功）；③**唯一入口结构测试** `electron/capabilityCore/mcpMigrationEntry.test.ts`：渲染端只有询问卡的 `handleMigrate` / `handleRetryMigration` 调迁移桥；迁移通道字面量只在 preload 与注册处；主进程只有迁移 IPC 处理器调 `migrateMcpHostsToHttp`，`mcpHostMigration` 只被 `mcpProfiles` import（修复 / 启动修复 / 撤销所在的 `mcpConfig`、`appIntegration` 不 import）。变异：在「修复」按钮里调迁移桥、在 `mcpConfig` 里 import 迁移模块 → 各自红。
 - **残留**：`hostConfigWrite.atomicWrite` 换名前先查可写（只读 → `HostConfigWriteRefused('config-read-only')`，迁移报 `read-only`，zh/en 文案进词表，不挂链接）；同一次提交只挂一个链接（链接还指着目标就沿用，只重试换名；目标被整份替换才先收走旧的再挂）；收链接失败在本次锁内再试一次；锁内清扫清掉这个目标所有的 `.nomi-prev.*`，`.nomi-conflict.*` 不碰。
 - **两条特征测试转正**：`mcpHostMigration.test.ts`「迁移 → 界面刷新读一次状态 → 再试一次」（原 `it.fails` → `it`，并断言读状态不改任何字节）；`hostConfigWrite.test.ts` 残留那条改成三条：只读零链接；复刻 Electron「换名一直 EPERM + 链接删不掉」时同一次提交只挂 1 个（原先 6 个）、下一次写时锁内清扫清掉；短暂共享冲突全程 1 个、结束为 0。原「删不掉也要求 0 个」的断言在运行时拒绝删除时物理上做不到，按修法改成「只 1 个 + 下次清掉」。
+
+## CI 类守卫一轮（2026-10-10，run 38042985046）
+
+推上去后 CI 红四处，都是扫全仓的类守卫或走查，推送前「相关单测」挑不中（协调会话另派补这个缺口）：
+
+| 红在哪 | 直接原因 | 改法 |
+|---|---|---|
+| `electron/fileIdentity.test.ts` | `hostConfigWrite.sameFile` 手写比 dev/ino（Windows 上 ino 要 bigint、旧 libuv 的 dev 恒为 0） | 改走共用 `sameFileIdentity` |
+| `electron/shared/mcpClientRegistry.test.ts` | 设计实验室迁移舞台手抄三家宿主名单 | 从 `MCP_CLIENT_REGISTRY` 派生 |
+| `scripts/check-network-entry.test.mjs` | 转发口出站 fetch 默认值 `fetch` 写在 `mcpHttpEndpoint.ts` | `send` 必传，由 `mcpHttpForwarder.ts` 注入；门岗 `EXPLICIT_BOUNDARIES` 登记这个进程入口 |
+| E2E 分片 4 `mcp-http-direct` | 走查按旧契约起转发口 | 照生产 `forwarderEntry` 给地址 + 端口，补反例 |
+
+**自写登记 `gate-family`（under-review，30 天第 118 个 fix）为什么这次改了门岗、为什么现在换不了现成方案、哪天换**：这次对 `scripts/check-network-entry.mjs` 只加了一条执行边界登记（数据，不是规则）：转发口是跑在 Claude Desktop 进程里的独立 Node 进程，用不了 Electron 主进程的 `appFetch`（它要应用的代理与 dispatcher），只连本机回环且每个请求先核对，与早已登记的 `mcpNodeLauncher.ts` 同一性质。「Node 出站都走共用传输」这条规则本身没有现成的 ESLint / 框架规则能表达（要认 appFetch 注入、Chromium session、WebSocket dispatcher 等 Nomi 自己的传输约定），所以门岗脚本继续自写；评估换掉的时点照 `docs/engineering/self-written.json` 的 `gate-family` 条目 `reviewBy`（2026-10-31）。
+
+**同一文件反复修**：`hostConfigWrite.ts` / `mcpHttpEndpoint.ts` / `mcpHttpForwarder.ts` / 迁移舞台这一轮命中的是「复审修法与仓库既有类守卫的约定没对齐」，不是新的语义缺陷：三处都改成走既有的共用件（文件身份、客户端注册表、执行边界登记），没有新增特例。
