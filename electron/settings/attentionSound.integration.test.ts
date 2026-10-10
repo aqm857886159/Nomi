@@ -61,4 +61,4 @@ it('accepts MP3 audio with embedded cover art and discards the picture during no
   expect(await probeMediaMetadata(file)).toMatchObject({ hasAudio: true, kind: 'audio', streamCount: 2 })
   expect(await importAttentionSound(file)).toMatchObject({ ok: true })
   expect((await probeMediaMetadata(customAttentionSoundPath())).kind).toBe('audio')
-}, 15000)
+})

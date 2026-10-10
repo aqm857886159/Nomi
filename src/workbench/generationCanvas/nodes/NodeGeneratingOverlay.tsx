@@ -9,7 +9,7 @@ import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
 import { requestTaskCancel } from '../runner/localTaskControl'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { canInterruptGenerationTask } from '../model/taskCancellation'
-import { isVideoDepthProgressPhase } from '../videoDepth/videoDepthProgressPhase'
+import { isLocalProcessingProgressPhase } from '../model/localProcessingPhase'
 import { NodeImportingOverlay } from './NodeImportingOverlay'
 import { useDeferredNodeMediaVisibility } from './deferredNodeMediaQueue'
 
@@ -26,7 +26,7 @@ export function NodeGeneratingOverlay({ node, motion, preset, reportFeedback }: 
   const finalUrl = node.result?.type === 'image' ? node.result.url : node.result?.thumbnailUrl || previewUrl
   const handleCancel = React.useCallback(() => requestTaskCancel(node, reportFeedback), [node, reportFeedback])
   // Local depth processing has its separately approved top bar; it is not a model generation stage.
-  if (isVideoDepthProgressPhase(node.progress?.phase)) return <GeneratingOverlay
+  if (isLocalProcessingProgressPhase(node.progress?.phase)) return <GeneratingOverlay
     percent={node.progress?.percent} message={node.progress?.message} previewUrl={previewUrl} onCancel={handleCancel} />
   // 导入不是生成：正在拷文件的节点交给 NodeImportingOverlay（同一个等待层组件的进度驱动形态），
   // 不套生成等待层——它会连带把生成的状态语义和无 GPU 兜底块一起带上来。

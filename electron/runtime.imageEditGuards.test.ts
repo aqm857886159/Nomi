@@ -101,7 +101,7 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
     // 不再指路「删除该模型后重新接入」——那是假动作（接入路径本来就不建这条通道，重接也没用）。
     expect(String((error as Error).message)).not.toMatch(/重新接入/);
     expect(fetchFn).not.toHaveBeenCalled();
-  }, 15_000);
+  });
 
   it("闸①：image_edit 一张参考图都没有 → 拒发（不再当纯文生图发出去），vendor 零调用", async () => {
     await seedRelayImageVendor(true);
@@ -160,7 +160,7 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
     const parts = body.messages?.[0]?.content || [];
     const imageUrls = parts.filter((p) => p.type === "image_url").map((p) => p.image_url?.url);
     expect(imageUrls).toEqual(["https://cdn.example.com/dog.png", "https://cdn.example.com/cat.png"]);
-  }, 15_000);
+  });
 
   it("模型级分流：同一中转的 Grok 精确命中 JSON /images/edits，不落入 generic chat mapping", async () => {
     const store = await import("./catalog/catalogStore");
@@ -189,5 +189,5 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
     const body = JSON.parse(String((call?.[1] as { body?: string } | undefined)?.body || "{}"));
     expect(body.image).toEqual({ type: "image_url", url: "https://cdn.example.com/source.png" });
     expect(body).not.toHaveProperty("messages");
-  }, 15_000);
+  });
 });

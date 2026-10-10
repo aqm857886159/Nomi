@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
-import { laneToolCombinations } from './check-model-schema.ts'
+import { laneToolCombinations, laneToolLedger, formatLaneToolLedger } from './check-model-schema.ts'
 import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from '../electron/agentLane/laneToolCatalog.ts'
 import { LANE_CODING_TOOL_NAMES } from '../electron/agentLane/laneCodingTools.mts'
 import { evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_REQUEST_TOOL_NAME } from '../electron/agentLane/laneToolGroups.mts'
@@ -52,6 +52,27 @@ test('a newly enlarged domain fails both the group and complete residency budget
   assert.ok(fat, `胖掉的那个组必须有自己一行：${sample.internalGroup}`)
   assert.ok(failures.some(failure => failure.includes(fat.label)))
   assert.ok(failures.some(failure => failure.includes(combinations.at(-1).label)), '最终常驻组合必须判红')
+})
+
+test('the gate prints a per-tool ledger sorted by size with both totals', async () => {
+  const ledger = await laneToolLedger()
+  const combinations = await laneToolCombinations()
+  const lines = formatLaneToolLedger(ledger, combinations)
+  const rows = lines.filter(line => /^\s+\d+ token\s+[\d.]+%\s/.test(line))
+  // 每个模型可见 lane 工具一行：常驻目录 + 延迟目录 + 原生目录 + request + coding（含 read）。
+  const expected = new Set([...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]
+    .map(tool => tool.name).concat(LANE_TOOL_REQUEST_TOOL_NAME, ...LANE_CODING_TOOL_NAMES))
+  assert.equal(rows.length, expected.size)
+  assert.deepEqual(new Set(ledger.map(entry => entry.name)), expected)
+  const sizes = rows.map(line => Number(line.trim().split(/\s+/)[0]))
+  assert.deepEqual(sizes, [...sizes].sort((a, b) => b - a), '按估计 token 从大到小')
+  for (const entry of ledger) assert.ok(rows.some(line => line.includes(` ${entry.name}  [${entry.group}]`)), `${entry.name} 带名字和所属组`)
+  const judged = Math.max(...combinations.map(one => one.estimatedTokens))
+  const visible = ledger.reduce((sum, entry) => sum + entry.tokens, 0)
+  assert.ok(lines.some(line => line.includes('模型可见总量') && line.includes(String(visible))))
+  assert.ok(lines.some(line => line.includes('当前判据总量') && line.includes(String(judged))))
+  // 账与组合同源：全部组常驻就是整张账之和。
+  assert.equal(combinations.at(-1).estimatedTokens, visible)
 })
 
 // 本文件由 `pnpm exec tsx --test` 跑（见 package.json 的 `check:model-schema`）——

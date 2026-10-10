@@ -532,7 +532,7 @@ test('认不出的路径 fail-closed 到全量；认得出的孤立改动仍是 
 
 
 test('spend routing is data-owned and source changes select journeys', () => {
-  assert.equal(SPEND_WALK_FILES.length, 16)
+  assert.equal(SPEND_WALK_FILES.length, 17)
   assert.equal(SPEND_BLOCKING_WALKS.length, 6)
   assert.deepEqual(SPEND_BLOCKING_WALKS.map((walk) => walk.path), [
     'tests/ux/agent-spend-card.walk.mjs',

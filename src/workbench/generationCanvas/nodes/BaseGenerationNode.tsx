@@ -40,6 +40,7 @@ import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimeline
 import { confirmAndRunNode } from '../runner/generationRunController'
 import { selectCanvasNodeById, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
 import { localStepRedoOf } from './localStepRedo'
+import { useHasNodeAttachedPanel } from './nodeAttachedPanel'
 import { NodeErrorReport } from './NodeErrorReport'
 import { NodeRecoverableReport } from './NodeRecoverableReport'
 import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
@@ -211,7 +212,8 @@ function BaseGenerationNodeImpl({
   // 版本宫格铺开时不挂生成浮框（V-1054）：浮框钉在节点正下方、定宽 560，会盖住宫格下面几行；铺开 = 正在挑版本，
   // 和 09-21 结果托盘展开时卸载浮框是同一条约定（不挂才不跑）。收起宫格浮框就回来。
   const versionGridOpen = showVersionCards && Boolean(node.resultStackOpen)
-  const composerWanted = selected && !isMultiSelectActive && !readOnly && !versionGridOpen && nodeHasGenerationComposer(node.kind)
+  const attachedPanelOpen = useHasNodeAttachedPanel(node.id) // 贴着本节点的面板（剪辑面板……）开着时生成面板收起，规矩在 nodeAttachedPanel
+  const composerWanted = selected && !isMultiSelectActive && !readOnly && !versionGridOpen && !attachedPanelOpen && nodeHasGenerationComposer(node.kind)
   const composerMounted = React.useDeferredValue(composerWanted)
   // 被别的节点铺开的版本宫格压住时，标题先藏起来（不然会从卡片缝里漏出来，读着像哪张版本卡的标题）。选中的、自己铺开的在上面，不藏。
   const labelCovered = useLabelCoveredByVersionGrid(node.id, { x: node.position.x, y: node.position.y, width: visualSize.width, height: visualSize.height }, !selected && !node.resultStackOpen)

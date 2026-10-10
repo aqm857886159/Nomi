@@ -27,6 +27,20 @@ export type DesktopMediaBridge = {
       projectBinding?: ProjectBinding
       forceRerun?: boolean
     }) => Promise<{ url: string }>
+    /**
+     * 直接剪辑：把视频的 [startSeconds, endSeconds] 精确切出来 → 新项目素材 mp4（重编码、保持源分辨率）。
+     * 长任务：进度走 onTrimProgress（按 jobId），取消走 cancelTrim。见 electron/video/trimVideo.ts。
+     */
+    trim: (payload: {
+      videoUrl: string
+      startSeconds: number
+      endSeconds: number
+      projectId: string
+      projectBinding?: ProjectBinding
+      jobId: string
+    }) => Promise<{ url: string; assetId?: string; durationSeconds: number }>
+    cancelTrim: (payload: { jobId: string }) => Promise<{ ok: boolean }>
+    onTrimProgress: (callback: (event: { jobId: string; ratio: number }) => void) => () => void
     /** 胶片缩略图条：16 帧横向拼条 jpg → 项目素材 URL（时间轴 clip 全员真帧渲染用）。 */
     extractFilmstrip: (payload: {
       videoUrl: string

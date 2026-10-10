@@ -16,6 +16,7 @@ const SAMPLE: Record<DerivedOutputKind, { source: GenerationCanvasNode; target: 
   'clip-export': { source: node('s', 'clip'), target: 'video', wrongSource: 'text', wrongTarget: 'asset' },
   'shot-table': { source: node('s', 'video', { result: videoResult }), target: 'shot_table', wrongSource: 'text', wrongTarget: 'asset' },
   'video-frame': { source: node('s', 'video', { result: videoResult }), target: 'image', wrongSource: 'text', wrongTarget: 'video' },
+  'video-trim': { source: node('s', 'video', { result: videoResult }), target: 'video', wrongSource: 'text', wrongTarget: 'image' },
 }
 
 describe('derived output rules', () => {

@@ -5,7 +5,7 @@
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
-import { isVideoDepthProgressPhase } from '../videoDepth/videoDepthProgressPhase'
+import { isLocalProcessingProgressPhase } from '../model/localProcessingPhase'
 import { notify } from '../../../ui/notificationPolicy'
 import i18n from '../../../i18n'
 
@@ -77,7 +77,7 @@ export function requestTaskCancel(node: {
   // 把登记放下——编排每批之间会问一次 isTaskCancelRequested。**这里不改节点状态**：
   // 收摊要做的事是把那个还没出片的派生节点删掉（startVideoDepthDerivation），
   // 在这里顺手把它翻成 idle 只会留下一张永远空着的卡。
-  if (isVideoDepthProgressPhase(node.progress?.phase)) {
+  if (isLocalProcessingProgressPhase(node.progress?.phase)) {
     markTaskCancelRequested(node.id)
     useNodeLivePreviewStore.getState().clearPreview(node.id)
     return
