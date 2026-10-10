@@ -5,6 +5,7 @@ import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from 
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { PlanRow } from '../../shared/PlanRows'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
+import { runGroupGenerate } from './groupGenerate'
 
 const mocks = vi.hoisted(() => ({
   confirmGenerationSpend: vi.fn(),
@@ -64,7 +65,6 @@ const allIds = (): string[] => mocks.nodes.map((candidate) => candidate.id)
 
 describe('「生成全部」确认卡逐项勾选', () => {
   it('rows: not generated ticked by default, generated unticked, generating locked', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     const user = userEdits()
     expect(runGroupGenerate(allIds())).toBe('started')
     await vi.waitFor(() => expect(mocks.confirmGenerationSpend).toHaveBeenCalled())
@@ -76,7 +76,6 @@ describe('「生成全部」确认卡逐项勾选', () => {
   })
 
   it('an item the user unticks is in no consent, no execution plan, and no dispatch', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     userEdits(['fresh-2'])
     runGroupGenerate(allIds())
     await vi.waitFor(() => expect(runGenerationNodesByPlan).toHaveBeenCalled())
@@ -87,7 +86,6 @@ describe('「生成全部」确认卡逐项勾选', () => {
   })
 
   it('a generated item can be ticked on purpose; a generating item is never dispatched, even if toggled', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     userEdits([], ['done', 'busy'])
     runGroupGenerate(allIds())
     await vi.waitFor(() => expect(runGenerationNodesByPlan).toHaveBeenCalled())
@@ -97,7 +95,6 @@ describe('「生成全部」确认卡逐项勾选', () => {
   })
 
   it('a node that starts generating elsewhere while the card is open is not dispatched', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     mocks.confirmGenerationSpend.mockImplementation(async () => {
       mocks.nodes = mocks.nodes.map((candidate) => (candidate.id === 'fresh-1' ? { ...candidate, status: 'running' as const } : candidate))
       return true
@@ -108,7 +105,6 @@ describe('「生成全部」确认卡逐项勾选', () => {
   })
 
   it('cancel = nothing consented, nothing dispatched; unticking everything = nothing dispatched either', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     mocks.confirmGenerationSpend.mockResolvedValueOnce(false)
     runGroupGenerate(allIds())
     await vi.waitFor(() => expect(mocks.confirmGenerationSpend).toHaveBeenCalledTimes(1))
@@ -121,7 +117,6 @@ describe('「生成全部」确认卡逐项勾选', () => {
   })
 
   it('clicking 「生成全部」 again while its card is open does not open a second card (no double confirm of one batch)', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     let release: (ok: boolean) => void = () => undefined
     mocks.confirmGenerationSpend.mockImplementation(() => new Promise<boolean>((resolve) => { release = resolve }))
     runGroupGenerate(allIds())
@@ -134,7 +129,6 @@ describe('「生成全部」确认卡逐项勾选', () => {
   })
 
   it('nothing to tick (everything is generating) = empty, the card never opens', async () => {
-    const { runGroupGenerate } = await import('./groupGenerate')
     mocks.nodes = [node('busy', 'running')]
     expect(runGroupGenerate(['busy'])).toBe('empty')
     expect(mocks.confirmGenerationSpend).not.toHaveBeenCalled()
