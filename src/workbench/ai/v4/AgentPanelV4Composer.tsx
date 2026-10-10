@@ -368,6 +368,7 @@ export type V4ModelRow = Readonly<{
    */
   options?: readonly NomiSelectOption[]
   selectedValue?: string
+  disabled?: boolean
   onChange?: (value: string) => void
   /** 这一类目录里一个可用模型都没有时的实话。有它就不画一个按不动的空下拉。 */
   empty?: string
@@ -399,6 +400,7 @@ export function V4ModelPopover({ rows, onOpenLibrary }: { rows: readonly V4Model
             {row.options?.length ? (
               <NomiSelect
                 size="xs"
+                disabled={row.disabled}
                 value={row.selectedValue ?? ''}
                 options={row.options.map(option => ({ ...option, label: compactModelLabel(option.label) }))}
                 onChange={(value) => row.onChange?.(value)}

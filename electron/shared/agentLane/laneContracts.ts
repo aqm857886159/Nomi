@@ -273,7 +273,8 @@ export interface LaneUsage {
 }
 
 /** pi 的思考档（`ModelThinkingLevel`）。中立层复述一遍，是因为 `src/` 那侧 import 不到 pi。 */
-export type LaneThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+export const LANE_THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+export type LaneThinkingLevel = (typeof LANE_THINKING_LEVELS)[number]
 
 /**
  * 推理档位。**全部由 `getSupportedThinkingLevels(model)` derive**，不在我们这侧另列一张表：
