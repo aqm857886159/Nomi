@@ -2,7 +2,13 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { checkBoardManifest, checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs'
+import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { checkBoardManifest, checkPrBoardClaims, checkSourceHash, parsePrBoardClaims } from './check-board-parity.mjs'
+import { hashBoardSourceFiles } from './board-source-hash.mjs'
 
 const CORPUS = "it('board:Main/topbar.title', () => {})"
 const candidates = [{ id: '001-text-A' }, { id: '002-icon' }, { id: '003-text-B' }]
@@ -151,5 +157,51 @@ describe('R8 PR 认领的拍板图元素必须有去处', () => {
     delete m.elements[1].owner
     m.elements[1].userDecision = { quote: '先放着', date: '2026-10-10' }
     assert.deepEqual(checkPrBoardClaims('## 拍板图\n- Main: group.header', { Main: m }), [])
+  })
+})
+
+describe('板源哈希：默认模式不起浏览器，靠哈希判断板改没改', () => {
+  const src = { 'preview/A.html': '<p>abc</p>', 'source/A.dc.html': 'dc' }
+  const hashOf = (files) => hashBoardSourceFiles(files)
+  it('反例：改一个字节、不重抽 → 红', () => {
+    const recorded = hashOf(src)
+    const edited = { ...src, 'preview/A.html': '<p>abd</p>' }
+    const errors = checkSourceHash({ board: 'A', candidatesDoc: { sourceSha256: recorded }, currentHash: hashOf(edited) })
+    assert.match(errors.join('\n'), /板源已改.*node scripts\/board-extract\.mjs/)
+  })
+  it('反例：候选文件里缺哈希 → 红', () => {
+    const errors = checkSourceHash({ board: 'A', candidatesDoc: { candidates: [] }, currentHash: hashOf(src) })
+    assert.match(errors.join('\n'), /缺 sourceSha256/)
+  })
+  it('正例：哈希一致 → 绿', () => {
+    const errors = checkSourceHash({ board: 'A', candidatesDoc: { sourceSha256: hashOf(src) }, currentHash: hashOf(src) })
+    assert.deepEqual(errors, [])
+  })
+  it('哈希对字节敏感、对文件顺序不敏感', () => {
+    assert.notEqual(hashOf({ a: 'x' }), hashOf({ a: 'y' }))
+    assert.equal(hashOf({ a: '1', b: '2' }), hashOf({ b: '2', a: '1' }))
+  })
+})
+
+describe('门岗结构：默认路径不 import 也不调用 playwright', () => {
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const gate = fs.readFileSync(path.join(here, 'check-board-parity.mjs'), 'utf8')
+  const staticImports = gate.split('\n').filter((line) => /^import/.test(line))
+  it('静态 import 里没有 playwright', () => {
+    assert.equal(staticImports.some((line) => /playwright/.test(line)), false)
+  })
+  it('静态 import 的 board-extract 只带常量，抽取函数只在 --reextract 的动态 import 里', () => {
+    const fromExtract = staticImports.filter((line) => /board-extract/.test(line)).join('\n')
+    assert.doesNotMatch(fromExtract, /extractAllBoards|renderCandidatesFile/)
+    assert.match(gate, /if \(reextract\) \{[\s\S]*await import\('\.\/board-extract\.mjs'\)/)
+  })
+  it('默认模式真跑通：PLAYWRIGHT_BROWSERS_PATH 指空目录也 exit 0', () => {
+    const empty = fs.mkdtempSync(path.join(process.env.TMPDIR || process.env.TEMP || '.', 'bp-nobrowser-'))
+    const r = spawnSync(process.execPath, [path.join(here, 'check-board-parity.mjs')], {
+      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: empty },
+      encoding: 'utf8',
+    })
+    fs.rmSync(empty, { recursive: true, force: true })
+    assert.equal(r.status, 0, r.stdout + r.stderr)
   })
 })

@@ -2,6 +2,7 @@
   "board": "CreationDoc",
   "extractor": "board-extract@1",
   "source": "preview/CreationDoc.html",
+  "sourceSha256": "4f72cb59c25bb21a2f7cf833460786b38fe385df61f8c499761a32199b9e7584",
   "viewport": {
     "width": 1280,
     "height": 800

@@ -14,6 +14,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { hashBoardSource } from './board-source-hash.mjs'
+
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const BOARDS_DIR = path.join(REPO_ROOT, 'docs/design/boards/2026-10-08')
 export const BOARD_NAMES = Object.freeze([
@@ -160,11 +162,13 @@ export function previewFileOf(board) {
   return path.join(BOARDS_DIR, 'preview', `${board}.html`)
 }
 
-export function renderCandidatesFile(board, candidates) {
+/** 候选文件正文。sourceSha256 = 抽取时板源的哈希，门岗默认模式靠它判断板改没改（不需要重抽）。 */
+export function renderCandidatesFile(board, candidates, sourceSha256) {
   return `${JSON.stringify({
     board,
     extractor: EXTRACTOR_VERSION,
     source: `preview/${board}.html`,
+    sourceSha256,
     viewport: VIEWPORT,
     candidates,
   }, null, 2)}\n`
@@ -196,7 +200,7 @@ async function main() {
   const all = await extractAllBoards()
   let drift = 0
   for (const board of BOARD_NAMES) {
-    const text = renderCandidatesFile(board, all[board])
+    const text = renderCandidatesFile(board, all[board], hashBoardSource(BOARDS_DIR, board))
     const file = candidatesFileOf(board)
     if (check) {
       const committed = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''

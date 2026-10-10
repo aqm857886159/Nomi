@@ -19,7 +19,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { BOARD_NAMES, BOARDS_DIR, REPO_ROOT, candidatesFileOf, extractAllBoards, renderCandidatesFile } from './board-extract.mjs'
+// 默认模式只用常量和哈希：不 import 抽取（抽取要浏览器），抽取在 --reextract 里动态加载。
+import { BOARD_NAMES, BOARDS_DIR, REPO_ROOT } from './board-extract.mjs'
+import { hashBoardSource } from './board-source-hash.mjs'
 
 export const BOARD_STATUSES = Object.freeze(['implemented', 'in-progress', 'missing', 'deferred', 'dropped'])
 export const BOARD_STATES = Object.freeze(['empty', 'loading', 'error', 'selected', 'disabled', 'hover', 'narrow', 'long-text', 'zh-en', 'dark'])
@@ -173,29 +175,60 @@ export function loadManifests(dir = BOARDS_DIR) {
   return out
 }
 
-export async function runBoardParity({ dir = BOARDS_DIR } = {}) {
+/**
+ * 候选与板源哈希是否对得上（纯函数，可测）。
+ * candidatesDoc = 解析后的 <Board>.candidates.json；currentHash = 当前板源的哈希。
+ */
+export function checkSourceHash({ board, candidatesDoc, currentHash }) {
+  if (!candidatesDoc || typeof candidatesDoc.sourceSha256 !== 'string' || !candidatesDoc.sourceSha256) {
+    return [`[${board}] candidates.json 缺 sourceSha256（抽取时没记板源哈希）：重跑 node scripts/board-extract.mjs`]
+  }
+  if (candidatesDoc.sourceSha256 !== currentHash) {
+    return [`[${board}] 板源已改（哈希对不上）：板改了，重跑 node scripts/board-extract.mjs 并让清单认领新候选`]
+  }
+  return []
+}
+
+/**
+ * 默认模式：只看哈希与清单，不起浏览器（CI 的 Contracts job 没有 Playwright 浏览器）。
+ * reextract = true（显式 --reextract，只在本机或装了浏览器的环境）：再真抽一遍，比对候选文件全文。
+ */
+export async function runBoardParity({ dir = BOARDS_DIR, reextract = false } = {}) {
   const errors = []
   const manifests = loadManifests(dir)
   const corpus = loadAssertionCorpus()
-  const fresh = await extractAllBoards()
   for (const board of BOARD_NAMES) {
     const file = path.join(dir, `${board}.candidates.json`)
     const committed = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
-    if (committed !== renderCandidatesFile(board, fresh[board])) {
-      errors.push(`[${board}] 板源候选与 candidates.json 不一致（板改了，或抽取规则变了）：重跑 node scripts/board-extract.mjs 并让清单认领新候选`)
+    if (!committed) {
+      errors.push(`[${board}] 缺候选文件 ${board}.candidates.json：重跑 node scripts/board-extract.mjs`)
+      continue
     }
+    const doc = JSON.parse(committed)
+    errors.push(...checkSourceHash({ board, candidatesDoc: doc, currentHash: hashBoardSource(dir, board) }))
     if (!manifests[board]) {
       errors.push(`[${board}] 缺清单 ${board}.board.json`)
       continue
     }
-    const candidates = JSON.parse(renderCandidatesFile(board, fresh[board])).candidates
-    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates, assertionCorpus: corpus }))
+    errors.push(...checkBoardManifest({ board, manifest: manifests[board], candidates: doc.candidates, assertionCorpus: corpus }))
+  }
+  if (reextract) {
+    // 显式开关：动态加载抽取（会起 Playwright 浏览器），逐字节比对候选文件。
+    const { extractAllBoards, renderCandidatesFile } = await import('./board-extract.mjs')
+    const fresh = await extractAllBoards()
+    for (const board of BOARD_NAMES) {
+      const file = path.join(dir, `${board}.candidates.json`)
+      const committed = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
+      if (committed !== renderCandidatesFile(board, fresh[board], hashBoardSource(dir, board))) {
+        errors.push(`[${board}] 重抽结果与 candidates.json 不一致（--reextract）：重跑 node scripts/board-extract.mjs`)
+      }
+    }
   }
   return errors
 }
 
 async function main() {
-  const errors = await runBoardParity()
+  const errors = await runBoardParity({ reextract: process.argv.includes('--reextract') })
   if (errors.length) {
     console.error(`拍板图对账未通过（${errors.length} 条）：`)
     for (const e of errors) console.error(`  ✗ ${e}`)

@@ -2,6 +2,7 @@
   "board": "EmptyStates",
   "extractor": "board-extract@1",
   "source": "preview/EmptyStates.html",
+  "sourceSha256": "214533a3219fc4ef9b1937c36625416d2567076c294e30ee4ab51981dbd662ae",
   "viewport": {
     "width": 1280,
     "height": 800

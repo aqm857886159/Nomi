@@ -2,6 +2,7 @@
   "board": "Creation",
   "extractor": "board-extract@1",
   "source": "preview/Creation.html",
+  "sourceSha256": "3148fa35d701c142b6656b6079a00d79bf72cd66ff3d4d6f59b86b52a5338474",
   "viewport": {
     "width": 1280,
     "height": 800

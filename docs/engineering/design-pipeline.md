@@ -52,7 +52,13 @@
 
 ## 门岗
 
-- `pnpm run check:board-parity`：先跑单测（`scripts/check-board-parity.node-test.mjs`，每条规则一个反例），再重抽 12 张板的候选、和仓库里的 `candidates.json` 比对，最后跑清单规则。已挂进 `gates:contracts`。
+- `pnpm run check:board-parity`：先跑单测（`scripts/check-board-parity.node-test.mjs`，每条规则一个反例），再跑清单规则。**默认模式不起浏览器**（CI 的 Contracts job 没有 Playwright 浏览器）：
+  - 每张板的 `<Board>.candidates.json` 记着抽取时板源的 sha256（`sourceSha256`，覆盖亮 / 暗预览、画板源码和 `source/canvas.json`，算法在 `scripts/board-source-hash.mjs`）。
+  - 默认模式只比哈希：板源哈希 ≠ 记录的哈希，或文件里缺哈希，就红，提示「板改了，重跑 `node scripts/board-extract.mjs`」。
+  - 候选 id 与清单的认领关系，照 `candidates.json` 里的候选检查。
+  - 真重抽比对是显式开关 `node scripts/check-board-parity.mjs --reextract`：会动态加载 Playwright 真抽一遍、逐字节比对候选文件。只在本机或装了浏览器的环境跑，**不进 gates**。
+  - 改了板源：本机跑 `node scripts/board-extract.mjs` 重抽，把新的候选和哈希一起提交。
+  - 已挂进 `gates:contracts`，并在推送前门（`scripts/pre-push-contracts.mjs`）里跑默认模式。
 - 清单规则（R1–R8）：每个候选恰好被一个元素或 decor 认领；status 合法；missing / in-progress 有 owner；implemented 的断言名真在走查里；deferred / dropped 有用户原话和日期；旧功能的去处是存在的元素；states 来自词表；PR 认领的元素在合并前有去处。
 - 合并前：`scripts/merge-preflight.mjs` 读 PR 正文的 `## 拍板图`（一行一板：`- Main: 元素id, 元素id`），这些元素在 PR 头上必须是 implemented，或带用户原话的 deferred / dropped，否则红。
 
@@ -67,3 +73,12 @@
 
 - **阶段 A（2026-10-10 已做）**：流程写进仓库、清单格式、抽取脚本、门岗与单测、12 张板的对账（手填 status，状态来自生产字样探测，待真 App 核）。
 - **阶段 B（未做）**：组件状态表自动带出；旧功能普查自动扫描产品；验收单按清单生成；走查断言补齐（当前没有任何 `board:` 断言，所以没有 implemented 元素）。
+
+## 方向检查（自写登记 gate-family）
+
+这份流程新增的门岗 `check:board-parity`（`scripts/check-board-parity.mjs`、`scripts/board-extract.mjs`）属于自写登记条目 `gate-family`（门岗家族，状态 under-review）。按 P1，碰这个家族的修补要写清「为什么现在换不了现成方案、哪天换」：
+
+- **查过的现成方案**：视觉回归类工具（Playwright 截图比对、Storybook / Chromatic 这类）比的是「同一个组件前后两次渲染的像素」；它们回答不了这里要答的问题——「拍板图上的这个元素，在产品里有没有主人、有没有断言、推迟有没有用户原话」。这是 Nomi 自己的交付流程约束（拍板图 → 清单 → 认领 → 合并前对账），没有现成件可接。
+- **为什么现在换不了**：对账门岗只做清单的结构检查（候选是否都被认领、状态是否合法、断言名是否存在、板源哈希是否漂移），不含任何通用能力；真正通用的那一步（无界面浏览器抽元素）已经用 Playwright，不自写。
+- **哪天复评**：随 `gate-family` 登记的 `reviewBy`（2026-10-31）一起复评；届时若门岗家族整体迁到现成的策略引擎，这道门岗作为其中一条规则跟着迁。
+- **这一刀修的是什么**（2026-10-10）：门岗默认模式在 CI 上起浏览器失败——改成比对板源哈希，重抽比对留给显式的 `--reextract`。不是同一个 bug 的反复修补，是新门岗上线当天发现的环境假设错误（Contracts job 不装浏览器）。

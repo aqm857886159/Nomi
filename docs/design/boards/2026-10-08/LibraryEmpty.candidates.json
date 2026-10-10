@@ -2,6 +2,7 @@
   "board": "LibraryEmpty",
   "extractor": "board-extract@1",
   "source": "preview/LibraryEmpty.html",
+  "sourceSha256": "1257c5ac9adc9fd8322eb72b8ec19b99dc456847637127f0360204b177dc5d3b",
   "viewport": {
     "width": 1280,
     "height": 800

@@ -2,6 +2,7 @@
   "board": "Edges",
   "extractor": "board-extract@1",
   "source": "preview/Edges.html",
+  "sourceSha256": "21096e105a83f2b799090c690cd31db0aad8346246449f6ab23738b28345444e",
   "viewport": {
     "width": 1280,
     "height": 800

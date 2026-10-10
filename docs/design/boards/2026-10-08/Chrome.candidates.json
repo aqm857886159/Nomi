@@ -2,6 +2,7 @@
   "board": "Chrome",
   "extractor": "board-extract@1",
   "source": "preview/Chrome.html",
+  "sourceSha256": "c9b164f6ae4efe8dbea7066ca4f8c12970d5641e3a4abdb397b77845551a6064",
   "viewport": {
     "width": 1280,
     "height": 800

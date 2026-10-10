@@ -2,6 +2,7 @@
   "board": "List",
   "extractor": "board-extract@1",
   "source": "preview/List.html",
+  "sourceSha256": "2a8f5d912723a5fbb1e4c232a7a222c81e914e8e9150a216b33755006d297c94",
   "viewport": {
     "width": 1280,
     "height": 800

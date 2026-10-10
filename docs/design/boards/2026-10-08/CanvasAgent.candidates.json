@@ -2,6 +2,7 @@
   "board": "CanvasAgent",
   "extractor": "board-extract@1",
   "source": "preview/CanvasAgent.html",
+  "sourceSha256": "56be05ef680340e036c9c36265d3445e6d1ac04fa95d90cf96690beeef2b5ce2",
   "viewport": {
     "width": 1280,
     "height": 800

@@ -2,6 +2,7 @@
   "board": "TextNode",
   "extractor": "board-extract@1",
   "source": "preview/TextNode.html",
+  "sourceSha256": "7ed979cf3d2a60f3ee849affa569b2bf10ab4ef00ef8bc2100c9231c013daed4",
   "viewport": {
     "width": 1280,
     "height": 800
