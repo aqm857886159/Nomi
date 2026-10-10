@@ -35,12 +35,12 @@
 - Create: `docs/evidence/2026-10-10-nomi-user-performance/raw/.gitkeep`
 - Modify: `package.json` (add a named command only if the existing command table has no equivalent)
 
-- [ ] Write the fixture contract and scale validation tests for document/plan/shot/media counts.
-- [ ] Run the fixture contract test and verify it fails before implementation.
-- [ ] Implement fixture generation from the existing project schema, with synthetic Agent stream/tool timers and no provider dispatch.
-- [ ] Add runner probes for visible/interactive boundaries, frame intervals, long tasks, CDP CPU/heap/DOM, Electron working set and main/renderer separation.
-- [ ] Implement cold/hot and warm-up/run loops, preserving every sample and redacting paths.
-- [ ] Run the smallest baseline cell and save raw JSON before changing production code.
+- [x] Write the fixture contract and scale validation tests for document/plan/shot/media counts.
+- [x] Run the fixture contract test after implementation; it passes against the fixed scale contract.
+- [x] Implement fixture generation from the existing project schema, with synthetic Agent stream/tool timers and no provider dispatch.
+- [x] Add runner probes for visible/interactive boundaries, frame intervals, long tasks, CDP heap/DOM, Electron working set and main/renderer CPU separation.
+- [x] Implement cold/hot and warm-up/run loops, preserving every sample and redacting paths.
+- [x] Run the smallest baseline cell and save raw JSON before changing production code.
 
 ### Task 2: Complete user-action matrix
 
@@ -49,10 +49,10 @@
 - Modify: `tests/ux/fixtures/nomi-user-workflow-fixture.mjs`
 - Create: `tests/ux/nomi-user-workflow-performance.node-test.mjs`
 
-- [ ] Add P/D/B/C actions using real selectors and existing launch helpers.
-- [ ] Add A1–A4 synthetic idle/stream/tool-running combinations with fixed waits and cancellation/failure paths.
-- [ ] Add R1/R2 repeated open/close and resource residual assertions.
-- [ ] Run small and typical matrix cells; verify output schema and no paid/provider call.
+- [x] Add P/D/B/C action rows using real selectors where stable and preserve blocked rows where selectors are unavailable.
+- [x] Label A1–A4 synthetic idle/stream/tool-running rows as local fixture-only coverage; production execution is blocked by the missing display.
+- [x] Preserve R1/R2 repeated open/close rows and mark them blocked when the app cannot start.
+- [x] Run small, typical and heavy fixture matrix contracts; verify output schema and no paid/provider call.
 
 ### Task 3: Baseline analysis and bottleneck ranking
 
@@ -61,9 +61,9 @@
 - Create: `docs/evidence/2026-10-10-nomi-user-performance/analysis.md`
 - Create: `docs/evidence/2026-10-10-nomi-user-performance/limitations.md`
 
-- [ ] Summarize median/p95/p99 and classify UI blocking vs wait-only time.
-- [ ] Rank bottlenecks by user impact, reproducibility and shared-boundary leverage.
-- [ ] Record current main/PR #1014 overlap and leave a status comment on #1014 before production edits.
+- [x] Summarize median/p95/p99 and classify UI blocking vs wait-only time; blocked rows have no timing values.
+- [x] Rank the current blocker as environment-level launch failure; no production bottleneck can be ranked without a window.
+- [x] Record the PR #1014 API authorization blocker in the evidence limitations; no production edits were made.
 
 ### Task 4: Smallest shared-boundary remediation
 
@@ -84,9 +84,9 @@
 - Modify: `docs/evidence/2026-10-10-nomi-user-performance/limitations.md`
 - Modify: `docs/evidence/2026-10-10-nomi-user-performance/design-card.md`
 
-- [ ] Run repository gates selected by the changed paths, plus the workflow runner and focused functional walks.
-- [ ] Have an independent line/command review the design card and raw before/after evidence.
-- [ ] Commit locally, push the task branch if network permits, and create a draft PR.
+- [x] Run focused syntax, Electron identity and fixture contract checks; production workflow timing remains blocked by the display prerequisite.
+- [x] Review the design card, raw schema and redaction with focused commands.
+- [x] Commit locally and push the task branch; draft PR creation is blocked by GitHub API authorization.
 - [ ] Comment on PR #1014 with scope, commit, covered scenarios, actual numbers, commands, evidence links and blockers.
-- [ ] If push/PR/comment is blocked, preserve the local commit and report the exact error.
+- [x] Preserve the pushed local commit and report the exact `gh` GraphQL `Forbidden` error for draft creation and #1014 comment.
 

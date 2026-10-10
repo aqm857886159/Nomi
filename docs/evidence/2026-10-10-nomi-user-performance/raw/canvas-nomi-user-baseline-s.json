@@ -1,0 +1,547 @@
+{
+  "label": "nomi-user-baseline-s",
+  "commit": "62ee6bc117561093f0608d0156e9f5983e7ce553",
+  "dirty": true,
+  "platform": "linux",
+  "arch": "x64",
+  "machine": {
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpus": 5,
+    "totalMemoryGB": 17.6
+  },
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "viewportOverride": {
+    "width": 1280,
+    "height": 933
+  },
+  "sampleCount": 1,
+  "warmupCount": 0,
+  "scales": [
+    "S"
+  ],
+  "scenarios": [
+    "cold-open",
+    "media-reveal",
+    "video-hover",
+    "reload-heavy"
+  ],
+  "leg": {
+    "devServer": false,
+    "cpuThrottleRate": 1,
+    "kind": "prod"
+  },
+  "results": [
+    {
+      "diagnostics": {
+        "message": "\n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!",
+        "counts": null,
+        "captureErrors": [
+          "TypeError: Cannot read properties of null (reading 'evaluate')",
+          "TypeError: Cannot read properties of null (reading 'screenshot')"
+        ]
+      },
+      "scale": "S",
+      "scenario": "cold-open",
+      "runIndex": 0,
+      "fixture": {
+        "scale": "S",
+        "imageNodes": 24,
+        "videoNodes": 24,
+        "nodes": 48,
+        "edges": 96,
+        "clips": 12,
+        "imageBytes": [
+          59059,
+          213553
+        ],
+        "imagePreviewBytes": [
+          59059,
+          213553
+        ],
+        "videoBytes": [
+          391891,
+          390499
+        ],
+        "mediaProfile": "synthetic-preview"
+      },
+      "error": "Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 553
+    },
+    {
+      "diagnostics": {
+        "message": "\n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!",
+        "counts": null,
+        "captureErrors": [
+          "TypeError: Cannot read properties of null (reading 'evaluate')",
+          "TypeError: Cannot read properties of null (reading 'screenshot')"
+        ]
+      },
+      "scale": "S",
+      "scenario": "media-reveal",
+      "runIndex": 0,
+      "fixture": {
+        "scale": "S",
+        "imageNodes": 24,
+        "videoNodes": 24,
+        "nodes": 48,
+        "edges": 96,
+        "clips": 12,
+        "imageBytes": [
+          59059,
+          213553
+        ],
+        "imagePreviewBytes": [
+          59059,
+          213553
+        ],
+        "videoBytes": [
+          391891,
+          390499
+        ],
+        "mediaProfile": "synthetic-preview"
+      },
+      "error": "Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 489
+    },
+    {
+      "diagnostics": {
+        "message": "\n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!",
+        "counts": null,
+        "captureErrors": [
+          "TypeError: Cannot read properties of null (reading 'evaluate')",
+          "TypeError: Cannot read properties of null (reading 'screenshot')"
+        ]
+      },
+      "scale": "S",
+      "scenario": "video-hover",
+      "runIndex": 0,
+      "fixture": {
+        "scale": "S",
+        "imageNodes": 24,
+        "videoNodes": 24,
+        "nodes": 48,
+        "edges": 96,
+        "clips": 12,
+        "imageBytes": [
+          59059,
+          213553
+        ],
+        "imagePreviewBytes": [
+          59059,
+          213553
+        ],
+        "videoBytes": [
+          391891,
+          390499
+        ],
+        "mediaProfile": "synthetic-preview"
+      },
+      "error": "Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 543
+    },
+    {
+      "diagnostics": {
+        "message": "\n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!",
+        "counts": null,
+        "captureErrors": [
+          "TypeError: Cannot read properties of null (reading 'evaluate')",
+          "TypeError: Cannot read properties of null (reading 'screenshot')"
+        ]
+      },
+      "scale": "S",
+      "scenario": "reload-heavy",
+      "runIndex": 0,
+      "fixture": {
+        "scale": "S",
+        "imageNodes": 24,
+        "videoNodes": 24,
+        "nodes": 48,
+        "edges": 96,
+        "clips": 12,
+        "imageBytes": [
+          59059,
+          213553
+        ],
+        "imagePreviewBytes": [
+          59059,
+          213553
+        ],
+        "videoBytes": [
+          391891,
+          390499
+        ],
+        "mediaProfile": "synthetic-preview"
+      },
+      "error": "Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24",
+      "pageErrors": [],
+      "consoleErrors": [],
+      "elapsedMs": 500
+    }
+  ],
+  "warmupFailures": [],
+  "summary": {
+    "S/cold-open": {
+      "samples": 1,
+      "errors": 1,
+      "metrics": {
+        "coldFirstCanvasMs": null,
+        "coldMediaSettledMs": null,
+        "fps": null,
+        "frameGapP95Ms": null,
+        "maxFrameGapMs": null,
+        "longTaskMs": null,
+        "longTaskP95Ms": null,
+        "maxLoadingImages": null,
+        "maxLoadingVideos": null,
+        "maxActiveVideos": null,
+        "layoutCount": null,
+        "recalcStyleCount": null,
+        "scriptDurationMs": null,
+        "layoutDurationMs": null,
+        "jsHeapUsedMB": null,
+        "visibleMedia": null,
+        "visibleMediaNodes": null,
+        "visibleMediaPending": null,
+        "visibleMediaFailures": null,
+        "loadedImages": null,
+        "loadedVideos": null,
+        "activeVideos": null,
+        "rendererWorkingSetMB": null,
+        "reloadHeapDeltaMB": null,
+        "reloadDurationP95Ms": null
+      },
+      "advisory": {
+        "perMove": {
+          "scriptPerMoveMs": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          },
+          "layoutPerMove": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          }
+        },
+        "dragOverPan": {
+          "scriptRatio": {
+            "median": null,
+            "samples": []
+          },
+          "layoutRatio": {
+            "median": null,
+            "samples": []
+          }
+        },
+        "actionLatency": {
+          "samples": [],
+          "p95Ms": null,
+          "medianMs": null
+        },
+        "offCanvasRender": {
+          "installed": false,
+          "windows": 0,
+          "totalMax": null,
+          "totalMedian": null,
+          "perComponentMax": {
+            "CategoryTree": null,
+            "AssetLibraryPanel": null,
+            "AssetPicker": null,
+            "TaskCenterButton": null,
+            "TaskCenterPanel": null,
+            "TimelinePreview": null,
+            "PreviewSourcePanel": null,
+            "OnboardingChecklist": null
+          }
+        }
+      },
+      "verdict": {
+        "pass": false,
+        "advisoryOnly": false,
+        "budgetsAdvisory": false,
+        "hardFailures": [
+          {
+            "runIndex": 0,
+            "reason": "scenario error: Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24"
+          }
+        ],
+        "budgetChecks": []
+      }
+    },
+    "S/media-reveal": {
+      "samples": 1,
+      "errors": 1,
+      "metrics": {
+        "coldFirstCanvasMs": null,
+        "coldMediaSettledMs": null,
+        "fps": null,
+        "frameGapP95Ms": null,
+        "maxFrameGapMs": null,
+        "longTaskMs": null,
+        "longTaskP95Ms": null,
+        "maxLoadingImages": null,
+        "maxLoadingVideos": null,
+        "maxActiveVideos": null,
+        "layoutCount": null,
+        "recalcStyleCount": null,
+        "scriptDurationMs": null,
+        "layoutDurationMs": null,
+        "jsHeapUsedMB": null,
+        "visibleMedia": null,
+        "visibleMediaNodes": null,
+        "visibleMediaPending": null,
+        "visibleMediaFailures": null,
+        "loadedImages": null,
+        "loadedVideos": null,
+        "activeVideos": null,
+        "rendererWorkingSetMB": null,
+        "reloadHeapDeltaMB": null,
+        "reloadDurationP95Ms": null
+      },
+      "advisory": {
+        "perMove": {
+          "scriptPerMoveMs": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          },
+          "layoutPerMove": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          }
+        },
+        "dragOverPan": {
+          "scriptRatio": {
+            "median": null,
+            "samples": []
+          },
+          "layoutRatio": {
+            "median": null,
+            "samples": []
+          }
+        },
+        "actionLatency": {
+          "samples": [],
+          "p95Ms": null,
+          "medianMs": null
+        },
+        "offCanvasRender": {
+          "installed": false,
+          "windows": 0,
+          "totalMax": null,
+          "totalMedian": null,
+          "perComponentMax": {
+            "CategoryTree": null,
+            "AssetLibraryPanel": null,
+            "AssetPicker": null,
+            "TaskCenterButton": null,
+            "TaskCenterPanel": null,
+            "TimelinePreview": null,
+            "PreviewSourcePanel": null,
+            "OnboardingChecklist": null
+          }
+        }
+      },
+      "verdict": {
+        "pass": false,
+        "advisoryOnly": false,
+        "budgetsAdvisory": false,
+        "hardFailures": [
+          {
+            "runIndex": 0,
+            "reason": "scenario error: Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24"
+          }
+        ],
+        "budgetChecks": []
+      }
+    },
+    "S/video-hover": {
+      "samples": 1,
+      "errors": 1,
+      "metrics": {
+        "coldFirstCanvasMs": null,
+        "coldMediaSettledMs": null,
+        "fps": null,
+        "frameGapP95Ms": null,
+        "maxFrameGapMs": null,
+        "longTaskMs": null,
+        "longTaskP95Ms": null,
+        "maxLoadingImages": null,
+        "maxLoadingVideos": null,
+        "maxActiveVideos": null,
+        "layoutCount": null,
+        "recalcStyleCount": null,
+        "scriptDurationMs": null,
+        "layoutDurationMs": null,
+        "jsHeapUsedMB": null,
+        "visibleMedia": null,
+        "visibleMediaNodes": null,
+        "visibleMediaPending": null,
+        "visibleMediaFailures": null,
+        "loadedImages": null,
+        "loadedVideos": null,
+        "activeVideos": null,
+        "rendererWorkingSetMB": null,
+        "reloadHeapDeltaMB": null,
+        "reloadDurationP95Ms": null
+      },
+      "advisory": {
+        "perMove": {
+          "scriptPerMoveMs": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          },
+          "layoutPerMove": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          }
+        },
+        "dragOverPan": {
+          "scriptRatio": {
+            "median": null,
+            "samples": []
+          },
+          "layoutRatio": {
+            "median": null,
+            "samples": []
+          }
+        },
+        "actionLatency": {
+          "samples": [],
+          "p95Ms": null,
+          "medianMs": null
+        },
+        "offCanvasRender": {
+          "installed": false,
+          "windows": 0,
+          "totalMax": null,
+          "totalMedian": null,
+          "perComponentMax": {
+            "CategoryTree": null,
+            "AssetLibraryPanel": null,
+            "AssetPicker": null,
+            "TaskCenterButton": null,
+            "TaskCenterPanel": null,
+            "TimelinePreview": null,
+            "PreviewSourcePanel": null,
+            "OnboardingChecklist": null
+          }
+        }
+      },
+      "verdict": {
+        "pass": false,
+        "advisoryOnly": false,
+        "budgetsAdvisory": false,
+        "hardFailures": [
+          {
+            "runIndex": 0,
+            "reason": "scenario error: Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24"
+          }
+        ],
+        "budgetChecks": []
+      }
+    },
+    "S/reload-heavy": {
+      "samples": 1,
+      "errors": 1,
+      "metrics": {
+        "coldFirstCanvasMs": null,
+        "coldMediaSettledMs": null,
+        "fps": null,
+        "frameGapP95Ms": null,
+        "maxFrameGapMs": null,
+        "longTaskMs": null,
+        "longTaskP95Ms": null,
+        "maxLoadingImages": null,
+        "maxLoadingVideos": null,
+        "maxActiveVideos": null,
+        "layoutCount": null,
+        "recalcStyleCount": null,
+        "scriptDurationMs": null,
+        "layoutDurationMs": null,
+        "jsHeapUsedMB": null,
+        "visibleMedia": null,
+        "visibleMediaNodes": null,
+        "visibleMediaPending": null,
+        "visibleMediaFailures": null,
+        "loadedImages": null,
+        "loadedVideos": null,
+        "activeVideos": null,
+        "rendererWorkingSetMB": null,
+        "reloadHeapDeltaMB": null,
+        "reloadDurationP95Ms": null
+      },
+      "advisory": {
+        "perMove": {
+          "scriptPerMoveMs": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          },
+          "layoutPerMove": {
+            "median": null,
+            "p95": null,
+            "samples": []
+          }
+        },
+        "dragOverPan": {
+          "scriptRatio": {
+            "median": null,
+            "samples": []
+          },
+          "layoutRatio": {
+            "median": null,
+            "samples": []
+          }
+        },
+        "actionLatency": {
+          "samples": [],
+          "p95Ms": null,
+          "medianMs": null
+        },
+        "offCanvasRender": {
+          "installed": false,
+          "windows": 0,
+          "totalMax": null,
+          "totalMedian": null,
+          "perComponentMax": {
+            "CategoryTree": null,
+            "AssetLibraryPanel": null,
+            "AssetPicker": null,
+            "TaskCenterButton": null,
+            "TaskCenterPanel": null,
+            "TimelinePreview": null,
+            "PreviewSourcePanel": null,
+            "OnboardingChecklist": null
+          }
+        }
+      },
+      "verdict": {
+        "pass": false,
+        "advisoryOnly": false,
+        "budgetsAdvisory": false,
+        "hardFailures": [
+          {
+            "runIndex": 0,
+            "reason": "scenario error: Error: \n❌ Nomi 走查启动失败（canvas-perf-benchmark）：Electron 起不来（electron.launch 失败/超时，45000ms）\n\n按可能性排查：\n  1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，\n     或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。\n  2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。\n  3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_ALLOW_MULTI_INSTANCE=1，本机 Nomi.app 开着也不该被挡；\n     只有当别的进程正占着同一个 --user-data-dir 时才可能重新出现。\n\n（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）\n\n原始错误：electron.launch: Process failed to launch!\n    at launchNomiApp (file://<repo>/tests/ux/_launchApp.mjs:453:11)\n    at async runScenario (file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1215:28)\n    at async file://<repo>/tests/ux/canvas-performance-benchmark.e2e.mjs:1816:24"
+          }
+        ],
+        "budgetChecks": []
+      }
+    }
+  },
+  "runtimeVersions": null,
+  "pass": false
+}

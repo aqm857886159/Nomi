@@ -22,7 +22,19 @@ The measurements cover project/library navigation, multi-document editing, multi
 - `analysis.md` — baseline bottleneck ranking and before/after comparisons.
 - `limitations.md` — unavailable machines, unmeasured surfaces and synthetic-fixture boundaries.
 
+## Reproduction commands
+
+```bash
+node --test tests/ux/nomi-user-workflow-performance.node-test.mjs
+GIT_COMMIT=$(git rev-parse HEAD) node tests/ux/nomi-user-workflow-performance.e2e.mjs --scale=small,typical,heavy --runs=5 --warmup=1
+node scripts/summarize-nomi-user-performance.mjs
+```
+
+The second command requires a display-capable Electron host. In this container it exits with blocked rows after the launch probe; use the same command on a host with Xvfb or a native display before interpreting budgets.
+
 ## Current baseline status
 
-The first baseline is being run from branch `perf/nomi-user-workflows-20261010` against `origin/main` at `4e1eecdad`. Existing canvas-scale and project-open probes are reused as historical comparison only; their old numbers are not this task's acceptance baseline.
+The first baseline was run from branch `perf/nomi-user-workflows-20261010` against `origin/main` at `4e1eecdad`. Existing canvas-scale and project-open probes are reused as historical comparison only; their old numbers are not this task's acceptance baseline. The new workflow runner produced one raw report for small/typical/heavy fixture contracts, with all 45 scenario rows marked `blocked` before the first window because this execution environment has no `$DISPLAY`/Xvfb. The earlier canvas S-scale launch report is retained alongside it under `raw/`; neither report contributes timing numbers.
+
+The fixture/schema node tests pass and verify the small tier's 2 documents, 2 plans, 24 shots, 4 images and 2 videos. Production UI timings, CPU, memory trend and optimization deltas remain unmeasured until a display-capable runner executes the same command with one warm-up and five measured runs.
 
