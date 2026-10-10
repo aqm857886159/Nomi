@@ -26,6 +26,7 @@ export const LAB_SCREENS = {
   'find-reference': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/findReference/states'), baselineDir: path.join(BASELINE_ROOT, 'find-reference') },
   'creation-columns': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/creationColumns/states'), baselineDir: path.join(BASELINE_ROOT, 'creation-columns') },
   'shot-table': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/shotTable/states'), baselineDir: path.join(BASELINE_ROOT, 'shot-table') },
+  'canvas-group-header': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasGroupHeader/states'), baselineDir: path.join(BASELINE_ROOT, 'canvas-group-header') },
   'process-feedback': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/processFeedback/states'), baselineDir: path.join(BASELINE_ROOT, 'process-feedback') },
   'settings-sound': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/settingsSound/states'), baselineDir: path.join(BASELINE_ROOT, 'settings-sound') },
   'catalog-liveness': { registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/catalogLiveness/states'), baselineDir: path.join(BASELINE_ROOT, 'catalog-liveness') },

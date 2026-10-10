@@ -244,6 +244,7 @@
     "design-lab:walk:vendor-order": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-vendor-order.walk.mjs",
     "design-lab:walk:canvas-add-menu": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-canvas-add-menu.walk.mjs",
     "design-lab:walk:settings": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-settings.walk.mjs",
+    "design-lab:walk:canvas-group-header": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-canvas-group-header.walk.mjs",
     "design-lab:walk:canvas-frame": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-canvas-frame.walk.mjs",
     "design-lab:walk:node-composer-bar": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-node-composer-bar.walk.mjs",
     "design-lab:walk:node-quick-actions": "python3 scripts/with-gates-lock.py -- node ./tests/ux/design-lab-node-quick-actions.walk.mjs",

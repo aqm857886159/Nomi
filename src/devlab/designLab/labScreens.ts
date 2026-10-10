@@ -6,6 +6,8 @@ import { SETTINGS_SOUND_STATES } from './settingsSound/states/01-sound'
 import { CATALOG_LIVENESS_STATES } from './catalogLiveness/states/01-listing'
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
+import { CANVAS_GROUP_HEADER_STATES } from './canvasGroupHeader/states/01-header'
+import { CANVAS_GROUP_HEADER_CELL_HEIGHT, CANVAS_GROUP_HEADER_CELL_WIDTH } from './canvasGroupHeader/canvasGroupHeaderLabKit'
 import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
 import { NODE_QUICK_ACTIONS_STATES } from './nodeQuickActions/nodeQuickActionsStates'
 import { VERSION_CARDS_STATES } from './versionCards/versionCardsStates'
@@ -115,6 +117,13 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 六格取景一样大：框的几何是这一屏要看的东西，格子不同宽就没法一眼比出
     // 「空框 / 有内容 / 拖入 / 拖出」四态里框的边界有没有变。
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
+  },
+  {
+    id: 'canvas-group-header',
+    label: '画布 · 分组框头（对齐拍板样张）',
+    states: CANVAS_GROUP_HEADER_STATES,
+    // 框头要看的是「一行装不装得下、按钮和计数落在哪」，格子取到能完整装下六镜分组的尺寸。
+    cell: { width: CANVAS_GROUP_HEADER_CELL_WIDTH, height: CANVAS_GROUP_HEADER_CELL_HEIGHT },
   },
   {
     id: 'canvas-handles',
