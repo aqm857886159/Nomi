@@ -121,6 +121,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/directorCrowd/states'),
     baselineDir: path.join(BASELINE_ROOT, 'director-crowd'),
   },
+  'video-node-next': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/videoNodeNext/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'video-node-next'),
+  },
   'update-reminder': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/updateReminder/states'),
     baselineDir: path.join(BASELINE_ROOT, 'update-reminder'),

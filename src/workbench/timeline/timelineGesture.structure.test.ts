@@ -21,8 +21,10 @@ const read = (file: string): string => stripComments(fs.readFileSync(file, 'utf8
 
 const timelineRoot = path.join(process.cwd(), 'src/workbench/timeline')
 const nodesRoot = path.join(process.cwd(), 'src/workbench/generationCanvas/nodes')
+const previewRoot = path.join(process.cwd(), 'src/workbench/preview')
 const scanned = [
   ...walk(timelineRoot),
+  ...['OverlaySelectionBox.tsx', 'TimelinePreview.tsx'].map((name) => path.join(previewRoot, name)),
   ...fs.readdirSync(nodesRoot).filter((name) => /^ClipNode.*\.tsx$/.test(name)).map((name) => path.join(nodesRoot, name)),
 ].map((file) => ({ file: rel(file), source: read(file) }))
 
@@ -54,6 +56,14 @@ describe('timeline gestures go through one pointer session', () => {
     expect(source.match(/startSession\(/g)?.length).toBeGreaterThanOrEqual(3)
     // 手势所在的轴必须带 nodrag / nopan / nowheel：React Flow 的节点拖动、画布平移与滚轮缩放都不许接管它。
     expect(source).toContain('NODE_SCROLL_REGION_CLASS_NAME')
+  })
+
+  it('the preview overlay and framing drags use the same session', () => {
+    for (const name of ['OverlaySelectionBox.tsx', 'TimelinePreview.tsx']) {
+      const source = scanned.find(({ file }) => file.endsWith(`preview/${name}`))!.source
+      expect(source, name).toContain('usePointerSession')
+      expect(source, name).toContain('onCancel')
+    }
   })
 
   it('the global timeline clips and text clips revert on interruption', () => {

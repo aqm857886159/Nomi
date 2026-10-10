@@ -8,6 +8,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, expectNoCjkInEnglishDom } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { modelSettingsEntry, openModelSettings } from './_shell.mjs'
 
 const tempRoot = makeTempDir('nomi-model-discovery-')
 const shots = path.join(tempRoot, 'shots')
@@ -72,11 +73,11 @@ async function start() {
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(key, 'seen')
   })
   await win.reload()
-  await expect(win.locator('[data-testid="open-model-settings"]').first()).toBeVisible({ timeout: 30_000 })
+  await expect(modelSettingsEntry(win)).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
 }
 async function home() {
   await win.keyboard.press('Escape')
-  await clickOrFail(win.locator('[data-testid="open-model-settings"]').first(), '模型设置')
+  await openModelSettings(win, { label: '模型设置' })
   await expect(win.locator('[data-model-settings-page="home"]')).toBeVisible()
 }
 async function openPicker(vendorKey) {
@@ -280,7 +281,7 @@ try {
     syntheticCredentialStorage: true,
   })
   win = instance.win
-  await expect(win.locator('[data-testid="open-model-settings"]').first()).toBeVisible({ timeout: 30_000 })
+  await expect(modelSettingsEntry(win)).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
   expect(await savedKeys('kie')).toContain('manual-discovery-model')
   expect(await savedKeys(replicateVendorKey)).toEqual(expect.arrayContaining(['owner/flux-discovery']))
   expect(await savedKeys(newConnectionKey)).toContain('gpt-discovery-text')

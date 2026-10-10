@@ -43,6 +43,8 @@ import { CANVAS_HANDLES_STATES } from './canvasHandles/canvasHandlesStates'
 import { CANVAS_HANDLES_CELL_HEIGHT, CANVAS_HANDLES_CELL_WIDTH } from './canvasHandles/canvasHandlesLabKit'
 import { UPDATE_REMINDER_STATES } from './updateReminder/updateReminderStates'
 import { UPDATE_REMINDER_WINDOW } from './updateReminder/updateReminderLabKit'
+import { VIDEO_NODE_NEXT_STATES } from './videoNodeNext/videoNodeNextStates'
+import { VN_CELL_HEIGHT, VN_CELL_WIDTH } from './videoNodeNext/videoNodeNextToolbarKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -231,6 +233,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: UPDATE_REMINDER_STATES,
     // 取景 = 主窗口默认尺寸（项目库整页）；弹窗格按弹窗自身大小截，顶栏格按真宽截。
     cell: { width: UPDATE_REMINDER_WINDOW.width, height: UPDATE_REMINDER_WINDOW.height },
+  },
+  {
+    id: 'video-node-next',
+    label: '视频节点的下一步（截帧 / 剪辑 / 拆成视频片段）',
+    states: VIDEO_NODE_NEXT_STATES,
+    cell: { width: VN_CELL_WIDTH, height: VN_CELL_HEIGHT },
   },
 ]
 

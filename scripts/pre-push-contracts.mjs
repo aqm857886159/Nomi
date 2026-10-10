@@ -27,6 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { implementationFiles, touchesGateInputs } from './pre-push-gate-inputs.mjs'
 import { CI_ONLY, PARTIAL_LOCAL } from './pre-push-gate-table.mjs'
+import { RELATED_TESTS_GATE, SOURCE_FILE, relatedTests, runRelatedTests } from './pre-push-related-tests.mjs'
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -119,10 +120,12 @@ export const SCAN_TESTS = Object.freeze([
   // 设计实验室的纯 node 结构检查（#1145 在 CI 才撞到 mirrors 行号越界）；完整的 check:design-lab（tsc + 像素比对 + python 锁）留在 CI
   { name: 'check:design-lab-mirrors', argv: ['scripts/check-design-lab.mjs', '--mirrors-only'], rerun: 'node scripts/check-design-lab.mjs --mirrors-only', when: (files) => touchesGateInputs('check:design-lab-mirrors', files) },
   // 整库类型检查（10-09 #1137 合 main 后 3 处 TS2345，推送前不跑 typecheck）：增量模式复用 node_modules/.cache/nomi-typecheck 的缓存，首次约 100 秒、之后约 30 秒；最慢，排在任务队列最前
-  { name: 'typecheck', argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
+  { name: 'typecheck', softTimeout: true, argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
   { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
   { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => touchesGateInputs('check:test-copy-literals', files) },
   { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => touchesGateInputs('test:control-contract', files) },
+  // 本文件与门表 / 输入声明 / package.json 的契约 + 结构用例（几秒；整份 pre-push-contracts.node-test.mjs > 90 秒只在 CI，快的部分拆到这里，#1147 / #1141 在 CI 才红）
+  { name: 'test:pre-push-structure', argv: ['--test', 'scripts/pre-push-structure.node-test.mjs'], rerun: 'node --test scripts/pre-push-structure.node-test.mjs', when: (files) => touchesGateInputs('test:pre-push-structure', files) },
   { name: 'test:quit-lifecycle-guard', argv: [VITEST_ENTRY, 'run', 'electron/quitLifecycleGuard.test.ts'], rerun: 'node node_modules/vitest/vitest.mjs run electron/quitLifecycleGuard.test.ts', when: (files) => touchesGateInputs('test:quit-lifecycle-guard', files) },
 ])
 
@@ -217,12 +220,14 @@ export function touchesImplementation(name, files) {
 
 /** 选出本次要跑的门岗名（含 lint:changed）。files = 改动路径；null = 算不出改动 → 全跑。 */
 export function selectGates(files) {
-  if (files === null) return [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name]
+  if (files === null) return [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, RELATED_TESTS_GATE.name]
   // 纯文档改动：只跑「总跑」的登记类门岗（它们也管 docs 里的登记表），代码类不跑
   const policy = classifyValidationPolicy(files.map((file) => ({ path: file, status: 'M' })))
   const docsOnly = !policy.failClosed && policy.reason === 'docs_only'
   const picked = PRE_PUSH_GATES.filter((gate) => gate.when === null || (!docsOnly && (gate.when(files) || touchesImplementation(gate.name, files)))).map((gate) => gate.name)
   if (!docsOnly) picked.push(...SCAN_TESTS.filter((scan) => scan.when(files) || touchesImplementation(scan.name, files)).map((scan) => scan.name))
+  // 相关单测：改了 src / electron / scripts / tests 下的源码才找（找法与不用 vitest related 的原因见 pre-push-related-tests.mjs）
+  if (!docsOnly && files.some((file) => SOURCE_FILE.test(file))) picked.push(RELATED_TESTS_GATE.name)
   if (!docsOnly && (LINT_GATE.when(files) || touchesImplementation(LINT_GATE.name, files))) picked.push(LINT_GATE.name)
   return picked
 }
@@ -259,7 +264,10 @@ function killTree(child) {
 export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = argv.join(' ') } = {}) {
   return new Promise((resolve) => {
     const started = Date.now()
-    const child = spawn(process.execPath, argv, { cwd: repoRoot, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
+    // env 里值为 undefined 的键 = 从子进程环境里删掉（如 NODE_TEST_CONTEXT：外层 node --test 设了它，子进程里的 node --test 就不真跑，假绿）
+    const childEnv = { ...process.env, ...env }
+    for (const [key, value] of Object.entries(childEnv)) if (value === undefined) delete childEnv[key]
+    const child = spawn(process.execPath, argv, { cwd: repoRoot, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     running.set(child, { name, started })
     let output = ''
     let settled = false
@@ -280,6 +288,16 @@ export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = ar
     child.on('error', (error) => finish({ status: 1, output: `${output}${error.message}`, ms: Date.now() - started }))
     child.on('close', (status) => finish({ status: status ?? 1, output, ms: Date.now() - started }))
   })
+}
+
+/**
+ * 冷缓存才慢的门（softTimeout：typecheck 合 main 后增量缓存是冷的，首次约 100 秒以上，机器忙时超过单门上限）：
+ * 超时 = 「本机没跑完」，不是「检查没过」——不拦推送，如实写明没跑完、CI 会跑。其它门挂住照旧按红处理。
+ * 10-10 实证：合 origin/main 后第一次推送 typecheck 240.5 秒被当红拦下，重推同一提交就过了。
+ */
+export function softenTimeout(scan, result) {
+  if (!scan.softTimeout || result.status !== 124) return result
+  return { ...result, status: 0, note: `${scan.name} 本机没跑完（超时，多半是增量缓存冷），CI 会跑；再推一次通常就热了` }
 }
 
 /** 简单并发池：按顺序启动，最多 limit 个同时跑。 */
@@ -317,6 +335,7 @@ const tail = (text, lines) => String(text).trimEnd().split('\n').slice(-lines).j
 /** 单道门岗的重跑命令（不走钩子入口：钩子不接受缩小门岗集合的参数）。 */
 export const rerunCommand = (name) => {
   if (name === LINT_GATE.name) return `node ${LINT_GATE.script}`
+  if (name === RELATED_TESTS_GATE.name) return '用上面输出里点名的测试文件单独重跑：node node_modules/vitest/vitest.mjs run <文件> 或 node --test <文件>'
   const scan = SCAN_TESTS.find((item) => item.name === name)
   return scan ? scan.rerun : `pnpm run ${name}`
 }
@@ -336,7 +355,7 @@ export function formatSummary(results) {
 
 export async function main(argv = process.argv.slice(2), { stdinText = null, hookTimeoutMs = HOOK_TIMEOUT_MS } = {}) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
-  const known = [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, ...BODY_GATES]
+  const known = [...PRE_PUSH_GATES.map((gate) => gate.name), ...SCAN_TESTS.map((scan) => scan.name), LINT_GATE.name, RELATED_TESTS_GATE.name, ...BODY_GATES]
   // 入口只认 --list；任何别的参数（含空值）一律报错——推送钩子不能有让门岗集合变小的开关（P1）
   // 钩子形态 = 恰好两个位置参数 <remote名> <url>（git githooks 文档的 pre-push 约定），它们不影响门岗集合
   const shaped = argv.length === 2 && argv.every((arg) => arg !== '' && !arg.startsWith('-'))
@@ -391,9 +410,21 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   }
   for (const scan of SCAN_TESTS) {
     if (!selected.has(scan.name)) continue
-    const task = async () => ({ name: scan.name, ...(await runNode(scan.argv, {}, { name: scan.name })) })
+    const task = async () => softenTimeout(scan, { name: scan.name, ...(await runNode(scan.argv, {}, { name: scan.name })) })
     if (scan.name === 'typecheck') tasks.unshift(task)
     else tasks.push(task)
+  }
+  if (selected.has(RELATED_TESTS_GATE.name)) {
+    // 相关单测：最慢的一路之一，排在队列前面；选不出（算不出改动）或 git 出错都如实说「没跑」，不当通过
+    tasks.unshift(async () => {
+      if (files === null) return { name: RELATED_TESTS_GATE.name, status: 0, output: '', ms: 0, note: '算不出改动，相关单测没挑，CI 会跑' }
+      try {
+        const exclude = new Set(SCAN_TESTS.flatMap((scan) => gateEntryFiles(scan.name)))
+        return await runRelatedTests(relatedTests(files, { root: repoRoot, exclude }), runNode)
+      } catch (error) {
+        return { name: RELATED_TESTS_GATE.name, status: 0, output: '', ms: 0, note: `挑相关单测失败（${String(error.message).split(/\r?\n/)[0]}），相关单测没跑，CI 会跑` }
+      }
+    })
   }
   if (selected.has(LINT_GATE.name)) {
     tasks.push(async () => ({ name: LINT_GATE.name, ...(await runNode([path.join(repoRoot, LINT_GATE.script)], {}, { name: LINT_GATE.name })) }))

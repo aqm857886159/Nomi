@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { check } from "../lib/journeyRunner.mjs";
 import { dismissSplashIfPresent, waitForPersistedCanvas } from "../lib/isoApp.mjs";
+import { backToLibrary } from "../../tests/ux/_shell.mjs";
 
 const require = createRequire(import.meta.url);
 const ffprobePath = require("@ffprobe-installer/ffprobe").path;
@@ -338,7 +339,7 @@ export default {
       id: "reopen-project",
       title: "回到项目库并重开验证持久化",
       async act(ctx) {
-        await ctx.win.getByRole("button", { name: "返回项目库", exact: true }).click();
+        await backToLibrary(ctx.win);
         const card = ctx.win.locator('[data-project-card="true"]', { hasText: PROJECT_NAME }).first();
         await card.waitFor({ state: "visible", timeout: 8_000 });
         await card.click();

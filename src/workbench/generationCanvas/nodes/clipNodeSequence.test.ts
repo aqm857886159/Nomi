@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AssetRef } from '../../assets/assetTypes'
-import { appendClipNodeSource, clipNodeSourceFromAsset, emptyClipNodeMeta } from './clipNodeModel'
+import { appendClipNodeSource, clipNodeSourceFromAsset, emptyClipNodeMeta, type ClipNodeSource } from './clipNodeModel'
 import {
   moveClipNode,
   removeClipNode,
@@ -8,6 +8,7 @@ import {
   splitClipNode,
   clipNodeTimelineFromMeta,
   duplicateClipNode,
+  insertClipNodeSourceAt,
 } from './clipNodeSequence'
 
 const asset = (kind: 'image' | 'video', id: string): AssetRef => ({
@@ -73,5 +74,30 @@ describe('clip node sequence editing', () => {
     const result = duplicateClipNode(seedMeta(), 'clip-image-a')
     expect(result.clips.map((clip) => clip.id)).toEqual(['image-a', 'video-b', 'image-a-copy'])
     expect(clipNodeTimelineFromMeta(result).tracks[0]?.clips[2]).toMatchObject({ sourceNodeId: 'image-a' })
+  })
+})
+
+describe('insertClipNodeSourceAt', () => {
+  const src = (id: string, seconds: number): ClipNodeSource => ({ id, type: 'image', label: id, url: `u/${id}`, durationSeconds: seconds, trimStart: 0, trimEnd: seconds })
+  const base = { nodeRole: 'clip' as const, sourceNodeIds: ['a', 'b'], clips: [src('a', 2), src('b', 2)] }
+  const starts = (meta: ReturnType<typeof insertClipNodeSourceAt>) => clipNodeTimelineFromMeta(meta).tracks[0].clips.map((c) => `${c.id}:${c.startFrame}`)
+
+  it('inserts at a clip edge and pushes later clips back by the inserted length', () => {
+    expect(starts(insertClipNodeSourceAt(base, src('n', 1), 60))).toEqual(['clip-a:0', 'clip-n:60', 'clip-b:90'])
+  })
+
+  it('appends in empty space without moving anything', () => {
+    expect(starts(insertClipNodeSourceAt(base, src('n', 1), 200))).toEqual(['clip-a:0', 'clip-b:60', 'clip-n:200'])
+  })
+
+  it('pushes later clips only by the overlap, not by the whole length', () => {
+    const gap = insertClipNodeSourceAt(base, src('x', 1), 150)
+    expect(starts(insertClipNodeSourceAt(gap, src('n', 1), 130))).toEqual(['clip-a:0', 'clip-b:60', 'clip-n:130', 'clip-x:160'])
+  })
+
+  it('lets the same material be dropped twice with distinct instance ids', () => {
+    const twice = insertClipNodeSourceAt(insertClipNodeSourceAt(base, src('n', 1), 200), src('n', 1), 300)
+    expect(twice.clips.map((c) => c.id)).toEqual(['a', 'b', 'n', 'n~2'])
+    expect(twice.clips[3].sourceNodeId).toBe('n')
   })
 })

@@ -92,3 +92,13 @@ export function claimNodeVideoPlayback(video: HTMLVideoElement): void {
 export function releaseNodeVideoPlayback(video: HTMLVideoElement): void {
   if (playingVideo === video) playingVideo = null
 }
+
+/**
+ * 这张节点卡里播放头停在第几秒（浮条「截帧 ▸ 当前帧」读它）。读的就是卡里那个 `<video>` 的 currentTime，
+ * 没有挂播放器（只画封面）= 还没播过 = 0。
+ */
+export function readNodeVideoPlayheadSeconds(nodeId: string): number {
+  const video = document.querySelector<HTMLVideoElement>(`[data-node-id="${CSS.escape(nodeId)}"] video`)
+  const seconds = video?.currentTime
+  return typeof seconds === 'number' && Number.isFinite(seconds) ? seconds : 0
+}

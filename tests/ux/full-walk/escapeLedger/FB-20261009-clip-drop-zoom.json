@@ -1,0 +1,26 @@
+{
+  "id": "FB-20261009-clip-drop-zoom",
+  "since": "2026-10-09",
+  "source": "2026-10-09 用户反馈（剪辑节点 / 时间轴手势）第二片：拖放、缩放命中、同类入口",
+  "category": "interaction-semantics",
+  "problem": "剪辑节点拖动不灵（第二片）：素材从画布节点或素材库拖进剪辑节点没有反应、拖到时间轴把手要悬停才可点、画布缩小后窄片段点不中且拖到轴边缘不滚动、全局时间轴裁剪手柄要先选中、预览区取景拖动被打断时当成松手",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "屏外真 Electron 走查 tests/ux/clip-drop-zoom.walk.mjs（P4 / P5 / P6A / P6B / G1 / O1，缩放 50 / 100 / 150% 各一遍）在 main 上红、修后全绿；日志见 docs/evidence/2026-10-09-clip-drop-zoom/",
+    "协调会话 10-09 亲眼核对 docs/evidence/2026-10-09-clip-drop-zoom/ 手柄改前改后截图（中英、光暗；浅色悬停手柄可见）"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-09-clip-drop-zoom.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/timeline/timelineGesture.structure.test.ts"
+  },
+  "fixedInPr": 1149
+}

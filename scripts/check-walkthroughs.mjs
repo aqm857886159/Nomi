@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
+import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -45,6 +46,12 @@ function collect() {
     }
   }
   walkSrc(path.join(repoRoot, 'src'))
+  // evals 的旅程 / 夹具也是在真界面上点外壳的走查（raw-shell-anchor 要管到它们；其余规则只认 tests/ux，见各自的 appliesTo）。
+  for (const dir of ['evals/journeys', 'evals/lib']) {
+    const abs = path.join(repoRoot, dir)
+    if (!fs.existsSync(abs)) continue
+    for (const name of fs.readdirSync(abs)) if (name.endsWith('.mjs')) files.push(path.join(abs, name))
+  }
   return files
 }
 
@@ -202,6 +209,15 @@ const RULES = [
     // 判定逻辑住 scripts/lib/positionalProjectOpen.mjs（本文件一 import 就跑门岗，规则没法就地单测）。
     scan(code, file) {
       return findPositionalProjectOpens(code).map((hit) => ({ ...hit, file }))
+    },
+  },
+  {
+    id: 'raw-shell-anchor',
+    label: '走查手抄了外壳位置（返回项目库 / Agent 面板展开收起），没经 tests/ux/_shell.mjs——外壳一换，这类写法在十几份走查里同时悬空成假红',
+    appliesTo: (file) => (file.includes(`${path.sep}tests${path.sep}ux${path.sep}`) || file.includes(`${path.sep}evals${path.sep}`)) && !RAW_SHELL_EXEMPT.has(repoRelative(file)),
+    // 2026-10-09 #1136 外壳重设计 CI 全红的类根因：位置抄了很多份。判定逻辑住 scripts/lib/rawShellAnchors.mjs（可单测）。
+    scan(code, file) {
+      return findRawShellAnchors(code).map((hit) => ({ ...hit, text: `${hit.text} —— 改调 ${hit.use}`, file }))
     },
   },
 ]

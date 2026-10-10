@@ -1,5 +1,6 @@
 // Shared settings → workflow canvas. Input is automated, not physical trackpad hardware.
 import { expect, clickOrFail } from './_assert.mjs'
+import { openModelSettings } from './_shell.mjs'
 
 export async function selectCanvasGesture(win, scheme, snap) {
   const settings = win.getByRole('dialog', { name: '设置', exact: true })
@@ -79,7 +80,7 @@ async function checkMainCanvas(win, scheme) {
   await wheelAt(win, stage, 32, -48, point)
   if (scheme === 'modifier-zoom') expectPan(initial, await state(), 32, -48)
   else expect((await state()).zoom).toBeGreaterThan(initial.zoom)
-  await clickOrFail(win.getByRole('button', { name: '打开模型设置', exact: true }), '回到共享设置')
+  await openModelSettings(win, { label: '回到共享设置' })
 }
 
 export async function walkWorkflowMacGestures(win, snap, readCatalog) {
@@ -170,7 +171,7 @@ export async function walkWorkflowMacGestures(win, snap, readCatalog) {
 }
 
 export async function verifySavedMacGestures(win, snap) {
-  await clickOrFail(win.getByRole('button', { name: '打开模型设置', exact: true }), '冷启动检查触控板偏好')
+  await openModelSettings(win, { label: '冷启动检查触控板偏好' })
   const settings = win.getByRole('dialog', { name: '设置', exact: true })
   await clickOrFail(settings.locator('[data-settings-tab-id="general"]'), '查看保存的手势设置')
   await expect(settings.locator('[data-canvas-gesture-scheme="modifier-zoom"]')).toHaveAttribute('aria-checked', 'true')

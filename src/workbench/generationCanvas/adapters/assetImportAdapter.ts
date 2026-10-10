@@ -25,6 +25,7 @@ import { ensureAssetImportProgressBridge, useAssetImportProgressStore } from '..
 import { computeMediaMetaPatch, readMediaDimensions } from '../nodes/nodeSizing'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import { pushUndoSnapshot } from '../events/canvasUndoJournal'
+import { localProcessingError } from '../../observability/localProcessingError'
 
 const DATA_URL_FALLBACK_MAX_BYTES = 512 * 1024
 
@@ -278,7 +279,7 @@ async function uploadAndApplyAssetToNode(
     inUndoTxn(undoTxn, () => store.updateNode(nodeId, {
       ...(fallbackResult ? { result: fallbackResult, history: [fallbackResult] } : {}),
       status: fallbackResult ? 'success' : 'error',
-      error: fallbackResult ? undefined : '本地素材复制失败，可点节点上的「重试导入」',
+      error: fallbackResult ? undefined : localProcessingError('本地素材复制失败，可点节点上的「重试导入」'),
       meta: {
         ...(useGenerationCanvasStore.getState().nodes.find((c) => c.id === nodeId)?.meta || {}),
         uploadStatus: 'local-only',

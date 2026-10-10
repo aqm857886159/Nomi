@@ -11,7 +11,7 @@ import type { GenerationCanvasNode, GenerationNodeKind } from './generationCanva
  * 目标一定是刚建出来的新节点（天然没有别的来源），不持久化任何身份字段，也没有公开的「给已有节点补出处边」的动作。
  * 老项目里已有的出处边是快照里的普通边，照常加载 / 显示 / 断开；这条规则只管新建。
  */
-export type DerivedOutputKind = 'panorama-screenshot' | 'director-output' | 'whiteboard-snapshot' | 'clip-export' | 'shot-table'
+export type DerivedOutputKind = 'panorama-screenshot' | 'director-output' | 'whiteboard-snapshot' | 'clip-export' | 'shot-table' | 'video-frame'
 
 type DerivedRule = {
   sources: readonly GenerationNodeKind[]
@@ -27,6 +27,8 @@ export const DERIVED_OUTPUT_RULES: Readonly<Record<DerivedOutputKind, DerivedRul
   'whiteboard-snapshot': { sources: ['whiteboard'], targets: ['image'] },
   'clip-export': { sources: ['clip'], targets: ['video'] },
   'shot-table': { sources: ['video', 'asset'], targets: ['shot_table'], sourceResultType: 'video' },
+  // 视频节点「截帧」（当前帧 / 首帧 / 尾帧）：旁边一张图片卡 + 出处边。
+  'video-frame': { sources: ['video', 'asset'], targets: ['image'], sourceResultType: 'video' },
 }
 
 /** 这一对（源节点 → 目标种类）是不是任一类派生输出的出处边——旧项目里这类边种类上过不了连线总闸，但是合法的。 */
