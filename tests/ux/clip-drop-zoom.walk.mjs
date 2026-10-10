@@ -4,7 +4,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 零模型额度：隔离项目 + 仓库里的测试图片；屏外窗口、真鼠标（CDP 输入，原生拖放也由它驱动）；不碰真实 Nomi 资料。
 // 用法：pnpm run build && node tests/ux/clip-drop-zoom.walk.mjs
 //   环境：CLIP_DROP_ZOOMS=50,100,150（默认）  NOMI_WALK_LOCALE=zh-CN|en  NOMI_WALK_SCHEME=light|dark
-//         CLIP_DROP_SHOTS=<截图目录>  CLIP_DROP_ONLY=<步骤编号，逗号分隔：P4,P5,P6A,P6B,G1,O1,V>
+//         CLIP_DROP_SHOTS=<截图目录>  CLIP_DROP_ONLY=<步骤编号，逗号分隔：P4,P5,P6A,P6B,D1,G1,O1,V>
 // 步骤对应任务书卡点：P4 素材拖进剪辑节点、P5 拖放把手不靠悬停、P6A 窄片段点击下限、P6B 边缘自动滚动；G1 / O1 是第一片留下的同类入口。
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -185,6 +185,62 @@ async function runZoom(zoomPercent) {
       return { over, caretBox }
     }
 
+    // ───────── D1 拖放进行中画布浮层不吃命中：选中素材节点（参数浮板盖住剪辑节点）→ 拖它的把手 → 落点最顶层回到剪辑轴，插入成功；拖完浮板恢复可点 ─────────
+    if (wanted('D1')) {
+      await bring(source, node)
+      await blankClick()
+      const notch = source.locator('[draggable="true"]').first()
+      // 载荷：对同一个把手派发一次 dragstart 取出（处理函数写的真载荷），再派发 dragend 把这次演示性的拖放收掉。
+      const grab = await notch.evaluate((el) => {
+        const dt = new DataTransfer()
+        el.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+        const payload = Object.fromEntries(Array.from(dt.types).map((type) => [type, dt.getData(type)]))
+        el.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+        return payload
+      })
+      const stageEl = win.locator('.generation-canvas-v2__stage').first()
+      const sb = await box(source)
+      await win.mouse.click(center(sb).x, center(sb).y) // 选中素材节点：参数浮板在它下面展开
+      await wait(900)
+      const before = await clipRows(node)
+      const bBox = await box(clips(node).nth(1))
+      const target = { x: bBox.x + bBox.width * 0.25, y: bBox.y + bBox.height / 2 }
+      const topAt = (point) => win.evaluate(({ x, y }) => {
+        const hit = document.elementFromPoint(x, y)
+        return { inAxis: Boolean(hit?.closest('[data-testid="clip-node-axis-content"]')), inComposer: Boolean(hit?.closest('.generation-canvas-v2-node__composer')) }
+      }, point)
+      const coveredBefore = await topAt(target)
+      // 拖放开始：对把手派发 dragstart（真实鼠标按下后接着拖会让 React Flow 同时开始拖节点，松手时按旧快照回写、冲掉落下的片段——
+      // 那是走查驱动方式的副作用，真实的原生拖放不产生 mouseup；真鼠标拖出一半已由 P5 覆盖）。
+      const startDrag = () => notch.evaluate((el) => el.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() })))
+      await startDrag()
+      await wait(300)
+      const flagDuring = await stageEl.getAttribute('data-drop-active')
+      await win.screenshot({ path: path.join(SHOT_DIR, `${LOCALE}-${SCHEME}-z${z}-d1-during-drag.png`) }) // 拖放期间浮板还在原处（只是不吃命中），外观不变
+      const topDuring = await topAt(target)
+      await dragThrough(grab, target, { drop: true })
+      const flagAfter = await stageEl.getAttribute('data-drop-active')
+      const after = await clipRows(node)
+      const inserted = after.find((row) => !before.some((old) => old.id === row.id))
+      const composer = win.locator('.generation-canvas-v2-node__composer-card').first()
+      const cb = await box(composer)
+      const composerBack = cb ? await win.evaluate(({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('.generation-canvas-v2-node__composer')), { x: cb.x + cb.width / 2, y: cb.y + Math.min(cb.height - 4, 30) }) : false
+      record('D1', z, '素材节点选中、参数浮板盖在剪辑片段上：拖放期间落点最顶层是剪辑轴，插入成功，拖完浮板恢复可点',
+        coveredBefore.inComposer && !coveredBefore.inAxis && flagDuring === 'true' && topDuring.inAxis && Boolean(inserted) && inserted.start === before[1].start && flagAfter === null && composerBack,
+        { coveredBefore, flagDuring, topDuring, insertedStart: inserted?.start ?? null, flagAfter, composerBack })
+      // 取消：dragend / Esc 之后旗摘掉、浮板恢复可点。
+      const cancelled = {}
+      await startDrag(); await wait(200)
+      cancelled.raised = await stageEl.getAttribute('data-drop-active')
+      await notch.evaluate((el) => el.dispatchEvent(new DragEvent('dragend', { bubbles: true })))
+      cancelled.afterDragend = await stageEl.getAttribute('data-drop-active')
+      await startDrag(); await wait(200)
+      await win.keyboard.press('Escape'); await wait(150)
+      cancelled.afterEscape = await stageEl.getAttribute('data-drop-active')
+      record('D1', z, '拖放被取消（dragend / Esc）后旗摘掉', cancelled.raised === 'true' && cancelled.afterDragend === null && cancelled.afterEscape === null, cancelled)
+      await blankClick()
+    }
+
     // ───────── P5 拖放把手不靠悬停：鼠标还在别处时，把手那一点上最顶层就是把手（不是下面的预览层）；真拖能发出载荷 ─────────
     if (wanted('P5')) {
       await bring(source, node)
@@ -219,7 +275,7 @@ async function runZoom(zoomPercent) {
       await wait(900)
       const after = await clipRows(node)
       const inserted = after.find((row) => !before.some((old) => old.id === row.id))
-      record('P4', z, '画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前', first.over.prevented && before.length === 3 && after.length === 4 && caretOk && inserted && inserted.start === before[1].start && after[2].start >= inserted.end,
+      record('P4', z, '画布素材拖进剪辑节点：落点出插入指示，松手插在片段 B 之前', first.over.prevented && after.length === before.length + 1 && caretOk && inserted && inserted.start === before[1].start && after[2].start >= inserted.end,
         { prevented: first.over.prevented, caretOk, caretX: first.caretBox ? Math.round(center(first.caretBox).x) : null, bLeftX: Math.round(bBox.x), before: before.map((r) => r.start), after: after.map((r) => r.start), insertedStart: inserted?.start ?? null })
 
       // 拖到空白处（所有片段之后）：追加，不压在任何片段上；同一份素材再拖一次也能入轴。

@@ -2,9 +2,9 @@
   "schema_version": 3,
   "id": "2026-10-09-clip-drop-zoom",
   "problem_type": "剪辑节点轴的拖放接收口、窄片段命中下限、边缘自动滚动没有共享边界，且同类手势入口未迁",
-  "symptom": "用户 10-09：剪辑节点拖动不灵。素材从画布节点 / 素材库拖进剪辑节点没有反应（还会被画布舞台当成「新建素材节点」）；「拖到时间轴」把手要悬停才可命中；画布缩小后窄片段点不中、拖到轴边缘不滚动；全局时间轴手柄要先选中；预览取景 / 叠加层拖动被 pointercancel 打断时当成松手提交。",
-  "direct_cause": "ClipNodeTimeline 没有 dragover / drop，载荷冒泡到画布舞台；NodeTimelineDragHandles 的 pointer-events-none 到 group-hover 才开；片段命中宽度等于视觉宽度；拖动位置只看指针位移、不看轴自己滚过的距离；TimelineClip 手柄 isSelected 才渲染；OverlaySelectionBox / TimelinePreview 的 pointercancel 走提交路径。",
-  "class_root": "接收、命中、滚动这三格各调用者各写各的（或没写）：全局时间轴有接收口、剪辑节点轴没有；命中按设计像素；滚动不产生指针事件所以没人重算。第一片只收了手势生命周期，这三格与两个同类入口仍可从新的入口、缩放档或载荷来源再次出问题。",
+  "symptom": "用户 10-09：剪辑节点拖动不灵。素材从画布节点 / 素材库拖进剪辑节点没有反应（还会被画布舞台当成「新建素材节点」）；「拖到时间轴」把手要悬停才可命中；画布缩小后窄片段点不中、拖到轴边缘不滚动；全局时间轴手柄要先选中；预览取景 / 叠加层拖动被 pointercancel 打断时当成松手提交。 验收 V-1149 反向检查：素材节点正选着时，它的参数浮板在节点下方、盖住剪辑节点，落点最顶层是浮板里的文字，dragover 到不了剪辑轴，片段不插入、素材库载荷同样落不下。",
+  "direct_cause": "ClipNodeTimeline 没有 dragover / drop，载荷冒泡到画布舞台；NodeTimelineDragHandles 的 pointer-events-none 到 group-hover 才开；片段命中宽度等于视觉宽度；拖动位置只看指针位移、不看轴自己滚过的距离；TimelineClip 手柄 isSelected 才渲染；OverlaySelectionBox / TimelinePreview 的 pointercancel 走提交路径。 画布浮层（参数浮板、节点浮条、版本卡动作条、连接把手命中区、多选浮条、组框工具条）在拖放期间照常吃命中，挡在去剪辑轴的路上。",
+  "class_root": "接收、命中、滚动这三格各调用者各写各的（或没写）：全局时间轴有接收口、剪辑节点轴没有；命中按设计像素；滚动不产生指针事件所以没人重算。第一片只收了手势生命周期，这三格与两个同类入口仍可从新的入口、缩放档或载荷来源再次出问题。 拖放进行中画布上的浮层仍在吃命中，挡住真正的接收目标——任何会盖在节点上的浮层、任何接收目标都可能被挡（V-1149）。",
   "migration": "同一提交里：剪辑节点轴新增唯一接收口（clipNodeDrop + ClipNode.dropMedia）；命中垫与边缘滚动并进 clipNodeGestureModel / clipNodeEdgeScroll；预览区两处拖动换成 usePointerSession，旧的元素级 / window 监听删除；全局手柄改常驻渲染（悬停显形）。不涉及持久化数据格式（片段仍写 timelineStartFrame / timelineEndFrame）。",
   "affected_population": [
     "把画布素材 / 素材库素材拖进剪辑节点的用户",
@@ -21,7 +21,9 @@
     "src/workbench/generationCanvas/nodes/NodeTimelineDragHandles.tsx",
     "src/workbench/timeline/TimelineClip.tsx",
     "src/workbench/preview/OverlaySelectionBox.tsx",
-    "src/workbench/preview/TimelinePreview.tsx"
+    "src/workbench/preview/TimelinePreview.tsx",
+    "src/workbench/generationCanvas/components/canvasDropActiveFlag.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
   ],
   "entry_points": [
     "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx handleDragOver / handleDrop",
@@ -32,7 +34,8 @@
   "invariants": [
     "素材载荷在剪辑节点轴上只经 readClipDropPayload + insertClipNodeSourceAt：落点指示与松手插入读同一个 resolveClipNodeDropFrame，插入后不重叠",
     "任何可抓取的片段在屏幕上至少 24px 可点（窄片段补命中垫）；拖到轴边缘时轴自己滚并按同一指针位置重算落点",
-    "timeline / preview 里的指针手势只经 timelineGesture 会话：松手提交、打断回滚"
+    "timeline / preview 里的指针手势只经 timelineGesture 会话：松手提交、打断回滚",
+    "带着可接收载荷的拖放期间，画布浮层清单（CANVAS_DROP_PASS_THROUGH_SELECTORS）整体不吃命中，落点最顶层是真正的接收目标；dragend / drop / Esc / 失焦 / 页面隐藏都摘旗"
   ],
   "doors": [
     {
@@ -49,13 +52,14 @@
   "regression_tests": [
     "src/workbench/generationCanvas/nodes/clipNodeSequence.test.ts",
     "src/workbench/generationCanvas/nodes/clipNodeGestureModel.test.ts",
-    "src/workbench/timeline/timelineGesture.structure.test.ts"
+    "src/workbench/timeline/timelineGesture.structure.test.ts",
+    "src/workbench/generationCanvas/components/canvasDropActiveFlag.test.ts"
   ],
   "residual_risks": [
     "Electron 里 Playwright 的鼠标只能触发到 dragstart，dragenter / dragover / drop 用同 MIME 的事件派发（落在真实屏幕坐标、按最顶层元素收）；真实 OS 级原生拖放没有被走查覆盖",
     "窄片段命中垫只在有空档处生效（相邻紧挨时垫在邻居之下），视觉宽度未变",
-    "被选中素材节点的参数浮板会盖住它下面的节点——素材节点正选着时往下面的剪辑节点拖，落点会被浮板挡住（产品里本来的行为，未改）",
-    "边缘滚动时内容会随片段后移而变长（无上限），速度已限制在每帧 4 设计像素"
+    "边缘滚动时内容会随片段后移而变长（无上限），速度已限制在每帧 4 设计像素",
+    "右键菜单 / 更多菜单等用户主动打开的菜单浮层不在清单里（拖放开始会让它们先失焦关闭，未实测）；清单靠人工维护，新增盖在节点上的浮层要记得加（canvas.drop-active 概念注明）"
   ],
   "external_sources": [
     {
@@ -85,6 +89,11 @@
       "path": "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
       "symbol": "insertClipNodeSourceAt",
       "responsibility": "在落点帧插入片段，只在重叠时后推后面的片段。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasDropActiveFlag.ts",
+      "symbol": "watchCanvasDropActive",
+      "responsibility": "拖放期间升 / 摘 stage 的 data-drop-active；浮层清单只在这一处，样式经 stage 上一条 className 统一生效。"
     }
   ],
   "same_class_entry_points": [
@@ -111,6 +120,12 @@
       "entry_point": "裁剪手柄渲染",
       "disposition": "enforced",
       "evidence": "原 isSelected 才渲染；现常驻、悬停显形（走查 G1）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasDropActiveFlag.ts",
+      "entry_point": "CANVAS_DROP_PASS_THROUGH_SELECTORS",
+      "disposition": "enforced",
+      "evidence": "door-map 数盖在节点上的浮层：参数浮板 / 节点浮条 / 版本卡动作条与卡 / 连接把手命中区 / 多选浮条 / 组框工具条共 7 个选择器统一走一个开关；走查 D1 在 50 / 100 / 150% 下验证落点最顶层与插入。菜单类浮层（右键菜单、更多菜单）是用户主动打开的，拖放时不在其中，未列入。"
     }
   ],
   "prevention": {
@@ -124,7 +139,8 @@
       "src/workbench/generationCanvas/nodes/clipNodeDrop.ts",
       "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
       "src/workbench/timeline/timelineGesture.structure.test.ts",
-      "tests/ux/clip-drop-zoom.walk.mjs"
+      "tests/ux/clip-drop-zoom.walk.mjs",
+      "src/workbench/generationCanvas/components/canvasDropActiveFlag.ts"
     ]
   },
   "class_regression_tests": [

@@ -66,3 +66,12 @@ main 基线 27 步红 24（V 外观取证 3 步不判对错）；修后中文浅
 ## 外观变化
 
 只有剪辑节点手柄的可见度：悬停与选中现在用同一套 accent 底色（`bg-nomi-accent/25`，手柄自身悬停 `/45`），浅色下不再发白。中 / 英、浅 / 暗改前改后截图见证据目录。
+
+## 补丁：拖放期间画布浮层不吃命中（V-1149 反向检查）
+
+**问题**：素材节点正选着时，它的参数浮板就在节点下方、盖住剪辑节点；拖它的把手去剪辑片段，落点最顶层是浮板里的文字，dragover 到不了剪辑轴，片段不插入，素材库载荷同样落不下。
+**类**：拖放进行中，画布上的浮层（参数浮板、连接把手命中区、节点浮条等）仍在吃命中，挡住真正的接收目标。
+**共享边界**：`components/canvasDropActiveFlag.ts`——带着可接收载荷的 `dragstart` 升 stage 的 `data-drop-active`；`dragend` / `drop` / Esc / 窗口失焦 / 页面隐藏摘旗；旗在期间清单里的浮层整体 `pointer-events:none`（视觉不变，事件穿过去落在下面的接收目标上），样式只经 stage 上一条 className（`CANVAS_DROP_ACTIVE_CLASS_NAME`），不新增全局 CSS、不造新样式。
+**door-map 数浮层（统一走一个开关，清单只在 `CANVAS_DROP_PASS_THROUGH_SELECTORS` 一处）**：参数浮板 / 生成框（`.generation-canvas-v2-node__composer`）、节点浮条（`[data-node-floating-toolbar]`）、版本卡动作条与版本卡（`[data-version-card-bar]` / `[data-version-card]`）、连接把手命中区（`.generation-canvas-react-flow__handle-hit`，会伸到相邻节点上）、多选浮条、组框工具条，共 7 个选择器。右键菜单 / 更多菜单是用户主动打开的菜单，拖放开始时不在其中，未列入。
+**走查 D1**（缩放 50 / 100 / 150%，中英光暗各一轮）：选中素材节点（浮板展开，先断言落点确实被浮板盖着）→ 拖放开始 → 旗升起、落点最顶层是剪辑轴 → 落下插在片段 B 之前 → 旗摘掉、浮板恢复可点；另测 dragend / Esc 取消后旗摘掉。补丁前 3 档全红、补丁后全绿。截图：`docs/evidence/2026-10-09-clip-drop-zoom/d1-*-during-drag.png`（我已逐张查看：拖放期间浮板仍在原处，外观不变）。
+**驱动方式（诚实说明）**：真鼠标在把手上接着拖会让 React Flow 同时开始拖节点，松手时按旧快照回写、冲掉落下的片段，那是走查驱动方式的副作用（真实原生拖放没有 mouseup）；D1 用对把手派发的 `dragstart` 起拖，真鼠标拖出一半由 P5 覆盖。
