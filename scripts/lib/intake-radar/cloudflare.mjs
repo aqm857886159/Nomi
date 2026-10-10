@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { fetchWithRetry } from '../transientRetry.mjs'
 
 /** 三种货物的桶前缀。与 infra/feedback-worker/src/worker.mjs 的路由名一一对应
  *  （`/v1/feedback` → `feedback/`，以此类推）——那份文件是唯一真相源，这里只是抄它已经
@@ -112,13 +113,13 @@ function objectsApi(accountId, prefixOrPath) {
  * 现网量级（几百条）几页就翻完，200 只是防御性上限，不是预期路径。
  * **失败必须抛**：调用方把它翻译成「今天没查成」，不许静默当成「没有新数据」。
  */
-export async function listAllKeys({ accountId, token, prefix, fetchImpl = fetch }) {
+export async function listAllKeys({ accountId, token, prefix, fetchImpl }) {
   const out = []
   let cursor = ''
   for (let page = 0; page < 200; page += 1) {
     const q = new URLSearchParams({ prefix, per_page: '1000' })
     if (cursor) q.set('cursor', cursor)
-    const res = await fetchImpl(objectsApi(accountId, `/objects?${q}`), { headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetchWithRetry(objectsApi(accountId, `/objects?${q}`), { headers: { Authorization: `Bearer ${token}` } }, { fetchImpl })
     const body = await res.json().catch(() => ({}))
     if (!res.ok || body.success === false) {
       throw new Error(`列 ${prefix} 失败：HTTP ${res.status} ${JSON.stringify(body.errors || []).slice(0, 300)}`)
@@ -132,9 +133,9 @@ export async function listAllKeys({ accountId, token, prefix, fetchImpl = fetch 
 
 /** 取单个对象的原始字节。key 里的 `/` 是路径分隔符，不是要编码的字符——照 intake-pull.mjs
  *  的写法把 encodeURIComponent 编过的 `%2F` 换回来，不然 URL 会把整个 key 当成一段文件名。 */
-export async function getObjectBuffer({ accountId, token, key, fetchImpl = fetch }) {
+export async function getObjectBuffer({ accountId, token, key, fetchImpl }) {
   const encoded = encodeURIComponent(key).replace(/%2F/g, '/')
-  const res = await fetchImpl(objectsApi(accountId, `/objects/${encoded}`), { headers: { Authorization: `Bearer ${token}` } })
+  const res = await fetchWithRetry(objectsApi(accountId, `/objects/${encoded}`), { headers: { Authorization: `Bearer ${token}` } }, { fetchImpl })
   if (!res.ok) throw new Error(`取 ${key} 失败：HTTP ${res.status}`)
   return Buffer.from(await res.arrayBuffer())
 }

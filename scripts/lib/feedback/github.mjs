@@ -8,6 +8,7 @@
 
 import { execSync } from "node:child_process";
 import { ROOT } from "./normalize.mjs";
+import { fetchWithRetry } from "../transientRetry.mjs";
 
 const API = "https://api.github.com";
 const MAX_BODY = 4000; // 截断超长正文，保 raw.json 可读、可喂分诊
@@ -26,7 +27,7 @@ async function ghFetch(pathname) {
   const headers = { Accept: "application/vnd.github+json", "User-Agent": "nomi-feedback-radar" };
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API}${pathname}`, { headers });
+  const res = await fetchWithRetry(`${API}${pathname}`, { headers });
   if (!res.ok) throw new Error(`GitHub API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.json();
 }

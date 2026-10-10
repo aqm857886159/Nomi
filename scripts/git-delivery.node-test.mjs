@@ -285,6 +285,36 @@ test('check-run loader queries the exact commit endpoint and rejects malformed e
   )
 })
 
+test('check-run loader retries a transient gh network failure once, but never a 4xx', async () => {
+  const sha = '0123456789abcdef0123456789abcdef01234567'
+  let calls = 0
+  const flaky = async () => {
+    calls += 1
+    if (calls === 1) {
+      throw new DeliveryError('transport_failed', 'Command failed with exit code 1', { stderr: 'error connecting to api.github.com' })
+    }
+    return { stdout: JSON.stringify({ check_runs: passedChecks() }) }
+  }
+  const checks = await listCommitCheckRuns({ repository: 'example/nomi', commitSha: sha, runCommand: flaky, retryOptions: { sleep: async () => {} } })
+  assert.equal(calls, 2)
+  assert.equal(checks.length, passedChecks().length)
+
+  let forbidden = 0
+  await assert.rejects(
+    listCommitCheckRuns({
+      repository: 'example/nomi',
+      commitSha: sha,
+      runCommand: async () => {
+        forbidden += 1
+        throw new DeliveryError('transport_failed', 'Command failed with exit code 1', { stderr: 'gh: Resource not accessible (HTTP 403)' })
+      },
+      retryOptions: { sleep: async () => {} },
+    }),
+    (error) => error.code === 'transport_failed',
+  )
+  assert.equal(forbidden, 1)
+})
+
 test('merged verification records exact-SHA CI evidence once and reuses its receipt', async (t) => {
   const f = fixture()
   t.after(f.cleanup)
