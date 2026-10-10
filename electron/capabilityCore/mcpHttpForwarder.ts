@@ -8,20 +8,17 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 
 import { bridgeStdioToHttp } from './mcpHttpBridge'
-import { isLoopbackMcpUrl, mcpHttpIdentityHeaders, resolveForwarderUrl } from './mcpHttpEndpoint'
+import { MCP_HTTP_DEFAULT_PORT, forwarderFetch, liveForwarderUrl, mcpHttpUrl } from './mcpHttpEndpoint'
 import { MCP_TRANSPORT_ERROR_EVENT } from './mcpStdioDiagnostics'
 import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV } from './security'
 
 const client = String(process.env[MCP_CLIENT_ENV] || '').trim()
 const proof = String(process.env[MCP_CLIENT_PROOF_ENV] || '').trim()
-const forwarderUrl = resolveForwarderUrl()
-// 身份头只发往本机回环：地址被改成别处就不连（fail-closed）。
-if (!isLoopbackMcpUrl(forwarderUrl)) {
-  process.stderr.write('[nomi-mcp] forwarder refused: the configured address is not this computer\n')
-  process.exit(1)
-}
-const upstream = new StreamableHTTPClientTransport(new URL(forwarderUrl), {
-  requestInit: { headers: mcpHttpIdentityHeaders(client, proof), redirect: 'error' },
+// 身份只发往「本机此刻活着的那个 Nomi 的稳定地址」：每个出站请求都在 forwarderFetch 里重核（端口 = 稳定端口、
+// 端点文件记的就是它、写端点文件的进程还活着），对不上就一个字节都不发，桥给宿主回「请先打开 Nomi」。
+const upstream = new StreamableHTTPClientTransport(new URL(liveForwarderUrl() ?? mcpHttpUrl(MCP_HTTP_DEFAULT_PORT)), {
+  fetch: forwarderFetch(client, proof),
+  requestInit: { redirect: 'error' },
 })
 
 // stdout 整条给 JSON-RPC；诊断只走 stderr（事件名与两条启动器共用一个常量）。

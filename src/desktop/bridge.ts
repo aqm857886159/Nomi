@@ -5,7 +5,7 @@ import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyn
 import type { ProviderKind } from './providerKind'
 import type { DesktopMediaBridge, DesktopVideoDepthBridge } from './bridgeMedia'
 import type { DesktopConnectorBridge } from './bridgeConnector'
-import type { McpClientProfile, McpInfo, McpInstallResult, McpMigrationResult, McpMigrationState, McpUninstallResult, McpVerifyResult } from './mcpBridgeTypes'
+import type { McpClientProfile, McpInfo, McpInstallResult, McpMigrationOutcome, McpMigrationState, McpUninstallResult, McpVerifyResult } from './mcpBridgeTypes'
 import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
@@ -382,7 +382,7 @@ export type DesktopBridge = DesktopMediaBridge &
     /** 迁移提示：哪些宿主还写着旧连接方式（只读）；老 preload 无此口。 */
     mcpMigrationState?: () => Promise<McpMigrationState>
     /** 用户点「改过去」后：把名单里的宿主改成本机直连；每个宿主独立返回结果。 */
-    migrateMcpHosts?: (clients: string[]) => Promise<McpMigrationResult[]>
+    migrateMcpHosts?: (consent: string, clients: string[]) => Promise<McpMigrationOutcome>
     listCustomMcpProfiles?: () => Promise<McpClientProfile[]>
     registerCustomMcpProfile?: (profile: unknown) => Promise<McpClientProfile | null>
     removeCustomMcpProfile?: (key: string) => Promise<boolean>

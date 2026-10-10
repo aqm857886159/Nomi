@@ -56,8 +56,8 @@ export function MigrationStage({ phase, locale }: { phase: string; locale: 'zh-C
       capability: {
         mcpInfo: () => info,
         // 每格一个版本号：「以后再说」按版本记，格与格之间不串。
-        mcpMigrationState: () => Promise.resolve({ hosts: [...HOSTS], appVersion: `lab-${phase}` }),
-        migrateMcpHosts: () => Promise.resolve(resultsFor(phase)),
+        mcpMigrationState: () => Promise.resolve({ hosts: [...HOSTS], appVersion: `lab-${phase}`, consent: `lab-consent-${phase}` }),
+        migrateMcpHosts: () => Promise.resolve({ results: resultsFor(phase), retryConsent: phase === 'done' ? null : `lab-retry-${phase}` }),
       },
     }
   }, [info, phase])

@@ -55,3 +55,18 @@
 ## 自写登记 mcp-protocol：为什么现在换不了现成方案、哪天换
 
 登记条目 `mcp-protocol`（`docs/engineering/self-written.json`）覆盖 MCP 接入的领域部分。本轮命中的是其中「往别家宿主配置里写 Nomi 自己那一条」：各宿主（Claude Code / Codex / Cursor / Claude Desktop / WorkBuddy）官方只提供手改文件或各自 CLI，没有「第三方应用安全地往里写一条并保证备份、互斥、恢复」的库；握手验证已经用官方 SDK Client，互斥用仓库已有的租约设施，所以自写的只剩条目形状与迁移同意语义。重新评估的时点：某个宿主提供官方的「注册外部 MCP 服务」API（而不是改文件）时，或删旧 stdio 启动器那一版（`revisitWhen` 已写在登记里）。
+
+## 第 3 轮（复审 4876ac990 的 4 条阻断，I-mcp3 接手）
+
+`node scripts/fix-churn.mjs` 对本轮要改的 6 个文件全部命中（mcpConfig.ts 14 天第 4 个 fix、mcpHttpEndpoint.ts 第 3 个、自写登记 mcp-protocol 30 天第 32 个）。协调会话派单时已按「碰热点带 Direction-Check」放行，本轮按复盘结论做「换」而不是「补」：
+
+| 阻断 | 上一轮的修法为什么还会漏 | 这一轮换成什么（删掉了什么） |
+|---|---|---|
+| 1 锁 | 锁是「拿到就当一直是我的」：写期间不续租、换名前不核 | 锁给出 fence，写的每一步之间续租、提交前核 nonce 所有权与剩余租期；删掉 `lockHeld` / 嵌套拿锁的写法，读—改—写只有 `atomicWrite(target, edit)` 一种 |
+| 2 TOCTOU | 「比对」和「提交」分两步，提交后不看换下来的是什么；备份 copyFile | 提交协议：挂链接留住被换下来的那份 → 换名 → 事后核对 → 插写就放回；备份从内存写；删掉 `expectedSha256` / `sha256OfFile` |
+| 3 转发口 | 只核「是不是回环」 | 每个出站请求都核「此刻活着的那个 Nomi 的稳定地址」；删掉 `resolveForwarderUrl` / `isLoopbackMcpUrl` |
+| 4 所有权 | 「有 url 就是已迁移」 | 唯一判定 `nomiEntryTransport`；删掉两份各自的 Codex 读回解析（`codexConfiguredEntry` / `codexHttpEntry`），读路径和写入门用同一个 `parseNomiEntry` |
+
+P0 先查别人：proper-lockfile（异步续租、无同步所有权核验）与平台文件锁（Node 不暴露独占打开、要原生模块）都满足不了「同步写盘门里锁丢了必须在换名前失败」，结论与出处登记在 `docs/engineering/self-written.json` 的 `mcp-protocol` 条目。对外部写者的 compare-and-swap 普通文件系统没有，剩余窗口量化在设计卡中途表。
+
+还会不会第 4 轮：同类入口（安装 / 修复 / 启动修复 / 撤销 / 迁移 / 恢复）现在只有一扇写盘门、一个所有权判定、一个出站判据；再出同类问题只可能来自新增一种宿主写法——它必须走 `nomiEntryTransport` 才能被写入门接受，否则落到 `unowned` 被拒。

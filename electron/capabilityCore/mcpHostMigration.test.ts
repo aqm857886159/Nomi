@@ -18,13 +18,16 @@ vi.mock('node:os', async (importOriginal) => {
 
 import { installMcp, readMcpInfo, repairStaleMcpConfigs, uninstallMcp } from './mcpConfig'
 import {
+  McpMigrationConsentError,
   listMigratableMcpHosts,
   migrateMcpHostsToHttp,
+  migrateMcpHostsWithConsent,
+  readMcpMigrationState,
   restorePreMigrationMcpConfig,
 } from './mcpHostMigration'
 import { HostConfigBusyError } from './hostConfigWrite'
 import { builtinMcpClientConfigPath } from './mcpDetectedClients'
-import { MCP_HTTP_DEFAULT_PORT, isLoopbackMcpUrl, mcpHttpUrl, writeMcpHttpEndpoint } from './mcpHttpEndpoint'
+import { MCP_HTTP_DEFAULT_PORT, mcpHttpUrl, writeMcpHttpEndpoint } from './mcpHttpEndpoint'
 import { CAPABILITY_DIR_ENV, MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, ensureToken, verifyMcpClient } from './security'
 import { BUILTIN_MCP_CLIENTS, type BuiltinMcpClient } from '../shared/mcpClientRegistry'
 
@@ -234,13 +237,14 @@ describe('失败只影响那一个宿主，且原文件一个字节都不动', (
   it('迁移前备份写不出来：不改原文件，报 backup-failed', () => {
     seedAll()
     const before = bytes(cfg('claude'))
-    const real = fs.copyFileSync
-    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
-      if (String(dest).includes(PREMIGRATE)) throw EIO()
-      return real(src, dest, ...rest)
-    }) as typeof fs.copyFileSync)
+    const real = fs.writeFileSync
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      if (String(file).includes(`${PREMIGRATE}.part`)) throw EIO()
+      return real(file, data, options)
+    }) as typeof fs.writeFileSync)
     expect(migrateMcpHostsToHttp(['claude'])[0]).toMatchObject({ ok: false, reason: 'backup-failed' })
     expect(bytes(cfg('claude'))).toEqual(before)
+    expect(noPremigrateFiles()).toBe(true)
   })
 
   it('临时文件换名失败：不改原文件，报 write-failed，不留临时文件', () => {
@@ -380,16 +384,16 @@ describe('评审 2：并发与宿主热写', () => {
     }) as typeof fs.writeFileSync)
     let second: ReturnType<typeof migrateMcpHostsToHttp> | null = null
     let installError: unknown = null
-    const realCopy = fs.copyFileSync
-    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
-      realCopy(src, dest, ...rest)
+    vi.mocked(fs.writeFileSync).mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      if (String(file).includes('.nomi-tmp')) tmpNames.push(path.basename(String(file)))
+      realWrite(file, data, options)
       // 第一个迁移正持着锁、在做迁移前备份：第二个实例此刻来迁移同一个文件
-      if (String(dest).includes(PREMIGRATE) && !second) {
+      if (String(file).includes(`${PREMIGRATE}.part`) && !second) {
         second = migrateMcpHostsToHttp(['claude'])
         // 用户此刻在连接卡点了「重新连接」：写入同一个文件，也要排队（抢不到锁就如实失败，不交叉写）
         try { installMcp('claude') } catch (error) { installError = error }
       }
-    }) as typeof fs.copyFileSync)
+    }) as typeof fs.writeFileSync)
     const first = migrateMcpHostsToHttp(['claude'])
     expect(first[0]).toMatchObject({ ok: true })
     expect(second![0]).toMatchObject({ ok: false, reason: 'write-failed' })
@@ -406,13 +410,15 @@ describe('评审 2：并发与宿主热写', () => {
     const hostWrote = client === 'codex'
       ? fs.readFileSync(cfg(client), 'utf8') + '\n[mcp_servers.hostadded]\ncommand = "x"\n'
       : JSON.stringify({ ...JSON.parse(fs.readFileSync(cfg(client), 'utf8')), hostAdded: true }, null, 2)
-    const realCopy = fs.copyFileSync
-    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
-      realCopy(src, dest, ...rest)
-      if (String(dest).includes(PREMIGRATE)) fs.writeFileSync(cfg(client), hostWrote) // 宿主此刻写了它自己的改动
-    }) as typeof fs.copyFileSync)
+    const realWrite = fs.writeFileSync
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      realWrite(file, data, options)
+      if (String(file).includes(`${PREMIGRATE}.part`)) realWrite(cfg(client), hostWrote) // 宿主此刻写了它自己的改动
+    }) as typeof fs.writeFileSync)
     expect(migrateMcpHostsToHttp([client])[0]).toMatchObject({ ok: false, reason: 'host-changed' })
     expect(fs.readFileSync(cfg(client), 'utf8')).toBe(hostWrote)
+    // 这次没迁成：不留、不锁定一份「迁移前备份」（否则以后恢复回到的是宿主改之前的旧版）
+    expect(fs.existsSync(`${cfg(client)}${PREMIGRATE}`)).toBe(false)
     expect(fs.readdirSync(path.dirname(cfg(client))).filter((n) => /nomi-tmp|nomi-lock/.test(n))).toEqual([])
   })
 
@@ -451,11 +457,11 @@ describe('评审后自审：同类入口一并收口', () => {
   it('撤销接入也在锁里、换名前比对：宿主在读完之后改了文件，撤销放弃，宿主内容保留', () => {
     seedAll()
     const hostWrote = JSON.stringify({ ...JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8')), hostAdded: true }, null, 2)
-    const realCopy = fs.copyFileSync
-    vi.spyOn(fs, 'copyFileSync').mockImplementation(((src: fs.PathLike, dest: fs.PathLike, ...rest: never[]) => {
-      realCopy(src, dest, ...rest)
-      fs.writeFileSync(cfg('cursor'), hostWrote)
-    }) as typeof fs.copyFileSync)
+    const realWrite = fs.writeFileSync
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      realWrite(file, data, options)
+      if (String(file).includes('.nomi-backup.part')) realWrite(cfg('cursor'), hostWrote)
+    }) as typeof fs.writeFileSync)
     expect(() => uninstallMcp('cursor')).toThrow()
     expect(fs.readFileSync(cfg('cursor'), 'utf8')).toBe(hostWrote)
   })
@@ -468,11 +474,179 @@ describe('评审后自审：同类入口一并收口', () => {
     expect(migrateMcpHostsToHttp(['codex'])[0]).toMatchObject({ ok: true })
     expect(fs.readFileSync(cfg('codex'), 'utf8')).toContain('# bye bonus')
   })
+})
 
-  it('转发口只连本机回环地址', () => {
-    expect(isLoopbackMcpUrl('http://127.0.0.1:47173/mcp')).toBe(true)
-    for (const bad of ['http://evil.example/mcp', 'https://127.0.0.1:1/mcp', 'http://127.0.0.1:1/other', 'http://u:p@127.0.0.1:1/mcp', 'http://127.0.0.1:1/mcp?x=1', 'not a url']) {
-      expect(isLoopbackMcpUrl(bad), bad).toBe(false)
+/** 把宿主里 Nomi 那一条换成任意形状（JSON 宿主）。 */
+function setJsonEntry(client: BuiltinMcpClient, entry: unknown): void {
+  const config = JSON.parse(fs.readFileSync(cfg(client), 'utf8'))
+  config.mcpServers.nomi = entry
+  fs.writeFileSync(cfg(client), JSON.stringify(config, null, 2))
+}
+
+describe('复审阻断 4：混合或伪造的条目不许被「修复 / 重新连接」改掉传输方式', () => {
+  it('旧 stdio 条目里残留一个 url（两种写法混在一起）：连接 / 修复拒绝，字节不变；分类是 custom，不进迁移名单，迁移也不动它', () => {
+    seedAll()
+    const stdio = JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8')).mcpServers.nomi
+    setJsonEntry('cursor', { ...stdio, url: mcpHttpUrl(MCP_HTTP_DEFAULT_PORT) })
+    const before = bytes(cfg('cursor'))
+    expect(installMcp('cursor')).toMatchObject({ ok: false, reason: 'entry-not-owned' })
+    repairStaleMcpConfigs()
+    expect(readMcpInfo(0).clients.cursor.configState).toBe('custom')
+    expect(listMigratableMcpHosts()).not.toContain('cursor')
+    expect(migrateMcpHostsToHttp(['cursor'])[0]).toMatchObject({ ok: false, reason: 'not-migratable' })
+    expect(bytes(cfg('cursor'))).toEqual(before)
+  })
+
+  it('迁移后的直连条目被人加了一个 command（地址、身份头都对）：仍是混合条目，修复拒绝，不按任何一种传输重写', () => {
+    seedAll()
+    migrateMcpHostsToHttp(['cursor'])
+    const migrated = JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8')).mcpServers.nomi
+    setJsonEntry('cursor', { ...migrated, command: 'someone-else' })
+    const before = bytes(cfg('cursor'))
+    expect(readMcpInfo(0).clients.cursor.configState).toBe('custom')
+    expect(installMcp('cursor')).toMatchObject({ ok: false, reason: 'entry-not-owned' })
+    expect(bytes(cfg('cursor'))).toEqual(before)
+  })
+
+  it.each([
+    ['外部地址', 'http://evil.example/mcp'],
+    ['本机别的端口', 'http://127.0.0.1:1/mcp'],
+    ['别的路径', `http://127.0.0.1:${MCP_HTTP_DEFAULT_PORT}/other`],
+  ])('长得像直连条目但地址不是本实例的稳定地址（%s）：不是 migrated-http，修复拒绝、字节不变', (_label, url) => {
+    seedAll()
+    migrateMcpHostsToHttp(['claude'])
+    const migrated = JSON.parse(fs.readFileSync(cfg('claude'), 'utf8')).mcpServers.nomi
+    setJsonEntry('claude', { ...migrated, url })
+    const before = bytes(cfg('claude'))
+    expect(readMcpInfo(0).clients.claude.configState).toBe('custom')
+    expect(installMcp('claude')).toMatchObject({ ok: false, reason: 'entry-not-owned' })
+    expect(bytes(cfg('claude'))).toEqual(before)
+  })
+
+  it('直连条目的身份头是别的宿主的（或没有身份头）：不是 Nomi 给这个宿主写的，修复拒绝', () => {
+    seedAll()
+    migrateMcpHostsToHttp(['cursor'])
+    const migrated = JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8')).mcpServers.nomi
+    for (const headers of [{ ...migrated.headers, 'x-nomi-mcp-client': 'claude' }, {}]) {
+      setJsonEntry('cursor', { ...migrated, headers })
+      const before = bytes(cfg('cursor'))
+      expect(installMcp('cursor')).toMatchObject({ ok: false, reason: 'entry-not-owned' })
+      expect(bytes(cfg('cursor'))).toEqual(before)
     }
+  })
+
+  it.runIf(process.platform !== 'linux')('Claude Desktop：长得像转发口但地址不是稳定地址：分类 custom，修复拒绝、字节不变', () => {
+    seedAll()
+    migrateMcpHostsToHttp(['claude-desktop'])
+    const forwarder = JSON.parse(fs.readFileSync(cfg('claude-desktop'), 'utf8')).mcpServers.nomi
+    setJsonEntry('claude-desktop', { ...forwarder, env: { ...forwarder.env, NOMI_MCP_HTTP_URL: 'http://127.0.0.1:1/mcp' } })
+    const before = bytes(cfg('claude-desktop'))
+    expect(readMcpInfo(0).clients['claude-desktop'].configState).toBe('custom')
+    expect(installMcp('claude-desktop')).toMatchObject({ ok: false, reason: 'entry-not-owned' })
+    expect(bytes(cfg('claude-desktop'))).toEqual(before)
+  })
+
+  it('Codex：同一块里既有 command 又有 url：修复拒绝，字节不变', () => {
+    seedAll()
+    const text = fs.readFileSync(cfg('codex'), 'utf8').replace(/(\[mcp_servers\.nomi\]\n)/, `$1url = "${mcpHttpUrl(MCP_HTTP_DEFAULT_PORT)}"\n`)
+    fs.writeFileSync(cfg('codex'), text)
+    expect(installMcp('codex')).toMatchObject({ ok: false, reason: 'entry-not-owned' })
+    expect(fs.readFileSync(cfg('codex'), 'utf8')).toBe(text)
+  })
+
+  it('别人写的纯 stdio 条目：仍是 stdio→stdio（用户显式点连接才写），不会被写成直连', () => {
+    seedAll()
+    setJsonEntry('cursor', { command: 'someone-else', args: ['x'] })
+    expect(readMcpInfo(0).clients.cursor.configState).toBe('custom')
+    expect(installMcp('cursor').ok).toBe(true)
+    const entry = JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8')).mcpServers.nomi
+    expect(entry.url).toBeUndefined()
+    expect(entry.env.NOMI_MCP_STDIO).toBe('1')
+  })
+})
+
+describe('复审阻断 2：迁移 / 恢复在宿主热写时的结果', () => {
+  it('提交后宿主紧接着又写了一次（保留了 Nomi 那条）：如实报 host-changed；再试一次直接报成功，迁移前备份还在', () => {
+    seedAll()
+    const original = bytes(cfg('cursor'))!
+    const realRename = fs.renameSync
+    let hostWrote = false
+    vi.spyOn(fs, 'renameSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      realRename(from, to)
+      if (!hostWrote && String(to) === cfg('cursor') && String(from).includes('.nomi-tmp')) {
+        hostWrote = true
+        const config = JSON.parse(fs.readFileSync(cfg('cursor'), 'utf8'))
+        fs.writeFileSync(cfg('cursor'), JSON.stringify({ ...config, hostTouched: true }, null, 2))
+      }
+    }) as typeof fs.renameSync)
+    expect(migrateMcpHostsToHttp(['cursor'])[0]).toMatchObject({ ok: false, reason: 'host-changed' })
+    vi.restoreAllMocks()
+    expect(migrateMcpHostsToHttp(['cursor'])[0]).toMatchObject({ ok: true, kind: 'http', backupPath: `${cfg('cursor')}${PREMIGRATE}` })
+    expect(bytes(`${cfg('cursor')}${PREMIGRATE}`)).toEqual(original)
+  })
+
+  it('恢复时宿主在比对之后、换名之前原地写：放弃恢复，宿主写的内容原样保留', () => {
+    seedAll()
+    migrateMcpHostsToHttp(['claude'])
+    const migrated = fs.readFileSync(cfg('claude'), 'utf8')
+    const hostWrote = JSON.stringify({ ...JSON.parse(migrated), hostTouched: true }, null, 2)
+    const realRename = fs.renameSync
+    vi.spyOn(fs, 'renameSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      if (String(to) === cfg('claude') && String(from).includes('.nomi-tmp') && fs.readFileSync(cfg('claude'), 'utf8') === migrated) {
+        const fd = fs.openSync(cfg('claude'), 'r+')
+        fs.ftruncateSync(fd, 0)
+        fs.writeSync(fd, hostWrote, 0, 'utf8')
+        fs.closeSync(fd)
+      }
+      return realRename(from, to)
+    }) as typeof fs.renameSync)
+    expect(restorePreMigrationMcpConfig('claude')).toMatchObject({ ok: false, reason: 'host-changed' })
+    expect(fs.readFileSync(cfg('claude'), 'utf8')).toBe(hostWrote)
+  })
+})
+
+describe('同意绑定到主进程发出的那一次询问（IPC 一次性确认凭据）', () => {
+  it('凭据只认当时列出的宿主、只能用一次；伪造 / 重放 / 多塞一个宿主 / 过期都在写任何文件之前拒绝', () => {
+    seedAll()
+    fs.writeFileSync(cfg('cursor'), '{ not json') // cursor 不在名单里
+    const before = snapshotAll()
+    const state = readMcpMigrationState()
+    expect(state.consent).toEqual(expect.any(String))
+    const listed = state.hosts.map((h) => h.client)
+    expect(listed).not.toContain('cursor')
+    expect(() => migrateMcpHostsWithConsent('forged', listed)).toThrow(McpMigrationConsentError)
+    expect(() => migrateMcpHostsWithConsent(state.consent, [...listed, 'cursor'])).toThrow(McpMigrationConsentError)
+    expect(() => migrateMcpHostsWithConsent(state.consent, [])).toThrow(McpMigrationConsentError)
+    for (const c of HOSTS) expect(bytes(cfg(c)), c).toEqual(before.get(c))
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const fresh = readMcpMigrationState()
+      vi.setSystemTime(Date.now() + 31 * 60_000)
+      expect(() => migrateMcpHostsWithConsent(fresh.consent, listed)).toThrow(McpMigrationConsentError)
+    } finally {
+      vi.useRealTimers()
+    }
+    for (const c of HOSTS) expect(bytes(cfg(c)), c).toEqual(before.get(c))
+    const valid = readMcpMigrationState()
+    const outcome = migrateMcpHostsWithConsent(valid.consent, listed)
+    expect(outcome.results.every((r) => r.ok)).toBe(true)
+    expect(outcome.retryConsent).toBeNull()
+    expect(() => migrateMcpHostsWithConsent(valid.consent, listed)).toThrow(McpMigrationConsentError) // 重放
+  })
+
+  it('「再试一次」的凭据只覆盖这次没改成的宿主', () => {
+    seedAll()
+    const state = readMcpMigrationState()
+    const realWrite = fs.writeFileSync
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      if (String(file).startsWith(`${cfg('codex')}.nomi-tmp`)) throw EIO()
+      return realWrite(file, data, options)
+    }) as typeof fs.writeFileSync)
+    const first = migrateMcpHostsWithConsent(state.consent, state.hosts.map((h) => h.client))
+    vi.restoreAllMocks()
+    expect(first.results.filter((r) => !r.ok).map((r) => r.client)).toEqual(['codex'])
+    expect(() => migrateMcpHostsWithConsent(first.retryConsent, ['claude', 'codex'])).toThrow(McpMigrationConsentError)
+    const retried = migrateMcpHostsWithConsent(first.retryConsent, ['codex'])
+    expect(retried.results).toEqual([expect.objectContaining({ client: 'codex', ok: true })])
   })
 })

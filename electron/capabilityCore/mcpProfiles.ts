@@ -15,7 +15,7 @@ import path from 'node:path'
 import { assertTrustedSender } from '../ipcSenderGuard'
 import { listCustomMcpProfiles, registerCustomMcpProfile, removeCustomMcpProfile } from './mcpConfig'
 import { profilesPath } from './mcpDetectedClients'
-import { migrateMcpHostsToHttp, readMcpMigrationState } from './mcpHostMigration'
+import { migrateMcpHostsWithConsent, readMcpMigrationState } from './mcpHostMigration'
 
 export function registerCustomMcpProfileIpc(): void {
   // 迁移到本机直连（第 3 段）：名单只读；写只在用户点「改过去」后由 mcp-migrate 触发。
@@ -23,9 +23,10 @@ export function registerCustomMcpProfileIpc(): void {
     assertTrustedSender(event)
     return readMcpMigrationState()
   })
-  ipcMain.handle('nomi:capability:mcp-migrate', (event, clients: unknown) => {
+  ipcMain.handle('nomi:capability:mcp-migrate', (event, payload: unknown) => {
     assertTrustedSender(event)
-    return migrateMcpHostsToHttp(Array.isArray(clients) ? clients.filter((c): c is string => typeof c === 'string') : [])
+    const { consent, clients } = (payload && typeof payload === 'object' ? payload : {}) as { consent?: unknown; clients?: unknown }
+    return migrateMcpHostsWithConsent(consent, clients)
   })
   ipcMain.handle('nomi:capability:mcp-custom-profiles', (event) => {
     assertTrustedSender(event)
