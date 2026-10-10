@@ -1,5 +1,7 @@
 # 外部 MCP 付费确认：卡开着时项目被保存，确认不再作废（L-c9）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 根因合同：`docs/fixes/2026-10-06-mcp-gate-receipt-sealed-revision.root-cause.json`。
 > 拍板来源：付费卡① 第 14 条（`docs/plan/2026-09-30-paid-card-per-shot.md` 第 6 条；概念 `production.spend-approval-binding`）。本次没有新的花钱语义，只是把这条已定的规矩补到漏掉的那一扇门上。
 

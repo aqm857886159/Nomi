@@ -1,5 +1,7 @@
 # 方向检查：进项目卡顿（L-perf，2026-10-06）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`node scripts/fix-churn.mjs` 命中——`src/workbench/NomiStudioApp.tsx`（14 天 4 个 fix）、`electron/workspace/`（7 个）、`electron/agentLane/laneDesktopRuntime.ts`（3 个）、`GenerationCanvasReactFlowViewport.tsx`（3 个）、`GenerationCanvasReactFlowNodes.tsx`（3 个），以及自写登记 **lane-legacy-migration**（待替换 / 实为待删，30 天 3 个 fix）。
 
 ### 0. 一句话根因

@@ -1,5 +1,7 @@
 # 说真话小修：失败说明与事实对齐（设计卡 ★5 格）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 1. 用户怎么用：节点上「可找回」、分镜表悬停说明、任务面板对同一镜说同一句话；MCP 请求送达后对方断开，提示先 `nomi_read` 再决定是否重试。
 2. UX 思路：取回失败的镜（供应商已出片）不再借用「等待超时，上游可能出了片」。超时的镜保持原文案。
 3. owner：`unretrieved` 判定只有 `electron/shared/productionShotPhase.ts` 的 `jobAwaitsRetrieval`；节点/分镜表读 `recoverableCopy.ts`，它按最新运行记录是否制作投影（`isProductionRunRecord`）选键，键取任务面板同一对。MCP 「是否送达」判据复用 `outboundDispatchEvidence`。

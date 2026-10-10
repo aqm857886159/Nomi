@@ -1,5 +1,7 @@
 # 方向检查复盘：gate-family（自写门岗族）连修
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 来源：#1015 的方向检查（自写登记条目 30 天内第 2 个 fix 就命中）对 `gate-family`（`scripts/check-*.mjs`、`scripts/run-gates-contracts.mjs`）命中；近 30 天已有 100 多个 fix 提交碰过它。一份复盘可被多个提交引用，本文点名登记条目 id：**gate-family**。
 > 触发提交：`rules/test-routing` 分支里对 PR 正文判据的修补（可打断判据把测试文件里的 AbortController 也扫进去，#1038 误判成四类）。
 

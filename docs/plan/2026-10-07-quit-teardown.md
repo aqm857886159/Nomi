@@ -1,5 +1,7 @@
 # 设计卡：退出拆除与项目打开失败隔离
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：退出生命周期与 Agent lane 隔离  线/负责人：fix/quit-teardown-not-before-quit  类别：[可打断][长跑][新界面]
 
 | 格 | 结论 | 证据 |

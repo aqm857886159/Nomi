@@ -1,5 +1,7 @@
 # 方向检查 · 分镜镜头行与参考卡（L-sbui，2026-10-06）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 报 `anchorZone/StoryboardAnchorRow.tsx` 14 天内第 5 个 fix、`src/devlab/designLab/storyboard/` 第 3 个 fix。
 > 结构性结论已经在本分支落地，并经过三轮样张拍板（设计卡 `docs/plan/2026-10-06-storyboard-reuse-canvas-composer.md`，根因合同 `docs/fixes/2026-10-06-storyboard-reuse-canvas-composer.root-cause.json`）。这一页把它按复盘模板补齐，供后续 fix 提交引用。
 
