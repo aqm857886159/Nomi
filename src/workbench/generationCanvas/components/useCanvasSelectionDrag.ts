@@ -85,7 +85,12 @@ export function useCanvasSelectionDrag({
         // every pointer sample. The shell is the visual surface, so translating it
         // preserves the preview without invalidating edge anchors until commit.
         ...drag.memberIds.map(
-          (id) => `.react-flow__node[data-node-id="${CSS.escape(id)}"] .generation-canvas-react-flow__node-shell`,
+          (id) => [
+            `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__node-shell`,
+            `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__handle`,
+            `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__handle-hit`,
+            `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__handle-icon`,
+          ].join(','),
         ),
       ].join(','),
     [],
@@ -113,7 +118,12 @@ export function useCanvasSelectionDrag({
   const selectionPreviewSelector = React.useCallback(
     (drag: DragRecord) =>
       (drag.previewNodeIds ?? [])
-        .map((id) => `.react-flow__node[data-node-id="${CSS.escape(id)}"] .generation-canvas-react-flow__node-shell`)
+        .map((id) => [
+          `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__node-shell`,
+          `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__handle`,
+          `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__handle-hit`,
+          `.react-flow__node[data-id="${CSS.escape(id)}"] .generation-canvas-react-flow__handle-icon`,
+        ].join(','))
         .join(','),
     [],
   )

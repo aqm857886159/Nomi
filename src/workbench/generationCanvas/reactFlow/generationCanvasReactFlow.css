@@ -210,6 +210,28 @@
   transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Movement previews translate the visual node shell while React Flow keeps its
+ * measured wrapper and edge anchors stable. Hide every source affordance for
+ * that frame instead of leaving old anchors painted behind the moving card.
+ * The connection line remains available for an explicit connection gesture. */
+.generation-canvas-v2__stage[data-dragging='true'] .generation-canvas-react-flow__handle--source {
+  pointer-events: none !important;
+}
+
+.generation-canvas-v2__stage[data-dragging='true'] .generation-canvas-react-flow__handle-icon {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+
+/* A group toolbar is a selection affordance, not part of the object being
+ * moved. Keeping it pinned above the old measured wrapper is what made it
+ * appear to drop out of the group during a drag. */
+.generation-canvas-v2__stage[data-dragging='true'] .generation-canvas-v2__group-toolbar {
+  visibility: hidden;
+  pointer-events: none !important;
+}
+
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic:hover .generation-canvas-react-flow__handle-icon,
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
