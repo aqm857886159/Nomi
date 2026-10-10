@@ -1,40 +1,75 @@
 #!/usr/bin/env node
 // 真实用户任务 · **真花钱，最小量**（R13 四件真实：真应用 / 真画布输入 / 真供应商 / 真出图）——列表视图「生成全部」的逐项勾选。
 //
-//   NOMI_SPEND_OK=1 node tests/ux/generation-list-generate-all.paid.mjs [--packaged <Nomi 可执行文件的绝对路径>]
+//   NOMI_SPEND_OK=1 node tests/ux/generation-list-generate-all.paid.mjs [--rehearse] [--packaged <Nomi 可执行文件的绝对路径>]
+//
+// --rehearse：预演，零付费。同样过 _paidRun 入口的全部闸，走到确认卡、点掉一项、断言框翻转、勾着的数量是 1，
+// 然后点「取消」，断言一笔都没发（节点无提交、收据二 0 条）就退出。花钱之前的每一步都在预演里走一遍。
 //
 // 要证的一件事：分区头「生成全部」弹出的确认卡上，勾掉一项之后，**框真的变成未勾**，并且被勾掉的那个节点
 // 不开出价、不派发、没有供应商任务；确认卡上的数量、实际发出的数量、账本里的记录三者一致（都是 1）。
 // 零额度夹具证得到「勾选状态怎么流」，证不到「真供应商上只收到一笔」——所以这一条花真钱，但只花一张最小图。
 //
-// 夹具最小：一个项目、一个画布分组、组里 2 个还没生成的图片节点；模型沿用 canvas-spend-policy.paid.mjs 已验证的
-// 被授权那一个（隔离副本里只发布它一个图模型），分辨率选候选里面积最小的，提示词一句话。
-// 凭据、出网名单、三道闸、两张收据全部来自 _paidRun.mjs 的统一入口；脚本自己不碰真实资料目录。
+// 夹具最小：一个项目、一个画布分组、组里 2 个还没生成的图片节点——直接写进种子项目数据（不靠界面框选建组，
+// 那一步与要验的东西无关）；模型沿用 canvas-spend-policy.paid.mjs 已验证的被授权那一个（隔离副本里只发布它一个图模型），
+// 提示词一句话。凭据、出网名单、三道闸、两张收据全部来自 _paidRun.mjs 的统一入口；脚本自己不碰真实资料目录。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { clickOrFail, expect, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
-import { findCanvasBlankPoint } from './_canvasHit.mjs'
-import { groupSelectedNodes } from './_groupGenerate.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { SPEND_DIALOG, openPaidWalk, spendReceipt } from './_paidRun.mjs'
 import { switchGenerationView } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
+import { readProject } from './agent-runtime-walk-support.mjs'
 
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
 const IMAGE_LANDS_MS = stationTimeout({ turns: 1 })
+// 入口的参数解析只认 --packaged：预演开关先取走再交给入口。
+const REHEARSE = process.argv.includes('--rehearse')
+if (REHEARSE) process.argv.splice(process.argv.indexOf('--rehearse'), 1)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const evidenceDir = path.join(repoRoot, 'docs/evidence/2026-10-08-generation-list-view/paid')
 const CHECKBOXES = '[data-v4-block="plan-rows"] input[type="checkbox"]'
 
 const paid = await openPaidWalk('generation-list-generate-all.paid.mjs', 'generation-list-generate-all', [IMAGE])
 const { walk } = paid
+
+// ── 种子项目：一个分组 + 2 个还没生成的图片节点（启动前写好；形状同 agent-timeline-ops.walk.mjs 的种法）──
+const projectId = 'generation-list-generate-all'
+const projectName = '列表生成全部（最小量）'
+const projectRoot = path.join(walk.report.tempRoot, 'projects', projectId)
+fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
+const NODE_IDS = ['list-paid-a', 'list-paid-b']
+const PROMPTS = ['清晨海边的灯塔', '雨后的石板小巷']
+const seedNodes = NODE_IDS.map((id, index) => ({
+  id, kind: 'image', title: '', prompt: PROMPTS[index], categoryId: 'shots', status: 'idle',
+  position: { x: 80 + index * 420, y: 120 }, size: { width: 360, height: 203 },
+  meta: { modelVendor: IMAGE.vendorKey, modelKey: IMAGE.modelKey },
+}))
+const seedGroup = { id: 'list-paid-group', name: '最小量一组', categoryId: 'shots', nodeIds: NODE_IDS, createdAt: 1, updatedAt: 1 }
+const generationCanvas = { nodes: seedNodes, edges: [], selectedNodeIds: [], groups: [seedGroup] }
+const workbenchDocument = { version: 1, title: projectName, updatedAt: 1, contentJson: { type: 'doc', content: [] } }
+const seedProject = {
+  id: projectId, name: projectName, version: 2, createdAt: 1, updatedAt: 1, savedAt: 1, revision: 1,
+  lastKnownRootPath: projectRoot, workbenchDocument, timeline: null, generationCanvas,
+  payload: { workbenchDocument, timeline: null, generationCanvas, storyboardPlan: null, storyboardPlanCommitted: false },
+}
+fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(seedProject, null, 2))
+fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(seedProject, null, 2))
+walk.report.projectId = projectId
+walk.report.projectRoot = projectRoot
+walk.report.rehearsal = REHEARSE
+
 let failure
 try {
   const { win } = await walk.start({ first: true })
   await paid.lockToAuthorizedModels(win)
-  const { projectId, projectRoot } = await walk.newProject()
-  await openCanvas(win)
+  // 从项目库打开种子项目（真人的走法）。
+  const card = win.getByText(projectName, { exact: false }).first()
+  await expect(card, '项目库里有种子项目').toBeVisible({ timeout: stationTimeout() })
+  await card.hover()
+  await clickOrFail(win.getByRole('button', { name: /继续创作|Continue/ }).first(), '打开种子项目')
+  await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: stationTimeout() })
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()
 
@@ -48,48 +83,12 @@ try {
     return file
   }
 
-  // 打开生成框的参数面板，在候选里挑面积最小的那一个（解析不出候选就保持默认，并记进报告）。
-  async function pickSmallestSize(nodeId) {
-    const summary = win.locator('[data-composer-host="canvas"] [data-parameter-summary]').first()
-    await clickOrFail(summary, '生成框「生成参数」')
-    const options = win.getByRole('option')
-    const texts = await options.allInnerTexts()
-    const area = (text) => {
-      const match = text.match(/(\d+)\s*[×x]\s*(\d+)/i)
-      return match ? Number(match[1]) * Number(match[2]) : Infinity
-    }
-    const best = texts.map((text, index) => ({ index, size: area(text) })).filter((entry) => Number.isFinite(entry.size)).sort((a, b) => a.size - b.size)[0]
-    if (best) await clickOrFail(options.nth(best.index), `最小分辨率（${texts[best.index].trim()}）`)
-    else (walk.report.sizeNotes ??= []).push(`${nodeId}：参数面板里没有可解析的分辨率候选，保持默认`)
-    await win.keyboard.press('Escape')
+  // ① 花钱之前：种子节点落在被授权的模型上、都还没生成。
+  for (const id of NODE_IDS) {
+    const node = await nodeOnDisk(id)
+    expect({ vendor: node?.meta?.modelVendor, model: node?.meta?.modelKey, runs: node?.runs?.length ?? 0, result: node?.result ?? null }, '花钱之前：节点在被授权的模型上、还没生成')
+      .toEqual({ vendor: IMAGE.vendorKey, model: IMAGE.modelKey, runs: 0, result: null })
   }
-
-  // 像人一样加一个图片节点、写一句提示词、把分辨率调到最小；花钱前核对它落在被授权的模型上（不对就一分钱不花）。
-  async function addImageNode(prompt) {
-    const before = new Set((await nodesOnDisk()).map((node) => node.id))
-    await clickOrFail(win.locator('[aria-label="添加图片节点"]').first(), '画布「添加图片节点」')
-    const fresh = async () => (await nodesOnDisk()).find((node) => !before.has(node.id) && node.kind === 'image')?.id ?? null
-    await expect.poll(fresh, { message: '新图片节点落盘', timeout: stationTimeout() }).not.toBeNull()
-    const nodeId = await fresh()
-    const editor = win.locator(`[data-node-id="${nodeId}"] div[contenteditable="true"]`).last()
-    await clickOrFail(editor, '节点提示词输入框')
-    await editor.fill(prompt)
-    await expect.poll(async () => (await nodeOnDisk(nodeId))?.prompt ?? '', { message: '提示词落盘', timeout: stationTimeout() }).toContain(prompt.slice(0, 4))
-    await pickSmallestSize(nodeId)
-    const meta = (await nodeOnDisk(nodeId)).meta ?? {}
-    expect({ vendor: meta.modelVendor, model: meta.modelKey }, '花钱之前：新节点的模型就是被授权的那一个').toEqual({ vendor: IMAGE.vendorKey, model: IMAGE.modelKey })
-    return nodeId
-  }
-
-  // ① 夹具：2 个还没生成的图片节点，编成一组。
-  const nodeA = await addImageNode('清晨海边的灯塔')
-  const nodeB = await addImageNode('雨后的石板小巷')
-  const blank = await findCanvasBlankPoint(win)
-  expect(Boolean(blank), '画布上找得到空白处').toBe(true)
-  await win.mouse.click(blank.x, blank.y)
-  await clickOrFail(win.locator(`.react-flow__node[data-id="${nodeA}"]`), '选中节点 A')
-  await clickOrFail(win.locator(`.react-flow__node[data-id="${nodeB}"]`), 'Shift 加选节点 B', { modifiers: ['Shift'] })
-  await groupSelectedNodes(win)
 
   // ② 切到列表，点这一组的「生成全部」。
   await switchGenerationView(win, 'list')
@@ -97,7 +96,7 @@ try {
   await expect(win.locator('[data-section-generate]'), '只有这一个分区有「生成全部」').toHaveCount(1)
   await clickOrFail(win.locator('[data-section-generate]').first(), '分区头「生成全部」')
   const dialog = win.locator(SPEND_DIALOG)
-  await proveProbe(dialog, '一下跑两份：弹确认卡')
+  const dialogProof = await proveProbe(dialog, '一下跑两份：弹确认卡')
   const boxes = win.locator(CHECKBOXES)
   expect(await boxes.count(), '确认卡上有 2 行').toBe(2)
   expect(await win.locator(`${CHECKBOXES}:checked`).count(), '两行都默认勾选').toBe(2)
@@ -109,36 +108,51 @@ try {
   expect(await boxes.nth(0).isChecked(), '第 1 行仍是勾选').toBe(true)
   const cardCount = await win.locator(`${CHECKBOXES}:checked`).count()
   expect(cardCount, '确认卡上勾着的数量 = 1').toBe(1)
-  await snapEvidence('confirm-card-after-untick')
+  await snapEvidence(REHEARSE ? 'rehearsal-confirm-card-after-untick' : 'confirm-card-after-untick')
 
-  // ④ 确认：只有被勾着的那一个出任务。
-  await clickOrFail(dialog.locator('[data-spend-confirm-action="confirm"]'), '确认卡「确认」', { noWaitAfter: true })
-  const submitted = async () => (await nodesOnDisk()).filter((node) => [nodeA, nodeB].includes(node.id) && (node.runs?.length ?? 0) > 0).map((node) => node.id)
-  await expect.poll(async () => (await submitted()).length, { message: '被勾着的那个节点开始提交', timeout: stationTimeout() }).toBe(1)
-  const [spentId] = await submitted()
-  const skippedId = spentId === nodeA ? nodeB : nodeA
-  await snapEvidence('generating')
+  if (REHEARSE) {
+    // 预演到此为止：点「取消」，一笔都不发。
+    await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), '确认卡「取消」')
+    await expectAbsent(dialog, { provenBy: dialogProof, message: '取消之后确认卡退场' })
+    await waitForVisualQuiescence(win)
+    for (const id of NODE_IDS) {
+      const node = await nodeOnDisk(id)
+      expect({ runs: node.runs?.length ?? 0, result: node.result ?? null, task: node.progress?.taskId ?? null }, `预演：取消 = 节点 ${id} 一笔都没发`).toEqual({ runs: 0, result: null, task: null })
+    }
+    const receipt = spendReceipt(projectRoot)
+    expect(receipt.media.length, '预演：收据二里供应商任务数为 0').toBe(0)
+    walk.report.rehearsalProviderRequests = receipt.media.length
+    walk.report.verified = ['rehearsal-unticked-row-flips', 'rehearsal-checked-count-is-1', 'rehearsal-cancel-sends-nothing']
+  } else {
+    // ④ 确认：只有被勾着的那一个出任务。
+    await clickOrFail(dialog.locator('[data-spend-confirm-action="confirm"]'), '确认卡「确认」', { noWaitAfter: true })
+    const submitted = async () => (await nodesOnDisk()).filter((node) => NODE_IDS.includes(node.id) && (node.runs?.length ?? 0) > 0).map((node) => node.id)
+    await expect.poll(async () => (await submitted()).length, { message: '被勾着的那个节点开始提交', timeout: stationTimeout() }).toBe(1)
+    const [spentId] = await submitted()
+    const skippedId = spentId === NODE_IDS[0] ? NODE_IDS[1] : NODE_IDS[0]
+    await snapEvidence('generating')
 
-  await expect.poll(async () => (await nodeOnDisk(spentId))?.result?.url ?? '', { message: '被勾着的那个节点的真图落地', timeout: IMAGE_LANDS_MS }).toMatch(/^nomi-local:\/\//)
-  await waitForVisualQuiescence(win)
+    await expect.poll(async () => (await nodeOnDisk(spentId))?.result?.url ?? '', { message: '被勾着的那个节点的真图落地', timeout: IMAGE_LANDS_MS }).toMatch(/^nomi-local:\/\//)
+    await waitForVisualQuiescence(win)
 
-  // ⑤ 对账：被点掉的节点、出图的节点、供应商任务数、三处数量。
-  const spent = await nodeOnDisk(spentId)
-  const skipped = await nodeOnDisk(skippedId)
-  expect({ runs: skipped.runs?.length ?? 0, result: skipped.result ?? null, task: skipped.progress?.taskId ?? null }, '被点掉的节点：没有任务、没有结果').toEqual({ runs: 0, result: null, task: null })
-  expect(['idle', undefined].includes(skipped.status), `被点掉的节点仍是「还没生成」（实际状态：${skipped.status}）`).toBe(true)
-  expect(Boolean(spent.result?.url), '被勾着的节点有图').toBe(true)
-  expect(spent.runs?.length, '被勾着的节点恰好一次提交').toBe(1)
-  // 被勾掉的是确认卡第 2 行：行名能对上节点就记一笔（对不上不阻断，只进报告）。
-  walk.report.untickedRowMatchedNode = Boolean(secondLabel) && [skipped.title, skipped.prompt].some((text) => typeof text === 'string' && text.length > 0 && (text.includes(secondLabel) || secondLabel.includes(text.slice(0, 4))))
-  const receipt = spendReceipt(projectRoot)
-  const tasks = receipt.media.filter((entry) => entry.taskId)
-  expect(tasks.length, '供应商任务数恰好 1 个（收据二）').toBe(1)
-  expect(tasks[0].nodeId, '这一个任务属于被勾着的那个节点').toBe(spentId)
-  expect(receipt.media.length, '账本里的记录恰好 1 条').toBe(1)
-  expect([cardCount, tasks.length, receipt.media.length], '确认卡上的数量 = 实际发出的数量 = 账本里的记录').toEqual([1, 1, 1])
-  await snapEvidence('list-after-result')
-  walk.report.verified = ['unticked-row-flips-in-the-card', 'unticked-node-no-task-no-result', 'one-provider-task', 'card-count-equals-dispatched-equals-ledger']
+    // ⑤ 对账：被点掉的节点、出图的节点、供应商任务数、三处数量。
+    const spent = await nodeOnDisk(spentId)
+    const skipped = await nodeOnDisk(skippedId)
+    expect({ runs: skipped.runs?.length ?? 0, result: skipped.result ?? null, task: skipped.progress?.taskId ?? null }, '被点掉的节点：没有任务、没有结果').toEqual({ runs: 0, result: null, task: null })
+    expect(['idle', undefined].includes(skipped.status), `被点掉的节点仍是「还没生成」（实际状态：${skipped.status}）`).toBe(true)
+    expect(Boolean(spent.result?.url), '被勾着的节点有图').toBe(true)
+    expect(spent.runs?.length, '被勾着的节点恰好一次提交').toBe(1)
+    // 被勾掉的是确认卡第 2 行：行名能对上节点就记一笔（对不上不阻断，只进报告）。
+    walk.report.untickedRowMatchedNode = Boolean(secondLabel) && [skipped.title, skipped.prompt].some((text) => typeof text === 'string' && text.length > 0 && (text.includes(secondLabel) || secondLabel.includes(text.slice(0, 4))))
+    const receipt = spendReceipt(projectRoot)
+    const tasks = receipt.media.filter((entry) => entry.taskId)
+    expect(tasks.length, '供应商任务数恰好 1 个（收据二）').toBe(1)
+    expect(tasks[0].nodeId, '这一个任务属于被勾着的那个节点').toBe(spentId)
+    expect(receipt.media.length, '账本里的记录恰好 1 条').toBe(1)
+    expect([cardCount, tasks.length, receipt.media.length], '确认卡上的数量 = 实际发出的数量 = 账本里的记录').toEqual([1, 1, 1])
+    await snapEvidence('list-after-result')
+    walk.report.verified = ['unticked-row-flips-in-the-card', 'unticked-node-no-task-no-result', 'one-provider-task', 'card-count-equals-dispatched-equals-ledger']
+  }
 } catch (error) {
   failure = error
   process.exitCode = 1
