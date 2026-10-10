@@ -12,6 +12,7 @@
 // UI 建的节点**字段级等价**（meta/categoryId/shotIndex/size 全齐），不再是缺字段的「二等公民」。
 import { randomUUID } from 'node:crypto'
 import { backfillShotIndexes } from '../shared/canvas/shotNumbering'
+import { validateReferenceEdge, type EdgeAdmissionMode, type EdgeEndpoint } from '../shared/canvas/edgeAdmission'
 import { ANCHOR_META_KEYS, isVisualAnchorKind } from './anchorBible'
 import { buildCanvasNodes, type CanvasNodeFactorySpec, type NodeFactoryDeps } from './canvasNodeFactory'
 import { layoutBatchWith, type NodeBox } from './canvasNodeLayout'
@@ -231,14 +232,15 @@ export function addNodes(
 /**
  * 批量连线。order 按「该 target 现有入边数」递增赋值（全模式单调、全局插入序）——
  * 与 renderer connectNodes 同一口径（generationCanvasTypes 注释），保住「谁是 character1」。
- * 跳过：端点不存在 / 自环 / 重复（同 source→target 同 mode）。返回新快照 + 新建边 id。
+ * 跳过：端点不存在 / 自环 / 重复（同 source→target 同 mode）/ 目标不收这种输入（reason 形如 `target_takes_no_input: video -> text`）。返回新快照 + 新建边 id。
  */
 export function connectNodes(
   snapshot: CanvasSnapshot,
   connections: ConnectionSpec[],
 ): { snapshot: CanvasSnapshot; edgeIds: string[]; skipped: Array<{ connection: ConnectionSpec; reason: string }> } {
   const next = cloneSnapshot(snapshot)
-  const nodeIds = new Set(next.nodes.map((node) => node.id))
+  const nodesById = new Map(next.nodes.map((node) => [node.id, node]))
+  const nodeIds = new Set(nodesById.keys())
   const edgeIds: string[] = []
   const skipped: Array<{ connection: ConnectionSpec; reason: string }> = []
   for (const connection of connections) {
@@ -259,6 +261,14 @@ export function connectNodes(
     )
     if (duplicate) {
       skipped.push({ connection, reason: '重复连线' })
+      continue
+    }
+    // 与渲染层 store 手动连线 / Agent 同一道总闸（electron/shared/canvas/edgeAdmission）：目标这一类不收这种输入就拒，原因带种类，模型读得懂、能改。
+    const sourceNode = nodesById.get(connection.source)!
+    const targetNode = nodesById.get(connection.target)!
+    const verdict = validateReferenceEdge(sourceNode as unknown as EdgeEndpoint, targetNode as unknown as EdgeEndpoint, mode as EdgeAdmissionMode)
+    if (!verdict.ok) {
+      skipped.push({ connection, reason: `${verdict.reason}: ${sourceNode.kind} -> ${targetNode.kind}` })
       continue
     }
     const order = next.edges.filter((edge) => edge.target === connection.target).length

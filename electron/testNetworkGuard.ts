@@ -1,3 +1,5 @@
+import { appendFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { URL } from "node:url";
 
 export type TestNetworkRedirect = { from: string; to: string };
@@ -29,6 +31,35 @@ function parseOrigins(raw: string | undefined): Set<string> {
     }
   }
   return origins;
+}
+
+/**
+ * 付费真跑走查的放行名单（NOMI_WALK_ALLOW_ORIGINS）。判定的唯一正本是 electron/shared/walkAllowlist.cjs，
+ * 走查网络闸与本闸共用它（构建把它拷进 dist-electron/shared/）。惰性加载：只有测试闸开着且设了名单才会 require，
+ * 正式包启动不依赖它。
+ */
+type WalkAllowlistModule = {
+  parseAllowlist: (raw: string | undefined, options?: { ci?: boolean }) => unknown;
+  allowsUrl: (list: unknown, url: URL) => boolean;
+};
+
+function walkAllows(url: URL, env: NodeJS.ProcessEnv): boolean {
+  if (!env.NOMI_WALK_ALLOW_ORIGINS) return false;
+  const shared = createRequire(__filename)("./shared/walkAllowlist.cjs") as WalkAllowlistModule;
+  return shared.allowsUrl(shared.parseAllowlist(env.NOMI_WALK_ALLOW_ORIGINS, { ci: Boolean(env.CI) }), url);
+}
+
+/**
+ * 被挡记一笔到走查账本（同闸的 blocked 行格式）。只在走查设了账本路径时写；写失败不影响被测 App，
+ * 由走查侧发现：账本里没有 guard-loaded 行（同一个路径）就当场判红，见 tests/ux/_paidNetwork.mjs assertGuardLoaded。
+ */
+function noteBlocked(url: URL, env: NodeJS.ProcessEnv): void {
+  const log = env.NOMI_WALK_NET_LOG;
+  if (!log) return;
+  const entry = { kind: "blocked", via: "product-guard", url: `${url.origin}${url.pathname}`, host: url.hostname, pid: process.pid, at: new Date().toISOString() };
+  try {
+    appendFileSync(log, `${JSON.stringify(entry)}\n`);
+  } catch { /* 见上：走查侧核对 */ }
 }
 
 function parseRedirects(raw: string | undefined): TestNetworkRedirect[] {
@@ -78,6 +109,7 @@ export function guardTestNetworkUrl(rawUrl: string, env: NodeJS.ProcessEnv = pro
   const redirected = redirectedUrl(url, parseRedirects(env.NOMI_TEST_NETWORK_REDIRECTS));
   if (redirected) url = redirected;
   const registered = parseOrigins(env.NOMI_TEST_NETWORK_FIXTURE_ORIGINS);
-  if (isLoopback(url.hostname) || registered.has(url.origin)) return redirected ? url.toString() : rawUrl;
+  if (isLoopback(url.hostname) || registered.has(url.origin) || walkAllows(url, env)) return redirected ? url.toString() : rawUrl;
+  noteBlocked(url, env);
   throw new TestNetworkBlockedError(url.hostname);
 }

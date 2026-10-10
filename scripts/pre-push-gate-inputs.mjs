@@ -54,6 +54,8 @@ export const GATE_INPUTS = Object.freeze({
   'check:asset-evidence': { roots: ['electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/asset-evidence-baseline.json'], entries: ['scripts/check-asset-evidence.mjs'] },
   // check-media-import-owner.mjs：媒体导入口的唯一 owner，扫 electron / src
   'check:media-import-owner': { roots: ['electron','src'], exts: ['ts','tsx'], files: ['scripts/media-import-owner-baseline.json'], entries: ['scripts/check-media-import-owner.mjs'] },
+  // check-canvas-edge-writers.mjs：画布领地里谁能直接写 .edges（TS 语法树），扫这四个根目录
+  'check:canvas-edge-writers': { roots: ['src/workbench/generationCanvas','src/workbench/project','electron/capabilityCore','electron/shared/canvas'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-canvas-edge-writers.mjs'] },
   // check-dangling-tokens.mjs：src 的 css token 定义与 ts / tsx 里的引用
   'check:dangling-tokens': { roots: ['src'], exts: ['css','ts','tsx'], files: ['tailwind.config.ts'], entries: ['scripts/check-dangling-tokens.mjs'] },
   // check-dangling-tailwind.mjs：tailwind.config.ts 的键 vs src 里的类名
