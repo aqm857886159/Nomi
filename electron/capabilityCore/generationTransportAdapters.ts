@@ -17,7 +17,7 @@ import type { DispatchContext } from "./dispatcher";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "./approvalReceipt";
 import { decideGenerationSpend, generationChallengeTokenOf } from "./generationSpendDecision";
 import { spendDecidedByPolicy, type ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
-import { cardActionsSettled } from "./spendCardActionQueue";
+import { sealedOutcome } from "./spendOperationArbiter";
 import type { GenerationInvocationContext } from "../shared/agentCapabilities/generationInvocationContext";
 import { shotDurationSeconds } from "./mcpGenerationVideoResolve";
 
@@ -592,12 +592,11 @@ export function createPiGenerationTransportAdapter(
     },
     async readPresentationOutcome(operationIdToRead) {
       if (disposed) return undefined;
-      // 卡可能在一镜批到一半时关掉（×、在卡开着时打字）：那一镜照样批下、花钱。等卡上的动作落定再读，
-      // 回执说的才是宿主最终批下的那一份（`spendCardActionQueue`；10-02 搞破坏线 X2 / X4）。
-      await cardActionsSettled(binding.projectId, operationIdToRead);
+      // 卡可能在一镜批到一半时关掉（×、在卡开着时打字）：授权已落账的那一镜照样发出、花钱。回执从仲裁器的封存终态读
+      // （先等卡上的动作落定），说的才是宿主最终批下的那一份——和 × 回给卡的是同一个口（`spendOperationArbiter`）。
       const signal = new AbortController().signal;
       try {
-        const read = await plan("read", { operationId: operationIdToRead }, await lease(signal), signal) as { operation?: { presentationOutcome?: GeneratePresentationOutcome } };
+        const read = await sealedOutcome(binding.projectId, operationIdToRead, async () => plan("read", { operationId: operationIdToRead }, await lease(signal), signal)) as { operation?: { presentationOutcome?: GeneratePresentationOutcome } };
         return read?.operation?.presentationOutcome;
       } catch {
         return undefined;
