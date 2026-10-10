@@ -188,10 +188,8 @@ async function pickModelAndGenerate(scope, label, expectedModel, callsBefore) {
   const root = win.locator(scope).first()
   await root.locator('button[aria-haspopup="listbox"]').click()
   await win.waitForTimeout(500)
-  if (process.env.WALK_DEBUG) await win.screenshot({ path: process.env.WALK_DEBUG + '/pick.png' })
   await clickOrFail(win.getByRole('option', { name: label }), '选模型 ' + label)
   await clickOrFail(root.locator('[data-bar-segment="generate"]'), '生成框的 ↑')
-  await win.waitForFunction((n) => window.__walkWireCount?.() > n, callsBefore, { timeout: 30000 }).catch(() => {})
   const deadline = Date.now() + 30000
   while (wireCalls.length <= callsBefore && Date.now() < deadline) await win.waitForTimeout(250)
   expect(wireCalls.length, '假供应商没收到请求').toBe(callsBefore + 1)
