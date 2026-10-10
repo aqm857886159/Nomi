@@ -261,17 +261,16 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
     }
   });
 
-  // 2026-10-02 搞破坏线 X2 / X4：× 收回出价是立刻的，可那一刻可能有一镜正批到一半——它照样批下、照样花钱。
-  // 以前 × 当场就把结局递给等着的回合：回执把那一镜写成「没生成、没花钱」，卡关掉时那一句也少算一张。
-  // 下面两条造「× 和第 k 张的批准赛跑」（10-02 搞破坏线 X2 / X4）：× 落在那一镜过完卡上的核对、还没封印开门的时候——
-  // 收回出价时没有门可撤，这一镜随后照样批下、发出。回合听到的结局、× 回的张数、供应商收到的，三处都得按宿主最终批下的那一份说。
+  // 下面两条造「× 和第 k 张的批准赛跑」：× 落在那一镜过完卡上的核对、还没封印开门的时候。
+  // 10-02（搞破坏线 X2 / X4）当时的裁决是「没有门可撤，这一镜照样批下」；2026-10-10 仲裁器（docs/plan/2026-10-10-spend-arbiter.md）改成：
+  // × 的取消令牌同步登记，开门前问到它，这一镜不再批；已经授权落账的前几张照样发。回合听到的结局、× 回的张数、供应商收到的三处按同一份终态说。
   describe("× 和正在批的那一镜赛跑", () => {
     type Outcome = ReturnType<typeof generationPresentationOutcome>;
     /** 回合在账本里这一次出价关掉那一刻就去读结局，读法和 lane 同一个（`readPresentationOutcome`）。卡摆出来之后才开始看。 */
     const listen = (built: ReturnType<typeof buildActions>, base: ReturnType<typeof harness>, heard: Promise<Outcome | undefined>[]) =>
       watchCardForTurn(base, () => { heard.push(built.transport("step").readPresentationOutcome(OPERATION_ID)); });
 
-    it("「生成剩下 4 张」批第 2 张时点 ×：第 2 张照样批下；回合听到的结局、× 回的张数、供应商收到的三处一致", async () => {
+    it("「生成剩下 4 张」批第 2 张时点 ×：第 2 张不再批；回合听到的结局、× 回的张数、供应商收到的三处一致", async () => {
       const vendor = await startLoopbackVendor();
       const base = harness();
       const submits: string[] = [];
@@ -294,14 +293,14 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
         const card = built.withWindow.listPendingSpend(PROJECT_ID)[0];
         advanceClock(1000);
         expect(await built.withWindow.confirmRemainingShots({ ...TARGET, quoteId: card.quoteId, shotIds: card.shots.map((shot) => shot.shotId) }))
-          .toMatchObject({ ok: true, batchStopped: { sent: 2, notSent: 2 } });
-        expect(await discarding, "× 回的是最终批下几张、没发几张").toMatchObject({ ok: true, code: "discarded", batchStopped: { sent: 2, notSent: 2 } });
-        expect(shotsSent(submits), "第 2 张在 × 之前已经在批，照样发了").toEqual(["shot-1", "shot-2"]);
+          .toMatchObject({ ok: true, batchStopped: { sent: 1, notSent: 3 } });
+        expect(await discarding, "× 回的是最终批下几张、没发几张").toMatchObject({ ok: true, code: "discarded", batchStopped: { sent: 1, notSent: 3 } });
+        expect(shotsSent(submits), "× 之后没交出去的第 2 张不再发").toEqual(["shot-1"]);
         expect(heard, "回合只听到一次结局").toHaveLength(1);
         expect(await heard[0], "回合读到的结局按宿主最终批下的说").toMatchObject({
           closedBy: "user_closed",
-          generating: ["shot-1", "shot-2"],
-          undecided: [{ shotId: "shot-3", reason: "user_closed" }, { shotId: "shot-4", reason: "user_closed" }],
+          generating: ["shot-1"],
+          undecided: [{ shotId: "shot-2", reason: "user_closed" }, { shotId: "shot-3", reason: "user_closed" }, { shotId: "shot-4", reason: "user_closed" }],
         });
       } finally {
         turn?.dispose();
@@ -309,7 +308,7 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
       }
     });
 
-    it("「生成这张」正在批时点 ×：这一镜照样批下；回合听到它在生成，× 回的是「发出了 1 张，剩下 2 张没发」", async () => {
+    it("「生成这张」正在批时点 ×：这一镜不再批；确认回「没发起」，× 回的是「发出了 0 张，剩下 3 张没发」", async () => {
       const vendor = await startLoopbackVendor();
       const base = harness();
       const submits: string[] = [];
@@ -329,14 +328,15 @@ describe("「生成剩下 N 张」= 卡上还没决定的每一张各点一次�
         turn = listen(built, base, heard);
         const card = built.withWindow.listPendingSpend(PROJECT_ID)[0];
         advanceClock(1000);
-        expect(await built.withWindow.confirmPendingSpend({ ...TARGET, quoteId: card.quoteId, shotId: "shot-1" })).toMatchObject({ ok: true });
-        expect(await discarding).toMatchObject({ ok: true, code: "discarded", batchStopped: { sent: 1, notSent: 2 } });
-        expect(shotsSent(submits), "× 落下时第 1 张已经在批，照样发了").toEqual(["shot-1"]);
+        expect(await built.withWindow.confirmPendingSpend({ ...TARGET, quoteId: card.quoteId, shotId: "shot-1" }))
+          .toMatchObject({ ok: false, message: "generation_not_started", reason: "generation_cancelled" });
+        expect(await discarding).toMatchObject({ ok: true, code: "discarded", batchStopped: { sent: 0, notSent: 3 } });
+        expect(shotsSent(submits), "× 之后没交出去的不再发").toEqual([]);
         expect(heard).toHaveLength(1);
         expect(await heard[0]).toMatchObject({
           closedBy: "user_closed",
-          generating: ["shot-1"],
-          undecided: [{ shotId: "shot-2", reason: "user_closed" }, { shotId: "shot-3", reason: "user_closed" }],
+          generating: [],
+          undecided: [{ shotId: "shot-1", reason: "user_closed" }, { shotId: "shot-2", reason: "user_closed" }, { shotId: "shot-3", reason: "user_closed" }],
         });
       } finally {
         turn?.dispose();

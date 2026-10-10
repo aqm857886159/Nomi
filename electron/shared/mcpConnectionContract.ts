@@ -15,6 +15,8 @@ export const MCP_CONFIG_STATES = [
   'auth-stale',
   'launcher-broken',
   'launcher-elsewhere',
+  'migrated-http',
+  'migrated-forwarder',
   'custom',
 ] as const
 export type McpConfigState = (typeof MCP_CONFIG_STATES)[number]

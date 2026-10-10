@@ -17,7 +17,7 @@ export const MCP_HTTP_PATH = '/mcp'
 export const MCP_HTTP_DEFAULT_PORT = 47173
 /** 显式指定端口（0 = 随机，走查用）。 */
 export const MCP_HTTP_PORT_ENV = 'NOMI_MCP_HTTP_PORT'
-/** 转发口要连的地址（缺省读端点文件，再缺省用默认端口）。 */
+/** Claude Desktop 转发口条目里写的地址（必须等于转发口自己算出的稳定地址，见 liveForwarderUrl）。 */
 export const MCP_HTTP_URL_ENV = 'NOMI_MCP_HTTP_URL'
 /**
  * 身份头：与回环 RPC 同一对名字、同一种签名（Nomi 用本机 capability token 给客户端名签的 proof）。
@@ -80,13 +80,6 @@ export function readMcpHttpEndpoint(): McpHttpEndpoint | null {
   }
 }
 
-/** 转发口连哪里：显式地址 > 端点文件 > 默认端口。 */
-export function resolveForwarderUrl(env: NodeJS.ProcessEnv = process.env): string {
-  const explicit = String(env[MCP_HTTP_URL_ENV] ?? '').trim()
-  if (explicit) return explicit
-  return readMcpHttpEndpoint()?.url ?? mcpHttpUrl(MCP_HTTP_DEFAULT_PORT)
-}
-
 export function mcpHttpIdentityHeaders(client: string, proof: string): Record<string, string> {
   return { [MCP_HTTP_CLIENT_HEADER]: client, [MCP_HTTP_CLIENT_PROOF_HEADER]: proof }
 }
@@ -99,4 +92,66 @@ export function buildMcpHttpHostEntry(client: AuthenticatedMcpClient, port: numb
   const proof = signMcpClient(client)
   if (!proof) return null
   return { url: mcpHttpUrl(port), headers: mcpHttpIdentityHeaders(client, proof) }
+}
+
+/**
+ * 稳定地址（宿主配置里写的那个）此刻是不是**本进程**在听：端点文件记的端口、地址、进程号都和本进程一致。
+ * 别的 Nomi 实例占着这个端口、服务没起来（端口被占）、端点文件陈旧（进程已死）→ false，迁移据此拒绝（宿主保持 stdio）。
+ */
+export function isMcpHttpLiveAt(port: number): boolean {
+  const endpoint = readMcpHttpEndpoint()
+  return Boolean(endpoint && endpoint.port === port && endpoint.url === mcpHttpUrl(port) && endpoint.pid === process.pid)
+}
+
+function processAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException)?.code === 'EPERM'
+  }
+}
+
+/**
+ * 转发口此刻**唯一**允许带着身份去连的地址；null = 不许连。三项全对才给：
+ * ① 地址就是 `http://127.0.0.1:<resolveMcpHttpPort()>/mcp`（宿主配置里的地址被改成别的端口 / 路径 / 主机都不行）；
+ * ② capability 目录里的端点文件记的正是这个地址；③ 写端点文件的那个 Nomi 进程还活着。
+ * 端点文件和 token 同目录、同一个隔离边界：它说「Nomi 正在这儿听」，别的程序占了这个端口它不会这么说。
+ */
+export function liveForwarderUrl(env: NodeJS.ProcessEnv = process.env): string | null {
+  const port = resolveMcpHttpPort(env)
+  if (port === null || port <= 0) return null
+  const stable = mcpHttpUrl(port)
+  const configured = String(env[MCP_HTTP_URL_ENV] ?? '').trim()
+  if (configured && configured !== stable) return null
+  const endpoint = readMcpHttpEndpoint()
+  if (!endpoint || endpoint.url !== stable || endpoint.port !== port || !processAlive(endpoint.pid)) return null
+  return stable
+}
+
+/** 转发口拒绝出站时抛的错（桥据此给宿主回「请先打开 Nomi」，不带身份发任何请求）。 */
+export class ForwarderTargetRefused extends Error {
+  constructor(requested: string) {
+    super(`forwarder refused to send identity to ${requested}: not this computer's live Nomi endpoint`)
+  }
+}
+
+type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
+
+/**
+ * 转发口的出站 fetch：**每一个**请求（POST / GET 流 / DELETE）发出前都重核 liveForwarderUrl，
+ * 请求地址必须正是它；对上了才在这一步加身份头，不跟随重定向。对不上就抛，什么也不发。
+ * 身份头不放进 requestInit：那样任何绕过这道检查的请求都会带上它。
+ * send 由转发口进程注入（它是一个只连本机的独立 Node 进程，见 scripts/check-network-entry.mjs 的边界登记）。
+ */
+export function forwarderFetch(client: string, proof: string, send: FetchFn, env: NodeJS.ProcessEnv = process.env): FetchFn {
+  return async (input, init) => {
+    const requested = new URL(input instanceof Request ? input.url : String(input))
+    const live = liveForwarderUrl(env)
+    if (!live || requested.href !== new URL(live).href) throw new ForwarderTargetRefused(requested.href)
+    const headers = new Headers(init?.headers)
+    for (const [name, value] of Object.entries(mcpHttpIdentityHeaders(client, proof))) headers.set(name, value)
+    return send(requested, { ...init, headers, redirect: 'error' })
+  }
 }

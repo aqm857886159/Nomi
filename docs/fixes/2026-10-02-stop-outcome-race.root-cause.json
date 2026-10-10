@@ -12,7 +12,7 @@
     "Everyone who types into the Agent panel while a Generate this one is being approved: same wrong receipt through the lane's redirected path"
   ],
   "scope_paths": [
-    "electron/capabilityCore/spendCardActionQueue.ts",
+    "electron/capabilityCore/spendOperationArbiter.ts",
     "electron/capabilityCore/appIntegrationSpendConfirm.ts",
     "electron/capabilityCore/generationTransportAdapters.ts",
     "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
@@ -25,7 +25,7 @@
   "external_sources": [],
   "internal_only_reason": "When a paid card's outcome is final, and who may read it, is Nomi's own spend-authority flow; no external protocol defines it.",
   "invariant_owner_layer": {
-    "layer": "electron/capabilityCore/spendCardActionQueue.ts",
+    "layer": "electron/capabilityCore/spendOperationArbiter.ts",
     "tests": [
       "electron/capabilityCore/agentPanelSpendRemaining.e2e.test.ts",
       "electron/capabilityCore/agentPanelSpendBatches.e2e.test.ts",
@@ -42,7 +42,7 @@
   "doors": [
     {
       "kind": "write",
-      "path": "electron/capabilityCore/spendCardActionQueue.ts",
+      "path": "electron/capabilityCore/spendOperationArbiter.ts",
       "symbol": "serializeCardAction"
     },
     {
@@ -53,12 +53,12 @@
     {
       "kind": "read",
       "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
-      "symbol": "cardActionsSettled"
+      "symbol": "sealedOutcome"
     },
     {
       "kind": "read",
       "path": "electron/capabilityCore/generationTransportAdapters.ts",
-      "symbol": "cardActionsSettled"
+      "symbol": "sealedOutcome"
     },
     {
       "kind": "read",
@@ -79,12 +79,12 @@
   "generality_proof": "Nothing depends on the model, vendor, shot kind, batch size or who closes the card: any closer (×, typing, every shot decided) and any card action (Generate this one, Remove, Generate remaining) go through the same queue and the same wait.",
   "shared_boundaries": [
     {
-      "path": "electron/capabilityCore/spendCardActionQueue.ts",
-      "symbol": "cardActionsSettled",
+      "path": "electron/capabilityCore/spendOperationArbiter.ts",
+      "symbol": "sealedOutcome",
       "responsibility": "Resolves when the presentation's queued card actions have all landed; reading the run after it gives the host's final approved set."
     },
     {
-      "path": "electron/capabilityCore/spendCardActionQueue.ts",
+      "path": "electron/capabilityCore/spendOperationArbiter.ts",
       "symbol": "serializeCardAction",
       "responsibility": "Runs a presentation's card actions one after another; the queue cardActionsSettled waits on."
     }
@@ -125,13 +125,13 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "electron/capabilityCore/spendCardActionQueue.ts",
+    "enforcement_path": "electron/capabilityCore/spendOperationArbiter.ts",
     "invariant": "A presentation's final outcome is read only after its queued card actions have landed.",
     "failure_mode": "If a queued action hangs (a single-shot vendor submit that never times out), the × answer and the receipt wait as long as it does; the card itself closes at once.",
     "exception_policy": "none",
     "strategy": "Move the card's action queue into one module, expose cardActionsSettled, and make both tellers of a final result (the × and readPresentationOutcome) wait on it; the renderer shows the ×'s count after an interrupted single action.",
     "artifacts": [
-      "electron/capabilityCore/spendCardActionQueue.ts",
+      "electron/capabilityCore/spendOperationArbiter.ts",
       "electron/capabilityCore/appIntegrationSpendConfirm.ts",
       "electron/capabilityCore/generationTransportAdapters.ts",
       "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"

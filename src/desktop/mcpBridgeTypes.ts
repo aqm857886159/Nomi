@@ -34,7 +34,7 @@ export type McpClientInfo = {
 }
 
 /** 写盘被拒的原因（主进程 mcpConfig.McpWriteRefusal 的投影）。 */
-export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
+export type McpWriteRefusal = 'unknown-client' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable' | 'http-unavailable' | 'entry-not-owned' | 'config-read-only'
 
 export type McpInstallResult =
   | { ok: true; client: string; configPath: string; backupPath: string | null }
@@ -43,6 +43,19 @@ export type McpInstallResult =
 export type McpUninstallResult =
   | { ok: true; client: string }
   | { ok: false; client: string; reason: McpWriteRefusal }
+
+/** 迁移到本机直连（mcpHostMigration）的投影。 */
+export type McpMigrationFailure =
+  | 'not-migratable' | 'client-not-installed' | 'isolated-instance' | 'config-unreadable'
+  | 'http-unavailable' | 'backup-failed' | 'write-failed' | 'host-changed' | 'read-only'
+export type McpMigrationState = {
+  hosts: { client: string; label: string }[]
+  /** 「以后再说」按它记：到下一版再问。 */
+  appVersion: string
+}
+export type McpMigrationResult =
+  | { client: string; ok: true; kind: 'http' | 'forwarder'; backupPath: string | null }
+  | { client: string; ok: false; reason: McpMigrationFailure }
 
 export type McpInfo = {
   tokenReady: boolean
