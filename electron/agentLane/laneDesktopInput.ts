@@ -43,6 +43,7 @@ const composerSchema = intentSchema.extend({
   availableModels: z.array(agentModelEntrySchema).max(2048).optional(),
   attachments: z.array(z.object({ assetId: z.string().min(1).max(256), version: z.number().int().positive() }).strict()).max(64).optional(),
   displayText: text.optional(),
+  directorOpen: z.literal(true).optional(),
   skillKey: z.string().max(256).optional(),
   expectedSkillHash: z.string().min(1).max(256).optional(),
   continueFromEntryId: z.string().min(1).max(256).optional(),

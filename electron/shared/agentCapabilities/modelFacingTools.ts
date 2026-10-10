@@ -47,6 +47,7 @@ type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 export type {
   ToolProfile,
   LaneDomainToolGroup,
+  LaneToolScene,
   VerbEffect,
   VerbNextAction,
   VerbExample as ModelFacingToolExample,

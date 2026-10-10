@@ -1,7 +1,9 @@
-// B1c: all registered schemas are resident under the unchanged 10k ceiling.
+// B1c: all registered schemas are resident under the unchanged 10k ceiling — except scene tools
+// (`residentScene`), which join the list only while the user stands in that scene (3D director).
 // Groups describe task intent; requesting them never retires another group.
 // Execution approval and coding file access remain separate from schema visibility.
-import { LANE_MODEL_TOOL_CATALOG, LANE_TOOL_BUDGET } from './laneToolCatalog.js';
+import { LANE_MODEL_TOOL_CATALOG, LANE_SCENE_TOOL_CATALOG, LANE_TOOL_BUDGET } from './laneToolCatalog.js';
+import type { LaneToolScene } from '../shared/agentCapabilities/verbDeclaration.js';
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { Type } from 'typebox';
 import { LANE_CODING_TOOL_GROUP } from '../shared/agentLane/laneToolGroupNames.js';
@@ -50,6 +52,8 @@ export interface LaneToolMenuInput {
   readonly groups?: readonly LaneToolGroupDefinition[]
   /** 当前选择的任务组；不改变已注册 schema 的可见性。 */
   readonly activeGroup?: string | null
+  /** 用户此刻站着的场景（今天只有 `director`）。场景工具只在对应场景打开时才进清单；缺省 = 都没开。 */
+  readonly openScenes?: readonly LaneToolScene[]
 }
 
 export interface LaneToolMenu {
@@ -61,6 +65,15 @@ export interface LaneToolMenu {
   readonly codingUnlocked: boolean
 }
 
+/** 场景工具的名字（`residentScene` 声明在这些场景里的那些）。宿主与门岗都问这一处，不各自过滤。 */
+export function laneSceneToolNames(
+  tools: readonly { readonly name: string; readonly residentScene?: LaneToolScene }[],
+  scenes: readonly LaneToolScene[],
+): string[] {
+  const wanted = new Set(scenes);
+  return tools.filter(tool => tool.residentScene && wanted.has(tool.residentScene)).map(tool => tool.name);
+}
+
 /** Stable catalog order; task selection never changes registered schema residency. */
 export function laneToolMenu(input: LaneToolMenuInput = {}): LaneToolMenu {
   const alwaysOn = [...LANE_MODEL_TOOL_CATALOG.map((tool) => tool.name), LANE_TOOL_REQUEST_TOOL_NAME, 'read'];
@@ -68,8 +81,9 @@ export function laneToolMenu(input: LaneToolMenuInput = {}): LaneToolMenu {
   const groups = input.groups ?? (requested ? [{ name: LANE_CODING_TOOL_GROUP, toolNames: LANE_CODING_TOOL_NAMES }] : []);
   const group = groups.find((candidate) => candidate.name === requested);
   if (requested !== null && !group) throw new Error(`Unknown lane tool group: ${requested}. Registered: ${groups.map((one) => one.name).join(', ')}.`);
+  const sceneTools = laneSceneToolNames(LANE_SCENE_TOOL_CATALOG, input.openScenes ?? []);
   return {
-    activeToolNames: [...new Set([...alwaysOn, ...groups.flatMap(group => group.toolNames)])],
+    activeToolNames: [...new Set([...alwaysOn, ...groups.flatMap(group => group.toolNames), ...sceneTools])],
     activeGroup: requested,
     codingUnlocked: requested === LANE_CODING_TOOL_GROUP,
   };

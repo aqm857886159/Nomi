@@ -27,6 +27,11 @@ export interface LaneComposerContext {
   /** Captured on each new admission; historical target selectors cannot grant surface authority. */
   admissionSurface?: TargetRef['kind']
   displayText?: string
+  /**
+   * The 3D director is open right now (renderer fact). Decides only whether the director-only tools are
+   * in the model's tool list this turn; it grants nothing and never changes approval or permissions.
+   */
+  directorOpen?: true
   skillKey?: string
   /** Optional pinned version for restored drafts; main rejects a changed installed skill. */
   expectedSkillHash?: string

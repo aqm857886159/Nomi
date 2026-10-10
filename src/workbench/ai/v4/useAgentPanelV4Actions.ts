@@ -14,7 +14,7 @@ import { restoreProjectAgentInputs } from '../projectAgentDraftRecovery'
 import { buildResidentContextSnapshot, mergeResidentContextHandles, type AgentContextSnapshot } from '../resident/residentContextSnapshot'
 import i18n from '../../../i18n'
 import { isDirector3DBoxEnabled } from '../../../featureFlags/director3dbox'
-import { readDirectorShotFocus } from '../../generationCanvas/nodes/director/directorSessionRegistry'
+import { isAnyDirectorSessionOpen, readDirectorShotFocus } from '../../generationCanvas/nodes/director/directorSessionRegistry'
 import { directorShotContextHandles } from '../../generationCanvas/nodes/director/model/directorShotFocus'
 import { composeResidentSystemPrompt } from '../resident/residentPromptSelection'
 import { friendlyError, type ResidentSurface } from '../resident/residentShellDisplay'
@@ -220,6 +220,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
         ...(storyboardTarget ? { storyboardTarget } : {}),
         target, preconditions,
         contextSnapshot: captured.snapshot,
+        ...(isDirector3DBoxEnabled() && isAnyDirectorSessionOpen() ? { directorOpen: true as const } : {}),
         availableModels,
         ...(capturedIntent ? { restoredIntent: capturedIntent } : {}),
         attachments: projectAgentAttachmentClaims(capturedAttachments),

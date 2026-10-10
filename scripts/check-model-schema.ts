@@ -33,9 +33,9 @@ import { MCP_TOOL_RESOLVER } from "../electron/capabilityCore/mcpToolCatalog";
 import {
   collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
 } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
-import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
+import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_SCENE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
 import {
-  evaluateLaneToolBudget, laneToolMenu, laneRequestToolDefinition, LANE_TOOL_SCHEMA_TOKEN_CEILING,
+  evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_SCHEMA_TOKEN_CEILING,
   type LaneToolCombination,
 } from "../electron/agentLane/laneToolGroups.mjs";
 import { LANE_CODING_TOOL_NAMES, loadPiCodingToolFactories } from "../electron/agentLane/laneCodingTools.mjs";
@@ -50,7 +50,7 @@ import {
 } from "../electron/shared/agentCapabilities/modelFacingToolRegistry";
 import { CAPABILITY_CONTRACTS } from "../electron/shared/agentCapabilities/registry";
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baselinePath = path.join(repoRoot, "scripts", "model-schema-baseline.json");
 
 /** 描述够不够厚的门槛。上游 Anthropic 的原话是「by far the most important factor in tool performance」。 */
@@ -102,7 +102,7 @@ interface Finding {
 function collectTools(): ModelVisibleTool[] {
   // `nomi_read` 在注册表里（`internalGroup:"models"`，原生装配层执行），不再单独手写一条。
   const tools: ModelVisibleTool[] = [];
-  for (const tool of [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]) {
+  for (const tool of [...LANE_MODEL_TOOL_CATALOG, ...LANE_SCENE_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]) {
     tools.push({
       profile: "internal",
       name: tool.name,
@@ -381,9 +381,23 @@ async function estimateSchemaTokens(chunks: readonly string[]): Promise<number> 
   return chunks.reduce((sum, chunk) => sum + estimateTokens(asMessage(chunk) as never), 0);
 }
 
-export async function laneToolCombinations(deferred: readonly LaneToolSpec[] = LANE_DEFERRED_TOOL_CATALOG): Promise<LaneToolCombination[]> {
-  const alwaysOnChunks = LANE_MODEL_TOOL_CATALOG.map(
-    (tool) => laneToolModelDescription(tool) + JSON.stringify(toPublishedJsonSchema(tool.schema)));
+/** 逐工具账的一行：名字、估计 token、所属组（always-on / coding / 领域组 / scene:<场景>）。 */
+export interface LaneToolLedgerEntry {
+  readonly name: string
+  readonly group: string
+  /** 只服务某个场景的工具带场景名；其余为 undefined。 */
+  readonly scene?: string
+  readonly tokens: number
+}
+
+/**
+ * 每个模型可见 lane 工具各量一次（description + JSON Schema，pi 的估法）。
+ * 组合与报表都从这一张账求和，不再各量各的——新加的工具在这里直接显形。
+ */
+export async function laneToolLedger(
+  deferred: readonly LaneToolSpec[] = LANE_DEFERRED_TOOL_CATALOG,
+  scenes: readonly LaneToolSpec[] = LANE_SCENE_TOOL_CATALOG,
+): Promise<LaneToolLedgerEntry[]> {
   const factories = await loadPiCodingToolFactories();
   const codingByName = new Map<string, { description: string; parameters: unknown }>();
   for (const factory of Object.values(factories)) {
@@ -397,50 +411,75 @@ export async function laneToolCombinations(deferred: readonly LaneToolSpec[] = L
       + "上游改了工具面——先读 CHANGELOG 决定跟不跟，别在这里补一个自研版本（R29）。",
     );
   }
-  const codingChunks = LANE_CODING_TOOL_NAMES.filter(name => name !== 'read').map((name) => {
+  const specChunk = (tool: LaneToolSpec) => laneToolModelDescription(tool) + JSON.stringify(toPublishedJsonSchema(tool.schema));
+  const piChunk = (name: string) => {
     const tool = codingByName.get(name)!;
     return laneToolModelDescription(tool) + JSON.stringify(tool.parameters);
-  });
-  // `models` 组（`nomi_read`）从 PR A 起也是注册表声明（`LANE_NATIVE_TOOL_CATALOG`），与领域组一起量。
-  const domainGroupNames = [...new Set([...deferred, ...LANE_NATIVE_TOOL_CATALOG].map(tool => tool.internalGroup!))];
+  };
+  const nativeAndDeferred = [...deferred, ...LANE_NATIVE_TOOL_CATALOG];
+  const domainGroupNames = [...new Set(nativeAndDeferred.map(tool => tool.internalGroup!))];
+  const codingNames = LANE_CODING_TOOL_NAMES.filter(name => name !== "read");
   const groups = [
-    { name: "coding", toolNames: LANE_CODING_TOOL_NAMES.filter(name => name !== "read") },
-    ...domainGroupNames.map(name => ({ name, toolNames: [...deferred, ...LANE_NATIVE_TOOL_CATALOG].filter(tool => tool.internalGroup === name).map(tool => tool.name) })),
+    { name: "coding", toolNames: codingNames },
+    ...domainGroupNames.map(name => ({ name, toolNames: nativeAndDeferred.filter(tool => tool.internalGroup === name).map(tool => tool.name) })),
   ];
   const request = laneRequestToolDefinition(groups);
-  const alwaysOnNames = [...LANE_MODEL_TOOL_CATALOG.map(tool => tool.name), request.name, "read"];
-  const read = codingByName.get("read")!;
-  const alwaysOn = await estimateSchemaTokens([...alwaysOnChunks, request.description + JSON.stringify(request.parameters), laneToolModelDescription(read) + JSON.stringify(read.parameters)]);
-  const coding = await estimateSchemaTokens(codingChunks);
-  const domainChunk = (tool: LaneToolSpec) =>
-    laneToolModelDescription(tool) + JSON.stringify(toPublishedJsonSchema(tool.schema));
-
-  // Report each group contribution and enforce the complete resident catalog.
-  const combinations: LaneToolCombination[] = [
-    { label: "always-on（含 request）", toolNames: alwaysOnNames, estimatedTokens: alwaysOn },
-    {
-      label: "always-on + coding",
-      toolNames: [...alwaysOnNames, ...LANE_CODING_TOOL_NAMES.filter(name => name !== "read")],
-      estimatedTokens: alwaysOn + coding,
-    },
+  const entries: Array<{ name: string; group: string; scene?: string; chunk: string }> = [
+    ...LANE_MODEL_TOOL_CATALOG.map(tool => ({ name: tool.name, group: "always-on", chunk: specChunk(tool) })),
+    { name: request.name, group: "always-on", chunk: request.description + JSON.stringify(request.parameters) },
+    { name: "read", group: "always-on", chunk: piChunk("read") },
+    ...codingNames.map(name => ({ name, group: "coding", chunk: piChunk(name) })),
+    ...nativeAndDeferred.map(tool => ({ name: tool.name, group: tool.internalGroup!, chunk: specChunk(tool) })),
+    ...scenes.map(tool => ({ name: tool.name, group: `scene:${tool.residentScene}`, scene: tool.residentScene!, chunk: specChunk(tool) })),
   ];
-  let domainTokens = 0;
-  for (const name of domainGroupNames) {
-    const tools = [...deferred, ...LANE_NATIVE_TOOL_CATALOG].filter(tool => tool.internalGroup === name);
-    const tokens = await estimateSchemaTokens(tools.map(domainChunk));
-    domainTokens += tokens;
-    combinations.push({
-      label: `always-on + ${name}`,
-      toolNames: [...alwaysOnNames, ...tools.map(tool => tool.name)],
-      estimatedTokens: alwaysOn + tokens,
-    });
+  const result: LaneToolLedgerEntry[] = [];
+  for (const entry of entries) {
+    result.push({ name: entry.name, group: entry.group, ...(entry.scene ? { scene: entry.scene } : {}),
+      tokens: await estimateSchemaTokens([entry.chunk]) });
   }
-  combinations.push({
-    label: "全部组常驻（实际最大组合）",
-    toolNames: laneToolMenu({ groups }).activeToolNames,
-    estimatedTokens: alwaysOn + coding + domainTokens,
-  });
+  return result;
+}
+
+/**
+ * 判据组合：常驻 + 每个单组（只为定位哪个组胖了），以及**每个场景组合下的全部组常驻**。
+ * 上限判的是场景组合的最大值，不是「所有场景同时在」——场景工具不在场景里时模型根本看不到。
+ */
+export async function laneToolCombinations(
+  deferred: readonly LaneToolSpec[] = LANE_DEFERRED_TOOL_CATALOG,
+  scenes: readonly LaneToolSpec[] = LANE_SCENE_TOOL_CATALOG,
+): Promise<LaneToolCombination[]> {
+  const ledger = await laneToolLedger(deferred, scenes);
+  const sum = (entries: readonly LaneToolLedgerEntry[]) => entries.reduce((total, entry) => total + entry.tokens, 0);
+  const inGroup = (group: string) => ledger.filter(entry => entry.group === group);
+  const alwaysOn = inGroup("always-on");
+  const groupNames = [...new Set(ledger.filter(entry => !entry.scene && entry.group !== "always-on").map(entry => entry.group))];
+  const combination = (label: string, entries: readonly LaneToolLedgerEntry[]): LaneToolCombination =>
+    ({ label, toolNames: entries.map(entry => entry.name), estimatedTokens: sum(entries) });
+  const resident = ledger.filter(entry => !entry.scene);
+  const combinations: LaneToolCombination[] = [combination("always-on（含 request）", alwaysOn)];
+  for (const name of groupNames) combinations.push(combination(`always-on + ${name}`, [...alwaysOn, ...inGroup(name)]));
+  combinations.push(combination("全部组常驻（场景：无）", resident));
+  for (const scene of [...new Set(ledger.flatMap(entry => entry.scene ? [entry.scene] : []))]) {
+    combinations.push(combination(`全部组常驻 + 场景：${scene}`, [...resident, ...ledger.filter(entry => entry.scene === scene)]));
+  }
   return combinations;
+}
+
+/** 逐工具账报表：按 token 从大到小；末尾给「模型可见总量」与「当前判据总量」。纯函数，结构可断言。 */
+export function formatLaneToolLedger(
+  ledger: readonly LaneToolLedgerEntry[],
+  combinations: readonly LaneToolCombination[],
+): string[] {
+  const visibleTotal = ledger.reduce((total, entry) => total + entry.tokens, 0);
+  const judgedTotal = Math.max(...combinations.map(one => one.estimatedTokens));
+  const ranked = [...ledger].sort((a, b) => b.tokens - a.tokens || a.name.localeCompare(b.name));
+  return [
+    "逐工具账（按估计 token 从大到小）：",
+    ...ranked.map(entry =>
+      `  ${String(entry.tokens).padStart(5)} token  ${(entry.tokens / judgedTotal * 100).toFixed(1).padStart(5)}%  ${entry.name}  [${entry.group}]`),
+    `模型可见总量（所有注册工具之和）：约 ${visibleTotal} token`,
+    `当前判据总量（各场景组合的最大值）：约 ${judgedTotal} token`,
+  ];
 }
 
 async function checkLaneToolBudget(): Promise<boolean> {
@@ -448,13 +487,14 @@ async function checkLaneToolBudget(): Promise<boolean> {
   for (const combination of combinations) {
     console.log(`  · ${combination.label}：${combination.toolNames.length} 个工具，约 ${combination.estimatedTokens} token`);
   }
+  for (const line of formatLaneToolLedger(await laneToolLedger(), combinations)) console.log(line);
   const failures = evaluateLaneToolBudget({
     alwaysOnCount: combinations[0].toolNames.length,
     combinations,
   });
   if (failures.length === 0) {
     console.log(
-      `✅ lane 工具预算通过（always-on ≤ ${LANE_TOOL_BUDGET}，全部常驻组合 ≤ ${LANE_TOOL_SCHEMA_TOKEN_CEILING} token）。`);
+      `✅ lane 工具预算通过（always-on ≤ ${LANE_TOOL_BUDGET}，各场景组合的全部常驻 ≤ ${LANE_TOOL_SCHEMA_TOKEN_CEILING} token）。`);
     return true;
   }
   console.error("\n✖ lane 工具预算超了：");

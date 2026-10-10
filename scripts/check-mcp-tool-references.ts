@@ -10,7 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { MCP_TOOL_RESOLVER } from '../electron/capabilityCore/mcpToolCatalog'
-import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } from '../electron/agentLane/laneToolCatalog'
+import { LANE_MODEL_TOOL_CATALOG, LANE_SCENE_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } from '../electron/agentLane/laneToolCatalog'
 import { LANE_NATIVE_TOOL_CATALOG } from '../electron/agentLane/laneToolCatalog'
 import { LANE_CODING_TOOL_NAMES } from '../electron/agentLane/laneCodingTools.mts'
 import { LANE_TOOL_REQUEST_TOOL_NAME } from '../electron/agentLane/laneToolGroups.mts'
@@ -29,6 +29,7 @@ const declaredArgs = new Map<string, Set<string>>(
 )
 const hostDeclared = new Set([
   ...LANE_MODEL_TOOL_CATALOG.map(tool => tool.name),
+  ...LANE_SCENE_TOOL_CATALOG.map(tool => tool.name),
   ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
   LANE_TOOL_REQUEST_TOOL_NAME,
 ])
@@ -104,6 +105,7 @@ if (offenders.length > 0) {
 // 判据与上面同源（同一份目录），所以放在同一个门岗里——两份判据必然各漂各的。
 const laneToolNames = new Set<string>([
   ...LANE_MODEL_TOOL_CATALOG.map(tool => tool.name),
+  ...LANE_SCENE_TOOL_CATALOG.map(tool => tool.name),
   ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
   ...LANE_NATIVE_TOOL_CATALOG.map(tool => tool.name),
   ...LANE_CODING_TOOL_NAMES,

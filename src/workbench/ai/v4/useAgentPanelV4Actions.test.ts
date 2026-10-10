@@ -39,6 +39,8 @@ const fixture = vi.hoisted(() => {
     cancelQueued: vi.fn(), abort: vi.fn(),
     record: null as ProjectAgentCommittedProposalRecord | null, undo: vi.fn(), projection: { lane: 'main', parts: [] as LanePart[] } }
 })
+const director = vi.hoisted(() => ({ flag: false }))
+vi.mock('../../../featureFlags/director3dbox', () => ({ isDirector3DBoxEnabled: () => director.flag }))
 vi.mock('../../generationCanvas/agent/availableModels', async importOriginal => ({
   ...await importOriginal<typeof import('../../generationCanvas/agent/availableModels')>(), listAvailableModelsForAgent: fixture.models,
 }))
@@ -188,6 +190,25 @@ describe('composer sends commit local cleanup only after current admission', () 
     await finished
     expect(fixture.state.projectAgentDraft).toBe('old queued instruction')
     expect(fixture.state.creationActiveSkill).toEqual({ key: 'old-skill', contentHash: 'old-hash' })
+  })
+
+  // 导演台工具按场景常驻：只有「开关开 + 导演台编辑器已挂载」才告诉 lane 导演台开着；其余一律不带这个字段。
+  it('tells the lane the 3D director is open only when the flag is on and an editor is mounted', async () => {
+    const { registerDirectorSession } = await import('../../generationCanvas/nodes/director/directorSessionRegistry')
+    fixture.say.mockResolvedValue({ ok: true })
+    const actions = mountActions()
+    director.flag = true
+    await actions.send('no editor')
+    const unregister = registerDirectorSession('node-d1', { store: {} as never, defaultSceneName: '' })
+    await actions.send('editor open')
+    director.flag = false
+    await actions.send('flag off')
+    unregister()
+    director.flag = true
+    await actions.send('editor closed')
+    director.flag = false
+    expect(fixture.say.mock.calls.map(call => 'directorOpen' in call[2])).toEqual([false, true, false, false])
+    expect(fixture.say.mock.calls[1][2].directorOpen).toBe(true)
   })
 
   it('captures the current catalog projection on every send', async () => {

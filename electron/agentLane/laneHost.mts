@@ -45,7 +45,7 @@ import {
 } from '../shared/agentLane/laneContracts.js';
 import { createLaneApprovalGate } from './laneApprovalGate.js';
 import type { OpenLane, OpenLaneOptions } from './laneRuntimePort.js';
-import { composeLaneSystemPrompt } from './lanePromptSections.js';
+import { composeLaneSystemPrompt, laneSceneUnavailableNotice } from './lanePromptSections.js';
 import { loadPiSkillFormatter, renderLaneSkillSection, laneSkillUnlockReason } from './laneSkillCatalog.mjs';
 import { openLaneSession } from './laneSession.mjs';
 import { createLaneTools, takeLaneToolFailure } from './laneTools.mjs';
@@ -56,6 +56,8 @@ import { projectLaneSnapshot, type LaneModelFacts } from '../shared/agentLane/la
 type LaneNativeDesktop = Awaited<ReturnType<typeof import('./laneNativeDesktop.mjs').openLaneNativeDesktop>>;
 const loadLaneNativeDesktop = () => import('./laneNativeDesktop.mjs');
 import { LANE_DEFERRED_TOOL_GROUPS } from './laneToolCatalog.js';
+import { createLaneSceneTools } from './laneSceneTools.mjs';
+import type { LaneToolScene } from '../shared/agentCapabilities/verbDeclaration.js';
 import { appendLaneContinuation, laneContinuationText } from './laneContinuation.mjs';
 
 // Bootstrap proof is intentionally read before the pi runtime is assembled.
@@ -226,7 +228,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // Every descriptor assembled by the desktop surface is resident for this
   // lane. The native menu may contain projected aliases, but only registered
   // descriptors can be handed to the harness.
-  const activeToolNames = [...registeredToolNames];
+  // Scene tools (`residentScene`) stay registered so pi can still run them, but join the active list only
+  // while the user stands in that scene (switched per admission by `scenes.sync`).
+  const scenes = createLaneSceneTools(options.tools);
+  const activeToolNames = scenes.initialActive(registeredToolNames);
   // `Available tools` / `Guidelines` 两段由宿主拼，不靠调用方记得（G-03 的后一半）。
   // 2026-09-07 合并评审实核：`composeLaneSystemPrompt` 此前零生产调用者——通道②③写满了，
   // 一个字都到不了模型。拼接点放在这里，是因为这里是唯一知道「这条 lane 装了哪些工具」的地方。
@@ -243,9 +248,13 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     : '';
   const currentSkills = (): readonly LaneSkillIndexEntry[] => native?.skillIndex.current().entries ?? staticSkills;
   const promptTools = [...options.tools, ...(native?.promptTools ?? [])];
-  const composeSystemPrompt = (): string => composeLaneSystemPrompt(
-    typeof options.systemPrompt === 'function' ? options.systemPrompt() : options.systemPrompt,
-    promptTools, native?.skillIndex.current().promptSection ?? staticSection);
+  const composeSystemPrompt = (): string => {
+    const hidden = scenes.hidden();
+    const identity = typeof options.systemPrompt === 'function' ? options.systemPrompt() : options.systemPrompt;
+    return composeLaneSystemPrompt(
+      hidden.length > 0 ? [identity.trimEnd(), laneSceneUnavailableNotice(hidden)].join('\n\n') : identity,
+      promptTools.filter(tool => !hidden.includes(tool.name)), native?.skillIndex.current().promptSection ?? staticSection);
+  };
   /**
    * **一条 lane 的系统提示词，每个回合整体重新求值一次；回合内不变。**
    *
@@ -337,6 +346,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       await lane.setActiveTools([...resident, ...restored.filter(name => !resident.includes(name))], context);
     }
   }
+
+  await scenes.sync(lane, [], context);
 
   // 投影先立起来，闸才挂得上去：「它在等你」这一段**不在 pi 的快照里**（停在预检里的
   // 调用不在 `runningTools`，`operation.status` 只会写 `open`——探针 §2.1），所以它由
@@ -546,9 +557,13 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     return details ? { details: details as never } : undefined;
   });
 
+  let admissionScenes: readonly LaneToolScene[] = [];
+
   async function inputMessage(text: string): Promise<string | LaneInputMessage> {
+    admissionScenes = [];
     if (!options.input) return text;
     const captured = structuredClone(options.input.capture());
+    admissionScenes = captured.directorOpen === true ? ['director'] : [];
     const { restoredIntent, ...currentAdmission } = captured;
     if (restoredIntent && (captured.continueFromEntryId || captured.retryFromEntryId)) throw new Error('agent_lane_invalid_command');
     let message: LaneInputMessage;
@@ -640,6 +655,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         // 「这条技能要不要 coding 工具」判在准入这一刻，而用户可能就是刚导入它的——
         // 所以先把索引刷到这个回合，再问。不刷的症状是模型说「我去跑它的 selftest」，然后说它没有工具。
         await awaitWithContext(Promise.resolve(native?.skillIndex.refresh()), admission);
+        await awaitWithContext(scenes.sync(lane, admissionScenes, admission), admission);
         const unlock = typeof message !== 'string' ? laneSkillUnlockReason(currentSkills(), [message.context.skillKey ?? '']) : null;
         if (native && unlock) {
           await native.unlockCoding(admission);

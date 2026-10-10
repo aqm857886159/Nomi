@@ -33,6 +33,8 @@ type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 /** 两个 profile。名字与 `check:model-schema` 的 profile 列、方案 §3.1 的表头逐字一致。 */
 export type ToolProfile = "internal" | "mcp";
 export type LaneDomainToolGroup = "timeline" | "generation" | "media" | "maintenance" | "models" | "skills";
+/** 只在用户站在某个场景里时才进工具清单的场景名（今天只有 3D 导演台）。 */
+export type LaneToolScene = "director";
 
 /**
  * **全仓唯一的效果词表**（设计正本 §3）。
@@ -116,6 +118,11 @@ export interface VerbDeclaration {
   readonly promptGuidelines?: readonly string[];
   /** 延迟披露的领域组。缺省 = 常驻。 */
   readonly internalGroup?: LaneDomainToolGroup;
+  /**
+   * 按场景常驻：用户不在这个场景里时，这个工具不进模型的工具清单（schema 与提示词条目都不发）；
+   * 进场景才进。只改「模型看不看得到」——执行、审批、权限一字不动。缺省 = 与场景无关。
+   */
+  readonly residentScene?: LaneToolScene;
   /** 混合读写工具按 operation 解析审批对象。 */
   readonly operationCapabilityIds?: Readonly<Record<string, string>>;
   /**
