@@ -1,0 +1,1738 @@
+{
+  "board": "Chrome",
+  "extractor": "board-extract@1",
+  "source": "preview/Chrome.html",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-div-窗口按钮用系统原生的El",
+      "kind": "text",
+      "tag": "div",
+      "text": "窗口按钮用系统原生的（Electron titleBarOverlay），颜色跟着光 / 暗切换",
+      "bbox": [
+        40,
+        32,
+        1200,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-b-顶栏Windows",
+      "kind": "text",
+      "tag": "b",
+      "text": "顶栏 · Windows",
+      "bbox": [
+        40,
+        34,
+        87,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        40,
+        60,
+        1200,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        52,
+        70,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": "003-div"
+    },
+    {
+      "id": "005-button-雨夜来信",
+      "kind": "text",
+      "tag": "button",
+      "text": "雨夜来信",
+      "bbox": [
+        78,
+        66,
+        84,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        142,
+        73,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "005-button-雨夜来信"
+    },
+    {
+      "id": "007-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        483,
+        66,
+        213,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-button-创作",
+      "kind": "text",
+      "tag": "button",
+      "text": "创作",
+      "bbox": [
+        485,
+        68,
+        50,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-button-生成",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成",
+      "bbox": [
+        537,
+        68,
+        74,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-span-56",
+      "kind": "text",
+      "tag": "span",
+      "text": "5/6",
+      "bbox": [
+        581,
+        73,
+        18,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-button-预览",
+      "kind": "text",
+      "tag": "button",
+      "text": "预览",
+      "bbox": [
+        613,
+        68,
+        80,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-span-026",
+      "kind": "text",
+      "tag": "span",
+      "text": "0:26",
+      "bbox": [
+        657,
+        73,
+        24,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        703,
+        68,
+        94,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-button-画布",
+      "kind": "text",
+      "tag": "button",
+      "text": "画布",
+      "bbox": [
+        705,
+        70,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-button-列表",
+      "kind": "text",
+      "tag": "button",
+      "text": "列表",
+      "bbox": [
+        751,
+        70,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-button-任务",
+      "kind": "text",
+      "tag": "button",
+      "text": "任务",
+      "bbox": [
+        901,
+        66,
+        51,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        907,
+        71,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "016-button-任务"
+    },
+    {
+      "id": "018-span-1",
+      "kind": "text",
+      "tag": "span",
+      "text": "1",
+      "bbox": [
+        929,
+        72,
+        17,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-button-浏览器",
+      "kind": "text",
+      "tag": "button",
+      "text": "浏览器",
+      "bbox": [
+        954,
+        66,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        959,
+        71,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "019-button-浏览器"
+    },
+    {
+      "id": "021-button-新版本",
+      "kind": "text",
+      "tag": "button",
+      "text": "新版本",
+      "bbox": [
+        988,
+        68,
+        72,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        996,
+        73,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "021-button-新版本"
+    },
+    {
+      "id": "023-button-设置",
+      "kind": "text",
+      "tag": "button",
+      "text": "设置",
+      "bbox": [
+        1066,
+        66,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "024-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1071,
+        71,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "023-button-设置"
+    },
+    {
+      "id": "025-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1120,
+        75,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": "003-div"
+    },
+    {
+      "id": "026-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1166,
+        75,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": "003-div"
+    },
+    {
+      "id": "027-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1212,
+        75,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": "003-div"
+    },
+    {
+      "id": "028-div-红绿灯在最左标志让在它后",
+      "kind": "text",
+      "tag": "div",
+      "text": "红绿灯在最左，标志让在它后面；右边没有窗口按钮",
+      "bbox": [
+        40,
+        120,
+        1200,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-b-顶栏macOS",
+      "kind": "text",
+      "tag": "b",
+      "text": "顶栏 · macOS",
+      "bbox": [
+        40,
+        122,
+        75,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        40,
+        148,
+        1200,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "031-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        124,
+        158,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": "030-div"
+    },
+    {
+      "id": "032-button-雨夜来信",
+      "kind": "text",
+      "tag": "button",
+      "text": "雨夜来信",
+      "bbox": [
+        150,
+        154,
+        84,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        214,
+        161,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "032-button-雨夜来信"
+    },
+    {
+      "id": "034-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        483,
+        154,
+        213,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-button-创作",
+      "kind": "text",
+      "tag": "button",
+      "text": "创作",
+      "bbox": [
+        485,
+        156,
+        50,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "036-button-生成",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成",
+      "bbox": [
+        537,
+        156,
+        74,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "037-span-56",
+      "kind": "text",
+      "tag": "span",
+      "text": "5/6",
+      "bbox": [
+        581,
+        161,
+        18,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "038-button-预览",
+      "kind": "text",
+      "tag": "button",
+      "text": "预览",
+      "bbox": [
+        613,
+        156,
+        80,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "039-span-026",
+      "kind": "text",
+      "tag": "span",
+      "text": "0:26",
+      "bbox": [
+        657,
+        161,
+        24,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "040-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        703,
+        156,
+        94,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "041-button-画布",
+      "kind": "text",
+      "tag": "button",
+      "text": "画布",
+      "bbox": [
+        705,
+        158,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "042-button-列表",
+      "kind": "text",
+      "tag": "button",
+      "text": "列表",
+      "bbox": [
+        751,
+        158,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "043-button-任务",
+      "kind": "text",
+      "tag": "button",
+      "text": "任务",
+      "bbox": [
+        1035,
+        154,
+        51,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1041,
+        159,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "043-button-任务"
+    },
+    {
+      "id": "045-span-1",
+      "kind": "text",
+      "tag": "span",
+      "text": "1",
+      "bbox": [
+        1063,
+        160,
+        17,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "046-button-浏览器",
+      "kind": "text",
+      "tag": "button",
+      "text": "浏览器",
+      "bbox": [
+        1088,
+        154,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "047-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1093,
+        159,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "046-button-浏览器"
+    },
+    {
+      "id": "048-button-新版本",
+      "kind": "text",
+      "tag": "button",
+      "text": "新版本",
+      "bbox": [
+        1122,
+        156,
+        72,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "049-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1130,
+        161,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "048-button-新版本"
+    },
+    {
+      "id": "050-button-设置",
+      "kind": "text",
+      "tag": "button",
+      "text": "设置",
+      "bbox": [
+        1200,
+        154,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1205,
+        159,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "050-button-设置"
+    },
+    {
+      "id": "052-div-放不下时新版本先收成一个",
+      "kind": "text",
+      "tag": "div",
+      "text": "放不下时「新版本」先收成一个带点的图标，其它不动",
+      "bbox": [
+        40,
+        208,
+        1200,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-b-窄窗口",
+      "kind": "text",
+      "tag": "b",
+      "text": "窄窗口",
+      "bbox": [
+        40,
+        210,
+        36,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        40,
+        236,
+        1000,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        52,
+        246,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": "054-div"
+    },
+    {
+      "id": "056-button-雨夜来信",
+      "kind": "text",
+      "tag": "button",
+      "text": "雨夜来信",
+      "bbox": [
+        78,
+        242,
+        84,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        142,
+        249,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "056-button-雨夜来信"
+    },
+    {
+      "id": "058-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        383,
+        242,
+        213,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "059-button-创作",
+      "kind": "text",
+      "tag": "button",
+      "text": "创作",
+      "bbox": [
+        385,
+        244,
+        50,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "060-button-生成",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成",
+      "bbox": [
+        437,
+        244,
+        74,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "061-span-56",
+      "kind": "text",
+      "tag": "span",
+      "text": "5/6",
+      "bbox": [
+        481,
+        249,
+        18,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "062-button-预览",
+      "kind": "text",
+      "tag": "button",
+      "text": "预览",
+      "bbox": [
+        513,
+        244,
+        80,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "063-span-026",
+      "kind": "text",
+      "tag": "span",
+      "text": "0:26",
+      "bbox": [
+        557,
+        249,
+        24,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "064-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        603,
+        244,
+        94,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "065-button-画布",
+      "kind": "text",
+      "tag": "button",
+      "text": "画布",
+      "bbox": [
+        605,
+        246,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "066-button-列表",
+      "kind": "text",
+      "tag": "button",
+      "text": "列表",
+      "bbox": [
+        651,
+        246,
+        44,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "067-button-任务",
+      "kind": "text",
+      "tag": "button",
+      "text": "任务",
+      "bbox": [
+        753,
+        242,
+        51,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "068-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        759,
+        247,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "067-button-任务"
+    },
+    {
+      "id": "069-span-1",
+      "kind": "text",
+      "tag": "span",
+      "text": "1",
+      "bbox": [
+        781,
+        248,
+        17,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "070-button-浏览器",
+      "kind": "text",
+      "tag": "button",
+      "text": "浏览器",
+      "bbox": [
+        806,
+        242,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "071-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        811,
+        247,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "070-button-浏览器"
+    },
+    {
+      "id": "072-button-有新版本",
+      "kind": "text",
+      "tag": "button",
+      "text": "有新版本",
+      "bbox": [
+        836,
+        242,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "073-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        841,
+        247,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "072-button-有新版本"
+    },
+    {
+      "id": "074-button-设置",
+      "kind": "text",
+      "tag": "button",
+      "text": "设置",
+      "bbox": [
+        866,
+        242,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "075-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        871,
+        247,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "074-button-设置"
+    },
+    {
+      "id": "076-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        920,
+        251,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": "054-div"
+    },
+    {
+      "id": "077-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        966,
+        251,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": "054-div"
+    },
+    {
+      "id": "078-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1012,
+        251,
+        10,
+        10
+      ],
+      "region": "root",
+      "iconOf": "054-div"
+    },
+    {
+      "id": "079-div-浮在内容上不挤画布",
+      "kind": "text",
+      "tag": "div",
+      "text": "浮在内容上，不挤画布",
+      "bbox": [
+        40,
+        296,
+        440,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "080-b-左栏素材抽屉打开",
+      "kind": "text",
+      "tag": "b",
+      "text": "左栏 · 素材抽屉打开",
+      "bbox": [
+        40,
+        298,
+        105,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "081-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        46,
+        332,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "082-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        61,
+        339,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "081-button"
+    },
+    {
+      "id": "083-span-文稿",
+      "kind": "text",
+      "tag": "span",
+      "text": "文稿",
+      "bbox": [
+        59,
+        360,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "084-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        46,
+        380,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "085-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        61,
+        387,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "084-button"
+    },
+    {
+      "id": "086-span-目录",
+      "kind": "text",
+      "tag": "span",
+      "text": "目录",
+      "bbox": [
+        59,
+        408,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "087-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        46,
+        428,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "088-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        61,
+        435,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "087-button"
+    },
+    {
+      "id": "089-span-素材",
+      "kind": "text",
+      "tag": "span",
+      "text": "素材",
+      "bbox": [
+        59,
+        456,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "090-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        46,
+        476,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "091-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        61,
+        483,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "090-button"
+    },
+    {
+      "id": "092-span-流程",
+      "kind": "text",
+      "tag": "span",
+      "text": "流程",
+      "bbox": [
+        59,
+        504,
+        22,
+        13
+      ],
+      "region": "root"
+    },
+    {
+      "id": "093-section-素材",
+      "kind": "text",
+      "tag": "section",
+      "text": "素材",
+      "bbox": [
+        104,
+        332,
+        300,
+        284
+      ],
+      "region": "root"
+    },
+    {
+      "id": "094-span-素材",
+      "kind": "text",
+      "tag": "span",
+      "text": "素材",
+      "bbox": [
+        116,
+        350,
+        26,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "095-button-导入",
+      "kind": "text",
+      "tag": "button",
+      "text": "导入",
+      "bbox": [
+        364,
+        344,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "096-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        370,
+        350,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "095-button-导入"
+    },
+    {
+      "id": "097-div-搜索素材",
+      "kind": "text",
+      "tag": "div",
+      "text": "搜索素材",
+      "bbox": [
+        116,
+        380,
+        276,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "098-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        126,
+        387,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "097-div-搜索素材"
+    },
+    {
+      "id": "099-span-全部",
+      "kind": "text",
+      "tag": "span",
+      "text": "全部",
+      "bbox": [
+        116,
+        418,
+        44,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "100-span-图片",
+      "kind": "text",
+      "tag": "span",
+      "text": "图片",
+      "bbox": [
+        162,
+        418,
+        44,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "101-span-视频",
+      "kind": "text",
+      "tag": "span",
+      "text": "视频",
+      "bbox": [
+        208,
+        418,
+        44,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "102-span-声音",
+      "kind": "text",
+      "tag": "span",
+      "text": "声音",
+      "bbox": [
+        254,
+        418,
+        44,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "103-div-林薇定妆",
+      "kind": "text",
+      "tag": "div",
+      "text": "林薇 · 定妆",
+      "bbox": [
+        116,
+        514,
+        86,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "104-div-便利店外景",
+      "kind": "text",
+      "tag": "div",
+      "text": "便利店 · 外景",
+      "bbox": [
+        210,
+        514,
+        86,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "105-div-怀表jpg",
+      "kind": "text",
+      "tag": "div",
+      "text": "怀表.jpg",
+      "bbox": [
+        304,
+        514,
+        86,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "106-div-镜01",
+      "kind": "text",
+      "tag": "div",
+      "text": "镜 01",
+      "bbox": [
+        116,
+        599,
+        86,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "107-div-镜02",
+      "kind": "text",
+      "tag": "div",
+      "text": "镜 02",
+      "bbox": [
+        210,
+        599,
+        86,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "108-div-镜03",
+      "kind": "text",
+      "tag": "div",
+      "text": "镜 03",
+      "bbox": [
+        304,
+        599,
+        86,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "109-div-只剩顶栏里一颗展开左栏",
+      "kind": "text",
+      "tag": "div",
+      "text": "只剩顶栏里一颗「展开左栏」",
+      "bbox": [
+        504,
+        296,
+        300,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "110-b-左栏收起",
+      "kind": "text",
+      "tag": "b",
+      "text": "左栏收起",
+      "bbox": [
+        504,
+        298,
+        48,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "111-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        516,
+        334,
+        20,
+        20
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "112-button-展开左栏",
+      "kind": "text",
+      "tag": "button",
+      "text": "展开左栏",
+      "bbox": [
+        542,
+        330,
+        28,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "113-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        547,
+        335,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "112-button-展开左栏"
+    },
+    {
+      "id": "114-button-雨夜来信",
+      "kind": "text",
+      "tag": "button",
+      "text": "雨夜来信",
+      "bbox": [
+        576,
+        330,
+        84,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "115-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        640,
+        337,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "114-button-雨夜来信"
+    },
+    {
+      "id": "116-div-四种状态都不会自己弹开",
+      "kind": "text",
+      "tag": "div",
+      "text": "四种状态，都不会自己弹开",
+      "bbox": [
+        828,
+        296,
+        214,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "117-b-Agent小球",
+      "kind": "text",
+      "tag": "b",
+      "text": "Agent 小球",
+      "bbox": [
+        828,
+        298,
+        62,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "118-button-打开NomiAgent",
+      "kind": "text",
+      "tag": "button",
+      "text": "打开 Nomi Agent",
+      "bbox": [
+        828,
+        344,
+        44,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "119-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        839,
+        355,
+        22,
+        22
+      ],
+      "region": "root",
+      "iconOf": "118-button-打开NomiAgent"
+    },
+    {
+      "id": "120-span-空闲",
+      "kind": "text",
+      "tag": "span",
+      "text": "空闲",
+      "bbox": [
+        838,
+        398,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "121-button-NomiAgent正在处",
+      "kind": "text",
+      "tag": "button",
+      "text": "Nomi Agent 正在处理",
+      "bbox": [
+        900,
+        344,
+        44,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "122-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        908,
+        352,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": "121-button-NomiAgent正在处"
+    },
+    {
+      "id": "123-span-处理中",
+      "kind": "text",
+      "tag": "span",
+      "text": "处理中",
+      "bbox": [
+        904,
+        398,
+        36,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "124-button-NomiAgent出错了",
+      "kind": "text",
+      "tag": "button",
+      "text": "Nomi Agent 出错了",
+      "bbox": [
+        972,
+        344,
+        44,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "125-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        983,
+        355,
+        22,
+        22
+      ],
+      "region": "root",
+      "iconOf": "124-button-NomiAgent出错了"
+    },
+    {
+      "id": "126-span-出错",
+      "kind": "text",
+      "tag": "span",
+      "text": "出错",
+      "bbox": [
+        982,
+        398,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "127-button-等你确认",
+      "kind": "text",
+      "tag": "button",
+      "text": "等你确认",
+      "bbox": [
+        828,
+        438,
+        126,
+        44
+      ],
+      "region": "root"
+    },
+    {
+      "id": "128-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        839,
+        449,
+        22,
+        22
+      ],
+      "region": "root",
+      "iconOf": "127-button-等你确认"
+    },
+    {
+      "id": "129-span-2",
+      "kind": "text",
+      "tag": "span",
+      "text": "2",
+      "bbox": [
+        929,
+        452,
+        9,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "130-span-要花钱的事等你点头时变成",
+      "kind": "text",
+      "tag": "span",
+      "text": "要花钱的事等你点头时，变成这颗胶囊",
+      "bbox": [
+        828,
+        492,
+        204,
+        16
+      ],
+      "region": "root"
+    }
+  ]
+}

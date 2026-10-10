@@ -1,0 +1,573 @@
+{
+  "board": "List",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/List.html",
+  "elements": [
+    {
+      "id": "topbar.project-title",
+      "label": "项目名（顶栏）",
+      "candidates": [
+        "002-button-雨夜来信",
+        "003-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里找不到字样「雨夜来信」，初判缺；待真 App 核"
+    },
+    {
+      "id": "topbar.phase-switch",
+      "label": "阶段切换",
+      "candidates": [
+        "004-div-阶段",
+        "005-button-创作",
+        "006-button-生成",
+        "008-button-预览"
+      ],
+      "status": "in-progress",
+      "owner": "I-shell",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "已知在做（I-shell）：板上这一块产品还没到位"
+    },
+    {
+      "id": "topbar.phase-counters",
+      "label": "阶段进度与时长",
+      "candidates": [
+        "007-span-56",
+        "009-span-026"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「5/6」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.view-switch",
+      "label": "视图 画布/列表",
+      "candidates": [
+        "010-div-视图",
+        "011-button-画布",
+        "012-button-列表"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「视图」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.tasks",
+      "label": "任务",
+      "candidates": [
+        "013-button-任务",
+        "015-span-1",
+        "014-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「任务」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.browser",
+      "label": "浏览器",
+      "candidates": [
+        "016-button-浏览器",
+        "017-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「浏览器」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.update",
+      "label": "新版本",
+      "candidates": [
+        "018-button-新版本",
+        "019-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「新版本」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.settings",
+      "label": "设置",
+      "candidates": [
+        "020-button-设置",
+        "021-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「设置」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.resources",
+      "label": "左栏 资源",
+      "candidates": [
+        "025-nav-资源",
+        "026-button",
+        "027-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「资源」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.docs",
+      "label": "左栏 文稿",
+      "candidates": [
+        "028-span-文稿",
+        "029-button",
+        "030-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「文稿」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.catalog",
+      "label": "左栏 目录",
+      "candidates": [
+        "031-span-目录",
+        "032-button",
+        "033-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「目录」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.assets",
+      "label": "左栏 素材",
+      "candidates": [
+        "034-span-素材",
+        "035-button",
+        "036-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「素材」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.flow",
+      "label": "左栏 流程",
+      "candidates": [
+        "037-span-流程",
+        "038-button",
+        "039-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「流程」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.skill",
+      "label": "左栏 Skill",
+      "candidates": [
+        "040-span-Skill",
+        "041-button",
+        "042-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「Skill」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.prompts",
+      "label": "左栏 提示词",
+      "candidates": [
+        "043-span-提示词"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「提示词」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "rail.collapse",
+      "label": "收起左栏",
+      "candidates": [
+        "044-button-收起左栏",
+        "045-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow"
+      ],
+      "note": "产品代码里有字样「收起左栏」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "list.header.title",
+      "label": "列表页头 分镜标题与计数",
+      "candidates": [
+        "046-span-分镜雨夜便利店",
+        "047-span-6镜已生成5"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.header.summary",
+      "label": "列表页头 摘要",
+      "candidates": [
+        "048-div-贯穿全片的角色和场景"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.header.refs",
+      "label": "列表页头 角色与场景引用",
+      "candidates": [
+        "049-span-林薇",
+        "050-span-便利店",
+        "051-span-怀表等定妆"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.header.generate-all",
+      "label": "列表页头「生成全部」",
+      "candidates": [
+        "052-button-生成全部"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.header.more",
+      "label": "列表页头「更多」",
+      "candidates": [
+        "053-button-更多",
+        "054-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.card.shot-01",
+      "label": "列表卡 镜 01",
+      "candidates": [
+        "055-div",
+        "056-span-镜01",
+        "057-span-4s",
+        "058-span-图像模型40",
+        "059-div-远景雨后便利店门口林薇站"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.card.shot-02",
+      "label": "列表卡 镜 02",
+      "candidates": [
+        "060-div",
+        "061-span-镜02",
+        "062-span-3s",
+        "063-span-图像模型40",
+        "064-div-近景林薇侧脸水珠沿发梢滑"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.card.shot-03",
+      "label": "列表卡 镜 03",
+      "candidates": [
+        "065-div",
+        "067-span-镜03",
+        "068-span-4s",
+        "069-span-模型21",
+        "070-div-低机位怀表落在积水里车灯",
+        "066-svg-接上一镜"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.card.shot-04",
+      "label": "列表卡 镜 04（未生成）",
+      "candidates": [
+        "071-div",
+        "072-div-俯拍霓虹映在湿漉漉的车道",
+        "073-span-还没生成",
+        "074-span-镜04",
+        "075-span-4s",
+        "076-span-图像模型40"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.card.shot-05",
+      "label": "列表卡 镜 05",
+      "candidates": [
+        "077-div",
+        "078-span-镜05",
+        "079-span-5s",
+        "080-span-模型21",
+        "081-div-中景林薇转身走进雨里便利"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.card.shot-06",
+      "label": "列表卡 镜 06",
+      "candidates": [
+        "082-div",
+        "083-span-镜06",
+        "084-span-6s",
+        "085-span-模型21",
+        "086-div-特写表链在指间垂下指针停"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.group-roles.header",
+      "label": "角色定妆分组头（组名、数量、生成全部）",
+      "candidates": [
+        "087-span-角色定妆",
+        "088-span-画布分组2",
+        "089-button-生成全部"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.group-roles.card-lin-wei",
+      "label": "角色卡 林薇·定妆",
+      "candidates": [
+        "090-div",
+        "091-span-林薇定妆",
+        "092-span-图像模型40",
+        "093-div-二十出头黑色短发旧风衣"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "list.group-roles.card-store",
+      "label": "场景卡 便利店·外景",
+      "candidates": [
+        "094-div",
+        "095-span-便利店外景",
+        "096-span-图像模型40",
+        "097-div-雨夜冷白灯箱玻璃上有水痕"
+      ],
+      "status": "in-progress",
+      "owner": "#1128",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "列表 / 列表详情在做（#1128）"
+    },
+    {
+      "id": "agent.orb",
+      "label": "Agent 小球（打开 Nomi Agent）",
+      "candidates": [
+        "098-button-打开NomiAgent",
+        "099-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「打开NomiAg」，初判缺；待真 App 核"
+    },
+    {
+      "id": "timeline.strip",
+      "label": "时间轴窄条",
+      "candidates": [
+        "100-div-时间轴",
+        "102-span-时间轴",
+        "103-span-5段026",
+        "104-button-展开时间轴",
+        "101-svg",
+        "105-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「时间轴」，待真 App 核并补走查断言（下一刀）"
+    }
+  ],
+  "decor": [
+    "001-svg-Nomi",
+    "022-svg",
+    "023-svg",
+    "024-svg"
+  ],
+  "functionCensus": [
+    {
+      "function": "列表视图：分镜卡",
+      "before": "列表视图的分镜卡",
+      "after": "list.card.shot-01"
+    },
+    {
+      "function": "列表视图：角色分组生成全部",
+      "before": "分组「生成整组」",
+      "after": "list.group-roles.header"
+    }
+  ]
+}

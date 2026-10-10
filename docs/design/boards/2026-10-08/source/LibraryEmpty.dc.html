@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>项目库 · 第一次打开</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--chrome:oklch(0.97 0.003 80);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--accent:oklch(0.55 0.13 250);--infoInk:oklch(0.45 0.13 250);--infoSoft:oklch(0.957 0.021 250);--infoEdge:oklch(0.9 0.048 250);--logo:oklch(0.22 0.01 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--shMd:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;position:relative;width:1280px;height:800px;overflow:hidden;background:var(--chrome)}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--chrome:oklch(0.155 0.006 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--accent:oklch(0.70 0.13 250);--infoInk:oklch(0.82 0.13 250);--infoSoft:oklch(0.295 0.045 250);--infoEdge:oklch(0.395 0.065 250);--logo:oklch(0.30 0.01 80);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--shMd:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:left}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i14{width:14px;height:14px}.i16{width:16px;height:16px}.i18{width:18px;height:18px}.i20{width:20px;height:20px}
+.tb{position:absolute;left:0;top:0;right:0;height:40px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.tb-l{display:flex;align-items:center;gap:8px;padding-left:12px}
+.tb-r{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+.here{font-size:13px;font-weight:500;color:var(--ink)}
+.ib{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink60);position:relative}
+.dotmark{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--chrome)}
+.wc{display:flex;margin-left:6px}
+.wc span{width:46px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink80)}
+.wc svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1}
+.rail{position:absolute;left:0;top:40px;bottom:0;width:60px;display:flex;flex-direction:column;align-items:center;padding:6px 0 10px}
+.ri{width:48px;height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink60)}
+.ri span{font-size:11px;line-height:13px}
+.work{position:absolute;left:8px;top:40px;right:8px;bottom:8px;border-radius:10px;background:var(--paper);box-shadow:0 0 0 1px var(--lineSoft);overflow:hidden;padding:72px 0 0;display:flex;flex-direction:column;align-items:center}
+.h{font-size:20px;font-weight:600;color:var(--ink)}
+.sub{margin-top:6px;font-size:13px;color:var(--ink60)}
+.cards{display:flex;gap:16px;margin-top:28px}
+.ac{width:280px;height:88px;padding:0 20px;border-radius:10px;background:var(--paper);box-shadow:var(--shSm),0 0 0 1px var(--line);display:flex;align-items:center;gap:14px}
+.ac .ic{width:40px;height:40px;border-radius:50%;background:var(--ink05);color:var(--ink80);display:flex;align-items:center;justify-content:center;flex:none}
+.ac .t{font-size:14px;font-weight:600;color:var(--ink)}
+.ac .d{margin-top:3px;font-size:12px;color:var(--ink60)}
+.ac.pri{background:var(--ink);box-shadow:var(--shSm)}
+.ac.pri .ic{background:color-mix(in srgb, var(--paper) 14%, var(--ink));color:var(--paper)}
+.ac.pri .t{color:var(--paper)}
+.ac.pri .d{color:color-mix(in srgb, var(--paper) 70%, var(--ink))}
+.note{display:flex;align-items:center;gap:10px;width:872px;height:44px;margin-top:20px;padding:0 8px 0 14px;border-radius:10px;background:var(--infoSoft);box-shadow:inset 0 0 0 1px var(--infoEdge);font-size:13px;color:var(--infoInk)}
+.note .lk{margin-left:auto;height:28px;padding:0 12px;border-radius:999px;background:var(--paper);box-shadow:0 0 0 1px var(--infoEdge);font-size:12px;font-weight:500;color:var(--infoInk);text-align:center}
+.drop{margin-top:36px;font-size:12px;color:var(--ink40)}
+.tabs{display:flex;align-items:baseline;gap:20px}
+.tabs button{font-size:16px;font-weight:600;color:var(--ink40);height:32px;display:flex;align-items:center}
+.tabs button.on{color:var(--ink)}
+</style>
+</helmet>
+<div class="{{rootClass}}">
+  <div class="tb">
+    <div class="tb-l">
+      <svg width="20" height="20" viewBox="0 0 28 28" aria-label="Nomi"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <span class="here">项目库</span>
+    </div>
+    <div></div>
+    <div class="tb-r">
+      <button class="ib" type="button" aria-label="任务"><svg class="i i18" viewBox="0 0 24 24"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/></svg></button>
+      <button class="ib" type="button" aria-label="浏览器"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 8h16"/><path d="M8 4v4"/></svg></button>
+      <button class="ib" type="button" aria-label="设置"><svg class="i i18" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg><span class="dotmark"></span></button>
+      <div class="wc" aria-hidden="true"><span><svg viewBox="0 0 10 10"><path d="M0 5.5h10"/></svg></span><span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9"/></svg></span><span><svg viewBox="0 0 10 10"><path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/></svg></span></div>
+    </div>
+  </div>
+
+
+  <main class="work">
+    <div style="position:absolute;left:32px;top:20px">
+      <div class="tabs" role="tablist" aria-label="库">
+        <button type="button" role="tab" aria-selected="true" class="on">项目</button>
+        <button type="button" role="tab" aria-selected="false">Skill</button>
+        <button type="button" role="tab" aria-selected="false">提示词</button>
+      </div>
+    </div>
+    <span class="h">开始一个项目</span>
+    <span class="sub">从一段文字、一个文件夹，或者先看一遍怎么做</span>
+    <div class="cards">
+      <button class="ac pri" type="button"><span class="ic"><svg class="i i20" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></span><span><div class="t">新建空白项目</div><div class="d">从一段文字或想法开始</div></span></button>
+      <button class="ac" type="button"><span class="ic"><svg class="i i20" viewBox="0 0 24 24"><path d="M5 19l2.757 -7.351a1 1 0 0 1 .936 -.649h12.307a1 1 0 0 1 .986 1.164l-.996 5.211a2 2 0 0 1 -1.964 1.625h-14.026a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2"/></svg></span><span><div class="t">打开已有文件夹</div><div class="d">把素材文件夹变成项目</div></span></button>
+      <button class="ac" type="button"><span class="ic"><svg class="i i20" viewBox="0 0 24 24"><path d="M7 4v16l13 -8z"/></svg></span><span><div class="t">看一遍怎么做</div><div class="d">60 秒，从一句话到成片</div></span></button>
+    </div>
+    <div class="note">
+      <svg class="i i16" viewBox="0 0 24 24"><path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z"/><path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5z"/><path d="M3 21l2.5 -2.5"/><path d="M18.5 5.5l2.5 -2.5"/><path d="M10 11l-2 2"/><path d="M13 14l-2 2"/></svg>
+      创作助手还没连接模型：写剧本、拆分镜前先连一个
+      <button class="lk" type="button">连接模型</button>
+    </div>
+    <span class="drop">也可以把一个文件夹直接拖进窗口</span>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>

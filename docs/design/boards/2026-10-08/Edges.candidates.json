@@ -1,0 +1,474 @@
+{
+  "board": "Edges",
+  "extractor": "board-extract@1",
+  "source": "preview/Edges.html",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-div-线中间挂着用途标签",
+      "kind": "text",
+      "tag": "div",
+      "text": "线中间挂着用途标签",
+      "bbox": [
+        40,
+        36,
+        360,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-b-改前",
+      "kind": "text",
+      "tag": "b",
+      "text": "改前",
+      "bbox": [
+        40,
+        38,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-div-定妆",
+      "kind": "text",
+      "tag": "div",
+      "text": "定妆",
+      "bbox": [
+        64,
+        114,
+        48,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-b-林薇",
+      "kind": "text",
+      "tag": "b",
+      "text": "林薇",
+      "bbox": [
+        64,
+        115,
+        22,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-div-视频",
+      "kind": "text",
+      "tag": "div",
+      "text": "视频",
+      "bbox": [
+        264,
+        114,
+        54,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-b-镜03",
+      "kind": "text",
+      "tag": "b",
+      "text": "镜 03",
+      "bbox": [
+        264,
+        115,
+        28,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        40,
+        66,
+        360,
+        200
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "008-span-首帧",
+      "kind": "text",
+      "tag": "span",
+      "text": "首帧",
+      "bbox": [
+        195,
+        155,
+        50,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        227,
+        160,
+        12,
+        12
+      ],
+      "region": "root",
+      "iconOf": "008-span-首帧"
+    },
+    {
+      "id": "010-div-选中节点连向它的线变色线",
+      "kind": "text",
+      "tag": "div",
+      "text": "选中节点：连向它的线变色，线上什么都不挂",
+      "bbox": [
+        424,
+        36,
+        360,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-b-改后",
+      "kind": "text",
+      "tag": "b",
+      "text": "改后",
+      "bbox": [
+        424,
+        38,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-div-定妆",
+      "kind": "text",
+      "tag": "div",
+      "text": "定妆",
+      "bbox": [
+        448,
+        114,
+        48,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-b-林薇",
+      "kind": "text",
+      "tag": "b",
+      "text": "林薇",
+      "bbox": [
+        448,
+        115,
+        22,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-div-视频",
+      "kind": "text",
+      "tag": "div",
+      "text": "视频",
+      "bbox": [
+        648,
+        114,
+        54,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-b-镜03",
+      "kind": "text",
+      "tag": "b",
+      "text": "镜 03",
+      "bbox": [
+        648,
+        115,
+        28,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        424,
+        66,
+        360,
+        200
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "017-div-悬停或选中一条线中点出一",
+      "kind": "text",
+      "tag": "div",
+      "text": "悬停或选中一条线：中点出一个 ×，按 Delete 也能断开",
+      "bbox": [
+        424,
+        284,
+        360,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-b-改后",
+      "kind": "text",
+      "tag": "b",
+      "text": "改后",
+      "bbox": [
+        424,
+        286,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-div-定妆",
+      "kind": "text",
+      "tag": "div",
+      "text": "定妆",
+      "bbox": [
+        448,
+        362,
+        48,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-b-林薇",
+      "kind": "text",
+      "tag": "b",
+      "text": "林薇",
+      "bbox": [
+        448,
+        363,
+        22,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "021-div-视频",
+      "kind": "text",
+      "tag": "div",
+      "text": "视频",
+      "bbox": [
+        648,
+        362,
+        54,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-b-镜03",
+      "kind": "text",
+      "tag": "b",
+      "text": "镜 03",
+      "bbox": [
+        648,
+        363,
+        28,
+        15
+      ],
+      "region": "root"
+    },
+    {
+      "id": "023-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        424,
+        314,
+        360,
+        200
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "024-button-断开这条线",
+      "kind": "text",
+      "tag": "button",
+      "text": "断开这条线",
+      "bbox": [
+        593,
+        403,
+        22,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "025-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        598,
+        408,
+        12,
+        12
+      ],
+      "region": "root",
+      "iconOf": "024-button-断开这条线"
+    },
+    {
+      "id": "026-div-在目标节点的参考图上看第",
+      "kind": "text",
+      "tag": "div",
+      "text": "在目标节点的参考图上看：第一条连线就是首帧",
+      "bbox": [
+        808,
+        36,
+        340,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-b-用途",
+      "kind": "text",
+      "tag": "b",
+      "text": "用途",
+      "bbox": [
+        808,
+        38,
+        24,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-div-低机位怀表落在积水里车灯",
+      "kind": "text",
+      "tag": "div",
+      "text": "低机位，怀表落在积水里，车灯扫过，冷色夜景。",
+      "bbox": [
+        820,
+        78,
+        316,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-span-首帧",
+      "kind": "text",
+      "tag": "span",
+      "text": "首帧",
+      "bbox": [
+        823,
+        137,
+        30,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-button-加参考",
+      "kind": "text",
+      "tag": "button",
+      "text": "加参考",
+      "bbox": [
+        932,
+        108,
+        48,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "031-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        948,
+        124,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "030-button-加参考"
+    },
+    {
+      "id": "032-button-模型21",
+      "kind": "text",
+      "tag": "button",
+      "text": "模型 2.1",
+      "bbox": [
+        820,
+        168,
+        76,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        874,
+        175,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "032-button-模型21"
+    },
+    {
+      "id": "034-button-1694s",
+      "kind": "text",
+      "tag": "button",
+      "text": "16:9 · 4s",
+      "bbox": [
+        900,
+        168,
+        82,
+        28
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        960,
+        175,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "034-button-1694s"
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "board": "LibraryEmpty",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/LibraryEmpty.html",
+  "elements": [
+    {
+      "id": "library.tabs",
+      "label": "页签 项目 · Skill · 提示词",
+      "candidates": [
+        "012-div-库",
+        "013-button-项目",
+        "014-button-Skill",
+        "015-button-提示词"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "动态内容或无固定文字，待真 App 核"
+    },
+    {
+      "id": "libraryempty.title",
+      "label": "第一次打开 开始一个项目",
+      "candidates": [
+        "016-span-开始一个项目"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "libraryempty.subtitle",
+      "label": "第一次打开 副标题",
+      "candidates": [
+        "017-span-从一段文字一个文件夹或者"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "libraryempty.card-new",
+      "label": "动作卡 新建空白项目",
+      "candidates": [
+        "018-div",
+        "019-button",
+        "021-div-新建空白项目",
+        "022-div-从一段文字或想法开始",
+        "020-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "libraryempty.card-open",
+      "label": "动作卡 打开已有文件夹",
+      "candidates": [
+        "023-button",
+        "025-div-打开已有文件夹",
+        "026-div-把素材文件夹变成项目",
+        "027-button",
+        "024-svg",
+        "028-svg"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "hover",
+        "disabled",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "libraryempty.card-tour",
+      "label": "动作卡 看一遍怎么做",
+      "candidates": [
+        "029-div-看一遍怎么做",
+        "030-div-60秒从一句话到成片"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "library.assistant-banner",
+      "label": "创作助手未连接模型提示",
+      "candidates": [
+        "031-div-创作助手还没连接模型写剧",
+        "032-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text",
+        "empty"
+      ],
+      "note": "产品代码里找不到字样「创作助手还没连接」，初判缺；待真 App 核"
+    },
+    {
+      "id": "library.assistant-connect",
+      "label": "连接模型",
+      "candidates": [
+        "033-button-连接模型"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "产品代码里有字样「连接模型」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "libraryempty.drop-hint",
+      "label": "拖入文件夹提示",
+      "candidates": [
+        "034-span-也可以把一个文件夹直接拖"
+      ],
+      "status": "in-progress",
+      "owner": "#1164",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "空节点排版在做（#1164）"
+    },
+    {
+      "id": "topbar.tasks",
+      "label": "任务",
+      "candidates": [
+        "003-button-任务",
+        "004-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "empty"
+      ],
+      "note": "产品代码里有字样「任务」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.browser",
+      "label": "浏览器",
+      "candidates": [
+        "005-button-浏览器",
+        "006-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "empty"
+      ],
+      "note": "产品代码里有字样「浏览器」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "topbar.settings",
+      "label": "设置",
+      "candidates": [
+        "007-button-设置",
+        "008-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "empty"
+      ],
+      "note": "产品代码里有字样「设置」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "library.title",
+      "label": "项目库 页头",
+      "candidates": [
+        "002-span-项目库"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "empty"
+      ],
+      "note": "产品代码里有字样「项目库」，待真 App 核并补走查断言（下一刀）"
+    }
+  ],
+  "decor": [
+    "001-svg-Nomi",
+    "009-svg",
+    "010-svg",
+    "011-svg"
+  ],
+  "functionCensus": [
+    {
+      "function": "项目库空态：新建空白项目",
+      "before": "空态「新建空白项目」",
+      "after": "libraryempty.card-new"
+    }
+  ]
+}

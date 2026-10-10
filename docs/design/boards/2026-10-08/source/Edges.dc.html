@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>连线：去掉中间标签</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--accent:oklch(0.55 0.13 250);--dot:oklch(0.86 0.005 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--shMd:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;width:1280px;height:560px;overflow:hidden;background:var(--bg);padding:36px 40px;box-sizing:border-box}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--accent:oklch(0.70 0.13 250);--dot:oklch(0.27 0.006 85);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--shMd:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i12{width:12px;height:12px}.i14{width:14px;height:14px}.i16{width:16px;height:16px}
+.cols{display:flex;gap:24px}
+.col{display:flex;flex-direction:column;gap:10px}
+.lbl{font-size:12px;font-weight:600;color:var(--ink40);height:20px;display:flex;align-items:center;gap:8px}
+.lbl b{font-weight:600;color:var(--ink80)}
+.stage{position:relative;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px, transparent 1.2px);background-size:16px 16px;overflow:hidden}
+.nd{position:absolute;width:112px;height:63px;border-radius:8px;overflow:hidden;box-shadow:var(--shSm),0 0 0 1px oklch(0 0 0 / 0.05)}
+.nd.sel{box-shadow:0 0 0 1.5px var(--accent),var(--shMd)}
+.nl{position:absolute;font-size:11px;color:var(--ink60);height:16px;display:flex;align-items:center;gap:4px}
+.nl b{font-weight:600;color:var(--ink80)}
+.hd{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1.5px var(--ink40)}
+.wire{position:absolute;left:0;top:0}
+.pill{position:absolute;height:22px;padding:0 6px 0 8px;border-radius:999px;background:var(--paper);box-shadow:0 0 0 1px var(--line),var(--shSm);font-size:11px;color:var(--ink80);display:flex;align-items:center;gap:2px;transform:translate(-50%,-50%)}
+.x{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1px var(--line),var(--shSm);color:var(--ink60);display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)}
+.ma{background:radial-gradient(42% 60% at 50% 46%,#d9b9a3 0 38%,transparent 39%),radial-gradient(60% 60% at 50% 110%,#2c3442 0 60%,transparent 61%),linear-gradient(180deg,#e9e4dc,#cfc6ba)}
+.mb{background:radial-gradient(circle at 70% 30%,rgba(236,226,255,.26) 0 8px,transparent 9px),radial-gradient(130% 70% at 30% 112%,rgba(10,8,16,.55) 0 55%,transparent 56%),linear-gradient(165deg,#5a4c6a 0%,#1d1826 72%)}
+.cmp{width:340px;border-radius:12px;box-shadow:0 0 0 1px var(--line);background:var(--paper);padding:12px}
+.prompt{font-size:13px;line-height:20px;color:var(--ink80)}
+.refs{display:flex;align-items:center;gap:8px;margin-top:10px}
+.rt{width:48px;height:48px;border-radius:6px;position:relative;overflow:hidden;box-shadow:0 0 0 1px oklch(0 0 0 / 0.06)}
+.tag{position:absolute;left:3px;bottom:3px;height:16px;padding:0 4px;border-radius:4px;background:oklch(0.18 0.01 80 / 0.64);color:white;font-size:11px;line-height:16px}
+.addref{width:48px;height:48px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink40)}
+.cbar{display:flex;align-items:center;gap:4px;margin-top:12px;font-size:12px;color:var(--ink80)}
+.cbtn{height:28px;padding:0 8px;border-radius:6px;display:flex;align-items:center;gap:4px}
+.cbtn .i{color:var(--ink60)}
+</style>
+</helmet>
+<div class="{{rootClass}}">
+  <div class="cols">
+    <div class="col">
+      <div class="lbl"><b>改前</b>线中间挂着用途标签</div>
+      <div class="stage" style="width:360px;height:200px">
+        <div class="nl" style="left:24px;top:48px"><b>林薇</b>定妆</div>
+        <div class="nd" style="left:24px;top:68px"><div class="ma" style="position:absolute;inset:0"></div></div>
+        <div class="nl" style="left:224px;top:48px"><b>镜 03</b>视频</div>
+        <div class="nd" style="left:224px;top:68px"><div class="mb" style="position:absolute;inset:0"></div></div>
+        <svg class="wire" width="360" height="200" aria-hidden="true"><path d="M136 99.5 L224 99.5" fill="none" stroke="var(--ink30)" stroke-width="1.5"/></svg>
+        <span class="pill" style="left:180px;top:99.5px">首帧<svg class="i i12" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></span>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="lbl"><b>改后</b>选中节点：连向它的线变色，线上什么都不挂</div>
+      <div class="stage" style="width:360px;height:200px">
+        <div class="nl" style="left:24px;top:48px"><b>林薇</b>定妆</div>
+        <div class="nd" style="left:24px;top:68px"><div class="ma" style="position:absolute;inset:0"></div></div>
+        <div class="nl" style="left:224px;top:48px"><b>镜 03</b>视频</div>
+        <div class="nd sel" style="left:224px;top:68px"><div class="mb" style="position:absolute;inset:0"></div></div>
+        <svg class="wire" width="360" height="200" aria-hidden="true"><path d="M136 99.5 L224 99.5" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>
+        <span class="hd" style="left:132px;top:95.5px"></span><span class="hd" style="left:220px;top:95.5px"></span><span class="hd" style="left:332px;top:95.5px"></span>
+      </div>
+      <div class="lbl" style="margin-top:8px"><b>改后</b>悬停或选中一条线：中点出一个 ×，按 Delete 也能断开</div>
+      <div class="stage" style="width:360px;height:200px">
+        <div class="nl" style="left:24px;top:48px"><b>林薇</b>定妆</div>
+        <div class="nd" style="left:24px;top:68px"><div class="ma" style="position:absolute;inset:0"></div></div>
+        <div class="nl" style="left:224px;top:48px"><b>镜 03</b>视频</div>
+        <div class="nd" style="left:224px;top:68px"><div class="mb" style="position:absolute;inset:0"></div></div>
+        <svg class="wire" width="360" height="200" aria-hidden="true"><path d="M136 99.5 L224 99.5" fill="none" stroke="var(--ink60)" stroke-width="2"/></svg>
+        <button class="x" type="button" aria-label="断开这条线" style="left:180px;top:99.5px"><svg class="i i12" viewBox="0 0 24 24"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="lbl"><b>用途</b>在目标节点的参考图上看：第一条连线就是首帧</div>
+      <div class="cmp">
+        <div class="prompt">低机位，怀表落在积水里，车灯扫过，冷色夜景。</div>
+        <div class="refs">
+          <div class="rt ma"><span class="tag">首帧</span></div>
+          <div class="rt" style="background:linear-gradient(165deg,#c9b38a,#6b5634)"></div>
+          <button class="addref" type="button" aria-label="加参考"><svg class="i i16" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+        </div>
+        <div class="cbar">
+          <button class="cbtn" type="button">模型 2.1<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+          <button class="cbtn" type="button" style="color:var(--ink60)">16:9 · 4s<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>

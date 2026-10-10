@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>生成 · 画布</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--chrome:oklch(0.97 0.003 80);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--accent:oklch(0.55 0.13 250);--accentSoft:color-mix(in srgb, oklch(0.55 0.13 250) 12%, white);--infoInk:oklch(0.45 0.13 250);--infoSoft:oklch(0.957 0.021 250);--warnInk:oklch(0.45 0.085 72);--warnSoft:oklch(0.968 0.024 72);--warnEdge:oklch(0.905 0.07 72);--okInk:oklch(0.45 0.09 145);--okSoft:oklch(0.962 0.033 145);--logo:oklch(0.22 0.01 80);--dot:oklch(0.86 0.005 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--shMd:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);--shLg:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;position:relative;width:1280px;height:800px;overflow:hidden;background:var(--chrome)}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--chrome:oklch(0.155 0.006 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--accent:oklch(0.70 0.13 250);--accentSoft:color-mix(in srgb, oklch(0.70 0.13 250) 26%, oklch(0.235 0.007 80));--infoInk:oklch(0.82 0.13 250);--infoSoft:oklch(0.295 0.045 250);--warnInk:oklch(0.82 0.085 72);--warnSoft:oklch(0.295 0.04 72);--warnEdge:oklch(0.395 0.058 72);--okInk:oklch(0.82 0.09 145);--okSoft:oklch(0.295 0.042 145);--logo:oklch(0.30 0.01 80);--dot:oklch(0.27 0.006 85);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--shMd:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32);--shLg:0 4px 10px oklch(0 0 0 / 0.30),0 24px 64px oklch(0 0 0 / 0.40)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i14{width:14px;height:14px}.i16{width:16px;height:16px}.i18{width:18px;height:18px}.i20{width:20px;height:20px}
+.tnum{font-variant-numeric:tabular-nums}
+/* 顶栏 */
+.tb{position:absolute;left:0;top:0;right:0;height:40px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.tb-l{display:flex;align-items:center;gap:6px;padding-left:12px}
+.tb-c{display:flex;align-items:center;gap:8px}
+.tb-r{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+.proj{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px 0 8px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink)}
+.proj .i{color:var(--ink40)}
+.seg{display:flex;align-items:center;gap:2px;height:28px;padding:2px;border-radius:999px;background:var(--ink10)}
+.seg>button{height:24px;padding:0 12px;border-radius:999px;font-size:13px;color:var(--ink60);display:flex;align-items:center;gap:6px}
+.seg>button.on{background:var(--paper);color:var(--ink);font-weight:500;box-shadow:var(--shSm)}
+.seg .cnt{font-size:11px;color:var(--ink40);font-weight:400}
+.seg.sm{height:24px}.seg.sm>button{height:20px;padding:0 10px;font-size:12px}
+.ib{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink60);position:relative}
+.ib.on{background:var(--ink10);color:var(--ink)}
+.badge{height:16px;min-width:16px;padding:0 5px;border-radius:999px;background:var(--infoSoft);color:var(--infoInk);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center}
+.tasks{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px;border-radius:6px;color:var(--ink60)}
+.upd{display:flex;align-items:center;gap:4px;height:24px;padding:0 10px 0 8px;margin:0 4px;border-radius:999px;background:var(--infoSoft);color:var(--infoInk);font-size:12px;font-weight:500}
+.dotmark{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--chrome)}
+.wc{display:flex;margin-left:6px}
+.wc span{width:46px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink80)}
+.wc svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1}
+/* 左栏 */
+.rail{position:absolute;left:0;top:40px;bottom:0;width:60px;display:flex;flex-direction:column;align-items:center;padding:6px 0 10px}
+.ri{width:48px;height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink60)}
+.ri span{font-size:11px;line-height:13px}
+.ri.on{background:var(--accentSoft);color:var(--accent)}
+.rdiv{width:24px;height:1px;background:var(--line);margin:8px 0}
+.rail .grow{flex:1}
+/* 工作面 */
+.work{position:absolute;left:60px;top:40px;right:8px;bottom:8px;border-radius:10px;background:var(--bg);box-shadow:0 0 0 1px var(--lineSoft);overflow:hidden}
+.dots{background-image:radial-gradient(var(--dot) 1px, transparent 1.2px);background-size:16px 16px;background-position:-4px -4px}
+/* 节点 */
+.grp{position:absolute;border-radius:16px;background:color-mix(in srgb, var(--ink05) 70%, transparent);box-shadow:inset 0 0 0 1px var(--lineSoft)}
+.grp-h{position:absolute;left:16px;top:10px;right:12px;height:26px;display:flex;align-items:center;gap:8px}
+.grp-t{font-size:12px;font-weight:500;color:var(--ink80)}
+.grp-m{font-size:12px;color:var(--ink40)}
+.pillbtn{height:26px;padding:0 12px;border-radius:999px;background:var(--paper);box-shadow:0 0 0 1px var(--line);font-size:12px;font-weight:500;color:var(--ink80);display:flex;align-items:center;gap:6px}
+.lab{position:absolute;display:flex;align-items:center;gap:6px;height:20px}
+.shot{height:20px;padding:0 6px;border-radius:6px;background:var(--paper);box-shadow:0 0 0 1px var(--line);font-size:11px;font-weight:600;color:var(--ink80);display:flex;align-items:center}
+.ntl{font-size:12px;color:var(--ink60)}
+.node{position:absolute;width:300px;height:169px;border-radius:10px;overflow:hidden;box-shadow:var(--shSm),0 0 0 1px oklch(0 0 0 / 0.04)}
+.node.sel{box-shadow:0 0 0 1.5px var(--accent),var(--shMd)}
+.hd{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1.5px var(--ink40)}
+.m{position:absolute;inset:0}
+.m1{background:radial-gradient(circle at 72% 30%,rgba(255,255,255,.26) 0 17px,transparent 18px),radial-gradient(130% 70% at 25% 112%,rgba(8,10,16,.55) 0 55%,transparent 56%),linear-gradient(165deg,#3b4b67 0%,#1a2232 72%)}
+.m2{background:radial-gradient(circle at 70% 30%,rgba(255,236,214,.28) 0 17px,transparent 18px),radial-gradient(130% 70% at 30% 112%,rgba(14,8,6,.55) 0 55%,transparent 56%),linear-gradient(165deg,#6a4a40 0%,#2a1d1a 72%)}
+.m3{background:radial-gradient(circle at 70% 30%,rgba(236,226,255,.26) 0 17px,transparent 18px),radial-gradient(130% 70% at 30% 112%,rgba(10,8,16,.55) 0 55%,transparent 56%),linear-gradient(165deg,#5a4c6a 0%,#1d1826 72%)}
+.m5{background:radial-gradient(circle at 70% 30%,rgba(255,240,214,.28) 0 17px,transparent 18px),radial-gradient(130% 70% at 30% 112%,rgba(16,10,4,.55) 0 55%,transparent 56%),linear-gradient(165deg,#7a5a3c 0%,#2b1f14 72%)}
+.m6{background:radial-gradient(circle at 70% 30%,rgba(222,236,248,.26) 0 17px,transparent 18px),radial-gradient(130% 70% at 30% 112%,rgba(6,10,14,.55) 0 55%,transparent 56%),linear-gradient(165deg,#4a5a6a 0%,#161d24 72%)}
+.empty{position:absolute;width:300px;height:169px;border-radius:10px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.empty .k{display:flex;align-items:center;gap:6px;color:var(--ink40);font-size:12px}
+.empty .h{margin-top:4px;font-size:12px;color:var(--ink40)}
+.chips{display:flex;gap:6px;margin-top:12px}
+.chip{height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);font-size:12px;color:var(--ink80);display:flex;align-items:center;gap:5px}
+.chip .i{color:var(--ink60)}
+/* 浮动工具 */
+.float{position:absolute;display:flex;align-items:center;background:var(--paper);border-radius:10px;box-shadow:var(--shMd),0 0 0 1px var(--lineSoft)}
+.tool{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink80)}
+.tool.mut{color:var(--ink60)}
+.vdiv{width:1px;height:18px;background:var(--line);margin:0 4px}
+.zoom{font-size:12px;color:var(--ink80);width:44px;text-align:center}
+.tl{height:40px;padding:0 12px 0 12px;gap:8px}
+.tl .t{font-size:13px;font-weight:500;color:var(--ink80)}
+.tl .s{font-size:12px;color:var(--ink60)}
+.orb{position:absolute;width:44px;height:44px;border-radius:50%;background:var(--paper);box-shadow:var(--shMd),0 0 0 1px var(--lineSoft);display:flex;align-items:center;justify-content:center}
+.dock{position:absolute;left:0;right:0;bottom:0;height:36px;display:flex;align-items:center;gap:8px;padding:0 10px 0 14px;background:var(--paper);border-top:1px solid var(--lineSoft)}
+.dock .t{font-size:12px;font-weight:500;color:var(--ink80)}
+.dock .s{font-size:12px;color:var(--ink40)}
+.dock .clips{display:flex;gap:2px;margin-left:6px}
+.dock .clips span{width:30px;height:18px;border-radius:3px}
+.dock .ib{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink60);margin-left:auto}
+.k{display:flex!important;flex-direction:column;align-items:center;gap:0!important}
+.kic{width:36px;height:36px;border-radius:50%;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);color:var(--ink80);display:flex;align-items:center;justify-content:center}
+.kn{margin-top:8px;font-size:13px;font-weight:600;color:var(--ink80);line-height:18px}
+.ks{margin-top:1px;font-size:12px;color:var(--ink40);line-height:16px}
+.empty{justify-content:flex-start!important;padding-top:30px!important}
+.acts{display:flex;align-items:center;justify-content:center;gap:2px;margin-top:12px;white-space:nowrap}
+.act{height:24px;padding:0 6px;border-radius:6px;font-size:12px;color:var(--ink80);display:flex;align-items:center}
+.act:hover{background:var(--ink05)}
+.sep{font-size:12px;color:var(--ink30)}
+</style>
+</helmet>
+<div class="{{rootClass}}">
+  <!-- 顶栏 40px：窗口栏与应用栏合一 -->
+  <div class="tb">
+    <div class="tb-l">
+      <svg width="20" height="20" viewBox="0 0 28 28" aria-label="Nomi"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <button class="proj" type="button">雨夜来信<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+    <div class="tb-c">
+      <div class="seg" role="tablist" aria-label="阶段">
+        <button type="button">创作</button>
+        <button type="button" class="on">生成<span class="cnt tnum">5/6</span></button>
+        <button type="button">预览<span class="cnt tnum">0:26</span></button>
+      </div>
+      <div class="seg sm" role="tablist" aria-label="视图">
+        <button type="button" class="on">画布</button>
+        <button type="button">列表</button>
+      </div>
+    </div>
+    <div class="tb-r">
+      <button class="tasks" type="button" aria-label="任务"><svg class="i i18" viewBox="0 0 24 24"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/></svg><span class="badge tnum">1</span></button>
+      <button class="ib" type="button" aria-label="浏览器"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 8h16"/><path d="M8 4v4"/></svg></button>
+      <button class="upd" type="button"><svg class="i i14" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>新版本</button>
+      <button class="ib" type="button" aria-label="设置"><svg class="i i18" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg><span class="dotmark"></span></button>
+      <div class="wc" aria-hidden="true">
+        <span><svg viewBox="0 0 10 10"><path d="M0 5.5h10"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/></svg></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 左栏 60px：这个项目的东西 / 所有项目共用 -->
+  <nav class="rail" aria-label="资源">
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 9l1 0"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/></svg><span>文稿</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M9 6h11"/><path d="M12 12h8"/><path d="M15 18h5"/><path d="M5 6v.01"/><path d="M8 12v.01"/><path d="M11 18v.01"/></svg><span>目录</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/></svg><span>素材</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg><span>流程</span></button>
+    <div class="rdiv"></div>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 4m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M9 4m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M5 8h4"/><path d="M9 16h4"/><path d="M13.803 4.56l2.184 -.53c.562 -.135 1.133 .19 1.282 .732l3.695 13.418a1.02 1.02 0 0 1 -.634 1.219l-.133 .041l-2.184 .53c-.562 .135 -1.133 -.19 -1.282 -.732l-3.695 -13.418a1.02 1.02 0 0 1 .634 -1.219l.133 -.041z"/><path d="M14 9l4 -1"/><path d="M16 16l3.923 -.98"/></svg><span>Skill</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3"/><path d="M9.7 17l4.6 0"/></svg><span>提示词</span></button>
+    <div class="grow"></div>
+    <button class="ib" type="button" aria-label="收起左栏"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M9 4v16"/><path d="M15 10l-2 2l2 2"/></svg></button>
+  </nav>
+
+  <!-- 工作面：画布 -->
+  <main class="work dots">
+    <div class="grp" style="left:60px;top:36px;width:1092px;height:528px">
+      <div class="grp-h">
+        <span class="grp-t">分镜 · 雨夜便利店</span><span class="grp-m tnum">6 镜</span>
+        <span style="flex:1"></span>
+        <button class="pillbtn" type="button">生成全部</button>
+      </div>
+    </div>
+
+    <div class="lab" style="left:84px;top:80px"><span class="shot tnum">镜 01</span><span class="ntl">雨棚</span></div>
+    <div class="node" style="left:84px;top:104px"><div class="m m1"></div></div>
+
+    <div class="lab" style="left:456px;top:80px"><span class="shot tnum">镜 02</span><span class="ntl">侧脸</span></div>
+    <div class="node sel" style="left:456px;top:104px"><div class="m m2"></div></div>
+    <span class="hd" style="left:451px;top:183px"></span><span class="hd" style="left:751px;top:183px"></span>
+
+    <div class="lab" style="left:828px;top:80px"><span class="shot tnum">镜 03</span><span class="ntl">怀表</span></div>
+    <div class="node" style="left:828px;top:104px"><div class="m m3"></div></div>
+
+    <div class="lab" style="left:84px;top:345px"><span class="shot tnum">镜 04</span><span class="ntl">车道</span></div>
+    <div class="empty" style="left:84px;top:369px">
+      <div class="k"><span class="kic"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg></span><span class="kn">图片</span><span class="ks">还没生成</span></div>
+      <div class="acts"><button class="act" type="button">文字生图</button><span class="sep" aria-hidden="true">·</span><button class="act" type="button">参考图生图</button></div>
+    </div>
+
+    <div class="lab" style="left:456px;top:345px"><span class="shot tnum">镜 05</span><span class="ntl">转身</span></div>
+    <div class="node" style="left:456px;top:369px"><div class="m m5"></div></div>
+
+    <div class="lab" style="left:828px;top:345px"><span class="shot tnum">镜 06</span><span class="ntl">表链</span></div>
+    <div class="node" style="left:828px;top:369px"><div class="m m6"></div></div>
+
+    <!-- 左下：视图 -->
+    <div class="float" style="left:16px;bottom:52px;height:36px;padding:2px">
+      <button class="tool mut" type="button" aria-label="适应画布"><svg class="i i18" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></svg></button>
+      <span class="vdiv"></span>
+      <button class="tool mut" type="button" aria-label="缩小"><svg class="i i16" viewBox="0 0 24 24"><path d="M5 12l14 0"/></svg></button>
+      <span class="zoom tnum">100%</span>
+      <button class="tool mut" type="button" aria-label="放大"><svg class="i i16" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+      <span class="vdiv"></span>
+      <button class="tool mut" type="button" aria-label="更多视图选项"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg></button>
+    </div>
+
+    <!-- 底部中间：加节点 + 时间轴 -->
+    <div style="position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;gap:8px">
+      <div class="float" style="position:relative;height:40px;padding:4px;gap:2px">
+        <button class="tool" type="button" aria-label="图片"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg></button>
+        <button class="tool" type="button" aria-label="视频"><svg class="i i18" viewBox="0 0 24 24"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z"/><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/></svg></button>
+        <button class="tool" type="button" aria-label="声音"><svg class="i i18" viewBox="0 0 24 24"><path d="M21 12h-2c-.894 0 -1.662 -.857 -1.761 -2c-.296 -3.45 -.749 -6 -2.749 -6s-2.5 3.582 -2.5 8s-.5 8 -2.5 8s-2.452 -2.547 -2.749 -6c-.1 -1.147 -.867 -2 -1.763 -2h-2"/></svg></button>
+        <button class="tool" type="button" aria-label="文字"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg></button>
+        <button class="tool" type="button" aria-label="剪辑"><svg class="i i18" viewBox="0 0 24 24"><path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg></button>
+        <span class="vdiv"></span>
+        <button class="tool" type="button" aria-label="导入文件"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg></button>
+        <button class="tool" type="button" aria-label="更多节点" aria-haspopup="menu"><svg class="i i18" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+      </div>
+    </div>
+
+    <!-- 右下：Agent 小球 -->
+    <button class="orb" type="button" aria-label="打开 Nomi Agent" style="right:16px;bottom:50px">
+      <svg width="22" height="22" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+    </button>
+    <!-- 时间轴：贴在内容区底边的一条，点开向上展开 -->
+    <div class="dock" role="region" aria-label="时间轴">
+      <svg class="i i16" viewBox="0 0 24 24" style="color:var(--ink60)"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M4 12l16 0"/></svg>
+      <span class="t">时间轴</span><span class="s tnum">5 段 · 0:26</span>
+      <div class="clips" aria-hidden="true"><span style="background:linear-gradient(165deg,#3b4b67,#1a2232)"></span><span style="background:linear-gradient(165deg,#6a4a40,#2a1d1a)"></span><span style="background:linear-gradient(165deg,#5a4c6a,#1d1826)"></span><span style="background:linear-gradient(165deg,#7a5a3c,#2b1f14)"></span><span style="background:linear-gradient(165deg,#4a5a6a,#161d24)"></span></div>
+      <button class="ib" type="button" aria-label="展开时间轴"><svg class="i i16" viewBox="0 0 24 24"><path d="M6 15l6 -6l6 6"/></svg></button>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>

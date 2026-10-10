@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>创作 · 分镜方案</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nm{--bg:oklch(0.985 0.003 90);--paper:oklch(1 0 0);--chrome:oklch(0.97 0.003 80);--ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);--ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);--ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);--line:oklch(0.91 0.004 80);--lineSoft:oklch(0.95 0.003 80);--accent:oklch(0.55 0.13 250);--accentSoft:color-mix(in srgb, oklch(0.55 0.13 250) 12%, white);--infoInk:oklch(0.45 0.13 250);--infoSoft:oklch(0.957 0.021 250);--warnInk:oklch(0.45 0.085 72);--warnSoft:oklch(0.968 0.024 72);--warnEdge:oklch(0.905 0.07 72);--okInk:oklch(0.45 0.09 145);--okSoft:oklch(0.962 0.033 145);--logo:oklch(0.22 0.01 80);--shSm:0 1px 2px oklch(0 0 0 / 0.04),0 1px 1px oklch(0 0 0 / 0.03);--shMd:0 2px 4px oklch(0 0 0 / 0.04),0 8px 24px oklch(0 0 0 / 0.06);--shLg:0 4px 8px oklch(0 0 0 / 0.05),0 20px 50px oklch(0 0 0 / 0.08);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;position:relative;width:1280px;height:800px;overflow:hidden;background:var(--chrome)}
+.nm.dark{--bg:oklch(0.18 0.006 80);--paper:oklch(0.235 0.007 80);--chrome:oklch(0.155 0.006 80);--ink:oklch(0.93 0.006 85);--ink80:oklch(0.84 0.006 85);--ink60:oklch(0.70 0.006 85);--ink40:oklch(0.62 0.006 85);--ink30:oklch(0.50 0.006 85);--ink20:oklch(0.42 0.006 85);--ink10:oklch(0.34 0.006 85);--ink05:oklch(0.30 0.006 85);--line:oklch(0.36 0.007 80);--lineSoft:oklch(0.31 0.007 80);--accent:oklch(0.70 0.13 250);--accentSoft:color-mix(in srgb, oklch(0.70 0.13 250) 26%, oklch(0.235 0.007 80));--infoInk:oklch(0.82 0.13 250);--infoSoft:oklch(0.295 0.045 250);--warnInk:oklch(0.82 0.085 72);--warnSoft:oklch(0.295 0.04 72);--warnEdge:oklch(0.395 0.058 72);--okInk:oklch(0.82 0.09 145);--okSoft:oklch(0.295 0.042 145);--logo:oklch(0.30 0.01 80);--shSm:0 1px 2px oklch(0 0 0 / 0.32),0 1px 1px oklch(0 0 0 / 0.22);--shMd:0 2px 5px oklch(0 0 0 / 0.30),0 14px 34px oklch(0 0 0 / 0.32);--shLg:0 4px 10px oklch(0 0 0 / 0.30),0 24px 64px oklch(0 0 0 / 0.40)}
+:where(.nm) *{box-sizing:border-box}
+:where(.nm) button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i14{width:14px;height:14px}.i16{width:16px;height:16px}.i18{width:18px;height:18px}
+.tnum{font-variant-numeric:tabular-nums}
+.tb{position:absolute;left:0;top:0;right:0;height:40px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.tb-l{display:flex;align-items:center;gap:6px;padding-left:12px}
+.tb-c{display:flex;align-items:center;gap:8px}
+.tb-r{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+.proj{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px 0 8px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink)}
+.proj .i{color:var(--ink40)}
+.seg{display:flex;align-items:center;gap:2px;height:28px;padding:2px;border-radius:999px;background:var(--ink10)}
+.seg>button{height:24px;padding:0 12px;border-radius:999px;font-size:13px;color:var(--ink60);display:flex;align-items:center;gap:6px}
+.seg>button.on{background:var(--paper);color:var(--ink);font-weight:500;box-shadow:var(--shSm)}
+.seg .cnt{font-size:11px;color:var(--ink40);font-weight:400}
+.ib{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink60);position:relative}
+.badge{height:16px;min-width:16px;padding:0 5px;border-radius:999px;background:var(--infoSoft);color:var(--infoInk);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center}
+.tasks{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px;border-radius:6px;color:var(--ink60)}
+.upd{display:flex;align-items:center;gap:4px;height:24px;padding:0 10px 0 8px;margin:0 4px;border-radius:999px;background:var(--infoSoft);color:var(--infoInk);font-size:12px;font-weight:500}
+.dotmark{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--chrome)}
+.wc{display:flex;margin-left:6px}
+.wc span{width:46px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink80)}
+.wc svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1}
+.rail{position:absolute;left:0;top:40px;bottom:0;width:60px;display:flex;flex-direction:column;align-items:center;padding:6px 0 10px}
+.ri{width:48px;height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink60)}
+.ri span{font-size:11px;line-height:13px}
+.rdiv{width:24px;height:1px;background:var(--line);margin:8px 0}
+.rail .grow{flex:1}
+.panel{position:absolute;top:40px;bottom:8px;border-radius:10px;background:var(--paper);box-shadow:0 0 0 1px var(--lineSoft);overflow:hidden}
+/* 方案视图 */
+.ph{height:48px;display:flex;align-items:center;gap:6px;padding:0 12px 0 16px;border-bottom:1px solid var(--lineSoft)}
+.crumb{font-size:13px;color:var(--ink60)}
+.crumb-sep{color:var(--ink30)}
+.plansw{display:flex;align-items:center;gap:4px;height:28px;padding:0 6px 0 8px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink)}
+.plansw .i{color:var(--ink40)}
+.pillbtn{height:28px;padding:0 12px;border-radius:999px;background:var(--paper);box-shadow:0 0 0 1px var(--line);font-size:12px;font-weight:500;color:var(--ink80);display:flex;align-items:center;gap:6px}
+.primary{height:28px;padding:0 14px;border-radius:999px;background:var(--ink);color:var(--paper);font-size:12px;font-weight:500}
+.body{padding:20px 32px 0}
+.pt{display:flex;align-items:baseline;gap:12px}
+.ptt{font-size:20px;font-weight:600;color:var(--ink)}
+.pm{font-size:12px;color:var(--ink40)}
+.pm b{font-weight:500;color:var(--ink60)}
+.prow2{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}
+.lbl{font-size:12px;color:var(--ink40);margin-right:2px}
+.tagc{height:24px;padding:0 10px;border-radius:999px;background:var(--ink05);font-size:12px;color:var(--ink80);display:flex;align-items:center}
+.vsep{width:1px;height:16px;background:var(--line);margin:0 6px}
+.ac{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px 0 3px;border-radius:999px;background:var(--ink05);font-size:12px;color:var(--ink80)}
+.av{width:18px;height:18px;border-radius:50%;flex:none}
+.ac.wait{background:var(--warnSoft);color:var(--warnInk)}
+.grid{display:grid;grid-template-columns:repeat(3,236px);column-gap:28px;row-gap:22px;margin-top:20px}
+.card{position:relative;width:236px}
+.th{width:236px;height:133px;border-radius:10px;overflow:hidden;position:relative;box-shadow:0 0 0 1px oklch(0 0 0 / 0.04)}
+.ln{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+.no{font-size:13px;font-weight:600;color:var(--ink)}
+.du{font-size:12px;color:var(--ink40)}
+.stt{margin-left:auto;font-size:12px;color:var(--ink40)}
+.ds{margin-top:4px;font-size:12px;line-height:18px;color:var(--ink60);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.txt{width:236px;height:133px;border-radius:10px;background:var(--ink05);box-shadow:inset 0 0 0 1px var(--lineSoft);padding:14px 16px;display:flex;flex-direction:column}
+.txt.dr{background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);background-image:none}
+.txt .tx{font-size:13px;line-height:20px;color:var(--ink80);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.txt .ft{margin-top:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink40)}
+.drtag{height:18px;padding:0 6px;border-radius:4px;background:var(--ink10);color:var(--ink60);font-size:11px;font-weight:500;display:flex;align-items:center}
+.add{width:236px;height:133px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:var(--ink60)}
+.link{position:absolute;top:60px;left:-21px;width:14px;height:14px;color:var(--ink30)}
+.m{position:absolute;inset:0}
+.m1{background:radial-gradient(circle at 72% 30%,rgba(255,255,255,.26) 0 14px,transparent 15px),radial-gradient(130% 70% at 25% 112%,rgba(8,10,16,.55) 0 55%,transparent 56%),linear-gradient(165deg,#3b4b67 0%,#1a2232 72%)}
+.m2{background:radial-gradient(circle at 70% 30%,rgba(255,236,214,.28) 0 14px,transparent 15px),radial-gradient(130% 70% at 30% 112%,rgba(14,8,6,.55) 0 55%,transparent 56%),linear-gradient(165deg,#6a4a40 0%,#2a1d1a 72%)}
+.m3{background:radial-gradient(circle at 70% 30%,rgba(236,226,255,.26) 0 14px,transparent 15px),radial-gradient(130% 70% at 30% 112%,rgba(10,8,16,.55) 0 55%,transparent 56%),linear-gradient(165deg,#5a4c6a 0%,#1d1826 72%)}
+.m5{background:radial-gradient(circle at 70% 30%,rgba(255,240,214,.28) 0 14px,transparent 15px),radial-gradient(130% 70% at 30% 112%,rgba(16,10,4,.55) 0 55%,transparent 56%),linear-gradient(165deg,#7a5a3c 0%,#2b1f14 72%)}
+.m6{background:radial-gradient(circle at 70% 30%,rgba(222,236,248,.26) 0 14px,transparent 15px),radial-gradient(130% 70% at 30% 112%,rgba(6,10,14,.55) 0 55%,transparent 56%),linear-gradient(165deg,#4a5a6a 0%,#161d24 72%)}
+/* 停靠的 Agent */
+.ag-h{height:48px;display:flex;align-items:center;gap:8px;padding:0 8px 0 14px;border-bottom:1px solid var(--lineSoft)}
+.ag-n{font-size:13px;font-weight:600}
+.ag-sw{display:flex;align-items:center;gap:2px;height:24px;padding:0 4px 0 6px;border-radius:6px;font-size:12px;color:var(--ink60)}
+.ag-b{padding:16px;display:flex;flex-direction:column;gap:12px}
+.u{align-self:flex-end;max-width:260px;padding:8px 12px;border-radius:12px 12px 4px 12px;background:var(--ink05);font-size:13px;line-height:20px}
+.a{font-size:13px;line-height:21px;color:var(--ink80)}
+.steps{display:flex;flex-direction:column;gap:2px}
+.step{display:flex;align-items:center;gap:6px;height:24px;font-size:12px;color:var(--ink60)}
+.step .i{color:var(--ink40)}
+.cmp{position:absolute;left:12px;right:12px;bottom:12px;border-radius:12px;box-shadow:0 0 0 1px var(--line);background:var(--paper);padding:10px 10px 8px}
+.cmp-in{font-size:13px;color:var(--ink40);height:40px;padding:0 2px}
+.cmp-r{display:flex;align-items:center;gap:4px}
+.cbtn{height:28px;padding:0 8px;border-radius:6px;display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink80)}
+.cbtn .i{color:var(--ink60)}
+.send{width:28px;height:28px;border-radius:50%;background:var(--ink10);color:var(--ink40);display:flex;align-items:center;justify-content:center}
+.form{display:flex;gap:2px;height:28px;padding:2px;border-radius:999px;background:var(--ink05);margin-left:2px}
+.form button{width:28px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--ink60)}
+.form button.on{background:var(--paper);color:var(--ink);box-shadow:var(--shSm)}
+.grab{position:absolute;left:50%;top:2px;transform:translateX(-50%);width:20px;height:10px;color:var(--ink30)}
+.resize{position:absolute;left:3px;top:3px;width:10px;height:10px;color:var(--ink30)}
+.wgrip{position:absolute;top:50%;width:4px;height:36px;margin-top:-18px;border-radius:999px;background:var(--ink20)}
+</style>
+</helmet>
+<div class="nm">
+  <div class="tb">
+    <div class="tb-l">
+      <svg width="20" height="20" viewBox="0 0 28 28" aria-label="Nomi"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <button class="proj" type="button">雨夜来信<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+    <div class="tb-c">
+      <div class="seg" role="tablist" aria-label="阶段">
+        <button type="button" class="on">创作</button>
+        <button type="button">生成<span class="cnt tnum">5/6</span></button>
+        <button type="button">预览<span class="cnt tnum">0:26</span></button>
+      </div>
+    </div>
+    <div class="tb-r">
+      <button class="tasks" type="button" aria-label="任务"><svg class="i i18" viewBox="0 0 24 24"><path d="M3.5 5.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 11.5l1.5 1.5l2.5 -2.5"/><path d="M3.5 17.5l1.5 1.5l2.5 -2.5"/><path d="M11 6l9 0"/><path d="M11 12l9 0"/><path d="M11 18l9 0"/></svg><span class="badge tnum">1</span></button>
+      <button class="ib" type="button" aria-label="浏览器"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 1a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z"/><path d="M4 8h16"/><path d="M8 4v4"/></svg></button>
+      <button class="upd" type="button"><svg class="i i14" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>新版本</button>
+      <button class="ib" type="button" aria-label="设置"><svg class="i i18" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg><span class="dotmark"></span></button>
+      <div class="wc" aria-hidden="true">
+        <span><svg viewBox="0 0 10 10"><path d="M0 5.5h10"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/></svg></span>
+      </div>
+    </div>
+  </div>
+
+  <nav class="rail" aria-label="资源">
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 9l1 0"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/></svg><span>文稿</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M9 6h11"/><path d="M12 12h8"/><path d="M15 18h5"/><path d="M5 6v.01"/><path d="M8 12v.01"/><path d="M11 18v.01"/></svg><span>目录</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/></svg><span>素材</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg><span>流程</span></button>
+    <div class="rdiv"></div>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 4m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M9 4m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z"/><path d="M5 8h4"/><path d="M9 16h4"/><path d="M13.803 4.56l2.184 -.53c.562 -.135 1.133 .19 1.282 .732l3.695 13.418a1.02 1.02 0 0 1 -.634 1.219l-.133 .041l-2.184 .53c-.562 .135 -1.133 -.19 -1.282 -.732l-3.695 -13.418a1.02 1.02 0 0 1 .634 -1.219l.133 -.041z"/><path d="M14 9l4 -1"/><path d="M16 16l3.923 -.98"/></svg><span>Skill</span></button>
+    <button class="ri" type="button"><svg class="i i18" viewBox="0 0 24 24"><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3"/><path d="M9.7 17l4.6 0"/></svg><span>提示词</span></button>
+    <div class="grow"></div>
+    <button class="ib" type="button" aria-label="收起左栏"><svg class="i i18" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M9 4v16"/><path d="M15 10l-2 2l2 2"/></svg></button>
+  </nav>
+
+  <!-- 中间：分镜方案 -->
+  <main class="panel" style="left:60px;width:844px">
+    <div class="body" style="padding-top:18px">
+      <div class="pt" style="align-items:center">
+        <button class="plansw" type="button" style="font-size:20px;font-weight:600;height:36px;padding:0 6px 0 4px;margin-left:-4px">雨夜便利店<svg class="i i16" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+        <span class="pm tnum">来自《剧本》 · 7 镜 · 目标 30s · 已排 <b>30s</b> · 已生成 5</span>
+        <span style="flex:1"></span>
+        <button class="pillbtn" type="button">放到画布</button>
+        <button class="primary" type="button">生成全部</button>
+        <button class="ib" type="button" aria-label="更多"><svg class="i i18" viewBox="0 0 24 24"><path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg></button>
+      </div>
+      <div class="prow2">
+        <span class="lbl">风格</span>
+        <span class="tagc">冷色夜景</span><span class="tagc">写实</span><span class="tagc">慢节奏</span>
+        <span class="vsep"></span>
+        <span class="lbl">贯穿全片</span>
+        <span class="ac"><span class="av" style="background:radial-gradient(42% 60% at 50% 46%,#d9b9a3 0 38%,transparent 39%),linear-gradient(180deg,#e9e4dc,#cfc6ba)"></span>林薇</span>
+        <span class="ac"><span class="av" style="background:repeating-linear-gradient(90deg,#273445 0 4px,#e2f0ff 4px 5px)"></span>便利店</span>
+        <span class="ac wait"><span class="av" style="background:var(--paper);box-shadow:inset 0 0 0 1px var(--warnEdge)"></span>怀表 · 等定妆</span>
+      </div>
+      <div class="grid">
+        <div class="card"><div class="th"><div class="m m1"></div></div><div class="ln"><span class="no tnum">镜 01</span><span class="du tnum">4s</span></div><div class="ds">远景，雨后便利店门口，林薇站在雨棚下，手里攥着一块旧怀表</div></div>
+        <div class="card"><div class="th"><div class="m m2"></div></div><div class="ln"><span class="no tnum">镜 02</span><span class="du tnum">3s</span></div><div class="ds">近景，林薇侧脸，水珠沿发梢滑下</div></div>
+        <div class="card"><svg class="link i" viewBox="0 0 24 24" aria-label="接上一镜"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg><div class="th"><div class="m m3"></div></div><div class="ln"><span class="no tnum">镜 03</span><span class="du tnum">4s</span></div><div class="ds">低机位，怀表落在积水里，车灯扫过</div></div>
+        <div class="card"><div class="txt"><div class="tx">俯拍，霓虹映在湿漉漉的车道上，一辆车缓缓驶过，车灯拉出长长的光</div><div class="ft">在画布上 · 还没生成</div></div><div class="ln"><span class="no tnum">镜 04</span><span class="du tnum">4s</span></div></div>
+        <div class="card"><div class="th"><div class="m m5"></div></div><div class="ln"><span class="no tnum">镜 05</span><span class="du tnum">5s</span></div><div class="ds">中景，林薇转身走进雨里，便利店的灯在身后</div></div>
+        <div class="card"><div class="th"><div class="m m6"></div></div><div class="ln"><span class="no tnum">镜 06</span><span class="du tnum">6s</span></div><div class="ds">特写，表链在指间垂下，指针停在三点十分</div></div>
+        <div class="card"><div class="txt dr"><div class="tx">特写，林薇低头看表，表盖上的划痕在灯下发亮</div><div class="ft"><span class="drtag">草稿</span>还没放到画布</div></div><div class="ln"><span class="no tnum">镜 07</span><span class="du tnum">4s</span></div></div>
+        <button class="add" type="button"><svg class="i i16" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>加一镜</button>
+      </div>
+    </div>
+  </main>
+
+  <span class="wgrip" style="left:906px" aria-hidden="true"></span>
+  <!-- 右：Agent 停靠 -->
+  <aside class="panel" style="left:912px;right:8px" aria-label="Nomi Agent">
+    <div class="ag-h">
+      <svg width="18" height="18" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="var(--logo)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg>
+      <span class="ag-n">Nomi</span>
+      <button class="ag-sw" type="button">内置 Agent<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+      <span style="flex:1"></span>
+      <button class="ib" type="button" aria-label="历史对话"><svg class="i i16" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg></button>
+      <div class="form" role="radiogroup" aria-label="Agent 形态">
+        <button type="button" role="radio" aria-checked="false" aria-label="缩成小球" title="缩成小球"><svg class="i i14" viewBox="0 0 24 24"><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" fill="currentColor"/></svg></button>
+        <button type="button" role="radio" aria-checked="false" aria-label="浮窗" title="浮窗：可拖动、可改大小"><svg class="i i16" viewBox="0 0 24 24"><path d="M11 19h-6a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v4"/><path d="M14 14m0 1a1 1 0 0 1 1 -1h5a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-5a1 1 0 0 1 -1 -1z"/></svg></button>
+        <button type="button" role="radio" aria-checked="true" aria-label="停靠在右侧" title="停靠在右侧" class="on"><svg class="i i16" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M15 4l0 16"/></svg></button>
+      </div>
+    </div>
+    <div class="ag-b">
+      <div class="u">按剧本拆成分镜，30 秒左右</div>
+      <div class="steps">
+        <div class="step"><svg class="i i14" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>读了文稿《剧本》</div>
+        <div class="step"><svg class="i i14" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>写了方案 A · 6 镜</div>
+      </div>
+      <div class="a">按剧本顺序拆成了 6 镜，合计 26 秒。镜 02 到镜 03 用了「接上一镜」，侧脸和怀表落水连成一个动作。</div>
+      <div class="u">最后再加一镜，林薇低头看表的特写</div>
+      <div class="steps">
+        <div class="step"><svg class="i i14" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></svg>加了镜 07（草稿）</div>
+      </div>
+      <div class="a">加好了，现在合计 30 秒。镜 07 还是草稿，要生成时点「生成全部」，确认框里会列出要生成的几镜。</div>
+    </div>
+    <div class="cmp">
+      <div class="cmp-in">继续告诉 Nomi 要改什么…  @ 引用素材或技能</div>
+      <div class="cmp-r">
+        <button class="cbtn" type="button" aria-label="添加"><svg class="i i16" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+        <button class="cbtn" type="button">选择模型<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+        <span style="flex:1"></span>
+        <button class="cbtn" type="button">自动改<svg class="i i14" viewBox="0 0 24 24"><path d="M6 9l6 6l6 -6"/></svg></button>
+        <button class="send" type="button" aria-label="发送"><svg class="i i14" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></button>
+      </div>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { rootClass: this.props.dark ? 'nm dark' : 'nm' };
+  }
+}
+</script>
+</body>
+</html>

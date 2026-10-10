@@ -1,0 +1,133 @@
+{
+  "board": "Edges",
+  "approvedOn": "2026-10-08",
+  "stage": "explored",
+  "source": "preview/Edges.html",
+  "elements": [
+    {
+      "id": "edge.source-node",
+      "label": "连线 源节点（定妆 / 林薇 / 视频 / 镜 03）",
+      "candidates": [
+        "003-div-定妆",
+        "004-b-林薇",
+        "005-div-视频",
+        "006-b-镜03",
+        "012-div-定妆",
+        "013-b-林薇",
+        "014-div-视频",
+        "015-b-镜03",
+        "019-div-定妆",
+        "020-b-林薇",
+        "021-div-视频",
+        "022-b-镜03"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark",
+        "selected",
+        "hover"
+      ],
+      "note": "产品代码里有字样「定妆」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "edge.label-on-line",
+      "label": "连线中间用途标签（旧设计）",
+      "candidates": [
+        "008-span-首帧",
+        "009-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「首帧」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "edge.delete-x",
+      "label": "选中或悬停连线：中点 × 与断开",
+      "candidates": [
+        "024-button-断开这条线",
+        "025-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「断开这条线」，初判缺；待真 App 核"
+    },
+    {
+      "id": "target.use-badge",
+      "label": "目标节点参考图的用途标签（首帧）",
+      "candidates": [
+        "027-b-用途",
+        "029-span-首帧",
+        "030-button-加参考",
+        "031-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-assertions",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里有字样「用途」，待真 App 核并补走查断言（下一刀）"
+    },
+    {
+      "id": "target.prompt",
+      "label": "目标节点提示词",
+      "candidates": [
+        "028-div-低机位怀表落在积水里车灯"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "note": "产品代码里找不到字样「低机位，怀表落在」，初判缺；待真 App 核"
+    },
+    {
+      "id": "target.params",
+      "label": "目标节点模型与参数",
+      "candidates": [
+        "032-button-模型21",
+        "034-button-1694s",
+        "033-svg",
+        "035-svg"
+      ],
+      "status": "missing",
+      "owner": "BP-unassigned",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "note": "产品代码里找不到字样「模型2.1」，初判缺；待真 App 核"
+    }
+  ],
+  "decor": [
+    "001-div-线中间挂着用途标签",
+    "002-b-改前",
+    "007-svg",
+    "010-div-选中节点连向它的线变色线",
+    "011-b-改后",
+    "016-svg",
+    "017-div-悬停或选中一条线中点出一",
+    "018-b-改后",
+    "023-svg",
+    "026-div-在目标节点的参考图上看第"
+  ],
+  "functionCensus": [
+    {
+      "function": "连线：用途标签",
+      "before": "连线上的用途标签",
+      "after": "target.use-badge"
+    }
+  ]
+}
