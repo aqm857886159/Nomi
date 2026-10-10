@@ -95,3 +95,28 @@ test('真仓库当下是干净的，且门岗自己的入口判断在本平台�
   const out = execFileSync(process.execPath, [path.join(repoRoot, 'scripts/check-main-guard.mjs')], { encoding: 'utf8' })
   assert.match(out, /✅ check:main-guard/)
 })
+
+test('同源 Windows 路径写法（2026-10-10 六道门岗只在 Windows 上红）：每种都抓，正确写法不误伤', () => {
+  const bad = [
+    ["const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')", 'url-pathname-as-path'],
+    ['const here = import.meta.url.pathname', 'url-pathname-as-path'],
+    ["const m = await import(path.join(repoRoot, 'a.ts'))", 'import-bare-path'],
+    ["const m = await import(path.resolve('a.mjs'))", 'import-bare-path'],
+    ['const m = await import(`file://${loaderPath}`)', 'import-bare-path'],
+    ["execFileSync('pnpm', ['exec', 'tsx', gate], { cwd })", 'bare-cmd-spawn'],
+    ["spawn('npx', ['vite'], { cwd })", 'bare-cmd-spawn'],
+  ]
+  for (const [source, rule] of bad) assert.deepEqual(rules(source), [rule], source)
+  const good = [
+    "const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')",
+    "const m = await import(pathToFileURL(path.join(repoRoot, 'a.ts')).href)",
+    "const m = await importLocal('electron/a.ts')",
+    "const m = await import('./local.mjs')",
+    "execFileSync(process.execPath, ['--import', 'tsx', gate], { cwd })",
+    "spawn('npx', ['vite'], { cwd, shell: process.platform === 'win32' })",
+    "const text = \"new URL(import.meta.url).pathname 只是一句说明\"",
+  ]
+  for (const source of good) assert.deepEqual(rules(source), [], source)
+  // 归档证据不管
+  assert.deepEqual(scanSource("await import(path.join(a, 'b.mjs'))", 'docs/evidence/x.mjs').map((hit) => hit.rule), [])
+})

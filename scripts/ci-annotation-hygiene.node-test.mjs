@@ -122,6 +122,75 @@ test('fails closed with machine-readable context when GitHub evidence is unavail
   assert.match(report.error.message, /HTTP 403/)
 })
 
+test('一次 fetch failed 之后成功：结果是绿，不是红（2026-10 main 事故）', async () => {
+  let jobsCalls = 0
+  const sleeps = []
+  const fetchImpl = async (url) => {
+    if (url.includes('/actions/runs/123/jobs')) {
+      jobsCalls += 1
+      if (jobsCalls === 1) throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } })
+      return response({ jobs: [{ id: 10, name: 'Contracts', status: 'completed', conclusion: 'success' }] })
+    }
+    return response([])
+  }
+  const report = await auditCiAnnotations({
+    repository: 'owner/repo',
+    runId: '123',
+    token: 'test-token',
+    allowlist: { schemaVersion: 1, entries: [] },
+    now: new Date('2026-08-30T00:00:00Z'),
+    fetchImpl,
+    retryOptions: { sleep: async (ms) => { sleeps.push(ms) } },
+  })
+  assert.equal(report.passed, true)
+  assert.equal(report.error, null)
+  assert.equal(jobsCalls, 2)
+  assert.equal(sleeps.length, 1)
+})
+
+test('持续瞬断用完次数仍然红，并写明重试了几次', async () => {
+  const report = await auditCiAnnotations({
+    repository: 'owner/repo',
+    runId: '123',
+    token: 'test-token',
+    allowlist: { schemaVersion: 1, entries: [] },
+    fetchImpl: async () => { throw new TypeError('fetch failed') },
+    retryOptions: { sleep: async () => {} },
+  })
+  assert.equal(report.passed, false)
+  assert.match(report.error.message, /重试 2 次后仍失败/)
+})
+
+test('5xx 重试后成功；403 不重试（权限问题不能被重试掩盖）', async () => {
+  let calls = 0
+  const recovered = await auditCiAnnotations({
+    repository: 'owner/repo',
+    runId: '123',
+    token: 'test-token',
+    allowlist: { schemaVersion: 1, entries: [] },
+    fetchImpl: async (url) => {
+      if (url.includes('/jobs')) {
+        calls += 1
+        return calls === 1 ? response({}, { ok: false, status: 502 }) : response({ jobs: [] })
+      }
+      return response([])
+    },
+    retryOptions: { sleep: async () => {} },
+  })
+  assert.equal(recovered.passed, true)
+  let forbiddenCalls = 0
+  const denied = await auditCiAnnotations({
+    repository: 'owner/repo',
+    runId: '123',
+    token: 'test-token',
+    allowlist: { schemaVersion: 1, entries: [] },
+    fetchImpl: async () => { forbiddenCalls += 1; return response({}, { ok: false, status: 403 }) },
+    retryOptions: { sleep: async () => {} },
+  })
+  assert.equal(denied.passed, false)
+  assert.equal(forbiddenCalls, 1)
+})
+
 test('rejects malformed allowlist expiry instead of creating a permanent warning bypass', () => {
   assert.throws(
     () =>
@@ -237,6 +306,8 @@ test('advisory 委派派生自 CORE_SMOKE_ADVISORY_CHECK_NAMES：把 used 挪出
       fs.mkdirSync(path.join(root, 'docs', 'engineering'), { recursive: true })
       fs.writeFileSync(path.join(root, 'scripts', 'validation-policy.mjs'), policy)
       fs.copyFileSync(path.join(scriptsDir, 'ci-annotation-hygiene.mjs'), path.join(root, 'scripts', 'ci-annotation-hygiene.mjs'))
+      fs.mkdirSync(path.join(root, 'scripts', 'lib'), { recursive: true })
+      fs.copyFileSync(path.join(scriptsDir, 'lib', 'transientRetry.mjs'), path.join(root, 'scripts', 'lib', 'transientRetry.mjs'))
       fs.copyFileSync(routing, path.join(root, 'docs', 'engineering', 'test-routing.json'))
     }
     layOut(fixtureDir, promoted)

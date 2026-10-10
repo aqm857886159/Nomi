@@ -48,6 +48,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { discardedCommandOffenders } from './control-contract-discarded-commands.mjs'
 import { copyOffenders } from './control-contract-copy.mjs'
+import { repoRelativePosix } from './lib/repoPaths.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -186,7 +187,7 @@ const offenders = []
 for (const file of SCANNED) {
   const text = fs.readFileSync(file, 'utf8')
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-  const rel = path.relative(ROOT, file)
+  const rel = repoRelativePosix(file, ROOT)
 
   const visit = (node) => {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {

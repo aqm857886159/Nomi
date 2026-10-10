@@ -60,10 +60,9 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { importLocal, repoRoot } from './lib/repoPaths.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const load = (relative) => import(path.join(repoRoot, relative))
+const load = (relative) => importLocal(relative)
 
 const { VERB_DECLARATIONS } = await load('electron/shared/agentCapabilities/verbDeclarations.ts')
 const { CAPABILITY_CONTRACTS } = await load('electron/shared/agentCapabilities/registry.ts')
