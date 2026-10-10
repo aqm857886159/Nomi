@@ -16,9 +16,9 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { repoRoot } from './lib/repoPaths.mjs'
 
-export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+export { repoRoot }
 
 /**
  * @param {object} input
@@ -31,7 +31,9 @@ export function createGateMutationHarness({ gate, recoveryFile }) {
 
   function runGate() {
     try {
-      execFileSync('pnpm', ['exec', 'tsx', gatePath], { cwd: repoRoot, encoding: 'utf8', stdio: 'pipe' })
+      // 不经 pnpm：Windows 上 pnpm 是 pnpm.cmd，execFileSync('pnpm') 直接 ENOENT（输出为空，门岗自检于是在 Windows 上全红）。
+      // 用当前 node + tsx 的 --import，与 `pnpm exec tsx <脚本>` 同一加载器，平台无关。
+      execFileSync(process.execPath, ['--import', 'tsx', gatePath], { cwd: repoRoot, encoding: 'utf8', stdio: 'pipe' })
       return { red: false, output: '' }
     } catch (error) {
       return { red: true, output: `${error.stdout ?? ''}${error.stderr ?? ''}` }
