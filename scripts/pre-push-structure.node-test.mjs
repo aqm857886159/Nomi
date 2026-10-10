@@ -13,6 +13,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { makeTempDir } from './_test-temp.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
+import { TEST_FILE, scanEvidence, walkSites } from './lib/scanGuardDetect.mjs'
 
 import { judgeLint } from './lint-changed.mjs'
 import { DERIVED_INPUT_GATES, GATE_INPUTS, touchesGateInputs } from './pre-push-gate-inputs.mjs'
@@ -23,15 +25,18 @@ import {
   PRE_PUSH_GATES,
   SCAN_TESTS,
   TAG_IN_MAIN_NOTICE,
+  failedGuardSummary,
   formatSummary,
   gateCommands,
   gateEntryFiles,
   parsePushRefs,
   pushDecision,
   runNode,
+  scanGuardsToRun,
   selectGates,
   softenTimeout,
 } from './pre-push-contracts.mjs'
+import { NOT_SOURCE_SCANS, SCAN_GUARDS, SCAN_GUARD_CI_ONLY, SCAN_GUARD_COVERED_BY_GATE, SCAN_GUARDS_GATE, gateImplementation, scanGuardProblems, touchesScanGuard } from './pre-push-scan-guards.mjs'
 import { MAX_RELATED_FILES, NODE_TEST_ARGV_PREFIX, RELATED_TESTS_GATE, SLOW_TEST_FILES, relatedTests, runRelatedTests, stemOf } from './pre-push-related-tests.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -426,4 +431,197 @@ test('必红：typecheck 超时 → 推送不被拦（状态 0）、输出写明
   assert.equal(softenTimeout(strict, { name: strict.name, ...hung }).status, 124)
   assert.equal(softenTimeout(typecheck, { name: 'typecheck', status: 1, output: 'TS2345', ms: 5 }).status, 1)
   assert.deepEqual(SCAN_TESTS.filter((scan) => scan.softTimeout).map((scan) => scan.name), ['typecheck'], '只有 typecheck 可以软超时')
+})
+
+// ── 扫全仓 / 扫目录的守卫测试必须有去处（2026-10-10 一天漏 4 个：#1156 offLedgerEgress.structure、#1142 fileIdentity / mcpClientRegistry / check-network-entry）──
+
+/** 把仓库（或夹具根）整理成 scanGuardProblems 要的输入：被跟踪的测试、推送前已登记的测试、gates:contracts 各门的命令与实现闭包。 */
+function scanGuardInputs(root, trackedFiles, packageJson) {
+  const gateNames = parseContractGates(packageJson.scripts['gates:contracts']).gates
+  const scriptTexts = gateNames.map((name) => packageJson.scripts[name]).filter(Boolean)
+  return {
+    root,
+    testFiles: trackedFiles.filter((file) => TEST_FILE.test(file)),
+    scanTests: new Set(SCAN_TESTS.flatMap((scan) => gateEntryFiles(scan.name))),
+    gateScripts: scriptTexts.join('\n'),
+    gateImplFiles: gateImplementation(scriptTexts, root, (file) => fs.existsSync(path.join(root, file))),
+    prePushGates: new Set(PRE_PUSH_GATES.map((gate) => gate.name)),
+  }
+}
+
+test('扫描型守卫：仓库里每个「遍历源码并对全集断言」的测试都有去处——推送前登记 / CI_ONLY（附理由）/ 已被推送前门岗覆盖 / 识别器误判（附理由）', () => {
+  const tracked = gitPaths(['ls-files'], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+  const problems = scanGuardProblems(scanGuardInputs(repoRoot, tracked, pkg))
+  assert.deepEqual(problems, [], `\n${problems.join('\n')}\n`)
+  assert.ok(SCAN_GUARDS.length >= 40, `登记的扫描型守卫太少：${SCAN_GUARDS.length}`)
+})
+
+test('扫描型守卫登记：每条的测试文件、扫描目录、固定文件真实存在（改名或挪目录后这里红，不会悄悄不跑）；批量门岗按改动只带该带的', () => {
+  const batch = SCAN_TESTS.find((scan) => scan.name === SCAN_GUARDS_GATE)
+  assert.ok(batch && typeof batch.argvFor === 'function', 'SCAN_TESTS 里缺批量门岗 test:scan-guards')
+  assert.deepEqual(batch.argvFor(null).slice(2).filter((arg) => !arg.startsWith('--')), SCAN_GUARDS.map((guard) => guard.file), '算不出改动 = 全部守卫都跑')
+  // 扫描耗时跟着机器负载走：批量必须带放宽的用例超时，否则满载时假红（2026-10-10 #1128 推送被 30 秒默认超时拦过一次）
+  for (const argv of [batch.argv, batch.argvFor(null)]) {
+    const timeout = argv.find((arg) => arg.startsWith('--testTimeout='))
+    assert.ok(timeout && Number(timeout.split('=')[1]) >= 120000, '批量门岗没带放宽的 --testTimeout（≥ 120 秒）')
+  }
+  for (const guard of SCAN_GUARDS) {
+    assert.ok(fs.existsSync(path.join(repoRoot, guard.file)), `${guard.file} 不存在`)
+    for (const dir of guard.roots ?? []) assert.ok(fs.existsSync(path.join(repoRoot, dir)), `${guard.file} 登记的扫描目录 ${dir} 不存在`)
+    for (const file of guard.files ?? []) assert.ok(fs.existsSync(path.join(repoRoot, file)), `${guard.file} 登记的固定文件 ${file} 不存在`)
+    assert.ok(batch.argv.includes(guard.file), `批量门岗的入口里没有 ${guard.file}`)
+    assert.ok(selectGates([guard.file]).includes(SCAN_GUARDS_GATE), `改了守卫测试自己应选中批量门岗：${guard.file}`)
+    assert.ok(batch.argvFor([guard.file]).includes(guard.file), `改了守卫测试自己，批量里要带上它：${guard.file}`)
+  }
+  assert.equal(new Set(SCAN_GUARDS.map((guard) => guard.file)).size, SCAN_GUARDS.length, '同一个守卫登记了两次')
+  for (const group of SCAN_GUARD_CI_ONLY) for (const file of group.files) assert.ok(fs.existsSync(path.join(repoRoot, file)), `${file} 不存在`)
+  for (const file of [...Object.keys(SCAN_GUARD_COVERED_BY_GATE), ...Object.keys(NOT_SOURCE_SCANS)]) assert.ok(fs.existsSync(path.join(repoRoot, file)), `${file} 不存在`)
+})
+
+test('扫描型守卫的选择规则：改到它扫的目录里的代码就跑；别的目录、非代码扩展名、纯文档不跑；exts 星号 = 任意扩展名；all = 除 docs 外任何改动', () => {
+  const electronOnly = { file: 'x.test.ts', roots: ['electron'] }
+  assert.ok(touchesScanGuard(electronOnly, ['electron/a/b.ts']))
+  assert.ok(touchesScanGuard(electronOnly, ['electron/new/dir/zz.mts']))
+  assert.ok(!touchesScanGuard(electronOnly, ['electron/readme.md']))
+  assert.ok(!touchesScanGuard(electronOnly, ['src/a.ts']))
+  assert.ok(!touchesScanGuard(electronOnly, ['electronic/a.ts']), '目录名前缀相同的兄弟目录不算')
+  assert.ok(!touchesScanGuard(electronOnly, ['docs/engineering/x.md']))
+  assert.ok(touchesScanGuard({ file: 'y.test.ts', roots: ['skills'], exts: '*' }, ['skills/new/SKILL.md']))
+  assert.ok(touchesScanGuard({ file: 'z.test.ts', all: true, exts: '*' }, ['marketing/a.html']))
+  assert.ok(!touchesScanGuard({ file: 'z.test.ts', all: true, exts: '*' }, ['docs/a.md']))
+  assert.ok(touchesScanGuard({ file: 'w.test.ts', roots: ['a'], files: ['package.json'] }, ['package.json']))
+})
+
+/** 夹具仓库：造出各种写法的测试文件，喂识别器与核对函数。 */
+function fixtureRepo(files) {
+  const root = makeTempDir('nomi-scan-guard-')
+  for (const [file, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+    fs.writeFileSync(path.join(root, file), text)
+  }
+  return root
+}
+
+const WALKS_ELECTRON = [
+  "import fs from 'node:fs'",
+  "import path from 'node:path'",
+  'const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]))',
+  "const files = walk(path.join(process.cwd(), 'electron'))",
+  "test('没有违规', () => { for (const file of files) if (fs.readFileSync(file, 'utf8').includes('BAD')) throw new Error(file) })",
+].join('\n')
+
+test('必红：新写一个扫 electron 的守卫测试，既没进 SCAN_GUARDS 也没进 CI_ONLY → 核对函数红并点名；登记后绿', () => {
+  const root = fixtureRepo({ 'electron/a.ts': 'export {}', 'electron/newRule.structure.test.ts': WALKS_ELECTRON })
+  const inputs = { root, testFiles: ['electron/newRule.structure.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(), guards: [], ciOnly: [], covered: {}, notScans: {} }
+  const red = scanGuardProblems(inputs)
+  assert.equal(red.length, 1, red.join('\n'))
+  assert.match(red[0], /electron\/newRule\.structure\.test\.ts：扫描型守卫测试没有去处/)
+  assert.match(red[0], /SCAN_GUARDS/)
+  assert.deepEqual(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/newRule.structure.test.ts', roots: ['electron'] }] }), [])
+  assert.deepEqual(scanGuardProblems({ ...inputs, ciOnly: [{ reason: '假设本机跑不了：需要编译产物', files: ['electron/newRule.structure.test.ts'] }] }), [])
+  assert.deepEqual(scanGuardProblems({ ...inputs, notScans: { 'electron/newRule.structure.test.ts': '识别器误判的假设理由' } }), [])
+  assert.deepEqual(scanGuardProblems({ ...inputs, scanTests: new Set(['electron/newRule.structure.test.ts']) }), [], '已在 SCAN_TESTS 里（别的门岗登记）也算有去处')
+  // 理由写得空 / 写在两张表里 / 没写扫哪些目录，都红
+  assert.match(scanGuardProblems({ ...inputs, ciOnly: [{ reason: '', files: ['electron/newRule.structure.test.ts'] }] }).join('\n'), /缺理由/)
+  assert.match(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/newRule.structure.test.ts', roots: ['electron'] }], notScans: { 'electron/newRule.structure.test.ts': '同时写在两张表里' } }).join('\n'), /同时声明在/)
+  assert.match(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/newRule.structure.test.ts' }] }).join('\n'), /没写它扫哪些目录/)
+})
+
+test('必红：登记了却不再是扫描型（文件改了不再遍历）/ 文件已不存在 → 陈旧项红；COVERED_BY_GATE 指向的门岗不在推送前也红', () => {
+  const root = fixtureRepo({ 'electron/plain.test.ts': "test('x', () => {})" })
+  const inputs = { root, testFiles: ['electron/plain.test.ts'], scanTests: new Set(), gateScripts: '', gateImplFiles: new Set(), prePushGates: new Set(['check:real']), guards: [], ciOnly: [], covered: {}, notScans: {} }
+  assert.match(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/plain.test.ts', roots: ['electron'] }] }).join('\n'), /不再被识别为扫描型守卫（陈旧项/)
+  assert.match(scanGuardProblems({ ...inputs, guards: [{ file: 'electron/gone.test.ts', roots: ['electron'] }] }).join('\n'), /不是被跟踪的测试文件/)
+  assert.match(scanGuardProblems({ ...inputs, covered: { 'electron/plain.test.ts': 'check:imaginary' } }).join('\n'), /不是推送前门岗/)
+})
+
+// 夹具文本里要写子进程调用名，但本文件自己不许出现直接起子进程的写法（上面的结构用例按文本查），所以拼出来
+const RUN = ['exec', 'FileSync'].join('')
+// 同理：临时目录助手的静态检查（check-test-temp-static）按文本查直接建系统临时目录的写法，夹具文本里的这一处也拼出来
+const TMP = ['os', 'tmpdir'].join('.')
+
+test('必红：用 git ls-files / git grep 扫全仓的测试、以及 import 了「在仓库里遍历」的扫描器模块的测试，同样被识别（#1142 的 check-network-entry.test.mjs 就是第二种）', () => {
+  const root = fixtureRepo({
+    'scripts/scanner.mjs': [
+      "import { readdirSync } from 'node:fs'",
+      "import path from 'node:path'",
+      "const root = path.resolve(import.meta.dirname, '..')",
+      'export function scanAll(directory = root) { return readdirSync(path.join(directory, "electron")) }',
+    ].join('\n'),
+    'scripts/scanner.test.mjs': "import { scanAll } from './scanner.mjs'\ntest('x', () => expect(scanAll()).toEqual([]))",
+    'scripts/lsfiles.test.mjs': `import { ${RUN} } from 'node:child_process'\nconst files = ${RUN}('git', ['ls-files'], { cwd: process.cwd() })\ntest('x', () => files)`,
+    'electron/gitgrep.test.ts': `import { ${RUN} } from 'node:child_process'\nconst hits = ${RUN}('git', ['grep', '-n', 'MARK'], { cwd: process.cwd() })\ntest('x', () => hits)`,
+  })
+  assert.deepEqual(scanEvidence('scripts/scanner.test.mjs', root).map((item) => item.file), ['scripts/scanner.mjs'])
+  assert.equal(scanEvidence('scripts/lsfiles.test.mjs', root)[0].kind, 'git ls-files|grep')
+  assert.equal(scanEvidence('electron/gitgrep.test.ts', root)[0].kind, 'git ls-files|grep')
+})
+
+test('不误伤：只在测试自建的临时目录里 readdir、遍历用户目录的生产模块、只读固定文件的测试，都不算扫描型守卫', () => {
+  const root = fixtureRepo({
+    'electron/tmpOnly.test.ts': [
+      "import fs from 'node:fs'",
+      "import os from 'node:os'",
+      "import path from 'node:path'",
+      `const dir = fs.mkdtempSync(path.join(${TMP}(), 'x-'))`,
+      "test('x', () => { expect(fs.readdirSync(dir)).toEqual([]) })",
+    ].join('\n'),
+    'electron/userDirs.ts': "import fs from 'node:fs'\nexport const list = (dir: string) => fs.readdirSync(dir)",
+    'electron/usesProduction.test.ts': "import { list } from './userDirs'\ntest('x', () => expect(list('/nowhere')).toEqual([]))",
+    'electron/fixedFile.test.ts': "import fs from 'node:fs'\nconst text = fs.readFileSync(new URL('./a.ts', import.meta.url), 'utf8')\ntest('x', () => text)",
+    'electron/a.ts': 'export {}',
+  })
+  for (const file of ['electron/tmpOnly.test.ts', 'electron/usesProduction.test.ts', 'electron/fixedFile.test.ts']) assert.deepEqual(scanEvidence(file, root), [], file)
+  // 同一个文件里一处扫仓库、一处扫临时目录：同名变量不互相带偏
+  const mixed = fixtureRepo({
+    'electron/mixed.test.ts': [
+      "import fs from 'node:fs'",
+      "import os from 'node:os'",
+      "import path from 'node:path'",
+      'let root: string',
+      `test('临时', () => { root = fs.mkdtempSync(path.join(${TMP}(), 'x-')); fs.readdirSync(root) })`,
+      "test('扫仓库', () => { root = path.resolve(__dirname); fs.readdirSync(root) })",
+    ].join('\n'),
+  })
+  assert.ok(walkSites('electron/mixed.test.ts', fs.readFileSync(path.join(mixed, 'electron/mixed.test.ts'), 'utf8')).some((site) => site.anchored), '扫仓库那一处要认得出')
+})
+
+test('回归：今天漏掉的 4 个守卫——对应的违规改动现在会在推送前选中它们，而旧的「相关单测」挑法挑不中', () => {
+  const cases = [
+    // #1156：electron 里新增一个 child_process 出网口没登记 → offLedgerEgress.structure.test.ts 红
+    { change: ['electron/ipc/newChildProcessEgress.ts'], guard: 'electron/offLedgerEgress.structure.test.ts' },
+    // #1142：手写 dev / ino 比较 → fileIdentity.test.ts
+    { change: ['electron/storage/handRolledIdentity.ts'], guard: 'electron/fileIdentity.test.ts' },
+    // #1142：手抄 MCP 客户端清单（src 或 electron 任一处）→ mcpClientRegistry.test.ts
+    { change: ['src/settings/handCopiedClients.ts'], guard: 'electron/shared/mcpClientRegistry.test.ts' },
+    { change: ['electron/settings/handCopiedClients.ts'], guard: 'electron/shared/mcpClientRegistry.test.ts' },
+    // #1142：裸 fetch / 原生 http 客户端 → check-network-entry.test.mjs（扫描器 scripts/check-network-entry.mjs 在它的闭包里）
+    { change: ['electron/net/bareFetch.ts'], guard: 'scripts/check-network-entry.test.mjs' },
+  ]
+  for (const { change, guard } of cases) {
+    const selected = selectGates(change)
+    assert.ok(selected.includes(SCAN_GUARDS_GATE), `改 ${change.join('、')} 应选中 ${SCAN_GUARDS_GATE}`)
+    assert.ok(scanGuardsToRun(change).some((item) => item.file === guard), `改 ${change.join('、')} 批量里应带上 ${guard}`)
+    // 旧机制为什么漏：新增的违规文件没有任何测试「引用」它，相关单测只能靠引用挑
+    const related = relatedTests(change, { root: repoRoot })
+    assert.ok(![...related.vitest, ...related.node].includes(guard), `相关单测不该靠引用挑中 ${guard}（挑中了就不是这类「不引用具体文件」的守卫了）`)
+  }
+  // 扫描器本身被改也选中；纯文档、不相干目录不跑；算不出改动 = 全跑
+  assert.ok(scanGuardsToRun(['scripts/check-network-entry.mjs']).some((item) => item.file === 'scripts/check-network-entry.test.mjs'))
+  assert.ok(!selectGates(['docs/engineering/x.md']).includes(SCAN_GUARDS_GATE))
+  assert.ok(!scanGuardsToRun(['marketing/index.html']).some((item) => item.file === 'electron/offLedgerEgress.structure.test.ts'))
+  assert.ok(!scanGuardsToRun(['src/ui/A.tsx']).some((item) => item.file === 'electron/offLedgerEgress.structure.test.ts'), '只改 src 不该带只扫 electron 的守卫')
+  assert.ok(selectGates(null).includes(SCAN_GUARDS_GATE) && scanGuardsToRun(null).length === SCAN_GUARDS.length, '算不出改动 = 全跑')
+})
+
+test('批量守卫红了：失败输出只回放最后 25 行，所以红的守卫测试文件要在输出末尾逐个点名，并给出只重跑它们的命令', () => {
+  const output = [' FAIL  electron/fileIdentity.test.ts > class guard > x', 'AssertionError: …', ' FAIL  electron/shared/mcpClientRegistry.test.ts > y', '…', ' Test Files  2 failed | 13 passed (15)'].join('\n')
+  const ran = ['electron/fileIdentity.test.ts', 'electron/offLedgerEgress.structure.test.ts', 'electron/shared/mcpClientRegistry.test.ts']
+  const summary = failedGuardSummary(output, ran)
+  assert.match(summary, /红的守卫测试 2 个/)
+  assert.match(summary, /electron\/fileIdentity\.test\.ts/)
+  assert.match(summary, /electron\/shared\/mcpClientRegistry\.test\.ts/)
+  assert.doesNotMatch(summary, /offLedgerEgress/, '绿的不点名')
+  assert.match(summary, /vitest\.mjs run electron\/fileIdentity\.test\.ts electron\/shared\/mcpClientRegistry\.test\.ts/)
+  assert.match(failedGuardSummary('boom', ran), /没认出是哪几个/)
 })
