@@ -172,7 +172,7 @@ export async function fetchRemoteBase({
     cwd,
     timeoutMs,
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-  }), retryOptions)
+  }), { retryTimeouts: true, timeoutMs, ...retryOptions })
 }
 
 export function classifyIdentity({ headCommit, headTree, remoteCommit, remoteTree }) {
@@ -411,7 +411,7 @@ export async function listCommitCheckRuns({
       `/repos/${repository}/commits/${commitSha}/check-runs?per_page=100`,
     ],
     { timeoutMs, env: { ...process.env, GH_PROMPT_DISABLED: '1' } },
-  ), retryOptions)
+  ), { retryTimeouts: true, timeoutMs, ...retryOptions })
   let payload
   try {
     payload = JSON.parse(response.stdout)

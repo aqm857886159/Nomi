@@ -315,6 +315,37 @@ test('check-run loader retries a transient gh network failure once, but never a 
   assert.equal(forbidden, 1)
 })
 
+test('check-run loader retries a read-only gh timeout and reports per-attempt timeout when exhausted', async () => {
+  const sha = '0123456789abcdef0123456789abcdef01234567'
+  let calls = 0
+  const checks = await listCommitCheckRuns({
+    repository: 'example/nomi',
+    commitSha: sha,
+    timeoutMs: 45000,
+    runCommand: async () => {
+      calls += 1
+      if (calls === 1) throw new DeliveryError('transport_timeout', 'Command exceeded 45000ms and was terminated after one attempt', { timeoutMs: 45000 })
+      return { stdout: JSON.stringify({ check_runs: passedChecks() }) }
+    },
+    retryOptions: { sleep: async () => {} },
+  })
+  assert.equal(calls, 2)
+  assert.equal(checks.length, passedChecks().length)
+
+  let always = 0
+  await assert.rejects(
+    listCommitCheckRuns({
+      repository: 'example/nomi',
+      commitSha: sha,
+      timeoutMs: 45000,
+      runCommand: async () => { always += 1; throw new DeliveryError('transport_timeout', 'Command exceeded 45000ms and was terminated after one attempt', { timeoutMs: 45000 }) },
+      retryOptions: { sleep: async () => {} },
+    }),
+    (error) => error.code === 'transport_timeout' && /每次超时 45000 毫秒，共尝试 3 次/u.test(error.message),
+  )
+  assert.equal(always, 3)
+})
+
 test('merged verification records exact-SHA CI evidence once and reuses its receipt', async (t) => {
   const f = fixture()
   t.after(f.cleanup)
