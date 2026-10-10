@@ -131,11 +131,12 @@ try {
   await projectCard.hover()
   await clickOrFail(win.getByRole('button', { name: /继续创作|Continue/ }).first(), '打开走查项目')
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
-  const toggle = win.locator('[data-generation-view-toggle]')
-  await expect(toggle, '生成页左上没有「画布 | 列表」切换').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // 「画布 | 列表」在 40px 顶栏里（外壳 viewSwitcher 槽），生成页才出现。
+  const switcher = win.locator('[data-shell-topbar] [data-generation-view-switcher]')
+  await expect(switcher, '顶栏里没有「画布 | 列表」切换').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
 
   // ① 切到列表：画布区换成列表，其余不动。
-  await clickOrFail(toggle.locator('button'), 'toggle to list')
+  await clickOrFail(switcher.locator('[data-view="list"]'), 'switch to list')
   await expect(win.locator('[data-generation-list]'), '列表没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-list-card="shot-1"]'), '列表里没有镜 01').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-section-generate]').first(), '分区头没有「生成全部」').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })

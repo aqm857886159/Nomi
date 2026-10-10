@@ -17,10 +17,8 @@ const TimelinePanel = lazyWithChunkBoundary(
 )
 import { useGenerationViewStore } from './list/generationViewStore'
 
-const GenerationListView = lazyWithChunkBoundary(
-  'i18n:generationList.aria',
-  () => import('./list/GenerationListView').then((module) => ({ default: module.GenerationListView })),
-)
+const loadGenerationListView = () => import('./list/GenerationListView').then((module) => ({ default: module.GenerationListView }))
+const GenerationListView = lazyWithChunkBoundary('i18n:generationList.aria', loadGenerationListView)
 
 type GenerationWorkspaceProps = {
   canvas: React.ReactNode
@@ -66,6 +64,13 @@ export default function GenerationWorkspace({
   // 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。
   const generationView = useGenerationViewStore((state) => state.view)
   const listOpen = generationView === 'list'
+  // 列表块在生成页挂好后趁空闲先拉一下：第一次点「列表」不再等块下载 + 解析（200 节点实测的一部分）。
+  React.useEffect(() => {
+    const idle = (window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number; cancelIdleCallback?: (handle: number) => void })
+    if (typeof idle.requestIdleCallback !== 'function') return undefined
+    const handle = idle.requestIdleCallback(() => { void loadGenerationListView().catch(() => undefined) }, { timeout: 4000 })
+    return () => idle.cancelIdleCallback?.(handle)
+  }, [])
   const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '0px' : assistantTargetWidth) : '0px'
   const isDockedAssistant = hasAssistant
   const workspaceStyle = {
