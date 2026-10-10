@@ -3,38 +3,34 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { groupFrameLabel, isStoryboardGroup } from './groupFrameLabel'
-import { FRAME_MENU_TOOLBAR_DUPLICATES } from './FrameContextMenu'
+import { FRAME_MENU_TOOLBAR_DUPLICATES } from './frameMenuExclusions'
 
 // 10-10 拍板：框头与分组工具条的组名 / 计数只有一个显示函数；分镜组「分镜 · 名 · N 镜」，普通组「名 · N 个」。
-const ZH: Record<string, string> = {
-  'generationCommon.canvas.group.storyboardPrefix': '分镜 · ',
-  'generationCommon.canvas.group.countShots': '{{count}} 镜',
-  'generationCommon.canvas.group.countItems': '{{count}} 个',
-  'generationCommon.canvas.group.countPreview': '{{from}} → {{to}}',
-}
+// 这里的 t 只回显「键 + 参数」，不抄文案：文案由词典决定，这里只验结构（哪个键、哪些参数）。
 const t = (key: string, options: Record<string, unknown> = {}): string =>
-  Object.entries(options).reduce((text, [name, value]) => text.replaceAll(`{{${name}}}`, String(value)), ZH[key] ?? key)
+  [`<${key}>`, ...Object.values(options).map((value) => String(value))].join('|')
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const toolbar = fs.readFileSync(path.join(here, 'CanvasGroupToolbar.tsx'), 'utf8')
 const toolbarHook = fs.readFileSync(path.join(here, 'useCanvasGroupToolbar.ts'), 'utf8')
 
 describe('group frame label (10-10: 框头与工具条同一显示函数)', () => {
-  it('分镜组：标题带「分镜 · 」前缀，计数写「N 镜」；工具条拼成「分镜 · 名 · N 镜」', () => {
+  it('分镜组：标题带分镜前缀键，计数用「镜」键并传入数量', () => {
     const label = groupFrameLabel(t, { name: '雨夜便利店', storyboard: true, memberCount: 6, previewCount: null })
-    expect(label).toEqual({ title: '分镜 · 雨夜便利店', count: '6 镜' })
-    expect(`${label.title} · ${label.count}`).toBe('分镜 · 雨夜便利店 · 6 镜')
+    expect(label.title).toBe('<generationCommon.canvas.group.storyboardPrefix>雨夜便利店')
+    expect(label.count).toBe('<generationCommon.canvas.group.countShots>|6')
   })
 
-  it('普通组：标题只有组名，计数写「N 个」；工具条拼成「海蓝组 · 3 个」', () => {
+  it('普通组：标题只有组名，计数用「个」键', () => {
     const label = groupFrameLabel(t, { name: '海蓝组', storyboard: false, memberCount: 3, previewCount: null })
-    expect(label).toEqual({ title: '海蓝组', count: '3 个' })
-    expect(`${label.title} · ${label.count}`).toBe('海蓝组 · 3 个')
+    expect(label.title).toBe('海蓝组')
+    expect(label.count).toBe('<generationCommon.canvas.group.countItems>|3')
   })
 
-  it('拖动中计数写「from → to」，标题不变', () => {
+  it('拖动中计数用预览键，标题不变', () => {
     const label = groupFrameLabel(t, { name: '雨夜便利店', storyboard: true, memberCount: 6, previewCount: 5 })
-    expect(label).toEqual({ title: '分镜 · 雨夜便利店', count: '6 → 5' })
+    expect(label.count).toBe('<generationCommon.canvas.group.countPreview>|6|5')
+    expect(label.title).toBe('<generationCommon.canvas.group.storyboardPrefix>雨夜便利店')
   })
 
   it('分镜判断只看归属章 materializationOperationId（不靠名字或 categoryId）', () => {

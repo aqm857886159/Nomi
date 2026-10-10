@@ -591,7 +591,7 @@ try {
   const timelineItemDisabled = await timelineButton.isDisabled()
   check(timelineItemDisabled === true, '还没出片时「进时间轴」是禁用的（可点即有效，否则禁用+解释）')
 
-  await win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarGenerate') }).first().click({ timeout: 6000 })
+  await win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarGenerate') }).first().click()
   await win.waitForTimeout(900)
   const spendDialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
   await spendDialog.waitFor({ timeout: 10_000 })
@@ -642,7 +642,7 @@ try {
   const nodesBefore = await win.evaluate(() => document.querySelectorAll('.react-flow__node[data-id]').length)
   await openFrameMenuFromToolbar(win, frameLocator(win).first())
   await win.waitForTimeout(500)
-  await win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarDissolve') }).first().click({ timeout: 6000 })
+  await win.locator(GROUP_TOOLBAR).getByRole('button', { name: uiText('zh-CN', 'generationCommon.canvas.group.toolbarDissolve') }).first().click()
   await win.waitForTimeout(900)
   await expectAbsent(frameLocator(win), {
     provenBy: frameProof,

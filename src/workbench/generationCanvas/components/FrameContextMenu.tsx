@@ -22,12 +22,6 @@ import { cn } from '../../../utils/cn'
 
 export type FrameContextMenuAction = 'edit' | 'generate' | 'timeline' | 'collapse' | 'dissolve' | 'delete'
 
-/**
- * 工具条「⋯」打开时排除的动作：生成整组、进时间轴、解组已在工具条上，不在「⋯」里重复（10-10 拍板）。
- * 右键菜单不排除，保持完整。
- */
-export const FRAME_MENU_TOOLBAR_DUPLICATES: readonly FrameContextMenuAction[] = ['generate', 'timeline', 'dissolve']
-
 type FrameContextMenuProps = {
   className?: string
   style?: React.CSSProperties

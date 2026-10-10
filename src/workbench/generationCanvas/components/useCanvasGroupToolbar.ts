@@ -9,7 +9,8 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { groupEligibleNodeIds } from './canvasProductionScope'
 import { downloadGroupResults, groupDownloadTargets } from './groupDownload'
 import type { CanvasGroupToolbarModel } from './CanvasGroupToolbar'
-import { FRAME_MENU_TOOLBAR_DUPLICATES, type FrameContextMenuAction } from './FrameContextMenu'
+import type { FrameContextMenuAction } from './FrameContextMenu'
+import { FRAME_MENU_TOOLBAR_DUPLICATES } from './frameMenuExclusions'
 
 export function useCanvasGroupToolbar({
   selectedGroup,
