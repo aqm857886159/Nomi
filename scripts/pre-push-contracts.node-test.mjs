@@ -268,7 +268,10 @@ test('必红：往 GATE_INPUTS 加了一道门、没补 SCANNER_READS → 推送
   const result = prePush()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ test:pre-push-structure/)
-  assert.match(result.stderr, /样例表与输入声明的门岗集合必须一致/, '红的原因要是 SCANNER_READS 与 GATE_INPUTS 不一致')
+  // 失败输出只回放最后 25 行，红的具体用例名不一定在里面；是不是「SCANNER_READS 与 GATE_INPUTS 不一致」这一条红，对照下面一行
+  const direct = run(work, process.execPath, ['--test', '--test-name-pattern=每道按路径选的新门岗', 'scripts/pre-push-structure.node-test.mjs'], { env: { ...isolatedFromCiBaseRefs(process.env), NODE_TEST_CONTEXT: undefined } })
+  assert.notEqual(direct.status, 0)
+  assert.match(direct.stdout, /样例表与输入声明的门岗集合必须一致/)
 })
 
 test('必红：改了 build 脚本 → 推送前真入口选中并跑 test:related，且 electron-build.test.mjs 在被跑的文件里（#1148）', () => {
