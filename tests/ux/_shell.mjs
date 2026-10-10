@@ -25,6 +25,7 @@ export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
 export const COLLAPSE_BUTTON = '[data-v4-control="collapse"]'
 
 const BACK_TO_LIBRARY = anyOf('appBar.backToLibrary')
+const GROUPS_TAB = anyOf('sidebar.groups')
 const NEW_PROJECT_ENTRY = anyOf('library.newBlankProject', { anchored: false })
 const NEW_PROJECT_ENTRY_ANCHORED = new RegExp(`^${NEW_PROJECT_ENTRY.source}`)
 const MODEL_SETTINGS_ENTRY_IN_PROJECT = bothLocales('appBar.openModelAccess').map((label) => `[aria-label="${label}"]`).join(', ')
@@ -85,4 +86,13 @@ export async function openModelSettings(win, { label = 'open model settings', ti
  */
 export function newProjectEntry(win) {
   return win.getByRole('button', { name: NEW_PROJECT_ENTRY_ANCHORED }).first()
+}
+
+/**
+ * 打开左侧「结构 / 资源」抽屉里的某一项（走查为了找分组 / 目录等去的）。目前只登记了走查用到的：
+ * 'catalog'（画布分组 / 分类目录）。别处要用别的项，在这里加映射，不要在走查里抄钮。
+ */
+export async function openRailDrawer(win, item, label = `open ${item} drawer`) {
+  if (item !== 'catalog') throw new Error(`openRailDrawer 还没登记「${item}」`)
+  await clickOrFail(win.getByRole('button', { name: GROUPS_TAB }), label)
 }
