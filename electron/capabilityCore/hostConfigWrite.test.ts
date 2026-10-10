@@ -216,3 +216,30 @@ describe('阻断 1：锁租约过期后，两个独立 Nomi 进程不会同时�
     expect(fs.readdirSync(dir).filter((n) => /\.nomi-(?:tmp|prev|conflict)/.test(n))).toEqual([])
   }, 60_000)
 })
+
+/**
+ * 复盘 docs/plan/2026-10-10-mcp-migration-consent-and-leftovers-direction-check.md 的特征测试（V-1142b 发现）：
+ * 真 App（Electron 43）里 Cursor 的 mcp.json 设成只读后迁移，换名 EPERM；挂上的 .nomi-prev 硬链接与目标共用只读属性，
+ * Electron 里删不掉（D:/v1142b-tmp 下实测留了 6 个 = 1 次 + 5 次共享冲突重试）。系统 Node 22 的 unlink 会无视只读，
+ * 所以这里用「换名 EPERM + 删 .nomi-prev 失败」复刻 Electron 里的那两步。
+ * it.fails = 「现在确实是坏的」：修好后这条会变红，届时把 it.fails 改回 it。
+ */
+describe('特征（待修）：失败路径不在宿主目录里留下 .nomi-prev 残留', () => {
+  it.fails('换名一直失败、且挂上的链接删不掉时，目录里没有 .nomi-prev.* 残留', () => {
+    const eperm = () => Object.assign(new Error('operation not permitted'), { code: 'EPERM' })
+    const realRename = fs.renameSync
+    const realRm = fs.rmSync
+    vi.spyOn(fs, 'renameSync').mockImplementation(((from: fs.PathLike, to: fs.PathLike) => {
+      if (String(to) === target && String(from).includes('.nomi-tmp')) throw eperm()
+      return realRename(from, to)
+    }) as typeof fs.renameSync)
+    vi.spyOn(fs, 'rmSync').mockImplementation(((file: fs.PathLike, options?: fs.RmOptions) => {
+      if (String(file).includes('.nomi-prev')) throw eperm()
+      return realRm(file, options)
+    }) as typeof fs.rmSync)
+    expect(() => atomicWrite(target, () => OURS)).toThrow()
+    vi.restoreAllMocks()
+    expect(fs.readFileSync(target, 'utf8')).toBe(ORIGINAL)
+    expect(fs.readdirSync(dir).filter((n) => n.includes('.nomi-prev'))).toEqual([])
+  })
+})

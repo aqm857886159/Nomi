@@ -650,3 +650,26 @@ describe('同意绑定到主进程发出的那一次询问（IPC 一次性确认
     expect(retried.results).toEqual([expect.objectContaining({ client: 'codex', ok: true })])
   })
 })
+
+/**
+ * 复盘 docs/plan/2026-10-10-mcp-migration-consent-and-leftovers-direction-check.md 的特征测试（V-1142b 第 2 项）：
+ * 迁移凭据只有一个槽位，读状态（界面刷新）会铸新凭据顶掉「再试一次」那张，重试被拒。
+ * it.fails = 「现在确实是坏的」：修好后这条会变红，届时把 it.fails 改回 it。
+ */
+describe('特征（待修）：迁移 → 界面刷新读一次状态 → 再试一次', () => {
+  it.fails('第一次部分失败后界面重读迁移状态，「再试一次」仍然能用第一次给的重试凭据改成', () => {
+    seedAll()
+    const state = readMcpMigrationState()
+    const realWrite = fs.writeFileSync
+    const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
+      if (String(file).startsWith(`${cfg('cursor')}.nomi-tmp`)) throw EIO()
+      return realWrite(file, data, options)
+    }) as typeof fs.writeFileSync)
+    const first = migrateMcpHostsWithConsent(state.consent, state.hosts.map((h) => h.client))
+    spy.mockRestore()
+    expect(first.results.filter((r) => !r.ok).map((r) => r.client)).toEqual(['cursor'])
+    readMcpMigrationState() // 界面在 onChanged 后刷新卡片，useEffect 再读一次迁移状态
+    const retried = migrateMcpHostsWithConsent(first.retryConsent, ['cursor'])
+    expect(retried.results).toEqual([expect.objectContaining({ client: 'cursor', ok: true })])
+  })
+})
