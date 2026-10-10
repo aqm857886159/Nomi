@@ -8,8 +8,6 @@
 export const GROUP_TOOLBAR_HEIGHT = 42
 /** 工具条与组框 / 舞台边缘之间的最小间隙（屏幕 px）。 */
 export const GROUP_TOOLBAR_GAP = 8
-/** 组名标签占的高度（画布 px，随缩放；标签在框上方 6–30 的位置）。 */
-export const GROUP_LABEL_RISE = 30
 
 export type GroupToolbarPlacement =
   | { side: 'above'; offset: number }
@@ -33,7 +31,7 @@ export function resolveGroupToolbarPlacement(input: {
   stageHeight: number
 }): GroupToolbarPlacement {
   const zoom = input.zoom || 1
-  const aboveOffset = GROUP_LABEL_RISE + GROUP_TOOLBAR_GAP / zoom
+  const aboveOffset = GROUP_TOOLBAR_GAP / zoom
   const frameTopScreen = input.frameTop * zoom + input.offsetY
   const frameBottomScreen = (input.frameTop + input.frameHeight) * zoom + input.offsetY
   const toolbarTopIfAbove = frameTopScreen - aboveOffset * zoom - GROUP_TOOLBAR_HEIGHT

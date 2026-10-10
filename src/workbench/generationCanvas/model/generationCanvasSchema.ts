@@ -151,6 +151,8 @@ export const nodeGroupSchema = z.object({
   // 框头部的一句灰字说明（2026-09-06 框工具第一档）；旧快照无 → undefined。
   description: z.string().optional(),
   collapsed: z.boolean().optional(),
+  // 分镜组幂等章（多镜物化通道写入）。缺了它读盘会被 zod 剥掉：分镜组变成普通组，落画布补组也找不回已建的组。
+  materializationOperationId: z.string().optional(),
   // 组入参声明（真边仍是普通 node→node 边）；旧快照无 → undefined。
   inputLinks: z.array(z.object({
     sourceNodeId: z.string().min(1),

@@ -20,6 +20,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expectArrivalsReachable, expectCanvasViewportHeld, expectToolbarInsideStageEverywhere, findCanvasBlankPoint, findEdgeHitPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { backToLibrary } from './_shell.mjs'
+import { openFrameMenuByRightClick } from './_groupGenerate.mjs'
 
 const root = makeTempDir('nomi-card-stack-walk-')
 const settingsDir = path.join(root, 'settings')
@@ -415,9 +416,11 @@ try {
   await clickOrFail(videoNode.locator('[data-version-badge]'), '再点角标收起视频版本')
   await expectHidden(videoGrid, '视频版本卡片应收起')
 
-  const collapse = win.getByRole('button', { name: '收起分组「雨夜参考组」' })
-  await collapse.scrollIntoViewIfNeeded()
-  await clickOrFail(collapse, '把雨夜参考组收成节点卡组')
+  // 折叠入口 = 框边右键菜单「折叠成卡」（框头上的折叠钮已删，10-10 拍板）。
+  const referenceFrame = win.locator('.generation-canvas-v2__group-box[data-group-id="reference-group"]').first()
+  await referenceFrame.scrollIntoViewIfNeeded()
+  await openFrameMenuByRightClick(referenceFrame)
+  await clickOrFail(win.locator('[data-frame-menu="true"]').getByRole('button', { name: '折叠成卡' }).first(), '把雨夜参考组收成节点卡组')
   const collapsed = win.locator('[data-collapsed-group-id="reference-group"]')
   await expectVisible(collapsed, '收起后应显示一张编组卡')
   await expectCount(collapsed, 1, '收起后只保留一张编组卡')

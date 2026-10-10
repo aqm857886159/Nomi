@@ -4,7 +4,7 @@ import { groupColorClass, normalizeGroupColorToken, resolveGroupColor } from './
 describe('group color (scheme B)', () => {
   it('defaults to neutral grey when nothing was chosen', () => {
     expect(resolveGroupColor(undefined)).toBe('neutral')
-    expect(groupColorClass(undefined)).toEqual({ border: 'border-nomi-group-neutral', dot: 'bg-nomi-group-neutral' })
+    expect(groupColorClass(undefined)).toEqual({ soft: 'bg-nomi-group-neutral-soft', dot: 'bg-nomi-group-neutral' })
   })
 
   it('only recognises token names; legacy hex values and unknown strings fall back to grey', () => {
@@ -18,12 +18,11 @@ describe('group color (scheme B)', () => {
     expect(normalizeGroupColorToken('neutral')).toBeUndefined()
   })
 
-  it('maps every chosen token to a static border + dot class and never to a fill', () => {
+  it('maps every chosen token to a static soft fill + dot class and never to a border', () => {
     const tokens = ['ocean', 'teal', 'amber', 'coral', 'violet', 'rose'] as const
     for (const token of tokens) {
       const cls = groupColorClass(token)
-      expect(cls.border).toBe(`border-nomi-group-${token}`)
-      expect(cls.dot).toBe(`bg-nomi-group-${token}`)
+      expect(cls).toEqual({ soft: `bg-nomi-group-${token}-soft`, dot: `bg-nomi-group-${token}` })
     }
   })
 })

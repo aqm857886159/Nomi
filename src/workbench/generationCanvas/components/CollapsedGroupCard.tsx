@@ -13,7 +13,7 @@ type Props = {
   readOnly: boolean
   /**
    * 这张折叠卡就是当前选区（点它 = 选中这个编组，走框选中态 useCanvasFrameActions.selectFrame）。
-   * 选中时边框亮 accent，左右「+」圈由画布内核里的编组端口节点画（model/groupPort.ts），不在这张卡上。
+   * 选中不加描边（10-10 拍板）：选中态靠分组工具条出现来表示；左右「+」圈由画布内核里的编组端口节点画（model/groupPort.ts）。
    */
   selected: boolean
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string) => void
@@ -62,11 +62,10 @@ export function CollapsedGroupCard({
         className={cn(
           // 这张卡住在画布内核的 ViewportPortal 里，那一层整体 pointer-events:none——卡身必须自己打开，
           // 否则点它、拖它都穿到画布平面上（2026-09-24 真机：点折叠卡命中的是 react-flow__pane）。
-          'absolute inset-0 z-[2] flex flex-col overflow-hidden rounded-nomi-lg border',
+          'absolute inset-0 z-[2] flex flex-col overflow-hidden rounded-nomi-lg',
           readOnly ? 'pointer-events-none' : 'pointer-events-auto cursor-grab active:cursor-grabbing',
           GROUP_VISUAL_CLASS.collapsedCard,
-          colorClass.border,
-          selected ? 'border-nomi-accent' : null,
+          colorClass.soft,
         )}
         data-frame-selected={selected ? 'true' : undefined}
         role="group"

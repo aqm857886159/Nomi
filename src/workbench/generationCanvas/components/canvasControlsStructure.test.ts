@@ -293,23 +293,26 @@ describe('generation canvas control structure', () => {
     expect(flowStyles).toContain('.react-flow__nodesselection-rect')
     expect(flowStyles).toContain('color-mix(in oklab, var(--nomi-ink) 32%, transparent)')
     expect(flowStyles).toContain('--xy-connectionline-stroke: var(--nomi-accent)')
-    expect(groupFrame).toContain('GROUP_VISUAL_CLASS.frame')
-    // 头部胶囊 2026-09-06 抽进 GroupFrameHeader（框工具第一档：它自己带两个字段的编辑态）。
-    // 视觉合同跟着搬，不许在新文件里另配一套皮肤。
-    expect(groupFrameHeader).toContain('GROUP_VISUAL_CLASS.label')
-    expect(groupFrameHeader).toContain('GROUP_VISUAL_CLASS.marker')
-    // 组色方案 B：颜色只走静态 token 类名（边框 + 标题圆点），不写行内 style、不填底色。
+    // 框头（10-10 拍板）：框内一行，不再有框外标签、色点、折叠与 ⋯ 按钮。
+    expect(groupFrameHeader).not.toContain('outside')
+    expect(groupFrameHeader).not.toContain('GROUP_VISUAL_CLASS.label')
+    expect(groupFrameHeader).not.toContain('collapseNamed')
+    expect(groupFrameHeader).not.toContain('data-group-color-dot')
+    expect(groupFrameHeader).toContain('WorkbenchButton')
+    // 组色（10-10 拍板）：底色走静态 soft token 类名，不写行内 style；框体无边框，选中无描边。
     expect(groupFrame).toContain('groupColorClass')
     expect(groupFrame).toContain('box.group.colorToken')
     expect(groupFrame).not.toContain('backgroundColor')
     expect(groupFrame).not.toContain('surfaceColor')
-    expect(groupFrameHeader).toContain('groupColorClass')
-    expect(groupContract).toContain("group's semantic color")
+    expect(groupFrame).not.toContain('border-nomi-accent')
+    expect(groupFrame).not.toContain('border-workbench-accent')
+    expect(groupFrame).not.toContain('colorClass.border')
+    expect(groupContract).toContain('soft token')
     expect(collapsedGroup).toContain('GROUP_VISUAL_CLASS.collapsedCard')
     expect(collapsedGroup).toContain('card.colorToken')
     expect(stackPeeks).toContain('GROUP_VISUAL_CLASS.stackRear')
     expect(stackPeeks).not.toContain('border-nomi-accent/50')
-    expect(groupContract).toContain("group's semantic color")
+    expect(groupContract).toContain('soft token')
   })
 
   it('keeps the edge disconnect control icon-only and accessible, with no mode pill or menu', () => {

@@ -22,6 +22,7 @@ import { findCanvasBlankPoint, findCanvasBlankRect, findNodeHitPoint } from './_
 import { expectAbsent, expectCount, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { openFrameMenuByRightClick, openFrameMenuFromToolbar } from './_groupGenerate.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-frame')
@@ -549,9 +550,9 @@ try {
   check(restored?.count === '2', '夹具验完复位：框里回到 2 个，后面的断言接着说真话', `count=${restored?.count}`)
 
   // ── ⑥ 折叠腾地方，再展开 ──
-  const collapseButton = frameLocator(win).locator('button[aria-label^="收起分组"]').first()
-  await expectVisible(collapseButton, '框头部有折叠钮')
-  await collapseButton.click({ timeout: 6000 })
+  // 折叠入口 = 框边右键菜单「折叠成卡」（框头上的折叠钮已删，10-10 拍板）。
+  await openFrameMenuByRightClick(frameLocator(win).first())
+  await win.locator('[data-frame-menu="true"]').getByRole('button', { name: '折叠成卡' }).first().click({ timeout: 6000 })
   await win.waitForTimeout(900)
   await expectCount(win.locator('[data-collapsed-group-id]'), 1, '折叠成一张卡')
   await snap(win, 'collapsed')
@@ -579,8 +580,7 @@ try {
   await win.waitForTimeout(500)
 
   // ── ⑧ ⋯ 菜单：整框生成（loopback 真出片） ──
-  const moreButton = frameLocator(win).locator('button[data-frame-more="true"]').first()
-  await moreButton.click({ timeout: 6000 })
+  await openFrameMenuFromToolbar(win, frameLocator(win).first())
   await win.waitForTimeout(500)
   const menu = win.locator('[data-frame-menu="true"]').first()
   await expectVisible(menu, '⋯ 打开了框自己的菜单')

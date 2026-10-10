@@ -49,6 +49,11 @@ describe('generationCanvasSchema Phase E.2 groups', () => {
     expect(normalizeGenerationCanvasSnapshot(legacySnapshot).groups).toEqual([])
   })
 
+  it('keeps the storyboard materialization stamp across a snapshot read (10-10: 分镜组判断靠它)', () => {
+    const parsed = nodeGroupSchema.parse({ id: 'g-s', name: '雨夜便利店', categoryId: 'shots', nodeIds: ['n1'], materializationOperationId: 'op-42', createdAt: 1, updatedAt: 1 })
+    expect(parsed.materializationOperationId).toBe('op-42')
+  })
+
   it('validates node groups with category ids and optional frame metadata', () => {
     const parsed = nodeGroupSchema.parse({
       id: 'group-1',

@@ -8,9 +8,9 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "confirmed-by-user-2026-10-10",
-  "fixedInPr": null,
+  "fixedInPr": 1169,
   "structuralPrevention": [
     "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.ts（层级表唯一 owner）",
     "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts（顺序断言 + 散落数字守卫）",
@@ -20,5 +20,11 @@
     "2026-10-10 probe on real Electron (before fix): group B header z=4 topAtIntersect over group A selected node composer (node z=5 inside node layer z=2)",
     "2026-10-10 user: 分组左上角的icon会和节点框提示词框叠在一起"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "ee1368885"
+  ],
+  "classCheck": [
+    "src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts",
+    "tests/ux/group-layer-order.walk.mjs"
+  ]
 }

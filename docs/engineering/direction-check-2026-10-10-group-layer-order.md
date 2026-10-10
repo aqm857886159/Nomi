@@ -57,3 +57,11 @@
 - `src/workbench/generationCanvas/reactFlow/canvasLayerOrder.test.ts`：层级顺序、CSS 变量取值、散落数字守卫。
 - `tests/ux/group-layer-order.walk.mjs`：真 Electron，相交区 `elementFromPoint` 取到生成框；层级数字经 `getComputedStyle` 读回。
 - 既有：`generationCanvasReactFlowAdapter.test.ts`、`groupVisualContract.test.ts`、`groupToolbarPlacement.test.ts`、`generationCanvasReactFlowFramework.test.ts`。
+
+## 用户拍板追记（10-10，第二段框头改版）
+
+- 复盘结论与「建表 + 守卫」的方向用户认可，框头进框内一行，框外标签整体删除（同一提交）。
+- 用户定的新流程：探索图 → 生产组件搭建 → 清单（覆盖状态 + 旧功能普查）→ 实现。本段已按此流程走完：实验室屏 `canvas-group-header` 搭生产组件，差异清单经用户点头后实现。
+- 颜色（取代 10-06 组色方案 B）：框体无边框，底色用六色 soft token；选中不加任何描边，焦点环与落点反馈都不用蓝色。
+- 分镜组判断用 `materializationOperationId` 归属章；过程中发现 `nodeGroupSchema` 缺这个字段，读盘会被 zod 剥掉，已补并加测试钉住（见 `generationCanvasSchema.test.ts`）。
+- 框顶留白由 28 调到 44（`FRAME_HEADER_RESERVE`），让节点名字标签不压框头（D6），断言见 `groupHeaderClearance.test.ts`。

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { unionCanvasFitBounds } from './canvasFitBounds'
-import { FRAME_CONTENT_PADDING, FRAME_LABEL_HEIGHT, frameBoundsFromMembers } from './canvasFrameBounds'
+import { FRAME_CONTENT_PADDING, FRAME_HEADER_RESERVE, frameBoundsFromMembers } from './canvasFrameBounds'
 
 describe('canvas fit bounds', () => {
   it('把框的标签带一起算进「适应视图」要框住的那块地方', () => {
@@ -13,7 +13,7 @@ describe('canvas fit bounds', () => {
       { x: frame.x, y: frame.y, width: frame.w, height: frame.h },
     ])!
     // 阳性对照：只按节点算的那一版，上沿正好把标签带留在外面（这就是被切掉的那 52px）。
-    expect(nodesOnly.y - withFrame.y).toBe(FRAME_CONTENT_PADDING + FRAME_LABEL_HEIGHT)
+    expect(nodesOnly.y - withFrame.y).toBe(FRAME_CONTENT_PADDING + FRAME_HEADER_RESERVE)
     expect(withFrame.y).toBe(frame.y)
     expect(withFrame.height).toBeGreaterThan(nodesOnly.height)
   })

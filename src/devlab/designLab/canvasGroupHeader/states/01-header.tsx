@@ -1,145 +1,296 @@
-// 设计实验室 · 屏「画布 · 分组框头（对齐拍板样张）」的十格。
+// 设计实验室 · 分组框（10-10 拍板后的生产组件）的状态清单。
 //
-// 样张：Nomi-交接-20261008/V-1136-approved-renders/Main-1280.png（亮）、Main-dark-1280.png（暗）。
-// 十格分别钉：默认、悬停、选中露出工具条、拖动中计数、改名编辑、长组名、空组、普通组、英文、暗色。
-// `coverage: 'component-only'`：框头组件在实验室里已搭成真内容，但真机界面还没有数据路径走到它；拍板并接进生产后改成 shell。
-//
-// 顺序有意义：`labStates.mjs` 按本屏目录里 `NN-*.tsx` 的文件名排序解析。
+// 框、框头、工具条、折叠卡都是生产组件本体；这里只管夹具。顺序有意义：`labStates.mjs` 按文件名排序解析。
+// `coverage: 'shell'`：生产里已接好，真机界面能走到这些形态。
 import React from 'react'
 
-import { CanvasGroupHeaderStage, FRAME_BOUNDS, SIX_MEMBERS, makeGroup } from '../canvasGroupHeaderLabKit'
+import { CanvasGroupHeaderStage, CollapsedGroupStage, FRAME_BOUNDS, SIX_MEMBERS, STORYBOARD_STAMP, makeGroup } from '../canvasGroupHeaderLabKit'
 import type { LabState } from '../../labScreen'
 
 const SIX_IDS = SIX_MEMBERS.map((member) => member.id)
 
-const STORY = makeGroup('grp-story', { name: '雨夜便利店', categoryId: 'shots', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS })
+const STORY = makeGroup('grp-story', { name: '雨夜便利店', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, ...STORYBOARD_STAMP })
+const NORMAL = makeGroup('grp-normal', { name: '角色组', categoryId: 'cast', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS })
 
-// `source`、`id`、`name`、`coverage` 逐条写成字面串、紧挨着（labStates.mjs 按这个形状解析）。
+// `id` / `name` / `source` / `coverage` 逐条写成字面串、紧挨着（labStates.mjs 按这个形状解析）。
 export const CANVAS_GROUP_HEADER_STATES: readonly LabState[] = [
   {
-    id: 'hdr-01-default-storyboard',
-    name: '分镜组 · 默认：组名 · 镜数 · 生成全部（框内一行）',
-    source: '拍板样张 V-1136 Main-1280.png 的 .grp-h；源 design-approved-1008/source/Main.dc.html:53-57',
-    coverage: 'component-only',
-    render: () => (
-      <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} header={{ previewCount: null }} />
-    ),
+    id: 'grp-01-default-storyboard',
+    name: '分镜组 · 默认：框内左上「分镜 · 组名 · 6 镜」、右上「生成全部」，无边框，底色中性灰',
+    source: '拍板 2026-10-10 · 用户原话「默认框里面的颜色做区分」；框头 GroupFrameHeader.tsx',
+    coverage: 'shell',
+    render: () => <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} />,
   },
   {
-    id: 'hdr-02-hover',
-    name: '悬停 · 「生成全部」的悬停底（以 hover 类强制渲染）',
-    source: '现役 WorkbenchButton 的 hover 变体（src/design/actions.tsx）',
-    coverage: 'component-only',
-    render: () => (
-      <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} header={{ previewCount: null, forceHover: true }} />
-    ),
+    id: 'grp-02-normal-group',
+    name: '普通组 · 无「分镜 · 」前缀，计数写「6 个」',
+    source: '拍板 2026-10-10 · D1（普通组只显示组名，计数写「N 个」）',
+    coverage: 'shell',
+    render: () => <CanvasGroupHeaderStage locale="zh-CN" group={NORMAL} members={SIX_MEMBERS} />,
   },
   {
-    id: 'hdr-03-selected-toolbar',
-    name: '选中 · 分组工具条露出（框头与工具条不重叠）',
-    source: '现役 CanvasGroupToolbar.tsx + groupToolbarPlacement.ts（GROUP_LABEL_RISE 待删，见差异 D5）',
-    coverage: 'component-only',
-    render: () => (
-      <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} header={{ previewCount: null }} selected />
-    ),
+    id: 'grp-03-selected-toolbar',
+    name: '选中 · 工具条露出，框体不加任何描边',
+    source: '拍板 2026-10-10 追加 · 选中不加描边，选中态靠工具条表示',
+    coverage: 'shell',
+    render: () => <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} options={{ selected: true }} />,
   },
   {
-    id: 'hdr-04-drag-count',
-    name: '拖动中 · 计数「6 → 5」在框内标题行可见',
-    source: '现役 GroupFrameHeader.tsx 的 countPreview（生产里该计数是 sr-only，见差异 D2）',
-    coverage: 'component-only',
-    render: () => (
-      <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} header={{ previewCount: 5 }} />
-    ),
+    id: 'grp-04-drag-count-leave',
+    name: '拖动出框 · 计数「6 → 5」可见，框变虚线',
+    source: '拍板 2026-10-10 · D2 计数可见；拖动反馈不用蓝色',
+    coverage: 'shell',
+    render: () => <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} options={{ membership: 'leave', previewCount: 5 }} />,
   },
   {
-    id: 'hdr-05-rename',
-    name: '改名编辑态 · 双击组名进入输入框',
-    source: '现役 GroupFrameHeader.tsx 的 nameField（双击标题进编辑态，F4）',
-    coverage: 'component-only',
-    render: () => (
-      <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} header={{ previewCount: null, editing: true }} />
-    ),
+    id: 'grp-05-drag-count-join',
+    name: '拖入框 · 计数「6 → 7」可见，底色加深一档（不用蓝色）',
+    source: '拍板 2026-10-10 追加 · 落点反馈改为底色加深一档',
+    coverage: 'shell',
+    render: () => <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} options={{ membership: 'join', previewCount: 7 }} />,
   },
   {
-    id: 'hdr-06-long-name',
-    name: '长组名 · 标题截断，计数与按钮不被挤走',
-    source: '样张未覆盖；按 F3 与 ★4 全状态补的一格',
-    coverage: 'component-only',
+    id: 'grp-06-rename-editing',
+    name: '编辑态 · 组名与说明两个输入框（菜单「编辑」打开）',
+    source: '拍板 2026-10-10 · P1 说明字段并入菜单「编辑」',
+    coverage: 'shell',
+    render: () => <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} options={{ editing: true }} />,
+  },
+  {
+    id: 'grp-07-long-name',
+    name: '长组名 · 标题截断，计数与「生成全部」不被挤走',
+    source: '框头 GroupFrameHeader.tsx（truncate）',
+    coverage: 'shell',
     render: () => (
       <CanvasGroupHeaderStage
         locale="zh-CN"
-        group={makeGroup('grp-long', { name: '雨夜便利店的深夜与清晨两段长对话拍摄组（重拍版）', categoryId: 'shots', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS })}
+        group={makeGroup('grp-long', { name: '雨夜便利店的深夜与清晨两段长对话拍摄组（重拍版）', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, ...STORYBOARD_STAMP })}
         members={SIX_MEMBERS}
-        header={{ previewCount: null }}
       />
     ),
   },
   {
-    id: 'hdr-07-empty-group',
+    id: 'grp-08-empty-group',
     name: '空组 · 0 镜，「生成全部」禁用，框是虚线',
-    source: '样张未覆盖；按 ★4 空状态补的一格。现役 GroupFrame 的 empty 虚线规则',
-    coverage: 'component-only',
+    source: '框头 GroupFrameHeader.tsx（disabled）+ GroupFrame 的 empty 虚线规则',
+    coverage: 'shell',
     render: () => (
       <CanvasGroupHeaderStage
         locale="zh-CN"
-        group={makeGroup('grp-empty', { name: '未命名分镜', categoryId: 'shots', nodeIds: [], frameBounds: FRAME_BOUNDS })}
+        group={makeGroup('grp-empty', { name: '未命名分镜', nodeIds: [], frameBounds: FRAME_BOUNDS, ...STORYBOARD_STAMP })}
         members={[]}
-        header={{ previewCount: null, generateDisabled: true }}
       />
     ),
   },
   {
-    id: 'hdr-08-normal-group',
-    name: '普通组（非分镜）· 无「分镜 · 」前缀，计数不带「镜」',
-    source: '样张只有分镜组；普通组按 F3 的分类规则补的一格',
-    coverage: 'component-only',
+    id: 'grp-09-en-storyboard',
+    name: '英文 · Storyboard 前缀、6 shots、Generate all',
+    source: '拍板 2026-10-10 · 中英两轨（check:i18n）',
+    coverage: 'shell',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="en"
+        group={makeGroup('grp-story-en', { name: 'Rainy night store', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+      />
+    ),
+  },
+  {
+    id: 'grp-10-collapsed-neutral',
+    name: '折叠成卡 · 默认中性灰底（同一规则）',
+    source: '拍板 2026-10-10 · D4 折叠态的组卡跟同一规则；CollapsedGroupCard.tsx',
+    coverage: 'shell',
+    render: () => <CollapsedGroupStage locale="zh-CN" name="雨夜便利店" memberCount={6} />,
+  },
+  {
+    id: 'grp-11-collapsed-ocean',
+    name: '折叠成卡 · 选了海蓝：底色换 ocean soft，无描边',
+    source: '拍板 2026-10-10 · D4',
+    coverage: 'shell',
+    render: () => <CollapsedGroupStage locale="zh-CN" name="雨夜便利店" memberCount={6} colorToken="ocean" />,
+  },
+  {
+    id: 'grp-12-en-dark-storyboard',
+    name: '英文 · 暗色 · 分镜组（底色中性灰暗档）',
+    source: '拍板 2026-10-10 · 暗色 token（tailwind.config.ts 暗档）',
+    coverage: 'shell',
+    scheme: 'dark',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="en"
+        group={makeGroup('grp-story-en-dark', { name: 'Rainy night store', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+        options={{ scheme: 'dark', selected: true }}
+      />
+    ),
+  },
+  // ── 六色 × 亮 ──
+  {
+    id: 'grp-13-light-ocean',
+    name: '六色 · 亮 · ocean（海蓝：底色 ocean soft，无边框，无圆点）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色亮档（tailwind.config.ts / nomi-tokens.css）',
+    coverage: 'shell',
     render: () => (
       <CanvasGroupHeaderStage
         locale="zh-CN"
-        group={makeGroup('grp-normal', { name: '角色组', categoryId: 'cast', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS })}
+        group={makeGroup('grp-light-ocean', { name: 'ocean 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'ocean', ...STORYBOARD_STAMP })}
         members={SIX_MEMBERS}
-        header={{ previewCount: null }}
       />
     ),
   },
   {
-    id: 'hdr-09-en-storyboard',
-    name: '英文 · Storyboard 前缀、Generate all、6 shots',
-    source: '样张的中英两轨（★4 文案走 i18n）',
-    coverage: 'component-only',
+    id: 'grp-14-light-teal',
+    name: '六色 · 亮 · teal（青绿：底色 teal soft，无边框，无圆点）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色亮档（tailwind.config.ts / nomi-tokens.css）',
+    coverage: 'shell',
     render: () => (
       <CanvasGroupHeaderStage
-        locale="en"
-        group={makeGroup('grp-story-en', { name: 'Rainy night store', categoryId: 'shots', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS })}
+        locale="zh-CN"
+        group={makeGroup('grp-light-teal', { name: 'teal 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'teal', ...STORYBOARD_STAMP })}
         members={SIX_MEMBERS}
-        header={{ previewCount: null }}
       />
     ),
   },
   {
-    id: 'hdr-10-dark-storyboard',
-    name: '暗色 · 分镜组默认（样张 Main-dark-1280.png）',
-    source: '拍板样张 V-1136 Main-dark-1280.png；暗色 token 只在 :root[data-mantine-color-scheme=dark] 上',
-    coverage: 'component-only',
-    scheme: 'dark',
+    id: 'grp-15-light-amber',
+    name: '六色 · 亮 · amber（琥珀：底色 amber soft，无边框，无圆点）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色亮档（tailwind.config.ts / nomi-tokens.css）',
+    coverage: 'shell',
     render: () => (
-      <CanvasGroupHeaderStage locale="zh-CN" group={STORY} members={SIX_MEMBERS} header={{ previewCount: null }} scheme="dark" />
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-light-amber', { name: 'amber 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'amber', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+      />
     ),
   },
   {
-    id: 'hdr-11-en-dark',
-    name: '英文 · 暗色 · Storyboard 前缀、Generate all（样张 Main-dark-1280.png 的英文对照）',
-    source: '拍板样张 V-1136 Main-dark-1280.png；英文轨与暗色叠加（★4 中英两轨）',
-    coverage: 'component-only',
+    id: 'grp-16-light-coral',
+    name: '六色 · 亮 · coral（珊瑚：底色 coral soft，无边框，无圆点）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色亮档（tailwind.config.ts / nomi-tokens.css）',
+    coverage: 'shell',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-light-coral', { name: 'coral 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'coral', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+      />
+    ),
+  },
+  {
+    id: 'grp-17-light-violet',
+    name: '六色 · 亮 · violet（紫：底色 violet soft，无边框，无圆点）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色亮档（tailwind.config.ts / nomi-tokens.css）',
+    coverage: 'shell',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-light-violet', { name: 'violet 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'violet', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+      />
+    ),
+  },
+  {
+    id: 'grp-18-light-rose',
+    name: '六色 · 亮 · rose（玫瑰：底色 rose soft，无边框，无圆点）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色亮档（tailwind.config.ts / nomi-tokens.css）',
+    coverage: 'shell',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-light-rose', { name: 'rose 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'rose', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+      />
+    ),
+  },
+  // ── 六色 × 暗 ──
+  {
+    id: 'grp-19-dark-ocean',
+    name: '六色 · 暗 · ocean（海蓝：暗档底色）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色暗档',
+    coverage: 'shell',
     scheme: 'dark',
     render: () => (
       <CanvasGroupHeaderStage
-        locale="en"
-        group={makeGroup('grp-story-en-dark', { name: 'Rainy night store', categoryId: 'shots', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS })}
+        locale="zh-CN"
+        group={makeGroup('grp-dark-ocean', { name: 'ocean 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'ocean', ...STORYBOARD_STAMP })}
         members={SIX_MEMBERS}
-        header={{ previewCount: null }}
-        scheme="dark"
+        options={{ scheme: 'dark' }}
+      />
+    ),
+  },
+  {
+    id: 'grp-20-dark-teal',
+    name: '六色 · 暗 · teal（青绿：暗档底色）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色暗档',
+    coverage: 'shell',
+    scheme: 'dark',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-dark-teal', { name: 'teal 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'teal', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+        options={{ scheme: 'dark' }}
+      />
+    ),
+  },
+  {
+    id: 'grp-21-dark-amber',
+    name: '六色 · 暗 · amber（琥珀：暗档底色）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色暗档',
+    coverage: 'shell',
+    scheme: 'dark',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-dark-amber', { name: 'amber 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'amber', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+        options={{ scheme: 'dark' }}
+      />
+    ),
+  },
+  {
+    id: 'grp-22-dark-coral',
+    name: '六色 · 暗 · coral（珊瑚：暗档底色）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色暗档',
+    coverage: 'shell',
+    scheme: 'dark',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-dark-coral', { name: 'coral 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'coral', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+        options={{ scheme: 'dark' }}
+      />
+    ),
+  },
+  {
+    id: 'grp-23-dark-violet',
+    name: '六色 · 暗 · violet（紫：暗档底色）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色暗档',
+    coverage: 'shell',
+    scheme: 'dark',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-dark-violet', { name: 'violet 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'violet', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+        options={{ scheme: 'dark' }}
+      />
+    ),
+  },
+  {
+    id: 'grp-24-dark-rose',
+    name: '六色 · 暗 · rose（玫瑰：暗档底色）',
+    source: '拍板 2026-10-10 · D4 颜色 token 六色暗档',
+    coverage: 'shell',
+    scheme: 'dark',
+    render: () => (
+      <CanvasGroupHeaderStage
+        locale="zh-CN"
+        group={makeGroup('grp-dark-rose', { name: 'rose 组', nodeIds: SIX_IDS, frameBounds: FRAME_BOUNDS, colorToken: 'rose', ...STORYBOARD_STAMP })}
+        members={SIX_MEMBERS}
+        options={{ scheme: 'dark' }}
       />
     ),
   },

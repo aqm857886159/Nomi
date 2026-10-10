@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   FRAME_CONTENT_PADDING,
   FRAME_DRAW_NOISE_THRESHOLD,
-  FRAME_LABEL_HEIGHT,
+  FRAME_HEADER_RESERVE,
   backfillGroupFrameBounds,
   drawPreviewRect,
   frameBoundsFromMembers,
@@ -23,9 +23,9 @@ describe('frameBoundsFromMembers — 成员外接矩形 + 留白 + 标签带', (
     // 升级当天所有旧组会集体跳一下（而且没人看得出是谁干的）。
     expect(frameBoundsFromMembers([member(100, 200)])).toEqual({
       x: 100 - FRAME_CONTENT_PADDING,
-      y: 200 - FRAME_CONTENT_PADDING - FRAME_LABEL_HEIGHT,
+      y: 200 - FRAME_CONTENT_PADDING - FRAME_HEADER_RESERVE,
       w: 200 + FRAME_CONTENT_PADDING * 2,
-      h: 100 + FRAME_CONTENT_PADDING * 2 + FRAME_LABEL_HEIGHT,
+      h: 100 + FRAME_CONTENT_PADDING * 2 + FRAME_HEADER_RESERVE,
     })
   })
 
@@ -33,9 +33,9 @@ describe('frameBoundsFromMembers — 成员外接矩形 + 留白 + 标签带', (
     const bounds = frameBoundsFromMembers([member(0, 0, 100, 100), member(300, 400, 100, 100)])
     expect(bounds).toEqual({
       x: -FRAME_CONTENT_PADDING,
-      y: -FRAME_CONTENT_PADDING - FRAME_LABEL_HEIGHT,
+      y: -FRAME_CONTENT_PADDING - FRAME_HEADER_RESERVE,
       w: 400 + FRAME_CONTENT_PADDING * 2,
-      h: 500 + FRAME_CONTENT_PADDING * 2 + FRAME_LABEL_HEIGHT,
+      h: 500 + FRAME_CONTENT_PADDING * 2 + FRAME_HEADER_RESERVE,
     })
   })
 
@@ -106,7 +106,7 @@ describe('normalizeDrawnFrameBounds — 用户拖出来的两点', () => {
       x: 0,
       y: 0,
       w: minContent.width + FRAME_CONTENT_PADDING * 2,
-      h: minContent.height + FRAME_CONTENT_PADDING * 2 + FRAME_LABEL_HEIGHT,
+      h: minContent.height + FRAME_CONTENT_PADDING * 2 + FRAME_HEADER_RESERVE,
     })
   })
 

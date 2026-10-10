@@ -38,12 +38,12 @@ describe('CollapsedGroupCard', () => {
     expect(html).not.toContain('magnetic-handle')
     expect(html).not.toContain('border-nomi-accent')
     expect(html).not.toContain('style="border-color')
-    // 没选过色 = 灰：边框是中性灰 token 类名，没有任何行内样式。
-    expect(html).toContain('border-nomi-group-neutral')
+    // 没选过色 = 灰：底色是中性灰 soft token 类名，没有任何行内样式。
+    expect(html).toContain('bg-nomi-group-neutral-soft')
     expect(html).not.toMatch(/style="[^"]*(color|background)/)
   })
 
-  it('a chosen color only shows up as the border token; the card surface is never tinted', () => {
+  it('a chosen color tints the card surface with its soft token; no border', () => {
     const html = renderToStaticMarkup(
       React.createElement(CollapsedGroupCard, {
         card: { groupId: 'group-1', name: '雨夜咖啡馆', memberCount: 8, position: { x: 0, y: 0 }, colorToken: 'ocean' },
@@ -53,9 +53,9 @@ describe('CollapsedGroupCard', () => {
         onExpand: () => undefined,
       }),
     )
-    expect(html).toContain('border-nomi-group-ocean')
-    expect(html).not.toContain('border-nomi-group-neutral')
-    for (const id of ['neutral', 'ocean', 'rose']) expect(html, `no ${id} fill`).not.toContain(`bg-nomi-group-${id}`)
+    expect(html).toContain('bg-nomi-group-ocean-soft')
+    expect(html).not.toContain('bg-nomi-group-neutral-soft')
+    expect(html).not.toContain('border-nomi-group-')
     expect(html).not.toMatch(/style="[^"]*(color|background)/)
   })
 })

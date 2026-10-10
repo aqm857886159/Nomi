@@ -76,6 +76,23 @@
 - 档位纯函数 `emptyStateTier`（`nodes/render/nodeEmptyStateLayout.ts`），卡高由节点 size 传入，不测量。
 - 设计卡：`docs/plan/2026-10-10-empty-node-ratios.md`。
 
+## ⑨ 分组框头与颜色（用户 10-10 拍板，**取代 10-06 组色方案 B**）
+
+拍板样张：`V-1136-approved-renders/Main-1280.png`（亮）、`Main-dark-1280.png`（暗）；差异清单与功能普查：`docs/plan/2026-10-10-group-header-board-parity.md`；设计系统 §4.4 已按此重写。
+
+- **框头框内一行**：左上「组名 · 计数」，右上「生成全部」。框外标签、框外图标、标题前色点、框头折叠钮、框头 ⋯ 钮全部删掉。
+- **D1 标题前缀**：分镜组显示「分镜 · 」、计数写「6 镜」；普通组只显示组名、计数写「4 个」。判断「分镜组」只看 `materializationOperationId` 归属章（分镜多镜物化通道写入）。前缀只是显示规则，改名改的仍是组名本身。
+- **D2 计数可见**，拖动时显示「3 → 2」预览（现役计数曾是 sr-only，肉眼看不见，属回归）。
+- **D3 按钮**：用现有 `WorkbenchButton`，不加胶囊变体。
+- **D4 框体颜色**：默认框内很淡的中性灰底色、无边框；选了颜色，底色换成该颜色的 soft（六色亮 / 暗各一套，token-only，不用 `color-mix` 行内样式）；标题前颜色圆点删掉，当前色显示在工具条颜色按钮上；旧存档的 `NodeGroup.color` 不渲染，只认 `colorToken`；折叠态组卡同一规则。
+- **选中分组不加任何描边**（追加拍板，覆盖更早「选中露出强调色描边」）：选中态靠分组工具条出现来表示。键盘焦点环用深色（ink），拖动落点反馈改为底色加深一档，不用蓝色。用户原话：「蓝色描边不需要……有点突兀 不好看 有点出戏」。
+- **P1 说明字段**：并入菜单「编辑」（同一编辑态，组名与说明两个输入框）。
+- **P2**：框头 ⋯ 与折叠钮删掉；分组工具条末尾加「⋯」，打开同一份 FrameContextMenu（折叠 / 编辑 / 删除），右键入口保留。
+- **P3「生成全部」**：付费语义不变，与工具条「生成整组」走同一执行口，只点到付费确认框为止。
+- **D5**：`GROUP_LABEL_RISE` 归零后删除。**D6**：框头不被成员压住（成员卡顶 = 框顶 + 68，断言见 `groupHeaderClearance.test.ts`）。
+
+拍板图 id（group.header.*，BP 线的完整清单另有 PR）：`group.header.title`（组名 · 前缀）、`group.header.count`（镜数 / 个数 / 拖动预览）、`group.header.generate-all`、`group.color.soft`（六色 soft）、`group.toolbar.more`（工具条 ⋯）、`group.selection.no-outline`。
+
 ## 各条通用的实现提醒
 
 - 画布拉环（③）实现时：节点种类定义上加“收不收输入”字段，拉环可见性和建边校验都读它（结构修，不另写种类表）；`GenerationCanvasReactFlowNodes.tsx` 近 14 天已 4 个 fix，动手前先做方向检查（RW）。

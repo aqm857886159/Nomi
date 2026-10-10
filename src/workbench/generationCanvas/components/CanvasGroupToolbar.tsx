@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   IconArrowsHorizontal,
   IconArrowsVertical,
+  IconDots,
   IconDownload,
   IconFolderMinus,
   IconLayoutGrid,
@@ -37,6 +38,8 @@ export type CanvasGroupToolbarProps = {
   onArrange: (mode: GroupArrangeMode) => void
   onColor: (color: GroupColorId) => void
   onDownload: () => void
+  /** 工具条末尾「⋯」：打开与框边右键同一份 FrameContextMenu（折叠 / 编辑 / 删除）。 */
+  onOpenMenu: (point: { x: number; y: number }) => void
 }
 
 export type GroupToolbarHorizontal = { frameLeft: number; frameWidth: number; offsetX: number; stageWidth: number }
@@ -68,6 +71,7 @@ export function CanvasGroupToolbar({
   onArrange,
   onColor,
   onDownload,
+  onOpenMenu,
 }: CanvasGroupToolbarProps): JSX.Element {
   const { t } = useTranslation()
   const rootRef = React.useRef<HTMLDivElement | null>(null)
@@ -201,6 +205,15 @@ export function CanvasGroupToolbar({
         label={t('generationCommon.canvas.group.toolbarDissolve')}
         title={t('generationCommon.canvas.group.toolbarDissolve')}
         onClick={onDissolve}
+      />
+      <ToolbarIconButton
+        icon={<IconDots {...iconProps} />}
+        title={t('generationCommon.canvas.group.toolbarMore')}
+        ariaLabel={t('generationCommon.canvas.group.moreActions', { name: group.name })}
+        onClick={() => {
+          const rect = rootRef.current?.getBoundingClientRect()
+          onOpenMenu({ x: rect?.right ?? 0, y: rect?.bottom ?? 0 })
+        }}
       />
     </div>
   )

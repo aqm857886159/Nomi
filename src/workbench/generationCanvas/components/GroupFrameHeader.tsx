@@ -1,26 +1,20 @@
 /**
- * 框头部那颗胶囊：`● 标题 · 一句灰字说明 · 计数 · 折叠 · ⋯`（2026-09-06 拍板样张）。
+ * 框头：框内左上「组名 · 计数」，框内右上「生成全部」（2026-10-10 拍板，对齐拍板样张 V-1136 Main-1280）。
  *
- * 从 GroupFrame 抽出来是因为它自己就带一套状态（两个字段各自的编辑态 + 提交/取消），
- * 而框体只关心「画多大、什么边框」。混在一起时改一个很容易碰坏另一个（R9 分层）。
+ * 取代旧的框外标签（组名 + 图标 + 色点 + 说明 + 折叠 + ⋯ 挂在框外上方）。删掉的东西各有去处（见
+ * docs/plan/2026-10-10-group-header-board-parity.md 功能普查 F1–F19）：色点 → 工具条颜色按钮；折叠 / 删除 / 编辑 → 右键菜单
+ * 与工具条「⋯」；生成整框 → 本行「生成全部」（同一执行口 runFrameAction）。
  *
- * 两条交互纪律：
- *  · **双击进编辑只发生在标题/说明这两个 span 上**，并且 stopPropagation。框体空白双击照旧
- *    弹「添加节点」——两个动作的目标物不同（文字 vs 空白），用命中区分，不用修饰键（不用教）。
- *  · 计数在拖动中显示成 `3 → 2`。直接把结果写出来，不用箭头图标让人猜（D1 effect-first）；
- *    这正是实拍里缺的那条反馈——拖出去之前用户完全不知道会发生什么。
- *
- * The shared marker token remains part of the contract for legacy in-frame
- * consumers: GROUP_VISUAL_CLASS.marker. The outside label uses a Stack glyph
- * so a group cannot be confused with a node status dot.
+ * 交互纪律：
+ *  · 双击组名进入改名；菜单「编辑」同时打开组名与说明两个输入框。编辑中头部不许当拖动把手。
+ *  · 计数在拖动中显示成 `3 → 2`（肉眼可见，不再只写进 aria-label）。
+ *  · 分镜组（有 materializationOperationId 章）显示「分镜 · 」前缀、计数写「N 镜」；普通组只显示组名、计数写「N 个」。
+ *    前缀只是显示规则：改名改的仍是组名本身。
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconDots, IconStack2 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { GROUP_VISUAL_CLASS } from './groupVisualContract'
-import { groupColorClass } from '../model/groupColor'
-import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
+import { WorkbenchButton } from '../../../design'
 
 export type FrameMembershipPreview = 'join' | 'leave' | null
 
@@ -28,48 +22,19 @@ type GroupFrameHeaderProps = {
   groupId: string
   name: string
   description?: string
+  /** 分镜组（多镜物化章）才加「分镜 · 」前缀、计数写「镜」。 */
+  storyboard: boolean
   memberCount: number
   /** 拖动中松手后的成员数；null = 没有在飞的预览。 */
   previewCount: number | null
   readOnly: boolean
-  /** 有线待连时头部只是装饰：编辑与菜单都让位给「落线到框上」这件事。 */
+  /** 有线待连时头部只是装饰：编辑与按钮都让位给「落线到框上」这件事。 */
   connectable: boolean
   editing: boolean
   onEditingChange: (editing: boolean) => void
   onRename: (groupId: string, name: string) => void
   onDescribe: (groupId: string, description: string) => void
-  onCollapse?: (groupId: string) => void
-  onOpenMenu?: (groupId: string, point: { x: number; y: number }) => void
-  /** 组颜色 token 名；没选过 = 灰。只用来画标题前的小圆点。 */
-  colorToken?: string
-  /** 组名放在框外上方；框内胶囊（outside=false）只剩给旧调用方。 */
-  outside?: boolean
-}
-
-/** 提交 = 失焦或回车；Esc 放弃。三条都要有，缺 Esc 的输入框会把人困在里面。 */
-function useCommittedField(initial: string, commit: (value: string) => void, done: () => void) {
-  const [value, setValue] = React.useState(initial)
-  React.useEffect(() => setValue(initial), [initial])
-  const finish = React.useCallback((next: string) => {
-    commit(next)
-    done()
-  }, [commit, done])
-  return {
-    value,
-    setValue,
-    onBlur: () => finish(value),
-    onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
-      event.stopPropagation()
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        finish(value)
-      } else if (event.key === 'Escape') {
-        event.preventDefault()
-        setValue(initial)
-        done()
-      }
-    },
-  }
+  onGenerate?: (groupId: string) => void
 }
 
 const FIELD_CLASS =
@@ -79,6 +44,7 @@ export function GroupFrameHeader({
   groupId,
   name,
   description,
+  storyboard,
   memberCount,
   previewCount,
   readOnly,
@@ -87,54 +53,60 @@ export function GroupFrameHeader({
   onEditingChange,
   onRename,
   onDescribe,
-  onCollapse,
-  onOpenMenu,
-  colorToken,
-  outside = false,
+  onGenerate,
 }: GroupFrameHeaderProps): JSX.Element {
   const { t } = useTranslation()
-  const [editingField, setEditingField] = React.useState<'name' | 'description' | null>(null)
   const editable = !readOnly && !connectable
+  // 编辑草稿：名称与说明一起编辑，焦点离开整块编辑区才一次提交；Esc 整块放弃。
+  const [draftName, setDraftName] = React.useState(name)
+  const [draftDescription, setDraftDescription] = React.useState(description ?? '')
+  const abandonedRef = React.useRef(false)
 
-  // ⋯ 菜单里的「改名 / 说明」把这一格推进编辑态；退出编辑时告诉上层，
-  // 免得菜单关掉后头部还以为自己该在编辑（两处各存一份状态就会漂）。
   React.useEffect(() => {
-    if (editing && editable) setEditingField('name')
-    else if (!editing) setEditingField(null)
-  }, [editable, editing])
+    if (!editing || !editable) return
+    abandonedRef.current = false
+    setDraftName(name)
+    setDraftDescription(description ?? '')
+    // 只在进入编辑态时取一次草稿；编辑中外部改名不覆盖用户正在打的字。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, editable])
 
-  const stopEditing = React.useCallback(() => {
-    setEditingField(null)
+  const commit = React.useCallback(() => {
+    if (abandonedRef.current) return
+    const nextName = draftName.trim()
+    if (nextName && nextName !== name) onRename(groupId, nextName)
+    const nextDescription = draftDescription.trim()
+    if (nextDescription !== (description ?? '')) onDescribe(groupId, nextDescription)
+    onEditingChange(false)
+  }, [description, draftDescription, draftName, groupId, name, onDescribe, onEditingChange, onRename])
+
+  const abandon = React.useCallback(() => {
+    abandonedRef.current = true
     onEditingChange(false)
   }, [onEditingChange])
 
-  const nameField = useCommittedField(name, (next) => {
-    const trimmed = next.trim()
-    if (trimmed) onRename(groupId, trimmed)
-  }, stopEditing)
-  const descriptionField = useCommittedField(description ?? '', (next) => {
-    // 说明可以被清空，所以这里不拦空串——与改名不同（框总得有个名字）。
-    onDescribe(groupId, next.trim())
-  }, stopEditing)
-
-  const beginEditing = (field: 'name' | 'description') => (event: React.MouseEvent) => {
+  const beginEditing = (event: React.MouseEvent) => {
     if (!editable) return
     event.preventDefault()
     event.stopPropagation()
-    setEditingField(field)
     onEditingChange(true)
   }
 
+  const onEditKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.stopPropagation()
+    if (event.key === 'Enter' && event.currentTarget.dataset.field === 'name') {
+      event.preventDefault()
+      commit()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      abandon()
+    }
+  }
+
   /**
-   * 标题与说明这两段文字**不参与拖动**，它们自己吃掉 pointerdown。
-   *
-   * 不这么做双击就永远进不了编辑态：框体的拖动 handler 在 pointerdown 里 `preventDefault()`
-   * （它要拦住拖动时的文字选中），而浏览器一旦被取消 pointerdown 就**不再派发兼容鼠标事件**
-   * ——mousedown / click / dblclick 全没了。走查 canvas-frame.walk.mjs 的「双击标题进编辑态」
-   * 这条当场红，就是它。
-   *
-   * 代价是「按住标题拖框」不再生效。这个取舍是明的：框体其余部分整片都是把手，随便哪儿都能拖；
-   * 而一个改不了名字的标题没有别的入口（⋯ 菜单那一项走的也是这段编辑态）。
+   * 标题这段文字**不参与拖动**，它自己吃掉 pointerdown。
+   * 不这么做双击就永远进不了编辑态：框体的拖动 handler 在 pointerdown 里 `preventDefault()`，
+   * 浏览器一旦取消 pointerdown 就不再派发兼容鼠标事件（mousedown / click / dblclick 全没了）。
    */
   const claimPointer = (event: React.PointerEvent): void => {
     if (!editable) return
@@ -142,114 +114,81 @@ export function GroupFrameHeader({
   }
 
   const countLabel = previewCount === null
-    ? String(memberCount)
+    ? t(storyboard ? 'generationCommon.canvas.group.countShots' : 'generationCommon.canvas.group.countItems', { count: memberCount })
     : t('generationCommon.canvas.group.countPreview', { from: memberCount, to: previewCount })
+  const titleText = storyboard ? `${t('generationCommon.canvas.group.storyboardPrefix')}${name}` : name
 
   return (
     <div
       className={cn(
         'generation-canvas-v2__group-box-label',
-        outside
-          ? 'absolute left-0 top-[-30px] inline-flex min-h-6 max-w-[calc(100%-24px)] items-center gap-2 border-0 px-0 py-0 text-body-sm font-medium leading-[1.25] shadow-none'
-          : 'absolute left-3 top-2 inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2 rounded-full border px-[9px] py-[3px] text-micro font-[650] leading-[1.25]',
+        'absolute left-4 right-3 top-2.5 flex h-[26px] items-center gap-2',
         'pointer-events-auto select-none',
-        outside ? 'bg-transparent' : GROUP_VISUAL_CLASS.label,
         connectable ? 'cursor-copy' : readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
       )}
       // 编辑中不许把头部当拖动把手——否则点进输入框的那一下就把整个框拖走了。
-      onPointerDown={editingField ? (event) => event.stopPropagation() : undefined}
-      style={{ zIndex: CANVAS_LAYER.groupHeader }}
+      onPointerDown={editing && editable ? (event) => event.stopPropagation() : undefined}
     >
-      <span className={cn('size-2 shrink-0 rounded-full', groupColorClass(colorToken).dot)} data-group-color-dot="true" aria-hidden="true" />
-      <IconStack2 className="shrink-0" size={outside ? 15 : 12} stroke={outside ? 1.8 : 1.9} aria-hidden="true" />
-      {editingField === 'name' ? (
-        <input
-          autoFocus
-          className={cn(FIELD_CLASS, 'w-[120px]')}
-          aria-label={t('generationCommon.canvas.group.renameAria', { name })}
-          value={nameField.value}
-          onChange={(event) => nameField.setValue(event.target.value)}
-          onBlur={nameField.onBlur}
-          onKeyDown={nameField.onKeyDown}
-        />
+      {editing && editable ? (
+        <span
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) commit()
+          }}
+        >
+          <input
+            autoFocus
+            data-field="name"
+            className={cn(FIELD_CLASS, 'w-[160px] shrink-0 text-caption font-medium text-nomi-ink-80')}
+            aria-label={t('generationCommon.canvas.group.renameAria', { name })}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
+            onKeyDown={onEditKeyDown}
+          />
+          <input
+            data-field="description"
+            className={cn(FIELD_CLASS, 'min-w-0 flex-1 text-caption text-nomi-ink-60')}
+            aria-label={t('generationCommon.canvas.group.describeAria', { name })}
+            placeholder={t('generationCommon.canvas.group.descriptionPlaceholder')}
+            value={draftDescription}
+            onChange={(event) => setDraftDescription(event.target.value)}
+            onKeyDown={onEditKeyDown}
+          />
+        </span>
       ) : (
         <span
-          className="min-w-0 truncate"
+          className="min-w-0 truncate text-caption font-medium text-nomi-ink-80"
           data-frame-title="true"
           onPointerDown={claimPointer}
-          onDoubleClick={beginEditing('name')}
-          title={editable ? t('generationCommon.canvas.group.renameAria', { name }) : undefined}
+          onDoubleClick={beginEditing}
+          title={editable ? t('generationCommon.canvas.group.renameAria', { name }) : description || undefined}
         >
-          {name}
+          {titleText}
         </span>
       )}
-      {editingField === 'description' ? (
-        <input
-          autoFocus
-          className={cn(FIELD_CLASS, 'w-[140px] font-normal text-nomi-ink-60')}
-          aria-label={t('generationCommon.canvas.group.describeAria', { name })}
-          placeholder={t('generationCommon.canvas.group.descriptionPlaceholder')}
-          value={descriptionField.value}
-          onChange={(event) => descriptionField.setValue(event.target.value)}
-          onBlur={descriptionField.onBlur}
-          onKeyDown={descriptionField.onKeyDown}
-        />
-      ) : description || (editable && !outside) ? (
-        // 说明为空时留一句极淡的占位——不留的话，用户根本不知道这里可以写东西。
-        <span
-          className={cn('min-w-0 truncate font-normal', description ? 'text-nomi-ink-60' : 'text-nomi-ink-30')}
-          data-frame-description="true"
-          onPointerDown={claimPointer}
-          onDoubleClick={beginEditing('description')}
-          title={editable ? t('generationCommon.canvas.group.describeAria', { name }) : undefined}
-        >
-          {description || t('generationCommon.canvas.group.descriptionPlaceholder')}
-        </span>
-      ) : null}
       <span
-        className={cn(
-          outside ? 'sr-only' : 'inline-grid h-[18px] min-w-[18px] place-items-center rounded-full px-[5px] text-micro tabular-nums',
-          GROUP_VISUAL_CLASS.count,
-        )}
+        className="shrink-0 text-caption tabular-nums text-nomi-ink-40"
         data-frame-count="true"
       >
         {countLabel}
       </span>
-      {onCollapse && !connectable ? (
-        <button
-          type="button"
-          className="grid size-[18px] place-items-center rounded-full border-0 bg-nomi-ink-05 text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink"
-          aria-label={t('generationCommon.canvas.group.collapseNamed', { name })}
-          title={t('generationCommon.canvas.group.collapse')}
+      <span className="flex-1" aria-hidden="true" />
+      {onGenerate && editable && !editing ? (
+        <WorkbenchButton
+          size="sm"
+          disabled={memberCount === 0}
+          data-frame-generate-all="true"
           onPointerDown={(event) => {
             event.preventDefault()
             event.stopPropagation()
           }}
           onClick={(event) => {
             event.stopPropagation()
-            onCollapse(groupId)
+            onGenerate(groupId)
           }}
         >
-          <IconStack2 size={11} stroke={1.9} aria-hidden="true" />
-        </button>
-      ) : null}
-      {onOpenMenu && editable ? (
-        <button
-          type="button"
-          className="grid size-[18px] place-items-center rounded-full border-0 bg-nomi-ink-05 text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink"
-          aria-label={t('generationCommon.canvas.group.moreActions', { name })}
-          data-frame-more="true"
-          onPointerDown={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-          }}
-          onClick={(event) => {
-            event.stopPropagation()
-            onOpenMenu(groupId, { x: event.clientX, y: event.clientY })
-          }}
-        >
-          <IconDots size={11} stroke={1.9} aria-hidden="true" />
-        </button>
+          {t('generationCommon.canvas.group.generateAll')}
+        </WorkbenchButton>
       ) : null}
     </div>
   )

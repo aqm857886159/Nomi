@@ -20,6 +20,7 @@ import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
   chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
+import { openFrameMenuFromToolbar } from './_groupGenerate.mjs'
 
 // 付费卡逐镜（2026-09-30）：第 1 页点「生成这张」（供应商受理被夹具压着），卡翻到第 2 页再点一次——第 2 镜批过、还没轮到，就是排队。
 
@@ -82,7 +83,7 @@ async function expectQueuedShotLocked(win, walk, { queuedNodeId, groupId, locale
   await zoomOntoFrame(win, frame)
   await snapCloseUp(win, await walk.snap(`queued-canvas-${locale}`), [frame])
 
-  await clickOrFail(frame.locator('[data-frame-more="true"]').first(), `${locale}：打开框菜单`)
+  await openFrameMenuFromToolbar(win, frame)
   const generateFrame = win.locator('[data-frame-menu="true"] [role="menuitem"]').filter({ hasText: locale === 'zh' ? '生成整框' : 'Generate the whole frame' })
   await proveProbe(generateFrame, `${locale}：框菜单里有「生成整框」`)
   await snapCloseUp(win, await walk.snap(`queued-frame-menu-${locale}`), [frame, win.locator('[data-frame-menu="true"]')])

@@ -22,6 +22,7 @@ export function useCanvasGroupToolbar({
   stageHeight,
   readOnly,
   runFrameAction,
+  openFrameMenu,
 }: {
   selectedGroup: NodeGroup | null
   allNodes: readonly GenerationCanvasNode[]
@@ -33,6 +34,7 @@ export function useCanvasGroupToolbar({
   stageHeight: number
   readOnly: boolean
   runFrameAction: (groupId: string, action: FrameContextMenuAction) => void
+  openFrameMenu: (groupId: string, point: { x: number; y: number }) => void
 }): CanvasGroupToolbarModel | undefined {
   const { t } = useTranslation()
   const arrangeGroup = useGenerationCanvasStore((state) => state.arrangeGroup)
@@ -54,11 +56,12 @@ export function useCanvasGroupToolbar({
       onDissolve: () => runFrameAction(selectedGroup.id, 'dissolve'),
       onArrange: (mode: GroupArrangeMode) => arrangeGroup(selectedGroup.id, mode),
       onColor: (color: string) => setGroupColor(selectedGroup.id, color),
+      onOpenMenu: (point: { x: number; y: number }) => openFrameMenu(selectedGroup.id, point),
       onDownload: () => {
         void downloadGroupResults(targets, selectedGroup.name || 'group', (count) => toast(t('generationCommon.canvas.group.toolbarDownloadSaved', { count }), 'success'))
       },
     }
-  }, [allNodes, arrangeGroup, canvasZoom, productionRuns, readOnly, runFrameAction, selectedGroup, setGroupColor, t, visibleNodeIds])
+  }, [allNodes, arrangeGroup, canvasZoom, openFrameMenu, productionRuns, readOnly, runFrameAction, selectedGroup, setGroupColor, t, visibleNodeIds])
   // 平移时 offsetY 每帧都在变：只在这一层把它拼进去，上面那份（含下载目标的遍历）不跟着重算。
   return React.useMemo(() => (base ? { ...base, canvasOffsetX, canvasOffsetY, stageWidth, stageHeight } : undefined), [base, canvasOffsetX, canvasOffsetY, stageWidth, stageHeight])
 }

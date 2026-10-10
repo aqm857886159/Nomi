@@ -46,6 +46,13 @@
   --nomi-group-coral: oklch(0.59 0.14 25);
   --nomi-group-violet: oklch(0.57 0.13 300);
   --nomi-group-rose: oklch(0.60 0.13 350);
+  --nomi-group-neutral-soft: oklch(0.955 0.004 85);
+  --nomi-group-ocean-soft: oklch(0.955 0.022 250);
+  --nomi-group-teal-soft: oklch(0.955 0.024 174);
+  --nomi-group-amber-soft: oklch(0.958 0.04 75);
+  --nomi-group-coral-soft: oklch(0.955 0.04 28);
+  --nomi-group-violet-soft: oklch(0.955 0.03 300);
+  --nomi-group-rose-soft: oklch(0.955 0.03 330);
   --nomi-track-image: oklch(0.7 0.13 200);
   --nomi-track-video: oklch(0.65 0.13 150);
   /* 3D 轴向语义色(X/Y/Z) —— 无对应 UI token,沉淀成 token */
@@ -126,6 +133,13 @@
   --nomi-group-coral: oklch(0.72 0.14 25);
   --nomi-group-violet: oklch(0.70 0.13 300);
   --nomi-group-rose: oklch(0.73 0.13 350);
+  --nomi-group-neutral-soft: oklch(0.30 0.005 85);
+  --nomi-group-ocean-soft: oklch(0.30 0.04 250);
+  --nomi-group-teal-soft: oklch(0.30 0.035 174);
+  --nomi-group-amber-soft: oklch(0.32 0.05 75);
+  --nomi-group-coral-soft: oklch(0.31 0.055 28);
+  --nomi-group-violet-soft: oklch(0.30 0.04 300);
+  --nomi-group-rose-soft: oklch(0.31 0.045 330);
   --nomi-track-image: oklch(0.72 0.13 200);
   --nomi-track-video: oklch(0.70 0.13 150);
   --nomi-snap: oklch(0.78 0.18 30);

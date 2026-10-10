@@ -22,8 +22,11 @@ export type CanvasMemberRect = { x: number; y: number; width: number; height: nu
 
 /** 成员与框边之间的留白。 */
 export const FRAME_CONTENT_PADDING = 24
-/** 框顶部留给标题胶囊的那一条。 */
-export const FRAME_LABEL_HEIGHT = 28
+/**
+ * 框顶部留给框头（框内一行，top 10 高 26）与成员节点名字标签（卡上方约 24）的高度（10-10 拍板：框头进框内）。
+ * 成员卡顶 = 框顶 + FRAME_CONTENT_PADDING + FRAME_HEADER_RESERVE = 框顶 + 68，框头与节点标签都落在这一条之上的空白里。
+ */
+export const FRAME_HEADER_RESERVE = 44
 
 /** 画得太小 = 手抖，不建框（画布坐标系）。 */
 export const FRAME_DRAW_NOISE_THRESHOLD = 24
@@ -53,9 +56,9 @@ export function frameBoundsFromMembers(members: readonly CanvasMemberRect[]): Ca
   if (![minX, minY, maxX, maxY].every((value) => Number.isFinite(value))) return null
   return {
     x: minX - FRAME_CONTENT_PADDING,
-    y: minY - FRAME_CONTENT_PADDING - FRAME_LABEL_HEIGHT,
+    y: minY - FRAME_CONTENT_PADDING - FRAME_HEADER_RESERVE,
     w: maxX - minX + FRAME_CONTENT_PADDING * 2,
-    h: maxY - minY + FRAME_CONTENT_PADDING * 2 + FRAME_LABEL_HEIGHT,
+    h: maxY - minY + FRAME_CONTENT_PADDING * 2 + FRAME_HEADER_RESERVE,
   }
 }
 
@@ -98,7 +101,7 @@ export function normalizeDrawnFrameBounds(
   if (!Number.isFinite(rawWidth) || !Number.isFinite(rawHeight)) return null
   if (Math.min(rawWidth, rawHeight) < FRAME_DRAW_NOISE_THRESHOLD) return null
   const minWidth = minContent.width + FRAME_CONTENT_PADDING * 2
-  const minHeight = minContent.height + FRAME_CONTENT_PADDING * 2 + FRAME_LABEL_HEIGHT
+  const minHeight = minContent.height + FRAME_CONTENT_PADDING * 2 + FRAME_HEADER_RESERVE
   const width = Math.max(rawWidth, minWidth)
   const height = Math.max(rawHeight, minHeight)
   return {

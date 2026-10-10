@@ -110,7 +110,7 @@ export const CANVAS_FRAME_STATES: readonly LabState[] = [
   },
   {
     id: 'canvas-frame-06-menu',
-    name: '⋯ 菜单 · 头部那颗与框边右键同一份',
+    name: '⋯ 菜单 · 框边右键与工具条末尾「⋯」同一份（10-10 起框头无 ⋯）',
     source: '现役 FrameContextMenu.tsx ← canvasPointerGestureModel 的右键落点四分表',
     coverage: 'shell',
     // 「解散」下面那句灰字是刻意的：它是「解散 ≠ 删除」这个区别本身，不写用户不敢点。

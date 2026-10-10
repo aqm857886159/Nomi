@@ -66,7 +66,6 @@ export function CanvasGroupProjectionLayer({
         pendingConnection={pendingConnection && pendingConnectionSourceKind === 'node'}
         pendingConnectionSide={pendingConnectionSide}
         onConnectToGroup={onConnectToGroup}
-        onCollapse={readOnly ? undefined : (groupId) => onSetCollapsed(groupId, true)}
       />
       {toolbar && toolbarBox ? (
         <div className="pointer-events-none absolute" style={{ left: toolbarBox.left, top: toolbarBox.top, width: toolbarBox.width, height: toolbarBox.height }}>
