@@ -61,7 +61,7 @@ test('body 抛错之后：真实文件不变，副本也还原给下一个用例
 
 test('变异目标落在 junction 共享目录（会写穿到真实仓库）会被拒绝', () => {
   const before = snapshot()
-  const docsFile = execFileSync('git', ['ls-files', 'docs/engineering'], { cwd: repoRoot, encoding: 'utf8' }).split('\n').find((name) => name.endsWith('.json'))
+  const docsFile = gitPaths(['ls-files', 'docs/engineering'], { cwd: repoRoot }).find((name) => name.endsWith('.json'))
   const text = fs.readFileSync(path.join(repoRoot, docsFile), 'utf8')
   const docsBefore = fs.statSync(path.join(repoRoot, docsFile)).mtimeMs
   assert.throws(() => harness.withMutation([[docsFile, text.slice(0, 5), 'XXXXX']], () => {}), /拒绝写入|不在副本里/)
