@@ -62,7 +62,7 @@ function waitForServer(url, timeoutMs = 60000) {
 }
 
 const vite = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
-  cwd: REPO_ROOT, stdio: ['ignore', 'ignore', 'pipe'],
+  cwd: REPO_ROOT, stdio: ['ignore', 'ignore', 'pipe'], shell: process.platform === 'win32',
 })
 vite.stderr?.on('data', (chunk) => process.stderr.write(`[vite] ${chunk}`))
 await waitForServer(`${BASE}/design-lab.html`)

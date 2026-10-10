@@ -14,8 +14,10 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // 断言：① 第一步 [data-step="model"][data-done="false"]（不打勾）；② 拆镜头报错走 recovery 卡而非英文原串。
 // 阳性对照（proveProbe）：先证清单面板 + 四个步骤项确实渲染出来（探针活着），否则 data-done 断言是空话。
+// 10-08 起清单在「设置 → 通用」最上面（顶栏设置钮带未完成点），不再是顶栏下拉。
 import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectVisible, proveProbe, expect, screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -136,7 +138,6 @@ async function dismissIntro() {
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
       localStorage.setItem(key, 'seen')
     }
-    localStorage.removeItem('nomi:checklist-collapsed:v1')
     localStorage.removeItem('nomi:checklist-dismissed:v1')
   })
 }
@@ -158,10 +159,11 @@ try {
   await openCreationWorkspace()
 
   // —— F6：打开上手清单，断言第一步「接入模型」**没打勾**（key locked，真实不可用）——
-  const trigger = win.locator('[data-onboarding-checklist-trigger="true"]').first()
-  await clickOrFail(trigger, '上手清单入口 pill', { timeout: 8000 })
-  const panel = win.locator('[data-onboarding-checklist="panel"]').first()
-  await expectVisible(panel, '清单面板应展开')
+  // 10-08 外壳重设计：清单从顶栏下拉搬进「设置 → 通用」最上面一块；顶栏只在设置钮上留一个未完成点。
+  await clickOrFail(win.locator('[data-shell-settings]').first(), '顶栏设置（带上手未完成点）', { timeout: stationTimeout() })
+  await clickOrFail(win.locator('[data-settings-tab-id="general"]').first(), '设置「通用」页签', { timeout: stationTimeout() })
+  const panel = win.locator('[data-onboarding-checklist="settings"]').first()
+  await expectVisible(panel, '设置「通用」里的上手清单应出现')
   await screenshotSettled(win, { path: path.join(shotsDir, '01-checklist-open.png') })
 
   // 阳性对照：四个步骤项确实渲染（探针活着）——否则下面 data-done 断言是空话。
@@ -178,17 +180,18 @@ try {
       + '真实拆镜头会失败，勾却是绿的（2026-08-25 走查）。',
   ).toBe('false')
 
-  // 收起清单让开工作区（也顺带验 F4 的收起不挡按钮，两条修复同屏）。
-  await trigger.click()
+  // 关掉设置回到工作区（清单在设置弹窗里，不再有「下拉盖住工作区」这回事）。
+  await win.keyboard.press('Escape')
+  await panel.waitFor({ state: 'hidden', timeout: stationTimeout() })
 
   // —— F5：点「拆成镜头·落画布」→ 因缺可用大脑失败，断言走 recovery 卡、**不含**英文原串 ——
   const storyboardBtn = win.locator('[data-action-run="storyboard"]').first()
   await clickOrFail(storyboardBtn, '拆成镜头·落画布', { timeout: 8000 })
 
   // 缺大脑是**确定性**失败（不发网络请求，chooseTextModel 直接抛）——很快落终态。
-  // recovery 卡锚点：data-recovery="no-text-model"；错误卡锚点：data-assistant-error。
+  // recovery 卡锚点：data-recovery="no-text-model"；错误卡锚点：面板级错误带 data-agent-error（v4 起错误由外壳那条带说）。
   const recovery = win.locator('[data-recovery="no-text-model"]').first()
-  const errorCard = win.locator('[data-assistant-error="true"]').first()
+  const errorCard = win.locator('[data-agent-error="true"]').first()
   // 等两者之一出现（都算「错误态被人话化的卡」，而不是原始英文串裸奔）。
   await expect
     .poll(

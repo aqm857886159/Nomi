@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { fetchWithRetry } from './lib/transientRetry.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES } from './validation-policy.mjs'
 
 const API_ROOT = 'https://api.github.com'
@@ -94,24 +95,29 @@ function validateAllowlist(allowlist) {
   return allowlist.entries
 }
 
-async function requestJson(url, { token, fetchImpl }) {
-  const response = await fetchImpl(url, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
+async function requestJson(url, { token, fetchImpl, retryOptions }) {
+  // 去 GitHub API 取注解是网络调用：一次 `fetch failed` / 5xx 不许直接把 Quality Gate 判红（2026-10 main 事故），走共用重试边界。
+  const response = await fetchWithRetry(
+    url,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
     },
-  })
+    { fetchImpl, ...retryOptions },
+  )
   if (!response.ok) throw new Error(`GitHub API request failed with HTTP ${response.status}: ${url}`)
   return response.json()
 }
 
-async function listRunJobs({ repository, runId, token, fetchImpl }) {
+async function listRunJobs({ repository, runId, token, fetchImpl, retryOptions }) {
   const jobs = []
   for (let page = 1; ; page += 1) {
     const payload = await requestJson(
       `${API_ROOT}/repos/${repository}/actions/runs/${runId}/jobs?per_page=100&page=${page}`,
-      { token, fetchImpl },
+      { token, fetchImpl, retryOptions },
     )
     if (!Array.isArray(payload.jobs)) throw new Error('GitHub Actions jobs response omitted jobs')
     jobs.push(...payload.jobs)
@@ -119,12 +125,12 @@ async function listRunJobs({ repository, runId, token, fetchImpl }) {
   }
 }
 
-async function listJobAnnotations({ repository, job, token, fetchImpl }) {
+async function listJobAnnotations({ repository, job, token, fetchImpl, retryOptions }) {
   const annotations = []
   for (let page = 1; ; page += 1) {
     const payload = await requestJson(
       `${API_ROOT}/repos/${repository}/check-runs/${job.id}/annotations?per_page=100&page=${page}`,
-      { token, fetchImpl },
+      { token, fetchImpl, retryOptions },
     )
     if (!Array.isArray(payload)) throw new Error(`Check annotations response for ${job.name} was not an array`)
     annotations.push(
@@ -144,11 +150,11 @@ async function listJobAnnotations({ repository, job, token, fetchImpl }) {
   }
 }
 
-export async function collectRunAnnotations({ repository, runId, token, fetchImpl = fetch }) {
-  const jobs = await listRunJobs({ repository, runId, token, fetchImpl })
+export async function collectRunAnnotations({ repository, runId, token, fetchImpl, retryOptions }) {
+  const jobs = await listRunJobs({ repository, runId, token, fetchImpl, retryOptions })
   const completedJobs = jobs.filter((job) => job.status === 'completed')
   const annotationsByJob = await Promise.all(
-    completedJobs.map((job) => listJobAnnotations({ repository, job, token, fetchImpl })),
+    completedJobs.map((job) => listJobAnnotations({ repository, job, token, fetchImpl, retryOptions })),
   )
   return {
     jobs: completedJobs.map((job) => ({ id: job.id, name: job.name, conclusion: job.conclusion })),
@@ -194,7 +200,8 @@ export async function auditCiAnnotations({
   runAttempt = '',
   token,
   allowlist,
-  fetchImpl = fetch,
+  fetchImpl,
+  retryOptions,
   now = new Date(),
 }) {
   const base = {
@@ -206,7 +213,7 @@ export async function auditCiAnnotations({
   }
   try {
     if (!repository || !runId || !token) throw new Error('GITHUB_REPOSITORY, GITHUB_RUN_ID, and GITHUB_TOKEN are required')
-    const collected = await collectRunAnnotations({ repository, runId, token, fetchImpl })
+    const collected = await collectRunAnnotations({ repository, runId, token, fetchImpl, retryOptions })
     const evaluation = evaluateAnnotations(collected.annotations, allowlist, now)
     return {
       ...base,

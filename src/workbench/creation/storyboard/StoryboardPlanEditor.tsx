@@ -21,7 +21,6 @@ import {
 } from '../../generationCanvas/agent/storyboardPlanEdits'
 import { isEmptyStoryboardPlan, stableShotId, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
-import { CreationResourceTreeToggle } from '../CreationResourceTreeToggle'
 import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'
@@ -557,7 +556,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       // 再被这里的 `overflow-hidden` 从右边剪掉：1280 视口 + Agent 面板展开时 29–33 个叶子越界。
       // 表格自己的 min-content 只有 417px，完全装得下 —— 它是被撑的，不是撑人的那个。
       // `grid-cols-1` = `repeat(1, minmax(0,1fr))`，把列钉回容器宽，各行自己去 truncate / 滚动。
-      className="relative w-full h-full min-h-0 grid grid-cols-1 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] border border-workbench-border rounded-workbench bg-workbench-surface-solid shadow-workbench-md overflow-hidden"
+      className="relative w-full h-full min-h-0 grid grid-cols-1 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] rounded-panel bg-workbench-surface-solid ring-1 ring-nomi-line-soft overflow-hidden"
       ref={editorRef}
       tabIndex={-1}
       onKeyDown={onUndo}
@@ -566,8 +565,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     >
       <header className="flex items-center justify-between gap-3 h-12 px-4 border-b border-nomi-line">
         <div className="flex items-center gap-2 min-w-0">
-          {/* 左栏收起时的展开钮：住标题左边、把标题挤开一格（收起态它是 L1 常驻）。 */}
-          <CreationResourceTreeToggle placement="panel" />
           <IconMovie size={16} stroke={1.5} className="text-nomi-ink-60 shrink-0" />
           <input
             value={plan.title}

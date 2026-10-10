@@ -9,6 +9,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot } from './_mcpJourney.mjs'
 import { clickOrFail } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/p4-s5-canvas-reconcile')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -48,7 +49,7 @@ try {
   })
   await win.reload()
   await win.waitForLoadState('domcontentloaded')
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }).first(), '库页「新建空白项目」')
+  await clickOrFail(newProjectEntry(win), '库页「新建空白项目」')
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
   await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '工作区切换到「生成」')
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), undefined, { timeout: 15_000 })

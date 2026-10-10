@@ -71,49 +71,27 @@ describe('生成面外壳：底部带横贯、面板被顶上去', () => {
     // 只写 start 不算「确定的落位」：那一轴是 auto 时包含块的两条边退回网格容器的 padding 边，
     // 实测仍量到整个工作区（top 对、bottom 错）。所以两端都得写，两态各一份。
     expect(assistantBlock.match(/row-start-1 row-end-2/g)?.length).toBe(2)
-    // 落位顺序也是结构条件：画布 → 助手 → 时间轴。助手排到时间轴之后会落进第 2 行。
-    expect(source.indexOf('<AssistantPane')).toBeGreaterThan(source.indexOf("'workbench-generation__canvas'"))
+    // 落位顺序也是结构条件：画布工作面 → 助手 → 时间轴。助手排到时间轴之后会落进第 2 行。
+    expect(source.indexOf('<AssistantPane')).toBeGreaterThan(source.indexOf("'workbench-generation__surface'"))
     expect(source.indexOf('<AssistantPane')).toBeLessThan(source.indexOf("'workbench-generation__timeline'"))
   })
 })
 
 /**
- * 「工作区底部停靠区」的 owner 在外壳层（2026-09-15 第二轮）。
- *
- * 守的不变量：**避让名单的范围是工作区，不是画布这棵子树；只有一份实现。**
- * 09-13 的「时间轴收起后叫不回来」就是范围画小了：收起态的 Nomi 坞是工作区的孩子，
- * 画布范围的查询看不见它，胶囊按「底部居中」正好落在它下面。
+ * 时间轴收起态（10-08 外壳重设计）：贴画布工作面底边的窄条，不再是浮在画布上的胶囊。
+ * 守的不变量：窄条在画布那一格**之外**（同一个工作面里、画布下面），所以加节点条、缩放、Agent 小球 / 浮窗
+ * 这些住在画布那一格里的浮件天然给它让位，不靠避让名单或偏移量兜底。
+ * 旧的「胶囊按停靠区算横向落位」（timelineHandlePlacement / useTimelineHandleLeft）随胶囊一起删掉。
  */
-describe('底部停靠区避让：范围归外壳，实现只一份', () => {
-  const ownerFile = path.join(process.cwd(), 'src/workbench/generation/workspaceBottomDocks.ts')
-  const owner = stripComments(fs.readFileSync(ownerFile, 'utf8'))
-  const canvasHook = stripComments(
-    fs.readFileSync(path.join(process.cwd(), 'src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts'), 'utf8'),
-  )
-  const collapsedDock = stripComments(
-    fs.readFileSync(path.join(process.cwd(), 'src/workbench/ai/v4/AgentPanelV4Dock.tsx'), 'utf8'),
-  )
-
-  it('owner 把范围定在工作区那一层', () => {
-    expect(owner).toContain("BOTTOM_DOCK_SCOPE_SELECTOR = '.workbench-generation'")
-    expect(owner).not.toContain('.workbench-generation__canvas')
-  })
-
-  it('两个消费者都走 owner，没有第二份就地查询', () => {
-    for (const consumer of [source, canvasHook]) {
-      expect(consumer).toContain('collectBottomDockRects')
-      // 就地 querySelectorAll 那份名单是被删掉的旧实现（P1 无并行版）。
-      expect(consumer).not.toMatch(/querySelectorAll\(\s*['"`]\[data-canvas-bottom-dock/)
-    }
-    expect(canvasHook).not.toContain("closest(DOCK_SCOPE_SELECTOR)")
-  })
-
-  it('收起态的 Nomi 坞自己声明成底部停靠区', () => {
-    expect(collapsedDock).toContain('data-canvas-bottom-dock="true"')
-  })
-
-  it('胶囊落位在 Nomi 面板收起/展开时重算（挂摘发生在外壳的孙子层，观察不到）', () => {
-    expect(source).toContain('useTimelineHandleLeft(canvasRef, timelineHandleRef, timelineCollapsed, aiCollapsed)')
-    expect(source).toContain('}, [enabled, canvasRef, handleRef, dockRevision])')
+describe('时间轴收起 = 工作面底边窄条', () => {
+  it('窄条是画布那一格的兄弟，不是画布里的浮件', () => {
+    const surface = source.slice(source.indexOf("'workbench-generation__surface'"), source.indexOf('<AssistantPane'))
+    expect(surface).toContain("'workbench-generation__canvas'")
+    expect(surface).toContain('<TimelineStrip')
+    const canvasBlock = surface.slice(surface.indexOf("'workbench-generation__canvas'"), surface.indexOf('<TimelineStrip'))
+    // 画布那一格在窄条之前闭合：窄条不在画布的绝对定位层里。
+    expect(canvasBlock).toContain('data-generation-agent-layer')
+    expect(source).not.toContain('useTimelineHandleLeft')
+    expect(source).not.toContain('timelineHandlePlacement')
   })
 })

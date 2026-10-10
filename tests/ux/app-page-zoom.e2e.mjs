@@ -7,6 +7,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { newProjectEntry } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tmp = makeTempDir('nomi-page-zoom-')
@@ -105,7 +106,7 @@ try {
   await win.keyboard.press('Escape').catch(() => {})
   const projectCard = win.locator('[data-project-card]').first()
   if ((await projectCard.count()) > 0) await projectCard.click()
-  else await win.getByText('新建空白项目', { exact: false }).first().click()
+  else await newProjectEntry(win).click()
   await win.waitForTimeout(2200)
   await win.keyboard.press('Escape').catch(() => {})
   const generationTab = win.getByRole('button', { name: '生成', exact: false }).first()

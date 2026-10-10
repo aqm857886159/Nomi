@@ -94,5 +94,5 @@ return result.video.url`;
       image_url: "https://assets.example.test/first.png",
       end_image_url: "https://assets.example.test/last.png",
     });
-  }, 10000);
+  });
 });

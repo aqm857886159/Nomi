@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { findConnectionStartPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -49,7 +50,7 @@ const { app, win } = await launchNomiApp({
   settleMs: 0,
   initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen' },
 })
-await win.getByRole('button', { name: '新建空白项目', exact: false }).first().click()
+await newProjectEntry(win).click()
 // 项目工作区是实际就绪信号；旧首启弹层不会出现，不能等超时再吞掉。
 await win.getByRole('button', { name: '生成', exact: true }).click()
 

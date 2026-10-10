@@ -923,7 +923,7 @@ try {
   assert(handleHit.magnetic, '图片节点右侧握把可点', JSON.stringify(handleHit))
   // 松手点取视频卡上**真正露出来、点得到**的一点：选中图片卡时它的浮框钉在正下方、定宽 560（被挡就挡，09-25），
   // 在 1280×800 的 Linux 字体下会盖住视频卡的几何中心——落在浮框上松手，人也连不上。人会把线拖到看得见的那块卡面上。
-  const videoDropPoint = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
+  const videoDropPoint = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video, clearOfOtherNodes: 28 })
   assert(Boolean(videoDropPoint), '视频卡上找得到一处露出来的松手点', JSON.stringify({ videoBox }))
   await getWin().mouse.move(handlePoint.x, handlePoint.y)
   await getWin().mouse.down()
@@ -1002,7 +1002,8 @@ try {
   const blankBeforeEdge = await findBlankPoint()
   await getWin().mouse.click(blankBeforeEdge.x, blankBeforeEdge.y)
   await getWin().waitForTimeout(300)
-  const edgeHit = await findEdgeHitPoint(getWin(), { edgeSelector: '.generation-canvas-v2__edge-hit', margins: { left: 16, top: 80, right: 16, bottom: 16 } })
+  const edgeHit = await findEdgeHitPoint(getWin(), { edgeSelector: `${OWN.edge} .generation-canvas-v2__edge-hit`, margins: { left: 16, top: 80, right: 16, bottom: 16 } })
+  // 点的必须是刚连出来的那条（used 夹具里另有 27 条线，取第一条会点断别人的线）。
   assert(Boolean(edgeHit), '连线上找得到真正点得到的一点', JSON.stringify(edgeHit))
   await getWin().mouse.move(edgeHit.x, edgeHit.y)
   await getWin().locator('[data-edge-disconnect]').first().click()

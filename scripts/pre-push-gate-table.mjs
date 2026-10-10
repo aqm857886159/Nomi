@@ -89,14 +89,11 @@ export const CI_ONLY = Object.freeze([
     ],
   },
   {
-    reason: '2026-10-09 在本机 Windows 上对 main 就是红的（与改动无关）：接进来会拦住所有人的推送，先由协调会话核实是 Windows 专属还是仓库已有问题',
+    reason: '2026-10-10 Windows 路径问题已修（scripts/lib/repoPaths.mjs，storyboard-owner / transport-assembly / spend-receipt 已接进推送前）；这三道在本机 Windows 实测绿，但要在进程里加载整个 electron/capabilityCore 的 TS 导入闭包并做变异自检（5–43 秒）、输入范围是 electron 全树，每次碰 electron 都跑一遍太贵，留在 CI',
     gates: [
-      'check:storyboard-owner',
       'check:mcp-operation-constructible',
       'check:model-face-frozen',
       'check:verb-host-conformance',
-      'check:transport-assembly',
-      'check:spend-receipt',
     ],
   },
 ])

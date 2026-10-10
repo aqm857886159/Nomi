@@ -81,3 +81,15 @@
 - 改法：所有门岗与测试子进程只经 runNode 起（已有结构测试钉住），runNode 一律删掉 GIT_* 再起；必红测试在 scripts/pre-push-structure.node-test.mjs。
 - 为什么不在 git-hook 分发器里统一清：pre-commit 一类钩子要靠 GIT_INDEX_FILE 读暂存区，清了会读错索引；推送前门岗与测试都按 cwd 找仓库，不需要它们。
 - 命中的自写登记仍是 `gate-family`；换不换现成方案的结论同上文。
+
+## 追记 2026-10-10（3）：只在 Windows 上红的六道门岗，和相关单测的运行方式
+
+- 症状：check:storyboard-owner / mcp-operation-constructible / model-face-frozen / verb-host-conformance / transport-assembly / spend-receipt 在 Windows 本机必红、Linux CI 绿，所以 10-09 被登记成「只在 CI」；#1154 让推送前钩子按改动挑相关单测后，挑中它们的 node-test 就拦推送。另外相关单测里的 node:test 一律 `node --test`，而 check:model-schema 这类 CI 里是 `tsx --test`（要加载 .mts），被选中时报 ERR_UNKNOWN_FILE_EXTENSION 误红。
+- 类根因：脚本里「路径 / URL / 命令」没有唯一入口，各写各的。三种手写法恰好在 Linux 上都对：`new URL(import.meta.url).pathname`（Windows 得到 /D:/…，受检文件被误报不存在）、`path.relative()` 的结果直接比含 `/` 的清单（Windows 是反斜杠，恒不等）、`execFileSync('pnpm')` 不开 shell（Windows 是 pnpm.cmd，ENOENT，门岗自检的输出为空、全红）；`import(裸盘符路径)` 同类。CI 只在 Linux 跑，没人拦得住。推送前相关单测的运行方式则是手写的第二份，没从 CI 的命令推。
+- 改法：
+  - 删：六道门岗与同类脚本里手写的路径 / import / spawn 写法，统一走新增的 `scripts/lib/repoPaths.mjs`（repoRoot、repoRelativePosix、toFileUrl、importLocal）与 `process.execPath --import tsx`；同类另改 check-model-schema.ts、check-walkthrough-tool-args.ts、check-control-contract.mjs、comfyui-video-input-walkthrough.mjs、skills-format-lib.mjs、若干 tests/ux 走查与 evals 的裸 import / 裸 pnpm。
+  - 门岗自动拦：并进现有的 `check:main-guard`（它本来就管「手拼 file URL」这一族，AST 判据，已在门表里）新增四条规则 url-pathname-as-path / import-bare-path / bare-cmd-spawn（含 import 手拼 file URL）；阳性 / 阴性对照在 check-main-guard.node-test.mjs。
+  - 相关单测：node:test 统一 `node --import tsx --test`（tsx 是超集，纯 .mjs 照跑），不分档不手写名单；pre-push-structure.node-test.mjs 加必红用例（被选中的 node-test 加载 .mts 要能真跑通）。
+  - 门表：storyboard-owner / transport-assembly / spend-receipt 实测 1–3 秒且输入范围精确，收回「Windows 假红只在 CI」的理由、接进推送前（GATE_INPUTS + SCANNER_READS + PRE_PUSH_GATES）；其余三道改写理由为「太贵」（TS 导入闭包 + 变异自检 5–43 秒、输入是 electron 全树）。
+- 为什么不换成现成库：路径 ↔ URL 转换用的就是 node:url 的 fileURLToPath / pathToFileURL，新模块只是把它们收成一个入口；没有现成库管「本仓脚本的相对路径规范」。
+- 命中的自写登记仍是 `gate-family`（门岗族）；换不换现成方案的结论同上文，不变。

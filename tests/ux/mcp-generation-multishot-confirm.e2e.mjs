@@ -17,6 +17,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot } from './_mcpJourney.mjs'
 import { clickOrFail, expectAbsent, proveProbe } from './_assert.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/mcp-generation-multishot-confirm')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -72,7 +73,7 @@ try {
 
   // 进一个项目（库页 → 新建空白项目），否则 workbench 根不渲染 → 确认桥不挂。
   // 用 clickOrFail 等按钮真可见再点（不用固定 sleep 当「页面好了」信号）。
-  await clickOrFail(win.getByText('新建空白项目', { exact: false }).first(), '库页「新建空白项目」')
+  await clickOrFail(newProjectEntry(win), '库页「新建空白项目」')
   await win.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
 
   // 等真实 handler 桥挂上（mount-time effect 带 __nomiE2E 标志），不用固定 sleep。

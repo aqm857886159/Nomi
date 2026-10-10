@@ -35,7 +35,7 @@ import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { realNomiIsRunning, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { ensureAgentPanelOpen } from './_shell.mjs'
+import { ensureAgentPanelOpen, newProjectEntry } from './_shell.mjs'
 
 const rendererUrl = process.env.NOMI_WALK_RENDERER_URL
 if (!rendererUrl) throw new Error('需要 NOMI_WALK_RENDERER_URL（本仓 vite dev 地址），见文件头用法')
@@ -129,7 +129,7 @@ async function handTune(nodeId, shotIds) {
 }
 
 try {
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: stationTimeout({ operations: 4 }) })
+  await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 4 }) })
   await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout({ operations: 2 }) })
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()

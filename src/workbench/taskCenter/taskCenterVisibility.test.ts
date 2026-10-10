@@ -15,11 +15,9 @@ describe('任务面板入口常驻契约', () => {
     expect(buttonSource).toMatch(/export function TaskCenterButton[\s\S]*?: JSX\.Element\s*\{/)
     expect(buttonSource).not.toMatch(/return null/)
 
-    const appBarSource = read('../../ui/app-shell/NomiAppBar.tsx')
-    const taskGroupStart = appBarSource.indexOf('nomi-appbar__group--tasks')
-    const taskButtonStart = appBarSource.indexOf('<TaskCenterButton', taskGroupStart)
-    expect(taskGroupStart).toBeGreaterThan(-1)
-    expect(taskButtonStart).toBeGreaterThan(taskGroupStart)
-    expect(appBarSource.slice(taskGroupStart, taskButtonStart)).not.toContain('not(:has(button))')
+    // 10-08 外壳重设计：任务入口住 40px 合一顶栏右簇；项目内恒渲染，不靠 :has 隐藏。
+    const topBarSource = read('../../ui/app-shell/shell/ShellTopBar.tsx')
+    expect(topBarSource).toContain('<TaskCenterButton')
+    expect(topBarSource).not.toContain('not(:has(button))')
   })
 })

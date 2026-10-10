@@ -123,7 +123,7 @@ await win.waitForTimeout(700)
 await snap(win, 'topbar-busy-badge')
 // 顶栏右栏裁近看：任务按钮必须和同栏设置/模型接入/导出一个解剖（30px 高、15/1.8 图标）。
 {
-  const bar = await win.locator('.nomi-appbar__right').first().boundingBox().catch(() => null)
+  const bar = await win.locator('[data-shell-topbar] [role="toolbar"]').first().boundingBox().catch(() => null)
   if (bar) {
     await screenshotSettled(win, {
       path: path.join(shotsDir, '04b-topbar-right-zoom.png'),

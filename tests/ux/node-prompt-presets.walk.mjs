@@ -4,6 +4,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectOverlayReachable, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const before = process.argv.includes('--before')
 const output = path.resolve('tests/ux/shots/node-prompt-presets')
@@ -80,7 +81,7 @@ async function createPersonalPrompt(kind, title, prompt) {
 try {
   const window = await run.app.browserWindow(page)
   await window.evaluate(w => w.setBounds({ x: 0, y: 0, width: 1680, height: 1050 }))
-  await page.getByRole('button', { name: '新建空白项目', exact: false }).first().click()
+  await newProjectEntry(page).click()
   await page.getByRole('button', { name: '生成', exact: true }).first().click()
   await addNode('image')
   await page.locator('[data-effect-more]').last().click()

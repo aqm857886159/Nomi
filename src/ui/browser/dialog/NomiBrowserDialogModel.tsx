@@ -138,7 +138,8 @@ export const TAB_CONTEXT_MENU_ITEM_CLASS = cn(
   'hover:bg-nomi-ink-05 disabled:cursor-default disabled:text-nomi-ink-30 disabled:hover:bg-transparent',
 )
 
-export const BROWSER_DIALOG_TOP_ANCHOR_SELECTORS = ['.workbench-windowbar', '.nomi-library-page__windowbar']
+/** 浏览器浮窗贴在 40px 合一顶栏下沿（项目内与项目库同一条，10-08 外壳重设计）。 */
+export const BROWSER_DIALOG_TOP_ANCHOR_SELECTORS = ['[data-shell-topbar]']
 
 export function createTabId(): string {
   return `browser-tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`

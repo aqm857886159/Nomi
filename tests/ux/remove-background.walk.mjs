@@ -12,6 +12,7 @@ import path from 'node:path'
 import http from 'node:http'
 import { screenshotSettled } from './_assert.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { newProjectEntry } from './_shell.mjs'
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/remove-background')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -119,7 +120,7 @@ try {
   // B 回归：进项目 → 生成画布 → 加画板节点 → 打开 modal
   await dismiss() // 先关开屏/上手浮层，否则盖住新建按钮
   await getWin().waitForTimeout(400)
-  await getWin().locator('button, [role="button"]', { hasText: '新建空白项目' }).first().click({ timeout: 4000 }).catch(() => {})
+  await newProjectEntry(getWin()).click({ timeout: 4000 }).catch(() => {})
   await dismiss()
   await getWin().waitForTimeout(1200)
   const projectId = (/projectId=([^&]+)/.exec(getWin().url()) || [])[1] || ''

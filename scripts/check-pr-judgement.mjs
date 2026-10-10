@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 import { ESCAPE_LEDGER_DIR, escapeIdOfPath, loadEscapeLedger } from './escape-ledger-lib.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
+import { execGhReadSync } from './lib/transientRetry.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { evaluatePrBody, ledgerChanges, resolveJudgementStage, settledContracts } from './pr-body-criteria.mjs'
 import { addedLinesByFile, loadRoutingTable, toolGaps } from './pr-judgement-lib.mjs'
@@ -36,7 +37,7 @@ function prCreatedAt() {
   if (process.env.PR_JUDGEMENT_CREATED_AT) return process.env.PR_JUDGEMENT_CREATED_AT // 测试用：不去问 gh（CI 里 gh 会取到真 PR 的创建时间）
   const number = String(process.env.NOMI_PR_NUMBER ?? '').trim()
   try {
-    return JSON.parse(execFileSync('gh', ['pr', 'view', ...(number ? [number] : []), '--json', 'createdAt'], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })).createdAt || null
+    return JSON.parse(execGhReadSync(['pr', 'view', ...(number ? [number] : []), '--json', 'createdAt'], { cwd: repoRoot })).createdAt || null
   } catch { return null }
 }
 

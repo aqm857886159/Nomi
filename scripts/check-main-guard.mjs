@@ -15,6 +15,13 @@
 //   · new URL(`file://${argv1}`)    普通路径碰巧对，路径里有 `#` `?` `%` 就在**任何平台**上不等。
 // 只有 node:url 的 pathToFileURL / fileURLToPath 按 Node 自己生成 import.meta.url 的同一套规则转换。
 //
+// 2026-10-10 扩一族同源写法（6 道门岗只在 Windows 上红，见 scripts/lib/repoPaths.mjs）：
+//   url-pathname-as-path  把 `import.meta.url` 的 URL.pathname 当磁盘路径（Windows 上是 `/D:/…`，文件被误报不存在）；
+//   import-bare-path      `import(path.join(…))` / `import(path.resolve(…))`：盘符路径被 ESM 当协议（ERR_UNSUPPORTED_ESM_URL_SCHEME）；
+//                         以及 import(`file://${…}`) 手拼 URL（盘符 / 反斜杠 / 空格全不对）；
+//   bare-cmd-spawn        execFileSync / spawnSync / execFile / spawn 的命令直接写 pnpm / npm / npx / tsx 且没开 shell（Windows 上是 .cmd，ENOENT）。
+// 修法一律走 scripts/lib/repoPaths.mjs（repoRoot / importLocal / toFileUrl / repoRelativePosix）或 process.execPath。
+//
 // 判据（只认这一族，不扩张）：
 //   argv-url-by-hand  把 process.argv[1] 手拼成 URL（`file:` 开头的模板/拼接，或 new URL(…) 且没过转换函数）；
 //   meta-url-vs-hand  import.meta.url 跟一个手拼的 URL（`file:` 字面量 / new URL）比相等；
@@ -74,6 +81,10 @@ const isConverterCall = (node) => {
   return CONVERTERS.has(name)
 }
 
+const BARE_CMD_CALLEES = new Set(['execFileSync', 'execFile', 'spawnSync', 'spawn'])
+const BARE_CMDS = new Set(['pnpm', 'npm', 'npx', 'tsx'])
+const calleeName = (node) => (ts.isIdentifier(node.expression) ? node.expression.text : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : '')
+
 const startsWithFileScheme = (text) => /^file:/i.test(text)
 
 /** `file:` 开头的字符串 / 模板字面量（手拼 file URL 的原料）。 */
@@ -101,6 +112,8 @@ const isHandBuiltUrl = (node) =>
 export function scanSource(source, file) {
   const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKindOf(file))
   const hits = []
+  // 归档证据（docs/）里的历史代码不改，新一族写法只管活的脚本 / 测试 / 源码
+  const portable = !file.startsWith('docs/')
   const report = (node, rule) => {
     const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
     if (hits.some((hit) => hit.line === line)) return
@@ -109,6 +122,27 @@ export function scanSource(source, file) {
   const visit = (node) => {
     if (isHandBuiltUrl(node) && some(node, isScriptPathArg)) {
       report(node, 'argv-url-by-hand')
+      return
+    }
+    // 新一族：同源 Windows 路径写法
+    if (portable && ts.isPropertyAccessExpression(node) && node.name.text === 'pathname' && some(node.expression, isImportMetaUrl) && !some(node.expression, isConverterCall)) {
+      report(node, 'url-pathname-as-path')
+      return
+    }
+    if (portable && ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length > 0) {
+      const arg = node.arguments[0]
+      const callee = ts.isCallExpression(arg) && ts.isPropertyAccessExpression(arg.expression) ? arg.expression : null
+      const pathCall = callee && ts.isIdentifier(callee.expression) && callee.expression.text === 'path' && ['join', 'resolve'].includes(callee.name.text)
+      const handUrl = ts.isTemplateExpression(arg) && startsWithFileScheme(arg.head.text) && !some(arg, isConverterCall)
+      if (pathCall || handUrl) {
+        report(node, 'import-bare-path')
+        return
+      }
+    }
+    if (portable && ts.isCallExpression(node) && BARE_CMD_CALLEES.has(calleeName(node)) && node.arguments.length > 0
+      && ts.isStringLiteralLike(node.arguments[0]) && BARE_CMDS.has(node.arguments[0].text)
+      && !node.arguments.slice(1).some((arg) => /shell/.test(arg.getText(sourceFile)))) {
+      report(node, 'bare-cmd-spawn')
       return
     }
     if (ts.isBinaryExpression(node) && EQUALITY.has(node.operatorToken.kind)) {
@@ -151,14 +185,14 @@ export function main({ root = repoRoot, log = console.log } = {}) {
     const abs = path.join(root, file)
     if (!fs.existsSync(abs)) continue // 工作区里已删、索引里还在
     const source = fs.readFileSync(abs, 'utf8')
-    if (!source.includes('import.meta.url') && !source.includes('process.argv')) continue
+    if (!source.includes("import.meta.url") && !source.includes("process.argv") && !source.includes("import(") && !source.includes("file:") && !/pnpm|npm|npx|tsx/.test(source)) continue
     scanned += 1
     hits.push(...scanSource(source, file))
   }
   if (hits.length > 0) {
-    log(`✖ check:main-guard：${hits.length} 处手拼 file URL 判断「我是不是入口」——Windows 上恒不成立，脚本静默零输出、退出码 0：`)
+    log(`✖ check:main-guard：${hits.length} 处只在 Windows 上坏的路径 / URL / 命令写法（手拼 file URL 判断入口、URL.pathname 当路径、import(裸路径)、不开 shell 直接 spawn pnpm 等）——Linux CI 看不见：`)
     for (const hit of hits) log(`    ${hit.file}:${hit.line}  [${hit.rule}]  ${hit.text}`)
-    log(`\n  → 改成：if (${FIX_HINT}) main()   （pathToFileURL 从 'node:url' 引入）`)
+    log(`\n  → 判断入口：if (${FIX_HINT}) main()；路径 / 动态 import / 相对路径比较走 scripts/lib/repoPaths.mjs；起 tsx 用 process.execPath + --import tsx`)
     return 1
   }
   log(`✅ check:main-guard：${files.length} 个源文件，其中 ${scanned} 个用到 import.meta.url / process.argv 已逐个解析，没有手拼 file URL 的入口判断（硬零，无基线）`)

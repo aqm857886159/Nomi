@@ -287,3 +287,5 @@ export { default as IconLayoutBottombarCollapse } from '@tabler/icons-react/dist
 export { default as IconLayoutBottombarExpand } from '@tabler/icons-react/dist/esm/icons/IconLayoutBottombarExpand.mjs'
 export { default as IconArrowBarToLeft } from '@tabler/icons-react/dist/esm/icons/IconArrowBarToLeft.mjs'
 export { default as IconArrowBarToRight } from '@tabler/icons-react/dist/esm/icons/IconArrowBarToRight.mjs'
+export { default as IconAppWindow } from '@tabler/icons-react/dist/esm/icons/IconAppWindow.mjs'
+export { default as IconPictureInPicture } from '@tabler/icons-react/dist/esm/icons/IconPictureInPicture.mjs'

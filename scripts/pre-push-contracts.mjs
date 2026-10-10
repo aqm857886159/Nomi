@@ -69,6 +69,9 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:main-console', when: (files) => touchesGateInputs('check:main-console', files) },
   { name: 'check:asset-evidence', when: (files) => touchesGateInputs('check:asset-evidence', files) },
   { name: 'check:media-import-owner', when: (files) => touchesGateInputs('check:media-import-owner', files) },
+  { name: 'check:storyboard-owner', when: (files) => touchesGateInputs('check:storyboard-owner', files) },
+  { name: 'check:transport-assembly', when: (files) => touchesGateInputs('check:transport-assembly', files) },
+  { name: 'check:spend-receipt', when: (files) => touchesGateInputs('check:spend-receipt', files) },
   { name: 'check:canvas-edge-writers', when: (files) => touchesGateInputs('check:canvas-edge-writers', files) },
   { name: 'check:dangling-tokens', when: (files) => touchesGateInputs('check:dangling-tokens', files) },
   { name: 'check:dangling-tailwind', when: (files) => touchesGateInputs('check:dangling-tailwind', files) },
@@ -107,6 +110,8 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:model-availability', when: null },
   { name: 'check:model-identity', when: null },
   { name: 'check:outbound-policy', when: null },
+  // 2026-10-10：scripts/ 里 gh / git 网络 / GitHub·Cloudflare API 调用必须走共用瞬断重试（#1155 后 main 上一次 fetch failed 判红的同类）；纯 node，本机约 3 秒，只在动到 scripts 时跑
+  { name: 'check:script-network-retry', when: (files) => touchesGateInputs('check:script-network-retry', files) },
 ])
 
 const VITEST_ENTRY = 'node_modules/vitest/vitest.mjs'

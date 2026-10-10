@@ -162,10 +162,10 @@ async function measureShellGeometry(win) {
     const assistant = aiLayout === 'sidebar' ? assistantRaw : null
     const timelineHost = box(section.querySelector('.workbench-generation__timeline'))
     const timelinePanel = box(section.querySelector('.workbench-generation__timeline .workbench-timeline'))
-    const appBarRight = box(document.querySelector('.nomi-appbar__right'))
-    // 收起态的 Nomi 坞（浮起来那条输入条）与收起态的时间轴胶囊。
-    const collapsedDock = box(section.querySelector('[data-agent-collapsed-dock]'))
-    const timelinePill = box(section.querySelector('.workbench-generation__timeline-handle'))
+    const appBarRight = box(document.querySelector('[data-shell-topbar] [role="toolbar"]'))
+    // 收起态的 Nomi（10-08 外壳重设计：画布右下那颗小球；原来浮起的那条输入坞已删）与收起态的时间轴窄条。
+    const collapsedDock = box(section.querySelector('[data-agent-ball]'))
+    const timelinePill = box(section.querySelector('[data-timeline-strip]'))
     const tracks = section.querySelector('.workbench-generation__timeline .workbench-timeline__tracks')
     const trackRows = {}
     for (const id of ['imageTrack', 'videoTrack']) {
@@ -240,35 +240,12 @@ function assertBottomBandSpans(geometry, state) {
   expect(geometry.appBarOverlapsTimeline, `${state}：顶栏右侧功能区与底部带相交`).toBe(false)
 }
 
-/**
- * 坞该落在哪：刚好让开**横向与它重叠**的那几块底部停靠区（让位者不算——让位关系必须单向）。
- * 返回它允许的最低上界；坞的下边界高过这个上界一大截就是「抬太高」。
- */
-function dockCeiling(geometry) {
-  const self = geometry.collapsedDock
-  const floor = geometry.timelineHost.h > 1 ? geometry.timelineHost.top : geometry.section.bottom
-  let ceiling = floor
-  for (const dock of geometry.bottomDocks) {
-    if (dock.avoider) continue
-    if (dock.left >= self.right || self.left >= dock.right) continue
-    if (dock.bottom <= self.bottom && dock.top >= self.top) continue
-    ceiling = Math.min(ceiling, dock.top)
-  }
-  return ceiling
-}
-
-/** 24px = 坞自己的 pb-3(12) 再加一格呼吸；超过它就不是「刚好让开」了。 */
-const DOCK_LIFT_SLACK = 24
-function dockLiftIsMinimal(geometry) {
-  return geometry.collapsedDock.bottom >= dockCeiling(geometry) - DOCK_LIFT_SLACK
-}
-function dockLiftExplain(geometry) {
-  return {
-    dockBottom: geometry.collapsedDock.bottom,
-    ceiling: dockCeiling(geometry),
-    slack: DOCK_LIFT_SLACK,
-    docks: geometry.bottomDocks,
-  }
+/** 小球住在画布那一格的浮层里（外壳把它挂进画布），所以它的矩形必须整个落在画布里——落到底部带上就是挂错了层。 */
+function ballInsideCanvas(geometry) {
+  const ball = geometry.collapsedDock
+  const canvas = geometry.canvas
+  return Boolean(ball && canvas) && ball.left >= canvas.left - 0.5 && ball.right <= canvas.right + 0.5
+    && ball.top >= canvas.top - 0.5 && ball.bottom <= canvas.bottom + 0.5
 }
 
 try {
@@ -298,7 +275,7 @@ try {
   await clickOrFail(win.locator('nav.nomi-stepper [data-mode="generation"]').first(), '进入生成画布')
 
   const panel = win.locator('.workbench-generation__timeline .workbench-timeline').first()
-  const capsule = win.locator('.workbench-generation__timeline-handle')
+  const capsule = win.locator('[data-timeline-strip]')
   const assistantPane = win.locator('.workbench-generation [data-assistant-pane]').first()
 
   // ① 只开面板（时间轴默认收起）：面板拿满内容行，底部带不占高度。
@@ -449,36 +426,29 @@ try {
     `② 收起面板后画布没真的变宽（${both.canvas.w} → ${timelineOnly.canvas.w}），这一段就没测到东西`,
   ).toBe(true)
 
-  // ②b 09-13 的另一半：收起 Nomi 后那条浮起的输入条**不许压住底部带**。
-  // 它属于内容行（外壳给的落位），所以下边界必须停在底部带顶边之上。
-  expect(timelineOnly.collapsedDock, '②b 收起态的 Nomi 坞没渲染——这一段就没测到东西').not.toBeNull()
+  // ②b 09-13 的另一半：收起 Nomi 后那颗小球**不许压住底部带**。
+  // 它挂在画布那一格的浮层里（外壳给的落位），所以必须整个落在画布里、停在底部带顶边之上。
+  expect(timelineOnly.collapsedDock, '②b 收起态的 Nomi 小球没渲染——这一段就没测到东西').not.toBeNull()
   expect(
-    timelineOnly.collapsedDock.h > 20 && timelineOnly.collapsedDock.w > 100,
-    `②b 收起态的 Nomi 坞没有可见几何（${JSON.stringify(timelineOnly.collapsedDock)}）`,
+    timelineOnly.collapsedDock.h >= 40 && timelineOnly.collapsedDock.w >= 40,
+    `②b 收起态的 Nomi 小球没有可见几何（${JSON.stringify(timelineOnly.collapsedDock)}）`,
   ).toBe(true)
   console.log('[停靠区名单] 面板收起 + 时间轴开', JSON.stringify(timelineOnly.bottomDocks))
-  expect(timelineOnly.dockOverlapsTimelineBand, '②b 收起态的 Nomi 输入条压住了底部带（09-13 原症状）').toBe(false)
-  // 「不压住」还要配一条「别抬太高」，否则把坞顶到内容行正中也能让上一句恒真——
-  // 实测撞过：动画中途那一帧被 latch 住，坞高出该有的位置近 200px，界面上只看得出
-  // 「位置怪」看不出原因。该有的位置 = 刚好让开**横向重叠**的那几块停靠区。
-  expect(
-    dockLiftIsMinimal(timelineOnly),
-    `②b Nomi 坞抬得比需要的高：${JSON.stringify(dockLiftExplain(timelineOnly))}`,
-  ).toBe(true)
+  expect(timelineOnly.dockOverlapsTimelineBand, '②b 收起态的 Nomi 小球压住了底部带（09-13 原症状）').toBe(false)
+  expect(ballInsideCanvas(timelineOnly), `②b 小球没落在画布那一格里：${JSON.stringify({ ball: timelineOnly.collapsedDock, canvas: timelineOnly.canvas })}`).toBe(true)
   expect(
     timelineOnly.collapsedDock.bottom <= timelineOnly.timelineHost.top + 1,
-    `②b Nomi 坞的下边界越过了底部带顶边（dock.bottom=${timelineOnly.collapsedDock.bottom} band.top=${timelineOnly.timelineHost.top}）`,
+    `②b Nomi 小球的下边界越过了底部带顶边（ball.bottom=${timelineOnly.collapsedDock.bottom} band.top=${timelineOnly.timelineHost.top}）`,
   ).toBe(true)
-  // 两条轨都点得到：坞压住轨道时这两句会红（它 pointer-events-auto，盖住就真的拦住）。
+  // 两条轨都点得到：小球压住轨道时这两句会红（它 pointer-events-auto，盖住就真的拦住）。
   for (const id of ['imageTrack', 'videoTrack']) {
     await expectHittable(win.locator(`.workbench-generation__timeline [data-track-id="${id}"]`), `②b ${id} 轨道行`)
   }
   console.log('[几何证据] 面板收起 + 时间轴开', JSON.stringify({ overlay: timelineOnly.assistantRaw, dock: timelineOnly.collapsedDock, band: timelineOnly.timelineHost }))
   await screenshotSettled(win, { path: path.join(shotsDir, '02-timeline-only.png') })
 
-  // ⑤ 两个都收起（09-13 的另一半）：胶囊是叫回时间轴的唯一入口，必须**看得见 + 点得到**。
-  //    此刻 Nomi 坞就在工作区底部中央，胶囊的默认落位也是底部居中——它得按外壳层的
-  //    停靠区名单让开。这一段前，那份名单只看画布子树，看不见坞，于是胶囊落在它下面。
+  // ⑤ 两个都收起（09-13 的另一半）：底边窄条是叫回时间轴的唯一入口，必须**看得见 + 点得到**。
+  //    10-08 外壳重设计：窄条是工作面底边的一行（画布之下），小球挂在画布那一格里——两者分属上下两格，结构上叠不到一起。
   const bandProof2 = await proveProbe(panel, '⑤ 前：面板已收起、时间轴仍展开')
   await clickOrFail(
     win.locator('.workbench-generation__timeline [data-timeline-collapse]').first(),
@@ -497,16 +467,13 @@ try {
   expect(collapsed.timelineHost.h, '⑤ 收起后底部带不该再占高度').toBeLessThanOrEqual(1)
   expect(collapsed.bottomRightCovered, '⑤ 右下角没有任何一块外壳盖住').toBe(true)
   expect(collapsed.timelinePill, '⑤ 收起态胶囊没渲染').not.toBeNull()
-  expect(collapsed.collapsedDock, '⑤ 收起态的 Nomi 坞没渲染——避让对象不在场，这一段就没测到东西').not.toBeNull()
+  expect(collapsed.collapsedDock, '⑤ 收起态的 Nomi 小球没渲染——避让对象不在场，这一段就没测到东西').not.toBeNull()
   expect(
     collapsed.dockOverlapsTimelinePill,
-    `⑤ 胶囊与 Nomi 坞相交（胶囊 ${JSON.stringify(collapsed.timelinePill)} 坞 ${JSON.stringify(collapsed.collapsedDock)}）`,
+    `⑤ 时间轴窄条与 Nomi 小球相交（窄条 ${JSON.stringify(collapsed.timelinePill)} 小球 ${JSON.stringify(collapsed.collapsedDock)}）`,
   ).toBe(false)
+  expect(ballInsideCanvas(collapsed), `⑤ 小球没落在画布那一格里：${JSON.stringify({ ball: collapsed.collapsedDock, canvas: collapsed.canvas })}`).toBe(true)
   // 「不相交」还不够：它可能被别的浮层盖住。用真实 elementFromPoint 判它自己在最上面。
-  expect(
-    dockLiftIsMinimal(collapsed),
-    `⑤ Nomi 坞抬得比需要的高：${JSON.stringify(dockLiftExplain(collapsed))}`,
-  ).toBe(true)
   const pillHit = await expectHittable(capsule, '⑤ 收起态时间轴胶囊')
   console.log('[几何证据] 两个都收起', JSON.stringify({ pill: collapsed.timelinePill, dock: collapsed.collapsedDock, pillHit }))
   await screenshotSettled(win, { path: path.join(shotsDir, '05-both-collapsed-pill-reachable.png') })

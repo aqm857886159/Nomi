@@ -26,7 +26,7 @@
     "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
     "src/workbench/ai/v4/useAgentPanelV4Data.ts",
     "src/workbench/ai/ProjectAgentResidentShell.tsx",
-    "src/ui/app-shell/CollapsedAiChip.tsx",
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
     "src/devlab/designLab/v4/states/01-vocabulary.tsx",
     "src/devlab/designLab/v4/states/03-flow.tsx",
     "src/devlab/designLab/v4/states/07-spend-params.tsx"

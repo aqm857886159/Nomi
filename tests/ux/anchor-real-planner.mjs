@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { officialPlannerPrice, requestQuote, textUsageCost, CNY_PER_USD } from './g1/c0-real-budget.mjs'
+import { newProjectEntry } from './_shell.mjs'
 
 const MODEL = 'deepseek-v4-pro'
 const VENDOR = 'deepseek-official'
@@ -175,7 +176,7 @@ async function run() {
     fs.rmSync(bridge)
     await win.reload({ waitUntil: 'domcontentloaded' })
     expect(await win.evaluate(() => window.nomiDesktop.projects.listAsync())).toEqual([])
-    await win.getByRole('button', { name: /^新建空白项目/ }).click()
+    await newProjectEntry(win).click()
     await expect(win.locator(DOCUMENT)).toBeVisible()
     const available = await win.evaluate(() => window.nomiDesktop.modelCatalog.listModels())
     assert.ok(available.some(m => m.vendorKey === VENDOR && m.modelKey === MODEL && m.published))

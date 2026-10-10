@@ -6,7 +6,7 @@ import { cn } from '../../../utils/cn'
 import { DesignEmptyState, WorkbenchButton } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
 import StoryboardPlanEditor from './StoryboardPlanEditor'
-import { CreationResourceTreeToggle } from '../CreationResourceTreeToggle'
+import { assistantPaneWidth } from '../../assistantWidthBounds'
 
 /**
  * 分镜独立工作区（v5 C3）：storyboard 模式的唯一挂载点，分镜表全宽（§3.7 删 1264 上限）、
@@ -41,8 +41,8 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
   if (plan) {
     return (
       <section
-        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 gap-4 bg-workbench-bg', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
-        style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantWidth}px` } as React.CSSProperties}
+        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
+        style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantPaneWidth(assistantWidth)}px` } as React.CSSProperties}
         aria-label={t('workspace.storyboard')}
       >
         <div className="min-w-0 min-h-0 overflow-hidden">
@@ -55,13 +55,11 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
 
   return (
     <section
-      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 gap-4 bg-workbench-bg', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
-      style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantWidth}px` } as React.CSSProperties}
+      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
+      style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantPaneWidth(assistantWidth)}px` } as React.CSSProperties}
       aria-label={t('workspace.storyboard')}
     >
-      <div className="relative min-w-0 min-h-0 grid place-items-center">
-        {/* 空态也要有回头路：没有方案时中间没有面板头，钮就落在这块区域左上角。 */}
-        <div className="absolute left-0 top-0"><CreationResourceTreeToggle placement="panel" /></div>
+      <div className="relative grid min-h-0 min-w-0 place-items-center rounded-panel bg-nomi-paper ring-1 ring-nomi-line-soft">
         <DesignEmptyState
           icon={<IconMovie size={34} className="text-nomi-ink-30" />}
           title={t('storyboardEditor.empty.title')}

@@ -26,7 +26,7 @@ import { useTimelinePlaybackClock } from '../timeline/useTimelinePlaybackClock'
 // 落盘布局）不会误标。
 //
 // 顶栏「布局」菜单与「导出 MP4」不在这里：合同 §2.2 要求它们固定在**应用顶栏右上**，
-// 见 NomiAppBar 的 layout / primary 两组。
+// 见 40px 合一顶栏（ShellTopBar）预览页右簇的「布局」与「导出 MP4」。
 
 type PreviewWorkspaceProps = { aiCollapsed?: boolean; agentDockRef?: React.Ref<HTMLDivElement> }
 
@@ -133,7 +133,6 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const markCustom = useWorkbenchStore((state) => state.markEditingPanelLayoutCustom)
   const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
   const setEditingPanelLayout = useWorkbenchStore((state) => state.setEditingPanelLayout)
-  const setAgentCollapsed = useWorkbenchStore((state) => state.setProjectAgentDockCollapsed)
   const undoEditingPanelLayout = useWorkbenchStore((state) => state.undoEditingPanelLayout)
   const sourcePanelRef = usePanelRef()
   const inspectorPanelRef = usePanelRef()
@@ -165,15 +164,12 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey && event.key === '\\') {
-        event.preventDefault()
-        setAgentCollapsed(!useWorkbenchStore.getState().projectAgentDockCollapsed)
-      }
+      // ⌘\ 收 Agent 搬到外壳（ShellAgentHost）：四个面统一「停靠 ↔ 小球」，这里只留面板布局撤销。
       if (event.metaKey && event.key.toLowerCase() === 'z' && undoEditingPanelLayout()) event.preventDefault()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setAgentCollapsed, undoEditingPanelLayout])
+  }, [undoEditingPanelLayout])
 
   const onUserLayout = React.useCallback(
     (_layout: unknown, meta: { isUserInteraction: boolean }) => { if (meta.isUserInteraction) markCustom() },
@@ -182,15 +178,17 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
 
   return (
     <section
-      className="workbench-preview relative h-full w-full min-w-0 min-h-0 overflow-hidden bg-[var(--workbench-bg)]"
+      className="workbench-preview relative h-full w-full min-w-0 min-h-0 overflow-hidden bg-nomi-chrome"
       aria-label={t('workspace.preview')}
     >
       <div className="grid h-full w-full min-w-0" id="editing-surface-root"
         style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)' }}>
-        <div className="min-h-0 min-w-0" id="editing-surface-main">
+        <div className="min-h-0 min-w-0 overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft" id="editing-surface-main">
           <Group orientation="vertical" className="h-full" id="editing-surface-left" onLayoutChanged={onUserLayout}>
             <Panel id="editing-surface-stage" minSize={EDITING_PANEL_BOUNDS.stage.min}>
               <Group orientation="horizontal" className="h-full" id="editing-surface-stage-row" onLayoutChanged={onUserLayout}>
+                {/* 剪辑页左边那栏「镜头 / 素材」原样保留（协调裁决：外壳只搬容器、不拆内容；布局菜单与 Agent 的 layout 契约都还认它）。
+                    同样的「拖进时间轴 / 点击追加」也在左栏「目录」抽屉里（第 32 项）。 */}
                 <Panel
                   id="editing-surface-source"
                   panelRef={sourcePanelRef}
@@ -214,15 +212,6 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
                       playheadFrame={timeline.playheadFrame}
                       timeline={timeline}
                     />
-                    {/*
-                      收起态：Nomi 那一列整列让出（叫回 Nomi 只有顶栏角标一个入口——09-01 定稿 §11.2，
-                      2026-09-25 删掉了与它重复的右侧 32px 竖条），同时同一个 composer 浮到**预览列**下沿（§2.6
-                      「结果全屏」——交回屏幕的是转录区，不是对话本身；介入槽跟着 composer 走，
-                      计划仍能读能批）。
-                      宿主挂在预览列而不是整条舞台行：居中要对齐画面而不是「素材+画面+属性」
-                      三块的合并中点，dock 量到的 bottom 也才等于 transport 所在的那条下沿。
-                    */}
-                    {aiCollapsed ? <div ref={agentDockRef} className="pointer-events-none absolute inset-0 z-40 overflow-visible" data-agent-collapsed-overlay="true" /> : null}
                   </div>
                 </Panel>
                 <SplitHandle vertical />
