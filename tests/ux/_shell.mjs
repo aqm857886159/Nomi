@@ -73,7 +73,7 @@ export async function ensureAgentPanelOpen(win, label = '展开常驻 Agent 面�
     await clickOrFail(win.locator(AGENT_BALL).first(), `${label}（点 Agent 小球）`, budget)
   }
   await expect(win.locator(AGENT_PANEL).first(), `${label}：点完面板仍没有展开`).toBeVisible(budget)
-  if (form === 'dock' && (await win.locator(DOCK_LAYER).count()) === 0) {
+  if (form === 'dock' && (await win.locator(DOCK_LAYER).count()) < 1) {
     await clickOrFail(win.locator(`${AGENT_PANEL} ${TO_DOCK}`).first(), `${label}（切到停靠）`, budget)
     await expect(win.locator(DOCK_LAYER).first(), `${label}：点了「停靠」仍不是停靠形态`).toBeAttached(budget)
   }

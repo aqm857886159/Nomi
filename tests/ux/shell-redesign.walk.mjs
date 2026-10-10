@@ -199,7 +199,8 @@ try {
   await win.waitForFunction(() => /projectId=/.test(location.href), undefined, { timeout: DEFAULT_TIMEOUT_MS })
   await expect(win.locator('[data-agent-ball]'), '重开项目后小球不见了（被弹成了浮窗 / 停靠）').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await win.waitForTimeout(1200)
-  await expect(win.locator(AGENT_PANEL).first(), '重开项目后 Agent 自己弹开了').toBeHidden()
+  const reopenedBall = await proveProbe(win.locator('[data-agent-ball]'), '重开后小球在场（判面板没弹开之前先证探针活着）')
+  await expectAbsent(win.locator(AGENT_PANEL), { provenBy: reopenedBall, message: '重开项目后 Agent 自己弹开了' })
 
   // Main 板：画布 + 小球 + 底边时间轴窄条
   measures.main = {
