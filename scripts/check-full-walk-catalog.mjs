@@ -70,11 +70,14 @@ export function checkFullWalkCatalog({ journeys, playbooks, inventory, clickTarg
 
   // ── 剧本 ──
   const playbookIds = new Set()
+  const playbookScripts = new Set()
   for (const playbook of playbooks ?? []) {
     const label = `剧本 ${playbook?.id ?? JSON.stringify(playbook)}`
     if (!/^pb\d{2}-[a-z0-9-]+$/.test(playbook?.id ?? '')) problems.push(`${label}：id 要是 pbNN-小写短横线`)
     else if (playbookIds.has(playbook.id)) problems.push(`${label}：id 重复`)
     playbookIds.add(playbook?.id)
+    if (playbookScripts.has(playbook?.script)) problems.push(`${label}：script 重复（剧本编号必须唯一）`)
+    playbookScripts.add(playbook?.script)
     if (!playbook?.title?.['zh-CN'] || !playbook?.title?.en) problems.push(`${label}：标题要中英两种`)
     if (typeof playbook?.paid !== 'boolean') problems.push(`${label}：paid 必须显式写 true / false`)
     const suffix = playbook?.paid ? '.paid.mjs' : '.walk.mjs'

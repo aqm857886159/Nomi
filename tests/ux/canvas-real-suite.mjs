@@ -143,7 +143,9 @@ export function runCanvasScenario(scenario, {
     // 场景自带的环境变量（例：夹具开关）只加不改调用方的。
     env: scenario.env ? { ...env, ...scenario.env } : env,
     encoding: 'utf8',
-    stdio: 'pipe',
+    // Real benchmark runs inherit the terminal so child progress is visible immediately.
+    // Injected test runners keep pipe output so assertions can inspect transcripts.
+    stdio: spawnProcess === spawnSync ? 'inherit' : 'pipe',
     maxBuffer: MAX_CANVAS_SCENARIO_LOG_BYTES,
     timeout: resolvedTimeoutMs,
     killSignal: 'SIGKILL',
@@ -183,7 +185,7 @@ export function runCanvasScenario(scenario, {
   }
 }
 
-export function runCanvasSuite(profile, { cwd = repoRoot, env = process.env, shard = null } = {}) {
+export function runCanvasSuite(profile, { cwd = repoRoot, env = process.env, shard = null, spawnProcess = spawnSync } = {}) {
   const suiteLabel = shard ? `${profile} ${shard.index}/${shard.total}` : profile
   const outputName = shard ? `${profile}-${shard.index}of${shard.total}` : profile
   const outputDir = path.join(cwd, 'outputs', 'canvas-acceptance', outputName)
@@ -192,8 +194,14 @@ export function runCanvasSuite(profile, { cwd = repoRoot, env = process.env, sha
   const results = []
 
   for (const scenario of scenariosForProfile(profile, { shard })) {
-    console.log(`\n[canvas:${suiteLabel}] ${scenario.id}`)
-    results.push(runCanvasScenario(scenario, { cwd, env: { ...env, NOMI_CANVAS_PREVIOUS_SCENARIO: results.at(-1)?.id ?? '' }, outputDir }))
+    const index = results.length + 1
+    const total = scenariosForProfile(profile, { shard }).length
+    const startedAt = Date.now()
+    console.log(`[canvas:${suiteLabel}] START ${index}/${total} ${scenario.id}`)
+    const result = runCanvasScenario(scenario, { cwd, env: { ...env, NOMI_CANVAS_PREVIOUS_SCENARIO: results.at(-1)?.id ?? '' }, outputDir, spawnProcess })
+    const outcome = result.exitCode === 0 ? 'PASS' : result.timedOut ? 'TIMEOUT' : 'FAIL'
+    console.log(`[canvas:${suiteLabel}] END ${index}/${total} ${scenario.id} ${outcome} ${Date.now() - startedAt}ms`)
+    results.push(result)
   }
 
   const summary = {
