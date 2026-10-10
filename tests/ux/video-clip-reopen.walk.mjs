@@ -120,8 +120,8 @@ try {
     await expect.poll(async () => newCards(await snapshot())[0]?.status, { timeout: stationTimeout({ operations: 1 }) }).toBe('running')
     await expect.poll(async () => newCards(await snapshot())[0]?.progress?.percent ?? 0, { timeout: stationTimeout({ operations: 2 }) }).toBeGreaterThan(0)
     // 关窗那一刻存下的就是这张 running 的卡（pagehide 里立即存盘；这里只要保证它确实在跑）
-    await win.waitForTimeout(1500)
-    expect(trimProcessCount()).toBeGreaterThan(0) // 探针活着：关窗前确实有我们的 ffmpeg 在跑
+    // 探针活着：关窗前确实有我们的 ffmpeg 在跑（等到看见为止，不靠固定 sleep）
+    await expect.poll(() => trimProcessCount(), { timeout: stationTimeout({ operations: 1 }) }).toBeGreaterThan(0)
     await app.close()
     // ② 进程：关窗之后不能留下我们的 ffmpeg
     await expect.poll(() => trimProcessCount(), { timeout: stationTimeout({ operations: 1 }) }).toBe(0)
