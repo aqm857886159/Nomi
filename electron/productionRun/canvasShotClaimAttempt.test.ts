@@ -14,9 +14,11 @@ import { prepareProductionGenerationReauthorization } from "./prepareProductionG
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { applyRunControl } from "./productionRunControl";
+import { NothingToResumeError } from "./resumeOutlook";
 import { createProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationShot, ProductionRun } from "./productionRunTypes";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
+import { landingThatBinds } from "./landFirstTestUtils";
 
 // 画布 ↔ 制作「这一镜归谁」的写命令：同一镜的第 2、3 次认领 / 删除必须各自落盘。
 // 根因合同：docs/fixes/2026-10-05-canvas-claim-attempt-id.root-cause.json；复盘：docs/plan/2026-10-05-engine-convergence-cut1.md §3。
@@ -88,7 +90,7 @@ function scheduler(root: string, repository: Repository, submits: string[], opti
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.mp4` }),
     now,
   });
-  return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", now, options });
+  return createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-batch", now, options });
 }
 
 const read = (repository: Repository): ProductionRun => repository.read("project-1", "op-batch")!;
@@ -118,11 +120,21 @@ function reworkApproved(repository: Repository, shotId: string, submits: string[
   return rework.attempt;
 }
 
-/** 用户在 Nomi 窗口里点「继续」，然后调度器跑到歇下。 */
-async function resume(root: string, repository: Repository, submits: string[], tag: string): Promise<void> {
+/**
+ * 用户在 Nomi 窗口里点「继续」，然后调度器跑到歇下。剩下的镜都归了画布（或节点删了）时，「继续」如实拒绝（#1139 V-1139c：
+ * 唯一判定 resumeOutlook）——这本身就是「制作不会再派它」的证据，调度器照样跑一趟、照样不派。
+ */
+async function resume(root: string, repository: Repository, submits: string[], tag: string): Promise<"resumed" | "nothing_to_resume"> {
   const latest = read(repository);
-  applyRunControl(repository, "project-1", "op-batch", latest, { commandId: `resume-${tag}`, expectedRevision: latest.revision, type: "run.control", payload: { action: "resume" }, issuedAt: now(), humanGesture: true });
+  let said: "resumed" | "nothing_to_resume" = "resumed";
+  try {
+    applyRunControl(repository, "project-1", "op-batch", latest, { commandId: `resume-${tag}`, expectedRevision: latest.revision, type: "run.control", payload: { action: "resume" }, issuedAt: now(), humanGesture: true });
+  } catch (error) {
+    if (!(error instanceof NothingToResumeError)) throw error;
+    said = "nothing_to_resume";
+  }
   await scheduler(root, repository, submits).runToQuiescence();
+  return said;
 }
 
 function productionSubmitsFor(repository: Repository, shotId: string): number {
@@ -146,7 +158,7 @@ describe("canvas ↔ production claim commands carry which attempt they are abou
     await stopOnLapsedConsent(root, repository, submits);
 
     await canvasGenerates(canvasPort, "shot-2", canvas);
-    await resume(root, repository, submits, "1");
+    expect(await resume(root, repository, submits, "1"), "剩下那一镜归了画布：「继续」如实说没有可继续的").toBe("nothing_to_resume");
 
     expect(canvas).toEqual(["canvas:shot-2"]);
     expect(productionSubmitsFor(repository, "shot-2")).toBe(0);

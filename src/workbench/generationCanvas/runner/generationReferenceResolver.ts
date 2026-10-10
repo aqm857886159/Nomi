@@ -1,6 +1,8 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { sortEdgesByOrder } from '../model/graphOps'
 import { archetypeForNode, referenceAssetKindForNode } from '../agent/referenceEdgeCapability'
+import { validateEdgeKinds } from '../../../../electron/shared/canvas/edgeAdmission'
+import { isDerivedOutputPair } from '../model/derivedOutput'
 import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { asUrl, findNodeResultUrl, resolveReferenceUrl } from './referenceUrl'
 import { resolveIndexedParameterReferenceAssignments } from '../model/parameterReferenceSlots'
@@ -121,6 +123,12 @@ export function resolveGenerationReferences(
   const edges = context.edges || []
   const nodesById = getNodesById(nodes)
   const edgesByTarget = getEdgesByTarget(edges)
+  // 旧项目里已经存在的非法旧边（视频 / 声音 → 文本、剪辑 → 图片……）不删用户数据，但执行时一律忽略：
+  // 目标这一类不收这种输入，它们不该变成参考素材。判据与新建连线同一份（edgeAdmission.validateEdgeKinds）；出处边（派生输出）不在此列。
+  const incomingEdges = (edgesByTarget.get(node.id) || []).filter((edge) => {
+    const source = nodesById.get(edge.source)
+    return !source || validateEdgeKinds(source, node, edge.mode).ok || isDerivedOutputPair(source, node.kind)
+  })
   const referenceImages: string[] = []
   const styleReferenceImages: string[] = []
   const characterReferenceImages: string[] = []
@@ -132,7 +140,7 @@ export function resolveGenerationReferences(
   const parameterContract = readParameterReferenceContract(node.meta)
   const parameterSlots = parameterContract?.slots ?? []
   const usesComfyParameterContract = Boolean(parameterContract && isComfyuiVendorKey(parameterContract.vendorKey))
-  const parameterAssignments = resolveIndexedParameterReferenceAssignments(node, parameterSlots, nodesById, edgesByTarget.get(node.id) || [])
+  const parameterAssignments = resolveIndexedParameterReferenceAssignments(node, parameterSlots, nodesById, incomingEdges)
   const slotByEdgeId = new Map(parameterAssignments.flatMap(({ slot, edge }) => edge ? [[edge.id, slot] as const] : []))
   const parameterReferenceUrls: Record<string, string | null> = Object.fromEntries(parameterAssignments
     .flatMap(({ slot, edge }) => {
@@ -161,7 +169,7 @@ export function resolveGenerationReferences(
 
   // **按 order 升序**遍历 → referenceImages（喂 buildArchetypeInputParams 的数组槽）顺序稳定，
   // 与显示侧 resolveReferenceSlots 同一口径，保住 character1..N（audit 2026-06-16 §1d「数组参考收口到有序边」）。
-  for (const edge of edgesByTarget.get(node.id) || []) {
+  for (const edge of incomingEdges) {
     // A named edge belongs only to its current declaration, never to another model's generic inputs.
     const parameterSlot = slotByEdgeId.get(edge.id)
     if (edge.targetParamKey && !parameterSlot) continue

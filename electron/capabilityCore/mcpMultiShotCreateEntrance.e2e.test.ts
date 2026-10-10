@@ -24,6 +24,7 @@ import { createMultiShotBatchScheduler } from "../productionRun/multiShotBatchSc
 import { currentAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { verbToTransportCall } from "../agentLane/laneVerbTransport";
+import { landingThatBinds } from "../productionRun/landFirstTestUtils";
 
 // P4 S6.5 生产入口 — end-to-end over the REAL semantic create→seal→gate→start entrance (NOT test injection
 // into the reducer). This is the proof the review demanded: `nomi_operation_create` with a multi-shot
@@ -146,7 +147,7 @@ function harness(
     materializeOutput: async ({ providerTaskId }) => ({ artifactId: `artifact-${providerTaskId}`, kind: "video", contentHash: `hash-${providerTaskId}`, projectRelativePath: `.nomi/out/${providerTaskId}.png` }),
     now,
   });
-  const buildScheduler = () => createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-entrance", now });
+  const buildScheduler = () => createMultiShotBatchScheduler({ repository, landShots: landingThatBinds(repository), submission, projectId: "project-1", runId: "op-entrance", now });
   // The `start` dep mirrors appIntegration's multi-shot start branch: transition sealed→submitted, then
   // kick the durable scheduler. (This is exactly the branch S6.5 fixed — without the submit, batchActive
   // stays false and the scheduler no-ops.)

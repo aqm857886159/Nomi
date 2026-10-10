@@ -187,3 +187,5 @@ CODEX-REPORT.md
 
 # PR 正文草稿（协调会话 / 子线写给 gh pr create 用，永不入库；10-07 被误提交进 main 一次）
 .tmp-pr-body.md
+# 走查失败截图写 .tmp/，不进证据目录；万一误写进来也不让它被提交。
+docs/evidence/**/FAIL-*.png

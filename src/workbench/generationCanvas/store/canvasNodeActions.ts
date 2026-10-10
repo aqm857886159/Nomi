@@ -4,10 +4,11 @@ import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { resolveInsertionPosition } from './resolveInsertionPosition'
 import { visibleCanvasRect, visibleInsertionPoint } from './canvasVisibleArea'
 import { tidyCanvasLayout } from './tidyCanvasLayout'
-import { getDefaultCategoryForNodeKind, type GenerationCanvasNode, type NodeGroup } from '../model/generationCanvasTypes'
+import { getDefaultCategoryForNodeKind, type GenerationCanvasNode, type NodeGroup, type TiptapDocJson } from '../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { resultIdentity, setNodeMainResultPatch } from '../model/nodeResultLifecycle'
 import { assignClonedShotIndexes, backfillShotIndexes, changesShotIdentity, isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
+import { docToPlainText, tiptapDocFromPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { buildCanvasNode } from '../../../../electron/capabilityCore/canvasNodeFactory'
 import { RENDERER_NODE_FACTORY_DEPS } from './rendererNodeFactoryDeps'
 import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasIds'
@@ -21,6 +22,7 @@ import i18n from '../../../i18n'
 import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { captureCanvasWorkflowTemplate, instantiateCanvasWorkflowTemplate } from '../plugins/canvasWorkflowTemplates'
 import { emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
+import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 
 // 删节点 → 时间轴对账(数据一致性):clip 创建时把节点产物 url 快照冻结、无 node→clip 同步,
 // 删了节点时间轴仍引用悬空/过期素材(导出会渲染已删节点的旧帧)。删完节点单向通知 workbenchStore
@@ -262,6 +264,31 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // title 随事件携带:S9 记忆提炼器增量扫描拿不到旧事件里的标题,事件自含可读。
     emitCanvasGesture([{ type: locked ? 'canvas.node.locked' : 'canvas.node.unlocked', payload: { nodeId, title: existing.title } }])
   },
+  writeNodeBody: (nodeId, contentJson, options) => {
+    const existing = get().nodes.find((candidate) => candidate.id === nodeId)
+    if (!existing) return
+    if (options?.undoPoint) pushUndoSnapshot(get())
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.contentJson = contentJson
+      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
+      if (options?.undoPoint) Object.assign(state, getHistoryFlags())
+    })
+    if (shouldEmitCanvasMutation(options)) {
+      emitCanvasGesture([{ type: 'canvas.node.updated', payload: { nodeId, patch: { contentJson } } }])
+    }
+  },
+  restoreNodeBody: (nodeId, contentJson) => {
+    get().writeNodeBody(nodeId, contentJson ?? { type: 'doc', content: [] })
+  },
+  setNodeText: (nodeId, text, mode = 'replace') => {
+    const existing = get().nodes.find((candidate) => candidate.id === nodeId)
+    if (!existing) return
+    const added = tiptapDocFromPlainText(text) as TiptapDocJson
+    const kept = mode === 'append' && docToPlainText(existing.contentJson) ? (existing.contentJson?.content ?? []) : []
+    get().writeNodeBody(nodeId, { type: 'doc', content: [...kept, ...(added.content ?? [])] }, { undoPoint: true })
+  },
   moveNode: (nodeId, position, options) => {
     // 守卫上移到 set 外(影子日志要与真实变更同真值;语义与原内嵌守卫等价)
     const existing = get().nodes.find((candidate) => candidate.id === nodeId)
@@ -467,9 +494,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
         target: copiedNode.id,
       }))
     pushUndoSnapshot(state)
+    let landed: AppendedEdges = { added: [], rejected: [] }
     set((current) => {
       current.nodes.push(copiedNode)
-      current.edges.push(...incomingEdges)
+      landed = appendAdmittedEdges(current, incomingEdges)
       if (copiedNode.groupId) {
         const group = current.groups.find((candidate) => candidate.id === copiedNode.groupId)
         if (group && !group.nodeIds.includes(copiedNode.id)) {
@@ -485,9 +513,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     const touchedGroup = copiedNode.groupId ? get().groups.find((group) => group.id === copiedNode.groupId) : undefined
     emitCanvasGesture([
       { type: 'canvas.node.added', payload: { node: copiedNode } },
-      ...incomingEdges.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
+      ...landed.added.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
       ...(touchedGroup ? [{ type: 'canvas.group.updated', payload: { group: touchedGroup } }] : []),
     ])
+    reportSkippedEdges(landed.rejected, state.projectId)
     return copiedNode
   },
   reassignNodeCategory: (nodeId, categoryId) => {
@@ -614,9 +643,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     if (!instantiated.nodes.length) return []
     instantiated.nodes = assignClonedShotIndexes(currentState.nodes, instantiated.nodes)
     pushUndoSnapshot(currentState)
+    let landedTemplateEdges: AppendedEdges = { added: [], rejected: [] }
     set((state) => {
       state.nodes = [...state.nodes, ...instantiated.nodes]
-      state.edges = [...state.edges, ...instantiated.edges]
+      landedTemplateEdges = appendAdmittedEdges(state, instantiated.edges)
       state.groups = [...state.groups, ...instantiated.groups]
       state.selectedNodeIds = instantiated.nodes.map((node) => node.id)
       state.pendingConnectionSourceId = ''
@@ -626,9 +656,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     })
     emitCanvasGesture([
       ...instantiated.nodes.map((node) => ({ type: 'canvas.node.added' as const, payload: { node } })),
-      ...instantiated.edges.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
+      ...landedTemplateEdges.added.map((edge) => ({ type: 'canvas.edge.added' as const, payload: { edge } })),
       ...instantiated.groups.map((group) => ({ type: 'canvas.group.created' as const, payload: { group } })),
     ])
+    reportSkippedEdges(landedTemplateEdges.rejected, currentState.projectId)
     return instantiated.nodes
   },
 })

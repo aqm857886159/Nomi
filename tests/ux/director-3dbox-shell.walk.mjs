@@ -51,7 +51,8 @@ try {
   await createBlankProject(win, projectsDir)
   await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout({ operations: 2 }) })
   // 空项目没有「画面」：先走真入口建一个，导演台节点才有地方落（与 director-electron.walk 同一做法）
-  await win.getByText('新建画面', { exact: false }).first().click({ timeout: stationTimeout({ operations: 2 }) })
+  // 2026-10-08：空画布的「+ 新建画面」换成一排任务卡（拍板 ③），建图片卡点「图片」那张。
+  await win.locator('[data-empty-canvas-tasks] [data-add-intent="image"]').first().click({ timeout: stationTimeout({ operations: 2 }) })
   await addCanvasNodeFromRail(win, 'director', { timeout: stationTimeout({ operations: 2 }) })
   // 新节点落在视口外时画布给一枚「新节点在右侧 →」：点它把视口带过去（用户也是这么找到它的）
   const offscreenHint = win.getByText('新节点在', { exact: false }).first()

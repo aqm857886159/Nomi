@@ -179,10 +179,10 @@ try {
   await resize(1600, 1000)
   await dismissFirstRun()
 
-  // 两家都只写占位 key：让同一个 Nano Banana 2 出现 15 档比例 + 多供应商选择；全程不点生成。
+  // 两家（kie + fal：都是「首次使用才验」的内置家，存 key 不发验证请求；apimart 有凭据探测端点，占位 key 会被拒）都只写占位 key：让同一个 Nano Banana 2 出现 15 档比例 + 多供应商选择；全程不点生成。
   const keyStatuses = await getWin().evaluate(() => Promise.all([
     window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
-    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('apimart', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
+    window.nomiDesktop?.modelCatalog?.upsertVendorApiKey('fal', { apiKey: 'nomi-e2e-placeholder', enabled: true }),
   ]))
   assert(keyStatuses.every((status) => Boolean(status?.hasApiKey)), '隔离模型目录已启用两家图像供应商（不发生成请求）')
   await getWin().reload()
@@ -207,10 +207,10 @@ try {
     ['image', '图片节点'],
     ['video', '视频节点'],
     ['audio', '声音节点'],
+    ['text', '文字节点'],
     ['clip', '剪辑节点'],
   ]
   const moreTools = [
-    ['text', '文字'],
     ['director', '导演台'],
     ['model3d', '3D 模型'],
     ['panorama', '全景图'],
@@ -219,7 +219,7 @@ try {
   const residentButtons = toolbar.locator('[data-add-intent]')
   assert(
     (await residentButtons.count()) === residentTools.length + 1,
-    '左侧常驻恰好 5 个（四种生成 + 导入）',
+    '左侧常驻恰好 6 个（五种生成 + 导入；09-10 起文字回到常驻）',
     `实测 ${await residentButtons.count()} 个`,
   )
   for (const [kind, tooltipText] of residentTools) {
@@ -237,7 +237,7 @@ try {
     '导入钮说得清按下去会发生什么',
   )
 
-  // 「更多」：先展开、证明收进去的 5 个都在（这是基线），再收起来证明它们真的不占常驻位。
+  // 「更多」：先展开、证明收进去的 4 个都在（这是基线），再收起来证明它们真的不占常驻位。
   // 顺序不能反——没有基线的「没看到」和「探针根本没生效」在观测上一模一样。
   const moreButton = toolbar.locator('[data-canvas-add-more="true"]')
   await expectVisible(moreButton, '左侧栏底部必须有一颗「更多」')
@@ -252,7 +252,8 @@ try {
     moreProofs.push([kind, label, await proveProbe(toolbar.locator(`[data-node-kind="${kind}"]`), `展开时${label}在工具条里`)])
   }
   // §1.5.3「分段要有名字」：两段各自带名字，不是一条看不见的分隔线。
-  for (const sectionLabel of ['更多', '空间 · 草图']) {
+  // 2026-10-08 Claude Design 拍板稿：「+」点开 = 「空间」一组（导演台 / 3D 模型 / 全景 / 白板），文字在常驻里，不再有「更多」那一段。
+  for (const sectionLabel of ['空间']) {
     assert(
       (await moreMenu.locator(`[role="group"][aria-label="${sectionLabel}"]`).count()) === 1,
       `「更多」菜单里有名为「${sectionLabel}」的一段`,
@@ -276,7 +277,7 @@ try {
   await composer.waitFor({ timeout: 5000 })
   const modelSelect = composer.getByRole('button', { name: '模型', exact: true }).first()
   await modelSelect.click()
-  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?:\s*\d+ 家)?$/ }).first()
+  const nanoBanana2 = getWin().getByRole('option').filter({ hasText: /^Nano Banana 2(?!\s*Lite)/ }).first()
   await expectVisible(nanoBanana2, '模型目录必须提供跨供应商 Nano Banana 2')
   await nanoBanana2.click()
   await getWin().waitForTimeout(400)

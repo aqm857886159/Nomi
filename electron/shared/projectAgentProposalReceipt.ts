@@ -4,6 +4,8 @@ export type ProjectAgentProposalCompensation =
   | Readonly<{ kind: "delete-nodes"; nodeIds: readonly string[] }>
   | Readonly<{ kind: "disconnect-edges"; pairs: readonly Readonly<{ source: string; target: string }>[] }>
   | Readonly<{ kind: "restore-prompt"; nodeId: string; prompt: string; promptOverridden?: boolean }>
+  /** 把文本节点正文放回提议之前的文档（null = 之前没有正文）。 */
+  | Readonly<{ kind: "restore-text"; nodeId: string; contentJson: Readonly<Record<string, unknown>> | null }>
   | Readonly<{ kind: "restore-graph"; nodes: readonly unknown[]; edges: readonly unknown[] }>
   /** 把一个**仍存在**的节点的 meta / prompt 放回提议之前（3D-BOX 计划修订、预演挂接都改的是既有节点）。 */
   | Readonly<{ kind: "restore-node-fields"; nodeId: string; meta: Readonly<Record<string, unknown>>; prompt: string }>
@@ -186,6 +188,14 @@ function parseCompensation(value: unknown): ProjectAgentProposalCompensation | n
     if (source.promptOverridden !== undefined && typeof source.promptOverridden !== "boolean") return null;
     return nodeId !== null && prompt !== null
       ? Object.freeze({ kind: "restore-prompt" as const, nodeId, prompt, ...(source.promptOverridden !== undefined ? { promptOverridden: source.promptOverridden } : {}) })
+      : null;
+  }
+  if (source.kind === "restore-text") {
+    if (!exactKeys(source, ["kind", "nodeId", "contentJson"])) return null;
+    const nodeId = safeString(source.nodeId);
+    const doc = source.contentJson === null ? null : record(source.contentJson) ? jsonClone(source.contentJson) : undefined;
+    return nodeId !== null && doc !== undefined && (doc === null || (typeof doc === "object" && !Array.isArray(doc)))
+      ? Object.freeze({ kind: "restore-text" as const, nodeId, contentJson: doc as Record<string, unknown> | null })
       : null;
   }
   if (source.kind === "restore-node-fields") {

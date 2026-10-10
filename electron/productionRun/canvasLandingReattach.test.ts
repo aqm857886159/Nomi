@@ -44,7 +44,7 @@ it('reported case: a shot falsely detached by a project switch is re-attached wh
     shots: [{ shotId: 'shot-1', candidate }] })
   const canvas = new Set(['node-1'])
   const { host, payloads } = landingHost(canvas)
-  expect(await host.landCanvasBestEffort('project-1', 'op-s15')).toBe(true)
+  await host.landBeforeDispatch('project-1', 'op-s15')
   expect(repository().read('project-1', 'op-s15')!.generationPlan!.shots![0].nodeId).toBe('node-1')
 
   // 切项目那一下被误报成删除（修复前的观察者）。
@@ -54,7 +54,7 @@ it('reported case: a shot falsely detached by a project switch is re-attached wh
   expect(repository().read('project-1', 'op-s15')!.generationPlan!.shots![0].canvasDetached).toBe(true)
 
   // 打开项目补齐：节点还在 → 绑定写回，detached 纠正回来。
-  expect(await host.landCanvasBestEffort('project-1', 'op-s15')).toBe(true)
+  expect(await host.reconcileExistingCanvas('project-1', 'op-s15')).toBe(true)
   expect(payloads.at(-1)!.shots[0]).toMatchObject({ shotId: 'shot-1', existingOnly: true })
   const healed = repository().read('project-1', 'op-s15')!.generationPlan!.shots![0]
   expect(healed.canvasDetached).toBeUndefined()
@@ -66,13 +66,13 @@ it('class: a node the user really deleted stays detached — the reconciliation 
     shots: [{ shotId: 'shot-1', candidate }] })
   const canvas = new Set(['node-1'])
   const { host } = landingHost(canvas)
-  await host.landCanvasBestEffort('project-1', 'op-gone')
+  await host.landBeforeDispatch('project-1', 'op-gone')
   const bound = repository().read('project-1', 'op-gone')!
   repository().execute('project-1', 'op-gone', { commandId: 'detach-canvas.user-delete', expectedRevision: bound.revision,
     type: 'plan.detach-shot-nodes', payload: { nodeIds: ['node-1'] }, issuedAt: NOW })
   canvas.delete('node-1')
 
-  await host.landCanvasBestEffort('project-1', 'op-gone')
+  await host.reconcileExistingCanvas('project-1', 'op-gone')
   expect(repository().read('project-1', 'op-gone')!.generationPlan!.shots![0].canvasDetached).toBe(true)
 })
 

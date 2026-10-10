@@ -490,6 +490,18 @@
       "revisitWhen": "监视器规则能以 Playwright 自定义 matcher / reporter 的形式表达而不损失「违反不中断」语义时"
     },
     {
+      "id": "walk-network-allowlist",
+      "capability": "走查出网放行名单的判定（精确 origin 含端口 + 通配域名只放 443/80），走查网络闸四层与产品测试网闸共用的唯一正本",
+      "status": "justified",
+      "paths": ["electron/shared/walkAllowlist.cjs"],
+      "alternativesChecked": [
+        { "name": "Chromium URL 匹配模式（webRequest filter / match patterns）：只管 Chromium 一层，管不到 Node 的 fetch / http / socket", "source": "https://www.electronjs.org/docs/latest/api/web-request" },
+        { "name": "为什么是一个文件而不是各层各写：评审 B1 就是各写造成的（连接层少判端口）", "source": "docs/engineering/direction-checks/2026-10-10-walk-network-allowlist.md" }
+      ],
+      "whyNotIntegrated": "领域约束：付费走查的放行语义由「授权供应商的 API 基址 + 成品下载域名」决定，要在 Node 的 fetch / http(s) / 连接层与 Chromium 同时执行同一个答案；现成匹配器只覆盖其中一层。判定只有 30 行，不值得再引入依赖。",
+      "revisitWhen": "走查改为统一走一层代理（例如 Chromium 与 Node 都指向同一个本地出口代理）时，名单可以挪到代理里"
+    },
+    {
       "id": "mcp-protocol",
       "capability": "MCP 在 Nomi 这一侧剩下的装配：方法处理器（目录 / 资源 / 提示的领域投影）、tools/call 里的审批与派发、入口拒未验证客户端、两个 stdio 启动器；协议本身（握手、路由、取消、进度帧、请求关联、stdio 分帧、参数校验引擎）已交给官方 SDK v2",
       "status": "to-replace",
@@ -874,6 +886,75 @@
       ],
       "whyNotIntegrated": "Domain constraint: paid pending presentations and durable proposal receipts must share the model-write budget plus its receipt grace period. This module only extracts that existing Nomi constant into a browser-safe owner; it implements no timer, retry or persistence mechanism.",
       "revisitWhen": "When the paid presentation and proposal receipt lifecycle no longer share a model-write budget, review their deadline ownership together."
+    },
+    {
+      "id": "update-reminder-state",
+      "capability": "应用内更新提醒的状态与流程：主进程持有更新状态并给快照、退出时安装的排空项与「有没有活」判忙、跨重启记忆（横幅 ✕、已更新卡、上次没装上）、发版说明摘要、显示用小钩子",
+      "status": "justified",
+      "paths": [
+        "electron/shared/updateReminder.ts",
+        "electron/shared/releaseNotesDigest.ts",
+        "electron/update/updateHub.ts",
+        "electron/update/installOnQuit.ts",
+        "electron/update/updateBusyGate.ts",
+        "electron/update/updateReminderStore.ts",
+      "electron/update/installGate.ts",
+        "src/ui/app-shell/useRunningTaskCount.ts",
+        "src/ui/app-shell/useUpdateLocale.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "electron-updater 6.8.9 提供检查 / 下载 / install(isSilent) / fullChangelog / 缓存包校验，全部直接使用；它的公开面只有事件与开关（autoDownload、autoInstallOnAppQuit、fullChangelog），没有：热修横幅的「已 ✕ 记忆」、更新后「已更新到 x」卡、跨进程「同意过但没装上」的待装记录（DownloadedUpdateHelper 只缓存安装包文件，不记用户同意与安装是否完成）、给界面用的状态快照",
+          "source": "node_modules/electron-updater/out/AppUpdater.d.ts:36,52,196"
+        },
+        {
+          "name": "electron-updater 缓存辅助类只负责安装包文件缓存与校验",
+          "source": "node_modules/electron-updater/out/DownloadedUpdateHelper.d.ts"
+        },
+        {
+          "name": "electron-updater 自带的退出即装（autoInstallOnAppQuit）在库内部订阅 quit 事件，绕开 Nomi 的退出唯一 owner，也无法按在途工作拦截，所以关掉、改走 owner 排空项",
+          "source": "node_modules/electron-updater/out/BaseUpdater.js:69-90"
+        },
+        {
+          "name": "parse5：发版说明 HTML 摘要用它解析，不手写正则状态机",
+          "source": "node_modules/parse5/package.json"
+        },
+        {
+          "name": "zustand：渲染层状态存储用仓库已有的，不另起",
+          "source": "src/ui/app-shell/updateStore.ts"
+        },
+        {
+          "name": "VS Code / Obsidian / Slack / Linear 的更新提示做法（只借产品形态，没有可复用的开源组件）",
+          "source": "docs/plan/2026-10-08-update-reminder.md"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: 「有没有活」要按镜头 / 制作流程 Run / 导出 / 画布排队节点这些 Nomi 独有的在途工作判断，不能打断用户按镜头付费的生成；退出时安装必须挂在 Nomi 的退出唯一 owner 上。横幅 ✕ 记忆、已更新卡、跨进程待装记录是产品层的提醒记忆，electron-updater 没有这些能力（见 alternativesChecked 首条），所以才自写；更新检查、下载、安装、缓存校验本身没有自写。",
+      "revisitWhen": "electron-updater 提供按外部在途工作阻止安装的钩子，或 Nomi 的在途工作判断收敛成单一服务后，重新评估 updateBusyGate 与 installOnQuit。"
+    },
+    {
+      "id": "timeline-pointer-session",
+      "capability": "时间轴 / 剪辑节点里一次按住指针手势的生命周期：capture、move / up、Esc，松手提交、任何打断回滚；以及节点内手势的屏幕像素↔设计像素换算、命中宽度、准入",
+      "status": "justified",
+      "paths": [
+        "src/workbench/timeline/timelineGesture.ts",
+        "src/workbench/generationCanvas/nodes/clipNodeGestureModel.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "@use-gesture/react useDrag（pointercancel 与松手同走 pointerUp，会把半截拖动当提交；不处理 blur / lostpointercapture / Esc）",
+          "source": "node_modules/.pnpm/@use-gesture+core@10.3.1/node_modules/@use-gesture/core/dist/actions-fe213e88.esm.js:714"
+        },
+        {
+          "name": "画布已有打断租约 beginCanvasDragging（复用：打断监听不再写第二份）",
+          "source": "src/workbench/generationCanvas/components/canvasDraggingFlag.ts:185"
+        },
+        {
+          "name": "dnd-kit（拖放与排序，不管帧、手柄与播放头；留给素材拖进时间轴的第二片评估）",
+          "source": "https://github.com/clauderic/dnd-kit"
+        }
+      ],
+      "whyNotIntegrated": "Domain constraint: 时间轴编辑是「松手才落盘、任何打断必须回到拖之前」（对接时间轴撤销栈：弹回栈顶且不留 redo），而 use-gesture 把取消当松手；要用它得在外面再包一层补 blur / lostpointercapture / Esc 并把 cancel 与 release 分开，不比这 ~80 行短。命中宽度与层叠规则服务片段 / 裁剪手柄 / 播放头三种时间轴对象，换算又依赖画布缩放，只能放在剪辑节点这一侧。打断监听本身没有自写，复用画布租约。",
+      "revisitWhen": "use-gesture（或 dnd-kit）提供区分 release / cancel 并覆盖 blur、lostpointercapture、Esc 的会话原语时；或预览区 OverlaySelectionBox / TimelinePreview 的拖动也迁入同一会话、需要把它抽成通用手势层时"
     }
   ]
 }

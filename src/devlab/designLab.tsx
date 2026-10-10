@@ -18,6 +18,8 @@
 //
 // 不接 Host、不发网络：面板数据来自 `agentPanelFixtures.ts` 灌进 store，
 // Host IPC / 模型目录 / 技能列表在无桥环境下各自 catch 成空，面板照常渲染。
+// 必须是第一条 import：按屏钉死窗口平台，要赶在 NomiAppBar / WindowControls 模块求值之前（见文件内注释）。
+import './designLab/labPlatform'
 import React, { type JSX } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter/wght.css'

@@ -88,7 +88,7 @@ async function runPromptExtraction(
   projectId: string | null,
 ): Promise<{ title: string; prompt: string }> {
   if (!modelImageUrl) throw new Error(i18n.t('browserAssets.promptReferenceMissing'))
-  const brain = await getTextBrain()
+  const brain = await getTextBrain({ strict: true })
   if (!brain) throw new Error(i18n.t('browserAssets.promptVisionModelMissing'))
   const result = await runWorkbenchTaskByVendor(brain.vendor, {
     kind: 'image_to_prompt',

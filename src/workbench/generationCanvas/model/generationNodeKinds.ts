@@ -107,6 +107,15 @@ export function getGenerationNodePromptPlaceholder(kind: GenerationNodeKind): st
   return i18n.exists(key) ? i18n.t(key) : i18n.t('runtime.nodeRegistry.fallbackPlaceholder')
 }
 
+/**
+ * 这一类卡两侧的拉环存不存在（2026-10-08 拍板：只出现在用得上的一侧）。左 = 收输入、右 = 给下游用；
+ * 事实只在种类定义的 `connects` 上，这里只是投影成两侧，不另存一份。
+ */
+export function getGenerationNodeConnectionSides(kind: GenerationNodeKind): { left: boolean; right: boolean } {
+  const { input, output } = getGenerationNodeDefinition(kind).connects
+  return { left: input === 'models' || (Array.isArray(input) && input.length > 0), right: output }
+}
+
 export function getAgentCreatableGenerationNodeKinds(): GenerationNodeKind[] {
   return GENERATION_NODE_KINDS.filter((kind) => GENERATION_NODE_DEFINITIONS[kind].agentCreatable === true)
 }

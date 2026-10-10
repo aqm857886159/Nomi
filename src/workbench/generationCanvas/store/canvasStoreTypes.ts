@@ -36,6 +36,8 @@ export type GroupConnectResult = {
   reason?: 'dangling' | 'group_missing' | 'group_empty' | 'all_skipped'
 }
 
+import type { DerivedOutputKind } from '../model/derivedOutput'
+
 export type CreateNodeInput = {
   kind: GenerationNodeKind
   title?: string
@@ -67,6 +69,15 @@ export type CanvasNodeActions = {
   setNodeMainResult: (nodeId: string, resultIdentity: string, meta?: Record<string, unknown>) => void
   /** S6-4 节点锁(N11):用户一键锁/解锁;AI 改它由 gate deny,事件 source 恒 user。 */
   setNodeLocked: (nodeId: string, locked: boolean) => void
+  /**
+   * 文本节点正文落到 contentJson 的唯一写口：编辑器手改（persist:false，编辑器自己有撤销栈）与 Agent 写入（setNodeText，
+   * undoPoint:true 先打画布撤销点）都经它。不许再有第二处直接写 contentJson。
+   */
+  writeNodeBody: (nodeId: string, contentJson: TiptapDocJson, options?: CanvasMutationOptions & { undoPoint?: boolean }) => void
+  /** 撤销补偿专用：把文本节点正文放回提议之前的样子（null = 之前没有正文）。不是 Agent 写入口：不打撤销点，由提议回执 / 撤销日志负责记账。 */
+  restoreNodeBody: (nodeId: string, contentJson: TiptapDocJson | null) => void
+  /** Agent 写文本节点正文：replace 覆盖 / append 接在后面；一个画布撤销步；只改正文，不生成、不花钱。 */
+  setNodeText: (nodeId: string, text: string, mode?: 'replace' | 'append') => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
   moveNodes: (updates: readonly { nodeId: string; position: { x: number; y: number } }[], options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
@@ -92,8 +103,15 @@ export type CanvasGraphActions = {
   startGroupConnection: (groupId: string, side?: ConnectionAnchorSide) => void
   cancelConnection: () => void
   // 返回连边能力校验结果:ok=已连;否则带 reason(手动连线总闸,UI 据此提示)。
-  connectToNode: (targetNodeId: string) => EdgeCapabilityResult | GroupConnectResult
+  /** 完成一条待连线。`options.mode` = 调用方指定边语义（「试试」首尾帧配方：首帧 / 尾帧），仍过同一道连线总闸。 */
+  connectToNode: (targetNodeId: string, options?: { mode?: GenerationCanvasEdge['mode'] }) => EdgeCapabilityResult | GroupConnectResult
+  /** 连一条边——**新边的唯一写边边界**：不管目标有没有参数槽，都先过 validateReferenceEdge（目标这一类收不收输入 connects.input、档案收不收这种素材）。没有任何绕过开关。 */
   connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode'], targetParamKey?: string, order?: number) => void
+  /**
+   * 系统出处边的**唯一**写法：建派生节点 + 连出处边是一个原子动作（全景 / 白板截图、导演台产物、剪辑导出、事实表）。
+   * 按 model/derivedOutput 的规则表核源种类和新节点种类，不符返回 null（什么都不建）；目标一定是刚建的新节点，没有任何身份字段可伪造、可复制。
+   */
+  addDerivedOutput: (request: { sourceNodeId: string; kind: DerivedOutputKind; node: CreateNodeInput; mode?: GenerationCanvasEdge['mode'] }) => GenerationCanvasNode | null
   /**
    * 把待连的线落到**一个组**上：给组内每个成员各连一根真边，并记下组入参
    * （以后新进组的成员自动补一根）。图结构不变——组只是输入手势的语法糖，见 model/groupInputLinks.ts。
@@ -161,7 +179,7 @@ export type CanvasDocumentActions = {
    * A 模式实时桥：外部 MCP 读到 `base`、算出整张 `next`，这里只把它自己改了的编辑合到此刻的画布
    * （与盘上同一个合并函数），事实层取此刻的。会话中应用：保留视口、入撤销历史、触发防抖落盘。
    */
-  applyExternalGraph: (write: Readonly<{ base: CanvasDocLike; next: CanvasDocLike }>) => void
+  applyExternalGraph: (write: Readonly<{ base: CanvasDocLike; next: CanvasDocLike; restoredEdgeIds?: readonly string[] }>) => void
   /** 把被删的节点 / 边按原 id 放回（已在的跳过）；节点不在期间到达的结局随之落上。 */
   restoreGraph: (nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[]) => void
   /** 把一个仍在的节点的 meta / prompt 放回某一刻；结果、运行态、跟主图走的媒体尺寸取此刻的。 */
