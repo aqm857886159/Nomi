@@ -8,6 +8,7 @@ import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 
 import { makeTempDir } from './_test-temp.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
 import { createGateMutationHarness, repoRoot } from './gate-mutation-harness.mjs'
 
 const TARGET = 'electron/shared/agentCapabilities/verbs/writeVerbs.ts'
