@@ -97,7 +97,7 @@ if (referenceBytes < derivedSpec.minBytes) {
 }
 
 // ── ① 真实应用：隔离 profile + 本机真实 catalog（真模型、真 key；项目与浏览器状态全隔离）。
-const { prepareIsolation } = await import(path.join(repoRoot, 'evals/lib/isoApp.mjs'))
+const { prepareIsolation } = await import(pathToFileURL(path.join(repoRoot, 'evals/lib/isoApp.mjs')).href)
 const isoDir = path.join(os.tmpdir(), `askback-real-model-${Date.now()}`)
 const iso = prepareIsolation(isoDir)
 
@@ -150,7 +150,7 @@ let app, win, failure
 try {
   ;({ app, win } = await launchNomiApp({ name: 'askback-real-model', userDataDir: iso.chromiumDir,
     projectsDir: iso.projectsDir, settingsDir: iso.settingsDir, capabilityDir: iso.capabilityDir }))
-  const { dismissSplashIfPresent, createBlankProject } = await import(path.join(repoRoot, 'evals/lib/isoApp.mjs'))
+  const { dismissSplashIfPresent, createBlankProject } = await import(pathToFileURL(path.join(repoRoot, 'evals/lib/isoApp.mjs')).href)
   await dismissSplashIfPresent(win)
   const projectDir = await createBlankProject(win, iso.projectsDir)
   report.projectDir = projectDir

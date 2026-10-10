@@ -17,6 +17,7 @@ const suites = [
 try {
   const output = execFileSync('pnpm', ['exec', 'vitest', 'run', ...suites], {
     cwd: process.cwd(),
+    shell: process.platform === 'win32',
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'pipe'],

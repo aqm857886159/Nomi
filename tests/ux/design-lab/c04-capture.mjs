@@ -32,7 +32,7 @@ try {
   const receipt = { baseline: execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim(), head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), viewport: { width: 1440, height: 1100 }, inputs: { shots: 8, outputKinds: ['video'], concurrency: 6 }, phases: {} }
   for (const phase of ['before', 'after']) {
     for (const file of sources) fs.writeFileSync(file, phase === 'before' ? execFileSync('git', ['show', `origin/main:${file}`]) : saved.get(file))
-    const fixture = JSON.parse(execFileSync('pnpm', ['exec', 'tsx', 'tests/ux/design-lab/c04-fixture.ts'], { encoding: 'utf8' }))
+    const fixture = JSON.parse(execFileSync('pnpm', ['exec', 'tsx', 'tests/ux/design-lab/c04-fixture.ts'], { encoding: 'utf8', shell: process.platform === 'win32' }))
     receipt.phases[phase] = { eta: fixture.eta, screenshots: {} }
     for (const specimen of ['c04', 'c06']) {
       await withFreshLabPage(browser, { viewport: receipt.viewport, deviceScaleFactor: 1, colorScheme: 'light' }, async page => {
