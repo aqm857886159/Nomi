@@ -12,6 +12,18 @@
 2. 是不是我们独有：截帧 / 剪辑 / 拆片的**媒体处理不是**——全部交给已经在用的 ffmpeg（`electron/video/extractVideoFrame.ts` 的抽帧、`electron/export/` 的导出作业与进度 / 取消）。**剪辑面板里的时间轴 UI**看了 `react-timeline-editor`（Context7，高信誉，动画效果块时间轴）：它是另一套数据模型和另一套拖拽 / 吸附，接进来就是仓库里第二条时间轴；用户也明确要求复用剪辑节点时间轴的手柄和手感。结论：不接，复用我们自己已有的 `ClipNodeTimeline`（它是「剪辑」这个领域概念的一部分）。
 3. 补 / 换 / 删：**补**——浮条里「抽帧▾」换名「截帧▾」多一项、多一颗「剪辑」钮；按镜头拆面板底栏多一个二选一；其余全部复用。为什么不换：这三件都是在已有表面（视频节点浮条、按镜头拆面板、剪辑时间轴）上多一个出口，没有旧实现要替。要删的只有一处：`extractVideoFrameToNode` 现在的「首 / 尾」二选一参数改成三选一时，旧的两值类型同提交改掉，不留并行版。
 
+## 先查别人
+
+（10-09 开源调研的结论，整理进本方案；截帧 / 剪辑 / 拆片三件都按这一节的结论走。）
+
+- 依赖里已有：`package.json` 已有 `@ffmpeg-installer/ffmpeg` 与 ffprobe；主进程抽帧 `electron/video/extractVideoFrame.ts`（经 `electron/video/videoIpc.ts:13` 暴露）的实现类型已允许任意 `number` 时间点、带缓存与 PNG 输出——截「当前帧」只差入口，不需要新依赖。
+- 仓库里已有：截帧落图片节点 `src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts`（原先只有首 / 尾两值）；剪辑时间轴 `ClipNodeTimeline` 与统一手势入口 `src/workbench/timeline/timelineGesture.ts`（#1145 / #1149），剪辑面板复用它们而不是引入第二条时间轴。
+- 生态里已有（浏览器端媒体处理）：[ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) 能在渲染层截帧 / 剪切，但约 30MB 级 wasm、worker / CSP 约束与 FFmpeg 外部许可证条件都重复了已有的本机 FFmpeg 能力 → 不接；[Mediabunny](https://github.com/Vanilagy/mediabunny)（MPL-2.0，WebCodecs 读写）适合以后做浏览器侧预览缩略，本片不需要。
+- 生态里已有（时间轴组件）：[react-timeline-editor](https://github.com/xzdarcy/react-timeline-editor)（MIT）是另一套数据模型与拖拽 / 吸附，接进来即第二条时间轴；[Remotion Timeline](https://www.remotion.dev/docs/timeline) 是付费可定制层时间轴 → 都不接，复用自有 `ClipNodeTimeline`（「剪辑」领域概念的一部分）。
+- 生态里已有（节点图表达媒体变换）：[ComfyUI `nodes_video.py`](https://github.com/Comfy-Org/ComfyUI/blob/master/comfy_extras/nodes_video.py) 内置 VideoSlice / VideoTrim 等节点，印证「截帧 / 剪辑结果是一张新节点、原视频不动」的节点图做法。
+- 自媒体（TikHub）：未查——截帧 / 剪辑是常规动作，交互已由用户 10-10 按样张拍板。
+- 结论：媒体处理全部走已有本机 FFmpeg；时间轴与手势复用自有实现；不新增依赖。
+
 ## 样张怎么搭的（为什么这些格子可信）
 
 - 浮条：`FloatingToolbarShell` / `ToolbarActionMenu` / `ToolbarButton` / `NodeDepthActionButton` 全是生产件；新的只有「哪几颗钮、什么顺序」。节点卡是骨架外壳（类名与现役逐字相同）里放一个**真 `<video>`**，所以播放头、时间码是真的。
