@@ -46,8 +46,6 @@ import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
 import { handleMcpHostSurfaceOp } from './mcpHostSurfaceOps'
 import { presentStoryboard } from './storyboardPresent'
 import { directorPreviewBlocksOp } from './directorPreviewBlocksOp'
-import { isDirector3DBoxEnabled } from '../../featureFlags/director3dbox'
-import { isAnyDirectorSessionOpen } from '../generationCanvas/nodes/director/directorSessionRegistry'
 import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
 import { confirmCredentialProbeSpend, spendModelLine } from './credentialProbeSpendCard'
 
@@ -373,8 +371,6 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[], loaded: 
 
 /** 处理一条主进程转发来的能力操作。未知操作抛错（主进程会把错误透传给 agent）。 */
 export async function handleCapabilityApply(op: string, payload: unknown): Promise<unknown> {
-  // Agent 的场景工具（3D 导演台）是否进模型清单：主进程在每次用户命令前现问，答案只来自这里（导演台编辑器此刻挂没挂着）。
-  if (op === 'lane.scene-facts') return { director: isDirector3DBoxEnabled() && isAnyDirectorSessionOpen() }
   const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
   const projectId = typeof data.projectId === 'string' ? data.projectId : ''
   // 处理这条能力操作即动作起点：签发此刻打开的项目；实时面的项目闸与之后的写入只认它。

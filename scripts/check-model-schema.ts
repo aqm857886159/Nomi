@@ -33,7 +33,7 @@ import { MCP_TOOL_RESOLVER } from "../electron/capabilityCore/mcpToolCatalog";
 import {
   collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
 } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
-import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_SCENE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
+import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
 import {
   evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_SCHEMA_TOKEN_CEILING,
   type LaneToolCombination,
@@ -102,7 +102,7 @@ interface Finding {
 function collectTools(): ModelVisibleTool[] {
   // `nomi_read` 在注册表里（`internalGroup:"models"`，原生装配层执行），不再单独手写一条。
   const tools: ModelVisibleTool[] = [];
-  for (const tool of [...LANE_MODEL_TOOL_CATALOG, ...LANE_SCENE_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]) {
+  for (const tool of [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]) {
     tools.push({
       profile: "internal",
       name: tool.name,
@@ -381,12 +381,10 @@ async function estimateSchemaTokens(chunks: readonly string[]): Promise<number> 
   return chunks.reduce((sum, chunk) => sum + estimateTokens(asMessage(chunk) as never), 0);
 }
 
-/** 逐工具账的一行：名字、估计 token、所属组（always-on / coding / 领域组 / scene:<场景>）。 */
+/** 逐工具账的一行：名字、估计 token、所属组（always-on / coding / 领域组）。 */
 export interface LaneToolLedgerEntry {
   readonly name: string
   readonly group: string
-  /** 只服务某个场景的工具带场景名；其余为 undefined。 */
-  readonly scene?: string
   readonly tokens: number
 }
 
@@ -396,7 +394,6 @@ export interface LaneToolLedgerEntry {
  */
 export async function laneToolLedger(
   deferred: readonly LaneToolSpec[] = LANE_DEFERRED_TOOL_CATALOG,
-  scenes: readonly LaneToolSpec[] = LANE_SCENE_TOOL_CATALOG,
 ): Promise<LaneToolLedgerEntry[]> {
   const factories = await loadPiCodingToolFactories();
   const codingByName = new Map<string, { description: string; parameters: unknown }>();
@@ -424,44 +421,35 @@ export async function laneToolLedger(
     ...domainGroupNames.map(name => ({ name, toolNames: nativeAndDeferred.filter(tool => tool.internalGroup === name).map(tool => tool.name) })),
   ];
   const request = laneRequestToolDefinition(groups);
-  const entries: Array<{ name: string; group: string; scene?: string; chunk: string }> = [
+  const entries: Array<{ name: string; group: string; chunk: string }> = [
     ...LANE_MODEL_TOOL_CATALOG.map(tool => ({ name: tool.name, group: "always-on", chunk: specChunk(tool) })),
     { name: request.name, group: "always-on", chunk: request.description + JSON.stringify(request.parameters) },
     { name: "read", group: "always-on", chunk: piChunk("read") },
     ...codingNames.map(name => ({ name, group: "coding", chunk: piChunk(name) })),
     ...nativeAndDeferred.map(tool => ({ name: tool.name, group: tool.internalGroup!, chunk: specChunk(tool) })),
-    ...scenes.map(tool => ({ name: tool.name, group: `scene:${tool.residentScene}`, scene: tool.residentScene!, chunk: specChunk(tool) })),
   ];
   const result: LaneToolLedgerEntry[] = [];
   for (const entry of entries) {
-    result.push({ name: entry.name, group: entry.group, ...(entry.scene ? { scene: entry.scene } : {}),
+    result.push({ name: entry.name, group: entry.group,
       tokens: await estimateSchemaTokens([entry.chunk]) });
   }
   return result;
 }
 
-/**
- * 判据组合：常驻 + 每个单组（只为定位哪个组胖了），以及**每个场景组合下的全部组常驻**。
- * 上限判的是场景组合的最大值，不是「所有场景同时在」——场景工具不在场景里时模型根本看不到。
- */
+/** 判据组合：常驻 + 每个单组（只为定位哪个组胖了），以及全部组常驻（实际最大组合，上限判它）。 */
 export async function laneToolCombinations(
   deferred: readonly LaneToolSpec[] = LANE_DEFERRED_TOOL_CATALOG,
-  scenes: readonly LaneToolSpec[] = LANE_SCENE_TOOL_CATALOG,
 ): Promise<LaneToolCombination[]> {
-  const ledger = await laneToolLedger(deferred, scenes);
+  const ledger = await laneToolLedger(deferred);
   const sum = (entries: readonly LaneToolLedgerEntry[]) => entries.reduce((total, entry) => total + entry.tokens, 0);
   const inGroup = (group: string) => ledger.filter(entry => entry.group === group);
   const alwaysOn = inGroup("always-on");
-  const groupNames = [...new Set(ledger.filter(entry => !entry.scene && entry.group !== "always-on").map(entry => entry.group))];
+  const groupNames = [...new Set(ledger.filter(entry => entry.group !== "always-on").map(entry => entry.group))];
   const combination = (label: string, entries: readonly LaneToolLedgerEntry[]): LaneToolCombination =>
     ({ label, toolNames: entries.map(entry => entry.name), estimatedTokens: sum(entries) });
-  const resident = ledger.filter(entry => !entry.scene);
   const combinations: LaneToolCombination[] = [combination("always-on（含 request）", alwaysOn)];
   for (const name of groupNames) combinations.push(combination(`always-on + ${name}`, [...alwaysOn, ...inGroup(name)]));
-  combinations.push(combination("全部组常驻（场景：无）", resident));
-  for (const scene of [...new Set(ledger.flatMap(entry => entry.scene ? [entry.scene] : []))]) {
-    combinations.push(combination(`全部组常驻 + 场景：${scene}`, [...resident, ...ledger.filter(entry => entry.scene === scene)]));
-  }
+  combinations.push(combination("全部组常驻（实际最大组合）", ledger));
   return combinations;
 }
 
@@ -478,7 +466,7 @@ export function formatLaneToolLedger(
     ...ranked.map(entry =>
       `  ${String(entry.tokens).padStart(5)} token  ${(entry.tokens / judgedTotal * 100).toFixed(1).padStart(5)}%  ${entry.name}  [${entry.group}]`),
     `模型可见总量（所有注册工具之和）：约 ${visibleTotal} token`,
-    `当前判据总量（各场景组合的最大值）：约 ${judgedTotal} token`,
+    `当前判据总量（全部组常驻）：约 ${judgedTotal} token`,
   ];
 }
 
@@ -494,7 +482,7 @@ async function checkLaneToolBudget(): Promise<boolean> {
   });
   if (failures.length === 0) {
     console.log(
-      `✅ lane 工具预算通过（always-on ≤ ${LANE_TOOL_BUDGET}，各场景组合的全部常驻 ≤ ${LANE_TOOL_SCHEMA_TOKEN_CEILING} token）。`);
+      `✅ lane 工具预算通过（always-on ≤ ${LANE_TOOL_BUDGET}，全部常驻组合 ≤ ${LANE_TOOL_SCHEMA_TOKEN_CEILING} token）。`);
     return true;
   }
   console.error("\n✖ lane 工具预算超了：");

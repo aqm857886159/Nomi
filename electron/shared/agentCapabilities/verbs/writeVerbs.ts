@@ -420,7 +420,7 @@ export function writeVerbs(): VerbDeclaration[] {
   // 修改交按名字寻址的补丁；任一构建只装配 stageShot / directorStageShot 其中一份（见文件末尾的 return）。
   // 到期 2026-11-15：切换 PR 同 commit 删掉旧的 stageShot 与这条分叉。
   const directorStageShot: VerbDeclaration = {
-    name: "stage_shot", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "director.write", effect: "reversible_local", nextAction: "none", residentScene: "director",
+    name: "stage_shot", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "director.write", effect: "reversible_local", nextAction: "none",
     effectGroups: ["canvas-node-creation"],
     describe: {
       does: "Build or change a 3D-BOX director plan; Nomi compiles a gray 3D preview with blocking and cameras and attaches it to the shot as reference video.",

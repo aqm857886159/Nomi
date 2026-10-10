@@ -12,37 +12,30 @@ import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { laneToolCombinations, laneToolLedger, formatLaneToolLedger } from './check-model-schema.ts'
-import { LANE_MODEL_TOOL_CATALOG, LANE_SCENE_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from '../electron/agentLane/laneToolCatalog.ts'
-import { director3dBoxFaceEnabled } from '../electron/shared/featureFlags/director3dboxFace.ts'
+import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from '../electron/agentLane/laneToolCatalog.ts'
 import { LANE_CODING_TOOL_NAMES } from '../electron/agentLane/laneCodingTools.mts'
 import { evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_REQUEST_TOOL_NAME } from '../electron/agentLane/laneToolGroups.mts'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 
-test('the budget reports group contributions and enforces every scene combination of the complete resident catalog', async () => {
+test('the budget reports group contributions and enforces the complete resident catalog', async () => {
   const combinations = await laneToolCombinations()
   const alwaysOn = [...LANE_MODEL_TOOL_CATALOG.map(tool => tool.name), LANE_TOOL_REQUEST_TOOL_NAME, 'read']
   assert.deepEqual(combinations[0].toolNames, alwaysOn)
   // 每一个注册组都要有自己的一行，一个都不许漏——漏掉的那个组永远不会被量。
-  const scenes = [...new Set(LANE_SCENE_TOOL_CATALOG.map(tool => tool.residentScene))]
-  assert.deepEqual(combinations.map(one => one.label),
+  const judged = combinations
+  assert.deepEqual(judged.map(one => one.label),
     ['always-on（含 request）', 'always-on + coding',
-      ...LANE_DEFERRED_TOOL_GROUPS.map(group => `always-on + ${group.name}`), 'always-on + models',
-      '全部组常驻（场景：无）', ...scenes.map(scene => `全部组常驻 + 场景：${scene}`)])
-  for (const combination of combinations.slice(1, -1 - scenes.length)) {
+      ...LANE_DEFERRED_TOOL_GROUPS.map(group => `always-on + ${group.name}`), 'always-on + models', '全部组常驻（实际最大组合）'])
+  for (const combination of judged.slice(1)) {
     assert.deepEqual(combination.toolNames.slice(0, alwaysOn.length), alwaysOn,
       '每个组合都是「常驻 + 一个组」，常驻那一段逐字相同')
   }
-  // 「场景：无」是除场景工具外的全部常驻；每个场景组合 = 它 + 该场景的工具。
-  const resident = combinations.find(one => one.label === '全部组常驻（场景：无）')
-  assert.deepEqual(new Set(resident.toolNames), new Set([
+  // The complete resident catalog is now reachable and must be judged.
+  const all = combinations.at(-1)
+  assert.deepEqual(new Set(all.toolNames), new Set([
     ...alwaysOn, ...LANE_CODING_TOOL_NAMES, ...LANE_NATIVE_TOOL_CATALOG.map(tool => tool.name), ...LANE_DEFERRED_TOOL_CATALOG.map(tool => tool.name),
   ]))
-  for (const scene of scenes) {
-    const withScene = combinations.find(one => one.label === `全部组常驻 + 场景：${scene}`)
-    assert.deepEqual(new Set(withScene.toolNames), new Set([...resident.toolNames,
-      ...LANE_SCENE_TOOL_CATALOG.filter(tool => tool.residentScene === scene).map(tool => tool.name)]))
-  }
   const request = laneRequestToolDefinition([{ name: 'coding' }, ...LANE_DEFERRED_TOOL_GROUPS])
   assert.deepEqual(request.parameters.required, ['group'])
   assert.equal(request.parameters.properties.groups, undefined, '一次只切一个组')
@@ -58,41 +51,7 @@ test('a newly enlarged domain fails both the group and complete residency budget
   const fat = combinations.find(one => one.toolNames.includes('budget_probe'))
   assert.ok(fat, `胖掉的那个组必须有自己一行：${sample.internalGroup}`)
   assert.ok(failures.some(failure => failure.includes(fat.label)))
-  assert.ok(failures.some(failure => failure.includes('全部组常驻（场景：无）')), '不在任何场景里的常驻组合也必须判红')
-})
-
-// 场景组合的最大值才是判据：胖的场景工具只拖垮「它自己那个场景」，不拖垮「场景：无」。
-// 反过来，若有人把场景工具改回「全部常驻」（进了常驻目录），「场景：无」那行也会红——下一条钉住。
-test('an oversized scene tool turns only its own scene combination red', async () => {
-  const sceneProbe = { ...LANE_DEFERRED_TOOL_CATALOG[0], name: 'scene_budget_probe', description: 'A'.repeat(48_000), internalGroup: undefined, residentScene: 'director' }
-  const combinations = await laneToolCombinations(LANE_DEFERRED_TOOL_CATALOG, [...LANE_SCENE_TOOL_CATALOG, sceneProbe])
-  const failures = evaluateLaneToolBudget({ alwaysOnCount: combinations[0].toolNames.length, combinations })
-  const director = combinations.find(one => one.label === '全部组常驻 + 场景：director')
-  assert.ok(director.toolNames.includes('scene_budget_probe'))
-  assert.ok(failures.some(failure => failure.includes(director.label)), '胖的场景工具必须让它自己的场景组合判红')
-  assert.ok(!failures.some(failure => failure.includes('全部组常驻（场景：无）')), '不在场景里时模型看不到它，「场景：无」不该红')
-})
-
-test('the same oversized tool made resident (reverting scene gating) turns the no-scene combination red', async () => {
-  const resident = { ...LANE_DEFERRED_TOOL_CATALOG[0], name: 'resident_budget_probe', description: 'A'.repeat(48_000) }
-  const combinations = await laneToolCombinations([...LANE_DEFERRED_TOOL_CATALOG, resident], LANE_SCENE_TOOL_CATALOG)
-  const failures = evaluateLaneToolBudget({ alwaysOnCount: combinations[0].toolNames.length, combinations })
-  assert.ok(failures.some(failure => failure.includes('全部组常驻（场景：无）')))
-})
-
-// 「改回全部常驻」必红：开关开的构建里，导演台的 stage_shot 必须是场景工具，不许回到常驻目录。
-// 光靠 token 判据拦不住（回到常驻后总量仍可能在 10000 以内），所以这里按结构断言。
-test('3D-BOX stage_shot is a scene tool when the director face is on, and an ordinary resident tool when it is off', () => {
-  const resident = LANE_MODEL_TOOL_CATALOG.map(tool => tool.name)
-  const scene = LANE_SCENE_TOOL_CATALOG.map(tool => tool.name)
-  if (director3dBoxFaceEnabled()) {
-    assert.deepEqual(scene, ['stage_shot'])
-    assert.ok(!resident.includes('stage_shot'))
-    assert.equal(LANE_SCENE_TOOL_CATALOG[0].residentScene, 'director')
-  } else {
-    assert.deepEqual(scene, [])
-    assert.ok(resident.includes('stage_shot'))
-  }
+  assert.ok(failures.some(failure => failure.includes(combinations.at(-1).label)), '最终常驻组合必须判红')
 })
 
 test('the gate prints a per-tool ledger sorted by size with both totals', async () => {
@@ -100,8 +59,8 @@ test('the gate prints a per-tool ledger sorted by size with both totals', async 
   const combinations = await laneToolCombinations()
   const lines = formatLaneToolLedger(ledger, combinations)
   const rows = lines.filter(line => /^\s+\d+ token\s+[\d.]+%\s/.test(line))
-  // 每个模型可见 lane 工具一行：常驻目录 + 场景目录 + 延迟目录 + 原生目录 + request + read + coding（不含 read）。
-  const expected = new Set([...LANE_MODEL_TOOL_CATALOG, ...LANE_SCENE_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]
+  // 每个模型可见 lane 工具一行：常驻目录 + 延迟目录 + 原生目录 + request + coding（含 read）。
+  const expected = new Set([...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]
     .map(tool => tool.name).concat(LANE_TOOL_REQUEST_TOOL_NAME, ...LANE_CODING_TOOL_NAMES))
   assert.equal(rows.length, expected.size)
   assert.deepEqual(new Set(ledger.map(entry => entry.name)), expected)
@@ -112,9 +71,8 @@ test('the gate prints a per-tool ledger sorted by size with both totals', async 
   const visible = ledger.reduce((sum, entry) => sum + entry.tokens, 0)
   assert.ok(lines.some(line => line.includes('模型可见总量') && line.includes(String(visible))))
   assert.ok(lines.some(line => line.includes('当前判据总量') && line.includes(String(judged))))
-  // 账与组合同源：「场景：无」就是常驻条目之和。
-  const noScene = combinations.find(one => one.label === '全部组常驻（场景：无）')
-  assert.equal(noScene.estimatedTokens, ledger.filter(entry => !entry.scene).reduce((sum, entry) => sum + entry.tokens, 0))
+  // 账与组合同源：全部组常驻就是整张账之和。
+  assert.equal(combinations.at(-1).estimatedTokens, visible)
 })
 
 // 本文件由 `pnpm exec tsx --test` 跑（见 package.json 的 `check:model-schema`）——

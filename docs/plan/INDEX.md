@@ -4,7 +4,7 @@
 - [全仓架构治理定稿：单一事实、单向投影、入口收敛](2026-09-26-architecture-single-owner-governance.md) — 生命周期 owner、durable commit、迁移/回滚矩阵、vertical pilot 与真实验收门。
 - [画布认领 / 删节点命令号带「第几次」（发动机收敛第 0 步）](2026-10-05-canvas-claim-attempt-id.md) — 双扣路径 6 的修复设计卡与中途表。
 - [发动机收敛：现状核查与第一刀施工计划](2026-10-05-engine-convergence-cut1.md) — 花钱入口地图、09-26 方案对账、双扣地图核实（含新缺口）、画布付费并进 ProductionRun 的分步计划与岔路。
-- [Agent 工具预算：逐工具列账 / stage_shot 瘦身 / 3D 导演台工具按场景常驻](2026-10-09-agent-tool-budget.md) — 设计卡 + 方向检查 + pi 0.85.1 核实（工具搜索 / 延迟加载能力）。
+- [Agent 工具预算：逐工具列账 / stage_shot 措辞瘦身（导演台工具按场景常驻已撤出）](2026-10-09-agent-tool-budget.md) — 设计卡 + 方向检查（③ 撤出的类根因与重做方向）+ pi 0.85.1 核实。
 - [架构方案质量清单与逐条审查](2026-09-26-architecture-solution-quality-checklist.md) — 16 项方案标准与当前方案的逐项结论。
 - [Phase 0：全仓架构账本与迁移准入](2026-09-26-phase-zero-architecture-ledger.md) — 606 份契约卫生、七个结构簇、owner 决策、依赖 DAG 与 Phase 1 放行条件。
 - [Phase -1：真实对象与生命周期账本执行计划](2026-09-26-phase-minus-one-lifecycle-ledger.md) — 入口矩阵、生命周期账本、提交边界、入口对账和恢复探针。

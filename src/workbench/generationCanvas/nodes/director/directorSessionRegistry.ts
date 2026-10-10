@@ -53,11 +53,6 @@ export function hasDirectorSession(nodeId: string): boolean {
   return sessions.has(nodeId)
 }
 
-/** The 3D director editor is mounted somewhere right now (the Agent's director-only tools key off this). */
-export function isAnyDirectorSessionOpen(): boolean {
-  return sessions.size > 0
-}
-
 export function subscribeDirectorShotFocus(listener: () => void): () => void {
   focusListeners.add(listener)
   return () => { focusListeners.delete(listener) }

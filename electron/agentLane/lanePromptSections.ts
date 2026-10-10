@@ -85,13 +85,3 @@ export function composeLaneSystemPrompt(
     '回答长度随问题：只读/收尾类 ≤3 行；不复述清单。',
   ].join('\n')}\n`;
 }
-
-/**
- * 场景工具这一轮没进清单时，系统提示词里唯一一句交代：模型据此如实告诉用户「先打开 3D 导演台」，
- * 而不是假装做了（清单里没有它，模型自己是看不出「少了什么」的）。
- */
-export function laneSceneUnavailableNotice(toolNames: readonly string[]): string {
-  return `Not available this turn: ${toolNames.join(', ')} (3D director tools — they exist only while the user has the 3D director open). `
-    + 'If the user asks to stage, block or preview camera coverage in 3D, tell them to open the 3D director on that shot first and ask again. '
-    + 'Never say or imply you did it.';
-}

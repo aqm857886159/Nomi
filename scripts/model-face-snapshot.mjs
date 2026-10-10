@@ -36,7 +36,6 @@ function modelFaceOf(verb, { toPublishedJsonSchema, toModelFacingToolSpec }) {
     nextAction: spec.nextAction,
     effectGroups: spec.effectGroups ?? null,
     internalGroup: spec.internalGroup ?? null,
-    residentScene: spec.residentScene,
     profiles: spec.profiles ?? null,
     profileReason: spec.profileReason ?? null,
     contractId: spec.contractId,

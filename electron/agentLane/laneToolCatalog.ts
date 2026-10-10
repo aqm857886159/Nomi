@@ -26,7 +26,7 @@ export const LANE_TOOL_BUDGET = 12;
 function buildCatalog(): readonly LaneToolSpec[] {
   // 内部 profile = 共享注册表的一次投影（方案 §3.1）。付费能力与「外部才有」的工具在那里
   // 就已经被声明挡住了，这里不再自己判断一次——判断散出去就是第二个真相源。
-  const specs = modelFacingToolSpecs("internal").filter(spec => !spec.internalGroup && !spec.residentScene);
+  const specs = modelFacingToolSpecs("internal").filter(spec => !spec.internalGroup);
   const names = new Set<string>();
   for (const spec of specs) {
     if (names.has(spec.name)) throw new Error(`Duplicate lane tool name: ${spec.name}`);
@@ -42,15 +42,6 @@ function buildCatalog(): readonly LaneToolSpec[] {
 }
 
 export const LANE_MODEL_TOOL_CATALOG: readonly LaneToolSpec[] = buildCatalog();
-
-/**
- * 场景工具目录：只在用户站在对应场景（今天只有 3D 导演台）里才进模型工具清单的那些。
- * 它们不占常驻名额，也不属于任何领域组；是否可见由宿主在每次准入时按场景事实切换，
- * 审批与执行路径与常驻工具完全相同。
- */
-export const LANE_SCENE_TOOL_CATALOG: readonly LaneToolSpec[] = Object.freeze(
-  modelFacingToolSpecs("internal").filter(spec => spec.residentScene),
-);
 
 /**
  * 延迟目录：按 `internalGroup` 延迟披露、经领域端口（`laneExtendedTools.ts`）执行的那些。
