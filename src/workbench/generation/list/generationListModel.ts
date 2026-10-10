@@ -20,6 +20,7 @@ import {
   deriveStoryboardRowRuntimes,
   type ShotRowStatus,
 } from '../../creation/storyboard/exec/storyboardRowStatus'
+import { nodeNamesInOrder } from './nodeFallbackName'
 import { designCommittedNow } from '../../creation/storyboard/exec/storyboardNodeBinding'
 
 /** 卡片怎么画：完整生成卡 / 紧凑工具卡（点了回画布）。素材不成卡。 */
@@ -207,6 +208,12 @@ export function deriveGenerationList(input: GenerationListInput): GenerationList
     .map((node) => node.id)
   if (ungroupedCards.length || unreferencedAssetIds.length) {
     sections.push({ key: 'ungrouped', kind: 'ungrouped', title: '', groupId: null, storyboard: null, cards: ungroupedCards, anchors: [], unreferencedAssetIds })
+  }
+  // 非分镜的卡：标题 → 提示词前几字 → 类型 + 分区内序号（和「生成全部」确认卡同一个来源，见 nodeFallbackName.ts）。
+  for (const section of sections) {
+    const plain = section.cards.filter((card) => card.storyboardShotNumber == null && nodesById.has(card.nodeId))
+    const names = nodeNamesInOrder(plain.map((card) => nodesById.get(card.nodeId)!))
+    plain.forEach((card, index) => { card.title = names[index] })
   }
   return { sections }
 }

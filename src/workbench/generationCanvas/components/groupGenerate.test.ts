@@ -52,3 +52,19 @@ describe('structure: no second batch path', () => {
     }
   })
 })
+
+describe('group generate row names (one source with the list cards)', () => {
+  it('two untitled nodes get different names: prompt head, then kind + ordinal', async () => {
+    const { groupGenerateRows } = await import('./groupGenerate')
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        { id: 'p1', kind: 'image', title: '图片', prompt: '清晨海边的灯塔', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'idle' },
+        { id: 'p2', kind: 'image', title: '', prompt: '', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'idle' },
+        { id: 'p3', kind: 'image', title: '', prompt: '', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'idle' },
+      ] as never,
+      edges: [],
+      groups: [],
+    }, 'project-names')
+    expect(groupGenerateRows(['p1', 'p2', 'p3']).map((row) => row.label)).toEqual(['清晨海边的灯塔', '图片 2', '图片 3'])
+  })
+})

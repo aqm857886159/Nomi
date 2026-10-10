@@ -15,17 +15,18 @@ import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { PlanRow } from '../../shared/PlanRows'
 import i18n from '../../../i18n'
+import { nodeNamesInOrder } from '../../generation/list/nodeFallbackName'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { confirmAndRunPlan } from './batchPlanPreview'
 import { isGenerationNodeBusy } from './canvasProductionScope'
 
-function rowLabel(node: GenerationCanvasNode): string {
+function rowLabel(node: GenerationCanvasNode, fallbackName: string): string {
   const shot = resolveStoryboardShotLabel(node, storyboardLabelSource(useWorkbenchStore.getState().storyboardDesignsByDocumentId))
   if (shot) {
     const index = String(shot.number).padStart(2, '0')
     return shot.scoped && shot.designTitle ? i18n.t('generationList.shotScoped', { storyboard: shot.designTitle, index }) : i18n.t('generationList.shot', { index })
   }
-  return node.title?.trim() || i18n.t('generationList.untitled')
+  return fallbackName
 }
 
 /** 这个节点能不能进「生成全部」的候选（有生成能力、此刻没在生成）。不碰文案，按钮可用态每次 store 变化都要算，必须便宜。 */
@@ -39,15 +40,18 @@ export function groupGenerateRows(nodeIds: readonly string[]): PlanRow[] {
   const runs = useProductionCanvasLandingStore.getState().runs
   const byId = new Map(nodes.map((node) => [node.id, node]))
   const rows: PlanRow[] = []
-  for (const id of nodeIds) {
-    const node = byId.get(id)
-    if (!node || !getGenerationNodeExecutionKind(node.kind)) continue
+  const generatable = nodeIds.map((id) => byId.get(id)).filter((node): node is GenerationCanvasNode => Boolean(node && getGenerationNodeExecutionKind(node.kind)))
+  // 名字的唯一来源（标题 → 提示词前几字 → 类型 + 序号），列表卡也用它，所以确认卡上两行不会都叫「未命名」。
+  const ordered = nodeNamesInOrder(generatable)
+  const names = new Map(generatable.map((node, index) => [node.id, ordered[index]]))
+  for (const node of generatable) {
+    const id = node.id
     const busy = isGenerationNodeBusy(node, runs)
     const status = node.status ?? 'idle'
     const open = !busy && (status === 'idle' || status === 'error')
     rows.push({
       id,
-      label: rowLabel(node),
+      label: rowLabel(node, names.get(id) ?? ''),
       checked: open,
       disabled: busy,
       aside: busy ? i18n.t('shotTable.status.generating') : status === 'error' ? i18n.t('shotTable.status.failed') : open ? i18n.t('shotTable.status.ready') : i18n.t('shotTable.status.done'),

@@ -130,6 +130,8 @@ try {
     await expect.poll(async () => (await submitted()).length, { message: '被勾着的那个节点开始提交', timeout: stationTimeout() }).toBe(1)
     const [spentId] = await submitted()
     const skippedId = spentId === NODE_IDS[0] ? NODE_IDS[1] : NODE_IDS[0]
+    // 确认卡第 1 行是 a（勾着）、第 2 行是 b（点掉）：归属读项目落盘的节点状态，不读收据条目的 nodeId（制作 Run 来源的条目没有它）。
+    expect(spentId, '被勾着的是第 1 个节点 a').toBe(NODE_IDS[0])
     await snapEvidence('generating')
 
     await expect.poll(async () => (await nodeOnDisk(spentId))?.result?.url ?? '', { message: '被勾着的那个节点的真图落地', timeout: IMAGE_LANDS_MS }).toMatch(/^nomi-local:\/\//)
@@ -147,7 +149,7 @@ try {
     const receipt = spendReceipt(projectRoot)
     const tasks = receipt.media.filter((entry) => entry.taskId)
     expect(tasks.length, '供应商任务数恰好 1 个（收据二）').toBe(1)
-    expect(tasks[0].nodeId, '这一个任务属于被勾着的那个节点').toBe(spentId)
+    expect([tasks[0].runId, tasks[0].jobId].some((value) => String(value ?? '').includes(NODE_IDS[0])), `收据条目的 runId / jobId 里带着 a 的节点 id（实际：${tasks[0].runId} / ${tasks[0].jobId}）`).toBe(true)
     expect(receipt.media.length, '账本里的记录恰好 1 条').toBe(1)
     expect([cardCount, tasks.length, receipt.media.length], '确认卡上的数量 = 实际发出的数量 = 账本里的记录').toEqual([1, 1, 1])
     await snapEvidence('list-after-result')

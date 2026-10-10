@@ -85,3 +85,16 @@ describe('generation list projection', () => {
     expect(generationListRole(node({ id: 'k', kind: 'image', meta: { storyboardKeyframe: true } }))).toBe('asset')
   })
 })
+
+describe('card names for untitled nodes', () => {
+  it('two loose untitled images read differently in the list (prompt head, then kind + ordinal)', () => {
+    const nodes = [
+      node({ id: 'u1', kind: 'image', title: '', prompt: '清晨海边的灯塔' }),
+      node({ id: 'u2', kind: 'image', title: '', prompt: '' }),
+      node({ id: 'u3', kind: 'image', title: '', prompt: '' }),
+    ]
+    const model = deriveGenerationList({ nodes, edges: [], groups: [], designsByDocumentId: {} })
+    const titles = model.sections.flatMap((section) => section.cards.map((card) => card.title))
+    expect(titles).toEqual(['清晨海边的灯塔', '图片 2', '图片 3'])
+  })
+})
