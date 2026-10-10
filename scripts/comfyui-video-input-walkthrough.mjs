@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { importLocal } from './lib/repoPaths.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const COMFY = 'http://127.0.0.1:8188'
@@ -38,7 +39,7 @@ const opts = combo?.LoadVideo?.input?.required?.file?.[1]?.options || []
 console.log(`  ①b 上传的名字出现在 LoadVideo.file 选项里: ${opts.includes(up.name) ? '✓' : '✗ ' + JSON.stringify(opts).slice(0, 120)}`)
 
 // ── ②③ 分析器 + 建图（用落 main 的真实实现）──
-const { analyzeComfyWorkflow, buildImportedWorkflow } = await import(path.join(repoRoot, 'electron/catalog/comfyuiWorkflowImport.ts'))
+const { analyzeComfyWorkflow, buildImportedWorkflow } = await importLocal('electron/catalog/comfyuiWorkflowImport.ts')
 const graph = {
   1: { class_type: 'LoadVideo', inputs: { file: 'placeholder.mp4' } },
   2: { class_type: 'GetVideoComponents', inputs: { video: ['1', 0] } },
@@ -54,7 +55,7 @@ console.log(`  ③ 占位注入: ${placeholder} ${placeholder === '{{request.par
 
 // ── ④ 拿真文件名填进去，真提交 ──
 // 按真实管线渲染模板（参数默认值来自 built.parameters —— 与 create.defaultParams 同源）
-const { buildTemplateContext, renderTemplateValue } = await import(path.join(repoRoot, 'electron/ai/requestPipeline.ts'))
+const { buildTemplateContext, renderTemplateValue } = await importLocal('electron/ai/requestPipeline.ts')
 const params = Object.fromEntries(built.parameters.map((p) => [p.key, p.default]))
 params.source_video_url = up.name
 const ctx = buildTemplateContext({ prompt: '', params })
