@@ -380,8 +380,10 @@ try {
   const runningBox = await batchFailureAlert.boundingBox()
   check(Boolean(runningBox && Math.abs(runningBox.width - 344) <= 1), '通知宽度为 344px', JSON.stringify(runningBox))
   const notificationRootTop = await notificationRoot.evaluate((element) => Number.parseFloat(getComputedStyle(element).top))
-  const expectedNotificationTop = process.platform === 'win32' ? 100 : 68
-  check(Math.abs(notificationRootTop - expectedNotificationTop) <= 1, `通知容器避开窗口栏和顶栏（top=${expectedNotificationTop}px）`, JSON.stringify({ notificationRootTop, runningBox }))
+  // 通知容器必须落在 40px 合一顶栏下面（外壳重设计前这里写死「Windows 100 / 其他 68」是旧的窗口栏 + 应用栏高度）。
+  const topbarBox = await win.locator('[data-shell-topbar]').first().boundingBox()
+  const topbarBottom = topbarBox ? topbarBox.y + topbarBox.height : Number.POSITIVE_INFINITY
+  check(notificationRootTop >= topbarBottom - 1, `通知容器避开顶栏（top ≥ 顶栏下沿 ${topbarBottom}px）`, JSON.stringify({ notificationRootTop, topbarBottom, runningBox }))
   check(Boolean(runningBox && runningBox.y >= notificationRootTop), '堆叠通知不会越过通知容器顶部', JSON.stringify({ notificationRootTop, runningBox }))
   const retryAction = batchFailureAlert.getByRole('button', { name: /重试失败的/ })
   check(await retryAction.count() === 1, '失败通知提供独立的重试按钮')
