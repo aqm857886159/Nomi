@@ -267,7 +267,7 @@ try {
     await win.getByRole('button', { name: L.play, exact: true }).click()
     const seen = []
     const started = Date.now()
-    await expect.poll(async () => { seen.push(parse(await timeText())); return Date.now() - started > 900 }, { timeout: 5000 }).toBe(true)
+    await expect.poll(async () => { seen.push(parse(await timeText())); return Date.now() - started > 900 }, { timeout: stationTimeout({ operations: 1 }) }).toBe(true)
     await shot('05-clip-preview')
     // 播完（保留段只有几秒）：按钮回到「播放」，所有读数都在入点—出点之间
     await expect(win.getByRole('button', { name: L.play, exact: true })).toBeVisible({ timeout: (range.out - range.in + 3) * 1000 })
@@ -312,19 +312,19 @@ try {
     const filesBefore = trimFiles()
     await openPanel('long-video')
     await win.getByRole('button', { name: L.confirm, exact: true }).click()
-    await expect.poll(async () => newCards(await snapshot())[0]?.status, { timeout: 8000 }).toBe('running')
+    await expect.poll(async () => newCards(await snapshot())[0]?.status, { timeout: stationTimeout({ operations: 1 }) }).toBe('running')
     const card = newCards(await snapshot())[0]
     const cardLocator = win.locator(nodeSel(card.id))
     // 顶条：「剪辑中 · N%」+ 取消
     const runningText = tr('generationCommon.videoTrim.starting')
     await expect(cardLocator).toContainText(runningText)
-    await expect.poll(async () => (await snapshot()).nodes.find((node) => node.id === card.id)?.progress?.percent ?? 0, { timeout: 30000 }).toBeGreaterThan(0)
+    await expect.poll(async () => (await snapshot()).nodes.find((node) => node.id === card.id)?.progress?.percent ?? 0, { timeout: stationTimeout({ operations: 2 }) }).toBeGreaterThan(0)
     await resetView()
     await shot('07-clip-running')
     const cancelButton = cardLocator.getByRole('button', { name: L.cancel })
     await proveProbe(cancelButton, '剪辑中的新卡上有「取消」')
     await cancelButton.click()
-    await expect.poll(async () => newCards(await snapshot()).length, { timeout: 15000 }).toBe(0)
+    await expect.poll(async () => newCards(await snapshot()).length, { timeout: stationTimeout({ operations: 1 }) }).toBe(0)
     const state = await snapshot()
     expect(state.edges).toEqual([])
     expect(metaOf(state, 'long-video').status).toBe('success')
@@ -337,9 +337,9 @@ try {
   await task('07-local-failure-card-has-retry-only-and-retry-works', async () => {
     await openPanel('moved-video')
     // 预览播放器把整段读进来之后再拿走源文件（卡上还能预览，本机 ffmpeg 读不到了 = 真实的本机失败）
-    await expect.poll(() => win.evaluate(() => { const v = document.querySelector('[data-video-clip-panel] video'); return v ? (v.buffered.length ? v.buffered.end(v.buffered.length - 1) : 0) : 0 }), { timeout: 15000 }).toBeGreaterThan(DURATION - 0.5)
+    await expect.poll(() => win.evaluate(() => { const v = document.querySelector('[data-video-clip-panel] video'); return v ? (v.buffered.length ? v.buffered.end(v.buffered.length - 1) : 0) : 0 }), { timeout: stationTimeout({ operations: 1 }) }).toBeGreaterThan(DURATION - 0.5)
     // Windows 上播放器还握着文件时改名会 EBUSY：等它放手（预览读完之后通常几百毫秒内）
-    await expect.poll(() => { try { fs.renameSync(movedFile, hiddenFile); return true } catch (error) { if (error?.code === 'EBUSY' || error?.code === 'EPERM') return false; throw error } }, { timeout: 15000 }).toBe(true)
+    await expect.poll(() => { try { fs.renameSync(movedFile, hiddenFile); return true } catch (error) { if (error?.code === 'EBUSY' || error?.code === 'EPERM') return false; throw error } }, { timeout: stationTimeout({ operations: 1 }) }).toBe(true)
     await win.getByRole('button', { name: L.confirm, exact: true }).click()
     await expect.poll(async () => newCards(await snapshot())[0]?.status, { timeout: stationTimeout({ operations: 4 }) }).toBe('error')
     const card = newCards(await snapshot())[0]

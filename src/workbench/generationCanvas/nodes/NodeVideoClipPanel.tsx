@@ -19,45 +19,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
 import { frameTimecode } from './frameTimecode'
 import { MIN_TRIM_SECONDS, type VideoTrimRange } from './trimVideoToNode'
-
-/** 面板里时间轴用的帧率：只是「帧」这个刻度的单位（0.1 秒精度读数 / 手势吸附），不是视频真实帧率。 */
-export const TRIM_FPS = 30
-const CLIP_ID = 'video-trim-clip'
-export const CLIP_PANEL_WIDTH = 480
-
-function knownDuration(node: GenerationCanvasNode): number {
-  const candidates = [node.result?.durationSeconds, node.meta?.videoDuration, node.meta?.durationSeconds]
-  return candidates.find((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0) ?? 0
-}
-
-export function makeTrimTimeline(node: GenerationCanvasNode, durationSeconds: number, inFrame: number, outFrame: number, playheadFrame: number): TimelineState {
-  const total = Math.max(1, Math.round(durationSeconds * TRIM_FPS))
-  return {
-    version: 1,
-    fps: TRIM_FPS,
-    scale: 1,
-    playheadFrame,
-    textClips: [],
-    tracks: [{
-      id: 'video-trim-track',
-      type: 'video',
-      label: '',
-      clips: [{
-        id: CLIP_ID,
-        type: 'video',
-        sourceNodeId: node.id,
-        label: node.title || '',
-        startFrame: inFrame,
-        endFrame: outFrame,
-        frameCount: total,
-        offsetStartFrame: inFrame,
-        offsetEndFrame: Math.max(0, total - outFrame),
-        url: node.result?.url ?? '',
-        ...(node.result?.thumbnailUrl ? { thumbnailUrl: node.result.thumbnailUrl } : {}),
-      }],
-    }],
-  }
-}
+import { CLIP_PANEL_WIDTH, TRIM_CLIP_ID, TRIM_FPS, knownTrimDuration, makeTrimTimeline } from './videoTrimModel'
 
 type Live = { edge: 'left' | 'right'; startFrame: number; endFrame: number } | null
 
@@ -66,9 +28,9 @@ export default function NodeVideoClipPanel({ node, onClose, onConfirm }: { node:
   const { zoom: canvasZoom } = useViewport()
   const zoom = canvasZoom || 1
   const videoRef = React.useRef<HTMLVideoElement>(null)
-  const [duration, setDuration] = React.useState(() => knownDuration(node))
+  const [duration, setDuration] = React.useState(() => knownTrimDuration(node))
   const [inFrame, setInFrame] = React.useState(0)
-  const [outFrame, setOutFrame] = React.useState(() => Math.round(knownDuration(node) * TRIM_FPS))
+  const [outFrame, setOutFrame] = React.useState(() => Math.round(knownTrimDuration(node) * TRIM_FPS))
   const [live, setLive] = React.useState<Live>(null)
   const [playing, setPlaying] = React.useState(false)
   const [time, setTime] = React.useState(0)
@@ -157,8 +119,8 @@ export default function NodeVideoClipPanel({ node, onClose, onConfirm }: { node:
         style={{ width: CLIP_PANEL_WIDTH }}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-body font-medium text-nomi-ink">{title}</div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 text-body font-medium text-nomi-ink">{title}</div>
           <WorkbenchIconButton label={t('generationCommon.videoTrim.close')} icon={<IconX size={16} stroke={1.8} />} onClick={onClose} />
         </div>
 
@@ -186,7 +148,7 @@ export default function NodeVideoClipPanel({ node, onClose, onConfirm }: { node:
         <ClipNodeTimeline
           timeline={timeline}
           canvasZoom={zoom}
-          selectedClipId={CLIP_ID}
+          selectedClipId={TRIM_CLIP_ID}
           onSelectClip={() => undefined}
           onMoveClip={() => undefined}
           onResizeLive={setLive}
