@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { createNomiUserWorkflowFixture, NOMI_WORKFLOW_SCALES, validateWorkflowFixtureSummary } from './fixtures/nomi-user-workflow-fixture.mjs'
 import { percentile, redact } from './nomi-user-workflow-performance.e2e.mjs'
@@ -36,6 +38,11 @@ test('small fixture persists document, plan and mixed media counts', () => {
 
 test('percentiles and raw path redaction are deterministic', () => {
   assert.equal(percentile([10, 20, 30, 40, 50], 0.95), 48)
-  const output = redact({ path: '/workspace/Nomi/private.txt', nested: ['/tmp/secret'] })
+  const checkoutRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+  const privatePath = path.join(checkoutRoot, 'private.txt')
+  const tempPath = path.join(os.tmpdir(), 'secret')
+  const output = redact({ path: privatePath, nested: [tempPath] })
   assert.deepEqual(output, { path: '<repo>/private.txt', nested: ['<temp>/secret'] })
+  assert.doesNotMatch(JSON.stringify(output), new RegExp(checkoutRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  assert.doesNotMatch(JSON.stringify(output), new RegExp(os.tmpdir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 })
