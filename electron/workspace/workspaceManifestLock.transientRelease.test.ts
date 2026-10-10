@@ -59,7 +59,7 @@ describe.runIf(process.platform === "win32")("workspace manifest lock with a rea
     const next = await acquireWorkspaceManifestLock(root, { waitTimeoutMs: 1_000 });
     releaseWorkspaceManifestLock(next);
     expect(fs.readdirSync(path.dirname(lease.lockDir)).filter((n) => n.startsWith("manifest-transaction."))).toEqual([]);
-  }, 20_000);
+  });
 });
 
 describe("workspace manifest lock under transient Windows sharing violations", () => {

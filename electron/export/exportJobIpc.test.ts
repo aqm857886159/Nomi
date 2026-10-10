@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NomiRenderManifestV1 } from "./exportManifest";
 import type { ExportJobProjectIdentity } from "./exportJobManager";
 import { ExportCancelledError, transcodeWebmFileToMp4 } from "./ffmpegRunner";
+// 静态导入（vi.mock 会提升到它们前面）：runtime 的导入图很重，负载下冷导入可达十几秒。放在用例体里 await import 时，
+// 第一个用例要替整个文件付这笔账，超时被放弃后它仍在后台把导出任务建出来、留在单例里，后面的用例全被拖红
+// （2026-10-10 负载下复现：第一个用例 15 秒超时，后面 9 个报「已有导出在进行」）。静态导入发生在收集阶段，不计入任何用例的超时。
+import * as projectRepository from "../projects/repository";
+import * as runtime from "../runtime";
+import * as workspaceProjectIdentity from "../workspace/workspaceProjectIdentity";
+import * as exportTempInput from "./exportTempInput";
 
 vi.mock("./ffmpegRunner", () => {
   class ExportCancelledError extends Error {
@@ -74,8 +81,8 @@ function makeManifest(projectId = "project-1"): NomiRenderManifestV1 {
 }
 
 async function exportProjectIdentity(projectId = "project-1"): Promise<ExportJobProjectIdentity> {
-  const { projectDirById } = await import("../projects/repository");
-  const { ensureWorkspaceProjectIdentity } = await import("../workspace/workspaceProjectIdentity");
+  const { projectDirById } = projectRepository;
+  const { ensureWorkspaceProjectIdentity } = workspaceProjectIdentity;
   const projectDir = projectDirById(projectId);
   if (!projectDir) throw new Error(`Project ${projectId} was not found`);
   const identity = await ensureWorkspaceProjectIdentity(projectDir);
@@ -114,7 +121,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("starts a job by resolving projectId to projectDir and returns jobId", async () => {
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = await import("../runtime");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
 
     const result = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1"), outputName: "demo" });
@@ -133,10 +140,10 @@ describe("runtime export job IPC functions", () => {
       }),
     });
     await cancelExportJob(identity, result.jobId);
-  }, 15_000);
+  });
 
   it("returns status and can cancel a job", async () => {
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = await import("../runtime");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -152,7 +159,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects temp input writes for unknown jobId", async () => {
-    const { writeExportTempInput } = await import("../runtime");
+    const { writeExportTempInput } = runtime;
 
     await expect(writeExportTempInput({
       projectId: "project-1",
@@ -163,7 +170,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects temp input writes after cancel", async () => {
-    const { cancelExportJob, createProject, startExportJob, writeExportTempInput } = await import("../runtime");
+    const { cancelExportJob, createProject, startExportJob, writeExportTempInput } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -173,7 +180,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("appends temp input chunks for active jobs under the jobDir", async () => {
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = await import("../runtime");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -197,7 +204,7 @@ describe("runtime export job IPC functions", () => {
       listExportJobs,
       startExportJob,
       writeExportTempInput,
-    } = await import("../runtime");
+    } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -216,8 +223,8 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects oversized temp input chunks through runtime IPC", async () => {
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = await import("../runtime");
-    const { EXPORT_TEMP_INPUT_MAX_CHUNK_BYTES } = await import("./exportTempInput");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = runtime;
+    const { EXPORT_TEMP_INPUT_MAX_CHUNK_BYTES } = exportTempInput;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -229,7 +236,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("removes temp input after a successful finish and wires runner progress/log options into the job lifecycle", async () => {
-    const { createProject, getExportJobStatus, startExportJob, writeExportTempInput, finishExportTempInput } = await import("../runtime");
+    const { createProject, getExportJobStatus, startExportJob, writeExportTempInput, finishExportTempInput } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -277,7 +284,7 @@ describe("runtime export job IPC functions", () => {
           }, 50);
         }),
     );
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput, finishExportTempInput } = await import("../runtime");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput, finishExportTempInput } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -299,7 +306,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("removes temp input when a job is cancelled", async () => {
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = await import("../runtime");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
     const identity = await exportProjectIdentity();
@@ -313,7 +320,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects missing and unknown projectId before creating a job", async () => {
-    const { createProject, startExportJob } = await import("../runtime");
+    const { createProject, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
 
     await expect(startExportJob({ manifest: makeManifest("project-1") })).rejects.toThrow(/projectId is required/i);
@@ -321,7 +328,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects unresolved renderer manifest requests with a clear asset resolution error", async () => {
-    const { createProject, startExportJob } = await import("../runtime");
+    const { createProject, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
 
     await expect(
@@ -338,7 +345,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("keeps canonical audit truth when a renderer manifest uses the WebM backend", async () => {
-    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = await import("../runtime");
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
 
     const { jobId } = await startExportJob({
@@ -391,7 +398,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects invalid renderer clip audio instead of silently falling back to WebM", async () => {
-    const { createProject, startExportJob } = await import("../runtime");
+    const { createProject, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const assetDir = path.join(tempRoot, "assets");
     fs.mkdirSync(assetDir, { recursive: true });
@@ -431,7 +438,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects renderer URL assets even when a fake absolutePath is supplied", async () => {
-    const { createProject, startExportJob } = await import("../runtime");
+    const { createProject, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
 
     await expect(
@@ -453,7 +460,7 @@ describe("runtime export job IPC functions", () => {
   });
 
   it("rejects renderer-supplied absolutePath assets without a URL", async () => {
-    const { createProject, startExportJob } = await import("../runtime");
+    const { createProject, startExportJob } = runtime;
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
 
     await expect(
@@ -471,5 +478,22 @@ describe("runtime export job IPC functions", () => {
         },
       }),
     ).rejects.toThrow(/asset resolution is not wired yet/i);
+  });
+});
+
+describe("export job table inflight probe (tests/setup/inflightWork.ts)", () => {
+  it("counts a job left active and settles it so the next job on the same project can start", async () => {
+    const probe = (globalThis as Record<symbol, Map<string, { count: () => number; settle: () => Promise<void> }> | undefined>)[Symbol.for("nomi.inflightProbes")]?.get("export-jobs");
+    expect(probe).toBeDefined();
+    const { createProject, startExportJob } = runtime;
+    createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
+    await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
+    expect(probe!.count()).toBe(1);
+    await expect(startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") })).rejects.toThrow(/active export job/i);
+    await probe!.settle();
+    expect(probe!.count()).toBe(0);
+    const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
+    await runtime.cancelExportJob(await exportProjectIdentity(), jobId);
+    expect(probe!.count()).toBe(0);
   });
 });
