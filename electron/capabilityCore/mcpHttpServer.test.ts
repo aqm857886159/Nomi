@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bridgeStdioToHttp, NOMI_UNREACHABLE_MESSAGE } from './mcpHttpBridge'
 import {
   buildMcpHttpHostEntry, MCP_HTTP_DEFAULT_PORT, mcpHttpIdentityHeaders, readMcpHttpEndpoint,
-  resolveForwarderUrl, resolveMcpHttpPort, writeMcpHttpEndpoint, clearMcpHttpEndpoint,
+  liveForwarderUrl, resolveMcpHttpPort, writeMcpHttpEndpoint, clearMcpHttpEndpoint,
 } from './mcpHttpEndpoint'
 import { startMcpHttpServer, type McpHttpServerHandle } from './mcpHttpServer'
 import { createNomiMcpServer } from './mcpProtocol'
@@ -207,8 +207,9 @@ describe('端口与地址', () => {
   it('端点文件：写进 capability 目录，转发口据此找地址；只清自己写的', () => {
     writeMcpHttpEndpoint(12345)
     expect(readMcpHttpEndpoint()).toEqual({ url: 'http://127.0.0.1:12345/mcp', port: 12345, pid: process.pid })
-    expect(resolveForwarderUrl({})).toBe('http://127.0.0.1:12345/mcp')
-    expect(resolveForwarderUrl({ NOMI_MCP_HTTP_URL: 'http://127.0.0.1:1/mcp' })).toBe('http://127.0.0.1:1/mcp')
+    // 转发口只认「端口 = 稳定端口、端点文件记的正是它、写它的进程还活着」；配置里的地址改成别的端口就不认。
+    expect(liveForwarderUrl({ NOMI_MCP_HTTP_PORT: '12345' })).toBe('http://127.0.0.1:12345/mcp')
+    expect(liveForwarderUrl({ NOMI_MCP_HTTP_PORT: '12345', NOMI_MCP_HTTP_URL: 'http://127.0.0.1:1/mcp' })).toBeNull()
     clearMcpHttpEndpoint()
     expect(readMcpHttpEndpoint()).toBeNull()
   })

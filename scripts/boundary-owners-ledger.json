@@ -380,6 +380,16 @@
         "path": "src/workbench/creation/storyboard/exec/applyStoryboardPlanProjection.ts",
         "symbol": "applyStoryboardPlanProjection"
       }
+    },
+    {
+      "contract": "docs/fixes/2026-09-14-mcp-connection-truthfulness.root-cause.json",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "atomicWrite / assertHostConfigWritable",
+      "anchor": {
+        "path": "electron/capabilityCore/hostConfigWrite.ts",
+        "symbol": "atomicWrite"
+      },
+      "reason": "2026-10-09 MCP 第 3 段评审后：宿主配置的唯一写盘门（atomicWrite + 隔离实例守卫 assertHostConfigWritable）整块搬进 hostConfigWrite.ts，同时加上每文件一把租约锁、唯一临时名、排他备份、换名前版本比对；mcpConfig 只转出它。复审第 2 轮（2026-10-09 夜）：签名改为 atomicWrite(target, edit)——锁里只读一次、edit 从同一份字节算新内容、备份从内存写、提交前核锁（续租 + nonce 所有权）、提交协议挂链接事后核对并放回宿主插写；「这一条归谁」由 mcpHostEntries.nomiEntryTransport 判定，写入门据此只保持可确认的原传输。「所有写盘经同一扇门、隔离实例在这扇门上被拒」的不变量由它承担，installMcp / uninstallMcp / 启动修复 / 迁移 / 恢复全部经它。"
     }
   ],
   "retirements": [
