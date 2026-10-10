@@ -139,3 +139,77 @@ test('execGhReadSync 用真子进程：先瞬断一次再成功；404 只试一�
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+// ---- 只读调用的超时也算瞬断（2026-10-10：verify-merged 的 gh api 卡死 45 秒被掐，CI 全绿收据却红）----
+const HANG_SCRIPT = (counter, hangTimes) => [
+  "import fs from 'node:fs'",
+  `const file = ${JSON.stringify(counter)}`,
+  "const n = fs.existsSync(file) ? Number(fs.readFileSync(file, 'utf8')) : 0",
+  'fs.writeFileSync(file, String(n + 1))',
+  `if (n < ${hangTimes}) setTimeout(() => {}, 60000)`,
+  "else console.log('done')",
+  '',
+].join('\n')
+
+test('execGhReadSync：第一次挂住超时、第二次成功 → 结果是绿（每次尝试的超时预算不变）', () => {
+  const dir = makeTempDir('nomi-gh-timeout-')
+  try {
+    const counter = path.join(dir, 'count')
+    const script = path.join(dir, 'fake-gh.mjs')
+    fs.writeFileSync(script, HANG_SCRIPT(counter, 1))
+    const out = execGhReadSync([script], { bin: process.execPath, timeout: 1500, killSignal: 'SIGKILL' }, { sleep: () => {} })
+    assert.equal(out.trim(), 'done')
+    assert.equal(fs.readFileSync(counter, 'utf8'), '2')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('execGhReadSync：一直超时 → 用满 3 次，错误信息写明「每次超时 N 毫秒，共尝试 3 次」', () => {
+  const dir = makeTempDir('nomi-gh-timeout-')
+  try {
+    const counter = path.join(dir, 'count')
+    const script = path.join(dir, 'fake-gh.mjs')
+    fs.writeFileSync(script, HANG_SCRIPT(counter, 99))
+    assert.throws(
+      () => execGhReadSync([script], { bin: process.execPath, timeout: 1500, killSignal: 'SIGKILL' }, { sleep: () => {} }),
+      (error) => /每次超时 1500 毫秒，共尝试 3 次/u.test(error.message) && error.retryAttempts === 3,
+    )
+    assert.equal(fs.readFileSync(counter, 'utf8'), '3')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('写调用超时仍然只试一次：retryTransient 默认不把超时当瞬断，execGhWriteSync 根本不重试', () => {
+  let calls = 0
+  const timeout = () => Object.assign(new Error('spawnSync ETIMEDOUT'), { code: 'ETIMEDOUT', signal: 'SIGKILL' })
+  assert.throws(() => retryTransientSync(() => { calls += 1; throw timeout() }, { sleep: () => {} }), /ETIMEDOUT/)
+  assert.equal(calls, 1)
+  assert.equal(isTransientError(timeout()), false)
+  assert.equal(isTransientError(timeout(), { retryTimeouts: true }), true)
+  assert.equal(isTransientError(Object.assign(new Error('x'), { code: 'transport_timeout' })), false)
+  assert.equal(isTransientError(Object.assign(new Error('x'), { code: 'transport_timeout' }), { retryTimeouts: true }), true)
+  // 被别的信号杀掉（不是超时）：只读也不重试
+  assert.equal(isTransientError(Object.assign(new Error('x'), { signal: 'SIGTERM' }), { retryTimeouts: true }), false)
+})
+
+test('fetchWithRetry：TimeoutError（AbortSignal.timeout）重试；用户主动 AbortError 不重试', async () => {
+  let calls = 0
+  const response = await fetchWithRetry('https://api.github.com/x', {}, {
+    fetchImpl: async () => {
+      calls += 1
+      if (calls === 1) throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' })
+      return { ok: true, status: 200 }
+    },
+    sleep: noSleep,
+  })
+  assert.equal(response.status, 200)
+  assert.equal(calls, 2)
+  let aborted = 0
+  await assert.rejects(fetchWithRetry('https://api.github.com/x', {}, {
+    fetchImpl: async () => { aborted += 1; throw Object.assign(new Error('aborted'), { name: 'AbortError' }) },
+    sleep: noSleep,
+  }), /aborted/)
+  assert.equal(aborted, 1)
+})
