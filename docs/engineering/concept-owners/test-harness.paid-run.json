@@ -27,6 +27,7 @@
   "forbidden_derivations": [],
   "allowed_consumers": [
     "tests/ux/canvas-spend-policy.paid.mjs",
+    "tests/ux/generation-list-generate-all.paid.mjs",
     "tests/ux/agent-spend-real-image.paid.mjs",
     "tests/ux/agent-video-landing.paid.mjs",
     "tests/ux/agent-queued-shots.paid.mjs",
