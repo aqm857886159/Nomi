@@ -4,13 +4,12 @@
 // 「生成」按下去走 composerRun.startGenerationFromComposer——和画布生成框「↑」同一个口，不另写一份。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconEye, IconPhoto, IconPlayerPlay } from '@tabler/icons-react'
+import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconEye, IconPhoto } from '@tabler/icons-react'
 import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { collapsePromptWhitespace, parsePromptSegments } from '../../assets/promptMentions'
 import { resolveLightweightNodePreview } from '../../generationCanvas/components/canvasNodeLevelOfDetail'
 import LazyNodeGenerationComposer from '../../generationCanvas/nodes/LazyNodeGenerationComposer'
-import { startGenerationFromComposer } from '../../generationCanvas/nodes/composerRun'
 import { nodeHasGenerationComposer } from '../../generationCanvas/nodes/resolveRenderKind'
 import { nodeVersionEntries } from '../../generationCanvas/nodes/versionCards/nodeVersionEntries'
 import { getGenerationNodeExecutionKind } from '../../generationCanvas/model/generationNodeKinds'
@@ -139,7 +138,6 @@ export function GenerationListDetail({ card, onBack }: { card: GenerationListCar
   const modelLabel = useNodeModelLabel(node)
   const execution = node ? getGenerationNodeExecutionKind(node.kind) : undefined
   const duration = node && (execution === 'video' || execution === 'audio') ? readDurationSeconds(node) : null
-  const running = node?.status === 'queued' || node?.status === 'running'
   const meta = [duration ? formatSeconds(duration) : '', modelLabel].filter(Boolean).join(' · ')
   const aspect = readAspect(node)
   const [aw, ah] = (aspect ?? '16:9').split(':').map(Number)
@@ -164,14 +162,9 @@ export function GenerationListDetail({ card, onBack }: { card: GenerationListCar
           {node ? <DetailVersions node={node} width={previewWidth} /> : null}
           {node ? (
             nodeHasGenerationComposer(node.kind) ? (
-              <div className="mx-auto mt-4 w-full rounded-panel bg-nomi-paper p-3 ring-1 ring-nomi-line" style={{ maxWidth: DETAIL_PREVIEW_WIDTH }} data-inspector-composer>
-                <LazyNodeGenerationComposer node={node} visualSize={node.size ?? { width: 340, height: 192 }} host="panel" onFeedback={NO_FEEDBACK} />
-                {/* 生成钮：panel 宿主的生成框把「生成」交给宿主；这里接，按下去 = 画布「↑」同一个口（composerRun）。 */}
-                <div className="mt-3 flex justify-end">
-                  <WorkbenchButton size="md" variant="primary" disabled={running} onClick={() => { void startGenerationFromComposer(node, Boolean(node.result?.url)) }} data-list-detail-generate>
-                    <IconPlayerPlay size={14} aria-hidden /> {running ? t('generationList.generating') : node.result?.url ? t('generationList.regenerate') : t('generationList.generate')}
-                  </WorkbenchButton>
-                </div>
+              // 画布节点那张生成框原样（host="inline"：同一个组件、同一套排版，只是放在内容流里）；这里只给它一块地方。
+              <div className="mx-auto mt-4 flex w-full justify-center" data-inspector-composer>
+                <LazyNodeGenerationComposer node={node} visualSize={node.size ?? { width: 340, height: 192 }} host="inline" onFeedback={NO_FEEDBACK} />
               </div>
             ) : <p className="mx-auto mt-4 text-body-sm text-nomi-ink-60">{t('generationList.detail.referenceOnly')}</p>
           ) : null}

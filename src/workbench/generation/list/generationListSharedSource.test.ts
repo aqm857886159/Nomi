@@ -1,4 +1,4 @@
-// 列表与画布只有一份数据：检查器里的生成框（现役 NodeGenerationComposer，host="panel"）写进去的，
+// 列表与画布只有一份数据：检查器里的生成框（现役 NodeGenerationComposer，host="inline"，与画布同一个组件、同一套排版）写进去的，
 // 就是画布 store 里那个节点；列表卡读回来的也是它。这里把生成框换成一个探针，只为拿到它**真正拿到的写口**
 // （useNodeWriteAccess）——检查器若包一层自己的 NodeWriteAccessProvider（第二份账本），这条就红。
 import React from 'react'
@@ -51,7 +51,7 @@ describe('list and canvas share one data source', () => {
     renderToStaticMarkup(React.createElement(MantineProvider, null, React.createElement(GenerationListDetail, { card, onBack: () => undefined })))
     serverSnapshot.nodes = savedNodes
     expect(probe.nodeId).toBe('shot-1')
-    expect(probe.host).toBe('panel')
+    expect(probe.host).toBe('inline')
     // 生成框拿到的写口 = 画布 store；写一笔参数和提示词。
     probe.access!.updateNode('shot-1', { prompt: 'after', meta: { ...shot.meta, aspect_ratio: '9:16' } })
     const canvasNode = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'shot-1')!

@@ -189,6 +189,8 @@ try {
   await clickOrFail(win.locator('[data-list-detail-row="shot-4"]'), '窄列里点镜 04')
   await expect(win.locator('[data-list-inspector="shot-4"]'), '切到镜 04 的大详情失败').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await shot('detail-draft')
+  // 同一个节点（镜 04）的生成框：先抓列表详情里的（host=inline），下面再抓画布上的，并排放进一张图对版面。
+  const inlineComposer = await win.locator('[data-inspector-composer] [data-composer-host="inline"]').screenshot()
 
   // ⑥ 「去画布」→ 画布，镜 04 被选中：分镜号角标；页面里没有任何「去列表」入口，只有顶栏那一个图标。
   await clickOrFail(win.locator('[data-list-detail-view-canvas]'), '去画布')
@@ -199,6 +201,7 @@ try {
   await expectAbsent(win.getByRole('button', { name: /^(去列表|在列表里看|Open list|View in list)$/ }), { provenBy: switcherProof, message: '页面里不该再有「去列表」入口（只有顶栏那一个图标）' })
   await expect(win.locator('[data-shell-topbar] [data-generation-view-switcher="canvas"]'), '画布上顶栏图标显示的应是「切到列表」').toHaveAttribute('aria-label', /切到列表|Switch to list/)
   await shot('canvas')
+  const canvasComposer = await win.locator('[data-composer-host="canvas"]').first().screenshot()
 
   // ⑦ 顶栏图标 → 回列表（详情还开着这一张）。
   await switchGenerationView(win, 'list')
@@ -206,6 +209,17 @@ try {
   // ⑧ 返回列表。
   await clickOrFail(win.locator('[data-list-detail-back]'), 'back from detail')
   await expect(win.locator('[data-list-layout="grid"]'), '返回之后不是列表网格').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // 并排：左 = 画布节点的生成框，右 = 列表详情里的（同一个组件、同一套排版）。无头 Chromium 渲染一张对比图，不开可见窗口。
+  const { chromium } = await import('playwright')
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage({ viewport: { width: 1240, height: 460 }, deviceScaleFactor: 1 })
+    const dataUri = (buffer) => `data:image/png;base64,${buffer.toString('base64')}`
+    await page.setContent(`<body style="margin:0;padding:16px;background:${scheme === 'dark' ? '#1d1c1a' : '#f4f2ef'};color:${scheme === 'dark' ? '#ddd' : '#333'};font:12px sans-serif"><div style="display:flex;gap:24px;align-items:flex-start"><div><div style="margin-bottom:6px">${T('画布节点的生成框', 'Canvas node composer')}</div><img src="${dataUri(canvasComposer)}"></div><div><div style="margin-bottom:6px">${T('列表详情里的生成框', 'List detail composer')}</div><img src="${dataUri(inlineComposer)}"></div></div></body>`)
+    await page.screenshot({ path: path.join(outDir, `listview-composer-sidebyside-${suffix}.png`), fullPage: true })
+  } finally {
+    await browser.close()
+  }
   console.log(`✓ generation-list-window ${suffix} → ${outDir}`)
 } finally {
   await shutdown()
