@@ -2013,6 +2013,14 @@
       ],
       "reason": "顶栏胶囊会显示的四个更新阶段（更新阶段词表 UpdaterPhase 的子集：空闲 / 检查中 / 已是最新不显示胶囊）；子集单独成型是为了让胶囊组件的入参类型穷尽。",
       "site": "src/ui/app-shell/UpdatePill.tsx::type:UpdatePillPhase/type-union"
+    },
+    {
+        "members": [
+            "compact",
+            "full"
+        ],
+        "reason": "空节点占位按渲染卡高收成两档（完整 / 紧凑），由 nodeEmptyStateLayout.ts 的 emptyStateTier 算出，唯一读者是 NodeEmptyState。「只留第一行」档已删：用到的节点渲染高度下限是 120（resolveNodeVisualSize 钳高），高于紧凑阈值 108，那一档进不去。没有复用 ShotTableZoomDensity（full / compact / card）：那是分镜表缩放档，轴不同。",
+        "site": "src/workbench/generationCanvas/nodes/render/nodeEmptyStateLayout.ts::type:EmptyStateTier/type-union"
     }
   ],
   "debt": [
