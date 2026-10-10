@@ -187,6 +187,19 @@ export function seedModelCatalogForTests(
   }
 }
 
+/**
+ * 同步取一次「现在就能跑」的清单：命中缓存立刻给值，没命中给 null（不触发请求）。
+ *
+ * 为什么要有：清单原来只能异步拿。节点被选中时 composer 是重新挂载的，第一帧必然空 →
+ * 界面先画「无模型·配置模型」再跳真实芯片（用户 2026-10-11 走查第 4 条）。有了同步首值，
+ * 这条闪烁在缓存命中时直接消失；没命中才回到异步那一跳。
+ */
+export function peekCatalogModelOptions(kind?: NodeKind, requiredMode?: ModelQueryMode): ModelOption[] | null {
+  const cacheKey = `${resolveCatalogKind(kind)}:${requiredMode ?? defaultPublishedMode(kind)}`
+  const cached = catalogOptionsCache.get(cacheKey)
+  return cached ? filterHiddenOptionsByKind(cached, kind) : null
+}
+
 export async function preloadModelOptions(
   kind?: NodeKind,
   requiredMode?: ModelQueryMode,

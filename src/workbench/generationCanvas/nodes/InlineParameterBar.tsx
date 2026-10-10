@@ -6,6 +6,7 @@ import { cn } from '../../../utils/cn'
 import { NomiSelect, WorkbenchIconButton } from '../../../design'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
+import type { ModelCatalogStatus } from '../../../config/modelCatalogStatus'
 import {
   type DynamicCatalogControl,
   type DynamicModelControl,
@@ -57,7 +58,8 @@ type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
   /** Batch surfaces can provide the shared model picker beside this bar. */
   hideModel?: boolean
-  modelCatalogStatus: { message: string }
+  /** `status` 可选：老调用方（分镜批量等）只给 message；缺它时按「非加载中」处理，保持旧行为。 */
+  modelCatalogStatus: { status?: ModelCatalogStatus; message: string }
   renderedControls: DynamicModelControl[]
   selectedModelOption: ModelOption | null
   archetype: ReturnType<typeof resolveArchetypeForOption> // kept for prop compat, no longer used in render
@@ -345,6 +347,17 @@ export default function InlineParameterBar({
   }, [panelOpen, summaryText])
 
   if (modelOptions.length === 0) {
+    // 「还没有清单」和「清单里有但加载中」是两回事：后者画骨架，别画「无模型·配置模型」，
+    // 否则点节点的瞬间会先闪一下空态再跳真实芯片（2026-10-11 走查第 4 条）。
+    if (modelCatalogStatus.status === 'loading') {
+      return (
+        <span
+          aria-hidden="true"
+          data-model-chip-loading="true"
+          className="inline-flex h-7 w-28 items-center rounded-full border border-nomi-line bg-nomi-ink-05 animate-pulse"
+        />
+      )
+    }
     return (
       <button
         type="button"

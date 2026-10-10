@@ -10,6 +10,7 @@ import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
 import { NodeCardBody } from './render/NodeCardBody'
 import ImageCropGridOverlay from './render/ImageCropGridOverlay'
+import ImageCropGridActionBar from './render/ImageCropGridActionBar'
 import { CROP_ONLY } from './render/cropGridGeometry'
 import { ImageQuickActionsToolbarHost } from '../quickActions/ImageQuickActionsToolbarHost'
 import { NodeVersionCardsHost } from './versionCards/NodeVersionCardsHost'
@@ -463,16 +464,14 @@ function BaseGenerationNodeImpl({
           <ImageCropGridOverlay
             imageUrl={node.result.url}
             gridSize={imageEditing.editGrid}
-            onConfirm={(result) => {
-              void imageEditing.handleEditConfirm(result)
-            }}
-            onCancel={() => imageEditing.cancelEdit()}
+            onDraftChange={imageEditing.reportDraft}
           />
         ) : null}
         {localImageOpPending && hasResult ? (
           <LocalImageOpPendingStatus message={node.progress?.message} progress={node.progress?.percent} />
         ) : null}
       </div>
+      <ImageCropGridActionBar editing={imageEditing} />
       {showVersionCards ? (
         <NodeVersionCardsHost onFeedback={reportFeedback} node={node} readOnly={readOnly} nodeSize={visualSize} entryHidden={imageEditing.editGrid !== null} />
       ) : null}

@@ -1,6 +1,4 @@
 import React, { type JSX } from 'react'
-import { useTranslation } from 'react-i18next'
-import { DecisionBar } from '../../../../design'
 import { cn } from '../../../../utils/cn'
 
 export type CropRect = { x: number; y: number; w: number; h: number }
@@ -57,24 +55,28 @@ function equalCuts(parts: number): number[] {
 export default function ImageCropGridOverlay({
   imageUrl,
   gridSize,
-  onConfirm,
-  onCancel,
+  onDraftChange,
 }: {
   imageUrl: string
   gridSize: CropGridSize
-  onConfirm: (result: CropGridResult) => void
-  onCancel: () => void
+  /** 把当前取景框报给宿主：确认/取消由宿主在图片区**之外**渲染，避免按钮压住要切的格子（2026-10-11）。 */
+  onDraftChange?: (draft: CropGridResult) => void
 }): JSX.Element {
-  const { t } = useTranslation()
   const cropOnly = gridSize.rows === 1 && gridSize.cols === 1
   const boxRef = React.useRef<HTMLDivElement>(null)
   const dragRef = React.useRef<ActiveDrag | null>(null)
-  // 切图默认框接近整图（通常要切整张）；纯裁剪沿用原来的居中八分。
+  // 切图默认框 = 整图（2026-10-11：用户走查「九宫格不是完整切图、外侧还有空间」的根因就是这里曾内缩 4%）；
+  // 纯裁剪沿用原来的居中八分。设计依据：docs/plan/2026-06-16-adjustable-grid-crop.md:4「默认不动确认＝旧的等分效果」。
   const [rect, setRect] = React.useState<CropRect>(
-    cropOnly ? { x: 0.1, y: 0.1, w: 0.8, h: 0.8 } : { x: 0.04, y: 0.04, w: 0.92, h: 0.92 },
+    cropOnly ? { x: 0.1, y: 0.1, w: 0.8, h: 0.8 } : { x: 0, y: 0, w: 1, h: 1 },
   )
   const [cols, setCols] = React.useState<number[]>(() => equalCuts(gridSize.cols))
   const [rows, setRows] = React.useState<number[]>(() => equalCuts(gridSize.rows))
+
+  // 确认/取消已经移到图片区之外（宿主渲染），这里只把取景框状态报上去。
+  React.useEffect(() => {
+    onDraftChange?.({ rect, cols, rows })
+  }, [rect, cols, rows, onDraftChange])
 
   const beginDrag = (target: DragTarget) => (event: React.PointerEvent) => {
     event.stopPropagation()
@@ -233,36 +235,23 @@ export default function ImageCropGridOverlay({
             <span className={cn(gripClass, 'left-1/2 top-1/2 pointer-events-none')} />
           </div>
         ))}
-        {/* 外框四角 */}
+        {/* 外框四角：抓点内缩 6px（left-1.5/top-1.5 抵消 -m-1.5 的半格外移）——
+            默认框现在贴整图，抓点若仍压在角上会被 preview 的 overflow-hidden 裁掉、点不到。 */}
         <span
-          className={cn(handleClass, 'left-0 top-0 cursor-nwse-resize')}
+          className={cn(handleClass, 'left-1.5 top-1.5 cursor-nwse-resize')}
           onPointerDown={beginDrag({ kind: 'corner', corner: 'nw' })}
         />
         <span
-          className={cn(handleClass, 'right-0 top-0 cursor-nesw-resize')}
+          className={cn(handleClass, 'right-1.5 top-1.5 cursor-nesw-resize')}
           onPointerDown={beginDrag({ kind: 'corner', corner: 'ne' })}
         />
         <span
-          className={cn(handleClass, 'left-0 bottom-0 cursor-nesw-resize')}
+          className={cn(handleClass, 'left-1.5 bottom-1.5 cursor-nesw-resize')}
           onPointerDown={beginDrag({ kind: 'corner', corner: 'sw' })}
         />
         <span
-          className={cn(handleClass, 'right-0 bottom-0 cursor-nwse-resize')}
+          className={cn(handleClass, 'right-1.5 bottom-1.5 cursor-nwse-resize')}
           onPointerDown={beginDrag({ kind: 'corner', corner: 'se' })}
-        />
-      </div>
-      {/* 确认 / 取消 */}
-      <div
-        className="absolute right-2 top-2 rounded-nomi bg-nomi-paper p-1 shadow-nomi-md"
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <DecisionBar
-          inline
-          cancelLabel={t('generationCommon.cropGrid.cancel')}
-          onCancel={onCancel}
-          primaryLabel={cropOnly ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')}
-          onPrimary={() => onConfirm({ rect, cols, rows })}
         />
       </div>
     </div>
