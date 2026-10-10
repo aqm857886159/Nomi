@@ -159,7 +159,9 @@ describe('generation canvas control structure', () => {
     const canvasStyles = source('../styles/generationCanvas.css')
 
     expect(generationCanvas).not.toContain('CanvasGestureHint')
-    expect(navigationStack).toContain('<CanvasControlsHelpPopover />')
+    // 外壳重设计后帮助入口收进左下缩放簇的「⋯」里（同一个浮层，触发钮换成带文字的整行）。
+    expect(navigationStack).toContain('<CanvasViewOptionsPopover')
+    expect(source('./CanvasViewOptionsPopover.tsx')).toContain('<CanvasControlsHelpPopover asRow')
     expect(onboardingState).not.toContain('CANVAS_GESTURE_HINT_KEY')
     expect(canvasStyles).not.toContain('generation-canvas-v2__gesture-hint')
   })
@@ -377,12 +379,16 @@ describe('generation canvas control structure', () => {
 
   it('routes every icon-only navigation action through a styled tooltip component', () => {
     const navigationStack = source('./CanvasNavigationStack.tsx')
+    const viewOptions = source('./CanvasViewOptionsPopover.tsx')
     const tooltipButtons = navigationStack.match(/<CanvasNavigationTooltipButton/g) ?? []
 
-    // 5 = 适配 / 重置 / 画框 / 整理 / 小地图开关（2026-09-06 加入「画框」——它和缩放适配同族：
-    // 都在回答「你怎么看、怎么摆这块画布」，而不是「往画布上加什么」）。
-    expect(tooltipButtons).toHaveLength(5)
+    // 4 = 适应视图 / 缩小 / 放大 / ⋯（拍板稿 Main 板「⛶ | − 100% + | ⋯」）。
+    // 重置 / 画框 / 整理 / 小地图开关 / 操作帮助 / 缩放滑块一个不丢，收进 ⋯ 的浮层（CanvasViewOptionsPopover），行上的说明走样式化 Tooltip。
+    expect(tooltipButtons).toHaveLength(4)
+    for (const option of ['reset-view', 'frame-tool', 'tidy', 'minimap', 'controls-help']) expect(viewOptions).toContain(`data-view-option="${option}"`)
+    expect(viewOptions).toContain('type="range"')
     expect(navigationStack).not.toContain('title=')
+    expect(viewOptions).not.toContain('title=')
   })
 
   it('keeps the keyboard icon available through the runtime Tabler allowlist', () => {

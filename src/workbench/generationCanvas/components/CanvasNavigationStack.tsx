@@ -1,15 +1,27 @@
 import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM } from '../model/canvasFitBounds'
-// 画布左下角导航竖列（navigation-stack）：小地图 + 缩放条 + 显隐开关，从 GenerationCanvas 抽出
+// 画布左下角导航竖列（navigation-stack）：小地图 + 紧凑缩放条（⛶ | − 100% + | ⋯），从 GenerationCanvas 抽出
 // 以守住外壳 ≤800 行（R9）。容器负责定位（absolute left-4 bottom-3），minimap 改 relative 靠它定位。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconEyeOff, IconFocusCentered, IconFrame, IconLayoutGrid, IconMap, IconRotate } from '@tabler/icons-react'
+import { IconDots, IconFocusCentered, IconMinus, IconPlus } from '@tabler/icons-react'
 import { TooltipProvider } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { CanvasMinimap, MINIMAP_MIN_NODES } from './CanvasMinimap'
-import { CanvasControlsHelpPopover } from './CanvasControlsHelpPopover'
+import { CanvasViewOptionsPopover } from './CanvasViewOptionsPopover'
 import { CanvasNavigationTooltipButton } from './CanvasNavigationTooltipButton'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+
+/** 每按一下 − / ＋ 缩放的倍率（乘性，低倍时步子小、高倍时步子大）。 */
+const ZOOM_STEP = 1.25
+function stepZoom(percent: number, direction: 1 | -1): number {
+  const next = direction > 0 ? percent * ZOOM_STEP : percent / ZOOM_STEP
+  return Math.min(CANVAS_MAX_ZOOM, Math.max(CANVAS_MIN_ZOOM, next / 100))
+}
+
+const BAR_BUTTON_CLASS = cn(
+  'grid size-8 min-h-8 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-60',
+  'transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink active:bg-nomi-ink-10',
+)
 
 type CanvasNavigationStackProps = {
   readOnly: boolean
@@ -54,13 +66,14 @@ export function CanvasNavigationStack({
   const { t } = useTranslation()
   const hasMinimapContent = nodes.length >= MINIMAP_MIN_NODES
   const showMinimap = minimapVisible && hasMinimapContent
-  const MinimapToggleIcon = showMinimap ? IconEyeOff : IconMap
+  const [viewOptionsOpen, setViewOptionsOpen] = React.useState(false)
+  const moreAnchorRef = React.useRef<HTMLSpanElement>(null)
 
   return (
     <div
       className={cn(
         'generation-canvas-v2__navigation-stack',
-        'absolute left-4 bottom-3 z-[8] flex flex-col items-start gap-2 pointer-events-none',
+        'absolute left-4 bottom-4 z-[8] flex flex-col items-start gap-2 pointer-events-none',
       )}
       // 常驻底部：选择浮条得让开这一块（量法见 reactFlow/useCanvasBottomDockRects.ts）。
       data-canvas-bottom-dock="true"
@@ -80,14 +93,16 @@ export function CanvasNavigationStack({
       <div
         className={cn(
           'generation-canvas-v2__zoom-bar',
-          'inline-flex items-center gap-[2px] pointer-events-auto',
-          'min-h-9 p-1 border border-workbench-border rounded-nomi',
+          // 拍板稿 Main 板：「⛶ | − 100% + | ⋯」一条紧凑的浮条，高 36。其余视图控件收进 ⋯（CanvasViewOptionsPopover）。
+          'inline-flex h-9 items-center gap-0.5 pointer-events-auto p-0.5',
+          'border border-workbench-border rounded-nomi',
           'bg-nomi-paper shadow-workbench-sm',
         )}
         aria-label={t('generationCommon.navigation.zoomControls')}
       >
         <TooltipProvider delayDuration={250} disableHoverableContent>
           <CanvasNavigationTooltipButton
+            className={BAR_BUTTON_CLASS}
             label={t('generationCommon.navigation.fitView')}
             tooltip={
               nodes.length === 0 ? t('generationCommon.navigation.emptyCanvas') : t('generationCommon.navigation.fitView')
@@ -95,63 +110,44 @@ export function CanvasNavigationStack({
             disabled={nodes.length === 0}
             onClick={onFitView}
           >
-            <IconFocusCentered size={15} stroke={1.8} aria-hidden="true" />
+            <IconFocusCentered size={18} stroke={1.5} aria-hidden="true" />
           </CanvasNavigationTooltipButton>
-          <CanvasNavigationTooltipButton label={t('generationCommon.navigation.resetView')} onClick={onResetView}>
-            <IconRotate size={15} stroke={1.8} aria-hidden="true" />
+          <span className="mx-1 h-[18px] w-px shrink-0 bg-nomi-line" aria-hidden="true" />
+          <CanvasNavigationTooltipButton className={BAR_BUTTON_CLASS} label={t('generationCommon.navigation.zoomOut')} disabled={zoomPercent <= CANVAS_MIN_ZOOM * 100} onClick={() => onZoomTo(stepZoom(zoomPercent, -1))}>
+            <IconMinus size={16} stroke={1.5} aria-hidden="true" />
           </CanvasNavigationTooltipButton>
-          <input
-            className="w-[78px] accent-workbench-accent"
-            type="range"
-            min={CANVAS_MIN_ZOOM * 100}
-            max={CANVAS_MAX_ZOOM * 100}
-            value={zoomPercent}
-            aria-label={t('generationCommon.navigation.zoomRatio')}
-            onChange={(event) => onZoomTo(Number(event.target.value) / 100)}
+          <span className="w-11 text-center text-caption tabular-nums text-nomi-ink-80" data-canvas-zoom-percent aria-live="off" aria-label={t('generationCommon.navigation.zoomRatio')}>{Math.round(zoomPercent)}%</span>
+          <CanvasNavigationTooltipButton className={BAR_BUTTON_CLASS} label={t('generationCommon.navigation.zoomIn')} disabled={zoomPercent >= CANVAS_MAX_ZOOM * 100} onClick={() => onZoomTo(stepZoom(zoomPercent, 1))}>
+            <IconPlus size={16} stroke={1.5} aria-hidden="true" />
+          </CanvasNavigationTooltipButton>
+          <span className="mx-1 h-[18px] w-px shrink-0 bg-nomi-line" aria-hidden="true" />
+          <span ref={moreAnchorRef} className="inline-flex">
+            <CanvasNavigationTooltipButton
+              className={cn(BAR_BUTTON_CLASS, viewOptionsOpen && 'bg-nomi-ink-10 text-nomi-ink')}
+              label={t('generationCommon.navigation.viewOptions')}
+              aria-haspopup="dialog"
+              aria-expanded={viewOptionsOpen}
+              onClick={() => setViewOptionsOpen((open) => !open)}
+            >
+              <IconDots size={18} stroke={1.5} aria-hidden="true" />
+            </CanvasNavigationTooltipButton>
+          </span>
+        {viewOptionsOpen ? (
+          <CanvasViewOptionsPopover
+            anchorRef={moreAnchorRef}
+            onClose={() => setViewOptionsOpen(false)}
+            readOnly={readOnly}
+            zoomPercent={zoomPercent}
+            nodeCount={nodes.length}
+            minimapShown={showMinimap}
+            frameToolArmed={frameToolArmed}
+            onResetView={onResetView}
+            onTidy={onTidy}
+            onToggleMinimap={onToggleMinimap}
+            onToggleFrameTool={onToggleFrameTool}
+            onZoomTo={onZoomTo}
           />
-          {/*
-            「框」和缩放/适配/整理同族：它们都在回答「你怎么看、怎么摆这块画布」，
-            而不是「往画布上加什么」（那是加号那一族，见 canvasToolbarModel 的意图表）。
-            这也是这簇里唯一一颗有开关态的按钮，所以给 aria-pressed。
-          */}
-          {!readOnly && onToggleFrameTool ? (
-            <CanvasNavigationTooltipButton
-              label={t('generationCommon.canvas.group.frameTool')}
-              tooltip={frameToolArmed
-                ? t('generationCommon.canvas.group.frameToolArmed')
-                : t('generationCommon.canvas.group.frameToolHint')}
-              aria-pressed={frameToolArmed}
-              onClick={onToggleFrameTool}
-            >
-              <IconFrame size={15} stroke={1.8} aria-hidden="true" />
-            </CanvasNavigationTooltipButton>
-          ) : null}
-          {!readOnly ? (
-            <CanvasNavigationTooltipButton
-              label={t('generationCommon.navigation.tidy')}
-              tooltip={t('generationCommon.navigation.tidyHint')}
-              onClick={onTidy}
-            >
-              <IconLayoutGrid size={15} stroke={1.8} aria-hidden="true" />
-            </CanvasNavigationTooltipButton>
-          ) : null}
-          <CanvasNavigationTooltipButton
-            label={
-              showMinimap ? t('generationCommon.navigation.hideMinimap') : t('generationCommon.navigation.showMinimap')
-            }
-            tooltip={
-              hasMinimapContent
-                ? showMinimap
-                  ? t('generationCommon.navigation.hideMinimap')
-                  : t('generationCommon.navigation.showMinimap')
-                : t('generationCommon.navigation.minimapThreshold', { count: MINIMAP_MIN_NODES })
-            }
-            aria-pressed={showMinimap}
-            onClick={onToggleMinimap}
-          >
-            <MinimapToggleIcon size={15} stroke={1.8} aria-hidden="true" />
-          </CanvasNavigationTooltipButton>
-          <CanvasControlsHelpPopover />
+        ) : null}
         </TooltipProvider>
       </div>
     </div>

@@ -684,7 +684,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
           {hasPendingCameraMoveCapture ? <CameraMoveCaptureHost /> : null}
         </React.Suspense>
       ) : null}
-      {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} /> : null}
+      {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} stageWidth={stageSize.width || undefined} /> : null}
       <GenerationFlowHandleMenuScope open={openHandleMenu}>
       <GenerationCanvasReactFlowViewport
         flowNodes={renderedFlowNodes}

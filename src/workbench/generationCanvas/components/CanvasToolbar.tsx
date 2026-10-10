@@ -187,7 +187,15 @@ type CanvasToolbarProps = {
   // 只给「期望落点」（视口锚换算的画布坐标）；真实 AABB 碰撞避让统一收口在 store.addNode。
   getInsertionPosition: () => { x: number; y: number }
   categoryId?: string
+  /**
+   * 舞台宽。窄到和左下的缩放簇挤在同一条底边上放不下时（Agent 停靠 + 小窗口），
+   * 加节点条整条抬到缩放簇上面一行——宁可高一点，不许两块叠在一起（拍板稿 Main 板只画了 1280 宽的样子）。
+   */
+  stageWidth?: number
 }
+
+/** 加节点条（约 340px）+ 左下缩放簇（约 190px）+ 两边留白放得下的最小舞台宽。 */
+export const ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH = 820
 
 const TOOLBAR_BUTTON_CLASS = cn(
   'grid size-8 min-h-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-80 cursor-pointer',
@@ -197,7 +205,7 @@ const TOOLBAR_BUTTON_CLASS = cn(
   '[&>svg]:size-[18px]',
 )
 
-export default function CanvasToolbar({ getInsertionPosition, categoryId }: CanvasToolbarProps): JSX.Element {
+export default function CanvasToolbar({ getInsertionPosition, categoryId, stageWidth }: CanvasToolbarProps): JSX.Element {
   const { t } = useTranslation()
   const addNode = useGenerationCanvasStore((state) => state.addNode)
   const workflowTemplates = useGenerationCanvasStore((state) => state.workflowTemplates)
@@ -214,15 +222,21 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
     addIntent.run(intent)
   }
 
+  const lifted = stageWidth !== undefined && stageWidth < ADD_BAR_SHARES_BOTTOM_ROW_MIN_STAGE_WIDTH
+
   return (
     <div
       className={cn(
         'generation-canvas-v2-toolbar',
-        'absolute top-1/2 left-4 z-[8] inline-flex flex-col items-center gap-1 p-[6px]',
+        // 拍板稿 Main 板：加节点条是内容区底部正中的一条横排（图片 视频 声音 文字 剪辑 | 导入 +），贴着时间轴窄条上沿。
+        'absolute left-1/2 z-[8] inline-flex h-10 items-center gap-0.5 p-1 -translate-x-1/2',
+        lifted ? 'bottom-[60px]' : 'bottom-4',
         'border border-workbench-border rounded-nomi',
-        'bg-nomi-paper shadow-workbench-md -translate-y-1/2',
-        'max-h-[calc(100%-32px)]',
+        'bg-nomi-paper shadow-workbench-md',
+        'max-w-[calc(100%-32px)]',
       )}
+      // 常驻底部：选择浮条 / 时间轴胶囊得让开这一块（同左下缩放簇）。
+      data-canvas-bottom-dock="true"
       aria-label={t('canvas.toolbar')}
     >
       {addIntent.pickerInput}
@@ -234,7 +248,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
           return (
             <React.Fragment key={intent.id}>
               {/* 导入和「生成什么」不是一类：Claude Design 拍板稿里它前面有一道竖线（这里是横线）。 */}
-              {intent.id === 'import-file' && index > 0 ? <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" /> : null}
+              {intent.id === 'import-file' && index > 0 ? <span className="mx-1 h-[18px] w-px shrink-0 bg-nomi-line" aria-hidden="true" /> : null}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -249,7 +263,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                     <span className="hidden">{intentLabel(intent, t)}</span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">{tip}</TooltipContent>
+                <TooltipContent side="top">{tip}</TooltipContent>
               </Tooltip>
             </React.Fragment>
           )
@@ -270,13 +284,13 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                 <IconPlus size={18} stroke={1.5} />
               </button>
             </TooltipTrigger>
-            {moreOpen ? null : <TooltipContent side="right">{t('canvas.moreMenu')}</TooltipContent>}
+            {moreOpen ? null : <TooltipContent side="top">{t('canvas.moreMenu')}</TooltipContent>}
           </Tooltip>
-          {moreOpen ? <CanvasMoreAddMenu className="absolute bottom-0 left-[calc(100%+8px)]" onPick={handlePick} onClose={closeMore} /> : null}
+          {moreOpen ? <CanvasMoreAddMenu className="absolute bottom-[calc(100%+12px)] right-[-4px]" onPick={handlePick} onClose={closeMore} /> : null}
         </div>
         {workflowTemplates.length ? (
           <>
-            <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />
+            <span className="mx-1 h-[18px] w-px shrink-0 bg-nomi-line" aria-hidden="true" />
             <label className="relative grid size-8 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05" title={t('generationCommon.selection.workflowMenu')}>
               <IconRoute size={18} stroke={1.6} />
               <select
@@ -321,7 +335,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                 <IconRoute size={18} stroke={1.6} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{t('generationCommon.workflowPlugin.addCheckpoint')}</TooltipContent>
+            <TooltipContent side="top">{t('generationCommon.workflowPlugin.addCheckpoint')}</TooltipContent>
           </Tooltip>
         ) : null}
       </TooltipProvider>

@@ -1030,6 +1030,9 @@ export const zhGenerationCommon = {
     showMinimap: '显示地图',
     minimapThreshold: '至少 {{count}} 个节点后显示小地图',
     canvasControls: '画布操作',
+    zoomOut: '缩小',
+    zoomIn: '放大',
+    viewOptions: '更多视图选项',
   },
   cameraMove: {
     move: {
@@ -2696,6 +2699,9 @@ export const enGenerationCommon = {
     showMinimap: 'Show minimap',
     minimapThreshold: 'Show the minimap after at least {{count}} nodes',
     canvasControls: 'Canvas controls',
+    zoomOut: 'Zoom out',
+    zoomIn: 'Zoom in',
+    viewOptions: 'More view options',
   },
   cameraMove: {
     move: {

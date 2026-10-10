@@ -1,0 +1,26 @@
+{
+  "id": "FB-20261010-shell-canvas-chrome-parity",
+  "since": "2026-10-10",
+  "source": "2026-10-10 用户看真 App 反馈（外壳与拍板稿 Main 板没对齐）：「左侧的节点工具栏不是放在下面了吗，现在依然在左侧」「创作生成预览要整体居中，而不是在他的空间居中」；协调会话对过板子确认属实，缩放簇同样没收成板子上的样子",
+  "category": "interaction-semantics",
+  "problem": "拍板稿 Main 板的加节点条（内容区底部正中横排）、缩放簇（⛶ | − 100% + | ⋯）、顶栏分段（整窗居中）三处真 App 没做对；根因是 #1136 正文写了「等 #1133 合入后作为本 PR 后续提交」的承诺，合并时没人核，设计卡与正文对「归不归本线」又写成相反的话",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "屏外真 Electron 走查 tests/ux/shell-redesign.walk.mjs 的 check-canvas-chrome 段：分段中心与窗口中心偏差 ≤ 1px（槽里塞 96px 元素后仍 ≤ 1px）、加节点条横排居中贴底、缩放簇五控件与 ⋯ 里六项一个不丢；中英、光暗、1280 / 1000 截图并排对照拍板稿 Main 板",
+    "scripts/pr-body-criteria.node-test.mjs 三条必红用例：正文承诺「后续提交 / 等 X 合入后」又没标已完成 / 移交，合并档判红",
+    "结账待办：PR 号落定后由协调会话把 status 改 fixed 并补 fixedInPr（本 PR 号在开 PR 前未知）"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-10-shell-canvas-chrome-parity.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "scripts/pr-body-criteria.node-test.mjs"
+  }
+}
