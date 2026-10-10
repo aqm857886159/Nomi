@@ -93,7 +93,7 @@ describe('card names for untitled nodes', () => {
       node({ id: 'u2', kind: 'image', title: '', prompt: '' }),
       node({ id: 'u3', kind: 'image', title: '', prompt: '' }),
     ]
-    const model = deriveGenerationList({ nodes, edges: [], groups: [], designsByDocumentId: {} })
+    const model = deriveGenerationList({ nodes, edges: [], groups: [], designsByDocumentId: {}, imageModelOptions: [], videoModelOptions: [] })
     const titles = model.sections.flatMap((section) => section.cards.map((card) => card.title))
     expect(titles).toEqual(['清晨海边的灯塔', '图片 2', '图片 3'])
   })
