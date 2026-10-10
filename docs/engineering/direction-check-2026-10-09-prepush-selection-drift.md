@@ -62,3 +62,13 @@
 - 类根因：同一份正文判据被推送前钩子和 CI / 合并前扫描共用，但有的判据只在合并时才可能满足，判据本身不知道自己跑在哪一步。
 - 改法：判据加「哪一步」（resolveJudgementStage）。推送前钩子注入 NOMI_PR_JUDGEMENT_STAGE=push，只把「缺报告链接」降成提醒；这一节缺失、没写验收线、验收线等于实现线照样红；CI 里一律按合并判。
 - 命中的自写登记仍是 `gate-family`；换不换现成方案的结论同上文，不变（这一刀是在自写判据上加时机维度，没有现成库管 PR 正文判据）。
+
+## 追记 2026-10-10：推送前不跑「和改动相关的单测」、也不跑钩子自己的结构用例
+
+- 症状（同一天三次推送前全绿、CI 才红）：#1148 改了 `scripts/build-electron.mjs`，`scripts/electron-build.test.mjs` 必红，钩子只跑固定几条测试；#1147 新加门岗并在 `GATE_INPUTS` 登记，`pre-push-contracts.node-test.mjs` 里「SCANNER_READS 与 GATE_INPUTS 同集合」的契约用例在 CI 红；#1141 合 main 后新门岗没在门表声明，结构用例在 CI 红。
+- 类根因：推送前这一层只认「门岗清单里写了的东西」。两类东西没有人声明过它们该在本机跑：一是按改动文件才相关的单测（没有「改了谁就跑谁的测试」这条通路），二是钩子自己的结构 / 契约用例（它们和 90 秒以上的慢用例同在一个测试文件里，整份只能放 CI）。
+- 改法：
+  - 相关单测：改了 src / electron / scripts / tests 下的源码，就按「改动的测试自己 + 同名测试（foo.mjs ↔ foo.test.mjs / foo.node-test.mjs）+ `git grep` 按引号提到改动文件主名的测试」挑，vitest 与 node:test 分两路并行跑，总上限 75 秒，超了不算红、如实写「相关单测没跑完，CI 会跑」并列出文件（`scripts/pre-push-related-tests.mjs`）。
+  - 结构用例：把纯函数 / 读文件的快用例从慢文件拆成 `scripts/pre-push-structure.node-test.mjs`（约 10 秒），作为推送前门岗 `test:pre-push-structure` 登记进 SCAN_TESTS + GATE_INPUTS；输入范围 = package.json、分发表，加上它自己的 import 闭包（门表、输入声明、入口脚本）——改了其中任何一个就跑。慢用例留在原文件，CI 照跑。结构测试盯着这两项的登记不许被删。
+- 为什么不换成现成方案：这次接的就是现成能力，但接不全。实测（本机 Windows，约 2000 个测试文件）`vitest related` 先给全部测试文件建依赖图，空转 110–140 秒，位置参数的过滤不会提前缩小范围（带一个测试文件名参数仍跑了 6 分钟、跑进无关的 tests/ux），超出 60–90 秒预算；而且它根本选不中 `electron-build.test.mjs`（该测试用计算路径动态 import + 拷贝文件名清单），也就是今天的实证它漏。所以选择用 git 自带的 grep 和文件名约定，没有自己写 import 图。已知残留：只覆盖到「直接提到」这一跳，不含传递依赖，也看不见按文本读被测文件但没写出文件名的测试；CI 是裁判。哪天 vitest 的 related 能按范围提前缩小、或有可持久化的依赖图缓存，再换。
+- 命中的自写登记仍是 `gate-family`：门岗选择表是本仓交付纪律的领域约束，没有现成工具管「哪些门按哪些改动选」；换不换的结论同上文，不变。
