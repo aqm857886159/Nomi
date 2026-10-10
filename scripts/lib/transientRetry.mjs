@@ -31,10 +31,22 @@ function text(value) {
   return Buffer.isBuffer(value) ? value.toString('utf8') : String(value)
 }
 
-/** 抛出来的这个错误是不是网络瞬断。无法识别的一律当「不是」——宁可立刻失败，也不重试掩盖。 */
-export function isTransientError(error) {
+/** 超时：execFileSync 的 timeout 杀进程（ETIMEDOUT + 信号）、git-delivery 的 transport_timeout、fetch 的 AbortSignal.timeout（TimeoutError）。 */
+export function isTimeoutError(error) {
   if (!error || typeof error !== 'object') return false
-  if (error.killed || error.signal) return false // 调用方自己设的超时 / 信号把子进程杀了：它选的等待预算已经用完，不再乘三
+  return error.code === 'transport_timeout' || error.name === 'TimeoutError' || (error.code === 'ETIMEDOUT' && Boolean(error.killed || error.signal))
+}
+
+/**
+ * 抛出来的这个错误是不是网络瞬断。无法识别的一律当「不是」——宁可立刻失败，也不重试掩盖。
+ * 超时默认**不算**：卡死的 TLS 连接对只读调用是最典型的瞬断，由只读调用方显式 retryTimeouts: true 打开
+ * （fetchWithRetry / execGhReadSync / 只读的 retryTransient 包装）；写调用超时后到底成没成功不确定，永远只试一次。
+ * 被别的原因杀掉的子进程（有信号、不是超时）也不重试。
+ */
+export function isTransientError(error, { retryTimeouts = false } = {}) {
+  if (!error || typeof error !== 'object') return false
+  if (isTimeoutError(error)) return retryTimeouts
+  if (error.killed || error.signal) return false
   const status = error.status ?? error.httpStatus
   if (typeof status === 'number' && status >= 400 && status < 500) return false
   if (typeof status === 'number' && status >= 500) return true
@@ -46,8 +58,11 @@ export function isTransientError(error) {
   return TRANSIENT_TEXT.test(haystack)
 }
 
-function annotateExhausted(error, attempts) {
-  const note = `（重试 ${attempts - 1} 次后仍失败，共尝试 ${attempts} 次）`
+function annotateExhausted(error, attempts, timeoutMs) {
+  const perAttempt = timeoutMs ?? error.details?.timeoutMs
+  const note = isTimeoutError(error)
+    ? `（每次超时 ${perAttempt ?? '未知'} 毫秒，共尝试 ${attempts} 次，重试 ${attempts - 1} 次后仍失败）`
+    : `（重试 ${attempts - 1} 次后仍失败，共尝试 ${attempts} 次）`
   try {
     error.message = `${error.message}${note}`
     error.retryAttempts = attempts
@@ -67,7 +82,9 @@ export async function retryTransient(fn, {
   attempts = DEFAULT_ATTEMPTS,
   baseDelayMs = DEFAULT_BASE_DELAY_MS,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  isTransient = isTransientError,
+  retryTimeouts = false,
+  timeoutMs,
+  isTransient = (error) => isTransientError(error, { retryTimeouts }),
   onRetry = () => {},
 } = {}) {
   for (let attempt = 1; ; attempt += 1) {
@@ -75,7 +92,7 @@ export async function retryTransient(fn, {
       return await fn(attempt)
     } catch (error) {
       if (!isTransient(error)) throw error
-      if (attempt >= attempts) throw annotateExhausted(error, attempts)
+      if (attempt >= attempts) throw annotateExhausted(error, attempts, timeoutMs)
       onRetry({ attempt, error })
       await sleep(backoffMs(baseDelayMs, attempt))
     }
@@ -91,7 +108,9 @@ export function retryTransientSync(fn, {
   attempts = DEFAULT_ATTEMPTS,
   baseDelayMs = DEFAULT_BASE_DELAY_MS,
   sleep = sleepSync,
-  isTransient = isTransientError,
+  retryTimeouts = false,
+  timeoutMs,
+  isTransient = (error) => isTransientError(error, { retryTimeouts }),
   onRetry = () => {},
 } = {}) {
   for (let attempt = 1; ; attempt += 1) {
@@ -99,7 +118,7 @@ export function retryTransientSync(fn, {
       return fn(attempt)
     } catch (error) {
       if (!isTransient(error)) throw error
-      if (attempt >= attempts) throw annotateExhausted(error, attempts)
+      if (attempt >= attempts) throw annotateExhausted(error, attempts, timeoutMs)
       onRetry({ attempt, error })
       sleep(backoffMs(baseDelayMs, attempt))
     }
@@ -123,7 +142,7 @@ export async function fetchWithRetry(url, init = {}, { fetchImpl = globalThis.fe
       throw error
     }
     return response
-  }, retryOptions)
+  }, { retryTimeouts: true, ...retryOptions })
 }
 
 const GH_READ_SUBCOMMANDS = new Set(['pr view', 'pr list', 'pr diff', 'pr checks', 'run view', 'run list', 'run download', 'issue view', 'issue list', 'release view', 'release list', 'api'])
@@ -152,7 +171,7 @@ export function execGhReadSync(args, { bin = 'gh', ...execOptions } = {}, retryO
   if (bin === 'gh') assertGhReadOnly(args)
   return retryTransientSync(
     () => execFileSync(bin, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...execOptions }),
-    retryOptions,
+    { retryTimeouts: true, timeoutMs: execOptions.timeout, ...retryOptions },
   )
 }
 
