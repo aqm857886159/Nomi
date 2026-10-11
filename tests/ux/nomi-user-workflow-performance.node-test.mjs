@@ -89,6 +89,8 @@ for (const scale of ['small', 'typical', 'heavy']) {
     assert.ok(payload.workbenchDocuments.every((doc) => JSON.stringify(doc.contentJson).includes('Workflow draft')))
     assert.ok(Object.values(payload.storyboardDesignsByDocumentId).some((plans) => plans.length >= 2))
     assert.equal(new Set(designs.flatMap((design) => design.plan.shots.map((shot) => shot.shotId))).size, fixture.summary.shots)
+    assert.equal(new Set(designs.flatMap((design) => design.plan.shots.map((shot) => shot.prompt))).size, fixture.summary.shots, 'Every competing design/shot must have distinct visible content')
+    for (const design of designs) for (const shot of design.plan.shots) assert.ok(shot.prompt.includes(shot.shotId), 'Visible content carries the exact fixture shot identity')
     const canvas = payload.generationCanvas
     assert.ok(canvas.groups.some((group) => ['image', 'video'].every((kind) => group.nodeIds.some((id) => canvas.nodes.find((node) => node.id === id)?.kind === kind))))
     assert.ok(canvas.nodes.some((node) => node.history.length >= 2))

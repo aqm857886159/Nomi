@@ -1,0 +1,11 @@
+✔ narrow journey selection rejects every unknown, split or duplicate argument before setup (0.678362ms)
+✔ completion probe starts its browser frame loop before trusting an input (1.067061ms)
+✔ selected design with target plus stale foreign content cannot complete a switch (1.144656ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40.365718

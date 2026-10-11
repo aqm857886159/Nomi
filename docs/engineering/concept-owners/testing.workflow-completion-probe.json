@@ -1,0 +1,26 @@
+{
+  "name": "工作流真实内容完成观测",
+  "subject": "testing.workflow-completion-probe",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/nomi-next-workflow-probe.mjs",
+    "symbol": "installCompletionProbe"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/nomi-next-workflow-probe.mjs",
+      "symbol": "installCompletionProbe"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/nomi-next-workflow-probe.node-test.mjs",
+  "allowed_consumers": [
+    "tests/ux/nomi-next-workflow-journeys.e2e.mjs"
+  ],
+  "since": "2026-10-11",
+  "notes": "只登记本批实际共享测试边界；唯一内容与完成谓词由该入口统一，不改变生产 owner 或其他47项 advisory。"
+}

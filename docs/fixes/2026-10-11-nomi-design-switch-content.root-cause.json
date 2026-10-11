@@ -1,0 +1,162 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-design-switch-content",
+  "problem_type": "Competing design content can impersonate a successful selected-design switch",
+  "symptom": "Both design-switch receipts accept identical first-shot prompt, so an updated selected row with stale editor content can pass.",
+  "direct_cause": "Fixture shot prompts omit their unique plan/shot identity; completion checks presence only and never rejects foreign design content.",
+  "class_root": "A UI selection receipt does not bind production selected identity to distinct target content and the absence of foreign content in the same completion observation.",
+  "affected_population": [
+    "All small/typical/heavy competing fixture designs and future plan-switch actions",
+    "Selected target row with stale-only or target-plus-foreign editor content"
+  ],
+  "scope_paths": [
+    "tests/ux/fixtures/nomi-user-workflow-fixture.mjs",
+    "tests/ux/nomi-next-workflow-probe.mjs",
+    "tests/ux/nomi-next-workflow-probe.node-test.mjs",
+    "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+    "package.json",
+    "scripts/pre-push-contracts.mjs"
+  ],
+  "entry_points": [
+    "Both competing design-switch UI actions",
+    "Shared completion predicate and all scale fixture constructors"
+  ],
+  "external_sources": [],
+  "invariants": [
+    "Every competing fixture shot has unique identity-bearing visible content at every scale",
+    "Completion requires exact active production design ID, target prompt and absence of every foreign design prompt simultaneously",
+    "Public DOM identity/content/exclusion and complete persisted shot assertions remain",
+    "A stale-content positive control and wrong selected identity cannot complete",
+    "Unknown or duplicate narrow-run arguments fail before fixture/app setup; only the two affected actions rerun"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "symbol": "installCompletionProbe"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/nomi-next-workflow-probe.node-test.mjs",
+      "symbol": "installCompletionProbe"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "Keep the existing fixture consumers and shared browser observation callers; content identity and exclusion are enforced at their shared boundaries without creating another fixture or runner."
+  },
+  "generality_proof": "All three fixture scales now expose unique shotId in every prompt. The shared browser predicate applies textNot in the same frame as target presence and exact selected-row identity. Node positive control reproduces changed selection with stale-only and target-plus-stale content, then proves success only when old content is removed. The common design loop serves both full and strictly selected two-action runs; existing three-suite mandatory CI/local evidence gate includes these regressions.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/fixtures/nomi-user-workflow-fixture.mjs",
+      "symbol": "createNomiUserWorkflowFixture",
+      "responsibility": "Provide uniquely attributable visible plan/shot content at every scale"
+    },
+    {
+      "path": "tests/ux/nomi-next-workflow-probe.mjs",
+      "symbol": "installCompletionProbe",
+      "responsibility": "Bind trusted-input completion to target identity/content and foreign-content exclusion"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "entry_point": "Both competing design switches",
+      "disposition": "enforced",
+      "evidence": "One shared loop records exact selected production ID, unique target shot/prompt and all foreign prompts; complete persisted plans remain asserted"
+    },
+    {
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "entry_point": "Atomic project-open fixture consumer",
+      "disposition": "not-affected",
+      "evidence": "No storyboard content-completion predicate; historical baseline remains immutable and fixture hash change is disclosed"
+    },
+    {
+      "path": "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "entry_point": "Document switching",
+      "disposition": "not-affected",
+      "evidence": "Existing distinct Workflow draft content and exact active document ID; no assertion weakened"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any competing target whose content is shared or retained can impersonate selection; every scale and shared completion caller must preserve attribution.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs installCompletionProbe createNomiUserWorkflowFixture --roots=tests --include-tests",
+      "rg Workflow fixture shot / storyboard.switch / completion conditions across fixture and Nomi runners"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/nomi-next-workflow-probe.mjs",
+    "invariant": "Selected identity, distinct target content and foreign exclusion agree in the same browser observation.",
+    "failure_mode": "Probe never completes and existing bounded timeout fails; unknown narrow-run arguments throw before setup.",
+    "exception_policy": "none",
+    "strategy": "Identity-bearing shared fixture prompts plus shared negative content predicate; common two-action loop retains public and disk assertions. Existing explicitly registered three-suite check:nomi-workflow-evidence is structural enforcement in this PR: CI/local exact argv executes both changed class regressions; no general selector or gate is bypassed.",
+    "artifacts": [
+      "tests/ux/fixtures/nomi-user-workflow-fixture.mjs",
+      "tests/ux/nomi-next-workflow-probe.mjs",
+      "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "package.json",
+      "scripts/pre-push-contracts.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/nomi-next-workflow-probe.node-test.mjs",
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/nomi-next-workflow-probe.node-test.mjs",
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/fixtures/nomi-user-workflow-fixture.mjs",
+      "tests/ux/nomi-next-workflow-journeys.e2e.mjs"
+    ],
+    "rationale": "Repeated shared prompts and presence-only design completion are replaced; original raw two-action false-green claims are withdrawn without rewriting evidence."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal fixture/receipt attribution defect; no dependency or production change.",
+    "exit_criteria": []
+  },
+  "migration": "No production/store/data/concurrency/budget migration. Unique fixture content changes one historical baseline source hash; baseline numbers are not relabeled as a current-source measurement.",
+  "residual_risks": [
+    "Two final-source real UI actions and new-head CI pending",
+    "Four LazyMarkdown consumers still need runtime cold chunk/failure, suspended updates, streaming and close/reopen acceptance",
+    "Full performance matrix and real-display/Mac/Windows/GPU baselines remain unverified"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/nomi-next-workflow-probe.mjs",
+    "tests": [
+      "tests/ux/nomi-next-workflow-probe.node-test.mjs",
+      "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "patch",
+    "characterization_test": "tests/ux/nomi-next-workflow-probe.node-test.mjs"
+  },
+  "internal_only_reason": "Repository production data-active/ID and storyboard editor output are the real observable contracts. The offline fixture and browser probe are internal; no external API claim or dependency defect."
+}

@@ -19,13 +19,14 @@ function distributePlans(documentCount, planCount) {
 }
 
 function shot(index, scale, planIndex) {
+  const shotId = `workflow-${scale}-plan-${planIndex}-shot-${index + 1}`
   return {
     index: index + 1,
-    shotId: `workflow-${scale}-plan-${planIndex}-shot-${index + 1}`,
+    shotId,
     shotKind: index % 3 === 0 ? 'image' : 'video',
     durationSec: 5,
     anchorIds: [],
-    prompt: `Workflow fixture shot ${index + 1}`,
+    prompt: `Workflow fixture ${shotId}`,
     modelKey: 'local-fixture-model',
     modeId: 'fixture',
   }

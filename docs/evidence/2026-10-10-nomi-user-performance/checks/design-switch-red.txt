@@ -1,0 +1,131 @@
+✔ completion probe starts its browser frame loop before trusting an input (4.717386ms)
+✖ selected design with target plus stale foreign content cannot complete a switch (4.429767ms)
+✔ semantic budgets distinguish feedback, decoded content and delayed target-control completion (1.20008ms)
+✔ completed target response may precede decoded content without invalidating the action (0.20799ms)
+✔ schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions (1.742048ms)
+✔ workflow scale contract is fixed and complete (0.594426ms)
+✔ small fixture persists document, plan and mixed media counts (8.123115ms)
+✖ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.371674ms)
+✖ typical fixture contains nonempty drafts, competing plans, mixed groups and history (10.100425ms)
+✖ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (30.809025ms)
+✔ production snapshot and result normalization preserve fixture groups and history (445.989632ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.848675ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.896506ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.710759ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.308169ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.123124ms)
+✔ the real browser probe retains input stalls and requires trusted target input plus production response (1.855735ms)
+✔ decoded content can arrive after feedback, eligibility and completed target input (0.763538ms)
+✔ existing opening spinner is feedback before target title or decoded media (0.57092ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy content or canvas eligibility (1.300017ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.51687ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.516529ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.150885ms)
+✔ schema-v3 samples without decoded-content, target-control and persistence receipts are not measurement evidence (0.266667ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.203704ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.091136ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.098987ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (7.675958ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (27.564235ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.208691ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (27.95759ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (32.157499ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.994512ms)
+✔ control inventory rechecks actual AST bindings, conditional duplication and existing walk action gaps (472.477192ms)
+✔ expanded pairwise plans cover all eligible13-axis pairs plus the complete interruption/recovery combination (1.021902ms)
+✔ percentiles and raw path redaction are deterministic (0.311364ms)
+✔ negative raw frame interval fails closed rather than dropping an input stall (0.157835ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 33
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1803.86631
+
+✖ failing tests:
+
+test at tests/ux/nomi-next-workflow-probe.node-test.mjs:25:1
+✖ selected design with target plus stale foreign content cannot complete a switch (4.429767ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  30 !== null
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-next-workflow-probe.node-test.mjs:47:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 30,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
+✖ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.371674ms)
+  AssertionError [ERR_ASSERTION]: Every competing design/shot must have distinct visible content
+  
+  6 !== 12
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:92:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 6,
+    expected: 12,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
+✖ typical fixture contains nonempty drafts, competing plans, mixed groups and history (10.100425ms)
+  AssertionError [ERR_ASSERTION]: Every competing design/shot must have distinct visible content
+  
+  10 !== 48
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:92:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 10,
+    expected: 48,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
+✖ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (30.809025ms)
+  AssertionError [ERR_ASSERTION]: Every competing design/shot must have distinct visible content
+  
+  32 !== 320
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:92:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 32,
+    expected: 320,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

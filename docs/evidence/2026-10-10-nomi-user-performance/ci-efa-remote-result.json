@@ -1,0 +1,154 @@
+{
+  "head": "efa8c2c88cffc1f97bc0a68f1639c660e08598bf",
+  "qualityGate": {
+    "id": 38110730716,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716"
+  },
+  "jobs": [
+    {
+      "id": 114385559740,
+      "name": "Validation Scope",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385559740"
+    },
+    {
+      "id": 114385559948,
+      "name": "Tool Face (3D-BOX on)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385559948"
+    },
+    {
+      "id": 114385559957,
+      "name": "Contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385559957"
+    },
+    {
+      "id": 114385637586,
+      "name": "Core Flow Smoke (used)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637586"
+    },
+    {
+      "id": 114385637590,
+      "name": "Canvas Acceptance (Linux) (1)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637590"
+    },
+    {
+      "id": 114385637603,
+      "name": "Canvas Acceptance (Linux) (2)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637603"
+    },
+    {
+      "id": 114385637606,
+      "name": "Mac Package",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637606"
+    },
+    {
+      "id": 114385637611,
+      "name": "Unit (3)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637611"
+    },
+    {
+      "id": 114385637615,
+      "name": "E2E Walkthroughs (Linux) (3)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637615"
+    },
+    {
+      "id": 114385637620,
+      "name": "Core Flow Smoke (empty)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637620"
+    },
+    {
+      "id": 114385637632,
+      "name": "E2E Walkthroughs (Linux) (2)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637632"
+    },
+    {
+      "id": 114385637634,
+      "name": "E2E Walkthroughs (Linux) (1)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637634"
+    },
+    {
+      "id": 114385637637,
+      "name": "E2E Walkthroughs (Linux) (4)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637637"
+    },
+    {
+      "id": 114385637650,
+      "name": "Unit (2)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637650"
+    },
+    {
+      "id": 114385637665,
+      "name": "Unit (1)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385637665"
+    },
+    {
+      "id": 114385638398,
+      "name": "Canvas Performance (Linux)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114385638398"
+    },
+    {
+      "id": 114388762600,
+      "name": "Quality Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/aqm857886159/Nomi/actions/runs/38110730716/job/114388762600"
+    }
+  ],
+  "unit1": [
+    "2026-10-11T04:16:28.9986624Z  Test Files  635 passed (635)",
+    "2026-10-11T04:16:29.0030815Z       Tests  6762 passed | 15 skipped (6777)",
+    "2026-10-11T04:16:31.0157317Z ℹ tests 13",
+    "2026-10-11T04:16:31.0158330Z ℹ pass 13",
+    "2026-10-11T04:16:31.0158688Z ℹ fail 0",
+    "2026-10-11T04:18:50.7990759Z ℹ tests 506",
+    "2026-10-11T04:18:50.7991491Z ℹ pass 505",
+    "2026-10-11T04:18:50.7991778Z ℹ fail 0",
+    "2026-10-11T04:18:51.1588773Z ℹ tests 8",
+    "2026-10-11T04:18:51.1589449Z ℹ pass 8",
+    "2026-10-11T04:18:51.1589743Z ℹ fail 0",
+    "2026-10-11T04:18:51.5370391Z ℹ tests 2",
+    "2026-10-11T04:18:51.5371608Z ℹ pass 2",
+    "2026-10-11T04:18:51.5371913Z ℹ fail 0",
+    "2026-10-11T04:18:52.2180166Z ℹ tests 29",
+    "2026-10-11T04:18:52.2180632Z ℹ pass 29",
+    "2026-10-11T04:18:52.2180848Z ℹ fail 0"
+  ],
+  "unit2": [
+    "2026-10-11T04:16:22.5730627Z  Test Files  634 passed | 1 skipped (635)",
+    "2026-10-11T04:16:22.5770868Z       Tests  5691 passed | 3 skipped (5694)"
+  ],
+  "scope": "Remote CI result for efa source checkpoint, before later native evidence/design content follow-up. Performance lane skipped; no performance acceptance."
+}
