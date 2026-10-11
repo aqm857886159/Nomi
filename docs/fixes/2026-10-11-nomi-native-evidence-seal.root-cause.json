@@ -1,0 +1,168 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-native-evidence-seal",
+  "problem_type": "Native walk success is not bound to complete guard, cleanup, cost and project-isolation facts",
+  "symptom": "Missing guard log or normally returned cleanup failure can leave top-level functionalPassed true; marker tests omit the switched stream; unexpected loopback images can remain accepted.",
+  "direct_cause": "Optional existsSync guard branch, count-only launch checks, catch-only finish handling and partial marker matching were copied into native receipt finalization.",
+  "class_root": "Native functional claims have no one shared mandatory evidence boundary over actual launch identity, final runtime result, bounded request accounting and complete transcript marker families.",
+  "affected_population": [
+    "Both Nomi native Agent receipt runners and future native functional receipts",
+    "Missing/empty/malformed logs, duplicate/unrelated PIDs, cleanup/collect errors, extra images/requests and foreign partial content"
+  ],
+  "scope_paths": [
+    "tests/ux/nomi-native-evidence-contract.mjs",
+    "tests/ux/nomi-native-evidence-contract.node-test.mjs",
+    "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+    "tests/ux/nomi-agent-concurrency.walk.mjs",
+    "package.json",
+    "scripts/pre-push-contracts.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "entry_points": [
+    "Native same-workspace capability-limited runner finalization",
+    "Cross-project switch/cold-recovery finalization and all original transcript records"
+  ],
+  "external_sources": [],
+  "invariants": [
+    "A missing/empty/malformed guard log cannot certify a native functional receipt",
+    "Every actual launch PID has exactly one complete five-layer guard record; no blocked/error event",
+    "Runtime finish must return passed with no error, exact declared text count and zero image/paid/unexpected calls",
+    "Every complete original transcript record excludes the other project marker family, including SWITCH_PROMPT/PARTIAL",
+    "Both native runners share the same evidence validator; actual cold original-byte equality is checked before archive redaction"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-agent-concurrency.walk.mjs",
+      "symbol": "validateNativeWalkEvidence"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+      "symbol": "assertNativeProjectIsolation"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+      "symbol": "validateNativeWalkEvidence"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-native-evidence-contract.node-test.mjs",
+      "symbol": "validateNativeWalkEvidence"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-native-evidence-contract.node-test.mjs",
+      "symbol": "assertNativeProjectIsolation"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "Two native runners and their class regression retain distinct UI/report roles; both consume the same validator, and cross-project JSONL records consume the shared full-prefix predicate."
+  },
+  "generality_proof": "The generated five-door scan and repository search find both optional native guard branches; atomic project.open and next-action guards already reject missing logs and remain unchanged. One validator checks every native launch PID, runtime final result and final request counters; isolation inspects all original JSONL bytes for foreign prefix, not a message-only projection. Missing/duplicate PID/cleanup/image/partial regressions and CI/local exact argv parity prevent the same class returning through another native caller.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/nomi-native-evidence-contract.mjs",
+      "symbol": "validateNativeWalkEvidence",
+      "responsibility": "Reject functional certification unless all actual process/guard/finalization/cost facts agree"
+    },
+    {
+      "path": "tests/ux/nomi-native-evidence-contract.mjs",
+      "symbol": "assertNativeProjectIsolation",
+      "responsibility": "Reject foreign project marker families in any original transcript record"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+      "entry_point": "Cross-project native finalizer",
+      "disposition": "enforced",
+      "evidence": "Seven exact false-green classes reproduced RED; full final facts and isolation now shared"
+    },
+    {
+      "path": "tests/ux/nomi-agent-concurrency.walk.mjs",
+      "entry_point": "Existing native runner finalizer",
+      "disposition": "enforced",
+      "evidence": "Same optional guard branch removed; capability blocker still exits1 and cannot certify whole-walk success"
+    },
+    {
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "entry_point": "Atomic project.open guard",
+      "disposition": "not-affected",
+      "evidence": "guardReceipt already throws on missing log/incomplete layers; unchanged measured-source hash"
+    },
+    {
+      "path": "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "entry_point": "Next-action guard",
+      "disposition": "not-affected",
+      "evidence": "Unconditional read and layer assertions already fail missing/empty log; source unchanged"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A different native caller, failed log write, second launch, hidden cleanup error or partial response can reach the same unsealed success claim.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs validateNativeWalkEvidence assertNativeProjectIsolation --roots=tests --include-tests",
+      "rg existsSync guardLog / guard-loaded / guardFailure across all Nomi runners",
+      "Read scripts/walkthrough-network-guard.cjs note(), agent-runtime-walk-support.mjs finalizeRuntimeWalk(), fixture image endpoint/assertClean and actual complete JSONL"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/nomi-native-evidence-contract.mjs",
+    "invariant": "Native functional success requires complete process/guard/finalization/cost evidence and project-isolated original transcript records.",
+    "failure_mode": "Shared validator/predicate throws; caller clears top-level functionalPassed/evidenceValid and exits1 while preserving raw failure evidence.",
+    "exception_policy": "none",
+    "strategy": "Remove both optional inline guard branches; enforce actual PID identity and final runtime/cost facts at one validator, with full-record foreign-family predicate and mandatory Node gate.",
+    "artifacts": [
+      "tests/ux/nomi-native-evidence-contract.mjs",
+      "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+      "tests/ux/nomi-agent-concurrency.walk.mjs",
+      "package.json",
+      "scripts/pre-push-contracts.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/nomi-native-evidence-contract.node-test.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/nomi-native-evidence-contract.node-test.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+      "tests/ux/nomi-agent-concurrency.walk.mjs"
+    ],
+    "rationale": "Both duplicated optional/count-only guard finalizers are deleted; production guard/runtime remain the owners of actual observations."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No runtime/dependency defect or new framework. This is the internal test receipt certification boundary.",
+    "exit_criteria": []
+  },
+  "migration": "No production, transcript format, concurrency, permission or budget migration; existing real receipts remain immutable historical runs.",
+  "residual_risks": [
+    "New final-source real cross-project recheck and new-head CI pending",
+    "Same-window background concurrency remains unavailable under current per-sender workspace contract",
+    "Full-product metrics/matrix and real-display/Mac/Windows/GPU baselines remain unverified"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/nomi-native-evidence-contract.mjs",
+    "tests": [
+      "tests/ux/nomi-native-evidence-contract.node-test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "patch",
+    "characterization_test": "tests/ux/nomi-native-evidence-contract.node-test.mjs"
+  },
+  "internal_only_reason": "The contracts are internal: existing walkthrough guard note(), finalizeRuntimeWalk() result/error semantics, fixture request counters and actual JSONL owner. Installed runtime behavior is retained; repository source and exact failure slice decide the invariant."
+}

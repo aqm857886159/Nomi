@@ -10,6 +10,7 @@ import { uiText } from './full-walk/invariants.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { redact } from './nomi-user-workflow-performance.e2e.mjs'
+import { validateNativeWalkEvidence } from './nomi-native-evidence-contract.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const out = path.join(root, 'docs/evidence/2026-10-10-nomi-user-performance/journeys', `agent-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`)
@@ -166,15 +167,8 @@ finally {
     if (!fs.existsSync(file)) continue
     fs.copyFileSync(file, path.join(out, path.basename(file)), fs.constants.COPYFILE_EXCL)
   }
-  if (fs.existsSync(guardLog)) {
-    const events = fs.readFileSync(guardLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
-    receipt.guard = { loaded: events.filter((event) => event.kind === 'guard-loaded').map((event) => event.layers), blockedAttempts: events.filter((event) => event.kind === 'blocked').length, errors: events.filter((event) => event.kind === 'guard-error') }
-    try {
-      assert.equal(receipt.guard.loaded.length, walk.report.launches.length, 'Every actual native app launch must install network guards')
-      for (const layers of receipt.guard.loaded) assert.ok(['fetch', 'http', 'https', 'socket', 'chromium'].every((layer) => layers.includes(layer)))
-      assert.equal(receipt.guard.blockedAttempts, 0); assert.equal(receipt.guard.errors.length, 0)
-    } catch (error) { receipt.guardFailure = error.message; process.exitCode = 1 }
-    fs.writeFileSync(guardLog, events.map((event) => JSON.stringify(redact(event))).join('\n') + '\n')
-  }
+  try { receipt.guard = validateNativeWalkEvidence(walk.report, guardLog, receipt.concurrencyBlocker ? 2 : 9); receipt.evidenceValid = true }
+  catch (error) { receipt.guard = error.guard; receipt.evidenceFailure = error.message; receipt.evidenceValid = false; receipt.functionalPassed = false; process.exitCode = 1 }
+  if (fs.existsSync(guardLog)) fs.writeFileSync(guardLog, redact(fs.readFileSync(guardLog, 'utf8')))
   const output = path.join(out, 'receipt.json'); fs.writeFileSync(output, JSON.stringify(redact(receipt), null, 2), { flag: 'wx' }); console.log(JSON.stringify({ output, cases: receipt.cases, failure: receipt.failure, finishFailure: receipt.finishFailure }))
 }

@@ -12,6 +12,7 @@ import { uiText } from './full-walk/invariants.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { redact } from './nomi-user-workflow-performance.e2e.mjs'
+import { validateNativeWalkEvidence, assertNativeProjectIsolation } from './nomi-native-evidence-contract.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(root, 'docs/evidence/2026-10-10-nomi-user-performance/journeys', `cross-project-agent-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`)
@@ -21,7 +22,9 @@ const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const ownerPath = 'electron/agentLane/laneIpc.ts'
 const receipt = {
   schemaVersion: 1,
-  source: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), dirty: Boolean(execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()), sha256: sha256(fs.readFileSync(fileURLToPath(import.meta.url))) },
+  source: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), dirty: Boolean(execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()), sha256: sha256(fs.readFileSync(fileURLToPath(import.meta.url))),
+    fileHashes: Object.fromEntries(['tests/ux/nomi-native-evidence-contract.mjs', 'tests/ux/agent-runtime-walk-support.mjs', 'tests/ux/agent-runtime-fixture.mjs', 'tests/ux/agent-lane-observer.mjs', 'tests/ux/_launchApp.mjs', 'tests/ux/_shell.mjs', 'tests/ux/_station-budget.mjs', 'scripts/walkthrough-network-guard.cjs'].map((file) => [file, sha256(fs.readFileSync(path.join(root, file)))])),
+    hashScope: 'Selected actual run/fixture/observer/guard owners; not the entire transitive application graph' },
   buildReceipt: JSON.parse(fs.readFileSync(path.join(root, 'dist/build-stamp.json'), 'utf8')),
   existingWorkspaceContract: { path: ownerPath, sha256: sha256(fs.readFileSync(path.join(root, ownerPath))), behavior: 'One active native workspace per renderer sender; opening another project closes the previous workspace before replacement' },
   scope: 'Real UI project switches during native streaming, independent complete transcripts and actual process cold recovery. Loopback replaces only the model endpoint; no performance acceptance or background concurrency claim.',
@@ -62,8 +65,7 @@ function nativeSession(project, ownTag, otherTag) {
   const messages = laneMessages(session)
   const text = messages.map(laneMessageText).join('\n')
   assert.ok(text.includes(`${ownTag}_PROMPT`) && text.includes(`${ownTag}_DONE`))
-  assert.equal(text.includes(`${otherTag}_PROMPT`), false, 'Requests cannot cross project transcripts')
-  assert.equal(text.includes(`${otherTag}_DONE`), false, 'Responses cannot cross project transcripts')
+  assertNativeProjectIsolation(session.bytes, `${ownTag}_`, `${otherTag}_`)
   return { session, messages }
 }
 
@@ -103,13 +105,13 @@ try {
   assert.ok(laneMessageText(a.messages.at(-1)).includes('PROJECT_A_SWITCH_PARTIAL'))
   assert.equal(b.messages.at(-1).stopReason, 'stop')
   receipt.cases.push({ id: 'agent.cross-project-running-switch', executed: true, functionalPassed: true, firstNativeStopReason: 'aborted', secondNativeStopReason: 'stop', independentSessionIds: true, crossProjectRequestResponseIsolation: true })
-  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_A_DONE')
+  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_A_')
   await walk.snap('project-b-independent-completed-native-turn')
   await backToLibrary(win)
   await openProject(projectA)
   await expect(win.locator(CREATION_PANEL)).toContainText('PROJECT_A_DONE')
   await expect(win.locator(`${CREATION_PANEL} [data-v4-block="assistant"][data-status="interrupted"]`)).toContainText('PROJECT_A_SWITCH_PARTIAL')
-  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_B_DONE')
+  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_B_')
   const requestsBeforeCold = walk.fixture.requests.length
   assert.equal(requestsBeforeCold, 3)
   await walk.stopApp()
@@ -120,13 +122,13 @@ try {
   assert.notEqual(walk.report.launches[0].pid, walk.report.launches[1].pid, 'Recovery must use a new actual Electron process')
   await openProject(projectB)
   await expect(win.locator(CREATION_PANEL)).toContainText('PROJECT_B_DONE')
-  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_A_DONE')
+  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_A_')
   await walk.snap('cold-project-b-preserves-own-transcript')
   await backToLibrary(win)
   await openProject(projectA)
   await expect(win.locator(CREATION_PANEL)).toContainText('PROJECT_A_DONE')
   await expect(win.locator(`${CREATION_PANEL} [data-v4-block="assistant"][data-status="interrupted"]`)).toContainText('PROJECT_A_SWITCH_PARTIAL')
-  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_B_DONE')
+  await expect(win.locator(CREATION_PANEL)).not.toContainText('PROJECT_B_')
   await walk.snap('cold-project-a-preserves-completed-and-interrupted-content')
   await walk.stopApp()
   for (const [index, project] of receipt.projects.entries()) {
@@ -147,19 +149,12 @@ try {
 } finally {
   try { await walk.finish(failure) } catch (error) { receipt.finishFailure = error.message; receipt.functionalPassed = false; process.exitCode = 1 }
   receipt.runtimeReport = walk.report
-  receipt.nativeSessions = receipt.projects.map((project) => ({ tag: project.tag, sessions: readLaneTranscripts(project.projectRoot).map((session) => ({ laneName: session.laneName, sessionId: session.sessionId, sha256: sha256(session.bytes), messages: laneMessages(session) })) }))
+  try { receipt.nativeSessions = receipt.projects.map((project) => ({ tag: project.tag, sessions: readLaneTranscripts(project.projectRoot).map((session) => ({ laneName: session.laneName, sessionId: session.sessionId, sha256: sha256(session.bytes), messages: laneMessages(session) })) })) }
+  catch (error) { receipt.nativeSnapshotFailure = error.message; receipt.functionalPassed = false; process.exitCode = 1 }
   for (const file of walk.report.screenshots || []) if (fs.existsSync(file)) fs.copyFileSync(file, path.join(outputDir, path.basename(file)), fs.constants.COPYFILE_EXCL)
-  if (fs.existsSync(guardLog)) {
-    const events = fs.readFileSync(guardLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
-    receipt.guard = { loaded: events.filter((event) => event.kind === 'guard-loaded').map((event) => event.layers), blockedAttempts: events.filter((event) => event.kind === 'blocked').length, errors: events.filter((event) => event.kind === 'guard-error') }
-    try {
-      assert.equal(receipt.guard.loaded.length, walk.report.launches.length)
-      for (const layers of receipt.guard.loaded) assert.ok(['fetch', 'http', 'https', 'socket', 'chromium'].every((layer) => layers.includes(layer)))
-      assert.equal(receipt.guard.blockedAttempts, 0)
-      assert.equal(receipt.guard.errors.length, 0)
-    } catch (error) { receipt.guardFailure = error.message; receipt.functionalPassed = false; process.exitCode = 1 }
-    fs.writeFileSync(guardLog, events.map((event) => JSON.stringify(redact(event))).join('\n') + '\n')
-  }
+  try { receipt.guard = validateNativeWalkEvidence(walk.report, guardLog, 3); receipt.evidenceValid = true }
+  catch (error) { receipt.guard = error.guard; receipt.evidenceFailure = error.message; receipt.evidenceValid = false; receipt.functionalPassed = false; process.exitCode = 1 }
+  if (fs.existsSync(guardLog)) fs.writeFileSync(guardLog, redact(fs.readFileSync(guardLog, 'utf8')))
   fs.writeFileSync(path.join(outputDir, 'receipt.json'), JSON.stringify(redact(receipt), null, 2), { flag: 'wx' })
-  console.log(JSON.stringify({ output: path.join(outputDir, 'receipt.json'), cases: receipt.cases, functionalPassed: receipt.functionalPassed, failure: receipt.failure, finishFailure: receipt.finishFailure, guardFailure: receipt.guardFailure }))
+  console.log(JSON.stringify({ output: path.join(outputDir, 'receipt.json'), cases: receipt.cases, functionalPassed: receipt.functionalPassed, evidenceValid: receipt.evidenceValid, failure: receipt.failure, finishFailure: receipt.finishFailure, evidenceFailure: receipt.evidenceFailure }))
 }

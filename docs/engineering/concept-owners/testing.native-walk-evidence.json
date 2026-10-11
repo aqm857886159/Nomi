@@ -1,0 +1,31 @@
+{
+  "name": "原生走查证据验收",
+  "subject": "testing.native-walk-evidence",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/nomi-native-evidence-contract.mjs",
+    "symbol": "validateNativeWalkEvidence"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/nomi-native-evidence-contract.mjs",
+      "symbol": "validateNativeWalkEvidence"
+    },
+    {
+      "path": "tests/ux/nomi-native-evidence-contract.mjs",
+      "symbol": "assertNativeProjectIsolation"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/nomi-native-evidence-contract.node-test.mjs",
+  "allowed_consumers": [
+    "tests/ux/nomi-cross-project-agent-recovery.walk.mjs",
+    "tests/ux/nomi-agent-concurrency.walk.mjs"
+  ],
+  "since": "2026-10-11",
+  "notes": "仅登记原生走查实际证据验收边界；生产guard/runtime/持久化owners与并发策略不变。"
+}

@@ -644,3 +644,10 @@ test('Nomi Markdown consumer completion runs identical real suites in CI and loc
   for (const file of ['src/workbench/common/LazyNomiMarkdown.tsx', 'src/workbench/ai/v4/AgentPanelV4Markdown.tsx', 'tests/helpers/preloadNomiMarkdown.ts']) assert.ok(selectGates([file]).includes(scan.name), file)
   for (const file of ['agentPanelV4Blocks.test.ts', 'agentPanelV4Performance.test.ts', 'agentPanelV4MarkdownKernel.test.ts', 'testReactRenderer.test.ts']) assert.ok(scan.argv.some((entry) => entry.endsWith(file)), file)
 })
+
+test('Native functional evidence cannot skip its fail-closed guard/finalization/isolation contract', () => {
+  const scan = SCAN_TESTS.find((entry) => entry.name === 'check:nomi-native-evidence')
+  assert.ok(CI_GATES.includes(scan.name))
+  assert.deepEqual(gateCommands(pkg.scripts[scan.name], [])[0], scan.argv)
+  for (const file of ['tests/ux/nomi-cross-project-agent-recovery.walk.mjs', 'tests/ux/nomi-agent-concurrency.walk.mjs', 'tests/ux/nomi-native-evidence-contract.mjs', 'tests/ux/agent-runtime-walk-support.mjs']) assert.ok(selectGates([file]).includes(scan.name), file)
+})

@@ -1,0 +1,19 @@
+✔ every actual native launch has all five layers and exact offline request accounting (0.967482ms)
+✔ missing native guard evidence fails closed (0.248931ms)
+✔ empty native guard evidence fails closed (0.540787ms)
+✔ duplicate first PID cannot stand in for the second actual native launch (0.407237ms)
+✔ unrelated PID cannot stand in for the second actual native launch (2.396162ms)
+✔ missing guard layer and blocked/error evidence fail closed (6.611075ms)
+✔ cleanup/collect failure returned normally by runtime finish cannot certify functional success (0.316382ms)
+✔ extra image, text or paid requests cannot certify the bounded native walk (0.322851ms)
+✔ unexpected/malformed request accounting cannot certify the bounded native walk (0.605923ms)
+✔ all original native record types retain their own project marker family (0.277694ms)
+✔ foreign switch prompt and partial stream cannot enter another project transcript (0.198967ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74.377748
