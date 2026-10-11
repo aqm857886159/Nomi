@@ -1,0 +1,9 @@
+✔ 必红：往 GATE_INPUTS 加了一道门、没补 SCANNER_READS → 推送前就红，点名 test:pre-push-structure（#1147 在 CI 才撞到） (19086.560712ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21136.279851
