@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-10-11T14-54-31.084Z-sync-metrics-canary",
+  "cohort": "storyboard-v2.1-typical-open-sync-metrics-typed-shot-controls",
+  "metricTransport": "node-electron-module-sync-callFunctionOn-no-await-v1-candidate",
+  "status": "executed-and-independently-trace-qualified",
+  "scale": "typical",
+  "scenario": "storyboard-open-at-scale",
+  "dimensions": {
+    "documents": 24,
+    "clips": 24,
+    "shots": 48,
+    "images": 24,
+    "videos": 24,
+    "plans": 1
+  },
+  "warmupSamples": 1,
+  "formalSamples": 5,
+  "formalCPUComplete": 5,
+  "warmupCPUComplete": 1,
+  "traceSamplesQualified": 6,
+  "traceMarksQualified": 24,
+  "formalSummary": {
+    "responseMedianMs": 233,
+    "responseMinMs": 227.9,
+    "responseMaxMs": 239.9,
+    "observationFrameP99WorstMs": 21.97,
+    "rendererCPUmeanMedianPercent": 2.79,
+    "mainCPUmeanMedianPercent": 0.45,
+    "maximumSamplingLagMs": 5
+  },
+  "rootIdentity": {
+    "gates": 16,
+    "allPassed": true
+  },
+  "nativeWorkloadGate": {
+    "documents": 24,
+    "shots": 48,
+    "clips": 24,
+    "actual": {
+      "manifestSHA256": "ac2b723db96892bea581bce4dee8a90563d545f421b610631ae4ffd37065dccf",
+      "semanticSHA256": "e9e7d54c207fec7c3a6873d38b871942166ae42579f9104fa5a58c6ae06e032b",
+      "contentSHA256": "79f2090da1ecf171dfde4a091e68f732e84f28a73f22dfd24318f1a7462f0ae3",
+      "dimensions": {
+        "documents": 24,
+        "plans": 1,
+        "shots": 48,
+        "clips": 24,
+        "images": 24,
+        "videos": 24
+      },
+      "preserved": true
+    },
+    "passed": true
+  },
+  "exactNormalization": {
+    "checks": {
+      "documentsExact": true,
+      "nonemptyPlansAndEveryShotFieldExact": true,
+      "nodesOnlyDerivedShotIndex": true,
+      "groupsOnlyDerivedFrameBounds": true,
+      "edgesExact": true,
+      "tracksEveryClipFieldExact": true,
+      "textClipsExact": true,
+      "emptyTransitionsOnly": true
+    },
+    "passed": true,
+    "productionFunctions": [
+      "normalizePayload",
+      "hydrateWorkbenchDocuments",
+      "hydrateStoryboardDesigns",
+      "normalizeStoreSnapshot"
+    ],
+    "permittedDerivedFields": [
+      "node.shotIndex",
+      "group.frameBounds",
+      "empty design-map keys",
+      "empty transitions omission"
+    ],
+    "expectedSemanticSHA256": "e9e7d54c207fec7c3a6873d38b871942166ae42579f9104fa5a58c6ae06e032b"
+  },
+  "allCleanupSemanticRestored": true,
+  "cleanup": {
+    "ownedPidCount": 6,
+    "allObservedOwnedPidsExited": true,
+    "isolatedProfileRemoved": true,
+    "errors": [],
+    "processInventoryScope": "Startup, after UI setup and pre-close descendant snapshots plus sampled app metrics; no ps within observation; unsampled descendants remain a limitation"
+  },
+  "mainProtocolObserver": {
+    "restored": true,
+    "records": 0,
+    "dropped": 0,
+    "untrackedRequests": 0,
+    "observerErrors": 0,
+    "pendingBeforeRestore": 0
+  },
+  "lifecycleErrors": [],
+  "trace": {
+    "qualified": true,
+    "clockToleranceMs": 0.25,
+    "maximumClockDeltaDifferenceMs": 4.7683897719252855e-08,
+    "roundtripVerified": true,
+    "gzipSHA256": "a1b929a5293c5933beb1d7302f188286e32536b2b50cf3a34e3f53ec3311b341",
+    "playwrightRetained": true
+  },
+  "provenance": {
+    "runnerSHA256": "974615fc2d1cda50bdd7981e11595acb43f92e676398f86f3b2465c1da2ce44c",
+    "pins": {
+      "completion-common.mjs": "a3e0c7c993984693182b34ec8c2341466effb158b29f40c23b1c59acaf02d477",
+      "completion-common-sync-canary.mjs": "f3b51466ccb89b87e69d61afbc7ca7417a9ad03156a5a945a7d6d4202137f3fc",
+      "synchronous-main-metrics-candidate.mjs": "883e3e21a0dc8a56c1383e3c05b2643bf2ea2d0821bbe157a0fc5598a757dfce",
+      "main-protocol-error-metadata-hook.mjs": "53cbb4ef00174310fa5d10bc87017f51fcfa7e2a25b4c054374fc4f935616072",
+      "document-ab-semantic.mjs": "dc7a16a2e2dc81e36f034c2291a9d9e7e2e70893b5e777e4da532f56bd2d10d3",
+      "timeline-fixture-preflight.mjs": "007a3b180a41f4ef9345b94864985625c8e685e57e599c5f816d305e58d8ca52",
+      "document-switcher-drawer-completion.mjs": "5047b57c05e6a3e6800d9d54fea6b12de9872d8d9114dbbca6635bd70eeff082"
+    },
+    "sourceManifestSHA256": "65f1436df7f0f9a94b58775615952eb9c1296b874c7e39cb5f3409ea1ad6685a",
+    "fixtureIndexSHA256": "6ee012b07319a3d61b2e9b494ba417f34f29547b699ccbd4c8c412ac77f090da",
+    "fixtureRevision": 3,
+    "ownershipVersion": "document-owner-v3",
+    "fixtureVersion": "v2-actual-media-metadata",
+    "layoutVersion": "production-resolved-row-max-v2",
+    "layoutSha256": "fd40077eeb0d9a5f96a741c201c8c78a02e6f3998aa1ef9b94c99874dbac5ad8",
+    "playwrightVersion": "1.60.0",
+    "expectedElectronVersion": "43.4.1",
+    "nativeReaderSHA256": "f8b7cceb3b614b781b468dd7c2c25f8d59de21d9f59c6f7e9f86b18fc411bc53"
+  },
+  "phaseClock": {
+    "timeOrigin": 1791730469341.422,
+    "startedEpochMs": 1791730471107
+  },
+  "startedAtUtc": "2026-10-11T14:54:31.085Z",
+  "finishedAtUtc": "2026-10-11T14:55:27.228Z",
+  "protocol": {
+    "warmup": 1,
+    "runs": 5,
+    "viewport": {
+      "width": 1280,
+      "height": 933
+    },
+    "sampleWindow": "at least 3000 ms from trusted pointer input, through interaction receipt; includes rAF interval overlapping input",
+    "cpuSamplingMs": 250,
+    "cacheCold": "new process and Chromium profile; first project open; OS disk cache uncontrolled",
+    "cacheHot": "same process and profile after one warm-up project open",
+    "latencyBoundary": "trusted pointerdown to visible DOM observed on rAF; not photon timing",
+    "interactiveControl": "real workflow actions with visible state/content receipts; response is not full TTI",
+    "network": "pre-main local-only guard; no provider credentials seeded",
+    "realUserData": false,
+    "libraryCards": 1,
+    "rawPrivate": true,
+    "feelScanner": "disabled for measurement waits; diagnostic first run excluded",
+    "traceOverhead": "PW snapshots:true/screenshots:false/sources:false; frozen Chromium categories",
+    "instrumentationVersion": "completion-v2.1-idempotent-user-timing-markers",
+    "traceMarks": "Anonymous scenario/index marks for trusted input, visible state, driver action completion and observation end; timing boundaries unchanged",
+    "cohort": "storyboard-v2.1-typical-open-sync-metrics-typed-shot-controls",
+    "scenario": "storyboard-open-at-scale",
+    "scale": "typical",
+    "metricTransport": "node-electron-module-sync-callFunctionOn-no-await-v1-candidate",
+    "poolWithOldTransport": false,
+    "paidRequests": 0,
+    "setupRevision": "Real first-document selection and expanded plan row before each trusted storyboard click; return to same document after every sample",
+    "failurePolicy": "First prepare/measure/verify/cleanup/lifecycle failure stops this scale; driver nonzero must stop the scale queue; no retry or replacement",
+    "cache": "Fresh process/profile and independent project clone; one action-specific warmup; OS cache uncontrolled",
+    "fixtureHistory": "Fresh process; real documents→plan→preview inventory gate→first document; one warmup then5 formal plan entries, each prepared from first document and cleaned back to it. No old long-process history comparison.",
+    "observationMs": 3000,
+    "firstFeedbackMs": null,
+    "inputInteractiveMs": null,
+    "responseMeaning": "Same original trusted plan-row pointerdown to active plan row plus visible storyboard editor with correct plan title; not independent first feedback or full TTI",
+    "traceQualification": "Pending separate per-trace four-mark audit; this runner does not infer trace qualification from metrics",
+    "sampler": {
+      "cadenceMs": 250,
+      "serial": true,
+      "baselineExcluded": true,
+      "retries": 0,
+      "maximumLagMs": 250
+    },
+    "mainLoopTransport": "Unchanged app.evaluate; all phase/lifecycle errors retained",
+    "sourceIsolation": "Owner-v3 actual-media/layout-v2 source clone; exact canonical route/list/read root gates; authored payload hash checked after product initial normalization",
+    "localMediaAssets": true,
+    "providerConfiguration": "Empty isolated model catalog; loopback network guard"
+  },
+  "source": {
+    "rawSHA256": "7c4b93293f3710018a285f2e39ff55d15dcbf1552dda2ea967c2ef853c0d21fa",
+    "nativeReceipt": "storyboard-open-sync-2026-10-11T14-54-31.084Z-sync-metrics-canary.sanitized.json",
+    "traceAudit": "storyboard-open-sync-trace-2026-10-11T14-54-31.084Z-sync-metrics-canary.json"
+  },
+  "supersedesFunctionalIncomplete": {
+    "runId": "2026-10-11T11-33-51.457Z-completion",
+    "scale": "typical",
+    "scenario": "storyboard-open-at-scale",
+    "oldFormalPrefixSamples": 4,
+    "fifthBeforeInputErrorRetained": true,
+    "oldReportNotModified": true,
+    "oldMeasurementsNotPooled": true,
+    "newFreshProcessHistoryNotAB": true
+  },
+  "retainedNewRunnerFailure": {
+    "runId": "2026-10-11T14-49-56.382Z-sync-metrics-canary",
+    "warmupSamples": 1,
+    "formalSamples": 0,
+    "phase": "verify",
+    "cause": "Test mixed checkbox and badge selector counted96 controls instead of48 typed inputs; actual row count48.",
+    "actualControlProof": "storyboard-open-selector-failure-receipt.json",
+    "strictTypedIndicesNegativeTests": "storyboard-shot-control-contract-test-receipt.json",
+    "oldWarmupNotPooled": true
+  },
+  "firstFeedbackMs": null,
+  "inputInteractiveMs": null,
+  "budgetPassed": null,
+  "paidRequests": 0
+}

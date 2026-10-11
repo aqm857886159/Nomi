@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-11T14:40:40.477937+00:00",
+  "sourceCommit": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+  "productionChanged": false,
+  "findings": [
+    {
+      "id": "storyboard-bound-delete-undo-loses-clips",
+      "kind": "functional-data-restoration",
+      "priority": "high",
+      "status": "reproduced-native-persistence-failure",
+      "condition": "A storyboard shot is bound to a video node already referenced by timeline clips.",
+      "expected": "Undo restores the deleted shot/node and the timeline clips removed by that same action.",
+      "observed": "Independent small: 4 clips before, 2 after deletion, 2 after undo and reopen; shot/node restored. Typical also loses one clip. Root-verified heavy 0+1 reproduction: 320 shots/160 clips/160 videos -> delete 319/159/159 -> undo and reopen 320/159/160; UI confirms 159 clips.",
+      "evidence": [
+        "storyboard-bound-delete-undo-repro-receipt.json",
+        "timeline-typical-delete-undo-and-trace-evidence.json",
+        "storyboard-delete-cascade-root-cause-review.md",
+        "storyboard-delete-cascade-contract.json",
+        "storyboard-bound-delete-undo-repro-heavy-receipt.json"
+      ],
+      "limitations": [
+        "Transitions have a matching deletion source path but no native transition-bearing reproduction yet.",
+        "Earlier small last-row deletion was unbound and did not cover this class."
+      ],
+      "originalUserProjectsChanged": false
+    },
+    {
+      "id": "heavy-group-delete-long-layout-task",
+      "kind": "performance",
+      "status": "observed-native-slow-operation-root-cause-unconfirmed",
+      "observed": "Legacy heavy condition showed roughly 3.0–3.75 seconds deletion with repeated layout/style work. Canonical-v2 and instrumentation controls pending.",
+      "evidence": [
+        "heavy-delete-trace-analysis.json",
+        "group-delete-source-review.md",
+        "group-delete-diagnostic-protocol.md"
+      ],
+      "limitations": [
+        "Do not attribute to production cause or claim an optimization before canonical controlled reproduction."
+      ]
+    },
+    {
+      "id": "native-measurement-main-evaluation-interruption",
+      "kind": "test-instrumentation",
+      "status": "protocol-cause-observed-trigger-unproven",
+      "observed": "Instrumented CPU sampling received Runtime.callFunctionOn code -32000, Promise was collected; installed Playwright rewrote it into a generic evaluation/navigation error. Latest isolated ON/OFF A/B has 47/48 complete CPU windows, with OFF B-first formal index4 incomplete. Final format typical has 57/85 complete formal CPU windows and 11/17 complete warmup windows; remaining errors require their own raw classification and are not all presumed identical.",
+      "evidence": [
+        "timeline-small-cpu-sampling-anomalies.json",
+        "playwright-evaluate-error-source-review.json",
+        "main-evaluate-diagnostic-reviewed.sanitized.json",
+        "main-promise-collected-static-review.md",
+        "document-ab-protocol-error-2026-10-11T12-36-42.258Z-completion.json",
+        "document-ab-isolated-protocol-error.json",
+        "synchronous-main-metrics-canary-reviewed-results.json",
+        "synchronous-main-metrics-canary-trace-qualification.json"
+      ],
+      "disposition": "Keep originals; mark incomplete; separate follow-up cohorts.",
+      "boundedDiagnostic": "One fresh small run completed 72 app-metrics reads, 6 window PID lookups and 2 document switches without reproducing error. No retries, no repair of prior missing metrics, no production/common changes.",
+      "candidate": "Synchronous awaitPromise:false collector passed 16 pure tests and one new heavy B-first native 1+5 with 6/6 complete windows, max lag3ms, zero protocol errors. Exact version/private API gates; original common and old missing windows unchanged. Its separate trace audit confirms 24 unique ordered renderer markers and 36 clock-difference checks; this remains one qualified instrumentation cohort, not long-run stability or a production fix."
+    },
+    {
+      "id": "long-native-trace-missing-tail",
+      "kind": "test-instrumentation",
+      "status": "observed-missing-trace-markers",
+      "observed": "The final seven typical samples had no four-phase user-timing markers; trace ended earlier than those samples.",
+      "cause": "Buffer exhaustion is plausible with record-until-full, but no positive overflow metadata was found.",
+      "evidence": [
+        "timeline-typical-delete-undo-and-trace-evidence.json"
+      ],
+      "disposition": "Subsequent batches use one or two scenarios per native process/trace and certify all sample markers."
+    },
+    {
+      "id": "heavy-document-switch-and-plan-open",
+      "kind": "performance",
+      "status": "reproduced-with-isolated-roots-and-snapshot-OFF-control",
+      "condition": "160 documents, 320 storyboard shots, 160 clips; production preflight UI previously visited storyboard before document switching. Fresh scenario-pair processes, one warmup and five formal samples.",
+      "observed": {
+        "lastDocumentResponseMedianMs": 1035.9,
+        "firstDocumentResponseMedianMs": 2143.1,
+        "planOpenResponseMedianMs": 4251.6,
+        "planOpenObservedRangeMs": [
+          3758.3,
+          5049.1
+        ]
+      },
+      "traceEvidence": "All 12 switch samples have unique four-phase boundaries. Last-document switching has 324 style recalculations per sample and median 93.2% response time in non-overlapping style intervals; first-document switching has 646 recalculations.",
+      "candidate": "Visiting the storyboard causes the retained hidden workspace to track active-document changes and unmount/remount the 320-row editor. Controlled native history comparison plus DOM/trace supports this mechanism; synchronous clientWidth and editor lifecycle callsites remain unproven.",
+      "evidence": [
+        "document-switch-trace-analysis-2026-10-11T11-51-19.067Z-completion.json",
+        "document-switch-trace-source-review.md",
+        "text-baseline-analysis.json",
+        "document-ab-result.md",
+        "document-ab-analysis-2026-10-11T12-45-55.150Z-completion.json",
+        "document-ab-isolated-on-off-result.md",
+        "document-ab-isolated-on-off-analysis.json"
+      ],
+      "limitations": [
+        "No V8 CPU or React profiler stacks in these traces.",
+        "Earlier small/typical monolithic process residency differs; cross-scale ratios are descriptive.",
+        "CPU windows with incomplete collector data remain null.",
+        "A then B only; OS cache, thermal state and general machine load not eliminated.",
+        "A/B is a diagnostic cohort, not replacement of old formal baseline or a production fix.",
+        "Subsequent static audit found A/B sibling clones with the same project ID under a shared discovery parent; actual active disk root was not directly captured. Observed DOM and trace remain, but per-arm disk identity is unverified. A new independently rooted ON/OFF comparison is complete and separately recorded; it does not repair the old cohort."
+      ],
+      "productionChanged": false,
+      "controlledComparison": {
+        "run": "2026-10-11T12-45-55.150Z-completion",
+        "totalSamples": 24,
+        "formalSamples": 20,
+        "lastDocumentMedianMs": {
+          "unvisited": 7.0,
+          "visited": 555.9
+        },
+        "firstDocumentMedianMs": {
+          "unvisited": 7.0,
+          "visited": 1867.1
+        },
+        "styleRecalculationsPerSample": {
+          "unvisited": 4,
+          "visitedLast": 324,
+          "visitedFirst": 646
+        },
+        "hiddenRows": {
+          "unvisited": 0,
+          "visitedFirstDocument": 320,
+          "visitedLastDocument": 0
+        },
+        "sameSavedSeed": true,
+        "entityIntegrityPreserved": true,
+        "traceMarkersValid": 24
+      },
+      "latestIsolatedComparison": {
+        "source": "document-ab-isolated-on-off-analysis.json",
+        "samples": 48,
+        "rootIdentityGates": 16,
+        "onVisitedFirstDocumentMedianMs": 1861.2,
+        "offVisitedFirstDocumentMedianMs": 1858.6,
+        "offUnvisitedFirstDocumentMedianMs": 10.0,
+        "completeCpuSamples": 47,
+        "cpuMissing": "OFF B-first formal index4; aggregate CPU null",
+        "meaning": "Large delay persists without frame snapshots; specific production callsite and effects of remaining probes are not fully isolated."
+      }
+    },
+    {
+      "id": "document-format-undo-extra-equivalent-history",
+      "kind": "functional-editor-history",
+      "priority": "high",
+      "status": "native-bold-and-italic-toolbar-reproduced",
+      "observed": "In separate verified-root small clones: addMark creates history depth 1; an immediate docEqual=true replace with preventUpdate=true creates depth 2. First toolbar undo consumes the equivalent replacement and keeps DOM/persisted formatting. Second undo removes the mark; reopening remains restored.",
+      "sourceCandidate": "Marked-text JSON key order differs between ProseMirror serialization and workbench normalization. String equality in editor sync can treat semantic equality as external content, and setContent emitUpdate:false does not suppress history.",
+      "evidence": [
+        "document-toolbar-undo-diagnostic-v2-receipt.json",
+        "document-format-undo-static-evidence-plan.md",
+        "document-format-undo-root-cause-review-and-regression-contract.md"
+      ],
+      "limitations": [
+        "Keyboard branch blocked during selection preparation before undo and does not establish keyboard behavior.",
+        "Earlier two sibling-clone diagnostic branches had unverified active root and are invalid, not passing repetitions.",
+        "Not yet reproduced at all scales or fixed in production."
+      ],
+      "disposition": "Dedicated one-undo case remains strict. Subsequent format-only cohort may use bounded, logged real undo steps solely for out-of-window fixture cleanup, with exact content restoration and a known-defect flag.",
+      "productionChanged": false,
+      "additionalScopeObservation": "First small formal formatting batches: bold/italic/strike/code/highlight each require two cleanup undos; h1/h2/h3 require one. Dedicated undo remains independently strict."
+    },
+    {
+      "id": "document-link-mark-not-persisted",
+      "kind": "functional-document-persistence",
+      "priority": "high",
+      "status": "native-small-toolbar-failure-with-static-shared-boundary-evidence",
+      "observed": "Small run 2026-10-11T13-31-27.639Z-completion: real toolbar click produced a DOM anchor in 4.7 ms; target manifest lacked the link mark during the six-second persistence check. Zero formal samples; actual href value was not captured.",
+      "sourceEvidence": "workbenchTypes mark whitelist omits link, so normalization removes link marks independently of href validity. Toolbar source sets https:// directly and has no URL entry dialog in this path.",
+      "evidence": [
+        "document-link-persistence-static-review.md",
+        "document-link-persistence-static-review.json"
+      ],
+      "limitations": [
+        "Valid-URL typing and paste were not natively verified.",
+        "DOM-versus-store synchronization explanation is a candidate; internal sync state was not captured."
+      ],
+      "productionChanged": false
+    }
+  ]
+}

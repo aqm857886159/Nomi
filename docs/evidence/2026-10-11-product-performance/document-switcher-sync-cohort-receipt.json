@@ -1,0 +1,1668 @@
+{
+  "schemaVersion": 1,
+  "cohort": "format-v4.1-switcher-drawer-close-sync-metrics-exact-top-level-shot-index",
+  "metricTransport": "node-electron-module-sync-callFunctionOn-no-await-v1-candidate",
+  "totals": {
+    "scales": 3,
+    "functionalCellsCompleted": 3,
+    "warmupSamples": 3,
+    "formalSamples": 15,
+    "formalCPUComplete": 15,
+    "warmupCPUComplete": 3,
+    "samplesTraceQualified": 18,
+    "traceMarksQualified": 72,
+    "paidRequests": 0
+  },
+  "runConditions": {
+    "warmup": 1,
+    "runs": 5,
+    "viewport": {
+      "width": 1280,
+      "height": 933
+    },
+    "sampleWindow": "at least 3000 ms from trusted pointer input, through interaction receipt; includes rAF interval overlapping input",
+    "cpuSamplingMs": 250,
+    "cacheCold": "new process and Chromium profile; first project open; OS disk cache uncontrolled",
+    "cacheHot": "same process and profile after one warm-up project open",
+    "latencyBoundary": "trusted pointerdown to visible DOM observed on rAF; not photon timing",
+    "interactiveControl": "real workflow actions with visible state/content receipts; response is not full TTI",
+    "network": "pre-main local-only guard; no provider credentials seeded",
+    "realUserData": false,
+    "libraryCards": 1,
+    "rawPrivate": true,
+    "feelScanner": "disabled for measurement waits; diagnostic first run excluded",
+    "traceOverhead": "PW snapshots:true/screenshots:false/sources:false; frozen Chromium categories",
+    "instrumentationVersion": "completion-v2.1-idempotent-user-timing-markers",
+    "traceMarks": "Anonymous scenario/index marks for trusted input, visible state, driver action completion and observation end; timing boundaries unchanged",
+    "cohort": "format-v4.1-switcher-drawer-close-sync-metrics-exact-top-level-shot-index",
+    "scenario": "document-switcher-last",
+    "scale": "see each run",
+    "metricTransport": "node-electron-module-sync-callFunctionOn-no-await-v1-candidate",
+    "poolWithOldTransport": false,
+    "paidRequests": 0,
+    "setupRevision": "Real docs rail click closes drawer and waits hidden before opening header switcher",
+    "failurePolicy": "First prepare/measure/verify/cleanup/lifecycle failure stops this scale; driver nonzero must stop the scale queue; no retry or replacement",
+    "cache": "Fresh process/profile and independent project clone; one action-specific warmup; OS cache uncontrolled",
+    "fixtureHistory": "Library → generation → first document; no plan/preview visit. Measurement switches first to last through header menu.",
+    "observationMs": 3000,
+    "firstFeedbackMs": null,
+    "inputInteractiveMs": null,
+    "responseMeaning": "Trusted menu pointerdown to specific visible last-document marker; not independent first feedback or full TTI",
+    "traceQualification": "Pending separate per-trace four-mark audit; this runner does not infer trace qualification from metrics",
+    "sampler": {
+      "cadenceMs": 250,
+      "serial": true,
+      "baselineExcluded": true,
+      "retries": 0,
+      "maximumLagMs": 250
+    },
+    "mainLoopTransport": "Unchanged app.evaluate; all phase/lifecycle errors retained",
+    "sourceIsolation": "Owner-v3 actual-media/layout-v2 source clone; exact canonical route/list/read root gates; authored payload hash checked after product initial normalization",
+    "localMediaAssets": true,
+    "providerConfiguration": "Empty isolated model catalog; loopback network guard"
+  },
+  "runs": [
+    {
+      "scale": "small",
+      "runId": "2026-10-11T14-36-38.047Z-sync-metrics-canary",
+      "scenario": "document-switcher-last",
+      "dimensions": {
+        "documents": 2,
+        "clips": 4,
+        "shots": 12,
+        "images": 4,
+        "videos": 2,
+        "plans": 1
+      },
+      "status": "executed-and-independently-trace-qualified",
+      "warmupSamples": 1,
+      "formalSamples": 5,
+      "functionalPassed": true,
+      "formalCPUComplete": 5,
+      "warmupCPUComplete": 1,
+      "trace": {
+        "qualified": true,
+        "uniqueMarks": 24,
+        "samplesQualified": 6,
+        "maximumClockDeltaErrorMs": 0.0009999880790019233,
+        "traceLabel": "document-switcher-sync-small",
+        "gzipRoundtripVerified": true,
+        "playwrightZIPRetained": true
+      },
+      "identity": {
+        "rootGates": 16,
+        "allPassed": true,
+        "initialKnownNormalizationPassed": true,
+        "exactExpectedInitialSemantic": true,
+        "restoredEverySample": true
+      },
+      "cleanup": {
+        "ownedPidCount": 5,
+        "allObservedOwnedPidsExited": true,
+        "isolatedProfileRemoved": true,
+        "errors": [],
+        "processInventoryScope": "Startup, after UI setup and pre-close descendant snapshots plus sampled app metrics; no ps within observation; unsampled descendants remain a limitation"
+      },
+      "lifecycleErrors": [],
+      "mainProtocolObserver": {
+        "restored": true,
+        "records": 0,
+        "dropped": 0,
+        "untrackedRequests": 0,
+        "observerErrors": 0,
+        "pendingBeforeRestore": 0
+      },
+      "sourceUnchanged": true,
+      "frozenCommonUnchanged": true,
+      "budgetPassed": null,
+      "formalSummary": {
+        "responseMedianMs": 4.8,
+        "responseMinMs": 4,
+        "responseMaxMs": 6.3,
+        "observationFrameP99WorstMs": 9.3,
+        "mainCPUmeanMedianPercent": 0.2,
+        "rendererCPUmeanMedianPercent": 0.63,
+        "maximumSamplingLagMs": 6
+      },
+      "samples": [
+        {
+          "index": 0,
+          "isWarmup": true,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.008780387096774,
+              "p95Ms": 21.315583,
+              "p99Ms": 21.938175,
+              "maxMs": 24.461311,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 8.75,
+              "p99Ms": 8.79,
+              "windowMs": 14.1,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 9.4,
+            "frameP95Ms": 8.9,
+            "frameP99Ms": 9.2,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 0,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.2,
+              "p95": 0.37,
+              "peak": 0.39
+            },
+            "rendererCPUPercent": {
+              "mean": 0.68,
+              "p95": 1.26,
+              "peak": 1.44
+            },
+            "mainMemory": {
+              "firstKiB": 318176,
+              "lastKiB": 314912,
+              "peakKiB": 318176
+            },
+            "rendererMemory": {
+              "firstKiB": 314384,
+              "lastKiB": 314032,
+              "peakKiB": 314544
+            },
+            "observationMs": 3014.3,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 1,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 20.98160246153846,
+              "p95Ms": 21.331967,
+              "p99Ms": 21.856255,
+              "maxMs": 22.495231,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 9.03,
+              "p99Ms": 9.09,
+              "windowMs": 8.5,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 4,
+            "frameP95Ms": 8.9,
+            "frameP99Ms": 9.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.2,
+              "p95": 0.34,
+              "peak": 0.37
+            },
+            "rendererCPUPercent": {
+              "mean": 0.64,
+              "p95": 1.05,
+              "peak": 1.19
+            },
+            "mainMemory": {
+              "firstKiB": 316864,
+              "lastKiB": 317680,
+              "peakKiB": 317680
+            },
+            "rendererMemory": {
+              "firstKiB": 335408,
+              "lastKiB": 335328,
+              "peakKiB": 335408
+            },
+            "observationMs": 3012.6,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 2,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 20.931405625806452,
+              "p95Ms": 21.233663,
+              "p99Ms": 21.413887,
+              "maxMs": 21.790719,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 9.03,
+              "p99Ms": 9.09,
+              "windowMs": 11.3,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 6.3,
+            "frameP95Ms": 9,
+            "frameP99Ms": 9.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 0,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.18,
+              "p95": 0.34,
+              "peak": 0.37
+            },
+            "rendererCPUPercent": {
+              "mean": 0.65,
+              "p95": 1.04,
+              "peak": 1.36
+            },
+            "mainMemory": {
+              "firstKiB": 318752,
+              "lastKiB": 318784,
+              "peakKiB": 318784
+            },
+            "rendererMemory": {
+              "firstKiB": 339520,
+              "lastKiB": 339440,
+              "peakKiB": 339536
+            },
+            "observationMs": 3011.9,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 3,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 20.96840175483871,
+              "p95Ms": 21.413887,
+              "p99Ms": 22.265855,
+              "maxMs": 25.034751,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 8.08,
+              "p99Ms": 8.1,
+              "windowMs": 9,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 4.8,
+            "frameP95Ms": 9,
+            "frameP99Ms": 9.2,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 0,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.37,
+              "p95": 1.28,
+              "peak": 2.39
+            },
+            "rendererCPUPercent": {
+              "mean": 0.62,
+              "p95": 0.92,
+              "peak": 0.94
+            },
+            "mainMemory": {
+              "firstKiB": 252960,
+              "lastKiB": 253392,
+              "peakKiB": 253392
+            },
+            "rendererMemory": {
+              "firstKiB": 335952,
+              "lastKiB": 335872,
+              "peakKiB": 335952
+            },
+            "observationMs": 3014,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 4,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 20.95328619354839,
+              "p95Ms": 21.282815,
+              "p99Ms": 21.921791,
+              "maxMs": 23.216127,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 9.03,
+              "p99Ms": 9.09,
+              "windowMs": 7.9,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 4,
+            "frameP95Ms": 9,
+            "frameP99Ms": 9.14,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 0,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.19,
+              "p95": 0.32,
+              "peak": 0.36
+            },
+            "rendererCPUPercent": {
+              "mean": 0.61,
+              "p95": 0.88,
+              "peak": 0.94
+            },
+            "mainMemory": {
+              "firstKiB": 254192,
+              "lastKiB": 254208,
+              "peakKiB": 254256
+            },
+            "rendererMemory": {
+              "firstKiB": 337440,
+              "lastKiB": 337360,
+              "peakKiB": 337440
+            },
+            "observationMs": 3013.2,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 5,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 20.91323076923077,
+              "p95Ms": 21.266431,
+              "p99Ms": 21.692415,
+              "maxMs": 22.036479,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 9.21,
+              "p99Ms": 9.28,
+              "windowMs": 11.2,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 6.1,
+            "frameP95Ms": 9,
+            "frameP99Ms": 9.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.47,
+              "p95": 1.68,
+              "peak": 3.3
+            },
+            "rendererCPUPercent": {
+              "mean": 0.63,
+              "p95": 0.94,
+              "peak": 1.19
+            },
+            "mainMemory": {
+              "firstKiB": 254416,
+              "lastKiB": 254016,
+              "peakKiB": 254416
+            },
+            "rendererMemory": {
+              "firstKiB": 337984,
+              "lastKiB": 337904,
+              "peakKiB": 338000
+            },
+            "observationMs": 3011.8,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        }
+      ],
+      "source": {
+        "rawSHA256": "12dbce7293af4d1f179b29dfdf9792e11913977e74bf72ffd52e15c5bcf367c3",
+        "sanitizedReceipt": "document-switcher-sync-2026-10-11T14-36-38.047Z-sync-metrics-canary.sanitized.json",
+        "sanitizedReceiptSHA256": "91089b7b4c2842b27d30abf02d914d807ba6441e24082796e6e6565ab3cdb4da",
+        "traceAudit": "document-switcher-sync-trace-2026-10-11T14-36-38.047Z-sync-metrics-canary.json",
+        "traceAuditSHA256": "e01b3a79ae3b74e4055c98d8977050ef6523bdb0c740f5042fbd8257195e4ec4",
+        "provenance": {
+          "runnerSHA256": "147a2d11fdbeaabba2ae7b4dc45e7e5bba8c47599c7c2600311de405a4d4223b",
+          "pins": {
+            "completion-common.mjs": "a3e0c7c993984693182b34ec8c2341466effb158b29f40c23b1c59acaf02d477",
+            "completion-common-sync-canary.mjs": "f3b51466ccb89b87e69d61afbc7ca7417a9ad03156a5a945a7d6d4202137f3fc",
+            "synchronous-main-metrics-candidate.mjs": "883e3e21a0dc8a56c1383e3c05b2643bf2ea2d0821bbe157a0fc5598a757dfce",
+            "main-protocol-error-metadata-hook.mjs": "53cbb4ef00174310fa5d10bc87017f51fcfa7e2a25b4c054374fc4f935616072",
+            "document-ab-semantic.mjs": "dc7a16a2e2dc81e36f034c2291a9d9e7e2e70893b5e777e4da532f56bd2d10d3",
+            "timeline-fixture-preflight.mjs": "007a3b180a41f4ef9345b94864985625c8e685e57e599c5f816d305e58d8ca52",
+            "document-switcher-drawer-completion.mjs": "5047b57c05e6a3e6800d9d54fea6b12de9872d8d9114dbbca6635bd70eeff082"
+          },
+          "sourceManifestSHA256": "90f1ddaae656867f29ec480123545016319844327e4acb7b2f92af21671c9d0a",
+          "fixtureIndexSHA256": "6ee012b07319a3d61b2e9b494ba417f34f29547b699ccbd4c8c412ac77f090da",
+          "fixtureRevision": 3,
+          "ownershipVersion": "document-owner-v3",
+          "fixtureVersion": "v2-actual-media-metadata",
+          "layoutVersion": "production-resolved-row-max-v2",
+          "layoutSha256": "284457c0d0e4d40556a6f331a9b2353e265f84d1f8a43da7a17f7b439bd62e69",
+          "playwrightVersion": "1.60.0",
+          "expectedElectronVersion": "43.4.1",
+          "nativeReaderSHA256": "f8b7cceb3b614b781b468dd7c2c25f8d59de21d9f59c6f7e9f86b18fc411bc53"
+        },
+        "phaseClock": {
+          "timeOrigin": 1791729396434.325,
+          "startedEpochMs": 1791729398069
+        },
+        "startedAtUtc": "2026-10-11T14:36:38.048Z",
+        "finishedAtUtc": "2026-10-11T14:37:25.302Z"
+      },
+      "supersedesFunctionalSetupBlock": {
+        "runId": "2026-10-11T13-33-57.485Z-completion",
+        "scenario": "document-switcher-last",
+        "oldStatus": "runner-setup-failure-before-input",
+        "oldFormalSamples": 0,
+        "relationship": "New independent actual execution resolves coverage; old evidence/status retained unchanged",
+        "performanceComparison": false,
+        "oldMetricsReplaced": false
+      }
+    },
+    {
+      "scale": "typical",
+      "runId": "2026-10-11T14-37-59.623Z-sync-metrics-canary",
+      "scenario": "document-switcher-last",
+      "dimensions": {
+        "documents": 24,
+        "clips": 24,
+        "shots": 48,
+        "images": 24,
+        "videos": 24,
+        "plans": 1
+      },
+      "status": "executed-and-independently-trace-qualified",
+      "warmupSamples": 1,
+      "formalSamples": 5,
+      "functionalPassed": true,
+      "formalCPUComplete": 5,
+      "warmupCPUComplete": 1,
+      "trace": {
+        "qualified": true,
+        "uniqueMarks": 24,
+        "samplesQualified": 6,
+        "maximumClockDeltaErrorMs": 0.0009999880790712012,
+        "traceLabel": "document-switcher-sync-typical",
+        "gzipRoundtripVerified": true,
+        "playwrightZIPRetained": true
+      },
+      "identity": {
+        "rootGates": 16,
+        "allPassed": true,
+        "initialKnownNormalizationPassed": true,
+        "exactExpectedInitialSemantic": true,
+        "restoredEverySample": true
+      },
+      "cleanup": {
+        "ownedPidCount": 5,
+        "allObservedOwnedPidsExited": true,
+        "isolatedProfileRemoved": true,
+        "errors": [],
+        "processInventoryScope": "Startup, after UI setup and pre-close descendant snapshots plus sampled app metrics; no ps within observation; unsampled descendants remain a limitation"
+      },
+      "lifecycleErrors": [],
+      "mainProtocolObserver": {
+        "restored": true,
+        "records": 0,
+        "dropped": 0,
+        "untrackedRequests": 0,
+        "observerErrors": 0,
+        "pendingBeforeRestore": 0
+      },
+      "sourceUnchanged": true,
+      "frozenCommonUnchanged": true,
+      "budgetPassed": null,
+      "formalSummary": {
+        "responseMedianMs": 7.2,
+        "responseMinMs": 7.1,
+        "responseMaxMs": 7.6,
+        "observationFrameP99WorstMs": 10.3,
+        "mainCPUmeanMedianPercent": 0.22,
+        "rendererCPUmeanMedianPercent": 0.79,
+        "maximumSamplingLagMs": 6
+      },
+      "samples": [
+        {
+          "index": 0,
+          "isWarmup": true,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.76592554666667,
+              "p95Ms": 22.577151,
+              "p99Ms": 26.984447,
+              "maxMs": 28.934143,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 9.65,
+              "p99Ms": 9.77,
+              "windowMs": 20,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 12.2,
+            "frameP95Ms": 9.9,
+            "frameP99Ms": 10.2,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 0,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.22,
+              "p95": 0.49,
+              "peak": 0.49
+            },
+            "rendererCPUPercent": {
+              "mean": 0.76,
+              "p95": 1.44,
+              "peak": 2.11
+            },
+            "mainMemory": {
+              "firstKiB": 331136,
+              "lastKiB": 331152,
+              "peakKiB": 331152
+            },
+            "rendererMemory": {
+              "firstKiB": 376480,
+              "lastKiB": 376544,
+              "peakKiB": 376896
+            },
+            "observationMs": 3023.5,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 1,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.634203973509933,
+              "p95Ms": 22.298623,
+              "p99Ms": 22.511615,
+              "maxMs": 23.904255,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 8.98,
+              "p99Ms": 9,
+              "windowMs": 14.6,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 7.5,
+            "frameP95Ms": 10,
+            "frameP99Ms": 10.3,
+            "rafBaselineMs": 8.4,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.22,
+              "p95": 0.49,
+              "peak": 0.5
+            },
+            "rendererCPUPercent": {
+              "mean": 0.8,
+              "p95": 1.36,
+              "peak": 1.64
+            },
+            "mainMemory": {
+              "firstKiB": 331744,
+              "lastKiB": 332144,
+              "peakKiB": 332144
+            },
+            "rendererMemory": {
+              "firstKiB": 382640,
+              "lastKiB": 382512,
+              "peakKiB": 382656
+            },
+            "observationMs": 3017.3,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 2,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.7481216,
+              "p95Ms": 22.380543,
+              "p99Ms": 23.117823,
+              "maxMs": 26.656767,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 9.08,
+              "p99Ms": 9.1,
+              "windowMs": 14.7,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 7.1,
+            "frameP95Ms": 10,
+            "frameP99Ms": 10.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 0,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.24,
+              "p95": 0.51,
+              "peak": 0.53
+            },
+            "rendererCPUPercent": {
+              "mean": 0.81,
+              "p95": 1.4,
+              "peak": 1.85
+            },
+            "mainMemory": {
+              "firstKiB": 338368,
+              "lastKiB": 342224,
+              "peakKiB": 342224
+            },
+            "rendererMemory": {
+              "firstKiB": 443584,
+              "lastKiB": 443600,
+              "peakKiB": 443600
+            },
+            "observationMs": 3016.1,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 3,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.691493721854304,
+              "p95Ms": 22.495231,
+              "p99Ms": 23.445503,
+              "maxMs": 25.411583,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 9.78,
+              "p99Ms": 9.88,
+              "windowMs": 15.3,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 7.6,
+            "frameP95Ms": 9.8,
+            "frameP99Ms": 10.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.23,
+              "p95": 0.45,
+              "peak": 0.48
+            },
+            "rendererCPUPercent": {
+              "mean": 0.79,
+              "p95": 1.36,
+              "peak": 1.58
+            },
+            "mainMemory": {
+              "firstKiB": 257568,
+              "lastKiB": 257600,
+              "peakKiB": 257600
+            },
+            "rendererMemory": {
+              "firstKiB": 475632,
+              "lastKiB": 475472,
+              "peakKiB": 475632
+            },
+            "observationMs": 3014.2,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 4,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.58266490066225,
+              "p95Ms": 22.331391,
+              "p99Ms": 22.577151,
+              "maxMs": 24.166399,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 9.15,
+              "p99Ms": 9.19,
+              "windowMs": 14.5,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 7.1,
+            "frameP95Ms": 9.9,
+            "frameP99Ms": 10.2,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.22,
+              "p95": 0.53,
+              "peak": 0.53
+            },
+            "rendererCPUPercent": {
+              "mean": 0.76,
+              "p95": 1.29,
+              "peak": 1.62
+            },
+            "mainMemory": {
+              "firstKiB": 257840,
+              "lastKiB": 257872,
+              "peakKiB": 257872
+            },
+            "rendererMemory": {
+              "firstKiB": 476512,
+              "lastKiB": 476368,
+              "peakKiB": 476512
+            },
+            "observationMs": 3014.7,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 5,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.67098659602649,
+              "p95Ms": 22.298623,
+              "p99Ms": 22.511615,
+              "maxMs": 23.068671,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 2,
+              "p95Ms": 7.6,
+              "p99Ms": 7.6,
+              "windowMs": 14.8,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 7.2,
+            "frameP95Ms": 9.9,
+            "frameP99Ms": 10.2,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.22,
+              "p95": 0.49,
+              "peak": 0.52
+            },
+            "rendererCPUPercent": {
+              "mean": 0.79,
+              "p95": 1.38,
+              "peak": 1.6
+            },
+            "mainMemory": {
+              "firstKiB": 258080,
+              "lastKiB": 258096,
+              "peakKiB": 258096
+            },
+            "rendererMemory": {
+              "firstKiB": 483728,
+              "lastKiB": 485120,
+              "peakKiB": 485120
+            },
+            "observationMs": 3016.9,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        }
+      ],
+      "source": {
+        "rawSHA256": "fdc148b313356a6e07a70fbb5bdf156345f32af030bf304a941f487722b71960",
+        "sanitizedReceipt": "document-switcher-sync-2026-10-11T14-37-59.623Z-sync-metrics-canary.sanitized.json",
+        "sanitizedReceiptSHA256": "21e67a9e7c00d03eb024a0fd9bd903e5d3280c59373cc3adaa9496f82e491580",
+        "traceAudit": "document-switcher-sync-trace-2026-10-11T14-37-59.623Z-sync-metrics-canary.json",
+        "traceAuditSHA256": "d6208f8300f38c4673d76a6123f03d6a496e26227ff816b464de67f21fed1679",
+        "provenance": {
+          "runnerSHA256": "147a2d11fdbeaabba2ae7b4dc45e7e5bba8c47599c7c2600311de405a4d4223b",
+          "pins": {
+            "completion-common.mjs": "a3e0c7c993984693182b34ec8c2341466effb158b29f40c23b1c59acaf02d477",
+            "completion-common-sync-canary.mjs": "f3b51466ccb89b87e69d61afbc7ca7417a9ad03156a5a945a7d6d4202137f3fc",
+            "synchronous-main-metrics-candidate.mjs": "883e3e21a0dc8a56c1383e3c05b2643bf2ea2d0821bbe157a0fc5598a757dfce",
+            "main-protocol-error-metadata-hook.mjs": "53cbb4ef00174310fa5d10bc87017f51fcfa7e2a25b4c054374fc4f935616072",
+            "document-ab-semantic.mjs": "dc7a16a2e2dc81e36f034c2291a9d9e7e2e70893b5e777e4da532f56bd2d10d3",
+            "timeline-fixture-preflight.mjs": "007a3b180a41f4ef9345b94864985625c8e685e57e599c5f816d305e58d8ca52",
+            "document-switcher-drawer-completion.mjs": "5047b57c05e6a3e6800d9d54fea6b12de9872d8d9114dbbca6635bd70eeff082"
+          },
+          "sourceManifestSHA256": "65f1436df7f0f9a94b58775615952eb9c1296b874c7e39cb5f3409ea1ad6685a",
+          "fixtureIndexSHA256": "6ee012b07319a3d61b2e9b494ba417f34f29547b699ccbd4c8c412ac77f090da",
+          "fixtureRevision": 3,
+          "ownershipVersion": "document-owner-v3",
+          "fixtureVersion": "v2-actual-media-metadata",
+          "layoutVersion": "production-resolved-row-max-v2",
+          "layoutSha256": "fd40077eeb0d9a5f96a741c201c8c78a02e6f3998aa1ef9b94c99874dbac5ad8",
+          "playwrightVersion": "1.60.0",
+          "expectedElectronVersion": "43.4.1",
+          "nativeReaderSHA256": "f8b7cceb3b614b781b468dd7c2c25f8d59de21d9f59c6f7e9f86b18fc411bc53"
+        },
+        "phaseClock": {
+          "timeOrigin": 1791729477903.502,
+          "startedEpochMs": 1791729479645
+        },
+        "startedAtUtc": "2026-10-11T14:37:59.624Z",
+        "finishedAtUtc": "2026-10-11T14:38:48.785Z"
+      },
+      "supersedesFunctionalSetupBlock": {
+        "runId": "2026-10-11T13-46-57.132Z-completion",
+        "scenario": "document-switcher-last",
+        "oldStatus": "runner-setup-failure-before-input",
+        "oldFormalSamples": 0,
+        "relationship": "New independent actual execution resolves coverage; old evidence/status retained unchanged",
+        "performanceComparison": false,
+        "oldMetricsReplaced": false
+      }
+    },
+    {
+      "scale": "heavy",
+      "runId": "2026-10-11T14-39-18.723Z-sync-metrics-canary",
+      "scenario": "document-switcher-last",
+      "dimensions": {
+        "documents": 160,
+        "clips": 160,
+        "shots": 320,
+        "images": 160,
+        "videos": 160,
+        "plans": 1
+      },
+      "status": "executed-and-independently-trace-qualified",
+      "warmupSamples": 1,
+      "formalSamples": 5,
+      "functionalPassed": true,
+      "formalCPUComplete": 5,
+      "warmupCPUComplete": 1,
+      "trace": {
+        "qualified": true,
+        "uniqueMarks": 24,
+        "samplesQualified": 6,
+        "maximumClockDeltaErrorMs": 4.7683897719252855e-08,
+        "traceLabel": "document-switcher-sync-heavy",
+        "gzipRoundtripVerified": true,
+        "playwrightZIPRetained": true
+      },
+      "identity": {
+        "rootGates": 16,
+        "allPassed": true,
+        "initialKnownNormalizationPassed": true,
+        "exactExpectedInitialSemantic": true,
+        "restoredEverySample": true
+      },
+      "cleanup": {
+        "ownedPidCount": 5,
+        "allObservedOwnedPidsExited": true,
+        "isolatedProfileRemoved": true,
+        "errors": [],
+        "processInventoryScope": "Startup, after UI setup and pre-close descendant snapshots plus sampled app metrics; no ps within observation; unsampled descendants remain a limitation"
+      },
+      "lifecycleErrors": [],
+      "mainProtocolObserver": {
+        "restored": true,
+        "records": 0,
+        "dropped": 0,
+        "untrackedRequests": 0,
+        "observerErrors": 0,
+        "pendingBeforeRestore": 0
+      },
+      "sourceUnchanged": true,
+      "frozenCommonUnchanged": true,
+      "budgetPassed": null,
+      "formalSummary": {
+        "responseMedianMs": 15.3,
+        "responseMinMs": 13.8,
+        "responseMaxMs": 16.8,
+        "observationFrameP99WorstMs": 10.4,
+        "mainCPUmeanMedianPercent": 0.41,
+        "rendererCPUmeanMedianPercent": 0.99,
+        "maximumSamplingLagMs": 14
+      },
+      "samples": [
+        {
+          "index": 0,
+          "isWarmup": true,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 22.051923027027026,
+              "p95Ms": 22.544383,
+              "p99Ms": 38.141951,
+              "maxMs": 39.452671,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 4,
+              "p95Ms": 16.64,
+              "p99Ms": 17.81,
+              "windowMs": 31.7,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 19.7,
+            "frameP95Ms": 9.9,
+            "frameP99Ms": 10.4,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 2,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.33,
+              "p95": 1.15,
+              "peak": 1.44
+            },
+            "rendererCPUPercent": {
+              "mean": 1.16,
+              "p95": 2.34,
+              "peak": 3.93
+            },
+            "mainMemory": {
+              "firstKiB": 359232,
+              "lastKiB": 359248,
+              "peakKiB": 359248
+            },
+            "rendererMemory": {
+              "firstKiB": 564400,
+              "lastKiB": 563600,
+              "peakKiB": 564624
+            },
+            "observationMs": 3030.5,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 1,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 12,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 22.018196405797102,
+              "p95Ms": 22.413311,
+              "p99Ms": 44.007423,
+              "maxMs": 51.838975,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 15.91,
+              "p99Ms": 16.54,
+              "windowMs": 24.5,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 15.3,
+            "frameP95Ms": 10.1,
+            "frameP99Ms": 10.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 2,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.41,
+              "p95": 1.25,
+              "peak": 1.42
+            },
+            "rendererCPUPercent": {
+              "mean": 1.08,
+              "p95": 2.01,
+              "peak": 3
+            },
+            "mainMemory": {
+              "firstKiB": 359792,
+              "lastKiB": 341312,
+              "peakKiB": 359840
+            },
+            "rendererMemory": {
+              "firstKiB": 579696,
+              "lastKiB": 547216,
+              "peakKiB": 579696
+            },
+            "observationMs": 3030.9,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 2,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 21.85873009395973,
+              "p95Ms": 22.429695,
+              "p99Ms": 35.160063,
+              "maxMs": 36.503551,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 16.59,
+              "p99Ms": 17.24,
+              "windowMs": 24.1,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 13.8,
+            "frameP95Ms": 9.9,
+            "frameP99Ms": 10.4,
+            "rafBaselineMs": 8.35,
+            "droppedFrameEstimate": 2,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 1.01,
+              "p95": 4.31,
+              "peak": 5.37
+            },
+            "rendererCPUPercent": {
+              "mean": 0.99,
+              "p95": 1.69,
+              "peak": 2.58
+            },
+            "mainMemory": {
+              "firstKiB": 336992,
+              "lastKiB": 257136,
+              "peakKiB": 343472
+            },
+            "rendererMemory": {
+              "firstKiB": 575776,
+              "lastKiB": 571616,
+              "peakKiB": 575776
+            },
+            "observationMs": 3027.8,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 3,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 22.035372972972976,
+              "p95Ms": 22.396927,
+              "p99Ms": 46.530559,
+              "maxMs": 48.726015,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 16.95,
+              "p99Ms": 17.71,
+              "windowMs": 25.5,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 16.8,
+            "frameP95Ms": 10.2,
+            "frameP99Ms": 10.4,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 2,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.37,
+              "p95": 1.39,
+              "peak": 1.41
+            },
+            "rendererCPUPercent": {
+              "mean": 0.91,
+              "p95": 1.75,
+              "peak": 2.79
+            },
+            "mainMemory": {
+              "firstKiB": 267696,
+              "lastKiB": 269376,
+              "peakKiB": 269376
+            },
+            "rendererMemory": {
+              "firstKiB": 575504,
+              "lastKiB": 575408,
+              "peakKiB": 575504
+            },
+            "observationMs": 3016.4,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 4,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 22.06138810810811,
+              "p95Ms": 22.413311,
+              "p99Ms": 49.414143,
+              "maxMs": 49.577983,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 4,
+              "p95Ms": 8.68,
+              "p99Ms": 8.7,
+              "windowMs": 23.5,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 14.3,
+            "frameP95Ms": 10,
+            "frameP99Ms": 10.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 1,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.37,
+              "p95": 1.38,
+              "peak": 1.42
+            },
+            "rendererCPUPercent": {
+              "mean": 0.94,
+              "p95": 1.7,
+              "peak": 2.58
+            },
+            "mainMemory": {
+              "firstKiB": 269568,
+              "lastKiB": 269584,
+              "peakKiB": 269584
+            },
+            "rendererMemory": {
+              "firstKiB": 575840,
+              "lastKiB": 575680,
+              "peakKiB": 575840
+            },
+            "observationMs": 3038.5,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        },
+        {
+          "index": 5,
+          "isWarmup": false,
+          "workflowCompleted": true,
+          "metricsStatus": "complete-observation",
+          "records": 13,
+          "qualificationChecks": {
+            "explicitBaseline": true,
+            "orderedIndices": true,
+            "noSamplingErrors": true,
+            "noReaderErrors": true,
+            "baselineBeforeInput": true,
+            "monotonicTicks": true,
+            "serialCadence": true,
+            "boundedLag": true,
+            "tickCount": true,
+            "windowTailCovered": true,
+            "sameBoundRenderer": true,
+            "mainLoopObserved": true,
+            "trustedVisibleReceipt": true
+          },
+          "summary": {
+            "mainEventLoop": {
+              "meanMs": 22.066092972972974,
+              "p95Ms": 22.347775,
+              "p99Ms": 45.940735,
+              "maxMs": 47.874047,
+              "resolutionMs": 20
+            },
+            "activeGesture": {
+              "frameSamples": 3,
+              "p95Ms": 15.42,
+              "p99Ms": 16.04,
+              "windowMs": 25.8,
+              "boundary": "trusted input through driver action completion receipt; not photon timing"
+            },
+            "responseMs": 16.4,
+            "frameP95Ms": 9.9,
+            "frameP99Ms": 10.3,
+            "rafBaselineMs": 8.3,
+            "droppedFrameEstimate": 2,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "mainCPUPercent": {
+              "mean": 0.58,
+              "p95": 1.97,
+              "peak": 2.75
+            },
+            "rendererCPUPercent": {
+              "mean": 1.13,
+              "p95": 2.35,
+              "peak": 2.69
+            },
+            "mainMemory": {
+              "firstKiB": 268400,
+              "lastKiB": 268400,
+              "peakKiB": 268752
+            },
+            "rendererMemory": {
+              "firstKiB": 540832,
+              "lastKiB": 540704,
+              "peakKiB": 540832
+            },
+            "observationMs": 3025.5,
+            "functionalPassed": true
+          },
+          "firstFeedbackMs": null,
+          "inputInteractiveMs": null
+        }
+      ],
+      "source": {
+        "rawSHA256": "afe6ceeccc8257f2244f2de2c146085f8ba402955be0dc607f587b1b70d974c6",
+        "sanitizedReceipt": "document-switcher-sync-2026-10-11T14-39-18.723Z-sync-metrics-canary.sanitized.json",
+        "sanitizedReceiptSHA256": "147cd258dd73a690fb4a14dd78879123a6d3767bcd26e571a83bc37c976285a9",
+        "traceAudit": "document-switcher-sync-trace-2026-10-11T14-39-18.723Z-sync-metrics-canary.json",
+        "traceAuditSHA256": "71da80d37984696c72e5d8e1994f84a53afb05ad6297caf4419c457cc9fb254f",
+        "provenance": {
+          "runnerSHA256": "147a2d11fdbeaabba2ae7b4dc45e7e5bba8c47599c7c2600311de405a4d4223b",
+          "pins": {
+            "completion-common.mjs": "a3e0c7c993984693182b34ec8c2341466effb158b29f40c23b1c59acaf02d477",
+            "completion-common-sync-canary.mjs": "f3b51466ccb89b87e69d61afbc7ca7417a9ad03156a5a945a7d6d4202137f3fc",
+            "synchronous-main-metrics-candidate.mjs": "883e3e21a0dc8a56c1383e3c05b2643bf2ea2d0821bbe157a0fc5598a757dfce",
+            "main-protocol-error-metadata-hook.mjs": "53cbb4ef00174310fa5d10bc87017f51fcfa7e2a25b4c054374fc4f935616072",
+            "document-ab-semantic.mjs": "dc7a16a2e2dc81e36f034c2291a9d9e7e2e70893b5e777e4da532f56bd2d10d3",
+            "timeline-fixture-preflight.mjs": "007a3b180a41f4ef9345b94864985625c8e685e57e599c5f816d305e58d8ca52",
+            "document-switcher-drawer-completion.mjs": "5047b57c05e6a3e6800d9d54fea6b12de9872d8d9114dbbca6635bd70eeff082"
+          },
+          "sourceManifestSHA256": "9148fdad160aea6d1416d53e07e77e276cae1baf8f600cf5d0f7cd67c6535b45",
+          "fixtureIndexSHA256": "6ee012b07319a3d61b2e9b494ba417f34f29547b699ccbd4c8c412ac77f090da",
+          "fixtureRevision": 3,
+          "ownershipVersion": "document-owner-v3",
+          "fixtureVersion": "v2-actual-media-metadata",
+          "layoutVersion": "production-resolved-row-max-v2",
+          "layoutSha256": "752c110745f394233c228b632951d6c0c32b644b86b6b0c7478e897fb216c796",
+          "playwrightVersion": "1.60.0",
+          "expectedElectronVersion": "43.4.1",
+          "nativeReaderSHA256": "f8b7cceb3b614b781b468dd7c2c25f8d59de21d9f59c6f7e9f86b18fc411bc53"
+        },
+        "phaseClock": {
+          "timeOrigin": 1791729556923.616,
+          "startedEpochMs": 1791729558746
+        },
+        "startedAtUtc": "2026-10-11T14:39:18.724Z",
+        "finishedAtUtc": "2026-10-11T14:40:12.541Z"
+      },
+      "supersedesFunctionalSetupBlock": {
+        "runId": "2026-10-11T14-00-37.244Z-completion",
+        "scenario": "document-switcher-last",
+        "oldStatus": "runner-setup-failure-before-input",
+        "oldFormalSamples": 0,
+        "relationship": "New independent actual execution resolves coverage; old evidence/status retained unchanged",
+        "performanceComparison": false,
+        "oldMetricsReplaced": false
+      }
+    }
+  ],
+  "priorNewCohortSetupAttempt": {
+    "runId": "2026-10-11T14-33-38.116Z-sync-metrics-canary",
+    "runnerSHA256": "5fcb3099b0d0f588e8a6402f561b9e9245bc6a9341df44434d94de571f7d8d44",
+    "phase": "fixture-clone",
+    "nativeLaunches": 0,
+    "formalSamples": 0,
+    "status": "blocked",
+    "cause": "Test normalization whitelist used meta.shotIndex; production derives top-level node.shotIndex. Old attempt retained.",
+    "regressionReceipt": "document-switcher-normalization-contract-test-receipt.json",
+    "regressionCases": 21
+  },
+  "comparisonPolicy": {
+    "old99AnalysisChanged": false,
+    "oldSetupFailuresDeleted": false,
+    "oldTransportMetricsPooled": false,
+    "old86TraceOr61CPUCountsRescored": false,
+    "speedupClaim": false,
+    "reason": "This is a new transport and a successful independent header-switcher execution. Prior matching setup failures had zero samples. Storyboard-visited document switching is a different history and action."
+  },
+  "limitations": [
+    "Whole observation frame p95/p99 includes the approximately 3-second window; short click activeGesture sample counts cannot qualify a stable gesture p99.",
+    "responseMs is trusted menu pointerdown to specific visible last-document marker, not independent earliest feedback or TTI.",
+    "All authored fields in the semantic projection remain exact after explicitly validated production normalization; selection/navigation are UI state and not a promised persisted active ID.",
+    "One 1+5 cell per scale validates this short cohort; it does not establish long-running collector stability or performance budgets.",
+    "Owned process inventory includes startup/setup/pre-close descendant snapshots and sampled app metrics; unseen transient descendants are not proven.",
+    "Only this switcher case is added; deferred media/timeline 48 cases remain unexecuted."
+  ],
+  "generation": {
+    "startedAtUtc": "2026-10-11T14:42:05.425734+00:00",
+    "finishedAtUtc": "2026-10-11T14:42:05.435257+00:00",
+    "elapsedMonotonicSeconds": 0.009530708950478584,
+    "nativeLaunches": 0
+  }
+}

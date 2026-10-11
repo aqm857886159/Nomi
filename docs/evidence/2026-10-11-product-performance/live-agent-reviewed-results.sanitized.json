@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-10-11T11-05-50.170Z-live-text-actual",
+  "reviewedAtUtc": "2026-10-11T11:13:51.740709+00:00",
+  "scope": "three single-run synthetic native UI text requests; not full real-provider baseline",
+  "runtime": {
+    "head": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+    "version": "0.23.1"
+  },
+  "protocol": {
+    "provider": "api-deepseek-com",
+    "model": "deepseek-flash",
+    "maxRequests": 3,
+    "maxConcurrency": 1,
+    "maxOutputTokens": 128,
+    "maxInputUtf8Bytes": 65536,
+    "thinking": "disabled",
+    "tools": "removed by test-only transport contract",
+    "warmups": 0,
+    "runs": 1,
+    "syntheticOnly": true,
+    "realUiSend": true,
+    "nativeRuntime": true,
+    "wholeSystemPreservedExceptExactSyntheticPathAliases": true,
+    "outputMustContainRealContent": true,
+    "fullInputInteractiveMs": null,
+    "metricScope": "single-run text function, visible response and rAF/long tasks only; CPU/RSS/drop ratio not sampled in this live smoke",
+    "continuationAction": "same-session follow-up after stop via actual composer send; native continue button not covered",
+    "cache": "fresh profile then same project/session",
+    "trace": "private snapshots, no screenshots, Chromium timeline"
+  },
+  "rows": [
+    {
+      "scenario": "live-text-stream",
+      "status": "executed",
+      "metrics": {
+        "firstVisibleExpectedProseMs": 1252.0000000119207,
+        "stopFeedbackMs": null,
+        "inputInteractiveMs": null,
+        "frames": 157,
+        "frameMsP95": 9.300000000000182,
+        "frameMsP99": 9.300000000000182,
+        "longTaskCount": 0,
+        "longTaskTotalMs": 0,
+        "providerWaitToFirstByteMs": 248,
+        "providerWaitToFirstContentMs": 554,
+        "requestToSettledMs": 621,
+        "uiVisibleTextChanges": 2,
+        "visibleCharacters": 37,
+        "wireContentChunks": 6,
+        "wireCharacters": 37,
+        "reasoningChunks": 0,
+        "runningStateMs": 518.7000000119206,
+        "firstFeedbackMs": null
+      },
+      "functional": {
+        "realContent": true,
+        "stopRequested": false,
+        "stopClicked": false,
+        "providerOutcome": "completed",
+        "stopObserved": false,
+        "nativeComposerIdle": true,
+        "expectedProseObserved": true
+      },
+      "usage": {
+        "promptTokens": 14065,
+        "completionTokens": 6
+      },
+      "timingEpochMs": {
+        "requestAtMs": 1791716759886,
+        "responseHeadersAtMs": 1791716760132,
+        "firstByteAtMs": 1791716760134,
+        "firstContentAtMs": 1791716760440,
+        "lastContentAtMs": 1791716760501,
+        "endedAtMs": 1791716760507,
+        "uiTrustedSendAtMs": 1791716759239.8,
+        "uiBusyAtMs": 1791716759758.5,
+        "uiExpectedProseAtMs": 1791716760491.8,
+        "uiTrustedStopAtMs": null,
+        "uiIdleAfterStopAtMs": null
+      },
+      "timingSource": "raw guard monotonic wall stamps + exact original rAF probe returned in private Playwright trace; response not rerun",
+      "originalRunnerClassification": "executed",
+      "metricSourceMapping": {
+        "runningStateMs": "originalRunner.metrics.firstFeedbackMs; actual probe selected composer[data-mode=running]",
+        "firstFeedbackMs": "unknown: earlier admitting/aria-busy/disabled feedback was not instrumented"
+      }
+    },
+    {
+      "scenario": "live-text-stop",
+      "status": "executed",
+      "metrics": {
+        "firstVisibleExpectedProseMs": 885.4000000476844,
+        "stopFeedbackMs": 29.200000011920565,
+        "inputInteractiveMs": null,
+        "frames": 118,
+        "frameMsP95": 9.214999999999735,
+        "frameMsP99": 9.38299999999973,
+        "longTaskCount": 0,
+        "longTaskTotalMs": 0,
+        "providerWaitToFirstByteMs": 173,
+        "providerWaitToFirstContentMs": 663,
+        "requestToSettledMs": 710,
+        "uiVisibleTextChanges": 1,
+        "visibleCharacters": 1,
+        "wireContentChunks": 1,
+        "wireCharacters": 1,
+        "reasoningChunks": 0,
+        "runningStateMs": 110.5000000476839,
+        "firstFeedbackMs": null
+      },
+      "functional": {
+        "realContent": true,
+        "stopRequested": true,
+        "stopClicked": true,
+        "providerOutcome": "cancelled",
+        "stopObserved": true,
+        "nativeComposerIdle": true,
+        "expectedProseObserved": true
+      },
+      "usage": null,
+      "timingEpochMs": {
+        "requestAtMs": 1791716760827,
+        "responseHeadersAtMs": 1791716760990,
+        "firstByteAtMs": 1791716761000,
+        "firstContentAtMs": 1791716761490,
+        "lastContentAtMs": 1791716761490,
+        "endedAtMs": 1791716761537,
+        "uiTrustedSendAtMs": 1791716760606.4001,
+        "uiBusyAtMs": 1791716760716.9001,
+        "uiExpectedProseAtMs": 1791716761491.8,
+        "uiTrustedStopAtMs": 1791716761529.3,
+        "uiIdleAfterStopAtMs": 1791716761558.5
+      },
+      "timingSource": "raw guard monotonic wall stamps + exact original rAF probe returned in private Playwright trace; response not rerun",
+      "originalRunnerClassification": "executed",
+      "metricSourceMapping": {
+        "runningStateMs": "originalRunner.metrics.firstFeedbackMs; actual probe selected composer[data-mode=running]",
+        "firstFeedbackMs": "unknown: earlier admitting/aria-busy/disabled feedback was not instrumented"
+      }
+    },
+    {
+      "scenario": "live-text-continue",
+      "status": "executed-visible-followup-expected-prose-failed",
+      "metrics": {
+        "firstVisibleExpectedProseMs": null,
+        "stopFeedbackMs": null,
+        "inputInteractiveMs": null,
+        "frames": 160,
+        "frameMsP95": 9.300000000001091,
+        "frameMsP99": 16.640999999999767,
+        "longTaskCount": 0,
+        "longTaskTotalMs": 0,
+        "providerWaitToFirstByteMs": 184,
+        "providerWaitToFirstContentMs": 702,
+        "requestToSettledMs": 1087,
+        "uiVisibleTextChanges": 0,
+        "visibleCharacters": 0,
+        "wireContentChunks": 128,
+        "wireCharacters": 183,
+        "reasoningChunks": 0,
+        "runningStateMs": 104.0000000238415,
+        "firstFeedbackMs": null
+      },
+      "functional": {
+        "realContent": true,
+        "stopRequested": false,
+        "stopClicked": false,
+        "providerOutcome": "completed",
+        "stopObserved": false,
+        "nativeComposerIdle": true,
+        "expectedProseObserved": false,
+        "sameSessionFollowupHasVisibleText": true,
+        "visibleProseKind": "numeric sequence 1 through 64",
+        "nativeContinueButtonCovered": false,
+        "confirmationBasis": "post-run private screenshot and actual SSE content count; not a measured first-visible timestamp"
+      },
+      "usage": {
+        "promptTokens": 14811,
+        "completionTokens": 128
+      },
+      "timingEpochMs": {
+        "requestAtMs": 1791716761848,
+        "responseHeadersAtMs": 1791716762031,
+        "firstByteAtMs": 1791716762032,
+        "firstContentAtMs": 1791716762550,
+        "lastContentAtMs": 1791716762928,
+        "endedAtMs": 1791716762935,
+        "uiTrustedSendAtMs": 1791716761629.5,
+        "uiBusyAtMs": 1791716761733.5,
+        "uiExpectedProseAtMs": null,
+        "uiTrustedStopAtMs": null,
+        "uiIdleAfterStopAtMs": null
+      },
+      "timingSource": "raw guard monotonic wall stamps + exact original rAF probe returned in private Playwright trace; response not rerun",
+      "originalRunnerClassification": "no-visible-content",
+      "metricSourceMapping": {
+        "runningStateMs": "originalRunner.metrics.firstFeedbackMs; actual probe selected composer[data-mode=running]",
+        "firstFeedbackMs": "unknown: earlier admitting/aria-busy/disabled feedback was not instrumented"
+      }
+    }
+  ],
+  "additionalCompletionAttemptsBlockedAfterCap": 2,
+  "thirdCaseLimitation": "Model rendered a numeric continuation instead of the requested short sentence; output reached 128-token cap, then two further completion attempts were blocked by the no-extra-dispatch contract. The UI error after that block is affected by the test constraints and is not by itself a production defect. No request was repeated.",
+  "latencyInterpretation": "firstVisibleExpectedProseMs waits for Synthetic or a digit inside the actual markdown body. Provider and UI metrics have different start boundaries; do not subtract their durations and call the difference UI blocking. Epoch receipts are retained for independent alignment; no full input-to-interactive, CPU, RSS or dropped-frame ratio was sampled in this smoke. Label correction: original firstFeedbackMs actually observed composer running state; reviewed runningStateMs preserves that value and firstFeedbackMs is null. Production synchronously sets admission before awaits, enabling earlier aria-busy/disabled/grey feedback which was not measured. uiBusyAtMs in original epoch mapping means running-state observation.",
+  "budget": {
+    "currency": "CNY",
+    "globalCap": 10,
+    "textRequestCount": 3,
+    "maxRequests": 3,
+    "observedMaxConcurrency": 1,
+    "reservedPerRequest": 1,
+    "unresolvedReserved": 3.0,
+    "knownUsageEstimatedCost": 0.058824,
+    "unknownUsageRequests": 1,
+    "actualBilledCost": null,
+    "billingComplete": false,
+    "remainingTextDispatches": 0,
+    "ledgerContractDigest": "cf52693311dc5b980c29216e132f54ef1d142553646eba0cc10215d0e1dbc756"
+  },
+  "safety": {
+    "realCatalogUnchanged": true,
+    "credentialsRemoved": true,
+    "realCatalogBeforeSha256": "f30ab0d3786bbb1105cabb4f38daf0a7fd8e89b4a1d32fb69ab56f0c7714fd1b",
+    "realCatalogAfterSha256": "f30ab0d3786bbb1105cabb4f38daf0a7fd8e89b4a1d32fb69ab56f0c7714fd1b",
+    "paidDispatches": 3,
+    "blockedBackgroundOrRetryAttempts": 4,
+    "textOnlyContractValidated": 3
+  },
+  "processClosure": {
+    "atUtc": "2026-10-11T11:07:44.866205+00:00",
+    "source": "owned Electron Chromium trace process_name metadata; initial ps snapshot was too late, not claimed as a captured parent-child tree",
+    "traceProcessIds": [
+      89912,
+      89915,
+      89916,
+      89918,
+      89938
+    ],
+    "dryProcessIds": [
+      89768,
+      89360
+    ],
+    "remainingOwnedProcesses": 0,
+    "allRecordedNativeProcessesExited": true,
+    "profileAbsent": true,
+    "remainingCredentialFamily": 0
+  },
+  "trace": {
+    "sha256": "8ee5d3f10cfa6db483d16bec18c8bf241052cd90e4ffb1fd3b297c2a7b834419",
+    "originalBytes": 20265099,
+    "gzipBytes": 1438481,
+    "roundTripVerified": true
+  },
+  "sourceHashes": {
+    "originalPublicReport": "1ccbe43feff4a7ed71e4f3d64da908108ebc730d47702ec2de0224e2dc207179",
+    "privateScreenshot": "a1f0c061f641116c40fa7107aa2631f272e07c5ed7a789848069b770169867f5",
+    "privatePlaywrightTrace": "97f97d6302b9fd8c3b00897c49a601117a8953335a8f8aaa3de6163684191e14"
+  },
+  "originalRawPreserved": true,
+  "metricLabelCorrection": {
+    "originalReportsUnmodified": true,
+    "source": "src/workbench/ai/v4/useAgentPanelV4Actions.ts:170; src/workbench/ai/ProjectAgentResidentShell.tsx:118; src/workbench/ai/v4/AgentPanelV4Composer.tsx:180,330,331",
+    "explanation": "running-state observation is later than a potentially visible admission feedback; 518.7ms does not prove an unresponsive interval"
+  }
+}

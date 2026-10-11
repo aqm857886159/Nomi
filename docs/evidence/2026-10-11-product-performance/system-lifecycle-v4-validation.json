@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "electronLaunched": false,
+  "startUTC": "2026-10-11T12:55:02.891561+00:00",
+  "endUTC": "2026-10-11T12:55:09.471903+00:00",
+  "elapsedSeconds": 6.580342054367065,
+  "checks": [
+    {
+      "kind": "unit",
+      "exitCode": 0,
+      "seconds": 1.7533900737762451
+    },
+    {
+      "kind": "process-repro",
+      "exitCode": 0,
+      "seconds": 4.8266870975494385
+    }
+  ]
+}

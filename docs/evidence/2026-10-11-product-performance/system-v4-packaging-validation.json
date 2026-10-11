@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "startUTC": "2026-10-11T13:07:41.927956+00:00",
+  "endUTC": "2026-10-11T13:07:42.409103+00:00",
+  "elapsedSeconds": 0.48114728927612305,
+  "targetedTests": 3,
+  "patch": {
+    "file": "integration.patch",
+    "sha256": "9c87bc41f2c1be674faf5ffd0574456afc76849cb334fffc4acc4795706bcb26",
+    "bytes": 923813
+  },
+  "electronLaunched": false
+}

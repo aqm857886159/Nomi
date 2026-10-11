@@ -1,0 +1,1459 @@
+{
+  "schemaVersion": 1,
+  "scope": "portable-executor-revalidation-only",
+  "nativeGUIStarted": true,
+  "realUserActions": true,
+  "productSourceChanged": false,
+  "requestsPaid": 0,
+  "rows": [
+    {
+      "mode": "off",
+      "runId": "3b20b8f5-d7a7-4177-909c-60a8ee58b754",
+      "source": {
+        "commit": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+        "tree": "b1fad64fbaa4f543d518a6eb012389dde632ed63",
+        "dirty": false
+      },
+      "protocol": {
+        "id": "nomi-native-baseline-v3-canonical-media",
+        "instrumentationVersion": "completion-v3-idempotent-visible-signature-control-ack-user-timing",
+        "feedbackProbeMode": "disabled-explicit-scene-probes-only",
+        "cache": "hot",
+        "scale": "small",
+        "counts": {
+          "images": 4,
+          "videos": 2
+        },
+        "axes": {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "agentSessions": 1,
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "cache": "hot",
+          "uniqueMediaAssets": 3
+        },
+        "warmupRuns": 1,
+        "measuredRuns": 5,
+        "cycles": 1,
+        "fixtureDigest": "3718e9c76873f990170ea0a5389cbc46301d60e4d9d27950cdee6c33672479c9",
+        "fixtureVersion": "v2-actual-media-metadata",
+        "metadataIntegrity": {
+          "fixtureVersion": "v2-actual-media-metadata",
+          "status": "verified",
+          "nodesChecked": 6,
+          "resultsChecked": 14,
+          "thumbnailsChecked": 14,
+          "beforePayloadDigest": "0634c6fee7f21a5e7ba2a3e17c50f12f28e7b194be11744ebe6ae661f815229c",
+          "afterPayloadDigest": "003a7c543b793f876f089deb9f29d4dce1da09e1848d1320ec3759cf29100a17",
+          "media": [
+            {
+              "kind": "image",
+              "sha256": "11dc9171b11672b8aefbe3cf4d0889795b964b759e82110373be3d87b20c0a9b",
+              "bytes": 18102,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "mjpeg",
+              "durationSeconds": 0.04
+            },
+            {
+              "kind": "image",
+              "sha256": "540e60c41e9d418d6d41a55b12d3881953e2b823e05b0b255de0b37d1df14cc8",
+              "bytes": 18980,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "mjpeg",
+              "durationSeconds": 0.04
+            },
+            {
+              "kind": "image",
+              "sha256": "ad5d797cf51b949cc7ab7b9bda9e6e227acf85bd4d600649da4829ce5c99cdd3",
+              "bytes": 295788,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "png",
+              "durationSeconds": null
+            },
+            {
+              "kind": "image",
+              "sha256": "c5470d414026d9b03ad172e2a059a226267d9055e72519bccb125f72cd8a2c98",
+              "bytes": 261390,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "png",
+              "durationSeconds": null
+            },
+            {
+              "kind": "video",
+              "sha256": "d23b9c61ef20a41e2f570ac7e740ab39a59570218d223ba21bfc8c2e7313be20",
+              "bytes": 6135884,
+              "width": 1920,
+              "height": 1080,
+              "codedWidth": 1920,
+              "codedHeight": 1080,
+              "rotation": 0,
+              "codec": "h264",
+              "durationSeconds": 15.024
+            },
+            {
+              "kind": "image",
+              "sha256": "ec74b916a28de94e4abc60a704615a136fe0da1ab99e7839754e803768fbe243",
+              "bytes": 16975,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "mjpeg",
+              "durationSeconds": 0.04
+            }
+          ]
+        },
+        "layoutIntegrity": {
+          "overlapCount": 0,
+          "layoutVersion": "v2-production-visual-size-row-max-gutter-70",
+          "source": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+          "sourceSHA256": "47ff876e7ccac0c9c6ffd267077796f470abd243114b373a70eb5fd0541c2cc2",
+          "beforePositionDigest": "651d0f79af37695e1f2df5ca498f6dcb1e1cb2c443a2bfb2e10b1cb038db463e",
+          "positionDigest": "ba6ff03f79339b810d86535f779150eee8a1962f79fe30c11c5a4e286ee7cad5",
+          "visualSizeDigest": "157cdf9ccdbc5527c8baa501614672066630dc4213987de933bc1862ac14ce72",
+          "gutter": 70,
+          "partitioned": false
+        },
+        "mediaProfile": {
+          "kindVerification": "container-magic-plus-stream-plus-first-frame-decode",
+          "assetScope": "unique-source-media-excluding-derived-previews",
+          "uniqueImageAssets": 2,
+          "uniqueVideoAssets": 1,
+          "totalSourceBytes": 6693062,
+          "totalImagePixels": 460800,
+          "videoProfiles": [
+            {
+              "width": 1920,
+              "height": 1080,
+              "codec": "h264",
+              "count": 1
+            }
+          ],
+          "mediaManifestDigest": "89627fc79194f6a398b4191663c9dde2321f1d24dbc68c35e473b0bbbc808b19"
+        },
+        "fixtureVariant": "canonical-admitted-edges+metadata-layout-v2",
+        "frameWindows": {
+          "observation": "at least 3000 ms from trusted pointer input, through interaction receipt; includes rAF interval overlapping input",
+          "activeGesture": "trusted input to actionCompletedAt"
+        },
+        "metricMeaning": {
+          "inputInteractiveMs": {
+            "kind": "post-observation-control-ack-upper-bound",
+            "unit": "ms",
+            "start": "original trusted input",
+            "end": "subsequent trusted project-menu visible acknowledgement",
+            "includesObservationAndDriverGap": true,
+            "earliestInteractiveTime": false,
+            "budgetPolicy": "no-earliest-TTI-budget"
+          }
+        }
+      },
+      "actualEnvironment": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "25.5.0",
+        "hardwareClass": "arm64 Apple M5 10 logical-cpus",
+        "powerMode": "ac:lowpowermode=0",
+        "buildKind": "production-build-dev-electron",
+        "electronVersion": "43.4.1",
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "displayHz": 120.0006103515625
+      },
+      "status": "passed",
+      "receiptStatus": "collected",
+      "axisStatus": "observed",
+      "missingAxes": [],
+      "axes": {
+        "nodes": 6,
+        "imageVideo": {
+          "images": 4,
+          "videos": 2
+        },
+        "documents": 2,
+        "shots": 12,
+        "clips": 0,
+        "agentSessions": 1,
+        "libraryProjects": 3,
+        "workspace": "generation",
+        "cache": "hot",
+        "uniqueMediaAssets": 3
+      },
+      "observations": [
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        }
+      ],
+      "warmupCount": 1,
+      "measuredCount": 5,
+      "metrics": {
+        "visibleStateMs": {
+          "sampleMedian": 14.5,
+          "values": [
+            14.5,
+            14.7,
+            6.7,
+            14.5,
+            15.2
+          ]
+        },
+        "inputFeedbackMs": {
+          "sampleMedian": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "inputInteractiveMs": {
+          "sampleMedian": 3075.2000000476837,
+          "values": [
+            3076.199999988079,
+            3064.5,
+            3064.300000011921,
+            3075.300000011921,
+            3075.2000000476837
+          ]
+        },
+        "actionCompletedMs": {
+          "sampleMedian": 1269.7999999523163,
+          "values": [
+            1215.300000011921,
+            1269.7999999523163,
+            1284.300000011921,
+            1336.6000000238419,
+            1244.5
+          ]
+        },
+        "frameP95Ms": {
+          "sampleMedian": 9.2,
+          "values": [
+            9.19,
+            9.1,
+            9.2,
+            9.2,
+            9.3
+          ]
+        },
+        "frameP99Ms": {
+          "sampleMedian": 9.3,
+          "values": [
+            9.34,
+            9.2,
+            9.3,
+            9.3,
+            9.4
+          ]
+        },
+        "activeFrameP95Ms": {
+          "sampleMedian": 9.2,
+          "values": [
+            9.1,
+            9.14,
+            9.2,
+            9.2,
+            9.25
+          ]
+        },
+        "activeFrameP99Ms": {
+          "sampleMedian": 9.3,
+          "values": [
+            9.3,
+            9.3,
+            9.3,
+            9.4,
+            9.3
+          ]
+        },
+        "estimatedMissedFrames": {
+          "sampleMedian": 0,
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "longTaskCount": {
+          "sampleMedian": 0,
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "longTaskMaxMs": {
+          "sampleMedian": 0,
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "mainCpuPct": {
+          "sampleMedian": 0.43,
+          "values": [
+            0.41,
+            0.43,
+            0.76,
+            0.49,
+            0.43
+          ]
+        },
+        "rendererCpuPct": {
+          "sampleMedian": 1.76,
+          "values": [
+            1.76,
+            1.84,
+            1.55,
+            1.92,
+            1.49
+          ]
+        },
+        "mainRssMiB": {
+          "sampleMedian": 269.484375,
+          "values": [
+            336.046875,
+            336.296875,
+            268.265625,
+            269.328125,
+            269.484375
+          ]
+        },
+        "rendererRssMiB": {
+          "sampleMedian": 336.390625,
+          "values": [
+            340.328125,
+            341.6875,
+            333.140625,
+            336.140625,
+            336.390625
+          ]
+        },
+        "networkWaitMs": {
+          "sampleMedian": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "modelWaitMs": {
+          "sampleMedian": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "mainEventLoopP99Ms": {
+          "sampleMedian": 21.643263,
+          "values": [
+            21.348351,
+            21.643263,
+            21.610495,
+            21.774335,
+            21.807103
+          ]
+        }
+      },
+      "probe": [
+        {
+          "enabled": false,
+          "scanCount": 0,
+          "maximumTargetsObserved": 0,
+          "maxElements": 96
+        },
+        {
+          "enabled": false,
+          "scanCount": 0,
+          "maximumTargetsObserved": 0,
+          "maxElements": 96
+        },
+        {
+          "enabled": false,
+          "scanCount": 0,
+          "maximumTargetsObserved": 0,
+          "maxElements": 96
+        },
+        {
+          "enabled": false,
+          "scanCount": 0,
+          "maximumTargetsObserved": 0,
+          "maxElements": 96
+        },
+        {
+          "enabled": false,
+          "scanCount": 0,
+          "maximumTargetsObserved": 0,
+          "maxElements": 96
+        }
+      ],
+      "cpuQuality": [
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3014.2,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3014.5,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3007.2,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 5,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3008.2,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3014.1,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3011.9,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        }
+      ],
+      "trace": {
+        "archives": [
+          {
+            "label": "workflow-workflow-small",
+            "sourceBytes": 53255145,
+            "sourceSha256": "7dde9bedd9b413972a3e715b9b909505b1c68bd30c76d59d567b3167deef2b76",
+            "archiveBytes": 3588246,
+            "archiveSha256": "18c6835c9a6f6f9bdb3fb2fb499690b67379413a78d2e5da0d15c644e691a800",
+            "compression": "gzip",
+            "sourceDeletedAfterIntegrityCheck": true
+          }
+        ],
+        "samples": 6,
+        "authenticatedSamples": 6,
+        "jsonValid": true
+      },
+      "cleanup": {
+        "confirmed": true,
+        "owned": 6,
+        "terminated": 0,
+        "identityRejected": 0,
+        "unconfirmed": 0
+      },
+      "rawDigest": "736d324ab48b58b923f0f3fa6db24ec7555308312f73e1cb8f25b18cf227900e"
+    },
+    {
+      "mode": "on",
+      "runId": "889d8822-2a42-4809-bcee-5723a8654919",
+      "source": {
+        "commit": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+        "tree": "b1fad64fbaa4f543d518a6eb012389dde632ed63",
+        "dirty": false
+      },
+      "protocol": {
+        "id": "nomi-native-baseline-v3-canonical-media",
+        "instrumentationVersion": "completion-v3-idempotent-visible-signature-control-ack-user-timing",
+        "feedbackProbeMode": "experimental-family-signature-96-v1",
+        "cache": "hot",
+        "scale": "small",
+        "counts": {
+          "images": 4,
+          "videos": 2
+        },
+        "axes": {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "agentSessions": 1,
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "cache": "hot",
+          "uniqueMediaAssets": 3
+        },
+        "warmupRuns": 1,
+        "measuredRuns": 5,
+        "cycles": 1,
+        "fixtureDigest": "3718e9c76873f990170ea0a5389cbc46301d60e4d9d27950cdee6c33672479c9",
+        "fixtureVersion": "v2-actual-media-metadata",
+        "metadataIntegrity": {
+          "fixtureVersion": "v2-actual-media-metadata",
+          "status": "verified",
+          "nodesChecked": 6,
+          "resultsChecked": 14,
+          "thumbnailsChecked": 14,
+          "beforePayloadDigest": "0634c6fee7f21a5e7ba2a3e17c50f12f28e7b194be11744ebe6ae661f815229c",
+          "afterPayloadDigest": "003a7c543b793f876f089deb9f29d4dce1da09e1848d1320ec3759cf29100a17",
+          "media": [
+            {
+              "kind": "image",
+              "sha256": "11dc9171b11672b8aefbe3cf4d0889795b964b759e82110373be3d87b20c0a9b",
+              "bytes": 18102,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "mjpeg",
+              "durationSeconds": 0.04
+            },
+            {
+              "kind": "image",
+              "sha256": "540e60c41e9d418d6d41a55b12d3881953e2b823e05b0b255de0b37d1df14cc8",
+              "bytes": 18980,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "mjpeg",
+              "durationSeconds": 0.04
+            },
+            {
+              "kind": "image",
+              "sha256": "ad5d797cf51b949cc7ab7b9bda9e6e227acf85bd4d600649da4829ce5c99cdd3",
+              "bytes": 295788,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "png",
+              "durationSeconds": null
+            },
+            {
+              "kind": "image",
+              "sha256": "c5470d414026d9b03ad172e2a059a226267d9055e72519bccb125f72cd8a2c98",
+              "bytes": 261390,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "png",
+              "durationSeconds": null
+            },
+            {
+              "kind": "video",
+              "sha256": "d23b9c61ef20a41e2f570ac7e740ab39a59570218d223ba21bfc8c2e7313be20",
+              "bytes": 6135884,
+              "width": 1920,
+              "height": 1080,
+              "codedWidth": 1920,
+              "codedHeight": 1080,
+              "rotation": 0,
+              "codec": "h264",
+              "durationSeconds": 15.024
+            },
+            {
+              "kind": "image",
+              "sha256": "ec74b916a28de94e4abc60a704615a136fe0da1ab99e7839754e803768fbe243",
+              "bytes": 16975,
+              "width": 640,
+              "height": 360,
+              "codedWidth": 640,
+              "codedHeight": 360,
+              "rotation": 0,
+              "codec": "mjpeg",
+              "durationSeconds": 0.04
+            }
+          ]
+        },
+        "layoutIntegrity": {
+          "overlapCount": 0,
+          "layoutVersion": "v2-production-visual-size-row-max-gutter-70",
+          "source": "src/workbench/generationCanvas/nodes/nodeSizing.ts",
+          "sourceSHA256": "47ff876e7ccac0c9c6ffd267077796f470abd243114b373a70eb5fd0541c2cc2",
+          "beforePositionDigest": "651d0f79af37695e1f2df5ca498f6dcb1e1cb2c443a2bfb2e10b1cb038db463e",
+          "positionDigest": "ba6ff03f79339b810d86535f779150eee8a1962f79fe30c11c5a4e286ee7cad5",
+          "visualSizeDigest": "157cdf9ccdbc5527c8baa501614672066630dc4213987de933bc1862ac14ce72",
+          "gutter": 70,
+          "partitioned": false
+        },
+        "mediaProfile": {
+          "kindVerification": "container-magic-plus-stream-plus-first-frame-decode",
+          "assetScope": "unique-source-media-excluding-derived-previews",
+          "uniqueImageAssets": 2,
+          "uniqueVideoAssets": 1,
+          "totalSourceBytes": 6693062,
+          "totalImagePixels": 460800,
+          "videoProfiles": [
+            {
+              "width": 1920,
+              "height": 1080,
+              "codec": "h264",
+              "count": 1
+            }
+          ],
+          "mediaManifestDigest": "89627fc79194f6a398b4191663c9dde2321f1d24dbc68c35e473b0bbbc808b19"
+        },
+        "fixtureVariant": "canonical-admitted-edges+metadata-layout-v2",
+        "frameWindows": {
+          "observation": "at least 3000 ms from trusted pointer input, through interaction receipt; includes rAF interval overlapping input",
+          "activeGesture": "trusted input to actionCompletedAt"
+        },
+        "metricMeaning": {
+          "inputInteractiveMs": {
+            "kind": "post-observation-control-ack-upper-bound",
+            "unit": "ms",
+            "start": "original trusted input",
+            "end": "subsequent trusted project-menu visible acknowledgement",
+            "includesObservationAndDriverGap": true,
+            "earliestInteractiveTime": false,
+            "budgetPolicy": "no-earliest-TTI-budget"
+          }
+        }
+      },
+      "actualEnvironment": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "25.5.0",
+        "hardwareClass": "arm64 Apple M5 10 logical-cpus",
+        "powerMode": "ac:lowpowermode=0",
+        "buildKind": "production-build-dev-electron",
+        "electronVersion": "43.4.1",
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "displayHz": 120.0006103515625
+      },
+      "status": "passed",
+      "receiptStatus": "collected",
+      "axisStatus": "observed",
+      "missingAxes": [],
+      "axes": {
+        "nodes": 6,
+        "imageVideo": {
+          "images": 4,
+          "videos": 2
+        },
+        "documents": 2,
+        "shots": 12,
+        "clips": 0,
+        "agentSessions": 1,
+        "libraryProjects": 3,
+        "workspace": "generation",
+        "cache": "hot",
+        "uniqueMediaAssets": 3
+      },
+      "observations": [
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        },
+        {
+          "nodes": 6,
+          "imageVideo": {
+            "images": 4,
+            "videos": 2
+          },
+          "documents": 2,
+          "shots": 12,
+          "clips": 0,
+          "beforeManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "afterManifest": {
+            "nodes": 6,
+            "imageVideo": {
+              "images": 4,
+              "videos": 2
+            },
+            "documents": 2,
+            "shots": 12,
+            "clips": 0
+          },
+          "loadPhase": "before-action",
+          "libraryProjects": 3,
+          "workspace": "generation",
+          "agentSessions": 1,
+          "activeStreamsBefore": 0,
+          "activeStreamsAfter": 0,
+          "activeStreamsSourceBefore": "native-agent-lane-projection",
+          "activeStreamsSourceAfter": "native-agent-lane-projection",
+          "launchVerified": true
+        }
+      ],
+      "warmupCount": 1,
+      "measuredCount": 5,
+      "metrics": {
+        "visibleStateMs": {
+          "sampleMedian": 12.9,
+          "values": [
+            14.2,
+            12.9,
+            12.8,
+            15.4,
+            12.7
+          ]
+        },
+        "inputFeedbackMs": {
+          "sampleMedian": 5.100000023841858,
+          "values": [
+            5.5,
+            4.399999976158142,
+            5.100000023841858,
+            7.300000011920929,
+            4.400000035762787
+          ]
+        },
+        "inputInteractiveMs": {
+          "sampleMedian": 3075.699999988079,
+          "values": [
+            3075.699999988079,
+            3074,
+            3072.2000000476837,
+            3086.600000023842,
+            3083.5
+          ]
+        },
+        "actionCompletedMs": {
+          "sampleMedian": 1196.699999988079,
+          "values": [
+            1196.699999988079,
+            1273.0999999642372,
+            1144.5,
+            1187.199999988079,
+            1209.800000011921
+          ]
+        },
+        "frameP95Ms": {
+          "sampleMedian": 9.2,
+          "values": [
+            9.2,
+            9.2,
+            9.3,
+            9.2,
+            9.2
+          ]
+        },
+        "frameP99Ms": {
+          "sampleMedian": 9.3,
+          "values": [
+            9.34,
+            9.3,
+            9.4,
+            9.3,
+            9.3
+          ]
+        },
+        "activeFrameP95Ms": {
+          "sampleMedian": 9.2,
+          "values": [
+            9,
+            9.3,
+            9.3,
+            9,
+            9.2
+          ]
+        },
+        "activeFrameP99Ms": {
+          "sampleMedian": 9.3,
+          "values": [
+            9.2,
+            9.35,
+            9.36,
+            9.26,
+            9.3
+          ]
+        },
+        "estimatedMissedFrames": {
+          "sampleMedian": 0,
+          "values": [
+            1,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "longTaskCount": {
+          "sampleMedian": 0,
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "longTaskMaxMs": {
+          "sampleMedian": 0,
+          "values": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "mainCpuPct": {
+          "sampleMedian": 0.43,
+          "values": [
+            0.41,
+            0.43,
+            0.72,
+            0.43,
+            0.41
+          ]
+        },
+        "rendererCpuPct": {
+          "sampleMedian": 1.68,
+          "values": [
+            1.48,
+            1.76,
+            1.63,
+            1.68,
+            1.74
+          ]
+        },
+        "mainRssMiB": {
+          "sampleMedian": 269.1875,
+          "values": [
+            336.828125,
+            337.078125,
+            268.1875,
+            268.21875,
+            269.1875
+          ]
+        },
+        "rendererRssMiB": {
+          "sampleMedian": 344.46875,
+          "values": [
+            325.59375,
+            334.625,
+            344.46875,
+            344.71875,
+            345.03125
+          ]
+        },
+        "networkWaitMs": {
+          "sampleMedian": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "modelWaitMs": {
+          "sampleMedian": null,
+          "values": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "mainEventLoopP99Ms": {
+          "sampleMedian": 21.643263,
+          "values": [
+            21.872639,
+            21.643263,
+            21.676031,
+            21.315583,
+            21.348351
+          ]
+        }
+      },
+      "probe": [
+        {
+          "enabled": true,
+          "scanCount": 2,
+          "maximumTargetsObserved": 26,
+          "maxElements": 96
+        },
+        {
+          "enabled": true,
+          "scanCount": 2,
+          "maximumTargetsObserved": 26,
+          "maxElements": 96
+        },
+        {
+          "enabled": true,
+          "scanCount": 2,
+          "maximumTargetsObserved": 26,
+          "maxElements": 96
+        },
+        {
+          "enabled": true,
+          "scanCount": 2,
+          "maximumTargetsObserved": 26,
+          "maxElements": 96
+        },
+        {
+          "enabled": true,
+          "scanCount": 2,
+          "maximumTargetsObserved": 26,
+          "maxElements": 96
+        }
+      ],
+      "cpuQuality": [
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3012.5,
+          "expectedTicks": 12,
+          "actualTicks": 12,
+          "minimumTicks": 8,
+          "maximumLagMs": 5,
+          "maximumAllowedLagMs": 500,
+          "coverage": 1,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3014.3,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 5,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3012.9,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3007.9,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3015.4,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        },
+        {
+          "status": "measured",
+          "complete": true,
+          "intervalMs": 250,
+          "observationMs": 3013.3,
+          "expectedTicks": 12,
+          "actualTicks": 11,
+          "minimumTicks": 8,
+          "maximumLagMs": 4,
+          "maximumAllowedLagMs": 500,
+          "coverage": 0.9166666666666666,
+          "minimumCoverage": 0.6666666666666666,
+          "reason": null
+        }
+      ],
+      "trace": {
+        "archives": [
+          {
+            "label": "workflow-workflow-small",
+            "sourceBytes": 55577492,
+            "sourceSha256": "ac5cbdb2def000a909ce9b5092c2c43a84916ed6a7d492d11b55693be2e1ec9e",
+            "archiveBytes": 3660443,
+            "archiveSha256": "a646a131e0a0548deecbaa7fdb938c83762bdb200edfd74fb54555e0466667aa",
+            "compression": "gzip",
+            "sourceDeletedAfterIntegrityCheck": true
+          }
+        ],
+        "samples": 6,
+        "authenticatedSamples": 6,
+        "jsonValid": true
+      },
+      "cleanup": {
+        "confirmed": true,
+        "owned": 6,
+        "terminated": 0,
+        "identityRejected": 0,
+        "unconfirmed": 0
+      },
+      "rawDigest": "d7b1e35153d0d2b9ebad11717826ba18ab58f3b3e7f1ea09a6ed0265539df9c6"
+    }
+  ],
+  "globalLockPresent": false,
+  "oldPilotPreserved": "native-pilot.json",
+  "conclusion": "Both OFF and experimental ON collected complete executor receipts; independent earliest feedback remains unsupported for OFF; neither is a full-product gate pass or earliest-TTI claim."
+}

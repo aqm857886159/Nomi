@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "sourceCheckpointSha256": "8d8d2870173b03b76e2e9761039477f9b046198ce1f26ee838b7169d658b4f40",
+  "counts": {
+    "requiredJourneys": 5,
+    "passed": 3,
+    "failed": 2
+  },
+  "rows": [
+    {
+      "scenario": "creation-delete-undo",
+      "runId": "2026-10-11T14-45-41-503Z",
+      "status": "passed",
+      "wholeJourneySeconds": 43.514
+    },
+    {
+      "scenario": "agent-lane-stop-resume",
+      "runId": "2026-10-11T15-01-12-599Z",
+      "status": "passed",
+      "wholeJourneySeconds": 13.546
+    },
+    {
+      "scenario": "agent-question-card",
+      "runId": "2026-10-11T15-03-51-729Z",
+      "status": "passed",
+      "wholeJourneySeconds": 11.287
+    },
+    {
+      "scenario": "agent-artifact-process-v2",
+      "runId": "2026-10-11T15-04-42-367Z",
+      "status": "failed",
+      "wholeJourneySeconds": 24.029,
+      "reason": "SVG reference-image toolbar action unavailable; later HTML/Markdown operations not reached"
+    },
+    {
+      "scenario": "agent-editing-process-retry",
+      "status": "failed",
+      "wholeJourneySeconds": 75.425,
+      "reason": "new thread B request timeout; actual process expansion and undo reached, second cold visit not reached"
+    }
+  ],
+  "lastNativeReleaseUtc": "2026-10-11T15:08:17.305887Z",
+  "cleanupConfirmed": true,
+  "ownedProcessResiduals": 0,
+  "clipboardReadOrWritten": false,
+  "paidRequests": 0,
+  "traceArchives": "retained privately and CRC verified",
+  "interpretation": "Whole-journey duration includes setup and waits; not input latency. Do not expand partial steps into passed journeys or performance cells. Historical failures remain preserved."
+}
