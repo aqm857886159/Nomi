@@ -40,10 +40,10 @@ test at tests/ux/nomi-user-workflow-performance.node-test.mjs:61:1
   AssertionError [ERR_ASSERTION]: node:assert:152
     throw new AssertionError(obj);
     ^
-  
+
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
-  
+
   + []
   - [
   -   {
@@ -56,7 +56,7 @@ test at tests/ux/nomi-user-workflow-performance.node-test.mjs:61:1
   -     ]
   -   }
   - ]
-  
+
       at [eval]:32:25
       at runScriptInThisContext (node:internal/vm:219:10)
       at node:internal/process/execution:451:12
@@ -81,12 +81,12 @@ test at tests/ux/nomi-user-workflow-performance.node-test.mjs:61:1
     operator: 'deepStrictEqual',
     diff: 'simple'
   }
-  
+
   Node.js v24.19.0
-  
-  
+
+
   1 !== 0
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:80:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)

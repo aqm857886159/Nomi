@@ -39,9 +39,9 @@
 test at tests/ux/nomi-user-workflow-performance.node-test.mjs:160:1
 ✖ a visible canvas card with pending image decoding is not visible project content (1.37685ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-  
+
   30 !== null
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:177:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)

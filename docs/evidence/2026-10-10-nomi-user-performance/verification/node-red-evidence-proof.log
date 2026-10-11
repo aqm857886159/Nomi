@@ -40,7 +40,7 @@
 test at tests/ux/nomi-user-workflow-performance.node-test.mjs:232:1
 ✖ schema-v2 samples without decoded-content and persistence receipts are not measurement evidence (0.808792ms)
   AssertionError [ERR_ASSERTION]: The input did not match the regular expression /invalid evidence/. Input:
-  
+
   '# Nomi user workflow performance analysis\n' +
     '\n' +
     'Coverage is planned / implemented / executed / passed. Node regressions do not execute UI journeys. Each cache cell remains separate; quantiles pool raw frame/task distributions within that cell only.\n' +
@@ -52,7 +52,7 @@ test at tests/ux/nomi-user-workflow-performance.node-test.mjs:232:1
     'Legacy reports: 0 — untrusted measurement schema; preserved as historical launch evidence only. Their elapsed times and percentile summaries are never treated as visible latency.\n' +
     '\n' +
     'No production optimization, full-product coverage, real hardware baseline or acceptance is claimed.\n'
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:235:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)
