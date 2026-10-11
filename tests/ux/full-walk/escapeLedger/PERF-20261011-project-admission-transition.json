@@ -3,15 +3,13 @@
   "since": "2026-10-11",
   "source": "User continuation of PR1172 actual cold critical-path investigation",
   "category": "interaction-semantics",
-  "problem": "Native required-code preload alone leaves the first recovered studio admission in a default React lane. The actual trace includes229.088ms of redundant reveal scheduling. This entry is still reviewed, not fixed: native after measurement is pending and cold500ms completion remains blocking.",
+  "problem": "The original cold trace includes229.088ms of React reveal scheduling. The unpushed16fc transition counterfactual measured cold actual-menu p95 667.16ms, still over500ms, and independent review identified an enlarged pre-mount notification event-loss window plus synchronous navigation failure. The experiment was withdrawn and B289 production restored byte-for-byte. This entry remains reviewed, not fixed; safe admission needs project-lived notification intent and real consumer receipts before a renewed transition candidate.",
   "existingInvariants": [],
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
   "status": "reviewed",
   "manualReview": "reviewed",
-  "evidence": ["docs/evidence/2026-10-10-nomi-user-performance/cold-admission-trace-breakdown.json", "docs/evidence/2026-10-10-nomi-user-performance/cold-admission-unit-contrast.json"],
-  "completionCommits": [],
-  "rootCauseContract": "docs/fixes/2026-10-11-nomi-project-admission-transition.root-cause.json",
-  "classCheck": {"kind":"matrix","file":"tests/ux/nomi-project-open-preload.node-test.mjs"}
+  "evidence": ["docs/evidence/2026-10-10-nomi-user-performance/cold-admission-trace-breakdown.json", "docs/evidence/2026-10-10-nomi-user-performance/cold-admission-unit-contrast.json", "docs/evidence/2026-10-10-nomi-user-performance/cold-admission-stage-verification.md", "docs/evidence/2026-10-10-nomi-user-performance/cold-admission-counterfactual.json"],
+  "completionCommits": []
 }

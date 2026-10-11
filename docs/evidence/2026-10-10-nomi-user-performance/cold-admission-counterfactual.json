@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-11T07:10:08.071Z",
+  "disposition": "withdrawn; no production transition delivered",
+  "experimentCommit": "16fc56a190c5b38193cdb7c3f332c70c5ea1f077",
+  "raw": {
+    "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/nomi-user-workflow-2026-10-11T06-52-46-508Z-f6ff48f3-b879-4767-8951-870055d68a75.json",
+    "sha256": "84908cab6155477e60f238e688c0082359ce8ff530a4978c08a41a045c59d167"
+  },
+  "buildReceipt": {
+    "version": 1,
+    "head": "16fc56a190c5b38193cdb7c3f332c70c5ea1f077",
+    "tree": "88d0f6f88bc5749b74c54551a283fad700568ca1",
+    "dirty": false
+  },
+  "options": {
+    "scales": [
+      "small"
+    ],
+    "scenarios": [
+      "project.open"
+    ],
+    "caches": [
+      "cold",
+      "hot"
+    ],
+    "runs": 5,
+    "warmup": 1,
+    "launchTimeout": 60000
+  },
+  "fixtureSha256": "d995403ff0d55add81d5baa27c7a30788a1757833c44515edcac125f1ee1c3c2",
+  "timingOwnerHashes": {
+    "tests/ux/nomi-user-workflow-performance.e2e.mjs": "c6a93f98604579786c218875a9b2c26c025e34d5b5c2515843c22541385bd02a",
+    "tests/ux/nomi-user-workflow-contract.mjs": "9f5efb96885a7a49b3f00acf135a94b4bddee44efd620bc856ae8abc4711e2b9",
+    "tests/ux/nomi-user-workflow-probe.mjs": "a49f1195ff766e2daa24be56db2ec6d5bc9eec0ca17e9bea514e61ed9c23e782"
+  },
+  "conditions": "Same Linux/Xvfb :97, Electron43.4.1 and1280x933 viewport;1 warmup+5 measured per cache; no concurrent heavy tests/builds during native collection; OS page cache uncontrolled.",
+  "cells": [
+    {
+      "cache": "cold",
+      "status": "failed_budget",
+      "summary": {
+        "cache": "cold",
+        "actionSamples": 5,
+        "frameSamples": 191,
+        "longTaskSamples": 5,
+        "feedbackP95": 14.359999999403954,
+        "contentP95": 750.4800000011921,
+        "readyEligibilityP95": 632.080000001192,
+        "acknowledgedP95": 667.1600000023842,
+        "controlResponseP95": 29.919999998807906,
+        "frameP95": 42.54999999701977,
+        "frameP99": 70.47999999970195,
+        "longTaskP95": 68,
+        "maxLongTask": 68,
+        "droppedFrameRatio": 0.02617801047120419,
+        "p99Supported": true
+      },
+      "acceptanceMissing": [
+        "active-gesture frame metrics (project.open is a discrete click)",
+        "main long-task probe",
+        "CPU action-window distribution",
+        "memory/teardown residual"
+      ],
+      "attempts": 6,
+      "functionalPassed": 6,
+      "screenshots": [
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-cold-0-9b0b0696-6157-4d4f-9e5f-a67200fa1818.png",
+          "sha256": "892c136b7b47ba3fb3f623c3f47d5ce8cac8ec18009c6b24f6be67611644f143"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-cold-1-12a27464-dc3f-4f4f-8a2d-3729777b707a.png",
+          "sha256": "892c136b7b47ba3fb3f623c3f47d5ce8cac8ec18009c6b24f6be67611644f143"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-cold-2-bdb34608-7cdc-4865-9c20-54256129b39d.png",
+          "sha256": "f1f1d03d6e2cd00dfe933e2358e627f49c394ce2060b169347913ac33b079da7"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-cold-3-8c770750-eed4-45e6-b48f-78381448ba7e.png",
+          "sha256": "6f3cfefe634897989692c104dfa58ec9f73f8c6c0362eec8f75dc4591bd69f0f"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-cold-4-bcd3e11a-b908-4977-bf6c-17e1ba1eff2e.png",
+          "sha256": "af5d4e3132243ec1af9d197be296d095db22e1678fb254128521ef163545187f"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-cold-5-bf5e45ef-a2aa-4e10-8ed5-68600d3c4363.png",
+          "sha256": "892c136b7b47ba3fb3f623c3f47d5ce8cac8ec18009c6b24f6be67611644f143"
+        }
+      ]
+    },
+    {
+      "cache": "hot",
+      "status": "inconclusive",
+      "summary": {
+        "cache": "hot",
+        "actionSamples": 5,
+        "frameSamples": 43,
+        "longTaskSamples": 3,
+        "feedbackP95": 13.060000002384186,
+        "contentP95": 195.02000000327826,
+        "readyEligibilityP95": 96.7600000038743,
+        "acknowledgedP95": 124.24000000357627,
+        "controlResponseP95": 16.159999999403954,
+        "frameP95": 63.45000000223517,
+        "frameP99": 70.76799999803303,
+        "longTaskP95": 57.9,
+        "maxLongTask": 58,
+        "droppedFrameRatio": 0.11627906976744186,
+        "p99Supported": false
+      },
+      "acceptanceMissing": [
+        "active-gesture frame metrics (project.open is a discrete click)",
+        "main long-task probe",
+        "CPU action-window distribution",
+        "memory/teardown residual",
+        "p99 sample support (<100 frames)"
+      ],
+      "attempts": 6,
+      "functionalPassed": 6,
+      "screenshots": [
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-hot-0-dfd29d7e-4bca-48b5-af8b-207d2b1c5e4b.png",
+          "sha256": "8d00c02db3695438ced73c8ee2cf02667344711e5f30e6e7b27b6c887435659c"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-hot-1-92e87195-c283-488e-b56c-14ab06fbad48.png",
+          "sha256": "8d00c02db3695438ced73c8ee2cf02667344711e5f30e6e7b27b6c887435659c"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-hot-2-c3241809-4d06-488e-9d93-574c5b561dc7.png",
+          "sha256": "8d00c02db3695438ced73c8ee2cf02667344711e5f30e6e7b27b6c887435659c"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-hot-3-c052b4d3-40bc-4e4c-adee-e8e46a477130.png",
+          "sha256": "8d00c02db3695438ced73c8ee2cf02667344711e5f30e6e7b27b6c887435659c"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-hot-4-d9f70a94-37e7-47cc-876d-101f4a3c27e2.png",
+          "sha256": "8d00c02db3695438ced73c8ee2cf02667344711e5f30e6e7b27b6c887435659c"
+        },
+        {
+          "file": "docs/evidence/2026-10-10-nomi-user-performance/raw/screenshots/project.open-small-hot-5-2d1c3c95-8654-4629-8783-5899b32bb0ce.png",
+          "sha256": "fcc0b560d7f1d06c56804ef9b57758b62448c84be97f42681d8aaad0d91b501c"
+        }
+      ]
+    }
+  ],
+  "trace": {
+    "receipt": {
+      "file": "docs/evidence/2026-10-10-nomi-user-performance/profiles/split-trace-2026-10-11T07-02-59-530Z-9ae4c363-7680-4832-9bba-0eac5931006b-receipt.json",
+      "sha256": "5f0890830be423440a761e48e99f4ad6a8bdd3576eb408a601a03c4c7bf41620"
+    },
+    "commit": "16fc56a190c5b38193cdb7c3f332c70c5ea1f077",
+    "buildReceipt": {
+      "version": 1,
+      "head": "16fc56a190c5b38193cdb7c3f332c70c5ea1f077",
+      "tree": "88d0f6f88bc5749b74c54551a283fad700568ca1",
+      "dirty": false
+    },
+    "rendererPid": 611373,
+    "anchor": "production nomi:open:start; separate from trusted input",
+    "studioRequestMs": 327.20000000298023,
+    "flowNodesMountedMs": 598.2000000029802,
+    "postStudioIntervalMs": 271,
+    "cancelledRetryTimers": [
+      {
+        "timerId": 54,
+        "installedMs": 460.036,
+        "timeoutMs": 228,
+        "removedMs": 543.454,
+        "firedBeforeFirstNode": false
+      },
+      {
+        "timerId": 55,
+        "installedMs": 550.158,
+        "timeoutMs": 138,
+        "removedMs": 557.133,
+        "firedBeforeFirstNode": false
+      }
+    ],
+    "qyCallsBeforeFirstNode": 0,
+    "artifacts": [
+      {
+        "file": "docs/evidence/2026-10-10-nomi-user-performance/profiles/split-trace-2026-10-11T07-02-59-530Z-9ae4c363-7680-4832-9bba-0eac5931006b-cold-renderer.cpuprofile",
+        "sha256": "877a07b278fdc167721889889aa87874e31520343dd0ae84491b4e9125d2d7ed"
+      },
+      {
+        "file": "docs/evidence/2026-10-10-nomi-user-performance/profiles/split-trace-2026-10-11T07-02-59-530Z-9ae4c363-7680-4832-9bba-0eac5931006b-cold-main.cpuprofile",
+        "sha256": "9fa4af8619f20729a45e5ba757705f68e5fb0bd201d08f8ac6547dd0097217b3"
+      },
+      {
+        "file": "docs/evidence/2026-10-10-nomi-user-performance/profiles/split-trace-2026-10-11T07-02-59-530Z-9ae4c363-7680-4832-9bba-0eac5931006b-cold-trace.json.gz",
+        "sha256": "ca9e2934335890b2adecd83bfc2fea2c4a152750dcd37098d1d96ec4fd8bd39b"
+      }
+    ],
+    "mainStages": [
+      {
+        "name": "nomi:open:main:read-project",
+        "startTime": 15324.271969,
+        "duration": 0.8577679999998509
+      },
+      {
+        "name": "nomi:open:main:read-project",
+        "startTime": 15334.485324,
+        "duration": 0.6491380000006757
+      },
+      {
+        "name": "nomi:open:main:lane-identity",
+        "startTime": 15408.216845,
+        "duration": 0.7125619999987975
+      },
+      {
+        "name": "nomi:open:main:lane-legacy-migration",
+        "startTime": 15409.395101,
+        "duration": 126.3485870000004
+      },
+      {
+        "name": "nomi:open:main:lane-workspace-open",
+        "startTime": 15537.834565,
+        "duration": 43.10860099999991
+      }
+    ],
+    "mainImports": [
+      {
+        "name": "./laneLegacyMigration.mjs",
+        "startTime": 15409.473939,
+        "duration": 125.0505919999996
+      },
+      {
+        "name": "./laneWorkspace.mjs",
+        "startTime": 15537.926993,
+        "duration": 9.274786000001768
+      }
+    ],
+    "limits": "One profiled attempt per cache; independent diagnostics, not pooled acceptance. Wall intervals and main/renderer clocks must not be treated as CPU percentages. Framework retry timers remained scheduled but were cancelled before firing; other waits/render/load intervals remain."
+  },
+  "review": {
+    "decision": "withdraw instead of expanding notification/consumer ownership in this performance stage",
+    "findings": [
+      "Synchronous navigation failure queued studio before error; strengthened actual-callback test failed7/8, temporary route-first ordering passed8/8, both candidate and temporary correction withdrawn.",
+      "Hydration promise resolves before lazy TaskCenter/ReactFlow listeners mount; once-only notification events may be lost. Original B289 has latent debt; transition enlarges its window. Data-ready/Surface ACK and parent effects cannot prove nested consumer readiness."
+    ],
+    "candidateRedGreen": [
+      {
+        "file": "docs/evidence/2026-10-10-nomi-user-performance/checks/cold-admission-route-red.txt",
+        "sha256": "a92f2628d31a649851f7a9248e92a5eb8ae680357e7e9c2f1a29068b6c93cc41",
+        "originalSha256": "2f18997f814758ccd4abab5cac4586d9e476f1434624336292a2afaf3407efda",
+        "archiveTransform": "checkout/temp root redaction and trailing whitespace normalization; original output retained in the session temp file"
+      },
+      {
+        "file": "docs/evidence/2026-10-10-nomi-user-performance/checks/cold-admission-route-green.txt",
+        "sha256": "2995abe01e7be521eab946be5782bcaa24e6fda684521b2d5f824a735c2dba23",
+        "originalSha256": "2995abe01e7be521eab946be5782bcaa24e6fda684521b2d5f824a735c2dba23",
+        "archiveTransform": "checkout/temp root redaction and trailing whitespace normalization; original output retained in the session temp file"
+      }
+    ],
+    "mountedNotificationRegression": "unverified; no real mounted success claim",
+    "proposal": {
+      "file": "docs/evidence/2026-10-10-nomi-user-performance/cold-admission-withdrawn-proposal.json",
+      "sha256": "663291fb97c60f7d3bce5d2ab5489dae6d9e3607512be0fefe1ec1e878aef1e9"
+    }
+  },
+  "restoration": {
+    "baselineCommit": "b28959af7aec2401e26bfbfdeb5508bb7ffe8f31",
+    "allTrackedSrcAndElectronMatchB289": true,
+    "files": [
+      {
+        "file": "src/workbench/NomiStudioApp.tsx",
+        "sha256": "2adfa3f2d85648e4a90e1f333ff4cf58cd4df8aab3ac32454e00e09f2a071bf6",
+        "matchesB289": true
+      },
+      {
+        "file": "tests/ux/nomi-project-open-preload.node-test.mjs",
+        "sha256": "b16e56a172385c422e7e3549307ab71cd690bebeb60c507d2a207a2c7b1d8321",
+        "matchesB289": true
+      }
+    ],
+    "finalProductionMeasurement": "Not rerun after restoration; prior clean314a receipt retained without relabelling as final-head measurement. Its production owners match B289; actual-menu cold p95 remains822.18ms, feedback18.30ms.",
+    "priorComparison": {
+      "file": "docs/evidence/2026-10-10-nomi-user-performance/opening-before-after.json",
+      "sha256": "0b3fec3570a0adf977c7c458ba0495062b1763dd2c79acb222a09149e07c1c4a"
+    }
+  },
+  "limits": [
+    "667.16ms belongs to withdrawn16fc only; not delivered gain or budget pass.",
+    "Small n=5; no statistically significant improvement or regression claim.",
+    "Functional12/12 witnesses check matching project/domain fixture signature and guards, not preservation of every legacy payload byte.",
+    "Real display/Mac/Windows/GPU, CPU/memory/teardown and reliable p99 remain unverified.",
+    "Markdown8/8 fault evidence applies only with auto-reload cooldown active; default first failure and active-Agent interruption/recovery remain unverified."
+  ]
+}

@@ -1,0 +1,35 @@
+✔ every shared hydration shows progress before awaiting main and keeps studio behind receipt recovery (0.598462ms)
+✔ generation chunk imports overlap hydration only after the outgoing Surface ACK (35.253393ms)
+✔ actual hydration waits for deferred ACK, lane and receipt recovery before exposing studio (37.452992ms)
+✔ superseded actual hydration cannot preload or dismiss the newer opening state (15.278111ms)
+✔ actual successful admission keeps view, URL and progress in the same transition after recovery (13.859977ms)
+✔ actual failed receipt recovery clears progress without admitting a studio transition (9.9636ms)
+✖ actual route failure remains a reported hydration failure rather than an unhandled transition error (12.23154ms)
+✔ the same production chunk factories serve preload and lazy render without optional feature imports (0.456831ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 383.047203
+
+✖ failing tests:
+
+test at tests/ux/nomi-project-open-preload.node-test.mjs:176:1
+✖ actual route failure remains a reported hydration failure rather than an unhandled transition error (12.23154ms)
+  AssertionError [ERR_ASSERTION]: Failed navigation must not queue a studio admission
+
+  true !== false
+
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-project-open-preload.node-test.mjs:182:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
