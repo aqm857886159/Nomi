@@ -1,0 +1,18 @@
+
+> nomi@0.23.1 delivery:preflight <repo>
+> node scripts/git-delivery.mjs preflight
+
+{
+  "stage": "preflight",
+  "state": {
+    "branch": "perf/nomi-user-workflows-20261010",
+    "remoteRef": "origin/main",
+    "headCommit": "38dd7e3120e72bbffaa4e016ba50ba201ac61e90",
+    "headTree": "3aaba3a28b6ec79e1d73f00f36d528dca439915b",
+    "remoteCommit": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+    "remoteTree": "b1fad64fbaa4f543d518a6eb012389dde632ed63",
+    "relation": "different-tree",
+    "remoteBaseIsAncestor": true,
+    "clean": true
+  }
+}

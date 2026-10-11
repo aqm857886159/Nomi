@@ -1,0 +1,52 @@
+[pre-push] 改动 68 个文件，跑：check:filesize、check:board-parity、check:self-written、check:boundary-owners、check:test-waits、check:mjs-parse、check:walkthroughs、check:gates-chain、check:desktop-rc-workflow、check:cla-workflow、check:workflow-script-refs、check:workflow-protected-writes、check:packaged-flags、check:icons、check:platform-archetypes、check:model-certification-coverage、check:symlinks、check:supply-chain-pins、check:escape-ledger、check:adoption-bridge、check:skill-ipc-coverage、check:skills-format、check:run-task-grant、check:announced-card、check:canvas-gesture-determinism、check:vitest-fair-share、check:agents-sync、check:rule-aliases、check:push-bypass、check:mockup-contracts、check:feel、check:full-walk-catalog、check:real-media-fixture、check:framework-boundary、check:tikhub-search、check:nul-bytes、check:git-path-quoting、check:model-availability、check:model-identity、check:outbound-policy、check:script-network-retry、test:temp-helper、check:test-copy-literals、test:scan-guards、test:related、lint:changed、check:prior-art、check:pr-judgement
+[pre-push] PR 正文取自 NOMI_PR_BODY_FILE
+[pre-push] ✅ test:related（1.8s） node:test 1 个文件通过
+[pre-push] ✅ test:scan-guards（4.9s） 7 个扫描型守卫测试一个进程批量跑
+[pre-push] ✅ check:filesize（0.1s）
+[pre-push] ✅ check:board-parity（0.1s）
+[pre-push] ✅ check:self-written（0.0s）
+[pre-push] ✅ check:boundary-owners（0.1s）
+[pre-push] ✅ check:test-waits（4.9s）
+[pre-push] ✅ check:mjs-parse（12.7s）
+[pre-push] ✅ check:walkthroughs（12.3s）
+[pre-push] ✅ check:gates-chain（0.0s）
+[pre-push] ✅ check:desktop-rc-workflow（0.1s）
+[pre-push] ✅ check:cla-workflow（0.2s）
+[pre-push] ✅ check:workflow-script-refs（0.1s）
+[pre-push] ✅ check:workflow-protected-writes（0.0s）
+[pre-push] ✅ check:packaged-flags（0.1s）
+[pre-push] ✅ check:icons（0.1s）
+[pre-push] ✅ check:platform-archetypes（0.1s）
+[pre-push] ✅ check:model-certification-coverage（0.1s）
+[pre-push] ✅ check:symlinks（0.1s）
+[pre-push] ✅ check:supply-chain-pins（0.3s）
+[pre-push] ✅ check:escape-ledger（0.1s）
+[pre-push] ✅ check:adoption-bridge（0.1s）
+[pre-push] ✅ check:skill-ipc-coverage（0.1s）
+[pre-push] ✅ check:skills-format（0.2s）
+[pre-push] ✅ check:run-task-grant（0.2s）
+[pre-push] ✅ check:announced-card（0.1s）
+[pre-push] ✅ check:canvas-gesture-determinism（0.1s）
+[pre-push] ✅ check:vitest-fair-share（0.1s）
+[pre-push] ✅ check:agents-sync（0.1s）
+[pre-push] ✅ check:rule-aliases（0.1s）
+[pre-push] ✅ check:push-bypass（0.0s）
+[pre-push] ✅ check:mockup-contracts（0.2s）
+[pre-push] ✅ check:feel（0.1s）
+[pre-push] ✅ check:full-walk-catalog（0.6s）
+[pre-push] ✅ check:real-media-fixture（0.1s）
+[pre-push] ✅ check:framework-boundary（0.2s）
+[pre-push] ✅ check:tikhub-search（0.2s）
+[pre-push] ✅ check:nul-bytes（0.2s）
+[pre-push] ✅ check:git-path-quoting（0.1s）
+[pre-push] ✅ check:model-availability（0.7s）
+[pre-push] ✅ check:model-identity（1.4s）
+[pre-push] ✅ check:outbound-policy（0.3s）
+[pre-push] ✅ check:script-network-retry（0.8s）
+[pre-push] ✅ test:temp-helper（0.9s）
+[pre-push] ✅ check:test-copy-literals（1.5s）
+[pre-push] ✅ lint:changed（0.5s）
+[pre-push] ✅ check:prior-art（0.1s）
+[pre-push] ✅ check:pr-judgement（0.1s）
+[pre-push] 共 17.3s；其余 Contracts 门岗仍在 CI 的 gates:contracts 里跑（整库类 > 60 秒，或要网络 / 浏览器 / 构建产物）
+[pre-push] 只在 CI 跑的门共 38 道（名单与理由：scripts/pre-push-gate-table.mjs）；完整版只在 CI、本机只跑了一部分的：check:i18n（本机只跑了 check:test-copy-literals）、check:design-lab（本机只跑了 check:design-lab-mirrors）、lint:ci（本机只跑了 lint:changed）。推送前钩子是加速器，CI 才是最终裁判。

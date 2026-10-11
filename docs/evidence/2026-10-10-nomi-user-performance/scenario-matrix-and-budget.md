@@ -70,4 +70,3 @@ The existing canvas performance gate's calibrated Linux multiplier is historical
 ## Noise and blocker rules
 
 All raw samples stay in evidence. A run can be labelled `noise` only with a contemporaneous host/process observation (CPU steal, renderer crash/restart, Xvfb failure, or background process over the recorded threshold). Noise never turns a failed cell into a pass; it makes the cell `inconclusive` until rerun under the same fixed protocol. Missing Electron runtime, missing real-material fixture, or inaccessible Windows/macOS hardware is a blocker recorded in `limitations.md`, never replaced by a synthetic green result.
-

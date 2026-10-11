@@ -91,4 +91,3 @@
 - [ ] Commit locally and push the task branch; draft PR creation is blocked by GitHub API authorization.
 - [ ] Comment on PR #1014 with scope, commit, covered scenarios, actual numbers, commands, evidence links and blockers.
 - [ ] Preserve the pushed local commit and report the exact `gh` GraphQL `Forbidden` error for draft creation and #1014 comment.
-

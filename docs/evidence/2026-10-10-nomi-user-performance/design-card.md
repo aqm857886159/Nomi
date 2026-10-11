@@ -1,7 +1,7 @@
 # 设计卡：Nomi 用户工作流性能专项
 
-改动名：Nomi user workflow performance baseline and remediation  
-线/负责人：Codex 性能线（独立验收线待协调会话指定）  
+改动名：Nomi user workflow performance baseline and remediation
+线/负责人：Codex 性能线（独立验收线待协调会话指定）
 类别：[长跑][可打断][大数据量 / 画布 / 长列表][Agent 行为]
 
 ## ★1 用户怎么用
