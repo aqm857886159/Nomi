@@ -1,0 +1,111 @@
+{
+  "headSha": "b28959af7aec2401e26bfbfdeb5508bb7ffe8f31",
+  "runId": 38117963767,
+  "url": "https://github.com/aqm857886159/Nomi/actions/runs/38117963767",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 114406607626,
+      "name": "Contracts",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406607820,
+      "name": "Tool Face (3D-BOX on)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406607839,
+      "name": "Validation Scope",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745838,
+      "name": "Core Flow Smoke (empty)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745865,
+      "name": "E2E Walkthroughs (Linux) (1)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745868,
+      "name": "Unit (2)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745869,
+      "name": "E2E Walkthroughs (Linux) (4)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745872,
+      "name": "Mac Package",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745874,
+      "name": "Canvas Acceptance (Linux) (2)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745879,
+      "name": "Core Flow Smoke (used)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745880,
+      "name": "Unit (1)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745894,
+      "name": "Unit (3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745902,
+      "name": "E2E Walkthroughs (Linux) (2)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745904,
+      "name": "Canvas Acceptance (Linux) (1)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406745945,
+      "name": "E2E Walkthroughs (Linux) (3)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 114406746707,
+      "name": "Canvas Performance (Linux)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 114409318426,
+      "name": "Quality Gate",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

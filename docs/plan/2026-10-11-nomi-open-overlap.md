@@ -23,3 +23,5 @@ Implementation line: delegated PR1172 continuation. Review line: `/root/harness_
 - [ ] Paid behavior (no change)
 
 No design board is required: reuse the current production loading component without redesign/layout changes. Bounded runtime fixtures supplement native entry evidence and cannot close the full functional-checklist by themselves.
+
+The authorized second phase targets actual menu completion, separately from feedback. The same nine-card decisions apply: after current migration/lane ACK/receipt recovery, view+URL+opening completion share one supported React transition, with guarded failure cleanup and no early mount or new loader. Native06:01 trace identifies a229.09ms framework reveal wait inside the414.80ms post-studio interval. Current React/ReactDOM is19.3.0; retain its supported API and repeat same-fixture1+5 plus a separate trace. Default first Markdown chunk reload/active-Agent recovery remain unverified;8/8 fault proof is cooldown-only. See the [bounded direction check](2026-10-11-nomi-opening-direction-check.md) and [admission contract](../fixes/2026-10-11-nomi-project-admission-transition.root-cause.json).

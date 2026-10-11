@@ -324,6 +324,7 @@ export default function NomiStudioApp(): JSX.Element {
       setView('library')
       setOpeningProject(true)
       setFeedback(null)
+      let studioAdmitted = false
       try {
         await surfaceEpoch.waitUntilSuspended()
         surfaceEpoch.assertCurrent()
@@ -358,9 +359,24 @@ export default function NomiStudioApp(): JSX.Element {
           // The lane projection is the sole conversation display source.
         }
         surfaceEpoch.assertCurrent()
-        setView('studio')
-        markProjectOpenMoment('studio-visible')
-        navigate(buildStudioUrl(hydrated.id), { replace: options.replaceUrl ?? false })
+        // Native import preloads do not initialize React.lazy. Keep the existing
+        // loading view while React prepares the recovered studio, instead of
+        // revealing another fallback and waiting for its retry reveal window.
+        let admissionFailure: { error: unknown } | undefined
+        React.startTransition(() => {
+          try {
+            setView('studio')
+            setOpeningProject(false)
+            markProjectOpenMoment('studio-visible')
+            navigate(buildStudioUrl(hydrated.id), { replace: options.replaceUrl ?? false })
+          } catch (error) {
+            admissionFailure = { error }
+          }
+        })
+        // startTransition reports thrown actions globally; preserve this
+        // hydration owner's existing localized failure/recovery path instead.
+        if (admissionFailure) throw admissionFailure.error
+        studioAdmitted = true
         // Only start background repairs after main has acknowledged the exact
         // committed Surface; the guard prevents any late write after a switch.
         void runProjectAssetHealthCheck(hydrated.id, surfaceEpoch).catch(() => {})
@@ -386,7 +402,7 @@ export default function NomiStudioApp(): JSX.Element {
       } finally {
         if (hydrationSequenceRef.current === hydrationSequence) {
           hydratingProjectRef.current = false
-          setOpeningProject(false)
+          if (!studioAdmitted) setOpeningProject(false)
         }
       }
       return true

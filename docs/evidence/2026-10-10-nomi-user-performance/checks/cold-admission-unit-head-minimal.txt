@@ -1,0 +1,156 @@
+
+ RUN  v4.1.8 <repo>
+
+ ❯ tests/ux/asset-tile-badges-visible.test.mjs (2 tests | 2 skipped) 72ms
+ ❯ electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts (4 tests | 1 failed) 2413ms
+     × 提交和等待共用一份预算：提交占了 30 秒，等待只剩 10 秒，总共仍是 40 秒 210ms
+ ❯ electron/capabilityCore/mcpStdioDocumentReceipt.test.ts (0 test)
+ ❯ electron/ai/antigravityProcess.test.ts (40 tests | 4 failed) 12188ms
+     × kills inherited-pipe descendants even after the CLI exits 3021ms
+     × cleans silent SIGTERM-ignoring descendants on success before returning 1085ms
+     × cleans silent SIGTERM-ignoring descendants on cancel before returning 1114ms
+     × honors cancellation during asynchronous descendant cleanup 1065ms
+ ❯ electron/paidPostCodeFeatureTable.test.ts (2 tests | 1 failed) 30011ms
+     × records the catalog/APIMart mapping's strict 0/200 behavior 30007ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/capabilityCore/mcpStdioDocumentReceipt.test.ts [ electron/capabilityCore/mcpStdioDocumentReceipt.test.ts ]
+Error: ENOENT: no such file or directory, mkdir '<home>/.nomi/capability-core/keys'
+ ❯ ensureDir electron/capabilityCore/security.ts:51:6
+     49|
+     50| function ensureDir(dir: string): void {
+     51|   fs.mkdirSync(dir, { recursive: true })
+       |      ^
+     52| }
+     53|
+ ❯ ensureCapabilitySigningKey electron/capabilityCore/security.ts:83:3
+ ❯ getApprovalReceiptAuthority electron/capabilityCore/approvalReceiptRuntime.ts:27:15
+ ❯ getProductionRunService electron/productionRun/productionRunRuntime.ts:39:33
+ ❯ electron/capabilityCore/mcpStdioServer.ts:80:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/ux/asset-tile-badges-visible.test.mjs [ tests/ux/asset-tile-badges-visible.test.mjs ]
+Error: browserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     pnpm exec playwright install                           ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ tests/ux/asset-tile-badges-visible.test.mjs:36:28
+     34|   await server.listen()
+     35|   origin = `http://127.0.0.1:${server.httpServer.address().port}`
+     36|   browser = await chromium.launch({ headless: true })
+       |                            ^
+     37| }, 120000)
+     38| afterAll(async () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/paidPostCodeFeatureTable.test.ts > paid POST code feature table: main baseline > records the catalog/APIMart mapping's strict 0/200 behavior
+Error: Test timed out in 30000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ electron/paidPostCodeFeatureTable.test.ts:101:3
+     99|   });
+    100|
+    101|   it("records the catalog/APIMart mapping's strict 0/200 behavior", as…
+       |   ^
+    102|     const successCases = [{ code: 0, id: "task-0" }, { code: 200, id: …
+    103|     for (const body of successCases) expect(await catalogVerdict(200, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  electron/ai/antigravityProcess.test.ts > Antigravity process ownership > kills inherited-pipe descendants even after the CLI exits
+AssertionError: expected [Function] to throw an error
+ ❯ electron/ai/antigravityProcess.test.ts:125:40
+    123|     await expect(runAntigravityProcess({ prompt: "test" }, { invocatio…
+    124|     const pid = Number(await readFile(path.join(f.dir, "child-pid"), "…
+    125|     expect(() => process.kill(pid, 0)).toThrow();
+       |                                        ^
+    126|     await expect(stat(await readFile(path.join(f.dir, "cwd"), "utf8"))…
+    127|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  electron/ai/antigravityProcess.test.ts > Antigravity process ownership > cleans silent SIGTERM-ignoring descendants on success before returning
+AssertionError: expected undefined to be '你好' // Object.is equality
+
+- Expected:
+"你好"
+
++ Received:
+undefined
+
+ ❯ electron/ai/antigravityProcess.test.ts:139:39
+    137|       const result = await settled;
+    138|       if (outcome === "cancel") expect(result.error?.name).toBe("Abort…
+    139|       else expect(result.value?.text).toBe("你好");
+       |                                       ^
+    140|       expect(() => process.kill(pid, 0)).toThrow();
+    141|       await expect(stat(await readFile(path.join(f.dir, "cwd"), "utf8"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  electron/ai/antigravityProcess.test.ts > Antigravity process ownership > cleans silent SIGTERM-ignoring descendants on cancel before returning
+AssertionError: expected 'Error' to be 'AbortError' // Object.is equality
+
+Expected: "AbortError"
+Received: "Error"
+
+ ❯ electron/ai/antigravityProcess.test.ts:138:60
+    136|       if (outcome === "cancel") controller.abort();
+    137|       const result = await settled;
+    138|       if (outcome === "cancel") expect(result.error?.name).toBe("Abort…
+       |                                                            ^
+    139|       else expect(result.value?.text).toBe("你好");
+    140|       expect(() => process.kill(pid, 0)).toThrow();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  electron/ai/antigravityProcess.test.ts > Antigravity process ownership > honors cancellation during asynchronous descendant cleanup
+AssertionError: expected Error: ANTIGRAVITY_CLEANUP_TIMEOUT to match object { name: 'AbortError' }
+
+- Expected
++ Received
+
+- {
+-   "name": "AbortError",
++ Error {
++   "message": "ANTIGRAVITY_CLEANUP_TIMEOUT",
+  }
+
+ ❯ electron/ai/antigravityProcess.test.ts:172:118
+    170|     });
+    171|     try {
+    172|       await expect(runAntigravityProcess({ prompt: "test", signal: con…
+       |                                                                                                                      ^
+    173|         .rejects.toMatchObject({ name: "AbortError" });
+    174|     } finally { spy.mockRestore(); }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts > nomi_try_model 提交步骤的预算 > 提交和等待共用一份预算：提交占了 30 秒，等待只剩 10 秒，总共仍是 40 秒
+Error: never became true: tool call returned at the shared budget
+ ❯ until electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts:40:9
+     38|     await tick();
+     39|   }
+     40|   throw new Error(`never became true: ${label}`);
+       |         ^
+     41| }
+     42| /** 假时钟按小步推进，每步让真 socket I/O 跑几圈。 */
+ ❯ electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts:188:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  5 failed | 1 passed (6)
+      Tests  6 failed | 63 passed | 2 skipped (71)
+   Start at  06:28:55
+   Duration  32.45s (transform 4.52s, setup 504ms, import 6.39s, tests 44.74s, environment 0ms)

@@ -1,0 +1,29 @@
+{
+  "diagnosticOnly": true,
+  "sourceHead": "314a5f29dbf69542947957a2854e5d035d79e263",
+  "traceFile": "docs/evidence/2026-10-10-nomi-user-performance/profiles/split-trace-2026-10-11T06-01-44-526Z-111aab7a-c7a3-4c7d-b704-bd6b217d7f14-cold-trace.json.gz",
+  "traceSha256": "b35821752679d36a805c1b6562ef961f1dc427df082f168df549f5ca832fc9ff",
+  "rendererPid": 563911,
+  "anchor": "nomi:open:start (1.6ms after cold trusted input)",
+  "framework": "React/ReactDOM19.3.0",
+  "intervalsMs": {
+    "studioRequest": 330.7,
+    "prepareToTimer": 72.92000000000002,
+    "timerInstalled": 403.62,
+    "scheduledRevealWait": 229.08799999999997,
+    "timerFired": 632.708,
+    "commitTimerDuration": 89.013,
+    "postCommitToNode": 23.778999999999996,
+    "nodesMounted": 745.5,
+    "totalStudioToNode": 414.8
+  },
+  "timerId": 45,
+  "requestedTimerMs": 229,
+  "sourceMatch": "compiled React vendor Qy uses Throttled, globalMostRecentFallbackTime+300-now",
+  "limits": [
+    "Preparation and post-commit intervals include scheduling, not only CPU.",
+    "Parse start does not prove module evaluation completed.",
+    "Whole CPU profile negative intervals prohibit action-window CPU percentages.",
+    "This immutable instrumented trace is separate from unprofiled p95 baselines."
+  ]
+}

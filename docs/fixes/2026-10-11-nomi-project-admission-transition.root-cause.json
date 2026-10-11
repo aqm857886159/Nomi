@@ -1,0 +1,41 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-project-admission-transition",
+  "problem_type": "Uncoordinated lazy studio admission incurs a redundant Suspense reveal wait",
+  "symptom": "Clean314a cold studio request330.70ms to node mount745.50ms includes an observed229.088ms timer wait. Separate real-menu p95 completion822.18ms remains a blocking context, not a closed budget claim.",
+  "direct_cause": "The default-lane studio update reveals a fresh fallback. React19.3 schedules its prepared retry commit at the300ms Suspense reveal boundary: timer45 installed403.620ms, fires632.708ms, Qy commit89.013ms.",
+  "class_root": "The shared hydration owner does not admit view, URL and progress together as a non-blocking transition after domain recovery, so native module preloads alone do not coordinate React lazy reveal.",
+  "affected_population": ["Cold project opens and switches", "New/opened/revealed projects using the same hydration callback"],
+  "scope_paths": ["src/workbench/NomiStudioApp.tsx"],
+  "entry_points": ["Library openProject", "createAndOpenProject", "notification and workspace-folder hydrateProject ports"],
+  "external_sources": [
+    {"kind":"official-doc","url":"https://react.dev/reference/react/startTransition","checked_at":"2026-10-11","purpose":"Synchronous action scopes state updates as a non-blocking transition; async admission requires a new explicit scope"},
+    {"kind":"official-doc","url":"https://react.dev/reference/react/Suspense","checked_at":"2026-10-11","purpose":"300ms reveal coordination and retaining already revealed content under a transition"},
+    {"kind":"source-code","url":"https://github.com/react/react/blob/v19.3.0/packages/react-reconciler/src/ReactFiberWorkLoop.js","checked_at":"2026-10-11","purpose":"Match installed ReactDOM19.3 and compiled Qy Throttled timer to the recorded native trace"}
+  ],
+  "invariants": ["Outgoing Surface ACK still precedes project reads and code preload", "Lane ACK and receipt recovery finish before any studio admission", "Current view, URL and pending-state completion share one React transition", "Failed or superseded hydration cannot admit studio or clear a newer pending state"],
+  "doors": [
+    {"kind":"read","path":"src/workbench/NomiStudioApp.tsx","symbol":"hydrateProjectView"},
+    {"kind":"write","path":"src/workbench/NomiStudioApp.tsx","symbol":"hydrateProjectView"}
+  ],
+  "door_reduction": {"before":2,"after":2,"why_not":"One shared callback owns admission; its readers and writers are the same necessary existing library/create/reveal ports. No second loader, mount or persistence owner is introduced. Door map scanned2904 production files and12 occurrences."},
+  "generality_proof": "Every renderer project admission converges on hydrateProjectView and the same current Surface guard; pending cleanup and view/navigation scheduling are coordinated there for all callers.",
+  "shared_boundaries": [{"path":"src/workbench/NomiStudioApp.tsx","symbol":"hydrateProjectView","responsibility":"Only admit the current recovered project and its matching pending/URL state in one transition"}],
+  "same_class_entry_points": [
+    {"path":"src/workbench/NomiStudioApp.tsx","entry_point":"openProject","disposition":"enforced","evidence":"Library/project-menu opens invoke the shared hydration callback after choosing generation mode"},
+    {"path":"src/workbench/NomiStudioApp.tsx","entry_point":"createAndOpenProject","disposition":"enforced","evidence":"Creation preserves its declared workspace mode and awaits the same hydration callback"},
+    {"path":"src/workbench/project/useProjectNotificationTarget.ts","entry_point":"useProjectNotificationTarget","disposition":"enforced","evidence":"The unchanged hydrateProject port receives hydrateProjectView; it does not own an alternative mount path"}
+  ],
+  "recurrence": {"classification":"recurring","reason":"Every first-use native lazy view may suspend despite a completed native import cache and hit the same reveal scheduling policy","same_class_scan":["node scripts/door-map.mjs hydrateProjectView:2 doors,12 occurrences,2904 production files","Checked library/create/notification/workspace-folder ports","Matched installed React19.3 source and compiled Qy to timer45 in the immutable06:01 trace"]},
+  "prevention": {"kind":"centralized-boundary","enforcement_path":"src/workbench/NomiStudioApp.tsx","invariant":"Recovery-gated view, URL and progress admission use one non-blocking transition; finally performs urgent progress cleanup only on failure","failure_mode":"Existing Surface epoch and hydration-sequence checks reject stale work; recovery errors retain library and clear only current progress","exception_policy":"none","strategy":"Replace the default-lane admission/urgent-success cleanup at the unique hydration boundary using the supported React API","artifacts":["src/workbench/NomiStudioApp.tsx"]},
+  "regression_tests": ["tests/ux/nomi-project-open-preload.node-test.mjs"],
+  "class_regression_tests": ["tests/ux/nomi-project-open-preload.node-test.mjs"],
+  "legacy_paths": {"status":"removed","removed_paths":["src/workbench/NomiStudioApp.tsx"],"rationale":"Remove default-lane successful admission and its separate urgent successful finally cleanup; retain failure and stale cleanup"},
+  "dependency_lifecycle": {"decision":"retain-with-exit","current":"React/ReactDOM19.3.0 with native ESM and existing chunk boundaries","target":"Supported React transition/lazy APIs preserving Surface ordering","rationale":"The observed300ms reveal policy is framework behavior; use its supported transition API rather than modifying internals or replacing the loader","exit_criteria":["At a supported React upgrade rerun current/stale/failure admission and native same-fixture cold/hot completion measurements"]},
+  "migration": "No data migration or persistence/lane/proposal protocol changes; required code preload remains after the outgoing Surface ACK.",
+  "residual_risks": ["Implementation and native measurement still pending at contract drafting; no gain or budget pass claimed", "Main import graph and actual renderer mount cost remain separate work", "Markdown fault-containment proof is cooldown-only; default reload and active-Agent recovery unverified", "Real display/Mac/Windows/GPU, CPU/memory/teardown and reliable p99 remain unverified"],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {"layer":"src/workbench/NomiStudioApp.tsx","tests":["tests/ux/nomi-project-open-preload.node-test.mjs"]},
+  "rewrite_decision": {"decision":"patch","characterization_test":"tests/ux/nomi-project-open-preload.node-test.mjs"}
+}

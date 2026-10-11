@@ -1,0 +1,16 @@
+✔ every shared hydration shows progress before awaiting main and keeps studio behind receipt recovery (0.620935ms)
+✔ generation chunk imports overlap hydration only after the outgoing Surface ACK (36.470262ms)
+✔ actual hydration waits for deferred ACK, lane and receipt recovery before exposing studio (35.163385ms)
+✔ superseded actual hydration cannot preload or dismiss the newer opening state (12.180643ms)
+✔ actual successful admission keeps view, URL and progress in the same transition after recovery (11.335463ms)
+✔ actual failed receipt recovery clears progress without admitting a studio transition (8.307892ms)
+✔ actual route failure remains a reported hydration failure rather than an unhandled transition error (10.453048ms)
+✔ the same production chunk factories serve preload and lazy render without optional feature imports (0.404503ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 301.61833

@@ -4,6 +4,7 @@ import path from 'node:path'
 import test from 'node:test'
 import vm from 'node:vm'
 import ts from 'typescript'
+import React from 'react'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const source = fs.readFileSync(path.join(root, 'src/workbench/NomiStudioApp.tsx'), 'utf8')
@@ -48,24 +49,26 @@ function compileFunction(expression, globals) {
 }
 
 function deferred() {
-  let resolve
-  const promise = new Promise(done => { resolve = done })
-  return { promise, resolve }
+  let resolve, reject
+  const promise = new Promise((done, fail) => { resolve = done; reject = fail })
+  return { promise, resolve, reject }
 }
 async function flush() { for (let i = 0; i < 15; i += 1) await Promise.resolve() }
 
 // Run the actual TS callback and actual lane owner, with deferred external ports.
 // This does not mount React or replace a production hydration implementation.
-function controlledHydration() {
+function controlledHydration(options = {}) {
   const acks = [deferred(), deferred()], lane = deferred(), recovery = deferred()
   const events = [], sequence = { current: 0 }, hydrating = { current: false }
   class Superseded extends Error {}
+  class LaneFailure extends Error {}
   let epochNumber = 0, opening = false
   const laneText = fs.readFileSync(path.join(root, 'src/workbench/project/projectAgentLaneOpen.ts'), 'utf8')
   const laneTree = ts.createSourceFile('lane.ts', laneText, ts.ScriptTarget.Latest, true)
   const laneFunction = laneTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'openProjectAgentLane')
-  const openProjectAgentLane = compileFunction(laneFunction.getText(laneTree).replace(/^export /, ''), { LaneCommandFailure: Error })
+  const openProjectAgentLane = compileFunction(laneFunction.getText(laneTree).replace(/^export /, ''), { LaneCommandFailure: LaneFailure })
   const globals = {
+    React: { startTransition(action) { events.push('transition:start'); React.startTransition(action); events.push('transition:end') } },
     markProjectOpenStart() {}, hydrationSequenceRef: sequence, hydratingProjectRef: hydrating,
     projectSurface: { beginHydration() {
       const current = ++epochNumber
@@ -79,13 +82,13 @@ function controlledHydration() {
     laneClient: { context: () => null, open: () => { events.push('lane'); return lane.promise } },
     abandonPendingCanvasWrite() {}, clearCommittedProposal() {},
     ensureProjectPersistenceService: async () => ({ module: { consumeCategoryMigrationDiagnostic() {}, consumeRetiredStoryboardTableCount: () => 0 }, service: {} }),
-    hydrateWorkbenchProjectWithRecovery: async () => ({ id: 'fixture' }), t: value => value, report() {}, refreshProjects() {},
+    hydrateWorkbenchProjectWithRecovery: async () => ({ id: 'fixture' }), t: value => value, report: () => events.push('report'), refreshProjects() {},
     activeProjectIdRef: { current: null }, setActiveProject() {},
     measureProjectOpenStage: (_name, action) => action(), openProjectAgentLane,
     laneReceiptClient: { readProposalReceipt: async () => ({}) }, hydrateCommittedProposalReceipt() {},
     recoverPendingProposalReceipt: () => { events.push('recovery'); return recovery.promise },
-    logRendererError() {}, markProjectOpenMoment() {}, navigate() {}, buildStudioUrl: id => id,
-    runProjectAssetHealthCheck: async () => {}, notify() {}, ProjectHydrationSupersededError: Superseded, LaneCommandFailure: Error,
+    logRendererError() {}, markProjectOpenMoment() {}, navigate: () => { events.push('navigate'); if (options.navigateError) throw options.navigateError }, buildStudioUrl: id => id,
+    runProjectAssetHealthCheck: async () => {}, notify() {}, ProjectHydrationSupersededError: Superseded, LaneCommandFailure: LaneFailure,
   }
   const { tree, callback } = hydrationCallback(source)
   return { run: compileFunction(callback.getText(tree), globals), acks, lane, recovery, events, hydrating, opening: () => opening, Superseded }
@@ -142,6 +145,42 @@ test('superseded actual hydration cannot preload or dismiss the newer opening st
   assert.equal(await current, true)
   assert.equal(state.opening(), false)
   assert.equal(state.events.filter(event => event === 'view:studio').length, 1)
+})
+
+test('actual successful admission keeps view, URL and progress in the same transition after recovery', async () => {
+  const state = controlledHydration()
+  const result = state.run('fixture')
+  state.acks[0].resolve(); state.lane.resolve({ ok: true, workspaceId: 'fixture' }); await flush()
+  assert.equal(state.events.includes('transition:start'), false, 'Recovery must gate admission')
+  assert.equal(state.opening(), true)
+  state.recovery.resolve()
+  assert.equal(await result, true)
+  const start = state.events.indexOf('transition:start')
+  assert.ok(start >= 0, 'A default-lane studio update creates a fresh fallback reveal wait')
+  assert.deepEqual(state.events.slice(start, start + 5), ['transition:start', 'view:studio', 'opening:false', 'navigate', 'transition:end'])
+  assert.equal(state.events.filter(event => event === 'opening:false').length, 1, 'An urgent finally update must not dismiss progress ahead of the transition')
+})
+
+test('actual failed receipt recovery clears progress without admitting a studio transition', async () => {
+  const state = controlledHydration()
+  const result = state.run('fixture')
+  state.acks[0].resolve(); state.lane.resolve({ ok: true, workspaceId: 'fixture' }); await flush()
+  state.recovery.reject(new Error('controlled receipt recovery failure'))
+  assert.equal(await result, false)
+  assert.equal(state.events.includes('view:studio'), false)
+  assert.equal(state.events.includes('transition:start'), false)
+  assert.equal(state.opening(), false)
+  assert.equal(state.hydrating.current, false)
+})
+
+test('actual route failure remains a reported hydration failure rather than an unhandled transition error', async () => {
+  const state = controlledHydration({ navigateError: new Error('controlled route failure') })
+  const result = state.run('fixture')
+  state.acks[0].resolve(); state.lane.resolve({ ok: true, workspaceId: 'fixture' }); state.recovery.resolve()
+  assert.equal(await result, false)
+  assert.ok(state.events.includes('report'))
+  assert.equal(state.opening(), false)
+  assert.equal(state.hydrating.current, false)
 })
 
 test('the same production chunk factories serve preload and lazy render without optional feature imports', () => {

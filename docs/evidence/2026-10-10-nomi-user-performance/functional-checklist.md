@@ -10,7 +10,9 @@ Native waiting-tool cases were **not executed or attempted**: the runner exited 
 
 Project open/create/switch, two draft switches, existing group selection/grid persistence, native cross-project interrupted/complete cold recovery and corrected competing design content have the exact scopes below. Complete cancellation, undo, error, edit/save and recovery states still require their own real UI receipts. [Project rename attempt](project-rename-verification.md) preserves a failed full-payload result and unattempted cold reopen. Suggested remaining bounded scopes are owner assessment and strict rename retry; document edit/delete/undo with persistence; storyboard edit/duplicate/delete with exact identities; then actual single-lane tool/approval/retry without requiring unsupported concurrency. These are plans, not executed work.
 
-## Four LazyMarkdown surfaces: bounded component runtime passed
+## Four LazyMarkdown surfaces: bounded component runtime, cooldown fault path passed
+
+The8/8 controlled cells prefill the Markdown auto-reload cooldown before the fault assertion. Local fault containment is proven only under that condition. Default first chunk failure causes whole-renderer reload; that default strategy and active-Agent interruption/recovery remain unverified.
 
 | Surface | Cold chunk load/failure | Update while suspended | Actual Agent streaming | Close/reopen |
 | --- | --- | --- | --- | --- |

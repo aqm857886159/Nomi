@@ -1,0 +1,183 @@
+{
+  "sourceHead": "b28959af7aec2401e26bfbfdeb5508bb7ffe8f31",
+  "baselineHead": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+  "node": "24.19.0",
+  "pnpm": "10.8.1",
+  "vitest": "4.1.8",
+  "runnerChanges": false,
+  "testsWereSequentialBatches": true,
+  "initialFullUnit": {
+    "failedFiles": 16,
+    "failedTests": 21
+  },
+  "contrast": {
+    "headFailedFiles": 15,
+    "baselineFailedFiles": 15,
+    "headFailedTests": 20,
+    "baselineFailedTests": 20,
+    "passedTestsEach": 63,
+    "skippedByExistingFailedHooksEach": 92
+  },
+  "files": [
+    {
+      "file": "electron/ai/antigravityProcess.test.ts",
+      "headSha256": "834e90177c4a74a11bf5df6b1e0b8489a6fab486b2fc1843d3afad9cf31647a0",
+      "baselineSha256": "834e90177c4a74a11bf5df6b1e0b8489a6fab486b2fc1843d3afad9cf31647a0",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "electron/capabilityCore/mcpStdioDocumentReceipt.test.ts",
+      "headSha256": "6f9deeb034b371c13bbdf3e8586e1bed8f9c601146c3cf6c9c41b802e86a3b38",
+      "baselineSha256": "6f9deeb034b371c13bbdf3e8586e1bed8f9c601146c3cf6c9c41b802e86a3b38",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
+      "headSha256": "bbc5b940f683edcabe5d63d705b0e3245f7097cb7cd2c7ca5e737c395efe62e1",
+      "baselineSha256": "bbc5b940f683edcabe5d63d705b0e3245f7097cb7cd2c7ca5e737c395efe62e1",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "electron/paidPostCodeFeatureTable.test.ts",
+      "headSha256": "2d74996b042eeab8bd4d0ec861bf6d1133735cb6491e80f48d330adaa8954630",
+      "baselineSha256": "2d74996b042eeab8bd4d0ec861bf6d1133735cb6491e80f48d330adaa8954630",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "electron/parity/generationParity.matrix.test.ts",
+      "headSha256": "9031a8644384944b8e5db3f4c4e4e990e0436730c8f83972cb26cb3fdcae01a9",
+      "baselineSha256": "9031a8644384944b8e5db3f4c4e4e990e0436730c8f83972cb26cb3fdcae01a9",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+      "headSha256": "e58fe7785556aa9038897443910810ed8eb4266cc3976eabccc10657e0f5ae2b",
+      "baselineSha256": "76040fc00647dbc7f84c550b5b213ce9c9c2b4ae8d37c323437eef8f1c89b564",
+      "same": false,
+      "classification": "corrected obsolete branch assertion; both green"
+    },
+    {
+      "file": "tests/ux/asset-tile-badges-visible.test.mjs",
+      "headSha256": "b2eec55b680de5158fb67ad1e79ef4cf574ccc167ecc0fa2374cdf0d4139bcf4",
+      "baselineSha256": "b2eec55b680de5158fb67ad1e79ef4cf574ccc167ecc0fa2374cdf0d4139bcf4",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/composerLifecycle.test.mjs",
+      "headSha256": "f7247e2f743bcc09edef0897e847ac7ee6eb2c81a2ad3319eb10dbd218ecee68",
+      "baselineSha256": "f7247e2f743bcc09edef0897e847ac7ee6eb2c81a2ad3319eb10dbd218ecee68",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/creation-sidebar-delete.test.mjs",
+      "headSha256": "6451828265974d2e58dafaa043211789af22a80168bba4f08defaf093e9418fb",
+      "baselineSha256": "6451828265974d2e58dafaa043211789af22a80168bba4f08defaf093e9418fb",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/original-storyboard-editor.test.mjs",
+      "headSha256": "25047a63239a311a21f9b87d5ace7ae7ec5e87aabe787562d2b348e9d3b8f51c",
+      "baselineSha256": "25047a63239a311a21f9b87d5ace7ae7ec5e87aabe787562d2b348e9d3b8f51c",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/selection-drag-lifecycle.test.mjs",
+      "headSha256": "426a37ca656394609f7903b8f7fad51d0799cca574e200aaa737a879bdfda3af",
+      "baselineSha256": "426a37ca656394609f7903b8f7fad51d0799cca574e200aaa737a879bdfda3af",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/spend-panel-write-ownership.test.mjs",
+      "headSha256": "e0190c7d1c3b105e6a9f6a509796b5177a04042568056bff6bae240a08cb2f4c",
+      "baselineSha256": "e0190c7d1c3b105e6a9f6a509796b5177a04042568056bff6bae240a08cb2f4c",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/storyboard-agent-handoff.test.mjs",
+      "headSha256": "158d2dc7c7c9095185c3a55306b980ec648b260b6b98a8c54302b3bed0354414",
+      "baselineSha256": "158d2dc7c7c9095185c3a55306b980ec648b260b6b98a8c54302b3bed0354414",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/storyboard-delete-undo.test.mjs",
+      "headSha256": "450ad24bded669c328898452d58b614a970d89d81b3d685cdf3589267fdd325e",
+      "baselineSha256": "450ad24bded669c328898452d58b614a970d89d81b3d685cdf3589267fdd325e",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/storyboard-popover-keyboard.test.mjs",
+      "headSha256": "4b0061a83bc4c61f0cf5e1dd30fa4b3427fdd85a53622e8d5605e87985ee7b26",
+      "baselineSha256": "4b0061a83bc4c61f0cf5e1dd30fa4b3427fdd85a53622e8d5605e87985ee7b26",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    },
+    {
+      "file": "tests/ux/text-document-generation-ownership.test.mjs",
+      "headSha256": "c81b5110b9f2343cc3cdd94c56a1858b735c1aa890316c9a08b91cf3a32dec5b",
+      "baselineSha256": "c81b5110b9f2343cc3cdd94c56a1858b735c1aa890316c9a08b91cf3a32dec5b",
+      "same": true,
+      "classification": "same failure reproduced on head and baseline"
+    }
+  ],
+  "logs": [
+    {
+      "file": "checks/cold-admission-unit-head-minimal.txt",
+      "originalSha256": "6e3914ae975606b137227fe0c4b71ee160d591335140de416e10fa56a4106dcf",
+      "archiveSha256": "bd9e0153dcd75d8e3ad2a6d66240de2b7506fe58e678fe7d0ad1b45433d287b0",
+      "summaries": [
+        "Test Files  5 failed | 1 passed (6)",
+        "Tests  6 failed | 63 passed | 2 skipped (71)",
+        "Duration  32.45s (transform 4.52s, setup 504ms, import 6.39s, tests 44.74s, environment 0ms)"
+      ]
+    },
+    {
+      "file": "checks/cold-admission-unit-main-minimal.txt",
+      "originalSha256": "703bbcf32aab76e3b9b296c855e2d6513f124509eb766a8662df364ac92b416f",
+      "archiveSha256": "49b491f083db2d502f6d14764017f61857a9776270ca976cdba6c1a3998d4efe",
+      "summaries": [
+        "Test Files  5 failed | 1 passed (6)",
+        "Tests  6 failed | 63 passed | 2 skipped (71)",
+        "Duration  33.76s (transform 4.28s, setup 301ms, import 3.60s, tests 46.81s, environment 0ms)"
+      ]
+    },
+    {
+      "file": "checks/cold-admission-unit-head-remaining.txt",
+      "originalSha256": "8ed3332d81281be14d3f9a302cd24869f7468c11e5585423f8021077b1deee71",
+      "archiveSha256": "d017749ad3a38d408af9aabdc9497ace6f61abaecee61d82b2286e2ab0f5073e",
+      "summaries": [
+        "Test Files  10 failed (10)",
+        "Tests  14 failed | 90 skipped (104)",
+        "Duration  120.29s (transform 2.84s, setup 436ms, import 19.49s, tests 121.01s, environment 1ms)"
+      ]
+    },
+    {
+      "file": "checks/cold-admission-unit-main-remaining.txt",
+      "originalSha256": "22183abf1cc181b267373538f42bd8ab3ae3f7d62f343eb70c19aaddba81f13c",
+      "archiveSha256": "88b6dba57167d93cb1ea7890c4f558d59a9d1a553764a40a1ad8546038edb2ec",
+      "summaries": [
+        "Test Files  10 failed (10)",
+        "Tests  14 failed | 90 skipped (104)",
+        "Duration  120.44s (transform 2.74s, setup 470ms, import 18.29s, tests 120.92s, environment 1ms)"
+      ]
+    }
+  ],
+  "limitations": [
+    "No second full baseline suite was run; only all16 originally failing files were selected in two unchanged-configuration groups.",
+    "Baseline dependency linking succeeded but Electron postinstall download failed; Vitest uses the same pinned dependency versions and existing electron stub.",
+    "Matching baseline failures establish shared failures, not the complete underlying cause of every timeout/process assertion. No generic-zombie explanation is used.",
+    "The one branch-specific old canvas factory assertion was already corrected and passes23/23 on both heads. No unrelated fixes or policy changes were made."
+  ]
+}
