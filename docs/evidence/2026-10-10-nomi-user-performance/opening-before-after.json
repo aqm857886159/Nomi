@@ -162,5 +162,5 @@
   ],
   "completePerformanceAcceptance": false,
   "significantEndToEndGainEstablished": false,
-  "limits": "Cold feedback observed337.20\u219218.30ms; real menu completion781.04\u2192822.18ms remains over500ms and this batch is slower. n=5 does not establish a significant regression/gain. Hot remains inconclusive. Decoded DOM image diagnostic and screenshot are separate; viewed cold1 post-measurement screenshot still shows thumbnail placeholders, not complete media paint. Real display/Mac/Windows/GPU, actionCPU/main tasks/memory/teardown/active gestures and adequate hot p99 remain unverified."
+  "limits": "Cold feedback observed337.20\u219218.30ms; real menu completion781.04\u2192822.18ms remains over500ms and this batch is slower. n=5 does not establish a significant regression/gain. Hot remains inconclusive. Decoded DOM image diagnostic and screenshot are separate; viewed cold1 post-measurement screenshot still shows thumbnail placeholders, not complete media paint. Real display/Mac/Windows/GPU, actionCPU/main tasks/memory/teardown/active gestures and adequate hot p99 remain unverified. Hot feedback changes from matching project title before to opening-spinner after; first feedback is not title/content completion."
 }

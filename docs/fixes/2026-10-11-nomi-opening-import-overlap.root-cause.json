@@ -1,8 +1,8 @@
 {
   "schema_version": 3,
   "id": "2026-10-11-nomi-opening-import-overlap",
-  "problem_type": "Serial required-view import waterfall and missing hydration progress",
-  "symptom": "New-fixture clean ABD small cold first feedback337.20ms and real project-menu response781.04ms exceed100/500ms",
+  "problem_type": "Missing early renderer opening feedback and late admission of necessary view code",
+  "symptom": "Clean ABD cold first attributable opening feedback337.20ms exceeds100ms; library remains visible during hydration. The separate781.04ms target-interactive symptom is context and remains unresolved, not closed by this contract.",
   "direct_cause": "Library stays visible while disk/lane hydration runs; required generation chunks begin their serial imports only after studio exposure",
   "class_root": "Shared project hydration owns execution safety but has no sequence-owned progress and no safe after-ACK code-loading overlap",
   "affected_population": [
@@ -223,6 +223,7 @@
   },
   "migration": "Existing disk/lane migration, identity checks, locking, Surface commit and receipt recovery unchanged; no persisted data migration.",
   "residual_risks": [
+    "After clean314a feedback18.30ms, actual cold menu completion822.18ms still fails500ms and is slower in this batch; no end-to-end gain or full performance acceptance established.",
     "951-module main import graph remains; inclusive legacy stage is not pure migration cost",
     "CPU action-window distribution, teardown memory, real-display Mac/Windows/GPU and complete performance acceptance unverified",
     "Controlled component runtime evidence does not certify every native navigation/resource case"

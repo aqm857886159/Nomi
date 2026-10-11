@@ -30,7 +30,8 @@ function assertAwaitedAdmission(text) {
     ts.forEachChild(node, visit)
   }
   visit(callback)
-  for (const name of ['surfaceEpoch.waitUntilSuspended', 'openProjectAgentLane', 'recoverPendingProposalReceipt']) {
+  const ADMISSION_INVARIANTS = ['surfaceEpoch.waitUntilSuspended', 'openProjectAgentLane', 'recoverPendingProposalReceipt']
+  for (const name of ADMISSION_INVARIANTS) {
     assert.ok(awaited.has(name), `${name} must be awaited at the actual call site`)
   }
   const body = callback.body.statements.find(ts.isTryStatement).tryBlock.statements

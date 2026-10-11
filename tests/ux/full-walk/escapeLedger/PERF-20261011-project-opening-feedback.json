@@ -1,0 +1,28 @@
+{
+  "id": "PERF-20261011-project-opening-feedback",
+  "since": "2026-10-11",
+  "source": "User review of PR1172 cold opening feedback and production critical-path investigation",
+  "category": "interaction-semantics",
+  "problem": "Shared renderer hydration leaves the library visible with no attributable opening progress while waiting on main work, and admits necessary view code only after studio exposure. This entry closes only sequence-owned feedback and code admission; cold target-interactive performance remains failed and is not marked fixed here.",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/evidence/2026-10-10-nomi-user-performance/opening-before-after.json",
+    "docs/evidence/2026-10-10-nomi-user-performance/opening-stage-verification.md",
+    "docs/evidence/2026-10-10-nomi-user-performance/independent-review-current.md"
+  ],
+  "completionCommits": [
+    "ff6aef69c4cd2231f0b7dc3ae992a93166bfb1e7",
+    "b5b8bdf96db6483617c758aa5323e2f807a80421"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-11-nomi-opening-import-overlap.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/nomi-project-open-preload.node-test.mjs"
+  },
+  "fixedInPr": 1172
+}

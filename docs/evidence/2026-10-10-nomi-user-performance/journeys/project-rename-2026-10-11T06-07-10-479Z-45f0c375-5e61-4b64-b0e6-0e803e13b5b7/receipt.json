@@ -1,0 +1,76 @@
+{
+  "scope": "Three actual native process launches; zh-CN project-library cancel, trim/commit, cold reopen and complete persisted payload/foreign-project isolation. One bounded functional run, no percentile or complete feature acceptance.",
+  "launches": [
+    {
+      "label": "cancel",
+      "pid": 580242,
+      "rendererUrl": "file://<repo>/dist/index.html#/studio"
+    }
+  ],
+  "archives": [
+    {
+      "file": "project-a-before.json",
+      "originalSha256": "e6bf9c8d9dfe97b130baba6da39f593a2578337c39daed58aa892b933edd0a12",
+      "archivedSha256": "6458ddbda10c2051c1730d1ffa76db0d5e16d32436790908acd716d96d3ad6d8",
+      "originalBytes": 51162,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    },
+    {
+      "file": "project-b-before.json",
+      "originalSha256": "e6bf9c8d9dfe97b130baba6da39f593a2578337c39daed58aa892b933edd0a12",
+      "archivedSha256": "6458ddbda10c2051c1730d1ffa76db0d5e16d32436790908acd716d96d3ad6d8",
+      "originalBytes": 51162,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    },
+    {
+      "file": "project-a-final.json",
+      "originalSha256": "e6bf9c8d9dfe97b130baba6da39f593a2578337c39daed58aa892b933edd0a12",
+      "archivedSha256": "6458ddbda10c2051c1730d1ffa76db0d5e16d32436790908acd716d96d3ad6d8",
+      "originalBytes": 51162,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    },
+    {
+      "file": "project-b-final.json",
+      "originalSha256": "e6bf9c8d9dfe97b130baba6da39f593a2578337c39daed58aa892b933edd0a12",
+      "archivedSha256": "6458ddbda10c2051c1730d1ffa76db0d5e16d32436790908acd716d96d3ad6d8",
+      "originalBytes": 51162,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    }
+  ],
+  "cases": [],
+  "textRequests": 0,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "unexpected": [],
+  "result": "failed",
+  "performanceAcceptance": "unverified",
+  "source": {
+    "head": "f49bfe0610edd836b1ea5a4884b9b071969cdd2d",
+    "tree": "6f58d9ab9fb04f2050014f83d27a6d3b1aa91448",
+    "dirty": false,
+    "driverSha256": "2369d1ee00e12f03eeb17d95128a336be8880156d551345cf937e8ad2ceea5b6",
+    "fileHashes": {
+      "scripts/package-build-stamp.mjs": "6b4ae5de60aea875a892d2d8e025919a9ab795fba5fe4c0686c8a6eabe046628",
+      "tests/ux/_launchApp.mjs": "17f62a8b21025a3b22952c70c177ff4595879f4fefd32b011cc76c2714a52f25",
+      "scripts/walkthrough-network-guard.cjs": "64a06a564b5336d7b342ce74f3d0fd6c1a783cca0ad6962d07de744ef9908553",
+      "tests/ux/fixtures/nomi-user-workflow-fixture.mjs": "d995403ff0d55add81d5baa27c7a30788a1757833c44515edcac125f1ee1c3c2",
+      "tests/ux/nomi-native-evidence-contract.mjs": "771807a5ba23a421cb6bc2a682e2082f22ca23281646cb72c04133200c1b2d81",
+      "tests/ux/_shell.mjs": "30a948d3732b73d1ebd71144e2f86ca0be7b173614373ccd85d725d2200da227",
+      "src/workbench/library/ProjectLibraryPage.tsx": "795aa43050a6ad04e835bce8fc36caeb92444d648cdd2a6ccbd49635490c46c3",
+      "src/workbench/NomiStudioApp.tsx": "2adfa3f2d85648e4a90e1f333ff4cf58cd4df8aab3ac32454e00e09f2a071bf6",
+      "src/workbench/project/projectRepository.ts": "8755256462c19a1f6c054d0f388a04b7edbcc9c4fbe40c09229087698d56eb11"
+    }
+  },
+  "buildReceipt": {
+    "version": 1,
+    "head": "f49bfe0610edd836b1ea5a4884b9b071969cdd2d",
+    "tree": "6f58d9ab9fb04f2050014f83d27a6d3b1aa91448",
+    "dirty": false
+  },
+  "error": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-project-card][data-project-id=\"rename-project-a\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-project-card][data-project-id=\"rename-project-a\"]')\n",
+  "cleanupError": "Cannot read properties of undefined (reading '_object')"
+}
