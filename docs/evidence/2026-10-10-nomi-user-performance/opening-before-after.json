@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "conditions": "Same Linux/Xvfb :97, Electron43.4.1, viewport1280x933; same fixture, three unchanged timing/harness owners, same CLI each1warmup+5measured; no concurrent heavy tests during either batch. OS page cache uncontrolled.",
+  "fixtureSha256": "d995403ff0d55add81d5baa27c7a30788a1757833c44515edcac125f1ee1c3c2",
+  "stages": [
+    {
+      "stage": "before",
+      "raw": "raw/nomi-user-workflow-2026-10-11T05-10-25-643Z-34c015f8-9554-4663-8fc1-998f37c76fcc.json",
+      "rawSha256": "9892ae583a080c0a5b39c04946ff35d97ddfb75b91c4fc7213d8b87cbb93e8e7",
+      "commit": "abd899315f6dcce997b08e62e7e95e15f1816cc9",
+      "buildReceipt": {
+        "version": 1,
+        "head": "abd899315f6dcce997b08e62e7e95e15f1816cc9",
+        "tree": "59eafbeb3d137b1fc0eae5680d3cd6c2db46900c",
+        "dirty": false
+      },
+      "sourceHashes": {
+        "src/workbench/NomiStudioApp.tsx": "ea60419f5899ccb3412441fa9513c7d8b2c3ad4262ec6e5927b0a1e2d9f2d596",
+        "src/workbench/project/projectOpenView.ts": null,
+        "src/workbench/WorkbenchShell.tsx": "c9eb314c0ef512fdaf9ccafc1cd8664309ec35ed8fb07bcdd9195be2f45e961d",
+        "src/workbench/generationCanvas/components/GenerationCanvas.tsx": "ad0c85add4378f0160c0bb6fbfad2a1024032d78bae3cd0075dceab5e12975be",
+        "src/workbench/common/LazyNomiMarkdown.tsx": "8d02587680e09aa0c8ba9aab3137db62566883dfd19158a294ba3fd4af17e2af"
+      },
+      "cells": [
+        {
+          "cache": "cold",
+          "status": "failed_budget",
+          "summary": {
+            "cache": "cold",
+            "actionSamples": 5,
+            "frameSamples": 210,
+            "longTaskSamples": 5,
+            "feedbackP95": 337.20000000074504,
+            "contentP95": 889.3999999992549,
+            "readyEligibilityP95": 715.5800000004471,
+            "acknowledgedP95": 781.0400000013411,
+            "controlResponseP95": 41.100000002980224,
+            "frameP95": 34.48500000108032,
+            "frameP99": 79.56499999925494,
+            "longTaskP95": 77.2,
+            "maxLongTask": 80,
+            "droppedFrameRatio": 0.02857142857142857,
+            "p99Supported": true
+          },
+          "acceptanceMissing": [
+            "active-gesture frame metrics (project.open is a discrete click)",
+            "main long-task probe",
+            "CPU action-window distribution",
+            "memory/teardown residual"
+          ],
+          "functionalAttemptsPassed": 6
+        },
+        {
+          "cache": "hot",
+          "status": "inconclusive",
+          "summary": {
+            "cache": "hot",
+            "actionSamples": 5,
+            "frameSamples": 43,
+            "longTaskSamples": 6,
+            "feedbackP95": 87.78000000044703,
+            "contentP95": 233.23999999910592,
+            "readyEligibilityP95": 87.78000000044703,
+            "acknowledgedP95": 118.88000000044704,
+            "controlResponseP95": 21.840000002086164,
+            "frameP95": 73.0099999975413,
+            "frameP99": 74.28999999999999,
+            "longTaskP95": 68.75,
+            "maxLongTask": 70,
+            "droppedFrameRatio": 0.13953488372093023,
+            "p99Supported": false
+          },
+          "acceptanceMissing": [
+            "active-gesture frame metrics (project.open is a discrete click)",
+            "main long-task probe",
+            "CPU action-window distribution",
+            "memory/teardown residual",
+            "p99 sample support (<100 frames)"
+          ],
+          "functionalAttemptsPassed": 6
+        }
+      ]
+    },
+    {
+      "stage": "after",
+      "raw": "raw/nomi-user-workflow-2026-10-11T05-58-10-745Z-31ed5c07-8e1f-4e0c-98a0-404221c19de6.json",
+      "rawSha256": "b84d257b1bb710d5c7e12d9d0ef954d1e60607b0451775a789af30d3859445a1",
+      "commit": "314a5f29dbf69542947957a2854e5d035d79e263",
+      "buildReceipt": {
+        "version": 1,
+        "head": "314a5f29dbf69542947957a2854e5d035d79e263",
+        "tree": "4b9ebc30c7b40eeccb692d95f44950743c8fe7b6",
+        "dirty": false
+      },
+      "sourceHashes": {
+        "src/workbench/NomiStudioApp.tsx": "2adfa3f2d85648e4a90e1f333ff4cf58cd4df8aab3ac32454e00e09f2a071bf6",
+        "src/workbench/project/projectOpenView.ts": "8938d4c93adad387a578282808a57e02794696715eee3ee6d32e4ba7bb50725f",
+        "src/workbench/WorkbenchShell.tsx": "7631c48acd09a013a51ff3e998281a624f237bdb6af1fa80007e6a2218f0699f",
+        "src/workbench/generationCanvas/components/GenerationCanvas.tsx": "d048625fb594b3599b2ce2a5f553bdad908b9dbe8c961f8ddf48d439caff5e47",
+        "src/workbench/common/LazyNomiMarkdown.tsx": "8cb1960a2296ec8011bad6d55367070d70ebbc38833acc3b27a4a626ef8e4a6f"
+      },
+      "cells": [
+        {
+          "cache": "cold",
+          "status": "failed_budget",
+          "summary": {
+            "cache": "cold",
+            "actionSamples": 5,
+            "frameSamples": 232,
+            "longTaskSamples": 5,
+            "feedbackP95": 18.3,
+            "contentP95": 907.9600000008941,
+            "readyEligibilityP95": 781.2200000010431,
+            "acknowledgedP95": 822.1800000026822,
+            "controlResponseP95": 26.980000001192092,
+            "frameP95": 41.09499999843536,
+            "frameP99": 80.00200000051407,
+            "longTaskP95": 71,
+            "maxLongTask": 72,
+            "droppedFrameRatio": 0.02586206896551724,
+            "p99Supported": true
+          },
+          "acceptanceMissing": [
+            "active-gesture frame metrics (project.open is a discrete click)",
+            "main long-task probe",
+            "CPU action-window distribution",
+            "memory/teardown residual"
+          ],
+          "functionalAttemptsPassed": 6
+        },
+        {
+          "cache": "hot",
+          "status": "inconclusive",
+          "summary": {
+            "cache": "hot",
+            "actionSamples": 5,
+            "frameSamples": 40,
+            "longTaskSamples": 3,
+            "feedbackP95": 13.520000001043082,
+            "contentP95": 194.72000000104308,
+            "readyEligibilityP95": 79.95999999940395,
+            "acknowledgedP95": 102.53999999985099,
+            "controlResponseP95": 17.960000001639127,
+            "frameP95": 61.634999998658884,
+            "frameP99": 66.64900000058114,
+            "longTaskP95": 58,
+            "maxLongTask": 58,
+            "droppedFrameRatio": 0.125,
+            "p99Supported": false
+          },
+          "acceptanceMissing": [
+            "active-gesture frame metrics (project.open is a discrete click)",
+            "main long-task probe",
+            "CPU action-window distribution",
+            "memory/teardown residual",
+            "p99 sample support (<100 frames)"
+          ],
+          "functionalAttemptsPassed": 6
+        }
+      ]
+    }
+  ],
+  "completePerformanceAcceptance": false,
+  "significantEndToEndGainEstablished": false,
+  "limits": "Cold feedback observed337.20\u219218.30ms; real menu completion781.04\u2192822.18ms remains over500ms and this batch is slower. n=5 does not establish a significant regression/gain. Hot remains inconclusive. Decoded DOM image diagnostic and screenshot are separate; viewed cold1 post-measurement screenshot still shows thumbnail placeholders, not complete media paint. Real display/Mac/Windows/GPU, actionCPU/main tasks/memory/teardown/active gestures and adequate hot p99 remain unverified."
+}

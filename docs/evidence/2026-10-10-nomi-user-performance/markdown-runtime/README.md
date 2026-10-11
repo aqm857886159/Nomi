@@ -1,6 +1,6 @@
 # Four production Markdown components: controlled runtime
 
-Run `DISPLAY=:97 NOMI_E2E_CHROMIUM_ARGS=--no-sandbox,--disable-gpu-sandbox node tests/ux/nomi-markdown-runtime.e2e.mjs` from the checkout. The loopback Vite host serves actual production TSX components and providers to Electron43.4.1 at1280×933. Each receipt identifies the native build used; renderer source hashes identify the exercised production code, rather than claiming a clean rebuilt native app.
+Run `DISPLAY=:97 NOMI_E2E_CHROMIUM_ARGS=--no-sandbox,--disable-gpu-sandbox node tests/ux/nomi-markdown-runtime.e2e.mjs` from the checkout. The loopback Vite host serves actual production TSX components and providers to Electron43.4.1 at1280×933. The05:20–05:38 runs used the recorded ABD native shell, while05:50 used the clean FF6 shell; renderer source hashes identify the exercised production code, rather than claiming a clean rebuilt native app.
 
 The fixture supplies content/resources and host prop/unmount ports. Skill's real modal traps outside input, so those ports are required for controlled updates; they do not certify trusted user gestures or native navigation. Artifact exercises its real fetch body with a controlled data URL, not native-file permissions. Agent exercises actual renderer stream props and completion, not an additional model/provider stream. No paid model is invoked.
 
