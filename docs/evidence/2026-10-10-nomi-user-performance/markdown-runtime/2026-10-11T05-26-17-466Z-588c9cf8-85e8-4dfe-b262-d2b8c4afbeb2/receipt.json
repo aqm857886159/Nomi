@@ -1,0 +1,185 @@
+{
+  "scope": "real production component runtime in Electron; controlled fixture props/resource faults; native navigation and provider tasks unverified",
+  "head": "abd899315f6dcce997b08e62e7e95e15f1816cc9",
+  "sourceHashes": {
+    "tests/ux/nomi-markdown-runtime.e2e.mjs": "90523cf4341ac20ba3ca831e16836e189e3b9da7c894b64ea200c2635aa3d6ba",
+    "tests/ux/fixtures/nomi-markdown-runtime/main.tsx": "f9f14d7bafa8697cdefea5d33127fed66b33836496955b82cc96f90999b1f9f9",
+    "src/workbench/common/LazyNomiMarkdown.tsx": "8d02587680e09aa0c8ba9aab3137db62566883dfd19158a294ba3fd4af17e2af",
+    "src/workbench/common/NomiMarkdown.tsx": "bf3e9f715f08413252a392c555557bbf148be65fd407e23ba2ea8356c0771490",
+    "src/ui/chunkBoundary.tsx": "69bd7b17bfe15279db2e8bec359941e4f772e01f4028d4cde3176f8fe499701f",
+    "src/workbench/ai/v4/AgentPanelV4Markdown.tsx": "b913b9082458661feb8bbf674bcfefe64caf3c36ef3c590e03dd3b25ccb26766",
+    "src/workbench/skillLibrary/SkillDetail.tsx": "0275fad622f7b725fe3fff5621a72360a1862445852e5e940e0b7dc61132e0f4",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx": "fbed8e316265b34de4bb74d7f1aca0bf94e6653cd5f7cdd92ec75afe443ef534",
+    "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx": "525a8fbda23defcf4815fd7920869bac40e12363351736be5830290d213c6740"
+  },
+  "cells": [
+    {
+      "locale": "zh-CN",
+      "surface": "agent",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "two real renderer stream prop updates and final completion",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "skill",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "prompt",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "artifact",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "agent",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "two real renderer stream prop updates and final completion",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "skill",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "prompt",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "artifact",
+      "pid": 449124,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    }
+  ],
+  "passed": false,
+  "guard": {
+    "pid": 449124,
+    "layers": [
+      "fetch",
+      "http",
+      "https",
+      "socket",
+      "chromium"
+    ],
+    "blockedAttempts": 0,
+    "errors": 0,
+    "sha256": "33673f9f5ceca40fea051a88f730b8b262611014dbe550cf11ed4ef71825cc08"
+  }
+}

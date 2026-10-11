@@ -1,11 +1,12 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import type { NomiMarkdown } from './NomiMarkdown'
 
 type LazyNomiMarkdownProps = React.ComponentProps<typeof NomiMarkdown>
 
-const NomiMarkdownImpl = React.lazy(() => import('./NomiMarkdown').then((module) => ({ default: module.NomiMarkdown })))
+const NomiMarkdownImpl = lazyWithChunkBoundary('Markdown', () => import('./NomiMarkdown').then((module) => ({ default: module.NomiMarkdown })))
 
 function MarkdownFallback({ compact = false }: Pick<LazyNomiMarkdownProps, 'compact'>): JSX.Element {
   const { t } = useTranslation()

@@ -1,0 +1,28 @@
+{
+  "name": "项目打开视图准入",
+  "subject": "performance.project-open-view-admission",
+  "lifecycle": "project-data",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/NomiStudioApp.tsx",
+    "symbol": "hydrateProjectView"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hydrateProjectView"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/nomi-project-open-preload.node-test.mjs",
+  "allowed_consumers": [
+    "src/workbench/library/openWorkspaceFlow.ts",
+    "src/workbench/project/useProjectNotificationTarget.ts",
+    "src/workbench/project/projectOpenView.ts"
+  ],
+  "since": "2026-10-11",
+  "notes": "Shared renderer sequence owns progress and Surface ACK/receipt gate; original view factories only import code and do not own project state."
+}

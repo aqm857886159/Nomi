@@ -1,0 +1,227 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-opening-import-overlap",
+  "problem_type": "Serial required-view import waterfall and missing hydration progress",
+  "symptom": "New-fixture clean ABD small cold first feedback337.20ms and real project-menu response781.04ms exceed100/500ms",
+  "direct_cause": "Library stays visible while disk/lane hydration runs; required generation chunks begin their serial imports only after studio exposure",
+  "class_root": "Shared project hydration owns execution safety but has no sequence-owned progress and no safe after-ACK code-loading overlap",
+  "affected_population": [
+    "Cold opens and project switches on supported platforms",
+    "New/reopened/imported projects and notification reveal entries"
+  ],
+  "scope_paths": [
+    "src/workbench/NomiStudioApp.tsx",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/generationCanvas/components/GenerationCanvas.tsx",
+    "src/workbench/project/projectOpenView.ts"
+  ],
+  "entry_points": [
+    "Shared NomiStudioApp hydrateProjectView via library/project/create/reveal; unchanged hydrateProject port slot"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react/lazy",
+      "checked_at": "2026-10-11",
+      "purpose": "Stable module-level lazy identity; promise rejection reaches nearest error boundary"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import",
+      "checked_at": "2026-10-11",
+      "purpose": "Native module import cache and error semantics, without custom loader"
+    }
+  ],
+  "invariants": [
+    "Surface beginHydration is synchronous and ACK precedes lazy imports or project reads",
+    "Progress belongs to current hydration sequence; stale finally cannot dismiss a newer operation",
+    "Lane/migration/recovery finish before studio mount",
+    "Only generation-required code imports overlap hydration after input; optional Markdown remains on actual use",
+    "Preload reuses factories and never owns domain state or caches a rejected factory"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/GenerationCanvas.tsx",
+      "symbol": "preloadGenerationCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "loadWorkbenchShell"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "loadGenerationCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hydrateProjectView"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectOpenView.ts",
+      "symbol": "loadWorkbenchShell"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectOpenView.ts",
+      "symbol": "loadGenerationCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "preloadGenerationWorkspace"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/exportJobManager.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/openWorkspaceFlow.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "preloadProjectView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hydrateProjectView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectHydrationRecovery.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectOpenView.ts",
+      "symbol": "preloadGenerationWorkspace"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectOpenView.ts",
+      "symbol": "preloadGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "symbol": "hydrateProject"
+    }
+  ],
+  "door_reduction": {
+    "before": 17,
+    "after": 17,
+    "why_not": "Distinct library, create/open-folder and notification intentions converge on renderer hydrateProject. Persistence/export same-named methods retain separate domain ownership and do not mount UI."
+  },
+  "generality_proof": "All renderer open/create/reveal callers converge on the same sequence and Surface ACK; the same factory imports are reused by normal lazy boundaries for the shell and generation canvas.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "hydrateProjectView",
+      "responsibility": "Sequence-owned progress and after-ACK required-view import start; unchanged domain ordering"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "openProject",
+      "disposition": "enforced",
+      "evidence": "Library/top-bar opens call shared hydrateProject"
+    },
+    {
+      "path": "src/workbench/project/useProjectNotificationTarget.ts",
+      "entry_point": "revealProjectTarget",
+      "disposition": "enforced",
+      "evidence": "Calls supplied shared hydrateProject before revealing the target"
+    },
+    {
+      "path": "electron/export/exportJobManager.ts",
+      "entry_point": "hydrateProject",
+      "disposition": "not-affected",
+      "evidence": "Export snapshot hydration is not renderer navigation and never mounts a studio"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Fresh cold opens and any equivalent renderer caller reproduce the serial import delay",
+    "same_class_scan": [
+      "door-map.mjs hydrateProject generated eight doors; followed openProject/newProject/openWorkspaceFromLibrary/revealProjectTarget wrappers",
+      "Inspected shell GenerationWorkspace and canvas ReactFlow lazy chain and top-level import effects",
+      "Independent fresh trace identifies each necessary chunk start after input and studio"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/NomiStudioApp.tsx",
+    "invariant": "Current hydration visibly loads and required code imports start only after suspended Surface ACK, while domain recovery gates studio exposure",
+    "failure_mode": "Existing stale-epoch checks reject stale operations; preload failures are logged and handled by unchanged local lazy retry/error domains",
+    "exception_policy": "none",
+    "strategy": "Enforce sequence/ACK ordering at the shared hydration owner, using the original generation factories",
+    "artifacts": [
+      "src/workbench/NomiStudioApp.tsx",
+      "src/workbench/WorkbenchShell.tsx",
+      "src/workbench/generationCanvas/components/GenerationCanvas.tsx",
+      "src/workbench/project/projectOpenView.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/nomi-project-open-preload.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/nomi-project-open-preload.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/NomiStudioApp.tsx",
+      "src/workbench/WorkbenchShell.tsx",
+      "src/workbench/generationCanvas/components/GenerationCanvas.tsx"
+    ],
+    "rationale": "Replaces invisible library wait and anonymous serial-only factories; does not add a second execution or persistence path"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "React18 native ESM + existing lazyWithChunkBoundary",
+    "target": "Supported React API preserving module-level lazy/error and Surface ordering",
+    "rationale": "No dependency upgrade is necessary to overlap existing factories; renderer framework upgrade is outside this bounded correction",
+    "exit_criteria": [
+      "During supported React upgrade, repeat suspended-input/update/failure/close-reopen and guarded project-open measurements"
+    ]
+  },
+  "migration": "Existing disk/lane migration, identity checks, locking, Surface commit and receipt recovery unchanged; no persisted data migration.",
+  "residual_risks": [
+    "951-module main import graph remains; inclusive legacy stage is not pure migration cost",
+    "CPU action-window distribution, teardown memory, real-display Mac/Windows/GPU and complete performance acceptance unverified",
+    "Controlled component runtime evidence does not certify every native navigation/resource case"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/NomiStudioApp.tsx",
+    "tests": [
+      "tests/ux/nomi-project-open-preload.node-test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "patch",
+    "characterization_test": "tests/ux/nomi-project-open-preload.node-test.mjs"
+  }
+}

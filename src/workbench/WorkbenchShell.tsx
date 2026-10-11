@@ -36,9 +36,10 @@ const StoryboardWorkspace = lazyWithChunkBoundary(
     "i18n:workspace.storyboard",
     () => import("./creation/storyboard/StoryboardWorkspace"),
 );
+export const preloadGenerationWorkspace = () => import("./generation/GenerationWorkspace");
 const GenerationWorkspace = lazyWithChunkBoundary(
     "生成区",
-    () => import("./generation/GenerationWorkspace"),
+    preloadGenerationWorkspace,
 );
 const PreviewWorkspace = lazyWithChunkBoundary("预览区", () => import("./preview/PreviewWorkspace"));
 

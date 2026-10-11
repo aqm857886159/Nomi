@@ -1,0 +1,180 @@
+{
+  "scope": "real production component runtime in Electron; controlled fixture props/resource faults; native navigation and provider tasks unverified",
+  "head": "abd899315f6dcce997b08e62e7e95e15f1816cc9",
+  "sourceHashes": {
+    "tests/ux/nomi-markdown-runtime.e2e.mjs": "8a757a69c6a23766fb4150a3f8066a9c87ba69588150830898c5675865c7e03d",
+    "tests/ux/fixtures/nomi-markdown-runtime/main.tsx": "34fb4a3313687c81e9de6b37baeb55107a3e444f73587f400922be3aa6a1296c",
+    "src/workbench/common/LazyNomiMarkdown.tsx": "8d02587680e09aa0c8ba9aab3137db62566883dfd19158a294ba3fd4af17e2af",
+    "src/workbench/common/NomiMarkdown.tsx": "bf3e9f715f08413252a392c555557bbf148be65fd407e23ba2ea8356c0771490",
+    "src/ui/chunkBoundary.tsx": "69bd7b17bfe15279db2e8bec359941e4f772e01f4028d4cde3176f8fe499701f",
+    "src/workbench/ai/v4/AgentPanelV4Markdown.tsx": "b913b9082458661feb8bbf674bcfefe64caf3c36ef3c590e03dd3b25ccb26766",
+    "src/workbench/skillLibrary/SkillDetail.tsx": "0275fad622f7b725fe3fff5621a72360a1862445852e5e940e0b7dc61132e0f4",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx": "fbed8e316265b34de4bb74d7f1aca0bf94e6653cd5f7cdd92ec75afe443ef534",
+    "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx": "525a8fbda23defcf4815fd7920869bac40e12363351736be5830290d213c6740"
+  },
+  "cells": [
+    {
+      "locale": "zh-CN",
+      "surface": "agent",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "two real renderer stream prop updates and final completion",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "skill",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input"
+      ],
+      "passed": false,
+      "failure": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-runtime-update]')\u001b[22m\n\u001b[2m    - locator resolved to <button data-runtime-update=\"true\">Update</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-fixed=\"true\" class=\"mantine-Modal-overlay m_9814e45f mantine-Overlay-root\"></div> from <div data-portal=\"true\" data-mantine-shared-portal-node=\"true\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-fixed=\"true\" class=\"mantine-Modal-overlay m_9814e45f mantine-Overlay-root\"></div> from <div data-portal=\"true\" data-mantine-shared-portal-node=\"true\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-fixed=\"true\" class=\"mantine-Modal-overlay m_9814e45f mantine-Overlay-root\"></div> from <div data-portal=\"true\" data-mantine-shared-portal-node=\"true\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
+      "failureObservation": {
+        "headings": [
+          "Runtime skill"
+        ],
+        "controlsPresent": true,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "prompt",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "artifact",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "出了点问题"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "agent",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "two real renderer stream prop updates and final completion",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "skill",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input"
+      ],
+      "passed": false,
+      "failure": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-runtime-update]')\u001b[22m\n\u001b[2m    - locator resolved to <button data-runtime-update=\"true\">Update</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-fixed=\"true\" class=\"mantine-Modal-overlay m_9814e45f mantine-Overlay-root\"></div> from <div data-portal=\"true\" data-mantine-shared-portal-node=\"true\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-fixed=\"true\" class=\"mantine-Modal-overlay m_9814e45f mantine-Overlay-root\"></div> from <div data-portal=\"true\" data-mantine-shared-portal-node=\"true\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-fixed=\"true\" class=\"mantine-Modal-overlay m_9814e45f mantine-Overlay-root\"></div> from <div data-portal=\"true\" data-mantine-shared-portal-node=\"true\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
+      "failureObservation": {
+        "headings": [
+          "Runtime skill"
+        ],
+        "controlsPresent": true,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "prompt",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    },
+    {
+      "locale": "en",
+      "surface": "artifact",
+      "pid": 448625,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content"
+      ],
+      "passed": false,
+      "failure": "expect(locator).toBeVisible() failed\n\nLocator: locator('[data-chunk-boundary=\"Markdown\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('[data-chunk-boundary=\"Markdown\"]')\n",
+      "failureObservation": {
+        "headings": [
+          "Something went wrong"
+        ],
+        "controlsPresent": false,
+        "localChunkErrorPresent": false
+      }
+    }
+  ],
+  "passed": false,
+  "guard": {
+    "pid": 448625,
+    "layers": [
+      "fetch",
+      "http",
+      "https",
+      "socket",
+      "chromium"
+    ],
+    "blockedAttempts": 0,
+    "errors": 0
+  }
+}

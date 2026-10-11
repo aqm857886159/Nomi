@@ -26,142 +26,252 @@
     {
       "surface": "AgentMarkdown",
       "source": "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
-      "runtimeAcceptance": "unverified",
+      "runtimeAcceptance": "bounded-component-runtime-passed; native integration unverified",
       "cases": [
         {
           "id": "cold-chunk-loading",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "cold-chunk-failure",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "props-update-while-suspended",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "close-and-reopen",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
-          "id": "actual-Agent-streaming",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "id": "renderer-streaming-prop-updates-and-completion",
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "nativeProviderAcceptance": "unverified; separate bounded native stream receipt only",
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         }
       ],
       "relatedEvidence": [
-        "journeys/cross-project-agent-2026-10-11T04-22-46-937Z-216f012f-f51b-40ae-9b59-ad6c2c560564/receipt.json"
+        "journeys/cross-project-agent-2026-10-11T04-22-46-937Z-216f012f-f51b-40ae-9b59-ad6c2c560564/receipt.json",
+        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
       ],
-      "limits": "SSR completion/import graph and bounded native text rendering do not certify controlled runtime chunk/failure/suspended-update lifecycle."
+      "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     },
     {
       "surface": "SkillDetail",
       "source": "src/workbench/skillLibrary/SkillDetail.tsx",
-      "runtimeAcceptance": "unverified",
+      "runtimeAcceptance": "bounded-component-runtime-passed; native integration unverified",
       "cases": [
         {
           "id": "cold-chunk-loading",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "cold-chunk-failure",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "props-update-while-suspended",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "close-and-reopen",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         }
       ],
-      "relatedEvidence": [],
-      "limits": "SSR completion/import graph and bounded native text rendering do not certify controlled runtime chunk/failure/suspended-update lifecycle."
+      "relatedEvidence": [
+        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+      ],
+      "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     },
     {
       "surface": "PromptPreviewOverlay",
       "source": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
-      "runtimeAcceptance": "unverified",
+      "runtimeAcceptance": "bounded-component-runtime-passed; native integration unverified",
       "cases": [
         {
           "id": "cold-chunk-loading",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "cold-chunk-failure",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "props-update-while-suspended",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "close-and-reopen",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         }
       ],
-      "relatedEvidence": [],
-      "limits": "SSR completion/import graph and bounded native text rendering do not certify controlled runtime chunk/failure/suspended-update lifecycle."
+      "relatedEvidence": [
+        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+      ],
+      "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     },
     {
       "surface": "ArtifactBody",
       "source": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
-      "runtimeAcceptance": "unverified",
+      "runtimeAcceptance": "bounded-component-runtime-passed; native integration unverified",
       "cases": [
         {
           "id": "cold-chunk-loading",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "cold-chunk-failure",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "props-update-while-suspended",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         },
         {
           "id": "close-and-reopen",
-          "implemented": false,
-          "executed": false,
-          "passed": false
+          "implemented": true,
+          "executed": true,
+          "passed": true,
+          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "locales": [
+            "zh-CN",
+            "en"
+          ],
+          "scope": "controlled production-component runtime"
         }
       ],
-      "relatedEvidence": [],
-      "limits": "SSR completion/import graph and bounded native text rendering do not certify controlled runtime chunk/failure/suspended-update lifecycle."
+      "relatedEvidence": [
+        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+      ],
+      "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     }
   ],
   "entries": [

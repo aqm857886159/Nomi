@@ -1,0 +1,150 @@
+{
+  "scope": "real production component runtime in Electron; controlled fixture props/resource faults; native navigation and provider tasks unverified",
+  "head": "abd899315f6dcce997b08e62e7e95e15f1816cc9",
+  "sourceHashes": {
+    "tests/ux/nomi-markdown-runtime.e2e.mjs": "55103abfdd44c7f68549a7ccd491d8dbc968db398452a215d4119160abde1f68",
+    "tests/ux/nomi-markdown-runtime-probe.mjs": "86abc7bb42787da5d55cf561ccd7e0f0937077f9c1b904808cb04c67112c3710",
+    "tests/ux/fixtures/nomi-markdown-runtime/main.tsx": "f9f14d7bafa8697cdefea5d33127fed66b33836496955b82cc96f90999b1f9f9",
+    "tests/ux/fixtures/nomi-markdown-runtime/index.html": "b0ca2d58ad080713065d7115698bdcd2fd19a7d6d8d45b8b9b657b97217ad851",
+    "tests/ux/_launchApp.mjs": "17f62a8b21025a3b22952c70c177ff4595879f4fefd32b011cc76c2714a52f25",
+    "tests/ux/full-walk/invariants.mjs": "801550b55755a91f49923fa3dfd1bc5f659dc584059439b2d2fc4be25f3023ef",
+    "scripts/walkthrough-network-guard.cjs": "64a06a564b5336d7b342ce74f3d0fd6c1a783cca0ad6962d07de744ef9908553",
+    "src/workbench/common/LazyNomiMarkdown.tsx": "8cb1960a2296ec8011bad6d55367070d70ebbc38833acc3b27a4a626ef8e4a6f",
+    "src/workbench/common/NomiMarkdown.tsx": "bf3e9f715f08413252a392c555557bbf148be65fd407e23ba2ea8356c0771490",
+    "src/ui/chunkBoundary.tsx": "69bd7b17bfe15279db2e8bec359941e4f772e01f4028d4cde3176f8fe499701f",
+    "src/workbench/ai/v4/AgentPanelV4Markdown.tsx": "b913b9082458661feb8bbf674bcfefe64caf3c36ef3c590e03dd3b25ccb26766",
+    "src/workbench/skillLibrary/SkillDetail.tsx": "0275fad622f7b725fe3fff5621a72360a1862445852e5e940e0b7dc61132e0f4",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx": "fbed8e316265b34de4bb74d7f1aca0bf94e6653cd5f7cdd92ec75afe443ef534",
+    "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx": "525a8fbda23defcf4815fd7920869bac40e12363351736be5830290d213c6740"
+  },
+  "cells": [
+    {
+      "locale": "zh-CN",
+      "surface": "agent",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "two real renderer stream prop updates and final completion",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "skill",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "prompt",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "zh-CN",
+      "surface": "artifact",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "surface": "agent",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "two real renderer stream prop updates and final completion",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "surface": "skill",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "surface": "prompt",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    },
+    {
+      "locale": "en",
+      "surface": "artifact",
+      "pid": 480841,
+      "cases": [
+        "cold first-use fallback; absent before input",
+        "newest props survive suspended first load; table/code/explicit image link",
+        "close/unmount and reopen retain current content",
+        "failed first module fetch stays local; parent controls survive",
+        "close/reopen preserves explicit cached chunk failure",
+        "fresh context recovers original chunk after resource restoration"
+      ],
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "guard": {
+    "pid": 480841,
+    "layers": [
+      "fetch",
+      "http",
+      "https",
+      "socket",
+      "chromium"
+    ],
+    "blockedAttempts": 0,
+    "errors": 0,
+    "sha256": "100df6c64f20e79f60025798f446360c0a4dc9024f3d502096da6c7691aaf82b"
+  }
+}

@@ -270,7 +270,7 @@
     "eval:director:judge": "tsx evals/director/judge/run.ts",
     "measure:host-config-commit-window": "node scripts/measure-host-config-commit-window.mjs",
     "check:test-temp-static": "node --test ./scripts/check-test-temp-static.node-test.mjs ./scripts/_test-temp.node-test.mjs",
-    "check:nomi-workflow-evidence": "node --test tests/ux/nomi-user-workflow-performance.node-test.mjs tests/ux/renderer-open-markdown-boundary.node-test.mjs tests/ux/nomi-next-workflow-probe.node-test.mjs",
+    "check:nomi-workflow-evidence": "node --test tests/ux/nomi-user-workflow-performance.node-test.mjs tests/ux/renderer-open-markdown-boundary.node-test.mjs tests/ux/nomi-next-workflow-probe.node-test.mjs tests/ux/nomi-project-open-preload.node-test.mjs",
     "check:nomi-markdown-consumers": "node scripts/vitest-fair-share.mjs src/workbench/ai/v4/agentPanelV4Blocks.test.ts src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts src/workbench/ai/v4/agentPanelV4Performance.test.ts src/workbench/ai/v4/testReactRenderer.test.ts src/workbench/ai/v4/asyncReadIdentity.test.ts src/workbench/ai/v4/useLogUnclassifiedProviderFailures.test.ts",
     "check:nomi-native-evidence": "node --test tests/ux/nomi-native-evidence-contract.node-test.mjs"
   },

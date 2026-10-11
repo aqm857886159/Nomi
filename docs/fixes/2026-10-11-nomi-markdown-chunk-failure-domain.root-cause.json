@@ -1,0 +1,175 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-markdown-chunk-failure-domain",
+  "problem_type": "Optional Markdown module rejection destroys the whole application",
+  "symptom": "Controlled missing first-use Markdown resource reaches root error page and removes parent controls in actual Electron renderer",
+  "direct_cause": "Shared optional Markdown wrapper uses plain React.lazy without the existing local chunk retry/error domain",
+  "class_root": "Optional resource admission has Suspense loading containment but lacks error containment at the same shared owner",
+  "affected_population": [
+    "Agent message, Skill detail, Prompt preview and Artifact Markdown in zh/en",
+    "Missing/corrupt chunks, transient I/O and cached failed dynamic module imports"
+  ],
+  "scope_paths": [
+    "src/workbench/common/LazyNomiMarkdown.tsx"
+  ],
+  "entry_points": [
+    "Four actual production Markdown consumers with cold resource hold/fault and host prop/unmount test ports"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react/lazy",
+      "checked_at": "2026-10-11",
+      "purpose": "Lazy rejects to nearest Error Boundary and caches the rejection; remount cannot reset failed module identity"
+    }
+  ],
+  "invariants": [
+    "NomiMarkdown stays the sole production renderer and remains absent before actual use",
+    "A rejected optional module is handled by existing local retry/error owner, preserving parent/dialog controls",
+    "Newest full typed props survive suspended load; Agent stream updates and closing/reopening remain correct",
+    "Persistent failed lazy import requires existing fresh-context reload, never a fake fallback parser"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/common/NomiMarkdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "symbol": "LazyNomiMarkdown"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "Four semantic consumers and shared renderer/kernel test references remain necessary; admission and error containment converge on the same wrapper."
+  },
+  "generality_proof": "Changing the one shared admission owner protects every actual Markdown consumer. The existing graph gate prevents alternate eager/bypassed imports; actual eight component/locale runtime cells independently exercise fault and lifecycle.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+      "symbol": "LazyNomiMarkdown",
+      "responsibility": "Use existing local chunk retry/error domain and forward the full rendering contract"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+      "entry_point": "AgentPanelV4Markdown",
+      "disposition": "enforced",
+      "evidence": "Real component stream props/fault/close-reopen matrix, same wrapper"
+    },
+    {
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "entry_point": "SkillDetail",
+      "disposition": "enforced",
+      "evidence": "Real dialog body and host-controlled props/unmount matrix, same wrapper"
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "entry_point": "PromptPreviewOverlay",
+      "disposition": "enforced",
+      "evidence": "Real portal content/fault lifecycle, same wrapper"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+      "entry_point": "MarkdownPreview",
+      "disposition": "enforced",
+      "evidence": "Real fetch/update/cancelled fetch lifecycle and Markdown body, same wrapper"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every first-use resource rejection and future Markdown consumer can reach the same missing local error owner",
+    "same_class_scan": [
+      "door-map NomiMarkdown LazyNomiMarkdown --roots=src --include-tests generated eight source doors",
+      "Actual runtime two locales times four production components; resource holds/faults, table/code/link witnesses",
+      "Reviewed existing chunkBoundary React.lazy/importWithRetry/local error/reload lifecycle before choosing reuse"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/common/LazyNomiMarkdown.tsx",
+    "invariant": "Optional Markdown rejection cannot escape its local chunk error domain into RootErrorBoundary",
+    "failure_mode": "Existing retries then localized explicit region error/reload action; normal rendering remains absent when unavailable",
+    "exception_policy": "none",
+    "strategy": "Reuse existing lazyWithChunkBoundary at the mandatory shared wrapper; retain same Suspense and fully inferred props",
+    "artifacts": [
+      "src/workbench/common/LazyNomiMarkdown.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+    "tests/ux/nomi-markdown-runtime.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+    "tests/ux/nomi-markdown-runtime.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/common/LazyNomiMarkdown.tsx"
+    ],
+    "rationale": "Replace the one plain lazy factory; no duplicate parser/error owner or alternate fallback is introduced"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Installed React19.3.0 + Streamdown2.6.0 and native dynamic imports",
+    "target": "Supported React/Streamdown update retaining suspended-stream and regional error contracts",
+    "rationale": "Behavior is documented and existing component domain already supplies the correct boundary; no dependency change needed",
+    "exit_criteria": [
+      "Repeat controlled held/failed import, newest props/stream and close/reopen matrix at framework upgrades"
+    ]
+  },
+  "migration": "No persisted domain/schema/provider/concurrency migration. Existing local error/reload behavior reused.",
+  "residual_risks": [
+    "Component fixtures use controlled host prop/unmount ports and loopback module faults; native navigation/provider/file permission acceptance remains separate",
+    "Real-display Mac/Windows/GPU performance and full functional checklist remain unverified"
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/common/LazyNomiMarkdown.tsx",
+    "tests": [
+      "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+      "tests/ux/nomi-markdown-runtime.e2e.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "patch",
+    "characterization_test": "tests/ux/renderer-open-markdown-boundary.node-test.mjs"
+  }
+}

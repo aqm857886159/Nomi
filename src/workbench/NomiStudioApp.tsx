@@ -77,6 +77,7 @@ import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWrite
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
 import { FeedbackShareHost } from '../ui/community/FeedbackShareHost'
 import { openProjectAgentLane } from './project/projectAgentLaneOpen'
+import { loadGenerationCanvas, loadWorkbenchShell, preloadProjectView } from './project/projectOpenView'
 type AppView = 'library' | 'studio'
 // 项目创建规格：所有创建入口拼装项目的单一真相源（P1）。
 // 各入口各自决定 workspaceMode / seedKey / 创建+刷新+hydrate 的编排时约定不统一——
@@ -92,7 +93,7 @@ type ProjectCreationSpec = {
 type ProjectPersistenceModule = typeof import('./project/projectPersistenceService')
 
 // 懒加载点位全部走容错域（审计 A5）：chunk 失败只降级该区域，不再拖死整个 app。
-const WorkbenchShell = lazyWithChunkBoundary('工作台', () => import('./WorkbenchShell'))
+const WorkbenchShell = lazyWithChunkBoundary('工作台', loadWorkbenchShell)
 const HandbookPanel = lazyWithChunkBoundary('上手手册', () =>
   import('./onboarding/HandbookPanel').then((module) => ({
     default: module.HandbookPanel,
@@ -100,7 +101,7 @@ const HandbookPanel = lazyWithChunkBoundary('上手手册', () =>
 )
 const GenerationCanvas = lazyWithChunkBoundary(
   '生成画布',
-  () => import('./generationCanvas/components/GenerationCanvas'),
+  loadGenerationCanvas,
 )
 const SpendConfirmDialog = lazyWithChunkBoundary('付费确认', () =>
   import('./generationCanvas/spend/SpendConfirmDialog').then((module) => ({
@@ -144,6 +145,7 @@ export default function NomiStudioApp(): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
   const [view, setView] = React.useState<AppView>('library')
+  const [openingProject, setOpeningProject] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{ projectId: string | null; message: string } | null>(null)
   const report = React.useCallback((projectId: string | null, message: string) => notify({ identity: `project:${projectId ?? 'library'}`, reason: 'operation', level: 'inline', message, type: 'error', present: (value) => setFeedback({ projectId, message: value }) }), [])
   const { refreshProjects } = useLocalProjects()
@@ -307,7 +309,7 @@ export default function NomiStudioApp(): JSX.Element {
     }
   }, [])
 
-  const hydrateProject = React.useCallback(
+  const hydrateProjectView = React.useCallback(
     async (projectId: string, options: { replaceUrl?: boolean } = {}) => {
       // This call synchronously invokes Surface suspend. Its ACK is deliberately
       // the first await: neither a lazy import nor readLocalProjectAsync may run
@@ -320,10 +322,12 @@ export default function NomiStudioApp(): JSX.Element {
       // and receipt recovery. React unmounts the studio before the first await;
       // it is exposed again only after lane open + pending compensation finish.
       setView('library')
+      setOpeningProject(true)
       setFeedback(null)
       try {
         await surfaceEpoch.waitUntilSuspended()
         surfaceEpoch.assertCurrent()
+        preloadProjectView()
         if (laneClient.context()) await laneClient.close()
         abandonPendingCanvasWrite()
         clearCommittedProposal()
@@ -380,7 +384,10 @@ export default function NomiStudioApp(): JSX.Element {
           ? laneFailureText(error, t) : t('studio.projectRestoreFailed'))
         return false
       } finally {
-        if (hydrationSequenceRef.current === hydrationSequence) hydratingProjectRef.current = false
+        if (hydrationSequenceRef.current === hydrationSequence) {
+          hydratingProjectRef.current = false
+          setOpeningProject(false)
+        }
       }
       return true
     },
@@ -392,21 +399,21 @@ export default function NomiStudioApp(): JSX.Element {
       // 常规打开默认落「生成」画布。显式设，避免继承上一个示例残留的 creation
       // （WorkbenchShell 挂载在 URL 无 step 时会沿用 store 当前模式）。
       useWorkbenchStore.getState().setWorkspaceMode('generation')
-      void hydrateProject(projectId).catch((error: unknown) => {
+      void hydrateProjectView(projectId).catch((error: unknown) => {
         if (!(error instanceof ProjectHydrationSupersededError)) logRendererError('project-hydrate-failed', error)
       })
     },
-    [hydrateProject],
+    [hydrateProjectView],
   )
 
-  useProjectNotificationTarget({ activeProjectId: activeProjectIdRef, isHydrating: hydratingProjectRef, hydrateProject })
+  useProjectNotificationTarget({ activeProjectId: activeProjectIdRef, isHydrating: hydratingProjectRef, hydrateProject: hydrateProjectView })
 
   const openWorkspaceFolder = React.useCallback(async () => {
     setFeedback(null)
     try {
       await openWorkspaceFromLibrary({
         bridge: getDesktopBridge(),
-        hydrateProject,
+        hydrateProject: hydrateProjectView,
         refreshProjects,
         confirmInitialize: async (rootPath) =>
           confirmDialog({
@@ -419,7 +426,7 @@ export default function NomiStudioApp(): JSX.Element {
     } catch (error: unknown) {
       if (!(error instanceof ProjectHydrationSupersededError)) throw error
     }
-  }, [hydrateProject, refreshProjects, report, t])
+  }, [hydrateProjectView, refreshProjects, report, t])
 
   const revealProjectFolder = React.useCallback(
     (projectId: string) => {
@@ -450,10 +457,10 @@ export default function NomiStudioApp(): JSX.Element {
         useWorkbenchStore.getState().setWorkspaceMode(spec.workspaceMode)
         const project = createLocalProject(spec.name, spec.templateId, spec.seedKey ? { seedKey: spec.seedKey } : {})
         refreshProjects()
-        const opened = await openCreatedProject(() => hydrateProject(project.id))
+        const opened = await openCreatedProject(() => hydrateProjectView(project.id))
         return { projectId: project.id, opened }
       }),
-    [hydrateProject, refreshProjects],
+    [hydrateProjectView, refreshProjects],
   )
 
   const newProject = React.useCallback(() => {
@@ -559,7 +566,7 @@ export default function NomiStudioApp(): JSX.Element {
     initialHydrationAttemptedRef.current = true
     if (!routeProjectId) return
     let cancelled = false
-    void hydrateProject(routeProjectId, { replaceUrl: true })
+    void hydrateProjectView(routeProjectId, { replaceUrl: true })
       .then((opened) => {
         if (!cancelled && !opened) navigate(buildStudioUrl(), { replace: true })
       })
@@ -570,19 +577,19 @@ export default function NomiStudioApp(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [hydrateProject, navigate, routeProjectId])
+  }, [hydrateProjectView, navigate, routeProjectId])
 
   React.useEffect(() => {
     if (!initialHydrationAttemptedRef.current || hydratingProjectRef.current) return
     if (!routeProjectId || routeProjectId === activeProjectIdRef.current) return
-    void hydrateProject(routeProjectId, { replaceUrl: true })
+    void hydrateProjectView(routeProjectId, { replaceUrl: true })
       .then((ok) => {
         if (!ok) navigate(buildStudioUrl(), { replace: true })
       })
       .catch((error: unknown) => {
         if (!(error instanceof ProjectHydrationSupersededError)) logRendererError('project-hydrate-failed', error)
       })
-  }, [hydrateProject, navigate, routeProjectId])
+  }, [hydrateProjectView, navigate, routeProjectId])
 
   React.useEffect(() => {
     if (!activeProject?.id) return
@@ -622,7 +629,7 @@ export default function NomiStudioApp(): JSX.Element {
 
   useWorkspaceEvents(view === 'studio' ? activeProject?.id : null, (type) => {
     if (type === 'canvas.updated' || type === 'timeline.updated' || type === 'creation.updated') {
-      void hydrateProject(activeProject!.id).catch((error: unknown) => {
+      void hydrateProjectView(activeProject!.id).catch((error: unknown) => {
         if (!(error instanceof ProjectHydrationSupersededError)) logRendererError('project-hydrate-failed', error)
       })
     }
@@ -705,7 +712,7 @@ export default function NomiStudioApp(): JSX.Element {
   const viewContent =
     view === 'library' ? (
       <>
-        <ProjectLibraryPage
+        {openingProject ? <GenerationCanvasLoading /> : <ProjectLibraryPage
           projectFeedback={feedback}
           onOpenProject={openProject}
           onDeleteProject={deleteProject}
@@ -718,7 +725,7 @@ export default function NomiStudioApp(): JSX.Element {
           onPlayJourneyTour={playJourneyTour}
           journeyTourSeen={hasSeenJourneyTour()}
           hasTextModel={hasTextModel}
-        />
+        />}
         {settingsDialog}
         <ConfirmDialogHost />
       </>

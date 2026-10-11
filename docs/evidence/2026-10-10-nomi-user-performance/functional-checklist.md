@@ -10,16 +10,16 @@ Native waiting-tool cases were **not executed or attempted**: the runner exited 
 
 Project open/create/switch, two draft switches, existing group selection/grid persistence, native cross-project interrupted/complete cold recovery and corrected competing design content have the exact scopes below. Complete cancellation, undo, error, edit/save and recovery states still require their own real UI receipts. Suggested next bounded scopes are project rename/cancel/reopen; document edit/delete/undo with persistence; storyboard edit/duplicate/delete with exact identities; then actual single-lane tool/approval/retry without requiring unsupported concurrency. These are plans, not executed work.
 
-## Four LazyMarkdown surfaces still need runtime acceptance
+## Four LazyMarkdown surfaces: bounded component runtime passed
 
 | Surface | Cold chunk load/failure | Update while suspended | Actual Agent streaming | Close/reopen |
 | --- | --- | --- | --- | --- |
-| AgentMarkdown | unverified | unverified | unverified | unverified |
-| SkillDetail | unverified | unverified | Agent-owned scenario | unverified |
-| PromptPreviewOverlay | unverified | unverified | Agent-owned scenario | unverified |
-| ArtifactBody | unverified | unverified | Agent-owned scenario | unverified |
+| AgentMarkdown | component passed | component passed | renderer stream props passed; provider integration separate | component passed |
+| SkillDetail | component passed | component passed | Agent-owned scenario | component passed |
+| PromptPreviewOverlay | component passed | component passed | Agent-owned scenario | component passed |
+| ArtifactBody | component passed | component passed | Agent-owned scenario | component passed |
 
-SSR/kernel tests and static import graphs are separate checks. Bounded native completed/partial Markdown rendering is related evidence, but does not certify controlled cold-chunk failure or suspended prop updates at these four surfaces. No runtime cell is silently credited.
+The [actual Electron eight-cell receipt](markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json) covers the four production components/providers in zh-CN/en, held/503 module fetch, latest suspended props, Agent renderer stream props, close/reopen and fresh-context recovery. All eight cells passed, with raw PID-bound five-layer guard and zero outbound attempts. It uses controlled host prop/unmount ports; native navigation, provider stream, Artifact native-file/permission integration and full user workflows remain unverified. [RED/GREEN scope and setup failures](markdown-runtime/README.md). SSR/kernel and static import checks remain separate evidence.
 
 ## Exact family list
 
