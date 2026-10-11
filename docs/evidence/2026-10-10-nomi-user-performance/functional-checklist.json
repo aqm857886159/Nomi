@@ -6,9 +6,10 @@
   "counts": {
     "featureFamilies": 88,
     "boundedFunctionalEvidence": 10,
-    "plannedUnexecuted": 77,
+    "plannedUnexecuted": 76,
     "unavailable": 1,
-    "fullFunctionalAcceptance": 0
+    "fullFunctionalAcceptance": 0,
+    "executedFailed": 1
   },
   "historicalMapping": {
     "actions": 78,
@@ -353,11 +354,14 @@
       "input": "卡片改名、取消、重新提交",
       "visibleCompletion": "库/顶栏名称一致",
       "dataAssertion": "ID/名称/目录/内容/索引符合操作；非目标数据保持",
-      "functionalState": "planned-unexecuted",
-      "boundedEvidence": [],
-      "boundedScope": null,
+      "functionalState": "executed-failed",
+      "boundedEvidence": [
+        "project-rename-verification.md",
+        "journeys/project-rename-2026-10-11T06-13-54-779Z-2eb91004-0a49-4e3d-9451-e73f7edbd250/receipt.json"
+      ],
+      "boundedScope": "Real cancel assertions preserve complete A/B bytes; trim/commit visible name and ID observed but full-payload equality failed. Overall native walk failed; cold reopen unattempted, no complete acceptance.",
       "fullFunctionalAcceptance": false,
-      "remaining": "Complete reachable happy/error/cancel/undo/interruption/recovery and non-target persistence states under real UI; scale/cache/input/resource/concurrency combinations remain planned",
+      "remaining": "Assess legacy/canonical fixture normalization, then rerun strict full-payload rename/cold-reopen. Other error/undo/interruption/index/isolation/scale/resource states remain unverified.",
       "performanceInventoryFlags": {
         "planned": true,
         "implemented": false,

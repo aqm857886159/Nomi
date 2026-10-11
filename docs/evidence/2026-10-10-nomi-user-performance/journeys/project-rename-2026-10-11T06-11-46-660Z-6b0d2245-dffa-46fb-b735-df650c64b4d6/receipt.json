@@ -1,0 +1,76 @@
+{
+  "scope": "Three actual native process launches; zh-CN project-library cancel, trim/commit, cold reopen and complete persisted payload/foreign-project isolation. One bounded functional run, no percentile or complete feature acceptance.",
+  "launches": [
+    {
+      "label": "cancel",
+      "pid": 583266,
+      "rendererUrl": "file://<repo>/dist/index.html#/studio"
+    }
+  ],
+  "archives": [
+    {
+      "file": "project-a-before.json",
+      "originalSha256": "8008d6c40fb5a087a3967f2d1738b764b46eb6aa83fd43abcacf6c3af691ddd2",
+      "archivedSha256": "760421629145b8953ebbc51ccaa94bb548c1c147a1c9ee179e359950f5d5bbaf",
+      "originalBytes": 51162,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    },
+    {
+      "file": "project-b-before.json",
+      "originalSha256": "c94453218f0f539f6853c522adfb9e218a6ba44f19a99c292dda851bca5cc348",
+      "archivedSha256": "5072336f0e0bb3f9d15584cdf6289f50fe6da6a36ec932467dbdfc55690283a9",
+      "originalBytes": 51156,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    },
+    {
+      "file": "project-a-final.json",
+      "originalSha256": "8008d6c40fb5a087a3967f2d1738b764b46eb6aa83fd43abcacf6c3af691ddd2",
+      "archivedSha256": "760421629145b8953ebbc51ccaa94bb548c1c147a1c9ee179e359950f5d5bbaf",
+      "originalBytes": 51162,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    },
+    {
+      "file": "project-b-final.json",
+      "originalSha256": "c94453218f0f539f6853c522adfb9e218a6ba44f19a99c292dda851bca5cc348",
+      "archivedSha256": "5072336f0e0bb3f9d15584cdf6289f50fe6da6a36ec932467dbdfc55690283a9",
+      "originalBytes": 51156,
+      "fullRecordPreserved": true,
+      "redaction": "checkout/temp paths only; full comparisons use original unredacted bytes"
+    }
+  ],
+  "cases": [],
+  "textRequests": 0,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "unexpected": [],
+  "result": "failed",
+  "performanceAcceptance": "unverified",
+  "source": {
+    "head": "165126887831633149ec81789bf80a712d6b58f2",
+    "tree": "b326d9b2ec43bfece5925baaee9f36f74560de81",
+    "dirty": false,
+    "driverSha256": "fa9068ba9398f9b4ac9dfe8574e35fb5a96f000af8528ed58c2c01ba52231d64",
+    "fileHashes": {
+      "scripts/package-build-stamp.mjs": "6b4ae5de60aea875a892d2d8e025919a9ab795fba5fe4c0686c8a6eabe046628",
+      "tests/ux/_launchApp.mjs": "17f62a8b21025a3b22952c70c177ff4595879f4fefd32b011cc76c2714a52f25",
+      "scripts/walkthrough-network-guard.cjs": "64a06a564b5336d7b342ce74f3d0fd6c1a783cca0ad6962d07de744ef9908553",
+      "tests/ux/fixtures/nomi-user-workflow-fixture.mjs": "d995403ff0d55add81d5baa27c7a30788a1757833c44515edcac125f1ee1c3c2",
+      "tests/ux/nomi-native-evidence-contract.mjs": "771807a5ba23a421cb6bc2a682e2082f22ca23281646cb72c04133200c1b2d81",
+      "tests/ux/_shell.mjs": "30a948d3732b73d1ebd71144e2f86ca0be7b173614373ccd85d725d2200da227",
+      "src/workbench/library/ProjectLibraryPage.tsx": "795aa43050a6ad04e835bce8fc36caeb92444d648cdd2a6ccbd49635490c46c3",
+      "src/workbench/NomiStudioApp.tsx": "2adfa3f2d85648e4a90e1f333ff4cf58cd4df8aab3ac32454e00e09f2a071bf6",
+      "src/workbench/project/projectRepository.ts": "8755256462c19a1f6c054d0f388a04b7edbcc9c4fbe40c09229087698d56eb11"
+    }
+  },
+  "buildReceipt": {
+    "version": 1,
+    "head": "165126887831633149ec81789bf80a712d6b58f2",
+    "tree": "b326d9b2ec43bfece5925baaee9f36f74560de81",
+    "dirty": false
+  },
+  "error": "Cannot read properties of undefined (reading '_object')",
+  "cleanupError": "Cannot read properties of undefined (reading '_object')"
+}

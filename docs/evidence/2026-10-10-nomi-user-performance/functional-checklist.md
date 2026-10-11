@@ -1,6 +1,6 @@
 # Remaining functional checklist
 
-Exact existing88 feature families:10 have bounded functional receipts,77 remain planned/unexecuted and1 entry is unavailable. **Zero families have complete functional acceptance.** Performance inventory flags and all planned matrix rows are unchanged; these10 are partial evidence, not10 accepted features. [Machine-readable scope and remaining states](functional-checklist.json).
+Exact existing88 feature families:10 have bounded functional receipts,1 rename family is executed-failed,76 remain planned/unexecuted and1 entry is unavailable. **Zero families have complete functional acceptance.** Performance inventory flags and all planned matrix rows are unchanged; these10 are partial evidence, not10 accepted features. [Machine-readable scope and remaining states](functional-checklist.json).
 
 Historical78 walk actions have71 unresolved owner-source mappings; this is mapping debt, not71 failed features. Even the7 source candidates require exact runtime target reconciliation.
 
@@ -8,7 +8,7 @@ Native waiting-tool cases were **not executed or attempted**: the runner exited 
 
 ## Evidence and next bounded scope
 
-Project open/create/switch, two draft switches, existing group selection/grid persistence, native cross-project interrupted/complete cold recovery and corrected competing design content have the exact scopes below. Complete cancellation, undo, error, edit/save and recovery states still require their own real UI receipts. Suggested next bounded scopes are project rename/cancel/reopen; document edit/delete/undo with persistence; storyboard edit/duplicate/delete with exact identities; then actual single-lane tool/approval/retry without requiring unsupported concurrency. These are plans, not executed work.
+Project open/create/switch, two draft switches, existing group selection/grid persistence, native cross-project interrupted/complete cold recovery and corrected competing design content have the exact scopes below. Complete cancellation, undo, error, edit/save and recovery states still require their own real UI receipts. [Project rename attempt](project-rename-verification.md) preserves a failed full-payload result and unattempted cold reopen. Suggested remaining bounded scopes are owner assessment and strict rename retry; document edit/delete/undo with persistence; storyboard edit/duplicate/delete with exact identities; then actual single-lane tool/approval/retry without requiring unsupported concurrency. These are plans, not executed work.
 
 ## Four LazyMarkdown surfaces: bounded component runtime passed
 

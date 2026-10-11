@@ -1,0 +1,797 @@
+{
+  "id": "rename-project-a",
+  "name": "Nomi 本地改名 Native Rename A",
+  "version": 2,
+  "createdAt": 1791699237337,
+  "updatedAt": 1791699254308,
+  "savedAt": 1791699254308,
+  "revision": 2,
+  "lastKnownRootPath": "<temp>/nomi-rename-native-QouqlQ/projects/ZZ-canvas-performance-real",
+  "payload": {
+    "workbenchDocuments": [
+      {
+        "id": "workflow-small-document-1",
+        "version": 1,
+        "title": "Workflow document 1",
+        "contentJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Workflow draft 1. A creator compares scenes, edits dialogue and references mixed media."
+                }
+              ]
+            }
+          ]
+        },
+        "updatedAt": 100
+      },
+      {
+        "id": "workflow-small-document-2",
+        "version": 1,
+        "title": "Workflow document 2",
+        "contentJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Workflow draft 2. A creator compares scenes, edits dialogue and references mixed media."
+                }
+              ]
+            }
+          ]
+        },
+        "updatedAt": 101
+      }
+    ],
+    "activeDocumentId": "workflow-small-document-1",
+    "timeline": {
+      "version": 1,
+      "fps": 24,
+      "scale": 1,
+      "playheadFrame": 0,
+      "tracks": [
+        {
+          "id": "imageTrack",
+          "type": "image",
+          "label": "图片轨",
+          "clips": []
+        },
+        {
+          "id": "videoTrack",
+          "type": "video",
+          "label": "视频轨",
+          "clips": [
+            {
+              "id": "canvas-perf-clip-0",
+              "type": "video",
+              "sourceNodeId": "canvas-perf-video-0",
+              "label": "性能镜头 1",
+              "startFrame": 0,
+              "endFrame": 60,
+              "frameCount": 60,
+              "offsetStartFrame": 0,
+              "offsetEndFrame": 0,
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4",
+              "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4"
+            }
+          ]
+        },
+        {
+          "id": "audioTrack",
+          "type": "audio",
+          "label": "音频轨",
+          "clips": []
+        }
+      ],
+      "textClips": []
+    },
+    "generationCanvas": {
+      "nodes": [
+        {
+          "id": "canvas-perf-image-0",
+          "kind": "image",
+          "title": "性能图片 1",
+          "position": {
+            "x": 80,
+            "y": 80
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "prompt": "Canvas performance fixture image 1",
+          "references": [],
+          "history": [
+            {
+              "id": "canvas-perf-image-0-workflow-v2",
+              "type": "image",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+              "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+              "createdAt": 2,
+              "versionNo": 2
+            },
+            {
+              "id": "canvas-perf-image-0-workflow-v1",
+              "type": "image",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+              "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+              "createdAt": 1,
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "gpt-image-2",
+            "modelLabel": "GPT Image 2",
+            "archetype": {
+              "id": "gpt-image-2",
+              "modeId": "t2i"
+            },
+            "modelVendor": "apimart",
+            "size": "auto",
+            "resolution": "1k",
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "1254×1254"
+                }
+              ],
+              "checkedAt": 1781801467460
+            },
+            "imageWidth": 960,
+            "imageHeight": 540,
+            "imageAspectRatio": 1.7777777777777777,
+            "previewHeight": 180,
+            "userResized": false
+          },
+          "shotIndex": 4,
+          "runs": [],
+          "result": {
+            "id": "canvas-perf-image-0-workflow-v2",
+            "type": "image",
+            "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+            "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+            "createdAt": 2,
+            "versionNo": 2
+          },
+          "renderKind": "shot-frame",
+          "categoryId": "shots",
+          "exactPosition": true,
+          "resultVersionMax": 2
+        },
+        {
+          "id": "canvas-perf-video-0",
+          "kind": "video",
+          "title": "性能视频 1",
+          "position": {
+            "x": 470,
+            "y": 80
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "prompt": "Canvas performance fixture video 2",
+          "references": [],
+          "history": [
+            {
+              "id": "canvas-perf-video-0-workflow-v2",
+              "type": "video",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4",
+              "createdAt": 2,
+              "versionNo": 2
+            },
+            {
+              "id": "canvas-perf-video-0-workflow-v1",
+              "type": "video",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4",
+              "createdAt": 1,
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "doubao-seedance-2.0",
+            "modelLabel": "Seedance 2.0",
+            "archetype": {
+              "id": "seedance-2-apimart",
+              "modeId": "i2v",
+              "variantId": "standard"
+            },
+            "modelVendor": "apimart",
+            "size": "16:9",
+            "resolution": "720p",
+            "duration": 6,
+            "generate_audio": true,
+            "videoWidth": 1280,
+            "videoHeight": 720,
+            "videoAspectRatio": 1.7777777777777777,
+            "previewHeight": 180,
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "zero-duration",
+                  "suspect": false,
+                  "detail": "时长 6.1s"
+                },
+                {
+                  "id": "black-frames",
+                  "suspect": false,
+                  "detail": "黑帧占比 0%"
+                },
+                {
+                  "id": "silent-audio",
+                  "suspect": false,
+                  "detail": "静音占比 0%"
+                }
+              ],
+              "checkedAt": 1781801894167
+            },
+            "userResized": false
+          },
+          "shotIndex": 10,
+          "runs": [],
+          "result": {
+            "id": "canvas-perf-video-0-workflow-v2",
+            "type": "video",
+            "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4",
+            "createdAt": 2,
+            "versionNo": 2
+          },
+          "renderKind": "shot-frame",
+          "categoryId": "shots",
+          "exactPosition": true,
+          "resultVersionMax": 2
+        },
+        {
+          "id": "canvas-perf-image-1",
+          "kind": "image",
+          "title": "性能图片 2",
+          "position": {
+            "x": 860,
+            "y": 80
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "prompt": "Canvas performance fixture image 3",
+          "references": [],
+          "history": [
+            {
+              "id": "canvas-perf-image-1-result",
+              "type": "image",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+              "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+              "createdAt": 1,
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "gpt-image-2",
+            "modelLabel": "GPT Image 2",
+            "archetype": {
+              "id": "gpt-image-2",
+              "modeId": "t2i"
+            },
+            "modelVendor": "apimart",
+            "size": "auto",
+            "resolution": "1k",
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "1254×1254"
+                }
+              ],
+              "checkedAt": 1781801467460
+            },
+            "imageWidth": 960,
+            "imageHeight": 540,
+            "imageAspectRatio": 1.7777777777777777,
+            "previewHeight": 180,
+            "userResized": false
+          },
+          "shotIndex": 4,
+          "runs": [],
+          "result": {
+            "id": "canvas-perf-image-1-result",
+            "type": "image",
+            "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+            "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+            "createdAt": 1,
+            "versionNo": 1
+          },
+          "renderKind": "shot-frame",
+          "categoryId": "shots",
+          "exactPosition": true,
+          "resultVersionMax": 1
+        },
+        {
+          "id": "canvas-perf-image-2",
+          "kind": "image",
+          "title": "性能图片 3",
+          "position": {
+            "x": 1250,
+            "y": 80
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "prompt": "Canvas performance fixture image 4",
+          "references": [],
+          "history": [
+            {
+              "id": "canvas-perf-image-2-result",
+              "type": "image",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+              "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+              "createdAt": 1,
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "gpt-image-2",
+            "modelLabel": "GPT Image 2",
+            "archetype": {
+              "id": "gpt-image-2",
+              "modeId": "t2i"
+            },
+            "modelVendor": "apimart",
+            "size": "auto",
+            "resolution": "1k",
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "1254×1254"
+                }
+              ],
+              "checkedAt": 1781801467460
+            },
+            "imageWidth": 960,
+            "imageHeight": 540,
+            "imageAspectRatio": 1.7777777777777777,
+            "previewHeight": 180,
+            "userResized": false
+          },
+          "shotIndex": 4,
+          "runs": [],
+          "result": {
+            "id": "canvas-perf-image-2-result",
+            "type": "image",
+            "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+            "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-960.png",
+            "createdAt": 1,
+            "versionNo": 1
+          },
+          "renderKind": "shot-frame",
+          "categoryId": "shots",
+          "exactPosition": true,
+          "resultVersionMax": 1
+        },
+        {
+          "id": "canvas-perf-image-3",
+          "kind": "image",
+          "title": "性能图片 4",
+          "position": {
+            "x": 1640,
+            "y": 80
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "prompt": "Canvas performance fixture image 5",
+          "references": [],
+          "history": [
+            {
+              "id": "canvas-perf-image-3-result",
+              "type": "image",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+              "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+              "createdAt": 1,
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "gpt-image-2",
+            "modelLabel": "GPT Image 2",
+            "archetype": {
+              "id": "gpt-image-2",
+              "modeId": "t2i"
+            },
+            "modelVendor": "apimart",
+            "size": "auto",
+            "resolution": "1k",
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "undecodable",
+                  "suspect": false,
+                  "detail": "1254×1254"
+                }
+              ],
+              "checkedAt": 1781801467460
+            },
+            "imageWidth": 960,
+            "imageHeight": 540,
+            "imageAspectRatio": 1.7777777777777777,
+            "previewHeight": 180,
+            "userResized": false
+          },
+          "shotIndex": 4,
+          "runs": [],
+          "result": {
+            "id": "canvas-perf-image-3-result",
+            "type": "image",
+            "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+            "thumbnailUrl": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/image-1920.png",
+            "createdAt": 1,
+            "versionNo": 1
+          },
+          "renderKind": "shot-frame",
+          "categoryId": "shots",
+          "exactPosition": true,
+          "resultVersionMax": 1
+        },
+        {
+          "id": "canvas-perf-video-0-workflow-video-2",
+          "kind": "video",
+          "title": "Workflow video 2",
+          "position": {
+            "x": 860,
+            "y": 380
+          },
+          "size": {
+            "width": 320,
+            "height": 180
+          },
+          "prompt": "Canvas performance fixture video 2",
+          "references": [],
+          "history": [
+            {
+              "id": "canvas-perf-video-0-workflow-video-2-result",
+              "type": "video",
+              "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4",
+              "createdAt": 1,
+              "versionNo": 1
+            }
+          ],
+          "status": "success",
+          "meta": {
+            "modelKey": "doubao-seedance-2.0",
+            "modelLabel": "Seedance 2.0",
+            "archetype": {
+              "id": "seedance-2-apimart",
+              "modeId": "i2v",
+              "variantId": "standard"
+            },
+            "modelVendor": "apimart",
+            "size": "16:9",
+            "resolution": "720p",
+            "duration": 6,
+            "generate_audio": true,
+            "videoWidth": 1280,
+            "videoHeight": 720,
+            "videoAspectRatio": 1.7777777777777777,
+            "previewHeight": 180,
+            "technicalReview": {
+              "verdict": "ok",
+              "checks": [
+                {
+                  "id": "zero-duration",
+                  "suspect": false,
+                  "detail": "时长 6.1s"
+                },
+                {
+                  "id": "black-frames",
+                  "suspect": false,
+                  "detail": "黑帧占比 0%"
+                },
+                {
+                  "id": "silent-audio",
+                  "suspect": false,
+                  "detail": "静音占比 0%"
+                }
+              ],
+              "checkedAt": 1781801894167
+            },
+            "userResized": false
+          },
+          "shotIndex": 10,
+          "runs": [],
+          "result": {
+            "id": "canvas-perf-video-0-workflow-video-2-result",
+            "type": "video",
+            "url": "nomi-local://asset/rename-project-a/assets/generated/canvas-performance/video-720-a.mp4",
+            "createdAt": 1,
+            "versionNo": 1
+          },
+          "renderKind": "shot-frame",
+          "categoryId": "shots",
+          "exactPosition": true,
+          "resultVersionMax": 1
+        }
+      ],
+      "edges": [
+        {
+          "id": "canvas-perf-edge-0",
+          "source": "canvas-perf-image-0",
+          "target": "canvas-perf-video-0",
+          "mode": "first_frame",
+          "order": 0
+        },
+        {
+          "id": "canvas-perf-edge-1",
+          "source": "canvas-perf-video-0",
+          "target": "canvas-perf-image-2",
+          "mode": "reference",
+          "order": 1
+        },
+        {
+          "id": "canvas-perf-edge-2",
+          "source": "canvas-perf-image-1",
+          "target": "canvas-perf-image-0",
+          "mode": "reference",
+          "order": 2
+        },
+        {
+          "id": "canvas-perf-edge-3",
+          "source": "canvas-perf-image-2",
+          "target": "canvas-perf-image-1",
+          "mode": "reference",
+          "order": 0
+        }
+      ],
+      "selectedNodeIds": [],
+      "groups": [
+        {
+          "id": "workflow-small-mixed-group",
+          "name": "Workflow mixed media",
+          "categoryId": "shots",
+          "nodeIds": [
+            "canvas-perf-image-0",
+            "canvas-perf-video-0",
+            "canvas-perf-image-1",
+            "canvas-perf-image-2"
+          ],
+          "collapsed": false,
+          "createdAt": 100,
+          "updatedAt": 100
+        }
+      ]
+    },
+    "categories": [
+      {
+        "id": "shots",
+        "name": "分镜",
+        "icon": "🎬",
+        "iconName": "IconLayoutRows",
+        "defaultNodeRenderKind": "shot-frame",
+        "order": 1,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "cast",
+        "name": "角色",
+        "icon": "👥",
+        "iconName": "IconUser",
+        "defaultNodeRenderKind": "character-card",
+        "order": 2,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "scene",
+        "name": "场景",
+        "icon": "🌍",
+        "iconName": "IconPhoto",
+        "defaultNodeRenderKind": "scene-card",
+        "order": 3,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "prop",
+        "name": "道具",
+        "icon": "🧰",
+        "iconName": "IconBox",
+        "defaultNodeRenderKind": "prop-card",
+        "order": 4,
+        "isBuiltin": true,
+        "isHidden": false
+      },
+      {
+        "id": "audio",
+        "name": "声音",
+        "icon": "🎵",
+        "iconName": "IconChartBar",
+        "defaultNodeRenderKind": "audio-strip",
+        "order": 5,
+        "isBuiltin": true,
+        "isHidden": false
+      }
+    ],
+    "storyboardDesignsByDocumentId": {
+      "workflow-small-document-1": [
+        {
+          "id": "workflow-small-design-1-1",
+          "documentId": "workflow-small-document-1",
+          "title": "Workflow plan 1",
+          "plan": {
+            "title": "Workflow plan 1",
+            "anchors": [],
+            "shots": [
+              {
+                "index": 1,
+                "shotId": "workflow-small-plan-0-shot-1",
+                "shotKind": "image",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-0-shot-1",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 2,
+                "shotId": "workflow-small-plan-0-shot-2",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-0-shot-2",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 3,
+                "shotId": "workflow-small-plan-0-shot-3",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-0-shot-3",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 4,
+                "shotId": "workflow-small-plan-0-shot-4",
+                "shotKind": "image",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-0-shot-4",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 5,
+                "shotId": "workflow-small-plan-0-shot-5",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-0-shot-5",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 6,
+                "shotId": "workflow-small-plan-0-shot-6",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-0-shot-6",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              }
+            ],
+            "profileKey": "fixture.performance"
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 100,
+          "createdAt": 101,
+          "updatedAt": 101
+        },
+        {
+          "id": "workflow-small-design-1-2",
+          "documentId": "workflow-small-document-1",
+          "title": "Workflow plan 2",
+          "plan": {
+            "title": "Workflow plan 2",
+            "anchors": [],
+            "shots": [
+              {
+                "index": 1,
+                "shotId": "workflow-small-plan-1-shot-1",
+                "shotKind": "image",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-1-shot-1",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 2,
+                "shotId": "workflow-small-plan-1-shot-2",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-1-shot-2",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 3,
+                "shotId": "workflow-small-plan-1-shot-3",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-1-shot-3",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 4,
+                "shotId": "workflow-small-plan-1-shot-4",
+                "shotKind": "image",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-1-shot-4",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 5,
+                "shotId": "workflow-small-plan-1-shot-5",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-1-shot-5",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              },
+              {
+                "index": 6,
+                "shotId": "workflow-small-plan-1-shot-6",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [],
+                "prompt": "Workflow fixture workflow-small-plan-1-shot-6",
+                "modelKey": "local-fixture-model",
+                "modeId": "fixture"
+              }
+            ],
+            "profileKey": "fixture.performance"
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 100,
+          "createdAt": 102,
+          "updatedAt": 102
+        }
+      ],
+      "workflow-small-document-2": []
+    }
+  }
+}

@@ -1,0 +1,91 @@
+[pre-push] 改动 509 个文件，跑：check:filesize、check:board-parity、check:self-written、check:boundary-owners、check:test-waits、check:mjs-parse、check:tokens、check:vocabularies、check:controls、check:store-lifetime、check:icon-semantics、check:error-surface、check:heavy-path、check:builtin-vendor-literals、check:read-path-writes、check:batch-machines、check:capability-lifecycle、check:no-default-overwrite、check:media-import-owner、check:storyboard-owner、check:canvas-edge-writers、check:dangling-tokens、check:dangling-tailwind、check:walkthroughs、check:gates-chain、check:desktop-rc-workflow、check:cla-workflow、check:workflow-script-refs、check:workflow-protected-writes、check:packaged-flags、check:icons、check:platform-archetypes、check:model-certification-coverage、check:symlinks、check:supply-chain-pins、check:escape-ledger、check:adoption-bridge、check:skill-ipc-coverage、check:skills-format、check:run-task-grant、check:announced-card、check:canvas-gesture-determinism、check:vitest-fair-share、check:agents-sync、check:rule-aliases、check:push-bypass、check:mockup-contracts、check:feel、check:full-walk-catalog、check:real-media-fixture、check:framework-boundary、check:tikhub-search、check:nul-bytes、check:git-path-quoting、check:model-availability、check:model-identity、check:outbound-policy、check:script-network-retry、check:nomi-native-evidence、check:nomi-markdown-consumers、check:nomi-workflow-evidence、check:design-lab-mirrors、typecheck、test:temp-helper、check:test-copy-literals、test:pre-push-structure、test:scan-guards、test:related、lint:changed、check:prior-art、check:pr-judgement
+[pre-push] PR 正文取自 NOMI_PR_BODY_FILE
+[pre-push] ✅ test:related（34.4s） vitest 22 个文件通过；node:test 18 个文件通过；另有 4 个相关单测超出单次上限（40 个）没挑进来，CI 会跑；scripts/pre-push-contracts.node-test.mjs 太慢没跑，CI 会跑（真入口 / tsc 探针 / 超时用例整份 > 90 秒；其中的契约 / 结构用例已拆到 scripts/pre-push-structure.node-test.mjs（推送前门岗 test:pre-push-structure））
+[pre-push] ✅ test:scan-guards（33.2s） 34 个扫描型守卫测试一个进程批量跑
+[pre-push] ✅ typecheck（28.3s）
+[pre-push] ✅ check:filesize（0.2s）
+[pre-push] ✅ check:board-parity（0.1s）
+[pre-push] ✅ check:self-written（0.1s）
+[pre-push] ✅ check:boundary-owners（0.2s）
+[pre-push] ✅ check:test-waits（4.7s）
+[pre-push] ✅ check:mjs-parse（13.9s）
+[pre-push] ✅ check:tokens（1.6s）
+[pre-push] ✅ check:vocabularies（2.9s）
+[pre-push] ✅ check:controls（3.0s）
+[pre-push] ✅ check:store-lifetime（2.3s）
+[pre-push] ✅ check:icon-semantics（1.2s）
+[pre-push] ✅ check:error-surface（0.2s）
+[pre-push] ✅ check:heavy-path（0.5s）
+[pre-push] ✅ check:builtin-vendor-literals（0.3s）
+[pre-push] ✅ check:read-path-writes（2.8s）
+[pre-push] ✅ check:batch-machines（0.7s）
+[pre-push] ✅ check:capability-lifecycle（3.3s）
+[pre-push] ✅ check:no-default-overwrite（2.7s）
+[pre-push] ✅ check:media-import-owner（0.4s）
+[pre-push] ✅ check:storyboard-owner（0.2s）
+[pre-push] ✅ check:canvas-edge-writers（1.4s）
+[pre-push] ✅ check:dangling-tokens（0.3s）
+[pre-push] ✅ check:dangling-tailwind（0.5s）
+[pre-push] ✅ check:walkthroughs（11.7s）
+[pre-push] ✅ check:gates-chain（0.0s）
+[pre-push] ✅ check:desktop-rc-workflow（0.1s）
+[pre-push] ✅ check:cla-workflow（0.2s）
+[pre-push] ✅ check:workflow-script-refs（0.0s）
+[pre-push] ✅ check:workflow-protected-writes（0.1s）
+[pre-push] ✅ check:packaged-flags（0.1s）
+[pre-push] ✅ check:icons（0.1s）
+[pre-push] ✅ check:platform-archetypes（0.1s）
+[pre-push] ✅ check:model-certification-coverage（0.1s）
+[pre-push] ✅ check:symlinks（0.1s）
+[pre-push] ✅ check:supply-chain-pins（0.0s）
+[pre-push] ✅ check:escape-ledger（0.0s）
+[pre-push] ✅ check:adoption-bridge（0.1s）
+[pre-push] ✅ check:skill-ipc-coverage（0.0s）
+[pre-push] ✅ check:skills-format（0.1s）
+[pre-push] ✅ check:run-task-grant（0.1s）
+[pre-push] ✅ check:announced-card（0.1s）
+[pre-push] ✅ check:canvas-gesture-determinism（0.0s）
+[pre-push] ✅ check:vitest-fair-share（0.1s）
+[pre-push] ✅ check:agents-sync（0.0s）
+[pre-push] ✅ check:rule-aliases（0.0s）
+[pre-push] ✅ check:push-bypass（0.0s）
+[pre-push] ✅ check:mockup-contracts（0.1s）
+[pre-push] ✅ check:feel（0.0s）
+[pre-push] ✅ check:full-walk-catalog（0.3s）
+[pre-push] ✅ check:real-media-fixture（0.1s）
+[pre-push] ✅ check:framework-boundary（0.2s）
+[pre-push] ✅ check:tikhub-search（0.1s）
+[pre-push] ✅ check:nul-bytes（0.1s）
+[pre-push] ✅ check:git-path-quoting（0.1s）
+[pre-push] ✅ check:model-availability（0.5s）
+[pre-push] ✅ check:model-identity（1.1s）
+[pre-push] ✅ check:outbound-policy（0.3s）
+[pre-push] ✅ check:script-network-retry（0.5s）
+[pre-push] ✅ check:nomi-native-evidence（0.1s）
+[pre-push] ✅ check:nomi-markdown-consumers（6.3s）
+[pre-push] ✅ check:nomi-workflow-evidence（2.6s）
+[pre-push] ✅ check:design-lab-mirrors（0.4s）
+[pre-push] ✅ test:temp-helper（0.7s）
+[pre-push] ✅ check:test-copy-literals（1.5s）
+[pre-push] ✅ test:pre-push-structure（4.9s）
+[pre-push] ✅ lint:changed（1.4s）
+[pre-push] ✅ check:prior-art（0.1s）
+[pre-push] ✖ check:pr-judgement（0.3s）
+
+──── ✖ check:pr-judgement ────
+PR 正文判据（正文取自 NOMI_PR_BODY）：路径推出的类别 = 新界面 / 改交互、Agent 行为、大数据量 / 画布 / 长列表
+· 四类：未命中，只查设计卡 ★ 格
+✅ 设计卡：5 格都填了
+✖ 根因合同声明 detected_by 为用户 / 发版后发现（docs/fixes/2026-10-11-nomi-opening-import-overlap.root-cause.json），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger/）转成 fixed——用户发现的问题要进账本并带类级检查结账
+✅ 功能分类：路径推出的 3 类都勾了
+✅ 验收证据：6 项都有条目（实证 1，未验证 5）
+⚠ 缺工具：ui-click-census（按钮普查：每个可点目标按七字段预期表逐项对照（设计来源 / 组件、变体 / 状态、无障碍角色 + 名称、用户动作、预期的界面状态和副作用、测试 ID、证据））——现有：tests/ux/full-walk/catalog.mjs（铁律 ⑫）的预期表只覆盖分镜表格，字段映射见本表 buttonExpectationFields。计划接：Playwright 无障碍树枚举可点目标（getByRole 角色 + 名称定位）+ @axe-core/playwright，全量跑里加带种子的 gremlins.js 抓崩溃；不接 Storybook / Cucumber（避免和设计实验室并行两套）
+· 手动全量跑覆盖（PR 正文不要求）：perf-real-scale
+✅ 规则与门岗：碰到 12 个，正文都点名了
+✖ PR 正文判据没过：先把 PR 正文改好（十秒），改完重跑这个 job 即可，不必重推。
+
+[pre-push] BLOCKED：1 项没过：check:pr-judgement
+先在本机改好（这些都是几秒到几十秒的事），别推出去换一轮 40 分钟的 CI。单独重跑失败的那道：
+  pnpm run check:pr-judgement
+[pre-push] 共 59.4s；其余 Contracts 门岗仍在 CI 的 gates:contracts 里跑（整库类 > 60 秒，或要网络 / 浏览器 / 构建产物）
+[pre-push] 只在 CI 跑的门共 38 道（名单与理由：scripts/pre-push-gate-table.mjs）；完整版只在 CI、本机只跑了一部分的：check:i18n（本机只跑了 check:test-copy-literals）、check:design-lab（本机只跑了 check:design-lab-mirrors）、lint:ci（本机只跑了 lint:changed）。推送前钩子是加速器，CI 才是最终裁判。

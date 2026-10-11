@@ -1,0 +1,45 @@
+
+> nomi@0.23.1 check:pr-judgement <repo>
+> node --test ./scripts/pr-judgement-lib.node-test.mjs ./scripts/pr-body-criteria.node-test.mjs && node ./scripts/check-pr-judgement.mjs
+
+✔ 同一份正文、同一份改动 → 总入口只给一个结论（推送前与合并前调的就是它） (4.157747ms)
+✔ 英文标题：判据只认中文，但报错里点明是标题语言的问题 (1.459525ms)
+✔ 四类改动的 9 格与独立验收在推送前同样要求 (1.635137ms)
+✔ 规则生效宽限：写死了 #961 的合并时刻，推送前没有 gh 也能判；拿不到创建时间 = 不宽限（fail-closed） (0.44323ms)
+✔ 合并前报告：抬头 + 判据行 + 结论 (0.524402ms)
+✔ 路由表自身：每个类别有证据、证据 id 全局唯一、tool 只能是 exists / missing、missing 必须写出计划 (1.129674ms)
+✔ 路径推类别：四类沿用旧判定（花钱 / 长跑 / 可打断 / 新界面），并推出其余类别；测试 / 文档 / json 不推 (1.640535ms)
+✔ 设计卡「功能分类」：路径推出的必须都勾，勾的只能更多；缺这一节红 (0.73128ms)
+✔ 证据行判据：链接 / 路径 / 截图 / 运行号 / PR 号算；「未验证：原因」算；空话不算 (0.793623ms)
+✔ 验收证据：必交证据取并集；缺条目红；条目没证据红；未验证:工具未建 接受并列出缺口 (1.323773ms)
+✔ 整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿；规则生效日之前开的 PR 路由只警告 (0.75806ms)
+✔ 规则与门岗改动范围：移到判据库后行为不变；旧 PR 也不吃路由宽限（#1032 型回退） (0.565263ms)
+✔ 体检：路由表里的缺工具清单（tool: missing 的证据 + 层级缺口） (66.401632ms)
+✔ 端到端：临时 git 仓库里跑 CI 脚本——没勾分类 / 缺证据 / 没点名受保护文件 → 红；补齐 → 绿；非 PR 环境跳过 (240.846102ms)
+✔ 端到端：逃逸账本一条一个文件——条目文件被删（base 有、HEAD 没有）→ 红并点名 id；只新增 / 改状态 → 不报删除 (166.506839ms)
+✔ exclude：设计实验室（src/devlab）的 tsx 不算「改交互」；真界面照算 (0.336843ms)
+✔ 可打断：AbortController 只在非测试文件的新增行里认；只出现在测试里不算四类（#1038 误判） (1.397734ms)
+✔ 可打断：AbortController 只在产品代码（src / electron）里认；门岗脚本、文档里提到它不算（#1037 自己被误判） (0.275345ms)
+✔ when / paid：每项证据 when 只有 pr | manual-full；manual-full 不进 PR 必交，只在报告里提示由手动全量覆盖 (0.865821ms)
+✔ 不设定时触发：路由表与文档里没有「每晚 / nightly」，全量跑 workflow 只有 workflow_dispatch、没有 schedule (0.927052ms)
+✔ 全量跑：路由表 fullRun.commands 里的每一层都是真实存在的 package.json 脚本，id 唯一，一层红了后面照跑，报告列出没覆盖的 (2.774065ms)
+✔ AI 用户走查的工具先试 Stagehand（planned）；缺工具的证据仍列缺口（planned 也算没建） (0.100871ms)
+✔ 按钮预期表字段集：七个字段、catalogField 都落在 ⑫ catalog.mjs 的预期表字段（必填 + 可选）里；ui-click-census 证据按这七字段写 (1.250044ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 545.750998
+PR 正文判据（正文取自 NOMI_PR_BODY_FILE）：路径推出的类别 = 新界面 / 改交互、Agent 行为、大数据量 / 画布 / 长列表
+· 四类：未命中，只查设计卡 ★ 格
+✅ 设计卡：5 格都填了
+✅ 逃逸账本 PERF-20261011-project-opening-feedback → fixed：带了含 detected_by 的合同（docs/fixes/2026-10-11-nomi-design-switch-content.root-cause.json、docs/fixes/2026-10-11-nomi-markdown-chunk-failure-domain.root-cause.json、docs/fixes/2026-10-11-nomi-markdown-open-boundary.root-cause.json、docs/fixes/2026-10-11-nomi-markdown-test-suspense.root-cause.json、docs/fixes/2026-10-11-nomi-native-evidence-seal.root-cause.json、docs/fixes/2026-10-11-nomi-opening-import-overlap.root-cause.json、docs/fixes/2026-10-11-nomi-workflow-measurement-trust.root-cause.json）
+✅ 功能分类：路径推出的 3 类都勾了
+✅ 验收证据：6 项都有条目（实证 1，未验证 5）
+⚠ 缺工具：ui-click-census（按钮普查：每个可点目标按七字段预期表逐项对照（设计来源 / 组件、变体 / 状态、无障碍角色 + 名称、用户动作、预期的界面状态和副作用、测试 ID、证据））——现有：tests/ux/full-walk/catalog.mjs（铁律 ⑫）的预期表只覆盖分镜表格，字段映射见本表 buttonExpectationFields。计划接：Playwright 无障碍树枚举可点目标（getByRole 角色 + 名称定位）+ @axe-core/playwright，全量跑里加带种子的 gremlins.js 抓崩溃；不接 Storybook / Cucumber（避免和设计实验室并行两套）
+· 手动全量跑覆盖（PR 正文不要求）：perf-real-scale
+✅ 规则与门岗：碰到 12 个，正文都点名了
+✅ PR 正文判据通过

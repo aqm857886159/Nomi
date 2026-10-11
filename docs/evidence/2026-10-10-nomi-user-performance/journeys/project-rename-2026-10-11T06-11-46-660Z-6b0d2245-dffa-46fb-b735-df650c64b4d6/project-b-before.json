@@ -1,0 +1,1957 @@
+{
+ "id": "rename-project-b",
+ "name": "ZZ Nomi user workflow small",
+ "version": 2,
+ "createdAt": 1791699109269,
+ "updatedAt": 1791699109269,
+ "savedAt": 1791699109269,
+ "revision": 1,
+ "lastKnownRootPath": "<temp>/nomi-rename-native-hVko6g/projects/ZZ-workflow-rename-b",
+ "payload": {
+  "workbenchDocument": {
+   "version": 1,
+   "title": "",
+   "contentJson": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "《最后一束光》"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "公元 2247 年，太阳系外缘，柯伊伯带像一片黑色的碎冰海。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "人类联合舰队静静悬停在冥王星轨道附近。三百艘战舰排成弧形防线，舰身没有灯光，只有散热板在宇宙中泛着暗红色。每个人都知道，这不是胜利之战，而是拖延之战。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体舰队已经抵达。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "它们没有想象中的宏伟阵列，也没有震耳欲聋的宣战。深空里，只出现了一串冰冷的亮点，像一把缓慢逼近的银针。随后，人类所有雷达同时发出警报。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“目标加速，接近光速百分之十五。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "旗舰“昆仑”号指挥舱内，林澈舰长盯着屏幕，手指悬在战术台上。她身后，是地球实时传来的影像：夜晚的城市、海岸线上的灯、地下避难所里仰头等待的人群。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "参谋低声说：“舰长，他们没有减速。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "林澈明白这意味着什么。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体人不准备谈判。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "她按下通讯键，声音传遍整支舰队。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“各舰注意，执行烛龙计划。第一梯队展开磁帆，第二梯队准备聚变弹幕，第三梯队保护引力波发射器。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "短暂的沉默后，无数回应从频道里响起。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“长城号收到。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“伏羲号收到。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“亚马逊号收到。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“昆仑号，我们在你身后。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "下一秒，人类舰队展开了第一道防线。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "数十万平方公里的超导磁帆在黑暗中张开，像一面面透明的巨盾。它们不是为了挡住炮火，而是为了扰乱三体飞船的航道。聚变弹被抛向前方，在预定坐标排成星云般的雷区。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体舰队没有改变方向。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "第一枚聚变弹爆炸时，宇宙中亮起一颗小太阳。紧接着，第二颗、第三颗、第一千颗。白色光芒连成一条火河，照亮了冥王星冰冷的表面。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "人类士兵屏住呼吸。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "火光散去后，三体舰队仍在前进。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "它们的飞船表面像液态镜面，爆炸的能量被偏转、分散、吞噬。只有两艘敌舰偏离了航线，缓缓碎裂成银色尘埃。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "参谋脸色苍白：“命中率不足百分之三。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "林澈没有回答。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "她早就知道，靠武器赢不了。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体文明的科技领先太多。真正的计划，是让三体舰队进入引力波广播范围，把它们的位置暴露给整个宇宙。那意味着同归于尽——三体会毁灭，人类也会暴露。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "但如果不这样，地球只会成为殖民地。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“第二梯队，突击。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "一百二十艘人类战舰点燃主推进器，冲向三体舰队。它们像逆流而上的火种，穿过聚变爆炸留下的残光。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体人终于开火。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "没有光束，没有导弹，只有空间本身轻轻一颤。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "冲在最前面的“长城号”瞬间被切成两半，断口平滑得像镜子。随后是“伏羲号”“黄河号”“开普勒号”……一艘艘战舰无声解体，舰员甚至来不及发出最后的呼喊。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "指挥舱里，死亡名单疯狂刷新。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "有人低声哭了出来。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "林澈看着那些消失的信号，眼神却越来越冷静。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“他们在清理近距离威胁。”她说，“说明他们害怕我们靠近。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "参谋猛地抬头：“舰长？”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "林澈指向屏幕上一处微弱波动。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“三体主舰的防御场，每次攻击后会有零点七秒间隙。把昆仑号开进去。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "所有人都愣住了。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“那是自杀。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“不是自杀。”林澈说，“是点火。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "昆仑号脱离阵列，推进器全功率启动。整艘旗舰开始震动，舰体外壳被高速粒子打出蓝白色火花。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体舰队像察觉到危险，十几道空间切割同时袭来。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“左舷规避！”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "昆仑号猛地下沉，一道攻击擦过舰桥外侧，三层装甲瞬间消失。舱内警报尖叫，空气开始泄漏。林澈扶住战术台，鲜血从额角滑下。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "距离：九万公里。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "五万公里。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "一万公里。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“引力波发射器充能百分之八十！”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“主炮损毁！”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“生活区失压！”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“还有多少人在线？”林澈问。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "通讯员哽咽：“全舰……百分之四十一。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "林澈打开全舰广播。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“这里是舰长林澈。我们身后是地球，是海，是风，是孩子第一次看见星星的眼睛。我们不是为了仇恨而战，是为了让人类有权继续做梦。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "她停顿了一秒。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“所有人，固定自己。我们要撞进黎明。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "昆仑号冲入三体主舰防御间隙。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "就在那零点七秒里，舰腹打开，引力波发射器像一只巨大的黑色眼睛，正对深空。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体主舰立刻转向，银色外壳上浮现出密密麻麻的光纹。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "参谋喊道：“他们要摧毁我们！”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "林澈按下最终指令。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "“广播。”"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "没有声音。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "但在宇宙尺度上，一声尖啸穿透黑暗，向所有恒星、所有文明、所有猎手宣告了坐标。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "太阳系位置。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体舰队位置。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "全部暴露。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体主舰的攻击落下，昆仑号从舰首开始瓦解。指挥舱被白光吞没前，林澈最后看见的，是屏幕上地球传来的画面。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "一个小女孩站在地下避难所门口，手里抱着一盏纸灯。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "她不知道冥王星外发生了什么。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "她只是抬头，看见天空中忽然亮起一颗新的星。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三体舰队停下了。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "第一次，它们没有继续前进。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "因为它们知道，在更深的黑暗里，已经有无数双眼睛睁开。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "七十二小时后，三体舰队开始撤离太阳系。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "人类没有欢呼。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "地球上的所有城市同时熄灯三分钟。海面、山谷、废墟和轨道空间站都陷入安静。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "三分钟后，第一束灯光重新亮起。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "然后是第二束，第三束。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "直到整颗地球再次发光。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "那不是胜利的光。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "是幸存者的光。"
+       }
+      ]
+     }
+    ]
+   },
+   "updatedAt": 1781948601812
+  },
+  "timeline": {
+   "version": 1,
+   "fps": 24,
+   "scale": 1,
+   "playheadFrame": 0,
+   "tracks": [
+    {
+     "id": "imageTrack",
+     "type": "image",
+     "label": "图片轨",
+     "clips": []
+    },
+    {
+     "id": "videoTrack",
+     "type": "video",
+     "label": "视频轨",
+     "clips": [
+      {
+       "id": "canvas-perf-clip-0",
+       "type": "video",
+       "sourceNodeId": "canvas-perf-video-0",
+       "label": "性能镜头 1",
+       "startFrame": 0,
+       "endFrame": 60,
+       "frameCount": 60,
+       "offsetStartFrame": 0,
+       "offsetEndFrame": 0,
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4",
+       "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4"
+      }
+     ]
+    }
+   ],
+   "textClips": []
+  },
+  "generationCanvas": {
+   "nodes": [
+    {
+     "id": "canvas-perf-image-0",
+     "kind": "image",
+     "title": "性能图片 1",
+     "position": {
+      "x": 80,
+      "y": 80
+     },
+     "size": {
+      "width": 320,
+      "height": 180
+     },
+     "prompt": "Canvas performance fixture image 1",
+     "references": [],
+     "history": [
+      {
+       "id": "canvas-perf-image-0-workflow-v2",
+       "type": "image",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+       "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+       "createdAt": 2,
+       "versionNo": 2
+      },
+      {
+       "id": "canvas-perf-image-0-workflow-v1",
+       "type": "image",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+       "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+       "createdAt": 1,
+       "versionNo": 1
+      }
+     ],
+     "status": "success",
+     "meta": {
+      "modelKey": "gpt-image-2",
+      "modelLabel": "GPT Image 2",
+      "archetype": {
+       "id": "gpt-image-2",
+       "modeId": "t2i"
+      },
+      "modelVendor": "apimart",
+      "size": "auto",
+      "resolution": "1k",
+      "technicalReview": {
+       "verdict": "ok",
+       "checks": [
+        {
+         "id": "undecodable",
+         "suspect": false,
+         "detail": "1254×1254"
+        }
+       ],
+       "checkedAt": 1781801467460
+      },
+      "imageWidth": 960,
+      "imageHeight": 540,
+      "imageAspectRatio": 1.7777777777777777,
+      "previewHeight": 180,
+      "userResized": false
+     },
+     "shotIndex": 4,
+     "runs": [],
+     "result": {
+      "id": "canvas-perf-image-0-workflow-v2",
+      "type": "image",
+      "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+      "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+      "createdAt": 2,
+      "versionNo": 2
+     },
+     "renderKind": "shot-frame",
+     "categoryId": "shots",
+     "exactPosition": true,
+     "resultVersionMax": 2
+    },
+    {
+     "id": "canvas-perf-video-0",
+     "kind": "video",
+     "title": "性能视频 1",
+     "position": {
+      "x": 470,
+      "y": 80
+     },
+     "size": {
+      "width": 320,
+      "height": 180
+     },
+     "prompt": "Canvas performance fixture video 2",
+     "references": [],
+     "history": [
+      {
+       "id": "canvas-perf-video-0-workflow-v2",
+       "type": "video",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4",
+       "createdAt": 2,
+       "versionNo": 2
+      },
+      {
+       "id": "canvas-perf-video-0-workflow-v1",
+       "type": "video",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4",
+       "createdAt": 1,
+       "versionNo": 1
+      }
+     ],
+     "status": "success",
+     "meta": {
+      "modelKey": "doubao-seedance-2.0",
+      "modelLabel": "Seedance 2.0",
+      "archetype": {
+       "id": "seedance-2-apimart",
+       "modeId": "i2v",
+       "variantId": "standard"
+      },
+      "modelVendor": "apimart",
+      "size": "16:9",
+      "resolution": "720p",
+      "duration": 6,
+      "generate_audio": true,
+      "videoWidth": 1280,
+      "videoHeight": 720,
+      "videoAspectRatio": 1.7777777777777777,
+      "previewHeight": 180,
+      "technicalReview": {
+       "verdict": "ok",
+       "checks": [
+        {
+         "id": "zero-duration",
+         "suspect": false,
+         "detail": "时长 6.1s"
+        },
+        {
+         "id": "black-frames",
+         "suspect": false,
+         "detail": "黑帧占比 0%"
+        },
+        {
+         "id": "silent-audio",
+         "suspect": false,
+         "detail": "静音占比 0%"
+        }
+       ],
+       "checkedAt": 1781801894167
+      },
+      "userResized": false
+     },
+     "shotIndex": 10,
+     "runs": [],
+     "result": {
+      "id": "canvas-perf-video-0-workflow-v2",
+      "type": "video",
+      "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4",
+      "createdAt": 2,
+      "versionNo": 2
+     },
+     "renderKind": "shot-frame",
+     "categoryId": "shots",
+     "exactPosition": true,
+     "resultVersionMax": 2
+    },
+    {
+     "id": "canvas-perf-image-1",
+     "kind": "image",
+     "title": "性能图片 2",
+     "position": {
+      "x": 860,
+      "y": 80
+     },
+     "size": {
+      "width": 320,
+      "height": 180
+     },
+     "prompt": "Canvas performance fixture image 3",
+     "references": [],
+     "history": [
+      {
+       "id": "canvas-perf-image-1-result",
+       "type": "image",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+       "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+       "createdAt": 1,
+       "versionNo": 1
+      }
+     ],
+     "status": "success",
+     "meta": {
+      "modelKey": "gpt-image-2",
+      "modelLabel": "GPT Image 2",
+      "archetype": {
+       "id": "gpt-image-2",
+       "modeId": "t2i"
+      },
+      "modelVendor": "apimart",
+      "size": "auto",
+      "resolution": "1k",
+      "technicalReview": {
+       "verdict": "ok",
+       "checks": [
+        {
+         "id": "undecodable",
+         "suspect": false,
+         "detail": "1254×1254"
+        }
+       ],
+       "checkedAt": 1781801467460
+      },
+      "imageWidth": 960,
+      "imageHeight": 540,
+      "imageAspectRatio": 1.7777777777777777,
+      "previewHeight": 180,
+      "userResized": false
+     },
+     "shotIndex": 4,
+     "runs": [],
+     "result": {
+      "id": "canvas-perf-image-1-result",
+      "type": "image",
+      "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+      "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+      "createdAt": 1,
+      "versionNo": 1
+     },
+     "renderKind": "shot-frame",
+     "categoryId": "shots",
+     "exactPosition": true,
+     "resultVersionMax": 1
+    },
+    {
+     "id": "canvas-perf-image-2",
+     "kind": "image",
+     "title": "性能图片 3",
+     "position": {
+      "x": 1250,
+      "y": 80
+     },
+     "size": {
+      "width": 320,
+      "height": 180
+     },
+     "prompt": "Canvas performance fixture image 4",
+     "references": [],
+     "history": [
+      {
+       "id": "canvas-perf-image-2-result",
+       "type": "image",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+       "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+       "createdAt": 1,
+       "versionNo": 1
+      }
+     ],
+     "status": "success",
+     "meta": {
+      "modelKey": "gpt-image-2",
+      "modelLabel": "GPT Image 2",
+      "archetype": {
+       "id": "gpt-image-2",
+       "modeId": "t2i"
+      },
+      "modelVendor": "apimart",
+      "size": "auto",
+      "resolution": "1k",
+      "technicalReview": {
+       "verdict": "ok",
+       "checks": [
+        {
+         "id": "undecodable",
+         "suspect": false,
+         "detail": "1254×1254"
+        }
+       ],
+       "checkedAt": 1781801467460
+      },
+      "imageWidth": 960,
+      "imageHeight": 540,
+      "imageAspectRatio": 1.7777777777777777,
+      "previewHeight": 180,
+      "userResized": false
+     },
+     "shotIndex": 4,
+     "runs": [],
+     "result": {
+      "id": "canvas-perf-image-2-result",
+      "type": "image",
+      "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+      "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-960.png",
+      "createdAt": 1,
+      "versionNo": 1
+     },
+     "renderKind": "shot-frame",
+     "categoryId": "shots",
+     "exactPosition": true,
+     "resultVersionMax": 1
+    },
+    {
+     "id": "canvas-perf-image-3",
+     "kind": "image",
+     "title": "性能图片 4",
+     "position": {
+      "x": 1640,
+      "y": 80
+     },
+     "size": {
+      "width": 320,
+      "height": 180
+     },
+     "prompt": "Canvas performance fixture image 5",
+     "references": [],
+     "history": [
+      {
+       "id": "canvas-perf-image-3-result",
+       "type": "image",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+       "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+       "createdAt": 1,
+       "versionNo": 1
+      }
+     ],
+     "status": "success",
+     "meta": {
+      "modelKey": "gpt-image-2",
+      "modelLabel": "GPT Image 2",
+      "archetype": {
+       "id": "gpt-image-2",
+       "modeId": "t2i"
+      },
+      "modelVendor": "apimart",
+      "size": "auto",
+      "resolution": "1k",
+      "technicalReview": {
+       "verdict": "ok",
+       "checks": [
+        {
+         "id": "undecodable",
+         "suspect": false,
+         "detail": "1254×1254"
+        }
+       ],
+       "checkedAt": 1781801467460
+      },
+      "imageWidth": 960,
+      "imageHeight": 540,
+      "imageAspectRatio": 1.7777777777777777,
+      "previewHeight": 180,
+      "userResized": false
+     },
+     "shotIndex": 4,
+     "runs": [],
+     "result": {
+      "id": "canvas-perf-image-3-result",
+      "type": "image",
+      "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+      "thumbnailUrl": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/image-1920.png",
+      "createdAt": 1,
+      "versionNo": 1
+     },
+     "renderKind": "shot-frame",
+     "categoryId": "shots",
+     "exactPosition": true,
+     "resultVersionMax": 1
+    },
+    {
+     "id": "canvas-perf-video-0-workflow-video-2",
+     "kind": "video",
+     "title": "Workflow video 2",
+     "position": {
+      "x": 860,
+      "y": 380
+     },
+     "size": {
+      "width": 320,
+      "height": 180
+     },
+     "prompt": "Canvas performance fixture video 2",
+     "references": [],
+     "history": [
+      {
+       "id": "canvas-perf-video-0-workflow-video-2-result",
+       "type": "video",
+       "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4",
+       "createdAt": 1,
+       "versionNo": 1
+      }
+     ],
+     "status": "success",
+     "meta": {
+      "modelKey": "doubao-seedance-2.0",
+      "modelLabel": "Seedance 2.0",
+      "archetype": {
+       "id": "seedance-2-apimart",
+       "modeId": "i2v",
+       "variantId": "standard"
+      },
+      "modelVendor": "apimart",
+      "size": "16:9",
+      "resolution": "720p",
+      "duration": 6,
+      "generate_audio": true,
+      "videoWidth": 1280,
+      "videoHeight": 720,
+      "videoAspectRatio": 1.7777777777777777,
+      "previewHeight": 180,
+      "technicalReview": {
+       "verdict": "ok",
+       "checks": [
+        {
+         "id": "zero-duration",
+         "suspect": false,
+         "detail": "时长 6.1s"
+        },
+        {
+         "id": "black-frames",
+         "suspect": false,
+         "detail": "黑帧占比 0%"
+        },
+        {
+         "id": "silent-audio",
+         "suspect": false,
+         "detail": "静音占比 0%"
+        }
+       ],
+       "checkedAt": 1781801894167
+      },
+      "userResized": false
+     },
+     "shotIndex": 10,
+     "runs": [],
+     "result": {
+      "id": "canvas-perf-video-0-workflow-video-2-result",
+      "type": "video",
+      "url": "nomi-local://asset/rename-project-b/assets/generated/canvas-performance/video-720-a.mp4",
+      "createdAt": 1,
+      "versionNo": 1
+     },
+     "renderKind": "shot-frame",
+     "categoryId": "shots",
+     "exactPosition": true,
+     "resultVersionMax": 1
+    }
+   ],
+   "edges": [
+    {
+     "id": "canvas-perf-edge-0",
+     "source": "canvas-perf-image-0",
+     "target": "canvas-perf-video-0",
+     "mode": "first_frame",
+     "order": 0
+    },
+    {
+     "id": "canvas-perf-edge-1",
+     "source": "canvas-perf-video-0",
+     "target": "canvas-perf-image-2",
+     "mode": "reference",
+     "order": 1
+    },
+    {
+     "id": "canvas-perf-edge-2",
+     "source": "canvas-perf-image-1",
+     "target": "canvas-perf-image-0",
+     "mode": "reference",
+     "order": 2
+    },
+    {
+     "id": "canvas-perf-edge-3",
+     "source": "canvas-perf-image-2",
+     "target": "canvas-perf-image-1",
+     "mode": "reference",
+     "order": 0
+    }
+   ],
+   "selectedNodeIds": [],
+   "groups": [
+    {
+     "id": "workflow-small-mixed-group",
+     "name": "Workflow mixed media",
+     "categoryId": "shots",
+     "nodeIds": [
+      "canvas-perf-image-0",
+      "canvas-perf-video-0",
+      "canvas-perf-image-1",
+      "canvas-perf-image-2"
+     ],
+     "collapsed": false,
+     "createdAt": 100,
+     "updatedAt": 100
+    }
+   ]
+  },
+  "categories": [
+   {
+    "id": "shots",
+    "name": "分镜",
+    "icon": "🎬",
+    "iconName": "IconLayoutRows",
+    "defaultNodeRenderKind": "shot-frame",
+    "order": 1,
+    "isBuiltin": true,
+    "isHidden": false
+   },
+   {
+    "id": "cast",
+    "name": "角色",
+    "icon": "👥",
+    "iconName": "IconUser",
+    "defaultNodeRenderKind": "character-card",
+    "order": 2,
+    "isBuiltin": true,
+    "isHidden": false
+   },
+   {
+    "id": "scene",
+    "name": "场景",
+    "icon": "🌍",
+    "iconName": "IconPhoto",
+    "defaultNodeRenderKind": "scene-card",
+    "order": 3,
+    "isBuiltin": true,
+    "isHidden": false
+   },
+   {
+    "id": "prop",
+    "name": "道具",
+    "icon": "🧰",
+    "iconName": "IconBox",
+    "defaultNodeRenderKind": "prop-card",
+    "order": 4,
+    "isBuiltin": true,
+    "isHidden": false
+   },
+   {
+    "id": "audio",
+    "name": "声音",
+    "icon": "🎵",
+    "iconName": "IconChartBar",
+    "defaultNodeRenderKind": "audio-strip",
+    "order": 5,
+    "isBuiltin": true,
+    "isHidden": false
+   }
+  ],
+  "storyboardPlan": {
+   "title": "《最后一束光》分镜方案",
+   "anchors": [
+    {
+     "id": "anchor-linche",
+     "kind": "character",
+     "name": "林澈舰长",
+     "description": "林澈舰长，约35岁，东亚女性，短黑发，冷静坚毅的眼神，穿深灰色联合舰队舰长制服，肩章极简，额角可在后段带伤但基础形象保持一致；中性全身站姿，科幻军事写实风格，电影级硬光，背景简洁。",
+     "carrier": "visual",
+     "scope": "selective"
+    },
+    {
+     "id": "anchor-bridge",
+     "kind": "scene",
+     "name": "昆仑号指挥舱",
+     "description": "旗舰“昆仑”号指挥舱，2247年硬科幻风格，环形战术台、悬浮全息屏、深蓝黑金属舱壁，窗外可见深空与微弱星光；空舱宽幅建立图，无人物，无剧情动作，冷峻写实，电影感。",
+     "carrier": "visual",
+     "scope": "selective"
+    },
+    {
+     "id": "anchor-humanfleet",
+     "kind": "scene",
+     "name": "人类联合舰队与柯伊伯带",
+     "description": "人类联合舰队战舰群，三百艘深灰色无灯战舰，弧形防线，暗红散热板，超导磁帆结构可展开；柯伊伯带黑色碎冰海、冥王星轨道附近，硬科幻写实，宏大冷寂。",
+     "carrier": "visual",
+     "scope": "selective"
+    },
+    {
+     "id": "anchor-trisolaris",
+     "kind": "prop",
+     "name": "三体舰队与主舰",
+     "description": "三体舰队飞船，银色液态镜面外壳，极简无窗无舷灯，形体像细长银针与棱形主舰组合，表面能偏转爆炸光，防御场攻击时出现空间扭曲纹理；深空中冰冷、压迫、非人类。",
+     "carrier": "visual",
+     "scope": "selective"
+    },
+    {
+     "id": "anchor-gravitywave",
+     "kind": "prop",
+     "name": "引力波发射器",
+     "description": "引力波发射器，安装在昆仑号舰腹，形似巨大的黑色圆形眼睛，周围环状超导结构与蓝白充能纹路，打开时正对深空；硬科幻装置参考卡，无爆炸动作。",
+     "carrier": "visual",
+     "scope": "selective"
+    },
+    {
+     "id": "anchor-girl",
+     "kind": "character",
+     "name": "抱纸灯的小女孩",
+     "description": "地球地下避难所门口的小女孩，约7岁，东亚儿童，穿朴素浅色外套，抱一盏温暖纸灯，仰头看向天空；末世避难所入口、柔暖灯光与远处城市微光，写实电影感。",
+     "carrier": "visual",
+     "scope": "selective"
+    },
+    {
+     "id": "anchor-style",
+     "kind": "style",
+     "name": "全片风格",
+     "description": "全片风格：硬科幻战争史诗，冷峻写实，深黑宇宙与蓝白爆闪对比，低饱和金属色，电影级宽银幕构图，肃穆、克制、悲壮，不做卡通化。",
+     "carrier": "text",
+     "scope": "all"
+    }
+   ],
+   "shots": [
+    {
+     "index": 1,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-humanfleet",
+      "anchor-style"
+     ],
+     "prompt": "缓慢横移穿过柯伊伯带黑色碎冰海，冥王星轨道附近三百艘无灯战舰排成弧形防线，暗红散热板微微发亮，空间极静，镜头逐渐拉远呈现人类最后防线的规模。"
+    },
+    {
+     "index": 2,
+     "durationSec": 5,
+     "anchorIds": [
+      "anchor-trisolaris",
+      "anchor-style"
+     ],
+     "prompt": "长焦凝视深空尽头，一串冰冷亮点像银针缓慢逼近，随后速度感突然增强，星点拖出细微银线，画面压迫而无声，雷达警报感通过闪烁界面光体现。"
+    },
+    {
+     "index": 3,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "低角度推近战术台，林澈手指悬在全息屏上，脸被蓝色数据光切亮，身后屏幕轮播地球夜城、海岸灯线和避难所人群，她听见敌舰不减速后眼神沉下。"
+    },
+    {
+     "index": 4,
+     "durationSec": 5,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "环绕镜头掠过指挥舱军官的紧张表情，最终停在林澈正面，她按下通讯键发布烛龙计划，频道回声以一行行舰名确认在全息屏上亮起。"
+    },
+    {
+     "index": 5,
+     "durationSec": 7,
+     "anchorIds": [
+      "anchor-humanfleet",
+      "anchor-style"
+     ],
+     "prompt": "广角俯拍舰队阵列，第一梯队展开巨大的透明超导磁帆，像无数面玻璃巨盾在黑暗中张开，第二梯队抛出聚变弹幕，弹体在远方排成星云雷区。"
+    },
+    {
+     "index": 6,
+     "durationSec": 7,
+     "anchorIds": [
+      "anchor-humanfleet",
+      "anchor-trisolaris",
+      "anchor-style"
+     ],
+     "prompt": "镜头快速推进到雷区边缘，第一枚聚变弹爆成小太阳，紧接着千枚爆炸连成白色火河，照亮冥王星冰面；火光散去，银色三体飞船仍穿火而来，只有两艘碎成银尘。"
+    },
+    {
+     "index": 7,
+     "durationSec": 5,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "手持感轻微晃动的中近景，死亡与命中率数据在战术台疯狂刷新，参谋脸色苍白，林澈沉默盯着屏幕，冷光映出她越来越镇定的表情。"
+    },
+    {
+     "index": 8,
+     "durationSec": 7,
+     "anchorIds": [
+      "anchor-humanfleet",
+      "anchor-trisolaris",
+      "anchor-style"
+     ],
+     "prompt": "跟拍一百二十艘人类战舰点燃主推进器冲出阵列，像逆流火种穿过爆炸残光；空间突然轻颤，最前方战舰被无声切成两半，后续舰艇接连平滑解体。"
+    },
+    {
+     "index": 9,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "近景推到林澈眼睛，屏幕上一处微弱波动反复闪现，她指向三体主舰防御场攻击后的短暂间隙，周围军官震惊停顿，林澈说出把昆仑号开进去的决断。"
+    },
+    {
+     "index": 10,
+     "durationSec": 7,
+     "anchorIds": [
+      "anchor-humanfleet",
+      "anchor-trisolaris",
+      "anchor-style"
+     ],
+     "prompt": "外景高速追随昆仑号脱离阵列全功率推进，舰体震动，蓝白粒子火花从外壳擦出；十几道看不见的空间切割袭来，昆仑号急剧下沉规避，一道攻击削去舰桥外侧装甲。"
+    },
+    {
+     "index": 11,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "指挥舱内警报红光闪烁，空气泄漏形成白雾，林澈扶住战术台，额角鲜血滑落；距离数字从九万、五万到一万公里跳变，军官报告充能、损毁、失压和存活人数。"
+    },
+    {
+     "index": 12,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "稳定正面特写，林澈打开全舰广播，背景混乱逐渐压低，她用平静坚定的神情完成最后演说，镜头缓慢靠近到眼神，舱内人员默默固定身体。"
+    },
+    {
+     "index": 13,
+     "durationSec": 7,
+     "anchorIds": [
+      "anchor-humanfleet",
+      "anchor-trisolaris",
+      "anchor-gravitywave",
+      "anchor-style"
+     ],
+     "prompt": "昆仑号冲入三体主舰防御间隙，舰腹机械结构迅速打开，黑色眼睛般的引力波发射器亮起蓝白环纹，三体主舰银色外壳浮现密集光纹并转向。"
+    },
+    {
+     "index": 14,
+     "durationSec": 5,
+     "anchorIds": [
+      "anchor-bridge",
+      "anchor-linche",
+      "anchor-style"
+     ],
+     "prompt": "极近景拍林澈沾血的手按下最终指令，画面瞬间静音，白光从舰首方向吞没指挥舱，全息屏上的坐标广播波形向外扩散，林澈最后看向地球实时画面。"
+    },
+    {
+     "index": 15,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-girl",
+      "anchor-style"
+     ],
+     "prompt": "切到地球地下避难所门口，小女孩抱着温暖纸灯仰头，周围成年人安静站立，夜空中忽然亮起一颗新的星，她并不知道远方发生了什么，只被光照亮脸庞。"
+    },
+    {
+     "index": 16,
+     "durationSec": 5,
+     "anchorIds": [
+      "anchor-trisolaris",
+      "anchor-style"
+     ],
+     "prompt": "深空静止广角，三体舰队第一次停下，银色主舰悬在黑暗里不再前进，远处星海像无数双眼睛逐渐显现，镜头缓慢后撤制造宇宙猎手苏醒的恐惧。"
+    },
+    {
+     "index": 17,
+     "durationSec": 6,
+     "anchorIds": [
+      "anchor-style"
+     ],
+     "prompt": "地球全景由夜侧开始，所有城市灯光同时熄灭三分钟，海面、山谷、废墟和轨道空间站陷入肃静，镜头缓慢环绕蓝色星球，氛围庄严无声。"
+    },
+    {
+     "index": 18,
+     "durationSec": 7,
+     "anchorIds": [
+      "anchor-girl",
+      "anchor-style"
+     ],
+     "prompt": "从小女孩纸灯的暖光开始，第一束城市灯重新亮起，接着第二束、第三束，镜头升空变成地球夜景，整颗星球逐渐发光，光芒温柔而克制，收束为幸存者的光。"
+    }
+   ]
+  },
+  "storyboardPlanCommitted": true,
+  "workbenchDocuments": [
+   {
+    "id": "workflow-small-document-1",
+    "version": 1,
+    "title": "Workflow document 1",
+    "updatedAt": 100,
+    "contentJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Workflow draft 1. A creator compares scenes, edits dialogue and references mixed media."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "id": "workflow-small-document-2",
+    "version": 1,
+    "title": "Workflow document 2",
+    "updatedAt": 101,
+    "contentJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Workflow draft 2. A creator compares scenes, edits dialogue and references mixed media."
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "activeDocumentId": "workflow-small-document-1",
+  "storyboardDesignsByDocumentId": {
+   "workflow-small-document-1": [
+    {
+     "id": "workflow-small-design-1-1",
+     "documentId": "workflow-small-document-1",
+     "title": "Workflow plan 1",
+     "plan": {
+      "title": "Workflow plan 1",
+      "profileKey": "fixture.performance",
+      "anchors": [],
+      "shots": [
+       {
+        "index": 1,
+        "shotId": "workflow-small-plan-0-shot-1",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-1",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 2,
+        "shotId": "workflow-small-plan-0-shot-2",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-2",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 3,
+        "shotId": "workflow-small-plan-0-shot-3",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-3",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 4,
+        "shotId": "workflow-small-plan-0-shot-4",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-4",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 5,
+        "shotId": "workflow-small-plan-0-shot-5",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-5",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 6,
+        "shotId": "workflow-small-plan-0-shot-6",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-6",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       }
+      ]
+     },
+     "committed": false,
+     "status": "draft",
+     "sourceDocumentUpdatedAt": 100,
+     "createdAt": 101,
+     "updatedAt": 101
+    },
+    {
+     "id": "workflow-small-design-1-2",
+     "documentId": "workflow-small-document-1",
+     "title": "Workflow plan 2",
+     "plan": {
+      "title": "Workflow plan 2",
+      "profileKey": "fixture.performance",
+      "anchors": [],
+      "shots": [
+       {
+        "index": 1,
+        "shotId": "workflow-small-plan-1-shot-1",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-1",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 2,
+        "shotId": "workflow-small-plan-1-shot-2",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-2",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 3,
+        "shotId": "workflow-small-plan-1-shot-3",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-3",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 4,
+        "shotId": "workflow-small-plan-1-shot-4",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-4",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 5,
+        "shotId": "workflow-small-plan-1-shot-5",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-5",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 6,
+        "shotId": "workflow-small-plan-1-shot-6",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-6",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       }
+      ]
+     },
+     "committed": false,
+     "status": "draft",
+     "sourceDocumentUpdatedAt": 100,
+     "createdAt": 102,
+     "updatedAt": 102
+    }
+   ],
+   "workflow-small-document-2": []
+  },
+  "storyboardPlans": {
+   "workflow-small-document-1": [
+    {
+     "plan": {
+      "title": "Workflow plan 1",
+      "profileKey": "fixture.performance",
+      "anchors": [],
+      "shots": [
+       {
+        "index": 1,
+        "shotId": "workflow-small-plan-0-shot-1",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-1",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 2,
+        "shotId": "workflow-small-plan-0-shot-2",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-2",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 3,
+        "shotId": "workflow-small-plan-0-shot-3",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-3",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 4,
+        "shotId": "workflow-small-plan-0-shot-4",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-4",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 5,
+        "shotId": "workflow-small-plan-0-shot-5",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-5",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 6,
+        "shotId": "workflow-small-plan-0-shot-6",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-0-shot-6",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       }
+      ]
+     },
+     "committed": false
+    },
+    {
+     "plan": {
+      "title": "Workflow plan 2",
+      "profileKey": "fixture.performance",
+      "anchors": [],
+      "shots": [
+       {
+        "index": 1,
+        "shotId": "workflow-small-plan-1-shot-1",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-1",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 2,
+        "shotId": "workflow-small-plan-1-shot-2",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-2",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 3,
+        "shotId": "workflow-small-plan-1-shot-3",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-3",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 4,
+        "shotId": "workflow-small-plan-1-shot-4",
+        "shotKind": "image",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-4",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 5,
+        "shotId": "workflow-small-plan-1-shot-5",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-5",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       },
+       {
+        "index": 6,
+        "shotId": "workflow-small-plan-1-shot-6",
+        "shotKind": "video",
+        "durationSec": 5,
+        "anchorIds": [],
+        "prompt": "Workflow fixture workflow-small-plan-1-shot-6",
+        "modelKey": "local-fixture-model",
+        "modeId": "fixture"
+       }
+      ]
+     },
+     "committed": false
+    }
+   ],
+   "workflow-small-document-2": []
+  }
+ }
+}

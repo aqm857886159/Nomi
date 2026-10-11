@@ -1,0 +1,32 @@
+
+> nomi@0.23.1 check:escape-ledger <repo>
+> node --test ./scripts/check-escape-ledger.node-test.mjs ./scripts/entry-directory.node-test.mjs && node ./scripts/check-escape-ledger.mjs
+
+✔ 合格的 fixed（根因合同 + 类级检查 + PR 号）：绿 (2.293829ms)
+✔ 咬人：fixed 缺根因合同 / 缺类检查 / 缺 PR 号，各自红 (0.592733ms)
+✔ 咬人：只测单个场景的不算类级；铁律引用要对得上文件和声明 (0.395379ms)
+✔ 咬人：根因合同必须有 detected_by、结构性预防，并点名这条类检查 (0.274909ms)
+✔ 账本格式不合法 → 红：未登记类别、重复 id、缺 since、状态非法、没复核就 fixed (0.266407ms)
+✔ candidate 停留超过 14 天 → 警告（不阻断）；刚好 14 天不警告 (0.200118ms)
+✔ fixedTransitions：只有 candidate / reviewed → fixed 的算状态转换；已是 fixed 的不重复算 (0.263483ms)
+✔ looksClassLevel：遍历清单 / 参数化算，单场景不算 (0.117005ms)
+✔ 真实账本：现状是绿的 (12.440779ms)
+✔ 端到端：不合格的 fixed 条目 → CLI 退出 1；补齐根因合同、类检查、PR 号后 → 退出 0；candidate 超期只警告 (53.602079ms)
+✔ 一条一个文件：目录不在 / 缺 _meta.json / 文件坏了 / 文件名和 id 对不上 → CLI 红并点名 (151.133287ms)
+✔ 一条一个文件：id 就是文件名——非法字符、只差大小写都红；路径 ↔ id 一一对应 (1.68422ms)
+✔ loadEscapeLedger：条目按 since + id 稳定排序；读某个提交与读工作树结果相同 (20.758699ms)
+✔ 真实概念登记：每个文件名都恰好是 <subject>.json，subject ↔ 文件名一一对应 (10.890189ms)
+✔ 真实逃逸账本：顶层字段都在 _meta.json，条目按 since + id 排序 (1.983045ms)
+✔ 文件名规则：只认点分小写 subject；/、大写、单段、_meta 都不是概念文件 (0.42899ms)
+✔ 概念登记：文件名和 subject 对不上 / 没有 subject / 文件坏了 / 缺 _meta → 抛错点名；目录不在 → null (1.893822ms)
+✔ 读某个提交 = 读工作树（同一份组装）；那个提交上没有目录 → null (26.730715ms)
+✔ 墓碑：工作树里还留着拆分前的大文件 → 两个加载函数都拒绝（合 main 时留下它，里面新加的条目会悄悄不进账） (0.895605ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 292.891163
+✅ 逃逸账本门岗：82 条（candidate 31 / reviewed 6 / fixed 45）；candidate 超 14 天警告 0 条

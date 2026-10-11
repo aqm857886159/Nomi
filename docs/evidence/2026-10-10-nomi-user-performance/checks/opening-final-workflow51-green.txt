@@ -1,0 +1,63 @@
+
+> nomi@0.23.1 check:nomi-workflow-evidence <repo>
+> node --test tests/ux/nomi-user-workflow-performance.node-test.mjs tests/ux/renderer-open-markdown-boundary.node-test.mjs tests/ux/nomi-next-workflow-probe.node-test.mjs tests/ux/nomi-project-open-preload.node-test.mjs
+
+✔ narrow journey selection rejects every unknown, split or duplicate argument before setup (0.716889ms)
+✔ completion probe starts its browser frame loop before trusting an input (1.011307ms)
+✔ selected design with target plus stale foreign content cannot complete a switch (4.180186ms)
+✔ every shared hydration shows progress before awaiting main and keeps studio behind receipt recovery (0.899271ms)
+✔ generation chunk imports overlap hydration only after the outgoing Surface ACK (49.114234ms)
+✔ actual hydration waits for deferred ACK, lane and receipt recovery before exposing studio (41.608156ms)
+✔ superseded actual hydration cannot preload or dismiss the newer opening state (17.827846ms)
+✔ the same production chunk factories serve preload and lazy render without optional feature imports (0.478994ms)
+✔ semantic budgets distinguish feedback, decoded content and delayed target-control completion (1.256143ms)
+✔ completed target response may precede decoded content without invalidating the action (0.209863ms)
+✔ schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions (1.726544ms)
+✔ workflow scale contract is fixed and complete (0.734906ms)
+✔ small fixture persists document, plan and mixed media counts (8.306442ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.058202ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (10.449427ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (31.021735ms)
+✔ production snapshot and result normalization preserve fixture groups and history (467.998639ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.687394ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.441639ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.681165ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.179357ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.123174ms)
+✔ the real browser probe retains input stalls and requires trusted target input plus production response (1.681076ms)
+✔ decoded content can arrive after feedback, eligibility and completed target input (0.739613ms)
+✔ existing opening spinner is feedback before target title or decoded media (0.47658ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy content or canvas eligibility (1.108202ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.470162ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.482939ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.13423ms)
+✔ schema-v3 samples without decoded-content, target-control and persistence receipts are not measurement evidence (0.244134ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.153859ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.084466ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.083475ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (7.313693ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (34.650229ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.193108ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (55.963775ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (29.652503ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.970197ms)
+✔ control inventory rechecks actual AST bindings, conditional duplication and existing walk action gaps (475.988159ms)
+✔ expanded pairwise plans cover all eligible13-axis pairs plus the complete interruption/recovery combination (0.940973ms)
+✔ percentiles and raw path redaction are deterministic (0.289442ms)
+✔ negative raw frame interval fails closed rather than dropping an input stall (0.160679ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/WorkbenchShell.tsx (575.325724ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/skillLibrary/SkillDetail.tsx (1.911129ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/promptLibrary/PromptPreviewOverlay.tsx (1.92519ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx (2.2404ms)
+✔ graph distinguishes a real owner from its dynamic lazy boundary and type-only contract (3.735048ms)
+✔ the shared Markdown lazy owner retains the existing local chunk failure domain for all consumers (0.141912ms)
+✔ controlled Markdown runtime clears inherited outbound exceptions at the actual launch call (5.812204ms)
+✔ an absent real Markdown module request fails at a deadline instead of hanging its cell (10.550808ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1952.456294
