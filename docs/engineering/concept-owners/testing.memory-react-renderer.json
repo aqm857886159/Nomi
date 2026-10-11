@@ -1,0 +1,28 @@
+{
+  "name": "内存 React 测试宿主",
+  "subject": "testing.memory-react-renderer",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/v4/testReactRenderer.ts",
+    "symbol": "createReactTestRenderer"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/testReactRenderer.ts",
+      "symbol": "createReactTestRenderer"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/testReactRenderer.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+    "src/workbench/ai/v4/asyncReadIdentity.test.ts",
+    "src/workbench/ai/v4/useLogUnclassifiedProviderFailures.test.ts"
+  ],
+  "since": "2026-10-11",
+  "notes": "只登记实际共享测试边界；保留真实 lazy/Suspense 与既有内容、计数断言。"
+}

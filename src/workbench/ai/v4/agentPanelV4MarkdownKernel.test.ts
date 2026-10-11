@@ -1,7 +1,7 @@
 import React from 'react';
-import { renderToPipeableStream, renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { PassThrough } from 'node:stream';
+import { preloadNomiMarkdown } from '../../../../tests/helpers/preloadNomiMarkdown';
 import { readFileSync } from 'node:fs';
 import { NomiMarkdown } from '../../common/NomiMarkdown';
 import { LazyNomiMarkdown } from '../../common/LazyNomiMarkdown';
@@ -19,13 +19,7 @@ const slotLabels = { confirm: 'yes', reject: 'no', escalate: 'always', cancel: '
 const md = (source: string) => html(React.createElement(NomiMarkdown, { compact: true, profile: "agent-v4", children: source }));
 // Synchronous SSR cannot await React.lazy. Resolve the real shared consumer
 // before kernel assertions without changing production loading behavior.
-beforeAll(() => new Promise<void>((resolve, reject) => {
-    const output = new PassThrough()
-    output.resume(); output.on('end', resolve); output.on('error', reject)
-    const stream = renderToPipeableStream(React.createElement(LazyNomiMarkdown, { children: text }), {
-        onAllReady: () => stream.pipe(output), onError: reject,
-    })
-}))
+beforeAll(preloadNomiMarkdown)
 
 it('lazy boundary preserves the complete rendering contract including streaming and labels', () => {
     const props = { children: 'Body\n\n![](https://example.invalid/image)\n\n```ts\nconst n = 1\n```', compact: true, profile: 'agent-v4' as const, streaming: true, copyLabel: 'Copy test content', imageLabel: 'Open test image' }

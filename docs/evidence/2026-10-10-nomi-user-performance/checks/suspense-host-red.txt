@@ -1,0 +1,38 @@
+
+> nomi@0.23.1 test:unit:shard <repo>
+> python3 scripts/with-gates-lock.py -- node ./scripts/vitest-fair-share.mjs src/workbench/ai/v4/testReactRenderer.test.ts
+
+另一棵 worktree 在跑 gates（pid=326351 cwd=<repo> 已跑 1.2 分钟）；排队等待
+另一棵 worktree 在跑 gates（pid=326351 cwd=<repo> 已跑 1.7 分钟）；排队等待
+另一棵 worktree 在跑 gates（pid=326351 cwd=<repo> 已跑 2.2 分钟）；排队等待
+[vitest] 独占本机（4 核），worker 数交给 vitest 默认。
+
+ RUN  v4.1.8 <repo>
+
+ ❯ src/workbench/ai/v4/testReactRenderer.test.ts (1 test | 1 failed) 13ms
+   × commits a cold Suspense fallback and reveals the resolved component 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/ai/v4/testReactRenderer.test.ts > commits a cold Suspense fallback and reveals the resolved component
+TypeError: callback is not a function
+ ❯ runWithFiberInDEV node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:2663:13
+ ❯ hideOrUnhideAllChildrenOnFiber node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:12756:19
+ ❯ hideOrUnhideAllChildren node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:12744:11
+ ❯ hideOrUnhideAllChildrenOnFiber node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:12807:13
+ ❯ hideOrUnhideAllChildren node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:12744:11
+ ❯ commitMutationEffectsOnFiber node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:13646:15
+ ❯ recursivelyTraverseMutationEffects node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:13266:11
+ ❯ commitMutationEffectsOnFiber node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:13571:11
+ ❯ recursivelyTraverseMutationEffects node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:13266:11
+ ❯ commitMutationEffectsOnFiber node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:13480:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  03:53:25
+   Duration  282ms (transform 44ms, setup 59ms, import 22ms, tests 13ms, environment 0ms)
+
+ ELIFECYCLE  Command failed with exit code 1.

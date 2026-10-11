@@ -636,3 +636,11 @@ test('Nomi workflow evidence scan is executed by the same Contracts command in C
   assert.ok(CI_GATES.includes(scan.name))
   assert.deepEqual(gateCommands(pkg.scripts[scan.name], [])[0], scan.argv)
 })
+
+test('Nomi Markdown consumer completion runs identical real suites in CI and local gates', () => {
+  const scan = SCAN_TESTS.find((entry) => entry.name === 'check:nomi-markdown-consumers')
+  assert.ok(CI_GATES.includes(scan.name))
+  assert.deepEqual(gateCommands(pkg.scripts[scan.name], [])[0], scan.argv)
+  for (const file of ['src/workbench/common/LazyNomiMarkdown.tsx', 'src/workbench/ai/v4/AgentPanelV4Markdown.tsx', 'tests/helpers/preloadNomiMarkdown.ts']) assert.ok(selectGates([file]).includes(scan.name), file)
+  for (const file of ['agentPanelV4Blocks.test.ts', 'agentPanelV4Performance.test.ts', 'agentPanelV4MarkdownKernel.test.ts', 'testReactRenderer.test.ts']) assert.ok(scan.argv.some((entry) => entry.endsWith(file)), file)
+})

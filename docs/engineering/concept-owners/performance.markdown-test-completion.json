@@ -1,0 +1,28 @@
+{
+  "name": "Markdown 实际测试完成边界",
+  "subject": "performance.markdown-test-completion",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/helpers/preloadNomiMarkdown.ts",
+    "symbol": "preloadNomiMarkdown"
+  },
+  "write_api": [
+    {
+      "path": "tests/helpers/preloadNomiMarkdown.ts",
+      "symbol": "preloadNomiMarkdown"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Performance.test.ts"
+  ],
+  "since": "2026-10-11",
+  "notes": "只登记实际共享测试边界；保留真实 lazy/Suspense 与既有内容、计数断言。"
+}

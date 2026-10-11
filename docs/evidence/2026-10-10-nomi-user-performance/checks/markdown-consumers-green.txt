@@ -1,0 +1,13 @@
+
+> nomi@0.23.1 check:nomi-markdown-consumers <repo>
+> node scripts/vitest-fair-share.mjs src/workbench/ai/v4/agentPanelV4Blocks.test.ts src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts src/workbench/ai/v4/agentPanelV4Performance.test.ts src/workbench/ai/v4/testReactRenderer.test.ts src/workbench/ai/v4/asyncReadIdentity.test.ts src/workbench/ai/v4/useLogUnclassifiedProviderFailures.test.ts
+
+[vitest] 独占本机（4 核），worker 数交给 vitest 默认。
+
+ RUN  v4.1.8 <repo>
+
+
+ Test Files  6 passed (6)
+      Tests  113 passed (113)
+   Start at  03:59:56
+   Duration  3.78s (transform 4.59s, setup 312ms, import 7.67s, tests 1.33s, environment 0ms)

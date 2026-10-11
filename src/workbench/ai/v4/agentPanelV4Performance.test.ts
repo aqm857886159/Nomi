@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { preloadNomiMarkdown } from '../../../../tests/helpers/preloadNomiMarkdown'
 import { AgentPanelV4Panel } from './AgentPanelV4Panel'
 import { useV4Labels } from './agentPanelV4Labels'
 import { collapseV4Flow } from './agentPanelV4Collapse'
@@ -163,6 +164,8 @@ function panelRenderer() {
     commitUpdate: (instance, props) => { instance.props = props },
   })
 }
+
+beforeAll(preloadNomiMarkdown)
 
 beforeEach(() => {
   // The composer measures itself; this host has no layout engine, so layout observers are inert.

@@ -1,0 +1,201 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-markdown-test-suspense",
+  "problem_type": "Synchronous test consumers lack actual lazy completion and the Suspense host contract",
+  "symptom": "a259b788c Unit1 fails five Markdown SSR assertions; Unit2 fails startSuspendingCommit is not a function.",
+  "direct_cause": "Static SSR observes an unresolved lazy fallback. The memory host omits Suspense commit/hide hooks and uses the primary context slot also used by SSR. Related-test selection omitted indirect consumers.",
+  "class_root": "No enforced distinction between cold Suspense coverage and completed-render assertions; the shared test host lacks the pinned reconciler contract and indirect consumers are absent from CI/local mandatory coverage.",
+  "affected_population": [
+    "All synchronous Markdown SSR and steady-state count consumers",
+    "All three memory-renderer callers and future lazy content"
+  ],
+  "scope_paths": [
+    "tests/helpers/preloadNomiMarkdown.ts",
+    "src/workbench/ai/v4/testReactRenderer.ts",
+    "package.json",
+    "scripts/pre-push-contracts.mjs",
+    "scripts/pre-push-structure.node-test.mjs",
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+    "src/workbench/ai/v4/testReactRenderer.test.ts"
+  ],
+  "entry_points": [
+    "Blocks/kernel static SSR",
+    "Performance counts",
+    "Cold Suspense sync/reveal/hide lifecycle"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react/lazy",
+      "checked_at": "2026-10-11",
+      "purpose": "Actual lazy completion and fallback semantics"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react-dom/server/renderToPipeableStream",
+      "checked_at": "2026-10-11",
+      "purpose": "onAllReady completion without fixed waits"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://raw.githubusercontent.com/facebook/react/main/packages/react-test-renderer/src/ReactFiberConfigTestHost.js",
+      "checked_at": "2026-10-11",
+      "purpose": "Secondary/no-resource host compared with installed react-reconciler0.34"
+    }
+  ],
+  "invariants": [
+    "Actual shared lazy owner resolves before synchronous SSR and steady-state count assertions; no fake renderer or weakened assertion",
+    "Real unresolved Suspense commits fallback, hides mounted content and restores the same host after resolution",
+    "Secondary memory host implements pinned no-resource commit contract",
+    "CI/local mandatory gate executes the same six real consumer suites"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+      "symbol": "preloadNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+      "symbol": "preloadNomiMarkdown"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+      "symbol": "preloadNomiMarkdown"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+      "symbol": "createReactTestRenderer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/asyncReadIdentity.test.ts",
+      "symbol": "createReactTestRenderer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/testReactRenderer.test.ts",
+      "symbol": "createReactTestRenderer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/testReactRenderer.ts",
+      "symbol": "Reconciler"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useLogUnclassifiedProviderFailures.test.ts",
+      "symbol": "createReactTestRenderer"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "Different SSR/count/lifecycle/caller tests retain their roles, converging on one real preload helper and one memory host."
+  },
+  "generality_proof": "Generated door scan finds every preload/host caller. Three completed-render consumers share actual server completion; three memory-renderer callers share secondary/no-resource hooks. Cold lifecycle tests independently prevent preloading from hiding Suspense failures. Explicit six-file CI/local gate parity closes indirect-consumer selection gaps.",
+  "shared_boundaries": [
+    {
+      "path": "tests/helpers/preloadNomiMarkdown.ts",
+      "symbol": "preloadNomiMarkdown",
+      "responsibility": "Await the actual shared lazy renderer before completed-content/count assertions"
+    },
+    {
+      "path": "src/workbench/ai/v4/testReactRenderer.ts",
+      "symbol": "createReactTestRenderer",
+      "responsibility": "Own the pinned secondary/no-resource Suspense contract for every memory-renderer caller"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+      "entry_point": "Blocks SSR",
+      "disposition": "enforced",
+      "evidence": "Five content failures RED; all74 original assertions retained"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+      "entry_point": "Performance counts",
+      "disposition": "enforced",
+      "evidence": "Missing commit callback RED; rows<=2 and translation equality retained"
+    },
+    {
+      "path": "src/workbench/ai/v4/testReactRenderer.test.ts",
+      "entry_point": "Cold lifecycle",
+      "disposition": "enforced",
+      "evidence": "Sync fallback, real lazy reveal and mounted-content hide/same-host restoration"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every indirect lazy consumer or future Suspense content can reach the same incomplete test boundary.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs preloadNomiMarkdown createReactTestRenderer Reconciler --roots=src,tests --include-tests",
+      "rg all memory-renderer callers and Markdown SSR consumers",
+      "Compare installed reconciler commit/hide call sites with official TestHost"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/v4/testReactRenderer.ts",
+    "invariant": "Secondary memory host implements pinned no-resource commit contract",
+    "failure_mode": "Actual content/count/cold-lifecycle tests fail; mandatory gate parity prevents omission.",
+    "exception_policy": "none",
+    "strategy": "Consolidate actual completion and correct host hooks, preserving independent cold tests and CI/local identical consumer gate.",
+    "artifacts": [
+      "tests/helpers/preloadNomiMarkdown.ts",
+      "src/workbench/ai/v4/testReactRenderer.ts",
+      "package.json",
+      "scripts/pre-push-contracts.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Performance.test.ts",
+    "src/workbench/ai/v4/testReactRenderer.test.ts",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/testReactRenderer.test.ts",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts"
+    ],
+    "rationale": "Delete duplicated inline kernel preload; converge on the real helper. Correct existing host in place without a parallel adapter."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Installed pinned React/react-reconciler0.34",
+    "target": "Pinned runtime with official secondary/no-resource host contract",
+    "rationale": "Incomplete application test adapter explains the failure; no dependency defect or upgrade is established.",
+    "exit_criteria": [
+      "Any reconciler update must retain cold commit/reveal/hide coverage and all six real consumer suites passing in CI."
+    ]
+  },
+  "migration": "No production, persisted-data, concurrency, permission or performance-baseline migration; test setup only.",
+  "residual_risks": [
+    "New-head remote Contracts/Unit pending until pushed",
+    "Full-product performance acceptance and real-display/Mac/Windows/GPU baselines remain unverified"
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/testReactRenderer.ts",
+    "tests": [
+      "src/workbench/ai/v4/testReactRenderer.test.ts"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "patch",
+    "characterization_test": "src/workbench/ai/v4/testReactRenderer.test.ts"
+  }
+}

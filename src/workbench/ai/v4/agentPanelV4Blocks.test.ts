@@ -13,6 +13,7 @@ import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Mess
 import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Panel, V4FlowRow } from './AgentPanelV4Panel'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
+import { preloadNomiMarkdown } from '../../../../tests/helpers/preloadNomiMarkdown'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
 import type { InterventionData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
@@ -58,6 +59,7 @@ beforeAll(async () => {
   Reflect.set(globalThis, 'window', { localStorage: { getItem: () => null, setItem: () => {} } })
   Reflect.set(globalThis, 'document', { documentElement: { lang: '' } })
   await import('../../../i18n/index')
+  await preloadNomiMarkdown()
 })
 
 describe('① 用户气泡', () => {

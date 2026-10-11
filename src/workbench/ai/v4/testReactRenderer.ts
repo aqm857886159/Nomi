@@ -4,7 +4,7 @@ import React from 'react'
 const require = createRequire(import.meta.url)
 const Reconciler = require('react-reconciler')
 
-export type TestHostNode = { props: unknown }
+export type TestHostNode = { props: unknown; hidden?: boolean }
 
 export function createReactTestRenderer<T extends TestHostNode = TestHostNode>(options: {
   createInstance?: (type: string, props: Record<string, unknown>) => T
@@ -13,7 +13,9 @@ export function createReactTestRenderer<T extends TestHostNode = TestHostNode>(o
   const renderer = Reconciler({
     now: Date.now,
     supportsMutation: true,
-    isPrimaryRenderer: true,
+    // The in-memory test host is secondary; ReactDOM SSR owns the primary
+    // context slot when a real lazy Markdown fixture is preloaded.
+    isPrimaryRenderer: false,
     getRootHostContext: () => ({}),
     getChildHostContext: () => ({}),
     getPublicInstance: (instance: T) => instance,
@@ -37,6 +39,21 @@ export function createReactTestRenderer<T extends TestHostNode = TestHostNode>(o
       else instance.props = props
     },
     commitTextUpdate: () => undefined,
+    hideInstance: (instance: T) => { instance.hidden = true },
+    unhideInstance: (instance: T) => { instance.hidden = false },
+    hideTextInstance: (instance: TestHostNode) => { instance.hidden = true },
+    unhideTextInstance: (instance: TestHostNode) => { instance.hidden = false },
+    // Same no-resource host contract as React's test renderer: in-memory nodes
+    // have no external commit dependency, while React.lazy still suspends.
+    maySuspendCommit: () => false,
+    maySuspendCommitOnUpdate: () => false,
+    maySuspendCommitInSyncRender: () => false,
+    preloadInstance: () => true,
+    startSuspendingCommit: () => null,
+    suspendInstance: () => undefined,
+    suspendOnActiveViewTransition: () => undefined,
+    waitForCommitToBeReady: () => null,
+    getSuspendedCommitReason: () => null,
     scheduleTimeout: setTimeout,
     cancelTimeout: clearTimeout,
     noTimeout: -1,

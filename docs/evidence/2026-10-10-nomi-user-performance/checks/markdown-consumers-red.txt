@@ -1,0 +1,121 @@
+
+> nomi@0.23.1 test:unit:shard <repo>
+> python3 scripts/with-gates-lock.py -- node ./scripts/vitest-fair-share.mjs src/workbench/ai/v4/agentPanelV4Blocks.test.ts src/workbench/ai/v4/agentPanelV4Performance.test.ts
+
+另一棵 worktree 在跑 gates（pid=326351 cwd=<repo> 已跑 2.0 分钟）；排队等待
+[vitest] 独占本机（4 核），worker 数交给 vitest 默认。
+
+ RUN  v4.1.8 <repo>
+
+ ❯ src/workbench/ai/v4/agentPanelV4Blocks.test.ts (74 tests | 5 failed) 142ms
+     × 流式带光标、完成不带 16ms
+     × 失败态带原因和「未扣费」的动作条 4ms
+     × 计划人话与技术详情分开且默认折叠：汤先到，人后到 4ms
+     × 计划人话与技术详情分开且默认折叠：镜头 2：端起汤碗 3ms
+   × the host notice on a receipt shows even when its process row is collapsed 4ms
+ ❯ src/workbench/ai/v4/agentPanelV4Performance.test.ts (4 tests | 1 failed) 39ms
+     × keeps real panel row renders and translations independent of history length 20ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Blocks.test.ts > ② 助手文本 > 流式带光标、完成不带
+AssertionError: expected '<div class="group" data-v4-block="ass…' to contain 'style="--streamdown-caret:'
+
+Expected: "style="--streamdown-caret:"
+Received: "<div class="group" data-v4-block="assistant" data-status="streaming"><article class="text-body-sm leading-relaxed text-nomi-ink" data-ai-element="message" data-role="assistant"><div data-ai-element="response" data-streaming="true"><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div></div></article></div>"
+
+ ❯ src/workbench/ai/v4/agentPanelV4Blocks.test.ts:82:86
+     80|   const wired = { onCopy: () => undefined, onRetry: () => undefined, o…
+     81|   it('流式带光标、完成不带', () => {
+     82|     expect(html(el(V4AssistantMessage, { text: 'x', status: 'streaming…
+       |                                                                                      ^
+     83|     expect(html(el(V4AssistantMessage, { text: 'x', status: 'complete'…
+     84|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Blocks.test.ts > ④ 任务卡 · 五态 > 失败态带原因和「未扣费」的动作条
+AssertionError: expected '<article class="overflow-hidden round…' to contain '未扣费'
+
+Expected: "未扣费"
+Received: "<article class="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper" data-v4-block="task" data-status="failed"><header class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 text-caption font-medium text-nomi-ink" data-v4-row="true"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-movie " aria-hidden="true"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"></path><path d="M8 4l0 16"></path><path d="M16 4l0 16"></path><path d="M4 8l4 0"></path><path d="M4 16l4 0"></path><path d="M4 12l16 0"></path><path d="M16 8l4 0"></path><path d="M16 16l4 0"></path></svg><div class="min-w-0 line-clamp-1"><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div></div><span class="flex shrink-0 items-center gap-1 font-normal text-nomi-danger"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-alert-triangle " aria-hidden="true"><path d="M12 9v4"></path><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"></path><path d="M12 16h.01"></path></svg>失败</span></header><div class="flex flex-col gap-1.5 px-2.5 pb-2.5"><div class="flex flex-wrap items-center gap-2 rounded-nomi-sm bg-nomi-danger-soft px-2.5 py-1.5 text-caption text-nomi-danger" data-v4-block="errorbar"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-alert-triangle " aria-hidden="true"><path d="M12 9v4"></path><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"></path><path d="M12 16h.01"></path></svg><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div><button type="button" class="font-medium text-nomi-ink-80">换模型重试</button></div></div></article>"
+
+ ❯ src/workbench/ai/v4/agentPanelV4Blocks.test.ts:214:20
+    212|     }))
+    213|     expect(markup).toContain('data-v4-block="errorbar"')
+    214|     expect(markup).toContain('未扣费')
+       |                    ^
+    215|     expect(markup).toContain('换模型重试')
+    216|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Blocks.test.ts > ⑤ 介入槽 · 八种内容体 > 计划人话与技术详情分开且默认折叠：汤先到，人后到
+AssertionError: expected '<aside class="relative overflow-hidde…' to contain 'MiniMax-H3 · 768P · 8s · 16:9'
+
+Expected: "MiniMax-H3 · 768P · 8s · 16:9"
+Received: "<aside class="relative overflow-hidden rounded-nomi border bg-nomi-paper border-nomi-accent shadow-[0_0_0_1px_var(--nomi-accent-soft)]" data-v4-block="intervention" data-kind="plan" data-waiting="true"><div class="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink"><h3 class="m-0 pr-8 text-body-sm font-semibold text-nomi-ink" data-v4-block="slot-title"><span class="flex min-w-0 flex-wrap items-baseline gap-x-1.5"><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div></span></h3><div class="flex flex-col gap-1 overflow-y-auto max-h-[13.5rem]" data-v4-block="plan-rows"><div class="flex items-start gap-2 py-[3px] text-caption text-nomi-ink-80"><input type="checkbox" aria-label="汤先到，人后到" class="mt-0.5 size-3.5 shrink-0 accent-nomi-accent" checked=""/><details class="group min-w-0 flex-1" data-v4-block="plan-detail"><summary class="flex cursor-pointer list-none items-start gap-1"><div class="min-w-0 flex-1"><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div></div><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-chevron-right mt-0.5 shrink-0 group-open:rotate-90" aria-hidden="true"><path d="M9 6l6 6l-6 6"></path></svg></summary><pre class="m-0 mt-1 whitespace-pre-wrap break-all font-nomi-mono text-micro text-nomi-ink-40">{&quot;kind&quot;:&quot;text&quot;}</pre></details></div></div></div><footer class="flex flex-col gap-1.5 border-t border-nomi-line-soft px-2.5 py-2 text-caption"><div data-v4-block="actions" class="flex min-w-0 items-center gap-1.5 flex-wrap text-caption" data-v4-row="true"><button type="button" class="text-micro text-nomi-ink-40" data-v4-control="collapse-plan">收起 ▴</button><span class="flex grow items-center justify-end gap-1.5" data-v4-block="card-actions"><button data-v4-control="slot-dismiss" class="inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&amp;&gt;svg]:size-4 [&amp;&gt;svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed shrink-0" type="button">不要</button><button data-v4-control="confirm" class="inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&amp;&gt;svg]:size-4 [&amp;&gt;svg]:stroke-2 h-7 px-3 text-caption border-0 bg-nomi-ink text-nomi-paper hover:bg-nomi-accent min-w-20 shrink-0" type="button">确认<span aria-hidden="true" class="text-micro opacity-70">⏎</span></button></span></div></footer></aside>"
+
+ ❯ src/workbench/ai/v4/agentPanelV4Blocks.test.ts:255:20
+    253|     }))
+    254|     expect(markup).toContain(label)
+    255|     expect(markup).toContain('MiniMax-H3 · 768P · 8s · 16:9')
+       |                    ^
+    256|     expect(markup).toMatch(/<details[^>]*>/)
+    257|     expect(markup).not.toMatch(/<details[^>]* open/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Blocks.test.ts > ⑤ 介入槽 · 八种内容体 > 计划人话与技术详情分开且默认折叠：镜头 2：端起汤碗
+AssertionError: expected '<aside class="relative overflow-hidde…' to contain 'MiniMax-H3 · 768P · 8s · 16:9'
+
+Expected: "MiniMax-H3 · 768P · 8s · 16:9"
+Received: "<aside class="relative overflow-hidden rounded-nomi border bg-nomi-paper border-nomi-accent shadow-[0_0_0_1px_var(--nomi-accent-soft)]" data-v4-block="intervention" data-kind="plan" data-waiting="true"><div class="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink"><h3 class="m-0 pr-8 text-body-sm font-semibold text-nomi-ink" data-v4-block="slot-title"><span class="flex min-w-0 flex-wrap items-baseline gap-x-1.5"><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div></span></h3><div class="flex flex-col gap-1 overflow-y-auto max-h-[13.5rem]" data-v4-block="plan-rows"><div class="flex items-start gap-2 py-[3px] text-caption text-nomi-ink-80"><input type="checkbox" aria-label="镜头 2：端起汤碗" class="mt-0.5 size-3.5 shrink-0 accent-nomi-accent" checked=""/><details class="group min-w-0 flex-1" data-v4-block="plan-detail"><summary class="flex cursor-pointer list-none items-start gap-1"><div class="min-w-0 flex-1"><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div><div class="min-w-0" data-v4-markdown="true"><div class="text-body-sm leading-relaxed text-nomi-ink-60">正在渲染...</div></div></div><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-chevron-right mt-0.5 shrink-0 group-open:rotate-90" aria-hidden="true"><path d="M9 6l6 6l-6 6"></path></svg></summary><pre class="m-0 mt-1 whitespace-pre-wrap break-all font-nomi-mono text-micro text-nomi-ink-40">{&quot;kind&quot;:&quot;text&quot;}</pre></details></div></div></div><footer class="flex flex-col gap-1.5 border-t border-nomi-line-soft px-2.5 py-2 text-caption"><div data-v4-block="actions" class="flex min-w-0 items-center gap-1.5 flex-wrap text-caption" data-v4-row="true"><button type="button" class="text-micro text-nomi-ink-40" data-v4-control="collapse-plan">收起 ▴</button><span class="flex grow items-center justify-end gap-1.5" data-v4-block="card-actions"><button data-v4-control="slot-dismiss" class="inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&amp;&gt;svg]:size-4 [&amp;&gt;svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed shrink-0" type="button">不要</button><button data-v4-control="confirm" class="inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&amp;&gt;svg]:size-4 [&amp;&gt;svg]:stroke-2 h-7 px-3 text-caption border-0 bg-nomi-ink text-nomi-paper hover:bg-nomi-accent min-w-20 shrink-0" type="button">确认<span aria-hidden="true" class="text-micro opacity-70">⏎</span></button></span></div></footer></aside>"
+
+ ❯ src/workbench/ai/v4/agentPanelV4Blocks.test.ts:255:20
+    253|     }))
+    254|     expect(markup).toContain(label)
+    255|     expect(markup).toContain('MiniMax-H3 · 768P · 8s · 16:9')
+       |                    ^
+    256|     expect(markup).toMatch(/<details[^>]*>/)
+    257|     expect(markup).not.toMatch(/<details[^>]* open/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Blocks.test.ts > the host notice on a receipt shows even when its process row is collapsed
+AssertionError: expected 6998 to be less than -1
+ ❯ src/workbench/ai/v4/agentPanelV4Blocks.test.ts:688:44
+    686|   expect(markup.match(/data-v4-notice="director-patch"/g)).toHaveLengt…
+    687|   expect(markup).toContain('这次改动覆盖了你在镜头 2 的手调，可撤销')
+    688|   expect(markup.indexOf('data-v4-notice')).toBeLessThan(markup.indexOf…
+       |                                            ^
+    689| })
+    690|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Performance.test.ts > Agent panel V4 render budget > keeps real panel row renders and translations independent of history length
+TypeError: startSuspendingCommit is not a function
+ ❯ completeRootWhenReady node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:15813:30
+ ❯ performWorkOnRoot node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:15764:15
+ ❯ performSyncWorkOnRoot node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:3535:7
+ ❯ flushSyncWorkAcrossRoots_impl node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:3377:21
+ ❯ Object.exports.flushSyncFromReconciler node_modules/.pnpm/react-reconciler@0.34.0_react@19.3.0/node_modules/react-reconciler/cjs/react-reconciler.development.js:21174:13
+ ❯ Object.render src/workbench/ai/v4/testReactRenderer.ts:56:16
+     54|   return {
+     55|     render(node: React.ReactElement | null) {
+     56|       renderer.flushSyncFromReconciler(() => renderer.updateContainerS…
+       |                ^
+     57|       renderer.flushSyncWork()
+     58|     },
+ ❯ src/workbench/ai/v4/agentPanelV4Performance.test.ts:207:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  6 failed | 72 passed (78)
+   Start at  03:53:26
+   Duration  3.20s (transform 3.62s, setup 159ms, import 5.45s, tests 181ms, environment 0ms)
+
+ ELIFECYCLE  Command failed with exit code 1.
