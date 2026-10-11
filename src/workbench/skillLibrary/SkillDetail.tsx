@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DesignModal } from '../../design'
-import { NomiMarkdown } from '../common/NomiMarkdown'
+import { LazyNomiMarkdown } from '../common/LazyNomiMarkdown'
 import { SkillMedia } from './SkillMedia'
 import { galleryBody, type SkillGalleryEntry } from './skillGallery'
 
@@ -29,7 +29,7 @@ export function SkillDetail({ entry, onClose, onReference, onApply, onExport, on
             </div>
           </header>
           {entry.skill?.manifestError && <p role="alert" className="mb-3 text-caption text-workbench-danger">{entry.skill.manifestError}</p>}
-          <NomiMarkdown>{galleryBody(entry)}</NomiMarkdown>
+          <LazyNomiMarkdown>{galleryBody(entry)}</LazyNomiMarkdown>
         </div>
       </div>
       <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-nomi-line px-6 py-4">

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "auditBase": "0ee67956b",
-  "coverageUnit": "individual source/UI entry; not full journey or acceptance",
+  "coverageUnit": "source/UI feature families; not an exhaustive control count, full journey or acceptance",
   "entries": [
     {
       "id": "project.open",
@@ -10,7 +10,7 @@
       "entry": "production UI controls",
       "precondition": "隔离库、空/已用/缺失合成项目",
       "input": "单击准确的data-project-card/data-project-id",
-      "visibleCompletion": "匹配项目标题、首个画布节点、data-ready和独立输入回执",
+      "visibleCompletion": "Schema3: attributable opening spinner/exact title feedback; separate decoded known image; production eligibility; trusted real project-menu input and visibly expanded matching menu",
       "dataAssertion": "ID/名称/目录/内容/索引符合操作；非目标数据保持",
       "budget": "scenario-matrix-and-budget.md#budgets",
       "availability": "reachable",
@@ -19,9 +19,12 @@
       "executed": true,
       "passed": false,
       "evidence": [
-        "raw/nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json"
+        "raw/nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json",
+        "raw/nomi-user-workflow-2026-10-11T02-37-21-262Z-d8c8882c-cec4-4c5a-b77b-6870c835b24b.json",
+        "raw/nomi-user-workflow-2026-10-11T02-45-37-723Z-b07fde97-c1cd-4178-a510-93df647735c2.json",
+        "raw/nomi-user-workflow-2026-10-11T03-16-35-303Z-b9a1a0d4-dac9-4175-8471-145278562bc9.json"
       ],
-      "executionScope": "small/cold and small/hot project.open only; each 1 warm-up + 5 measured functional samples; both failed_budget; no native or full journey acceptance"
+      "executionScope": "small cold/hot atomic open, original schema2 plus corrected schema3 1+5; historical budget mapping withdrawn, cold still exceeds first feedback and real target response, hot incomplete acceptance"
     },
     {
       "id": "project.create",
@@ -365,15 +368,16 @@
       "source": "src/workbench/creation/DocumentListSidebar.tsx",
       "entry": "production UI controls",
       "precondition": "非空多稿；第一稿至少两方案",
-      "input": "data-resource-action=duplicate",
-      "visibleCompletion": "新行和正文",
-      "dataAssertion": "文稿ID/正文落盘，原稿/方案归属正确",
+      "input": "No production document duplication action exists",
+      "visibleCompletion": "Not applicable: data-resource-action=duplicate is conditional on storyboard, not document",
+      "dataAssertion": "Do not invent a document duplication feature for the test",
       "budget": "scenario-matrix-and-budget.md#budgets",
-      "availability": "reachable",
+      "availability": "unavailable",
       "planned": true,
       "implemented": false,
       "executed": false,
-      "passed": false
+      "passed": false,
+      "availabilityEvidence": "src/workbench/creation/DocumentListSidebar.tsx:205-219: menuTarget.kind === storyboard"
     },
     {
       "id": "document.delete",
@@ -1432,5 +1436,6 @@
     "A4": "planned",
     "R1": "planned",
     "R2": "planned"
-  }
+  },
+  "controlCensus": "control-inventory.json (production AST bindings, menu definitions and existing walk action reconciliation; all runtime coverage gaps explicit)"
 }

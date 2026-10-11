@@ -1,7 +1,7 @@
 // One document and one trusted gesture per sample. Reload invalidates it.
-export function installProjectOpenProbe({ probeId, cardSelector, projectName, nodeId }) {
+export function installProjectOpenProbe({ probeId, cardSelector, projectName, nodeId, loadingLabels = [] }) {
   if (window.__nomiWorkflowPerf) throw new Error('probe already installed')
-  const state = { documentId: crypto.randomUUID(), probeId, inputAt: null, visibleAt: null, readyAt: null, acknowledgedAt: null, frames: [], longTasks: [], longTaskSupported: false, lastFrame: null }
+  const state = { documentId: crypto.randomUUID(), probeId, inputAt: null, feedbackAt: null, contentAt: null, readyAt: null, controlInputAt: null, acknowledgedAt: null, targetReceipt: null, frames: [], longTasks: [], longTaskSupported: false, lastFrame: null }
   const visible = (element, clip) => {
     if (!element) return false
     const rect = element.getBoundingClientRect()
@@ -22,37 +22,48 @@ export function installProjectOpenProbe({ probeId, cardSelector, projectName, no
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const project = document.querySelector('[data-shell-project-menu]')
     const node = stage?.querySelector(`[data-node-id="${nodeId}"]`)
-    // This action's known first node is an image. A mounted card or its loading
-    // placeholder is not the fixture's content; require decoded visible media.
     const media = node?.querySelector?.('img')
-    const matching = project?.textContent?.includes(projectName) && visible(project) && visible(stage) && visible(node, stage) && media?.complete && media.naturalWidth > 0 && visible(media, stage)
-    return { matching, ready: Boolean(matching && stage?.getAttribute('data-ready') === 'true') }
+    const matchingProject = project?.getAttribute('title') === projectName && visible(project)
+    const mounted = matchingProject && visible(stage) && visible(node, stage)
+    // Existing route/canvas Suspense spinner counts as opening feedback after
+    // this trusted card action has replaced its library. Unrelated spinners
+    // (Agent, thumbnail, settings) have different labels and do not count.
+    const loading = !visible(document.querySelector(cardSelector)) && Array.from(document.querySelectorAll('.nomi-loading-mark[role="status"]')).some((element) => loadingLabels.includes(element.getAttribute('aria-label')) && visible(element))
+    return { feedback: matchingProject || loading, feedbackKind: matchingProject ? 'project-title' : loading ? 'opening-spinner' : null, decoded: mounted && media?.complete && media.naturalWidth > 0 && visible(media, stage), ready: Boolean(mounted && stage?.getAttribute('data-ready') === 'true'), project }
   }
   const input = (event) => {
-    if (event.isTrusted && state.inputAt === null && event.target?.closest(cardSelector)) {
+    if (!event.isTrusted) return
+    if (state.inputAt === null && event.target?.closest(cardSelector)) {
       state.inputAt = performance.now()
       state.lastFrame = state.inputAt
+    } else if (state.readyAt !== null && state.controlInputAt === null && event.target?.closest('[data-shell-project-menu]') && content().ready) {
+      state.controlInputAt = performance.now()
     }
   }
-  const acknowledge = (event) => { if (event.isTrusted && event.key === 'Shift' && state.readyAt !== null && content().ready) state.acknowledgedAt = performance.now() }
-  const frame = (timestamp) => {
+
+  const frame = () => {
     if (state.inputAt !== null) {
-      if (state.lastFrame !== null) state.frames.push({ startTime: state.lastFrame, duration: timestamp - state.lastFrame })
-      state.lastFrame = timestamp
       const milestone = content()
-      if (milestone.matching && state.visibleAt === null) state.visibleAt = performance.now()
+      if (milestone.feedback && state.feedbackAt === null) { state.feedbackAt = performance.now(); state.feedbackReceipt = { kind: milestone.feedbackKind, projectName } }
+      if (milestone.decoded && state.contentAt === null) state.contentAt = performance.now()
       if (milestone.ready && state.readyAt === null) state.readyAt = performance.now()
+      if (state.controlInputAt !== null && state.acknowledgedAt === null && milestone.project?.getAttribute('aria-expanded') === 'true') {
+        const menu = Array.from(document.querySelectorAll('[role="menu"]')).find((element) => element.getAttribute('aria-label') === milestone.project.getAttribute('aria-label') && visible(element))
+        if (menu) { state.acknowledgedAt = performance.now(); state.targetReceipt = { control: 'project-menu', expanded: true, menuVisible: true } }
+      }
+      const observedAt = performance.now()
+      state.frames.push({ startTime: state.lastFrame, duration: observedAt - state.lastFrame })
+      state.lastFrame = observedAt
     }
     state.raf = requestAnimationFrame(frame)
   }
   state.observer = new PerformanceObserver((list) => state.longTasks.push(...list.getEntries().map(({ startTime, duration }) => ({ startTime, duration }))))
   try { state.observer.observe({ type: 'longtask', buffered: false }); state.longTaskSupported = true } catch { /* explicit unsupported flag */ }
   document.addEventListener('pointerdown', input, true)
-  document.addEventListener('keydown', acknowledge, true)
   state.stop = () => {
     state.longTasks.push(...state.observer.takeRecords().map(({ startTime, duration }) => ({ startTime, duration })))
     state.observer.disconnect(); cancelAnimationFrame(state.raf)
-    document.removeEventListener('pointerdown', input, true); document.removeEventListener('keydown', acknowledge, true)
+    document.removeEventListener('pointerdown', input, true)
     return Object.fromEntries(Object.entries(state).filter(([key]) => !['stop', 'observer', 'raf', 'lastFrame'].includes(key)))
   }
   state.raf = requestAnimationFrame(frame)

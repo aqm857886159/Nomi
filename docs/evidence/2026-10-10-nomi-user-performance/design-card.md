@@ -64,3 +64,7 @@ Linux/Xvfb、英文/中文界面、最小窗口、典型/重档、键盘与鼠�
 ## 2026-10-11 implementation correction
 
 Source audit confirmed harness defects independent of display. First-batch plan: `docs/plan/2026-10-11-nomi-performance-harness-repair.md`; source/UI inventory: `entry-inventory.md`; pairwise/high-risk contracts: `combination-plan.json`. Node mechanism regressions do not count as real-window performance acceptance. `project.open` rejects navigation/reload and uses browser DOM/rAF milestones; it does not implement cold app launch or the full P1 journey.
+
+## Metric semantics correction (independent review)
+
+★1: first feedback includes the existing route/canvas loading spinner or exact target-project title; decoded first image is a separate diagnostic. ★2: production stage/data-ready remains eligibility, while a trusted project-menu pointer input followed by its expanded state and visible matching menu supplies the independent target response. ★3: reuse existing spinner labels/i18n, real menu and one browser clock. ★4: missing/replaced probes or delayed/missing target response cannot certify readiness; content and response may arrive in either order. ★9: regress delayed target response, spinner-before-content and independent ordering, preserve schema2 raw statuses and withdraw their budget mapping; fixed1+5 schema3 and native verification remain required.

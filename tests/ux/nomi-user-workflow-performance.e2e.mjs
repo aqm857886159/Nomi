@@ -8,6 +8,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, closeNomiApp, ACCEPTANCE_VIEWPORT } from './_launchApp.mjs'
 import { backToLibrary } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { createNomiUserWorkflowFixture } from './fixtures/nomi-user-workflow-fixture.mjs'
 import { installProjectOpenProbe } from './nomi-user-workflow-probe.mjs'
 import { WORKFLOW_ACTIONS, parseOptions, writeReport, normalizeActionSample, summarizeCell, reportExitCode, percentile, applyCellVerdict } from './nomi-user-workflow-contract.mjs'
@@ -60,44 +61,57 @@ async function prepare(instance, fixture, cache) {
   if (await page.locator('.generation-canvas-v2__stage').isVisible()) throw new Error('invalid setup: not in project library')
 }
 
-async function measureProjectOpen(instance, fixture) {
+export async function measureProjectOpen(instance, fixture, diagnostics = {}) {
   const { win: page, app } = instance
   const nodeId = fixture.record.payload.generationCanvas.nodes[0].id
-  const expected = await page.evaluate(installProjectOpenProbe, { probeId: randomUUID(), cardSelector: projectCardSelector(fixture.record), projectName: fixture.record.name, nodeId })
-  await page.locator(projectCardSelector(fixture.record)).click()
-  await waitForProbeReady(page, expected, stationTimeout())
-  // Independent non-mutating input; browser receipt is separate from data-ready.
-  await page.keyboard.press('Shift')
+  const triggerSelector = diagnostics.triggerSelector || projectCardSelector(fixture.record)
+  const loadingLabels = ['router.loading', 'studio.generationCanvasLoading'].flatMap((key) => ['zh-CN', 'en'].map((locale) => uiText(locale, key)))
+  const expected = await page.evaluate(installProjectOpenProbe, { probeId: randomUUID(), cardSelector: triggerSelector, projectName: fixture.record.name, nodeId, loadingLabels })
+  if (diagnostics.beforeInput) await diagnostics.beforeInput(instance)
+  await page.locator(triggerSelector).click()
+  const target = await waitForProbeReady(page, expected, stationTimeout(), ['readyAt'], true)
+  // Real production control/state transition, with its own trusted input and
+  // visible response; eligibility alone never certifies interactivity.
+  await page.mouse.click(target.x, target.y)
+  await waitForProbeReady(page, expected, stationTimeout(), ['contentAt', 'acknowledgedAt'])
   const state = await page.evaluate(() => window.__nomiWorkflowPerf?.stop() ?? null)
   const sample = normalizeActionSample(state, expected)
+  if (diagnostics.afterSnapshot) sample.diagnostics = await diagnostics.afterSnapshot(instance, state)
   const projectTitle = await page.locator('[data-shell-project-menu]').textContent()
   if (!projectTitle?.includes(fixture.record.name)) throw new Error('functional assertion: wrong project title')
   await page.locator(`[data-node-id="${nodeId}"]`).waitFor({ state: 'visible', timeout: stationTimeout() })
   sample.functionalPassed = true
-  sample.assertions = { projectId: fixture.record.id, projectTitle, firstNodeId: nodeId, firstImageDecoded: true, canvasReady: true, independentKeyboardReceipt: true }
+  sample.assertions = { projectId: fixture.record.id, projectTitle, firstNodeId: nodeId, firstImageDecoded: true, canvasReady: true, targetControlResponse: true, targetControl: 'project-menu' }
+  await page.keyboard.press('Escape')
   // Collection AFTER immutable latency marks: end snapshots, never CPU or
   // resource-recovery distributions. Acceptance remains incomplete.
   sample.processSnapshot = await app.evaluate(({ app: electronApp }) => ({ metrics: electronApp.getAppMetrics(), versions: process.versions })).catch((error) => ({ unavailable: String(error.message) }))
   sample.screenshot = path.join(path.dirname(fixture.projectsDir), 'project-open-after-measurement.png')
   await page.screenshot({ path: sample.screenshot })
+  await page.evaluate(() => { delete window.__nomiWorkflowPerf })
   return sample
 }
 
-export async function waitForProbeReady(page, expected, timeout) {
+export async function waitForProbeReady(page, expected, timeout, milestones = ['readyAt'], targetPoint = false) {
   // evaluate is not wrapped by the launcher's feel checkpoint. No scans,
   // screenshots or fixed waits run inside this action's window.
   try {
-    await page.evaluate(({ expected, timeout }) => new Promise((resolve, reject) => {
+    return await page.evaluate(({ expected, timeout, milestones, targetPoint }) => new Promise((resolve, reject) => {
       let raf
       const timer = setTimeout(() => { cancelAnimationFrame(raf); reject(new Error('ready milestone timeout')) }, timeout)
       const check = () => {
         const probe = window.__nomiWorkflowPerf
         if (!probe || probe.documentId !== expected.documentId || probe.probeId !== expected.probeId) { clearTimeout(timer); reject(new Error('invalid measurement: probe/document replaced while waiting')); return }
-        if (Number.isFinite(probe.readyAt)) { clearTimeout(timer); resolve(); return }
+        if (milestones.every((key) => Number.isFinite(probe[key]))) {
+          clearTimeout(timer)
+          const box = targetPoint ? document.querySelector('[data-shell-project-menu]')?.getBoundingClientRect() : null
+          if (targetPoint && (!box || box.width <= 0 || box.height <= 0)) { reject(new Error('invalid measurement: target control disappeared')); return }
+          resolve(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null); return
+        }
         raf = requestAnimationFrame(check)
       }
       check()
-    }), { expected, timeout })
+    }), { expected, timeout, milestones, targetPoint })
   } catch (error) {
     if (/Execution context was destroyed|Cannot find context|frame was detached/.test(error.message)) throw new Error(`invalid measurement: navigation replaced probe: ${error.message}`)
     throw error
@@ -112,7 +126,7 @@ function guardReceipt(logPath) {
   return { layers: loaded.layers, blockedAttempts: entries.filter((entry) => entry.kind === 'blocked').length }
 }
 
-export async function runCell(cell, options, dependencies = {}) {
+export async function runNomiWorkflowCell(cell, options, dependencies = {}) {
   const action = WORKFLOW_ACTIONS[cell.id]
   Object.assign(cell, { planned: true, implemented: Boolean(action?.implemented), executed: false, passed: false, attempts: [], samples: [] })
   if (!action?.implemented) return Object.assign(cell, { status: 'planned', reason: action?.description || 'unknown action' })
@@ -167,18 +181,19 @@ async function main(argv = process.argv.slice(2)) {
   const options = parseOptions(argv)
   const evidenceRoot = process.env.NOMI_USER_PERF_OUT || defaultEvidenceRoot
   const report = {
-    schemaVersion: 2, generatedAt: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim(),
+    schemaVersion: 3, generatedAt: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim(),
     runner: 'tests/ux/nomi-user-workflow-performance.e2e.mjs', options,
     source: { workingTreeDirty: Boolean(execFileSync('git', ['status', '--porcelain'], { cwd: repoRoot, encoding: 'utf8' }).trim()),
-      fileHashes: Object.fromEntries(['tests/ux/nomi-user-workflow-performance.e2e.mjs', 'tests/ux/nomi-user-workflow-contract.mjs', 'tests/ux/nomi-user-workflow-probe.mjs', 'tests/ux/fixtures/nomi-user-workflow-fixture.mjs'].map((file) => [file, createHash('sha256').update(fs.readFileSync(path.join(repoRoot, file))).digest('hex')])) },
-    measurement: { viewport: ACCEPTANCE_VIEWPORT, timing: 'trusted pointerdown → rAF matching project and decoded visible first image / production data-ready / independent keyboard receipt; single browser clock',
+      fileHashes: Object.fromEntries(['tests/ux/nomi-user-workflow-performance.e2e.mjs', 'tests/ux/nomi-user-workflow-contract.mjs', 'tests/ux/nomi-user-workflow-probe.mjs', 'tests/ux/fixtures/nomi-user-workflow-fixture.mjs', 'src/workbench/common/LazyNomiMarkdown.tsx', 'src/workbench/ai/v4/AgentPanelV4Markdown.tsx', 'src/workbench/skillLibrary/SkillDetail.tsx', 'src/workbench/promptLibrary/PromptPreviewOverlay.tsx', 'src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx'].map((file) => [file, createHash('sha256').update(fs.readFileSync(path.join(repoRoot, file))).digest('hex')])) },
+    buildReceipt: JSON.parse(fs.readFileSync(path.join(repoRoot, 'dist/build-stamp.json'), 'utf8')),
+    measurement: { viewport: ACCEPTANCE_VIEWPORT, timing: 'trusted card pointerdown → first matching project feedback / decoded first image / production canvas eligibility / trusted project-menu input → visible matching menu response; content and response independently ordered, one browser clock',
       cache: 'fresh profile and fixture per repetition; hot primes same profile; OS filesystem cache uncontrolled',
       agent: 'absent: no stream/tool fixture implemented', collection: 'process end snapshots only; not CPU/memory trend acceptance', rendererBuild: 'existing build; verify freshness before real baseline' },
     host: { platform: process.platform, arch: process.arch, logicalCpus: os.cpus().length, memoryBytes: os.totalmem(), display: process.env.DISPLAY || null, waylandDisplay: process.env.WAYLAND_DISPLAY || null }, cells: [],
   }
   for (const scale of options.scales) for (const id of options.scenarios) for (const cache of options.caches) {
     if (!WORKFLOW_ACTIONS[id].scales.includes(scale)) continue
-    report.cells.push(await runCell({ id, scale, cache }, options))
+    report.cells.push(await runNomiWorkflowCell({ id, scale, cache }, options))
   }
   report.coverage = Object.fromEntries(['planned', 'implemented', 'executed', 'passed'].map((key) => [key, report.cells.filter((cell) => cell[key]).length]))
   // The shared temp helper removes profiles on exit. Retain screenshots after

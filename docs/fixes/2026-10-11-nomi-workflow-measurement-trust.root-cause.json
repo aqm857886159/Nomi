@@ -3,7 +3,7 @@
   "id": "2026-10-11-nomi-workflow-measurement-trust",
   "problem_type": "Planned/test-only scaffolding promoted to performance evidence without a measurement contract",
   "symptom": "PR1172 declared broad workflow coverage although actions were partial or absent and elapsedMs included waits/collection; empty reports could succeed.",
-  "direct_cause": "Fixture envelope passed as record; partial P/C gestures and D/B/A/R placeholders; nonvalidated CLI; date-only output; missing probe became empty data; scalar percentiles reused as raw observations.",
+  "direct_cause": "Fixture envelope passed as record; partial/absent journeys; missing probes and scalar aggregation. Review also found decoded-content incorrectly budgeted as first feedback and readiness eligibility/document-level Shift incorrectly budgeted as completed target interaction.",
   "class_root": "No shared boundary validated action identity, browser milestones, raw distributions, coverage lifecycle and report acceptance independently.",
   "affected_population": [
     "Every workflow action, cache/scale combination and future report consumer",
@@ -23,7 +23,8 @@
   "external_sources": [],
   "internal_only_reason": "This is an internal test/evidence contract; no third-party runtime behavior is changed. Existing Electron43.4.1, Playwright and launch/network guard remain pinned.",
   "invariants": [
-    "Actual trusted input and attributable visible/ready/ack marks belong to one document/probe and clock; decoded visible content and persisted-data receipts are required",
+    "Trusted input, first attributable project feedback, decoded content, production eligibility and completed target-control response belong to one document/probe and clock; content and target response may occur in either order",
+    "First-feedback budgets use feedbackAt; interactive budgets use a visible matching production menu after its trusted input, never data-ready or a document key listener; loading frame distributions do not certify active-gesture budgets",
     "No fixed waits or collection in latency; raw action-window entries preserved and clipped for metrics",
     "Each sample has isolated fixture/profile; cache dimensions stay separate",
     "Only implemented actual actions can execute; planned differs from environment-blocked; incomplete evidence never passes",
@@ -48,7 +49,7 @@
     {
       "kind": "read",
       "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
-      "symbol": "runCell"
+      "symbol": "runNomiWorkflowCell"
     },
     {
       "kind": "write",
@@ -87,8 +88,8 @@
     },
     {
       "kind": "write",
-      "path": "tests/ux/media-import-matrix.walk.mjs",
-      "symbol": "runCell"
+      "path": "tests/ux/nomi-next-workflow-journeys.e2e.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
     },
     {
       "kind": "write",
@@ -113,21 +114,11 @@
     {
       "kind": "write",
       "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
-      "symbol": "runCell"
+      "symbol": "runNomiWorkflowCell"
     },
     {
       "kind": "write",
       "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
-      "symbol": "writeReport"
-    },
-    {
-      "kind": "write",
-      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
-      "symbol": "createNomiUserWorkflowFixture"
-    },
-    {
-      "kind": "write",
-      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
       "symbol": "writeReport"
     },
     {
@@ -143,18 +134,28 @@
     {
       "kind": "write",
       "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
       "symbol": "summarizeCell"
     },
     {
       "kind": "write",
       "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
-      "symbol": "runCell"
+      "symbol": "runNomiWorkflowCell"
     }
   ],
   "door_reduction": {
     "before": 9,
     "after": 24,
-    "why_not": "The tool uses symbol names: same-name writeReport/runCell entries outside this workflow are not shared implementations and must remain for their separate domains. The runner produces observations, the summarizer consumes them, and focused tests exercise the boundary; these separate roles cannot be merged. All workflow-specific producer/consumer doors converge on the one contract."
+    "why_not": "Generated symbol doors include unrelated writeReport domains. The isolated workflow owner is explicitly named runNomiWorkflowCell; producer, observation contract and immutable-report consumer remain separate roles and converge on the registered shared owners."
   },
   "generality_proof": "Producer and consumer both use the same normalized sample, raw aggregation and acceptance facts. Missing/replaced document, invalid CLI and empty/legacy/unsupported pass claims fail closed for every scale/cache. Full journeys remain nonexecutable planned rows.",
   "shared_boundaries": [
@@ -165,7 +166,7 @@
     },
     {
       "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
-      "symbol": "runCell",
+      "symbol": "runNomiWorkflowCell",
       "responsibility": "Isolate fixtures/profiles, preserve attempts, separate planned/blocked/invalid/executed"
     },
     {
@@ -177,7 +178,7 @@
   "same_class_entry_points": [
     {
       "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
-      "entry_point": "main/runCell",
+      "entry_point": "main/runNomiWorkflowCell",
       "disposition": "enforced",
       "evidence": "CLI and every repetition now use parseOptions, normalizeActionSample, applyCellVerdict and reportExitCode."
     },
@@ -198,7 +199,7 @@
     "classification": "recurring",
     "reason": "Any future action/platform/reload or empty CLI can reproduce the same missing invariant; an observed launch error never proves implementation or performance.",
     "same_class_scan": [
-      "node scripts/door-map.mjs normalizeActionSample summarizeCell writeReport runCell createNomiUserWorkflowFixture buildAnalysis --roots=tests/ux,scripts --include-tests",
+      "node scripts/door-map.mjs normalizeActionSample summarizeCell writeReport runNomiWorkflowCell createNomiUserWorkflowFixture buildAnalysis --roots=tests/ux,scripts --include-tests",
       "Compared workflow loop and summarize-nomi-user-performance consumers; inspected canvas-only benchmark as independent schema",
       "Read actual ProjectLibraryPage click handler, canvas data-ready, DocumentListSidebar selectors, shell drawers/stepper,17-kind registry and full-walk catalog"
     ]
@@ -236,11 +237,11 @@
     "rationale": "No dependency upgrade is involved; measurement/report invariants are repository-owned. Runtime archive installation is environment provisioning at declared43.4.1, not a product change.",
     "exit_criteria": []
   },
-  "migration": "Schema1 raw remains immutable historical launch evidence; schema2 consumers reject it as timing input. Full journey IDs are planned; project.open names its smaller action explicitly.",
+  "migration": "Immutable schema1 launch and schema2 decoded-content/Shift diagnostics are preserved. Schema3 requires attributable first feedback, completed real target control, decoded content and persistence receipts; historical budget conclusions are withdrawn. Complete P/D/B/C/A/R journeys remain planned.",
   "residual_risks": [
     "Real browser/display execution must be separately recorded; Node mechanism/injected-lifecycle tests are not product acceptance",
     "Main long tasks/CPU distributions/memory and teardown trends unimplemented; performance pass disabled",
-    "Full88-entry solo baselines,pairwise and higher-order journeys remain planned",
+    "88 family solo acceptance and 1637 source bindings remain runtime planned; bounded next-action receipts are separate. Expanded24 rows/695 pairs and higher-order performance acceptance remain planned",
     "No native Mac/Windows,real GPU/private asset/account or packaged-release baseline"
   ],
   "detected_by": "review",

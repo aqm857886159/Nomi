@@ -1,10 +1,9 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 
-type LazyNomiMarkdownProps = {
-  children: string
-  compact?: boolean
-}
+import type { NomiMarkdown } from './NomiMarkdown'
+
+type LazyNomiMarkdownProps = React.ComponentProps<typeof NomiMarkdown>
 
 const NomiMarkdownImpl = React.lazy(() => import('./NomiMarkdown').then((module) => ({ default: module.NomiMarkdown })))
 
@@ -17,10 +16,10 @@ function MarkdownFallback({ compact = false }: Pick<LazyNomiMarkdownProps, 'comp
   )
 }
 
-export function LazyNomiMarkdown({ children, compact = false }: LazyNomiMarkdownProps): JSX.Element {
+export function LazyNomiMarkdown(props: LazyNomiMarkdownProps): JSX.Element {
   return (
-    <React.Suspense fallback={<MarkdownFallback compact={compact} />}>
-      <NomiMarkdownImpl compact={compact}>{children}</NomiMarkdownImpl>
+    <React.Suspense fallback={<MarkdownFallback compact={props.compact} />}>
+      <NomiMarkdownImpl {...props} />
     </React.Suspense>
   )
 }

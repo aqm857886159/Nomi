@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "sourceHash": "2c6a9ffd9b08ab98fa36bad3f0d1feecd0704021317bf9ac89b34cad8dcef0e7",
+  "buildReceipt": {
+    "version": 1,
+    "head": "ed97b427cb071a486f93f60bd2f84ab2ba202958",
+    "tree": "68f503c288683d17dc16898db5f1da6999c121da",
+    "dirty": true
+  },
+  "cases": [
+    {
+      "id": "agent.stream-stream",
+      "executed": true,
+      "simultaneousExternalResponsesHeld": 2,
+      "lanes": [
+        "main",
+        "新对话 2"
+      ],
+      "requestAt": [
+        1791687888081,
+        1791687889047
+      ],
+      "functionalPassed": false
+    }
+  ],
+  "scope": "Real native Agent lanes with only the external model endpoint replaced by loopback SSE. Functional overlap/correlation/cancel/cold-recovery evidence, not latency budgets, CPU distributions or fixed1+5 acceptance. Stream/stream, waiting-tool/waiting-tool and stream/waiting-tool; tool is production ask_user awaiting actual UI response. No paid model or permission-policy changes.",
+  "failure": "这一轮没落地：产出迟迟没出现\n\nexpect(locator).toBeVisible() failed\n\nLocator: locator('[data-agent-resident=\"true\"][data-agent-panel=\"true\"][data-agent-surface=\"creation\"]').getByText('STREAM_A_DONE')\nExpected: visible\nTimeout: 240000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 240000ms\n  - waiting for locator('[data-agent-resident=\"true\"][data-agent-panel=\"true\"][data-agent-surface=\"creation\"]').getByText('STREAM_A_DONE')\n",
+  "runtimeReport": {
+    "name": "nomi-performance-concurrency",
+    "mode": "development",
+    "tempRoot": "<temp>/nomi-pi-nomi-performance-concurrency-tVoJnb",
+    "outputDir": "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791687884362",
+    "launches": [
+      {
+        "packaged": false,
+        "appPath": "<repo>",
+        "userData": "<temp>/nomi-pi-nomi-performance-concurrency-tVoJnb/user-data",
+        "node": "24.18.1",
+        "electron": "43.4.1",
+        "pid": 109165
+      }
+    ],
+    "screenshots": [
+      "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791687884362/01-two-streams-distinct-native-lanes.png"
+    ],
+    "paidCalls": 0,
+    "projectId": "project-1791687886274-x4qyjb",
+    "projectRoot": "<temp>/nomi-pi-nomi-performance-concurrency-tVoJnb/projects/未命名项目 10_11 03_04-mv38pgw5-8c08d2bf",
+    "textRequests": 2,
+    "imageRequests": 0,
+    "unexpected": [],
+    "result": "failed",
+    "error": "Error: 这一轮没落地：产出迟迟没出现\n\nexpect(locator).toBeVisible() failed\n\nLocator: locator('[data-agent-resident=\"true\"][data-agent-panel=\"true\"][data-agent-surface=\"creation\"]').getByText('STREAM_A_DONE')\nExpected: visible\nTimeout: 240000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 240000ms\n  - waiting for locator('[data-agent-resident=\"true\"][data-agent-panel=\"true\"][data-agent-surface=\"creation\"]').getByText('STREAM_A_DONE')\n\n    at captureRawStack (<repo>/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)\n    at callMatcherAsStep (<repo>/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)\n    at Object.toBeVisible (<repo>/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)\n    at Proxy.<anonymous> (<repo>/tests/ux/_collect.mjs:18:32)\n    at waitForV4TurnIdle (<repo>/tests/ux/agent-runtime-walk-support.mjs:260:47)\n    at finishStream (<repo>/tests/ux/nomi-agent-concurrency.walk.mjs:66:9)\n    at async file://<repo>/tests/ux/nomi-agent-concurrency.walk.mjs:80:32"
+  },
+  "guard": {
+    "loaded": [
+      [
+        "fetch",
+        "http",
+        "https",
+        "socket",
+        "chromium"
+      ]
+    ],
+    "blockedAttempts": 0,
+    "errors": []
+  },
+  "guardFailure": "Both native app launches must install network guards\n\n1 !== 2\n"
+}

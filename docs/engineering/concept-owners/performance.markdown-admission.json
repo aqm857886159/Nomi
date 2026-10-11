@@ -1,0 +1,29 @@
+{
+  "name": "Markdown 延迟加载边界",
+  "subject": "performance.markdown-admission",
+  "lifecycle": "host",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+    "symbol": "LazyNomiMarkdown"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+      "symbol": "LazyNomiMarkdown"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+  "allowed_consumers": [
+    "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+    "src/workbench/skillLibrary/SkillDetail.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx"
+  ],
+  "since": "2026-10-11",
+  "notes": "本批只登记实际修改的单一延迟边界和对应 import 图判据；保留既有唯一 Markdown renderer，不另建解析器。"
+}

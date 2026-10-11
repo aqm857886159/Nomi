@@ -1,0 +1,1220 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-11T03:04:04.989Z",
+  "buildReceipt": {
+    "version": 1,
+    "head": "ed97b427cb071a486f93f60bd2f84ab2ba202958",
+    "tree": "68f503c288683d17dc16898db5f1da6999c121da",
+    "dirty": true
+  },
+  "sourceHashes": {
+    "tests/ux/nomi-next-workflow-journeys.e2e.mjs": "2a52996f38e8cdd892c9001976906cac546b8fb71af4975313892ac6a11dbffb",
+    "tests/ux/nomi-next-workflow-probe.mjs": "b885b5af7f8e37a3278f1f768c1f4a5e6314146db184f8aa719b45c86da23fc5"
+  },
+  "scope": "One isolated Linux/Xvfb functional batch; atomic completion diagnostics, not full P/D/B/C/A/R, fixed1+5 or acceptance. No planned combination counted as execution.",
+  "fixtures": [
+    {
+      "scale": "small",
+      "documents": 2,
+      "plans": 2,
+      "shots": 12,
+      "images": 4,
+      "videos": 2,
+      "references": 4,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "REAL",
+      "canvasNodes": 6,
+      "canvasEdges": 4
+    },
+    {
+      "scale": "typical",
+      "documents": 5,
+      "plans": 5,
+      "shots": 48,
+      "images": 24,
+      "videos": 24,
+      "references": 48,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "S",
+      "canvasNodes": 48,
+      "canvasEdges": 48
+    }
+  ],
+  "actions": [
+    {
+      "id": "project.open-small",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "sample": {
+        "inputToFeedbackMs": 234.80000000074506,
+        "inputToContentMs": 716.5,
+        "inputToReadyEligibilityMs": 592.5999999977648,
+        "inputToAcknowledgedMs": 641.6999999992549,
+        "controlResponseMs": 23,
+        "windowEndAt": 15257.10000000149,
+        "frameTimes": [
+          10.699999998509156,
+          16.700000000000728,
+          16.600000000000364,
+          16.69999999999891,
+          16.700000000000728,
+          16.600000000000364,
+          16.69999999999891,
+          16.700000000000728,
+          16.700000000000728,
+          16.599999999998545,
+          16.700000000000728,
+          16.700000000000728,
+          16.599999999998545,
+          16.600000000000364,
+          16.700000000000728,
+          16.69999999999891,
+          16.700000000000728,
+          16.600000000000364,
+          16.69999999999891,
+          16.600000000000364,
+          16.700000000000728,
+          16.69999999999891,
+          16.700000000000728,
+          16.700000000000728,
+          16.599999999998545,
+          16.700000000000728,
+          16.600000000000364,
+          16.69999999999891,
+          16.700000000000728,
+          16.700000000000728,
+          16.599999999998545,
+          16.700000000000728,
+          83.29999999999927,
+          16.700000000000728,
+          33.29999999999927,
+          16.600000000000364,
+          16.700000000000728,
+          16.600000000000364
+        ],
+        "longTasks": [
+          68
+        ],
+        "rawProbe": {
+          "documentId": "4e2c0655-fcf1-4178-af21-8aa892d80c1e",
+          "probeId": "54c1f4da-e81e-4c72-8949-0bdb7583c212",
+          "inputAt": 14540.60000000149,
+          "feedbackAt": 14775.400000002235,
+          "contentAt": 15257.10000000149,
+          "readyAt": 15133.199999999255,
+          "controlInputAt": 15159.300000000745,
+          "acknowledgedAt": 15182.300000000745,
+          "targetReceipt": {
+            "control": "project-menu",
+            "expanded": true,
+            "menuVisible": true
+          },
+          "frames": [
+            {
+              "startTime": 14540.60000000149,
+              "duration": 10.699999998509156
+            },
+            {
+              "startTime": 14551.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14568,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 14584.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 14601.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14618,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 14634.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 14651.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14668,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14684.7,
+              "duration": 16.599999999998545
+            },
+            {
+              "startTime": 14701.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14718,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14734.7,
+              "duration": 16.599999999998545
+            },
+            {
+              "startTime": 14751.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 14767.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14784.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 14801.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14818,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 14834.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 14851.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 14867.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14884.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 14901.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14918,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14934.7,
+              "duration": 16.599999999998545
+            },
+            {
+              "startTime": 14951.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 14968,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 14984.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 15001.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15018,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15034.7,
+              "duration": 16.599999999998545
+            },
+            {
+              "startTime": 15051.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15068,
+              "duration": 83.29999999999927
+            },
+            {
+              "startTime": 15151.3,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15168,
+              "duration": 33.29999999999927
+            },
+            {
+              "startTime": 15201.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 15217.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15234.6,
+              "duration": 16.600000000000364
+            }
+          ],
+          "longTasks": [
+            {
+              "startTime": 15058.10000000149,
+              "duration": 68
+            }
+          ],
+          "longTaskSupported": true,
+          "feedbackReceipt": {
+            "kind": "opening-spinner",
+            "projectName": "ZZ Nomi user workflow small"
+          }
+        },
+        "functionalPassed": true,
+        "assertions": {
+          "projectId": "project-workflow-a",
+          "projectTitle": "ZZ Nomi user workflow small",
+          "firstNodeId": "canvas-perf-image-0",
+          "firstImageDecoded": true,
+          "canvasReady": true,
+          "targetControlResponse": true,
+          "targetControl": "project-menu"
+        },
+        "processSnapshot": {
+          "metrics": [
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 1.81,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108867,
+              "type": "Browser",
+              "creationTime": 1791687844140,
+              "memory": {
+                "workingSetSize": 296736,
+                "peakWorkingSetSize": 298672
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.02,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108901,
+              "type": "Utility",
+              "creationTime": 1791687844600,
+              "serviceName": "network.mojom.NetworkService",
+              "name": "Network Service",
+              "memory": {
+                "workingSetSize": 79592,
+                "peakWorkingSetSize": 79592
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 2.64,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108935,
+              "type": "Tab",
+              "creationTime": 1791687844680,
+              "memory": {
+                "workingSetSize": 305208,
+                "peakWorkingSetSize": 305408
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.88,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108962,
+              "type": "GPU",
+              "creationTime": 1791687844780,
+              "serviceName": "GPU",
+              "memory": {
+                "workingSetSize": 99132,
+                "peakWorkingSetSize": 112560
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.07,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108990,
+              "type": "Utility",
+              "creationTime": 1791687845310,
+              "serviceName": "audio.mojom.AudioService",
+              "name": "Audio Service",
+              "memory": {
+                "workingSetSize": 74680,
+                "peakWorkingSetSize": 74680
+              }
+            }
+          ],
+          "versions": {
+            "node": "24.18.1",
+            "acorn": "8.16.0",
+            "ada": "3.4.4",
+            "amaro": "1.1.9",
+            "ares": "1.34.6",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "148",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.69.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.4",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.1",
+            "tz": "2025c",
+            "undici": "7.29.0",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.0.245.28-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0",
+            "electron": "43.4.1",
+            "chrome": "150.0.7871.224"
+          }
+        },
+        "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/project.open-small-1458bda0-7bad-4526-b060-af81aa60aaef.png"
+      }
+    },
+    {
+      "id": "project.switch-to-typical",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "sample": {
+        "inputToFeedbackMs": 193.59999999776483,
+        "inputToContentMs": 685.3999999985099,
+        "inputToReadyEligibilityMs": 193.59999999776483,
+        "inputToAcknowledgedMs": 235.89999999850988,
+        "controlResponseMs": 24.899999998509884,
+        "windowEndAt": 16358.5,
+        "frameTimes": [
+          11.499999998510248,
+          16.69999999999891,
+          16.600000000000364,
+          16.700000000000728,
+          16.69999999999891,
+          16.600000000000364,
+          16.700000000000728,
+          83.39999999999964,
+          33.29999999999927,
+          50,
+          16.600000000000364,
+          16.700000000000728,
+          16.600000000000364,
+          16.69999999999891,
+          16.700000000000728,
+          33.29999999999927,
+          33.30000000000109,
+          16.69999999999891,
+          16.700000000000728,
+          16.69999999999891,
+          16.600000000000364,
+          16.700000000000728,
+          16.600000000000364,
+          33.399999999999636,
+          16.600000000000364,
+          16.69999999999891,
+          16.700000000000728,
+          16.600000000000364,
+          16.69999999999891,
+          16.700000000000728,
+          23.899999999999636
+        ],
+        "longTasks": [
+          88
+        ],
+        "rawProbe": {
+          "documentId": "9d7e18a0-c10e-4f89-9ef4-12ccd56d7e77",
+          "probeId": "8f9cbe7a-cb77-4e72-8a56-ee99be13f162",
+          "inputAt": 15673.10000000149,
+          "feedbackAt": 15866.699999999255,
+          "contentAt": 16358.5,
+          "readyAt": 15866.699999999255,
+          "controlInputAt": 15884.10000000149,
+          "acknowledgedAt": 15909,
+          "targetReceipt": {
+            "control": "project-menu",
+            "expanded": true,
+            "menuVisible": true
+          },
+          "frames": [
+            {
+              "startTime": 15673.10000000149,
+              "duration": 11.499999998510248
+            },
+            {
+              "startTime": 15684.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 15701.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 15717.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15734.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 15751.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 15767.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15784.6,
+              "duration": 83.39999999999964
+            },
+            {
+              "startTime": 15868,
+              "duration": 33.29999999999927
+            },
+            {
+              "startTime": 15901.3,
+              "duration": 50
+            },
+            {
+              "startTime": 15951.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 15967.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 15984.6,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 16001.2,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 16017.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 16034.6,
+              "duration": 33.29999999999927
+            },
+            {
+              "startTime": 16067.9,
+              "duration": 33.30000000000109
+            },
+            {
+              "startTime": 16101.2,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 16117.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 16134.6,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 16151.3,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 16167.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 16184.6,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 16201.2,
+              "duration": 33.399999999999636
+            },
+            {
+              "startTime": 16234.6,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 16251.2,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 16267.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 16284.6,
+              "duration": 16.600000000000364
+            },
+            {
+              "startTime": 16301.2,
+              "duration": 16.69999999999891
+            },
+            {
+              "startTime": 16317.9,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 16334.6,
+              "duration": 33.29999999999927
+            }
+          ],
+          "longTasks": [
+            {
+              "startTime": 15774.400000002235,
+              "duration": 88
+            }
+          ],
+          "longTaskSupported": true,
+          "feedbackReceipt": {
+            "kind": "project-title",
+            "projectName": "ZZ Nomi user workflow typical"
+          }
+        },
+        "functionalPassed": true,
+        "assertions": {
+          "projectId": "project-workflow-b",
+          "projectTitle": "ZZ Nomi user workflow typical",
+          "firstNodeId": "canvas-perf-image-0",
+          "firstImageDecoded": true,
+          "canvasReady": true,
+          "targetControlResponse": true,
+          "targetControl": "project-menu"
+        },
+        "processSnapshot": {
+          "metrics": [
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 2.31,
+                "percentCPUUsage": 8.708555982081275,
+                "idleWakeupsPerSecond": 1713
+              },
+              "pid": 108867,
+              "type": "Browser",
+              "creationTime": 1791687844140,
+              "memory": {
+                "workingSetSize": 328600,
+                "peakWorkingSetSize": 328600
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.02,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108901,
+              "type": "Utility",
+              "creationTime": 1791687844600,
+              "serviceName": "network.mojom.NetworkService",
+              "name": "Network Service",
+              "memory": {
+                "workingSetSize": 79592,
+                "peakWorkingSetSize": 79592
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 4.38,
+                "percentCPUUsage": 30.29308560321107,
+                "idleWakeupsPerSecond": 415
+              },
+              "pid": 108935,
+              "type": "Tab",
+              "creationTime": 1791687844680,
+              "memory": {
+                "workingSetSize": 466828,
+                "peakWorkingSetSize": 469240
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 1.04,
+                "percentCPUUsage": 2.7855638155260363,
+                "idleWakeupsPerSecond": 43
+              },
+              "pid": 108962,
+              "type": "GPU",
+              "creationTime": 1791687844780,
+              "serviceName": "GPU",
+              "memory": {
+                "workingSetSize": 149612,
+                "peakWorkingSetSize": 152000
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.07,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108990,
+              "type": "Utility",
+              "creationTime": 1791687845310,
+              "serviceName": "audio.mojom.AudioService",
+              "name": "Audio Service",
+              "memory": {
+                "workingSetSize": 74680,
+                "peakWorkingSetSize": 74680
+              }
+            }
+          ],
+          "versions": {
+            "node": "24.18.1",
+            "acorn": "8.16.0",
+            "ada": "3.4.4",
+            "amaro": "1.1.9",
+            "ares": "1.34.6",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "148",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.69.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.4",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.1",
+            "tz": "2025c",
+            "undici": "7.29.0",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.0.245.28-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0",
+            "electron": "43.4.1",
+            "chrome": "150.0.7871.224"
+          }
+        },
+        "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/project.switch-to-typical-bcda0629-fec9-4284-92d5-c0faf8863a97.png"
+      }
+    },
+    {
+      "id": "project.switch-back-small",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "sample": {
+        "inputToFeedbackMs": 104.89999999850988,
+        "inputToContentMs": 196.89999999850988,
+        "inputToReadyEligibilityMs": 104.89999999850988,
+        "inputToAcknowledgedMs": 123.19999999925494,
+        "controlResponseMs": 10.399999998509884,
+        "windowEndAt": 17136.699999999255,
+        "frameTimes": [
+          11.499999999254214,
+          16.600000000002183,
+          16.599999999998545,
+          16.799999999999272,
+          33.29999999999927,
+          16.600000000002183,
+          33.29999999999927,
+          16.700000000000728,
+          16.700000000000728,
+          16.599999999998545
+        ],
+        "longTasks": [],
+        "rawProbe": {
+          "documentId": "a868c27c-dff6-4941-9d3b-262a9bb53d4e",
+          "probeId": "b7c04472-57e1-484d-9387-cde7ff8fb4d2",
+          "inputAt": 16939.800000000745,
+          "feedbackAt": 17044.699999999255,
+          "contentAt": 17136.699999999255,
+          "readyAt": 17044.699999999255,
+          "controlInputAt": 17052.60000000149,
+          "acknowledgedAt": 17063,
+          "targetReceipt": {
+            "control": "project-menu",
+            "expanded": true,
+            "menuVisible": true
+          },
+          "frames": [
+            {
+              "startTime": 16939.800000000745,
+              "duration": 11.499999999254214
+            },
+            {
+              "startTime": 16951.3,
+              "duration": 16.600000000002183
+            },
+            {
+              "startTime": 16967.9,
+              "duration": 16.599999999998545
+            },
+            {
+              "startTime": 16984.5,
+              "duration": 16.799999999999272
+            },
+            {
+              "startTime": 17001.3,
+              "duration": 33.29999999999927
+            },
+            {
+              "startTime": 17034.6,
+              "duration": 16.600000000002183
+            },
+            {
+              "startTime": 17051.2,
+              "duration": 33.29999999999927
+            },
+            {
+              "startTime": 17084.5,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 17101.2,
+              "duration": 16.700000000000728
+            },
+            {
+              "startTime": 17117.9,
+              "duration": 16.599999999998545
+            }
+          ],
+          "longTasks": [],
+          "longTaskSupported": true,
+          "feedbackReceipt": {
+            "kind": "project-title",
+            "projectName": "ZZ Nomi user workflow small"
+          }
+        },
+        "functionalPassed": true,
+        "assertions": {
+          "projectId": "project-workflow-a",
+          "projectTitle": "ZZ Nomi user workflow small",
+          "firstNodeId": "canvas-perf-image-0",
+          "firstImageDecoded": true,
+          "canvasReady": true,
+          "targetControlResponse": true,
+          "targetControl": "project-menu"
+        },
+        "processSnapshot": {
+          "metrics": [
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 2.59,
+                "percentCPUUsage": 8.050719533058267,
+                "idleWakeupsPerSecond": 1462
+              },
+              "pid": 108867,
+              "type": "Browser",
+              "creationTime": 1791687844140,
+              "memory": {
+                "workingSetSize": 330056,
+                "peakWorkingSetSize": 338192
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.02,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108901,
+              "type": "Utility",
+              "creationTime": 1791687844600,
+              "serviceName": "network.mojom.NetworkService",
+              "name": "Network Service",
+              "memory": {
+                "workingSetSize": 79592,
+                "peakWorkingSetSize": 79592
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 5.02,
+                "percentCPUUsage": 18.41474906307771,
+                "idleWakeupsPerSecond": 403
+              },
+              "pid": 108935,
+              "type": "Tab",
+              "creationTime": 1791687844680,
+              "memory": {
+                "workingSetSize": 498728,
+                "peakWorkingSetSize": 500380
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 1.11,
+                "percentCPUUsage": 2.0141131787741244,
+                "idleWakeupsPerSecond": 4
+              },
+              "pid": 108962,
+              "type": "GPU",
+              "creationTime": 1791687844780,
+              "serviceName": "GPU",
+              "memory": {
+                "workingSetSize": 144444,
+                "peakWorkingSetSize": 157992
+              }
+            },
+            {
+              "cpu": {
+                "cumulativeCPUUsage": 0.07,
+                "percentCPUUsage": 0,
+                "idleWakeupsPerSecond": 0
+              },
+              "pid": 108990,
+              "type": "Utility",
+              "creationTime": 1791687845310,
+              "serviceName": "audio.mojom.AudioService",
+              "name": "Audio Service",
+              "memory": {
+                "workingSetSize": 74680,
+                "peakWorkingSetSize": 74680
+              }
+            }
+          ],
+          "versions": {
+            "node": "24.18.1",
+            "acorn": "8.16.0",
+            "ada": "3.4.4",
+            "amaro": "1.1.9",
+            "ares": "1.34.6",
+            "brotli": "1.2.0",
+            "cldr": "48.0",
+            "icu": "78.2",
+            "llhttp": "9.4.3",
+            "merve": "1.2.2",
+            "modules": "148",
+            "napi": "10",
+            "nbytes": "0.1.4",
+            "ncrypto": "0.0.1",
+            "nghttp2": "1.69.0",
+            "nghttp3": "",
+            "ngtcp2": "",
+            "openssl": "0.0.0",
+            "simdjson": "4.6.4",
+            "simdutf": "7.7.0",
+            "sqlite": "3.53.1",
+            "tz": "2025c",
+            "undici": "7.29.0",
+            "unicode": "17.0",
+            "uv": "1.52.1",
+            "uvwasi": "0.0.23",
+            "v8": "15.0.245.28-electron.0",
+            "zlib": "1.3.2.1-motley",
+            "zstd": "1.6.0",
+            "electron": "43.4.1",
+            "chrome": "150.0.7871.224"
+          }
+        },
+        "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/project.switch-back-small-6125a38d-3ffe-47c1-9d3d-d04b0032ff8c.png"
+      }
+    },
+    {
+      "id": "document.switch-workflow-small-document-2",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "5638ff0b-0aa2-49bd-9c86-1b2fb6e57b5f",
+        "documentId": "2460ffcc-7cfa-428c-8914-4185115c5301",
+        "inputAt": 17844.60000000149,
+        "completedAt": 17856.900000002235,
+        "frames": [
+          {
+            "startTime": 17844.60000000149,
+            "duration": 6.5999999985106115
+          }
+        ],
+        "longTasks": []
+      },
+      "inputToCompletionDiagnosticMs": 12.300000000745058,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/document.switch-workflow-small-document-2-bdc32fd1-ceb5-4858-a99e-85a06c2f8845.png"
+    },
+    {
+      "id": "document.switch-workflow-small-document-1",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "ce226a28-c5c8-4e56-86ac-56b0a89e7717",
+        "documentId": "ddff0b60-5992-49a9-b912-9cb87a0f5f58",
+        "inputAt": 18156.900000002235,
+        "completedAt": 18168.900000002235,
+        "frames": [
+          {
+            "startTime": 18156.900000002235,
+            "duration": 10.999999997766281
+          }
+        ],
+        "longTasks": []
+      },
+      "inputToCompletionDiagnosticMs": 12,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/document.switch-workflow-small-document-1-59ec36cc-5c5f-4357-9346-b50d0c3fb502.png"
+    },
+    {
+      "id": "storyboard.switch-workflow-small-design-1-1",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "e5d0e527-0ac2-4c82-a24f-3a332a5e48a5",
+        "documentId": "7ab11872-8ccf-413e-a122-8114d8abb9c6",
+        "inputAt": 18443.199999999255,
+        "completedAt": 18877.10000000149,
+        "frames": [
+          {
+            "startTime": 18443.199999999255,
+            "duration": 8.000000000745786
+          },
+          {
+            "startTime": 18451.2,
+            "duration": 16.599999999998545
+          },
+          {
+            "startTime": 18467.8,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18484.5,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18501.2,
+            "duration": 33.29999999999927
+          },
+          {
+            "startTime": 18534.5,
+            "duration": 16.599999999998545
+          },
+          {
+            "startTime": 18551.1,
+            "duration": 16.80000000000291
+          },
+          {
+            "startTime": 18567.9,
+            "duration": 16.599999999998545
+          },
+          {
+            "startTime": 18584.5,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18601.2,
+            "duration": 16.599999999998545
+          },
+          {
+            "startTime": 18617.8,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18634.5,
+            "duration": 16.599999999998545
+          },
+          {
+            "startTime": 18651.1,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18667.8,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18684.5,
+            "duration": 16.599999999998545
+          },
+          {
+            "startTime": 18701.1,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18717.8,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18734.5,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 18751.2,
+            "duration": 16.599999999998545
+          }
+        ],
+        "longTasks": [
+          {
+            "startTime": 18757.199999999255,
+            "duration": 117
+          }
+        ]
+      },
+      "inputToCompletionDiagnosticMs": 433.9000000022352,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/storyboard.switch-workflow-small-design-1-1-dfa805bd-492d-4dc6-a9b2-d5032794bc89.png"
+    },
+    {
+      "id": "storyboard.switch-workflow-small-design-1-2",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "fd0eaad5-a2b4-43f2-b65c-20382a74c252",
+        "documentId": "88498855-6d60-4421-9b73-713a373f2231",
+        "inputAt": 19406.400000002235,
+        "completedAt": 19487.199999999255,
+        "frames": [
+          {
+            "startTime": 19406.400000002235,
+            "duration": 11.399999997764098
+          }
+        ],
+        "longTasks": [
+          {
+            "startTime": 19404.400000002235,
+            "duration": 82
+          }
+        ]
+      },
+      "inputToCompletionDiagnosticMs": 80.79999999701977,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/storyboard.switch-workflow-small-design-1-2-de66b33c-014e-4970-b6d9-009f7e8552b7.png"
+    },
+    {
+      "id": "group.select-mixed-media",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "0fc554eb-5cf1-4500-9aa3-1dc824921fd7",
+        "documentId": "39cedd7f-88e8-4468-8521-2fa849e70236",
+        "inputAt": 20288.800000000745,
+        "completedAt": 20319.699999999255,
+        "frames": [
+          {
+            "startTime": 20288.800000000745,
+            "duration": -4.400000000743603
+          }
+        ],
+        "longTasks": [
+          {
+            "startTime": 20236.900000002235,
+            "duration": 50
+          }
+        ]
+      },
+      "inputToCompletionDiagnosticMs": 30.899999998509884,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/group.select-mixed-media-d23e7b9d-0dcd-48ee-9f08-3350a56601f4.png"
+    },
+    {
+      "id": "group.arrange-grid",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "9931d926-38d0-4833-9a52-9bfb198b36fe",
+        "documentId": "3b310d97-026a-407f-aa9f-aae0906715cb",
+        "inputAt": 20856.900000002235,
+        "completedAt": 20882.699999999255,
+        "frames": [
+          {
+            "startTime": 20856.900000002235,
+            "duration": 10.799999997765553
+          }
+        ],
+        "longTasks": []
+      },
+      "inputToCompletionDiagnosticMs": 25.799999997019768,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/group.arrange-grid-a60e0b10-58c6-4661-b220-380acea3c5ab.png"
+    },
+    {
+      "id": "project.create",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "raw": {
+        "id": "2e7ba35b-620e-4eab-8c33-6f723fca829c",
+        "documentId": "1a614bd4-5068-4b71-bc0b-20473446182b",
+        "inputAt": 21306.300000000745,
+        "completedAt": 21398.800000000745,
+        "frames": [
+          {
+            "startTime": 21306.300000000745,
+            "duration": 11.39999999925567
+          },
+          {
+            "startTime": 21317.7,
+            "duration": 16.700000000000728
+          },
+          {
+            "startTime": 21334.4,
+            "duration": 16.69999999999709
+          },
+          {
+            "startTime": 21351.1,
+            "duration": 16.600000000002183
+          }
+        ],
+        "longTasks": []
+      },
+      "inputToCompletionDiagnosticMs": 92.5,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T03-04-04-971Z-93c212f1-61c2-4e84-9dd7-a49ff229bb5a/project.create-0e79db1f-be7a-409f-9048-2ed51fd8172b.png"
+    }
+  ],
+  "performanceAcceptance": "unverified",
+  "createdProject": {
+    "id": "project-1791687866850-o3ztjf",
+    "rootPath": "<temp>/nomi-next-journeys-wphNpe/projects/未命名项目 10_11 03_04-mv38p1wl-df304431"
+  },
+  "groupLayoutPersisted": {
+    "changedMemberPositions": true,
+    "outsideGroupPositionsUnchanged": true
+  },
+  "persistedDomainContentUnchanged": true,
+  "createdPersistedDocumentCount": 1,
+  "guard": {
+    "layers": [
+      "fetch",
+      "http",
+      "https",
+      "socket",
+      "chromium"
+    ],
+    "blockedAttempts": 0
+  }
+}

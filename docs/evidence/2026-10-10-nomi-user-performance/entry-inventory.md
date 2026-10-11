@@ -1,3 +1,5 @@
+> Correction: the88 rows are feature families, not every UI control. See `control-inventory.json` for the generated production AST bindings and explicit existing-walk mapping gaps. Document duplication is unavailable; the duplication control only handles storyboard designs. Planned source bindings are not execution.
+
 # Source/UI entry inventory — first repair batch
 
 Source-audited entry families, not a claim that every control has been implemented. Stable IDs and full precondition/input/visible/data/budget contracts live in `entry-inventory.json`. Fine-grained controls found through full-walk catalog reconciliation must be added before full coverage is claimed.
@@ -28,7 +30,7 @@ Entries: 88; implemented: 1 (`project.open` only). Execution/pass receipts live 
 | document.create | 新增文稿 (reachable) | `src/workbench/creation/DocumentListSidebar.tsx` / `production UI controls` | yes | no | unverified | no |
 | document.switch | 多稿切换 (reachable) | `src/workbench/creation/DocumentListSidebar.tsx` / `production UI controls` | yes | no | unverified | no |
 | document.rename | 文稿改名 (reachable) | `src/workbench/creation/DocumentListSidebar.tsx` / `production UI controls` | yes | no | unverified | no |
-| document.duplicate | 文稿复制 (reachable) | `src/workbench/creation/DocumentListSidebar.tsx` / `production UI controls` | yes | no | unverified | no |
+| document.duplicate | 文稿复制 (unavailable) | `src/workbench/creation/DocumentListSidebar.tsx` / `duplicate exists only for storyboard` | no | no | unverified | no |
 | document.delete | 删除文稿与撤销 (reachable) | `src/workbench/creation/DocumentListSidebar.tsx` / `production UI controls` | yes | no | unverified | no |
 | document.edit | 文稿连续编辑/历史 (reachable) | `src/workbench/creation/CreationWorkspace.tsx` / `production UI controls` | yes | no | unverified | no |
 | storyboard.create | 同文稿多方案 (reachable) | `src/workbench/creation/DocumentListSidebar.tsx` / `production UI controls` | yes | no | unverified | no |

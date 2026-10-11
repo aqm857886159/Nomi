@@ -1,0 +1,24 @@
+{
+  "name": "Markdown 提前加载图判据",
+  "subject": "performance.markdown-import-graph",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+    "symbol": "eagerPath"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+      "symbol": "eagerPath"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+  "allowed_consumers": [],
+  "since": "2026-10-11",
+  "notes": "本批只登记实际修改的单一延迟边界和对应 import 图判据；保留既有唯一 Markdown renderer，不另建解析器。"
+}

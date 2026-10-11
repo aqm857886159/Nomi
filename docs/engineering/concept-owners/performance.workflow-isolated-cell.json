@@ -1,0 +1,26 @@
+{
+  "name": "工作流隔离缓存单元执行",
+  "subject": "performance.workflow-isolated-cell",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+    "symbol": "runNomiWorkflowCell"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "runNomiWorkflowCell"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+  "allowed_consumers": [
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  ],
+  "since": "2026-10-11",
+  "notes": "本批根因合同共享边界唯一入口；原始动作身份、缓存隔离和旧 schema 诊断分别由各自 owner 判定，不清理其他存量概念。"
+}

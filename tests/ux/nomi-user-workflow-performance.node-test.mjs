@@ -11,7 +11,48 @@ import { createNomiUserWorkflowFixture, NOMI_WORKFLOW_SCALES, validateWorkflowFi
 import { percentile, redact } from './nomi-user-workflow-performance.e2e.mjs'
 import * as harness from './nomi-user-workflow-performance.e2e.mjs'
 import { installProjectOpenProbe } from './nomi-user-workflow-probe.mjs'
+import { buildControlInventory } from '../../scripts/build-nomi-workflow-control-inventory.mjs'
 import { buildAnalysis } from '../../scripts/summarize-nomi-user-performance.mjs'
+import { applyCellVerdict, validActionSample } from './nomi-user-workflow-contract.mjs'
+
+const semanticProbe = () => ({ documentId: 'document-1', probeId: 'sample-1', inputAt: 10, feedbackAt: 30, contentAt: 900, readyAt: 40, controlInputAt: 45, acknowledgedAt: 610,
+  targetReceipt: { control: 'project-menu', expanded: true, menuVisible: true }, longTaskSupported: true,
+  frames: [{ startTime: 10, duration: 16 }, { startTime: 26, duration: 16 }], longTasks: [] })
+
+test('semantic budgets distinguish feedback, decoded content and delayed target-control completion', () => {
+  const sample = harness.normalizeActionSample(semanticProbe(), semanticProbe())
+  assert.equal(sample.inputToFeedbackMs, 20)
+  assert.equal(sample.inputToContentMs, 890)
+  assert.equal(sample.inputToAcknowledgedMs, 600)
+  const cell = applyCellVerdict({ scale: 'small', id: 'project.open', samples: [sample] }, { runs: 5, warmup: 1 })
+  assert.equal(cell.budgets.feedbackP95.verdict, 'within')
+  assert.equal(cell.budgets.acknowledgedP95.verdict, 'exceeded')
+  assert.equal(cell.budgets.contentP95, undefined)
+  assert.equal(cell.budgets.frameP99.verdict, 'unverified')
+})
+
+test('completed target response may precede decoded content without invalidating the action', () => {
+  const raw = { ...semanticProbe(), acknowledgedAt: 60, contentAt: 80 }
+  const sample = harness.normalizeActionSample(raw, raw)
+  assert.equal(sample.inputToAcknowledgedMs, 50)
+  assert.equal(sample.inputToContentMs, 70)
+  assert.equal(sample.windowEndAt, 80)
+  sample.functionalPassed = true
+  sample.assertions = { firstImageDecoded: true, persistedContentUnchanged: true, targetControlResponse: true }
+  assert.equal(validActionSample(sample), true)
+  delete sample.rawProbe.targetReceipt
+  assert.equal(validActionSample(sample), false)
+})
+
+test('schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions', () => {
+  const report = JSON.parse(fs.readFileSync(new URL('../../docs/evidence/2026-10-10-nomi-user-performance/raw/nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json', import.meta.url), 'utf8'))
+  const result = buildAnalysis([{ file: 'historical.json', report }])
+  assert.match(result.markdown, /historical diagnostics/)
+  const historicalRow = result.markdown.split('\n').find((line) => line.startsWith('| historical.json |'))
+  assert.equal(historicalRow?.split('|')[7].trim(), '—', 'Document Shift must never populate the real target-control response column')
+  assert.match(result.markdown, /budget conclusions withdrawn/)
+  assert.notEqual(result.exitCode, 0)
+})
 
 test('workflow scale contract is fixed and complete', () => {
   assert.deepEqual(Object.keys(NOMI_WORKFLOW_SCALES), ['small', 'typical', 'heavy'])
@@ -108,16 +149,16 @@ test('evidence writes never overwrite a previous report even at the same timesta
 })
 
 const probe = () => ({
-  documentId: 'document-1', probeId: 'sample-1', inputAt: 10, visibleAt: 30, readyAt: 40, acknowledgedAt: 45,
-  frames: [{ startTime: 0, duration: 200 }, { startTime: 11, duration: 16 }, { startTime: 29, duration: 17 }, { startTime: 46, duration: 300 }],
-  longTasks: [{ startTime: 0, duration: 70 }, { startTime: 12, duration: 60 }, { startTime: 46, duration: 80 }],
+  documentId: 'document-1', probeId: 'sample-1', inputAt: 10, feedbackAt: 20, contentAt: 30, readyAt: 40, controlInputAt: 42, acknowledgedAt: 45, targetReceipt: { control: 'project-menu', expanded: true, menuVisible: true },
+  frames: [{ startTime: 0, duration: 5 }, { startTime: 11, duration: 16 }, { startTime: 29, duration: 17 }, { startTime: 46, duration: 300 }],
+  longTasks: [{ startTime: 0, duration: 5 }, { startTime: 12, duration: 60 }, { startTime: 46, duration: 80 }],
 })
 
 test('latency uses browser milestones; collection and preceding/following tasks are excluded', () => {
   assert.equal(typeof harness.normalizeActionSample, 'function')
   const sample = harness.normalizeActionSample(probe(), { documentId: 'document-1', probeId: 'sample-1' })
-  assert.equal(sample.inputToVisibleMs, 20)
-  assert.equal(sample.inputToReadyMs, 30)
+  assert.equal(sample.inputToContentMs, 20)
+  assert.equal(sample.inputToReadyEligibilityMs, 30)
   assert.equal(sample.inputToAcknowledgedMs, 35)
   assert.deepEqual(sample.frameTimes, [16, 16])
   assert.deepEqual(sample.longTasks, [33])
@@ -131,77 +172,84 @@ test('raw durations crossing the end are retained but clipped in action-window m
   assert.deepEqual(sample.rawProbe.longTasks, [{ startTime: 44, duration: 300 }])
 })
 
-test('the real browser probe retains input-to-first-frame stalls and only trusted input', () => {
-  let now = 0, frameCallback
+function simulatedProbe({ decoded = true, nodeMode = 'visible', loading = false } = {}) {
+  let now = 0, frameCallback, expanded = false, projectShown = !loading
   const listeners = {}
   const box = { getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 }), closest: () => null, parentElement: null }
-  box.querySelector = () => ({ ...box, complete: true, naturalWidth: 100 })
-  const context = { args: { probeId: 'sample', cardSelector: '.card', projectName: 'Known', nodeId: 'node' }, window: { innerWidth: 1280, innerHeight: 933 }, crypto: { randomUUID: () => 'doc' },
-    performance: { now: () => now }, getComputedStyle: () => ({ display: 'block', visibility: 'visible' }),
+  const media = { ...box, complete: decoded, naturalWidth: decoded ? 100 : 0 }
+  const node = { ...box, querySelector: () => media,
+    parentElement: nodeMode === 'transparent-ancestor' ? { ...box, opacity: '0' } : null,
+    getBoundingClientRect: nodeMode === 'offscreen' ? () => ({ left: 5000, top: 5000, right: 5100, bottom: 5100, width: 100, height: 100 }) : box.getBoundingClientRect }
+  const stage = { ...box, getAttribute: () => 'true', querySelector: () => nodeMode === 'outside-canvas' ? null : node }
+  const project = { ...box, getAttribute: (name) => ({ title: 'Known', 'aria-label': 'Known menu', 'aria-expanded': String(expanded) })[name] }
+  const context = { args: { probeId: 'sample', cardSelector: '.card', projectName: 'Known', nodeId: 'node', loadingLabels: ['route loading'] }, window: { innerWidth: 1280, innerHeight: 933 }, crypto: { randomUUID: () => 'doc' },
+    performance: { now: () => now }, getComputedStyle: (element) => ({ display: 'block', visibility: 'visible', opacity: element.opacity || '1' }),
     requestAnimationFrame: (fn) => { frameCallback = fn; return 1 }, cancelAnimationFrame: () => {},
     PerformanceObserver: class { observe() {} takeRecords() { return [] } disconnect() {} },
-    document: { querySelector: (selector) => selector.includes('project-menu') ? { ...box, textContent: 'Known' } : { ...box, getAttribute: () => 'true', querySelector: () => box },
+    document: { querySelector: (selector) => selector === '.card' ? null : selector.includes('project-menu') ? projectShown ? project : null : stage,
+      querySelectorAll: (selector) => selector.includes('loading-mark') ? loading ? [{ ...box, getAttribute: () => 'route loading' }] : [] : expanded ? [{ ...box, getAttribute: () => 'Known menu' }] : [],
       addEventListener: (name, fn) => { listeners[name] = fn }, removeEventListener: (name) => { delete listeners[name] } },
   }
   vm.runInNewContext(`(${installProjectOpenProbe.toString()})(args)`, context)
-  now = 1; listeners.pointerdown({ isTrusted: false, target: { closest: () => true } })
-  assert.equal(context.window.__nomiWorkflowPerf.inputAt, null)
-  now = 10; listeners.pointerdown({ isTrusted: true, target: { closest: () => true } })
-  now = 300; frameCallback(now)
-  now = 316; frameCallback(now)
-  now = 317; listeners.keydown({ isTrusted: true, key: 'Shift' })
-  const state = JSON.parse(JSON.stringify(context.window.__nomiWorkflowPerf.stop()))
+  return { state: context.window.__nomiWorkflowPerf, media, listeners,
+    pointer: (time, selector, trusted = true) => { now = time; listeners.pointerdown({ isTrusted: trusted, target: { closest: (value) => value === selector } }) },
+    frame: (time, timestamp = time) => { now = time; frameCallback(timestamp) }, showMenu: () => { expanded = true }, showProject: () => { projectShown = true } }
+}
+
+test('the real browser probe retains input stalls and requires trusted target input plus production response', () => {
+  const browser = simulatedProbe()
+  browser.pointer(1, '.card', false)
+  assert.equal(browser.state.inputAt, null)
+  browser.pointer(10, '.card'); browser.frame(300, 5)
+  assert.equal(browser.state.readyAt, 300)
+  assert.equal(browser.listeners.keydown, undefined, 'document-level Shift cannot certify target input')
+  browser.pointer(301, '[data-shell-project-menu]', false)
+  assert.equal(browser.state.controlInputAt, null)
+  browser.pointer(302, '[data-shell-project-menu]')
+  browser.frame(316)
+  assert.equal(browser.state.acknowledgedAt, null, 'input alone is not completion')
+  browser.showMenu(); browser.frame(600)
+  const state = JSON.parse(JSON.stringify(browser.state.stop()))
   const sample = harness.normalizeActionSample(state, { documentId: 'doc', probeId: 'sample' })
-  assert.deepEqual(sample.frameTimes, [290, 16])
-  assert.equal(sample.inputToReadyMs, 290)
-  assert.deepEqual(Object.keys(listeners), [])
+  assert.equal(sample.inputToFeedbackMs, 290)
+  assert.equal(sample.controlResponseMs, 298)
+  assert.equal(sample.inputToAcknowledgedMs, 590)
+  assert.deepEqual(sample.frameTimes, [290, 16, 284])
+  assert.deepEqual(Object.keys(browser.listeners), [])
 })
 
-test('a visible canvas card with pending image decoding is not visible project content', () => {
-  let now = 10, frameCallback
-  const listeners = {}
-  const box = { getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 }), closest: () => null, parentElement: null }
-  const media = { ...box, complete: false, naturalWidth: 0 }
-  const node = { ...box, querySelector: () => media }
-  const stage = { ...box, getAttribute: () => 'true', querySelector: () => node }
-  const context = { args: { probeId: 'sample', cardSelector: '.card', projectName: 'Known', nodeId: 'node' }, window: { innerWidth: 1280, innerHeight: 933 }, crypto: { randomUUID: () => 'doc' },
-    performance: { now: () => now }, getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
-    requestAnimationFrame: (fn) => { frameCallback = fn; return 1 }, cancelAnimationFrame: () => {},
-    PerformanceObserver: class { observe() {} takeRecords() { return [] } disconnect() {} },
-    document: { querySelector: (selector) => selector.includes('project-menu') ? { ...box, textContent: 'Known' } : stage,
-      addEventListener: (name, fn) => { listeners[name] = fn }, removeEventListener: () => {} },
-  }
-  vm.runInNewContext(`(${installProjectOpenProbe.toString()})(args)`, context)
-  listeners.pointerdown({ isTrusted: true, target: { closest: () => true } })
-  now = 30; frameCallback(now)
-  assert.equal(context.window.__nomiWorkflowPerf.visibleAt, null)
-  assert.equal(context.window.__nomiWorkflowPerf.readyAt, null)
-  media.complete = true; media.naturalWidth = 100
-  now = 46; frameCallback(now)
-  assert.equal(context.window.__nomiWorkflowPerf.visibleAt, 46)
-  assert.equal(context.window.__nomiWorkflowPerf.readyAt, 46)
+test('decoded content can arrive after feedback, eligibility and completed target input', () => {
+  const browser = simulatedProbe({ decoded: false })
+  browser.pointer(10, '.card'); browser.frame(30)
+  assert.equal(browser.state.feedbackAt, 30)
+  assert.equal(browser.state.readyAt, 30)
+  assert.equal(browser.state.contentAt, null)
+  browser.pointer(31, '[data-shell-project-menu]'); browser.showMenu(); browser.frame(46)
+  assert.equal(browser.state.acknowledgedAt, 46)
+  assert.equal(browser.state.contentAt, null)
+  browser.media.complete = true; browser.media.naturalWidth = 100; browser.frame(80)
+  assert.equal(browser.state.contentAt, 80)
+  assert.doesNotThrow(() => harness.normalizeActionSample(browser.state.stop(), { documentId: 'doc', probeId: 'sample' }))
 })
 
-test('screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy visible content', () => {
-  for (const mode of ['offscreen', 'transparent-ancestor', 'outside-canvas']) {
-    let now = 10, frameCallback
-    const listeners = {}
-    const box = { getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 }), closest: () => null }
-    const node = { ...box, parentElement: mode === 'transparent-ancestor' ? { ...box, opacity: '0', parentElement: null } : null,
-      getBoundingClientRect: mode === 'offscreen' ? () => ({ left: 5000, top: 5000, right: 5100, bottom: 5100, width: 100, height: 100 }) : box.getBoundingClientRect }
-    const stage = { ...box, getAttribute: () => 'true', querySelector: () => mode === 'outside-canvas' ? null : node }
-    const context = { args: { probeId: 'sample', cardSelector: '.card', projectName: 'Known', nodeId: 'node' }, window: { innerWidth: 1280, innerHeight: 933 }, crypto: { randomUUID: () => 'doc' },
-      performance: { now: () => now }, getComputedStyle: (element) => ({ display: 'block', visibility: 'visible', opacity: element.opacity || '1' }),
-      requestAnimationFrame: (fn) => { frameCallback = fn; return 1 }, cancelAnimationFrame: () => {},
-      PerformanceObserver: class { observe() {} takeRecords() { return [] } disconnect() {} },
-      document: { querySelector: (selector) => selector.includes('project-menu') ? { ...box, textContent: 'Known' } : selector.includes('stage') ? stage : node,
-        addEventListener: (name, fn) => { listeners[name] = fn }, removeEventListener: () => {} },
-    }
-    vm.runInNewContext(`(${installProjectOpenProbe.toString()})(args)`, context)
-    listeners.pointerdown({ isTrusted: true, target: { closest: () => true } })
-    now = 30; frameCallback(now)
-    assert.equal(context.window.__nomiWorkflowPerf.visibleAt, null, mode)
-    assert.equal(context.window.__nomiWorkflowPerf.readyAt, null, mode)
+test('existing opening spinner is feedback before target title or decoded media', () => {
+  const browser = simulatedProbe({ decoded: false, loading: true })
+  browser.pointer(10, '.card'); browser.frame(20)
+  assert.equal(browser.state.feedbackAt, 20)
+  assert.equal(browser.state.feedbackReceipt.kind, 'opening-spinner')
+  assert.equal(browser.state.readyAt, null)
+  browser.showProject(); browser.frame(50)
+  assert.equal(browser.state.readyAt, 50)
+  assert.equal(browser.state.feedbackAt, 20)
+})
+
+test('screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy content or canvas eligibility', () => {
+  for (const nodeMode of ['offscreen', 'transparent-ancestor', 'outside-canvas']) {
+    const browser = simulatedProbe({ nodeMode })
+    browser.pointer(10, '.card'); browser.frame(30)
+    assert.equal(browser.state.feedbackAt, 30, nodeMode)
+    assert.equal(browser.state.contentAt, null, nodeMode)
+    assert.equal(browser.state.readyAt, null, nodeMode)
   }
 })
 
@@ -229,17 +277,17 @@ test('schema-v2 passed flags with empty samples cannot certify acceptance', () =
   assert.match(analysis.markdown, /invalid/)
 })
 
-test('schema-v2 samples without decoded-content and persistence receipts are not measurement evidence', () => {
+test('schema-v3 samples without decoded-content, target-control and persistence receipts are not measurement evidence', () => {
   const sample = { ...harness.normalizeActionSample({ ...probe(), longTaskSupported: true }, { documentId: 'document-1', probeId: 'sample-1' }), functionalPassed: true }
-  const report = { schemaVersion: 2, cells: [{ id: 'project.open', scale: 'small', cache: 'cold', status: 'inconclusive', samples: [sample] }] }
+  const report = { schemaVersion: 3, cells: [{ id: 'project.open', scale: 'small', cache: 'cold', status: 'inconclusive', samples: [sample] }] }
   assert.match(buildAnalysis([{ file: 'pre-content-proof.json', report }]).markdown, /invalid evidence/)
-  sample.assertions = { firstImageDecoded: true, persistedContentUnchanged: true }
+  sample.assertions = { firstImageDecoded: true, persistedContentUnchanged: true, targetControlResponse: true }
   assert.doesNotMatch(buildAnalysis([{ file: 'current.json', report }]).markdown, /invalid evidence/)
 })
 
 test('missing/replaced probe or unobserved milestone is invalid, never an empty measurement', () => {
   assert.equal(typeof harness.normalizeActionSample, 'function')
-  for (const state of [null, { ...probe(), documentId: 'reloaded' }, { ...probe(), probeId: 'old-sample' }, { ...probe(), inputAt: null }, { ...probe(), visibleAt: null }, { ...probe(), acknowledgedAt: 35 }]) {
+  for (const state of [null, { ...probe(), documentId: 'reloaded' }, { ...probe(), probeId: 'old-sample' }, { ...probe(), inputAt: null }, { ...probe(), feedbackAt: null }, { ...probe(), acknowledgedAt: 35 }]) {
     assert.throws(() => harness.normalizeActionSample(state, { documentId: 'document-1', probeId: 'sample-1' }))
   }
 })
@@ -247,8 +295,8 @@ test('missing/replaced probe or unobserved milestone is invalid, never an empty 
 test('aggregation pools raw distributions and keeps cache cells and support counts distinct', () => {
   assert.equal(typeof harness.summarizeCell, 'function')
   const summary = harness.summarizeCell({ cache: 'cold', samples: [
-    { inputToVisibleMs: 10, inputToReadyMs: 20, frameTimes: [1, 1, 1, 1], longTasks: [], frameP95: 999 },
-    { inputToVisibleMs: 20, inputToReadyMs: 30, frameTimes: [100], longTasks: [60] },
+    { inputToFeedbackMs: 10, inputToReadyEligibilityMs: 20, frameTimes: [1, 1, 1, 1], longTasks: [], frameP95: 999 },
+    { inputToFeedbackMs: 20, inputToReadyEligibilityMs: 30, frameTimes: [100], longTasks: [60] },
   ] })
   assert.equal(summary.frameP95, percentile([1, 1, 1, 1, 100], 0.95))
   assert.equal(summary.frameSamples, 5)
@@ -272,11 +320,11 @@ test('project selector requires the persisted record identity, not the fixture e
 })
 
 test('each cold/hot repetition receives a fresh persisted fixture and closes on failure', async () => {
-  assert.equal(typeof harness.runCell, 'function')
+  assert.equal(typeof harness.runNomiWorkflowCell, 'function')
   const roots = [], closed = [], primed = []
   const options = { runs: 2, warmup: 1, launchTimeout: 1000 }
   const cell = { id: 'project.open', scale: 'small', cache: 'hot', implemented: true, samples: [] }
-  const result = await harness.runCell(cell, options, {
+  const result = await harness.runNomiWorkflowCell(cell, options, {
     launch: async (config) => {
       roots.push(config.tempRoot)
       return { app: config.tempRoot, win: config.tempRoot }
@@ -305,8 +353,8 @@ test('each cold/hot repetition receives a fresh persisted fixture and closes on 
 })
 
 test('planned journeys do not launch or inherit an environment blocker', async () => {
-  assert.equal(typeof harness.runCell, 'function')
-  const result = await harness.runCell({ id: 'D1', scale: 'small', cache: 'cold', samples: [] }, { runs: 1, warmup: 0 }, {
+  assert.equal(typeof harness.runNomiWorkflowCell, 'function')
+  const result = await harness.runNomiWorkflowCell({ id: 'D1', scale: 'small', cache: 'cold', samples: [] }, { runs: 1, warmup: 0 }, {
     launch: async () => assert.fail('planned action must not launch'),
   })
   assert.equal(result.status, 'planned')
@@ -366,8 +414,36 @@ test('source-linked inventory distinguishes implementation and planned pairwise/
     const [a, valuesA] = dimensions[left], [b, valuesB] = dimensions[right]
     for (const valueA of valuesA) for (const valueB of valuesB) assert.ok(combinations.pairwise.some((row) => row[a] === valueA && row[b] === valueB), `${a}=${valueA},${b}=${valueB}`)
   }
-  assert.equal(combinations.mandatoryHigherOrder.length, 5)
+  assert.equal(combinations.mandatoryHigherOrder.length, 6)
   assert.ok([...combinations.pairwise, ...combinations.mandatoryHigherOrder].every((row) => row.status === 'planned'))
+})
+
+test('control inventory rechecks actual AST bindings, conditional duplication and existing walk action gaps', () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+  const evidence = path.join(root, 'docs/evidence/2026-10-10-nomi-user-performance')
+  const persisted = JSON.parse(fs.readFileSync(path.join(evidence, 'control-inventory.json')))
+  assert.deepEqual(persisted, buildControlInventory(root), 'Control source/handler/selector drift must regenerate the inventory')
+  const duplicate = persisted.bindings.find((entry) => entry.source.endsWith('DocumentListSidebar.tsx') && entry.selectors['data-resource-action'] === '"duplicate"')
+  assert.ok(duplicate.conditions.some((condition) => condition.includes("menuTarget.kind === 'storyboard'")))
+  const families = JSON.parse(fs.readFileSync(path.join(evidence, 'entry-inventory.json')))
+  assert.equal(families.entries.find((entry) => entry.id === 'document.duplicate').availability, 'unavailable')
+  assert.ok(persisted.bindings.every((binding) => binding.runtimeStatus === 'planned'))
+  assert.ok(persisted.existingWalkActions.length > 0)
+  assert.ok(persisted.existingWalkActions.some((action) => action.mapping.startsWith('gap:')))
+  assert.ok(persisted.existingWalkActions.every((action) => action.executed === false))
+})
+
+test('expanded pairwise plans cover all eligible13-axis pairs plus the complete interruption/recovery combination', () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+  const plan = JSON.parse(fs.readFileSync(path.join(root, 'docs/evidence/2026-10-10-nomi-user-performance/combination-plan.json')))
+  assert.equal(Object.keys(plan.expandedDimensions).length, 13)
+  for (const [a, va, b, vb] of plan.expandedRequiredPairs) assert.ok(plan.expandedPairwise.some((row) => String(row[a]) === va && String(row[b]) === vb), `${a}=${va},${b}=${vb}`)
+  assert.ok(plan.expandedPairwise.every((row) => row.status === 'planned' && row.executed === false && !(row.concurrency === 1 && (row.agentOverlap !== 'idle' || row.sessionPlacement === 'foreground-and-background'))))
+  assert.ok(plan.expandedPairwise.some((row) => row.agentOverlap === 'stream-stream'))
+  assert.ok(plan.expandedPairwise.some((row) => row.agentOverlap === 'tool-tool'))
+  const all = plan.mandatoryHigherOrder.find((row) => row.id === 'MANDATORY-ALL-FEATURES-INTERRUPT-RECOVER')
+  assert.ok(all && all.executed === false && all.status === 'planned')
+  for (const term of ['drafts', 'plans', 'mixed group', 'Agents', 'export', 'save', 'interrupt', 'recover']) assert.ok((all.input + all.visibleCompletion).toLowerCase().includes(term.toLowerCase()), term)
 })
 
 test('percentiles and raw path redaction are deterministic', () => {
@@ -379,4 +455,9 @@ test('percentiles and raw path redaction are deterministic', () => {
   assert.deepEqual(output, { path: '<repo>/private.txt', nested: ['<temp>/secret'] })
   assert.doesNotMatch(JSON.stringify(output), new RegExp(checkoutRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   assert.doesNotMatch(JSON.stringify(output), new RegExp(os.tmpdir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+})
+
+test('negative raw frame interval fails closed rather than dropping an input stall', () => {
+  const raw = semanticProbe(); raw.frames[0].duration = -1
+  assert.throws(() => harness.normalizeActionSample(raw, raw), /non-monotonic raw observation/)
 })

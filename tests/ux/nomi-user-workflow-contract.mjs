@@ -54,25 +54,32 @@ export function percentile(values, p) {
 export function normalizeActionSample(state, expected) {
   const invalid = (reason) => Object.assign(new Error(`invalid measurement: ${reason}`), { probeState: state })
   if (!state || state.documentId !== expected.documentId || state.probeId !== expected.probeId) throw invalid('missing/replaced probe or document (reload)')
-  const marks = [state.inputAt, state.visibleAt, state.readyAt, state.acknowledgedAt]
-  if (marks.some((mark) => !Number.isFinite(mark)) || marks.some((mark, index) => index && mark < marks[index - 1])) throw invalid('missing/non-monotonic input or milestone')
+  const marks = [state.inputAt, state.feedbackAt, state.contentAt, state.readyAt, state.controlInputAt, state.acknowledgedAt]
+  if (marks.some((mark) => !Number.isFinite(mark)) || state.feedbackAt < state.inputAt || state.contentAt < state.feedbackAt || state.readyAt < state.feedbackAt || state.controlInputAt < state.readyAt || state.acknowledgedAt < state.controlInputAt) throw invalid('missing/non-monotonic input or milestone')
+  if (state.targetReceipt?.control !== 'project-menu' || state.targetReceipt.expanded !== true || state.targetReceipt.menuVisible !== true) throw invalid('completed target-control receipt missing')
   if (!Array.isArray(state.frames) || !Array.isArray(state.longTasks)) throw invalid('raw probe arrays missing')
-  const inWindow = (entry) => Number.isFinite(entry.startTime) && Number.isFinite(entry.duration) && entry.duration >= 0 && entry.startTime >= state.inputAt && entry.startTime <= state.acknowledgedAt
+  if ([...state.frames, ...state.longTasks].some((entry) => !Number.isFinite(entry.startTime) || !Number.isFinite(entry.duration) || entry.duration < 0)) throw invalid('malformed/non-monotonic raw observation')
+  const windowEndAt = Math.max(state.contentAt, state.acknowledgedAt)
+  const overlaps = (entry) => Number.isFinite(entry.startTime) && Number.isFinite(entry.duration) && entry.duration >= 0 && entry.startTime < windowEndAt && entry.startTime + entry.duration > state.inputAt
+  const duration = (entry) => Math.min(entry.startTime + entry.duration, windowEndAt) - Math.max(entry.startTime, state.inputAt)
   return {
-    inputToVisibleMs: state.visibleAt - state.inputAt,
-    inputToReadyMs: state.readyAt - state.inputAt,
+    inputToFeedbackMs: state.feedbackAt - state.inputAt,
+    inputToContentMs: state.contentAt - state.inputAt,
+    inputToReadyEligibilityMs: state.readyAt - state.inputAt,
     inputToAcknowledgedMs: state.acknowledgedAt - state.inputAt,
-    frameTimes: state.frames.filter(inWindow).map((frame) => Math.min(frame.duration, state.acknowledgedAt - frame.startTime)),
-    longTasks: state.longTasks.filter(inWindow).map((task) => Math.min(task.duration, state.acknowledgedAt - task.startTime)),
+    controlResponseMs: state.acknowledgedAt - state.controlInputAt,
+    windowEndAt,
+    frameTimes: state.frames.filter(overlaps).map(duration),
+    longTasks: state.longTasks.filter(overlaps).map(duration),
     rawProbe: state,
   }
 }
 
 export function validActionSample(sample) {
   try {
-    if (!sample?.functionalPassed || !sample.assertions?.firstImageDecoded || !sample.assertions?.persistedContentUnchanged || !sample.rawProbe?.documentId || !sample.rawProbe?.probeId || !sample.rawProbe.longTaskSupported) return false
+    if (!sample?.functionalPassed || !sample.assertions?.firstImageDecoded || !sample.assertions?.persistedContentUnchanged || !sample.assertions?.targetControlResponse || !sample.rawProbe?.documentId || !sample.rawProbe?.probeId || !sample.rawProbe.longTaskSupported) return false
     const rebuilt = normalizeActionSample(sample.rawProbe, sample.rawProbe)
-    return ['inputToVisibleMs', 'inputToReadyMs', 'inputToAcknowledgedMs', 'frameTimes', 'longTasks'].every((key) => JSON.stringify(sample[key]) === JSON.stringify(rebuilt[key])) && sample.frameTimes.length > 0
+    return ['inputToFeedbackMs', 'inputToContentMs', 'inputToReadyEligibilityMs', 'inputToAcknowledgedMs', 'controlResponseMs', 'windowEndAt', 'frameTimes', 'longTasks'].every((key) => JSON.stringify(sample[key]) === JSON.stringify(rebuilt[key])) && sample.frameTimes.length > 0
   } catch { return false }
 }
 
@@ -82,8 +89,11 @@ export function summarizeCell(cell) {
   const tasks = samples.flatMap((sample) => sample.longTasks || [])
   return {
     cache: cell.cache, actionSamples: samples.length, frameSamples: frames.length, longTaskSamples: tasks.length,
-    visibleP95: percentile(samples.map((sample) => sample.inputToVisibleMs), 0.95),
-    readyP95: percentile(samples.map((sample) => sample.inputToReadyMs), 0.95),
+    feedbackP95: percentile(samples.map((sample) => sample.inputToFeedbackMs), 0.95),
+    contentP95: percentile(samples.map((sample) => sample.inputToContentMs), 0.95),
+    readyEligibilityP95: percentile(samples.map((sample) => sample.inputToReadyEligibilityMs), 0.95),
+    acknowledgedP95: percentile(samples.map((sample) => sample.inputToAcknowledgedMs), 0.95),
+    controlResponseP95: percentile(samples.map((sample) => sample.controlResponseMs), 0.95),
     frameP95: percentile(frames, 0.95), frameP99: percentile(frames, 0.99), longTaskP95: percentile(tasks, 0.95),
     maxLongTask: tasks.length ? Math.max(...tasks) : null,
     droppedFrameRatio: frames.length ? frames.filter((duration) => duration > 50).length / frames.length : null,
@@ -96,17 +106,17 @@ export function summarizeCell(cell) {
 export function applyCellVerdict(cell, options) {
   const summary = summarizeCell(cell)
   const tier = { small: [100, 500, 33, 50, 0.02, 80], typical: [120, 700, 33, 67, 0.03, 80], heavy: [150, 1000, 50, 100, 0.05, 100] }[cell.scale]
-  const keys = ['visibleP95', 'readyP95', 'frameP95', 'frameP99', 'droppedFrameRatio', 'longTaskP95']
+  const keys = ['feedbackP95', 'acknowledgedP95', 'frameP95', 'frameP99', 'droppedFrameRatio', 'longTaskP95']
   cell.summary = summary
-  cell.budgets = Object.fromEntries(keys.map((key, index) => [key, { value: summary[key], ceiling: tier[index], verdict: summary[key] === null ? 'unverified' : summary[key] <= tier[index] ? 'within' : 'exceeded' }]))
-  cell.acceptanceMissing = ['main long-task probe', 'CPU action-window distribution', 'memory/teardown residual', ...(!summary.p99Supported ? ['p99 sample support (<100 frames)'] : []), ...(options.runs < 5 || options.warmup < 1 ? ['fixed 1+5 protocol'] : [])]
+  cell.budgets = Object.fromEntries(keys.map((key, index) => [key, { value: summary[key], ceiling: tier[index], verdict: summary[key] === null || (cell.id === 'project.open' && ['frameP95', 'frameP99', 'droppedFrameRatio'].includes(key)) || (key === 'frameP99' && !summary.p99Supported) ? 'unverified' : summary[key] <= tier[index] ? 'within' : 'exceeded' }]))
+  cell.acceptanceMissing = ['active-gesture frame metrics (project.open is a discrete click)', 'main long-task probe', 'CPU action-window distribution', 'memory/teardown residual', ...(!summary.p99Supported ? ['p99 sample support (<100 frames)'] : []), ...(options.runs < 5 || options.warmup < 1 ? ['fixed 1+5 protocol'] : [])]
   cell.passed = false
   cell.status = Object.values(cell.budgets).some((budget) => budget.verdict === 'exceeded') || summary.maxLongTask > 200 ? 'failed_budget' : 'inconclusive'
   return cell
 }
 
 export function reportExitCode(report) {
-  return report.schemaVersion === 2 && report.options?.warmup >= 1 && Array.isArray(report.cells) && report.cells.length > 0 && report.cells.every((cell) => WORKFLOW_ACTIONS[cell.id]?.acceptanceImplemented === true && cell.status === 'passed' && cell.implemented === true && cell.executed === true && cell.passed === true && cell.samples?.length >= 5 && cell.samples.every(validActionSample) && cell.acceptanceMissing?.length === 0) ? 0 : 2
+  return report.schemaVersion === 3 && report.options?.warmup >= 1 && Array.isArray(report.cells) && report.cells.length > 0 && report.cells.every((cell) => WORKFLOW_ACTIONS[cell.id]?.acceptanceImplemented === true && cell.status === 'passed' && cell.implemented === true && cell.executed === true && cell.passed === true && cell.samples?.length >= 5 && cell.samples.every(validActionSample) && cell.acceptanceMissing?.length === 0) ? 0 : 2
 }
 
 export function writeReport(directory, report) {

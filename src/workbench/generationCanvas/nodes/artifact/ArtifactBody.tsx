@@ -2,7 +2,7 @@
 // 内层按 meta.artifact.fileType 挑子视图——浏览器按 MIME 挑应用的同款逻辑：
 //   svg        → <img> 图片管线（DeferredNodeImage 同源，可缩放、棋盘格、加载态）
 //   html       → 动态沙箱 iframe（无 same-origin；CSS 动效会跑，内联 JS 被宿主 CSP 拦，见 §6.5）
-//   markdown   → 轻量 Markdown 渲染（行内样式自包含，不引新依赖；P1 换 NomiMarkdown 或复用）
+//   markdown   → 轻量 Markdown 渲染（行内样式自包含，不引新依赖；P1 换 LazyNomiMarkdown 或复用）
 //   table      → HTML 表格渲染（产物是 Markdown 表格先由 Agent 转 HTML；此处直渲 table HTML）
 //   text       → 等宽文本展示（可复制）
 //   glb        → 复用 Model3DViewer（R3F useGLTF，scene3d 同栈；懒加载避免拖慢首屏）
@@ -16,7 +16,7 @@ import { lazyWithChunkBoundary } from '../../../../ui/chunkBoundary'
 import { cn } from '../../../../utils/cn'
 import type { AgentArtifactMeta, ArtifactFileType } from '../../model/artifactMeta'
 import { withArtifactSandboxPolicy } from './artifactSandboxDocument'
-import { NomiMarkdown } from '../../../common/NomiMarkdown'
+import { LazyNomiMarkdown } from '../../../common/LazyNomiMarkdown'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 
@@ -51,11 +51,11 @@ function MarkdownPreview({ url }: { url: string }): JSX.Element {
     return <div className="h-full w-full bg-nomi-ink-05 animate-pulse" />
   }
   // 渲染，不是把源码贴出来。Markdown 产物是给人读的备注/脚本——留着 `# ` `- ` 一堆记号
-  // 等于把「已经排好版的东西」退回原材料。NomiMarkdown 是全仓唯一的 Markdown 渲染器
+  // 等于把「已经排好版的东西」退回原材料。LazyNomiMarkdown 是全仓唯一的 Markdown 渲染器
   // （token 化、带 GFM 表格），compact 档正是给这种窄容器用的。
   return (
     <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'h-full w-full overflow-auto bg-nomi-paper px-3 py-2.5 select-text cursor-text')}>
-      <NomiMarkdown compact>{markdown}</NomiMarkdown>
+      <LazyNomiMarkdown compact>{markdown}</LazyNomiMarkdown>
     </div>
   )
 }

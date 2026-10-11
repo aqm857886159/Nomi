@@ -625,3 +625,14 @@ test('批量守卫红了：失败输出只回放最后 25 行，所以红的守�
   assert.match(summary, /vitest\.mjs run electron\/fileIdentity\.test\.ts electron\/shared\/mcpClientRegistry\.test\.ts/)
   assert.match(failedGuardSummary('boom', ran), /没认出是哪几个/)
 })
+
+test('Nomi workflow source scans are selected for actual source and docs-only inventory changes', () => {
+  for (const file of ['src/workbench/new-control.tsx', 'docs/evidence/2026-10-10-nomi-user-performance/control-inventory.json', 'docs/evidence/2026-10-10-nomi-user-performance/combination-plan.json']) assert.ok(selectGates([file]).includes('check:nomi-workflow-evidence'), file)
+  assert.ok(!selectGates(['docs/engineering/x.md']).includes('check:nomi-workflow-evidence'))
+})
+
+test('Nomi workflow evidence scan is executed by the same Contracts command in CI', () => {
+  const scan = SCAN_TESTS.find((entry) => entry.name === 'check:nomi-workflow-evidence')
+  assert.ok(CI_GATES.includes(scan.name))
+  assert.deepEqual(gateCommands(pkg.scripts[scan.name], [])[0], scan.argv)
+})

@@ -1,0 +1,27 @@
+{
+  "name": "工作流动作样本归一化合同",
+  "subject": "performance.workflow-sample-contract",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/nomi-user-workflow-contract.mjs",
+    "symbol": "normalizeActionSample"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/nomi-user-workflow-contract.mjs",
+      "symbol": "normalizeActionSample"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+  "allowed_consumers": [
+    "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+    "scripts/summarize-nomi-user-performance.mjs"
+  ],
+  "since": "2026-10-11",
+  "notes": "本批根因合同共享边界唯一入口；原始动作身份、缓存隔离和旧 schema 诊断分别由各自 owner 判定，不清理其他存量概念。"
+}

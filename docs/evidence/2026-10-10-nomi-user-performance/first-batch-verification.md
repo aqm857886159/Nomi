@@ -1,5 +1,7 @@
 # First measurement repair batch — 2026-10-11
 
+> 2026-10-11 independent-review correction: schema2 `visible` means decoded content, `ready` means production eligibility, and Shift means a document-level key diagnostic. Their original `failed_budget` raw statuses are retained, but first-feedback100ms and target-interactive500ms conclusions are withdrawn. Schema3 separately measures existing spinner/title feedback and a real project-menu response; see `profiles/README.md` and the forthcoming metric correction receipt.
+
 This is a harness/fixture repair with one atomic production action, `project.open`. Full P/D/B/C/A/R journeys, production optimization and performance acceptance remain incomplete. The old completion checkboxes and coverage claims have been withdrawn.
 
 ## Deterministic regression evidence

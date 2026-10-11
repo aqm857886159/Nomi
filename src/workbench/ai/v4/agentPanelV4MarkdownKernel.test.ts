@@ -1,8 +1,10 @@
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { renderToPipeableStream, renderToStaticMarkup } from 'react-dom/server';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { PassThrough } from 'node:stream';
 import { readFileSync } from 'node:fs';
 import { NomiMarkdown } from '../../common/NomiMarkdown';
+import { LazyNomiMarkdown } from '../../common/LazyNomiMarkdown';
 import { V4AssistantMessage, V4UserBubble } from './AgentPanelV4Message';
 import { V4ErrorBar, V4Process, V4ToolReceipt } from './AgentPanelV4Receipt';
 import { V4Intervention, V4TaskCard } from './AgentPanelV4Cards';
@@ -15,6 +17,22 @@ const text = '这是**「重点」**的句子\n\n| 参数 | 值 |\n| --- | --- |
 const labels = { copy: 'copy', retry: 'retry', continue: 'continue', stopped: 'stopped' };
 const slotLabels = { confirm: 'yes', reject: 'no', escalate: 'always', cancel: 'cancel', confirmReject: 'no', collapsePlan: 'collapse', expandPlan: 'expand' , ask: { dismiss: '', skip: '', continueLabel: '', send: '', customPlaceholder: '', recommended: '' } };
 const md = (source: string) => html(React.createElement(NomiMarkdown, { compact: true, profile: "agent-v4", children: source }));
+// Synchronous SSR cannot await React.lazy. Resolve the real shared consumer
+// before kernel assertions without changing production loading behavior.
+beforeAll(() => new Promise<void>((resolve, reject) => {
+    const output = new PassThrough()
+    output.resume(); output.on('end', resolve); output.on('error', reject)
+    const stream = renderToPipeableStream(React.createElement(LazyNomiMarkdown, { children: text }), {
+        onAllReady: () => stream.pipe(output), onError: reject,
+    })
+}))
+
+it('lazy boundary preserves the complete rendering contract including streaming and labels', () => {
+    const props = { children: 'Body\n\n![](https://example.invalid/image)\n\n```ts\nconst n = 1\n```', compact: true, profile: 'agent-v4' as const, streaming: true, copyLabel: 'Copy test content', imageLabel: 'Open test image' }
+    const rendered = html(React.createElement(LazyNomiMarkdown, props)).replace(/<!--[^]*?-->/g, '')
+    expect(rendered).toBe(html(React.createElement(NomiMarkdown, props)))
+    expect(rendered).toContain('Open test image')
+})
 describe('B2e 审计 D1–D13：单一 Markdown 内核', () => {
     it('D1 代码复制消费内核 source，禁止从 ReactNode String 反提取', () => {
         const source = readFileSync('src/workbench/common/NomiMarkdown.tsx', 'utf8');

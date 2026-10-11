@@ -1,0 +1,26 @@
+{
+  "name": "工作流证据分析投影",
+  "subject": "performance.workflow-evidence-analysis",
+  "lifecycle": "delivery",
+  "authority_kind": "projection",
+  "trust_domain": "tooling",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/summarize-nomi-user-performance.mjs",
+    "symbol": "buildAnalysis"
+  },
+  "write_api": [
+    {
+      "path": "scripts/summarize-nomi-user-performance.mjs",
+      "symbol": "buildAnalysis"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+  "allowed_consumers": [
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  ],
+  "since": "2026-10-11",
+  "notes": "本批根因合同共享边界唯一入口；原始动作身份、缓存隔离和旧 schema 诊断分别由各自 owner 判定，不清理其他存量概念。"
+}

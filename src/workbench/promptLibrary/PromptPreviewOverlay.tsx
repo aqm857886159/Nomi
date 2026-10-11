@@ -1,4 +1,4 @@
-import { NomiMarkdown } from '../common/NomiMarkdown'
+import { LazyNomiMarkdown } from '../common/LazyNomiMarkdown'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
@@ -169,7 +169,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
           {/* 内容 */}
           <div className={cn('flex-1 min-h-0 overflow-y-auto px-4 pt-3.5 pb-4')}>
             <div className={cn('text-title font-semibold text-nomi-ink mb-2')}>{displayTitle}</div>
-            <NomiMarkdown>{prompt.prompt}</NomiMarkdown>
+            <LazyNomiMarkdown>{prompt.prompt}</LazyNomiMarkdown>
           </div>
 
           {/* 操作 */}

@@ -1,0 +1,168 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-markdown-open-boundary",
+  "problem_type": "Heavy optional Markdown runtime enters the mandatory project-open static graph",
+  "symptom": "Cold project open imports and parses Markdown/highlighter despite an empty Agent transcript.",
+  "direct_cause": "Four consumers statically import NomiMarkdown, bypassing the existing LazyNomiMarkdown; Agent resident shell transitively imports the message consumer; the canvas registry is already a dynamic boundary and is not an eager root for the artifact body.",
+  "class_root": "Production consumers had no single enforced loading boundary separating rendering-on-use from project-open module admission.",
+  "affected_population": [
+    "Every cold shell/canvas project open and future Markdown consumer",
+    "Empty projects, image/video-only canvases, actual streaming/skill/prompt/artifact content"
+  ],
+  "scope_paths": [
+    "src/workbench/common/LazyNomiMarkdown.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+    "src/workbench/skillLibrary/SkillDetail.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+    "tests/ux/renderer-open-markdown-boundary.node-test.mjs"
+  ],
+  "entry_points": [
+    "WorkbenchShell resident Agent shell",
+    "Skill detail / prompt preview / artifact body direct consumers"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "React.lazy and the existing wrapper are already installed and in use. No new dependency or parser implementation; module-loading admission is an internal renderer owner invariant.",
+  "invariants": [
+    "NomiMarkdown remains the only renderer; every production consumer uses the existing lazy loading boundary",
+    "No mandatory project-open static graph reaches the heavy Markdown owner",
+    "All original streaming/profile/compact/label props pass through the typed boundary",
+    "Surface suspension, lane migration and receipt recovery ownership/order are unchanged; original budgets and fixtures remain fixed"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/common/NomiMarkdown.tsx",
+      "symbol": "NomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "symbol": "LazyNomiMarkdown"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "symbol": "LazyNomiMarkdown"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "Four separate UI consumers, one implementation and kernel tests retain their roles, but all production imports converge on one existing lazy boundary; no rendering is duplicated."
+  },
+  "generality_proof": "The graph regression walks actual TypeScript static imports/reexports from shell and each real direct consumer, so a future indirect consumer cannot silently reintroduce the same eager runtime; type-only contracts and dynamic imports remain separate.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/common/LazyNomiMarkdown.tsx",
+      "symbol": "LazyNomiMarkdown",
+      "responsibility": "Admit the one heavy renderer only when actual content mounts and preserve its full props"
+    },
+    {
+      "path": "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+      "symbol": "eagerPath",
+      "responsibility": "Enforce production module admission from every real consumer graph using TypeScript AST resolution"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "entry_point": "resident Agent shell",
+      "disposition": "enforced",
+      "evidence": "Static import graph regression"
+    },
+    {
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "entry_point": "skill Markdown consumer",
+      "disposition": "enforced",
+      "evidence": "Independent static import graph regression"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/GenerationCanvas.tsx",
+      "entry_point": "canvas node registry",
+      "disposition": "not-affected",
+      "evidence": "Static graph inspection already excludes the renderer owner; artifact component itself remains a direct same-class consumer."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future static Markdown consumer can reintroduce optional parser/highlighter admission into cold open.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs NomiMarkdown LazyNomiMarkdown --roots=src --include-tests",
+      "Compared shell/Agent message path and canvas/artifact path against production CDP trace",
+      "rg all common/NomiMarkdown imports and existing LazyNomiMarkdown"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+    "invariant": "Mandatory project-open static graph cannot reach the heavy Markdown renderer.",
+    "failure_mode": "Class regression fails and reports the exact import path.",
+    "exception_policy": "none",
+    "strategy": "Remove all direct production imports; preserve typed props at one loading boundary and scan the shell and all direct consumer graphs.",
+    "artifacts": [
+      "src/workbench/common/LazyNomiMarkdown.tsx",
+      "tests/ux/renderer-open-markdown-boundary.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/renderer-open-markdown-boundary.node-test.mjs",
+    "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/renderer-open-markdown-boundary.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/AgentPanelV4Markdown.tsx",
+      "src/workbench/skillLibrary/SkillDetail.tsx",
+      "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx"
+    ],
+    "rationale": "Remove direct eager imports in the same correction; keep consumers and one renderer."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing React lazy boundary and installed Streamdown are retained, with no dependency upgrade.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration; only module admission and typed prop forwarding.",
+  "residual_risks": [
+    "First content use still pays parsing cost, to be checked by real Agent/content walk",
+    "Main lane951-module cold overhead remains separately measured; no unsafe migration shortcut",
+    "Native Mac/Windows/GPU and full-product performance acceptance remain unverified"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/common/LazyNomiMarkdown.tsx",
+    "tests": [
+      "tests/ux/renderer-open-markdown-boundary.node-test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "patch",
+    "characterization_test": "src/workbench/ai/v4/agentPanelV4MarkdownKernel.test.ts"
+  }
+}

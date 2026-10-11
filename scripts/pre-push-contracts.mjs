@@ -163,6 +163,8 @@ export function scanGuardsToRun(files) {
  * 它只在改到它自己的文件时由 gateCommands 带上（见 gateCommands）。
  */
 export const SCAN_TESTS = Object.freeze([
+  // 实际扫描 src 控件 AST 并核对工作流清单；node:test 独立批，新增控件也会挑中。
+  { name: 'check:nomi-workflow-evidence', runOnDocs: true, argv: ['--test', 'tests/ux/nomi-user-workflow-performance.node-test.mjs', 'tests/ux/renderer-open-markdown-boundary.node-test.mjs', 'tests/ux/nomi-next-workflow-probe.node-test.mjs'], rerun: 'node --test tests/ux/nomi-user-workflow-performance.node-test.mjs tests/ux/renderer-open-markdown-boundary.node-test.mjs tests/ux/nomi-next-workflow-probe.node-test.mjs', when: (files) => files === null || files.some((file) => file.startsWith('src/') || file.startsWith('tests/ux/') || file.startsWith('docs/evidence/2026-10-10-nomi-user-performance/') || ['scripts/build-nomi-workflow-control-inventory.mjs', 'scripts/summarize-nomi-user-performance.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/pre-push-contracts.mjs'].includes(file)) },
   // 设计实验室的纯 node 结构检查（#1145 在 CI 才撞到 mirrors 行号越界）；完整的 check:design-lab（tsc + 像素比对 + python 锁）留在 CI
   { name: 'check:design-lab-mirrors', argv: ['scripts/check-design-lab.mjs', '--mirrors-only'], rerun: 'node scripts/check-design-lab.mjs --mirrors-only', when: (files) => touchesGateInputs('check:design-lab-mirrors', files) },
   // 整库类型检查（10-09 #1137 合 main 后 3 处 TS2345，推送前不跑 typecheck）：增量模式复用 node_modules/.cache/nomi-typecheck 的缓存，首次约 100 秒、之后约 30 秒；最慢，排在任务队列最前
@@ -278,7 +280,7 @@ export function selectGates(files) {
   const policy = classifyValidationPolicy(files.map((file) => ({ path: file, status: 'M' })))
   const docsOnly = !policy.failClosed && policy.reason === 'docs_only'
   const picked = PRE_PUSH_GATES.filter((gate) => gate.when === null || (!docsOnly && (gate.when(files) || touchesImplementation(gate.name, files)))).map((gate) => gate.name)
-  if (!docsOnly) picked.push(...SCAN_TESTS.filter((scan) => scan.when(files) || touchesImplementation(scan.name, files)).map((scan) => scan.name))
+  picked.push(...SCAN_TESTS.filter((scan) => (!docsOnly || scan.runOnDocs) && (scan.when(files) || touchesImplementation(scan.name, files))).map((scan) => scan.name))
   // 相关单测：改了 src / electron / scripts / tests 下的源码才找（找法与不用 vitest related 的原因见 pre-push-related-tests.mjs）
   if (!docsOnly && files.some((file) => SOURCE_FILE.test(file))) picked.push(RELATED_TESTS_GATE.name)
   if (!docsOnly && (LINT_GATE.when(files) || touchesImplementation(LINT_GATE.name, files))) picked.push(LINT_GATE.name)
