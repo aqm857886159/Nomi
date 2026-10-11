@@ -1,5 +1,7 @@
 # Nomi User Workflow Performance Implementation Plan
 
+> Superseded for execution by `2026-10-11-nomi-performance-harness-repair.md`. Independent audit at `0ee67956b` invalidated the old completion checkboxes: partial gestures and launch failures were wrongly presented as implemented coverage. Tasks below are requirements, not completion evidence. Full P/D/B/C/A/R journeys remain planned. PR1172 now exists; old API-access notes are historical.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** Build a repeatable real-user Electron/Playwright performance measurement path for project, document, storyboard, mixed-media canvas and Agent combinations, then make the smallest shared-boundary fix justified by baseline evidence.
@@ -35,12 +37,12 @@
 - Create: `docs/evidence/2026-10-10-nomi-user-performance/raw/.gitkeep`
 - Modify: `package.json` (add a named command only if the existing command table has no equivalent)
 
-- [x] Write the fixture contract and scale validation tests for document/plan/shot/media counts.
-- [x] Run the fixture contract test after implementation; it passes against the fixed scale contract.
-- [x] Implement fixture generation from the existing project schema, with synthetic Agent stream/tool timers and no provider dispatch.
-- [x] Add runner probes for visible/interactive boundaries, frame intervals, long tasks, CDP heap/DOM, Electron working set and main/renderer CPU separation.
-- [x] Implement cold/hot and warm-up/run loops, preserving every sample and redacting paths.
-- [x] Run the smallest baseline cell and save raw JSON before changing production code.
+- [ ] Write the fixture contract and scale validation tests for document/plan/shot/media counts.
+- [ ] Run the fixture contract test after implementation; it passes against the fixed scale contract.
+- [ ] Implement fixture generation from the existing project schema, with synthetic Agent stream/tool timers and no provider dispatch.
+- [ ] Add runner probes for visible/interactive boundaries, frame intervals, long tasks, CDP heap/DOM, Electron working set and main/renderer CPU separation.
+- [ ] Implement cold/hot and warm-up/run loops, preserving every sample and redacting paths.
+- [ ] Run the smallest baseline cell and save raw JSON before changing production code.
 
 ### Task 2: Complete user-action matrix
 
@@ -49,10 +51,10 @@
 - Modify: `tests/ux/fixtures/nomi-user-workflow-fixture.mjs`
 - Create: `tests/ux/nomi-user-workflow-performance.node-test.mjs`
 
-- [x] Add P/D/B/C action rows using real selectors where stable and preserve blocked rows where selectors are unavailable.
-- [x] Label A1–A4 synthetic idle/stream/tool-running rows as local fixture-only coverage; production execution is blocked by the missing display.
-- [x] Preserve R1/R2 repeated open/close rows and mark them blocked when the app cannot start.
-- [x] Run small, typical and heavy fixture matrix contracts; verify output schema and no paid/provider call.
+- [ ] Add P/D/B/C action rows using real selectors where stable and preserve blocked rows where selectors are unavailable.
+- [ ] Label A1–A4 synthetic idle/stream/tool-running rows as local fixture-only coverage; production execution is blocked by the missing display.
+- [ ] Preserve R1/R2 repeated open/close rows and mark them blocked when the app cannot start.
+- [ ] Run small, typical and heavy fixture matrix contracts; verify output schema and no paid/provider call.
 
 ### Task 3: Baseline analysis and bottleneck ranking
 
@@ -61,9 +63,9 @@
 - Create: `docs/evidence/2026-10-10-nomi-user-performance/analysis.md`
 - Create: `docs/evidence/2026-10-10-nomi-user-performance/limitations.md`
 
-- [x] Summarize median/p95/p99 and classify UI blocking vs wait-only time; blocked rows have no timing values.
-- [x] Rank the current blocker as environment-level launch failure; no production bottleneck can be ranked without a window.
-- [x] Record the PR #1014 API authorization blocker in the evidence limitations; no production edits were made.
+- [ ] Summarize median/p95/p99 and classify UI blocking vs wait-only time; blocked rows have no timing values.
+- [ ] Rank the current blocker as environment-level launch failure; no production bottleneck can be ranked without a window.
+- [ ] Record the PR #1014 API authorization blocker in the evidence limitations; no production edits were made.
 
 ### Task 4: Smallest shared-boundary remediation
 
@@ -84,9 +86,9 @@
 - Modify: `docs/evidence/2026-10-10-nomi-user-performance/limitations.md`
 - Modify: `docs/evidence/2026-10-10-nomi-user-performance/design-card.md`
 
-- [x] Run focused syntax, Electron identity and fixture contract checks; production workflow timing remains blocked by the display prerequisite.
-- [x] Review the design card, raw schema and redaction with focused commands.
-- [x] Commit locally and push the task branch; draft PR creation is blocked by GitHub API authorization.
+- [ ] Run focused syntax, Electron identity and fixture contract checks; production workflow timing remains blocked by the display prerequisite.
+- [ ] Review the design card, raw schema and redaction with focused commands.
+- [ ] Commit locally and push the task branch; draft PR creation is blocked by GitHub API authorization.
 - [ ] Comment on PR #1014 with scope, commit, covered scenarios, actual numbers, commands, evidence links and blockers.
-- [x] Preserve the pushed local commit and report the exact `gh` GraphQL `Forbidden` error for draft creation and #1014 comment.
+- [ ] Preserve the pushed local commit and report the exact `gh` GraphQL `Forbidden` error for draft creation and #1014 comment.
 

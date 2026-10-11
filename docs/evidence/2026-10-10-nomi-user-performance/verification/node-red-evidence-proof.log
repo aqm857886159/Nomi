@@ -1,0 +1,69 @@
+✔ workflow scale contract is fixed and complete (1.254123ms)
+✔ small fixture persists document, plan and mixed media counts (8.335026ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.029196ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (10.177825ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (32.010701ms)
+✔ production snapshot and result normalization preserve fixture groups and history (408.747875ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.657097ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.39758ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.649746ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.298373ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.189391ms)
+✔ the real browser probe retains input-to-first-frame stalls and only trusted input (1.502743ms)
+✔ a visible canvas card with pending image decoding is not visible project content (0.676986ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy visible content (1.353361ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.42662ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.492562ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.377101ms)
+✖ schema-v2 samples without decoded-content and persistence receipts are not measurement evidence (0.808792ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.174579ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.098076ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.063474ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (6.735259ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (21.010884ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.176543ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (28.088621ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (28.033465ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.546928ms)
+✔ percentiles and raw path redaction are deterministic (0.269981ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1052.995225
+
+✖ failing tests:
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:232:1
+✖ schema-v2 samples without decoded-content and persistence receipts are not measurement evidence (0.808792ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /invalid evidence/. Input:
+  
+  '# Nomi user workflow performance analysis\n' +
+    '\n' +
+    'Coverage is planned / implemented / executed / passed. Node regressions do not execute UI journeys. Each cache cell remains separate; quantiles pool raw frame/task distributions within that cell only.\n' +
+    '\n' +
+    '| Report | Scale | Action | Cache | Status | Visible p95 ms | Ready p95 ms | Frame p95 ms | Frame p99 ms | Actions / frames / tasks |\n' +
+    '| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |\n' +
+    '| pre-content-proof.json | small | project.open | cold | inconclusive | 20 | 30 | 16 | 16 (unsupported) | 1 / 2 / 1 |\n' +
+    '\n' +
+    'Legacy reports: 0 — untrusted measurement schema; preserved as historical launch evidence only. Their elapsed times and percentile summaries are never treated as visible latency.\n' +
+    '\n' +
+    'No production optimization, full-product coverage, real hardware baseline or acceptance is claimed.\n'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:235:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Nomi user workflow performance analysis\n\nCoverage is planned / implemented / executed / passed. Node regressions do not execute UI journeys. Each cache cell remains separate; quantiles pool raw frame/task distributions within that cell only.\n\n| Report | Scale | Action | Cache | Status | Visible p95 ms | Ready p95 ms | Frame p95 ms | Frame p99 ms | Actions / frames / tasks |\n| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |\n| pre-content-proof.json | small | project.open | cold | inconclusive | 20 | 30 | 16 | 16 (unsupported) | 1 / 2 / 1 |\n\nLegacy reports: 0 — untrusted measurement schema; preserved as historical launch evidence only. Their elapsed times and percentile summaries are never treated as visible latency.\n\nNo production optimization, full-product coverage, real hardware baseline or acceptance is claimed.\n',
+    expected: /invalid evidence/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,287 @@
+✖ workflow scale contract is fixed and complete (1.459276ms)
+✖ small fixture persists document, plan and mixed media counts (16.936207ms)
+✖ small fixture contains nonempty drafts, competing plans, mixed groups and history (6.519909ms)
+✖ typical fixture contains nonempty drafts, competing plans, mixed groups and history (17.053433ms)
+✖ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (102.296058ms)
+✖ CLI accepts separated and equals syntax with identical nonempty cells (0.572623ms)
+✖ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.179437ms)
+✖ evidence writes never overwrite a previous report even at the same timestamp (0.151346ms)
+✖ latency uses browser milestones; collection and preceding/following tasks are excluded (0.170364ms)
+✖ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.274389ms)
+✖ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.167199ms)
+✖ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.162261ms)
+✔ percentiles and raw path redaction are deterministic (0.580745ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 1
+ℹ fail 12
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 397.099477
+
+✖ failing tests:
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:12:1
+✖ workflow scale contract is fixed and complete (1.459276ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 12
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:15:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 12,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:26:1
+✖ small fixture persists document, plan and mixed media counts (16.936207ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  24 !== 12
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:29:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 24,
+    expected: 12,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:39:3
+✖ small fixture contains nonempty drafts, competing plans, mixed groups and history (6.519909ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  24 !== 12
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:43:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 24,
+    expected: 12,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:39:3
+✖ typical fixture contains nonempty drafts, competing plans, mixed groups and history (17.053433ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  240 !== 48
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:43:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 240,
+    expected: 48,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:39:3
+✖ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (102.296058ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3200 !== 320
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:43:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3200,
+    expected: 320,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:55:1
+✖ CLI accepts separated and equals syntax with identical nonempty cells (0.572623ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:56:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:64:1
+✖ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.179437ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:65:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:71:1
+✖ evidence writes never overwrite a previous report even at the same timestamp (0.151346ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:72:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:88:1
+✖ latency uses browser milestones; collection and preceding/following tasks are excluded (0.170364ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:89:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:99:1
+✖ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.274389ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:100:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:106:1
+✖ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.167199ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:107:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:119:1
+✖ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.162261ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:120:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

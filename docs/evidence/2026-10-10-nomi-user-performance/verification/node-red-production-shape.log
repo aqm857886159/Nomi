@@ -1,0 +1,103 @@
+✔ workflow scale contract is fixed and complete (1.104246ms)
+✔ small fixture persists document, plan and mixed media counts (8.168075ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (6.771813ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (9.332781ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (27.231118ms)
+✖ production snapshot and result normalization preserve fixture groups and history (419.064543ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.47628ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.387357ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.629929ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.302231ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.165797ms)
+✔ the real browser probe retains input-to-first-frame stalls and only trusted input (1.387588ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy visible content (1.398825ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.345766ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.502168ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.399736ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.136604ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.098868ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.080881ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (7.190357ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (21.807764ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.218486ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (31.173784ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (29.811934ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.333618ms)
+✔ percentiles and raw path redaction are deterministic (0.255481ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 25
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1062.714559
+
+✖ failing tests:
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:61:1
+✖ production snapshot and result normalization preserve fixture groups and history (419.064543ms)
+  AssertionError [ERR_ASSERTION]: node:assert:152
+    throw new AssertionError(obj);
+    ^
+  
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     id: 'workflow-small-mixed-group',
+  -     nodeIds: [
+  -       'canvas-perf-image-0',
+  -       'canvas-perf-video-0',
+  -       'canvas-perf-image-1',
+  -       'canvas-perf-image-2'
+  -     ]
+  -   }
+  - ]
+  
+      at [eval]:32:25
+      at runScriptInThisContext (node:internal/vm:219:10)
+      at node:internal/process/execution:451:12
+      at [eval]-wrapper:6:24
+      at runScriptInContext (node:internal/process/execution:449:60)
+      at evalFunction (node:internal/process/execution:283:30)
+      at asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:11) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [
+      {
+        id: 'workflow-small-mixed-group',
+        nodeIds: [
+          'canvas-perf-image-0',
+          'canvas-perf-video-0',
+          'canvas-perf-image-1',
+          'canvas-perf-image-2'
+        ]
+      }
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:80:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

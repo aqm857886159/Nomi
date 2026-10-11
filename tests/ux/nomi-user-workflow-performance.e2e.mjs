@@ -1,219 +1,200 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { randomUUID, createHash } from 'node:crypto'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, closeNomiApp, ACCEPTANCE_VIEWPORT } from './_launchApp.mjs'
+import { backToLibrary } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { createNomiUserWorkflowFixture, NOMI_WORKFLOW_SCALES } from './fixtures/nomi-user-workflow-fixture.mjs'
+import { createNomiUserWorkflowFixture } from './fixtures/nomi-user-workflow-fixture.mjs'
+import { installProjectOpenProbe } from './nomi-user-workflow-probe.mjs'
+import { WORKFLOW_ACTIONS, parseOptions, writeReport, normalizeActionSample, summarizeCell, reportExitCode, percentile, applyCellVerdict } from './nomi-user-workflow-contract.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const evidenceRoot = process.env.NOMI_USER_PERF_OUT || path.join(repoRoot, 'docs', 'evidence', '2026-10-10-nomi-user-performance', 'raw')
-const args = new Map(process.argv.slice(2).map((arg) => {
-  const [key, ...rest] = arg.replace(/^--/, '').split('=')
-  return [key, rest.join('=') || 'true']
-}))
-const scales = String(args.get('scale') || 'small,typical,heavy').split(',').filter((scale) => NOMI_WORKFLOW_SCALES[scale])
-const scenarios = String(args.get('scenario') || 'P1,P2,D1,D2,B1,B2,C1,C2,C3,A1,A2,A3,A4,R1,R2').split(',')
-const runs = Math.max(1, Number(args.get('runs') || 5))
-const warmup = Math.max(0, Number(args.get('warmup') || 1))
-const launchTimeout = Math.max(1_000, Number(args.get('timeout') || 60_000))
-const viewport = ACCEPTANCE_VIEWPORT
+const defaultEvidenceRoot = path.join(repoRoot, 'docs/evidence/2026-10-10-nomi-user-performance/raw')
 
-function percentile(values, p) {
-  const numbers = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b)
-  if (!numbers.length) return null
-  const index = (numbers.length - 1) * p
-  const lower = Math.floor(index)
-  const upper = Math.ceil(index)
-  if (lower === upper) return numbers[lower]
-  return numbers[lower] + (numbers[upper] - numbers[lower]) * (index - lower)
-}
-
-function redact(value) {
+export function redact(value) {
   if (typeof value === 'string') return value.replaceAll(repoRoot, '<repo>').replaceAll(os.tmpdir(), '<temp>')
   if (Array.isArray(value)) return value.map(redact)
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redact(child)]))
   return value
 }
 
-async function installProbe(page) {
-  await page.evaluate(() => {
-    const state = { frames: [], longTasks: [], mutations: 0, startedAt: performance.now(), lastFrame: performance.now() }
-    const frame = (timestamp) => {
-      state.frames.push(timestamp - state.lastFrame)
-      state.lastFrame = timestamp
-      state.raf = requestAnimationFrame(frame)
-    }
-    state.raf = requestAnimationFrame(frame)
-    state.observer = new PerformanceObserver((list) => state.longTasks.push(...list.getEntries().map((entry) => entry.duration)))
-    try { state.observer.observe({ type: 'longtask', buffered: true }) } catch { /* Chromium without longtask */ }
-    state.mutationObserver = new MutationObserver(() => { state.mutations += 1 })
-    state.mutationObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true })
-    window.__nomiWorkflowPerf = state
+export function projectCardSelector(record) {
+  if (typeof record?.id !== 'string' || !/^[\w-]+$/.test(record.id)) throw new Error('project card requires persisted record.id')
+  return `[data-project-card][data-project-id="${record.id}"]`
+}
+
+function fixtureDataSignature(record) {
+  const payload = record.payload, canvas = payload.generationCanvas
+  return JSON.stringify({
+    id: record.id,
+    documents: payload.workbenchDocuments.map(({ id, title, contentJson }) => ({ id, title, contentJson })),
+    designs: Object.values(payload.storyboardDesignsByDocumentId).flat().map(({ id, documentId, title, plan }) => ({ id, documentId, title, shots: plan.shots.map(({ shotId, shotKind, prompt, durationSec }) => ({ shotId, shotKind, prompt, durationSec })) })),
+    groups: canvas.groups.map(({ id, nodeIds }) => ({ id, nodeIds })),
+    nodes: canvas.nodes.map(({ id, kind, result, history }) => ({ id, kind, resultUrl: result?.url, history: history.map(({ id, url }) => ({ id, url })) })),
+    edges: canvas.edges.map(({ id, source, target }) => ({ id, source, target })),
   })
 }
 
-async function readProbe(page, app, startedAt) {
-  const renderer = await page.evaluate(() => {
-    const state = window.__nomiWorkflowPerf
-    if (!state) return { frameTimes: [], longTasks: [], mutations: 0 }
-    state.observer?.disconnect()
-    state.mutationObserver?.disconnect()
-    cancelAnimationFrame(state.raf)
-    return { frameTimes: state.frames.slice(), longTasks: state.longTasks.slice(), mutations: state.mutations }
-  }).catch(() => ({ frameTimes: [], longTasks: [], mutations: 0 }))
-  const frameTimes = renderer.frameTimes
-  const frameP95 = percentile(frameTimes, 0.95)
-  const frameP99 = percentile(frameTimes, 0.99)
-  const droppedFrames = frameTimes.filter((gap) => gap > 50).length
-  let main = null
-  let rendererProcess = null
-  let processMetrics = null
+export function assertFixtureUnchanged(fixture) {
+  const persisted = JSON.parse(fs.readFileSync(path.join(fixture.projectRoot, '.nomi', 'project.json'), 'utf8'))
+  if (fixtureDataSignature(persisted) !== fixtureDataSignature(fixture.record)) throw new Error('functional assertion: persisted content changed during project.open')
+}
+
+async function openForSetup(page, record) {
+  const card = page.locator(projectCardSelector(record))
+  await card.waitFor({ state: 'visible', timeout: stationTimeout() }); await card.click()
+  await page.locator('.generation-canvas-v2__stage[data-ready="true"]').waitFor({ state: 'visible', timeout: stationTimeout() })
+}
+
+async function prepare(instance, fixture, cache) {
+  const page = instance.win
+  await page.locator(projectCardSelector(fixture.record)).waitFor({ state: 'visible', timeout: stationTimeout() })
+  if (cache === 'hot') {
+    await openForSetup(page, fixture.record); await backToLibrary(page)
+    await page.locator(projectCardSelector(fixture.record)).waitFor({ state: 'visible', timeout: stationTimeout() })
+  }
+  if (await page.locator('.generation-canvas-v2__stage').isVisible()) throw new Error('invalid setup: not in project library')
+}
+
+async function measureProjectOpen(instance, fixture) {
+  const { win: page, app } = instance
+  const nodeId = fixture.record.payload.generationCanvas.nodes[0].id
+  const expected = await page.evaluate(installProjectOpenProbe, { probeId: randomUUID(), cardSelector: projectCardSelector(fixture.record), projectName: fixture.record.name, nodeId })
+  await page.locator(projectCardSelector(fixture.record)).click()
+  await waitForProbeReady(page, expected, stationTimeout())
+  // Independent non-mutating input; browser receipt is separate from data-ready.
+  await page.keyboard.press('Shift')
+  const state = await page.evaluate(() => window.__nomiWorkflowPerf?.stop() ?? null)
+  const sample = normalizeActionSample(state, expected)
+  const projectTitle = await page.locator('[data-shell-project-menu]').textContent()
+  if (!projectTitle?.includes(fixture.record.name)) throw new Error('functional assertion: wrong project title')
+  await page.locator(`[data-node-id="${nodeId}"]`).waitFor({ state: 'visible', timeout: stationTimeout() })
+  sample.functionalPassed = true
+  sample.assertions = { projectId: fixture.record.id, projectTitle, firstNodeId: nodeId, firstImageDecoded: true, canvasReady: true, independentKeyboardReceipt: true }
+  // Collection AFTER immutable latency marks: end snapshots, never CPU or
+  // resource-recovery distributions. Acceptance remains incomplete.
+  sample.processSnapshot = await app.evaluate(({ app: electronApp }) => ({ metrics: electronApp.getAppMetrics(), versions: process.versions })).catch((error) => ({ unavailable: String(error.message) }))
+  sample.screenshot = path.join(path.dirname(fixture.projectsDir), 'project-open-after-measurement.png')
+  await page.screenshot({ path: sample.screenshot })
+  return sample
+}
+
+export async function waitForProbeReady(page, expected, timeout) {
+  // evaluate is not wrapped by the launcher's feel checkpoint. No scans,
+  // screenshots or fixed waits run inside this action's window.
   try {
-    processMetrics = await app.evaluate(({ app: electronApp }) => electronApp.getAppMetrics())
-    const mainProcess = processMetrics.find((metric) => metric.type === 'Browser') || processMetrics[0]
-    rendererProcess = processMetrics.find((metric) => ['Renderer', 'Tab', 'Window', 'renderer'].includes(metric.type))
-    const cpuPercent = (metric) => metric?.cpu?.percentCPUUsage ?? metric?.cpu?.percent ?? null
-    main = mainProcess ? { cpuPercent: cpuPercent(mainProcess), workingSetSize: mainProcess.memory?.workingSetSize ?? null } : null
-  } catch { /* launch may have closed during a failed scenario */ }
-  let cdp = null
-  try {
-    const session = await page.context().newCDPSession(page)
-    await session.send('Performance.enable')
-    const performanceMetrics = await session.send('Performance.getMetrics')
-    const domCounters = await session.send('Memory.getDOMCounters').catch(() => null)
-    const metricMap = Object.fromEntries((performanceMetrics.metrics || []).map((metric) => [metric.name, metric.value]))
-    cdp = {
-      taskDurationSeconds: metricMap.TaskDuration ?? null,
-      scriptDurationSeconds: metricMap.ScriptDuration ?? null,
-      jsHeapUsedBytes: metricMap.JSHeapUsedSize ?? null,
-      jsHeapTotalBytes: metricMap.JSHeapTotalSize ?? null,
-      documents: domCounters?.documents ?? null,
-      nodes: domCounters?.nodes ?? null,
-      jsEventListeners: domCounters?.jsEventListeners ?? null,
-    }
-    await session.detach().catch(() => undefined)
-  } catch { /* display/renderer can disappear during a blocked launch */ }
-  return {
-    elapsedMs: Date.now() - startedAt,
-    frameP95: frameP95 === null ? null : Math.round(frameP95 * 100) / 100,
-    frameP99: frameP99 === null ? null : Math.round(frameP99 * 100) / 100,
-    droppedFrameRatio: frameTimes.length ? droppedFrames / frameTimes.length : null,
-    longTaskP95: percentile(renderer.longTasks, 0.95),
-    longTaskCount: renderer.longTasks.length,
-    mutations: renderer.mutations,
-    rendererFrameSamples: frameTimes.length,
-    main,
-    renderer: rendererProcess ? { cpuPercent: rendererProcess.cpu?.percentCPUUsage ?? rendererProcess.cpu?.percent ?? null, workingSetSize: rendererProcess.memory?.workingSetSize ?? null } : null,
-    cdp,
+    await page.evaluate(({ expected, timeout }) => new Promise((resolve, reject) => {
+      let raf
+      const timer = setTimeout(() => { cancelAnimationFrame(raf); reject(new Error('ready milestone timeout')) }, timeout)
+      const check = () => {
+        const probe = window.__nomiWorkflowPerf
+        if (!probe || probe.documentId !== expected.documentId || probe.probeId !== expected.probeId) { clearTimeout(timer); reject(new Error('invalid measurement: probe/document replaced while waiting')); return }
+        if (Number.isFinite(probe.readyAt)) { clearTimeout(timer); resolve(); return }
+        raf = requestAnimationFrame(check)
+      }
+      check()
+    }), { expected, timeout })
+  } catch (error) {
+    if (/Execution context was destroyed|Cannot find context|frame was detached/.test(error.message)) throw new Error(`invalid measurement: navigation replaced probe: ${error.message}`)
+    throw error
   }
 }
 
-async function waitForProject(page, record) {
-  const card = page.locator(`[data-project-card][data-project-id="${record.id}"]`).first()
-  await card.waitFor({ state: 'visible', timeout: stationTimeout() })
-  await card.dblclick()
-  await page.locator('.generation-canvas-v2__stage').waitFor({ state: 'visible', timeout: stationTimeout() })
+function guardReceipt(logPath) {
+  if (!fs.existsSync(logPath)) throw new Error('offline guard receipt missing')
+  const entries = fs.readFileSync(logPath, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line))
+  const loaded = entries.find((entry) => entry.kind === 'guard-loaded' && ['fetch', 'http', 'https', 'socket', 'chromium'].every((layer) => entry.layers?.includes(layer)))
+  if (!loaded || entries.some((entry) => entry.kind === 'guard-error')) throw new Error('offline guard incomplete')
+  return { layers: loaded.layers, blockedAttempts: entries.filter((entry) => entry.kind === 'blocked').length }
 }
 
-async function runAction(page, scenario, scale) {
-  if (scenario === 'P1') {
-    if (await page.locator('.generation-canvas-v2__stage').count()) {
-      await page.reload()
-      await page.locator('[data-project-card]').first().waitFor({ state: 'visible', timeout: stationTimeout() })
-    }
-    return waitForProject(page, scale.record)
-  }
-  if (scenario === 'P2') {
-    await page.locator('.generation-canvas-v2__stage').waitFor({ state: 'visible', timeout: stationTimeout() })
-    await page.keyboard.press('Control+R')
-    return page.locator('.generation-canvas-v2__stage').waitFor({ state: 'visible', timeout: stationTimeout() })
-  }
-  if (scenario.startsWith('C')) {
-    const stage = page.locator('.generation-canvas-v2__stage').first()
-    await stage.waitFor({ state: 'visible', timeout: stationTimeout() })
-    const box = await stage.boundingBox()
-    if (!box) throw new Error('canvas stage has no visible bounds')
-    await stage.hover()
-    if (scenario === 'C1') await page.mouse.wheel(0, -420)
-    if (scenario === 'C2') { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 180, box.y + 80); await page.mouse.up() }
-    if (scenario === 'C3') await page.locator('.generation-canvas-v2-node').first().click()
-    return
-  }
-  // The current stable selectors for documents, storyboard batch actions and the
-  // Agent dock are still under active design. Keeping these rows as blocked gives
-  // a truthful coverage report rather than timing a benchmark-only shortcut.
-  throw new Error(`stable production selector pending for ${scenario} (fixture-only coverage)`)
-}
-
-async function main() {
-  fs.mkdirSync(evidenceRoot, { recursive: true })
-  const report = {
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    commit: process.env.GIT_COMMIT || 'unknown',
-    runner: 'tests/ux/nomi-user-workflow-performance.e2e.mjs',
-    measurement: { warmup, runs, launchTimeoutMs: launchTimeout, viewport, cache: 'isolated profile; synthetic local media; no paid model calls' },
-    host: {
-      platform: process.platform, arch: process.arch, logicalCpus: os.cpus().length, memoryBytes: os.totalmem(),
-      display: process.env.DISPLAY || null, waylandDisplay: process.env.WAYLAND_DISPLAY || null,
-      xServerProbe: fs.existsSync('/tmp/.X11-unix') || Boolean(process.env.DISPLAY),
-    },
-    scales: [],
-  }
-  for (const scale of scales) {
-    const tempRoot = makeTempDir(`nomi-user-perf-${scale}-`)
-    const settingsDir = path.join(tempRoot, 'settings')
-    const projectsDir = path.join(tempRoot, 'projects')
-    fs.mkdirSync(settingsDir, { recursive: true })
-    fs.mkdirSync(projectsDir, { recursive: true })
-    const fixture = createNomiUserWorkflowFixture({ projectsDir, scale })
-    const scaleResult = { ...fixture.summary, scenarios: [] }
-    let instance = null
-    let launchError = null
+export async function runCell(cell, options, dependencies = {}) {
+  const action = WORKFLOW_ACTIONS[cell.id]
+  Object.assign(cell, { planned: true, implemented: Boolean(action?.implemented), executed: false, passed: false, attempts: [], samples: [] })
+  if (!action?.implemented) return Object.assign(cell, { status: 'planned', reason: action?.description || 'unknown action' })
+  const launch = dependencies.launch || launchNomiApp, close = dependencies.close || closeNomiApp
+  const prepareSample = dependencies.prepare || prepare, measure = dependencies.measure || measureProjectOpen
+  for (let index = 0; index < options.warmup + options.runs; index += 1) {
+    // Fresh fixture/profile per sample. Hot primes its own profile, never a
+    // previous cell. OS page cache is explicitly uncontrolled.
+    const tempRoot = makeTempDir(`nomi-user-perf-${cell.scale}-${cell.cache}-`)
+    const settingsDir = path.join(tempRoot, 'settings'), projectsDir = path.join(tempRoot, 'projects')
+    fs.mkdirSync(settingsDir, { recursive: true }); fs.mkdirSync(projectsDir, { recursive: true })
+    const fixture = createNomiUserWorkflowFixture({ projectsDir, scale: cell.scale })
+    const logPath = path.join(tempRoot, 'offline-network.jsonl')
+    let instance, phase = 'launch'
+    const attempt = { index, warmup: index < options.warmup, fixture: fixture.summary }
     try {
-      instance = await launchNomiApp({ name: `nomi-user-perf-${scale}`, tempRoot, settingsDir, projectsDir, viewportSize: viewport, settleMs: 1200, timeout: launchTimeout })
+      instance = await launch({ name: `nomi-user-perf-${cell.scale}-${cell.cache}-${index}`, tempRoot, settingsDir, projectsDir, viewportSize: ACCEPTANCE_VIEWPORT, settleMs: 0, timeout: options.launchTimeout,
+        mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')],
+        env: { NOMI_WALK_NET_LOG: logPath, NOMI_WALK_ALLOW_ORIGINS: '', NOMI_WALK_URL_REDIRECTS: '[]' },
+      })
+      phase = 'setup'; await prepareSample(instance, fixture, cell.cache)
+      phase = 'action'
+      const sample = await measure(instance, fixture)
+      if (!dependencies.measure) sample.offlineGuard = guardReceipt(logPath)
+      attempt.status = 'executed'; attempt.sample = sample
+      cell.executed = true
+      if (!attempt.warmup) cell.samples.push(sample)
     } catch (error) {
-      launchError = String(error?.message || error)
-    }
-    for (const scenario of scenarios) {
-      const scenarioResult = { id: scenario, scale, fixture: { agent: 'local-timer/loopback contract only; no paid provider' }, samples: [] }
-      if (launchError) {
-        scenarioResult.status = 'blocked'
-        scenarioResult.reason = `launch_error: ${launchError}`
-        scaleResult.scenarios.push(scenarioResult)
-        continue
-      }
-      try {
-        // P1 measures library → project open. Other rows use the same real
-        // project-open gesture as setup, then measure only their user action.
-        if (scenario !== 'P1') await waitForProject(instance.win, fixture)
-        for (let index = 0; index < warmup + runs; index += 1) {
-          await installProbe(instance.win)
-          const startedAt = Date.now()
-          await runAction(instance.win, scenario, { ...fixture, record: fixture.record })
-          await instance.win.waitForTimeout(250)
-          const metrics = await readProbe(instance.win, instance.app, startedAt)
-          if (index >= warmup) scenarioResult.samples.push(metrics)
+      attempt.status = phase === 'launch' ? 'blocked_environment' : String(error.message).startsWith('invalid') ? 'invalid' : 'failed'
+      attempt.phase = phase; attempt.reason = String(error.message || error)
+      if (error.probeState !== undefined) attempt.invalidProbe = error.probeState
+      cell.status = attempt.status; cell.reason = attempt.reason
+    } finally {
+      if (instance) {
+        try {
+          await close(instance.app)
+          assertFixtureUnchanged(fixture)
+          if (attempt.sample) attempt.sample.assertions = { ...attempt.sample.assertions, persistedContentUnchanged: true }
+        } catch (error) {
+          cell.status = 'failed'; cell.reason = `teardown/correctness error: ${error.message}`; attempt.teardownError = cell.reason
+          if (attempt.sample) attempt.sample.functionalPassed = false
         }
-        scenarioResult.status = 'measured'
-      } catch (error) {
-        scenarioResult.status = 'blocked'
-        scenarioResult.reason = String(error?.message || error)
       }
-      scaleResult.scenarios.push(scenarioResult)
+      cell.attempts.push(attempt)
     }
-    if (instance) await closeNomiApp(instance.app)
-    report.scales.push(scaleResult)
+    if (cell.status) return cell
   }
-  const output = path.join(evidenceRoot, `nomi-user-workflow-${new Date().toISOString().slice(0, 10)}.json`)
-  fs.writeFileSync(output, JSON.stringify(redact(report), null, 2))
-  console.log(JSON.stringify({ output, scales: report.scales.map((scale) => ({ scale: scale.scale, statuses: scale.scenarios.reduce((counts, row) => ({ ...counts, [row.status]: (counts[row.status] || 0) + 1 }), {}) })) }, null, 2))
+  return applyCellVerdict(cell, options)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  main().catch((error) => { console.error(error); process.exitCode = 1 })
+async function main(argv = process.argv.slice(2)) {
+  const options = parseOptions(argv)
+  const evidenceRoot = process.env.NOMI_USER_PERF_OUT || defaultEvidenceRoot
+  const report = {
+    schemaVersion: 2, generatedAt: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim(),
+    runner: 'tests/ux/nomi-user-workflow-performance.e2e.mjs', options,
+    source: { workingTreeDirty: Boolean(execFileSync('git', ['status', '--porcelain'], { cwd: repoRoot, encoding: 'utf8' }).trim()),
+      fileHashes: Object.fromEntries(['tests/ux/nomi-user-workflow-performance.e2e.mjs', 'tests/ux/nomi-user-workflow-contract.mjs', 'tests/ux/nomi-user-workflow-probe.mjs', 'tests/ux/fixtures/nomi-user-workflow-fixture.mjs'].map((file) => [file, createHash('sha256').update(fs.readFileSync(path.join(repoRoot, file))).digest('hex')])) },
+    measurement: { viewport: ACCEPTANCE_VIEWPORT, timing: 'trusted pointerdown → rAF matching project and decoded visible first image / production data-ready / independent keyboard receipt; single browser clock',
+      cache: 'fresh profile and fixture per repetition; hot primes same profile; OS filesystem cache uncontrolled',
+      agent: 'absent: no stream/tool fixture implemented', collection: 'process end snapshots only; not CPU/memory trend acceptance', rendererBuild: 'existing build; verify freshness before real baseline' },
+    host: { platform: process.platform, arch: process.arch, logicalCpus: os.cpus().length, memoryBytes: os.totalmem(), display: process.env.DISPLAY || null, waylandDisplay: process.env.WAYLAND_DISPLAY || null }, cells: [],
+  }
+  for (const scale of options.scales) for (const id of options.scenarios) for (const cache of options.caches) {
+    if (!WORKFLOW_ACTIONS[id].scales.includes(scale)) continue
+    report.cells.push(await runCell({ id, scale, cache }, options))
+  }
+  report.coverage = Object.fromEntries(['planned', 'implemented', 'executed', 'passed'].map((key) => [key, report.cells.filter((cell) => cell[key]).length]))
+  // The shared temp helper removes profiles on exit. Retain screenshots after
+  // measurement and teardown, with exclusive names, before that cleanup.
+  for (const cell of report.cells) for (const attempt of cell.attempts) {
+    const sample = attempt.sample
+    if (!sample?.screenshot) continue
+    const screenshotsDir = path.join(evidenceRoot, 'screenshots')
+    fs.mkdirSync(screenshotsDir, { recursive: true })
+    const target = path.join(screenshotsDir, `${cell.id}-${cell.scale}-${cell.cache}-${attempt.index}-${randomUUID()}.png`)
+    fs.copyFileSync(sample.screenshot, target, fs.constants.COPYFILE_EXCL)
+    sample.screenshot = target
+  }
+  const output = writeReport(evidenceRoot, redact(report))
+  console.log(JSON.stringify({ output, coverage: report.coverage, statuses: report.cells.map(({ id, scale, cache, status }) => ({ id, scale, cache, status })) }, null, 2))
+  process.exitCode = reportExitCode(report)
 }
-
-export { percentile, redact }
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) main().catch((error) => { console.error(error.message); process.exitCode = 1 })
+export { parseOptions, writeReport, normalizeActionSample, summarizeCell, reportExitCode, percentile }

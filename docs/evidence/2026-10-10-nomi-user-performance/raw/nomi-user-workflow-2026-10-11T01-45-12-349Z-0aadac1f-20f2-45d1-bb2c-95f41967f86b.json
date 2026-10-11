@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T01:45:12.349Z",
+  "commit": "0ee67956b9d7c55f3affd43d0b28933e35da1d38",
+  "runner": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+  "options": {
+    "scales": [
+      "small"
+    ],
+    "scenarios": [
+      "project.open",
+      "D1"
+    ],
+    "caches": [
+      "cold"
+    ],
+    "runs": 1,
+    "warmup": 0,
+    "launchTimeout": 5000
+  },
+  "measurement": {
+    "viewport": {
+      "width": 1280,
+      "height": 933
+    },
+    "timing": "trusted pointerdown → rAF matching content / production data-ready / independent keyboard receipt; single browser clock",
+    "cache": "fresh profile and fixture per repetition; hot primes same profile; OS filesystem cache uncontrolled",
+    "agent": "absent: no stream/tool fixture implemented",
+    "collection": "process end snapshots only; not CPU/memory trend acceptance",
+    "rendererBuild": "existing build; verify freshness before real baseline"
+  },
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "logicalCpus": 5,
+    "memoryBytes": 18882699264,
+    "display": null,
+    "waylandDisplay": null
+  },
+  "cells": [
+    {
+      "id": "project.open",
+      "scale": "small",
+      "cache": "cold",
+      "planned": true,
+      "implemented": true,
+      "executed": false,
+      "passed": false,
+      "attempts": [
+        {
+          "index": 0,
+          "warmup": false,
+          "fixture": {
+            "scale": "small",
+            "documents": 2,
+            "plans": 2,
+            "shots": 12,
+            "images": 4,
+            "videos": 2,
+            "mediaProfile": "synthetic-preview",
+            "canvasScale": "REAL",
+            "canvasNodes": 6,
+            "canvasEdges": 5
+          },
+          "status": "blocked_environment",
+          "phase": "launch",
+          "reason": "Electron failed to install correctly. Please delete `node_modules/electron` and run \"npx install-electron --no\" manually."
+        }
+      ],
+      "samples": [],
+      "status": "blocked_environment",
+      "reason": "Electron failed to install correctly. Please delete `node_modules/electron` and run \"npx install-electron --no\" manually."
+    },
+    {
+      "id": "D1",
+      "scale": "small",
+      "cache": "cold",
+      "planned": true,
+      "implemented": false,
+      "executed": false,
+      "passed": false,
+      "attempts": [],
+      "samples": [],
+      "status": "planned",
+      "reason": "Full journey remains planned; see entry-inventory.md. Partial branches were removed."
+    }
+  ],
+  "coverage": {
+    "planned": 2,
+    "implemented": 1,
+    "executed": 0,
+    "passed": 0
+  }
+}

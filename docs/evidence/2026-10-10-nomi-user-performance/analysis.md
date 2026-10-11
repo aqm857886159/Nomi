@@ -1,67 +1,90 @@
 # Nomi user workflow performance analysis
 
-Generated from 2 raw reports in `<repo>/docs/evidence/2026-10-10-nomi-user-performance/raw`.
+Coverage is planned / implemented / executed / passed. Node regressions do not execute UI journeys. Each cache cell remains separate; quantiles pool raw frame/task distributions within that cell only.
 
-The matrix and budgets in `scenario-matrix-and-budget.md` are fixed before measurement. A blocked row has no timing value and cannot be compared with a budget.
+| Report | Scale | Action | Cache | Status | Visible p95 ms | Ready p95 ms | Frame p95 ms | Frame p99 ms | Actions / frames / tasks |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| nomi-user-workflow-2026-10-11T01-45-12-349Z-0aadac1f-20f2-45d1-bb2c-95f41967f86b.json | small | project.open | cold | blocked_environment | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T01-45-12-349Z-0aadac1f-20f2-45d1-bb2c-95f41967f86b.json | small | D1 | cold | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T01-59-23-613Z-b856730c-7dd9-4cd3-9808-9e34d493d8f9.json | small | project.open | cold | invalid evidence | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T01-59-23-613Z-b856730c-7dd9-4cd3-9808-9e34d493d8f9.json | small | D1 | cold | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json | small | project.open | cold | invalid evidence | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json | small | project.open | hot | invalid evidence | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json | small | D1 | cold | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json | small | D1 | hot | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json | small | project.open | cold | invalid evidence | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json | small | project.open | hot | invalid evidence | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json | small | D1 | cold | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json | small | D1 | hot | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json | small | project.open | cold | invalid | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json | small | project.open | hot | failed_budget | 162.18000000044702 | 162.18000000044702 | 39.17500000000142 | 49.96700000000048 (unsupported) | 5 / 34 / 5 |
+| nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json | small | D1 | cold | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json | small | D1 | hot | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json | small | project.open | cold | failed_budget | 809.5799999982119 | 809.5999999985099 | 33.3349999999994 | 100.00700000000002 | 5 / 194 / 7 |
+| nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json | small | project.open | hot | failed_budget | 227.460000000149 | 227.460000000149 | 66.69999999999955 | 100.13300000000058 (unsupported) | 5 / 34 / 5 |
+| nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json | small | D1 | cold | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
+| nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json | small | D1 | hot | planned | — | — | — | — (unsupported) | 0 / 0 / 0 |
 
-| Scale | Scenario | Status | Visible/action p95 (ms) | Frame p95 (ms) | Frame p99 (ms) | Long task p95 (ms) | Dropped p95 |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| small | P1 | blocked | — | — | — | — | — |
-| small | P2 | blocked | — | — | — | — | — |
-| small | D1 | blocked | — | — | — | — | — |
-| small | D2 | blocked | — | — | — | — | — |
-| small | B1 | blocked | — | — | — | — | — |
-| small | B2 | blocked | — | — | — | — | — |
-| small | C1 | blocked | — | — | — | — | — |
-| small | C2 | blocked | — | — | — | — | — |
-| small | C3 | blocked | — | — | — | — | — |
-| small | A1 | blocked | — | — | — | — | — |
-| small | A2 | blocked | — | — | — | — | — |
-| small | A3 | blocked | — | — | — | — | — |
-| small | A4 | blocked | — | — | — | — | — |
-| small | R1 | blocked | — | — | — | — | — |
-| small | R2 | blocked | — | — | — | — | — |
-| typical | P1 | blocked | — | — | — | — | — |
-| typical | P2 | blocked | — | — | — | — | — |
-| typical | D1 | blocked | — | — | — | — | — |
-| typical | D2 | blocked | — | — | — | — | — |
-| typical | B1 | blocked | — | — | — | — | — |
-| typical | B2 | blocked | — | — | — | — | — |
-| typical | C1 | blocked | — | — | — | — | — |
-| typical | C2 | blocked | — | — | — | — | — |
-| typical | C3 | blocked | — | — | — | — | — |
-| typical | A1 | blocked | — | — | — | — | — |
-| typical | A2 | blocked | — | — | — | — | — |
-| typical | A3 | blocked | — | — | — | — | — |
-| typical | A4 | blocked | — | — | — | — | — |
-| typical | R1 | blocked | — | — | — | — | — |
-| typical | R2 | blocked | — | — | — | — | — |
-| heavy | P1 | blocked | — | — | — | — | — |
-| heavy | P2 | blocked | — | — | — | — | — |
-| heavy | D1 | blocked | — | — | — | — | — |
-| heavy | D2 | blocked | — | — | — | — | — |
-| heavy | B1 | blocked | — | — | — | — | — |
-| heavy | B2 | blocked | — | — | — | — | — |
-| heavy | C1 | blocked | — | — | — | — | — |
-| heavy | C2 | blocked | — | — | — | — | — |
-| heavy | C3 | blocked | — | — | — | — | — |
-| heavy | A1 | blocked | — | — | — | — | — |
-| heavy | A2 | blocked | — | — | — | — | — |
-| heavy | A3 | blocked | — | — | — | — | — |
-| heavy | A4 | blocked | — | — | — | — | — |
-| heavy | R1 | blocked | — | — | — | — | — |
-| heavy | R2 | blocked | — | — | — | — | — |
+Reason (nomi-user-workflow-2026-10-11T01-45-12-349Z-0aadac1f-20f2-45d1-bb2c-95f41967f86b.json/small/project.open/cold): Electron failed to install correctly. Please delete `node_modules/electron` and run "npx install-electron --no" manually.
 
-Measured rows: 0; blocked rows: 45.
 
-## Blocked rows
+Reason (nomi-user-workflow-2026-10-11T01-45-12-349Z-0aadac1f-20f2-45d1-bb2c-95f41967f86b.json/small/D1/cold): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
 
-- small: 15 rows — launch_error:  ❌ Nomi 走查启动失败（nomi-user-perf-small）：Electron 起不来（electron.launch 失败/超时，5000ms）  按可能性排查：   1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，      或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。   2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。   3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_
-- typical: 15 rows — launch_error:  ❌ Nomi 走查启动失败（nomi-user-perf-typical）：Electron 起不来（electron.launch 失败/超时，5000ms）  按可能性排查：   1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，      或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。   2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。   3) 单实例锁 —— 本启动器**已强制** NOMI_E2
-- heavy: 15 rows — launch_error:  ❌ Nomi 走查启动失败（nomi-user-perf-heavy）：Electron 起不来（electron.launch 失败/超时，5000ms）  按可能性排查：   1) 构建产物过期 —— 走查跑的是 dist-electron 的产物，不是源码。改完代码没重新构建，      或主进程启动时就抛错，都会长这样。→ pnpm run build 后重跑。   2) 主进程启动即退/崩溃 —— 看下面那几行主进程输出，真正的线索基本都在那儿。   3) 单实例锁 —— 本启动器**已强制** NOMI_E2E_
 
-## Interpretation
+Reason (nomi-user-workflow-2026-10-11T01-59-23-613Z-b856730c-7dd9-4cd3-9808-9e34d493d8f9.json/small/project.open/cold): teardown/correctness error: functional assertion: persisted content changed during project.open
 
-- Model/network wait is represented by `fixture.agent` and must be read separately from UI timing.
-- No production optimization is claimed until a display-capable runner produces baseline samples for the same matrix.
 
+Reason (nomi-user-workflow-2026-10-11T01-59-23-613Z-b856730c-7dd9-4cd3-9808-9e34d493d8f9.json/small/D1/cold): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json/small/project.open/cold): main long-task probe; CPU action-window distribution; memory/teardown residual; p99 sample support (<100 frames); fixed 1+5 protocol.
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json/small/project.open/hot): main long-task probe; CPU action-window distribution; memory/teardown residual; p99 sample support (<100 frames); fixed 1+5 protocol.
+
+
+Reason (nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json/small/D1/cold): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Reason (nomi-user-workflow-2026-10-11T02-02-37-609Z-9396c3e5-82ac-438a-a995-06ca965ebd30.json/small/D1/hot): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json/small/project.open/cold): main long-task probe; CPU action-window distribution; memory/teardown residual.
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json/small/project.open/hot): main long-task probe; CPU action-window distribution; memory/teardown residual; p99 sample support (<100 frames).
+
+
+Reason (nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json/small/D1/cold): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Reason (nomi-user-workflow-2026-10-11T02-03-32-096Z-ec61a1db-35ca-4985-ba2a-260b75afe8d8.json/small/D1/hot): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Reason (nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json/small/project.open/cold): invalid measurement: missing/non-monotonic input or milestone
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json/small/project.open/hot): main long-task probe; CPU action-window distribution; memory/teardown residual; p99 sample support (<100 frames).
+
+
+Reason (nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json/small/D1/cold): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Reason (nomi-user-workflow-2026-10-11T02-07-19-848Z-79c42362-31bc-4b00-800b-532d3b5b74de.json/small/D1/hot): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json/small/project.open/cold): main long-task probe; CPU action-window distribution; memory/teardown residual.
+
+
+Unverified (nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json/small/project.open/hot): main long-task probe; CPU action-window distribution; memory/teardown residual; p99 sample support (<100 frames).
+
+
+Reason (nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json/small/D1/cold): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Reason (nomi-user-workflow-2026-10-11T02-11-17-394Z-38d5ad49-5829-43a5-80b2-748c01ff220b.json/small/D1/hot): Full journey remains planned; see entry-inventory.md. Partial branches were removed.
+
+
+Legacy reports: 2 — untrusted measurement schema; preserved as historical launch evidence only. Their elapsed times and percentile summaries are never treated as visible latency.
+
+No production optimization, full-product coverage, real hardware baseline or acceptance is claimed.

@@ -6,7 +6,7 @@
 
 ## ★1 用户怎么用
 
-当创作者在同一项目里反复切换文稿、分镜方案和混合图片/视频画布，并让 Agent 流式输出或运行工具时，我想在每个动作后马上看到可操作反馈，以便继续编排而不用等待或猜测是否卡住。覆盖 P1–P2、D1–D2、B1–B2、C1–C3、A1–A4、R1–R2；不触发付费模型生成，不把网络/模型等待算成 UI 阻塞。主指标是 input→visible/interactive p95、frame p95/p99、掉帧、长任务、CPU 和内存趋势；功能护栏是取消/失败/恢复与重复开关正确；基线/目标和样本来源固定在 `scenario-matrix-and-budget.md`。
+当创作者在同一项目里反复切换文稿、分镜方案和混合图片/视频画布，并让 Agent 流式输出或运行工具时，我想在每个动作后马上看到可操作反馈，以便继续编排而不用等待或猜测是否卡住。计划覆盖 P1–P2、D1–D2、B1–B2、C1–C3、A1–A4、R1–R2；这些完整旅程仍 planned，当前只实现 project.open 原子动作；不触发付费模型生成，不把网络/模型等待算成 UI 阻塞。主指标是 input→visible/interactive p95、frame p95/p99、掉帧、长任务、CPU 和内存趋势；功能护栏是取消/失败/恢复与重复开关正确；基线/目标和样本来源固定在 `scenario-matrix-and-budget.md`。
 
 真实任务形态：短文稿多版本比较、分镜方案批量整理、混合素材引用与预览。当前环境只能提供脱敏仓库 fixture；私有素材/真实账号在 `limitations.md` 标记 `unverified`。
 
@@ -36,7 +36,7 @@ Agent 面板的 idle/stream/tool-running/取消/失败/恢复状态、项目库�
 
 ## 6 外部数据与失败
 
-本专项只使用本地生产 fixture 和 Electron/Playwright/CDP 观测接口；网络/模型调用不触发。真实素材、真实账号、GPU 驱动差异写入 `limitations.md`，不把未知失败归因于用户。
+本专项使用本地合成项目 fixture 和 Electron/Playwright 观测接口；Agent 流/工具 fixture 尚未实现；网络/模型调用不触发。真实素材、真实账号、GPU 驱动差异写入 `limitations.md`，不把未知失败归因于用户。
 
 ## 7 性能预算
 
@@ -44,11 +44,11 @@ Agent 面板的 idle/stream/tool-running/取消/失败/恢复状态、项目库�
 
 ## 8 真实条件
 
-Linux/Xvfb、英文/中文界面、最小窗口、典型/重档、键盘与鼠标动作、冷/热缓存、重复开关会跑；Windows/macOS 真机、真实素材、真实账号和打包发布版若未具备均标 `unverified`。
+Linux/Xvfb、英文/中文界面、最小窗口、典型/重档、键盘与鼠标动作、冷/热缓存、重复开关均须有实际收据，当前未完整执行；Windows/macOS 真机、真实素材、真实账号和打包发布版若未具备均标 `unverified`。
 
 ## ★9 验收与回滚
 
-验收：独立线按矩阵跑 `node tests/ux/nomi-user-workflow-performance.e2e.mjs --scale small,typical,heavy --runs 5 --warmup 1`，复验功能走查、取消/失败/恢复和 R1/R2 资源回收；对比 raw JSON 和 `analysis.md`。回滚：revert 本分支性能 commit；测量脚本/证据目录可独立保留。PR 必须链接场景矩阵、raw 数据、前后对比、限制和独立验收报告。
+验收：独立线按矩阵跑 `node tests/ux/nomi-user-workflow-performance.e2e.mjs --scale small,typical,heavy --scenario project.open --cache cold,hot --runs 5 --warmup 1`，复验原子动作及 probe/报告合同；完整功能走查、取消/失败/恢复和 R1/R2 资源回收仍 planned；对比 raw JSON 和 `analysis.md`。回滚：revert 本分支性能 commit；测量脚本/证据目录可独立保留。PR 必须链接场景矩阵、raw 数据、前后对比、限制和独立验收报告。
 
 ### 功能分类
 
@@ -60,3 +60,7 @@ Linux/Xvfb、英文/中文界面、最小窗口、典型/重档、键盘与鼠�
 - [ ] 生成效果
 - [ ] 数据格式
 
+
+## 2026-10-11 implementation correction
+
+Source audit confirmed harness defects independent of display. First-batch plan: `docs/plan/2026-10-11-nomi-performance-harness-repair.md`; source/UI inventory: `entry-inventory.md`; pairwise/high-risk contracts: `combination-plan.json`. Node mechanism regressions do not count as real-window performance acceptance. `project.open` rejects navigation/reload and uses browser DOM/rAF milestones; it does not implement cold app launch or the full P1 journey.

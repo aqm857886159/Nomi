@@ -1,40 +1,28 @@
-# Nomi user workflow performance evidence
+# Nomi user-workflow measurement repair evidence
 
-This directory contains the redacted, repeatable evidence for the Nomi user workflow performance pass.
+This Draft is instrumentation and fixture work. Full-product user journeys and performance improvements are not implemented or accepted. Independent audit of `0ee67956b` invalidated the old coverage claims; see PR #1172 comment `6104262889` and `docs/plan/2026-10-11-nomi-performance-harness-repair.md`.
 
-The measurements cover project/library navigation, multi-document editing, multi-storyboard-plan operations, mixed image/video canvas work, Agent idle/streaming/tool-running combinations, and repeated open/close cleanup. Network/model waiting is recorded separately from UI blocking. Local stream/tool fixtures are synthetic and are labelled as such; no paid generation is triggered.
+The source-linked inventory records 88 entry families and all 17 node kinds. Only the atomic `project.open` action has an executable implementation; the entire P1/P2/D/B/C/A/R journeys remain planned. `entry-inventory.json` specifies every entry's precondition, input, visible completion, data assertion and original budget. `combination-plan.json` contains 16 planned pairwise cases plus five mandatory higher-order scenarios, in addition to every-entry solo baselines. These plans do not count as UI execution.
 
-## Execution contract
+## Measurement contract
 
-- App: Electron `43.4.1`, production renderer build unless a result says otherwise.
-- Viewport: `1280x933` CSS pixels, device scale factor `1`.
-- Hardware: record OS, architecture, logical CPU count, memory, GPU/backend and renderer mode in every raw result. The current Linux container is a software-rendered reference environment; it is not a substitute for the required macOS/Windows user machines.
-- Cache states: `cold` means isolated user-data/projects directory and empty HTTP/media cache; `hot` means the same fixture reopened after one settled open. Never mix the two in one aggregate.
-- Repetitions: one warm-up run, then five measured runs per cell. Preserve all measured samples; report median, p95 and p99. Do not discard slow samples. A run may be marked `noise` only when the process or host is independently observed to be contended, and it remains in raw data and the limitation table.
-- Timing boundaries: input dispatch → first visible feedback; input dispatch → interactive-ready; model/network wait; renderer/main long tasks and CPU; frame interval p95/p99 and dropped-frame ratio; working-set/JS-heap trend and teardown residual.
-- Evidence hygiene: fixtures use generated or repository-owned media. Real private assets, credentials, absolute host paths and network responses are not committed.
+- CLI accepts `--key value` and `--key=value`; empty/unknown/duplicate/non-finite selections fail.
+- Each warm-up and measured repetition gets fresh project files and a profile. Hot primes that same profile through production open/back-to-library. OS page cache is uncontrolled. Cold process launch is setup, excluded from the atomic project's input latency; P1 cold-launch journey remains planned.
+- Trusted browser pointerdown → rAF matching project and decoded, visible first image → production `data-ready` → independent non-mutating keyboard receipt. A mounted/loading card cannot satisfy content readiness. One document and monotonic browser clock; reload/missing probe invalidates the sample. No fixed settling delay or automatic feel checkpoint runs inside the action window.
+- Keep raw frame/task entries and milestone timestamps, then derive window-clipped distributions. Analysis pools raw distributions within each scale/cache cell; it never takes percentiles of percentiles. Sample counts and unsupported p99 are explicit.
+- CPU/process memory values are end snapshots only. Main long tasks, action CPU distributions, memory trends and recovery acceptance remain unimplemented, so even a correctly completed action is performance-inconclusive or budget-failed.
+- The existing main-process offline network guard is installed with an empty allowlist; its receipt must prove all layers loaded. No provider, private media, real credential or permission change is authorized.
+- Schema2 outputs use timestamp + UUID and exclusive writes. Commit, dirty-tree flag and source-file hashes identify the code used. Screenshots are collected after timing and retained before profile cleanup. Historical schema1 and schema2 samples without decoded-content/persistence receipts remain untouched and are untrusted for current latency.
+- planned / implemented / executed / passed are separate facts. An empty, planned, blocked, invalid or incomplete report exits nonzero. This first batch cannot produce performance acceptance.
 
-## Files
-
-- `scenario-matrix-and-budget.md` — fixed scale matrix, action boundaries and budgets written before the first baseline.
-- `design-card.md` — the required pre-change design card and independent-acceptance contract.
-- `raw/` — one JSON result per command/scale/cache/leg; filenames contain no machine-private paths.
-- `analysis.md` — baseline bottleneck ranking and before/after comparisons.
-- `limitations.md` — unavailable machines, unmeasured surfaces and synthetic-fixture boundaries.
-
-## Reproduction commands
+## Reproduction
 
 ```bash
 node --test tests/ux/nomi-user-workflow-performance.node-test.mjs
-GIT_COMMIT=$(git rev-parse HEAD) node tests/ux/nomi-user-workflow-performance.e2e.mjs --scale=small,typical,heavy --runs=5 --warmup=1
+node tests/ux/nomi-user-workflow-performance.e2e.mjs --scale small --scenario project.open --cache cold,hot --runs 5 --warmup 1
 node scripts/summarize-nomi-user-performance.mjs
 ```
 
-The second command requires a display-capable Electron host. In this container it exits with blocked rows after the launch probe; use the same command on a host with Xvfb or a native display before interpreting budgets.
+Electron identity, a fresh production build and a display are prerequisites. `project.open` is not the full P1 journey. `--scenario P1,D1` deliberately emits planned rows without launching; no source/UI acceptance is inferred from Node tests. Native macOS/Windows, real GPU/private material and paid-account baselines remain unverified.
 
-## Current baseline status
-
-The first baseline was run from branch `perf/nomi-user-workflows-20261010` against `origin/main` at `4e1eecdad`. Existing canvas-scale and project-open probes are reused as historical comparison only; their old numbers are not this task's acceptance baseline. The new workflow runner produced one raw report for small/typical/heavy fixture contracts, with all 45 scenario rows marked `blocked` before the first window because this execution environment has no `$DISPLAY`/Xvfb. The earlier canvas S-scale launch report is retained alongside it under `raw/`; neither report contributes timing numbers.
-
-The fixture/schema node tests pass and verify the small tier's 2 documents, 2 plans, 24 shots, 4 images and 2 videos. Production UI timings, CPU, memory trend and optimization deltas remain unmeasured until a display-capable runner executes the same command with one warm-up and five measured runs.
-
+The first batch's verification, audit corrections and remaining gaps are recorded in [first-batch-verification.md](first-batch-verification.md). Raw observations include failed and superseded trials; `analysis.md` rejects those lacking the current evidence contract.

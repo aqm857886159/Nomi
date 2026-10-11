@@ -1,0 +1,19 @@
+{
+  "id": "PERF-20261011-workflow-evidence",
+  "since": "2026-10-11",
+  "source": "PR1172 independent source audit6104262889 and user review steering",
+  "category": "performance-coverage",
+  "problem": "Fixture rows and contaminated/empty measurements were promoted to workflow coverage and success.",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-11-nomi-performance-harness-repair.md",
+    "docs/evidence/2026-10-10-nomi-user-performance/entry-inventory.md"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-11-nomi-workflow-measurement-trust.root-cause.json"
+}

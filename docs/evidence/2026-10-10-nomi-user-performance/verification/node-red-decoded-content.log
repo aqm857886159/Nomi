@@ -1,0 +1,58 @@
+✔ workflow scale contract is fixed and complete (1.701801ms)
+✔ small fixture persists document, plan and mixed media counts (16.180383ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (13.089175ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (12.811435ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (46.943213ms)
+✔ production snapshot and result normalization preserve fixture groups and history (518.79742ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.779836ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.431759ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.766565ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.446832ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.125005ms)
+✔ the real browser probe retains input-to-first-frame stalls and only trusted input (1.493612ms)
+✖ a visible canvas card with pending image decoding is not visible project content (1.37685ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy visible content (1.684995ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.821087ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.766505ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.646157ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.165175ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.112958ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.117754ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (8.220479ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (26.039605ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.235068ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (33.489389ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (30.529885ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.920884ms)
+✔ percentiles and raw path redaction are deterministic (0.352843ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 26
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1356.664695
+
+✖ failing tests:
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:160:1
+✖ a visible canvas card with pending image decoding is not visible project content (1.37685ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  30 !== null
+  
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:177:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 30,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

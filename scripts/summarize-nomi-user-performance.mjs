@@ -1,67 +1,34 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { summarizeCell, reportExitCode, validActionSample } from '../tests/ux/nomi-user-workflow-contract.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const inputDir = process.argv[2] || path.join(repoRoot, 'docs', 'evidence', '2026-10-10-nomi-user-performance', 'raw')
-const output = process.argv[3] || path.join(repoRoot, 'docs', 'evidence', '2026-10-10-nomi-user-performance', 'analysis.md')
-
-function percentile(values, p) {
-  const numbers = values.filter(Number.isFinite).sort((a, b) => a - b)
-  if (!numbers.length) return null
-  const index = (numbers.length - 1) * p
-  const low = Math.floor(index)
-  const high = Math.ceil(index)
-  return low === high ? numbers[low] : numbers[low] + (numbers[high] - numbers[low]) * (index - low)
-}
-
-const files = fs.existsSync(inputDir) ? fs.readdirSync(inputDir).filter((file) => file.endsWith('.json')).sort() : []
-const reports = files.map((file) => JSON.parse(fs.readFileSync(path.join(inputDir, file), 'utf8')))
-const rows = []
-for (const report of reports) {
-  for (const scale of report.scales || []) {
-    for (const scenario of scale.scenarios || []) {
-      const samples = scenario.samples || []
-      rows.push({
-        scale: scale.scale,
-        scenario: scenario.id,
-        status: scenario.status,
-        visibleP95: percentile(samples.map((sample) => sample.elapsedMs), 0.95),
-        frameP95: percentile(samples.map((sample) => sample.frameP95), 0.95),
-        frameP99: percentile(samples.map((sample) => sample.frameP99), 0.99),
-        longTaskP95: percentile(samples.map((sample) => sample.longTaskP95), 0.95),
-        droppedRatioP95: percentile(samples.map((sample) => sample.droppedFrameRatio), 0.95),
-        reason: scenario.reason || '',
-      })
+export function buildAnalysis(reports) {
+  const lines = ['# Nomi user workflow performance analysis', '', 'Coverage is planned / implemented / executed / passed. Node regressions do not execute UI journeys. Each cache cell remains separate; quantiles pool raw frame/task distributions within that cell only.', '', '| Report | Scale | Action | Cache | Status | Visible p95 ms | Ready p95 ms | Frame p95 ms | Frame p99 ms | Actions / frames / tasks |', '| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |']
+  let legacy = 0
+  const details = []
+  for (const { file, report } of reports) {
+    if (report.schemaVersion !== 2) { legacy += 1; continue }
+    for (const cell of report.cells || []) {
+      const invalid = cell.samples?.some((sample) => !validActionSample(sample))
+      const valid = !invalid && ['inconclusive', 'failed_budget', 'passed'].includes(cell.status)
+      const summary = summarizeCell({ ...cell, samples: valid ? cell.samples : [] })
+      lines.push(`| ${file} | ${cell.scale} | ${cell.id} | ${cell.cache} | ${invalid ? 'invalid evidence' : cell.status === 'passed' && reportExitCode(report) !== 0 ? 'inconclusive (unsupported pass claim)' : cell.status} | ${summary.visibleP95 ?? '—'} | ${summary.readyP95 ?? '—'} | ${summary.frameP95 ?? '—'} | ${summary.frameP99 ?? '—'}${summary.p99Supported ? '' : ' (unsupported)'} | ${summary.actionSamples} / ${summary.frameSamples} / ${summary.longTaskSamples} |`)
+      if (cell.reason) details.push('', `Reason (${file}/${cell.scale}/${cell.id}/${cell.cache}): ${cell.reason.replaceAll('\n', ' ').slice(0, 600)}`, '')
+      if (cell.acceptanceMissing?.length) details.push('', `Unverified (${file}/${cell.scale}/${cell.id}/${cell.cache}): ${cell.acceptanceMissing.join('; ')}.`, '')
     }
   }
+  lines.push(...details, '', `Legacy reports: ${legacy} — untrusted measurement schema; preserved as historical launch evidence only. Their elapsed times and percentile summaries are never treated as visible latency.`, '', 'No production optimization, full-product coverage, real hardware baseline or acceptance is claimed.', '')
+  return { markdown: lines.join('\n'), exitCode: reports.length && !legacy && reports.every(({ report }) => reportExitCode(report) === 0) ? 0 : 2 }
 }
-const blocked = rows.filter((row) => row.status === 'blocked')
-const measured = rows.filter((row) => row.status === 'measured')
-const lines = [
-  '# Nomi user workflow performance analysis',
-  '',
-  `Generated from ${files.length} raw report${files.length === 1 ? '' : 's'} in \`${inputDir.replace(repoRoot, '<repo>')}\`.`,
-  '',
-  'The matrix and budgets in `scenario-matrix-and-budget.md` are fixed before measurement. A blocked row has no timing value and cannot be compared with a budget.',
-  '',
-  '| Scale | Scenario | Status | Visible/action p95 (ms) | Frame p95 (ms) | Frame p99 (ms) | Long task p95 (ms) | Dropped p95 |',
-  '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |',
-]
-for (const row of rows) {
-  lines.push(`| ${row.scale} | ${row.scenario} | ${row.status} | ${row.visibleP95 ?? '—'} | ${row.frameP95 ?? '—'} | ${row.frameP99 ?? '—'} | ${row.longTaskP95 ?? '—'} | ${row.droppedRatioP95 == null ? '—' : `${(row.droppedRatioP95 * 100).toFixed(2)}%`} |`)
+function main() {
+  const inputDir = process.argv[2] || path.join(repoRoot, 'docs/evidence/2026-10-10-nomi-user-performance/raw')
+  const output = process.argv[3] || path.join(repoRoot, 'docs/evidence/2026-10-10-nomi-user-performance/analysis.md')
+  const files = fs.existsSync(inputDir) ? fs.readdirSync(inputDir).filter((file) => file.endsWith('.json')).sort() : []
+  const result = buildAnalysis(files.map((file) => ({ file, report: JSON.parse(fs.readFileSync(path.join(inputDir, file), 'utf8')) })))
+  fs.writeFileSync(output, result.markdown)
+  console.log(JSON.stringify({ output, reports: files.length, acceptanceExitCode: result.exitCode }))
+  process.exitCode = result.exitCode
 }
-lines.push('', `Measured rows: ${measured.length}; blocked rows: ${blocked.length}.`)
-if (blocked.length) {
-  lines.push('', '## Blocked rows', '')
-  const reasons = new Map()
-  for (const row of blocked) {
-    const key = `${row.scale}|${row.reason || 'unspecified'}`
-    reasons.set(key, (reasons.get(key) || { scale: row.scale, reason: row.reason || 'unspecified', count: 0 }))
-    reasons.get(key).count += 1
-  }
-  for (const item of reasons.values()) lines.push(`- ${item.scale}: ${item.count} rows — ${item.reason.replaceAll('\n', ' ').slice(0, 280)}`)
-}
-lines.push('', '## Interpretation', '', '- Model/network wait is represented by `fixture.agent` and must be read separately from UI timing.', '- No production optimization is claimed until a display-capable runner produces baseline samples for the same matrix.', '')
-fs.writeFileSync(output, `${lines.join('\n')}\n`)
-console.log(JSON.stringify({ output, reports: files.length, measured: measured.length, blocked: blocked.length }, null, 2))
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) main()

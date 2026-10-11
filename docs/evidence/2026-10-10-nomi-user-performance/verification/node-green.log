@@ -1,0 +1,36 @@
+✔ workflow scale contract is fixed and complete (1.123574ms)
+✔ small fixture persists document, plan and mixed media counts (8.554809ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (8.323674ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (9.74323ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (35.53271ms)
+✔ production snapshot and result normalization preserve fixture groups and history (426.77242ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.634196ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.503761ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.649839ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.350603ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.137535ms)
+✔ the real browser probe retains input-to-first-frame stalls and only trusted input (1.423483ms)
+✔ a visible canvas card with pending image decoding is not visible project content (0.669759ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy visible content (2.801819ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.309222ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.69083ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.396782ms)
+✔ schema-v2 samples without decoded-content and persistence receipts are not measurement evidence (0.299907ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.204605ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.16735ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.135472ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (8.586846ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (22.836491ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.209923ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (29.238343ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (29.675365ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.442ms)
+✔ percentiles and raw path redaction are deterministic (0.26148ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1142.585081

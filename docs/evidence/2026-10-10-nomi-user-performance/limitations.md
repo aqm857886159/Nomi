@@ -1,14 +1,21 @@
-# Limitations and blockers
+# Limitations and separate blockers
 
-Updated 2026-10-10.
+Updated 2026-10-11. See immutable schema2 runs and `first-batch-verification.md` for the actual command, code hashes and result. Original schema1 launch reports remain historical evidence only.
 
-## Current blockers
+## Implementation gaps
 
-1. **Electron window unavailable in this execution environment.** The existing Playwright benchmark starts Electron 43.4.1 with the repository's `--no-sandbox` and SwiftShader flags, then Chromium exits with `Missing X server or $DISPLAY` because neither Xvfb nor another display server is installed. The four requested S-scale baseline scenarios are retained as failed raw samples in `raw/nomi-user-baseline-s.json`; no timing number is treated as a baseline.
-2. **Cross-platform hardware is unavailable.** Windows and macOS runs, real GPU backends, and a real user profile remain `unverified`. Linux software rendering can be a later comparison leg but cannot stand in for those platforms.
-3. **Private real-user material is unavailable.** The repository fixture uses generated media and synthetic local Agent stream/tool timers. No credentials or paid model calls are used. Real private documents, plans, images and videos require a user-provided sanitized fixture on a machine with a display and remain `unverified`.
-4. **GitHub PR API access is unauthorized in this environment.** The branch pushed successfully at `origin/perf/nomi-user-workflows-20261010`, but both `gh pr create --repo aqm857886159/Nomi --draft ...` and `gh pr comment 1014 --repo aqm857886159/Nomi ...` returned `Post "https://api.github.com/graphql": Forbidden`. The draft PR and required #1014 status comment therefore remain pending an authorized GitHub session; the local commit and push are preserved.
+- Full P/D/B/C/A/R journeys are planned. Removed P1/P2/C1/C2/C3 branches were partial gestures, not their documented workflows. D/B/A/R never had production actions; selectors already exist for documents/designs.
+- Only atomic `project.open` is implemented. Opening a project excludes app launch and does not establish P1, project switching, multi-document editing, storyboard batch, mixed-media interaction or recovery acceptance.
+- No production Agent stream/tool/concurrent-conversation fixture exists yet. Agent is absent; labels and synthetic timer strings cannot count as runtime behavior. Planned local peers must exercise the production protocol without paid calls or changed permission policy.
+- CPU/memory are end snapshots. Main long-task instrumentation, action CPU distributions, resource trends/teardown acceptance, GPU/runtime build metadata and reliable p99 support remain incomplete. No performance-pass state is enabled for this batch.
+- The fixture now has nonempty drafts, competing plans, mixed groups and result history, and exact total shots12/48/320. Media still reuses two repository-generated images and two short silent videos. Audio/director/whiteboard/panorama/model3d fixtures and real user diversity remain planned.
+- 88 source entry families, 16 pairwise cases and five high-risk combinations are an audit/plan. Reconcile fine-grained full-walk click controls and capability constraints before claiming all-entry coverage.
 
-## Measurement implications
+## Environment and resource boundaries
 
-The evidence directory contains the fixed matrix and budgets and the failed launch raw result. Until a display-capable runner is available, the workflow runner can be syntax-checked and its fixture/schema contracts tested, but it cannot claim input-to-visible, frame, CPU or memory values. Any optimization commit made before that run must be labelled instrumentation-only or hypothesis-driven and cannot be marked as meeting the budgets.
+- Historical run stopped before a window because no display/Xvfb existed. Initial repair-batch trial additionally found missing Electron runtime and build outputs. These are separate from the unimplemented journeys.
+- Electron43.4.1 official archive was fetched to temporary storage, checked against the installed package checksum, and installed in this checkout's ignored node_modules. Xvfb was extracted to `/tmp`; no system package/permission/product config was changed. The final small/cold and small/hot1+5 runs completed functional checks, but both exceeded the original performance budgets and exit2. This environment leg now has actual windows; no native hardware acceptance follows from it.
+- macOS/Windows machines, real GPU, packaged release, private documents/media and real accounts remain unverified. The Mac line only accepts; it does not edit this branch.
+- GitHub connector access now permits reading/updating PR1172. The earlier `gh` GraphQL authorization failure is historical, not the current measurement blocker.
+
+No production performance implementation, model call, private upload, merge or release belongs to this repair batch.

@@ -1,0 +1,258 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-11-nomi-workflow-measurement-trust",
+  "problem_type": "Planned/test-only scaffolding promoted to performance evidence without a measurement contract",
+  "symptom": "PR1172 declared broad workflow coverage although actions were partial or absent and elapsedMs included waits/collection; empty reports could succeed.",
+  "direct_cause": "Fixture envelope passed as record; partial P/C gestures and D/B/A/R placeholders; nonvalidated CLI; date-only output; missing probe became empty data; scalar percentiles reused as raw observations.",
+  "class_root": "No shared boundary validated action identity, browser milestones, raw distributions, coverage lifecycle and report acceptance independently.",
+  "affected_population": [
+    "Every workflow action, cache/scale combination and future report consumer",
+    "Linux/native-display/CI runs, reload and missing probe, empty/planned/partial samples"
+  ],
+  "scope_paths": [
+    "tests/ux/nomi-user-workflow-contract.mjs",
+    "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+    "tests/ux/nomi-user-workflow-probe.mjs",
+    "tests/ux/fixtures/nomi-user-workflow-fixture.mjs",
+    "scripts/summarize-nomi-user-performance.mjs"
+  ],
+  "entry_points": [
+    "workflow CLI runner and sample lifecycle",
+    "raw-report analysis consumer"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal test/evidence contract; no third-party runtime behavior is changed. Existing Electron43.4.1, Playwright and launch/network guard remain pinned.",
+  "invariants": [
+    "Actual trusted input and attributable visible/ready/ack marks belong to one document/probe and clock; decoded visible content and persisted-data receipts are required",
+    "No fixed waits or collection in latency; raw action-window entries preserved and clipped for metrics",
+    "Each sample has isolated fixture/profile; cache dimensions stay separate",
+    "Only implemented actual actions can execute; planned differs from environment-blocked; incomplete evidence never passes",
+    "Fixture counts derive from persisted content and match12/48/320 shots and4/48/320 references; production normalization must retain mixed groups and result history"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "normalizeActionSample"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "summarizeCell"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "runCell"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/ci-annotation-hygiene.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/feel-nightly.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/intake-radar.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/intake-radar/store.node-test.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/summarize-nomi-user-performance.mjs",
+      "symbol": "summarizeCell"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/summarize-nomi-user-performance.mjs",
+      "symbol": "buildAnalysis"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/experience/report.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/media-import-matrix.walk.mjs",
+      "symbol": "runCell"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-contract.mjs",
+      "symbol": "normalizeActionSample"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-contract.mjs",
+      "symbol": "summarizeCell"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "normalizeActionSample"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "runCell"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "createNomiUserWorkflowFixture"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "writeReport"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "normalizeActionSample"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "buildAnalysis"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "summarizeCell"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/nomi-user-workflow-performance.node-test.mjs",
+      "symbol": "runCell"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 24,
+    "why_not": "The tool uses symbol names: same-name writeReport/runCell entries outside this workflow are not shared implementations and must remain for their separate domains. The runner produces observations, the summarizer consumes them, and focused tests exercise the boundary; these separate roles cannot be merged. All workflow-specific producer/consumer doors converge on the one contract."
+  },
+  "generality_proof": "Producer and consumer both use the same normalized sample, raw aggregation and acceptance facts. Missing/replaced document, invalid CLI and empty/legacy/unsupported pass claims fail closed for every scale/cache. Full journeys remain nonexecutable planned rows.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/nomi-user-workflow-contract.mjs",
+      "symbol": "normalizeActionSample",
+      "responsibility": "Validate browser marks/document identity and derive clipped action-window observations"
+    },
+    {
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "symbol": "runCell",
+      "responsibility": "Isolate fixtures/profiles, preserve attempts, separate planned/blocked/invalid/executed"
+    },
+    {
+      "path": "scripts/summarize-nomi-user-performance.mjs",
+      "symbol": "buildAnalysis",
+      "responsibility": "Reject untrusted legacy/empty samples and unsupported pass flags; pool raw distributions"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "entry_point": "main/runCell",
+      "disposition": "enforced",
+      "evidence": "CLI and every repetition now use parseOptions, normalizeActionSample, applyCellVerdict and reportExitCode."
+    },
+    {
+      "path": "scripts/summarize-nomi-user-performance.mjs",
+      "entry_point": "buildAnalysis",
+      "disposition": "enforced",
+      "evidence": "Schema1 elapsedMs no longer feeds visible latency; schema2 empty/invalid samples cannot produce success."
+    },
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "entry_point": "historical canvas-only benchmark",
+      "disposition": "not-affected",
+      "evidence": "Independent historical schema/contract is not this workflow producer; its outputs are labelled legacy/untrusted by the new analysis, never imported as acceptance."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future action/platform/reload or empty CLI can reproduce the same missing invariant; an observed launch error never proves implementation or performance.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs normalizeActionSample summarizeCell writeReport runCell createNomiUserWorkflowFixture buildAnalysis --roots=tests/ux,scripts --include-tests",
+      "Compared workflow loop and summarize-nomi-user-performance consumers; inspected canvas-only benchmark as independent schema",
+      "Read actual ProjectLibraryPage click handler, canvas data-ready, DocumentListSidebar selectors, shell drawers/stepper,17-kind registry and full-walk catalog"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/summarize-nomi-user-performance.mjs",
+    "invariant": "No consumer may certify incomplete/legacy/invalid measurements or use percentile-of-percentiles as raw data.",
+    "failure_mode": "Nonzero acceptance status and explicit planned/blocked_environment/invalid/inconclusive evidence; historic raw retained.",
+    "exception_policy": "none",
+    "strategy": "Normalize and validate before aggregation; independently revalidate report samples and refuse acceptance for actions whose full metric contract is not implemented.",
+    "artifacts": [
+      "scripts/summarize-nomi-user-performance.mjs",
+      "tests/ux/nomi-user-workflow-contract.mjs",
+      "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "tests/ux/nomi-user-workflow-probe.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+      "scripts/summarize-nomi-user-performance.mjs"
+    ],
+    "rationale": "Removed partial P1/P2/C branches, fixture-only execution placeholders,250ms delay/elapsedMs, silent probe fallback and scalar quantile aggregation. Same files now expose only the atomic action and contract; historical raw stays unmodified."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade is involved; measurement/report invariants are repository-owned. Runtime archive installation is environment provisioning at declared43.4.1, not a product change.",
+    "exit_criteria": []
+  },
+  "migration": "Schema1 raw remains immutable historical launch evidence; schema2 consumers reject it as timing input. Full journey IDs are planned; project.open names its smaller action explicitly.",
+  "residual_risks": [
+    "Real browser/display execution must be separately recorded; Node mechanism/injected-lifecycle tests are not product acceptance",
+    "Main long tasks/CPU distributions/memory and teardown trends unimplemented; performance pass disabled",
+    "Full88-entry solo baselines,pairwise and higher-order journeys remain planned",
+    "No native Mac/Windows,real GPU/private asset/account or packaged-release baseline"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/nomi-user-workflow-contract.mjs",
+    "tests": [
+      "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "rewrite",
+    "characterization_test": "tests/ux/nomi-user-workflow-performance.node-test.mjs"
+  }
+}

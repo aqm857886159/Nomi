@@ -1,0 +1,45 @@
+✔ workflow scale contract is fixed and complete (1.125745ms)
+✔ small fixture persists document, plan and mixed media counts (8.189217ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.659068ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (21.536531ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (29.279859ms)
+✔ production snapshot and result normalization preserve fixture groups and history (419.556655ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.739411ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.411702ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.682796ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.345574ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.155442ms)
+✔ the real browser probe retains input-to-first-frame stalls and only trusted input (1.470368ms)
+✔ a visible canvas card with pending image decoding is not visible project content (0.75251ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy visible content (2.841128ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.558029ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.585642ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.415679ms)
+✔ schema-v2 samples without decoded-content and persistence receipts are not measurement evidence (0.196432ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.127049ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.086589ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.086169ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (7.099034ms)
+✖ each cold/hot repetition receives a fresh persisted fixture and closes on failure (22.188321ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.197895ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (34.335428ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (27.693613ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.647371ms)
+✔ percentiles and raw path redaction are deterministic (0.263442ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1076.109703
+
+✖ failing tests:
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:274:1
+✖ each cold/hot repetition receives a fresh persisted fixture and closes on failure (22.188321ms)
+  TypeError: Cannot read properties of undefined (reading 'acknowledgedAt')
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:303:48)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

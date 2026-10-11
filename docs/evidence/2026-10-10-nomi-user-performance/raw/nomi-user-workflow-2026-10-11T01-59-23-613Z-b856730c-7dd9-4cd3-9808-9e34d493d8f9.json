@@ -1,0 +1,780 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T01:59:23.613Z",
+  "commit": "0ee67956b9d7c55f3affd43d0b28933e35da1d38",
+  "runner": "tests/ux/nomi-user-workflow-performance.e2e.mjs",
+  "options": {
+    "scales": [
+      "small"
+    ],
+    "scenarios": [
+      "project.open",
+      "D1"
+    ],
+    "caches": [
+      "cold"
+    ],
+    "runs": 1,
+    "warmup": 0,
+    "launchTimeout": 15000
+  },
+  "source": {
+    "workingTreeDirty": true,
+    "fileHashes": {
+      "tests/ux/nomi-user-workflow-performance.e2e.mjs": "58e8efb1746a62acaf161529cdc774237e4c589906af97923d1e5e04c0a5aa63",
+      "tests/ux/nomi-user-workflow-contract.mjs": "6eca742070a28d0d75bbaaa9ba390057989f0b86b2c2c1cf9135a5456f7f2b20",
+      "tests/ux/nomi-user-workflow-probe.mjs": "675a5cb05101f10e67ef6152113f0b160d5d2f9ec1b22418711e2f1c78acc931",
+      "tests/ux/fixtures/nomi-user-workflow-fixture.mjs": "390d8d3840cd1a6bc0158910b8786a9081751ff7e47e18666176ab61c71e7690"
+    }
+  },
+  "measurement": {
+    "viewport": {
+      "width": 1280,
+      "height": 933
+    },
+    "timing": "trusted pointerdown → rAF matching content / production data-ready / independent keyboard receipt; single browser clock",
+    "cache": "fresh profile and fixture per repetition; hot primes same profile; OS filesystem cache uncontrolled",
+    "agent": "absent: no stream/tool fixture implemented",
+    "collection": "process end snapshots only; not CPU/memory trend acceptance",
+    "rendererBuild": "existing build; verify freshness before real baseline"
+  },
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "logicalCpus": 5,
+    "memoryBytes": 18882699264,
+    "display": ":97",
+    "waylandDisplay": null
+  },
+  "cells": [
+    {
+      "id": "project.open",
+      "scale": "small",
+      "cache": "cold",
+      "planned": true,
+      "implemented": true,
+      "executed": true,
+      "passed": false,
+      "attempts": [
+        {
+          "index": 0,
+          "warmup": false,
+          "fixture": {
+            "scale": "small",
+            "documents": 2,
+            "plans": 2,
+            "shots": 12,
+            "images": 4,
+            "videos": 2,
+            "references": 4,
+            "mediaProfile": "synthetic-preview",
+            "canvasScale": "REAL",
+            "canvasNodes": 6,
+            "canvasEdges": 4
+          },
+          "status": "executed",
+          "sample": {
+            "inputToVisibleMs": 647.4000000003725,
+            "inputToReadyMs": 647.4000000003725,
+            "inputToAcknowledgedMs": 671.3000000007451,
+            "frameTimes": [
+              9.200000000371801,
+              16.700000000000728,
+              16.600000000000364,
+              16.69999999999891,
+              16.700000000000728,
+              16.600000000000364,
+              16.69999999999891,
+              16.600000000000364,
+              16.700000000000728,
+              16.69999999999891,
+              16.700000000000728,
+              16.600000000000364,
+              16.69999999999891,
+              16.600000000000364,
+              16.80000000000109,
+              16.599999999998545,
+              16.600000000000364,
+              16.700000000000728,
+              16.600000000000364,
+              33.399999999999636,
+              16.600000000000364,
+              16.69999999999891,
+              16.700000000000728,
+              16.69999999999891,
+              16.600000000000364,
+              16.700000000000728,
+              16.600000000000364,
+              16.69999999999891,
+              16.700000000000728,
+              16.69999999999891,
+              16.600000000000364,
+              16.700000000000728,
+              16.69999999999891,
+              16.600000000000364,
+              83.39999999999964,
+              12.100000000373257
+            ],
+            "longTasks": [
+              71
+            ],
+            "rawProbe": {
+              "documentId": "67a877aa-0cf6-45ff-a953-3ab7a2b43f2a",
+              "probeId": "17ceb763-daf0-42a3-b473-80bbac6bd788",
+              "inputAt": 14460.099999999627,
+              "visibleAt": 15107.5,
+              "readyAt": 15107.5,
+              "acknowledgedAt": 15131.400000000373,
+              "frames": [
+                {
+                  "startTime": 14460.099999999627,
+                  "duration": 9.200000000371801
+                },
+                {
+                  "startTime": 14469.3,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14486,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14502.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14519.3,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14536,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14552.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14569.3,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14585.9,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14602.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14619.3,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14636,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14652.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14669.3,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14685.9,
+                  "duration": 16.80000000000109
+                },
+                {
+                  "startTime": 14702.7,
+                  "duration": 16.599999999998545
+                },
+                {
+                  "startTime": 14719.3,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14735.9,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14752.6,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14769.2,
+                  "duration": 33.399999999999636
+                },
+                {
+                  "startTime": 14802.6,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14819.2,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14835.9,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14852.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14869.3,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14885.9,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14902.6,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14919.2,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14935.9,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 14952.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 14969.3,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 14985.9,
+                  "duration": 16.700000000000728
+                },
+                {
+                  "startTime": 15002.6,
+                  "duration": 16.69999999999891
+                },
+                {
+                  "startTime": 15019.3,
+                  "duration": 16.600000000000364
+                },
+                {
+                  "startTime": 15035.9,
+                  "duration": 83.39999999999964
+                },
+                {
+                  "startTime": 15119.3,
+                  "duration": 16.600000000000364
+                }
+              ],
+              "longTasks": [
+                {
+                  "startTime": 15029.400000000373,
+                  "duration": 71
+                }
+              ],
+              "longTaskSupported": true
+            },
+            "functionalPassed": false,
+            "assertions": {
+              "projectId": "project-nomi-user-workflow-small",
+              "projectTitle": "ZZ Nomi user workflow small",
+              "firstNodeId": "canvas-perf-image-0",
+              "canvasReady": true,
+              "independentKeyboardReceipt": true
+            },
+            "processSnapshot": {
+              "metrics": [
+                {
+                  "cpu": {
+                    "cumulativeCPUUsage": 2.38,
+                    "percentCPUUsage": 0,
+                    "idleWakeupsPerSecond": 0
+                  },
+                  "pid": 57311,
+                  "type": "Browser",
+                  "creationTime": 1791683962800,
+                  "memory": {
+                    "workingSetSize": 329616,
+                    "peakWorkingSetSize": 329956
+                  }
+                },
+                {
+                  "cpu": {
+                    "cumulativeCPUUsage": 0.02,
+                    "percentCPUUsage": 0,
+                    "idleWakeupsPerSecond": 0
+                  },
+                  "pid": 57345,
+                  "type": "Utility",
+                  "creationTime": 1791683963670,
+                  "serviceName": "network.mojom.NetworkService",
+                  "name": "Network Service",
+                  "memory": {
+                    "workingSetSize": 78496,
+                    "peakWorkingSetSize": 78496
+                  }
+                },
+                {
+                  "cpu": {
+                    "cumulativeCPUUsage": 2.51,
+                    "percentCPUUsage": 0,
+                    "idleWakeupsPerSecond": 0
+                  },
+                  "pid": 57379,
+                  "type": "Tab",
+                  "creationTime": 1791683963780,
+                  "memory": {
+                    "workingSetSize": 271276,
+                    "peakWorkingSetSize": 272832
+                  }
+                },
+                {
+                  "cpu": {
+                    "cumulativeCPUUsage": 0.99,
+                    "percentCPUUsage": 0,
+                    "idleWakeupsPerSecond": 0
+                  },
+                  "pid": 57408,
+                  "type": "GPU",
+                  "creationTime": 1791683963880,
+                  "serviceName": "GPU",
+                  "memory": {
+                    "workingSetSize": 93816,
+                    "peakWorkingSetSize": 116896
+                  }
+                },
+                {
+                  "cpu": {
+                    "cumulativeCPUUsage": 0.07,
+                    "percentCPUUsage": 0,
+                    "idleWakeupsPerSecond": 0
+                  },
+                  "pid": 57429,
+                  "type": "Utility",
+                  "creationTime": 1791683964370,
+                  "serviceName": "audio.mojom.AudioService",
+                  "name": "Audio Service",
+                  "memory": {
+                    "workingSetSize": 74700,
+                    "peakWorkingSetSize": 74700
+                  }
+                }
+              ],
+              "versions": {
+                "node": "24.18.1",
+                "acorn": "8.16.0",
+                "ada": "3.4.4",
+                "amaro": "1.1.9",
+                "ares": "1.34.6",
+                "brotli": "1.2.0",
+                "cldr": "48.0",
+                "icu": "78.2",
+                "llhttp": "9.4.3",
+                "merve": "1.2.2",
+                "modules": "148",
+                "napi": "10",
+                "nbytes": "0.1.4",
+                "ncrypto": "0.0.1",
+                "nghttp2": "1.69.0",
+                "nghttp3": "",
+                "ngtcp2": "",
+                "openssl": "0.0.0",
+                "simdjson": "4.6.4",
+                "simdutf": "7.7.0",
+                "sqlite": "3.53.1",
+                "tz": "2025c",
+                "undici": "7.29.0",
+                "unicode": "17.0",
+                "uv": "1.52.1",
+                "uvwasi": "0.0.23",
+                "v8": "15.0.245.28-electron.0",
+                "zlib": "1.3.2.1-motley",
+                "zstd": "1.6.0",
+                "electron": "43.4.1",
+                "chrome": "150.0.7871.224"
+              }
+            },
+            "screenshot": "<temp>/nomi-user-perf-small-cold-UD3afZ/project-open-after-measurement.png",
+            "offlineGuard": {
+              "layers": [
+                "fetch",
+                "http",
+                "https",
+                "socket",
+                "chromium"
+              ],
+              "blockedAttempts": 0
+            }
+          },
+          "teardownError": "teardown/correctness error: functional assertion: persisted content changed during project.open"
+        }
+      ],
+      "samples": [
+        {
+          "inputToVisibleMs": 647.4000000003725,
+          "inputToReadyMs": 647.4000000003725,
+          "inputToAcknowledgedMs": 671.3000000007451,
+          "frameTimes": [
+            9.200000000371801,
+            16.700000000000728,
+            16.600000000000364,
+            16.69999999999891,
+            16.700000000000728,
+            16.600000000000364,
+            16.69999999999891,
+            16.600000000000364,
+            16.700000000000728,
+            16.69999999999891,
+            16.700000000000728,
+            16.600000000000364,
+            16.69999999999891,
+            16.600000000000364,
+            16.80000000000109,
+            16.599999999998545,
+            16.600000000000364,
+            16.700000000000728,
+            16.600000000000364,
+            33.399999999999636,
+            16.600000000000364,
+            16.69999999999891,
+            16.700000000000728,
+            16.69999999999891,
+            16.600000000000364,
+            16.700000000000728,
+            16.600000000000364,
+            16.69999999999891,
+            16.700000000000728,
+            16.69999999999891,
+            16.600000000000364,
+            16.700000000000728,
+            16.69999999999891,
+            16.600000000000364,
+            83.39999999999964,
+            12.100000000373257
+          ],
+          "longTasks": [
+            71
+          ],
+          "rawProbe": {
+            "documentId": "67a877aa-0cf6-45ff-a953-3ab7a2b43f2a",
+            "probeId": "17ceb763-daf0-42a3-b473-80bbac6bd788",
+            "inputAt": 14460.099999999627,
+            "visibleAt": 15107.5,
+            "readyAt": 15107.5,
+            "acknowledgedAt": 15131.400000000373,
+            "frames": [
+              {
+                "startTime": 14460.099999999627,
+                "duration": 9.200000000371801
+              },
+              {
+                "startTime": 14469.3,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14486,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14502.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14519.3,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14536,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14552.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14569.3,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14585.9,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14602.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14619.3,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14636,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14652.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14669.3,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14685.9,
+                "duration": 16.80000000000109
+              },
+              {
+                "startTime": 14702.7,
+                "duration": 16.599999999998545
+              },
+              {
+                "startTime": 14719.3,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14735.9,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14752.6,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14769.2,
+                "duration": 33.399999999999636
+              },
+              {
+                "startTime": 14802.6,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14819.2,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14835.9,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14852.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14869.3,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14885.9,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14902.6,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14919.2,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14935.9,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 14952.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 14969.3,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 14985.9,
+                "duration": 16.700000000000728
+              },
+              {
+                "startTime": 15002.6,
+                "duration": 16.69999999999891
+              },
+              {
+                "startTime": 15019.3,
+                "duration": 16.600000000000364
+              },
+              {
+                "startTime": 15035.9,
+                "duration": 83.39999999999964
+              },
+              {
+                "startTime": 15119.3,
+                "duration": 16.600000000000364
+              }
+            ],
+            "longTasks": [
+              {
+                "startTime": 15029.400000000373,
+                "duration": 71
+              }
+            ],
+            "longTaskSupported": true
+          },
+          "functionalPassed": false,
+          "assertions": {
+            "projectId": "project-nomi-user-workflow-small",
+            "projectTitle": "ZZ Nomi user workflow small",
+            "firstNodeId": "canvas-perf-image-0",
+            "canvasReady": true,
+            "independentKeyboardReceipt": true
+          },
+          "processSnapshot": {
+            "metrics": [
+              {
+                "cpu": {
+                  "cumulativeCPUUsage": 2.38,
+                  "percentCPUUsage": 0,
+                  "idleWakeupsPerSecond": 0
+                },
+                "pid": 57311,
+                "type": "Browser",
+                "creationTime": 1791683962800,
+                "memory": {
+                  "workingSetSize": 329616,
+                  "peakWorkingSetSize": 329956
+                }
+              },
+              {
+                "cpu": {
+                  "cumulativeCPUUsage": 0.02,
+                  "percentCPUUsage": 0,
+                  "idleWakeupsPerSecond": 0
+                },
+                "pid": 57345,
+                "type": "Utility",
+                "creationTime": 1791683963670,
+                "serviceName": "network.mojom.NetworkService",
+                "name": "Network Service",
+                "memory": {
+                  "workingSetSize": 78496,
+                  "peakWorkingSetSize": 78496
+                }
+              },
+              {
+                "cpu": {
+                  "cumulativeCPUUsage": 2.51,
+                  "percentCPUUsage": 0,
+                  "idleWakeupsPerSecond": 0
+                },
+                "pid": 57379,
+                "type": "Tab",
+                "creationTime": 1791683963780,
+                "memory": {
+                  "workingSetSize": 271276,
+                  "peakWorkingSetSize": 272832
+                }
+              },
+              {
+                "cpu": {
+                  "cumulativeCPUUsage": 0.99,
+                  "percentCPUUsage": 0,
+                  "idleWakeupsPerSecond": 0
+                },
+                "pid": 57408,
+                "type": "GPU",
+                "creationTime": 1791683963880,
+                "serviceName": "GPU",
+                "memory": {
+                  "workingSetSize": 93816,
+                  "peakWorkingSetSize": 116896
+                }
+              },
+              {
+                "cpu": {
+                  "cumulativeCPUUsage": 0.07,
+                  "percentCPUUsage": 0,
+                  "idleWakeupsPerSecond": 0
+                },
+                "pid": 57429,
+                "type": "Utility",
+                "creationTime": 1791683964370,
+                "serviceName": "audio.mojom.AudioService",
+                "name": "Audio Service",
+                "memory": {
+                  "workingSetSize": 74700,
+                  "peakWorkingSetSize": 74700
+                }
+              }
+            ],
+            "versions": {
+              "node": "24.18.1",
+              "acorn": "8.16.0",
+              "ada": "3.4.4",
+              "amaro": "1.1.9",
+              "ares": "1.34.6",
+              "brotli": "1.2.0",
+              "cldr": "48.0",
+              "icu": "78.2",
+              "llhttp": "9.4.3",
+              "merve": "1.2.2",
+              "modules": "148",
+              "napi": "10",
+              "nbytes": "0.1.4",
+              "ncrypto": "0.0.1",
+              "nghttp2": "1.69.0",
+              "nghttp3": "",
+              "ngtcp2": "",
+              "openssl": "0.0.0",
+              "simdjson": "4.6.4",
+              "simdutf": "7.7.0",
+              "sqlite": "3.53.1",
+              "tz": "2025c",
+              "undici": "7.29.0",
+              "unicode": "17.0",
+              "uv": "1.52.1",
+              "uvwasi": "0.0.23",
+              "v8": "15.0.245.28-electron.0",
+              "zlib": "1.3.2.1-motley",
+              "zstd": "1.6.0",
+              "electron": "43.4.1",
+              "chrome": "150.0.7871.224"
+            }
+          },
+          "screenshot": "<temp>/nomi-user-perf-small-cold-UD3afZ/project-open-after-measurement.png",
+          "offlineGuard": {
+            "layers": [
+              "fetch",
+              "http",
+              "https",
+              "socket",
+              "chromium"
+            ],
+            "blockedAttempts": 0
+          }
+        }
+      ],
+      "status": "failed",
+      "reason": "teardown/correctness error: functional assertion: persisted content changed during project.open"
+    },
+    {
+      "id": "D1",
+      "scale": "small",
+      "cache": "cold",
+      "planned": true,
+      "implemented": false,
+      "executed": false,
+      "passed": false,
+      "attempts": [],
+      "samples": [],
+      "status": "planned",
+      "reason": "Full journey remains planned; see entry-inventory.md. Partial branches were removed."
+    }
+  ],
+  "coverage": {
+    "planned": 2,
+    "implemented": 1,
+    "executed": 1,
+    "passed": 0
+  }
+}

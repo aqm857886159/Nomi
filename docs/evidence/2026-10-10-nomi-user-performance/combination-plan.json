@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "status": "planned",
+  "dimensions": {
+    "scale": [
+      "small",
+      "typical",
+      "heavy"
+    ],
+    "cache": [
+      "cold",
+      "hot"
+    ],
+    "workspace": [
+      "creation",
+      "storyboard",
+      "generation",
+      "preview"
+    ],
+    "agent": [
+      "idle",
+      "local-stream",
+      "local-tool",
+      "two-conversations-stream-and-tool"
+    ]
+  },
+  "soloBaseline": "Every applicable entry x small/typical/heavy x cold/hot x idle;1+5. Entry-native workspace foreground; workspace dimension means explicit transition/return.",
+  "pairwise": [
+    {
+      "scale": "small",
+      "cache": "cold",
+      "workspace": "creation",
+      "agent": "idle",
+      "id": "PAIR-01",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "hot",
+      "workspace": "storyboard",
+      "agent": "local-stream",
+      "id": "PAIR-02",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "typical",
+      "cache": "cold",
+      "workspace": "storyboard",
+      "agent": "local-tool",
+      "id": "PAIR-03",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "typical",
+      "cache": "hot",
+      "workspace": "creation",
+      "agent": "two-conversations-stream-and-tool",
+      "id": "PAIR-04",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "heavy",
+      "cache": "cold",
+      "workspace": "generation",
+      "agent": "local-stream",
+      "id": "PAIR-05",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "heavy",
+      "cache": "hot",
+      "workspace": "preview",
+      "agent": "idle",
+      "id": "PAIR-06",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "cold",
+      "workspace": "preview",
+      "agent": "two-conversations-stream-and-tool",
+      "id": "PAIR-07",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "hot",
+      "workspace": "generation",
+      "agent": "local-tool",
+      "id": "PAIR-08",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "typical",
+      "cache": "cold",
+      "workspace": "generation",
+      "agent": "idle",
+      "id": "PAIR-09",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "typical",
+      "cache": "cold",
+      "workspace": "preview",
+      "agent": "local-stream",
+      "id": "PAIR-10",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "heavy",
+      "cache": "cold",
+      "workspace": "creation",
+      "agent": "local-tool",
+      "id": "PAIR-11",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "heavy",
+      "cache": "cold",
+      "workspace": "storyboard",
+      "agent": "two-conversations-stream-and-tool",
+      "id": "PAIR-12",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "cold",
+      "workspace": "creation",
+      "agent": "local-stream",
+      "id": "PAIR-13",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "cold",
+      "workspace": "storyboard",
+      "agent": "idle",
+      "id": "PAIR-14",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "cold",
+      "workspace": "generation",
+      "agent": "two-conversations-stream-and-tool",
+      "id": "PAIR-15",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "scale": "small",
+      "cache": "cold",
+      "workspace": "preview",
+      "agent": "local-tool",
+      "id": "PAIR-16",
+      "status": "planned",
+      "precondition": "offline populated project; named workspace and local production Agent peer state",
+      "input": "each applicable inventory entry solo action with named background state",
+      "visibleCompletion": "entry assertion plus correctly attributed conversation/tool receipts",
+      "dataAssertion": "entry assertion, no stale cross-scope reply/provider dispatch",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    }
+  ],
+  "mandatoryHigherOrder": [
+    {
+      "id": "RISK-multi-draft-plan",
+      "status": "planned",
+      "precondition": "heavy/hot:12 drafts,10 designs,>=2 on one draft,320 total shots",
+      "input": "switch draft/design during edits, undo/redo, save/reopen",
+      "visibleCompletion": "matching editor/shot table/save receipt",
+      "dataAssertion": "IDs/contents/order persist",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "id": "RISK-grouped-media-history",
+      "status": "planned",
+      "precondition": "heavy cold/hot:grouped160+160 media,multi history,references",
+      "input": "multi-select/drag group,preview/play/stop,version select,workspace switch",
+      "visibleCompletion": "group/preview/version/workspace feedback",
+      "dataAssertion": "groups/edges/history persist,no media residual",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "id": "RISK-agent-stream-tool-concurrent",
+      "status": "planned",
+      "precondition": "typical/heavy hot:two conversations local2s stream+local1s tool concurrent",
+      "input": "edit/switch docs/plans,canvas gesture,cancel lane,fail/retry other",
+      "visibleCompletion": "tokens,tool/cancel/error/ready feedback",
+      "dataAssertion": "no duplicate dispatch/stale reply/crosswrite/paid call",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "id": "RISK-preview-export-save",
+      "status": "planned",
+      "precondition": "heavy/hot:mixed image/video/audio timeline,local stream/tool activity",
+      "input": "preview/seek during export,edit/save,cancel/recover export",
+      "visibleCompletion": "playhead/audio/progress/cancel/save receipt",
+      "dataAssertion": "export bytes/duration/audio,saved revision,taskID correct",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    },
+    {
+      "id": "RISK-interrupt-recover",
+      "status": "planned",
+      "precondition": "all scales/cache:save/stream/tool/export pending",
+      "input": "close window/studio,disconnect peer,reload,reopenA/B/A,10cycles",
+      "visibleCompletion": "cancel/recover/partialfailure terminals",
+      "dataAssertion": "no lost draft/stale loading/extra renderer/media/listener",
+      "budget": "scenario-matrix-and-budget.md#budgets"
+    }
+  ],
+  "constraints": [
+    "Local Agent peer drives production runtime; labels/timers insufficient.",
+    "Stay offline and retain production permission semantics.",
+    "Reload needs cross-document probe; project.open rejects reload.",
+    "Unsupported combinations need source-backed not-applicable reason, never silent removal."
+  ]
+}
