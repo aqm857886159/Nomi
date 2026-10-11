@@ -240,7 +240,7 @@
   "review": {
     "decision": "withdraw instead of expanding notification/consumer ownership in this performance stage",
     "findings": [
-      "Synchronous navigation failure queued studio before error; strengthened actual-callback test failed7/8, temporary route-first ordering passed8/8, both candidate and temporary correction withdrawn.",
+      "Synchronous navigation failure queued studio before error; strengthened actual-callback test failed7/8, temporary route-first ordering passed8/8, both candidate and temporary correction withdrawn. Original B289 also queues studio before navigation; this synchronous-route-error debt remains unfixed after restoration.",
       "Hydration promise resolves before lazy TaskCenter/ReactFlow listeners mount; once-only notification events may be lost. Original B289 has latent debt; transition enlarges its window. Data-ready/Surface ACK and parent effects cannot prove nested consumer readiness."
     ],
     "candidateRedGreen": [
