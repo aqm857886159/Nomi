@@ -1,0 +1,4 @@
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-next-workflow-journeys/storyboard.switch-workflow-small-design-1-1-8dee990c-4b76-419e-9884-9bee3fbe2867.png; findings=50; new-surfaces=5; evidence: <repo>/artifacts/feel/nomi-next-workflow-journeys-989e0c55-699e-4032-8688-add160c86220
+feel record: nomi-next-workflow-journeys/storyboard.switch-workflow-small-design-1-2-1ae836f1-ec34-4579-b70e-276023d6b151.png; findings=53; new-surfaces=5; evidence: <repo>/artifacts/feel/nomi-next-workflow-journeys-989e0c55-699e-4032-8688-add160c86220
+{"output":"<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T04-34-41-242Z-faf11b8d-2d27-4d06-84c2-390414217e73/receipt.json","actions":[{"id":"storyboard.switch-workflow-small-design-1-1","executed":true,"functionalPassed":true},{"id":"storyboard.switch-workflow-small-design-1-2","executed":true,"functionalPassed":true}]}

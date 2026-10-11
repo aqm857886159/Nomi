@@ -141,7 +141,7 @@
   },
   "migration": "No production/store/data/concurrency/budget migration. Unique fixture content changes one historical baseline source hash; baseline numbers are not relabeled as a current-source measurement.",
   "residual_risks": [
-    "Two final-source real UI actions and new-head CI pending",
+    "New-head CI pending after final normal push; final-source bounded real UI receipts passed and are archived",
     "Four LazyMarkdown consumers still need runtime cold chunk/failure, suspended updates, streaming and close/reopen acceptance",
     "Full performance matrix and real-display/Mac/Windows/GPU baselines remain unverified"
   ],

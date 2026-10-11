@@ -1,0 +1,1 @@
+{"output":"<repo>/docs/evidence/2026-10-10-nomi-user-performance/control-inventory.json","bindingCount":1637,"mode":"check"}

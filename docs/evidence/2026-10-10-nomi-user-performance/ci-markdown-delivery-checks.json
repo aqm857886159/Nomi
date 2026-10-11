@@ -75,7 +75,13 @@
     "Unit2": "failure",
     "reason": "Actual lazy-consumer SSR/host regression; reproduced six failures before correction"
   },
-  "newHeadRemoteCI": "pending after normal push",
+  "newHeadRemoteCI": {
+    "head": "efa8c2c88cffc1f97bc0a68f1639c660e08598bf",
+    "run": 38110730716,
+    "conclusion": "success",
+    "receipt": "ci-efa-remote-result.json",
+    "limits": "Previous source checkpoint; later native/design changes need new-head CI; Performance skipped"
+  },
   "localIndependentReview": "Internal read-only source and six-suite test review; not external acceptance",
   "productionPerformanceGainClaimed": false,
   "performanceAcceptance": "incomplete",

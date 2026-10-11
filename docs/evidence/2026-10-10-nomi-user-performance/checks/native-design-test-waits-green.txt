@@ -1,0 +1,2 @@
+Station wait baseline: 692 occurrences; new/stale: 0
+✅ 测试等待门岗通过：0 处空等待/私有墙钟等待/无 owner 的 lane 清理（硬零），2 处墙钟预算断言（棘轮基线，只减不增）

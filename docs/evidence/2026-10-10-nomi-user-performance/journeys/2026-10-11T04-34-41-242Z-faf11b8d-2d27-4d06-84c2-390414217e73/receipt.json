@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-11T04:34:41.260Z",
+  "buildReceipt": {
+    "version": 1,
+    "head": "ed97b427cb071a486f93f60bd2f84ab2ba202958",
+    "tree": "68f503c288683d17dc16898db5f1da6999c121da",
+    "dirty": true
+  },
+  "source": {
+    "commit": "1f8cc7f38ad916ff4a18fa5f0c4bad5a502ba02c",
+    "dirty": false
+  },
+  "sourceHashes": {
+    "tests/ux/nomi-next-workflow-journeys.e2e.mjs": "4055086e8ba84dee70b222a0a61bd5da2e22784fc54c436ffc15687f82a5113b",
+    "tests/ux/nomi-next-workflow-probe.mjs": "ec627b586b3cedf3404b84a2bf85d2c15b54c64a2b3e5e6e3b400fcf5db81de2",
+    "tests/ux/fixtures/nomi-user-workflow-fixture.mjs": "d995403ff0d55add81d5baa27c7a30788a1757833c44515edcac125f1ee1c3c2"
+  },
+  "selectedActions": "Two storyboard switches only; real project opening is prerequisite setup, not a measured action",
+  "scope": "One isolated Linux/Xvfb functional batch; atomic completion diagnostics, not full P/D/B/C/A/R, fixed1+5 or acceptance. No planned combination counted as execution.",
+  "fixtures": [
+    {
+      "scale": "small",
+      "documents": 2,
+      "plans": 2,
+      "shots": 12,
+      "images": 4,
+      "videos": 2,
+      "references": 4,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "REAL",
+      "canvasNodes": 6,
+      "canvasEdges": 4
+    },
+    {
+      "scale": "typical",
+      "documents": 5,
+      "plans": 5,
+      "shots": 48,
+      "images": 24,
+      "videos": 24,
+      "references": 48,
+      "mediaProfile": "synthetic-preview",
+      "canvasScale": "S",
+      "canvasNodes": 48,
+      "canvasEdges": 48
+    }
+  ],
+  "actions": [
+    {
+      "id": "storyboard.switch-workflow-small-design-1-1",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "completionConditions": [
+        {
+          "selector": "[data-storyboard-id][data-active=\"true\"]",
+          "attribute": "data-storyboard-id",
+          "value": "workflow-small-design-1-1"
+        },
+        {
+          "selector": ".workbench-storyboard",
+          "text": "Workflow fixture workflow-small-plan-0-shot-1",
+          "textNot": [
+            "Workflow fixture workflow-small-plan-1-shot-1",
+            "Workflow fixture workflow-small-plan-1-shot-2",
+            "Workflow fixture workflow-small-plan-1-shot-3",
+            "Workflow fixture workflow-small-plan-1-shot-4",
+            "Workflow fixture workflow-small-plan-1-shot-5",
+            "Workflow fixture workflow-small-plan-1-shot-6"
+          ]
+        }
+      ],
+      "raw": {
+        "rawObservationScope": "Long tasks cover observer installation through stop; unfiltered raw diagnostic log, not an action-window distribution",
+        "id": "f6923c97-875a-4c5e-b6b2-eea1f91883cc",
+        "documentId": "ed2e67a9-3b6b-440e-bc17-77669544bb4e",
+        "inputAt": 15666.60000000149,
+        "completedAt": 16026.5,
+        "frames": [
+          {
+            "startTime": 15666.60000000149,
+            "duration": 17.5
+          },
+          {
+            "startTime": 15684.10000000149,
+            "duration": 16.5
+          },
+          {
+            "startTime": 15700.60000000149,
+            "duration": 29
+          },
+          {
+            "startTime": 15729.60000000149,
+            "duration": 20.899999998509884
+          },
+          {
+            "startTime": 15750.5,
+            "duration": 25.600000001490116
+          },
+          {
+            "startTime": 15776.10000000149,
+            "duration": 5.599999997764826
+          },
+          {
+            "startTime": 15781.699999999255,
+            "duration": 13.400000002235174
+          },
+          {
+            "startTime": 15795.10000000149,
+            "duration": 16.199999999254942
+          },
+          {
+            "startTime": 15811.300000000745,
+            "duration": 17
+          },
+          {
+            "startTime": 15828.300000000745,
+            "duration": 17.5
+          },
+          {
+            "startTime": 15845.800000000745,
+            "duration": 16.099999997764826
+          },
+          {
+            "startTime": 15861.89999999851,
+            "duration": 17.5
+          },
+          {
+            "startTime": 15879.39999999851,
+            "duration": 147.10000000149012
+          }
+        ],
+        "longTasks": [
+          {
+            "startTime": 15886.699999999255,
+            "duration": 137
+          }
+        ]
+      },
+      "inputToCompletionDiagnosticMs": 359.8999999985099,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T04-34-41-242Z-faf11b8d-2d27-4d06-84c2-390414217e73/storyboard.switch-workflow-small-design-1-1-8dee990c-4b76-419e-9884-9bee3fbe2867.png",
+      "selectionReceipt": {
+        "selectedDesignId": "workflow-small-design-1-1",
+        "targetShotId": "workflow-small-plan-0-shot-1",
+        "targetPrompt": "Workflow fixture workflow-small-plan-0-shot-1",
+        "excludedForeignPrompts": [
+          "Workflow fixture workflow-small-plan-1-shot-1",
+          "Workflow fixture workflow-small-plan-1-shot-2",
+          "Workflow fixture workflow-small-plan-1-shot-3",
+          "Workflow fixture workflow-small-plan-1-shot-4",
+          "Workflow fixture workflow-small-plan-1-shot-5",
+          "Workflow fixture workflow-small-plan-1-shot-6"
+        ]
+      }
+    },
+    {
+      "id": "storyboard.switch-workflow-small-design-1-2",
+      "implemented": true,
+      "executed": true,
+      "functionalPassed": true,
+      "performanceAcceptance": "unverified",
+      "completionConditions": [
+        {
+          "selector": "[data-storyboard-id][data-active=\"true\"]",
+          "attribute": "data-storyboard-id",
+          "value": "workflow-small-design-1-2"
+        },
+        {
+          "selector": ".workbench-storyboard",
+          "text": "Workflow fixture workflow-small-plan-1-shot-1",
+          "textNot": [
+            "Workflow fixture workflow-small-plan-0-shot-1",
+            "Workflow fixture workflow-small-plan-0-shot-2",
+            "Workflow fixture workflow-small-plan-0-shot-3",
+            "Workflow fixture workflow-small-plan-0-shot-4",
+            "Workflow fixture workflow-small-plan-0-shot-5",
+            "Workflow fixture workflow-small-plan-0-shot-6"
+          ]
+        }
+      ],
+      "raw": {
+        "rawObservationScope": "Long tasks cover observer installation through stop; unfiltered raw diagnostic log, not an action-window distribution",
+        "id": "e84f4c33-b871-441a-89a6-582bf00959d5",
+        "documentId": "371c6c43-06bb-4039-8871-70adfadf056a",
+        "inputAt": 16549.199999999255,
+        "completedAt": 16663.699999999255,
+        "frames": [
+          {
+            "startTime": 16549.199999999255,
+            "duration": 114.5
+          }
+        ],
+        "longTasks": [
+          {
+            "startTime": 16548.800000000745,
+            "duration": 114
+          }
+        ]
+      },
+      "inputToCompletionDiagnosticMs": 114.5,
+      "screenshot": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/2026-10-11T04-34-41-242Z-faf11b8d-2d27-4d06-84c2-390414217e73/storyboard.switch-workflow-small-design-1-2-1ae836f1-ec34-4579-b70e-276023d6b151.png",
+      "selectionReceipt": {
+        "selectedDesignId": "workflow-small-design-1-2",
+        "targetShotId": "workflow-small-plan-1-shot-1",
+        "targetPrompt": "Workflow fixture workflow-small-plan-1-shot-1",
+        "excludedForeignPrompts": [
+          "Workflow fixture workflow-small-plan-0-shot-1",
+          "Workflow fixture workflow-small-plan-0-shot-2",
+          "Workflow fixture workflow-small-plan-0-shot-3",
+          "Workflow fixture workflow-small-plan-0-shot-4",
+          "Workflow fixture workflow-small-plan-0-shot-5",
+          "Workflow fixture workflow-small-plan-0-shot-6"
+        ]
+      }
+    }
+  ],
+  "performanceAcceptance": "unverified",
+  "prerequisiteProjectOpened": "project-workflow-a",
+  "persistedDomainContentUnchanged": true,
+  "storyboardContentPersisted": [
+    {
+      "designId": "workflow-small-design-1-1",
+      "firstShotId": "workflow-small-plan-0-shot-1",
+      "firstPrompt": "Workflow fixture workflow-small-plan-0-shot-1",
+      "allShotsUnchanged": true
+    },
+    {
+      "designId": "workflow-small-design-1-2",
+      "firstShotId": "workflow-small-plan-1-shot-1",
+      "firstPrompt": "Workflow fixture workflow-small-plan-1-shot-1",
+      "allShotsUnchanged": true
+    }
+  ],
+  "guard": {
+    "layers": [
+      "fetch",
+      "http",
+      "https",
+      "socket",
+      "chromium"
+    ],
+    "blockedAttempts": 0
+  }
+}

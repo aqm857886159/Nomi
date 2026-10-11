@@ -148,7 +148,7 @@
   },
   "migration": "No production, transcript format, concurrency, permission or budget migration; existing real receipts remain immutable historical runs.",
   "residual_risks": [
-    "New final-source real cross-project recheck and new-head CI pending",
+    "New-head CI pending after final normal push; final-source bounded real UI receipts passed and are archived",
     "Same-window background concurrency remains unavailable under current per-sender workspace contract",
     "Full-product metrics/matrix and real-display/Mac/Windows/GPU baselines remain unverified"
   ],

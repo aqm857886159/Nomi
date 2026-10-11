@@ -49,9 +49,9 @@
 test at tests/ux/nomi-next-workflow-probe.node-test.mjs:25:1
 ✖ selected design with target plus stale foreign content cannot complete a switch (4.429767ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-  
+
   30 !== null
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-next-workflow-probe.node-test.mjs:47:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)
@@ -70,9 +70,9 @@ test at tests/ux/nomi-next-workflow-probe.node-test.mjs:25:1
 test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
 ✖ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.371674ms)
   AssertionError [ERR_ASSERTION]: Every competing design/shot must have distinct visible content
-  
+
   6 !== 12
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:92:12)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)
@@ -91,9 +91,9 @@ test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
 test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
 ✖ typical fixture contains nonempty drafts, competing plans, mixed groups and history (10.100425ms)
   AssertionError [ERR_ASSERTION]: Every competing design/shot must have distinct visible content
-  
+
   10 !== 48
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:92:12)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)
@@ -112,9 +112,9 @@ test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
 test at tests/ux/nomi-user-workflow-performance.node-test.mjs:84:3
 ✖ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (30.809025ms)
   AssertionError [ERR_ASSERTION]: Every competing design/shot must have distinct visible content
-  
+
   32 !== 320
-  
+
       at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:92:12)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1382:25)

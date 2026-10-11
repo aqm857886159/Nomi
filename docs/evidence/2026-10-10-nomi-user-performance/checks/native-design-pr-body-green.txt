@@ -1,0 +1,10 @@
+PR 正文判据（正文取自 NOMI_PR_BODY_FILE）：路径推出的类别 = 新界面 / 改交互、Agent 行为、大数据量 / 画布 / 长列表
+· 四类：未命中，只查设计卡 ★ 格
+✅ 设计卡：5 格都填了
+· 本 PR 没有让任何逃逸账本条目转成 fixed，合同检查跳过
+✅ 功能分类：路径推出的 3 类都勾了
+✅ 验收证据：6 项都有条目（实证 1，未验证 5）
+⚠ 缺工具：ui-click-census（按钮普查：每个可点目标按七字段预期表逐项对照（设计来源 / 组件、变体 / 状态、无障碍角色 + 名称、用户动作、预期的界面状态和副作用、测试 ID、证据））——现有：tests/ux/full-walk/catalog.mjs（铁律 ⑫）的预期表只覆盖分镜表格，字段映射见本表 buttonExpectationFields。计划接：Playwright 无障碍树枚举可点目标（getByRole 角色 + 名称定位）+ @axe-core/playwright，全量跑里加带种子的 gremlins.js 抓崩溃；不接 Storybook / Cucumber（避免和设计实验室并行两套）
+· 手动全量跑覆盖（PR 正文不要求）：perf-real-scale
+✅ 规则与门岗：碰到 11 个，正文都点名了
+✅ PR 正文判据通过
