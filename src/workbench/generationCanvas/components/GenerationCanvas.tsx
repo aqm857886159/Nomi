@@ -1,12 +1,12 @@
 import React, { type JSX } from 'react'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
+import { preloadGenerationCanvas } from '../../project/projectOpenView'
 import '../styles/generationCanvas.css'
 
 type GenerationCanvasProps = {
   readOnly?: boolean
 }
 
-export const preloadGenerationCanvas = () => import('../reactFlow/GenerationCanvasReactFlow')
 const GenerationCanvasReactFlow = lazyWithChunkBoundary('React Flow 画布', preloadGenerationCanvas)
 
 /** The generation canvas has one renderer; the store remains its data source. */

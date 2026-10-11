@@ -24,6 +24,7 @@ import { ShellAgentHost } from '../ui/app-shell/shell/ShellAgentHost';
 import { useEffectiveAgentForm } from '../ui/app-shell/shell/agentFormStore';
 import { useShellLayoutStore } from '../ui/app-shell/shell/shellLayoutStore';
 import { GenerationViewSwitcher } from './generation/list/GenerationViewSwitcher';
+import { preloadGenerationWorkspace } from './project/projectOpenView';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -36,7 +37,6 @@ const StoryboardWorkspace = lazyWithChunkBoundary(
     "i18n:workspace.storyboard",
     () => import("./creation/storyboard/StoryboardWorkspace"),
 );
-export const preloadGenerationWorkspace = () => import("./generation/GenerationWorkspace");
 const GenerationWorkspace = lazyWithChunkBoundary(
     "生成区",
     preloadGenerationWorkspace,

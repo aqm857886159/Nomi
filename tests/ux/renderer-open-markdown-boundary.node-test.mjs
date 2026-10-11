@@ -36,8 +36,9 @@ function eagerPath(entry, target) {
 
 for (const entry of ['src/workbench/WorkbenchShell.tsx', 'src/workbench/skillLibrary/SkillDetail.tsx', 'src/workbench/promptLibrary/PromptPreviewOverlay.tsx', 'src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx']) {
   test(`project-open static graph excludes optional Markdown owner: ${entry}`, () => {
-    assert.equal(eagerPath(path.join(root, entry), owner), null, 'Eager import path to heavy Markdown owner')
-    assert.ok(eagerPath(path.join(root, entry), wrapper), 'Positive control: real consumers still reach the common lazy boundary')
+    const chain = eagerPath(path.join(root, entry), owner)
+    if (chain !== null) throw new Error(`Eager import path to heavy Markdown owner: ${chain.join(' → ')}`)
+    if (!eagerPath(path.join(root, entry), wrapper)) throw new Error('Positive control: real consumer no longer reaches the common lazy boundary')
   })
 }
 

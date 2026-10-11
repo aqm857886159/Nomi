@@ -47,6 +47,11 @@
     },
     {
       "kind": "read",
+      "path": "src/workbench/library/openWorkspaceFlow.test.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/NomiStudioApp.tsx",
       "symbol": "loadWorkbenchShell"
     },
@@ -73,6 +78,11 @@
     {
       "kind": "read",
       "path": "src/workbench/project/projectPersistenceService.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/useProjectNotificationTarget.test.ts",
       "symbol": "hydrateProject"
     },
     {
@@ -122,14 +132,19 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/project/projectPersistenceService.agentTurn.test.ts",
+      "symbol": "hydrateProject"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/project/useProjectNotificationTarget.ts",
       "symbol": "hydrateProject"
     }
   ],
   "door_reduction": {
-    "before": 17,
-    "after": 17,
-    "why_not": "Distinct library, create/open-folder and notification intentions converge on renderer hydrateProject. Persistence/export same-named methods retain separate domain ownership and do not mount UI."
+    "before": 20,
+    "after": 20,
+    "why_not": "Seventeen production doors plus three unchanged test-reference doors are necessary. Renderer admission remains unique; shared chunk factories moved to projectOpenView.ts, preserving the original after-parent-import waterfall and avoiding noncomponent exports in refresh boundaries. No domain write gateway was added."
   },
   "generality_proof": "All renderer open/create/reveal callers converge on the same sequence and Surface ACK; the same factory imports are reused by normal lazy boundaries for the shell and generation canvas.",
   "shared_boundaries": [

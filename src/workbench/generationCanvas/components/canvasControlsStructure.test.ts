@@ -23,6 +23,7 @@ function productionSources(directory: string): Array<[path: string, contents: st
 describe('generation canvas control structure', () => {
   it('keeps React Flow as the only production generation-canvas renderer', () => {
     const entry = source('./GenerationCanvas.tsx')
+    const loaders = source('../../project/projectOpenView.ts')
     const renderer = source('../reactFlow/GenerationCanvasReactFlowViewport.tsx')
     const generationCanvasRoot = fileURLToPath(new URL('../', import.meta.url))
     const forbiddenLegacySymbols = [
@@ -32,10 +33,14 @@ describe('generation canvas control structure', () => {
       'LegacyGenerationCanvas',
     ]
 
-    expect(entry.match(/\.\.\/reactFlow\/GenerationCanvasReactFlow/g)).toHaveLength(1)
+    expect(entry).toContain("import { preloadGenerationCanvas } from '../../project/projectOpenView'")
+    expect(entry.match(/\bpreloadGenerationCanvas\b/g)).toHaveLength(2)
+    expect(entry).toMatch(/lazyWithChunkBoundary\([^,]+, preloadGenerationCanvas\)/)
+    expect(entry).not.toMatch(/import\(/)
+    expect(loaders.match(/\.\.\/generationCanvas\/reactFlow\/GenerationCanvasReactFlow/g)).toHaveLength(1)
     expect(renderer).toContain("from '@xyflow/react'")
     expect(renderer).toContain('<ReactFlow')
-    for (const [path, contents] of productionSources(generationCanvasRoot)) {
+    for (const [path, contents] of [...productionSources(generationCanvasRoot), ['projectOpenView.ts', loaders]]) {
       for (const symbol of forbiddenLegacySymbols) {
         expect(contents, `${relative(generationCanvasRoot, path)} must not restore ${symbol}`).not.toContain(symbol)
       }
