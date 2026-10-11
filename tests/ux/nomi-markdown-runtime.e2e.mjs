@@ -4,7 +4,7 @@ import path from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { createServer } from 'vite'
-import { expect } from '@playwright/test'
+import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { redact } from './nomi-user-workflow-performance.e2e.mjs'
@@ -14,7 +14,7 @@ import { waitForMarkdownModuleRequest } from './nomi-markdown-runtime-probe.mjs'
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'docs/evidence/2026-10-10-nomi-user-performance/markdown-runtime', `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`)
 fs.mkdirSync(output, { recursive: true })
-const sources = ['tests/ux/nomi-markdown-runtime.e2e.mjs', 'tests/ux/nomi-markdown-runtime-probe.mjs', 'tests/ux/fixtures/nomi-markdown-runtime/main.tsx', 'tests/ux/fixtures/nomi-markdown-runtime/index.html', 'tests/ux/_launchApp.mjs', 'tests/ux/full-walk/invariants.mjs', 'scripts/walkthrough-network-guard.cjs', 'src/workbench/common/LazyNomiMarkdown.tsx', 'src/workbench/common/NomiMarkdown.tsx', 'src/ui/chunkBoundary.tsx', 'src/workbench/ai/v4/AgentPanelV4Markdown.tsx', 'src/workbench/skillLibrary/SkillDetail.tsx', 'src/workbench/promptLibrary/PromptPreviewOverlay.tsx', 'src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx']
+const sources = ['tests/ux/nomi-markdown-runtime.e2e.mjs', 'tests/ux/nomi-markdown-runtime-probe.mjs', 'tests/ux/fixtures/nomi-markdown-runtime/main.tsx', 'tests/ux/fixtures/nomi-markdown-runtime/index.html', 'tests/ux/_launchApp.mjs', 'tests/ux/_assert.mjs', 'tests/ux/full-walk/invariants.mjs', 'scripts/walkthrough-network-guard.cjs', 'src/workbench/common/LazyNomiMarkdown.tsx', 'src/workbench/common/NomiMarkdown.tsx', 'src/ui/chunkBoundary.tsx', 'src/workbench/ai/v4/AgentPanelV4Markdown.tsx', 'src/workbench/skillLibrary/SkillDetail.tsx', 'src/workbench/promptLibrary/PromptPreviewOverlay.tsx', 'src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx']
 const report = { scope: 'real production component runtime in Electron; controlled fixture props/resource faults; native navigation and provider tasks unverified', head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceHashes: Object.fromEntries(sources.map(file => [file, createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex')])), cells: [], passed: false }
 const server = await createServer({ root, configFile: false, cacheDir: makeTempDir('nomi-markdown-vite-'), logLevel: 'error', server: { host: '127.0.0.1', port: 0, hmr: false, watch: null }, optimizeDeps: { include: ['react', 'react-dom/client', 'react/jsx-runtime'] } })
 let instance
@@ -51,7 +51,8 @@ try {
     await held.continue()
     await page.unroute('**/src/workbench/common/NomiMarkdown.tsx*')
     await expect(page.getByRole('heading', { name: 'LATEST_CONTENT', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'OLD_CONTENT', exact: true })).toHaveCount(0)
+    const headingProof = await proveProbe(page.getByRole('heading', { name: 'LATEST_CONTENT', exact: true }), 'same heading probe finds the newest content in this surface')
+    await expectAbsent(page.getByRole('heading', { name: 'OLD_CONTENT', exact: true }), { provenBy: headingProof, message: 'replaced suspended content must remain absent' })
     await expect(page.getByRole('table')).toContainText('verified')
     await expect(page.locator('pre')).toContainText('COPY_SOURCE_1')
     await expect(page.getByRole('link', { name: /Explicit image/ })).toHaveAttribute('href', 'https://example.invalid/image.png')
@@ -65,7 +66,7 @@ try {
     }
     await page.screenshot({ path: path.join(output, `${locale}-${surface}-rendered.png`) })
     await page.evaluate(() => window.__nomiMarkdownRuntime.close())
-    await expect(page.getByRole('heading', { name: 'LATEST_CONTENT', exact: true })).toHaveCount(0)
+    await expectAbsent(page.getByRole('heading', { name: 'LATEST_CONTENT', exact: true }), { provenBy: headingProof, message: 'closing the surface must unmount its observed current content' })
     await page.evaluate(() => window.__nomiMarkdownRuntime.open())
     await expect(page.getByRole('heading', { name: 'LATEST_CONTENT', exact: true })).toBeVisible()
     cell.cases.push('close/unmount and reopen retain current content')
@@ -79,8 +80,9 @@ try {
     await expect(page.locator('[data-runtime-controls]')).toBeVisible()
     cell.cases.push('failed first module fetch stays local; parent controls survive')
     await page.screenshot({ path: path.join(output, `${locale}-${surface}-failure.png`) })
+    const surfaceProof = await proveProbe(page.locator('[data-runtime-surface]'), 'the failed actual component region exists before closing')
     await page.evaluate(() => window.__nomiMarkdownRuntime.close())
-    await expect(page.locator('[data-runtime-surface]')).toHaveCount(0)
+    await expectAbsent(page.locator('[data-runtime-surface]'), { provenBy: surfaceProof, message: 'closing a failed region must unmount that region' })
     await page.evaluate(() => window.__nomiMarkdownRuntime.open())
     await expect(page.locator('[data-chunk-boundary="Markdown"]')).toBeVisible()
     cell.cases.push('close/reopen preserves explicit cached chunk failure')

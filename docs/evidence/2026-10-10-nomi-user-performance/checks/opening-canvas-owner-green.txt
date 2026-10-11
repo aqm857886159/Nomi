@@ -1,0 +1,11 @@
+[vitest] 检测到 2 个 vitest 并发（4 核）→ 本次限 2 个 worker。
+         并发时不让路会把机器压进 swap，测试因超载而超时、红灯失去意义（见脚本头注）。
+
+ RUN  v4.1.8 <repo>
+
+
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  05:46:56
+   Duration  328ms (transform 57ms, setup 72ms, import 18ms, tests 69ms, environment 0ms)
+

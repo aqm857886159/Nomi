@@ -1,0 +1,198 @@
+
+> nomi@0.23.1 lint:ci <repo>
+> eslint . --max-warnings=79
+
+
+<repo>/electron/ai/promptSanitize.ts
+  17:22  warning  Irregular whitespace not allowed                         no-irregular-whitespace
+  17:23  warning  Unexpected joined character sequence in character class  no-misleading-character-class
+  17:31  warning  Irregular whitespace not allowed                         no-irregular-whitespace
+  18:25  warning  Irregular whitespace not allowed                         no-irregular-whitespace
+  18:28  warning  Irregular whitespace not allowed                         no-irregular-whitespace
+
+<repo>/electron/audioTaskRunner.ts
+  133:5  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+  213:9  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+
+<repo>/electron/capabilityCore/core.ts
+   84:7   warning  The value assigned to 'realPath' is not used in subsequent statements  no-useless-assignment
+  118:52  warning  There is no `cause` attached to the symptom error being thrown         preserve-caught-error
+
+<repo>/electron/capabilityCore/dispatcher.ts
+  45:10  warning  'currentCatalogFingerprint' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/capabilityCore/mcpStdioDocumentReceipt.test.ts
+  13:18  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  14:18  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  15:20  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+<repo>/electron/capabilityCore/residentProductionJourney.contract.test.ts
+  222:9  warning  'closeLane' is never reassigned. Use 'const' instead  prefer-const
+
+<repo>/electron/capabilityCore/semanticGenerationCandidate.ts
+  482:35  warning  'params' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/catalog/curatedVideoSharedContracts.test.ts
+  126:9  warning  The value assigned to 'hits' is not used in subsequent statements  no-useless-assignment
+
+<repo>/electron/catalog/secrets.ts
+  51:7  warning  The value assigned to 'available' is not used in subsequent statements  no-useless-assignment
+
+<repo>/electron/export/exportJobIpc.test.ts
+  114:41  warning  Spaces are hard to count. Use {2}  no-regex-spaces
+
+<repo>/electron/export/exportJobIpcHandlers.test.ts
+   6:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+<repo>/electron/export/exportJobManager.test.ts
+  132:11  warning  'job' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/export/exportJobs.ts
+  594:21  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+<repo>/electron/export/exportTypes.ts
+  7:10  warning  'EXPORT_JOB_STATUSES' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/export/ffmpegFiltergraph.ts
+  8:8  warning  'FfmpegFiltergraphErrorCode' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/export/ffmpegRunner.ts
+  186:21  warning  A `require()` style import is forbidden             @typescript-eslint/no-require-imports
+  219:9   warning  'onAbort' is never reassigned. Use 'const' instead  prefer-const
+
+<repo>/electron/export/mediaProbe.ts
+  403:23  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+<repo>/electron/main.ts
+  439:4   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  441:37  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  577:4   warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  663:33  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+<repo>/electron/productionRun/productionPendingSpend.test.ts
+  171:9  warning  The value assigned to 'outcome' is not used in subsequent statements  no-useless-assignment
+
+<repo>/electron/projects/repository.ts
+  64:14  warning  Unexpected control character(s) in regular expression: \x00, \x1f  no-control-regex
+
+<repo>/electron/promptLibrary/promptLibraryStore.ts
+  63:9  warning  The value assigned to 'markdown' is not used in subsequent statements  no-useless-assignment
+
+<repo>/electron/providerAdapter/compiler.test.ts
+  11:7  warning  'draft' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/providerAdapter/compiler.ts
+  4:32  warning  'sanitizedAdapterJson' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/providerAdapter/service.test.ts
+  12:10  warning  'OperationLedger' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+  13:10  warning  'certificationModeOperationKey' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  28:6   warning  'VerifyInput' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+
+<repo>/electron/providerAdapter/serviceLifecycle.test.ts
+  2:10  warning  'AdapterWaitError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/electron/skills/skillLibraryBroadcast.ts
+  31:22  warning  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+<repo>/electron/tasks/taskIpcGuard.ts
+  19:7  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+  27:7  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+
+<repo>/electron/telemetry/telemetryEvents.test.ts
+  47:28  warning  Unnecessary escape character: \U  no-useless-escape
+  47:34  warning  Unnecessary escape character: \m  no-useless-escape
+  47:37  warning  Unnecessary escape character: \a  no-useless-escape
+
+<repo>/electron/workspace/workspaceIpc.ts
+  126:7  warning  The value assigned to 'entries' is not used in subsequent statements  no-useless-assignment
+
+<repo>/src/ui/community/FeedbackButton.tsx
+  14:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/ui/community/FeedbackReportCard.tsx
+  52:52  warning  React Hook React.useMemo has an unnecessary dependency: 'request'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+<repo>/src/ui/onboarding/NetworkSection.tsx
+  30:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/ui/onboarding/comfyuiGraphGeometry.ts
+  33:10  warning  'nodeY' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/src/ui/toast.tsx
+  81:10  warning  Fast refresh only works when a file only exports components. Move your component(s) to a separate file. If all exports are HOCs, add them to the `extraHOCs` option  react-refresh/only-export-components
+
+<repo>/src/utils/orientation.ts
+  6:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+<repo>/src/workbench/ai/v4/askUserContract.test.ts
+  123:9  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+  134:9  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+
+<repo>/src/workbench/assets/AssetLibraryPanel.tsx
+  73:10  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/assets/AssetTile.tsx
+  17:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/creation/storyboard/ShotParamControls.tsx
+  24:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/export/exportApi.ts
+  148:7  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+  152:5  warning  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+
+<repo>/src/workbench/generationCanvas/agent/availableModels.ts
+  188:7  warning  The value assigned to 'defaults' is not used in subsequent statements  no-useless-assignment
+
+<repo>/src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts
+  296:62  warning  'anchorIds' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/src/workbench/generationCanvas/agent/proposalTxn.ts
+  155:7  warning  The value assigned to 'release' is not used in subsequent statements  no-useless-assignment
+
+<repo>/src/workbench/generationCanvas/agent/shotVerify.ts
+  170:38  warning  Unexpected control character(s) in regular expression: \x00, \x1f  no-control-regex
+
+<repo>/src/workbench/generationCanvas/nodes/NodePromptOptimizer.tsx
+  23:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/generationCanvas/nodes/render/CardCommon.tsx
+  442:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLeaferCanvas.tsx
+  109:3  warning  'removingBackgroundProgress' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/src/workbench/generationCanvas/nodes/whiteboard/WhiteboardToolbarControls.tsx
+  7:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx
+  476:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  477:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/src/workbench/generationCanvas/runner/dependencyWaves.ts
+  96:7  warning  The value assigned to 'frontier' is not used in subsequent statements  no-useless-assignment
+
+<repo>/src/workbench/generationCanvas/runner/generationConfirmCopy.test.ts
+  25:7  warning  'confirmCalls' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/src/workbench/generationCanvas/runner/recoverTaskActions.ts
+  110:7  warning  The value assigned to 'current' is not used in subsequent statements  no-useless-assignment
+
+<repo>/src/workbench/generationCanvas/runner/relayFrameResolver.ts
+  35:7  warning  The value assigned to 'url' is not used in subsequent statements  no-useless-assignment
+  40:5  warning  There is no `cause` attached to the symptom error being thrown    preserve-caught-error
+
+<repo>/src/workbench/project/projectMediaMigration.ts
+  45:10  warning  'recordUrlFieldsHaveDataMedia' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+<repo>/src/workbench/timeline/TimelineResizeHandle.tsx
+  11:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+<repo>/tests/agent-runtime/lane-history-compaction.test.mts
+  170:7  warning  'reference' is never reassigned. Use 'const' instead  prefer-const
+
+✖ 78 problems (0 errors, 78 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

@@ -19,7 +19,7 @@ Project open/create/switch, two draft switches, existing group selection/grid pe
 | PromptPreviewOverlay | component passed | component passed | Agent-owned scenario | component passed |
 | ArtifactBody | component passed | component passed | Agent-owned scenario | component passed |
 
-The [actual Electron eight-cell receipt](markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json) covers the four production components/providers in zh-CN/en, held/503 module fetch, latest suspended props, Agent renderer stream props, close/reopen and fresh-context recovery. All eight cells passed, with raw PID-bound five-layer guard and zero outbound attempts. It uses controlled host prop/unmount ports; native navigation, provider stream, Artifact native-file/permission integration and full user workflows remain unverified. [RED/GREEN scope and setup failures](markdown-runtime/README.md). SSR/kernel and static import checks remain separate evidence.
+The [actual Electron eight-cell receipt](markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json) covers the four production components/providers in zh-CN/en, held/503 module fetch, latest suspended props, Agent renderer stream props, close/reopen and fresh-context recovery. All eight cells passed, with raw PID-bound five-layer guard and zero outbound attempts. It uses controlled host prop/unmount ports; native navigation, provider stream, Artifact native-file/permission integration and full user workflows remain unverified. [RED/GREEN scope and setup failures](markdown-runtime/README.md). SSR/kernel and static import checks remain separate evidence.
 
 ## Exact family list
 

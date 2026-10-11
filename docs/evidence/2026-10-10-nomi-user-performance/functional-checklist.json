@@ -33,7 +33,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -45,7 +45,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -57,7 +57,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -69,7 +69,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -82,7 +82,7 @@
           "executed": true,
           "passed": true,
           "nativeProviderAcceptance": "unverified; separate bounded native stream receipt only",
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -92,7 +92,7 @@
       ],
       "relatedEvidence": [
         "journeys/cross-project-agent-2026-10-11T04-22-46-937Z-216f012f-f51b-40ae-9b59-ad6c2c560564/receipt.json",
-        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+        "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json"
       ],
       "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     },
@@ -106,7 +106,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -118,7 +118,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -130,7 +130,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -142,7 +142,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -151,7 +151,7 @@
         }
       ],
       "relatedEvidence": [
-        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+        "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json"
       ],
       "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     },
@@ -165,7 +165,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -177,7 +177,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -189,7 +189,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -201,7 +201,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -210,7 +210,7 @@
         }
       ],
       "relatedEvidence": [
-        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+        "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json"
       ],
       "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     },
@@ -224,7 +224,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -236,7 +236,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -248,7 +248,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -260,7 +260,7 @@
           "implemented": true,
           "executed": true,
           "passed": true,
-          "evidence": "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json",
+          "evidence": "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json",
           "locales": [
             "zh-CN",
             "en"
@@ -269,7 +269,7 @@
         }
       ],
       "relatedEvidence": [
-        "markdown-runtime/2026-10-11T05-38-06-408Z-7a06a760-90ac-47eb-a8cd-096ad8b7c976/receipt.json"
+        "markdown-runtime/2026-10-11T05-50-34-776Z-1eb7ed1c-a7eb-43b6-91ef-17f98db60a18/receipt.json"
       ],
       "limits": "Actual production components/providers in Electron with held/503 loopback module and host prop/unmount ports; zh-CN/en. Provider streaming, native navigation, native file fetch/permissions and full user workflows remain unverified."
     }
