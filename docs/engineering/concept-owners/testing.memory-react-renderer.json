@@ -3,7 +3,7 @@
   "subject": "testing.memory-react-renderer",
   "lifecycle": "delivery",
   "authority_kind": "gateway",
-  "trust_domain": "test",
+  "trust_domain": "renderer",
   "fact_kind": "rule",
   "migration_status": "converged",
   "owner": {

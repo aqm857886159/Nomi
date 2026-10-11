@@ -1,0 +1,67 @@
+
+> nomi@0.23.1 check:root-cause-contracts <repo>
+> node --test ./scripts/check-root-cause-contracts.node-test.mjs ./scripts/new-root-cause-contract.node-test.mjs && node ./scripts/check-root-cause-contracts.mjs
+
+✔ match: high-risk production changes require a contract (1.707054ms)
+✔ match: incomplete contracts cannot satisfy the gate (0.740344ms)
+✔ match: patch-shaped contracts without a shared class boundary are rejected (0.247499ms)
+✔ match: retaining an aging dependency without target and exit criteria is rejected (0.259306ms)
+✔ match: a contract cannot claim an unchanged boundary or mark every entry unaffected (0.262721ms)
+✔ not_match: docs-only changes do not require a contract (0.473335ms)
+✔ match: 交付闸门的执行体算高风险，提醒型 hook 不算 (0.109173ms)
+✔ match: every changed schema v3 contract is validated even without a high-risk production path (0.154711ms)
+✔ match: a complete contract covers changed production and test files (0.157255ms)
+✔ match: a structural contract covers a high-risk production change with structural evidence (3.954936ms)
+✔ match: structural contracts require their own evidence (0.209622ms)
+✔ match: structural contracts reject missing modules and named exports (0.263883ms)
+✔ match: a contract without change_kind retains the full corrective schema (0.137775ms)
+✔ match: unknown change_kind fails closed (0.109404ms)
+✔ match: every existing docs/fixes contract still validates through the formal checker (2687.918976ms)
+✔ match: CLI feeds file contents for every changed file, not just door paths (0.313817ms)
+✔ not_match: unrelated historical contracts are ignored (0.183594ms)
+✔ match: a relevant historical contract cannot satisfy a new change by itself (0.124776ms)
+✔ match: a new complete contract may supersede a relevant historical contract without rewriting history (0.09375ms)
+✔ match: changed contracts require an explicit recurrence classification (0.071347ms)
+✔ match: recurring repairs require changed structural prevention (3.228303ms)
+✔ not_match: a proven one-off does not manufacture a reusable boundary (0.130604ms)
+✔ high-risk matcher covers workflows, providers, media, network, IPC, and persistence boundaries (0.14054ms)
+✔ legacy schema history is immutable and new legacy contracts are rejected (0.234589ms)
+✔ schema v1 and v2 contracts on the trusted base become immutable inherited history (0.304013ms)
+✔ an exact bootstrap legacy hash covers its original diff without becoming a future bypass (0.208611ms)
+✔ invariant_owner_layer: 阈值之后的合同缺这一节就红 (0.183203ms)
+✔ invariant_owner_layer: 指名了归属层且那层有真实测试 → 绿 (0.1277ms)
+✔ invariant_owner_layer: 填 none 或那层没测试，都必须附一份存在的结构工单 (0.251134ms)
+✔ invariant_owner_layer: 归属层不存在、测试不是测试文件，都红 (3.191407ms)
+✔ invariant_owner_layer: 阈值之前 / 没有日期前缀的合同不追溯 (0.164225ms)
+✔ rename evidence: the checker inventory includes both endpoints (13.886841ms)
+✔ doors: 阈值之后的合同不带门表就红（先验它会红） (0.577521ms)
+✔ doors: 数完门、门表解析得到、改的生产文件都在门表里 → 绿 (0.990978ms)
+✔ doors: 文件里已经没有那个符号 = 门没了，红（删一扇门必红） (0.418364ms)
+✔ doors: 只有行号漂了（没增没减门）→ 绿；而钉行号的旧形状门表 → 红 (0.249963ms)
+✔ doors: 同一个文件里调三次仍是一扇门；门表里写两条重复的 = 手改过，红 (0.124466ms)
+✔ doors: 删掉的生产文件不可能再有门；在 legacy_paths.removed_paths 声明了就不算漏数，没声明照样红 (0.2618ms)
+✔ doors: 改了门表之外的生产文件 = 门没数全，红 (3.273299ms)
+✔ door_reduction: after 必须等于门表长度；≥2 扇一扇没减必须写 why_not (0.261129ms)
+✔ doors: 阈值之前的合同不追溯（棘轮按日期，不是并行版本） (0.081421ms)
+✔ @generated 纯数据文件不算「门表之外的改动」 (0.264114ms)
+✔ 只有 @generated 标记但含可执行声明的（生成出来的代码）照常要门表 (0.237144ms)
+✔ rewrite_decision: 不写不报错（它只在同一层被反复修时由症状聚类门岗要求） (0.131787ms)
+✔ rewrite_decision: 选项只能是 patch / rewrite / delete (0.158406ms)
+✔ rewrite_decision: 特征测试必须是存在的测试文件 (0.11398ms)
+✔ rewrite_decision: 补 / 删 → 测试存在即可；重写 → 那份测试必须在本次 diff 里 (0.202733ms)
+✔ classifyFindings: schema 问题阻断，门表 / 高风险没带合同降为警告 (3.319518ms)
+✔ detected_by / recurrence_check_on: 新合同属 recurring、高风险或逃逸 bug 时必填，枚举与日期格式固定 (0.456401ms)
+✔ 未填的骨架不可能混过 validator（枚举位是非法 TODO，必红） (1.533466ms)
+✔ 按行内说明填完 TODO 后，recurring 合同过 validator 结构层 (0.874934ms)
+✔ 降档为 one_off（删 prevention）同样过结构层 (0.199787ms)
+✔ 结构变更骨架包含路径、行为保持和验证局限证据，而不带 corrective fiction (0.252967ms)
+✔ writeSkeleton 落盘为合法 JSON、拒绝覆盖、拒绝越界 id (0.861754ms)
+ℹ tests 54
+ℹ suites 0
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2796.505649
+✅ 根因合同门禁：本次无高风险生产路径变化

@@ -1,0 +1,53 @@
+
+> nomi@0.23.1 check:nomi-workflow-evidence <repo>
+> node --test tests/ux/nomi-user-workflow-performance.node-test.mjs tests/ux/renderer-open-markdown-boundary.node-test.mjs tests/ux/nomi-next-workflow-probe.node-test.mjs
+
+✔ completion probe starts its browser frame loop before trusting an input (1.948767ms)
+✔ semantic budgets distinguish feedback, decoded content and delayed target-control completion (1.145809ms)
+✔ completed target response may precede decoded content without invalidating the action (0.192697ms)
+✔ schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions (1.83016ms)
+✔ workflow scale contract is fixed and complete (0.474037ms)
+✔ small fixture persists document, plan and mixed media counts (7.626475ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (6.606103ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (9.274563ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (29.382404ms)
+✔ production snapshot and result normalization preserve fixture groups and history (418.294436ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.64363ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.407919ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.637521ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.17437ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.146047ms)
+✔ the real browser probe retains input stalls and requires trusted target input plus production response (1.682389ms)
+✔ decoded content can arrive after feedback, eligibility and completed target input (0.725051ms)
+✔ existing opening spinner is feedback before target title or decoded media (0.526796ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy content or canvas eligibility (1.023397ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.479046ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.480877ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.154451ms)
+✔ schema-v3 samples without decoded-content, target-control and persistence receipts are not measurement evidence (0.246567ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.151195ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.086108ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.08048ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (7.342077ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (25.621094ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.139278ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (25.863253ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (28.304462ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.715417ms)
+✔ control inventory rechecks actual AST bindings, conditional duplication and existing walk action gaps (402.137257ms)
+✔ expanded pairwise plans cover all eligible13-axis pairs plus the complete interruption/recovery combination (0.880062ms)
+✔ percentiles and raw path redaction are deterministic (0.305976ms)
+✔ negative raw frame interval fails closed rather than dropping an input stall (0.135281ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/WorkbenchShell.tsx (497.700504ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/skillLibrary/SkillDetail.tsx (1.302052ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/promptLibrary/PromptPreviewOverlay.tsx (1.651343ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx (1.904721ms)
+✔ graph distinguishes a real owner from its dynamic lazy boundary and type-only contract (2.678855ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1699.259611
