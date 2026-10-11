@@ -1,0 +1,598 @@
+
+> nomi@0.23.1 build <repo>
+> node scripts/package-build-stamp.mjs build
+
+
+> nomi@0.23.1 check:electron-install <repo>
+> node --test ./scripts/electron-install-identity.node-test.mjs && node ./scripts/check-electron-install.mjs
+
+✔ reads Electron version from stdout despite macOS sandbox diagnostics on stderr (0.661986ms)
+✔ path containment follows the host filesystem case semantics on Windows (0.177264ms)
+✔ physical containment rejects case-sensitive Windows twin worktrees (0.189392ms)
+✔ rejects a shared top-level node_modules link even when every version matches (2.539061ms)
+✔ rejects the observed pnpm link that detours through another worktree (0.334088ms)
+✔ rejects a lexical in-worktree package link whose intermediate pnpm store resolves outside (0.394177ms)
+✔ rejects an installed Electron package from an older worktree (0.410612ms)
+✔ rejects a missing downloaded Electron runtime (0.294258ms)
+✔ rejects stale dist metadata and the actual stale executable independently (0.956604ms)
+✔ accepts an isolated install only when package, dist, and executable match the declaration (0.581416ms)
+✔ installer repairs only a missing runtime and then validates the exact executable (0.553775ms)
+✔ installer never mutates a shared node_modules or an already mismatched package (0.780402ms)
+✔ Cloudflare Workers dependency install never launches the desktop Electron runtime (23.181681ms)
+✔ all Electron entry points share the identity gate and install repair (1.225665ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 76.348853
+✅ Electron 安装身份一致：declared=43.4.1 · package=43.4.1 · dist=43.4.1 · runtime=43.4.1
+
+> nomi@0.23.1 build:renderer <repo>
+> node scripts/package-build-stamp.mjs invalidate && node scripts/build-tailwind.mjs --minify && vite build --mode production
+
+▶  Tailwind CSS building: public/tailwind.generated.css
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+Rebuilding...
+
+Done in 3014ms.
+vite v7.3.5 building client environment for production...
+transforming...
+✓ 4856 modules transformed.
+rendering chunks...
+[plugin vite:reporter]
+(!) <repo>/src/workbench/generationCanvas/store/generationCanvasStore.ts is dynamically imported by <repo>/src/workbench/generationCanvas/agent/shotVerifyStore.ts but also statically imported by <repo>/src/ui/app-shell/shell/ShellTopBar.tsx, <repo>/src/ui/app-shell/useRunningTaskCount.ts, <repo>/src/workbench/WorkbenchShell.tsx, <repo>/src/workbench/ai/v4/useAgentPanelSpendConfirm.ts, <repo>/src/workbench/ai/v4/useAgentPanelV4Actions.ts, <repo>/src/workbench/ai/v4/useDirectorPatchNotices.ts, <repo>/src/workbench/assets/AssetLibraryPanel.tsx, <repo>/src/workbench/assets/deleteAssetResult.ts, <repo>/src/workbench/assets/pendingAssetDeletions.ts, <repo>/src/workbench/assets/useAssetPool.ts, <repo>/src/workbench/capability/capabilityApplyHandler.ts, <repo>/src/workbench/capability/directorPreviewBlocksOp.ts, <repo>/src/workbench/capability/multiShotCanvasLanding.ts, <repo>/src/workbench/capability/storyboardPresent.ts, <repo>/src/workbench/creation/DocumentListSidebar.tsx, <repo>/src/workbench/creation/SelectionGeneratePopover.tsx, <repo>/src/workbench/creation/storyboard/StoryboardPlanEditor.tsx, <repo>/src/workbench/creation/storyboard/exec/storyboardOverrideActions.ts, <repo>/src/workbench/creation/storyboard/exec/storyboardRowActions.ts, <repo>/src/workbench/generation/list/GenerationListCard.tsx, <repo>/src/workbench/generation/list/GenerationListDetail.tsx, <repo>/src/workbench/generation/list/GenerationListParts.tsx, <repo>/src/workbench/generation/list/GenerationListSectionHeader.tsx, <repo>/src/workbench/generation/list/GenerationListView.tsx, <repo>/src/workbench/generation/list/generationListModelLabels.ts, <repo>/src/workbench/generation/list/generationListSource.ts, <repo>/src/workbench/generationCanvas/adapters/assetImportAdapter.ts, <repo>/src/workbench/generationCanvas/adapters/clipboardImagePaste.ts, <repo>/src/workbench/generationCanvas/adapters/useNodeImageUpload.ts, <repo>/src/workbench/generationCanvas/agent/applyCanvasToolCall.ts, <repo>/src/workbench/generationCanvas/agent/generationCanvasTools.ts, <repo>/src/workbench/generationCanvas/agent/proposalUndo.ts, <repo>/src/workbench/generationCanvas/agent/sendFrameToTimeline.ts, <repo>/src/workbench/generationCanvas/agent/sendGenerationNodeToTimeline.ts, <repo>/src/workbench/generationCanvas/agent/sendStoryboardToTimeline.ts, <repo>/src/workbench/generationCanvas/comfyuiProgressBridge.ts, <repo>/src/workbench/generationCanvas/components/BatchPlanOverlay.tsx, <repo>/src/workbench/generationCanvas/components/CanvasToolbar.tsx, <repo>/src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx, <repo>/src/workbench/generationCanvas/components/batchPlanPreview.ts, <repo>/src/workbench/generationCanvas/components/canvasAddIntentActions.tsx, <repo>/src/workbench/generationCanvas/components/canvasResultDrag.ts, <repo>/src/workbench/generationCanvas/components/canvasSelectionConnection.ts, <repo>/src/workbench/generationCanvas/components/canvasStageDrop.ts, <repo>/src/workbench/generationCanvas/components/groupGenerate.ts, <repo>/src/workbench/generationCanvas/components/toolCallSummary.ts, <repo>/src/workbench/generationCanvas/components/useBatchPlanCost.ts, <repo>/src/workbench/generationCanvas/components/useCanvasFrameActions.ts, <repo>/src/workbench/generationCanvas/components/useCanvasFrameMembership.ts, <repo>/src/workbench/generationCanvas/components/useCanvasFrameTool.ts, <repo>/src/workbench/generationCanvas/components/useCanvasGroupActions.ts, <repo>/src/workbench/generationCanvas/components/useCanvasGroupToolbar.ts, <repo>/src/workbench/generationCanvas/components/useCanvasMenuActions.ts, <repo>/src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts, <repo>/src/workbench/generationCanvas/components/useCanvasShortcuts.ts, <repo>/src/workbench/generationCanvas/components/useTidyCanvas.ts, <repo>/src/workbench/generationCanvas/fixation/freezeAnchor.ts, <repo>/src/workbench/generationCanvas/hooks/useNodeRelationships.ts, <repo>/src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx, <repo>/src/workbench/generationCanvas/nodes/ClipNode.tsx, <repo>/src/workbench/generationCanvas/nodes/ConnectedTextChips.tsx, <repo>/src/workbench/generationCanvas/nodes/GenerationTimingHint.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeLockBadge.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeParameterControls.tsx, <repo>/src/workbench/generationCanvas/nodes/NodePromptOptimizer.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeVideoPlaybackGuard.tsx, <repo>/src/workbench/generationCanvas/nodes/TextNodeComposer.tsx, <repo>/src/workbench/generationCanvas/nodes/artifact/rasterizeArtifactToReferenceAsset.ts, <repo>/src/workbench/generationCanvas/nodes/buildContactSheetNode.ts, <repo>/src/workbench/generationCanvas/nodes/completeNodeConnection.ts, <repo>/src/workbench/generationCanvas/nodes/composerRun.ts, <repo>/src/workbench/generationCanvas/nodes/director/DirectorNode.tsx, <repo>/src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx, <repo>/src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx, <repo>/src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts, <repo>/src/workbench/generationCanvas/nodes/director/agent/directorPreviewCapture.ts, <repo>/src/workbench/generationCanvas/nodes/director/directorShotFocusSession.ts, <repo>/src/workbench/generationCanvas/nodes/extractShotCutsToNodes.ts, <repo>/src/workbench/generationCanvas/nodes/extractVideoFrameToNode.ts, <repo>/src/workbench/generationCanvas/nodes/nodeRecoveryNotice.ts, <repo>/src/workbench/generationCanvas/nodes/nodeWriteAccess.ts, <repo>/src/workbench/generationCanvas/nodes/render/AudioStripNode.tsx, <repo>/src/workbench/generationCanvas/nodes/render/EditableNodeTitle.tsx, <repo>/src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx, <repo>/src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx, <repo>/src/workbench/generationCanvas/nodes/shotTable/factBridge.ts, <repo>/src/workbench/generationCanvas/nodes/shotTable/shotTableActions.ts, <repo>/src/workbench/generationCanvas/nodes/textProcessRun.ts, <repo>/src/workbench/generationCanvas/nodes/trimVideoToNode.ts, <repo>/src/workbench/generationCanvas/nodes/useNodeDragResize.ts, <repo>/src/workbench/generationCanvas/nodes/useNodeImageEditing.ts, <repo>/src/workbench/generationCanvas/nodes/useNodeMediaMeasurement.ts, <repo>/src/workbench/generationCanvas/nodes/useNodeMentionSource.ts, <repo>/src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts, <repo>/src/workbench/generationCanvas/nodes/useNodePanoramaHandlers.ts, <repo>/src/workbench/generationCanvas/nodes/useSameCapabilityAlternative.ts, <repo>/src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx, <repo>/src/workbench/generationCanvas/nodes/whiteboard/WhiteboardCardBody.tsx, <repo>/src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx, <repo>/src/workbench/generationCanvas/quickActions/connectionMenuModel.ts, <repo>/src/workbench/generationCanvas/quickActions/deriveFromNode.ts, <repo>/src/workbench/generationCanvas/quickActions/nodeInputActions.ts, <repo>/src/workbench/generationCanvas/quickActions/nodeTryRecipes.ts, <repo>/src/workbench/generationCanvas/reactFlow/CanvasBatchConnectionLine.tsx, <repo>/src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx, <repo>/src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx, <repo>/src/workbench/generationCanvas/reactFlow/canvasDragWriteback.ts, <repo>/src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts, <repo>/src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts, <repo>/src/workbench/generationCanvas/resultMediaBackfillBridge.ts, <repo>/src/workbench/generationCanvas/reviewEventBridge.ts, <repo>/src/workbench/generationCanvas/runner/generationRunController.ts, <repo>/src/workbench/generationCanvas/runner/localTaskControl.ts, <repo>/src/workbench/generationCanvas/runner/projectAssetHealthCheck.ts, <repo>/src/workbench/generationCanvas/runner/recoverTaskActions.ts, <repo>/src/workbench/generationCanvas/runner/refSnapshotStamp.ts, <repo>/src/workbench/generationCanvas/runner/runProjectDelivery.ts, <repo>/src/workbench/generationCanvas/runner/textActions.ts, <repo>/src/workbench/generationCanvas/store/canvasAutoReference.ts, <repo>/src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts, <repo>/src/workbench/library/WorkflowLibraryContent.tsx, <repo>/src/workbench/onboarding/journeyTourStore.ts, <repo>/src/workbench/onboarding/onboardingProgress.ts, <repo>/src/workbench/preview/PreviewSourcePanel.tsx, <repo>/src/workbench/preview/TimelinePreview.tsx, <repo>/src/workbench/preview/TimelineTransitionLayer.tsx, <repo>/src/workbench/production/ProductionCanvasLandingHost.tsx, <repo>/src/workbench/production/useProductionStatus.ts, <repo>/src/workbench/project/projectPersistenceService.ts, <repo>/src/workbench/project/releaseWorkbenchProjectSession.ts, <repo>/src/workbench/project/useProjectNotificationTarget.ts, <repo>/src/workbench/project/workbenchProjectSession.ts, <repo>/src/workbench/promptLibrary/PromptLibraryPanel.tsx, <repo>/src/workbench/sidebar/CategoryTree.tsx, <repo>/src/workbench/skillLibrary/SkillLibraryPanel.tsx, <repo>/src/workbench/taskCenter/TaskCenterButton.tsx, <repo>/src/workbench/taskCenter/TaskCenterPanel.tsx, <repo>/src/workbench/timeline/TimelineClip.tsx, <repo>/src/workbench/timeline/TimelineGenerationFeedback.tsx, <repo>/src/workbench/timeline/TimelineTrack.tsx, <repo>/src/workbench/timeline/agent/exportToolCall.ts, <repo>/src/workbench/workbenchStore.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter]
+(!) <repo>/src/workbench/project/workbenchProjectSession.ts is dynamically imported by <repo>/src/workbench/NomiStudioApp.tsx, <repo>/src/workbench/NomiStudioApp.tsx, <repo>/src/workbench/project/useProjectWindowLifecycle.ts, <repo>/src/workbench/project/useProjectWindowLifecycle.ts, <repo>/src/workbench/project/useProjectWindowLifecycle.ts but also statically imported by <repo>/src/workbench/assets/deleteAssetResult.ts, <repo>/src/workbench/capability/canonicalCanvasPlanPatch.ts, <repo>/src/workbench/capability/multiShotCanvasLanding.ts, <repo>/src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx, <repo>/src/workbench/generationCanvas/nodes/TextNodeComposer.tsx, <repo>/src/workbench/generationCanvas/nodes/director/DirectorNode.tsx, <repo>/src/workbench/generationCanvas/runner/generationRunController.ts, <repo>/src/workbench/generationCanvas/runner/recoverTaskActions.ts, <repo>/src/workbench/project/projectPersistenceService.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter]
+(!) <repo>/src/workbench/generationCanvas/runner/generationRunController.ts is dynamically imported by <repo>/src/workbench/production/useProductionStatus.ts, <repo>/src/workbench/timeline/TimelinePanel.tsx but also statically imported by <repo>/src/workbench/creation/storyboard/exec/storyboardRowActions.ts, <repo>/src/workbench/generationCanvas/components/batchPlanPreview.ts, <repo>/src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeErrorReport.tsx, <repo>/src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx, <repo>/src/workbench/generationCanvas/nodes/composerRun.ts, <repo>/src/workbench/generationCanvas/runner/generationRunWaves.ts, <repo>/src/workbench/taskCenter/TaskCenterPanel.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter]
+(!) <repo>/src/workbench/generationCanvas/nodes/director/agent/cameraMoveVocab.ts is dynamically imported by <repo>/src/workbench/generationCanvas/agent/applyCanvasToolCall.ts but also statically imported by <repo>/src/workbench/generationCanvas/components/toolCallSummary.ts, <repo>/src/workbench/generationCanvas/nodes/director/agent/attachCameraMoveToTarget.ts, <repo>/src/workbench/generationCanvas/nodes/director/agent/cameraMoveBuilder.ts, <repo>/src/workbench/generationCanvas/nodes/director/agent/createCameraMoveReferenceNode.ts, <repo>/src/workbench/generationCanvas/nodes/director/panels/shotStrip/shotLabels.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter]
+(!) <repo>/src/workbench/api/assetUploadApi.ts is dynamically imported by <repo>/src/workbench/generationCanvas/agent/deliverAgentArtifact.ts but also statically imported by <repo>/src/workbench/ai/composer/useComposerAttachments.ts, <repo>/src/workbench/assets/importAudioToLibrary.ts, <repo>/src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx, <repo>/src/workbench/generationCanvas/adapters/assetImportAdapter.ts, <repo>/src/workbench/generationCanvas/adapters/clipboardImagePaste.ts, <repo>/src/workbench/generationCanvas/adapters/persistNodeImage.ts, <repo>/src/workbench/generationCanvas/nodes/artifact/rasterizeArtifactToReferenceAsset.ts, <repo>/src/workbench/generationCanvas/nodes/clipNodeUpload.ts, <repo>/src/workbench/generationCanvas/nodes/controls/slotFileUploads.ts, <repo>/src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.ts, <repo>/src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx, <repo>/src/workbench/generationCanvas/nodes/director/panels/usePanoramaImport.tsx, <repo>/src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts, <repo>/src/workbench/generationCanvas/nodes/useNodeAssetDrop.ts, <repo>/src/workbench/generationCanvas/resultMediaBackfillBridge.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter]
+(!) <repo>/src/workbench/onboarding/demoProject.ts is dynamically imported by <repo>/src/workbench/NomiStudioApp.tsx but also statically imported by <repo>/src/workbench/onboarding/journeyTourStore.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter]
+(!) <repo>/src/workbench/onboarding/journeyTourStore.ts is dynamically imported by <repo>/src/workbench/NomiStudioApp.tsx but also statically imported by <repo>/src/workbench/onboarding/JourneyTourController.tsx, <repo>/src/workbench/project/releaseWorkbenchProjectSession.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                                 2.37 kB │ gzip:     1.05 kB
+dist/assets/fal-CAZ0dVIC.png                                    4.39 kB
+dist/assets/modelscope-CALtM65P.png                             4.60 kB
+dist/assets/runway-R38JR_Cf.png                                 4.99 kB
+dist/assets/apimart-CHyzw5Rw.png                                6.51 kB
+dist/assets/kie-DvlGfFOa.png                                    8.74 kB
+dist/assets/agnes-CsbpoQnN.png                                  8.80 kB
+dist/assets/runninghub-D0AMZD6P.png                             9.23 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2        10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2         11.23 kB
+dist/assets/fraunces-vietnamese-wght-normal-CnvboYUG.woff2     11.57 kB
+dist/assets/dreamina-BibRoP4j.png                              13.81 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2          18.75 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2             19.00 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2      25.96 kB
+dist/assets/replicate-Bx2ypAvc.png                             26.67 kB
+dist/assets/minimax-VQwZQhUU.png                               30.00 kB
+dist/assets/doubao-BZvY0jTo.png                                32.76 kB
+dist/assets/fraunces-latin-ext-wght-normal-Ca2vKHc0.woff2      33.58 kB
+dist/assets/fraunces-latin-wght-normal-ukD16Tqj.woff2          36.62 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2             48.26 kB
+dist/assets/meshy-DYpVxSnd.png                                 54.11 kB
+dist/assets/removeBackground.worker-CnGQLB15.js                83.25 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2         85.07 kB
+dist/assets/ort.bundle.min-DeNFR5ws.js                        395.47 kB
+dist/assets/ort.webgpu.bundle.min-9jorn3qA.js                 395.48 kB
+dist/assets/videoDepth.worker-DfpoYtqq.js                     399.02 kB
+dist/assets/ort.bundle.min-OfoG_cy9.mjs                       399.90 kB
+dist/assets/ort.webgpu.bundle.min-CEayb2S6.mjs                399.92 kB
+dist/assets/ual-mannequin-DV1yThLW.glb                      6,622.82 kB
+dist/assets/WorkbenchShell-C_bkwyE7.css                         4.08 kB │ gzip:     1.02 kB
+dist/assets/index-CYDVF2Ia.css                                  4.31 kB │ gzip:     1.01 kB
+dist/assets/GenerationCanvas-DeHykEvh.css                       5.71 kB │ gzip:     1.50 kB
+dist/assets/panorama-vendor-BhKD3eOA.css                        9.69 kB │ gzip:     2.38 kB
+dist/assets/GenerationCanvasReactFlow-DvWK7BAF.css             22.47 kB │ gzip:     3.71 kB
+dist/assets/fullscreenZIndex-CRkKcsUM.js                        0.03 kB │ gzip:     0.05 kB
+dist/assets/nodeScrollRegionClassName-D5LWsQjC.js               0.08 kB │ gzip:     0.09 kB
+dist/assets/IconChevronLeft-HaItKqaJ.js                         0.16 kB │ gzip:     0.16 kB
+dist/assets/portal-CC1c57a-.js                                  0.18 kB │ gzip:     0.17 kB
+dist/assets/addNodeToTimelineEnd-BtVR3eXi.js                    0.19 kB │ gzip:     0.17 kB
+dist/assets/customCallIntent-B7ixFXQe.js                        0.20 kB │ gzip:     0.17 kB
+dist/assets/fencedCanvas-D_AHdk0Z.js                            0.21 kB │ gzip:     0.18 kB
+dist/assets/IconArrowBackUp-CJC1CVP8.js                         0.21 kB │ gzip:     0.19 kB
+dist/assets/useDockCollapsed-ZXhKm9zO.js                        0.22 kB │ gzip:     0.20 kB
+dist/assets/IconCode-DJqP30SO.js                                0.22 kB │ gzip:     0.17 kB
+dist/assets/IconArrowUp-oi46g1S3.js                             0.22 kB │ gzip:     0.18 kB
+dist/assets/IconArrowRight-CJTKkKB9.js                          0.23 kB │ gzip:     0.18 kB
+dist/assets/IconPencil-Qzgug2SO.js                              0.23 kB │ gzip:     0.19 kB
+dist/assets/IconUser-DAeNVp_s.js                                0.23 kB │ gzip:     0.19 kB
+dist/assets/IconStack2-LWgsda0N.js                              0.24 kB │ gzip:     0.18 kB
+dist/assets/IconUpload-DY4gh6a9.js                              0.25 kB │ gzip:     0.19 kB
+dist/assets/IconLayoutRows-Cz9CCc7f.js                          0.26 kB │ gzip:     0.19 kB
+dist/assets/IconTable-DJ1QONv1.js                               0.28 kB │ gzip:     0.19 kB
+dist/assets/IconZoomIn-BYdrh9EF.js                              0.28 kB │ gzip:     0.20 kB
+dist/assets/IconDots-CElWgCSU.js                                0.29 kB │ gzip:     0.18 kB
+dist/assets/IconWaveSine-DW_zCGVn.js                            0.29 kB │ gzip:     0.23 kB
+dist/assets/IconMaximize-K7vZNtOm.js                            0.31 kB │ gzip:     0.20 kB
+dist/assets/IconBrush-rN-aqhN-.js                               0.32 kB │ gzip:     0.22 kB
+dist/assets/IconBulb-B2CrEOxO.js                                0.32 kB │ gzip:     0.23 kB
+dist/assets/IconScissors-DS5lN1Si.js                            0.32 kB │ gzip:     0.20 kB
+dist/assets/IconLink-CjHYX4Z2.js                                0.32 kB │ gzip:     0.24 kB
+dist/assets/IconPlayerPause-BSeLQZ1G.js                         0.33 kB │ gzip:     0.19 kB
+dist/assets/IconLayoutBoard-Dk1_-wzO.js                         0.33 kB │ gzip:     0.21 kB
+dist/assets/IconLockOpen-BQcDmDlK.js                            0.33 kB │ gzip:     0.22 kB
+dist/assets/IconCamera-ew2gCvNc.js                              0.33 kB │ gzip:     0.22 kB
+dist/assets/IconSparkles-FJQRikps.js                            0.33 kB │ gzip:     0.19 kB
+dist/assets/IconPointer-Bhq-e03r.js                             0.34 kB │ gzip:     0.25 kB
+dist/assets/useElementWidth-R_wlmZTy.js                         0.36 kB │ gzip:     0.27 kB
+dist/assets/IconFileText-r1N2Dvjo.js                            0.37 kB │ gzip:     0.23 kB
+dist/assets/canvasViewportScale-DaZe2pLM.js                     0.37 kB │ gzip:     0.26 kB
+dist/assets/generationFlowNodeContext-DsV01IlX.js               0.37 kB │ gzip:     0.22 kB
+dist/assets/IconWand-CppyKVLP.js                                0.38 kB │ gzip:     0.21 kB
+dist/assets/IconCloud-BwOsuazL.js                               0.39 kB │ gzip:     0.29 kB
+dist/assets/IconFocusCentered-kEQ5IIHX.js                       0.39 kB │ gzip:     0.23 kB
+dist/assets/usePreviewVideoPlayheadSync-h5lGIyPA.js             0.39 kB │ gzip:     0.29 kB
+dist/assets/IconTimeline-ONdvW-VV.js                            0.40 kB │ gzip:     0.21 kB
+dist/assets/tikhubErrorKinds-5f7Pguup.js                        0.42 kB │ gzip:     0.30 kB
+dist/assets/VideoPlaybackStatusOverlay-CtcBcek2.js              0.43 kB │ gzip:     0.30 kB
+dist/assets/shortcutSurface-6rTZlMnS.js                         0.44 kB │ gzip:     0.29 kB
+dist/assets/IconCube-B-XFr7lS.js                                0.47 kB │ gzip:     0.29 kB
+dist/assets/groupVisualContract-Nb7cvWRz.js                     0.48 kB │ gzip:     0.24 kB
+dist/assets/IconPlayerSkipForward-s7UmWeL2.js                   0.48 kB │ gzip:     0.28 kB
+dist/assets/app-api-CpG-T-4K.js                                 0.48 kB │ gzip:     0.28 kB
+dist/assets/IconPalette-BUO_MiMC.js                             0.49 kB │ gzip:     0.28 kB
+dist/assets/IconVolumeOff-CePzh4_R.js                           0.49 kB │ gzip:     0.30 kB
+dist/assets/IconGripVertical-DFAhpitI.js                        0.49 kB │ gzip:     0.20 kB
+dist/assets/showUndoToast-DbhYZaNb.js                           0.49 kB │ gzip:     0.35 kB
+dist/assets/IconHelp-BuBIql73.js                                0.50 kB │ gzip:     0.29 kB
+dist/assets/IconMagnet-DMR2rksN.js                              0.51 kB │ gzip:     0.26 kB
+dist/assets/IconAdjustments-DswXRpdO.js                         0.51 kB │ gzip:     0.23 kB
+dist/assets/IconPlugConnectedX-Bh27mgr1.js                      0.52 kB │ gzip:     0.27 kB
+dist/assets/types-B2PdV6Ym.js                                   0.52 kB │ gzip:     0.30 kB
+dist/assets/codeowners-Bp6g37R7.js                              0.55 kB │ gzip:     0.32 kB
+dist/assets/platformShortcut-BAPi-BMF.js                        0.57 kB │ gzip:     0.32 kB
+dist/assets/tiptapPlaceholderClasses-DafVXt7a.js                0.59 kB │ gzip:     0.22 kB
+dist/assets/nodeVersionEntries-i3mbFPbT.js                      0.59 kB │ gzip:     0.33 kB
+dist/assets/IconStarFilled-BkQHH7RB.js                          0.60 kB │ gzip:     0.37 kB
+dist/assets/modelOptionsAdapter-DC3C3jiL.js                     0.61 kB │ gzip:     0.34 kB
+dist/assets/nodePromptFocus-ByuhYO6k.js                         0.63 kB │ gzip:     0.38 kB
+dist/assets/IconCube3dSphere-BRUBceGY.js                        0.65 kB │ gzip:     0.28 kB
+dist/assets/IconRotate-BQRxiPkh.js                              0.69 kB │ gzip:     0.33 kB
+dist/assets/usePromptLibrary-CZ9bkAfZ.js                        0.69 kB │ gzip:     0.42 kB
+dist/assets/IconBooks-C_aaZypF.js                               0.70 kB │ gzip:     0.33 kB
+dist/assets/IconMoodConfuzed-j825nsuB.js                        0.71 kB │ gzip:     0.36 kB
+dist/assets/shellsession-BADoaaVG.js                            0.71 kB │ gzip:     0.43 kB
+dist/assets/directorSessionRegistry-DlvJkOPm.js                 0.73 kB │ gzip:     0.39 kB
+dist/assets/tsv-B_m7g4N7.js                                     0.74 kB │ gzip:     0.34 kB
+dist/assets/shotVerifyRunner-DrtPuOZE.js                        0.79 kB │ gzip:     0.46 kB
+dist/assets/skillDisplay-BAIU6KjO.js                            0.81 kB │ gzip:     0.46 kB
+dist/assets/recoverableCopy-DVwPMHPM.js                         0.81 kB │ gzip:     0.43 kB
+dist/assets/shotPricingRule-CqpzuXrl.js                         0.87 kB │ gzip:     0.49 kB
+dist/assets/LazyNomiMarkdown-7GY669xO.js                        0.88 kB │ gzip:     0.51 kB
+dist/assets/html-derivative-BFtXZ54Q.js                         0.90 kB │ gzip:     0.50 kB
+dist/assets/mediaImportMessage-D-qaXvWH.js                      0.93 kB │ gzip:     0.45 kB
+dist/assets/IconViewportWide-DvqY-wxw.js                        0.97 kB │ gzip:     0.38 kB
+dist/assets/git-rebase-r7XF79zn.js                              0.98 kB │ gzip:     0.44 kB
+dist/assets/qmldir-C8lEn-DE.js                                  1.00 kB │ gzip:     0.45 kB
+dist/assets/useTimelinePlaybackClock-DNT_3cGF.js                1.04 kB │ gzip:     0.49 kB
+dist/assets/FeedbackButton-D8RrYhkQ.js                          1.06 kB │ gzip:     0.56 kB
+dist/assets/assetLibraryDrag-Cg2SLpcF.js                        1.07 kB │ gzip:     0.54 kB
+dist/assets/csv-fuZLfV_i.js                                     1.14 kB │ gzip:     0.37 kB
+dist/assets/useFilmstrip-9Fw8cv7t.js                            1.15 kB │ gzip:     0.66 kB
+dist/assets/git-commit-F4YmCXRG.js                              1.23 kB │ gzip:     0.53 kB
+dist/assets/directorPatchNotes-D4fWCEFM.js                      1.27 kB │ gzip:     0.67 kB
+dist/assets/xsl-CtQFsRM5.js                                     1.39 kB │ gzip:     0.52 kB
+dist/assets/SkillMedia-Cohv8tVb.js                              1.39 kB │ gzip:     0.71 kB
+dist/assets/dotenv-Da5cRb03.js                                  1.42 kB │ gzip:     0.53 kB
+dist/assets/shotVerifyJudge-CCPLnrnz.js                         1.46 kB │ gzip:     0.87 kB
+dist/assets/buildNodeModelChangePatch-C2MXvUN0.js               1.47 kB │ gzip:     0.69 kB
+dist/assets/sparql-rVzFXLq3.js                                  1.48 kB │ gzip:     0.82 kB
+dist/assets/ini-BEwlwnbL.js                                     1.53 kB │ gzip:     0.50 kB
+dist/assets/storyboardLabels-sKgIzEnP.js                        1.57 kB │ gzip:     0.77 kB
+dist/assets/useUserPrompts-hBTydcBI.js                          1.57 kB │ gzip:     0.82 kB
+dist/assets/gatherShotVerifyInputs-Cnbz4tpI.js                  1.60 kB │ gzip:     0.87 kB
+dist/assets/timelineShortcuts-B9oSmL87.js                       1.63 kB │ gzip:     0.79 kB
+dist/assets/fortran-fixed-form-CkoXwp7k.js                      1.67 kB │ gzip:     0.69 kB
+dist/assets/docker-BcOcwvcX.js                                  1.74 kB │ gzip:     0.60 kB
+dist/assets/hxml-Bvhsp5Yf.js                                    1.74 kB │ gzip:     0.88 kB
+dist/assets/AssistantPane-NqLDOYwS.js                           1.76 kB │ gzip:     0.90 kB
+dist/assets/desktop-BmXAJ9_W.js                                 1.83 kB │ gzip:     0.76 kB
+dist/assets/PlanRows-Cvtcb1Eu.js                                1.84 kB │ gzip:     0.82 kB
+dist/assets/textProcessRun-C-eR3GAb.js                          2.05 kB │ gzip:     1.02 kB
+dist/assets/timelineDragPayload-CGE5e5pU.js                     2.12 kB │ gzip:     0.96 kB
+dist/assets/wenyan-BV7otONQ.js                                  2.16 kB │ gzip:     1.09 kB
+dist/assets/jssm-C2t-YnRu.js                                    2.24 kB │ gzip:     0.62 kB
+dist/assets/resolveSnap-B7mDhshn.js                             2.26 kB │ gzip:     1.05 kB
+dist/assets/GenerationCanvas-BSESOyDC.js                        2.26 kB │ gzip:     1.26 kB
+dist/assets/directorShotFocus-CZDmdLJx.js                       2.30 kB │ gzip:     1.20 kB
+dist/assets/reg-C-SQnVFl.js                                     2.35 kB │ gzip:     0.70 kB
+dist/assets/edge-BkV0erSs.js                                    2.36 kB │ gzip:     0.70 kB
+dist/assets/deleteAssetResult-B_a1Je8P.js                       2.37 kB │ gzip:     1.10 kB
+dist/assets/diff-D97Zzqfu.js                                    2.57 kB │ gzip:     0.70 kB
+dist/assets/gleam-BspZqrRM.js                                   2.58 kB │ gzip:     0.82 kB
+dist/assets/erb-B12qg9BL.js                                     2.61 kB │ gzip:     0.84 kB
+dist/assets/hy-DFXneXwc.js                                      2.65 kB │ gzip:     1.18 kB
+dist/assets/canvasNodeLevelOfDetail-ww4529jF.js                 2.66 kB │ gzip:     1.32 kB
+dist/assets/canvasDraggingFlag-BmGIGhnY.js                      2.69 kB │ gzip:     1.17 kB
+dist/assets/useVideoPlaybackHeal-BSUx9kEk.js                    2.70 kB │ gzip:     1.42 kB
+dist/assets/runtime-vendor-C7o3WUtX.js                          2.82 kB │ gzip:     1.33 kB
+dist/assets/json-Cp-IABpG.js                                    2.82 kB │ gzip:     0.78 kB
+dist/assets/openscad-C4EeE6gA.js                                2.82 kB │ gzip:     1.01 kB
+dist/assets/StagingCaptureHost-Bvy9gbPE.js                      2.83 kB │ gzip:     1.46 kB
+dist/assets/log-2UxHyX5q.js                                     2.85 kB │ gzip:     0.90 kB
+dist/assets/cairo-KRGpt6FW.js                                   2.94 kB │ gzip:     0.81 kB
+dist/assets/berry-uYugtg8r.js                                   3.01 kB │ gzip:     0.81 kB
+dist/assets/jsonl-DcaNXYhu.js                                   3.01 kB │ gzip:     0.79 kB
+dist/assets/mcpGenericSnippet-CNJ7CtGg.js                       3.03 kB │ gzip:     1.38 kB
+dist/assets/legacySceneBuilders-BEDz_s6o.js                     3.06 kB │ gzip:     1.58 kB
+dist/assets/LibraryPicker-9eLJsyTt.js                           3.08 kB │ gzip:     1.39 kB
+dist/assets/addAssetToTimeline-C4RQy55o.js                      3.08 kB │ gzip:     1.40 kB
+dist/assets/jsonc-Des-eS-w.js                                   3.11 kB │ gzip:     0.80 kB
+dist/assets/logo-BtOb2qkB.js                                    3.13 kB │ gzip:     1.47 kB
+dist/assets/po-BTJTHyun.js                                      3.24 kB │ gzip:     0.91 kB
+dist/assets/json5-C9tS-k6U.js                                   3.25 kB │ gzip:     0.83 kB
+dist/assets/mipsasm-CKIfxQSi.js                                 3.26 kB │ gzip:     1.18 kB
+dist/assets/tasl-QIJgUcNo.js                                    3.29 kB │ gzip:     0.85 kB
+dist/assets/genie-D0YGMca9.js                                   3.36 kB │ gzip:     1.21 kB
+dist/assets/rel-C3B-1QV4.js                                     3.37 kB │ gzip:     1.11 kB
+dist/assets/vala-CsfeWuGM.js                                    3.37 kB │ gzip:     1.19 kB
+dist/assets/workflowLibrary-Bg3lnBNS.js                         3.41 kB │ gzip:     1.27 kB
+dist/assets/splunk-BtCnVYZw.js                                  3.44 kB │ gzip:     1.52 kB
+dist/assets/WhiteboardCardBody-DcWCtEwe.js                      3.57 kB │ gzip:     1.72 kB
+dist/assets/videoPlaybackTelemetry-Cghw7ig5.js                  3.60 kB │ gzip:     1.63 kB
+dist/assets/fluent-C4IJs8-o.js                                  3.61 kB │ gzip:     0.90 kB
+dist/assets/ssh-config-_ykCGR6B.js                              3.62 kB │ gzip:     1.60 kB
+dist/assets/jsonnet-DFQXde-d.js                                 3.62 kB │ gzip:     1.05 kB
+dist/assets/kdl-DV7GczEv.js                                     3.63 kB │ gzip:     1.04 kB
+dist/assets/glsl-DplSGwfg.js                                    3.63 kB │ gzip:     1.41 kB
+dist/assets/createCameraMoveReferenceNode-lCIgIDQ4.js           3.64 kB │ gzip:     1.78 kB
+dist/assets/hurl-irOxFIW8.js                                    3.65 kB │ gzip:     1.16 kB
+dist/assets/narrat-DRg8JJMk.js                                  3.67 kB │ gzip:     1.11 kB
+dist/assets/turtle-BsS91CYL.js                                  3.70 kB │ gzip:     0.98 kB
+dist/assets/DirectorHeadlessCapture-B3nceYRL.js                 3.90 kB │ gzip:     1.83 kB
+dist/assets/zenscript-DVFEvuxE.js                               3.91 kB │ gzip:     1.28 kB
+dist/assets/ron-D8l8udqQ.js                                     3.91 kB │ gzip:     0.98 kB
+dist/assets/gn-n2N0HUVH.js                                      4.00 kB │ gzip:     1.49 kB
+dist/assets/NodeGenerationStatus-DHbcvENc.js                    4.04 kB │ gzip:     1.84 kB
+dist/assets/pascal-D93ZcfNL.js                                  4.15 kB │ gzip:     1.67 kB
+dist/assets/export.esm.min-CCz3mOnB.js                          4.28 kB │ gzip:     2.10 kB
+dist/assets/BatchPlanOverlay-AlWFr7o5.js                        4.31 kB │ gzip:     1.98 kB
+dist/assets/shotVerify-CJ-NrMg6.js                              4.40 kB │ gzip:     2.68 kB
+dist/assets/tcl-dwOrl1Do.js                                     4.43 kB │ gzip:     1.52 kB
+dist/assets/nextflow-Zz6hmt5N.js                                4.51 kB │ gzip:     1.17 kB
+dist/assets/rosmsg-BJDFO7_C.js                                  4.52 kB │ gzip:     1.06 kB
+dist/assets/http-jrhK8wxY.js                                    4.55 kB │ gzip:     1.12 kB
+dist/assets/AssetPickerPopover-D3kW1n0D.js                      4.59 kB │ gzip:     1.72 kB
+dist/assets/polar-C0HS_06l.js                                   4.67 kB │ gzip:     1.12 kB
+dist/assets/sdbl-DVxCFoDh.js                                    4.70 kB │ gzip:     2.01 kB
+dist/assets/fennel-BYunw83y.js                                  4.77 kB │ gzip:     1.53 kB
+dist/assets/bibtex-CHM0blh-.js                                  4.80 kB │ gzip:     0.83 kB
+dist/assets/assetLibraryMaterialize-DOj5n5W6.js                 4.89 kB │ gzip:     2.09 kB
+dist/assets/nodeWriteAccess-xWqA5Ovr.js                         4.92 kB │ gzip:     1.88 kB
+dist/assets/llvm-DjAJT7YJ.js                                    5.05 kB │ gzip:     2.01 kB
+dist/assets/wgsl-Dx-B1_4e.js                                    5.14 kB │ gzip:     1.39 kB
+dist/assets/gdresource-BOOCDP_w.js                              5.29 kB │ gzip:     1.34 kB
+dist/assets/qml-3beO22l8.js                                     5.34 kB │ gzip:     1.38 kB
+dist/assets/zig-VOosw3JB.js                                     5.34 kB │ gzip:     1.55 kB
+dist/assets/dax-CEL-wOlO.js                                     5.37 kB │ gzip:     2.23 kB
+dist/assets/bicep-Bmn6On1c.js                                   5.38 kB │ gzip:     1.15 kB
+dist/assets/xml-sdJ4AIDG.js                                     5.38 kB │ gzip:     1.21 kB
+dist/assets/awk-DMzUqQB5.js                                     5.46 kB │ gzip:     1.38 kB
+dist/assets/factBridge-Cn5HMtQi.js                              5.51 kB │ gzip:     2.17 kB
+dist/assets/coq-DkFqJrB1.js                                     5.53 kB │ gzip:     1.92 kB
+dist/assets/jinja-4LBKfQ-Z.js                                   5.69 kB │ gzip:     1.40 kB
+dist/assets/createStagingReferenceNode-ClQy1rz5.js              5.69 kB │ gzip:     2.87 kB
+dist/assets/NodeFloatingToolbar-0yIg9f6O.js                     5.77 kB │ gzip:     2.49 kB
+dist/assets/lean-BZvkOJ9d.js                                    5.78 kB │ gzip:     1.92 kB
+dist/assets/moonbit-_H4v1dQx.js                                 5.90 kB │ gzip:     1.68 kB
+dist/assets/powerquery-CEu0bR-o.js                              5.90 kB │ gzip:     1.52 kB
+dist/assets/shaderlab-Dg9Lc6iA.js                               5.92 kB │ gzip:     2.08 kB
+dist/assets/verilog-BQ8w6xss.js                                 5.93 kB │ gzip:     1.89 kB
+dist/assets/cypher-COkxafJQ.js                                  5.96 kB │ gzip:     1.73 kB
+dist/assets/vb-D17OF-Vu.js                                      6.09 kB │ gzip:     2.34 kB
+dist/assets/richTextActions-LsB6JqgP.js                         6.10 kB │ gzip:     1.55 kB
+dist/assets/red-bN70gL4F.js                                     6.26 kB │ gzip:     1.60 kB
+dist/assets/min-dark-CafNBF8u.js                                6.29 kB │ gzip:     1.71 kB
+dist/assets/gdshader-DkwncUOv.js                                6.33 kB │ gzip:     1.73 kB
+dist/assets/prisma-Dd19v3D-.js                                  6.33 kB │ gzip:     1.39 kB
+dist/assets/ara-BRHolxvo.js                                     6.36 kB │ gzip:     1.81 kB
+dist/assets/useAssetPool-B7IMr_sR.js                            6.40 kB │ gzip:     2.69 kB
+dist/assets/clojure-P80f7IUj.js                                 6.41 kB │ gzip:     1.42 kB
+dist/assets/postcss-CXtECtnM.js                                 6.42 kB │ gzip:     1.91 kB
+dist/assets/toml-vGWfd6FD.js                                    6.43 kB │ gzip:     1.28 kB
+dist/assets/solarized-light-L9t79GZl.js                         6.48 kB │ gzip:     1.73 kB
+dist/assets/r-Dspwwk_N.js                                       6.54 kB │ gzip:     1.78 kB
+dist/assets/proto-C7zT0LnQ.js                                   6.55 kB │ gzip:     1.42 kB
+dist/assets/JourneyTourController-D6MDfEEU.js                   6.58 kB │ gzip:     2.20 kB
+dist/assets/smalltalk-BERRCDM3.js                               6.59 kB │ gzip:     1.62 kB
+dist/assets/ArtifactNodeToolbar-Du1iIakP.js                     6.64 kB │ gzip:     2.90 kB
+dist/assets/CanvasListLinks-BtMZX0Ki.js                         6.75 kB │ gzip:     2.93 kB
+dist/assets/talonscript-CkByrt1z.js                             6.76 kB │ gzip:     1.49 kB
+dist/assets/DeferredNodeMedia-DKxZvxAX.js                       6.83 kB │ gzip:     2.60 kB
+dist/assets/solarized-dark-DXbdFlpD.js                          6.85 kB │ gzip:     1.80 kB
+dist/assets/riscv-BM1_JUlF.js                                   6.91 kB │ gzip:     1.98 kB
+dist/assets/min-light-CTRr51gU.js                               6.97 kB │ gzip:     1.89 kB
+dist/assets/soy-Brmx7dQM.js                                     6.98 kB │ gzip:     1.66 kB
+dist/assets/scheme-C98Dy4si.js                                  7.17 kB │ gzip:     2.05 kB
+dist/assets/hlsl-D3lLCCz7.js                                    7.26 kB │ gzip:     2.19 kB
+dist/assets/qss-IeuSbFQv.js                                     7.47 kB │ gzip:     2.58 kB
+dist/assets/ArtifactBody-C86j05sY.js                            7.54 kB │ gzip:     2.56 kB
+dist/assets/PreviewSourcePanel-C4oFHudh.js                      7.68 kB │ gzip:     3.20 kB
+dist/assets/dart-CF10PKvl.js                                    7.81 kB │ gzip:     1.91 kB
+dist/assets/systemd-4A_iFExJ.js                                 7.87 kB │ gzip:     2.55 kB
+dist/assets/monokai-D4h5O-jR.js                                 7.88 kB │ gzip:     1.91 kB
+dist/assets/regexp-CDVJQ6XC.js                                  7.99 kB │ gzip:     1.42 kB
+dist/assets/haml-B8DHNrY2.js                                    8.26 kB │ gzip:     1.81 kB
+dist/assets/typst-DHCkPAjA.js                                   8.39 kB │ gzip:     1.67 kB
+dist/assets/vue-html-AaS7Mt5G.js                                8.47 kB │ gzip:     1.68 kB
+dist/assets/plsql-ChMvpjG-.js                                   8.51 kB │ gzip:     3.00 kB
+dist/assets/TextDocumentNode-xQde2S0k.js                        8.54 kB │ gzip:     3.60 kB
+dist/assets/DirectorNode-Cgf8UjAy.js                            8.59 kB │ gzip:     3.68 kB
+dist/assets/AssetPreviewDialog-Dc45oV5K.js                      8.62 kB │ gzip:     3.08 kB
+dist/assets/horizon-BUw7H-hv.js                                 8.78 kB │ gzip:     1.96 kB
+dist/assets/kotlin-BdnUsdx6.js                                  8.79 kB │ gzip:     2.13 kB
+dist/assets/horizon-bright-Cn-bp-IR.js                          8.79 kB │ gzip:     1.97 kB
+dist/assets/ts-tags-zn1MmPIZ.js                                 8.95 kB │ gzip:     1.22 kB
+dist/assets/make-CHLpvVh8.js                                    8.96 kB │ gzip:     1.77 kB
+dist/assets/andromeeda-C4gqWexZ.js                              9.02 kB │ gzip:     2.36 kB
+dist/assets/sas-cz2c8ADy.js                                     9.06 kB │ gzip:     3.81 kB
+dist/assets/dark-plus-C3mMm8J8.js                               9.10 kB │ gzip:     2.10 kB
+dist/assets/slack-dark-BthQWCQV.js                              9.12 kB │ gzip:     1.97 kB
+dist/assets/Model3DViewer-BujUPQs5.js                           9.16 kB │ gzip:     3.59 kB
+dist/assets/sass-Cj5Yp3dK.js                                    9.29 kB │ gzip:     2.49 kB
+dist/assets/plastic-3e1v2bzS.js                                 9.30 kB │ gzip:     1.98 kB
+dist/assets/WorkflowLibraryContent-Cq29T9V1.js                  9.38 kB │ gzip:     3.40 kB
+dist/assets/slack-ochin-DqwNpetd.js                             9.43 kB │ gzip:     2.10 kB
+dist/assets/CameraMoveCaptureHost-CqRxvNe3.js                   9.49 kB │ gzip:     4.18 kB
+dist/assets/tex-idrVyKtj.js                                     9.67 kB │ gzip:     3.06 kB
+dist/assets/jison-wvAkD_A8.js                                   9.69 kB │ gzip:     1.85 kB
+dist/assets/directorShotSummaries-lNAq21Jb.js                   9.69 kB │ gzip:     4.33 kB
+dist/assets/cmake-D1j8_8rp.js                                   9.86 kB │ gzip:     3.37 kB
+dist/assets/light-plus-B7mTdjB0.js                              9.94 kB │ gzip:     2.27 kB
+dist/assets/projectPersistenceService-BNl8RjEB.js               9.96 kB │ gzip:     3.69 kB
+dist/assets/hcl-BWvSN4gD.js                                    10.05 kB │ gzip:     1.93 kB
+dist/assets/pkl-u5AG7uiY.js                                    10.37 kB │ gzip:     1.38 kB
+dist/assets/beancount-k_qm7-4y.js                              10.37 kB │ gzip:     1.44 kB
+dist/assets/nextflow-groovy-BeH2EWoN.js                        10.41 kB │ gzip:     2.13 kB
+dist/assets/dream-maker-BtqSS_iP.js                            10.47 kB │ gzip:     2.25 kB
+dist/assets/raku-DXvB9xmW.js                                   10.47 kB │ gzip:     2.94 kB
+dist/assets/yaml-Buea-lGh.js                                   10.51 kB │ gzip:     2.27 kB
+dist/assets/rst-BrH8l1NY.js                                    10.67 kB │ gzip:     2.42 kB
+dist/assets/elm-DbKCFpqz.js                                    10.97 kB │ gzip:     2.12 kB
+dist/assets/just-Cw27pwNe.js                                   11.16 kB │ gzip:     2.78 kB
+dist/assets/github-light-DAi9KRSo.js                           11.18 kB │ gzip:     2.51 kB
+dist/assets/prolog-CbFg5uaA.js                                 11.36 kB │ gzip:     3.83 kB
+dist/assets/terraform-BETggiCN.js                              11.39 kB │ gzip:     2.51 kB
+dist/assets/github-dark-DHJKELXO.js                            11.41 kB │ gzip:     2.55 kB
+dist/assets/PanoramaViewer-CIgNAMae.js                         11.41 kB │ gzip:     4.25 kB
+dist/assets/puppet-BMWR74SV.js                                 11.44 kB │ gzip:     2.11 kB
+dist/assets/laserwave-DUszq2jm.js                              11.50 kB │ gzip:     2.58 kB
+dist/assets/ShotTableNode-DXS2cSrj.js                          11.82 kB │ gzip:     4.28 kB
+dist/assets/gherkin-DyxjwDmM.js                                11.95 kB │ gzip:     5.05 kB
+dist/assets/wasm-MzD3tlZU.js                                   12.01 kB │ gzip:     2.19 kB
+dist/assets/hjson-D5-asLiD.js                                  12.05 kB │ gzip:     1.64 kB
+dist/assets/handlebars-BL8al0AC.js                             12.15 kB │ gzip:     2.38 kB
+dist/assets/apache-Pmp26Uib.js                                 12.46 kB │ gzip:     3.72 kB
+dist/assets/HandbookPanel-CkXvIwjl.js                          12.48 kB │ gzip:     5.07 kB
+dist/assets/vesper-DU1UobuO.js                                 12.69 kB │ gzip:     1.97 kB
+dist/assets/bat-BkioyH1T.js                                    12.89 kB │ gzip:     3.22 kB
+dist/assets/fish-BvzEVeQv.js                                   13.04 kB │ gzip:     1.74 kB
+dist/assets/v-BcVCzyr7.js                                      13.21 kB │ gzip:     2.74 kB
+dist/assets/GenerationWorkspace-CrrRg7Jh.js                    13.35 kB │ gzip:     5.07 kB
+dist/assets/vitesse-light-CVO1_9PV.js                          13.62 kB │ gzip:     3.04 kB
+dist/assets/aurora-x-D-2ljcwZ.js                               13.66 kB │ gzip:     2.28 kB
+dist/assets/vitesse-black-Bkuqu6BP.js                          13.68 kB │ gzip:     3.06 kB
+dist/assets/vitesse-dark-D0r3Knsf.js                           13.76 kB │ gzip:     3.06 kB
+dist/assets/pug-CGlum2m_.js                                    13.84 kB │ gzip:     2.58 kB
+dist/assets/luau-C-HG3fhB.js                                   13.96 kB │ gzip:     3.18 kB
+dist/assets/synthwave-84-CbfX1IO0.js                           14.04 kB │ gzip:     2.87 kB
+dist/assets/CreationWorkspace-reLx-vs0.js                      14.04 kB │ gzip:     5.00 kB
+dist/assets/github-light-default-D7oLnXFd.js                   14.16 kB │ gzip:     3.04 kB
+dist/assets/clarity-D53aC0YG.js                                14.28 kB │ gzip:     2.46 kB
+dist/assets/github-light-high-contrast-BfjtVDDH.js             14.28 kB │ gzip:     3.02 kB
+dist/assets/SelectionToolbarFrame-Grmv5Xm7.js                  14.29 kB │ gzip:     5.49 kB
+dist/assets/github-dark-dimmed-DH5Ifo-i.js                     14.43 kB │ gzip:     3.13 kB
+dist/assets/github-dark-default-Cuk6v7N8.js                    14.44 kB │ gzip:     3.13 kB
+dist/assets/github-dark-high-contrast-E3gJ1_iC.js              14.60 kB │ gzip:     3.09 kB
+dist/assets/gnuplot-DdkO51Og.js                                14.78 kB │ gzip:     3.27 kB
+dist/assets/rust-B1yitclQ.js                                   15.07 kB │ gzip:     2.72 kB
+dist/assets/kusto-DZf3V79B.js                                  15.17 kB │ gzip:     3.92 kB
+dist/assets/actionscript-3-CoDkCxhg.js                         15.21 kB │ gzip:     2.66 kB
+dist/assets/nix-CwoSXNpI.js                                    15.51 kB │ gzip:     2.48 kB
+dist/assets/lua-BaeVxFsk.js                                    15.54 kB │ gzip:     3.16 kB
+dist/assets/abap-BdImnpbu.js                                   15.85 kB │ gzip:     5.91 kB
+dist/assets/solidity-rGO070M0.js                               16.07 kB │ gzip:     3.11 kB
+dist/assets/matlab-D7o27uSR.js                                 16.09 kB │ gzip:     3.06 kB
+dist/assets/cue-D82EKSYY.js                                    16.20 kB │ gzip:     2.06 kB
+dist/assets/state-vendor-CBaC6bIq.js                           16.29 kB │ gzip:     6.19 kB
+dist/assets/elixir-CDX3lj18.js                                 16.32 kB │ gzip:     2.80 kB
+dist/assets/ConnectAssistantCard-DLL0v6Sv.js                   16.48 kB │ gzip:     4.42 kB
+dist/assets/odin-BBf5iR-q.js                                   16.51 kB │ gzip:     2.94 kB
+dist/assets/CategoryTree-ChRAzrSB.js                           16.79 kB │ gzip:     5.27 kB
+dist/assets/bird2-DPOp833l.js                                  16.97 kB │ gzip:     3.85 kB
+dist/assets/kanagawa-wave-DWedfzmr.js                          17.12 kB │ gzip:     2.93 kB
+dist/assets/kanagawa-lotus-CfQXZHmo.js                         17.13 kB │ gzip:     2.93 kB
+dist/assets/kanagawa-dragon-CkXjmgJE.js                        17.13 kB │ gzip:     2.95 kB
+dist/assets/move-IF9eRakj.js                                   17.51 kB │ gzip:     3.07 kB
+dist/assets/graphql-ChdNCCLP.js                                18.00 kB │ gzip:     2.52 kB
+dist/assets/liquid-DYVedYrR.js                                 18.09 kB │ gzip:     3.16 kB
+dist/assets/svelte-C_ipcX3V.js                                 18.24 kB │ gzip:     3.14 kB
+dist/assets/material-theme-D5KoaKCx.js                         18.62 kB │ gzip:     3.11 kB
+dist/assets/material-theme-darker-BfHTSMKl.js                  18.63 kB │ gzip:     3.11 kB
+dist/assets/material-theme-ocean-CyktbL80.js                   18.63 kB │ gzip:     3.14 kB
+dist/assets/material-theme-lighter-B0m2ddpp.js                 18.63 kB │ gzip:     3.11 kB
+dist/assets/material-theme-palenight-Csfq5Kiy.js               18.64 kB │ gzip:     3.13 kB
+dist/assets/gdscript-C5YyOfLZ.js                               18.99 kB │ gzip:     3.75 kB
+dist/assets/groovy-gcz8RCvz.js                                 19.18 kB │ gzip:     3.60 kB
+dist/assets/mdc-BMNejdWA.js                                    19.63 kB │ gzip:     6.66 kB
+dist/assets/aiScene-D37MblbV.js                                19.71 kB │ gzip:     7.68 kB
+dist/assets/glimmer-js-Rg0-pVw9.js                             20.07 kB │ gzip:     2.95 kB
+dist/assets/glimmer-ts-U6CK756n.js                             20.07 kB │ gzip:     2.94 kB
+dist/assets/ayu-dark-DYE7WIF3.js                               20.08 kB │ gzip:     3.94 kB
+dist/assets/ayu-mirage-32ctXXKs.js                             20.09 kB │ gzip:     3.94 kB
+dist/assets/powershell-Dpen1YoG.js                             20.15 kB │ gzip:     4.07 kB
+dist/assets/ayu-light-BA47KaF1.js                              20.15 kB │ gzip:     3.93 kB
+dist/assets/viml-CJc9bBzg.js                                   20.37 kB │ gzip:     6.73 kB
+dist/assets/nushell-Cz2AlsmD.js                                20.41 kB │ gzip:     5.22 kB
+dist/assets/clipNodeDrop-CPGugwlT.js                           20.61 kB │ gzip:     7.72 kB
+dist/assets/snazzy-light-Bw305WKR.js                           20.77 kB │ gzip:     3.83 kB
+dist/assets/dracula-BzJJZx-M.js                                21.07 kB │ gzip:     4.00 kB
+dist/assets/dracula-soft-BXkSAIEj.js                           21.08 kB │ gzip:     4.04 kB
+dist/assets/twig-DNn4PbVi.js                                   21.36 kB │ gzip:     3.87 kB
+dist/assets/PromptLibraryPanel-DMMg8JuQ.js                     21.45 kB │ gzip:     6.47 kB
+dist/assets/wit-5i3qLPDT.js                                    21.47 kB │ gzip:     2.89 kB
+dist/assets/rose-pine-qdsjHGoJ.js                              21.74 kB │ gzip:     3.87 kB
+dist/assets/rose-pine-moon-D4_iv3hh.js                         21.75 kB │ gzip:     3.89 kB
+dist/assets/rose-pine-dawn-DHQR4-dF.js                         21.75 kB │ gzip:     3.89 kB
+dist/assets/nim-CVrawwO9.js                                    22.46 kB │ gzip:     3.16 kB
+dist/assets/common-lisp-Cg-RD9OK.js                            22.58 kB │ gzip:     6.06 kB
+dist/assets/surrealql-Bq5Q-fJD.js                              22.58 kB │ gzip:     4.32 kB
+dist/assets/gruvbox-dark-hard-CFHQjOhq.js                      22.63 kB │ gzip:     4.18 kB
+dist/assets/gruvbox-dark-soft-CVdnzihN.js                      22.63 kB │ gzip:     4.17 kB
+dist/assets/gruvbox-light-hard-CH1njM8p.js                     22.64 kB │ gzip:     4.18 kB
+dist/assets/gruvbox-light-soft-hJgmCMqR.js                     22.64 kB │ gzip:     4.18 kB
+dist/assets/gruvbox-dark-medium-GsRaNv29.js                    22.64 kB │ gzip:     4.18 kB
+dist/assets/gruvbox-light-medium-DRw_LuNl.js                   22.64 kB │ gzip:     4.18 kB
+dist/assets/sql-BLtJtn59.js                                    23.41 kB │ gzip:     7.40 kB
+dist/assets/index-BbaIlpZZ.js                                  23.52 kB │ gzip:     7.26 kB
+dist/assets/cadence-Bv_4Rxtq.js                                23.67 kB │ gzip:     3.67 kB
+dist/assets/astro-CbQHKStN.js                                  24.01 kB │ gzip:     7.54 kB
+dist/assets/typespec-BGHnOYBU.js                               24.02 kB │ gzip:     2.59 kB
+dist/assets/apl-dKokRX4l.js                                    24.04 kB │ gzip:     4.20 kB
+dist/assets/templ-P3uqSqPl.js                                  24.06 kB │ gzip:     5.40 kB
+dist/assets/vhdl-CeAyd5Ju.js                                   24.26 kB │ gzip:     3.87 kB
+dist/assets/angular-html-DMxchsRu.js                           24.29 kB │ gzip:     4.01 kB
+dist/assets/vue-DN_0RTcg.js                                    24.48 kB │ gzip:     2.97 kB
+dist/assets/purescript-CklMAg4u.js                             24.69 kB │ gzip:     3.25 kB
+dist/assets/one-light-C3Wv6jpd.js                              25.30 kB │ gzip:     3.67 kB
+dist/assets/fsharp-CXgrBDvD.js                                 25.31 kB │ gzip:     4.13 kB
+dist/assets/marko-CnJfTvn9.js                                  25.48 kB │ gzip:     3.59 kB
+dist/assets/SpendConfirmDialog-if9BiwBd.js                     25.55 kB │ gzip:     6.47 kB
+dist/assets/c3-eo99z4R2.js                                     25.63 kB │ gzip:     3.87 kB
+dist/assets/night-owl-light-CMTm3GFP.js                        25.90 kB │ gzip:     4.26 kB
+dist/assets/system-verilog-CnnmHF94.js                         26.20 kB │ gzip:     4.85 kB
+dist/assets/ClipNodeTimeline-IelUceHG.js                       26.38 kB │ gzip:     8.99 kB
+dist/assets/nord-Ddv68eIx.js                                   26.72 kB │ gzip:     4.40 kB
+dist/assets/codeql-DsOJ9woJ.js                                 26.88 kB │ gzip:     3.79 kB
+dist/assets/core.esm.min-Dawg7Daa.js                           26.95 kB │ gzip:     9.36 kB
+dist/assets/scss-OYdSNvt2.js                                   27.20 kB │ gzip:     4.20 kB
+dist/assets/java-CylS5w8V.js                                   27.22 kB │ gzip:     4.26 kB
+dist/assets/coffee-Ch7k5sss.js                                 27.42 kB │ gzip:     6.35 kB
+dist/assets/razor-Uh8Bk_45.js                                  27.51 kB │ gzip:     3.57 kB
+dist/assets/ClipNode-Bp3jI_L4.js                               27.68 kB │ gzip:     9.60 kB
+dist/assets/scala-C151Ov-r.js                                  28.88 kB │ gzip:     3.94 kB
+dist/assets/night-owl-C39BiMTA.js                              28.91 kB │ gzip:     5.16 kB
+dist/assets/crystal-tKQVLTB8.js                                29.39 kB │ gzip:     4.44 kB
+dist/assets/mermaid-mWjccvbQ.js                                29.51 kB │ gzip:     3.66 kB
+dist/assets/applescript-Co6uUVPk.js                            29.57 kB │ gzip:     5.93 kB
+dist/assets/GenerationListView-DWRGd0Gk.js                     30.28 kB │ gzip:     9.75 kB
+dist/assets/julia-CxzCAyBv.js                                  31.07 kB │ gzip:     4.33 kB
+dist/assets/stylus-BEDo0Tqx.js                                 31.07 kB │ gzip:     7.99 kB
+dist/assets/poimandres-CS3Unz2-.js                             33.49 kB │ gzip:     5.50 kB
+dist/assets/one-dark-pro-DVMEJ2y_.js                           33.79 kB │ gzip:     5.52 kB
+dist/assets/bsl-BO_Y6i37.js                                    33.87 kB │ gzip:     8.35 kB
+dist/assets/haxe-CzTSHFRz.js                                   35.16 kB │ gzip:     5.91 kB
+dist/assets/nginx-BpAMiNFr.js                                  35.37 kB │ gzip:     4.43 kB
+dist/assets/houston-DnULxvSX.js                                35.42 kB │ gzip:     5.78 kB
+dist/assets/tokyo-night-hegEt444.js                            35.67 kB │ gzip:     6.24 kB
+dist/assets/applyDirectorWrite-D8mfR94H.js                     36.09 kB │ gzip:    13.80 kB
+dist/assets/erlang-DsQrWhSR.js                                 37.48 kB │ gzip:     4.40 kB
+dist/assets/cobol-nwyudZeR.js                                  39.15 kB │ gzip:    10.87 kB
+dist/assets/composerHeadlineSummary-BxFApTtu.js                39.18 kB │ gzip:    13.62 kB
+dist/assets/asm-D_Q5rh1f.js                                    40.72 kB │ gzip:     8.21 kB
+dist/assets/shellscript-Yzrsuije.js                            41.48 kB │ gzip:     6.09 kB
+dist/assets/haskell-Df6bDoY_.js                                41.49 kB │ gzip:     6.44 kB
+dist/assets/perl-C0TMdlhV.js                                   43.16 kB │ gzip:     4.67 kB
+dist/assets/d-85-TOEBH.js                                      43.80 kB │ gzip:     8.47 kB
+dist/assets/ruby-Dw2BHqvy.js                                   45.95 kB │ gzip:     5.68 kB
+dist/assets/go-CxLEBnE3.js                                     46.81 kB │ gzip:     5.18 kB
+dist/assets/apex-D8_7TLub.js                                   46.99 kB │ gzip:     6.77 kB
+dist/assets/catppuccin-mocha-D87Tk5Gz.js                       47.26 kB │ gzip:     8.00 kB
+dist/assets/catppuccin-latte-C9dUb6Cb.js                       47.26 kB │ gzip:     8.00 kB
+dist/assets/catppuccin-frappe-DFWUc33u.js                      47.26 kB │ gzip:     8.02 kB
+dist/assets/catppuccin-macchiato-DQyhUUbL.js                   47.26 kB │ gzip:     8.01 kB
+dist/assets/NomiBrowserDialog-BGwESgmd.js                      47.76 kB │ gzip:    13.53 kB
+dist/assets/ui-vendor-Dh4Wb647.js                              47.97 kB │ gzip:    12.24 kB
+dist/assets/ada-bCR0ucgS.js                                    48.08 kB │ gzip:     6.03 kB
+dist/assets/AssetLibraryPanel-DqJd6WUz.js                      48.10 kB │ gzip:    14.58 kB
+dist/assets/css-DPfMkruS.js                                    49.02 kB │ gzip:    11.85 kB
+dist/assets/imba-DGztddWO.js                                   49.93 kB │ gzip:     9.46 kB
+dist/assets/editor.esm.min-LvZsZNZa.js                         50.88 kB │ gzip:    17.12 kB
+dist/assets/everforest-dark-BgDCqdQA.js                        53.75 kB │ gzip:     8.42 kB
+dist/assets/everforest-light-C8M2exoo.js                       53.75 kB │ gzip:     8.42 kB
+dist/assets/wikitext-BhOHFoWU.js                               55.89 kB │ gzip:     4.76 kB
+dist/assets/web.esm.min-DTTSArEF.js                            56.58 kB │ gzip:    21.08 kB
+dist/assets/stata-BH5u7GGu.js                                  56.99 kB │ gzip:    12.36 kB
+dist/assets/html-GMplVEZG.js                                   57.25 kB │ gzip:    11.69 kB
+dist/assets/ballerina-BFfxhgS-.js                              58.69 kB │ gzip:     8.15 kB
+dist/assets/markdown-Cvjx9yec.js                               59.34 kB │ gzip:     5.64 kB
+dist/assets/ocaml-C0hk2d4L.js                                  62.45 kB │ gzip:     5.02 kB
+dist/assets/TimelinePanel-Dsh7M6KH.js                          62.87 kB │ gzip:    17.05 kB
+dist/assets/SkillLibraryPanel-k8Exr6OW.js                      65.04 kB │ gzip:    23.05 kB
+dist/assets/NodeGenerationComposer-DHK7tNLc.js                 65.40 kB │ gzip:    22.77 kB
+dist/assets/mojo-rZm6bMo-.js                                   69.80 kB │ gzip:     9.27 kB
+dist/assets/python-B6aJPvgy.js                                 69.95 kB │ gzip:     9.13 kB
+dist/assets/PreviewWorkspace-BMUtd6Zj.js                       70.63 kB │ gzip:    22.61 kB
+dist/assets/c-BIGW1oBm.js                                      72.11 kB │ gzip:    10.51 kB
+dist/assets/latex-CWtU0Tv5.js                                  72.64 kB │ gzip:     6.72 kB
+dist/assets/vyper-CDx5xZoG.js                                  74.65 kB │ gzip:    10.74 kB
+dist/assets/hack-CaT9iCJl.js                                   80.24 kB │ gzip:    26.21 kB
+dist/assets/swift-D82vCrfD.js                                  86.69 kB │ gzip:    14.73 kB
+dist/assets/fortran-free-form-BxgE0vQu.js                      88.97 kB │ gzip:    11.27 kB
+dist/assets/csharp-COcwbKMJ.js                                 89.69 kB │ gzip:    10.69 kB
+dist/assets/racket-BqYA7rlc.js                                 92.39 kB │ gzip:    15.02 kB
+dist/assets/less-B1dDrJ26.js                                   97.63 kB │ gzip:    14.70 kB
+dist/assets/blade-D4QpJJKB.js                                 104.98 kB │ gzip:    28.20 kB
+dist/assets/objective-c-DXmwc3jG.js                           105.41 kB │ gzip:    23.33 kB
+dist/assets/panorama-vendor-DeSJ6SWA.js                       107.15 kB │ gzip:    31.14 kB
+dist/assets/php-Dhbhpdrm.js                                   111.06 kB │ gzip:    28.52 kB
+dist/assets/StoryboardWorkspace-B0463yiM.js                   113.28 kB │ gzip:    32.82 kB
+dist/assets/asciidoc-Ve4PFQV2.js                              131.53 kB │ gzip:     9.34 kB
+dist/assets/mdx-Cmh6b_Ma.js                                   136.11 kB │ gzip:    23.35 kB
+dist/assets/draw.esm.min-CC7h88W4.js                          136.32 kB │ gzip:    43.73 kB
+dist/assets/GenerationCanvasReactFlow-DbNgVHEl.js             159.84 kB │ gzip:    49.41 kB
+dist/assets/objective-cpp-CLxacb5B.js                         171.97 kB │ gzip:    30.62 kB
+dist/assets/javascript-wDzz0qaB.js                            174.83 kB │ gzip:    16.51 kB
+dist/assets/tsx-COt5Ahok.js                                   175.54 kB │ gzip:    16.51 kB
+dist/assets/index-C_VPW-up.js                                 177.73 kB │ gzip:    57.96 kB
+dist/assets/jsx-g9-lgVsj.js                                   177.79 kB │ gzip:    16.61 kB
+dist/assets/typescript-BPQ3VLAy.js                            181.08 kB │ gzip:    16.04 kB
+dist/assets/tiptap-vendor-BplRhUai.js                         182.57 kB │ gzip:    60.56 kB
+dist/assets/angular-ts-DzOHUlBM.js                            183.82 kB │ gzip:    16.63 kB
+dist/assets/NomiMarkdown-DlSEtVxb.js                          188.47 kB │ gzip:    58.99 kB
+dist/assets/vue-vine-CQOfvN7w.js                              190.05 kB │ gzip:    17.98 kB
+dist/assets/react-vendor-DgvwC4Ul.js                          224.21 kB │ gzip:    70.01 kB
+dist/assets/prosemirror-vendor-ozKwhgA8.js                    251.62 kB │ gzip:    77.70 kB
+dist/assets/wolfram-lXgVvXCa.js                               262.39 kB │ gzip:    77.14 kB
+dist/assets/DirectorEditor-RUwMEYcV.js                        270.73 kB │ gzip:    73.38 kB
+dist/assets/BaseGenerationNode-C7B9dtge.js                    324.26 kB │ gzip:    97.91 kB
+dist/assets/r3f-vendor-Bmhc7RA5.js                            374.32 kB │ gzip:   113.49 kB
+dist/assets/OnboardingDrawer-DQAsdzSA.js                      390.82 kB │ gzip:    98.93 kB
+dist/assets/WorkbenchShell-tDAy6FAa.js                        444.04 kB │ gzip:   144.39 kB
+dist/assets/markdown-vendor-DkPaHo8t.js                       496.22 kB │ gzip:   154.37 kB
+dist/assets/wasm-CG6Dc4jp.js                                  622.34 kB │ gzip:   230.29 kB
+dist/assets/cpp-CofmeUqb.js                                   626.08 kB │ gzip:    44.82 kB
+dist/assets/emacs-lisp-C9XAeP06.js                            779.85 kB │ gzip:   196.03 kB
+dist/assets/three-vendor-CrvHUa19.js                          801.47 kB │ gzip:   207.94 kB
+dist/assets/index-vIglntyV.js                               1,371.55 kB │ gzip:   453.84 kB
+dist/assets/NomiStudioApp-RE3d8VtV.js                       1,395.75 kB │ gzip:   435.07 kB
+dist/assets/useTimelinePlayback-D-jD9MFD.js                 5,104.69 kB │ gzip: 1,801.93 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 19.27s
+
+> nomi@0.23.1 build:electron <repo>
+> node scripts/build-electron.mjs

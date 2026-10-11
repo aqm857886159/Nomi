@@ -1,0 +1,12 @@
+
+> nomi@0.23.1 typecheck <repo>
+> node ./scripts/typecheck.mjs
+
+✅ tsc app（32.5s）
+✅ tsc electron（19.4s）
+✅ tsc electron-pi（10.4s）
+✅ check:test-types（45.4s）
+    ✅ agent-runtime 测试类型通过：0 个错误
+    ✅ 测试类型门岗通过：src/ 0 错；存量 10 个（electron/ + evals/ + scripts/，棘轮只减不增）
+
+typecheck：4 份并发，墙钟 45.4s（串行相加 107.7s）

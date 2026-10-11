@@ -1,0 +1,30 @@
+✖ completion probe starts its browser frame loop before trusting an input (2.009716ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43.125773
+
+✖ failing tests:
+
+test at tests/ux/nomi-next-workflow-probe.node-test.mjs:6:1
+✖ completion probe starts its browser frame loop before trusting an input (2.009716ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  -5 !== 20
+
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-next-workflow-probe.node-test.mjs:20:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: -5,
+    expected: 20,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,45 @@
+✔ semantic budgets distinguish feedback, decoded content and delayed target-control completion (1.144105ms)
+✔ completed target response may precede decoded content without invalidating the action (0.20762ms)
+✔ schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions (0.372265ms)
+✔ workflow scale contract is fixed and complete (0.502389ms)
+✔ small fixture persists document, plan and mixed media counts (8.757594ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (7.060274ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (9.603225ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (28.388125ms)
+✔ production snapshot and result normalization preserve fixture groups and history (402.394218ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.690389ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.4295ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.633655ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.164616ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.128582ms)
+✔ the real browser probe retains input stalls and requires trusted target input plus production response (1.683399ms)
+✔ decoded content can arrive after feedback, eligibility and completed target input (0.637129ms)
+✔ existing opening spinner is feedback before target title or decoded media (0.656769ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy content or canvas eligibility (1.165818ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.512745ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.520726ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.20845ms)
+✔ schema-v3 samples without decoded-content, target-control and persistence receipts are not measurement evidence (0.200038ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.150464ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.083084ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.061942ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (6.86932ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (21.713146ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.160559ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (27.303077ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (26.790534ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.641526ms)
+✔ percentiles and raw path redaction are deterministic (0.37591ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/WorkbenchShell.tsx (504.326017ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/skillLibrary/SkillDetail.tsx (1.492054ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/promptLibrary/PromptPreviewOverlay.tsx (1.72401ms)
+✔ project-open static graph excludes optional Markdown owner: src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx (1.948154ms)
+✔ graph distinguishes a real owner from its dynamic lazy boundary and type-only contract (3.177006ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1182.318905

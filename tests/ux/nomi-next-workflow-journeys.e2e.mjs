@@ -1,3 +1,4 @@
+import { expect } from './_assert.mjs'
 import { installCompletionProbe } from './nomi-next-workflow-probe.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -74,10 +75,11 @@ try {
   await win.locator('[data-shell-topbar] [data-mode="creation"]').click()
   await ensureCreationResourceTree(win, 'workflow batch documents')
   const docs = a.record.payload.workbenchDocuments, plans = a.record.payload.storyboardDesignsByDocumentId[docs[0].id]
-  assert.equal(await win.locator('[data-document-row]').count(), docs.length)
+  await expect(win.locator('[data-document-row]')).toHaveCount(docs.length)
   for (const doc of [docs[1], docs[0]]) {
     const selector = `[data-document-row="${doc.id}"] [data-document-id]`
     await action(`document.switch-${doc.id}`, selector, [{ selector: `${selector}[data-active="true"]` }, { selector: '.tiptap[contenteditable="true"]', text: doc.contentJson.content[0].content[0].text }], () => win.locator(selector).click())
+    await expect(win.locator('.tiptap[contenteditable="true"]')).toContainText(doc.contentJson.content[0].content[0].text)
   }
   for (const plan of plans) {
     await ensureCreationResourceTree(win, 'workflow batch competing plans')
@@ -90,13 +92,13 @@ try {
   const point = await groupBox.evaluate((box) => {
     const rect = box.getBoundingClientRect()
     for (let y = Math.max(0, rect.top) + 12; y < Math.min(innerHeight, rect.bottom) - 12; y += 10) for (let x = Math.max(0, rect.left) + 12; x < Math.min(innerWidth, rect.right) - 12; x += 10) {
-      const stack = document.elementsFromPoint(x, y)
-      if (stack.some((el) => el.closest('[data-group-id]')) && !stack.some((el) => el.closest('[data-node-id]'))) return { x, y }
+      const target = document.elementFromPoint(x, y)
+      if (target?.closest('[data-group-id]') === box && !target.closest('[data-node-id]')) return { x: x - rect.left, y: y - rect.top }
     }
     return null
   })
   assert.ok(point, 'Visible mixed-media group has a real blank selection target')
-  await action('group.select-mixed-media', `[data-group-id="${group.id}"]`, [{ selector: '[data-group-toolbar="true"]' }, { selector: `[data-group-id="${group.id}"][data-frame-selected="true"]` }], () => win.mouse.click(point.x, point.y))
+  await action('group.select-mixed-media', `[data-group-id="${group.id}"]`, [{ selector: '[data-group-toolbar="true"]' }, { selector: `[data-group-id="${group.id}"][data-frame-selected="true"]` }], () => groupBox.click({ position: point }))
   await win.locator('[data-toolbar-action-menu="group-arrange"]').click()
   const movedNode = group.nodeIds[1]
   const movedSelector = `.react-flow__node[data-id="${movedNode}"]`

@@ -1,0 +1,67 @@
+✔ semantic budgets distinguish feedback, decoded content and delayed target-control completion (1.096444ms)
+✔ completed target response may precede decoded content without invalidating the action (0.188ms)
+✖ schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions (2.163315ms)
+✔ workflow scale contract is fixed and complete (0.484482ms)
+✔ small fixture persists document, plan and mixed media counts (7.526209ms)
+✔ small fixture contains nonempty drafts, competing plans, mixed groups and history (6.3869ms)
+✔ typical fixture contains nonempty drafts, competing plans, mixed groups and history (9.111311ms)
+✔ heavy fixture contains nonempty drafts, competing plans, mixed groups and history (27.667791ms)
+✔ production snapshot and result normalization preserve fixture groups and history (389.050808ms)
+✔ CLI accepts separated and equals syntax with identical nonempty cells (0.736618ms)
+✔ CLI rejects empty, unknown, duplicate and non-finite inputs instead of succeeding empty (0.453426ms)
+✔ evidence writes never overwrite a previous report even at the same timestamp (0.639513ms)
+✔ latency uses browser milestones; collection and preceding/following tasks are excluded (0.155432ms)
+✔ raw durations crossing the end are retained but clipped in action-window metrics (0.157395ms)
+✔ the real browser probe retains input stalls and requires trusted target input plus production response (1.680715ms)
+✔ decoded content can arrive after feedback, eligibility and completed target input (0.789637ms)
+✔ existing opening spinner is feedback before target title or decoded media (0.501818ms)
+✔ screen-outside, transparent-ancestor and canvas-outside nodes cannot satisfy content or canvas eligibility (1.111256ms)
+✔ waiting rejects missing/reloaded probe immediately as invalid (1.40854ms)
+✔ ready wait uses evaluate conditions without launcher feel checkpoint APIs (0.528508ms)
+✔ schema-v2 passed flags with empty samples cannot certify acceptance (0.143003ms)
+✔ schema-v3 samples without decoded-content, target-control and persistence receipts are not measurement evidence (0.20765ms)
+✔ missing/replaced probe or unobserved milestone is invalid, never an empty measurement (0.151746ms)
+✔ aggregation pools raw distributions and keeps cache cells and support counts distinct (0.085547ms)
+✔ blocked, invalid, planned, empty and incomplete evidence never passes acceptance (0.095402ms)
+✔ project selector requires the persisted record identity, not the fixture envelope (7.286712ms)
+✔ each cold/hot repetition receives a fresh persisted fixture and closes on failure (22.870831ms)
+✔ planned journeys do not launch or inherit an environment blocker (0.126839ms)
+✔ persisted document, plan, group and history changes fail the project-open correctness check (25.617765ms)
+✔ legacy elapsed time is rejected by the summarizer and blocked input exits nonzero (27.063511ms)
+✔ source-linked inventory distinguishes implementation and planned pairwise/higher-order coverage (1.509139ms)
+✔ control inventory rechecks actual AST bindings, conditional duplication and existing walk action gaps (452.77174ms)
+✔ expanded pairwise plans cover all eligible13-axis pairs plus the complete interruption/recovery combination (0.910898ms)
+✔ percentiles and raw path redaction are deterministic (0.286317ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 33
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1605.469614
+
+✖ failing tests:
+
+test at tests/ux/nomi-user-workflow-performance.node-test.mjs:47:1
+✖ schema2 decode/eligibility measurements cannot produce feedback or interactive budget conclusions (2.163315ms)
+  AssertionError [ERR_ASSERTION]: Document Shift must never populate the real target-control response column
+  + actual - expected
+
+  + '819.359999999404'
+  - '—'
+
+      at TestContext.<anonymous> (file://<repo>/tests/ux/nomi-user-workflow-performance.node-test.mjs:52:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '819.359999999404',
+    expected: '—',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

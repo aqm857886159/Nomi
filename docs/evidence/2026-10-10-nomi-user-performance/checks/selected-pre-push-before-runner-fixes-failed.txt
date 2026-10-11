@@ -1,0 +1,118 @@
+[pre-push] 改动 211 个文件，跑：check:filesize、check:board-parity、check:self-written、check:boundary-owners、check:test-waits、check:mjs-parse、check:tokens、check:vocabularies、check:controls、check:store-lifetime、check:icon-semantics、check:error-surface、check:heavy-path、check:builtin-vendor-literals、check:read-path-writes、check:batch-machines、check:capability-lifecycle、check:no-default-overwrite、check:media-import-owner、check:storyboard-owner、check:canvas-edge-writers、check:dangling-tokens、check:dangling-tailwind、check:walkthroughs、check:gates-chain、check:desktop-rc-workflow、check:cla-workflow、check:workflow-script-refs、check:workflow-protected-writes、check:packaged-flags、check:icons、check:platform-archetypes、check:model-certification-coverage、check:symlinks、check:supply-chain-pins、check:escape-ledger、check:adoption-bridge、check:skill-ipc-coverage、check:skills-format、check:run-task-grant、check:announced-card、check:canvas-gesture-determinism、check:vitest-fair-share、check:agents-sync、check:rule-aliases、check:push-bypass、check:mockup-contracts、check:feel、check:full-walk-catalog、check:real-media-fixture、check:framework-boundary、check:tikhub-search、check:nul-bytes、check:git-path-quoting、check:model-availability、check:model-identity、check:outbound-policy、check:script-network-retry、check:nomi-workflow-evidence、check:design-lab-mirrors、typecheck、test:temp-helper、check:test-copy-literals、test:pre-push-structure、test:scan-guards、test:related、lint:changed、check:prior-art、check:pr-judgement
+[pre-push] PR 正文取自 NOMI_PR_BODY_FILE
+[pre-push] ✅ test:related（10.2s） vitest 2 个文件通过；scripts/pre-push-contracts.node-test.mjs 太慢没跑，CI 会跑（真入口 / tsc 探针 / 超时用例整份 > 90 秒；其中的契约 / 结构用例已拆到 scripts/pre-push-structure.node-test.mjs（推送前门岗 test:pre-push-structure））
+[pre-push] ✅ test:scan-guards（52.1s） 34 个扫描型守卫测试一个进程批量跑
+[pre-push] ✅ typecheck（92.0s）
+[pre-push] ✅ check:filesize（0.3s）
+[pre-push] ✅ check:board-parity（0.3s）
+[pre-push] ✅ check:self-written（0.2s）
+[pre-push] ✅ check:boundary-owners（0.4s）
+[pre-push] ✖ check:test-waits（26.2s）
+[pre-push] ✅ check:mjs-parse（36.4s）
+[pre-push] ✅ check:tokens（6.3s）
+[pre-push] ✅ check:vocabularies（10.2s）
+[pre-push] ✅ check:controls（7.4s）
+[pre-push] ✅ check:store-lifetime（5.1s）
+[pre-push] ✅ check:icon-semantics（2.5s）
+[pre-push] ✅ check:error-surface（0.4s）
+[pre-push] ✅ check:heavy-path（1.0s）
+[pre-push] ✅ check:builtin-vendor-literals（0.5s）
+[pre-push] ✅ check:read-path-writes（5.9s）
+[pre-push] ✅ check:batch-machines（1.1s）
+[pre-push] ✅ check:capability-lifecycle（5.3s）
+[pre-push] ✅ check:no-default-overwrite（5.5s）
+[pre-push] ✅ check:media-import-owner（0.8s）
+[pre-push] ✅ check:storyboard-owner（0.4s）
+[pre-push] ✅ check:canvas-edge-writers（1.9s）
+[pre-push] ✅ check:dangling-tokens（0.4s）
+[pre-push] ✅ check:dangling-tailwind（0.6s）
+[pre-push] ✖ check:walkthroughs（21.1s）
+[pre-push] ✅ check:gates-chain（0.1s）
+[pre-push] ✅ check:desktop-rc-workflow（0.3s）
+[pre-push] ✅ check:cla-workflow（0.2s）
+[pre-push] ✅ check:workflow-script-refs（0.1s）
+[pre-push] ✅ check:workflow-protected-writes（0.1s）
+[pre-push] ✅ check:packaged-flags（0.1s）
+[pre-push] ✅ check:icons（0.1s）
+[pre-push] ✅ check:platform-archetypes（0.1s）
+[pre-push] ✅ check:model-certification-coverage（0.1s）
+[pre-push] ✅ check:symlinks（0.1s）
+[pre-push] ✅ check:supply-chain-pins（0.0s）
+[pre-push] ✅ check:escape-ledger（0.1s）
+[pre-push] ✅ check:adoption-bridge（0.2s）
+[pre-push] ✅ check:skill-ipc-coverage（0.1s）
+[pre-push] ✅ check:skills-format（0.3s）
+[pre-push] ✅ check:run-task-grant（0.3s）
+[pre-push] ✅ check:announced-card（0.1s）
+[pre-push] ✅ check:canvas-gesture-determinism（0.1s）
+[pre-push] ✅ check:vitest-fair-share（0.1s）
+[pre-push] ✅ check:agents-sync（0.0s）
+[pre-push] ✅ check:rule-aliases（0.1s）
+[pre-push] ✅ check:push-bypass（0.0s）
+[pre-push] ✅ check:mockup-contracts（0.3s）
+[pre-push] ✅ check:feel（0.1s）
+[pre-push] ✅ check:full-walk-catalog（0.9s）
+[pre-push] ✅ check:real-media-fixture（0.1s）
+[pre-push] ✅ check:framework-boundary（0.4s）
+[pre-push] ✅ check:tikhub-search（0.3s）
+[pre-push] ✅ check:nul-bytes（0.4s）
+[pre-push] ✅ check:git-path-quoting（0.2s）
+[pre-push] ✅ check:model-availability（1.0s）
+[pre-push] ✅ check:model-identity（2.1s）
+[pre-push] ✅ check:outbound-policy（0.7s）
+[pre-push] ✅ check:script-network-retry（1.0s）
+[pre-push] ✅ check:nomi-workflow-evidence（3.6s）
+[pre-push] ✅ check:design-lab-mirrors（0.6s）
+[pre-push] ✅ test:temp-helper（0.8s）
+[pre-push] ✅ check:test-copy-literals（1.8s）
+[pre-push] ✅ test:pre-push-structure（11.3s）
+[pre-push] ✅ lint:changed（1.6s）
+[pre-push] ✅ check:prior-art（0.1s）
+[pre-push] ✖ check:pr-judgement（0.2s）
+
+──── ✖ check:test-waits ────
+[station-fixed-timeout] ["tests/ux/nomi-agent-concurrency.walk.mjs","edfd772bf0a3e6bf31b21b0b29d530986922a9c1c7766f915cbf39358b7bef76"]: 2 > baseline 0
+  tests/ux/nomi-agent-concurrency.walk.mjs:94 expect(win.locator(CREATION_PANEL)).toBeVisible({ timeout: 30000 })
+  tests/ux/nomi-agent-concurrency.walk.mjs:146 expect(win.locator(CREATION_PANEL)).toBeVisible({ timeout: 30000 })
+Station wait baseline: 692 occurrences; new/stale: 1
+✖ 测试等待门岗未通过：测试不许空等待、私有墙钟等待、墙钟判分或无 owner 的 lane 清理
+
+──── ✖ check:walkthroughs ────
+
+✖ 走查检出力不足：这份走查几乎不可能变红（它能跑完，但发现不了问题）
+  tests/ux/nomi-next-workflow-journeys.e2e.mjs  失败路径 1 条（要求 ≥ 2）— 新增/未登记
+
+  为什么拦这个：2026-08-26 修复前的 model-onboarding.walk.mjs 全文只有 1 条失败路径，
+  面板一打开就再也不可能变红——它拍出 4 张字节完全相同的截图，exit 仍然是 0。
+  一条零检出力的走查，在其它门岗眼里和一条严密的走查完全一样。
+
+  → 正确的修法：想清楚这一趟**要证明什么**，把它写成断言——
+    tests/ux/_assert.mjs 的 expectVisible / expectCount / clickOrFail（点不到就红）、
+    expectAbsent（配 proveProbe 证明探针是活的）、或 failures.push(...) 累加后按 length 退出。
+    截图是给人眼看的证据，不是断言：没有断言的截图不会拦住任何回归。
+
+  → 别这么修：**为了凑数往走查里塞无意义的断言**（断言常量、断言 body 存在、
+    重复断言同一个东西）。那样门岗变绿而检出力仍然是零，你还骗过了下一个读它的人——
+    这比现在这条红线糟得多。凑不出真断言，说明这趟走查的目的没想清楚。
+
+走查质量门岗未通过。这些写法会让测试报绿但什么都没验证到。
+
+──── ✖ check:pr-judgement ────
+PR 正文判据（正文取自 NOMI_PR_BODY）：路径推出的类别 = 新界面 / 改交互、Agent 行为、大数据量 / 画布 / 长列表
+· 四类：未命中，只查设计卡 ★ 格
+✅ 设计卡：5 格都填了
+· 本 PR 没有让任何逃逸账本条目转成 fixed，合同检查跳过
+✖ 缺 `## 功能分类` 一节：改动路径推出了 新界面 / 改交互（src/workbench/ai/v4/AgentPanelV4Markdown.tsx、src/workbench/common/LazyNomiMarkdown.tsx …）；Agent 行为（src/workbench/ai/v4/AgentPanelV4Markdown.tsx）；大数据量 / 画布 / 长列表（src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx），要在设计卡里勾上（可多选，勾的只能比推出的多）
+✖ `## 验收证据` 缺这些证据条目：ui-mockup（真组件样张（用户已拍板））；ui-click-census（按钮普查：每个可点目标按七字段预期表逐项对照（设计来源 / 组件、变体 / 状态、无障碍角色 + 名称、用户动作、预期的界面状态和副作用、测试 ID、证据））；ui-capability-unavailable（能力不可用时：每个要模型 / 要外部资源才做得了的动作，写清「没有这个能力（没装 / 此刻上游不可用 / 本机资源下不来）时界面显示什么、下一步是什么」——只灰掉说原因不算）；ui-ai-walk（AI 用户走查：每步先写预期、做完记感受）；ui-screens（中文、英文、窄窗截图）；agent-intent-eval（意图评测：⑩ 说的=摆的、建了几份方案、首次做对率）
+  → 每项一行：`- <证据 id>：<链接 / 运行号 / 截图路径>` 或 `- <证据 id>：未验证：原因`；工具还没建的证据写「未验证：工具未建」
+· 手动全量跑覆盖（PR 正文不要求）：perf-real-scale
+✅ 规则与门岗：碰到 6 个，正文都点名了
+✖ PR 正文判据没过：先把 PR 正文改好（十秒），改完重跑这个 job 即可，不必重推。
+
+[pre-push] BLOCKED：3 项没过：check:test-waits、check:walkthroughs、check:pr-judgement
+先在本机改好（这些都是几秒到几十秒的事），别推出去换一轮 40 分钟的 CI。单独重跑失败的那道：
+  pnpm run check:test-waits
+  pnpm run check:walkthroughs
+  pnpm run check:pr-judgement
+[pre-push] 共 111.6s；其余 Contracts 门岗仍在 CI 的 gates:contracts 里跑（整库类 > 60 秒，或要网络 / 浏览器 / 构建产物）
+[pre-push] 只在 CI 跑的门共 38 道（名单与理由：scripts/pre-push-gate-table.mjs）；完整版只在 CI、本机只跑了一部分的：check:i18n（本机只跑了 check:test-copy-literals）、check:design-lab（本机只跑了 check:design-lab-mirrors）、lint:ci（本机只跑了 lint:changed）。推送前钩子是加速器，CI 才是最终裁判。

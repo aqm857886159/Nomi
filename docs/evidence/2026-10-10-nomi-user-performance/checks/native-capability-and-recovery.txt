@@ -1,0 +1,44 @@
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: pi-nomi-performance-concurrency/waitForFunction.png; findings=10; new-surfaces=2; evidence: <repo>/artifacts/feel/pi-nomi-performance-concurrency-b582259e-93d7-4e28-bee3-8ab962b17d4c
+feel record: pi-nomi-performance-concurrency/01-native-switch-aborts-first-stream.png; findings=10; new-surfaces=2; evidence: <repo>/artifacts/feel/pi-nomi-performance-concurrency-b582259e-93d7-4e28-bee3-8ab962b17d4c
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: pi-nomi-performance-concurrency/waitForFunction.png; findings=9; new-surfaces=2; evidence: <repo>/artifacts/feel/pi-nomi-performance-concurrency-c7dcb285-6633-4a29-bf8c-e0f95e5048f8
+feel record: pi-nomi-performance-concurrency/02-switch-abort-cold-recovery-preserves-independent-transcripts.png; findings=9; new-surfaces=2; evidence: <repo>/artifacts/feel/pi-nomi-performance-concurrency-c7dcb285-6633-4a29-bf8c-e0f95e5048f8
+feel record: pi-nomi-performance-concurrency/FAIL.png; findings=9; new-surfaces=2; evidence: <repo>/artifacts/feel/pi-nomi-performance-concurrency-c7dcb285-6633-4a29-bf8c-e0f95e5048f8
+{
+  "name": "nomi-performance-concurrency",
+  "mode": "development",
+  "tempRoot": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U",
+  "outputDir": "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791689491281",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "<repo>",
+      "userData": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U/user-data",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 245706
+    },
+    {
+      "packaged": false,
+      "appPath": "<repo>",
+      "userData": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U/user-data",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 245859
+    }
+  ],
+  "screenshots": [
+    "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791689491281/01-native-switch-aborts-first-stream.png",
+    "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791689491281/02-switch-abort-cold-recovery-preserves-independent-transcripts.png"
+  ],
+  "paidCalls": 0,
+  "projectId": "project-1791689492755-wokv14",
+  "projectRoot": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U/projects/未命名项目 10_11 03_31-mv39nwgm-c8cc854e",
+  "textRequests": 2,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "failed",
+  "error": "Error: Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution\n    at file://<repo>/tests/ux/nomi-agent-concurrency.walk.mjs:106:11"
+}
+{"output":"<repo>/docs/evidence/2026-10-10-nomi-user-performance/journeys/agent-2026-10-11T03-31-31-281Z-f66e976a-c51f-4f06-90a9-dcb63382c93c/receipt.json","cases":[{"id":"agent.stream-stream","executed":false,"simultaneousExternalResponsesHeld":2,"lanes":["main","新对话 2"],"requestAt":[1791689494824,1791689495919],"functionalPassed":false,"status":"blocked","capabilityStatus":"capability-limited","attempted":true,"nativeOverlapObserved":false},{"id":"agent.switch-cancel-cold-recovery","executed":true,"functionalPassed":true},{"id":"agent.waiting-tool-waiting-tool","implemented":true,"executed":false,"functionalPassed":false,"status":"blocked","reason":"Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution"},{"id":"agent.stream-waiting-tool-cancel-recover","implemented":true,"executed":false,"functionalPassed":false,"status":"blocked","reason":"Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution"}],"failure":"Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution"}

@@ -1,0 +1,315 @@
+
+> nomi@0.23.1 check:claude-hooks <repo>
+> node --test ./scripts/pre-push-check.node-test.mjs ./scripts/pre-push-contracts.node-test.mjs ./scripts/pre-push-structure.node-test.mjs ./scripts/claude-hooks/commit-bypass-check.node-test.mjs ./scripts/install-claude-hooks.node-test.mjs ./scripts/edit-time-reminder.node-test.mjs ./scripts/fix-churn.node-test.mjs ./scripts/check-dispatch-brief.node-test.mjs ./scripts/build-capability-index.node-test.mjs ./scripts/daily-radar-session.node-test.mjs ./scripts/self-check-hook.node-test.mjs && node ./scripts/install-claude-hooks.cjs --check
+
+▶ 邻域
+  ✔ electron 取两段，src 取三段 (0.489522ms)
+✔ 邻域 (1.042085ms)
+▶ 按目标路径筛选
+  ✔ 只列同目录 owner 与 scope 命中的框架能力 (0.634783ms)
+  ✔ 什么都没命中且没给依赖 → 空串，不塞凑数的内容 (0.115288ms)
+  ✔ 命中少于 3 条 → 追加一行运行时依赖名（确定、永远完整）；够 3 条就不追加 (5.298787ms)
+  ✔ 依赖名这一行也守总长上限（先砍它，再砍别的） (5.329126ms)
+✔ 按目标路径筛选 (11.65012ms)
+▶ 大小上限
+  ✔ 条目太多时按上限截断并说明还有多少 (0.923843ms)
+  ✔ 真实登记表下，常见新建位置的清单都在上限内 (1.899773ms)
+✔ 大小上限 (3.075433ms)
+▶ 大目录不再给空清单（electron/ai 是 AI SDK 文本栈，最容易长轮子）
+  ✔ 真实登记表下，electron/ai 与 electron/mcp 这类登记没覆盖的目录至少给出依赖名 (0.562128ms)
+✔ 大目录不再给空清单（electron/ai 是 AI SDK 文本栈，最容易长轮子） (0.707559ms)
+▶ laneContextFit 场景：登记决定看不看得见
+  ✔ 登记了 context-compaction → 新建这个文件时清单里有 pi 的压缩 (0.464275ms)
+  ✔ 拿掉这条登记 → 清单里没有压缩（补登记之前就是这个红灯） (0.462292ms)
+✔ laneContextFit 场景：登记决定看不看得见 (1.088263ms)
+▶ 不入库、不另起真相源
+  ✔ 仓库里没有被提交的清单产物 (12.606826ms)
+✔ 不入库、不另起真相源 (12.725639ms)
+▶ 派工书检查
+  ✔ 三件都有则通过 (1.028145ms)
+  ✔ 缺哪件报哪件 (0.38532ms)
+  ✔ 缺补还是换一节红；写了过；不适用（原因）也过 (0.16511ms)
+  ✔ 轮次识别：阿拉伯数字与中文 (0.107095ms)
+  ✔ 第 3 轮及以上必须引用方向检查复盘；第 2 轮不要求 (0.198949ms)
+✔ 派工书检查 (3.543183ms)
+▶ 提交闸：五种绕过写法一律拒绝（不是留痕）
+  ✔ ① git -c core.hooksPath= —— 今天两个子 agent 实际写出的那条 (240.990956ms)
+  ✔ ② --no-verify (170.01002ms)
+  ✔ ③ -n（commit 的短写法） (87.827628ms)
+  ✔ ④ HUSKY=0 一类钩子管理器开关（前置环境赋值） (121.250015ms)
+  ✔ ⑤ core.hooksPath 的环境变量覆盖形式 (47.82423ms)
+  ✔ 其它会产生提交的子命令同样覆盖（不只 commit） (290.956555ms)
+  ✔ git commit-tree 天生不跑 hook —— 不需要任何标志就是绕口 (62.011004ms)
+✔ 提交闸：五种绕过写法一律拒绝（不是留痕） (1022.103782ms)
+▶ 提交闸：正常提交必须畅通（会误报的闸门几次之后就被绕过 = 等于不存在）
+  ✔ 普通提交放行 (564.277338ms)
+  ✔ -n 只在 commit 上是 --no-verify —— 别的子命令上是另一个意思，不能误伤 (200.175251ms)
+  ✔ push 那条维持现状：留痕 + 审计，不由本闸门拒绝 (102.542626ms)
+✔ 提交闸：正常提交必须畅通（会误报的闸门几次之后就被绕过 = 等于不存在） (867.320698ms)
+▶ 提交闸：边界——这些字样出现在**提交信息或数据里**不算绕过
+  ✔ 提交信息里写了这些词，不误伤 (374.271449ms)
+  ✔ `--` 之后是 pathspec，不是选项 (70.860179ms)
+  ✔ 引号里的词组不是命令（只读命令不该被拦） (141.381815ms)
+✔ 提交闸：边界——这些字样出现在**提交信息或数据里**不算绕过 (586.766421ms)
+▶ 提交闸：命令 / 数据的边界（共用理解层的两个洞，实测中各栽一次）
+  ✔ 换行也是命令分隔符 —— 第二行起不许隐身 (152.217446ms)
+  ✔ heredoc 正文是数据不是命令 —— 但正文之后的真命令照样要看见 (200.116222ms)
+  ✔ 跨行的提交信息仍是一个 token，不被拆成命令 (51.640786ms)
+✔ 提交闸：命令 / 数据的边界（共用理解层的两个洞，实测中各栽一次） (404.204345ms)
+▶ 提交闸：读不懂命令时 fail-closed
+  ✔ 引号不配对 + 出现绕过痕迹 → 拦（不猜） (57.121585ms)
+  ✔ 引号不配对但没有绕过痕迹 → 放行（不当拦路虎） (94.246681ms)
+✔ 提交闸：读不懂命令时 fail-closed (151.573212ms)
+▶ 成功
+  ✔ 两个脚本都成功 → 带出结果与「分诊只由协调会话做」，状态记下今天与摘要 (0.911786ms)
+✔ 成功 (1.429169ms)
+▶ 失败必须明说，不许说成没有新东西
+  ✔ 退出码非 0 (0.390338ms)
+  ✔ 超时 (0.189075ms)
+  ✔ 没能启动 (1.421858ms)
+  ✔ 失败时把脚本自己的报错尾巴带出来，别吞 (0.215103ms)
+✔ 失败必须明说，不许说成没有新东西 (2.50914ms)
+▶ 两个雷达并行
+  ✔ 两个都先开始、再有任何一个结束 (21.581044ms)
+✔ 两个雷达并行 (21.957702ms)
+▶ 一台机器一天一次：缓存摘要放仓库外，后开的会话直接拿
+  ✔ 同一天两个不同工作树先后开会话 → 第二个拿到第一个的摘要（含新增数），不再跑脚本 (1.441457ms)
+  ✔ 失败的下次会话重试，成功的不重跑；隔天全部重跑 (1.152636ms)
+  ✔ 标记与摘要在 NOMI_INTAKE_CACHE 指的目录里，不在工作树里 (0.410257ms)
+✔ 一台机器一天一次：缓存摘要放仓库外，后开的会话直接拿 (3.254674ms)
+▶ hook 不许动工作树
+  ✔ 在一个干净的 git 仓库里跑完，git status --porcelain 为空 (22.240859ms)
+  ✔ 模型雷达在 hook 路径里带 --no-liveness（没有任何扣费请求）；模型雷达脚本把结果写到仓库外 (0.463054ms)
+✔ hook 不许动工作树 (22.850846ms)
+▶ 锁
+  ✔ 同一时刻只有一个拿到；放手后下一个能拿；过期的锁被清掉 (0.423976ms)
+  ✔ 锁一直被占 → 不无限等，明说没出结果（不是没有新东西） (0.304202ms)
+✔ 锁 (0.829506ms)
+▶ 技能在不在：不存在的技能不能叫人去跑；论文雷达不再每日提醒；模型雷达直接指向方案文档
+  ✔ 任何情形下，输出里都不出现「nomi-research-radar」「nomi-model-radar」「静默跑」 (0.618189ms)
+  ✔ 论文雷达那一行整个没有（按需，不再每日提醒） (0.160763ms)
+  ✔ 模型雷达：不按技能在不在分支，永远指向方案文档，分诊只由协调会话做 (0.17226ms)
+  ✔ 用户反馈雷达、三日竞品雷达：技能在 → 照旧；不在 → 明说「在这台机器上没有」 (0.332223ms)
+  ✔ skillExists 认三处：仓库 agent-skills、项目 .claude/skills、用户目录 ~/.claude/skills (0.22058ms)
+  ✔ 真实仓库里：hook 还会查的两个技能确实存在 (0.180233ms)
+✔ 技能在不在：不存在的技能不能叫人去跑；论文雷达不再每日提醒；模型雷达直接指向方案文档 (1.899423ms)
+▶ 哪些文件归它管
+  ✔ src/ 与 electron/ 的源码归它管；测试、生成物、文档、脚本不归 (0.803448ms)
+✔ 哪些文件归它管 (1.444731ms)
+▶ (a) 新建文件
+  ✔ 文件不存在 → 给能力清单并要一行「已查」 (8.142253ms)
+  ✔ 文件已存在 → 不当新建 (0.187313ms)
+  ✔ 不归它管的路径、别的工具、路径在仓库外 → 不提醒 (0.215313ms)
+✔ (a) 新建文件 (8.726072ms)
+▶ (b) 同一文件反复修
+  ✔ churn 命中 → 提醒方向检查（类根因复盘）；未命中不提醒；阈值 = 已有 2 个 fix (0.682312ms)
+  ✔ 只数 fix / hotfix 开头的提交，不数 feat / docs / 合并 (0.867121ms)
+  ✔ git 失败 → 0（fail-open） (0.317823ms)
+  ✔ 真 git：三次 fix 提交的文件被数出 3（共享计数器 fix-churn） (58.889203ms)
+✔ (b) 同一文件反复修 (61.027213ms)
+▶ 真跑 hook：输出必须是官方规定的形状
+  ✔ 新建文件 → stdout 是 hookSpecificOutput.additionalContext，退出 0；同一会话第二次不重复 (99.773128ms)
+  ✔ 不相干的写入、坏载荷 → 静默放行（退出 0、什么也不吐） (64.282627ms)
+✔ 真跑 hook：输出必须是官方规定的形状 (164.297357ms)
+▶ fix-churn 计数
+  ✔ 标题判据：fix / hotfix 算，revert fix 单算，feat / 合并不算 (0.697664ms)
+  ✔ 同一文件已有 2 个 fix 则命中（这一刀是第 3 个）；只有 1 个则不命中 (56.937676ms)
+  ✔ 分散在同目录不同文件的 fix 也算同一概念：目录命中、文件不命中 (46.60493ms)
+  ✔ 近期出现 revert fix 则不看数量直接命中 (29.752194ms)
+  ✔ findHotspots 只看 src/ electron/ 下的源码：测试文件、文档不算 (31.244419ms)
+  ✔ git 失败则不命中（fail-open） (0.313736ms)
+✔ fix-churn 计数 (166.504008ms)
+▶ trailer 解析与决策
+  ✔ 标题与 trailer 解析（忽略注释行） (0.463874ms)
+  ✔ 非 fix（含 merge / revert）直接放行，连热点都不查 (0.387184ms)
+  ✔ fix 未命中热点放行；命中且无 trailer 拦下；有 trailer 但文档不成立拦下；成立放行 (0.270103ms)
+  ✔ 环境变量不能绕过（判据只看内容） (0.46033ms)
+  ✔ docLooksReal：必须在 docs/ 下、.md、够长、不许越界 (0.388795ms)
+✔ trailer 解析与决策 (2.247839ms)
+▶ 真 git commit-msg 端到端
+  ✔ 热点 fix 无 trailer 被拦、带有效 trailer 通过；revert 与 merge 不被拦 (235.873943ms)
+✔ 真 git commit-msg 端到端 (236.00263ms)
+▶ 词典按功能键（命名空间）计数
+  ✔ namespaceLines：缩进 2 格、值是 { 的键是功能键；中英两段同名；其余归 (根) (0.647411ms)
+  ✔ touchedNamespaces：改动行按旧 / 新源码归属；一个提交改到几个键各计一次 (7.147236ms)
+  ✔ 同一功能键 2 个 fix 后第 3 刀命中，并写出「文件#键」；别的键不受牵连 (150.628175ms)
+  ✔ 文件级不再响：同一词典文件散在 3 个不同功能键的 fix 不命中 (58.687675ms)
+  ✔ 一个提交改到两个键，两个键各计一次 (53.48312ms)
+  ✔ 真 git commit-msg：词典第 3 个同键 fix 无 trailer 被拦，换一个键放行 (172.730212ms)
+✔ 词典按功能键（命名空间）计数 (443.696842ms)
+▶ 按概念计数：自写登记条目（30 天 / 第 2 个）与 concept-owners 概念（14 天 / 第 3 个）
+  ✔ 自写登记（under-review）：散在不同文件的 fix，30 天内第 2 个就命中，文件 / 目录那票不响 (30.411617ms)
+  ✔ 窗口边界：31 天前的 fix 不算；justified 且不在通用区的登记不算；justified 但在通用区（hooks / 轮询…）算 (83.144552ms)
+  ✔ commit-msg：自写登记命中的 fix 必须带复盘，且复盘里要点名那条登记的 id (386.910138ms)
+  ✔ 概念（owner + write_api 的文件合起来）：14 天内第 3 个 fix 命中；单文件概念不单列；改大成「大概念」则不响 (98.946856ms)
+  ✔ 真实登记表读得出单位；词典文件不进单位（按功能键另数）；git 失败 fail-open (16.860553ms)
+✔ 按概念计数：自写登记条目（30 天 / 第 2 个）与 concept-owners 概念（14 天 / 第 3 个） (616.590938ms)
+✔ three committed WAVs are deterministic PCM16, bounded, audible and unclipped (59.982083ms)
+✔ official Notification input reaches play.sh via actual registered command, safely (39.752498ms)
+✔ only human-attention types match; malformed/other events remain silent (153.025313ms)
+✔ missing afplay is silent, successful, and still sends the native notification (6.34327ms)
+✔ Linux native player selection: paplay (6.646707ms)
+✔ Linux native player selection: aplay (15.813621ms)
+✔ MINGW64_NT native player selection: powershell.exe (6.910741ms)
+✔ Darwin native player selection: silent without players (5.476526ms)
+✔ fixture preserves concurrent invocations and exact argument boundaries (11.539835ms)
+✔ 全都挂上、脚本都在、没有旧副本 → 绿 (0.621484ms)
+✔ settings.json 缺失 → 红（现在它进 git，checkout 就该有） (0.227341ms)
+✔ 指向 .claude/hooks/ 那种「装了才有」的路径 → 红 (0.144199ms)
+✔ 写了脚本却没挂上 → 红（这是旧的逐字节比对拦不住的那一类） (0.111552ms)
+✔ 挂了一个不存在的脚本 → 红 (0.100095ms)
+✔ 共享设置里出现机器本地键 → 红（进了 git 就污染所有人） (0.078594ms)
+✔ .claude/hooks/ 还留着旧安装副本 → 红（P1：不许有并行版） (0.065826ms)
+✔ 一条 hook 都没注册 → 红（空的 hooks 块不算已配置） (0.042692ms)
+✔ 命令里的脚本路径认 $CLAUDE_PROJECT_DIR 与 ${CLAUDE_PROJECT_DIR} 两种写法 (0.032016ms)
+✔ 裸 `bash <脚本>`（今天出事的那一版）→ 红，并把期望的守卫串给出来 (0.057814ms)
+✔ 拦截型挂了提示型守卫（exit 1）→ 红：1 不是阻断码 (0.036784ms)
+✔ 提示型 hook 用提示型守卫 → 绿；被写成拦截型守卫 → 红 (0.095879ms)
+✔ 拿不到脚本正文 → 红（分不出型就校验不了守卫；「校验不了」必须是红，不是跳过） (0.042372ms)
+✔ 分型只看可执行行：注释里的 exit 2 不算，脚本自己 exit 2 才算 (0.041801ms)
+▶ push 闸：五门戳必须认树、认 HEAD、认新鲜度
+  ✔ 没盖戳 → 拦 (58.594059ms)
+  ✔ 本树盖戳 → 放行 (175.243848ms)
+  ✔ 命令里没写 cd 时，按 harness 报的 cwd 认树 → 放行 (109.701894ms)
+  ✔ A 树有新鲜戳，B 树没有 → B 仍被拦（戳不跨树背书） (72.121079ms)
+  ✔ 把 A 的戳整份拷进 B 自己的 gitdir → 仍被拦（认娘家，不只认路径） (175.45179ms)
+  ✔ 盖戳后又提交代码（HEAD 变）→ 重新要求过门 (165.203716ms)
+  ✔ 盖戳后只补 doc/hook → 沿用 doc 豁免那把尺，放行 (138.044928ms)
+  ✔ 戳超过 30 分钟 → 拦（只动新鲜度这一个变量） (113.737709ms)
+  ✔ 旧版「只有时间戳」的空戳不认（不能靠 touch 蒙混） (100.97068ms)
+  ✔ 不是 git push 的命令 → 放行 (76.43963ms)
+✔ push 闸：五门戳必须认树、认 HEAD、认新鲜度 (1187.125171ms)
+▶ push 绕口留痕：必须归因到 parser 已识别的每个目标 worktree
+  ✔ cd 目标树 → 记录目标树的 branch、sha、worktree (85.834344ms)
+  ✔ git -C 目标树 → 记录 -C 指定树而不是会话 cwd (79.833866ms)
+  ✔ 一条命令多次 push → 每棵目标树各写一条自己的留痕 (95.202094ms)
+  ✔ --no-verify + sibling worktree → 记录 sibling 目标树 (107.454669ms)
+✔ push 绕口留痕：必须归因到 parser 已识别的每个目标 worktree (368.658418ms)
+▶ push 闸：不带新内容的推送不要戳
+  ✔ HEAD 的提交都已在远端跟踪分支上 → 放行；多一个新提交就重新要戳 (258.392068ms)
+✔ push 闸：不带新内容的推送不要戳 (258.539416ms)
+✔ 必红：改了 electron/main.ts 超出基线 → 推送前检查红，且报出 check:filesize (38781.088906ms)
+✔ 对照：没改任何东西时同一个门岗是绿的（红不是环境造成的） (1985.413593ms)
+✔ 必红：新增未加固的 ipcMain.on → 推送前红 (22220.60598ms)
+✔ 必红：PR 正文用英文「## Design card」→ 推送前就红，并点明要中文标题（以前只有合并前红） (2117.966874ms)
+✔ 必红：设计卡没有 ★ 格 → 推送前就红；写全了才绿（同一份正文，两边同一个口径） (3839.056544ms)
+✔ 钩子入口不接受缩小门岗集合的参数：--only 被拒、空值被拒、未知值被拒（只认 --list） (165.355761ms)
+✔ 真入口：分离 HEAD 推分支（本地 ref 写 HEAD）照样跑门岗；红了就拦 (35573.837578ms)
+✔ 真入口：删分支（本地 SHA 为零）跳过，不跑门岗 (34.192803ms)
+✔ 真入口：推 tag——指向的提交不在 origin/main 就跑门岗；已在 origin/main 里才跳过 (36275.004938ms)
+✔ 真入口：非 tag 的 ref 指向 main 上的旧提交、但 ≠ HEAD → 阻断（豁免只给 tag） (142.787755ms)
+✔ 真入口：要推的 SHA 和工作树 HEAD 不一致 → 拒绝（fail-closed），提示先 checkout (106.177747ms)
+✔ 必红：手动跑（无参数）+ 一个永远不关的 stdin 管道 → 几十秒内退出，不读 stdin（以前会挂 600–1700 秒） (1894.08953ms)
+✔ 手动跑可以用 NOMI_PR_BODY_FILE 给正文；文件读不了 = 明确报错退出，不是跳过 (1827.969912ms)
+✔ 必红：走查新增 mkdtempSync(os.tmpdir()…) → 推送前就红，点名 test:temp-helper（CI 上 3 个 PR 撞过） (18249.388297ms)
+✔ 必红：src 新增未登记的 type union（生命周期词）→ 推送前红，点名 check:vocabularies (29065.685296ms)
+✔ 必红：伪造两个参数、没有分发器标记，再从 stdin 塞一条删除 ref → 门岗照跑，不许当「只是删除」跳过 (2175.657776ms)
+✔ 有标记 + 两个参数才算钩子：同一条删除 ref 这时才允许跳过（对照） (136.575918ms)
+✔ 必红：新增一个没有 declareStoreLifetime 的 zustand store → 推送前红，点名 check:store-lifetime（#1135 / #1133 在 CI 才撞到） (30642.052829ms)
+✔ 必红：往 GATE_INPUTS 加了一道门、没补 SCANNER_READS → 推送前就红，点名 test:pre-push-structure（#1147 在 CI 才撞到） (16573.286472ms)
+✖ 必红：改了 build 脚本 → 推送前真入口选中并跑 test:related，且 electron-build.test.mjs 在被跑的文件里（#1148） (15320.926944ms)
+✔ 探针：每份被 typecheck 实际编译的 tsconfig，取一个它展开的根文件——选择器选中它，且 tsc --listFilesOnly 真的列出它（选择范围 = 实际覆盖） (5900.447845ms)
+✔ 必红：一道门挂住（子进程永不退出）→ 超时被终止，门名和耗时写进输出，状态非零（不是无限等） (1506.311238ms)
+[pre-commit] BLOCKED：scripts/hang.mjs 跑了 1.5 秒仍未结束（上限 1.5 秒），已终止
+✔ 必红：整个钩子超过期限 → 点名仍在跑的门、终止子进程、返回 timedOut（不会无限挂住） (1502.102132ms)
+✔ 分发器每一步也有硬超时：脚本挂住 → 非零 + 原因 + 耗时 (1504.834613ms)
+✔ 推送前输出点名：只在 CI 跑的门共 N 道，部分覆盖的（check:i18n、lint:ci）本机只跑了哪一部分；钩子是加速器、CI 是最终裁判 (1952.027843ms)
+✔ 门岗清单：每一项都在 package.json 的 gates:contracts 里、命令是 node 脚本（命令只此一份，不另抄） (1.464874ms)
+✔ 命令选取：平时只跑检查脚本本体；改到门岗自己的单测 / 脚本时连单测一起跑 (0.626584ms)
+✔ 按改动选门岗：该片地没动就不跑；纯文档只跑登记类；算不出改动全跑 (563.516698ms)
+✔ 推送判定：依据远端 ref + 本地 SHA，不看 localRef 写法；删除跳过；tag 看是否已在 origin/main；SHA ≠ HEAD 拒绝 (0.544332ms)
+✔ 具名豁免：只对「已在 origin/main 的 tag」；其余非零更新一律先校验 SHA === HEAD (0.231736ms)
+✔ 汇总：失败项一次全部列出（不是第一项红就停），并给出只重跑失败项的命令 (0.310453ms)
+✔ lint 子集：错误一律拦；警告只在比 base 多时拦并指出新增的那几条 (0.289471ms)
+✔ 判据库被两边共用：推送前入口（check-pr-judgement）与合并前扫描（merge-preflight）都从 pr-body-criteria.mjs 判，谁也没有自己的设计卡实现 (0.333627ms)
+✔ 钩子入口：pre-push 由分发入口 git-hook.mjs 指向 pre-push-contracts.mjs，钩子文件里不写脚本名，也没有绕过开关 (0.414658ms)
+✔ 绕过开关的判据本身有牙：NOMI_SKIP / NOMI_DISABLE / NOMI_OFF 都被拒，正文变量不误伤 (0.157825ms)
+✔ 按改动路径选门岗：只改 docs 不跑新增的；改 tests/ 跑临时目录与抄文案；改 src tsx 跑 tokens / vocabularies / controls；改 electron 跑退出守卫 (7.763554ms)
+✔ 契约：每道按路径选的新门岗都在 GATE_INPUTS 里登记，且扫描器会读的样例路径（css / mts / cts / 依赖脚本 / 基线）都选得中 (1.055603ms)
+✔ 契约：选择器只用 GATE_INPUTS，pre-push-contracts.mjs 里没有手写的这七道门岗的路径正则 (0.961433ms)
+✔ 结构：gates:contracts 的完整门列表（不按名字前缀过滤）里，每道门恰好声明一次——推送前跑 / 别名 / 只在 CI + 理由 (0.301719ms)
+✔ 必红：新登记的门（不管叫 check: / test: / run: 什么）没在选择表声明就红；改名、重复声明、别名指向无关门、陈旧项都红 (0.387428ms)
+✔ check:i18n 如实标成「只在 CI 跑」：不再有同名别名掩盖只覆盖了一部分，部分覆盖单独点名 (0.076704ms)
+✔ typecheck 不覆盖的目录诚实地不选中（tests/ux 的 tsx、evals 非 test、packages 等），（tsconfig 配置文件本身另测：任何 tsconfig*.json 都选中） (0.175091ms)
+✔ 解析器：gates:contracts 的门不按名字前缀过滤（test: / run: 开头的新门也解析得出来），--advisory 是参数不是门 (0.101321ms)
+✔ 必红：改了 typecheck 自己的入口脚本（typecheck.mjs / check-test-types.mjs / lib/typecheckProjects.mjs）或任何 tsconfig*.json → 选中 typecheck (22.016852ms)
+✔ 通用规则：每道推送前门的实现脚本（package.json 命令 / argv 引用的脚本及其 import 闭包）被改时，选中这道门本身 (239.803343ms)
+✔ 结构：本文件里只有 isolatedRun 一处直接起子进程（runNode 只调用一次），谁绕开它就红 (0.468809ms)
+✔ 必红：钩子环境里的 GIT_DIR / GIT_INDEX_FILE 等不传给门岗与测试子进程（10-10 测试的 git init 把真仓库改成 bare） (34.204331ms)
+✔ 必红：造一个改了 build 脚本的改动集 → 选中 scripts/electron-build.test.mjs（vitest 依赖图看不见它：它用计算路径动态 import + 拷贝文件名清单） (54.544554ms)
+✔ 选择规则：改动的测试自己、同名测试、按引号提到它的测试都选中；纯文档 / 配置不触发；node:test 与 vitest 分路 (83.441292ms)
+✔ 慢测试不进相关单测：pre-push-contracts.node-test.mjs 被命中时进 skipped 并写明原因，快用例在 test:pre-push-structure (25.094911ms)
+✔ 必红：假慢测试（永不退出）→ 到上限被终止、不算红、note 点名文件并说「没跑完，CI 会跑」；真红的测试照样红 (2253.938276ms)
+✔ 必红：被选中的 node:test 要加载 .mts / .ts（CI 里是 tsx --test 跑的那类）→ 相关单测也能真跑通，不再 ERR_UNKNOWN_FILE_EXTENSION (1510.214678ms)
+✔ 登记（C）：相关单测与结构门岗在选择表 / 输入声明 / 入口里都登记了，删掉任何一处这里就红 (232.844459ms)
+✔ 必红：typecheck 超时 → 推送不被拦（状态 0）、输出写明「本机没跑完，CI 会跑」；其它门挂住照旧按红处理 (1058.562593ms)
+✔ 扫描型守卫：仓库里每个「遍历源码并对全集断言」的测试都有去处——推送前登记 / CI_ONLY（附理由）/ 已被推送前门岗覆盖 / 识别器误判（附理由） (6419.121305ms)
+✔ 扫描型守卫登记：每条的测试文件、扫描目录、固定文件真实存在（改名或挪目录后这里红，不会悄悄不跑）；批量门岗按改动只带该带的 (523.593058ms)
+✔ 扫描型守卫的选择规则：改到它扫的目录里的代码就跑；别的目录、非代码扩展名、纯文档不跑；exts 星号 = 任意扩展名；all = 除 docs 外任何改动 (0.124351ms)
+✔ 必红：新写一个扫 electron 的守卫测试，既没进 SCAN_GUARDS 也没进 CI_ONLY → 核对函数红并点名；登记后绿 (9.972032ms)
+✔ 必红：登记了却不再是扫描型（文件改了不再遍历）/ 文件已不存在 → 陈旧项红；COVERED_BY_GATE 指向的门岗不在推送前也红 (1.83408ms)
+✔ 必红：用 git ls-files / git grep 扫全仓的测试、以及 import 了「在仓库里遍历」的扫描器模块的测试，同样被识别（#1142 的 check-network-entry.test.mjs 就是第二种） (6.561088ms)
+✔ 不误伤：只在测试自建的临时目录里 readdir、遍历用户目录的生产模块、只读固定文件的测试，都不算扫描型守卫 (2.030665ms)
+✔ 回归：今天漏掉的 4 个守卫——对应的违规改动现在会在推送前选中它们，而旧的「相关单测」挑法挑不中 (633.42541ms)
+✔ 批量守卫红了：失败输出只回放最后 25 行，所以红的守卫测试文件要在输出末尾逐个点名，并给出只重跑它们的命令 (0.256604ms)
+✔ Nomi workflow source scans are selected for actual source and docs-only inventory changes (1.431063ms)
+✔ Nomi workflow evidence scan is executed by the same Contracts command in CI (0.098544ms)
+▶ 常驻部分
+  ✔ 没命中任何关键词时只有那一小段（≤1000 字节，瘦身前是 2824） (45.464608ms)
+  ✔ 常驻段保留三刻和贯穿原则的锚点 (69.856415ms)
+✔ 常驻部分 (116.260824ms)
+▶ 关键词块：命中才注入
+  ✔ 「这个生成要先付费确认再批量生成」→ 【设计卡】 (59.107957ms)
+  ✔ 「我要画一个新页面」→ 【设计卡】 (38.342521ms)
+  ✔ 「想引入一个新框架 SDK」→ 【先查别人 · R5】 (39.909566ms)
+  ✔ 「这个功能做完了，给你看」→ 【报完成前 · R13】 (46.258862ms)
+  ✔ 「有个 bug 要修」→ 【修根因 · P2】 (39.229453ms)
+  ✔ 「准备合并这个 PR，先跑 delivery:preflight」→ 【交付 · R11/R22】 (46.826057ms)
+  ✔ 「pnpm run gates 红了」→ 【命令全表】 (40.128492ms)
+  ✔ 「check:filesize 红了」→ 不许抬基线或预算挤 PR(R17) (45.370728ms)
+  ✔ 「这个又坏了，再修一轮」→ 【方向检查 · RW】 (38.687965ms)
+  ✔ 「已经是第五轮了还是不对」→ 【方向检查 · RW】 (42.41422ms)
+  ✔ 「派工给子 agent 做」→ 【派工 · 省 token】 (52.823769ms)
+  ✔ 新合并规矩在交付块里（只由协调会话做；CI 绿 + 扫描干净就合，最多 3 个在等收据，红了立刻停） (39.756017ms)
+✔ 关键词块：命中才注入 (531.86311ms)
+▶ 方向检查块：只在反复修信号出现时注入，普通 bug 与第 1-2 轮不触发
+  ✔ 普通修 bug 只有修根因块，没有方向检查块 (46.061614ms)
+  ✔ 第 2 轮不触发，第 3 轮触发 (93.668848ms)
+✔ 方向检查块：只在反复修信号出现时注入，普通 bug 与第 1-2 轮不触发 (139.920155ms)
+▶ 指针完整：注入里点名的文件都真实存在
+  ✔ 所有关键词块里的 docs/ 与 .agents/ 路径都在仓库里 (93.191452ms)
+✔ 指针完整：注入里点名的文件都真实存在 (93.316929ms)
+▶ 读不到用户消息 → 退化为只有常驻段，不崩
+  ✔ 空 stdin / 坏 JSON (67.761017ms)
+✔ 读不到用户消息 → 退化为只有常驻段，不崩 (67.874316ms)
+▶ 设计卡块：两块合成一块、词表收窄、命中次数记到本机统计文件
+  ✔ 原来的【设计流程】【画新面】不再单独出现；泛词（界面 / 设计 / 重做）不再触发 (178.632812ms)
+  ✔ 命中一次就在 .claude/self-check-hits.log 记一行（块名），没命中不记 (141.69418ms)
+✔ 设计卡块：两块合成一块、词表收窄、命中次数记到本机统计文件 (320.58747ms)
+ℹ tests 209
+ℹ suites 37
+ℹ pass 208
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 273450.904584
+
+✖ failing tests:
+
+test at scripts/pre-push-contracts.node-test.mjs:278:1
+✖ 必红：改了 build 脚本 → 推送前真入口选中并跑 test:related，且 electron-build.test.mjs 在被跑的文件里（#1148） (15320.926944ms)
+  AssertionError [ERR_ASSERTION]: 被选中的 vitest 测试（含 electron-build.test.mjs）真的跑过且通过
+      at TestContext.<anonymous> (file://<repo>/scripts/pre-push-contracts.node-test.mjs:285:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: "[pre-push] 改动 1 个文件，跑：check:filesize、check:board-parity、check:self-written、check:boundary-owners、check:test-waits、check:mjs-parse、check:gates-chain、check:desktop-rc-workflow、check:cla-workflow、check:workflow-script-refs、check:workflow-protected-writes、check:packaged-flags、check:icons、check:platform-archetypes、check:model-certification-coverage、check:symlinks、check:supply-chain-pins、check:escape-ledger、check:adoption-bridge、check:skill-ipc-coverage、check:skills-format、check:run-task-grant、check:announced-card、check:canvas-gesture-determinism、check:vitest-fair-share、check:agents-sync、check:rule-aliases、check:push-bypass、check:mockup-contracts、check:feel、check:full-walk-catalog、check:real-media-fixture、check:framework-boundary、check:tikhub-search、check:nul-bytes、check:git-path-quoting、check:model-availability、check:model-identity、check:outbound-policy、check:script-network-retry、test:temp-helper、check:test-copy-literals、test:scan-guards、test:related、lint:changed、check:prior-art、check:pr-judgement\n[pre-push] PR 正文取自 NOMI_PR_BODY\n[pre-push] ✖ test:related（7.2s） vitest 2 个文件通过；scripts/pre-push-contracts.node-test.mjs 太慢没跑，CI 会跑（真入口 / tsc 探针 / 超时用例整份 > 90 秒；其中的契约 / 结构用例已拆到 scripts/pre-push-structure.node-test.mjs（推送前门岗 test:pre-push-structure））\n[pre-push] ✅ test:scan-guards（5.4s） 4 个扫描型守卫测试一个进程批量跑\n[pre-push] ✅ check:filesize（0.1s）\n[pre-push] ✅ check:board-parity（0.1s）\n[pre-push] ✅ check:self-written（0.1s）\n[pre-push] ✅ check:boundary-owners（0.2s）\n[pre-push] ✅ check:test-waits（5.5s）\n[pre-push] ✅ check:mjs-parse（9.5s）\n[pre-push] ✅ check:gates-chain（0.1s）\n[pre-push] ✅ check:desktop-rc-workflow（0.2s）\n[pre-push] ✅ check:cla-workflow（0.2s）\n[pre-push] ✅ check:workflow-script-refs（0.1s）\n[pre-push] ✅ check:workflow-protected-writes（0.1s）\n[pre-push] ✅ check:packaged-flags（0.1s）\n[pre-push] ✅ check:icons（0.1s）\n[pre-push] ✅ check:platform-archetypes（0.1s）\n[pre-push] ✅ check:model-certification-coverage（0.1s）\n[pre-push] ✅ check:symlinks（0.1s）\n[pre-push] ✅ check:supply-chain-pins（0.1s）\n[pre-push] ✅ check:escape-ledger（0.1s）\n[pre-push] ✅ check:adoption-bridge（0.1s）\n[pre-push] ✅ check:skill-ipc-coverage（0.0s）\n[pre-push] ✅ check:skills-format（0.2s）\n[pre-push] ✅ check:run-task-grant（0.2s）\n[pre-push] ✅ check:announced-card（0.1s）\n[pre-push] ✅ check:canvas-gesture-determinism（0.1s）\n[pre-push] ✅ check:vitest-fair-share（0.1s）\n[pre-push] ✅ check:agents-sync（0.1s）\n[pre-push] ✅ check:rule-aliases（0.1s）\n[pre-push] ✅ check:push-bypass（0.1s）\n[pre-push] ✅ check:mockup-contracts（0.2s）\n[pre-push] ✅ check:feel（0.1s）\n[pre-push] ✅ check:full-walk-catalog（0.5s）\n[pre-push] ✅ check:real-media-fixture（0.1s）\n[pre-push] ✅ check:framework-boundary（0.2s）\n[pre-push] ✅ check:tikhub-search（0.2s）\n[pre-push] ✅ check:nul-bytes（0.2s）\n[pre-push] ✅ check:git-path-quoting（0.1s）\n[pre-push] ✅ check:model-availability（0.6s）\n[pre-push] ✅ check:model-identity（1.4s）\n[pre-push] ✅ check:outbound-policy（0.4s）\n[pre-push] ✅ check:script-network-retry（0.7s）\n[pre-push] ✅ test:temp-helper（1.0s）\n[pre-push] ✅ check:test-copy-literals（1.8s）\n[pre-push] ✅ lint:changed（0.9s）\n[pre-push] ✅ check:prior-art（0.2s）\n[pre-push] ✅ check:pr-judgement（0.1s）\n\n──── ✖ test:related ────\n✖ 扫描型守卫：仓库里每个「遍历源码并对全集断言」的测试都有去处——推送前登记 / CI_ONLY（附理由）/ 已被推送前门岗覆盖 / 识别器误判（附理由） (1043.527845ms)\n  AssertionError [ERR_ASSERTION]: \n  tests/ux/nomi-user-workflow-performance.node-test.mjs：扫描型守卫测试没有去处——它遍历仓库源码并对全集断言（scripts/summarize-nomi-user-performance.mjs:28（readdirSync）、scripts/electron-build-artifacts.mjs:5（readdirSync）、scripts/electron-build-artifacts.mjs:19（readdirSync）），而推送前的「相关单测」只挑引用了改动文件的测试，新增违规文件挑不中它、CI 才红。处理：在 scripts/pre-push-scan-guards.mjs 登记进 SCAN_GUARDS（写明它扫哪些目录，改到才跑）；单跑 > 20 秒或本机跑不了就进 SCAN_GUARD_CI_ONLY（写理由）；识别器误判进 NOT_SOURCE_SCANS（写理由）\n  \n  + actual - expected\n  \n  + [\n  +   'tests/ux/nomi-user-workflow-performance.node-test.mjs：扫描型守卫测试没有去处——它遍历仓库源码并对全集断言（scripts/summarize-nomi-user-performance.mjs:28（readdirSync）、scripts/electron-build-artifacts.mjs:5（readdirSync）、scripts/electron-build-artifacts.mjs:19（readdirSync）），而推送前的「相关单测」只挑引用了改动文件的测试，新增违规文件挑不中它、CI 才红。处理：在 scripts/pre-push-scan-guards.mjs 登记进 SCAN_GUARDS（写明它扫哪些目录，改到才跑）；单跑 > 20 秒或本机跑不了就进 SCAN_GUARD_CI_ONLY（写理由）；识别器误判进 NOT_SOURCE_SCANS（写理由）'\n  + ]\n  - []\n  \n      at TestContext.<anonymous> (file://<temp>/nomi-prepush-LASeiE/repo/scripts/pre-push-structure.node-test.mjs:455:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1382:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)\n      at Test.postRun (node:internal/test_runner/test:1522:19)\n      at Test.run (node:internal/test_runner/test:1447:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: [ 'tests/ux/nomi-user-workflow-performance.node-test.mjs：扫描型守卫测试没有去处——它遍历仓库源码并对全集断言（scripts/summarize-nomi-user-performance.mjs:28（readdirSync）、scripts/electron-build-artifacts.mjs:5（readdirSync）、scripts/electron-build-artifacts.mjs:19（readdirSync）），而推送前的「相关单测」只挑引用了改动文件的测试，新增违规文件挑不中它、CI 才红。处理：在 scripts/pre-push-scan-guards.mjs 登记进 SCAN_GUARDS（写明它扫哪些目录，改到才跑）；单跑 > 20 秒或本机跑不了就进 SCAN_GUARD_CI_ONLY（写理由）；识别器误判进 NOT_SOURCE_SCANS（写理由）' ],\n    expected: [],\n    operator: 'deepStrictEqual',\n    diff: 'simple'\n  }\n\n[pre-push] BLOCKED：1 项没过：test:related\n先在本机改好（这些都是几秒到几十秒的事），别推出去换一轮 40 分钟的 CI。单独重跑失败的那道：\n  用上面输出里点名的测试文件单独重跑：node node_modules/vitest/vitest.mjs run <文件> 或 node --test <文件>\n[pre-push] 共 14.9s；其余 Contracts 门岗仍在 CI 的 gates:contracts 里跑（整库类 > 60 秒，或要网络 / 浏览器 / 构建产物）\n[pre-push] 只在 CI 跑的门共 38 道（名单与理由：scripts/pre-push-gate-table.mjs）；完整版只在 CI、本机只跑了一部分的：check:i18n（本机只跑了 check:test-copy-literals）、check:design-lab（本机只跑了 check:design-lab-mirrors）、lint:ci（本机只跑了 lint:changed）。推送前钩子是加速器，CI 才是最终裁判。\n",
+    expected: /✅ test:related（[\d.]+s） vitest \d+ 个文件通过/,
+    operator: 'match',
+    diff: 'simple'
+  }
+ ELIFECYCLE  Command failed with exit code 1.

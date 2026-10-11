@@ -1,0 +1,92 @@
+
+> nomi@0.23.1 check:walkthroughs <repo>
+> node --test ./scripts/check-walkthroughs.node-test.mjs ./tests/ux/g1/walk-session.node-test.mjs ./tests/ux/g1/sweep-budget.node-test.mjs ./tests/ux/g1/sweep-evidence.node-test.mjs ./tests/ux/g1/cases.node-test.mjs && node ./scripts/check-walkthroughs.mjs
+
+▶ dead-aria-label：字面量采集
+  ✔ 阳性对照：src 里零命中的 aria-label 被报出来 (5.322142ms)
+  ✔ src 里还有渲染者的不报 (0.176613ms)
+  ✔ 模板拼出来的 label 不报（添加{{kind}}节点 → 添加视频节点） (1.407919ms)
+  ✔ 纯占位模板不得把任意 label 判活（否则规则永远报不出东西） (0.16074ms)
+  ✔ 有锚的模板照常生效 (0.103124ms)
+  ✔ 走查自己种的数据不报（同名串在选择器之外也出现） (0.063505ms)
+  ✔ 插值拼出来的选择器跳过（静态判不了） (0.056153ms)
+  ✔ *= ^= $= 三种匹配写法都采到 (0.262772ms)
+✔ dead-aria-label：字面量采集 (9.613679ms)
+▶ positional-project-open：多项目下的位置式选择
+  ✔ 阳性对照：建了第二个项目又按位置点卡 → 报出来 (0.253779ms)
+  ✔ 单项目走查的 .first() 不报（位置即身份，不误伤） (0.109273ms)
+  ✔ 按身份选中的写法不报：data-project-id (0.111846ms)
+  ✔ 按身份选中的写法不报：hasText / filter (0.056815ms)
+  ✔ .nth()/.last() 同属位置式，一并抓 (0.075283ms)
+✔ positional-project-open：多项目下的位置式选择 (0.833633ms)
+▶ dead-data-attr：data 属性锚点存活
+  ✔ 阳性对照：src 里零命中的属性名被报出来 (0.518593ms)
+  ✔ 阳性对照：属性还在、但写死的枚举值已无人渲染 → 报出来 (0.151105ms)
+  ✔ 活着的属性名 / 枚举值不报 (0.298986ms)
+  ✔ 数据驱动的值（src 里没写死过字面量值）不判值 (0.075593ms)
+  ✔ dataset.camelCase 写法算活 (0.048802ms)
+  ✔ 第三方运行时属性与走查自己 setAttribute 造的标记不报 (0.043715ms)
+✔ dead-data-attr：data 属性锚点存活 (1.263113ms)
+▶ dead-data-attr：判活口径的三处精度（#1136 复核）
+  ✔ 对象键写成表达式的属性（数据驱动的值）不判值 (0.10708ms)
+  ✔ expectAbsent 里的锚点是「删了不许回来」的防复发断言，不算悬空 (0.035603ms)
+  ✔ 同一个锚点不在 expectAbsent 里照样报（其它写法的「不存在」要换成带基线的 expectAbsent） (0.055252ms)
+✔ dead-data-attr：判活口径的三处精度（#1136 复核） (0.255791ms)
+▶ 走查基线只减不增（#1136 评审阻断 2）
+  ✔ 阳性对照：已有规则的基线被上调 → 报 (0.165316ms)
+  ✔ 阳性对照：新规则首发基线高于 merge-base 实测 → 报（不能「把当前数写进去」放宽） (1.025118ms)
+  ✔ 新规则量不了 merge-base 上的数时，首发基线只能是 0 (0.133659ms)
+  ✔ 首发基线等于 merge-base 实测、已有规则只降不升 → 不报 (0.064776ms)
+✔ 走查基线只减不增（#1136 评审阻断 2） (1.520347ms)
+▶ merge-base 拿不到时 fail-closed（#1136 复审阻断）
+  ✔ 有 merge-base 实测能力的规则基线非零 → 红；基线为 0 或没有实测能力的规则 → 不拦 (0.085307ms)
+  ✔ 集成：真实脚本在没有 origin/main 的仓库里跑，必须红（旧行为是 warning + exit 0） (23489.633298ms)
+✔ merge-base 拿不到时 fail-closed（#1136 复审阻断） (23489.889821ms)
+▶ raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红的类根因）
+  ✔ 阳性对照：手抄「返回项目库」钮 / 面板收起展开钮 / 面板身份选择器都报 (0.811049ms)
+  ✔ 经出口函数 / 在断言文案里提到「返回项目库」都不报 (0.15408ms)
+  ✔ 豁免表每一条都写了原因，且出口文件在里面 (0.146909ms)
+✔ raw-shell-anchor：外壳位置只准经 _shell.mjs（#1136 CI 全红的类根因） (1.287319ms)
+✔ every case has complete, well-typed fields and a bounded budget (1.84481ms)
+✔ case ids are unique and every registered case has one document card (0.478834ms)
+✔ C0 is the one runnable core case; every experience dimension has 2–4 cases (0.171596ms)
+✔ every capability gap is in section 4 with its owner and affected case, and no ledger row is orphaned (0.338014ms)
+✔ every surface has at least three runnable input variations (11.354444ms)
+✔ hung decrypt is killed and recorded blocked, later stations are unreachable (48.761798ms)
+✔ successful marker disarms decrypt deadline while later billing remains separate (54.106709ms)
+✔ decrypt uses the application function exactly once and only emits a safe status (1.148311ms)
+✔ native synchronous hang cannot defeat the parent deadline (125.365738ms)
+✔ explicit decrypt rejection is blocked; assembly failures are not disguised as credentials (2.275913ms)
+✔ C0 missing credentials writes blocked and eight unreachable stations without launching (2331.692157ms)
+✔ sweep report marks blocked without counting a failure or a reached paid station (3.044407ms)
+✔ all attempts including concurrent retries reserve before dispatch and share the ceiling (0.630389ms)
+✔ media, foreign endpoints, unknown models and unknown budget cannot spend (0.989906ms)
+✔ real-text bridge cleans executable scratch on both attachment success and failure (3.506497ms)
+✔ mixed dispatch caps each quoted text tier at 1.5 and never forwards media (24.787738ms)
+✔ C0 invocation passes the selected real text tier and budget; default stays dry (860.31582ms)
+✔ real-text without a configured enabled key fails explicitly before any request (0.714605ms)
+✔ both dispatch outlets share reservations, cap output, and reject every non-text outbound route (16.882124ms)
+✔ mixed budget refuses unbounded output and keeps failed dispatch reservations (1.210064ms)
+✔ legacy native entries export without reconstructing messages; checksum and provenance retained (2.517909ms)
+✔ ledger lists every deviation and repaired failures separately (4.908469ms)
+✔ collected Agent failures cannot become perfect R30 even after repair or scheduler finish (0.263703ms)
+✔ response capture drains pending bodies and preserves capture failures; prose error is not failure (1.753888ms)
+✔ drain waits for in-flight headers and bodies registered after drain starts (0.305846ms)
+✔ feel ledger aggregates three stations once with count=3 and first evidence (0.390423ms)
+✔ feel identity spans cases but preserves rule, text, target and surface; functional failures stay individual (0.477033ms)
+✔ fail-fast stops on first failure; collect retains all failures and reaches end (12.631718ms)
+✔ repair remains failed, preserves evidence and marks later stations (0.968013ms)
+✔ failed repairs and async matchers continue without claiming successful repair (2.175814ms)
+✔ concurrent session scopes and unscoped assertions do not leak (1.045979ms)
+✔ visual findings are retained and are never mislabeled as repaired by a domain fixture (0.215451ms)
+✔ unreachable station is explicit and cannot execute or masquerade as reached (0.22824ms)
+ℹ tests 64
+ℹ suites 7
+ℹ pass 64
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23759.079577
+✅ 走查质量门岗通过：absence-without-baseline=61 · whole-page-text=29 · sleep-as-done-signal=66 · dead-selector=0 · dead-aria-label=9 · dead-data-attr=43 · source-scan-without-strip=9 · positional-project-open=0 · raw-shell-anchor=0
+   检出力：346 份走查，其中薄的 34 份在基线内（阈值 ≥ 2 条失败路径）

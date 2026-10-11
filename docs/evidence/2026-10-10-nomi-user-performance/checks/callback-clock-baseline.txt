@@ -1,0 +1,47 @@
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-cold-0/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-cold-0-f0dd148f-b456-43c8-a199-e8c24e713f98
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-cold-1/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-cold-1-92623c90-6a22-489d-ae8d-067d4c210917
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-cold-2/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-cold-2-7969c86e-7fc5-406c-9100-93b29c84461f
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-cold-3/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-cold-3-81f28cbe-ab68-4007-9e94-5bbbd6250369
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-cold-4/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-cold-4-01e13f82-f6db-4393-a460-25b50b16ab42
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-cold-5/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-cold-5-79e2d866-3f6d-473d-b484-ab420ff514cb
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-hot-0/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-hot-0-a71af266-3d54-48b5-9863-ceb0b202209d
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-hot-1/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-hot-1-c456496f-f1d7-425d-9854-86f7a1898508
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-hot-2/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-hot-2-92ed3351-53a3-4d23-ba74-fb30b9255d50
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-hot-3/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-hot-3-3853fb23-b5ba-43d8-8f70-8410e27a9bb3
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-hot-4/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-hot-4-a20af0d7-46db-427a-a1e1-7e4419ba80bb
+[walkthrough] content viewport {"width":1280,"height":933}
+feel record: nomi-user-perf-small-hot-5/project-open-after-measurement.png; findings=19; new-surfaces=4; evidence: <repo>/artifacts/feel/nomi-user-perf-small-hot-5-ae7df8ad-4d97-4978-bded-26a57f2b730f
+{
+  "output": "<repo>/docs/evidence/2026-10-10-nomi-user-performance/raw/nomi-user-workflow-2026-10-11T03-16-35-303Z-b9a1a0d4-dac9-4175-8471-145278562bc9.json",
+  "coverage": {
+    "planned": 2,
+    "implemented": 2,
+    "executed": 2,
+    "passed": 0
+  },
+  "statuses": [
+    {
+      "id": "project.open",
+      "scale": "small",
+      "cache": "cold",
+      "status": "failed_budget"
+    },
+    {
+      "id": "project.open",
+      "scale": "small",
+      "cache": "hot",
+      "status": "inconclusive"
+    }
+  ]
+}

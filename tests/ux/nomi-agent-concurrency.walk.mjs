@@ -8,6 +8,7 @@ import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fi
 import { readLaneTranscripts, laneMessages, laneMessageText, laneDiskSnapshot } from './agent-lane-observer.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expect } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { redact } from './nomi-user-workflow-performance.e2e.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -77,7 +78,8 @@ try {
   receipt.cases.push({ id: 'agent.stream-stream', executed: true, simultaneousExternalResponsesHeld: 2, lanes: [streamA.lane, streamB.lane], requestAt: [streamA.wireAt, streamB.wireAt], functionalPassed: false })
   const firstNative = laneMessages(readLaneTranscripts(project.projectRoot).find((session) => session.laneName === streamA.lane)).at(-1)
   if (firstNative?.stopReason === 'aborted') {
-    Object.assign(receipt.cases.at(-1), { status: 'blocked', attempted: true, executed: false, nativeOverlapObserved: false })
+    Object.assign(receipt.cases.at(-1), { status: 'blocked', capabilityStatus: 'capability-limited', attempted: true, executed: false, nativeOverlapObserved: false })
+    receipt.existingConcurrencyContract = { path: 'electron/agentLane/laneWorkspace.mts', symbol: 'switchTo', sha256: createHash('sha256').update(fs.readFileSync(path.join(root, 'electron/agentLane/laneWorkspace.mts'))).digest('hex'), behavior: 'Close the previous conversation before opening another in the same workspace; unseen background execution/spend is forbidden' }
     receipt.concurrencyBlocker = 'Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution'
     await finishStream(streamB)
     await select(streamA.lane)
@@ -91,7 +93,7 @@ try {
     await card.hover()
     await card.getByRole('button', { name: uiText('zh-CN', 'library.continueCreating'), exact: true }).click()
     await win.locator('[data-shell-topbar] [data-mode="creation"]').click()
-    await expect(win.locator(CREATION_PANEL)).toBeVisible({ timeout: 30000 })
+    await expect(win.locator(CREATION_PANEL)).toBeVisible({ timeout: stationTimeout() })
     await select(streamA.lane)
     await expect(win.locator(CREATION_PANEL)).toContainText('STREAM_A_PARTIAL')
     await select(streamB.lane)
@@ -143,7 +145,7 @@ const card = win.locator(`[data-project-card][data-project-id="${project.project
     await card.hover()
     await card.getByRole('button', { name: uiText('zh-CN', 'library.continueCreating'), exact: true }).click()
   await win.locator('[data-shell-topbar] [data-mode="creation"]').click()
-  await expect(win.locator(CREATION_PANEL)).toBeVisible({ timeout: 30000 })
+  await expect(win.locator(CREATION_PANEL)).toBeVisible({ timeout: stationTimeout() })
   await select(interrupted.lane)
   await expect(win.locator(CREATION_PANEL)).toContainText('INTERRUPTED_PARTIAL')
   await select(waiting.lane)

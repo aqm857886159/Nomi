@@ -1,0 +1,1812 @@
+{
+  "schemaVersion": 1,
+  "sourceHash": "37cabe1a99e1f36c9c148087e6a5cfedc0c5bf8ca26005170ac10846ef39a462",
+  "buildReceipt": {
+    "version": 1,
+    "head": "ed97b427cb071a486f93f60bd2f84ab2ba202958",
+    "tree": "68f503c288683d17dc16898db5f1da6999c121da",
+    "dirty": true
+  },
+  "cases": [
+    {
+      "id": "agent.stream-stream",
+      "executed": false,
+      "simultaneousExternalResponsesHeld": 2,
+      "lanes": [
+        "main",
+        "新对话 2"
+      ],
+      "requestAt": [
+        1791689494824,
+        1791689495919
+      ],
+      "functionalPassed": false,
+      "status": "blocked",
+      "capabilityStatus": "capability-limited",
+      "attempted": true,
+      "nativeOverlapObserved": false
+    },
+    {
+      "id": "agent.switch-cancel-cold-recovery",
+      "executed": true,
+      "functionalPassed": true
+    },
+    {
+      "id": "agent.waiting-tool-waiting-tool",
+      "implemented": true,
+      "executed": false,
+      "functionalPassed": false,
+      "status": "blocked",
+      "reason": "Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution"
+    },
+    {
+      "id": "agent.stream-waiting-tool-cancel-recover",
+      "implemented": true,
+      "executed": false,
+      "functionalPassed": false,
+      "status": "blocked",
+      "reason": "Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution"
+    }
+  ],
+  "scope": "Real native Agent lanes with only the external model endpoint replaced by loopback SSE. Functional overlap/correlation/cancel/cold-recovery evidence, not latency budgets, CPU distributions or fixed1+5 acceptance. Stream/stream, waiting-tool/waiting-tool and stream/waiting-tool; tool is production ask_user awaiting actual UI response. No paid model or permission-policy changes.",
+  "existingConcurrencyContract": {
+    "path": "electron/agentLane/laneWorkspace.mts",
+    "symbol": "switchTo",
+    "sha256": "8d26742cf9652181e6cfcd3a43f9f94125bd1c63f24b16bc716b9540d54f5512",
+    "behavior": "Close the previous conversation before opening another in the same workspace; unseen background execution/spend is forbidden"
+  },
+  "concurrencyBlocker": "Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution",
+  "coldRecovery": {
+    "transcriptBytesUnchanged": true,
+    "noModelRequest": true,
+    "interruptedContentVisible": true,
+    "otherConversationResultVisible": true,
+    "scope": "Actual conversation-switch abort, not concurrent stream acceptance"
+  },
+  "failure": "Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution",
+  "nativeSessions": [
+    {
+      "laneName": "main",
+      "sessionId": "01a12904-09cb-7493-b210-ae43203b520a",
+      "sha256": "6911e11c6f462b597fdc3e067a1ff938d6b800226a06db8b20fb6f7fe955d2f9",
+      "messages": [
+        {
+          "role": "nomi.input",
+          "content": "STREAM_A_PROMPT",
+          "timestamp": 1791689494472,
+          "context": {
+            "storyboardTarget": {
+              "projectId": "project-1791689492755-wokv14",
+              "sourceDocumentId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+              "sourceDocumentRevision": 1791689493310,
+              "sourceDocumentContentHash": "fnv1a-811c9dc5",
+              "targetKind": "storyboard",
+              "plans": [
+                {
+                  "id": "starter-doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+                  "title": ""
+                }
+              ],
+              "requestId": "8ac5a078-ae73-48ea-bf7f-ffe7670dfffe"
+            },
+            "documentId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+            "target": {
+              "kind": "document",
+              "documentId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+              "anchor": {
+                "kind": "range",
+                "from": 0,
+                "to": 2,
+                "selectedTextHash": "fnv1a-811c9dc5"
+              }
+            },
+            "preconditions": {
+              "document": {
+                "revision": 1791689493310,
+                "contentHash": "fnv1a-811c9dc5"
+              }
+            },
+            "contextSnapshot": {
+              "version": 1,
+              "handles": [
+                {
+                  "id": "document:doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+                  "kind": "document",
+                  "targetId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+                  "revision": "1791689493310",
+                  "locator": {
+                    "type": "documentAnchor",
+                    "anchor": {
+                      "kind": "range",
+                      "from": 0,
+                      "to": 2,
+                      "selectedTextHash": "fnv1a-811c9dc5"
+                    }
+                  },
+                  "display": {
+                    "title": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4"
+                  },
+                  "intentRole": "source"
+                }
+              ]
+            },
+            "systemPrompt": "本轮是通用问答：直接、简洁地回答用户的问题或请求。不要强行套用任何创作模板，也不要主动改写文稿。",
+            "model": {
+              "vendorKey": "agent-runtime-loopback",
+              "modelKey": "agent-runtime-text"
+            },
+            "approvalPolicy": {
+              "mode": "safe-auto",
+              "spend": "confirm"
+            },
+            "availableModels": [
+              {
+                "modelId": "agent-runtime-text",
+                "modelAlias": null,
+                "vendor": "agent-runtime-loopback",
+                "label": "Fixture 文本",
+                "displayName": "Fixture 文本",
+                "kind": "text",
+                "defaultModeId": "chat",
+                "modes": [
+                  {
+                    "modeId": "chat",
+                    "vendorTerm": "对话",
+                    "intent": "生成或改写文本",
+                    "hint": "通过设置里的文本模型流式生成",
+                    "params": [],
+                    "slots": []
+                  }
+                ]
+              },
+              {
+                "modelId": "agent-runtime-image",
+                "modelAlias": null,
+                "vendor": "agent-runtime-loopback",
+                "label": "Fixture 图片",
+                "displayName": "Fixture 图片",
+                "kind": "image",
+                "archetypeId": "agnes-image",
+                "defaultModeId": "t2i",
+                "modes": [
+                  {
+                    "modeId": "t2i",
+                    "vendorTerm": "文生图",
+                    "intent": "text",
+                    "hint": "纯文字生成图像",
+                    "consumesAnchors": [
+                      "none"
+                    ],
+                    "params": [
+                      {
+                        "key": "size",
+                        "label": "尺寸",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1024x1024",
+                            "label": "1024x1024"
+                          },
+                          {
+                            "value": "1024x768",
+                            "label": "1024x768"
+                          },
+                          {
+                            "value": "768x1024",
+                            "label": "768x1024"
+                          },
+                          {
+                            "value": "1280x720",
+                            "label": "1280x720"
+                          },
+                          {
+                            "value": "720x1280",
+                            "label": "720x1280"
+                          },
+                          {
+                            "value": "1536x1024",
+                            "label": "1536x1024"
+                          },
+                          {
+                            "value": "1024x1536",
+                            "label": "1024x1536"
+                          }
+                        ],
+                        "defaultValue": "1024x1024"
+                      }
+                    ],
+                    "slots": []
+                  },
+                  {
+                    "modeId": "edit",
+                    "vendorTerm": "改图",
+                    "intent": "edit",
+                    "hint": "给图（可多张）+ 提示词改图",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "size",
+                        "label": "尺寸",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1024x1024",
+                            "label": "1024x1024"
+                          },
+                          {
+                            "value": "1024x768",
+                            "label": "1024x768"
+                          },
+                          {
+                            "value": "768x1024",
+                            "label": "768x1024"
+                          },
+                          {
+                            "value": "1280x720",
+                            "label": "1280x720"
+                          },
+                          {
+                            "value": "720x1280",
+                            "label": "720x1280"
+                          },
+                          {
+                            "value": "1536x1024",
+                            "label": "1536x1024"
+                          },
+                          {
+                            "value": "1024x1536",
+                            "label": "1024x1536"
+                          }
+                        ],
+                        "defaultValue": "1024x1024"
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "输入图"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "modelId": "dreamina-image",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦图片（会员）",
+                "displayName": "即梦图片（会员）",
+                "kind": "image",
+                "archetypeId": "dreamina-image",
+                "defaultModeId": "t2i",
+                "modes": [
+                  {
+                    "modeId": "t2i",
+                    "vendorTerm": "文生图",
+                    "intent": "text",
+                    "hint": "用即梦接入，纯文字生成图像",
+                    "consumesAnchors": [
+                      "none"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "2:3",
+                            "label": "2:3"
+                          },
+                          {
+                            "value": "3:2",
+                            "label": "3:2"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "1:1"
+                      },
+                      {
+                        "key": "resolution_type",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "2k",
+                            "label": "2k"
+                          },
+                          {
+                            "value": "4k",
+                            "label": "4k"
+                          }
+                        ],
+                        "defaultValue": "2k"
+                      }
+                    ],
+                    "slots": []
+                  },
+                  {
+                    "modeId": "i2i",
+                    "vendorTerm": "改图",
+                    "intent": "edit",
+                    "hint": "给图（最多 10 张）+ 提示词改图（需模型 4.0+）",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "2:3",
+                            "label": "2:3"
+                          },
+                          {
+                            "value": "3:2",
+                            "label": "3:2"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "1:1"
+                      },
+                      {
+                        "key": "resolution_type",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "2k",
+                            "label": "2k"
+                          },
+                          {
+                            "value": "4k",
+                            "label": "4k"
+                          }
+                        ],
+                        "defaultValue": "2k"
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "输入图",
+                        "max": 10
+                      }
+                    ]
+                  }
+                ],
+                "variants": [
+                  {
+                    "id": "v5_0pro",
+                    "label": "5.0 Pro",
+                    "modelKey": "5.0Pro"
+                  },
+                  {
+                    "id": "v5_0",
+                    "label": "5.0",
+                    "modelKey": "5.0"
+                  },
+                  {
+                    "id": "v4_7",
+                    "label": "4.7",
+                    "modelKey": "4.7"
+                  },
+                  {
+                    "id": "v4_6",
+                    "label": "4.6",
+                    "modelKey": "4.6"
+                  },
+                  {
+                    "id": "v4_5",
+                    "label": "4.5",
+                    "modelKey": "4.5"
+                  },
+                  {
+                    "id": "v4_1",
+                    "label": "4.1",
+                    "modelKey": "4.1"
+                  },
+                  {
+                    "id": "v4_0",
+                    "label": "4.0",
+                    "modelKey": "4.0"
+                  },
+                  {
+                    "id": "v3_1",
+                    "label": "3.1",
+                    "modelKey": "3.1"
+                  },
+                  {
+                    "id": "v3_0",
+                    "label": "3.0",
+                    "modelKey": "3.0"
+                  }
+                ],
+                "defaultVariantId": "v5_0"
+              },
+              {
+                "modelId": "dreamina-upscale",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦图片超清（会员）",
+                "displayName": "即梦图片超清（会员）",
+                "kind": "image",
+                "archetypeId": "dreamina-upscale",
+                "defaultModeId": "upscale",
+                "modes": [
+                  {
+                    "modeId": "upscale",
+                    "vendorTerm": "图片超清",
+                    "intent": "edit",
+                    "hint": "把一张图放大到 2k/4k/8k（4k/8k 需高级会员）",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "resolution_type",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "2k",
+                            "label": "2k"
+                          },
+                          {
+                            "value": "4k",
+                            "label": "4k"
+                          },
+                          {
+                            "value": "8k",
+                            "label": "8k"
+                          }
+                        ],
+                        "defaultValue": "2k"
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "输入图",
+                        "max": 1
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "modelId": "dreamina-seedance-2.0",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦 Seedance（会员）",
+                "displayName": "即梦 Seedance（会员）",
+                "kind": "video",
+                "archetypeId": "dreamina-seedance-2",
+                "defaultModeId": "t2v",
+                "modes": [
+                  {
+                    "modeId": "t2v",
+                    "vendorTerm": "文生视频",
+                    "intent": "text",
+                    "hint": "用即梦接入，纯文字生成 Seedance 视频",
+                    "consumesAnchors": [
+                      "none"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "16:9"
+                      },
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": []
+                  },
+                  {
+                    "modeId": "i2v",
+                    "vendorTerm": "图生视频",
+                    "intent": "single",
+                    "hint": "单张首帧图驱动生成（比例随图）",
+                    "consumesAnchors": [
+                      "firstFrame"
+                    ],
+                    "params": [
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "first_frame",
+                        "label": "首帧",
+                        "max": 1
+                      }
+                    ]
+                  },
+                  {
+                    "modeId": "firstlast",
+                    "vendorTerm": "首尾帧",
+                    "intent": "firstlast",
+                    "hint": "首帧 + 尾帧，过渡更可控（比例随首帧）",
+                    "consumesAnchors": [
+                      "firstFrame"
+                    ],
+                    "params": [
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "first_frame",
+                        "label": "首帧",
+                        "max": 1
+                      },
+                      {
+                        "kind": "last_frame",
+                        "label": "尾帧",
+                        "max": 1
+                      }
+                    ]
+                  },
+                  {
+                    "modeId": "multimodal",
+                    "vendorTerm": "全能参考",
+                    "intent": "character",
+                    "hint": "多模态参考：2.0 最多 9 图 / 3 视频 / 3 音频；2.5 最多 30 图 / 10 视频 / 10 音频（可纯音频）",
+                    "consumesAnchors": [
+                      "character"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "16:9"
+                      },
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "角色参考",
+                        "max": 9,
+                        "characterIndexed": true
+                      },
+                      {
+                        "kind": "video_ref",
+                        "label": "参考视频",
+                        "max": 3
+                      },
+                      {
+                        "kind": "audio_ref",
+                        "label": "参考音频",
+                        "max": 3
+                      }
+                    ]
+                  }
+                ],
+                "variants": [
+                  {
+                    "id": "fast",
+                    "label": "快速",
+                    "modelKey": "seedance2.0fast"
+                  },
+                  {
+                    "id": "standard",
+                    "label": "标准",
+                    "modelKey": "seedance2.0"
+                  },
+                  {
+                    "id": "vip",
+                    "label": "VIP·可1080p",
+                    "modelKey": "seedance2.0_vip"
+                  },
+                  {
+                    "id": "fast_vip",
+                    "label": "VIP快速·可1080p",
+                    "modelKey": "seedance2.0fast_vip"
+                  },
+                  {
+                    "id": "mini",
+                    "label": "Mini",
+                    "modelKey": "seedance2.0mini"
+                  },
+                  {
+                    "id": "v2_5",
+                    "label": "2.5·VIP",
+                    "modelKey": "seedance2.5"
+                  }
+                ],
+                "defaultVariantId": "fast"
+              },
+              {
+                "modelId": "dreamina-multiframe",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦多帧视频（会员）",
+                "displayName": "即梦多帧视频（会员）",
+                "kind": "video",
+                "archetypeId": "dreamina-multiframe",
+                "defaultModeId": "multiframe",
+                "modes": [
+                  {
+                    "modeId": "multiframe",
+                    "vendorTerm": "多帧叙事",
+                    "intent": "character",
+                    "hint": "2-20 张关键帧串成连贯视频。3+ 张时，提示词每行写一句相邻两图的过渡；2 张写一句即可。",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "段时长(秒,仅2图)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 3,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "关键帧",
+                        "max": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "attachments": [],
+            "admissionSurface": "document"
+          }
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "**STREAM_A_PARTIAL**\n\n| Scene | Choice |\n| --- | --- |\n| Opening | Close-up |"
+            }
+          ],
+          "api": "openai-completions",
+          "provider": "agent-runtime-loopback",
+          "model": "agent-runtime-text",
+          "responseId": "chatcmpl-fixture-1",
+          "usage": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 0,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          },
+          "stopReason": "aborted",
+          "timestamp": 1791689494809,
+          "errorMessage": "Assistant request was cancelled"
+        }
+      ]
+    },
+    {
+      "laneName": "新对话 2",
+      "sessionId": "01a12904-12ff-7493-b210-ae513ae1e261",
+      "sha256": "93e05285c2313bd30e027daeec374e4b2acdc35378922fe4b0f72373a7eeeece",
+      "messages": [
+        {
+          "role": "nomi.input",
+          "content": "STREAM_B_PROMPT",
+          "timestamp": 1791689495645,
+          "context": {
+            "storyboardTarget": {
+              "projectId": "project-1791689492755-wokv14",
+              "sourceDocumentId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+              "sourceDocumentRevision": 1791689493310,
+              "sourceDocumentContentHash": "fnv1a-811c9dc5",
+              "targetKind": "storyboard",
+              "plans": [
+                {
+                  "id": "starter-doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+                  "title": ""
+                }
+              ],
+              "requestId": "daf7d07a-e5bb-4e68-8640-135f221be2af"
+            },
+            "documentId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+            "target": {
+              "kind": "document",
+              "documentId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+              "anchor": {
+                "kind": "range",
+                "from": 0,
+                "to": 2,
+                "selectedTextHash": "fnv1a-811c9dc5"
+              }
+            },
+            "preconditions": {
+              "document": {
+                "revision": 1791689493310,
+                "contentHash": "fnv1a-811c9dc5"
+              }
+            },
+            "contextSnapshot": {
+              "version": 1,
+              "handles": [
+                {
+                  "id": "document:doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+                  "kind": "document",
+                  "targetId": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4",
+                  "revision": "1791689493310",
+                  "locator": {
+                    "type": "documentAnchor",
+                    "anchor": {
+                      "kind": "range",
+                      "from": 0,
+                      "to": 2,
+                      "selectedTextHash": "fnv1a-811c9dc5"
+                    }
+                  },
+                  "display": {
+                    "title": "doc-7d1fbc3d-3a04-40ba-a93c-38ba8d7f5eb4"
+                  },
+                  "intentRole": "source"
+                }
+              ]
+            },
+            "systemPrompt": "本轮是通用问答：直接、简洁地回答用户的问题或请求。不要强行套用任何创作模板，也不要主动改写文稿。",
+            "model": {
+              "vendorKey": "agent-runtime-loopback",
+              "modelKey": "agent-runtime-text"
+            },
+            "approvalPolicy": {
+              "mode": "safe-auto",
+              "spend": "confirm"
+            },
+            "availableModels": [
+              {
+                "modelId": "agent-runtime-text",
+                "modelAlias": null,
+                "vendor": "agent-runtime-loopback",
+                "label": "Fixture 文本",
+                "displayName": "Fixture 文本",
+                "kind": "text",
+                "defaultModeId": "chat",
+                "modes": [
+                  {
+                    "modeId": "chat",
+                    "vendorTerm": "对话",
+                    "intent": "生成或改写文本",
+                    "hint": "通过设置里的文本模型流式生成",
+                    "params": [],
+                    "slots": []
+                  }
+                ]
+              },
+              {
+                "modelId": "agent-runtime-image",
+                "modelAlias": null,
+                "vendor": "agent-runtime-loopback",
+                "label": "Fixture 图片",
+                "displayName": "Fixture 图片",
+                "kind": "image",
+                "archetypeId": "agnes-image",
+                "defaultModeId": "t2i",
+                "modes": [
+                  {
+                    "modeId": "t2i",
+                    "vendorTerm": "文生图",
+                    "intent": "text",
+                    "hint": "纯文字生成图像",
+                    "consumesAnchors": [
+                      "none"
+                    ],
+                    "params": [
+                      {
+                        "key": "size",
+                        "label": "尺寸",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1024x1024",
+                            "label": "1024x1024"
+                          },
+                          {
+                            "value": "1024x768",
+                            "label": "1024x768"
+                          },
+                          {
+                            "value": "768x1024",
+                            "label": "768x1024"
+                          },
+                          {
+                            "value": "1280x720",
+                            "label": "1280x720"
+                          },
+                          {
+                            "value": "720x1280",
+                            "label": "720x1280"
+                          },
+                          {
+                            "value": "1536x1024",
+                            "label": "1536x1024"
+                          },
+                          {
+                            "value": "1024x1536",
+                            "label": "1024x1536"
+                          }
+                        ],
+                        "defaultValue": "1024x1024"
+                      }
+                    ],
+                    "slots": []
+                  },
+                  {
+                    "modeId": "edit",
+                    "vendorTerm": "改图",
+                    "intent": "edit",
+                    "hint": "给图（可多张）+ 提示词改图",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "size",
+                        "label": "尺寸",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1024x1024",
+                            "label": "1024x1024"
+                          },
+                          {
+                            "value": "1024x768",
+                            "label": "1024x768"
+                          },
+                          {
+                            "value": "768x1024",
+                            "label": "768x1024"
+                          },
+                          {
+                            "value": "1280x720",
+                            "label": "1280x720"
+                          },
+                          {
+                            "value": "720x1280",
+                            "label": "720x1280"
+                          },
+                          {
+                            "value": "1536x1024",
+                            "label": "1536x1024"
+                          },
+                          {
+                            "value": "1024x1536",
+                            "label": "1024x1536"
+                          }
+                        ],
+                        "defaultValue": "1024x1024"
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "输入图"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "modelId": "dreamina-image",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦图片（会员）",
+                "displayName": "即梦图片（会员）",
+                "kind": "image",
+                "archetypeId": "dreamina-image",
+                "defaultModeId": "t2i",
+                "modes": [
+                  {
+                    "modeId": "t2i",
+                    "vendorTerm": "文生图",
+                    "intent": "text",
+                    "hint": "用即梦接入，纯文字生成图像",
+                    "consumesAnchors": [
+                      "none"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "2:3",
+                            "label": "2:3"
+                          },
+                          {
+                            "value": "3:2",
+                            "label": "3:2"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "1:1"
+                      },
+                      {
+                        "key": "resolution_type",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "2k",
+                            "label": "2k"
+                          },
+                          {
+                            "value": "4k",
+                            "label": "4k"
+                          }
+                        ],
+                        "defaultValue": "2k"
+                      }
+                    ],
+                    "slots": []
+                  },
+                  {
+                    "modeId": "i2i",
+                    "vendorTerm": "改图",
+                    "intent": "edit",
+                    "hint": "给图（最多 10 张）+ 提示词改图（需模型 4.0+）",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "2:3",
+                            "label": "2:3"
+                          },
+                          {
+                            "value": "3:2",
+                            "label": "3:2"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "1:1"
+                      },
+                      {
+                        "key": "resolution_type",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "2k",
+                            "label": "2k"
+                          },
+                          {
+                            "value": "4k",
+                            "label": "4k"
+                          }
+                        ],
+                        "defaultValue": "2k"
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "输入图",
+                        "max": 10
+                      }
+                    ]
+                  }
+                ],
+                "variants": [
+                  {
+                    "id": "v5_0pro",
+                    "label": "5.0 Pro",
+                    "modelKey": "5.0Pro"
+                  },
+                  {
+                    "id": "v5_0",
+                    "label": "5.0",
+                    "modelKey": "5.0"
+                  },
+                  {
+                    "id": "v4_7",
+                    "label": "4.7",
+                    "modelKey": "4.7"
+                  },
+                  {
+                    "id": "v4_6",
+                    "label": "4.6",
+                    "modelKey": "4.6"
+                  },
+                  {
+                    "id": "v4_5",
+                    "label": "4.5",
+                    "modelKey": "4.5"
+                  },
+                  {
+                    "id": "v4_1",
+                    "label": "4.1",
+                    "modelKey": "4.1"
+                  },
+                  {
+                    "id": "v4_0",
+                    "label": "4.0",
+                    "modelKey": "4.0"
+                  },
+                  {
+                    "id": "v3_1",
+                    "label": "3.1",
+                    "modelKey": "3.1"
+                  },
+                  {
+                    "id": "v3_0",
+                    "label": "3.0",
+                    "modelKey": "3.0"
+                  }
+                ],
+                "defaultVariantId": "v5_0"
+              },
+              {
+                "modelId": "dreamina-upscale",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦图片超清（会员）",
+                "displayName": "即梦图片超清（会员）",
+                "kind": "image",
+                "archetypeId": "dreamina-upscale",
+                "defaultModeId": "upscale",
+                "modes": [
+                  {
+                    "modeId": "upscale",
+                    "vendorTerm": "图片超清",
+                    "intent": "edit",
+                    "hint": "把一张图放大到 2k/4k/8k（4k/8k 需高级会员）",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "resolution_type",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "2k",
+                            "label": "2k"
+                          },
+                          {
+                            "value": "4k",
+                            "label": "4k"
+                          },
+                          {
+                            "value": "8k",
+                            "label": "8k"
+                          }
+                        ],
+                        "defaultValue": "2k"
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "输入图",
+                        "max": 1
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "modelId": "dreamina-seedance-2.0",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦 Seedance（会员）",
+                "displayName": "即梦 Seedance（会员）",
+                "kind": "video",
+                "archetypeId": "dreamina-seedance-2",
+                "defaultModeId": "t2v",
+                "modes": [
+                  {
+                    "modeId": "t2v",
+                    "vendorTerm": "文生视频",
+                    "intent": "text",
+                    "hint": "用即梦接入，纯文字生成 Seedance 视频",
+                    "consumesAnchors": [
+                      "none"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "16:9"
+                      },
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": []
+                  },
+                  {
+                    "modeId": "i2v",
+                    "vendorTerm": "图生视频",
+                    "intent": "single",
+                    "hint": "单张首帧图驱动生成（比例随图）",
+                    "consumesAnchors": [
+                      "firstFrame"
+                    ],
+                    "params": [
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "first_frame",
+                        "label": "首帧",
+                        "max": 1
+                      }
+                    ]
+                  },
+                  {
+                    "modeId": "firstlast",
+                    "vendorTerm": "首尾帧",
+                    "intent": "firstlast",
+                    "hint": "首帧 + 尾帧，过渡更可控（比例随首帧）",
+                    "consumesAnchors": [
+                      "firstFrame"
+                    ],
+                    "params": [
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "first_frame",
+                        "label": "首帧",
+                        "max": 1
+                      },
+                      {
+                        "kind": "last_frame",
+                        "label": "尾帧",
+                        "max": 1
+                      }
+                    ]
+                  },
+                  {
+                    "modeId": "multimodal",
+                    "vendorTerm": "全能参考",
+                    "intent": "character",
+                    "hint": "多模态参考：2.0 最多 9 图 / 3 视频 / 3 音频；2.5 最多 30 图 / 10 视频 / 10 音频（可纯音频）",
+                    "consumesAnchors": [
+                      "character"
+                    ],
+                    "params": [
+                      {
+                        "key": "ratio",
+                        "label": "比例",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "16:9",
+                            "label": "16:9"
+                          },
+                          {
+                            "value": "9:16",
+                            "label": "9:16"
+                          },
+                          {
+                            "value": "1:1",
+                            "label": "1:1"
+                          },
+                          {
+                            "value": "4:3",
+                            "label": "4:3"
+                          },
+                          {
+                            "value": "3:4",
+                            "label": "3:4"
+                          },
+                          {
+                            "value": "21:9",
+                            "label": "21:9"
+                          }
+                        ],
+                        "defaultValue": "16:9"
+                      },
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "时长(秒)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 5,
+                        "min": 4,
+                        "max": 15
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "角色参考",
+                        "max": 9,
+                        "characterIndexed": true
+                      },
+                      {
+                        "kind": "video_ref",
+                        "label": "参考视频",
+                        "max": 3
+                      },
+                      {
+                        "kind": "audio_ref",
+                        "label": "参考音频",
+                        "max": 3
+                      }
+                    ]
+                  }
+                ],
+                "variants": [
+                  {
+                    "id": "fast",
+                    "label": "快速",
+                    "modelKey": "seedance2.0fast"
+                  },
+                  {
+                    "id": "standard",
+                    "label": "标准",
+                    "modelKey": "seedance2.0"
+                  },
+                  {
+                    "id": "vip",
+                    "label": "VIP·可1080p",
+                    "modelKey": "seedance2.0_vip"
+                  },
+                  {
+                    "id": "fast_vip",
+                    "label": "VIP快速·可1080p",
+                    "modelKey": "seedance2.0fast_vip"
+                  },
+                  {
+                    "id": "mini",
+                    "label": "Mini",
+                    "modelKey": "seedance2.0mini"
+                  },
+                  {
+                    "id": "v2_5",
+                    "label": "2.5·VIP",
+                    "modelKey": "seedance2.5"
+                  }
+                ],
+                "defaultVariantId": "fast"
+              },
+              {
+                "modelId": "dreamina-multiframe",
+                "modelAlias": null,
+                "vendor": "dreamina",
+                "label": "即梦多帧视频（会员）",
+                "displayName": "即梦多帧视频（会员）",
+                "kind": "video",
+                "archetypeId": "dreamina-multiframe",
+                "defaultModeId": "multiframe",
+                "modes": [
+                  {
+                    "modeId": "multiframe",
+                    "vendorTerm": "多帧叙事",
+                    "intent": "character",
+                    "hint": "2-20 张关键帧串成连贯视频。3+ 张时，提示词每行写一句相邻两图的过渡；2 张写一句即可。",
+                    "consumesAnchors": [
+                      "scene"
+                    ],
+                    "params": [
+                      {
+                        "key": "video_resolution",
+                        "label": "清晰度",
+                        "type": "select",
+                        "options": [
+                          {
+                            "value": "720p",
+                            "label": "720p"
+                          },
+                          {
+                            "value": "1080p",
+                            "label": "1080p"
+                          }
+                        ],
+                        "defaultValue": "720p"
+                      },
+                      {
+                        "key": "duration",
+                        "label": "段时长(秒,仅2图)",
+                        "type": "number",
+                        "options": [],
+                        "defaultValue": 3,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1
+                      }
+                    ],
+                    "slots": [
+                      {
+                        "kind": "image_ref",
+                        "label": "关键帧",
+                        "max": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "attachments": [],
+            "admissionSurface": "document"
+          }
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "**STREAM_B_PARTIAL**\n\n| Scene | Choice |\n| --- | --- |\n| Opening | Close-up |\n\nSTREAM_B_DONE"
+            }
+          ],
+          "api": "openai-completions",
+          "provider": "agent-runtime-loopback",
+          "model": "agent-runtime-text",
+          "usage": {
+            "input": 8,
+            "output": 7,
+            "cacheRead": 3,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 18,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          },
+          "stopReason": "stop",
+          "timestamp": 1791689495916,
+          "responseId": "chatcmpl-fixture-2",
+          "rawStopReason": "stop"
+        }
+      ]
+    }
+  ],
+  "runtimeReport": {
+    "name": "nomi-performance-concurrency",
+    "mode": "development",
+    "tempRoot": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U",
+    "outputDir": "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791689491281",
+    "launches": [
+      {
+        "packaged": false,
+        "appPath": "<repo>",
+        "userData": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U/user-data",
+        "node": "24.18.1",
+        "electron": "43.4.1",
+        "pid": 245706
+      },
+      {
+        "packaged": false,
+        "appPath": "<repo>",
+        "userData": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U/user-data",
+        "node": "24.18.1",
+        "electron": "43.4.1",
+        "pid": 245859
+      }
+    ],
+    "screenshots": [
+      "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791689491281/01-native-switch-aborts-first-stream.png",
+      "<repo>/.tmp/pi-nomi-performance-concurrency-development-1791689491281/02-switch-abort-cold-recovery-preserves-independent-transcripts.png"
+    ],
+    "paidCalls": 0,
+    "projectId": "project-1791689492755-wokv14",
+    "projectRoot": "<temp>/nomi-pi-nomi-performance-concurrency-xHcw2U/projects/未命名项目 10_11 03_31-mv39nwgm-c8cc854e",
+    "textRequests": 2,
+    "imageRequests": 0,
+    "unexpected": [],
+    "result": "failed",
+    "error": "Error: Creating the second conversation aborts the first native lane; two held external responses do not prove concurrent native execution\n    at file://<repo>/tests/ux/nomi-agent-concurrency.walk.mjs:106:11"
+  },
+  "guard": {
+    "loaded": [
+      [
+        "fetch",
+        "http",
+        "https",
+        "socket",
+        "chromium"
+      ],
+      [
+        "fetch",
+        "http",
+        "https",
+        "socket",
+        "chromium"
+      ]
+    ],
+    "blockedAttempts": 0,
+    "errors": []
+  }
+}
