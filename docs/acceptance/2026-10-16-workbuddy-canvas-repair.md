@@ -75,3 +75,5 @@
 Anchor只发意图；宿主同帧判active/dragging/panning、量矩形、取消既有动画后duration0写视口，卸载/尺寸重跑取消待执行frame。原有placement禁令原样保留，最终focused37项、typecheck、lint:ci通过；四条新真实旅程在整合57cc1b09f后的最终宿主实现全部exit0（stdio生成闭环、Enter/断边/Undo生命周期、中英各16项）。证据PNG/JSON已替换为这次结果。独立线只读复审新归属并提出辅助平移guard，已采纳。
 
 完整初版Vitest：18681通过，placement结构禁令失败后以上述宿主收敛修正，focused37项转绿；generatedMediaDecode夹具另因本机FFmpeg没有WebP编码器而未运行27例。这两种失败分开记，未称最终整库全绿；最终候选完整unit由PR CI再验。
+
+原报告保持reviewed；两份机制合同的detected_by按实际证据来源记录walkthrough/review。调查由用户触发，但独立复现不是原病例认证，原项目/类型未知和极密长任务不能结账。本PR只交已实证修复，不给原报告伪造fixed或合入PR号。

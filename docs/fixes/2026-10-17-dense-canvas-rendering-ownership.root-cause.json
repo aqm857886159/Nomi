@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "id": "2026-10-17-dense-canvas-rendering-ownership",
-  "problem_type": "Dense canvas DOM work repeats despite unchanged container and interaction ownership",
+  "problem_type": "Redundant canvas DOM ownership discovered in source/profile review of an independent dense fixture",
   "symptom": "Large reference canvases stall during pan/zoom. A real-media 300-node/3000-reference-edge fixture reproduces repeated long tasks; the original user project remains unavailable.",
   "direct_cause": "A permanent subtree MutationObserver rescans all canvas descendants for three stable React Flow containers on every card/edge DOM change. Editable edges also render both the framework transparent hit path and a second accessible business hit path over the same geometry.",
   "class_root": "The canvas adapter has no enforced cardinality/lifecycle invariant for framework-owned DOM: stable container aliases run on child mutations, and one interactive connection has two overlapping hit owners.",
@@ -118,12 +118,13 @@
   },
   "migration": "No project/node/provider/schema migration: all stored graphs and interaction semantics remain unchanged.",
   "residual_risks": [
+    "Investigation was prompted by user reports, but this contract records the independently established mechanism. Original USER-20261012 reports remain reviewed, not fixed: original project/card type is unavailable and stress long tasks remain. Do not treat this contract as certification that the original incidents are solved.",
     "Original user project, distinct high-resolution media pressure and Windows remain unverified.",
     "Registered final batch passes primary median budget (pan14ms/wheel19ms) but wheel first run still has7 long tasks; the preserved original final5 batch retains wheel36.1ms in one run and pan/wheel long-task medians7/4. Zero long tasks in every observed run is not achieved.",
     "Host load varies; raw samples retain load averages. Repeated frame URLs isolate edge/DOM cost and do not establish distinct-image decode scalability.",
     "Registry baseline.commit49fa5d949 identifies the base HEAD plus uncommitted candidate workspace, not a fixed committed PR head; CI must verify the actual delivered commit."
   ],
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-11-17",
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/reactFlow",

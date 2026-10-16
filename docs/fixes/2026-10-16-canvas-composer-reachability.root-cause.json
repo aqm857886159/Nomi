@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "id": "2026-10-16-canvas-composer-reachability",
-  "problem_type": "single-selected canvas generation controls outside interactive viewport",
+  "problem_type": "Independently reproduced signed-host canvas composer actions outside the interactive viewport",
   "symptom": "External Agent lands valid 9:16 image nodes, but selecting a bottom/left card hides model and generate controls outside the clipped stage.",
   "direct_cause": "Pinned node-relative composer extends below/left of the canvas stage; model/footer DOM is mounted but cannot be hit inside the viewport.",
   "class_root": "Opening a selected interactive node composer has no shared guarantee that its actions lie within the canvas interactive viewport.",
@@ -138,11 +138,12 @@
   },
   "migration": "No stored-node migration: kind/model/position/size/prompt untouched; restored and new nodes use the same canvas host.",
   "residual_risks": [
+    "Investigation was prompted by user reports, but this contract records the independently established mechanism. Original USER-20261012 reports remain reviewed, not fixed: original project/card type is unavailable and stress long tasks remain. Do not treat this contract as certification that the original incidents are solved.",
     "User original project not supplied; this reproduces the reported inaccessible controls mechanism in an independent real Electron project.",
     "Windows and real paid provider output require separate receipts.",
     "Dense-canvas performance remains a separate investigation; do not claim it fixed by viewport reveal."
   ],
-  "detected_by": "user",
+  "detected_by": "walkthrough",
   "recurrence_check_on": "2026-11-16",
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/reactFlow",
