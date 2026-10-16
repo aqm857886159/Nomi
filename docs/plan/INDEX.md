@@ -1,4 +1,5 @@
 # docs/plan 索引地图
+- [WorkBuddy 落画布到生成：控件可达性与密集连线修复](2026-10-16-workbuddy-canvas-generation-repair.md) — 真实 Electron / 签名 stdio 红绿回放与独立验收；已实现待 PR。
 - [去掉强调色描边：普查 + 样张 + 落地结果（蓝色只留主按钮 / 链接 / 进度 / 连线握把）](2026-10-10-no-accent-outline.md) — 241 处普查分 8 类、样张八格、落地记录；门岗 `check:tokens` 第 7 类棘轮。
 - [模型契约跨字段约束](2026-09-08-model-contract-cross-field-limits.md) — Hailuo 1080p/时长与 H3 混合参考总量。
 - [阶段 5b：目录活性 reconcile](2026-09-08-catalog-liveness-reconcile.md) — 自动禁用、保留配置、周探针与明暗样张。
@@ -554,3 +555,5 @@
 - [README](storyboard-anchor-policy-evidence/README.md)
 - [c0-video-wait-plan](sweep-evidence/c0-video-wait-plan.md)
 - [trace](trace-log-evidence/trace.md)
+
+- [2026-10-17 密集画布 DOM 所有权修复](2026-10-17-dense-canvas-rendering-ownership.md)

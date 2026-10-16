@@ -30,6 +30,8 @@ export const CANVAS_PERF_SCALES = Object.freeze({
   I60: { imageCount: 60, videoCount: 0, edgeCount: 30, clipCount: 0 },
   I150: { imageCount: 150, videoCount: 0, edgeCount: 75, clipCount: 0 },
   I300: { imageCount: 300, videoCount: 0, edgeCount: 150, clipCount: 0 },
+  // Reference-heavy Agent/import boards use the same images with ten links per node.
+  I300DENSE: { imageCount: 300, videoCount: 0, edgeCount: 3000, clipCount: 0 },
 })
 
 const IMAGE_ASSETS = [

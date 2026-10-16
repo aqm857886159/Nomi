@@ -1,0 +1,21 @@
+{
+  "checks": [
+    {
+      "initial": [
+        true,
+        true,
+        true
+      ],
+      "scans": 0,
+      "retained": [
+        true,
+        true,
+        true
+      ]
+    }
+  ],
+  "hitLayers": {
+    "framework": 1,
+    "accessible": 1
+  }
+}

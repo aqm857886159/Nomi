@@ -1,0 +1,20 @@
+{
+  "id": "USER-20261012-dense-canvas-render",
+  "since": "2026-10-12",
+  "source": "2026-10-12 本会话用户报告；附图仅用于本地诊断，不提交用户截图/聊天内容",
+  "category": "performance-coverage",
+  "problem": "用户报告同一大画布卡顿、部分卡片显示错误；重启无效、换任务正常。未取得原项目。已在300图片/3000参考边复现长任务，并删除共享适配层的永久DOM扫描与重复透明命中层；极限档仍有长任务，未将原报告标成已解决。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-16-workbuddy-canvas-generation-repair.md",
+    "docs/acceptance/2026-10-16-workbuddy-canvas-repair.md",
+    "docs/plan/2026-10-17-dense-canvas-rendering-ownership.md",
+    "docs/fixes/2026-10-17-dense-canvas-rendering-ownership.root-cause.json"
+  ],
+  "completionCommits": []
+}

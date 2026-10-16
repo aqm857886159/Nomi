@@ -1,0 +1,26 @@
+{
+  "id": "USER-20261012-automation-generation-controls",
+  "since": "2026-10-12",
+  "source": "2026-10-12 本会话用户报告；附图仅用于本地诊断，不提交用户截图/聊天内容",
+  "category": "interaction-semantics",
+  "problem": "用户报告 WorkBuddy 自动化落画布后，提示词卡没有模型选择入口，不能直接出图。实际工具参数、节点类型、平台与安装构建待确认；不能把文字/镜头说明卡直接认定为图片生成卡。 2026-10-16 已在独立真实Electron项目复现同类浮框被裁切；修复与回归见链接，待本PR合入后结账。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪",
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-16-workbuddy-canvas-generation-repair.md",
+    "docs/acceptance/2026-10-16-workbuddy-canvas-repair.md"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-16-canvas-composer-reachability.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/nodes/composerViewportReveal.test.ts"
+  }
+}

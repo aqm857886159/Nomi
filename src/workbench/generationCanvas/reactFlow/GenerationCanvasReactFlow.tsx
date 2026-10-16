@@ -75,7 +75,7 @@ import {
   overlayCanvasDragDraft,
 } from './canvasDragDraft'
 import { cancelCanvasNodeDrag, commitCanvasKeyboardPositions, endKernelNodeDrag, finishCanvasNodeDrag, isKeyboardMoveBatch, keyboardMoveScope, restoreDisownedKernelPositions } from './canvasDragWriteback'
-import { GenerationFlowHandleMenuScope } from './generationFlowNodeContext'
+import { GenerationFlowHandleMenuScope, GenerationFlowComposerRevealScope } from './generationFlowNodeContext'
 import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOverlays'
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
@@ -281,7 +281,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     rememberCategoryViewport,
     setLiveViewport,
   })
-  useGenerationCanvasReactFlowHostEffects({
+  const { revealComposer } = useGenerationCanvasReactFlowHostEffects({
     activeCategoryId,
     animateViewportTo,
     cancelViewportAnimation,
@@ -688,6 +688,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       ) : null}
       {!readOnly ? <CanvasToolbar getInsertionPosition={getInsertionPosition} categoryId={activeCategoryId} stageWidth={stageSize.width || undefined} /> : null}
       <GenerationFlowHandleMenuScope open={openHandleMenu}>
+      <GenerationFlowComposerRevealScope reveal={revealComposer}>
       <GenerationCanvasReactFlowViewport
         flowNodes={renderedFlowNodes}
         isNodeDragging={nodeDragActive}
@@ -739,6 +740,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onClearSelection={clearSelection}
         groupToolbar={groupToolbar}
       />
+      </GenerationFlowComposerRevealScope>
       </GenerationFlowHandleMenuScope>
       <GenerationCanvasReactFlowOverlays
         readOnly={readOnly}

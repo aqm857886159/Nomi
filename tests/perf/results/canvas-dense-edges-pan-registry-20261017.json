@@ -1,0 +1,36 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "49fa5d949",
+  "date": "2026-10-16",
+  "runs": 5,
+  "results": [
+    {
+      "id": "canvas-dense-edges-pan",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 14,
+          "p95": 14.1
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "budget": 33,
+      "baseline": {
+        "median": 0,
+        "p95": 0,
+        "runs": 0,
+        "machine": "",
+        "date": "",
+        "commit": ""
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

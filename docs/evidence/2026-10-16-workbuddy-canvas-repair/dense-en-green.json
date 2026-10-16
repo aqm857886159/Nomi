@@ -1,0 +1,295 @@
+{
+  "locale": "en",
+  "fixture": {
+    "nodes": 60,
+    "edges": 300,
+    "promptCharacters": 3840,
+    "source": "repository real-shot-640x360.mp4, portrait crop 360x640"
+  },
+  "checks": [
+    {
+      "label": "left-edge: composer fully inside usable stage",
+      "ok": true,
+      "geometry": {
+        "stage": {
+          "x": 60,
+          "y": 40,
+          "width": 1212,
+          "height": 849,
+          "top": 40,
+          "right": 1272,
+          "bottom": 889,
+          "left": 60
+        },
+        "card": {
+          "x": 68,
+          "y": 212.31787109375,
+          "width": 560,
+          "height": 400,
+          "top": 212.31787109375,
+          "right": 628,
+          "bottom": 612.31787109375,
+          "left": 68
+        },
+        "prompt": {
+          "x": 81,
+          "y": 360.16162109375,
+          "width": 534,
+          "height": 199.15625,
+          "top": 360.16162109375,
+          "right": 615,
+          "bottom": 559.31787109375,
+          "left": 81
+        },
+        "overflowY": "auto",
+        "clientHeight": 199,
+        "scrollHeight": 2254
+      }
+    },
+    {
+      "label": "left-edge: long prompt internally scrolls",
+      "ok": true,
+      "geometry": {
+        "stage": {
+          "x": 60,
+          "y": 40,
+          "width": 1212,
+          "height": 849,
+          "top": 40,
+          "right": 1272,
+          "bottom": 889,
+          "left": 60
+        },
+        "card": {
+          "x": 68,
+          "y": 212.31787109375,
+          "width": 560,
+          "height": 400,
+          "top": 212.31787109375,
+          "right": 628,
+          "bottom": 612.31787109375,
+          "left": 68
+        },
+        "prompt": {
+          "x": 81,
+          "y": 360.16162109375,
+          "width": 534,
+          "height": 199.15625,
+          "top": 360.16162109375,
+          "right": 615,
+          "bottom": 559.31787109375,
+          "left": 81
+        },
+        "overflowY": "auto",
+        "clientHeight": 199,
+        "scrollHeight": 2254
+      }
+    },
+    {
+      "label": "repeat selection does not drift viewport",
+      "ok": true
+    },
+    {
+      "label": "long prompt reaches its end",
+      "ok": true
+    },
+    {
+      "label": "version grid hides composer",
+      "ok": true
+    },
+    {
+      "label": "version-grid-restored: composer fully inside usable stage",
+      "ok": true,
+      "geometry": {
+        "stage": {
+          "x": 60,
+          "y": 40,
+          "width": 1212,
+          "height": 849,
+          "top": 40,
+          "right": 1272,
+          "bottom": 889,
+          "left": 60
+        },
+        "card": {
+          "x": 68,
+          "y": 212.31787109375,
+          "width": 560,
+          "height": 400,
+          "top": 212.31787109375,
+          "right": 628,
+          "bottom": 612.31787109375,
+          "left": 68
+        },
+        "prompt": {
+          "x": 81,
+          "y": 360.16162109375,
+          "width": 534,
+          "height": 199.15625,
+          "top": 360.16162109375,
+          "right": 615,
+          "bottom": 559.31787109375,
+          "left": 81
+        },
+        "overflowY": "auto",
+        "clientHeight": 199,
+        "scrollHeight": 2254
+      }
+    },
+    {
+      "label": "version-grid-restored: long prompt internally scrolls",
+      "ok": true,
+      "geometry": {
+        "stage": {
+          "x": 60,
+          "y": 40,
+          "width": 1212,
+          "height": 849,
+          "top": 40,
+          "right": 1272,
+          "bottom": 889,
+          "left": 60
+        },
+        "card": {
+          "x": 68,
+          "y": 212.31787109375,
+          "width": 560,
+          "height": 400,
+          "top": 212.31787109375,
+          "right": 628,
+          "bottom": 612.31787109375,
+          "left": 68
+        },
+        "prompt": {
+          "x": 81,
+          "y": 360.16162109375,
+          "width": 534,
+          "height": 199.15625,
+          "top": 360.16162109375,
+          "right": 615,
+          "bottom": 559.31787109375,
+          "left": 81
+        },
+        "overflowY": "auto",
+        "clientHeight": 199,
+        "scrollHeight": 2254
+      }
+    },
+    {
+      "label": "real blank pane for pan",
+      "ok": true
+    },
+    {
+      "label": "pan settles without viewport snap-back",
+      "ok": true
+    },
+    {
+      "label": "pan releases dragging flag",
+      "ok": true
+    },
+    {
+      "label": "bottom-edge: composer fully inside usable stage",
+      "ok": true,
+      "geometry": {
+        "stage": {
+          "x": 60,
+          "y": 40,
+          "width": 1212,
+          "height": 849,
+          "top": 40,
+          "right": 1272,
+          "bottom": 889,
+          "left": 60
+        },
+        "card": {
+          "x": 68,
+          "y": 417,
+          "width": 560,
+          "height": 399.99993896484375,
+          "top": 417,
+          "right": 628,
+          "bottom": 816.9999389648438,
+          "left": 68
+        },
+        "prompt": {
+          "x": 81,
+          "y": 564.84375,
+          "width": 534,
+          "height": 199.15618896484375,
+          "top": 564.84375,
+          "right": 615,
+          "bottom": 763.9999389648438,
+          "left": 81
+        },
+        "overflowY": "auto",
+        "clientHeight": 199,
+        "scrollHeight": 2254
+      }
+    },
+    {
+      "label": "bottom-edge: long prompt internally scrolls",
+      "ok": true,
+      "geometry": {
+        "stage": {
+          "x": 60,
+          "y": 40,
+          "width": 1212,
+          "height": 849,
+          "top": 40,
+          "right": 1272,
+          "bottom": 889,
+          "left": 60
+        },
+        "card": {
+          "x": 68,
+          "y": 417,
+          "width": 560,
+          "height": 399.99993896484375,
+          "top": 417,
+          "right": 628,
+          "bottom": 816.9999389648438,
+          "left": 68
+        },
+        "prompt": {
+          "x": 81,
+          "y": 564.84375,
+          "width": 534,
+          "height": 199.15618896484375,
+          "top": 564.84375,
+          "right": 615,
+          "bottom": 763.9999389648438,
+          "left": 81
+        },
+        "overflowY": "auto",
+        "clientHeight": 199,
+        "scrollHeight": 2254
+      }
+    },
+    {
+      "label": "adjacent unselected card has a real drag handle",
+      "ok": true
+    },
+    {
+      "label": "selecting by drag does not acquire viewport reveal",
+      "ok": true
+    },
+    {
+      "label": "node drag releases dragging flag",
+      "ok": true
+    },
+    {
+      "label": "no renderer errors",
+      "ok": true,
+      "errors": []
+    }
+  ],
+  "errors": [],
+  "runtime": {
+    "appVersion": null,
+    "electron": "43.4.1",
+    "chrome": "150.0.7871.224",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "pass": true
+}
