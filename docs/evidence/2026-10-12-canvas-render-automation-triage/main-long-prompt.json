@@ -1,0 +1,52 @@
+{
+  "baseline": "0c1ed6a0c9421091f238413d682af97e9aa18d9d",
+  "fixture": "production BaseGenerationNode/Composer via existing design-lab fixture, synthetic catalog, no real project/generation",
+  "report": {
+    "card": {
+      "height": 400,
+      "bottom": 702
+    },
+    "prompt": {
+      "height": 321,
+      "scrollHeight": 1480,
+      "clientHeight": 321,
+      "scrollTop": 1159
+    },
+    "footer": {
+      "bottom": 689,
+      "top": 655,
+      "inside": true
+    },
+    "button": {
+      "bottom": 689,
+      "inside": true
+    },
+    "style": {
+      "overflow": "hidden",
+      "display": "flex"
+    },
+    "controls": [
+      {
+        "label": "去配置模型",
+        "text": "没有可用图像模型去配置 →"
+      },
+      {
+        "label": "提示词预设",
+        "text": ""
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "text": ""
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "text": ""
+      },
+      {
+        "label": "生成素材",
+        "text": "↑"
+      }
+    ]
+  },
+  "errors": []
+}

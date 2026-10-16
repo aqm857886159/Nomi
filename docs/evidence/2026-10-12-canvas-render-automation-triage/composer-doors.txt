@@ -1,0 +1,22 @@
+[
+  {
+    "kind": "read",
+    "path": "src/devlab/designLab/v4/states/07-spend-params.tsx",
+    "symbol": "NodeGenerationComposer"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "symbol": "NodeGenerationComposer"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "symbol": "NodeGenerationComposer"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/generationCanvas/nodes/LazyNodeGenerationComposer.tsx",
+    "symbol": "NodeGenerationComposer"
+  }
+]

@@ -1,0 +1,49 @@
+{
+  "checked_at": "2026-10-12",
+  "latest_public_release": {
+    "tag": "v0.23.1",
+    "commit": "66d6eafed07ad6239acd765dd05c9eb0870cf849",
+    "published_at": "2026-10-08T14:19:59Z",
+    "url": "https://github.com/aqm857886159/Nomi/releases/tag/v0.23.1"
+  },
+  "source_baseline": "0c1ed6a0c9421091f238413d682af97e9aa18d9d",
+  "reported_install_version": "user believes latest; installed build/platform not yet confirmed",
+  "changes": [
+    {
+      "sha": "1da15ba6f5b7050f518db32a44b2b82d3617283f",
+      "title": "test(canvas): make performance evidence real-media safe",
+      "in_v0_23_1": false,
+      "in_baseline": true
+    },
+    {
+      "sha": "5f029f6c496a3cebc2fe2b1518f9fbbec93e2b9a",
+      "title": "fix(canvas): 拖动时节点卡只挪位置不重渲——外壳按 React Flow 性能指南 memo，只忽略两个坐标",
+      "in_v0_23_1": false,
+      "in_baseline": true
+    },
+    {
+      "sha": "7f0372518c8c9ec75b4e6c8c4482459e0a14b633",
+      "title": "fix(canvas): 多选时不再给每张卡挂缩放把手——全选拖动的合成层 1137 → 57",
+      "in_v0_23_1": false,
+      "in_baseline": true
+    },
+    {
+      "sha": "d6f85de5ff66fdff1441ea3d1c9819503c827420",
+      "title": "perf(canvas): 拖动时边不再每帧按模型档案校验连线模式、不再每帧重新解析文案",
+      "in_v0_23_1": false,
+      "in_baseline": true
+    },
+    {
+      "sha": "b4be405ab6a0f920c4ada5aeec2def1cdbfd99fe",
+      "title": "fix(canvas): 节点浮条测量一步到位、反向缩放只认 React Flow，打开项目马上选图不再整块画布崩",
+      "in_v0_23_1": false,
+      "in_baseline": true
+    },
+    {
+      "sha": "cdfdf7889021d3e35469259069b883ce5f5ec86e",
+      "title": "fix(canvas): 模型清单给同步首值 + 加载态画骨架（8 条走查 §4）",
+      "in_v0_23_1": false,
+      "in_baseline": true
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+[
+  {
+    "kind": "write",
+    "path": "electron/capabilityCore/dispatcher.ts",
+    "symbol": "addProjectNodes"
+  }
+]

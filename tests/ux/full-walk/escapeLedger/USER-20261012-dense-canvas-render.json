@@ -1,0 +1,19 @@
+{
+  "id": "USER-20261012-dense-canvas-render",
+  "since": "2026-10-12",
+  "source": "2026-10-12 本会话用户报告；附图仅用于本地诊断，不提交用户截图/聊天内容",
+  "category": "performance-coverage",
+  "problem": "用户报告同一大画布卡顿、部分卡片显示错误；重启无效、换任务正常。尚未复现受影响项目，不能归因电脑或声称主线修复已覆盖。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/engineering/direction-check-2026-10-12-canvas-render-automation.md",
+    "docs/evidence/2026-10-12-canvas-render-automation-triage/release-comparison.json",
+    "docs/evidence/2026-10-12-canvas-render-automation-triage/main-long-prompt.json"
+  ],
+  "completionCommits": []
+}

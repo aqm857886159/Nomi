@@ -1,0 +1,4 @@
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx：文件近 14 天已有 8 个 fix，这一刀是第 9 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
