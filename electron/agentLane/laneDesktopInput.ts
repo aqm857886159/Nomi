@@ -3,6 +3,7 @@ import { formatStoryboardRequestTarget } from '../shared/agentCapabilities/gener
 import { agentModelEntrySchema } from "../shared/agentCapabilities/availableModelsSchema"
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
+import { LANE_THINKING_LEVELS } from '../shared/agentLane/laneContracts'
 import type { Model } from '../catalog/types'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
 import type { OpenLaneOptions } from './laneRuntimePort'
@@ -38,7 +39,7 @@ const intentSchema = z.object({
   systemPrompt: text.optional(),
 }).strict()
 const composerSchema = intentSchema.extend({
-  model: z.object({ vendorKey: z.string().min(1).max(256), modelKey: z.string().min(1).max(256) }).strict().optional(),
+  model: z.object({ vendorKey: z.string().min(1).max(256), modelKey: z.string().min(1).max(256), thinkingLevel: z.enum(LANE_THINKING_LEVELS).optional() }).strict().optional(),
   approvalPolicy: z.object({ mode: z.enum(PROJECT_AGENT_APPROVAL_MODES), spend: z.enum(PROJECT_AGENT_SPEND_POLICIES) }).strict(),
   availableModels: z.array(agentModelEntrySchema).max(2048).optional(),
   attachments: z.array(z.object({ assetId: z.string().min(1).max(256), version: z.number().int().positive() }).strict()).max(64).optional(),

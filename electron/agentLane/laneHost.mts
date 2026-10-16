@@ -34,7 +34,7 @@ import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/l
 import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { AgentHarness, reduceLaneSnapshot, type AgentLane, type LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT, awaitWithContext, type Context } from '@earendil-works/pi-agent-core/harness/context';
-import { createModels, getSupportedThinkingLevels, isContextOverflow, isRetryableAssistantError } from '@earendil-works/pi-ai';
+import { createModels, getSupportedThinkingLevels, clampThinkingLevel, isContextOverflow, isRetryableAssistantError } from '@earendil-works/pi-ai';
 import { createNomiProvider } from './laneModelProvider.mjs';
 import { LANE_STREAM_WATCHDOG } from './laneProviderGuard.mjs';
 import { omitSupersededReads } from './laneSupersededReads.mjs';
@@ -317,6 +317,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   if (currentModel?.provider !== model.provider || currentModel?.id !== model.id) {
     await lane.setModel({ provider: model.provider, modelId: model.id }, context);
   }
+  const currentThinkingLevel = await lane.getThinkingLevel(context);
+  const thinkingLevel = clampThinkingLevel(model, options.model.thinkingLevel ?? currentThinkingLevel);
+  if (currentThinkingLevel !== thinkingLevel) await lane.setThinkingLevel(thinkingLevel, context);
   const legacySource = (await lane.findEntries({ type: 'custom', customType: LANE_LEGACY_NOTE, limit: 1 }, context))[0];
   if (legacySource?.type === 'custom' && laneLegacyFacts(legacySource.data)
     && !(await lane.findEntries({ type: 'custom', customType: LANE_LEGACY_TOOLS_NOTE, limit: 1 }, context)).length) {

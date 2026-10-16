@@ -45,6 +45,7 @@ export interface NomiModelConfig {
    * `getSupportedThinkingLevels` 里剔掉；`off: null` 就是「关不掉思考」。
    */
   thinkingLevelMap?: Record<string, string | null>
+  thinkingLevel?: import('./laneContracts').LaneThinkingLevel
 }
 
 /**

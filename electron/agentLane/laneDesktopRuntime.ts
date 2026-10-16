@@ -19,6 +19,7 @@ import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIde
 import { chooseTextModel } from '../ai/textBrainResolver'
 import { vendorModelConnection } from '../ai/vendorModelConnection'
 import { modelContextWindow } from '../shared/modelContextWindow'
+import { modelReasoning } from '../shared/agentLane/modelReasoning'
 import { NOMI_AGENT_IDENTITY, buildLanguageRule, resolveRequestedSkill } from '../harness/context/agentContext'
 import type { SkillRecord } from '../skills/skillStore'
 import { getProjectMemory, formatMemoryForPrompt } from '../memory/projectMemory'
@@ -65,6 +66,7 @@ function selectModel(preference: LaneComposerContext['model']) {
   const connection = vendorModelConnection(vendor, model, apiKey)
   const contextWindow = modelContextWindow(model.meta, connection.modelId)
   const maxOutputTokens = (model.meta as Record<string, unknown> | undefined)?.maxOutputTokens
+  const thinking = modelReasoning(model.meta, preference?.thinkingLevel)
   const config: NomiModelConfig = {
     ...connection, providerId: vendor.key, authType: vendor.authType === 'none' ? 'none' : 'api-key',
     ...(contextWindow === undefined ? {} : { contextWindow }),
@@ -72,6 +74,7 @@ function selectModel(preference: LaneComposerContext['model']) {
       ? { maxOutputTokens: Math.floor(maxOutputTokens) } : {}),
     ...(model.tokenPricing ? { tokenPricing: model.tokenPricing } : {}),
     ...(model.free ? { free: true as const } : {}),
+    ...(thinking ? { reasoning: thinking.reasoning, thinkingLevelMap: thinking.thinkingLevelMap, thinkingLevel: thinking.thinkingLevel } : {}),
   }
   return { model, kind: connection.kind, config }
 }

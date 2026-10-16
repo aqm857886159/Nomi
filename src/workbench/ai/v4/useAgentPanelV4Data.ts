@@ -20,6 +20,8 @@ import { skillLabelForKey } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
+import { modelReasoning } from '../../../../electron/shared/agentLane/modelReasoning'
+import type { LaneThinkingLevel } from '../../../../electron/shared/agentLane/laneContracts'
 import { useTimelinePlanRows, useTimelineSelectionChips } from '../resident/timelineAgentSurface'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import {
@@ -116,6 +118,7 @@ export type AgentPanelV4Data = Readonly<{
   vendors: Readonly<Record<string, string>>
   selectedModel: ModelCatalogModelDto | undefined
   modelLabel: string
+  reasoning?: Readonly<{ level: LaneThinkingLevel; levels: readonly LaneThinkingLevel[]; disabled: boolean; select: (level: LaneThinkingLevel) => void }>
   skills: readonly SkillListItemDto[]
   /** 技能 key → 界面上的名字（`skillLabelForKey`）。气泡、composer、恢复草稿行都读它，谁都不另存名字。 */
   skillLabel: (key: string) => string
@@ -138,6 +141,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const primaryPending = snapshot.active.pending
   const pendingRecords = React.useMemo(() => primaryPending ? [{ call: primaryPending }] : [], [primaryPending])
   const [models, setModels] = React.useState<readonly ModelCatalogModelDto[]>([])
+  const [, refreshModelPreference] = React.useReducer((revision: number) => revision + 1, 0)
   const [vendors, setVendors] = React.useState<Readonly<Record<string, string>>>({})
   const [selectedModelId, setSelectedModelId] = React.useState(() => {
     const pref = getAssistantModelPref()
@@ -219,6 +223,18 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const selectedModel = models.find((model) => encodeModelIdentity(model) === selectedModelId)
     ?? models.find((model) => model.vendorKey === snapshot.active.model?.provider
       && (model.modelKey === snapshot.active.model.modelId || model.modelAlias === snapshot.active.model.modelId))
+  const preference = getAssistantModelPref()
+  const thinking = modelReasoning(selectedModel?.meta,
+    preference?.vendorKey === selectedModel?.vendorKey && preference?.modelKey === selectedModel?.modelKey ? preference?.thinkingLevel : undefined)
+  React.useEffect(() => {
+    const update = (): void => {
+      const current = getAssistantModelPref()
+      setSelectedModelId(current ? encodeModelIdentity(current) : '')
+      refreshModelPreference()
+    }
+    window.addEventListener('nomi:assistant-model-changed', update)
+    return () => window.removeEventListener('nomi:assistant-model-changed', update)
+  }, [])
   const modelLabel = selectedModel
     ? labelForModel(selectedModel, [...models], vendors)
     // 没选模型时说实话。写一个型号名当占位是最糟的一种「默认」：用户以为已经在用它了。
@@ -359,6 +375,13 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     vendors,
     selectedModel,
     modelLabel,
+    ...(thinking && selectedModel ? { reasoning: {
+      level: thinking.thinkingLevel, levels: thinking.levels, disabled: snapshot.active.running,
+      select: (level: LaneThinkingLevel) => {
+        if (snapshot.active.running || !thinking.levels.includes(level)) return
+        setAssistantModelPref({ vendorKey: selectedModel.vendorKey, modelKey: selectedModel.modelKey, thinkingLevel: level })
+      },
+    } } : {}),
     skills,
     skillLabel,
     liveChips,

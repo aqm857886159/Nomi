@@ -2,18 +2,20 @@
 // 根因（2026-06-06）：chooseTextModel 盲选第一个 text 模型，撞到不响应的就全卡。让用户指定。
 // 存 localStorage（轻、跨面板共享、不重启即失）；runWorkbenchAgent 读它加进 payload，两个面板自动生效。
 
+import { isLaneThinkingLevel } from '../../../electron/shared/agentLane/modelReasoning'
+import type { LaneThinkingLevel } from '../../../electron/shared/agentLane/laneContracts'
 const KEY = 'nomi.assistantModel'
 
-export type AssistantModelPref = { vendorKey: string; modelKey: string } | null
+export type AssistantModelPref = { vendorKey: string; modelKey: string; thinkingLevel?: LaneThinkingLevel } | null
 
 export function getAssistantModelPref(): AssistantModelPref {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as { vendorKey?: unknown; modelKey?: unknown }
+    const parsed = JSON.parse(raw) as { vendorKey?: unknown; modelKey?: unknown; thinkingLevel?: unknown }
     const vendorKey = typeof parsed.vendorKey === 'string' ? parsed.vendorKey : ''
     const modelKey = typeof parsed.modelKey === 'string' ? parsed.modelKey : ''
-    return modelKey ? { vendorKey, modelKey } : null
+    return modelKey ? { vendorKey, modelKey, ...(isLaneThinkingLevel(parsed.thinkingLevel) ? { thinkingLevel: parsed.thinkingLevel } : {}) } : null
   } catch {
     return null
   }

@@ -13,7 +13,7 @@ import type { ProjectAgentProposalReceiptWrite, ProjectAgentProposalReceiptTrans
 /** User input only. Model credentials and capability authority are resolved in main. */
 export interface LaneComposerContext {
   storyboardTarget?: StoryboardRequestTarget
-  model?: { vendorKey: string; modelKey: string }
+  model?: { vendorKey: string; modelKey: string; thinkingLevel?: import('./laneContracts').LaneThinkingLevel }
   approvalPolicy: ProjectAgentApprovalPolicy
   documentId?: string
   target?: TargetRef
