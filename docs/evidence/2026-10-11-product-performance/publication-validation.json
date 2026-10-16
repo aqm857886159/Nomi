@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "stage": "pre-push",
+  "artifactScope": "documentation, sanitized receipts, inactive frozen patch",
+  "productionSourceChanged": false,
+  "frameworkPatchApplicableToPublishBase": true,
+  "publishBase": "6d28f3863",
+  "frameworkTests": {
+    "command": "node --test tests/quality-system/*.test.mjs",
+    "sourceCommit": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+    "passed": 134,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 2446.697917
+  },
+  "privacy": {
+    "localMachinePaths": 0,
+    "credentialPatternFindings": 0,
+    "rawTraceOrMediaFiles": 0,
+    "syntheticFixturePathException": "/private/user/file appears only in negative importer tests inside the archived source patch"
+  },
+  "newNativeTests": 0,
+  "newPaidRequests": 0,
+  "fullProductGatePassed": false
+}

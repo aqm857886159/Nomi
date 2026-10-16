@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "view": "current functional coverage with immutable historical cohorts",
+  "generatedAtUtc": "2026-10-11T14:57:05.398350+00:00",
+  "scope": "99 text cases; not all product/media cases",
+  "currentFunctionalStatus": {
+    "total": 99,
+    "completed": 91,
+    "instrumentationIncomplete": 0,
+    "productAssertionFailed": 8,
+    "unresolvedRunnerSetupFailed": 0
+  },
+  "historicalLegacyCohort": {
+    "analysis": "text-baseline-analysis.json",
+    "immutableHistoricalStatus": {
+      "completed": 87,
+      "instrumentationIncomplete": 1,
+      "productAssertionFailed": 8,
+      "runnerSetupFailed": 3
+    },
+    "formalSamples": 439,
+    "traceCompleteCells": 86,
+    "cpuCompleteCells": 61,
+    "transport": "playwright-app-evaluate-awaitPromise-true",
+    "modifiedByThisView": false
+  },
+  "newIndependentCohort": {
+    "receipt": "document-switcher-sync-cohort-receipt.json",
+    "transport": "node-electron-module-sync-callFunctionOn-no-await-v1-candidate",
+    "functionalCellsCompleted": 3,
+    "formalSamples": 15,
+    "warmupSamples": 3,
+    "traceCompleteCells": 3,
+    "cpuCompleteCells": 3,
+    "traceSamples": 18,
+    "traceMarks": 72,
+    "budgetPassed": null
+  },
+  "relationships": [
+    {
+      "scale": "small",
+      "scenario": "document-switcher-last",
+      "previous": {
+        "runId": "2026-10-11T13-33-57.485Z-completion",
+        "scenario": "document-switcher-last",
+        "oldStatus": "runner-setup-failure-before-input",
+        "oldFormalSamples": 0,
+        "relationship": "New independent actual execution resolves coverage; old evidence/status retained unchanged",
+        "performanceComparison": false,
+        "oldMetricsReplaced": false
+      },
+      "currentRunId": "2026-10-11T14-36-38.047Z-sync-metrics-canary",
+      "status": "functional and independent trace/CPU complete"
+    },
+    {
+      "scale": "typical",
+      "scenario": "document-switcher-last",
+      "previous": {
+        "runId": "2026-10-11T13-46-57.132Z-completion",
+        "scenario": "document-switcher-last",
+        "oldStatus": "runner-setup-failure-before-input",
+        "oldFormalSamples": 0,
+        "relationship": "New independent actual execution resolves coverage; old evidence/status retained unchanged",
+        "performanceComparison": false,
+        "oldMetricsReplaced": false
+      },
+      "currentRunId": "2026-10-11T14-37-59.623Z-sync-metrics-canary",
+      "status": "functional and independent trace/CPU complete"
+    },
+    {
+      "scale": "heavy",
+      "scenario": "document-switcher-last",
+      "previous": {
+        "runId": "2026-10-11T14-00-37.244Z-completion",
+        "scenario": "document-switcher-last",
+        "oldStatus": "runner-setup-failure-before-input",
+        "oldFormalSamples": 0,
+        "relationship": "New independent actual execution resolves coverage; old evidence/status retained unchanged",
+        "performanceComparison": false,
+        "oldMetricsReplaced": false
+      },
+      "currentRunId": "2026-10-11T14-39-18.723Z-sync-metrics-canary",
+      "status": "functional and independent trace/CPU complete"
+    },
+    {
+      "scale": "typical",
+      "scenario": "storyboard-open-at-scale",
+      "previous": {
+        "runId": "2026-10-11T11-33-51.457Z-completion",
+        "scale": "typical",
+        "scenario": "storyboard-open-at-scale",
+        "oldFormalPrefixSamples": 4,
+        "fifthBeforeInputErrorRetained": true,
+        "oldReportNotModified": true,
+        "oldMeasurementsNotPooled": true,
+        "newFreshProcessHistoryNotAB": true
+      },
+      "currentRunId": "2026-10-11T14-54-31.084Z-sync-metrics-canary",
+      "status": "functional and independent trace/CPU complete"
+    }
+  ],
+  "aggregationRules": [
+    "Current functional completion is 87 historical legacy completions +3 independent switcher completions +1 independent typical storyboard completion; metric cohorts remain separate.",
+    "Old raw and old analysis retain 3 setup failures; this view only resolves current coverage.",
+    "Trace/CPU and quantitative results stay separated by transport and history; do not combine legacy86/61 with new3 into one same-protocol qualified count.",
+    "Formal sample counts are reported separately, not pooled statistical populations.",
+    "No speedup or budget-pass claim."
+  ],
+  "remaining": {
+    "instrumentationIncomplete": null,
+    "productAssertionFailures": [
+      "typical storyboard bound-video delete/undo loses a timeline clip",
+      "heavy bound-video delete/undo functional 0+1 reproduced; 1+5 performance remains withheld",
+      "document-toolbar-link all 3 scales",
+      "strict one-action document-toolbar-undo all 3 scales"
+    ],
+    "outsideTextScope": "48 timeline/media cases prepared, not executed; extended/advanced suites tracked by their owners"
+  },
+  "newStoryboardCohort": {
+    "receipt": "storyboard-open-sync-cohort-receipt.json",
+    "transport": "node-electron-module-sync-callFunctionOn-no-await-v1-candidate",
+    "functionalCellsCompleted": 1,
+    "formalSamples": 5,
+    "warmupSamples": 1,
+    "traceCompleteCells": 1,
+    "cpuCompleteCells": 1,
+    "traceSamples": 6,
+    "traceMarks": 24,
+    "budgetPassed": null
+  }
+}

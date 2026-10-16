@@ -1,0 +1,948 @@
+{
+  "schemaVersion": 1,
+  "selection": "Complete fixed-protocol small/heavy from original unified batch and complete typical after prep pagination repair. Original partial typical remains archived.",
+  "meaning": "Functional completion only; missing feedback/interaction and other metrics are not a passed performance gate. Loopback provider; no real paid model conclusions.",
+  "sources": [
+    {
+      "scale": "small",
+      "file": "agent-2026-10-11T10-31-20.595Z-completion.sanitized.json",
+      "sha256": "49ec2260002dfe9dcee5417eee0771dc75a9b09e19ec85d240a8bac2e552dbd3"
+    },
+    {
+      "scale": "typical",
+      "file": "agent-2026-10-11T10-46-47.946Z-completion.sanitized.json",
+      "sha256": "275de743b525fa2e92a513e31f6ef865ea746de1156004a607adbf9795f1a072"
+    },
+    {
+      "scale": "heavy",
+      "file": "agent-2026-10-11T10-31-20.595Z-completion.sanitized.json",
+      "sha256": "49ec2260002dfe9dcee5417eee0771dc75a9b09e19ec85d240a8bac2e552dbd3"
+    }
+  ],
+  "completedCells": 30,
+  "measuredSamples": 150,
+  "rows": [
+    {
+      "scale": "small",
+      "scenario": "agent-idle-session-switch",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 94.6,
+        "min": 88.6,
+        "max": 102.1
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.2,
+        "min": 10.14,
+        "max": 10.34
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 0
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-stream-first-token",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 455,
+        "min": 438,
+        "max": 471.5
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.2,
+        "min": 10.14,
+        "max": 10.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": {
+        "count": 5,
+        "median": 105.90000003576279,
+        "min": 96.79999995231628,
+        "max": 120.10000002384186
+      },
+      "controlAckMs": {
+        "count": 5,
+        "median": 12.100000023841858,
+        "min": 11,
+        "max": 13.099999964237213
+      },
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-stream-stop",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 19.7,
+        "min": 17.9,
+        "max": 22.8
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.2,
+        "min": 10.2,
+        "max": 10.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-stream-continue",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 188.9,
+        "min": 185.1,
+        "max": 221.7
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.3,
+        "min": 10.2,
+        "max": 10.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-background-stream-document",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 40,
+        "min": 27,
+        "max": 44.6
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.3,
+        "min": 10.3,
+        "max": 10.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-background-stream-canvas",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 10.9,
+        "min": 6.1,
+        "max": 14.7
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.3,
+        "min": 10.3,
+        "max": 10.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-session-switch-cancels-stream",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 125,
+        "min": 102.9,
+        "max": 129.7
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.3,
+        "min": 10.3,
+        "max": 10.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-tool-readonly",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 261.4,
+        "min": 242.5,
+        "max": 280.8
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.24,
+        "min": 10.1,
+        "max": 10.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-tool-write-undo",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 228.5,
+        "min": 222.3,
+        "max": 244.4
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.3,
+        "min": 10.24,
+        "max": 10.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "small",
+      "scenario": "agent-tool-undo",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 4,
+        "min": 3.2,
+        "max": 5.3
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 10.3,
+        "min": 10,
+        "max": 10.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 2,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-idle-session-switch",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 96.4,
+        "min": 89.7,
+        "max": 128.2
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.34
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 0
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-stream-first-token",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 448.4,
+        "min": 442.1,
+        "max": 683.7
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": {
+        "count": 5,
+        "median": 98.39999997615814,
+        "min": 90.39999997615814,
+        "max": 241.89999997615814
+      },
+      "controlAckMs": {
+        "count": 5,
+        "median": 11.399999976158142,
+        "min": 8.599999964237213,
+        "max": 12.899999976158142
+      },
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-stream-stop",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 25,
+        "min": 20,
+        "max": 30.6
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-stream-continue",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 200.1,
+        "min": 195.6,
+        "max": 230.8
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-background-stream-document",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 42.3,
+        "min": 37.8,
+        "max": 45
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-background-stream-canvas",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 15.9,
+        "min": 9.8,
+        "max": 16.4
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-session-switch-cancels-stream",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 105.8,
+        "min": 101,
+        "max": 146.8
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.34,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-tool-readonly",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 223.3,
+        "min": 216.3,
+        "max": 245.7
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.34
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-tool-write-undo",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 202.5,
+        "min": 193.9,
+        "max": 212.4
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.34,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-tool-undo",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 4.4,
+        "min": 4.2,
+        "max": 5.2
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 5,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-idle-session-switch",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 86.6,
+        "min": 85.3,
+        "max": 102.2
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.24,
+        "min": 9.14,
+        "max": 9.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 0
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-stream-first-token",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 438.6,
+        "min": 428.5,
+        "max": 469.4
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.2,
+        "min": 9.2,
+        "max": 9.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": {
+        "count": 5,
+        "median": 89.69999998807907,
+        "min": 87.60000002384186,
+        "max": 104.20000004768372
+      },
+      "controlAckMs": {
+        "count": 5,
+        "median": 9.899999976158142,
+        "min": 8,
+        "max": 13.300000011920929
+      },
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-stream-stop",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 19.9,
+        "min": 13.2,
+        "max": 20.8
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.24,
+        "min": 9.2,
+        "max": 9.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-stream-continue",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 267.1,
+        "min": 233.8,
+        "max": 285.3
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.24,
+        "min": 9.2,
+        "max": 9.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-background-stream-document",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 39,
+        "min": 31.8,
+        "max": 50.1
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.3
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-background-stream-canvas",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 14.8,
+        "min": 14.3,
+        "max": 17.9
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.2,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-session-switch-cancels-stream",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 102,
+        "min": 100.9,
+        "max": 118.3
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": 1
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-tool-readonly",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 285.2,
+        "min": 274.9,
+        "max": 306.3
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.4,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-tool-write-undo",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 284.3,
+        "min": 260,
+        "max": 294.1
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.34,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": null
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-tool-undo",
+      "measuredSamples": 5,
+      "functionalPassed": true,
+      "responseMs": {
+        "count": 5,
+        "median": 5.8,
+        "min": 4.2,
+        "max": 7.1
+      },
+      "frameP99Ms": {
+        "count": 5,
+        "median": 9.3,
+        "min": 9.3,
+        "max": 9.4
+      },
+      "longTaskMaxMs": {
+        "count": 5,
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "firstFeedbackMs": null,
+      "controlAckMs": null,
+      "inputInteractiveMs": null,
+      "historySessions": 10,
+      "observedActiveStreamsMax": null
+    }
+  ],
+  "unsupportedOrBlocked": [
+    {
+      "scale": "small",
+      "scenario": "agent-concurrent-stream-canvas",
+      "status": "unsupported"
+    },
+    {
+      "scale": "typical",
+      "scenario": "agent-concurrent-stream-canvas",
+      "status": "unsupported"
+    },
+    {
+      "scale": "heavy",
+      "scenario": "agent-concurrent-stream-canvas",
+      "status": "unsupported"
+    }
+  ],
+  "traceQualification": {
+    "status": "legacy-instrumentation-needs-explicit-review",
+    "reason": "The old shared probe emitted observation-end again when the next sample began. Numeric first-stop snapshots remain as collected. Old traces were not rewritten and cannot pass the new strict marker-uniqueness gate automatically.",
+    "fixReceipt": "measurement-probe-idempotence-receipt.json"
+  }
+}

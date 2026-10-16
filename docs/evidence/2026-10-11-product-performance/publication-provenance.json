@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "measuredSourceCommit": "4e1eecdad8c3ab6a3d44d38065faeb769c613be4",
+  "frameworkPatchSha256": "9c87bc41f2c1be674faf5ffd0574456afc76849cb334fffc4acc4795706bcb26",
+  "productionChanges": false,
+  "originalRawTraces": "retained privately; not uploaded",
+  "sources": [
+    {
+      "source": "text-baseline-current-status-view.json",
+      "sha256": "271e3e801da79335f1c0d0e62cac4c01891a34c286e4ef54354de7dc89d72142",
+      "bytes": 5199,
+      "transform": "none; reviewed sanitized receipt"
+    },
+    {
+      "source": "confirmed-findings-register.json",
+      "sha256": "b6ec4d40f5b7d2fc3b69d94404b0e6f32c1d8565ca23464d6e95d53dac10a95c",
+      "bytes": 11351,
+      "transform": "none; reviewed sanitized receipt"
+    },
+    {
+      "source": "document-switcher-sync-cohort-receipt.json",
+      "sha256": "47b12a789f9f4fcd13912bacffb39b855cbd78b0bd6c25418bf6fa4313fe02e3",
+      "bytes": 59148,
+      "transform": "none; reviewed sanitized receipt"
+    },
+    {
+      "source": "storyboard-open-sync-cohort-receipt.json",
+      "sha256": "05366d292a98955996a93a775156879454e71b3c3d0925b7e1ea2c853d4e2fea",
+      "bytes": 9310,
+      "transform": "none; reviewed sanitized receipt"
+    },
+    {
+      "source": "agent-baseline-reviewed-summary.json",
+      "sha256": "570aed134168d44bc5f2b0188be9b757a0a747545f1c6abaf07b5c201f952568",
+      "bytes": 21868,
+      "transform": "none; reviewed sanitized receipt"
+    },
+    {
+      "source": "live-agent-reviewed-results.sanitized.json",
+      "sha256": "de73f9a8351fb110755bec2858f36907b4fd5aaa96b1033aa7c51826122834db",
+      "bytes": 11155,
+      "transform": "none; reviewed sanitized receipt"
+    },
+    {
+      "source": "text-baseline-analysis.json",
+      "sha256": "5d99d33a6bde617ba1784c4b116da24a3e06ee5e45bb526609fa5abae9a7912b",
+      "bytes": 1261167,
+      "transform": "allowlisted cell identity, status, numerical metrics and samples; omitted cleanup payloads and project context"
+    },
+    {
+      "source": "system-delivery/receipts/v4-packaging-validation.json",
+      "sha256": "541c61baad1194004f2cb4a9081f3930de67ec334d0329193d978f7c82a5c6f3",
+      "bytes": 368,
+      "transform": "none; validation receipt"
+    },
+    {
+      "source": "system-delivery/receipts/lifecycle-v4-validation.json",
+      "sha256": "b4d836694fd26a293b69d92c7ac2835d6a5af22fc11902ea06b96087f3a972c7",
+      "bytes": 402,
+      "transform": "none; validation receipt"
+    },
+    {
+      "source": "system-delivery/receipts/native-pilot-revalidation.json",
+      "sha256": "d7bd5d9bf06f518b4dbc054f6da6f0b2585d24eae1c998d64a14af0be0e92ca4",
+      "bytes": 40960,
+      "transform": "none; validation receipt"
+    }
+  ]
+}
