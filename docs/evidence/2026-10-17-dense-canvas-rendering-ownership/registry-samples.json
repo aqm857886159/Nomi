@@ -1,0 +1,19 @@
+{
+  "source": "Exact per-run stdout lines from the two registered 5-run commands; full local logs retained in .tmp.",
+  "samples": {
+    "canvas-dense-edges-pan": [
+      "  [pan] run0 sel=- zoom=0.2 mounted=180 fps=113.7 p50=9 p95=14 max=28.3 load=4.5 script/style/layout=1840.2/54.1/17ms layouts=14 触碰/刷=1/12 长任务=0/0ms",
+      "  [pan] run1 sel=- zoom=0.2 mounted=180 fps=113.5 p50=8.8 p95=13.9 max=29.3 load=4.4 script/style/layout=1834.6/51.2/13.8ms layouts=12 触碰/刷=1/12 长任务=0/0ms",
+      "  [pan] run2 sel=- zoom=0.2 mounted=180 fps=113.9 p50=8.6 p95=14 max=30.2 load=4.6 script/style/layout=1856.1/51.5/12.8ms layouts=13 触碰/刷=1/12 长任务=0/0ms",
+      "  [pan] run3 sel=- zoom=0.2 mounted=180 fps=115 p50=9.2 p95=14.1 max=31.5 load=4.4 script/style/layout=1828/53.5/13.2ms layouts=14 触碰/刷=1/12 长任务=0/0ms",
+      "  [pan] run4 sel=- zoom=0.2 mounted=180 fps=115.2 p50=9.2 p95=13.3 max=26.6 load=4.2 script/style/layout=1682.1/46/14ms layouts=11 触碰/刷=1/12 长任务=0/0ms"
+    ],
+    "canvas-dense-edges-wheel-zoom": [
+      "  [wheel-zoom] run0 sel=- zoom=0.2 mounted=180 fps=96.8 p50=8.4 p95=26.5 max=43.1 load=4.5 script/style/layout=510.3/242.1/64.2ms layouts=65 触碰/刷=1/63 长任务=7/76ms",
+      "  [wheel-zoom] run1 sel=- zoom=0.2 mounted=180 fps=106.2 p50=8.4 p95=18.6 max=34.4 load=4.5 script/style/layout=387.9/165.6/47.1ms layouts=47 触碰/刷=1/63 长任务=0/0ms",
+      "  [wheel-zoom] run2 sel=- zoom=0.2 mounted=180 fps=106.4 p50=8.4 p95=19 max=31.6 load=4.3 script/style/layout=398.7/160.7/47ms layouts=47 触碰/刷=1/63 长任务=0/0ms",
+      "  [wheel-zoom] run3 sel=- zoom=0.2 mounted=180 fps=105.9 p50=8.4 p95=19.5 max=35.3 load=4.6 script/style/layout=393.4/176.1/45.9ms layouts=46 触碰/刷=1/63 长任务=0/0ms",
+      "  [wheel-zoom] run4 sel=- zoom=0.2 mounted=180 fps=105.4 p50=8.4 p95=19 max=33.7 load=4.4 script/style/layout=395.3/158.2/45ms layouts=47 触碰/刷=1/63 长任务=0/0ms"
+    ]
+  }
+}

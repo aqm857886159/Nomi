@@ -11,6 +11,7 @@
 
 | 车道 | 执行体 / 分支 | 热点文件面 | 状态与避让规则 |
 |---|---|---|---|
+| **WorkBuddy 落画布 / 密集连线修复** | Codex `/root`，`codex/workbuddy-canvas-generation-repair`；独立线 `/root/dense_canvas_repro` | `generationCanvas/nodes/composerAnchor.tsx` + React Flow 适配层与密边 perf 量具 | 本PR在途；保持固定下方布局，补可达性、删除重复DOM扫描与命中层。其它会话避让这些文件。 |
 | **M2 生成纵切** | Codex，分支前缀 `m2/*` | `electron/projectAgentHost/` + 生成域（生成管线 / 画布生成节点） | 在途。别的战线勿动 projectAgentHost 与生成域核心；要动先与 M2 协调 |
 | **Agent 界面实施（交互 epic）** | **未开工**。设计已拍板：裁决包在分支 `docs/agent-ui-redesign-20260901`（`docs/design/2026-09-01-agent-ui-final-redesign.md` + `…-redesign-decisions.md`） | `src/workbench/ai/`（驻留壳）+ 画布右槽 | 验收合同 = 同分支**双层 conformance spec**：`2026-09-02-agent-ui-conformance-testspec.md`（界面层）+ `…-functional-conformance-testspec.md`（行为层）。开工前动这些面的改动都要能被该合同兼容 |
 | **架构二期（archetype 归一）** | `arch/phase2-archetype-consolidation`（PR #310） | `src/config/modelArchetypes/`、`electron/shared/videoCapabilities/` | 收口中。**模型接入线避让**：新模型档案 / 能力面改动等它合入再动这两个面 |

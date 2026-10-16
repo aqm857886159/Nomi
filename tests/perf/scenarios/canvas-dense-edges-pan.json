@@ -1,0 +1,26 @@
+{
+  "id": "canvas-dense-edges-pan",
+  "feature": "300个图片节点/3000条参考边画布平移",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "I300DENSE",
+    "--scenarios",
+    "pan"
+  ],
+  "scale": "300图片节点 / 3000参考边（真实媒体目录可用环境变量指定）",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "baseline": {
+    "median": 14,
+    "p95": 14.1,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-16",
+    "commit": "49fa5d949",
+    "noisy": true
+  }
+}

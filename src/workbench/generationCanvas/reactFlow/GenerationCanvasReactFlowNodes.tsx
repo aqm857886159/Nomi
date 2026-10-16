@@ -431,7 +431,7 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       <BaseEdge
         id={id}
         path={path}
-        interactionWidth={30}
+        interactionWidth={readOnly ? 30 : 0}
         className="generation-canvas-v2__edge-path"
       />
       {!readOnly ? (

@@ -26,11 +26,11 @@ const sourceNode = { id: 'a', kind: 'image', title: '图 A', position: { x: 0, y
 const targetNode = { id: 'b', kind: 'video', title: '视频 B', position: { x: 400, y: 0 } }
 const FRAMES = [[0, 0, 400, 0], [12, 7, 412, 7], [40, 22, 440, 22]] as const
 
-function render(EdgeView: unknown, props: { sourceX: number; sourceY: number; targetX: number; targetY: number; selected: boolean; mode: string }): string {
+function render(EdgeView: unknown, props: { sourceX: number; sourceY: number; targetX: number; targetY: number; selected: boolean; mode: string; readOnly?: boolean }): string {
   return renderToString(React.createElement(ReactFlowProvider, null, React.createElement(EdgeView as React.ComponentType<Record<string, unknown>>, {
     id: 'e1', source: 'a', target: 'b', sourceX: props.sourceX, sourceY: props.sourceY, targetX: props.targetX, targetY: props.targetY,
     sourcePosition: 'right', targetPosition: 'left', selected: props.selected,
-    data: { generationEdge: { id: 'e1', source: 'a', target: 'b', mode: props.mode }, sourceNode, targetNode, readOnly: false, incident: true },
+    data: { generationEdge: { id: 'e1', source: 'a', target: 'b', mode: props.mode }, sourceNode, targetNode, readOnly: props.readOnly ?? false, incident: true },
   })))
 }
 
@@ -41,6 +41,22 @@ describe('edge views', () => {
       for (const [sourceX, sourceY, targetX, targetY] of FRAMES) render(EdgeView, { sourceX, sourceY, targetX, targetY, selected: false, mode: 'reference' })
       expect(calls.count).toBe(0)
     })
+
+    for (const readOnly of [false, true]) {
+      it(`${name}: one hit owner in ${readOnly ? 'read-only' : 'editable'} mode`, () => {
+        const html = render(EdgeView, { sourceX: 0, sourceY: 0, targetX: 400, targetY: 100, selected: false, mode: 'reference', readOnly })
+        const frameworkHits = html.match(/class="react-flow__edge-interaction"/g) ?? []
+        const accessibleHits = html.match(/class="generation-canvas-v2__edge-hit"/g) ?? []
+        expect(frameworkHits.length + accessibleHits.length).toBe(1)
+        expect(frameworkHits.length).toBe(readOnly ? 1 : 0)
+        expect(accessibleHits.length).toBe(readOnly ? 0 : 1)
+        if (!readOnly) {
+          expect(html).toContain('role="button"')
+          expect(html).toContain('tabindex="0"')
+          expect(html).toContain('aria-label=')
+        }
+      })
+    }
 
     for (const mode of ['reference', 'first_frame', 'style_ref']) {
       it(`${name} (${mode}, selected): no mode pill, no mode menu`, () => {

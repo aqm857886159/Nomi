@@ -1,0 +1,26 @@
+{
+  "name": "画布框架稳定容器的兼容类生命周期",
+  "subject": "canvas.framework-layer-aliases",
+  "lifecycle": "host",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "symbol": "useGenerationCanvasReactFlowHostEffects"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "useGenerationCanvasReactFlowHostEffects"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx"
+  ],
+  "parity_test": "tests/ux/canvas-container-alias-lifecycle.walk.mjs",
+  "since": "2026-10-17",
+  "notes": "React Flow三固定容器随host同步提交，只在挂载赋兼容类；子树变化不许永久全host重扫。真实Electron扫描/命中层与外部生成四阶段回归守住生命周期。"
+}

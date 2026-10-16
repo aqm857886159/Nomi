@@ -14,6 +14,10 @@ export const CRITICAL_CANVAS_SCENARIOS = [
   { id: 'group-ports', script: 'tests/ux/group-ports.walk.mjs' },
   { id: 'card-stack-persistence', script: 'tests/ux/canvas-card-stack.walk.mjs' },
   { id: 'read-only-reload', script: 'tests/ux/react-flow-read-only.walk.mjs' },
+  { id: 'workbuddy-generation', script: 'tests/ux/workbuddy-canvas-generation.walk.mjs' },
+  { id: 'canvas-container-alias-lifecycle', script: 'tests/ux/canvas-container-alias-lifecycle.walk.mjs' },
+  { id: 'dense-controls-zh', script: 'tests/ux/dense-canvas-generation-controls.walk.mjs', args: ['zh-CN', 'ci'] },
+  { id: 'dense-controls-en', script: 'tests/ux/dense-canvas-generation-controls.walk.mjs', args: ['en', 'ci'] },
 ]
 
 export const FULL_CANVAS_SCENARIOS = [
@@ -61,8 +65,8 @@ export const PERFORMANCE_CANVAS_SCENARIOS = [
 // 桶是显式清单而不是 index 取模：新场景加进 FULL_CANVAS_SCENARIOS 却没分桶时，
 // 每个 shard 启动即 fail-closed 抛错（见 assertFullCanvasShardPartition），场景不可能被静默漏跑。
 export const FULL_CANVAS_SHARDS = Object.freeze([
-  Object.freeze(['gestures', 'read-only-reload', 'blank-context-menu', 'group-baseline', 'group-reference-direction', 'canvas-reconcile', 'magnetic-handle', 'open-fit']),
-  Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'canvas-landing', 'stuck-modifier']),
+  Object.freeze(['gestures', 'read-only-reload', 'blank-context-menu', 'group-baseline', 'group-reference-direction', 'canvas-reconcile', 'magnetic-handle', 'open-fit', 'workbuddy-generation', 'canvas-container-alias-lifecycle']),
+  Object.freeze(['group-ports', 'card-stack-persistence', 'shortcuts', 'node-context-menu', 'batch-production', 'canvas-landing', 'stuck-modifier', 'dense-controls-zh', 'dense-controls-en']),
 ])
 
 export function assertFullCanvasShardPartition(scenarios = FULL_CANVAS_SCENARIOS, shards = FULL_CANVAS_SHARDS) {

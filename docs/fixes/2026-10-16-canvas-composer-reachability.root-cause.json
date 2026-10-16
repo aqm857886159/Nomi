@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-16-canvas-composer-reachability",
+  "problem_type": "single-selected canvas generation controls outside interactive viewport",
+  "symptom": "External Agent lands valid 9:16 image nodes, but selecting a bottom/left card hides model and generate controls outside the clipped stage.",
+  "direct_cause": "Pinned node-relative composer extends below/left of the canvas stage; model/footer DOM is mounted but cannot be hit inside the viewport.",
+  "class_root": "Opening a selected interactive node composer has no shared guarantee that its actions lie within the canvas interactive viewport.",
+  "affected_population": [
+    "Manual and external Agent image/video nodes near stage edges",
+    "Text processing composer near clipped edges"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/composerAnchor.tsx",
+    "src/workbench/generationCanvas/nodes/composerViewportReveal.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/generationFlowNodeContext.tsx"
+  ],
+  "entry_points": [
+    "Generic image/video composer and text composer share ComposerAnchor",
+    "External signed WorkBuddy MCP plan landing and manual node selection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is application-owned: pinned composer DOM versus Nomi clipped stage. Installed React Flow viewport API remains unchanged.",
+  "invariants": [
+    "Composer remains pinned below its node with constant screen width.",
+    "Opening an interactive composer or changing its node footprint reveals its actions inside the stage by minimum viewport translation without moving nodes or changing zoom.",
+    "Drag/pan frames and panel/inline hosts do not trigger viewport chasing."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/composerAnchor.tsx",
+      "symbol": "requestReveal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "revealComposer"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "revealComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/composerAnchor.tsx",
+      "symbol": "requestReveal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/generationFlowNodeContext.tsx",
+      "symbol": "GenerationFlowComposerReveal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "GenerationFlowComposerReveal"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "composerViewportTranslation"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 7,
+    "why_not": "Before4 direct anchor/placement doors; after7 machine-counted intent/context/helper doors. The extra typed reads route both node bodies to one host callback and do not add a viewport writer. Host measurement/animation cancellation is centralized; anchor stays pure and only delegates/cancels."
+  },
+  "generality_proof": "Image/video/text anchors delegate through one stable React context to the canvas host. Anchors retain pure pinned placement (the unchanged composerCanvasPlacement test bans measuring/rAF there); the host owns measurement and cancels the existing viewport animation lease before its direct write.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "revealComposer",
+      "responsibility": "Coalesce one host-owned frame, reject active/panning/dragging or disconnected composers, measure clipped bounds, cancel the existing animation lease and write the minimum duration-zero translation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "ComposerAnchor",
+      "disposition": "enforced",
+      "evidence": "Door map shows this body renders through ComposerAnchor; inFlow hosts are deliberately excluded."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+      "entry_point": "ComposerAnchor",
+      "disposition": "enforced",
+      "evidence": "Door map shows this body renders through ComposerAnchor; inFlow hosts are deliberately excluded."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any node population near a stage edge can produce the same clipped controls, independently of creator or vendor.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs ComposerAnchor",
+      "Inspected NodeGenerationComposer and TextNodeComposer host branching; replayed signed WorkBuddy stdio with three image shots.",
+      "node scripts/door-map.mjs revealComposer; read shared viewport animation owner and unchanged composer placement structural ban."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "invariant": "Selected canvas composer actions are revealed at opening without modifying domain node state.",
+    "failure_mode": "Invalid/nonfinite geometry causes no viewport write; oversized content keeps bottom actions reachable.",
+    "exception_policy": "none",
+    "strategy": "Keep pinned placement immutable; make all canvas composer hosts use one event-bounded viewport reveal. The existing canvas critical/full suite executes the signed-host generation journey and both locale variants; no standalone unexecuted acceptance island.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/composerAnchor.tsx",
+      "src/workbench/generationCanvas/nodes/composerViewportReveal.ts",
+      "tests/ux/canvas-real-suite.mjs",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/generationFlowNodeContext.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/composerViewportReveal.test.ts",
+    "tests/ux/workbuddy-canvas-generation.walk.mjs",
+    "tests/ux/dense-canvas-generation-controls.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/composerViewportReveal.test.ts",
+    "tests/ux/workbuddy-canvas-generation.walk.mjs",
+    "tests/ux/dense-canvas-generation-controls.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No competing placement path is introduced; existing pinned placement remains owner, while missing reveal is added at the single canvas host."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Nomi owns its clipped interactive stage and composer. Uses the already installed React Flow viewport API, with no third-party defect asserted.",
+    "exit_criteria": []
+  },
+  "migration": "No stored-node migration: kind/model/position/size/prompt untouched; restored and new nodes use the same canvas host.",
+  "residual_risks": [
+    "User original project not supplied; this reproduces the reported inaccessible controls mechanism in an independent real Electron project.",
+    "Windows and real paid provider output require separate receipts.",
+    "Dense-canvas performance remains a separate investigation; do not claim it fixed by viewport reveal."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-16",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/composerViewportReveal.test.ts",
+      "tests/ux/workbuddy-canvas-generation.walk.mjs",
+      "tests/ux/dense-canvas-generation-controls.walk.mjs"
+    ]
+  }
+}

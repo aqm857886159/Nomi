@@ -1,0 +1,17 @@
+{
+  "checks": [
+    {
+      "initial": [
+        true,
+        true,
+        true
+      ],
+      "scans": 6,
+      "retained": [
+        true,
+        true,
+        true
+      ]
+    }
+  ]
+}

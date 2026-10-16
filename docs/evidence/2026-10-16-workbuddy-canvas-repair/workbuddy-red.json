@@ -1,0 +1,338 @@
+{
+  "baseline": "working-tree",
+  "transport": "real stdio, signed workbuddy client, real Electron, loopback provider",
+  "steps": [
+    {
+      "name": "nomi_session_open",
+      "isError": false
+    },
+    {
+      "name": "nomi_operation_plan",
+      "isError": false
+    }
+  ],
+  "tools": [
+    "nomi_session_open",
+    "nomi_read",
+    "nomi_canvas_edit",
+    "nomi_asset_import",
+    "nomi_operation_plan",
+    "nomi_operation_preview",
+    "nomi_operation_gate",
+    "nomi_operation_execute",
+    "nomi_operation_control",
+    "nomi_run_start",
+    "nomi_run_control",
+    "nomi_artifact_review",
+    "nomi_run_gate",
+    "nomi_project_create",
+    "nomi_canvas_maintenance",
+    "nomi_document_read",
+    "nomi_document_edit",
+    "nomi_timeline_read",
+    "nomi_timeline_edit",
+    "nomi_export_job",
+    "nomi_media_query",
+    "nomi_model_setup",
+    "nomi_try_model",
+    "nomi_remove_provider"
+  ],
+  "plan": {
+    "operation": {
+      "operationId": "op-e7a66a61-8677-4e56-866e-817e42c09938",
+      "projectId": "project-1792165707038-z5jp5k",
+      "runRevision": 0,
+      "candidate": {
+        "candidateId": "cand-shot-1",
+        "revision": 1,
+        "moduleId": "generation.single-shot",
+        "providerId": "apimart",
+        "modelId": "gpt-image-2",
+        "mode": "text_to_image",
+        "prompt": "暖色自然光从窗边照入，两只猫看着桌上的零食，温馨电影质感。",
+        "parameters": {
+          "aspect_ratio": "9:16"
+        },
+        "references": []
+      },
+      "state": "draft",
+      "presentationOutcome": {
+        "closedBy": "open",
+        "generating": [],
+        "failedBeforeSending": [],
+        "removed": [],
+        "takenByCanvas": [],
+        "undecided": [
+          {
+            "shotId": "shot-1",
+            "reason": "open"
+          },
+          {
+            "shotId": "shot-2",
+            "reason": "open"
+          },
+          {
+            "shotId": "shot-3",
+            "reason": "open"
+          }
+        ]
+      },
+      "presentationId": "op-e7a66a61-8677-4e56-866e-817e42c09938:presentation:1",
+      "presentationEpoch": 1,
+      "policySnapshot": {
+        "mode": "safe-auto",
+        "spend": "confirm"
+      },
+      "submissionStarted": false,
+      "planVersion": 1,
+      "shots": [
+        {
+          "shotId": "shot-1",
+          "title": "测试分镜1",
+          "candidate": {
+            "candidateId": "cand-shot-1",
+            "revision": 1,
+            "moduleId": "generation.single-shot",
+            "providerId": "apimart",
+            "modelId": "gpt-image-2",
+            "mode": "text_to_image",
+            "prompt": "暖色自然光从窗边照入，两只猫看着桌上的零食，温馨电影质感。",
+            "parameters": {
+              "aspect_ratio": "9:16"
+            },
+            "references": []
+          }
+        },
+        {
+          "shotId": "shot-2",
+          "title": "测试分镜2",
+          "candidate": {
+            "candidateId": "cand-shot-2",
+            "revision": 1,
+            "moduleId": "generation.single-shot",
+            "providerId": "apimart",
+            "modelId": "gpt-image-2",
+            "mode": "text_to_image",
+            "prompt": "橘猫嗅闻零食包装袋，脸部近景，暖色侧光，浅景深。",
+            "parameters": {
+              "aspect_ratio": "9:16"
+            },
+            "references": []
+          }
+        },
+        {
+          "shotId": "shot-3",
+          "title": "测试分镜3",
+          "candidate": {
+            "candidateId": "cand-shot-3",
+            "revision": 1,
+            "moduleId": "generation.single-shot",
+            "providerId": "apimart",
+            "modelId": "gpt-image-2",
+            "mode": "text_to_image",
+            "prompt": "白猫和橘猫并排望向镜头，桌上有零食袋，温暖室内，正面中景。",
+            "parameters": {
+              "aspect_ratio": "9:16"
+            },
+            "references": []
+          }
+        }
+      ],
+      "updatedAt": "2026-10-16T15:48:28.542Z"
+    },
+    "taskRef": {
+      "domain": "generation",
+      "jobId": "op-e7a66a61-8677-4e56-866e-817e42c09938"
+    },
+    "nextAction": "preview"
+  },
+  "nodes": [
+    {
+      "id": "gen-v2-image-mvb56uxu-zgiq",
+      "kind": "image",
+      "title": "测试分镜1",
+      "prompt": "暖色自然光从窗边照入，两只猫看着桌上的零食，温馨电影质感。",
+      "meta": {
+        "modelKey": "gpt-image-2",
+        "modelLabel": "GPT Image 2",
+        "archetype": {
+          "id": "gpt-image-2",
+          "modeId": "t2i"
+        },
+        "modelVendor": "apimart",
+        "vendor": "apimart",
+        "aspect_ratio": "9:16",
+        "resolution": "1K",
+        "materializationOperationId": "canvas-landing:op-e7a66a61-8677-4e56-866e-817e42c09938",
+        "materializationClientId": "shot-1",
+        "productionRunId": "op-e7a66a61-8677-4e56-866e-817e42c09938",
+        "productionShotId": "shot-1",
+        "productionCandidateId": "cand-shot-1",
+        "productionCandidateRevision": 1,
+        "productionCandidateModelKey": "gpt-image-2",
+        "productionCandidateModelVendor": "apimart"
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      }
+    },
+    {
+      "id": "gen-v2-image-mvb56uxw-15eq",
+      "kind": "image",
+      "title": "测试分镜2",
+      "prompt": "橘猫嗅闻零食包装袋，脸部近景，暖色侧光，浅景深。",
+      "meta": {
+        "modelKey": "gpt-image-2",
+        "modelLabel": "GPT Image 2",
+        "archetype": {
+          "id": "gpt-image-2",
+          "modeId": "t2i"
+        },
+        "modelVendor": "apimart",
+        "vendor": "apimart",
+        "aspect_ratio": "9:16",
+        "resolution": "1K",
+        "materializationOperationId": "canvas-landing:op-e7a66a61-8677-4e56-866e-817e42c09938",
+        "materializationClientId": "shot-2",
+        "productionRunId": "op-e7a66a61-8677-4e56-866e-817e42c09938",
+        "productionShotId": "shot-2",
+        "productionCandidateId": "cand-shot-2",
+        "productionCandidateRevision": 1,
+        "productionCandidateModelKey": "gpt-image-2",
+        "productionCandidateModelVendor": "apimart"
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      }
+    },
+    {
+      "id": "gen-v2-image-mvb56uxw-5mcb",
+      "kind": "image",
+      "title": "测试分镜3",
+      "prompt": "白猫和橘猫并排望向镜头，桌上有零食袋，温暖室内，正面中景。",
+      "meta": {
+        "modelKey": "gpt-image-2",
+        "modelLabel": "GPT Image 2",
+        "archetype": {
+          "id": "gpt-image-2",
+          "modeId": "t2i"
+        },
+        "modelVendor": "apimart",
+        "vendor": "apimart",
+        "aspect_ratio": "9:16",
+        "resolution": "1K",
+        "materializationOperationId": "canvas-landing:op-e7a66a61-8677-4e56-866e-817e42c09938",
+        "materializationClientId": "shot-3",
+        "productionRunId": "op-e7a66a61-8677-4e56-866e-817e42c09938",
+        "productionShotId": "shot-3",
+        "productionCandidateId": "cand-shot-3",
+        "productionCandidateRevision": 1,
+        "productionCandidateModelKey": "gpt-image-2",
+        "productionCandidateModelVendor": "apimart"
+      },
+      "size": {
+        "width": 340,
+        "height": 280
+      }
+    }
+  ],
+  "controls": {
+    "text": "GPT Image 29:16 · 1K↑",
+    "buttons": [
+      {
+        "label": "模型",
+        "disabled": false,
+        "text": "GPT Image 2"
+      },
+      {
+        "label": "生成参数",
+        "disabled": false,
+        "text": "9:16 · 1K"
+      },
+      {
+        "label": "提示词预设",
+        "disabled": false,
+        "text": ""
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "disabled": false,
+        "text": ""
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "disabled": false,
+        "text": ""
+      },
+      {
+        "label": "生成素材",
+        "disabled": false,
+        "text": "↑"
+      }
+    ],
+    "rect": {
+      "x": 123,
+      "y": 959.84375,
+      "width": 534,
+      "height": 34,
+      "top": 959.84375,
+      "right": 657,
+      "bottom": 993.84375,
+      "left": 123
+    }
+  },
+  "reachability": {
+    "footer": {
+      "x": 123,
+      "y": 959.84375,
+      "width": 534,
+      "height": 34,
+      "top": 959.84375,
+      "right": 657,
+      "bottom": 993.84375,
+      "left": 123
+    },
+    "stage": {
+      "x": 60,
+      "y": 40,
+      "width": 1212,
+      "height": 849,
+      "top": 40,
+      "right": 1272,
+      "bottom": 889,
+      "left": 60
+    },
+    "visible": false,
+    "buttons": [
+      {
+        "label": "模型",
+        "hit": false
+      },
+      {
+        "label": "生成参数",
+        "hit": false
+      },
+      {
+        "label": "提示词预设",
+        "hit": false
+      },
+      {
+        "label": "翻译提示词（中英互译，选中一段只翻那段）",
+        "hit": false
+      },
+      {
+        "label": "用 Nomi 优化提示词",
+        "hit": false
+      },
+      {
+        "label": "生成素材",
+        "hit": false
+      }
+    ]
+  },
+  "error": "AssertionError [ERR_ASSERTION]: model/parameter/generate row must be inside the interactive canvas stage",
+  "sourceBaseline": "49fa5d9494c537932f2fa90e6bb551eedb12b12a",
+  "candidate": "unmodified source baseline"
+}

@@ -24,3 +24,15 @@ export function GenerationFlowHandleMenuScope({ open, children }: { open: (reque
 export function useGenerationFlowHandleMenu(): ((request: GenerationFlowHandleMenuRequest) => void) | null {
   return React.useContext(GenerationFlowHandleMenuContext)
 }
+
+/** 节点只请求露出操作栏；测量、调度与视口所有权归画布宿主。 */
+export type GenerationFlowComposerReveal = (composer: HTMLElement) => () => void
+const GenerationFlowComposerRevealContext = React.createContext<GenerationFlowComposerReveal | null>(null)
+
+export function GenerationFlowComposerRevealScope({ reveal, children }: { reveal: GenerationFlowComposerReveal; children: React.ReactNode }): JSX.Element {
+  return <GenerationFlowComposerRevealContext.Provider value={reveal}>{children}</GenerationFlowComposerRevealContext.Provider>
+}
+
+export function useGenerationFlowComposerReveal(): GenerationFlowComposerReveal | null {
+  return React.useContext(GenerationFlowComposerRevealContext)
+}

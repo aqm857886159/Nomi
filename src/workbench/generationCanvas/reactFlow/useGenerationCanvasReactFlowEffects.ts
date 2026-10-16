@@ -15,6 +15,8 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { publishCanvasStageSize } from '../store/canvasVisibleArea'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { resolveCanvasFocusZoom, resolvePendingCanvasFocus, type PendingCanvasFocus } from './focusViewportRecovery'
+import { composerViewportTranslation } from '../nodes/composerViewportReveal'
+import type { GenerationFlowComposerReveal } from './generationFlowNodeContext'
 
 type HostEffectsArgs = {
   animateViewportTo: (zoom: number, offset: { x: number; y: number }, duration?: number) => void
@@ -42,7 +44,7 @@ export function useGenerationCanvasReactFlowHostEffects({
   setLiveViewport,
   setFocusFlashNodeId,
   zoomRef,
-}: HostEffectsArgs): void {
+}: HostEffectsArgs): { revealComposer: GenerationFlowComposerReveal } {
   const { t } = useTranslation()
   const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
@@ -148,14 +150,28 @@ export function useGenerationCanvasReactFlowHostEffects({
       ['.react-flow__edges', 'generation-canvas-v2__edges'],
       ['.react-flow__nodes', 'generation-canvas-v2__nodes'],
     ]
-    const applyAliases = () => {
-      for (const [selector, className] of aliases) host.querySelector(selector)?.classList.add(className)
-    }
-    applyAliases()
-    const observer = new MutationObserver(applyAliases)
-    observer.observe(host, { childList: true, subtree: true })
-    return () => observer.disconnect()
+    // React Flow's three layer containers are committed with this host and remain
+    // mounted for its lifetime. Card/edge subtree mutations do not change them.
+    for (const [selector, className] of aliases) host.querySelector(selector)?.classList.add(className)
+    return undefined
   }, [hostRef])
+
+  const revealComposer = React.useCallback<GenerationFlowComposerReveal>((composer) => {
+    const host = hostRef.current
+    const frame = window.requestAnimationFrame(() => {
+      if (!host || !composer.isConnected || !host.contains(composer) || host.getAttribute('data-dragging') === 'true' || host.getAttribute('data-panning') === 'true' || host.matches(':active')) return
+      const delta = composerViewportTranslation(composer.getBoundingClientRect(), host.getBoundingClientRect())
+      if (!delta) return
+      // As with focus restoration, take the existing animation lease before a
+      // duration-zero write. Guard, measurement and write share the same frame.
+      cancelViewportAnimation()
+      const viewport = flow.getViewport()
+      void flow.setViewport({ ...viewport, x: viewport.x + delta.x, y: viewport.y + delta.y }, { duration: 0 })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [cancelViewportAnimation, flow, hostRef])
+
+  return { revealComposer }
 }
 
 type BrowserAssetImportEffectsArgs = {

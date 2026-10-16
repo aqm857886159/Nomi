@@ -1,0 +1,32 @@
+{
+  "checks": [
+    {
+      "initial": [
+        true,
+        true,
+        true
+      ],
+      "scans": 0,
+      "retained": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "keyboardSelect": true,
+      "clickDisconnect": true,
+      "undoRestore": true,
+      "scans": 0,
+      "aliases": [
+        true,
+        true,
+        true
+      ]
+    }
+  ],
+  "hitLayers": {
+    "framework": 0,
+    "accessible": 1
+  }
+}

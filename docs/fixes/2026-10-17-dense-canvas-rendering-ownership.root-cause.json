@@ -1,0 +1,136 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-17-dense-canvas-rendering-ownership",
+  "problem_type": "Dense canvas DOM work repeats despite unchanged container and interaction ownership",
+  "symptom": "Large reference canvases stall during pan/zoom. A real-media 300-node/3000-reference-edge fixture reproduces repeated long tasks; the original user project remains unavailable.",
+  "direct_cause": "A permanent subtree MutationObserver rescans all canvas descendants for three stable React Flow containers on every card/edge DOM change. Editable edges also render both the framework transparent hit path and a second accessible business hit path over the same geometry.",
+  "class_root": "The canvas adapter has no enforced cardinality/lifecycle invariant for framework-owned DOM: stable container aliases run on child mutations, and one interactive connection has two overlapping hit owners.",
+  "affected_population": [
+    "All manual/imported/external-Agent dense boards rendered by the same React Flow adapter",
+    "Empty boards populated later, category switches, edge creation/deletion and restored projects"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+  ],
+  "entry_points": [
+    "GenerationCanvasReactFlow mounts the shared host effect for all canvas content",
+    "GenerationFlowEdgeView is the one registered normal/aggregate edge view"
+  ],
+  "external_sources": [],
+  "invariants": [
+    "Compatibility aliases are applied once per host mount; subtree changes never trigger a host-wide alias scan.",
+    "Editable connections have exactly one 30px hit path with existing keyboard/ARIA semantics; read-only connections retain the framework hit layer.",
+    "No reference edge is removed or made unclickable for performance."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "useGenerationCanvasReactFlowHostEffects"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "GenerationFlowEdgeView"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "aliases"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "These are distinct domain adapter responsibilities (host mount lifecycle and per-edge interaction). Both existing shared owners are narrowed; no new callers or duplicate implementations are added."
+  },
+  "generality_proof": "Every canvas producer mounts the same unconditional React Flow subtree. React commits its three containers before the parent passive effect, and the containers remain mounted with this host. Every normal or aggregate editable edge already owns an accessible hit path; disabling only the duplicate BaseEdge hit preserves its original input path and read-only behavior.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "symbol": "useGenerationCanvasReactFlowHostEffects",
+      "responsibility": "Assign stable framework layer aliases only at host mount, without observing card/edge descendants."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "GenerationFlowEdgeView",
+      "responsibility": "Use one accessible hit owner for editable edges, retaining framework-only hit testing when read-only."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "Unconditional GenerationCanvasReactFlowViewport subtree",
+      "disposition": "enforced",
+      "evidence": "ReactFlow and its viewport/edge/node containers are unconditional children of the host; card/edge mount changes cannot replace their owner."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
+      "entry_point": "Normal and aggregate reference edge projection",
+      "disposition": "enforced",
+      "evidence": "Both projections use the one GenerationFlowEdgeView registry; readOnly determines whether the business accessible hit path exists."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every subtree change and every editable edge reaches the same shared adapter, independently of producer or saved project.",
+    "same_class_scan": [
+      "door-map useGenerationCanvasReactFlowHostEffects: one call in GenerationCanvasReactFlow.tsx; followed through unconditional Viewport child.",
+      "door-map GenerationFlowEdgeView: one registry; inspected BaseEdge implementation in installed @xyflow/react 12.11.5 and local custom hit path."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "invariant": "Stable framework DOM has mount-scoped compatibility work and exactly one editable hit owner.",
+    "failure_mode": "There is no subtree observer left to rescan after card/edge mutations; the existing accessible hit handles mouse/keyboard input.",
+    "exception_policy": "none",
+    "strategy": "Delete the permanent observer and duplicate editable hit layer, then run real Electron lifecycle/hit cardinality regression in the existing canvas suite.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "tests/ux/canvas-real-suite.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/canvas-container-alias-lifecycle.walk.mjs",
+    "tests/ux/fixtures/canvas-performance-fixture.mjs",
+    "tests/perf/canvas-scale-bench.mjs",
+    "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/canvas-container-alias-lifecycle.walk.mjs",
+    "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+    ],
+    "rationale": "The permanent alias MutationObserver and editable BaseEdge interaction path are removed in place. No library cache, alternative renderer, or fallback is introduced."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The final change removes Nomi adapter redundancy. @xyflow/react remains stock 12.11.5. Experimental EdgeWrapper/culling caches (including checked latest 12.12.0) did not meet the stress budget and were discarded; package/lock remain untouched.",
+    "exit_criteria": []
+  },
+  "migration": "No project/node/provider/schema migration: all stored graphs and interaction semantics remain unchanged.",
+  "residual_risks": [
+    "Original user project, distinct high-resolution media pressure and Windows remain unverified.",
+    "Registered final batch passes primary median budget (pan14ms/wheel19ms) but wheel first run still has7 long tasks; the preserved original final5 batch retains wheel36.1ms in one run and pan/wheel long-task medians7/4. Zero long tasks in every observed run is not achieved.",
+    "Host load varies; raw samples retain load averages. Repeated frame URLs isolate edge/DOM cost and do not establish distinct-image decode scalability.",
+    "Registry baseline.commit49fa5d949 identifies the base HEAD plus uncommitted candidate workspace, not a fixed committed PR head; CI must verify the actual delivered commit."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-17",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow",
+    "tests": [
+      "tests/ux/canvas-container-alias-lifecycle.walk.mjs",
+      "src/workbench/generationCanvas/reactFlow/edgeViewDragCost.test.ts"
+    ]
+  },
+  "internal_only_reason": "Final repair only removes Nomi-owned DOM adapter redundancy. The checked installed BaseEdge implementation remains unchanged; no external protocol or dependency behavior is introduced."
+}

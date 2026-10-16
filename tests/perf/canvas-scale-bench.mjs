@@ -203,6 +203,7 @@ const PROBE_SOURCE = `(() => {
         flushes: rec.perFlushTouched.length,
         subtreeMutations: rec.subtreeMutations,
         mountedNodes: document.querySelectorAll('.react-flow__node').length,
+        mountedEdges: document.querySelectorAll('.react-flow__edge').length,
       }
     },
   }
@@ -229,6 +230,7 @@ function summarize(raw) {
     domFlushes: raw.flushes,
     subtreeMutations: raw.subtreeMutations,
     mountedNodes: raw.mountedNodes,
+    mountedEdges: raw.mountedEdges,
   }
 }
 
@@ -783,6 +785,7 @@ async function main() {
           domFlushes: pick('domFlushes'),
           subtreeMutations: pick('subtreeMutations'),
           mountedNodes: pick('mountedNodes'),
+          mountedEdges: pick('mountedEdges'),
           cdpScriptMs: pick('cdpScriptMs'),
           cdpStyleMs: pick('cdpStyleMs'),
           cdpLayoutMs: pick('cdpLayoutMs'),
