@@ -1,5 +1,7 @@
 # nomi_read 加「任务」目标：AI 能按任务号查异步任务
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 设计卡（长跑类，沾花钱边界，9 格全填）。承接 `docs/plan/2026-10-04-try-model-async-queued.md` 的后续项。
 > 线 / 负责人：B 线 L-readtask。类别：[长跑]（只读，不花钱，不提交）。
 
