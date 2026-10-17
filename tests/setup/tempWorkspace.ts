@@ -14,7 +14,9 @@ export function createTempWorkspace(
   env: NodeJS.ProcessEnv = process.env,
   tempBase = os.tmpdir(),
 ): TempWorkspace {
-  const root = fs.mkdtempSync(path.join(tempBase, "nomi-vitest-run-"));
+  // 真路径：macOS 的 tmpdir 是 /var → /private/var 的链接，而子进程 cwd、git、import.meta.url 给的都是真路径。
+  // 同一条规矩也在 scripts/_test-temp.mjs（node:test 那边）；两边都在 Linux 上用链接 TMPDIR 复现。
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(tempBase, "nomi-vitest-run-")));
   const previous = new Map<string, string | undefined>(TEMP_KEYS.map((key) => [key, env[key]]));
   for (const key of TEMP_KEYS) env[key] = root;
 

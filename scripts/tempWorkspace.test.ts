@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createTempWorkspace } from "../tests/setup/tempWorkspace";
+import { makeTempDir } from "./_test-temp.mjs";
 
 describe("Vitest temp workspace", () => {
   it("redirects every Node temp variable and removes the run root on teardown", () => {
@@ -12,7 +13,7 @@ describe("Vitest temp workspace", () => {
       expect(env.TMPDIR).toBe(workspace.root);
       expect(env.TEMP).toBe(workspace.root);
       expect(env.TMP).toBe(workspace.root);
-      expect(path.dirname(workspace.root)).toBe(os.tmpdir());
+      expect(path.dirname(workspace.root)).toBe(fs.realpathSync(os.tmpdir()));
       expect(fs.existsSync(workspace.root)).toBe(true);
     } finally {
       workspace.teardown();
@@ -20,6 +21,25 @@ describe("Vitest temp workspace", () => {
     expect(fs.existsSync(workspace.root)).toBe(false);
     expect(env).toEqual({ TMPDIR: "before-tmpdir", TEMP: "before-temp", TMP: "before-tmp" });
     workspace.teardown();
+  });
+});
+
+describe("temp workspace on a symlinked temp base (macOS /var → /private/var)", () => {
+  it("hands out the resolved path so path comparisons match child processes and git", () => {
+    const real = makeTempDir("nomi-real-base-");
+    const link = `${real}-link`;
+    fs.symlinkSync(real, link, "dir");
+    const env: NodeJS.ProcessEnv = {};
+    const workspace = createTempWorkspace(env, link);
+    try {
+      expect(workspace.root).toBe(fs.realpathSync(workspace.root));
+      expect(path.dirname(workspace.root)).toBe(real);
+      expect(env.TMPDIR).toBe(workspace.root);
+    } finally {
+      workspace.teardown();
+      fs.rmSync(link, { force: true });
+      fs.rmSync(real, { recursive: true, force: true });
+    }
   });
 });
 

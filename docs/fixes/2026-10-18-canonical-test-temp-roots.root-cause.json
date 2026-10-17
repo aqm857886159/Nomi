@@ -1,0 +1,161 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-18-canonical-test-temp-roots",
+  "problem_type": "Shared test temp roots hand out a symlinked path, so path comparisons against resolved paths fail only on macOS",
+  "symptom": "On macOS, pnpm run gates is red on a clean origin/main: check:main-guard ('门岗推荐的写法必须在本平台真的触发 main()'), check:git-path-quoting ('退回默认 quotePath 的 hook 必须被门岗拦下') and check:claude-hooks (pre-push-check.node-test.mjs, including the control case '没改任何东西时同一个门岗是绿的'). Linux CI is green, so nobody saw it.",
+  "direct_cause": "f75249952 (2026-10-08) moved every node:test temp dir onto scripts/_test-temp.mjs makeTempDir and in the process dropped four local fs.realpathSync calls. makeTempDir returns path.join(os.tmpdir(), …) unresolved; on macOS os.tmpdir() is /var/folders/… which is a symlink to /private/var/folders/…. Child processes' import.meta.url, git rev-parse --show-toplevel and process.cwd() report the resolved /private/var path, so 'am I the main module' checks never fire and repo-root comparisons never match.",
+  "class_root": "The shared temp-root boundaries (scripts/_test-temp.mjs for node:test, tests/setup/tempWorkspace.ts for Vitest) did not guarantee a canonical (symlink-resolved) path, leaving each caller to remember realpath. CI only runs on Linux, where tmpdir is not a symlink, so a forgotten realpath can never go red in CI.",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-01",
+  "invariant_owner_layer": {
+    "layer": "scripts/_test-temp.mjs",
+    "tests": [
+      "scripts/_test-temp.node-test.mjs",
+      "scripts/tempWorkspace.test.ts"
+    ],
+    "why": "makeTempDir/makeTempDirAsync are the only node:test system-temp allocators (check:test-temp-static forbids others) and createTempWorkspace owns the Vitest run TMPDIR; both now resolve symlinks, and both are tested with a symlinked TMPDIR on Linux CI."
+  },
+  "affected_population": [
+    "Every developer or agent running pnpm run gates / pnpm run test on macOS (os.tmpdir() is a /var → /private/var symlink)",
+    "Any machine whose TMPDIR points through a symlink",
+    "394 node:test files that use makeTempDir/makeTempDirAsync and every Vitest test that calls os.tmpdir() under the run workspace"
+  ],
+  "scope_paths": [
+    "scripts/_test-temp.mjs",
+    "tests/setup/tempWorkspace.ts"
+  ],
+  "entry_points": [
+    "node:test temp roots: makeTempDir / makeTempDirAsync in scripts/_test-temp.mjs",
+    "Vitest run workspace: createTempWorkspace in tests/setup/tempWorkspace.ts, which sets TMPDIR/TEMP/TMP for the whole run"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/fs.html#fsrealpathsyncpath-options",
+      "checked_at": "2026-10-18",
+      "purpose": "fs.realpathSync resolves symlinks to the canonical path that import.meta.url and child cwd report"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/os.html#ostmpdir",
+      "checked_at": "2026-10-18",
+      "purpose": "os.tmpdir() reads TMPDIR/TMP/TEMP and returns it unresolved, which lets a Linux test reproduce the macOS symlinked tmpdir"
+    }
+  ],
+  "invariants": [
+    "Every temp root handed out by a shared test helper is equal to fs.realpathSync of itself",
+    "The canonical-root rule is exercised on Linux CI with a symlinked TMPDIR, so it cannot regress silently"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/setup/tempWorkspace.ts",
+      "symbol": "createTempWorkspace"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "door-map.mjs only scans src/electron, so these were enumerated by grep over scripts/ and tests/. makeTempDir and makeTempDirAsync are the sync/async halves of one helper used by 394 node:test files; createTempWorkspace is the Vitest-wide TMPDIR owner that the ~40 local electron/**/*.test.ts makeTempDir helpers inherit through os.tmpdir(). node:test and Vitest are separate runners with separate setup, so one boundary per runner is the minimum; all three now canonicalize."
+  },
+  "generality_proof": "Callers no longer need to remember realpath: every node:test temp root comes from makeTempDir/makeTempDirAsync (check:test-temp-static already forbids hand-rolled mkdtemp under os.tmpdir()), and every Vitest os.tmpdir() call resolves under the canonical TMPDIR set by createTempWorkspace. The four dropped realpath calls (main-guard, git-path-quoting x2, pre-push-check) are all covered by the helper, not re-added locally.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDir",
+      "responsibility": "Return a symlink-resolved temp root for every node:test caller (sync and async)."
+    },
+    {
+      "path": "tests/setup/tempWorkspace.ts",
+      "symbol": "createTempWorkspace",
+      "responsibility": "Create the Vitest run root at its resolved path and point TMPDIR/TEMP/TMP at it, so every os.tmpdir() under Vitest is canonical."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-main-guard.node-test.mjs",
+      "entry_point": "放行的写法在当前平台真的会执行",
+      "disposition": "enforced",
+      "evidence": "Lost fs.realpathSync in f75249952; red on macOS before this fix, green after (pnpm run check:main-guard exit 0)."
+    },
+    {
+      "path": "scripts/check-git-path-quoting.node-test.mjs",
+      "entry_point": "真仓库当下是干净的；任意一处退回默认写法 → 门岗必须报红",
+      "disposition": "enforced",
+      "evidence": "Lost realpath of the nomi-quotepath-gate fixture in f75249952; its own comment says the CLI branch never runs without realpath. Green after the fix."
+    },
+    {
+      "path": "scripts/lib/gitPaths.node-test.mjs",
+      "entry_point": "nomi-gitpaths fixture",
+      "disposition": "enforced",
+      "evidence": "Lost realpath of the nomi-gitpaths- fixture in f75249952; now canonical through makeTempDir."
+    },
+    {
+      "path": "scripts/pre-push-check.node-test.mjs",
+      "entry_point": "nomi-push-gate sandbox",
+      "disposition": "enforced",
+      "evidence": "Lost fs.realpathSync(os.tmpdir()) in f75249952; check:claude-hooks red on macOS including the control case, green after the fix."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.test.ts",
+      "entry_point": "local makeTempDir (one of ~40 electron test helpers)",
+      "disposition": "enforced",
+      "evidence": "Local helpers call fs.mkdtempSync(path.join(os.tmpdir(), …)); under Vitest os.tmpdir() is the TMPDIR set by createTempWorkspace, which is now canonical."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new test that compares a temp path with import.meta.url, git output or a child cwd would hit the same mismatch on macOS, and Linux CI could not catch it. The failure already recurred once (realpath added in 757b31508, silently lost in f75249952).",
+    "same_class_scan": [
+      "git show f75249952 | grep '^-.*realpath' → exactly 4 removed realpath calls, mapping to the 3 red gates",
+      "grep -rlE 'makeTempDir(Async)?\\(' scripts tests → 394 node:test consumers of the shared helper",
+      "grep -rn 'function makeTempDir' electron → ~40 local Vitest helpers, all deriving from os.tmpdir() under createTempWorkspace",
+      "grep -n mkdtemp tests/setup/tempWorkspace.ts → the Vitest run root was also unresolved"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/_test-temp.mjs",
+    "invariant": "makeTempDir/makeTempDirAsync/createTempWorkspace return fs.realpathSync of the created directory.",
+    "failure_mode": "If the helpers stop resolving, the class tests run on Linux CI with TMPDIR pointed at a symlink and fail (check:test-temp-static and the Unit job).",
+    "exception_policy": "none",
+    "strategy": "Resolve at the two shared temp boundaries so no caller can get a symlinked root, and reproduce the macOS symlinked tmpdir on Linux so CI enforces it.",
+    "artifacts": [
+      "scripts/_test-temp.mjs",
+      "tests/setup/tempWorkspace.ts"
+    ]
+  },
+  "regression_tests": [
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/tempWorkspace.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/tempWorkspace.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel path exists; the per-test realpath calls were already removed in f75249952 and are not re-added."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The behaviour comes from the OS temp-directory symlink and Node's documented os.tmpdir(); no third-party dependency is involved.",
+    "exit_criteria": []
+  },
+  "migration": "None needed: temp roots are created per run and deleted afterwards; no stored state references them.",
+  "residual_risks": [
+    "check:design-lab is still red on macOS for a different reason (97 stale pixel baselines because the visual gate only runs on darwin and is skipped on Linux CI); it is tracked separately and needs a decision on where baselines are recorded.",
+    "Tests that build temp paths from os.tmpdir() outside Vitest and outside makeTempDir (for example tests/ux walkthrough scripts) are not covered by this boundary."
+  ]
+}
