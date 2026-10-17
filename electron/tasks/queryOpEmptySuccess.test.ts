@@ -44,22 +44,26 @@ async function seedPendingTask(taskId: string) {
   });
 }
 
-describe("query-op-only vendor：COMPLETED 但零产物必须判失败（不落空成功）", () => {
+describe("query-op-only vendor：COMPLETED 但零产物——不判失败、不落空成功，落「可找回」（#1213 原则 1）", () => {
   beforeEach(() => {
     executeProfileOperation.mockReset();
   });
 
-  it("query 回 completed 无产物 → failed + 诚实文案，绝不持久化 succeeded+0 assets", async () => {
+  it("query 回 completed 无产物 → 抛 retrieval-parse（带上游原话），任务留在缓存里，下一次查到地址就成", async () => {
     const { fetchTaskResult } = await import("./taskResultQuery");
+    const { taskCache } = await import("../runtime");
     await seedPendingTask("task-query-empty");
     executeProfileOperation.mockResolvedValue({ response: { status: "completed" }, request: {} });
 
-    const polled = await fetchTaskResult({ taskId: "task-query-empty" });
+    // 上游说成了：绝不判 failed，也不持久化 succeeded+0 assets——带阶段码抛出，渲染层落「可找回」。
+    await expect(fetchTaskResult({ taskId: "task-query-empty" })).rejects.toThrow(/NOMI_ERR::retrieval-parse::[\s\S]*completed/);
+    expect(taskCache.get("task-query-empty")).toBeTruthy();
 
-    expect(polled.result.status).toBe("failed");
-    expect(polled.result.error).toContain("没有返回可用产物");
-    // 没有 result op，本文件里 executeProfileOperation 只该被 query 打过（一跳），不碰磁盘资产。
-    expect(polled.result.assets).toHaveLength(0);
+    // 有的中转先报成功、后补地址：下一次查（或「重新取回」）拿到地址就正常落地。
+    executeProfileOperation.mockResolvedValue({ response: { status: "completed", video_url: "https://cdn.example.com/late.mp4" }, request: {} });
+    const late = await fetchTaskResult({ taskId: "task-query-empty" });
+    expect(late.result.status).toBe("succeeded");
+    expect(late.result.assets).toHaveLength(1);
   });
 
   it("非回归：query 回 completed 且带产物 → 照旧 succeeded（守卫不许误杀正常路径）", async () => {

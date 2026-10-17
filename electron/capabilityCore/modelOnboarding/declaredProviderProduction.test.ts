@@ -207,7 +207,7 @@ describe("issue #975 · 声明登记的自定义供应商进入正式生成", ()
 
     const polled = await adapter.query({ providerId: vendorKey, providerTaskId: submitted.providerTaskId });
     expect(polled.state).toBe("succeeded");
-    const outputs = await adapter.materialize({ providerId: vendorKey, providerTaskId: submitted.providerTaskId, raw: polled.raw });
+    const outputs = await adapter.materialize({ providerId: vendorKey, providerTaskId: submitted.providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
     expect(outputs.outputs).toEqual([expect.objectContaining({ kind: "video", url: `${origin}/out.mp4` })]);
   });
 

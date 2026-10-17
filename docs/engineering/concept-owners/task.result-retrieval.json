@@ -1,0 +1,61 @@
+{
+  "name": "异步生成结果取回（上游状态词、结果地址、取回阶段）",
+  "subject": "task.result-retrieval",
+  "lifecycle": "provider-observation",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/tasks/taskResultReading.ts",
+    "symbol": "readTaskResponse"
+  },
+  "write_api": [
+    {
+      "path": "electron/tasks/taskResultReading.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "path": "electron/shared/taskStatus.ts",
+      "symbol": "classifyUpstreamTaskStatus"
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError"
+    },
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "isRetrievalStageCode"
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "RELAY_VIDEO_RESULT_URL_PATHS"
+    },
+    {
+      "path": "electron/tasks/taskResultReading.ts",
+      "symbol": "readProviderStatusWord"
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationOutputs.ts",
+      "symbol": "readMaterializationOutputs"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/videoQueryContractMatrix.test.ts",
+  "allowed_consumers": [
+    "electron/runtime.ts",
+    "electron/tasks/responseParsing.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/apimartGenerationOutputs.ts",
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/catalog/nativeWireProfiles.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/runner/recoverableTimeout.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts"
+  ],
+  "since": "2026-10-16",
+  "notes": "#1213（合同 docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json）：「上游这次成没成、结果在哪、没取到卡在哪一步」此前在两台引擎与渲染层各有一份——状态词表四份、结果读法三套、失败没有阶段。现在词表只在 shared/taskStatus、读法只在 readTaskResponse（先合同、再通用规则），取回失败一律带 retrieval-* 阶段码落可找回；上游说成了却没取到不判失败。新查询形状必须先在矩阵测试登记真实返回夹具。 V-1213：通用规则类型证据先于字段名、已知形状只解码排在深扫后、合同也排除回显；引擎 B 的状态词（readProviderStatusWord）与取产物（readMaterializationOutputs）都经 readTaskResponse。"
+}

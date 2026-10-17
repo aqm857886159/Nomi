@@ -1682,6 +1682,7 @@ export const zhGenerationCommon = {
     otherProjectTask: '无法在这里找回：这条任务属于另一个项目，请回到发起它的项目里重新拉取。',
     retrievingResult: '正在重新拉取结果…',
     stillUpstream: '任务仍在上游进行，请稍后再次拉取。',
+    timedOut: '取回卡在「等待结果」这一步：等到上限还没有结果（任务号 {{taskId}}）。',
   },
   // 生成的某一步等不到回音、到点收场时的说法（runner/generationPhaseDeadline）。每句都说清钱在哪、下一步是什么。
   phaseDeadline: {
@@ -3352,6 +3353,7 @@ export const enGenerationCommon = {
     otherProjectTask: 'This task belongs to another project. Open the project that started it to retrieve the result.',
     retrievingResult: 'Retrieving the result again…',
     stillUpstream: 'The task is still running upstream. Try retrieving it again later.',
+    timedOut: 'Retrieval stopped while waiting for the result: the wait limit was reached (task {{taskId}}).',
   },
   phaseDeadline: {
     resultSilent:

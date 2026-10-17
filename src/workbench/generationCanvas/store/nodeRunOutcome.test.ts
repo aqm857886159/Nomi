@@ -79,3 +79,20 @@ describe('nodeRunOutcomePatch intrinsic media dimensions', () => {
     ])
   })
 })
+
+describe('nodeRunOutcomePatch keeps the reason a node landed recoverable (#1213)', () => {
+  const RETRIEVAL_FAILURE = 'Provider request failed (HTTP 503) at relay GET https://relay.example/api/v3/contents/generations/tasks/cgt-1: no available channel'
+
+  it('stores the last retrieval failure on the node and on the in-flight run record', () => {
+    const running = { ...node(), status: 'running', runs: [{ id: 'run-1', status: 'running', taskId: 'cgt-1', startedAt: 1, updatedAt: 1 }] } as GenerationCanvasNode
+    const patch = nodeRunOutcomePatch(running, { kind: 'status', status: 'recoverable', error: RETRIEVAL_FAILURE })
+    expect(patch.status).toBe('recoverable')
+    expect(patch.error).toBe(RETRIEVAL_FAILURE)
+    expect(patch.runs?.[0]).toMatchObject({ status: 'recoverable', error: RETRIEVAL_FAILURE })
+  })
+
+  it('a plain wait-timeout with no reason stays reasonless (no invented fallback sentence)', () => {
+    const patch = nodeRunOutcomePatch({ ...node(), status: 'running' } as GenerationCanvasNode, { kind: 'status', status: 'recoverable' })
+    expect(patch.error).toBeUndefined()
+  })
+})

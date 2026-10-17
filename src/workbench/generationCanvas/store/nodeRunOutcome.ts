@@ -65,8 +65,20 @@ function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, m
   return patch
 }
 
+/**
+ * 结局附带的原因：失败要有原因（没给就用兜底句），**可找回也要留下传进来的那句**——那是最后一次取回
+ * 失败的原话（HTTP 503 无可用渠道 / 404 / 出站被拦……），各有各的下一步。以前这里只给 error 留，
+ * 可找回一律置空：面板无从显示、节点不落盘、运行记录也没有，用户截图里一点证据都没有（#1213）。
+ * 可找回没给原因就是没有（纯等待超时），不编兜底句。
+ */
+function outcomeError(node: GenerationCanvasNode, status: GenerationNodeStatus, error?: string): string | undefined {
+  if (status === 'error') return error || node.error || describeOpaqueFailure(null)
+  if (status === 'recoverable') return error || undefined
+  return undefined
+}
+
 function statusPatch(node: GenerationCanvasNode, status: GenerationNodeStatus, error?: string): NodeRunOutcomePatch {
-  const nextError = status === 'error' ? error || node.error || describeOpaqueFailure(null) : undefined
+  const nextError = outcomeError(node, status, error)
   const latestRun = node.runs?.[0]
   const runs = latestRun && latestRun.status !== 'success' && latestRun.status !== 'error' && latestRun.status !== 'cancelled'
     ? [mergeRunRecord(latestRun, { status: status === 'idle' ? 'cancelled' : status, error: nextError }), ...(node.runs || []).slice(1)]

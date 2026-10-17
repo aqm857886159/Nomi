@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
@@ -227,28 +228,14 @@ type ProviderPollStatusClass = "pending" | "succeeded" | "failed" | "unknown";
  * must only advance a job for a status that is explicitly known to be pending,
  * successful, or failed.  Treating an unrecognised verb as success is unsafe
  * (it can materialize an incomplete output); treating it as pending is worse
- * (the observer can spin forever).  Keep this allow-list broad enough for the
- * shipped provider mappings, but fail closed for anything new.
+ * (the observer can spin forever).  The vocabulary itself lives in exactly one
+ * place (shared/taskStatus, #1213) — engine A asks the same table.
  */
-const PROVIDER_STATUS_CLASSES: Readonly<Record<ProviderPollStatusClass, ReadonlySet<string>>> = {
-  pending: new Set([
-    "submitted", "waiting", "queuing", "queued", "pending", "create", "created",
-    "processing", "generating", "running", "in_progress", "in-progress", "in_queue",
-    "queueing", "not_start", "notstart", "starting", "started", "downloading", "validating",
-  ]),
-  succeeded: new Set(["completed", "complete", "succeeded", "succeed", "success", "done"]),
-  failed: new Set([
-    "failed", "fail", "failure", "error", "cancelled", "canceled", "cancel", "rejected",
-    "refused", "expired", "aborted", "timeout", "timed_out", "revoked",
-  ]),
-  unknown: new Set(),
-};
-
 function classifyProviderStatus(status: string): ProviderPollStatusClass {
-  const normalized = status.trim().toLowerCase();
-  if (PROVIDER_STATUS_CLASSES.pending.has(normalized)) return "pending";
-  if (PROVIDER_STATUS_CLASSES.succeeded.has(normalized)) return "succeeded";
-  if (PROVIDER_STATUS_CLASSES.failed.has(normalized)) return "failed";
+  const cls = classifyUpstreamTaskStatus(status);
+  if (cls === "queued" || cls === "running") return "pending";
+  if (cls === "succeeded") return "succeeded";
+  if (cls === "failed" || cls === "cancelled") return "failed";
   return "unknown";
 }
 
@@ -704,7 +691,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     }, new GenerationMaterializationUnsupportedError());
     let extracted: { outputs: readonly GenerationProviderOutput[] };
     try {
-      extracted = await adapter.materialize({ providerId: job.provider, providerTaskId: job.providerTaskId, raw: polled.raw });
+      extracted = await adapter.materialize({ providerId: job.provider, providerTaskId: job.providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
     } catch (error) {
       if (error instanceof GenerationProviderObservationError) return parkUnsupported();
       throw error;

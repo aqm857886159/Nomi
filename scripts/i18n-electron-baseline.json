@@ -15,7 +15,7 @@
   "electron/catalog/executableModel.ts": 3,
   "electron/catalog/minimaxOfficial.ts": 2,
   "electron/catalog/multipartOperation.ts": 3,
-  "electron/catalog/nativeEndpointProbe.ts": 5,
+  "electron/catalog/nativeEndpointProbe.ts": 4,
   "electron/catalog/processOperation.ts": 1,
   "electron/catalog/relayNativeWireUpgrade.ts": 2,
   "electron/catalog/secrets.ts": 1,

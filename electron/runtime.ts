@@ -20,8 +20,7 @@ import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAn
 import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
-import { collectAssetUrls, firstMappedString, providerMetaFromResponse, resolveTaskStatus, taskFailureMessageFromResponse, valuesFromMapping } from "./tasks/responseParsing";
-import { extractAssetUrl } from "./tasks/assetUrlExtract";
+import { firstMappedString, providerMetaFromResponse, taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
 import { applyResponseTransform } from "./tasks/responseTransforms";
 import { applyRequestTransform } from "./tasks/requestTransforms";
 import { taskCache } from "./tasks/taskCache";
@@ -168,7 +167,6 @@ import { findExecutableModel } from "./catalog/executableModel";
 
 // billingKindForTaskKind 下沉到 catalog/types（R12 净减）；re-export 保住既有消费方 import 面。
 export { billingKindForTaskKind } from "./catalog/types";
-export { extractAssetUrl } from "./tasks/assetUrlExtract";
 
 export function findTaskMapping(vendorKey: string, taskKind: ProfileKind, modelKey?: string, modeId?: string): Mapping | null {
   // 按 (vendor, taskKind, modelKey) 选——同 vendor 下两模型共用一个 taskKind 但请求形状不同时（如 HappyHorse 与 Kling 都 text_to_video），靠 modelKey 精确路由，不再「第一个赢、另一个套错模板」。
@@ -269,11 +267,10 @@ export async function buildProfileTaskResult(input: {
     providerMeta.query_id = providerMeta.query_id || providerTaskId;
   }
   const taskId = firstString(providerTaskId, input.taskIdFallback);
-  const mappedAssetValues = ["assets", "image_url", "video_url", "audio_url", "model_url"].flatMap((key) => valuesFromMapping(response, responseMapping, key));
-  const assetUrls = Array.from(new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]));
-  const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);
   const type: "image" | "video" | "audio" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "audio" ? "audio" : input.wantedKind === "model3d" ? "model3d" : "image";
+  // 「成没成、结果在哪」只有一种读法（tasks/taskResultReading，两台引擎共用）：先合同、再通用规则。
+  const { status, unrecognizedStatus, assetUrls } = readTaskResponse({ response, responseMapping, statusMapping: input.mapping.statusMapping, wantedKind: expectedMediaKind(input.wantedKind), echoUrls: requestEchoUrls(input.request.extras), trace: { vendor: input.vendor?.key, model: input.model?.modelKey } });
   const certification = await certifyTaskOutputAndSettleComfyCandidate({ request: input.request, modelKey: input.model?.modelKey, status, urls: assetUrls, kind: type, vendorBaseUrl: String(input.vendor?.baseUrlHint || "") });
   const assets = await materializeCertifiedComfyAssets({ certification, status, urls: assetUrls,
     materialize: (url, index) => input.projectId
@@ -444,7 +441,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       extras: request.extras,
     },
   );
-  const assetUrl = extractAssetUrl(providerResponse);
+  const assetUrl = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls[0] ?? ""; // 无 mapping 兜底提交也走唯一读法
   const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
   traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });
   if (!assetUrl) {

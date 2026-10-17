@@ -1,0 +1,32 @@
+{
+  "id": "USER-20261016-video-result-not-retrieved",
+  "since": "2026-10-16",
+  "source": "issue #1213（用户在 0.23.1 报：视频节点任务完成了，视频显示不出来，点重新拉取也拉不回来；附中转账单显示已扣费并按输出 token 结算）",
+  "category": "claims-and-outcomes",
+  "problem": "自建中转 + Seedance 2.0 fast 全能参考：上游约 2 分钟出片、中转已结算，Nomi 不到 10 分钟就停在「任务可能已在上游完成」，点「重新拉取」立刻回到同一面板，面板上没有任何原因。钱扣了，片取不回",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/catalog/nativeEndpointProbe.test.ts：中转对假任务号回 503「无可用渠道」时，旧判据判「原生端点存在」（修前红）",
+    "electron/catalog/relayVideoQueryContract.test.ts：官方 new-api 任务信封 / 方舟原始 JSON / Gemini 简化形状 / OpenAI-video / 无可用渠道 / 404 Invalid URL 同一组夹具对原生与通用两条通道跑；修前官方 new-api 信封两条通道都取不到地址（红）",
+    "electron/catalog/relayNativeWireReconcile.test.ts：已错切原生且无证据的模型降回通用通道并留日志（修前红）",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts + NodeRecoverableReport.test.tsx：可找回保留并显示最后一次取回失败的原话（修前红）",
+    "根因合同 docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json；方向检查 docs/engineering/direction-checks/2026-10-16-recoverable-reason-dropped.md；真中转复验待协调会话派独立验收",
+    "electron/catalog/videoQueryContractMatrix.test.ts：内置 108 条视频查询映射 + 中转两种按形状登记真实返回夹具，成功 / 进行中 / 认不出状态三断言；普查门岗",
+    "electron/tasks/relayQueryFallback.test.ts：原生通道连续 3 次「无可用渠道」→ 退回通用通道并免费再查一次取回；5xx / 429 / 抖动不退",
+    "设计卡 docs/plan/2026-10-16-async-result-retrieval.md；方向检查 docs/engineering/direction-checks/2026-10-16-async-result-retrieval.md"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/videoQueryContractMatrix.test.ts"
+  },
+  "fixedInPr": 1222
+}

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   decryptApiKeyRecord: vi.fn(() => "relay-key-after-window"),
-  probeNativeEndpoint: vi.fn(async () => ({ exists: false, detail: "not exposed" })),
+  probeNativeEndpoint: vi.fn(async () => ({ exists: false, verdict: "no-contract", detail: "not exposed" })),
 }));
 
 vi.mock("./secrets", () => ({ decryptApiKeyRecord: mocks.decryptApiKeyRecord }));
@@ -63,6 +63,7 @@ describe("relay native-wire post-window maintenance", () => {
     expect(mocks.probeNativeEndpoint).toHaveBeenCalledWith(
       "https://relay.example/v1",
       "/api/v3/contents/generations/tasks",
+      expect.any(Function),
       "relay-key-after-window",
     );
   });

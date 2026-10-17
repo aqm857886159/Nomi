@@ -1,4 +1,6 @@
 import type { TaskKind } from '../../api/taskApi'
+import i18n from '../../../i18n'
+import { tagNomiError } from '../../../../electron/shared/nomiErrorCodes'
 
 /** 续查所需的最小上下文（全可由节点 derive，taskId 已落盘）。 */
 export type RecoverableTimeoutDetail = {
@@ -13,7 +15,7 @@ export type RecoverableTimeoutDetail = {
  * - lastError：查结果连续失败超过宽限——把最后那次取回错误**原样**交出去（出站被拦、HTTP 403、类型不符……
  *   各有各的下一步，那句话的价值全在它自己的码和人话上），不再一律说「超时」；
  * - message：阶段到期（主进程一直没有回音）——说清是哪一步、等了多久。
- * 都没有，才是真的「上游还没跑完、等到了上限」，照旧说「生成超时(可找回)」。
+ * 都没有，才是真的「上游还没跑完、等到了上限」：带阶段码 retrieval-timeout（#1213 失败看得见：每次取回失败都说清卡在哪一步）。
  */
 export type RecoverableTimeoutReason = { lastError?: unknown; message?: string }
 
@@ -35,7 +37,7 @@ export class RecoverableTimeoutError extends Error {
   /** 宽限到期前最后一次取回失败的原错误（没有则为 undefined）。 */
   readonly lastError: unknown
   constructor(detail: RecoverableTimeoutDetail, reason: RecoverableTimeoutReason = {}) {
-    super(reason.message ?? lastErrorMessage(reason.lastError) ?? `生成超时(可找回): ${detail.taskId}`)
+    super(reason.message ?? lastErrorMessage(reason.lastError) ?? tagNomiError('retrieval-timeout', i18n.t('generationCommon.recoverable.timedOut', { taskId: detail.taskId })))
     this.name = 'RecoverableTimeoutError'
     this.detail = detail
     this.lastError = reason.lastError

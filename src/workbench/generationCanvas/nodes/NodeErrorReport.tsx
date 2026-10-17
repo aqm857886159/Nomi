@@ -2,7 +2,7 @@ import React, { type JSX } from 'react'
 import { GenerationStatusBar } from './GenerationStatusBar'
 import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
-import { IconChevronDown, IconChevronRight, IconListCheck, IconListDetails, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
+import { IconListCheck, IconListDetails, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { DecisionBar, WorkbenchButton } from '../../../design'
 import { isKnownVendor } from '../../../config/knownVendors'
@@ -16,6 +16,7 @@ import { releaseUnknownSubmissionForNode } from '../../production/releaseUnknown
 import { productionRunApi } from '../../production/productionRunApi'
 import { narrateErrorActionLabel, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
+import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, TechnicalDetailsToggle } from './NodeFailureDetails'
 import { stageForGenerationError } from '../../../ui/community/feedbackTypes'
 import { builtinVendorKeyOfKey } from '../../../../electron/shared/builtinVendorIdentity'
 import { revealNotificationTarget } from '../../../ui/notificationPolicy'
@@ -96,7 +97,6 @@ export function NodeErrorReport({
   const [confirmingRelease, setConfirmingRelease] = React.useState(false)
   const [releaseBusy, setReleaseBusy] = React.useState(false)
   const [releaseFailed, setReleaseFailed] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
   const rootRef = React.useRef<HTMLDivElement>(null)
 
   const handleRetry = React.useCallback(
@@ -233,20 +233,6 @@ export function NodeErrorReport({
   // 「改成图片」要点出改成**哪个**类型，否则按钮只是「改类型」——用户还得自己再想一步。
   const actionLabelParams: Record<string, string> | undefined = kindFixTarget ? { kind: narrateModelKind(kindFixTarget.requested) } : sameCapability ? { model: sameCapability.option.label } : undefined
 
-  const handleCopy = React.useCallback(
-    async (event: React.MouseEvent) => {
-      event.stopPropagation()
-      try {
-        await navigator.clipboard.writeText(report.raw)
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 1200)
-      } catch {
-        /* read-only env */
-      }
-    },
-    [report.raw],
-  )
-
   const handleFeedback = React.useCallback((event: React.MouseEvent) => {
     event.stopPropagation()
     const { vendorKey, modelKey } = nodeSelectedModelAddress(meta)
@@ -329,22 +315,10 @@ export function NodeErrorReport({
             break-words 不能省：上游原话常是一整串没有空格的 JSON/URL（如方舟的
             `{"code":"InputImageSensitiveContentDetected.PrivacyInformation",…}`），窄节点上会横向
             溢出被切掉右半截（同一次走查截图抓到）。 */}
-        {report.providerMessage ? (
-          <p className="mt-2 select-text cursor-text break-words rounded-nomi-sm bg-nomi-ink-05 p-2 text-caption leading-relaxed text-nomi-ink-60">
-            <span className="text-nomi-ink-40">{t('generationCommon.error.providerMessage')}</span>
-            {report.providerMessage}
-          </p>
-        ) : null}
+        {report.providerMessage ? <ProviderMessageNote text={report.providerMessage} /> : null}
       </div>
 
-      {showRaw ? (
-        <pre
-          className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'mb-2 max-h-[88px] select-text overflow-auto whitespace-pre-wrap break-all rounded-nomi-sm bg-nomi-ink-05 p-2 font-nomi-mono text-micro text-nomi-ink-60')}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {report.raw}
-        </pre>
-      ) : null}
+      {showRaw ? <TechnicalDetailsBlock raw={report.raw} /> : null}
 
       {/* 主动作按类型走（narrate 的 ACTION_BY_KIND）：确定性失败给「换个模型/去模型接入」，
           偶发失败才给「重试」。以前一律红「重试」，和「重试还会是同样结果」的文案自相矛盾。
@@ -392,25 +366,12 @@ export function NodeErrorReport({
             {narrateErrorActionLabel(secondaryAction, 'secondary', actionLabelParams)}
           </button>
         ) : null}
-        <button type="button" onClick={handleCopy} className="shrink-0 whitespace-nowrap text-caption text-nomi-ink-40 hover:text-nomi-ink">
-          {copied ? t('generationCommon.error.copied') : t('generationCommon.error.copyDetails')}
-        </button>
+        <CopyDetailsButton raw={report.raw} />
         <button type="button" onClick={handleFeedback} className="shrink-0 whitespace-nowrap text-caption text-nomi-ink-40 hover:text-nomi-ink">
           {t('generationCommon.error.feedback')}
         </button>
         <div className="min-w-0 flex-1" />
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            setShowRaw((value) => !value)
-          }}
-          aria-expanded={showRaw}
-          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-micro text-nomi-ink-40 hover:text-nomi-ink-60"
-        >
-          {t('generationCommon.error.technicalDetails')}
-          {showRaw ? <IconChevronDown size={13} stroke={1.6} /> : <IconChevronRight size={13} stroke={1.6} />}
-        </button>
+        <TechnicalDetailsToggle open={showRaw} onToggle={() => setShowRaw((value) => !value)} />
       </div>
     </div>
   )

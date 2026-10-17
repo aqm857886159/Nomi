@@ -1,6 +1,8 @@
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import type { HttpOperation, ProfileKind } from "./types";
+import type { ProbeContractEvidence } from "./nativeEndpointProbe";
+import { RELAY_VIDEO_RESULT_URL_PATHS } from "./newapiTransport";
 
 // ---------------------------------------------------------------------------
 // 「认得出的模型走它的原生报文」注册表（通用中转接入用）。
@@ -27,12 +29,48 @@ export type NativeWireProfile = {
    * 用 GET 探（不产生任务、不计费）。
    */
   probePath: string;
+  /**
+   * 「这条路由会按原生合同回答查询」的证据：对假任务号的回答必须长成原生合同自己的错误（#1213）。
+   * 只「和查无此路由不一样」不算——503 无可用渠道 / 401 / 网关通用错误都不一样，却恰恰说明真查也会失败。
+   */
+  probeEvidence: ProbeContractEvidence;
   /** 按 taskKind 的 create op。 */
   create: Partial<Record<ProfileKind, HttpOperation>>;
   /** 轮询 op（异步任务）。 */
   query?: HttpOperation;
   statusMapping?: Record<string, string[]>;
 };
+
+/**
+ * 方舟对「假任务号」的回答：4xx（400 参数不对 / 404 资源不存在）+ 方舟错误包络 `{error:{code,message}}`，
+ * 且 code 是方舟自己的 PascalCase 错误码（实测见过的：`ModelNotOpen`、`InvalidEndpointOrModel.NotFound`、
+ * `SetLimitExceeded`，docs/plan/2026-06-19 与 2026-08-26 的真 key 记录）。
+ * 排除的恰是 #1213 那一类：中转网关自己的错误——new-api 的 `{error:{message,type,code:""}}` /
+ * snake_case 码（`model_not_found`）、503「无可用渠道」、401 坏 key。它们都不是方舟在回答这个任务号。
+ * 残余风险：方舟对**格式非法**的任务号具体回哪个码没有真 key 实测（写进根因合同 residual_risks）；
+ * 判严的代价是「真代理方舟的中转被留在通用通道」（少几个参考槽，不丢钱），判松的代价是 #1213（丢钱）。
+ */
+const ARK_ERROR_CODE = /^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)*$/;
+export const ARK_TASK_NOT_FOUND_EVIDENCE: ProbeContractEvidence = ({ status, json }) => {
+  if (status !== 400 && status !== 404) return false;
+  const error = json && typeof json === "object" ? (json as { error?: unknown }).error : undefined;
+  if (!error || typeof error !== "object") return false;
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  return typeof code === "string" && ARK_ERROR_CODE.test(code) && typeof message === "string";
+};
+
+/**
+ * 中转上的方舟原生查询：方舟自己的映射（content.video_url 等）原样保留，再补上中转信封里结果地址
+ * 可能在的位置（RELAY_VIDEO_RESULT_URL_PATHS，与通用 new-api 查询同一份）——中转在原生路由上回的
+ * 也可能是它自己的任务信封（#1213 合同夹具）。内置方舟直连不经过这里，报文不变。
+ */
+function relayNativeQuery(op: HttpOperation): HttpOperation {
+  const mapping = (op.response_mapping || {}) as Record<string, unknown>;
+  const own = mapping.video_url;
+  const ownPaths = Array.isArray(own) ? own.map(String) : typeof own === "string" ? [own] : [];
+  const videoUrl = [...ownPaths, ...RELAY_VIDEO_RESULT_URL_PATHS.filter((path) => !ownPaths.includes(path))];
+  return { ...op, pathFrom: "host-root", response_mapping: { ...mapping, video_url: videoUrl } };
+}
 
 /** 把一组 mapping 转成「从主机根拼」的 create 表。原生端点不在 /v1 命名空间下；
  *  中转用户常把地址填成 .../v1 → 必须从主机根拼（hostRootJoin 负责剥版本段 + 折叠重叠段）。 */
@@ -57,9 +95,10 @@ function volcengineSeedanceProfiles(): NativeWireProfile[] {
     archetypeId,
     wireName: "火山方舟原生",
     probePath: "/api/v3/contents/generations/tasks",
+    probeEvidence: ARK_TASK_NOT_FOUND_EVIDENCE,
     // 同一档案下各模型共用同形 op（model 字段是动态值），取任一即可。
     create: hostRootCreateOps(models[0].mappings),
-    query: { ...VOLCENGINE_SEEDANCE_QUERY_OP, pathFrom: "host-root" as const },
+    query: relayNativeQuery(VOLCENGINE_SEEDANCE_QUERY_OP),
     statusMapping: VOLCENGINE_SEEDANCE_STATUS_MAPPING,
   }));
 }
@@ -84,6 +123,7 @@ function volcengineSeedreamProfiles(): NativeWireProfile[] {
     archetypeId,
     wireName: "火山方舟原生",
     probePath: "/api/v3/images/generations",
+    probeEvidence: ARK_TASK_NOT_FOUND_EVIDENCE,
     create: hostRootCreateOps(models[0].mappings),
   }));
 }

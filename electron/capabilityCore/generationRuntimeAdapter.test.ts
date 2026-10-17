@@ -340,9 +340,9 @@ describe("GenerationRuntimeAdapter", () => {
       materialize,
     }] });
 
-    await expect(adapter.materialize({ providerId: "provider.video", providerTaskId: "task-1", raw: { provider: "opaque" } }))
+    await expect(adapter.materialize({ providerId: "provider.video", providerTaskId: "task-1", raw: { provider: "opaque" }, context: { modelId: "m", mode: "text_to_video" } }))
       .resolves.toMatchObject({ outputs: [{ kind: "video", url: "https://cdn.example/video.mp4" }], raw: { provider: "opaque" } });
-    expect(materialize).toHaveBeenCalledWith({ providerTaskId: "task-1", raw: { provider: "opaque" } });
+    expect(materialize).toHaveBeenCalledWith({ providerTaskId: "task-1", raw: { provider: "opaque" }, context: { modelId: "m", mode: "text_to_video" } });
   });
 
   it("accepts model3d as a first-class provider output kind", async () => {
@@ -354,7 +354,7 @@ describe("GenerationRuntimeAdapter", () => {
       materialize: vi.fn(async () => ({ outputs: [{ kind: "model3d" as const, url: "https://cdn.example/model.glb" }] })),
     }] });
 
-    await expect(adapter.materialize({ providerId: "provider.video", providerTaskId: "task-3d" }))
+    await expect(adapter.materialize({ providerId: "provider.video", providerTaskId: "task-3d", context: {} }))
       .resolves.toMatchObject({ outputs: [{ kind: "model3d", url: "https://cdn.example/model.glb" }] });
   });
 

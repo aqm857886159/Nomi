@@ -1,4 +1,4 @@
-import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
+import { isRetrievalStageCode, matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 /**
@@ -21,7 +21,9 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
  */
 export function outboundBlockedRecoverableMessage(error: unknown, node: GenerationCanvasNode | undefined): string | null {
   if (!(error instanceof Error) || !error.message) return null
-  if (matchNomiErrorCode(error.message) !== 'outbound-blocked') return null
+  // #1213：整个「结果取回」族（查询 / 读结果 / 下载 / 等待 / 出站被拦）都是「任务已受理、丢的只是取回」——
+  // 同一个判据、同一个去处（可找回），不再只认出站被拦这一种。
+  if (!isRetrievalStageCode(matchNomiErrorCode(error.message))) return null
   // 只有拿得到 taskId 才算「找得回来」：免费续查靠 taskId 无状态重建查询（recoverTaskActions 的
   // buildRecoverPayload），没有它那颗按钮按下去也只会报「找不到任务」——那种情况下 `error` 才是
   // 诚实的。不许为了让状态好看而给出一颗按不动的按钮。

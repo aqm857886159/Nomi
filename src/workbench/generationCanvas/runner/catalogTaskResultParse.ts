@@ -1,4 +1,5 @@
 import i18n from '../../../i18n'
+import { tagNomiError } from '../../../../electron/shared/nomiErrorCodes'
 import {
   type TaskKind,
   type TaskResultDto,
@@ -124,7 +125,8 @@ export function normalizeCatalogTaskResult(
   const firstImageAsset = result.assets.find((item) => item.type === 'image' && asTrimmedString(item.url))
   const firstAudioAsset = result.assets.find((item) => item.type === 'audio' && asTrimmedString(item.url))
   const asset = firstVideoAsset || firstImageAsset || firstAudioAsset || result.assets.find((item) => asTrimmedString(item.url))
-  if (!asset) throw new Error(i18n.t(inferredType === 'video' ? 'generationCommon.error.noVideoUrl' : inferredType === 'audio' ? 'generationCommon.error.noAudio' : 'generationCommon.error.noImageUrl'))
+  // 上游说成了却没有产物：不是生成失败，是「读结果」这一步没成（#1213 原则 1）——带阶段码，落「可找回」。
+  if (!asset) throw new Error(tagNomiError('retrieval-parse', i18n.t(inferredType === 'video' ? 'generationCommon.error.noVideoUrl' : inferredType === 'audio' ? 'generationCommon.error.noAudio' : 'generationCommon.error.noImageUrl')))
   const type = (asset.type === 'video' || asset.type === 'image' || asset.type === 'audio') ? asset.type : inferredType
   if (type === 'image' || type === 'video') {
     const dimensions = readMediaDimensions(asset.width, asset.height)

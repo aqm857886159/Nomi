@@ -7,6 +7,7 @@ import { APIMART_VIDEO_MODELS } from "../catalog/apimartVideos";
 import { APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING, APIMART_VENDOR_SEED, APIMART_VIDEO_QUERY_OP } from "../catalog/apimartVendor";
 import { registerRequestTransform } from "../tasks/requestTransforms";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
+import { readMaterializationOutputs } from "./apimartGenerationOutputs";
 
 /** 授权时封存的那份 URL 快照，键就是付费卡上那一条参考的身份。 */
 function approvedUrls(entries: ReadonlyArray<readonly [Record<string, unknown>, string]>): Record<string, string> {
@@ -428,11 +429,17 @@ describe("APIMart observe-only generation provider", () => {
   it("extracts provider-specific image/video output shapes without making a second request", async () => {
     const fetchImpl = vi.fn();
     const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl });
+    // 一笔任务一种产物（#1213 起地址只有一种读法：先合同、再通用规则，不再把响应里出现的每种地址都捞走）。
     await expect(provider.materialize?.({
       providerTaskId: "task-1",
-      raw: { code: 200, data: { status: "completed", result: { images: [{ url: "https://cdn.example/image.png" }], videos: [{ url: "https://cdn.example/video.mp4" }] } } },
+      raw: { code: 200, data: { status: "completed", result: { images: [{ url: "https://cdn.example/image.png" }] } } },
     })).resolves.toMatchObject({ outputs: [
-      { kind: "image", url: "https://cdn.example/image.png" },
+      { kind: "image", url: "https://cdn.example/image.png", providerOutputId: "image-1" },
+    ] });
+    await expect(provider.materialize?.({
+      providerTaskId: "task-2",
+      raw: { code: 200, data: { status: "completed", result: { videos: [{ url: "https://cdn.example/video.mp4" }] } } },
+    })).resolves.toMatchObject({ outputs: [
       { kind: "video", url: "https://cdn.example/video.mp4", providerOutputId: "video-1" },
     ] });
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -484,7 +491,7 @@ describe("APIMart observe-only generation provider", () => {
       providerTaskId: "task-direct",
       raw: { data: { result: { video_url: ["data:video/mp4;base64,AAAA"], fileName: "direct.mp4" } } },
     });
-    expect(result?.outputs).toEqual([{ kind: "video", url: "data:video/mp4;base64,AAAA", fileName: "direct.mp4" }]);
+    expect(result?.outputs).toEqual([{ kind: "video", url: "data:video/mp4;base64,AAAA", fileName: "direct.mp4", providerOutputId: "video-1" }]);
   });
 
   it("maps a semantic text-to-video contract to APIMart's flat video body", () => {
@@ -918,5 +925,66 @@ describe("APIMart observe-only generation provider", () => {
       video_urls: ["https://cdn.example/video.mp4"],
       audio_urls: ["https://cdn.example/audio.wav"],
     });
+  });
+});
+
+// V-1213 复验阻断：合同字段（query response_mapping 的 video_url）回显的是本次请求里的参考图，引擎 B 曾把它当产物落盘成 PNG。
+// 用例取自验收线复现（vendor / 模型 / 合同形状照抄）；改前前三条红、改后绿。
+describe("引擎 B 取产物：合同字段回显的参考图不当产物（V-1213）", () => {
+  const REF = "https://fixture.invalid/reference.png";
+  // 签名地址常没有扩展名：类型那道筛判不了，只剩「认得出回显」这一道——单独钉住它。
+  const BARE_REF = "https://fixture.invalid/signed-reference";
+  const VIDEO = "https://fixture.invalid/paid-result.mp4";
+  function echoContractProvider() {
+    const state = catalogFixture();
+    state.vendors.forEach((vendor) => { vendor.key = "v1213"; });
+    state.models.forEach((model) => { model.vendorKey = "v1213"; });
+    for (const mapping of state.mappings) {
+      mapping.vendorKey = "v1213";
+      mapping.query = { method: "GET", path: "/v1/tasks/{{providerMeta.task_id}}", response_mapping: { status: "status", video_url: "output" } };
+    }
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ code: 200, data: [{ status: "submitted", task_id: "echo-task" }] }), { status: 200 }));
+    return createProvider({ vendorKey: "v1213", catalogReader: () => state, resolveConnection: () => ({ apiKey: "synthetic" }), fetchImpl: fetchImpl as unknown as typeof fetch });
+  }
+  const semantic = (imageUrls: string[]) => input({
+    providerId: "v1213", modelId: "kling-v3", mode: "image_to_video",
+    references: [{ assetId: "synthetic-ref", contentHash: "c".repeat(64), version: 1, kind: "image", role: "character" }],
+    parameters: { duration: 4, imageUrls },
+  });
+  const context = (imageUrls: string[]) => ({ modelId: "kling-v3", mode: "image_to_video", parameters: { duration: 4, imageUrls } });
+
+  it.each([REF, BARE_REF])("同一进程提交过：提交时发出去的参考地址被记住，合同位置回显它 → 不落产物（%s）", async (ref) => {
+    const provider = echoContractProvider();
+    const request = semantic([ref]);
+    const contextual = (provider as typeof provider & {
+      submitWithContext: (request: unknown, idempotencyKey: string, semanticInput: ReturnType<typeof input>) => Promise<unknown>;
+    }).submitWithContext;
+    await contextual(provider.buildRequest(request), "synthetic-key", request);
+    const result = await provider.materialize!({ providerTaskId: "echo-task", raw: { status: "success", output: ref } });
+    expect(result.outputs).toEqual([]);
+  });
+
+  it.each([REF, BARE_REF])("重启后（内存里没有这笔）：凭账本冻结合同的上下文认出回显 → 不落产物（%s）", async (ref) => {
+    const result = await echoContractProvider().materialize!({ providerTaskId: "echo-task", raw: { status: "success", output: ref }, context: context([ref]) });
+    expect(result.outputs).toEqual([]);
+  });
+
+  // 第二个形状照验收线「错误 PNG 落盘」复现：合同位置给 data:image/png，曾被定成 image 落进项目。
+  it.each([REF, "data:image/png;base64,iVBORw0KGgo="])("参考地址对不上（授权快照换过 URL）：视频任务的合同位置给图片，按类型也不收（%s）", async (imageUrl) => {
+    const result = await echoContractProvider().materialize!({ providerTaskId: "echo-task", raw: { status: "success", output: imageUrl }, context: context([]) });
+    expect(result.outputs).toEqual([]);
+  });
+
+  it("对照：合同位置是真视频照常取回；看不出扩展名的地址按任务定种类为 video", async () => {
+    const provider = echoContractProvider();
+    const mp4 = await provider.materialize!({ providerTaskId: "echo-task", raw: { status: "success", output: VIDEO }, context: context([REF]) });
+    expect(mp4.outputs.map((output) => ({ url: output.url, kind: output.kind }))).toEqual([{ url: VIDEO, kind: "video" }]);
+    const bare = await provider.materialize!({ providerTaskId: "echo-task", raw: { status: "success", output: "https://fixture.invalid/signed-result" }, context: context([REF]) });
+    expect(bare.outputs.map((output) => output.kind)).toEqual(["video"]);
+  });
+
+  it("种类跟着任务走：音频任务的合同位置给 .mp4 容器 → 收下且种类是 audio，不按扩展名改判成 video", () => {
+    const outputs = readMaterializationOutputs({ status: "success", output: "https://fixture.invalid/voice.mp4" }, { responseMapping: { audio_url: "output" } }, "audio", new Set());
+    expect(outputs.map((output) => ({ url: output.url, kind: output.kind }))).toEqual([{ url: "https://fixture.invalid/voice.mp4", kind: "audio" }]);
   });
 });

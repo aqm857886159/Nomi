@@ -1,0 +1,430 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-16-relay-video-result-retrieval",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-16",
+  "problem_type": "异步生成「结果取回」没有 owner：状态词表四份、结果读法三套、失败没有阶段——上游出片、钱已扣，Nomi 判失败或取不回（#1213，扩大为通用取回层）",
+  "symptom": "issue #1213：自建中转 + Seedance 2.0 fast 全能参考，上游约 2 分钟出片且中转已结算，节点在不到 10 分钟内停在「任务可能已在上游完成」，点「重新拉取」立刻又回到同一面板；面板上没有任何原因",
+  "direct_cause": "三处叠加：① 启动体检 relayNativeWireUpgrade 用「对假任务号的回答与同级哨兵不同」判定中转有方舟原生端点，503「无可用渠道」/401/网关通用错误都被当成存在，用户的视频模型被静默切成方舟原生报文；提交（POST 带 model）照常扣钱，查询（GET 不带 model）每次报错，45 秒后落可找回，重新拉取撞同一个错。② 通用 new-api 查询合同照自写 mock 只认 data[*].url，官方 new-api 的任务信封（data.result_url / 旧版 data.fail_reason / data.data.content.video_url）一个都读不到，成功任务被判「完成但没有产物」。③ statusPatch 只给 status==='error' 留原因，落 recoverable 时 node.error 与运行记录的 error 都被置空，面板也只渲染固定文案，最后一次取回失败的原话既不显示也不落盘",
+  "class_root": "中转通道的查询合同（走哪条报文、结果地址在哪、失败原因说什么）没有一个以真实中转返回形状为准的 owner：通道选择靠「回了点不一样的东西」，结果位置靠自写 mock，失败原因在结局投递时被丢掉；扩大后看清的同一类：「上游这次成没成、结果在哪、没取到卡在哪一步」在两台引擎（画布 runtime / 制作 Run 目录执行器）与渲染层各有一份读法，状态词表四份各漏不同的词，「完成无产物 / 认不出状态」被判成失败",
+  "affected_population": [
+    "自建中转里接了火山 Seedance 2.0 / 2.5（含 fast、mini 变体）的视频模型：中转对 GET /api/v3/contents/generations/tasks/<假 id> 的回答只要不是「查无此路由」签名，0.22.x 起每次启动都会被切到方舟原生报文",
+    "走通用 new-api 视频通道、接官方 new-api（v1.0.0-rc.10 ~ rc.44）的所有视频模型：成功任务一律显示「完成但没有产物」",
+    "所有落「可找回」的画布节点：最后一次取回失败的原话从未显示、从未落盘（v0.23.1 与 main 相同）"
+  ],
+  "scope_paths": [
+    "electron/catalog/nativeEndpointProbe.ts",
+    "electron/catalog/nativeWireProfiles.ts",
+    "electron/catalog/newapiTransport.ts",
+    "electron/catalog/relayNativeWireUpgrade.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/generationCanvas/nodes/NodeFailureDetails.tsx",
+    "electron/shared/taskStatus.ts",
+    "electron/tasks/taskResultReading.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/tasks/responseParsing.ts",
+    "electron/runtime.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/apimartGenerationOutputs.ts",
+    "electron/capabilityCore/generationRuntimeAdapter.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/shared/nomiErrorCodes.ts",
+    "electron/desktopStrings.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/runner/recoverableTimeout.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+    "src/i18n/locales/generationCommon.ts"
+  ],
+  "entry_points": [
+    "electron/catalog/relayNativeWireUpgrade.ts upgradeRelayModelsToNativeWire（启动体检：唯一调用原生端点探测、唯一在启动时改中转视频通道的地方）",
+    "electron/catalog/modelRetype.ts retypeModel（按 meta.archetypeId 取原生报文，不探测）",
+    "electron/tasks/taskResultQuery.ts fetchTaskResult（缓存命中与无状态重建共用同一段 query；重建时重读目录里的 mapping）",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts waitForCatalogTaskResult（查询连续失败 45 秒 → RecoverableTimeoutError 带最后一次错误）",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts recoverNodeResult（重新拉取；失败回落 recoverable 带原因）"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/QuantumNous/new-api/blob/v1.0.0-rc.10/relay/relay_task.go",
+      "checked_at": "2026-10-16",
+      "purpose": "GET /v1/video/generations/{task_id} 的回答：TaskResponse{code,data:TaskDto}，状态 data.status（SUCCESS/IN_PROGRESS/…），地址 data.result_url；Gemini/Vertex 走简化形状 {status,url}"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/QuantumNous/new-api/blob/v1.0.0-rc.10/model/task.go",
+      "checked_at": "2026-10-16",
+      "purpose": "TaskStatus 常量与 GetResultURL：新数据在 PrivateData.ResultURL，旧数据回退到 FailReason"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/QuantumNous/new-api/blob/v1.0.0-rc.10/relay/channel/task/doubao/adaptor.go",
+      "checked_at": "2026-10-16",
+      "purpose": "new-api 豆包视频：提交回 OpenAI-video 对象（id=公开任务号），后台按 completion_tokens 结算（与 issue 账单「消耗 → 退款 + 输出 token」吻合）"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/QuantumNous/new-api/blob/v1.0.0-rc.44/plugins/tasks/doubao/plugin.js",
+      "checked_at": "2026-10-16",
+      "purpose": "最新 new-api 的方舟原生路由带 /doubao 前缀，查询回答 = 任务数据 + 公开 id；任务表错误是 {code:task_not_exist}，不是方舟错误包络"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.volcengine.com/docs/82379/1520757",
+      "checked_at": "2026-10-16",
+      "purpose": "方舟查询任务的原始响应 id/status/content.video_url/usage（合同夹具「方舟原始 JSON」）"
+    }
+  ],
+  "invariants": [
+    "中转视频模型只有在探测拿到原生合同自己的「任务不存在」回答（4xx + 方舟错误包络 + PascalCase 错误码）时才走原生报文；拿不到证据的已切模型在下次启动降回通用通道并留日志",
+    "探不到（网络失败 / 超时）不改任何通道",
+    "通用 new-api 查询与中转上的方舟原生查询读同一张结果地址位置表 RELAY_VIDEO_RESULT_URL_PATHS，按官方源码形状定",
+    "落「可找回」时传进来的原因保留在节点与运行记录上，面板以失败卡同一套三件套显示",
+    "上游状态词只有一张表（shared/taskStatus），两台引擎与 reconcile 都问它；认不出 = unknown，绝不当失败",
+    "结果地址只有一种读法（tasks/taskResultReading.readTaskResponse）：先合同、再通用规则（核媒体类型、排除回显参考地址、排除缩略图 / 尾帧），并记下规则",
+    "上游说成了却没取到产物 / 状态认不出等够宽限 → retrieval-parse，任务留缓存、节点可找回；不判 failed",
+    "每次取回失败带阶段码 retrieval-query / parse / download / timeout（或 outbound-blocked），渲染层见码一律落可找回",
+    "中转原生通道查询连续 3 次按合同认出的非瞬时失败 → 单向退回通用通道并记日志，这一单只免费再查一次",
+    "结果误选防线（V-1213）：通用规则先比类型证据再比字段名，已知形状只做解码且排在深扫之后；合同读到的地址与通用规则过同一道筛（回显 + 类型，要音频时收视频容器是唯一例外），引擎 B 取产物带冻结合同的上下文（适配器 materialize 的 context 必填，回显 = 提交时封存的 body ∪ 合同参数）；状态与地址的生产读点只剩 readTaskResponse（runtime、taskResultQuery、引擎 B queryTask / materialize 都经它）"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "probeNativeEndpoint"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/modelRetype.ts",
+      "symbol": "nativeWireProfileForArchetype"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "nativeWireProfileForArchetype"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/nativeWireProfiles.ts",
+      "symbol": "RELAY_VIDEO_RESULT_URL_PATHS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "RELAY_VIDEO_RESULT_URL_PATHS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/relayVideoI2vMigration.ts",
+      "symbol": "NEWAPI_VIDEO_QUERY_OP"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/nativeEndpointProbe.ts",
+      "symbol": "NativeEndpointProbeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/nativeWireProfiles.ts",
+      "symbol": "ARK_TASK_NOT_FOUND_EVIDENCE"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "ProviderMessageNote"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "symbol": "ProviderMessageNote"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "classifyUpstreamTaskStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "classifyUpstreamTaskStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/responseParsing.ts",
+      "symbol": "classifyUpstreamTaskStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "classifyUpstreamTaskStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+      "symbol": "isRetrievalStageCode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "isRetrievalStageCode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "noteRelayQueryOutcome"
+    }
+  ],
+  "door_reduction": {
+    "before": 28,
+    "after": 25,
+    "why_not": "门数不变但判据收口：探测只有启动体检一扇（已改判据）；modelRetype 按 meta.archetypeId 取原生报文，这个标记现在只由拿到合同证据的升级写、降级时撤掉，所以它跟着体检的结论走；两条中转查询读同一张位置表；relayVideoI2vMigration 是 v7→v8 历史迁移，引用常量即拿到新合同；nodeRunOutcomePatch 的 6 个写入口都经同一个 statusPatch/outcomeError，原因保留只改那一处；ProviderMessageNote 的两个读者就是失败卡与可找回面板，共用一份实现；状态词表从四份收成一份（引擎 B 的 PROVIDER_TASK_STATE_BY_STATUS / PROVIDER_STATUS_CLASSES / reconcile knownStatuses 删除，三扇读门变成同一张表的调用方）；结果读法 readTaskResponse 两个读者就是两台引擎；isRetrievalStageCode 两个读者是首跑与重新取回两条路，同一个判据"
+  },
+  "generality_proof": "「这个中转视频模型走哪套报文」只有启动体检一处会改（探测全仓唯一调用点），判据由原生档案声明（probeEvidence），任何新档案进 nativeWireProfiles 都自带证据要求；「结果地址在哪」两条中转查询共用 RELAY_VIDEO_RESULT_URL_PATHS，同一组真实形状夹具对两条通道都跑；「可找回的原因」在结局投递唯一的 statusPatch 保留，节点、运行记录、分镜行、面板都读这一份",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/nativeEndpointProbe.ts",
+      "symbol": "probeNativeEndpoint",
+      "responsibility": "三态结论 contract / no-contract / unreachable；只有原生合同证据才算 contract"
+    },
+    {
+      "path": "electron/catalog/nativeWireProfiles.ts",
+      "symbol": "ARK_TASK_NOT_FOUND_EVIDENCE",
+      "responsibility": "方舟原生合同对假任务号的回答长什么样（档案声明，探测据此判）"
+    },
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "upgradeRelayModelsToNativeWire",
+      "responsibility": "中转视频通道的唯一启动 owner：有证据升级、无证据降级、探不到不动；存量查询刷成 canonical"
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "RELAY_VIDEO_RESULT_URL_PATHS",
+      "responsibility": "中转视频查询结果地址位置表，按官方 new-api 源码与方舟文档定"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "outcomeError",
+      "responsibility": "结局附带的原因：可找回保留传进来的那句，纯超时不编"
+    },
+    {
+      "path": "electron/shared/taskStatus.ts",
+      "symbol": "classifyUpstreamTaskStatus",
+      "responsibility": "全仓唯一上游状态词表；认不出 = unknown"
+    },
+    {
+      "path": "electron/tasks/taskResultReading.ts",
+      "symbol": "readTaskResponse",
+      "responsibility": "两台引擎共用的唯一结果读法：先合同、再通用规则，核类型、排除回显、记规则"
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError",
+      "responsibility": "取回失败的统一出口：带阶段码与阶段说明，保留 VendorRequestError 结构；说成了没产物 / 认不出状态不判失败"
+    },
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "isRetrievalStageCode",
+      "responsibility": "结果取回族的唯一判据：渲染层首跑与重新取回据此落可找回"
+    },
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "noteRelayQueryOutcome",
+      "responsibility": "运行中退回：只数合同认出的非瞬时失败，N=3 单向退回通用通道"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "entry_point": "upgradeRelayModelsToNativeWire",
+      "disposition": "enforced",
+      "evidence": "relayNativeWireReconcile.test.ts：无证据降级、探不到不动、有证据升级、旧 query 刷新、手改 query 不碰"
+    },
+    {
+      "path": "electron/catalog/modelRetype.ts",
+      "entry_point": "retypeModel",
+      "disposition": "enforced",
+      "evidence": "它读 meta.archetypeId 选原生报文；降级 applyGenericWire 撤掉 archetypeId/wireProfile，升级只在 contract 时写，所以 retype 不会把无证据的原生报文装回来"
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "rebuildCachedTaskFromPayload",
+      "disposition": "enforced",
+      "evidence": "重建时 findTaskMapping 重读目录：降级后的老节点「重新拉取」走通用查询，结果按 RELAY_VIDEO_RESULT_URL_PATHS 读"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "enforced",
+      "evidence": "失败回落 deliverRunOutcome(status recoverable, error) → statusPatch 保留原因 → 面板显示"
+    },
+    {
+      "path": "electron/catalog/volcengineVideos.ts",
+      "entry_point": "VOLCENGINE_SEEDANCE_QUERY_OP（内置方舟直连）",
+      "disposition": "not-affected",
+      "evidence": "内置火山供应商直连方舟、不经中转，报文不变；中转用的是 relayNativeQuery 派生的副本"
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "materialize / queryTask / reconcile",
+      "disposition": "enforced",
+      "evidence": "materialize 地址来自 readTaskResponse；queryTask 方言词交归一判词；reconcile 问共享词表（apimartGenerationProvider.test.ts）"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "classifyProviderStatus",
+      "disposition": "enforced",
+      "evidence": "改问 classifyUpstreamTaskStatus，私有词表删除"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+      "entry_point": "normalizeCatalogTaskResult",
+      "disposition": "enforced",
+      "evidence": "成功无地址带 retrieval-parse 码 → 可找回（outboundBlockedRecoverable.test.ts 结果取回族）"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何一家中转只要对查询路由回一个「和查无此路由不一样」的错误，就会被切到原生报文；任何官方 new-api 实例的视频都读不到地址；任何取回失败都会被吞掉原因——都不限于这位用户",
+    "same_class_scan": [
+      "node scripts/door-map.mjs probeNativeEndpoint：全仓唯一调用点 relayNativeWireUpgrade.ts",
+      "node scripts/door-map.mjs nativeWireProfileForArchetype：modelRetype.ts 与 relayNativeWireUpgrade.ts 两扇",
+      "node scripts/door-map.mjs NEWAPI_VIDEO_QUERY_OP：newapiTransport.ts / relayNativeWireUpgrade.ts / relayVideoI2vMigration.ts",
+      "grep recoverable 节点 error 的读者：storyboardRowStatus.ts、StoryboardShotFrame.tsx 早就读 recoverable 的 node.error，一直读到空值",
+      "git grep PROVIDER_STATUS_CLASSES / PROVIDER_TASK_STATE_BY_STATUS / knownStatuses：三张私有词表已删",
+      "node scripts/door-map.mjs readTaskResponse：两个读者 = 两台引擎",
+      "videoQueryContractMatrix.test.ts 普查：内置 108 条视频查询映射、11 种形状全部登记真实返回夹具"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/relayNativeWireUpgrade.ts",
+    "invariant": "中转视频模型走原生报文 ⇔ 探测拿到原生合同证据；两条中转查询读同一张结果位置表；可找回的原因随结局投递保留；状态词表一份、结果读法一份、取回失败带阶段码且一律可找回、新查询形状必须登记真实返回夹具",
+    "failure_mode": "拿不到证据 → 降回通用通道并 logWarn relay-native-wire-downgraded（写清旧判据、新判据、模型）；查询报错 → 可找回面板显示服务商原话；读不到地址 → 诚实失败「完成但没有产物」",
+    "exception_policy": "none",
+    "strategy": "证据要求挂在原生档案上（probeEvidence），探测三态，通道改动只在启动体检一处；结果位置表单一来源并用真实形状夹具对两条通道跑；原因在 statusPatch 一处保留",
+    "artifacts": [
+      "electron/catalog/nativeEndpointProbe.ts",
+      "electron/catalog/nativeWireProfiles.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/catalog/newapiTransport.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "src/workbench/generationCanvas/nodes/NodeFailureDetails.tsx",
+      "electron/shared/taskStatus.ts",
+      "electron/tasks/taskResultReading.ts",
+      "electron/tasks/taskResultQuery.ts",
+      "electron/shared/nomiErrorCodes.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/nativeEndpointProbe.test.ts",
+    "electron/catalog/relayNativeWireReconcile.test.ts",
+    "electron/catalog/relayVideoQueryContract.test.ts",
+    "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
+    "electron/catalog/newapiImageEdit.test.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeRecoverableReport.test.tsx",
+    "electron/tasks/taskResultReading.test.ts",
+    "electron/tasks/relayQueryFallback.test.ts",
+    "electron/tasks/queryOpEmptySuccess.test.ts",
+    "electron/tasks/unrecognizedTaskStatusQuery.test.ts",
+    "electron/catalog/videoQueryContractMatrix.test.ts",
+    "electron/catalog/falFaultMatrix.test.ts",
+    "electron/catalog/falLoopback.integration.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts",
+    "src/workbench/generationCanvas/runner/retrievalRestartOnDisk.test.ts",
+    "electron/catalog/runwayLoopback.integration.test.ts",
+    "electron/tasks/responseParsing.test.ts",
+    "electron/tasks/videoRetrievalLandsInProject.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/tasks/taskResultReading.test.ts",
+    "electron/catalog/videoQueryContractMatrix.test.ts",
+    "electron/catalog/relayVideoQueryContract.test.ts",
+    "electron/catalog/nativeEndpointProbe.test.ts",
+    "electron/catalog/relayNativeWireReconcile.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/nativeEndpointProbe.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/catalog/newapiTransport.ts",
+      "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/capabilityCore/apimartGenerationOutputs.ts"
+    ],
+    "rationale": "旧的「签名不同即存在」判据整段删掉（不留开关）；旧版只认 data[*].url 的查询映射由位置表替换，存量副本由启动体检刷新；失败卡里内联的三件套搬进 NodeFailureDetails，与可找回面板共用一份；引擎 B 的三张私有状态词表删除；extractMaterializationOutputs 不再是地址来源（降为按地址配附带信息）；ensureAsyncMediaOutput（完成无产物判失败）由 missingAsyncMediaOutput（交可找回）替换"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "new-api 与方舟是用户侧的上游服务，不是我们的运行时依赖；合同按它们的公开源码 / 文档写成夹具",
+    "exit_criteria": []
+  },
+  "migration": "不升 catalog 版本：通道与查询的存量刷新放在启动体检（它本来就是改中转视频通道的唯一 owner，迁移是同步纯函数发不了探测请求）。已切原生且无证据 → 降回通用；已在原生且有证据 → query 刷成 canonical；通用通道上我们自己旧版的 query（data[*].url / data.0.url 原样）→ 刷成 canonical，用户手改的不碰。已停在可找回的老节点：重启后体检先跑，「重新拉取」走无状态重建、重读目录，于是走降级后的通用查询；能不能救回取决于中转的 /v1/video/generations/{id} 认不认原生路由返回的那个任务号（new-api 系有任务表的通常认，纯透传方舟任务号的不认）。救不回时面板现在会显示中转的原话，不会假装能救",
+  "residual_risks": [
+    "方舟对格式非法的假任务号具体回哪个错误码，没有真 key 实测；证据判严的代价是「真代理方舟的中转被留在 / 降回通用通道」（少首尾帧 / 参考视频 / 参考音频，不丢钱），需要一把方舟或代理方舟中转的 key 免费 GET 一次核对（unverified）",
+    "issue #1213 这位用户的中转具体回了什么没有证据（面板与存档当时都吞掉了原因）；根因按时序与代码证据推定为「查询一直报错」一支，降级后能否救回取决于中转（unverified）",
+    "OpenAI-video 形状（/v1/videos/{id}）不带地址、要再鉴权取 /content，本次只做到诚实失败，不支持取回",
+    "已经被吞掉原因的旧可找回节点，原因找不回来（当时没落盘）",
+    "遥测：取回失败落「可找回」不是终态、不上报 generation.completed；阶段码进遥测要等服务端对 errorType 取值的契约确认（本机缓存证明不了无白名单），本 PR 不新增值",
+    "OpenAI-video /v1/videos/{id}/content 要带用户 key 下载：牵涉凭据出站绑定与出站策略门岗，另开一刀；本 PR 只做到诚实可找回",
+    "运行中退回的「非瞬时」判据按 new-api 的已知措辞与 404/400；其他网关的同义错误可能不被数进连击（只会少退回，不会误退回）",
+    "真实 OS 进程退出再启动后「重新取回」零新增提交：引擎 A 有「清内存缓存、凭磁盘任务身份重建」的零 POST 证据（videoRetrievalLandsInProject.test.ts、V-1213 回环），引擎 B 有 productionGenerationSubmission.test.ts「survives restart」与 batchOutputRetrievalFailure.e2e.test.ts「重新取回零新提交」；两台引擎跨真实进程的统一网络账本没有建，交真付费验收（生成 → 退出 App → 再开 → 重新取回 → 对服务商账单只有一笔）",
+    "引擎 A 重启后无状态重建拿不到请求里的参考地址：回显只能靠类型那道筛挡，一个没有扩展名的回显参考图仍可能被当产物；下载落盘那一步（generatedAssetStaging）只核字节和它自称的类型一致，不知道任务要什么。把任务期望类型带进落盘校验要碰素材写入概念，另开一刀",
+    "五种取回异常的重启证据到「真落盘 → 新进程用主进程读入口读回 → 加载入口装回 → 只查不交」为止（retrievalRestartOnDisk.test.ts）；渲染进程冷启动本身与快照之后事件日志尾巴的重放没进测试，交真 App 验收"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/relayNativeWireUpgrade.ts",
+    "tests": [
+      "electron/catalog/relayNativeWireReconcile.test.ts",
+      "electron/catalog/nativeEndpointProbe.test.ts",
+      "electron/catalog/relayVideoQueryContract.test.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts"
+    ],
+    "why": "中转视频通道选择由启动体检单点持有（判据挂在原生档案的 probeEvidence 上），结果位置表由 newapiTransport.RELAY_VIDEO_RESULT_URL_PATHS 单点持有，可找回原因由 nodeRunOutcome.outcomeError 单点持有；改动任一条不变量必先让这些测试红"
+  }
+}

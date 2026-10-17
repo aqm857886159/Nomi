@@ -305,3 +305,66 @@ describe('提交侧被拦 = 没扣费（与取回侧刻意分家）', () => {
     expect(report.providerMessage || '').toBe('')
   })
 })
+
+// #1213：出站被拦只是「结果取回」族的一员。查询报错 / 上游说成了却读不出结果 / 下载没成，同样是「任务已受理、
+// 丢的只是取回」——同一个判据（带 retrieval-* 码）、同一个去处（可找回），绝不落红色失败、绝不重新提交。
+describe('结果取回族（#1213）：带阶段码的取回失败一律可找回', () => {
+  beforeEach(() => {
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
+    useGenerationQueueStore.setState({ entries: [], batches: {} })
+    __resetCanvasUndoJournalForTests()
+    setCanvasEventSinkForTests(() => {})
+    resetModelHealthMemory()
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockReset()
+    vi.mocked(mintSpendGrant).mockClear()
+  })
+
+  it.each([
+    ['retrieval-query', 'NOMI_ERR::retrieval-query:: 取回卡在「查询任务」这一步：HTTP 503 无可用渠道'],
+    ['retrieval-parse', 'NOMI_ERR::retrieval-parse:: 取回卡在「读结果」这一步：上游说任务已完成，但响应里没找到结果地址。'],
+    ['retrieval-download', 'NOMI_ERR::retrieval-download:: 取回卡在「下载结果」这一步：HTTP 403'],
+  ])('%s → recoverable（带原话），不进红色失败', async (_code, message) => {
+    const id = addNode()
+    await runGenerationNodesBatch([id], { target: projectTarget,
+      assetUploadConsent: 'not-needed',
+      retry: { maxAttempts: 1 },
+      executor: async (node) => {
+        useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-retrieval' })
+        throw new Error(message)
+      },
+    }).catch(() => undefined)
+    const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === id)
+    expect(node?.status).toBe('recoverable')
+    expect(node?.error).toBe(message)
+  })
+
+  it('重新取回时上游说成了却仍没地址：留在可找回（带原话），不翻成红色失败', async () => {
+    const id = useGenerationCanvasStore.getState().addNode({
+      kind: 'video',
+      prompt: '镜头 3',
+      meta: { modelVendor: 'relay', modelKey: 'doubao-seedance-2-0-fast-260128' },
+    }).id
+    await runGenerationNodesBatch([id], { target: projectTarget,
+      assetUploadConsent: 'not-needed',
+      retry: { maxAttempts: 1 },
+      executor: async (node) => {
+        useGenerationCanvasStore.getState().setNodeProgress(node.id, { phase: 'still-generating', taskId: 'task-paid-parse' })
+        throw new Error('NOMI_ERR::retrieval-query:: HTTP 503')
+      },
+    }).catch(() => undefined)
+    expect(useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)?.status).toBe('recoverable')
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockResolvedValue({
+      result: { id: 'task-paid-parse', status: 'succeeded', kind: 'text_to_video', assets: [] },
+    } as never)
+    await withProjectAction((project) => recoverNodeResult(id, project))
+    const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
+    expect(node?.status).toBe('recoverable')
+    expect(node?.error).toMatch(/NOMI_ERR::retrieval-parse::/)
+    expect(vi.mocked(mintSpendGrant)).not.toHaveBeenCalled()
+  })
+
+  it('纯等待超时带 retrieval-timeout 阶段码（失败看得见：每次取回失败都说清卡在哪一步）', () => {
+    const error = new RecoverableTimeoutError({ taskId: 'timeout-2', vendor: 'relay', taskKind: 'text_to_video', modelKey: 'demo' })
+    expect(error.message).toMatch(/^NOMI_ERR::retrieval-timeout::[\s\S]*timeout-2/)
+  })
+})

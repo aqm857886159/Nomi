@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { NEWAPI_IMAGE_EDIT_OP, NEWAPI_IMAGE_CREATE_OP, NEWAPI_IMAGE_PARAM_MAP, NEWAPI_VIDEO_CREATE_OP, NEWAPI_VIDEO_QUERY_OP, NEWAPI_AUDIO_TTS_OP, newapiImageEditProfileForModel } from "./newapiTransport";
 import { taskTemplateParams } from "./taskParams";
 import { applyParamMap } from "./paramTranslate";
-import { valuesFromMapping } from "../tasks/responseParsing";
+import { collectAssetUrls, valuesFromMapping } from "../tasks/responseParsing";
 import { renderTemplateValue, buildTemplateContext } from "../ai/requestPipeline";
 import type { HttpOperation } from "./types";
 
@@ -172,7 +172,10 @@ describe("通用中转路径夯实（输出多资产 + 参数广度 + i2v 断链
 
   it("视频轮询 data[*].url 取回全部视频", () => {
     const resp = { data: [{ url: "https://x/a.mp4" }, { url: "https://x/b.mp4" }] };
-    expect(valuesFromMapping(resp, NEWAPI_VIDEO_QUERY_OP.response_mapping ?? null, "video_url")).toEqual([
+    // 断言读消费者真拿到的产物集合（buildProfileTaskResult 同款：collectAssetUrls 摊平 + 去重）：
+    // video_url 现在是一张位置表（#1213 官方 new-api 信封），同一地址可能被多个位置命中。
+    const urls = Array.from(new Set(valuesFromMapping(resp, NEWAPI_VIDEO_QUERY_OP.response_mapping ?? null, "video_url").flatMap(collectAssetUrls)));
+    expect(urls).toEqual([
       "https://x/a.mp4",
       "https://x/b.mp4",
     ]);

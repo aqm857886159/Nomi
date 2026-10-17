@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assertLocalAssetMediaBytes } from "./assetLocalization";
 import { resolveTaskStatus } from "../tasks/responseParsing";
-import { ensureAsyncMediaOutput } from "../tasks/taskResultQuery";
+import { missingAsyncMediaOutput } from "../tasks/taskResultQuery";
 import { VendorRequestError, categorizeVendorFailure, requestJson } from "../vendor/vendorHttp";
 import type { TaskResult } from "../runtime";
 import type { Vendor } from "./types";
@@ -47,9 +47,9 @@ describe("fal zero-cost fault matrix", () => {
     }, [])).toEqual({ status: "queued", unrecognizedStatus: "PAUSED_BY_PROVIDER" });
   });
 
-  it("turns COMPLETED with no media into a terminal failure", () => {
+  it("COMPLETED with no media is not a failure: it becomes a retrieval-parse error (stays retrievable, #1213)", () => {
     const completed: TaskResult = { id: "fal-result", kind: "text_to_video", status: "succeeded", assets: [], raw: { status: "COMPLETED" } };
-    expect(ensureAsyncMediaOutput(completed, "video")).toMatchObject({ status: "failed", error: expect.stringMatching(/output|产物/) });
+    expect(missingAsyncMediaOutput(completed, "video", { status: "COMPLETED" })?.message).toMatch(/NOMI_ERR::retrieval-parse::[\s\S]*COMPLETED/);
   });
 
   it("treats malformed JSON as an untrusted non-success payload", async () => {

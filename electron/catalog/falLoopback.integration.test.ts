@@ -34,11 +34,14 @@ beforeAll(async () => {
       return;
     }
     if (request.method === "GET" && url.pathname.includes("/requests/fal-loopback-request")) {
-      const asset = url.pathname.includes("image-to-3d")
+      // 结果路径是「状态根」（不带 /text-to-video 这类模式段），所以按模型段认种类：此前按 "video" /
+      // "image-to-3d" 子串认，视频与 3D 都被回成一张 PNG——旧读法把兜底取到的任意地址都当产物，测试才绿着
+      // （#1213：结果按期望媒体类型核对后，视频任务不再接一张图）。
+      const asset = url.pathname.includes("hi3d")
         ? { model_mesh: { url: "https://cdn.example.test/asset.glb" } }
         : url.pathname.includes("music-3") || url.pathname.includes("sound-effects")
           ? { audio: { url: "https://cdn.example.test/asset.mp3" } }
-          : url.pathname.includes("video")
+          : url.pathname.includes("h3-max") || url.pathname.includes("video")
             ? { video: { url: "https://cdn.example.test/asset.mp4" } }
             : { images: [{ url: "https://cdn.example.test/asset.png" }] };
       response.writeHead(200, { "Content-Type": contentType });

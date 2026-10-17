@@ -119,14 +119,15 @@ describe("resolveTaskStatus：未登记动词必须留痕，而不是静默乐�
   });
 
   it("不认得的动词 → 仍返回 queued（不误杀），但带出原始动词（大小写原样）", () => {
-    // "failure"/"rejected" 就是 2026-08-11 真实往返测试里把任务变成「永远转圈」的那两个词。
-    expect(resolveTaskStatus({ status: "failure" }, null, undefined, [])).toEqual({
+    // "failure"/"rejected" 当年（2026-08-11）就是这样的词；如今已进共享词表（shared/taskStatus），
+    // 这里换成仍没人认得的词来钉「认不出 ≠ 失败、但要留痕」。
+    expect(resolveTaskStatus({ status: "cooking" }, null, undefined, [])).toEqual({
       status: "queued",
-      unrecognizedStatus: "failure",
+      unrecognizedStatus: "cooking",
     });
-    expect(resolveTaskStatus({ status: "Rejected" }, null, undefined, [])).toEqual({
+    expect(resolveTaskStatus({ status: "Marinating" }, null, undefined, [])).toEqual({
       status: "queued",
-      unrecognizedStatus: "Rejected",
+      unrecognizedStatus: "Marinating",
     });
   });
 

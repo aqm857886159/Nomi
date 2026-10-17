@@ -51,6 +51,17 @@ export type NomiErrorCode =
   // 这一步完全在用户这台电脑上做（ffmpeg 截帧 / 本机深度推理 / 本地素材复制），没有任何服务商参与。
   // 失败原因不在「模型」，所以错误卡只留「重试」，不给「换个模型」。生产者一律走 tagLocalProcessingError（渲染层单一入口）。
   | 'local-processing'
+  // 异步任务「结果取回」的阶段码（#1213）。任务**已经被受理、钱多半已经花了**，丢的只是把结果拿回来这一步——
+  // 统一落「可找回」（免费重新取回，绝不重新提交），并说清卡在哪一步：
+  //   retrieval-query    查任务这一步报错（无可用渠道 / 路由不存在 / 任务号无效 / 网络……）
+  //   retrieval-parse    上游有回答，但读不出结果（说成了却没地址 / 状态词认不出）
+  //   retrieval-download 有地址，下载到本机没成（出站被拦另有 outbound-blocked）
+  //   retrieval-timeout  等到上限还没终态
+  // 提交阶段（还没拿到任务号）的失败不在这一族：那时没有可找回的任务，见 submission-* / outbound-blocked-submit。
+  | 'retrieval-query'
+  | 'retrieval-parse'
+  | 'retrieval-download'
+  | 'retrieval-timeout'
 
 const MARKER_PREFIX = 'NOMI_ERR::'
 const MARKER_SUFFIX = '::'
@@ -79,4 +90,13 @@ export function stripNomiErrorCode(message: string): string {
   const m = MARKER_RE.exec(text)
   if (!m) return text
   return (text.slice(0, m.index) + text.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * 「结果取回」族：带这些码的失败一律落可找回（任务已受理，免费重新取回），不进红色失败、不重新提交。
+ * 不另立一张码表：族 = 上面 NomiErrorCode 里 `retrieval-` 开头的那几个，加出站被拦（取回侧那一条）——
+ * 码的唯一定义仍是 NomiErrorCode，新增一个 retrieval-* 阶段码自动归族。
+ */
+export function isRetrievalStageCode(code: NomiErrorCode | null): code is Extract<NomiErrorCode, `retrieval-${string}` | 'outbound-blocked'> {
+  return code !== null && (code.startsWith('retrieval-') || code === 'outbound-blocked')
 }

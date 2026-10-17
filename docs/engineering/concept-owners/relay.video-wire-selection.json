@@ -1,0 +1,40 @@
+{
+  "name": "自建中转视频模型走哪套报文（通用 / 原生）",
+  "subject": "relay.video-wire-selection",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/relayNativeWireUpgrade.ts",
+    "symbol": "upgradeRelayModelsToNativeWire"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "upgradeRelayModelsToNativeWire"
+    },
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "noteRelayQueryOutcome"
+    },
+    {
+      "path": "electron/catalog/nativeEndpointProbe.ts",
+      "symbol": "probeNativeEndpoint"
+    },
+    {
+      "path": "electron/catalog/nativeWireProfiles.ts",
+      "symbol": "ARK_TASK_NOT_FOUND_EVIDENCE"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/relayNativeWireReconcile.test.ts",
+  "allowed_consumers": [
+    "electron/main.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/catalog/modelRetype.ts"
+  ],
+  "since": "2026-10-16",
+  "notes": "#1213：开机体检只在拿到原生合同证据（假任务号得到方舟自己的错误包络）时切原生报文，拿不到就降回通用并记日志，探不到不动；运行中原生通道查询连续 3 次按合同认出的非瞬时失败 → 单向退回。通道只在这里改。下一步（0.24 另开设计线）：去掉开机升级、改成接入时验证并在接入页显示。"
+}

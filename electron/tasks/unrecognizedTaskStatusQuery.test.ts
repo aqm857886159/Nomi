@@ -57,32 +57,31 @@ describe("未登记动词的端到端轮询行为", () => {
     vi.useRealTimers();
   });
 
-  it("上游一直回 failure：先当排队继续轮询，够久之后判失败并报出 \"failure\"", async () => {
+  it("上游一直回认不出的词：先当排队继续轮询，够久之后**不判失败**，带 retrieval-parse 交「可找回」并报出原词", async () => {
     const { fetchTaskResult } = await import("./taskResultQuery");
     vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
     await seedPendingTask("task-failure");
-    respondWith("failure");
+    respondWith("cooking");
 
-    // 前几轮：不误杀，仍是非终态（这正是「容忍未登记的进行中动词」要保住的行为）。
+    // 前几轮：不误杀，仍是非终态。
     const first = await fetchTaskResult({ taskId: "task-failure" });
     expect(first.result.status).toBe("queued");
 
-    // 推进到超过 4 次 + 120s 宽限。**到终态即停**（真实轮询循环就是这么做的；继续查会命中
-    // 终态时已 delete 的缓存，拿到的是「追踪已丢失」而非本次判定结果）。
-    let last = first;
+    // 推进到超过 4 次 + 120s 宽限：#1213 起不再翻成 failed（上游没说失败，Nomi 不能判失败），
+    // 而是抛带阶段码的错误——渲染层据此落「可找回」，原词进技术详情。
+    let thrown: unknown = null;
     let polls = 0;
-    for (let i = 1; i <= 8 && last.result.status !== "failed"; i += 1) {
+    for (let i = 1; i <= 8 && !thrown; i += 1) {
       vi.setSystemTime(new Date(Date.parse("2026-08-11T00:00:00Z") + i * 40_000));
-      last = await fetchTaskResult({ taskId: "task-failure" });
       polls = i;
+      try {
+        await fetchTaskResult({ taskId: "task-failure" });
+      } catch (error) {
+        thrown = error;
+      }
     }
-    // 判死不能来得太早：至少熬过宽限期（这里 4 轮 × 40s = 160s > 120s）。
     expect(polls).toBeGreaterThanOrEqual(3);
-
-    // 病根回归：这里过去永远是 queued —— 任务在用户眼里就是永远转圈。
-    expect(last.result.status).toBe("failed");
-    // 错误信息必须如实带上上游原话，用户能拿去平台核对，我们能据此补进 statusMapping。
-    expect(last.result.error).toContain("failure");
+    expect(String((thrown as Error)?.message)).toMatch(/NOMI_ERR::retrieval-parse::[\s\S]*cooking/);
   });
 
   it("认得的动词照常走，不受影响（processing 一直是 running，不会被判死）", async () => {

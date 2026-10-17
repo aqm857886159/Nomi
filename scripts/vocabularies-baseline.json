@@ -113,25 +113,6 @@
     },
     {
       "members": [
-        "canceled",
-        "cancelled",
-        "completed",
-        "error",
-        "failed",
-        "pending",
-        "processing",
-        "queued",
-        "rejected",
-        "running",
-        "submitted",
-        "succeeded",
-        "success"
-      ],
-      "reason": "APIMart reconcile 的「供应商已识别状态」白名单：只用于把不确定的对账回执判定为 found（任务确实存在）还是 indeterminate（歧义、禁止物化产物或重投）。它是 APIMart 一家供应商原样吐出的状态词面（含 canceled/cancelled、succeeded/success 等同义拼写），刻意宽松以覆盖该家所有已知回执，语义是「这串状态我认得吗」而非任务生命周期归一化；不能复用 GenerationProviderTaskState（供应商无关的归一化态）或 TERMINAL_STATUSES（终态集），否则会把某家特有拼写漏判成 indeterminate 而错误触发人工对账。",
-      "site": "electron/capabilityCore/apimartGenerationProvider.ts::function:createCatalogGenerationProvider/variable:provider/method:reconcile/variable:knownStatuses/set"
-    },
-    {
-      "members": [
         "accepted",
         "expired",
         "pending",
@@ -485,64 +466,6 @@
       ],
       "reason": "供应商轮询状态的归一化「四类」（pending 在途 / succeeded 成功 / failed 失败 / unknown 无法归类）：classifyProviderStatus 把各家供应商五花八门的原始状态串映射到这四类以驱动提交后的下一步决策。它必须显式保留 unknown（无法归类时不得臆断成终态），与 TERMINAL_STATUSES（只区分终/非终）取值与粒度都不同，复用会丢掉 pending/unknown 的区分，故独立。",
       "site": "electron/productionRun/productionGenerationSubmission.ts::type:ProviderPollStatusClass/type-union"
-    },
-    {
-      "members": [
-        "aborted",
-        "cancel",
-        "canceled",
-        "cancelled",
-        "error",
-        "expired",
-        "fail",
-        "failed",
-        "failure",
-        "refused",
-        "rejected",
-        "revoked",
-        "timed_out",
-        "timeout"
-      ],
-      "reason": "把供应商原始状态串归类到 failed 类的同义词面（aborted/cancel/canceled/cancelled/error/expired/fail/failed/failure/refused/rejected/revoked/timed_out/timeout）：这是 classifyProviderStatus 的 failed 分支查找集，刻意穷举各家对「失败/取消/超时/拒绝」的所有拼写变体，语义是「这个原始串算不算失败」的词法匹配，不是领域状态本身；与其它 provider status 分类集互斥、专供归一化查表，故独立。",
-      "site": "electron/productionRun/productionGenerationSubmission.ts::variable:PROVIDER_STATUS_CLASSES/property:failed/set"
-    },
-    {
-      "members": [
-        "create",
-        "created",
-        "downloading",
-        "generating",
-        "in-progress",
-        "in_progress",
-        "in_queue",
-        "not_start",
-        "notstart",
-        "pending",
-        "processing",
-        "queued",
-        "queueing",
-        "queuing",
-        "running",
-        "started",
-        "starting",
-        "submitted",
-        "validating",
-        "waiting"
-      ],
-      "reason": "把供应商原始状态串归类到 pending（在途）类的同义词面：穷举各家对「排队/处理中/生成中/下载中/等待」的所有拼写（in-progress vs in_progress、queueing vs queuing 等）。它是 classifyProviderStatus 的 pending 分支查找集，语义是词法归类而非领域态，与 failed/succeeded 分支集互斥，故独立。",
-      "site": "electron/productionRun/productionGenerationSubmission.ts::variable:PROVIDER_STATUS_CLASSES/property:pending/set"
-    },
-    {
-      "members": [
-        "complete",
-        "completed",
-        "done",
-        "succeed",
-        "succeeded",
-        "success"
-      ],
-      "reason": "把供应商原始状态串归类到 succeeded 类的同义词面（complete/completed/done/succeed/succeeded/success）：classifyProviderStatus 的 succeeded 分支查找集，穷举各家「成功/完成」的拼写变体。语义是词法归类，与 pending/failed 分支集互斥，故独立。",
-      "site": "electron/productionRun/productionGenerationSubmission.ts::variable:PROVIDER_STATUS_CLASSES/property:succeeded/set"
     },
     {
       "members": [
