@@ -8,7 +8,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
 
-export const BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }
+// deepseek-v3.2 已在 APIMart 下线（2026-10-16 真付费首跑每轮红卡）；换成默认大脑 deepseek-v4-pro。
+export const BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro' }
 export const VIDEO = { vendorKey: 'apimart', modelKey: 'doubao-seedance-2.0' }
 /**
  * 被授权的那一档（Seedance 2.0 fast · 480p · 4 秒 · 无音频），像真人一样说给模型听。

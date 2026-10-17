@@ -61,7 +61,8 @@ export function readSpendFacts({ projectRoot, capabilityDir }) {
   return {
     accepted: accepted.length,
     taskIds: accepted.map((entry) => entry.taskId),
-    models: [...new Set(media.map((entry) => `${entry.vendor}/${entry.model}`))],
+    // 文稿方案 / 画布单镜的 Run 把供应商记成 `canvas:<供应商>`（演练实测 canvas:apimart）：判「花在谁身上」时去掉这层前缀。
+    models: [...new Set(media.map((entry) => `${String(entry.vendor).replace(/^canvas:/, "")}/${entry.model}`))],
     runs: runs.length,
     receipts: approvals.filter((approval) => approval.receiptId).length,
     decidedBy: approvals.filter((approval) => approval.receiptId).map((approval) => approval.decidedBy),
@@ -134,6 +135,23 @@ export function stepDirectBatchVerdict({ expected, cardAppearances, dialogAppear
   if (delta.receipts < 1 || delta.receipts > expected) problems.push(`收据应为 1～${expected} 条（每道付费门一条），实际 ${delta.receipts}`)
   const bySource = countBy(delta.decidedBy)
   if (Object.keys(bySource).some((source) => source !== 'policy:full_auto')) problems.push(`decidedBy 应全是 policy:full_auto，实际 ${JSON.stringify(bySource)}`)
+  const stray = models.filter((model) => model !== allowedModel)
+  if (stray.length) problems.push(`花在了被授权模型之外：${stray.join('、')}`)
+  return problems
+}
+
+/**
+ * 步骤 2（文稿方案，直接生成档）：#1224 协调定 A——文稿方案两档下都**每批问一次**（整批确认「生成这 N 项？」，如实标注），
+ * 直接生成档对它不代答。所以预期是：整批确认**恰好弹一次**（没弹 = 档位悄悄代答了，弹两次 = 重复问），点确认后受理 N 次、
+ * 收据 1～N 条、决定人是人（不是 policy:full_auto）。Agent 面板的报价卡不该出现（文稿方案没有出价）。
+ */
+export function stepManuscriptBatchVerdict({ expected, batchDialogs, cardAppearances = 0, delta, models, allowedModel }) {
+  const problems = []
+  if (batchDialogs !== 1) problems.push(`文稿方案的整批确认应恰好弹 1 次（#1224：两档下都每批问一次），实际 ${batchDialogs} 次`)
+  if (cardAppearances !== 0) problems.push(`文稿方案不该出 Agent 面板报价卡，实际出了 ${cardAppearances} 次`)
+  if (delta.accepted !== expected) problems.push(`点确认后供应商受理次数应为 ${expected}，实际 ${delta.accepted}`)
+  if (delta.receipts < 1 || delta.receipts > expected) problems.push(`收据应为 1～${expected} 条，实际 ${delta.receipts}`)
+  if (delta.decidedBy.some((source) => source === 'policy:full_auto')) problems.push(`文稿方案是人点的整批确认，decidedBy 不该是 policy:full_auto，实际 ${JSON.stringify(delta.decidedBy)}`)
   const stray = models.filter((model) => model !== allowedModel)
   if (stray.length) problems.push(`花在了被授权模型之外：${stray.join('、')}`)
   return problems

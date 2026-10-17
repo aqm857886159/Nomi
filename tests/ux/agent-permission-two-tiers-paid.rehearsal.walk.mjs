@@ -138,18 +138,17 @@ try {
   await ctx.ask('nogen', ASK_NOGEN)
   await settleTurn(win, CANVAS_PANEL)
   expect(countLaneToolCalls(projectRoot, 'generate'), '只建草稿的这一轮没有新增 generate 调用').toBe(generatesBefore)
-  const { problems: allProblems, unverified } = collectProblems(walk.report.steps)
+  const { problems, unverified } = collectProblems(walk.report.steps)
   walk.report.unverified = unverified
   walk.report.paidCalls = 0
-  // 演练要证的是「脚本走得通、读数读得出、判据判得对」，不是替产品背书：loopback 上撞到的**产品行为**单列成「发现」，不让演练红——
-  // 发现 D-1：创作面板的文稿方案在「直接生成」档下弹出旧版全局确认框（没有走策略代答）。真付费走查会如实把它判成红。
-  // 其余任何不成立的事实（切档、画布直接生成、停止）都算演练红。
-  const docStep = walk.report.steps['2-direct-first-two-shots']
-  const isFinding = (problem) => problem.startsWith('2-direct-first-two-shots：') && docStep?.outcome === 'dialog'
-  walk.report.findings = allProblems.filter(isFinding)
-  const problems = allProblems.filter((problem) => !isFinding(problem))
-  if (walk.report.findings.length) expect(docStep.dialogsShown, '发现 D-1 的阳性对照：确认框真的弹过').toBeGreaterThan(0)
-  if (problems.length) throw new Error(`演练里有不成立的事实：\n  ${problems.join('\n  ')}`)
+  // 文稿方案（#1224 协调定 A：两档下都每批问一次）：第一轮整批确认恰好 1 次、走查点确认、受理 2、决定人是人；
+  // 第二轮补第 3 镜再弹整批确认（不是刹车卡，刹车没接到这条路上）→ 取消、不发、记 unverified。
+  const manuscript = walk.report.steps['2-manuscript-first-two-shots']
+  expect(manuscript?.batchDialogs, '文稿方案第一轮整批确认恰好弹一次').toBe(1)
+  expect(manuscript?.confirmedByWalk, '走查点了确认').toBe(true)
+  expect(walk.report.steps['3-out-of-plan-brake']?.outcome, '第二轮补第 3 镜弹了整批确认（不是刹车卡）').toBe('dialog')
+  expect(walk.report.steps['2b-canvas-direct-two-images'], '文稿方案受理够了，不走回退').toBeUndefined()
+  if (problems.length) throw new Error(`演练里有不成立的事实：${problems.join('；')}`)
   walk.report.verified = Object.keys(walk.report.steps).filter((name) => !unverified.includes(name))
 } catch (error) {
   failure = error

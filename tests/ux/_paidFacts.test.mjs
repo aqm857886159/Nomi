@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import {
-  acceptedByRuns, deltaFacts, readDecidedByTable, readSpendFacts, stepBrakeVerdict, stepDirectBatchVerdict, stepStopVerdict, stepSwitchVerdict,
+  acceptedByRuns, deltaFacts, readDecidedByTable, readSpendFacts, stepBrakeVerdict, stepDirectBatchVerdict, stepManuscriptBatchVerdict, stepStopVerdict, stepSwitchVerdict,
 } from './_paidFacts.mjs'
 import { IMAGE_HARD_CAP, collectProblems, createSpendCap, waitForSpendUiOrIdle } from './_permissionTiersPaidSteps.mjs'
 
@@ -49,6 +49,11 @@ describe('readSpendFacts：从盘上读事实', () => {
     expect(facts.receipts).toBe(2)
     expect(facts.decidedBy).toEqual(['policy:full_auto', 'policy:full_auto'])
     expect(facts.models).toEqual(['apimart/z-image-turbo'])
+  })
+
+  test('Run 把供应商记成 canvas:<供应商> 时，models 去掉这层前缀', () => {
+    const { projectRoot, capabilityDir } = fixture([{ runId: 'run-m', jobs: [{ jobId: 'j1', providerTaskId: 't1', status: 'adopted', provider: 'canvas:apimart', model: 'z-image-turbo' }], approvals: [] }])
+    expect(readSpendFacts({ projectRoot, capabilityDir }).models).toEqual(['apimart/z-image-turbo'])
   })
 
   test('没拿到供应商任务号的 job（刹车 / 被拒）不算受理；收据库里查不到的收据记 unknown，不编', () => {
@@ -104,6 +109,19 @@ describe('判据：成立时返回空清单，不成立时说清哪里不对', (
     expect(stepDirectBatchVerdict({ ...base, delta: { ...two, receipts: 3 } })).toHaveLength(1)
     expect(stepDirectBatchVerdict({ ...base, delta: { ...two, decidedBy: ['policy:full_auto', 'human:gesture'] } })).toHaveLength(1)
     expect(stepDirectBatchVerdict({ ...base, models: ['apimart/gpt-image-2'] })).toHaveLength(1)
+  })
+
+  test('步骤 2 文稿方案（#1224：每批问一次）：整批确认恰好 1 次、受理 N、收据 1～N、决定人是人才成立；没弹 / 弹两次 / 出卡 / 代答 / 受理不对各自红', () => {
+    const human = { accepted: 2, receipts: 1, decidedBy: ['human:gesture'] }
+    const base = { expected: 2, batchDialogs: 1, cardAppearances: 0, delta: human, models: ['apimart/z-image-turbo'], allowedModel: 'apimart/z-image-turbo' }
+    expect(stepManuscriptBatchVerdict(base)).toEqual([])
+    expect(stepManuscriptBatchVerdict({ ...base, batchDialogs: 0 }).join()).toContain('恰好弹 1 次')
+    expect(stepManuscriptBatchVerdict({ ...base, batchDialogs: 2 }).join()).toContain('恰好弹 1 次')
+    expect(stepManuscriptBatchVerdict({ ...base, cardAppearances: 1 })).toHaveLength(1)
+    expect(stepManuscriptBatchVerdict({ ...base, delta: { ...human, decidedBy: ['policy:full_auto'] } }).join()).toContain('policy:full_auto')
+    expect(stepManuscriptBatchVerdict({ ...base, delta: { ...human, accepted: 1 } })).toHaveLength(1)
+    expect(stepManuscriptBatchVerdict({ ...base, delta: { ...human, receipts: 0, decidedBy: [] } })).toHaveLength(1)
+    expect(stepManuscriptBatchVerdict({ ...base, models: ['apimart/other'] })).toHaveLength(1)
   })
 
   test('步骤 3 刹车：卡弹了 + 有刹车那一行 + 去掉之后不再受理不铸收据 = 成立；没弹卡但多出了受理 = 边界（不算失败）；什么都没发生 = 红', () => {
