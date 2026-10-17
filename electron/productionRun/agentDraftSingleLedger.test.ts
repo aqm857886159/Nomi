@@ -2,7 +2,7 @@
 //
 // 三条不变量：
 //   ① 落地报文必须带候选的模型身份（不带就等于让渲染层自己另挑一个 → 「agent 说的 ≠ 画布上的」）；
-//   ② 报文**只带身份**，transportModelId 这类内部投影绝不许顺着 RPC 流出去；
+//   ② 报文**只带身份**，候选参数这类内部字段绝不许顺着 RPC 流出去；
 //   ③ 草稿一建/一改就通知落地（同一条幂等链），不必等项目重开。
 import { describe, expect, it, vi } from 'vitest'
 
@@ -26,7 +26,6 @@ function candidate(patch: Partial<PlanCandidate> = {}): PlanCandidate {
     modelId: 'gpt-image-2',
     modeId: 't2i',
     mode: 'text_to_image',
-    transportModelId: 'internal/gpt-image-2-wire',
     prompt: '雨夜便利店门口\n第二行不该出现在列表里',
     parameters: { aspect_ratio: '9:16' },
     references: [],
@@ -80,11 +79,10 @@ describe('materialize-shots wire carries the candidate model identity', () => {
     expect(payload!.shots[0].candidate?.modelKey).toBe('gpt-image-2')
   })
 
-  it('绝不把 transportModelId（内部投影）或候选参数泄进 RPC 报文', () => {
+  it('绝不把候选参数泄进 RPC 报文', () => {
     const payload = buildMaterializeShotsPayload(run({}, [shot('s1')]), { projectRoot: null })
     const serialized = JSON.stringify(payload)
     expect(serialized).not.toContain('transportModelId')
-    expect(serialized).not.toContain('internal/gpt-image-2-wire')
   })
 })
 

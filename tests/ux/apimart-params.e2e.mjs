@@ -23,25 +23,26 @@ const REF2 = process.env.APIMART_REF_IMG2 || "https://picsum.photos/seed/nomi-re
 const ENV_KEY = process.env.APIMART_API_KEY;
 const ONLY = (process.env.ONLY || "").split(",").map((s) => s.trim()).filter(Boolean);
 
-// 每条用例：mimic 真实渲染层 buildArchetypeInputParams 的产出（archetypeInput.model = 变体 modelKey、
-// generation_type = fixedParams、image_urls = flat 合并），标量参数走 extras 顶层（同 seedance.e2e）。
+// 每条用例：mimic 真实渲染层的产出——节点只存选择（extras.archetype.variantId），出站 model 由主进程
+// wireModelIdentity 按变体解出（2026-10-16 起 archetypeInput 不带 model）；generation_type = fixedParams、
+// image_urls = flat 合并，标量参数走 extras 顶层（同 seedance.e2e）。
 const CASES = [
   {
     id: "sora-pro", labelZh: "Sora 2 Pro（变体 modelKey）", kind: "text_to_video",
     extras: { modelKey: "sora-2", aspect_ratio: "16:9", resolution: "720p", duration: 4,
-      archetypeInput: { model: "sora-2-pro" } },
+      archetype: { variantId: "pro" } },
     prompt: "a calm sunrise over a quiet sea, gentle waves",
   },
   {
     id: "veo-reference", labelZh: "Veo 3.1 参考图（generation_type:reference）", kind: "image_to_video",
     extras: { modelKey: "veo3.1-fast", resolution: "720p",
-      archetypeInput: { model: "veo3.1-fast", generation_type: "reference", image_urls: [REF] } },
+      archetype: { modeId: "reference" }, archetypeInput: { generation_type: "reference", image_urls: [REF] } },
     prompt: "slow cinematic push-in based on the reference image",
   },
   {
     id: "veo-frame", labelZh: "Veo 3.1 首尾帧（generation_type:frame + flat image_urls[首,尾]）", kind: "image_to_video",
     extras: { modelKey: "veo3.1-fast", resolution: "720p",
-      archetypeInput: { model: "veo3.1-fast", generation_type: "frame", image_urls: [REF, REF2] } },
+      archetype: { modeId: "frame" }, archetypeInput: { generation_type: "frame", image_urls: [REF, REF2] } },
     prompt: "smooth transition from the first frame to the last frame",
   },
   {
@@ -54,7 +55,7 @@ const CASES = [
     // Fast 官方要求 first_frame_image（i2v），故走图生（不能纯文生 t2v）。
     id: "hailuo-fast", labelZh: "Hailuo 2.3 Fast（变体 modelKey，i2v 首帧）", kind: "image_to_video",
     extras: { modelKey: "MiniMax-Hailuo-2.3", resolution: "768p", duration: 6,
-      archetypeInput: { model: "MiniMax-Hailuo-2.3-Fast", first_frame_image: REF } },
+      archetype: { variantId: "fast" }, archetypeInput: { first_frame_image: REF } },
     prompt: "a paper boat floating down a rainy street",
   },
   {

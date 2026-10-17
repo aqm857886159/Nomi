@@ -69,6 +69,14 @@ return 'https://relay.example/out.png'`);
     expect(outcome.assets[0]).toContain("out.png");
   });
 
+  it("顶层 model 与 params.model 同一个值（线上模型名只有 owner 一个来源，2026-10-16）", async () => {
+    // 生产里 params 出自 taskTemplateParams，params.model 是 wireModelIdentity 解出的线上名；
+    // 顶层 model 不许另算一份（例如另取 modelAlias || modelKey）。
+    const outcome = await run(`if (model !== params.model) throw new Error('model ' + model + ' != ' + params.model)
+return 'https://relay.example/out.png'`, { model: "owner-wire-name" });
+    expect(outcome.assets[0]).toContain("out.png");
+  });
+
   it("taskKind/modeId 注入的是只读任务上下文，而不是供应商猜测", async () => {
     const outcome = await run(`if (taskKind !== 'image_to_video') throw new Error('task kind: ' + taskKind)
 if (modeId !== 'firstlast') throw new Error('mode: ' + modeId)

@@ -13,12 +13,18 @@ export type ParameterReferenceContract = {
   slots: ParameterReferenceSlot[]
 }
 /**
- * `modelKey` 是**目录身份**（选哪条 mapping / 比对 comfy 契约用）。
- * `wireModelKey` 是**要发到线上的 model 串的回落值**——与 `{{model.modelKey}}` 同一个表达式
- * （modelAlias 优先、否则 modelKey）。两者语义不同故不能合并：comfy 契约必须按目录身份比对，
- * 而线上字段必须跟别名走。taskTemplateParams 用它给没有变体的模型补 params.model（见那边注释）。
+ * 这一次请求选中的连接。`modelKey` 是**目录身份**（选哪条 mapping / 比对 comfy 契约用）。
+ * `modelAlias` / `modelMeta` / `operation` 只交给线上模型名的唯一 owner
+ * （electron/shared/modelArchetypes/wireModelIdentity.resolveWireModel）：发哪个 model 串由「这条 op 有没有声明收档案名」
+ * 与连接自己的名字决定，调用方不再自己算一个回落值传进来（2026-10-16）。
  */
-export type ParameterReferenceSelection = { modelKey?: string; vendorKey: string; wireModelKey?: string }
+export type ParameterReferenceSelection = {
+  modelKey?: string
+  vendorKey: string
+  modelAlias?: string | null
+  modelMeta?: unknown
+  operation?: { wireModel?: unknown } | null
+}
 
 const DECLARATION_KEY = 'parameterReferenceSlots'
 

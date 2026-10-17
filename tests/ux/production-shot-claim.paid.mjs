@@ -458,7 +458,7 @@ async function scenarioDeleteQueuedShot(ctx) {
   } else {
     scenario.deletion = { observed: false, reason: '放行之后第一次读到落盘 Run 时，第 2 镜已经不是「已授权、没提交」（窗口没抓到）', jobs: jobSummary(ctx.run(runId)) }
   }
-  scenario.observations.sealedShots = ctx.run(runId).generationPlan.shots.map((shot) => ({ shotId: shot.shotId, parameters: shot.contract?.parameters ?? null, transportModelId: shot.candidate?.transportModelId }))
+  scenario.observations.sealedShots = ctx.run(runId).generationPlan.shots.map((shot) => ({ shotId: shot.shotId, parameters: shot.contract?.parameters ?? null, variantId: shot.candidate?.variantId }))
 
   scenario.media = [await ctx.expectLandedVideo(shot1.nodeId, 'S2 第 1 镜')]
   // 第 1 镜落地之后调度器已经走到静止点；再过一段完整的观察窗，确认第 2 镜始终没被补派。

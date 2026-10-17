@@ -39,6 +39,7 @@ describe('readModeChannelBody — 什么算「这家发不出这个模式」的�
     expect(readModeChannelBody('v', 'nano-banana', 'image_edit', 'edit')).toEqual({
       body: EDIT.create.body,
       wireParamKeys: ['image_urls'],
+      selectsArchetypeWireModel: false,
     })
   })
 

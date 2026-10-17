@@ -6,6 +6,7 @@
 // 精确路由（与 GPT/Seedream 同桶不撞，selectTaskMapping）。结果路径 data.resultJson.resultUrls.0（kie 统一）。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 const KIE_STATUS_MAPPING: Record<string, string[]> = {
   queued: ["waiting", "queuing", "queued", "pending"],
@@ -29,6 +30,7 @@ export const NANO_BANANA_QUERY_OP: HttpOperation = {
 
 export const NANO_BANANA_T2I_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
   body: {
@@ -43,6 +45,7 @@ export const NANO_BANANA_T2I_CREATE_OP: HttpOperation = {
 
 export const NANO_BANANA_EDIT_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
   body: {

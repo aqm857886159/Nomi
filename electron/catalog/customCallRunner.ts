@@ -12,6 +12,7 @@ import { requestJson, requestMultipart, vendorResponseLimitForKind, VendorReques
 import { CustomCallSandboxError, runCustomCallSandbox } from "./customCallSandbox";
 import type { Model, ProfileKind, Vendor } from "./types";
 import { desktopT } from "../i18n";
+import { connectionWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
 
 export type CustomCallTranscriptEntry = {
   method: string;
@@ -248,7 +249,11 @@ export async function runCustomCallScript(input: {
   };
 
   const references = referencesViewFromParams(input.params);
-  const modelId = String(input.model.modelAlias || input.model.modelKey);
+  // 顶层 model 与 params.model 是同一个值：脚本拿到的线上模型名只有 owner 一个来源（wireModelIdentity，
+  // 经 taskTemplateParams 写进 params.model）；试运行没有经过参数层时才回到连接名（同一个 owner 函数）。
+  const modelId = typeof input.params[WIRE_MODEL_PARAM] === "string" && input.params[WIRE_MODEL_PARAM]
+    ? String(input.params[WIRE_MODEL_PARAM])
+    : connectionWireModel(input.model);
   const globals: Record<string, unknown> = {
     prompt: input.prompt,
     taskKind: input.taskKind,

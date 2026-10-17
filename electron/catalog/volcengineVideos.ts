@@ -1,4 +1,5 @@
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 const VARIANT_MODEL_REF = "{{request.params.model}}";
@@ -23,6 +24,7 @@ const AUDIO_REF_CONTENTS = "{{request.params.volcengine_audio_contents}}";
 function seedanceCreateOp(content: unknown[], extraBody: Record<string, unknown> = {}): HttpOperation {
   return {
     method: "POST",
+    wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的变体线上名（wireModelIdentity）
     path: "/api/v3/contents/generations/tasks",
     // 见 volcengineImages.ts 同处注释：路径自带 /api/v3，必须 hostRootJoin，否则 /api/v3/api/v3/… 404。
     pathFrom: "host-root",

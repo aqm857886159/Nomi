@@ -43,8 +43,8 @@ const TEXT_ONLY_BODY = { prompt: '{{request.prompt}}', duration: '{{request.para
  * （生产里由 wireReferencedParamKeys 从 body + 进程 args 并集算出）；模式收窄用不到它，
  * 只有变体轴收窄看它里面有没有 `model`，所以这里默认给空、按用例显式传。
  */
-function channel(body: unknown, wireParamKeys: string[] = []) {
-  return { body, wireParamKeys }
+function channel(body: unknown, wireParamKeys: string[] = [], selectsArchetypeWireModel = true) {
+  return { body, wireParamKeys, selectsArchetypeWireModel }
 }
 
 describe('archetypeModeIsVisible — 模式栏收窄判据', () => {
@@ -160,9 +160,15 @@ describe('archetypeVariantAxisIsLive — 变体选择器该不该出现', () => 
     expect(archetypeVariantAxisIsLive(channel(undefined, ['duration', 'ratio', 'model']))).toBe(true)
   })
 
-  it('fail-open：查不到（undefined）或该模式无线缆（null）→ 都不收窄', () => {
-    expect(archetypeVariantAxisIsLive(undefined)).toBe(true)
-    expect(archetypeVariantAxisIsLive(null)).toBe(true)
+  // 2026-10-16：自建中转的 op 把 model 参数化了，却没有「收档案线上名」的声明——变体串没人认证过中转认。
+  // 两位用户就是被这条路套上了别家的线上名；变体栏在这种渠道上只会骗人。
+  it('参数化但没有内置目录契约的声明（自建中转）→ 藏掉', () => {
+    expect(archetypeVariantAxisIsLive(channel({ model: '{{request.params.model}}' }, ['model'], false))).toBe(false)
+  })
+
+  it('要正面证据：查不到（undefined，常见于没配 mapping 的自建中转）或该模式无线缆（null）→ 都不出现', () => {
+    expect(archetypeVariantAxisIsLive(undefined)).toBe(false)
+    expect(archetypeVariantAxisIsLive(null)).toBe(false)
   })
 })
 

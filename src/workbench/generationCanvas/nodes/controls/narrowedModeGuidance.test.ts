@@ -32,6 +32,7 @@ const RICH_BODY: ModeChannelBody = {
     reference_image_urls: '{{request.params.reference_image_urls}}',
   },
   wireParamKeys: ['first_frame_url', 'last_frame_url', 'reference_image_urls'],
+  selectsArchetypeWireModel: false,
 }
 
 describe('hiddenModesForChannel — 三态必须分开', () => {

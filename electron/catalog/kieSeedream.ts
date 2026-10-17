@@ -9,6 +9,7 @@
 // 结果路径与 Seedance/GPT 一致：data.resultJson.resultUrls.0（kie 统一）。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 const KIE_STATUS_MAPPING: Record<string, string[]> = {
   queued: ["waiting", "queuing", "queued", "pending"],
@@ -33,6 +34,7 @@ export const SEEDREAM_QUERY_OP: HttpOperation = {
 /** 文生图 createTask（seedream/4.5-text-to-image）。 */
 export const SEEDREAM_T2I_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
   body: {
@@ -49,6 +51,7 @@ export const SEEDREAM_T2I_CREATE_OP: HttpOperation = {
  *  4.5-edit 标量与文生图同形（aspect_ratio + quality），不再发旧版 image_size/image_resolution/max_images。 */
 export const SEEDREAM_EDIT_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
   body: {

@@ -149,28 +149,43 @@ describe("Wan 3.0 apimart：单 id + generation_type 区分两族", () => {
 
 describe("Wan 3.0 kie 变体真的会发出去（不只是档案里写对了）", () => {
   // 为什么单独钉这条：kie 只种 1 行 catalog（标准版），高速版**完全靠变体通道**把
-  // params.model 换成 wan/3-0-video-prime。这条链断了不会报错——用户选「高速」，
+  // 最终报文的 model 换成 wan/3-0-video-prime（值由线上模型名 owner 按 kie 报文的声明解出）。这条链断了不会报错——用户选「高速」，
   // 照样跑标准版、照标准版计时计费，界面还显示着「高速」。是纯静默的坏。
   //
   // 2026-08-27 付费验收虽然跑过一次高速，但保存下来的 wire.log 只留住了其中一条 createTask，
   // 高速那条的报文没进产物 → 无法复核。故在此用生产同一条投影链做确定性断言，
   // 比再烧一次额度更可靠（每次跑测试都验，而不是只验过那一次）。
-  it("选中 prime 变体后，投影出的 params.model 是高速 id", async () => {
+  it("选中 prime 变体后，最终报文的 model 是高速 id（投影本身不带 model）", async () => {
     const { applyArchetypeVariantSwitch, buildArchetypeInputParams, ensureArchetypeNodeMeta } = await import(
       "../../../src/workbench/generationCanvas/nodes/controls/archetypeMeta"
     );
+    const { taskTemplateParams } = await import("../../catalog/taskParams");
+    const { WAN_3_0_CREATE_OP, WAN_3_0_MODEL_SEED } = await import("../../catalog/kieWan30");
+    const { buildTemplateContext, renderTemplateValue } = await import("../../ai/requestPipeline");
     const arch = KIE();
+    // 生产同一条链：节点 meta（只存选择）→ 渲染层投影 → 主进程参数层（线上模型名 owner）→ kie 报文。
+    const wireModelOf = (meta: Record<string, unknown>) => {
+      const archetypeInput = buildArchetypeInputParams(meta, arch);
+      // 2026-10-16 新不变式：投影永远不带 model，线上名只由 wireModelIdentity 决定。
+      expect(archetypeInput).not.toHaveProperty("model");
+      const request = { kind: "text_to_video", prompt: "x", extras: { ...meta, modelKey: WAN_3_0_MODEL_SEED.modelKey, archetypeInput } };
+      const params = taskTemplateParams(request, {
+        vendorKey: "kie", modelKey: WAN_3_0_MODEL_SEED.modelKey, modelMeta: { archetypeId: arch.id }, operation: WAN_3_0_CREATE_OP,
+      });
+      const context = buildTemplateContext({ request, params, model: { modelKey: WAN_3_0_MODEL_SEED.modelKey }, modelKey: WAN_3_0_MODEL_SEED.modelKey, apiKey: "k" });
+      return (renderTemplateValue(WAN_3_0_CREATE_OP.body, context) as { model?: unknown }).model;
+    };
 
     const base = ensureArchetypeNodeMeta({}, arch)!;
-    expect(buildArchetypeInputParams(base, arch).model).toBe("wan/3-0-video");
+    expect(wireModelOf(base)).toBe("wan/3-0-video");
 
     const prime = applyArchetypeVariantSwitch(base, arch, "prime");
     expect((prime.archetype as { variantId: string }).variantId).toBe("prime");
-    expect(buildArchetypeInputParams(prime, arch).model).toBe("wan/3-0-video-prime");
+    expect(wireModelOf(prime)).toBe("wan/3-0-video-prime");
 
     // 切回去也得换回来（别是单向粘住）。
     const back = applyArchetypeVariantSwitch(prime, arch, "standard");
-    expect(buildArchetypeInputParams(back, arch).model).toBe("wan/3-0-video");
+    expect(wireModelOf(back)).toBe("wan/3-0-video");
   });
 
   // 同理钉 apimart 的 generation_type：它是两族的唯一判据，投影漏了就等于让上游猜。

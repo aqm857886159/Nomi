@@ -3,6 +3,7 @@
 // 渲染层不消费这些（electron 专用；渲染层有自己的 DTO，经 desktopClient 单源）。
 import type { ApiKeyRecord } from "./secrets";
 import type { ParamMap } from "./paramTranslate";
+import type { WireModelDeclaration } from "../shared/modelArchetypes/wireModelIdentity";
 import type { TransportAbandonDisposition, TransportDelivery } from "./transportDelivery";
 import catalogVersion from "./catalogVersion.json";
 import {
@@ -462,6 +463,12 @@ export type HttpOperation = {
    * 注：值与档案默认有小重叠（不同层：档案=UI 控件默认；这里=headless wire 下限），改档案默认时一并核对此处。
    */
   defaultParams?: Record<string, unknown>;
+  /**
+   * 这条 op 的 `{{request.params.model}}` 收**档案所选模式 / 变体的线上名**（"archetype-selection"）。
+   * 只由内置目录登记表（seedBuiltins）统一盖章；缺省 = 发连接自己的模型名（modelAlias || modelKey）。
+   * 判定只在 electron/shared/modelArchetypes/wireModelIdentity.resolveWireModel（2026-10-16 自建中转被套上 kie 线上名）。
+   */
+  wireModel?: WireModelDeclaration;
   /**
    * 音频 create op 的**响应形状声明**（仅 audioTaskRunner 消费，P4 声明驱动不 hardcode vendor）。
    *  - 缺省 / "binary"      ：响应体即裸音频字节（OpenAI 兼容 /v1/audio/speech，现有行为）。

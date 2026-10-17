@@ -165,6 +165,7 @@ export function admitTask(id: string, entry: CachedTask): void {
 // 可执行模型解析下沉到 catalog/executableModel（R12 净减）；re-export 保住 textTaskRunner/taskResultQuery 既有 import 面。
 export { findExecutableModel, findExecutableModelForTask } from "./catalog/executableModel";
 import { findExecutableModel } from "./catalog/executableModel";
+import { noMappingWireModel } from "./shared/modelArchetypes/wireModelIdentity";
 
 // billingKindForTaskKind 下沉到 catalog/types（R12 净减）；re-export 保住既有消费方 import 面。
 export { billingKindForTaskKind } from "./catalog/types";
@@ -200,7 +201,7 @@ export async function executeProfileOperation(input: {
       input.model,
       input.apiKey,
       input.providerMeta || {},
-      input.operation.paramMap,
+      input.operation,
     );
     return executeProcessOperation({
       process: input.operation.process,
@@ -323,7 +324,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias), { vendorKey: effectiveVendorKey, modelKey: model.modelKey });
   if (guardError) throw new Error(guardError);
   if (customCallScript)
-    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });
+    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
     await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
@@ -427,15 +428,9 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     ...buildAuthHeaders(vendorAuthSpec(vendor), apiKey),
     ...(fallbackExtraHeaders || {}),
   };
-  const providerResponse = await requestJson(
-    vendor,
-    apiKey,
-    "POST",
-    endpoint(vendor, suffix),
-    fallbackHeaders,
-    {},
+  const providerResponse = await requestJson(vendor, apiKey, "POST", endpoint(vendor, suffix), fallbackHeaders, {},
     { // 键形状由 taskParams.NO_MAPPING_FALLBACK_BODY 声明并被测试钉死（两处必须同构）。
-      model: model.modelAlias || model.modelKey,
+      model: noMappingWireModel(model, request), // 线上模型名只问 owner（wireModelIdentity）
       prompt: request.prompt,
       size: request.width && request.height ? `${request.width}x${request.height}` : undefined,
       seed: request.seed,

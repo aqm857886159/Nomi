@@ -58,7 +58,8 @@ describe("createCatalogModuleRegistry", () => {
     });
     expect(resolved.parameterSchema.resolution).toEqual({ type: "any" });
     expect(resolved.parameterSchema.aspect_ratio).toEqual({ type: "any" });
-    expect(resolved.parameterSchema.model).toEqual({ type: "any" });
+    // 线上模型名不是参数（wireModelIdentity 决定）：模板引用了它也不进参数表。
+    expect(resolved.parameterSchema).not.toHaveProperty("model");
   });
 
   it("keeps the onboarding field's declared type and options over the bare wire key", () => {

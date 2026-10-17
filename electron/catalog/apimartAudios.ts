@@ -13,6 +13,7 @@
 // 故 body 的 model 取 `{{request.params.model}}` 而非 catalog 行 modelKey。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 const AUDIO_BASE_MODEL_KEY = "nomi-audio";
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
@@ -66,6 +67,7 @@ function asyncMusicCreate(path: string, body: Record<string, unknown>): HttpOper
 // （未压缩、Chromium <audio> 必能播；doc 默认值亦为 wav）。
 const TTS_CREATE: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/v1/audio/speech",
   headers: CREATE_HEADERS,
   body: {
@@ -83,6 +85,7 @@ const TTS_CREATE: HttpOperation = {
 // 这里 create 仅提供端点 + model enum 意图，runner 不当 JSON 发。verbose_json 拿 segments 供「生成字幕」。
 const WHISPER_CREATE: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/v1/audio/transcriptions",
   headers: { Authorization: "Bearer {{user_api_key}}" },
   multipart: {

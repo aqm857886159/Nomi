@@ -91,25 +91,21 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "aspect_ratio": "auto",
-        "resolution": "1K",
-        "model": "gpt-image-2-text-to-image"
+        "resolution": "1K"
       },
       "runway": {
         "aspect_ratio": "1920:1920",
-        "output_count": 1,
-        "model": "gpt-image-2-text-to-image"
+        "output_count": 1
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "auto",
-        "resolution": "1K",
-        "model": "gpt-image-2-image-to-image"
+        "resolution": "1K"
       },
       "runway": {
         "aspect_ratio": "1920:1920",
-        "output_count": 1,
-        "model": "gpt-image-2-image-to-image"
+        "output_count": 1
       }
     }
   },
@@ -117,25 +113,21 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "aspect_ratio": "1:1",
-        "quality": "basic",
-        "model": "seedream/4.5-text-to-image"
+        "quality": "basic"
       },
       "apimart": {
         "size": "1:1",
-        "resolution": "2K",
-        "model": "seedream/4.5-text-to-image"
+        "resolution": "2K"
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "1:1",
-        "quality": "basic",
-        "model": "seedream/4.5-edit"
+        "quality": "basic"
       },
       "apimart": {
         "size": "1:1",
-        "resolution": "2K",
-        "model": "seedream/4.5-edit"
+        "resolution": "2K"
       }
     }
   },
@@ -144,16 +136,14 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "*": {
         "aspect_ratio": "1:1",
         "quality": "basic",
-        "output_format": "png",
-        "model": "seedream/5-pro-text-to-image"
+        "output_format": "png"
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "1:1",
         "quality": "basic",
-        "output_format": "png",
-        "model": "seedream/5-pro-image-to-image"
+        "output_format": "png"
       }
     }
   },
@@ -162,26 +152,22 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "*": {
         "aspect_ratio": "1:1",
         "quality": "basic",
-        "output_format": "png",
-        "model": "seedream/5-lite-text-to-image"
+        "output_format": "png"
       },
       "runway": {
         "aspect_ratio": "2048:2048",
-        "output_count": 1,
-        "model": "seedream/5-lite-text-to-image"
+        "output_count": 1
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "1:1",
         "quality": "basic",
-        "output_format": "png",
-        "model": "seedream/5-lite-image-to-image"
+        "output_format": "png"
       },
       "runway": {
         "aspect_ratio": "2048:2048",
-        "output_count": 1,
-        "model": "seedream/5-lite-image-to-image"
+        "output_count": 1
       }
     }
   },
@@ -225,31 +211,25 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "aspect_ratio": "1:1",
-        "output_format": "png",
-        "model": "google/nano-banana"
+        "output_format": "png"
       },
       "apimart": {
-        "size": "1:1",
-        "model": "google/nano-banana"
+        "size": "1:1"
       },
       "runway": {
-        "aspect_ratio": "1024:1024",
-        "model": "google/nano-banana"
+        "aspect_ratio": "1024:1024"
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "1:1",
-        "output_format": "png",
-        "model": "google/nano-banana-edit"
+        "output_format": "png"
       },
       "apimart": {
-        "size": "1:1",
-        "model": "google/nano-banana-edit"
+        "size": "1:1"
       },
       "runway": {
-        "aspect_ratio": "1024:1024",
-        "model": "google/nano-banana-edit"
+        "aspect_ratio": "1024:1024"
       }
     }
   },
@@ -257,15 +237,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "aspect_ratio": "1:1",
-        "resolution": "1K",
-        "model": "flux-2/pro-text-to-image"
+        "resolution": "1K"
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "1:1",
-        "resolution": "1K",
-        "model": "flux-2/pro-image-to-image"
+        "resolution": "1K"
       }
     }
   },
@@ -273,15 +251,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "size": "1:1",
-        "resolution": "1K",
-        "model": "qwen-image-3.0"
+        "resolution": "1K"
       }
     },
     "image_edit": {
       "*": {
         "size": "1:1",
-        "resolution": "1K",
-        "model": "qwen-image-3.0"
+        "resolution": "1K"
       }
     }
   },
@@ -289,15 +265,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "size": "1:1",
-        "resolution": "1K",
-        "model": "qwen-image-2.0"
+        "resolution": "1K"
       }
     },
     "image_edit": {
       "*": {
         "size": "1:1",
-        "resolution": "1K",
-        "model": "qwen-image-2.0"
+        "resolution": "1K"
       }
     }
   },
@@ -375,15 +349,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
     "text_to_image": {
       "*": {
         "ratio": "1:1",
-        "resolution_type": "2k",
-        "model": "5.0"
+        "resolution_type": "2k"
       }
     },
     "image_edit": {
       "*": {
         "ratio": "1:1",
-        "resolution_type": "2k",
-        "model": "5.0"
+        "resolution_type": "2k"
       }
     }
   },
@@ -505,30 +477,26 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "*": {
         "aspect_ratio": "auto",
         "resolution": "1K",
-        "background": "auto",
-        "model": "gpt-image-2-5-flare-text-to-image"
+        "background": "auto"
       },
       "apimart": {
         "size": "auto",
         "resolution": "1K",
         "background": "auto",
-        "quality": "medium",
-        "model": "gpt-image-2-5-flare-text-to-image"
+        "quality": "medium"
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "auto",
         "resolution": "1K",
-        "background": "auto",
-        "model": "gpt-image-2-5-flare-image-to-image"
+        "background": "auto"
       },
       "apimart": {
         "size": "auto",
         "resolution": "1K",
         "background": "auto",
-        "quality": "medium",
-        "model": "gpt-image-2-5-flare-image-to-image"
+        "quality": "medium"
       }
     }
   },
@@ -537,30 +505,26 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "*": {
         "aspect_ratio": "auto",
         "resolution": "1K",
-        "background": "auto",
-        "model": "gpt-image-2-5-sunburst-text-to-image"
+        "background": "auto"
       },
       "apimart": {
         "size": "auto",
         "resolution": "1K",
         "background": "auto",
-        "quality": "medium",
-        "model": "gpt-image-2-5-sunburst-text-to-image"
+        "quality": "medium"
       }
     },
     "image_edit": {
       "*": {
         "aspect_ratio": "auto",
         "resolution": "1K",
-        "background": "auto",
-        "model": "gpt-image-2-5-sunburst-image-to-image"
+        "background": "auto"
       },
       "apimart": {
         "size": "auto",
         "resolution": "1K",
         "background": "auto",
-        "quality": "medium",
-        "model": "gpt-image-2-5-sunburst-image-to-image"
+        "quality": "medium"
       }
     }
   },

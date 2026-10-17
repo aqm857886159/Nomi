@@ -35,12 +35,11 @@ export function cheapVideoProblems(candidate) {
   const problems = []
   const params = candidate?.parameters ?? {}
   if (candidate?.providerId !== VIDEO.vendorKey || candidate?.modelId !== VIDEO.modelKey) problems.push(`模型是 ${candidate?.providerId}/${candidate?.modelId}`)
-  // 变体三处各自核对：宿主真正发出去的线上模型（transportModelId）、它记下的变体、以及 parameters 里的 model。
-  // 任何一处不是 fast 都不按——三者不一致本身就说明宿主会按另一档派发。
-  if (candidate?.transportModelId !== undefined && candidate.transportModelId !== FAST_WIRE_MODEL) problems.push(`线上模型是 ${candidate.transportModelId}`)
+  // 变体两处各自核对：宿主记下的变体、以及 parameters 里的 model（出站 model 由 wireModelIdentity 按变体解出，不再另存投影）。
+  // 任何一处不是 fast 都不按——不一致本身就说明宿主会按另一档派发。
   if (candidate?.variantId !== undefined && candidate.variantId !== 'fast') problems.push(`variantId 是 ${candidate.variantId}`)
   if (params.model !== undefined && params.model !== FAST_WIRE_MODEL) problems.push(`parameters.model 是 ${params.model}`)
-  if (candidate?.transportModelId !== FAST_WIRE_MODEL && candidate?.variantId !== 'fast') problems.push('草稿里没有任何一处写明 fast 档')
+  if (candidate?.variantId !== 'fast') problems.push('草稿里没有写明 fast 档')
   if (Number(params.duration) !== 4) problems.push(`duration 是 ${JSON.stringify(params.duration)}`)
   if (String(params.resolution ?? '').toLowerCase() !== '480p') problems.push(`resolution 是 ${JSON.stringify(params.resolution)}`)
   if (params.generate_audio !== false) problems.push(`generate_audio 是 ${JSON.stringify(params.generate_audio)}`)

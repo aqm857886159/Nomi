@@ -3,6 +3,7 @@ import type { ModuleManifest } from "./moduleManifest";
 import type { GenerationProviderCapabilities } from "./generationRuntimeAdapter";
 import { readCatalog } from "../catalog/catalogStore";
 import { wireReferencedParamKeys, consumedCanonicalKeys } from "../catalog/paramTranslate";
+import { WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
 import { ARCHETYPE_WIRE_DEFAULTS } from "../catalog/archetypeWireDefaults.generated";
 import type { CatalogState, Mapping, Model, ProfileKind } from "../catalog/types";
 import { createCatalogAvailability } from "../catalog/catalogModelAvailability";
@@ -94,7 +95,9 @@ function modelParameterSchema(model: Model, mappings: readonly Mapping[]) {
       ...(mapping.create.paramMap?.drops ?? []),
       ...wireDefaultKeysFor(model, mapping),
     ]) {
-      if (schema[key]) continue;
+      // 线上模型名不是参数：由 wireModelIdentity 按连接契约决定，Agent / MCP 传进来的也会被参数层丢掉——
+      // 摆进参数表就是一个「填了没用」的字段（2026-10-16）。
+      if (schema[key] || key === WIRE_MODEL_PARAM) continue;
       schema[key] = { type: "any" };
     }
   }

@@ -15,6 +15,7 @@
 // 首尾帧 / 全能参考 / HappyHorse 在后续 chunk 增量加。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 /** kie.ai 供应商种子（裸 baseUrl + bearer）。 */
 export const KIE_VENDOR_SEED = {
@@ -47,6 +48,7 @@ export const SEEDANCE_2_MAPPING_IDS = {
  */
 export const SEEDANCE_2_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: {
     Authorization: "Bearer {{user_api_key}}",

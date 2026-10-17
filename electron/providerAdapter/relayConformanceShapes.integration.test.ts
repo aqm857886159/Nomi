@@ -25,6 +25,7 @@
 // 「发之前」——选哪条线缆、显示哪些模式、参考键在不在 body 里。真把请求发出去那一段已由同目录
 // 另外三个文件覆盖，这里不重复造一个 HTTP server（也就不需要 NOMI_ASSET_RELAY_URL 那类外网封堵）。
 import { describe, expect, it } from "vitest";
+import { operationSelectsArchetypeWireModel } from "../shared/modelArchetypes/wireModelIdentity";
 
 import { selectTaskMapping, type Mapping } from "../catalog/types";
 import { wireReferencedParamKeys } from "../catalog/paramTranslate";
@@ -65,7 +66,11 @@ function bodyFor(mappings: readonly Mapping[] | null, transportTaskKind: string)
   if (mappings === null) return undefined;
   const selected = selectTaskMapping(mappings as Mapping[], VENDOR, transportTaskKind as never, MODEL);
   if (!selected) return null;
-  return { body: selected.create?.body ?? null, wireParamKeys: wireReferencedParamKeys(selected.create) };
+  return {
+    body: selected.create?.body ?? null,
+    wireParamKeys: wireReferencedParamKeys(selected.create),
+    selectsArchetypeWireModel: operationSelectsArchetypeWireModel(selected.create),
+  };
 }
 
 /** 该形状下模式栏会显示哪几个（顺序即档案声明序，与 archetypeModeChoices 同口径）。 */
@@ -270,8 +275,8 @@ describe("跨形状不变量（同一套断言横着问一遍）", () => {
     // 那说明收窄判据把「没有参考通道」误当成了「发不出去」。
     const bodies: ModeChannelBody[] = [
       undefined,
-      { body: null, wireParamKeys: [] },
-      { body: { prompt: "{{request.prompt}}" }, wireParamKeys: ["prompt"] },
+      { body: null, wireParamKeys: [], selectsArchetypeWireModel: false },
+      { body: { prompt: "{{request.prompt}}" }, wireParamKeys: ["prompt"], selectsArchetypeWireModel: false },
     ];
     for (const body of bodies) {
       expect(archetypeModeIsVisible(T2I, body), "纯文生模式被收窄掉了 —— 它没有槽，不该依赖任何参考通道").toBe(true);

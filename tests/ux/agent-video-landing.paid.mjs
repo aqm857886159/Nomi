@@ -54,7 +54,7 @@ try {
   walk.report.draft = {
     runs: runs.length, runId: run?.runId,
     shots: shots.map((shot) => ({ shotId: shot.shotId, providerId: shot.candidate?.providerId, modelId: shot.candidate?.modelId,
-      variantId: shot.candidate?.variantId, transportModelId: shot.candidate?.transportModelId, parameters: shot.candidate?.parameters })),
+      variantId: shot.candidate?.variantId, parameters: shot.candidate?.parameters })),
     // 卡上印给用户看的「变体」——和宿主要派发的那一档对照（两者不一致 = 看到的不是要付的）。
     cardVariant: (await card.locator('[aria-label="变体"]').first().getAttribute('title').catch(() => null)) ?? null,
   }

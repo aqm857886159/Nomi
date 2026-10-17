@@ -88,11 +88,10 @@ try {
           resolution: "720p",
           duration: 5, // number（真实渲染流程节点标量参数存的就是 number 5，见 taskParams.ts:39；string 会被 apimart 拒）
           generate_audio: false,
+          // 变体选择随节点 meta 走（extras.archetype），出站 model 由主进程 wireModelIdentity 解出（2026-10-16 起
+          // archetypeInput 不带 model）。标准版 = doubao-seedance-2.0。
+          archetype: { variantId: "standard" },
           archetypeInput: {
-            // 变体合并（2026-06-16）后 catalog body 取 {{request.params.model}}（不再 extras.modelKey）；
-            // 真实渲染流程由 buildArchetypeInputParams 把当前变体 modelKey 写进 archetypeInput.model →
-            // taskTemplateParams 经 referenceInputParams 摊进 params.model。e2e 直调 runtime 须自带它。
-            model: "doubao-seedance-2.0",
             image_with_roles: [
               { url: a.first, role: "first_frame" },
               { url: a.last, role: "last_frame" },

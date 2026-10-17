@@ -15,6 +15,7 @@ import type { HttpOperation, ProfileKind } from "./types";
 import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING } from "./apimartVendor";
 import "./apimartModelIds";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
@@ -24,6 +25,8 @@ const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type
 function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}", paramMap?: ParamMap): HttpOperation {
   return {
     method: "POST",
+    // 只有引用 params.model 的那种才声明收档案所选的变体线上名（wireModelIdentity）。
+    ...(modelRef === VARIANT_MODEL_REF ? { wireModel: ARCHETYPE_WIRE_MODEL } : {}),
     path: "/v1/images/generations",
     headers: CREATE_HEADERS,
     body: { model: modelRef, prompt: "{{request.prompt}}", ...bodyFields },

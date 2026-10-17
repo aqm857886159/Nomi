@@ -1,6 +1,7 @@
 // 把档案(electron/shared/modelArchetypes)的参数默认值抽成纯数据，桥接给 electron。
 // 为什么要它：electron/tsconfig rootDir 隔离，runtime 不能直接 import src/config 的档案；
-// 但 headless/MCP 生成不经 UI → request.params 为空 → 缺必填参(model 变体 / duration / 比例…) vendor 拒。
+// 但 headless/MCP 生成不经 UI → request.params 为空 → 缺必填参(duration / 比例…) vendor 拒。
+// model 不在此表：发哪个 model 串只由 electron/shared/modelArchetypes/wireModelIdentity.resolveWireModel 决定（2026-10-16）。
 // 本脚本(跑在 electron 编译外、可 import src/config)抽 {archetypeId: {taskKind: {param: defaultValue}}}，
 // 写成 electron/catalog/archetypeWireDefaults.generated.ts；runtime 按 (archetypeId, taskKind) 兜底填，既有值优先。
 // 单一真相源仍是档案：改档案默认 → `pnpm gen:archetype-defaults` 重生成；check:archetype-defaults 门防漂移。
@@ -46,8 +47,6 @@ const RATIO_OPTION_RE = /^\d+\s*:\s*\d+$/;
 export function buildWireDefaultsFor(archetypes: readonly ModelArchetype[]): WireDefaults {
   const out: WireDefaults = {};
   for (const arch of archetypes) {
-    const defaultVariant =
-      arch.variants && arch.defaultVariantId ? arch.variants.find((v) => v.id === arch.defaultVariantId) : undefined;
     // 每个模式声明了哪些 vendor 桶：通用 "*" + vendorParams 覆盖的 vendor + vendorTransportTaskKind
     // 覆盖的 vendor（后者本身就说明「这家把本模式路由到别的桶」，即使参数与通用一致也必须单独落桶，
     // 否则 runtime 按 (archetypeId, 该家 taskKind) 取兜底时取不到东西）。
@@ -75,8 +74,6 @@ export function buildWireDefaultsFor(archetypes: readonly ModelArchetype[]): Wir
       }
     }
     for (const { vendorKey, taskKind, mode } of primaryModeByBucket.values()) {
-      // body 的 model 字段：mode.modelEnum 优先，否则档案默认变体的 modelKey（headless 不选变体=默认变体）。
-      const model = mode.modelEnum ?? defaultVariant?.modelKey;
       // 通用 params 落 "*"；有 vendorParams 覆盖的 vendor 用自己那组（覆盖=整组替换，与 resolveArchetypeForModel 一致），
       // 只覆盖了 transport 没覆盖参数的 vendor 沿用通用组。
       const params = (vendorKey === "*" ? undefined : mode.vendorParams?.[vendorKey]) ?? mode.params ?? [];
@@ -87,7 +84,6 @@ export function buildWireDefaultsFor(archetypes: readonly ModelArchetype[]): Wir
       for (const p of params) {
         if (typeof p.defaultValue !== "undefined") d[p.key] = p.defaultValue;
       }
-      if (model) d.model = model;
       if (Object.keys(d).length === 0) continue;
       out[arch.id] = out[arch.id] ?? {};
       out[arch.id][taskKind] = out[arch.id][taskKind] ?? {};

@@ -1,0 +1,26 @@
+{
+  "id": "FB-20261012-custom-relay-wire-model",
+  "since": "2026-10-12",
+  "source": "2026-10-12 应用内反馈两条（0.23.1，macOS + Windows），自建 OpenAI 兼容中转出图",
+  "category": "parameter-contract",
+  "problem": "自建中转出图，服务商回「No available channel for model gpt-image-2-…-text-to-image」。用户原话摘：「我这个 api 是可以用的，总是这样」「几个 api 都不行」。用户配的是自己中转上的模型名，发出去的却是档案里另一家拆分文生图 / 改图时用的线上名：渲染层把档案模式 / 变体线上名塞进 archetypeInput.model，参数层用它盖掉了连接名，中转模板读的正是 params.model。",
+  "existingInvariants": [],
+  "ironLaws": ["⑩"],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-16-custom-relay-wire-model.md",
+    "docs/engineering/direction-check-2026-10-16-custom-relay-wire-model.md",
+    "electron/catalog/customRelayWireModel.test.ts",
+    "真付费验收 unverified：没有真实中转资源，最小量方案见设计卡「最小量真付费验收」"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-16-custom-relay-wire-model.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/customRelayWireModel.test.ts"
+  },
+  "fixedInPr": 1207
+}

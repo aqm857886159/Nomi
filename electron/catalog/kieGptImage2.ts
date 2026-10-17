@@ -14,6 +14,7 @@
 
 import type { HttpOperation, ProfileKind } from "./types";
 import { builtinVendorKeyOfKey } from "../shared/builtinVendorIdentity";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 /** 文生图模型种子（modelKey 即 kie 的 model enum）。 */
 export const GPT_IMAGE_2_T2I_MODEL_SEED = {
@@ -53,6 +54,7 @@ const KIE_STATUS_MAPPING: Record<string, string[]> = {
 /** 文生图 createTask：input 只有 prompt + aspect_ratio（缺省 auto，模板引擎丢弃 undefined 键）。 */
 export const GPT_IMAGE_2_T2I_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: {
     Authorization: "Bearer {{user_api_key}}",
@@ -73,6 +75,7 @@ export const GPT_IMAGE_2_T2I_CREATE_OP: HttpOperation = {
 /** 图生图 createTask：input_urls 取档案图生图模式的输入图数组（slot inputKey=input_urls → archetypeInput.input_urls）。 */
 export const GPT_IMAGE_2_I2I_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: {
     Authorization: "Bearer {{user_api_key}}",

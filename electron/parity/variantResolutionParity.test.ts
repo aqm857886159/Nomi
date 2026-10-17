@@ -32,7 +32,6 @@ vi.mock("electron", async () => {
   };
 });
 
-import type { CatalogState } from "../catalog/types";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 import { normalizeVideoCandidate, videoCandidateForPlan } from "../capabilityCore/mcpGenerationVideoResolve";
 import { resolveArchetypeForModel } from "../shared/modelArchetypes";
@@ -42,13 +41,16 @@ import type { VideoModelCandidate } from "../shared/videoCapabilities";
 import { currentArchetypeVariant } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { projectSpendNode } from "../../src/workbench/ai/v4/spendCardDraft";
 import { seedParityCatalog } from "./generationParityTestUtils";
+import { operationSelectsArchetypeWireModel, resolveWireModel } from "../shared/modelArchetypes/wireModelIdentity";
+import { selectTaskMapping, type CatalogState, type ProfileKind } from "../catalog/types";
 
 type VariantRow = { vendorKey: string; modelKey: string; meta: unknown; candidates: VideoModelCandidate[] };
 
 let rows: VariantRow[] = [];
+let catalog: CatalogState;
 
 beforeAll(async () => {
-  const catalog: CatalogState = await seedParityCatalog([]);
+  catalog = await seedParityCatalog([]);
   const videoModels = catalog.models.filter((model) => model.kind === "video");
   const candidates = buildVideoModelCandidates(videoModels.map((model) => ({
     provider: model.vendorKey, modelKey: model.modelKey, label: model.labelZh,
@@ -92,7 +94,16 @@ describe("这一镜跑哪个变体：画布 / 付费卡 === 宿主派发（真�
       const shown = rendererVariantId(row);
       expect(hostSelected?.candidate.variantId, `${label}：宿主派发的变体`).toBe(shown);
       const variant = hostSelected?.videoCandidate.archetype.variants?.find((item) => item.id === shown);
-      expect(hostNormalized.transportModelId, `${label}：出站 model`).toBe(variant?.modelKey);
+      // 出站 model 只问唯一 owner（wireModelIdentity）：拿宿主封进合同的那组选择 + 这家这条内置 mapping。
+      const mapping = selectTaskMapping(catalog.mappings, row.vendorKey, hostNormalized.mode as ProfileKind, row.modelKey, hostNormalized.modeId);
+      const wire = resolveWireModel({
+        operation: mapping?.create,
+        connection: { vendorKey: row.vendorKey, modelKey: row.modelKey, modelMeta: row.meta },
+        extras: { modelKey: row.modelKey, archetype: { modeId: hostNormalized.modeId, variantId: hostNormalized.variantId } },
+        taskKind: hostNormalized.mode,
+      });
+      // 声明收档案线上名的内置 op 发变体串；写死 model 的（Runway）不声明，参数表里就是连接名。
+      expect(wire, `${label}：出站 model`).toBe(operationSelectsArchetypeWireModel(mapping?.create) ? variant?.modelKey : row.modelKey);
     }
   });
 

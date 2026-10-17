@@ -22,6 +22,7 @@ import { createCustomCallTestRunRegistry, type CustomCallTestRunInput, type Cust
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { desktopT } from "../i18n";
+import { connectionWireModel } from "../shared/modelArchetypes/wireModelIdentity";
 function resolveTarget(vendorKey: string, modelKey: string) {
   const state = readCatalog();
   const vendor = state.vendors.find((v) => v.key === vendorKey);
@@ -129,7 +130,7 @@ export function registerCustomCallIpc(registerSyncIpc: (channel: string, handler
     const modelKey = trim(raw.modelKey);
     const { vendor, model } = resolveTarget(vendorKey, modelKey);
     return buildCustomCallAiInstruction({
-      modelKey: model.modelAlias || model.modelKey,
+      modelKey: connectionWireModel(model),
       kind: model.kind,
       baseUrl: String(vendor.baseUrlHint || ""),
       material: String(raw.material || ""),

@@ -30,7 +30,7 @@ function renderBody(opts: {
   const request = { kind: opts.kind, prompt: "一个站在雨里的女孩", extras: opts.extras };
   const context = buildTemplateContext({
     request,
-    params: applyParamMap(opts.create.paramMap, taskTemplateParams(request)),
+    params: applyParamMap(opts.create.paramMap, taskTemplateParams(request, { vendorKey: "", modelKey: opts.modelKey, operation: opts.create })),
     model: { modelKey: opts.modelKey },
     modelKey: opts.modelKey,
     apiKey: "TEST_SECRET",
@@ -142,7 +142,7 @@ describe("kie Seedream 5.0 · 线缆（两 id 结构）", () => {
     // kie 把两种能力拆成两个 model id；body.model 读 {{request.params.model}}，
     // 值来自档案当前 mode 的 modelEnum。这条断言就是「两 id 收口在档案层」的证据。
     const body = renderKie("seedream/5-pro-text-to-image", "image_edit", {
-      model: "seedream/5-pro-image-to-image", image_urls: REFS, aspect_ratio: "9:16", quality: "high", output_format: "png",
+      image_urls: REFS, aspect_ratio: "9:16", quality: "high", output_format: "png",
     });
     expect(body.model).toBe("seedream/5-pro-image-to-image");
     const input = body.input as Record<string, unknown>;
@@ -153,7 +153,7 @@ describe("kie Seedream 5.0 · 线缆（两 id 结构）", () => {
 
   it("lite 能发出 ultra 质量档（pro 没有这档）", () => {
     const input = renderKie("seedream/5-lite-text-to-image", "text_to_image", {
-      model: "seedream/5-lite-text-to-image", aspect_ratio: "1:1", quality: "ultra", output_format: "jpeg",
+      aspect_ratio: "1:1", quality: "ultra", output_format: "jpeg",
     }).input as Record<string, unknown>;
     expect(input.quality).toBe("ultra");
     expect(input.output_format).toBe("jpeg");
@@ -161,7 +161,7 @@ describe("kie Seedream 5.0 · 线缆（两 id 结构）", () => {
 
   it("文生图不带 image_urls（kie 的 t2i 端点没有这个字段）", () => {
     const input = renderKie("seedream/5-pro-text-to-image", "text_to_image", {
-      model: "seedream/5-pro-text-to-image", aspect_ratio: "1:1", quality: "basic", output_format: "png",
+      aspect_ratio: "1:1", quality: "basic", output_format: "png",
     }).input as Record<string, unknown>;
     expect(input).not.toHaveProperty("image_urls");
   });
@@ -170,7 +170,7 @@ describe("kie Seedream 5.0 · 线缆（两 id 结构）", () => {
 describe("FLUX.2 Pro · 线缆", () => {
   it("改图用 input_urls（非 image_urls），并发 image-to-image 的 model id", () => {
     const body = renderKie("flux-2/pro-text-to-image", "image_edit", {
-      model: "flux-2/pro-image-to-image", input_urls: REFS, aspect_ratio: "auto", resolution: "2K",
+      input_urls: REFS, aspect_ratio: "auto", resolution: "2K",
     });
     expect(body.model).toBe("flux-2/pro-image-to-image");
     const input = body.input as Record<string, unknown>;
@@ -181,7 +181,7 @@ describe("FLUX.2 Pro · 线缆", () => {
 
   it("文生图只发 prompt + aspect_ratio + resolution", () => {
     const input = renderKie("flux-2/pro-text-to-image", "text_to_image", {
-      model: "flux-2/pro-text-to-image", aspect_ratio: "16:9", resolution: "1K",
+      aspect_ratio: "16:9", resolution: "1K",
     }).input as Record<string, unknown>;
     expect(Object.keys(input).sort()).toEqual(["aspect_ratio", "prompt", "resolution"]);
   });
@@ -193,7 +193,7 @@ describe("Qwen-Image 3.0 · 线缆（apimart）", () => {
     const mapping = model.mappings.find((m) => m.taskKind === "image_edit")!;
     const body = renderBody({
       create: mapping.create, modelKey: model.modelKey, kind: "image_edit",
-      extras: { model: "qwen-image-3.0-pro", size: "3:2", resolution: "2K", image_urls: REFS },
+      extras: { archetype: { variantId: "pro" }, size: "3:2", resolution: "2K", image_urls: REFS },
       baseUrl: "https://api.apimart.ai",
     });
     expect(body.model).toBe("qwen-image-3.0-pro");
@@ -207,7 +207,7 @@ describe("Qwen-Image 3.0 · 线缆（apimart）", () => {
     const mapping = model.mappings.find((m) => m.taskKind === "text_to_image")!;
     const body = renderBody({
       create: mapping.create, modelKey: model.modelKey, kind: "text_to_image",
-      extras: { model: "qwen-image-3.0", size: "1:1", resolution: "1K" },
+      extras: { size: "1:1", resolution: "1K" },
       baseUrl: "https://api.apimart.ai",
     });
     expect(body).not.toHaveProperty("negative_prompt");

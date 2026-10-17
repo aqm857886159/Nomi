@@ -5,7 +5,8 @@
 import { describe, it, expect } from "vitest";
 import { DREAMINA_IMAGE_CURATED_MAPPINGS } from "./dreaminaImages";
 import { DREAMINA_CURATED_MAPPINGS } from "./dreaminaVideos";
-import { applyWireDefaults, applyHeadlessParamDefaults } from "./taskParams";
+import { applyWireDefaults, applyHeadlessParamDefaults, taskTemplateParams } from "./taskParams";
+import { APIMART_AUDIO_MODELS } from "./apimartAudios";
 
 describe("dreamina CLI：--download_dir 只许 query_result（提交子命令带它=unknown flag 秒挂）", () => {
   const allMappings = [...DREAMINA_IMAGE_CURATED_MAPPINGS, ...DREAMINA_CURATED_MAPPINGS];
@@ -30,10 +31,14 @@ describe("headless wire 兜底：缺必填参 vendor 直接拒 → 档案默认�
     const out = applyHeadlessParamDefaults({}, "volcengine-seedream", "text_to_image", "volcengine", undefined);
     expect(out?.size).toBe("2048x2048");
   });
-  it("apimart 配音 缺 model → 桥接填 gpt-4o-mini-tts + voice（缺 model→HTTP 500）", () => {
+  it("apimart 配音 headless：线上 model 由 owner 按模式给 gpt-4o-mini-tts（缺 model→HTTP 500），默认表只补 voice", () => {
     const out = applyHeadlessParamDefaults({}, "nomi-audio", "text_to_audio", "apimart", undefined);
-    expect(out?.model).toBe("gpt-4o-mini-tts");
+    // model 不归默认表（2026-10-16）：发哪个 model 串只问 wireModelIdentity。
+    expect(out).not.toHaveProperty("model");
     expect(out?.voice).toBeTruthy();
+    const tts = APIMART_AUDIO_MODELS[0]!.mappings.find((mapping) => mapping.taskKind === "text_to_audio")!;
+    const params = taskTemplateParams({ kind: "text_to_audio", extras: out }, { vendorKey: "apimart", modelKey: "nomi-audio", modelMeta: { archetypeId: "nomi-audio" }, operation: tts.create });
+    expect(params.model).toBe("gpt-4o-mini-tts");
   });
   it("豆包语音 缺 voice → 桥接填档案默认音色（缺 voice→「未选择音色」）", () => {
     const out = applyHeadlessParamDefaults({}, "volcengine-doubao-tts", "text_to_audio", "volcengine-speech", undefined);

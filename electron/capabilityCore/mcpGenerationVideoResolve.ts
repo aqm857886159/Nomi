@@ -220,19 +220,10 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
   refuseToModel(GENERATION_ARGUMENT_REFUSAL, `${candidate.mode} has several modes on this model; set modeId to one of: ${byTask.map((item) => item.id).join(", ")}.`);
 }
 
-/** Exact provider wire model used by the existing catalog mappings. */
-export function videoTransportModelIdForPlan(candidate: PlanCandidate, videoCandidate: VideoModelCandidate, mode: ArchetypeMode): string {
-  const variant = resolveArchetypeVariant(videoCandidate.archetype, {
-    variantId: candidate.variantId ?? videoCandidate.variantId, modelId: candidate.modelId,
-  });
-  return variant?.modelKey?.trim() || mode.modelEnum?.trim() || videoCandidate.modelKey;
-}
-
 export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: readonly VideoModelCandidate[] | undefined): PlanCandidate {
   const selected = candidates ? videoCandidateForPlan(candidate, candidates) : null;
   if (!selected) return candidate;
   const mode = videoModeForPlan(selected.candidate, selected.videoCandidate);
-  const transportModelId = videoTransportModelIdForPlan(selected.candidate, selected.videoCandidate, mode);
   return {
     ...selected.candidate,
     // Transport bucket comes from the one helper (vendor specialization > mode > archetype):
@@ -241,7 +232,6 @@ export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: re
     mode: modeTransportFor(mode, selected.videoCandidate.archetype, selected.videoCandidate.provider)
       ?? selected.candidate.mode,
     modeId: mode.id,
-    transportModelId,
   };
 }
 

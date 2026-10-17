@@ -7,14 +7,12 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "resolution": "720p",
         "aspect_ratio": "16:9",
         "duration": 5,
-        "generate_audio": true,
-        "model": "bytedance/seedance-2"
+        "generate_audio": true
       },
       "runway": {
         "aspect_ratio": "1280:720",
         "duration": 5,
-        "generate_audio": true,
-        "model": "bytedance/seedance-2"
+        "generate_audio": true
       }
     },
     "image_to_video": {
@@ -22,14 +20,12 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "resolution": "720p",
         "aspect_ratio": "16:9",
         "duration": 5,
-        "generate_audio": true,
-        "model": "bytedance/seedance-2"
+        "generate_audio": true
       },
       "runway": {
         "aspect_ratio": "1280:720",
         "duration": 5,
-        "generate_audio": true,
-        "model": "bytedance/seedance-2"
+        "generate_audio": true
       }
     }
   },
@@ -58,20 +54,17 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "*": {
         "resolution": "2K",
         "aspect_ratio": "16:9",
-        "duration": 6,
-        "model": "minimax-h3/text-to-video"
+        "duration": 6
       },
       "runway": {
         "resolution": "2K",
         "aspect_ratio": "adaptive",
-        "duration": 6,
-        "model": "minimax-h3/reference-to-video"
+        "duration": 6
       }
     },
     "image_to_video": {
       "runway": {
-        "duration": 6,
-        "model": "minimax-h3/image-to-video"
+        "duration": 6
       }
     }
   },
@@ -95,19 +88,16 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "*": {
         "resolution": "1080p",
         "aspect_ratio": "16:9",
-        "duration": 5,
-        "model": "happyhorse/text-to-video"
+        "duration": 5
       },
       "runway": {
         "aspect_ratio": "1280:720",
-        "duration": 5,
-        "model": "happyhorse/text-to-video"
+        "duration": 5
       }
     },
     "image_to_video": {
       "runway": {
-        "duration": 5,
-        "model": "happyhorse/image-to-video"
+        "duration": 5
       }
     }
   },
@@ -116,8 +106,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "*": {
         "duration": 5,
         "resolution": "720p",
-        "aspect_ratio": "16:9",
-        "model": "viduq3"
+        "aspect_ratio": "16:9"
       }
     }
   },
@@ -178,29 +167,25 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "text_to_video": {
       "*": {
         "aspect_ratio": "16:9",
-        "resolution": "720p",
-        "model": "veo3.1-fast"
+        "resolution": "720p"
       },
       "runway": {
         "aspect_ratio": "1280:720",
         "duration": 4,
-        "generate_audio": true,
-        "model": "veo3.1-fast"
+        "generate_audio": true
       }
     },
     "image_to_video": {
       "*": {
         "generation_type": "reference",
         "aspect_ratio": "16:9",
-        "resolution": "720p",
-        "model": "veo3.1-fast"
+        "resolution": "720p"
       },
       "runway": {
         "generation_type": "reference",
         "aspect_ratio": "1280:720",
         "duration": 4,
-        "generate_audio": true,
-        "model": "veo3.1-fast"
+        "generate_audio": true
       }
     }
   },
@@ -259,15 +244,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "mode": "pro",
         "duration": "5",
         "aspect_ratio": "16:9",
-        "sound": false,
-        "model": "kling-3.0/video"
+        "sound": false
       },
       "apimart": {
         "mode": "pro",
         "duration": 5,
         "aspect_ratio": "16:9",
-        "audio": false,
-        "model": "kling-3.0/video"
+        "audio": false
       }
     },
     "image_to_video": {
@@ -275,15 +258,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "mode": "pro",
         "duration": "5",
         "aspect_ratio": "16:9",
-        "sound": false,
-        "model": "kling-3.0/video"
+        "sound": false
       },
       "apimart": {
         "mode": "pro",
         "duration": 5,
         "aspect_ratio": "16:9",
-        "audio": false,
-        "model": "kling-3.0/video"
+        "audio": false
       }
     }
   },
@@ -293,8 +274,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "size": "16:9",
         "resolution": "720p",
         "duration": 5,
-        "generate_audio": true,
-        "model": "doubao-seedance-2.0-fast"
+        "generate_audio": true
       }
     },
     "image_to_video": {
@@ -302,8 +282,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "size": "16:9",
         "resolution": "720p",
         "duration": 5,
-        "generate_audio": true,
-        "model": "doubao-seedance-2.0-fast"
+        "generate_audio": true
       }
     }
   },
@@ -369,15 +348,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       "*": {
         "size": "16:9",
         "resolution": "1080P",
-        "duration": 5,
-        "model": "wan2.7"
+        "duration": 5
       }
     },
     "image_to_video": {
       "*": {
         "resolution": "1080P",
-        "duration": 5,
-        "model": "wan2.7"
+        "duration": 5
       }
     }
   },
@@ -387,28 +364,24 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "aspect_ratio": "adaptive",
         "resolution": "1080P",
         "duration": 5,
-        "audio": true,
-        "model": "wan/3-0-video"
+        "audio": true
       },
       "runway": {
         "aspect_ratio": "1280:720",
         "duration": 5,
-        "generate_audio": true,
-        "model": "wan/3-0-video"
+        "generate_audio": true
       }
     },
     "image_to_video": {
       "*": {
         "resolution": "1080P",
         "duration": 5,
-        "audio": true,
-        "model": "wan/3-0-video"
+        "audio": true
       },
       "runway": {
         "aspect_ratio": "1280:720",
         "duration": 5,
-        "generate_audio": true,
-        "model": "wan/3-0-video"
+        "generate_audio": true
       }
     }
   },
@@ -436,15 +409,13 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
     "text_to_video": {
       "*": {
         "resolution": "768p",
-        "duration": 6,
-        "model": "MiniMax-Hailuo-2.3"
+        "duration": 6
       }
     },
     "image_to_video": {
       "*": {
         "resolution": "768p",
-        "duration": 6,
-        "model": "MiniMax-Hailuo-2.3"
+        "duration": 6
       }
     }
   },
@@ -478,8 +449,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "ratio": "16:9",
         "resolution": "720p",
         "duration": 5,
-        "generate_audio": true,
-        "model": "doubao-seedance-2-0-260128"
+        "generate_audio": true
       }
     },
     "image_to_video": {
@@ -487,8 +457,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "ratio": "16:9",
         "resolution": "720p",
         "duration": 5,
-        "generate_audio": true,
-        "model": "doubao-seedance-2-0-260128"
+        "generate_audio": true
       }
     }
   },
@@ -518,16 +487,14 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "dreamina_cmd": "text2video",
         "ratio": "16:9",
         "video_resolution": "720p",
-        "duration": 5,
-        "model": "seedance2.0fast"
+        "duration": 5
       }
     },
     "image_to_video": {
       "*": {
         "dreamina_cmd": "image2video",
         "video_resolution": "720p",
-        "duration": 5,
-        "model": "seedance2.0fast"
+        "duration": 5
       }
     }
   },

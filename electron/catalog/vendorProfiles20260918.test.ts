@@ -32,7 +32,7 @@ function renderBody(opts: { create: HttpOperation; modelKey: string; kind: strin
   const request = { kind: opts.kind, prompt: "一个站在雨里的女孩", extras: opts.extras };
   const context = buildTemplateContext({
     request,
-    params: applyParamMap(opts.create.paramMap, taskTemplateParams(request)),
+    params: applyParamMap(opts.create.paramMap, taskTemplateParams(request, { vendorKey: "", modelKey: opts.modelKey, operation: opts.create })),
     model: { modelKey: opts.modelKey },
     modelKey: opts.modelKey,
     apiKey: "TEST_SECRET",
@@ -62,7 +62,7 @@ const paramKeys = (modelKey: string, vendorKey: string, modeId: string): string[
 describe("GPT Image 2.5 · kie 线缆（4 个拆分 model id）", () => {
   it("改图发 -image-to-image 那个 id，输入图走 input_urls", () => {
     const body = renderKie("gpt-image-2-5-flare-text-to-image", "image_edit", {
-      model: "gpt-image-2-5-flare-image-to-image", input_urls: REFS, aspect_ratio: "9:16", resolution: "2K", background: "auto",
+      input_urls: REFS, aspect_ratio: "9:16", resolution: "2K", background: "auto",
     });
     expect(body.model).toBe("gpt-image-2-5-flare-image-to-image");
     const input = body.input as Record<string, unknown>;
@@ -73,7 +73,7 @@ describe("GPT Image 2.5 · kie 线缆（4 个拆分 model id）", () => {
 
   it("kie 的四个端点没有 quality / n / output_format —— 上层塞了也不许发出去", () => {
     const input = renderKie("gpt-image-2-5-sunburst-text-to-image", "text_to_image", {
-      model: "gpt-image-2-5-sunburst-text-to-image", aspect_ratio: "auto", resolution: "1K", background: "transparent",
+      aspect_ratio: "auto", resolution: "1K", background: "transparent",
       quality: "max", n: 4, output_format: "webp",
     }).input as Record<string, unknown>;
     expect(Object.keys(input).sort()).toEqual(["aspect_ratio", "background", "prompt", "resolution"]);
@@ -81,7 +81,7 @@ describe("GPT Image 2.5 · kie 线缆（4 个拆分 model id）", () => {
 
   it("文生图端点不带任何输入图字段", () => {
     const input = renderKie("gpt-image-2-5-flare-text-to-image", "text_to_image", {
-      model: "gpt-image-2-5-flare-text-to-image", aspect_ratio: "16:9", resolution: "1K", background: "auto",
+      aspect_ratio: "16:9", resolution: "1K", background: "auto",
     }).input as Record<string, unknown>;
     expect(input).not.toHaveProperty("input_urls");
     expect(input).not.toHaveProperty("image_urls");

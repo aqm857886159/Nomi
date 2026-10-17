@@ -18,6 +18,7 @@
 
 import type { HttpOperation, ProfileKind } from "./types";
 import { KIE_GPT_IMAGE_25_TRANSFORM } from "./kieGptImage25";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 /** kie 全家桶统一的状态归一 + 轮询（与 kieSeedream / kieNanoBanana 完全一致的值）。 */
 const KIE_STATUS_MAPPING: Record<string, string[]> = {
@@ -52,6 +53,8 @@ const ROW_MODEL_REF = "{{model.modelKey}}";
 function createOp(inputFields: Record<string, unknown>, modelRef: string, requestTransform?: string): HttpOperation {
   return {
     method: "POST",
+    // 拆 id 的模型由档案模式 modelEnum 供给线上名，须声明（wireModelIdentity）。
+    ...(modelRef === MODE_MODEL_REF ? { wireModel: ARCHETYPE_WIRE_MODEL } : {}),
     path: "/api/v1/jobs/createTask",
     headers: CREATE_HEADERS,
     body: { model: modelRef, input: { prompt: "{{request.prompt}}", ...inputFields } },

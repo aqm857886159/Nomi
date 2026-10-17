@@ -45,8 +45,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
   "eleven-multilingual-v2": {
     "text_to_audio": {
       "*": {
-        "voice_preset_id": "Maya",
-        "model": "eleven_multilingual_v2"
+        "voice_preset_id": "Maya"
       }
     }
   },
@@ -88,8 +87,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
         "sample_rate": 44100,
         "speech_rate": 0,
         "loudness_rate": 0,
-        "pitch_rate": 0,
-        "model": "seed_audio"
+        "pitch_rate": 0
       }
     }
   },
@@ -97,14 +95,12 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
     "text_to_audio": {
       "*": {
         "voice": "alloy",
-        "speed": 1,
-        "model": "gpt-4o-mini-tts"
+        "speed": 1
       }
     },
     "transcribe": {
       "*": {
-        "language": "",
-        "model": "whisper-1"
+        "language": ""
       }
     }
   },

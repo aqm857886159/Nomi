@@ -27,7 +27,12 @@ import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
  * - `undefined`：**查不出来**（老 preload / 拿不到 bridge / 未知 vendor / 自建中转）→ **fail-open**，
  *   一律不收窄。绝不因为查不到就藏用户的模式，与槽级收窄同一条纪律。
  */
-export type ModeChannelBody = { body: unknown; wireParamKeys: readonly string[] } | null | undefined
+export type ModeChannelBody = {
+  body: unknown
+  wireParamKeys: readonly string[]
+  /** 这条 op 声明了收档案所选的线上名（`operationSelectsArchetypeWireModel`，与主进程发送同一个谓词）。 */
+  selectsArchetypeWireModel: boolean
+} | null | undefined
 
 /**
  * **模式栏收窄的唯一判据**（U4）——这个模式在这条渠道上到底立不立得住。
@@ -63,9 +68,11 @@ export function archetypeModeIsVisible(mode: ArchetypeMode, bodyResult: ModeChan
 /**
  * **变体轴在这条渠道上活不活**——变体选择器该不该出现。
  *
- * 变体的意义是「换一个真正发出去的 model 串」（档案里 `variant.modelKey` 就是那个串）。它要生效，
- * 渠道的 create op 必须**参数化** model 字段（`{{request.params.model}}`）；写死字面量的渠道，切变体
- * 什么也不会发生 —— 控件在那儿只是骗用户。
+ * 变体的意义是「换一个真正发出去的 model 串」（档案里 `variant.modelKey` 就是那个串）。它要生效，两条缺一不可：
+ * 渠道的 create op **参数化** model 字段（`{{request.params.model}}`），**且**这条 op 声明了收档案所选的线上名
+ * （只有内置目录契约盖章，见 electron/shared/modelArchetypes/wireModelIdentity）。写死字面量的渠道、以及自建中转（没有任何认证说
+ * 中转认档案里的变体串，2026-10-16 两位用户就撞在这上面），切变体要么什么也不会发生、要么发出一个中转不认的名字——
+ * 控件在那儿只是骗用户。
  *
  * 实测（全目录 15 个带变体的 (vendor, model)）：apimart / kie / volcengine / 即梦共 9 个参数化=活；
  * Runway 的 6 个把 model 写成字面量=惰性。Runway 之所以惰性，是因为它把 veo3.1 与 veo3.1_fast 建成
@@ -74,12 +81,14 @@ export function archetypeModeIsVisible(mode: ArchetypeMode, bodyResult: ModeChan
  * 判据故意**不是**「变体的 modelKey 在目录里有没有对应行」：apimart 的 veo 只有 `veo3.1-fast` 一行、
  * quality/lite 根本不是独立行，按那个判据会把 apimart 活着的变体轴也一起藏掉。
  *
- * 三态与模式收窄同口径：`undefined`（查不到）与 `null`（这个模式没有自己的线缆）都 **fail-open 不收窄**，
- * 绝不因为查不到就把用户的变体藏掉。
+ * 与模式收窄**口径相反**：变体栏只在有正面证据时出现。`undefined`（查不到：常见于一条 mapping 都没配、
+ * 走通用中转模板的自建中转）与 `null` 都不出现——模式藏错了用户会少一条路，变体栏摆错了用户会以为切了档、
+ * 实际发出去的还是同一个名字（或一个中转不认的名字），后者在花钱路径上更坏（2026-10-16）。
+ * 内置家永远有 mapping，证据总在场，不受影响。
  */
 export function archetypeVariantAxisIsLive(bodyResult: ModeChannelBody): boolean {
-  if (!bodyResult) return true // undefined=查不到 / null=无该模式线缆 → 一律不收窄。
-  return bodyResult.wireParamKeys.includes('model')
+  if (!bodyResult) return false
+  return bodyResult.selectsArchetypeWireModel && bodyResult.wireParamKeys.includes('model')
 }
 
 export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string }

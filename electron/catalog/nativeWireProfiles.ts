@@ -1,6 +1,7 @@
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import type { HttpOperation, ProfileKind } from "./types";
+import { withoutArchetypeWireModel } from "../shared/modelArchetypes/wireModelIdentity";
 
 // ---------------------------------------------------------------------------
 // 「认得出的模型走它的原生报文」注册表（通用中转接入用）。
@@ -38,7 +39,8 @@ export type NativeWireProfile = {
  *  中转用户常把地址填成 .../v1 → 必须从主机根拼（hostRootJoin 负责剥版本段 + 折叠重叠段）。 */
 function hostRootCreateOps(mappings: ReadonlyArray<{ taskKind: ProfileKind; create: HttpOperation }>) {
   const create: Partial<Record<ProfileKind, HttpOperation>> = {};
-  for (const mapping of mappings) create[mapping.taskKind] = { ...mapping.create, pathFrom: "host-root" };
+  // 借给中转的是报文形状，不是火山认的模型名：去掉「收档案线上名」的声明，中转照发连接名（wireModelIdentity）。
+  for (const mapping of mappings) create[mapping.taskKind] = { ...withoutArchetypeWireModel(mapping.create), pathFrom: "host-root" };
   return create;
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildArchetypeWireDefaults, buildWireDefaultsFor, normalizeGeneratedText } from './gen-archetype-wire-defaults'
 import type { ModelArchetype } from '../electron/shared/modelArchetypes/types'
+import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from '../electron/shared/modelArchetypes/wireModelIdentity'
 
 describe('archetype defaults generation', () => {
   it('treats Windows and POSIX line endings as the same generated content', () => {
@@ -33,10 +34,11 @@ describe('same-taskKind multi-mode collapse（主模式收口，不互相污染�
     })
     const out = buildWireDefaultsFor([arch])
     // 主模式 = t2v（default），不是最后声明的 ref。
-    expect(out['fake-t2v-default'].text_to_video['*']).toEqual({ aspect_ratio: '16:9', model: 'fake/text-to-video' })
+    // 主模式由 t2v 的参数默认证明（16:9）；model 不进默认表，由 resolveWireModel 决定（2026-10-16）。
+    expect(out['fake-t2v-default'].text_to_video['*']).toEqual({ aspect_ratio: '16:9' })
     // ref 的 adaptive + reference-to-video 不得泄漏进来（这正是被修的 bug）。
     expect(out['fake-t2v-default'].text_to_video['*'].aspect_ratio).not.toBe('adaptive')
-    expect(out['fake-t2v-default'].text_to_video['*'].model).not.toBe('fake/reference-to-video')
+    expect(out['fake-t2v-default'].text_to_video['*']).not.toHaveProperty('model')
   })
 
   it('判据②：默认模式在别的 taskKind → 该 taskKind 用首个声明的模式（保序、确定）', () => {
@@ -79,15 +81,27 @@ describe('same-taskKind multi-mode collapse（主模式收口，不互相污染�
     expect(out['fake-vendor-split'].text_to_video.apimart.duration).toBe(5)
   })
 
-  it('真实目录锚点：minimax-h3 text_to_video 兜底 = t2v 模式（16:9 + text-to-video），不是 ref 的 adaptive', () => {
+  it('真实目录锚点：minimax-h3 text_to_video 兜底 = t2v 模式（16:9），不是 ref 的 adaptive；model 不进默认表', () => {
     const out = buildArchetypeWireDefaults()
-    expect(out['minimax-h3'].text_to_video['*']).toMatchObject({
-      aspect_ratio: '16:9',
-      model: 'minimax-h3/text-to-video',
-    })
+    expect(out['minimax-h3'].text_to_video['*']).toMatchObject({ aspect_ratio: '16:9' })
     expect(out['minimax-h3'].text_to_video['*'].aspect_ratio).not.toBe('adaptive')
-    expect(out['minimax-h3'].text_to_video['*'].model).not.toBe('minimax-h3/reference-to-video')
+    // 2026-10-16：发哪个 model 串不归默认表，由 resolveWireModel 在参数层最后一步决定（自建中转曾被默认表里的
+    // 档案线上名盖掉连接名）。新不变式：默认表任何一格都没有 model；同一条「主模式判据」由 owner 兑现——
+    // 声明了收档案线上名的内置 op，headless 不带 modeId 时按 taskKind 选到 t2v，而不是 ref / edit。
+    for (const [archetypeId, byKind] of Object.entries(out)) {
+      for (const [taskKind, byVendor] of Object.entries(byKind)) {
+        for (const [vendor, defaults] of Object.entries(byVendor)) {
+          expect(defaults, `${archetypeId}/${taskKind}/${vendor} 默认表不许带 model`).not.toHaveProperty('model')
+        }
+      }
+    }
+    const headlessWire = (archetypeId: string) => resolveWireModel({
+      operation: { wireModel: ARCHETYPE_WIRE_MODEL },
+      connection: { vendorKey: 'kie', modelKey: archetypeId, modelMeta: { archetypeId } },
+      taskKind: 'text_to_video',
+    })
+    expect(headlessWire('minimax-h3')).toBe('minimax-h3/text-to-video')
     // happyhorse 同病（edit 模式曾胜出）：现为 t2v。
-    expect(out['happyhorse'].text_to_video['*']).toMatchObject({ model: 'happyhorse/text-to-video' })
+    expect(headlessWire('happyhorse')).toBe('happyhorse/text-to-video')
   })
 })

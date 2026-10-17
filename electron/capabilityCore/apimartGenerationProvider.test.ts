@@ -313,11 +313,11 @@ describe("APIMart observe-only generation provider", () => {
     await expect(provider.query?.("task-1")).rejects.toThrow("without the model it was submitted with");
   });
 
-  it("projects a selected variant into mappings that explicitly consume request.params.model", () => {
+  it("projects the sealed variant into curated mappings that declare archetype wire models", () => {
     const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: vi.fn() });
     expect(provider.buildRequest(input({
       modelId: "doubao-seedance-2.0",
-      transportModelId: "doubao-seedance-2.0-fast",
+      variantId: "fast",
       mode: "text_to_video",
       parameters: { duration: 5, size: "16:9", resolution: "720p" },
     }))).toMatchObject({ model: "seedance-2.0-fast", duration: 5 });

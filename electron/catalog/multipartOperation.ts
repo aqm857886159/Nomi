@@ -135,7 +135,7 @@ export async function runMultipartProfileOperation(
   sendMultipart: (url: string, headers: Record<string, string>, query: Record<string, unknown>, form: FormData) => Promise<unknown>,
 ): Promise<{ response: unknown; request: unknown }> {
   // 与 JSON 路共用 profileHttpRequest 构造（P1 不另造一套）：context 渲染 multipart.fields，built 出 url/headers。
-  const context = templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}, input.operation.paramMap);
+  const context = templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}, input.operation);
   const built = buildProfileHttpRequest(input);
   // JSON 路一直尊重 localAssetReader（runtime.ts:269），multipart 路此前写死生产解析器 → 认证探针注进来的
   // fixture 参考图（nomi-local://adapter-test/…）取不到字节，multipart 改图通道**永远认证不过**，于是该模型

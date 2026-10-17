@@ -12,6 +12,7 @@
 // baseUrl 约定同 kieSeedance25.ts：vendor.baseUrl 裸 "https://api.kie.ai"，path 带完整 /api/v1。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 /** Wan 3.0 模型种子（catalog 基础行 = 标准版；高速版走档案 variant）。 */
 export const WAN_3_0_MODEL_SEED = {
@@ -30,6 +31,7 @@ export const WAN_3_0_PRIME_MODEL_KEY = "wan/3-0-video-prime";
  */
 export const WAN_3_0_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: {
     Authorization: "Bearer {{user_api_key}}",

@@ -5,6 +5,7 @@
 // 结果媒体走 ProcessResponse.video_url 容器（命名沿用视频；图片 mapping 经 response_mapping image_url 读它）。
 
 import type { HttpOperation } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 const PROCESS_METHOD = "PROCESS";
 const STATUS: Record<string, string[]> = {
@@ -29,6 +30,7 @@ const QUERY_RESULT: HttpOperation = {
 
 const TEXT2IMAGE: HttpOperation = {
   method: PROCESS_METHOD,
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "dreamina:text2image",
   process: {
     bin: "dreamina", parser: "dreamina-cli",
@@ -47,6 +49,7 @@ const TEXT2IMAGE: HttpOperation = {
 
 const IMAGE2IMAGE: HttpOperation = {
   method: PROCESS_METHOD,
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "dreamina:image2image",
   process: {
     bin: "dreamina", parser: "dreamina-cli",

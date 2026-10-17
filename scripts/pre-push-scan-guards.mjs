@@ -41,6 +41,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/shared/mcpClientRegistry.test.ts', roots: ['src', 'electron'] }, // #1142：不许手抄客户端清单（4 秒）
   { file: 'electron/capabilityCore/spendDoorSingleOwner.test.ts', roots: ELECTRON }, // 5 秒
   { file: 'electron/capabilityCore/mcpMigrationEntry.test.ts', roots: ['src', 'electron'] }, // #1142 合入后新增：MCP 宿主迁移入口只有登记的调用点（3 秒）
+  { file: 'electron/catalog/customRelayWireModel.test.ts', roots: ELECTRON }, // 自定义中转站线上模型名只有一个出口：遍历 electron 生产文件（12 秒）
   { file: 'electron/catalog/modelListReconcile.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/catalog/storedApiKeyReaders.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/catalog/vendorAuthSpecReadPaths.test.ts', roots: ELECTRON }, // 5 秒

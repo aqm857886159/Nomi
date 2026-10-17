@@ -18,7 +18,7 @@ const FIRST_FRAME_URL = "https://example.com/first-frame.png";
 const context = buildTemplateContext({
   request: { prompt: "一只猫在草地上奔跑" },
   params: {
-    // 变体合并后 body model 取 {{request.params.model}}（buildArchetypeInputParams out.model 落库；标准变体）。
+    // 变体合并后 body model 取 {{request.params.model}}（值由 wireModelIdentity 按变体解出；标准变体）。
     model: SEEDANCE_2_MODEL_SEED.modelKey,
     first_frame_url: FIRST_FRAME_URL,
     resolution: "720p",

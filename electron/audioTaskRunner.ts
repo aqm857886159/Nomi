@@ -85,7 +85,7 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
 //   → fetch → NDJSON+base64 解码（decodeDoubaoNdjsonAudio）→ 落盘 mp3 资产。
 async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperation): Promise<TaskResult> {
   const { vendor, model, apiKey, request, kind, taskId, projectId } = input;
-  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, wireModelKey: model.modelAlias || model.modelKey });
+  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, modelAlias: model.modelAlias, modelMeta: model.meta, operation: op });
   const text = trim(request.prompt) || firstString(params.text);
   if (!text) throw new Error(desktopT("dubbing.noText"));
   const voice = firstString(params.voice);
@@ -150,7 +150,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
 // Whisper：读参考音频字节 → multipart(file+model+language+response_format) → 同步 JSON → 文本结果。
 async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   const { vendor, model, apiKey, request, kind, taskId } = input;
-  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, wireModelKey: model.modelAlias || model.modelKey });
+  const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, modelAlias: model.modelAlias, modelMeta: model.meta, operation: input.mapping?.create });
   const audioUrl = resolveAudioSource(request, params);
   if (!audioUrl) throw new Error(desktopT("transcribe.noAudio"));
 
@@ -178,7 +178,7 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   };
   const multipart = op.multipart ?? {
     fields: {
-      model: firstString(params.model) || model.modelAlias || model.modelKey,
+      model: firstString(params.model),
       language,
       response_format: "verbose_json",
     },
@@ -189,7 +189,7 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
     filename: "audio",
   };
   const built = buildProfileHttpRequest({ vendor, model, apiKey, request, operation: op });
-  const context = templateContext(request, model, apiKey, {}, op.paramMap);
+  const context = templateContext(request, model, apiKey, {}, op);
   const executed = await executeMultipartOperation({
     multipart,
     context,

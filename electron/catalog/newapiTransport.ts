@@ -27,20 +27,15 @@ import type { ParamMap } from "./paramTranslate";
 const JSON_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
 /**
- * 中转所有 op 的 model 字段引用——**参数化，不是字面量**（内置变体模型早就是这个写法，
- * apimartVideos.VARIANT_MODEL_REF / apimartImages / volcengineVideos 同串）。
+ * 中转所有 op 的 model 字段引用。值由线上模型名的唯一 owner 决定
+ * （electron/shared/modelArchetypes/wireModelIdentity.resolveWireModel，经 taskTemplateParams 最后写进 params.model）：
+ * 这些 op **没有**声明 `wireModel: "archetype-selection"`，所以永远是连接自己的模型名
+ * （modelAlias || modelKey，与 `{{model.modelKey}}` 逐字同源）。
  *
- * 为什么必须参数化：变体（seedance-2 的 标准/快速/mini 等）的全部意义就是「换一个真正发出去的
- * model 串」。渲染层的收窄判据 `archetypeVariantAxisIsLive` 读的正是「这条 create op 的 wire 有没有
- * 引用 params.model」（channelModeReach.ts:80-83）——写死 `{{model.modelKey}}` 的渠道切变体什么也
- * 不会发生，所以那个判据（正确地）把变体栏整条藏掉。结果：中转用户**永远只能跑默认档**，每一次
- * 生成都更贵更慢，且界面上根本看不出还有别的档 —— 这就是内置模型与中转模型体验分家的那道口子。
- *
- * 回落（关键）：`params.model` 只有带变体的档案才产出，裸模型是 undefined，而模板层对整 token 的
- * undefined 是**整键丢弃**（不是留空串）→ 每个没变体的中转模型都会发出没有 model 字段的请求。
- * 回落因此补在**参数层**（taskTemplateParams：`extras.model || selected.wireModelKey`），值与
- * `{{model.modelKey}}` 同源，保证裸模型换写法前后线上字节逐字节一致。模板层没有 `||` 语法，
- * 也刻意不给它加一套（那会是第二套「发哪个 model 串」的机制，P1）。
+ * 历史（别再改回去）：2026-09-03 为了让中转的变体栏「活起来」，这里改读 params.model，而那时 params.model
+ * 是档案的模式 / 变体线上名——那些名字只有内置目录契约认（kie 把文生图 / 改图拆成两个 id 等）。结果每个
+ * 自建中转都被套上别家的名字，0.23.1 两位用户撞上「No available channel for model gpt-image-2-…-text-to-image」。
+ * 自建中转要按模式 / 变体换模型名，只能靠显式、经过认证的映射；今天没有这种映射，所以变体栏在中转上不出现。
  */
 const RELAY_MODEL_REF = "{{request.params.model}}";
 

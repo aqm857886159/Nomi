@@ -553,10 +553,8 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
         await patchStoryboardAuthoring(current,params,capturedProjectId,operationId,resolvePatchReferences,deps.resolveStoryboardReferenceUrl,deps.requestRenderer);
         return {operation:current,taskRef:generationTaskReference(operationId),nextAction:'preview'};
       }
-      // The wire model is a derived projection. Never accept it from an MCP
-      // caller; it is recomputed from the selected archetype mode/variant.
       const rawPatch = record(params.patch, "generation patch") as Partial<Omit<PlanCandidate, "candidateId" | "revision">>;
-      const { transportModelId: _ignoredTransportModelId, references: patchedReferences, ...patchRest } = rawPatch as
+      const { references: patchedReferences, ...patchRest } = rawPatch as
         Partial<Omit<PlanCandidate, "candidateId" | "revision">> & { references?: unknown };
       // 改草稿这条路的参考同样只带 assetId（`draft_shots` 带 operationId 时走这里）。不在这里补身份，
       // 一次 patch 就会把一条缺 contentHash 的参考写进已存候选——类型说它齐了，运行时不是（静默假数据）。

@@ -108,7 +108,7 @@ describe("自建中转一致性台架 · 转写不可达（钉住缺口，不是
 
     const bodyFor = (transportTaskKind: string) => {
       const mapping = selectTaskMapping(relayMappings, VENDOR_KEY, transportTaskKind as never, AUDIO_MODEL_KEY);
-      return mapping ? { body: mapping.create?.body ?? null, wireParamKeys: [] as string[] } : null;
+      return mapping ? { body: mapping.create?.body ?? null, wireParamKeys: [] as string[], selectsArchetypeWireModel: false } : null;
     };
 
     const speech = AUDIO_ARCHETYPE.modes.find((mode) => mode.id === "speech");

@@ -23,7 +23,6 @@ import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import { applyHeadlessParamDefaults, imageEditGuardError } from "../catalog/taskParams";
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
 import { extractVendorExtraHeaders } from "../catalog/catalogStore";
-import { bodyReferencedParamKeys } from "../catalog/paramTranslate";
 import { isJsonRecord, firstString } from "../jsonUtils";
 import { firstMappedString, providerMetaFromResponse, resolveTaskStatus, taskFailureMessageFromResponse } from "../tasks/responseParsing";
 import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
@@ -271,13 +270,18 @@ function projectionRequest(
   } catch {
     throw new CatalogGenerationProviderError(`${vendorKey} catalog mapping defaults are invalid: ${selection.mapping.id}`);
   }
-  const bodyParameterKeys = bodyReferencedParamKeys(selection.mapping.create.body);
-  if (bodyParameterKeys.includes("model")) {
-    const transportModel = input.transportModelId?.trim();
-    if (transportModel) defaulted.model = transportModel;
-    else if (typeof defaulted.model !== "string" || !defaulted.model.trim()) defaulted.model = input.modelId;
-  }
-  const request = transportTaskRequest(selection, input.prompt, defaulted);
+  // 发哪个 model 串不在这里决定：把封进合同的档案选择（模式 / 变体）交给参数层，由线上模型名的唯一 owner
+  // （wireModelIdentity.resolveWireModel）按这条 mapping 的声明与连接名决定——与画布那条路同一个函数。
+  // 以前这里自己用 transportModelId / headless 默认补 model，自建中转于是收到档案里别家的线上名（2026-10-16）。
+  const request = transportTaskRequest(selection, input.prompt, {
+    ...defaulted,
+    modelKey: selection.model.modelKey,
+    archetype: {
+      ...(typeof archetypeId === "string" && archetypeId ? { id: archetypeId } : {}),
+      ...(input.modeId ? { modeId: input.modeId } : {}),
+      ...(input.variantId ? { variantId: input.variantId } : {}),
+    },
+  });
   // 七项引擎差异之三：自定义调用脚本的模型由 `runCustomCallTask` 执行，不是 HTTP mapping。
   if (resolveCustomCallExecution(selection.model, request, selection.mapping)?.script) {
     throw new CatalogGenerationProviderError(`${vendorKey} model ${selection.model.modelKey} runs through a custom call script this executor cannot execute`);

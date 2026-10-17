@@ -17,7 +17,7 @@ import { readCatalog } from "./catalogStore";
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
 import { assetLocalizationOptions } from "./assetTransportRuntime";
 import { trim } from "../jsonUtils";
-import type { BillingModelKind, Model, Vendor } from "./types";
+import type { BillingModelKind, HttpOperation, Model, Vendor } from "./types";
 import type { TaskRequest, TaskResult } from "../runtime";
 
 export type CustomCallDispatchInput = {
@@ -28,6 +28,8 @@ export type CustomCallDispatchInput = {
   script: string;
   taskKind: TaskRequest["kind"];
   modeId?: string;
+  /** 这个模型在该桶上的 mapping create op（有才给）：脚本拿到的 params.model 与 HTTP 那条路同一个 owner 决定。 */
+  operation?: HttpOperation;
   request: TaskRequest;
   kind: TaskRequest["kind"];
   /** image / video / model3d / text —— 文本 2026-08-12 解禁（此前被 runtime 挡在门外）。 */
@@ -101,7 +103,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
       customConfig,
       script,
       prompt: trim(effectiveRequest.prompt),
-      params: taskTemplateParams(effectiveRequest, { vendorKey: vendor.key, modelKey: model.modelKey, wireModelKey: model.modelAlias || model.modelKey }),
+      params: taskTemplateParams(effectiveRequest, { vendorKey: vendor.key, modelKey: model.modelKey, modelAlias: model.modelAlias, modelMeta: model.meta, operation: input.operation }),
       taskKind,
       modeId,
       timeoutMs: wantedKind === "video" ? 15 * 60 * 1000 : 5 * 60 * 1000,

@@ -451,17 +451,14 @@ describe("自建中转一致性台架 · 视频生成阶段（认证之后的真
   }, 30_000);
 });
 
-// ── 变体轴（快速/mini 等档位）真的换掉了发出去的 model 串 ───────────────────────────────────
+// ── 自建中转的 model 串只认连接名（2026-10-16 改靶） ───────────────────────────────────────────
 //
-// ★ 补这一组的原因（2026-09-03 探针实测的差距）：同一个模型名，内置 kie/apimart 能选 标准/快速/mini，
-// 经用户自建中转**一个档都选不到**。根因不在 UI：中转的 op 把 model 写成字面量 `{{model.modelKey}}`，
-// 于是变体轴**恒为惰性**——收窄判据 `archetypeVariantAxisIsLive` 读「wire 有没有引用 params.model」，
-// 读到没有就（正确地）把整条变体栏藏起来。用户因此永远在跑默认档：每一次生成都更贵、更慢，
-// 而且界面上看不出还有别的档可选。这不是「少个控件」，是**每次生成都在多花钱**。
-//
-// 断言纪律与本文件其余部分一致：**断 wire，不断 UI**。变体轴活没活，唯一算数的证据是
-// 「切了档之后，发到中转的那个 model 字符串真的变了」——这正是下面两条在量的东西。
-describe("自建中转一致性台架 · 变体轴（切档真的换掉线上的 model 串）", () => {
+// 2026-09-03 这一组断言的是「切了变体，中转收到变体串」——靶子本身错了：变体串来自档案，只有内置目录契约
+// 认证过它，没有任何证据说用户的中转认。0.23.1 两位用户就撞在这上面（中转回「No available channel for model
+// gpt-image-2-…-text-to-image」）。现在的不变量（electron/shared/modelArchetypes/wireModelIdentity.resolveWireModel）：
+// 中转 op 没有 archetype-selection 声明，extras 里带来的 model / 变体选择都不是输入，发出去的永远是连接名。
+// 断言纪律不变：**断 wire，不断 UI**。
+describe("自建中转一致性台架 · model 串只认连接名（档案变体 / 携带的 model 都盖不掉）", () => {
   /** 发一次生成，回传中转真正收到的 create body。 */
   async function createBodyWith(extras: Record<string, unknown>): Promise<Record<string, unknown>> {
     const mode = modeOf("video", "text_to_video");
@@ -478,14 +475,13 @@ describe("自建中转一致性台架 · 变体轴（切档真的换掉线上的
     return create[0].jsonBody ?? {};
   }
 
-  it("选了变体：发出去的 model **就是那个变体的串**（不是目录行的名字）", async () => {
-    // 档案切变体的产物就是 params.model（buildArchetypeInputParams 末尾：变体 > mode.modelEnum）。
-    // 这里直接喂那个键 = 模拟「用户在节点上点了『快速』」之后送到 runtime 的东西。
-    const body = await createBodyWith({ model: `${VIDEO_MODEL_KEY}-fast` });
+  it("extras 里带着别的 model 和变体选择：发出去的仍是连接名", async () => {
+    // 旧渲染层 / Agent 参数 / headless 默认都曾把档案线上名塞进 extras.model；它们都不是输入。
+    const body = await createBodyWith({ model: `${VIDEO_MODEL_KEY}-fast`, archetype: { modeId: "t2v", variantId: "fast" } });
     expect(
       body.model,
-      `切了变体，发到中转的 model 却不是变体串 —— 变体轴是死的，用户白点。实际 body: ${JSON.stringify(body)}`,
-    ).toBe(`${VIDEO_MODEL_KEY}-fast`);
+      `中转收到的 model 不是连接名 —— 携带进来的 model / 变体盖掉了用户配的名字。实际 body: ${JSON.stringify(body)}`,
+    ).toBe(VIDEO_MODEL_KEY);
   }, 30_000);
 
   it("**没有变体**的裸模型：model 仍是目录身份，且该键绝不缺席", async () => {

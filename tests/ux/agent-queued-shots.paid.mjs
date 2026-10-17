@@ -140,7 +140,7 @@ try {
   const beforeConfirm = draftProblems()
   walk.report.draft = {
     runId, cardVariant: (await card.locator('[aria-label="变体"]').first().getAttribute('title').catch(() => null)) ?? null,
-    shots: beforeConfirm.shots.map((shot) => ({ shotId: shot.shotId, variantId: shot.candidate?.variantId, transportModelId: shot.candidate?.transportModelId, parameters: shot.candidate?.parameters })),
+    shots: beforeConfirm.shots.map((shot) => ({ shotId: shot.shotId, variantId: shot.candidate?.variantId, parameters: shot.candidate?.parameters })),
   }
   if (beforeConfirm.problems.length) {
     await closeSpendCard(card, '草稿不是被授权的那一档，关卡不花钱')

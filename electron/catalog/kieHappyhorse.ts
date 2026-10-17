@@ -10,6 +10,7 @@
 // 这是 kie 的表示 quirk，单源只此一处（M1）；档案侧只写逻辑键名（image_urls / reference_image）。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 /** HappyHorse 模型种子（modelKey 是 catalog 基 id；真正发请求的 enum 由 per-mode modelEnum 覆盖）。 */
 export const HAPPYHORSE_MODEL_SEED = {
@@ -20,6 +21,7 @@ export const HAPPYHORSE_MODEL_SEED = {
 
 export const HAPPYHORSE_CREATE_OP: HttpOperation = {
   method: "POST",
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "/api/v1/jobs/createTask",
   headers: {
     Authorization: "Bearer {{user_api_key}}",

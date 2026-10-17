@@ -12,10 +12,8 @@ const RENDER_MODEL_KEY = "gemini-2.5-flash-image";
 
 /**
  * 渲染一次 create body。**必须与生产的 profileHttpRequest.templateContext 同构**：
- * 中转 op 的 model 现在读 `{{request.params.model}}`（变体轴要活就只能这么写），而
- * `params.model` 的回落由 taskTemplateParams 按 `selected.wireModelKey` 补。
- * 本 helper 手工拼 context，故在此把同一个身份补进 params —— 调用方传进来的 params
- * 若自带 model（模拟选了变体）会盖过它，与生产同序。
+ * 中转 op 的 model 读 `{{request.params.model}}`，生产里由 taskTemplateParams 按连接身份写入
+ * （wireModelIdentity）。本 helper 手工拼 context、不给连接，故在此把同一个身份补进 params。
  */
 function renderBody(op: HttpOperation, prompt: string, params: AnyRec): AnyRec {
   const ctx = buildTemplateContext({

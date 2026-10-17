@@ -11,6 +11,7 @@
 // 输入图/视频/音频经 fileParams 物化成本地路径（dreamina 收 --image=<本地路径>，见 dreaminaInputFiles.ts）。
 
 import type { HttpOperation } from "./types";
+import { ARCHETYPE_WIRE_MODEL } from "../shared/modelArchetypes/wireModelIdentity";
 
 export const DREAMINA_VIDEO_MODEL_KEY = "dreamina-seedance-2.0";
 export const DREAMINA_ARCHETYPE_ID = "dreamina-seedance-2";
@@ -20,6 +21,7 @@ const PROCESS_METHOD = "PROCESS";
 
 const TEXT2VIDEO_CREATE: HttpOperation = {
   method: PROCESS_METHOD,
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "dreamina:text2video",
   process: {
     bin: "dreamina",
@@ -43,6 +45,7 @@ const TEXT2VIDEO_CREATE: HttpOperation = {
 // 全能参考填 mm_*_flags（重复 flag 数组 spread）+ ratio。其余渲染成空被丢。fileParams 把输入 URL 物化成本地路径。
 const IMAGE_TO_VIDEO_CREATE: HttpOperation = {
   method: PROCESS_METHOD,
+  wireModel: ARCHETYPE_WIRE_MODEL, // 收档案所选的模式 / 变体线上名（wireModelIdentity）
   path: "dreamina:image_to_video",
   process: {
     bin: "dreamina",

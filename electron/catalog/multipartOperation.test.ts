@@ -13,11 +13,11 @@ function contextFor(prompt: string, extras: AnyRec, modelKey = "gpt-image-2"): A
   return buildTemplateContext({
     request: { prompt },
     // selected 必须给（与生产 profileHttpRequest.templateContext 同构）：multipart 的 model 字段读
-    // `{{request.params.model}}`，而没选变体时那个键的回落正来自 selected.wireModelKey。不给 =
+    // `{{request.params.model}}`，那个键由线上模型名 owner 按连接身份写入（wireModelIdentity）。不给 =
     // 测试里 model 恒缺席，量到的不是生产真发的那份表单。
     params: applyParamMap(
       OPENAI_MULTIPART_IMAGE_EDIT_OP.paramMap,
-      taskTemplateParams({ extras }, { vendorKey: "self-hosted-relay", modelKey, wireModelKey: modelKey }),
+      taskTemplateParams({ extras }, { vendorKey: "self-hosted-relay", modelKey }),
     ),
     model: { modelKey },
     modelKey,

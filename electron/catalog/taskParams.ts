@@ -11,9 +11,12 @@ import { bodyReferencedParamKeys } from "./paramTranslate";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { bodyReferenceSupport, classifyReferenceKey, classifyReferenceKeyDetailed, type ReferenceFamily } from "./referenceReachability";
 import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
+import { resolveWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
 
 /** taskTemplateParams 实际用到的 TaskRequest 子集（结构化，避免与 runtime 的 TaskRequest 循环依赖）。 */
 export type TaskParamsInput = {
+  /** 请求的 taskKind：没有显式 modeId 时，线上模型名的 owner 按它找主模式。 */
+  kind?: string;
   extras?: Record<string, unknown>;
   width?: number;
   height?: number;
@@ -62,7 +65,7 @@ export function allReferenceImages(request: TaskParamsInput, selected?: Paramete
 }
 
 /**
- * wire 必填参数兜底（headless/MCP 路）：UI 经 NodeGenerationComposer 按档案填好 size/voice/model 等；
+ * wire 必填参数兜底（headless/MCP 路）：UI 经 NodeGenerationComposer 按档案填好 size/voice 等（model 不归这里，见 taskTemplateParams）；
  * 但 MCP/CLI 的 generate 不经 UI、也不暴露 params，缺必填参 vendor 直接拒（火山缺 size→400 / apimart 缺
  * model→500 / 豆包缺 voice→「未选择音色」）。把 mapping.create.defaultParams 合并到 extras **之下**
  * （既有值优先）：UI 路已填故零影响，headless 路得到一份能成的请求。纯函数（可单测）。
@@ -114,7 +117,7 @@ function sizeDefaultIsRatioSemantic(
 
 /**
  * headless/MCP 三道缺参兜底（均「既有值优先」，UI 路已填故零影响）：① 档案参数默认值（单一真相源，按
- * archetypeId+taskKind 桥接自 src/config，vendorParams 覆盖优先、回退通用 "*"；补 model 变体/duration(int)/
+ * archetypeId+taskKind 桥接自 src/config，vendorParams 覆盖优先、回退通用 "*"；补 duration(int)/
  * 比例/清晰度/voice/size）；② mapping 级 defaultParams（仅非档案派生的兜底）；③ **参考键形态投影**
  * （createBody 给了才做，W1d）——把携带的参考投影到 body 真读的键（image_urls/first_frame_image…），
  * 见 projectReferencesOntoBodyKeys。逻辑收口在此 → runtime 一行调用，不喂巨壳。
@@ -161,28 +164,25 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
   const speed = numericWireParam(extras.speed);
   const refInput = referenceInputParams(extras, selected);
   const jsonEditInput = jsonImageEditInput(refInput.reference_images);
-  // 变体（档案切档的产物）优先，其次目录身份回落。详见下方 model 键的注释。
-  const wireModel = firstString(extras.model) || firstString(selected?.wireModelKey);
-  return {
+  // **要发出去的 model 串**只问唯一 owner（electron/shared/modelArchetypes/wireModelIdentity.resolveWireModel）：
+  // 这条 op 声明了收档案所选的线上名（只有内置目录登记表盖章）→ 变体 > 模式 modelEnum > 连接名；
+  // 否则一律连接名（modelAlias || modelKey，与 `{{model.modelKey}}` 同一个表达式）。
+  // 它在下面**最后**写进 params.model：extras.model、archetypeInput.model、headless 默认、Agent 参数
+  // 都盖不掉——2026-10-16 两位用户的自建中转就是被 `...refInput` 里的档案名（kie 拆分 id）盖掉了连接名。
+  // 键必须始终在场：模板对整 token 的 undefined 是整键丢弃，没有 model 的请求中转必 400。
+  const wireModel = resolveWireModel({
+    operation: selected?.operation,
+    connection: {
+      vendorKey: selected?.vendorKey ?? "",
+      modelKey: firstString(selected?.modelKey, extras.modelKey),
+      modelAlias: selected?.modelAlias,
+      modelMeta: selected?.modelMeta,
+    },
+    extras,
+    taskKind: request.kind,
+  });
+  const params: JsonRecord = {
     ...extras,
-    // **要发出去的 model 串的单一真相源**（变体轴 > 目录身份）。
-    //
-    // 为什么必须在这里补默认：body 模板写 `{{request.params.model}}` 才能让变体切换真的换掉线上的
-    // model 串（archetypeVariantAxisIsLive 读的就是「body 有没有引用 params.model」）。但 extras.model
-    // 只有**带变体的档案**才产出（buildArchetypeInputParams 末尾：变体 > mode.modelEnum > 不带）——
-    // 裸模型走同一条 body 时 params.model 是 undefined，而 renderTemplateValue 对整 token 的
-    // undefined 是**整键丢弃**（requestPipeline.ts:110-117 实测：{model:"{{request.params.model}}"}
-    // 渲染成 {}），于是每个没变体的中转模型都会发出一个**没有 model 字段**的请求 → 站点必 400。
-    // 所以「模板层没有 fallback 语法」这件事在这里一次性补齐（followPath 只会走点号路径，`||` 之类
-    // 写法解析不出任何东西，实测渲染成 {}）——回落值取与 `{{model.modelKey}}` **完全同一个**表达式
-    // （modelAlias 优先、否则 modelKey，见 profileHttpRequest.templateContext），保证换成参数化 model
-    // 之后裸模型的线上字节与换之前逐字节一致。
-    // 单源纪律（P1）：全仓只有这一处决定「发哪个 model 串」，各家 catalog 不再各自兜底。
-    //
-    // 用条件展开而不是 `model: ... || undefined`：后者会留下一个**值为 undefined 的自有键**，
-    // 于是调用方的 `{ model: 兜底, ...params }` 会被这个空键反向覆盖掉（渲染结果照样没有 model）。
-    // 键干脆不存在，才能让上游的展开兜底按直觉生效。
-    ...(wireModel ? { model: wireModel } : {}),
     // An unset size must stay undefined so exact template fields are omitted.
     // Sending the empty alias (the persisted value for the gpt-image-2
     // `Auto` aspect-ratio choice) makes OpenAI-compatible endpoints reject the
@@ -221,6 +221,10 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     // 没有任何内容 → 整个键 undefined → 模板把 metadata 一起丢掉，wire 与加这个字段之前逐字节一致。
     relay_metadata: relayVideoMetadata(request.negativePrompt ?? extras.negative_prompt),
   };
+  // 最后一步、且只此一处：extras / archetypeInput / headless 默认里带来的 model 都不是输入。
+  if (wireModel) params[WIRE_MODEL_PARAM] = wireModel;
+  else delete params[WIRE_MODEL_PARAM];
+  return params;
 }
 
 /**

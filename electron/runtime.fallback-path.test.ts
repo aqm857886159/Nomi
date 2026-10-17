@@ -29,6 +29,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// 重模块一律文件顶层静态导入（vi.mock 会提升到它们之前生效）：冷加载只发生一次、在收集阶段，
+// 不计入单条用例的超时——满载并发下用例体里 `await import(...)` 会被拖过 30 秒（2026-10-16 推送前钩子实测）。
+// 每条用例的隔离靠 beforeEach 换一个新的 settings 目录：catalogStore 的读缓存按文件路径 + 字节区分。
+import * as store from "./catalog/catalogStore";
+import { fetchTaskResult, runTask } from "./runtime";
+import { mintSpendGrant } from "./spendGrant";
+import { VendorRequestError } from "./vendor/vendorHttp";
 
 let mockedUserDataRoot = "";
 const tempRoots: string[] = [];
@@ -59,7 +66,6 @@ const stubFetch = (impl: () => Promise<Response> | Response) => {
 
 beforeEach(() => {
   mockedUserDataRoot = makeTempDir("nomi-runtime-fallback-");
-  vi.resetModules();
 });
 
 afterEach(() => {
@@ -72,7 +78,6 @@ afterEach(() => {
 // 建一个走 fallback 路径的 image 供应商：有 vendor + key + image model，但**没有 mapping**。
 // extraHeaders 经 manual 表单存在 vendor.meta.extraHeaders（与生产同形）。
 async function seedFallbackImageVendor(): Promise<void> {
-  const store = await import("./catalog/catalogStore");
   store.upsertModelCatalogVendor({
     key: "relay",
     name: "中转站",
@@ -88,14 +93,40 @@ async function seedFallbackImageVendor(): Promise<void> {
   });
 }
 
+describe("runTask fallback 路径 — 线上模型名（2026-10-16）", () => {
+  it("无 mapping 的兜底报文：model 是连接名（别名优先），extras 里带的 model / 档案选择都盖不掉", async () => {
+    await seedFallbackImageVendor();
+    // 撞档案身份的模型名 + 别名：档案里有 kie 拆分线上名，兜底报文也不许发它。
+    store.upsertModelCatalogModel({
+      vendorKey: "relay", modelKey: "gpt-image-2", modelAlias: "relay-gpt-image-2", kind: "image", enabled: true,
+      meta: { adapter: { state: "verified", activeRevision: "fallback-certified", modes: [{ taskKind: "text_to_image", state: "verified" }] } },
+    });
+    const fetchFn = stubFetch(() =>
+      new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/out.png" }] }), { status: 200 }),
+    );
+    const result = await runTask({
+      vendor: "relay",
+      request: {
+        kind: "text_to_image", prompt: "a cat",
+        extras: {
+          modelKey: "gpt-image-2", model: "gpt-image-2-text-to-image", archetype: { id: "gpt-image-2", modeId: "t2i" },
+          grantId: mintSpendGrant({ nodeIds: [] }),
+        },
+      },
+    });
+    expect(result.status).toBe("succeeded");
+    const call = fetchFn.mock.calls[0] as unknown as [RequestInfo, RequestInit | undefined];
+    const body = JSON.parse(String(call[1]?.body)) as Record<string, unknown>;
+    expect(body.model).toBe("relay-gpt-image-2");
+  });
+});
+
 describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {
   it("#2 fallback 请求带上 vendor.meta.extraHeaders（网关头到达图片路径）", async () => {
     await seedFallbackImageVendor();
     const fetchFn = stubFetch(() =>
       new Response(JSON.stringify({ data: [{ url: "https://cdn.example.com/out.png" }] }), { status: 200 }),
     );
-    const { runTask } = await import("./runtime");
-    const { mintSpendGrant } = await import("./spendGrant");
     const result = await runTask({
       vendor: "relay",
       request: { kind: "text_to_image", prompt: "a cat", extras: { modelKey: "some-image-model", grantId: mintSpendGrant({ nodeIds: [] }) } },
@@ -113,9 +144,6 @@ describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {
   it("#1 fallback 路径 HTTP 401 → 抛结构化 VendorRequestError（auth/不可重试），不是裸 Error", async () => {
     await seedFallbackImageVendor();
     stubFetch(() => new Response(JSON.stringify({ message: "invalid api key" }), { status: 401 }));
-    const { runTask } = await import("./runtime");
-    const { VendorRequestError } = await import("./vendor/vendorHttp");
-    const { mintSpendGrant } = await import("./spendGrant");
 
     const error = await runTask({
       vendor: "relay",
@@ -129,9 +157,6 @@ describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {
   it("#1 fallback 路径 HTTP 402 → balance 类别（查表，不是猜）", async () => {
     await seedFallbackImageVendor();
     stubFetch(() => new Response(JSON.stringify({ message: "insufficient balance" }), { status: 402 }));
-    const { runTask } = await import("./runtime");
-    const { VendorRequestError } = await import("./vendor/vendorHttp");
-    const { mintSpendGrant } = await import("./spendGrant");
 
     const error = await runTask({
       vendor: "relay",
@@ -145,7 +170,6 @@ describe("runTask fallback 路径 — 结构化错误 + extraHeaders", () => {
 
 // 建一个**异步**供应商（有 create+query mapping），create 返回 taskId 但无 asset → 进 pending(queued)。
 async function seedAsyncVideoVendorWithMapping(): Promise<void> {
-  const store = await import("./catalog/catalogStore");
   store.upsertModelCatalogVendor({
     key: "asyncv",
     name: "异步视频",
@@ -169,8 +193,6 @@ describe("fetchTaskResult — taskCache miss 区分（受理账本 → 集成验
     await seedAsyncVideoVendorWithMapping();
     // create：返回 taskId，无 asset → queued → 进 pending cache + 受理账本。
     stubFetch(() => new Response(JSON.stringify({ code: 200, data: { taskId: "kie-xyz" } }), { status: 200 }));
-    const { runTask, fetchTaskResult } = await import("./runtime");
-    const { mintSpendGrant } = await import("./spendGrant");
     const created = await runTask({
       vendor: "asyncv",
       request: { kind: "text_to_video", prompt: "a dog", extras: { modelKey: "vid-model", grantId: mintSpendGrant({ nodeIds: [] }) } },
@@ -200,7 +222,6 @@ describe("fetchTaskResult — 缓存 miss 无状态重建续查（重启/驱逐�
     const fetchFn = stubFetch(() =>
       new Response(JSON.stringify({ video_url: "https://cdn.example.com/recovered.mp4" }), { status: 200 }),
     );
-    const { fetchTaskResult } = await import("./runtime");
     const recovered = await fetchTaskResult({
       vendor: "asyncv",
       taskId: "upstream-live-123",
@@ -216,7 +237,6 @@ describe("fetchTaskResult — 缓存 miss 无状态重建续查（重启/驱逐�
 
   it("重建不了（缺 modelKey 无法定位 mapping）→ 仍回落诚实诊断 task_unknown，不静默吞", async () => {
     await seedAsyncVideoVendorWithMapping();
-    const { fetchTaskResult } = await import("./runtime");
     const miss = await fetchTaskResult({ vendor: "asyncv", taskId: "no-context-id", taskKind: "text_to_video" });
     expect(miss.result.status).toBe("failed");
     expect((miss.result.raw as { code?: string }).code).toBe("task_unknown");
@@ -226,7 +246,6 @@ describe("fetchTaskResult — 缓存 miss 无状态重建续查（重启/驱逐�
     await seedAsyncVideoVendorWithMapping();
     const upstreamError = new Error("proxy connection reset");
     stubFetch(() => Promise.reject(upstreamError));
-    const { fetchTaskResult } = await import("./runtime");
     await expect(fetchTaskResult({
       vendor: "asyncv",
       taskId: "upstream-retryable-123",
