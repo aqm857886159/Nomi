@@ -226,9 +226,9 @@ try {
   expect(composerFont).toBeGreaterThanOrEqual(12)
   await shot('09-video-generating-zoom-60')
   receipt.checks.push({ criterion: 'real-zoom-60', renderedFont, composerFont, result: 'green' })
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const catalog = window.nomiDesktop.modelCatalog
-    const vendor = catalog.listVendors().find(v => v.key === 'agent-runtime-loopback')
+    const vendor = (await catalog.listVendors()).find(v => v.key === 'agent-runtime-loopback')
     catalog.upsertVendor({ ...vendor, enabled: false })
   })
   fixture.jobs[2].done = true

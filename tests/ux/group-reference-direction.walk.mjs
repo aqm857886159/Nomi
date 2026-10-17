@@ -95,7 +95,7 @@ try {
   const catalogSeeded = await win.evaluate(async () => {
     const desktop = window.nomiDesktop
     if (!desktop?.modelCatalog) return { error: '模型目录 bridge 不存在' }
-    const model = desktop.modelCatalog.listModels({ vendorKey: 'ux-local' })
+    const model = (await desktop.modelCatalog.listModels({ vendorKey: 'ux-local' }))
       .find((candidate) => candidate.modelKey === 'nano-banana')
     if (!model?.publishedModes?.includes('text_to_image') || !model.publishedModes.includes('image_edit')) {
       return { error: `验证发布模式不完整：${JSON.stringify(model?.publishedModes || [])}` }

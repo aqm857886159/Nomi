@@ -33,17 +33,23 @@ export function useDuplicateHostHint(input: {
 
   React.useEffect(() => {
     if (!input.opened) return
-    const rows = getDesktopBridge()?.modelCatalog?.listVendors?.() as Array<Record<string, unknown>> | undefined
-    if (!Array.isArray(rows)) return
-    setConnections(
-      rows
-        .map((row) => ({
-          vendorKey: String(row.key || ''),
-          name: String(row.name || row.key || ''),
-          baseUrl: String(row.baseUrlHint || ''),
-        }))
-        .filter((row) => row.vendorKey && row.baseUrl),
-    )
+    let alive = true
+    // 目录读是异步 IPC（同步通道已删）。
+    void Promise.resolve(getDesktopBridge()?.modelCatalog?.listVendors?.())
+      .then((rows) => {
+        if (!alive || !Array.isArray(rows)) return
+        setConnections(
+          (rows as Array<Record<string, unknown>>)
+            .map((row) => ({
+              vendorKey: String(row.key || ''),
+              name: String(row.name || row.key || ''),
+              baseUrl: String(row.baseUrlHint || ''),
+            }))
+            .filter((row) => row.vendorKey && row.baseUrl),
+        )
+      })
+      .catch(() => undefined)
+    return () => { alive = false }
   }, [input.opened])
 
   const verdict = React.useMemo(

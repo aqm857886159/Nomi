@@ -14,10 +14,11 @@ export const modelOnboardingBridge = {
       ipcRenderer.on("nomi:model-catalog:changed", listener);
       return () => ipcRenderer.removeListener("nomi:model-catalog:changed", listener);
     },
-    listVendors: () => invokeSync("nomi:model-catalog:vendors:list"),
-    listModels: (params?: unknown) => invokeSync("nomi:model-catalog:models:list", params),
-    listMappings: (params?: unknown) => invokeSync("nomi:model-catalog:mappings:list", params),
-    health: () => invokeSync("nomi:model-catalog:health"),
+    // 目录读一律异步（同步那几条已删，scripts/check-renderer-sync-ipc.mjs 只减不增）。
+    listVendors: () => ipcRenderer.invoke("nomi:model-catalog:vendors:list") as Promise<unknown[]>,
+    listModels: (params?: unknown) => ipcRenderer.invoke("nomi:model-catalog:models:list", params) as Promise<unknown[]>,
+    listMappings: (params?: unknown) => ipcRenderer.invoke("nomi:model-catalog:mappings:list", params) as Promise<unknown[]>,
+    health: () => ipcRenderer.invoke("nomi:model-catalog:health") as Promise<unknown>,
     upsertVendor: (payload: unknown) => invokeSync("nomi:model-catalog:vendor:upsert", payload),
     deleteVendor: (key: string) => invokeSync("nomi:model-catalog:vendor:delete", key),
     upsertVendorApiKey: async (vendorKey: string, payload: unknown) => {

@@ -55,6 +55,7 @@ export const PRE_PUSH_GATES = Object.freeze([
   { name: 'check:test-waits', when: (files) => files.some((file) => CODE_FILE.test(file)) },
   { name: 'check:mjs-parse', when: (files) => files.some((file) => SCRIPT_FILE.test(file)) },
   { name: 'check:ipc-sender-binding', when: (files) => files.some((file) => file.startsWith('electron/')) },
+  { name: 'check:renderer-sync-ipc', when: (files) => files.some((file) => file.startsWith('electron/') || file.startsWith('src/')) },
   // 2026-10-09 加：10-09 上午 #1133 / #1135 / #1128 / #1137 推送前全绿、CI Contracts 各红好几处，全是下面这几道（本机 Windows 实测 7–13 秒）
   { name: 'check:tokens', when: (files) => touchesGateInputs('check:tokens', files) },
   { name: 'check:vocabularies', when: (files) => touchesGateInputs('check:vocabularies', files) },

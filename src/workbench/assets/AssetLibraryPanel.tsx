@@ -181,10 +181,10 @@ export function AssetLibraryContent({
     if (!bridge?.assets?.onUpdated) return
     return bridge.assets.onUpdated((payload) => {
       if ((payload as { projectId?: string } | null)?.projectId !== projectId) return
+      // 「所有项目」那一份由它自己的 owner（useAllProjectAssets）听同一个广播作废，这里只管本项目这份。
       refreshProjectAssets()
-      refreshAllProjectAssets()
     })
-  }, [projectId, refreshAllProjectAssets, refreshProjectAssets])
+  }, [projectId, refreshProjectAssets])
   const visible = React.useMemo(
     () => filterBaseAssets.filter(
       (asset) => filters.visibleKinds.has(asset.kind) && filters.visibleProvenances.has(assetProvenanceOf(asset)),

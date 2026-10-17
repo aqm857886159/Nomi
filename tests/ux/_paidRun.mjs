@@ -68,9 +68,9 @@ export function assertPaidRunAllowed(script, env = process.env, isNomiRunning = 
  */
 export async function lockSpendToModels(win, seeded) {
   const authorized = new Set(seeded.map((row) => `${row.vendorKey}/${row.modelKey}`))
-  const disabled = await win.evaluate((allowed) => {
+  const disabled = await win.evaluate(async (allowed) => {
     const off = []
-    for (const row of window.nomiDesktop.modelCatalog.listModels({})) {
+    for (const row of (await window.nomiDesktop.modelCatalog.listModels({}))) {
       if (row.kind === 'text' || !row.enabled || allowed.includes(`${row.vendorKey}/${row.modelKey}`)) continue
       window.nomiDesktop.modelCatalog.upsertModel({ vendorKey: row.vendorKey, modelKey: row.modelKey, enabled: false })
       off.push(`${row.vendorKey}/${row.modelKey}`)

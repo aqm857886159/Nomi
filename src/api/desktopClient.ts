@@ -219,7 +219,7 @@ export type ModelCatalogMappingTestResultDto = {
 }
 
 export async function listModelCatalogVendors(): Promise<ModelCatalogVendorDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listVendors() as ModelCatalogVendorDto[]
+  return await requireDesktopRuntime('model catalog').modelCatalog.listVendors() as ModelCatalogVendorDto[]
 }
 
 export async function listModelCatalogModels(params?: {
@@ -227,15 +227,7 @@ export async function listModelCatalogModels(params?: {
   kind?: BillingModelKind
   enabled?: boolean
 }): Promise<ModelCatalogModelDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
-}
-
-export async function listModelCatalogMappings(params?: {
-  vendorKey?: string
-  taskKind?: ProfileKind
-  enabled?: boolean
-}): Promise<ModelCatalogMappingDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listMappings(params) as ModelCatalogMappingDto[]
+  return await requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
 }
 
 export async function upsertModelCatalogVendor(

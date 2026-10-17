@@ -1,0 +1,360 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-16-composer-mount-path",
+  "problem_type": "高频交互路径（点卡出生成框）上各功能各自挂载时取数、整表订阅、挂载回写，没有「挂之前就在内存里」的数据家，也没有按操作计数的预算",
+  "symptom": "用户和群友反馈画布内容多了就卡；D-perf 冒烟：选中卡到生成框出来单次 60–110ms，含一个约 80ms 长任务",
+  "direct_cause": "生成框每次挂载：渠道 mapping 走同步 IPC 3 次、扫全部项目素材（projects.listAsync + 每项目分页 assets.list + 排序）；3 份参数控件各自整表订阅 nodes/edges、各算一遍模型清单；7 个选择器每次 store 写整表遍历并 JSON.stringify；新卡挂载级联 4 次 store 写；目录读（模型 / 供应商 / 健康度）同样是 sendSync，Agent 面板 reloadModels 与设置页也被拖住",
+  "class_root": "选中 / 显示这类高频路径上的数据没有唯一的内存 owner：谁挂载谁去取、谁订阅谁整表扫，挂载这一刻的 IO / 写 / 重渲次数没有任何结构约束和计数门",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-15",
+  "affected_population": [
+    "所有在画布上点卡打开生成框的用户；项目越多（素材扫描）、画布越大（整表订阅）、主进程越忙（同步 IPC）越明显",
+    "列表视图的每张卡（同一个整表 + JSON.stringify 选择器）、导演台、文本加工预设"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/",
+    "src/workbench/assets/useAllProjectAssets.ts",
+    "src/config/modelCatalogCache.ts",
+    "src/config/useModelOptions.ts",
+    "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+    "electron/main.ts",
+    "electron/preload/modelOnboardingBridge.ts",
+    "scripts/check-renderer-sync-ipc.mjs",
+    "src/ui/onboarding/",
+    "src/workbench/settings/AiModelsSection.tsx",
+    "src/api/desktopClient.ts",
+    "src/desktop/bridgeModelCatalogSurface.ts",
+    "src/workbench/api/modelCatalogApi.ts"
+  ],
+  "entry_points": [
+    "画布节点选中 → BaseGenerationNode 挂 LazyNodeGenerationComposer",
+    "列表视图大详情（host=inline）与付费确认卡（host=panel）挂同一个 NodeGenerationComposer",
+    "列表卡 CardPrompt、导演台 DirectorNode、文本加工预设 useTextPresetBlocks 的同类选择器"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/electron/electron/blob/main/docs/api/ipc-renderer.md",
+      "checked_at": "2026-10-16",
+      "purpose": "sendSync 会阻塞整个渲染进程，改用 invoke（electron 43.4.1）"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/reactjs/react.dev/blob/main/src/content/reference/react/useSyncExternalStore.md",
+      "checked_at": "2026-10-16",
+      "purpose": "getSnapshot 必须返回缓存的不可变值（React 19.3）"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/pmndrs/zustand/blob/v4.3.3/readme.md",
+      "checked_at": "2026-10-16",
+      "purpose": "选择器默认 Object.is 比较，返回稳定引用即不重渲（zustand 4.5）"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/ueberdosis/tiptap-docs/blob/main/src/content/guides/performance.mdx",
+      "checked_at": "2026-10-16",
+      "purpose": "immediatelyRender / shouldRerenderOnTransaction（@tiptap/react 3.22，仓库已统一开着）"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/ueberdosis/tiptap/blob/main/packages/suggestion/src/suggestion.ts",
+      "checked_at": "2026-10-16",
+      "purpose": "Suggestion items 允许返回 Promise，@ 素材按需取"
+    }
+  ],
+  "invariants": [
+    "生成框挂载这一刻 0 次桌面桥 IO（数据在内存里：启动后载入 / 第一次用到时载入，按变更事件失效）",
+    "已落好默认值的卡挂载时 0 次画布 store 写；新卡第一次挂载最多 1 次",
+    "生成框开着时，依赖面之外的画布写入不让它重渲",
+    "渲染进程同步 IPC 通道只减不增（目录读四条已删，冻结清单 33 条）；store 选择器里没有 JSON.stringify"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
+      "symbol": "listMappings"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/useWorkflowCatalog.ts",
+      "symbol": "listMappings"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/api/modelCatalogApi.ts",
+      "symbol": "listWorkbenchModelCatalogMappings"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "useAllProjectAssets"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "invalidateAllProjectAssets"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "symbol": "loadAllProjectAssets"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "useComposerGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "symbol": "graph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ConnectedTextChips.tsx",
+      "symbol": "useContentStable"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+      "symbol": "useComposerGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "symbol": "selectCanvasImages"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "peekChannelMappings"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+      "symbol": "readMappings"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/composerResidentData.ts",
+      "symbol": "warmModelCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "src/config/useModelOptions.ts",
+      "symbol": "peekCatalogHealth"
+    },
+    {
+      "kind": "read",
+      "path": "src/config/modelCatalogCache.ts",
+      "symbol": "loadChannelMappings"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/useAllProjectAssets.ts",
+      "symbol": "loadAllProjectAssets"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+      "symbol": "createComposerGraphSelector"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "nomi:model-catalog:mappings:list"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/modelOnboardingBridge.ts",
+      "symbol": "listMappings"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts",
+      "symbol": "selectCanvasImages"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+      "symbol": "useTextPresetBlocks"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "initializedArchetypeMeta"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "symbol": "getAssetKindByUrl"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AddComfyuiInstanceButton.tsx",
+      "symbol": "listVendors"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useDuplicateHostHint.ts",
+      "symbol": "listVendors"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "listModels"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "listModels"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "symbol": "listModels"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "symbol": "listVendors"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/assetUploadConsent.ts",
+      "symbol": "listVendors"
+    },
+    {
+      "kind": "read",
+      "path": "src/api/desktopClient.ts",
+      "symbol": "listModelCatalogVendors"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridgeModelCatalogSurface.ts",
+      "symbol": "listVendors"
+    }
+  ],
+  "door_reduction": {
+    "before": 34,
+    "after": 33,
+    "why_not": "mapping 三扇读门：设置页两处要的是当场最新的整表（编辑后回读），生成框走内存表；三者都已是异步 invoke，同步门已删（desktopClient.listModelCatalogMappings 死门删除）。素材清单三扇门都经同一个 owner（useAllProjectAssets.ts）：面板订阅、剪辑卡只作废、@ 按需取。"
+  },
+  "generality_proof": "数据只有两条路：渠道 mapping / 目录 / 默认模型 / 提示词库在 composerResidentData 启动后载入内存，素材清单在 useAllProjectAssets 第一次用到时载入；挂载路径只读内存（计数测试 0 IO）。读图的派生值全部经 composerGraphSnapshot 的依赖面快照，随机图 × 随机改动的合同测试证明签名不变 ⇒ 派生值不变；新同步 IPC 与选择器序列化由门岗拦。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+      "symbol": "createComposerGraphSelector",
+      "responsibility": "生成框及子件读图的唯一入口：依赖面没变就返回同一份快照"
+    },
+    {
+      "path": "src/config/modelCatalogCache.ts",
+      "symbol": "peekChannelMappings",
+      "responsibility": "渠道 mapping 全表的内存 owner，挂载路径零 IO"
+    },
+    {
+      "path": "src/workbench/assets/useAllProjectAssets.ts",
+      "symbol": "loadAllProjectAssets",
+      "responsibility": "所有项目素材清单的唯一 owner，按需载入、广播失效"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerResidentData.ts",
+      "symbol": "warmComposerResidentData",
+      "responsibility": "启动后把生成框要用的数据载进内存"
+    },
+    {
+      "path": "scripts/check-renderer-sync-ipc.mjs",
+      "symbol": "decide",
+      "responsibility": "渲染进程同步 IPC 冻结清单只减不增"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generation/list/GenerationListCard.tsx",
+      "entry_point": "CardPrompt",
+      "disposition": "enforced",
+      "evidence": "同一个 currentReferenceMedia + JSON.stringify 选择器，改走 useComposerGraph + useContentStable"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "entry_point": "canvasImages",
+      "disposition": "enforced",
+      "evidence": "全表 JSON.stringify 选择器改为按引用记忆的 selectCanvasImages；eslint 规则全仓 0 处"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+      "entry_point": "useTextPresetBlocks",
+      "disposition": "enforced",
+      "evidence": "同类选择器改走依赖面快照（presetBlockReason 读的引用与连进来的文字在依赖面合同测试的派生值清单里）"
+    },
+    {
+      "path": "src/workbench/settings/AiModelsSection.tsx",
+      "entry_point": "modelCatalog.listModels / listVendors",
+      "disposition": "not-affected",
+      "evidence": "设置页的同步目录读不在点卡路径上；仍在同步 IPC 冻结清单里，见报告「交协调」第 3 条"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新功能往生成框里挂一个「挂载时取一次」或一个整表选择器，都会重新出现同一类卡顿",
+    "same_class_scan": [
+      "rg 'Store\\(\\(?state\\)? *=> *JSON.stringify' src：生成框 4 处 + 列表卡 1 + 导演台 1 + 文本加工 1，全部改掉",
+      "door-map listMappings / useAllProjectAssets：见 doors",
+      "scripts/renderer-sync-ipc-baseline.json：全仓渲染进程同步 IPC 36 条"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-renderer-sync-ipc.mjs",
+    "invariant": "渲染进程同步 IPC 只减不增；store 选择器里不许 JSON.stringify；挂载 IO / 写 / 无关重渲计数为 0",
+    "failure_mode": "新增 sendSync 通道或选择器序列化 → 门岗红；挂载多一次 IO / 写 / 重渲 → composerMountBudget 测试红",
+    "exception_policy": "none",
+    "strategy": "依赖面快照与内存 owner 是结构收口；两道门岗 + 计数测试防回来",
+    "artifacts": [
+      "scripts/check-renderer-sync-ipc.mjs",
+      "eslint.config.mjs",
+      "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+      "src/config/modelCatalogCache.ts",
+      "src/workbench/assets/useAllProjectAssets.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/composerMountBudget.test.tsx",
+    "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.test.ts",
+    "src/workbench/generationCanvas/nodes/composerGraphSnapshot.test.ts",
+    "scripts/check-renderer-sync-ipc.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/composerGraphSnapshot.test.ts",
+    "scripts/check-renderer-sync-ipc.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/preload/modelOnboardingBridge.ts",
+      "src/api/desktopClient.ts",
+      "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts"
+    ],
+    "rationale": "同步 mapping 通道、desktopClient.listModelCatalogMappings 死门、每次挂载按 vendor 同步读的 createVendorMappingsReader 同提交删除"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "用的是锁定版本的官方能力（Electron invoke、React useSyncExternalStore、Zustand 选择器、TipTap suggestion Promise），不升级依赖",
+    "exit_criteria": []
+  },
+  "migration": "无落盘格式变化；主进程 mapping 通道由 on(sendSync) 换成 handle(invoke)，preload 与渲染层同提交改",
+  "residual_risks": [
+    "新卡第一次挂载仍有 1 次 store 写（默认模型 + 档案一次写好）；改成建卡时写好是结构岔路，交协调（方向检查第 6 节 C）",
+    "每张卡各挂一个生成框、每次新建 TipTap 实例（可疑点 b/d/l）未动，交协调（方向检查第 6 节 B）",
+    "依赖面签名每次 store 写仍要建一次 nodes 索引（O(N)，全局共享一次）；URL 归类表在依赖面里有结果 URL 时也是 O(N)",
+    "渲染进程仍有 33 条同步 IPC（项目读写、ComfyUI 导入、自定义调用、技能导入、ETA 统计、i18n 系统语言……），已冻结只减不增，逐条迁移交协调排"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/composerMountBudget.test.tsx",
+      "src/workbench/generationCanvas/nodes/composerGraphSnapshot.test.ts"
+    ]
+  }
+}

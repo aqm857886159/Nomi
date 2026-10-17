@@ -87,9 +87,9 @@ try {
     assert(true, "使用 app 已保存的 APIMart API key");
   }
 
-  const catalog = await win.evaluate(() => ({
-    models: window.nomiDesktop.modelCatalog.listModels({ kind: "video" }),
-    textModels: window.nomiDesktop.modelCatalog.listModels({ kind: "text" }),
+  const catalog = await win.evaluate(async () => ({
+    models: (await window.nomiDesktop.modelCatalog.listModels({ kind: "video" })),
+    textModels: (await window.nomiDesktop.modelCatalog.listModels({ kind: "text" })),
   }));
   const videoKeys = catalog.models.map((model) => model.modelKey);
   const textKeys = catalog.textModels.map((model) => model.modelKey);

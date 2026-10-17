@@ -8,6 +8,7 @@ import { canvasNodeToAssetRefs, type AssetKind } from '../../assets/assetTypes'
 import { useOpenProjectId } from '../../project/useOpenProjectId'
 import { addAssetInput, addUploadedInput, pickCanvasInputFor } from '../quickActions/nodeInputActions'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useComposerGraph } from './composerGraphSnapshot'
 
 /** Text/image nodes without a declared media slot use the existing left-input owner. */
 export default function NodeInputReferenceEntry({ nodeId, disabled, accept = ['image'] }: { nodeId: string; disabled?: boolean; accept?: AssetKind[] }): JSX.Element {
@@ -20,8 +21,8 @@ export default function NodeInputReferenceEntry({ nodeId, disabled, accept = ['i
   openRef.current = open
   const cancelPick = React.useRef<(() => void) | undefined>(undefined)
   React.useEffect(() => () => { openRef.current = false; cancelPick.current?.() }, [nodeId, projectId])
-  const nodes = useGenerationCanvasStore(state => state.nodes)
-  const edges = useGenerationCanvasStore(state => state.edges)
+  // 只订这张卡读得到的那一小片图：整表订阅会让别的卡的生成进度把它带着重渲（2026-10-16 可疑点 g）。
+  const { nodes, edges } = useComposerGraph(nodeId)
   const inputs = edges.filter(edge => edge.target === nodeId).flatMap(edge => {
     const source = nodes.find(node => node.id === edge.source)
     const asset = source && canvasNodeToAssetRefs(source)[0]

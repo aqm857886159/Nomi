@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-25-model-catalog-sync-read-per-mount.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+      "symbol": "createVendorMappingsReader",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/nodes/controls/useChannelCreateBody.ts",
+        "symbol": "vendorMappingsReader"
+      },
+      "reason": "2026-10-16 点卡出生成框零 IO（composer-mount-path）：每次挂载按 vendor 同步读 mapping 的 createVendorMappingsReader 整个删掉，同一个文件里换成 vendorMappingsReader / useVendorMappingsReader——读内存里启动后载入的那一份（composerResidentData），整张生成框共用一个读取器。09-25 合同的不变量「挂载时不为了读 mapping 做同步 IPC」由它承担。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-dc24-quiet-defaults.root-cause.json",
       "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
       "symbol": "ShotReferenceZone",

@@ -43,8 +43,8 @@ try {
   }
 
   // 确认种子大脑在 catalog（S1 应已 reconcile 进去）。
-  const hasBrain = await win.evaluate((mk) => {
-    const models = window.nomiDesktop.modelCatalog.listModels?.() || [];
+  const hasBrain = await win.evaluate(async (mk) => {
+    const models = (await window.nomiDesktop.modelCatalog.listModels?.()) || [];
     return (models || []).some((m) => (m.vendorKey === "apimart") && m.modelKey === mk);
   }, MODEL_KEY).catch(() => null);
   console.log(`apimart 文本大脑 ${MODEL_KEY} 在 catalog：${hasBrain === null ? "(listModels 未暴露,跳过自检)" : hasBrain}`);

@@ -105,7 +105,7 @@ try {
   // ① 迁移自愈：v7 → v8，长出 image_to_video 通道
   const mappings = await win.evaluate(async () => {
     const b = window.nomiDesktop
-    return b.modelCatalog.listMappings()
+    return await b.modelCatalog.listMappings()
   })
   const i2v = mappings.filter((m) => m.taskKind === 'image_to_video')
   console.log(`  ① 自愈出的图生视频通道 = ${i2v.length} 条；modelKey=${i2v.map((m) => m.modelKey).join(',')}`)

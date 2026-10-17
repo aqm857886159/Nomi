@@ -1,0 +1,137 @@
+{
+  "_comment": "渲染进程同步 IPC 冻结清单（只减不增）。新增同步通道用 ipcRenderer.invoke；删掉一条就从这里删掉它。见 scripts/check-renderer-sync-ipc.mjs。",
+  "channels": [
+    {
+      "file": "electron/preload.ts",
+      "channel": "nomi:i18n:get-system-locale"
+    },
+    {
+      "file": "electron/preload.ts",
+      "channel": "nomi:projects:create"
+    },
+    {
+      "file": "electron/preload.ts",
+      "channel": "nomi:projects:delete"
+    },
+    {
+      "file": "electron/preload.ts",
+      "channel": "nomi:projects:list"
+    },
+    {
+      "file": "electron/preload.ts",
+      "channel": "nomi:projects:read"
+    },
+    {
+      "file": "electron/preload/mediaBridge.ts",
+      "channel": "nomi:asset-transport:channels:describe"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:comfyui:analyze-workflow"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:comfyui:import-workflow"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:comfyui:presets"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:comfyui:update-workflow"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:custom-call:ai-instruction"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:custom-call:config:get"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:custom-call:config:save"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:custom-call:contract"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:custom-call:draft-create"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:custom-call:draft-finalize"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:export"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:import"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:mapping:delete"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:mapping:upsert"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:model:delete"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:model:retype"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:model:upsert"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:models:delete"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:vendor-api-key:clear"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:vendor:delete"
+    },
+    {
+      "file": "electron/preload/modelOnboardingBridge.ts",
+      "channel": "nomi:model-catalog:vendor:upsert"
+    },
+    {
+      "file": "electron/preload/runtimeBridge.ts",
+      "channel": "nomi:capability:mcp-info"
+    },
+    {
+      "file": "electron/preload/runtimeBridge.ts",
+      "channel": "nomi:capability:mcp-install"
+    },
+    {
+      "file": "electron/preload/runtimeBridge.ts",
+      "channel": "nomi:capability:mcp-uninstall"
+    },
+    {
+      "file": "electron/preload/runtimeBridge.ts",
+      "channel": "nomi:events:generation-eta-stats"
+    },
+    {
+      "file": "electron/preload/runtimeBridge.ts",
+      "channel": "nomi:skill:delete"
+    },
+    {
+      "file": "electron/preload/runtimeBridge.ts",
+      "channel": "nomi:skill:import"
+    }
+  ]
+}

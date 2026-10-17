@@ -9,10 +9,10 @@ import type { ComfyWorkflowMutationResult } from './comfyCandidateContracts'
 
 export type DesktopModelCatalogSurface = CustomCallBridge & {
   onChanged?: (cb: () => void) => () => void
-  listVendors: () => unknown[]
-  listModels: (params?: unknown) => unknown[]
-  listMappings: (params?: unknown) => unknown[]
-  health: () => unknown
+  listVendors: () => Promise<unknown[]>
+  listModels: (params?: unknown) => Promise<unknown[]>
+  listMappings: (params?: unknown) => Promise<unknown[]>
+  health: () => Promise<unknown>
   upsertVendor: (payload: unknown) => unknown
   deleteVendor: (key: string) => void
   upsertVendorApiKey: (vendorKey: string, payload: unknown) => Promise<unknown>

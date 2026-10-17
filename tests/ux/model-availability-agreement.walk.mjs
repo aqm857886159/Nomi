@@ -200,7 +200,7 @@ async function readSettingsCounts() {
  */
 const askMainProcess = () => getWin().evaluate(async ({ vendorKey }) => {
   const brain = await window.nomiDesktop?.promptLibrary?.textBrain?.()
-  const rows = window.nomiDesktop?.modelCatalog?.listModels({ vendorKey }) || []
+  const rows = (await window.nomiDesktop?.modelCatalog?.listModels({ vendorKey })) || []
   return {
     brainReady: brain?.status === 'ok',
     rowCount: rows.length,

@@ -77,6 +77,7 @@ import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWrite
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
 import { FeedbackShareHost } from '../ui/community/FeedbackShareHost'
 import { openProjectAgentLane } from './project/projectAgentLaneOpen'
+import { useComposerResidentData } from './generationCanvas/nodes/composerResidentData'
 type AppView = 'library' | 'studio'
 // 项目创建规格：所有创建入口拼装项目的单一真相源（P1）。
 // 各入口各自决定 workspaceMode / seedKey / 创建+刷新+hydrate 的编排时约定不统一——
@@ -143,6 +144,7 @@ export default function NomiStudioApp(): JSX.Element {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  useComposerResidentData() // 生成框要用的目录 / 默认模型 / 提示词库：启动后后台载进内存，点卡只读内存
   const [view, setView] = React.useState<AppView>('library')
   const [feedback, setFeedback] = React.useState<{ projectId: string | null; message: string } | null>(null)
   const report = React.useCallback((projectId: string | null, message: UserText) => notify({ identity: `project:${projectId ?? 'library'}`, reason: 'operation', level: 'inline', message, type: 'error', present: (value) => setFeedback({ projectId, message: value }) }), [])

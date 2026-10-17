@@ -74,7 +74,7 @@ async function resolverUsable(win) {
   return win.evaluate(async () => {
     let brain = null
     try { brain = await window.nomiDesktop.promptLibrary.textBrain() } catch (e) { brain = { error: String(e) } }
-    const v = (window.nomiDesktop.modelCatalog.listVendors() || []).find((x) => (x.key || x.vendorKey) === 'apimart')
+    const v = ((await window.nomiDesktop.modelCatalog.listVendors()) || []).find((x) => (x.key || x.vendorKey) === 'apimart')
     return { usable: Boolean(brain && brain.brain && brain.status === 'ok'), brain, vendorEnabled: v?.enabled, hasApiKey: v?.hasApiKey }
   })
 }

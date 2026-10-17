@@ -61,7 +61,7 @@ async function inspect() {
 async function screenshot(name) {
   const file = path.join(out, name + '.png'); await win.screenshot({ path: file }); return file
 }
-const catalog = () => win.evaluate(() => window.nomiDesktop.modelCatalog.listModels().filter((m) => m.vendorKey === 'antigravity-cli').map((m) => ({modelKey:m.modelKey,kind:m.kind,enabled:m.enabled,meta:m.meta})))
+const catalog = () => win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listModels()).filter((m) => m.vendorKey === 'antigravity-cli').map((m) => ({modelKey:m.modelKey,kind:m.kind,enabled:m.enabled,meta:m.meta})))
 console.log(JSON.stringify({ ready:true, tempRoot, initial:await inspect(), screenshot:await screenshot('01-initial') })); save()
 const input = readline.createInterface({ input:process.stdin, crlfDelay:Infinity })
 try {

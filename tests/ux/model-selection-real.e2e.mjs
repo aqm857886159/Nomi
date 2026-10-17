@@ -101,10 +101,10 @@ const { app, win } = await launchNomiApp({
 try {
   await dismissFirstRun(win)
 
-  const catalog = await win.evaluate(() => {
+  const catalog = await win.evaluate(async () => {
     const mc = window.nomiDesktop.modelCatalog
-    const vendors = mc.listVendors()
-    const models = mc.listModels({ enabled: true })
+    const vendors = (await mc.listVendors())
+    const models = (await mc.listModels({ enabled: true }))
     const availableVendorKeys = new Set(vendors
       .filter((vendor) => vendor.enabled && (vendor.authType === 'none' || vendor.hasApiKey === true))
       .map((vendor) => String(vendor.key).toLowerCase()))

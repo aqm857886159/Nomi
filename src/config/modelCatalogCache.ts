@@ -1,8 +1,10 @@
 import {
   getWorkbenchModelCatalogHealth,
+  listWorkbenchModelCatalogMappings,
   listWorkbenchModelCatalogModels,
   listWorkbenchModelCatalogVendors,
   type ModelCatalogHealthDto,
+  type ModelCatalogModelDto,
   type ProfileKind,
 } from '../workbench/api/modelCatalogApi'
 import type { ModelOption, NodeKind } from './models'
@@ -22,6 +24,21 @@ type RefreshDetail = 'openai' | 'anthropic' | 'all' | undefined
 
 const catalogOptionsCache = new Map<string, ModelOption[]>()
 const catalogPromiseCache = new Map<string, Promise<ModelOption[]>>()
+/**
+ * 目录行按**目录桶**（image / video / audio / model3d / text）存一份：同一个桶的各个模式（文生图 / 改图……）
+ * 都从这一份里在内存里筛，第一次遇到一个新模式不再去问主进程（以前每个「桶:模式」各打一次 IPC）。
+ */
+const catalogRowsCache = new Map<string, readonly ModelCatalogModelDto[]>()
+const catalogRowsPromise = new Map<string, Promise<readonly ModelCatalogModelDto[]>>()
+/**
+ * 渠道 mapping 全表：`undefined` = 问过了但桥答不出来（无桥 / 老 preload / 读失败 → 调用方一律 fail-open 不收窄）；
+ * 还没载过时 `channelMappingsLoaded === false`。
+ */
+let channelMappingsCache: readonly unknown[] | undefined
+let channelMappingsLoaded = false
+let channelMappingsPromise: Promise<readonly unknown[] | undefined> | null = null
+/** 缓存里有东西载入了 / 作废了 → 通知订阅者（`useSyncExternalStore`）重读。 */
+const catalogCacheListeners = new Set<() => void>()
 let catalogHealthCache: ModelCatalogHealthDto | null = null
 let catalogHealthPromise: Promise<ModelCatalogHealthDto> | null = null
 let vendorNamesCache: Map<string, string> | null = null
@@ -39,9 +56,24 @@ export function filterHiddenOptionsByKind(options: ModelOption[], kind?: NodeKin
   })
 }
 
+function notifyCatalogCacheChanged(): void {
+  for (const listener of [...catalogCacheListeners]) listener()
+}
+
+/** 订阅「目录缓存里有东西载入了 / 作废了」。给 `useSyncExternalStore` 用。 */
+export function subscribeCatalogCache(listener: () => void): () => void {
+  catalogCacheListeners.add(listener)
+  return () => { catalogCacheListeners.delete(listener) }
+}
+
 function invalidateAvailableCache() {
   catalogOptionsCache.clear()
   catalogPromiseCache.clear()
+  catalogRowsCache.clear()
+  catalogRowsPromise.clear()
+  channelMappingsCache = undefined
+  channelMappingsLoaded = false
+  channelMappingsPromise = null
   catalogHealthCache = null
   catalogHealthPromise = null
   vendorNamesCache = null
@@ -55,6 +87,7 @@ export async function getCatalogHealth(): Promise<ModelCatalogHealthDto> {
       try {
         const health = await getWorkbenchModelCatalogHealth()
         catalogHealthCache = health
+        notifyCatalogCacheChanged()
         return health
       } finally {
         catalogHealthPromise = null
@@ -64,8 +97,14 @@ export async function getCatalogHealth(): Promise<ModelCatalogHealthDto> {
   return catalogHealthPromise
 }
 
+/** 健康度在内存里就同步给；没载过 → null（不触发请求）。 */
+export function peekCatalogHealth(): ModelCatalogHealthDto | null {
+  return catalogHealthCache
+}
+
 export function notifyModelOptionsRefresh(detail?: RefreshDetail) {
   invalidateAvailableCache()
+  notifyCatalogCacheChanged()
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
     window.dispatchEvent(new CustomEvent<RefreshDetail>(MODEL_REFRESH_EVENT, { detail }))
   }
@@ -127,31 +166,62 @@ function defaultPublishedMode(kind?: NodeKind): ProfileKind {
   return 'chat'
 }
 
+async function getCatalogRows(catalogKind: ModelCatalogModelDto['kind']): Promise<readonly ModelCatalogModelDto[]> {
+  const cached = catalogRowsCache.get(catalogKind)
+  if (cached) return cached
+  const inflight = catalogRowsPromise.get(catalogKind)
+  if (inflight) return inflight
+  const promise = (async () => {
+    try {
+      const rows = await listWorkbenchModelCatalogModels({ kind: catalogKind, enabled: true })
+      const list = Array.isArray(rows) ? rows : []
+      catalogRowsCache.set(catalogKind, list)
+      return list
+    } finally {
+      catalogRowsPromise.delete(catalogKind)
+    }
+  })()
+  catalogRowsPromise.set(catalogKind, promise)
+  return promise
+}
+
+/** 从一个桶的目录行里筛出「这个模式现在能用」的选项。纯函数：同样的行 + 名字 = 同样的结果。 */
+function optionsFromRows(
+  rows: readonly ModelCatalogModelDto[],
+  names: Map<string, string>,
+  requiredMode: ModelQueryMode,
+): ModelOption[] {
+  // 「能不能用」判一次（主进程给的 availability）；这里额外要的只是**模式级**匹配：
+  // 同一个模型可能文生图发布了、改图那条没发布，节点问的是「这个模式能用吗」。
+  const usableRows = keepUsableModelRows(rows).filter(
+    (row) => Array.isArray(row.publishedModes) && (requiredMode === 'any-published'
+      ? row.publishedModes.length > 0 : row.publishedModes.includes(requiredMode)),
+  )
+  return toCatalogModelOptions(usableRows).map((opt) => {
+    const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
+    return name ? { ...opt, vendorName: name } : opt
+  })
+}
+
+function catalogOptionsKey(kind: NodeKind | undefined, requiredMode: ModelQueryMode) {
+  const catalogKind = resolveCatalogKind(kind)
+  return { catalogKind, cacheKey: `${catalogKind}:${requiredMode}` }
+}
+
 async function getCatalogModelOptions(
   kind?: NodeKind,
   requiredMode: ModelQueryMode = defaultPublishedMode(kind),
 ): Promise<ModelOption[]> {
-  const catalogKind = resolveCatalogKind(kind)
-  const cacheKey = `${catalogKind}:${requiredMode}`
+  const { catalogKind, cacheKey } = catalogOptionsKey(kind, requiredMode)
   const cached = catalogOptionsCache.get(cacheKey)
   if (cached) return cached
   const inflight = catalogPromiseCache.get(cacheKey)
   if (inflight) return inflight
   const promise = (async () => {
     try {
-      const rows = await listWorkbenchModelCatalogModels({ kind: catalogKind, enabled: true })
+      const rows = await getCatalogRows(catalogKind)
       const names = await getVendorNames()
-      // 「能不能用」判一次（主进程给的 availability）；这里额外要的只是**模式级**匹配：
-      // 同一个模型可能文生图发布了、改图那条没发布，节点问的是「这个模式能用吗」。
-      const usableRows = keepUsableModelRows(Array.isArray(rows) ? rows : []).filter(
-        (row) => Array.isArray(row.publishedModes) && (requiredMode === 'any-published'
-          ? row.publishedModes.length > 0 : row.publishedModes.includes(requiredMode)),
-      )
-      const normalized = toCatalogModelOptions(usableRows)
-      const annotated = normalized.map((opt) => {
-        const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
-        return name ? { ...opt, vendorName: name } : opt
-      })
+      const annotated = optionsFromRows(rows, names, requiredMode)
       catalogOptionsCache.set(cacheKey, annotated)
       return annotated
     } finally {
@@ -160,6 +230,54 @@ async function getCatalogModelOptions(
   })()
   catalogPromiseCache.set(cacheKey, promise)
   return promise
+}
+
+type ChannelMappingsSnapshot = Readonly<{ loaded: boolean; list: readonly unknown[] | undefined }>
+const NOT_LOADED_MAPPINGS: ChannelMappingsSnapshot = Object.freeze({ loaded: false, list: undefined })
+let channelMappingsSnapshot: ChannelMappingsSnapshot = NOT_LOADED_MAPPINGS
+
+/**
+ * 渠道 mapping 全表：内存里有就同步给；`loaded === false` = 还没载过（调用方按「查不到」fail-open）。
+ * 同步、零 IO、同一份数据同一个引用——挂载路径只许读这个。
+ */
+export function peekChannelMappings(): ChannelMappingsSnapshot {
+  return channelMappingsLoaded ? channelMappingsSnapshot : NOT_LOADED_MAPPINGS
+}
+
+/** 载一次渠道 mapping 全表（异步 IPC）。同一时刻只有一趟在路上；目录变更由 notifyModelOptionsRefresh 作废。 */
+export function loadChannelMappings(): Promise<readonly unknown[] | undefined> {
+  if (channelMappingsLoaded) return Promise.resolve(channelMappingsCache)
+  if (channelMappingsPromise) return channelMappingsPromise
+  const promise: Promise<readonly unknown[] | undefined> = listWorkbenchModelCatalogMappings()
+    .catch(() => undefined)
+    .then((list) => {
+      if (channelMappingsPromise !== promise) return list // 路上被作废了：这份结果不落缓存
+      channelMappingsCache = list
+      channelMappingsLoaded = true
+      channelMappingsSnapshot = Object.freeze({ loaded: true, list })
+      channelMappingsPromise = null
+      notifyCatalogCacheChanged()
+      return list
+    })
+  channelMappingsPromise = promise
+  return promise
+}
+
+/** 生成节点会问到的目录桶。启动后把它们和健康度、供应商名、渠道 mapping 一起载进内存。 */
+const RESIDENT_CATALOG_KINDS: readonly NodeKind[] = ['image', 'video', 'audio', 'model3d', 'text']
+
+/**
+ * 应用启动后（以及每次目录作废后）在后台把目录载进内存：之后点卡挂生成框只读内存，0 次 IO。
+ * 失败不抛：没载上的那一块等第一次用到时再载（各自的 load 本来就是「没有就载」）。
+ */
+export async function warmModelCatalog(): Promise<void> {
+  await Promise.allSettled([
+    getCatalogHealth(),
+    getVendorNames(),
+    loadChannelMappings(),
+    ...RESIDENT_CATALOG_KINDS.map((kind) => getCatalogRows(resolveCatalogKind(kind))),
+  ])
+  notifyCatalogCacheChanged()
 }
 
 /**
@@ -195,9 +313,28 @@ export function seedModelCatalogForTests(
  * 这条闪烁在缓存命中时直接消失；没命中才回到异步那一跳。
  */
 export function peekCatalogModelOptions(kind?: NodeKind, requiredMode?: ModelQueryMode): ModelOption[] | null {
-  const cacheKey = `${resolveCatalogKind(kind)}:${requiredMode ?? defaultPublishedMode(kind)}`
-  const cached = catalogOptionsCache.get(cacheKey)
-  return cached ? filterHiddenOptionsByKind(cached, kind) : null
+  const mode = requiredMode ?? defaultPublishedMode(kind)
+  const { catalogKind, cacheKey } = catalogOptionsKey(kind, mode)
+  let cached = catalogOptionsCache.get(cacheKey)
+  // 这个模式还没人问过、但它那个桶的行和供应商名已经在内存里：当场在内存里筛出来记下（不打 IPC）。
+  if (!cached) {
+    const rows = catalogRowsCache.get(catalogKind)
+    if (!rows || !vendorNamesCache) return null
+    cached = optionsFromRows(rows, vendorNamesCache, mode)
+    catalogOptionsCache.set(cacheKey, cached)
+  }
+  return visibleOptionsFor(cached, kind)
+}
+
+/** 同一份缓存 + 同一个 kind → 同一个数组引用（`useSyncExternalStore` / 选择器要的稳定快照）。 */
+const visibleOptionsCache = new WeakMap<ModelOption[], Map<string, ModelOption[]>>()
+function visibleOptionsFor(options: ModelOption[], kind?: NodeKind): ModelOption[] {
+  let byKind = visibleOptionsCache.get(options)
+  if (!byKind) { byKind = new Map(); visibleOptionsCache.set(options, byKind) }
+  const key = kind ?? ''
+  let visible = byKind.get(key)
+  if (!visible) { visible = filterHiddenOptionsByKind(options, kind); byKind.set(key, visible) }
+  return visible
 }
 
 export async function preloadModelOptions(
@@ -205,7 +342,7 @@ export async function preloadModelOptions(
   requiredMode?: ModelQueryMode,
 ): Promise<ModelOption[]> {
   const catalogOptions = await getCatalogModelOptions(kind, requiredMode)
-  return filterHiddenOptionsByKind(catalogOptions, kind)
+  return visibleOptionsFor(catalogOptions, kind)
 }
 
 export async function resolveExecutableImageModel(params: {

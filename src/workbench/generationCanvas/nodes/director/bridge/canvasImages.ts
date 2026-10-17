@@ -18,3 +18,22 @@ export function collectCanvasImages(nodes: readonly GenerationCanvasNode[]): Can
   }
   return images
 }
+
+let lastNodes: readonly GenerationCanvasNode[] | null = null
+let lastImages: CanvasImage[] = []
+
+/**
+ * 给 store 选择器用：同一份 nodes 只收集一次；内容（逐字段）没变就返回上一份数组引用，
+ * 于是导演台不随无关画布写入重渲——以前靠选择器里 JSON.stringify 防抖，每次 store 写都序列化一遍。
+ */
+export function selectCanvasImages(nodes: readonly GenerationCanvasNode[]): CanvasImage[] {
+  if (nodes === lastNodes) return lastImages
+  const next = collectCanvasImages(nodes)
+  lastNodes = nodes
+  const same = next.length === lastImages.length && next.every((image, index) => {
+    const previous = lastImages[index]
+    return image.id === previous.id && image.name === previous.name && image.url === previous.url && image.historical === previous.historical
+  })
+  if (!same) lastImages = next
+  return lastImages
+}

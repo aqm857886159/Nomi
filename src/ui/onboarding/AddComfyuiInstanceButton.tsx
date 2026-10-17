@@ -31,7 +31,7 @@ export function AddComfyuiInstanceButton({ onAdded }: { onAdded: () => void }): 
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
 
-  const submit = () => {
+  const submit = async () => {
     const bridge = getDesktopBridge()?.modelCatalog
     if (!bridge?.upsertVendor) return
     const trimmedName = name.trim()
@@ -40,7 +40,7 @@ export function AddComfyuiInstanceButton({ onAdded }: { onAdded: () => void }): 
     setError('')
     setBusy(true)
     try {
-      const existing = (bridge.listVendors() as Array<{ key?: unknown }>).map((v) => String(v.key))
+      const existing = ((await bridge.listVendors()) as Array<{ key?: unknown }>).map((v) => String(v.key))
       let key = `${COMFYUI_VENDOR_KEY}-${slugFromName(trimmedName)}`
       while (existing.includes(key)) key = `${key}-2` // 重名不覆盖既有那台（宁可多一台也不丢用户配置）
       // Adding an instance only creates a disabled candidate. Native route

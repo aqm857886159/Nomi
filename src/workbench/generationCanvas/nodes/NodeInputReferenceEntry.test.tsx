@@ -7,7 +7,7 @@ import { AssetAddTile } from '../../assets/AssetTile'
 import type { GenerationCanvasNode, GenerationCanvasEdge } from '../model/generationCanvasTypes'
 
 const fixture = vi.hoisted(() => ({ nodes: [] as GenerationCanvasNode[], edges: [] as GenerationCanvasEdge[] }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: () => {} }, useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('../../project/useOpenProjectId', () => ({ useOpenProjectId: () => null }))
 vi.mock('../store/generationCanvasStore', () => ({ useGenerationCanvasStore: (select: (state: typeof fixture) => unknown) => select(fixture) }))
 vi.mock('../quickActions/nodeInputActions', () => ({ addAssetInput: vi.fn(), addUploadedInput: vi.fn(), pickCanvasInputFor: vi.fn() }))

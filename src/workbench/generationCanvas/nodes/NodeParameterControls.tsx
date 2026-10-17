@@ -9,9 +9,9 @@ import { useOpenProjectId } from '../../project/useOpenProjectId'
 import {
   deriveGenerationModelCatalogStatus,
   findModelOptionByIdentifier,
-  requiredModeForGenerationNode,
-  useGenerationModelOptionsState,
 } from '../adapters/modelOptionsAdapter'
+import type { ModelOptionsState } from '../../../config/useModelOptions'
+import type { ComposerGraph } from './composerGraphSnapshot'
 import { type ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import {
@@ -73,7 +73,7 @@ import {
 } from './controls/narrowedModeGuidance'
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferenceSlots, decideArrayReferenceRemoval, firstFrameTaggedSlot } from '../runner/referenceSlots'
-import { useChannelCreateBodies } from './controls/useChannelCreateBody'
+import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
@@ -120,6 +120,8 @@ type NodeParameterControlsProps = {
    * 那会让整幅面板变成底栏那一排的兄弟去抢宽度，把「模型/参数/×N」挤成两行。
    */
   inlinePanelSlot?: React.RefObject<HTMLElement | null>
+  /** 以下三件由生成框各算一份往下传（2026-10-16 可疑点 f / g）：控件不自己订整表、不各算一遍模型清单。 */
+  graph: ComposerGraph; modelOptionsState: ModelOptionsState; readMappings: VendorMappingsReader
 }
 
 export default function NodeParameterControls({
@@ -129,6 +131,7 @@ export default function NodeParameterControls({
   parameterLayout,
   inlinePanelTarget,
   inlinePanelSlot,
+  graph, modelOptionsState, readMappings,
 }: NodeParameterControlsProps): JSX.Element | null {
   const openProjectId = useOpenProjectId()
   const reportFeedback = React.useCallback((message: string) => {
@@ -136,8 +139,7 @@ export default function NodeParameterControls({
   }, [node.id])
 
   const { t } = useTranslation()
-  const nodes = useGenerationCanvasStore((state) => state.nodes)
-  const edges = useGenerationCanvasStore((state) => state.edges)
+  const { nodes, edges } = graph
   // 写入面由宿主接住（付费确认卡走它自己的草稿账本，确认前不碰画布）——见 nodeWriteAccess。
   const { updateNode, latestNode, connectNodes: canConnect } = useNodeWriteAccess()
   const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
@@ -154,8 +156,7 @@ export default function NodeParameterControls({
   const isAudioLike = isAudioLikeGenerationNodeKind(node.kind)
   const isModel3dLike = isModel3dLikeGenerationNodeKind(node.kind)
   const isGenerationNode = isImageLike || isVideoLike || isTextLike || isAudioLike || isModel3dLike
-  const requiredMode = requiredModeForGenerationNode(node, { nodes, edges })
-  const modelOptionsState = useGenerationModelOptionsState(node.kind, requiredMode)
+  const ownsDerivedWrites = section === 'parameters' || section === 'all' // 系统纠偏写回只由这一份做（三份各跑一遍 = 可疑点 i 的级联）
   const modelOptions = modelOptionsState.options
   const modelCatalogStatus = deriveGenerationModelCatalogStatus(node.kind, modelOptionsState)
 
@@ -183,7 +184,7 @@ export default function NodeParameterControls({
   const modeBodies = useChannelCreateBodies(
     selectedModelOption?.vendor ?? '',
     selectedModelOption?.value ?? '',
-    modeBodySpecs,
+    modeBodySpecs, readMappings,
   )
   // （Runway 把 model 写死、且 veo3.1 / veo3.1_fast 本就是两个目录行）。惰性时整条不显示，别骗用户。
   const variantChoices = archMode && !archetypeVariantAxisIsLive(modeBodies[archMode.id]) ? [] : declaredVariantChoices
@@ -201,7 +202,7 @@ export default function NodeParameterControls({
     selectedModelOption,
     modelOptions,
     modeBodies,
-    nodeMeta: meta,
+    nodeMeta: meta, readMappings,
   })
 
   // P1 单一真相源：所有 meta 增量 patch 都从 store 读**最新** meta 再 spread，绝不基于渲染快照 prop
@@ -216,13 +217,13 @@ export default function NodeParameterControls({
   }
 
   React.useEffect(() => {
-    if (!archMode) return
+    if (!ownsDerivedWrites || !archMode) return
     const latest = getLatestMeta()
     const next = normalizeConditionalParameters(archMode.params, latest)
     if (next !== latest) updateMeta(next, { history: false })
     // The effect only writes when a conditional selection is invalid.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archMode, meta])
+  }, [archMode, meta, ownsDerivedWrites])
 
   const updateAspectRatioMeta = (patch: Record<string, unknown>, targetRatio: number | null) => {
     const latest = latestNode(node.id)
@@ -253,7 +254,7 @@ export default function NodeParameterControls({
     selectedModelValue,
     selectedModelOption,
     archetype,
-    isGenerationNode,
+    isGenerationNode: isGenerationNode && ownsDerivedWrites,
     isImageLike,
     isVideoLike,
     updateNode,
@@ -267,7 +268,7 @@ export default function NodeParameterControls({
     .sort()
     .join('|')
   React.useEffect(() => {
-    if (!isVideoLike) return
+    if (!ownsDerivedWrites || !isVideoLike) return
     const latest = getLatestMeta()
     if (latest.aspect_ratio_user_set === true) return
     const state = useGenerationCanvasStore.getState()
@@ -285,7 +286,7 @@ export default function NodeParameterControls({
     // renderedControls/updateMeta 每渲染重建，入 deps 会令 effect 每次 meta 写都重跑；
     // 触发时机只需「输入边集合 / 模型」变化，语义由下面两个签名精确表达。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputAspectSignature, isVideoLike, selectedModelValue, node.id])
+  }, [inputAspectSignature, isVideoLike, selectedModelValue, node.id, ownsDerivedWrites])
 
   // 模式收窄的**选择安全**（U4）：收窄只改「显示哪几个」，节点 meta 里钉的 modeId 不会自己动。存量节点
   // （或用户把模型换到另一家后）可能停在一个已经不显示的模式上——那时模式栏一个都不高亮，而发送路径仍按
@@ -295,7 +296,7 @@ export default function NodeParameterControls({
     ? archetype.modes.filter((mode) => archetypeModeIsVisible(mode, modeBodies[mode.id])).map((m) => m.id).join('|')
     : ''
   React.useEffect(() => {
-    if (!archetype) return
+    if (!ownsDerivedWrites || !archetype) return
     const visibleIds = visibleModeIdSignature ? visibleModeIdSignature.split('|') : []
     const latest = getLatestMeta()
     const next = fallbackVisibleModeId(archetype, latest, visibleIds)
@@ -303,7 +304,7 @@ export default function NodeParameterControls({
     updateNode(node.id, { meta: applyArchetypeModeSwitch(latest, archetype, next) }, { history: false })
     // getLatestMeta/updateNode 每渲染重建；触发时机只需「可见模式集 / 档案 / 节点」变化。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleModeIdSignature, archetype?.id, node.id])
+  }, [visibleModeIdSignature, archetype?.id, node.id, ownsDerivedWrites])
 
   if (!isGenerationNode) return null
 
@@ -363,7 +364,7 @@ export default function NodeParameterControls({
     }
     // 容量先按**已占用位置**判（含连线 + pending 边，单源 resolveReferenceSlots），不能只看 meta 数组长度——
     // 否则被边占满的槽仍允许写入 meta、却落不进槽（显示/发送都没它）=「参考图上不去」。
-    const occupied = resolveReferenceSlots(node, nodes, edges).find(
+    const occupied = resolveReferenceSlots(currentNode, state.nodes, state.edges).find(
       (rs) => referenceSlotStorage({ kind: rs.slotKind })?.metaKey === slot.metaKey,
     )?.fills.length
     if (occupied != null && slot.max !== undefined && occupied >= slot.max) {
@@ -385,7 +386,7 @@ export default function NodeParameterControls({
     // 「×」按这一项的来源分流（单一真相源 decideArrayReferenceRemoval）：
     // 来自连边 → 断边（之前只删 meta 不断边，边来源的图重渲染又被解析回来 = 「叉不掉」根因）；
     // 来自上传 → 按 url 删 meta（显示 index 是「边+上传」合并列表的下标，不能直接拿去 filter meta 数组）。
-    const decision = decideArrayReferenceRemoval(node, nodes, edges, metaKey, index)
+    const decision = decideArrayReferenceRemoval(latestNode(node.id) ?? node, useGenerationCanvasStore.getState().nodes, useGenerationCanvasStore.getState().edges, metaKey, index)
     // image 数组(= character 参考)删除时，同步抹掉描述框里指向它的 @ chip（保 undo 原子性 + 一次持久化）。
     const promptAfterRemovingMention = (url: string | null) =>
       metaKey === 'referenceImageUrls' && url ? removeMention(node.prompt || '', url) : null
@@ -607,7 +608,7 @@ export default function NodeParameterControls({
       // 连边是改画布，只有握着连边权能的宿主（画布）才建边；付费确认卡只写它自己的参考槽（见 nodeWriteAccess）。
       const sourceNodeId = asset.origin.source === 'canvas' ? asset.origin.nodeId : undefined
       if (sourceNodeId && canConnect
-        && resultPreviewUrl(nodes.find(candidate => candidate.id === sourceNodeId)) === asset.renderUrl) handleSlotAssignment(img, sourceNodeId)
+        && resultPreviewUrl(useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === sourceNodeId)) === asset.renderUrl) handleSlotAssignment(img, sourceNodeId)
       else setSingleFrameUrlMeta(img, asset.renderUrl)
       return
     }

@@ -1,0 +1,35 @@
+{
+  "name": "生成框读画布图的依赖面快照（只在这张卡读得到的那一小片图变了时换新）",
+  "subject": "canvas.composer-graph-snapshot",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+    "symbol": "composerDependencyKeys"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+      "symbol": "composerDependencyKeys"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts",
+      "symbol": "createComposerGraphSelector"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+    "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+    "src/workbench/generationCanvas/nodes/ConnectedTextChips.tsx",
+    "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+    "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+    "src/workbench/generation/list/GenerationListCard.tsx"
+  ],
+  "since": "2026-10-16",
+  "notes": "卡顿波可疑点 g/h。依赖面 = 自己 + 上游闭包里的卡和边 + 按 id 指着的卡 + 参考 URL 的媒体归类 + 3D 预演卡。合同测试 composerGraphSnapshot.test.ts：随机图 × 随机改动，签名不变 ⇒ 生成框所有派生值不变。新增读图的派生值先补依赖面再加进测试清单。 选择器里禁 JSON.stringify 由 eslint no-restricted-syntax（eslint.config.mjs storeSelectorSerializeSelectors）拦。"
+}

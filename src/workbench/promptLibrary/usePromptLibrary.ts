@@ -22,7 +22,9 @@ export function usePromptLibrary(opened: boolean): State & { reload: () => void 
   const load = React.useCallback(
     (force: boolean) => {
       if (!force && cached) {
-        setState({ items: cached, loading: false, error: null })
+        // 已在内存里且屏上就是它：不再 setState（每次挂生成框都会走这里，白提交一次）。
+        const items = cached
+        setState((prev) => (prev.items === items && !prev.loading && !prev.error ? prev : { items, loading: false, error: null }))
         return
       }
       setState((prev) => ({ ...prev, loading: true, error: null }))

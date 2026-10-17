@@ -39,8 +39,8 @@ export type PromptEditorProps = {
   mentionCandidates?: string[]
   /** All media references used to keep chip labels type-aware. */
   mentionReferences?: { url: string; kind: 'image' | 'video' | 'audio'; index: number }[]
-  /** 打 @ 时按 query 给候选（当前参考 / 画布 / 素材库三组）。缺省 = 不开 @ 面板。 */
-  mentionSearch?: (query: string) => MentionSuggestionItem[]
+  /** 打 @ 时按 query 给候选（当前参考 / 画布 / 素材库三组）。缺省 = 不开 @ 面板。可以异步（素材库打了 @ 才去取）。 */
+  mentionSearch?: (query: string) => MentionSuggestionItem[] | Promise<MentionSuggestionItem[]>
   /** 选中候选：负责真的建立引用（建边/落上传槽），返回最终 chip 编号；返回 null = 没插成。 */
   onMentionSelect?: (item: MentionSuggestionItem) => MentionSelection
   /** @ 面板沿用 composer 附件上传管线；上传完成后作为 upload 来源重新出现在列表。 */

@@ -134,11 +134,11 @@ function requireDesktopRuntime(feature: string): DesktopBridge {
 }
 
 export async function listWorkbenchModelCatalogVendors(): Promise<ModelCatalogVendorDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listVendors() as ModelCatalogVendorDto[]
+  return await requireDesktopRuntime('model catalog').modelCatalog.listVendors() as ModelCatalogVendorDto[]
 }
 
 export async function getWorkbenchModelCatalogHealth(): Promise<ModelCatalogHealthDto> {
-  return requireDesktopRuntime('model catalog').modelCatalog.health() as ModelCatalogHealthDto
+  return await requireDesktopRuntime('model catalog').modelCatalog.health() as ModelCatalogHealthDto
 }
 
 export async function listWorkbenchModelCatalogModels(params?: {
@@ -146,13 +146,22 @@ export async function listWorkbenchModelCatalogModels(params?: {
   kind?: BillingModelKind
   enabled?: boolean
 }): Promise<ModelCatalogModelDto[]> {
-  const rows = requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
+  const rows = await requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
   // 目录的 `meta` 过 IPC 时还是 `unknown`。在**进入渲染层的第一处**把窗口解出来，
   // 而不是让每个读它的组件各解一遍（那正是「同一语义几份定义」的起点）。
   return rows.map((row) => {
     const contextWindow = modelContextWindow(row.meta, row.modelKey)
     return contextWindow === undefined ? row : { ...row, contextWindow }
   })
+}
+
+/**
+ * 渠道 mapping 全表（异步 IPC）。渲染层**只经** `config/modelCatalogCache` 读它：那里载一次、按目录变更失效，
+ * 组件只读内存（挂载时不许碰 IPC，2026-10-16 卡顿波可疑点 j）。
+ */
+export async function listWorkbenchModelCatalogMappings(): Promise<readonly unknown[] | undefined> {
+  const list = await getDesktopBridge()?.modelCatalog?.listMappings?.()
+  return Array.isArray(list) ? list : undefined
 }
 
 /** 启用/更新一个已存在的目录模型（恢复卡「一键启用被禁用的文本大脑」用）。 */

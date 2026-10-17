@@ -9,11 +9,9 @@ import { useNodeEffectChips } from './NodeEffectChips'
 import { showUndoToast } from '../../../utils/showUndoToast'
 import PromptEditor from '../../assets/PromptEditor'
 import { promptToContent } from '../../assets/promptEditorContent'
-import { useAllProjectAssets } from '../../assets/useAllProjectAssets'
 import { useNodeMentionSource } from './useNodeMentionSource'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeWriteAccessProvider, useNodeWriteAccess } from './nodeWriteAccess'
 import { canRunGenerationNode, unmetReferenceDependencyForNode } from '../runner/generationRunController'
 import { startGenerationFromComposer } from './composerRun'
@@ -52,9 +50,12 @@ import {
   requiredModeForGenerationNode,
   useGenerationModelOptionsState,
 } from '../adapters/modelOptionsAdapter'
+import { useVendorMappingsReader } from './controls/useChannelCreateBody'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import { useProductionRunStore } from '../../production/productionRunStore'
+import { useProductionCanvasLandingStore } from '../../production/productionCanvasLandingStore'
+import { useComposerGraph } from './composerGraphSnapshot'
 import { productionMetaOf } from '../model/productionMeta'
 import { decideShotClaim } from '../../../../electron/shared/decideShotClaim'
 import { shotClaimCopy } from '../../observability/shotClaimCopy'
@@ -154,9 +155,15 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const isGenerating = status === 'queued' || status === 'running'
   const hasResult = Boolean(node.result?.url)
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
-  // 只订派生出的那一个字符串：订整张 nodes / edges 会让画布上任何写入（含别的节点的生成进度）都把整个面板重渲一遍。
-  const requiredMode = useGenerationCanvasStore((state) => requiredModeForGenerationNode(node, { nodes: state.nodes, edges: state.edges }))
-  const modelOptions = useGenerationModelOptionsState(node.kind, requiredMode).options
+  // 这张卡读得到的那一小片图（composerGraphSnapshot）：依赖面没变就是同一份，别的卡的生成进度、拖动不让生成框重渲。
+  // 下面每个读图的派生值都从这一份算，算法照旧是 runner 那几个现役函数——不再各订各的整表、不再 JSON.stringify 防抖。
+  const graph = useComposerGraph(node.id)
+  const requiredMode = React.useMemo(() => requiredModeForGenerationNode(node, graph), [node, graph])
+  // 模型清单（可疑点 f）：整张生成框只算这一份，往下交给三份参数控件，不再各算一遍。
+  const modelOptionsState = useGenerationModelOptionsState(node.kind, requiredMode)
+  const modelOptions = modelOptionsState.options
+  // 渠道 mapping 同理：内存里那一份（composerResidentData 启动后载入），三份控件共用一个读取器。
+  const readMappings = useVendorMappingsReader()
   const selectedModelAddress = nodeSelectedModelAddress(node.meta || {})
   const selectedModelOption = findModelOptionByIdentifier(
     modelOptions,
@@ -166,36 +173,24 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 导入工作流是否接收提示词由保存下来的 binding 决定。明确不接收时，整组移除无效输入和动作；
   // null 表示非 ComfyUI 或目录尚未就绪，维持普通模型原有体验。
   const acceptsPrompt = comfyWorkflowTakesPrompt(selectedModelOption?.meta) !== false
-  // v0.7.2 perf: 用 boolean primitive 订阅 canGenerate
-  const canGenerate = useGenerationCanvasStore((state) =>
-    canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges }),
+  // 「这一镜归制作流程生成」也是 canRunGenerationNode 的一个判据：它读的是制作落地 store，所以单独订它的 runs。
+  const productionLandingRuns = useProductionCanvasLandingStore((state) => state.runs)
+  const canGenerate = React.useMemo(
+    () => { void productionLandingRuns; return canRunGenerationNode(node, graph) },
+    [node, graph, productionLandingRuns],
   ) && !isGenerating
   // 跨槽依赖未满足（档案 slot.requiresAnyOf；如 Seedance 2.0 只放了参考音频、缺图/视频）。
   // 与 canGenerate 同一个判定（unmetReferenceDependencyForNode），composer 不再按 node.kind 重猜原因。
-  // 订阅**字符串**而非对象：对象选择器每帧新引用会破坏 v0.7.2 的 primitive 订阅防抖；
   // 文案仍留到渲染时用 t() 格式化，保证切语言能实时重渲。
-  // 3D-BOX 预演挡着这一镜的生成（渲染中 / 失败 / 过期）：与 canRunGenerationNode 同一个判据，这里只取原因与可重渲的导演节点（原始值订阅）。
-  const directorPreviewBlock = useGenerationCanvasStore((state) => {
-    const block = directorPreviewSpendBlock(node.id, state.nodes)
-    return block ? directorPreviewSpendBlockMessageKey(block) : null
-  })
+  // 3D-BOX 预演挡着这一镜的生成（渲染中 / 失败 / 过期）：与 canRunGenerationNode 同一个判据，这里只取原因与可重渲的导演节点（都从这张卡的图快照算，导演卡已在依赖面里）。
+  const directorBlock = React.useMemo(() => directorPreviewSpendBlock(node.id, graph.nodes), [node.id, graph])
+  const directorPreviewBlock = directorBlock ? directorPreviewSpendBlockMessageKey(directorBlock) : null
   // 过期 / 可重试的失败：给一键重渲（与「出成片」、导演节点卡「重试」同一个写口）；超长的失败要改短，不给
-  const rerenderDirectorNodeId = useGenerationCanvasStore((state) => {
-    const block = directorPreviewSpendBlock(node.id, state.nodes)
-    return block && (block.reason === 'stale' || (block.reason === 'failed' && block.failure !== 'too_long')) ? block.directorNodeId : null
-  })
-  const unmetDependencyKey = useGenerationCanvasStore((state) =>
-    JSON.stringify(unmetReferenceDependencyForNode(node, { nodes: state.nodes, edges: state.edges })),
-  )
-  const unmetDependency = React.useMemo(
-    () => JSON.parse(unmetDependencyKey) as UnmetReferenceDependency | null,
-    [unmetDependencyKey],
-  )
-  // 自动备齐参考（对话 2026-06-14）：本节点经参考边、尚未出图的上游 id（稳定 key 订阅防抖）。
+  const rerenderDirectorNodeId = directorBlock && (directorBlock.reason === 'stale' || (directorBlock.reason === 'failed' && directorBlock.failure !== 'too_long')) ? directorBlock.directorNodeId : null
+  const unmetDependency = React.useMemo<UnmetReferenceDependency | null>(() => unmetReferenceDependencyForNode(node, graph), [node, graph])
+  // 自动备齐参考（对话 2026-06-14）：本节点经参考边、尚未出图的上游 id。
   // 有则「生成」不裸跑，转而排依赖波次（参考先生成→本节点后生成）走批量确认条。
-  const pendingRefKey = useGenerationCanvasStore((state) =>
-    collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges }).join(','),
-  )
+  const pendingRefKey = React.useMemo(() => collectUngeneratedReferenceAncestors(node.id, graph).join(','), [node.id, graph])
   const hasPendingRefs = pendingRefKey.length > 0
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || (hasPendingRefs && !isGenerating)
@@ -241,17 +236,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // @ 候选 = 当前模式 image_ref 槽的有序填充（连线在前+上传，option 2 单源），与面板编号①②③、
   // 发送的 reference_image 数组同一口径——连线进来的参考图也在候选里、能被 @（此前只读 meta 漏掉边）。
   // 候选已扩到三组：当前参考 / 画布已出图节点 / 素材库。后两组选中会**先真的建立引用**再插 chip
-  // （建边或落上传槽，都过能力校验闸），见 useNodeMentionSource。
-  const { assets: projectAssets } = useAllProjectAssets()
-  const mentionLibraryAssets = React.useMemo(
-    () => projectAssets.flatMap((asset) => {
-      if ((asset.kind !== 'image' && asset.kind !== 'video' && asset.kind !== 'audio') || !asset.renderUrl) return []
-      return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind, origin: asset.origin, ...(asset.thumbUrl ? { thumbnailUrl: asset.thumbUrl } : {}) }]
-    }),
-    [projectAssets],
-  )
+  // （建边或落上传槽，都过能力校验闸），见 useNodeMentionSource。素材库那组打了 @ 才去取，挂载不扫。
   const { orderedReferenceUrls: mentionCandidates, orderedMediaReferences, mentionSearch, onMentionSelect } =
-    useNodeMentionSource(node, mentionLibraryAssets, reportFeedback, writeAccess)
+    useNodeMentionSource(node, reportFeedback, writeAccess, graph)
   const insertMention = React.useCallback((url: string) => {
     if (!promptEditor || promptEditor.isDestroyed) return
     const reference = orderedMediaReferences.find((candidate) => candidate.url === url)
@@ -400,14 +387,14 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           压到最小高度也整行可见可点（2026-09-21，见 NodeParameterControls 的 section="mode"）。 */}
       {hasReferenceControls && !readOnly ? (
         <div data-node-composer-mode-bar className={cn('shrink-0')}>
-          <NodeParameterControls node={node} section="mode" />
+          <NodeParameterControls node={node} section="mode" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
         </div>
       ) : null}
       {hasReferenceControls && !readOnly ? (
         // 参考区最多露两行参考格（56px 格 × 2 + 间距），更多在区内滚；卡片定宽后一行放 8 格，两行覆盖绝大多数模式。
         // 以前这里的滚动口高度是按屏幕剩余空间逐帧现算的，那套随放置层一起删了。
         <div data-node-composer-references className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft', !inPanel && 'max-h-36')}>
-          <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
+          <NodeParameterControls node={node} section="references" onInsertMention={insertMention} graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
         </div>
       ) : null}
       {/* 长 prompt 在编辑器内部滚动/换行；卡宽确定，提示词不撑爆卡片。 */}
@@ -458,7 +445,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
         </div>
       )}
       {/* 连进来的文字：拼进提示词的那几段，摆出来（和生成时拼提示词读同一个投影）。 */}
-      <ConnectedTextChips node={node} />
+      <ConnectedTextChips node={node} graph={graph} />
       {/* 推荐行不进面板宿主：卡上的提示词是 Nomi 已经写完的，这一刻不是重新起草的时候。 */}
       {showPromptPicker && effects.recommendations}
       {/* 底栏（v1.1，2026-09-11 用户拍板）：铺满卡宽（w-full），一行三段、不换行：
@@ -478,6 +465,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
           <NodeParameterControls
             node={node}
             section="parameters"
+            graph={graph}
+            modelOptionsState={modelOptionsState}
+            readMappings={readMappings}
             {...(inPanel
               ? {
                 parameterLayout: 'chips' as const,

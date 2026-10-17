@@ -71,8 +71,8 @@ try {
     }
   }
 
-  const seeded = await win.evaluate((mk) => {
-    const models = window.nomiDesktop.modelCatalog.listModels() || [];
+  const seeded = await win.evaluate(async (mk) => {
+    const models = (await window.nomiDesktop.modelCatalog.listModels()) || [];
     const m = models.find((x) => x.vendorKey === "apimart" && x.modelKey === mk);
     if (!m) return null;
     let meta = m.meta;

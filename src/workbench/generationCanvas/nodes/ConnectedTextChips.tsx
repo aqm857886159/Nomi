@@ -14,7 +14,7 @@ import { AnchoredPopover } from '../../../design'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { projectConnectedTextInputs, type ConnectedTextInput } from '../runner/connectedTextPrompt'
-import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { sameFlatRecords, useContentStable, type ComposerGraph } from './composerGraphSnapshot'
 
 function ConnectedTextChip({ input }: { input: ConnectedTextInput }): JSX.Element {
   const { t } = useTranslation()
@@ -68,9 +68,12 @@ export function ConnectedTextChipList({ inputs }: { inputs: readonly ConnectedTe
   )
 }
 
-export function ConnectedTextChips({ node }: { node: GenerationCanvasNode }): JSX.Element | null {
-  // 订阅**字符串**：对象选择器每次新引用会让整个浮框跟着任何画布写入重渲。
-  const key = useGenerationCanvasStore((state) => JSON.stringify(projectConnectedTextInputs(node, { nodes: state.nodes, edges: state.edges })))
-  const inputs = React.useMemo(() => JSON.parse(key) as ConnectedTextInput[], [key])
+/**
+ * 读图走生成框那一份快照（composerGraphSnapshot）：依赖面没变就不重算；内容没变就沿用同一个数组。
+ * 不再自己订整表 + JSON.stringify 防抖（2026-10-16 可疑点 h）。
+ */
+export function ConnectedTextChips({ node, graph }: { node: GenerationCanvasNode; graph: ComposerGraph }): JSX.Element | null {
+  const projected = React.useMemo(() => projectConnectedTextInputs(node, graph), [node, graph])
+  const inputs = useContentStable(projected, sameFlatRecords)
   return <ConnectedTextChipList inputs={inputs} />
 }

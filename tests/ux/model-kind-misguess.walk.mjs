@@ -187,11 +187,11 @@ try {
   }
 
   // ── ④ 目录层验收：kind + 通道 ────────────────────────────────────────────
-  const catalog = await getWin().evaluate(() => {
+  const catalog = await getWin().evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog
     if (!mc) return null
-    const m = mc.listModels().find((x) => x.modelKey === 'seedream-4-0')
-    const maps = mc.listMappings({ vendorKey: 'relay' })
+    const m = (await mc.listModels()).find((x) => x.modelKey === 'seedream-4-0')
+    const maps = await mc.listMappings({ vendorKey: 'relay' })
     return {
       kind: m?.kind ?? null,
       params: (m?.meta?.parameters || []).length,
@@ -207,10 +207,10 @@ try {
   }
 
   // ── ⑤ 生成侧验收：它回到图像模型下拉里了 ─────────────────────────────────
-  const inDropdown = await getWin().evaluate(() => {
+  const inDropdown = await getWin().evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog
     if (!mc) return null
-    return mc.listModels({ kind: 'image', enabled: true }).map((m) => m.modelKey)
+    return (await mc.listModels({ kind: 'image', enabled: true })).map((m) => m.modelKey)
   })
   if (inDropdown) {
     note('图像可选模型', JSON.stringify(inDropdown))

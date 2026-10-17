@@ -62,7 +62,7 @@ try {
   await win.evaluate(async ({ keys, baseUrlHint, keepOfficial }) => {
     const catalog = window.nomiDesktop.modelCatalog
     for (const [vendorKey, apiKey] of Object.entries(keys)) {
-      const vendor = catalog.listVendors().find((item) => item.key === vendorKey)
+      const vendor = (await catalog.listVendors()).find((item) => item.key === vendorKey)
       if (!keepOfficial.includes(vendorKey)) catalog.upsertVendor({ ...vendor, baseUrlHint })
       await catalog.upsertVendorApiKey(vendorKey, { apiKey, enabled: true })
     }

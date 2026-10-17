@@ -22,7 +22,9 @@ import { buildMentionCandidates, currentReferenceMedia, currentReferenceUrls, pl
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import type { MentionSelection } from '../../assets/AssetMentionSuggestion'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import type { AssetOrigin } from '../../assets/assetTypes'
+import type { AssetOrigin, AssetRef } from '../../assets/assetTypes'
+import { loadAllProjectAssets, peekAllProjectAssets } from '../../assets/useAllProjectAssets'
+import { sameFlatRecords, sameStrings, useContentStable, type ComposerGraph } from './composerGraphSnapshot'
 import { materializeAssetLibraryItems } from '../../assets/assetLibraryMaterialize'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 
@@ -193,11 +195,24 @@ export function createMentionSearch(deps: Readonly<{ node: GenerationCanvasNode;
   }
 }
 
-export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: readonly MentionLibraryAsset[], reportFeedback: (message: string) => void, writeAccess?: NodeWriteAccess): {
+/** 素材库清单 → @ 候选的形状（只要图 / 视频 / 音频、要有地址）。按清单身份记一次，同一份清单不重算。 */
+const mentionLibraryByAssets = new WeakMap<readonly AssetRef[], MentionLibraryAsset[]>()
+export function toMentionLibraryAssets(assets: readonly AssetRef[]): MentionLibraryAsset[] {
+  const cached = mentionLibraryByAssets.get(assets)
+  if (cached) return cached
+  const next = assets.flatMap((asset): MentionLibraryAsset[] => {
+    if ((asset.kind !== 'image' && asset.kind !== 'video' && asset.kind !== 'audio') || !asset.renderUrl) return []
+    return [{ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind, origin: asset.origin, ...(asset.thumbUrl ? { thumbnailUrl: asset.thumbUrl } : {}) }]
+  })
+  mentionLibraryByAssets.set(assets, next)
+  return next
+}
+
+export function useNodeMentionSource(node: GenerationCanvasNode, reportFeedback: (message: string) => void, writeAccess: NodeWriteAccess | undefined, graph: ComposerGraph): {
   /** 有序图片参考 url（兼容旧的图片 chip 编号）；视频/音频编号由 mediaReferences 提供。 */
   orderedReferenceUrls: string[]
   orderedMediaReferences: ReturnType<typeof currentReferenceMedia>
-  mentionSearch: (query: string) => MentionSuggestionItem[]
+  mentionSearch: (query: string) => MentionSuggestionItem[] | Promise<MentionSuggestionItem[]>
   onMentionSelect: (item: MentionSuggestionItem) => MentionSelection
 } {
   const inheritedAccess = useNodeWriteAccess()
@@ -205,21 +220,34 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
   const { t } = useTranslation()
   // 边**照读**，两个宿主读的是同一张图：付费确认卡上印的参考数量必须等于真正会发出去的那些
   // （连线接进来的首帧/参考卡也算）。只有**改**图的权能才归画布宿主（`access.connectNodes`）。
-  // 按内容订阅（序列化成字符串）：订整张 nodes / edges 会让每敲一个字都产出新数组、编辑器跟着重排 chip 编号
-  // （2026-09-25 画布跟手）。内容没变就沿用同一个数组。
-  const referenceUrlsKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceUrls(node, state.nodes, state.edges)))
-  const referenceMediaKey = useGenerationCanvasStore((state) => JSON.stringify(currentReferenceMedia(node, state.nodes, state.edges)))
-  const orderedReferenceUrls = React.useMemo(() => JSON.parse(referenceUrlsKey) as ReturnType<typeof currentReferenceUrls>, [referenceUrlsKey])
-  const orderedMediaReferences = React.useMemo(() => JSON.parse(referenceMediaKey) as ReturnType<typeof currentReferenceMedia>, [referenceMediaKey])
-
-  const mentionSearch = React.useMemo(
-    () => createMentionSearch({ node, access, libraryAssets, t }),
-    [libraryAssets, node, t, access],
+  // 图读生成框那一份快照（依赖面没变就不重算），内容没变就沿用同一个数组：每敲一个字都换新数组会让编辑器
+  // 跟着重排 chip 编号（2026-09-25 画布跟手）。以前靠「选择器里 JSON.stringify」防抖，每次 store 写都整表算一遍。
+  const orderedReferenceUrls = useContentStable(
+    React.useMemo(() => currentReferenceUrls(node, graph.nodes, graph.edges), [node, graph]),
+    sameStrings,
+  )
+  const orderedMediaReferences = useContentStable(
+    React.useMemo(() => currentReferenceMedia(node, graph.nodes, graph.edges), [node, graph]),
+    sameFlatRecords,
   )
 
+  // 素材库那一组**推迟到真去用的那一刻**：用户打了 @ 才要候选。清单在内存里就同步给；还没载过就载一次再给
+  // （TipTap suggestion 的 items 官方允许返回 Promise）。挂载生成框这一刻不碰素材库。
+  const mentionSearch = React.useMemo(() => {
+    const search = (assets: readonly AssetRef[], query: string) =>
+      createMentionSearch({ node, access, libraryAssets: toMentionLibraryAssets(assets), t })(query)
+    return (query: string): MentionSuggestionItem[] | Promise<MentionSuggestionItem[]> => {
+      const loaded = peekAllProjectAssets()
+      return loaded ? search(loaded, query) : loadAllProjectAssets().then((assets) => search(assets, query))
+    }
+  }, [node, t, access])
+
+  // 选中只会发生在候选已经列出来之后，那时清单一定在内存里。
   const onMentionSelect = React.useMemo(
-    () => createMentionSelect({ nodeId: node.id, access, libraryAssets, reportFeedback, t }),
-    [node.id, access, libraryAssets, reportFeedback, t],
+    () => (item: MentionSuggestionItem) => createMentionSelect({
+      nodeId: node.id, access, libraryAssets: toMentionLibraryAssets(peekAllProjectAssets() ?? []), reportFeedback, t,
+    })(item),
+    [node.id, access, reportFeedback, t],
   )
 
   return { orderedReferenceUrls, orderedMediaReferences, mentionSearch, onMentionSelect }

@@ -30,7 +30,8 @@ describe('generation model option production adapter', () => {
 
   it('keeps the live node picker call site wired to the required mode', () => {
     const configHook = fs.readFileSync(new URL('../../../config/useModelOptions.ts', import.meta.url), 'utf8')
-    const nodePicker = fs.readFileSync(new URL('../nodes/NodeParameterControls.tsx', import.meta.url), 'utf8')
+    // 模型清单由生成框按这张卡的必需模式算一份，往下交给三份参数控件（2026-10-16 可疑点 f）。
+    const nodePicker = fs.readFileSync(new URL('../nodes/NodeGenerationComposer.tsx', import.meta.url), 'utf8')
 
     expect(configHook).toContain('preloadModelOptions(kind, requiredMode)')
     expect(nodePicker).toContain('useGenerationModelOptionsState(node.kind, requiredMode)')

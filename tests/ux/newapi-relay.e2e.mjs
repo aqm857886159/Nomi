@@ -44,7 +44,7 @@ try {
   check("canonical configure ok", !!configured?.ok, configured?.error || `vendor=${configured?.registration?.vendorKey}`);
   const vendorKey = configured?.registration?.vendorKey;
 
-  const models = await win.evaluate((vk) => (window.nomiDesktop.modelCatalog.listModels({ vendorKey: vk }) || []).map((m) => ({
+  const models = await win.evaluate(async (vk) => ((await window.nomiDesktop.modelCatalog.listModels({ vendorKey: vk })) || []).map((m) => ({
     k: m.modelKey, kind: m.kind, enabled: m.enabled, published: m.published,
   })), vendorKey);
   check("图片模型 kind=image", models.some((m) => m.k === "dall-e-3" && m.kind === "image"));

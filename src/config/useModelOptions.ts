@@ -9,6 +9,7 @@ import {
 import {
   MODEL_REFRESH_EVENT,
   getCatalogHealth,
+  peekCatalogHealth,
   peekCatalogModelOptions,
   preloadModelOptions,
   type ModelQueryMode,
@@ -56,7 +57,8 @@ export function useModelOptionsState(kind?: NodeKind, requiredMode?: ModelQueryM
   const [options, setOptions] = useState<ModelOption[]>(() => peekCatalogModelOptions(kind, requiredMode) ?? [])
   const [error, setError] = useState<Error | null>(null)
   const [healthError, setHealthError] = useState<Error | null>(null)
-  const [health, setHealth] = useState<ModelCatalogHealthDto | null>(null)
+  // 健康度同理取内存首值：否则缓存全命中时也要多一轮「null → 对象」的重渲（每挂一次生成框就多一次提交）。
+  const [health, setHealth] = useState<ModelCatalogHealthDto | null>(() => peekCatalogHealth())
   const [loading, setLoading] = useState(() => peekCatalogModelOptions(kind, requiredMode) === null)
   const [refreshSeq, setRefreshSeq] = useState(0)
 

@@ -33,7 +33,8 @@ function positionPopup(el: HTMLElement, rect: DOMRect | null): void {
 export type MentionSelection = number | null | Promise<{ url: string; index: number; onSettled?: () => void } | null>
 
 export function createAssetMentionSuggestion(options: {
-  getCandidates: (query: string) => MentionSuggestionItem[]
+  /** 官方 Suggestion 的 items 可以返回 Promise（@tiptap/suggestion SuggestionOptions.items）。 */
+  getCandidates: (query: string) => MentionSuggestionItem[] | Promise<MentionSuggestionItem[]>
   onSelect: (item: MentionSuggestionItem) => MentionSelection
   getUpload?: () => MentionUploadControls | undefined
 }): Extension {
@@ -55,7 +56,7 @@ export function createAssetMentionSuggestion(options: {
           // 在「视频提示词描述框」里几乎不存在这种输入，收益远大于代价。
           // 回归由 tests/ux/archetype-modebar.e2e.mjs 钉住（那条走查按中文习惯**不打空格**地打 @）。
           allowedPrefixes: null,
-          items: ({ query }): MentionSuggestionItem[] => options.getCandidates(query || ''),
+          items: ({ query }): MentionSuggestionItem[] | Promise<MentionSuggestionItem[]> => options.getCandidates(query || ''),
           command: ({ editor, range, props }) => {
             const item = props as MentionSuggestionItem
             // 先建立真实引用（可能被能力校验拒），拿到最终编号再插 chip；拒了就只删掉 @ 触发段、不留假引用。

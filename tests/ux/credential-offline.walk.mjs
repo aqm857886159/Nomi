@@ -30,9 +30,9 @@ const launched = await launchNomiApp({
 const { win, app } = launched
 try {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 1000))
-  await win.evaluate((baseUrlHint) => {
+  await win.evaluate(async (baseUrlHint) => {
     const catalog = window.nomiDesktop.modelCatalog
-    const vendor = catalog.listVendors().find(item => item.key === 'apimart')
+    const vendor = (await catalog.listVendors()).find(item => item.key === 'apimart')
     catalog.upsertVendor({ ...vendor, baseUrlHint })
   }, `http://127.0.0.1:${port}/v1`)
   await win.locator('button[aria-label*="设置"], button[aria-label*="Settings"]').first().click()
@@ -43,7 +43,7 @@ try {
   await page.getByRole('button', { name: COPY.save, exact: true }).click()
   await expect(page.locator('[data-key-only-success]')).toContainText(COPY.offline)
   await expect(page.locator('[data-key-only-success]')).toContainText(COPY.offlineHint)
-  const pending = await win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors().find(item => item.key === 'apimart'))
+  const pending = await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listVendors()).find(item => item.key === 'apimart'))
   expect(pending.hasApiKey).toBe(false)
   expect(pending.credentialMaterialSaved).toBe(true)
   expect(pending.credentialVerificationPending).toBe(true)
@@ -58,7 +58,7 @@ try {
   await expect(page.locator('[data-key-only-success]')).toContainText(COPY.offline)
   await new Promise(resolve => server.listen(port, '127.0.0.1', resolve))
   await win.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(() => win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors().find(item => item.key === 'apimart').credentialVerificationPending)).toBe(false)
+  await expect.poll(() => win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listVendors()).find(item => item.key === 'apimart').credentialVerificationPending)).toBe(false)
   await expect(page.locator('[data-key-only-success]')).not.toContainText(COPY.offline)
   await expect(page.locator('[data-key-only-success]')).toContainText(COPY.rechecked)
   await expect(page.locator('[data-key-only-success]')).toContainText(COPY.recheckedHint)

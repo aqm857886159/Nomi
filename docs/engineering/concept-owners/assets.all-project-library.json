@@ -1,0 +1,32 @@
+{
+  "name": "渲染层「所有项目的素材」清单（进程内一份，第一次用到时载入，素材写入广播失效）",
+  "subject": "assets.all-project-library",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/assets/useAllProjectAssets.ts",
+    "symbol": "loadAllProjectAssets"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/assets/useAllProjectAssets.ts",
+      "symbol": "loadAllProjectAssets"
+    },
+    {
+      "path": "src/workbench/assets/useAllProjectAssets.ts",
+      "symbol": "invalidateAllProjectAssets"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/assets/AssetLibraryPanel.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+    "src/workbench/project/projectRepository.ts"
+  ],
+  "since": "2026-10-16",
+  "notes": "卡顿波可疑点 k：以前每个调用方挂载时各扫一遍全部项目（生成框每点一下卡、剪辑卡每次挂载）。现在一份清单，@ 素材打了 @ 才取；失效 = assets.onUpdated 广播 + 删项目。"
+}

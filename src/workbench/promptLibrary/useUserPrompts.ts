@@ -14,6 +14,13 @@ type State = { items: LibraryPrompt[]; loading: boolean; error: string | null }
 // 模块级缓存:面板反复开关不重拉(我的库写操作后即刷新这份)。
 let cached: LibraryPrompt[] | null = null
 
+/** 不在 React 里预热「我的库」（应用启动后后台载入，挂生成框时只读内存）。 */
+export async function loadUserPromptItems(): Promise<LibraryPrompt[]> {
+  if (cached) return cached
+  cached = await fetchUserPrompts()
+  return cached
+}
+
 export type UserPromptDraft = { title?: string; prompt: string; promptType: PromptMediaType }
 
 export type UseUserPrompts = State & {
@@ -36,7 +43,9 @@ export function useUserPrompts(opened: boolean): UseUserPrompts {
   const load = React.useCallback(
     (force: boolean) => {
       if (!force && cached) {
-        setState({ items: cached, loading: false, error: null })
+        // 已在内存里且屏上就是它：不再 setState（每次挂生成框都会走这里，白提交一次）。
+        const items = cached
+        setState((prev) => (prev.items === items && !prev.loading && !prev.error ? prev : { items, loading: false, error: null }))
         return
       }
       setState((prev) => ({ ...prev, loading: true, error: null }))

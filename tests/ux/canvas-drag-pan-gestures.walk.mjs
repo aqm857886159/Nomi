@@ -381,10 +381,10 @@ try {
   // 占位 key：让内置图像/视频模型出现，连线能算出真实 mode（全程不点生成、零额度）。
   const savedCredential = await getWin().evaluate(async () => {
     const catalog = window.nomiDesktop.modelCatalog
-    const vendor = catalog.listVendors().find(item => item.key === 'kie')
+    const vendor = (await catalog.listVendors()).find(item => item.key === 'kie')
     catalog.upsertVendor({ ...vendor, baseUrlHint: 'http://127.0.0.1:1' })
     const saved = await catalog.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true })
-    return { saved, vendor: catalog.listVendors().find(item => item.key === 'kie') }
+    return { saved, vendor: (await catalog.listVendors()).find(item => item.key === 'kie') }
   })
   // 这三行断的是**前提**（占位 key 真的存进去了），不是验证流程本身。
   // #726（vendor-key-publish-class）改了 kie 这类内置 curated 家的 key 判据：没有便宜且可信的

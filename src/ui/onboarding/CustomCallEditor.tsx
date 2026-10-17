@@ -76,15 +76,20 @@ export function CustomCallEditor({
 
   const bridge = getDesktopBridge()
   const targetKey = target ? `${target.vendorKey}\0${target.modelKey}` : ''
-  const catalogModel = React.useMemo(() => {
-    if (!target || !bridge) return null
-    try {
-      const models = bridge.modelCatalog.listModels({ vendorKey: target.vendorKey }) as CustomCallCatalogModel[]
-      return models.find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey) ?? null
-    } catch {
-      return null
-    }
-  // Primitive identity is intentional: a parent refresh must not wipe in-progress editor drafts.
+  // 目录读是异步 IPC：按 targetKey 读一次落进 state（原始键作依赖：父组件刷新不许冲掉正在编辑的草稿）。
+  const [catalogModel, setCatalogModel] = React.useState<CustomCallCatalogModel | null>(null)
+  React.useEffect(() => {
+    setCatalogModel(null)
+    if (!target || !bridge) return
+    let alive = true
+    void Promise.resolve(bridge.modelCatalog.listModels({ vendorKey: target.vendorKey }))
+      .then((models) => {
+        if (!alive) return
+        const found = (models as CustomCallCatalogModel[]).find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey)
+        setCatalogModel(found ?? null)
+      })
+      .catch(() => { if (alive) setCatalogModel(null) })
+    return () => { alive = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bridge, targetKey])
   const scriptModes = React.useMemo(

@@ -9,13 +9,14 @@ import { describe, expect, it } from 'vitest'
 const mainSource = fs.readFileSync(path.join(process.cwd(), 'electron/main.ts'), 'utf8')
 
 /**
- * 注册行：`registerSyncIpc("<channel>", <handler>);`——handler 一直吃到行尾的 `);`。
+ * 注册行：`registerSyncIpc("<channel>", <handler>);` 或 `ipcMain.handle("<channel>", (event, …) => { …; return <handler>(…); });`
+ * （2026-10-16 起目录读频道走异步 invoke）——handler 一直吃到行尾的 `);`（行尾注释不算）。
  *
  * 别写成 `[^)]*?`：包了一层的 handler 自己就带一对括号，那种写法会把**已经包好的**那些行
  * 全部漏掉，只剩没包的能匹配上——扫描器于是安静地只看得见一小半注册点（第一版就是这样，
  * 靠下面那条阳性对照才露馅）。
  */
-const REGISTRATION = /registerSyncIpc\("(nomi:model-catalog:[^"]+)",\s*(.*?)\);\s*$/gm
+const REGISTRATION = /(?:registerSyncIpc|ipcMain\.handle)\("(nomi:model-catalog:[^"]+)",\s*(.*?)\);(?:\s*\/\/.*)?\s*$/gm
 
 /**
  * 读频道的判据写成**白名单式的动词表**而不是「不是写就是读」：

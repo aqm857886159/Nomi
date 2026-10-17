@@ -28,6 +28,18 @@ const shortenedTimeoutSelectors = [TEST_CALL, HOOK_CALL].flatMap((call) => [
   { selector: `${call}[arguments.length>=2] > ObjectExpression.arguments:last-child > Property[key.name='timeout'] > Literal.value[value<${VITEST_TIMEOUT_FLOOR_MS}]`, message: SHORTENED_TIMEOUT_MESSAGE },
 ])
 
+/**
+ * Store 选择器里禁止 JSON.stringify（2026-10-16 卡顿波）：选择器每次 store 写都会跑，序列化防抖等于
+ * 「每一次别的卡的生成进度都把整份派生值重算 + 序列化一遍」。要稳定引用，用依赖面签名
+ * （src/workbench/generationCanvas/nodes/composerGraphSnapshot.ts）或在组件里 useContentStable 逐字段比。
+ */
+const storeSelectorSerializeSelectors = [
+  {
+    selector: "CallExpression[callee.name=/^use[A-Z][A-Za-z0-9]*Store$/] > :function CallExpression[callee.object.name='JSON'][callee.property.name='stringify']",
+    message: '不要在 store 选择器里 JSON.stringify：它在每次 store 写都会跑。用 composerGraphSnapshot 的依赖面快照，或在组件里 useContentStable 逐字段比。',
+  },
+]
+
 // 用例体 / 钩子里不许 `await import(...)`：冷转换一大片生产模块的那几秒记在用例或钩子的 30 秒超时里，
 // 机器一忙（并行推送前钩子 / CI 满载）就超时——单跑都能过、满载必红。静态 import 在收集阶段加载，不占用例超时，
 // vi.mock 会被提升、静态 import 照样吃到。2026-10-15：tryModelSubmitBudget「Hook timed out in 30000ms」、readTaskTarget 单跑 35 秒、
@@ -267,7 +279,7 @@ export default tseslint.config(
       'no-irregular-whitespace': 'warn',
       'preserve-caught-error': 'warn',
       'prefer-const': 'warn',
-      'no-restricted-syntax': ['error', ...windowsPathSelectors],
+      'no-restricted-syntax': ['error', ...windowsPathSelectors, ...storeSelectorSerializeSelectors],
     },
   },
   {
@@ -284,12 +296,12 @@ export default tseslint.config(
     // 画布 nodes / edges 整表订阅：名单外的文件一处都不许有；名单内的处数由 scripts/canvas-store-subscriptions.test.mjs 卡死（只减不增）。
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', ...Object.keys(WHOLE_TABLE_SUBSCRIPTION_BASELINE)],
-    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...WHOLE_TABLE_SUBSCRIPTION_SELECTORS] },
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...storeSelectorSerializeSelectors, ...WHOLE_TABLE_SUBSCRIPTION_SELECTORS] },
   },
   {
     // 画布壳不订阅选区：选中一张卡，壳 0 次重渲（方向检查 2026-10-16-canvas-shell-subscriptions）。
     files: [CANVAS_SHELL_FILE],
-    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...SHELL_SELECTION_SELECTORS] },
+    rules: { 'no-restricted-syntax': ['error', ...windowsPathSelectors, ...storeSelectorSerializeSelectors, ...SHELL_SELECTION_SELECTORS] },
   },
   {
     // 渲染层失败证据只有一个出口：src/desktop/rendererLog.ts（→ 主进程日志 → 诊断包）。

@@ -121,72 +121,130 @@ export function mergeAssetRefs(...groups: readonly (readonly AssetRef[])[]): Ass
   })
 }
 
-export function useAllProjectAssets(): AllProjectAssetsState {
-  const [assets, setAssets] = React.useState<AssetRef[]>([])
-  // Start busy so the first render cannot mislabel the async all-project scan
-  // as an empty library for one frame.
-  const [loading, setLoading] = React.useState(true)
-  const [partial, setPartial] = React.useState(false)
-  const [version, setVersion] = React.useState(0)
-  const refresh = React.useCallback(() => setVersion((value) => value + 1), [])
+/**
+ * 「所有项目的素材」这一份清单的唯一 owner：**进程内一份、第一次用到时异步载入、素材变更就作废**。
+ *
+ * 为什么不再是「每个调用方挂载时自己扫一遍」：扫一遍 = 列出全部项目 + 每个项目分页拉素材 + 排序，
+ * 开销跟用户一共有多少项目、多少素材走，和眼前这张画布无关。以前生成框每次挂载（= 每点一下卡）扫一遍、
+ * 每张剪辑卡挂载扫一遍，量是对的、地方错了（2026-10-16 卡顿波可疑点 k）。
+ *
+ * 失效只有一个信号：素材写入层落盘即广播的 `assets.onUpdated`（任何导入路径都经过它），外加
+ * 删项目时显式作废。排序在这里做一次（mergeAssetRefs），调用方拿到的就是排好的。
+ */
+type LibraryState = Readonly<{ assets: AssetRef[]; loading: boolean; partial: boolean; fresh: boolean }>
 
-  React.useEffect(() => {
-    let cancelled = false
-    const loadAssets = async (): Promise<void> => {
-      const desktop = getDesktopBridge()
-      if (!desktop?.projects || !desktop.assets?.list) {
-        setAssets([])
-        setLoading(false)
-        setPartial(false)
-        return
-      }
-      setLoading(true)
-      setPartial(false)
-      let hasPartialResults = false
-      let projectRecords: unknown
+let libraryState: LibraryState = { assets: [], loading: true, partial: false, fresh: false }
+let libraryGeneration = 0
+let libraryInflight: Promise<AssetRef[]> | null = null
+let stopWatchingAssetWrites: (() => void) | null = null
+const libraryListeners = new Set<() => void>()
+
+function publish(next: LibraryState): void {
+  libraryState = next
+  for (const listener of [...libraryListeners]) listener()
+}
+
+function watchAssetWrites(): void {
+  if (stopWatchingAssetWrites) return
+  const unsubscribe = getDesktopBridge()?.assets?.onUpdated?.(() => invalidateAllProjectAssets())
+  if (unsubscribe) stopWatchingAssetWrites = unsubscribe
+}
+
+async function scanAllProjectAssets(isCurrent: () => boolean): Promise<{ assets: AssetRef[]; partial: boolean }> {
+  const desktop = getDesktopBridge()
+  if (!desktop?.projects || !desktop.assets?.list) return { assets: [], partial: false }
+  let partial = false
+  let projectRecords: unknown
+  try {
+    projectRecords = desktop.projects.listAsync ? await desktop.projects.listAsync() : desktop.projects.list()
+  } catch {
+    projectRecords = []
+    partial = true
+  }
+  const projectNames = parseProjectNames(projectRecords)
+  const loaded: AssetRef[] = []
+  for (const projectId of parseProjectIds(projectRecords)) {
+    let cursor: string | null = null
+    do {
       try {
-        projectRecords = desktop.projects.listAsync ? await desktop.projects.listAsync() : desktop.projects.list()
+        const page = await desktop.assets.list({ projectId, cursor, limit: ASSET_PAGE_LIMIT })
+        for (const asset of page.items) {
+          const ref = assetRefFromDesktopAsset(asset, projectNames.get(projectId))
+          if (ref) loaded.push(ref)
+        }
+        cursor = page.cursor
       } catch {
-        projectRecords = []
-        hasPartialResults = true
+        partial = true
+        cursor = null
       }
-      const projectIds = parseProjectIds(projectRecords)
-      const projectNames = parseProjectNames(projectRecords)
-      const loaded: AssetRef[] = []
-      for (const projectId of projectIds) {
-        let cursor: string | null = null
-        do {
-          try {
-            const page = await desktop.assets.list({ projectId, cursor, limit: ASSET_PAGE_LIMIT })
-            for (const asset of page.items) {
-              const ref = assetRefFromDesktopAsset(asset, projectNames.get(projectId))
-              if (ref) loaded.push(ref)
-            }
-            cursor = page.cursor
-          } catch {
-            hasPartialResults = true
-            cursor = null
-          }
-        } while (cursor && !cancelled)
-        if (cancelled) return
-      }
-      if (!cancelled) {
-        setAssets(mergeAssetRefs(loaded))
-        setPartial(hasPartialResults)
-        setLoading(false)
-      }
-    }
-    void loadAssets().catch(() => {
-      if (!cancelled) {
-        setAssets([])
-        setPartial(true)
-        setLoading(false)
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [version])
+    } while (cursor && isCurrent())
+    if (!isCurrent()) break
+  }
+  return { assets: mergeAssetRefs(loaded), partial }
+}
 
-  return { assets, loading, partial, refresh }
+/** 已经在内存里的清单；还没载过（或刚作废）→ null。同步、零 IO。 */
+export function peekAllProjectAssets(): AssetRef[] | null {
+  return libraryState.fresh ? libraryState.assets : null
+}
+
+/** 拿清单：内存里有就直接给；没有就载一次（同一时刻只有一趟在路上）。 */
+export function loadAllProjectAssets(): Promise<AssetRef[]> {
+  if (libraryState.fresh) return Promise.resolve(libraryState.assets)
+  if (libraryInflight) return libraryInflight
+  watchAssetWrites()
+  const generation = ++libraryGeneration
+  const isCurrent = () => generation === libraryGeneration
+  if (!libraryState.loading) publish({ ...libraryState, loading: true })
+  const inflight = scanAllProjectAssets(isCurrent).then(
+    ({ assets, partial }) => {
+      if (isCurrent()) publish({ assets, loading: false, partial, fresh: true })
+      return assets
+    },
+    () => {
+      if (isCurrent()) publish({ assets: [], loading: false, partial: true, fresh: true })
+      return [] as AssetRef[]
+    },
+  ).finally(() => {
+    if (libraryInflight === inflight) libraryInflight = null
+  })
+  libraryInflight = inflight
+  return inflight
+}
+
+/** 素材变了：作废这一份。正在看清单的界面（订阅者）会自己重载，没人看就等下次用到再载。 */
+export function invalidateAllProjectAssets(): void {
+  libraryGeneration += 1
+  libraryInflight = null
+  publish({ ...libraryState, fresh: false })
+}
+
+function subscribeLibrary(listener: () => void): () => void {
+  libraryListeners.add(listener)
+  return () => { libraryListeners.delete(listener) }
+}
+
+const readLibrary = (): LibraryState => libraryState
+
+/** 要**看**清单的界面（素材库面板）：订阅这一份，挂上时没有就载。只想作废的调用方直接用 invalidateAllProjectAssets。 */
+export function useAllProjectAssets(): AllProjectAssetsState {
+  const state = React.useSyncExternalStore(subscribeLibrary, readLibrary, readLibrary)
+  React.useEffect(() => {
+    if (!state.fresh) void loadAllProjectAssets()
+  }, [state.fresh])
+  const refresh = React.useCallback(() => {
+    invalidateAllProjectAssets()
+    void loadAllProjectAssets()
+  }, [])
+  return { assets: state.assets, loading: state.loading || !state.fresh, partial: state.partial, refresh }
+}
+
+/** 仅供单测：回到「进程刚起、什么都没载」。 */
+export function resetAllProjectAssetsForTest(): void {
+  libraryGeneration += 1
+  libraryInflight = null
+  stopWatchingAssetWrites?.()
+  stopWatchingAssetWrites = null
+  libraryListeners.clear()
+  libraryState = { assets: [], loading: true, partial: false, fresh: false }
 }

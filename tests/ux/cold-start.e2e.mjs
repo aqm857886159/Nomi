@@ -45,11 +45,11 @@ try {
 
   // CS0：确认确实是全新安装——项目库为空、模型目录零文本模型。
   // 经主进程桥 window.nomiDesktop.modelCatalog 读（built dist 下可用；不走 dev-only 的 /src import）。
-  const initial = await win.evaluate(() => {
+  const initial = await win.evaluate(async () => {
     let textModels = -1;
     try {
       const mc = window.nomiDesktop?.modelCatalog;
-      if (mc) textModels = mc.listModels({ kind: "text", enabled: true }).length;
+      if (mc) textModels = (await mc.listModels({ kind: "text", enabled: true })).length;
     } catch { /* ignore */ }
     const projectCards = document.querySelectorAll('[data-project-card]').length;
     return { textModels, projectCards };

@@ -91,7 +91,7 @@ async function backHome() {
   await expect(win.locator('[data-model-settings-page="home"]')).toBeVisible()
 }
 async function savedKeys(vendorKey) {
-  return win.evaluate(key => window.nomiDesktop.modelCatalog.listModels().filter(m => m.vendorKey === key).map(m => m.modelKey), vendorKey)
+  return win.evaluate(async key => (await window.nomiDesktop.modelCatalog.listModels()).filter(m => m.vendorKey === key).map(m => m.modelKey), vendorKey)
 }
 async function completeModelSelfCheck() {
   const done = win.getByRole('button', { name: '\u5b8c\u6210', exact: true }).last()
@@ -106,12 +106,12 @@ try {
   // Fixture setup uses only public catalog IPC inside this isolated profile. No user key is read.
   const fixture = await win.evaluate(async ({ base }) => {
     const catalog = window.nomiDesktop.modelCatalog
-    const kie = catalog.listVendors().find(v => v.key === 'kie')
+    const kie = (await catalog.listVendors()).find(v => v.key === 'kie')
     if (!kie) throw new Error('Built-in Kie catalog missing')
     catalog.upsertVendor({ ...kie, enabled: true, baseUrlHint: `${base}/seed/v1` })
     await catalog.upsertVendorApiKey('kie', { apiKey: 'fixture-discovery-key', enabled: true })
-    catalog.upsertVendor({ ...catalog.listVendors().find(v => v.key === 'kie'), enabled: true, baseUrlHint: `${base}/native` })
-    for (const model of catalog.listModels({ vendorKey: 'kie' })) {
+    catalog.upsertVendor({ ...(await catalog.listVendors()).find(v => v.key === 'kie'), enabled: true, baseUrlHint: `${base}/native` })
+    for (const model of (await catalog.listModels({ vendorKey: 'kie' }))) {
       const taskKind = model.kind === 'video' ? 'text_to_video' : model.kind === 'audio' ? 'text_to_audio' : 'text_to_image'
       catalog.upsertModel({ ...model, meta: { ...(model.meta || {}), adapter: { state: 'verified', activeRevision: 'fixture-retained', modes: [{ state: 'verified', taskKind }] } } })
     }
@@ -130,7 +130,7 @@ try {
       catalog.upsertModel({ vendorKey, modelKey: 'already-connected', labelZh: 'Already connected', kind: 'image', enabled: true })
     }
     return {
-      originalKieKeys: catalog.listModels().filter(m => m.vendorKey === 'kie').map(m => m.modelKey),
+      originalKieKeys: (await catalog.listModels()).filter(m => m.vendorKey === 'kie').map(m => m.modelKey),
       relayVendorKey: relay.registration.vendorKey,
       replicateVendorKey: replicate.registration.vendorKey,
     }
@@ -265,7 +265,7 @@ try {
   await clickOrFail(picker().getByRole('button', { name: '\u81ea\u68c0 1 \u4e2a', exact: true }), 'run model self-check')
   await completeModelSelfCheck()
   await expect(win.locator('[data-model-settings-page="add"]')).toBeVisible()
-  const newConnectionKey = await win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors().find(v => v.name === 'Discovery New Connection')?.key)
+  const newConnectionKey = await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listVendors()).find(v => v.name === 'Discovery New Connection')?.key)
   expect(newConnectionKey).toBeTruthy()
   expect(await savedKeys(newConnectionKey)).toContain('gpt-discovery-text')
   const newHealth = await win.evaluate(vendorKey => window.nomiDesktop.onboarding.vendorHealth({ vendorKey, force: true }), newConnectionKey)

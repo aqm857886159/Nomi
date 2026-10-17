@@ -12,7 +12,7 @@ import React from 'react'
 import { modeTransportFor, type ArchetypeMode, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import type { ModelOption } from '../../../../config/models'
 import { archetypeModeIsVisible, type ModeChannelBody } from './channelModeReach'
-import { createVendorMappingsReader, readModeChannelBody } from './useChannelCreateBody'
+import { readModeChannelBody, type VendorMappingsReader } from './useChannelCreateBody'
 import { resolveArchetypeForOption } from '../nodeModelArchetype'
 
 /** 一个候选渠道：把 (vendor, model) 连同它的显示名一起带上，提示里要直接说人话。 */
@@ -103,8 +103,10 @@ export function useNarrowedModeGuidance(params: {
   modelOptions: readonly ModelOption[]
   modeBodies: Record<string, ModeChannelBody>
   nodeMeta?: Record<string, unknown>
+  /** 内存里的渠道 mapping（与本节点的 modeBodies 同一份，见 useVendorMappingsReader）。 */
+  readMappings: VendorMappingsReader
 }): NarrowedModeGuidance | null {
-  const { archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta } = params
+  const { archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta, readMappings } = params
   return React.useMemo(() => {
     if (!archetype || !selectedModelOption || isNarrowedModeGuidanceDismissed(nodeMeta)) return null
     const candidates = candidatesForArchetype({
@@ -114,7 +116,6 @@ export function useNarrowedModeGuidance(params: {
       currentVendor: selectedModelOption.vendor,
       currentValue: selectedModelOption.value,
     })
-    const readMappings = createVendorMappingsReader()
     return resolveNarrowedModeGuidance({
       archetype,
       bodyForMode: (mode) => modeBodies[mode.id],
@@ -128,7 +129,7 @@ export function useNarrowedModeGuidance(params: {
           readMappings,
         ),
     })
-  }, [archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta])
+  }, [archetype, selectedModelOption, modelOptions, modeBodies, nodeMeta, readMappings])
 }
 
 /**

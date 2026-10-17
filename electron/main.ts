@@ -418,10 +418,10 @@ function registerIpc(): void {
   });
   // 读目录的 IPC 是**纯读**：种子对账（写盘）只在启动期跑一次。挂在读上时，盘上版本比应用新就会
   // 让每次读都抛 → 设置页全空零报错（判据住 electron/catalogReadChannelsPureRead.test.ts）。
-  registerSyncIpc("nomi:model-catalog:vendors:list", listModelCatalogVendors);
-  registerSyncIpc("nomi:model-catalog:models:list", listModelCatalogModels);
-  registerSyncIpc("nomi:model-catalog:mappings:list", listModelCatalogMappings);
-  registerSyncIpc("nomi:model-catalog:health", getModelCatalogHealth);
+  ipcMain.handle("nomi:model-catalog:vendors:list", (event) => { assertTrustedSender(event); return listModelCatalogVendors(); }); // 目录读一律异步：sendSync 会卡住整个渲染进程
+  ipcMain.handle("nomi:model-catalog:models:list", (event, params) => { assertTrustedSender(event); return listModelCatalogModels(params); });
+  ipcMain.handle("nomi:model-catalog:mappings:list", (event, params) => { assertTrustedSender(event); return listModelCatalogMappings(params); });
+  ipcMain.handle("nomi:model-catalog:health", (event) => { assertTrustedSender(event); return getModelCatalogHealth(); });
   registerSyncIpc("nomi:model-catalog:vendor:upsert", upsertRendererCatalogVendor);
   registerSyncIpc("nomi:model-catalog:vendor:delete", deleteModelCatalogVendor);
   registerSyncIpc("nomi:model-catalog:vendor-api-key:clear", clearModelCatalogVendorApiKey);

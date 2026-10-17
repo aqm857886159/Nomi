@@ -69,8 +69,10 @@ export function AiModelsSection({
       const bridge = getDesktopBridge()
       const described = bridge?.assetTransport?.describeChannels()
       setChannels(Array.isArray(described) ? described : [])
-      const values = bridge?.modelCatalog.listVendors() as SettingsProviderInput[] | undefined
-      setProviders(Array.isArray(values) ? values : [])
+      // 目录读是异步 IPC；读失败保留上一份（不清 providers）。
+      void Promise.resolve(bridge?.modelCatalog.listVendors())
+        .then((values) => { if (Array.isArray(values)) setProviders(values as SettingsProviderInput[]) })
+        .catch(() => undefined)
       const relayApi = bridge?.settings?.assetRelay
       if (relayApi) {
         void relayApi.get()

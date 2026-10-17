@@ -73,53 +73,61 @@ export function useOnboardingDrawerCatalog(): {
     }
     bridgeRetries.current = 0
     setBridgeMissing(false)
-    try {
-      const storedModels = bridge.modelCatalog.listModels() as Array<Record<string, unknown>>
-      const storedVendors = bridge.modelCatalog.listVendors() as Array<Record<string, unknown>>
-      const storedMappings = bridge.modelCatalog.listMappings() as Mapping[]
-      const metaMap = new Map<string, OnboardingVendorMeta>()
-      for (const vendor of storedVendors) {
-        metaMap.set(String(vendor.key), {
-          name: String(vendor.name || vendor.key),
-          hasApiKey: Boolean(vendor.hasApiKey),
-          credentialMaterialSaved: vendor.credentialMaterialSaved === true,
-          credentialVerificationPending: vendor.credentialVerificationPending === true,
-          baseUrl: String(vendor.baseUrlHint || ''),
-          enabled: vendor.enabled !== false,
-          authType: String(vendor.authType || ''),
-          customCallOnly: Boolean((vendor.meta as Record<string, unknown> | undefined)?.customCallOnly),
-          fieldLossNoticeAt: vendorFieldLossNoticeAt(vendor),
-          raw: vendor.meta,
-        })
-      }
-      const projectedCatalog = projectModelSettingsCatalog(storedModels)
-      setCustomCallScripts(projectedCatalog.fallbackScripts)
-      setVendorMeta(metaMap)
-      setModels(projectedCatalog.models)
-      setMappings(storedMappings)
-      setLoadError(null)
-    } catch (error) {
-      /**
-       * **读失败不许把界面清空。**
-       *
-       * 用户那句「重装之后所有模型配置都没了」就是从这里出来的：配置一条都没丢，是读通道上
-       * 挂了一次写、写被拒、抛错，而这里把异常吞成了一片空白页。空白页说的是「你什么都没有」，
-       * 而真相是「这一次没读到」——两句话让用户做的事完全相反（一个去重配，一个去看看怎么了）。
-       * 根因合同：`docs/fixes/2026-09-21-config-never-silently-lost.root-cause.json`。
-       *
-       * 所以：**上一份数据原样留着**（不 set 任何一个数据状态），只多出一条说得出原因的错。
-       */
-      setLoadError(error instanceof Error ? error.message : String(error))
-    }
-    // 健康度**单独读一次**（读成功与读失败两条路共用），所以「目录能不能编辑」只有一个取值点。
-    try {
-      setReadOnly((bridge.modelCatalog.health() as { readOnly?: ModelCatalogReadOnlyDto | null } | null)?.readOnly ?? null)
-    } catch {
-      // 健康度读不到不改变「目录能不能编辑」这个判断——宁可当可写，也不要凭一次失败把用户锁成只读。
-      setReadOnly(null)
-    }
-    setLoaded(true)
     let alive = true
+    // 目录读全是异步 IPC（同步通道已删：sendSync 会卡住整个渲染进程，主进程一忙「点设置没反应」）。
+    // 读失败的规矩不变：上一份原样留着，只多一条说得出原因的错。
+    void (async () => {
+      try {
+        const [storedModels, storedVendors, storedMappings] = await Promise.all([
+          bridge.modelCatalog.listModels() as Promise<Array<Record<string, unknown>>>,
+          bridge.modelCatalog.listVendors() as Promise<Array<Record<string, unknown>>>,
+          bridge.modelCatalog.listMappings() as Promise<Mapping[]>,
+        ])
+        if (!alive) return
+        const metaMap = new Map<string, OnboardingVendorMeta>()
+        for (const vendor of storedVendors) {
+          metaMap.set(String(vendor.key), {
+            name: String(vendor.name || vendor.key),
+            hasApiKey: Boolean(vendor.hasApiKey),
+            credentialMaterialSaved: vendor.credentialMaterialSaved === true,
+            credentialVerificationPending: vendor.credentialVerificationPending === true,
+            baseUrl: String(vendor.baseUrlHint || ''),
+            enabled: vendor.enabled !== false,
+            authType: String(vendor.authType || ''),
+            customCallOnly: Boolean((vendor.meta as Record<string, unknown> | undefined)?.customCallOnly),
+            fieldLossNoticeAt: vendorFieldLossNoticeAt(vendor),
+            raw: vendor.meta,
+          })
+        }
+        const projectedCatalog = projectModelSettingsCatalog(storedModels)
+        setCustomCallScripts(projectedCatalog.fallbackScripts)
+        setVendorMeta(metaMap)
+        setModels(projectedCatalog.models)
+        setMappings(storedMappings)
+        setLoadError(null)
+      } catch (error) {
+        /**
+         * **读失败不许把界面清空。**
+         *
+         * 用户那句「重装之后所有模型配置都没了」就是从这里出来的：配置一条都没丢，是读通道上
+         * 挂了一次写、写被拒、抛错，而这里把异常吞成了一片空白页。空白页说的是「你什么都没有」，
+         * 而真相是「这一次没读到」——两句话让用户做的事完全相反（一个去重配，一个去看看怎么了）。
+         * 根因合同：`docs/fixes/2026-09-21-config-never-silently-lost.root-cause.json`。
+         *
+         * 所以：**上一份数据原样留着**（不 set 任何一个数据状态），只多出一条说得出原因的错。
+         */
+        if (alive) setLoadError(error instanceof Error ? error.message : String(error))
+      }
+      // 健康度**单独读一次**（读成功与读失败两条路共用），所以「目录能不能编辑」只有一个取值点。
+      try {
+        const health = await bridge.modelCatalog.health() as { readOnly?: ModelCatalogReadOnlyDto | null } | null
+        if (alive) setReadOnly(health?.readOnly ?? null)
+      } catch {
+        // 健康度读不到不改变「目录能不能编辑」这个判断——宁可当可写，也不要凭一次失败把用户锁成只读。
+        if (alive) setReadOnly(null)
+      }
+      if (alive) setLoaded(true)
+    })()
     const dreamina = bridge.dreamina
     if (dreamina) {
       setDreaminaStatus((current) => current ?? DREAMINA_UNCHECKED_STATUS)

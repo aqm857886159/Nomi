@@ -99,7 +99,7 @@ const seeded = await win.evaluate(async ({ vendorName, okUrl, wrongUrl }) => {
   // 内置家也接一个：VendorOnboardCard 与自定义家共用同一份 VendorBaseUrlField，
   // 改哪面就得验哪面（R13），不能只看自定义家绿了就以为内置家没事。
   mc.upsertVendor({ key: vendorKey, baseUrlHint: wrongUrl })
-  return { vendorKey, count: mc.listModels({ vendorKey }).filter((m) => m.vendorKey === vendorKey).length }
+  return { vendorKey, count: (await mc.listModels({ vendorKey })).filter((m) => m.vendorKey === vendorKey).length }
 }, { vendorName: VENDOR_NAME, okUrl: OK_URL, wrongUrl: WRONG_URL })
 vendorKey = seeded.vendorKey
 console.log(`现场：${VENDOR_NAME} · ${seeded.count} 个模型 · 地址=${WRONG_URL}`)

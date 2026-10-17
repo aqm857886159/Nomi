@@ -34,6 +34,7 @@ import {
 } from './projectNormalize'
 import { deriveProjectCoverFromNodes, deriveProjectCoverFromRaw, type ProjectCover } from './projectCoverDerive'
 import i18n, { getAppLocale } from '../../i18n'
+import { invalidateAllProjectAssets } from '../assets/useAllProjectAssets'
 
 // 重导出：实现已拆到 projectStorage（localStorage 原语 + 配额错误），
 // 但 projectRepository 对外公共导出面保持不变。
@@ -327,6 +328,8 @@ export function deleteLocalProject(projectId: string): void {
   const desktop = getDesktopBridge()
   if (desktop) {
     desktop.projects.delete(id)
+    // 「所有项目的素材」那一份清单里还有这个项目的素材：删项目不经过素材写入层的广播，这里显式作废。
+    invalidateAllProjectAssets()
   }
   removeStorageKey(projectRecordKey(id))
   removeStorageKey(projectBackupKey(id))

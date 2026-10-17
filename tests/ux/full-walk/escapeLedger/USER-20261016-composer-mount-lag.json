@@ -1,0 +1,27 @@
+{
+  "id": "USER-20261016-composer-mount-lag",
+  "since": "2026-10-16",
+  "source": "User and community feedback: the canvas gets laggy with more content; D-perf smoke: selecting a card to the generation box appearing takes 60-110ms with one ~80ms long task",
+  "category": "performance-coverage",
+  "problem": "点卡出生成框的挂载路径上，渠道 mapping 走同步 IPC、扫全部项目素材、三份参数控件各自整表订阅并 JSON.stringify 防抖、挂载回写默认值；验收没有「挂载这一刻 IO / 写 / 重渲次数」的计数，也没有禁止渲染进程同步 IPC 增长和 store 选择器序列化的门岗，所以只在用户手里被发现。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/fixes/2026-10-16-composer-mount-path.root-cause.json",
+    "docs/engineering/direction-checks/2026-10-16-composer-mount-path.md",
+    "src/workbench/generationCanvas/nodes/composerMountBudget.test.tsx",
+    "src/workbench/generationCanvas/nodes/composerGraphSnapshot.test.ts",
+    "scripts/check-renderer-sync-ipc.mjs"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-16-composer-mount-path.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/nodes/composerMountBudget.test.tsx"
+  },
+  "fixedInPr": 1231
+}

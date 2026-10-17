@@ -77,7 +77,11 @@ function getEdgesByTarget(edges: GenerationCanvasEdge[]): Map<string, Generation
   return next
 }
 
-function getAssetKindByUrl(nodes: GenerationCanvasNode[]): Map<string, 'image' | 'video' | 'audio'> {
+/**
+ * URL → 媒体种类（按节点顺序，先到先得）。导出给生成框的依赖面签名用（nodes/composerGraphSnapshot）：
+ * 本节点 meta 里的参考 URL 被归成哪一类，正是读这张表——两边必须是同一张表、同一条先到先得规则。
+ */
+export function getAssetKindByUrl(nodes: GenerationCanvasNode[]): Map<string, 'image' | 'video' | 'audio'> {
   const cached = assetKindByUrlCache.get(nodes)
   if (cached) return cached
   const next = new Map<string, 'image' | 'video' | 'audio'>()

@@ -82,9 +82,9 @@ try {
   await capture('generating')
   fixture.jobs[0].done = true
   await expect.poll(() => app.app.evaluate(() => globalThis.__shotNodeMaterialize.received), { timeout: stationTimeout({ operations: 8 }) }).toBe(true)
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const catalog = window.nomiDesktop.modelCatalog
-    const vendor = catalog.listVendors().find(v => v.key === 'agent-runtime-loopback')
+    const vendor = (await catalog.listVendors()).find(v => v.key === 'agent-runtime-loopback')
     catalog.upsertVendor({ ...vendor, enabled: false })
   })
   const firstMessage = first.locator('[data-node-inline-status] [data-generation-message]')
@@ -99,9 +99,9 @@ try {
   await second.click({ position: { x: 40, y: 15 } })
   await capture('failed')
   receipt.checks.push('Queued from an actual concurrency=1 group batch, first operation completes through real asset localization, next fails after vendor is disabled')
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const catalog = window.nomiDesktop.modelCatalog
-    const vendor = catalog.listVendors().find(v => v.key === 'agent-runtime-loopback')
+    const vendor = (await catalog.listVendors()).find(v => v.key === 'agent-runtime-loopback')
     catalog.upsertVendor({ ...vendor, enabled: true })
   })
   // Fix the real configuration, then use the node's existing generation action.

@@ -14,15 +14,15 @@
   console.log('▶ Nomi smoke probe starting…')
 
   // 1. Catalog should have auto-migrated v1→v2 on first read
-  const vendors = D.modelCatalog.listVendors()
+  const vendors = await D.modelCatalog.listVendors()
   console.log(`✓ vendors loaded: ${vendors.length} (`, vendors.map(v => v.key), ')')
 
   // 2. Seeded models should appear
-  const models = D.modelCatalog.listModels()
+  const models = await D.modelCatalog.listModels()
   console.log(`✓ models loaded: ${models.length} (`, models.map(m => m.modelKey), ')')
 
   // 3. Health check
-  const h = D.modelCatalog.health()
+  const h = await D.modelCatalog.health()
   console.log('✓ catalog health:', h)
 
   // 4. Onboarding bridge wired?

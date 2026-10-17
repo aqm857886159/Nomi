@@ -90,48 +90,56 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
 
   const refresh = React.useCallback(() => setVersion((v) => v + 1), [])
 
-  // 目录（同步 IPC）。vendorKey 变 → 重取这台的模型与 mapping。
+  // 目录：vendorKey 变 → 重取这台的模型与 mapping（mapping 走异步 IPC，同步那条已删）。
   React.useEffect(() => {
     const catalog = getDesktopBridge()?.modelCatalog
     if (!catalog) return
-    try {
-      const allVendors = catalog.listVendors() as Array<Record<string, unknown>>
-      setVendors(
-        allVendors
-          .filter((v) => isComfyuiVendorKey(String(v.key)))
-          // 第一台恒排最前，其余按 key 稳定排序（避免顺序抖动导致列表跳位）。
-          .sort((a, b) => {
-            const [ka, kb] = [String(a.key), String(b.key)]
-            return ka === COMFYUI_VENDOR_KEY ? -1 : kb === COMFYUI_VENDOR_KEY ? 1 : ka.localeCompare(kb)
-          })
-          .map((v) => ({
-            key: String(v.key),
-            name: String(v.name || v.key),
-            baseUrl: String(v.baseUrlHint || 'http://127.0.0.1:8188'),
-            enabled: v.enabled !== false,
-          })),
-      )
-      const allModels = catalog.listModels() as Array<Record<string, unknown>>
-      setModels(
-        allModels
-          .filter((m) => String(m.vendorKey) === vendorKey)
-          .map((m) => ({
-            modelKey: String(m.modelKey),
-            labelZh: String(m.labelZh || m.modelKey),
-            kind: typeof m.kind === 'string' ? m.kind : undefined,
-            enabled: m.enabled !== false,
-            meta: m.meta,
-          })),
-      )
-      setMappings(catalog.listMappings({ vendorKey }) as Array<Record<string, unknown>>)
-      setLoadError(null)
-    } catch (error) {
-      // 读失败**不清空**：清空等于替用户断言「你没有这些」，而真相只是「这一次没读到」。
-      // 上一份留在屏上 + 一条说得出原因的错（同形横扫，2026-09-21 配置不许静默消失）。
-      setLoadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setLoadedVendorKey(vendorKey)
-    }
+    let alive = true
+    void (async () => {
+      try {
+        const allVendors = (await catalog.listVendors()) as Array<Record<string, unknown>>
+        if (!alive) return
+        setVendors(
+          allVendors
+            .filter((v) => isComfyuiVendorKey(String(v.key)))
+            // 第一台恒排最前，其余按 key 稳定排序（避免顺序抖动导致列表跳位）。
+            .sort((a, b) => {
+              const [ka, kb] = [String(a.key), String(b.key)]
+              return ka === COMFYUI_VENDOR_KEY ? -1 : kb === COMFYUI_VENDOR_KEY ? 1 : ka.localeCompare(kb)
+            })
+            .map((v) => ({
+              key: String(v.key),
+              name: String(v.name || v.key),
+              baseUrl: String(v.baseUrlHint || 'http://127.0.0.1:8188'),
+              enabled: v.enabled !== false,
+            })),
+        )
+        const allModels = (await catalog.listModels()) as Array<Record<string, unknown>>
+        if (!alive) return
+        setModels(
+          allModels
+            .filter((m) => String(m.vendorKey) === vendorKey)
+            .map((m) => ({
+              modelKey: String(m.modelKey),
+              labelZh: String(m.labelZh || m.modelKey),
+              kind: typeof m.kind === 'string' ? m.kind : undefined,
+              enabled: m.enabled !== false,
+              meta: m.meta,
+            })),
+        )
+        const vendorMappings = await catalog.listMappings({ vendorKey })
+        if (!alive) return
+        setMappings(vendorMappings as Array<Record<string, unknown>>)
+        setLoadError(null)
+      } catch (error) {
+        // 读失败**不清空**：清空等于替用户断言「你没有这些」，而真相只是「这一次没读到」。
+        // 上一份留在屏上 + 一条说得出原因的错（同形横扫，2026-09-21 配置不许静默消失）。
+        if (alive) setLoadError(error instanceof Error ? error.message : String(error))
+      } finally {
+        if (alive) setLoadedVendorKey(vendorKey)
+      }
+    })()
+    return () => { alive = false }
   }, [vendorKey, version, refreshToken])
 
   const draftOf = React.useCallback(

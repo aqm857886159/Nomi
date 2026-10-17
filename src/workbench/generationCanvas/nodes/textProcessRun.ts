@@ -8,6 +8,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/genera
 import { TEXT_PROCESS_PRESETS, TEXT_PROCESS_PRESET_IDS, type TextProcessPresetId } from '../runner/textProcessPresets'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { startGenerationFromComposer } from './composerRun'
+import { sameFlatRecords, useComposerGraph, useContentStable } from './composerGraphSnapshot'
 
 export type PresetBlockReason = 'needImage' | 'needText'
 
@@ -27,19 +28,24 @@ export function presetBlockReason(node: GenerationCanvasNode, graph: PresetGraph
   return hasMaterial ? null : 'needText'
 }
 
-/** 订阅一个节点的四个预设此刻各自被什么挡着（订阅字符串，不随无关画布写入重渲）。 */
+/**
+ * 一个节点的四个预设此刻各自被什么挡着。读图走生成框那一份依赖面快照（composerGraphSnapshot：
+ * presetBlockReason 读的引用解析与连进来的文字都在它的依赖面里），内容没变就沿用同一个对象——
+ * 不随无关画布写入重渲，也不在选择器里 JSON.stringify。
+ */
 export function useTextPresetBlocks(nodeId: string): Readonly<Partial<Record<TextProcessPresetId, PresetBlockReason>>> {
-  const key = useGenerationCanvasStore((state) => {
-    const node = state.nodes.find((candidate) => candidate.id === nodeId)
-    if (!node) return '{}'
-    const blocks: Partial<Record<TextProcessPresetId, PresetBlockReason>> = {}
+  const graph = useComposerGraph(nodeId)
+  const blocks = React.useMemo(() => {
+    const node = graph.nodes.find((candidate) => candidate.id === nodeId)
+    const next: Partial<Record<TextProcessPresetId, PresetBlockReason>> = {}
+    if (!node) return next
     for (const id of TEXT_PROCESS_PRESET_IDS) {
-      const reason = presetBlockReason(node, state, id)
-      if (reason) blocks[id] = reason
+      const reason = presetBlockReason(node, graph, id)
+      if (reason) next[id] = reason
     }
-    return JSON.stringify(blocks)
-  })
-  return React.useMemo(() => JSON.parse(key) as Partial<Record<TextProcessPresetId, PresetBlockReason>>, [key])
+    return next
+  }, [graph, nodeId])
+  return useContentStable(blocks, (previous, next) => sameFlatRecords([previous], [next]))
 }
 
 /** 被挡住时按钮上的说明（title）。 */

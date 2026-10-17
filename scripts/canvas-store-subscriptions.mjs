@@ -31,8 +31,6 @@ export const WHOLE_TABLE_SUBSCRIPTION_BASELINE = Object.freeze({
   'src/workbench/generation/list/generationListSource.ts': 1,
   'src/workbench/generationCanvas/components/BatchPlanOverlay.tsx': 2,
   'src/workbench/generationCanvas/nodes/ClipNode.tsx': 1,
-  'src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx': 2,
-  'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx': 2,
   'src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx': 1,
   // 画布壳：投影链的源头，nodes / edges 两处是它本职（卡片按 id 自取数据之前，见方向检查第 6 节）。
   [CANVAS_SHELL_FILE]: 2,

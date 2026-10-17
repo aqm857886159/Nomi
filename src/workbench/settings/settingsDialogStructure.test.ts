@@ -68,7 +68,9 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // 2026-10-10：用户拍板「蓝色描边都删掉」，设置各区块只把 `border-nomi-accent` 系类名换成灰线 / 透明边
   //             （输入框聚焦 `focus:border-nomi-ink-40`、当前项 `border-transparent`；布局与文案一个字没动），
   //             故更新相关文件哈希；协调会话在交付报告里知情。
-  'AiModelsSection.tsx': '1c4009c2489371b0913065c32e0ed5c91033ce8826c82b4ada38cffd97c42f38',
+  // 2026-10-16（卡顿波 P-compose）：供应商列表改读异步目录 IPC（同步通道已删：主进程忙时「点设置没反应」），
+  //             读失败照旧保留上一份；布局与文案一个字没动，协调会话在交付报告里知情。
+  'AiModelsSection.tsx': 'f2a2ecefc176ac15bd3729707f5fc8412f180eddc30bfb5f82f46c281073c4bc',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。

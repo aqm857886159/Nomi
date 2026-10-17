@@ -286,7 +286,7 @@ try {
   await setWindowSize(app, win, 1440, 1000)
   await dismissFirstRun(win)
 
-  const seeded = await win.evaluate(({ vendorKey, vendorName, modelKey, modelLabel, baseUrl, markers }) => {
+  const seeded = await win.evaluate(async ({ vendorKey, vendorName, modelKey, modelLabel, baseUrl, markers }) => {
     const catalog = window.nomiDesktop?.modelCatalog
     if (!catalog) return null
     catalog.upsertVendor({
@@ -334,7 +334,7 @@ try {
       },
     })
     window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed'))
-    return catalog.listModels({ vendorKey }).find((model) => model.modelKey === modelKey) || null
+    return (await catalog.listModels({ vendorKey })).find((model) => model.modelKey === modelKey) || null
   }, {
     vendorKey,
     vendorName,
@@ -407,8 +407,8 @@ try {
   await capabilityPage.getByRole('button', { name: /\u4fdd\u5b58\u80fd\u529b|Save capability/, exact: true }).click()
   await win.locator('[data-model-settings-page="model"]').waitFor({ state: 'visible' })
 
-  finalContract = await win.evaluate(({ vendorKey, modelKey }) => {
-    const model = window.nomiDesktop?.modelCatalog?.listModels?.({ vendorKey })
+  finalContract = await win.evaluate(async ({ vendorKey, modelKey }) => {
+    const model = (await window.nomiDesktop?.modelCatalog?.listModels?.({ vendorKey }))
       ?.find((row) => row.modelKey === modelKey)
     return model?.meta?.customCapabilityContract ?? null
   }, { vendorKey, modelKey })
@@ -503,8 +503,8 @@ try {
   await scriptPage.getByRole('button', { name: /\u4fdd\u5b58\u5e76\u542f\u7528|Save & enable/, exact: true }).click()
   await win.locator('[data-model-settings-page="model"]').waitFor({ state: 'visible' })
 
-  finalCustomCall = await win.evaluate(({ vendorKey, modelKey }) => {
-    const model = window.nomiDesktop?.modelCatalog?.listModels?.({ vendorKey })
+  finalCustomCall = await win.evaluate(async ({ vendorKey, modelKey }) => {
+    const model = (await window.nomiDesktop?.modelCatalog?.listModels?.({ vendorKey }))
       ?.find((row) => row.modelKey === modelKey)
     return model?.customCall ?? null
   }, { vendorKey, modelKey })
