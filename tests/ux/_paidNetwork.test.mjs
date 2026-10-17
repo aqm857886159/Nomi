@@ -81,7 +81,7 @@ describe('openPaidWalk wiring', () => {
       removeRealCredentials: () => true, seedRealModels: () => [{ vendorKey: 'apimart', modelKey: 'm', labelZh: 'm' }],
     }))
     const { openPaidWalk } = await import('./_paidRun.mjs')
-    return { calls, paid: await openPaidWalk('x.paid.mjs', 'x', [{ vendorKey: 'apimart', modelKey: 'm' }]) }
+    return { calls, paid: await openPaidWalk('x.paid.mjs', 'x', [{ vendorKey: 'apimart', modelKey: 'm' }], { assertBuild: () => {} }) }
   }
 
   it('hands the guard its allowlist and a ledger path without the caller doing anything', async () => {

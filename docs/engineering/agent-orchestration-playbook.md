@@ -36,7 +36,8 @@
   - ③ **改动预算** —— 预估文件 / 行数量级；超预算必须逐类解释（607 文件的 transplant 本该在这一行就爆掉）。
 - **一个分支一个主人**：同一子系统的大收尾优先单班顺序做，并行只留给真正不相交的文件面。保关键信息 > 堆并行度。
 - 任务书正文固定带：等待语义（见 §4）、红线 / 禁触清单、报告格式、总限时、**范围、不碰清单、停点、补还是换**（发之前跑 `node scripts/check-dispatch-brief.mjs <任务书>`，§20）。
-- **派修复前先跑 `node scripts/fix-churn.mjs <路径>`**：命中热点（同一文件或概念目录 14 天内第 3 个 fix、出现过 revert fix）就不派修补，改派类根因复盘（`docs/engineering/direction-check-template.md`）。任务书写了「第 N 轮」且 N≥3 同样改派。
+- **任务书把验收清单写全（2026-10-17，规则 DC）**：验收线会用的全部检查项与反例（含「这一类会从哪些入口、形状、边界、版本回来」）派活时就写进任务书 / 设计卡 ★9，实现线按同一份清单自验、交货附「反例 → 结果 → 证据」表；验收线只核这份清单，新发现记后续，除非属于「本 PR 引入 + 丢数据 / 花错钱 / 崩溃 / 安全」。派真付费走查的任务书另写明：免费演练先过、`buildMarkers` 用哪几句会进产物的字面量、在哪个无人改动的专用工作树里跑（细则见 `delivery-and-review.md`「一次做好，不反复验证」）。
+- **派修复前先跑 `node scripts/fix-churn.mjs <路径>`**：命中热点（同一文件或概念目录 14 天内第 3 个 fix、出现过 revert fix）就不派修补，改派类根因复盘（`docs/engineering/direction-check-template.md`）。任务书写了「第 N 轮」且 N≥3 同样改派。**同一 PR 的验收第二次不通过也停**：不派第三轮补症状，先要「为什么前面没想到」的回答，把漏掉的那一类补进验收清单与门岗，再继续修（规则 RW，与上一句同一条熔断）。
 
 **反例**：M1 三线撞车——两个核账班 chip 都指向同一 `-r2` 分支，用户点开后互相踩掉对方的 commit。
 
@@ -508,7 +509,7 @@ node scripts/research/tikhub-search.mjs \
 
 | 层 | 做什么 |
 |---|---|
-| 派工 | 派修复前 `node scripts/fix-churn.mjs <路径>`；命中或「第 N 轮」N≥3 就改派复盘（§2） |
+| 派工 | 派修复前 `node scripts/fix-churn.mjs <路径>`；命中、「第 N 轮」N≥3、或同一 PR 验收第二次不通过，就改派复盘（§2） |
 | git commit-msg | `scripts/check-direction-trailer.mjs`：fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`；按内容判，没有环境变量开关；revert 与 merge 不拦 |
 | CI | `quality-gate.yml` contracts 里只警告：列出热点 fix 却没带 trailer 的提交（兜 `--no-verify`） |
 | Claude 编辑 | `edit-time-reminder` 调同一个计数器，提醒不拦 |

@@ -167,6 +167,8 @@ function fakeWin() {
   return { evaluate: async (fn, arg) => fn(arg), rows }
 }
 
+// 这些测试用假 App 验的是凭据 / 收窄 / 收尾；构建检查有自己的测试（_paidRun.test.mjs）。
+const noBuildCheck = () => {}
 const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }]
 
 describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
@@ -180,7 +182,7 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
     const win = fakeWin()
     const connectCalls = []
     const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, {
-      env: envFor(root), createWalk, isNomiRunning: () => true,
+      assertBuild: noBuildCheck, env: envFor(root), createWalk, isNomiRunning: () => true,
       connect: async (_win, args) => { connectCalls.push(args); return { vendorKey: 'apimart', certifiedTextModel: args.textModelKey, viaVisibleOnboarding: true } },
     })
     // 被测 App 的环境里 key 被清空（子进程拿不到）。
@@ -213,7 +215,7 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
 
   test('走查脚本抛的异常里带着 key（例如 Playwright 的 fill 日志）：报告里的 error 是抹过的', async () => {
     const { createWalk, outputDir, root } = fakeWalkFactory()
-    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { env: envFor(root), createWalk, connect: async () => ({}) })
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { assertBuild: noBuildCheck, env: envFor(root), createWalk, connect: async () => ({}) })
     process.exitCode = 0
     await paid.finish(new Error(`locator.fill: Timeout - fill("${KEY}")`))
     process.exitCode = 0
@@ -225,7 +227,7 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
 
   test('key 要是漏进了报告内容：落盘与打印的是抹过的那份，这一场判红', async () => {
     const { createWalk, outputDir, tempRootDir, root } = fakeWalkFactory()
-    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { env: envFor(root), createWalk, connect: async () => ({}) })
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { assertBuild: noBuildCheck, env: envFor(root), createWalk, connect: async () => ({}) })
     paid.walk.report.note = `oops ${KEY}`
     process.exitCode = 0
     await paid.finish(undefined)
@@ -239,7 +241,7 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
 
   test('证据目录里被塞进 key（例如截图文件名）：收尾把那个文件删掉并红', async () => {
     const { createWalk, outputDir, root } = fakeWalkFactory()
-    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { env: envFor(root), createWalk, connect: async () => ({}) })
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { assertBuild: noBuildCheck, env: envFor(root), createWalk, connect: async () => ({}) })
     const leaked = path.join(outputDir, `shot-${KEY}.png`)
     fs.writeFileSync(leaked, 'png')
     await expect(paid.finish(undefined)).rejects.toThrow(/泄漏/)
@@ -251,7 +253,7 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
     const { createWalk, outputDir, tempRootDir, root } = fakeWalkFactory()
     fs.writeFileSync(path.join(tempRootDir, 'projects', 'p1', '.nomi', 'agent-sessions', 's', 'a.jsonl'), `not a header ${KEY}
 `)
-    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { env: envFor(root), createWalk, connect: async () => ({}) })
+    const paid = await openPaidWalk('x.paid.mjs', 'x', MODELS, { assertBuild: noBuildCheck, env: envFor(root), createWalk, connect: async () => ({}) })
     await paid.finish(undefined)
     process.exitCode = 0
     expect(fs.existsSync(tempRootDir), '副本照样删了').toBe(false)
@@ -261,7 +263,7 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
 
   test('点名别家的模型：在起 App 之前就拒', async () => {
     const { createWalk, root } = fakeWalkFactory()
-    await expect(openPaidWalk('x.paid.mjs', 'x', [{ vendorKey: 'kie', modelKey: 'm' }], { env: envFor(root), createWalk })).rejects.toThrow(/一分钱没花/)
+    await expect(openPaidWalk('x.paid.mjs', 'x', [{ vendorKey: 'kie', modelKey: 'm' }], { assertBuild: noBuildCheck, env: envFor(root), createWalk })).rejects.toThrow(/一分钱没花/)
   })
 })
 
@@ -271,7 +273,7 @@ describe('openPaidWalk · 没设 APIMART_API_KEY 时走原来的 real-profile �
     let connected = false
     const env = { NOMI_SPEND_OK: '1', NOMI_REAL_PROFILE_USER_DATA: path.join(root, 'no-such-real-profile') }
     await expect(openPaidWalk('x.paid.mjs', 'x', MODELS, {
-      env, createWalk, isNomiRunning: () => false, connect: async () => { connected = true },
+      assertBuild: noBuildCheck, env, createWalk, isNomiRunning: () => false, connect: async () => { connected = true },
     })).rejects.toThrow(/真实资料目录缺/)
     expect(connected).toBe(false)
   })

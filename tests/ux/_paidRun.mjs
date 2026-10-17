@@ -13,6 +13,9 @@
 //   只记事实、不折算金额——价目会变，而且这是公开仓库。
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { verifyBuild } from '../../scripts/package-build-stamp.mjs'
 
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
@@ -23,6 +26,7 @@ import {
 } from './_paidEnvKey.mjs'
 import { readRealCatalog, realNomiIsRunning, realNomiProfile, realProfileFingerprint, removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
 
 /**
@@ -35,6 +39,37 @@ export function paidRunRefusal(script, { env = process.env, nomiRunning = false 
   if (env[SPEND_OPT_IN_ENV] !== '1') return `${script} 会花真钱：显式设 ${SPEND_OPT_IN_ENV}=1 才跑`
   if (nomiRunning && paidCredentialSource(env) === 'real-profile') return `${script} 要拷用户的真实资料目录，而 Nomi 正开着——关掉 App 再跑（开着拷到的是半新半旧的一份）`
   return null
+}
+
+/**
+ * 花钱之前的两道构建检查（2026-10-17，起因：一项权限两档的真付费跑了 5 次，其中 2 次白跑——
+ * 构建时别的线在同一工作树改了文件、构建失败，走查跑在旧产物上）。不满足就拒跑，一分钱不花：
+ *   ① 产物比源码新：用构建自己盖的戳（scripts/package-build-stamp.mjs 的 verifyBuild，戳 = 构建当时的源码树指纹），
+ *      戳缺、或和现在的源码树对不上（构建失败 / 构建后又有人改了文件）都拒；不另写一套时间戳比对；
+ *   ② 产物里能找到调用方给的标记字面量（`buildMarkers`）：验某个修复的走查，传一句**会原样进产物**的字面量
+ *      （界面文案、错误码、日志前缀），证明被验的修复真在产物里。函数名 / 变量名会被压缩，不能当标记。
+ * 打包形态（--packaged）跑的是安装包自带的产物，不看仓库里的 dist，两道都不适用。
+ */
+export function assertPaidBuildReady(root, { markers = [], verify = verifyBuild, outputs = ['dist', 'dist-electron'] } = {}) {
+  try { verify(root) }
+  catch (error) { throw new Error(`付费走查拒跑（一分钱没花）：${String(error?.message ?? error)}——构建产物过期或缺失（构建失败，或构建后源码又被改过），先在无人改动的专用工作树里 pnpm build 成功再跑`) }
+  const wanted = markers.filter((marker) => typeof marker === 'string' && marker.length > 0)
+  if (markers.length !== wanted.length) throw new Error('付费走查拒跑（一分钱没花）：buildMarkers 里有空值或非字符串')
+  const missing = new Set(wanted)
+  const scan = (directory) => {
+    if (!missing.size) return
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name)
+      if (entry.isDirectory()) { if (entry.name !== 'node_modules') scan(file) }
+      else if (entry.isFile() && /\.(?:m?js|cjs|html|css|json)$/.test(entry.name)) {
+        const text = fs.readFileSync(file, 'utf8')
+        for (const marker of missing) if (text.includes(marker)) missing.delete(marker)
+      }
+      if (!missing.size) return
+    }
+  }
+  if (missing.size) for (const output of outputs) if (fs.existsSync(path.join(root, output))) scan(path.join(root, output))
+  if (missing.size) throw new Error(`付费走查拒跑（一分钱没花）：构建产物里找不到被验修复的标记 ${[...missing].map((marker) => JSON.stringify(marker)).join('、')}——产物不含这次要验的修复（旧构建，或标记取成了会被压缩的函数名）`)
 }
 
 export function assertPaidRunAllowed(script, env = process.env, isNomiRunning = realNomiIsRunning, profile = realNomiProfile({ env })) {
@@ -100,10 +135,16 @@ export async function lockSpendToModels(win, seeded) {
  * `deps` 只给单测换掉重的那几个零件（真起 App、真走界面）；脚本里不传。
  */
 export async function openPaidWalk(script, name, models, deps = {}) {
-  const { env = process.env, createWalk = createRuntimeWalk, connect = connectApimartThroughVisibleUi, isNomiRunning = realNomiIsRunning } = deps
+  const {
+    env = process.env, createWalk = createRuntimeWalk, connect = connectApimartThroughVisibleUi, isNomiRunning = realNomiIsRunning,
+    // 验某个修复的走查传 buildMarkers：会原样进产物的字面量（界面文案 / 错误码），见 assertPaidBuildReady。
+    buildMarkers = [], argv = process.argv.slice(2), assertBuild = assertPaidBuildReady,
+  } = deps
   // 真实资料目录的位置跟着传进来的 env 走（缺省就是 process.env，和以前一样）；env-key 路根本不会用到它。
   const profile = realNomiProfile({ env })
   const guard = assertPaidRunAllowed(script, env, isNomiRunning, profile)
+  // 产物比源码新 + 产物里有被验修复的标记：不满足就拒跑，必须在建隔离副本、装凭据之前（一分钱没花、什么都没拷）。
+  if (!argv.includes('--packaged')) assertBuild(REPO_ROOT, { markers: buildMarkers })
   const envKey = paidCredentialSource(env) === 'env-key' ? assertUsableEnvKey(envKeyOf(env)) : ''
   const secrets = envKey ? [envKey] : []
   if (envKey) assertEnvKeyModels(models)

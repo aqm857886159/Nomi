@@ -14,13 +14,13 @@ Nomi：本地优先 AI 视频创作工作台。Electron + React 18 + Tailwind 3 
 
 **P0 只写我们独有的** — 领域本身（分镜、镜头与制作流程、画布、素材、按镜头的花钱语义，以 `docs/engineering/self-written.json` 的领域目录为准）才自己写；通用能力默认接入现成的框架 / 库 / 标准，自写必须登记、理由只认领域约束；能力按通用场景设计，不与具体供应商耦合。自问：「这段是我们独有的吗？不是 → 先找现成的。」
 
-**P1 加新必删旧** — 新实现同 commit 删旧实现，无并行版、无 fallback；CSS 只写组件 `className`，全局 CSS 只减不增。同一文件或同目录 14 天第 3 个 fix、出现 revert fix、修复因评测掉分被回滚、同线第 3 轮修补、第三个特例分支，任一出现就停止派修补，先做类根因复盘（`docs/engineering/direction-check-template.md`）交用户拍板（RW；碰热点的 fix 提交须带 `Direction-Check:` trailer）。
+**P1 加新必删旧** — 新实现同 commit 删旧实现，无并行版、无 fallback；CSS 只写组件 `className`，全局 CSS 只减不增。同一文件或同目录 14 天第 3 个 fix、出现 revert fix、修复因评测掉分被回滚、同线第 3 轮修补（同一 PR 验收第 2 次不过也算）、第三个特例分支，任一出现就停止派修补，先做类根因复盘（`docs/engineering/direction-check-template.md`）交用户拍板（RW；碰热点的 fix 提交须带 `Direction-Check:` trailer）。
 
-**P2 修根因、改系统** — 沉淀规则是每个 agent 的使命。任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，`node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界；再答「系统哪里没拦住」，把漏洞补上，强弱依次：删掉 > 结构上做不出来 > 门岗自动拦 > 写规则文字。修 bug 的 PR 必填「## 系统改进」。用户发现的问题进逃逸账本，结账必须挂结构性预防。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决；只修这一处不算完成。
+**P2 修根因、改系统** — 沉淀规则是每个 agent 的使命。任何 bug、回归、CI / 平台失败，动代码前走 `.agents/skills/root-cause-remediation/SKILL.md`：分清症状 / 直接原因 / 类根因，`node scripts/door-map.mjs <符号或文件>` 数清全部入口，修在最早共享边界；再答「系统哪里没拦住」，把漏洞补上，强弱依次：删掉 > 结构上做不出来 > 门岗自动拦 > 写规则文字。修 bug 的 PR 必填「## 系统改进」。用户发现的问题进逃逸账本，结账必须挂结构性预防。自问：「同类问题还能从另一个调用者、供应商、版本、平台或旧数据回来吗？」答不出「不能」就没解决，这一类的入口 / 形状 / 边界全写成测试；只修这一处不算完成。
 
-**P3 全绿不等于完成** — 用户可见改动报完成前：和获批样张逐项对账，真截图自己亲眼 Read 过（zh/en 两轨）；功能交付要有真实任务闭环；没有真实资源记 `unverified`，不许 mock 绿灯顶替。
+**P3 全绿不等于完成** — 用户可见改动报完成前：和获批样张逐项对账，真截图自己亲眼 Read 过（zh/en 两轨）；功能交付要有真实任务闭环；没有真实资源记 `unverified`，不许 mock 绿灯顶替。真付费只跑一次：免费演练先过、产物含修复标记、专用工作树里跑（入口会拒跑）。
 
-**P5 想清楚再动手** — 动手前先写设计卡（`docs/engineering/design-card.md`）：所有改动都填 ★ 5 格（1、2、3、4、9），碰花钱 / 长跑 / 可打断 / 新界面这四类 9 格全填；**新增功能再填 ★7 性能**（新增的操作、最坏规模、预算，登记进 `tests/perf/scenarios/` 并用 `pnpm run perf:scenarios` 跑出基线，PR 交 `perf-scenario` 数字，超预算不合并，`docs/engineering/perf-scenarios.md`）；写进任务书或 `docs/plan`，PR 正文 `## 设计卡` 放链接或全文；四类合并前还要另一条线独立验收，PR 正文 `## 独立验收` 带报告链接和验收线编号（不得与实现线相同）。新增或改动用户可见界面走 `docs/engineering/design-pipeline.md`：第 1 步探索图出在 **Claude Design 画布**（Artifact「Design」类型，按设计系统出高保真稿，协调会话逐张对过设计系统再交用户拍板；跳过这步直接拼组件的屏不进拍板；其它手写 HTML / widget 只准标 `exploration`），拍板即出清单（`docs/design/boards/`），第 2 步用生产组件搭建，清单是实现合同（`check:board-parity` 守）；改现有 UI 先看它真实样子；重要改动先一轮批量 grill（每题带默认答案，连带面单独成题），纯 bug 修复不问。
+**P5 想清楚再动手** — 动手前先写设计卡（`docs/engineering/design-card.md`）：所有改动都填 ★ 5 格（1、2、3、4、9；★9 的验收清单与反例动手前写全，实现线按它自验、验收线只核它），碰花钱 / 长跑 / 可打断 / 新界面这四类 9 格全填；**新增功能再填 ★7 性能**（新增的操作、最坏规模、预算，登记进 `tests/perf/scenarios/` 并用 `pnpm run perf:scenarios` 跑出基线，PR 交 `perf-scenario` 数字，超预算不合并，`docs/engineering/perf-scenarios.md`）；写进任务书或 `docs/plan`，PR 正文 `## 设计卡` 放链接或全文；四类合并前还要另一条线独立验收，PR 正文 `## 独立验收` 带报告链接和验收线编号（不得与实现线相同）。新增或改动用户可见界面走 `docs/engineering/design-pipeline.md`：第 1 步探索图出在 **Claude Design 画布**（Artifact「Design」类型，按设计系统出高保真稿，协调会话逐张对过设计系统再交用户拍板；跳过这步直接拼组件的屏不进拍板；其它手写 HTML / widget 只准标 `exploration`），拍板即出清单（`docs/design/boards/`），第 2 步用生产组件搭建，清单是实现合同（`check:board-parity` 守）；改现有 UI 先看它真实样子；重要改动先一轮批量 grill（每题带默认答案，连带面单独成题），纯 bug 修复不问。
 
 ## 规则
 
