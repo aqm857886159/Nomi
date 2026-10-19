@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "releasedVersion": "0.23.1",
+  "releasedVersion": "0.23.2",
   "models": [
     {
       "slug": "gpt-image-2",
