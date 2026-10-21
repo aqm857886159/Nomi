@@ -1,5 +1,7 @@
 # 方向检查：参数控件「按键名猜角色」（LAW11-ALIAS-DEDUPE）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：提交 hook 的 RW 统计——`src/workbench/generationCanvas/nodes/controls/` 近 14 天第 5 个 fix。
 > 交给协调会话拍板；本页不改产品方向。
 

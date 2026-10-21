@@ -1,5 +1,7 @@
 # 方向检查：3D-BOX「出成片 ▾」接线碰到的热点文件（S5，2026-10-16）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 命中 `model/directorPreviewState.ts`（14 天第 6 个）、`DirectorViewShell.tsx`（第 6 个）、`DirectorNode.tsx`（第 5 个）、`agent/` 目录（第 15 个）。
 > 本刀是 feat（接一个从 3a 起就标「推迟到 3b」、3b 又没接的占位），不是在同一处继续补修。设计卡：`docs/plan/2026-10-16-director-3dbox-produce-design-card.md`（协调 10-16 定选项 A）。
 

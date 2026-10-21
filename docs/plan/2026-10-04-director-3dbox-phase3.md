@@ -1,5 +1,7 @@
 # 3D-BOX 第三棒：工具 + skill + 导演视图（全部在构建开关后）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：📝 方案 v2（2026-10-04）。v1 → 用户 grill 拍板 → R7 六角色 + 对抗评审（10 条阻断，全文存编排者资料 `phase3-review.md`）→ 本版逐条吸收，并据评审追加两项用户拍板。基准 `origin/main @ 9bd8bf426`。
 > 前序（均已合入并有 `delivery:verify-merged` 收据）：评测底座 #970、S1 计划 + 编译器 #971、盲测终审 #972、素材（Quaternius CC0 人偶 + Kenney）#973；尺子专班 #974（draft）。
 > 关联：`docs/plan/2026-10-03-director-3dbox-eval.md`、`docs/plan/2026-10-04-director-3dbox-s1.md`、`docs/plan/2026-10-04-director-3dbox-assets-a.md`、工具面设计正本 `docs/plan/2026-09-14-agent-tool-face-v2.md`。

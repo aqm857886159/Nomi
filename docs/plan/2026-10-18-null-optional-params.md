@@ -1,5 +1,7 @@
 # Agent 把可选参数写成 null：生成被拒、界面不说（设计卡 + 方向检查）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 线：F-nullparam（0.23.2 热修）。类别：[花钱]。本页同时是设计卡（PR `## 设计卡`）和方向检查（`Direction-Check:` trailer 指向这里，`fix-churn` 命中「画布付费生成」概念第 6 个 fix）。
 
 ## 一、发生了什么

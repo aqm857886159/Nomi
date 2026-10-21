@@ -1,5 +1,7 @@
 # 方向检查：`generationCommon.ts` 第 30 个 fix（界面谈钱又冒了一次）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 判定 `src/i18n/locales/generationCommon.ts` 近 14 天已有 29 个 fix，#1001 的 CI 修补是第 30 个。2026-10-05 协调会话写。
 
 ### 0. 一句话根因

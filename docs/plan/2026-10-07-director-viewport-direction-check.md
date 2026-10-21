@@ -1,5 +1,7 @@
 # 导演台 viewport 方向检查（2026-10-07）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 `node scripts/fix-churn.mjs` 对 `panels/viewport/ViewportOverlays.tsx` 报「目录近 14 天 5 个 fix，这一刀第 6 个」。逐条核对，是目录级误报：
 
 | SHA | 概念 |
