@@ -18,8 +18,8 @@
 | 项 | 状态 | 卡在哪 | 推荐 |
 |---|---|---|---|
 | #1263 多选发给 Agent 时静默截断（`projectAgentContextSnapshot`） | CI 全绿，merge-preflight 干净 | 真模型数字 `unverified`：本机唯一的 `DEEPSEEK_API_KEY` 返回 402 余额不足；量具 `docs/evidence/2026-10-21-agent-selection-truncation/probe.mts` 已备 | 用户决定充值 / 换 key / 接受 unverified 后再合 |
-| look_at_canvas「当前选中」行截断（分支 `fix/look-at-canvas-selection-truncation`，本线推送并开 PR） | 门岗全过，23 个新测试本线复跑通过 | 同样缺真模型数字；碰 P1 热点（`verbs/` 14 天第 3 个 fix + 自写登记 `gate-family`），复盘 `docs/engineering/direction-check/2026-10-22-model-facing-projection-accounting.md` 第 6、7 节提了两问 | 两问都推荐不改：翻页用无状态偏移，不上游标；暂不抽共享的「有账有界列表」原语，等第三处出现再抽。改了模型可见工具 `look_at_canvas`（新增可选参数 `selectedFrom`），model-face 基线只有这一处变化 |
-| 选中即主语设计文档（分支 `docs/select-to-iterate-design-20261021`，本线推送并开 PR） | 设计卡 + AnnotateToAgent 清单 + 画布 5 格源码 | 预览图待补：仓库里没有 0.24 预览截图脚本，画布运行时也不在仓库 | 合入后由界面线在设计实验室用生产组件拼整屏 |
+| #1283 look_at_canvas「当前选中」行截断（分支 `fix/look-at-canvas-selection-truncation`） | 门岗全过（full 档，041bb577b），23 个新测试本线复跑通过，merge-preflight 干净 | 同样缺真模型数字；碰 P1 热点（`verbs/` 14 天第 3 个 fix + 自写登记 `gate-family`），复盘 `docs/engineering/direction-check/2026-10-22-model-facing-projection-accounting.md` 第 6、7 节提了两问 | 两问都推荐不改：翻页用无状态偏移，不上游标；暂不抽共享的「有账有界列表」原语，等第三处出现再抽。改了模型可见工具 `look_at_canvas`（新增可选参数 `selectedFrom`），model-face 基线只有这一处变化 |
+| #1284 选中即主语设计文档（分支 `docs/select-to-iterate-design-20261021`） | 设计卡 + AnnotateToAgent 清单 + 画布 5 格源码，门岗全过（84dd9d629） | ① merge-preflight 唯一红项：AnnotateToAgent 是新板，要协调确认：`node scripts/coord-approve.mjs --pr 1284 --board AnnotateToAgent`（用户已拍板，原话在设计卡 §1b 与清单 approval）；② 预览图待补：仓库里没有 0.24 预览截图脚本，画布运行时也不在仓库 | 协调确认后合；合入后由界面线在设计实验室用生产组件拼整屏 |
 | #1252 拆解表第一批 | 补齐提交 2fda8a539 已推 | 缺独立验收报告；Design Lab 2 格像素差要对照拍板稿确认后重录 | 派验收线。本地另有 `fix/deconstruct-transcribe-leg`（转写腿 2 个提交），等 #1252 合后单开 PR |
 | #1195 / #1258 自动化数据 PR | 必需的 Quality Gate / Mac Package 从未触发（GITHUB_TOKEN 推送不触发 CI） | 本线「关闭再重开」被权限拦 | 用户在 GitHub 上关闭再重开一次即可 |
 | #1207 自建中转模型名 | 未处理 | 删 1 条冷启动基线，rebase 解 2 个文件冲突 | 机械修补，可交 Codex |
