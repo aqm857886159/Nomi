@@ -1,5 +1,7 @@
 # 参考图标记误判修复计划（2026-09-27）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 范围
 
 - 在 `electron/assets/mediaTypes.ts` 统一 `isMarkupMasquerade` 与扫描窗口，判定只看去 BOM、前导空白后的文件开头。

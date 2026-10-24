@@ -1,5 +1,7 @@
 # 拆解表改成正经节点（拆解前选模型 · 第一批）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 日期：2026-10-18 · 状态：设计已拍板，实现中 · 待办：拆解可切模型（私有待办）
 
 - 探索图（Claude Design 画布）：https://claude.ai/artifact/HbWD5RLYnLKzeq9JXs4pcj（仓库主人可见；源码落在 `docs/design/boards/2026-10-18/source/`）
