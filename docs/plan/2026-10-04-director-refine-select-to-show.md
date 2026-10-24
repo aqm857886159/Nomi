@@ -1,5 +1,7 @@
 # 导演台精修：选中才出（方向 A）设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：Director refine · select-to-show · 线/负责人：`feat/director-refine-select-to-show`（Opus 设计实现线）· 类别：[新界面]
 
 > 状态：**用户已拍板（2026-10-04），已切真实入口**。3D-BOX 开关开时的「精修」与开关关时的旧导演台都渲染 `DirectorRefineShell`；旧右栏双卡 `SidePanels`、旧顶栏 `DirectorTopBar`、样张期接缝 `refineLayoutPreview.ts` 已同 PR 删除（P1）。实验室：`pnpm run dev:renderer` 后开 `/design-lab.html?screen=director-refine`（接触表加 `&contact=1`，单格 `&state=<id>&frame=1`）。
