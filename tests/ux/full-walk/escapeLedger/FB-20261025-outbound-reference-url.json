@@ -1,0 +1,35 @@
+{
+  "id": "FB-20261025-outbound-reference-url",
+  "since": "2026-10-25",
+  "source": "用户反馈（0.23.1 Windows，APIMart MiniMax-H3 图生视频）",
+  "category": "reference-integrity",
+  "problem": "参考图文件名或远端链接带空格时，出站 image_urls / first_frame_image / image_with_roles / video_urls / audio_urls 等字段原样透传，服务商拒绝未转义的 URL。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩",
+    "⑫"
+  ],
+  "useCases": [
+    "reference-url-whitespace"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1327,
+  "manualReview": "reviewed",
+  "evidence": [
+    "类级测试 electron/catalog/outboundReferenceUrl.matrix.test.ts：全部内置 mapping × 平铺 / archetypeInput / 标准输入键三条路，373 格；main 上红 368，第 1 轮（d2ad49331）红 51，改后全绿",
+    "收口在参数层：electron/catalog/taskParams.ts 的 taskTemplateParams 第一步 serializeReferenceParams（electron/catalog/outboundReferenceUrl.ts），键只认 GENERIC_REFERENCE_KEYS；唯一绕开参数层的自定义调用试跑在交脚本前过同一个函数",
+    "比较点两边同一个序列化：unreachableReferences.test.ts / apimartGenerationProvider.test.ts（MiniMax-H3 带空格的已批准参考）/ taskResultReading.test.ts；预检与发送前参考守各钉一格（antigravityCreatePreflight.test.ts、archetypeInput.test.ts）",
+    "变异（git archive 副本）：拿掉参数层收口 372 格红，拿掉按值认参考 7 格红，四处比较 / 试跑各 1 格红",
+    "真付费验收 unverified：独立验收后协调真跑一次（spend-paid-sample）"
+  ],
+  "completionCommits": [
+    "d2ad49331",
+    "cf98f0976"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-25-outbound-ref-url.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/outboundReferenceUrl.matrix.test.ts"
+  }
+}

@@ -12,6 +12,7 @@ import { hasMentions, numberPromptReferences, projectPromptForSend } from "../sh
 import { bodyReferenceSupport, classifyReferenceKey, classifyReferenceKeyDetailed, type ReferenceFamily } from "./referenceReachability";
 import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
 import { resolveWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
+import { comparableReferenceUrl, comparableReferenceValues, serializeReferenceParams } from "./outboundReferenceUrl";
 
 /** taskTemplateParams 实际用到的 TaskRequest 子集（结构化，避免与 runtime 的 TaskRequest 循环依赖）。 */
 export type TaskParamsInput = {
@@ -151,7 +152,9 @@ export function applyHeadlessParamDefaults(
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {
-  const extras = request.extras || {};
+  // 出站参考链接只在这里序列化（outboundReferenceUrl）：下面派生的 image_url / reference_images /
+  // chat_image_parts / json_edit_* 都取自序列化后的值，模板只是搬值，发出去的字段叫什么都不影响。
+  const extras = serializeReferenceParams(request.extras || {});
   const size = request.width && request.height ? `${request.width}x${request.height}` : firstString(extras.size, extras.aspectRatio);
   // duration 可能是数字（节点「5s」标量参数存的就是 number 5）——firstString 只认字符串会把它吞成 ""，
   // 导致 body 的 duration 为空（实测）。数字原样保留，字符串走 trim，缺省 ""。
@@ -201,7 +204,7 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     ...(speed !== undefined ? { speed } : {}),
     // 空→undefined（不是 ""）：body 的 `image: "{{request.params.image_url}}"` 整 token 渲染时，
     // undefined 会被丢弃、"" 却会当空字段发出去（纯文生图/文生视频误带 image:"" 会被部分中转拒）。
-    image_url: firstReferenceImage(request, selected) || undefined,
+    image_url: firstReferenceImage({ extras }, selected) || undefined,
     // 参考输入（单图首/尾帧 + 多参考数组）—— 构建逻辑在 electron/catalog/archetypeInput（M5）。
     ...refInput,
     // chat/completions 多模态图生图（通用中转 gemini/nano-banana 系）：参考图 → content 里的 image_url 项数组。
@@ -421,9 +424,10 @@ export function unreachableReferenceLabels(request: TaskParamsInput, createBody:
   const params = taskTemplateParams(request, selected);
   const referencedKeys = bodyReferencedParamKeys(createBody);
   if (referencedKeys.length === 0) return [];
-  const reachable = JSON.stringify(referencedKeys.map((key) => params[key]));
+  // params 里的参考已序列化（taskTemplateParams）：携带的原样地址按同一个序列化再比，带空格的参考不被误判发不出。
+  const reachable = JSON.stringify(comparableReferenceValues(referencedKeys.map((key) => params[key])));
   const missing = new Set<string>();
-  for (const ref of carried) if (!reachable.includes(ref.url)) missing.add(ref.label);
+  for (const ref of carried) if (!reachable.includes(comparableReferenceUrl(ref.url))) missing.add(ref.label);
   return [...missing];
 }
 

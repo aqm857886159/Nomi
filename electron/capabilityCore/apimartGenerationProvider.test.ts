@@ -795,6 +795,32 @@ describe("APIMart observe-only generation provider", () => {
     });
   });
 
+  // 0.23.1 用户报的形状：Windows 文件名带空格的参考图走 MiniMax H3 图生视频。参数层把参考链接换成
+  // 序列化后的写法；批准时与提交时两次构建一致，最后一道「参考到没到请求体」两边按同一个序列化比。
+  it("带空格的已批准参考：请求体和真正发出的报文都是序列化后的写法，不被当成「被丢了」", async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      expect(String(init?.body)).not.toContain("Windows ref.png");
+      expect(JSON.parse(String(init?.body))).toMatchObject({ image_urls: ["https://cdn.example/Windows%20ref.png"] });
+      return new Response(JSON.stringify({ code: 200, data: [{ task_id: "h3-ref-task" }] }), { status: 200 });
+    });
+    const provider = createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: fetchImpl as unknown as typeof fetch });
+    const reference = { assetId: "asset-1", contentHash: "a".repeat(64), version: 1, kind: "image" as const, role: "reference" as const };
+    const requestInput = input({
+      modelId: "MiniMax-H3",
+      mode: "image_to_video",
+      references: [reference],
+      referenceUrls: approvedUrls([[reference, "https://cdn.example/Windows ref.png"]]),
+      parameters: { duration: 5, resolution: "768p" },
+    });
+    const body = provider.buildRequest(requestInput);
+    expect(body).toMatchObject({ image_urls: ["https://cdn.example/Windows%20ref.png"] });
+    const contextual = (provider as typeof provider & {
+      submitWithContext: (request: unknown, idempotencyKey: string, semanticInput: ReturnType<typeof input>) => Promise<unknown>;
+    }).submitWithContext;
+    await expect(contextual(structuredClone(body), "h3-ref-key", requestInput)).resolves.toMatchObject({ providerTaskId: "h3-ref-task" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("does not serialize unused reference channels as optional APIMart fields", () => {
     const provider = createApimartGenerationProvider({
       resolveConnection: () => ({ apiKey: "test-key" }),

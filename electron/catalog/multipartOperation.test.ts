@@ -136,6 +136,21 @@ describe("multipart 图生图（/v1/images/edits）请求装配", () => {
     expect(JSON.stringify(req)).not.toContain("bytes:"); // 字节内容不进 preview
   });
 
+  // 带空格的参考链接：取字节源（fileSource）是模板从 request.params 搬来的值——参数层（taskTemplateParams）已经序列化。
+  it("multipart 取字节源读到的是参数层序列化后的参考链接", async () => {
+    const seen: string[] = [];
+    await executeMultipartOperation({
+      multipart: spec,
+      context: contextFor("改图", { referenceImages: ["https://cdn.example.com/Windows ref.png"] }),
+      resolveFile: async (url) => {
+        seen.push(url);
+        return { bytes: Buffer.from([1]), contentType: "image/png", fileName: "ref.png" };
+      },
+      send: async () => ({}),
+    });
+    expect(seen).toEqual(["https://cdn.example.com/Windows%20ref.png"]);
+  });
+
   it("generic file declaration supports audio multipart fields without image aliases", async () => {
     let sent: FormData | null = null;
     await executeMultipartOperation({

@@ -6,6 +6,7 @@ import { productionGenerationPayloadHash } from "../productionRun/productionGene
 import { ApimartGenerationProviderError } from "./apimartGenerationErrors";
 import type { ReferenceCombineChannel } from "../shared/videoCapabilities/referenceChannels";
 import { APIMART_REFERENCE_PARAMETER_ALIASES } from "../shared/modelArchetypes/referenceKeys";
+import { comparableReferenceUrl } from "../catalog/outboundReferenceUrl";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -354,9 +355,10 @@ export function assertReferencesReachBody(
   if (parameterUrls.length < input.references.length) {
     throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
   }
-  const bodyUrls = new Set(collectProviderUrls(body));
+  // 请求体里的参考是参数层序列化后的写法：两边按同一个序列化比，带空格的已批准参考不被当成「被丢了」。
+  const bodyUrls = new Set(collectProviderUrls(body).map(comparableReferenceUrl));
   for (const url of new Set(parameterUrls)) {
-    if (!bodyUrls.has(url)) {
+    if (!bodyUrls.has(comparableReferenceUrl(url))) {
       throw new ApimartGenerationProviderError("catalog mapping dropped a resolved reference");
     }
   }

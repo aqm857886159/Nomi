@@ -1,0 +1,192 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-25-outbound-ref-url",
+  "problem_type": "Outbound reference media URLs are sent without URL-standard serialization",
+  "symptom": "APIMart MiniMax-H3 image-to-video rejects image_urls[0] (a reference image whose Windows filename contains a space) as an invalid URL; the same raw spelling reaches every provider body that reads a reference parameter.",
+  "direct_cause": "taskTemplateParams copies request.extras into request.params unchanged, so a remote reference URL with raw spaces is rendered verbatim into image_urls / first_frame_url / content[].image_url.url / multipart file sources / process args.",
+  "class_root": "The outbound spelling of a reference URL had no single owner: every template door builds its params in taskTemplateParams, but the URL was never put into its standard serialized form there, and every place that compares carried references with params, request bodies or provider echoes compared raw strings on its own. Round 1 (d2ad49331) patched this at the transport layer with a second, wire-name keyed table (REFERENCE_MEDIA_KEYS) that can never list every provider field name; on the final class matrix it leaves 51 of 373 cells red.",
+  "affected_population": [
+    "Remote image, video and audio references whose URL carries spaces or non-ASCII characters (Windows filenames, imported links, uploaded asset URLs)",
+    "Every builtin and user-created mapping that reads a reference parameter (JSON body, query, path, headers, multipart file source, process args)",
+    "Headless / MCP / Agent callers that pass standard reference input keys and rely on main-process projection",
+    "Custom-call trial runs whose renderer-built params go straight to the script",
+    "APIMart engine B approval, the unreachable-reference guard and the provider echo filter, which compare carried references with sent values"
+  ],
+  "scope_paths": [
+    "electron/catalog/outboundReferenceUrl.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/customCallIpc.ts",
+    "electron/capabilityCore/apimartGenerationProjection.ts",
+    "electron/tasks/taskResultReading.ts",
+    "electron/desktopStrings.ts",
+    "electron/catalog/outboundReferenceUrl.matrix.test.ts",
+    "electron/catalog/outboundReferenceUrl.test.ts",
+    "electron/catalog/unreachableReferences.test.ts",
+    "electron/catalog/archetypeInput.test.ts",
+    "electron/catalog/antigravityCreatePreflight.test.ts",
+    "electron/catalog/customCallIpc.referenceUrl.test.ts",
+    "electron/catalog/multipartOperation.test.ts",
+    "electron/catalog/profileHttpRequest.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/tasks/taskResultReading.test.ts",
+    "docs/engineering/concept-owners/generation.outbound-reference-url.json"
+  ],
+  "entry_points": [
+    "runtime profile create (JSON / multipart / process) through templateContext and buildProfileHttpRequest",
+    "audio task runner and synchronous audio response",
+    "APIMart engine B buildRequest and contextual submit",
+    "catalog certification probes",
+    "custom-call production dispatch (taskTemplateParams) and custom-call trial run (renderer-built params)",
+    "Antigravity create preflight and its run-time consume check",
+    "unreachable-reference guard, engine B reference-reach check, provider echo filter, reference residue guard"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://url.spec.whatwg.org/",
+      "checked_at": "2026-10-25",
+      "purpose": "URL parsing and serialization (path / query / fragment percent-encode sets, host normalization); parse-then-serialize is idempotent, so already-encoded and signed URLs stay byte-for-byte unchanged."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/generation.md",
+      "checked_at": "2026-10-25",
+      "purpose": "APIMart MiniMax-H3 generation contract: image_urls carries reference image URLs (the reported field)."
+    }
+  ],
+  "invariants": [
+    "Every reference value under a GENERIC_REFERENCE_KEYS key (any depth, camel or snake spelling), and every copy of such a value under another params key, is WHATWG URL-serialized in taskTemplateParams before any template reads request.params.",
+    "Already percent-encoded URLs and signed query strings are idempotent; data:, blob:, nomi-local:// values and ComfyUI input filenames are unchanged.",
+    "An unparseable absolute reference URL fails while params are built, naming the parameter path, before any provider request is written.",
+    "Wherever a carried (raw) reference is compared with params, a request body or a provider echo, both sides go through comparableReferenceUrl."
+  ],
+  "doors": [
+    {"kind": "write", "path": "electron/audioTaskRunner.ts", "symbol": "taskTemplateParams"},
+    {"kind": "write", "path": "electron/catalog/antigravityCreatePreflight.ts", "symbol": "taskTemplateParams"},
+    {"kind": "write", "path": "electron/catalog/customCallDispatch.ts", "symbol": "taskTemplateParams"},
+    {"kind": "write", "path": "electron/catalog/profileHttpRequest.ts", "symbol": "taskTemplateParams"},
+    {"kind": "write", "path": "electron/catalog/taskParams.ts", "symbol": "taskTemplateParams"},
+    {"kind": "write", "path": "electron/audioTaskRunner.ts", "symbol": "templateContext"},
+    {"kind": "write", "path": "electron/catalog/multipartOperation.ts", "symbol": "templateContext"},
+    {"kind": "write", "path": "electron/catalog/profileHttpRequest.ts", "symbol": "templateContext"},
+    {"kind": "write", "path": "electron/runtime.ts", "symbol": "templateContext"},
+    {"kind": "read", "path": "electron/capabilityCore/apimartGenerationProvider.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/audio/synchronousAudioResponse.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/audioTaskRunner.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/capabilityCore/apimartGenerationProvider.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/catalog/catalogCommit.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/catalog/multipartOperation.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/catalog/profileHttpRequest.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/runtime.ts", "symbol": "buildProfileHttpRequest"},
+    {"kind": "write", "path": "electron/catalog/customCallIpc.ts", "symbol": "serializeReferenceParams"},
+    {"kind": "write", "path": "electron/catalog/outboundReferenceUrl.ts", "symbol": "serializeReferenceParams"},
+    {"kind": "write", "path": "electron/catalog/taskParams.ts", "symbol": "serializeReferenceParams"},
+    {"kind": "write", "path": "electron/catalog/customCallDispatch.ts", "symbol": "runCustomCallScript"},
+    {"kind": "write", "path": "electron/catalog/customCallIpc.ts", "symbol": "runCustomCallScript"},
+    {"kind": "read", "path": "electron/capabilityCore/apimartGenerationProjection.ts", "symbol": "comparableReferenceUrl"},
+    {"kind": "write", "path": "electron/capabilityCore/apimartGenerationProjection.ts", "symbol": "comparableReferenceUrl"},
+    {"kind": "write", "path": "electron/catalog/outboundReferenceUrl.ts", "symbol": "comparableReferenceUrl"},
+    {"kind": "write", "path": "electron/catalog/taskParams.ts", "symbol": "comparableReferenceUrl"},
+    {"kind": "write", "path": "electron/tasks/taskResultReading.ts", "symbol": "comparableReferenceUrl"},
+    {"kind": "write", "path": "electron/catalog/taskParams.ts", "symbol": "comparableReferenceValues"},
+    {"kind": "write", "path": "electron/capabilityCore/apimartGenerationProvider.ts", "symbol": "requestEchoUrls"},
+    {"kind": "write", "path": "electron/runtime.ts", "symbol": "requestEchoUrls"},
+    {"kind": "write", "path": "electron/capabilityCore/apimartGenerationProvider.ts", "symbol": "assertReferencesReachBody"},
+    {"kind": "write", "path": "electron/catalog/taskParams.ts", "symbol": "unreachableReferenceLabels"},
+    {"kind": "write", "path": "electron/runtime.ts", "symbol": "prepareAntigravityCreateOperation"},
+    {"kind": "read", "path": "electron/tasks/referenceResidueGuard.ts", "symbol": "findReferenceResidue"},
+    {"kind": "read", "path": "electron/desktopStrings.ts", "symbol": "desktopTranslations"}
+  ],
+  "door_reduction": {
+    "before": 35,
+    "after": 35,
+    "why_not": "The 35 doors are distinct callers with different request contracts (JSON / multipart / process / audio / engine B / certification probes / custom-call scripts) and distinct comparison sites; merging them would not remove a path. What converged is the decision: the 17 template-building doors (taskTemplateParams 5, templateContext 4, buildProfileHttpRequest 8) all reach taskTemplateParams, which serializes once; the custom-call trial run is the only door that bypasses it and calls the same serializeReferenceParams before handing params to the script; the comparison doors all call comparableReferenceUrl. Round 1's four transport-layer call sites (requestJson, buildProfileHttpRequest body, executeMultipartOperation, localizeAssetsForVendor) and its wire-name key table were deleted, not kept as a fallback."
+  },
+  "generality_proof": "Which params are references is answered only by the shared, archetype-derived GENERIC_REFERENCE_KEYS table (spelling-normalized), never by provider field names; templates only move request.params values, so the wire field name (image_urls, first_frame, content[].image_url.url, input.video_list, a multipart file source, a process arg) cannot bypass it. The class matrix renders every builtin mapping that reads a reference parameter through the real param build on three input shapes (flat template keys, archetypeInput, standard headless input keys) and asserts no raw space reaches the request.",
+  "shared_boundaries": [
+    {"path": "electron/catalog/taskParams.ts", "symbol": "taskTemplateParams", "responsibility": "Single param-layer convergence point: every template door builds request.params here; reference values are serialized once on entry, before image_url / reference_images / chat_image_parts / json_edit_* are derived from them."},
+    {"path": "electron/catalog/outboundReferenceUrl.ts", "symbol": "serializeReferenceParams", "responsibility": "Owner of the outbound spelling: WHATWG URL parse-then-serialize for values under GENERIC_REFERENCE_KEYS keys and their copies under other keys; fails closed on unparseable absolute URLs with the parameter path."},
+    {"path": "electron/catalog/outboundReferenceUrl.ts", "symbol": "comparableReferenceUrl", "responsibility": "Comparison spelling: sites comparing a carried reference with params, a request body or a provider echo put both sides through the same serialization, never throwing."}
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/outboundReferenceUrl.ts",
+    "tests": [
+      "electron/catalog/outboundReferenceUrl.test.ts",
+      "electron/catalog/outboundReferenceUrl.matrix.test.ts"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-25",
+  "same_class_entry_points": [
+    {"path": "electron/runtime.ts", "entry_point": "executeProfileOperation (JSON / multipart / process)", "disposition": "enforced", "evidence": "Renders through templateContext / buildProfileHttpRequest, i.e. taskTemplateParams; class matrix covers 125 builtin mappings on flat, archetypeInput and standard-input-key shapes (373 cells, 0 red)."},
+    {"path": "electron/capabilityCore/apimartGenerationProvider.ts", "entry_point": "buildRequest / submitWithContext", "disposition": "enforced", "evidence": "Body built by buildProfileHttpRequest; assertReferencesReachBody compares both sides through comparableReferenceUrl. apimartGenerationProvider.test.ts: spaced approved MiniMax-H3 reference is serialized in buildRequest and on the wire, not rejected as dropped."},
+    {"path": "electron/catalog/customCallIpc.ts", "entry_point": "executeCustomCallTest (trial run)", "disposition": "enforced", "evidence": "The only door that bypasses taskTemplateParams; params go through serializeReferenceParams before runCustomCallScript. customCallIpc.referenceUrl.test.ts."},
+    {"path": "electron/catalog/customCallDispatch.ts", "entry_point": "custom-call production dispatch", "disposition": "enforced", "evidence": "Builds script params with taskTemplateParams (door-map taskTemplateParams)."},
+    {"path": "electron/audioTaskRunner.ts", "entry_point": "audio task create", "disposition": "enforced", "evidence": "Calls taskTemplateParams / templateContext / buildProfileHttpRequest (door-map)."},
+    {"path": "electron/catalog/taskParams.ts", "entry_point": "unreachableReferenceLabels", "disposition": "enforced", "evidence": "Carried raw references and serialized params compared through comparableReferenceUrl / comparableReferenceValues; unreachableReferences.test.ts spaced references pass, a truly unreachable last frame is still refused."},
+    {"path": "electron/tasks/taskResultReading.ts", "entry_point": "requestEchoUrls", "disposition": "enforced", "evidence": "Echo set holds both the raw and the serialized spelling; taskResultReading.test.ts serialized echo is not taken as output."},
+    {"path": "electron/catalog/antigravityCreatePreflight.ts", "entry_point": "prepareAntigravityCreateOperation", "disposition": "enforced", "evidence": "Preflight seal, preflight match and run-time consume all read taskTemplateParams; antigravityCreatePreflight.test.ts."},
+    {"path": "electron/catalog/archetypeInput.ts", "entry_point": "findReferenceResidue", "disposition": "not-affected", "evidence": "Runs before params are built and compares renderer-supplied raw values on both sides; archetypeInput.test.ts pins that a spaced in-use reference is not residue."},
+    {"path": "electron/runtime.ts", "entry_point": "runTask no-mapping fallback body", "disposition": "not-affected", "evidence": "NO_MAPPING_FALLBACK_BODY has no reference field and imageEditGuardError refuses carried references for it before spend; the opaque extras bag is not a provider reference field."},
+    {"path": "electron/textTaskRunner.ts", "entry_point": "executeTextTask image inputs", "disposition": "not-affected", "evidence": "Images are fetched in-process and inlined as base64; no reference URL string is sent."}
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any remote reference imported from a Windows path, a previous result, a user URL, an uploaded asset or a future provider mapping can carry spaces or non-ASCII characters, and every new mapping, input shape or comparison site would otherwise need to remember the rule.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs taskTemplateParams: 5 direct doors",
+      "node scripts/door-map.mjs templateContext: 4 doors; buildProfileHttpRequest: 8 doors",
+      "node scripts/door-map.mjs runCustomCallScript: customCallDispatch (taskTemplateParams) and customCallIpc (bypass, fixed)",
+      "node scripts/door-map.mjs requestEchoUrls / assertReferencesReachBody / unreachableReferenceLabels / prepareAntigravityCreateOperation / findReferenceResidue: comparison sites",
+      "class matrix over every builtin mapping that reads a GENERIC_REFERENCE_KEYS parameter (125 flat + 121 archetypeInput + 125 standard-input-key cells)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/outboundReferenceUrl.ts",
+    "invariant": "Every reference value that reaches a provider request was serialized by serializeReferenceParams in taskTemplateParams (or, for the custom-call trial run, before the script); comparisons with carried references go through comparableReferenceUrl.",
+    "failure_mode": "Throw the localized outbound.referenceUrlInvalid error naming the parameter path while params are built; no provider request is written.",
+    "exception_policy": "none",
+    "strategy": "Serialize once at the earliest shared boundary every template door passes through (the param layer), keyed only by the shared reference-key table, and delete the transport-layer rewrite instead of keeping it as a second gate.",
+    "artifacts": [
+      "electron/catalog/outboundReferenceUrl.ts",
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/customCallIpc.ts",
+      "electron/capabilityCore/apimartGenerationProjection.ts",
+      "electron/tasks/taskResultReading.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/outboundReferenceUrl.matrix.test.ts",
+    "electron/catalog/outboundReferenceUrl.test.ts",
+    "electron/catalog/unreachableReferences.test.ts",
+    "electron/catalog/archetypeInput.test.ts",
+    "electron/catalog/antigravityCreatePreflight.test.ts",
+    "electron/catalog/customCallIpc.referenceUrl.test.ts",
+    "electron/catalog/multipartOperation.test.ts",
+    "electron/catalog/profileHttpRequest.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/tasks/taskResultReading.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/outboundReferenceUrl.matrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Relative to main there was no named implementation to delete: the old behavior was an implicit raw passthrough. Round 1's transport-layer serializer on this branch (REFERENCE_MEDIA_KEYS, normalizeOutboundReferenceMediaUrls, normalizeOutboundReferenceFormData and their call sites in vendorHttp, profileHttpRequest, multipartOperation and assetLocalization) never reached main; it was deleted in round 2 and those four files are back to main. The concept registry forbids redefining those symbols."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "WHATWG URL is the platform URL parser in the supported Node / Electron runtime; no third-party dependency controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration. Stored node meta, task provenance and caches keep the original spelling; only the outbound params copy is serialized.",
+  "residual_risks": [
+    "A producer that already put an unescaped # or ? inside a filename changed the URL's meaning before this boundary; serialization cannot recover the intended filename.",
+    "The reference-key projection (projectReferencesOntoBodyKeys) classifies body keys by regex and can drop an audio reference URL into a boolean toggle such as audio / generateAudio / audio_setting for headless callers; the value is now serialized but the shape is wrong. Separate issue, reported to the coordinator, not changed here.",
+    "On the engine B path buildRequest wraps render errors, so an unparseable reference URL surfaces as 'catalog mapping cannot render' instead of the localized reference message; fails closed before approval either way.",
+    "Uploaded provider URLs are now serialized at the param layer instead of right after upload, so an upload channel returning an unparseable URL fails when params are built rather than at the upload step.",
+    "A user-defined custom param that holds a URL under a key outside GENERIC_REFERENCE_KEYS is not treated as a reference and goes out as typed."
+  ]
+}

@@ -19,6 +19,7 @@ import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { firstString } from "../jsonUtils";
 import { extractAssetUrl } from "./assetUrlExtract";
 import { logInfo } from "../logging/logger";
+import { comparableReferenceUrl } from "../catalog/outboundReferenceUrl";
 
 export type ExpectedMediaKind = "image" | "video" | "audio" | "model3d";
 
@@ -169,13 +170,16 @@ export function findResultUrlByGenericRule(
   return null;
 }
 
-/** 本次请求里出现过的地址（参考图 / 首帧 / 参考视频……）：上游常把它们原样回显，绝不能当产物。 */
+/**
+ * 本次请求里出现过的地址（参考图 / 首帧 / 参考视频……）：上游常把它们原样回显，绝不能当产物。
+ * 发出去的是参数层序列化后的写法（outboundReferenceUrl），上游回显的也是它——原样与序列化两种写法都算回显。
+ */
 export function requestEchoUrls(extras: unknown): Set<string> {
   const urls = new Set<string>();
   const walk = (value: unknown, depth: number) => {
     if (depth > MAX_DEPTH) return;
     if (typeof value === "string") {
-      if (isAssetUrl(value)) urls.add(value.trim());
+      if (isAssetUrl(value)) urls.add(value.trim()).add(comparableReferenceUrl(value.trim()));
       return;
     }
     if (Array.isArray(value)) return value.forEach((item) => walk(item, depth + 1));

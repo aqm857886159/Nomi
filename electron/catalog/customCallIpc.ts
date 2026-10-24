@@ -20,6 +20,7 @@ import { registerCustomCallDraftIpc } from "./customCallDraftIpc";
 import type { ProfileKind } from "./types";
 import { createCustomCallTestRunRegistry, type CustomCallTestRunInput, type CustomCallTestRunResult } from "./customCallTestRuns";
 
+import { serializeReferenceParams } from "./outboundReferenceUrl";
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { desktopT } from "../i18n";
 import { connectionWireModel } from "../shared/modelArchetypes/wireModelIdentity";
@@ -82,7 +83,9 @@ async function executeCustomCallTest(
       customConfig,
       script: input.script,
       prompt: input.prompt?.trim() || canned.prompt,
-      params: input.params || canned.params,
+      // 试跑参数由渲染层按模式槽拼好、不经 taskTemplateParams：参考链接在交给脚本之前过同一道序列化（outboundReferenceUrl），
+      // 脚本拿到的就是要发的写法（脚本若对请求体签名，签的也是这一份）。
+      params: serializeReferenceParams(input.params || canned.params),
       taskKind,
       modeId: input.modeId,
       signal,

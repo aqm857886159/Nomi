@@ -57,6 +57,13 @@ describe("通用规则的三道筛", () => {
     expect(findResultUrlByGenericRule({ status: "succeeded", output: { url: MP4 }, input: { url: "https://refs.example.test/b.mp4" } }, "video", echo)?.urls).toEqual([MP4]);
   });
 
+  // 带空格的参考链接：发出去的参考是参数层序列化后的写法（空格 → %20），上游回显的也是它；extras 里存的是原样写法。
+  it("带空格的参考：上游回显序列化后的写法也认得是回显，不当产物", () => {
+    const echo = requestEchoUrls({ referenceVideoUrls: ["https://refs.example.test/Windows ref.mp4"] });
+    expect(findResultUrlByGenericRule({ status: "succeeded", url: "https://refs.example.test/Windows%20ref.mp4" }, "video", echo)).toBeNull();
+    expect(findResultUrlByGenericRule({ status: "succeeded", output: { url: MP4 }, input: { url: "https://refs.example.test/Windows%20ref.mp4" } }, "video", echo)?.urls).toEqual([MP4]);
+  });
+
   it("排除缩略图 / 封面 / 尾帧 / 参考字段", () => {
     expect(findResultUrlByGenericRule({ thumbnail_url: "https://cdn.example.test/t.mp4", content: { last_frame_url: "https://cdn.example.test/l.mp4" }, reference_urls: ["https://cdn.example.test/r.mp4"] }, "video")).toBeNull();
   });

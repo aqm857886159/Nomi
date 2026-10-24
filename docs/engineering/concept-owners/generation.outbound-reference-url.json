@@ -1,0 +1,56 @@
+{
+  "name": "发给供应商的参考链接写法（参数层一次 WHATWG URL 解析后序列化；拿携带的参考去比的地方两边同一个序列化）",
+  "subject": "generation.outbound-reference-url",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/outboundReferenceUrl.ts",
+    "symbol": "serializeReferenceParams"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/outboundReferenceUrl.ts",
+      "symbol": "serializeReferenceParams"
+    },
+    {
+      "path": "electron/catalog/outboundReferenceUrl.ts",
+      "symbol": "serializeReferenceUrl"
+    },
+    {
+      "path": "electron/catalog/outboundReferenceUrl.ts",
+      "symbol": "comparableReferenceUrl"
+    },
+    {
+      "path": "electron/catalog/outboundReferenceUrl.ts",
+      "symbol": "comparableReferenceValues"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "REFERENCE_MEDIA_KEYS",
+      "kind": "definition",
+      "why": "按发出去的字段名另写的参考键表（出站参考链接第 1 轮修法）：和共享键表 GENERIC_REFERENCE_KEYS 是同一个问题的第二个答案，字段名是供应商的、永远补不全（类级测试拿第 1 轮代码跑，红 51 格）"
+    },
+    {
+      "symbol": "normalizeOutboundReferenceMediaUrls",
+      "kind": "definition",
+      "why": "在请求体 / 传输层按字段名改写参考链接（出站参考链接第 1 轮修法）：模板只是搬值，写法要在参数层定；传输层改写还会改掉自定义调用脚本已经签过名的请求体"
+    },
+    {
+      "symbol": "normalizeOutboundReferenceFormData",
+      "kind": "definition",
+      "why": "multipart 表单在传输层按字段名改写（出站参考链接第 1 轮修法），理由同上"
+    }
+  ],
+  "allowed_consumers": [
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/customCallIpc.ts",
+    "electron/capabilityCore/apimartGenerationProjection.ts",
+    "electron/tasks/taskResultReading.ts"
+  ],
+  "since": "2026-10-25",
+  "notes": "用户反馈（0.23.1 Windows：APIMart MiniMax-H3 图生视频，参考图文件名带空格被服务商拒）。根因合同 docs/fixes/2026-10-25-outbound-ref-url.root-cause.json。写法只在参数层定：taskTemplateParams 第一步 serializeReferenceParams(request.extras)，所有模板（JSON / multipart 取字节源 / 进程 args）只搬 request.params.*，发出去的字段叫什么都不影响；「哪些参数是参考」只认共享键表 GENERIC_REFERENCE_KEYS（generation.reference-sent-in-use 的写接口，驼峰 / 下划线归一），表里的键带进来的值被上游推导抄到表外的键上（参考键形态投影 projectReferencesOntoBodyKeys 按请求体读的键落位）按值认作同一条参考。唯一绕开 taskTemplateParams 的门是自定义调用试跑（customCallIpc 把渲染层拼好的参数直接交给脚本），在交脚本之前过同一个函数。比较：第三闸 unreachableReferenceLabels、引擎 B 的 assertReferencesReachBody、回显过滤 requestEchoUrls 两边都过 comparableReferenceUrl；预检 prepareAntigravityCreateOperation 与发送前参考守 findReferenceResidue 两边本来同源，不调它。类级测试 electron/catalog/outboundReferenceUrl.matrix.test.ts（全部内置 mapping × 平铺 / archetypeInput / 标准输入键三条路）。"
+}

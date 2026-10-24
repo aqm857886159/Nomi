@@ -103,6 +103,33 @@ describe("unreachableReferenceLabels", () => {
     ).toEqual([]);
   });
 
+  // 带空格的参考链接：参数层把参考链接换成序列化后的写法（Windows 文件名的空格 → %20）；第三闸拿携带的原样地址去比，
+  // 两边按同一个序列化比——发得出的不能因为写法变了被误判成发不出，发不出的照样拦。
+  it("带空格的参考链接：发得出的照常放行，发不出的照常拦", () => {
+    const spaced = (name: string) => `https://cdn.example.com/Windows ${name}.png`;
+    const reachableEverywhere = unreachableReferenceLabels(
+      {
+        extras: {
+          firstFrameUrl: spaced("first"),
+          lastFrameUrl: spaced("last"),
+          referenceImageUrls: [spaced("role")],
+          archetypeInput: {
+            volcengine_first_role_image_content: { type: "image_url", image_url: { url: spaced("first") }, role: "first_frame" },
+            volcengine_last_role_image_content: { type: "image_url", image_url: { url: spaced("last") }, role: "last_frame" },
+            volcengine_image_contents: [{ type: "image_url", image_url: { url: spaced("role") }, role: "reference_image" }],
+          },
+        },
+      },
+      nativeI2vBody,
+    );
+    expect(reachableEverywhere).toEqual([]);
+    expect(unreachableReferenceLabels({ extras: { firstFrameUrl: spaced("first") } }, NEWAPI_VIDEO_CREATE_OP.body)).toEqual([]);
+    expect(unreachableReferenceLabels(
+      { extras: { firstFrameUrl: spaced("first"), lastFrameUrl: spaced("last") } },
+      NEWAPI_VIDEO_CREATE_OP.body,
+    )).toEqual(["尾帧"]);
+  });
+
   it("没登记过的新参考键也要被看见（回退「参考素材」，绝不因没登记就放过）", () => {
     expect(
       unreachableReferenceLabels(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { referenceInputParams } from "./archetypeInput";
+import { findReferenceResidue, referenceInputParams } from "./archetypeInput";
 
 // C3：参考输入构建（extras camelCase → 通用 snake 参数）。M2 互斥：空值不进结果。
 
@@ -77,5 +77,17 @@ describe("referenceInputParams", () => {
     expect(referenceInputParams({
       reference_images: ["nomi-local://asset/project/snake.png"],
     }).reference_images).toEqual(["nomi-local://asset/project/snake.png"]);
+  });
+});
+
+// 带空格的参考链接：发送前的参考守在参数层序列化之前比，两边（通用参考键 vs archetypeInput）都是渲染层给的原样写法。
+describe("findReferenceResidue × 带空格的参考链接", () => {
+  const url = "https://cdn.example.com/Windows ref.png";
+  it("在用的带空格参考不算夹带", () => {
+    expect(findReferenceResidue({ referenceImages: [url], image_urls: [url], archetypeInput: { image_urls: [url] } })).toEqual([]);
+  });
+  it("不在用的照样拒", () => {
+    expect(findReferenceResidue({ referenceImages: [url, "https://cdn.example.com/other one.png"], archetypeInput: { image_urls: [url] } }))
+      .toEqual(["referenceImages"]);
   });
 });
