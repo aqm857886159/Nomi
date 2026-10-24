@@ -170,6 +170,22 @@ describe('resident ContextSnapshot', () => {
     expect(context).toContain('target-0')
   })
 
+  // 生产构造器 → 生产投影：选区多大都不许静默少（事故：12 个只收到 7 个、16 个以上只收到 6 个，没有任何标记）。
+  it.each([1, 12, 16, 40, 256])('selecting %i canvas nodes: the model gets all of them or an explicit total and omitted count', (count) => {
+    const nodes = Array.from({ length: count }, (_, index) => ({ id: `gen-v2-image-lw9x${index.toString(36)}-ab${index}z`, title: `镜头${index + 1}`, kind: 'image' }))
+    const snapshot = buildResidentContextSnapshot({
+      canvas: { revision: 8, nodes, selectedNodeIds: nodes.map((node) => node.id) },
+    })
+    const context = formatAgentContextSnapshot(snapshot)
+    const payload = JSON.parse(context.slice(context.indexOf('\n') + 1)) as { total: number; listed: number; omitted?: number; handles: Array<{ targetId: string }> }
+    expect(payload.total).toBe(count)
+    expect(payload.handles).toHaveLength(payload.listed)
+    expect(payload.listed + (payload.omitted ?? 0)).toBe(count)
+    expect(payload.handles.map((handle) => handle.targetId)).toEqual(nodes.slice(0, payload.listed).map((node) => node.id))
+    if (count <= 16) expect(payload.listed).toBe(count)
+    expect(context.length).toBeLessThanOrEqual(6000)
+  })
+
   it('enforces a hard total bound and keeps the reduced projection valid JSON', () => {
     const huge = 'x'.repeat(50_000)
     const context = formatAgentContextSnapshot({

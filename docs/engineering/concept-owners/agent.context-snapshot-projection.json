@@ -1,0 +1,30 @@
+{
+  "name": "给模型看的选区投影（AgentContextSnapshot → 文本；列全或明说少了几个，不静默少）",
+  "subject": "agent.context-snapshot-projection",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentContextSnapshot.ts",
+    "symbol": "projectAgentContextSnapshot"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentContextSnapshot.ts",
+      "symbol": "projectAgentContextSnapshot"
+    },
+    {
+      "path": "electron/shared/agentContextSnapshot.ts",
+      "symbol": "formatAgentContextSnapshot"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopInput.ts",
+    "electron/agentLane/laneContextBudget.mts"
+  ],
+  "since": "2026-10-21",
+  "notes": "合同 docs/fixes/2026-10-21-agent-selection-silent-truncation.root-cause.json：快照本体（句柄、定位器、修订）住在 Host 请求里，投影只是它的有界文本视图，不是第二份 owner。total/listed/omitted 的账由编码预算的同一个函数写进文本并以 AgentContextProjection 返回给渲染层；formatAgentContextSnapshot 只是返回其 text 的薄包装，两扇调用门（laneDesktopInput 的 providerContent、laneContextBudget 的压缩摘要）都只摆放这段字符串。"
+}

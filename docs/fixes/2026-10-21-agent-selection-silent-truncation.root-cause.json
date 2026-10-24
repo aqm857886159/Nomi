@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-21-agent-selection-silent-truncation",
+  "change_kind": "corrective",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-20",
+  "problem_type": "A bounded model-facing projection drops entries without accounting for them",
+  "symptom": "Selecting 12 canvas nodes gives the model 7 of them (10 with short ids), selecting 16 or more gives 6 (8 with short ids), and nothing in the text or the UI says anything is missing; the model answers about 'the selection' as if it were whole.",
+  "direct_cause": "formatAgentContextSnapshot took only the first 16 handles, every canvasNode handle's locator repeated the entire selection (O(N^2) bytes), and encodeBoundedHandles kept the richest detail level and cut the tail one handle at a time to fit 6000 chars, so the full-detail prefix always beat a leaner list of everyone. No total, listed or omitted count was ever written.",
+  "class_root": "The projection owner had no accounting invariant: it could return fewer handles than the snapshot held and was free to say nothing. Budget pressure was resolved by deleting entries instead of by shedding optional detail, and the repeated-selection redundancy that created the pressure was never removed.",
+  "affected_population": [
+    "Any canvas multi-selection of 12 or more nodes sent to the resident Agent",
+    "Mixed selections (document + canvas nodes + timeline clips + director shots + @ references) whose combined handles exceed the budget",
+    "Nodes or clips with very long titles, which evicted the entries behind them",
+    "Compaction summaries, which re-project the latest selection through the same function"
+  ],
+  "scope_paths": [
+    "electron/shared/agentContextSnapshot.ts"
+  ],
+  "entry_points": [
+    "Provider request projection of a user message (laneDesktopInput providerContent)",
+    "Compaction summary of the latest selected state (laneContextBudget before_compaction)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The projection is Nomi's own wire-to-prompt contract; no dependency or platform decides it. The only external fact used, that look_at_canvas reads the live canvas selection, is read from the repository's own verb declaration.",
+  "invariants": [
+    "The projection writes total, listed and (when listed < total) omitted, so total = listed + omitted holds in the text itself and the model is never left to assume the list is the whole selection.",
+    "Listed handles are always the first `listed` handles of the snapshot in snapshot order; the omitted tail is counted, never dropped silently.",
+    "Budget pressure sheds optional display detail first (subtitle, then title length, then identity caps) and only then entries; identity, role and domain locators are never shed.",
+    "A selection locator never repeats ids that another handle already names, so the projection is linear in the selection size."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "formatAgentContextSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "formatAgentContextSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentContextSnapshot.ts",
+      "symbol": "projectAgentContextSnapshot"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 3,
+    "why_not": "The two caller doors (laneContextBudget, laneDesktopInput) already call the single owner formatAgentContextSnapshot and only place its string: laneDesktopInput appends it to the provider-bound user message, laneContextBudget embeds the latest selection in the compaction summary prompt. They serve different consumers (live request vs summary), hold no projection logic and stay unchanged. The third door is the owner itself, projectAgentContextSnapshot, added so the renderer can read the same total/listed/omitted facts without re-deriving them; formatAgentContextSnapshot is now a thin wrapper over it, so there is still exactly one encoder."
+  },
+  "generality_proof": "Every model-facing projection of a context snapshot goes through formatAgentContextSnapshot, now a thin wrapper over projectAgentContextSnapshot. The accounting is produced inside the same encoder that enforces the 6000-char bound, so no caller can obtain a bounded projection without the counts, and the test ladder (1/12/16/40/256 selected, long titles, mixed kinds, pathological 256 x 20k-char fields) exercises the shared encoder rather than any one producer.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentContextSnapshot.ts",
+      "symbol": "projectAgentContextSnapshot",
+      "responsibility": "Own the model-facing projection of a snapshot: the hard character bound, the detail ladder, and the total/listed/omitted accounting that is written into the text and returned as facts."
+    },
+    {
+      "path": "electron/shared/agentContextSnapshot.ts",
+      "symbol": "formatAgentContextSnapshot",
+      "responsibility": "Keep the two existing callers on the single owner by returning only the projection text."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "entry_point": "providerContent (user message projection)",
+      "disposition": "enforced",
+      "evidence": "Calls formatAgentContextSnapshot(message.context.contextSnapshot); door-map lists it as one of the two doors and the real producer-to-projection test in residentContextSnapshot.test.ts covers the same call."
+    },
+    {
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "entry_point": "before_compaction selected-state summary",
+      "disposition": "enforced",
+      "evidence": "Calls formatAgentContextSnapshot(latest.context.contextSnapshot); the omitted note therefore survives into a compaction summary instead of being flattened into an apparently complete list."
+    },
+    {
+      "path": "src/workbench/ai/resident/residentContextSnapshot.ts",
+      "entry_point": "buildResidentContextSnapshot (producer stamps the whole selection into every canvas handle locator)",
+      "disposition": "not-affected",
+      "evidence": "The producer's full snapshot is the wire contract that the Host re-finds targets from and that the composer chip reads (residentReferenceFromContextHandle uses locator.nodeIds); the loss happened only in the lossy projection, so the producer is deliberately left unchanged and the projection stops repeating it."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasReadCompact.ts",
+      "entry_point": "formatCanvasForAgent selected-id line (SELECTED_IDS_BUDGET 900 chars)",
+      "disposition": "not-affected",
+      "evidence": "A separate projection owner with its own tests (canvasPromptContext.test.ts pins the line). It cuts the selected ids at about 31 ids and marks the cut with an ellipsis, so it is not silent, but it gives no count. Outside this change's owner and recorded in residual_risks."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any producer that adds handles (a new selection kind, more director shots, more @ references) can push the projection over its budget again, and the old encoder resolved that by deleting entries whatever the producer was.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs formatAgentContextSnapshot: 2 write doors, both place the string; no other projection of AgentContextSnapshot exists (rg AgentContextSnapshot electron src).",
+      "Producers checked: buildResidentContextSnapshot (canvas/timeline/document), directorShotContextHandles (one handle per shot sharing the director node id), agentReferenceContext (@ references). The director shots are only distinguishable by their custom locator, which is why the new encoder never sheds locators.",
+      "Wire limit checked: laneDesktopInput contextSnapshot handles max(256) and a 256 KB context cap, so 256 handles is the real worst case and is in the test ladder.",
+      "Adjacent bounded projection checked: canvasReadCompact selected-id join (see same_class_entry_points)."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentContextSnapshot.ts",
+    "invariant": "A bounded projection of a snapshot writes total/listed/omitted and lists a prefix of the snapshot; total = listed + omitted and listed < total implies an explicit omitted count and note.",
+    "failure_mode": "When even the leanest rows do not all fit, the longest prefix that fits is listed and the omission is stated in the text and in the returned facts; the block stays within 6000 chars and valid JSON.",
+    "exception_policy": "none",
+    "strategy": "Compute the accounting in the same encoder that enforces the budget, pick the richest detail rung that lists every handle before ever cutting entries, remove the selection redundancy that caused the pressure, and expose the same counts to the renderer so a UI can show them.",
+    "artifacts": [
+      "electron/shared/agentContextSnapshot.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentContextSnapshot.test.ts",
+    "src/workbench/ai/resident/residentContextSnapshot.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/agentContextSnapshot.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/agentContextSnapshot.ts"
+    ],
+    "rationale": "The fixed 16-handle first page, the per-handle repeated selection ids and the richest-level tail cutting are deleted in the same change; there is no second encoder and no fallback to the old shape."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal projection contract; no third-party runtime controls it.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data changes: the snapshot on the Host request and in transcripts is untouched and the projection is recomputed from it on every provider request. Messages already in a transcript simply project in the new shape the next time they are sent (one KV-cache miss per existing session, no semantic change).",
+  "residual_risks": [
+    "look_at_canvas (canvasReadCompact) lists at most about 31 selected ids and marks the cut with an ellipsis but no count and the verb takes no arguments, so for selections above that the model cannot enumerate the rest through the recovery tool the omitted note points at. Needs its own owner-level fix (count in the line, or a paging argument).",
+    "Handles are listed in snapshot order, and explicit @ references / director shots are appended after the ambient selection, so under budget pressure they are the first to be omitted. Their media still reaches the model through attachments; only the locator hint is lost. A priority order would need a field on the handle to tell explicit references from ambient selection.",
+    "The real-model write-correctness number is unverified: the only credential in the environment (DEEPSEEK_API_KEY) returned 402 Insufficient Balance. docs/evidence/2026-10-21-agent-selection-truncation has the probe and the zero-cost before/after census.",
+    "The composer chip does not show the omitted count yet; projectAgentContextSnapshot returns the facts for that follow-up line."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentContextSnapshot.ts",
+    "tests": [
+      "electron/shared/agentContextSnapshot.test.ts"
+    ]
+  }
+}

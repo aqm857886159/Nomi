@@ -1,0 +1,44 @@
+[
+  {
+    "selected": 1,
+    "nodesNamedInProjection": 1,
+    "titlesNamedInProjection": 1,
+    "chars": 322,
+    "silentlyMissing": 0
+  },
+  {
+    "selected": 12,
+    "nodesNamedInProjection": 10,
+    "titlesNamedInProjection": 10,
+    "chars": 5678,
+    "silentlyMissing": 2
+  },
+  {
+    "selected": 16,
+    "nodesNamedInProjection": 8,
+    "titlesNamedInProjection": 8,
+    "chars": 5417,
+    "silentlyMissing": 8
+  },
+  {
+    "selected": 24,
+    "nodesNamedInProjection": 8,
+    "titlesNamedInProjection": 8,
+    "chars": 5417,
+    "silentlyMissing": 16
+  },
+  {
+    "selected": 40,
+    "nodesNamedInProjection": 8,
+    "titlesNamedInProjection": 8,
+    "chars": 5417,
+    "silentlyMissing": 32
+  },
+  {
+    "selected": 256,
+    "nodesNamedInProjection": 8,
+    "titlesNamedInProjection": 8,
+    "chars": 5417,
+    "silentlyMissing": 248
+  }
+]

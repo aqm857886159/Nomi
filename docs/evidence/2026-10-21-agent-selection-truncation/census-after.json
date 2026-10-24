@@ -1,0 +1,80 @@
+[
+  {
+    "selected": 1,
+    "nodesNamedInProjection": 1,
+    "titlesNamedInProjection": 1,
+    "chars": 279,
+    "silentlyMissing": 0,
+    "projection": {
+      "total": 1,
+      "listed": 1,
+      "omitted": 0,
+      "truncated": false
+    }
+  },
+  {
+    "selected": 12,
+    "nodesNamedInProjection": 12,
+    "titlesNamedInProjection": 12,
+    "chars": 2363,
+    "silentlyMissing": 0,
+    "projection": {
+      "total": 12,
+      "listed": 12,
+      "omitted": 0,
+      "truncated": false
+    }
+  },
+  {
+    "selected": 16,
+    "nodesNamedInProjection": 16,
+    "titlesNamedInProjection": 16,
+    "chars": 3123,
+    "silentlyMissing": 0,
+    "projection": {
+      "total": 16,
+      "listed": 16,
+      "omitted": 0,
+      "truncated": false
+    }
+  },
+  {
+    "selected": 24,
+    "nodesNamedInProjection": 24,
+    "titlesNamedInProjection": 24,
+    "chars": 4643,
+    "silentlyMissing": 0,
+    "projection": {
+      "total": 24,
+      "listed": 24,
+      "omitted": 0,
+      "truncated": false
+    }
+  },
+  {
+    "selected": 40,
+    "nodesNamedInProjection": 33,
+    "titlesNamedInProjection": 33,
+    "chars": 5989,
+    "silentlyMissing": 0,
+    "projection": {
+      "total": 40,
+      "listed": 33,
+      "omitted": 7,
+      "truncated": true
+    }
+  },
+  {
+    "selected": 256,
+    "nodesNamedInProjection": 33,
+    "titlesNamedInProjection": 33,
+    "chars": 5992,
+    "silentlyMissing": 0,
+    "projection": {
+      "total": 256,
+      "listed": 33,
+      "omitted": 223,
+      "truncated": true
+    }
+  }
+]
