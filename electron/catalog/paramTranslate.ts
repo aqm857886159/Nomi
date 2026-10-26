@@ -33,13 +33,14 @@ function roundTo16(n: number): number {
 // OpenAI gpt-image-2 像素约束（web + 官方核实 2026-06）：长边 ≤ 3840、两边为 16 倍数、
 // 长短比 ≤ 3:1、像素总数 655360 ~ 8294400。1:1 不能真 4K（会超像素预算 → 自动降）。
 const OPENAI_MAX_PIXELS = 8294400;
+const OPENAI_MIN_PIXELS = 655360;
 const TIER_LONG_EDGE: Record<string, number> = { "1k": 1024, "2k": 2048, "4k": 3840 };
 
 /**
  * 中性 (比例, 清晰度档位) → OpenAI 兼容像素 size。比例 auto/空 → undefined（省略 size，由站默认）。
- * 按档位取长边，短边按比例缩放并夹到 16 倍数，超像素预算则整体等比降直至合规（1:1·4K 会被降到 ~2880）。
+ * 按档位取长边；量化后同时约束像素面积上下限与 3:1 比例（1K 宽图需要稍微放大）。
  */
-export function ratioResToOpenAiSize(values: Array<string | undefined>): string | undefined {
+export function ratioResToOpenAiSize(values: Array<string | undefined>, taskKind?: string): string | undefined {
   const ratio = (values[0] || "").trim().toLowerCase();
   const res = (values[1] || "").trim().toLowerCase();
   if (!ratio || ratio === "auto") return undefined;
@@ -48,21 +49,28 @@ export function ratioResToOpenAiSize(values: Array<string | undefined>): string 
   const a = Number(m[1]);
   const b = Number(m[2]);
   if (!a || !b) return undefined;
-  let longEdge = TIER_LONG_EDGE[res] ?? TIER_LONG_EDGE["1k"];
+  // Saved video mappings share this transform ID. Their size policy must not inherit image limits.
+  const imageTask = taskKind === undefined || taskKind === "text_to_image" || taskKind === "image_edit";
   const ratioMinOverMax = Math.min(a, b) / Math.max(a, b);
-  let width = a >= b ? longEdge : Math.round(longEdge * ratioMinOverMax);
-  let height = a >= b ? Math.round(longEdge * ratioMinOverMax) : longEdge;
-  width = roundTo16(width);
-  height = roundTo16(height);
+  if (!Number.isFinite(ratioMinOverMax) || (imageTask && ratioMinOverMax < 1 / 3)) return undefined;
+  // Rounding the short edge down must not turn a legal 3:1 selection into >3:1.
+  const shortEdgeFor = (edge: number) => imageTask
+    ? Math.max(roundTo16(edge * ratioMinOverMax), Math.ceil(edge / 48) * 16)
+    : roundTo16(edge * ratioMinOverMax);
+  let longEdge = TIER_LONG_EDGE[res] ?? TIER_LONG_EDGE["1k"];
+  let shortEdge = imageTask ? shortEdgeFor(longEdge) : roundTo16(Math.round(longEdge * ratioMinOverMax));
+  while (imageTask && longEdge * shortEdge < OPENAI_MIN_PIXELS) {
+    longEdge += 16;
+    shortEdge = shortEdgeFor(longEdge);
+  }
   // 像素预算夹取：超了就等比缩长边再算，最多几轮收敛。
   let guard = 0;
-  while (width * height > OPENAI_MAX_PIXELS && guard < 12) {
+  while (longEdge * shortEdge > OPENAI_MAX_PIXELS && guard < 12) {
     longEdge = roundTo16(longEdge * 0.92);
-    width = a >= b ? longEdge : roundTo16(longEdge * ratioMinOverMax);
-    height = a >= b ? roundTo16(longEdge * ratioMinOverMax) : longEdge;
+    shortEdge = shortEdgeFor(longEdge);
     guard += 1;
   }
-  return `${width}x${height}`;
+  return a >= b ? `${longEdge}x${shortEdge}` : `${shortEdge}x${longEdge}`;
 }
 
 /**
@@ -189,7 +197,7 @@ export function secondsToMilliseconds(values: Array<string | undefined>): number
 
 /** 命名转换注册表。新增一种转换在此登记，op 用其 id 引用。值转换可返回 string 或 number
  *  （number 用于严格类型的 wire 字段,如 AGNES Go 后端的 int width/height/num_frames）。 */
-export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>) => string | number | boolean | undefined> = {
+export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>, taskKind?: string) => string | number | boolean | undefined> = {
   ratioResToOpenAiSize,
   ratioResToFalImageSize,
   toLowerCase,
@@ -214,7 +222,7 @@ function asStringOrUndefined(value: unknown): string | undefined {
  * 把 paramMap 套到 canonical params 上，返回**注入 wire 键后的新 params**（原 canonical 键保留——
  * body 只读它引用的键，无害）。无 paramMap → 原样返回。transform id 不在注册表 → 跳过该规则（不崩）。
  */
-export function applyParamMap(paramMap: ParamMap | undefined, params: JsonRecord): JsonRecord {
+export function applyParamMap(paramMap: ParamMap | undefined, params: JsonRecord, taskKind?: string): JsonRecord {
   if (!paramMap || !Array.isArray(paramMap.rules) || paramMap.rules.length === 0) return params;
   const out: JsonRecord = { ...params };
   for (const rule of paramMap.rules) {
@@ -231,7 +239,7 @@ export function applyParamMap(paramMap: ParamMap | undefined, params: JsonRecord
     const fn = PARAM_TRANSFORMS[rule.transform];
     if (!fn) continue;
     const inputs = rule.fromMany.map((k) => asStringOrUndefined(params[k]));
-    const result = fn(inputs);
+    const result = fn(inputs, taskKind);
     if (result !== undefined && result !== null && result !== "") out[rule.wire] = result;
   }
   return out;
