@@ -325,7 +325,6 @@ describe("applyBuiltinSeeds", () => {
     const brainKeys = [
       "deepseek-v4-pro",
       "deepseek-v4-flash",
-      "deepseek-v3.2",
       "deepseek-v3.1-terminus",
     ];
     for (const modelKey of brainKeys) {
@@ -335,6 +334,16 @@ describe("applyBuiltinSeeds", () => {
       expect((brain?.meta as { archetypeId?: string } | undefined)?.archetypeId).toBeUndefined();
       // 也不该为文本大脑造任何 mapping（避免 unused dead data）。
       expect(state.mappings.find((mp) => mp.vendorKey === "apimart" && mp.modelKey === modelKey)).toBeUndefined();
+    }
+  });
+
+  it("deepseek-v3.2 已退役：新装机目录里没有它（供应商列表仍列着、调用 404 model_not_found——列表不是可用性证据）", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    expect(state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === "deepseek-v3.2")).toBeUndefined();
+    // 下架只摘这一条：同族在售的与默认大脑原样在。
+    for (const modelKey of ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v3.1-terminus", "gemini-3.5-flash"]) {
+      expect(state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === modelKey), modelKey)
+        .toMatchObject({ kind: "text", enabled: true });
     }
   });
 

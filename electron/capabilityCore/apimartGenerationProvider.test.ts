@@ -8,6 +8,7 @@ import { APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING, APIMART_VENDOR_SEED, AP
 import { registerRequestTransform } from "../tasks/requestTransforms";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { readMaterializationOutputs } from "./apimartGenerationOutputs";
+import { desktopT } from "../desktopStrings";
 
 /** 授权时封存的那份 URL 快照，键就是付费卡上那一条参考的身份。 */
 function approvedUrls(entries: ReadonlyArray<readonly [Record<string, unknown>, string]>): Record<string, string> {
@@ -1012,5 +1013,83 @@ describe("引擎 B 取产物：合同字段回显的参考图不当产物（V-12
   it("种类跟着任务走：音频任务的合同位置给 .mp4 容器 → 收下且种类是 audio，不按扩展名改判成 video", () => {
     const outputs = readMaterializationOutputs({ status: "success", output: "https://fixture.invalid/voice.mp4" }, { responseMapping: { audio_url: "output" } }, "audio", new Set());
     expect(outputs.map((output) => ({ url: output.url, kind: output.kind }))).toEqual([{ url: "https://fixture.invalid/voice.mp4", kind: "audio" }]);
+  });
+});
+
+// 2026-10-27：引擎 B 的第一闸（applyHeadlessParamDefaults）收的是与清单、第三闸、引擎 A 同一个 helper 产出的完整身份。
+// 以前这里只递 archetypeId，自写能力合同（customCapabilityContract）声明的参考上限进不了第一闸；拒发时还被改写成
+// 一句笼统的「catalog mapping defaults are invalid」。出网用的是注入的 fetchImpl（进程内记账，不出网、不花钱）。
+describe("引擎 B 第一闸：自写能力合同的参考上限在出网前拒（与引擎 A 同一句）", () => {
+  const customCapabilityContract = {
+    version: 1,
+    kind: "video",
+    defaultModeId: "references",
+    transportTaskKind: "image_to_video",
+    modes: [{
+      id: "references", intent: "character", vendorTerm: "Multi reference", hint: "One to eight ordered reference images",
+      promptRequired: true, transportTaskKind: "image_to_video",
+      slots: [{ kind: "image_ref", label: "Reference images", min: 1, max: 8, inputKey: "image_urls", asArray: true }],
+      params: [],
+    }],
+  };
+  function customRelayCatalog(): CatalogState {
+    const base = catalogFixture();
+    return {
+      ...base,
+      vendors: [...base.vendors,
+        { key: "custom-relay", name: "Custom relay", enabled: true, baseUrlHint: "https://relay.example", authType: "bearer", createdAt: "now", updatedAt: "now" }],
+      models: [...base.models,
+        { vendorKey: "custom-relay", modelKey: "custom-video-v1", kind: "video", enabled: true, labelZh: "Custom video", meta: { customCapabilityContract }, createdAt: "now", updatedAt: "now" }],
+      mappings: [...base.mappings, {
+        id: "custom-relay-image_to_video", vendorKey: "custom-relay", modelKey: "custom-video-v1", taskKind: "image_to_video",
+        name: "Custom references", enabled: true,
+        create: { method: "POST", path: "/v1/videos", body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", image_urls: "{{request.params.image_urls}}" }, response_mapping: { task_id: "id" } },
+        query: { method: "GET", path: "/v1/videos/{{providerMeta.task_id}}", response_mapping: { status: "status" } },
+        createdAt: "now", updatedAt: "now",
+      }],
+    } as CatalogState;
+  }
+  const referencesOf = (count: number) => Array.from({ length: count }, (_, index) =>
+    ({ assetId: `asset-${index + 1}`, contentHash: String(index + 1).padStart(64, "0"), version: 1, kind: "image" as const, role: "reference" as const }));
+  const requestWith = (count: number) => {
+    const references = referencesOf(count);
+    return input({
+      providerId: "custom-relay", modelId: "custom-video-v1", mode: "image_to_video", parameters: {},
+      references, referenceUrls: approvedUrls(references.map((reference, index) => [reference, `https://cdn.example/reference-${index + 1}.png`] as const)),
+    });
+  };
+  const providerWith = (fetchImpl: ReturnType<typeof vi.fn>) => createProvider({
+    vendorKey: "custom-relay", resolveConnection: () => ({ apiKey: "relay-key" }),
+    catalogReader: () => customRelayCatalog(), initialState: customRelayCatalog(), fetchImpl: fetchImpl as unknown as typeof fetch,
+  });
+
+  it("9 张参考：buildRequest 以「这个模型最多收 8张图片参考。」拒，不被改写成 defaults invalid，一次都没发", () => {
+    const fetchImpl = vi.fn();
+    const provider = providerWith(fetchImpl);
+    let message = "";
+    try {
+      provider.buildRequest(requestWith(9));
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toBe(desktopT("modelConstraints.imageReferenceCapacity", { max: 8 }));
+    expect(message).not.toContain("defaults are invalid");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("阳性对照：8 张照常投进 image_urls 并提交一次", async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      expect((JSON.parse(String(init?.body)) as { image_urls?: unknown[] }).image_urls).toHaveLength(8);
+      return new Response(JSON.stringify({ id: "relay-task-1" }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const provider = providerWith(fetchImpl);
+    const requestInput = requestWith(8);
+    const body = provider.buildRequest(requestInput);
+    expect((body as { image_urls?: unknown[] }).image_urls).toHaveLength(8);
+    const contextual = (provider as typeof provider & {
+      submitWithContext: (request: unknown, idempotencyKey: string, semanticInput: ReturnType<typeof input>) => Promise<unknown>;
+    }).submitWithContext;
+    await expect(contextual(structuredClone(body), "relay-key-1", requestInput)).resolves.toMatchObject({ providerTaskId: "relay-task-1" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

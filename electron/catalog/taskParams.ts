@@ -131,17 +131,21 @@ function sizeDefaultIsRatioSemantic(
  *
  * 附一道 `size` 别名闸（见 sizeDefaultIsRatioSemantic）：调用方比例铺进的 `size` 仅当该模式 size 默认是比例形时
  * 才保留，否则剥掉，免得把只说像素的目标（火山 seedream 等）的 size 覆写成 "16:9" 发出废请求。
+ *
+ * `selected` 是这一次请求选中连接的**完整身份**——与清单、第三闸同一个 helper（modelCatalogListing.modelReferenceSelection）
+ * 产出（2026-10-27）。以前这里只收散参数、往投影边界递一个只剩 `{ archetypeId }` 的缩减 meta：自写能力合同
+ * （customCapabilityContract）声明的参考上限因此在第一闸读不到，headless 超量参考一路走到发送前才被别处拦或干脆发出去。
  */
 export function applyHeadlessParamDefaults(
   extras: Record<string, unknown> | undefined,
-  archetypeId: string | undefined,
-  taskKind: string,
-  vendorKey: string,
+  selected: ParameterReferenceSelection & { readonly taskKind: string },
   mappingDefaults: Record<string, unknown> | undefined,
   /** 这条 mapping 的 create body（给了才做参考键形态投影，W1d）。不给 = 只做①②缺参兜底，行为不变。 */
   createBody?: unknown,
-  modelKey?: string,
 ): Record<string, unknown> | undefined {
+  const { taskKind, vendorKey } = selected;
+  const declaredArchetype = isJsonRecord(selected.modelMeta) ? selected.modelMeta.archetypeId : undefined;
+  const archetypeId = typeof declaredArchetype === "string" && declaredArchetype ? declaredArchetype : undefined;
   const perKind = archetypeId ? ARCHETYPE_WIRE_DEFAULTS[archetypeId]?.[taskKind] : undefined;
   const archetypeDefaults = perKind ? (perKind[vendorKey] ?? perKind["*"]) : undefined;
   // extras.size 是比例形（调用方 aspect_ratio 铺来的）、但本模式的 size 是像素语义 → 剥掉，让档案像素默认接管。
@@ -153,12 +157,7 @@ export function applyHeadlessParamDefaults(
   const withDefaults = applyWireDefaults(applyWireDefaults(guarded, archetypeDefaults), mappingDefaults);
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
-  const projected = projectReferencesOntoBodyKeys(withDefaults, createBody, {
-    vendorKey,
-    modelKey,
-    modelMeta: archetypeId ? { archetypeId } : undefined,
-    taskKind,
-  });
+  const projected = projectReferencesOntoBodyKeys(withDefaults, createBody, selected);
   return Object.keys(projected).length ? { ...(withDefaults || {}), ...projected } : withDefaults;
 }
 
@@ -604,6 +603,20 @@ export function projectReferencesOntoBodyKeys(
   selected?: ParameterReferenceSelection,
 ): Record<string, unknown> {
   const src = extras || {};
+  const bodyKeys = bodyReferencedParamKeys(createBody);
+
+  // A declared model limit is a pre-send contract. Check existing explicit values as
+  // well as projected values so the headless path never silently trims a caller's input.
+  // 这一圈在「没有可投影的参考就返回」**之前**跑（2026-10-27）：引擎 B 与 MCP 显式参数把参考直接写进 body 键
+  // （image_urls…），不经 referenceImages 这类携带字段；放在提前返回之后，这些显式值就一张都没被数过。
+  for (const key of bodyKeys) {
+    const detail = referenceKeyCapacityDeclarationFor(key, selected);
+    if (!detail || detail.max === undefined) continue;
+    // Renderer-produced archetypeInput is already capped by the shared slot writer;
+    // only caller-supplied body values are checked here.
+    assertReferenceCapacity(detail.family, detail.max, referenceUrlCount(src[key]));
+  }
+
   const byFamily = carriedReferenceUrlsByFamily(src, selected);
   const flatSource = { ...src };
   delete flatSource.archetypeInput;
@@ -619,17 +632,6 @@ export function projectReferencesOntoBodyKeys(
     );
 
   const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
-  const bodyKeys = bodyReferencedParamKeys(createBody);
-
-  // A declared model limit is a pre-send contract. Check existing explicit values as
-  // well as projected values so the headless path never silently trims a caller's input.
-  for (const key of bodyKeys) {
-    const detail = referenceKeyCapacityDeclarationFor(key, selected);
-    if (!detail || detail.max === undefined) continue;
-    // Renderer-produced archetypeInput is already capped by the shared slot writer;
-    // only caller-supplied body values are checked here.
-    assertReferenceCapacity(detail.family, detail.max, referenceUrlCount(src[key]));
-  }
 
   // ── 帧意图优先 ────────────────────────────────────────────────────────────
   // 调用方写 `firstFrameUrl` 是明确表态「这张是首帧」，不是"一张随便的参考图"。

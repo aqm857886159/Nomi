@@ -124,7 +124,7 @@ describe('openPaidWalk · build check runs before the isolated copy is built', (
 
 describe('openPaidWalk · 接入先于开项目，不靠走查记得顺序', () => {
   const env = { NOMI_SPEND_OK: '1', CI: '', APIMART_API_KEY: 'sk-fake-key-for-test-0123456789abcdef' }
-  const models = [{ vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }]
+  const models = [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash' }]
   /** 假走查：App 起来 = 账本里有 guard-loaded 三层；newProject 记下被调时接入有没有做过。 */
   async function openFake() {
     const calls = []
@@ -139,7 +139,7 @@ describe('openPaidWalk · 接入先于开项目，不靠走查记得顺序', () 
       }
     })
     const connect = vi.fn(async () => { calls.push('connect'); return { keySaved: true } })
-    const readRows = vi.fn(async () => [{ vendorKey: 'apimart', modelKey: 'deepseek-v3.2', labelZh: 'x' }])
+    const readRows = vi.fn(async () => [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash', labelZh: 'x' }])
     const lockSpendTo = vi.fn(async () => { calls.push('lockSpend'); return 3 })
     const paid = await openPaidWalk('x.paid.mjs', 'x', models, { env, createWalk, assertBuild: () => {}, argv: [], connect, readRows, lockSpendTo })
     return { paid, calls, win, connect, lockSpendTo }

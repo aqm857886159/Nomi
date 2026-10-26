@@ -21,7 +21,6 @@ describe('APIMart text model migration', () => {
     for (const modelKey of [
       'deepseek-v4-pro',
       'deepseek-v4-flash',
-      'deepseek-v3.2',
       'deepseek-v3.1-terminus',
     ]) {
       expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === modelKey)).toMatchObject({
@@ -38,10 +37,30 @@ describe('APIMart text model migration', () => {
     catalog.models.push({ modelKey: 'deepseek-v3.2-think', vendorKey: 'apimart', labelZh: 'DeepSeek V3.2 Think', kind: 'text', enabled: true, createdAt: 'a', updatedAt: 'a' })
     const { state } = applyBuiltinSeeds(catalog, '2026-09-06T00:00:00.000Z')
     expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2-think')).toMatchObject({ enabled: true, unlisted: true })
-    // 同族仍在售的两条不许被连坐。
-    for (const modelKey of ['deepseek-v3.2', 'deepseek-v3.1-terminus']) {
-      expect(state.models.some((model) => model.vendorKey === 'apimart' && model.modelKey === modelKey)).toBe(true)
-    }
+    // 同族仍在售的不许被连坐。
+    expect(state.models.some((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.1-terminus')).toBe(true)
+  })
+
+  it('marks deepseek-v3.2 unlisted + legacy on an existing install and keeps the user enable decision (relay still lists it, upstream 404s)', () => {
+    // 2026-10-18 付费走查实录：它仍在 APIMart 的 /v1/models 里，真打 /v1/chat/completions 确定性 404 model_not_found。
+    // 照 09-06 deepseek-v3.2-think 的先例：种子删行 + 进退役清单 + 存量只落旁注，停不停用由用户自己决定。
+    const catalog = catalogWithRetiredModel()
+    catalog.models.push(
+      { modelKey: 'deepseek-v3.2', vendorKey: 'apimart', labelZh: 'DeepSeek V3.2', kind: 'text', enabled: true, meta: { note: 'keep' }, createdAt: 'a', updatedAt: 'a' },
+      { modelKey: 'deepseek-v3.1-terminus', vendorKey: 'apimart', labelZh: 'DeepSeek V3.1 Terminus', kind: 'text', enabled: true, createdAt: 'a', updatedAt: 'a' },
+      { modelKey: 'deepseek-v3.2', vendorKey: 'custom', labelZh: 'Custom V3.2', kind: 'text', enabled: true, createdAt: 'a', updatedAt: 'a' },
+    )
+    const { state } = applyBuiltinSeeds(catalog, '2026-10-27T00:00:00.000Z')
+    expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2'))
+      .toMatchObject({ enabled: true, unlisted: true, meta: { note: 'keep', catalogLifecycle: 'legacy' } })
+    // 同族在售的、别家同名的都不许被连坐。
+    expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.1-terminus')?.unlisted).toBeUndefined()
+    expect(state.models.find((model) => model.vendorKey === 'custom' && model.modelKey === 'deepseek-v3.2'))
+      .toMatchObject({ enabled: true, labelZh: 'Custom V3.2' })
+    expect(state.models.find((model) => model.vendorKey === 'custom' && model.modelKey === 'deepseek-v3.2')?.unlisted).toBeUndefined()
+    // 一次性：再播一遍不再改它。
+    expect(applyBuiltinSeeds(state, '2026-10-28T00:00:00.000Z').state.models
+      .find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2')?.updatedAt).toBe('2026-10-27T00:00:00.000Z')
   })
 
   it('does not remove a same-named model from another vendor', () => {

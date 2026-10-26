@@ -51,8 +51,10 @@ const DEEPSEEK_PRICING_SOURCE = { url: "https://api-docs.deepseek.com/quick_star
  *
  * - `deepseek-v4-pro`：默认大脑，思考型纯文本与工具调用的主控入口。
  * - `deepseek-v4-flash`：低延迟回退，纯文本与工具调用。
- * - `deepseek-v3.2`：通用文本与工具调用回退。
  * - `deepseek-v3.1-terminus`：V3.1 终版文本与工具调用回退。
+ *
+ * `deepseek-v3.2` 2026-10-27 下架：APIMart 的 `/v1/models` 仍列着它，调用却确定性 404 `model_not_found`
+ * （10-18 付费走查实录）。退役清单与存量迁移见 seedBuiltins.ts 的 `RETIRED_APIMART_TEXT_MODEL_KEYS`。
  * - `gemini-3.5-flash`：**看得见的那个**。图进文字出（image_to_prompt）走它——浏览器「画面复刻/画面风格」
  *   提取、以及视频拆解读帧，都需要一个能读图的文本模型；deepseek 读不了图。
  *
@@ -81,11 +83,10 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     tokenPricing: { inputPerMTokUsd: 0.44, outputPerMTokUsd: 1.32, cacheReadPerMTokUsd: 0.014,
       source: DEEPSEEK_PRICING_SOURCE },
   },
-  // V3 两条**故意留白**：2026-09-07 实查 DeepSeek 官方定价页，表里只有 v4-flash / v4-pro /
-  // v4-flash-vision-exp 三行，V3.2 与 V3.1-terminus 一个字都没有。查不到就不填——
+  // V3.1-terminus **故意留白**：2026-09-07 实查 DeepSeek 官方定价页，表里只有 v4-flash / v4-pro /
+  // v4-flash-vision-exp 三行，V3 系列一个字都没有。查不到就不填——
   // 编一个「大概和 flash 差不多」的数字，面板上会印出一个看起来很确定的金额。
-  // 它们在运行时落到「花费不可知」那一态，并登记在 scripts/archetype-sources-baseline.json 的棘轮里。
-  { modelKey: "deepseek-v3.2", labelZh: "DeepSeek V3.2" },
+  // 它在运行时落到「花费不可知」那一态。
   { modelKey: "deepseek-v3.1-terminus", labelZh: "DeepSeek V3.1 Terminus" },
   {
     modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash", meta: { supportsImageInput: true },

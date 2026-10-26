@@ -107,7 +107,20 @@ export function modelModeBodies(
     }));
 }
 
-/** 一个连接的模型身份（运行时第三闸与清单承载力同一份口径）：vendor 用这次实际走的那家，别名和 meta 取连接自己的。 */
+/**
+ * 一个连接的模型身份（headless 第一闸、运行时第三闸与清单承载力同一份口径）：vendor 用这次实际走的那家，别名和 meta 取连接自己的。
+ * 给了 taskKind 时类型上就带着它——第一闸（applyHeadlessParamDefaults）按模式取档案默认值，必须有。
+ */
+export function modelReferenceSelection(
+  vendorKey: string,
+  model: { modelKey: string; modelAlias?: string | null; meta?: unknown },
+  taskKind: string,
+): ParameterReferenceSelection & { readonly taskKind: string };
+export function modelReferenceSelection(
+  vendorKey: string,
+  model: { modelKey: string; modelAlias?: string | null; meta?: unknown },
+  taskKind?: string,
+): ParameterReferenceSelection;
 export function modelReferenceSelection(
   vendorKey: string,
   model: { modelKey: string; modelAlias?: string | null; meta?: unknown },

@@ -7,6 +7,7 @@ import { normalizeAgnesVideo25 } from "./agnesVideoContract";
 import { applyParamMap, agnesVideoWidth, agnesVideoHeight, agnesVideoNumFrames } from "./paramTranslate";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { taskTemplateParams, applyHeadlessParamDefaults } from "./taskParams";
+import { modelReferenceSelection } from "./modelCatalogListing";
 import { applyRequestTransform, validateRequestTransform } from "../tasks/requestTransforms";
 import { getArchetypeById, resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { buildArchetypeInputParams, currentArchetypeMode, ensureArchetypeNodeMeta } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
@@ -263,23 +264,26 @@ describe("Agnes 2026-08-26 documented wire contracts", () => {
 });
 
 
+/** 运行时第一闸收的完整身份（与 runtime.ts 同一个 helper）；内置行的 meta 就是档案指针。 */
+const agnes = (modelKey: string, archetypeId: string, taskKind: string) => modelReferenceSelection("agnes", { modelKey, meta: { archetypeId } }, taskKind);
+
 describe("Agnes runtime defaults and preflight", () => {
   it("existing V2.0 image mode is not changed into keyframes by generated defaults", async () => {
     const op = videoOp("agnes-video-v2.0", "image_to_video");
-    const extras = applyHeadlessParamDefaults({ archetypeInput: { image: "https://example.com/a.png" } }, "agnes-video", "image_to_video", "agnes", op.defaultParams, op.body);
+    const extras = applyHeadlessParamDefaults({ archetypeInput: { image: "https://example.com/a.png" } }, agnes("agnes-video-v2.0", "agnes-video", "image_to_video"), op.defaultParams, op.body);
     const { body } = await renderAgnes(op, "agnes-video-v2.0", extras);
     expect(body.image).toBe("https://example.com/a.png");
     expect(body.extra_body).toBeUndefined();
   });
   it("2.5 keyframe stays keyframe through runtime defaults even without an explicit mode", async () => {
     const op = videoOp("agnes-video-2.5", "image_to_video");
-    const extras = applyHeadlessParamDefaults({ archetypeInput: { first_frame: "https://example.com/a.png" } }, "agnes-video-2.5", "image_to_video", "agnes", op.defaultParams, op.body);
+    const extras = applyHeadlessParamDefaults({ archetypeInput: { first_frame: "https://example.com/a.png" } }, agnes("agnes-video-2.5", "agnes-video-2.5", "image_to_video"), op.defaultParams, op.body);
     const { body } = await renderAgnes(op, "agnes-video-2.5", extras);
     expect(body).toMatchObject({ mode: "keyframe", first_frame: "https://example.com/a.png" });
   });
   it("headless 2.5 audio and video references remain arrays", async () => {
     const op = videoOp("agnes-video-2.5", "image_to_video");
-    const extras = applyHeadlessParamDefaults({ referenceAudioUrls: ["https://example.com/a.mp3"], referenceVideoUrls: ["https://example.com/a.mp4"] }, "agnes-video-2.5", "image_to_video", "agnes", op.defaultParams, op.body);
+    const extras = applyHeadlessParamDefaults({ referenceAudioUrls: ["https://example.com/a.mp3"], referenceVideoUrls: ["https://example.com/a.mp4"] }, agnes("agnes-video-2.5", "agnes-video-2.5", "image_to_video"), op.defaultParams, op.body);
     const { body } = await renderAgnes(op, "agnes-video-2.5", extras);
     expect(body.audios).toEqual(["https://example.com/a.mp3"]);
     expect(body.videos).toEqual([{ url: "https://example.com/a.mp4" }]);
@@ -330,11 +334,11 @@ it.each([
 it("Image 2.1 headless caller aspect and resolution reach the wire instead of default square 1K", async () => {
   const model = AGNES_IMAGE_MODELS[0];
   const op = model.mappings[0].create;
-  const extras = applyHeadlessParamDefaults({ aspect_ratio: "16:9", resolution: "4k", size: "16:9" }, model.archetypeId, "text_to_image", "agnes", op.defaultParams, op.body);
+  const extras = applyHeadlessParamDefaults({ aspect_ratio: "16:9", resolution: "4k", size: "16:9" }, agnes(model.modelKey, model.archetypeId, "text_to_image"), op.defaultParams, op.body);
   expect((await renderAgnes(op, model.modelKey, extras)).body).toMatchObject({ size: "4K", ratio: "16:9" });
 });
 it("Video 2.5 headless caller resolution reaches uppercase size", async () => {
   const op = videoOp("agnes-video-2.5");
-  const extras = applyHeadlessParamDefaults({ resolution: "960p" }, "agnes-video-2.5", "text_to_video", "agnes", op.defaultParams, op.body);
+  const extras = applyHeadlessParamDefaults({ resolution: "960p" }, agnes("agnes-video-2.5", "agnes-video-2.5", "text_to_video"), op.defaultParams, op.body);
   expect((await renderAgnes(op, "agnes-video-2.5", extras)).body.size).toBe("960P");
 });

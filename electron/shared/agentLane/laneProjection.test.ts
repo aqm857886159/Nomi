@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
 import { isContextOverflow, isRetryableAssistantError, type AssistantMessage } from '@earendil-works/pi-ai'
 import { projectLaneSnapshot, type LaneModelFacts } from './laneProjection'
+import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from './laneAssistantFault'
 
 const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }
@@ -88,6 +89,23 @@ describe('lane provider failure: transient / recovered', () => {
     const streaming = { ...snapshot, operation: { status: 'open', runningTools: [], streamingMessage: (assistant('s', 3, { stopReason: 'stop' }) as { message: unknown }).message } } as unknown as LaneSnapshot
     const [failure] = projectLaneSnapshot(streaming, facts).parts.filter((part) => part.kind === 'error')
     expect(failure).toMatchObject({ recovered: true })
+  })
+
+  // 2026-10-27：上游 HTTP 失败的结构化载荷由主进程按这一次调用的传输事实铸好，挂在 pi 的 diagnostics 上（laneModelProvider）。
+  // 错误段文字取它；瞬时 / 故障两样事实照旧只读 pi 的 errorMessage 与 pi 自己的判据。
+  it('takes the error text from the vendor-failure diagnostic when present, and keeps the pi facts on errorMessage', () => {
+    const payload = 'NOMI_VENDOR_ERR_B64::e30=:: （HTTP 503）busy'
+    const [annotated] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: '503: {"error":{"message":"busy"}}',
+      diagnostics: [{ type: 'provider_transport_failure', timestamp: 2, details: { message: 'not ours' } },
+        { type: LANE_VENDOR_FAILURE_DIAGNOSTIC, timestamp: 2, details: { message: payload } }] })])
+    expect(annotated).toMatchObject({ kind: 'error', text: payload, transient: true })
+    // 本卡之前落盘的转录（没有诊断）：照旧是 pi 的展示串，不回填。
+    const [legacy] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: '404: {"error":{"code":"model_not_found"}}' })])
+    expect(legacy).toMatchObject({ kind: 'error', text: '404: {"error":{"code":"model_not_found"}}' })
+    // 诊断里没有可用的文字（空串 / 不是字符串）：退回 errorMessage，不给空错误段。
+    const [empty] = errors([user('u', 1), assistant('e', 2, { stopReason: 'error', errorMessage: 'Connection error.',
+      diagnostics: [{ type: LANE_VENDOR_FAILURE_DIAGNOSTIC, timestamp: 2, details: { message: ' ' } }] })])
+    expect(empty).toMatchObject({ text: 'Connection error.', transient: true })
   })
 })
 

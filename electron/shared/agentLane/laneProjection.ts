@@ -32,7 +32,7 @@ import {
 } from './laneContracts.js';
 import { laneToolNextActionOf } from './laneToolNextAction.js';
 import { laneToolFailureOf } from './laneToolFailureEnvelope.js';
-import { laneAssistantFaultOf, type LaneAssistantFault } from './laneAssistantFault.js';
+import { laneAssistantFaultOf, laneVendorFailureText, type LaneAssistantFault } from './laneAssistantFault.js';
 
 const faultField = (fault: LaneAssistantFault | undefined): { fault?: LaneAssistantFault } => (fault ? { fault } : {});
 
@@ -308,7 +308,9 @@ export function projectLaneSnapshot(
     if (message.role === 'assistant') {
       pushAssistantParts(message, entry.seq, false, runningToolCallIds, parts, entry.id, inputEntryId);
       if (message.stopReason === 'error' && message.errorMessage) {
-        parts.push({ kind: 'error', text: message.errorMessage, sequence: parts.length,
+        // 文字先取上游 HTTP 失败的结构化载荷（主进程按这次调用的传输事实铸的，见 laneVendorFailureText）；
+        // 没有才用 pi 的展示串。瞬时 / 故障两样事实照旧只读 pi 的 errorMessage 与它自己的判据。
+        parts.push({ kind: 'error', text: laneVendorFailureText(message) ?? message.errorMessage, sequence: parts.length,
           entryId: entry.id, entrySeq: entry.seq, contentIndex: message.content.length,
           ...(facts.isTransientError?.(message) ? { transient: true as const } : {}),
           ...(recoveredErrors.has(entry.id) ? { recovered: true as const } : {}),

@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 //   taskTemplateParams → buildHttpRequest(真 apimart seedream create op) → body.size。
 // 全程纯逻辑、零 electron、零额度。
 import { applyHeadlessParamDefaults, taskTemplateParams } from "../catalog/taskParams";
+import { modelReferenceSelection } from "../catalog/modelCatalogListing";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 import { applyParamMap } from "../catalog/paramTranslate";
 import { APIMART_IMAGE_MODELS } from "../catalog/apimartImages";
@@ -44,7 +45,9 @@ type ModeProfile = { modelKey: string; archetypeId: string; vendorKey: string; b
 
 /** 复刻 runtime：applyHeadlessParamDefaults（补档案默认，caller-wins + size 别名闸）→ 渲染出真实 wire body。 */
 function renderBody(profile: ModeProfile, extras: Record<string, unknown>): Record<string, unknown> {
-  const merged = applyHeadlessParamDefaults(extras, profile.archetypeId, profile.taskKind, profile.vendorKey, profile.op.defaultParams);
+  const merged = applyHeadlessParamDefaults(extras,
+    modelReferenceSelection(profile.vendorKey, { modelKey: profile.modelKey, meta: { archetypeId: profile.archetypeId } }, profile.taskKind),
+    profile.op.defaultParams);
   const request = { kind: profile.taskKind, prompt: "深夜面馆的橘猫", extras: merged } as never;
   const context = buildTemplateContext({
     request: request as unknown as Record<string, unknown>,

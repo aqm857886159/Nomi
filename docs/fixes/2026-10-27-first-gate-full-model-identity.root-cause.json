@@ -1,0 +1,174 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-first-gate-full-model-identity",
+  "change_kind": "corrective",
+  "problem_type": "The first reference gate built its own reduced model identity, so reference capacity declared outside the archetype was not enforced before the request body was built",
+  "symptom": "A headless caller (MCP or Agent) sending 9 reference images to a user-connected model whose self-written capability contract caps image_urls at 8 was not refused at the first gate: engine A reached the third gate after the body was built, engine B surfaced 'catalog mapping defaults are invalid', and 9 URLs written explicitly into image_urls were never counted at all.",
+  "direct_cause": "applyHeadlessParamDefaults took (archetypeId, taskKind, vendorKey, ..., modelKey) and rebuilt { modelMeta: archetypeId ? { archetypeId } : undefined } for projectReferencesOntoBodyKeys, dropping meta.customCapabilityContract, so referenceKeyCapacityDeclarationFor found no declared max. Inside projectReferencesOntoBodyKeys the capacity loop over explicit body values ran after the early return taken when no references were carried, so explicit values were never checked.",
+  "class_root": "Each gate rebuilt the model identity by hand instead of reading the one projection that the model listing and the third gate already used (modelReferenceSelection). A hand-built copy silently loses every declaration later added to model meta (self-written capability contracts were added after the copy was written), and the order of the capacity loop let one input shape (explicit body keys) skip the check.",
+  "affected_population": [
+    "Headless callers (MCP tools, the Agent) that submit references to user-connected models whose capacity comes from a self-written capability contract",
+    "Both submission engines: engine A (runTask) and engine B (the catalog generation provider's buildRequest)",
+    "Callers that write reference URLs directly into a body key such as image_urls instead of passing referenceImages"
+  ],
+  "scope_paths": [
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/modelCatalogListing.ts",
+    "electron/runtime.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "scripts/headless-reference-projection-rehearsal.ts",
+    "electron/catalog/taskParams.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/runtime.referenceSelection.test.ts",
+    "electron/capabilityCore/generateParamsE2E.test.ts",
+    "electron/catalog/agnes.test.ts",
+    "electron/catalog/apimartVideoSharedContracts.test.ts",
+    "electron/catalog/customRelayWireModel.test.ts",
+    "electron/catalog/onboardingSweepFixes.test.ts",
+    "electron/catalog/outboundReferenceUrl.matrix.test.ts",
+    "src/workbench/generationCanvas/runner/referenceSentWithinInUse.property.test.ts",
+    "docs/engineering/concept-owners/generation.headless-reference-key-projection.json"
+  ],
+  "entry_points": [
+    "runTask (engine A) applies headless defaults and projection before rendering the task template, then runs the third gate imageEditGuardError",
+    "The catalog generation provider's buildRequest (engine B) applies headless defaults before building the request",
+    "projectReferencesOntoBodyKeys checks carried and explicit reference values against the declared capacity"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://json-schema.org/understanding-json-schema/reference/array#length",
+      "checked_at": "2026-10-27",
+      "purpose": "maxItems is part of the input declaration, and every validator checks an array against the same declaration before use."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://spec.openapis.org/oas/v3.0",
+      "checked_at": "2026-10-27",
+      "purpose": "Generated clients validate a request against the one schema of the selected operation rather than a per-call reduced copy."
+    }
+  ],
+  "invariants": [
+    "Every reference-capacity check before network submission reads the model identity from modelReferenceSelection(vendorKey, model, taskKind); no gate builds a reduced identity.",
+    "Explicit body reference values are counted against the declared capacity whether or not headless references are carried.",
+    "Over-capacity requests are refused before any network request, with the same message at every gate (modelConstraints.imageReferenceCapacity)."
+  ],
+  "doors": [
+    { "kind": "write", "path": "electron/capabilityCore/apimartGenerationProvider.ts", "symbol": "applyHeadlessParamDefaults" },
+    { "kind": "write", "path": "electron/catalog/taskParams.ts", "symbol": "projectReferencesOntoBodyKeys" },
+    { "kind": "write", "path": "electron/runtime.ts", "symbol": "applyHeadlessParamDefaults" },
+    { "kind": "write", "path": "electron/capabilityCore/apimartGenerationProvider.ts", "symbol": "modelReferenceSelection" },
+    { "kind": "write", "path": "electron/catalog/modelCatalogListing.ts", "symbol": "modelReferenceSelection" },
+    { "kind": "write", "path": "electron/runtime.ts", "symbol": "modelReferenceSelection" }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 6,
+    "why_not": "No behaviour door is added: the new modelReferenceSelection call in engine B replaces the identity that applyHeadlessParamDefaults used to rebuild internally, and the reduced construction is deleted. The two engines remain separate public submission boundaries with different call contracts; both now pass the same projection, and engine A passes the very same object to its third gate."
+  },
+  "generality_proof": "modelReferenceSelection projects a catalog model's full meta, so whatever declares reference capacity today (archetype slots, a self-written capability contract) or later reaches every gate unchanged; applyHeadlessParamDefaults no longer accepts loose identity fields, and projectReferencesOntoBodyKeys counts explicit and carried values in one loop before any early return. A new engine that calls applyHeadlessParamDefaults must pass the same projected identity.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "responsibility": "Count explicit and carried reference values against the selected model's declared capacity and project carried references onto declared body keys, refusing before network submission."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "enforced",
+      "evidence": "runtime.referenceSelection.test.ts drives runTask against a custom-relay model whose contract caps image_urls at 8: 9 references are refused with the capacity message and 0 requests reach the loopback upstream; 8 references send one request with 8 image_urls, and the first-gate identity is the same object as the third-gate identity."
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "buildRequest",
+      "disposition": "enforced",
+      "evidence": "apimartGenerationProvider.test.ts: 9 references throw exactly the capacity message (not 'catalog mapping defaults are invalid') and fetch is never called; 8 references build an 8-entry body and submit once."
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "projectReferencesOntoBodyKeys",
+      "disposition": "enforced",
+      "evidence": "taskParams.test.ts: 9 carried references and 9 explicit image_urls both throw the same message as handing the identity straight to the projection boundary; 8 references pass."
+    },
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "entry_point": "imageEditGuardError",
+      "disposition": "not-affected",
+      "evidence": "The third gate already received modelReferenceSelection(...); runTask now passes it the same object as the first gate."
+    },
+    {
+      "path": "electron/catalog/modelCatalogListing.ts",
+      "entry_point": "referenceSupportForModel",
+      "disposition": "not-affected",
+      "evidence": "The model listing already read references through modelReferenceSelection; only an overload carrying taskKind is added."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The reference-capacity family keeps coming back through gates that read a different identity or key shape (2026-10-25 global key shape versus model scope; now a reduced identity at the first gate). Any gate that rebuilds the identity by hand will drop the next declaration added to model meta.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs applyHeadlessParamDefaults projectReferencesOntoBodyKeys and node scripts/door-map.mjs modelReferenceSelection enumerate every caller listed in doors.",
+      "git grep -n \"modelMeta: archetypeId ?\" finds no code; every applyHeadlessParamDefaults call in products, tests and scripts passes the projected identity.",
+      "referenceSentWithinInUse.property.test.ts and outboundReferenceUrl.matrix.test.ts now build their selections through modelReferenceSelection."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/taskParams.ts",
+    "invariant": "The first gate takes the projected model identity (ParameterReferenceSelection plus taskKind) and the capacity loop counts explicit body values before any early return.",
+    "failure_mode": "An over-capacity request is refused with the capacity message before any network request at both engines; a model without a declared capacity is unaffected.",
+    "exception_policy": "none",
+    "strategy": "Change applyHeadlessParamDefaults to take the modelReferenceSelection projection instead of loose identity fields, change both production callers to pass it (engine A also hands the same object to its third gate), delete the reduced identity construction, and move the explicit-value capacity loop in projectReferencesOntoBodyKeys before the 'no carried references' return.",
+    "artifacts": [
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/modelCatalogListing.ts",
+      "electron/runtime.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/taskParams.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/runtime.referenceSelection.test.ts",
+    "electron/capabilityCore/generateParamsE2E.test.ts",
+    "electron/catalog/outboundReferenceUrl.matrix.test.ts",
+    "src/workbench/generationCanvas/runner/referenceSentWithinInUse.property.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/runtime.referenceSelection.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts",
+    "electron/catalog/taskParams.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/taskParams.ts"
+    ],
+    "rationale": "The positional (archetypeId, taskKind, vendorKey, ..., modelKey) signature of applyHeadlessParamDefaults and the reduced { modelMeta: { archetypeId } } identity it built are deleted; there is no second way to call the first gate."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The identity projection and the capacity declarations are Nomi's own catalog code; no third-party runtime is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes. Requests to built-in archetype models project exactly as before (only archetypeId carried capacity for them); requests that exceed a self-written contract's declared capacity, or that put more explicit values into a reference body key than declared, are now refused before sending instead of reaching the provider.",
+  "residual_risks": [
+    "The parameter type is structural: a future caller can still hand-build an object of the same shape; door-map counting and the same-object assertion in runtime.referenceSelection.test.ts are the guards.",
+    "Callers that used to send more explicit reference values than a model declares are now refused before sending; the provider might previously have accepted or truncated them.",
+    "No paid submission is run on this branch; both engines are verified over local loopback only."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-26",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/taskParams.ts",
+    "tests": [
+      "electron/catalog/taskParams.test.ts",
+      "electron/runtime.referenceSelection.test.ts",
+      "electron/capabilityCore/apimartGenerationProvider.test.ts"
+    ],
+    "why": "第一闸（applyHeadlessParamDefaults）与投影边界（projectReferencesOntoBodyKeys）同住 taskParams：两个引擎都经它在出网前判容量，身份只收 modelReferenceSelection 的投影。"
+  }
+}

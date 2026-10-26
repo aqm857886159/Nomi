@@ -23,6 +23,7 @@ import type { BillingModelKind, CatalogState, HttpOperation, Mapping, Model, Pro
 import { derivePublishedExecution } from "../shared/modelPublication";
 import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
 import { applyHeadlessParamDefaults, imageEditGuardError } from "../catalog/taskParams";
+import { modelReferenceSelection } from "../catalog/modelCatalogListing";
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
 import { extractVendorExtraHeaders } from "../catalog/catalogStore";
 import { isJsonRecord, firstString } from "../jsonUtils";
@@ -266,11 +267,12 @@ function projectionRequest(
     : undefined;
   let defaulted: Record<string, unknown>;
   try {
-    defaulted = applyHeadlessParamDefaults(parameters, typeof archetypeId === "string" ? archetypeId : undefined,
-      selection.mapping.taskKind, vendorKey, selection.mapping.create.defaultParams,
-      selection.mapping.create.body, selection.model.modelKey) || {};
-  } catch {
-    throw new CatalogGenerationProviderError(`${vendorKey} catalog mapping defaults are invalid: ${selection.mapping.id}`);
+    // 与引擎 A（runtime.ts）、清单、第三闸同一份完整身份：自写能力合同声明的参考上限在这里（出网前）就拒。
+    defaulted = applyHeadlessParamDefaults(parameters, modelReferenceSelection(vendorKey, selection.model, selection.mapping.taskKind),
+      selection.mapping.create.defaultParams, selection.mapping.create.body) || {};
+  } catch (error) {
+    // 拒发的原话（「这个模型最多收 N 张图片参考。」）原样交给调用方，不改写成笼统的「defaults 无效」。
+    throw new CatalogGenerationProviderError(error instanceof Error ? error.message : String(error), { cause: error });
   }
   // 发哪个 model 串不在这里决定：把封进合同的档案选择（模式 / 变体）交给参数层，由线上模型名的唯一 owner
   // （wireModelIdentity.resolveWireModel）按这条 mapping 的声明与连接名决定——与画布那条路同一个函数。

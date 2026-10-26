@@ -282,7 +282,6 @@ const LEGACY_MODEL_KEYS = new Set([
   "agnes-image-2.0-flash",
   "agnes-video-v2.0",
   "meshy6",
-  "deepseek-v3.2",
   "deepseek-v3.1-terminus",
   "qwen-image-2.0",
   "rh-qwen-image-2.0",
