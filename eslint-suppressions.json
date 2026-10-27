@@ -294,7 +294,7 @@
   },
   "scripts/check-test-temp-static.node-test.mjs": {
     "no-useless-escape": {
-      "count": 2
+      "count": 1
     }
   },
   "scripts/check-test-types.test.mjs": {

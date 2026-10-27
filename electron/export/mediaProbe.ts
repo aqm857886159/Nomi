@@ -1,10 +1,13 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 
 import { resolveFfmpegPath } from "./ffmpegRunner";
 import { ensureExecutable } from "./ensureExecutable";
 import { asarUnpackedPath } from "../shared/asarUnpackedPath";
+import { parseFfmpegProgressChunk } from "./ffmpegProgress";
 
 export const MEDIA_DECODER_PROTOCOL_WHITELIST = "file,pipe,data";
 
@@ -29,8 +32,31 @@ export type BoundedProcessOptions = {
   timeoutMs: number;
   maxStdoutBytes: number;
   maxStderrBytes: number;
+  /**
+   * stderr 超过 maxStderrBytes 时怎么办。
+   * · 省略 / `limit`：当成失控，杀掉（`output_limit`）。探测、解码校验这类短命令的护栏，行为不变。
+   * · `tail`：长跑进程的 stderr 是进度流，量随时长线性涨（打包 ffmpeg 4.4 的 `-progress` 约 470 字节/秒，
+   *   128 KB 撑不过 5 分钟）。只留最后 maxStderrBytes 字节做错误信息，**不因输出量杀进程**；
+   *   进度照常交给解析器，超时、取消、stdout 上限照旧。
+   */
+  stderrMode?: "limit" | "tail";
   input?: Uint8Array;
+  onProgress?: (progress: { outTimeMs?: number; stage?: string }) => void;
+  lowPriority?: boolean;
 };
+
+/**
+ * ffmpeg `-progress` 记录行：`key=value`，值是一个词（`bitrate=` / `speed=` 会在值前补空格对齐）。
+ * 进度解析与「从 stderr 里挑错误行」共用这一份判据。
+ */
+export function isFfmpegProgressLine(line: string): boolean {
+  return /^[a-z_][a-z0-9_]*=\s*\S*$/i.test(line.trim());
+}
+
+/** 没有换行的半行最多攒这么多：超过就不是进度记录（进度行几十字节），丢掉，进度解析不跟着输出量涨内存。 */
+const PROGRESS_PARTIAL_LINE_MAX_CHARS = 64 * 1024;
+/** 一条进度记录十来行；一直等不到 `progress=` 收尾的残行只留这么多。 */
+const PROGRESS_RECORD_MAX_LINES = 64;
 
 export class BoundedProcessError extends Error {
   code: string;
@@ -62,6 +88,7 @@ type ProcessTreeDeps = {
 
 type BoundedProcessDependencies = {
   terminateTree?: (child: ProcessTreeChild, force: boolean) => Promise<void>;
+  setPriority?: (pid: number) => void;
   cleanupGraceMs?: number;
   cleanupDeadlineMs?: number;
 };
@@ -142,8 +169,15 @@ export async function runBoundedProcess(
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
+    const tailStderr = options.stderrMode === "tail";
+    const progressDecoder = new StringDecoder("utf8");
+    let progressBuffer = "";
+    let progressRecordLines: string[] = [];
     let stdoutBytes = 0;
+    /** 进程一共写了多少 stderr（limit 模式按它判超限）。 */
     let stderrBytes = 0;
+    /** stderrChunks 里实际留着多少（tail 模式从头丢整块，只保证不少于上限）。 */
+    let retainedStderrBytes = 0;
     let failure: BoundedProcessError | undefined;
     let settled = false;
     let closeSeen = false;
@@ -162,11 +196,14 @@ export async function runBoundedProcess(
       options.signal?.removeEventListener("abort", onAbort);
       if (cleanupRejected) reject(new BoundedProcessError("process_cleanup_failed"));
       else if (failure) reject(failure);
-      else resolve({
-        code: closeCode,
-        stdout: Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8"),
-        stderr: Buffer.concat(stderrChunks, stderrBytes).toString("utf8"),
-      });
+      else {
+        const stderr = Buffer.concat(stderrChunks, retainedStderrBytes);
+        resolve({
+          code: closeCode,
+          stdout: Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8"),
+          stderr: (stderr.byteLength > options.maxStderrBytes ? stderr.subarray(stderr.byteLength - options.maxStderrBytes) : stderr).toString("utf8"),
+        });
+      }
     };
 
     const terminate = (force: boolean) => {
@@ -198,6 +235,14 @@ export async function runBoundedProcess(
     const timer = setTimeout(() => stop("timeout"), Math.max(1, options.timeoutMs));
     options.signal?.addEventListener("abort", onAbort, { once: true });
 
+    if (options.lowPriority && child.pid) {
+      try {
+        (dependencies.setPriority ?? ((pid: number) => os.setPriority(pid, os.constants.priority.PRIORITY_BELOW_NORMAL)))(child.pid);
+      } catch {
+        // Priority is a best-effort guard; process ownership and cancellation remain mandatory.
+      }
+    }
+
     child.stdout?.on("data", (raw: Buffer | string) => {
       const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
       stdoutBytes += chunk.byteLength;
@@ -207,14 +252,52 @@ export async function runBoundedProcess(
       }
       stdoutChunks.push(chunk);
     });
+    const retainStderr = (chunk: Buffer) => {
+      stderrChunks.push(chunk);
+      retainedStderrBytes += chunk.byteLength;
+      // tail：从头丢整块，剩下的仍不少于上限；收尾时再精确切到最后 maxStderrBytes 字节。
+      while (tailStderr && stderrChunks.length > 1 && retainedStderrBytes - stderrChunks[0]!.byteLength >= options.maxStderrBytes) {
+        retainedStderrBytes -= stderrChunks.shift()!.byteLength;
+      }
+    };
+    const emitProgress = (chunk: Buffer) => {
+      const onProgress = options.onProgress;
+      if (!onProgress) return;
+      progressBuffer += progressDecoder.write(chunk);
+      const lines = progressBuffer.split(/\r?\n/);
+      progressBuffer = lines.pop() ?? "";
+      if (progressBuffer.length > PROGRESS_PARTIAL_LINE_MAX_CHARS) progressBuffer = "";
+      for (const line of lines) {
+        // 混在进度流里的告警行不属于任何一条记录（tail 模式下它们可以刷屏），不进记录、不涨内存。
+        if (!isFfmpegProgressLine(line)) continue;
+        const trimmed = line.trim();
+        progressRecordLines.push(trimmed);
+        if (!trimmed.startsWith("progress=")) {
+          if (progressRecordLines.length > PROGRESS_RECORD_MAX_LINES) progressRecordLines.shift();
+          continue;
+        }
+        const parsed = parseFfmpegProgressChunk(progressRecordLines.join("\n"));
+        progressRecordLines = [];
+        if (parsed.outTimeMs === undefined && parsed.progress === undefined) continue;
+        try {
+          onProgress({
+            ...(parsed.outTimeMs !== undefined ? { outTimeMs: parsed.outTimeMs } : {}),
+            ...(parsed.progress !== undefined ? { stage: parsed.progress } : {}),
+          });
+        } catch {
+          // 进度只是给人看的投影：监听方抛错不能变成主进程未捕获异常，也不能停掉这个进程。
+        }
+      }
+    };
     child.stderr?.on("data", (raw: Buffer | string) => {
       const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
       stderrBytes += chunk.byteLength;
-      if (stderrBytes > options.maxStderrBytes) {
+      if (stderrBytes > options.maxStderrBytes && !tailStderr) {
         stop("output_limit");
         return;
       }
-      stderrChunks.push(chunk);
+      retainStderr(chunk);
+      emitProgress(chunk);
     });
     child.stdin?.on("error", () => {
       if (!failure) stop("spawn_failed");

@@ -64,4 +64,11 @@ describe('收尾段（W-08）', () => {
     expect(importRevealRatio(settledProgress)).toBe(1)
     useAssetImportProgressStore.getState().clear('n-finalize')
   })
+
+  it('转换格式阶段保留事件阶段和单调比例', () => {
+    const store = useAssetImportProgressStore.getState()
+    store.report('n-converting', { copiedBytes: 350, totalBytes: 1_000, phase: 'converting' })
+    store.report('n-converting', { copiedBytes: 800, totalBytes: 1_000, phase: 'converting' })
+    expect(useAssetImportProgressStore.getState().byNode['n-converting']).toMatchObject({ copiedBytes: 800, phase: 'converting' })
+  })
 })

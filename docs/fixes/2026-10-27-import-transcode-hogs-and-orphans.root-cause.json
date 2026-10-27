@@ -1,0 +1,311 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-import-transcode-hogs-and-orphans",
+  "problem_type": "Unbounded import video normalization process",
+  "symptom": "A video whose codec/container needs normalization leaves the import card at preparing with no real progress, can consume all CPU, and can leave an orphan ffmpeg after the app/window/project exits. Round 2 (after the first fix): a conversion longer than about 4-5 minutes is killed as output_limit by its own progress stream, a long source on a slow machine hits the fixed 30-minute timeout, an H.264 + FLAC or VP8 MKV fails the remux, and all three fall back to the unplayable original; quitting during a conversion leaves partial files in the system temp directory, and an Agent asset.import conversion is not stopped at quit at all.",
+  "direct_cause": "electron/assets/videoImportNormalize.ts starts ffmpeg with a private spawn without AbortSignal, process-group cleanup, progress parsing, priority lowering, or a bounded thread count; localFileImport awaits it before copy progress begins. Round 2: runBoundedProcess kills any child whose stderr exceeds maxStderrBytes while the import writes -progress to stderr; the timeout was a constant; the remux copy set reused the playability set (FLAC, Vorbis, Opus, VP8) instead of what the MP4 muxer of every bundled ffmpeg accepts; the quit drain only aborted IPC requests without waiting, and the Agent door's MCP request signal does not survive the loopback RPC JSON, so its conversion had no stop at all.",
+  "class_root": "The shared process-owner invariant is missing at the import normalization boundary: every ffmpeg used by a cancellable import must be launched through the bounded process runner, a long-running process must never be killed for the volume of its own diagnostic output, and every import conversion (whatever door started it) must be stopped and cleaned up by the process owner before the app exits.",
+  "affected_population": [
+    "Native-path video imports from canvas file selection, asset-library upload, Finder drag/drop, and paste on macOS and Windows.",
+    "Byte-path video imports and MCP nomi_asset_import that normalize a non-playable codec/container.",
+    "Existing projects whose lazy playback-heal path invokes the same normalization function.",
+    "Long sources (minutes of 4K) on slow machines, MKV files with FLAC / Vorbis / Opus audio or VP8 video, and anyone quitting while a conversion runs."
+  ],
+  "scope_paths": [
+    "electron/assets/videoImportNormalize.ts",
+    "electron/export/mediaProbe.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/assetsIpc.ts",
+    "electron/assets/localFileCopy.ts",
+    "electron/ipcRequestRegistry.ts",
+    "electron/video/videoIpc.ts",
+    "electron/capabilityCore/core.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/assetImportRoute.ts",
+    "scripts/check-import-ffmpeg-owner.test.mjs",
+    "electron/assets/assetImportProgress.ts"
+  ],
+  "entry_points": [
+    "Canvas file selection and native upload",
+    "Asset-library upload",
+    "Finder drag/drop and paste through copy-files",
+    "MCP nomi_asset_import",
+    "Byte import route through ensurePlayableVideoBytes",
+    "Lazy playback-heal route through ensurePlayableAsset (nomi:assets:ensure-playable)",
+    "Application quit (quitTeardown drains) while any of the above is converting"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's process lifecycle and asset publication contract; official editor documentation informs the UX direction but cannot decide Nomi's IPC, project-binding, or scratch-file ownership. The MP4 copy sets were checked against the MP4 muxer of the bundled ffmpeg builds (4.4 on macOS arm64, 4.1 on Windows / Linux / Intel Mac).",
+  "invariants": [
+    "No import normalization ffmpeg is spawned directly from an asset module; it runs through runBoundedProcess.",
+    "The import request signal, sender destruction, project binding invalidation, and quit drain all abort the same process before publication.",
+    "Cancellation removes the partial output and scratch directory and is not treated as a missing or failed asset.",
+    "A long-running conversion is never killed for the volume of its stderr: the import uses stderrMode tail (keep the last maxStderrBytes, keep parsing progress) and -loglevel error; the default limit mode used by probes and the other bounded callers is unchanged.",
+    "The conversion timeout scales with the probed duration: max(30 minutes, duration seconds x 10 seconds); unknown duration gets 2 hours.",
+    "Remux copies only streams that the MP4 muxer of every bundled ffmpeg accepts and Chromium plays: video h264/hevc/vp9/av1 (and machine-playable), audio aac/mp3; any other audio becomes AAC and any other video is re-encoded with libx264.",
+    "At will-quit every import conversion started through any door is aborted immediately (optional drain), new conversions are refused, and the serial quit chain waits up to 3 seconds for processes to exit and partial files and scratch directories to be removed (required drain).",
+    "Conversion progress is emitted through AssetLocalizationEvent.phase=converting with a monotonic duration ratio; with unknown duration only the initial 0 is emitted and the card shows Converting without a percentage.",
+    "Conversion uses below-normal priority and at most max(1, CPU count - 2) threads."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityArtifacts.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/attentionSoundIpc.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "transcodeFileToPlayableMp4IfNeeded"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "withVideoImportScratchDir"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "transcodeFileToPlayableMp4IfNeeded"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "withVideoImportScratchDir"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "ensurePlayableVideoBytes"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "stopVideoImportTranscodes"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "importLocalFilePaths"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localFileCopy.ts",
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "importLocalFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "dispatchAssetImport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/assetImportRoute.ts",
+      "symbol": "importProjectAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ipcRequestRegistry.ts",
+      "symbol": "createIpcRequestRegistry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetsIpc.ts",
+      "symbol": "createIpcRequestRegistry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/videoIpc.ts",
+      "symbol": "createIpcRequestRegistry"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetImportProgress.ts",
+      "symbol": "createAssetImportProgressReporter"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 20,
+    "why_not": "Every import conversion now goes through one tracked boundary in videoImportNormalize (transcodeFileToPlayableMp4IfNeeded for the process, withVideoImportScratchDir for the scratch directory), so the quit drain has one owner to stop regardless of the caller. The native-path and byte-path doors stay separate because they own different inputs (a path on disk versus bytes from the renderer). The wrapper doors (copy-files, MCP core/dispatcher, progress reporter) are listed to prove each caller converges on that boundary. The request lifecycle (window destroyed, project binding stale, quit) has one owner, electron/ipcRequestRegistry.ts#createIpcRequestRegistry, shared with ensure-preview and video deconstruct (round 3 folded the import-only registry into it); its three doors come from node scripts/door-map.mjs createIpcRequestRegistry: the module itself, assetsIpc.ts (two instances: imports with the waiting quit drain, ensure-preview without one) and videoIpc.ts (deconstruct, abort-only quit drain; listed because the shared drain now also refuses new deconstruct requests once quit has begun). The three non-import runBoundedProcess callers are listed because the shared runner changed; they keep the default limit mode. The eleven frozen direct ffmpeg/ffprobe launches outside this boundary are not import doors; they are enumerated and ratcheted (only shrink) by scripts/check-import-ffmpeg-owner.test.mjs."
+  },
+  "generality_proof": "All checked import surfaces converge on importLocalFile, ensurePlayableAsset, or the shared videoImportNormalize functions, and every conversion registers in the normalizer's in-flight table no matter whether the caller passed a signal. The quit drain stops that table, so a new caller cannot add an unstoppable conversion without bypassing the normalizer, and bypassing it means a direct ffmpeg launch, which the structural scan of all electron/ sources rejects. The output-volume class is fixed at the shared runner (tail mode) rather than in the import, so any later long-running bounded caller gets the same option; the export runner already keeps a capped tail.",
+  "shared_boundaries": [
+    {
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "runBoundedProcess",
+      "responsibility": "Own spawn, process-group/taskkill cleanup, timeout, abort, progress callback, optional priority lowering, and the stderr policy (limit kills for volume, tail keeps the last bytes and never kills for volume)."
+    },
+    {
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "transcodeFileToPlayableMp4IfNeeded",
+      "responsibility": "Own the single import normalization decision (remux copy sets versus libx264), the duration-based timeout, and the in-flight table that the quit drain stops."
+    },
+    {
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "withVideoImportScratchDir",
+      "responsibility": "Own the system temp directory of an import conversion so the quit drain waits until it is removed."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "importLocalFile",
+      "responsibility": "Thread the import request signal and conversion progress into every native and byte import before publication."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "importNativeSourcePath",
+      "disposition": "enforced",
+      "evidence": "Native canvas, asset-library, Finder, and paste uploads convert inside withVideoImportScratchDir + transcodeFileToPlayableMp4IfNeeded; importTranscodeLifecycle.integration.test.ts quits mid-conversion and checks the PID and the temp directory."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "importLocalFileToStore byte path",
+      "disposition": "enforced",
+      "evidence": "Byte imports call ensurePlayableVideoBytes, which uses the same scratch boundary and normalizer."
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "entry_point": "importProjectAsset",
+      "disposition": "enforced",
+      "evidence": "MCP nomi_asset_import calls importLocalFile without a usable request signal (the symbol does not survive the loopback RPC JSON); the normalizer's in-flight table still stops it at quit, proven by the Agent-door case in importTranscodeLifecycle.integration.test.ts."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "ensurePlayableAsset",
+      "disposition": "enforced",
+      "evidence": "Lazy playback healing is bound to the IPC request registry (nomi:assets:ensure-playable) and invokes the same normalizer, so window loss and quit stop it."
+    },
+    {
+      "path": "electron/assets/assetPreview.ts",
+      "entry_point": "runBoundedProcess default stderr mode",
+      "disposition": "not-affected",
+      "evidence": "Short frame/thumbnail derivations keep the default limit mode; mediaProbe.test.ts asserts the default still ends as output_limit on the same flood."
+    },
+    {
+      "path": "electron/export/ffmpegRunner.ts",
+      "entry_point": "export ffmpeg runner",
+      "disposition": "not-affected",
+      "evidence": "The export runner already keeps a capped stderr tail (cappedTail) and never kills for volume; export transcoding is explicitly outside this change."
+    },
+    {
+      "path": "electron/video/trimVideo.ts",
+      "entry_point": "trimVideoToAsset",
+      "disposition": "not-affected",
+      "evidence": "Timeline editing behavior outside import normalization; one of the eleven frozen direct launches ratcheted by scripts/check-import-ffmpeg-owner.test.mjs."
+    },
+    {
+      "path": "electron/video/extractVideoFrame.ts",
+      "entry_point": "extractVideoFrameToAsset",
+      "disposition": "not-affected",
+      "evidence": "Frame extraction is a separate derivation path, not called by localFileImport; frozen in the same ratcheted baseline."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any non-playable codec or unsupported container can reach the normalizer through several import surfaces, every long conversion streams progress for as long as it runs, and a window/project/app lifecycle event can occur during every long transcode.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs transcodeFileToPlayableMp4IfNeeded ensurePlayableVideoBytes withVideoImportScratchDir stopVideoImportTranscodes",
+      "node scripts/door-map.mjs runBoundedProcess",
+      "pnpm exec vitest run scripts/check-import-ffmpeg-owner.test.mjs",
+      "rg -n \"importLocalFile\\(|copy-files|nomi_asset_import|ensure-playable\" electron src"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/export/mediaProbe.ts",
+    "invariant": "Import normalization launches no direct ffmpeg process; it supplies signal, progress, tail stderr, duration timeout, low-priority, and bounded output options to runBoundedProcess, and registers every conversion in the normalizer's in-flight table that the quit drain stops.",
+    "failure_mode": "Abort rejects as cancellation, terminates the process tree, and removes the incomplete output and scratch directory before the caller can publish an asset; after quit starts a new conversion is refused as cancellation.",
+    "exception_policy": "none",
+    "strategy": "Keep process ownership at the existing shared runner, fix the output-volume class there (tail mode), keep the conversion lifecycle at the single normalizer boundary (in-flight table plus scratch scope), and make any new direct ffmpeg launch in electron/ fail the structural scan. Round 3: the request stop (window destroyed, project binding stale, quit) has exactly one owner, electron/ipcRequestRegistry.ts, shared with ensure-preview and video deconstruct; its quit method drain aborts at once, refuses new requests and resolves only after every request finished its cleanup, and the concept gate (ipc.inflight-request-stop) forbids a second definition of the import-only registry.",
+    "artifacts": [
+      "electron/export/mediaProbe.ts",
+      "electron/assets/videoImportNormalize.ts",
+      "electron/assets/localFileImport.ts",
+      "electron/ipcRequestRegistry.ts",
+      "electron/assets/assetsIpc.ts",
+      "electron/capabilityCore/core.ts",
+      "scripts/check-import-ffmpeg-owner.test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/assets/videoImportNormalize.test.ts",
+    "electron/assets/videoImportNormalize.integration.test.ts",
+    "electron/assets/importTranscodeLifecycle.integration.test.ts",
+    "electron/export/mediaProbe.test.ts",
+    "electron/ipcRequestRegistry.test.ts",
+    "electron/assets/assetsIpcSession.test.ts",
+    "electron/assets/assetImportProgress.test.ts",
+    "src/workbench/generationCanvas/store/assetImportProgressStore.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts",
+    "scripts/check-import-ffmpeg-owner.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/export/mediaProbe.test.ts",
+    "electron/assets/videoImportNormalize.integration.test.ts",
+    "electron/assets/importTranscodeLifecycle.integration.test.ts",
+    "electron/ipcRequestRegistry.test.ts",
+    "scripts/check-import-ffmpeg-owner.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/videoImportNormalize.ts"
+    ],
+    "rationale": "The private unbounded spawn is deleted in the same implementation commit; no fallback launcher remains. Round 2 removes the abort-only quit drain instead of keeping it beside the waiting one. Round 3 (docs/engineering/direction-checks/2026-10-27-import-transcode-request-registry.md) folds the import-only request registry, its unit test and its cancellation helpers into the shared electron/ipcRequestRegistry.ts before any of them reached main: the shared quit method becomes drain (abort at once, refuse new requests, wait for cleanup), nothing is kept as an adapter and no second registry definition remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The bundled ffmpeg/ffprobe versions are retained; the copy sets are chosen so the same remux works on the 4.1 and 4.4 bundles, and the defect is application-level process ownership and lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "No stored-data migration is required. Existing assets continue to read; new imports use remux or libx264 according to the playability reason and the MP4 copy sets. Existing direct-spawn non-import paths remain a ratcheted 0.25 baseline.",
+  "residual_risks": [
+    "Windows real Electron, the 4K HEVC walkthrough, and the zh/en card screenshots remain unverified until the separate quiet-walk fix is merged into origin/main.",
+    "The eleven non-import direct ffmpeg/ffprobe launches remain outside this change; the scan only stops the list from growing, they must be migrated or retired in 0.25.",
+    "Closing an MCP client mid-request does not stop its conversion before quit: the loopback rpcServer has a request AbortController but does not pass it into dispatch (outside this change).",
+    "H.264 10-bit or 4:2:2 in MKV is remuxed like any H.264 (no profile or pixel-format criterion, same as an as-is MP4).",
+    "Force-killing or crashing the main process does not stop ffmpeg in its own process group (and the OS session-end critical teardown does not include imports): measured 2026-10-27, it was re-parented to init, finished the whole segment, then exited, leaving a partial file in the system tmp dir; the implementer's 'likely exits on SIGPIPE' did not hold. 'No orphans' holds only for orderly quit and abandon.",
+    "Required quit-teardown items run after desktop-lane-ipc. This change avoids the mutual wait by stopping optional items immediately, but the required video-depth-jobs and antigravity-image-jobs teardown items have the same queueing exposure.",
+    "Round 3 moved the import request stop onto the shared electron/ipcRequestRegistry.ts. The unit tests and importTranscodeLifecycle.integration.test.ts (real ffmpeg, real quit owner) cover it, but the real-Electron quit check (convert to about 16 percent, app.quit(), ffmpeg gone, private TMPDIR empty) last ran on the round-2 code and must be repeated on this code by the verification line.",
+    "The shared drain also makes the video-deconstruct registry refuse new requests once quit has begun (before, only the in-flight ones were aborted); it still does not wait, so a deconstruct ffmpeg leaf is stopped by its spawn signal rather than awaited."
+  ],
+  "detected_by": "user",
+  "detected_by_detail": "2026-10-26 release-blocker review and 2026-10-27 coordination walk; round 2 from the coordinator's diff review with the bundled ffmpeg 4.4",
+  "recurrence_check_on": "2026-11-27",
+  "invariant_owner_layer": {
+    "layer": "electron/export/mediaProbe.ts",
+    "tests": [
+      "electron/export/mediaProbe.test.ts",
+      "electron/assets/videoImportNormalize.integration.test.ts",
+      "electron/assets/importTranscodeLifecycle.integration.test.ts"
+    ],
+    "why": "The shared process runner is the earliest boundary that can enforce abort, process-tree cleanup, bounded output without killing long runs, optional progress, and low priority for every import normalizer caller; the normalizer's in-flight table is the earliest point every import door passes through for the quit drain."
+  }
+}

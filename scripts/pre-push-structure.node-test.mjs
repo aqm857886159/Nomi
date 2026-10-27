@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 import { makeTempDir } from './_test-temp.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
@@ -33,6 +34,7 @@ import {
   parsePushRefs,
   pushDecision,
   runNode,
+  runWithDeadline,
   scanGuardsToRun,
   selectGates,
   softenTimeout,
@@ -85,7 +87,7 @@ const SCANNER_READS = {
   'check:tokens': ['src/theme/nomi-tokens.css', 'src/ui/A.tsx', 'src/a.ts', 'src/a.mts', 'electron/x.ts', 'electron/theme.css', 'tailwind.config.ts', 'scripts/check-design-tokens.mjs', 'scripts/lib/colorMixHue.mjs', 'scripts/lib/scopedTokenScan.mjs', 'scripts/lib/gitPaths.mjs'],
   'check:vocabularies': ['src/a.ts', 'src/a.tsx', 'src/a.mts', 'src/a.cts', 'electron/b.cts', 'electron/b.mts', 'scripts/check-vocabularies.mjs', 'scripts/check-vocabularies-scan.mjs', 'scripts/vocabularies-baseline.json'],
   'check:controls': ['src/ui/B.tsx', 'scripts/check-control-contract.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/control-copy-baseline.json'],
-  'test:temp-helper': ['scripts/x.node-test.mjs', 'tests/ux/y.walk.mjs', 'tests/ux/z.probe.mjs', 'scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.mjs'],
+  'test:temp-helper': ['scripts/x.node-test.mjs', 'tests/ux/y.walk.mjs', 'tests/ux/z.probe.mjs', 'tests/ux/_helper.mjs', 'tests/agent-runtime/a.test.mts', 'scripts/b.test.cjs', 'tests/ux/c.tsx', 'scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.node-test.mjs', 'scripts/_test-temp.mjs', 'scripts/lib/systemTempScan.mjs', 'scripts/test-temp-bypass-baseline.json'],
   'check:test-copy-literals': ['src/a.test.ts', 'electron/b.test.ts', 'scripts/c.node-test.mjs', 'tests/ux/d.walk.mjs', 'tests/ux/exempt.json', 'evals/e.test.mjs', 'packages/p/f.test.ts', 'src/i18n/locales/zh.ts', 'electron/desktopStrings.ts', 'scripts/check-test-copy-literals.mjs'],
   'test:control-contract': ['scripts/check-control-contract.test.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/_test-temp.mjs'],
   'test:pre-push-structure': ['scripts/x.mjs', 'package.json', 'scripts/git-hooks.json', 'scripts/pre-push-structure.node-test.mjs', 'scripts/pre-push-gate-table.mjs', 'scripts/pre-push-gate-inputs.mjs', 'scripts/pre-push-contracts.mjs', 'scripts/pre-push-related-tests.mjs'],
@@ -327,6 +329,20 @@ const isolatedRun = (argv, env, options) => {
   return runNode(argv, { ...blanked, ...env }, options)
 }
 
+test('必红：整体超时的「杀树 + 等树退净 + 回收」期间，被杀子进程的 close 不能让任务池先跑完——期限的结果压过池的结果，期限之后不再起新任务', async () => {
+  // 杀树要等几毫秒，这期间被杀子进程的 close 事件会让两个任务先结束；早先 runWithDeadline 一到期就同步 resolve，现在要等回收，
+  // 池要是先 resolve，整体超时就被当成「全跑完了」（check:claude-hooks 的同名用例在 CI 才红过一次）。第三个任务排在池里，期限一到就不许再起。
+  let started = 0
+  const tasks = [0, 1, 2].map((index) => async () => {
+    started += 1
+    return { name: `probe:${index}`, ...(await isolatedRun(['-e', 'setInterval(() => {}, 1000)'], {}, { timeoutMs: 60_000, name: `probe:${index}` })) }
+  })
+  const outcome = await runWithDeadline(tasks, 2, 1500)
+  assert.equal(outcome.timedOut, true, '整体超时被当成了「全跑完了」')
+  assert.equal(outcome.stillRunning.length, 2)
+  assert.equal(started, 2, '期限之后不该再起新任务')
+})
+
 test('结构：本文件里只有 isolatedRun 一处直接起子进程（runNode 只调用一次），谁绕开它就红', () => {
   const source = read('scripts/pre-push-structure.node-test.mjs')
   assert.equal(source.match(/\brunNode\(/g).length, 1, 'runNode 的调用只许出现在 isolatedRun 里')
@@ -344,6 +360,28 @@ test('结构：scripts/ 里 spawn 出来的子进程统一走 processTree；直�
   const helper = read('scripts/lib/processTree.mjs')
   assert.match(helper, /process\.kill\(-pid, signal\)/, 'POSIX 必须按负 pid 终止进程组；退回 child.kill 不能过结构门')
   assert.match(helper, /taskkill.*\/T.*\/F/s, 'Windows 必须保留 taskkill /T /F')
+})
+
+test('结构：pre-push-contracts.mjs 里每一处 killProcessTree( 都在 terminateAndReclaim 里，单门超时与整体超时各走它一次——杀进程的一方收它留下的目录，不留直接杀的口子', () => {
+  const file = 'scripts/pre-push-contracts.mjs'
+  const ast = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
+  const enclosingFunction = (node) => {
+    for (let current = node.parent; current; current = current.parent) if (ts.isFunctionDeclaration(current) && current.name) return current.name.text
+    return null
+  }
+  const kills = []
+  const terminations = []
+  const visit = (node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      if (node.expression.text === 'killProcessTree') kills.push(enclosingFunction(node))
+      if (node.expression.text === 'terminateAndReclaim') terminations.push(enclosingFunction(node))
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(ast)
+  assert.ok(kills.length > 0, '没找到 killProcessTree 的调用：结构变了，这条测试要跟着改')
+  assert.deepEqual([...new Set(kills)], ['terminateAndReclaim'], `直接杀进程树、不经 terminateAndReclaim 的口子：${JSON.stringify(kills)}`)
+  assert.deepEqual(terminations.sort(), ['runNode', 'runWithDeadline'], '单门超时（runNode）与整体超时（runWithDeadline）都要走 terminateAndReclaim')
 })
 
 test('必红：钩子环境里的 GIT_DIR / GIT_INDEX_FILE 等不传给门岗与测试子进程（10-10 测试的 git init 把真仓库改成 bare）', async () => {
