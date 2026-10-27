@@ -73,7 +73,12 @@ export function checkDesignCard(body, options = {}) {
 export function checkStandardReview(body, { tier } = {}) {
   if (tier !== PROCESS_TIERS.STANDARD) return { ok: true, lines: [] }
   const section = extractSection(body, '单线评审')
-  if (section === null) return { ok: false, lines: ['✖ 标准档缺 `## 单线评审`（评审线编号 + 结论 / 证据）'] }
+  // 在途正文仍可能只写旧严档的「独立验收」；宽档必须单调兼容，沿用其中的报告和验收线作为单线评审。
+  if (section === null) {
+    const legacyAcceptance = extractSection(body, '独立验收')
+    if (legacyAcceptance && /(?:报告|验收线|https?:\/\/|docs\/)/.test(legacyAcceptance)) return { ok: true, lines: ['✅ 单线评审：复用旧正文 `## 独立验收`（宽档兼容）'] }
+    return { ok: false, lines: ['✖ 标准档缺 `## 单线评审`（评审线编号 + 结论 / 证据）'] }
+  }
   const line = /评审线\s*[:：]\s*([^\n]+)/.exec(section)?.[1]?.trim()
   if (!line) return { ok: false, lines: ['✖ 标准档 `## 单线评审` 缺评审线编号'] }
   if (!/(?:通过|有条件通过|报告|docs\/|https?:\/\/)/.test(section)) return { ok: false, lines: ['✖ 标准档单线评审没有结论或证据'] }

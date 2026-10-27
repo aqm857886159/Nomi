@@ -41,7 +41,7 @@ const STANDARD_WORD = /^(?:标准|standard|normal|中)$/i
 const STRICT_WORD = /^(?:严|严格|strict|full)$/i
 const UI_SOURCE = /^(?:src\/.*\.(?:tsx|ts|css|scss)|electron\/.*\.(?:tsx|ts|css|scss))$/i
 const UI_MANIFEST = /^docs\/design\/boards\//i
-const NON_PRODUCT = /^(?:docs\/|tests?\/|evals\/|\.github\/|scripts\/|fixtures\/|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt)))$/i
+const NON_PRODUCT = /^(?:docs\/.*|tests?\/.*|evals\/.*|\.github\/.*|scripts\/.*|fixtures\/.*|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt)))$/i
 
 function normalizeTier(value) {
   const text = String(value ?? '').trim()
@@ -112,8 +112,12 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
   if (normalized.some((file) => HARD_PATH.test(file)) || HARD_BODY.test(String(extractSection(body, INTENT_SECTION) || ''))) addHard('安全 / 崩溃 / 方向检查路径')
   if (ledgerTransitions.length) addHard(`逃逸账本转 fixed：${ledgerTransitions.join('、')}`)
 
+  // 文件清单本身已经能证明纯文档 / 测试 / 配置改动没有产品入口；这类在途 PR
+  // 不应因新规则要求作者补一段意图声明而回归。硬线仍先于自动短档。
+  const nonProductOnly = normalized.length > 0 && normalized.every((file) => NON_PRODUCT.test(file))
+  const autoShort = !declaration.present && nonProductOnly && hard.length === 0
   const ui = uiVerification && typeof uiVerification === 'object' ? uiVerification : null
-  if (!declaration.present) addHard('缺少变更意图声明')
+  if (!declaration.present && !autoShort) addHard('缺少变更意图声明')
   if (declaration.present && declaration.candidateTier === PROCESS_TIERS.SHORT && !declaration.pureFix && declaration.intentKind !== 'non-product') addHard('短档声明不是纯修复 / 纯文档 / 测试 / 配置')
   if (declaration.present && !declaration.singleIntent) addHard(declaration.reason || '不是单一意图')
   if (declaration.present && !declaration.candidateTier) addHard('候选档位无法识别')
@@ -123,14 +127,14 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
     if (!declaration.uiAssertion || !/无(?:界面|UI)差异|no\s+ui\s+diff/i.test(declaration.uiAssertion)) addHard('短档缺少“界面核实：无界面差异”声明')
   }
   if (declaration.candidateTier === PROCESS_TIERS.STRICT) addHard('提交人选择严档')
-  const candidate = declaration.candidateTier
+  const candidate = autoShort ? PROCESS_TIERS.SHORT : declaration.candidateTier
   const tier = hard.length ? PROCESS_TIERS.STRICT : candidate === PROCESS_TIERS.SHORT ? PROCESS_TIERS.SHORT : candidate === PROCESS_TIERS.STANDARD ? PROCESS_TIERS.STANDARD : PROCESS_TIERS.STRICT
   const lines = []
-  lines.push(`· 流程档位：${tier === PROCESS_TIERS.SHORT ? '短' : tier === PROCESS_TIERS.STANDARD ? '标准' : '严'}（候选：${candidate || '未知'}）`)
+  lines.push(`· 流程档位：${tier === PROCESS_TIERS.SHORT ? '短' : tier === PROCESS_TIERS.STANDARD ? '标准' : '严'}（候选：${candidate || '未知'}${autoShort ? '；文件清单自动核实为纯文档 / 测试 / 配置' : ''}）`)
   if (hard.length) lines.push(`· 严档触发项：${hard.join('；')}`)
   else lines.push('✅ 流程档位：声明与门岗核实一致，无严档硬线')
-  const ok = declaration.present && Boolean(candidate) && declaration.singleIntent
-  return { tier, candidate, hard, declaration, uiVerification: ui, ok, lines }
+  const ok = autoShort || (declaration.present && Boolean(candidate) && declaration.singleIntent)
+  return { tier, candidate, hard, declaration, autoShort, uiVerification: ui, ok, lines }
 }
 
 export function loadRoutingTable(root = repoRoot) {

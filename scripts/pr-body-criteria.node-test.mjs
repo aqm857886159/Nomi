@@ -101,6 +101,38 @@ test('新三档：短档只收短卡；标准档收 ★卡、证据和单线评�
   assert.match(strict.lines.join('\n'), /严档触发项：.*界面差异核实不通过/)
 })
 
+test('r2：旧严档正文向宽档单调兼容——9 格满足 5 格，独立验收可复用为单线评审', () => {
+  const legacyNine = [
+    '## 设计卡',
+    '| ★1 用户怎么用 | 任务 | 回放 | 量具 |',
+    '| ★2 谁说了算 | owner | 共用判据 | 证据 |',
+    '| ★3 一致与复用 | 同类 | 复用 | git grep |',
+    '| ★4 全状态 | 成功失败未知 | 全列 | 截图 |',
+    '| 5 中途表 | 打断 | 无变化 | 脚本 |',
+    '| 6 外部数据与失败 | 来源 | 失败 | 文档 |',
+    '| 7 性能预算 | 规模 | 预算 | 命令 |',
+    '| 8 真实条件 | 条件 | 实机 | 截图 |',
+    '| ★9 验收与回滚 | 验收 | 回滚 | 命令 |',
+  ].join('\n')
+  const legacyAcceptance = '## 独立验收\n- 报告：docs/evidence/r2-legacy.md\n- 验收线：legacy-line\n'
+  const standard = evaluatePrBody({
+    body: [TIER_INTENT('标准', '新增功能', '清单无差异'), legacyNine, legacyAcceptance].join('\n'),
+    files: docsChange,
+    createdAt: '2026-10-28T00:00:00Z',
+  })
+  assert.equal(standard.blocked, false, standard.lines.join('\n'))
+  assert.match(standard.lines.join('\n'), /复用旧正文.*独立验收/)
+
+  const short = evaluatePrBody({
+    body: [TIER_INTENT('短', '纯修复'), legacyNine, legacyAcceptance].join('\n'),
+    files: [{ path: 'src/ui/onboarding/focus.ts', status: 'M' }],
+    createdAt: '2026-10-28T00:00:00Z',
+    uiVerification: { known: true, changed: false, reason: 'legacy fixture parity' },
+  })
+  assert.equal(short.blocked, false, short.lines.join('\n'))
+  assert.match(short.lines.join('\n'), /流程档位：短/)
+})
+
 // 2026-10-10：#1136 正文写「加节点条等 #1133 合入后作为本 PR 后续提交」，没做就合了（逃逸账本 FB-20261010-shell-canvas-chrome-parity）。
 // 承诺必须落实或移交，否则合并档判红——必红测试（先证它会红，再证两种标法放行）。
 const PROMISE_BODY = (line) => `${STAR}\n\n## 做了什么\n${line}\n`

@@ -482,6 +482,30 @@ test('三档判定：声明 + base/head 清单核实；硬线永远严，核实�
   assert.equal(standard.tier, 'standard')
 })
 
+test('r2：纯文档 / 测试 / 配置无声明自动短档；逃逸账本 fixed 仍强制严档', () => {
+  const replay = (files, transitions = []) => evaluateProcessTier({
+    body: '## 设计卡\n旧正文没有变更意图声明\n',
+    files,
+    inferred: inferRoutes(files, '', table),
+    ledgerTransitions: transitions,
+    uiVerification: { known: true, changed: false, reason: 'non-product fixture' },
+  })
+  const docs = replay([M('docs/plan/process-tiering.md')])
+  assert.equal(docs.tier, 'short')
+  assert.equal(docs.autoShort, true)
+  assert.equal(docs.ok, true)
+  const tests = replay([M('tests/pr-judgement-lib.node-test.mjs')])
+  assert.equal(tests.tier, 'short')
+  assert.equal(tests.autoShort, true)
+  const config = replay([M('package.json')])
+  assert.equal(config.tier, 'short')
+  assert.equal(config.autoShort, true)
+  const fixed = replay([M('tests/fixtures/ledger.json')], ['FB-r2-fixed'])
+  assert.equal(fixed.tier, 'strict')
+  assert.equal(fixed.autoShort, false)
+  assert.match(fixed.lines.join('\n'), /逃逸账本转 fixed/)
+})
+
 test('改法一历史回放夹具：#1359 短；#1356/#1347 严；#1314/#1299 清单无差异短；ledger fixed 严', () => {
   const replay = (pr, file, tier, transitions = []) => {
     const files = [M(file)]
