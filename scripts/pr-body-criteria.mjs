@@ -60,7 +60,13 @@ export function checkDesignCard(body, options = {}) {
   const section = extractSection(body, short ? '短版设计卡' : '设计卡') ?? (short ? extractSection(body, '设计卡') : null)
   const required = requiresAll ? ALL_CELLS : STAR_CELLS
   const heading = short ? '短版设计卡' : '设计卡'
-  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## ${heading}\` 一节（${requiresAll ? '严档 9 格' : '★ 格 1、2、3、4、9'}）${englishHeadingHint(body, heading)}`] }
+  if (section === null) {
+    // Preserve the stable migration hint for an English `## Design card` heading
+    // even when the new auto-short route is evaluating the body.
+    const englishHint = englishHeadingHint(body, heading) || englishHeadingHint(body, '设计卡')
+    const displayedHeading = englishHint ? '设计卡' : heading
+    return { ok: false, lines: [`✖ PR 正文没有 \`## ${displayedHeading}\` 一节（${requiresAll ? '严档 9 格' : '★ 格 1、2、3、4、9'}）${englishHint}`] }
+  }
   const link = /https?:\/\/\S+|docs\/\S+\.md/.exec(section)
   const missing = required.filter((n) => !cellFilled(cellContent(section, n)))
   if (missing.length === 0) return { ok: true, lines: [`✅ ${short ? '短版设计卡' : '设计卡'}：${required.length} 格都填了`] }
