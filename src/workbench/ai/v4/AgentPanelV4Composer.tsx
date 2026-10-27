@@ -120,8 +120,7 @@ export type AgentPanelV4ComposerProps = {
    * 「你现在什么都不能说」，而那不是真的。
    */
   awaitingAnswer?: boolean
-  /** 输入框本体。容器要能把光标交给它（空态起手 chip 填完那句话就聚焦）。 */
-  inputRef?: React.Ref<HTMLElement>
+  /** 编辑器就绪。容器拿着它才能把光标交给输入框（residentComposerFocus），不在页面里找输入框。 */
   onEditorReady?: (editor: Editor) => void
   mentionReferences?: PromptEditorProps['mentionReferences']
   mentionSearch?: PromptEditorProps['mentionSearch']
@@ -150,7 +149,7 @@ export function AgentPanelV4Composer({
   skillSelected = false,
   focused = false,
   awaitingAnswer = false,
-  inputRef, onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
+  onEditorReady, mentionReferences, mentionSearch, onMentionSelect,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
   const mentionUrls = React.useMemo(() => mentionUrlsInOrder(value), [value])
@@ -162,12 +161,9 @@ export function AgentPanelV4Composer({
   const [measuredRows, setMeasuredRows] = React.useState(hardRows)
   const handleEditorReady = React.useCallback((editor: Editor) => {
     editorRef.current = editor
-    const el = editor.view.dom
-    setEditorElement(el)
-    if (typeof inputRef === 'function') inputRef(el)
-    else if (inputRef) (inputRef as React.MutableRefObject<HTMLElement | null>).current = el
+    setEditorElement(editor.view.dom)
     onEditorReady?.(editor)
-  }, [inputRef, onEditorReady])
+  }, [onEditorReady])
   React.useLayoutEffect(() => {
     if (!editorElement) return
     const measure = (): void => setMeasuredRows(rowsFromContentHeight(editorElement.scrollHeight))

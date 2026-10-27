@@ -36,6 +36,7 @@ import 'streamdown';
 import '@photo-sphere-viewer/core';
 import 'tailwind-merge';
 import 'swr';
+import 'tabbable';
 import 'three';
 import 'zod';
 import 'zustand';

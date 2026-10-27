@@ -23,6 +23,7 @@ import { AutomationPermissionsSection } from './AutomationPermissionsSection'
 import { defaultAutomationPolicySettings } from './settingsAutomationView'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
 import { hasSettingsUnsavedChanges } from './settingsUnsavedChanges'
+import { focusSettingsSectionWhenReady } from './settingsSectionFocus'
 import { AttentionSoundSection } from './AttentionSoundSection'
 import { TelemetrySection } from './TelemetrySection'
 import { DiagnosticsBundleSection } from './DiagnosticsBundleSection'
@@ -133,17 +134,14 @@ export function SettingsDialog({
     return () => window.cancelAnimationFrame(frame)
   }, [tab])
 
+  // 深链：那一节可能还没挂出来（「模型」页懒加载），每帧试到焦点真的进了那一节为止（settingsSectionFocus）。
+  // 等自动化策略读完再开始：那之前「自动化」那一节的控件全是禁用的，落不上。
   React.useEffect(() => {
-    if (!initialSection) return
-    const frame = window.requestAnimationFrame(() => {
-      const section = contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
-      section?.scrollIntoView({ block: 'center' })
-      if (automationPolicyLoaded) {
-        const focusTarget = section?.querySelector<HTMLElement>('button, input, [tabindex]')
-        focusTarget?.focus({ preventScroll: true })
-      }
+    if (!initialSection || !automationPolicyLoaded) return undefined
+    return focusSettingsSectionWhenReady({
+      dialog: () => dialogRef.current,
+      section: () => contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`) ?? null,
     })
-    return () => window.cancelAnimationFrame(frame)
   }, [automationPolicyLoaded, initialSection, tab])
 
   React.useEffect(() => {

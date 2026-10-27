@@ -18,6 +18,7 @@ import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { useResidentActivityStore } from '../../../workbench/ai/residentActivity'
+import { requestResidentComposerFocus } from '../../../workbench/ai/residentComposerFocus'
 import { AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from './agentPanelHeaderSlot'
 import { dockStatusLabel } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../workbench/ai/v4/agentPanelV4Labels'
@@ -59,16 +60,6 @@ function useAreaSize(node: HTMLElement | null): { width: number; height: number 
   return size
 }
 
-function focusComposerSoon(): void {
-  let frames = 0
-  const tick = () => {
-    const input = document.querySelector<HTMLTextAreaElement>('#project-agent-resident textarea')
-    if (input) input.focus()
-    else if (frames++ < 20) window.requestAnimationFrame(tick)
-  }
-  window.requestAnimationFrame(tick)
-}
-
 function BallIcon(): JSX.Element {
   return <span className="block size-2 rounded-full bg-current" aria-hidden="true" />
 }
@@ -97,7 +88,7 @@ function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentF
             data-agent-form-to={option.id}
             onClick={() => {
               setForm(surface, option.id)
-              if (option.id !== 'ball') focusComposerSoon()
+              if (option.id !== 'ball') requestResidentComposerFocus()
             }}
             className={cn(
               'grid h-6 w-7 place-items-center rounded-pill border-0 p-0 transition-[background,color,box-shadow] duration-nomi-fast',
@@ -132,7 +123,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const point = clampBall({ x: base.x + BALL_SIZE - width, y: base.y }, area, { width, height: BALL_SIZE })
   const open = () => {
     setForm(surface, openFormFor(surface))
-    focusComposerSoon()
+    requestResidentComposerFocus()
   }
   const statusText = status ? dockStatusLabel(status, pending, labels.dock) : labels.dock.idle
   const label = pill ? t('appShell.agent.ballPending', { count: pending }) : t('appShell.agent.ballOpen', { shortcut: `${MOD}J` })
@@ -140,8 +131,8 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const unreadOnly = pill ? 0 : Math.max(0, unread - pending)
   const title = [label, statusText, unreadOnly > 0 ? t('appShell.agent.ballUnread', { count: unreadOnly }) : null].filter(Boolean).join(' · ')
   const items: WorkbenchMenuNode[] = [
-    { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { setForm(surface, 'float'); focusComposerSoon() } },
-    { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { setForm(surface, 'dock'); focusComposerSoon() } },
+    { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { setForm(surface, 'float'); requestResidentComposerFocus() } },
+    { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { setForm(surface, 'dock'); requestResidentComposerFocus() } },
   ]
   return (
     <>
@@ -255,6 +246,7 @@ export function ShellAgentHost({
     if (useAgentFormStore.getState().bySurface[surface].form === 'ball') setForm(surface, openFormFor(surface))
   }), [setForm, surface])
   // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：停靠 ↔ 小球（浮窗时收成小球）。
+  // 聚焦只发请求，由输入框的主人自己落焦点（residentComposerFocus）——外壳不在页面里找输入框。
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
@@ -262,7 +254,7 @@ export function ShellAgentHost({
       if (event.key.toLowerCase() === 'j') {
         event.preventDefault()
         if (current === 'ball') setForm(surface, openFormFor(surface))
-        focusComposerSoon()
+        requestResidentComposerFocus()
       } else if (event.key === '\\') {
         event.preventDefault()
         setForm(surface, current === 'ball' ? 'dock' : 'ball')
