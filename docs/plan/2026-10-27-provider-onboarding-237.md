@@ -1,6 +1,6 @@
 # Issue #237: provider onboarding and English first-run guide
 
-Initial base: `26fbc87d3266460c9cd1cca2f4b9cf0f43db6f46`. Before delivery, merged updated upstream `e6d14729287d16c21883d1049463280648b47330` without rewriting history. Scope: request-size calculation, deterministic request coverage, and documentation. No installed-app data or live provider credentials are used.
+Initial base: `26fbc87d3266460c9cd1cca2f4b9cf0f43db6f46`. Before delivery, merged updated upstream `e6d14729287d16c21883d1049463280648b47330`, then `e8c9c3b7fba7cce186360ac868ef08605eb6241e`, without rewriting history. Scope: request-size calculation, deterministic request coverage, and documentation. No installed-app configuration or live provider credentials are used.
 
 ## Design card (before implementation)
 
@@ -59,7 +59,7 @@ Declarative search also found `NEWAPI_VIDEO_PARAM_MAP` using the same persisted 
 | `docs/engineering/concept-owners/catalog.parameter-wire-translation.json` | Register the existing shared translation owner and its contract boundaries; no new runtime path. |
 | This report, the direction check, and the root-cause JSON | Evidence, compatibility decision, acceptance matrix, and machine-checked prevention contract. |
 
-Existing behavior preserved: `taskParams.ts:203` omits unset size; `runtime.ts` dispatches multipart before URL localization; `catalogMigrateV7.test.ts:63` exercises the saved-v6 edit-route upgrade and repeated reads. A custom script is a separate execution path and is not rewritten.
+Existing behavior preserved: `taskParams.ts:203` omits unset size; `runtime.ts:212` dispatches multipart before URL localization at line 214; `catalogMigrateV7.test.ts:63` exercises the saved-v6 edit-route upgrade and repeated reads. A custom script is a separate execution path and is not rewritten.
 
 ## Deterministic verification
 
@@ -68,3 +68,23 @@ Existing behavior preserved: `taskParams.ts:203` omits unset size; `runtime.ts` 
 - After repair and upstream merge: 7 focused test files, 145 tests passed. Includes migration/idempotence, JSON and multipart request construction, direct bytes, and legacy video dimensions.
 - Changed-file ESLint: passed, zero warnings. Earlier whole-repository lint: zero errors, 91 existing warnings.
 - No live model request, anonymous-host probe with private data, installed-app configuration write, or paid generation was performed.
+
+## Repository verification receipt
+
+This is a reviewable draft, not an all-green full-suite or live-provider claim.
+
+| Check | Actual result |
+| --- | --- |
+| `pnpm run gates` contract phase | All 107 checks ran: 105 script passes, 2 blocking failures. The failures were missing concept-owner registration and three TypeScript errors in the new test matrix. Both were corrected and their checks rerun successfully; the entire 50-minute aggregate was not repeated. |
+| Corrected `typecheck` | All five checks passed, including test types. The ratio matrix now narrows selectable option values to strings. |
+| Concept owners and root-cause contracts | Passed again after the final upstream merge; both production files have contract coverage and changed regressions. |
+| Filesize, tokens, i18n, lint | Passed. Filesize was repeated after the final merge; full lint reported zero errors and 91 existing warnings. Changed-file ESLint reported zero warnings. |
+| `pnpm run test` | Did not pass: Vitest reported 2,104 passing files / 24,087 passing tests, 13 timeout failures in four files, and one worker error after a stalled Electron encryption fixture was terminated. The report also listed 2 expected failures and 22 skipped tests. The chained Node suites did not run in this invocation. |
+| Isolated repeat of the four failing files | All four files / 21 tests passed with one worker and unchanged assertions/timeouts: project-action issuance, built-in catalog performance, audio import, and storyboard deletion/Undo. This does not erase the unsuccessful full run. |
+| Final focused regressions and supplemental Node suites | On the final merged tree, all 7 focused files / 145 tests passed. `pnpm run test:node-suites` also passed separately, including worktree janitor, agent runtime, statistics, legacy MCP entry, and engineering-system tests. |
+| `pnpm run build` and build-stamp verification | Passed for renderer and Electron on the final merged source tree. Existing bundle-size/Browserslist warnings remain. |
+| Secrets and diff hygiene | Full tracked-file scan passed; final diff has only the scoped code, tests, guide, and required engineering records. No credentials or private issue attachments were added. |
+
+The remaining full-suite blocker is the native test fixture: an Electron subprocess launched by `tests/ux/agent-runtime-fixture.mjs:188` with `tests/ux/_encryptFixtureKey.cjs` remained idle for more than eight minutes. Its parent worker was stopped to recover the test report, then the orphaned fixture process was cleaned up. No production behavior or test timeout was changed to mask it. The fixture is **unverified on this host**.
+
+The design-lab screenshot check was advisory on this host (macOS x64 versus its recorded arm64 baseline) and initially could not launch its missing Chromium binary. Chromium was subsequently installed and the isolated storyboard browser tests passed, but a design-lab visual comparison and installed desktop UI acceptance remain **unverified**. No screenshot or mock result is presented as live provider acceptance.
