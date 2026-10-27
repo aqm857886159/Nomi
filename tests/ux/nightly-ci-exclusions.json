@@ -12,7 +12,7 @@
     { "path": "tests/ux/canvas-image-aspect.walk.mjs", "category": "B", "reason": "requires private real-media fixtures" },
     { "path": "tests/ux/canvas-shot-identity.walk.mjs", "category": "B", "reason": "requires private real-media fixtures" },
     { "path": "tests/ux/canvas-shortcut-parity.walk.mjs", "category": "B", "reason": "requires private real-media fixtures" },
-    { "path": "tests/ux/composer-overlap-and-fast-typing.walk.mjs", "category": "B", "reason": "requires a live DeepSeek API key" },
+    { "path": "tests/ux/composer-overlap-and-fast-typing.walk.mjs", "category": "B", "reason": "requires private real-media fixtures (NOMI_REAL_MEDIA_DIR)" },
     { "path": "tests/ux/credential-redirect.walk.mjs", "category": "B", "reason": "requires the developer machine's real Nomi profile (copied catalog and credentials, fingerprint-checked); run by hand on a configured machine" },
     { "path": "tests/ux/custom-prompt-realtask.walk.mjs", "category": "B", "reason": "requires the developer machine's real model catalog and credentials" },
     { "path": "tests/ux/director-3dbox-3b-agent.walk.mjs", "category": "B", "reason": "requires a live DeepSeek API key" },
