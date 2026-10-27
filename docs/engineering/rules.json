@@ -117,7 +117,7 @@
     {
       "id": "P5",
       "aliases": [],
-      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
+      "rule": "流程文书按「声明意图 + 门岗核实」分三档：严档是不可降的硬线（花钱、长跑 / 可打断、数据格式 / 安全 / 崩溃、方向检查、逃逸账本转 fixed、声明与核实不一致）；短档只给单一意图的纯修复（正文声明「纯修复：不改用户可见元素、布局、文案」）或纯文档 / 测试 / 配置，且门岗必须用 base/head 的界面清单核实无差异，任何输入取不到都 fail-closed 升严；标准档覆盖其余新增功能和结构性界面改动。短档交短版设计卡（★1/2/3/4/9 各一行），不派独立验收；标准档交 ★ 卡、验收证据和单线评审；严档保留现行 9 格、独立验收和根因 / 付费 / 中断硬门。所有档位都先写卡；标准 / 严档及新增功能先填 ★0 先查别人，新增功能再填 ★7 性能。",
       "disease": "没想清楚就写，返工与连带面漏掉；新功能不量性能，卡顿到用户手里才发现（2026-10-10 用户反馈 F3：选中节点卡、拖组卡）",
       "enforcement": [
         "template:docs/engineering/design-card.md",
@@ -131,7 +131,9 @@
         "coordinator-tool:scripts/merge-preflight.mjs(同一份判据 + 规则与门岗改动范围)",
         "template:tests/ux/full-walk/catalog.mjs(⑫ click target 对照)",
         "hook:self-check(设计卡块)",
-        "template:docs/design/nomi-design-flow-howto.md"
+        "template:docs/design/nomi-design-flow-howto.md",
+        "gate:check:pr-judgement(唯一判据解析声明、核实 base/head 界面清单并 fail-closed 升严)",
+        "gate:check:board-parity"
       ],
       "evidence": "mockup-contracts 门岗；用户纠正「推荐先看用户控制权」；2026-10-08 用户看了直接拿组件拼的外壳样张：「明显很丑……是没用你的 claude design 设计吗，因为这个设计很重要」「这次重排以及前面的设计优化都最好过一遍 design，因为希望设计整体提升一个台阶，细节很重要，而且注意我们的设计系统」「把这个规则要计入仓库」（根因：该流程只记在协调会话私人记忆，子 agent 读不到）；2026-10-11 用户：「设计一个规则，新增功能都要考虑性能分析，防止以后出现大量卡顿问题，每一个新功能都得做，而且自己弄好测试脚本，以后用来测试性能」",
       "owner": "协调会话",
@@ -149,12 +151,13 @@
         "R16",
         "PB13"
       ],
-      "rule": "设计卡（暂停点①）：碰花钱 / 长跑 / 可打断 / 新界面任一类，动手前写一页卡（9 格全填，其余改动只填 ★ 格 1、2、3、4、9），写进任务书或 docs/plan，PR 正文 `## 设计卡` 放链接或全文。验收清单前移（★9）：派活时把验收线会用的全部检查项与反例写进任务书 / 设计卡 ★9，实现线按同一份清单自验、附「反例 → 结果 → 证据」表才算交付；验收线只核这份清单，不临时扩范围，新发现记后续，除非属于「本 PR 引入 + 丢数据 / 花错钱 / 崩溃 / 安全」。",
+      "rule": "设计卡（暂停点①）：按三档填写。短档是单一意图的纯修复 / 纯文档 / 测试 / 配置，交短版设计卡 ★1、★2、★3、★4、★9 各一行；标准档交 ★ 格、验收证据和单线评审；严档交 9 格全填、独立验收与根因 / 付费 / 中断硬门。严档 ★9 的验收清单与反例必须在动手前写全，实现线按同一份清单自验，验收线只核这份清单。短档仍须由门岗核实 base/head 界面清单无差异；取不到核实输入或声明与核实不一致就升严。",
       "disease": "没想清楚就动手；概念占用、中途状态、真实任务、回滚没人在动手前回答",
       "enforcement": [
         "template:docs/engineering/design-card.md",
         "coordinator-tool:scripts/merge-preflight.mjs",
-        "hook:self-check(设计卡块)"
+        "hook:self-check(设计卡块)",
+        "gate:check:pr-judgement(三档设计卡 / 声明 / 核实)"
       ],
       "evidence": "复盘：逃逸 bug 多出在中途状态和概念占用；卡取代原来分散的 plan 模板、6 角色评审、概念占用表",
       "owner": "协调会话",
@@ -177,10 +180,11 @@
         "PB7",
         "PB14"
       ],
-      "rule": "独立验收（暂停点②）：四类改动合并前由另一条线验收，PR 正文 `## 独立验收` 带报告链接和验收线编号，编号不得与实现线相同；红灯用固定复现命令一字不改；班组报告是声明不是证据。",
+      "rule": "独立验收（暂停点②）：严档改动合并前由另一条线验收，PR 正文 `## 独立验收` 带报告链接和验收线编号，编号不得与实现线相同；短档不派独立验收；标准档交单线评审。严档红灯用固定复现命令一字不改；班组报告是声明不是证据。",
       "disease": "干活的给自己打分；门岗只证没变坏、证不了做到了",
       "enforcement": [
-        "coordinator-tool:scripts/merge-preflight.mjs"
+        "coordinator-tool:scripts/merge-preflight.mjs",
+        "gate:check:pr-judgement(标准档要求单线评审)"
       ],
       "evidence": "取代原交工前评审（其适配器不可用、处理大 diff 时崩）",
       "owner": "协调会话",

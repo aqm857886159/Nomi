@@ -3,7 +3,7 @@
   "_comment": [
     "测试路由表（唯一一份，2026-10-06）：按功能分类决定每个 PR 必交哪些测试证据。用户 10-05：「设计了新功能，要根据功能分类对应到不同的测试体系，要确保我们的设计没有问题」。",
     "类别可多选，必交证据取并集。pathRules 按改动路径推出一组类别——这组是下限：设计卡「功能分类」里勾的只能比它多、不能比它少。",
-    "四类（花钱 / 长跑 / 可打断 / 新界面）的判定也在这里（pathRules 的 legacy 字段），不再另起一套；fourClass 为 true 的类别触发设计卡 9 格与独立验收。",
+    "类别仍决定标准 / 严档需要的验收证据；最终流程档位不再由路径命中四类直接推出，而由 PR 正文意图声明、base/head 界面清单核实与严档硬线在 scripts/pr-judgement-lib.mjs 统一判定。",
     "evidence[].when：只有两种取值——pr = 每个 PR 按功能分类跑（零花费且能在 CI 跑的由 CI 自动跑；paid: true 的——真付费、真模型的——在 PR 上只要求正文交证据，不在 CI 自动跑）；manual-full = 只在用户手动触发的全量跑里跑（PR 正文不要求）。没有定时触发。",
     "evidence[].tool：exists = 工具已有；missing = 还没有工具——PR 对这类证据可以写「未验证：工具未建」，扫描器和体检报告会把缺口列出来，免得缺工具变成永久豁免。",
     "判据代码在 scripts/pr-judgement-lib.mjs，合并前扫描（scripts/merge-preflight.mjs）和 CI（pnpm run check:pr-judgement）调用同一份。可读视图在 docs/engineering/experience-system.md。",

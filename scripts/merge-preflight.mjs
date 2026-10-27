@@ -30,6 +30,7 @@ import {
   PROTECTED_PATHS,
   SCOPE_SECTION,
   checkProtectedScope,
+  deriveUiVerification,
   extractSection,
 } from './pr-judgement-lib.mjs'
 
@@ -219,6 +220,12 @@ function run(argv, exec, git, root) {
       approvals: localApprovals({ pr: Number(prArg) }),
       baseBoards: () => must('base 上的拍板图清单', () => boardsAtHead({ git, sha: forkSha })),
       boards: () => must('PR 头上的拍板图清单', () => boardsAtHead({ git, sha: headSha })),
+      // 短档的界面核实与正文判据共用这次 base/head 取数；任何取不到都由判据升严。
+      uiVerification: deriveUiVerification({
+        files,
+        baseBoards: () => must('base 上的拍板图清单', () => boardsAtHead({ git, sha: forkSha })),
+        headBoards: () => must('PR 头上的拍板图清单', () => boardsAtHead({ git, sha: headSha })),
+      }),
       // ESLint 批量抑制的冻结数上涨：没有协调确认记录就红
       suppressions: () => must('PR 头上的 eslint-suppressions.json', () => suppressionsAt({ git, sha: headSha })),
       baseSuppressions: () => must('base 上的 eslint-suppressions.json', () => suppressionsAt({ git, sha: forkSha })),

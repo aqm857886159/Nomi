@@ -17,6 +17,8 @@ import {
   checkRoutingEvidence,
   evaluatePrJudgement,
   evidenceLineVerdict,
+  evaluateProcessTier,
+  deriveUiVerification,
   inferRoutes,
   isMissingTool,
   loadRoutingTable,
@@ -454,6 +456,56 @@ test('可打断：AbortController 只在产品代码（src / electron）里认�
   ]
   assert.ok(!inferRoutes(tooling, '', table).classes.includes('可打断'))
   assert.ok(inferRoutes([...tooling, { ...M('electron/agentLane/run.ts'), added: '+const c = new AbortController()' }], '', table).classes.includes('可打断'))
+})
+
+const INTENT = (tier = '短', intent = '纯修复', ui = '无界面差异') => `## 变更意图\n- 意图：${intent}\n- 候选档位：${tier}\n- 单一意图：是\n- 声明：${intent === '纯修复' ? '纯修复：不改用户可见元素、布局、文案' : '新增一项能力'}\n- 界面核实：${ui}\n`
+
+test('三档判定：声明 + base/head 清单核实；硬线永远严，核实未知 fail-closed', () => {
+  const inferred = (files, added = '') => inferRoutes(files.map((path) => M(path)), added, table)
+  const short = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']), uiVerification: { known: true, changed: false, reason: 'fixture parity' } })
+  assert.equal(short.tier, 'short')
+  assert.equal(short.ok, true)
+
+  const changed = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']), uiVerification: { known: true, changed: true, reason: 'button label changed' } })
+  assert.equal(changed.tier, 'strict')
+  assert.match(changed.lines.join('\n'), /界面差异核实不通过/)
+
+  const unknown = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']) })
+  assert.equal(unknown.tier, 'strict')
+  assert.match(unknown.lines.join('\n'), /核实未知/)
+
+  const spend = evaluateProcessTier({ body: INTENT(), files: [M('electron/generation/spendLedger.ts')], inferred: inferred(['electron/generation/spendLedger.ts']), uiVerification: { known: true, changed: false } })
+  assert.equal(spend.tier, 'strict')
+  assert.match(spend.lines.join('\n'), /花钱路径/)
+
+  const standard = evaluateProcessTier({ body: INTENT('标准', '新增功能', '有差异'), files: [M('electron/catalog/catalog.ts')], inferred: inferred(['electron/catalog/catalog.ts']), uiVerification: { known: true, changed: false } })
+  assert.equal(standard.tier, 'standard')
+})
+
+test('改法一历史回放夹具：#1359 短；#1356/#1347 严；#1314/#1299 清单无差异短；ledger fixed 严', () => {
+  const replay = (pr, file, tier, transitions = []) => {
+    const files = [M(file)]
+    const result = evaluateProcessTier({
+      body: INTENT(),
+      files,
+      inferred: inferRoutes(files, '', table),
+      ledgerTransitions: transitions,
+      uiVerification: { known: true, changed: false, reason: `replay #${pr}` },
+    })
+    assert.equal(result.tier, tier, `#${pr}: ${result.lines.join('\n')}`)
+  }
+  replay(1359, 'src/ui/onboarding/focus.ts', 'short')
+  replay(1356, 'electron/productionRun/generationTask.ts', 'strict')
+  replay(1347, 'electron/assets/importTranscodeLifecycle.ts', 'strict')
+  replay(1314, 'src/design/actions.tsx', 'short')
+  replay(1299, 'src/workbench/common/richTextActions.tsx', 'short')
+  replay(1203, 'docs/fixes/2026-10-08-receipt.root-cause.json', 'strict', ['FB-20261008-pending-spend-presentation'])
+})
+
+test('界面清单对账 fail-closed：两边都有清单才给确定结果', () => {
+  assert.deepEqual(deriveUiVerification({ files: [M('docs/plan/a.md')] }), { known: true, changed: false, reason: '改动没有界面候选文件' })
+  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: {}, headBoards: {} }).known, false)
+  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A' } } }).changed, false)
 })
 
 test('when / paid：每项证据 when 只有 pr | manual-full；manual-full 不进 PR 必交，只在报告里提示由手动全量覆盖', () => {

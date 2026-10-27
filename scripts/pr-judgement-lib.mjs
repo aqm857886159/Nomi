@@ -11,6 +11,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { knownScenarios, loadScenarios, parsePerfEvidence } from './perf-scenarios-lib.mjs'
+import { compareBoardManifests } from './check-board-parity.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -18,6 +19,119 @@ export const ROUTING_FILE = 'docs/engineering/test-routing.json'
 export const CARD_SECTION = '功能分类'
 export const EVIDENCE_SECTION = '验收证据'
 export const SCOPE_SECTION = '碰到的规则与门岗'
+export const INTENT_SECTION = '变更意图'
+export const PROCESS_TIER_EFFECTIVE_FROM = '2026-10-28'
+
+export const PROCESS_TIERS = Object.freeze({ SHORT: 'short', STANDARD: 'standard', STRICT: 'strict' })
+
+export function processTieringEnforced(createdAt = null, enforce = false) {
+  if (enforce || !createdAt) return true
+  const time = new Date(createdAt).getTime()
+  const start = new Date(`${PROCESS_TIER_EFFECTIVE_FROM}T00:00:00Z`).getTime()
+  return !Number.isFinite(time) || !Number.isFinite(start) || time >= start
+}
+
+const INTENT_LINE = /^\s*[-*]?\s*(?:意图|intent)\s*[:：]\s*(.+)$/i
+const CANDIDATE_TIER_LINE = /^\s*[-*]?\s*(?:候选档位|档位|tier)\s*[:：]\s*(.+)$/i
+const SINGLE_INTENT_LINE = /^\s*[-*]?\s*(?:单一意图|single intent)\s*[:：]\s*(.+)$/i
+const UI_ASSERTION_LINE = /^\s*[-*]?\s*(?:界面核实|ui 核实|ui verification)\s*[:：]\s*(.+)$/i
+const PURE_FIX_DECLARATION = /纯修复\s*[:：]\s*不改用户可见(?:元素|内容)?、?\s*布局、?\s*文案/
+const SHORT_WORD = /^(?:短|short|s)$/i
+const STANDARD_WORD = /^(?:标准|standard|normal|中)$/i
+const STRICT_WORD = /^(?:严|严格|strict|full)$/i
+const UI_SOURCE = /^(?:src\/.*\.(?:tsx|ts|css|scss)|electron\/.*\.(?:tsx|ts|css|scss))$/i
+const UI_MANIFEST = /^docs\/design\/boards\//i
+const NON_PRODUCT = /^(?:docs\/|tests?\/|evals\/|\.github\/|scripts\/|fixtures\/|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt)))$/i
+
+function normalizeTier(value) {
+  const text = String(value ?? '').trim()
+  if (SHORT_WORD.test(text)) return PROCESS_TIERS.SHORT
+  if (STANDARD_WORD.test(text)) return PROCESS_TIERS.STANDARD
+  if (STRICT_WORD.test(text)) return PROCESS_TIERS.STRICT
+  return null
+}
+
+/** PR 正文 `## 变更意图` 的唯一解析器。缺字段即 unknown，unknown 永远不能短档。 */
+export function parseChangeIntent(body) {
+  const section = extractSection(body, INTENT_SECTION)
+  if (section === null) return { present: false, intent: null, candidateTier: null, singleIntent: false, uiAssertion: null, pureFix: false, reason: '缺少变更意图一节' }
+  const lines = section.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  const intent = lines.map((line) => INTENT_LINE.exec(line)?.[1]?.trim()).find(Boolean) ?? null
+  const candidateRaw = lines.map((line) => CANDIDATE_TIER_LINE.exec(line)?.[1]?.trim()).find(Boolean) ?? null
+  const singleRaw = lines.map((line) => SINGLE_INTENT_LINE.exec(line)?.[1]?.trim()).find(Boolean) ?? null
+  const uiAssertion = lines.map((line) => UI_ASSERTION_LINE.exec(line)?.[1]?.trim()).find(Boolean) ?? null
+  const pureFix = PURE_FIX_DECLARATION.test(section)
+  const intentKind = intent && /纯文档|文档|测试|配置|pure\s+(?:docs?|tests?|config)/i.test(intent) ? 'non-product' : intent && /纯修复|bugfix|fix/i.test(intent) ? 'pure-fix' : intent ? 'other' : null
+  const singleIntent = singleRaw ? /^(?:是|yes|true|单一|single)$/i.test(singleRaw) : false
+  return {
+    present: true,
+    intent,
+    intentKind,
+    candidateRaw,
+    candidateTier: normalizeTier(candidateRaw),
+    singleIntent,
+    uiAssertion,
+    pureFix,
+    reason: !intent ? '变更意图缺少意图' : !candidateRaw ? '变更意图缺少候选档位' : !singleRaw ? '变更意图缺少单一意图声明' : !singleIntent ? '变更意图不是单一意图' : null,
+  }
+}
+
+/**
+ * 界面候选文件的保守判定。只要产品源文件变了，必须拿到 base/head 清单；
+ * 文档、测试、配置和门岗自身不需要假装有 UI 证据。
+ */
+export function deriveUiVerification({ files = [], baseBoards = null, headBoards = null, explicit = null } = {}) {
+  if (explicit && typeof explicit === 'object') return explicit
+  const normalized = files.map((file) => norm(file.path))
+  const uiFiles = normalized.filter((file) => UI_SOURCE.test(file) || UI_MANIFEST.test(file))
+  const productUiFiles = uiFiles.filter((file) => !NON_PRODUCT.test(file))
+  if (!productUiFiles.length) return { known: true, changed: false, reason: '改动没有界面候选文件' }
+  const base = typeof baseBoards === 'function' ? baseBoards() : baseBoards
+  const head = typeof headBoards === 'function' ? headBoards() : headBoards
+  const compared = compareBoardManifests(base, head)
+  if (!compared.known) return { known: false, changed: null, reason: `${compared.reason}；界面候选文件有改动` }
+  return { ...compared, reason: `${compared.reason}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
+}
+
+const HARD_PATH = /(?:security|credential|secret|auth|permission|crash|panic|fatal|schema|migrat|persist|projectFile|projectStore|projectVersion|direction-check)/i
+const HARD_BODY = /(?:数据格式|安全|崩溃|crash|security|data[- ]format|direction[- ]check)/i
+
+/**
+ * 三档判定的唯一实现：声明只是候选，硬线和 base/head 清单核实拥有最终否决权。
+ * unknown、声明冲突、核实冲突全部 fail-closed 到严档。
+ */
+export function evaluateProcessTier({ body, files = [], inferred, ledgerTransitions = [], uiVerification = null } = {}) {
+  const declaration = parseChangeIntent(body)
+  const normalized = files.map((file) => norm(file.path))
+  const hard = []
+  const addHard = (reason) => { if (!hard.includes(reason)) hard.push(reason) }
+  const classes = new Set(inferred?.classes ?? [])
+  if (classes.has('花钱')) addHard('花钱路径')
+  if (classes.has('长跑') || classes.has('可打断')) addHard('长跑 / 可打断路径')
+  if ((inferred?.categories ?? []).some((category) => category.id === 'data-format')) addHard('数据格式路径')
+  if (normalized.some((file) => HARD_PATH.test(file)) || HARD_BODY.test(String(extractSection(body, INTENT_SECTION) || ''))) addHard('安全 / 崩溃 / 方向检查路径')
+  if (ledgerTransitions.length) addHard(`逃逸账本转 fixed：${ledgerTransitions.join('、')}`)
+
+  const ui = uiVerification && typeof uiVerification === 'object' ? uiVerification : null
+  if (!declaration.present) addHard('缺少变更意图声明')
+  if (declaration.present && declaration.candidateTier === PROCESS_TIERS.SHORT && !declaration.pureFix && declaration.intentKind !== 'non-product') addHard('短档声明不是纯修复 / 纯文档 / 测试 / 配置')
+  if (declaration.present && !declaration.singleIntent) addHard(declaration.reason || '不是单一意图')
+  if (declaration.present && !declaration.candidateTier) addHard('候选档位无法识别')
+  if (declaration.candidateTier === PROCESS_TIERS.SHORT) {
+    if (!ui || ui.known !== true) addHard(`界面差异核实未知：${ui?.reason || '未提供 base/head 清单核实'}`)
+    else if (ui.changed !== false) addHard(`界面差异核实不通过：${ui.reason || '发现界面清单差异'}`)
+    if (!declaration.uiAssertion || !/无(?:界面|UI)差异|no\s+ui\s+diff/i.test(declaration.uiAssertion)) addHard('短档缺少“界面核实：无界面差异”声明')
+  }
+  if (declaration.candidateTier === PROCESS_TIERS.STRICT) addHard('提交人选择严档')
+  const candidate = declaration.candidateTier
+  const tier = hard.length ? PROCESS_TIERS.STRICT : candidate === PROCESS_TIERS.SHORT ? PROCESS_TIERS.SHORT : candidate === PROCESS_TIERS.STANDARD ? PROCESS_TIERS.STANDARD : PROCESS_TIERS.STRICT
+  const lines = []
+  lines.push(`· 流程档位：${tier === PROCESS_TIERS.SHORT ? '短' : tier === PROCESS_TIERS.STANDARD ? '标准' : '严'}（候选：${candidate || '未知'}）`)
+  if (hard.length) lines.push(`· 严档触发项：${hard.join('；')}`)
+  else lines.push('✅ 流程档位：声明与门岗核实一致，无严档硬线')
+  const ok = declaration.present && Boolean(candidate) && declaration.singleIntent
+  return { tier, candidate, hard, declaration, uiVerification: ui, ok, lines }
+}
 
 export function loadRoutingTable(root = repoRoot) {
   return JSON.parse(fs.readFileSync(path.join(root, ROUTING_FILE), 'utf8'))

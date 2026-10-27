@@ -37,6 +37,7 @@ A remediation is complete only when evidence connects all of these:
 8. For third-party behavior, inspect current official documentation, source, installed versions, and platform/package drift. Choose `upgrade-now`, `retain-with-exit`, or `not-applicable`; retention requires a target and testable exit criteria.
 9. Read `references/contract-v3.template.json`, then create or update a schema-v3 `docs/fixes/*.root-cause.json` before a recurring or high-risk production fix. Preserve the template's exact field names, object shapes, and enums; every changed high-risk production file must be covered by `scope_paths`.
 10. Add the failing reported-case test and at least one class-level test. Run only this red slice before implementation.
+   门岗反例夹具只截取本次相关片段；不要把整份旧规则 / 旧文件复制进夹具。先证明夹具会红，按字节还原后再证明回绿。
 11. For recurring repairs, enforce the invariant at the shared boundary and list changed structural code in `prevention.artifacts`. Delete obsolete behavior in the same change; tests, documentation, and fallback paths are not structural prevention.
 12. Run the changed class tests and `pnpm run check:root-cause-contracts`. After the logical batch is stable, run the risk-selected repository validation once.
 
