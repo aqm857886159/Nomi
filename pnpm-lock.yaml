@@ -349,6 +349,9 @@ importers:
       swr:
         specifier: ^2.4.1
         version: 2.4.1(react@19.3.0)
+      tabbable:
+        specifier: 6.5.0
+        version: 6.5.0
       tailwind-merge:
         specifier: ^2.6.1
         version: 2.6.1

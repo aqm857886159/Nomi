@@ -1,0 +1,37 @@
+{
+  "name": "把光标交给常驻 Agent 输入框：请求方只发请求，输入框的主人在编辑器实例上落焦点",
+  "subject": "agent-panel.composer-focus",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/residentComposerFocus.ts",
+    "symbol": "requestResidentComposerFocus"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/residentComposerFocus.ts",
+      "symbol": "requestResidentComposerFocus"
+    },
+    {
+      "path": "src/workbench/ai/residentComposerFocus.ts",
+      "symbol": "useResidentComposerFocusRequest"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "focusComposerSoon",
+      "kind": "definition",
+      "why": "外壳按 textarea 在页面里找 Agent 输入框再聚焦的旧写法（2026-10-27 删）：输入框换成富文本编辑器后五扇入口静默失效 15 天。聚焦只经 requestResidentComposerFocus。"
+    }
+  ],
+  "parity_test": "src/workbench/ai/residentComposerFocus.test.tsx",
+  "allowed_consumers": [
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx"
+  ],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-agent-composer-focus.root-cause.json。⌘J、点小球、浮窗 / 停靠切换、小球右键菜单与空态起手句都只调 requestResidentComposerFocus()；输入框的主人 ProjectAgentResidentShell 用 useResidentComposerFocusRequest 在 mentions.editorRef 的编辑器实例上落焦点，以 editor.view.hasFocus() 为准、每帧重试（小球形态时面板挂在 hidden 容器里，按下那一帧必然落空），试满 30 帧丢掉请求并记 resident-composer-focus-expired，之后不抢焦点；切项目清掉未取走的请求（store 字段寿命 project）。外壳不在页面里找输入框，这一类写法由 delivery.focus-by-input-impl 的 ESLint 规则拦。"
+}

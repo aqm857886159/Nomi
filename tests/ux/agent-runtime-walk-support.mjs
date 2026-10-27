@@ -110,6 +110,16 @@ export async function composerText(input) {
 export async function expectComposerText(input, text, message) {
   await expect.poll(() => composerText(input), { message, timeout: DEFAULT_TIMEOUT_MS }).toBe(text)
 }
+/**
+ * 焦点在 `scope` 这块面板的 Agent 输入框里：按 composer 自己的锚点 + 富文本编辑器（contenteditable）判，不按标签名——
+ * 输入框换过形态（textarea → PromptEditor），按 TEXTAREA 判的走查从那天起每晚红（docs/fixes/2026-10-27-agent-composer-focus.root-cause.json）。
+ */
+export async function expectComposerFocused(page, scope, message, timeout = DEFAULT_TIMEOUT_MS) {
+  await expect.poll(() => page.evaluate(({ panel, input }) => {
+    const active = document.activeElement
+    return active instanceof HTMLElement && active.isContentEditable && active.matches(input) && Boolean(active.closest(panel))
+  }, { panel: scope, input: `${COMPOSER} ${COMPOSER_INPUT}` }), { message, timeout }).toBe(true)
+}
 /** 运行中那颗钮就是 `send`：`data-mode="running"` 时它是停止。别再找第二个 `stop` 挂点。 */
 export const COMPOSER_STOP = `${COMPOSER}[data-mode="running"] ${COMPOSER_SEND}`
 export const COMPOSER_ADD_FILE = '[data-v4-control="add-file"]'

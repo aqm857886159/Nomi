@@ -22,6 +22,7 @@ import {
   AGENT_PANEL, backToLibrary, canvasAddBar, canvasFitViewButton, canvasToggleFrameTool, canvasViewOption, canvasZoomPercent, canvasZoomStep,
   closeCanvasViewOptions, openCanvasViewOptions, canvasResetView, canvasSetZoomPercent,
 } from './_shell.mjs'
+import { CANVAS_PANEL, COMPOSER_INPUT, expectComposerFocused, expectComposerText } from './agent-runtime-walk-support.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'shots/shell-redesign')
@@ -409,6 +410,7 @@ try {
   if (want('canvas-agent') || want('chrome-assets') || want('chrome-rail-collapsed')) {
     await clickOrFail(win.locator('[data-agent-ball]'), '点小球打开浮窗')
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '浮窗没有打开').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectComposerFocused(win, CANVAS_PANEL, '点小球打开浮窗后焦点不在 Agent 输入框', stationTimeout())
     await win.waitForTimeout(700)
     measures.float = await box(win, '[data-agent-float="generation"]')
     await shoot(win, 'canvas-agent')
@@ -456,11 +458,21 @@ try {
   if (want('check-shortcuts')) {
     await expect(win.locator('[data-agent-ball]'), '快捷键前应是小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await win.locator('.workbench-generation__canvas').click({ position: { x: 500, y: 60 } })
-    await win.keyboard.press('Control+J')
-    await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Ctrl+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await expect.poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('#project-agent-resident') && document.activeElement?.tagName === 'TEXTAREA')),
-      { message: 'Ctrl+J 打开后焦点不在 Agent 输入框', timeout: stationTimeout() }).toBe(true)
+    await win.keyboard.press('ControlOrMeta+J')
+    await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Mod+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+    await expectComposerFocused(win, CANVAS_PANEL, 'Mod+J 打开后焦点不在 Agent 输入框', stationTimeout())
+    // 用户按完 Mod+J 直接打字：字得落进输入框（键盘打，不经输入框的 locator——那会先替它点一下）。
+    const input = win.locator(`${CANVAS_PANEL} ${COMPOSER_INPUT}`)
+    const typed = T('把第三镜的光调暗一点', 'Dim the light on shot three')
+    await win.keyboard.type(typed)
+    await expectComposerText(input, typed, 'Mod+J 后直接打字，字没进 Agent 输入框')
     await shoot(win, 'check-mod-j')
+    // 已经开着再按一次：不重开、不丢字，焦点还在输入框里。
+    await win.keyboard.press('ControlOrMeta+J')
+    await expectComposerFocused(win, CANVAS_PANEL, '开着时再按 Mod+J，焦点离开了 Agent 输入框', stationTimeout())
+    await expectComposerText(input, typed, '开着时再按 Mod+J，输入框里的字变了')
+    await input.fill('')
+    await expectComposerText(input, '', '清空 Agent 输入框没清掉')
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), 'Ctrl+\\ 没把浮窗收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '切停靠前小球确实在')

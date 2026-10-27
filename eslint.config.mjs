@@ -25,6 +25,14 @@ import {
   UI_MONEY_FILES,
   UI_MONEY_TEST_FILES,
 } from './scripts/ui-money-format.mjs'
+import {
+  FOCUS_BY_INPUT_IMPL_EXITS,
+  FOCUS_BY_INPUT_IMPL_SELECTORS,
+  FOCUS_LOOKUP_FILES,
+  FOCUS_LOOKUP_TEST_FILES,
+  WALK_FOCUS_BY_TAG_SELECTORS,
+  WALK_FOCUS_FILES,
+} from './scripts/focus-by-tag-lookup.mjs'
 
 // 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
 // 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
@@ -184,6 +192,12 @@ const uiMoneyPlugin = { rules: {
   'no-restricted-syntax': builtinRules.get('no-restricted-syntax'),
   'no-restricted-imports': builtinRules.get('no-restricted-imports'),
 } }
+
+// ⑤ 聚焦输入框只经它的主人（2026-10-27）：不按输入框的实现（标签名 / contenteditable / 编辑器类名）在页面里找它再 .focus()；
+// 走查也不按标签名判焦点、认输入框。选择器与现存名单住 scripts/focus-by-tag-lookup.mjs（名单只减不增，由
+// scripts/focus-by-tag-lookup.test.mjs 按同一组选择器普查全 src 卡死）。同 ② 的做法独立注册内置规则：只有下面两个块配置这个规则 id
+// （渲染层一块、走查一块，文件范围不重叠），别的块里同名规则的选项盖不到它。
+const focusOwnerPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 
 /**
  * 每个 no-restricted-syntax 都经这里拼：flat config 里后面的对象会**整条覆盖**前面同名规则的选项，
@@ -457,6 +471,19 @@ export default tseslint.config(
     ignores: [...UI_MONEY_TEST_FILES, FORMAT_MONEY_MODULE, ...Object.keys(FORMAT_MONEY_IMPORTERS)],
     plugins: { 'ui-money': uiMoneyPlugin },
     rules: { 'ui-money/no-restricted-imports': ['error', { patterns: [FORMAT_MONEY_IMPORT_PATTERN] }] },
+  },
+  {
+    // 聚焦输入框只经它的主人（见上面 ⑤）：名单外的渲染层源码一处都不许有。
+    files: FOCUS_LOOKUP_FILES,
+    ignores: [...FOCUS_LOOKUP_TEST_FILES, ...Object.keys(FOCUS_BY_INPUT_IMPL_EXITS)],
+    plugins: { 'focus-owner': focusOwnerPlugin },
+    rules: { 'focus-owner/no-restricted-syntax': ['error', ...FOCUS_BY_INPUT_IMPL_SELECTORS] },
+  },
+  {
+    // 走查判焦点、认输入框不按标签名（见上面 ⑤）：Agent 输入框经 expectComposerFocused()。
+    files: WALK_FOCUS_FILES,
+    plugins: { 'focus-owner': focusOwnerPlugin },
+    rules: { 'focus-owner/no-restricted-syntax': ['error', ...WALK_FOCUS_BY_TAG_SELECTORS] },
   },
   {
     // Playwright isVisible / isHidden 不许当值取出来（见上面 playwrightAliasSelectors 的说明）；只有这一个块配置这个规则 id。

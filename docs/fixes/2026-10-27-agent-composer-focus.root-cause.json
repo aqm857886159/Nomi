@@ -1,0 +1,256 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-agent-composer-focus",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-27",
+  "problem_type": "调用方按输入框当时的实现（标签名 textarea / input / select，或编辑器的 contenteditable）在页面里找它再聚焦；输入框换了实现就找不到，而且静默。",
+  "symptom": "按 ⌘J（Mod+J）打开 Agent 后焦点留在 BODY，得先点一下输入框才能打字；点小球、浮窗 / 停靠切换、小球右键菜单打开 Agent 同样不落焦点。夜跑 tests/ux/shell-redesign.walk.mjs 的 check-shortcuts 站从 2026-10-12 起每晚红。",
+  "direct_cause": "src/ui/app-shell/shell/ShellAgentHost.tsx 的 focusComposerSoon 找 `#project-agent-resident textarea`；ed086ea3e（2026-10-12）把 Agent 输入框换成 TipTap PromptEditor（contenteditable）后页里没有 textarea，找满 20 帧什么也不做。走查按 activeElement.tagName === 'TEXTAREA' 判，同样随实现过期。",
+  "class_root": "聚焦一个输入框没有经它的主人：外壳、设置深链、找参考面板、能力表单各自在 DOM 里按标签名找输入框。字符串选择器类型系统看不见——ed086ea3e 改了 inputRef 的类型，经类型的调用方都跟着改了，按字符串找的那一处没人知道；走查也按实现判焦点，红在夜跑 117 / 329 条红里（#1121）15 天没被认出是真 bug。没有任何门岗拦「按输入框实现找它再聚焦」这个写法。",
+  "affected_population": [
+    "所有用 ⌘J / Ctrl+J、点 Agent 小球、切浮窗 / 停靠打开 Agent 的用户（中英界面、生成画布 / 创作 / 预览各面）",
+    "从素材库、自动化状态、模型提示等深链进设置某一节的用户（焦点落在这一节第一个控件上）",
+    "以后在渲染层写「找到输入框再聚焦」的任何组件"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/residentComposerFocus.ts",
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "src/workbench/assets/FindReferencePanel.tsx",
+    "src/design/searchInput.tsx",
+    "src/workbench/settings/SettingsDialog.tsx",
+    "src/ui/onboarding/ModelCapabilityEditor.tsx",
+    "scripts/focus-by-tag-lookup.mjs",
+    "eslint.config.mjs"
+  ],
+  "entry_points": [
+    "ShellAgentHost：Mod+J、点小球、浮窗 / 停靠切换、小球右键「浮窗 / 停靠」五处都只调 requestResidentComposerFocus()",
+    "ProjectAgentResidentShell：空态起手句（startFromStarter）同样发请求；输入框的主人用 useResidentComposerFocusRequest 每帧试着把光标交给自己的编辑器实例",
+    "SettingsDialog 深链（initialSection）与 ModelCapabilityEditor 校验失败跳字段：tabbable 取第一个能 Tab 到的控件",
+    "FindReferencePanel 关键词框：经 DesignSearchInput 的 ref",
+    "src/ 渲染层任何「查询输入框实现 → .focus()」写法，以及 tests/ux、evals 里任何按标签名判焦点 / 认输入框的写法（ESLint focus-owner/no-restricted-syntax，渲染层与走查各一个配置块）"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/residentComposerFocus.ts",
+    "tests": [
+      "src/workbench/ai/residentComposerFocus.test.tsx",
+      "scripts/focus-by-tag-lookup.test.mjs"
+    ],
+    "why": "常驻 Agent 面板是 react-reverse-portal 里的一棵稳定树，小球形态时它挂在 hidden 容器里、点开后才移进浮窗 / 停靠容器；只有面板自己拿着编辑器实例、知道它什么时候真能聚焦。请求 store 让外壳只说「要聚焦」，由主人每帧试到 editor.view.hasFocus() 成立为止；同类的其它输入框由各自的 ref / tabbable 负责，写法由 focus-by-tag-lookup 的 ESLint 规则守。"
+  },
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/ueberdosis/tiptap/blob/v3.23.5/packages/core/src/commands/focus.ts",
+      "checked_at": "2026-10-27",
+      "purpose": "确认仓库锁定的 @tiptap/core 3.23.5 的 commands.focus 在桌面上经 requestAnimationFrame 才调 view.focus()（本机 node_modules 同版本源码）：同一帧里还看不到结果，所以主人在 commands.focus('end') 之后再同步调 view.focus()，以 view.hasFocus() 判是否落上。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/focus-trap/tabbable/blob/v6.5.0/README.md",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 tabbable(container, { includeContainer }) 按 Tab 顺序返回可 Tab 到的元素，跳过 disabled / hidden / inert / tabindex=-1，认得 contenteditable；默认 displayCheck 'full' 依赖真实布局（jsdom 不支持，故深链焦点在真 Electron 走查里验）。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/eslint/eslint/blob/v10.4.1/lib/rules/no-restricted-syntax.js",
+      "checked_at": "2026-10-27",
+      "purpose": "确认仓库锁定的 eslint 10.4.1 的 no-restricted-syntax 按 esquery 选择器报告节点（本机同版本源码与反例表实跑）：写法按语法树认，以独立规则 id focus-owner/no-restricted-syntax 注册，不与仓库其它 no-restricted-syntax 配置互相覆盖。"
+    }
+  ],
+  "invariants": [
+    "Agent 输入框的焦点只经它的主人：外壳与起手句只调 requestResidentComposerFocus()；主人在编辑器实例上落焦点，以 editor.view.hasFocus() 为准，试满 30 帧仍落不上就丢掉请求并记 resident-composer-focus-expired，不在之后抢焦点。",
+    "渲染层源码不按输入框的实现（标签名 input / textarea / select，或 [contenteditable] / .ProseMirror / .tiptap）查询 DOM 再聚焦；「区域里第一个能聚焦的控件」用 tabbable(container)[0]。现存两处登记在 scripts/focus-by-tag-lookup.mjs 的名单里，只减不增。",
+    "走查判焦点、认输入框不按标签名：Agent 输入框经 expectComposerFocused()（composer 锚点 + contenteditable），别的控件用 expect(locator).toBeFocused()；tests/ux 与 evals 现存 0 处，由同一个 ESLint 规则 id 的走查块拦。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/residentComposerFocus.ts",
+      "symbol": "useResidentComposerFocusStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "onEditorReady"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/FindReferencePanel.tsx",
+      "symbol": "focusKeyword"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/searchInput.tsx",
+      "symbol": "DesignSearchInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "symbol": "requestResidentComposerFocus"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "tabbable"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "useResidentComposerFocusRequest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "requestResidentComposerFocus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/residentComposerFocus.ts",
+      "symbol": "useResidentComposerFocusStore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "onEditorReady"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "tabbable"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 11,
+    "why_not": "修之前 Agent 输入框有两套各自的聚焦机制：外壳的 focusComposerSoon（按 textarea 找，door-map 在 HEAD 上数出写 1 扇）和面板自己的 starterFocusToken / composerInputRef（读 2 扇）；另有 3 处匿名的「按标签找再聚焦」（SettingsDialog、ModelCapabilityEditor、FindReferencePanel，AST 普查数出）。现在 Agent 输入框只剩一套：外壳的 5 个调用点算一扇门，起手句与主人在同一个文件里各算一扇；多出来的门是这套机制本身——请求 store 的读写（residentComposerFocus.ts）、编辑器交给容器的 onEditorReady、搜索框把 <input> 交出去的 ref（DesignSearchInput）——它们替代的正是按字符串查 DOM。SettingsDialog、ModelCapabilityEditor、FindReferencePanel 聚焦的是三个不同的输入框，各有各的主人，不能合并成一扇。"
+  },
+  "generality_proof": "这一类的共同形状是「调用方用字符串描述别人的输入框长什么样」，失效发生在输入框换实现的那一天且没有报错。防线落在两层：①写法层——ESLint 在 src 渲染层按语法树拦查询输入框实现再聚焦的三种写法（直接链 .focus()、强转 / 非空 / 下标后 .focus()、存进变量再在同一函数里 .focus()），选择器认标签名也认 [contenteditable] / .ProseMirror / .tiptap，于是「换一个选择器接着猜」同样过不了；普查测试扫全 src，名单外 0 处、名单内处数卡死。②替代层——Agent 输入框经 residentComposerFocus 的请求由主人落焦点，以 view.hasFocus() 为准；区域首控件经 tabbable；单个输入框经 ref。走查侧同一个规则 id 的另一个配置块拦按标签名判焦点 / 认输入框，expectComposerFocused 是唯一出口，输入框再换形态只改那一处。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/residentComposerFocus.ts",
+      "symbol": "requestResidentComposerFocus",
+      "responsibility": "Agent 输入框聚焦的唯一入口：外壳与起手句只发请求；useResidentComposerFocusRequest 让主人每帧试、焦点真进了编辑器才清请求，试满 30 帧丢掉并记日志，切项目清掉未取走的请求。"
+    },
+    {
+      "path": "scripts/focus-by-tag-lookup.mjs",
+      "symbol": "FOCUS_BY_INPUT_IMPL_SELECTORS",
+      "responsibility": "「按输入框实现找它再聚焦」与「走查按标签名判焦点」两类写法的唯一判据，以及渲染层现存出口名单（eslint.config.mjs 的 focus-owner/no-restricted-syntax 两个块读它，普查测试按同一份数）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "entry_point": "Mod+J / 点小球 / FormSwitch / 小球右键菜单",
+      "disposition": "enforced",
+      "evidence": "focusComposerSoon 已删，五处都调 requestResidentComposerFocus()；修之前的原文件（scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt）在 scripts/focus-by-tag-lookup.test.mjs 里必红 1 处；真路径接线用例证明仓库 ESLint 在这个文件上报 focus-owner/no-restricted-syntax。"
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "startFromStarter（空态起手句）",
+      "disposition": "enforced",
+      "evidence": "starterFocusToken / composerInputRef 与 AgentPanelV4Composer 的 inputRef 属性已删，起手句改发同一个请求；主人 focusComposer 在 mentions.editorRef 的编辑器实例上落焦点，以 view.hasFocus() 为准（residentComposerFocus.test.tsx 6 例）。"
+    },
+    {
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "entry_point": "initialSection 深链聚焦",
+      "disposition": "enforced",
+      "evidence": "手写的 section.querySelector('button, input, [tabindex]') 换成 tabbable(section)[0]（旧列表不认 textarea / select / 富文本，也不跳禁用的）；tests/ux/tikhub-connector.walk.mjs 在真 Electron 里从素材库「贴链接导入」深链进 TikHub 那一节，断言焦点在这一节的控件上。"
+    },
+    {
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "entry_point": "校验失败跳到第一个出错字段",
+      "disposition": "enforced",
+      "evidence": "field.matches('input, textarea, button') ? field : field.querySelector('input, textarea, button') 换成 tabbable(field, { includeContainer: true })[0]；原写法的形状在 focus-by-tag-lookup.test.mjs 的反例表里必红。"
+    },
+    {
+      "path": "src/workbench/assets/FindReferencePanel.tsx",
+      "entry_point": "focusKeyword（关键词框）",
+      "disposition": "enforced",
+      "evidence": "包一层 div 再 inputRef.current?.querySelector('input')?.focus() 换成 DesignSearchInput 的 ref；src/design/searchInput.tsx 改为 forwardRef，ref 落在里面的 <input> 上。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "entry_point": "定位到某一镜后进那一行的提示词框",
+      "disposition": "enforced",
+      "evidence": "按 [data-prompt-box] [contenteditable=\"true\"] 找，现在能用；文件是 14 天第 3–4 个 fix 的热点，迁成行自己持有的编辑器实例要另做方向检查。登记在名单里 count 1，普查测试卡死处数，不能新增。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "entry_point": "行上按 Enter 进提示词框",
+      "disposition": "enforced",
+      "evidence": "同上，名单 count 1，普查卡死；迁移交协调另排。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodePromptFocus.ts",
+      "entry_point": "节点生成框的提示词聚焦请求",
+      "disposition": "not-affected",
+      "evidence": "已经是「请求 + 主人落焦点」的形状（本次 residentComposerFocus 照它的先例写），不按 DOM 找输入框；普查 0 处。"
+    },
+    {
+      "path": "src/ui/onboarding/useModelSettingsPageFocus.ts",
+      "entry_point": "模型设置页切页后的焦点回位",
+      "disposition": "not-affected",
+      "evidence": "落焦点的目标是主人声明的 [data-model-settings-autofocus] / [data-model-settings-back]，或按签名找回用户刚点过的那个控件（记与找都在同一版运行时 DOM 上），不是按某个输入框的实现去找它；手写的可聚焦列表记在残余风险里。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何组件都能写一句 document.querySelector('… textarea')?.focus()，类型系统和单测都看不见；输入框换实现（textarea → 富文本、input → 自绘控件）在这个仓库里已经发生过，还会再发生。不在写法层拦、不给主人入口，这一类会从下一个组件回来；走查若继续按标签名判，下一次同样会红在一片红里没人认。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs focusComposerSoon starterFocusToken composerInputRef（HEAD 快照）：写 1 扇读 2 扇；修后 node scripts/door-map.mjs requestResidentComposerFocus useResidentComposerFocusRequest useResidentComposerFocusStore onEditorReady tabbable focusKeyword：11 扇（含搜索框 ref 1 扇）。",
+      "AST 普查全 src 的「DOM 查询 → .focus()」：17 处；按输入框实现找的 6 处——本次改 4 处（ShellAgentHost、SettingsDialog、ModelCapabilityEditor、FindReferencePanel），分镜表 2 处冻结在名单里；其余按主人声明的 data 属性 / role 找。",
+      "scripts/focus-by-tag-lookup.test.mjs 普查全 src（1638 个文件）：命中只在名单的 2 个文件里各 1 处，名单外 0 处。",
+      "tests/ux 与 evals 全量：按标签名判焦点的写法只有 shell-redesign.walk.mjs 那一句（已换成 expectComposerFocused），scripts/focus-by-tag-lookup.test.mjs 的走查普查现为 0 处。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/focus-by-tag-lookup.mjs",
+    "invariant": "渲染层源码不按输入框的实现查询 DOM 再聚焦；名单只减不增。",
+    "failure_mode": "新写这种查询会被 ESLint focus-owner/no-restricted-syntax 报错（消息指向 residentComposerFocus / ref / tabbable）；名单内的文件处数多了或少了，scripts/focus-by-tag-lookup.test.mjs 的普查红；走查按标签名判焦点、认输入框被同一规则 id 的走查块报错。",
+    "exception_policy": "none",
+    "strategy": "同一份选择器数据驱动 ESLint 与普查测试；Agent 输入框的五扇入口同提交改走主人请求、删掉 focusComposerSoon 与起手句自己那套 token / ref；同类三处一起换成 tabbable / ref；走查侧加统一出口 expectComposerFocused，写法规则同样进 ESLint（按 10-22 门岗族方向 docs/audit/2026-10-22-gate-family-direction.md：写法类规则进 ESLint，不往自写的 check-walkthroughs 里加）。",
+    "artifacts": [
+      "scripts/focus-by-tag-lookup.mjs",
+      "eslint.config.mjs",
+      "src/workbench/ai/residentComposerFocus.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/residentComposerFocus.test.tsx",
+    "scripts/focus-by-tag-lookup.test.mjs",
+    "tests/ux/shell-redesign.walk.mjs",
+    "tests/ux/tikhub-connector.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/focus-by-tag-lookup.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/v4/AgentPanelV4Composer.tsx"
+    ],
+    "rationale": "focusComposerSoon（按 textarea 找输入框）、起手句自己的 starterFocusToken / composerInputRef、AgentPanelV4Composer 的 inputRef 属性都在本提交删除；三个文件本身保留为各自的 owner。"
+  },
+  "dependency_lifecycle": {
+    "decision": "upgrade-now",
+    "current": "tabbable 6.5.0 只作为 @mantine/core → @floating-ui/react 的间接依赖在树里",
+    "target": "tabbable 6.5.0 作为直接依赖（devDependencies，渲染层由 Vite 打包），与间接依赖同版本、锁文件只多一条 importer",
+    "rationale": "「区域里第一个能 Tab 到的控件」是通用能力（P0），不手写标签列表；锁同一个已在树里的版本，不引入新包体。6.5.1 于 2026-10-24 发布，不足两周，不追。",
+    "exit_criteria": [
+      "跟 @floating-ui/react 依赖的 tabbable 版本一起升级；若上游换掉 tabbable，本仓库直接依赖保留，按 README 重新核 includeContainer / displayCheck 语义"
+    ]
+  },
+  "migration": "不落盘、不迁移：聚焦请求是会话内状态（store 字段登记为 project 生命周期，切项目清空）；旧调用方同提交改完。",
+  "residual_risks": [
+    "分镜表两处（StoryboardShotTable.tsx、StoryboardShotRow.tsx）仍按 PromptEditor 内部的 contenteditable 找提示词框，名单冻结、不能新增；迁移需在热点文件上另做方向检查，交协调。",
+    "规则有意不拦：closest() 的结果先存进变量再聚焦、选择器字符串先放进变量再传、经别的函数间接返回再聚焦（scripts/focus-by-tag-lookup.mjs 文件头写明）。",
+    "useModelSettingsPageFocus.ts 的焦点回位用手写的可聚焦列表（不认 contenteditable），不在本类；可换 tabbable 的 isFocusable，交协调。",
+    "ModelCapabilityEditor 校验失败跳字段在真窗口里没走到（没有走查进得了能力表单的校验失败态），只由写法反例与类型保证；SettingsDialog 深链只验了 TikHub 那一节。",
+    "夜跑整体红（#1121，117 / 329）的信号疲劳不在本次范围：本次只让 shell-redesign 这一项回绿并把判据换成不随实现过期的写法。"
+  ]
+}

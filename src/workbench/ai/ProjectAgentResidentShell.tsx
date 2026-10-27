@@ -26,6 +26,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { useAgentReferenceMentions } from './resident/useAgentReferenceMentions'
 import { useComposerAttachments, COMPOSER_ATTACHMENT_ACCEPT } from './composer/useComposerAttachments'
 import { useResidentActivityStore } from './residentActivity'
+import { requestResidentComposerFocus, useResidentComposerFocusRequest } from './residentComposerFocus'
 import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
@@ -406,25 +407,30 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   }, [actions, draft])
 
   /**
+   * 输入框的焦点只在这里落（residentComposerFocus）：外壳的 Mod+J / 小球 / 形态切换、下面的起手句都只发请求。
+   * 已经在框里就不动光标；否则放到句末。返回的是焦点真的进了编辑器没有——小球形态下面板还在看不见的容器里，
+   * 这一帧落空，请求留到下一帧。
+   */
+  const focusComposer = React.useCallback((): boolean => {
+    const editor = mentions.editorRef.current
+    if (!editor || editor.isDestroyed) return false
+    if (editor.view.hasFocus()) return true
+    editor.commands.focus('end')
+    editor.view.focus()
+    return editor.view.hasFocus()
+  }, [mentions.editorRef])
+  useResidentComposerFocusRequest(focusComposer)
+
+  /**
    * 空态起手 chip：把那句话填进 composer 并把光标交给用户——**不发送**。
    *
    * 发送要花钱、要动项目，第一句话该由他自己按下去；chip 只负责替他省掉「不知道该说什么」。
-   * 聚焦走一个 token + effect，而不是在回调里直接 `focus()`：那一刻 `value` 还是旧的，
-   * 光标会落在字符串开头，用户接着打字就插在句首。effect 跑在同一次提交的 DOM 之后，
-   * 新句子已经在框里，才好把插入点放到末尾。
+   * 聚焦是请求而不是在回调里直接 `focus()`：那一刻 `value` 还是旧的，光标会落在字符串开头，
+   * 用户接着打字就插在句首。请求在这次提交之后才取，新句子已经在框里，插入点放到末尾。
    */
-  const composerInputRef = React.useRef<HTMLElement>(null)
-  const [starterFocusToken, setStarterFocusToken] = React.useState(0)
-  React.useEffect(() => {
-    if (!starterFocusToken) return
-    const node = composerInputRef.current
-    if (!node) return
-    node.focus()
-    mentions.editorRef.current?.commands.focus('end')
-  }, [starterFocusToken, mentions.editorRef])
   const startFromStarter = React.useCallback((prompt: string) => {
     setDraft(prompt)
-    setStarterFocusToken((token) => token + 1)
+    requestResidentComposerFocus()
   }, [setDraft])
 
   /**
@@ -633,7 +639,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onStop: actions.stop,
           onAddFile: () => attachmentApi.inputRef.current?.click(),
           onAddReference: pickReferenceOnCanvas,
-          inputRef: composerInputRef,
           onRemoveChip: removeComposerChip,
           modelLabel: data.modelLabel,
           skillSelected: Boolean(activeSkill || actions.selectedLibraryPrompt),

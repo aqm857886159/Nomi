@@ -1,6 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
+import { tabbable } from 'tabbable'
 import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../design'
@@ -138,9 +139,9 @@ export function SettingsDialog({
     const frame = window.requestAnimationFrame(() => {
       const section = contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
       section?.scrollIntoView({ block: 'center' })
-      if (automationPolicyLoaded) {
-        const focusTarget = section?.querySelector<HTMLElement>('button, input, [tabindex]')
-        focusTarget?.focus({ preventScroll: true })
+      if (automationPolicyLoaded && section) {
+        // 这一节第一个 Tab 得到的控件（跳过禁用 / 隐藏 / tabindex=-1，认得 textarea、select、富文本）——不手写标签列表。
+        tabbable(section)[0]?.focus({ preventScroll: true })
       }
     })
     return () => window.cancelAnimationFrame(frame)

@@ -8,7 +8,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 截图给人眼看（P3/R13）。**不调任何付费接口**：校验端点是免费账户端点；乱 key 只会被拒，不计费。
 // ⚠️ 正确 key 的「已连接 + 线路行」正路需要真 key + 真网，沙箱里给不了——本走查只验错误路径（任务允许），
 //    真 key 路径见文件末尾说明与 tikhub-connector.e2e（TIKHUB_E2E=1）。
-import { expectVisible, expectAbsent, proveProbe, clickOrFail, scopedText } from './_assert.mjs'
+import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail, scopedText } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
@@ -171,6 +171,13 @@ try {
 
   // 点开：无 key 时走「引导去设置」分支（现在深链跳到「模型」tab 的数据源区）。截当前态给人眼看。
   await pasteBtn.click()
+  // 深链落地：设置开在 TikHub 那一节，焦点在这一节里第一个能 Tab 到的控件上（SettingsDialog 按 tabbable 选，不手写标签列表）。
+  const linkedSection = win.locator('[role="dialog"][aria-modal="true"] [data-settings-section="tikhub-connector"]').first()
+  await expectVisible(linkedSection, '无 key 点「贴链接导入」没把设置开到 TikHub 那一节')
+  await expect.poll(() => linkedSection.evaluate((section) => section !== document.activeElement && section.contains(document.activeElement)),
+    { message: '深链到 TikHub 那一节后焦点不在这一节的控件上', timeout: stationTimeout() }).toBe(true)
+  const focused = await win.evaluate(() => { const el = document.activeElement; return `${el?.tagName.toLowerCase()}${el?.getAttribute('type') ? `[type=${el.getAttribute('type')}]` : ''} ${el?.getAttribute('aria-label') ?? el?.textContent?.trim().slice(0, 30) ?? ''}` })
+  console.log(`  ✅ 深链后焦点落在 TikHub 这一节的控件上 — ${focused}`)
   await win.waitForTimeout(700)
   await getWin().screenshot({ path: path.join(shotsDir, '04-paste-no-key-guides-to-settings.png') })
 

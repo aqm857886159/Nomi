@@ -1,4 +1,4 @@
-import React, { type JSX } from 'react'
+import React from 'react'
 import { IconSearch } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 
@@ -28,7 +28,8 @@ export type DesignSearchInputProps = {
   className?: string
 }
 
-export function DesignSearchInput({
+/** ref 落在里面那个 `<input>` 上：调用方要把光标交给它时用 ref，不去包一层再按标签名找。 */
+export const DesignSearchInput = React.forwardRef<HTMLInputElement, DesignSearchInputProps>(function DesignSearchInput({
   value,
   onChange,
   placeholder,
@@ -36,7 +37,7 @@ export function DesignSearchInput({
   size = 'sm',
   onKeyDown,
   className,
-}: DesignSearchInputProps): JSX.Element {
+}, ref) {
   return (
     <div
       className={cn(
@@ -48,6 +49,7 @@ export function DesignSearchInput({
     >
       <IconSearch size={size === 'md' ? 14 : 13} stroke={1.7} className="shrink-0 text-nomi-ink-30" aria-hidden />
       <input
+        ref={ref}
         type="search"
         value={value}
         placeholder={placeholder}
@@ -58,4 +60,4 @@ export function DesignSearchInput({
       />
     </div>
   )
-}
+})
