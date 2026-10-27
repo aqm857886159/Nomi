@@ -1,0 +1,37 @@
+{
+  "name": "Canonical generation parameters to declared wire fields",
+  "subject": "catalog.parameter-wire-translation",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/paramTranslate.ts",
+    "symbol": "applyParamMap"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "applyParamMap"
+    },
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "ratioResToOpenAiSize"
+    },
+    {
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "templateContext"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/providerOnboardingContract.test.ts",
+  "allowed_consumers": [
+    "electron/catalog/profileHttpRequest.ts",
+    "electron/catalog/multipartOperation.ts",
+    "electron/runtime.ts",
+    "electron/audioTaskRunner.ts"
+  ],
+  "since": "2026-10-27",
+  "notes": "applyParamMap owns execution of persisted ParamMap rules through the existing transform registry. ratioResToOpenAiSize owns its numeric policy within that registry; templateContext supplies authoritative TaskRequest.kind and canonical parameters without duplicating the policy. JSON and multipart share this path. Image bounds must not change persisted video dimensions. This concept does not own model-name selection, UI parameter aliases, catalog operation selection, or reference upload."
+}

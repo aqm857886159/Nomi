@@ -38,7 +38,7 @@ describe("ratioResToOpenAiSize", () => {
   });
 
   const ratios = GPT_IMAGE_2_ARCHETYPE.modes[0].params.find((param) => param.key === "aspect_ratio")!.options!
-    .map((option) => option.value).filter((ratio) => ratio !== "auto");
+    .map((option) => option.value).filter((ratio): ratio is string => typeof ratio === "string" && ratio !== "auto");
   it.each(ratios.flatMap((ratio) => ["1K", "2K", "4K"].map((tier) => [ratio, tier])))
     ("selectable %s / %s satisfies all GPT Image 2 size limits", (ratio, tier) => {
       const [width, height] = ratioResToOpenAiSize([ratio, tier])!.split("x").map(Number);
