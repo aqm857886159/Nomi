@@ -8,6 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { pathToFileURL } from 'node:url'
 
 import {
   addedLinesByFile,
@@ -25,8 +26,10 @@ import {
   paidSampleVerdict,
   requiredEvidence,
   routingEnforced,
+  processTieringEnforced,
   toolGaps,
 } from './pr-judgement-lib.mjs'
+import { createGateMutationHarness } from './gate-mutation-harness.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const table = loadRoutingTable()
@@ -209,6 +212,11 @@ test('整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿�
   assert.match(before.routing.lines.join('\n'), /⚠/)
   assert.doesNotMatch(before.routing.lines.join('\n'), /✖/)
   assert.equal(routingEnforced(null, table), true, '创建时间未知按已生效处理（fail-closed）')
+})
+
+test('流程档位生效日按协调会话时区核实：GitHub UTC 的 10-28 凌晨在途 PR 进入新规', () => {
+  assert.equal(processTieringEnforced('2026-10-27T21:26:05Z'), true)
+  assert.equal(processTieringEnforced('2026-10-27T15:59:59Z'), false)
 })
 
 test('规则与门岗改动范围：移到判据库后行为不变；旧 PR 也不吃路由宽限（#1032 型回退）', () => {
@@ -460,7 +468,7 @@ test('可打断：AbortController 只在产品代码（src / electron）里认�
 
 const INTENT = (tier = '短', intent = '纯修复', ui = '无界面差异') => `## 变更意图\n- 意图：${intent}\n- 候选档位：${tier}\n- 单一意图：是\n- 声明：${intent === '纯修复' ? '纯修复：不改用户可见元素、布局、文案' : '新增一项能力'}\n- 界面核实：${ui}\n`
 
-test('三档判定：声明 + base/head 清单核实；硬线永远严，核实未知 fail-closed', () => {
+test('三档判定：声明 + base/head 清单核实；硬线永远严，短档核实未知降标准', () => {
   const inferred = (files, added = '') => inferRoutes(files.map((path) => M(path)), added, table)
   const short = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']), uiVerification: { known: true, changed: false, reason: 'fixture parity' } })
   assert.equal(short.tier, 'short')
@@ -471,8 +479,8 @@ test('三档判定：声明 + base/head 清单核实；硬线永远严，核实�
   assert.match(changed.lines.join('\n'), /界面差异核实不通过/)
 
   const unknown = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']) })
-  assert.equal(unknown.tier, 'strict')
-  assert.match(unknown.lines.join('\n'), /核实未知/)
+  assert.equal(unknown.tier, 'standard')
+  assert.match(unknown.lines.join('\n'), /短档候选但界面差异核实未知，降为标准档/)
 
   const spend = evaluateProcessTier({ body: INTENT(), files: [M('electron/generation/spendLedger.ts')], inferred: inferred(['electron/generation/spendLedger.ts']), uiVerification: { known: true, changed: false } })
   assert.equal(spend.tier, 'strict')
@@ -480,6 +488,57 @@ test('三档判定：声明 + base/head 清单核实；硬线永远严，核实�
 
   const standard = evaluateProcessTier({ body: INTENT('标准', '新增功能', '有差异'), files: [M('electron/catalog/catalog.ts')], inferred: inferred(['electron/catalog/catalog.ts']), uiVerification: { known: true, changed: false } })
   assert.equal(standard.tier, 'standard')
+})
+
+test('r3：没声明的产品改动按标准；花钱、短档界面冲突、账本 fixed 仍严，短档界面未知降标准', () => {
+  const product = [M('src/workbench/timeline/clip.tsx')]
+  const productResult = evaluateProcessTier({ body: '## 做了什么\n改了时间轴交互\n', files: product, inferred: inferRoutes(product, '', table) })
+  assert.equal(productResult.tier, 'standard')
+  assert.equal(productResult.ok, true)
+  assert.doesNotMatch(productResult.lines.join('\n'), /缺少变更意图声明/)
+
+  const spend = [M('electron/generation/spendLedger.ts')]
+  const spendResult = evaluateProcessTier({ body: '', files: spend, inferred: { classes: ['花钱'], categories: [] } })
+  assert.equal(spendResult.tier, 'strict')
+  assert.match(spendResult.lines.join('\n'), /花钱路径/)
+
+  const unknown = evaluateProcessTier({ body: INTENT(), files: product, inferred: inferRoutes(product, '', table), uiVerification: { known: false, changed: null, reason: 'base/head 清单缺失' } })
+  assert.equal(unknown.tier, 'standard')
+  assert.match(unknown.lines.join('\n'), /降为标准档：base\/head 清单缺失/)
+
+  const changed = evaluateProcessTier({ body: INTENT(), files: product, inferred: inferRoutes(product, '', table), uiVerification: { known: true, changed: true, reason: '新增按钮' } })
+  assert.equal(changed.tier, 'strict')
+  assert.match(changed.lines.join('\n'), /界面差异核实不通过/)
+
+  const unchanged = evaluateProcessTier({ body: INTENT(), files: product, inferred: inferRoutes(product, '', table), uiVerification: { known: true, changed: false, reason: '清单一致' } })
+  assert.equal(unchanged.tier, 'short')
+
+  const fixed = evaluateProcessTier({ body: '', files: product, inferred: inferRoutes(product, '', table), ledgerTransitions: ['FB-r3-fixed'] })
+  assert.equal(fixed.tier, 'strict')
+  assert.match(fixed.lines.join('\n'), /逃逸账本转 fixed/)
+})
+
+test('r3 真红：三条旧判法逐字节变异会红，还原副本后回绿', () => {
+  const target = 'scripts/pr-judgement-lib.mjs'
+  const harness = createGateMutationHarness({ gate: target, shareDirs: ['docs', 'src', 'tests', 'evals', 'outputs', 'worker', 'workers', 'infra'] })
+  const run = (mutations, assertion) => harness.withMutation(mutations, () => {
+    const copy = harness.copyRootForTests()
+    const moduleUrl = pathToFileURL(path.join(copy, target)).href
+    const script = `import { evaluateProcessTier } from ${JSON.stringify(moduleUrl)}\nconst M = path => ({ path, status: 'M' })\nconst result = evaluateProcessTier(${JSON.stringify(assertion.input)}); if (${assertion.expect}) process.exit(0); process.exit(1)`
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: copy, encoding: 'utf8' })
+    return child.status === 0
+  })
+  const noDeclaration = { input: { body: '', files: [{ path: 'src/workbench/timeline/clip.tsx', status: 'M' }], inferred: { classes: [], categories: [] } }, expect: "result.tier === 'standard'" }
+  const money = { input: { body: '', files: [{ path: 'electron/generation/spendLedger.ts', status: 'M' }], inferred: { classes: ['花钱'], categories: [] } }, expect: "result.tier === 'strict'" }
+  const unknown = { input: { body: INTENT(), files: [{ path: 'src/workbench/timeline/clip.tsx', status: 'M' }], inferred: { classes: [], categories: [] } }, expect: "result.tier === 'standard'" }
+  const oldMissingDeclaration = "  const ui = uiVerification && typeof uiVerification === 'object' ? uiVerification : null"
+  const missingDeclarationMutation = `${oldMissingDeclaration}\n  if (!declaration.present && !autoShort) addHard('缺少变更意图声明')`
+  const oldUnknown = "      // 取不到两边清单只能证明不了短档；它不是产品风险硬线，降到标准让标准档证据承接。"
+  const unknownMutation = "      if (!ui || ui.known !== true) addHard(`界面差异核实未知：${ui?.reason || '未提供 base/head 清单核实'}`)"
+  const oldMoney = "  if (classes.has('花钱')) addHard('花钱路径')"
+  assert.equal(run([[target, oldMissingDeclaration, missingDeclarationMutation]], noDeclaration), false, '缺少声明恢复硬线后，未声明产品应真红')
+  assert.equal(run([[target, oldUnknown, unknownMutation]], unknown), false, 'UI 未知恢复判严后，短档未知应真红')
+  assert.equal(run([[target, oldMoney, '']], money), false, '去掉花钱硬线后，花钱改动应真红')
 })
 
 test('r2：纯文档 / 测试 / 配置无声明自动短档；逃逸账本 fixed 仍强制严档', () => {
@@ -497,6 +556,9 @@ test('r2：纯文档 / 测试 / 配置无声明自动短档；逃逸账本 fixed
   const tests = replay([M('tests/pr-judgement-lib.node-test.mjs')])
   assert.equal(tests.tier, 'short')
   assert.equal(tests.autoShort, true)
+  const electronTests = replay([M('electron/capabilityCore/sameShotOnceDoors.e2e.test.ts')])
+  assert.equal(electronTests.tier, 'short')
+  assert.equal(electronTests.autoShort, true)
   const config = replay([M('package.json')])
   assert.equal(config.tier, 'short')
   assert.equal(config.autoShort, true)

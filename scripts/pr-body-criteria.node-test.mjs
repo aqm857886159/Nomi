@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { checkEscapeContract, englishHeadingHint, evaluatePrBody, isGrandfathered, mergeReport } from './pr-body-criteria.mjs'
+import { evaluateProcessTier } from './pr-judgement-lib.mjs'
 
 const STAR = [
   '## 设计卡',
@@ -131,6 +132,18 @@ test('r2：旧严档正文向宽档单调兼容——9 格满足 5 格，独立�
   })
   assert.equal(short.blocked, false, short.lines.join('\n'))
   assert.match(short.lines.join('\n'), /流程档位：短/)
+})
+
+test('r3：未声明的产品改动进入标准档并接受标准卡与单线评审', () => {
+  const body = [STANDARD_CARD, '## 验收证据\n- 回放：tests/pr-judgement-lib.node-test.mjs\n', '## 单线评审\n- 评审线：R-process-tiering；结论：通过；报告：docs/evidence/process-tiering.md'].join('\n')
+  const result = evaluatePrBody({
+    body,
+    files: [{ path: 'electron/shared/logic.ts', status: 'M' }],
+    createdAt: '2026-10-28T00:00:00Z',
+  })
+  const process = evaluateProcessTier({ body, files: [{ path: 'electron/shared/logic.ts', status: 'M' }], inferred: result.judgement.inferred })
+  assert.equal(process.tier, 'standard', result.lines.join('\n'))
+  assert.equal(result.blocked, false, result.lines.join('\n'))
 })
 
 // 2026-10-10：#1136 正文写「加节点条等 #1133 合入后作为本 PR 后续提交」，没做就合了（逃逸账本 FB-20261010-shell-canvas-chrome-parity）。

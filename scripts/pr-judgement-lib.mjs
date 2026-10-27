@@ -27,8 +27,12 @@ export const PROCESS_TIERS = Object.freeze({ SHORT: 'short', STANDARD: 'standard
 export function processTieringEnforced(createdAt = null, enforce = false) {
   if (enforce || !createdAt) return true
   const time = new Date(createdAt).getTime()
-  const start = new Date(`${PROCESS_TIER_EFFECTIVE_FROM}T00:00:00Z`).getTime()
-  return !Number.isFinite(time) || !Number.isFinite(start) || time >= start
+  if (!Number.isFinite(time)) return true
+  // PR 创建日按协调会话所在的 Mac 时区解释；GitHub API 返回 UTC，10-28 凌晨（台北）开的在途 PR
+  // 必须和当天任务书一致地进入新规。`enforce` 仍供 CI / 历史回放明确强制新规。
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(time))
+  const date = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
+  return `${date.year}-${date.month}-${date.day}` >= PROCESS_TIER_EFFECTIVE_FROM
 }
 
 const INTENT_LINE = /^\s*[-*]?\s*(?:意图|intent)\s*[:：]\s*(.+)$/i
@@ -41,7 +45,7 @@ const STANDARD_WORD = /^(?:标准|standard|normal|中)$/i
 const STRICT_WORD = /^(?:严|严格|strict|full)$/i
 const UI_SOURCE = /^(?:src\/.*\.(?:tsx|ts|css|scss)|electron\/.*\.(?:tsx|ts|css|scss))$/i
 const UI_MANIFEST = /^docs\/design\/boards\//i
-const NON_PRODUCT = /^(?:docs\/.*|tests?\/.*|evals\/.*|\.github\/.*|scripts\/.*|fixtures\/.*|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt)))$/i
+const NON_PRODUCT = /^(?:docs\/.*|tests?\/.*|evals\/.*|\.github\/.*|scripts\/.*|fixtures\/.*|(?:[^/]+\.(?:md|json|ya?ml|toml|lock|txt))|.*\.(?:test|spec|e2e)\.[^.]+)$/i
 
 function normalizeTier(value) {
   const text = String(value ?? '').trim()
@@ -98,7 +102,7 @@ const HARD_BODY = /(?:数据格式|安全|崩溃|crash|security|data[- ]format|d
 
 /**
  * 三档判定的唯一实现：声明只是候选，硬线和 base/head 清单核实拥有最终否决权。
- * unknown、声明冲突、核实冲突全部 fail-closed 到严档。
+ * 未声明的产品改动按标准档承接；短档的 UI 核实未知降到标准，只有真实硬线或声明冲突升严。
  */
 export function evaluateProcessTier({ body, files = [], inferred, ledgerTransitions = [], uiVerification = null } = {}) {
   const declaration = parseChangeIntent(body)
@@ -117,23 +121,25 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
   const nonProductOnly = normalized.length > 0 && normalized.every((file) => NON_PRODUCT.test(file))
   const autoShort = !declaration.present && nonProductOnly && hard.length === 0
   const ui = uiVerification && typeof uiVerification === 'object' ? uiVerification : null
-  if (!declaration.present && !autoShort) addHard('缺少变更意图声明')
   if (declaration.present && declaration.candidateTier === PROCESS_TIERS.SHORT && !declaration.pureFix && declaration.intentKind !== 'non-product') addHard('短档声明不是纯修复 / 纯文档 / 测试 / 配置')
   if (declaration.present && !declaration.singleIntent) addHard(declaration.reason || '不是单一意图')
   if (declaration.present && !declaration.candidateTier) addHard('候选档位无法识别')
+  const shortUiUnknown = declaration.candidateTier === PROCESS_TIERS.SHORT && (!ui || ui.known !== true)
   if (declaration.candidateTier === PROCESS_TIERS.SHORT) {
-    if (!ui || ui.known !== true) addHard(`界面差异核实未知：${ui?.reason || '未提供 base/head 清单核实'}`)
-    else if (ui.changed !== false) addHard(`界面差异核实不通过：${ui.reason || '发现界面清单差异'}`)
-    if (!declaration.uiAssertion || !/无(?:界面|UI)差异|no\s+ui\s+diff/i.test(declaration.uiAssertion)) addHard('短档缺少“界面核实：无界面差异”声明')
+    if (shortUiUnknown) {
+      // 取不到两边清单只能证明不了短档；它不是产品风险硬线，降到标准让标准档证据承接。
+    } else if (ui.changed !== false) addHard(`界面差异核实不通过：${ui.reason || '发现界面清单差异'}`)
+    if (!shortUiUnknown && (!declaration.uiAssertion || !/无(?:界面|UI)差异|no\s+ui\s+diff/i.test(declaration.uiAssertion))) addHard('短档缺少“界面核实：无界面差异”声明')
   }
   if (declaration.candidateTier === PROCESS_TIERS.STRICT) addHard('提交人选择严档')
-  const candidate = autoShort ? PROCESS_TIERS.SHORT : declaration.candidateTier
-  const tier = hard.length ? PROCESS_TIERS.STRICT : candidate === PROCESS_TIERS.SHORT ? PROCESS_TIERS.SHORT : candidate === PROCESS_TIERS.STANDARD ? PROCESS_TIERS.STANDARD : PROCESS_TIERS.STRICT
+  const candidate = autoShort ? PROCESS_TIERS.SHORT : declaration.candidateTier || PROCESS_TIERS.STANDARD
+  const tier = hard.length ? PROCESS_TIERS.STRICT : shortUiUnknown ? PROCESS_TIERS.STANDARD : candidate === PROCESS_TIERS.SHORT ? PROCESS_TIERS.SHORT : candidate === PROCESS_TIERS.STANDARD ? PROCESS_TIERS.STANDARD : PROCESS_TIERS.STRICT
   const lines = []
   lines.push(`· 流程档位：${tier === PROCESS_TIERS.SHORT ? '短' : tier === PROCESS_TIERS.STANDARD ? '标准' : '严'}（候选：${candidate || '未知'}${autoShort ? '；文件清单自动核实为纯文档 / 测试 / 配置' : ''}）`)
+  if (shortUiUnknown) lines.push(`· 短档候选但界面差异核实未知，降为标准档：${ui?.reason || '未提供 base/head 清单核实'}`)
   if (hard.length) lines.push(`· 严档触发项：${hard.join('；')}`)
   else lines.push('✅ 流程档位：声明与门岗核实一致，无严档硬线')
-  const ok = autoShort || (declaration.present && Boolean(candidate) && declaration.singleIntent)
+  const ok = autoShort || !declaration.present || (Boolean(declaration.candidateTier) && declaration.singleIntent)
   return { tier, candidate, hard, declaration, autoShort, uiVerification: ui, ok, lines }
 }
 
