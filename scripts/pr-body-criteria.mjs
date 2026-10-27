@@ -53,19 +53,21 @@ const ENGLISH_HEADINGS = {
 export const englishHeadingHint = (body, heading) =>
   (ENGLISH_HEADINGS[heading]?.test(String(body || '')) ? `（正文里是英文标题，判据只认中文标题 \`## ${heading}\`，请改成中文）` : '')
 
-export function checkDesignCard(body, { tier = PROCESS_TIERS.STRICT, fourClass = tier === PROCESS_TIERS.STRICT } = {}) {
+export function checkDesignCard(body, options = {}) {
+  const tier = options.tier ?? PROCESS_TIERS.STRICT
+  const requiresAll = options.fourClass ?? tier === PROCESS_TIERS.STRICT
   const short = tier === PROCESS_TIERS.SHORT
   const section = extractSection(body, short ? '短版设计卡' : '设计卡') ?? (short ? extractSection(body, '设计卡') : null)
-  const required = tier === PROCESS_TIERS.STRICT || fourClass ? ALL_CELLS : STAR_CELLS
+  const required = requiresAll ? ALL_CELLS : STAR_CELLS
   const heading = short ? '短版设计卡' : '设计卡'
-  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## ${heading}\` 一节（${tier === PROCESS_TIERS.STRICT ? '严档 9 格' : '★ 格 1、2、3、4、9'}）${englishHeadingHint(body, heading)}`] }
+  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## ${heading}\` 一节（${requiresAll ? '严档 9 格' : '★ 格 1、2、3、4、9'}）${englishHeadingHint(body, heading)}`] }
   const link = /https?:\/\/\S+|docs\/\S+\.md/.exec(section)
   const missing = required.filter((n) => !cellFilled(cellContent(section, n)))
   if (missing.length === 0) return { ok: true, lines: [`✅ ${short ? '短版设计卡' : '设计卡'}：${required.length} 格都填了`] }
   if (link && missing.length === required.length) {
     return { ok: true, lines: [`⚠ 设计卡只放了链接（${link[0]}），格子内容要人工到链接里核对（${required.join('、')}）`] }
   }
-  return { ok: false, lines: [`✖ ${short ? '短版设计卡' : '设计卡'}缺格：${missing.join('、')}（要求：${tier === PROCESS_TIERS.STRICT ? '严档 9 格' : '★ 格 1、2、3、4、9'}；确实不适用写「不适用：理由」）`] }
+  return { ok: false, lines: [`✖ ${short ? '短版设计卡' : '设计卡'}缺格：${missing.join('、')}（要求：${requiresAll ? '严档 9 格' : '★ 格 1、2、3、4、9'}；确实不适用写「不适用：理由」）`] }
 }
 
 export function checkStandardReview(body, { tier } = {}) {
@@ -456,11 +458,12 @@ export function isGrandfathered({ createdAt, effectiveAt = RULES_EFFECTIVE_AT })
 /** 正文判据的逐行输出与是否判红；renderReport（合并前）和推送前各自加抬头 / 结论。 */
 export function renderBodyLines({ classification, process, design, standardReview = { ok: true, lines: [] }, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
   const lines = []
-  lines.push(...(process?.lines ?? [classification.fourClass ? `· 路径命中旧四类：${classification.classes.join('、')}` : '· 路径未命中旧四类']))
+  lines.push(...(process?.lines ?? [classification.fourClass ? `· 路径命中旧四类：${classification.classes.join('、')}` : '· 路径未命中旧四类（未命中，只查设计卡 ★ 格）']))
   const soften = (list) => (grandfathered ? list.map((line) => line.replace(/^✖/, '⚠')) : list)
   lines.push(...soften(design.lines))
   lines.push(...soften(standardReview.lines))
-  if (process?.tier === PROCESS_TIERS.STRICT && (!process.legacy || classification.fourClass)) lines.push(...soften(acceptance.lines))
+  const showAcceptance = process ? process.tier === PROCESS_TIERS.STRICT && (!process.legacy || classification.fourClass) : classification.fourClass
+  if (showAcceptance) lines.push(...soften(acceptance.lines))
   lines.push(...soften(escape.lines))
   lines.push(...promises.lines)
   // 路由（功能分类 / 验收证据）：生效日之前开的 PR 已在 routing.lines 里降成警告
@@ -472,8 +475,8 @@ export function renderBodyLines({ classification, process, design, standardRevie
   // 规则与门岗的改动范围不吃「规则生效前开的 PR」那条宽限：#1032 这种回退正是旧分支带出来的。
   lines.push(...scope.lines)
   if (grandfathered) lines.push('· 这是规则生效（#961 合并）之前开的 PR：缺项只给警告，不判红')
-  const needsLegacyAcceptance = process?.legacy && classification.fourClass
-  const blocked = !scope.ok || !promises.ok || routing.blocking || !board.ok || !perfPolicy.ok || !suppressions.ok || (!grandfathered && (!process?.ok || !design.ok || (!process?.legacy && process?.tier === PROCESS_TIERS.STANDARD && !standardReview.ok) || ((process?.tier === PROCESS_TIERS.STRICT && !process.legacy || needsLegacyAcceptance) && !acceptance.ok) || !escape.ok))
+  const needsLegacyAcceptance = process ? process.legacy && classification.fourClass : classification.fourClass
+  const blocked = !scope.ok || !promises.ok || routing.blocking || !board.ok || !perfPolicy.ok || !suppressions.ok || (!grandfathered && ((process && !process.ok) || !design.ok || (!process?.legacy && process?.tier === PROCESS_TIERS.STANDARD && !standardReview.ok) || ((process?.tier === PROCESS_TIERS.STRICT && !process.legacy || needsLegacyAcceptance) && !acceptance.ok) || !escape.ok))
   return { lines, blocked }
 }
 
