@@ -8,6 +8,7 @@ import type { AssetLocalizationEvent } from "../shared/assets/assetLocalizationE
 const PROGRESS_BROADCAST_INTERVAL_MS = 80;
 
 export type AssetCopyProgress = (copiedBytes: number, totalBytes: number) => void;
+export type AssetConversionProgress = (ratio: number) => void;
 
 /**
  * 带进度的文件拷贝：导入中节点的渐显是「已拷贝字节 / 总字节」驱动的，进度只能从真正搬字节的那一层来。
@@ -41,7 +42,7 @@ export function createAssetImportProgressReporter(input: {
   nodeId: string
   totalBytes: number
   previewUrl?: string
-}): { announce: () => void; report: AssetCopyProgress; finalize: () => void; setPreviewUrl: (url: string) => void } {
+}): { announce: () => void; report: AssetCopyProgress; convert: AssetConversionProgress; finalize: () => void; setPreviewUrl: (url: string) => void } {
   let lastSentAt = 0;
   let previewUrl = input.previewUrl;
   // 显示给用户的永远是**他选的那个文件**的大小。视频先归一化再拷贝时，拷的是转码产物
@@ -71,6 +72,12 @@ export function createAssetImportProgressReporter(input: {
       const now = Date.now();
       if (ratio < 1 && now - lastSentAt < PROGRESS_BROADCAST_INTERVAL_MS) return;
       send(ratio);
+    },
+    convert: (ratio) => {
+      phase = "converting";
+      const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
+      if (clamped < lastRatio && phase === "converting") return;
+      send(clamped);
     },
     // 收尾段（W-08）：比例满了但事情没完，那 ~5 秒此前对用户是「100% 还在转」。
     // 它没有可测的分母（哈希要重读一遍整个文件、落库和预览认领时长各不相同），

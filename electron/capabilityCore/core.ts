@@ -69,6 +69,7 @@ export async function importProjectAsset(input: {
   projectId: string
   path: string
   title?: string
+  signal?: AbortSignal
 }): Promise<{
   url: string
   name: string
@@ -112,7 +113,7 @@ export async function importProjectAsset(input: {
   try {
     record = (await importLocalFile(
       { projectId: input.projectId, sourcePath: verdict.realPath, fileName, contentType, kind: 'imported' },
-      { allowSourcePath: true },
+      { allowSourcePath: true, ...(input.signal ? { signal: input.signal } : {}) },
     )) as typeof record
   } catch (error) {
     if (error instanceof MediaImportRejectedError) throw new Error(mcpImportRejectionMessage(fileName, error.rejection))

@@ -17,9 +17,10 @@ export type AssetLocalizationEvent = {
   previewUrl?: string;
   /**
    * 导入的哪一段。省略 = 老版本主进程（渲染层按 `copying` 对待，行为不变）。
-   * · `preparing` 一个字节都还没搬（读头、ffprobe、转码）
+   * · `preparing` 一个字节都还没搬（读头、ffprobe）
+   * · `converting` 正在换容器或重编码，比例来自 ffmpeg 的已转时长 / 总时长
    * · `copying`   正在搬字节，比例有意义
    * · `finalizing` 字节搬完了，还在做哈希 / 落库 / 认领预览——**比例已经是 1，但事情没完**
    */
-  phase?: "preparing" | "copying" | "finalizing";
+  phase?: "preparing" | "converting" | "copying" | "finalizing";
 };

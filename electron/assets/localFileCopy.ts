@@ -27,6 +27,7 @@ export async function importLocalFilePaths(
   projectId: string,
   sourcePaths: readonly string[],
   surface: MediaImportSurfaceId = "asset-library",
+  options: { signal?: AbortSignal } = {},
 ): Promise<LocalFileImportBatchResult> {
   const result: LocalFileImportBatchResult = { created: [], rejected: [], failedCount: 0 };
   for (const sourcePath of sourcePaths) {
@@ -34,9 +35,10 @@ export async function importLocalFilePaths(
     try {
       result.created.push(await importLocalFile(
         { projectId, sourcePath, fileName, contentType: resolveContentType(fileName), kind: "upload", surface },
-        { allowSourcePath: true },
+        { allowSourcePath: true, ...(options.signal ? { signal: options.signal } : {}) },
       ));
     } catch (error) {
+      if (options.signal?.aborted) throw error;
       if (error instanceof MediaImportRejectedError) result.rejected.push({ fileName, rejection: error.rejection });
       else result.failedCount += 1;
     }

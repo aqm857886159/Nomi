@@ -40,6 +40,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'tests/system/walks-never-trash-projects.test.mjs', roots: ['tests/ux', 'tests/system', 'scripts', 'evals', 'docs/evidence'] }, // ⑭：走查 / 脚本不许调产品删除项目口、点确认删除或直接 trashItem（会往用户真回收站塞垃圾）；遍历五个目录的脚本（<1 秒）
   { file: 'scripts/lib/buildGateScan.test.mjs', roots: ['tests'] }, // G-walk-build：tests/ 下起构建产物的入口都先核构建戳；遍历 tests（<1 秒）
   { file: 'electron/offLedgerEgress.structure.test.ts', roots: ELECTRON }, // #1156：新增 child_process 出网口没登记（5 秒）
+  { file: 'scripts/check-import-ffmpeg-owner.test.mjs', roots: ELECTRON }, // 2026-10-27：ffmpeg / ffprobe 子进程只经有界运行器起，直接起的旧门冻结只减不增；遍历 electron 非测试源码按语法树找（2 秒）
   { file: 'electron/capabilityCore/reservationAmountSingleExit.structure.test.ts', roots: ELECTRON }, // 2026-10-18：确认卡金额只许从 reservationMaximumForDisplay 出（遍历 electron 源码，1 秒）
   { file: 'electron/fileIdentity.test.ts', roots: ELECTRON }, // #1142：不许手写 dev / ino 比较（2 秒）
   { file: 'electron/shared/agentCapabilities/canvasReadShotTable.test.ts', roots: ['electron/shared/agentCapabilities', 'electron/agentLane', 'electron/capabilityCore'] }, // 2026-10-19：Agent 面只有 canvasReadShotTable.ts 读分镜表文档（遍历三目录，<1 秒）
