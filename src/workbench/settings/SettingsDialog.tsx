@@ -1,7 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
-import { tabbable } from 'tabbable'
 import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../design'
@@ -24,6 +23,7 @@ import { AutomationPermissionsSection } from './AutomationPermissionsSection'
 import { defaultAutomationPolicySettings } from './settingsAutomationView'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
 import { hasSettingsUnsavedChanges } from './settingsUnsavedChanges'
+import { focusSettingsSectionWhenReady } from './settingsSectionFocus'
 import { AttentionSoundSection } from './AttentionSoundSection'
 import { TelemetrySection } from './TelemetrySection'
 import { DiagnosticsBundleSection } from './DiagnosticsBundleSection'
@@ -134,17 +134,14 @@ export function SettingsDialog({
     return () => window.cancelAnimationFrame(frame)
   }, [tab])
 
+  // 深链：那一节可能还没挂出来（「模型」页懒加载），每帧试到焦点真的进了那一节为止（settingsSectionFocus）。
+  // 等自动化策略读完再开始：那之前「自动化」那一节的控件全是禁用的，落不上。
   React.useEffect(() => {
-    if (!initialSection) return
-    const frame = window.requestAnimationFrame(() => {
-      const section = contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
-      section?.scrollIntoView({ block: 'center' })
-      if (automationPolicyLoaded && section) {
-        // 这一节第一个 Tab 得到的控件（跳过禁用 / 隐藏 / tabindex=-1，认得 textarea、select、富文本）——不手写标签列表。
-        tabbable(section)[0]?.focus({ preventScroll: true })
-      }
+    if (!initialSection || !automationPolicyLoaded) return undefined
+    return focusSettingsSectionWhenReady({
+      dialog: () => dialogRef.current,
+      section: () => contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`) ?? null,
     })
-    return () => window.cancelAnimationFrame(frame)
   }, [automationPolicyLoaded, initialSection, tab])
 
   React.useEffect(() => {

@@ -20,6 +20,8 @@
     "src/workbench/assets/FindReferencePanel.tsx",
     "src/design/searchInput.tsx",
     "src/workbench/settings/SettingsDialog.tsx",
+    "src/workbench/settings/settingsSectionFocus.ts",
+    "src/workbench/settings/TikhubConnectorCard.tsx",
     "src/ui/onboarding/ModelCapabilityEditor.tsx",
     "scripts/focus-by-tag-lookup.mjs",
     "eslint.config.mjs"
@@ -67,6 +69,11 @@
   "doors": [
     {
       "kind": "read",
+      "path": "src/design/searchInput.tsx",
+      "symbol": "DesignSearchInput"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/ai/residentComposerFocus.ts",
       "symbol": "useResidentComposerFocusStore"
     },
@@ -82,8 +89,13 @@
     },
     {
       "kind": "read",
-      "path": "src/design/searchInput.tsx",
-      "symbol": "DesignSearchInput"
+      "path": "src/workbench/settings/TikhubConnectorCard.tsx",
+      "symbol": "data-settings-section-focus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/settingsSectionFocus.ts",
+      "symbol": "SECTION_FOCUS_TARGET_ATTRIBUTE"
     },
     {
       "kind": "write",
@@ -98,12 +110,12 @@
     {
       "kind": "write",
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "useResidentComposerFocusRequest"
+      "symbol": "requestResidentComposerFocus"
     },
     {
       "kind": "write",
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "requestResidentComposerFocus"
+      "symbol": "useResidentComposerFocusRequest"
     },
     {
       "kind": "write",
@@ -118,13 +130,13 @@
     {
       "kind": "write",
       "path": "src/workbench/settings/SettingsDialog.tsx",
-      "symbol": "tabbable"
+      "symbol": "focusSettingsSectionWhenReady"
     }
   ],
   "door_reduction": {
     "before": 6,
-    "after": 11,
-    "why_not": "修之前 Agent 输入框有两套各自的聚焦机制：外壳的 focusComposerSoon（按 textarea 找，door-map 在 HEAD 上数出写 1 扇）和面板自己的 starterFocusToken / composerInputRef（读 2 扇）；另有 3 处匿名的「按标签找再聚焦」（SettingsDialog、ModelCapabilityEditor、FindReferencePanel，AST 普查数出）。现在 Agent 输入框只剩一套：外壳的 5 个调用点算一扇门，起手句与主人在同一个文件里各算一扇；多出来的门是这套机制本身——请求 store 的读写（residentComposerFocus.ts）、编辑器交给容器的 onEditorReady、搜索框把 <input> 交出去的 ref（DesignSearchInput）——它们替代的正是按字符串查 DOM。SettingsDialog、ModelCapabilityEditor、FindReferencePanel 聚焦的是三个不同的输入框，各有各的主人，不能合并成一扇。"
+    "after": 13,
+    "why_not": "修之前 Agent 输入框有两套各自的聚焦机制：外壳的 focusComposerSoon（按 textarea 找，door-map 在 HEAD 上数出写 1 扇）和面板自己的 starterFocusToken / composerInputRef（读 2 扇）；另有 3 处匿名的「按标签找再聚焦」（SettingsDialog、ModelCapabilityEditor、FindReferencePanel，AST 普查数出）。现在 Agent 输入框只剩一套：外壳的 5 个调用点算一扇门，起手句与主人在同一个文件里各算一扇；多出来的门是这套机制本身——请求 store 的读写（residentComposerFocus.ts）、编辑器交给容器的 onEditorReady、搜索框把 <input> 交出去的 ref（DesignSearchInput）——它们替代的正是按字符串查 DOM。SettingsDialog、ModelCapabilityEditor、FindReferencePanel 聚焦的是三个不同的输入框，各有各的主人，不能合并成一扇。设置深链这一扇改成对话框经 settingsSectionFocus 发起、每帧试到焦点真的落进那一节（写一扇）；落在哪个控件由那一节自己声明（TikHub 卡的 data-settings-section-focus、settingsSectionFocus 认这个属性，各读一扇）——声明归那一节的主人，发起归对话框，不合并。"
   },
   "generality_proof": "这一类的共同形状是「调用方用字符串描述别人的输入框长什么样」，失效发生在输入框换实现的那一天且没有报错。防线落在两层：①写法层——ESLint 在 src 渲染层按语法树拦查询输入框实现再聚焦的三种写法（直接链 .focus()、强转 / 非空 / 下标后 .focus()、存进变量再在同一函数里 .focus()），选择器认标签名也认 [contenteditable] / .ProseMirror / .tiptap，于是「换一个选择器接着猜」同样过不了；普查测试扫全 src，名单外 0 处、名单内处数卡死。②替代层——Agent 输入框经 residentComposerFocus 的请求由主人落焦点，以 view.hasFocus() 为准；区域首控件经 tabbable；单个输入框经 ref。走查侧同一个规则 id 的另一个配置块拦按标签名判焦点 / 认输入框，expectComposerFocused 是唯一出口，输入框再换形态只改那一处。",
   "shared_boundaries": [
@@ -156,7 +168,7 @@
       "path": "src/workbench/settings/SettingsDialog.tsx",
       "entry_point": "initialSection 深链聚焦",
       "disposition": "enforced",
-      "evidence": "手写的 section.querySelector('button, input, [tabindex]') 换成 tabbable(section)[0]（旧列表不认 textarea / select / 富文本，也不跳禁用的）；tests/ux/tikhub-connector.walk.mjs 在真 Electron 里从素材库「找参考」框贴分享链接（无 key）深链进 TikHub 那一节，断言焦点在这一节的控件上、700ms 后仍在（这条走查的入口 09-10 起已过期——「贴链接导入」按钮并进了「找参考」——本次一并改到现在的家，否则走不到这一步）。"
+      "evidence": "两处一起改：①落在哪个控件——手写的 section.querySelector('button, input, [tabindex]') 换成「这一节自己声明的首要控件（data-settings-section-focus，TikHub 那一节是 Key 输入框）否则第一个 Tab 得到的控件（tabbable）」；②什么时候落——以前只在对话框自己状态变的那一刻试一次，那一节归懒加载的「模型」页渲染、那时还不在，焦点一直留在对话框后面（2026-10-27 诊断走查：main 上的写法与本分支第一版都落不上，进过设置晚约 20ms、第一次打开晚约 340ms），现在经 src/workbench/settings/settingsSectionFocus.ts 每帧试到焦点真的进了那一节为止、焦点已在对话框里就不抢、约 2 秒放弃（settingsSectionFocus.test.ts 6 条，三个写法反例各红一条）。真 Electron：tests/ux/tikhub-connector.walk.mjs 从素材库「找参考」框贴分享链接（无 key）深链进 TikHub 那一节，断言光标在 Key 输入框里、700ms 后仍在（这条走查的入口 09-10 起已过期——「贴链接导入」按钮并进了「找参考」——本次改到现在的家，否则走不到这一步）。"
     },
     {
       "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
@@ -220,6 +232,7 @@
   },
   "regression_tests": [
     "src/workbench/ai/residentComposerFocus.test.tsx",
+    "src/workbench/settings/settingsSectionFocus.test.ts",
     "scripts/focus-by-tag-lookup.test.mjs",
     "tests/ux/shell-redesign.walk.mjs",
     "tests/ux/tikhub-connector.walk.mjs",
@@ -252,7 +265,8 @@
     "走查侧一处冻结：tests/ux/canvas-follow-hand/scenarios-canvas.mjs 记「方向键挪卡前焦点在不在编辑器里」用 activeElement.closest('.ProseMirror, input, textarea')，是别的线的性能量具里的诊断字段（不是断言），本次不改；迁法写在名单旁。",
     "规则有意不拦：closest() 的结果先存进变量再聚焦、选择器字符串先放进变量再传、经别的函数间接返回再聚焦（scripts/focus-by-tag-lookup.mjs 文件头写明）。",
     "useModelSettingsPageFocus.ts 的焦点回位用手写的可聚焦列表（不认 contenteditable），不在本类；可换 tabbable 的 isFocusable，交协调。",
-    "ModelCapabilityEditor 校验失败跳字段在真窗口里没走到（没有走查进得了能力表单的校验失败态），只由写法反例与类型保证；SettingsDialog 深链只验了 TikHub 那一节。",
+    "ModelCapabilityEditor 校验失败跳字段在真窗口里没走到（没有走查进得了能力表单的校验失败态），只由写法反例与类型保证；SettingsDialog 深链只在真窗口验了 TikHub 那一节（另两节 automation / ai-models 走同一个 settingsSectionFocus，未逐节真跑）。",
+    "「请求方挑一个时刻聚焦一次、没人核焦点落没落上」这一面静态看不出来（门岗只拦按输入框实现找它）；靠两处主人一侧的帧重试（residentComposerFocus、settingsSectionFocus）和走查里核真焦点（expectComposerFocused、toBeFocused）兜。新的「打开某处后把光标交过去」照这两处写。",
     "夜跑整体红（#1121，117 / 329）的信号疲劳不在本次范围：本次只让 shell-redesign 这一项回绿并把判据换成不随实现过期的写法。"
   ]
 }

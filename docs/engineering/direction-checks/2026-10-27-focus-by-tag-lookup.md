@@ -14,6 +14,7 @@
 | ⌘J / 点小球 / 右键浮窗·停靠 / 头部三选一（`ShellAgentHost.focusComposerSoon`） | 找 `#project-agent-resident textarea`；10-12 输入框换成 PromptEditor 后页里没有 textarea，五扇门静默失效 15 天 | 按标签名找别人的输入框 |
 | 素材库找参考「改 / 换个词」（`FindReferencePanel.focusKeyword`） | 包一层 div 再 `querySelector('input')`；`DesignSearchInput` 一换形态就失效 | 同上 |
 | 设置页深链（`SettingsDialog`） | 手写 `button, input, [tabindex]` 当「第一个能聚焦的控件」：会挑到禁用钮（focus 无效）、`tabindex=-1`，认不得 textarea / select / 富文本 | 手写 tabbable 查询 |
+| 设置页深链（`SettingsDialog`，真跑 tikhub 走查后补） | 只在对话框自己状态变的那一刻试一次；那一节归懒加载的「模型」页渲染，那时还不在（实测晚 20–340ms），焦点一直留在对话框后面，main 上从来没落进去过 | 请求方挑时刻聚焦一次、没人核落没落上（⌘J 那条的另一面：`focusComposerSoon` 也是试 20 帧不核结果） |
 | 自定义模型能力表单（`ModelCapabilityEditor.focusFirstError`） | 手写 `input, textarea, button`，同上 | 手写 tabbable 查询 |
 | 分镜表定位到某镜 / 分镜行 Enter（`StoryboardShotTable`、`StoryboardShotRow`） | 找 `[data-prompt-box] [contenteditable="true"]` 进 PromptEditor 内部 | 按编辑器实现找别人的输入框（现在能用） |
 
@@ -51,6 +52,8 @@
 | 重写（限一个模块） | 把 nodePromptFocus 合并成通用「聚焦请求」，所有编辑器都经它 | 要改 `NodeGenerationComposer.tsx`（14 天第 4 个 fix 的热点）、分镜两处（热点） | 中：碰三个热点文件，要用户拍板 | |
 | 删 | 去掉 ⌘J 聚焦 | 无 | 用户要再点一下输入框，功能退化 | |
 
+设置深链的那一面（只试一次、不核结果）照 ⌘J 那条的办法收：对话框每帧试到焦点真的进了那一节为止（`src/workbench/settings/settingsSectionFocus.ts`，焦点已在对话框里就不抢、约 2 秒放弃）；落在哪个控件由那一节自己声明（`data-settings-section-focus`，同 `data-model-settings-autofocus`），没声明才取 tabbable 第一个——TikHub 那一节第一个能 Tab 到的是「去拿 Key」外链，没配 key 被带来的人要的是 Key 输入框。这一面静态看不出，门岗不拦，靠两处主人一侧的帧重试和走查核真焦点兜（根因合同 residual_risks）。
+
 残余：分镜表 / 分镜行两处 `[contenteditable]` 查找现在能用，但属同一类；两个文件都是热点（14 天第 3–4 个 fix），本刀不碰，冻结在 `scripts/focus-by-tag-lookup.mjs` 的名单里（只减不增，普查按处数卡死），迁成「行自己持有的编辑器实例」交协调另排。
 
 ### 7. 用户要权衡的核心
@@ -61,4 +64,5 @@
 
 - 修前的 `ShellAgentHost.tsx` 原文：`scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt`（门岗必红）。
 - 修前的走查断言（`tagName === 'TEXTAREA'`）：`scripts/focus-by-tag-lookup.test.mjs` 走查侧那一句原文必红。
-- 能力表单、设置页的「第一个控件」行为由 tabbable 自己的测试覆盖。tabbable 默认 `displayCheck: 'full'` 要真实布局，jsdom 不支持，本仓库的 node 测试环境做不了组件测，所以不补：设置页深链在真 Electron 的 `tests/ux/tikhub-connector.walk.mjs` 里断言焦点落在那一节的控件上；能力表单出错字段 未验证：没有走查进得了能力表单的校验失败态。
+- 能力表单、设置页的「第一个控件」行为由 tabbable 自己的测试覆盖。tabbable 默认 `displayCheck: 'full'` 要真实布局，jsdom 不支持，本仓库的 node 测试环境做不了组件测，所以不补：设置页深链在真 Electron 的 `tests/ux/tikhub-connector.walk.mjs` 里断言光标在 TikHub 那一节的 Key 输入框里；能力表单出错字段 未验证：没有走查进得了能力表单的校验失败态。
+- 设置深链的帧重试：`src/workbench/settings/settingsSectionFocus.test.ts`（6 条；只试一次 / 不核结果 / 焦点已在对话框里照样抢三个写法反例各红对应那条）。

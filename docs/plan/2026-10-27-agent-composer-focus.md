@@ -22,6 +22,7 @@
 - `src/ui/app-shell/shell/ShellAgentHost.tsx` 的 `focusComposerSoon` 用 `document.querySelector('#project-agent-resident textarea')` 找输入框，20 帧找不到就什么也不做。五处调用：Mod+J、点小球、小球右键「浮窗」「停靠」、面板头部「小球 · 浮窗 · 停靠」三选一。
 - `ed086ea3e`（10-12）把 Agent 输入框换成共享 `PromptEditor`（TipTap，`contenteditable`）。`inputRef` 的类型从 `HTMLTextAreaElement` 改成了 `HTMLElement`，带类型的调用者都跟着改了；字符串选择器类型系统看不见，五扇门同时静默失效。
 - `tests/ux/shell-redesign.walk.mjs` check-shortcuts 按 `activeElement.tagName === 'TEXTAREA'` 判，从那天起跑到就红（结构上过不了；实查 10-25、10-26 两晚夜跑都红在「Ctrl+J 打开后焦点不在 Agent 输入框」这一句，10-27 那批没跑到它）；夜跑整体红 117 / 329（issue #1121），这一条淹在里面。
+- 设置页深链（10-27 真跑 tikhub 走查后补）：对话框只在自己状态变的那一刻试一次聚焦，那一节归懒加载的「模型」页渲染、那时还不在——诊断走查实测进过设置后那一节晚约 20ms、第一次打开晚约 340ms 才挂出来，焦点一直留在对话框后面的「找参考」框里；main 上的写法与本分支第一版都一样落不上。
 - 全仓「按输入框的实现找它再聚焦」普查（AST，src 1638 个文件）：4 处按标签名（上面这处、素材库找参考的关键词框、设置页深链、自定义模型能力表单），2 处按 `[contenteditable]`（分镜表、分镜行，两文件都是方向检查热点）。
 
 ## ★1 用户怎么用
@@ -50,7 +51,7 @@
 ### ★1b 连带界面
 
 - 素材库「找参考」：「改」「换个词」之后光标回关键词框（行为不变，换实现：`DesignSearchInput` 转发 ref）。
-- 设置页深链（automation / ai-models / tikhub-connector 三节）：焦点从「这一节里第一个 `button, input, [tabindex]`」改成「这一节第一个 Tab 得到的控件」——跳过禁用、隐藏、`tabindex=-1`，认得 textarea / select / 富文本 / 链接。以前第一个是禁用钮时焦点等于没落下。
+- 设置页深链（automation / ai-models / tikhub-connector 三节）：①落在哪：这一节自己声明的首要控件（`data-settings-section-focus`，TikHub 那一节是 Key 输入框——没配 key 被带来就是为了填它），没声明就是这一节第一个 Tab 得到的控件（tabbable：跳过禁用、隐藏、`tabindex=-1`，认得 textarea / select / 富文本 / 链接），不再手写 `button, input, [tabindex]`；②什么时候落：每帧试到焦点真的进了那一节为止（那一节晚挂出来也接得住），焦点已在对话框里（人点了别处）就不抢，约 2 秒还不出来就放弃（`src/workbench/settings/settingsSectionFocus.ts`）。以前只试一次，深链从来没把焦点落进去过。
 - 自定义模型能力表单（保存时校验失败）：焦点落在第一个出错字段里第一个 Tab 得到的控件（字段本身就是控件时就是它），同上。
 - 没有新文案、没有新元素；Agent 回执、通知、任务列表不涉及。
 
@@ -58,6 +59,7 @@
 
 - 「把光标放进常驻 Agent 输入框」：唯一 owner 是输入框的主人 `ProjectAgentResidentShell`（手里有编辑器实例 `mentions.editorRef`）。请求入口 `requestResidentComposerFocus`、主人取用 `useResidentComposerFocusRequest`，都在 `src/workbench/ai/residentComposerFocus.ts`。请求方：`ShellAgentHost`（⌘J / 小球 / 右键 / 三选一）、`ProjectAgentResidentShell`（空态起手句，替掉原来的 token + effect）。同一份事实存 1 份（一个请求序号）；寿命 `project`（切项目清回 null，`declareStoreLifetime`）。
 - 关键词框归 `DesignSearchInput`（它渲染那个 `<input>`，ref 转给它）；「一个区域里第一个能聚焦的控件」归 tabbable 库。
+- 设置深链：发起与每帧重试归设置对话框（`focusSettingsSectionWhenReady`），落在哪个控件归那一节自己（`data-settings-section-focus` 声明，同 `data-model-settings-autofocus` 的做法）。
 - 不靠「东西不见了 / 状态变了」猜意图：请求是显式调用。
 - 门表：修前 `node scripts/door-map.mjs focusComposerSoon` → 1 扇（ShellAgentHost，5 处调用）；修后 `node scripts/door-map.mjs requestResidentComposerFocus useResidentComposerFocusRequest`（结果贴在根因合同 `doors`）。
 
@@ -78,7 +80,8 @@
 - 有反问卡在等答案（输入框降一档）：照常聚焦，聚焦后框复原（原有逻辑）。
 - 面板没挂出来（项目还在打开）：约半秒内聚焦不上就放弃，记 renderer 日志 `resident-composer-focus-expired`，之后不抢焦点；界面不提示。
 - 连按：后一次顶掉前一次，最后一次生效。切项目：没取走的请求清掉。
-- 能力不可用：不适用：聚焦不需要模型或外部资源。
+- 设置深链：那一节还没挂出来 → 每帧再试；控件这一刻禁用着 → 下一帧再试；焦点已在对话框里 → 不抢；约 2 秒还不出来 → 放弃，不提示（和以前落不上时一样安静，但不再是每次都落不上）。
+- 能力不可用：⌘J / 小球 / 起手句不需要模型或外部资源；TikHub 没配 key 时贴链接 → 提示要先配 key、设置开到那一节、光标在 Key 输入框里（下一步就是填）。
 - 文案：无新增，不涉及 i18n。
 
 ## 5 中途表
@@ -128,7 +131,7 @@
   - C4 普查：src 每个文件的命中数等于名单（只有分镜表、分镜行各 1 处），名单外 0 处。
   - C5 接线：仓库 ESLint 配置在名单外的真实路径上报 `focus-owner/no-restricted-syntax`，测试文件不报，名单里的两个文件不报。
 - **D 走查门岗（`scripts/focus-by-tag-lookup.test.mjs` 走查侧）**：同一个 ESLint 规则 id `focus-owner/no-restricted-syntax` 的走查块（`tests/ux/**`、`evals/**`）拦任何按标签名判焦点 / 认输入框的写法（`tagName === 'TEXTAREA'`、`instanceof HTMLInputElement`、`activeElement.matches('textarea')`）——不只 Agent 面板；现存一处（`tests/ux/canvas-follow-hand/scenarios-canvas.mjs` 跟手量具的诊断字段 `focusInEditor`）冻结在 `WALK_FOCUS_BY_TAG_EXITS`，普查与名单逐一相等、只减不增；`expectComposerFocused`、`toBeFocused()`、按主人锚点判不误伤；修前的 shell-redesign 那一句必红；仓库 ESLint 在真实走查路径上报。写法规则进 ESLint、不往自写的 `check-walkthroughs.mjs` 里加（10-22 门岗族方向 G1，`docs/audit/2026-10-22-gate-family-direction.md`）。
-- **E 同类三处**：E1 `DesignSearchInput` 的 ref 落在 `<input>` 上（类型检查：`FindReferencePanel` 的 `useRef<HTMLInputElement>` 经 forwardRef 传进去）；E2 设置页深链改用 tabbable：真 Electron 的 `tests/ux/tikhub-connector.walk.mjs` 从素材库「找参考」框贴一条分享链接（无 key）深链进 TikHub 那一节，断言焦点在这一节的控件上、700ms 后仍在（这条走查 09-10 起入口就过期了：「贴链接导入」按钮并进了「找参考」，走查一直找旧按钮、走不到深链；它在夜跑排除名单里，没人发现。本次把入口改到现在的家，否则 E2 量不到）；E3 能力表单出错字段改用 tabbable：未验证：没有走查进得了能力表单的校验失败态（tabbable 要真实布局，jsdom 做不了组件测），只由写法反例与类型保证。
+- **E 同类三处**：E1 `DesignSearchInput` 的 ref 落在 `<input>` 上（类型检查：`FindReferencePanel` 的 `useRef<HTMLInputElement>` 经 forwardRef 传进去）；E2 设置页深链：真 Electron 的 `tests/ux/tikhub-connector.walk.mjs` 从素材库「找参考」框贴一条分享链接（无 key）深链进 TikHub 那一节，断言光标在 Key 输入框里（`toBeFocused`）、700ms 后仍在（这条走查 09-10 起入口就过期了：「贴链接导入」按钮并进了「找参考」，走查一直找旧按钮、走不到深链；它在夜跑排除名单里，没人发现。本次把入口改到现在的家，否则 E2 量不到）；E4 深链的帧重试（`src/workbench/settings/settingsSectionFocus.test.ts`）：那一节晚几帧才挂出来 → 挂出来那一帧落在声明的控件上、不再排帧；没声明 → tabbable 第一个；焦点已在对话框里 → 不抢；调了没落上 → 下一帧再试、只滚一次；一直不出来 → 试满 120 帧停；取消 → 不再试；E3 能力表单出错字段改用 tabbable：未验证：没有走查进得了能力表单的校验失败态（tabbable 要真实布局，jsdom 做不了组件测），只由写法反例与类型保证。
 - **F 通用**：改到的 vitest（经锁）、ESLint、typecheck、`check:store-lifetime`、`check:walkthroughs`、`check:root-cause-contracts`、`check:escape-ledger`、`pnpm run gates`，每条记退出码。
 
 反例（实现后真做、做完还原，记「反例 → 结果 → 证据」）：
@@ -141,6 +144,9 @@
 | R4 去掉帧预算 | B3 |
 | R5 ⌘J 不发请求 | A1 |
 | R6 走查改回按 `TEXTAREA` 判焦点 | D |
+| R7 设置深链只试一次（不每帧重试） | E4「晚几帧才挂出来」「调了没落上」「试满就停」、E2 |
+| R8 设置深链调过 focus 就算（不核焦点落没落上） | E4「调了没落上」 |
+| R9 焦点已在对话框里照样抢 | E4「焦点已在对话框里」 |
 
 同一类还会从哪些入口、形状、边界回来：
 - 入口：任何「打开某个面板后把光标交给它」的新调用者——请求 API 是唯一的路，按实现找会被门岗拦。
