@@ -20,7 +20,7 @@
     "src/workbench/ai/residentComposerFocus.test.tsx：请求 → 主人落焦点、面板还在 hidden 容器时每帧重试、试满 30 帧丢掉并记日志、新请求顶掉旧请求、主人未就绪时请求留着、切项目清掉",
     "scripts/focus-by-tag-lookup.test.mjs：修之前的 ShellAgentHost.tsx 原文件必红；16 个反例（含换成 contenteditable / .ProseMirror / .tiptap 的猜法）必红、14 个正例必绿；全 src 普查与登记的出口名单逐一相等；仓库 ESLint 接线",
     "scripts/focus-by-tag-lookup.test.mjs 走查侧：修之前 shell-redesign 判 ⌘J 焦点那一句必红；10 个按标签名判焦点的反例必红、9 个正例（含 expectComposerFocused 自己）必绿；tests/ux 与 evals 普查与登记的名单逐一相等（现存一处冻结）；仓库 ESLint 在真实走查路径上报",
-    "tests/ux/tikhub-connector.walk.mjs：素材库「贴链接导入」深链进设置 TikHub 那一节，焦点落在这一节的控件上",
+    "tests/ux/tikhub-connector.walk.mjs：素材库「找参考」框贴分享链接（无 key）深链进设置 TikHub 那一节，焦点落在这一节的控件上、700ms 后仍在",
     "docs/fixes/2026-10-27-agent-composer-focus.root-cause.json"
   ],
   "completionCommits": [],

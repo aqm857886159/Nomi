@@ -29,7 +29,7 @@
 |---|---|
 | 「修」⌘J 的人把选择器换成 `#project-agent-resident [contenteditable]`，下次编辑器只读态或换库时再静默失效 | `scripts/focus-by-tag-lookup.test.mjs` 红例 C2 |
 | 设计系统搜索框改成带清除钮的复合控件，「换个词」回不到关键词框 | 普查：src 里按标签名找输入框再聚焦的处数 |
-| 设置页某一节第一个控件是禁用钮时深链进来没有焦点 | tabbable 跳过禁用（组件测） |
+| 设置页某一节第一个控件是禁用钮时深链进来没有焦点 | tabbable 跳过禁用（tabbable 自己的测试）；真窗口：`tests/ux/tikhub-connector.walk.mjs` 深链后断言焦点在那一节的控件上 |
 
 ### 4. 靶子独立性检查
 
@@ -40,7 +40,7 @@
 
 - 「把光标交给某个输入框」：React 的 ref / 编辑器实例的 `commands.focus` 就是现成的；我们独有的只有「常驻 Agent 面板在小球形态时挂在 hidden 容器里」这一条时序，所以请求要留着等主人。
 - 「区域里第一个能 Tab 到的控件」：通用能力，现成的是 [tabbable](https://github.com/focus-trap/tabbable)（6.5.0 已在依赖树：@mantine/core → @floating-ui/react），Radix FocusScope 与 floating-ui 内部都用它；仓库口径「不自写 tabbable 查询」（`src/design/AnchoredPopover.tsx`）。
-- 门岗：ESLint 内置 `no-restricted-syntax`（独立规则 id），不自写扫描器。
+- 门岗：ESLint 内置 `no-restricted-syntax`（独立规则 id `focus-owner/no-restricted-syntax`），不自写扫描器。走查侧「不按标签名判焦点」同一个规则 id 另开一个块（`tests/ux/**`、`evals/**`），**不往自写门岗族 `gate-family`（`scripts/check-*.mjs`，状态 under-review）里加新规则**：门岗族 10-22 的方向（`docs/audit/2026-10-22-gate-family-direction.md`，用户批了 G1）就是写法类规则进 ESLint，这两片目录 10-22 起已经在 ESLint 里；本刀不改 `check-walkthroughs.mjs`，它现存的 `composer-input-read` 等规则何时搬进 ESLint 归门岗族那条线（`gate-family` 的 reviewBy 2026-10-31）。
 
 ### 6. 接入 / 补 / 重写 / 删 对比表 + 推荐
 
@@ -60,5 +60,5 @@
 ## 特征测试清单
 
 - 修前的 `ShellAgentHost.tsx` 原文：`scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt`（门岗必红）。
-- 修前的走查断言（`tagName === 'TEXTAREA'`）：`scripts/check-walkthroughs.node-test.mjs` 里那一行原文必红。
-- 能力表单、设置页的「第一个控件」行为由 tabbable 自己的测试覆盖；本线另补组件测核「禁用的不选、隐藏的不选、字段本身是控件时选它」。
+- 修前的走查断言（`tagName === 'TEXTAREA'`）：`scripts/focus-by-tag-lookup.test.mjs` 走查侧那一句原文必红。
+- 能力表单、设置页的「第一个控件」行为由 tabbable 自己的测试覆盖。tabbable 默认 `displayCheck: 'full'` 要真实布局，jsdom 不支持，本仓库的 node 测试环境做不了组件测，所以不补：设置页深链在真 Electron 的 `tests/ux/tikhub-connector.walk.mjs` 里断言焦点落在那一节的控件上；能力表单出错字段 未验证：没有走查进得了能力表单的校验失败态。

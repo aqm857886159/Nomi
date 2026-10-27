@@ -4,7 +4,7 @@
   "detected_by": "review",
   "recurrence_check_on": "2026-11-27",
   "problem_type": "调用方按输入框当时的实现（标签名 textarea / input / select，或编辑器的 contenteditable）在页面里找它再聚焦；输入框换了实现就找不到，而且静默。",
-  "symptom": "按 ⌘J（Mod+J）打开 Agent 后焦点留在 BODY，得先点一下输入框才能打字；点小球、浮窗 / 停靠切换、小球右键菜单打开 Agent 同样不落焦点。夜跑 tests/ux/shell-redesign.walk.mjs 的 check-shortcuts 站从 2026-10-12 起每晚红。",
+  "symptom": "按 ⌘J（Mod+J）打开 Agent 后焦点留在 BODY，得先点一下输入框才能打字；点小球、浮窗 / 停靠切换、小球右键菜单打开 Agent 同样不落焦点。夜跑 tests/ux/shell-redesign.walk.mjs 的 check-shortcuts 站按 TEXTAREA 判焦点，2026-10-12 起跑到就红（结构上过不了；实查 10-25、10-26 两晚夜跑都红在「Ctrl+J 打开后焦点不在 Agent 输入框」这一句，10-27 那批没跑到它）。",
   "direct_cause": "src/ui/app-shell/shell/ShellAgentHost.tsx 的 focusComposerSoon 找 `#project-agent-resident textarea`；ed086ea3e（2026-10-12）把 Agent 输入框换成 TipTap PromptEditor（contenteditable）后页里没有 textarea，找满 20 帧什么也不做。走查按 activeElement.tagName === 'TEXTAREA' 判，同样随实现过期。",
   "class_root": "聚焦一个输入框没有经它的主人：外壳、设置深链、找参考面板、能力表单各自在 DOM 里按标签名找输入框。字符串选择器类型系统看不见——ed086ea3e 改了 inputRef 的类型，经类型的调用方都跟着改了，按字符串找的那一处没人知道；走查也按实现判焦点，红在夜跑 117 / 329 条红里（#1121）15 天没被认出是真 bug。没有任何门岗拦「按输入框实现找它再聚焦」这个写法。",
   "affected_population": [
@@ -156,7 +156,7 @@
       "path": "src/workbench/settings/SettingsDialog.tsx",
       "entry_point": "initialSection 深链聚焦",
       "disposition": "enforced",
-      "evidence": "手写的 section.querySelector('button, input, [tabindex]') 换成 tabbable(section)[0]（旧列表不认 textarea / select / 富文本，也不跳禁用的）；tests/ux/tikhub-connector.walk.mjs 在真 Electron 里从素材库「贴链接导入」深链进 TikHub 那一节，断言焦点在这一节的控件上。"
+      "evidence": "手写的 section.querySelector('button, input, [tabindex]') 换成 tabbable(section)[0]（旧列表不认 textarea / select / 富文本，也不跳禁用的）；tests/ux/tikhub-connector.walk.mjs 在真 Electron 里从素材库「找参考」框贴分享链接（无 key）深链进 TikHub 那一节，断言焦点在这一节的控件上、700ms 后仍在（这条走查的入口 09-10 起已过期——「贴链接导入」按钮并进了「找参考」——本次一并改到现在的家，否则走不到这一步）。"
     },
     {
       "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",

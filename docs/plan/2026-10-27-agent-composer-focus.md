@@ -21,7 +21,7 @@
 
 - `src/ui/app-shell/shell/ShellAgentHost.tsx` 的 `focusComposerSoon` 用 `document.querySelector('#project-agent-resident textarea')` 找输入框，20 帧找不到就什么也不做。五处调用：Mod+J、点小球、小球右键「浮窗」「停靠」、面板头部「小球 · 浮窗 · 停靠」三选一。
 - `ed086ea3e`（10-12）把 Agent 输入框换成共享 `PromptEditor`（TipTap，`contenteditable`）。`inputRef` 的类型从 `HTMLTextAreaElement` 改成了 `HTMLElement`，带类型的调用者都跟着改了；字符串选择器类型系统看不见，五扇门同时静默失效。
-- `tests/ux/shell-redesign.walk.mjs` check-shortcuts 按 `activeElement.tagName === 'TEXTAREA'` 判，从那天起每晚红；夜跑整体红 117 / 329（issue #1121），这一条淹在里面。
+- `tests/ux/shell-redesign.walk.mjs` check-shortcuts 按 `activeElement.tagName === 'TEXTAREA'` 判，从那天起跑到就红（结构上过不了；实查 10-25、10-26 两晚夜跑都红在「Ctrl+J 打开后焦点不在 Agent 输入框」这一句，10-27 那批没跑到它）；夜跑整体红 117 / 329（issue #1121），这一条淹在里面。
 - 全仓「按输入框的实现找它再聚焦」普查（AST，src 1638 个文件）：4 处按标签名（上面这处、素材库找参考的关键词框、设置页深链、自定义模型能力表单），2 处按 `[contenteditable]`（分镜表、分镜行，两文件都是方向检查热点）。
 
 ## ★1 用户怎么用
@@ -66,7 +66,7 @@
 - 复用 `src/workbench/generationCanvas/nodes/nodePromptFocus.ts` 的形状：「请求留在一份小状态里，主人编辑器就绪时来取」。不改它、不合并：它的取用方 `NodeGenerationComposer.tsx` 是 14 天第 4 个 fix 的热点；两份请求各属自己的主人（画布某张卡的提示词 / 常驻 Agent 输入框），寿命与取用时机都不同。本卡多一条它没有的：聚焦要真落进编辑器才算（ProseMirror `view.hasFocus()`），否则下一帧再试，试满 30 帧丢掉并记一条日志。
 - 设计系统给交互元素转发 ref 用 `forwardRef`（`src/design/actions.tsx` 五处）→ `DesignSearchInput` 同样转到 `<input>`。
 - 「区域里第一个能 Tab 到的控件」= tabbable 6.5.0（已在依赖树里：@mantine/core → @floating-ui/react → tabbable 6.5.0），声明为直接依赖；不自写 tabbable 查询（`src/design/AnchoredPopover.tsx` 焦点管理同一条口径）。
-- 门岗：ESLint 内置 `no-restricted-syntax` 以独立规则 id `focus-owner/*` 注册（同 `ui-money/*`、`playwright-wait/*` 的做法），不自写扫描器；走查侧扩 `check:walkthroughs` 已有的 `composer-input-read` 规则，不新开第二条。
+- 门岗：ESLint 内置 `no-restricted-syntax` 以独立规则 id `focus-owner/*` 注册（同 `ui-money/*`、`playwright-wait/*` 的做法），不自写扫描器；走查侧「不按标签名判焦点」同一个规则 id 另开一个块（`tests/ux/**`、`evals/**`，这两片 10-22 起已进 ESLint），不往自写门岗族 `gate-family` 的 `check-walkthroughs.mjs` 里加新规则（10-22 门岗族方向 G1：写法类规则进 ESLint）。
 - 走查读写输入框只经 `tests/ux/agent-runtime-walk-support.mjs`（`composerText` 旁边加 `expectComposerFocused`），不再手抄选择器。
 
 ## ★4 全状态
@@ -112,6 +112,7 @@
   - A1（先红）check-shortcuts：小球 → `ControlOrMeta+J` → 焦点在 `[data-v4-block="composer"] [data-v4-control="input"]` 上且 `isContentEditable`；接着打一句话，`composerText()` 读回原句。zh / en 两轨，截图 `check-mod-j-*.png` 亲眼看。
   - A2 已打了字再按 ⌘J：读回的文字不变、焦点仍在输入框。
   - A3 canvas-agent：点小球打开浮窗，焦点同样在输入框，打字读得回。
+  - A4 空态起手句（`tests/ux/agent-v4-short-film.walk.mjs`）：点一句后句子在框里、焦点在输入框（`expectComposerFocused`）。
 - **B 主人一侧（`src/workbench/ai/residentComposerFocus.test.tsx`）**
   - B1 请求 → 主人 `focus()` 返回 true → 请求清掉、`focus` 只调一次。
   - B2 前几帧返回 false（面板还在 hidden 容器）→ 每帧再试，成功那帧停。
@@ -119,14 +120,15 @@
   - B4 新请求顶掉旧请求：旧的那轮停，新的从头计帧。
   - B5 主人还没就绪（`focus` 为 null）时请求留着，就绪后取。
   - B6 切项目（`releaseProject`）清掉请求。
+  - B7 主人落焦点 `focusEditorAtEnd`（判据从 `ProjectAgentResidentShell` 挪进 `residentComposerFocus.ts`，才测得到）：没有编辑器 / 已销毁 → false 且不碰；已在框里 → true、不动光标；落上 → true（先 `commands.focus('end')` 放到句末，再同步 `view.focus()`）；调了没落上 → false，请求留到下一帧。
 - **C 门岗（`scripts/focus-by-tag-lookup.test.mjs`）**
   - C1（先红）修之前的 `ShellAgentHost.tsx` 原文必红。
   - C2 红：链式 `x.querySelector('input')?.focus()`；变量 `const t = document.querySelector('#a textarea'); t?.focus()`；三元；`as` / `!`；模板字符串；`querySelectorAll('input')[0].focus()`；`closest('textarea')?.focus()`；`select`；「换个选择器接着猜」的 `'#project-agent-resident [contenteditable="true"]'`、`.ProseMirror`。
   - C3 绿：按主人声明的属性找（`[data-v4-control="input"]`、`[data-model-settings-autofocus]`）；类名 / id 里带 input 字样（`.input-row`、`#input`）；事件判类（`if (target.closest('input, textarea')) return`）；ref 聚焦；tabbable。
   - C4 普查：src 每个文件的命中数等于名单（只有分镜表、分镜行各 1 处），名单外 0 处。
   - C5 接线：仓库 ESLint 配置在名单外的真实路径上报 `focus-owner/no-restricted-syntax`，测试文件不报，名单里的两个文件不报。
-- **D 走查门岗（`scripts/check-walkthroughs.node-test.mjs`）**：新规则 `focus-by-input-tag`（判定住 `scripts/lib/composerInputReads.mjs`，与 `composer-input-read` 同一处）抓走查里任何按标签名判焦点 / 判输入框的写法（`tagName === 'TEXTAREA'`、`instanceof HTMLInputElement`、`activeElement.matches('textarea')`）——不只 Agent 面板，全仓现存 0 处；`expectComposerFocused`、`toBeFocused()`、按主人锚点判不误伤；修前的 shell-redesign 那一行必红。
-- **E 同类三处**：E1 `DesignSearchInput` 的 ref 落在 `<input>` 上（类型检查 + 组件测）；E2 设置页深链、E3 能力表单出错字段改用 tabbable，tabbable 跳过禁用 / 隐藏（组件测）。
+- **D 走查门岗（`scripts/focus-by-tag-lookup.test.mjs` 走查侧）**：同一个 ESLint 规则 id `focus-owner/no-restricted-syntax` 的走查块（`tests/ux/**`、`evals/**`）拦任何按标签名判焦点 / 认输入框的写法（`tagName === 'TEXTAREA'`、`instanceof HTMLInputElement`、`activeElement.matches('textarea')`）——不只 Agent 面板；现存一处（`tests/ux/canvas-follow-hand/scenarios-canvas.mjs` 跟手量具的诊断字段 `focusInEditor`）冻结在 `WALK_FOCUS_BY_TAG_EXITS`，普查与名单逐一相等、只减不增；`expectComposerFocused`、`toBeFocused()`、按主人锚点判不误伤；修前的 shell-redesign 那一句必红；仓库 ESLint 在真实走查路径上报。写法规则进 ESLint、不往自写的 `check-walkthroughs.mjs` 里加（10-22 门岗族方向 G1，`docs/audit/2026-10-22-gate-family-direction.md`）。
+- **E 同类三处**：E1 `DesignSearchInput` 的 ref 落在 `<input>` 上（类型检查：`FindReferencePanel` 的 `useRef<HTMLInputElement>` 经 forwardRef 传进去）；E2 设置页深链改用 tabbable：真 Electron 的 `tests/ux/tikhub-connector.walk.mjs` 从素材库「找参考」框贴一条分享链接（无 key）深链进 TikHub 那一节，断言焦点在这一节的控件上、700ms 后仍在（这条走查 09-10 起入口就过期了：「贴链接导入」按钮并进了「找参考」，走查一直找旧按钮、走不到深链；它在夜跑排除名单里，没人发现。本次把入口改到现在的家，否则 E2 量不到）；E3 能力表单出错字段改用 tabbable：未验证：没有走查进得了能力表单的校验失败态（tabbable 要真实布局，jsdom 做不了组件测），只由写法反例与类型保证。
 - **F 通用**：改到的 vitest（经锁）、ESLint、typecheck、`check:store-lifetime`、`check:walkthroughs`、`check:root-cause-contracts`、`check:escape-ledger`、`pnpm run gates`，每条记退出码。
 
 反例（实现后真做、做完还原，记「反例 → 结果 → 证据」）：
@@ -135,7 +137,7 @@
 |---|---|
 | R1 ShellAgentHost 改回按 `textarea` 找 | C4 普查（名单外 1 处）、A1 |
 | R2 换个选择器接着猜：`#project-agent-resident [contenteditable="true"]` | C4 普查 |
-| R3 主人的 `focus` 不核 `hasFocus()`，调了就返回 true | B2 |
+| R3 主人的 `focus` 不核 `hasFocus()`，调了就返回 true | B7（`focusEditorAtEnd` 的「调了没落上 → false」用例）。真窗口看不出：TipTap 自己晚一帧才聚焦，那时面板多半已挪到可见处，照样落上；不核只在面板挂出来更慢时才丢焦点 |
 | R4 去掉帧预算 | B3 |
 | R5 ⌘J 不发请求 | A1 |
 | R6 走查改回按 `TEXTAREA` 判焦点 | D |
