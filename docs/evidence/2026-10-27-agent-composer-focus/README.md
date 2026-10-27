@@ -14,6 +14,7 @@
 | `a3-ball-zh-1280.png` / `a3-ball-en-1280.png` | 点小球打开浮窗（焦点断言在截图之前，截图里光标被 Playwright 隐去） | shell-redesign canvas-agent |
 | `a4-starter-zh-1280.png` | 空态点「写脚本」，句子在输入框里（焦点断言在截图之前） | `tests/ux/agent-v4-short-film.walk.mjs` 01b |
 | `e2-tikhub-deeplink-zh.png` | 没配 TikHub key，「找参考」框贴抖音链接回车 → 页面提示先配 key，设置开到「模型 → 数据源」TikHub 那一节，Key 输入框是焦点（焦点断言在截图之前，边框是聚焦态，光标被 Playwright 隐去） | `tests/ux/tikhub-connector.walk.mjs` 04，中文 1280×933 |
+| `e2b-tikhub-deeplink-first-open-zh.png` | 同上，但这一回之前没进过设置——「模型」页要懒加载，回车后 818ms 那一节才出来，光标照样落在 Key 输入框 | tikhub 走查去掉 ①② 的临时副本（跑完删除），见下面「第一次打开设置」 |
 
 ## 走查退出码
 
@@ -55,3 +56,16 @@ R1–R6：改坏 → 跑必须红的那一项 → `git checkout HEAD --` 还原�
 | 本分支第一版 | 第一次打开设置 | 75ms | 415ms | 同上 |
 
 对话框只在自己状态变的那一刻试一次聚焦，那一节那时还不在。改成 `src/workbench/settings/settingsSectionFocus.ts` 每帧试到落上为止、落在这一节声明的 Key 输入框；最终树上 tikhub-connector 走查过（见上面「走查退出码」与 `e2-tikhub-deeplink-zh.png`）。
+
+### 第一次打开设置（懒加载那条路）
+
+tikhub-connector 走查的 ①② 先进过设置，所以它量到的是「进过设置」那种（那一节晚约 20–40ms）。没配 key 的人更常见的是这一会话里第一次打开设置。
+在 `d8508e75c` 整套门岗跑完后的构建上，用去掉 ①② 的临时副本（其余逐字不变，加回车计时；跑完删除）连跑 3 次：
+
+| 次 | 回车后看到 TikHub 那一节 | 光标在 Key 输入框 | 700ms 后仍在 |
+|---|---|---|---|
+| 1 | 818ms | 过（820ms 内确认） | 过 |
+| 2 | 819ms | 过（821ms 内确认） | 过 |
+| 3 | 830ms | 过（832ms 内确认） | 过 |
+
+三次进程退出码都是 1：走查启动时 Electron 窗口抢了前台，`_launchApp.mjs` 的 quiet-walk 守卫记了一笔（「走查抢了前台」，phase started）。深链断言本身都过；同一走查 00:19 那一轮没抢前台、exit 0。本 PR 不碰窗口激活，抢前台另报协调。
