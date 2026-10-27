@@ -26,7 +26,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { useAgentReferenceMentions } from './resident/useAgentReferenceMentions'
 import { useComposerAttachments, COMPOSER_ATTACHMENT_ACCEPT } from './composer/useComposerAttachments'
 import { useResidentActivityStore } from './residentActivity'
-import { requestResidentComposerFocus, useResidentComposerFocusRequest } from './residentComposerFocus'
+import { focusEditorAtEnd, requestResidentComposerFocus, useResidentComposerFocusRequest } from './residentComposerFocus'
 import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
@@ -411,14 +411,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    * 已经在框里就不动光标；否则放到句末。返回的是焦点真的进了编辑器没有——小球形态下面板还在看不见的容器里，
    * 这一帧落空，请求留到下一帧。
    */
-  const focusComposer = React.useCallback((): boolean => {
-    const editor = mentions.editorRef.current
-    if (!editor || editor.isDestroyed) return false
-    if (editor.view.hasFocus()) return true
-    editor.commands.focus('end')
-    editor.view.focus()
-    return editor.view.hasFocus()
-  }, [mentions.editorRef])
+  const focusComposer = React.useCallback(() => focusEditorAtEnd(mentions.editorRef.current), [mentions.editorRef])
   useResidentComposerFocusRequest(focusComposer)
 
   /**

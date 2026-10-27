@@ -62,7 +62,7 @@
   "invariants": [
     "Agent 输入框的焦点只经它的主人：外壳与起手句只调 requestResidentComposerFocus()；主人在编辑器实例上落焦点，以 editor.view.hasFocus() 为准，试满 30 帧仍落不上就丢掉请求并记 resident-composer-focus-expired，不在之后抢焦点。",
     "渲染层源码不按输入框的实现（标签名 input / textarea / select，或 [contenteditable] / .ProseMirror / .tiptap）查询 DOM 再聚焦；「区域里第一个能聚焦的控件」用 tabbable(container)[0]。现存两处登记在 scripts/focus-by-tag-lookup.mjs 的名单里，只减不增。",
-    "走查判焦点、认输入框不按标签名：Agent 输入框经 expectComposerFocused()（composer 锚点 + contenteditable），别的控件用 expect(locator).toBeFocused()；tests/ux 与 evals 现存 0 处，由同一个 ESLint 规则 id 的走查块拦。"
+    "走查判焦点、认输入框不按标签名：Agent 输入框经 expectComposerFocused()（composer 锚点 + contenteditable），别的控件用 expect(locator).toBeFocused()；由同一个 ESLint 规则 id 的走查块拦；tests/ux 与 evals 现存一处（画布跟手量具的诊断字段）登记在 WALK_FOCUS_BY_TAG_EXITS，只减不增。"
   ],
   "doors": [
     {
@@ -131,7 +131,7 @@
     {
       "path": "src/workbench/ai/residentComposerFocus.ts",
       "symbol": "requestResidentComposerFocus",
-      "responsibility": "Agent 输入框聚焦的唯一入口：外壳与起手句只发请求；useResidentComposerFocusRequest 让主人每帧试、焦点真进了编辑器才清请求，试满 30 帧丢掉并记日志，切项目清掉未取走的请求。"
+      "responsibility": "Agent 输入框聚焦的唯一入口与「落上了」的判据（focusEditorAtEnd：view.hasFocus() 才算）：外壳与起手句只发请求；useResidentComposerFocusRequest 让主人每帧试、焦点真进了编辑器才清请求，试满 30 帧丢掉并记日志，切项目清掉未取走的请求。"
     },
     {
       "path": "scripts/focus-by-tag-lookup.mjs",
@@ -150,7 +150,7 @@
       "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
       "entry_point": "startFromStarter（空态起手句）",
       "disposition": "enforced",
-      "evidence": "starterFocusToken / composerInputRef 与 AgentPanelV4Composer 的 inputRef 属性已删，起手句改发同一个请求；主人 focusComposer 在 mentions.editorRef 的编辑器实例上落焦点，以 view.hasFocus() 为准（residentComposerFocus.test.tsx 6 例）。"
+      "evidence": "starterFocusToken / composerInputRef 与 AgentPanelV4Composer 的 inputRef 属性已删，起手句改发同一个请求；主人经 focusEditorAtEnd(mentions.editorRef.current) 在编辑器实例上落焦点，以 view.hasFocus() 为准（residentComposerFocus.test.tsx：请求 6 例 + 落焦点判据 4 例）；tests/ux/agent-v4-short-film.walk.mjs 点起手句后断言焦点在输入框。"
     },
     {
       "path": "src/workbench/settings/SettingsDialog.tsx",
@@ -202,7 +202,7 @@
       "node scripts/door-map.mjs focusComposerSoon starterFocusToken composerInputRef（HEAD 快照）：写 1 扇读 2 扇；修后 node scripts/door-map.mjs requestResidentComposerFocus useResidentComposerFocusRequest useResidentComposerFocusStore onEditorReady tabbable focusKeyword：11 扇（含搜索框 ref 1 扇）。",
       "AST 普查全 src 的「DOM 查询 → .focus()」：17 处；按输入框实现找的 6 处——本次改 4 处（ShellAgentHost、SettingsDialog、ModelCapabilityEditor、FindReferencePanel），分镜表 2 处冻结在名单里；其余按主人声明的 data 属性 / role 找。",
       "scripts/focus-by-tag-lookup.test.mjs 普查全 src（1638 个文件）：命中只在名单的 2 个文件里各 1 处，名单外 0 处。",
-      "tests/ux 与 evals 全量：按标签名判焦点的写法只有 shell-redesign.walk.mjs 那一句（已换成 expectComposerFocused），scripts/focus-by-tag-lookup.test.mjs 的走查普查现为 0 处。"
+      "tests/ux 与 evals 全量：按标签名判焦点的写法两处：shell-redesign.walk.mjs 那一句（已换成 expectComposerFocused），canvas-follow-hand/scenarios-canvas.mjs 的诊断字段 focusInEditor（按 .ProseMirror / input / textarea 认，冻结在 WALK_FOCUS_BY_TAG_EXITS）；scripts/focus-by-tag-lookup.test.mjs 的走查普查与名单逐一相等。"
     ]
   },
   "prevention": {
@@ -222,7 +222,8 @@
     "src/workbench/ai/residentComposerFocus.test.tsx",
     "scripts/focus-by-tag-lookup.test.mjs",
     "tests/ux/shell-redesign.walk.mjs",
-    "tests/ux/tikhub-connector.walk.mjs"
+    "tests/ux/tikhub-connector.walk.mjs",
+    "tests/ux/agent-v4-short-film.walk.mjs"
   ],
   "class_regression_tests": [
     "scripts/focus-by-tag-lookup.test.mjs"
@@ -248,6 +249,7 @@
   "migration": "不落盘、不迁移：聚焦请求是会话内状态（store 字段登记为 project 生命周期，切项目清空）；旧调用方同提交改完。",
   "residual_risks": [
     "分镜表两处（StoryboardShotTable.tsx、StoryboardShotRow.tsx）仍按 PromptEditor 内部的 contenteditable 找提示词框，名单冻结、不能新增；迁移需在热点文件上另做方向检查，交协调。",
+    "走查侧一处冻结：tests/ux/canvas-follow-hand/scenarios-canvas.mjs 记「方向键挪卡前焦点在不在编辑器里」用 activeElement.closest('.ProseMirror, input, textarea')，是别的线的性能量具里的诊断字段（不是断言），本次不改；迁法写在名单旁。",
     "规则有意不拦：closest() 的结果先存进变量再聚焦、选择器字符串先放进变量再传、经别的函数间接返回再聚焦（scripts/focus-by-tag-lookup.mjs 文件头写明）。",
     "useModelSettingsPageFocus.ts 的焦点回位用手写的可聚焦列表（不认 contenteditable），不在本类；可换 tabbable 的 isFocusable，交协调。",
     "ModelCapabilityEditor 校验失败跳字段在真窗口里没走到（没有走查进得了能力表单的校验失败态），只由写法反例与类型保证；SettingsDialog 深链只验了 TikHub 那一节。",

@@ -38,6 +38,7 @@ import {
   chooseAssistantModel,
   createRuntimeWalk,
   expandResidentPanel,
+  expectComposerFocused,
   hasToolResult,
   openCanvas,
   permissionTier,
@@ -97,6 +98,8 @@ try {
   // 点第一颗起手 = 把那句话交给 composer 并把光标给用户，**不替他发送**。
   await clickOrFail(empty.locator(EMPTY_STARTER).first(), '空态第一条起手')
   await expectComposerText(panel.locator(COMPOSER_INPUT), STARTER_FIRST, '起手句交给了输入框')
+  // 「把光标给用户」：焦点真进了输入框（起手句和 ⌘J 走同一扇门，由输入框的主人落焦点）。
+  await expectComposerFocused(win, CREATION_PANEL, '点了起手句，光标没进 Agent 输入框')
   await expect(panel.locator(COMPOSER_SEND)).toBeEnabled()
   // 「没发出去」的正面证据：真发了就会多一条用户气泡、空态也就永远消失了。
   // 这里断言空态**还在**，而不是断言气泡不存在——后者本来就是 0，采样恒真（假绿）。

@@ -7,6 +7,7 @@ vi.mock('../../desktop/rendererLog', () => ({ logRendererWarn: log.warn }))
 
 import {
   COMPOSER_FOCUS_FRAME_BUDGET,
+  focusEditorAtEnd,
   requestResidentComposerFocus,
   residentComposerFocusStoreLifetime,
   useResidentComposerFocusRequest,
@@ -140,5 +141,44 @@ describe('常驻 Agent 输入框的聚焦请求：主人每帧试，焦点真的
     await frame(5)
     expect(focus).toHaveBeenCalledTimes(2)
     expect(log.warn).not.toHaveBeenCalled()
+  })
+})
+
+describe('主人落焦点：焦点真的进了编辑器才算数（view.hasFocus()），不是「调过 focus 了」', () => {
+  /** 假编辑器：commands.focus 像桌面上的 TipTap 一样不当场聚焦，view.focus() 在 lands 时才真落上。 */
+  function fakeEditor({ focused = false, lands = true, destroyed = false } = {}) {
+    let hasFocus = focused
+    const calls: string[] = []
+    const editor = {
+      isDestroyed: destroyed,
+      view: { hasFocus: () => hasFocus, focus: () => { calls.push('view.focus'); if (lands) hasFocus = true } },
+      commands: { focus: (position: 'end') => { calls.push(`commands.focus:${position}`); return true } },
+    }
+    return { editor, calls }
+  }
+
+  it('没有编辑器、编辑器已销毁：false，什么都不碰', () => {
+    expect(focusEditorAtEnd(null)).toBe(false)
+    const { editor, calls } = fakeEditor({ destroyed: true })
+    expect(focusEditorAtEnd(editor)).toBe(false)
+    expect(calls).toEqual([])
+  })
+
+  it('已经在框里：true，不动光标', () => {
+    const { editor, calls } = fakeEditor({ focused: true })
+    expect(focusEditorAtEnd(editor)).toBe(true)
+    expect(calls).toEqual([])
+  })
+
+  it('落上了：true；先把插入点放到句末，再同步聚焦', () => {
+    const { editor, calls } = fakeEditor()
+    expect(focusEditorAtEnd(editor)).toBe(true)
+    expect(calls).toEqual(['commands.focus:end', 'view.focus'])
+  })
+
+  it('调了 focus 但没落上（面板还在看不见的容器里）：false，请求留到下一帧', () => {
+    const { editor, calls } = fakeEditor({ lands: false })
+    expect(focusEditorAtEnd(editor)).toBe(false)
+    expect(calls).toEqual(['commands.focus:end', 'view.focus'])
   })
 })

@@ -2,7 +2,7 @@
 // ① 反例必红、正例必绿：选择器认写法（语法树），修之前的 ShellAgentHost.tsx 原文件必须红；
 // ② 全仓普查：同一组选择器扫 src，命中只许出现在登记的出口名单（FOCUS_BY_INPUT_IMPL_EXITS）里，且每个文件的处数等于登记的数（只减不增，少了也红）；
 // ③ 接线：仓库 eslint 配置在名单外的真实路径上报 focus-owner/no-restricted-syntax，测试文件与名单里的文件不报。
-// 走查侧（tests/ux、evals 判焦点不按标签名）同样三道：修之前那一句必红、普查 0 处、真实路径接线。
+// 走查侧（tests/ux、evals 判焦点不按标签名）同样三道：修之前那一句必红、普查与登记的出口名单（WALK_FOCUS_BY_TAG_EXITS）逐一相等、真实路径接线。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,7 +11,7 @@ import { ESLint } from 'eslint'
 import tseslint from 'typescript-eslint'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { FOCUS_BY_INPUT_IMPL_EXITS, FOCUS_BY_INPUT_IMPL_SELECTORS, WALK_FOCUS_BY_TAG_SELECTORS } from './focus-by-tag-lookup.mjs'
+import { FOCUS_BY_INPUT_IMPL_EXITS, FOCUS_BY_INPUT_IMPL_SELECTORS, WALK_FOCUS_BY_TAG_EXITS, WALK_FOCUS_BY_TAG_SELECTORS } from './focus-by-tag-lookup.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 /** 修之前的 src/ui/app-shell/shell/ShellAgentHost.tsx 原文（focusComposerSoon 按 textarea 找输入框那一版）。 */
@@ -208,7 +208,7 @@ function walkFiles(dir) {
   return out
 }
 
-describe('普查：tests/ux 与 evals 里按标签名判焦点的写法 0 处（没有名单）', () => {
+describe('普查：tests/ux 与 evals 里按标签名判焦点的写法只在名单里，只减不增', () => {
   const census = {}
   beforeAll(async () => {
     for (const dir of ['tests/ux', 'evals']) {
@@ -219,8 +219,8 @@ describe('普查：tests/ux 与 evals 里按标签名判焦点的写法 0 处（
     }
   }, 120_000)
 
-  it('0 处', () => {
-    expect(census).toEqual({})
+  it('每个文件的命中处数与名单逐一相等，名单外 0 处', () => {
+    expect(census).toEqual(Object.fromEntries(Object.entries(WALK_FOCUS_BY_TAG_EXITS).map(([file, exit]) => [file, exit.count])))
   })
 })
 
@@ -240,8 +240,16 @@ describe('接线：仓库 eslint 配置真的在用这条规则', () => {
     expect(await ruleHits(file)).toBe(0)
   })
 
+  const walkRuleHits = async (relativePath) => {
+    const [result] = await repoLint.lintText(`${BEFORE_WALK_ASSERT}\n`, { filePath: path.join(root, relativePath) })
+    return result.messages.filter((message) => message.ruleId === 'focus-owner/no-restricted-syntax').length
+  }
+
   it.each(['tests/ux/shell-redesign.walk.mjs', 'tests/ux/agent-runtime-walk-support.mjs', 'evals/loop/appBridge.mjs'])('走查侧的真实路径 %s 报修之前那一句', async (file) => {
-    const [result] = await repoLint.lintText(`${BEFORE_WALK_ASSERT}\n`, { filePath: path.join(root, file) })
-    expect(result.messages.filter((message) => message.ruleId === 'focus-owner/no-restricted-syntax')).toHaveLength(1)
+    expect(await walkRuleHits(file)).toBe(1)
+  })
+
+  it.each(Object.keys(WALK_FOCUS_BY_TAG_EXITS))('走查侧名单里的文件 %s 不报（处数由普查卡死）', async (file) => {
+    expect(await walkRuleHits(file)).toBe(0)
   })
 })

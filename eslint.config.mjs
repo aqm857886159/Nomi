@@ -30,6 +30,7 @@ import {
   FOCUS_BY_INPUT_IMPL_SELECTORS,
   FOCUS_LOOKUP_FILES,
   FOCUS_LOOKUP_TEST_FILES,
+  WALK_FOCUS_BY_TAG_EXITS,
   WALK_FOCUS_BY_TAG_SELECTORS,
   WALK_FOCUS_FILES,
 } from './scripts/focus-by-tag-lookup.mjs'
@@ -480,8 +481,9 @@ export default tseslint.config(
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...FOCUS_BY_INPUT_IMPL_SELECTORS] },
   },
   {
-    // 走查判焦点、认输入框不按标签名（见上面 ⑤）：Agent 输入框经 expectComposerFocused()。
+    // 走查判焦点、认输入框不按标签名（见上面 ⑤）：Agent 输入框经 expectComposerFocused()；名单里的处数由普查卡死。
     files: WALK_FOCUS_FILES,
+    ignores: Object.keys(WALK_FOCUS_BY_TAG_EXITS),
     plugins: { 'focus-owner': focusOwnerPlugin },
     rules: { 'focus-owner/no-restricted-syntax': ['error', ...WALK_FOCUS_BY_TAG_SELECTORS] },
   },

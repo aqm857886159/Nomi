@@ -39,6 +39,26 @@ export function requestResidentComposerFocus(): void {
   useResidentComposerFocusStore.setState({ request: seq })
 }
 
+/** 主人落焦点用到的那一点编辑器能力（TipTap 的 Editor 结构上满足它）。 */
+type FocusableEditor = {
+  isDestroyed: boolean
+  view: { hasFocus(): boolean; focus(): void }
+  commands: { focus(position: 'end'): unknown }
+}
+
+/**
+ * 把光标放进编辑器：已经在里面就不动光标，否则放到句末。返回焦点真的进了编辑器没有（view.hasFocus()），
+ * 不是「调过 focus 了」——面板还在看不见的容器里时调了也落不上，要返回 false 让请求留到下一帧。
+ * commands.focus 在桌面上要等一帧才真聚焦（TipTap 内部用 requestAnimationFrame），所以接着同步调一次 view.focus()。
+ */
+export function focusEditorAtEnd(editor: FocusableEditor | null): boolean {
+  if (!editor || editor.isDestroyed) return false
+  if (editor.view.hasFocus()) return true
+  editor.commands.focus('end')
+  editor.view.focus()
+  return editor.view.hasFocus()
+}
+
 /**
  * 输入框的主人调。有请求且 `focus` 就绪时每帧调一次 `focus`；它返回 true（焦点真的进了编辑器）才清掉请求。
  * 新请求顶掉旧请求：旧的那一轮停下，新的从头计帧。

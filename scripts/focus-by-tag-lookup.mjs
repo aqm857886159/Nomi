@@ -15,7 +15,7 @@
 //   在一个调用了 .focus() 的函数里把这种查询结果存进变量。按语法树认，不按字面认。
 // - FOCUS_BY_INPUT_IMPL_EXITS：现存的文件 → 处数 + 是什么。只减不增：scripts/focus-by-tag-lookup.test.mjs 用同一组选择器
 //   扫全 src，名单外出现一处就红；名单内处数多了红，少了也红（改完把数降下来，或删掉这一行）。
-// - WALK_FOCUS_BY_TAG_SELECTORS：走查侧（tests/ux、evals）判焦点、认输入框不按标签名；现存 0 处，没有名单。
+// - WALK_FOCUS_BY_TAG_SELECTORS / WALK_FOCUS_BY_TAG_EXITS：走查侧（tests/ux、evals）判焦点、认输入框不按标签名；现存 1 处登记在名单里，同样只减不增。
 //
 // 有意接受的缺口（静态看不出，或拦了会误伤）：closest() 的结果先存进变量再聚焦（closest 进变量多半是判断事件来自哪类控件）；
 // 选择器字符串先放进变量再传；经别的函数间接返回再聚焦。
@@ -62,7 +62,7 @@ export const FOCUS_LOOKUP_TEST_FILES = Object.freeze(['src/**/*.test.{ts,tsx}', 
 // ── 走查侧（tests/ux、evals）：判焦点、认输入框不按标签名 ──
 // shell-redesign 走查判 ⌘J 后焦点在不在 Agent 输入框，写的是 activeElement.tagName === 'TEXTAREA'：输入框换成富文本编辑器后
 // 这句永远不成立，夜跑从那天起每晚红，红在一百多条红里没人认出产品里焦点确实没进去。按标签名判，输入框一换形态就同时造假红和假绿。
-// 走查侧现存 0 处，没有名单；判焦点走 tests/ux/agent-runtime-walk-support.mjs 的 expectComposerFocused()，别的控件用 toBeFocused()。
+// 判焦点走 tests/ux/agent-runtime-walk-support.mjs 的 expectComposerFocused()，别的控件用 toBeFocused()；现存的登记在 WALK_FOCUS_BY_TAG_EXITS。
 const WALK_MESSAGE = '走查不按标签名认输入框、判焦点（tagName === \'TEXTAREA\'、instanceof HTMLInputElement、activeElement.matches(\'textarea\')）：'
   + '输入框一换形态就同时造假红和假绿。Agent 输入框用 tests/ux/agent-runtime-walk-support.mjs 的 expectComposerFocused() / composerText()，'
   + '别的控件用 expect(locator).toBeFocused()。见 scripts/focus-by-tag-lookup.mjs。'
@@ -85,6 +85,14 @@ export const WALK_FOCUS_BY_TAG_SELECTORS = Object.freeze([
 
 /** 走查侧规则管的范围（同 eslint.config.mjs 里 Playwright 那几条：这两片 2026-10-22 起进 ESLint）。 */
 export const WALK_FOCUS_FILES = Object.freeze(['tests/ux', 'evals'].map((dir) => `${dir}/**/*.{js,mjs,cjs,ts,tsx,mts,cts}`))
+
+/**
+ * 走查侧现存的（2026-10-27 普查冻结，tests/ux + evals 名单外 0 处）：文件 → { count, what }。只减不增，规则同 FOCUS_BY_INPUT_IMPL_EXITS。
+ * 这一处是画布跟手量具的诊断字段，不是断言；它是别的线的性能量具，本次不改，迁法：富文本用 isContentEditable，原生框用 locator 的 toBeFocused()。
+ */
+export const WALK_FOCUS_BY_TAG_EXITS = Object.freeze({
+  'tests/ux/canvas-follow-hand/scenarios-canvas.mjs': Object.freeze({ count: 1, what: "方向键挪卡之前记一下焦点在不在编辑器里（focusInEditor）：activeElement.closest('.ProseMirror, input, textarea')" }),
+})
 
 /**
  * 现存的文件（2026-10-27 普查冻结，全 src 1638 个文件、名单外 0 处）：文件 → { count: 选择器命中处数, what: 找的是什么 }。
