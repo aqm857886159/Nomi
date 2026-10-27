@@ -4,9 +4,10 @@ import { spendAuthorizationGates } from "../shared/productionSpendAuthority";
 // 这里只写。命令（generation.present / generation.shot.remove / generation.shot.restore / generation.handover /
 // generation.handover.bind / generation.handover.settle / generation.withdraw）与仓库写入口的收尾（settlePresentation）
 // 共用这一份手法，reducer 只转进来。交接三条只走主进程（渲染层的命令白名单里没有它们）。
-import { resolveGenerationShotScope } from "../shared/agentCapabilities/generationShotScope";
+import { currentOfferFrom, resolveUndecidedGenerationShotScope } from "../shared/agentCapabilities/generationShotScope";
 import {
   currentPresentation,
+  generationPresentationOutcome,
   handOverOfCanvasRun,
   offerShots,
   planShotIds,
@@ -56,27 +57,27 @@ function closeCurrent(plan: ProductionGenerationPlan, now: string, by: Generatio
 }
 
 /**
- * 这一次出价摆哪几镜（`generate` 动词，2026-09-30 付费卡逐镜）：
- *   · 点名了（`shotIds`）→ 就是这几镜；
- *   · 没点名 → 计划里还算数的镜里**没批过的**（Q5：生成过的不再问一次）；一镜都不剩时，就是对整份草稿再来一轮
- *     （每一镜都生成过了，他又说「生成」——新的一轮、新的尝试，和以前「下一批」同一个意思）。
- * 摆的镜里只要有一镜批过（或者这是一份被删掉的草稿），就必须等之前的每一笔都落定（`hasUnsettledLiability`）：一次新出价
- * 不许把一笔结果未知的提交盖掉。没批过的镜可以在别的镜还在跑的时候摆出来（× 掉之后再说「生成」就是这一种）。
+ * 这一次出价摆哪几镜（`generate` 动词）。规则只有一条 `resolveUndecidedGenerationShotScope`（2026-10-27 用户拍板）：
+ *   · 点名了（`shotIds`）→ 就是这几镜（计划里任何一镜，重试照常）；
+ *   · 没点名 → 最近一张卡（开着或已关）上还没定、还勾在这一批里的镜；从没出过价 = 勾着、没送过、没去掉过的；
+ *   · 一镜不剩 → 拒（`generation_input_invalid`，正文逐镜说状态、给下一步），不回退成「整份再来一轮」。
+ * 摆的镜里只要有一镜送过（或者这是一份被删掉的草稿），就必须等之前的每一笔都落定（`hasUnsettledLiability`）：一次新出价
+ * 不许把一笔结果未知的提交盖掉。没送过的镜可以在别的镜还在跑的时候摆出来。
  */
 function presentationScope(run: ProductionRun, requested: unknown): string[] {
   const plan = run.generationPlan!;
-  const named = requested === undefined ? undefined : resolveGenerationShotScope(planShotIds(plan), requested);
-  const standing = named ?? standingShotIds(run);
-  const fresh = standing.filter((shotId) => !shotEverSent(run, shotId));
-  const scope = named ?? (fresh.length > 0 ? fresh : standing);
+  const ids = planShotIds(plan);
+  const outcome = generationPresentationOutcome(run);
+  const scope = resolveUndecidedGenerationShotScope({
+    door: "present", planShotIds: ids, requested, currentOffer: currentOfferFrom(outcome),
+    offerable: outcome
+      ? ids.filter((shotId) => plan.shots?.find((shot) => shot.shotId === shotId)?.included !== false)
+      : standingShotIds(run).filter((shotId) => !shotEverSent(run, shotId)),
+  });
   // 用户删掉的草稿（cancelled）重新摆出来，同样要等之前的每一笔都落定。
   if ((plan.state === "cancelled" || scope.some((shotId) => shotEverSent(run, shotId))) && hasUnsettledLiability(run)) {
     throw Object.assign(new Error("generation_reconciliation_required: a previous attempt for these shots is unsettled or in flight"),
       { code: "generation_reconciliation_required" });
-  }
-  if (scope.length === 0) {
-    throw Object.assign(new Error("generation_nothing_to_present: there are no shots left in this draft to put in front of the user"),
-      { code: "generation_nothing_to_present" });
   }
   return scope;
 }

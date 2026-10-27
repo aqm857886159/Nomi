@@ -34,6 +34,7 @@ import {
   evaluateDoorPolicy,
   evaluateHistory,
   evaluateIdentity,
+  evaluateExceptionDeadlines,
   evaluateOwnership,
   governedContracts,
   isIdentifierSymbol,
@@ -76,6 +77,7 @@ const RULE_TEXT = {
   'concept-dropped': ['概念从登记表里消失了，但主人还在', '撤销登记前先把主人收掉或并进别的概念；改名不算撤销（按名字、主人、计数键都能认出来）。'],
   'reference-unavailable': ['拿不到参照提交，证明不了棘轮没有回升', '设 CONCEPT_OWNERS_BASE_REF（或 ROOT_CAUSE_BASE_REF）指向 merge-base；拿不到参照就不放行（fail-closed）。'],
   'filter-unknown': ['--concept 点名的概念不存在', '用登记表里的 name 或 subject。'],
+  'exception-expired': ['例外登记已到期', '完成迁移或删除例外后再合并；不要只把日期往后推。'],
 }
 
 function readOption(argv, name) {
@@ -215,6 +217,8 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
     return 1
   }
   const concepts = sanitizeConcepts(registry?.concepts)
+  const today = environment.CONCEPT_OWNERS_TODAY?.trim() || new Date().toISOString().slice(0, 10)
+  for (const item of evaluateExceptionDeadlines({ concepts, today })) findings.push(item)
   const diagnostic = conceptFilter.length > 0
   const selected = diagnostic
     ? concepts.filter((concept) => conceptFilter.includes(concept.name) || conceptFilter.includes(concept.subject))

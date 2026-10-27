@@ -203,9 +203,9 @@ export type DesktopOnboardingBridge = {
   testConnection: (payload: {
     baseUrl: string
     apiKey: string
+    vendorKey?: string
     modelId?: string
     providerKind?: ProviderKind
-    autoProbe?: boolean
     probe?: 'reachability'
     headers?: Record<string, string>
     proxyUrl?: string

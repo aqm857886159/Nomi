@@ -956,7 +956,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "generation.plan",
-      "description": "Ask the user to approve generating a draft and wait for his answer; the result says whether generation started, he declined, or he wrote something else. Right after draft_shots, when the user asked to generate; or when they ask to generate existing drafts (\"run all six\"). Never to get a price — look_at_canvas already carries unit prices. Never when the user said \"don't generate yet\". It does not grant new spending permission; the existing approval policy controls execution. To change a shot first use draft_shots. operationId is the id returned by draft_shots; shotIds optionally limits the card to some of its shots. Nomi applies the user's spending approval mode. In full-auto mode that mode approves the spend and generation starts at once. In every other mode the user sees a priced confirmation card and this call waits for him; its result is what he did with the card — approved (generation has started), closed it (the request is over), or wrote something else instead (the quote is withdrawn and his words are in the result). Say generation started only when the result says so. This request does not itself prove canvas placement.",
+      "description": "Ask the user to approve generating a draft and wait for his answer; the result says whether generation started, he declined, or he wrote something else. Right after draft_shots, when the user asked to generate; or when they ask to generate existing drafts (\"run all six\": name them in shotIds). Never to get a price — look_at_canvas already carries unit prices. Never when the user said \"don't generate yet\". It does not grant new spending permission; the existing approval policy controls execution. To change a shot first use draft_shots. operationId is the id returned by draft_shots; shotIds names the shots for the card. Nomi applies the user's spending approval mode. In full-auto mode that mode approves the spend and generation starts at once. In every other mode the user sees a priced confirmation card and this call waits for him; its result is what he did with the card — approved (generation has started), closed it (the request is over), or wrote something else instead (the quote is withdrawn and his words are in the result). Say generation started only when the result says so. This request does not itself prove canvas placement.",
       "effect": "reversible_local",
       "effectGroups": null,
       "examples": [
@@ -991,7 +991,7 @@
             "type": "string"
           },
           "shotIds": {
-            "description": "Only these shots of the draft; omit for all.",
+            "description": "Shots for the card. Omit: only shots still undecided on the latest card (first card: all not yet generated). Name shots to retry or add others.",
             "items": {
               "maxLength": 160,
               "minLength": 1,

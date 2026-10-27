@@ -166,7 +166,7 @@
     },
     "electron/capabilityCore/mcpGenerationTools.ts": {
       "kind": "frozen",
-      "max": 1034,
+      "max": 1028,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {
@@ -432,7 +432,7 @@
     },
     "electron/capabilityCore/mcpGenerationMultiShot.ts": {
       "kind": "frozen",
-      "max": 850,
+      "max": 848,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {

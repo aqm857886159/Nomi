@@ -3,7 +3,8 @@ import type { ProductionGenerationPlan, ProductionGenerationShot, ProductionRun,
 import { checkSealAffordability, type ShotPrice } from "./shotPricing";
 import { deriveSealedGenerationAuthorizationState } from "./productionGenerationAuthorizationState";
 import { waitingAuthorizationGates } from "../shared/productionSpendAuthority";
-import { shotApprovedInCurrentPresentation, undecidedShotIds } from "../shared/productionGenerationPresentation";
+import { shotApprovedInCurrentPresentation } from "../shared/productionGenerationPresentation";
+import { resolveNamedGenerationShots } from "../shared/agentCapabilities/generationShotScope";
 import type { ProductionCommandEffect } from "./productionRunReducer";
 
 export class SealBudgetExceededError extends Error {
@@ -116,31 +117,21 @@ export function sealGenerationShots(plan: ProductionGenerationPlan, raw: unknown
 /**
  * 这一次封印盖哪几镜（2026-09-30 付费卡逐镜：每点一次封一份，只盖那一次点到的镜）。
  *
- * 点名的（`raw`）必须都是勾进这一批、还没被批过的镜；不点名 = 卡上这一次出价里还没决定的那几镜，没有开着的出价就是
- * 所有勾进这一批、还没被批过的镜（外部宿主、全自动档、文稿方案那几条路的形状不变）。单镜旧形态没有范围（它只封一次）。
+ * 多镜计划的封印必须点名范围（`scope`，2026-10-27）：不点名的范围只有一条规则，由付费门（`resolveGateScope` →
+ * `resolveUndecidedGenerationShotScope`）按出价账算好再传进来，reducer 里不留第二份缺省。点名的必须都是勾进这一批、
+ * 这一次出价里还没批过的镜（重复 / 空 / 不在里面一律原子拒）。单镜旧形态没有范围（它只封一次）。
  */
 export function sealScopeOf(run: Pick<ProductionRun, "gates">, plan: ProductionGenerationPlan, raw: unknown): ReadonlySet<string> | undefined {
   if (!plan.shots?.length) {
     if (raw !== undefined) throw new Error("A single-shot generation seal has no shot scope");
     return undefined;
   }
-  // 「还没决定」按这一次出价算：之前几轮批过的镜，在新的一轮里照样可以再批一次（新的尝试）；没有出价时就是从没批过的。
+  if (raw === undefined) throw new Error("A multi-shot generation seal must name its shot scope");
+  // 「还没批」按这一次出价算：之前几轮批过的镜，在新的一轮里照样可以再批一次（新的尝试）；没有出价时就是从没批过的。
   const open = plan.shots
     .filter((shot) => isShotIncluded(shot) && !shotApprovedInCurrentPresentation({ gates: run.gates, generationPlan: plan }, shot.shotId))
     .map((shot) => shot.shotId);
-  if (raw === undefined) {
-    // 不点名 = 卡上这一次出价里还没决定的镜（全自动档、外部宿主替用户批的就是这几镜）；没有开着的出价 = 还没封过的全部。
-    const onCard = undecidedShotIds({ gates: run.gates, generationPlan: plan }).filter((shotId) => open.includes(shotId));
-    return new Set(onCard.length > 0 ? onCard : open);
-  }
-  if (!Array.isArray(raw) || raw.length === 0 || raw.some((shotId) => typeof shotId !== "string" || !shotId.trim())) {
-    throw new Error("Generation seal scope must be a non-empty list of shot ids");
-  }
-  const scope = new Set((raw as string[]).map((shotId) => shotId.trim()));
-  for (const shotId of scope) {
-    if (!open.includes(shotId)) throw new Error(`Generation seal scope names a shot that is not waiting for a decision: ${shotId}`);
-  }
-  return scope;
+  return new Set(resolveNamedGenerationShots(open, raw));
 }
 
 function contractFrom(payload: Record<string, unknown>): NonNullable<ProductionGenerationPlan["contract"]> {
@@ -172,7 +163,6 @@ export function applyGenerationSeal(current: ProductionRun, command: RunCommand,
     throw new Error("Generation contract does not match the current draft");
   }
   const scope = sealScopeOf(current, currentPlan, command.payload.scope);
-  if (scope && scope.size === 0) throw new Error("Generation seal has nothing to seal: every included shot is already authorized");
   // P4 S1 multi-shot seal: freeze per-shot sub-contracts (the shots in scope) + the plan-level hash.
   const sealedShots = sealGenerationShots(currentPlan, command.payload.shots, scope);
   // P4 S2 seal precheck: when the caller supplies per-shot prices (derived from the catalog), the

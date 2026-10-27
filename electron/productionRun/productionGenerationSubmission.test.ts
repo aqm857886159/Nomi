@@ -174,8 +174,9 @@ describe("Run-owned semantic generation submission", () => {
     await expect(first.start({ projectId: "project-1", operationId: "op-1", admission: await landedAdmission(repository, "project-1", "op-1") })).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
     expect(repository.read("project-1", "op-1")).toMatchObject({ jobs: [{ status: "submission_unknown" }] });
     const unknownRun = repository.read("project-1", "op-1")!;
+    // 点名重摆这一镜：它上一笔结果未知，先得核对（不点名时它已送过、不在可摆的里，范围规则先拒）。
     expect(() => repository.execute("project-1", "op-1", { commandId: "unknown-next-batch", expectedRevision: unknownRun.revision,
-      type: "generation.present", payload: {}, issuedAt: "2026-08-23T00:00:00.000Z" })).toThrow(/reconciliation_required/);
+      type: "generation.present", payload: { shotIds: ["candidate-1"] }, issuedAt: "2026-08-23T00:00:00.000Z" })).toThrow(/reconciliation_required/);
     expect(repository.read("project-1", "op-1")).toEqual(unknownRun);
 
 
@@ -560,8 +561,9 @@ describe("historical batch observation", () => {
     await submission.poll(input);
     await submission.materialize(input);
     const run = repository.read(input.projectId, input.operationId)!;
+    // 下一轮点名这一镜（它生成过了，不点名只摆还没送过的）。
     repository.execute(input.projectId, input.operationId, { commandId: "next-batch", expectedRevision: run.revision,
-      type: "generation.present", payload: {}, issuedAt: "2026-08-23T00:00:00.000Z" });
+      type: "generation.present", payload: { shotIds: ["candidate-1"] }, issuedAt: "2026-08-23T00:00:00.000Z" });
     expect(repository.read(input.projectId, input.operationId)!.generationPlan!.contract).toBeUndefined();
     await expect(submission.poll(input)).resolves.toMatchObject({ jobId: started.jobId, nextAction: "materialize" });
     await expect(submission.materialize(input)).resolves.toMatchObject({ jobId: started.jobId, artifactId: "historic-artifact" });

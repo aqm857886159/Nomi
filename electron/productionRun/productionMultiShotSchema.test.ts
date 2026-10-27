@@ -268,7 +268,7 @@ describe("P4 S1 reducer shot addressing", () => {
     });
     let run = applyProductionCommand(draft, {
       commandId: "seal-op-x", expectedRevision: 5, type: "generation.seal",
-      payload: { contract: shotAContract, shots: sealedShots, planHash: "plan-hash-x", authorization }, issuedAt: now,
+      payload: { contract: shotAContract, shots: sealedShots, scope: sealedShots.filter((shot) => shot.included !== false).map((shot) => shot.shotId), planHash: "plan-hash-x", authorization }, issuedAt: now,
     }, now).run;
     if (!approve) return run;
     run = applyProductionCommand(run, {
@@ -442,7 +442,7 @@ describe("P4 S1 reducer shot addressing", () => {
     ];
     const effect = applyProductionCommand(draft, {
       commandId: "seal-inc", expectedRevision: 2, type: "generation.seal",
-      payload: { contract: shotAContract, shots: sealShots, planHash: "plan-hash-inc" }, issuedAt: now,
+      payload: { contract: shotAContract, shots: sealShots, scope: ["shot-a", "shot-c"], planHash: "plan-hash-inc" }, issuedAt: now,
     }, now);
 
     const sealed = effect.run.generationPlan!;
@@ -519,7 +519,7 @@ describe("P4 S1 reducer shot addressing", () => {
     });
     const run = applyProductionCommand(draft, {
       commandId: "seal-anchor", expectedRevision: 4, type: "generation.seal",
-      payload: { contract: anchorContract, shots, planHash: "plan-hash-anchor", authorization }, issuedAt: now,
+      payload: { contract: anchorContract, shots, scope: shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId), planHash: "plan-hash-anchor", authorization }, issuedAt: now,
     }, now).run;
     const effect = applyProductionCommand(run, {
       commandId: "trial-anchor", expectedRevision: 4, type: "generation.trial_narrow",

@@ -1,0 +1,23 @@
+{
+  "name": "素材选择器上传当一张卡的输入：完成时接不接线、选中回哪",
+  "subject": "canvas.node-input-upload",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+    "symbol": "addUploadedInput"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "symbol": "addUploadedInput"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-composer-upload-connect.root-cause.json：左环「给它加输入」与生成框参考行「+」两个入口都经 addUploadedInput。完成时只认用户显式取消（入口只在用户关选择器那几下里置位），承载入口的界面卸载不算取消；导入建卡切走的选中，接上后仅在仍停在这次建的卡上时还回上传前的选中；上传 + 接线一个撤销点。"
+}

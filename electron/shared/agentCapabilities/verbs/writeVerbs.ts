@@ -285,9 +285,9 @@ export function writeVerbs(): VerbDeclaration[] {
     name: "generate", profiles: ["internal"], profileReason: "mcpHandwrittenTransport", contractId: "generation.plan", effect: "reversible_local", nextAction: "user_sees_spend_card", internalGroup: "generation",
     describe: {
       does: "Ask the user to approve generating a draft and wait for his answer; the result says whether generation started, he declined, or he wrote something else.",
-      useWhen: `Right after draft_shots, when the user asked to generate; or when they ask to generate existing drafts ("run all six").`,
+      useWhen: `Right after draft_shots, when the user asked to generate; or when they ask to generate existing drafts ("run all six": name them in shotIds).`,
       notWhen: `Never to get a price — look_at_canvas already carries unit prices. Never when the user said "don't generate yet". It does not grant new spending permission; the existing approval policy controls execution. To change a shot first use draft_shots.`,
-      params: "operationId is the id returned by draft_shots; shotIds optionally limits the card to some of its shots.",
+      params: "operationId is the id returned by draft_shots; shotIds names the shots for the card.",
     },
     // 模型面 = `generation.plan` 的 `present` 分支减掉 `operation`，只覆写描述（`verbProjections.ts`）。
     schema: generateModelSchema,

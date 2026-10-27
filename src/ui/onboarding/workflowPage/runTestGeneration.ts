@@ -12,7 +12,7 @@
 //
 // 媒体输入（首帧/尾帧/源视频）**不带**：那要先把素材上传成 ComfyUI 的文件名，是画布的活。
 // 试跑只验「图能不能跑通 + 参数有没有接对」；界面上已明说这一点，不假装带了。
-import { cancelComfyCandidateTestRevision, mintSpendGrant, runComfyCandidateTestByVendor, type ComfyCandidateTestResultDto, type TaskKind } from '../../../workbench/api/taskApi'
+import { cancelComfyCandidateTestRevision, runComfyCandidateTestByVendor, type ComfyCandidateTestResultDto, type TaskKind } from '../../../workbench/api/taskApi'
 import { workflowMediaBindings, type WorkflowBinding } from '../comfyuiWorkflowBinding'
 import { buildComfyCertificationFixtureParams } from '../../../../electron/shared/comfyCertificationFixtures'
 
@@ -60,13 +60,6 @@ export async function runTestGeneration(input: {
   })
   const candidate = { revisionId: input.revisionId, modelKey: input.modelKey, taskKind }
   try {
-    // 付费守卫（electron/spendGrant.ts）硬拦所有未授权的 vendor 出口，试跑也不例外——
-    // 走查实锤：不铸令牌就是 SpendNotAuthorizedError。**这颗令牌在「运行测试」按钮的 onClick
-    // 事件链里铸**，正是守卫要求的信任边界（「铸令牌只挂在真人确认按钮 onClick」），
-    // 且属它注释里点名的那一类非节点付费（onboarding / 测连接 / mapping 调试）。
-    // maxAttemptsPerNode: 1 —— 试跑是一次性的，不给自动重试预算：失败要让用户看见失败、
-    // 回去改绑定，而不是背着他重试三次。
-    const grantId = await mintSpendGrant([nodeId], 1)
     return await runComfyCandidateTestByVendor(input.candidateVendorKey, {
       candidate,
       request: {
@@ -78,7 +71,6 @@ export async function runTestGeneration(input: {
           modelKey: input.modelKey,
           modelAlias: input.modelKey,
           nodeId,
-          grantId,
           certifyOutput: true,
           comfyCertificationRevisionId: input.revisionId,
         },

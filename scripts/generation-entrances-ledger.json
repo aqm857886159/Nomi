@@ -19,13 +19,13 @@
       "site": "src/workbench/generationCanvas/runner/catalogTaskActions.ts::runTask",
       "count": 1,
       "entrances": ["canvas-node", "shot-table-row", "retake"],
-      "note": "渲染层三条入口共用这一个 runner：分镜行落画布后按生成、重拍只是多一个 promptSuffix。"
+      "note": "渲染层三条入口共用这一个 runner；画布付费提交现在注入 canvasRun 走单镜 Run，runner 的 runTask 仅保留本地/非 Run 任务传输。"
     },
     {
       "site": "electron/tasks/taskIpcHandlers.ts::runTask",
       "count": 1,
       "entrances": ["canvas-node", "shot-table-row", "retake"],
-      "note": "上面那条的 IPC 落点（带幂等键）。"
+      "note": "上面那条的 IPC 落点（带幂等键）；它承接本地/非 Run 任务，画布付费提交走 canvas-submit，不把这里当作画布付费入口。"
     },
     {
       "site": "electron/capabilityCore/modelOnboarding/tryModel.ts::deps.runTask",

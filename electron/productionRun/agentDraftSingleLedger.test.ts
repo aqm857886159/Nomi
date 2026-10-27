@@ -266,7 +266,7 @@ describe('封存不许抹掉画布绑定', () => {
   it('seal 替换 plan.shots 时把已落地的 nodeId 带过封存线', () => {
     const effect = applyProductionCommand(draftRunWithBoundShots(), {
       commandId: 'seal-1', expectedRevision: 1, type: 'generation.seal',
-      payload: { contract: contractFor('c9-shot-1'), shots: sealMultiShotShape(['c9-shot-1', 'c9-shot-2']), planHash: 'plan-hash-1' },
+      payload: { contract: contractFor('c9-shot-1'), shots: sealMultiShotShape(['c9-shot-1', 'c9-shot-2']), scope: ['c9-shot-1', 'c9-shot-2'], planHash: 'plan-hash-1' },
       issuedAt: CONTRACT_NOW,
     }, CONTRACT_NOW)
     expect(effect.run.generationPlan?.shots?.map((entry) => entry.nodeId)).toEqual(['node-1', 'node-2'])
@@ -278,7 +278,7 @@ describe('封存不许抹掉画布绑定', () => {
     const detachedRun: ProductionRun = { ...base, generationPlan: { ...base.generationPlan!, candidate: shots[0].candidate } }
     const effect = applyProductionCommand(detachedRun, {
       commandId: 'seal-detached', expectedRevision: 1, type: 'generation.seal',
-      payload: { contract: contractFor('c9-shot-1'), shots: sealMultiShotShape(['c9-shot-1']), planHash: 'plan-hash-2' },
+      payload: { contract: contractFor('c9-shot-1'), shots: sealMultiShotShape(['c9-shot-1']), scope: ['c9-shot-1'], planHash: 'plan-hash-2' },
       issuedAt: CONTRACT_NOW,
     }, CONTRACT_NOW)
     expect(effect.run.generationPlan?.shots?.[0].canvasDetached).toBe(true)
@@ -306,7 +306,7 @@ describe('封存不许抹掉画布绑定', () => {
     })
     const effect = applyProductionCommand(current, {
       commandId: 'seal-with-authorization', expectedRevision: 1, type: 'generation.seal',
-      payload: { contract: contractFor('c9-shot-1'), shots, planHash: 'plan-hash-1', authorization },
+      payload: { contract: contractFor('c9-shot-1'), shots, scope: ['c9-shot-1', 'c9-shot-2'], planHash: 'plan-hash-1', authorization },
       issuedAt: CONTRACT_NOW,
     }, CONTRACT_NOW)
     const generateJobs = effect.run.jobs.filter((job) => job.stageId === 'generate')

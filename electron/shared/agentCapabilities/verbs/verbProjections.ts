@@ -249,7 +249,7 @@ const generateHostSchema = generationPlanInputSchema.options[4];
 
 export const generateModelSchema = generateHostSchema.omit({ operation: true }).extend({
   operationId: generateHostSchema.shape.operationId.describe("The operationId returned by draft_shots."),
-  shotIds: generateHostSchema.shape.shotIds.describe("Only these shots of the draft; omit for all."),
+  shotIds: generateHostSchema.shape.shotIds.describe("Shots for the card. Omit: only shots still undecided on the latest card (first card: all not yet generated). Name shots to retry or add others."),
 });
 
 export const GENERATE_HOST_FILL: HostFill<typeof generateHostSchema, typeof generateModelSchema> = {

@@ -25,7 +25,7 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const owner = sender.id; owners.add(owner);
     sender.once("destroyed", () => { owners.delete(owner); void antigravityImageJobs.cancelOwner(owner); void loadCore().then((core) => core.releaseCanvasShotSender(owner)).catch(() => undefined); });
   };
-  // 付费守卫铸令牌：只剩附属付费口在用（新手页的工作流试生成；登记的例外，到期 2026-11-15）。画布不再铸令牌（发动机收敛第一刀）。
+  // 付费守卫铸令牌：只剩已登记的附属付费口在用（例外到期 2026-12-15）。画布不再铸令牌（发动机收敛第一刀）。
   ipcMain.handle("nomi:tasks:grant-spend", (event, payload) => {
     assertTrustedSender(event);
     const raw = (payload || {}) as { nodeIds?: unknown; maxAttemptsPerNode?: unknown };

@@ -129,6 +129,7 @@ function createRunFixture(shots: readonly ProductionGenerationShot[], topContrac
     payload: {
       contract: topContract,
       shots,
+      scope: shots.map((shot) => shot.shotId),
       planHash: "fixture-plan-5m",
     },
     issuedAt: NOW,

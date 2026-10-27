@@ -1,5 +1,4 @@
 import { generationShotEnvelopeOf } from "../shared/generationShotEnvelope";
-import { resolveGenerationShotScope } from "../shared/agentCapabilities/generationShotScope";
 import { applyPlanCandidatePatch } from "./executionContract";
 import type { GenerationOperation, GenerationOperationStore } from "./mcpGenerationTools";
 
@@ -58,17 +57,10 @@ export function createInMemoryGenerationOperationStore(): GenerationOperationSto
       operations.set(keyFor(projectId, operationId), next);
       return next;
     },
-    present(projectId, operationId, now, shotIds) {
-      const current = read(projectId, operationId);
-      if (!current) throw new Error(`Generation operation not found: ${operationId}`);
-      if (current.state !== "draft") throw new Error("new_draft_required: only a draft can be presented");
-      const { cardHidden: _cardHidden, ...visible } = current;
-      const scope = resolveGenerationShotScope(current.shots?.map((shot) => shot.shotId) ?? [current.candidate.candidateId], shotIds);
-      const next = freeze({ ...visible,
-        ...(current.shots ? { shots: current.shots.map((shot) => ({ ...shot, included: scope.includes(shot.shotId) })) } : {}),
-        planVersion: (current.planVersion ?? 0) + 1, updatedAt: now });
-      operations.set(keyFor(projectId, operationId), next);
-      return next;
+    // 出价只有 Run 主人记得下（出价账 `generationPlan.presentations`）：摆哪几镜要读最近一张卡，这份内存版没有账，
+    // 留着一份自己的「没点名 = 全部」就是第二份默认（2026-10-27）。要测 generate 请用 Run 拥有的那一份。
+    present() {
+      throw new Error("generation_present_unsupported: the in-memory store has no offer ledger; present through the Run-owned store");
     },
     seal(projectId, operationId, contract, now, multiShot, authorization) {
       const current = read(projectId, operationId);

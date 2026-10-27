@@ -1,0 +1,29 @@
+{
+  "id": "REAL-20261027-composer-upload-connect",
+  "since": "2026-10-27",
+  "source": "2026-10-27 走查线 I-composer-walk-b3 真机探针（报告第 5 节问题 1；探针日志 3.graphAfterUpload：selected 是素材卡、edges 为空）",
+  "category": "reference-integrity",
+  "problem": "新建图片节点（文字生图）→ 生成框参考行「+」→「上传本地文件」→ 选一张图：画布上多一张素材卡且被选中，生成框收起，0 条连线，方式还是文字生图——用户以为加了参考，其实没用上。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "画布里从生成框参考行「+」上传一张图：完成就接到这张卡上、选中回到这张卡、生成框里直接看得到新参考，方式按现有接线规则从文字生图升到收参考图的那一种。",
+    "上传途中用户自己关掉选择器（点外面 / Esc）：只留素材卡、不接线（10-09 语义）。"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/ux/composer-upload-connect.test.mjs：宿主（画布 / 列表内嵌）× 用户动作（不碰 / 建卡前关掉 / 建卡后关掉 / 途中点了别的卡）矩阵，画布 × 不碰 修前红（0 条边）修后绿。",
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.upload.test.ts：真导入链（建卡默认选中新卡）+ 上传途中才翻转的取消信号。",
+    "docs/plan/2026-10-27-composer-upload-connect.md：设计卡与验收清单。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-27-composer-upload-connect.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/composer-upload-connect.test.mjs"
+  }
+}

@@ -75,6 +75,25 @@ it('executes the original materializer and batch action for exact scope, and rep
 // 那正是 run5 发现 ③ 的成因：用户在全屏 `SpendConfirmDialog` 上答了，主进程却读不到任何结论，
 // `generate` 只好以 `generation_approval_unavailable`（「this host did not wait for his answer」）
 // 的错误形状回给模型并进熔断（A1 一次、A3 两次，与答框次数一一对应）。
+// 文稿方案没有出价账（设计卡 2026-10-27 §三 渲染层那一格）：不点名 = 显式「没有当前出价」→ 这一轮的锚卡与镜头全集，
+// 再照旧只跑可跑的行；点名只认方案里有的镜，点错了在落任何节点之前拒绝。
+it('点名 shot-2：批量与确认框只含 shot-2', async () => {
+  const result = await presentStoryboard(input(['shot-2']))
+  expect(result).toMatchObject({ status: 'presented', shotIds: ['shot-2'], decision: 'started' })
+  expect(shotNodes().map(node => node.meta?.shotId)).toEqual(['shot-2'])
+  expect(calls.confirm.mock.calls[0][0].waves.flat()).toEqual(shotNodes().map(node => node.id))
+})
+it('不点名：没有当前出价 → 这一轮可跑的全部', async () => {
+  const result = await presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })
+  expect(result).toMatchObject({ status: 'presented', shotIds: ['shot-1', 'shot-2'], decision: 'started' })
+  expect(shotNodes().map(node => node.meta?.shotId).sort()).toEqual(['shot-1', 'shot-2'])
+})
+it('点名不在方案里的镜 → 拒绝，一个节点都不落、确认框不出', async () => {
+  await expect(presentStoryboard(input(['shot-9']))).rejects.toThrow('shot-9 is not one of the shots you can name here. Shots you can name: shot-1, shot-2.')
+  expect(shotNodes()).toHaveLength(0)
+  expect(calls.confirm).not.toHaveBeenCalled()
+})
+
 it('他点了取消 → 回包带 declined，画布和方案都不动', async () => {
   calls.spend.mockResolvedValue(false)
   const result = await presentStoryboard(input())

@@ -125,6 +125,7 @@ export function OnboardingWizard({
     bridge,
     baseUrl: effectiveBaseUrl,
     apiKey: requestAuth.apiKey,
+    vendorKey: existingVendorKey,
     models,
     providerKind,
     kindForced,
@@ -617,10 +618,6 @@ export function OnboardingWizard({
                     <div className="flex flex-col gap-2 border-t border-nomi-line-soft pt-3">
                       <Text size="xs" c="var(--nomi-ink-40)" className="leading-relaxed">
                         {t('modelSetup.testAndSaveHint')}
-                      </Text>
-                      {/* T-MO-27：这一下会真发一次上游请求，费用如实写在按钮旁边（未接 credentialProbePolicy） */}
-                      <Text size="xs" c="var(--nomi-ink-60)" className="leading-relaxed">
-                        {t('modelSetup.testConnectionSpendHint')}
                       </Text>
                       <div className="flex flex-wrap items-center gap-2">
                         <DesignButton

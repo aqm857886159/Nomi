@@ -116,8 +116,9 @@ function makeRepo({ files = {}, concepts = [concept()], base = baseline() } = {}
   return { root, baseRef }
 }
 
-function run(repo, args = [], { baseRef = repo.baseRef } = {}) {
+function run(repo, args = [], { baseRef = repo.baseRef, today } = {}) {
   const env = { ...process.env, CONCEPT_OWNERS_BASE_REF: baseRef }
+  if (today) env.CONCEPT_OWNERS_TODAY = today
   delete env.ROOT_CAUSE_BASE_REF
   const result = spawnSync(process.execPath, [checker, '--repo-root', repo.root, ...args], { encoding: 'utf8', env })
   return { status: result.status, output: `${result.stdout}\n${result.stderr}` }
@@ -139,6 +140,20 @@ test('干净的登记表与代码是绿的', () => {
     const result = run(repo)
     assert.equal(result.status, 0, result.output)
     assert.match(result.output, /✅ 概念 owner 门岗/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('例外登记到期后红，到期当天仍绿', () => {
+  const repo = makeRepo({ concepts: [concept({
+    exception_deadlines: [{ id: 'legacy', due: '2026-12-15', paths: ['electron/shared/landing.ts'], reason: '等待迁移到统一执行入口' }],
+  })] })
+  try {
+    assert.equal(run(repo, [], { today: '2026-12-15' }).status, 0)
+    const expired = run(repo, [], { today: '2026-12-16' })
+    assert.equal(expired.status, 1, expired.output)
+    assert.match(expired.output, /exception-expired|例外登记已到期/)
   } finally {
     cleanup(repo)
   }

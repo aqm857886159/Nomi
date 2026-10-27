@@ -1,6 +1,6 @@
 import { DRAFT_CANVAS_LANDING_KEY, type DraftCanvasLanding } from "../shared/agentLane/draftCanvasLanding";
 import { undecidedShotIds, type GeneratePresentationOutcome } from "../shared/productionGenerationPresentation";
-import { resolveGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
+import { GenerationScopeRefusal, NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../shared/agentCapabilities/generationShotScope';
 import { productionTaskAbsenceCode } from '../productionRun/productionRunErrors';
 import { GenerationProviderCapabilityError, GenerationProviderObservationError, GenerationRuntimeBindingError } from './generationRuntimeAdapter';
 import { ProductionGenerationAuthorizationError } from '../productionRun/productionGenerationAuthorization';
@@ -152,7 +152,8 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
           // 和 `refuseToModel` 是同一档。以前它不在这里，落进兜底码：Agent 只收到一个裸的 generation_not_started，
           // 说不出拒了什么，于是同一份参数原样重试（铁律 ⑩ 宿主矩阵首跑抓到）。
           : value instanceof ContractCompilationError ? GENERATION_ARGUMENT_REFUSAL : undefined,
-    ownMessage: (value) => (value instanceof ContractCompilationError ? value.message : undefined),
+    // 范围拒绝（`GenerationScopeRefusal`：不点名一镜不剩 / 点名不成立）同一档：正文是我们写给模型的，逐镜说状态、给下一步。
+    ownMessage: (value) => (value instanceof ContractCompilationError || value instanceof GenerationScopeRefusal ? value.message : undefined),
     // 粗码 `generation_input_invalid` 说不清是哪一种拒绝；具体码（unknown_parameter……）随失败带出去，lane 据它给按码的下一步。
     admission: (value) => (value instanceof ContractCompilationError ? value.rejection?.code : undefined),
     // 收敛成码挡住的应当只有**供应商 / 凭据的原始文本**。连我们自己 schema 的字段级理由一起抹掉，
@@ -554,7 +555,8 @@ export function createPiGenerationTransportAdapter(
         if (!capability) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
         if (storyboardTarget?.shotIds) {
           if (capability === 'plan' && (typeof args.shotId !== 'string' || !storyboardTarget.shotIds.includes(args.shotId))) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `This request covers only these shots: ${storyboardTarget.shotIds.join(', ')}. Name one of them in shotId.`);
-          if (capability === 'present') args.shotIds = resolveGenerationShotScope(storyboardTarget.shotIds,args.shotIds);
+          // 用户的选择就是这一次的范围（没有出价账）：不点名 = 选中的全部，点名只认选中的；规则与 generate 是同一条。
+          if (capability === 'present') args.shotIds = resolveUndecidedGenerationShotScope({ door: 'present', planShotIds: storyboardTarget.shotIds, requested: args.shotIds, currentOffer: NO_CURRENT_OFFER, offerable: storyboardTarget.shotIds });
           // The selection names its plan, so a call that addresses a different one is refused
           // rather than silently retargeted.
           if ((capability === 'plan' || capability === 'present') && args.operationId !== storyboardTarget.designId) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `This request is about plan ${storyboardTarget.designId}. Use that operationId.`);

@@ -85,7 +85,7 @@ const FORBIDDEN_KINDS = new Set(['definition', 'reference'])
 const CONCEPT_KEYS = new Set([
   'name', 'subject', 'lifecycle', 'authority_kind', 'trust_domain', 'fact_kind', 'migration_status',
   'migration_strategy', 'owner', 'write_api', 'forbidden_derivations', 'identity_fields', 'parity_test',
-  'allowed_consumers', 'since', 'notes',
+  'allowed_consumers', 'since', 'notes', 'exception_deadlines',
 ])
 const REQUIRED_KEYS = [
   'name', 'subject', 'lifecycle', 'authority_kind', 'trust_domain', 'fact_kind', 'migration_status',
@@ -182,6 +182,21 @@ export function validateRegistry(registry, { exists }) {
     }
     if (concept.since !== undefined && !DATE_PATTERN.test(String(concept.since))) invalid(`since 必须是 YYYY-MM-DD：${concept.since}`, label)
     if (concept.notes !== undefined && !text(concept.notes)) invalid('notes 不能为空', label)
+
+    if (concept.exception_deadlines !== undefined) {
+      if (!Array.isArray(concept.exception_deadlines) || concept.exception_deadlines.length === 0) {
+        invalid('exception_deadlines 写了就必须是非空数组', label)
+      } else {
+        for (const deadline of concept.exception_deadlines) {
+          if (!deadline || !text(deadline.id) || !DATE_PATTERN.test(String(deadline.due ?? ''))
+            || !Array.isArray(deadline.paths) || deadline.paths.length === 0
+            || deadline.paths.some((path) => !text(path)) || !text(deadline.reason, 8)
+            || Object.keys(deadline).some((key) => !['id', 'due', 'paths', 'reason'].includes(key))) {
+            invalid('exception_deadlines 每条都必须是 { id, due, paths, reason }，到期日为 YYYY-MM-DD', label)
+          }
+        }
+      }
+    }
 
     const owner = concept.owner
     const ownerOk = owner && typeof owner === 'object' && !Array.isArray(owner) && text(owner.path) && text(owner.symbol)
@@ -296,7 +311,27 @@ export function sanitizeConcepts(concepts) {
       forbidden_derivations: entries(concept.forbidden_derivations, (entry) => entry && text(entry.symbol) && FORBIDDEN_KINDS.has(entry.kind)),
       allowed_consumers: entries(concept.allowed_consumers, (entry) => text(entry)),
       identity_fields: Array.isArray(concept.identity_fields) ? concept.identity_fields.filter((field) => text(field)) : undefined,
+      exception_deadlines: Array.isArray(concept.exception_deadlines)
+        ? concept.exception_deadlines.filter((deadline) => deadline && text(deadline.id) && DATE_PATTERN.test(String(deadline.due ?? ''))
+          && Array.isArray(deadline.paths) && deadline.paths.length > 0 && deadline.paths.every((path) => text(path)) && text(deadline.reason, 8))
+        : undefined,
     }))
+}
+
+/** 例外登记的到期日是门岗承诺，不是备注；到期后的每次合同检查都必须红。 */
+export function evaluateExceptionDeadlines({ concepts, today }) {
+  const findings = []
+  for (const concept of concepts ?? []) {
+    for (const deadline of concept.exception_deadlines ?? []) {
+      if (deadline.due < today) {
+        findings.push(finding('exception-expired', {
+          concept: concept.name,
+          message: `例外 ${deadline.id} 已于 ${deadline.due} 到期（今天 ${today}）：${deadline.reason}`,
+        }))
+      }
+    }
+  }
+  return findings
 }
 
 /** 登记表里所有「写接口」：`path::symbol` → 概念名。 */

@@ -31,7 +31,7 @@ export async function consumeTaskSpend(input: SpendQuoteInput & {
 /** 一次任务在发出去之前要过的那一道付费闸。「这一镜归谁」的认领只在画布付费口的准入里做（appIntegrationCanvasShot）。 */
 export type TaskAdmission = { spendGate: typeof consumeTaskSpend }
 
-/** 令牌路：只剩附属付费口（试跑、认证、视频拆解、新手试生成、提示词提取；登记的例外，到期 2026-11-15）——核销内存令牌。 */
+/** 令牌路：只剩登记的附属付费口（试跑、认证、视频拆解；例外到期 2026-12-15）——核销内存令牌。 */
 export const TOKEN_ADMISSION: TaskAdmission = { spendGate: consumeTaskSpend }
 
 /**

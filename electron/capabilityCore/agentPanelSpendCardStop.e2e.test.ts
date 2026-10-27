@@ -116,11 +116,13 @@ describe("别的路关掉这一次出价，一样收", () => {
     expect(world.pending()!.shots.map((shot) => [shot.shotId, shot.offer])).toEqual([["shot-1", "not_sent"], ["shot-2", "not_sent"]]);
   });
 
-  it("Agent 在交的半路上又出了一次价（被顶掉）：上一次排队的同意收回，一镜不发；新的一张卡上两镜都在等决定", async () => {
+  // 2026-10-27 拍板：不点名的再出价只重摆最近一张卡上还没定的镜——两镜都在交时不点名会被拒（`mcpGenerationShotScope.e2e.test.ts` A2 变体守）。
+  // 这一条守的是「被顶掉」本身，所以 Agent 点名再出价（以前写的是不点名、靠旧默认「整份再摆」走到这里）。
+  it("Agent 在交的半路上点名又出了一次价（被顶掉）：上一次排队的同意收回，一镜不发；新的一张卡上两镜都在等决定", async () => {
     const world = spendWorld({ holdDispatch: true });
     await shotsDraft(world, [{}, {}]);
     await world.generate();
-    await world.handler({ capability: "present", params: { operationId: OPERATION_ID }, lease });
+    await world.handler({ capability: "present", params: { operationId: OPERATION_ID, shotIds: ["shot-1", "shot-2"] }, lease });
     world.renderer.releaseDispatch();
     await world.renderer.drain();
     expect(world.vendor.executes).toEqual([]);
@@ -130,13 +132,13 @@ describe("别的路关掉这一次出价，一样收", () => {
     expect(world.pending()!.shots.map((shot) => shot.offer)).toEqual(["undecided", "undecided"]);
   });
 
-  it("交到一半被顶掉：在交的那一镜照样把结论写回它自己那一笔（不停在「还在交」）", async () => {
+  it("交到一半被点名重新出价顶掉：在交的那一镜照样把结论写回它自己那一笔（不停在「还在交」）", async () => {
     const world = spendWorld();
     await shotsDraft(world, [{}]);
     const release = holdVendor(world);
     await world.generate();
     await settleMicrotasks();
-    await world.handler({ capability: "present", params: { operationId: OPERATION_ID }, lease });
+    await world.handler({ capability: "present", params: { operationId: OPERATION_ID, shotIds: ["shot-1"] }, lease });
     release();
     await world.renderer.drain();
     const superseded = world.run().generationPlan!.presentations!.at(-2)!;

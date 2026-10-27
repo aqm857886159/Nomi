@@ -36,7 +36,7 @@ async function timed(visible, done, { operations }) {
   return { firstFeedbackMs: firstFeedbackMs ?? Date.now() - started, totalMs: Date.now() - started }
 }
 
-async function addTextNode(win, body) {
+export async function addTextNode(win, body) {
   await addCanvasNodeFromRail(win, 'text')
   const id = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.at(-1).id)
   const editor = win.locator(`[data-node-id="${id}"] .ProseMirror`).first()

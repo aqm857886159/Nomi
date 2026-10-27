@@ -1,4 +1,4 @@
-import { resolveGenerationShotScope } from '../../../electron/shared/agentCapabilities/generationShotScope'
+import { NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../../../electron/shared/agentCapabilities/generationShotScope'
 import { stableProjectAgentJson } from '../../../electron/shared/legacyAgentJson'
 import { preloadModelOptions } from '../../config/useModelOptions'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
@@ -47,7 +47,8 @@ export async function presentStoryboard(data: Record<string, unknown>): Promise<
     const plan = readDesign(sourceDocumentId, designId).plan
     const captured = contentOf(sourceDocumentId, designId)
     const ids = [...plan.anchors.map(anchor => anchor.id), ...plan.shots.map(shot => shot.shotId!)]
-    const scope = resolveGenerationShotScope(ids, data.shotIds)
+    // 文稿方案没有出价账：不点名 = 这一轮的全部（锚卡 + 镜头），点名只认方案里的；规则与 Agent 的 generate 是同一条。
+    const scope = resolveUndecidedGenerationShotScope({ door: 'present', planShotIds: ids, requested: data.shotIds, currentOffer: NO_CURRENT_OFFER, offerable: ids })
     const [imageModelOptions, videoModelOptions] = await Promise.all([preloadModelOptions('image', 'any-published'), preloadModelOptions('video', 'any-published')])
     project.assertCurrent()
     const assertAuthorCurrent = async () => {

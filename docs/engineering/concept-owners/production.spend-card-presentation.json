@@ -46,6 +46,10 @@
     {
       "path": "electron/productionRun/stalePresentationSweep.ts",
       "symbol": "withdrawStalePresentations"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "resolveUndecidedGenerationShotScope"
     }
   ],
   "forbidden_derivations": [],
@@ -57,5 +61,5 @@
     "electron/capabilityCore/canvasShotHandover.ts"
   ],
   "since": "2026-09-30",
-  "notes": "付费卡逐镜（2026-09-29 用户拍板「点了的生成，去掉的不生成」）。卡问的是哪几镜、用户「不生成 ×」了哪几镜（可恢复）、哪几镜交给了画布、卡是怎么关的（每一镜都定了 / 取消 / 打字岔开 / 停下 / 交给了画布），只记在 generationPlan.presentations 这一本只追加的账上，只经这几个写口改（全部经 productionRunReducer 的命令；settlePresentation 是仓库在决定那一步里顺手收尾，不多一个版本号）。2026-10-24 D2 第③步：卡上按「生成」= 把这几镜交给画布单节点提交，账上记三步——handOverPresentedShots（决定：人的手势 gesture / 直接生成档的策略 policy）、bindHandOvers（渲染层开好同意后绑上画布 Run，节点必须是这一镜落地的那个）、settleHandOver（画布写回 accepted / unknown / not_sent，收卡时没绑上的记 withdrawn）。收卡（closeCurrent）每一条路都把没绑上的交接收尾；绑上的落定按 canvasRunId 跨出价找（handOverOfCanvasRun）。卡读的是 offerShots 这一个读口。In-app 卡全部「不生成」时卡留着（按钮灰），外部宿主照旧收成 resolved。以前的 cardHidden 只读进来折成一条出价记录（normalizeLegacyPresentation），不再写。渲染层只把用户在这一页的动作传过来，不保存第二份逐镜状态。"
+  "notes": "付费卡逐镜（2026-09-29 用户拍板「点了的生成，去掉的不生成」）。卡问的是哪几镜、用户「不生成 ×」了哪几镜（可恢复）、哪几镜交给了画布、卡是怎么关的（每一镜都定了 / 取消 / 打字岔开 / 停下 / 交给了画布），只记在 generationPlan.presentations 这一本只追加的账上，只经这几个写口改（全部经 productionRunReducer 的命令；settlePresentation 是仓库在决定那一步里顺手收尾，不多一个版本号）。2026-10-24 D2 第③步：卡上按「生成」= 把这几镜交给画布单节点提交，账上记三步——handOverPresentedShots（决定：人的手势 gesture / 直接生成档的策略 policy）、bindHandOvers（渲染层开好同意后绑上画布 Run，节点必须是这一镜落地的那个）、settleHandOver（画布写回 accepted / unknown / not_sent，收卡时没绑上的记 withdrawn）。收卡（closeCurrent）每一条路都把没绑上的交接收尾；绑上的落定按 canvasRunId 跨出价找（handOverOfCanvasRun）。卡读的是 offerShots 这一个读口。In-app 卡全部「不生成」时卡留着（按钮灰），外部宿主照旧收成 resolved。以前的 cardHidden 只读进来折成一条出价记录（normalizeLegacyPresentation），不再写。渲染层只把用户在这一页的动作传过来，不保存第二份逐镜状态。2026-10-27 不点名的范围只有一条规则 resolveUndecidedGenerationShotScope（用户拍板：最近一张卡、开着或已关，上面还没定的镜；从没出过价 = 勾着、没送过、没去掉过的；一镜不剩就拒，拒绝里告诉模型点名）。持久出价 presentGenerationPlan、付费门 resolveGateScope、适配器的选择、文稿方案都调它；handler 原样转交 shotIds、不预解析；reducer 的多镜封印必须点名范围。"
 }

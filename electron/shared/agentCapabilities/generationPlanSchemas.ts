@@ -183,7 +183,10 @@ export const generationPlanInputSchema = z.discriminatedUnion("operation", [
   /** `shotId`：改多镜草稿里的**一镜**（`draft_shots` 带 draftId + shotId）；缺省 = 顶层候选（单镜草稿）。 */
   z.object({ operation: z.literal("patch"), operationId, shotId: z.string().trim().min(1).optional(), patch: candidatePatch }).strict(),
   z.object({ operation: z.literal("preview"), operationId }).strict(),
-  /** `generate` 动词：把已建草稿的报价卡摆到用户面前；`shotIds` 只把卡限定在这几镜（缺省全部）。 */
+  /**
+   * `generate` 动词：把已建草稿的报价卡摆到用户面前；`shotIds` 点名摆哪几镜，缺省 = 最近一张卡上还没定的
+   * （第一次出价 = 勾着、没送过的；规则只在 `resolveUndecidedGenerationShotScope`）。
+   */
   z.object({ operation: z.literal("present"), operationId, shotIds: z.array(z.string().trim().min(1).max(160)).max(40).optional() }).strict(),
   // Strategy resolution is the separate GENERATION_RESOLVE_CAPABILITY owner.
   /**

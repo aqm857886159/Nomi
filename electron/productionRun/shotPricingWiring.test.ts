@@ -99,7 +99,7 @@ function sealCommand(draft: ProductionRun, shotPrices: Array<{ shotId: string; p
   ];
   return {
     commandId: "seal-op", expectedRevision: 2, type: "generation.seal" as const,
-    payload: { contract: aContract, shots, planHash: "plan-hash-seal", ...(shotPrices ? { shotPrices } : {}) },
+    payload: { contract: aContract, shots, scope: ["shot-a", "shot-b", "shot-c"], planHash: "plan-hash-seal", ...(shotPrices ? { shotPrices } : {}) },
     issuedAt: now,
   };
 }

@@ -464,6 +464,22 @@ it('selected stable shot scope refuses unrelated patches and narrows generate be
   expect(planning.mock.calls[1][0].params.shotIds).toEqual(['stable-b'])
 })
 
+// 选择就是用户的点名（设计卡 2026-10-27 §三 适配器那一格）：模型点名选择之外的镜，拒绝说得出哪一镜、能点哪些，
+// 而且在碰草稿账本之前（以前落进兜底码 generation_execution_failed，模型读到的是「可能已提交」）。
+it('selected stable shot scope refuses a named shot outside the selection in words the model can act on, before planning',async()=>{
+  const planning=vi.fn().mockResolvedValue({operation:{runRevision:1}})
+  const adapter=createPiGenerationTransportAdapter(binding,{planning,leaseFor:()=>lease})
+  const context={storyboardTarget:{projectId:binding.projectId,sourceDocumentId:'doc',sourceDocumentRevision:1,sourceDocumentContentHash:'hash',targetKind:'storyboard' as const,requestId:'selected',plans:[{id:'run',title:'Plan'}],designId:'run',shotIds:['stable-b']}}
+  const signal=new AbortController().signal
+  expect(await adapter.tryExecute(call('nomi_generation_plan',{operation:'present',operationId:'run',shotIds:['stable-a']}),signal,context)).toEqual({
+    ok:false,code:'generation_input_invalid',message:'stable-a is not one of the shots you can name here. Shots you can name: stable-b.',
+  })
+  expect(await adapter.tryExecute(call('nomi_generation_plan',{operation:'present',operationId:'run',shotIds:['stable-b','stable-b']}),signal,context)).toMatchObject({
+    ok:false,code:'generation_input_invalid',message:expect.stringContaining('names stable-b more than once'),
+  })
+  expect(planning).not.toHaveBeenCalled()
+})
+
 // generate 失败时说真话（付费卡① 23:30 第 3 点）：「结果可能未知、去供应商后台核对」只在账本说「可能到过供应商」时才是真的。
 // 账本那一句由宿主现算（operation 视图的 submissionStarted ← 制作作业 + 交给画布的那几镜），传输层只把这条事实随失败带出去；
 // 措辞（`generation_not_started` 还是结果未知）只在 lane 的 `laneFailureFromDecision` 定一次（两个出口同一处，D2 第③步还的债 c）。

@@ -1,0 +1,700 @@
+{
+  "script": "agent-shot-scope-real.paid.mjs",
+  "mode": "paid",
+  "startedAt": "2026-10-27T12:35:17.906Z",
+  "finishedAt": "2026-10-27T12:38:24.215Z",
+  "result": "passed",
+  "failure": null,
+  "buildMarker": "call generate again with shotIds naming them",
+  "model": "apimart/deepseek-v4-pro",
+  "image": "apimart/gemini-3.1-flash-image-preview",
+  "metrics": {
+    "toolWriteCorrect": "工具写对率 = 每回合模型发出的 draft_shots / generate 调用，和该回合期望的写法一致的回合数 / 8",
+    "turnSuccess": "回合成功率 = 每回合最后摆在用户面前的那张卡（或没有卡），和该回合期望的结果一致的回合数 / 8"
+  },
+  "numbers": {
+    "turns": 8,
+    "toolWriteCorrect": "6/8",
+    "turnSuccess": "6/8",
+    "t5Route": "direct-named",
+    "harnessErrors": 0
+  },
+  "hard": {
+    "checks": 18,
+    "failures": []
+  },
+  "gaugeProblems": [],
+  "spend": {
+    "cardApproved": 1,
+    "receiptMedia": 1,
+    "vendorTasks": 1,
+    "vendorTasksFrom": {
+      "wireCreates": 1,
+      "wireRecorderSawAnyRequest": true,
+      "providerTaskIds": 1,
+      "rule": "取大的"
+    },
+    "providerTaskIds": [
+      "task_01M5YNSNGCK5GMNR76TEHQK40Q"
+    ],
+    "receiptEntries": [
+      {
+        "source": "production-run",
+        "engine": "canvas",
+        "vendor": "apimart",
+        "model": "gemini-3.1-flash-image-preview",
+        "status": "ready",
+        "taskId": "task_01M5YNSNGCK5GMNR76TEHQK40Q"
+      }
+    ],
+    "hold": {
+      "seconds": 60,
+      "samples": 60,
+      "vendorSeen": [
+        1
+      ],
+      "receiptSeen": [
+        1
+      ]
+    }
+  },
+  "turns": [
+    {
+      "turn": "T1",
+      "ask": "画三张图：雨后水洼里漂着的红色纸船、窗台上晒太阳的橘猫、黄昏海边的灯塔，都是 1:1。起草好就出卡，我在卡上决定生成哪张。",
+      "startedAt": "2026-10-27T12:35:26.174Z",
+      "harnessError": null,
+      "settle": "card",
+      "sendAttempts": 1,
+      "draft": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "shotIds": [
+          "shot-1",
+          "shot-2",
+          "shot-3"
+        ],
+        "prompts": [
+          "雨后湿润的柏油路面上，一滩浅水洼倒映着灰色的天空。水面上漂着一只小小的红色纸船，纸船微微倾斜，船身有几处被水浸湿的深色痕迹。水洼边缘散落着几片被雨水打落的嫩绿树叶。水面有细微的涟漪，光线柔和而阴翳，反射在水面上形成淡淡的光斑。",
+          "一只胖乎乎的橘猫蜷缩在木质窗台上，阳光从窗户斜斜地照进来，把它的毛发染成温暖的金橙色。猫咪眯着眼睛，半张脸埋在交叠的前爪里，耳朵偶尔微微抖动。窗外隐约可见几片模糊的绿植。窗台上有一层薄薄的灰尘，阳光在猫身边投下一道清晰的明暗分界线。整个画面安静而慵懒。",
+          "黄昏时分，一座红白相间的灯塔独自矗立在海边礁石上。天空从深橙色渐变为紫蓝色，海面平静地反射着天空的色彩。灯塔的灯光刚刚亮起，一道温暖的金色光束穿透暮色。远处的海平面上有几只海鸥滑翔。礁石被海浪冲刷出深浅不一的纹理，浪花轻轻拍打着礁石底部。"
+        ]
+      },
+      "screenshot": ".tmp/pi-agent-shot-scope-real-development-1793104519685/01-t1-card.png",
+      "calls": [
+        {
+          "id": "call_def47eba6ea24dbabe767491",
+          "name": "look_at_canvas",
+          "args": {},
+          "isError": false,
+          "resultHead": "画布当前为空。"
+        },
+        {
+          "id": "call_ca5bd9af99dc487e9f4b9a7f",
+          "name": "draft_shots",
+          "args": {
+            "shots": [
+              {
+                "title": "红色纸船",
+                "prompt": "雨后湿润的柏油路面上，一滩浅水洼倒映着灰色的天空。水面上漂着一只小小的红色纸船，纸船微微倾斜，船身有几处被水浸湿的深色痕迹。水洼边缘散落着几片被雨水打落的嫩绿树叶。水面有细微的涟漪，光线柔和而阴翳，反射在水面上形成淡淡的光斑。",
+                "aspectRatio": "1:1",
+                "taskKind": "text_to_image"
+              },
+              {
+                "title": "窗台上的橘猫",
+                "prompt": "一只胖乎乎的橘猫蜷缩在木质窗台上，阳光从窗户斜斜地照进来，把它的毛发染成温暖的金橙色。猫咪眯着眼睛，半张脸埋在交叠的前爪里，耳朵偶尔微微抖动。窗外隐约可见几片模糊的绿植。窗台上有一层薄薄的灰尘，阳光在猫身边投下一道清晰的明暗分界线。整个画面安静而慵懒。",
+                "aspectRatio": "1:1",
+                "taskKind": "text_to_image"
+              },
+              {
+                "title": "黄昏灯塔",
+                "prompt": "黄昏时分，一座红白相间的灯塔独自矗立在海边礁石上。天空从深橙色渐变为紫蓝色，海面平静地反射着天空的色彩。灯塔的灯光刚刚亮起，一道温暖的金色光束穿透暮色。远处的海平面上有几只海鸥滑翔。礁石被海浪冲刷出深浅不一的纹理，浪花轻轻拍打着礁石底部。",
+                "aspectRatio": "1:1",
+                "taskKind": "text_to_image"
+              }
+            ]
+          },
+          "isError": false,
+          "resultHead": "{\"operation\":{\"operationId\":\"op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c\",\"projectId\":\"project-1793104524608-9vjs68\",\"runRevision\":0,\"candidate\":{\"candidateId\":\"cand-shot-1\",\"revision\":1,\"moduleId\":\"generation.single-shot\",\"providerId\":\"apimart"
+        },
+        {
+          "id": "call_8161048b85864b5b8ad6f4e3",
+          "name": "generate",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c"
+          },
+          "isError": null
+        }
+      ],
+      "card": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:1",
+        "ledgerShotIds": [
+          "shot-1",
+          "shot-2",
+          "shot-3"
+        ],
+        "projectionShotIds": [
+          "shot-1",
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerShotIds": [
+          "shot-1",
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerNodeIds": [
+          "gen-v2-image-mvqo5kbo-bezt",
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "storeNodeIds": [
+          "gen-v2-image-mvqo5kbo-bezt",
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "title": "生成这些图片？",
+        "confirm": "生成 3 张"
+      },
+      "offers": [
+        {
+          "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+          "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:1",
+          "shotIds": [
+            "shot-1",
+            "shot-2",
+            "shot-3"
+          ]
+        }
+      ],
+      "assistantSaid": [],
+      "hard": [
+        {
+          "turn": "T1",
+          "id": "card-ui-equals-host",
+          "ok": true,
+          "detail": "界面 = 投影 = 账 = 画布上这几镜的节点：shot-1, shot-2, shot-3"
+        },
+        {
+          "turn": "T1",
+          "id": "unnamed-only-undecided",
+          "ok": true,
+          "detail": "call_8161048b85864b5b8ad6f4e3（不点名）：卡上只摆了最近一张卡上还没定的镜：shot-1, shot-2, shot-3"
+        },
+        {
+          "turn": "T1",
+          "id": "unnamed-never-offers-a-sent-shot",
+          "ok": true,
+          "detail": "call_8161048b85864b5b8ad6f4e3（不点名）：卡上没有已经送出去的镜"
+        }
+      ],
+      "score": {
+        "toolWriteCorrect": true,
+        "turnSuccess": true,
+        "route": null,
+        "why": []
+      }
+    },
+    {
+      "turn": "T2",
+      "ask": "先别管第二张，生成第三张",
+      "startedAt": "2026-10-27T12:36:03.306Z",
+      "harnessError": null,
+      "settle": "card",
+      "sendAttempts": 1,
+      "screenshot": ".tmp/pi-agent-shot-scope-real-development-1793104519685/02-t2-card.png",
+      "calls": [
+        {
+          "id": "call_797a13feb657446a8b65c7e9",
+          "name": "generate",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+            "shotIds": [
+              "shot-3"
+            ]
+          },
+          "isError": null
+        }
+      ],
+      "card": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:2",
+        "ledgerShotIds": [
+          "shot-3"
+        ],
+        "projectionShotIds": [
+          "shot-3"
+        ],
+        "pointerShotIds": [
+          "shot-3"
+        ],
+        "pointerNodeIds": [
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "storeNodeIds": [
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "title": "生成这张图片？",
+        "confirm": "生成"
+      },
+      "offers": [
+        {
+          "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+          "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:2",
+          "shotIds": [
+            "shot-3"
+          ]
+        }
+      ],
+      "assistantSaid": [],
+      "hard": [
+        {
+          "turn": "T2",
+          "id": "card-ui-equals-host",
+          "ok": true,
+          "detail": "界面 = 投影 = 账 = 画布上这几镜的节点：shot-3"
+        },
+        {
+          "turn": "T2",
+          "id": "named-equals-shown",
+          "ok": true,
+          "detail": "call_797a13feb657446a8b65c7e9（点名 shot-3）：点名 shot-3 = 卡上摆的"
+        }
+      ],
+      "score": {
+        "toolWriteCorrect": true,
+        "turnSuccess": true,
+        "route": null,
+        "why": []
+      }
+    },
+    {
+      "turn": "T3",
+      "ask": "算了先不生成",
+      "startedAt": "2026-10-27T12:36:13.052Z",
+      "harnessError": null,
+      "settle": "settled",
+      "sendAttempts": 1,
+      "calls": [],
+      "card": null,
+      "offers": [],
+      "assistantSaid": [
+        "好，三张图的草稿都在画布上了——「红色纸船」「窗台上的橘猫」「黄昏灯塔」，1:1，默认用 Nano Banana 2。你想生成的时候随时告诉我，挑哪张都行。"
+      ],
+      "hard": [],
+      "score": {
+        "toolWriteCorrect": true,
+        "turnSuccess": true,
+        "route": null,
+        "why": []
+      }
+    },
+    {
+      "turn": "T4",
+      "ask": "先生成第一张看看",
+      "startedAt": "2026-10-27T12:36:20.781Z",
+      "harnessError": null,
+      "settle": "card",
+      "sendAttempts": 1,
+      "screenshot": ".tmp/pi-agent-shot-scope-real-development-1793104519685/03-t4-card.png",
+      "spendGate": {
+        "keeperShotId": "shot-1",
+        "excluded": [],
+        "effective": [
+          "shot-1"
+        ],
+        "problems": [],
+        "candidateParams": {
+          "size": "1:1"
+        },
+        "candidateModel": "apimart/gemini-3.1-flash-image-preview",
+        "nodeModel": "apimart/gemini-3.1-flash-image-preview",
+        "nodeResolution": "1K"
+      },
+      "spend": {
+        "pressedAt": "2026-10-27T12:36:30.377Z",
+        "keeperShotId": "shot-1",
+        "shotsApproved": 1,
+        "handOverOutcomes": [
+          "accepted"
+        ]
+      },
+      "settleAfterPress": "settled",
+      "calls": [
+        {
+          "id": "call_ed13bd1f7dd543e19d7fa30a",
+          "name": "generate",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+            "shotIds": [
+              "shot-1"
+            ]
+          },
+          "isError": false,
+          "resultHead": "{\"operation\":{\"operationId\":\"op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c\",\"projectId\":\"project-1793104524608-9vjs68\",\"runRevision\":6,\"candidate\":{\"candidateId\":\"cand-shot-1\",\"revision\":1,\"moduleId\":\"generation.single-shot\",\"providerId\":\"apimart"
+        }
+      ],
+      "card": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:3",
+        "ledgerShotIds": [
+          "shot-1"
+        ],
+        "projectionShotIds": [
+          "shot-1"
+        ],
+        "pointerShotIds": [
+          "shot-1"
+        ],
+        "pointerNodeIds": [
+          "gen-v2-image-mvqo5kbo-bezt"
+        ],
+        "storeNodeIds": [
+          "gen-v2-image-mvqo5kbo-bezt"
+        ],
+        "title": "生成这张图片？",
+        "confirm": "生成"
+      },
+      "offers": [
+        {
+          "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+          "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:3",
+          "shotIds": [
+            "shot-1"
+          ]
+        }
+      ],
+      "assistantSaid": [
+        "「红色纸船」已经开始生成了，稍等一下就能看到结果。"
+      ],
+      "hard": [
+        {
+          "turn": "T4",
+          "id": "card-ui-equals-host",
+          "ok": true,
+          "detail": "界面 = 投影 = 账 = 画布上这几镜的节点：shot-1"
+        },
+        {
+          "turn": "T4",
+          "id": "named-equals-shown",
+          "ok": true,
+          "detail": "call_ed13bd1f7dd543e19d7fa30a（点名 shot-1）：点名 shot-1 = 卡上摆的"
+        }
+      ],
+      "score": {
+        "toolWriteCorrect": true,
+        "turnSuccess": true,
+        "route": null,
+        "why": []
+      }
+    },
+    {
+      "turn": "T5",
+      "ask": "剩下的也生成吧",
+      "startedAt": "2026-10-27T12:36:37.841Z",
+      "harnessError": null,
+      "settle": "card",
+      "sendAttempts": 1,
+      "screenshot": ".tmp/pi-agent-shot-scope-real-development-1793104519685/05-t5-card.png",
+      "calls": [
+        {
+          "id": "call_5a9c88df0920415e92b9a873",
+          "name": "generate",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+            "shotIds": [
+              "shot-2",
+              "shot-3"
+            ]
+          },
+          "isError": null
+        }
+      ],
+      "card": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:4",
+        "ledgerShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "projectionShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerNodeIds": [
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "storeNodeIds": [
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "title": "生成这些图片？",
+        "confirm": "生成 2 张"
+      },
+      "offers": [
+        {
+          "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+          "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:4",
+          "shotIds": [
+            "shot-2",
+            "shot-3"
+          ]
+        }
+      ],
+      "assistantSaid": [],
+      "hard": [
+        {
+          "turn": "T5",
+          "id": "card-ui-equals-host",
+          "ok": true,
+          "detail": "界面 = 投影 = 账 = 画布上这几镜的节点：shot-2, shot-3"
+        },
+        {
+          "turn": "T5",
+          "id": "named-equals-shown",
+          "ok": true,
+          "detail": "call_5a9c88df0920415e92b9a873（点名 shot-2, shot-3）：点名 shot-2, shot-3 = 卡上摆的"
+        }
+      ],
+      "score": {
+        "toolWriteCorrect": true,
+        "turnSuccess": true,
+        "route": "direct-named",
+        "why": []
+      }
+    },
+    {
+      "turn": "T6",
+      "ask": "生成吧",
+      "startedAt": "2026-10-27T12:36:46.395Z",
+      "harnessError": null,
+      "settle": "card",
+      "sendAttempts": 1,
+      "screenshot": ".tmp/pi-agent-shot-scope-real-development-1793104519685/06-t6-card.png",
+      "calls": [
+        {
+          "id": "call_1a66bf855ee246d5995962f1",
+          "name": "generate",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+            "shotIds": [
+              "shot-2",
+              "shot-3"
+            ]
+          },
+          "isError": null
+        }
+      ],
+      "card": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:5",
+        "ledgerShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "projectionShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerNodeIds": [
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "storeNodeIds": [
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "title": "生成这些图片？",
+        "confirm": "生成 2 张"
+      },
+      "offers": [
+        {
+          "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+          "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:5",
+          "shotIds": [
+            "shot-2",
+            "shot-3"
+          ]
+        }
+      ],
+      "assistantSaid": [],
+      "hard": [
+        {
+          "turn": "T6",
+          "id": "card-ui-equals-host",
+          "ok": true,
+          "detail": "界面 = 投影 = 账 = 画布上这几镜的节点：shot-2, shot-3"
+        },
+        {
+          "turn": "T6",
+          "id": "named-equals-shown",
+          "ok": true,
+          "detail": "call_1a66bf855ee246d5995962f1（点名 shot-2, shot-3）：点名 shot-2, shot-3 = 卡上摆的"
+        }
+      ],
+      "score": {
+        "toolWriteCorrect": true,
+        "turnSuccess": true,
+        "route": null,
+        "why": []
+      }
+    },
+    {
+      "turn": "T7",
+      "ask": "第二张改成夜景再生成",
+      "startedAt": "2026-10-27T12:36:55.072Z",
+      "harnessError": null,
+      "settle": "card",
+      "sendAttempts": 1,
+      "screenshot": ".tmp/pi-agent-shot-scope-real-development-1793104519685/07-t7-card.png",
+      "calls": [
+        {
+          "id": "call_2af81b76e4ec454ba1c86844",
+          "name": "draft_shots",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+            "shots": [
+              {
+                "shotId": "shot-2",
+                "prompt": "深夜，一只胖乎乎的橘猫蜷缩在木质窗台上。窗外夜色深沉，一盏暖黄色的路灯在街对面亮着，微弱的光透过窗格投进屋内，在猫身上落下柔和的条纹光影。猫咪半张脸埋在交叠的前爪里，眼睛微闭，毛发在暗处呈现深橘色，在光线扫过的地方泛着暖金色。窗台边放着一杯已经凉了的茶，杯中飘着一小片柠檬。整个画面安静、温暖而孤独。"
+              }
+            ]
+          },
+          "isError": false,
+          "resultHead": "{\"operation\":{\"operationId\":\"op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c\",\"projectId\":\"project-1793104524608-9vjs68\",\"runRevision\":15,\"candidate\":{\"candidateId\":\"cand-shot-2\",\"revision\":1,\"moduleId\":\"generation.single-shot\",\"providerId\":\"apimar"
+        },
+        {
+          "id": "call_188f00a7be104a899a681359",
+          "name": "generate",
+          "args": {
+            "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+            "shotIds": [
+              "shot-2",
+              "shot-3"
+            ]
+          },
+          "isError": null
+        }
+      ],
+      "card": {
+        "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+        "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:6",
+        "ledgerShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "projectionShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerShotIds": [
+          "shot-2",
+          "shot-3"
+        ],
+        "pointerNodeIds": [
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "storeNodeIds": [
+          "gen-v2-image-mvqo5kbp-zmvk",
+          "gen-v2-image-mvqo5kbp-0ubx"
+        ],
+        "title": "生成这些图片？",
+        "confirm": "生成 2 张"
+      },
+      "offers": [
+        {
+          "operationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c",
+          "presentationId": "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c:presentation:6",
+          "shotIds": [
+            "shot-2",
+            "shot-3"
+          ]
+        }
+      ],
+      "assistantSaid": [
+        "已把「窗台上的橘猫」改成夜景版，现在一起出卡。"
+      ],
+      "hard": [
+        {
+          "turn": "T7",
+          "id": "card-ui-equals-host",
+          "ok": true,
+          "detail": "界面 = 投影 = 账 = 画布上这几镜的节点：shot-2, shot-3"
+        },
+        {
+          "turn": "T7",
+          "id": "named-equals-shown",
+          "ok": true,
+          "detail": "call_188f00a7be104a899a681359（点名 shot-2, shot-3）：点名 shot-2, shot-3 = 卡上摆的"
+        }
+      ],
+      "score": {
+        "toolWriteCorrect": false,
+        "turnSuccess": false,
+        "route": null,
+        "why": [
+          "点名 shot-2, shot-3（应为 shot-2）",
+          "卡上摆了 shot-2, shot-3（应只有 shot-2）"
+        ]
+      },
+      "prompts": {
+        "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c/shot-1": "雨后湿润的柏油路面上，一滩浅水洼倒映着灰色的天空。水面上漂着一只小小的红色纸船，纸船微微倾斜，船身有几处被水浸湿的深色痕迹。水洼边缘散落着几片被雨水打落的嫩绿树叶。水面有细微的涟漪，光线柔和而阴翳，反射在水面上形成淡淡的光斑。",
+        "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c/shot-2": "深夜，一只胖乎乎的橘猫蜷缩在木质窗台上。窗外夜色深沉，一盏暖黄色的路灯在街对面亮着，微弱的光透过窗格投进屋内，在猫身上落下柔和的条纹光影。猫咪半张脸埋在交叠的前爪里，眼睛微闭，毛发在暗处呈现深橘色，在光线扫过的地方泛着暖金色。窗台边放着一杯已经凉了的茶，杯中飘着一小片柠檬。整个画面安静、温暖而孤独。",
+        "op-ceadf684-c3c8-4ac0-92a6-c9fb2a7a264c/shot-3": "黄昏时分，一座红白相间的灯塔独自矗立在海边礁石上。天空从深橙色渐变为紫蓝色，海面平静地反射着天空的色彩。灯塔的灯光刚刚亮起，一道温暖的金色光束穿透暮色。远处的海平面上有几只海鸥滑翔。礁石被海浪冲刷出深浅不一的纹理，浪花轻轻拍打着礁石底部。"
+      }
+    },
+    {
+      "turn": "T8",
+      "ask": "加一个结尾镜头然后生成它",
+      "startedAt": "2026-10-27T12:37:15.014Z",
+      "harnessError": null,
+      "settle": "settled",
+      "sendAttempts": 1,
+      "calls": [],
+      "card": null,
+      "offers": [],
+      "assistantSaid": [
+        "想要什么内容的结尾镜头？比如三张图里某个元素的呼应、字幕卡、还是全新的画面？简单描述一下我就帮你建。"
+      ],
+      "hard": [],
+      "score": {
+        "toolWriteCorrect": false,
+        "turnSuccess": false,
+        "route": null,
+        "why": [
+          "这一回合新出现的镜有 0 个（应恰好 1 个）",
+          "成功的 draft_shots 有 0 次（应 1 次、1 镜、带提示词）",
+          "generate 调了 0 次、点名 无（应在新那一镜上调 1 次，点名它）",
+          "卡上摆了 无（应只有新那一镜）"
+        ]
+      },
+      "newShots": []
+    }
+  ],
+  "notes": [],
+  "brain": {
+    "text": {
+      "replies": 12,
+      "input": 46371,
+      "output": 1943,
+      "cacheRead": 358400,
+      "cacheWrite": 0,
+      "models": {
+        "apimart/deepseek-v4-pro": 12
+      }
+    },
+    "mediaCalls": 1
+  },
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-agent-shot-scope-real-development-1793104519685"
+}
