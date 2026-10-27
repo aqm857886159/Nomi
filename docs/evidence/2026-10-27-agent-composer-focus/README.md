@@ -22,7 +22,7 @@
 | shell-redesign 中文 1280×800（canvas-agent、check-shortcuts、check-mod-j、check-mod-backslash-dock） | exit 0 |
 | shell-redesign 英文 1280×800 | exit 0 |
 | shell-redesign 中文 1000×700 | exit 0 |
-| agent-v4-short-film | 本 PR 的起手句断言（第 102 行）过；整条红在第 216 行（最小窗下对话流只溢出 35px，正对照不成立），main 夜跑 run 40478193665 红在第 262 行——都与本 PR 无关 |
+| agent-v4-short-film | 本 PR 的起手句断言（第 102 行）过；整条在本机红在第 216 行（最小窗 1100×720 下对话流只溢出 35px，不够做「收起前后滚动位置」那条正对照，走查拒绝往下测——是走查的前提，不是产品断言）。main 上本机红不红：未验证（协调另派发版线修这条走查）。main 夜跑 run 40478193665（`0c87662bc`，ubuntu-latest）过了这条前提、红在第 262 行：运行中按 textarea 时代的 `placeholder` 属性判，TipTap 输入框没有这个属性 |
 | tikhub-connector（中文 1280×933） | exit 0：「深链后光标在 TikHub 那一节的 Key 输入框里」「深链落下的焦点没被抢走（700ms 后仍在 Key 输入框里）」都过 |
 
 ## 反例（逐个改坏 → 跑必须红的那一项 → 还原并核对与 HEAD 逐字节一致）

@@ -18,6 +18,7 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import { openRailDrawer } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/tikhub-connector')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -181,7 +182,7 @@ try {
   // 那一刻这一节还没挂出来，焦点一直留在对话框后面的「找参考」框里。
   const linkedSection = win.locator('[role="dialog"][aria-modal="true"] [data-settings-section="tikhub-connector"]').first()
   await expectVisible(linkedSection, '无 key 贴链接回车没把设置开到 TikHub 那一节')
-  const keyField = linkedSection.getByLabel('TikHub API Key', { exact: true })
+  const keyField = linkedSection.getByLabel(uiText('zh-CN', 'settings.ai.tikhub.keyAria'), { exact: true })
   await expect(keyField, '深链到 TikHub 那一节后光标不在 Key 输入框里').toBeFocused({ timeout: stationTimeout() })
   console.log('  ✅ 深链后光标在 TikHub 那一节的 Key 输入框里')
   await win.waitForTimeout(700)
