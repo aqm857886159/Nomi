@@ -199,10 +199,11 @@ try {
   // 节点 ↔ 镜：按镜断言，不靠「哪个节点排在前面」猜。
   const nodeIds = Object.fromEntries((await shotNodes()).map((node) => [node.meta?.productionShotId, node.id]))
   expect(Object.keys(nodeIds).sort(), '两个节点各绑着 shot-1 / shot-2').toEqual(['shot-1', 'shot-2'])
-  const groupId = (await readProject(win, projectId)).payload.generationCanvas.groups
-    .find((group) => Object.values(nodeIds).every((id) => group.nodeIds.includes(id)))?.id
-  expect(Boolean(groupId), '两镜落在同一个框里').toBe(true)
-  const frame = groupFrame(win, groupId)
+  // 框比节点晚一拍落盘：等到有一个框同时装着这两镜再往下（夜里一次跑撞上了「节点有了、框还没有」）。
+  const groupOfShots = async () => (await readProject(win, projectId)).payload.generationCanvas.groups
+    .find((group) => Object.values(nodeIds).every((id) => group.nodeIds.includes(id)))?.id ?? null
+  await expect.poll(groupOfShots, { message: '两镜落在同一个框里', timeout: DEFAULT_TIMEOUT_MS }).not.toBeNull()
+  const frame = groupFrame(win, await groupOfShots())
 
   // ── ② 一张卡一颗「生成 2 张」：点一下，两镜都交给画布；并发压到 1 + 夹具压着受理 → 第一镜提交中、第二镜排队 ──
   const goTurn = walk.fixture.expectText({
