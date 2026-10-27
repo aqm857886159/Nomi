@@ -1,6 +1,6 @@
 # Issue #237: provider onboarding and English first-run guide
 
-Base: `26fbc87d3266460c9cd1cca2f4b9cf0f43db6f46`. Scope: request-size calculation, deterministic request coverage, and documentation. No installed-app data or live provider credentials are used.
+Initial base: `26fbc87d3266460c9cd1cca2f4b9cf0f43db6f46`. Before delivery, merged updated upstream `e6d14729287d16c21883d1049463280648b47330` without rewriting history. Scope: request-size calculation, deterministic request coverage, and documentation. No installed-app data or live provider credentials are used.
 
 ## Design card (before implementation)
 
@@ -45,3 +45,25 @@ For any unresolved relay: provide the public API-example URL, exact base-URL hos
 ## Shared transform domain
 
 Declarative search also found `NEWAPI_VIDEO_PARAM_MAP` using the same persisted transform ID. Image constraints must use the actual task kind forwarded by `templateContext`; saved video mappings keep their existing dimensions. Two request-level video characterization tests failed before isolation. See [direction check](2026-10-27-image-size-direction-check.md).
+
+## Code evidence and changed files
+
+| File | Reason |
+| --- | --- |
+| `electron/catalog/paramTranslate.ts:43` | Complete the derived image-size domain after quantization; retain baseline video quantization. |
+| `electron/catalog/profileHttpRequest.ts:26` | Forward the authoritative task kind through the existing shared mapping call. |
+| `electron/catalog/paramTranslate.test.ts` | Replace the incorrect 1K assertion; cover all selectable ratios/tiers and invalid ratios. |
+| `electron/catalog/providerOnboardingContract.test.ts` | Check actual JSON/multipart dispatch, Auto omission, direct local file bytes, and persisted video maps. |
+| `docs/guide/model-connection-en.md` | Current setup controls, model/mode/reference steps, separate troubleshooting, and precise redacted follow-up. |
+| `README.md` | Make the existing English tutorial link explicit. |
+| This report, the direction check, and the root-cause JSON | Evidence, compatibility decision, acceptance matrix, and machine-checked prevention contract. |
+
+Existing behavior preserved: `taskParams.ts:203` omits unset size; `runtime.ts` dispatches multipart before URL localization; `catalogMigrateV7.test.ts:63` exercises the saved-v6 edit-route upgrade and repeated reads. A custom script is a separate execution path and is not rewritten.
+
+## Deterministic verification
+
+- Before numeric repair: 9 size-domain matrix failures.
+- Before task-kind isolation: 2 video characterization failures while 14 image request checks passed.
+- After repair and upstream merge: 7 focused test files, 145 tests passed. Includes migration/idempotence, JSON and multipart request construction, direct bytes, and legacy video dimensions.
+- Changed-file ESLint: passed, zero warnings. Earlier whole-repository lint: zero errors, 91 existing warnings.
+- No live model request, anonymous-host probe with private data, installed-app configuration write, or paid generation was performed.
