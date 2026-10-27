@@ -13,7 +13,8 @@
     "深链进设置某一节后光标落在这一节声明的首要控件（没声明就是第一个能 Tab 到的控件）上"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
+  "status": "fixed",
+  "fixedInPr": 1359,
   "manualReview": "reviewed",
   "evidence": [
     "tests/ux/shell-redesign.walk.mjs：check-shortcuts 站 Mod+J 后 expectComposerFocused + 直接打字读回、开着再按不丢字；canvas-agent 站点小球后同样断言焦点",
@@ -24,7 +25,14 @@
     "tests/ux/tikhub-connector.walk.mjs：素材库「找参考」框贴分享链接（无 key）深链进设置 TikHub 那一节，光标在 Key 输入框里、700ms 后仍在（修之前 main 上深链从来没把焦点落进去过：那一节懒加载晚挂出来，对话框只试一次）",
     "docs/fixes/2026-10-27-agent-composer-focus.root-cause.json"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "14cfc80fb",
+    "cbaef796e",
+    "e8ba7d19e",
+    "7aac0d482",
+    "d2b307a3f",
+    "d8508e75c"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-27-agent-composer-focus.root-cause.json",
   "classCheck": {
     "kind": "matrix",
