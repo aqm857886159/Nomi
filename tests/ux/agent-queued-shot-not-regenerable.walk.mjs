@@ -32,11 +32,11 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } fro
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CARD_PRIMARY, CARD_TITLE, armCanvasBridges, canvasRunsOf, cardTitle, offerFacts, pressPrimary, primaryLabel, say,
+  CARD_PRIMARY, CARD_TITLE, armCanvasBridges, canvasRunsOf, cardTitle, offerFacts, pressPrimary, primaryLabel, say, shotNodes,
 } from './_spendCardWalk.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL,
-  chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas,
+  chooseAssistantModel, createRuntimeWalk, openCanvas, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { groupFrame, groupFrameGenerateAll, openFrameMenuByRightClick, selectFrameByBlankClick } from './_groupFrame.mjs'
@@ -193,15 +193,14 @@ try {
   await sendCanvas(win, ASK)
   await recorded(planner.received, 'draft request')
   await recorded(drafted.received, 'draft result')
-  const shotNodes = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes
-    .filter((node) => node.meta?.productionRunId === operationId && node.kind === 'image')
-  await expect.poll(async () => (await shotNodes()).length, { message: '草稿落成两个图片节点', timeout: DEFAULT_TIMEOUT_MS }).toBe(2)
+  // 读画布此刻的样子（E2E 桥上的 store），不读落盘的那份：落盘有延迟，节点和框都可能比屏上晚一拍（夜里撞上过「屏上有框、落盘还没有」）。
+  await expect.poll(async () => (await shotNodes(win, projectId, operationId)).every((shot) => shot.nodeId),
+    { message: '草稿落成两个图片节点', timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
   // 节点 ↔ 镜：按镜断言，不靠「哪个节点排在前面」猜。
-  const nodeIds = Object.fromEntries((await shotNodes()).map((node) => [node.meta?.productionShotId, node.id]))
+  const nodeIds = Object.fromEntries((await shotNodes(win, projectId, operationId)).map((shot) => [shot.shotId, shot.nodeId]))
   expect(Object.keys(nodeIds).sort(), '两个节点各绑着 shot-1 / shot-2').toEqual(['shot-1', 'shot-2'])
-  // 框比节点晚一拍落盘：等到有一个框同时装着这两镜再往下（夜里一次跑撞上了「节点有了、框还没有」）。
-  const groupOfShots = async () => (await readProject(win, projectId)).payload.generationCanvas.groups
-    .find((group) => Object.values(nodeIds).every((id) => group.nodeIds.includes(id)))?.id ?? null
+  const groupOfShots = () => win.evaluate((ids) => (window.__nomiCanvasStore?.getState().groups ?? [])
+    .find((group) => ids.every((id) => group.nodeIds.includes(id)))?.id ?? null, Object.values(nodeIds))
   await expect.poll(groupOfShots, { message: '两镜落在同一个框里', timeout: DEFAULT_TIMEOUT_MS }).not.toBeNull()
   const frame = groupFrame(win, await groupOfShots())
 
