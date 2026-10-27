@@ -4,7 +4,8 @@
 // 既定用法（isolate:false 真实 profile 起、跳过画布 UI 直接走底层任务 API）：画布连线→判定→
 // 请求体这条链路已由 tests/ux/audio-reference-connect.walk.mjs 的真机走查 + 干跑步骤验过，
 // 这里只补最后一环——真供应商端点真的吃得下音频参考、真出得了片。
-// 用法：pnpm run build && node scripts/audio-ref-paid-smoke.mjs   （真实小额花费，默认授权）
+// 用法：pnpm run build && NOMI_WALK_FOREGROUND_OK=1 node scripts/audio-ref-paid-smoke.mjs   （真实小额花费，默认授权；
+// 真实资料起，装不了安静仪表、窗口会到前台；没带放行变量就不起 App、按 125 跳过）
 //
 // 2026-09-11 根因已定位并修复（诊断分支 diag/audio-paid-smoke-20260911）：此前 5 次失败
 // （code=task_failed / cost=0）的根因不是音频链路或本产品代码，是**这个脚本自己用的图片夹具**——
@@ -14,7 +15,7 @@
 // 的实际生成判 task_failed。换成一张真实照片（resources/onboarding-demo/kid.jpg，720×720）后，
 // 同一条链路——图生视频、以及本脚本这种图+音频 omni 参考——均真实出片成功。详见
 // docs/lessons/paid-smoke-apimart-only.md。
-import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { exitIfWalkSkipped, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,7 +30,11 @@ const AUDIO_FIXTURE = path.join(repoRoot, 'tests/ux/fixtures/real-narration.mp3'
 const IMAGE_FIXTURE = path.join(repoRoot, 'resources/onboarding-demo/kid.jpg')
 
 // isolate:false：真实 profile（真 APIMart key、真项目库），同 scripts/staging-video-ab.mjs 的既定用法。
-const { app, win } = await launchNomiApp({ name: 'audio-ref-paid-smoke', isolate: false })
+const { app, win } = await launchNomiApp({
+  name: 'audio-ref-paid-smoke',
+  isolate: false,
+  foreground: '真实资料付费抽检（真 APIMart key、真项目库）',
+}).catch(exitIfWalkSkipped)
 try {
   await win.getByText('新建空白项目', { exact: false }).first().click()
   await win.waitForTimeout(3500)

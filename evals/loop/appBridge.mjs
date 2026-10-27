@@ -2,12 +2,25 @@
 // 机制(照 tests/ux/r1-upload-verify.mjs):key 是 safeStorage 加密、绑 app 身份,纯 Node 解不开 →
 //   启真 app,密文传进主进程 safeStorage 解密 + 主进程内 fetch(明文 key 不回传 Node)。
 //   ⚠️ 启真 app → 运行时 Nomi 必须关着(单实例锁)。effect-first:自动从 catalog 挑 enabled 模型,免手填。
-import { launchNomiApp } from "../../tests/ux/_launchApp.mjs";
+//   ⚠️ 真实资料起(isolate:false)装不了安静仪表、会到用户面前:要带 NOMI_WALK_FOREGROUND_OK=1,否则不起 app、按 125 退出。
+//   没放行时真实资料一个字节都不读:探可用性的(resolveModels / modelLabels / textAvailable)一律答「没配」,
+//   要发请求的(chatText / chatVision / genImage)在读 catalog 之前按 125 跳过。
+import { assertForegroundAllowed, exitIfWalkSkipped, foregroundAllowed, launchNomiApp } from "../../tests/ux/_launchApp.mjs";
 import { readRealCatalog } from "../../tests/ux/_realProfile.mjs";
 
+const FOREGROUND = "评测借真实资料里的模型钥匙发请求(safeStorage 绑真实 userData)";
 
 // 真实资料目录在哪只问 _realProfile.mjs（下面 isolate:false 起的就是同一份 userData，钥匙同源）。
 const loadCatalog = () => readRealCatalog();
+
+/** 要发请求的入口先判放行:没放行就在读真实 catalog 之前按 125 退出(和起 app 时同一句「未跑：…」)。 */
+function skipUnlessAllowed() {
+  try {
+    assertForegroundAllowed(FOREGROUND);
+  } catch (error) {
+    exitIfWalkSkipped(error);
+  }
+}
 
 /** 把 vendor.baseUrlHint 规整成 root(去掉尾部 /v1),调用时统一拼 /v1+path。 */
 function vendorOf(catalog, vendorKey) {
@@ -38,6 +51,7 @@ const isImageGen = (m) => m.kind === "image";
 const isText = (m) => m.kind === "text" && !isVision(m);
 
 export function resolveModels() {
+  if (!foregroundAllowed()) return { text: null, vision: null, image: null };
   const c = loadCatalog();
   return {
     text: pickModel(c, isText) ?? pickModel(c, (m) => m.kind === "text"),
@@ -52,7 +66,12 @@ let _app = null;
 async function ensureApp() {
   if (_app) return;
   // isolate:false：key 是 safeStorage 加密、绑 app 身份（见文件头），换隔离 userData 就解不开。
-  ({ app: _app } = await launchNomiApp({ name: "eval-app-bridge", isolate: false, settleMs: 1200 }));
+  ({ app: _app } = await launchNomiApp({
+    name: "eval-app-bridge",
+    isolate: false,
+    settleMs: 1200,
+    foreground: FOREGROUND,
+  }).catch(exitIfWalkSkipped));
 }
 export async function closeApp() {
   if (_app) {
@@ -97,6 +116,7 @@ async function fetchViaApp(cfg, pathSuffix, body) {
 
 /** 文本聊天(loop 的查/修用)。返回 content string。 */
 export async function chatText(system, user) {
+  skipUnlessAllowed();
   const m = resolveModels().text;
   if (!m) throw new Error("无 enabled 文本模型");
   const r = await fetchViaApp(m, "/chat/completions", {
@@ -114,6 +134,7 @@ export async function chatText(system, user) {
  *  注:① 视觉模型如 moonshot 不抓外部 URL、要 base64 ② Node 侧 fetch 可能因代理抓不到外网,
  *  主进程有代理故在那抓 ③ vision-preview 不支持 response_format(会返空)→ 不设,靠 prompt + 稳健解析。 */
 export async function chatVision(imageUrl, question) {
+  skipUnlessAllowed();
   await ensureApp();
   const m = resolveModels().vision;
   if (!m) throw new Error("无 enabled 视觉模型");
@@ -159,6 +180,7 @@ export async function chatVision(imageUrl, question) {
 
 /** 生成一张图(OpenAI images API)。返回 {url} 或 {b64} 或 {error}。 */
 export async function genImage(prompt, size = "1024x1024") {
+  skipUnlessAllowed();
   const m = resolveModels().image;
   if (!m) throw new Error("无 enabled 图像模型");
   const r = await fetchViaApp(m, "/images/generations", { model: m.modelKey, prompt, n: 1, size });

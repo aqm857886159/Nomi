@@ -1,0 +1,62 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "7256a78d9",
+  "head": "7256a78d989022fd1aa115b2cf5d4010eb449bd0",
+  "dirty": true,
+  "sourceTree": "2a91c20233a7535e09ca5254f2da5aa655a1320e",
+  "date": "2026-10-27",
+  "runs": 5,
+  "results": [
+    {
+      "id": "whiteboard-legacy-previews-open",
+      "metrics": {
+        "openToInteractive": {
+          "runs": 5,
+          "median": 986,
+          "p95": 1053
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0.8
+        }
+      },
+      "samples": {
+        "openToInteractive": [
+          1060,
+          957,
+          1025,
+          986,
+          984
+        ],
+        "response": [],
+        "frameGapP95": [],
+        "longTasks": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "idleRectReadsPerSec": [],
+        "idleBusyPct": [],
+        "idleLayoutsPerSec": [],
+        "panelFramesOff": []
+      },
+      "budget": 1000,
+      "baseline": {
+        "median": 983,
+        "p95": 1014.6,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-10-27",
+        "commit": "2c3f9e706",
+        "noisy": true
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

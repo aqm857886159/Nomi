@@ -1,7 +1,8 @@
 // 阶段 3d · G13「生成任务卡」的承接点（方案 §2.2 G13 那一行 · §1.4 规则二第二行）。
 //
 // ── 为什么这一条是阶段 4 的硬前置 ──
-// 待删的旧宿主里有一件功能**新通路一点都没有**：任务卡（进度 % / 已花·预估 / 候选缩略图）。
+// 待删的旧宿主里有一件功能**新通路一点都没有**：任务卡（进度 % / 已花·预估 / 候选缩略图；
+// 已花·预估两样 2026-10-27 删了，设计系统「钱只印一处」）。
 // 没有承接点就删旧路 = 用户面板上那张卡凭空消失。这一族钉的就是承接点本身。
 //
 // ── 承接点的形状：两个 id，零份状态 ──
@@ -22,15 +23,12 @@ import { createLaneFixture, readFixtureNativeEntries } from './laneFixture.mjs';
 const RUN_ID = 'run-7f2c';
 const CLOSING = { type: 'text' as const, text: 'Started the generation.' };
 
-/** 一条 ProductionRun 从排队 → 在跑 → 完成。字段与今天 `V4TaskFacts` 的产地一一对应。 */
-const QUEUED: LaneTaskFacts = { status: 'queued', stagesDone: 0, stagesTotal: 3, progress: 0, currency: 'CNY' };
-const RUNNING: LaneTaskFacts = {
-  status: 'running', stagesDone: 1, stagesTotal: 3, progress: 33,
-  currency: 'CNY', spent: 0.24, estimated: 0.48,
-};
+/** 一条 ProductionRun 从排队 → 在跑 → 完成。任务卡事实不带金额（`LaneTaskFacts` 抬头）。 */
+const QUEUED: LaneTaskFacts = { status: 'queued', stagesDone: 0, stagesTotal: 3, progress: 0 };
+const RUNNING: LaneTaskFacts = { status: 'running', stagesDone: 1, stagesTotal: 3, progress: 33 };
 const COMPLETE: LaneTaskFacts = {
   status: 'complete', stagesDone: 3, stagesTotal: 3, progress: 100,
-  currency: 'CNY', spent: 0.46, candidates: ['artifact-1', 'artifact-2'].map(artifactId => ({ artifactId, projectId: 'fixture', productionRunId: 'run-1', thumbnailUrl: `nomi-local://asset/fixture/${artifactId}.png`, adopted: false, canAdopt: true })),
+  candidates: ['artifact-1', 'artifact-2'].map(artifactId => ({ artifactId, projectId: 'fixture', productionRunId: 'run-1', thumbnailUrl: `nomi-local://asset/fixture/${artifactId}.png`, adopted: false, canAdopt: true })),
 };
 
 function taskParts(projection: LaneProjection) {

@@ -66,7 +66,7 @@ try {
     name: 'mcp-connection-truthfulness', tempRoot,
     env: { HOME: testHome, USERPROFILE: testHome, APPDATA: path.join(testHome, 'AppData', 'Roaming') }, settleMs: 0,
     // 屏外运行：窗口挪到任何屏幕之外、不可聚焦，不打扰正在用电脑的人。
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: {
       'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen',
       'nomi:canvas-gesture-hint:v1': 'seen', 'nomi.onboarding.scene3dCoach.v1': 'seen',

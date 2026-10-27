@@ -1,0 +1,341 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-walk-steals-foreground",
+  "change_kind": "corrective",
+  "problem_type": "走查启动与桌面出口未统一安静边界",
+  "symptom": "用户在前台使用其它应用时启动 Nomi 走查，走查窗口弹到屏幕中央并把 Nomi 切成最前面的应用，键盘输入离开用户当前窗口。",
+  "direct_cause": "_launchApp.mjs 只有在调用方显式打开屏外选项时才注入窗口模块；该模块仍让 BrowserWindow 以 show:true 构造，Electron 43.4.1 的 macOS Show() 会激活应用。app.focus、shell 外部打开、Finder、通知和原生对话框也没有统一拦截。",
+  "class_root": "所有经走查启动器创建的 Electron 主进程没有一个默认、集中、fail-closed 的‘不把控制权交给桌面’不变量。",
+  "affected_population": [
+    "macOS 上所有经 tests/ux/_launchApp.mjs 的开发版和打包版走查",
+    "tests/ux、scripts/、evals/ 中 400+ 个 launchNomiApp 调用者",
+    "调用 BrowserWindow、app.focus、Dock、shell、Notification 或 dialog 的走查路径"
+  ],
+  "scope_paths": [
+    "tests/ux/_launchApp.mjs",
+    "tests/ux/_quietWalk.cjs",
+    "tests/ux/_launchApp.test.mjs",
+    "tests/ux/_quietWalk.test.mjs",
+    "tests/ux/mcp-key-window.walk.mjs",
+    "tests/ux/ui-driver.mjs",
+    "tests/ux/mcp-client-activation.walk.mjs",
+    "scripts/browser-contained-canvas-walkthrough.mjs",
+    "scripts/shot-mode-walkthrough.mjs",
+    "scripts/audio-ref-paid-smoke.mjs",
+    "scripts/audio-ref-diag-probe.mjs",
+    "evals/verify-shot-smoke.mjs",
+    "evals/loop/appBridge.mjs",
+    "tests/ux/app-page-zoom.e2e.mjs",
+    "tests/ux/attention-sound.walk.mjs",
+    "tests/ux/window-drag.e2e.mjs",
+    "tests/ux/windows-freeze-sweep.walk.mjs",
+    "tests/ux/plan-gate.walk.mjs",
+    "tests/ux/p4-s6p5-multishot-paid.e2e.mjs",
+    "tests/ux/memory.e2e.mjs",
+    "tests/ux/full-walk/launch.mjs",
+    "evals/loop/appBridge.test.mjs"
+  ],
+  "entry_points": [
+    "_launchApp.mjs 的开发版 -r 注入",
+    "_launchApp.mjs 的打包版调试口 mainRequire 注入",
+    "scripts/、tests/ux/、evals/lib/ 中直接或间接调用 launchNomiApp 的走查",
+    "产品主进程中的窗口显示/聚焦、外部打开、通知和原生对话框出口",
+    "_launchApp.mjs 的非隔离启动（isolate:false，真实资料）：mainRequire 只许装进隔离资料，安静仪表装不上——8 个入口：tests/ux/ui-driver.mjs、tests/ux/mcp-client-activation.walk.mjs（--real-connect）、scripts/browser-contained-canvas-walkthrough.mjs、scripts/shot-mode-walkthrough.mjs、scripts/audio-ref-paid-smoke.mjs、scripts/audio-ref-diag-probe.mjs、evals/verify-shot-smoke.mjs、evals/loop/appBridge.mjs",
+    "依赖真焦点 / 真窗口的旧走查（安静模式下 focus/moveTop 是空操作、窗口在屏外）：tests/ux/app-page-zoom.e2e.mjs、tests/ux/attention-sound.walk.mjs、tests/ux/window-drag.e2e.mjs、tests/ux/windows-freeze-sweep.walk.mjs",
+    "直接 spawn Electron 并装 quiet-walk 的三处（tests/ux/plan-gate.walk.mjs、tests/ux/p4-s6p5-multishot-paid.e2e.mjs 的 stdio MCP 子进程，tests/ux/memory.e2e.mjs 的量内存实例）：第 3 轮起一律经 _launchApp.mjs 的 spawnQuietElectron，子进程环境里的放行位钉成空串",
+    "评测借真实资料的 app 桥 evals/loop/appBridge.mjs 的调用方（loop / report / poseLoop / semiObjective）：可用性探测和发请求都先判放行，没放行时真实 catalog 零读取"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/browser-window",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 show 会聚焦、showInactive 不聚焦、focusable/setFocusable 语义；opacity / setOpacity 只在 macOS 与 Windows 生效，setIgnoreMouseEvents 让鼠标事件落到下面的窗口；页面可见性在 macOS 跟随窗口遮挡状态。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/app",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 app.focus steal 和 accessory / prohibited 激活策略与 Dock 语义（prohibited：不进 Dock、不许被激活）；will-finish-launching 在 macOS 对应 NSApplication 的 applicationWillFinishLaunching，早于 ready。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/shell",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 openExternal/openPath/showItemInFolder 会调用桌面默认应用。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/notification",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 Notification.show 才会发布系统通知。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/dialog",
+      "checked_at": "2026-10-27",
+      "purpose": "确认原生 dialog/showErrorBox 是 OS UI 出口。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://playwright.dev/docs/api/class-electron",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 Playwright 没有不激活启动开关，原生 dialog 要在 electronApplication.evaluate 中替身。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/electron/electron/blob/v43.4.1/shell/browser/native_window_mac.mm",
+      "checked_at": "2026-10-27",
+      "purpose": "核对 Electron 43.4.1 macOS Show/ShowInactive/Focus 的 activateIgnoringOtherApps 路径。"
+    }
+  ],
+  "invariants": [
+    "普通走查构造的每扇 BrowserWindow 都以 show:false、屏外坐标和 focusable:false 创建；调用方需要显示时只走 showInactive。",
+    "普通走查的每扇窗口全透明（opacity 0）且鼠标穿透：macOS 不认屏外坐标，会把窗口夹回主屏左缘留一条（真机实测 40px 宽、863px 高），showInactive 又把它排到别的窗口上面；App 自己的 setOpacity / setIgnoreMouseEvents 只记录、不生效。",
+    "Mac 上普通走查的 App 在 will-finish-launching 切 prohibited（BackgroundOnly，系统不许激活它）、ready 切回 accessory（UIElement，不进 Dock、不进 Cmd-Tab）；App 自己调 app.setActivationPolicy 只记录、不生效（第 3 轮方案 B）。",
+    "普通走查中的 BrowserWindow.show/focus/moveTop、app.focus、Dock bounce、shell 外部打开、系统 Notification.show 和未替身原生 dialog 不得把控制权交给桌面。",
+    "所有 launchNomiApp 开发版与打包版入口都经过同一 quiet-walk 注入；真实前台行为只能通过 foreground 声明和环境放行。",
+    "Mac 普通走查期间最前应用 PID 不得等于走查 App PID；门岗按 lsappinfo 抽样并 fail-closed。",
+    "App 环境里的 NOMI_WALK_FOREGROUND_OK 只由 foreground 声明决定（声明为 '1'，否则显式为空串），排在 baseEnv / extraEnv 之后，继承来的或调用方传的值都盖不掉。",
+    "非隔离启动（isolate:false）装不了安静仪表，必须声明 foreground：没声明在起 App 之前就抛错，声明了没放行按 125 跳过，放行了门岗豁免。",
+    "Mac 门岗判红后在 process 'exit' 回调里把退出码钉成 1：走查结尾自己 process.exit(0) 或 exit(125) 都盖不掉；其它非零红码保留。",
+    "依赖真焦点 / 真窗口、或用到 Playwright bringToFront 的走查必须声明 foreground，没放行按 125 退出，不许在安静模式下悄悄不测还报绿。",
+    "不经 launchNomiApp、直接 spawn Electron 又装 quiet-walk 的入口只许经 spawnQuietElectron：-r 装同一份仪表，子进程环境里的 NOMI_WALK_FOREGROUND_OK 钉成空串、排在调用方 env 之后，起跑前核构建戳 / 产物 / Electron.app 签名。",
+    "挂 browser-window-created 的主进程走查仪表全仓只有 tests/ux/_quietWalk.cjs 一份（P1，不留并行的屏外模块）。",
+    "评测借真实资料的 app 桥没放行时不读真实资料：可用性探测一律答没配，发请求的在读 catalog 之前按 125 跳过、不起 App。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "launchNomiApp"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "spawnQuietElectron"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 2
+  },
+  "generality_proof": "所有已盘点的走查入口都汇聚到 launchNomiApp；开发版和打包版都由同一 mainRequire 组装。统一在该边界注入 quiet-walk，并在注入模块内包装 BrowserWindow/app/shell/Notification/dialog，调用方无法绕过默认安静策略；唯一例外是显式 foreground 声明且环境放行。 非隔离启动装不了仪表，由同一个 launchNomiApp 断言必须声明 foreground（不另写仪表）；仪表的放行位由 buildNomiLaunchEnv 按声明钉死，继承的环境变量不能让仪表整体失效；门岗的判红在进程退出前最后一步生效，走查自己的 process.exit 不能把它盖掉。 第 3 轮：原来自己 spawn Electron、自己拼 -r 和 process.env 的三处收进同一个 spawnQuietElectron（放行位钉死），扫描单测保证新写的直接 spawn 绕不开它；并行的屏外模块删掉，单测保证主进程走查仪表只有一份。 激活策略也收在仪表里：will-finish-launching 切 prohibited、ready 切回 accessory，App 自己改不动（只记录）。",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "launchNomiApp",
+      "responsibility": "统一注入走查仪表、执行 foreground 放行判定、启动/停止 Mac 前台门岗。"
+    },
+    {
+      "path": "tests/ux/_quietWalk.cjs",
+      "symbol": "QuietBrowserWindow",
+      "responsibility": "在主进程入口统一包装窗口、应用、桌面出口和对话框；普通走查默认安静。"
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "spawnQuietElectron",
+      "responsibility": "不经 launchNomiApp 的直接 Electron 子进程统一装 quiet-walk、钉死放行位、做同一套起跑前核对。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp (开发版 -r)",
+      "disposition": "enforced",
+      "evidence": "所有普通隔离走查从这里进入；quiet-walk 在 electron.launch 前组装。"
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp (打包版 mainRequire)",
+      "disposition": "enforced",
+      "evidence": "同一 mainRequire 经过 requireBeforePackagedMain 在 app.asar/dist-electron/main.js 第一行前加载。"
+    },
+    {
+      "path": "tests/ux/mcp-key-window.walk.mjs",
+      "entry_point": "前台行为走查",
+      "disposition": "enforced",
+      "evidence": "改为显式 foreground 声明；缺少 NOMI_WALK_FOREGROUND_OK=1 时按退出码 125 跳过，不静默抢前台。"
+    },
+    {
+      "path": "tests/ux/full-walk/launch.mjs",
+      "entry_point": "full-walk launch helper",
+      "disposition": "enforced",
+      "evidence": "其实际 Electron 起点仍调用 launchNomiApp，继承同一仪表；第 3 轮删掉了它的 offscreen 选项（原来另装 offscreenWindow.cjs）。"
+    },
+    {
+      "path": "tests/ux/ui-driver.mjs",
+      "entry_point": "ui-driver 默认真实资料模式（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "tests/ux/mcp-client-activation.walk.mjs",
+      "entry_point": "mcp-client-activation --real-connect（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "scripts/browser-contained-canvas-walkthrough.mjs",
+      "entry_point": "真实资料走查（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "scripts/shot-mode-walkthrough.mjs",
+      "entry_point": "真实资料真生成走查（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "scripts/audio-ref-paid-smoke.mjs",
+      "entry_point": "真实资料付费抽检（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "scripts/audio-ref-diag-probe.mjs",
+      "entry_point": "真实资料付费诊断（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "evals/verify-shot-smoke.mjs",
+      "entry_point": "真实资料付费抽检（isolate:false，不开窗）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground（理由写在声明里），跳过接 exitIfWalkSkipped / NOMI_WALK_SKIPPED 按 125 退出；launchNomiApp 对没声明的 isolate:false 当场抛错，_launchApp.test.mjs 的 AST 扫描钉住仓库里每个 isolate:false 选项都带 foreground。"
+    },
+    {
+      "path": "evals/loop/appBridge.mjs",
+      "entry_point": "评测借真实资料钥匙的共享 app 桥（isolate:false）",
+      "disposition": "enforced",
+      "evidence": "启动选项声明 foreground，跳过接 exitIfWalkSkipped 按 125 退出；第 3 轮起可用性探测（resolveModels / modelLabels / textAvailable）没放行时不读真实 catalog、答没配，chatText / chatVision / genImage 读 catalog 之前先判放行（evals/loop/appBridge.test.mjs 换掉 readRealCatalog 与 launchNomiApp 数调用次数）。"
+    },
+    {
+      "path": "tests/ux/app-page-zoom.e2e.mjs",
+      "entry_point": "真焦点走查：bringToFront、focus 之后按缩放快捷键",
+      "disposition": "enforced",
+      "evidence": "声明 foreground，没放行按 125 退出（windows-freeze-sweep 在动盘之前先判放行，文件头用法注释写明要带 NOMI_WALK_FOREGROUND_OK=1）；_launchApp.test.mjs 钉住名单，且任何用到 bringToFront 的走查都必须声明。"
+    },
+    {
+      "path": "tests/ux/attention-sound.walk.mjs",
+      "entry_point": "真焦点走查：窗口有没有焦点决定提示音",
+      "disposition": "enforced",
+      "evidence": "声明 foreground，没放行按 125 退出（windows-freeze-sweep 在动盘之前先判放行，文件头用法注释写明要带 NOMI_WALK_FOREGROUND_OK=1）；_launchApp.test.mjs 钉住名单，且任何用到 bringToFront 的走查都必须声明。"
+    },
+    {
+      "path": "tests/ux/window-drag.e2e.mjs",
+      "entry_point": "真焦点走查：show / setBounds / moveTop / focus 之后拖窗口",
+      "disposition": "enforced",
+      "evidence": "声明 foreground，没放行按 125 退出（windows-freeze-sweep 在动盘之前先判放行，文件头用法注释写明要带 NOMI_WALK_FOREGROUND_OK=1）；_launchApp.test.mjs 钉住名单，且任何用到 bringToFront 的走查都必须声明。"
+    },
+    {
+      "path": "tests/ux/windows-freeze-sweep.walk.mjs",
+      "entry_point": "真焦点走查：blur / focus 循环（候选版 Windows 验收项）",
+      "disposition": "enforced",
+      "evidence": "声明 foreground，没放行按 125 退出（windows-freeze-sweep 在动盘之前先判放行，文件头用法注释写明要带 NOMI_WALK_FOREGROUND_OK=1）；_launchApp.test.mjs 钉住名单，且任何用到 bringToFront 的走查都必须声明。"
+    },
+    {
+      "path": "tests/ux/plan-gate.walk.mjs",
+      "entry_point": "stdio MCP 子进程（直接 spawn Electron）",
+      "disposition": "enforced",
+      "evidence": "经 spawnQuietElectron 起：-r 装 quiet-walk，子进程环境里的放行位钉成空串；_launchApp.test.mjs 扫描钉住「直接 spawn Electron 又装仪表的只许经 spawnQuietElectron」。"
+    },
+    {
+      "path": "tests/ux/p4-s6p5-multishot-paid.e2e.mjs",
+      "entry_point": "stdio MCP 子进程（直接 spawn Electron，付费走查）",
+      "disposition": "enforced",
+      "evidence": "经 spawnQuietElectron 起：-r 装 quiet-walk，子进程环境里的放行位钉成空串；_launchApp.test.mjs 扫描钉住「直接 spawn Electron 又装仪表的只许经 spawnQuietElectron」。"
+    },
+    {
+      "path": "tests/ux/memory.e2e.mjs",
+      "entry_point": "量内存的 Electron 实例（直接 spawn，按调试口连）",
+      "disposition": "enforced",
+      "evidence": "经 spawnQuietElectron 起：-r 装 quiet-walk，子进程环境里的放行位钉成空串；_launchApp.test.mjs 扫描钉住「直接 spawn Electron 又装仪表的只许经 spawnQuietElectron」。"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "CI 的画布性能预算（quality-gate 的 Canvas performance budget）与发版候选的画布性能旅程（desktop-rc.yml 的 Canvas performance RC journey）：量具声明了前台",
+      "disposition": "enforced",
+      "evidence": "两步都在 step 级显式带 NOMI_WALK_FOREGROUND_OK=1（CI 虚拟屏上没有人在用电脑）；check-quality-gate-workflow / check-desktop-rc-workflow 的契约测试钉住，少这一行就红。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一桌面激活机制可由不同窗口、应用焦点、Dock、浏览器/Finder、通知或原生对话框出口再次触发；只给某条走查设置屏外变量不能覆盖其它入口。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs launchNomiApp withQuietWalk（默认 src/electron 根：0 扇，证明两符号只在走查层；再以 --roots=tests/ux,scripts,evals --include-tests 扫得 406 个 launchNomiApp 调用门）。",
+      "rg spawn( + electron、open -a、Nomi.app：盘点独立起 App 路径；经 _launchApp.mjs 的开发版/打包版均收进同一注入，未收进的路径列残余风险。",
+      "rg app.focus、BrowserWindow.show/focus/moveTop、shell.openExternal/openPath/showItemInFolder、new Notification、dialog.*：盘点全部桌面出口并在 _quietWalk.cjs 集中拦截。",
+      "rg \"isolate: false\" tests scripts evals + _launchApp.test.mjs 的 AST 扫描：盘点全部非隔离启动选项（8 个，比任务书点名的 7 个多出 evals/loop/appBridge.mjs），每个都要带 foreground。",
+      "rg \"bringToFront\\(|isFocused\\(|getFocusedWindow\\(\" tests/ux：用到真焦点的走查（app-page-zoom、window-drag、mcp-key-window；claim-unsent-retry 只断言「没焦点」，与安静模式一致）。",
+      "rg \"spawn\\(require\\(.electron.\\)\" tests/ux：直接起 Electron 又装仪表的三处（plan-gate、p4-s6p5-multishot-paid、memory.e2e）第 3 轮收进 spawnQuietElectron；只跑 _encryptFixtureKey.cjs 的夹具子进程（agent-runtime-fixture、_mcpL2Fixture）不装仪表，列入残余风险。",
+      "rg \"setOpacity|setIgnoreMouseEvents\" electron：产品只有应用内浏览器浮层（electron/browser/overlay/browserViewOverlay.ts）切鼠标穿透、没有 setOpacity；两扇门都在 _quietWalk.cjs 包成只记录，窗口透明 + 穿透不会被 App 自己改回来。",
+      "rg \"isVisible\\(\\)\" tests/ux：task-center-states 用可见窗口的 capturePage、canvas-follow-hand 的 parkOsCursor 按可见窗口躲光标——所以窗口照旧 showInactive（isVisible 为真），只做透明 + 穿透，不改成永不显示。",
+      "rg offscreenWindow tests/ux：另一份屏外模块 tests/ux/full-walk/offscreenWindow.cjs（10-05 起，9 条走查经 mainRequire 显式装，full-walk 启动器的 offscreen 选项也装它）第 3 轮删掉，安装行一并删；rg browser-window-created tests scripts evals 只剩 _quietWalk.cjs。",
+      "rg \"resolveModels|modelLabels|textAvailable|chatText|chatVision|genImage\" evals：app 桥的调用方（llmAgents、loop、report、poseLoop、semiObjective）都经这几个函数读真实 catalog，放行判断收在 appBridge 里一处。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/_quietWalk.cjs",
+    "invariant": "每个隔离走查 App 默认安装同一安静仪表；窗口、应用、外部打开、通知和原生对话框在主进程边界统一受控。",
+    "failure_mode": "没有 foreground 放行时声明前台行为直接以退出码 125 跳过；非隔离启动没声明 foreground 在起 App 之前抛错；未替身原生对话框抛固定错误；Mac 门岗看到走查 PID 在最前则记录，并在 exit 回调里把退出码钉成 1（走查自己 process.exit(0)/exit(125) 盖不掉）。",
+    "exception_policy": "none",
+    "strategy": "删除可选 quiet-walk default 和两份旧屏外模块，把注入从调用方自觉提升为启动器默认（launchNomiApp 与 spawnQuietElectron 两扇门），再以主进程 API 包装覆盖所有等价桌面出口。",
+    "artifacts": [
+      "tests/ux/_launchApp.mjs",
+      "tests/ux/_quietWalk.cjs",
+      "tests/ux/_launchApp.test.mjs",
+      "tests/ux/_quietWalk.test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/_launchApp.test.mjs",
+    "tests/ux/_quietWalk.test.mjs",
+    "evals/loop/appBridge.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/_launchApp.test.mjs",
+    "tests/ux/_quietWalk.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/_offscreenWindows.cjs",
+      "tests/ux/full-walk/offscreenWindow.cjs"
+    ],
+    "rationale": "调用方自选的旧屏外模块 _offscreenWindows.cjs 在第 1 轮实现提交中删除，注入改由启动器默认、统一为 quiet-walk；另一份屏外模块 tests/ux/full-walk/offscreenWindow.cjs（9 条走查和 full-walk 启动器的 offscreen 选项显式装）第 3 轮删除。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "保留 Electron 43.4.1：应用级安静不变量由主进程注入和门岗承担；若未来升级 Electron，必须重跑 macOS Show/ShowInactive/Focus 源码核对及两条真机走查后才可更新基线。",
+    "current": "Electron 43.4.1 / Playwright installed version",
+    "target": "下一次 Electron 主版本升级时复核同一 quiet-walk contract",
+    "exit_criteria": [
+      "源码确认 Show/ShowInactive/Focus 激活语义不变或更新仪表",
+      "两条 Mac 真机走查门岗抽样全程不见走查 PID 在最前"
+    ]
+  },
+  "migration": "走查调用方不需迁移 API；旧屏外环境开关和显式旧窗口注入已删除，所有隔离 launchNomiApp 自动获得 quiet-walk。依赖真实前台行为的走查改用 foreground 声明。",
+  "residual_risks": [
+    "既不经 launchNomiApp、也不经 spawnQuietElectron 的外部脚本（直接 open -a、起打包好的 Nomi.app）装不上仪表；仓库内直接 spawn Electron 又装仪表的，由 _launchApp.test.mjs 扫描钉住只许经 spawnQuietElectron。",
+    "Windows/Linux 没有 lsappinfo 前台门岗，只依赖窗口/出口包装；Wayland 官方不支持 showInactive。",
+    "系统层面来自用户手动点击 Dock、通知中心或其它 App 的激活不属于走查进程可控范围。",
+    "依赖真焦点的走查（app-page-zoom、attention-sound、window-drag、windows-freeze-sweep、mcp-key-window）和非隔离入口默认按 125 跳过；要跑必须有人在场并带 NOMI_WALK_FOREGROUND_OK=1，nightly 只会把它们记成跳过。",
+    "透明、穿透的走查窗口在 macOS 上仍排在主屏左缘那一条（看不见、点不着）；打开调度中心时可能多出一格空白窗口。透明 + 穿透只在 macOS / Windows 生效（Linux 的 setOpacity 是空操作，Linux 上只有 CI）。",
+    "Mac 上 App 从起进程到 will-finish-launching 那一小段仍登记为 Foreground（开发版 Electron.app 的 Info.plist 没有 LSUIElement，改不了），Dock 可能闪一下图标。",
+    "【第 3 轮方案 B 真机未验证】用户正在用起走查的那个 App（Claude 桌面版）时，macOS 放行 AppKit 原生的启动即激活，走查 App 一登记完就成为最前（第 2 轮真机 3/3，用户在 Chrome 时 0/3）。第 3 轮仪表改成 will-finish-launching 切 prohibited、ready 切回 accessory；验证要用户在 Claude 里试跑，按规矩等了 30 分钟（屏幕锁着），0 次，管没管住 unverified。管不住时下一步是变体（prohibited 留到第一扇窗口上屏后约 1 秒），再是换发起方（临时 LaunchAgent）。没管住时门岗当场判红（退出码 1）。",
+    "产品 electron/backgroundLaunch.ts 的 backgroundWindowOptions() 把 backgroundThrottling 摊在 BrowserWindow 顶层，Electron 43.4.1 只认 webPreferences.backgroundThrottling：后台冷启那一档实际没关节流（产品问题，不在本轮范围，交协调）。",
+    "只跑 _encryptFixtureKey.cjs 生成夹具密文的短命 Electron（tests/ux/agent-runtime-fixture.mjs、tests/ux/_mcpL2Fixture.mjs，scripts/lib/buildGateScan.mjs 的 NON_BUILD_SPAWNERS）不装 quiet-walk：它也是 Electron.app、会登记成前台应用，用户正在用起走查的 App 时同样可能被系统激活一下（门岗只盯 GUI 那一个 PID，看不见它）。"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-26",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/_launchApp.mjs",
+    "tests": [
+      "tests/ux/_launchApp.test.mjs"
+    ]
+  },
+  "strategy": "删除可选屏外开关和两份旧屏外模块（_offscreenWindows.cjs、full-walk/offscreenWindow.cjs），把注入从调用方自觉提升为启动器默认（含直接 spawn Electron 的 spawnQuietElectron），再以主进程 API 包装覆盖所有等价桌面出口。"
+}

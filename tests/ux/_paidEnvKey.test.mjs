@@ -156,7 +156,7 @@ WARN agent Authorization: Bearer ${KEY} failed
 /** 假界面：listModels / upsertModel 跑在内存里，lockSpendToModels 的 win.evaluate 直接调用传入的函数。 */
 function fakeWin() {
   const rows = [
-    { vendorKey: 'apimart', modelKey: 'deepseek-v3.2', kind: 'text', labelZh: 'DeepSeek V3.2', enabled: true, availability: { usable: true } },
+    { vendorKey: 'apimart', modelKey: 'deepseek-v4-flash', kind: 'text', labelZh: 'DeepSeek V4 Flash', enabled: true, availability: { usable: true } },
     { vendorKey: 'apimart', modelKey: 'z-image-turbo', kind: 'image', labelZh: 'Z-Image Turbo', enabled: true, availability: { usable: true } },
     { vendorKey: 'apimart', modelKey: 'gpt-image-2', kind: 'image', labelZh: 'GPT Image 2', enabled: true, availability: { usable: true } },
   ]
@@ -169,7 +169,7 @@ function fakeWin() {
 
 // 这些测试用假 App 验的是凭据 / 收窄 / 收尾；构建检查有自己的测试（_paidRun.test.mjs）。
 const noBuildCheck = () => {}
-const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }]
+const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }]
 
 describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
   function envFor(root) {
@@ -192,10 +192,10 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
     fs.appendFileSync(seen.opts.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'guard-loaded', layers: ['fetch', 'socket', 'chromium'] })}\n`)
     await paid.lockToAuthorizedModels(win)
     fs.appendFileSync(seen.opts.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'request', url: 'https://api.apimart.ai/v1/balance', headers: { authorization: `Bearer ${KEY}` } })}\n`)
-    expect(connectCalls).toEqual([{ apiKey: KEY, textModelKey: 'deepseek-v3.2', requiredModels: MODELS }])
+    expect(connectCalls).toEqual([{ apiKey: KEY, textModelKey: 'deepseek-v4-flash', requiredModels: MODELS }])
     expect(paid.label('apimart', 'z-image-turbo')).toBe('Z-Image Turbo')
     // 花钱面收窄：被授权的图片模型之外的生成模型都停了，文本模型不动。
-    expect(win.rows.filter((row) => row.enabled).map((row) => row.modelKey).sort()).toEqual(['deepseek-v3.2', 'z-image-turbo'])
+    expect(win.rows.filter((row) => row.enabled).map((row) => row.modelKey).sort()).toEqual(['deepseek-v4-flash', 'z-image-turbo'])
     await paid.finish(undefined)
 
     expect(fs.existsSync(tempRootDir), '整个隔离副本已删除').toBe(false)

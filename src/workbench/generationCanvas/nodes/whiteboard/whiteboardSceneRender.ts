@@ -7,7 +7,7 @@ import type {
   CanvasStroke,
   LeaferBox,
   LeaferGroup,
-  LeaferRenderContext,
+  LeaferSceneContext,
   MutableDraftEraserPath,
 } from './whiteboardCanvasTypes'
 import { MIN_ASSET_SIZE } from './whiteboardCanvasTypes'
@@ -30,7 +30,8 @@ import {
 type RefLike<T> = { current: T }
 
 export type RenderWhiteboardSceneParams = {
-  context: LeaferRenderContext
+  /** The editor's App context, or the one-off preview Leafer's (whiteboardStatePreview); the renderer only fills rootGroup. */
+  context: LeaferSceneContext
   assets: CanvasAsset[]
   texts?: CanvasText[]
   strokes: CanvasStroke[]

@@ -115,13 +115,13 @@ export async function openGenerationAiPanel(win) {
   // generation-assistant aria label and launcher class were removed when the
   // resident panel became the shared host, so looking them up makes every
   // agent journey fail before its first message.
-  const input = win.locator('[data-v4-control="input"]');
-  if (await input.count()) return;
+  const input = win.locator('[data-v4-panel="true"] [data-v4-control="input"]');
+  if (await input.first().isVisible().catch(() => false)) return;
   // 空白项目默认落「创作」标签,生成 AI 面板在「生成」工作区——先切过去
   // (旧版直接点「Nomi 生成」文字在创作标签下找不到 → 整批评测 infra 超时)。
   await win.getByRole("button", { name: "生成", exact: true }).first().click({ timeout: 5000 }).catch(() => {});
   await win.waitForTimeout(800);
-  if (await input.count()) return;
+  if (await input.first().isVisible().catch(() => false)) return;
   // 空白项目默认无「画面」board(空态显示「这里还没有画面 / 新建画面」)→ 助手输入框不挂载。
   // 先建一个 board(无则 no-op),再开面板。
   const boardCta = win.locator('button[aria-label^="新建一个"][aria-label$="节点"]').first();
@@ -129,7 +129,7 @@ export async function openGenerationAiPanel(win) {
     await boardCta.click({ timeout: 5000 }).catch(() => {});
     await win.waitForTimeout(1200);
   }
-  if (await input.count()) return;
+  if (await input.first().isVisible().catch(() => false)) return;
   // 面板若处于收起态，经 tests/ux/_shell.mjs 叫回来（外壳位置的唯一出口，外壳换了只改那一处）。
   await ensureAgentPanelOpen(win, "展开生成区 AI 面板");
   await input.first().waitFor({ state: "visible", timeout: 8000 });
@@ -152,8 +152,8 @@ export async function readAssistantModelLabel(win) {
 }
 
 export async function sendAgentMessage(win, message) {
-  await win.locator('[data-v4-control="input"]').first().fill(message, { timeout: 5000 });
-  await win.locator('[data-v4-control="send"]').first().click({ timeout: 5000 });
+  await win.locator('[data-v4-panel="true"] [data-v4-control="input"]').first().fill(message, { timeout: 5000 });
+  await win.locator('[data-v4-panel="true"] [data-v4-control="send"]').first().click({ timeout: 5000 });
 }
 
 export function readEventsLog(projectDir) {

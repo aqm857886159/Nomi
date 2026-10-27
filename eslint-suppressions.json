@@ -966,11 +966,6 @@
       "count": 1
     }
   },
-  "tests/ux/_offscreenWindows.cjs": {
-    "@typescript-eslint/no-require-imports": {
-      "count": 2
-    }
-  },
   "tests/ux/_paidNetwork.mjs": {
     "no-useless-escape": {
       "count": 1
@@ -1654,11 +1649,6 @@
     },
     "no-useless-assignment": {
       "count": 2
-    }
-  },
-  "tests/ux/full-walk/offscreenWindow.cjs": {
-    "@typescript-eslint/no-require-imports": {
-      "count": 1
     }
   },
   "tests/ux/full-walk/playbooks/pb04-script-attachment-long-chat.walk.mjs": {

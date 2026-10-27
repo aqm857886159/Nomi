@@ -5,9 +5,9 @@
 import { describe, expect, it } from 'vitest'
 
 import type {
-  LaneMetric, LaneMetricUnknownReason, LanePart, LaneProjection, LaneUsage,
+  LaneMetric, LaneMetricUnknownReason, LanePart, LaneProjection, LaneTaskFacts, LaneUsage,
 } from '../../../../electron/shared/agentLane/laneContracts'
-import { LANE_APPROVAL_NOTE_TYPE } from '../../../../electron/shared/agentLane/laneContracts'
+import { LANE_APPROVAL_NOTE_TYPE, LANE_TASK_STATUSES } from '../../../../electron/shared/agentLane/laneContracts'
 import { laneInterventionSource, laneViewModel, type LaneViewModelLabels } from './laneViewModel'
 import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from './laneToolFailureText'
@@ -28,7 +28,6 @@ const labels: LaneViewModelLabels = {
   unknown: '[unknown]',
   taskTitle: '[task]',
   formatStages: (done, total) => `${done}/${total} stages`,
-  formatMoney: (currency, amount) => `${currency} ${amount.toFixed(2)}`,
   taskUnknown: '[task-unknown]',
   attachmentUnavailable: '[attachment-unavailable]',
   answered: '[answered]',
@@ -195,20 +194,30 @@ describe('laneViewModel', () => {
     expect(item.receipt.output).not.toContain('provider prose')
   })
 
-  it('任务卡：状态 / 进度 / 金额全部来自 join 出来的领域事实，卡本身只有两个 id', () => {
+  /**
+   * 删字段之前主进程会往任务卡事实里填的三样（币种 / 已结算 / 已预留）。下面几条故意把它们混进喂进来的事实：
+   * 卡不许读它们——把 `taskCardFor` 里 money 那几行放回去，这几条必红。
+   */
+  const LEGACY_MONEY = { currency: 'CNY', spent: 0.24, estimated: 0.48 }
+  /** 货币符号或货币码。卡上任何一个字串里出现它 = 卡在谈钱。 */
+  const MONEY_TEXT = /[¥￥$€£]|\b(?:CNY|USD|RMB|EUR|JPY|GBP)\b/
+
+  it('任务卡：状态 / 阶段 / 进度 / 候选全部来自 join 出来的领域事实，卡本身只有两个 id；卡上不印金额', () => {
     next = 0
     const model = laneViewModel(projection([
       part({
         kind: 'task', productionRunId: 'run-7', operationId: 'call-1',
         facts: {
           status: 'running', progress: 33, stagesDone: 1, stagesTotal: 3,
-          currency: 'CNY', spent: 0.24, estimated: 0.48, candidates: ['a1', 'a2'].map(artifactId => ({
+          candidates: ['a1', 'a2'].map(artifactId => ({
             artifactId, projectId: 'project-a', productionRunId: 'run-7', thumbnailUrl: `nomi-local://asset/project-a/${artifactId}.png`, adopted: false, canAdopt: true,
           })),
-        },
+          ...LEGACY_MONEY,
+        } as LaneTaskFacts,
       }),
     ]), labels)
 
+    // 整卡相等：多出一个金额位（预估胶囊 `cost`、卡尾 `footnoteTrailing`）就红。
     expect(model.items).toEqual([{
       kind: 'task',
       task: {
@@ -217,8 +226,6 @@ describe('laneViewModel', () => {
         candidates: ['a1', 'a2'].map((artifactId, index) => ({
           artifactId, projectId: 'project-a', productionRunId: 'run-7', thumbnailUrl: `nomi-local://asset/project-a/${artifactId}.png`, adopted: false, canAdopt: true, tag: String(index + 1),
         })),
-        // 「预估」上卡头，「已花」上卡尾——与画布 FlowGeneration 板拍板过的位置一致。
-        cost: 'CNY 0.48', footnoteTrailing: 'CNY 0.24',
       },
     }])
   })
@@ -232,18 +239,25 @@ describe('laneViewModel', () => {
     expect(item.kind === 'task' && item.task).toEqual({
       title: '[task]', action: 'video', status: 'queued', footnote: '[task-unknown]',
     })
-    // 阳性对照：上一条同样是 `status: queued` 的卡**带着进度和金额**。两张卡状态字面相同、
-    // 意思相反（「排着队」vs「不知道」），区别只在有没有 footnote —— 所以这条断言查的是整张卡。
+    // 阳性对照：上一条 join 到了的卡**带着阶段和进度**。join 不到的卡状态字面是「排队」、
+    // 意思却是「不知道」，区别只在有没有 footnote —— 所以这条断言查的是整张卡。
     expect(item.kind === 'task' && item.task.progress).toBeUndefined()
   })
 
-  it('没有币种就不印金额：一个没有币种的数字看起来完全正常，而它可能是另一种钱', () => {
-    next = 0
-    const model = laneViewModel(projection([
-      part({ kind: 'task', productionRunId: 'run-7', facts: { status: 'complete', spent: 0.24 } }),
-    ]), labels)
-    const [item] = model.items
-    expect(item.kind === 'task' && item.task.footnoteTrailing).toBeUndefined()
+  it('任务卡哪一态都不印金额：没有金额位，卡上任何字串都不含货币符号或货币码', () => {
+    for (const status of LANE_TASK_STATUSES) {
+      next = 0
+      const model = laneViewModel(projection([
+        part({ kind: 'task', productionRunId: 'run-7', facts: { status, progress: 50, stagesDone: 1, stagesTotal: 2, ...LEGACY_MONEY } as LaneTaskFacts }),
+      ]), labels)
+      const [item] = model.items
+      if (item?.kind !== 'task') throw new Error(`missing task card for ${status}`)
+      expect(item.task, status).not.toHaveProperty('cost')
+      expect(item.task, status).not.toHaveProperty('footnoteTrailing')
+      expect(JSON.stringify(item.task), status).not.toMatch(MONEY_TEXT)
+      // 阳性对照：同一张卡上阶段计数照旧在（删的只是金额，不是卡头那串字）。
+      expect(item.task.trailing, status).toBe('1/2 stages')
+    }
   })
 
   it('队列原样带出去：不合并、不去重、不改顺序——pi 的 FIFO 就是用户打字的顺序', () => {

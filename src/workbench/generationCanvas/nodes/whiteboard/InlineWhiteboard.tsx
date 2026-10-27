@@ -15,7 +15,7 @@ import WhiteboardDrawingTool, { type WhiteboardDrawingToolHandle } from './White
 import type { WhiteboardResultLibraryItem } from './whiteboardTypes'
 import type { WhiteboardInitialImage, WhiteboardState } from './whiteboardTypes'
 import { readWhiteboardState, serializeWhiteboardState, whiteboardDraftIdentity } from './whiteboardState'
-import { whiteboardHasVisibleContent, whiteboardRasterStateKey } from './whiteboardRasterState'
+import { whiteboardCanvasDimensions, whiteboardHasVisibleContent, whiteboardRasterStateKey } from './whiteboardRasterState'
 import { getCanvasDimensions } from './lib/canvas'
 import { useNodeAttachedPanel } from '../nodeAttachedPanel'
 import { closeWhiteboard, registerWhiteboardFinish } from './whiteboardSession'
@@ -40,7 +40,7 @@ function makeWhiteboardSnapshotResult(nodeId: string, url: string): GenerationNo
 }
 
 function dimensionsForWhiteboardState(state: WhiteboardState | null): ReturnType<typeof getCanvasDimensions> | null {
-  return state ? state.canvasDimensions ?? getCanvasDimensions(state.activeRatio, 1280) : null
+  return state ? whiteboardCanvasDimensions(state) : null
 }
 
 function isSameWhiteboardState(a: WhiteboardState | undefined, b: WhiteboardState | null): boolean {
@@ -155,7 +155,7 @@ export default function InlineWhiteboard({
       project.assertCurrent()
       const snapshotUrl = await persistNodeImageFile(file, nodeId, project)
       project.assertCurrent()
-      if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.snapshotSaveFailed'))
+      if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.drawingSaveFailed'))
       const latestSource = useGenerationCanvasStore.getState().nodes.find(node => node.id === nodeId)
       if (!latestSource) throw new Error(t('generationCommon.whiteboard.imageNodeMissing'))
 
@@ -218,7 +218,7 @@ export default function InlineWhiteboard({
         closed = true
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
-        reportFeedback(error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.saveFailed'))
+        reportFeedback(error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.drawingSaveFailed'))
       } finally {
         savingRef.current = false
         if (!project.signal.aborted) setScreenshotBusy(false)
@@ -250,7 +250,7 @@ export default function InlineWhiteboard({
         project.assertCurrent()
         const snapshotUrl = await persistNodeImageFile(file, nodeId, project)
         project.assertCurrent()
-        if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.snapshotSaveFailed'))
+        if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.screenshotSaveFailed'))
 
         const latestState = useGenerationCanvasStore.getState()
         const latestSource = latestState.nodes.find((node) => node.id === nodeId)
@@ -283,7 +283,7 @@ export default function InlineWhiteboard({
             },
           },
         })
-        if (!created) throw new Error(t('generationCommon.whiteboard.screenshotFailed'))
+        if (!created) throw new Error(t('generationCommon.whiteboard.screenshotSaveFailed'))
         const snapshotResult = { ...makeWhiteboardSnapshotResult(created.id, snapshotUrl), raw: { whiteboardState: currentWhiteboardState } }
         updateNode(created.id, {
           result: snapshotResult,
@@ -313,8 +313,13 @@ export default function InlineWhiteboard({
         return created.id
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return null
+        // The camera saves the drawing on an image entry and makes a screenshot node on a board entry; say which one failed.
         reportFeedback(
-          error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.screenshotFailed'),
+          error instanceof Error && error.message
+            ? error.message
+            : sourceKind === 'image'
+              ? t('generationCommon.whiteboard.drawingSaveFailed')
+              : t('generationCommon.whiteboard.screenshotSaveFailed'),
         )
         return null
       } finally {

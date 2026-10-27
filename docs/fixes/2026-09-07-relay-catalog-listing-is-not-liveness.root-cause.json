@@ -142,6 +142,7 @@
     "The radar's LLM lane detects ids the provider stops listing. It cannot detect the case actually reported here -- an id that is still listed but no longer callable -- because that requires a real inference call, which the radar deliberately never makes so it stays free to run. Catching that class automatically would need a periodic paid liveness probe, which is not part of this change.",
     "Eight seeded image/video/audio ids (doubao-seedream-5-0-pro, doubao-seedream-4.5, doubao-seedance-2.0, doubao-seedance-2.5, nomi-audio, suno-v5.5, suno-sounds-v5.5, flowmusic-lyria-3.5) do not appear in GET /v1/models, but that listing names generation models under different ids, so their absence is not evidence of retirement. They were deliberately left alone rather than removed on a guess.",
     "Two contract mismatches against first-party documentation were found and deliberately not fixed here, because neither is expressible in the current archetype model: MiniMax H3 caps mixed reference input at 12 files total while our slots allow 9+3+3=15, and Hailuo 2.3 supports 1080p only at 6s while our resolution and duration selects are independent. Both are recorded for separate work.",
-    "On this machine the radar's LLM lane needs APIMART_API_KEY exported, because safeStorage ciphertext cannot be decrypted from a plain tsx script. The lane is therefore not yet hands-free in the daily radar routine."
+    "On this machine the radar's LLM lane needs APIMART_API_KEY exported, because safeStorage ciphertext cannot be decrypted from a plain tsx script. The lane is therefore not yet hands-free in the daily radar routine.",
+    "列表不是 liveness：0.24 不加付费调用探针（用户 10-27）；要覆盖只能另立手动触发、带预算的付费抽检"
   ]
 }

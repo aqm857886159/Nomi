@@ -18,6 +18,10 @@
     {
       "path": "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardCanvasDocument.ts",
       "symbol": "useWhiteboardCanvasDocument"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardStatePreview.ts",
+      "symbol": "renderWhiteboardStatePreview"
     }
   ],
   "forbidden_derivations": [],
@@ -27,8 +31,9 @@
     "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardDrawing.ts",
     "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardBoxSelection.ts",
     "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts",
-    "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSceneSync.ts"
+    "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSceneSync.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardCardBody.tsx"
   ],
   "since": "2026-10-12",
-  "notes": "LeaferCanvas 唯一创建/销毁 Leafer App。useWhiteboardCanvasDocument 是其内部 imperative document/selection/export 接口与可变映射提交边界；鼠标结束和选择动作提交一次序列化变换，不增加第二个渲染器。选择 hook 返回局部键盘动作，活动编辑器宿主拥有事件准入。纯文档测试仅证明表示转换，鼠标/键盘/IME/截图租约仍须真实交互验收。"
+  "notes": "交互实例只归 LeaferCanvas；离屏只读预览实例归 renderWhiteboardStatePreview，一次性、不带 editor、导出完即销毁，二者共用 renderWhiteboardScene（2026-10-27）。useWhiteboardCanvasDocument 是其内部 imperative document/selection/export 接口与可变映射提交边界；鼠标结束和选择动作提交一次序列化变换，不增加第二个渲染器。选择 hook 返回局部键盘动作，活动编辑器宿主拥有事件准入。纯文档测试仅证明表示转换，鼠标/键盘/IME/截图租约仍须真实交互验收。"
 }

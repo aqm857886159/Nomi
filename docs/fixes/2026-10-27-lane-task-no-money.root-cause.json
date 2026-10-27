@@ -1,0 +1,191 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-lane-task-no-money",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-27",
+  "problem_type": "Run 账本的已知价合计经 Agent 面板任务卡上屏：任务卡事实带着币种 / 已结算 / 已预留，视图投影把它格式化成金额。",
+  "symptom": "Agent 面板里有领域事实的生成任务卡，卡尾印出一个「已花」金额：实付从不回写，它恒为零，读起来像「这次没花钱」；有参数的卡还会多一颗只加已知价的预估胶囊。",
+  "direct_cause": "laneDesktopTasks.ts 把 run.budget.currency / actual / reserved 填进 LaneTaskFacts；laneViewModel.ts 的 taskCardFor 用注入的 labels.formatMoney 格式化成 TaskCardData.cost / footnoteTrailing；V4TaskCard 把它们上屏。",
+  "class_root": "#1339 给渲染层装的两道门只认两种形状：源码里现算的金额写法（语法树）和名单外 import 货币格式化函数。这张卡的金额走第三种形状：数字和币种由主进程放进跨层契约，渲染层经依赖注入的标签函数格式化，laneViewModel.ts 里既没有金额写法也没有 import，两道门都看不见它，只在接线处被 import 名单记了账、留成「待协调定」。名单本身也只拦「名单外的文件 import」，不对账「名单里的文件还在不在 import」，出口删了、放行位留着不会红。",
+  "affected_population": [
+    "Agent 面板里看生成任务卡的用户（中英界面），尤其是任务跑完以后：卡尾一直印零金额",
+    "以后往任务卡事实或卡片数据里加字段的实现线",
+    "以后删掉一个金额出口、却没删 import 放行位的实现线"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneDesktopTasks.ts",
+    "electron/agentLane/laneDesktopTasks.test.ts",
+    "electron/shared/agentLane/laneContracts.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "src/workbench/ai/lane/laneViewModel.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "scripts/ui-money-format.mjs",
+    "scripts/ui-money-format.test.mjs"
+  ],
+  "entry_points": [
+    "createDesktopLaneTasks：主进程按 ProductionRun 投影任务卡事实，全仓唯一写 LaneTaskFacts 的地方",
+    "taskCardFor：唯一产 TaskCardData 的生产代码",
+    "useAgentPanelV4Data：给 laneViewModel 接标签的唯一生产接线",
+    "V4TaskCard：任务卡组件",
+    "src/ 渲染层任何文件 import 货币格式化函数（ESLint ui-money/no-restricted-imports 与 import 普查）"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentLane/laneContracts.ts",
+    "tests": [
+      "electron/agentLane/laneDesktopTasks.test.ts",
+      "src/workbench/ai/lane/laneViewModel.test.ts"
+    ],
+    "why": "LaneTaskFacts 是任务卡事实跨主进程 / 渲染层的唯一契约，主进程唯一的写手和渲染层唯一的读手都按它编译；契约里没有金额位，两头都放不进金额。"
+  },
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/eslint/eslint/blob/v10.4.1/lib/rules/no-restricted-imports.js",
+      "checked_at": "2026-10-27",
+      "purpose": "确认仓库锁定的 eslint 10.4.1 的 no-restricted-imports 支持 patterns[].regex 并按 import 源字符串匹配（本机 node_modules 同版本源码），import 普查直接开这条规则、用 eslint.config.mjs 那一个 pattern 数文件，不写第二份判据。"
+    }
+  ],
+  "invariants": [
+    "任务卡事实 LaneTaskFacts 只有 status / progress / stagesDone / stagesTotal / candidates，不带币种、已花、预估。",
+    "TaskCardData 没有金额位；任务卡五态、中英界面都不印金额，卡上其它内容照旧。",
+    "货币格式化函数的 import 名单与 src 里真实 import 它的文件逐一相等，只减不增。"
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/agentLane/laneDesktopTasks.ts", "symbol": "LaneTaskFacts" },
+    { "kind": "read", "path": "electron/agentLane/laneRuntimePort.ts", "symbol": "LaneTaskFacts" },
+    { "kind": "read", "path": "electron/shared/agentLane/laneContracts.ts", "symbol": "LaneTaskFacts" },
+    { "kind": "read", "path": "electron/shared/agentLane/laneProjection.ts", "symbol": "LaneTaskFacts" },
+    { "kind": "read", "path": "src/devlab/designLab/v4/agentPanelV4LabKit.tsx", "symbol": "TaskCardData" },
+    { "kind": "read", "path": "src/workbench/ai/lane/laneViewModel.ts", "symbol": "TaskCardData" },
+    { "kind": "read", "path": "src/workbench/ai/v4/AgentPanelV4Cards.tsx", "symbol": "TaskCardData" },
+    { "kind": "read", "path": "src/workbench/ai/v4/agentPanelV4Types.ts", "symbol": "TaskCardData" },
+    { "kind": "write", "path": "electron/agentLane/laneDesktopRuntime.ts", "symbol": "createDesktopLaneTasks" },
+    { "kind": "write", "path": "src/devlab/designLab/v4/laneDrivenFixtures.ts", "symbol": "laneViewModel" },
+    { "kind": "write", "path": "src/workbench/ai/v4/agentPanelSpendCard.ts", "symbol": "formatMoney" },
+    { "kind": "write", "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts", "symbol": "laneViewModel" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/spend/ProductionContractSummary.tsx", "symbol": "formatMoney" }
+  ],
+  "door_reduction": {
+    "before": 16,
+    "after": 13,
+    "why_not": "删掉的 3 扇都是 formatMoney 的调用：laneViewModel.ts 的 labels.formatMoney、useAgentPanelV4Data.ts 与设计实验室 labViewModelLabels 的接线。剩下的门各管各的：LaneTaskFacts 的 4 扇是契约本身、唯一写手、透传读口和 resolver 类型；TaskCardData 的 4 扇是类型、唯一生产者、组件和实验室夹具；createDesktopLaneTasks / laneViewModel 的写门是装配点。formatMoney 剩下两扇不归本线：agentPanelSpendCard.ts 是 Agent 付费卡逐镜价（名单里唯一的放行位），ProductionContractSummary.tsx 是付费确认卡文件内自带的同名函数，door-map 按名字数进来。"
+  },
+  "generality_proof": "金额进任务卡只有两条路：主进程往 LaneTaskFacts 放字段、渲染层往 TaskCardData 放字段。两份契约都删了金额位，任何新的写手或读手要印钱，得先改共享类型（编译期可见、评审可见），并撞上 laneDesktopTasks.test.ts 的键集合断言与 laneViewModel.test.ts 的整卡断言。经 trailing / footnote 这类通用字串现算金额，由 ui-money/no-restricted-syntax 按语法树拦；拿现成的货币格式化函数，由 ui-money/no-restricted-imports 拦，import 普查让放行位与真实 import 逐一相等，出口删了放行位不能留着。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneTaskFacts",
+      "responsibility": "任务卡事实跨层契约：只有状态、进度、阶段、候选，没有金额位。"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "symbol": "TaskCardData",
+      "responsibility": "任务卡数据：没有预估、已花这类金额位，组件无处可画。"
+    },
+    {
+      "path": "scripts/ui-money-format.mjs",
+      "symbol": "FORMAT_MONEY_IMPORTERS",
+      "responsibility": "货币格式化函数的 import 放行位，与 src 里真实 import 逐一相等（eslint.config.mjs 的 ui-money/no-restricted-imports 与普查测试读同一份）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopTasks.ts",
+      "entry_point": "createDesktopLaneTasks",
+      "disposition": "enforced",
+      "evidence": "不再读 run.budget；laneDesktopTasks.test.ts 在账本预留、已结算都不为 0 时断言事实键集合只在五个键里，首次读和领域变更后重投各核一次；把三个字段放回去必红（反例实跑）。"
+    },
+    {
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "entry_point": "taskCardFor",
+      "disposition": "enforced",
+      "evidence": "整卡 toEqual，加五态循环断言没有 cost / footnoteTrailing、卡上字串不含货币符号或货币码；喂进去的事实故意带旧的三个金额字段；把 money 那几行放回去必红（反例实跑）。"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "useAgentPanelV4Data",
+      "disposition": "enforced",
+      "evidence": "不 import 也不接线；放回 import 报 ui-money/no-restricted-imports，import 普查也红（反例实跑）。"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Cards.tsx",
+      "entry_point": "V4TaskCard",
+      "disposition": "enforced",
+      "evidence": "预估胶囊与卡尾数删了，TaskCardData 没有这两个字段；agentPanelV4Blocks.test.ts 故意喂删之前的形状（带 cost / footnoteTrailing），卡上不许出现货币符号、已花和警示胶囊，参数 chip 与脚注照旧；中英真组件截图里卡上没有金额。"
+    },
+    {
+      "path": "src/devlab/designLab/v4/agentPanelV4LabKit.tsx",
+      "entry_point": "labViewModelLabels",
+      "disposition": "enforced",
+      "evidence": "返回值标注为 LaneViewModelLabels，放回 formatMoney 是多余属性的类型错误；两处金额夹具（预估胶囊、卡尾数）随卡片类型删了。"
+    },
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "entry_point": "projectLaneSnapshot",
+      "disposition": "not-affected",
+      "evidence": "只把 resolver 给的事实原样挂到 task 段，不读也不写金额；本次只改了一句注释。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是同一类「已知价合计当全额印出」的第二个出口（第一个是 #1339 的任务中心），它绕过了 #1339 装的两道门：金额由跨层契约带进来、经注入的标签函数格式化。不在契约层删金额位、不让 import 名单与真实 import 对账，同样的形状会从下一个往契约加字段的读口回来。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs LaneTaskFacts TaskCardData formatMoney laneViewModel createDesktopLaneTasks：改前写 8 读 8，改后写 5 读 8；三个字段的属性读写另用 git grep 追（door-map 按标识符数）。",
+      "git grep -E \"(spent|estimated)\\s*:\" 与 git grep -E \"facts\\??\\.(spent|estimated|currency)|footnoteTrailing|task\\.cost\"（src / electron / tests）：剩下的只有 laneViewModel.test.ts 故意喂旧形状的那一份与对应断言；其余 spent / estimated 是别的概念（3D-BOX 拦截文案、外部工具夹具、体验评分口径）。",
+      "scripts/ui-money-format.test.mjs 普查全 src：import 货币格式化函数的只剩 agentPanelSpendCard.ts，与名单逐一相等。",
+      "按对象字面量再搜 cost: / 已花 / warning-soft（src/workbench/ai、src/devlab、tests/agent-runtime、electron/agentLane）：组件用例 agentPanelV4Blocks.test.ts 的「每张卡都能带花费」直接喂 cost 断言预估胶囊上屏（门表按符号数不到，实现时 vitest 抓到），已换成反向用例；其余 cost 是 Agent 用量那一行的花费，不归任务卡。"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/agentLane/laneContracts.ts",
+    "invariant": "任务卡事实与任务卡数据都没有金额位；货币格式化函数的放行位与真实 import 逐一相等。",
+    "failure_mode": "主进程往任务卡事实里放金额、渲染层往卡片数据里放金额，先过不了类型（字段不存在）；改类型加回来会撞上 laneDesktopTasks.test.ts 的键集合与 laneViewModel.test.ts 的整卡断言；名单外 import 货币格式化函数报 ui-money/no-restricted-imports；名单里留着不再 import 的放行位，import 普查红。",
+    "exception_policy": "none",
+    "strategy": "删：契约删三个字段，卡片类型删两个金额位，视图投影、接线、组件、实验室夹具同提交删，不留开关；门岗名单删掉那一位，普查补 import 对账。",
+    "artifacts": [
+      "electron/shared/agentLane/laneContracts.ts",
+      "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "scripts/ui-money-format.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneDesktopTasks.test.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "scripts/ui-money-format.test.mjs",
+    "tests/agent-runtime/lane-task-card.test.mts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneDesktopTasks.test.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Blocks.test.ts",
+    "scripts/ui-money-format.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneDesktopTasks.ts",
+      "src/workbench/ai/lane/laneViewModel.ts",
+      "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "src/workbench/ai/v4/AgentPanelV4Cards.tsx"
+    ],
+    "rationale": "主进程填金额的那一行、taskCardFor 的 money 那几行与 labels.formatMoney、面板的接线和 import、组件里的预估胶囊和卡尾数都在本提交删除；文件本身保留为各自的 owner。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只删代码、收紧名单，用的是仓库已锁定的 eslint 内置规则，不新增也不升级依赖。",
+    "exit_criteria": []
+  },
+  "migration": "不落盘、不迁移：任务卡事实每次投影现 join，转录里只存 productionRunId 与 operationId 两个 id，旧转录没有要迁的金额。",
+  "residual_risks": [
+    "经依赖注入传进来的格式化函数，lint 只在 import 处拦得住：视图层自己收一个 (currency, amount) => string 的标签函数时，语法门和 import 门都看不见，只能靠接线处的 import 名单。",
+    "设计实验室任务卡夹具的 trailing 字串和付费槽角标仍写着金额（fixtureCostThree / fixtureCostFour）；实验室不进生产包、不在 eslint 范围，本线不删。",
+    "09-06 Agent 面板 v4 定稿文档仍写着任务卡带花费，与 09-26 拍板冲突；本线不改设计稿。",
+    "多镜确认卡的逐镜价模板把币种写死成人民币符号，而价目的 cost 没有币种字段，按点数或别的币种录的价目会被印成人民币（只读核查，未改）。",
+    "出口名单里别的金额出口（Agent 付费卡逐镜价、付费确认卡、提案卡预估、来历面板、两条词典模板）照旧，去留归协调。"
+  ]
+}

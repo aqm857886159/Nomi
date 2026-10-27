@@ -52,7 +52,7 @@ const egress = await startEgressWatch({ logFile: path.join(root, '.tmp', 'vendor
 
 const launched = await launchNomiApp({
   name: 'vendor-card-locale', syntheticCredentialStorage: true,
-  mainRequire: [...egress.mainRequire, path.join(root, 'tests', 'ux', '_offscreenWindows.cjs')],
+  mainRequire: [...egress.mainRequire, path.join(root, 'tests', 'ux', '_quietWalk.cjs')],
   env: { NODE_ENV: 'production', ...egress.env }, args: ['--disable-gpu'],
   initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi-color-scheme': 'light', ...(locale === 'en' ? { 'nomi:locale:v1': 'en' } : {}) },
 })

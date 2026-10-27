@@ -152,7 +152,7 @@ async function openPlan(win) {
 
 async function passZhLight() {
   console.log('[windowing] zh · 亮 · 1280×800')
-  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-zh', seed, needs: [], locale: 'zh-CN', preferences: { 'nomi-color-scheme': 'light' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
+  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-zh', seed, needs: [], locale: 'zh-CN', preferences: { 'nomi-color-scheme': 'light' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
   try {
     await smoke.openProject()
     const win = smoke.win
@@ -408,7 +408,7 @@ async function passZhLight() {
 
 async function passEnDarkNarrow() {
   console.log('[windowing] en · 暗 · 1100×690')
-  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-en', seed, needs: [], locale: 'en', emptyViewport: { width: 1100, height: 690 }, preferences: { 'nomi-color-scheme': 'dark' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
+  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-en', seed, needs: [], locale: 'en', emptyViewport: { width: 1100, height: 690 }, preferences: { 'nomi-color-scheme': 'dark' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
   try {
     await smoke.openProject()
     const win = smoke.win

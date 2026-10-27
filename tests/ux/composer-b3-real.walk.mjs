@@ -139,7 +139,7 @@ async function runPass({ locale, scheme }) {
   const profile = seedProfile(root)
   const launched = await launchNomiApp({
     name: `composer-b3-real-${tag}`, tempRoot: root, settingsDir: profile.settingsDir, projectsDir: profile.projectsDir, settleMs: 1500,
-    mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs'), ...(process.platform === 'linux' ? [] : [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')])],
+    mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs'), ...(process.platform === 'linux' ? [] : [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')])],
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
     env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_DISABLE_AUTO_UPDATE: '1' },
   })

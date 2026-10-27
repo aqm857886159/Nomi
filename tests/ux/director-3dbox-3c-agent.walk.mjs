@@ -14,7 +14,7 @@
 //      node tests/ux/director-3dbox-3c-agent.walk.mjs
 //
 // 纪律（为什么这么跑）：
-//   · 窗口在屏幕外、不抢焦点（_offscreenWindows.cjs），不打扰正在用电脑的人。
+//   · 窗口在屏幕外、不抢焦点（_quietWalk.cjs），不打扰正在用电脑的人。
 //   · 真实资料目录**只读**：只把点名的那一个文本模型（连同它的供应商行、凭据密文、Windows 的 Local State）拷进隔离副本；
 //     跑前跑后比对原库凭据文件指纹，必须一字不差；跑完删掉副本里的凭据。项目、MCP 目录都在隔离目录（.tmp/director-3dbox-3c-agent）。
 //   · 只花文本额度：隔离副本里没有任何图片 / 视频供应商的 key；全程不建视频镜头、不调 generate；
@@ -53,7 +53,7 @@ fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 const dirs = { userDataDir: path.join(root, 'user-data'), settingsDir: path.join(root, 'settings'), projectsDir: path.join(root, 'projects'), capabilityDir: path.join(root, 'capability') }
 for (const dir of Object.values(dirs)) fs.mkdirSync(dir, { recursive: true })
-const offscreen = path.join(repoRoot, 'tests/ux/_offscreenWindows.cjs')
+const offscreen = path.join(repoRoot, 'tests/ux/_quietWalk.cjs')
 const env = { VITE_DEV_SERVER_URL: rendererUrl, NOMI_DISABLE_AUTO_UPDATE: '1' }
 const initialLocalStorage = {
   'nomi:locale:v1': 'zh-CN', 'nomi-color-scheme': 'dark',

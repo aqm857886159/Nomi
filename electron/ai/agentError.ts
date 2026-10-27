@@ -15,7 +15,7 @@
  *
  * Electron-free so it can be unit-tested offline (agentError.test.ts).
  */
-import { VendorRequestError, encodeVendorErrorMessage } from "../vendor/vendorHttp";
+import { VendorRequestError, encodeVendorErrorMessage } from "../shared/vendorFailure";
 
 /**
  * Turn any text-task error into the message that crosses IPC.

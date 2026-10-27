@@ -1,6 +1,7 @@
 // R13 真机走查：小说片段 → 拆镜头(默认图片分镜) → 方案编辑器 → 落画布 → 真生成一张 →
-// 转视频 → 整理画布。截图人眼判断。用法：node scripts/shot-mode-walkthrough.mjs
-import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+// 转视频 → 整理画布。截图人眼判断。用法：NOMI_WALK_FOREGROUND_OK=1 node scripts/shot-mode-walkthrough.mjs
+// （真实资料起，装不了安静仪表、窗口会到前台；没带放行变量就不起 App、按 125 跳过）
+import { exitIfWalkSkipped, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync } from 'node:fs'
@@ -13,7 +14,12 @@ const shot = async (win, name) => { await win.screenshot({ path: path.join(outDi
 const STORY = '叶林握紧了口袋里那张皱巴巴的缴费单。深夜的便利店里只有他一个店员，白炽灯把货架照得惨白。玻璃门外，一个穿深色西装的中年男人站在雨里，隔着玻璃朝他微笑。叶林认得那张脸——三天前在地下诊所走廊里见过。男人推门进来，把一份文件放在收银台上："考虑得怎么样？一个肾，够你妹妹两年的药钱。"'
 
 // isolate:false：本脚本今天就跑在真实 profile 上（真 key / 真项目库），隔离会让它「跑得起来但结果全错」。
-const { app, win } = await launchNomiApp({ name: 'shot-mode', isolate: false, settleMs: 1800 })
+const { app, win } = await launchNomiApp({
+  name: 'shot-mode',
+  isolate: false,
+  settleMs: 1800,
+  foreground: '真实资料真生成走查（真 key / 真项目库）',
+}).catch(exitIfWalkSkipped)
 const errors = []
 try {
   const bw = await app.browserWindow(win)

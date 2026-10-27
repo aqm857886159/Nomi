@@ -80,7 +80,7 @@ try {
     name: 'mcp-connection-status', tempRoot, capabilityDir,
     // Windows 的主目录看 USERPROFILE 不看 HOME：两个都指临时目录，否则配置会解析到真机主目录（然后被隔离保护拒绝写入）。
     env: { HOME: testHome, USERPROFILE: testHome, APPDATA: path.join(testHome, 'AppData', 'Roaming'), NOMI_MCP_HTTP_PORT: '0' }, settleMs: 0,
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: {
       'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen',
       'nomi:canvas-gesture-hint:v1': 'seen', 'nomi.onboarding.scene3dCoach.v1': 'seen',

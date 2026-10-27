@@ -4,7 +4,7 @@
 //   ③ 经真 IPC 投一份合法的 perf.session.summary：确认前 queued=false；
 //   ④ 点「同意新增」→ 设置视图的 scopeVersion 升到 2；再投同一份 → queued=true，待发摘要里出现这个事件；
 //   ⑤ 重载后卡不再出现。
-// 用法：先 pnpm run build；NOMI_WALK_OFFSCREEN=1 node tests/ux/telemetry-scope-reconfirm.walk.mjs
+// 用法：先 pnpm run build；node tests/ux/telemetry-scope-reconfirm.walk.mjs
 //       EVIDENCE_DIR=<目录> 指定截图落点
 import { launchNomiApp } from './_launchApp.mjs'
 import { uiText } from './full-walk/invariants.mjs'

@@ -40,7 +40,17 @@ for (const scenario of ['env', 'explicit', 'inherited', 'derived', 'non-isolated
       expected = process.env.NOMI_CAPABILITY_DIR
     }
     if (scenario === 'derived') expected = path.join(root, 'capability')
-    if (scenario === 'non-isolated') options.isolate = false
+    if (scenario === 'non-isolated') {
+      // 非隔离装不了安静仪表：启动器要求声明 foreground，且有放行变量才起。
+      options.isolate = false
+      options.foreground = '能力目录来源：非隔离启动'
+      const allowed = process.env.NOMI_WALK_FOREGROUND_OK
+      process.env.NOMI_WALK_FOREGROUND_OK = '1'
+      t.after(() => {
+        if (allowed === undefined) delete process.env.NOMI_WALK_FOREGROUND_OK
+        else process.env.NOMI_WALK_FOREGROUND_OK = allowed
+      })
+    }
     let launched
     t.mock.method(electron, 'launch', async (launchOptions) => {
       launched = launchOptions

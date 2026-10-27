@@ -131,7 +131,7 @@ export type LanePart =
       /**
        * 一张生成任务卡在转录里的位置（方案 §2.2 G13）。
        *
-       * **它只带引用，不带状态。** 卡上那些会动的数字（进度、已花、候选）住在
+       * **它只带引用，不带状态。** 卡上那些会动的数字（进度、阶段、候选）住在
        * ProductionRun 领域存储里，投影时按 `productionRunId` join 一次
        * （K4「永不复制状态」）。把它们写进转录的代价不是多占几个字节，是**第二份真相**：
        * 转录是追加式的，写进去的那一刻就冻住了——用户重开这条对话会看到一个
@@ -156,13 +156,6 @@ export type LanePartKind = LanePart['kind']
 export const LANE_TASK_STATUSES = ['queued', 'running', 'complete', 'failed', 'stopped'] as const
 export type LaneTaskStatus = (typeof LANE_TASK_STATUSES)[number]
 
-/**
- * 一张任务卡 join 出来的领域事实。
- *
- * **金额是数字 + 币种，不是格式化好的串。** 渲染层才有 i18n（R15），主进程给一个
- * 「¥0.24」就等于在主进程里钉了一种语言和一种小数写法，而那两件事都随用户设置变。
- * 今天 `V4TaskFacts.spent` 是串，是因为它的产地本来就在渲染层；跨进程这一段不能照抄。
- */
 /** Ephemeral, domain-verified media facts; no preview URL or adoption state enters the transcript. */
 export interface LaneTaskCandidate {
   readonly projectId: string
@@ -173,6 +166,12 @@ export interface LaneTaskCandidate {
   readonly canAdopt: boolean
 }
 
+/**
+ * 一张任务卡 join 出来的领域事实。
+ *
+ * **不带金额**（2026-10-27）：设计系统「钱只印一处」，界面不印合计数量或金额。Run 账本的合计只加已知价、
+ * 实付从不回写，这里曾经带的币种 / 已结算 / 已预留印到卡上就是一个恒为零的「已花」，所以连字段一起删了。
+ */
 export interface LaneTaskFacts {
   readonly status: LaneTaskStatus
   /** 0–100 的整数。阶段数为 0 时**缺席**，不写 0——0% 和「没有阶段可数」不是一回事。 */
@@ -180,12 +179,6 @@ export interface LaneTaskFacts {
   /** 已完成 / 总阶段数。两个数一起给，文案由渲染层拼。 */
   readonly stagesDone?: number
   readonly stagesTotal?: number
-  /** 预算账本的币种（`ProductionRun.budget.currency`）。有金额就必有它。 */
-  readonly currency?: string
-  /** 已结算金额（账本的 `actual`）。 */
-  readonly spent?: number
-  /** 已预留金额（账本的 `reserved`）。 */
-  readonly estimated?: number
   /** Media previews and adoption eligibility come from the ProductionRun owner. */
   readonly candidates?: readonly LaneTaskCandidate[]
 }

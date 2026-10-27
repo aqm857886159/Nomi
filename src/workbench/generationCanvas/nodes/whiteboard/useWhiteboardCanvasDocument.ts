@@ -60,7 +60,7 @@ export function useWhiteboardCanvasDocument(
         const result = await exportViewportWithoutEditorOverlays(app, filename)
 
         if (result.error) {
-          throw result.error instanceof Error ? result.error : new Error(t('generationCommon.whiteboard.screenshotFailed'))
+          throw result.error instanceof Error ? result.error : new Error(t('generationCommon.whiteboard.screenshotSaveFailed'))
         }
       },
       async captureViewportFile(filename = createViewportScreenshotFilename()) {

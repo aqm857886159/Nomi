@@ -11,6 +11,7 @@
 //   · pending：不许新增生产写入口（写门冻结进基线），读者只许是 allowed_consumers 那本例外账；
 //   · 身份比对：每个「长得像身份比对」的函数都要登记、维度要对得上（原 check:identity-compare，2026-09-29 并入）；
 //   · 合同：09-27 起的根因合同，声明的每个共享边界都必须是某个登记概念的写接口（没登记的新概念 = 红）；
+//     边界挪走了（边界主人台账记了 reanchored）就核台账里的新锚——和 check:boundary-owners 经同一个改锚解析读台账；
 //   · 棘轮：基线存身份不存裸数字、只减不增；和参照提交比，已有概念的口子只许变少。
 //
 // 用法：
@@ -22,6 +23,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readLedger } from './boundary-owners.mjs'
 import {
   CONCEPT_OWNERS_SINCE,
   definitionSymbols,
@@ -67,7 +69,7 @@ const RULE_TEXT = {
   'forbidden-reference': ['碰了列为禁止引用的旧形状', '改走主人；确需引用，写进这个概念的 allowed_consumers 并说明理由。'],
   'identity-comparator': ['登记表之外又长出一份身份比对（原 check:identity-compare）', '改成 import 主人那一份比对函数；确实是另一种身份，就登记一个身份概念并写明 identity_fields。'],
   'identity-drift': ['身份维度漂了', '维度变了就是身份变了：改回去，或者更新登记的 identity_fields 并说明为什么。'],
-  'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）。'],
+  'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）；边界在边界主人台账改过锚的，登记的是台账里的新锚。'],
   'baseline-invalid': ['基线结构不对', '修正 scripts/concept-owners-baseline.json；结构坏了不能当放行。'],
   'baseline-stale': ['基线里有已经不存在的口子', '删掉那一条：棘轮只减不增，基线必须等于现状。'],
   'baseline-grew': ['基线比参照提交长了', '已登记概念的第二写口 / 冻结写门只许变少。修代码，别抬基线挤过门岗（R17.0 第 4 条）。'],
@@ -198,12 +200,14 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   const findings = []
   let registry
   let baseline
+  let ledger
   let source
   try {
     registry = loadConceptRegistry(repoRoot)
     if (!registry) throw new Error(`概念登记目录不存在：${CONCEPT_OWNERS_DIR}/`)
     const baselineFile = path.join(repoRoot, BASELINE_PATH)
     baseline = fs.existsSync(baselineFile) ? readJsonFile(baselineFile) : null
+    ledger = readLedger(repoRoot)
     source = sourceRef ? gitRefSource(repoRoot, sourceRef) : workingTreeSource(repoRoot)
   } catch (failure) {
     // 读不到 / 解析不了 = 红，不是跳过：一个拿不到证据的门岗只能报它真拿到的那个结论。
@@ -269,7 +273,7 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
     const { contracts, errors } = listContracts(source, repoRoot, sourceRef)
     for (const message of errors) findings.push({ rule: 'registry-invalid', message })
     governedCount = governedContracts(contracts).length
-    const result = evaluateContracts({ concepts, contracts })
+    const result = evaluateContracts({ concepts, contracts, ledger })
     unregisteredBoundaries.push(...result.findings.filter((item) => item.rule === 'unregistered-boundary'))
     findings.push(...result.findings.filter((item) => item.rule !== 'unregistered-boundary'))
     mapping = result.mapping
@@ -311,7 +315,7 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
   }
 
   // ⑧ 报告
-  if (sourceRef) log(`源码取自${source.label}；登记表与基线用工作树里的——复验「现在这本账拦不拦得住那份代码」。`)
+  if (sourceRef) log(`源码取自${source.label}；登记表、基线与边界主人台账用工作树里的——复验「现在这本账拦不拦得住那份代码」。`)
   if (diagnostic) log(`诊断模式：只判 ${selected.map((concept) => `「${concept.name}」`).join('、') || '（无）'} 的代码侧判据，合同与历史棘轮不判。`)
   if (printMap) {
     log(`\n受管合同（文件名日期 ≥ ${CONCEPT_OWNERS_SINCE}）→ 门表与共享边界碰到的概念：`)

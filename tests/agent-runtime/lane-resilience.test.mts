@@ -15,6 +15,7 @@ import { normalizeProviderErrorText } from '../../electron/agentLane/laneProvide
 import type { LaneProjection, LaneRetry } from '../../electron/shared/agentLane/laneContracts.js';
 import { LANE_READ_TOOL_TIMEOUT_MS } from '../../electron/shared/agentLane/laneToolContract.js';
 import { createLaneFixture, FIXTURE_DESCRIBE, mustConfirm } from './laneFixture.mjs';
+import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc.js';
 
 /** 一个永不回复、但连上了的供应商。**首字节永不到达**——今天的 lane 会永远转圈。 */
 const NEVER_REPLIES = { type: 'deferred' as const, beforeReply: () => new Promise<never>(() => {}) };
@@ -201,6 +202,42 @@ test('G-12 阳性对照 · a 5xx with no billing wording is still retried', asyn
 
   assert.equal(retries.length, 1, 'the normalizer only demotes what it can actually recognize');
   assert.equal(fixture.http.requests.length, 2);
+});
+
+// ── 上游 HTTP 失败带结构化载荷（2026-10-27）──────────────────────────────────
+
+/** 2026-10-18 付费走查实录：APIMart 对 deepseek-v3.2 的原话（列表里还列着它，调用确定性 404）。本机回环重放。 */
+const MODEL_NOT_FOUND = { error: { code: 'model_not_found', message: 'The model deepseek-v3.2 does not exist', type: 'invalid_request_error' } };
+
+test('a 404 model_not_found reaches the error part as the structured vendor payload (same mapping as text tasks), and is not retried', async (t) => {
+  const fixture = await createLaneFixture(t, [
+    { type: 'error', status: 404, message: 'recorded', body: MODEL_NOT_FOUND },
+    { type: 'text', text: 'Must not be reached.' },
+  ]);
+  const lane = await fixture.openLane(fixture.options);
+  const retries = collectRetries(lane);
+
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+
+  const errors = lane.projection().parts.filter((part) => part.kind === 'error');
+  assert.equal(errors.length, 1);
+  const structured = parseVendorErrorFromMessage(errors[0]!.text);
+  assert.ok(structured, 'the error text carries the payload the renderer classifier reads, not pi’s display string');
+  assert.equal(structured.httpStatus, 404);
+  assert.equal(structured.upstreamCode, 'model_not_found');
+  assert.equal(structured.upstreamMsg, 'The model deepseek-v3.2 does not exist');
+  // 重试判据读 pi 的 errorMessage，载荷不进去：确定的 404 一次都不重试。
+  assert.equal(retries.length, 0);
+  assert.equal(fixture.http.requests.length, 1);
+});
+
+test('阳性对照 · a failure without an HTTP status (connection ends before a response) carries no payload', async (t) => {
+  const fixture = await createLaneFixture(t, [NEVER_REPLIES, NEVER_REPLIES, NEVER_REPLIES, NEVER_REPLIES]);
+  const lane = await fixture.openLane({ ...fixture.options, watchdog: FAST_WATCHDOG });
+  await lane.execute({ kind: 'prompt', text: 'Say something.' });
+  for (const part of lane.projection().parts.filter((candidate) => candidate.kind === 'error')) {
+    assert.equal(parseVendorErrorFromMessage(part.text), null, 'the watchdog sentence stays our own fact, not a vendor payload');
+  }
 });
 
 // ── 工具级超时 ───────────────────────────────────────────────────────────────

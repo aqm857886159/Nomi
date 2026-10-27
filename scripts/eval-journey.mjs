@@ -5,7 +5,7 @@
 // 用法:
 //   pnpm eval:journey                 # 全部旅程 × 1 trial
 //   pnpm eval:journey --smoke         # 冒烟档(smoke 旅程 + 全部零额度旅程)
-//   pnpm eval:journey --ci            # 仅零额度旅程(J3/J5),失败非零退出(CI 用)
+//   pnpm eval:journey --ci            # 仅零额度、不要私有真素材的旅程(J3),失败非零退出(CI 用)
 //   pnpm eval:journey --only j1-promo # 指定旅程
 //   pnpm eval:journey --k 3           # 每条旅程 3 trial(pass@3)
 //   pnpm eval:journey --model vk/mk   # 指定助手模型
@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { getJourneys } from "../evals/journeys/index.mjs";
+import { selectRegisteredJourneys } from "../evals/journeys/index.mjs";
 import { runJourneyTrial } from "../evals/lib/journeyRunner.mjs";
 import { aggregateTrials } from "../evals/lib/grading.mjs";
 import { realNomiProfile } from "../tests/ux/_realProfile.mjs";
@@ -36,7 +36,10 @@ const modelPref = (() => {
 
 let journeys;
 try {
-  journeys = getJourneys({ ids: onlyIds, ci, smoke });
+  const selection = selectRegisteredJourneys({ ids: onlyIds, ci, smoke });
+  journeys = selection.selected;
+  const needRealMedia = selection.excluded.filter((entry) => entry.reason === "needs-real-media").map((entry) => entry.id);
+  if (needRealMedia.length) console.log(`CI 不跑要私有真素材的旅程(本机带 NOMI_REAL_MEDIA_DIR 跑):${needRealMedia.join(", ")}`);
 } catch (error) {
   console.error(`journey selection failed: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);

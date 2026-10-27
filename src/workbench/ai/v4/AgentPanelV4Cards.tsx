@@ -1,10 +1,11 @@
 import { V4Row } from './AgentPanelV4Row'
 // Agent 面板 v4 · 积木 ④ 任务卡 · ⑤ 介入槽 · ⑥ 队列行
 //
-// ④ 任务卡（定稿 Vocabulary 板）：卡头 = 类型 icon + 标题 + 状态 + 右侧计数/用时/**花费**，
+// ④ 任务卡（定稿 Vocabulary 板）：卡头 = 类型 icon + 标题 + 状态 + 右侧计数/用时，
 // 卡体 = 提示词摘录（2 行）+ 参数 chip + 进度条 / 缩略图 / 结果。五态：排队 · 生成中 · 完成 · 失败 · 已停止。
 // 多候选 = 完成态结果区多张缩略图，**点一张即采用**（用户拍板）——采用态是 accent 描边 + 左上角标，
-// 不是把整格填成 accent 底（那会让缩略图本身看不见）。每张卡都带花费，MiniMax 没有，这是我们要赢的地方。
+// 不是把整格填成 accent 底（那会让缩略图本身看不见）。
+// 卡上不印金额（2026-10-27，设计系统「钱只印一处」）：定稿板上的「预估」胶囊和卡尾「已花」连同字段一起删了。
 //
 // ⑤ 介入槽：**一个组件，kind 不同**（审批 / 付费 / 反问 / 计划 / 缺凭证 / 有出入）。
 // 永远只在 composer 上方那一格出现。按钮只有「确认 / 不要」；**可撤销**的改动才显示「不再问 →」
@@ -100,11 +101,6 @@ export function V4TaskCard({
                   {param}
                 </span>
               ))}
-              {task.cost ? (
-                <span className="inline-flex h-5 items-center rounded-pill bg-nomi-warning-soft px-[7px] text-micro text-nomi-warning">
-                  {task.cost}
-                </span>
-              ) : null}
             </div>
           ) : null}
           {task.candidates?.length ? (
@@ -141,10 +137,9 @@ export function V4TaskCard({
             </div>
           ) : null}
           {task.error ? <V4ErrorBar reason={task.error} action={task.errorAction} onAction={onErrorAction} /> : null}
-          {task.footnote || task.footnoteTrailing || task.undoable ? (
+          {task.footnote || task.undoable ? (
             <V4Row as="div" className="text-micro text-nomi-ink-40">
               <AgentPanelV4Markdown text={task.footnote ?? ''} />
-              {task.footnoteTrailing ? <span className="shrink-0">{task.footnoteTrailing}</span> : null}
               {task.undoable ? (
                 <button type="button" className="font-medium text-nomi-accent" onClick={onUndo}>
                   {labels.undo}

@@ -12,6 +12,9 @@ vi.mock("./laneProviderGuard.mjs", async (importOriginal) => {
 
 import { callModelOnce, ModelCallCeilingError } from "./laneModelCall.mjs";
 import { nomiModelConfigFor } from "../ai/vendorModelConnection";
+import { LANE_VENDOR_FAILURE_DIAGNOSTIC, laneVendorFailureText } from "../shared/agentLane/laneAssistantFault";
+import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
+import { classifyGenerationError } from "../../src/workbench/observability/classifyError";
 import { reply, startTextUpstream, type UpstreamProtocol, type UpstreamReply } from "../../tests/fixtures/textTasks/textUpstream";
 
 async function withUpstream<T>(protocol: UpstreamProtocol, script: (index: number) => UpstreamReply,
@@ -113,6 +116,87 @@ describe("重试与停止", () => {
       controller.abort();
       await expect(running).rejects.toMatchObject({ name: "AbortError" });
       expect(server.requests).toHaveLength(1);
+    });
+  });
+});
+
+/** 2026-10-18 付费走查实录：APIMart 对 deepseek-v3.2 的原话（列表里还列着它，调用确定性 404）。本机回环重放，不出网。 */
+const MODEL_NOT_FOUND = { error: { code: "model_not_found", message: "The model deepseek-v3.2 does not exist", type: "invalid_request_error" } };
+const vendorFailures = (message: { diagnostics?: Array<{ type: string }> }) =>
+  (message.diagnostics ?? []).filter((diagnostic) => diagnostic.type === LANE_VENDOR_FAILURE_DIAGNOSTIC);
+
+describe("上游 HTTP 失败：按这一次调用的传输事实铸结构化载荷，挂在失败消息上（provider 装配点，Agent 车道两扇门共用）", () => {
+  it.each(["openai-compatible", "openai-responses", "anthropic"] as const)("%s：404 model_not_found → 载荷带状态码、上游码与原话，分类成「模型在上游不可用」；pi 的 errorMessage 不动、不重试", async (protocol) => {
+    await withUpstream(protocol, () => reply.http(404, MODEL_NOT_FOUND), async (model, server) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: new AbortController().signal });
+      expect(message.stopReason).toBe("error");
+      expect(vendorFailures(message)).toHaveLength(1);
+      const text = laneVendorFailureText(message)!;
+      expect(parseVendorErrorFromMessage(text)).toMatchObject({ vendorKey: "fixture", httpStatus: 404, upstreamCode: "model_not_found",
+        upstreamMsg: "The model deepseek-v3.2 does not exist" });
+      expect(classifyGenerationError(text).kind).toBe("model-unavailable-upstream");
+      // pi 的重试 / 上下文溢出判据读整段 errorMessage（无词边界的正则）：载荷一个字都不进去。
+      expect(message.errorMessage).not.toContain("NOMI_VENDOR_ERR_B64");
+      expect(server.requests).toHaveLength(1);
+    });
+  });
+
+  it("正文回显了 API key 的 401：载荷里没有那把 key（抹密用这次真正发出去的秘密）", async () => {
+    await withUpstream("openai-compatible", () => reply.http(401, { error: { message: "Incorrect API key provided: sk-fixture", code: "invalid_api_key" } }), async (model) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: new AbortController().signal });
+      const text = laneVendorFailureText(message)!;
+      expect(parseVendorErrorFromMessage(text)).toMatchObject({ httpStatus: 401, category: "auth" });
+      expect(text).not.toContain("sk-fixture");
+      expect(JSON.stringify(parseVendorErrorFromMessage(text))).not.toContain("sk-fixture");
+    });
+  });
+
+  it("200 里 SSE 报错（没有 HTTP 失败事实）：不挂载荷，交 pi 原样那句", async () => {
+    await withUpstream("openai-compatible", () => reply.sseError("relay exploded"), async (model) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: new AbortController().signal });
+      expect(message.stopReason).toBe("error");
+      expect(vendorFailures(message)).toHaveLength(0);
+      expect(laneVendorFailureText(message)).toBeUndefined();
+    });
+  });
+
+  it("连接被重置（压根没拿到响应）：不挂载荷", async () => {
+    await withUpstream("openai-compatible", () => reply.reset(), async (model) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: new AbortController().signal });
+      expect(message.stopReason).toBe("error");
+      expect(vendorFailures(message)).toHaveLength(0);
+    });
+  });
+
+  it("429 → 重试 → 出字成功：成功消息不挂载荷", async () => {
+    await withUpstream("openai-compatible", (index) => index === 0 ? reply.http(429, { error: { message: "slow down" } }, { "retry-after-ms": "10" }) : reply.text("好。"), async (model, server) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", maxRetries: 1, signal: new AbortController().signal });
+      expect(message.stopReason).toBe("stop");
+      expect(vendorFailures(message)).toHaveLength(0);
+      expect(server.requests).toHaveLength(2);
+    });
+  });
+
+  it("429 → 重试 → 出字到一半断流：上一次的 429 不串成这一次失败的载荷", async () => {
+    await withUpstream("openai-compatible", (index) => index === 0 ? reply.http(429, { error: { message: "slow down" } }, { "retry-after-ms": "10" }) : reply.cutAfterText("半"), async (model, server) => {
+      const { message } = await callModelOnce({ model, fetch: globalThis.fetch, content: "x", maxRetries: 1, signal: new AbortController().signal });
+      expect(message.stopReason).toBe("error");
+      expect(vendorFailures(message)).toHaveLength(0);
+      expect(server.requests).toHaveLength(2);
+    });
+  });
+
+  it("用户点停：aborted 不挂载荷", async () => {
+    await withUpstream("openai-compatible", () => reply.silent(), async (model, server) => {
+      const controller = new AbortController();
+      let terminal: { stopReason: string; diagnostics?: Array<{ type: string }> } | undefined;
+      const running = callModelOnce({ model, fetch: globalThis.fetch, content: "x", signal: controller.signal,
+        onEvent: (event) => { if (event.type === "error") terminal = event.error; } });
+      await vi.waitUntil(() => server.requests.length === 1);
+      controller.abort();
+      await expect(running).rejects.toMatchObject({ name: "AbortError" });
+      expect(terminal?.stopReason).toBe("aborted");
+      expect(vendorFailures(terminal!)).toHaveLength(0);
     });
   });
 });

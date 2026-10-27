@@ -1,13 +1,18 @@
 // Real settings/IPC/file import journey. Only the OS player is replaced, so no audible output.
+// 用法：pnpm build && NOMI_WALK_FOREGROUND_OK=1 node tests/ux/attention-sound.walk.mjs
+// 窗口有没有焦点决定提示音响不响，要真焦点，窗口会到前台；没带放行变量就不起 App、按 125 跳过。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { exitIfWalkSkipped, launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { screenshotSettled, proveProbe, expectAbsent } from './_assert.mjs'
 import { expect } from '@playwright/test'
 const shots = path.join(repoRoot, 'tests/ux/shots/attention-sound')
 fs.mkdirSync(shots, { recursive: true })
-const { app, win, settingsDir } = await launchNomiApp({ name: 'attention-sound' })
+const { app, win, settingsDir } = await launchNomiApp({
+  name: 'attention-sound',
+  foreground: '窗口有没有焦点决定提示音，安静模式下 focus 是空操作、窗口永远没焦点',
+}).catch(exitIfWalkSkipped)
 try {
   await app.evaluate(({ Notification }) => {
     Notification.isSupported = () => false

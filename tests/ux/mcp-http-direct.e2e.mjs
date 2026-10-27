@@ -104,7 +104,7 @@ async function main() {
     tempRoot,
     capabilityDir,
     env: { NOMI_MCP_HTTP_PORT: '0' },
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     settleMs: 500,
   })
   try {

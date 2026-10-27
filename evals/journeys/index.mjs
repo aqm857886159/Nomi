@@ -1,5 +1,5 @@
 // 旅程注册表(Lane C)。needsAgent=true 的需真实模型 catalog(花 agent 文本额度,零生成额度);
-// needsAgent=false 的纯 UI 零额度,可进 CI(test:journeys)。
+// needsAgent=false 的纯 UI 零额度,可进 CI(test:journeys);要私有真素材的(realMedia)不进 CI,本机带 NOMI_REAL_MEDIA_DIR 跑。
 //
 // 2026-06-23 删 j3-onboarding / j5-edit-export:二者断言的是已被产品决策移除的 UI——
 // j3 找的「30 秒体验」单 CTA(v3 上手改版已删,空库改走标准布局)、j5 找的空白项目「关键画面」
@@ -16,6 +16,6 @@ import { selectJourneys } from "../../scripts/eval-journey-selection.mjs";
 // J1(宣传片)/J6(AI 运镜)= agent 驱动(needsAgent)。零额度 CI journey 暂缺,按当前 UI 流程补。
 export const JOURNEYS = [j1, j2, j3, j4, j5, j6];
 
-export function getJourneys({ ids = null, ci = false, smoke = false } = {}) {
-  return selectJourneys(JOURNEYS, { ids, ci, smoke }).selected;
+export function selectRegisteredJourneys({ ids = null, ci = false, smoke = false } = {}) {
+  return selectJourneys(JOURNEYS, { ids, ci, smoke });
 }

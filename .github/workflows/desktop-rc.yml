@@ -87,6 +87,9 @@ jobs:
         id: canvas-performance
         continue-on-error: true
         timeout-minutes: 20
+        # 量具要窗口真在屏幕上（声明了前台）；CI 的虚拟屏上没有人在用电脑，显式放行
+        env:
+          NOMI_WALK_FOREGROUND_OK: '1'
         run: xvfb-run -a node tests/ux/canvas-performance-benchmark.e2e.mjs rc --scale S --runs 1 --warmup 0 --scenario media-reveal,media-error,video-hover,reload-heavy
       - name: Release-critical journey summary
         if: always()

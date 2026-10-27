@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { VERDICT, checkBoundary, evaluate, hasWord, readContracts, resolveSymbol } from "./boundary-owners.mjs";
+import { fileURLToPath } from "node:url";
+import { LEDGER_PATH, VERDICT, checkBoundary, evaluate, hasWord, readContracts, readLedger, reanchorResolver, resolveSymbol } from "./boundary-owners.mjs";
 
 function sandbox(files) {
   const root = makeTempDir("boundary-owners-");
@@ -92,4 +93,30 @@ test("新合同写机器读不了的 symbol 会红；普查表条目变可读了
   const staleCensus = evaluate({ results: [{ ...ENTRY, verdict: VERDICT.OK, missing: [] }], ledger: { unreadable_symbols: [ENTRY] } });
   assert.equal(staleCensus.ok, false);
   assert.match(staleCensus.errors.join("\n"), /普查表条目已经可读了/);
+});
+
+test("改锚解析：台账登记了就返回新锚并带着合同里的旧锚；没登记原样返回（按 合同::路径::symbol 整串认）", () => {
+  const { resolve } = reanchorResolver({ reanchored: [{ ...ENTRY, anchor: { path: "new.ts", symbol: "moved" }, reason: "搬了" }] });
+  assert.deepEqual(resolve(ENTRY), { contract: "c", path: "new.ts", symbol: "moved", declared: { path: "a.ts", symbol: "owner" } });
+  const wider = { contract: "c", path: "a.ts", symbol: "owner / second" };
+  assert.deepEqual(resolve(wider), { ...wider, declared: null });
+  assert.deepEqual(reanchorResolver(undefined).resolve(ENTRY), { ...ENTRY, declared: null });
+});
+
+test("台账读口：读不到、根不是对象、改锚条目没写全新锚，都在读的时候红", () => {
+  assert.throws(() => readLedger(sandbox({})), /scripts\/boundary-owners-ledger\.json/);
+  assert.throws(() => readLedger(sandbox({ [LEDGER_PATH]: "[]" })), /根必须是对象/);
+  const halfAnchor = { reanchored: [{ ...ENTRY, anchor: { path: "new.ts", symbol: "" }, reason: "搬了" }] };
+  assert.throws(() => readLedger(sandbox({ [LEDGER_PATH]: JSON.stringify(halfAnchor) })), /c::a\.ts::owner/);
+  const whole = { reanchored: [{ ...ENTRY, anchor: { path: "new.ts", symbol: "moved" }, reason: "搬了" }] };
+  assert.deepEqual(readLedger(sandbox({ [LEDGER_PATH]: JSON.stringify(whole) })), whole);
+});
+
+test("台账只有一个读口：scripts 里认得台账路径的生产脚本只有 boundary-owners.mjs（别的门岗要读台账只能经 readLedger）", () => {
+  const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
+  const readers = fs.readdirSync(scriptsDir, { recursive: true })
+    .map((rel) => String(rel).split(path.sep).join("/"))
+    .filter((rel) => /\.(?:mjs|cjs|js)$/.test(rel) && !/\.(?:node-test|test)\.[cm]?js$/.test(rel) && !rel.split("/").includes("node_modules"))
+    .filter((rel) => fs.readFileSync(path.join(scriptsDir, rel), "utf8").includes("boundary-owners-ledger"));
+  assert.deepEqual(readers, ["boundary-owners.mjs"]);
 });

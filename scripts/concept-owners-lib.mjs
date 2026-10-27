@@ -9,7 +9,7 @@
 // 还是唯一的定义处，而且新合同里冒出来的边界一定进了账**。
 //
 // 本文件只放纯函数：输入是登记表、基线、扫描结果，输出是 findings。读文件、跑 git 都在 scan / check 两个文件里。
-import { splitSymbol } from './boundary-owners.mjs'
+import { reanchorResolver, splitSymbol } from './boundary-owners.mjs'
 import { CONCEPT_SUBJECT_PATTERN as SUBJECT_PATTERN } from './concept-registry-lib.mjs'
 import { IDENTITY_DIMENSIONS, isScannableSource, normalizePath, PRODUCTION_ROOTS, rootOf } from './concept-owners-scan.mjs'
 
@@ -514,17 +514,26 @@ function isDirectoryLike(file) {
   return rel.endsWith('/') || rel.endsWith('/**') || !/\.[A-Za-z0-9]+$/.test(rel)
 }
 
+function boundaryPathOf(file) {
+  return normalizePath(file).replace(/\/\*\*$/, '').replace(/\/$/, '')
+}
+
 /**
  * 合同 → 概念。**没登记的新概念在合同检查里失败**：受管合同（日期 ≥ CONCEPT_OWNERS_SINCE）声明的每个
  * `shared_boundaries`（那条不变量的执行边界，也就是它的主人）都必须是某个登记概念的写接口。
+ *
+ * 边界挪走了（合同不改，挪动只记在边界主人台账 `reanchored`）：经 check:boundary-owners 同一个改锚解析
+ * （boundary-owners.mjs 的 reanchorResolver）核今天的锚，新锚照样必须是写接口；不是，报错写明「合同里的旧锚 → 台账里的新锚」。
+ * 欠账照旧记在合同声明的那条边界上——冻结账（unregistered_boundaries）和台账都按它认，锚再挪一次身份也不变。
  *
  * 刻意**不**拿合同门表的每一扇写门判红：门表是「宁可多数一扇」的普查（R21.3），拿它判红会逼作者少数门，
  * 那正是门表要消灭的「我扫过了」。门表在这里只用来把合同归到它碰到的概念上（`--map` 打印）；
  * 「第二个写口」在活代码上判（evaluateOwnership / evaluateDoorPolicy），合同快照会过期，活代码不会。
  */
-export function evaluateContracts({ concepts, contracts, since = CONCEPT_OWNERS_SINCE }) {
+export function evaluateContracts({ concepts, contracts, ledger, since = CONCEPT_OWNERS_SINCE }) {
   const findings = []
   const mapping = []
+  const reanchor = reanchorResolver(ledger)
   const apiEntries = concepts.flatMap((concept) => (concept.write_api ?? []).map((entry) => ({
     concept: concept.name,
     path: normalizePath(entry.path),
@@ -538,19 +547,35 @@ export function evaluateContracts({ concepts, contracts, since = CONCEPT_OWNERS_
     const touched = new Set()
     for (const boundary of Array.isArray(contract?.shared_boundaries) ? contract.shared_boundaries : []) {
       if (!text(boundary?.path) || !text(boundary?.symbol)) continue
-      const boundaryPath = normalizePath(boundary.path).replace(/\/\*\*$/, '').replace(/\/$/, '')
-      for (const part of boundaryParts(boundary.symbol)) {
+      const anchor = reanchor.resolve({ contract: file, path: boundary.path, symbol: boundary.symbol })
+      const anchorPath = boundaryPathOf(anchor.path)
+      const missing = []
+      for (const part of boundaryParts(anchor.symbol)) {
         const match = apiEntries.find((entry) => entry.symbol === part
-          && (entry.path === boundaryPath || (isDirectoryLike(boundary.path) && entry.path.startsWith(`${boundaryPath}/`))))
-        if (match) {
-          touched.add(match.concept)
-          continue
+          && (entry.path === anchorPath || (isDirectoryLike(anchor.path) && entry.path.startsWith(`${anchorPath}/`))))
+        if (match) touched.add(match.concept)
+        else missing.push(part)
+      }
+      if (missing.length === 0) continue
+      if (!anchor.declared) {
+        for (const part of missing) {
+          findings.push(finding('unregistered-boundary', {
+            contract: file,
+            path: anchorPath,
+            symbol: part,
+            message: `${file} 声明的共享边界 ${anchorPath}#${part} 不是任何登记概念的写接口`,
+          }))
         }
+        continue
+      }
+      const declaredPath = boundaryPathOf(anchor.declared.path)
+      for (const part of boundaryParts(anchor.declared.symbol)) {
         findings.push(finding('unregistered-boundary', {
           contract: file,
-          path: boundaryPath,
+          path: declaredPath,
           symbol: part,
-          message: `${file} 声明的共享边界 ${boundaryPath}#${part} 不是任何登记概念的写接口`,
+          message: `${file} 声明的共享边界在边界主人台账改过锚：合同里的旧锚 ${declaredPath}#${anchor.declared.symbol}`
+            + ` → 台账里的新锚 ${anchorPath}#${anchor.symbol}，新锚里的 ${missing.join(' / ')} 不是任何登记概念的写接口`,
         }))
       }
     }

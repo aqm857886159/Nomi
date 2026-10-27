@@ -7,7 +7,7 @@
 //
 // 断言名 `board:<板>/<元素 id>` 对应 docs/design/boards/2026-10-24/*.board.json 里 implemented 的元素（check:board-parity 认这串字）。
 // 截图写到 NOMI_LIBRARY_LAYOUT_SHOTS（默认系统临时目录），不写进仓库。
-// 用法：pnpm build && NOMI_WALK_OFFSCREEN=1 node tests/ux/library-layout.walk.mjs
+// 用法：pnpm build && node tests/ux/library-layout.walk.mjs
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'

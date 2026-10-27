@@ -45,7 +45,7 @@ export const CI_ONLY = Object.freeze([
       'check:claude-hooks', // > 90 秒
       'check:hook-behavior', // > 90 秒
       'check:generation-entrances', // 约 85 秒
-      'check:concept-owners', // 约 77 秒，且已被拍板为 advisory
+      'check:concept-owners', // 约 77 秒；阻断门（2026-10-19 用户拍板改回挡合并，不是 advisory）
       'check:packaged-deps', // 约 47 秒
       'check:git-delivery', // 约 43 秒
       'check:framework-surface', // 约 41 秒

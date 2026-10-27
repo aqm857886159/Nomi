@@ -109,7 +109,9 @@ RC 工作流会：
 - macOS 双架构与 Windows 安装包；
 - 官网下载和应用内检查更新；
 - **Windows 卡顿巡检**（2026-09-24 起必做）：在一台 Windows 机器上，用 RC 那个 commit 构建后跑
-  `node tests/ux/windows-freeze-sweep.walk.mjs --label rc-<版本>` 和同样参数加 `--held`（模拟同步盘 / 杀毒占用）。
+  `NOMI_WALK_FOREGROUND_OK=1 node tests/ux/windows-freeze-sweep.walk.mjs --label rc-<版本>` 和同样参数加 `--held`（模拟同步盘 / 杀毒占用）。
+  放行变量必须带：「失焦再聚焦」那一步要真焦点，窗口会到前台；不带就不起 App、按退出码 125 跳过，不出报告。
+  PowerShell 先执行 `$env:NOMI_WALK_FOREGROUND_OK='1'`，再跑去掉前缀的同一条命令。
   两份 `tests/ux/shots/windows-freeze-sweep/<label>/report.json` 都必须 0 红、0 残留锁，截图亲眼看过。
   原因：v0.22.0 的三个 Windows 专属问题（等待动效着色器在 D3D11 上编译 100 秒卡死、同步盘占用让存盘锁
   永久卡住、导入被清理错误改写成失败）在 macOS 与 Linux CI 上全部测不出来。

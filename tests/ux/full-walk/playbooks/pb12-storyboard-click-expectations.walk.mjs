@@ -7,7 +7,7 @@
 //
 // 方案 §2 已知「点击选择后反而隐藏」：这里用通用的「点之前看得见、点之后看不见」比对去抓，不预设是哪个元素。
 //
-// 零花费：供应商是本机回环夹具，出网闸拦真实域名；窗口放在屏幕外、不抢焦点（offscreen），不打扰用户手上的活；
+// 零花费：供应商是本机回环夹具，出网闸拦真实域名；启动器默认装安静仪表（tests/ux/_quietWalk.cjs），不打扰用户手上的活；
 // 隔离资料目录，不连用户开着的 Nomi。
 import { clickOrFail, expect } from '../../_assert.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
@@ -38,7 +38,6 @@ const plan = {
 const pb = await startPlaybook({
   id: 'pb12-storyboard-click-expectations',
   needs: ['loopbackProvider', 'fixtureTextModel', 'paidGenerationRoute'],
-  offscreen: true,
   seed: () => ({
     nodes: [], groups: [], edges: [],
     payload: {

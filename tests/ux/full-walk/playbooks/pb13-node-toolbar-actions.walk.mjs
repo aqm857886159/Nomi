@@ -81,7 +81,6 @@ const base = { categoryId: 'shots', references: [], runs: [] }
 const pb = await startPlaybook({
   id: 'pb13-node-toolbar-actions',
   needs: ['loopbackProvider'],
-  offscreen: true,
   env: { NOMI_WALK_URL_REDIRECTS: JSON.stringify([{ from: MIRROR_ROOT, to: MIRROR_LOCAL }]) },
   seed: ({ imageResult, imageMeta }) => ({
     nodes: [{

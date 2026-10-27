@@ -19,7 +19,9 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 素材：仓库里已提交的真实生成图 / 视频（docs/audit/…），不用合成色块。生成走本地假供应商（零额度），
 // 只有供应商是假的，排队 / 等待动效 / 结果落盘全走生产代码（同 process-feedback-real-fixture）。
 //
-// 用法（先 pnpm build）：
+// 用法（先 pnpm build）：必须带 NOMI_WALK_FOREGROUND_OK=1——「失焦再聚焦」那一步要真焦点，窗口会到前台；
+// 不带就不起 App、按 125 跳过（不出报告）。PowerShell 先执行 $env:NOMI_WALK_FOREGROUND_OK='1'，
+// Git Bash / macOS 写成 NOMI_WALK_FOREGROUND_OK=1 node …，然后：
 //   node tests/ux/windows-freeze-sweep.walk.mjs                 # 开发构建
 //   node tests/ux/windows-freeze-sweep.walk.mjs --held          # 再模拟同步盘/杀毒占用新文件（仅 Windows）
 //   node tests/ux/windows-freeze-sweep.walk.mjs --label rc-0.22.1
@@ -28,7 +30,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { assertForegroundAllowed, exitIfWalkSkipped, launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { CANVAS_STAGE_SELECTOR, findCanvasBlankPoint, revealArrivals } from './_canvasHit.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { placeCharacter } from './_directorLab.mjs'
@@ -42,6 +44,9 @@ const held = argv.includes('--held')
 const labelIndex = argv.indexOf('--label')
 const label = `${labelIndex >= 0 ? argv[labelIndex + 1] : 'run'}${held ? '-held' : ''}`
 if (held && process.platform !== 'win32') throw new Error('--held 模拟的是 Windows 文件共享语义，只能在 Windows 上跑')
+// 安静模式下 focus() 是空操作：「失焦再聚焦」循环会悄悄不测、照样报绿。先判放行再动盘——没放行就在清掉上一轮报告之前退出。
+const FOREGROUND = '失焦再聚焦那一步要真焦点，安静模式下 focus 是空操作、会悄悄不测还报绿'
+try { assertForegroundAllowed(FOREGROUND) } catch (error) { exitIfWalkSkipped(error) }
 const FREEZE_MS = 1000
 const outDir = path.join(repoRoot, 'tests/ux/shots/windows-freeze-sweep', label)
 fs.rmSync(outDir, { recursive: true, force: true })
@@ -89,6 +94,7 @@ const { app, win: firstWin, mainLogTail } = await launchNomiApp({
   settingsDir,
   projectsDir,
   settleMs: 0,
+  foreground: FOREGROUND,
   env: { NOMI_DISABLE_AUTO_UPDATE: '1' },
   // 被别的窗口挡住时 Chromium 会把 rAF 降到 1Hz、懒加载停摆——那是测试环境的假卡顿，不是 Nomi。
   args: ['--no-proxy-server', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'],

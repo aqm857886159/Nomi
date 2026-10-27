@@ -51,4 +51,4 @@
 
 ## 特征测试清单
 
-已钉住：`scripts/check-walkthroughs.node-test.mjs`（`raw-shell-anchor` 新旧字面量的阳性 / 阴性对照、`undefined-identifier` 的阳性 / 阴性 / 语法错对照）、`tests/ux/_launchApp.test.mjs`（`NOMI_WALK_OFFSCREEN` 屏外开关）、`tests/ux/storyboard-editor-entry.test.mjs`（方案行唯一入口）。
+已钉住：`scripts/check-walkthroughs.node-test.mjs`（`raw-shell-anchor` 新旧字面量的阳性 / 阴性对照、`undefined-identifier` 的阳性 / 阴性 / 语法错对照）、`tests/ux/_launchApp.test.mjs`（`quiet-walk default` 屏外开关）、`tests/ux/storyboard-editor-entry.test.mjs`（方案行唯一入口）。

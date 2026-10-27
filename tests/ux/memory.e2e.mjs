@@ -11,15 +11,13 @@
 // Writes tests/ux/perf-results/memory-<label>.json.
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 import { WebSocket } from "undici";
-import { prepareHostConfigDir, withIsolatedHostConfig, withLinuxNoSandbox } from "./_launchApp.mjs";
+import { prepareHostConfigDir, spawnQuietElectron, withIsolatedHostConfig } from "./_launchApp.mjs";
 import { assertFreshBuild } from "../../scripts/package-build-stamp.mjs";
 import { killProcessTree, processTreeSpawnOptions } from "../../scripts/lib/processTree.mjs";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const label = process.argv[2] || "run";
 const outDir = path.join(repoRoot, "tests/ux/perf-results");
@@ -307,7 +305,7 @@ const childEnv = {
   NOMI_DESKTOP_REMOTE_DEBUGGING_PORT: String(debugPort),
 };
 delete childEnv.ELECTRON_RUN_AS_NODE;
-const electronProcess = spawn(require("electron"), withLinuxNoSandbox(["."]), {
+const electronProcess = spawnQuietElectron(["."], {
   cwd: repoRoot,
   env: childEnv,
   stdio: ["ignore", "ignore", "pipe"],

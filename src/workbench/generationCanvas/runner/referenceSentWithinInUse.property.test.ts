@@ -34,6 +34,7 @@ import {
   type ModelArchetype,
 } from '../../../../electron/shared/modelArchetypes'
 import { applyHeadlessParamDefaults, taskTemplateParams } from '../../../../electron/catalog/taskParams'
+import { modelReferenceSelection } from '../../../../electron/catalog/modelCatalogListing'
 import { findReferenceResidue } from '../../../../electron/catalog/archetypeInput'
 import { assertNoReferenceResidueBeforeSend } from '../../../../electron/tasks/referenceResidueGuard'
 import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
@@ -139,7 +140,8 @@ function urlsIn(root: unknown): Map<string, string[]> {
 
 // ── 传输：和 runtime.runTask 同顺序渲染真请求体 ──────────────────────────────────────
 
-type Transport = { vendor: Vendor; model: Model; op: HttpOperation | null; archetypeId: string }
+/** 档案指针只在 model.meta 里（与目录行同形）：主进程第一闸 / 第三闸都从连接身份读它，不另传。 */
+type Transport = { vendor: Vendor; model: Model; op: HttpOperation | null }
 
 const LOOPBACK = 'http://127.0.0.1:9'
 
@@ -151,7 +153,7 @@ function relayTransport(modelKey: string, archetypeId: string, kind: string): Tr
   return {
     vendor: { key: 'relay-test', name: 'relay', enabled: true, baseUrlHint: LOOPBACK, authType: 'bearer' } as Vendor,
     model: { modelKey, vendorKey: 'relay-test', labelZh: modelKey, kind: 'video', enabled: true, meta: { archetypeId } } as Model,
-    op, archetypeId,
+    op,
   }
 }
 
@@ -164,7 +166,7 @@ function apimartTransport(model: ApimartModel, kind: string, modeId: string): Tr
   return {
     vendor: { key: 'apimart', name: 'APIMart', enabled: true, baseUrlHint: LOOPBACK, authType: 'bearer' } as Vendor,
     model: { modelKey: model.modelKey, vendorKey: 'apimart', labelZh: model.modelKey, kind: 'video', enabled: true, meta: { archetypeId: model.archetypeId } } as Model,
-    op: mapping?.create ?? null, archetypeId: model.archetypeId,
+    op: mapping?.create ?? null,
   }
 }
 
@@ -181,8 +183,8 @@ function wire(transport: Transport, request: { kind: string; prompt: string; ext
     if (matchNomiErrorCode(String((error as Error).message)) === 'reference-not-in-use') return null
     throw error
   }
-  const extras = applyHeadlessParamDefaults(guarded, transport.archetypeId,
-    request.kind, transport.vendor.key, transport.op.defaultParams, transport.op.body, transport.model.modelKey)
+  const extras = applyHeadlessParamDefaults(guarded, modelReferenceSelection(transport.vendor.key, transport.model, request.kind),
+    transport.op.defaultParams, transport.op.body)
   const built = buildProfileHttpRequest({
     vendor: transport.vendor, model: transport.model, apiKey: 'k',
     request: { ...request, extras } as never, operation: transport.op,
@@ -202,7 +204,7 @@ function seededTransport(modelKey: string, vendorKey: string, archetypeId: strin
   return {
     vendor: { ...(vendor ?? { key: vendorKey, name: vendorKey, enabled: true }), baseUrlHint: LOOPBACK } as Vendor,
     model: (model ?? { modelKey, vendorKey, labelZh: modelKey, kind: 'video', enabled: true, meta: { archetypeId } }) as Model,
-    op: mapping?.create ?? null, archetypeId,
+    op: mapping?.create ?? null,
   }
 }
 

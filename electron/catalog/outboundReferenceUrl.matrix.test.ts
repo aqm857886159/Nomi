@@ -19,6 +19,7 @@ import { describe, expect, it } from "vitest";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { buildProfileHttpRequest, templateContext } from "./profileHttpRequest";
 import { applyHeadlessParamDefaults } from "./taskParams";
+import { modelReferenceSelection } from "./modelCatalogListing";
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import { renderTemplateValue } from "../ai/requestPipeline";
 import { assertNoReferenceResidueBeforeSend } from "../tasks/referenceResidueGuard";
@@ -63,24 +64,22 @@ function referenceValue(key: string, url: string): unknown {
   return /(s|_list|_ids)$/.test(key) ? [url] : url;
 }
 
-function transportFor(mapping: Mapping): { vendor: Vendor; model: Model; archetypeId?: string } {
+function transportFor(mapping: Mapping): { vendor: Vendor; model: Model } {
   const vendor = SEEDED.vendors.find((candidate) => candidate.key === mapping.vendorKey);
   const model = SEEDED.models.find((candidate) => candidate.vendorKey === mapping.vendorKey && candidate.modelKey === mapping.modelKey)
     ?? ({ vendorKey: mapping.vendorKey, modelKey: mapping.modelKey || "generic", labelZh: mapping.modelKey || "generic", kind: "video", enabled: true } as Model);
-  const archetypeId = (model.meta as { archetypeId?: unknown } | undefined)?.archetypeId;
   return {
     vendor: { ...(vendor ?? { key: mapping.vendorKey, name: mapping.vendorKey, enabled: true, authType: "bearer" }), baseUrlHint: LOOPBACK } as Vendor,
     model,
-    ...(typeof archetypeId === "string" ? { archetypeId } : {}),
   };
 }
 
 /** 和 runtime.runTask 同顺序建出这条 mapping 要发的东西（渲染结果，传输层之前）。 */
 function renderedRequest(mapping: Mapping, extras: Record<string, unknown>): string {
-  const { vendor, model, archetypeId } = transportFor(mapping);
+  const { vendor, model } = transportFor(mapping);
   const guarded = assertNoReferenceResidueBeforeSend(structuredClone(extras), mapping.id);
-  const defaulted = applyHeadlessParamDefaults(guarded, archetypeId, mapping.taskKind, vendor.key,
-    mapping.create.defaultParams, mapping.create.body, model.modelKey);
+  const defaulted = applyHeadlessParamDefaults(guarded, modelReferenceSelection(vendor.key, model, mapping.taskKind),
+    mapping.create.defaultParams, mapping.create.body);
   const request = { kind: mapping.taskKind, prompt: "一个镜头", extras: defaulted } as TaskRequest;
   const built = buildProfileHttpRequest({ vendor, model, apiKey: "k", request, operation: mapping.create });
   const context = templateContext(request, model, "k", {}, mapping.create);

@@ -3,8 +3,9 @@
 //（availability 被无条件置 false → 「放到画布」永不出现 → 0 节点）。本走查在真 Electron 里证：
 //  ① contained overlay 的跨窗探针在画布挂载时返回 true（fix 现在消费的正是它，单测 canvasImportAvailabilitySource 锁死消费）；
 //  ② 从 overlay 派发导入 → 经 IPC → 父窗画布真加 React Flow 节点（素材真落画布，refute「0 节点」）。
-// 用法：pnpm run build && node scripts/browser-contained-canvas-walkthrough.mjs
-import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+// 用法：pnpm run build && NOMI_WALK_FOREGROUND_OK=1 node scripts/browser-contained-canvas-walkthrough.mjs
+// （真实资料起，装不了安静仪表、窗口会到前台；没带放行变量就不起 App、按 125 跳过）
+import { exitIfWalkSkipped, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, rmSync } from 'node:fs'
@@ -19,7 +20,11 @@ const ok = (msg) => console.log('  ✓ ' + msg)
 const fail = (msg) => { console.error('  ✗ ' + msg); failures += 1 }
 
 // isolate:false：本脚本今天就跑在真实 profile 上（真 key / 真项目库），隔离会让它「跑得起来但结果全错」。
-const { app, win } = await launchNomiApp({ name: 'browser-contained-canvas', isolate: false })
+const { app, win } = await launchNomiApp({
+  name: 'browser-contained-canvas',
+  isolate: false,
+  foreground: '真实资料走查（真 key / 真项目库）',
+}).catch(exitIfWalkSkipped)
 try {
   const bw = await app.browserWindow(win)
   await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1680, height: 1020 })).catch(() => {})

@@ -103,7 +103,7 @@ async function launch(label, projectsDir, root) {
     timeout: 300000,
     settleMs: 1200,
     viewportSize: { width, height },
-    mainRequire: [path.join(here, '_offscreenWindows.cjs')],
+    mainRequire: [path.join(here, '_quietWalk.cjs')],
     initialLocalStorage: {
       'nomi:splash:v1': 'seen',
       'nomi:journey-tour:v1': 'seen',

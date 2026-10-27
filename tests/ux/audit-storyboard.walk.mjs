@@ -1,7 +1,7 @@
 // 分镜方案用户审计走查（只读审计，不改产品代码）：以创作者的身份把分镜方案的每个功能走一遍，
 // 取证据（截图 + 实测数字）。报告：docs/research/2026-10-05-storyboard-plan-user-audit.md。
 //
-// 零额度：供应商是本机回环夹具，出网闸拦真实域名；窗口全程在屏幕外（_offscreenWindows.cjs），不抢焦点。
+// 零额度：供应商是本机回环夹具，出网闸拦真实域名；窗口全程在屏幕外（_quietWalk.cjs），不抢焦点。
 // 用法：
 //   pnpm run build
 //   NOMI_AUDIT_LOCALE=zh-CN node tests/ux/audit-storyboard.walk.mjs
@@ -75,7 +75,7 @@ const smoke = await launchCoreSmoke({
   }),
   extras: {
     // 窗口全程在屏幕外、不抢焦点：用户的 Nomi 开着时也能跑。
-    mainRequire: [...egress.mainRequire, path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [...egress.mainRequire, path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     env: { ...egress.env, ...relay.env },
     needsOptions: { fixture: { usage: 'measured' } },
   },

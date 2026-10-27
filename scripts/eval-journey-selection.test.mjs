@@ -18,7 +18,20 @@ describe("selectJourneys", () => {
       discovered: 2,
       selected: [local],
       selectedCount: 1,
+      excluded: [{ id: "j1", reason: "needs-agent" }],
     });
+  });
+
+  test("CI leaves out journeys that need private real media and says why", () => {
+    const media = { id: "j4", needsAgent: false, realMedia: ["image-4k-png"] };
+    const selection = selectJourneys([agent, media, local], { ci: true });
+    expect(selection.selected).toEqual([local]);
+    expect(selection.excluded).toEqual([
+      { id: "j1", reason: "needs-agent" },
+      { id: "j4", reason: "needs-real-media" },
+    ]);
+    // 本机跑全部时照选：缺素材由旅程自己起步就报红
+    expect(selectJourneys([media], {}).selected).toEqual([media]);
   });
 
   test("smoke includes explicit smoke journeys and every zero-cost journey", () => {

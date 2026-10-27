@@ -1,8 +1,9 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // Electron 主窗口页面缩放回归：Cmd/Ctrl +/-/0 不能改变应用壳 zoom factor。
 // 画布有自己的缩放模型；这里锁的是 Chromium 页面级缩放，避免整个 UI 越缩越小。
-// 用法：pnpm run build && node tests/ux/app-page-zoom.e2e.mjs
-import { launchNomiApp } from './_launchApp.mjs'
+// 用法：pnpm run build && NOMI_WALK_FOREGROUND_OK=1 node tests/ux/app-page-zoom.e2e.mjs
+// 要真焦点（bringToFront、focus 之后按缩放快捷键），窗口会到前台；没带放行变量就不起 App、按 125 跳过。
+import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -19,7 +20,8 @@ const { app, win: _launchedWin } = await launchNomiApp({
   userDataDir: path.join(tmp, 'udata'),
   env: { NOMI_E2E_SMOKE: '1' },
   settleMs: 1200,
-})
+  foreground: 'bringToFront、focus 之后按缩放快捷键，安静模式下 focus 是空操作',
+}).catch(exitIfWalkSkipped)
 
 async function readMainZoomFactor() {
   return app.evaluate(({ BrowserWindow }) => {

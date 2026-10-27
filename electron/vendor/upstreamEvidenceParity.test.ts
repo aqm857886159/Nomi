@@ -7,7 +7,9 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseVendorErrorFromMessage } from "../../src/workbench/generationCanvas/runner/vendorErrorIpc";
-import { describeRuntimeError, modelCallFailure } from "../ai/runtimeVendorError";
+import { modelCallFailure } from "../ai/runtimeVendorError";
+import { callModelOnce } from "../agentLane/laneModelCall.mjs";
+import { laneVendorFailureText } from "../shared/agentLane/laneAssistantFault";
 import type { Vendor } from "../catalog/types";
 import { VendorRequestError, requestJson } from "./vendorHttp";
 import { setSubmitOutboundDepsForTests } from "./vendorOutboundGuard";
@@ -47,8 +49,19 @@ function viaTextTask(status: number, body: string): Evidence {
   return evidenceOf((mapped as VendorRequestError).structured);
 }
 
-function viaAgentRuntime(status: number, body: string): Evidence {
-  return evidenceOf(parseVendorErrorFromMessage(describeRuntimeError({ kind: "http", status, message: `HTTP ${status}`, body }, "provider")));
+/**
+ * Agent 车道（工作区对话 / 单次提问）：走**真的** provider 装配点（createNomiProvider，经 callModelOnce）与真 pi 协议实现，
+ * 只把出网口换成就地回这份响应的 fetch；读的是失败消息上挂的那份载荷（投影错误段读的就是它）。
+ * 2026-10-27 之前这里调的是一个没有任何生产调用者的 describeRuntimeError——表上三条通道全绿，
+ * 而 Agent 车道真实收到的只有 pi 的展示串（model_not_found 落进「服务商返回了一个没见过的错误」）。
+ */
+async function viaAgentRuntime(status: number, body: string): Promise<Evidence> {
+  const { message } = await callModelOnce({
+    model: { kind: "openai-compatible", providerId: "relay", modelId: "fixture-model", baseURL: "https://relay.example/v1", authType: "api-key", apiKey: "sk-fixture" },
+    fetch: async () => new Response(body, { status, headers: { "content-type": "application/json" } }),
+    content: "x", signal: new AbortController().signal,
+  });
+  return evidenceOf(parseVendorErrorFromMessage(laneVendorFailureText(message) ?? ""));
 }
 
 describe("同一份上游响应体，三条通道带出同一份证据", () => {
@@ -63,7 +76,7 @@ describe("同一份上游响应体，三条通道带出同一份证据", () => {
     const text = JSON.stringify(body);
     const http = await viaVendorHttp(status, text);
     const textTask = viaTextTask(status, text);
-    const runtime = viaAgentRuntime(status, text);
+    const runtime = await viaAgentRuntime(status, text);
     // 三条通道对同一份响应体必须同形：码、分类、状态码逐项相同。
     expect(textTask).toEqual(http);
     expect(runtime).toEqual(http);
@@ -73,7 +86,7 @@ describe("同一份上游响应体，三条通道带出同一份证据", () => {
   it("响应体不是 JSON 时，三条通道都不写码（不把一段文本当码）", async () => {
     const http = await viaVendorHttp(400, "upstream exploded");
     expect(viaTextTask(400, "upstream exploded")).toEqual(http);
-    expect(viaAgentRuntime(400, "upstream exploded")).toEqual(http);
+    expect(await viaAgentRuntime(400, "upstream exploded")).toEqual(http);
     expect(http.upstreamCode).toBeUndefined();
   });
 });

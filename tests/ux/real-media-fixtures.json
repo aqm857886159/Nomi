@@ -20,16 +20,14 @@
     {
       "id": "image-4k-png",
       "kind": "image",
-      "derivedFrom": {
-        "assetId": "video-4k-hevc-10bit",
-        "how": "ffmpeg -ss 00:00:05 -frames:v 1 抽一帧，PNG 无损，落到测试自己的 tmp 目录（不写用户素材目录）"
-      },
+      "relativePath": "8月9日(1).png",
       "spec": {
         "format": "png",
         "width": 3840,
         "height": 2160,
         "minBytes": 8388608
       },
+      "source": "用户本机真实 4K PNG；素材不进仓库，本机在 localDefaultDir",
       "whyThisOne": "真实照片熵高，压缩率与解码成本比合成色块 PNG 高两个数量级；testsrc2 + drawbox 出来的平坦色块解码几乎免费"
     },
     {
@@ -167,13 +165,13 @@
     },
     {
       "class": "import",
-      "test": null,
+      "test": "tests/ux/real-media-import.walk.mjs",
       "assets": [
         "video-4k-hevc-10bit",
         "image-4k-png"
       ],
-      "status": "debt",
-      "debtId": "import-real-media"
+      "status": "live",
+      "why": "画布文件选择器、素材库上传、系统拖放均用登记的 4K 视频/PNG，MCP nomi_asset_import 用登记 4K PNG 走真实 stdio 导入；每格都核对画布节点、可解码预览和项目落盘。1.38GB HEVC 的 MCP 长路径超出本次走查时限，列入残余风险。"
     },
     {
       "class": "export",
@@ -186,13 +184,13 @@
     },
     {
       "class": "walkthrough",
-      "test": null,
+      "test": "evals/journeys/j4-reference.mjs",
       "assets": [
         "video-4k-hevc-10bit",
         "image-4k-png"
       ],
-      "status": "debt",
-      "debtId": "walkthrough-real-media"
+      "status": "live",
+      "why": "J4/J5 旅程改用登记 4K PNG/HEVC 素材，真实冷开时间写入 .nomi/real-media-cold-open.json 并作为里程碑证据；生成仍由零花费评测路径保护。"
     },
     {
       "class": "asset-conformance",

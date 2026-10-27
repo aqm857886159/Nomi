@@ -142,11 +142,31 @@ function watchBody(response: Response, onBroken: (error: unknown) => void): Resp
   return wrapped;
 }
 
+/** 一次模型调用的留证：传输、最后那次尝试的事实、抹密。 */
+export type ModelCallRecorder = {
+  fetch: typeof globalThis.fetch;
+  lastAttempt: () => ModelCallAttempt | null;
+  redact: (text: string, maximumLength?: number) => string;
+};
+
+/** 已经包过的传输 → 它的那份留证（见 observeModelFetch 的「包过就复用」）。 */
+const recorders = new WeakMap<typeof globalThis.fetch, { recorder: ModelCallRecorder; remember: (secrets: readonly string[]) => void }>();
+
 /**
  * 包一层传输。`lastAttempt()` 给出最后那次尝试的事实（还没发过就是 null）；`redact(text)` 用这次调用里所有尝试
  * 真正发出去的秘密（加上调用方手里的 `knownSecrets`）抹任意一段文字——给用户看的错误文案也必须过它。
+ *
+ * **包过就复用**（2026-10-27）：provider 装配点（laneModelProvider.createNomiProvider）给每一次调用都要一份留证，
+ * 而文本任务 / 编译器在调用之前已经自己包过一层（它们要用同一份事实拼错误）。再包一层就是同一次请求两份事实、
+ * 日志记两遍。所以传进来的已经是包过的传输时，交回的是**同一份**留证（调用方补的 knownSecrets 并进去）。
+ * 一份留证只给一次调用用：调用方自己包的那层本来就是一次调用一个。
  */
-export function observeModelFetch(base: typeof globalThis.fetch, context: { modelId: string; knownSecrets?: readonly string[] }) {
+export function observeModelFetch(base: typeof globalThis.fetch, context: { modelId: string; knownSecrets?: readonly string[] }): ModelCallRecorder {
+  const existing = recorders.get(base);
+  if (existing) {
+    existing.remember(context.knownSecrets ?? []);
+    return existing.recorder;
+  }
   const secrets = new Set<string>((context.knownSecrets ?? []).filter(Boolean));
   const redact = (text: string, maximumLength?: number): string =>
     redactRequestSecrets(text, [...secrets].flatMap(jsonEchoVariants), maximumLength);
@@ -182,7 +202,9 @@ export function observeModelFetch(base: typeof globalThis.fetch, context: { mode
       throw error;
     }
   };
-  return { fetch: observedFetch, lastAttempt: (): ModelCallAttempt | null => lastAttempt, redact };
+  const recorder: ModelCallRecorder = { fetch: observedFetch, lastAttempt: (): ModelCallAttempt | null => lastAttempt, redact };
+  recorders.set(observedFetch, { recorder, remember: (known) => { for (const secret of known) if (secret) secrets.add(secret); } });
+  return recorder;
 }
 
 /**

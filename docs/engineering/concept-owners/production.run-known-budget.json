@@ -1,0 +1,27 @@
+{
+  "name": "Run 预算对外只给知道的数（未知不是 0）",
+  "subject": "production.run-known-budget",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunProjections.ts",
+    "symbol": "knownRunBudget"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunProjections.ts",
+      "symbol": "knownRunBudget"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionRunProjections.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionRunProjections.ts",
+    "electron/capabilityCore/mcpToolResults.ts"
+  ],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-ui-money-amounts.root-cause.json。账本（budgetLedger.ts）的合计只加已知价，算不出价的镜头记在信封 unknownJobCount 与在途 unknownInFlight 上，实付从不回写；knownRunBudget 在对外投影（safeRunProjection）里判定哪个数是知道的：批过算不出价的镜头或有未知价在途时上限为 null，还有预留中 / 结果不明 / 未知价在途的笔时已花为 null，预留 / 未结算 / 在途笔数不外发。所有 MCP 读 Run 的结果（nomi_read / nomi_run_control / nomi_run_gate / nomi_run_start）都经它；mcpToolResults.ts 只转述投影给的数。账本本身的记账与花钱逻辑不归这里。Agent 面板任务卡（electron/agentLane/laneDesktopTasks.ts）不读账本合计：2026-10-27 起任务卡事实 LaneTaskFacts 删了币种 / 已花 / 预估三个字段，卡上不印金额（合同 docs/fixes/2026-10-27-lane-task-no-money.root-cause.json）。"
+}

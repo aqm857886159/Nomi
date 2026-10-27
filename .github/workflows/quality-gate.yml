@@ -398,6 +398,9 @@ jobs:
       - name: Build selected desktop surfaces once
         run: pnpm run build
       - name: Canvas performance budget
+        # 量具要窗口真在屏幕上（声明了前台）；CI 的虚拟屏上没有人在用电脑，显式放行
+        env:
+          NOMI_WALK_FOREGROUND_OK: '1'
         run: xvfb-run -a pnpm run test:canvas:performance
       - name: Upload walkthrough evidence
         if: always()

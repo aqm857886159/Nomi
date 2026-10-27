@@ -110,6 +110,21 @@ describe("模型调用的失败留证", () => {
   it("地址去查询串、去账号密码段", () => {
     expect(urlWithoutQuery("https://u:p@host.example/v1/x?key=1#h")).toBe("https://host.example/v1/x");
   });
+
+  it("包过就复用：对已包过的传输再包一次，交回同一份留证（同一个 lastAttempt、秘密合并），日志只记一遍", async () => {
+    // provider 装配点每次调用都要一份留证，而文本任务 / 编译器在调用前已经自己包过一层：叠两层就是同一次请求两份事实、日志两遍。
+    const origin = await echoingUpstream(401);
+    const outer = observeModelFetch(globalThis.fetch, { modelId: "m" });
+    const inner = observeModelFetch(outer.fetch, { modelId: "m", knownSecrets: [KEY] });
+    expect(inner).toBe(outer);
+    await inner.fetch(`${origin}/v1/x/${KEY}`, { method: "POST", body: "{}" });
+    expect(outer.lastAttempt()).toMatchObject({ kind: "http", status: 401 });
+    // 后来补进来的秘密对先包的那一份同样生效。
+    expect(everythingRecorded(outer.lastAttempt())).not.toContain(KEY);
+    expect(logged.calls).toHaveLength(1);
+    // 没包过的传输照旧各包各的。
+    expect(observeModelFetch(globalThis.fetch, { modelId: "m" })).not.toBe(outer);
+  });
 });
 
 describe("每次尝试一份事实（F1）", () => {

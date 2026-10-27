@@ -139,25 +139,27 @@ export type ToolReceipt = Readonly<{
 
 export type TaskCandidate = Readonly<{ tag: string; pending?: boolean } & Partial<LaneTaskCandidate>>
 
+/**
+ * 任务卡。**没有金额位**（2026-10-27）：设计系统「钱只印一处」，界面不印合计数量或金额。
+ * 定稿板上卡头的「预估」胶囊和卡尾的「已花」两个字段随之删了——车道这一路印出来的是账本合计，
+ * 只加已知价、实付从不回写，卡尾那个数恒为零。
+ */
 export type TaskCardData = Readonly<{
   title: string
   action: V4ActionFamily
   status: V4TaskStatus
-  /** 卡头右端的计数 / 用时 / 花费。 */
+  /** 卡头右端的计数 / 用时。 */
   trailing?: string
   /** 提示词摘录，最多 2 行。 */
   excerpt?: string
-  /** 参数 chip（模型 / 画幅 / 分辨率 / 预估花费）。 */
+  /** 参数 chip（模型 / 画幅 / 分辨率）。 */
   params?: readonly string[]
-  cost?: string
   progress?: number
   candidates?: readonly TaskCandidate[]
   /** 失败时的一句话原因 + 一个动作。 */
   error?: string
   errorAction?: string
   footnote?: string
-  /** 卡尾右端的第二个数（画布 FlowGeneration 板的「已花 ¥0.24」）。 */
-  footnoteTrailing?: string
   undoable?: boolean
 }>
 

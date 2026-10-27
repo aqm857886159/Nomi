@@ -303,6 +303,9 @@ test('canvas performance budget runs as its own parallel job with an untouched i
 
   const commands = runCommands(performance)
   assert.ok(commands.includes('xvfb-run -a pnpm run test:canvas:performance'))
+  // 量具声明了前台：CI 虚拟屏上不显式放行，整条按 125 跳过，预算等于没量
+  const budget = performance.steps.find((step) => step.run === 'xvfb-run -a pnpm run test:canvas:performance')
+  assert.equal(budget.env?.NOMI_WALK_FOREGROUND_OK, '1')
   assert.equal(commands.filter((command) => command === 'pnpm run build').length, 1)
 
   const evidence = performance.steps.find((step) => step.uses === 'actions/upload-artifact@v7')

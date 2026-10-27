@@ -36,17 +36,34 @@ describe('lane task cards follow the ProductionRun owner', () => {
     domain.readFull.mockReturnValue(run())
     const refresh = vi.fn()
     const tasks = createDesktopLaneTasks('project-a', refresh)
-    expect(tasks.resolve('run-a')).toMatchObject({ status: 'running', stagesDone: 1, stagesTotal: 2,
-      progress: 50, currency: 'CNY', spent: 3, estimated: 12, candidates: [] })
+    expect(tasks.resolve('run-a')).toEqual({ status: 'running', stagesDone: 1, stagesTotal: 2, progress: 50, candidates: [] })
     for (let index = 0; index < 50; index += 1) tasks.resolve('run-a')
     expect(domain.readFull).toHaveBeenCalledOnce()
     domain.listener!(run({ status: 'completed', stages: [{ status: 'completed' }] as ProductionRun['stages'],
       budget: { currency: 'USD', actual: 7, reserved: 0 } as ProductionRun['budget'] }))
     expect(refresh).toHaveBeenCalledOnce()
-    expect(tasks.resolve('run-a')).toMatchObject({ status: 'complete', progress: 100, currency: 'USD', spent: 7, estimated: 0 })
+    expect(tasks.resolve('run-a')).toEqual({ status: 'complete', stagesDone: 1, stagesTotal: 1, progress: 100, candidates: [] })
     expect(domain.readFull).toHaveBeenCalledOnce()
     tasks.dispose()
     expect(domain.unsubscribe).toHaveBeenCalledOnce()
+  })
+
+  // 任务卡不印金额（LaneTaskFacts 抬头）：账本合计只加已知价、实付从不回写，卡上印它就是印假数。
+  // 判据是键集合——多出任何一个键（币种、已花、预估，或下一个读账本的字段）都红，首次读和领域变更后重投都核。
+  it('projects no money: task facts carry only status, stages, progress and candidates even when the ledger has totals', () => {
+    vi.clearAllMocks()
+    const allowed = ['candidates', 'progress', 'stagesDone', 'stagesTotal', 'status']
+    domain.readFull.mockReturnValue(run({ budget: { currency: 'CNY', reserved: 12, actual: 3, authorized: 20 } as ProductionRun['budget'] }))
+    const tasks = createDesktopLaneTasks('project-a', vi.fn())
+    const first = tasks.resolve('run-a')!
+    expect(Object.keys(first).every((key) => allowed.includes(key)), Object.keys(first).join(',')).toBe(true)
+    for (const key of ['currency', 'spent', 'estimated']) expect(first).not.toHaveProperty(key)
+    domain.listener!(run({ status: 'paused', budget: { currency: 'USD', reserved: 0, actual: 7, authorized: 20 } as ProductionRun['budget'] }))
+    const changed = tasks.resolve('run-a')!
+    expect(changed.status).toBe('stopped')
+    expect(Object.keys(changed).every((key) => allowed.includes(key)), Object.keys(changed).join(',')).toBe(true)
+    for (const key of ['currency', 'spent', 'estimated']) expect(changed).not.toHaveProperty(key)
+    tasks.dispose()
   })
 
   it('uses verified media previews and domain adoption eligibility for initial and changed tasks', async () => {

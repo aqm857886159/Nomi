@@ -72,7 +72,7 @@ const fixture = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir
 const launched = await launchNomiApp({
   name: 'agent-form-switch-state', userDataDir, settingsDir, projectsDir, capabilityDir, timeout: 300_000,
   viewportSize: { width: 1440, height: 900 },
-  mainRequire: [path.join(here, '_offscreenWindows.cjs')],
+  mainRequire: [path.join(here, '_quietWalk.cjs')],
   env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
   args: ['--no-proxy-server'],
   initialLocalStorage: { 'nomi:locale:v1': 'zh-CN', 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },

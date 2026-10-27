@@ -2,7 +2,6 @@ import { formatV4Tokens } from './agentPanelV4UsageFormat'
 // The lane owns conversation state; workbenchStore owns unsent input.
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatMoney } from './formatMoney'
 import type { LanePendingApproval, LaneWorkspaceProjection } from '../../../../electron/shared/agentLane/laneContracts'
 import { getCommittedProposal, subscribeCommittedProposal } from '../../generationCanvas/agent/proposalUndo'
 import { undoableLaneToolCallId } from '../lane/laneReceiptUndo'
@@ -248,7 +247,6 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     unknown: t('agentPanelV4.contextUnknown'),
     taskTitle: t('agentPanelV4.taskRun'),
     formatStages: (done, total) => t('agentPanelV4.taskStages', { done, total }),
-    formatMoney: (currency, amount) => formatMoney(i18n.language, currency, amount),
     taskUnknown: t('agentPanelV4.taskUnknown'),
     attachmentUnavailable: t('agentPanelV4.attachmentUnavailable'),
     answered: t('agentPanelV4.questionAnswered'),
@@ -260,7 +258,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       const found = skills.find((skill) => skill.name === key)
       return found ? { cover: found.cover, preview: found.preview } : undefined
     },
-  }, undoableToolCallId), [snapshot.active, i18n.language, skills, skillLabel, t, toolDisplayCache, undoableToolCallId])
+  }, undoableToolCallId), [snapshot.active, skills, skillLabel, t, toolDisplayCache, undoableToolCallId])
   useLogUnclassifiedProviderFailures(view.items)
   const flow = React.useMemo(() => {
     const items = [...view.items]

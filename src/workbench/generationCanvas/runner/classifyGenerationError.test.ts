@@ -146,7 +146,8 @@ describe('classifyGenerationError — 已知分类', () => {
   it('账号档位闸·RunningHub 1014 企业共享 Key → 账号权限不足(不误导成「参数不被接受」)', () => {
     const message =
       "NOMI_VENDOR_ERR_B64::" +
-      Buffer.from(JSON.stringify({ category: 'input', upstreamMsg: '标准模型API仅限企业级-共享API Key调用|Access Denied: Standard Model API is restricted to Enterprise-Shared API Keys only.', vendorKey: 'runninghub' }), 'utf8').toString('base64') +
+      // 200 + 错误码信封：vendorHttp 记 logicalCode（「code 1014」），这是服务商回了话的证据。
+      Buffer.from(JSON.stringify({ category: 'input', logicalCode: 1014, upstreamMsg: '标准模型API仅限企业级-共享API Key调用|Access Denied: Standard Model API is restricted to Enterprise-Shared API Keys only.', vendorKey: 'runninghub' }), 'utf8').toString('base64') +
       ":: Provider request failed (code 1014) at runninghub POST https://x: 标准模型API仅限企业级-共享API Key调用"
     const r = classifyGenerationError(message)
     expect(r.reason).toBe('账号权限不足')
@@ -249,8 +250,9 @@ describe('classifyGenerationError — 已知分类', () => {
     // 文案必须先指向代理，否则用户对着一个网络问题去「稍后重试」，永远重试不好。
     expect(r.hint).toMatch(/代理/)
     expect(r.hint).toMatch(/境外/)
-    // 哪个图床怎么挂的仍要看得见（排查线索不能丢）。
-    expect(r.providerMessage).toMatch(/litterbox/)
+    // 哪个图床怎么挂的仍要看得见（排查线索不能丢）——在技术详情里。那句是我们拼的汇总，不是服务商原话（2026-10-27）。
+    expect(r.providerMessage).toBeUndefined()
+    expect(r.raw).toMatch(/litterbox/)
   })
 
   // 2026-08-20 用户真机截图：本机 mp4 → 直连通道（非匿名链）抛裸 `素材上传失败(HTTP 413)`。
@@ -433,33 +435,54 @@ describe('providerMessage —— 服务商真实原话提到可见区（别埋�
   const encode = (structured: Record<string, unknown>, tail = 'Provider request failed (code 429) at dm-fox: x') =>
     `Error: NOMI_VENDOR_ERR_B64::${Buffer.from(JSON.stringify(structured), 'utf8').toString('base64')}:: ${tail}`
 
+  // 载荷照生产者的真实形状写：服务商回了话才有 logicalCode / httpStatus（vendorHttp 回话分支），原话才算数。
   it('structured: 分类标题通用，但服务商原话单独可见', () => {
-    const r = classifyGenerationError(encode({ category: 'quota', upstreamMsg: '官方算力限制，请等待一段时间后再进行使用' }))
+    const r = classifyGenerationError(encode({ category: 'quota', logicalCode: 429, upstreamMsg: '官方算力限制，请等待一段时间后再进行使用' }))
     expect(r.reason).toBe('配额或限流') // 标题仍是"哪一类"
     expect(r.providerMessage).toBe('官方算力限制，请等待一段时间后再进行使用') // 真实原因可见
   })
 
   it('structured: 原话与分类标题重复时不冗余显示', () => {
-    const r = classifyGenerationError(encode({ category: 'balance', upstreamMsg: '余额不足' }))
+    const r = classifyGenerationError(encode({ category: 'balance', httpStatus: 402, upstreamMsg: '余额不足' }))
     expect(r.reason).toBe('余额不足')
     expect(r.providerMessage).toBeUndefined()
   })
 
   it('structured: 占位「(no detail from provider)」不显示', () => {
-    const r = classifyGenerationError(encode({ category: 'server', upstreamMsg: '(no detail from provider)' }))
+    const r = classifyGenerationError(encode({ category: 'server', httpStatus: 500, upstreamMsg: '(no detail from provider)' }))
     expect(r.providerMessage).toBeUndefined()
   })
 
-  it('legacy: 从 raw 抠出的可读原话也提到可见区', () => {
+  // 2026-10-27 用户拍板（docs/engineering/direction-checks/2026-10-27-vendor-quote-provenance.md）：只认有来源的原话。
+  // 来源不明的原始串（老项目存的 node.error、本机运行时的报错）证明不了是服务商说的——不进「服务商原话」，原文留在技术详情。
+  it('legacy：来源不明的原始串不顶替服务商原话，原文留在技术详情', () => {
     const r = classifyGenerationError('429 rate limit: 当前模型排队人数过多，请稍后再试')
     expect(r.reason).toBe('配额或限流')
-    expect(r.providerMessage).toMatch(/排队人数过多/)
+    expect(r.providerMessage).toBeUndefined()
+    expect(r.raw).toContain('排队人数过多')
   })
 
   it('unknown 兜底: reason 本身就是原话，不重复给 providerMessage', () => {
     const r = classifyGenerationError(JSON.stringify({ message: 'something odd happened' }))
     expect(r.reason).toBe('something odd happened')
     expect(r.providerMessage).toBeUndefined()
+  })
+
+  // 每条都是真实来源的原样：Node/undici、浏览器、DNS、超时、openai 客户端、我们自己 electron/systemProxy.ts 的代理兜底句。
+  it.each([
+    'ECONNRESET',
+    'fetch failed',
+    'TypeError: fetch failed',
+    'getaddrinfo ENOTFOUND api.apimart.ai',
+    'TypeError: Failed to fetch',
+    'request failed: ETIMEDOUT',
+    'Request timed out.',
+    '网络请求失败：无法连接到该地址。（当前未启用代理；若该地址需科学上网，请开启系统代理后重启应用）',
+  ])('本机网络错误 %s 不被标成服务商原话（原文留在技术详情）', (raw) => {
+    const report = classifyGenerationError(raw)
+    expect(report.kind).toBe('network')
+    expect(report.providerMessage).toBeUndefined()
+    expect(report.raw).toBe(raw)
   })
 })
 

@@ -439,13 +439,23 @@ function upstreamCodeKind(code: string | undefined): GenerationErrorKind | null 
 }
 
 /**
- * **供应商说的那句话**（任何语言），能证明它是供应商说的才给——主进程的结构化载荷（`upstreamMsg`），
- * 或异步任务失败那个只由我们产出的格式（taskFailureMessage）。认不出来源的一律 `undefined`：
- * 那可能是我们自己的话（中文硬编码的 throw、内部英文错误），不能被当成「服务商原话」或按供应商的语言规矩处理。
+ * **供应商说的那句话**（任何语言），能证明它是供应商说的才给：主进程结构化载荷里的 `upstreamMsg`，且载荷记着服务商这次
+ * **回了话**（见 vendorAnswered）；或异步任务失败那个只由我们产出的格式（taskFailureMessage）。认不出来源的一律 `undefined`：
+ * 那可能是我们自己的话（中文硬编码的 throw、内部英文错误、本机网络层的报错），不能被当成「服务商原话」或按供应商的语言规矩处理。
  */
 function vendorOriginatedText(structured: VendorErrorStructuredLite | null, raw: string): string | undefined {
-  if (typeof structured?.upstreamMsg === 'string') return structured.upstreamMsg
+  if (typeof structured?.upstreamMsg === 'string' && vendorAnswered(structured)) return structured.upstreamMsg
   return parseTaskFailureMessage(raw)?.upstream
+}
+
+/**
+ * 服务商这次回了话：回了非 2xx（`httpStatus`），或 200 里带着业务错误码（`logicalCode`）。`upstreamMsg` 这个字段名不是证据——
+ * 服务商没回话时（连不上 / 超时 / 本机拒发 / 跳转被拒 / 请求头守卫 / 响应超限），vendorHttp 与 runtimeVendorError 也把本机的话写进去
+ * （`fetch failed`、`ECONNRESET: read ECONNRESET`、我们自己的超时句）。主进程 audioTaskRunner / relayNativeWireUpgrade 同样按
+ * httpStatus 认（2026-10-27 用户拍板：只认有来源的原话）。
+ */
+function vendorAnswered(structured: VendorErrorStructuredLite): boolean {
+  return typeof structured.httpStatus === 'number' || (structured.logicalCode !== undefined && structured.logicalCode !== '')
 }
 
 /**
@@ -530,7 +540,8 @@ function detectNoTextBrain(raw: string): boolean {
 /**
  * kind → 完整 report（文案 + 动作 + 上游原话）。收口原先重复 7 遍的四行样板：
  * 每处都得记着调 narrate、算 providerMessage、带 raw——漏一样就是一处失语。
- * `upstream` 给 undefined = 从 raw 里抠可读首行。
+ * `upstream` 只收 vendorOriginatedText 给的、有来源证据的那句；没有（undefined / ''）就不给 providerMessage，原文只在 raw。
+ * 以前没有时从 raw 抠首行顶上，本机的 `ECONNRESET` / `fetch failed` 于是被印成「服务商原话」（2026-10-27 删掉这条回退）。
  */
 function reportFor(
   kind: GenerationErrorKind,
@@ -539,7 +550,7 @@ function reportFor(
   params?: Record<string, string>,
 ): GenerationErrorReport {
   const { reason, hint } = narrateGenerationError(kind, params)
-  const providerMessage = pickProviderMessage(upstream ?? extractReadableErrorLine(raw), reason)
+  const providerMessage = pickProviderMessage(upstream, reason)
   // 存进技术详情的 raw 也把 NOMI_ERR:: 码标记剥掉——那是给分类器读的机器标记,不是给人看的。
   // 「是不是服务商那一侧的事」只有类别表一个出处（narrate.VENDOR_SIDE_BY_KIND，穷举 Record）：
   // 我们自己的签名（服务商没被请求到 / 结果已经送达）在表里写 false，这里不再按调用点另判一遍。
@@ -603,9 +614,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
     return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
   }
   // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走。
-  // upstream 显式给 ''，与下面类型不符 / 缺文本大脑同理：这是我们自己的签名，服务商根本没被请求到。
-  // 给 undefined 会从 raw 抠出「Model is retired: sora-2」，以「服务商原话：」印在退役卡正文里——
-  // 一句英文，还栽赃给了没被请求的那家（2026-09-29 Sora 2 退役真机走查截图抓到）。
+  // upstream 显式给 ''，与下面类型不符 / 缺文本大脑同理：这是我们自己的签名，服务商根本没被请求到
+  // （2026-09-29 Sora 2 退役走查抓到过「Model is retired: sora-2」被印成「服务商原话」；没有来源证据的话现在一律不进那一行）。
   if (detectModelRetired(cleanRaw)) return reportFor('model-retired', cleanRaw, '')
   // 类型不符同理是专用签名，同层最先判。upstream 显式给 ''：这是**我们自己**的内部信号，
   // 不是服务商原话——落进「服务商说：」那个框里会是彻头彻尾的栽赃（那家根本没被请求到）。

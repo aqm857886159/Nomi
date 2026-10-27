@@ -1,0 +1,177 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-vendor-quote-provenance",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-26",
+  "problem_type": "Nomi's own local failure text is presented to the user as the provider's own words",
+  "symptom": "A generation that failed because of a local network problem (ECONNRESET, fetch failed, DNS, timeout, proxy) shows a '服务商原话 / Provider message' line on the node failure card and on the recoverable panel quoting the local error as if the provider had said it; the Agent panel appends the same local text as the provider detail ('连不上服务商：Connection error.'). First seen in an acceptance walkthrough screenshot on 2026-10-03.",
+  "direct_cause": "classifyError.reportFor fell back to the first readable line of the raw error whenever no provider text was available, and vendorOriginatedText accepted every structured upstreamMsg although vendorHttp and runtimeVendorError fill upstreamMsg with local text in every branch where the provider never answered (network, timeout, outbound refusal, redirect refusal, header guard, response limit).",
+  "class_root": "providerMessage had no provenance invariant: it was filled by default from whatever text was at hand (raw fallback, any upstreamMsg) instead of only from evidence that the provider answered, so every new local failure shape leaked into the provider line until a call site opted out by passing an empty string.",
+  "affected_population": [
+    "Every canvas generation, retrieval query, text task and Agent call whose request failed before the provider answered (offline, proxy down, connection reset, DNS failure, timeout)",
+    "Stored node errors in existing projects, which are reclassified on every render",
+    "Readers of providerMessage: node failure card, recoverable panel, Agent panel failure text, feedback summary"
+  ],
+  "scope_paths": [
+    "src/workbench/observability/classifyError.ts",
+    "electron/vendor/vendorHttp.ts"
+  ],
+  "entry_points": [
+    "vendorHttp.requestJson / requestBinary / requestMultipart -> VendorRequestError -> taskIpcGuard encodeVendorErrorMessage -> node.error -> classifyGenerationError",
+    "runtimeVendorError.modelCallFailure (text tasks; the Agent lane mints the same payload at createNomiProvider, see docs/fixes/2026-10-27-agent-upstream-failure-payload.root-cause.json) -> structured message -> classifyGenerationError",
+    "taskResultQuery.retrievalStageError re-wrapping a VendorRequestError with the same structured payload",
+    "Unstructured raw strings (old stored node.error, local runtimes, browser fetch) -> classifyGenerationError legacy path"
+  ],
+  "internal_only_reason": "Whether a failure line was said by the provider is an internal contract between Nomi's main-process error producers and the renderer classifier; no external document decides it.",
+  "invariants": [
+    "providerMessage is set only from text with provider-answer evidence: a structured upstreamMsg whose payload carries httpStatus or logicalCode, or the provider part of the task-failure format.",
+    "Raw error text never becomes providerMessage; it stays in report.raw (technical details and copy details).",
+    "Classification (kind, reason, hint, actions, vendorSide) is unchanged by the provenance rule."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "vendorOriginatedText"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "reportFor"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "providerMessage"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "providerMessage"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "symbol": "providerMessage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "upstreamMsg"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "upstreamMsg"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 7,
+    "why_not": "The raw-first-line source (extractReadableErrorLine inside reportFor) is removed, so providerMessage has one source: vendorOriginatedText through reportFor. The three readers are three different surfaces (failure card, recoverable panel, Agent panel) that only test whether the field is present and do not judge provenance. The two upstreamMsg producers sit on different transports (media HTTP and model calls); they keep writing local text into upstreamMsg, and the renderer rule ignores it without httpStatus / logicalCode, which also covers payloads already stored in projects."
+  },
+  "generality_proof": "Every user-visible providerMessage is produced by reportFor, which now only accepts vendorOriginatedText's output. vendorOriginatedText accepts structured text only when the payload carries httpStatus or logicalCode, a structural fact independent of the wording, error category, vendor or transport. All structured payloads are VendorRequestError instances (vendorHttp's eight throw sites, runtimeVendorError, re-wrapped by customCallRunner and taskResultQuery) encoded by encodeStructuredErrorMessage; vendorQuoteProvenance.test.ts drives every no-answer branch through the real producers and the answered branches as counterexamples. Unstructured strings never reach providerMessage. Stored node errors are raw strings reclassified at render time, so old data follows the same rule.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "classifyGenerationError",
+      "responsibility": "Owner of the generation error projection (concept diagnostics.generation-error-copy) and the only producer of providerMessage. Inside it, vendorOriginatedText is the single provenance judgement (structured upstreamMsg counts only with provider-answer evidence, vendorAnswered: httpStatus or logicalCode; otherwise only the provider part of the task-failure format), and reportFor builds providerMessage from that judgement alone, never from raw text."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestJson",
+      "disposition": "enforced",
+      "evidence": "vendorQuoteProvenance.test.ts drives the real requestJson through fetch failed, ECONNRESET, fetch timeout and body-read timeout (no httpStatus) and asserts no providerMessage; HTTP 429 and a 200 errorCode envelope still yield the provider's words."
+    },
+    {
+      "path": "electron/ai/runtimeVendorError.ts",
+      "entry_point": "modelCallFailure",
+      "disposition": "enforced",
+      "evidence": "vendorQuoteProvenance.test.ts: a thrown attempt (fetch failed: connect ECONNREFUSED) yields no providerMessage; an HTTP 429 attempt keeps the provider's words."
+    },
+    {
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "entry_point": "createNomiProvider",
+      "disposition": "enforced",
+      "evidence": "The Agent lane mints its failure payload through modelCallFailure at the provider assembly point (describeRuntimeError had no production caller and was deleted with that change). vendorQuoteProvenance.test.ts drives modelCallFailure with a 2xx whose body broke mid-stream (no httpStatus, no providerMessage) and with an HTTP 503 attempt (the provider's words are kept)."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "retrievalStageError",
+      "disposition": "enforced",
+      "evidence": "It re-wraps a VendorRequestError with the same structured payload; vendorQuoteProvenance.test.ts builds that exact wrap around real vendorHttp failures: a reset query has no providerMessage, a 503 'no available channel' keeps it."
+    },
+    {
+      "path": "electron/audioTaskRunner.ts",
+      "entry_point": "runAudioTask",
+      "disposition": "not-affected",
+      "evidence": "Already treats upstreamMsg as the provider's detail only when structured.httpStatus is present (dubbing and transcription branches); no renderer provider line involved."
+    },
+    {
+      "path": "electron/capabilityCore/readTask.ts",
+      "entry_point": "readTask",
+      "disposition": "not-affected",
+      "evidence": "Query failures (including network errors) return state query_failed with a message, never providerMessage; its providerMessage reads TaskResult.error of a terminal failure, which carries no local network text (see residual risks for Nomi-authored terminal strings)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new producer branch or raw error shape that is not provider text would have reached the provider line by default; 2026-09-29 (Model is retired), 2026-08-25 (no text brain), 2026-09-06 (outbound refusal) and 2026-10-22 (retrieval refusal) were each patched by passing '' at one call site.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs providerMessage -> 4 read doors (classifyError, laneCommandFailure, NodeErrorReport, NodeRecoverableReport)",
+      "node scripts/door-map.mjs vendorOriginatedText -> 1 write door; node scripts/door-map.mjs extractReadableErrorLine -> classifyError only (reportFor fallback + unknown title)",
+      "node scripts/door-map.mjs upstreamMsg -> producers vendorHttp (8 throw sites, 6 without httpStatus/logicalCode) and runtimeVendorError (thrown / timeout without httpStatus); consumers audioTaskRunner and relayNativeWireUpgrade already gate on httpStatus",
+      "rg 'new VendorRequestError\\(' electron src -> vendorHttp, runtimeVendorError, customCallRunner (copy), taskResultQuery (copy)",
+      "Probe before the fix: 6 raw strings and 5 real-producer messages all produced providerMessage; after deleting only the raw fallback the 5 real-producer messages still did"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/observability/classifyError.ts",
+    "invariant": "providerMessage comes only from text with provider-answer evidence; raw text never fills it.",
+    "failure_mode": "Text without evidence is left out of providerMessage and stays only in report.raw (technical details / copy details); the report's classification is unchanged.",
+    "exception_policy": "none",
+    "strategy": "Delete the raw fallback (the default that leaked) and make the single provenance function read the structural answer evidence instead of trusting the upstreamMsg field name; class test over the real producers catches any new no-answer branch.",
+    "artifacts": [
+      "src/workbench/observability/classifyError.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/observability/vendorQuoteProvenance.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeFailureDetails.providerQuote.test.tsx",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/observability/vendorQuoteProvenance.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeFailureDetails.providerQuote.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/observability/classifyError.ts"
+    ],
+    "rationale": "The raw-first-line fallback in reportFor (upstream ?? extractReadableErrorLine(raw)) is deleted in the same change. extractReadableErrorLine keeps its one remaining use, the unknown fallback title, which is never labelled as provider text."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency decides whether a failure line was said by the provider.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted shape changes. Node errors are stored as raw strings (generationRunController stores the raw message) and NodeErrorReport / NodeRecoverableReport reclassify them on render, so existing cards, including stored structured payloads without httpStatus / logicalCode, follow the new rule without migration.",
+  "residual_risks": [
+    "The task-failure format trusts TaskResult.error, and the main process writes Nomi-authored text there in a few terminal branches (missing task id, no query operation, model unresolvable, tracking lost, local task expired); those still show as provider text. Not a network error; needs provenance on TaskResult in the main process.",
+    "MCP read_task providerMessage (electron/capabilityCore/readTask.ts) reads the same TaskResult.error; model-facing contract, to be handled with the model-facing tool checklist.",
+    "Producers still write local text into upstreamMsg (only the type comment is corrected); making the field true by construction is a stronger structural layer touching five main-process readers, deferred. The renderer rule stays necessary for stored payloads.",
+    "Agent lane assistant failures arrive as unstructured pi text, so the Agent panel no longer appends any detail to them until those failures carry the structured payload.",
+    "Real-machine screenshots (zh / en) of a network failure card are not taken yet."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/observability/classifyError.ts",
+    "tests": [
+      "src/workbench/observability/vendorQuoteProvenance.test.ts"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "界面不印金额：渲染层金额格式化写法的判据与现存出口名单",
+  "subject": "delivery.ui-money-format",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/ui-money-format.mjs",
+    "symbol": "MONEY_FORMAT_SELECTORS"
+  },
+  "write_api": [
+    {
+      "path": "scripts/ui-money-format.mjs",
+      "symbol": "MONEY_FORMAT_SELECTORS"
+    },
+    {
+      "path": "scripts/ui-money-format.mjs",
+      "symbol": "MONEY_FORMAT_EXITS"
+    },
+    {
+      "path": "scripts/ui-money-format.mjs",
+      "symbol": "FORMAT_MONEY_IMPORTERS"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/ui-money-format.test.mjs",
+  "allowed_consumers": [
+    "eslint.config.mjs"
+  ],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-ui-money-amounts.root-cause.json。eslint.config.mjs 以独立规则 id ui-money/no-restricted-syntax、ui-money/no-restricted-imports 读这一份：渲染层源码不许把预算 / 价格格式化成货币（Intl currency、货币符号或货币码拼接、词典模板里的货币符号），货币格式化函数只许名单里的文件 import。现存还在印金额的文件登记在 MONEY_FORMAT_EXITS（只减不增，scripts/ui-money-format.test.mjs 按同一组选择器普查全 src、逐文件核处数）。与 delivery.money-copy-truth 的分工：那条按词表管词典里的零元 / 会花钱断言，这条按语法树管代码里现算的金额，两边不互相替代。"
+}

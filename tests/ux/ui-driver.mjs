@@ -6,11 +6,13 @@
 //
 // 用法：
 //   后台启动：  node tests/ux/ui-driver.mjs   （用 Bash run_in_background:true）
+//     默认用真实资料（isolate:false）：装不了安静仪表、窗口会到前台，要带 NOMI_WALK_FOREGROUND_OK=1 才起，否则按 125 跳过；
+//     设 NOMI_UI_USER_DATA=<目录> 则隔离起、默认安静（屏外、不抢焦点）。
 //   发命令：    node tests/ux/ui.mjs <action> ...   （见 ui.mjs）
 //   关闭：      node tests/ux/ui.mjs quit
 //
 // Electron 专用（Nomi 要主进程+IPC 桥，普通浏览器预览工具附不上去）。
-import { launchNomiApp } from "./_launchApp.mjs";
+import { exitIfWalkSkipped, launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,7 +36,13 @@ const uiExecutable = process.env.NOMI_UI_EXECUTABLE; // 可选：用打包版二
 const extraLaunch = uiExecutable ? { executablePath: uiExecutable } : {};
 const { app, win: _win } = isolateUserData
   ? await launchNomiApp({ name: "ui-driver", userDataDir: isolateUserData, settleMs: 0, ...extraLaunch })
-  : await launchNomiApp({ name: "ui-driver", isolate: false, settleMs: 0, ...extraLaunch });
+  : await launchNomiApp({
+    name: "ui-driver",
+    isolate: false,
+    settleMs: 0,
+    foreground: "交互式驱动开着真实资料给人边看边点（能开已有 / 示例项目）",
+    ...extraLaunch,
+  }).catch(exitIfWalkSkipped);
 const ERRLOG = path.join(DIR, "errors.log");
 const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${kind}] ${msg}\n`); } catch { /* ignore */ } };
 // 多窗口（v0.10.13+）：打开项目会新开一个 studio 窗口、关掉起始窗口。固定 firstWindow 引用会失效。

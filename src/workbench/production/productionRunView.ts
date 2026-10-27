@@ -63,10 +63,10 @@ export type ProductionRunView = {
     thumbnailRelativePath?: string
     projectRelativePath?: string
   }
+  /** 不带预算：账本合计只加已知价，任务中心不印它（2026-10-27，见 ProductionDetails.tsx 顶部注释）。 */
   details: {
     completedStages: number
     totalStages: number
-    budget: ProductionRun['budget']
     updatedAt: string
     stages: Array<Pick<ProductionRun['stages'][number], 'stageId' | 'title' | 'status'>>
     skills: Array<{ name: string; version: string }>
@@ -183,7 +183,6 @@ export function buildProductionRunView(
     details: {
       completedStages: presentedStages.filter((stage) => stage.status === 'completed').length,
       totalStages: run.stages.length,
-      budget: run.budget,
       updatedAt: run.updatedAt,
       stages: presentedStages,
       skills,

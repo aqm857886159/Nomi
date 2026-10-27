@@ -65,7 +65,7 @@ async function electronOnce() {
   const { app, win } = await launchNomiApp({
     name: 'text-prewarm-loop-block', userDataDir, settingsDir: userDataDir, projectsDir, settleMs: 900,
     args: ['--no-proxy-server', '--disable-features=CalculateNativeWinOcclusion'],
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
   })
   try {

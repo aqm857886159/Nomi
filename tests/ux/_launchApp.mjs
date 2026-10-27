@@ -19,7 +19,7 @@ import { cleanupTestTemp, makeTempDir, registerTestTemp } from '../../scripts/_t
 //   const { app, win, projectsDir } = await launchNomiApp({ name: 'my-walk' })
 import { _electron as electron } from 'playwright'
 import { require as tsxRequire } from 'tsx/cjs/api'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
@@ -145,16 +145,151 @@ app.once('session-created', (session) => {
  * 其实没装。`-r` 必须排在 App 入口（`.`）之前才对主进程生效，所以由启动器来拼。
  * 只收**绝对路径且文件存在**：相对路径会被 Node 当成包名去 node_modules 里找（MODULE_NOT_FOUND）。
  */
-/**
- * 走查窗口屏外开关：环境变量 NOMI_WALK_OFFSCREEN=1 时，给 mainRequire 补上 _offscreenWindows.cjs（窗口建出来就在屏幕外、不抢焦点）。
- * 为什么放在启动器：几百份走查各自决定要不要屏外，没人能保证「在用户正用的电脑上跑」时都带了；跑走查的人 / 夜跑脚本
- * 设一个变量就整批屏外，不用逐份改。已经自己带了就不重复加。
- */
-const OFFSCREEN_WINDOWS_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')
-export function withWalkOffscreen(modules, env = process.env) {
+/** 每个隔离走查默认注入同一份主进程安静仪表；调用方不再决定是否屏外。 */
+export const QUIET_WALK_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_quietWalk.cjs')
+export function withQuietWalk(modules) {
   const list = Array.isArray(modules) ? modules : []
-  if (env.NOMI_WALK_OFFSCREEN !== '1' || list.includes(OFFSCREEN_WINDOWS_MODULE)) return list
-  return [...list, OFFSCREEN_WINDOWS_MODULE]
+  if (list.includes(QUIET_WALK_MODULE)) return list
+  return [...list, QUIET_WALK_MODULE]
+}
+
+/**
+ * 不经 launchNomiApp、自己 spawn Electron 的走查（stdio MCP 子进程、按调试口量内存那条）也装同一份安静仪表：`-r` 排在 App
+ * 入口之前；子进程环境里的放行位钉成空串、排在调用方 env 之后——跑走查的终端 export 过 NOMI_WALK_FOREGROUND_OK=1 也漏不进来
+ * （launchNomiApp 那边由 buildNomiLaunchEnv 钉）。直接 spawn Electron 又装仪表的只许经这里，_launchApp.test.mjs 扫描钉住。
+ */
+export function quietElectronSpawn(appArgs, options = {}, platform = process.platform) {
+  return {
+    command: require('electron'),
+    args: withLinuxNoSandbox(['-r', QUIET_WALK_MODULE, ...appArgs], platform),
+    options: { ...options, env: { ...(options.env ?? process.env), NOMI_WALK_FOREGROUND_OK: '' } },
+  }
+}
+/** 起的是本仓库的开发构建：和 launchNomiApp 开发版同一套起跑前核对（构建戳、产物、Electron.app 签名）。 */
+export function spawnQuietElectron(appArgs, options = {}) {
+  const { command, args, options: spawnOptions } = quietElectronSpawn(appArgs, options)
+  assertFreshBuild(repoRoot)
+  assertElectronBuildArtifacts(repoRoot)
+  ensureElectronSignature(command)
+  return spawn(command, args, spawnOptions)
+}
+
+/** 跳过约定：退出码 125（scripts/nightly-walk-summary.mjs 把它记成「跳过」，不算失败）。 */
+export const WALK_SKIPPED_EXIT_CODE = 125
+
+export class WalkSkippedError extends Error {
+  constructor(reason) {
+    super(reason)
+    this.name = 'WalkSkippedError'
+    this.code = 'NOMI_WALK_SKIPPED'
+    this.exitCode = WALK_SKIPPED_EXIT_CODE
+  }
+}
+
+/** 跑走查的人放没放行前台（只认显式的 NOMI_WALK_FOREGROUND_OK=1）。 */
+export function foregroundAllowed(env = process.env) {
+  return env.NOMI_WALK_FOREGROUND_OK === '1'
+}
+
+export function assertForegroundAllowed(foreground, env = process.env) {
+  if (!foreground || foregroundAllowed(env)) return
+  const reason = `未跑：这条走查需要前台，会打扰正在用电脑的人（${foreground}）。确实要跑就带上 NOMI_WALK_FOREGROUND_OK=1`
+  console.log(reason)
+  throw new WalkSkippedError(reason)
+}
+
+/** 顶层 await 起 App 的走查用：`await launchNomiApp({ foreground: '…' }).catch(exitIfWalkSkipped)`——没放行就按 125 退出，别的错照抛。 */
+export function exitIfWalkSkipped(error) {
+  if (error?.code === 'NOMI_WALK_SKIPPED') process.exit(error.exitCode)
+  throw error
+}
+
+export function frontGuardVerdict({ frontPid, appPid, foreground = false }) {
+  if (foreground) return { ok: true, exempt: true, reason: 'foreground declaration' }
+  if (!Number.isInteger(frontPid) || !Number.isInteger(appPid)) return { ok: true, exempt: false, reason: 'front/app pid unavailable' }
+  return frontPid === appPid
+    ? { ok: false, exempt: false, reason: '走查抢了前台' }
+    : { ok: true, exempt: false, reason: 'front pid differs' }
+}
+
+/** `lsappinfo info -only …` 的 `"key"="value"` / `"key"=123` 行 → { pid, name, applicationType }。 */
+export function parseLsappinfoInfo(text) {
+  const field = (key) => new RegExp(`"${key}"=(?:"([^"]*)"|(\\d+))`).exec(String(text ?? ''))
+  const pid = Number(field('pid')?.[2])
+  return {
+    pid: Number.isInteger(pid) ? pid : null,
+    name: field('LSDisplayName')?.[1] ?? null,
+    applicationType: field('ApplicationType')?.[1] ?? null,
+  }
+}
+
+const LSAPPINFO_OPTIONS = { encoding: 'utf8', timeout: 2000 }
+/** 最前面的应用（名字、PID、类型），外加走查 App 自己的类型：UIElement = 不进 Dock（仪表 ready 时设 accessory），Foreground = 普通前台应用。 */
+function readMacFront(appPid) {
+  try {
+    const asn = execFileSync('lsappinfo', ['front'], LSAPPINFO_OPTIONS).trim()
+    const front = parseLsappinfoInfo(execFileSync('lsappinfo', ['info', '-only', 'pid', '-only', 'name', '-only', 'ApplicationType', asn], LSAPPINFO_OPTIONS))
+    const walkApp = Number.isInteger(appPid)
+      ? parseLsappinfoInfo(execFileSync('lsappinfo', ['info', '-only', 'ApplicationType', String(appPid)], LSAPPINFO_OPTIONS))
+      : null
+    return { asn, ...front, appType: walkApp?.applicationType ?? null }
+  } catch (error) {
+    return { asn: null, pid: null, name: null, applicationType: null, appType: null, error: String(error?.message ?? error) }
+  }
+}
+
+/** 关门时打一行：全程最前是谁、走查 App 自己是什么类型、有没有抢前台——每条走查的日志自带这份证据。 */
+export function summarizeFrontSamples(samples, appPid) {
+  const tally = (label) => {
+    const counts = new Map()
+    for (const row of samples) counts.set(label(row), (counts.get(label(row)) ?? 0) + 1)
+    return [...counts].map(([key, count]) => `${key}×${count}`).join('、') || '无'
+  }
+  const fronts = tally((row) => (Number.isInteger(row.pid) ? `${row.name ?? '?'}(pid ${row.pid})` : `未知(${row.error ? '抽样失败' : '无 PID'})`))
+  // 关门后那一次抽样 App 已经退出，系统查不到它是正常的；别的时候查不到才是「未登记」。
+  const types = tally((row) => row.appType ?? (row.phase === 'after-close' ? '已退出' : '未登记'))
+  const violations = samples.filter((row) => !row.ok)
+  const verdict = samples.some((row) => row.exempt) ? 'foreground 声明，豁免'
+    : violations.length ? `抢了前台 ${violations.length} 次（首次 ${violations[0].phase} ${violations[0].at}）` : '没抢前台'
+  return `[quiet-walk] 前台抽样 ${samples.length} 次；最前：${fronts}；走查 App(pid ${appPid ?? '?'}) 类型：${types}；${verdict}`
+}
+
+/** 'exit' 回调里改的 exitCode 是进程真正的退出码：走查结尾自己 process.exit(0) 也盖不掉抢前台的红。 */
+function failOnForegroundViolation() {
+  // 0（绿）和 125（跳过，nightly-walk-summary 不算失败）都会把抢前台藏起来；别的非零本来就是红，留走查自己的码。
+  const code = Number(process.exitCode ?? 0)
+  if (code === 0 || code === WALK_SKIPPED_EXIT_CODE) process.exitCode = 1
+}
+
+export function startMacForegroundGuard({ appPid, foreground = false, intervalMs = 1000, sample = readMacFront, platform = process.platform } = {}) {
+  const samples = []
+  let violation = null
+  const take = (phase) => {
+    const front = sample(appPid)
+    if (!front) return null
+    const verdict = frontGuardVerdict({ frontPid: front.pid, appPid, foreground })
+    const row = { phase, at: new Date().toISOString(), ...front, ...verdict }
+    samples.push(row)
+    if (!verdict.ok && !violation) {
+      violation = row
+      console.error(`[quiet-walk] 走查抢了前台：${JSON.stringify(row)}`)
+      process.once('exit', failOnForegroundViolation)
+    }
+    return row
+  }
+  if (platform !== 'darwin') return { sample: () => null, stop: () => ({ samples, violation }) }
+  take('started')
+  const timer = setInterval(() => take('interval'), intervalMs)
+  timer.unref?.()
+  return {
+    sample: take,
+    stop: (phase = 'stopped') => {
+      clearInterval(timer)
+      take(phase)
+      console.log(summarizeFrontSamples(samples, appPid))
+      return { samples, violation }
+    },
+  }
 }
 
 export function mainRequireArgs(modules) {
@@ -338,7 +473,7 @@ export function withIsolatedHostConfig(env, { hostConfigDir, callerEnv = {}, bas
  * （见 _launchApp.test.mjs）：**必需 env 排在 extraEnv 之后，调用方覆盖不掉**。
  * 隔离起 App（给了任一 Nomi 目录）就必须同时给 hostConfigDir：宿主配置不隔离，App 读到的是本机真配置。
  */
-export function buildNomiLaunchEnv({ extraEnv = {}, userDataDir, settingsDir, projectsDir, capabilityDir, hostConfigDir, fixtureCredentials = false, baseEnv = process.env }) {
+export function buildNomiLaunchEnv({ extraEnv = {}, userDataDir, settingsDir, projectsDir, capabilityDir, hostConfigDir, fixtureCredentials = false, foreground = false, baseEnv = process.env }) {
   if ((userDataDir || settingsDir || projectsDir) && !hostConfigDir) {
     throw new Error('隔离起 App 要给 hostConfigDir（宿主配置的隔离目录）：只隔离 Nomi 自己的目录，App 照样读写本机真实的 Claude Code / Codex 配置')
   }
@@ -358,6 +493,9 @@ export function buildNomiLaunchEnv({ extraEnv = {}, userDataDir, settingsDir, pr
     // 在 isPackaged 时默认只落盘），于是 CI 的 job 日志里一条 WARN 都没有——
     // 2026-09-18 C9 那条间歇红的唯一诊断就是这么丢的。走查环境里日志必须看得见。
     NOMI_LOG_STDERR: '1',
+    // 安静仪表（_quietWalk.cjs）只看这一条决定放不放前台：声明了 foreground 的走查才是 '1'。没声明写空串、不是不写——
+    // 跑走查的终端里 export 过它，不写就会被继承下去，没声明的走查也起成前台模式，仪表整个失效。
+    NOMI_WALK_FOREGROUND_OK: foreground ? '1' : '',
     // ↓ 三隔离：不碰用户真实的 userData/设置/项目库。
     //   传 null（isolate:false）时整条不设——写进 env 的 undefined 会变成字符串 "undefined"，
     //   主进程当成真路径去建目录，比不设更糟。
@@ -448,6 +586,8 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @param {number} [options.settleMs=1500]  domcontentloaded 后再等一会儿（渲染层挂载）
  * @param {Record<string,string>} [options.initialLocalStorage] Existing product preferences for an isolated fixture (dev or packaged); omitted for first-run tests.
  * @param {string[]} [options.mainRequire] 主进程入口前加载的模块（绝对路径，走查仪表专用；见 mainRequireArgs；打包形态见 requireBeforePackagedMain）
+ * @param {string} [options.foreground]   这条走查为什么必须在前台跑（测焦点 / 真窗口，或 isolate:false 用真实资料——非隔离必须声明）。
+ *   声明了：环境里没有 NOMI_WALK_FOREGROUND_OK=1 就不起 App、按 125 跳过（顶层 await 的走查接 `.catch(exitIfWalkSkipped)`）；起了门岗豁免。
  * @param {(win: import('playwright').Page) => Promise<void>} [options.observeWindow] Optional measurement observer
  * @param {boolean} [options.syntheticCredentialStorage]  仅供隔离目录里的非秘密测试凭据；Linux CI 使用 basic 后端。
  *   不传 = 隔离 catalog 里有 safeStorage 加密凭据就开（夹具加密时用的就是它）；显式 false 用于用户真实资料的拷贝
@@ -465,18 +605,25 @@ export async function launchNomiApp(options = {}) {
     executablePath = require('electron'),
     waitForWindow = true,
     allowUntrackedProcessForTest = false,
+    foreground,
   } = options
 
   const isolate = options.isolate !== false
+  assertForegroundAllowed(foreground)
   if (options.initialLocalStorage && !isolate) {
     throw new Error('initialLocalStorage requires an isolated Nomi profile')
   }
   if (options.syntheticCredentialStorage && !isolate) {
     throw new Error('syntheticCredentialStorage requires an isolated Nomi profile')
   }
-  const mainRequire = isolate ? withWalkOffscreen(options.mainRequire) : options.mainRequire
+  const mainRequire = isolate ? withQuietWalk(options.mainRequire) : options.mainRequire
   if (mainRequire?.length && !isolate) {
     throw new Error('mainRequire requires an isolated Nomi profile')
+  }
+  // 安静仪表只能经 mainRequire 装（上一条：只许装进隔离资料）。非隔离起来的就是一个不安静的 Nomi：窗口会弹到用户面前，
+  // 门岗也会把它判成抢前台。所以非隔离必须声明 foreground——没放行变量按 125 跳过，放行了门岗豁免。
+  if (!isolate && !foreground) {
+    throw new Error("非隔离启动装不了安静仪表，要声明 foreground：launchNomiApp({ isolate: false, foreground: '<为什么必须用真实资料>' })")
   }
 
   // 开发 electron 二进制要靠 `.` 指到仓库根去加载 dist-electron；**打包好的 .app 自带产物**，
@@ -524,7 +671,10 @@ export async function launchNomiApp(options = {}) {
     ...(options.initialLocalStorage ? prepareLocalStorageSeed(tempRoot, options.initialLocalStorage) : []),
     ...mainRequireArgs(mainRequire),
   ]
-  const packagedPreMain = !isDevElectron && preMainArgs.length
+  // Assembly tests replace electron.launch and do not have a packaged main entry or inspector.
+  // Keep the real packaged injection for every actual launch; only the explicit test hook skips
+  // opening a debugger socket that the mock cannot service.
+  const packagedPreMain = !isDevElectron && preMainArgs.length && !allowUntrackedProcessForTest
     ? { port: await freeLoopbackPort(), modules: preMainArgs.filter((_, index) => index % 2 === 1) }
     : null
 
@@ -542,7 +692,12 @@ export async function launchNomiApp(options = {}) {
     )),
     cwd: repoRoot,
     // 只认显式的 syntheticCredentialStorage: true：盘上推出来的那一档也可能是拷进来的真实资料（core-smoke 那种），不能替它关网。
-    env: buildNomiLaunchEnv({ extraEnv, userDataDir, settingsDir, projectsDir, capabilityDir, hostConfigDir, fixtureCredentials: options.syntheticCredentialStorage === true }),
+    env: buildNomiLaunchEnv({
+      extraEnv,
+      userDataDir, settingsDir, projectsDir, capabilityDir, hostConfigDir,
+      fixtureCredentials: options.syntheticCredentialStorage === true,
+      foreground: Boolean(foreground),
+    }),
     timeout,
   }
 
@@ -574,8 +729,13 @@ export async function launchNomiApp(options = {}) {
   app[RAW_CLOSE] = rawClose
   app.close = () => closeElectronWithin(app, rawClose, GRACEFUL_CLOSE_BOUND_MS)
   const instanceRegistration = registerWalkProcess(app.process(), { worktree: repoRoot, name, allowUntrackedProcessForTest })
+  const foregroundGuard = startMacForegroundGuard({ appPid: app.process()?.pid, foreground: Boolean(foreground) })
   const close = async () => {
-    try { await closeNomiApp(app) } finally {
+    try {
+      foregroundGuard.sample('before-close')
+      await closeNomiApp(app)
+    } finally {
+      foregroundGuard.stop('after-close')
       instanceRegistration.cleanup()
       cleanupTempRoot(tempRoot)
     }
@@ -622,8 +782,7 @@ export async function launchNomiApp(options = {}) {
     await win.setViewportSize(viewportSize)
     const actualViewport = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
     if (actualViewport.width !== viewportSize.width || actualViewport.height !== viewportSize.height) {
-      await closeNomiApp(app)
-      cleanupTempRoot(tempRoot)
+      await close()
       throw new Error(`Acceptance viewport mismatch: expected ${JSON.stringify(viewportSize)}, got ${JSON.stringify(actualViewport)}`)
     }
     console.log('[walkthrough] content viewport', JSON.stringify(actualViewport))
@@ -631,8 +790,7 @@ export async function launchNomiApp(options = {}) {
     try {
       if (options.observeWindow) await options.observeWindow(win)
     } catch (error) {
-      await closeNomiApp(app)
-      cleanupTempRoot(tempRoot)
+      await close()
       throw error
     }
     if (options.initialLocalStorage) {

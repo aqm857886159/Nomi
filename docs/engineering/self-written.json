@@ -2040,6 +2040,30 @@
       "revisitWhen": "Leafer 场景可直接无损导入/导出 Nomi WhiteboardState 且保持资产引用、分组/文本变换、版本恢复和节点 frame 独立时，删除这份映射适配；通用生命周期仍优先用框架。"
     },
     {
+      "id": "whiteboard-frame-size-commit",
+      "capability": "画板画框尺寸 → 画板文档尺寸的唯一提交口：分清「画板自己请求宿主改画框」（打开、比例、尺寸框、撤销 / 重做）和「创作者拖框」，拖框停稳 250ms 后重读画框与文档，只提交那一刻的真值。",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardFrameSize.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Mantine 8.3.18 useDebouncedCallback：防抖、cancel、卸载时撤掉都直接用它，不手写计时器（原来 WhiteboardDrawingTool 里手写的 commitTimer 已在本 PR 删掉）。",
+          "source": "node_modules/@mantine/hooks/esm/use-debounced-callback/use-debounced-callback.mjs:5"
+        },
+        {
+          "name": "Mantine useResizeObserver / useElementSize：自己造 ref，尺寸经 requestAnimationFrame 合并后进 state，下一帧才读得到；这里画框 ref 来自宿主，而且每次观察当下就要和 settle 登记的等待尺寸对账，路过的中间尺寸不能先落进 state。观察直接用浏览器标准 ResizeObserver。",
+          "source": "node_modules/@mantine/hooks/esm/use-resize-observer/use-resize-observer.mjs:14"
+        },
+        {
+          "name": "React Flow NodeResizer 的 onResize / onResizeEnd：住在所有节点共用的外壳里，只覆盖拖把手；画板自己的四扇门经宿主 fit 改画框，不经过把手，外壳本单也不改。",
+          "source": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx:282"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：画框是画布节点，画板文档尺寸是 Nomi WhiteboardState 的 canvasDimensions；「这一次画框变了，是画板自己请求的 fit 还是创作者拖框」只有画板知道（settle 登记的等待尺寸、打开时定下的缩放）。通用部分全用现成的（浏览器 ResizeObserver、Mantine useDebouncedCallback），本文件只做这份领域判定和提交前重读真值。只豁免这一精确文件，不扩大 hooks / 领域目录范围。",
+      "revisitWhen": "画板文档尺寸不再跟着画框走（例如画框只做视图缩放、尺寸只由比例和尺寸框决定），或节点外壳把「拖把手结束」交给节点自己处理时，删掉这份判定，改在拖完那一下提交。"
+    },
+    {
       "id": "agent-inline-reference-admission",
       "capability": "常驻 Agent 的句中媒体引用：把共享 PromptEditor 的原件缩略图与现有项目附件准入、会话寿命和 canonical claim 对齐",
       "status": "justified",

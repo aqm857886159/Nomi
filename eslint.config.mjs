@@ -16,6 +16,15 @@ import {
   WHOLE_TABLE_SUBSCRIPTION_BASELINE,
   WHOLE_TABLE_SUBSCRIPTION_SELECTORS,
 } from './scripts/canvas-store-subscriptions.mjs'
+import {
+  FORMAT_MONEY_IMPORTERS,
+  FORMAT_MONEY_IMPORT_PATTERN,
+  FORMAT_MONEY_MODULE,
+  MONEY_FORMAT_EXITS,
+  MONEY_FORMAT_SELECTORS,
+  UI_MONEY_FILES,
+  UI_MONEY_TEST_FILES,
+} from './scripts/ui-money-format.mjs'
 
 // 用例 / 钩子不许单独设比 vitest 全局更短的超时（全局值见 vitest.config.ts 的 testTimeout / hookTimeout，都是 30_000；
 // 两处同值由 scripts/vitest-timeout-floor.test.mjs 核对）。超时被放弃的用例仍在后台跑完，把任务或半初始化模块留给下一个用例
@@ -167,6 +176,14 @@ const browserFixturePlugin = { rules: {
 } }
 const RAW_VITE_SERVER_MESSAGE = '浏览器夹具测试不直接起 vite 开发服务：用 tests/ux/_browserFixture.mjs 的 useBrowserFixture({ entries })——依赖扫描只认入口页，准备阶段先把页面编完，用例里的 goto 只执行页面。'
 export const BROWSER_FIXTURE_TEST_FILES = ['tests/**/*.test.{js,mjs,cjs,ts,tsx,mts,cts}']
+
+// ④ 界面不印金额（2026-10-27）：选择器、出口名单、允许 import 货币格式化函数的名单都住 scripts/ui-money-format.mjs
+// （名单只减不增，由 scripts/ui-money-format.test.mjs 按同一组选择器普查全 src 卡死）。同 ② 的做法独立注册内置规则：
+// 两张名单的豁免文件不同，各占下面一个块，别的块里同名规则的选项盖不到它们。
+const uiMoneyPlugin = { rules: {
+  'no-restricted-syntax': builtinRules.get('no-restricted-syntax'),
+  'no-restricted-imports': builtinRules.get('no-restricted-imports'),
+} }
 
 /**
  * 每个 no-restricted-syntax 都经这里拼：flat config 里后面的对象会**整条覆盖**前面同名规则的选项，
@@ -426,6 +443,20 @@ export default tseslint.config(
       'browser-fixture/no-restricted-imports': ['error', { paths: [{ name: 'vite', importNames: ['createServer'], message: RAW_VITE_SERVER_MESSAGE }] }],
       'browser-fixture/no-restricted-syntax': ['error', { selector: "ImportExpression[source.value='vite']", message: RAW_VITE_SERVER_MESSAGE }],
     },
+  },
+  {
+    // 界面不印金额（见上面 ④）：名单外的渲染层源码一处金额格式化都不许有。
+    files: UI_MONEY_FILES,
+    ignores: [...UI_MONEY_TEST_FILES, ...Object.keys(MONEY_FORMAT_EXITS)],
+    plugins: { 'ui-money': uiMoneyPlugin },
+    rules: { 'ui-money/no-restricted-syntax': ['error', ...MONEY_FORMAT_SELECTORS] },
+  },
+  {
+    // 界面拿不到格式化成货币的函数：只有名单里的文件能 import 它（见上面 ④）。
+    files: UI_MONEY_FILES,
+    ignores: [...UI_MONEY_TEST_FILES, FORMAT_MONEY_MODULE, ...Object.keys(FORMAT_MONEY_IMPORTERS)],
+    plugins: { 'ui-money': uiMoneyPlugin },
+    rules: { 'ui-money/no-restricted-imports': ['error', { patterns: [FORMAT_MONEY_IMPORT_PATTERN] }] },
   },
   {
     // Playwright isVisible / isHidden 不许当值取出来（见上面 playwrightAliasSelectors 的说明）；只有这一个块配置这个规则 id。

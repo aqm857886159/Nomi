@@ -14,9 +14,12 @@ import { CONCEPT_OWNERS_DIR, conceptFileName } from './concept-registry-lib.mjs'
 import { META_FILE, formatEntryJson, parseCatFileBatch } from './lib/entryDirectory.mjs'
 
 const checker = fileURLToPath(new URL('./check-concept-owners.mjs', import.meta.url))
+const boundaryChecker = fileURLToPath(new URL('./check-boundary-owners.mjs', import.meta.url))
 /** 登记表是目录（一个概念一个文件）：write() 遇到这个键就整目录重写。 */
 const REGISTRY = CONCEPT_OWNERS_DIR
 const BASELINE = 'scripts/concept-owners-baseline.json'
+/** 边界主人台账：两道门（check:boundary-owners / check:concept-owners）读同一份。 */
+const LEDGER = 'scripts/boundary-owners-ledger.json'
 
 function concept(overrides = {}) {
   return {
@@ -46,6 +49,10 @@ function registry(concepts) {
 
 function baseline(overrides = {}) {
   return { version: 1, note: 'test', second_write_ports: [], pending_write_doors: [], unregistered_boundaries: [], ...overrides }
+}
+
+function ledger(overrides = {}) {
+  return { version: 1, note: 'test', reanchored: [], retirements: [], unverified: [], unreadable_symbols: [], ...overrides }
 }
 
 const BASE_FILES = {
@@ -101,7 +108,7 @@ function git(root, ...args) {
 /** 一个临时仓库：基础文件 + 登记表 + 基线，提交一次作为参照提交。 */
 function makeRepo({ files = {}, concepts = [concept()], base = baseline() } = {}) {
   const root = makeTempDir('nomi-concept-owners-')
-  write(root, { ...BASE_FILES, ...files, [REGISTRY]: registry(concepts), [BASELINE]: base })
+  write(root, { ...BASE_FILES, [LEDGER]: ledger(), ...files, [REGISTRY]: registry(concepts), [BASELINE]: base })
   git(root, 'init', '-q')
   git(root, 'add', '-A')
   git(root, 'commit', '-q', '-m', 'base')
@@ -113,6 +120,12 @@ function run(repo, args = [], { baseRef = repo.baseRef } = {}) {
   const env = { ...process.env, CONCEPT_OWNERS_BASE_REF: baseRef }
   delete env.ROOT_CAUSE_BASE_REF
   const result = spawnSync(process.execPath, [checker, '--repo-root', repo.root, ...args], { encoding: 'utf8', env })
+  return { status: result.status, output: `${result.stdout}\n${result.stderr}` }
+}
+
+/** 边界主人门（check:boundary-owners）的入口，对着同一个临时仓库跑。 */
+function runBoundary(repo) {
+  const result = spawnSync(process.execPath, [boundaryChecker, '--repo-root', repo.root], { encoding: 'utf8' })
   return { status: result.status, output: `${result.stdout}\n${result.stderr}` }
 }
 
@@ -466,6 +479,111 @@ test('合同：受管合同的共享边界没登记 → 红；登记进写接口
     const green = run(repo, ['--map'])
     assert.equal(green.status, 0, green.output)
     assert.match(green.output, /2026-09-29-new\.root-cause\.json → 落家/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+// ─── 改锚：合同声明的边界挪走了，只记在边界主人台账的 reanchored 一处；两道门都经同一个改锚解析读它 ───
+const MOVED_CONTRACT = 'docs/fixes/2026-10-16-moved.root-cause.json'
+const MOVED = { contract: MOVED_CONTRACT, path: 'electron/old/registry.ts', symbol: 'createOldRegistry' }
+/** 合同立约时的旧锚 electron/old/registry.ts 已经删了；landing.ts 里另有一个在位、但没登记成写接口的 landingDefault。 */
+const REANCHOR_FILES = {
+  'electron/shared/landing.ts': `${BASE_FILES['electron/shared/landing.ts']}\nexport function landingDefault(): string { return 'relay' }\n`,
+  [MOVED_CONTRACT]: { schema_version: 3, shared_boundaries: [{ path: MOVED.path, symbol: MOVED.symbol, responsibility: 'test' }] },
+}
+const reanchoredTo = (symbol) => ledger({
+  reanchored: [{ ...MOVED, anchor: { path: 'electron/shared/landing.ts', symbol }, reason: '挪进 landing.ts（测试）' }],
+})
+
+test('改锚：合同边界在台账里改锚到某个概念的写接口 → 概念门不报，合同归到新锚的概念', () => {
+  const repo = makeRepo({ files: { ...REANCHOR_FILES, [LEDGER]: reanchoredTo('compareLanding') } })
+  try {
+    const green = run(repo, ['--map'])
+    assert.equal(green.status, 0, green.output)
+    assert.doesNotMatch(green.output, /unregistered-boundary/)
+    assert.match(green.output, /2026-10-16-moved\.root-cause\.json → 落家/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('改锚：新锚不是任何写接口 → 照报 unregistered-boundary，报错里写明合同里的旧锚 → 台账里的新锚', () => {
+  const repo = makeRepo({ files: { ...REANCHOR_FILES, [LEDGER]: reanchoredTo('landingDefault') } })
+  try {
+    const red = run(repo)
+    assert.equal(red.status, 1, red.output)
+    assert.match(red.output, /unregistered-boundary/)
+    assert.match(red.output, /合同里的旧锚 electron\/old\/registry\.ts#createOldRegistry → 台账里的新锚 electron\/shared\/landing\.ts#landingDefault/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('改锚：台账里没有这一条 → 照旧拿合同里的锚报', () => {
+  const repo = makeRepo({ files: REANCHOR_FILES })
+  try {
+    const red = run(repo)
+    assert.equal(red.status, 1, red.output)
+    assert.match(red.output, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/)
+    assert.doesNotMatch(red.output, /合同里的旧锚/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('改锚：两道门对同一份台账认同一个锚（同一组夹具，两道门的入口都跑）', () => {
+  const repo = makeRepo({ files: REANCHOR_FILES })
+  // 每一行：台账怎么写 → 边界主人门 [退出码, 输出] → 概念门 [退出码, 输出]。两道门要么都核新锚，要么都核旧锚。
+  const cases = [
+    ['改锚到写接口', reanchoredTo('compareLanding'), [0, /改锚 1 ｜/], [0, /✅ 概念 owner 门岗/]],
+    ['改锚到在位、但不是写接口的符号', reanchoredTo('landingDefault'), [0, /改锚 1 ｜/], [1, /台账里的新锚 electron\/shared\/landing\.ts#landingDefault/]],
+    ['改锚到已经不在的符号', reanchoredTo('ghostRegistry'), [1, /登记的新锚 electron\/shared\/landing\.ts :: ghostRegistry/], [1, /台账里的新锚 electron\/shared\/landing\.ts#ghostRegistry/]],
+    ['台账没有这一条', ledger(), [1, /合同声明过的主人不在了：docs\/fixes\/2026-10-16-moved\.root-cause\.json::electron\/old\/registry\.ts::createOldRegistry/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
+  ]
+  try {
+    for (const [name, ledgerFile, [boundaryStatus, boundaryOutput], [conceptStatus, conceptOutput]] of cases) {
+      write(repo.root, { [LEDGER]: ledgerFile })
+      const boundary = runBoundary(repo)
+      assert.equal(boundary.status, boundaryStatus, `${name}｜边界主人门：${boundary.output}`)
+      assert.match(boundary.output, boundaryOutput, `${name}｜边界主人门`)
+      const owners = run(repo)
+      assert.equal(owners.status, conceptStatus, `${name}｜概念门：${owners.output}`)
+      assert.match(owners.output, conceptOutput, `${name}｜概念门`)
+    }
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('改锚：欠账仍记在合同声明的那条边界上——新锚没登记，冻结账照旧放行；新锚登记了，冻结账陈旧要删', () => {
+  const frozen = { contract: MOVED_CONTRACT, path: MOVED.path, symbol: MOVED.symbol }
+  const repo = makeRepo({
+    files: { ...REANCHOR_FILES, [LEDGER]: reanchoredTo('landingDefault') },
+    base: baseline({ unregistered_boundaries: [frozen] }),
+  })
+  try {
+    const frozenGreen = run(repo)
+    assert.equal(frozenGreen.status, 0, frozenGreen.output)
+    const registered = concept({ write_api: [...concept().write_api, { path: 'electron/shared/landing.ts', symbol: 'landingDefault' }] })
+    write(repo.root, { [REGISTRY]: registry([registered]) })
+    const paidOff = run(repo)
+    assert.equal(paidOff.status, 1, paidOff.output)
+    assert.match(paidOff.output, /baseline-stale/)
+    assert.match(paidOff.output, /2026-10-16-moved\.root-cause\.json\|electron\/old\/registry\.ts\|createOldRegistry/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('台账读不了 → 概念门无法开始（红），不当成「没有改锚」放行', () => {
+  const repo = makeRepo()
+  try {
+    write(repo.root, { [LEDGER]: null })
+    const red = run(repo)
+    assert.equal(red.status, 1, red.output)
+    assert.match(red.output, /概念 owner 门岗无法开始/)
+    assert.match(red.output, /boundary-owners-ledger\.json/)
   } finally {
     cleanup(repo)
   }

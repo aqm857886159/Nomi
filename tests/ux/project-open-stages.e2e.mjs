@@ -97,9 +97,10 @@ async function launch() {
     projectsDir,
     // Windows 把屏幕外窗口判成被遮挡、停掉渲染帧；关掉遮挡判定，量到的才是真的。
     args: ['--no-proxy-server', ...(onscreen ? [] : ['--disable-features=CalculateNativeWinOcclusion'])],
-    mainRequire: [path.join(here, 'perf', 'openWriteProbe.cjs'), path.join(here, 'perf', 'openModuleProbe.cjs'), ...(onscreen ? [] : [path.join(here, '_offscreenWindows.cjs')]), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
+    mainRequire: [path.join(here, 'perf', 'openWriteProbe.cjs'), path.join(here, 'perf', 'openModuleProbe.cjs'), ...(onscreen ? [] : [path.join(here, '_quietWalk.cjs')]), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
     initialLocalStorage: { ...FIRST_RUN_SEEN, 'nomi:perf-marks': '1' },
     env: { NOMI_PERF_MARKS: '1' },
+    foreground: onscreen ? '打开阶段量具需要在屏幕上显示窗口' : undefined,
     settleMs: 900,
   })
   return { ...launched, launchedAt: Date.now() }

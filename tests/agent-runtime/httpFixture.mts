@@ -47,7 +47,8 @@ export type FixtureReply =
   | ({ type: 'tool'; calls: Array<{ id: string; name: string; arguments: unknown }> } & FixtureOutput)
   /** 逐段照原样发：段的类型与**顺序**都由调用方给定。L2 回放影子唯一用的那种。 */
   | ({ type: 'message'; parts: readonly FixturePart[] } & FixtureOutput)
-  | { type: 'error'; status: number; message: string }
+  /** 非 2xx。`body` 给了就原样当响应体发（录下来的上游原文），否则发 `{ error: { message } }`。 */
+  | { type: 'error'; status: number; message: string; body?: unknown }
   | { type: 'deferred'; beforeReply: () => Promise<FixtureReply> };
 
 /** 三种回复 → 同一串段。夹具里**只有这一个**地方知道 `text` / `tool` 是 `message` 的特例。 */
@@ -72,7 +73,7 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
     while (reply?.type === 'deferred') reply = await reply.beforeReply();
     if (!reply || reply.type === 'error') {
       response.writeHead(reply?.status ?? 500, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: { message: reply?.message ?? 'No fixture reply queued' } }));
+      response.end(JSON.stringify(reply?.body ?? { error: { message: reply?.message ?? 'No fixture reply queued' } }));
       return;
     }
     response.writeHead(200, { 'content-type': 'text/event-stream', connection: 'close' });

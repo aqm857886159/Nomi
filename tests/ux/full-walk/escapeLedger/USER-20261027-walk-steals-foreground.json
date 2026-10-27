@@ -1,0 +1,37 @@
+{
+  "id": "USER-20261027-walk-steals-foreground",
+  "since": "2026-10-27",
+  "source": "用户 2026-10-27 原话：「能不能让那个后台开那个东西的时候不要影响我前面的页面呀，就是我现在开着Cloud，但是会影响那个什么。」",
+  "category": "interaction-semantics",
+  "problem": "走查启动的 Nomi 窗口弹到屏幕中央并抢成最前应用，用户在前台窗口里的键盘输入被切走；旧屏外模块是选配，窗口 show/focus、app focus、桌面外发和原生对话框也没有统一安静边界。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "普通隔离走查不影响用户前台应用",
+    "真实前台行为走查必须显式声明并放行"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/ux/_launchApp.test.mjs",
+    "tests/ux/_quietWalk.test.mjs",
+    "docs/fixes/2026-10-27-walk-steals-foreground.root-cause.json",
+    "evals/loop/appBridge.test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs",
+    "scripts/check-desktop-rc-workflow.node-test.mjs"
+  ],
+  "completionCommits": [
+    "bbc3bbb34625f98f00f1c0519d902c60d7c6bc56",
+    "db1bc23f66b5e47b9dbd31406cd2c48cf1c08b88",
+    "4caa96a0c26d837ac7579664ff34f288cb445846",
+    "654469f25ab3e961e09d898f30adc64b15e69dd3",
+    "1651221373ed3a8e4b847a7eaa3d0c84447db967"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-27-walk-steals-foreground.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/_launchApp.test.mjs"
+  },
+  "fixedInPr": 1343
+}
