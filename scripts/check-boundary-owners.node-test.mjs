@@ -1,10 +1,13 @@
 import { makeTempDir } from './_test-temp.mjs'
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { LEDGER_PATH, VERDICT, auditBoundaries, checkBoundary, evaluate, hasWord, readContracts, readLedger, reanchorResolver, resolveSymbol } from "./boundary-owners.mjs";
+import { LEDGER_PATH, VERDICT, auditBoundaries, checkBoundary, evaluate, hasWord, ownerDefinedAt, readContracts, readLedger, reanchorResolver, resolveSymbol } from "./boundary-owners.mjs";
+import { evaluateOwnership } from "./concept-owners-lib.mjs";
+import { collectDefinitions } from "./concept-owners-scan.mjs";
 
 function sandbox(files) {
   const root = makeTempDir("boundary-owners-");
@@ -122,31 +125,37 @@ test("台账只有一个读口：scripts 里认得台账路径的生产脚本只
 });
 
 // ─── 主人搬家：定义原样搬进新文件，旧文件还 import / 调用着 ───────────────────────────────
-// 特征测试：换判据之前先把现状钉住。①③ 是会被换掉的判法（词还在 = 主人还在，于是改锚条目被判「过期」），
-// ②④ 是换了也必须原样不动的判法。
+// 登记了改锚的边界，「主人还在原地」= 旧锚今天还**定义**着它。词在、定义不在，是搬了家，接着核新锚；
+// 没登记改锚的边界仍按「文件里有这个词」。夹具是最小仓库（一份合同 + 一本台账 + 几个源文件），
+// runGate 做的就是 check-boundary-owners.mjs 做的整套事，只是不起子进程。
 const MOVED_CONTRACT = "docs/fixes/2026-10-16-moved-definition.root-cause.json";
 const OLD_FILE = "electron/tasks/taskResultQuery.ts";
 const NEW_FILE = "electron/tasks/retrievalStageError.ts";
-const DEFINES = "export function retrievalStageError(error: unknown) { return error; }\n";
+const SYMBOL = "retrievalStageError";
+const DEFINES = `export function ${SYMBOL}(error: unknown) { return error; }\n`;
 /** 旧文件里只剩 import 和一次调用——定义已经搬走。 */
-const IMPORTS_ONLY = 'import { retrievalStageError } from "./retrievalStageError";\nexport function readResult(error: unknown) { return retrievalStageError(error); }\n';
-const MOVED_ROW = {
-  contract: MOVED_CONTRACT,
-  path: OLD_FILE,
-  symbol: "retrievalStageError",
-  anchor: { path: NEW_FILE, symbol: "retrievalStageError" },
-  reason: "原样搬到独立文件，旧文件 import 着",
-};
+const IMPORTS_ONLY = `import { ${SYMBOL} } from "./${SYMBOL}";\nexport function readResult(error: unknown) { return ${SYMBOL}(error); }\n`;
 
-/** 一个最小仓库：一份合同声明了旧锚，台账登记了 rows，旧文件 / 新文件各自是给定的源码（newSource 为 null = 新文件不存在）。 */
-function movedRepo({ oldSource, newSource = DEFINES, rows = [MOVED_ROW] }) {
+const movedRow = ({ from = OLD_FILE, symbol = SYMBOL, to = NEW_FILE, toSymbol = symbol } = {}) => ({
+  contract: MOVED_CONTRACT,
+  path: from,
+  symbol,
+  anchor: { path: to, symbol: toSymbol },
+  reason: "原样搬到独立文件，旧文件 import 着",
+});
+
+/** 一个最小仓库：一份合同声明了 boundary，台账登记了 rows，其余文件按 files 摆。 */
+function movedRepo({ files, boundary = { path: OLD_FILE, symbol: SYMBOL }, rows = [movedRow()] }) {
   return sandbox({
-    [MOVED_CONTRACT]: JSON.stringify({ shared_boundaries: [{ path: OLD_FILE, symbol: "retrievalStageError", responsibility: "r" }] }),
+    [MOVED_CONTRACT]: JSON.stringify({ shared_boundaries: [{ ...boundary, responsibility: "r" }] }),
     [LEDGER_PATH]: JSON.stringify({ version: 1, reanchored: rows }),
-    [OLD_FILE]: oldSource,
-    ...(newSource === null ? {} : { [NEW_FILE]: newSource }),
+    ...files,
   });
 }
+
+/** 旧文件 / 新文件各是给定的源码（newSource 为 null = 新文件不存在）。 */
+const movedPair = (oldSource, newSource = DEFINES, rows) =>
+  movedRepo({ files: { [OLD_FILE]: oldSource, ...(newSource === null ? {} : { [NEW_FILE]: newSource }) }, rows });
 
 /** check-boundary-owners.mjs 做的整套事（读台账、读合同、逐条核、台账裁决），不起子进程。 */
 function runGate(root) {
@@ -155,28 +164,151 @@ function runGate(root) {
   return evaluate({ results: auditBoundaries(root), ledger });
 }
 
-test("现状（特征）：定义搬走、旧文件还 import 着、台账登记了改锚 → 判「台账条目已经自己好了」", () => {
-  const out = runGate(movedRepo({ oldSource: IMPORTS_ONLY }));
-  assert.equal(out.ok, false);
-  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+test("① 定义原样搬走、旧文件还 import 并调用 → 判改锚在位，不报过期", () => {
+  const out = runGate(movedPair(IMPORTS_ONLY));
+  assert.equal(out.ok, true, out.errors.join("\n"));
+  assert.equal(out.stats.reanchored, 1);
+  assert.equal(out.stats.ok, 0);
 });
 
-test("现状（特征）：定义搬走、旧文件还 import 着、新锚也不在 → 同样只说「已经自己好了」，说不出新主人没了", () => {
-  const out = runGate(movedRepo({ oldSource: IMPORTS_ONLY, newSource: null }));
-  assert.equal(out.ok, false);
-  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
-  assert.doesNotMatch(out.errors.join("\n"), /新主人也不在了/);
+test("② 旧文件又把它定义回来 + 台账还登记着改锚 → 报过期（新锚在不在都一样）", () => {
+  for (const newSource of [DEFINES, null]) {
+    const out = runGate(movedPair(`${IMPORTS_ONLY}${DEFINES}`, newSource));
+    assert.equal(out.ok, false, `新锚${newSource === null ? "不在" : "也定义着"}`);
+    assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+    assert.equal(out.stats.reanchored, 0);
+  }
 });
 
-test("不变量：旧文件又把它定义回来 + 台账还登记着改锚 → 报过期", () => {
-  const out = runGate(movedRepo({ oldSource: `${IMPORTS_ONLY}${DEFINES}` }));
-  assert.equal(out.ok, false);
-  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+test("③ 定义搬走、新锚也不在 → 报「新主人也不在了」，不再说「已经自己好了」", () => {
+  // 新文件根本不在，和新文件在、但里面没有这个符号，是两种「新主人不在」。
+  for (const newSource of [null, "export const unrelated = 1\n"]) {
+    const out = runGate(movedPair(IMPORTS_ONLY, newSource));
+    assert.equal(out.ok, false);
+    assert.match(out.errors.join("\n"), /改锚登记指向的新主人也不在了/);
+    assert.doesNotMatch(out.errors.join("\n"), /已经自己好了/);
+    assert.equal(out.stats.broken, 1);
+  }
 });
 
-test("不变量：没登记改锚的边界，词还在（只剩 import）就是在位——口径不变", () => {
-  const out = runGate(movedRepo({ oldSource: IMPORTS_ONLY, rows: [] }));
+test("④ 没登记改锚的边界，词还在（只剩 import）就是在位——口径不变", () => {
+  const out = runGate(movedPair(IMPORTS_ONLY, DEFINES, []));
   assert.equal(out.ok, true, out.errors.join("\n"));
   assert.equal(out.stats.ok, 1);
   assert.equal(out.stats.reanchored, 0);
+});
+
+test("⑤ 旧符号已删、旧文件只在注释和字符串里还提到它 → 也是搬了家，不是台账条目自己好了", () => {
+  const out = runGate(movedPair(`// 以前 ${SYMBOL} 住在这里，已经搬走\nexport const note = "${SYMBOL} 已搬家";\n`));
+  assert.equal(out.ok, true, out.errors.join("\n"));
+  assert.equal(out.stats.reanchored, 1);
+});
+
+test("⑥ 多段 symbol：有一段的定义搬走了，整条边界就不在原地，接着核新锚；每一段都还定义着才是自己好了", () => {
+  const from = "electron/tasks/pair.ts";
+  const to = "electron/tasks/beta.ts";
+  const repo = (pair) => movedRepo({
+    boundary: { path: from, symbol: "alpha and beta" },
+    rows: [movedRow({ from, symbol: "alpha and beta", to, toSymbol: "beta" })],
+    files: { [from]: pair, [to]: "export const beta = 1;\n" },
+  });
+  const betaMoved = runGate(repo('import { beta } from "./beta";\nexport const alpha = () => beta;\n'));
+  assert.equal(betaMoved.ok, true, betaMoved.errors.join("\n"));
+  assert.equal(betaMoved.stats.reanchored, 1);
+  const bothHere = runGate(repo("export const alpha = 1;\nexport const beta = 2;\n"));
+  assert.equal(bothHere.ok, false);
+  assert.match(bothHere.errors.join("\n"), /台账条目已经自己好了/);
+});
+
+test("⑦ 字面量写法的 symbol 没有「定义」可判：旧锚文件里原样还在，台账条目就是自己好了（口径不变）", () => {
+  const literal = "check:standard-formats";
+  const out = runGate(movedRepo({
+    boundary: { path: OLD_FILE, symbol: literal },
+    rows: [movedRow({ symbol: literal, toSymbol: SYMBOL })],
+    files: { [OLD_FILE]: `export const scripts = { "${literal}": "node x" };\n`, [NEW_FILE]: DEFINES },
+  }));
+  assert.equal(out.ok, false);
+  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+});
+
+test("⑧ 旧锚是目录：目录下没有任何文件还定义着它 → 搬了家；有一个文件定义着 → 自己好了", () => {
+  const dir = "electron/tasks";
+  const outside = "electron/shared/retrievalStageError.ts"; // 新锚得在旧目录之外，否则它自己就算「目录下定义着」
+  const repo = (extra) => movedRepo({
+    boundary: { path: dir, symbol: SYMBOL },
+    rows: [movedRow({ from: dir, to: outside })],
+    files: { [`${dir}/a.ts`]: IMPORTS_ONLY, [`${dir}/b.ts`]: "export const b = 1;\n", [outside]: DEFINES, ...extra },
+  });
+  const moved = runGate(repo({}));
+  assert.equal(moved.ok, true, moved.errors.join("\n"));
+  assert.equal(moved.stats.reanchored, 1);
+  const back = runGate(repo({ [`${dir}/b.ts`]: DEFINES }));
+  assert.equal(back.ok, false);
+  assert.match(back.errors.join("\n"), /台账条目已经自己好了/);
+});
+
+test("⑨ 旧锚下没有可扫描的源码（测试、夹具、类型声明、非代码文件）→ 没有定义可判，沿用文本命中", () => {
+  const testFile = "electron/tasks/taskResultQuery.test.ts";
+  const out = runGate(movedRepo({
+    boundary: { path: testFile, symbol: SYMBOL },
+    rows: [movedRow({ from: testFile })],
+    files: { [testFile]: IMPORTS_ONLY, [NEW_FILE]: DEFINES },
+  }));
+  assert.equal(out.ok, false);
+  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+});
+
+// 两道门对「主人在不在」只有一个答案：同一批代码形状，边界门的 ownerDefinedAt 与概念门的 evaluateOwnership 必须同向。
+// 哪一边改了「什么算定义」（比如不再把接口成员槽位算在位），这张表就红，逼着两边一起改。
+const OWNER_SHAPES = [
+  ["函数声明", "export function owner() {}\n", true],
+  ["箭头函数常量", "export const owner = () => 1;\n", true],
+  ["对象成员", "export const table = { owner: 1 };\n", true],
+  ["类的方法", "export class Port { owner() {} }\n", true],
+  ["类型别名", "export type owner = string;\n", true],
+  ["接口里的成员槽位（契约，不是实现）", "export interface Port { owner?: () => void }\n", true],
+  ["import 加调用", 'import { owner } from "./elsewhere";\nexport const run = () => owner();\n', false],
+  ["别名", 'import * as ns from "./elsewhere";\nexport const owner = ns.owner;\n', false],
+  ["重导出", 'export { owner } from "./elsewhere";\n', false],
+  ["环境声明", "declare const owner: () => void;\n", false],
+  ["只在注释和字符串里", '// owner 搬走了\nexport const note = "owner";\n', false],
+];
+
+test("⑩ 两道门对「主人在不在」只有一个答案：同一批代码形状，边界门的 ownerDefinedAt 与概念门的 evaluateOwnership 同向", () => {
+  const fileOf = (index) => `electron/shape${index}.ts`;
+  const root = sandbox(Object.fromEntries(OWNER_SHAPES.map(([, source], index) => [fileOf(index), source])));
+  const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+  OWNER_SHAPES.forEach(([name, , expected], index) => {
+    const file = fileOf(index);
+    const definitions = collectDefinitions({ files: [file], read, symbols: ["owner"] });
+    const concept = { name: "c", write_api: [{ path: file, symbol: "owner" }], forbidden_derivations: [] };
+    const { findings } = evaluateOwnership({ concepts: [concept], definitions, exists: () => true, read });
+    assert.equal(!findings.some((item) => item.rule === "owner-unresolved"), expected, `${name}：概念门`);
+    assert.equal(ownerDefinedAt(root, { path: file, symbol: "owner" }), expected, `${name}：边界门`);
+  });
+});
+
+const CLI = fileURLToPath(new URL("./check-boundary-owners.mjs", import.meta.url));
+
+function runCli(...args) {
+  const result = spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8" });
+  return { status: result.status, output: `${result.stdout}${result.stderr}` };
+}
+
+test("⑪ 入口端到端：搬家且旧文件 import 着 → 退出 0 且计入改锚；旧文件定义回来 → 退出 1", () => {
+  const green = runCli("--repo-root", movedPair(IMPORTS_ONLY));
+  assert.equal(green.status, 0, green.output);
+  assert.match(green.output, /改锚 1 ｜/);
+  const red = runCli("--repo-root", movedPair(`${IMPORTS_ONLY}${DEFINES}`));
+  assert.equal(red.status, 1, red.output);
+  assert.match(red.output, /台账条目已经自己好了/);
+});
+
+test("入口只认 --repo-root：位置参数和别的开关不能被静默忽略（忽略的结果是悄悄检查脚本所在的这棵树，还报绿）", () => {
+  const root = movedPair(IMPORTS_ONLY);
+  for (const args of [[root], ["--update"], ["--repo-root", root, "extra"], [`--repo-root=${root}`]]) {
+    const out = runCli(...args);
+    assert.equal(out.status, 2, `${args.join(" ")}：${out.output}`);
+    assert.match(out.output, /不认识的参数/);
+  }
 });

@@ -7,15 +7,22 @@
 // 自动写基线 = 把红一键洗成绿，正是这次评审要消灭的「以为有人在管、其实没有」。
 //
 // 用法：node scripts/check-boundary-owners.mjs [--repo-root <目录>]
-//   --repo-root 让测试拿同一组夹具把两道门（本门与 check:concept-owners）都跑一遍，核它们对同一份台账认同一个锚。
+//   --repo-root 让测试拿同一组夹具把两道门（本门与 check:concept-owners）都跑一遍，核它们对同一份台账认同一个锚；
+//   也用来只读地检查另一棵工作树。除它以外的参数一律拒绝（退出 2）：位置参数若被忽略，结果是悄悄检查脚本所在的这棵树，还报绿。
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditBoundaries, evaluate, readContracts, readLedger } from "./boundary-owners.mjs";
 
-const rootFlag = process.argv.indexOf("--repo-root");
-const rootArg = rootFlag >= 0 ? process.argv[rootFlag + 1] : null;
+const args = process.argv.slice(2);
+const rootFlag = args.indexOf("--repo-root");
+const rootArg = rootFlag >= 0 ? args[rootFlag + 1] : null;
 if (rootFlag >= 0 && (!rootArg || rootArg.startsWith("--"))) {
   console.error("✖ --repo-root 后面要跟一个目录");
+  process.exit(2);
+}
+const stray = args.filter((_, index) => rootFlag < 0 || (index !== rootFlag && index !== rootFlag + 1));
+if (stray.length > 0) {
+  console.error(`✖ 不认识的参数：${stray.join(" ")}（这道门只认 --repo-root <目录>，也没有 --update）`);
   process.exit(2);
 }
 const repoRoot = rootArg ? path.resolve(rootArg) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
