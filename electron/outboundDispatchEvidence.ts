@@ -1,7 +1,8 @@
 /**
  * 「这次出站请求，到底有没有发出去过？」——**唯一**回答它的地方。
  *
- * 一次付费提交失败有三种性质完全不同的可能（第三种 2026-10-05 用户拍板加入，见文件尾 `providerExplicitlyRejected`）：**一个字节都没写出去**（DNS 解不出、连不上、
+ * 一次付费提交失败有几种性质完全不同的可能（第三种 2026-10-05 用户拍板加入，见 `providerExplicitlyRejected`；第四种 2026-10-28，
+ * 见 `answeredSubmissionFailure`：供应商答了、结果在回答里，Nomi 本机落地失败）：**一个字节都没写出去**（DNS 解不出、连不上、
  * TLS 握手没完成）——供应商那边什么都没发生；
  * 或者**写出去了但结果不知道**（写完才断、响应头等超时）——可能已经收下并扣费。
  * 两者在 `fetch()` 抛出来时长得一模一样（`TypeError: fetch failed`），真相全在 `error.cause` 里。
@@ -173,6 +174,38 @@ export function providerExplicitlyRejected(error: unknown): boolean {
   });
 }
 
+/**
+ * 第四档的正证据：「供应商答了、结果就在那一次回答里，Nomi 本机把它落进项目失败」（2026-10-28，同步供应商）。
+ * 模块私有：只有挂得上的人认得它，正文里写什么都伪造不出来（不从错误码 / 文字推断）。
+ */
+const RESULT_LANDING_EVIDENCE = Symbol("nomi.resultLandingAfterAnswer");
+
+/**
+ * **只给结果落地门用**（`assets/localizeTaskAsset.ts`，door-map 数得出只有这一扇）：落地门只收供应商回答里的结果地址，
+ * 它失败的那一刻，供应商已经答过了。同步供应商（创建请求的回答就是结果：火山 Seedream 直连、用户自接的中转……）把
+ * 「受理」「出结果」「落地」压在同一次提交里，提交出口看不见「受理」那一刻，只能靠这份证据知道「答过了」。
+ * 原样返回同一个错误对象（类型、码、结构化字段都不变）；对象不许再加属性时才包一层（cause 链上仍是原错误）。
+ */
+export function withResultLandingEvidence(error: Error): Error {
+  const carrier = Object.isExtensible(error) ? error : Object.assign(new Error(error.message), { cause: error });
+  Object.defineProperty(carrier, RESULT_LANDING_EVIDENCE, { value: true });
+  return carrier;
+}
+
+/**
+ * 第四档：「供应商答了、Nomi 本机落地失败」——**确定**答过（可能已扣钱），也确定不是结果未知：结果在回答里，
+ * 只是落不进项目。只认落地门挂的正证据，并且**只看传进来的这个错误对象自己**，不沿 cause 链往下找；没有就是 false，交回其余判据。
+ * 落地失败不是拒绝，也不是「没写出去」：答过了的提交，后两者都不可能成立。
+ *
+ * 为什么不看 cause 链：证据说的是「到达出口的就是落地门抛的那个错误」。别的代码把它当 cause 包进一个新错误，外层说的就是另一件事——
+ * 例如落地失败之后又交出去一笔、这一笔写出去后断了（app-fetch 账本里它还在途，可能已被收下）。沿链往下找会让外层借走里层的证据，
+ * 把这一笔新提交判成「答了」、放开重试，用户再点就可能扣两次。落地门对冻结对象包的那一层（`withResultLandingEvidence`）本来就在最顶上，不受影响。
+ * 已知残余：拿到落地错误后又交一笔、再把**原错误原样**抛出，证据仍在顶上，仍会判「答了」——今天生产里没有这种代码，登记在根因合同 residual_risks。
+ */
+export function answeredSubmissionFailure(error: unknown): boolean {
+  return (asErrorLike(error) as { [RESULT_LANDING_EVIDENCE]?: unknown } | null)?.[RESULT_LANDING_EVIDENCE] === true;
+}
+
 // ── 「这次付费提交有没有一个请求离开过本机」：按**派发**记账（2026-10-06，L-claim） ─────────────────────
 //
 // 上面三个函数只看**最后抛出来的那一个错误**。可「没发出去」最常见的几种根本不在网络层：出网策略拒、请求头不合法、
@@ -282,6 +315,9 @@ export async function observeSubmissionHandoffs<T>(transport: "app-fetch" | unde
   try {
     return { ok: true, value: await ledgerStorage.run(ledger, submit) };
   } catch (error) {
+    // 落地门挂了正证据 = 供应商的回答已经到手：不可能「一个字节都没写出去」。cause 链深处那一下连接失败
+    // 是取结果（下载）的，不是提交的——不看它，否则一笔答过的提交会被释放预留、再自动重发一次。
+    if (answeredSubmissionFailure(error)) return { ok: false, error, notDispatched: null };
     if (transport !== "app-fetch") {
       return { ok: false, error, notDispatched: outboundRequestWasNeverWritten(error) ? "connect_failed" : null };
     }

@@ -4,6 +4,7 @@
 // S2 先覆盖生成进度域;错误 hint(classifyGenerationError 七段)按总方案在 S4 迁入。
 // 设计系统铁律呼应:No fake progress——没有真实百分比就不给 percent,用"已等 N 秒"说真话。
 import i18n from '../../i18n'
+import type { TranslationKey } from '../../i18n/translationKey'
 
 export type GenerationProgressPhase =
   | 'queued' //      已入队,还没开始
@@ -382,6 +383,30 @@ export function narrateGenerationErrorActions(kind: GenerationErrorKind): {
 } {
   const { primary, secondary } = ACTION_BY_KIND[kind]
   return { primary, secondary }
+}
+
+/**
+ * 没有可以再查的任务时（2026-10-28）：同步供应商把结果放在创建请求的那一次回答里，Nomi 本机没能把它落进项目——
+ * 节点上没有任务号，结果地址也只在那一次回答里，再取一次无从谈起。默认动作 / 说明会把人领去「重新取回」的那几类，
+ * 这里给不暗示能取回的那一版：动作按「有没有任务号」选（主动作重试 = 重新生成；取片被拦照旧先去网络那一行），
+ * 说明换成 `hintWithoutTask`（只说事实和下一步，不谈钱；两类取回失败说的是同一件事，共用一条）。
+ * 不在表里的类照默认：它们的动作和说明本来就不暗示能取回。守门：`narrateWithoutTask.test.ts` 遍历全部类别。
+ */
+const WITHOUT_TASK_BY_KIND: Readonly<Partial<Record<GenerationErrorKind, GenerationErrorActions & { hintKey: TranslationKey }>>> = {
+  'retrieval-incomplete': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'output-retrieval-failed': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'outbound-blocked': { ...ACCESS_FIRST, hintKey: 'generationCommon.observability.error.outboundBlocked.hintWithoutTask' },
+}
+
+/** 这一类失败在「没有可以再查的任务」时的说明与动作；`null` = 照默认（默认本来就不暗示能取回）。 */
+export function narrateGenerationErrorWithoutTask(kind: GenerationErrorKind): {
+  hint: string
+  primary: GenerationErrorAction
+  secondary: GenerationErrorAction | null
+} | null {
+  const entry = WITHOUT_TASK_BY_KIND[kind]
+  if (!entry) return null
+  return { hint: i18n.t(entry.hintKey), primary: entry.primary, secondary: entry.secondary }
 }
 
 const ACTION_KEY: Record<GenerationErrorAction, string> = {

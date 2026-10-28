@@ -25,8 +25,7 @@ import {
   localizeTaskAsset,
 } from "../runtime";
 import { logWarn } from "../logging/logger";
-import { NOMI_ERROR_ONLY_BEFORE_SUBMIT, matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
-import { VendorRequestError } from "../vendor/vendorHttp";
+import { retrievalStageError } from "./retrievalStageError";
 import { noteRelayQueryOutcome } from "../catalog/relayNativeWireUpgrade";
 import { expectedMediaKind, readTaskResponse } from "./taskResultReading";
 
@@ -94,32 +93,6 @@ function upstreamExcerpt(response: unknown): string {
   } catch {
     return "";
   }
-}
-
-/**
- * 取回失败的统一出口：带上阶段码（shared/nomiErrorCodes 的 retrieval-*）与阶段说明。已经带码、且码说的是
- * 取回阶段的错误（出站被拦 / 产物读不出……）原样放行——那是更具体的事实。VendorRequestError 保留结构化字段
- * （IPC 那头靠它说出「服务商原话」）。渲染层见码即落「可找回」：任务已受理，重新取回，绝不重新提交。
- *
- * 码的话只在「提交之前」成立（NOMI_ERROR_ONLY_BEFORE_SUBMIT：没发出去 / 没请求服务商 / 可以重新生成）：生产者被提交和
- * 查询共用、不知道这是查询（vendorHttp 出站守卫一律按提交挂码），这里改挂本阶段码。原码和诊断前缀留进正文
- * （技术详情），标明是 Nomi 本机拦下；那句提交前的话不带（任务已提交，它是假话），也不把它当服务商原话（不带 structured）。
- */
-export function retrievalStageError(code: "retrieval-query" | "retrieval-parse" | "retrieval-download", error: unknown, note = ""): Error {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  const carried = matchNomiErrorCode(message);
-  if (carried && !NOMI_ERROR_ONLY_BEFORE_SUBMIT[carried]) return error instanceof Error ? error : new Error(message);
-  const stageKey = code === "retrieval-query" ? "tasks.retrievalStage.query" : code === "retrieval-parse" ? "tasks.retrievalStage.parse" : "tasks.retrievalStage.download";
-  if (carried) {
-    const marker = message.indexOf("NOMI_ERR::");
-    const diagnostic = marker > 0 ? message.slice(0, marker).replace(/[:：\s]+$/, "").trim() : "";
-    return new Error(tagNomiError(code, `${note ? `${note} ` : ""}${desktopT(stageKey)}${desktopT("tasks.refusedLocallyAfterSubmit", { code: carried })}${diagnostic ? ` ${diagnostic}` : ""}`));
-  }
-  const human = `${note ? `${note} ` : ""}${desktopT(stageKey)}${message}`;
-  const tagged = tagNomiError(code, human);
-  // 只带 message + structured（IPC 那头读 structured 说出服务商原话）：providerAnswer 只服务「提交有没有被受理」的判定，
-  // 查询 / 下载阶段用不上；两参构造也让这段能原样回补到 0.23.x（那里的 VendorRequestError 只有两参）。
-  return error instanceof VendorRequestError ? new VendorRequestError(tagged, error.structured) : new Error(tagged);
 }
 
 /**
@@ -349,8 +322,9 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     const type: "image" | "video" | "audio" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "audio" ? "audio" : cached.wantedKind === "model3d" ? "model3d" : "image";
     // vendor 提示必须带上：本地 ComfyUI 的产物 URL 是私网 /view，缺它 hardenedFetch 会按 SSRF 拒下载。
     const vendorHint = readCatalog().vendors.find((item) => item.key === cached.vendor);
+    // 落地失败由落地门自己挂取回阶段码（同一个 retrievalStageError），这里不再包一层。
     const asset = cached.projectId
-      ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId, vendorHint).catch((error: unknown) => { throw retrievalStageError("retrieval-download", error); })
+      ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId, vendorHint)
       : unlocalizedTaskAsset(type, assetUrl);
     taskCache.delete(taskId);
     const lateResult: TaskResult = { id: taskId, kind: cached.request.kind, status: "succeeded", assets: [asset], raw: cached.raw };

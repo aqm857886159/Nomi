@@ -96,6 +96,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/project/projectActionIssuance.contract.test.ts', roots: ['src', 'electron'] }, // 13 秒
   { file: 'src/assets/vendor-logos/vendorLogos.test.ts', roots: ['src/assets/vendor-logos', 'src/config', 'src/design', 'src/ui', 'src/workbench'] },
   // ── src/workbench 及以下 ──
+  { file: 'src/workbench/sessionCleanupCensus.test.ts', roots: [...WORKBENCH, 'docs/engineering/concept-owners'], exts: [...CODE_EXTS, 'json'] }, // 概念登记驱动 effect cleanup 普查：会话业务写入不随组件卸载（Mac 单跑 1.4 秒）
   { file: 'src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts', roots: WORKBENCH }, // 5 秒
   { file: 'src/workbench/pageLayerCensus.test.ts', roots: WORKBENCH }, // 2026-10-29：src/workbench 里每个挂到 document.body 的 portal（createPortal / <BodyPortal>）都要登记归属与生命周期，页格内的层只经 GenerationPageLayer、藏着时键盘监听要停，按 class 名找画布格只许三处存量；遍历 workbench 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/ai/pointer/pointerDoors.test.ts', roots: ['src/workbench/ai/pointer'] }, // 指向元素目录：不许自己动画布视口（唯一出口 viewNodeInCanvas）、不自带焦点环；只遍历这一个目录，按语法树判（<1 秒）
