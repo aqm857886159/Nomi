@@ -1,11 +1,11 @@
 import { dedupeSubmission } from "../submissionLedger";
-import { providerExplicitlyRejected, type NotDispatchedReason } from "../outboundDispatchEvidence";
+import { answeredSubmissionFailure, providerExplicitlyRejected, type NotDispatchedReason } from "../outboundDispatchEvidence";
 import { matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
 import { authorizeSubmission } from "./approvalPolicy";
 import type { ProductionRunRepository } from "./productionRunRepository";
 import type { ProductionRunIntentLog } from "./productionRunIntentLog";
 import type { ProductionRunLock, ProductionRunLockLease } from "./productionRunLock";
-import type { ProductionJob, ProductionRun, RunCommand } from "./productionRunTypes";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 
 /**
  * 「这次提交确定没离开本机」——判据只在 `outboundDispatchEvidence.observeSubmissionHandoffs`，这里只是它的带类型结论。
@@ -100,6 +100,26 @@ export type SubmissionOutboxResult = ProviderDispatchResult & {
   run: ProductionRun;
 };
 
+/**
+ * 交的那一下没拿到受理号时，这次提交落在哪一档——**封闭的**四档，出口按档逐个落盘（加一档，每个 switch 都得表态，编译器拦）。
+ * 判据全在 `outboundDispatchEvidence.ts`（证据 owner）；拿不出证据的一律 `unknown`：
+ *   · `not_dispatched`：一个字节都没写出去——供应商那边什么都没发生；
+ *   · `provider_rejected`：供应商当场明确拒绝、没有任务号——没受理；
+ *   · `result_landing_failed`：供应商答了、结果就在回答里，Nomi 本机把它落地失败（落地门挂的正证据）——答过了、可能已扣，不是未知；
+ *   · `unknown`：其余——可能已被收下、结果不明。
+ */
+export type SubmissionFailureOutcome = "not_dispatched" | "provider_rejected" | "result_landing_failed" | "unknown";
+
+/** `anyAttemptMayHaveReached`：这一次之前有没有哪一次尝试可能已被收下——最不确定的那一次说了算（见 submitOnce）。 */
+export function submissionFailureOutcome(error: unknown, anyAttemptMayHaveReached: boolean): SubmissionFailureOutcome {
+  if (error instanceof SubmissionNotDispatchedError) return "not_dispatched";
+  if (anyAttemptMayHaveReached) return "unknown";
+  // 答过了先于「拒绝」判：落地失败那一刻供应商已经给了结果，取片时碰上的 4xx 不是对这次提交的拒绝。
+  if (answeredSubmissionFailure(error)) return "result_landing_failed";
+  if (providerExplicitlyRejected(error)) return "provider_rejected";
+  return "unknown";
+}
+
 function requiredRun(repository: ProductionRunRepository, projectId: string, runId: string): ProductionRun {
   const run = repository.read(projectId, runId);
   if (!run) throw new Error(`Production run not found: ${runId}`);
@@ -183,6 +203,24 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
         reservationId,
         providerSafe: true,
         occurredAt: now(),
+      });
+    }
+    return run;
+  }
+
+  /**
+   * 「供应商答了、结果就在回答里，Nomi 本机把它落地失败」——确定态（2026-10-28，同步供应商：创建请求的回答就是结果）。
+   * 与引擎 B 的取回失败同一状态 / 码（`needs_attention` + `output_retrieval_failed`）、同一记账：预留照旧 `reserved`
+   * （答过了、可能已扣——不释放，也不挂成 `unsettled` 交人核对）。错误原话是落地错误自己的（第一个码就是真原因）。
+   * job 上没有任务号：同步结果没有可再查的任务，`jobAwaitsRetrieval` 不成立、不给「重新取回」；这一镜落「失败」，可以再点。
+   */
+  function markResultLandingFailed(request: SubmissionOutboxRequest, reason: string): ProductionRun {
+    let run = requiredRun(deps.repository, request.projectId, request.runId);
+    const job = requiredJob(run, request.jobId);
+    if (job.status === "submitting" || job.status === "submit_intent_persisted") {
+      run = jobCommand(request, "result-landing-failed", "needs_attention", {
+        errorCode: OUTPUT_RETRIEVAL_FAILED,
+        errorMessage: reason.slice(0, 512),
       });
     }
     return run;
@@ -339,6 +377,8 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
         const neverWritten = error instanceof SubmissionNotDispatchedError;
         // 在本机就被拦下的（出网策略、本机检查、密钥缺失……）是确定性的：原样再派一次只会再被拦一次。
         if (neverWritten && error.reason === "never_reached_network") throw error;
+        // 供应商给了确定的答复（明确拒绝 / 答了但本机没落下）：不论幂等声明、不论正文像不像连接层错误，重发就是第二笔。
+        if (!neverWritten && submissionFailureOutcome(error, false) !== "unknown") throw error;
         if (!neverWritten && !deps.canResendAfterUnknown?.(error, dispatchInput)) throw error;
         if (!neverWritten) anyAttemptMayHaveReached = true;
         try {
@@ -368,21 +408,29 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
       if (recoveredJob.status === "provider_accepted" && recoveredJob.providerTaskId) {
         return { providerTaskId: recoveredJob.providerTaskId, run: recovered };
       }
-      // 能证明「一个字节都没写出去」的失败是**确定态**，不是未知态。此前这里是一个
-      // catch-all：连不上、DNS 解不出、从池里取到一条对面已关的 keep-alive 连接，
-      // 统统被记成「供应商可能已经接受任务，Nomi 不会自动重提」，于是一次根本没发生过的
-      // 提交把这一镜永久冻在人工对账里（2026-09-18 C9 间歇红的根因第二层）。
-      if (error instanceof SubmissionNotDispatchedError) {
-        markNotDispatched(request, error.message);
-        throw error;
+      // 按封闭的结局逐档落盘（`submissionFailureOutcome`）。确定的三档原样抛回原错误（渲染层读它自己的码）；
+      // 只有拿不出证据的那一档才交人核对。历史：能证明没写出去的失败以前也被 catch-all 记成「可能已受理」，一次根本没发生过的
+      // 提交把这一镜冻在人工对账里（2026-09-18）；供应商答了、本机落地失败也曾掉进同一个兜底（2026-10-28 pb07）。
+      const message = error instanceof Error ? error.message : String(error);
+      const outcome = submissionFailureOutcome(error, anyAttemptMayHaveReached);
+      switch (outcome) {
+        case "not_dispatched":
+          markNotDispatched(request, message);
+          throw error;
+        case "provider_rejected":
+          markProviderRejected(request, message);
+          throw error;
+        case "result_landing_failed":
+          markResultLandingFailed(request, message);
+          throw error;
+        case "unknown":
+          markSubmissionUnknown(request);
+          throw new SubmissionReceiptUnknownError(error instanceof Error ? error.message : undefined);
+        default: {
+          const unhandled: never = outcome;
+          throw new Error(`Unhandled submission failure outcome: ${String(unhandled)}`);
+        }
       }
-      // 只有**最后一次**尝试是明确拒绝、而且之前没有哪一次可能已被收下，才算确定没受理。
-      if (!anyAttemptMayHaveReached && providerExplicitlyRejected(error)) {
-        markProviderRejected(request, error instanceof Error ? error.message : String(error));
-        throw error;
-      }
-      markSubmissionUnknown(request);
-      throw new SubmissionReceiptUnknownError(error instanceof Error ? error.message : undefined);
     }
   }
 

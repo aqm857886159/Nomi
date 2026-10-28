@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { afterEach, describe, expect, it } from "vitest";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // 画布付费生成的唯一口子（发动机收敛第一刀 第 1–4 步）。走真仓库、真 Run 服务、真收据机构、真提交出口；
 // 只有画布那台的传输换成进程内的假供应商（canvasShotTestUtils）。
@@ -11,6 +12,18 @@ import { canvasRunIdFor, openCanvasRuns } from "../productionRun/canvasShotRunIn
 import { SubmissionReceiptUnknownError } from "../productionRun/submissionOutbox";
 import { generationPresentationOutcome } from "../shared/productionGenerationPresentation";
 import { VendorRequestError } from "../vendor/vendorHttp";
+import { matchNomiErrorCode, tagNomiError, type NomiErrorCode } from "../shared/nomiErrorCodes";
+import { generatedMediaValidationError } from "../assets/generatedMediaDecode";
+import { SYNC_RESULT_URL, decodeFailed, download403, kindMismatch, outboundRefused } from "./resultLandingTestUtils";
+
+// 结果落地门（assets/localizeTaskAsset）用真的：同步供应商的结果只在它那里落地，「答过了」的正证据也只有它挂得上。
+// 只把它下面的落盘（projectAssetStore.importRemoteAsset）换成按剧本失败。
+const importRemoteAsset = vi.hoisted(() => vi.fn());
+vi.mock("../assets/projectAssetStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../assets/projectAssetStore")>()),
+  importRemoteAsset: (...args: unknown[]) => importRemoteAsset(...args),
+}));
+const { localizeTaskAsset } = await import("../assets/localizeTaskAsset");
 
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
@@ -309,5 +322,219 @@ describe("批量卡：一张卡一份授权，盖住卡上列出的镜", () => {
     const { consent } = setup();
     consent([{ nodeId: "node-a", runRecordId: "run-a" }]);
     expect(() => consent([{ nodeId: "node-a", runRecordId: "run-a" }])).toThrow(/canvas_consent_duplicate/);
+  });
+});
+
+// ── 同步供应商「答了、本机落地失败」（2026-10-28，设计卡 docs/plan/2026-10-28-sync-landing-not-unknown.md ★9）──
+// 同步供应商的回答就是结果，结果在交的那一下（adapter.submit → runTask → localizeTaskAsset）里落地。回答 200 之后落地失败，
+// 是「答过了、可能已扣」的确定结局：不锁、不说没拿到回复、不重发、预留不动，可以再点（再点 = 新的一笔）。
+
+/** 同步供应商答了 200、结果在回答里：画布那台照 runTask 的做法当场落地（真的落地门），落盘那一步按剧本失败。 */
+function answeredThenLandingFails(failure: unknown) {
+  return async (): Promise<never> => {
+    importRemoteAsset.mockRejectedValueOnce(failure);
+    await localizeTaskAsset(PROJECT, SYNC_RESULT_URL, "image");
+    throw new Error("the landing gate was expected to fail");
+  };
+}
+
+const landed = (id = "task-ok") => ({ id, kind: "text_to_image", status: "succeeded" as const, assets: [{ type: "image", url: `nomi-local://asset/${PROJECT}/assets/out.png` }], raw: {} });
+
+type Harness = ReturnType<typeof setup>;
+
+function reservationStatus(harness: Harness, runRecordId: string) {
+  const run = runOf(harness.repository, runRecordId)!;
+  return Object.values(harness.repository.readBudgetLedger(PROJECT, run.runId).reservations).map((reservation) => reservation.status);
+}
+
+function envelopeState(harness: Harness, runRecordId: string) {
+  const run = runOf(harness.repository, runRecordId)!;
+  const file = path.join(harness.root, ".nomi", "runs", run.runId, "jobs", run.jobs[0]!.jobId, "runtime-envelope.json");
+  return (JSON.parse(fs.readFileSync(file, "utf8")) as { state: string }).state;
+}
+
+async function thrownBy(work: Promise<unknown>): Promise<Error> {
+  return work.then(() => { throw new Error("expected the submission to fail"); }, (error: Error) => error);
+}
+
+/** A1 的结局（A3–A5、A8、X8、X9 同一份）：确定失败、不锁、预留不动、信封不记未知、画布 Run 收尾。 */
+function expectAnsweredButNotLanded(harness: Harness, runRecordId: string, thrown: Error, firstCode: NomiErrorCode) {
+  expect(thrown).not.toBeInstanceOf(SubmissionReceiptUnknownError);
+  expect(matchNomiErrorCode(thrown.message), "抛给渲染层的是落地错误本身，第一个码就是真原因").toBe(firstCode);
+  const run = runOf(harness.repository, runRecordId)!;
+  expect(run.jobs).toHaveLength(1);
+  expect(run.jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "output_retrieval_failed" });
+  expect(run.jobs[0]!.providerTaskId, "同步结果没有任务号：不给「重新取回」").toBeUndefined();
+  expect(matchNomiErrorCode(run.jobs[0]!.errorMessage ?? ""), "重开项目照 Run 账本回话，读到的也是真原因").toBe(firstCode);
+  expect(reservationStatus(harness, runRecordId), "答过了、可能已扣：预留不释放，也不挂成待核对").toEqual(["reserved"]);
+  expect(envelopeState(harness, runRecordId)).toBe("sealed");
+  expect(openCanvasRuns(harness.root), "画布 Run 已收尾").toEqual([]);
+  expect(harness.repository.list(PROJECT), "不进任务中心「要你处理」").toEqual([]);
+}
+
+/** X1–X4 / X10 / X11 的结局：结果未知，锁住这一镜、预留挂成待核对、不重发。 */
+async function expectResultUnknown(harness: Harness, runRecordId: string, thrown: Error, executes = 1) {
+  expect(thrown).toBeInstanceOf(SubmissionReceiptUnknownError);
+  expect(runOf(harness.repository, runRecordId)!.jobs[0]?.status).toBe("submission_unknown");
+  expect(reservationStatus(harness, runRecordId)).toEqual(["unsettled"]);
+  expect(harness.vendor.executes).toHaveLength(executes);
+  await expect(harness.submit("node-a", `${runRecordId}-again`)).rejects.toMatchObject({ code: "production_shot_claimed", reason: "needs_reconcile" });
+  expect(harness.vendor.executes, "核对之前不许再交").toHaveLength(executes);
+}
+
+function answered(status: number): VendorRequestError {
+  return new VendorRequestError(`Provider request failed (HTTP ${status})`, { vendorKey: "acme", method: "POST", url: "x", httpStatus: status, upstreamMsg: "upstream said no", category: "server", retryable: status >= 500 }, { httpStatus: status, envelopeFailure: false, taskIdReturned: false });
+}
+
+const connectRefused = () => Object.assign(new Error("connect ECONNREFUSED 203.0.113.9:443"), { code: "ECONNREFUSED", syscall: "connect" });
+
+describe("同步供应商答了、本机落地失败：确定结局，不是结果未知（A1–A5、A8）", () => {
+  afterEach(() => { importRemoteAsset.mockReset(); });
+
+  it("A1 + A2：字节解码失败 → 真原因「读不出」、不锁、预留不动；同一节点再点 ↑ 是新的一笔、落地成功", async () => {
+    const harness = setup();
+    harness.vendor.answer = async (call) => (call === 1 ? answeredThenLandingFails(decodeFailed())() : landed());
+
+    const thrown = await thrownBy(harness.submit("node-a", "run-node-a-1"));
+    expectAnsweredButNotLanded(harness, "run-node-a-1", thrown, "output-unreadable");
+    expect(harness.vendor.executes).toHaveLength(1);
+
+    await expect(harness.submit("node-a", "run-node-a-2")).resolves.toMatchObject({ status: "succeeded" });
+    expect(harness.vendor.executes, "再点 = 供应商收到第 2 次").toHaveLength(2);
+    expect(runOf(harness.repository, "run-node-a-2")!.jobs[0]).toMatchObject({ status: "ready" });
+  });
+
+  it("A3：200 之后结果下载 403（hardenedFetch 的真错误）→ retrieval-download", async () => {
+    const harness = setup();
+    harness.vendor.answer = answeredThenLandingFails(await download403());
+    expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "retrieval-download");
+    expect(harness.vendor.executes).toHaveLength(1);
+  });
+
+  it("A4：类型不符（视频任务回来一张图）→ retrieval-download", async () => {
+    const harness = setup();
+    harness.vendor.answer = answeredThenLandingFails(kindMismatch());
+    expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "retrieval-download");
+  });
+
+  it("A5：取片被出网策略拦（hardenedFetch 的真拒绝）→ outbound-blocked", async () => {
+    const harness = setup();
+    harness.vendor.answer = answeredThenLandingFails(await outboundRefused());
+    expectAnsweredButNotLanded(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), "outbound-blocked");
+  });
+
+  it("A8：批量卡轮到的那一镜落地失败 → 同 A1；下一张卡可以再生成它", async () => {
+    const harness = setup();
+    harness.vendor.answer = async (call) => (call === 1 ? answeredThenLandingFails(decodeFailed())() : landed());
+    harness.consent([{ nodeId: "node-a", runRecordId: "run-a" }]);
+    expectAnsweredButNotLanded(harness, "run-a", await thrownBy(harness.submit("node-a", "run-a")), "output-unreadable");
+
+    harness.consent([{ nodeId: "node-a", runRecordId: "run-a-2" }]);
+    await expect(harness.submit("node-a", "run-a-2")).resolves.toMatchObject({ status: "succeeded" });
+    expect(harness.vendor.executes).toHaveLength(2);
+  });
+
+  it("同一运行记录号重放 / 重启：照 Run 账本回失败（真原因），不交观察者、不再交", async () => {
+    const harness = setup();
+    harness.vendor.answer = answeredThenLandingFails(decodeFailed());
+    await thrownBy(harness.submit("node-a", "run-node-a-1"));
+    const replayed = await harness.submit("node-a", "run-node-a-1");
+    expect(replayed).toMatchObject({ status: "failed" });
+    expect(matchNomiErrorCode(String(replayed.error))).toBe("output-unreadable");
+    const restarted = setup({ root: harness.root });
+    restarted.runs.recoverOrphans(PROJECT);
+    expect(restarted.observed, "没有任务号：不交给观察者").toEqual([]);
+    expect(harness.vendor.executes.length + restarted.vendor.executes.length).toBe(1);
+  });
+});
+
+const UNKNOWN_SHAPES: ReadonlyArray<readonly [string, () => Error]> = [
+  ["X1 写出去之后连接被重置（socket hang up）", () => new Error("acme create failed: socket hang up")],
+  ["X1 写出去之后连接被重置（ECONNRESET）", () => new TypeError("fetch failed", { cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET", syscall: "read" }) })],
+  ["X2 响应头超时", () => new TypeError("fetch failed", { cause: Object.assign(new Error("Headers Timeout Error"), { code: "UND_ERR_HEADERS_TIMEOUT" }) })],
+  ["X2 响应体超时", () => new TypeError("terminated", { cause: Object.assign(new Error("Body Timeout Error"), { code: "UND_ERR_BODY_TIMEOUT" }) })],
+  ["X3 供应商回 5xx", () => answered(503)],
+  ...[418, 408, 409, 410, 413, 425, 451].map((status) => [`X4 供应商回 ${status}（名单外）`, () => answered(status)] as const),
+  ["X10 正文带着 output-unreadable 字样、不是落地门挂的", () => new Error(tagNomiError("output-unreadable", "Generated media validation failed (decode_failed)"))],
+  ["X10 读不出的错误由交的那一层直接抛（没经过落地门）", () => generatedMediaValidationError("decode_failed")],
+];
+
+describe("反例：结果未知仍是结果未知（X1–X4、X10、X11）", () => {
+  afterEach(() => { importRemoteAsset.mockReset(); });
+
+  it.each(UNKNOWN_SHAPES)("%s → submission_unknown、锁住、预留待核对、不重发", async (_label, failure) => {
+    const harness = setup();
+    harness.vendor.answer = async () => { throw failure(); };
+    await expectResultUnknown(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")));
+  });
+
+  it("X11：前一次可能已到达（声明幂等、连接层失败、重发一次），后一次落地失败 → 仍是结果未知（最不确定的那次说了算）", async () => {
+    const harness = setup({ submitIdempotency: true });
+    harness.vendor.answer = async (call) => {
+      if (call === 1) throw new Error("acme create failed: socket hang up");
+      return answeredThenLandingFails(decodeFailed())();
+    };
+    await expectResultUnknown(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), 2);
+  });
+});
+
+describe("反例：确定的另外两档照旧（X5、X6）", () => {
+  it.each([400, 401, 402, 403, 404, 422, 429])("X5 明确拒绝名单 %i（无任务号）→ provider_rejected、预留释放、节点可再点", async (status) => {
+    const harness = setup();
+    harness.vendor.answer = async (call) => { if (call === 1) throw answered(status); return landed(); };
+    await expect(harness.submit("node-a", "run-node-a-1")).rejects.toBeInstanceOf(VendorRequestError);
+    expect(runOf(harness.repository, "run-node-a-1")!.jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "provider_rejected" });
+    expect(reservationStatus(harness, "run-node-a-1")).toEqual(["released"]);
+    await expect(harness.submit("node-a", "run-node-a-2")).resolves.toMatchObject({ status: "succeeded" });
+  });
+
+  it("X6 连上之前就失败（建连被拒）→ provider_not_reached、预留释放、节点可再点", async () => {
+    const harness = setup();
+    harness.vendor.answer = async (call) => { if (call <= 2) throw new TypeError("fetch failed", { cause: connectRefused() }); return landed(); };
+    await expect(harness.submit("node-a", "run-node-a-1")).rejects.toThrow();
+    expect(runOf(harness.repository, "run-node-a-1")!.jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "provider_not_reached" });
+    expect(reservationStatus(harness, "run-node-a-1")).toEqual(["released"]);
+    await expect(harness.submit("node-a", "run-node-a-2")).resolves.toMatchObject({ status: "succeeded" });
+  });
+
+  it("X6 在本机就被拦下（一个请求都没交给网络）→ provider_not_reached、预留释放、不重发", async () => {
+    let calls = 0;
+    const harness = setup({ transport: {
+      networkTransport: "app-fetch",
+      execute: async () => { calls += 1; throw new Error("outbound policy refused before any request was handed to the network"); },
+      fetchResult: async () => { throw new Error("no query"); },
+    } });
+    await expect(harness.submit("node-a", "run-node-a-1")).rejects.toThrow();
+    expect(runOf(harness.repository, "run-node-a-1")!.jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "provider_not_reached" });
+    expect(reservationStatus(harness, "run-node-a-1")).toEqual(["released"]);
+    expect(calls).toBe(1);
+  });
+});
+
+describe("反例：答过了就不重发、不判「没发出去」（X8、X9）", () => {
+  afterEach(() => { importRemoteAsset.mockReset(); });
+
+  it("对照组：声明幂等时，真的连接层失败确实会用同一个键重发一次（X8 / X11 的装置是活的）", async () => {
+    const harness = setup({ submitIdempotency: true });
+    harness.vendor.answer = async (call) => { if (call === 1) throw new Error("acme create failed: socket hang up"); return landed(); };
+    await expect(harness.submit("node-a", "run-node-a-1")).resolves.toMatchObject({ status: "succeeded" });
+    expect(harness.vendor.executes).toHaveLength(2);
+  });
+
+  it("X8：落地失败碰上「声明幂等 + 正文像连接层错误（socket hang up）」→ 不重发，供应商只收到 1 次", async () => {
+    const harness = setup({ submitIdempotency: true });
+    harness.vendor.answer = answeredThenLandingFails(new Error("socket hang up"));
+    const thrown = await thrownBy(harness.submit("node-a", "run-node-a-1"));
+    expect(harness.vendor.executes).toHaveLength(1);
+    expectAnsweredButNotLanded(harness, "run-node-a-1", thrown, "retrieval-download");
+  });
+
+  it("X9：非 app-fetch 传输，落地证据 + cause 链深处有取片的建连失败 → 不判「没发出去」：不释放、不重发", async () => {
+    const harness = setup();
+    const retrievalConnectFailure = new Error(tagNomiError("retrieval-download", "download step could not connect to the result host"), { cause: new TypeError("fetch failed", { cause: connectRefused() }) });
+    harness.vendor.answer = answeredThenLandingFails(retrievalConnectFailure);
+    const thrown = await thrownBy(harness.submit("node-a", "run-node-a-1"));
+    expect(harness.vendor.executes).toHaveLength(1);
+    expectAnsweredButNotLanded(harness, "run-node-a-1", thrown, "retrieval-download");
   });
 });
