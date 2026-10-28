@@ -20,7 +20,6 @@ vi.mock('../../../i18n', () => ({ default: { t: (key: string) => key } }))
 vi.mock('../../../design/media', () => ({ NomiImage: 'img' }))
 vi.mock('../../../design/actions', () => ({ WorkbenchIconButton: 'button' }))
 vi.mock('../../../ui/notificationPolicy', () => ({ notify: fixture.notify }))
-vi.mock('../../../ui/app-shell/windowChrome', () => ({ currentFullscreenOverlayTopOffset: () => 0 }))
 vi.mock('@photo-sphere-viewer/core', () => ({ Viewer: class {}, EquirectangularAdapter: class {} }))
 vi.mock('../adapters/assetImportAdapter', () => ({ isProjectImportCancellation: (error: { code?: string }) => error.code === 'project_binding_stale' }))
 vi.mock('../../project/projectCanvasReadSurface', () => ({

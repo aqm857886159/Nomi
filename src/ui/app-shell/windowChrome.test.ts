@@ -51,16 +51,16 @@ describe('Portal 浮层不被 Windows 拖拽区吃掉点击（issue #58）', () 
   })
 })
 
-// 2026-09-04（导演台）：整条顶部工具栏一个按钮都点不动，且最小化/最大化/关闭够不着。
+// 2026-09-04（导演台；2026-10-29 起导演台 / 全景查看器已改挂页格，不再属于这一族，见下面 PAGE_CELL_*）：整条顶部工具栏一个按钮都点不动，且最小化/最大化/关闭够不着。
 // 与 issue #58 同根、同机制，只是换了一族入口：Windows frame:false 下那条 32px 自绘窗口栏
 // 是系统级拖拽带，命中测试**看几何、不看 DOM 层级**——盖在它上面的全屏浮层，顶部一条的点击
 // 被系统当成拖窗口吃掉，同时把唯一那份窗口控件埋在下面。#58 当时只把浮卡标了 app-no-drag，
 // 没扫这一族「铺满整窗、自带顶部操作行」的浮层，于是同一个洞从导演台又回来了。
 // 类不变量：全屏浮层不覆盖窗口栏——顶偏移由 windowChrome 单口给出，各浮层不得自己写 32。
+// 2026-10-29：导演台和全景查看器不再是整窗层——它们是生成页里的一块（经 GenerationPageLayer 挂进画布那一格，页格本来就在顶栏之下，
+// 顶偏移那套对它们不再需要），搬到下面的 PAGE_CELL_LAYERS。留在这里的是真正铺满窗口的两个。
 const FULLSCREEN_OVERLAYS = [
-  ['导演台全屏壳', '../../workbench/generationCanvas/nodes/director/DirectorEditor.tsx'],
   ['ComfyUI 工作流设置整页', '../../ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx'],
-  ['全景查看器', '../../workbench/generationCanvas/nodes/PanoramaViewer.tsx'],
   ['素材预览', '../../workbench/assets/AssetPreviewDialog.tsx'],
 ] as const
 
@@ -79,6 +79,39 @@ describe('全屏浮层不盖住合一顶栏（它同时是窗口栏：导演台�
     // 同 #58 的第二个坑：模块常量在 import 那一刻求值，那时 window.nomiDesktop 可能还没挂上，
     // platform 读成 undefined → 悄悄回落成 0，Windows 上又贴回拖拽带。
     expect(read(file)).not.toMatch(/^const\s+[A-Z_]+\s*=\s*currentFullscreenOverlayTopOffset/m)
+  })
+})
+
+// 页格内的层（2026-10-29，设计卡 ★9 第 10 条；归属与生命周期的普查在 src/workbench/pageLayerCensus.test.ts）：
+// 导演台 / 全景查看器是生成页里的一块，版面归 GenerationWorkspace 的网格。它们的源码里不许再有「自己算窗口怎么摆」的写法——
+// 整窗 fixed、顶偏移、第二份层级常量、读 Agent 宽度 / 小球旗子——这些正是「右边白留 608px、点创作出不去、小球被盖」的来路。
+const PAGE_CELL_MOUNTS = [
+  ['导演台（节点挂载处）', '../../workbench/generationCanvas/nodes/director/DirectorNode.tsx'],
+  ['全景查看器', '../../workbench/generationCanvas/nodes/PanoramaViewer.tsx'],
+] as const
+const PAGE_CELL_CONTENT = [
+  ['导演台壳', '../../workbench/generationCanvas/nodes/director/DirectorEditor.tsx'],
+  ['全景查看器', '../../workbench/generationCanvas/nodes/PanoramaViewer.tsx'],
+] as const
+const WINDOW_LAYOUT_TOKENS = [
+  'currentFullscreenOverlayTopOffset',
+  'fullscreenOverlayTopOffset',
+  'FULLSCREEN_Z_INDEX',
+  'assistantPaneWidth',
+  'projectAgentDockCollapsed',
+  'editingPanelLayout',
+  'document.body',
+] as const
+
+describe('页格内的层：经 GenerationPageLayer 挂载，不再自己算窗口怎么摆', () => {
+  it.each(PAGE_CELL_MOUNTS)('%s 经 <GenerationPageLayer> 挂进生成页那一格', (_name, file) => {
+    expect(read(file)).toContain('<GenerationPageLayer>')
+  })
+
+  it.each(PAGE_CELL_CONTENT)('%s 的源码里没有整窗 fixed、顶偏移、第二份层级常量、Agent 宽度 / 小球旗子，也不挂 body', (_name, file) => {
+    const source = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(source).not.toMatch(/\bfixed\b\s+inset/)
+    for (const token of WINDOW_LAYOUT_TOKENS) expect(source, `${file} 还在用 ${token}`).not.toContain(token)
   })
 })
 
@@ -172,6 +205,23 @@ const SEPARATE_DOCUMENT_OVERLAYS = [
   { name: '浏览器素材浮层', file: 'ui/browser/overlay/BrowserAssetOverlayApp.tsx' },
 ] as const
 
+// 整窗 fixed 根的发现：className 字符串里带 `fixed inset-0` 或 `fixed inset-x-0`（2026-10-29 补上后者——导演台写的 `fixed inset-x-0 bottom-0` 上一版漏网）。
+// 居中遮罩（同一个字符串里就带居中类）不算整窗根。
+const CENTERED_SCRIM = /\b(?:place-items-center|items-center\s+justify-center|justify-center\s+items-center)\b/
+const FULL_BLEED_SHAPES = ['fixed inset-0', 'fixed inset-x-0'] as const
+const fixedInsetLiterals = (source: string): string[] =>
+  source.split('\n').flatMap((line) => {
+    const found: string[] = []
+    for (const shape of FULL_BLEED_SHAPES) {
+      for (let at = line.indexOf(shape); at >= 0; at = line.indexOf(shape, at + 1)) {
+        const quote = ["'", '"', '`'].find((q) => line.lastIndexOf(q, at) >= 0 && line.indexOf(q, at) > at)
+        if (quote) found.push(line.slice(line.lastIndexOf(quote, at) + 1, line.indexOf(quote, at)))
+      }
+    }
+    return found
+  })
+const isFullBleedRoot = (source: string): boolean => fixedInsetLiterals(source).some((literal) => !CENTERED_SCRIM.test(literal))
+
 describe('盖住顶栏的整屏层：根在顶栏之上、可交互内容全在带外（开屏「跳过」点不到那一类）', () => {
   it.each(TOPBAR_COVERING_OVERLAYS)('$name 渲染出来：根走刻度，可交互元素都落在顶栏带外', ({ render, minInteractive }) => {
     const { interactive, violations } = coveringOverlayViolations(render())
@@ -195,35 +245,41 @@ describe('盖住顶栏的整屏层：根在顶栏之上、可交互内容全在�
     expect(bad(`<div class="${covering}"><button type="button" class="absolute right-9" style="top:${SHELL_TOPBAR_HEIGHT + 8}px">x</button></div>`)).toEqual([])
   })
 
-  // 发现：名单不能靠自觉。铺满整窗（fixed inset-0）又不是居中遮罩的根，每一个都必须在两张名单之一，
-  // 另一边是「让开顶栏」那族（FULLSCREEN_OVERLAYS，源码里不许再有 fixed inset-0）。
+  // 发现：名单不能靠自觉。铺满整窗（fixed inset-0，或 2026-10-29 补上的 fixed inset-x-0——导演台写的就是这一形，上一版漏网）
+  // 又不是居中遮罩的根，每一个都必须在三张名单之一：盖住顶栏但控件在带外（TOPBAR_COVERING_OVERLAYS）、让开顶栏那族（FULLSCREEN_OVERLAYS，
+  // 源码里不许再有 fixed inset-0）、独立文档（SEPARATE_DOCUMENT_OVERLAYS）。
   // 居中遮罩（同一个 className 字符串里就带居中类）不在此列：遮罩本身没有控件，内容居中，2026-09-04 合同判 not-affected。
-  // 扫的是字面量 `fixed inset-0`（与上面那族同一口径）；居中遮罩里贴边的控件、窗口很矮时卡片顶进带，静态扫描判不了，没扫。
-  it('src 里每个铺满整窗的 fixed inset-0 根都已分类，没有悄悄绕过名单的', () => {
-    const CENTERED_SCRIM = /\b(?:place-items-center|items-center\s+justify-center|justify-center\s+items-center)\b/
+  // 扫的是字面量 `fixed inset-0` / `fixed inset-x-0`（与上面那族同一口径）；居中遮罩里贴边的控件、窗口很矮时卡片顶进带，静态扫描判不了，没扫。
+  // 页面里的一块（导演台 / 全景查看器）不该再出现在这里——它们挂页格，归 pageLayerCensus 管。
+  it('src 里每个铺满整窗的 fixed inset-0 / fixed inset-x-0 根都已分类，没有悄悄绕过名单的', () => {
     const srcDir = fileURLToPath(new URL('../../', import.meta.url))
-    const fixedInsetLiterals = (source: string): string[] =>
-      source.split('\n').flatMap((line) => {
-        const found: string[] = []
-        for (let at = line.indexOf('fixed inset-0'); at >= 0; at = line.indexOf('fixed inset-0', at + 1)) {
-          const quote = ["'", '"', '`'].find((q) => line.lastIndexOf(q, at) >= 0 && line.indexOf(q, at) > at)
-          if (quote) found.push(line.slice(line.lastIndexOf(quote, at) + 1, line.indexOf(quote, at)))
-        }
-        return found
-      })
     const fullBleedRootFiles = (readdirSync(srcDir, { recursive: true }) as string[])
       .map((file) => file.replaceAll('\\', '/'))
       // devlab 是设计实验室里的假窗口稿件，不是 App 的真全屏层。
       .filter((file) => file.endsWith('.tsx') && !/\.(?:test|spec)\./.test(file) && !file.startsWith('devlab/'))
-      .filter((file) => fixedInsetLiterals(read(`../../${file}`)).some((literal) => !CENTERED_SCRIM.test(literal)))
+      .filter((file) => isFullBleedRoot(read(`../../${file}`)))
       .sort()
+    // 「让开顶栏」那族（FULLSCREEN_OVERLAYS）各自有判据（用顶偏移 + 不许 fixed inset-0，见上面的 it.each）；它们里写成 `fixed inset-x-0` 且不是居中遮罩的会被
+    // 扫到，写成居中遮罩的（素材预览：flex items-center justify-center）扫不到——所以这里先把这一族摘掉，剩下的才必须恰好等于另两张名单。
+    const offsetOverlayFiles = new Set(FULLSCREEN_OVERLAYS.map(([, file]) => file.replace('../../', '')))
     const registered = [...TOPBAR_COVERING_OVERLAYS, ...SEPARATE_DOCUMENT_OVERLAYS].map((overlay) => overlay.file).sort()
     expect(
-      fullBleedRootFiles,
-      '有铺满整窗的 fixed inset-0 根没分类：要么改成让开顶栏（currentFullscreenOverlayTopOffset，进 FULLSCREEN_OVERLAYS），'
+      fullBleedRootFiles.filter((file) => !offsetOverlayFiles.has(file)),
+      '有铺满整窗的 fixed inset-0 / fixed inset-x-0 根没分类：要么它其实是页面里的一块（编辑器 / 查看器 / 面板）——经 GenerationPageLayer 挂进生成页那一格，别做整窗层；'
+        + '要么改成让开顶栏（currentFullscreenOverlayTopOffset，进 FULLSCREEN_OVERLAYS），'
         + '要么登记为盖住顶栏的整屏层（TOPBAR_COVERING_OVERLAYS，可交互内容全在带外），要么证明它在独立文档里（SEPARATE_DOCUMENT_OVERLAYS）；'
         + '名单里多出来的也说明那个文件已经不是整窗根了，该删',
     ).toEqual(registered)
+  })
+
+  it('发现的判据自身不恒真：导演台上一版的 fixed inset-x-0 bottom-0 被认出来，居中遮罩与别的 fixed 写法不算', () => {
+    // 上一版漏网的写法（DirectorEditor 的根）：只认 `fixed inset-0` 时扫不到。
+    expect(isFullBleedRoot(`const a = 'fixed inset-x-0 bottom-0 isolate flex flex-col overflow-hidden bg-nomi-bg'`)).toBe(true)
+    expect(isFullBleedRoot(`const a = 'fixed inset-0 z-[60]'`)).toBe(true)
+    // 居中遮罩（素材预览写的是 flex items-center justify-center）不算整窗根；贴边的 fixed 条 / 浮卡也不算。
+    expect(isFullBleedRoot(`const a = 'fixed inset-x-0 bottom-0 flex items-center justify-center p-8'`)).toBe(false)
+    expect(isFullBleedRoot(`const a = 'fixed bottom-0 left-0 right-0'`)).toBe(false)
+    expect(isFullBleedRoot(`const a = 'absolute inset-0 z-[40]'`)).toBe(false)
   })
 
   it('独立文档那一类的前提：src/main.tsx 里它替掉整个 App，而不是挂在 App 里面', () => {

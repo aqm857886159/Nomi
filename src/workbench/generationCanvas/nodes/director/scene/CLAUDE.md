@@ -2,7 +2,7 @@
 > L2 | 父级: ../CLAUDE.md
 > 导演台 V2 的 three / R3F 世界：store 是真相，这里只是投影；每个子系统一个文件，命令式接口经 ViewportApiContext 暴露给 DOM 面板。
 > 成员清单
-> DirectorCanvas.tsx: 装配根：FencedCanvas（frameloop always、阴影、上下文丢失恢复）+ 全部子系统 + drei 视图立方；录制中消费视图立方点击以阻止跳视角
+> DirectorCanvas.tsx: 装配根：FencedCanvas（frameloop always、阴影、上下文丢失恢复）+ 全部子系统 + drei 视图立方；录制中消费视图立方点击以阻止跳视角；FrameloopGate：导演台藏着（切页 / 列表视图）时 frameloop 切 never、回来 always + invalidate（藏着的 3D 视口不占 GPU / CPU）
 > SceneRegistryContext.ts: 运行时对象表注入（id ↔ Object3D）
 > sceneRefs.ts: 对象表（实体/双脚吸附/出片渲染器登记）、实体/editor-only/拾取层/路标/IK/骨骼标记与反查；isWorldVisible 沿 three 父链，isDirectorObjectVisible 沿工程父链与图层判可见，标签/拾取/portal 骨架共用
 > sceneTheme.ts: 世界内颜色单一真相（主题网格/天空、相机四态色 + 机身色、骨骼层三链色 + 关节黄 + 把手琥珀、动作预览色、角色色板、陶土色）

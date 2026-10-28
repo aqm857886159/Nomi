@@ -1,13 +1,16 @@
 /**
  * [INPUT]: 依赖 react、./DirectorEditorContext 的 useDirectorStoreApi、./model/hotkeys（DIRECTOR_HOTKEYS / matchesHotkey）
+ *          ../../../generation/pageLayerContext 的 useGenerationPageLayerActive（藏着时整条监听摘掉）
  *          ./model/sceneObjectGraph 的 selectedRoots（克隆只处理多选根，命令统一历史边界）
  * [OUTPUT]: 对外提供 useDirectorHotkeys、isTextTarget、isDirectorKeyboardBlocked：区域感知快捷键与持续导航共用输入归属；多选命令一次操作只入一次撤销
  * [POS]: director 的键盘入口（清单 §5.4 L7 + §8 键位）：S1 接工具 1/2/3、0 归位、F 聚焦、Esc、撤销重做、打组解组、删除、克隆；
  *        时间轴键位由 timeline/useTimelineHotkeys 用同一分发器注册（子组件先注册先收到，返回 false 让位）。
  *        捕获期监听，命中后 preventDefault + stopImmediatePropagation，不让画布与后续分发器收到。
+ *        导演台藏着（切去创作 / 预览页、列表视图）时监听整条摘掉：它挂在 window 上，留着就会吞掉别的页的 Backspace / ⌘Z / 空格。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React from 'react'
+import { useGenerationPageLayerActive } from '../../../generation/pageLayerContext'
 import { useDirectorStoreApi } from './DirectorEditorContext'
 import { DIRECTOR_HOTKEYS, matchesHotkey, type DirectorHotkeyId, type DirectorHotkeyScope } from './model/hotkeys'
 import { selectedRoots } from './model/sceneObjectGraph'
@@ -35,10 +38,12 @@ export function isDirectorKeyboardBlocked(event: Pick<KeyboardEvent, 'target' | 
 
 export function useDirectorHotkeys({ scopeRef, handlers }: { scopeRef: React.MutableRefObject<DirectorHotkeyScope>; handlers: HotkeyHandlers }): void {
   const store = useDirectorStoreApi()
+  const layerActive = useGenerationPageLayerActive()
   const handlersRef = React.useRef(handlers)
   handlersRef.current = handlers
 
   React.useEffect(() => {
+    if (!layerActive) return undefined
     const onKeyDown = (event: KeyboardEvent) => {
       if (isDirectorKeyboardBlocked(event)) return
       const scope = scopeRef.current
@@ -56,7 +61,7 @@ export function useDirectorHotkeys({ scopeRef, handlers }: { scopeRef: React.Mut
     }
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [scopeRef, store])
+  }, [layerActive, scopeRef, store])
 }
 
 function defaultHandler(id: DirectorHotkeyId, store: ReturnType<typeof useDirectorStoreApi>): HotkeyHandler | null {

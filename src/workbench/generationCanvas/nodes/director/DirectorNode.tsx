@@ -1,11 +1,13 @@
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../ui/chunkBoundary 的 lazyWithChunkBoundary、../../../../utils/cn、
+ *          ../../../generation/pageLayer 的 GenerationPageLayer（导演台挂进生成页那一格）、
  *          ../../../../design 的 WorkbenchButton、@tabler/icons-react 图标、../../store/generationCanvasStore、
  *          ../../model/generationCanvasTypes、
  *          ../../../project/workbenchProjectSession 的 persistActiveWorkbenchProjectNow、./model/directorProject（normalize/stats）、./model/assetKinds（连线文件类型判定）
  * [OUTPUT]: 对外提供 DirectorNode（default，React.memo）：画布上的导演台节点卡片 —— 统计摘要 + 入连摘要 + 打开按钮，
- *           打开时懒加载 DirectorEditor，关闭时把工程写回 node.meta.directorProject 并立即落盘
+ *           打开时懒加载 DirectorEditor 并经 GenerationPageLayer 挂进生成页那一格，关闭时把工程写回 node.meta.directorProject 并立即落盘
  * [POS]: director 与画布的接缝（方案 §2.2）：节点数据只在这里读写；编辑期真相在 DirectorEditor 的 store 里。
+ *        `open` 是节点本地 state、事实只此一份；导演台是生成页里的一块（切页就藏、回来还开着），不再是挂 body 的全屏模态。
  *        模板参考 V1 Scene3DEditor（meta 读写、chunk 预热、关闭落盘），但作为顶层节点组件注册（不改 BaseGenerationNode）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -15,6 +17,7 @@ import { IconMaximize, IconMovie } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../../design'
 import { lazyWithChunkBoundary } from '../../../../ui/chunkBoundary'
 import { cn } from '../../../../utils/cn'
+import { GenerationPageLayer } from '../../../generation/pageLayer'
 import { persistActiveWorkbenchProjectNow } from '../../../project/workbenchProjectSession'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
@@ -234,16 +237,18 @@ function DirectorNode({ node: rawNode, selected, readOnly = false }: Props): JSX
       </div>
       {open ? (
         <React.Suspense fallback={null}>
-          <DirectorEditor
-            rawProject={rawProject}
-            nodeTitle={node.title || t('director.node.title')}
-            readOnly={readOnly}
-            linkedAssets={linkedAssets}
-            nodeId={node.id}
-            onSendToCanvas={handleSendToCanvas}
-            onClose={handleClose}
-            onProjectChange={handleProjectChange}
-          />
+          <GenerationPageLayer>
+            <DirectorEditor
+              rawProject={rawProject}
+              nodeTitle={node.title || t('director.node.title')}
+              readOnly={readOnly}
+              linkedAssets={linkedAssets}
+              nodeId={node.id}
+              onSendToCanvas={handleSendToCanvas}
+              onClose={handleClose}
+              onProjectChange={handleProjectChange}
+            />
+          </GenerationPageLayer>
         </React.Suspense>
       ) : null}
     </article>

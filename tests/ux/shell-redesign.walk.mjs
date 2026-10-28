@@ -748,13 +748,23 @@ try {
     parity2.assets = { dragToCanvas: true, previewRect }
     await clickOrFail(win.locator('[data-shell-rail-item="assets"]'), '#14 收起素材抽屉')
 
-    // #50 导演台全屏浮层从 40px 顶栏下开始、铺满到底。
+    // #50 导演台是生成页里的一块（2026-10-29 起：经 GenerationPageLayer 挂进画布那一格，不再是盖住整窗的 body 层）：
+    // 它的矩形 = 页格矩形，所以不压顶栏、不盖左栏；点左栏照样点得到。（旧断言是 left <= 1 且铺到窗底——正是「盖住左栏、点创作出不去」的旧行为。）
     await addCanvasNodeFromRail(win, 'director')
     await clickOrFail(win.locator('[data-testid="director-node-open"]').first(), '#50 进入导演台')
     const director = win.locator('[data-testid="director-editor"]')
     await expect(director, '#50 导演台没打开').toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
     const directorRect = await rectOf(director)
-    expect(directorRect.top >= 40 - 1 && directorRect.bottom >= viewport.height - 1 && directorRect.left <= 1, `#50 导演台浮层被裁切或压住顶栏（${JSON.stringify(directorRect)}）`).toBe(true)
+    const cellRect = await rectOf(win.locator('.workbench-generation__canvas').first())
+    const sameBox = ['top', 'left', 'right', 'bottom'].every((side) => Math.abs(directorRect[side] - cellRect[side]) <= 1.5)
+    expect(sameBox && directorRect.top >= 40 - 1, `#50 导演台不是生成页那一格（${JSON.stringify({ directorRect, cellRect })}）`).toBe(true)
+    const railHit = await win.evaluate(() => {
+      const rail = document.querySelector('[data-shell-rail-item="docs"]')
+      if (!rail) return false
+      const box = rail.getBoundingClientRect()
+      return Boolean(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest('[data-shell-rail-item="docs"]'))
+    })
+    expect(railHit, '#50 导演台开着时左栏「文稿」被盖住点不到').toBe(true)
     await shoot(win, 'check-parity2-director')
     await clickOrFail(win.locator('[data-testid="director-exit"]').first(), '#50 导演台左上「退出」')
     await clickOrFail(win.locator('[data-confirm-dialog-confirm]').first(), '#50 确认退出导演台')
