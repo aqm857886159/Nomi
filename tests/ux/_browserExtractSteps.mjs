@@ -429,25 +429,16 @@ export async function runBrowserExtractJourney(journey, { walk, page, locales, e
     pass.counts.final = afterShot
 
     // 提示词库里新的那一条（第 ③ 步确认后存进去的）：关掉浏览器面板（它盖住左侧栏）→ 左侧栏「提示词库」抽屉 → 按那一条的标题搜，只剩它。
+    // 硬断言：**不重载窗口**，抽屉里就要看到这一条。浏览器提取经 promptLibraryApi.addUserPrompt 直接写库、不经抽屉自己的 hook；
+    // 「我的库」列表在渲染层只有一个共享缓存（promptLibrary/userPromptCache.ts），写口写完当场发布，抽屉每次打开还会重读一次，
+    // 所以这里不需要、也不许靠重载页面救场（以前这一格只是观察，红了就重载再看，缺陷因此一直挂着）。
     await win.locator(`button[aria-label="${L('browserAssets.closeBrowser')}"]`).first().click()
     const entryCard = win.locator(`[data-prompt-card="${added.id}"]`)
-    const openLibrary = async () => {
-      if (!(await win.locator('[data-prompt-library]').isVisible())) await win.locator('[data-shell-rail-item="prompts"]').click()
-      await win.locator(`input[aria-label="${L('libraries.prompt.searchAria')}"]`).fill(added.title)
-    }
-    await openLibrary()
-    // 观察，不是断言：左侧栏面板的「我的库」读的是 useUserPrompts 的模块级缓存，只在它自己的 add / update / remove 之后刷新；
-    // 浏览器提取经 promptLibraryApi.addUserPrompt 直接写盘、不经过那份缓存，所以面板此刻多半还看不到新的一条（原来就有，不是本单引入）。
-    // 记下现状，再重载页面让面板重新读盘；缺陷修好之后这一格会变成 true，走查不用改。
-    const visibleBeforeReload = await expect(entryCard).toBeVisible({ timeout: OP }).then(() => true, () => false)
-    if (!visibleBeforeReload) {
-      await win.reload({ waitUntil: 'domcontentloaded' })
-      await expect(win.locator('[data-shell-rail-item="prompts"]'), '重载后左侧栏').toBeVisible({ timeout: SLOW_OP })
-      await openLibrary()
-    }
-    await expect(entryCard, '提示词库里能看到第 ③ 步存进去的那一条').toBeVisible({ timeout: SLOW_OP })
+    if (!(await win.locator('[data-prompt-library]').isVisible())) await win.locator('[data-shell-rail-item="prompts"]').click()
+    await win.locator(`input[aria-label="${L('libraries.prompt.searchAria')}"]`).fill(added.title)
+    await expect(entryCard, '不重载窗口，左侧「提示词」抽屉里就能看到第 ③ 步存进去的那一条').toBeVisible({ timeout: SLOW_OP })
     await expect(entryCard.locator('[data-prompt-card-title]'), '那一条的标题就是库里存的标题').toHaveText(added.title, { timeout: OP })
-    pass.counts.libraryPanel = { entryShownWithoutReload: visibleBeforeReload, entryShownAfterReload: true }
+    pass.counts.libraryPanel = { entryShownWithoutReload: true }
     // 这一条的封面是网页图的缩略图，也就是登记的那张私人真素材：证据要进公开仓库，所以截图时就把封面遮住（Playwright mask，不是事后涂），
     // 那张照片的任何缩略都不落进仓库；标题、来源标签、「我的」分组照常入镜。
     const librarySnap = path.join(evidenceDir, `${tag}-3-library-entry.png`)
