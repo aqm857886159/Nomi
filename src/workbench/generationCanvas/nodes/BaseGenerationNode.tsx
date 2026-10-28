@@ -360,6 +360,7 @@ function BaseGenerationNodeImpl({
           node.result?.url || node.meta?.imageUrl ? (
             <React.Suspense fallback={<NodeBodyLoading />}>
               <PanoramaViewer
+                nodeId={node.id}
                 imageUrl={(node.result?.url || node.meta?.imageUrl) as string}
                 width={visualSize.width}
                 height={previewHeight}

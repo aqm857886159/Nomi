@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 @photo-sphere-viewer/core 的 Viewer / EquirectangularAdapter、
- *          ../../generation/pageLayer 的 GenerationPageLayer（全屏态挂进生成页那一格）、../../generation/pageLayerContext 的 useGenerationPageLayerActive、
+ *          ../../generation/pageLayer 的 GenerationPageLayer（全屏态挂进生成页那一格）、../../generation/pageLayerContext 的页格层租户状态与 active、
  *          ../../../design 的 NomiImage / WorkbenchIconButton、../../project/projectCanvasReadSurface（截图开始时捕获项目执行上下文）
  * [OUTPUT]: 对外提供 PanoramaViewer 与 PanoramaScreenshot 类型
  * [POS]: generationCanvas/nodes 的全景查看器：卡片内嵌 + 全屏两态共用一个 psv Viewer 实例；
@@ -19,7 +19,7 @@ import { NomiImage } from '../../../design/media'
 import { cn } from '../../../utils/cn'
 import { WorkbenchIconButton } from '../../../design/actions'
 import { GenerationPageLayer } from '../../generation/pageLayer'
-import { useGenerationPageLayerActive } from '../../generation/pageLayerContext'
+import { setGenerationPageLayerTenantOpen, useGenerationPageLayerActive, useGenerationPageLayerTenantOpen } from '../../generation/pageLayerContext'
 import i18n from '../../../i18n'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { isProjectImportCancellation } from '../adapters/assetImportAdapter'
@@ -34,6 +34,7 @@ export type PanoramaScreenshot = {
 }
 
 type PanoramaViewerProps = {
+  nodeId: string
   imageUrl: string
   width: number
   height: number
@@ -269,10 +270,9 @@ function PhotoSpherePanoramaViewer({
       const rect = container.getBoundingClientRect()
       if (rect.width <= 0 || rect.height <= 0) return
       try {
-        nextViewer.resize({
-          width: `${Math.round(rect.width)}px`,
-          height: `${Math.round(rect.height)}px`,
-        })
+        // resize(size) writes fixed pixels onto its parent. A remounted node can start
+        // before the page cell reaches its final size, trapping the viewer at that size.
+        nextViewer.autoSize()
         nextViewer.needsUpdate()
       } catch {
         /* The native viewer can be between initialization and first render. */
@@ -506,6 +506,7 @@ function PanoramaDialogControls({
 }
 
 export default function PanoramaViewer({
+  nodeId,
   imageUrl,
   width,
   height,
@@ -513,7 +514,8 @@ export default function PanoramaViewer({
   onScreenshot,
 }: PanoramaViewerProps): JSX.Element {
   const { t } = useTranslation()
-  const [fullscreen, setFullscreen] = React.useState(false)
+  const fullscreen = useGenerationPageLayerTenantOpen('panorama', nodeId)
+  const setFullscreen = React.useCallback((open: boolean) => setGenerationPageLayerTenantOpen('panorama', nodeId, open), [nodeId])
   const [captureRatioId, setCaptureRatioId] = React.useState<PanoramaCaptureRatioId>(DEFAULT_CAPTURE_RATIO_ID)
   const instanceId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const [panelElement, setPanelElement] = React.useState<HTMLElement | null>(null)
@@ -523,7 +525,7 @@ export default function PanoramaViewer({
   const captureFrameSize = computeCaptureFrameSize(panelSize, captureRatio)
   const openFullscreen = React.useCallback(() => {
     setFullscreen(true)
-  }, [])
+  }, [setFullscreen])
 
   React.useLayoutEffect(() => {
     onEnterFullscreen?.(openFullscreen)
@@ -540,7 +542,7 @@ export default function PanoramaViewer({
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [fullscreen, layerActive])
+  }, [fullscreen, layerActive, setFullscreen])
 
   if (!imageUrl) {
     return (

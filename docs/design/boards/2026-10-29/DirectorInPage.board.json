@@ -203,9 +203,10 @@
       "id": "panorama.back-keeps",
       "label": "回到生成页，全景查看器原样还开着（和导演台一样）",
       "candidates": [],
-      "status": "missing",
-      "owner": "协调另行安排（I-director-layer-in-page 报告「全景查看器」一节：unverified + 复现步骤）",
+      "status": "implemented",
+      "owner": "F-director-layer-tenant-state（页格层租户状态；走查中英 7.back）",
       "states": ["zh-en"],
+      "assertion": "board:DirectorInPage/panorama.back-keeps",
       "note": "没做到，也没查清为什么：完整走查里（先开关过导演台、建过第二个导演台节点）点回「生成」那一刻，全景节点的外壳 DOM 被画布卸载又挂回（标记丢、查看器 id 变），全屏态是节点里的本地 state 跟着丢，回来时查看器是关着的。单跑第 7 小节（--only=7）不复现；导演台节点（open 在节点组件自己身上）没事。不是 GenerationPageLayer 的挂载点丢了（节点没重挂时层就在）；节点上存的图没变，也不是磁盘问题。走查里这一条记成已知缺口（note），不进硬断言。"
     },
     {

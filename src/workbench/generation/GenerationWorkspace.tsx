@@ -17,7 +17,8 @@ const TimelinePanel = lazyWithChunkBoundary(
 )
 import { useGenerationViewStore } from './list/generationViewStore'
 import { NodePointerReturnDock } from '../ai/pointer/NodePointerReturnDock'
-import { GenerationPageLayerProvider, type GenerationPageLayerState } from './pageLayerContext'
+import { GenerationPageLayerProvider, observeGenerationPageLayerNodes, type GenerationPageLayerState } from './pageLayerContext'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 
 const loadGenerationListView = () => import('./list/GenerationListView').then((module) => ({ default: module.GenerationListView }))
 const GenerationListView = lazyWithChunkBoundary('i18n:generationList.aria', loadGenerationListView)
@@ -79,6 +80,7 @@ export default function GenerationWorkspace({
     () => ({ host: pageLayerHost, active: active && !listOpen }),
     [active, listOpen, pageLayerHost],
   )
+  React.useEffect(() => observeGenerationPageLayerNodes(useGenerationCanvasStore), [])
   // 列表块在生成页挂好后趁空闲先拉一下：第一次点「列表」不再等块下载 + 解析（200 节点实测的一部分）。
   React.useEffect(() => {
     const idle = (window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number; cancelIdleCallback?: (handle: number) => void })

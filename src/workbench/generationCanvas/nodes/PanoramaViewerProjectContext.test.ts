@@ -2,19 +2,20 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { ReactElement, ReactNode } from 'react'
 
 const fixture = vi.hoisted(() => ({
-  controller: new AbortController(), viewer: {} as unknown, stateIndex: 0,
+  controller: new AbortController(), viewer: {} as unknown,
   encode: vi.fn(), notify: vi.fn(), setters: [] as ReturnType<typeof vi.fn>[],
 }))
 vi.mock('react', async original => {
   const actual = await original<typeof import('react')>()
   return { ...actual, default: { ...actual,
-    useState: (value: unknown) => { const setter = vi.fn(); fixture.setters.push(setter); return [fixture.stateIndex++ === 0 ? true : value, setter] },
+    useState: (value: unknown) => { const setter = vi.fn(); fixture.setters.push(setter); return [value, setter] },
     useCallback: (callback: unknown) => callback,
     useRef: (current: unknown) => ({ current }),
     useContext: () => fixture.viewer, useId: () => 'capture', useEffect: () => {}, useLayoutEffect: () => {},
   } }
 })
 vi.mock('react-dom', () => ({ createPortal: (element: unknown) => element }))
+vi.mock('../../generation/pageLayerContext', () => ({ useGenerationPageLayerActive: () => true, useGenerationPageLayerTenantOpen: () => true, setGenerationPageLayerTenantOpen: () => {} }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('../../../i18n', () => ({ default: { t: (key: string) => key } }))
 vi.mock('../../../design/media', () => ({ NomiImage: 'img' }))
@@ -49,7 +50,7 @@ function replaceProject() { fixture.controller.abort(); fixture.controller = new
 const rect = { left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 }
 type ScreenshotCallback = NonNullable<Parameters<typeof PanoramaViewer>[0]['onScreenshot']>
 function screenshotClick(onScreenshot: ScreenshotCallback): () => unknown {
-  const tree = PanoramaViewer({ imageUrl: 'nomi-local://panorama', width: 100, height: 100, onScreenshot })
+  const tree = PanoramaViewer({ nodeId: 'panorama-test', imageUrl: 'nomi-local://panorama', width: 100, height: 100, onScreenshot })
   const controls = find(tree, node => typeof node.type === 'function' && node.type.name === 'PanoramaDialogControls')
   ;(controls.props.captureFrameRef as { current: unknown }).current = { getBoundingClientRect: () => rect }
   const rendered = (controls.type as (props: Record<string, unknown>) => ReactNode)(controls.props)
@@ -57,7 +58,7 @@ function screenshotClick(onScreenshot: ScreenshotCallback): () => unknown {
 }
 beforeEach(() => {
   vi.clearAllMocks(); vi.useFakeTimers()
-  fixture.controller = new AbortController(); fixture.stateIndex = 0; fixture.setters = []
+  fixture.controller = new AbortController(); fixture.setters = []
   vi.stubGlobal('document', { body: {} })
   class CaptureCanvas { width = 100; height = 100 }
   vi.stubGlobal('HTMLCanvasElement', CaptureCanvas)

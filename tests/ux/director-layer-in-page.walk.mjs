@@ -67,6 +67,7 @@ const E = {
   isolation: 'board:DirectorInPage/isolation.canvas-untouched',
   libraryUnmount: 'board:DirectorInPage/lifecycle.library-unmount',
   panorama: 'board:DirectorInPage/panorama.same-mount',
+  panoramaBack: 'board:DirectorInPage/panorama.back-keeps',
   copy: 'board:DirectorInPage/copy.unchanged',
 }
 const check = (id, label, ok, detail = '', element = undefined) => {
@@ -297,7 +298,11 @@ await section('0-setup', async () => {
     const modeNow = () => document.querySelector('[data-workspace-mode]')?.getAttribute('data-workspace-mode') ?? null
     const record = (kind, element) => {
       if (!(element instanceof Element) || !element.matches('.react-flow__node')) return
-      window.__nodeLog.push({ at: Math.round(performance.now()), kind, id: element.getAttribute('data-id'), mode: modeNow() })
+      const node = element.getBoundingClientRect()
+      const viewport = document.querySelector('.react-flow__renderer')?.getBoundingClientRect()
+      window.__nodeLog.push({ at: Math.round(performance.now()), kind, id: element.getAttribute('data-id'), mode: modeNow(),
+        node: { left: node.left, top: node.top, right: node.right, bottom: node.bottom },
+        viewport: viewport ? { left: viewport.left, top: viewport.top, right: viewport.right, bottom: viewport.bottom } : null })
     }
     new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -799,18 +804,20 @@ if (!flag('no-panorama')) {
     }), panoramaId)
     const nodeLog = await win.evaluate(() => window.__nodeLog)
     note('画布节点外壳的挂载 / 卸载日志（at = 毫秒）', nodeLog.slice(-24))
-    // 已知缺口，不记红（协调 10-29 定：全景「回来还开着」一时判不清，记 unverified 交协调）：
-    //   完整走查里（前面开关过导演台、建过第二个导演台节点之后）全景节点的外壳 DOM 在「点回生成」那一刻被画布卸载又挂回（markers 都丢、查看器 id 变），
-    //   全屏态是节点里的本地 state，跟着丢，回来时查看器是关着的；单跑第 7 小节（--only=7）不复现，导演台节点（open 在节点组件自己身上）没事。
-    //   「藏着时不挡、点得到左栏、Esc 关得掉」这几条（7.layer-rect / 7.rail / 7.hidden / 7.esc-close）仍是硬断言。
     const backVisible = await panel.isVisible().catch(() => false)
-    note(`7.back 已知缺口：点回「生成」后全景查看器${backVisible ? '还在' : '没留住（关着）'}`, { open: snapOpen, away: snapAway, back: snapBack, markers })
+    check('7.back', '点回「生成」后全景查看器还开着，即使节点外壳被卸载重挂', backVisible && snapBack.panels === 1 && snapBack.layers[0] === 'true' && snapBack.storedImage.length === snapOpen.storedImage.length, JSON.stringify({ open: snapOpen, away: snapAway, back: snapBack, markers }), E.panoramaBack)
+    await win.waitForFunction(() => {
+      const panel = document.querySelector('[data-panorama-dialog-panel]')?.getBoundingClientRect()
+      const canvas = document.querySelector('[data-panorama-dialog-panel] canvas')?.getBoundingClientRect()
+      return Boolean(panel && canvas && Math.abs(panel.width - canvas.width) <= 2 && Math.abs(panel.height - canvas.height) <= 2)
+    }, null, { timeout: 4000 }).catch(() => {})
+    const canvasSize = await panel.evaluate((element) => {
+      const canvas = element.querySelector('canvas')?.getBoundingClientRect()
+      const box = element.getBoundingClientRect()
+      return { panel: { width: box.width, height: box.height }, canvas: canvas ? { width: canvas.width, height: canvas.height } : null }
+    })
+    check('7.canvas-fills', '节点重挂后全景画面铺满面板，没有旧尺寸造成的黑边', Boolean(canvasSize.canvas && Math.abs(canvasSize.panel.width - canvasSize.canvas.width) <= 2 && Math.abs(canvasSize.panel.height - canvasSize.canvas.height) <= 2), JSON.stringify(canvasSize), E.panoramaBack)
     await shot('panorama-back-generation')
-    // 回来时查看器要是已经关着（上面那条已知缺口），再开一次，Esc 的断言才测得到东西（不然「没有面板了」是恒真）
-    if (!backVisible) {
-      await viewer.locator('button').first().evaluate((element) => element.click())
-      await panel.waitFor({ state: 'visible', timeout })
-    }
     // 关闭：Esc（藏着再回来之后，Esc 监听要重新接上）
     await win.keyboard.press('Escape')
     await win.waitForFunction(() => !document.querySelector('[data-panorama-dialog-panel]'), null, { timeout: 4000 }).then(
@@ -819,6 +826,38 @@ if (!flag('no-panorama')) {
     )
   })
 }
+
+// ═══ 小节 7b：导演台节点位于视口边缘，切页后仍开着 ════════════════════════════════════
+await section('7b-director-edge', async () => {
+  await openDirector()
+  const edge = await win.evaluate((id) => {
+    const viewport = document.querySelector('.react-flow__renderer')?.getBoundingClientRect()
+    const transform = document.querySelector('.react-flow__viewport')?.style.transform ?? ''
+    const match = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\) scale\(([-\d.]+)\)/)
+    if (!viewport || !match) return null
+    const [, tx, ty, zoom] = match.map(Number)
+    const position = { x: (viewport.width - 130 - tx) / zoom, y: (180 - ty) / zoom }
+    window.__nomiCanvasStore.getState().updateNode(id, { position })
+    return { viewportRight: viewport.right, expectedLeft: viewport.right - 130 }
+  }, directorId)
+  await win.waitForFunction(({ id, expectedLeft }) => {
+    const rect = document.querySelector('[data-node-id="' + id + '"]')?.getBoundingClientRect()
+    return Boolean(rect && Math.abs(rect.left - expectedLeft) < 12)
+  }, { id: directorId, expectedLeft: edge?.expectedLeft }, { timeout })
+  await modeButton('creation').click({ timeout })
+  await win.waitForFunction(() => document.querySelector('[data-workspace-mode]')?.getAttribute('data-workspace-mode') === 'creation', null, { timeout })
+  await modeButton('generation').click({ timeout })
+  await win.waitForFunction(() => document.querySelector('[data-workspace-mode]')?.getAttribute('data-workspace-mode') === 'generation', null, { timeout })
+  await settleLayout()
+  const edgeBack = await editorVisible()
+  const edgeRect = await win.locator(`[data-node-id="${directorId}"]`).first().evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    return { left: rect.left, right: rect.right }
+  }).catch(() => null)
+  check('7b.edge-back', '导演台节点放在视口边缘，切创作再回来仍开着', Boolean(edge && edgeRect && edgeRect.left >= edge.expectedLeft - 12 && edgeRect.left <= edge.viewportRight && edgeBack), JSON.stringify({ edge, edgeRect, edgeBack }), E.backKeeps)
+  await shot('director-edge-back-generation')
+  await closeDirectorIfOpen()
+})
 
 // ═══ 小节 8：开着导演台回项目库 → 导演层卸载 ═════════════════════════════════════════════
 await section('8-library', async () => {
@@ -836,7 +875,7 @@ await section('8-library', async () => {
 
 // 渲染层的未捕获异常条数（不是界面元素的「不存在」断言，是 JS 错误计数）
 check('9.no-page-errors', '渲染层没有未捕获的页面异常', !pageErrors.length, pageErrors.slice(0, 3).join(' | '))
-// 板元素覆盖：16 个元素每个都有检查挂着、且挂着的全过（裁剪过的跑法——--only / --no-perf / --no-panorama——缺的小节不算它的错，不核）
+// 板元素覆盖：17 个元素每个都有检查挂着、且挂着的全过（裁剪过的跑法——--only / --no-perf / --no-panorama——缺的小节不算它的错，不核）
 if (!onlySections && !flag('no-perf') && !flag('no-panorama')) {
   report.boardCoverage = {}
   for (const [name, element] of Object.entries(E)) {

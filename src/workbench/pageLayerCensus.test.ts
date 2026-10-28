@@ -13,8 +13,13 @@
 // 租户目录里每个 window / document 键盘监听所在的文件，要么读 useGenerationPageLayerActive、要么登记豁免并写明理由。
 // 画布格的第二种找法（document.querySelector('.workbench-generation__canvas')）只许三处存量灯箱，只减不增。
 import fs from 'node:fs'
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { generationPageLayerTenantsLifetime, observeGenerationPageLayerNodes, setGenerationPageLayerTenantOpen, useGenerationPageLayerTenantOpen, useGenerationPageLayerTenants, type PageLayerTenant } from './generation/pageLayerContext'
+import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
+import type { GenerationCanvasNode } from './generationCanvas/model/generationCanvasTypes'
 
 const WORKBENCH = new URL('./', import.meta.url)
 
@@ -62,6 +67,7 @@ const BODY_PORTALS: Readonly<Record<string, BodyPortalEntry>> = {
 }
 
 type PageCellEntry = {
+  tenant: PageLayerTenant
   lifecycle: string
   /** 租户目录 / 文件：这里面的 window / document 键盘监听要么读 useGenerationPageLayerActive，要么登记豁免。 */
   keyboardRoot: string
@@ -70,12 +76,14 @@ type PageCellEntry = {
 /** 页格内的层：经 GenerationPageLayer 挂进生成页画布那一格，不是 body portal。 */
 const PAGE_CELL_TENANTS: Readonly<Record<string, PageCellEntry>> = {
   'src/workbench/generationCanvas/nodes/director/DirectorNode.tsx': {
+    tenant: 'director',
     keyboardRoot: 'src/workbench/generationCanvas/nodes/director',
-    lifecycle: '`open` 是节点本地 state（事实一份）。层随生成页槽位一起 display:none（切去创作 / 预览、列表视图），回来原样还在；退出确认 / 节点卸载 / 回项目库（整个工作台卸载）才没。藏着时键盘监听、3D 渲染循环、暗色锁、录制中的运镜由层里各处读 useGenerationPageLayerActive 停掉。',
+    lifecycle: '打开状态归页格层按节点 id 保存；节点组件裁剪 / 重挂不清。关导演台、删节点或释放项目才清；切页 / 列表只隐藏，键盘监听、3D 渲染、暗色锁与录运镜读 active 停掉。',
   },
   'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx': {
+    tenant: 'panorama',
     keyboardRoot: 'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx',
-    lifecycle: '`fullscreen` 是节点内本地 state。同上随生成页藏 / 回；藏着时 Esc 与 psv 的键盘控制（keyboard:\'always\' 挂在 window 上）都停。',
+    lifecycle: '打开状态归页格层按节点 id 保存；节点组件裁剪 / 重挂不清。Esc、删节点或释放项目才清；切页 / 列表只隐藏，藏着时 Esc 与 psv 键盘控制都停。',
   },
 }
 
@@ -238,6 +246,50 @@ describe('页内全屏层普查：页格内的层只经 GenerationPageLayer 挂�
       const entry = SOURCES.find(({ rel }) => rel === file)
       expect(entry && readsLayerActive(entry), `${file} 已经读了 useGenerationPageLayerActive，豁免该删`).toBe(false)
     }
+  })
+})
+
+function TenantProbe({ tenant, nodeId }: { tenant: PageLayerTenant; nodeId: string }): React.ReactElement {
+  return React.createElement('span', null, useGenerationPageLayerTenantOpen(tenant, nodeId) ? 'open' : 'closed')
+}
+
+describe('页格租户打开状态：节点组件重挂与删除生命周期', () => {
+  it('登记的每个租户 id 唯一；新加页格层不登记就进不了这组测试', () => {
+    expect(pageCellTenantFiles(SOURCES)).toEqual(Object.keys(PAGE_CELL_TENANTS).sort())
+    expect(new Set(Object.values(PAGE_CELL_TENANTS).map((entry) => entry.tenant)).size).toBe(Object.keys(PAGE_CELL_TENANTS).length)
+    for (const file of Object.keys(PAGE_CELL_TENANTS)) {
+      const source = SOURCES.find((entry) => entry.rel === file)?.source.getFullText() ?? ''
+      expect(source, `${file} 必须读页格层的唯一打开状态`).toContain('useGenerationPageLayerTenantOpen')
+      expect(source, `${file} 只能向页格层发开关意图`).toContain('setGenerationPageLayerTenantOpen')
+    }
+  })
+
+  for (const [file, { tenant }] of Object.entries(PAGE_CELL_TENANTS)) {
+    it(`${file}：打开 → 组件卸载并重挂仍开着 → 删节点后状态清掉`, () => {
+      const nodeId = `page-layer-${tenant}`
+      generationPageLayerTenantsLifetime.releaseProject?.()
+      useGenerationCanvasStore.setState({ nodes: [{ id: nodeId, kind: tenant, position: { x: 0, y: 0 }, status: 'idle' } as GenerationCanvasNode], edges: [], selectedNodeIds: [] })
+      const stop = observeGenerationPageLayerNodes(useGenerationCanvasStore)
+      try {
+        setGenerationPageLayerTenantOpen(tenant, nodeId, true)
+        expect(renderToStaticMarkup(React.createElement(TenantProbe, { tenant, nodeId }))).toContain('open')
+        // 两次独立渲染之间探针组件已卸载；页格层的事实没有随节点组件一起卸载。
+        expect(renderToStaticMarkup(React.createElement(TenantProbe, { tenant, nodeId }))).toContain('open')
+        useGenerationCanvasStore.getState().deleteNode(nodeId)
+        expect(renderToStaticMarkup(React.createElement(TenantProbe, { tenant, nodeId }))).toContain('closed')
+        expect(useGenerationPageLayerTenants.getState().open[nodeId]).toBeUndefined()
+      } finally {
+        stop()
+        useGenerationCanvasStore.setState({ nodes: [], edges: [], selectedNodeIds: [] })
+        generationPageLayerTenantsLifetime.releaseProject?.()
+      }
+    })
+  }
+
+  it('项目释放清空所有租户，复用同一个节点 id 也不会继承旧项目的层', () => {
+    for (const { tenant } of Object.values(PAGE_CELL_TENANTS)) setGenerationPageLayerTenantOpen(tenant, 'reused-id', true)
+    generationPageLayerTenantsLifetime.releaseProject?.()
+    expect(useGenerationPageLayerTenants.getState().open).toEqual({})
   })
 })
 
