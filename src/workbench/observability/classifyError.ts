@@ -578,6 +578,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (outboundCode === 'model-config') return reportFor('model-config', cleanRaw, '')
   // 主进程发送前的参考守拒发：请求从未发出，upstream 给 ''（服务商根本没被请求到）。
   if (outboundCode === 'reference-not-in-use') return reportFor('reference-not-in-use', cleanRaw, '')
+  // 用户明确选的画幅比例超出连接的尺寸范围：构造请求时就拒了，请求从未发出，upstream 给 ''（别把我们自己那句栽赃成「服务商原话」）。
+  if (outboundCode === 'aspect-ratio-unsupported') return reportFor('aspect-ratio-unsupported', cleanRaw, '')
   if (outboundCode === 'outbound-blocked') return reportFor('outbound-blocked', cleanRaw, '')
   // 提交侧的同族码：请求从未发出、没有计费。必须与上面一条分开，否则用户读到的是「钱已经付过、
   // 用重新拉取结果免费取回」——一句完全相反的假话，还会把他推向一颗根本不存在的按钮。

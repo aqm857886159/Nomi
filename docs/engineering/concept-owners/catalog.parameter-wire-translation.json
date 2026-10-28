@@ -33,5 +33,5 @@
     "electron/audioTaskRunner.ts"
   ],
   "since": "2026-10-27",
-  "notes": "applyParamMap owns execution of persisted ParamMap rules through the existing transform registry. ratioResToOpenAiSize owns its numeric policy within that registry; templateContext supplies authoritative TaskRequest.kind and canonical parameters without duplicating the policy. JSON and multipart share this path. Image bounds must not change persisted video dimensions. This concept does not own model-name selection, UI parameter aliases, catalog operation selection, or reference upload."
+  "notes": "applyParamMap owns execution of persisted ParamMap rules through the existing transform registry. ratioResToOpenAiSize owns its numeric policy within that registry; templateContext supplies authoritative TaskRequest.kind and canonical parameters without duplicating the policy. JSON and multipart share this path. Image bounds must not change persisted video dimensions. This concept does not own model-name selection, UI parameter aliases, catalog operation selection, or reference upload. 2026-10-28：同一处也负责「明确选了、却超过 3:1 的生图比例」——不省略 size，而是在构造请求时抛带机器码 aspect-ratio-unsupported 的错（视频任务不受影响）；码表仍只在 diagnostics.error-code。"
 }

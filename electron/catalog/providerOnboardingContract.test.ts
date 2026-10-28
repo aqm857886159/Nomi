@@ -39,6 +39,8 @@ describe.each(["text_to_video", "image_to_video"] as const)("persisted %s mappin
   it.each([
     ["16:9", "1024x576"], ["9:16", "576x1024"], ["3:1", "1024x336"],
     ["1:3", "336x1024"], ["2048:815", "1024x416"],
+    // Beyond 3:1 an image request is refused; a saved video mapping keeps sending what it always sent.
+    ["4:1", "1024x256"], ["1:4", "256x1024"],
   ])("preserves %s video dimensions", async (ratio, size) => {
     // Old video mappings persist this same transform ID; no image-only limit may leak into them.
     const operation = JSON.parse(JSON.stringify(NEWAPI_VIDEO_CREATE_OP));
@@ -89,6 +91,25 @@ describe.each([
     expect(reader).not.toHaveBeenCalled();
     return body as Record<string, unknown>;
   }
+
+  async function refused(extras: Record<string, unknown>) {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ data: [{ url: "https://provider.example/result.png" }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchFn);
+    const { executeProfileOperation } = await import("../runtime");
+    await expect(executeProfileOperation({
+      vendor, model, apiKey: "test-key", stage: "create", operation,
+      localAssetReader: (url: string) => url === localReference ? { bytes, contentType: "image/png", fileName: "reference.png" } : null,
+      request: { kind, prompt: "a blue paper square", extras: {
+        ...extras, ...(kind === "image_edit" ? { referenceImages: [localReference] } : {}),
+      } },
+    })).rejects.toThrow(/NOMI_ERR::aspect-ratio-unsupported::/);
+    return fetchFn;
+  }
+
+  // The refusal is at request construction, so it is the same for the JSON route and the multipart route and no request exists yet.
+  it.each(["4:1", "1:4", "8:1"])("%s / 1K is refused before any request instead of dropping size", async (ratio) => {
+    expect(await refused({ aspect_ratio: ratio, resolution: "1K" })).not.toHaveBeenCalled();
+  });
 
   it.each([undefined, "", "   "])("Auto / 1K omits saved size %j", async (size) => {
     const body = await dispatch({ aspect_ratio: "auto", resolution: "1K", size });

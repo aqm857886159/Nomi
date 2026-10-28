@@ -31,7 +31,8 @@
     "Every selectable GPT Image 2 ratio and 1K/2K/4K tier produces positive dimensions divisible by 16, with area 655360..8294400, longest edge <=3840, and aspect ratio <=3.",
     "Portrait orientation and the selected ratio remain within one 16-pixel quantization step.",
     "Local multipart references reach only the declared edit endpoint; URL ingestion is not required.",
-    "Persisted text_to_video and image_to_video mappings retain their existing size semantics; image constraints are selected by TaskRequest.kind."
+    "Persisted text_to_video and image_to_video mappings retain their existing size semantics; image constraints are selected by TaskRequest.kind.",
+    "An explicit image ratio beyond 3:1 (for example 4:1) is never silently dropped: the transform throws before any request exists, tagged with the Nomi code aspect-ratio-unsupported, and the renderer shows a localized card (zh/en) that names the ratio problem and the next step. Video task kinds are not refused."
   ],
   "doors": [
     {
@@ -118,21 +119,27 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/catalog/paramTranslate.ts",
     "invariant": "Derived GPT Image dimensions remain inside the documented size domain after rounding.",
-    "failure_mode": "Unset or invalid ratios produce no derived size; supported concrete ratios are bounded at the shared transform.",
+    "failure_mode": "Auto/unset or unparsable ratios produce no derived size; an explicit ratio beyond 3:1 is refused before sending with the Nomi code aspect-ratio-unsupported (never an omitted size that lets the provider pick a different shape); supported concrete ratios are bounded at the shared transform.",
     "exception_policy": "none",
-    "strategy": "Forward authoritative task kind through the single transform registry; enforce lower area and rounded aspect ratio limits for image tasks, retaining pre-existing video quantization.",
+    "strategy": "Forward authoritative task kind through the single transform registry; enforce lower area and rounded aspect ratio limits for image tasks, retaining pre-existing video quantization; refuse explicit image ratios beyond 3:1 at the same boundary with a coded error instead of omitting the field. A sweep over every ratio any image profile offers x 1K/2K/4K asserts the whole domain or the refusal.",
     "artifacts": [
       "electron/catalog/paramTranslate.ts",
-      "electron/catalog/profileHttpRequest.ts"
+      "electron/catalog/profileHttpRequest.ts",
+      "electron/shared/nomiErrorCodes.ts",
+      "src/workbench/observability/narrate.ts",
+      "src/i18n/locales/generationCommon.ts"
     ]
   },
   "regression_tests": [
     "electron/catalog/paramTranslate.test.ts",
-    "electron/catalog/providerOnboardingContract.test.ts"
+    "electron/catalog/providerOnboardingContract.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "electron/tasks/retrievalStagePhase.test.ts"
   ],
   "class_regression_tests": [
     "electron/catalog/paramTranslate.test.ts",
-    "electron/catalog/providerOnboardingContract.test.ts"
+    "electron/catalog/providerOnboardingContract.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -148,7 +155,9 @@
   "residual_risks": [
     "Live provider/relay generation and Windows application UI were not exercised; no credentials supplied.",
     "Anonymous URL upload host availability is external and remains unverified.",
-    "A manually authored script or explicit raw pixel size bypasses the derived-ratio transform and must follow its own documented contract."
+    "A manually authored script or explicit raw pixel size bypasses the derived-ratio transform and must follow its own documented contract.",
+    "A ratio string that does not parse as N:M (for example a free-text token) still omits size, as before; the values a profile offers come from its option list, so this needs a hand-written or imported mapping to reach.",
+    "A model profile that offers ratios beyond 3:1 (for example 4:1 or 8:1) and is attached to this OpenAI-compatible size transform through a relay is now refused with a clear card instead of silently getting the provider default; those profiles have their own aspect_ratio wire on the providers that support them."
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-11-27",

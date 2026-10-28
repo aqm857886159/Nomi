@@ -113,6 +113,10 @@ export type GenerationErrorKind =
   // 主进程发送前的参考守在花钱之前拒了：请求里带着参考区没在用的图（有入口绕过了唯一推导）。
   // 请求没离开本机；下一步是重新点生成，会按参考区重新组一次请求。不是服务商的事。
   | 'reference-not-in-use'
+  // 用户明确选的画幅比例超出这条连接的尺寸范围（electron/catalog/paramTranslate.ts 的 ratioResToOpenAiSize 在构造请求时抛，
+  // 机器码 NOMI_ERR::aspect-ratio-unsupported::）。以前这种比例会被悄悄省略 size、让服务商按默认尺寸出图——选的画幅被换成别的。
+  // 请求没离开本机；下一步是在生成框里换一个比例再生成（或换一个支持该比例的模型）。不是服务商的事，也不是模型没配好。
+  | 'aspect-ratio-unsupported'
   // Nomi 自己的出站安全策略把取片拦下了（私网/回环/fake-ip 未确证）。与 network 分开，因为
   // 它的**真相和下一步都不同**：network = 上游或线路偶发，等一等重试可能就好；这条是**确定性**
   // 的自我拒绝（同一个 URL 重试一万次都是同一堵墙），而且任务**已经付过钱**——正确的动作是去
@@ -174,6 +178,7 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'asset-too-large': 'assetTooLarge',
   'asset-invalid': 'assetInvalid',
   'reference-not-in-use': 'referenceNotInUse',
+  'aspect-ratio-unsupported': 'aspectRatioUnsupported',
   'outbound-blocked': 'outboundBlocked',
   'outbound-blocked-submit': 'outboundBlockedSubmit',
   'outbound-blocked-credential-origin': 'outboundBlockedCredentialOrigin',
@@ -278,6 +283,8 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'asset-invalid': RETRY_FIRST,
   // 请求没离开本机：重新点生成会按参考区重新组请求，主动作就是重试。
   'reference-not-in-use': RETRY_FIRST,
+  // 比例超界：换比例的地方就在下方生成框（按钮只给 retry，改的动作在 composer）；该比例确实要用，就换一个支持它的模型。
+  'aspect-ratio-unsupported': RETRY_FIRST,
   // 「去模型接入」正是网络那一行的家（NetworkSection 就住在模型设置抽屉里）。绝不给 retry：
   // 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢，只是产物还没取回来。
   'outbound-blocked': ACCESS_FIRST,
@@ -339,6 +346,7 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'asset-too-large': true,
   'asset-invalid': false,
   'reference-not-in-use': false,
+  'aspect-ratio-unsupported': false,
   'outbound-blocked': false,
   'outbound-blocked-submit': false,
   'outbound-blocked-credential-origin': false,

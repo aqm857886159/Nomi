@@ -23,6 +23,11 @@ export type NomiErrorCode =
   // 参考区没在用的图。渲染层结构上做不出这种请求（唯一推导 placeUploadedImages），出现 = 有新入口绕过了它。
   // 在发出之前拒：请求没离开本机、服务商没被请求到；下一步是重新点生成（会按参考区重新组一次请求）。
   | 'reference-not-in-use'
+  // 用户**明确选了**的画幅比例，这条连接的尺寸字段表达不了（OpenAI 兼容 size 要求长边 ≤ 短边 3 倍，
+  // electron/catalog/paramTranslate.ts 的 ratioResToOpenAiSize）。与 reference-not-in-use 同族：构造请求时就拒了，
+  // 请求没离开本机、服务商没被请求到。为什么拒而不是悄悄省略 size：省略后服务商按它自己的默认尺寸出图，
+  // 用户选的画幅被换成另一个，界面上写的却还是他选的那个。下一步是在生成框里换一个比例（或换一个支持该比例的模型）再生成。
+  | 'aspect-ratio-unsupported'
   // Nomi **自己的**出站安全策略拒绝了这次取片（私网/回环/fake-ip 未确证）。与上面几条 asset-* 同族：
   // 失败在我们这侧、服务商根本没被请求到。但它还多一件事——任务**已经付过钱**且上游多半已完成，
   // 所以正确的下一步是「修网络再免费重新拉取」，绝不是「重新生成」（那要再付一次）。
@@ -82,6 +87,8 @@ export const NOMI_ERROR_ONLY_BEFORE_SUBMIT: Readonly<Record<NomiErrorCode, boole
   'asset-invalid': true,
   // 主进程在 runTask 碰任何网络之前拒发（referenceResidueGuard）：只有提交前这一个生产者，话是「没发出去、重新点生成」。
   'reference-not-in-use': true,
+  // 请求构造阶段拒发（只有提交前这一个生产者：create 操作的参数翻译），话是「没发出去、换个比例再生成」。
+  'aspect-ratio-unsupported': true,
   'outbound-blocked': false,
   'outbound-blocked-submit': true,
   'outbound-blocked-credential-origin': true,
