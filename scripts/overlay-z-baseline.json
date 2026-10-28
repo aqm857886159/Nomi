@@ -47,10 +47,6 @@
     "count": 1,
     "reason": "溯源面板（fixed inset-0，210）：只读对话框，该进 dialog 档；210 高过顶栏 100、用得了，留待以后迁"
   },
-  "src/workbench/generationCanvas/nodes/fullscreenZIndex.ts": {
-    "count": 1,
-    "reason": "3D 全屏编辑器的层级常量 3000（刻度之外的第二份数字，feedbackLayer.test.ts 钉它低于 floatingPanel、高于 2000）：该并成刻度里的一档，留待以后迁"
-  },
   "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx": {
     "count": 1,
     "reason": "画布素材输入选择器（fixed，60，按指针位置定位）：该进 popover 档；60 低于顶栏 100，但它只在画布里弹出、不会进顶栏带，留待以后迁"

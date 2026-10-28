@@ -1,16 +1,16 @@
 /**
- * [INPUT]: 依赖 @photo-sphere-viewer/core 的 Viewer / EquirectangularAdapter、react-dom 的 createPortal、
- *          ../../../ui/app-shell/windowChrome 的 currentFullscreenOverlayTopOffset、../../../design 的 NomiImage / WorkbenchIconButton、
- *          ../../project/projectCanvasReadSurface（截图开始时捕获项目执行上下文）
+ * [INPUT]: 依赖 @photo-sphere-viewer/core 的 Viewer / EquirectangularAdapter、
+ *          ../../generation/pageLayer 的 GenerationPageLayer（全屏态挂进生成页那一格）、../../generation/pageLayerContext 的页格层租户状态与 active、
+ *          ../../../design 的 NomiImage / WorkbenchIconButton、../../project/projectCanvasReadSurface（截图开始时捕获项目执行上下文）
  * [OUTPUT]: 对外提供 PanoramaViewer 与 PanoramaScreenshot 类型
  * [POS]: generationCanvas/nodes 的全景查看器：卡片内嵌 + 全屏两态共用一个 psv Viewer 实例；
- *        全屏那层从 Windows 自绘窗口栏之下起画（不是 inset-0 铺满）——那条 32px 是系统拖拽带，
- *        顶部那排取景/截图/退出按钮压上去会被当成拖窗口吃掉（与 issue #58 同根，见 windowChrome）。
+ *        全屏态是**生成页里的一块**（2026-10-29 起经 GenerationPageLayer 挂进画布那一格，不再是挂 body 的 fixed 层）：
+ *        尺寸按那一格量（容器查询单位），顶栏 / 左栏 / Agent 都不被盖；点「创作」「预览」随生成页一起藏、回来还开着；
+ *        藏着时 Esc 与 psv 的键盘控制都停（psv 的 keyboard:'always' 挂在 window 上，留着会吞别的页的方向键）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { EquirectangularAdapter, Viewer, type PanoData, type ViewerConfig } from '@photo-sphere-viewer/core'
 import '@photo-sphere-viewer/core/index.css'
@@ -18,7 +18,8 @@ import { IconCamera, IconMaximize, IconX } from '@tabler/icons-react'
 import { NomiImage } from '../../../design/media'
 import { cn } from '../../../utils/cn'
 import { WorkbenchIconButton } from '../../../design/actions'
-import { currentFullscreenOverlayTopOffset } from '../../../ui/app-shell/windowChrome'
+import { GenerationPageLayer } from '../../generation/pageLayer'
+import { setGenerationPageLayerTenantOpen, useGenerationPageLayerActive, useGenerationPageLayerTenantOpen } from '../../generation/pageLayerContext'
 import i18n from '../../../i18n'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { isProjectImportCancellation } from '../adapters/assetImportAdapter'
@@ -33,6 +34,7 @@ export type PanoramaScreenshot = {
 }
 
 type PanoramaViewerProps = {
+  nodeId: string
   imageUrl: string
   width: number
   height: number
@@ -219,6 +221,15 @@ function PhotoSpherePanoramaViewer({
 }): JSX.Element {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [viewer, setViewer] = React.useState<Viewer | null>(null)
+  const layerActive = useGenerationPageLayerActive()
+
+  // psv 的 keyboard:'always' 把方向键 / 加减号监听挂在 window 上并 preventDefault：藏着（切去别的页）时必须停，
+  // 否则创作页文本框里的方向键会被它吞掉。运行时开关，不重建 viewer（视角不丢）。
+  React.useEffect(() => {
+    if (!viewer) return
+    if (layerActive) viewer.startKeyboardControl()
+    else viewer.stopKeyboardControl()
+  }, [layerActive, viewer])
 
   React.useLayoutEffect(() => {
     const container = containerRef.current
@@ -259,10 +270,9 @@ function PhotoSpherePanoramaViewer({
       const rect = container.getBoundingClientRect()
       if (rect.width <= 0 || rect.height <= 0) return
       try {
-        nextViewer.resize({
-          width: `${Math.round(rect.width)}px`,
-          height: `${Math.round(rect.height)}px`,
-        })
+        // resize(size) writes fixed pixels onto its parent. A remounted node can start
+        // before the page cell reaches its final size, trapping the viewer at that size.
+        nextViewer.autoSize()
         nextViewer.needsUpdate()
       } catch {
         /* The native viewer can be between initialization and first render. */
@@ -496,6 +506,7 @@ function PanoramaDialogControls({
 }
 
 export default function PanoramaViewer({
+  nodeId,
   imageUrl,
   width,
   height,
@@ -503,7 +514,8 @@ export default function PanoramaViewer({
   onScreenshot,
 }: PanoramaViewerProps): JSX.Element {
   const { t } = useTranslation()
-  const [fullscreen, setFullscreen] = React.useState(false)
+  const fullscreen = useGenerationPageLayerTenantOpen('panorama', nodeId)
+  const setFullscreen = React.useCallback((open: boolean) => setGenerationPageLayerTenantOpen('panorama', nodeId, open), [nodeId])
   const [captureRatioId, setCaptureRatioId] = React.useState<PanoramaCaptureRatioId>(DEFAULT_CAPTURE_RATIO_ID)
   const instanceId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const [panelElement, setPanelElement] = React.useState<HTMLElement | null>(null)
@@ -513,31 +525,24 @@ export default function PanoramaViewer({
   const captureFrameSize = computeCaptureFrameSize(panelSize, captureRatio)
   const openFullscreen = React.useCallback(() => {
     setFullscreen(true)
-  }, [])
+  }, [setFullscreen])
 
   React.useLayoutEffect(() => {
     onEnterFullscreen?.(openFullscreen)
     return () => onEnterFullscreen?.(null)
   }, [onEnterFullscreen, openFullscreen])
 
+  // Esc 关闭。藏着（切去别的页 / 列表视图）时不接：那一下 Esc 是别的页的。
+  // （此前这里还锁 body / html 的滚动——那是挂 body 的模态时代的做法；整个 App 在 main.tsx 里本来就锁着，查看器现在是页面里的一块，不再有页面级滚动可锁。）
+  const layerActive = useGenerationPageLayerActive()
   React.useEffect(() => {
-    if (!fullscreen) return undefined
-    const body = document.body
-    const root = document.documentElement
-    const previousBodyOverflow = body.style.overflow
-    const previousRootOverflow = root.style.overflow
-    body.style.overflow = 'hidden'
-    root.style.overflow = 'hidden'
+    if (!fullscreen || !layerActive) return undefined
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setFullscreen(false)
     }
     document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      body.style.overflow = previousBodyOverflow
-      root.style.overflow = previousRootOverflow
-    }
-  }, [fullscreen])
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [fullscreen, layerActive, setFullscreen])
 
   if (!imageUrl) {
     return (
@@ -582,56 +587,52 @@ export default function PanoramaViewer({
         </div>
       </div>
 
-      {fullscreen && typeof document !== 'undefined'
-        ? createPortal(
-            <div
+      {fullscreen ? (
+        <GenerationPageLayer>
+          <div
+            className={cn(
+              // 页格内的查看器：铺满生成页那一格（层本身 absolute inset-0），按那一格量尺寸（[container-type:size] + cq 单位），
+              // 不再用视口单位——页格比窗口小，视口单位会让面板超出它。
+              'flex size-full items-center justify-center overflow-hidden p-8 overscroll-contain [container-type:size]',
+              'bg-workbench-backdrop backdrop-blur-[10px]',
+            )}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setFullscreen(false)
+            }}
+          >
+            <section
+              ref={setPanelElement}
               className={cn(
-                // z-application-modal（9000）：整屏接管的媒体查看器，和设置对话框同一档。
-                // 此前硬写 z-[9999] 压过花钱确认卡（dialog 9100），钱要花出去了那张卡却看不见。
-                'fixed inset-x-0 bottom-0 z-application-modal flex items-center justify-center overflow-hidden p-8 overscroll-contain',
-                'bg-workbench-backdrop backdrop-blur-[10px]',
+                'relative w-[min(100cqw,calc(100cqh*16/9))] aspect-video overflow-hidden rounded-nomi-lg',
+                'bg-nomi-ink shadow-nomi-lg',
               )}
-              style={{ top: currentFullscreenOverlayTopOffset() }}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                if (event.target === event.currentTarget) setFullscreen(false)
-              }}
+              data-panorama-dialog-panel
+              role="dialog"
+              aria-label={t('generationCommon.panorama.preview')}
             >
-              <section
-                ref={setPanelElement}
-                className={cn(
-                  'relative w-[min(96vw,calc((100vh-64px)*16/9))] aspect-video',
-                  'max-h-[calc(100vh-64px)] overflow-hidden rounded-nomi-lg',
-                  'bg-nomi-ink shadow-nomi-lg',
-                )}
-                data-panorama-dialog-panel
-                role="dialog"
-                aria-modal="true"
-                aria-label={t('generationCommon.panorama.preview')}
+              <PhotoSpherePanoramaViewer
+                key={`fullscreen-${imageUrl}`}
+                imageUrl={imageUrl}
+                config={PANORAMA_FULLSCREEN_CONFIG}
               >
-                <PhotoSpherePanoramaViewer
-                  key={`fullscreen-${imageUrl}`}
-                  imageUrl={imageUrl}
-                  config={PANORAMA_FULLSCREEN_CONFIG}
-                >
-                  <PanoramaCaptureOverlay
-                    captureFrameRef={captureFrameRef}
-                    captureRatio={captureRatio}
-                    frameSize={captureFrameSize}
-                  />
-                  <PanoramaDialogControls
-                    captureFrameRef={captureFrameRef}
-                    captureRatioId={captureRatioId}
-                    onCaptureRatioChange={setCaptureRatioId}
-                    onClose={() => setFullscreen(false)}
-                    onScreenshot={(screenshot, project) => onScreenshot?.(screenshot, project)}
-                  />
-                </PhotoSpherePanoramaViewer>
-              </section>
-            </div>,
-            document.body,
-          )
-        : null}
+                <PanoramaCaptureOverlay
+                  captureFrameRef={captureFrameRef}
+                  captureRatio={captureRatio}
+                  frameSize={captureFrameSize}
+                />
+                <PanoramaDialogControls
+                  captureFrameRef={captureFrameRef}
+                  captureRatioId={captureRatioId}
+                  onCaptureRatioChange={setCaptureRatioId}
+                  onClose={() => setFullscreen(false)}
+                  onScreenshot={(screenshot, project) => onScreenshot?.(screenshot, project)}
+                />
+              </PhotoSpherePanoramaViewer>
+            </section>
+          </div>
+        </GenerationPageLayer>
+      ) : null}
     </>
   )
 }

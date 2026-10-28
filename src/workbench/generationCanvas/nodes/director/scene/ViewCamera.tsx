@@ -6,7 +6,8 @@
  * [OUTPUT]: 对外提供 ViewCamera（常量与 ViewSettings 见 ./viewSettings）：自由漫游相机（OrbitControls + WASD/EQ 飞行 + 方向键转视角 + Shift 加速）
  *           ⇄ 机位 POV（进入时保存自由视角、退出恢复；Orbit 目标 = 机位前方 5m；用户拖拽/飞行时按编辑层写回机位，否则跟随机位的求值位姿；
  *           画幅非 free 时做 FOV 补偿）；视角归位、聚焦选中、当前视角读取/写入、地面拾取；把命令式 API 写进 ViewportApiRef
- * [POS]: director/scene 的主视口相机控制器（清单 §2.1 V1 导航 + §6 C1 进出机位）。键盘飞行只在指针悬浮视口且焦点不在输入框时生效（O4 作用域）。
+ * [POS]: director/scene 的主视口相机控制器（清单 §2.1 V1 导航 + §6 C1 进出机位）。键盘飞行只在指针悬浮视口且焦点不在输入框时生效（O4 作用域）；
+ *        导演台藏着（切页 / 列表视图，useGenerationPageLayerActive 为假）时键盘监听摘掉并清掉按住的键，回来不会带着一个「卡住的 W」。
  *        录制运镜中不写回机位（录制器采样视口相机，停止时一次生成关键帧）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -25,6 +26,7 @@ import { useSceneRegistry } from './SceneRegistryContext'
 import { useViewportApi, type ViewPose } from './ViewportApiContext'
 import { FREE_CAMERA_HOME, type ViewSettings } from './viewSettings'
 import { isDirectorKeyboardBlocked } from '../useDirectorHotkeys'
+import { useGenerationPageLayerActive } from '../../../../generation/pageLayerContext'
 import { transformCameraPose } from '../model/cameraCoordinateSpace'
 import { invertFrame, sceneFrame } from '../model/sceneObjectGraph'
 
@@ -42,6 +44,7 @@ export function ViewCamera({ settings, hoveredRef }: { settings: ViewSettings; h
   const registry = useSceneRegistry()
   const apiRef = useViewportApi()
   const store = useDirectorStoreApi()
+  const layerActive = useGenerationPageLayerActive()
   const gridHeight = useDirectorStore((state) => state.activeScene().sceneConfig.gridHeight)
   const activeCameraId = useDirectorStore((state) => state.activeCameraId)
   const exportRatio = useDirectorStore((state) => state.project.exportRatio)
@@ -64,6 +67,10 @@ export function ViewCamera({ settings, hoveredRef }: { settings: ViewSettings; h
 
   // 键盘飞行：捕获期监听，只在视口悬浮且非文本焦点时吃键
   React.useEffect(() => {
+    if (!layerActive) {
+      keys.current.clear()
+      return undefined
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || isDirectorKeyboardBlocked(event) || !hoveredRef.current || !orbitEnabledRef.current) {
         keys.current.clear()
@@ -89,7 +96,7 @@ export function ViewCamera({ settings, hoveredRef }: { settings: ViewSettings; h
       window.removeEventListener('keyup', onKeyUp, { capture: true })
       window.removeEventListener('blur', onBlur)
     }
-  }, [store, hoveredRef])
+  }, [layerActive, store, hoveredRef])
 
   const readPose = React.useCallback((): ViewPose => {
     // 逻辑朝向：yaw 从 +Z 起、pitch 正=俯视（three 相机看 −Z，需翻 180°）
