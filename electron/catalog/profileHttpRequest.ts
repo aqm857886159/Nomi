@@ -29,7 +29,7 @@ export function templateContext(
       modelAlias: model.modelAlias,
       modelMeta: model.meta,
       operation,
-    })),
+    }), request.kind),
     model: model as unknown as JsonRecord,
     // `{{model.modelKey}}` 渲染成连接名（别名优先）——与 owner 的回落值同一个表达式。
     modelKey: connectionWireModel(model),

@@ -412,6 +412,10 @@ export const zhGenerationCommon = {
         reason: '这次生成没发出去：请求里带了参考区没在用的图',
         hint: 'Nomi 在发给服务商之前发现，这次请求里夹着参考区标「未用到」或当前方式用不上的图，于是在发出之前拦下了——这次请求一个字节都没离开你的电脑，服务商没被请求到。重新点一次生成即可：Nomi 会按参考区里正在用的图重新组一次请求。如果反复出现，请把下方技术详情反馈给我们，这说明有个入口没走统一的参考规则。',
       },
+      aspectRatioUnsupported: {
+        reason: '这次生成没发出去：所选画幅比例超出了这条连接出图尺寸支持的范围',
+        hint: '这条连接用 OpenAI 兼容的尺寸字段传出图尺寸，长边最多是短边的 3 倍（最宽 3:1、最窄 1:3），你选的比例超出了——哪怕模型本身支持这个比例，这条连接也表达不了。Nomi 没有悄悄换成别的画幅，而是在发出之前就拦下了：这次生成请求没有发出去，服务商没被请求到。请在下方换一个比例（比如 16:9、1:1 或 9:16）再点重试；这个比例确实要用的话，换一个能直接选这个比例的模型或连接。具体选了哪个比例，见下方技术详情。',
+      },
       assetInvalid: {
         reason: '参考素材本身有问题',
         hint: '这张参考素材没通过发送前的本机检查：文件读不到、认不出类型，或者内容不是真正的图片/视频（比如把网页存成了 .png）。请求还没发出去。同一个文件重试结果不会变——请在画布上换一张参考素材，或重新导入原文件，再点重试。具体是哪个文件，见下方技术详情。',
@@ -2149,6 +2153,10 @@ export const enGenerationCommon = {
       referenceNotInUse: {
         reason: 'This generation was not sent: the request carried references that are not in use',
         hint: 'Before sending, Nomi found images in this request that the reference row marks as Unused, or that the current mode cannot take, so it stopped the request before sending. Not a single byte left your machine and the provider was never called. Just generate again: Nomi will rebuild the request from the references currently in use. If this keeps happening, please send us the technical details below — it means some entry point is not following the shared reference rule.',
+      },
+      aspectRatioUnsupported: {
+        reason: 'This generation was not sent: the aspect ratio you picked is outside the image sizes this connection supports',
+        hint: 'This connection sends the image size as an OpenAI-compatible size field, which keeps the long edge within 3 times the short edge (at most 3:1 wide or 1:3 tall). The ratio you picked is outside that, even if the model itself supports it. Rather than silently generating a different shape, Nomi stopped before sending - the generation request was never sent and the provider was never called. Pick another ratio below (for example 16:9, 1:1 or 9:16) and retry; if you really need this ratio, use a model or connection that offers it directly. The technical details below show which ratio was selected.',
       },
       assetInvalid: {
         reason: 'The reference asset itself is invalid',
