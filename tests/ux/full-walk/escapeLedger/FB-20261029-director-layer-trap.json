@@ -22,7 +22,12 @@
     "src/ui/app-shell/windowChrome.test.ts",
     "tests/ux/director-layer-in-page.walk.mjs"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "e01163f28f069747b9ff175936c042078bd15e9b",
+    "3f78e2e065be24708c72bb6990a7a761138a2565",
+    "78d328504273a7216641f783b09fa5d30c96ec68",
+    "cbc8173a0fa07b7ac84680a3469ba791c5816784"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-29-director-layer-in-page.root-cause.json",
   "classCheck": {
     "kind": "matrix",
