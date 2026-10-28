@@ -4,10 +4,10 @@
   "source": {
     "prs": "/Users/aoqimin/Nomi-coord/tmp/R-process-tiering/prs.json",
     "details": "/tmp/process-tiering-full-details.json",
-    "rule": "origin/main + r3 current path classes",
+    "rule": "origin/main + r3 current process-tier判定（含旧关键词 / 数据格式 / ledger hard）",
     "replay": "files + ledger transitions; body intentionally omitted so guard is independent of private PR text"
   },
-  "currentStrictCount": 32,
+  "currentStrictCount": 122,
   "mustStrictNumbers": [
     1145,
     1149,
@@ -65,7 +65,7 @@
       "number": 1358,
       "title": "fix(canvas): 生成框参考行「+」上传本地文件，传完接到这张卡上",
       "mergedAt": "2026-10-27T16:13:46Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -349,7 +349,7 @@
       "number": 1355,
       "title": "test(walk): 生成框走查按 B3 重做——界面上选模型、本机回环供应商、真实 4K 参考图",
       "mergedAt": "2026-10-27T16:26:25Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -516,7 +516,7 @@
       "number": 1352,
       "title": "fix(whiteboard): 老画板卡片显示画过的内容，画框尺寸只提交真值，失败提示说真话",
       "mergedAt": "2026-10-27T11:02:32Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -598,7 +598,7 @@
       "number": 1351,
       "title": "docs(community): 换新用户群二维码（Nomi 画布群 3，11 月 3 日前有效）",
       "mergedAt": "2026-10-27T09:10:23Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -647,7 +647,7 @@
       "number": 1350,
       "title": "fix(gates): 概念门经共用改锚解析读边界主人台账，和 check:boundary-owners 同一口径",
       "mergedAt": "2026-10-27T07:16:18Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -681,7 +681,7 @@
       "number": 1348,
       "title": "fix(ci): CI 只选不要私有真素材的旅程",
       "mergedAt": "2026-10-27T05:31:45Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -805,7 +805,7 @@
       "number": 1343,
       "title": "test(walk): 走查默认安静，不抢用户前台",
       "mergedAt": "2026-10-27T06:48:32Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -1076,7 +1076,7 @@
       "number": 1342,
       "title": "test(real-media): 真实 4K 素材走通四个导入入口和 J4 / J5，销掉两笔素材债",
       "mergedAt": "2026-10-27T00:30:08Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -1110,7 +1110,7 @@
       "number": 1341,
       "title": "fix(errors): 服务商原话只认有来源证据的话",
       "mergedAt": "2026-10-27T07:16:23Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -1387,7 +1387,7 @@
       "number": 1338,
       "title": "docs(plan): Agent 能力路线图（尺子·记忆·收尾·眼睛·模型底线，已拍板）",
       "mergedAt": "2026-10-26T10:34:53Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -1403,7 +1403,7 @@
       "number": 1337,
       "title": "test(fixture): 参考图上传按次回独立地址，成片不再被当回声剔掉",
       "mergedAt": "2026-10-25T12:30:59Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -1740,7 +1740,7 @@
       "number": 1335,
       "title": "chore(gates): 单文件体积按格式化代码行算，超线文件冻结只减不增",
       "mergedAt": "2026-10-25T04:03:21Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -1868,7 +1868,7 @@
       "number": 1333,
       "title": "fix(canvas): keep generation mode in sync with inputs at the store write",
       "mergedAt": "2026-10-25T11:46:47Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2100,7 +2100,7 @@
       "number": 1330,
       "title": "fix(director): 删掉挂着的预演参考就是不要——花钱闸放行、按文生出，只有「出成片」才挂回",
       "mergedAt": "2026-10-24T22:30:03Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2191,7 +2191,7 @@
       "number": 1329,
       "title": "fix(walkthrough): 付费判定按可比地址对号、打码只许更宽——带空格的托管地址不再对不上",
       "mergedAt": "2026-10-24T21:28:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -2225,7 +2225,7 @@
       "number": 1328,
       "title": "chore(dispatch): 模型可见工具必读清单——派工检查拦下没带清单的工具类任务书",
       "mergedAt": "2026-10-24T21:28:26Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -2343,7 +2343,7 @@
       "number": 1326,
       "title": "fix(intake-radar): 反馈雷达取凭据改用 wrangler 官方命令——Mac 上不再找不到登录",
       "mergedAt": "2026-10-24T18:00:02Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2377,7 +2377,7 @@
       "number": 1325,
       "title": "fix(canvas): 视频比例控件只认一份定义——选清晰度不再把比例写空，像素串档位也吃竖图规则",
       "mergedAt": "2026-10-24T17:59:38Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2432,7 +2432,7 @@
       "number": 1324,
       "title": "fix(gates): 拍板图认领行认得出带数字的板名（IconsF1 / ComposerB3 / Director3dbox）",
       "mergedAt": "2026-10-24T15:46:03Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2451,7 +2451,7 @@
       "number": 1323,
       "title": "refactor(gates): 推送前的扫描型检查只看会进提交的文件——不再被本机忽略的走查产物误拦",
       "mergedAt": "2026-10-24T12:08:56Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -2488,7 +2488,7 @@
       "number": 1322,
       "title": "feat(design): 图标统一为四档（角标 / 工具 / 条 / 空态），落到节点浮条、生成框、顶栏、空态",
       "mergedAt": "2026-10-24T16:26:37Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2798,7 +2798,7 @@
       "number": 1321,
       "title": "chore(fix-churn): 桌面文案词典按键族计数——和渲染层词典同一张词典登记表",
       "mergedAt": "2026-10-24T10:46:21Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -2814,7 +2814,7 @@
       "number": 1320,
       "title": "refactor(push): 推分支前只跑 git 快检、完整门岗交给 CI——删掉本机五道门岗凭据（用户 10-24 拍板）",
       "mergedAt": "2026-10-24T10:34:58Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -2971,7 +2971,7 @@
       "number": 1318,
       "title": "feat(library): 技能库 / 提示词库换成拍板的排版——各管各的、分组摊开一行、统一卡面",
       "mergedAt": "2026-10-24T12:33:28Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -3224,7 +3224,7 @@
       "number": 1317,
       "title": "fix(nightly): 夜跑 166 条红分诊修复——走查不连坐、不读本机资料、收尾有上限，诊断包说得出主进程错误类名",
       "mergedAt": "2026-10-24T11:19:10Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -3483,7 +3483,7 @@
       "number": 1316,
       "title": "fix(site): 官网 macOS 第一次打开改走「仍要打开」，补 macOS 12 叫法",
       "mergedAt": "2026-10-24T10:12:39Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -3793,7 +3793,7 @@
       "number": 1315,
       "title": "fix(director): 导演台走查查出的七处问题——撤销连带、站位静默失败、时间轴错行、机位入地、群众 T 字、提示条被压、文档漂移",
       "mergedAt": "2026-10-24T16:26:13Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4133,7 +4133,7 @@
       "number": 1313,
       "title": "feat(dmg): Nomi 自己的 DMG 安装窗口（B 镜头飞入）+ 首次打开放行路径",
       "mergedAt": "2026-10-24T12:14:54Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -4233,7 +4233,7 @@
       "number": 1312,
       "title": "fix(assets): 素材删除只由一个判定说了算——项目里的文件在已打开的项目里也删得掉，删完两个页签都不再列",
       "mergedAt": "2026-10-24T11:38:11Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4384,7 +4384,7 @@
       "number": 1311,
       "title": "fix(gates): 超时的门岗连同子孙进程一起停掉，不再留孤儿占着锁和端口",
       "mergedAt": "2026-10-24T10:05:28Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4433,7 +4433,7 @@
       "number": 1310,
       "title": "fix(canvas): 生成框压住底部控件时，控件的投影也让位，不再留一块空白框",
       "mergedAt": "2026-10-24T08:14:34Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4491,7 +4491,7 @@
       "number": 1309,
       "title": "test(ux): 导演台走查搬到 3D-BOX 两面，入口只在 _directorLab 写一次",
       "mergedAt": "2026-10-24T06:39:28Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4564,7 +4564,7 @@
       "number": 1308,
       "title": "fix(gates-lock): 停门岗的信号落在起子进程前后也能杀干净、放锁",
       "mergedAt": "2026-10-24T06:39:10Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4589,7 +4589,7 @@
       "number": 1307,
       "title": "fix(merge-preflight): PR 改动改在本地 git 算，超过 300 个文件的 PR 也能出结论",
       "mergedAt": "2026-10-24T03:31:22Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4620,7 +4620,7 @@
       "number": 1306,
       "title": "fix(gates-lock): 门岗机器锁按到达顺序排号",
       "mergedAt": "2026-10-24T02:48:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -4642,7 +4642,7 @@
       "number": 1305,
       "title": "fix(prompt-library): 提示词删除后撤销原样放回（独立恢复通道），技能备份失败就不删",
       "mergedAt": "2026-10-24T00:29:15Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -4736,7 +4736,7 @@
       "number": 1304,
       "title": "docs(design): 技能库 / 提示词库排版改版——设计卡记拍板 + 拍板清单 8 张板",
       "mergedAt": "2026-10-23T22:02:22Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -4938,7 +4938,7 @@
       "number": 1303,
       "title": "fix(test): 浏览器夹具先编完再导航、选区改用编辑器命令；夹具不替测试起浏览器",
       "mergedAt": "2026-10-23T21:27:04Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -5020,7 +5020,7 @@
       "number": 1302,
       "title": "fix(ci): 进程组测试只数自己起的 sleep，不再被同机别的任务的 sleep 30 拖红",
       "mergedAt": "2026-10-23T21:27:08Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -5180,7 +5180,7 @@
       "number": 1300,
       "title": "fix(library): 删项目进回收站——先进回收站再摘登记，进不了就说原因、什么都不删（⑭）",
       "mergedAt": "2026-10-23T19:52:45Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -5557,7 +5557,7 @@
       "number": 1297,
       "title": "fix(catalog): 型号名按供应商作用域解析——共享档案只给参数，型号名的家是供应商映射（通用修复，无供应商特判）",
       "mergedAt": "2026-10-23T14:43:33Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -5618,7 +5618,7 @@
       "number": 1296,
       "title": "docs(plan): 夜跑存量 151 条稳定红分诊清单（走查自身坏 28 / 环境 12 / 产品候选 27 / 待判 84）",
       "mergedAt": "2026-10-23T15:33:40Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -5631,7 +5631,7 @@
       "number": 1295,
       "title": "docs(design): 新付费卡 D2 拍板清单——指向元素 P1 + 一张卡一颗「生成」Q1、现有付费卡功能全表、设计卡（用户 10-23 拍板）",
       "mergedAt": "2026-10-23T05:20:33Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -5704,7 +5704,7 @@
       "number": 1294,
       "title": "fix(nightly): 夜跑汇总分「构建门 / 环境 / 产品」三栏，整体红醒目标出（失败率 > 20% 或 > 30 条或任一构建门）",
       "mergedAt": "2026-10-24T01:14:18Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -5723,7 +5723,7 @@
       "number": 1293,
       "title": "fix(nightly): 夜跑输出目录进 .gitignore、走查前先做构建自检——构建身份不再被夜跑自己的日志弄漂",
       "mergedAt": "2026-10-23T22:41:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -5760,7 +5760,7 @@
       "number": 1292,
       "title": "fix(canvas): 画板打开就是画笔、完成后节点上显示画的那张图（用户 10-22 拍板，推翻清单 O40）",
       "mergedAt": "2026-10-23T16:17:37Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -5878,7 +5878,7 @@
       "number": 1291,
       "title": "fix(canvas): 打开节点不再改比例——视频比例默认值收进唯一出处（选模型 / 新卡 / 连线），删掉挂载 effect",
       "mergedAt": "2026-10-23T23:29:13Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6077,7 +6077,7 @@
       "number": 1289,
       "title": "fix(e2e): 主进程忙时 evaluate 结果被 GC 收掉——给 playwright-core 打保活补丁，报错附原始协议消息；每夜加 macOS 打包冒烟",
       "mergedAt": "2026-10-23T03:39:18Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -6126,7 +6126,7 @@
       "number": 1288,
       "title": "fix(landing): Agent 选的变体原样落到画布节点——候选→节点投影换成穷举表 + 一份线类型",
       "mergedAt": "2026-10-23T05:13:02Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6166,7 +6166,7 @@
       "number": 1287,
       "title": "refactor(gates): ESLint 覆盖 scripts / tests/ux / evals，拦 isVisible / isHidden 带 timeout；冻结数上涨要协调确认（门岗改造 G1）",
       "mergedAt": "2026-10-23T15:33:35Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -6230,7 +6230,7 @@
       "number": 1286,
       "title": "docs(design): 采纳「一个东西一个家 / Agent 只指路」底层规则（用户 10-22 拍板）",
       "mergedAt": "2026-10-22T19:24:22Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -6264,7 +6264,7 @@
       "number": 1285,
       "title": "fix(catalog): 本地参考只在提交那一步上传一次，轮询 / 取结果不再重传",
       "mergedAt": "2026-10-22T18:59:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6337,7 +6337,7 @@
       "number": 1284,
       "title": "docs(design): 选中即主语——分离 + 接入：已有组件原样用，新增 Δ1–Δ6 只写接入点",
       "mergedAt": "2026-10-23T19:52:55Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6506,7 +6506,7 @@
       "number": 1283,
       "title": "fix(agent-canvas-read): look_at_canvas 的「当前选中」不再静默截断，并可翻页读完",
       "mergedAt": "2026-10-24T09:12:43Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6582,7 +6582,7 @@
       "number": 1282,
       "title": "fix(library): 读列表永远不删项目——回收器移出列举、取锁不造孤儿目录、一个读不出的项目只灰它自己那张卡",
       "mergedAt": "2026-10-22T23:33:55Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6724,7 +6724,7 @@
       "number": 1280,
       "title": "fix(privacy): 落盘出口不存上游原话——项目事件、日志、Agent 轨迹只留结构事实（G-redact-owner 第 1 步）",
       "mergedAt": "2026-10-22T13:35:14Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -6974,7 +6974,7 @@
       "number": 1278,
       "title": "fix(mcp): MCP 收口残留——跨跳用量按调用生命周期去重、连接卡数写配置次数、旧分镜默认值说明同源",
       "mergedAt": "2026-10-22T09:24:32Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -7008,7 +7008,7 @@
       "number": 1277,
       "title": "fix(canvas): 对焦把「节点 + 生成框」整体框进扣掉浮层的可见区——出成片后 ↑ 不再掉出视口（缩放封顶 100%）",
       "mergedAt": "2026-10-22T06:32:31Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -7045,7 +7045,7 @@
       "number": 1276,
       "title": "fix(test): 两处 isVisible({ timeout }) 改成真等待——Playwright 的 isVisible 不等待、timeout 被忽略",
       "mergedAt": "2026-10-22T05:24:45Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -7061,7 +7061,7 @@
       "number": 1275,
       "title": "perf(canvas): 拖组框跟手——按下时持有目标、帧内只改位移，删每帧全局 DOM 查询（p95 52.6→15.2ms）",
       "mergedAt": "2026-10-22T08:12:42Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -7101,7 +7101,7 @@
       "number": 1274,
       "title": "docs(rules): 方向检查加协调代批例外（换 / 删、文件本身不热时协调代批、事后报用户）",
       "mergedAt": "2026-10-22T04:23:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -7126,7 +7126,7 @@
       "number": 1273,
       "title": "fix(mcp): MCP 收口前五个问题——用量不再重复记账、端口被占时卡片照实说、外部分镜缺省按 image、canvas.write 说明从准入生成、指南删 Pi 一键接入",
       "mergedAt": "2026-10-22T05:44:57Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -7220,7 +7220,7 @@
       "number": 1272,
       "title": "fix(director): 3D 预演参考换模型后重挂、编号按实发顺序、旧/坏预演按过期——花钱前对账当前请求",
       "mergedAt": "2026-10-22T06:54:59Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -7683,7 +7683,7 @@
       "number": 1270,
       "title": "fix(walk): 走查 / e2e / 性能起跑前核构建戳——证据不再可能来自旧构建（戳 v2 只算构建输入）",
       "mergedAt": "2026-10-21T22:51:53Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -7744,7 +7744,7 @@
       "number": 1269,
       "title": "feat(composer): 生成框 B3 新排法 + 四处复用宿主（参考行在文字上方、方式进参数面板、摘要只印当前值、↑ 圆钮）",
       "mergedAt": "2026-10-24T04:27:55Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -8054,7 +8054,7 @@
       "number": 1268,
       "title": "perf(library): 回项目库不再同步等全库——列表摘要收成唯一异步读面、状态检查批量限并发、删同步通道（689→约 480ms，第一步）",
       "mergedAt": "2026-10-22T09:00:30Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -8220,7 +8220,7 @@
       "number": 1267,
       "title": "docs(design): 0.24 方案 README 同步 10-21 结论——标注、分页排 0.25，顶栏图标更正为 18/1.8",
       "mergedAt": "2026-10-21T19:08:27Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -8233,7 +8233,7 @@
       "number": 1266,
       "title": "fix(gates): 门岗判证据「对不对」——独立验收核结论 / 版本 / 验收线，性能读原始结果，改界面认领清单（流程试行第 3 项）",
       "mergedAt": "2026-10-22T04:36:56Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -8291,7 +8291,7 @@
       "number": 1265,
       "title": "feat(ux): 体验成绩单 + 场景清单——一页看顺不顺（流程试行第 1、2 项）",
       "mergedAt": "2026-10-21T19:16:16Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -8367,7 +8367,7 @@
       "number": 1264,
       "title": "feat(creation): 写作区选中文字 → AI 编辑 → 就地出结果（✓ 接受 / ✕ 放弃 / 追加要求 / ↻ 重来）",
       "mergedAt": "2026-10-22T15:34:58Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -8635,7 +8635,7 @@
       "number": 1263,
       "title": "fix(agent-context): 画布多选交给 Agent 时不再静默截断——投影记账、超预算明示",
       "mergedAt": "2026-10-25T04:28:40Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -8735,7 +8735,7 @@
       "number": 1261,
       "title": "fix(concept-owners): 分镜表读投影的 lifecycle 改为合法取值，修 main 红灯",
       "mergedAt": "2026-10-21T10:15:07Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -8748,7 +8748,7 @@
       "number": 1259,
       "title": "docs: add AtomGit mirror links to READMEs",
       "mergedAt": "2026-10-19T09:07:16Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -8764,7 +8764,7 @@
       "number": 1257,
       "title": "docs(design): 0.24 交互方案同步到画布最新版（10-18 晚、10-19 的调整）",
       "mergedAt": "2026-10-19T05:58:15Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -8852,7 +8852,7 @@
       "number": 1256,
       "title": "fix(canvas): 派生节点落点按渲染占位避让，不再压在竖图等邻居上",
       "mergedAt": "2026-10-21T11:15:35Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -8910,7 +8910,7 @@
       "number": 1255,
       "title": "feat(agent): Agent 读分镜表的行 / 列 / 勾选（canvas.read 唯一投影，带上限）",
       "mergedAt": "2026-10-19T05:45:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -8965,7 +8965,7 @@
       "number": 1254,
       "title": "fix(concept-owners): 清掉 main 上 86 处红灯——登记 84 个合同边界、改正两个非法枚举值",
       "mergedAt": "2026-10-21T09:27:46Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -9176,7 +9176,7 @@
       "number": 1253,
       "title": "docs(rules): 调研与指标进流程——设计卡 ★0 先查别人、指标点名量具、板清单 priorArt",
       "mergedAt": "2026-10-19T05:06:53Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -9438,7 +9438,7 @@
       "number": 1251,
       "title": "docs(design): 0.24 交互方案样张入库（123 格源文件 + 预览图 + README 入口）",
       "mergedAt": "2026-10-18T20:44:23Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -9748,7 +9748,7 @@
       "number": 1250,
       "title": "release: main 版本号跟上 v0.23.2（package.json + 官网页面重新生成）",
       "mergedAt": "2026-10-18T17:01:35Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -10058,7 +10058,7 @@
       "number": 1249,
       "title": "fix(mcp): 转发口「Nomi 没开」只认拒连——重启后旧连接被复位不再叫用户「请先打开 Nomi」",
       "mergedAt": "2026-10-18T16:08:40Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -10086,7 +10086,7 @@
       "number": 1248,
       "title": "chore(release): 0.23.2 合回 main（RC 39128794706 · e57224285）",
       "mergedAt": "2026-10-18T15:48:34Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -10111,7 +10111,7 @@
       "number": 1247,
       "title": "docs(readme): 赞助商挪到首屏",
       "mergedAt": "2026-10-18T15:19:48Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -10127,7 +10127,7 @@
       "number": 1246,
       "title": "docs(design): 0.24 生成框（B3）实现清单——104 个元素 + 现有 103 项功能逐条去处",
       "mergedAt": "2026-10-18T13:15:24Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -10191,7 +10191,7 @@
       "number": 1245,
       "title": "fix(design-lab+walks): 实验室节点卡用生产宿主（拆解表不再撑出格子）；走查种子带预览事实（画布验收不再偶发红）",
       "mergedAt": "2026-10-18T15:52:22Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -10382,7 +10382,7 @@
       "number": 1243,
       "title": "fix(test): 浏览器测试夹具纳入类型检查，补 #1231 × #1241 的类级门岗与其余漂移",
       "mergedAt": "2026-10-18T12:02:33Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -10431,7 +10431,7 @@
       "number": 1242,
       "title": "fix(test): 参考区对齐门岗的夹具走生产同一取法（#1231 新增必填入参后 main 红）",
       "mergedAt": "2026-10-18T10:20:39Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -10453,7 +10453,7 @@
       "number": 1241,
       "title": "fix(canvas): 参考区一排框按顶边对齐，首尾帧标签不再把框顶低",
       "mergedAt": "2026-10-18T08:51:11Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -10481,7 +10481,7 @@
       "number": 1240,
       "title": "test(paid-walk): 接入不挑页面、先接入后开项目由入口保证；视频付费走查补零花费演练",
       "mergedAt": "2026-10-18T08:17:07Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -10515,7 +10515,7 @@
       "number": 1239,
       "title": "fix(models): 模型目录读失败时保留上一份选项并说原因，从没读成功才显示空态",
       "mergedAt": "2026-10-18T07:55:50Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -10570,7 +10570,7 @@
       "number": 1238,
       "title": "fix(mcp): 画布写的 4 个操作接上渲染端路由（说明书里有、调用回不支持）",
       "mergedAt": "2026-10-18T11:25:34Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -10607,7 +10607,7 @@
       "number": 1237,
       "title": "fix(mcp): 宿主连接可靠性——检查不挤会话、会话失效自动重握手、价格未知写「费用：未知」、拒绝是终态、端口冲突说原因",
       "mergedAt": "2026-10-18T11:04:57Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -10719,7 +10719,7 @@
       "number": 1236,
       "title": "test(assets): 生成暂存退出用例改等收尾回执，满载不再与排空赛跑",
       "mergedAt": "2026-10-18T06:44:05Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -10732,7 +10732,7 @@
       "number": 1235,
       "title": "feat(telemetry): 匿名统计告知写准 + 范围升级再确认 + 界面流畅度分档事件 + 反馈附卡顿数字",
       "mergedAt": "2026-10-18T10:42:41Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -10886,7 +10886,7 @@
       "number": 1234,
       "title": "ci(design-lab): 截图比对搬到 CI 的 macOS 机器，基线只认那一台",
       "mergedAt": "2026-10-18T07:48:29Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -11196,7 +11196,7 @@
       "number": 1233,
       "title": "docs(community): 换新用户群二维码（Nomi 画布群 3，10 月 25 日前有效）",
       "mergedAt": "2026-10-18T04:27:10Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -11245,7 +11245,7 @@
       "number": 1232,
       "title": "docs(rules): 一次做好——验收清单前移、同类一次想全、真付费三道前置、二次不过先找根因；付费走查入口拒跑旧产物",
       "mergedAt": "2026-10-17T20:37:29Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -11288,7 +11288,7 @@
       "number": 1231,
       "title": "perf(canvas): 点卡出生成框零 IO、零写——挂载期同步 IPC 与整表订阅收掉",
       "mergedAt": "2026-10-18T08:58:44Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -11577,7 +11577,7 @@
       "number": 1230,
       "title": "fix(test): 共享临时目录返回真路径，修好只在 Mac 上红的三道门岗",
       "mergedAt": "2026-10-18T04:03:15Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -11602,7 +11602,7 @@
       "number": 1229,
       "title": "test(paid-walk): 付费走查改用环境变量 key 走可见接入页，跑完删副本；#1203 真付费走查脚本",
       "mergedAt": "2026-10-17T18:53:18Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -11648,7 +11648,7 @@
       "number": 1228,
       "title": "docs(readme): 新增赞助商区块，首位赞助商极途 Gway",
       "mergedAt": "2026-10-17T17:23:41Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -11667,7 +11667,7 @@
       "number": 1226,
       "title": "feat(site): 官网技能库只展示已发布版本里就有的技能（技能声明 available-since）",
       "mergedAt": "2026-10-17T04:47:22Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -11707,7 +11707,7 @@
       "number": 1225,
       "title": "fix(merge-preflight): 花钱类 PR 合并前要真付费证据或协调明示豁免",
       "mergedAt": "2026-10-17T01:47:19Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -11774,7 +11774,7 @@
       "number": 1223,
       "title": "fix(agent): 草稿回执写明下一步——用户要生成就调 generate，只要草稿就停",
       "mergedAt": "2026-10-17T00:10:48Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -12112,7 +12112,7 @@
       "number": 1221,
       "title": "feat(director): 3D-BOX 成为唯一导演台——出成片接线、过期预演挡花钱、删开关与旧分支",
       "mergedAt": "2026-10-17T16:48:46Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -12422,7 +12422,7 @@
       "number": 1220,
       "title": "test(mcp): 会话旅程测试改等事件信号、不靠 3 秒墙钟；vi.waitFor 显式超时进棘轮",
       "mergedAt": "2026-10-16T21:34:01Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -12444,7 +12444,7 @@
       "number": 1218,
       "title": "feat(mcp): 「AI 助手连接」卡的连接状态读真实使用情况（第 4 段）",
       "mergedAt": "2026-10-16T23:10:28Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -12607,7 +12607,7 @@
       "number": 1217,
       "title": "fix(prepush): 新增测试文件时本机推送前就跑扫描型守卫登记核对",
       "mergedAt": "2026-10-16T17:54:04Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -12644,7 +12644,7 @@
       "number": 1216,
       "title": "test(perf): 卡顿场景表 28 条 + 安静窗口基线 + 超预算欠账棘轮",
       "mergedAt": "2026-10-16T17:50:14Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -12804,7 +12804,7 @@
       "number": 1215,
       "title": "feat(eval): 3D-BOX Agent 在环评测底座——合成自检、录音、零花费回放",
       "mergedAt": "2026-10-16T17:21:23Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -12829,7 +12829,7 @@
       "number": 1214,
       "title": "test(director): 物理判据按 0.25 秒步长采样，走动途中穿身而过也量得到",
       "mergedAt": "2026-10-16T17:26:59Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -12845,7 +12845,7 @@
       "number": 1212,
       "title": "fix(test): 测试不再在用例体和钩子里冷加载大模块，推送前并发不再超时（门岗 + 存量棘轮）",
       "mergedAt": "2026-10-16T13:37:28Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -12909,7 +12909,7 @@
       "number": 1211,
       "title": "perf(canvas): 画布壳不再订阅选区，选中只重算变了的卡和边",
       "mergedAt": "2026-10-16T21:11:44Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -12982,7 +12982,7 @@
       "number": 1210,
       "title": "perf(storyboard): 分镜方案只挂看得见的行，320 镜打开从约 14.6 秒到约 0.6 秒",
       "mergedAt": "2026-10-16T21:05:33Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -13716,7 +13716,7 @@
       "number": 1206,
       "title": "test(ux): 40 条走查迁到共用外壳出口 + 旧外壳字面量门岗扩 5 类（夜跑第一刀 B，叠在 A 上）",
       "mergedAt": "2026-10-16T16:34:24Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -13978,7 +13978,7 @@
       "number": 1205,
       "title": "test(ux): 走查共用外壳出口补全 + 走查未定义标识符门岗（夜跑第一刀 A）",
       "mergedAt": "2026-10-16T16:31:14Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14030,7 +14030,7 @@
       "number": 1204,
       "title": "docs(evidence): 去蓝色描边的实验室对照样张按当前代码重录（#1173 后续）",
       "mergedAt": "2026-10-16T06:23:31Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -14425,7 +14425,7 @@
       "number": 1202,
       "title": "fix(canvas): 节点从加载占位换成正式卡的那一下吃掉点击——占位带加载标记，点卡前等它换完",
       "mergedAt": "2026-10-16T09:28:57Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14474,7 +14474,7 @@
       "number": 1201,
       "title": "docs(process): 设计流程第 1 步补回 Claude Design——探索在 Claude Design 放开画、落地用我们的组件搭",
       "mergedAt": "2026-10-16T04:57:31Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -14493,7 +14493,7 @@
       "number": 1200,
       "title": "chore(radar): 三日竞品雷达的名单与产出只进私有仓——公开仓迁出并加门岗",
       "mergedAt": "2026-10-16T03:00:36Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -14566,7 +14566,7 @@
       "number": 1199,
       "title": "fix(canvas): 剪辑片段标签不再被手柄盖住首字——标签让位宽度从手柄几何同一处推导",
       "mergedAt": "2026-10-16T02:34:38Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14612,7 +14612,7 @@
       "number": 1198,
       "title": "fix(gates): 合并前扫描认得 PR 自己新登记的性能场景——政策表取 main，PR 可扩充的数据取 PR 头",
       "mergedAt": "2026-10-16T02:23:46Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14646,7 +14646,7 @@
       "number": 1197,
       "title": "fix(shell): 抽屉里打开文稿或方案就收起，新打开的内容不再被抽屉盖住",
       "mergedAt": "2026-10-12T14:04:50Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14674,7 +14674,7 @@
       "number": 1196,
       "title": "docs: 大画布显示异常与自动化出图入口诊断",
       "mergedAt": "2026-10-21T11:47:25Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14711,7 +14711,7 @@
       "number": 1194,
       "title": "docs: 页面式画布与媒体反馈 Agent 联动方案",
       "mergedAt": "2026-10-13T17:54:00Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -14748,7 +14748,7 @@
       "number": 1193,
       "title": "perf(workbench): 隐藏的分镜工作区用 Activity 冻结，访问过分镜后切文稿不再卡 7 秒",
       "mergedAt": "2026-10-16T01:37:49Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -14854,7 +14854,7 @@
       "number": 1191,
       "title": "fix(gates): 推送前相关测试——起浏览器的测试交给 CI、按真实模块引用挑选（不再因 main.tsx 误选所有写了 origin/main 的测试）",
       "mergedAt": "2026-10-12T06:28:13Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -14873,7 +14873,7 @@
       "number": 1190,
       "title": "fix(creation): 文稿链接 / 下划线 / 表格列宽等保存后丢失、加粗后多一次撤销——白名单补齐并按 schema 往返守住，回流按文档结构比较",
       "mergedAt": "2026-10-12T06:11:43Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -15217,7 +15217,7 @@
       "number": 1188,
       "title": "fix(canvas): 删节点连带摘下的时间轴片段，撤销 / 重做 / 放回时原位放回——节点集合变化只走一个出口，剪切与删组补接",
       "mergedAt": "2026-10-12T06:08:39Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -15272,7 +15272,7 @@
       "number": 1187,
       "title": "feat(gates): 新功能必做性能分析——设计卡 ★7、性能场景登记表与一键重跑、PR 判据要 perf-scenario 证据",
       "mergedAt": "2026-10-11T20:06:02Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -15342,7 +15342,7 @@
       "number": 1186,
       "title": "feat(site): 中英文教程站第 1 段——Astro Starlight 接入、官网门岗打通、5 页样板与真界面自动录图",
       "mergedAt": "2026-10-16T03:31:36Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -15652,7 +15652,7 @@
       "number": 1185,
       "title": "feat(canvas): move media timeline action into node toolbars",
       "mergedAt": "2026-10-16T02:27:13Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -15779,7 +15779,7 @@
       "number": 1184,
       "title": "fix(gates): NUL 字节门岗自测改在临时夹具仓里放探针——不再往仓库目录写文件，推送前钩子并发列文件不再误报",
       "mergedAt": "2026-10-11T18:34:37Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -15798,7 +15798,7 @@
       "number": 1183,
       "title": "节点同框鼠标参考入口与 Agent 句中原件引用",
       "mergedAt": "2026-10-16T01:40:46Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -16045,7 +16045,7 @@
       "number": 1182,
       "title": "fix(gates): 合并前扫描取不到数据一律判不通过——删掉分页失败退回 100 个文件上限的退路（#1166 假红根因）",
       "mergedAt": "2026-10-11T18:23:17Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -16061,7 +16061,7 @@
       "number": 1181,
       "title": "fix(canvas): 按选中上下文显示空节点引导并放大类型图标",
       "mergedAt": "2026-10-12T06:51:58Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -16278,7 +16278,7 @@
       "number": 1180,
       "title": "docs: 画布与 Agent 成果协作方案及开源复用研究",
       "mergedAt": "2026-10-12T05:35:59Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -16324,7 +16324,7 @@
       "number": 1178,
       "title": "fix(canvas): 修饰键松开丢了画布还以为按着——点第二个节点误成多选、卡拖不动",
       "mergedAt": "2026-10-11T14:23:53Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -16364,7 +16364,7 @@
       "number": 1177,
       "title": "fix(gates): 门岗测试不再改写被跟踪源文件——推送前竞态误报的根因，测试临时文件门岗认出别名写法",
       "mergedAt": "2026-10-11T13:50:24Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -16389,7 +16389,7 @@
       "number": 1176,
       "title": "feat(canvas): 原卡截帧与精简剪辑交互",
       "mergedAt": "2026-10-11T13:57:29Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -16699,7 +16699,7 @@
       "number": 1175,
       "title": "fix(library): 项目库报错只说一句人话、原文进日志——类型上拦住原文进界面",
       "mergedAt": "2026-10-11T14:04:04Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -16769,7 +16769,7 @@
       "number": 1174,
       "title": "fix(canvas): 分组框头按拍板稿——框内组名与计数、底色区分、工具条动作直接摆图标",
       "mergedAt": "2026-10-11T19:13:20Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -17043,7 +17043,7 @@
       "number": 1173,
       "title": "design: 去掉强调色描边——按拍板样张全量落地，蓝色只留主按钮 / 链接 / 进度 / 握把",
       "mergedAt": "2026-10-16T04:49:03Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -17512,7 +17512,7 @@
       "number": 1170,
       "title": "fix(canvas): 拖动编组/选区时成员壳与手柄跟着走（选择器属性名改 data-id）",
       "mergedAt": "2026-10-11T13:00:47Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -17537,7 +17537,7 @@
       "number": 1168,
       "title": "feat(gates): 拍板图元素清单 + 对账门岗——图上每个元素必须有着落才能合",
       "mergedAt": "2026-10-10T14:11:16Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -17769,7 +17769,7 @@
       "number": 1167,
       "title": "fix(gates): 扫描型守卫批量放宽用例超时，满载时不再假红",
       "mergedAt": "2026-10-10T12:39:31Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -17785,7 +17785,7 @@
       "number": 1166,
       "title": "fix(shell): 画布外框对齐拍板稿——加节点条底部正中、缩放簇收紧、顶栏分段整窗居中",
       "mergedAt": "2026-10-11T15:08:21Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18095,7 +18095,7 @@
       "number": 1165,
       "title": "fix(gates): 推送前也跑扫全仓的守卫测试——自动识别扫描型测试，没登记就红",
       "mergedAt": "2026-10-10T12:13:45Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18123,7 +18123,7 @@
       "number": 1164,
       "title": "feat(canvas): 空节点视觉中心排版——各比例下内容块不再贴顶，矮卡三档收",
       "mergedAt": "2026-10-10T12:16:56Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18284,7 +18284,7 @@
       "number": 1162,
       "title": "docs(process): 分工加 Haiku 一档——机械活与按清单的验收 / 复验（用户 10-10）",
       "mergedAt": "2026-10-10T08:54:18Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -18297,7 +18297,7 @@
       "number": 1161,
       "title": "fix(ci): 只读调用超时也按瞬断重试，写调用超时仍只试一次",
       "mergedAt": "2026-10-10T07:02:59Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -18406,7 +18406,7 @@
       "number": 1159,
       "title": "fix(gates): 门岗自检只在临时副本上变异，不再原地改真实工作区的生产文件",
       "mergedAt": "2026-10-10T06:53:35Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -18440,7 +18440,7 @@
       "number": 1158,
       "title": "fix(ci): 脚本网络调用走共用瞬断重试 + 门岗拦新写的裸调用",
       "mergedAt": "2026-10-10T06:05:25Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18516,7 +18516,7 @@
       "number": 1157,
       "title": "fix(gates): 只在 Windows 上红的 6 道门岗修好（共用路径工具 scripts/lib/repoPaths.mjs + check:main-guard 拦手拼路径）；相关单测用 tsx 跑",
       "mergedAt": "2026-10-10T05:22:45Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18830,7 +18830,7 @@
       "number": 1155,
       "title": "fix(gates): 推送前钩子起门岗 / 测试子进程时不继承 GIT_*（测试的 git init 曾把真仓库改成 bare）",
       "mergedAt": "2026-10-10T03:38:54Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18849,7 +18849,7 @@
       "number": 1154,
       "title": "chore(gates): 推送前按改动挑相关单测（限时如实说）+ 钩子结构用例拆成快门岗 + typecheck 超时不当红",
       "mergedAt": "2026-10-10T02:14:05Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -18880,7 +18880,7 @@
       "number": 1153,
       "title": "test(ux): 走查的外壳位置收进一个定位助手（_shell.mjs）+ raw-shell-anchor 门岗",
       "mergedAt": "2026-10-10T03:04:25Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19037,7 +19037,7 @@
       "number": 1152,
       "title": "feat(video-node): 视频节点截帧（当前帧 / 首帧 / 尾帧）——新图片卡 + 连线 + 一步撤销；本机处理失败卡只留重试",
       "mergedAt": "2026-10-10T02:38:42Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19347,7 +19347,7 @@
       "number": 1151,
       "title": "perf(agent-lane): 工具预算——逐工具列账、stage_shot 措辞瘦身",
       "mergedAt": "2026-10-10T09:15:20Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19375,7 +19375,7 @@
       "number": 1150,
       "title": "fix(gates): 推送前不再因「独立验收还没有报告链接」拦推送，CI / 合并前照旧必须有",
       "mergedAt": "2026-10-10T00:37:14Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19400,7 +19400,7 @@
       "number": 1149,
       "title": "fix(clip-drop-zoom): 素材拖进剪辑节点、窄片段命中垫、边缘自动滚动，全局手柄与预览区拖动并入同一规矩",
       "mergedAt": "2026-10-10T01:57:03Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19563,7 +19563,7 @@
       "number": 1148,
       "title": "fix(walk): 付费走查自动配好出网放行名单，被挡立即失败",
       "mergedAt": "2026-10-10T01:17:24Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19618,7 +19618,7 @@
       "number": 1147,
       "title": "fix(canvas): 所有建边入口统一过连线总闸（MCP 连边、外部写回、粘贴 / 复制 / 模板）",
       "mergedAt": "2026-10-10T00:53:21Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19721,7 +19721,7 @@
       "number": 1146,
       "title": "ci: E2E 走查按历史耗时分 4 片并行、Unit 分 3 片——PR 的 CI 从约 40 分钟压到约 13 分钟",
       "mergedAt": "2026-10-09T23:01:01Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -19761,7 +19761,7 @@
       "number": 1145,
       "title": "fix(timeline): 剪辑节点与时间轴手势收成一个入口——播放头优先、按下即选中、手柄悬停可拉、打断回到拖之前（第一片）",
       "mergedAt": "2026-10-09T21:37:39Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
@@ -19888,7 +19888,7 @@
       "number": 1144,
       "title": "docs(community): 换新用户群二维码（Nomi 画布群 3，10 月 17 日前有效）",
       "mergedAt": "2026-10-09T22:27:43Z",
-      "currentTier": "non-strict",
+      "currentTier": "standard",
       "matchedClasses": [],
       "files": [
         {
@@ -19937,7 +19937,7 @@
       "number": 1143,
       "title": "docs(process): 有价值的规则全部进仓库——普查协调记忆，搬进规则正本 / 编排手册 / 交付评审 / 教训",
       "mergedAt": "2026-10-09T18:41:20Z",
-      "currentTier": "non-strict",
+      "currentTier": "short",
       "matchedClasses": [],
       "files": [
         {
@@ -20007,7 +20007,7 @@
       "number": 1142,
       "title": "feat(mcp): 第 3 段——同意后把宿主配置迁移到本机直连（迁移前备份、可恢复、失败可重试）",
       "mergedAt": "2026-10-10T11:05:03Z",
-      "currentTier": "non-strict",
+      "currentTier": "strict",
       "matchedClasses": [],
       "files": [
         {
