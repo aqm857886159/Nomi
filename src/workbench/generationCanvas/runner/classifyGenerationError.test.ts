@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { classifyGenerationError } from './generationRunController'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
 import { desktopT } from '../../../../electron/i18n'
+import { ratioResToOpenAiSize } from '../../../../electron/catalog/paramTranslate'
 import { describeAgentError } from '../../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../../electron/ai/runtimeVendorError'
 import { laneModelTimeoutMessage } from '../../../../electron/shared/agentLane/laneAssistantFault'
@@ -335,6 +336,56 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(i18n.t('generationCommon.observability.error.referenceNotInUse.reason', { lng: 'en' })).not.toBe(coded.reason)
   })
 
+  // 用户明确选了、却超过 3:1 的生图比例（#1344 评审）：以前悄悄省略 size，服务商按默认尺寸出图，选的画幅被换成别的。
+  // 现在主进程在构造请求时就拒（electron/catalog/paramTranslate.ts），渲染层按码给词条。错误取自真实生产者、不手写——
+  // 码或人话任一边改了，这条跟着红。
+  describe('画幅比例超出连接范围被主进程在构造请求时拒发（aspect-ratio-unsupported）', () => {
+    const refusal = (): string => {
+      try {
+        ratioResToOpenAiSize(['4:1', '1K'], 'text_to_image')
+      } catch (error) {
+        return `Error invoking remote method 'nomi:tasks:run': ${String(error)}`
+      }
+      throw new Error('expected 4:1 to be refused for an image task')
+    }
+
+    it('归到它自己那一类：不落 unknown、不甩锅服务商，主动作重试、次动作换模型，码标记不外露', () => {
+      const report = classifyGenerationError(refusal())
+      expect(report.kind).toBe('aspect-ratio-unsupported')
+      expect(report.vendorSide).toBe(false)
+      expect(report.primary).toBe('retry')
+      expect(report.secondary).toBe('switch-model')
+      expect(report.providerMessage).toBeUndefined()
+      expect(report.raw).not.toMatch(/NOMI_ERR/)
+      expect(report.raw).toMatch(/4:1/)
+      expect(report.hint).not.toMatch(/服务商临时故障/)
+    })
+
+    it('中文词条：说清比例超出了这条连接支持的范围、请求没发出去、请换一个比例', () => {
+      const report = classifyGenerationError(refusal())
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.reason'))
+      expect(report.hint).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.hint'))
+      expect(report.reason).toMatch(/比例.*超出/)
+      expect(report.hint).toMatch(/3:1/)
+      expect(report.hint).toMatch(/换一个比例/)
+      expect(report.hint).toMatch(/没被请求到/)
+    })
+
+    it('英文词条同样来自词典，不混中文', async () => {
+      await i18n.changeLanguage('en')
+      try {
+        const report = classifyGenerationError(refusal())
+        expect(report.kind).toBe('aspect-ratio-unsupported')
+        expect(report.reason).toMatch(/aspect ratio.*outside/i)
+        expect(report.hint).toMatch(/Pick another ratio/)
+        expect(report.hint).toMatch(/provider was never called/)
+        expect(`${report.reason}${report.hint}`).not.toMatch(/[㐀-鿿]/)
+      } finally {
+        await i18n.changeLanguage('zh-CN')
+      }
+    })
+  })
+
   it('stripNomiErrorCode:剥掉码标记后只留人话（展示端不泄露机器信号）', () => {
     expect(stripNomiErrorCode(tagNomiError('asset-too-large', '文件太大了'))).toBe('文件太大了')
     expect(stripNomiErrorCode('没有标记的普通错误')).toBe('没有标记的普通错误')
@@ -565,7 +616,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
     auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
-    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-not-in-use': true, 'outbound-blocked': true,
+    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
     'outbound-blocked-submit': true, 'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
     'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'submission-not-sent': true, 'output-retrieval-failed': true, 'retrieval-incomplete': true, 'local-processing': true, unknown: true,
   }
@@ -1088,6 +1139,7 @@ describe('vendorSide —— 失败是不是服务商那一侧的事', () => {
   it.each([
     ['结果已送达、本机读不出来', tagNomiError('output-unreadable', 'Generated media validation failed (decode_failed)')],
     ['参考素材本身不行（请求没发出）', tagNomiError('asset-invalid', '参考素材读取失败')],
+    ['选的画幅比例超出连接范围（构造请求时就拒了）', tagNomiError('aspect-ratio-unsupported', 'Request stopped before sending: aspect ratio 4:1 is outside the image sizes this connection supports')],
     ['我们自己的出站策略拦了提交（走的是 VendorRequestError 的壳）', structuredMessage({ vendorKey: 'x', category: 'network', upstreamMsg: 'refused' }, `Provider request refused by outbound policy: ${tagNomiError('outbound-blocked-submit', 'blocked')}`)],
     ['取片被出站策略拦了', tagNomiError('outbound-blocked', 'blocked')],
     ['模型已被我们下线', 'Model is retired: sora-2'],

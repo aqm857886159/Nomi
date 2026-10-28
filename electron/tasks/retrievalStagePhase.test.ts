@@ -172,6 +172,6 @@ describe("C3：码表给每个码登记阶段，出口只按这张表放行", ()
 
   it("提交前那一族一个不少", () => {
     const submit = Object.entries(NOMI_ERROR_ONLY_BEFORE_SUBMIT).filter(([, only]) => only).map(([code]) => code).sort();
-    expect(submit).toEqual(["asset-invalid", "asset-too-large", "asset-upload-failed", "model-config", "outbound-blocked-credential-origin", "outbound-blocked-submit", "reference-not-in-use", "submission-unknown"]);
+    expect(submit).toEqual(["aspect-ratio-unsupported", "asset-invalid", "asset-too-large", "asset-upload-failed", "model-config", "outbound-blocked-credential-origin", "outbound-blocked-submit", "reference-not-in-use", "submission-unknown"]);
   });
 });

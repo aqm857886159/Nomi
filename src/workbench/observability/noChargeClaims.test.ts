@@ -49,7 +49,7 @@ describe('失败文案目录里不谈钱', () => {
 
   it.each(['zh-CN', 'en'] as const)('%s：没出门的那几类改说「请求还没发出去」这个事实', (language) => {
     const fact = language === 'en' ? /never called|Nothing was sent|never left your machine|left your machine/i : /没被请求到|还没发出去|没有离开你的电脑/
-    for (const key of ['assetUploadFailed', 'assetInvalid', 'outboundBlockedSubmit', 'outboundBlockedCredentialOrigin'] as const) {
+    for (const key of ['assetUploadFailed', 'assetInvalid', 'aspectRatioUnsupported', 'outboundBlockedSubmit', 'outboundBlockedCredentialOrigin'] as const) {
       expect(leaves((catalog(language) as Record<string, unknown>)[key]).some((leaf) => fact.test(leaf.text)), `${language}.${key}`).toBe(true)
     }
   })

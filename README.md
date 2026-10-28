@@ -132,7 +132,7 @@ The installer has no Authenticode signature. In the SmartScreen prompt, choose *
 
 > **Disclosure:** the APIMart link carries a referral code. You always pay providers directly with your own key at their price. Nomi never proxies or resells inference, and every provider can be swapped for your own endpoint.
 
-More: [quick start](https://nomiaqm.com/en/quickstart) · [model connection](docs/guide/model-connection-en.md) · [user guide](docs/user-guide.md) · [providers](docs/provider-integration.md) · [CLI + MCP](docs/guide/capability-core-cli-mcp.md)
+More: [quick start](https://nomiaqm.com/en/quickstart) · [connect your first model (English)](docs/guide/model-connection-en.md) · [user guide](docs/user-guide.md) · [providers](docs/provider-integration.md) · [CLI + MCP](docs/guide/capability-core-cli-mcp.md)
 
 ## Use Nomi from your own agent
 
