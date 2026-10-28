@@ -1,0 +1,226 @@
+{
+  "script": "browser-extract-real.rehearsal.walk.mjs",
+  "mode": "rehearsal（夹具剧本读图，不是模型分数）",
+  "startedAt": "2026-10-28T01:34:05.786Z",
+  "finishedAt": "2026-10-28T01:37:04.522Z",
+  "result": "passed",
+  "failure": null,
+  "model": "apimart/gemini-3.5-flash（地址重定向到本机夹具）",
+  "image": {
+    "id": "image-4k-png",
+    "bytes": 3615533,
+    "originalBytes": 9978601,
+    "maxEdge": 1920,
+    "fileName": "reference.png"
+  },
+  "locales": [
+    "zh-CN",
+    "en"
+  ],
+  "passes": [
+    {
+      "locale": "zh-CN",
+      "steps": [
+        {
+          "id": "1-cancel",
+          "text": "悬停点提取 → 出卡 → 取消：供应商 0 次，库不变，标签页写已取消",
+          "ok": true,
+          "delta": {
+            "outbound": 0,
+            "fixtureVision": 0,
+            "library": 0,
+            "cardsOpened": 1,
+            "maxConcurrentCards": 1,
+            "cardSamples": 21
+          }
+        },
+        {
+          "id": "2-busy",
+          "text": "卡开着时再触发：回忙，标签页那句等于词典原文，始终只有 1 张卡",
+          "ok": true,
+          "delta": {
+            "outbound": 0,
+            "fixtureVision": 0,
+            "library": 0,
+            "cardsOpened": 2,
+            "maxConcurrentCards": 1,
+            "cardSamples": 25
+          }
+        },
+        {
+          "id": "3-confirm",
+          "text": "在卡上点确认：供应商恰好 1 次，库多 1 条，再等 60 秒仍是 1 次",
+          "ok": true,
+          "delta": {
+            "outbound": 1,
+            "fixtureVision": 1,
+            "library": 1,
+            "cardsOpened": 2,
+            "maxConcurrentCards": 1,
+            "cardSamples": 31
+          },
+          "added": {
+            "title": "Rehearsal harbor at dawn #1"
+          }
+        },
+        {
+          "id": "4-screenshot-cancel",
+          "text": "工具栏截图提取 → 出卡 → 取消：供应商仍是 1 次",
+          "ok": true,
+          "delta": {
+            "outbound": 1,
+            "fixtureVision": 1,
+            "library": 1,
+            "cardsOpened": 3,
+            "maxConcurrentCards": 1,
+            "cardSamples": 35
+          }
+        }
+      ],
+      "shots": [
+        "docs/evidence/2026-10-27-browser-extract-grant/rehearsal/zh-1-extract-card.png",
+        "docs/evidence/2026-10-27-browser-extract-grant/rehearsal/zh-2-busy-hint.png",
+        "docs/evidence/2026-10-27-browser-extract-grant/rehearsal/zh-3-library-entry.png"
+      ],
+      "counts": {
+        "base": {
+          "outbound": 0,
+          "fixtureVision": 0,
+          "library": 0,
+          "cards": {
+            "opened": 0,
+            "maxConcurrent": 0,
+            "samples": 11
+          }
+        },
+        "cardTextAtStep1": "把这张图写成提示词？\n\n读图模型会看一次这张图，写好的提示词存进提示词库。\n\n来源页\n127.0.0.1\n图片\nreference.png\n读图\napimart · gemini-3.5-flash\n取消\n提取",
+        "reconcile": {
+          "confirmClicks": 1,
+          "outbound": 1,
+          "supplierSide": 1
+        },
+        "final": {
+          "outbound": 1,
+          "fixtureVision": 1,
+          "library": 1,
+          "cardsOpened": 3,
+          "maxConcurrentCards": 1,
+          "cardSamples": 35
+        },
+        "libraryPanel": {
+          "entryShownWithoutReload": false,
+          "entryShownAfterReload": true
+        }
+      }
+    },
+    {
+      "locale": "en",
+      "steps": [
+        {
+          "id": "1-cancel",
+          "text": "悬停点提取 → 出卡 → 取消：供应商 0 次，库不变，标签页写已取消",
+          "ok": true,
+          "delta": {
+            "outbound": 0,
+            "fixtureVision": 0,
+            "library": 0,
+            "cardsOpened": 1,
+            "maxConcurrentCards": 1,
+            "cardSamples": 21
+          }
+        },
+        {
+          "id": "2-busy",
+          "text": "卡开着时再触发：回忙，标签页那句等于词典原文，始终只有 1 张卡",
+          "ok": true,
+          "delta": {
+            "outbound": 0,
+            "fixtureVision": 0,
+            "library": 0,
+            "cardsOpened": 2,
+            "maxConcurrentCards": 1,
+            "cardSamples": 25
+          }
+        },
+        {
+          "id": "3-confirm",
+          "text": "在卡上点确认：供应商恰好 1 次，库多 1 条，再等 60 秒仍是 1 次",
+          "ok": true,
+          "delta": {
+            "outbound": 1,
+            "fixtureVision": 1,
+            "library": 1,
+            "cardsOpened": 2,
+            "maxConcurrentCards": 1,
+            "cardSamples": 31
+          },
+          "added": {
+            "title": "Rehearsal harbor at dawn #2"
+          }
+        },
+        {
+          "id": "4-screenshot-cancel",
+          "text": "工具栏截图提取 → 出卡 → 取消：供应商仍是 1 次",
+          "ok": true,
+          "delta": {
+            "outbound": 1,
+            "fixtureVision": 1,
+            "library": 1,
+            "cardsOpened": 3,
+            "maxConcurrentCards": 1,
+            "cardSamples": 35
+          }
+        }
+      ],
+      "shots": [
+        "docs/evidence/2026-10-27-browser-extract-grant/rehearsal/en-1-extract-card.png",
+        "docs/evidence/2026-10-27-browser-extract-grant/rehearsal/en-2-busy-hint.png",
+        "docs/evidence/2026-10-27-browser-extract-grant/rehearsal/en-3-library-entry.png"
+      ],
+      "counts": {
+        "base": {
+          "outbound": 1,
+          "fixtureVision": 1,
+          "library": 1,
+          "cards": {
+            "opened": 0,
+            "maxConcurrent": 0,
+            "samples": 11
+          }
+        },
+        "cardTextAtStep1": "Turn this image into a prompt?\n\nA vision model reads this image once and saves the prompt to your library.\n\nPage\n127.0.0.1\nImage\nreference.png\nVision\napimart · gemini-3.5-flash\nCancel\nExtract",
+        "reconcile": {
+          "confirmClicks": 1,
+          "outbound": 1,
+          "supplierSide": 1
+        },
+        "final": {
+          "outbound": 1,
+          "fixtureVision": 1,
+          "library": 1,
+          "cardsOpened": 3,
+          "maxConcurrentCards": 1,
+          "cardSamples": 35
+        },
+        "libraryPanel": {
+          "entryShownWithoutReload": false,
+          "entryShownAfterReload": true
+        }
+      }
+    }
+  ],
+  "holdAfterConfirmMs": 60000,
+  "spend": {
+    "text": {
+      "replies": 0,
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "models": {}
+    },
+    "mediaCalls": 0
+  },
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-browser-extract-rehearsal-development-1793151247124"
+}
