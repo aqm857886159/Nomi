@@ -92,13 +92,8 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
-      "symbol": "useWhiteboardSession",
-      "responsibility": "Own opening, explicit closing, node deletion and project release independently of mounted views."
-    },
-    {
-      "path": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
-      "symbol": "InlineWhiteboard",
-      "responsibility": "Capture and idempotently flush drafts while teardown only releases view resources."
+      "symbol": "openWhiteboard",
+      "responsibility": "Registered owner of canvas.whiteboard-session: opening starts the session-owned canvas watch, so node deletion and project release end the session independently of mounted views; explicit close stays closeWhiteboard."
     }
   ],
   "same_class_entry_points": [
