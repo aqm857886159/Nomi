@@ -2102,6 +2102,16 @@
       ],
       "reason": "对话流收据那一句的两种说法（已发出 / 已生成）：从那几镜节点此刻的状态现算（都出了结果才说已生成），只在这一处挑文案，不落盘、不跨模块，不是状态机。",
       "site": "src/workbench/ai/pointer/generationReceiptFacts.ts::type:ReceiptLine/property:phase/type-union"
+    },
+    {
+      "members": [
+        "not_dispatched",
+        "provider_rejected",
+        "result_landing_failed",
+        "unknown"
+      ],
+      "reason": "SubmissionFailureOutcome 是一次付费提交失败的封闭结局（not_dispatched 确定没发出去 / provider_rejected 供应商当场明确拒绝 / result_landing_failed 供应商答了、本机把结果落地失败 / unknown 拿不出证据的结果未知）：submissionOutbox 按它穷举落盘，信封按它决定记不记 submitted_unknown（2026-10-28）。它回答「这次提交失败在钱上意味着什么」，和 ProductionJobStatus（job 持久化状态机）、GENERATION_HAND_OVER_OUTCOMES（交接写回）、ProviderPollStatusClass（轮询状态归一）都不是同一件事；复用任何一个都会丢掉「答了没落下」与「结果未知」的区分，故独立。",
+      "site": "electron/productionRun/submissionOutbox.ts::type:SubmissionFailureOutcome/type-union"
     }
   ],
   "debt": [
