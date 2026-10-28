@@ -302,7 +302,7 @@ function BaseGenerationNodeImpl({
       {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
       {status === 'error' && node.error ? (
         <NodeErrorReport summaryVisible={false}
-          message={node.error} meta={node.meta} nodeId={node.id} taskId={node.runs?.[0]?.taskId}
+          message={node.error} meta={node.meta} nodeId={node.id} run={node.runs?.[0]}
           onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
           onRetry={
             isAssetKind && node.meta?.source === 'clipboard-url'

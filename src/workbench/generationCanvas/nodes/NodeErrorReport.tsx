@@ -14,7 +14,7 @@ import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { classifyGenerationError, confirmAndRunNode } from '../runner/generationRunController'
 import { releaseUnknownSubmissionForNode } from '../../production/releaseUnknownSubmission'
 import { productionRunApi } from '../../production/productionRunApi'
-import { narrateErrorActionLabel, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
+import { narrateErrorActionLabel, narrateGenerationErrorWithoutTask, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, TechnicalDetailsToggle } from './NodeFailureDetails'
 import { stageForGenerationError } from '../../../ui/community/feedbackTypes'
@@ -24,6 +24,7 @@ import { useSameCapabilityAlternative } from './useSameCapabilityAlternative'
 import { productionMetaOf } from '../model/productionMeta'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { reopenRecoverableNode } from '../runner/recoverTaskActions'
+import { isProductionRunRecord } from '../../../../electron/shared/productionShotPhase'
 
 const ACTION_ICON: Record<GenerationErrorAction, typeof IconRefresh> = {
   retry: IconRefresh,
@@ -57,12 +58,15 @@ export function NodeErrorReport({
   onDismiss,
   meta,
   nodeId,
-  taskId,
+  run,
   summaryVisible = true,
 }: {
   message: string
-  /** 这次运行在服务商那边的任务号（节点 runs[0].taskId）。画布任务有它，「已提交、没取回」那一类才能回到可找回面板。 */
-  taskId?: string
+  /**
+   * 这次运行的记录（节点 runs[0]）。`taskId` 是服务商那边的任务号：画布任务有它，「已提交、没取回」那一类才能回到可找回面板；
+   * `id` 是记录号：制作投影写的记录没有任务号，任务住在制作 Run 里（任务中心那一笔）。
+   */
+  run?: Readonly<{ id?: string; taskId?: string }>
   /** False when the owning node already displays this same failure summary inline. */
   summaryVisible?: boolean
   onRetry?: () => void
@@ -75,6 +79,17 @@ export function NodeErrorReport({
 }): JSX.Element {
   const { t } = useTranslation()
   const report = React.useMemo(() => classifyGenerationError(message), [message])
+  const taskId = run?.taskId
+  const runRecordId = run?.id
+  // 这次失败有没有可以再查的任务：节点记着任务号（画布任务），或这条记录是制作投影写的（任务住在制作 Run 里）。
+  // 都没有 = 同步供应商的结果只在那一次回答里（2026-10-28）：说明和动作都换成不暗示能取回的那一版（narrate 那张表）。
+  const withoutTask = React.useMemo(
+    () => (!taskId?.trim() && !isProductionRunRecord({ id: runRecordId }) ? narrateGenerationErrorWithoutTask(report.kind) : null),
+    [report.kind, runRecordId, taskId],
+  )
+  const hint = withoutTask?.hint ?? report.hint
+  const reportPrimary = withoutTask?.primary ?? report.primary
+  const reportSecondary = withoutTask ? withoutTask.secondary : report.secondary
   // 自定义调用入口目标：节点当前模型属于「自定义/中转家」才给（内置家各有专属通道，不添噪音）。
   const customCallTarget = React.useMemo(() => {
     const { modelKey, vendorKey } = nodeSelectedModelAddress(meta)
@@ -243,9 +258,9 @@ export function NodeErrorReport({
   // 主动作点不了（例：同能力里没有另一个）时退到次动作，再不行才去模型接入。
   // 「已提交、没取回」那一类的去处按任务来源分：制作 Run 去「查看制作任务」（任务中心里那一笔）；画布任务回到可找回面板
   // 「去重新取回」——画布任务上写「查看制作任务」会误导（那是 Agent 制作任务的说法），而任务中心也不是重新取回的地方。
-  const sourcePrimary: GenerationErrorAction = report.primary === 'view-task' && canvasRetrievable ? 'open-recoverable' : report.primary
-  const primaryAction = actionHandlers[sourcePrimary] ? sourcePrimary : report.secondary && actionHandlers[report.secondary] ? report.secondary : 'open-model-access'
-  const secondaryAction = report.secondary && report.secondary !== primaryAction && actionHandlers[report.secondary] ? report.secondary : null
+  const sourcePrimary: GenerationErrorAction = reportPrimary === 'view-task' && canvasRetrievable ? 'open-recoverable' : reportPrimary
+  const primaryAction = actionHandlers[sourcePrimary] ? sourcePrimary : reportSecondary && actionHandlers[reportSecondary] ? reportSecondary : 'open-model-access'
+  const secondaryAction = reportSecondary && reportSecondary !== primaryAction && actionHandlers[reportSecondary] ? reportSecondary : null
   // 「改成图片」要点出改成**哪个**类型，否则按钮只是「改类型」——用户还得自己再想一步。
   const actionLabelParams: Record<string, string> | undefined = kindFixTarget ? { kind: narrateModelKind(kindFixTarget.requested) } : sameCapability ? { model: sameCapability.option.label } : undefined
 
@@ -312,9 +327,9 @@ export function NodeErrorReport({
           事件到达根节点更早——onWheel 里 stopPropagation 拦不住它（见
           nodeScrollRegionClassName.ts 头注释），真正管用的是 React Flow 自己认的 nowheel。 */}
       <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'mt-2 min-h-0 flex-1 overflow-y-auto')}>
-        {report.hint || customCallTarget ? (
+        {hint || customCallTarget ? (
           <p className="select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">
-            {report.hint}
+            {hint}
             {customCallTarget ? (
               <button
                 type="button"
