@@ -10,14 +10,20 @@
   ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
     "与 FB-20261022-whiteboard-board-unusable 不同：10-22 是默认工具与完成后无可见结果；本条是组件卸载错误关闭外部会话。",
     "4e23f68fb 特征测试记录两个入口在真实 StrictMode 重放后会话为空，删除离屏节点后会话孤立。",
-    "whiteboardSessionLifecycle.test.tsx 翻转后两入口、删除、卸载保存、项目替换和异步打开反例。"
+    "whiteboardSessionLifecycle.test.tsx 翻转后两入口、删除、卸载保存、项目替换和异步打开反例。",
+    "35592e462：删除 cleanup 关闭门，session store 统一节点 / 项目失效；捕获待存草稿，卸载幂等 flush。",
+    "本地相关测试 116/116；中英生产视口卸载 / 返回后蓝色笔画实绘可见；开发 StrictMode 两入口持续打开。",
+    "tests/ux/whiteboard-refactor.walk.mjs 中英各 58/58，均退出 0。",
+    "实现线自验已完成，独立验收待协调；未开 PR，未伪填 fixedInPr，reviewed 待真实交付结账。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "35592e462"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-29-whiteboard-session-lifecycle.root-cause.json",
   "classCheck": {
     "kind": "matrix",

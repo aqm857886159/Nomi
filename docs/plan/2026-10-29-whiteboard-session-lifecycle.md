@@ -74,3 +74,23 @@
 逃逸账本：核 `FB-20261022-whiteboard-board-unusable.json`，相同类则结账，否则新建 `FB-20261029-whiteboard-dev-self-close`；在独立验收之前提交翻转并挂 StrictMode 门岗。
 
 回滚：revert 本任务修复。独立验收由协调另派，不以本实现线自验替代；本线只本地提交，不推送不开 PR。
+
+## 实现线自验记录（2026-10-29）
+
+实现提交 `35592e462`。生命周期实现仅改 `InlineWhiteboard.tsx` 和 `whiteboardSession.ts`。
+
+| 清单 | 自验结果 |
+|---|---|
+| 先特征后翻转 | `4e23f68fb` 的 6 条特征测试全绿；翻转后 5 条按预期红，再实现 |
+| StrictMode 真挂载两入口 | 2/2；真实 card / toolbar、编辑器 / drawing document / session 与 store；见 `whiteboardSessionLifecycle.test.tsx` |
+| 完成、取消、删除、项目释放 | 4/4；另覆盖同 ID 项目替换、删除时异步 finish 迟到、未到 debounce 的最后一笔 |
+| 生产中英 | 各通过打开→画→真卸载→返回→实绘笔画仍在→完成结果图；已看中英截图，除落盘外还核 canvas 蓝色像素 |
+| 开发 5283 | 两入口 2/2 保持开启，绘画 / 虚拟化 / 返回 / 完成闭环通过；已看截图 |
+| 现成画板走查 | 中英各 58/58；退出码均 0，无抢前台失败 |
+| 最终相关测试 | 画板目录 + 项目释放，11 文件、116/116 |
+| 静态检查 | typecheck 5 组通过；lint 0 错误、91 条存量警告（门槛 95） |
+| 根因 / 热点门岗 | root-cause 检查 54/54；fix-churn 范围内热点 fix 均带有效 Direction-Check |
+| 同类普查 | [cleanup 普查](2026-10-29-whiteboard-cleanup-census.md)，导演目录仅列不改 |
+| 逃逸账本 | 新条目 `FB-20261029-whiteboard-dev-self-close`，candidate → reviewed，挂实现提交与 StrictMode 类级门岗；未有真实 PR 不写 fixed |
+
+自验的反例矩阵：StrictMode 重放、真实卸载 / 重挂、真实节点删除、同 ID 项目替换、旧 finish 迟到均通过。实际 Vite HMR 热更新、Windows、打包安装、独立验收与 merge 收据为 `unverified`。没有跑全量 gates，不把相关测试当作全量门岗。报告与私有用户副本截图由协调状态目录保存，不进公开仓库。

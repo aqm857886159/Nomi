@@ -161,8 +161,9 @@
   },
   "migration": "No saved shape changes. Existing state and result identity are reused on remount.",
   "residual_risks": [
-    "Production/dev real Electron and independent acceptance pending before implementation.",
-    "Director cleanup findings belong to the parallel director implementation line; editor-session unification is deferred."
+    "Independent acceptance, Windows and packaged .app installation are unverified in this Mac implementation line.",
+    "Actual Vite HMR source replacement was not injected; real React unmount/remount and viewport virtualization were verified.",
+    "Director cleanup findings are recorded in docs/plan/2026-10-29-whiteboard-cleanup-census.md for the parallel director line and later editor-session ownership work."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
