@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { FEEDBACK_LAYER_Z_INDEX } from './feedbackLayer'
-import { FULLSCREEN_Z_INDEX } from '../workbench/generationCanvas/nodes/fullscreenZIndex'
 import { NOMI_OVERLAY_Z_INDEX } from '../design/overlayLayers'
 import { buildNomiTheme } from '../theme/nomiTheme'
 
@@ -19,12 +18,11 @@ function componentDefaults(name: string): LayerDefaults {
  * z 层结构不变量。2026-07-24 用户实锤：3D 全屏编辑器曾取 int32 最大值，
  * 编辑器打开期间 toast（2000）与全局付费确认卡（3500）全部被压死不可见，
  * 全景图导入被拒时用户看到的是「点了没反应」。
+ * 2026-10-29 起导演台 / 全景查看器是生成页里的一块（GenerationPageLayer，页格内局部层叠 z-[40]，在 Agent 层 z-[60] 之下），
+ * 不再有「3D 全屏编辑器」这一档 body 级层级：那条 FULLSCREEN_Z_INDEX 常量与它的三条断言随之删除，
+ * 全局层之间的顺序（下面两条）才是这里要钉的。
  */
 describe('z-layer invariants', () => {
-  it('feedback layer (toast) sits above the 3D fullscreen editor', () => {
-    expect(FEEDBACK_LAYER_Z_INDEX).toBeGreaterThan(FULLSCREEN_Z_INDEX)
-  })
-
   it('orders every body Portal tier from persistent panel through final feedback', () => {
     expect(NOMI_OVERLAY_Z_INDEX.floatingPanel).toBeLessThan(NOMI_OVERLAY_Z_INDEX.applicationModal)
     expect(NOMI_OVERLAY_Z_INDEX.applicationModal).toBeLessThan(NOMI_OVERLAY_Z_INDEX.dialog)
@@ -34,10 +32,6 @@ describe('z-layer invariants', () => {
     expect(FEEDBACK_LAYER_Z_INDEX).toBe(NOMI_OVERLAY_Z_INDEX.feedback)
   })
 
-  it('3D fullscreen editor stays below global Portal surfaces', () => {
-    expect(FULLSCREEN_Z_INDEX).toBeLessThan(NOMI_OVERLAY_Z_INDEX.floatingPanel)
-  })
-
   // 2026-10-27：开屏手写 z-[60]，顶栏所在的 Mantine AppShell 取默认 100，「跳过」被顶栏压住。
   // 外壳自己也是刻度的一档（地板）：所有全局层都在它之上，不许再有「够不着顶栏」的全局层。
   it('shell chrome is the floor of the scale: every other tier sits strictly above it', () => {
@@ -45,7 +39,6 @@ describe('z-layer invariants', () => {
     for (const [layer, value] of Object.entries(rest)) {
       expect(value, `${layer} must sit above shellChrome`).toBeGreaterThan(shellChrome)
     }
-    expect(FULLSCREEN_Z_INDEX).toBeGreaterThan(shellChrome)
   })
 
   it('wires the Mantine AppShell (top bar / rail) to the shell chrome tier, not to Mantine’s own default', () => {
@@ -59,9 +52,5 @@ describe('z-layer invariants', () => {
     expect(componentDefaults('Menu').zIndex).toBe(NOMI_OVERLAY_Z_INDEX.popover)
     expect(componentDefaults('Select').comboboxProps?.zIndex).toBe(NOMI_OVERLAY_Z_INDEX.popover)
     expect(componentDefaults('MultiSelect').comboboxProps?.zIndex).toBe(NOMI_OVERLAY_Z_INDEX.popover)
-  })
-
-  it('3D fullscreen editor still covers regular workbench UI (≤2000 tier)', () => {
-    expect(FULLSCREEN_Z_INDEX).toBeGreaterThan(2000)
   })
 })

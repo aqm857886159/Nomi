@@ -5,9 +5,12 @@
  *          ./useViewportPicking、./useTimelinePlayback、./creation/CreationGhosts、./creation/usePathDraw 的 PathDrawGhostState、./TrajectoryVisuals、
  *          ./PipRenderer（画中画剪裁渲染）、./HideEditingHelpers（导演视图收编辑辅助物）、./E2EBridge（E2E 取证桥）、./capture/CaptureBinder（出片渲染登记）、../useCameraMotionRecorder 的 RecordingGhostState、./ViewportApiContext
  *          ../DirectorEditorContext 的 recording：录制运镜中消费视图立方点击，防止跳机位
+ *          ../../../../generation/pageLayerContext 的 useGenerationPageLayerActive：导演台藏着时停渲染循环
  * [OUTPUT]: 对外提供 DirectorCanvas：主视口的 R3F 画布（frameloop always、阴影、上下文丢失恢复）+ 全部场景子系统 + 视图立方；
  *           presentation='director'（3D-BOX 导演视图）时不挂视图立方、收掉编辑辅助物、画中画跟节目机位
  * [POS]: director/scene 的装配根：DOM 层只把 refs/回调传进来，three 世界的一切从这里长出去。
+ *        导演台藏着（切去别的页 / 列表视图）时渲染循环停（FrameloopGate：R3F 的 frameloop 切 never，回来切 always 并 invalidate 重新起循环），
+ *        否则一个看不见的 3D 视口会一直占着 GPU / CPU 拖慢别的页；场景树与 store 都留着，回来原样接着画。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
@@ -42,6 +45,7 @@ import { useViewportPicking } from './useViewportPicking'
 import { ViewCamera } from './ViewCamera'
 import { FREE_CAMERA_HOME, type ViewSettings } from './viewSettings'
 import { useDirectorStore } from '../DirectorEditorContext'
+import { useGenerationPageLayerActive } from '../../../../generation/pageLayerContext'
 
 export type DirectorCanvasProps = {
   theme: DirectorViewportTheme
@@ -66,6 +70,24 @@ function PickingBinder({ enabledRef, onPovRejected }: { enabledRef: React.Mutabl
 
 function PlaybackBinder(): null {
   useTimelinePlayback()
+  return null
+}
+
+/**
+ * 导演台看不见时停掉 R3F 的渲染循环，看得见了再起。frameloop 走 store 的 setFrameloop（Canvas 的 frameloop 属性一直是 always、没变，
+ * 所以别的重配不会把它改回去）；从 never 回到 always 时循环已经停了，必须 invalidate 一次才会重新起（setFrameloop 自己不起循环）。
+ */
+function FrameloopGate(): null {
+  const active = useGenerationPageLayerActive()
+  const setFrameloop = useThree((state) => state.setFrameloop)
+  const invalidate = useThree((state) => state.invalidate)
+  const get = useThree((state) => state.get)
+  React.useEffect(() => {
+    const wanted = active ? 'always' : 'never'
+    if (get().frameloop === wanted) return
+    setFrameloop(wanted)
+    if (active) invalidate()
+  }, [active, get, invalidate, setFrameloop])
   return null
 }
 
@@ -107,6 +129,7 @@ export function DirectorCanvas(props: DirectorCanvasProps): JSX.Element {
     >
       <SceneRegistryContext.Provider value={registry}>
         <ContextRecovery />
+        <FrameloopGate />
         <SkyGround theme={props.theme} />
         <PanoramaSphere />
         <SparkHost />

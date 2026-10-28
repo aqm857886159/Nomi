@@ -1,9 +1,13 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { createDefaultWhiteboardState, readWhiteboardEditingState, whiteboardDraftIdentity } from './whiteboardState'
 import { whiteboardHasVisibleContent, whiteboardRasterStateKey } from './whiteboardRasterState'
+import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { closeWhiteboard, finishWhiteboard, openWhiteboard, registerWhiteboardFinish, useWhiteboardSession, whiteboardSessionLifetime } from './whiteboardSession'
 
+beforeEach(() => {
+  useGenerationCanvasStore.setState({ projectId: 'session-test', nodes: ['first', 'second', 'third', 'old-node', 'next-old-node', 'shared-node-id', 'old-first', 'old-next', 'new-first', 'new-next', 'new-third'].map(id => ({ id, kind: 'whiteboard', title: id, prompt: '', position: { x: 0, y: 0 } } as GenerationCanvasNode)) })
+})
 afterEach(() => { closeWhiteboard(useWhiteboardSession.getState().nodeId ?? '') })
 it('selection and labels do not create another raster version; bounds and transforms do', () => {
   const original = createDefaultWhiteboardState()

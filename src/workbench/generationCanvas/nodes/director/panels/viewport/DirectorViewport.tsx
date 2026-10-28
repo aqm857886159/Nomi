@@ -17,6 +17,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDirectorStore, useDirectorStoreApi } from '../../DirectorEditorContext'
 import { isDirectorKeyboardBlocked } from '../../useDirectorHotkeys'
+import { useGenerationPageLayerActive } from '../../../../../generation/pageLayerContext'
 import { useViewportApi } from '../../scene/ViewportApiContext'
 import type { DirectorHotkeyScope } from '../../model/hotkeys'
 import { toast } from '../../../../../../ui/toast'
@@ -91,9 +92,10 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
     return () => { api?.setOrbitEnabled(true) }
   }, [apiRef, modeActive])
 
-  // Esc：先取消创建/画路径模式（O5 归属顺序里模式优先于选择/退出）
+  // Esc：先取消创建/画路径模式（O5 归属顺序里模式优先于选择/退出）；导演台藏着时不接（窗口级捕获期监听会吞掉别的页的 Esc）
+  const layerActive = useGenerationPageLayerActive()
   React.useEffect(() => {
-    if (!modeActive) return undefined
+    if (!modeActive || !layerActive) return undefined
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || isDirectorKeyboardBlocked(event)) return
       event.preventDefault()
@@ -102,7 +104,7 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
     }
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [cancelCreation, modeActive])
+  }, [cancelCreation, layerActive, modeActive])
 
   return (
     <div

@@ -30,7 +30,7 @@ GitHub issue #237 与 Discussion #220 的最新追问暴露出两条不同摩擦
 ## 验收
 
 - `taskTemplateParams({ extras: { aspect_ratio: "auto", resolution: "1K" } })` 经 OpenAI-compatible image mapping 后，最终 body 不含 `size`。
-- 明确比例（例如 `16:9`）仍生成合法像素尺寸（例如 `1024x576`）。
+- 明确比例（例如 `16:9`）仍生成合法像素尺寸。（历史口径：本计划 2026-08-30 写成 `1024x576`，但那是 589,824 像素，低于 GPT Image 2 的 655,360 像素下限，供应商会整条拒掉；现行合法值是 `1088x608`，完整尺寸域与超过 3:1 的比例被拒发见 `docs/fixes/2026-10-27-openai-derived-image-size.root-cause.json`。）
 - 相关 Vitest 通过；站点/文档静态检查通过；不修改当前脏工作树中的用户变更。
 - README 能直接到达英文模型接入教程、快速启动、Discussion 和 Business Inquiry。
 - 紧急接入提示词明确使用 `model-integration` Skill / MCP、自行在本地完成接入、不提交 PR；若需代码变更，仅补经官方文档验证的 Runway 私有上传通道，不添加 Seedance 2.5 模型适配。

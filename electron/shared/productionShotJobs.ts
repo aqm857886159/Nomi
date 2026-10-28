@@ -1,4 +1,4 @@
-import type { ProductionGenerationShot, ProductionJob, ProductionRun } from "../productionRun/productionRunTypes";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionGenerationShot, type ProductionJob, type ProductionRun } from "../productionRun/productionRunTypes";
 
 /** Statuses that have not crossed the provider submission boundary yet. */
 export function isUnsubmittedJobStatus(status: ProductionJob["status"]): boolean {
@@ -30,6 +30,16 @@ export function jobMayHaveReachedProvider(job: Pick<ProductionJob, "status" | "e
  */
 export function jobEndedBeforeAcceptance(job: Pick<ProductionJob, "status" | "errorCode">): boolean {
   return job.status === "needs_attention" && (job.errorCode === "provider_not_reached" || job.errorCode === "provider_rejected");
+}
+
+/**
+ * 这一个作业已经结束、而且结束在供应商**答复之后**：供应商受理并给了结果，结果没能落进本机（`output_retrieval_failed`）。
+ * 两种来路同一结局：引擎 B 取回失败（有任务号，`productionShotPhase.jobAwaitsRetrieval` 才给「重新取回」）；同步供应商
+ * 答了、本机落地失败（`submissionOutbox.markResultLandingFailed`，没有任务号，只能再生成）。确定到过供应商（可能已扣钱），
+ * 也确定不是「结果未知」——交接写回据此说「交到了」，不叫人去核对（2026-10-28）。
+ */
+export function jobEndedAfterProviderAnswer(job: Pick<ProductionJob, "status" | "errorCode">): boolean {
+  return job.status === "needs_attention" && job.errorCode === OUTPUT_RETRIEVAL_FAILED;
 }
 
 /** 这些作业里有没有任何一笔可能到过供应商。一个作业都没有 = 没有。 */

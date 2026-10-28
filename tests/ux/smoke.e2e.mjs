@@ -160,10 +160,10 @@ try {
   // 新节点落点不定（画布已被上一段平移过），Playwright actionability 可能够不着 → DOM click 兜底
   await win.locator('[data-testid="director-node-open"]').first().click({ timeout: 3000 })
     .catch(() => win.evaluate(() => document.querySelector('[data-testid="director-node-open"]')?.click()));
-  // 全屏导演台唯一真标志：DirectorEditor 经 createPortal 挂到 body 的 [data-testid="director-editor"]
+  // 导演台唯一真标志：生成页画布那一格里的 [data-testid="director-editor"]（DirectorEditor 经 GenerationPageLayer 挂页格）
   const directorShell = win.locator('[data-testid="director-editor"]').first();
   await directorShell.waitFor({ state: "visible", timeout: stationTimeout({ operations: 2 }) });
-  assert(await directorShell.count() > 0, "导演台节点「进入导演台」后全屏壳挂出（data-testid=director-editor）");
+  assert(await directorShell.count() > 0, "导演台节点「进入导演台」后编辑器挂出（data-testid=director-editor）");
 
   console.log(`\nSMOKE PASS: ${passed} assertions`);
   await finishAndExit(0);

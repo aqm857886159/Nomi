@@ -7,10 +7,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { require as tsxRequire } from 'tsx/cjs/api'
+import { DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 
 // 付费走查的大脑跟产品默认大脑走，以 electron/catalog/apimartTexts.ts 里写的「默认大脑」为准；
 // 10-18 APIMart 上 deepseek-v3.2 仍列在目录里但调用返回 404 model_not_found。
-export const BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v4-pro' }
+export const BRAIN = DEFAULT_PAID_BRAIN
 export const VIDEO = { vendorKey: 'apimart', modelKey: 'doubao-seedance-2.0' }
 /**
  * 被授权的那一档（Seedance 2.0 fast · 480p · 4 秒 · 无音频），像真人一样说给模型听。

@@ -70,8 +70,15 @@ const PROBES: ReadonlyArray<readonly [string, () => void | Promise<void>]> = [
     expect(EDITOR).toContain("if (viewMode === 'director') {")
     expect(EDITOR).toContain('<DirectorRefineShell')
   }],
+  // 条目名对着拍板板（Director3dbox.board.json）里「导演台盖住整个窗口（全屏覆盖层）→ 改为占画布区、右侧 Agent 面板可见」那一行，前缀不能改。
+  // 这条的探针原来断言「right: assistantCollapsed ? 0 : assistantPaneWidth(…)」——那正是浮窗时右边漏画布、点创作出不去的来路（2026-10-29）。
+  // 现在「占画布区」落成：生成页里的一块——DirectorNode 经 GenerationPageLayer 挂进画布那一格，根 size-full，版面归网格（Agent 停靠栏在网格第 2 列，天然让开）。
   ['导演台盖住整个窗口', () => {
-    expect(EDITOR).toContain('right: assistantCollapsed ? 0 : assistantPaneWidth(assistantWidth)')
+    expect(read('DirectorNode.tsx')).toContain('<GenerationPageLayer>')
+    expect(EDITOR).toContain('size-full')
+    expect(EDITOR).toContain('useGenerationPageLayerActive')
+    expect(EDITOR).not.toContain('assistantPaneWidth')
+    expect(EDITOR).not.toContain('projectAgentDockCollapsed')
   }],
   ['场景 ▾', () => {
     expect(TOPBAR).toContain('<SceneMenu onOpenSceneSettings={onOpenSceneSettings}')
