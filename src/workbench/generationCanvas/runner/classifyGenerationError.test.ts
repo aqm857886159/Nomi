@@ -361,7 +361,7 @@ describe('classifyGenerationError — 已知分类', () => {
       expect(report.hint).not.toMatch(/服务商临时故障/)
     })
 
-    it('中文词条：说清比例超出了模型支持的范围、请求没发出去、请换一个比例', () => {
+    it('中文词条：说清比例超出了这条连接支持的范围、请求没发出去、请换一个比例', () => {
       const report = classifyGenerationError(refusal())
       expect(report.reason).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.reason'))
       expect(report.hint).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.hint'))
@@ -1139,7 +1139,7 @@ describe('vendorSide —— 失败是不是服务商那一侧的事', () => {
   it.each([
     ['结果已送达、本机读不出来', tagNomiError('output-unreadable', 'Generated media validation failed (decode_failed)')],
     ['参考素材本身不行（请求没发出）', tagNomiError('asset-invalid', '参考素材读取失败')],
-    ['选的画幅比例超出连接范围（构造请求时就拒了）', tagNomiError('aspect-ratio-unsupported', 'Request stopped before sending: aspect ratio 4:1 is outside the range')],
+    ['选的画幅比例超出连接范围（构造请求时就拒了）', tagNomiError('aspect-ratio-unsupported', 'Request stopped before sending: aspect ratio 4:1 is outside the image sizes this connection supports')],
     ['我们自己的出站策略拦了提交（走的是 VendorRequestError 的壳）', structuredMessage({ vendorKey: 'x', category: 'network', upstreamMsg: 'refused' }, `Provider request refused by outbound policy: ${tagNomiError('outbound-blocked-submit', 'blocked')}`)],
     ['取片被出站策略拦了', tagNomiError('outbound-blocked', 'blocked')],
     ['模型已被我们下线', 'Model is retired: sora-2'],
