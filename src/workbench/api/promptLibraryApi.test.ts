@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { setAssistantModelPref } from '../ai/assistantModelPref'
-import { getUserPromptsSnapshot, hasLoadedUserPrompts, resetUserPromptCacheForTests, subscribeUserPrompts } from '../promptLibrary/userPromptCache'
+import { getUserPromptsSnapshot, hasLoadedUserPrompts, resetUserPromptListForTests, subscribeUserPrompts } from '../promptLibrary/userPromptList'
 import { addUserPrompt, deleteUserPromptWithSnapshot, getTextBrain, fetchPromptLibrary, fetchUserPrompts, filterPrompts, matchesPromptQuery, restoreUserPrompt, updateUserPrompt, type LibraryPrompt } from './promptLibraryApi'
 
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: vi.fn() }))
@@ -24,7 +24,7 @@ function mountBridge() {
 describe('promptLibraryApi', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    resetUserPromptCacheForTests()
+    resetUserPromptListForTests()
   })
 
   it('asks the text brain with the model the Agent panel picked, so 「跟随 Agent」 follows it', async () => {
@@ -163,7 +163,7 @@ describe('filterPrompts', () => {
 })
 
 // —— 「我的库」列表的出口：读口 + 4 个写口收到的整表，都只经 acceptUserPromptList 发布进共享缓存 ——
-// 渲染层这份列表只有一个持有者（promptLibrary/userPromptCache.ts）。直调写口（浏览器提取、保存选中文字、画布选区存库、素材面迁移
+// 渲染层这份列表只有一个持有者（promptLibrary/userPromptList.ts）。直调写口（浏览器提取、保存选中文字、画布选区存库、素材面迁移
 // 都是这样写的）不经过任何 hook，所以这里不挂 hook：直接看缓存和订阅者。挂着 hook 的整条链路在 useUserPrompts.behavior.test.tsx。
 const row = (id: string, prompt = id) => ({ id, prompt, promptType: 'image', origin: 'user' })
 const promptsOf = (items: LibraryPrompt[]): string[] => items.map((item) => item.prompt)
@@ -190,7 +190,7 @@ describe('promptLibraryApi · 我的库列表只有一个出口', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    resetUserPromptCacheForTests()
+    resetUserPromptListForTests()
   })
 
   afterEach(() => {

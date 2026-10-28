@@ -430,7 +430,7 @@ export async function runBrowserExtractJourney(journey, { walk, page, locales, e
 
     // 提示词库里新的那一条（第 ③ 步确认后存进去的）：关掉浏览器面板（它盖住左侧栏）→ 左侧栏「提示词库」抽屉 → 按那一条的标题搜，只剩它。
     // 硬断言：**不重载窗口**，抽屉里就要看到这一条。浏览器提取经 promptLibraryApi.addUserPrompt 直接写库、不经抽屉自己的 hook；
-    // 「我的库」列表在渲染层只有一个共享缓存（promptLibrary/userPromptCache.ts），写口写完当场发布，抽屉每次打开还会重读一次，
+    // 「我的库」列表在渲染层只有一个共享缓存（promptLibrary/userPromptList.ts），写口写完当场发布，抽屉每次打开还会重读一次，
     // 所以这里不需要、也不许靠重载页面救场（以前这一格只是观察，红了就重载再看，缺陷因此一直挂着）。
     await win.locator(`button[aria-label="${L('browserAssets.closeBrowser')}"]`).first().click()
     const entryCard = win.locator(`[data-prompt-card="${added.id}"]`)

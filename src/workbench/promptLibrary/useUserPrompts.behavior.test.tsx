@@ -20,7 +20,7 @@ import {
   updateUserPrompt,
 } from '../api/promptLibraryApi'
 import { loadUserPromptItems, useUserPrompts, type UseUserPrompts, type UseUserPromptsOptions } from './useUserPrompts'
-import { getUserPromptsSnapshot, resetUserPromptCacheForTests } from './userPromptCache'
+import { getUserPromptsSnapshot, resetUserPromptListForTests } from './userPromptList'
 
 type Row = { id: string; prompt: string; promptType: string; origin: string }
 
@@ -121,7 +121,7 @@ const PORTS = [
 
 describe('useUserPrompts · 列表是共享缓存的订阅', () => {
   beforeEach(() => {
-    resetUserPromptCacheForTests()
+    resetUserPromptListForTests()
   })
 
   afterEach(() => {
@@ -217,7 +217,7 @@ describe('useUserPrompts · 列表是共享缓存的订阅', () => {
 
 describe('useUserPrompts · 什么时候读盘', () => {
   beforeEach(() => {
-    resetUserPromptCacheForTests()
+    resetUserPromptListForTests()
   })
 
   afterEach(() => {

@@ -6,7 +6,7 @@ import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
 import { getAssistantModelPref } from '../ai/assistantModelPref'
 import { matchesLibraryQuery } from '../library/libraryDiscovery'
-import { beginUserPromptRequest, publishUserPrompts } from '../promptLibrary/userPromptCache'
+import { beginUserPromptRequest, publishUserPrompts } from '../promptLibrary/userPromptList'
 
 export type PromptMediaType = 'image' | 'video'
 
@@ -79,7 +79,7 @@ export async function fetchPromptLibrary(): Promise<LibraryPrompt[]> {
 }
 
 // —— 我的库(用户级·跨项目):手写攒的提示词 CRUD,均返回全量(渲染层本地过滤)。 ——
-// 渲染层这份列表只有一个持有者(promptLibrary/userPromptCache.ts)。读口和 4 个写口收到的整表都只经 acceptUserPromptList 进去:
+// 渲染层这份列表只有一个持有者(promptLibrary/userPromptList.ts)。读口和 4 个写口收到的整表都只经 acceptUserPromptList 进去:
 // 先校验应答(ok 且 prompts 是数组,否则抛、什么也不发布),再按发起顺序发布给所有订阅者——
 // 不管调用方是 hook、浏览器提取还是画布选区存库,也不管发起时有没有 hook 挂着。新增读口 / 写口照样走它,不要自己 map 完就返回。
 

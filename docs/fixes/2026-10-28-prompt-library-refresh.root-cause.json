@@ -14,7 +14,7 @@
     "已打开的提示词抽屉、`/` 菜单和生成框里的「提示词预设」列表（共用同一份陈旧缓存）"
   ],
   "scope_paths": [
-    "src/workbench/promptLibrary/userPromptCache.ts",
+    "src/workbench/promptLibrary/userPromptList.ts",
     "src/workbench/api/promptLibraryApi.ts",
     "src/workbench/promptLibrary/useUserPrompts.ts",
     "src/workbench/promptLibrary/PromptLibraryPanel.tsx"
@@ -25,9 +25,9 @@
     "渲染层读：fetchUserPrompts（桥 userList）；列表的消费方 3 个（抽屉 PromptLibraryPanel、`/` 菜单 ProjectAgentResidentShell、生成框 NodeEffectChips）与启动预热 composerResidentData"
   ],
   "external_sources": [],
-  "internal_only_reason": "「我的库」列表在渲染层的持有关系是 Nomi 自己的内部契约（渲染层缓存 + 主进程 JSON 存储 + IPC），不涉及第三方运行时行为；发布 / 订阅用的是 React 自带的 useSyncExternalStore。",
+  "internal_only_reason": "「我的库」列表在渲染层的持有关系是 Nomi 自己的内部契约（渲染层缓存 + 主进程 JSON 存储 + IPC），不涉及第三方运行时行为；状态容器用仓库已有的 zustand（vanilla store），订阅用 React 自带的 useSyncExternalStore。",
   "invariants": [
-    "渲染层「我的库」整表只有一个持有者（userPromptCache）；hook 只订阅它，不存副本",
+    "渲染层「我的库」整表只有一个持有者（userPromptList，zustand vanilla store、寿命 process）；hook 只订阅它，不存副本",
     "读口和 4 个写口收到的整表，只经 promptLibraryApi 的 acceptUserPromptList 校验（ok 且 prompts 是数组）后发布；校验不过就抛，什么也不发布",
     "发布带发起序号：晚到的旧应答（读在途时写先落了地、两次写的应答乱序）被丢掉，缓存只往新走",
     "订阅者抛错不拦后面的订阅者，也不把一次已经成功的写变成「写失败」",
@@ -37,7 +37,7 @@
   "doors": [
     {
       "kind": "write",
-      "path": "src/workbench/promptLibrary/userPromptCache.ts",
+      "path": "src/workbench/promptLibrary/userPromptList.ts",
       "symbol": "publishUserPrompts"
     },
     {
@@ -169,7 +169,7 @@
       "responsibility": "读口和 4 个写口收到的主进程整表的唯一出口：校验应答（ok 且 prompts 是数组，否则抛、不发布），映射后按发起序号发布给共享缓存。"
     },
     {
-      "path": "src/workbench/promptLibrary/userPromptCache.ts",
+      "path": "src/workbench/promptLibrary/userPromptList.ts",
       "symbol": "publishUserPrompts",
       "responsibility": "渲染层「我的库」整表的唯一持有者和唯一写口：丢掉晚到的旧应答，换上新整表，逐个（各自 try/catch）叫醒订阅者。"
     }
@@ -222,7 +222,7 @@
     "classification": "recurring",
     "reason": "任何新增的、不经 hook 的「存为提示词」入口，或将来的主进程写入者，都会复现同一个症状；这个病根已经在 10-24 的撤销那一串里以另一种面貌出现过（同一份库数据在多层各拼各的）。",
     "same_class_scan": [
-      "node scripts/door-map.mjs electron/promptLibrary/userPromptStore.ts src/workbench/promptLibrary/userPromptCache.ts --write=publishUserPrompts,beginUserPromptRequest,acceptUserPromptList,addUserPrompt,updateUserPrompt,deleteUserPromptWithSnapshot,restoreUserPrompt,fetchUserPrompts --read=getUserPromptsSnapshot,hasLoadedUserPrompts,subscribeUserPrompts,loadUserPromptItems,useUserPrompts：确认写入口全部收口在 promptLibraryApi 的 4 个写函数，主进程只有 promptLibraryIpc 一个调用方。",
+      "node scripts/door-map.mjs electron/promptLibrary/userPromptStore.ts src/workbench/promptLibrary/userPromptList.ts --write=publishUserPrompts,beginUserPromptRequest,acceptUserPromptList,addUserPrompt,updateUserPrompt,deleteUserPromptWithSnapshot,restoreUserPrompt,fetchUserPrompts --read=getUserPromptsSnapshot,hasLoadedUserPrompts,subscribeUserPrompts,loadUserPromptItems,useUserPrompts：确认写入口全部收口在 promptLibraryApi 的 4 个写函数，主进程只有 promptLibraryIpc 一个调用方。",
       "全仓（src、electron、tests、scripts、evals）里搜桥的 userAdd / userUpdate / userDelete / userRestore：只有 promptLibraryApi.ts 调用。",
       "全仓搜 userPromptStore：只有 promptLibraryIpc.ts 引用；electron/settings/sideBySideInstallSeed.ts 在并排安装时整份拷贝存盘文件，是启动前一次性，不算运行期写入者。",
       "同类缓存（技能库）：已有主进程广播 + 渲染层总线，因为它有主进程写入者（Agent 的 author_skill）；提示词库今天没有，不重复造。"
@@ -237,7 +237,7 @@
     "strategy": "把「写成功必发布整表」从各入口各自记得，改成 API 层唯一出口 + 唯一持有者模块；hook 里删掉模块缓存、实例 items 和 apply，改用 useSyncExternalStore 订阅。再用源码扫描守卫让第二个写入者（渲染层绕过 API 调桥、API 里新写口忘了发布、第二个发布方、主进程第二个存储写入者、直接写存盘文件）不能悄悄出现。",
     "artifacts": [
       "src/workbench/api/promptLibraryApi.ts",
-      "src/workbench/promptLibrary/userPromptCache.ts",
+      "src/workbench/promptLibrary/userPromptList.ts",
       "src/workbench/promptLibrary/useUserPrompts.ts",
       "src/workbench/promptLibrary/userPromptDoors.guard.test.ts"
     ]
@@ -246,13 +246,13 @@
     "src/workbench/promptLibrary/userPromptDoors.guard.test.ts",
     "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
     "src/workbench/api/promptLibraryApi.test.ts",
-    "src/workbench/promptLibrary/userPromptCache.test.ts"
+    "src/workbench/promptLibrary/userPromptList.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/promptLibrary/userPromptDoors.guard.test.ts",
     "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
     "src/workbench/api/promptLibraryApi.test.ts",
-    "src/workbench/promptLibrary/userPromptCache.test.ts"
+    "src/workbench/promptLibrary/userPromptList.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -261,7 +261,7 @@
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
-    "rationale": "不变量由 Nomi 自己的渲染层模块决定；订阅用 React 自带的 useSyncExternalStore，没有新增依赖，也没有第三方版本约束。",
+    "rationale": "不变量由 Nomi 自己的渲染层模块决定；状态容器用仓库已有的 zustand（vanilla store），订阅用 React 自带的 useSyncExternalStore，没有新增依赖，也没有第三方版本约束。",
     "exit_criteria": []
   },
   "migration": "无持久化格式变化：主进程存储和 IPC 一行没改，prompt-library-user.json 原样读写。只改渲染层缓存的归属和刷新时机；抽屉每次打开多一次 userList 读（本地内存读，毫秒级）。",
@@ -272,9 +272,9 @@
     "读口与写口应答乱序用发起序号兜住；主进程这几个通道今天是同步处理、按序应答，序号是保险，不是已经观察到的问题。"
   ],
   "invariant_owner_layer": {
-    "layer": "src/workbench/promptLibrary/userPromptCache.ts",
+    "layer": "src/workbench/promptLibrary/userPromptList.ts",
     "tests": [
-      "src/workbench/promptLibrary/userPromptCache.test.ts",
+      "src/workbench/promptLibrary/userPromptList.test.ts",
       "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
       "src/workbench/api/promptLibraryApi.test.ts"
     ],

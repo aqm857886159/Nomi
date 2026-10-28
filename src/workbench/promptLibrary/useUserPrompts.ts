@@ -10,7 +10,7 @@ import {
   type LibraryPrompt,
   type PromptMediaType,
 } from '../api/promptLibraryApi'
-import { getUserPromptsSnapshot, hasLoadedUserPrompts, subscribeUserPrompts } from './userPromptCache'
+import { getUserPromptsSnapshot, hasLoadedUserPrompts, subscribeUserPrompts } from './userPromptList'
 
 type LoadStatus = { loading: boolean; error: string | null }
 
@@ -40,7 +40,7 @@ export type UseUserPromptsOptions = {
 }
 
 /**
- * 我的库(用户级)数据 + CRUD。列表是共享缓存（promptLibrary/userPromptCache.ts）的订阅，不是 hook 自己的 state：
+ * 我的库(用户级)数据 + CRUD。列表是共享的唯一一份（promptLibrary/userPromptList.ts）的订阅，不是 hook 自己的 state：
  * 写口（含不经本 hook 的直调）写完发布，所有挂着的实例当场看到；本 hook 只管 loading / error 与读盘时机。
  */
 export function useUserPrompts(opened: boolean, options: UseUserPromptsOptions = {}): UseUserPrompts {

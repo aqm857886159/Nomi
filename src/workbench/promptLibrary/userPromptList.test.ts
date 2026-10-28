@@ -15,9 +15,9 @@ import {
   getUserPromptsSnapshot,
   hasLoadedUserPrompts,
   publishUserPrompts,
-  resetUserPromptCacheForTests,
+  resetUserPromptListForTests,
   subscribeUserPrompts,
-} from './userPromptCache'
+} from './userPromptList'
 
 const prompt = (id: string): LibraryPrompt => ({
   id, title: id, prompt: id, mediaUrl: '', mediaType: 'image', promptType: 'image',
@@ -33,9 +33,9 @@ function subscribe(listener: () => void): () => void {
   return off
 }
 
-describe('userPromptCache', () => {
+describe('userPromptList', () => {
   beforeEach(() => {
-    resetUserPromptCacheForTests()
+    resetUserPromptListForTests()
     logged.calls.length = 0
   })
 
@@ -120,7 +120,7 @@ describe('userPromptCache', () => {
     const wake = vi.fn()
     subscribe(wake)
 
-    resetUserPromptCacheForTests()
+    resetUserPromptListForTests()
     expect(hasLoadedUserPrompts()).toBe(false)
     expect(getUserPromptsSnapshot()).toEqual([])
     expect(wake).toHaveBeenCalledTimes(1)

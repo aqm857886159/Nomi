@@ -45,14 +45,14 @@
 
 「一份列表 + 写后发布 + 订阅」是通用能力，不是我们独有的。现成方案三个，都在仓库里：React `useSyncExternalStore`（同形先例：`src/utils/canvasGesturePreference.ts`、
 `src/config/modelCatalogCache.ts`、`src/workbench/common/useVendorPreference.ts` 等）、SWR（`src/workbench/library/localProjectStore.ts` 同形）、主进程广播（技能库先例：
-`electron/skills/skillLibraryBroadcast.ts` + `src/workbench/skillLibrary/skillLibraryChanged.ts`）。本单不新增自写登记：用 React 原语 + 一个模块级变量，不是自写框架。
+`electron/skills/skillLibraryBroadcast.ts` + `src/workbench/skillLibrary/skillLibraryChanged.ts`）。本单不新增自写登记：状态容器用仓库已有的 zustand（vanilla store，同 `src/workbench/generationCanvas/nodes/director/model/directorStore.ts`），订阅用 React 的 `useSyncExternalStore`，发布 / 订阅不手写第二套；模块放在领域目录 `src/workbench/promptLibrary/`，叫 `userPromptList.ts`，寿命声明 `process`（`check:store-lifetime`）。（实现提交上 `check:self-written` 先拦下了手写版 `userPromptCache.ts`：文件名命中通用区 `*Cache*`，按 P0 改接现成的、同时改名，没有走自写登记。）
 
 ## 6. 接入 / 补 / 重写 / 删 对比表 + 推荐 + 拍板
 
 | 选项 | 做什么 | 代价 | 风险 | 推荐 / 拍板 |
 |---|---|---|---|---|
 | 接入：SWR | 列表交给 `useSWR(KEY)`，API 层写后 `mutate(KEY, items, { revalidate: false })`；删 hook 私有缓存与 state | 重写 hook；要把 SWR 默认的聚焦重读、断网重连重读、过期重读、出错重试、2 秒去重逐项关掉，才保得住「点卡挂生成框 0 次读盘」；测试要重置全局缓存 | SWR 默认方向是「多读」，与 0 次读盘的预算相反，漏关一项就是又一次预算红；没做原型，行为未验证 | 备选，未选 |
-| **补：加固半成品** | 一个共享缓存模块（唯一持有者）+ API 层读写口经同一个出口校验并发布 + hook 用 `useSyncExternalStore` 读，删私有 `cached` / `state.items` / `apply`；`load(false)` 语义不变（缓存有就不读）；抽屉打开时重读一次（自愈，只此一处）；发布带发起序号，晚到的旧应答丢掉；守卫测试 | 5–6 个文件（缓存、API、hook、抽屉一行、测试、守卫，外加合同与登记） | 低：行为面小，生成框路径不变。残余：将来出现主进程写入者时要加广播（守卫会红着提醒）；抽屉开着期间主进程写入要到下次打开才看见 | **推荐，用户 10-28 拍板选这个** |
+| **补：加固半成品** | 一个共享模块（唯一持有者，zustand vanilla store）+ API 层读写口经同一个出口校验并发布 + hook 用 `useSyncExternalStore` 读，删私有 `cached` / `state.items` / `apply`；`load(false)` 语义不变（缓存有就不读）；抽屉打开时重读一次（自愈，只此一处）；发布带发起序号，晚到的旧应答丢掉；守卫测试 | 5–6 个文件（缓存、API、hook、抽屉一行、测试、守卫，外加合同与登记） | 低：行为面小，生成框路径不变。残余：将来出现主进程写入者时要加广播（守卫会红着提醒）；抽屉开着期间主进程写入要到下次打开才看见 | **推荐，用户 10-28 拍板选这个** |
 | 重写（限一个模块）：主进程广播 | 写盘层 `persist()` 后广播 `nomi:prompt-library:user-changed`；preload 加订阅；渲染层收到就重读 | 约 6–8 个文件：写盘层、preload、bridge 类型、接线点、主进程测试替身、IPC 相关门岗 | 今天没有主进程写入者可兜；与 API 写口发布并存就是两个来源，要防重复 / 乱序 | 等第一个主进程写入者出现再做 |
 | 删 | 不适用（没有可删的功能） | | | — |
 
