@@ -117,12 +117,12 @@
     {
       "id": "P5",
       "aliases": [],
-      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
+      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；四类之外的纯文档 / 测试 / 配置，或声明单一意图的纯修复且 base/head 拍板图清单核实无界面差异，走短档：交短版设计卡（★1/2/3/4/9 各一行）、免功能分类与验收证据，核实不了或有差异、让逃逸账本转 fixed 的落标准档（要求同今天），见 design-card.md；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
       "disease": "没想清楚就写，返工与连带面漏掉；新功能不量性能，卡顿到用户手里才发现（2026-10-10 用户反馈 F3：选中节点卡、拖组卡）",
       "enforcement": [
         "template:docs/engineering/design-card.md",
         "template:docs/engineering/design-card.md(★1/★9 指标与分档)",
-        "gate:check:pr-judgement(设计卡「功能分类」按路径推出的类别下限勾选 + `## 验收证据` 逐项对账，路由表 docs/engineering/test-routing.json；CI Contracts + push 前)",
+        "gate:check:pr-judgement(设计卡「功能分类」按路径推出的类别下限勾选 + `## 验收证据` 逐项对账，路由表 docs/engineering/test-routing.json；短档另核 `## 变更意图` 声明与 base/head 拍板图清单；CI Contracts + push 前)",
         "gate:check:perf-scenarios(性能场景登记表结构：id 唯一、script 存在且是现有量具、budget / baseline 齐全且是数字)",
         "gate:check:pr-judgement(「新增功能 / 性能」类必交 perf-scenario 证据：格式、id 在登记表、未验证红)",
         "gate:check:renderer-sync-ipc(渲染进程同步 IPC 冻结清单只减不增，新增 sendSync 通道即红；2026-10-16 卡顿波)",
