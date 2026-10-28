@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { LEDGER_PATH, VERDICT, checkBoundary, evaluate, hasWord, readContracts, readLedger, reanchorResolver, resolveSymbol } from "./boundary-owners.mjs";
+import { LEDGER_PATH, VERDICT, auditBoundaries, checkBoundary, evaluate, hasWord, readContracts, readLedger, reanchorResolver, resolveSymbol } from "./boundary-owners.mjs";
 
 function sandbox(files) {
   const root = makeTempDir("boundary-owners-");
@@ -119,4 +119,64 @@ test("台账只有一个读口：scripts 里认得台账路径的生产脚本只
     .filter((rel) => /\.(?:mjs|cjs|js)$/.test(rel) && !/\.(?:node-test|test)\.[cm]?js$/.test(rel) && !rel.split("/").includes("node_modules"))
     .filter((rel) => fs.readFileSync(path.join(scriptsDir, rel), "utf8").includes("boundary-owners-ledger"));
   assert.deepEqual(readers, ["boundary-owners.mjs"]);
+});
+
+// ─── 主人搬家：定义原样搬进新文件，旧文件还 import / 调用着 ───────────────────────────────
+// 特征测试：换判据之前先把现状钉住。①③ 是会被换掉的判法（词还在 = 主人还在，于是改锚条目被判「过期」），
+// ②④ 是换了也必须原样不动的判法。
+const MOVED_CONTRACT = "docs/fixes/2026-10-16-moved-definition.root-cause.json";
+const OLD_FILE = "electron/tasks/taskResultQuery.ts";
+const NEW_FILE = "electron/tasks/retrievalStageError.ts";
+const DEFINES = "export function retrievalStageError(error: unknown) { return error; }\n";
+/** 旧文件里只剩 import 和一次调用——定义已经搬走。 */
+const IMPORTS_ONLY = 'import { retrievalStageError } from "./retrievalStageError";\nexport function readResult(error: unknown) { return retrievalStageError(error); }\n';
+const MOVED_ROW = {
+  contract: MOVED_CONTRACT,
+  path: OLD_FILE,
+  symbol: "retrievalStageError",
+  anchor: { path: NEW_FILE, symbol: "retrievalStageError" },
+  reason: "原样搬到独立文件，旧文件 import 着",
+};
+
+/** 一个最小仓库：一份合同声明了旧锚，台账登记了 rows，旧文件 / 新文件各自是给定的源码（newSource 为 null = 新文件不存在）。 */
+function movedRepo({ oldSource, newSource = DEFINES, rows = [MOVED_ROW] }) {
+  return sandbox({
+    [MOVED_CONTRACT]: JSON.stringify({ shared_boundaries: [{ path: OLD_FILE, symbol: "retrievalStageError", responsibility: "r" }] }),
+    [LEDGER_PATH]: JSON.stringify({ version: 1, reanchored: rows }),
+    [OLD_FILE]: oldSource,
+    ...(newSource === null ? {} : { [NEW_FILE]: newSource }),
+  });
+}
+
+/** check-boundary-owners.mjs 做的整套事（读台账、读合同、逐条核、台账裁决），不起子进程。 */
+function runGate(root) {
+  const ledger = readLedger(root);
+  ledger.__repoRoot = root;
+  return evaluate({ results: auditBoundaries(root), ledger });
+}
+
+test("现状（特征）：定义搬走、旧文件还 import 着、台账登记了改锚 → 判「台账条目已经自己好了」", () => {
+  const out = runGate(movedRepo({ oldSource: IMPORTS_ONLY }));
+  assert.equal(out.ok, false);
+  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+});
+
+test("现状（特征）：定义搬走、旧文件还 import 着、新锚也不在 → 同样只说「已经自己好了」，说不出新主人没了", () => {
+  const out = runGate(movedRepo({ oldSource: IMPORTS_ONLY, newSource: null }));
+  assert.equal(out.ok, false);
+  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+  assert.doesNotMatch(out.errors.join("\n"), /新主人也不在了/);
+});
+
+test("不变量：旧文件又把它定义回来 + 台账还登记着改锚 → 报过期", () => {
+  const out = runGate(movedRepo({ oldSource: `${IMPORTS_ONLY}${DEFINES}` }));
+  assert.equal(out.ok, false);
+  assert.match(out.errors.join("\n"), /台账条目已经自己好了/);
+});
+
+test("不变量：没登记改锚的边界，词还在（只剩 import）就是在位——口径不变", () => {
+  const out = runGate(movedRepo({ oldSource: IMPORTS_ONLY, rows: [] }));
+  assert.equal(out.ok, true, out.errors.join("\n"));
+  assert.equal(out.stats.ok, 1);
+  assert.equal(out.stats.reanchored, 0);
 });
