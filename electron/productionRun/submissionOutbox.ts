@@ -427,8 +427,10 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
           markSubmissionUnknown(request);
           throw new SubmissionReceiptUnknownError(error instanceof Error ? error.message : undefined);
         default: {
+          // 编译期穷举：新加一档不在上面处理，typecheck 就红。运行期走不到；万一走到，按最不确定的「结果未知」落（不释放、不放行）。
           const unhandled: never = outcome;
-          throw new Error(`Unhandled submission failure outcome: ${String(unhandled)}`);
+          markSubmissionUnknown(request);
+          throw new SubmissionReceiptUnknownError(`${message} (unhandled submission outcome: ${String(unhandled)})`);
         }
       }
     }
