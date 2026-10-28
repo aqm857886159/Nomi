@@ -10,7 +10,7 @@
   ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "与 FB-20261022-whiteboard-board-unusable 不同：10-22 是默认工具与完成后无可见结果；本条是组件卸载错误关闭外部会话。",
@@ -19,7 +19,7 @@
     "35592e462：删除 cleanup 关闭门，session store 统一节点 / 项目失效；捕获待存草稿，卸载幂等 flush。",
     "本地相关测试 116/116；中英生产视口卸载 / 返回后蓝色笔画实绘可见；开发 StrictMode 两入口持续打开。",
     "tests/ux/whiteboard-refactor.walk.mjs 中英各 58/58，均退出 0。",
-    "实现线自验已完成，独立验收待协调；未开 PR，未伪填 fixedInPr，reviewed 待真实交付结账。",
+    "PR #1375 已开；原独立验收 HEAD 为 04418ed42，账本翻转后的增量待验收线复核。",
     "sessionCleanupCensus.test.ts 按概念登记普查 src/workbench 的 effect cleanup：45 个 live-interaction 概念、121 条写接口登记；59/59 通过。临时恢复 InlineWhiteboard 旧 closeWhiteboard cleanup 时退出 1 并点名第 89 行；逐字节还原后退出 0，SHA-256 与变异前一致。"
   ],
   "completionCommits": [
@@ -29,5 +29,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "src/workbench/sessionCleanupCensus.test.ts"
-  }
+  },
+  "fixedInPr": 1375
 }
