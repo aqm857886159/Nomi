@@ -28,6 +28,8 @@ import { readRealCatalog, realNomiIsRunning, realNomiProfile, realProfileFingerp
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
+/** 付费走查缺省的 Agent 大脑（单源）：各脚本都从这里拿，不各写一个 key——写死的 deepseek-v3.2 在 10-27 退役后，Agent 生图付费走查就跑不起来了。它必须在 APIMART_TEXT_MODEL_KEYS 里（单测守）。 */
+export const DEFAULT_PAID_BRAIN = Object.freeze({ vendorKey: ENV_KEY_VENDOR, modelKey: 'deepseek-v4-pro' })
 
 /**
  * 纯判据（单测钉它）：返回拒跑理由，null = 放行。
@@ -278,9 +280,9 @@ export function assertEnvKeyModels(models) {
   if (foreign.length) throw new Error(`${ENV_KEY_VAR} 只能授权 ${ENV_KEY_VENDOR} 的模型，这一场还点名了：${foreign.map((model) => `${model.vendorKey}/${model.modelKey}`).join('、')}（一分钱没花）`)
 }
 
-/** 接入页里要验证的文本模型：授权名单里点名的那个 APIMart 文本模型；没点名就用缺省的 deepseek-v4-pro。 */
+/** 接入页里要验证的文本模型：授权名单里点名的那个 APIMart 文本模型；没点名就用缺省的 DEFAULT_PAID_BRAIN。 */
 export function envKeyBrainOf(models) {
-  return models.find((model) => APIMART_TEXT_MODEL_KEYS.includes(model.modelKey))?.modelKey ?? 'deepseek-v4-pro'
+  return models.find((model) => APIMART_TEXT_MODEL_KEYS.includes(model.modelKey))?.modelKey ?? DEFAULT_PAID_BRAIN.modelKey
 }
 
 function readJson(file) {
