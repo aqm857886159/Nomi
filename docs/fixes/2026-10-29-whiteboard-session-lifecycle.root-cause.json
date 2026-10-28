@@ -133,10 +133,12 @@
   },
   "regression_tests": [
     "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx",
-    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardInlineState.test.ts"
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardInlineState.test.ts",
+    "src/workbench/sessionCleanupCensus.test.ts"
   ],
   "class_regression_tests": [
-    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx"
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx",
+    "src/workbench/sessionCleanupCensus.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

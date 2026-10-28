@@ -19,7 +19,8 @@
     "35592e462：删除 cleanup 关闭门，session store 统一节点 / 项目失效；捕获待存草稿，卸载幂等 flush。",
     "本地相关测试 116/116；中英生产视口卸载 / 返回后蓝色笔画实绘可见；开发 StrictMode 两入口持续打开。",
     "tests/ux/whiteboard-refactor.walk.mjs 中英各 58/58，均退出 0。",
-    "实现线自验已完成，独立验收待协调；未开 PR，未伪填 fixedInPr，reviewed 待真实交付结账。"
+    "实现线自验已完成，独立验收待协调；未开 PR，未伪填 fixedInPr，reviewed 待真实交付结账。",
+    "sessionCleanupCensus.test.ts 按概念登记普查 src/workbench 的 effect cleanup：45 个 live-interaction 概念、121 条写接口登记；59/59 通过。临时恢复 InlineWhiteboard 旧 closeWhiteboard cleanup 时退出 1 并点名第 89 行；逐字节还原后退出 0，SHA-256 与变异前一致。"
   ],
   "completionCommits": [
     "35592e462"
@@ -27,6 +28,6 @@
   "rootCauseContract": "docs/fixes/2026-10-29-whiteboard-session-lifecycle.root-cause.json",
   "classCheck": {
     "kind": "matrix",
-    "file": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx"
+    "file": "src/workbench/sessionCleanupCensus.test.ts"
   }
 }
