@@ -98,6 +98,7 @@ export const SCAN_GUARDS = Object.freeze([
   // ── src/workbench 及以下 ──
   { file: 'src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts', roots: WORKBENCH }, // 5 秒
   { file: 'src/workbench/ai/pointer/pointerDoors.test.ts', roots: ['src/workbench/ai/pointer'] }, // 指向元素目录：不许自己动画布视口（唯一出口 viewNodeInCanvas）、不自带焦点环；只遍历这一个目录，按语法树判（<1 秒）
+  { file: 'src/workbench/promptLibrary/userPromptDoors.guard.test.ts', roots: ['src', 'electron'] }, // 2026-10-28：「我的库」提示词列表只有一条写入路——桥的写方法只有 promptLibraryApi 调、publishUserPrompts 只有一个调用方、存储写函数只有 promptLibraryIpc 引用、存盘文件名只在存储与并排安装拷贝里；遍历 src 与 electron 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/generationCanvas/nodes/fencedCanvas.invariant.test.ts', roots: WORKBENCH },
   { file: 'src/workbench/generationCanvas/store/canvasReadyOwner.test.ts', roots: WORKBENCH }, // 12 秒
   { file: 'src/workbench/generationCanvas/components/canvasControlsStructure.test.ts', roots: ['src/workbench/generationCanvas'] }, // 4 秒
