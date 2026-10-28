@@ -14,7 +14,7 @@
 |---|---|---|
 | 同步出图落地线（`fix/sync-landing-not-unknown-r2`，HEAD `3f7bc054a`）：`retrievalStageError` 原样搬进 `electron/tasks/retrievalStageError.ts`，`taskResultQuery.ts` 仍 import 并调用。记了改锚 → `check:boundary-owners` 退出 1，报 2 条「台账条目已经自己好了」；删掉这两条 → `check:concept-owners` 退出 1，报 2 处 `unregistered-boundary` | `evaluate()` 看到旧锚判 OK 且台账登记了改锚，就报过期；`hasWord` 看不出「只剩 import」 | 两道门对「主人在不在」两个答案 |
 | 同一原因的另一种形状（本线读代码推出，测试 ⑤ 钉住）：旧符号已删，旧文件只在注释或字符串里还提到它，改锚条目同样被报过期，作者被逼着删掉一条真在用的改锚 | `hasWord` 不分代码、注释、字符串 | 同上 |
-| 实测：main（`ace369c78`）上 52 条改锚没有一条旧锚还留着这个词（30 条符号已删、22 条文件已删），所以这个口径分叉到今天才第一次被踩中 | 同上 | 同上 |
+| 实测：main（`ace369c78`）上 52 条改锚没有一条旧锚还留着这个词（30 条符号已删、22 条文件已删），也就是现有改锚里这个口径分叉还没被踩中过，同步出图落地线是第一次 | 同上 | 同上 |
 | 同一次验证里撞上的邻居：入口只认 `--repo-root <目录>`，`node scripts/check-boundary-owners.mjs <目录>`（位置参数）被静默忽略，检查的是脚本所在的这棵树并报绿（实测：位置参数 → 声明 1905 条、退出 0；`--repo-root` 指同一棵分支树 → 声明 1908 条、退出 1） | 参数没有白名单 | 静默忽略输入 = 假绿 |
 
 ## 2. 为什么这一类会一直出现
@@ -40,7 +40,7 @@
 
 ## 5. P0：这些是我们独有的吗？现成方案有哪些
 
-- **现成方案**：「一个符号在哪里被定义」本来就是编译器的活（TypeScript 编译器 / 语言服务，<https://github.com/microsoft/TypeScript/wiki/Using-the-Language-Service-API>）。**已经在用**：`collectDefinitions` 是 AST 遍历，本刀只复用它，不接第二个。
+- **现成方案**：「一个符号在哪里被定义」本来就是编译器的活（TypeScript 编译器 / 语言服务，版本见 `package.json:395` 的 `typescript ^5.6.3`，出处 <https://github.com/microsoft/TypeScript/wiki/Using-the-Language-Service-API>）。**已经在用**：`collectDefinitions` 是 `ts.createSourceFile` 的 AST 遍历，本刀只复用它，不接第二个。
 - 「合同里声明的边界主人」和「改锚台账」是本仓自定义的契约（`docs/fixes/*.root-cause.json` 的 `shared_boundaries`、`scripts/boundary-owners-ledger.json`），没有现成工具能核它，这是自写登记 `gate-family` 的 whyNotIntegrated：门岗检查的是 Nomi 自己的登记表与合同。
 - 自写登记条目：`gate-family`（`docs/engineering/self-written.json`，under-review，reviewBy 2026-10-31）。**现在换不了**：台账和合同是本仓独有的契约，工具里没有对应物。**哪天换**：`gate-family` 到期评估（2026-10-31）时一并定边界门与概念门要不要并成一道；并了，「主人在不在」只剩一份实现，本刀加的这处共用随之并入。
 
@@ -60,7 +60,7 @@
 
 ## 特征测试清单（动结构前先锁住）
 
-`scripts/check-boundary-owners.node-test.mjs`（先钉现状：动判据前 18 条全绿，其中两条「现状（特征）」断言的就是 bug 本身；修后 26 条全绿，日志在线内 tmp）：
+`scripts/check-boundary-owners.node-test.mjs`（先钉现状：动判据前 18 条全绿，其中两条「现状（特征）」断言的就是 bug 本身；修后 26 条全绿）：
 
 - 「现状（特征）：定义搬走、旧文件还 import 着、台账登记了改锚 → 判『台账条目已经自己好了』」：本次 bug 本身，修后翻转成测试 ①。
 - 「现状（特征）：…新锚也不在 → 同样只说『已经自己好了』」：修后翻转成测试 ③「新主人也不在了」。
