@@ -33,7 +33,7 @@ import { DeferredNodeImage } from './DeferredNodeMedia'
 import { canvasImageSourceOf } from './canvasImageSource'
 import { NodeVideoSessionProvider } from './NodeVideoSession'
 import { NodeVideoPlaybackGuard } from './NodeVideoPlaybackGuard'
-import { useNodePanoramaHandlers } from './useNodePanoramaHandlers'
+import { useNodePanoramaHandlers, usePanoramaFullscreenTrigger } from './useNodePanoramaHandlers'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
@@ -112,7 +112,7 @@ function BaseGenerationNodeImpl({
     selectCanvasNodeExists(state, node.derivedFrom),
   )
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const panoramaFullscreenRef = React.useRef<(() => void) | null>(null)
+  const panoramaFullscreen = usePanoramaFullscreenTrigger()
   const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const [provenanceOpen, setProvenanceOpen] = React.useState(false)
   const showVersionCards = React.useMemo(() => nodeHasVersionCards(node), [node])
@@ -236,7 +236,7 @@ function BaseGenerationNodeImpl({
         <PanoramaNodeToolbar
           node={node}
           reportFeedback={reportFeedback}
-          fullscreenRef={panoramaFullscreenRef}
+          fullscreenRef={panoramaFullscreen.ref}
           uploadInputRef={panoramaUploadInputRef}
           onFileChange={handlePanoramaFileChange}
           onOpenProvenance={() => setProvenanceOpen(true)}
@@ -364,9 +364,7 @@ function BaseGenerationNodeImpl({
                 imageUrl={(node.result?.url || node.meta?.imageUrl) as string}
                 width={visualSize.width}
                 height={previewHeight}
-                onEnterFullscreen={(trigger) => {
-                  panoramaFullscreenRef.current = trigger
-                }}
+                onEnterFullscreen={panoramaFullscreen.onEnterFullscreen}
                 onScreenshot={handlePanoramaScreenshot}
               />
             </React.Suspense>
