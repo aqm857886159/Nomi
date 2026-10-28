@@ -12,7 +12,8 @@
     "打开导演台，一边和右边的 Agent 说话改它，一边切去创作页看文稿、再切回来导演台还是刚才的样子（Agent 停靠 / 浮窗 / 小球三种形态，中英）"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1377,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-29-director-layer-in-page.direction-check.md",
