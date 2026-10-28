@@ -179,7 +179,7 @@
       "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
       "entry_point": "addUserPrompt",
       "disposition": "enforced",
-      "evidence": "浏览器「提取提示词」直调 API 的 addUserPrompt（用户报的那条路）；写成功后经 acceptUserPromptList 发布，已挂载的抽屉当场更新（useUserPrompts.behavior.test.tsx 的 add 用例）。"
+      "evidence": "浏览器「提取提示词」直调 API 的 addUserPrompt（用户报的那条路）；写成功后经 acceptUserPromptList 发布，已挂载的抽屉当场更新（useUserPrompts.behavior.test.tsx 的 add 用例）；真窗口里由演练步骤 ③ 的硬断言守着（不重载窗口就要看到新条目，未修的 main 上红）。"
     },
     {
       "path": "src/ui/browser/dialog/useBrowserDialogActions.ts",
@@ -246,13 +246,15 @@
     "src/workbench/promptLibrary/userPromptDoors.guard.test.ts",
     "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
     "src/workbench/api/promptLibraryApi.test.ts",
-    "src/workbench/promptLibrary/userPromptList.test.ts"
+    "src/workbench/promptLibrary/userPromptList.test.ts",
+    "tests/ux/_browserExtractSteps.mjs"
   ],
   "class_regression_tests": [
     "src/workbench/promptLibrary/userPromptDoors.guard.test.ts",
     "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
     "src/workbench/api/promptLibraryApi.test.ts",
-    "src/workbench/promptLibrary/userPromptList.test.ts"
+    "src/workbench/promptLibrary/userPromptList.test.ts",
+    "tests/ux/_browserExtractSteps.mjs"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -267,7 +269,7 @@
   "migration": "无持久化格式变化：主进程存储和 IPC 一行没改，prompt-library-user.json 原样读写。只改渲染层缓存的归属和刷新时机；抽屉每次打开多一次 userList 读（本地内存读，毫秒级）。",
   "residual_risks": [
     "抽屉开着期间，如果将来主进程出现第二个写入者，它的写入要到下次打开抽屉才看见；今天没有这样的写入者，守卫会在它出现时变红，逼着先加主进程广播（技能库同款）。",
-    "真窗口验收还差一步：浏览器「提取提示词」分支合入后，用它的零花费演练在同一棵树上重跑 library-entry 一步（不重载窗口就应看到新条目，中英各一遍）；本地用单测 + 假盘覆盖了同一条链路，没有起 Electron。",
+    "真窗口只覆盖了浏览器「提取提示词」这一条入口：零花费演练 tests/ux/browser-extract-real.rehearsal.walk.mjs 的步骤 ③ 已改成硬断言（不重载窗口，抽屉里就要看到新条目；付费走查共用同一份步骤）。未修的 main 上这条断言红（库里确有那一条，抽屉里等满 60 秒也找不到），修后中英两遍都绿。主线上提交的演练证据（docs/evidence/2026-10-27-browser-extract-grant）仍是旧观察（entryShownWithoutReload: false），没有重写。",
     "「保存选中文字」「画布选区存库」同症状只是读码推断，没有起窗口验证。",
     "读口与写口应答乱序用发起序号兜住；主进程这几个通道今天是同步处理、按序应答，序号是保险，不是已经观察到的问题。"
   ],
