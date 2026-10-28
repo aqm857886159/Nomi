@@ -5,7 +5,7 @@ import type { CatalogState, Model, Vendor } from "../catalog/types";
 import type { ModelUnusableReason } from "../shared/modelAvailability";
 import { modelSupportsToolCalls } from "../shared/textModelCapabilities";
 import { modelSuccessorDepth } from "../shared/vendorLineage";
-import { modelSupportsImageInput } from "./agentUserContent";
+import { modelImageInputSupport, type ImageInputSupport } from "./agentUserContent";
 
 // vision/preview/audio 等常不可靠发 tool_use → 无偏好时降权（仍作回退），让通用对话模型优先做 Agent 主控（2026-06-07 真机走查 P0）。
 const AUTO_TEXT_MODEL_DEPRIORITIZE = /vision|preview|audio|tts|whisper|embed|rerank|ocr|search|thinking/i;
@@ -13,8 +13,11 @@ function autoTextModelPenalty(model: Model): number {
   return AUTO_TEXT_MODEL_DEPRIORITIZE.test(`${model.modelKey} ${model.modelAlias ?? ""}`) ? 1 : 0;
 }
 
+// 带图选型：能 > 不知道 > 不能（判据只认声明，见 agentUserContent.modelImageInputSupport）；同档保持目录序。
+// 只分「能 / 其余」两档时，内置纯文本种子（不能）会排在没声明的自配行（不知道）前面。
+const IMAGE_INPUT_RANK: Record<ImageInputSupport, number> = { supported: 2, unknown: 1, unsupported: 0 };
 function imageInputRank(model: Model): number {
-  return modelSupportsImageInput(model.modelKey, model.modelAlias, model.meta) ? 1 : 0;
+  return IMAGE_INPUT_RANK[modelImageInputSupport(model)];
 }
 
 /**
@@ -118,7 +121,7 @@ export function selectTextModelCandidates(
 ): Array<{ vendor: Vendor; model: Model }> {
   const texts = state.models.filter((item) => fitsAssistantTextRole(item) && availability.of(item).usable);
   // 有偏好：用户选的排第一（其余作回退）。
-  // 无偏好且本轮带图：优先支持图片输入的 text 模型（gpt-4o/claude/gemini 既能看图又擅长 tool_use）。
+  // 无偏好且本轮带图：按读图三态排——声明能读 > 没声明的自配行（不知道）> 声明不能 / 内置纯文本种子。
   // 无偏好无图：不盲选第一个，按「是否像通用对话模型」稳定排序，vision/preview 降到末尾。
   const preferredModelKey = preference?.modelKey?.trim();
   const preferredVendorKey = preference?.vendorKey?.trim();
@@ -219,9 +222,10 @@ export function chooseTextModel(
  * 关于钥匙串开销：`readCatalog()` 本身就为每家算 `hasApiKey` 解一次密（catalogStore.ts:89），
  * 所以这条路径**没有新增**任何 safeStorage 往返；旧注释里「首屏绝不触碰钥匙串」在那行落地之后就已不成立。
  *
- * `preferImageInput`：本轮要喂图时传 true，把**能读图**的模型排到第一位（imageInputRank →
- * meta.supportsImageInput，如 gemini-3.5-flash）。默认 false，既有调用方行为完全不变——无偏好时仍按
- * 「像不像通用对话模型」排序，把 vision/preview 降到末尾（它们常发不可靠的 tool_use，agent 主控要避开）。
+ * `preferImageInput`：本轮要喂图时传 true，按读图三态排（imageInputRank → modelImageInputSupport：
+ * 声明能读的如 gemini-3.5-flash 第一，没声明的自配行其次，声明不能 / 内置纯文本种子最后）。
+ * 默认 false，既有调用方行为完全不变——无偏好时仍按「像不像通用对话模型」排序，
+ * 把 vision/preview 降到末尾（它们常发不可靠的 tool_use，agent 主控要避开）。
  * 视频拆解读帧、浏览器「画面复刻」都要靠这个偏好选到读图脑（否则默认脑是 deepseek，读不了图）。
  */
 export function resolveTextBrainKeys(

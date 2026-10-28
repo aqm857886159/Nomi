@@ -1,0 +1,150 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-vision-capability-declared",
+  "problem_type": "Image-input capability guessed from model names, so undeclared rows silently lost attached images",
+  "symptom": "A user configured a vision-capable text model (a self-named model behind an OpenAI-compatible relay), attached an image in the Agent panel and got the reply that the image content cannot be read, only the file itself.",
+  "direct_cause": "modelSupportsImageInput fell back to the hard-coded VISION_MODEL_RE on the model name when meta.supportsImageInput was absent. Self-named relay rows (my-gpt) and newer models (GPT-5 and later, Claude 5, Grok 4, GLM-4.5V, Doubao Seed) do not match it, so the Agent lane judged them text-only and buildAgentUserContent dropped the image before the request, leaving only a note in the prompt.",
+  "class_root": "There was no declaration-only judgment of whether a row reads images: 'nobody declared it' was folded into 'cannot' through a name regex, and for custom / relay rows (which have nowhere to declare capability) the name was the only input, so every name outside the regex lost its attachments without any visible error. The same judgment also did not cover every door: the deconstruct vision leg accepted an explicit request without checking capability, and the brain ranking could only tell 'can' from 'everything else'.",
+  "affected_population": [
+    "Agent panel users whose selected text model is a custom, relay, local or sibling-connection row without meta.supportsImageInput, whatever its name",
+    "Users who added a newer model under a built-in vendor (for example a GPT-5.x row under APIMart) that is not in the curated seed table",
+    "Callers that pick a text brain with preferImageInput (video deconstruct automatic pick and soft preference)",
+    "Shot-table deconstruct runs whose vision leg was explicitly set to a text-only row (quoted and called per shot before this change)"
+  ],
+  "scope_paths": [
+    "electron/ai/agentUserContent.ts",
+    "electron/agentLane/laneDesktopInput.ts",
+    "electron/ai/textBrainResolver.ts",
+    "electron/video/deconstructVisionLeg.ts",
+    "electron/ai/agentUserContent.test.ts",
+    "electron/agentLane/laneImageInputLoopback.test.ts",
+    "electron/ai/textBrainResolver.test.ts",
+    "electron/video/deconstructVisionLeg.test.ts",
+    "electron/catalog/seedBuiltins.test.ts",
+    "docs/engineering/concept-owners/catalog.model-image-input.json",
+    "docs/plan/2026-10-27-vision-capability-declared.md",
+    "docs/engineering/direction-checks/2026-10-27-vision-capability-declared.md"
+  ],
+  "entry_points": [
+    "Agent lane provider content for a turn with image attachments (createDesktopLaneInput.providerContent -> buildAgentUserContent)",
+    "Text brain selection with preferImageInput (selectTextModelCandidates / resolveTextBrainKeys)",
+    "Video deconstruct vision leg: explicit request, soft preference and automatic pick (resolveVisionLeg, consumed by deconstructVideo before the spend plan)",
+    "Shot-table deconstruct model dropdown (deconstructLegChoice, renderer, unchanged)",
+    "image_to_prompt text tasks (textTaskRunner, unchanged: sends frames without judging capability)"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/earendil-works/pi/tree/main/packages/ai",
+      "checked_at": "2026-10-27",
+      "purpose": "Checked against the installed @earendil-works/pi-ai 0.85.1 (repository from its package.json): README 'Image Input' says images passed to a model whose input lacks 'image' are silently ignored, and dist/api/transform-messages.js downgradeUnsupportedImages replaces them with a placeholder. Nomi's model descriptor declares input ['text','image'] (electron/agentLane/laneModelProvider.mts), so whether an image is sent is decided only by Nomi's own judgment, which is the owner changed here."
+    }
+  ],
+  "invariants": [
+    "Whether a text model row reads images is answered only by modelImageInputSupport: a boolean meta.supportsImageInput is the answer; an undeclared row whose own identity is in builtinCatalogModelKeys(row.vendorKey) cannot; every other undeclared row is unknown. Model names, aliases, whether the vendor is built in, and renderer-writable meta fields never take part.",
+    "The Agent lane drops an attached image only when the verdict is 'unsupported' or its bytes cannot be read; the existing note and the original asset identity stay in the prompt.",
+    "With preferImageInput the text brain ranking is supported > unknown > unsupported, keeping catalog order inside a tier.",
+    "All three deconstruct vision-leg sources use the same verdict: an explicit request for an 'unsupported' row is rejected before any quote or call; a soft preference is adopted unless it is 'unsupported'; an automatic pick whose first candidate is 'unsupported' means there is no vision model."
+  ],
+  "doors": [
+    {"kind": "write", "path": "electron/agentLane/laneDesktopInput.ts", "symbol": "modelImageInputSupport"},
+    {"kind": "write", "path": "electron/ai/textBrainResolver.ts", "symbol": "modelImageInputSupport"},
+    {"kind": "write", "path": "electron/video/deconstructVisionLeg.ts", "symbol": "modelImageInputSupport"},
+    {"kind": "write", "path": "electron/ai/agentUserContent.ts", "symbol": "builtinCatalogModelKeys"},
+    {"kind": "write", "path": "electron/agentLane/laneDesktopInput.ts", "symbol": "buildAgentUserContent"},
+    {"kind": "read", "path": "src/workbench/generationCanvas/nodes/shotTable/deconstructLegChoice.ts", "symbol": "supportsImageInput"},
+    {"kind": "read", "path": "electron/video/deconstructVideo.ts", "symbol": "resolveVisionLeg"}
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "The doors are distinct consumers that must each decide what 'unknown' means for them (the Agent lane sends, the brain ranking puts it between can and cannot, the deconstruct leg rejects only 'cannot'), plus the renderer dropdown and the deconstruct orchestrator that consumes the leg resolution. What converged is the judgment: the three main-process consumers call the one three-state owner (door-map modelImageInputSupport: 3 doors), the owner's only other input is the curated identity table (door-map builtinCatalogModelKeys), and the name regex was deleted in the same commit. The renderer dropdown still reads the raw declaration and hides only explicit false, which is exactly the segment the main process also rejects; letting it read the three-state verdict needs the verdict projected through IPC, scheduled for the next version."
+  },
+  "generality_proof": "The verdict reads only the row's own declaration and the curated registry's identity table, so a new model, a renamed relay model, a new relay vendor or a new protocol cannot fall outside it. The name matrix in agentUserContent.test.ts asserts the same verdict for 12 names (names the old regex accepted, names it rejected, and names it never knew) under no declaration, true and false, plus alias, non-boolean and catalogLifecycle variants; the seed matrix walks every text row applyBuiltinSeeds produces and asserts none is 'unknown' and 'supported' iff declared true; laneImageInputLoopback.test.ts sends through the real Agent lane door and the real pi provider to a loopback upstream on openai-compatible, openai-responses and anthropic and inspects the recorded request body.",
+  "shared_boundaries": [
+    {"path": "electron/ai/agentUserContent.ts", "symbol": "modelImageInputSupport", "responsibility": "Single three-state judgment of whether a text model row reads images: declaration first, undeclared seed rows (by row identity) cannot, everything else unknown; no names."},
+    {"path": "electron/ai/agentUserContent.ts", "symbol": "buildAgentUserContent", "responsibility": "Takes the three-state verdict (not a caller-computed boolean) and drops an image only for 'unsupported' or unreadable bytes, keeping the note and the original asset identity."}
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/ai/agentUserContent.ts",
+    "tests": [
+      "electron/ai/agentUserContent.test.ts",
+      "electron/agentLane/laneImageInputLoopback.test.ts"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-26",
+  "same_class_entry_points": [
+    {"path": "electron/agentLane/laneDesktopInput.ts", "entry_point": "createDesktopLaneInput.providerContent", "disposition": "enforced", "evidence": "Passes modelImageInputSupport(model) to buildAgentUserContent. laneImageInputLoopback.test.ts: undeclared my-relay/my-gpt and apimart/gpt-5.5 carry the image part on three protocols (red before this change); declared false and the built-in apimart/deepseek-v4-pro seed row drop it with the note and keep the asset identity."},
+    {"path": "electron/ai/textBrainResolver.ts", "entry_point": "selectTextModelCandidates with preferImageInput", "disposition": "enforced", "evidence": "imageInputRank reads the three-state verdict; textBrainResolver.test.ts orders declared > undeclared custom > undeclared seed (red before this change) and leaves the no-image order unchanged."},
+    {"path": "electron/video/deconstructVisionLeg.ts", "entry_point": "resolveVisionLeg (requested / preferred / automatic)", "disposition": "enforced", "evidence": "deconstructVisionLeg.test.ts: explicit false and an undeclared seed row are rejected with zero quotes and zero calls; an undeclared custom row is accepted as request and as soft preference; an automatic pick left with only 'unsupported' rows is 'no vision model' with zero quotes."},
+    {"path": "src/workbench/generationCanvas/nodes/shotTable/deconstructLegChoice.ts", "entry_point": "useDeconstructLegChoice vision options", "disposition": "not-affected", "evidence": "It never guessed by name: it hides only rows declaring supportsImageInput false, i.e. only rows the main-process verdict also rejects, so it cannot hide a row the main process would accept. Undeclared seed rows stay listed and are rejected by resolveVisionLeg before any quote (residual risk)."},
+    {"path": "electron/textTaskRunner.ts", "entry_point": "image_to_prompt text task", "disposition": "not-affected", "evidence": "Sends frames without judging capability (no name guess to fix); the deconstruct path reaches it only after resolveVisionLeg. Canvas text nodes with reference images and the browser picture-replication runner also call it ungated (residual risk)."}
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "New vision models and user-named relay models appear continuously; any judgment that consults the name has to be extended for each of them and silently drops images for every name it has not seen yet.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs modelSupportsImageInput (base 6c05eebae): 3 doors (laneDesktopInput, textBrainResolver, deconstructVisionLeg)",
+      "node scripts/door-map.mjs modelImageInputSupport: the same 3 doors",
+      "node scripts/door-map.mjs builtinCatalogModelKeys: agentUserContent (this owner) and certificationOwnership (another concept)",
+      "node scripts/door-map.mjs supportsImageInput: renderer deconstructLegChoice is the only direct reader of the raw flag",
+      "git grep supportsImageInput / imageInputRank / droppedImages / VISION_MODEL_RE across electron, src, scripts and tests",
+      "AUTO_TEXT_MODEL_DEPRIORITIZE in textBrainResolver is a name regex for tool-call reliability without images, not an image-input judgment; tests/ux/shot-table-vision-leg.paid.mjs filters candidates by name for a paid walkthrough (test tooling, unchanged)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/agentUserContent.ts",
+    "invariant": "Every image-input decision in the main process comes from modelImageInputSupport's declaration-only three-state verdict; buildAgentUserContent only accepts that verdict type.",
+    "failure_mode": "A row nobody declared is 'unknown' and its image is sent; a provider that rejects it surfaces through the existing Agent error path, and 'unsupported' rows drop the image with the existing note. Putting a name fallback back turns the name matrix and the loopback cells red; a caller passing its own boolean fails typecheck; redefining VISION_MODEL_RE or modelSupportsImageInput outside the owner fails check:concept-owners.",
+    "exception_policy": "none",
+    "strategy": "Replace the name guess with a declaration-only three-state judgment at the existing owner, delete the regex in the same commit, make the content builder take the verdict instead of a boolean, and let each door state what 'unknown' means for it.",
+    "artifacts": [
+      "electron/ai/agentUserContent.ts",
+      "electron/agentLane/laneDesktopInput.ts",
+      "electron/ai/textBrainResolver.ts",
+      "electron/video/deconstructVisionLeg.ts",
+      "docs/engineering/concept-owners/catalog.model-image-input.json"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "rewrite",
+    "characterization_test": "electron/agentLane/laneImageInputLoopback.test.ts"
+  },
+  "regression_tests": [
+    "electron/agentLane/laneImageInputLoopback.test.ts",
+    "electron/ai/agentUserContent.test.ts",
+    "electron/ai/textBrainResolver.test.ts",
+    "electron/video/deconstructVisionLeg.test.ts",
+    "electron/catalog/seedBuiltins.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/ai/agentUserContent.test.ts",
+    "electron/agentLane/laneImageInputLoopback.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/agentUserContent.ts"
+    ],
+    "rationale": "VISION_MODEL_RE and the two-state modelSupportsImageInput were deleted from agentUserContent.ts in this commit, with no switch and no fallback; the concept registry lists both as forbidden shapes. PDF_INPUT_MODEL_RE is a separate judgment and is unchanged."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency changes: pi-ai's own image filtering is bypassed by Nomi's model descriptor, which is unchanged; reading pi Model.input or OpenRouter input_modalities as a declaration source is next-version work.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration. meta.supportsImageInput keeps its shape and writers (seed reconciliation, Antigravity verification); only how undeclared rows are read changed.",
+  "residual_risks": [
+    "A relay that silently drops images still makes the model say it cannot see them; there is no attachment status in the UI (next version).",
+    "A truly text-only custom row now receives the image: the provider either rejects it through the existing Agent error path or the model says it cannot see it.",
+    "The shot-table deconstruct dropdown still lists undeclared seed rows (deepseek, Qwen3); choosing one is rejected before any quote. Aligning the dropdown needs the verdict projected through IPC.",
+    "Retired APIMart text seeds kept as unlisted rows (deepseek-v3.1-250821, deepseek-v3.2-think) are no longer in the curated table and read as 'unknown', so an attached image is sent to them; stamping supportsImageInput false on retired text rows belongs to the catalog seeding owner.",
+    "A built-in row the user deleted (suppressed from reseeding) and then re-added by hand under the same vendor and model key reads as an undeclared seed row, i.e. 'unsupported', even when the model reads images (for example gemini-3.5-flash).",
+    "The no-vision-model message in deconstructVideo.ts is Chinese-only; that file is a churn hotspot and was not touched.",
+    "image_to_prompt callers outside deconstruct (canvas text node with references, browser picture replication) do not gate on the verdict.",
+    "Comments outside the allowed scope still mention the old regex (seedBuiltins.ts, apimartTexts.ts, DeconstructModelPicker.tsx, tests/ux/apimart-gemini-vision.e2e.mjs).",
+    "真实核对（2026-10-28 付费 1 次，APIMart 手填 `gpt-5-mini`，读图能力判为「不知道」档）：两轮的图都送到了模型。第 1 轮暗号 `NOMI 4862` 答成 `NOMI 4362`：前缀和 4 位里 3 位对，点阵字的 8 读成了 3，瞎猜做到的概率约 0.71%；当时的量具要求全对，所以判红，之后已改成「前缀对且至少 3 位对」。第 2 轮 3840×2160 的 16 位 PNG（29,703,774 字节）整份送达并被接受，回答准确描述了画面。证据：`docs/evidence/2026-10-27-vision-capability-declared/paid/report.json`（原样保留量具判红的那一版）。"
+  ]
+}

@@ -28,13 +28,18 @@ const catalog = {
     { key: "agnes", enabled: true, authType: "bearer" },
     { key: "gem", enabled: true, authType: "bearer" },
     { key: "ds", enabled: true, authType: "bearer" },
+    { key: "my-relay", enabled: true, authType: "bearer" },
+    { key: "apimart", enabled: true, authType: "bearer" },
   ],
   models: [
     { vendorKey: "agnes", modelKey: "agnes-flash", kind: "text", enabled: true, published: true, updatedAt: "1", meta: { supportsImageInput: true } },
     { vendorKey: "gem", modelKey: "gem-flash", kind: "text", enabled: true, published: true, updatedAt: "1", meta: { supportsImageInput: true } },
     { vendorKey: "ds", modelKey: "ds-chat", kind: "text", enabled: true, published: true, updatedAt: "1", meta: { supportsImageInput: false } },
+    // 读图能力三态（设计卡 docs/plan/2026-10-27-vision-capability-declared.md）：自配行没声明 = 不知道；内置种子行没声明 = 不能。
+    { vendorKey: "my-relay", modelKey: "my-gpt", kind: "text", enabled: true, published: true, updatedAt: "1" },
+    { vendorKey: "apimart", modelKey: "deepseek-v4-pro", kind: "text", enabled: true, published: true, updatedAt: "1" },
   ] as Array<Record<string, unknown>>,
-  apiKeysByVendor: { agnes: { enabled: true }, gem: { enabled: true }, ds: { enabled: true } },
+  apiKeysByVendor: { agnes: { enabled: true }, gem: { enabled: true }, ds: { enabled: true }, "my-relay": { enabled: true }, apimart: { enabled: true } },
 };
 vi.mock("../catalog/catalogStore", () => ({ readCatalog: () => catalog, normalizeProviderKind: (v: string) => v, mutateCatalog: vi.fn() }));
 vi.mock("../catalog/secrets", () => ({ decryptApiKeyRecord: () => "k", decryptCustomConfigWithLegacy: () => ({}), apiKeyDecryptStatus: () => "ok" }));
@@ -102,6 +107,59 @@ describe("拆解读图腿的模型身份", () => {
       visionPreferred: { vendorKey: "gem", modelKey: "gem-flash" },
     });
     expect(authorizeSpend.mock.calls[0]?.[0].vision).toEqual({ vendorKey: "agnes", modelKey: "agnes-flash" });
+  });
+});
+
+// 读图腿三条来源用同一个三态判据（设计卡 docs/plan/2026-10-27-vision-capability-declared.md，A10–A13）：
+// 「不能」= 显式 false 或内置种子没声明；「不知道」= 其余没声明的行（自配 / 中转）。
+describe("读图腿按声明核能力：只拒「不能」", () => {
+  beforeEach(() => {
+    runTask.mockReset();
+    runTask.mockResolvedValue(okReply);
+  });
+
+  it.each([
+    { label: "显式声明不能读图", vision: { vendorKey: "ds", modelKey: "ds-chat" } },
+    { label: "内置纯文本种子（没声明）", vision: { vendorKey: "apimart", modelKey: "deepseek-v4-pro" } },
+  ])("显式 vision 指向$label的模型：开拆前拒，零报价、零调用", async ({ vision }) => {
+    const { result, authorizeSpend } = await run({ vision });
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).name).toBe("DeconstructError");
+    expect((result as Error).message).toContain(vision.modelKey);
+    expect((result as Error).message).toContain("Model does not accept image input");
+    expect(authorizeSpend).not.toHaveBeenCalled();
+    expect(runTask).not.toHaveBeenCalled();
+  });
+
+  it("显式 vision 指向没声明的自配模型（不知道）：照拆，报价与每次调用都用它", async () => {
+    const { authorizeSpend } = await run({ vision: { vendorKey: "my-relay", modelKey: "my-gpt" } });
+    expect(authorizeSpend.mock.calls[0]?.[0].vision).toEqual({ vendorKey: "my-relay", modelKey: "my-gpt" });
+    expect(runTask).toHaveBeenCalled();
+    for (const [call] of runTask.mock.calls) expect(call.vendor).toBe("my-relay");
+  });
+
+  it("软偏好是没声明的自配模型（不知道）：采用它，不回到自动挑", async () => {
+    const { authorizeSpend } = await run({ visionPreferred: { vendorKey: "my-relay", modelKey: "my-gpt" } });
+    expect(authorizeSpend.mock.calls[0]?.[0].vision).toEqual({ vendorKey: "my-relay", modelKey: "my-gpt" });
+  });
+
+  it("软偏好是内置纯文本种子（不能）：回到自动挑", async () => {
+    const { authorizeSpend } = await run({ visionPreferred: { vendorKey: "apimart", modelKey: "deepseek-v4-pro" } });
+    expect(authorizeSpend.mock.calls[0]?.[0].vision).toEqual({ vendorKey: "agnes", modelKey: "agnes-flash" });
+  });
+
+  it("自动挑：目录里只剩「不能」的文本模型 → 没有读图模型，零报价、零调用", async () => {
+    const saved = catalog.models;
+    catalog.models = saved.filter((model) => model.vendorKey === "ds" || model.vendorKey === "apimart");
+    try {
+      const { result, authorizeSpend } = await run({});
+      expect(result).toBeInstanceOf(Error);
+      expect((result as Error).name).toBe("DeconstructError");
+      expect(authorizeSpend).not.toHaveBeenCalled();
+      expect(runTask).not.toHaveBeenCalled();
+    } finally {
+      catalog.models = saved;
+    }
   });
 });
 
