@@ -20,7 +20,7 @@ export const CARD_SECTION = '功能分类'
 export const EVIDENCE_SECTION = '验收证据'
 export const SCOPE_SECTION = '碰到的规则与门岗'
 export const INTENT_SECTION = '变更意图'
-export const PROCESS_TIER_EFFECTIVE_FROM = '2026-10-28'
+export const PROCESS_TIER_EFFECTIVE_FROM = '2026-10-28T00:00:00+08:00'
 
 export const PROCESS_TIERS = Object.freeze({ SHORT: 'short', STANDARD: 'standard', STRICT: 'strict' })
 
@@ -28,11 +28,9 @@ export function processTieringEnforced(createdAt = null, enforce = false) {
   if (enforce || !createdAt) return true
   const time = new Date(createdAt).getTime()
   if (!Number.isFinite(time)) return true
-  // PR 创建日按协调会话所在的 Mac 时区解释；GitHub API 返回 UTC，10-28 凌晨（台北）开的在途 PR
-  // 必须和当天任务书一致地进入新规。`enforce` 仍供 CI / 历史回放明确强制新规。
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(time))
-  const date = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]))
-  return `${date.year}-${date.month}-${date.day}` >= PROCESS_TIER_EFFECTIVE_FROM
+  const start = new Date(PROCESS_TIER_EFFECTIVE_FROM).getTime()
+  if (!Number.isFinite(start)) return true
+  return time >= start
 }
 
 const INTENT_LINE = /^\s*[-*]?\s*(?:意图|intent)\s*[:：]\s*(.+)$/i
@@ -97,9 +95,6 @@ export function deriveUiVerification({ files = [], baseBoards = null, headBoards
   return { ...compared, reason: `${compared.reason}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
 }
 
-const HARD_PATH = /(?:security|credential|secret|auth|permission|crash|panic|fatal|schema|migrat|persist|projectFile|projectStore|projectVersion|direction-check)/i
-const HARD_BODY = /(?:数据格式|安全|崩溃|crash|security|data[- ]format|direction[- ]check)/i
-
 /**
  * 三档判定的唯一实现：声明只是候选，硬线和 base/head 清单核实拥有最终否决权。
  * 未声明的产品改动按标准档承接；短档的 UI 核实未知降到标准，只有真实硬线或声明冲突升严。
@@ -113,7 +108,7 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
   if (classes.has('花钱')) addHard('花钱路径')
   if (classes.has('长跑') || classes.has('可打断')) addHard('长跑 / 可打断路径')
   if ((inferred?.categories ?? []).some((category) => category.id === 'data-format')) addHard('数据格式路径')
-  if (normalized.some((file) => HARD_PATH.test(file)) || HARD_BODY.test(String(extractSection(body, INTENT_SECTION) || ''))) addHard('安全 / 崩溃 / 方向检查路径')
+  if ((inferred?.categories ?? []).some((category) => category.id === 'security')) addHard('安全路径')
   if (ledgerTransitions.length) addHard(`逃逸账本转 fixed：${ledgerTransitions.join('、')}`)
 
   // 文件清单本身已经能证明纯文档 / 测试 / 配置改动没有产品入口；这类在途 PR

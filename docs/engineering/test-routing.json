@@ -104,6 +104,15 @@
         { "id": "upgrade-path", "when": "pr", "paid": false, "label": "升级路径：老项目能打开、能继续", "aliases": ["升级路径", "老项目", "旧项目", "upgrade"], "tool": "exists", "toolRef": "tests/ux/core-a-old-project.packaged.mjs" }
       ]
     },
+    "security": {
+      "label": "安全边界",
+      "fourClass": false,
+      "owner": "Electron 安全 / 能力边界维护者",
+      "description": "凭据、渲染器暴露面、IPC 来访者、Agent 执行权限、出站目标和项目文件边界的改动必须走严档。这里只登记真实边界文件，不按文件名关键词猜风险。",
+      "evidence": [
+        { "id": "security-boundary", "when": "pr", "paid": false, "label": "安全边界证据：凭据、CSP / preload、IPC sender、Agent 权限、出站白名单或项目文件读写边界逐项核实", "aliases": ["安全边界", "security-boundary"], "tool": "exists", "toolRef": "electron/* security tests + scoped boundary tests" }
+      ]
+    },
     "perf": {
       "label": "新增功能 / 性能",
       "fourClass": false,
@@ -134,6 +143,33 @@
     { "category": "agent", "pattern": "^(?:electron/agentLane/|electron/agentHost/|src/workbench/ai/|evals/)" },
     { "category": ["scale", "perf"], "pattern": "^src/workbench/(?:generationCanvas|timeline)/" },
     { "category": "gen-quality", "pattern": "^(?:electron/shared/storyboard/|src/workbench/generationCanvas/nodes/director/|electron/capabilityCore/semanticGeneration|evals/director/)" },
+    { "category": "security", "owner": "Electron credential storage", "reason": "safeStorage 加密 token 与资产转发设置的持久化边界", "pattern": "^electron/settings/assetRelaySettings\\.ts$" },
+    { "category": "security", "owner": "Electron credential storage", "reason": "供应商连接凭据解密、擦除与公开投影边界", "pattern": "^electron/providerAdapter/serviceCatalog\\.ts$" },
+    { "category": "security", "owner": "Electron credential storage", "reason": "现有连接凭据脱敏与回执投影", "pattern": "^electron/providerAdapter/existingConnection\\.ts$" },
+    { "category": "security", "owner": "Electron credential handoff", "reason": "凭据重定向和目的地绑定策略", "pattern": "^electron/credentialRedirectPolicy\\.ts$" },
+    { "category": "security", "owner": "Renderer security", "reason": "主窗口 CSP 与跨源隔离头的唯一收口", "pattern": "^electron/contentSecurityPolicy\\.ts$" },
+    { "category": "security", "owner": "Renderer security", "reason": "preload 暴露面及 renderer bridge 入口", "pattern": "^electron/preload(?:/.*)?\\.ts$" },
+    { "category": "security", "owner": "Renderer security", "reason": "窗口 webPreferences 与隔离策略", "pattern": "^electron/mainWindowWebPreferences\\.ts$" },
+    { "category": "security", "owner": "IPC boundary", "reason": "主进程 IPC 注册与可信 sender 收口", "pattern": "^electron/main\\.ts$" },
+    { "category": "security", "owner": "IPC boundary", "reason": "IPC sender 绑定校验", "pattern": "^electron/ipcSenderGuard\\.ts$" },
+    { "category": "security", "owner": "IPC boundary", "reason": "workspace 文件选择、打开和 reveal IPC", "pattern": "^electron/projects/projectsIpc\\.ts$" },
+    { "category": "security", "owner": "IPC boundary", "reason": "settings IPC 的 sender 与 payload 边界", "pattern": "^electron/settings/(?:automationPolicyIpc|projectLocationIpc|agentApprovalPolicySettings)\\.ts$" },
+    { "category": "security", "owner": "Outbound policy", "reason": "允许访问的 host / origin 策略", "pattern": "^electron/networkHostPolicy\\.ts$" },
+    { "category": "security", "owner": "Outbound policy", "reason": "出站请求凭据证据和目标边界", "pattern": "^electron/outboundDispatchEvidence\\.ts$" },
+    { "category": "security", "owner": "Agent policy", "reason": "Agent 能力与 MCP 客户端安全门", "pattern": "^electron/capabilityCore/security\\.ts$" },
+    { "category": "security", "owner": "Agent policy", "reason": "Agent 调度、写入和人工审批收口", "pattern": "^electron/capabilityCore/(?:dispatcher|rpcServer|approvalReceipt|approvalReceiptRuntime)\\.ts$" },
+    { "category": "security", "owner": "Agent policy", "reason": "Agent 执行命令、批准与运行时 port 边界", "pattern": "^electron/agentLane/(?:laneApprovalGate|laneRuntimePort|laneTools|laneWorkspace)\\.m?ts$" },
+    { "category": "security", "owner": "Agent policy", "reason": "自动化模式与批准策略持久化", "pattern": "^electron/settings/(?:automationPolicySettings|agentApprovalPolicyContract)\\.ts$" },
+    { "category": "security", "owner": "Approval boundary", "reason": "生产运行审批策略与执行前置条件", "pattern": "^electron/productionRun/approvalPolicy\\.ts$" },
+    { "category": "security", "owner": "Approval boundary", "reason": "模型调用批准门与凭据自检", "pattern": "^electron/catalog/(?:credentialBinding|credentialConfigFields|credentialProbePolicy|credentialPublication)\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "项目 manifest 读写、锁与版本边界", "pattern": "^electron/workspace/workspaceManifest(?:Transaction|Lock)?\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "项目仓库持久化与保存 owner", "pattern": "^electron/workspace/workspaceRepository\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "项目文件索引、同步与删除边界", "pattern": "^electron/workspace/(?:workspaceFileIndex|workspaceFileDelete|workspaceSync|workspaceSyncIpc)\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "项目身份、路径与 workspace IPC", "pattern": "^electron/workspace/(?:workspacePaths|workspaceProjectIdentity|workspaceRegistry|workspaceIpc)\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "旧项目迁移和格式升级入口", "pattern": "^electron/workspace/(?:legacyProjectMigration|buildArtifactMigration)\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "项目资产落盘与缓存文件读写", "pattern": "^electron/assets/(?:projectAssetStore|projectCacheFile)\\.ts$" },
+    { "category": "security", "owner": "Project file boundary", "reason": "项目读写能力的 domain adapter", "pattern": "^electron/projects/(?:repository|projectCanvasWrite|projectOpenTimeline|projectTrash|projectDeleteToTrash)\\.ts$" },
+    { "category": "security", "owner": "Protocol boundary", "reason": "本地协议与资源流读取边界", "pattern": "^electron/protocol/(?:localProtocol|localRuntimeAssets|fileResponseStream)\\.ts$" },
     { "category": "data-format", "pattern": "(?:^|/)[^/]*(?:schema|migrat|persist|projectFile|projectStore|projectVersion)[^/]*\\.(?:ts|tsx|mts|cts|mjs)$", "scope": "^(?:src|electron)/" }
   ],
   "abortSignal": { "category": ["long-run", "perf"], "legacy": "可打断", "pattern": "\\bnew\\s+AbortController\\b|\\bAbortSignal\\b", "scope": "^(?:src|electron)/" },

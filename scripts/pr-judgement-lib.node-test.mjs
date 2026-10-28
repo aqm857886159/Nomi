@@ -33,6 +33,7 @@ import { createGateMutationHarness } from './gate-mutation-harness.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const table = loadRoutingTable()
+const r4Baseline = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/process-tiering-r4-baseline.json'), 'utf8'))
 const M = (p, status = 'M') => ({ path: p, status })
 
 test('路由表自身：每个类别有证据、证据 id 全局唯一、tool 只能是 exists / missing、missing 必须写出计划', () => {
@@ -214,9 +215,10 @@ test('整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿�
   assert.equal(routingEnforced(null, table), true, '创建时间未知按已生效处理（fail-closed）')
 })
 
-test('流程档位生效日按协调会话时区核实：GitHub UTC 的 10-28 凌晨在途 PR 进入新规', () => {
+test('流程档位生效日按带时区 ISO 瞬时点核实：跨日边界按 +08:00 比较', () => {
+  assert.equal(processTieringEnforced('2026-10-27T15:59:59Z'), false, '台北 10-27 23:59:59 仍是旧规')
+  assert.equal(processTieringEnforced('2026-10-27T16:00:00Z'), true, '台北 10-28 00:00:00 进入新规')
   assert.equal(processTieringEnforced('2026-10-27T21:26:05Z'), true)
-  assert.equal(processTieringEnforced('2026-10-27T15:59:59Z'), false)
 })
 
 test('规则与门岗改动范围：移到判据库后行为不变；旧 PR 也不吃路由宽限（#1032 型回退）', () => {
@@ -516,6 +518,97 @@ test('r3：没声明的产品改动按标准；花钱、短档界面冲突、账
   const fixed = evaluateProcessTier({ body: '', files: product, inferred: inferRoutes(product, '', table), ledgerTransitions: ['FB-r3-fixed'] })
   assert.equal(fixed.tier, 'strict')
   assert.match(fixed.lines.join('\n'), /逃逸账本转 fixed/)
+})
+
+test('r4：安全严线只来自登记路由；关键词、方向检查文档不会抬档', () => {
+  const securityFiles = [M('electron/settings/assetRelaySettings.ts')]
+  const security = evaluateProcessTier({ body: '', files: securityFiles, inferred: inferRoutes(securityFiles, '', table) })
+  assert.equal(security.tier, 'strict')
+  assert.match(security.lines.join('\n'), /安全路径/)
+
+  const authNamed = [M('src/features/authentication.ts')]
+  const authResult = evaluateProcessTier({ body: '', files: authNamed, inferred: inferRoutes(authNamed, '', table) })
+  assert.equal(authResult.tier, 'standard', '未登记的 auth 文件不能靠关键词进入严档')
+
+  const directionDoc = [M('docs/engineering/direction-checks/2026-10-28-process-tiering.md')]
+  const directionResult = evaluateProcessTier({ body: '安全 security direction-check', files: directionDoc, inferred: inferRoutes(directionDoc, '', table) })
+  assert.equal(directionResult.tier, 'short', '方向检查文档只记录结论，不是安全路由')
+
+  const spend = [M('electron/generation/spendLedger.ts')]
+  assert.equal(evaluateProcessTier({ body: '', files: spend, inferred: inferRoutes(spend, '', table) }).tier, 'strict')
+  assert.equal(evaluateProcessTier({ body: '', files: authNamed, inferred: inferRoutes(authNamed, '', table), ledgerTransitions: ['FB-r4-fixed'] }).tier, 'strict')
+})
+
+test('r4 护栏：新严档集合不得扩大，且旧花钱 / 长跑 / 可打断 / fixed 名单全保留', () => {
+  const results = r4Baseline.prs.map((entry) => {
+    const files = entry.files
+    const inferred = inferRoutes(files, '', table)
+    return {
+      number: entry.number,
+      tier: evaluateProcessTier({
+        body: '',
+        files,
+        inferred,
+        ledgerTransitions: entry.ledgerFixed ? ['historical-fixed'] : [],
+        uiVerification: deriveUiVerification({ files }),
+      }).tier,
+    }
+  })
+  const strict = results.filter((entry) => entry.tier === 'strict').map((entry) => entry.number)
+  assert.ok(strict.length <= r4Baseline.currentStrictCount, `新严档 ${strict.length} > 现行严档 ${r4Baseline.currentStrictCount}`)
+  const strictSet = new Set(strict)
+  for (const number of r4Baseline.mustStrictNumbers) assert.ok(strictSet.has(number), `必须严档 PR #${number} 被降档`)
+})
+
+test('r4 真红：关键词、安全登记、花钱硬线、方向文档四个反例逐字节变异后都会红', () => {
+  const target = 'scripts/pr-judgement-lib.mjs'
+  const harness = createGateMutationHarness({ gate: target, shareDirs: ['docs', 'src', 'tests', 'evals', 'outputs', 'worker', 'workers', 'infra'] })
+  const fixturePath = path.join(harness.repoRoot, 'scripts/fixtures/process-tiering-r4-baseline.json')
+  const run = (mutations, condition) => harness.withMutation(mutations, () => {
+    const copy = harness.copyRootForTests()
+    const moduleUrl = pathToFileURL(path.join(copy, target)).href
+    const fixtureUrl = pathToFileURL(path.join(copy, 'scripts/fixtures/process-tiering-r4-baseline.json')).href
+    const script = `
+      import fs from 'node:fs'
+      import { evaluateProcessTier, inferRoutes, deriveUiVerification } from ${JSON.stringify(moduleUrl)}
+      const baseline = JSON.parse(fs.readFileSync(new URL(${JSON.stringify(fixtureUrl)}), 'utf8'))
+      const filesOf = (entry) => entry.files
+      const replay = (entry) => {
+        const files = filesOf(entry)
+        const inferred = inferRoutes(files)
+        return evaluateProcessTier({ body: '', files, inferred, ledgerTransitions: entry.ledgerFixed ? ['historical-fixed'] : [], uiVerification: deriveUiVerification({ files }) })
+      }
+      const strict = baseline.prs.filter((entry) => replay(entry).tier === 'strict').map((entry) => entry.number)
+      const guard = strict.length <= baseline.currentStrictCount && baseline.mustStrictNumbers.every((number) => strict.includes(number))
+      const result = (${condition})
+      process.exit(result ? 0 : 1)
+    `
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: copy, encoding: 'utf8' })
+    return child.status === 0
+  })
+  const authInput = `const files = [{ path: 'src/features/authentication.ts', status: 'M' }]
+const result = evaluateProcessTier({ body: '', files, inferred: inferRoutes(files) })
+result.tier === 'standard' && guard`
+  const keywordMutation = "  const hard = []\n  const HARD_PATH = /auth/i\n  if (normalized.some((file) => HARD_PATH.test(file))) addHard('关键词路径')"
+  const hardAnchor = '  const hard = []'
+  assert.equal(run([[target, hardAnchor, keywordMutation]], authInput), false, '加回 HARD_PATH 后，未登记 auth 与严档数护栏都应真红')
+
+  const securityAnchor = "  return JSON.parse(fs.readFileSync(path.join(root, ROUTING_FILE), 'utf8'))"
+  const securityMutation = "  const table = JSON.parse(fs.readFileSync(path.join(root, ROUTING_FILE), 'utf8'))\n  table.pathRules = table.pathRules.filter((rule) => !(rule.category === 'security' && rule.pattern === '^electron/settings/assetRelaySettings\\\\.ts$'))\n  return table"
+  const securityInput = `const files = [{ path: 'electron/settings/assetRelaySettings.ts', status: 'M' }]
+const result = evaluateProcessTier({ body: '', files, inferred: inferRoutes(files) })
+result.tier === 'strict'`
+  assert.equal(run([[target, securityAnchor, securityMutation]], securityInput), false, '删掉安全登记后，登记文件严档测试应真红')
+
+  const moneyAnchor = "  if (classes.has('花钱')) addHard('花钱路径')"
+  assert.equal(run([[target, moneyAnchor, '']], 'guard'), false, '删掉花钱硬线后，必须严名单护栏应真红')
+
+  const directionAnchor = '  const normalized = files.map((file) => norm(file.path))'
+  const directionMutation = `${directionAnchor}\n  if (normalized.some((file) => file.includes('direction-checks/'))) addHard('方向检查路径')`
+  const directionInput = `const files = [{ path: 'docs/engineering/direction-checks/2026-10-28-process-tiering.md', status: 'M' }]
+const result = evaluateProcessTier({ body: '', files, inferred: { classes: [], categories: [] } })
+result.tier !== 'strict'`
+  assert.equal(run([[target, directionAnchor, directionMutation]], directionInput), false, '方向检查文档恢复硬线后，对应测试应真红')
 })
 
 test('r3 真红：三条旧判法逐字节变异会红，还原副本后回绿', () => {
