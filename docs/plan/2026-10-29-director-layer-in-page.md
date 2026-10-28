@@ -58,7 +58,7 @@
 ## ★2 谁说了算
 
 - 版面归 `GenerationWorkspace` 的网格（画布那一格 `.workbench-generation__canvas`）。导演层不再自己算右边：删 `assistantPaneWidth` / `projectAgentDockCollapsed` / `currentFullscreenOverlayTopOffset` / `FULLSCREEN_Z_INDEX` 在导演层里的读法。
-- 「页内全屏层挂在哪」的挂载点由 `GenerationWorkspace` 提供并命名，唯一一处：`src/workbench/generation/pageLayer.tsx`（上下文：挂载点元素 + 这一格此刻看不看得见）；`DirectorNode` / `PanoramaViewer` 经 `GenerationPageLayer` 挂进来。
+- 「页内全屏层挂在哪」的挂载点由 `GenerationWorkspace` 提供并命名，唯一一处：`src/workbench/generation/pageLayer.tsx`（组件 `GenerationPageLayer`）+ `pageLayerContext.ts`（上下文：挂载点元素 + 这一格此刻看不看得见）；`DirectorNode` / `PanoramaViewer` 经 `GenerationPageLayer` 挂进来。
 - 「看不看得见」归 `WorkbenchShell`：生成页槽位的 `active`（它本来就写 `hidden`）经 `GenerationWorkspace` 的 `active` 传进挂载点；`GenerationWorkspace` 再叠上「画布 | 列表」视图，得到这一格的 `active`，一份。
 - `open` 仍是节点本地的（`DirectorNode`），事实只有一份。
 - 概念：新增 `ui.generation-page-layer`（`docs/engineering/concept-owners/`），只占这一个；`ui.window-chrome-band` 的说明里把导演台 / 全景从「让开顶栏的全屏层」名单拿掉。`node scripts/door-map.mjs GenerationPageLayer` 数入口。
@@ -111,7 +111,7 @@
 |---|---|
 | Windows 顶偏移 | 页格由构造在顶栏下；`windowChrome` 相关断言通过；真机 `unverified` |
 | 导演台开着时关项目（项目菜单「回项目库」） | 导演层卸载，库页 DOM 里没有 `director-editor` |
-| HMR / StrictMode 重挂 | 挂载点元素在 ref 回调里取到后不被中途置空导致导演台卸载重建（单测：挂载点只在整格卸载时才为空） |
+| HMR / StrictMode 重挂 | 挂载点是 GenerationWorkspace 里一个 state（ref 回调只在整格卸载时才给 null，结构测试钉住这个写法）；Fast Refresh 保留 state / ref。仓库的单测环境没有 DOM，渲染期行为靠走查（反复退出再进入、第二个节点先后打开）；Fast Refresh 本身是 dev 专属、未单独验，记 unverified |
 | 两个导演台节点先后打开 | 第一个关闭后第二个正常挂进同一挂载点，页格里始终最多一层 |
 | 浮窗拖到导演层上面 | 浮窗仍在导演层之上，点得到 |
 | 停靠栏拖宽或变窄 | 3D 画布 canvas 尺寸跟着页格变（走查量 `canvas` 的 clientWidth） |
@@ -123,14 +123,15 @@
 
 **回滚**：revert 这一个 PR。数据格式不变，没有迁移。
 
-**证据口径**：这是用户当面拍板的版面改动（before 截图在复现报告里）。PR 正文 `## 验收证据` 写拍板原话、before / after 截图路径。若 `check:pr-judgement` / `check:board-parity` 要板，停下来给协调发消息，不自己挑豁免档。
+**证据口径**：这是用户当面拍板的版面改动（before 截图在复现报告里）。门岗按路径特征判（新增了生产 `.tsx` 文件 `generation/pageLayer.tsx`，且路径落在 `src/design`/`generationCanvas`/`nodes/director/`），所以这个 PR 属于「新界面」四类，不能用例外：**协调 2026-10-29 拍板走认领拍板图这一条路**——不改代码绕门岗（不把组件改写成 `.ts` 去避开「新增 .tsx」的判法），也不改门岗例外。拍板图清单是 [`docs/design/boards/2026-10-29/DirectorInPage.board.json`](../design/boards/2026-10-29/DirectorInPage.board.json)：没有画布与候选文件的轻量人工普查板（17 个元素：16 个 implemented、1 个 missing——全景「回到生成页还开着」没做到，见板里 `panorama.back-keeps` 与报告；19 条旧功能去处、3 条先查别人），断言名都挂在 `tests/ux/director-layer-in-page.walk.mjs` 里。PR 正文 `## 拍板图` 认领那 16 个 implemented 的元素；`## 验收证据` 写拍板原话与 before / after 截图路径（`docs/evidence/2026-10-29-director-layer-in-page/`）；清单的批准身份由协调确认（哈希），不由 PR 自己给。
 
 ### 功能分类
+门岗对「功能分类」的口径是只许比路径推出的多、不许少，所以路径推出的四类全勾；右边写的是这一刀实际动了什么。
 - [x] 新界面 / 改交互（改版面：导演台、全景查看器的挂载位置；不新增控件、不改文案）
 - [ ] 花钱
 - [ ] 长跑 / 可打断
 - [ ] Agent 行为
-- [ ] 大数据量 / 画布 / 长列表
-- [ ] 生成效果
+- [x] 大数据量 / 画布 / 长列表（路径推出：`src/workbench/generationCanvas/`；实际不碰数据规模，只是画布那一格里多挂一层）
+- [x] 生成效果（路径推出：`nodes/director/`；实际不碰任何生成链路，只动挂载、可见性与键盘 / 渲染监听）
 - [ ] 数据格式
-- [ ] 新增功能 / 性能
+- [x] 新增功能 / 性能（路径推出：`.tsx`；实际没有新增功能，唯一的性能后果是藏着时停 3D 渲染循环——只会更省，前后数字见走查报告）
