@@ -18,6 +18,10 @@
     {
       "path": "src/workbench/generation/pageLayerContext.ts",
       "symbol": "GenerationPageLayerProvider"
+    },
+    {
+      "path": "src/workbench/generation/pageLayerContext.ts",
+      "symbol": "useGenerationPageLayerTenants"
     }
   ],
   "forbidden_derivations": [],
