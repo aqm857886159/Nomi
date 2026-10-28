@@ -39,6 +39,7 @@ export const LAST_PR = 1358
 export const FIXTURE_COMMENT = [
   '流程分档的历史回放夹具，只存输入：窗口内每个已合并 PR 的完整文件清单（状态 A / M / D，不截断）。没有任何期望——没有档位、没有严档数、没有必须严名单。',
   '护栏在 scripts/process-tier.node-test.mjs 里当场用 inferRoutes 现算，夹具只给输入；谁要往这里补一个「期望」字段，等于把基准又变回手填的。',
+  '「现行」= 四类（花钱 / 长跑 / 可打断 / 新界面）= inferRoutes(...).fourClass，按 docs/engineering/test-routing.json 的登记；用户 2026-10-28 拍板：严档和现在的四类完全一样。',
   '生成：node scripts/generate-process-tiering-replay.mjs（需要完整 git 历史）。从 window.head 出发，在首父链上认 `Merge pull request #N` 的合并提交，N 在 [firstPr, lastPr] 内；',
   '每个 PR 取 base = merge-base(M^1, M^2)、head = M^2，用 scripts/lib/prChanges.mjs 的 prChanges（git diff --no-renames，和 check:pr-judgement 同一个函数）取文件表。',
   'files：「状态 路径」。added：main 的 diff 规则（test-routing.json 的 abortSignal）要读的新增行——只存命中该规则正则的行，按文件分；别的新增行不存。生成时已核对，只用这几行和用全部新增行跑 inferRoutes 结果完全一致。',
