@@ -12,37 +12,41 @@ For a first test, use one text model and one image model. You can add video afte
 
 ## 2. Add a provider
 
-Open **Model setup** in the top toolbar and choose **Add provider**.
+Open **Settings → Models** and choose **Custom API / gateway** under **Other connection methods**. If you already have connections, expand **Local runtimes and Dreamina membership** under **Other methods** to find that entry. If your provider has a preset, use its connection card instead. Older builds called this screen **Model setup**; update first if your controls differ.
 
 Fill in:
 
-1. **Provider name** — a name you will recognise, such as `My OpenAI relay`.
+1. **Source name** — a provider/connection name you will recognise, such as `My image API`.
 2. **API Base URL** — use the base URL from that provider's official documentation. Do not guess whether `/v1` belongs in the URL; follow the provider's example request.
 3. **API key** — enter it in Nomi's secure form. It is kept in local app storage.
-4. **Model ID** — copy the exact model identifier from the provider documentation. A display name is not enough.
+4. Click **Save connection**. Saving preserves the connection locally; it is not a successful generation test.
+5. Choose models from **Get Models**, or use **Enter Manually** if the provider has no model-list endpoint. For **Model ID**, copy the exact identifier from its documentation. A display name is not enough. A failed model-list request does not discard the saved connection.
+6. Check **Model type** in the model's settings: choose **Image**, **Video**, or **Text** as appropriate. In **Inputs and generation**, check the available modes and reference slots. In **Request method**, check how those inputs are sent. A text protocol choice alone does not configure an image API.
 
 Choose the model kind and task mode that match the documented endpoint:
 
-| You want to do | Mode | Typical request shape |
-|---|---|---|
-| Write a script or split shots | Text | Chat or Responses API |
-| Generate an image | Text to image | `POST /v1/images/generations` or the provider's documented equivalent |
-| Edit an image with references | Image edit | `POST /v1/images/edits`, multipart, or the provider's documented multimodal route |
-| Generate a video | Text to video / Image to video | The provider's documented create and polling endpoints |
+| You want to do | Model type | Mode | Request contract to check |
+|---|---|---|---|
+| Write a script or split shots | Text | Text | Provider's Chat or Responses API |
+| Generate an image | Image | Text-to-image | Images generation or the provider's documented equivalent |
+| Edit an image with references | Image | Image-to-image / Reference image edit | Multipart image edits or the provider's documented multimodal route |
+| Generate a video | Video | Text-to-video / Image-to-video | Provider's create and result/polling endpoints |
 
 The route and body are a contract, not a guess. For example, an OpenAI-compatible image endpoint expects a pixel `size` such as `1024x1024`; a different provider may call the same control `aspect_ratio` or `resolution`.
 
 ### OpenAI GPT Image 2
 
-For the official OpenAI API, choose the **OpenAI** preset (`https://api.openai.com/v1`), add model ID `gpt-image-2`, and choose **Image** rather than **Text**. The official image generation path is the [Images API](https://developers.openai.com/api/docs/guides/images-vision): use `POST /v1/images/generations` for text-to-image and `POST /v1/images/edits` with multipart image files for image editing. Chat Completions is the documented path for image understanding and text responses, not the path to use for creating an image.
+For the official OpenAI API, connect `https://api.openai.com/v1`, add model ID `gpt-image-2`, and choose **Image**. Check the [model reference](https://developers.openai.com/api/docs/models/gpt-image-2) and [Images API guide](https://developers.openai.com/api/docs/guides/image-generation): JSON `POST /v1/images/generations` creates images; multipart `POST /v1/images/edits` sends reference files in `image[]`. Common fields include `model`, `prompt`, integer `n`, and optional `size` and `quality`. GPT Image 2 returns image data in `data[].b64_json`; a relay may document a different response. The [images and vision guide](https://developers.openai.com/api/docs/guides/images-vision) also covers image understanding, which is a different task from creating an image.
 
-In Nomi, **Auto** means “let the image endpoint choose the size” and therefore omits the `size` field. If you choose a concrete ratio, Nomi translates it to a pixel size such as `1024x576` before sending an OpenAI-compatible request. This distinction is what prevents the `Invalid size ""` error reported in [Issue #237](https://github.com/aqm857886159/Nomi/issues/237).
+In Nomi's OpenAI-compatible image mapping, **Auto** omits `size`; it must not send `size: ""`. Concrete ratios and resolution tiers become pixel dimensions. GPT Image 2 requires dimensions divisible by 16, a longest edge no greater than 3840, a ratio no wider than 3:1, and 655,360–8,294,400 pixels. For example, `1024x1024` is valid, but `1024x576` is too small. The derived 1K landscape size may therefore be larger than 1024 pixels on its long edge. Check these constraints in the guide's **Earlier GPT Image models** section, not the newer 2.5 settings.
+
+A relay is a separate contract: do not infer its endpoint, parameter names, or response shape from “OpenAI-compatible” or the model name. A custom request script also owns its own HTTP calls; updating the built-in catalog does not rewrite that script.
 
 ## 3. Test before you build a storyboard
 
-Click **Test** in the provider form before saving. The test should prove the selected model and mode, not just that the host is reachable.
+**Test connection** is optional. It sends an upstream request and can establish reachability/authentication; it does not prove that image generation or editing works. **Save connection** only saves locally. The model **Self-check** checks the connection and call contract without generating an image. A model marked **not tried yet** still needs a real generation.
 
-If the test passes, save the provider and select the model in an image or video node. Run one small generation first. Only after that should you add many references or start a long storyboard.
+After setup, create one image node in **Generate**, select the connection/model, choose **Text-to-image**, and enter a simple prompt such as “A blue paper square on a white background”. Choose Auto or a supported square size and run that one node when ready for a provider generation request. Confirm that an image appears. Then test editing separately; only after both work should you build a long storyboard.
 
 If the test says that the guessed call shape does not match, changing the URL or key repeatedly will not fix it. Re-open the provider's official API example and check these values one by one:
 
@@ -56,21 +60,31 @@ If the test says that the guessed call shape does not match, changing the URL or
 
 ## 4. Add references deliberately
 
-For image edit or image-to-video, add one reference first and test it. Providers differ in what they accept:
+Start with one non-confidential PNG or JPEG on your computer:
+
+1. Select the image node and switch to **Image-to-image** / **Reference image edit**. If that mode is missing, inspect **Inputs and generation** and **Request method** for the model; text-to-image alone does not imply edit support.
+2. Use the node's reference-image upload control and choose the file, for example `Pictures/reference.png` on macOS or `Pictures\reference.png` on Windows. The file picker selects the actual local file; typing a disk path in the prompt does not attach an image. Alternatively, connect an existing image node to the reference input.
+3. Confirm its thumbnail appears in the reference slot. Enter an edit such as “Keep the square's shape; change its colour to red”. Run this node once and inspect the result.
+4. On a declared multipart edit route, Nomi reads the imported local reference bytes and sends them directly to the selected provider as file parts. This path does not need an anonymous public upload host. A provider that requires URLs instead needs a supported upload/ingestion route.
+
+Providers differ in what they accept:
 
 - a public `https://` image URL;
 - a local file uploaded through the provider's endpoint;
 - a base64 data URL;
 - a provider-specific reference field.
 
-If Nomi reports **“All no-configuration upload hosts failed”**, that is an upload transport problem (network, proxy, or a blocked anonymous host), not proof that your model key is wrong. Use a configured provider upload path or a network that can reach the host. Do not upload confidential production references to an anonymous host.
+If Nomi reports **“All no-configuration upload hosts failed”** and names `litterbox.catbox.moe` or `tmpfiles.org`, the failed step is reference upload, not evidence that the model key is wrong. First check whether the documented edit operation accepts direct multipart bytes. For URL-only operations, use a configured provider-private upload path when available and inspect the upload host/network/proxy error separately. Do not upload confidential references to an anonymous host. This guide does not claim that any external host is currently available.
 
 ## 5. Common errors
 
 | Error | What it usually means | Next action |
 |---|---|---|
-| `Invalid size ""` | An OpenAI-compatible image request received an empty pixel size. | Update to a build containing the Issue #237 fix, or choose an explicit ratio/size such as `1:1` / `1024x1024` for now. |
-| `The model and connection are still saved` | Credentials were saved, but the production call has not passed verification. | Keep the model disabled until a real test succeeds. |
+| `Invalid size ""` | An image request received an empty size. | Update Nomi; inspect the request method, including any custom script. Auto should omit the field. A supported square such as `1024x1024` is a useful isolated test. |
+| Invalid concrete size | The dimensions violate that provider's constraints. | For GPT Image 2, check pixel area as well as the 16-pixel grid. Do not copy a size from another model's guide. |
+| GPT Image edit goes to `chat/completions` | A legacy mapping or custom script may use an image-understanding route. | Update and reopen Nomi to apply catalog migrations. For a custom script, compare its request to the provider's documented edit example; use multipart `images/edits` for the official Images API. |
+| `All no-configuration upload hosts failed` | Reference transport failed before generation. | Check direct multipart support or a configured private upload route; diagnose the named host separately from model authentication. |
+| `The model and connection are still saved` | Credentials were saved, but the production call has not passed verification. | Inspect the error and correct the call contract before attempting one real generation. |
 | `call shape ... does not match theirs` | The adapter shape does not match the provider contract. | Follow the provider's official request example and correct the operation/body; do not keep rotating keys. |
 | `Provider request failed (HTTP 500)` | The upstream endpoint or relay returned a server error. | Check the exact endpoint, model ID, provider status, and a minimal request outside Nomi; redact secrets before sharing logs. |
 
@@ -79,12 +93,19 @@ If Nomi reports **“All no-configuration upload hosts failed”**, that is an u
 Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) for setup questions and [Issues](https://github.com/aqm857886159/Nomi/issues/new?template=bug_report.yml) for reproducible bugs. Include:
 
 - Nomi version and operating system;
-- provider type and API base host (omit keys and private paths);
+- provider's public API documentation/example URL, exact base-URL host and API path prefix (omit credentials and private paths);
 - model ID and task mode;
-- the redacted request shape and response/error body;
+- operation path, JSON vs multipart, field names/types, HTTP status, and the redacted response/error body;
+- whether the reference was a local file or public URL, and which upload route was selected;
 - whether a text-only or one-image minimal test works.
 
 Never include API keys, phone numbers, private email addresses, or confidential reference images in a public post.
+
+If the provider contract is unknown, use this follow-up: “Please share the public request example, base-URL host/path prefix, exact model ID, selected mode, request field names and types, and redacted response/error. Was the reference local or a public URL? Which Nomi version and OS are you using?” Do not substitute another provider's API shape while waiting for that evidence.
+
+## 7. Move the working model into a storyboard
+
+Write the script in **Create**, split it into shots, and use those shot/image nodes in **Generate**. Keep recurring characters, locations, and props as explicit references. Test one shot before generating a batch, then place accepted clips on the timeline for preview/export. The [storyboard table and poster-factory explainer](2026-08-23-storyboard-table-and-poster-factory-explainer.md) is historical background in Chinese: a storyboard table is a view of shot nodes; reference-video reconstruction and poster-image export are separate workflows. It is not a promise that every feature described there is available in your build.
 
 ## Official places to follow Nomi
 

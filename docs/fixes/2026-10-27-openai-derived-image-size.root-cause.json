@@ -1,0 +1,162 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-openai-derived-image-size",
+  "problem_type": "Derived image dimensions violate the declared provider size domain",
+  "symptom": "Switching from Auto to 16:9 / 1K produces 1024x576 (589824 pixels), below the GPT Image 2 minimum; 3:1 rounding can exceed the ratio limit.",
+  "direct_cause": "ratioResToOpenAiSize enforces only an upper area limit. The lower area and post-rounding aspect ratio constraints are mentioned in its comment but not enforced.",
+  "class_root": "The shared canonical-to-wire transform does not enforce the full size domain after quantization to the provider pixel grid. The same persisted transform is also used by video mappings, so image policy must be scoped by actual task kind.",
+  "affected_population": [
+    "Image callers of the declared ratioResToOpenAiSize transform, including JSON generation and multipart editing; video callers must retain baseline dimensions",
+    "Existing persisted operations whose paramMap references that transform ID"
+  ],
+  "scope_paths": [
+    "electron/catalog/paramTranslate.ts",
+    "electron/catalog/profileHttpRequest.ts"
+  ],
+  "entry_points": [
+    "Canvas archetype parameters through buildCatalogTaskRequest",
+    "Headless TaskRequest extras through templateContext",
+    "Multipart edit reference requests through executeProfileOperation"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/image-generation#earlier-gpt-image-models",
+      "checked_at": "2026-10-27",
+      "purpose": "Verify GPT Image 2 minimum/maximum area, 16-pixel grid, maximum edge and aspect ratio constraints."
+    }
+  ],
+  "invariants": [
+    "Auto or unset ratios continue to omit the derived size.",
+    "Every selectable GPT Image 2 ratio and 1K/2K/4K tier produces positive dimensions divisible by 16, with area 655360..8294400, longest edge <=3840, and aspect ratio <=3.",
+    "Portrait orientation and the selected ratio remain within one 16-pixel quantization step.",
+    "Local multipart references reach only the declared edit endpoint; URL ingestion is not required.",
+    "Persisted text_to_video and image_to_video mappings retain their existing size semantics; image constraints are selected by TaskRequest.kind."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "ratioResToOpenAiSize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "applyParamMap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "templateContext"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/multipartOperation.ts",
+      "symbol": "templateContext"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "templateContext"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "templateContext"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "These are existing transform registration, shared parameter preparation and transport consumers. They must remain distinct transports; all converge on one numeric transform and no new door is introduced."
+  },
+  "generality_proof": "The shared templateContext passes the actual task kind to applyParamMap and its transform registry for JSON and multipart. Existing persisted transform IDs remain valid; the image domain is enforced only for image tasks and video dimensions are preserved without vendor/model-name guesses.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "ratioResToOpenAiSize",
+      "responsibility": "Constrain derived dimensions after pixel-grid rounding before request rendering."
+    },
+    {
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "templateContext",
+      "responsibility": "Pass the authoritative TaskRequest.kind to the canonical-to-wire transform."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "entry_point": "buildProfileHttpRequest",
+      "disposition": "enforced",
+      "evidence": "JSON generation calls templateContext and applyParamMap before rendering size."
+    },
+    {
+      "path": "electron/catalog/multipartOperation.ts",
+      "entry_point": "runMultipartProfileOperation",
+      "disposition": "enforced",
+      "evidence": "Multipart text fields use the same templateContext and transform before files are sent."
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "entry_point": "NEWAPI_VIDEO_PARAM_MAP",
+      "disposition": "not-affected",
+      "evidence": "Both persisted video task kinds are characterized at buildProfileHttpRequest; the shared transform retains pre-fix video dimensions."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The transform is shared across callers, persisted operation versions, and every ratio/tier selection.",
+    "same_class_scan": [
+      "door-map ratioResToOpenAiSize -> PARAM_TRANSFORMS registration",
+      "door-map applyParamMap -> profileHttpRequest.templateContext",
+      "door-map templateContext -> JSON, multipart, process and audio callers; process/audio operations without this transform are unaffected",
+      "Read runtime multipart dispatch before localizeAssetsForVendor and existing v6 catalog migration coverage",
+      "Declarative transform-ID search found both NEWAPI_IMAGE_PARAM_MAP and NEWAPI_VIDEO_PARAM_MAP; image-only constraints require the existing request-kind discriminator."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/paramTranslate.ts",
+    "invariant": "Derived GPT Image dimensions remain inside the documented size domain after rounding.",
+    "failure_mode": "Unset or invalid ratios produce no derived size; supported concrete ratios are bounded at the shared transform.",
+    "exception_policy": "none",
+    "strategy": "Forward authoritative task kind through the single transform registry; enforce lower area and rounded aspect ratio limits for image tasks, retaining pre-existing video quantization.",
+    "artifacts": [
+      "electron/catalog/paramTranslate.ts",
+      "electron/catalog/profileHttpRequest.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/paramTranslate.test.ts",
+    "electron/catalog/providerOnboardingContract.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/paramTranslate.test.ts",
+    "electron/catalog/providerOnboardingContract.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Replace the incomplete transform in place. Keep its persisted ID; no parallel implementation or alternate route."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Local numeric translation owns the invariant; no third-party library implements this provider-specific mapping.",
+    "exit_criteria": []
+  },
+  "migration": "No catalog migration: the persisted transform ID stays unchanged and actual task kind supplies its image/video domain at execution. Existing v6 edit migration and user-authored scripts are preserved.",
+  "residual_risks": [
+    "Live provider/relay generation and Windows application UI were not exercised; no credentials supplied.",
+    "Anonymous URL upload host availability is external and remains unverified.",
+    "A manually authored script or explicit raw pixel size bypasses the derived-ratio transform and must follow its own documented contract."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-27",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/paramTranslate.ts",
+    "tests": [
+      "electron/catalog/paramTranslate.test.ts",
+      "electron/catalog/providerOnboardingContract.test.ts"
+    ]
+  }
+}

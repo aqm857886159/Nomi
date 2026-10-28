@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GPT_IMAGE_2_ARCHETYPE } from "../shared/modelArchetypes/gptImage2";
 import {
   applyParamMap,
   bodyReferencedParamKeys,
@@ -26,10 +27,31 @@ describe("ratioResToOpenAiSize", () => {
     expect(ratioResToOpenAiSize(["auto", "4K"])).toBeUndefined();
     expect(ratioResToOpenAiSize(["", "1K"])).toBeUndefined();
   });
-  it("1K/2K 长边随档位缩放", () => {
-    expect(ratioResToOpenAiSize(["16:9", "1K"])).toBe("1024x576");
+  it.each(["4:1", "1:4", `${"9".repeat(400)}:1`])("does not derive a wire size from unsupported ratio %s", (ratio) => {
+    expect(ratioResToOpenAiSize([ratio, "1K"])).toBeUndefined();
+  });
+  it("1K landscape meets the documented minimum pixel area; 2K stays unchanged", () => {
+    const [width, height] = ratioResToOpenAiSize(["16:9", "1K"])!.split("x").map(Number);
+    expect(width * height).toBeGreaterThanOrEqual(655360);
+    expect(Math.abs(height - width * 9 / 16)).toBeLessThanOrEqual(16);
     expect(ratioResToOpenAiSize(["16:9", "2K"])).toBe("2048x1152");
   });
+
+  const ratios = GPT_IMAGE_2_ARCHETYPE.modes[0].params.find((param) => param.key === "aspect_ratio")!.options!
+    .map((option) => option.value).filter((ratio): ratio is string => typeof ratio === "string" && ratio !== "auto");
+  it.each(ratios.flatMap((ratio) => ["1K", "2K", "4K"].map((tier) => [ratio, tier])))
+    ("selectable %s / %s satisfies all GPT Image 2 size limits", (ratio, tier) => {
+      const [width, height] = ratioResToOpenAiSize([ratio, tier])!.split("x").map(Number);
+      expect(width % 16).toBe(0);
+      expect(height % 16).toBe(0);
+      expect(Math.max(width, height)).toBeLessThanOrEqual(3840);
+      expect(Math.max(width, height) / Math.min(width, height)).toBeLessThanOrEqual(3);
+      expect(width * height).toBeGreaterThanOrEqual(655360);
+      expect(width * height).toBeLessThanOrEqual(8294400);
+      const [a, b] = ratio.split(":").map(Number);
+      expect(Math.abs(Math.min(width, height) - Math.max(width, height) * Math.min(a, b) / Math.max(a, b)))
+        .toBeLessThanOrEqual(16);
+    });
 });
 
 describe("applyParamMap", () => {
