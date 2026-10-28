@@ -12,7 +12,7 @@ import { canvasRunIdFor, openCanvasRuns } from "./canvasShotRunIndex";
 import { SubmissionNotDispatchedError, SubmissionReceiptUnknownError, submissionFailureOutcome } from "./submissionOutbox";
 import { CANVAS_TEST_PROJECT as PROJECT, setupCanvasShots } from "../capabilityCore/canvasShotTestUtils";
 import { NOMI_ERROR_ONLY_BEFORE_SUBMIT, matchNomiErrorCode, tagNomiError, type NomiErrorCode } from "../shared/nomiErrorCodes";
-import { answeredSubmissionFailure, withResultLandingEvidence } from "../outboundDispatchEvidence";
+import { answeredSubmissionFailure, handOffToNetwork, observeSubmissionHandoffs, withResultLandingEvidence } from "../outboundDispatchEvidence";
 import { VendorRequestError } from "../vendor/vendorHttp";
 import { SYNC_RESULT_URL, decodeFailed, diskWriteFailed, download403, kindMismatch, outboundRefused } from "../capabilityCore/resultLandingTestUtils";
 
@@ -69,13 +69,13 @@ describe("A6 与真实生产者：落地门下面的各种失败都挂得上正�
     ["结果下载 403", download403, "retrieval-download"],
     ["类型不符", async () => kindMismatch(), "retrieval-download"],
     ["取片被出网策略拦", outboundRefused, "outbound-blocked"],
-  ] as const)("%s → 第一个码 %s，结局 result_landing_failed", async (_label, failure, expected) => {
+  ] as const)("%s → 第一个码 %s，结局 result_landing_failed；被别的代码当 cause 再包几层就不算（X12）", async (_label, failure, expected) => {
     const landed = await throughLandingGate(await failure());
     expect(matchNomiErrorCode(landed.message)).toBe(expected);
     expect(answeredSubmissionFailure(landed)).toBe(true);
     expect(submissionFailureOutcome(landed, false)).toBe("result_landing_failed");
-    // 上面再包几层（执行器 / 运行时把它当 cause 带着）也认得出：证据在 cause 链上任何一层都算。
-    expect(submissionFailureOutcome(new Error("runTask failed", { cause: new Error("vendor layer", { cause: landed }) }), false)).toBe("result_landing_failed");
+    // 证据只认到达出口的那个错误对象：上面再包几层（别的代码把它当 cause 带着），外层说的是另一件事，不借里层的证据。
+    expect(submissionFailureOutcome(new Error("runTask failed", { cause: new Error("vendor layer", { cause: landed }) }), false)).toBe("unknown");
   });
 });
 
@@ -107,6 +107,34 @@ describe("判据的另一半：没有落地门挂的正证据，什么形状都�
   it("X11：之前有一次可能已被收下，最后一次哪怕是「答了、没落下」也是结果未知", async () => {
     const landed = await throughLandingGate(decodeFailed());
     expect(submissionFailureOutcome(landed, true)).toBe("unknown");
+  });
+
+  it("X12：落地失败被别的代码当 cause 包一层（或几层），外层是之后又交出去的一笔、写出去后断了（app-fetch 账本里它在途）→ 结果未知，证据不外借", async () => {
+    const resetAfterWrite = () => new TypeError("fetch failed", { cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET", syscall: "read" }) });
+    /** 一次 app-fetch 派发：回答到手、真的落地门落地失败；`later` 为真时，之后又交出去一笔付费请求，写出去之后连接被重置（账本里这一笔仍在途）。 */
+    const dispatchFailing = async (later: boolean, thrownAfterLanding: (landing: Error) => Error) => {
+      const observed = await observeSubmissionHandoffs("app-fetch", async () => {
+        const landing = await throughLandingGate(decodeFailed());
+        if (later) await handOffToNetwork("https://provider.test/v1/images/generations", { method: "POST", body: "{}" }, async () => { throw resetAfterWrite(); }).catch(() => undefined);
+        throw thrownAfterLanding(landing);
+      });
+      if (observed.ok) throw new Error("expected the dispatch to fail");
+      return observed;
+    };
+
+    // 对照组（装置是活的）：落地失败原样抛出、账本里没有别的在途 → 答了、没落下。
+    const control = await dispatchFailing(false, (landing) => landing);
+    expect(submissionFailureOutcome(control.error, false)).toBe("result_landing_failed");
+
+    // 外层说的是之后那一笔的失败，落地失败只是它的 cause：证据留在里层，不外借。
+    const oneLayer = (landing: Error) => Object.assign(new Error("acme follow-up call failed: socket hang up", { cause: landing }), { code: "ECONNRESET" });
+    const twoLayers = (landing: Error) => new Error("runTask failed", { cause: oneLayer(landing) });
+    for (const [label, wrap] of [["包一层", oneLayer], ["包两层", twoLayers]] as const) {
+      const observed = await dispatchFailing(true, wrap);
+      expect(observed.notDispatched, `${label}：写出去后断了，不是「没发出去」`).toBeNull();
+      expect(answeredSubmissionFailure(observed.error), label).toBe(false);
+      expect(submissionFailureOutcome(observed.error, false), label).toBe("unknown");
+    }
   });
 
   it("答过了先于「拒绝」判：落地时碰上的 4xx（取片 403）不是对这次提交的拒绝", () => {

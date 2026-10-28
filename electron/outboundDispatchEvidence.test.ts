@@ -177,9 +177,11 @@ describe("「答了、本机没落下」的正证据（2026-10-28）", () => {
     expect(answeredSubmissionFailure(Object.assign(new Error("x"), { resultLandingAfterAnswer: true }))).toBe(false);
   });
 
-  it("在 cause 链上任何一层都算；不许加属性的错误包一层挂（原错误在 cause 上）", () => {
+  it("只认到达出口的那个错误对象自己：别的代码把它当 cause 包一层（哪怕两层）不算——外层说的是另一件事（X12）；不许加属性的错误由落地门包的那一层在最顶上，照算", () => {
     const landed = withResultLandingEvidence(new Error("landing failed"));
-    expect(answeredSubmissionFailure(new Error("outer", { cause: new Error("middle", { cause: landed }) }))).toBe(true);
+    expect(answeredSubmissionFailure(landed), "对照：落地门抛出的那个对象自己带证据").toBe(true);
+    expect(answeredSubmissionFailure(new Error("outer", { cause: landed }))).toBe(false);
+    expect(answeredSubmissionFailure(new Error("outer", { cause: new Error("middle", { cause: landed }) }))).toBe(false);
     const frozen = Object.freeze(new Error("frozen"));
     const carrier = withResultLandingEvidence(frozen);
     expect(carrier).not.toBe(frozen);

@@ -14,6 +14,7 @@ import { generationPresentationOutcome } from "../shared/productionGenerationPre
 import { VendorRequestError } from "../vendor/vendorHttp";
 import { matchNomiErrorCode, tagNomiError, type NomiErrorCode } from "../shared/nomiErrorCodes";
 import { generatedMediaValidationError } from "../assets/generatedMediaDecode";
+import { handOffToNetwork } from "../outboundDispatchEvidence";
 import { SYNC_RESULT_URL, decodeFailed, download403, kindMismatch, outboundRefused } from "./resultLandingTestUtils";
 
 // 结果落地门（assets/localizeTaskAsset）用真的：同步供应商的结果只在它那里落地，「答过了」的正证据也只有它挂得上。
@@ -459,7 +460,7 @@ const UNKNOWN_SHAPES: ReadonlyArray<readonly [string, () => Error]> = [
   ["X10 读不出的错误由交的那一层直接抛（没经过落地门）", () => generatedMediaValidationError("decode_failed")],
 ];
 
-describe("反例：结果未知仍是结果未知（X1–X4、X10、X11）", () => {
+describe("反例：结果未知仍是结果未知（X1–X4、X10–X12）", () => {
   afterEach(() => { importRemoteAsset.mockReset(); });
 
   it.each(UNKNOWN_SHAPES)("%s → submission_unknown、锁住、预留待核对、不重发", async (_label, failure) => {
@@ -475,6 +476,36 @@ describe("反例：结果未知仍是结果未知（X1–X4、X10、X11）", () 
       return answeredThenLandingFails(decodeFailed())();
     };
     await expectResultUnknown(harness, "run-node-a-1", await thrownBy(harness.submit("node-a", "run-node-a-1")), 2);
+  });
+
+  it("X12：落地失败被别的代码当 cause 包一层，外层是之后又交出去的一笔、写出去后断了（app-fetch 账本里它在途）→ submission_unknown、锁住、预留待核对、不重发", async () => {
+    let calls = 0;
+    const harness = setup({ transport: {
+      networkTransport: "app-fetch",
+      execute: async () => {
+        calls += 1;
+        // ① 回答到手，真的落地门落地失败（落地门在这个错误上挂着落地正证据）。
+        const landing = await answeredThenLandingFails(decodeFailed())().catch((error: Error) => error);
+        // ② 之后又交出去一笔付费请求，写出去之后连接被重置：app-fetch 账本里这一笔仍在途（可能已被收下）。
+        await handOffToNetwork("https://provider.test/v1/images/generations", { method: "POST", body: "{}" }, async () => {
+          throw new TypeError("fetch failed", { cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET", syscall: "read" }) });
+        }).catch(() => undefined);
+        // ③ 别的代码把落地错误当 cause 带进这一笔的失败：到达出口的是外层，证据不外借。
+        throw Object.assign(new Error("acme follow-up call failed: socket hang up", { cause: landing }), { code: "ECONNRESET" });
+      },
+      fetchResult: async () => { throw new Error("no query"); },
+    } });
+
+    const thrown = await thrownBy(harness.submit("node-a", "run-node-a-1"));
+
+    expect(thrown).toBeInstanceOf(SubmissionReceiptUnknownError);
+    expect(matchNomiErrorCode(thrown.message), "渲染层读到的第一个码").toBe("submission-unknown");
+    expect(runOf(harness.repository, "run-node-a-1")!.jobs[0]?.status).toBe("submission_unknown");
+    expect(reservationStatus(harness, "run-node-a-1")).toEqual(["unsettled"]);
+    expect(envelopeState(harness, "run-node-a-1")).toBe("submitted_unknown");
+    expect(calls).toBe(1);
+    await expect(harness.submit("node-a", "run-node-a-2")).rejects.toMatchObject({ code: "production_shot_claimed", reason: "needs_reconcile" });
+    expect(calls, "核对之前不许再交").toBe(1);
   });
 });
 

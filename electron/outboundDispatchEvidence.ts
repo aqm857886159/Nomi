@@ -194,11 +194,16 @@ export function withResultLandingEvidence(error: Error): Error {
 
 /**
  * 第四档：「供应商答了、Nomi 本机落地失败」——**确定**答过（可能已扣钱），也确定不是结果未知：结果在回答里，
- * 只是落不进项目。只认落地门挂的正证据（cause 链上任何一层）；没有就是 false，交回其余判据。
+ * 只是落不进项目。只认落地门挂的正证据，并且**只看传进来的这个错误对象自己**，不沿 cause 链往下找；没有就是 false，交回其余判据。
  * 落地失败不是拒绝，也不是「没写出去」：答过了的提交，后两者都不可能成立。
+ *
+ * 为什么不看 cause 链：证据说的是「到达出口的就是落地门抛的那个错误」。别的代码把它当 cause 包进一个新错误，外层说的就是另一件事——
+ * 例如落地失败之后又交出去一笔、这一笔写出去后断了（app-fetch 账本里它还在途，可能已被收下）。沿链往下找会让外层借走里层的证据，
+ * 把这一笔新提交判成「答了」、放开重试，用户再点就可能扣两次。落地门对冻结对象包的那一层（`withResultLandingEvidence`）本来就在最顶上，不受影响。
+ * 已知残余：拿到落地错误后又交一笔、再把**原错误原样**抛出，证据仍在顶上，仍会判「答了」——今天生产里没有这种代码，登记在根因合同 residual_risks。
  */
 export function answeredSubmissionFailure(error: unknown): boolean {
-  return causeChain(error).some((node) => (node as { [RESULT_LANDING_EVIDENCE]?: unknown })[RESULT_LANDING_EVIDENCE] === true);
+  return (asErrorLike(error) as { [RESULT_LANDING_EVIDENCE]?: unknown } | null)?.[RESULT_LANDING_EVIDENCE] === true;
 }
 
 // ── 「这次付费提交有没有一个请求离开过本机」：按**派发**记账（2026-10-06，L-claim） ─────────────────────
