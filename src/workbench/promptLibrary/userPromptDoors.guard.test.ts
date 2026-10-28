@@ -94,20 +94,41 @@ function bridgeUserMethods(): { all: string[]; writes: string[] } {
 }
 
 /** 语法树里对这些成员名的引用：`x.userAdd`、`x['userAdd']`、解构 `{ userAdd }`（调用、传递、取出来都算，不止调用）。 */
-function memberReferences(root: ts.Node, source: ts.SourceFile, names: ReadonlySet<string>): Array<{ name: string; line: number }> {
-  const found: Array<{ name: string; line: number }> = []
+function memberReferenceNodes(root: ts.Node, names: ReadonlySet<string>): Array<{ name: string; node: ts.Node }> {
+  const found: Array<{ name: string; node: ts.Node }> = []
   const visit = (node: ts.Node): void => {
-    if (ts.isPropertyAccessExpression(node) && names.has(node.name.text)) found.push({ name: node.name.text, line: lineOf(node, source) })
+    if (ts.isPropertyAccessExpression(node) && names.has(node.name.text)) found.push({ name: node.name.text, node })
     else if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) && names.has(node.argumentExpression.text)) {
-      found.push({ name: node.argumentExpression.text, line: lineOf(node, source) })
+      found.push({ name: node.argumentExpression.text, node })
     } else if (ts.isBindingElement(node)) {
       const key = node.propertyName ?? node.name
-      if (ts.isIdentifier(key) && names.has(key.text)) found.push({ name: key.text, line: lineOf(node, source) })
+      if (ts.isIdentifier(key) && names.has(key.text)) found.push({ name: key.text, node })
     }
     ts.forEachChild(node, visit)
   }
   visit(root)
   return found
+}
+
+function memberReferences(root: ts.Node, source: ts.SourceFile, names: ReadonlySet<string>): Array<{ name: string; line: number }> {
+  return memberReferenceNodes(root, names).map(({ name, node }) => ({ name, line: lineOf(node, source) }))
+}
+
+/** 包住这个节点的最内层函数：函数声明、函数表达式、箭头函数、方法都算（只认函数声明的话，箭头函数写口能悄悄绕过）。 */
+function enclosingFunction(node: ts.Node): ts.FunctionLikeDeclaration | null {
+  for (let current = node.parent; current; current = current.parent) {
+    if (ts.isFunctionDeclaration(current) || ts.isFunctionExpression(current) || ts.isArrowFunction(current) || ts.isMethodDeclaration(current)) return current
+  }
+  return null
+}
+
+/** 报告用的函数名：声明名、`const 名 = () => …` 的变量名、属性名；都没有就写行号。 */
+function functionLabel(fn: ts.FunctionLikeDeclaration, source: ts.SourceFile): string {
+  if (fn.name && ts.isIdentifier(fn.name)) return fn.name.text
+  const parent = fn.parent
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) return parent.name.text
+  if (ts.isPropertyAssignment(parent)) return propertyNameText(parent.name) ?? `line ${lineOf(fn, source)}`
+  return `line ${lineOf(fn, source)}`
 }
 
 function callsTo(root: ts.Node, name: string): number {
@@ -139,19 +160,24 @@ describe('我的库提示词列表 · 写入只有一条路（桥 → promptLibr
     expect(offenders, '写「我的库」只能调 promptLibraryApi 的 addUserPrompt / updateUserPrompt / deleteUserPromptWithSnapshot / restoreUserPrompt').toEqual([])
   })
 
-  it('promptLibraryApi 里每个碰桥「我的库」方法的函数（读口 + 写口），收到的整表都经 acceptUserPromptList 发布；且它们确实包括 5 个已知口', () => {
+  it('promptLibraryApi 里每个碰桥「我的库」方法的函数（读口 + 写口；函数声明、箭头函数、函数表达式、方法都算），收到的整表都经 acceptUserPromptList 发布；且它们确实包括 5 个已知口', () => {
     const source = sourceOf(API_FILE)
-    const userMethods = new Set(methods.all)
-    const touching: string[] = []
-    const withoutPublish: string[] = []
-    for (const statement of source.statements) {
-      if (!ts.isFunctionDeclaration(statement) || !statement.name) continue
-      if (memberReferences(statement, source, userMethods).length === 0) continue
-      touching.push(statement.name.text)
-      if (callsTo(statement, 'acceptUserPromptList') === 0) withoutPublish.push(statement.name.text)
+    const touching = new Set<string>()
+    const withoutPublish = new Set<string>()
+    // 从每一处对桥方法的引用往外找最内层函数，判那个函数：不管写口是用哪种语法写的，都逃不掉。
+    for (const { node } of memberReferenceNodes(source, new Set(methods.all))) {
+      const fn = enclosingFunction(node)
+      if (!fn) {
+        // 在函数外取桥上的方法（比如模块顶层 `const add = bridge.promptLibrary.userAdd`），拿出去在哪调都查不到，直接算没发布。
+        withoutPublish.add(`${API_FILE}:${lineOf(node, source)}（函数外）`)
+        continue
+      }
+      const label = functionLabel(fn, source)
+      touching.add(label)
+      if (callsTo(fn, 'acceptUserPromptList') === 0) withoutPublish.add(label)
     }
-    expect(touching.sort()).toEqual(expect.arrayContaining(['addUserPrompt', 'deleteUserPromptWithSnapshot', 'fetchUserPrompts', 'restoreUserPrompt', 'updateUserPrompt']))
-    expect(withoutPublish, '新增读口 / 写口照样走 acceptUserPromptList（先校验应答再发布），不要自己 map 完就返回').toEqual([])
+    expect([...touching].sort()).toEqual(expect.arrayContaining(['addUserPrompt', 'deleteUserPromptWithSnapshot', 'fetchUserPrompts', 'restoreUserPrompt', 'updateUserPrompt']))
+    expect([...withoutPublish], '新增读口 / 写口照样走 acceptUserPromptList（先校验应答再发布），不要自己 map 完就返回').toEqual([])
   })
 
   it('publishUserPrompts 的调用方只有一个：promptLibraryApi 的 acceptUserPromptList（hook 或别处自己发布，就是第二个持有者）', () => {
