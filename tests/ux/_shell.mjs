@@ -24,7 +24,7 @@
 //   · 画布底部（拍板稿 Main 板）：加节点条在内容区底部正中（横排，`.generation-canvas-v2-toolbar`：图片 视频 声音 文字 剪辑 | 导入 +，
 //     「+」里是空间一组）；左下缩放簇「⛶ | − 100% + | ⋯」（`.generation-canvas-v2__zoom-bar`），重置视图 / 画框 / 整理 / 小地图 / 操作帮助 / 缩放滑块都收在 ⋯ 里。
 //   · 新建项目：空库是三张动作卡里的「新建空白项目」；库里有项目时是右上角的「新建项目」钮。
-import { clickOrFail, expect } from './_assert.mjs'
+import { clickOrFail, DEFAULT_TIMEOUT_MS, expect } from './_assert.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -82,13 +82,22 @@ export async function leaveProjectIfOpen(win, label = 'back to library') {
 /**
  * 叫出常驻面板。已经展开就什么也不做；小球着就点小球（先出浮窗）。
  * `form`：'any'（默认，面板在就行）/ 'dock'（要停靠右栏——夹具的版面前提「画布剩多宽」按停靠算）。
+ *
+ * 先等「面板或小球」其中一个出现，再判是哪一个（2026-10-28，短片走查冷重启后 15 秒红）：外壳挂常驻面板有个过程
+ * （冷启动、切工作区、重开项目之后都有），在它挂上之前一次性采样 `isVisible()`，会把「还没挂」当成「是小球」，
+ * 去等一颗永远不会出现的小球——而面板其实已经按落盘的形态好好地展开着。这是**只多等不少判**的改法：面板已在 / 小球已在
+ * 时一样走原路；只有「还没挂上」这一种原本会红的情形变绿；两个都不出现，原来红、现在还是红（信息更准）。
+ * 几十份走查经 `expandResidentPanel` / `openCanvas` / 直接调用走到这里，所以修在这一处，不在各走查里各绕一遍。
  */
 export async function ensureAgentPanelOpen(win, label = '展开常驻 Agent 面板', { timeout, form = 'any' } = {}) {
   const budget = timeout === undefined ? {} : { timeout }
-  if (!(await win.locator(AGENT_PANEL).first().isVisible().catch(() => false))) {
-    await clickOrFail(win.locator(AGENT_BALL).first(), `${label}（点 Agent 小球）`, budget)
+  const panel = win.locator(AGENT_PANEL).first()
+  const ball = win.locator(AGENT_BALL).first()
+  await expect(panel.or(ball).first(), `${label}：面板和小球都没出现（外壳没把常驻 Agent 挂上来？）`).toBeVisible({ timeout: timeout ?? DEFAULT_TIMEOUT_MS })
+  if (!(await panel.isVisible().catch(() => false))) {
+    await clickOrFail(ball, `${label}（点 Agent 小球）`, budget)
   }
-  await expect(win.locator(AGENT_PANEL).first(), `${label}：点完面板仍没有展开`).toBeVisible(budget)
+  await expect(panel, `${label}：点完面板仍没有展开`).toBeVisible(budget)
   if (form === 'dock' && (await win.locator(DOCK_LAYER).count()) < 1) {
     await clickOrFail(win.locator(`${AGENT_PANEL} ${TO_DOCK}`).first(), `${label}（切到停靠）`, budget)
     await expect(win.locator(DOCK_LAYER).first(), `${label}：点了「停靠」仍不是停靠形态`).toBeAttached(budget)

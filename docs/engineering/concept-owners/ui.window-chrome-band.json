@@ -1,0 +1,27 @@
+{
+  "name": "40px 顶栏带（系统拖拽带 / 窗口按钮区）：全屏层的可交互内容离它多远",
+  "subject": "ui.window-chrome-band",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/app-shell/windowChrome.ts",
+    "symbol": "currentFullscreenOverlayTopOffset"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/app-shell/windowChrome.ts",
+      "symbol": "fullscreenOverlayTopOffset"
+    },
+    {
+      "path": "src/ui/app-shell/windowChrome.ts",
+      "symbol": "currentFullscreenOverlayTopOffset"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-splash-skip-under-topbar.root-cause.json（与 2026-09-04-fullscreen-overlay-windows-windowbar 同一类）：顶栏带同时是系统拖拽带和 Windows 原生三键区，命中测试看几何、不看 DOM 层级。让开顶栏的全屏层（导演台 / ComfyUI 整页 / 全景 / 素材预览）用这个口做顶偏移；刻意盖住顶栏的整屏层（开屏动画）用它把可交互的「跳过」放到带外（top = 偏移 + SHELL_GUTTER）。两类的判据、以及「src 里每个铺满整窗的 fixed inset-0 根都得分类」的发现，在 src/ui/app-shell/windowChrome.test.ts；真像素那一层由 tests/ux/first-launch-system-locale.walk.mjs 量。顶栏高度本身（SHELL_TOPBAR_HEIGHT）的主人是 shellGeometry.ts，这里只管「离带多远」。"
+}

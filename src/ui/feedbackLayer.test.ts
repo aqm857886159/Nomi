@@ -38,6 +38,20 @@ describe('z-layer invariants', () => {
     expect(FULLSCREEN_Z_INDEX).toBeLessThan(NOMI_OVERLAY_Z_INDEX.floatingPanel)
   })
 
+  // 2026-10-27：开屏手写 z-[60]，顶栏所在的 Mantine AppShell 取默认 100，「跳过」被顶栏压住。
+  // 外壳自己也是刻度的一档（地板）：所有全局层都在它之上，不许再有「够不着顶栏」的全局层。
+  it('shell chrome is the floor of the scale: every other tier sits strictly above it', () => {
+    const { shellChrome, ...rest } = NOMI_OVERLAY_Z_INDEX
+    for (const [layer, value] of Object.entries(rest)) {
+      expect(value, `${layer} must sit above shellChrome`).toBeGreaterThan(shellChrome)
+    }
+    expect(FULLSCREEN_Z_INDEX).toBeGreaterThan(shellChrome)
+  })
+
+  it('wires the Mantine AppShell (top bar / rail) to the shell chrome tier, not to Mantine’s own default', () => {
+    expect(componentDefaults('AppShell').zIndex).toBe(NOMI_OVERLAY_Z_INDEX.shellChrome)
+  })
+
   it('wires Mantine dialogs and dropdowns to the shared Portal tiers', () => {
     expect(componentDefaults('Modal').zIndex).toBe(NOMI_OVERLAY_Z_INDEX.dialog)
     expect(componentDefaults('Drawer').zIndex).toBe(NOMI_OVERLAY_Z_INDEX.dialog)

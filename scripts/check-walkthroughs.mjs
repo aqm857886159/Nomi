@@ -243,9 +243,10 @@ const RULES = [
   },
   {
     id: 'composer-input-read',
-    label: '走查把 Agent 输入框当 input / textarea 读（toHaveValue / inputValue），输入框是富文本编辑器，会报 Not an input element——读文字走 agent-runtime-walk-support.mjs 的 composerText / expectComposerText',
+    label: '走查把 Agent 输入框当 input / textarea 读（toHaveValue / inputValue），或按 placeholder 属性读它的占位——输入框是富文本编辑器：前者报 Not an input element，后者读到 null；读文字走 agent-runtime-walk-support.mjs 的 composerText / expectComposerText，读占位走 composerPlaceholder / expectComposerPlaceholder',
     appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`) || file.includes(`${path.sep}evals${path.sep}`),
     // 2026-10-12 #1183 CI 红的类根因：读输入框文字的写法抄了十几份。判定逻辑住 scripts/lib/composerInputReads.mjs（可单测）。
+    // 2026-10-28 加拦按 placeholder 属性读占位（短片走查自 10-12 起每晚红在这、没人在 PR 里看见）。
     scan(code, file) {
       return findComposerInputReads(code).map((hit) => ({ ...hit, text: `${hit.text} —— ${hit.use}`, file }))
     },

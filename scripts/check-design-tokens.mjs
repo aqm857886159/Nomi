@@ -27,6 +27,7 @@ import {
 import { scanScopedTokenDefinitions } from "./lib/scopedTokenScan.mjs";
 import { countAccentOutlineInText, findAccentAliasedTokens } from "./lib/accentOutlineScan.mjs";
 import { countAccentWhitePrimaries, countTextWhiteInSource } from "./lib/primaryColorScan.mjs";
+import { OVERLAY_Z_FIX_HINT, isOverlayZScanned, readScaleFloor, scanOverlayZFile } from "./lib/overlayZScan.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -229,6 +230,47 @@ for (const [key, count] of Object.entries({ textWhite: textWhiteCount, accentWhi
   else if (count < baseline) warnings.push(`↓ 主按钮颜色回潮 ${key}：${count} 处 < 存量基线 ${baseline}（已清理，请下调基线锁定）`);
 }
 
+// ---- 第 9 类：手写数字层级（棘轮，逐文件，只减不增）----
+//
+// 视口级层（position: fixed）的层级只许走 src/design/overlayLayers.ts 的 NOMI_OVERLAY_Z_INDEX；任何 ≥ 刻度地板
+// （shellChrome，现 100）的手写数字层级也不许（地板以下、不是 fixed 的数字是组件内局部层叠，不受限）。
+// 同一类已经出过三次：09-07 画布浮层硬写 z-[9999] 压过花钱确认卡；10-09（#1136）文稿右键菜单 fixed z-50 沉到左栏抽屉下面；
+// 10-27 开屏 z-[60] 被顶栏（Mantine AppShell 默认 100）压住、「跳过」点不到。设计系统 §2.0 写了「禁止硬写数字」却没有门岗拦。
+// 五种写法全扫（className / 行内 zIndex / zIndex={N} / 命名常量 / CSS），规则与自证见 scripts/lib/overlayZScan.mjs、
+// scripts/overlayZScan.test.mjs。存量逐文件登记在 scripts/overlay-z-baseline.json（{ 文件: { count, reason } }，reason
+// 写这一处该进哪一档、为什么还没迁）；新增 / 超出 → 红牌，清理了 → 黄牌（把基线下调或删条目）。没有「先放过」的开关。
+// 取代了原来的 src/design/portalLayer.structure.test.ts（只认 createPortal 文件里同一行的 fixed + z-数字，一个存量）。
+const overlayZBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, "scripts/overlay-z-baseline.json"), "utf8"));
+const overlayZFloor = readScaleFloor(fs.readFileSync(path.join(ROOT, "src/design/overlayLayers.ts"), "utf8"));
+const overlayZFiles = Array.from(new Set(gitPaths(["ls-files", "--cached", "--others", "--exclude-standard", "src"], { cwd: ROOT })))
+  .filter(isOverlayZScanned)
+  .filter((f) => fs.existsSync(path.join(ROOT, f)));
+let overlayZTotal = 0;
+const overlayZSeen = new Set();
+for (const rel of overlayZFiles) {
+  const found = scanOverlayZFile(rel, fs.readFileSync(path.join(ROOT, rel), "utf8"), overlayZFloor);
+  if (found.length === 0) continue;
+  overlayZTotal += found.length;
+  overlayZSeen.add(rel);
+  const limit = overlayZBaseline[rel]?.count ?? 0;
+  if (found.length > limit) {
+    errors.push(
+      `✗ 手写数字层级：${rel} ${found.length} 处 > 基线 ${limit}\n` +
+        found.map((f) => `    ${rel}:${f.line}  ${f.detail}（${f.shape}，${f.shape === "const" ? "命名层级常量：刻度之外的第二份数字" : f.viewport ? "fixed 视口级层" : `≥ 地板 ${overlayZFloor}`}）`).join("\n") +
+        `\n    修法：${OVERLAY_Z_FIX_HINT}`,
+    );
+  } else if (found.length < limit) {
+    warnings.push(`↓ 手写数字层级：${rel} ${found.length} 处 < 基线 ${limit}（已清理，请把 scripts/overlay-z-baseline.json 下调到 ${found.length} 或删条目）`);
+  }
+}
+for (const [rel, entry] of Object.entries(overlayZBaseline)) {
+  if (!entry || !Number.isInteger(entry.count) || entry.count < 1) errors.push(`✗ 手写数字层级基线 ${rel} 的 count 必须是正整数`);
+  if (!entry || typeof entry.reason !== "string" || entry.reason.trim() === "") {
+    errors.push(`✗ 手写数字层级基线 ${rel} 缺 reason（每条保留都要写判档理由：该进哪一档、为什么还没迁）`);
+  }
+  if (!overlayZSeen.has(rel)) warnings.push(`↓ 手写数字层级基线 ${rel} 已无命中（请删掉这条）`);
+}
+
 for (const w of warnings) console.warn(w);
 
 if (errors.length > 0) {
@@ -243,5 +285,6 @@ console.log(
     `
 ✓ 强调色描边棘轮：${accentTotal} 处（白名单 ${Object.keys(accentBaseline).length} 个文件，只减不增）；--nomi-focus / --nomi-info 不别名到强调色。` +
     `\n✓ 主按钮颜色棘轮：text-white ${textWhiteCount} 处、accent+white ${accentWhiteCount} 处（存量只减不增）。` +
+    `\n✓ 手写数字层级棘轮：${overlayZTotal} 处 / ${overlayZSeen.size} 个文件（白名单 ${Object.keys(overlayZBaseline).length} 个，只减不增；地板 ${overlayZFloor}）。` +
     `\n✓ 语义 token 作用域零容忍：--nomi-*/--workbench-* 定义全部在 :root 层（portal/浮层任意挂载点都解析得到）。`,
 );

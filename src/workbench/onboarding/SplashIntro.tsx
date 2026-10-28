@@ -6,6 +6,10 @@
  *   1 创作卡 → 2 画布节点卡行 → 3 中卡选中 + 操作 chip → 4 时间轴轨 → 5 真 logo 标版
  * 字幕在底部逐段淡入；右上「跳过 ›」随时可退。
  *
+ * 与顶栏的关系：整屏品牌片，刻意盖住外壳顶栏（层级走刻度 applicationModal，不写数字）。盖住的代价是 40px 顶栏带同时是
+ * 系统拖拽带 / Windows 原生三键区（命中测试看几何，不看 DOM 层级），所以唯一可交互的「跳过」落在带外：
+ * top = 顶栏高 + 外壳缝，由 windowChrome 单口给出。判据与名单见 src/ui/app-shell/windowChrome.test.ts「盖住顶栏的整屏层」。
+ *
  * 渲染在 React 树内（**不 BodyPortal**——portal 到 body 会丢 --nomi-* token 作用域）。
  * framer-motion AnimatePresence + motion 内联模式，
  * 缓动 [0.22,1,0.36,1]（与导演台全屏壳同一缓动）。token-only，禁非 token px/hex。
@@ -15,6 +19,8 @@ import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '../../utils/cn'
 import { NomiBrand } from '../../design'
+import { currentFullscreenOverlayTopOffset } from '../../ui/app-shell/windowChrome'
+import { SHELL_GUTTER } from '../../ui/app-shell/shellGeometry'
 
 type SplashIntroProps = {
   onDone: () => void
@@ -137,7 +143,7 @@ export function SplashIntro({ onDone }: SplashIntroProps): JSX.Element {
         <motion.div
           key="splash-intro"
           className={cn(
-            'nomi-splash fixed inset-0 z-[60] bg-nomi-bg text-nomi-ink font-nomi-sans',
+            'nomi-splash fixed inset-0 z-application-modal bg-nomi-bg text-nomi-ink font-nomi-sans',
             'flex flex-col items-center justify-center overflow-hidden select-none',
           )}
           initial={{ opacity: 0 }}
@@ -152,8 +158,10 @@ export function SplashIntro({ onDone }: SplashIntroProps): JSX.Element {
             type="button"
             onClick={finish}
             data-splash-skip="true"
+            // 顶栏是系统拖拽带 + 窗口按钮区（命中测试看几何，windowChrome.ts）：可交互内容不落进这条带，从顶栏下沿再空一个外壳缝。
+            style={{ top: currentFullscreenOverlayTopOffset() + SHELL_GUTTER }}
             className={cn(
-              'absolute top-7 right-9 inline-flex items-center gap-1 cursor-pointer font-inherit bg-transparent border-0',
+              'absolute right-9 inline-flex items-center gap-1 cursor-pointer font-inherit bg-transparent border-0',
               'text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink',
             )}
           >
@@ -212,7 +220,7 @@ export function SplashIntro({ onDone }: SplashIntroProps): JSX.Element {
         // exit 期间保留覆盖层做淡出（leaving 后 AnimatePresence 走 exit）
         <motion.div
           key="splash-leaving"
-          className="fixed inset-0 z-[60] bg-nomi-bg"
+          className="fixed inset-0 z-application-modal bg-nomi-bg"
           initial={{ opacity: 1 }}
           animate={{ opacity: 0 }}
           transition={{ duration: 0.44, ease: EASE }}

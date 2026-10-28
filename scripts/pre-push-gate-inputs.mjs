@@ -20,8 +20,9 @@ const SOURCE_EXTS = ['ts', 'tsx', 'mts', 'cts']
  * 给「登记类核对」用：触发条件是「新增 / 改动被登记对象」，不能只是核对自己的输入。
  */
 export const GATE_INPUTS = Object.freeze({
-  // check-design-tokens.mjs：src 的 ts/tsx（禁用值扫描），以及 src / electron / tailwind.config.ts 的 ts tsx css mjs（color-mix 色相漂移扫描）
-  'check:tokens': { roots: ['src', 'electron'], exts: [...SOURCE_EXTS, 'css', 'mjs'], files: ['tailwind.config.ts'], entries: ['scripts/check-design-tokens.mjs'] },
+  // check-design-tokens.mjs：src 的 ts/tsx（禁用值扫描），以及 src / electron / tailwind.config.ts 的 ts tsx css mjs（color-mix 色相漂移扫描）；
+  // 第 9 类（手写数字层级）还读基线 scripts/overlay-z-baseline.json（扫描器 scripts/lib/overlayZScan.mjs 在入口脚本的相对 import 闭包里）
+  'check:tokens': { roots: ['src', 'electron'], exts: [...SOURCE_EXTS, 'css', 'mjs'], files: ['tailwind.config.ts', 'scripts/overlay-z-baseline.json'], entries: ['scripts/check-design-tokens.mjs'] },
   // check-vocabularies-scan.mjs：src / electron 下的 ts tsx mts cts；基线 scripts/vocabularies-baseline.json
   'check:vocabularies': { roots: ['src', 'electron'], exts: SOURCE_EXTS, files: ['scripts/vocabularies-baseline.json'], entries: ['scripts/check-vocabularies.mjs'] },
   // check-control-contract.mjs：src 下的 .tsx（不含测试）；文案存量 scripts/control-copy-baseline.json

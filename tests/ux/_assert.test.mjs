@@ -4,7 +4,7 @@
 // `expectAbsent` 没有 provenBy 就得当场抛错。这条一旦松了，整套加固就退回成一句口号——
 // 因为「没有基线的『没看到』」正是本仓 94% 的「不存在」断言在犯的错，也是我两天内栽的两次。
 import { describe, expect, it } from 'vitest'
-import { expectAbsent, holdAbsent, proveProbe, stripCommentsAndStrings } from './_assert.mjs'
+import { countLineBoxes, expectAbsent, holdAbsent, proveProbe, stripCommentsAndStrings } from './_assert.mjs'
 
 /** 假 locator：这些测试只验签名契约，不碰真浏览器。 */
 const fakeLocator = { toString: () => 'locator(fake)' }
@@ -88,5 +88,40 @@ describe('stripCommentsAndStrings', () => {
     const stripped = stripCommentsAndStrings(source)
     expect(stripped).not.toContain('assets')
     expect(stripped).toContain("'story'")
+  })
+})
+
+describe('countLineBoxes：「不折行」直接数文字占了几行，不拿盒子高度当代理', () => {
+  // 数字模仿报价卡主按钮的真实形状：主文字 12px 字号（内容区 14 高）、行尾 `⏎` 小一号（10px 字号，内容区 12 高），
+  // 两者在 flex 里竖向居中——同一行里 top 差 2px、bottom 差 1px。矩形是视口坐标 { top, bottom }。
+  const label = { top: 7, bottom: 21 }
+  const glyph = { top: 8, bottom: 20 }
+
+  it('一行：主文字 + 小一号的 ⏎，top 不相等也是一行（按 top 去重会数成两行）', () => {
+    expect(label.top).not.toBe(glyph.top)
+    expect(countLineBoxes([label, glyph])).toBe(1)
+    expect(countLineBoxes([{ top: 7, bottom: 21 }, { top: 9, bottom: 20 }])).toBe(1)
+  })
+
+  it('折成两行：同一段字出两个矩形，中点差一个行距 → 2（行距收紧到字号的 1 倍也分得开）', () => {
+    expect(countLineBoxes([{ top: -3, bottom: 11 }, { top: 14, bottom: 28 }])).toBe(2)
+    expect(countLineBoxes([{ top: 0, bottom: 14 }, { top: 12, bottom: 26 }])).toBe(2)
+  })
+
+  it('折成两行时夹着一个 ⏎：只会数多、不会数少（「恰好一行」的判定不受影响）', () => {
+    const wrapped = [{ top: -3, bottom: 11 }, { top: 14, bottom: 28 }, glyph]
+    expect(countLineBoxes(wrapped)).toBeGreaterThanOrEqual(2)
+    // 一个偏高的矩形压在两行的缝上，也连不起两行（参照点是各行第一个矩形，不随并入漂移）
+    expect(countLineBoxes([{ top: 0, bottom: 17 }, { top: 3, bottom: 23 }, { top: 17, bottom: 34 }])).toBeGreaterThanOrEqual(2)
+  })
+
+  it('与输入顺序无关', () => {
+    expect(countLineBoxes([glyph, label])).toBe(1)
+    expect(countLineBoxes([{ top: 14, bottom: 28 }, glyph, { top: -3, bottom: 11 }])).toBeGreaterThanOrEqual(2)
+  })
+
+  it('没有可见的字（空、零高度）= 0 行：读不到字不算「一行」，toBe(1) 会红', () => {
+    expect(countLineBoxes([])).toBe(0)
+    expect(countLineBoxes([{ top: 5, bottom: 5 }])).toBe(0)
   })
 })

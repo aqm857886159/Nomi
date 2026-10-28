@@ -300,4 +300,50 @@ describe('composer-input-read：Agent 输入框是富文本编辑器，不能当
     assert.deepEqual(findComposerInputReads("await panel.locator(COMPOSER_INPUT).fill('x')"), [])
     assert.deepEqual(findComposerInputReads("const search = win.locator('#q')\nawait expect(search).toHaveValue('x')"), [])
   })
+  it('方法链换行写的读法也认：主语和读法分在两行，报首行行号（以前单行判定会对不上）', () => {
+    const chained = "await expect(panel.locator(COMPOSER_INPUT), 'm')\n  .toHaveValue('x')"
+    assert.deepEqual(findComposerInputReads(chained).map((hit) => hit.line), [1])
+    assert.equal(findComposerInputReads("const v = await panel.locator(COMPOSER_INPUT)\n  .inputValue()").length, 1)
+  })
+})
+
+describe('composer-input-read：占位也不能按 placeholder 属性读（短片走查自 10-12 起每晚红在这，只在夜跑里红、没人在 PR 里看见）', () => {
+  it('夜跑红的原形：断言 Agent 输入框的 placeholder 属性', () => {
+    const original = "await expect(canvas.locator(COMPOSER_INPUT)).toHaveAttribute('placeholder', /排队/)"
+    const hits = findComposerInputReads(original)
+    assert.equal(hits.length, 1)
+    assert.match(hits[0].use, /composerPlaceholder|expectComposerPlaceholder/)
+  })
+  it('各种读法都抓：getAttribute / DOM 属性 / 属性选择器 / getByPlaceholder / 在输入区块里找', () => {
+    assert.equal(findComposerInputReads("const hint = await panel.locator(COMPOSER_INPUT).getAttribute('placeholder')").length, 1)
+    assert.equal(findComposerInputReads('const hint = await panel.locator(COMPOSER_INPUT).getAttribute("placeholder")').length, 1)
+    assert.equal(findComposerInputReads("await win.locator('[data-v4-control=\"input\"]').evaluate((el) => el.placeholder)").length, 1)
+    assert.equal(findComposerInputReads("await expect(win.locator('[data-v4-control=\"input\"][placeholder]')).toBeVisible()").length, 1)
+    assert.equal(findComposerInputReads("await panel.locator(COMPOSER).getByPlaceholder('x').click()").length, 1)
+    assert.equal(findComposerInputReads("await win.locator(`${CANVAS_PANEL} ${COMPOSER}`).locator('[placeholder]').count()").length, 1)
+  })
+  it('经变量读、方法链换行写，都抓', () => {
+    assert.equal(findComposerInputReads("const box = canvas.locator(COMPOSER_INPUT)\nawait expect(box, 'm').toHaveAttribute('placeholder', 'x')").length, 1)
+    assert.equal(findComposerInputReads("const box = canvas.locator(COMPOSER_INPUT)\nconst hint = await box.getAttribute('placeholder')").length, 1)
+    assert.equal(findComposerInputReads("const box = canvas.locator(COMPOSER_INPUT)\nawait box.evaluate((el) => el.placeholder)").length, 1)
+    const chained = "await expect(canvas.locator(COMPOSER_INPUT), 'm')\n  .toHaveAttribute('placeholder', /x/)"
+    assert.deepEqual(findComposerInputReads(chained).map((hit) => hit.line), [1])
+    const split = "const box = canvas\n  .locator(COMPOSER_INPUT)\nawait expect(box).toHaveAttribute('placeholder', /x/)"
+    assert.equal(findComposerInputReads(split).length, 1)
+  })
+  it('统一出口、别的输入框、别的名字不误伤', () => {
+    assert.deepEqual(findComposerInputReads("await expectComposerPlaceholder(canvas.locator(COMPOSER_INPUT), text, 'm')"), [])
+    assert.deepEqual(findComposerInputReads('const shown = await composerPlaceholder(panel.locator(COMPOSER_INPUT))'), [])
+    // 普通 <input>（项目库搜索框之类）本来就有 placeholder 属性，读它是正当的
+    assert.deepEqual(findComposerInputReads("await expect(win.locator('input[type=\"search\"]')).toHaveAttribute('placeholder', /x/)"), [])
+    assert.deepEqual(findComposerInputReads("const search = win.locator('#q')\nawait expect(search).toHaveAttribute('placeholder', 'x')"), [])
+    // 生成节点自己的生成框（NODE_COMPOSER）、镜头占位状态（face.placeholder）是别的组件
+    assert.deepEqual(findComposerInputReads("await win.locator(NODE_COMPOSER).getByPlaceholder('x').click()"), [])
+    assert.deepEqual(findComposerInputReads("expect(face.placeholder).toBe('queued')"), [])
+    // `...spread` 起头的行不是方法链的续行，不并回上一行
+    assert.deepEqual(findComposerInputReads('foo(COMPOSER_INPUT)\n  ...obj.placeholder'), [])
+  })
+  it('如实：读 data-placeholder 不在这条规则里（它是活的读法，Agent 输入框上全仓 0 处；唯一一处在生成节点的描述框）', () => {
+    assert.deepEqual(findComposerInputReads("const node = win.locator('.generation-canvas-v2-node__prompt-input [data-placeholder]')\nawait node.getAttribute('data-placeholder')"), [])
+  })
 })
