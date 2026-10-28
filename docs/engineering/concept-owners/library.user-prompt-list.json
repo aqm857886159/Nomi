@@ -1,0 +1,33 @@
+{
+  "name": "我的库提示词列表（渲染层那一份）",
+  "subject": "library.user-prompt-list",
+  "lifecycle": "session",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/promptLibrary/userPromptCache.ts",
+    "symbol": "publishUserPrompts"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/promptLibrary/userPromptCache.ts",
+      "symbol": "publishUserPrompts"
+    },
+    {
+      "path": "src/workbench/api/promptLibraryApi.ts",
+      "symbol": "acceptUserPromptList"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/promptLibrary/useUserPrompts.ts",
+    "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+    "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+    "src/workbench/generationCanvas/nodes/composerResidentData.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx"
+  ],
+  "since": "2026-10-28",
+  "notes": "渲染层「我的库」提示词整表只有 userPromptCache 一个持有者：读口 fetchUserPrompts 与 4 个写口（addUserPrompt / updateUserPrompt / deleteUserPromptWithSnapshot / restoreUserPrompt）收到主进程回的整表，只经 promptLibraryApi 的 acceptUserPromptList 校验（ok 且 prompts 是数组，否则抛、不发布）后发布；发布带发起序号，晚到的旧应答丢弃；hook 只订阅、不存副本。write_api 只登记这两个共享边界：4 个渲染层写口的函数名与主进程存储 electron/promptLibrary/userPromptStore.ts 的同名写函数重名，若列进来会被形状门岗误判为第二写口——它们是主进程存储的 API 适配器，不是这份列表的写口。持久化 owner 在主进程存储；将来主进程出现第二个写入者，要先加主进程广播（守卫 src/workbench/promptLibrary/userPromptDoors.guard.test.ts 会在那一刻变红）。合同 docs/fixes/2026-10-28-prompt-library-refresh.root-cause.json。"
+}

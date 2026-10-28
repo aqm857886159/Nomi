@@ -6,6 +6,7 @@ import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
 import { getAssistantModelPref } from '../ai/assistantModelPref'
 import { matchesLibraryQuery } from '../library/libraryDiscovery'
+import { beginUserPromptRequest, publishUserPrompts } from '../promptLibrary/userPromptCache'
 
 export type PromptMediaType = 'image' | 'video'
 
@@ -78,17 +79,24 @@ export async function fetchPromptLibrary(): Promise<LibraryPrompt[]> {
 }
 
 // —— 我的库(用户级·跨项目):手写攒的提示词 CRUD,均返回全量(渲染层本地过滤)。 ——
+// 渲染层这份列表只有一个持有者(promptLibrary/userPromptCache.ts)。读口和 4 个写口收到的整表都只经 acceptUserPromptList 进去:
+// 先校验应答(ok 且 prompts 是数组,否则抛、什么也不发布),再按发起顺序发布给所有订阅者——
+// 不管调用方是 hook、浏览器提取还是画布选区存库,也不管发起时有没有 hook 挂着。新增读口 / 写口照样走它,不要自己 map 完就返回。
 
-function mapUserPrompts(res: { ok?: boolean; prompts?: unknown[] } | undefined): LibraryPrompt[] {
-  if (!res?.ok || !Array.isArray(res.prompts)) return []
-  return res.prompts.map(toPrompt).filter((p): p is LibraryPrompt => p !== null)
+type UserPromptListResponse = { ok?: boolean; prompts?: unknown[]; deleted?: unknown; error?: string }
+
+function acceptUserPromptList(res: UserPromptListResponse | undefined, requestNo: number, failureMessage: () => string): LibraryPrompt[] {
+  if (!res?.ok || !Array.isArray(res.prompts)) throw new Error(res?.error || failureMessage())
+  const items = res.prompts.map(toPrompt).filter((p): p is LibraryPrompt => p !== null)
+  publishUserPrompts(items, requestNo)
+  return items
 }
 
 export async function fetchUserPrompts(): Promise<LibraryPrompt[]> {
   const desktop = requireDesktopRuntime('my prompt library')
+  const requestNo = beginUserPromptRequest()
   const res = await desktop.promptLibrary!.userList()
-  if (!res?.ok || !Array.isArray(res.prompts)) throw new Error(res?.error || i18n.t('runtime.promptLibrary.loadFailed'))
-  return mapUserPrompts(res)
+  return acceptUserPromptList(res, requestNo, () => i18n.t('runtime.promptLibrary.loadFailed'))
 }
 
 export async function addUserPrompt(input: {
@@ -99,31 +107,31 @@ export async function addUserPrompt(input: {
   referenceImages?: PromptReferenceImage[]
 }): Promise<LibraryPrompt[]> {
   const desktop = requireDesktopRuntime('add prompt')
+  const requestNo = beginUserPromptRequest()
   const res = await desktop.promptLibrary!.userAdd(input)
-  if (!res?.ok) throw new Error(res?.error || i18n.t('runtime.promptLibrary.saveFailed'))
-  return mapUserPrompts(res)
+  return acceptUserPromptList(res, requestNo, () => i18n.t('runtime.promptLibrary.saveFailed'))
 }
 
 export async function updateUserPrompt(id: string, patch: { title?: string; prompt?: string; promptType?: PromptMediaType }): Promise<LibraryPrompt[]> {
   const desktop = requireDesktopRuntime('edit prompt')
+  const requestNo = beginUserPromptRequest()
   const res = await desktop.promptLibrary!.userUpdate(id, patch)
-  if (!res?.ok) throw new Error(res?.error || i18n.t('runtime.promptLibrary.updateFailed'))
-  return mapUserPrompts(res)
+  return acceptUserPromptList(res, requestNo, () => i18n.t('runtime.promptLibrary.updateFailed'))
 }
 
 export async function deleteUserPromptWithSnapshot(id: string): Promise<{ items: LibraryPrompt[]; deleted: UserPromptRestoreSnapshot | null }> {
   const desktop = requireDesktopRuntime('delete prompt')
-  const res = await desktop.promptLibrary!.userDelete(id) as { ok?: boolean; prompts?: unknown[]; deleted?: unknown; error?: string }
-  if (!res?.ok || !Array.isArray(res.prompts)) throw new Error(res?.error || i18n.t('runtime.promptLibrary.saveFailed'))
-  const deleted = toPrompt(res.deleted) as UserPromptRestoreSnapshot | null
-  return { items: mapUserPrompts(res), deleted }
+  const requestNo = beginUserPromptRequest()
+  const res = await desktop.promptLibrary!.userDelete(id) as UserPromptListResponse
+  const items = acceptUserPromptList(res, requestNo, () => i18n.t('runtime.promptLibrary.saveFailed'))
+  return { items, deleted: toPrompt(res.deleted) as UserPromptRestoreSnapshot | null }
 }
 
 export async function restoreUserPrompt(snapshot: UserPromptRestoreSnapshot): Promise<LibraryPrompt[]> {
   const desktop = requireDesktopRuntime('restore prompt')
-  const res = await desktop.promptLibrary!.userRestore(snapshot) as { ok?: boolean; prompts?: unknown[]; error?: string }
-  if (!res?.ok || !Array.isArray(res.prompts)) throw new Error(res?.error || i18n.t('runtime.promptLibrary.saveFailed'))
-  return mapUserPrompts(res)
+  const requestNo = beginUserPromptRequest()
+  const res = await desktop.promptLibrary!.userRestore(snapshot) as UserPromptListResponse
+  return acceptUserPromptList(res, requestNo, () => i18n.t('runtime.promptLibrary.saveFailed'))
 }
 
 /**

@@ -1,6 +1,6 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import type { UserPromptRestoreSnapshot } from '../../../electron/shared/contracts/promptLibrary'
+import i18n from '../../i18n'
 import {
   addUserPrompt as apiAdd,
   deleteUserPromptWithSnapshot as apiDelete,
@@ -10,22 +10,20 @@ import {
   type LibraryPrompt,
   type PromptMediaType,
 } from '../api/promptLibraryApi'
+import { getUserPromptsSnapshot, hasLoadedUserPrompts, subscribeUserPrompts } from './userPromptCache'
 
-type State = { items: LibraryPrompt[]; loading: boolean; error: string | null }
+type LoadStatus = { loading: boolean; error: string | null }
 
-// 模块级缓存:面板反复开关不重拉(我的库写操作后即刷新这份)。
-let cached: LibraryPrompt[] | null = null
-
-/** 不在 React 里预热「我的库」（应用启动后后台载入，挂生成框时只读内存）。 */
+/** 不在 React 里预热「我的库」（应用启动后后台载入，挂生成框时只读内存）。读口自己把整表发布进共享缓存，这里不另存一份。 */
 export async function loadUserPromptItems(): Promise<LibraryPrompt[]> {
-  if (cached) return cached
-  cached = await fetchUserPrompts()
-  return cached
+  return hasLoadedUserPrompts() ? getUserPromptsSnapshot() : fetchUserPrompts()
 }
 
 export type UserPromptDraft = { title?: string; prompt: string; promptType: PromptMediaType }
 
-export type UseUserPrompts = State & {
+export type UseUserPrompts = LoadStatus & {
+  /** 此刻的整表：共享缓存的快照，谁写的都是这一份（不经本 hook 的写入口写完也在这里）。 */
+  items: LibraryPrompt[]
   reload: () => void
   add: (draft: UserPromptDraft) => Promise<void>
   update: (id: string, patch: Partial<UserPromptDraft>) => Promise<void>
@@ -33,53 +31,49 @@ export type UseUserPrompts = State & {
   restore: (snapshot: UserPromptRestoreSnapshot) => Promise<void>
 }
 
-/** 我的库(用户级)数据 + CRUD;首次打开拉取,写操作后用返回的全量刷新缓存。 */
-export function useUserPrompts(opened: boolean): UseUserPrompts {
-  const { t } = useTranslation()
-  const [state, setState] = React.useState<State>({ items: cached ?? [], loading: false, error: null })
+export type UseUserPromptsOptions = {
+  /**
+   * 打开时强制重读一次（缺省：缓存里有就不读盘）。只给抽屉用——兜住不经渲染层写口的写入；
+   * 挂生成框、`/` 菜单这些随点随挂的路径不要开，它们的预算是 0 次读盘。
+   */
+  refreshOnOpen?: boolean
+}
 
-  const apply = React.useCallback((items: LibraryPrompt[]) => {
-    cached = items
-    setState({ items, loading: false, error: null })
+/**
+ * 我的库(用户级)数据 + CRUD。列表是共享缓存（promptLibrary/userPromptCache.ts）的订阅，不是 hook 自己的 state：
+ * 写口（含不经本 hook 的直调）写完发布，所有挂着的实例当场看到；本 hook 只管 loading / error 与读盘时机。
+ */
+export function useUserPrompts(opened: boolean, options: UseUserPromptsOptions = {}): UseUserPrompts {
+  const refreshOnOpen = options.refreshOnOpen === true
+  const items = React.useSyncExternalStore(subscribeUserPrompts, getUserPromptsSnapshot, getUserPromptsSnapshot)
+  const [status, setStatus] = React.useState<LoadStatus>({ loading: false, error: null })
+
+  const load = React.useCallback((force: boolean) => {
+    if (!force && hasLoadedUserPrompts()) {
+      // 已在内存里：不读盘。每次挂生成框都会走这里，没有要清的状态就不 setState（白提交一次）。
+      setStatus((prev) => (prev.loading || prev.error ? { loading: false, error: null } : prev))
+      return
+    }
+    setStatus((prev) => (prev.loading && !prev.error ? prev : { loading: true, error: null }))
+    fetchUserPrompts().then(
+      () => setStatus({ loading: false, error: null }),
+      (error: unknown) => setStatus({
+        loading: false,
+        error: error instanceof Error ? error.message : i18n.t('runtime.promptLibrary.loadFailed'),
+      }),
+    )
   }, [])
 
-  const load = React.useCallback(
-    (force: boolean) => {
-      if (!force && cached) {
-        // 已在内存里且屏上就是它：不再 setState（每次挂生成框都会走这里，白提交一次）。
-        const items = cached
-        setState((prev) => (prev.items === items && !prev.loading && !prev.error ? prev : { items, loading: false, error: null }))
-        return
-      }
-      setState((prev) => ({ ...prev, loading: true, error: null }))
-      fetchUserPrompts()
-        .then(apply)
-        .catch((error: unknown) =>
-          setState({
-            items: cached ?? [],
-            loading: false,
-            error: error instanceof Error ? error.message : t('runtime.promptLibrary.loadFailed'),
-          }),
-        )
-    },
-    [apply, t],
-  )
-
   React.useEffect(() => {
-    if (opened) load(false)
-  }, [opened, load])
+    if (opened) load(refreshOnOpen)
+  }, [opened, load, refreshOnOpen])
 
-  const add = React.useCallback(async (draft: UserPromptDraft) => apply(await apiAdd(draft)), [apply])
-  const update = React.useCallback(
-    async (id: string, patch: Partial<UserPromptDraft>) => apply(await apiUpdate(id, patch)),
-    [apply],
-  )
-  const remove = React.useCallback(async (id: string) => {
-    const result = await apiDelete(id)
-    apply(result.items)
-    return result.deleted
-  }, [apply])
-  const restore = React.useCallback(async (snapshot: UserPromptRestoreSnapshot) => apply(await apiRestore(snapshot)), [apply])
+  const reload = React.useCallback(() => load(true), [load])
+  // 写口只管 await：整表由 API 层发布进共享缓存，items 随订阅更新。
+  const add = React.useCallback(async (draft: UserPromptDraft) => { await apiAdd(draft) }, [])
+  const update = React.useCallback(async (id: string, patch: Partial<UserPromptDraft>) => { await apiUpdate(id, patch) }, [])
+  const remove = React.useCallback(async (id: string) => (await apiDelete(id)).deleted, [])
+  const restore = React.useCallback(async (snapshot: UserPromptRestoreSnapshot) => { await apiRestore(snapshot) }, [])
 
-  return { ...state, reload: () => load(true), add, update, remove, restore }
+  return { items, loading: status.loading, error: status.error, reload, add, update, remove, restore }
 }
