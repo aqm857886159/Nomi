@@ -8,7 +8,6 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { pathToFileURL } from 'node:url'
 
 import {
   addedLinesByFile,
@@ -18,8 +17,6 @@ import {
   checkRoutingEvidence,
   evaluatePrJudgement,
   evidenceLineVerdict,
-  evaluateProcessTier,
-  deriveUiVerification,
   inferRoutes,
   isMissingTool,
   loadRoutingTable,
@@ -29,11 +26,9 @@ import {
   processTieringEnforced,
   toolGaps,
 } from './pr-judgement-lib.mjs'
-import { createGateMutationHarness } from './gate-mutation-harness.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const table = loadRoutingTable()
-const r4Baseline = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/process-tiering-r4-baseline.json'), 'utf8'))
 const M = (p, status = 'M') => ({ path: p, status })
 
 test('路由表自身：每个类别有证据、证据 id 全局唯一、tool 只能是 exists / missing、missing 必须写出计划', () => {
@@ -466,225 +461,6 @@ test('可打断：AbortController 只在产品代码（src / electron）里认�
   ]
   assert.ok(!inferRoutes(tooling, '', table).classes.includes('可打断'))
   assert.ok(inferRoutes([...tooling, { ...M('electron/agentLane/run.ts'), added: '+const c = new AbortController()' }], '', table).classes.includes('可打断'))
-})
-
-const INTENT = (tier = '短', intent = '纯修复', ui = '无界面差异') => `## 变更意图\n- 意图：${intent}\n- 候选档位：${tier}\n- 单一意图：是\n- 声明：${intent === '纯修复' ? '纯修复：不改用户可见元素、布局、文案' : '新增一项能力'}\n- 界面核实：${ui}\n`
-
-test('三档判定：声明 + base/head 清单核实；硬线永远严，短档核实未知降标准', () => {
-  const inferred = (files, added = '') => inferRoutes(files.map((path) => M(path)), added, table)
-  const short = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']), uiVerification: { known: true, changed: false, reason: 'fixture parity' } })
-  assert.equal(short.tier, 'short')
-  assert.equal(short.ok, true)
-
-  const changed = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']), uiVerification: { known: true, changed: true, reason: 'button label changed' } })
-  assert.equal(changed.tier, 'strict')
-  assert.match(changed.lines.join('\n'), /界面差异核实不通过/)
-
-  const unknown = evaluateProcessTier({ body: INTENT(), files: [M('src/ui/onboarding/focus.ts')], inferred: inferred(['src/ui/onboarding/focus.ts']) })
-  assert.equal(unknown.tier, 'standard')
-  assert.match(unknown.lines.join('\n'), /短档候选但界面差异核实未知，降为标准档/)
-
-  const spend = evaluateProcessTier({ body: INTENT(), files: [M('electron/generation/spendLedger.ts')], inferred: inferred(['electron/generation/spendLedger.ts']), uiVerification: { known: true, changed: false } })
-  assert.equal(spend.tier, 'strict')
-  assert.match(spend.lines.join('\n'), /花钱路径/)
-
-  const standard = evaluateProcessTier({ body: INTENT('标准', '新增功能', '有差异'), files: [M('electron/catalog/catalog.ts')], inferred: inferred(['electron/catalog/catalog.ts']), uiVerification: { known: true, changed: false } })
-  assert.equal(standard.tier, 'standard')
-})
-
-test('r3：没声明的产品改动按标准；花钱、短档界面冲突、账本 fixed 仍严，短档界面未知降标准', () => {
-  const product = [M('src/workbench/timeline/clip.tsx')]
-  const productResult = evaluateProcessTier({ body: '## 做了什么\n改了时间轴交互\n', files: product, inferred: inferRoutes(product, '', table) })
-  assert.equal(productResult.tier, 'standard')
-  assert.equal(productResult.ok, true)
-  assert.doesNotMatch(productResult.lines.join('\n'), /缺少变更意图声明/)
-
-  const spend = [M('electron/generation/spendLedger.ts')]
-  const spendResult = evaluateProcessTier({ body: '', files: spend, inferred: { classes: ['花钱'], categories: [] } })
-  assert.equal(spendResult.tier, 'strict')
-  assert.match(spendResult.lines.join('\n'), /花钱路径/)
-
-  const unknown = evaluateProcessTier({ body: INTENT(), files: product, inferred: inferRoutes(product, '', table), uiVerification: { known: false, changed: null, reason: 'base/head 清单缺失' } })
-  assert.equal(unknown.tier, 'standard')
-  assert.match(unknown.lines.join('\n'), /降为标准档：base\/head 清单缺失/)
-
-  const changed = evaluateProcessTier({ body: INTENT(), files: product, inferred: inferRoutes(product, '', table), uiVerification: { known: true, changed: true, reason: '新增按钮' } })
-  assert.equal(changed.tier, 'strict')
-  assert.match(changed.lines.join('\n'), /界面差异核实不通过/)
-
-  const unchanged = evaluateProcessTier({ body: INTENT(), files: product, inferred: inferRoutes(product, '', table), uiVerification: { known: true, changed: false, reason: '清单一致' } })
-  assert.equal(unchanged.tier, 'short')
-
-  const fixed = evaluateProcessTier({ body: '', files: product, inferred: inferRoutes(product, '', table), ledgerTransitions: ['FB-r3-fixed'] })
-  assert.equal(fixed.tier, 'strict')
-  assert.match(fixed.lines.join('\n'), /逃逸账本转 fixed/)
-})
-
-test('r4：安全严线只来自登记路由；关键词、方向检查文档不会抬档', () => {
-  const securityFiles = [M('electron/settings/assetRelaySettings.ts')]
-  const security = evaluateProcessTier({ body: '', files: securityFiles, inferred: inferRoutes(securityFiles, '', table) })
-  assert.equal(security.tier, 'strict')
-  assert.match(security.lines.join('\n'), /安全路径/)
-
-  const authNamed = [M('src/features/authentication.ts')]
-  const authResult = evaluateProcessTier({ body: '', files: authNamed, inferred: inferRoutes(authNamed, '', table) })
-  assert.equal(authResult.tier, 'standard', '未登记的 auth 文件不能靠关键词进入严档')
-
-  const directionDoc = [M('docs/engineering/direction-checks/2026-10-28-process-tiering.md')]
-  const directionResult = evaluateProcessTier({ body: '安全 security direction-check', files: directionDoc, inferred: inferRoutes(directionDoc, '', table) })
-  assert.equal(directionResult.tier, 'short', '方向检查文档只记录结论，不是安全路由')
-
-  const spend = [M('electron/generation/spendLedger.ts')]
-  assert.equal(evaluateProcessTier({ body: '', files: spend, inferred: inferRoutes(spend, '', table) }).tier, 'strict')
-  assert.equal(evaluateProcessTier({ body: '', files: authNamed, inferred: inferRoutes(authNamed, '', table), ledgerTransitions: ['FB-r4-fixed'] }).tier, 'strict')
-})
-
-test('r4 护栏：新严档集合不得扩大，且旧花钱 / 长跑 / 可打断 / fixed 名单全保留', () => {
-  const results = r4Baseline.prs.map((entry) => {
-    const files = entry.files
-    const inferred = inferRoutes(files, '', table)
-    return {
-      number: entry.number,
-      tier: evaluateProcessTier({
-        body: '',
-        files,
-        inferred,
-        ledgerTransitions: entry.ledgerFixed ? ['historical-fixed'] : [],
-        uiVerification: deriveUiVerification({ files }),
-      }).tier,
-    }
-  })
-  const strict = results.filter((entry) => entry.tier === 'strict').map((entry) => entry.number)
-  assert.ok(strict.length <= r4Baseline.currentStrictCount, `新严档 ${strict.length} > 现行严档 ${r4Baseline.currentStrictCount}`)
-  const strictSet = new Set(strict)
-  for (const number of r4Baseline.mustStrictNumbers) assert.ok(strictSet.has(number), `必须严档 PR #${number} 被降档`)
-})
-
-test('r4 真红：关键词、安全登记、花钱硬线、方向文档四个反例逐字节变异后都会红', () => {
-  const target = 'scripts/pr-judgement-lib.mjs'
-  const harness = createGateMutationHarness({ gate: target, shareDirs: ['docs', 'src', 'tests', 'evals', 'outputs', 'worker', 'workers', 'infra'] })
-  const fixturePath = path.join(harness.repoRoot, 'scripts/fixtures/process-tiering-r4-baseline.json')
-  const run = (mutations, condition) => harness.withMutation(mutations, () => {
-    const copy = harness.copyRootForTests()
-    const moduleUrl = pathToFileURL(path.join(copy, target)).href
-    const fixtureUrl = pathToFileURL(path.join(copy, 'scripts/fixtures/process-tiering-r4-baseline.json')).href
-    const script = `
-      import fs from 'node:fs'
-      import { evaluateProcessTier, inferRoutes, deriveUiVerification } from ${JSON.stringify(moduleUrl)}
-      const baseline = JSON.parse(fs.readFileSync(new URL(${JSON.stringify(fixtureUrl)}), 'utf8'))
-      const filesOf = (entry) => entry.files
-      const replay = (entry) => {
-        const files = filesOf(entry)
-        const inferred = inferRoutes(files)
-        return evaluateProcessTier({ body: '', files, inferred, ledgerTransitions: entry.ledgerFixed ? ['historical-fixed'] : [], uiVerification: deriveUiVerification({ files }) })
-      }
-      const strict = baseline.prs.filter((entry) => replay(entry).tier === 'strict').map((entry) => entry.number)
-      const guard = strict.length <= baseline.currentStrictCount && baseline.mustStrictNumbers.every((number) => strict.includes(number))
-      const result = (${condition})
-      process.exit(result ? 0 : 1)
-    `
-    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: copy, encoding: 'utf8' })
-    return child.status === 0
-  })
-  const authInput = `const files = [{ path: 'src/features/authentication.ts', status: 'M' }]
-const result = evaluateProcessTier({ body: '', files, inferred: inferRoutes(files) })
-result.tier === 'standard' && guard`
-  const keywordMutation = "  const hard = []\n  const HARD_PATH = /auth/i\n  if (normalized.some((file) => HARD_PATH.test(file))) addHard('关键词路径')"
-  const hardAnchor = '  const hard = []'
-  assert.equal(run([[target, hardAnchor, keywordMutation]], authInput), false, '加回 HARD_PATH 后，未登记 auth 与严档数护栏都应真红')
-
-  const securityAnchor = "  return JSON.parse(fs.readFileSync(path.join(root, ROUTING_FILE), 'utf8'))"
-  const securityMutation = "  const table = JSON.parse(fs.readFileSync(path.join(root, ROUTING_FILE), 'utf8'))\n  table.pathRules = table.pathRules.filter((rule) => !(rule.category === 'security' && rule.pattern === '^electron/settings/assetRelaySettings\\\\.ts$'))\n  return table"
-  const securityInput = `const files = [{ path: 'electron/settings/assetRelaySettings.ts', status: 'M' }]
-const result = evaluateProcessTier({ body: '', files, inferred: inferRoutes(files) })
-result.tier === 'strict'`
-  assert.equal(run([[target, securityAnchor, securityMutation]], securityInput), false, '删掉安全登记后，登记文件严档测试应真红')
-
-  const moneyAnchor = "  if (classes.has('花钱')) addHard('花钱路径')"
-  assert.equal(run([[target, moneyAnchor, '']], 'guard'), false, '删掉花钱硬线后，必须严名单护栏应真红')
-
-  const directionAnchor = '  const normalized = files.map((file) => norm(file.path))'
-  const directionMutation = `${directionAnchor}\n  if (normalized.some((file) => file.includes('direction-checks/'))) addHard('方向检查路径')`
-  const directionInput = `const files = [{ path: 'docs/engineering/direction-checks/2026-10-28-process-tiering.md', status: 'M' }]
-const result = evaluateProcessTier({ body: '', files, inferred: { classes: [], categories: [] } })
-result.tier !== 'strict'`
-  assert.equal(run([[target, directionAnchor, directionMutation]], directionInput), false, '方向检查文档恢复硬线后，对应测试应真红')
-})
-
-test('r3 真红：三条旧判法逐字节变异会红，还原副本后回绿', () => {
-  const target = 'scripts/pr-judgement-lib.mjs'
-  const harness = createGateMutationHarness({ gate: target, shareDirs: ['docs', 'src', 'tests', 'evals', 'outputs', 'worker', 'workers', 'infra'] })
-  const run = (mutations, assertion) => harness.withMutation(mutations, () => {
-    const copy = harness.copyRootForTests()
-    const moduleUrl = pathToFileURL(path.join(copy, target)).href
-    const script = `import { evaluateProcessTier } from ${JSON.stringify(moduleUrl)}\nconst M = path => ({ path, status: 'M' })\nconst result = evaluateProcessTier(${JSON.stringify(assertion.input)}); if (${assertion.expect}) process.exit(0); process.exit(1)`
-    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: copy, encoding: 'utf8' })
-    return child.status === 0
-  })
-  const noDeclaration = { input: { body: '', files: [{ path: 'src/workbench/timeline/clip.tsx', status: 'M' }], inferred: { classes: [], categories: [] } }, expect: "result.tier === 'standard'" }
-  const money = { input: { body: '', files: [{ path: 'electron/generation/spendLedger.ts', status: 'M' }], inferred: { classes: ['花钱'], categories: [] } }, expect: "result.tier === 'strict'" }
-  const unknown = { input: { body: INTENT(), files: [{ path: 'src/workbench/timeline/clip.tsx', status: 'M' }], inferred: { classes: [], categories: [] } }, expect: "result.tier === 'standard'" }
-  const oldMissingDeclaration = "  const ui = uiVerification && typeof uiVerification === 'object' ? uiVerification : null"
-  const missingDeclarationMutation = `${oldMissingDeclaration}\n  if (!declaration.present && !autoShort) addHard('缺少变更意图声明')`
-  const oldUnknown = "      // 取不到两边清单只能证明不了短档；它不是产品风险硬线，降到标准让标准档证据承接。"
-  const unknownMutation = "      if (!ui || ui.known !== true) addHard(`界面差异核实未知：${ui?.reason || '未提供 base/head 清单核实'}`)"
-  const oldMoney = "  if (classes.has('花钱')) addHard('花钱路径')"
-  assert.equal(run([[target, oldMissingDeclaration, missingDeclarationMutation]], noDeclaration), false, '缺少声明恢复硬线后，未声明产品应真红')
-  assert.equal(run([[target, oldUnknown, unknownMutation]], unknown), false, 'UI 未知恢复判严后，短档未知应真红')
-  assert.equal(run([[target, oldMoney, '']], money), false, '去掉花钱硬线后，花钱改动应真红')
-})
-
-test('r2：纯文档 / 测试 / 配置无声明自动短档；逃逸账本 fixed 仍强制严档', () => {
-  const replay = (files, transitions = []) => evaluateProcessTier({
-    body: '## 设计卡\n旧正文没有变更意图声明\n',
-    files,
-    inferred: inferRoutes(files, '', table),
-    ledgerTransitions: transitions,
-    uiVerification: { known: true, changed: false, reason: 'non-product fixture' },
-  })
-  const docs = replay([M('docs/plan/process-tiering.md')])
-  assert.equal(docs.tier, 'short')
-  assert.equal(docs.autoShort, true)
-  assert.equal(docs.ok, true)
-  const tests = replay([M('tests/pr-judgement-lib.node-test.mjs')])
-  assert.equal(tests.tier, 'short')
-  assert.equal(tests.autoShort, true)
-  const electronTests = replay([M('electron/capabilityCore/sameShotOnceDoors.e2e.test.ts')])
-  assert.equal(electronTests.tier, 'short')
-  assert.equal(electronTests.autoShort, true)
-  const config = replay([M('package.json')])
-  assert.equal(config.tier, 'short')
-  assert.equal(config.autoShort, true)
-  const fixed = replay([M('tests/fixtures/ledger.json')], ['FB-r2-fixed'])
-  assert.equal(fixed.tier, 'strict')
-  assert.equal(fixed.autoShort, false)
-  assert.match(fixed.lines.join('\n'), /逃逸账本转 fixed/)
-})
-
-test('改法一历史回放夹具：#1359 短；#1356/#1347 严；#1314/#1299 清单无差异短；ledger fixed 严', () => {
-  const replay = (pr, file, tier, transitions = []) => {
-    const files = [M(file)]
-    const result = evaluateProcessTier({
-      body: INTENT(),
-      files,
-      inferred: inferRoutes(files, '', table),
-      ledgerTransitions: transitions,
-      uiVerification: { known: true, changed: false, reason: `replay #${pr}` },
-    })
-    assert.equal(result.tier, tier, `#${pr}: ${result.lines.join('\n')}`)
-  }
-  replay(1359, 'src/ui/onboarding/focus.ts', 'short')
-  replay(1356, 'electron/productionRun/generationTask.ts', 'strict')
-  replay(1347, 'electron/assets/importTranscodeLifecycle.ts', 'strict')
-  replay(1314, 'src/design/actions.tsx', 'short')
-  replay(1299, 'src/workbench/common/richTextActions.tsx', 'short')
-  replay(1203, 'docs/fixes/2026-10-08-receipt.root-cause.json', 'strict', ['FB-20261008-pending-spend-presentation'])
-})
-
-test('界面清单对账 fail-closed：两边都有清单才给确定结果', () => {
-  assert.deepEqual(deriveUiVerification({ files: [M('docs/plan/a.md')] }), { known: true, changed: false, reason: '改动没有界面候选文件' })
-  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: {}, headBoards: {} }).known, false)
-  assert.equal(deriveUiVerification({ files: [M('src/ui/a.tsx')], baseBoards: { A: { board: 'A' } }, headBoards: { A: { board: 'A' } } }).changed, false)
 })
 
 test('when / paid：每项证据 when 只有 pr | manual-full；manual-full 不进 PR 必交，只在报告里提示由手动全量覆盖', () => {

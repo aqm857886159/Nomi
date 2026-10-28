@@ -95,47 +95,50 @@ export function deriveUiVerification({ files = [], baseBoards = null, headBoards
   return { ...compared, reason: `${compared.reason}；界面候选文件：${productUiFiles.slice(0, 5).join('、')}${productUiFiles.length > 5 ? ' …' : ''}` }
 }
 
-/**
- * 三档判定的唯一实现：声明只是候选，硬线和 base/head 清单核实拥有最终否决权。
- * 未声明的产品改动按标准档承接；短档的 UI 核实未知降到标准，只有真实硬线或声明冲突升严。
- */
-export function evaluateProcessTier({ body, files = [], inferred, ledgerTransitions = [], uiVerification = null } = {}) {
-  const declaration = parseChangeIntent(body)
-  const normalized = files.map((file) => norm(file.path))
-  const hard = []
-  const addHard = (reason) => { if (!hard.includes(reason)) hard.push(reason) }
-  const classes = new Set(inferred?.classes ?? [])
-  if (classes.has('花钱')) addHard('花钱路径')
-  if (classes.has('长跑') || classes.has('可打断')) addHard('长跑 / 可打断路径')
-  if ((inferred?.categories ?? []).some((category) => category.id === 'data-format')) addHard('数据格式路径')
-  if ((inferred?.categories ?? []).some((category) => category.id === 'security')) addHard('安全路径')
-  if (ledgerTransitions.length) addHard(`逃逸账本转 fixed：${ledgerTransitions.join('、')}`)
+const NO_UI_DIFF = /无(?:界面|UI)差异|no\s+ui\s+diff/i
 
-  // 文件清单本身已经能证明纯文档 / 测试 / 配置改动没有产品入口；这类在途 PR
-  // 不应因新规则要求作者补一段意图声明而回归。硬线仍先于自动短档。
-  const nonProductOnly = normalized.length > 0 && normalized.every((file) => NON_PRODUCT.test(file))
-  const autoShort = !declaration.present && nonProductOnly && hard.length === 0
-  const ui = uiVerification && typeof uiVerification === 'object' ? uiVerification : null
-  if (declaration.present && declaration.candidateTier === PROCESS_TIERS.SHORT && !declaration.pureFix && declaration.intentKind !== 'non-product') addHard('短档声明不是纯修复 / 纯文档 / 测试 / 配置')
-  if (declaration.present && !declaration.singleIntent) addHard(declaration.reason || '不是单一意图')
-  if (declaration.present && !declaration.candidateTier) addHard('候选档位无法识别')
-  const shortUiUnknown = declaration.candidateTier === PROCESS_TIERS.SHORT && (!ui || ui.known !== true)
-  if (declaration.candidateTier === PROCESS_TIERS.SHORT) {
-    if (shortUiUnknown) {
-      // 取不到两边清单只能证明不了短档；它不是产品风险硬线，降到标准让标准档证据承接。
-    } else if (ui.changed !== false) addHard(`界面差异核实不通过：${ui.reason || '发现界面清单差异'}`)
-    if (!shortUiUnknown && (!declaration.uiAssertion || !/无(?:界面|UI)差异|no\s+ui\s+diff/i.test(declaration.uiAssertion))) addHard('短档缺少“界面核实：无界面差异”声明')
+/**
+ * 三档判定的唯一实现。
+ *   · 严：现行四类（花钱 / 长跑 / 可打断 / 新界面）。直接读 inferRoutes 的 fourClass，不另写第二套判据，也没有别的升严来源；声明降不了档。
+ *   · 短：四类之外，且 ① 没写 `## 变更意图`、文件清单自证全是纯文档 / 测试 / 配置；或 ② 声明了单一意图的纯修复（或纯文档 / 测试 / 配置）、
+ *     写明「界面核实：无界面差异」，base/head 界面清单也核实无差异。让逃逸账本条目转 fixed 的 PR 永远不进短档。
+ *   · 标准：其余，也就是今天四类之外的全部要求。声明了短档但核实有差异、核实不了，一律落在这里，不升严。
+ * uiVerification 可以是值，也可以是函数：只有声明短档的 PR 才调用，别的 PR 不为它去读拍板图清单；取数抛错按核实不了算。
+ * shortAllowed=false：规则生效前开的 PR 不适用短档。
+ */
+export function evaluateProcessTier({ body, files = [], inferred, ledgerTransitions = [], uiVerification = null, shortAllowed = true } = {}) {
+  const declaration = parseChangeIntent(body)
+  if (inferred?.fourClass) {
+    const note = declaration.candidateTier === PROCESS_TIERS.SHORT ? '；声明短档不生效，四类不能降档' : ''
+    return { tier: PROCESS_TIERS.STRICT, declaration, autoShort: false, uiVerification: null, failures: [], lines: [`· 流程档位：严（四类命中：${(inferred.classes ?? []).join('、')}${note}）`] }
   }
-  if (declaration.candidateTier === PROCESS_TIERS.STRICT) addHard('提交人选择严档')
-  const candidate = autoShort ? PROCESS_TIERS.SHORT : declaration.candidateTier || PROCESS_TIERS.STANDARD
-  const tier = hard.length ? PROCESS_TIERS.STRICT : shortUiUnknown ? PROCESS_TIERS.STANDARD : candidate === PROCESS_TIERS.SHORT ? PROCESS_TIERS.SHORT : candidate === PROCESS_TIERS.STANDARD ? PROCESS_TIERS.STANDARD : PROCESS_TIERS.STRICT
+
+  // 文件清单本身已经能证明纯文档 / 测试 / 配置改动没有产品入口，这类 PR 不必为了新规则补一段意图声明。
+  const nonProductOnly = files.length > 0 && files.every((file) => NON_PRODUCT.test(norm(file.path)))
+  const autoShort = !declaration.present && nonProductOnly
+  const declaredShort = declaration.candidateTier === PROCESS_TIERS.SHORT
+  const failures = []
+  if (!shortAllowed) failures.push('规则生效前开的 PR，不适用短档')
+  if (ledgerTransitions.length) failures.push(`让逃逸账本条目转 fixed（${ledgerTransitions.join('、')}），不进短档`)
+  let ui = null
+  if (declaredShort) {
+    if (!declaration.singleIntent) failures.push(declaration.reason || '不是单一意图')
+    if (!declaration.pureFix && declaration.intentKind !== 'non-product') failures.push('声明不是纯修复 / 纯文档 / 测试 / 配置')
+    if (!declaration.uiAssertion || !NO_UI_DIFF.test(declaration.uiAssertion)) failures.push('缺少“界面核实：无界面差异”声明')
+    if (!failures.length) {
+      try { ui = typeof uiVerification === 'function' ? uiVerification() : uiVerification } catch (error) { ui = { known: false, changed: null, reason: `取数失败：${error?.message ?? error}` } }
+      if (!ui || typeof ui !== 'object' || ui.known !== true) failures.push(`界面差异核实不了（${ui?.reason || '没有 base/head 界面清单核实'}）`)
+      else if (ui.changed !== false) failures.push(`界面清单有差异（${ui.reason || 'base/head 拍板图清单不一致'}）`)
+    }
+  }
+  const wantsShort = autoShort || declaredShort
+  const short = wantsShort && failures.length === 0
   const lines = []
-  lines.push(`· 流程档位：${tier === PROCESS_TIERS.SHORT ? '短' : tier === PROCESS_TIERS.STANDARD ? '标准' : '严'}（候选：${candidate || '未知'}${autoShort ? '；文件清单自动核实为纯文档 / 测试 / 配置' : ''}）`)
-  if (shortUiUnknown) lines.push(`· 短档候选但界面差异核实未知，降为标准档：${ui?.reason || '未提供 base/head 清单核实'}`)
-  if (hard.length) lines.push(`· 严档触发项：${hard.join('；')}`)
-  else lines.push('✅ 流程档位：声明与门岗核实一致，无严档硬线')
-  const ok = autoShort || !declaration.present || (Boolean(declaration.candidateTier) && declaration.singleIntent)
-  return { tier, candidate, hard, declaration, autoShort, uiVerification: ui, ok, lines }
+  if (short) lines.push(autoShort ? '· 流程档位：短（未写变更意图，文件清单自动核实为纯文档 / 测试 / 配置）' : `· 流程档位：短（声明单一意图的纯修复 / 纯文档 / 测试 / 配置；${ui.reason}）`)
+  else if (wantsShort) lines.push(`· 流程档位：标准（短档不成立：${failures.join('；')}）`)
+  else lines.push('· 流程档位：标准（四类之外的其余改动，沿用今天的全部要求）')
+  if (declaration.candidateTier === PROCESS_TIERS.STRICT) lines.push('· 候选档位「严」只是声明：严档只由四类命中判定')
+  return { tier: short ? PROCESS_TIERS.SHORT : PROCESS_TIERS.STANDARD, declaration, autoShort, uiVerification: ui, failures, lines }
 }
 
 export function loadRoutingTable(root = repoRoot) {
