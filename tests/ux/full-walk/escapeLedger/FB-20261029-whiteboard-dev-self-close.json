@@ -1,0 +1,26 @@
+{
+  "id": "FB-20261029-whiteboard-dev-self-close",
+  "since": "2026-10-29",
+  "source": "用户 2026-10-29：「用的开发板创建好节点 一直点击画板 一直打不开」。实现线复核诊断并增加真实 React StrictMode 挂载测试。",
+  "category": "interaction-semantics",
+  "problem": "开发模式画板卡片和图片浮条打开后被 InlineWhiteboard 的 effect cleanup 立即关闭；同一卸载关闭逻辑也会在生产画布虚拟化时触发。未到点的草稿还依赖已被清空的子 ref。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "与 FB-20261022-whiteboard-board-unusable 不同：10-22 是默认工具与完成后无可见结果；本条是组件卸载错误关闭外部会话。",
+    "4e23f68fb 特征测试记录两个入口在真实 StrictMode 重放后会话为空，删除离屏节点后会话孤立。",
+    "whiteboardSessionLifecycle.test.tsx 翻转后两入口、删除、卸载保存、项目替换和异步打开反例。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-29-whiteboard-session-lifecycle.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx"
+  }
+}

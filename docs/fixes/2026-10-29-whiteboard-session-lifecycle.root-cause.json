@@ -1,0 +1,175 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-whiteboard-session-lifecycle",
+  "problem_type": "Component teardown incorrectly owns an external editing session",
+  "symptom": "Both whiteboard entrances open then immediately close in development StrictMode; virtualized nodes close on unmount.",
+  "direct_cause": "InlineWhiteboard cleanup calls closeWhiteboard without a matching setup; pending debounce reads a detached child ref.",
+  "class_root": "External business sessions must outlive replayable and virtualized view lifetimes; session owner must enforce explicit document boundaries.",
+  "affected_population": [
+    "Whiteboard card and image-toolbar editors in StrictMode, HMR and virtualized canvas views"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts"
+  ],
+  "entry_points": [
+    "WhiteboardCardBody handleOpen",
+    "ImageQuickActionsToolbar whiteboard-open",
+    "NodeInlineWhiteboardHost onClose",
+    "Canvas node removal and project release"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/learn/synchronizing-with-effects",
+      "checked_at": "2026-10-29",
+      "purpose": "Cleanup must undo setup; setup-cleanup-setup must preserve observable behavior."
+    }
+  ],
+  "invariants": [
+    "Only explicit finish/cancel or invalidation of the session node/project closes the session.",
+    "Unmount flushes a captured draft idempotently without requiring a live child ref.",
+    "Old project work cannot publish into a replacement project."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
+      "symbol": "useWhiteboardSession"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
+      "symbol": "releaseSession"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "useWhiteboardSession"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "finishWhiteboard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+      "symbol": "registerWhiteboardFinish"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/NodeInlineWhiteboardHost.tsx",
+      "symbol": "closeWhiteboard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardCardBody.tsx",
+      "symbol": "openWhiteboard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
+      "symbol": "releaseSession"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+      "symbol": "openWhiteboard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "useWhiteboardSession"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 10,
+    "why_not": "Creator card and toolbar entrances remain distinct; host closes on Done/cancel; base node and React Flow subscribe for rendering; version cards finish before switching versions; InlineWhiteboard registers its finish handler; session owner enforces release and publishes state. Removed the teardown-close door and added session-owned document invalidation."
+  },
+  "generality_proof": "Both entrances converge on InlineWhiteboard and one session store; lifecycle-independent canvas subscription catches every node removal shape, and registered project release invalidates pending opens.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
+      "symbol": "useWhiteboardSession",
+      "responsibility": "Own opening, explicit closing, node deletion and project release independently of mounted views."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx",
+      "symbol": "InlineWhiteboard",
+      "responsibility": "Capture and idempotently flush drafts while teardown only releases view resources."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardCardBody.tsx",
+      "entry_point": "handleOpen",
+      "disposition": "enforced",
+      "evidence": "Real card mounted with real editor and real session under StrictMode."
+    },
+    {
+      "path": "src/workbench/generationCanvas/quickActions/ImageQuickActionsToolbar.tsx",
+      "entry_point": "whiteboard-open",
+      "disposition": "enforced",
+      "evidence": "Real toolbar click mounts the same real editor and session in StrictMode."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Two entrances, StrictMode replay, HMR and viewport virtualization reach the same cleanup.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs openWhiteboard; closeWhiteboard",
+      "TypeScript AST census: all useEffect/useLayoutEffect return expressions under src/workbench; inspect cleanup business calls.",
+      "Check nodeAttachedPanel setup/cleanup symmetry, NodeVideoClipPanel view lifetime and director cleanup exclusions."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
+    "invariant": "Session lifetime follows explicit actions and source document lifetime, never component teardown.",
+    "failure_mode": "Removed nodes or replaced/released projects synchronously clear session and invalidate queued opening work.",
+    "exception_policy": "none",
+    "strategy": "Remove teardown close; session-owned canvas observer and project release own invalidation. Capture draft before ref detaches.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSession.ts",
+      "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardInlineState.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx"
+    ],
+    "rationale": "Remove unmount close and ref-dependent pending-draft cleanup in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Installed React 19.3.0 follows documented effect replay. Retain supported runtime; application cleanup violates its contract. Upgrade is not a remedy for this ownership bug.",
+    "current": "React 19.3.0 and react-reconciler 0.34.0",
+    "target": "Next supported React/runtime pair when adopted by the project",
+    "exit_criteria": [
+      "Keep real StrictMode two-entrance regression green on any React/runtime update."
+    ]
+  },
+  "migration": "No saved shape changes. Existing state and result identity are reused on remount.",
+  "residual_risks": [
+    "Production/dev real Electron and independent acceptance pending before implementation.",
+    "Director cleanup findings belong to the parallel director implementation line; editor-session unification is deferred."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/whiteboard",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/whiteboard/whiteboardSessionLifecycle.test.tsx"
+    ]
+  }
+}

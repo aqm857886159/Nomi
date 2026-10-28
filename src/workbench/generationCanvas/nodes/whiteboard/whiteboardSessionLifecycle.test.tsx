@@ -19,6 +19,7 @@ vi.mock('../../adapters/persistNodeImage', () => ({ persistNodeImageFile: async 
 vi.mock('../../adapters/assetImportAdapter', () => ({ isProjectImportCancellation: () => false }))
 vi.mock('../../../../lib/removeBackground', () => ({ removeBackgroundBlob: vi.fn(), blobToDataUrl: vi.fn() }))
 vi.mock('../localImageOpPhase', () => ({ removeBackgroundFailureMessage: () => '', removeBackgroundProgressMessage: () => '' }))
+vi.mock('./whiteboardState', async original => ({ ...await original<typeof import('./whiteboardState')>(), loadImageSize: async () => { throw new Error('image unavailable') } }))
 vi.mock('./WhiteboardLibraryPanel', () => ({ WhiteboardLibraryPanel: () => null }))
 vi.mock('./WhiteboardEditingToolbar', () => ({ WhiteboardEditingToolbar: (props: Record<string, unknown>) => { harness.toolbar = props; return null } }))
 vi.mock('./WhiteboardLeaferCanvas', async () => {
@@ -48,7 +49,7 @@ import ImageQuickActionsToolbar from '../../quickActions/ImageQuickActionsToolba
 import InlineWhiteboard from './InlineWhiteboard'
 import { NodeEmptyStateContext } from '../render/NodeEmptyStateContext'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
-import { closeWhiteboard, openWhiteboard, useWhiteboardSession, whiteboardSessionLifetime } from './whiteboardSession'
+import { closeWhiteboard, openWhiteboard, registerWhiteboardFinish, useWhiteboardSession, whiteboardSessionLifetime } from './whiteboardSession'
 import { createDefaultWhiteboardState } from './whiteboardState'
 
 const board = { id: 'board', kind: 'whiteboard', title: 'Board', prompt: '', position: { x: 0, y: 0 }, size: { width: 320, height: 180 }, meta: {} } as GenerationCanvasNode
@@ -60,7 +61,7 @@ function ReplayWitness() {
   React.useEffect(() => { harness.effects.push('setup'); return () => { harness.effects.push('cleanup') } }, [])
   return null
 }
-function Journey({ visible = true }: { visible?: boolean }) {
+function Journey({ visible = true, failedImage = false }: { visible?: boolean; failedImage?: boolean }) {
   const nodeId = useWhiteboardSession(s => s.nodeId)
   const node = useGenerationCanvasStore(s => s.nodes.find(n => n.id === nodeId))
   return <><ReplayWitness /><NodeEmptyStateContext.Provider value={{ engaged: true, readOnly: false }}>
@@ -69,7 +70,8 @@ function Journey({ visible = true }: { visible?: boolean }) {
     reportFeedback={() => {}} onGridSplit={() => {}} onCrop={() => {}} onTransform={() => {}} onPreview={() => {}}
     onOpenProvenance={() => {}} onQuickAction={() => {}} />
     {visible && node ? <InlineWhiteboard key={node.id} nodeId={node.id} sourceKind={node.kind === 'whiteboard' ? 'whiteboard' : 'image'}
-      initialState={node.meta?.whiteboardState as ReturnType<typeof createDefaultWhiteboardState> | undefined}
+      initialImage={failedImage ? { url: 'nomi-local://unavailable' } : undefined}
+      initialState={failedImage ? undefined : node.meta?.whiteboardState as ReturnType<typeof createDefaultWhiteboardState> | undefined}
       onClose={() => closeWhiteboard(node.id)} /> : null}</>
 }
 function mount() {
@@ -96,30 +98,63 @@ beforeEach(() => {
 })
 afterEach(() => { renderer?.close(); renderer = undefined; whiteboardSessionLifetime.releaseProject!(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
-it.each(['card', 'toolbar'] as const)('characterizes StrictMode self-close through the %s entrance before the repair', entrance => {
+it.each(['card', 'toolbar'] as const)('keeps the real editor open after StrictMode replay through the %s entrance', entrance => {
   mount(); clickEntrance(entrance)
   expect(harness.effects).toEqual(['setup', 'cleanup', 'setup'])
-  expect(useWhiteboardSession.getState().nodeId).toBeNull()
+  expect(useWhiteboardSession.getState().nodeId).toBe(entrance === 'card' ? 'board' : 'image')
 })
 it('Done explicitly closes the editor', async () => {
   await openWhiteboard('board'); mount()
   await (harness.toolbar!.onDone as () => void)(); flush()
   expect(useWhiteboardSession.getState().nodeId).toBeNull()
 })
-it('cancel explicitly closes the editor', async () => {
-  await openWhiteboard('board'); mount()
-  // onAbort is only displayed for failed initial-image import; exercise the real InlineWhiteboard boundary.
-  const host = instances.find(i => i.props['data-nomi-inline-whiteboard'])
-  expect(host).toBeDefined()
-  closeWhiteboard('board'); flush()
+it('cancel on a failed image import explicitly closes the real editor', async () => {
+  await openWhiteboard('image')
+  renderer = createReactTestRenderer({ createInstance: (_type, props) => { const instance = { props }; instances.push(instance); return instance } })
+  renderer.render(<React.StrictMode><Journey failedImage /></React.StrictMode>); flush()
+  await vi.waitFor(() => { flush(); expect(instances.some(i => i.props.children === 'common.cancel')).toBe(true) })
+  ;(instances.find(i => i.props.children === 'common.cancel')!.props.onClick as () => void)(); flush()
   expect(useWhiteboardSession.getState().nodeId).toBeNull()
 })
-it('characterizes node deletion leaving an orphan before the repair', async () => {
+it('node deletion closes an editor even while it is offscreen', async () => {
   await openWhiteboard('board')
   useGenerationCanvasStore.setState({ nodes: [image] })
-  expect(useWhiteboardSession.getState().nodeId).toBe('board')
+  expect(useWhiteboardSession.getState().nodeId).toBeNull()
 })
 it('project release closes even an offscreen editor', async () => {
   await openWhiteboard('board'); whiteboardSessionLifetime.releaseProject!()
   expect(useWhiteboardSession.getState().nodeId).toBeNull()
+})
+
+it('unmount before the draft debounce saves the last stroke and remount restores it without closing', async () => {
+  await openWhiteboard('board'); mount(); stroke()
+  render(false)
+  expect(useWhiteboardSession.getState().nodeId).toBe('board')
+  expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === 'board')?.meta?.whiteboardState).toMatchObject({ strokes: [{ id: 'stroke-one' }] })
+  render(true)
+  expect(harness.canvas!.strokes).toMatchObject([{ id: 'stroke-one' }])
+})
+it('project replacement with the same node id closes and cannot flush the old draft into it', async () => {
+  await openWhiteboard('board'); mount(); stroke(); harness.controller.abort()
+  useGenerationCanvasStore.setState({ projectId: 'project-b', nodes: [{ ...board, meta: {} }] }); flush()
+  expect(useWhiteboardSession.getState().nodeId).toBeNull()
+  vi.advanceTimersByTime(250); flush()
+  expect(useGenerationCanvasStore.getState().nodes[0].meta?.whiteboardState).toBeUndefined()
+})
+it('deleting the current node while switching cannot reopen the queued old editor', async () => {
+  await openWhiteboard('board')
+  let finish!: (ok: boolean) => void
+  const unregister = registerWhiteboardFinish(() => new Promise<boolean>(resolve => { finish = resolve }))
+  const pending = openWhiteboard('image')
+  useGenerationCanvasStore.setState({ nodes: [image] })
+  finish(true); await pending; unregister()
+  expect(useWhiteboardSession.getState().nodeId).toBeNull()
+})
+
+it('a pending draft cannot recreate a node after deletion', async () => {
+  await openWhiteboard('board'); mount(); stroke()
+  useGenerationCanvasStore.getState().deleteNode('board'); flush()
+  vi.advanceTimersByTime(250); flush()
+  expect(useWhiteboardSession.getState().nodeId).toBeNull()
+  expect(useGenerationCanvasStore.getState().nodes.some(n => n.id === 'board')).toBe(false)
 })
