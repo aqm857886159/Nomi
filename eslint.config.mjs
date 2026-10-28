@@ -185,6 +185,31 @@ const uiMoneyPlugin = { rules: {
   'no-restricted-imports': builtinRules.get('no-restricted-imports'),
 } }
 
+// ⑤ 渲染层直调主进程的任务口 `nomi:tasks:run` 只有一扇门（2026-10-28）：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。
+// 令牌路普查（scripts/spend-token-doors.mjs）按符号名数门，数不到 `desktop.tasks.run(...)` 这种成员调用：渲染层新文件直接调它，
+// 普查、check:run-task-grant、check:generation-entrances 全绿（独立验收 R14）；而这个口缺省走 TOKEN_ADMISSION，没有令牌的付费种类
+// 会被主进程的闸拒——浏览器「提取提示词」坏了七周就是这个形状。这条规则让「再加一个直调点」当场红。
+// 同 ② 的做法独立注册内置规则：src/** 已经有别的块配了 no-restricted-syntax，同名规则后面的块会整条覆盖前面的。
+// 拦得住：点号 / 方括号取 run（desktop.tasks.run、desktop['tasks']['run']、可选链、当值取出来、bind），
+//   从桥上解构出 tasks 再 tasks.run，解构 run（const { run } = desktop.tasks、const { tasks: { run } } = desktop）。
+// 拦不住（明写的缺口）：换了变量名的别名（const t = desktop.tasks; t.run()）、把 desktop.tasks 当参数传出去——静态看不出那个名字是谁。
+const taskRunBridgePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const TASK_RUN_BRIDGE_MESSAGE = '渲染层直调 nomi:tasks:run 只有一扇门：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。'
+  + '这个口没有令牌，付费种类会被主进程的闸拒（浏览器「提取提示词」就这样坏了七周）；要花钱就走主进程自己问人、铸令牌再发的那条链，并在 scripts/spend-token-doors.mjs 登记。'
+export const TASK_RUN_BRIDGE_DOOR = 'src/workbench/api/taskApi.ts'
+export const TASK_RUN_BRIDGE_FILES = ['src/**/*.{ts,tsx}']
+export const TASK_RUN_BRIDGE_IGNORES = ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', TASK_RUN_BRIDGE_DOOR]
+/** `tasks` 的几种写法：X.tasks / X['tasks'] / tasks（解构出来的本地名）/ X.tasks! 、(X.tasks as T)、(X?.tasks) 这类外面包了一层的。 */
+const TASKS_OWNER = ["property.name='tasks'", "property.value='tasks'", "name='tasks'", "expression.property.name='tasks'", "expression.name='tasks'"]
+export const TASK_RUN_BRIDGE_SELECTORS = [
+  // X.tasks.run / X.tasks['run'] / tasks.run / tasks['run']：调用、取值、bind 都算。
+  ...["[computed=false][property.name='run']", "[computed=true][property.value='run']"]
+    .flatMap((run) => TASKS_OWNER.map((owner) => `MemberExpression${run}[object.${owner}]`)),
+  // const { run } = X.tasks / tasks、({ run } = X.tasks)、const { tasks: { run } } = X、function f({ tasks: { run } })（键写不写引号都算）。
+  ...["VariableDeclarator[init.property.name='tasks']", "VariableDeclarator[init.name='tasks']", "AssignmentExpression[right.property.name='tasks']", "AssignmentExpression[right.name='tasks']", "Property[key.name='tasks']", "Property[key.value='tasks']"]
+    .flatMap((from) => ["Property[key.name='run']", "Property[key.value='run']"].map((run) => `${from} > ObjectPattern > ${run}`)),
+].map((selector) => ({ selector, message: TASK_RUN_BRIDGE_MESSAGE }))
+
 /**
  * 每个 no-restricted-syntax 都经这里拼：flat config 里后面的对象会**整条覆盖**前面同名规则的选项，
  * 某个块漏写一组选择器，那组在该块的文件上就静默失效。全仓都该成立的选择器（目前是 Playwright 不等待）放在这里，
@@ -404,6 +429,7 @@ export default tseslint.config(
     // 2026-10-16 真付费验收：分镜方案整批生成直接调了 requestConfirm，绕过 owner，「直接生成」档对它完全不起作用，
     // 而且没有任何东西会红。下面这几处是允许的调用者——它们只**展示主进程已经做出的决定**，自己不判问不问：
     //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、credentialProbeSpendCard.ts（接入页凭据试跑）、
+    //   promptExtractionSpendCard.ts（浏览器提取提示词：主进程每次经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   useProductionStatus.ts（制作流程门）；SpendConfirmDialog.tsx / NomiStudioApp.tsx 是 E2E 驱动桥。
     // 新增调用者 = 又一处自己决定弹不弹付费框 → 红；要么经 owner，要么先让主进程做决定、再登记进这张表。
     files: ['src/**/*.{ts,tsx}'],
@@ -415,6 +441,7 @@ export default tseslint.config(
       'src/workbench/capability/capabilityApplyHandler.ts',
       'src/workbench/capability/generationGateConfirm.ts', // 从 capabilityApplyHandler.ts 拆出的 MCP 生成确认卡：只展示主进程决定的挑战
       'src/workbench/capability/credentialProbeSpendCard.ts',
+      'src/workbench/capability/promptExtractionSpendCard.ts',
       'src/workbench/production/useProductionStatus.ts',
     ],
     rules: {
@@ -423,6 +450,13 @@ export default tseslint.config(
         message: '付费确认框只经 owner 弹：用 src/workbench/generationCanvas/spend/spendConfirm.ts 的 confirmGenerationSpend / confirmStoryboardPlanBatch；只展示主进程决定的调用者才登记进 eslint.config.mjs 的允许表。',
       }],
     },
+  },
+  {
+    // 渲染层直调 nomi:tasks:run 只有一扇门（见上面 ⑤）：名单外的渲染层文件一处都不许有；只有这一个块配置 task-run-bridge/*。
+    files: TASK_RUN_BRIDGE_FILES,
+    ignores: TASK_RUN_BRIDGE_IGNORES,
+    plugins: { 'task-run-bridge': taskRunBridgePlugin },
+    rules: { 'task-run-bridge/no-restricted-syntax': ['error', ...TASK_RUN_BRIDGE_SELECTORS] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。

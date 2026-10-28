@@ -3,7 +3,9 @@
 // ② 「isVisible / isHidden 带 timeout」在代表路径上都红——flat config 里后面的块会整条覆盖 no-restricted-syntax，
 //    哪个块漏拼了全仓选择器，那片文件上这条就静默失效，所以按路径逐个核，而不是只核一个文件；
 // ③ 走查里的未定义标识符由 ESLint no-undef 管（替掉 check-walkthroughs 里手写的那一套，夜跑 I05 的形状照搬过来）；
-// ④ 批量抑制的两条判据：存量变少要收紧；冻结数上涨要协调确认（推送前 / 合并前扫描读本机记录，CI 只提示）。
+// ④ 批量抑制的两条判据：存量变少要收紧；冻结数上涨要协调确认（推送前 / 合并前扫描读本机记录，CI 只提示）；
+// ⑥ 渲染层直调 nomi:tasks:run（desktop.tasks.run）只有 src/workbench/api/taskApi.ts 一扇门（令牌路普查数不到成员调用，这条补上）。
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -128,6 +130,75 @@ describe('浏览器夹具测试不直接起 vite 开发服务（tests/**/*.test.
 
   it.each(['tests/ux/_browserFixture.mjs', 'tests/ux/a.walk.mjs', 'scripts/a.mjs'])('%s：唯一主人与别的车道不归这条规则', async (file) => {
     expect(await hits(file, source)).toEqual([])
+  })
+})
+
+// ⑥ 2026-10-28：渲染层直调主进程的任务口 nomi:tasks:run 只有一扇门。令牌路普查（scripts/spend-token-doors.mjs）按符号名数门，数不到
+// `desktop.tasks.run(...)` 这种成员调用——渲染层新文件直接调它，普查和两道 check 全绿（独立验收 R14）；这条规则让它当场红。
+// 规则 id 是独立注册的 task-run-bridge/no-restricted-syntax（src/** 已有别的块配了 no-restricted-syntax，同名会被整条覆盖）。
+describe('渲染层只有 taskApi.ts 能直调 nomi:tasks:run（desktop.tasks.run）', () => {
+  const RULE = 'task-run-bridge/no-restricted-syntax'
+  const DOOR = 'src/workbench/api/taskApi.ts'
+  const hits = async (file, source) => (await lint(file, source)).filter((message) => message.ruleId === RULE).map((message) => message.line)
+  const NEW_FILE = 'src/workbench/someNewFeature.ts'
+
+  it.each([
+    ['点号直调', 'export const f = (desktop) => desktop.tasks.run({ vendor: "v", request: {} })'],
+    ['方括号取 run', "export const f = (desktop) => desktop.tasks['run']({ vendor: 'v' })"],
+    ['方括号取 tasks', "export const f = (desktop) => desktop['tasks'].run({ vendor: 'v' })"],
+    ['两个都方括号', "export const f = (desktop) => desktop['tasks']['run']({ vendor: 'v' })"],
+    ['可选链', 'export const f = (desktop) => desktop?.tasks?.run?.({ vendor: "v" })'],
+    ['当值取出来', 'export const f = (desktop) => { const go = desktop.tasks.run; return go }'],
+    ['bind', 'export const f = (desktop) => desktop.tasks.run.bind(desktop.tasks)'],
+    ['window 上直取', 'export const f = () => window.nomiDesktop.tasks.run({})'],
+    ['先解构出 tasks 再 tasks.run', 'export const f = (desktop) => { const { tasks } = desktop; return tasks.run({}) }'],
+    ['先解构出 tasks 再 tasks["run"]', "export const f = (desktop) => { const { tasks } = desktop; return tasks['run']({}) }"],
+    ['从 tasks 解构 run', 'export const f = (desktop) => { const { run } = desktop.tasks; return run({}) }'],
+    ['从 tasks 解构 run（字符串键 + 改名）', "export const f = (desktop) => { const { 'run': go } = desktop.tasks; return go({}) }"],
+    ['一步解构 tasks 里的 run', 'export const f = (desktop) => { const { tasks: { run } } = desktop; return run({}) }'],
+    ['参数里解构', 'export const f = ({ tasks: { run } }) => run({})'],
+    ['从本地名 tasks 解构 run', 'export const f = (tasks) => { const { run } = tasks; return run({}) }'],
+    ['赋值式解构', 'export const f = (desktop) => { let run; ({ run } = desktop.tasks); return run({}) }'],
+    ['非空断言', 'export const f = (desktop) => desktop.tasks!.run({})'],
+    ['类型断言', 'export const f = (desktop) => (desktop.tasks as any).run({})'],
+    ['括起来的可选链', 'export const f = (desktop) => (desktop?.tasks).run({})'],
+  ])('红：%s', async (_name, source) => {
+    expect(await hits(NEW_FILE, source)).toEqual([1])
+    expect(await hits('src/workbench/someNewFeature.tsx', source)).toEqual([1])
+  })
+
+  it.each([
+    ['tasks 上别的方法', 'export const f = (desktop) => desktop.tasks.runComfyCandidateTest({})'],
+    ['文本流式口', 'export const f = (desktop) => desktop.tasks.runTextStream({})'],
+    ['铸令牌口（另有门岗，不归这条）', 'export const f = (desktop) => desktop.tasks.grantSpend({ nodeIds: [] })'],
+    ['别的对象的 run', 'export const f = (jobs) => jobs.run()'],
+    ['tasks 数组上的方法', 'export const f = (plan) => plan.tasks.map((task) => task.id)'],
+    ['从 tasks 解构别的成员', 'export const f = (desktop) => { const { runComfyCandidateTest } = desktop.tasks; return runComfyCandidateTest }'],
+    ['解构 tasks 但不取 run', 'export const f = (desktop) => { const { tasks } = desktop; return tasks.length }'],
+    ['桥本身有个 run', 'export const f = (desktop) => { const { run } = desktop; return run }'],
+    ['计算属性是变量不是字符串', 'export const f = (tasks, run) => tasks[run]'],
+    ['类型声明里的 run 成员', 'export type Bridge = { tasks: { run: (payload: unknown) => Promise<unknown> } }'],
+    ['字符串里提到它', "export const label = 'desktop.tasks.run'"],
+    ['注释里提到它', '// desktop.tasks.run only in a comment\nexport const x = 1'],
+  ])('不红：%s', async (_name, source) => {
+    expect(await hits(NEW_FILE, source)).toEqual([])
+  })
+
+  it('按名字认：别的对象恰好叫 tasks 又有 run 成员，也红（语法树看不出类型；改个名字，或把文件登记进允许表）', async () => {
+    expect(await hits(NEW_FILE, 'export const f = (plan) => plan.tasks.run()')).toEqual([1])
+  })
+
+  it('范围：唯一的门和测试文件不红；渲染层之外不归这条（主进程另有普查，走查脚本在页面里调桥）', async () => {
+    const source = 'export const f = (desktop) => desktop.tasks.run({})'
+    for (const file of [DOOR, 'src/workbench/api/taskApi.test.ts', 'src/workbench/api/__tests__/probe.ts', 'src/workbench/api/probe.test.tsx']) expect(await hits(file, source), file).toEqual([])
+    for (const file of ['electron/probe.ts', 'tests/ux/probe.mjs', 'scripts/probe.mjs', 'evals/probe.mjs']) expect(await hits(file, source), file).toEqual([])
+  })
+
+  it('接线：真的 taskApi.ts 原文放在自己的路径上不红，放到别的文件名上就红（允许名单写对了，规则也不是空转）', async () => {
+    const real = fs.readFileSync(path.join(root, DOOR), 'utf8')
+    expect(real).toContain('desktop.tasks.run(')
+    expect(await hits(DOOR, real)).toEqual([])
+    expect(await hits('src/workbench/api/taskApiCopy.ts', real)).toHaveLength(1)
   })
 })
 

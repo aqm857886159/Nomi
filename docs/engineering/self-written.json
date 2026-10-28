@@ -167,6 +167,10 @@
       "reason": "制作流程的镜头阶段、批次成员、停下原因、命令 id"
     },
     {
+      "path": "electron/shared/contracts/browserPromptExtraction*",
+      "reason": "浏览器提取提示词的跨进程契约：主进程那扇门的请求与回话形状、付费卡上「读哪个页面的哪张图」两行的编码——按次花钱卡上的领域事实"
+    },
+    {
       "path": "electron/shared/contracts/canvasHandOver*",
       "reason": "交给画布的跨进程契约（D2 一台发动机）：付费卡上按「生成」的那几镜从制作流程交给画布单节点提交，主进程与渲染层那一问的 op 名与回话形状——按镜头花钱的领域语义"
     },
@@ -412,6 +416,10 @@
     {
       "path": "electron/browser/captureNaming*",
       "reason": "采集素材的命名规则"
+    },
+    {
+      "path": "electron/browser/prompt/",
+      "reason": "内置浏览器里「把一张图写成提示词」：每次读图前问人、按这一次调用铸令牌——按次花钱的领域语义（问人与铸令牌走现成的 confirmSpendAndMintGrant，不自写）"
     },
     {
       "path": "src/workbench/ai/lane/",

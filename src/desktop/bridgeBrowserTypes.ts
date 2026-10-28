@@ -9,6 +9,7 @@ import type { DesktopAssetDto } from './bridgeMedia'
 // 仅类型的回指：DesktopBrowserPromptScreenshotSelection 留在 bridge.ts（它的 reason 联合是
 // check:vocabularies 在册、按路径记身份的 debt site），这里只借它的形状，编译期即擦除。
 import type { DesktopBrowserPromptScreenshotSelection } from './bridge'
+import type { BrowserPromptExtractionRunOutcome, BrowserPromptExtractionRunRequest } from '../../electron/shared/contracts/browserPromptExtraction'
 
 export type DesktopBrowserViewBounds = {
   x: number
@@ -196,6 +197,8 @@ export type DesktopBrowserSurface = {
   /** 项目由主进程按发起窗口（浮层 = 父窗口）已提交的项目面决定，渲染层不报 projectId。 */
   readPromptExtractionSettings?: () => Promise<{ ok: boolean; settings: unknown | null; error?: string }>
   writePromptExtractionSettings?: (payload: { settings: unknown }) => Promise<{ ok: boolean; settings?: unknown; error?: string }>
+  /** 整次提取在主进程跑：弹卡问人 → 铸令牌 → 发一次读图调用（只认主窗口）。 */
+  runPromptExtraction?: (payload: BrowserPromptExtractionRunRequest) => Promise<BrowserPromptExtractionRunOutcome>
   selectPromptScreenshot?: (payload: { viewId: number }) => Promise<DesktopBrowserPromptScreenshotSelection>
   setResourceCapture?: (payload: { viewId: number; enabled: boolean }) => void
   captureResource?: (payload: { viewId: number }) => void
