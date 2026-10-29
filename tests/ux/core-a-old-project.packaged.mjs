@@ -327,7 +327,10 @@ async function main() {
     runFiles = () => fs.existsSync(runsRoot) ? fileHashes(runsRoot) : {}
     runsBefore = runFiles()
     // Keep negative fixtures outside auto-discovery; they must enter through the picker.
-    rejectedFormats = prepareRejectedWorkspaceFormats(path.join(walk.report.tempRoot, 'format-rejections'))
+    // Not under the walk's temp root: the picker refuses folders inside the system temp folder
+    // (project-location admission), which would answer before the format check this step is about.
+    // They stay beside the evidence, so the byte-for-byte claim can be rechecked later.
+    rejectedFormats = prepareRejectedWorkspaceFormats(path.join(outputDir, 'format-rejections'))
     const { original, design, media, copyRoot, sourceHashes } = copy
     const readCopy = () => readJson(path.join(copyRoot, copy.manifest))
     const readDesign = () => readCopy().payload.storyboardDesignsByDocumentId[design.documentId].find(item => item.id === design.id)
