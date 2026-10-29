@@ -23,7 +23,12 @@
     "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
     "本地修复：Windows 作业待推送分支后首跑，未结为 fixed"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "57b0f6e42b86488deec3503dacee8451a256dc3c",
+    "0d854b0b7b89a94b2bf3286bf7be28db6b33b676",
+    "7565502ed829176dcdade74f280bb1c910cd5df0",
+    "9ff61d8020fe7db900ff30c305f7feb441b7eb86"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
   "classCheck": {
     "kind": "matrix",
