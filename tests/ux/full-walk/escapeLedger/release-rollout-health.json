@@ -1,0 +1,27 @@
+{
+  "id": "release-rollout-health",
+  "since": "2026-10-29",
+  "source": "用户2026-10-29发版安全网任务；本条仅跟踪发布曝光与健康信号的系统边界，不代表安装器或Agent等具体缺陷已修复。",
+  "category": "performance-coverage",
+  "problem": "正式版发布没有分批比例边界，遥测失败信号没有按版本的每日放量结论。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-10-29-release-safety-net.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "scripts/release-rollout.node-test.mjs"
+  },
+  "evidence": [
+    "docs/plan/2026-10-29-release-safety-net.md",
+    "scripts/lib/intake-radar/health.node-test.mjs"
+  ],
+  "completionCommits": [
+    "83acbd66b",
+    "0e3506534"
+  ],
+  "notes": "实现与合成矩阵已本地验证；未推送、无PR号，不冒充fixed。协调创建PR后挂真实编号结账，CI/merge阶段仍须核验。"
+}
