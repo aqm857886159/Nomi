@@ -540,6 +540,16 @@
         "symbol": "retrievalStageError"
       },
       "reason": "2026-10-28 取回阶段的错误出口 retrievalStageError 从 taskResultQuery.ts 原样搬到 electron/tasks/retrievalStageError.ts：结果落地门 assets/localizeTaskAsset 失败时要经它挂取回阶段码（同步供应商在提交里落地），而 taskResultQuery 从运行时取执行器、运行时又引落地门，搬到不依赖运行时的模块才不成环。函数体一字未改，取回出口仍只有它一个（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-startup-library-discovery-rescan.root-cause.json",
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "rememberWorkspaces",
+      "anchor": {
+        "path": "electron/workspace/workspaceRegistry.ts",
+        "symbol": "bindWorkspaceLocations"
+      },
+      "reason": "2026-10-29「项目在哪」收敛单第一刀（docs/fixes/2026-10-29-project-location-owner.root-cause.json，用户 10-29 批准「按推荐方向修」）：批量登记 rememberWorkspaces 换成 bindWorkspaceLocations，入参从项目记录换成 { id, name, rootPath, origin? }（rootPath 必填，不再抄清单里的 lastKnownRootPath），旧名同提交删除；概念登记 docs/engineering/concept-owners/project.location.json 把它列为「项目在哪」的唯一写口之一。09-03 合同的不变量「批量登记一把锁、一次读、一次写，与单条登记共用一个合并函数」不变：bindWorkspaceLocations 与单条 bindWorkspaceLocation 共用 mergeWorkspaceBinding，锁 withRegistryLock 与排序沿用。语义上新增两点：同一 id 还绑在一个装着它的文件夹上，这一条跳过、原登记不动（不变量 ⑤）；位置变了（改名 / 挪走后重开、启动对账接回）时来源跟着新位置，位置没变时已冻结的来源优先。守它的测试：electron/workspace/workspaceRegistry.test.ts、electron/workspace/workspaceRegistry.concurrency.test.ts、electron/projects/projectLocation.matrix.test.ts。"
     }
   ],
   "retirements": [
