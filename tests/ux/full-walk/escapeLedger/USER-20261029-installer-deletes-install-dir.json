@@ -1,0 +1,31 @@
+{
+  "id": "USER-20261029-installer-deletes-install-dir",
+  "since": "2026-10-29",
+  "source": "用户 2026-10-29 在微信群反馈：Windows 上 Nomi 装在 F:\\Nomi_new，新项目默认位置设在安装目录下的 xiangmu，0.24.0 提示更新后直接安装，装完 xiangmu 是空的，5 个项目全没了，回收站里也没有；放在 C 盘「文档」里的第 6 个项目还在。",
+  "category": "deletion-integrity",
+  "problem": "Windows 安装器沿用 electron-builder 默认卸载段，升级与卸载都对安装目录整目录删除（RMDir /r $INSTDIR）；升级时新安装程序先运行旧版本的卸载程序，用户放进安装目录的项目和文件随之被删，不进回收站。结账挂「安装器只删清单内条目 + Windows 安装作业」。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "从 0.24.0 升级到修复版：安装目录里的用户文件夹和散文件原路径保留",
+    "修复版之后的升级、改目录重装、普通卸载：只删构建时清单里的条目",
+    "用户文件挪不开（被占用、盘符根目录、旁边目录已存在）：中止更新、什么都不删，静默安装也弹框说明",
+    "挪开 / 挪回途中被打断：下次运行安装程序按待恢复记录挪回原路径"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/installer/installerScenarios.test.mjs：普查——installer.nsh 无 RMDir /r、钩子齐、常量与场景登记一致、模板指纹、工作流跑全部场景与反例",
+    "scripts/packaging/installer-manifest.test.mjs：清单与打包产物、生成的 NSH 三方一致，空目录与怪文件名都在清单里",
+    "tests/installer/windows-installer-scenarios.mjs + .github/workflows/win-installer.yml：windows-latest 上用 v0.24.0 Release 安装包真装真升真卸（A1–A13 + 反例 CX1–CX3）",
+    "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
+    "本地修复：Windows 作业待推送分支后首跑，未结为 fixed"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/installer/installerScenarios.test.mjs"
+  }
+}

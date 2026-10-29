@@ -1,0 +1,36 @@
+{
+  "name": "Windows 安装器的删除范围（安装目录里哪些属于安装器）",
+  "subject": "delivery.installer-owned-files",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/packaging/installer-manifest.cjs",
+    "symbol": "computeInstallerManifest"
+  },
+  "write_api": [
+    {
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "computeInstallerManifest"
+    },
+    {
+      "path": "build/installer.nsh",
+      "symbol": "customRemoveFiles"
+    },
+    {
+      "path": "build/installer.nsh",
+      "symbol": "nomiKeepAside"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/installer/installerScenarios.test.mjs",
+  "allowed_consumers": [
+    "scripts/after-pack-mac.cjs",
+    "package.json",
+    ".github/workflows/win-installer.yml"
+  ],
+  "since": "2026-10-29",
+  "notes": "「安装目录里哪些东西属于安装器、卸载时能删」只有一份判据：afterPack 从剪完平台二进制的打包产物现算的安装器清单（computeInstallerManifest，写到 .tmp/installer-manifest/，不提交），build/installer.nsh 编译时引入并按版本号核对。删除只在 customRemoveFiles 一处（只删清单文件 + 卸载程序，目录非递归、最深在前），不许再出现 RMDir /r 或手抄的第二份文件表；改不了的旧版本卸载程序由 nomiKeepAside 在调用前把顶层外来条目同盘挪开。对拍：tests/installer/installerScenarios.test.mjs（installer.nsh 引入的就是生成器写的路径与宏、没有 RMDir /r、钩子齐、模板指纹）与 scripts/packaging/installer-manifest.test.mjs（清单、NSH、打包产物三方一致）；真装真升真卸在 .github/workflows/win-installer.yml。合同：docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json。"
+}
