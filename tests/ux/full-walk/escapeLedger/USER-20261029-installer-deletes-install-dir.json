@@ -18,7 +18,8 @@
   "evidence": [
     "tests/installer/installerScenarios.test.mjs：普查——installer.nsh 无 RMDir /r、钩子齐、常量与场景登记一致、模板指纹、工作流跑全部场景与反例",
     "scripts/packaging/installer-manifest.test.mjs：清单与打包产物、生成的 NSH 三方一致，空目录与怪文件名都在清单里",
-    "tests/installer/windows-installer-scenarios.mjs + .github/workflows/win-installer.yml：windows-latest 上用 v0.24.0 Release 安装包真装真升真卸（A1–A13 + 反例 CX1–CX3）",
+    "tests/installer/windows-installer-scenarios.mjs + .github/workflows/win-installer.yml：windows-latest 上用 v0.24.0 Release 安装包真装真升真卸（A1–A13 + 反例 CX1–CX3；A1、A11 的用户数据放默认位置、安装目录外的自选位置、安装目录里三处，升级后、卸载后各验一遍）",
+    ".github/workflows/desktop-rc.yml：发版硬门，windows-installer 作业调用上面的工作流，finalize 依赖它，红了候选版不能晋级",
     "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
     "本地修复：Windows 作业待推送分支后首跑，未结为 fixed"
   ],

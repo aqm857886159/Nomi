@@ -13,7 +13,9 @@
 //   · 每个场景前后都把机器清干净：结束工作目录里起的进程，删 Nomi 的注册表项、待恢复记录、快捷方式、默认安装目录和场景目录；
 //   · 安装程序按 NSIS 的规矩原样传参（windowsVerbatimArguments）：/D= 和 _?= 必须放最后、不能加引号，所以安装包路径不能有空格；
 //   · 对话框由 tests/installer/dialog-watcher.ps1 记下并关掉；静默安装里出现的每个对话框都要被场景认领，否则算红；
-//   · 卸载照 electron-builder 升级时的做法：把卸载程序拷出安装目录再带 _?= 跑（同步等它结束）。
+//   · 卸载照 electron-builder 升级时的做法：把卸载程序拷出安装目录再带 _?= 跑（同步等它结束）；
+//   · 用户数据放三处（A1、A11）：默认位置（「文档」\Nomi Projects 下一个本场景专用的项目文件夹，跑完删掉，只删这个文件夹）、
+//     安装目录外的自选位置（和安装目录同级）、安装目录里；升级后、卸载后各验一遍。
 // Node 全局都显式 import：tests/installer/ 不在 eslint 配置的 Node 脚本目录里（本目录只有这一个 Node 脚本）。
 import { Buffer } from 'node:buffer'
 import { spawn, spawnSync } from 'node:child_process'
@@ -26,7 +28,7 @@ import { performance } from 'node:perf_hooks'
 import process from 'node:process'
 import { clearTimeout, setTimeout } from 'node:timers'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { COUNTEREXAMPLES, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, SCENARIOS } from './scenarios.mjs'
+import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, SCENARIOS } from './scenarios.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const WATCHER = path.join(repoRoot, 'tests', 'installer', 'dialog-watcher.ps1')
@@ -45,6 +47,12 @@ const INCIDENT_FILES = [
   { rel: 'notes.txt', text: '用户随手放在安装目录里的笔记' },
 ]
 const INCIDENT_TOP_LEVEL = ['xiangmu', 'notes.txt']
+
+/** 安装目录外的两处（默认位置、自选位置）各放一个项目：事故里放在「文档」里、幸存下来的第 6 个项目就是这种。 */
+const OUTSIDE_PROJECT_FILES = [
+  { rel: '.nomi\\project.json', text: '{"name":"outside the install folder"}' },
+  { rel: 'assets\\shot.png', bytes: 32 * 1024 },
+]
 
 /** 本来就装满用户文件的目录：多层、中文、特殊字符、隐藏、只读、空目录、0 字节、带 $ 的名字。 */
 const FULL_DIR_FILES = [
@@ -174,8 +182,9 @@ ConvertTo-Json -InputObject @($out) -Compress
   return JSON.parse(json || '[]')
 }
 
-/** 把机器恢复到「从没装过 Nomi」：只动 Nomi 的注册表项、待恢复记录、快捷方式、默认安装目录和本次工作目录。 */
+/** 把机器恢复到「从没装过 Nomi」：只动 Nomi 的注册表项、待恢复记录、快捷方式、默认安装目录、本次工作目录，和本次种在「文档」里的测试项目文件夹。 */
 function resetMachine(state) {
+  for (const dir of state.outsideSeeds.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
   powershell(`
 $ErrorActionPreference = 'SilentlyContinue'
 $roots = @(${psq(state.work)}, (Join-Path $env:LOCALAPPDATA 'Programs\\${state.manifest.productFilename}'))
@@ -309,6 +318,24 @@ function scenarioContext(state, root, newExe) {
         if (result.status !== 0) throw new Error(`setup: attrib failed for ${item.rel}`)
       }
       return seeded
+    },
+    /**
+     * 用户数据放三处：默认位置（「文档」\Nomi Projects 下本场景专用的项目文件夹）、安装目录外的自选位置（和安装目录同级）、
+     * 安装目录里（insideSpec）。返回每处种了什么，给 expectPlaces 核。
+     */
+    seedPlaces(installDir, insideSpec) {
+      const defaultDir = path.join(state.documents, DEFAULT_PROJECTS_FOLDER, `installer-test-${path.basename(root)}`)
+      state.outsideSeeds.push(defaultDir)
+      fs.rmSync(defaultDir, { recursive: true, force: true })
+      const customDir = path.join(root, '自选项目', 'proj6')
+      return [
+        { name: 'default location', dir: defaultDir, seeded: t.seed(defaultDir, OUTSIDE_PROJECT_FILES) },
+        { name: 'custom location outside the install folder', dir: customDir, seeded: t.seed(customDir, OUTSIDE_PROJECT_FILES) },
+        { name: 'inside the install folder', dir: installDir, seeded: t.seed(installDir, insideSpec) },
+      ]
+    },
+    expectPlaces(places, when) {
+      for (const place of places) t.expectUserFiles(place.dir, place.seeded, `${when}, ${place.name}`)
     },
     expectExit(run, code) {
       if (run.timedOut) throw new Error(`${run.label} timed out`)
@@ -453,15 +480,22 @@ export const SCENARIO_RUNNERS = Object.freeze({
   async 'old-to-new-user-folder'(t) {
     const dir = path.join(t.root, 'Nomi_new')
     await t.installOld(dir)
-    const seeded = t.seed(dir, INCIDENT_FILES)
+    const places = t.seedPlaces(dir, INCIDENT_FILES)
     const run = await t.upgrade()
     t.expectExit(run, 0)
     t.expectNoDialogs(run)
-    t.expectUserFiles(dir, seeded)
+    t.expectPlaces(places, 'after the upgrade')
     t.expectNoHoldingFolder(dir)
     t.expectTopLevel(dir, INCIDENT_TOP_LEVEL)
     t.expectAppInstalled(dir)
     t.expectRegistration('HKCU', dir)
+    const removal = await t.uninstall(dir)
+    t.expectExit(removal, 0)
+    t.expectNoDialogs(removal)
+    t.expectPlaces(places, 'after uninstalling')
+    t.expectAppGone(dir)
+    t.expectTopLevel(dir, INCIDENT_TOP_LEVEL, { app: false })
+    t.expectNoRegistration()
   },
 
   async 'old-to-new-dir-full-of-user-files'(t) {
@@ -626,7 +660,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
   async 'new-to-new-update'(t) {
     const dir = path.join(t.root, 'Nomi')
     await t.installNew(dir)
-    const seeded = t.seed(dir, [
+    const places = t.seedPlaces(dir, [
       ...INCIDENT_FILES,
       { rel: 'resources\\user-notes\\a.txt', text: 'kept inside an installer folder' },
       { rel: 'locales\\my.txt', text: 'kept inside another installer folder' },
@@ -636,10 +670,16 @@ export const SCENARIO_RUNNERS = Object.freeze({
     await release()
     t.expectExit(run, 0)
     t.expectNoDialogs(run)
-    t.expectUserFiles(dir, seeded)
+    t.expectPlaces(places, 'after the update')
     t.expectNoHoldingFolder(dir)
     t.expectAppInstalled(dir)
     t.expectRegistration('HKCU', dir)
+    const removal = await t.uninstall(dir)
+    t.expectExit(removal, 0)
+    t.expectNoDialogs(removal)
+    t.expectPlaces(places, 'after uninstalling')
+    t.expectAppGone(dir)
+    t.expectNoRegistration()
   },
 
   async 'new-to-new-changed-dir'(t) {
@@ -791,7 +831,12 @@ async function main() {
   const manifest = JSON.parse(fs.readFileSync(path.resolve(args.manifest), 'utf8'))
   // 被测包必须和旧版不同号：A7 要的是「标记不是当前登记的那一版写的」，同号时这个场景量不到任何东西（工作流会先改一个测试版本号）。
   if (manifest.version === OLD_VERSION) throw new Error(`the build under test is version ${OLD_VERSION}, the same as the old installer; give it its own version first (see .github/workflows/win-installer.yml)`)
-  const state = { work, manifest, unpacked: path.resolve(args.unpacked), installerName: path.basename(args.new), oldExe, newExe, runCounter: 0, uninstallCounter: 0, guid: null, current: null, cleanups: [] }
+  // 「默认位置」= Electron app.getPath('documents') 那个目录（同一个系统已知文件夹）。
+  const documents = powershell("[Environment]::GetFolderPath('MyDocuments')")
+  if (!documents || !path.isAbsolute(documents)) throw new Error(`cannot resolve the Documents folder: "${documents}"`)
+  const projectsRoot = path.join(documents, DEFAULT_PROJECTS_FOLDER)
+  const projectsRootExisted = fs.existsSync(projectsRoot)
+  const state = { work, manifest, unpacked: path.resolve(args.unpacked), installerName: path.basename(args.new), oldExe, newExe, documents, outsideSeeds: [], runCounter: 0, uninstallCounter: 0, guid: null, current: null, cleanups: [] }
   const selected = args.only ? SCENARIOS.filter((scenario) => scenario.id === args.only) : SCENARIOS
   if (selected.length === 0) throw new Error(`no scenario matches --only ${args.only}`)
   const scenarios = []
@@ -800,7 +845,15 @@ async function main() {
     scenarios.push(await runScenario(state, scenario, newExe))
   }
   const counterexamples = args.counterexamples ? await runCounterexamples(state) : []
-  const report = { version: manifest.version, oldVersion: OLD_VERSION, only: args.only ?? null, scenarios, counterexamples }
+  // 「文档」\Nomi Projects 是本次跑才建出来的，就把它删掉（只在已经空了时；里面有别的东西就留着）。
+  if (!projectsRootExisted) {
+    try {
+      fs.rmdirSync(projectsRoot)
+    } catch {
+      // 不存在或不空：都不动
+    }
+  }
+  const report ={ version: manifest.version, oldVersion: OLD_VERSION, only: args.only ?? null, scenarios, counterexamples }
   fs.mkdirSync(path.dirname(path.resolve(args.report)), { recursive: true })
   fs.writeFileSync(path.resolve(args.report), `${JSON.stringify(report, null, 2)}\n`)
   writeSummary(report)

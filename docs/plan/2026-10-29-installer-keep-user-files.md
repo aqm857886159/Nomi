@@ -52,7 +52,7 @@
 
 真实任务（Windows 作业里真装真升真卸，不是夹具模拟）：
 
-1. 事故原样：v0.24.0 Release 安装包装到 `Nomi_new`，建 `xiangmu\proj1\.nomi\project.json` + 素材 + 顶层散文件，再用新包 `--updated /S` 升级。
+1. 事故原样：v0.24.0 Release 安装包装到 `Nomi_new`，建 `xiangmu\proj1\.nomi\project.json` + 素材 + 顶层散文件，另在默认位置（「文档」`\Nomi Projects`）和安装目录外的自选位置各放一个项目，再用新包 `--updated /S` 升级，最后用新卸载程序卸载。
 2. 安装目录本身是装满用户文件的中文带空格目录（`我的 工作`），0.24.0 装进去 → 升级 → 新版卸载。
 3. 新版装好后放用户文件 → 新版再升级 → 普通卸载。
 
@@ -129,7 +129,7 @@
 
 ## 8 真实条件
 
-- Windows：GitHub Actions `windows-latest` 真装真升真卸，旧版用 GitHub Release 上的 v0.24.0 安装包（真包，不是自建模拟）。
+- Windows：GitHub Actions `windows-latest` 真装真升真卸，旧版用 GitHub Release 上的 v0.24.0 安装包（真包，不是自建模拟）。动到安装器文件的推送跑一次；每次发候选版（`desktop-rc.yml`）也跑一次，作为发版硬门（见 ★9）。
 - 干净安装：每个场景开始前清注册表、目录、快捷方式。
 - 静默 / 交互：作业只跑静默（electron-updater「退出时安装」的参数）；「重启以更新」的非静默界面 `unverified`（同一段代码，只差界面和 `--force-run`）。
 - UAC 内层实例（以普通权限运行安装程序、选「所有用户」时经 UAC 提权出来的那个实例）：`unverified`——CI 上 UAC 关着，造不出内层实例；这条路径与外层共用同一个函数，只是入口不同。
@@ -148,7 +148,7 @@
 
 | 编号 | 场景 id | 怎么做 | 另核什么 |
 |---|---|---|---|
-| A1 | `old-to-new-user-folder` | 0.24.0 静默装到 `Nomi_new`；种 `xiangmu\proj1\.nomi\project.json`、`xiangmu\proj1\assets\shot.png`、顶层 `notes.txt`；新包 `--updated /S` | 安装目录顶层非用户条目 = 清单顶层名 + 卸载程序（不多不少）；清单每个文件都在且 `resources\app.asar` 与 `win-unpacked` 字节相同；`DisplayVersion` = 新版本；`RemovesOnlyOwnFiles` = 新版本 |
+| A1 | `old-to-new-user-folder` | 0.24.0 静默装到 `Nomi_new`；用户数据放三处：安装目录里（`xiangmu\proj1\.nomi\project.json`、`xiangmu\proj1\assets\shot.png`、顶层 `notes.txt`）、默认位置（「文档」`\Nomi Projects\` 下本场景专用的项目文件夹）、安装目录外的自选位置（和安装目录同级）；新包 `--updated /S`；再用新卸载程序卸载 | 升级后、卸载后三处都在；升级后安装目录顶层非用户条目 = 清单顶层名 + 卸载程序（不多不少）；清单每个文件都在且 `resources\app.asar` 与 `win-unpacked` 字节相同；`DisplayVersion` = 新版本；`RemovesOnlyOwnFiles` = 新版本；卸载后顶层只剩用户的条目、注册表清掉 |
 | A2 | `old-to-new-dir-full-of-user-files` | 先建 `我的 工作`（中文带空格）并塞满用户文件（多层目录、隐藏、只读、0 字节）；0.24.0 `/S /D=` 装进去；新包升级；再用新卸载程序卸载 | 升级后、卸载后用户文件都在；卸载后清单文件全不在、目录还在（因为有用户文件） |
 | A3 | `old-to-new-app-still-running` | 0.24.0 装好、种用户文件后，以 `xiangmu` 为工作目录启动旧版 `Nomi.exe`（模拟 quitAndInstall 时应用还没退、占着项目目录）；确认进程活着再跑新包 `--updated /S` | 退出码 0；Nomi 进程已被结束；用户文件都在（证明挪开排在「应用已关」之后） |
 | A4 | `old-to-new-locked-user-file` | 0.24.0 + 用户文件；另一个进程独占打开 `xiangmu\proj1\.nomi\project.json`；新包 `--updated /S` | 静默下捕获到 1 个对话框、文本含 `xiangmu`；退出码 2；安装目录与注册表版本仍是 0.24.0；然后解除占用重跑 → 同 A1 全绿 |
@@ -158,17 +158,19 @@
 | A8 | `old-to-new-no-foreign-then-uninstall` | 0.24.0 装到 `Clean`，不放任何东西；新包升级；再卸载 | 升级后顶层条目恰好 = 清单顶层名 + 卸载程序、没建过旁边目录；卸载后 `Clean` 目录不存在（零残渣） |
 | A9 | `interrupted-after-old-uninstall` | 0.24.0 + 用户文件；模拟上次修好的安装程序挪开后、旧卸载程序已跑完时被打断：用户文件已在 `<L>.nomi-keep`（含说明文件）、写了 `Pending1`、旧版已被卸载（注册表没了）；跑新包 `--updated /S` | 用户文件回到 `<L>` 原路径；旁边目录与 `.nomi-keep` 键都没了 |
 | A10 | `interrupted-before-old-uninstall` | 同上但旧版还装着（注册表还在）；跑新包 `--updated /S` | 先挪回、再正常挪开 / 升级 / 挪回；用户文件在 `<L>`；升级成功 |
-| A11 | `new-to-new-update` | 新包装好；种顶层文件夹 + 散文件 + 嵌套 `resources\user-notes\a.txt`、`locales\my.txt`；独占打开其中一个用户文件；新包再 `--updated /S` | 退出码 0（被占用的用户文件不挡升级 = 没走挪开、新卸载程序没碰它）；嵌套用户文件也在；没建旁边目录 |
+| A11 | `new-to-new-update` | 新包装好；用户数据放三处（同 A1），安装目录里另有嵌套的 `resources\user-notes\a.txt`、`locales\my.txt`；独占打开其中一个用户文件；新包再 `--updated /S`；解除占用后用新卸载程序卸载 | 退出码 0（被占用的用户文件不挡升级 = 没走挪开、新卸载程序没碰它）；升级后、卸载后三处都在（含嵌套的）；没建旁边目录；卸载后清单文件全不在、注册表清掉 |
 | A12 | `new-to-new-changed-dir` | 新包装到 `A` + 用户文件；新包 `/S /D=B` | 用户文件留在 `A`；`A` 里清单文件全不在；`B` 装好 |
 | A13 | `new-uninstall-keeps-user-files` | 新包装好；种顶层 + 嵌套在 `resources\` 里的用户文件；用卸载程序 `/S /currentuser` 卸载 | 清单文件全不在；含用户文件的目录还在、其余安装器目录都删了；卸载注册表项、`Software\<GUID>`、快捷方式都没了 |
 
-任务书点名的覆盖面 → 场景：用户文件夹含 `.nomi\project.json`（A1 等）、散文件（A1）、装满用户文件的目录（A2）、0.24.0 → 新版（A1–A10）、新版 → 更新版（A11）、普通卸载（A13、A2、A8）、用户文件被占用（A4、A11）、手动重装改目录（A5、A12）、没有外来文件不留残渣（A8）。普查测试按 `tests/installer/scenarios.mjs` 的覆盖面登记逐项核，少一项就红。
+任务书点名的覆盖面 → 场景：用户文件夹含 `.nomi\project.json`（A1 等）、散文件（A1）、装满用户文件的目录（A2）、0.24.0 → 新版（A1–A10）、新版 → 更新版（A11）、普通卸载（A13、A1、A2、A8、A11）、用户文件被占用（A4、A11）、手动重装改目录（A5、A12）、没有外来文件不留残渣（A8）；协调追加的「用户数据放三处（默认位置、安装目录外的自选位置、安装目录里），升级后、卸载后各验一遍」（A1：0.24.0 → 新版 → 卸载；A11：新版 → 新版 → 卸载）。普查测试按 `tests/installer/scenarios.mjs` 的覆盖面登记逐项核，少一项就红。
+
+发版硬门（协调追加）：`desktop-rc.yml` 的 `windows-installer` 作业无条件调用本作业（`workflow_call`），`finalize` 依赖它；它红了候选版运行不是 success，`desktop-release.yml` 只晋级 success 的候选版。它和 `validate` 并行，测同一个提交（`github.sha`，`validate` 第一步核过 `inputs.ref` 就是它），自己另打一个带 `-installer-test` 后缀的安装包，不是 `windows` 作业上传的那一个字节相同的候选包（同一份源码、同一套打包配置；差别只在版本号和反馈接收端的出厂配置，后者在 `app.asar` 里，不影响安装目录里有哪些文件）。
 
 Mac 侧（vitest，本线自跑）：
 
 - M1 清单生成器矩阵：普通树 / 空目录 / 中文、空格、`$`、`'`、`&`、`#` 文件名 / 符号链接目录（跟随、防环）/ `packElevateHelper` 开关与 `perMachine` / 不支持的架构抛错 / 配了 `fileAssociations` 抛错 / 文件名含 `${` 抛错 / 同一棵树两次输出逐字节相同；NSH 解析回来与 JSON、与独立遍历三方一致。
 - M2 afterPack 接线：用假的 win32 打包上下文调 `after-pack-mac.cjs`，清单写到 `<projectDir>/.tmp/installer-manifest/<产品名>-x64.*`；linux 不写（darwin 那一支会真调 codesign，单测不调它；两者走的是同一句 `=== "win32"` 判断）。
-- M3 普查：`build.nsis.include === "build/installer.nsh"`、`oneClick === false`；`installer.nsh` 没有 `RMDir /r`、定义了 6 个钩子；常量与 `scenarios.mjs` 逐字一致；electron-builder 模板 12 个文件的 SHA-256 指纹；工作流对 `windows-latest` 跑全部场景、不带 `--only`、反例开着；每个反例的「改哪一句」在 `installer.nsh` 里恰好出现一次。
+- M3 普查：`build.nsis.include === "build/installer.nsh"`、`oneClick === false`；`installer.nsh` 没有 `RMDir /r`、定义了 6 个钩子；常量与 `scenarios.mjs` 逐字一致；electron-builder 模板 12 个文件的 SHA-256 指纹；工作流对 `windows-latest` 跑全部场景、不带 `--only`、反例开着、能被 `workflow_call` 调用；`desktop-rc.yml` 恰好一个作业无条件调用它、`finalize` 依赖它，`desktop-release.yml` 只晋级 success 的候选版；执行器种「默认位置」的 `Nomi Projects` 还是 `electron/runtimePaths.ts` 里的默认位置；每个反例的「改哪一句」在 `installer.nsh` 里恰好出现一次。
 
 反例（先改 → 必须红 → 还原）：
 
@@ -181,6 +183,7 @@ Mac 侧（vitest，本线自跑）：
 | CX5 | `installer.nsh` 混进一句 `RMDir /r` | M3 红 | Mac |
 | CX6 | 模板任一文件改一个字节（在副本上） | M3 指纹红 | Mac |
 | CX7 | 工作流加 `--only` | M3 红 | Mac |
+| CX8 | `desktop-rc.yml` 的 `finalize` 不再依赖安装器作业 / 去掉这个作业 / 给它加条件 | M3 红 | Mac |
 
 这一类还会从哪回来：换 electron-builder 版本（模板指纹拦）、换安装包形态（单击安装 / 所有用户 / 多架构 / 网络安装包：`installer.nsh` 顶部 `!error` 拦在编译期）、加文件关联（生成器抛错）、新增 afterPack 之后才放进安装目录的文件（Windows 作业 A1 / A8 的「顶层条目恰好 = 清单」拦）、旧版本留下的注册表形状（A7、A9、A10）。
 

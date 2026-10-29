@@ -14,6 +14,11 @@ export const KEEP_README = 'NOMI-INSTALLER-KEEP.txt'
 export const MARKER_VALUE_NAME = 'RemovesOnlyOwnFiles'
 /** 待恢复记录的值名前缀（Pending1 / Pending2），installer.nsh 写作 "Pending$nomiSlot"。 */
 export const PENDING_VALUE_PREFIX = 'Pending'
+/**
+ * 新项目的默认位置 = 「文档」下的这个文件夹（electron/runtimePaths.ts 的 defaultProjectsFolderName，应用名是 Nomi 时）。
+ * 执行器把「默认位置」的用户数据种在这里；普查测试核对应用代码里还是这个名字、还是「文档」目录。
+ */
+export const DEFAULT_PROJECTS_FOLDER = 'Nomi Projects'
 
 /** 任务书点名、设计卡 ★9 要覆盖的面；每一项至少一个场景认领。 */
 export const REQUIRED_COVERAGE = Object.freeze({
@@ -30,6 +35,7 @@ export const REQUIRED_COVERAGE = Object.freeze({
   'app-still-running': '应用还开着时就开始升级',
   'per-machine': '旧版装给了所有用户',
   'stale-marker': '注册表里有别的版本写的标记',
+  'user-data-three-places': '用户数据放三处（默认位置、安装目录外的自选位置、安装目录里），升级后、卸载后各验一遍',
 })
 
 /** 每个场景：id（执行器按它认领）、设计卡编号、认领的覆盖面、一句话。断言细节在执行器里，和设计卡 ★9 表逐行对应。 */
@@ -37,8 +43,8 @@ export const SCENARIOS = Object.freeze([
   {
     id: 'old-to-new-user-folder',
     card: 'A1',
-    covers: ['user-folder-with-project', 'loose-user-file', 'old-to-new'],
-    title: '事故原样：0.24.0 装在 Nomi_new，项目在 xiangmu、顶层有散文件，新包 --updated /S 升级',
+    covers: ['user-folder-with-project', 'loose-user-file', 'old-to-new', 'user-data-three-places', 'plain-uninstall'],
+    title: '事故原样：0.24.0 装在 Nomi_new，项目在 xiangmu、顶层有散文件，另有默认位置和安装目录外自选位置的项目；新包 --updated /S 升级，再用新卸载程序卸载',
   },
   {
     id: 'old-to-new-dir-full-of-user-files',
@@ -97,8 +103,8 @@ export const SCENARIOS = Object.freeze([
   {
     id: 'new-to-new-update',
     card: 'A11',
-    covers: ['new-to-newer', 'locked-user-file'],
-    title: '新版 → 新版：被占用的用户文件、嵌套在 resources\\ 和 locales\\ 里的用户文件都不挡升级、都留着',
+    covers: ['new-to-newer', 'locked-user-file', 'user-data-three-places', 'plain-uninstall'],
+    title: '新版 → 新版：三处用户数据（含被占用的、嵌套在 resources\\ 和 locales\\ 里的）不挡升级、都留着；再卸载，三处还在',
   },
   {
     id: 'new-to-new-changed-dir',

@@ -20,6 +20,7 @@
     "package.json",
     "tests/installer/**",
     ".github/workflows/win-installer.yml",
+    ".github/workflows/desktop-rc.yml",
     "docs/plan/2026-10-29-installer-keep-user-files.md"
   ],
   "entry_points": [
@@ -184,7 +185,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "build/installer.nsh",
     "invariant": "安装器只删构建时清单里的条目；调用不可信的旧卸载程序之前，安装目录顶层的外来条目已同盘挪开、结束后挪回。",
-    "failure_mode": "挪不开：已挪的挪回、弹框（不带 /SD，静默也弹）、退出码 2、旧版原样。清单过期：NSIS 编译期 !error。安装包形态变成 installer.nsh 处理不了的（单击安装 / 只装所有用户 / 非 x64 / 网络安装包）：编译期 !error。模板变了：普查测试指纹红。installer.nsh 混进 RMDir /r：普查测试红。",
+    "failure_mode": "挪不开：已挪的挪回、弹框（不带 /SD，静默也弹）、退出码 2、旧版原样。清单过期：NSIS 编译期 !error。安装包形态变成 installer.nsh 处理不了的（单击安装 / 只装所有用户 / 非 x64 / 网络安装包）：编译期 !error。模板变了：普查测试指纹红。installer.nsh 混进 RMDir /r：普查测试红。真装真升真卸红了：推送时作业红；发候选版时 desktop-rc.yml 的 windows-installer 作业红、finalize 不跑、候选版运行不是 success，desktop-release.yml 拒绝晋级。",
     "exception_policy": "none",
     "strategy": "用 electron-builder 文档化的 nsis.include 接管卸载段的删除点（customRemoveFiles），清单由 afterPack 生成；旧版本卸载程序改不了，就在新安装程序调用它的前后挪开 / 挪回；Windows 作业真装真升真卸，反例证明场景量得到它声称守住的东西。",
     "artifacts": [
@@ -193,6 +194,7 @@
       "scripts/after-pack-mac.cjs",
       "package.json",
       ".github/workflows/win-installer.yml",
+      ".github/workflows/desktop-rc.yml",
       "tests/installer/scenarios.mjs",
       "tests/installer/windows-installer-scenarios.mjs",
       "tests/installer/dialog-watcher.ps1",
@@ -232,6 +234,8 @@
     "安装目录是盘符根目录、旁边目录已存在或建不了时，不挪、中止更新并弹框（安全，但更新不了，要用户把文件移走或换目录）。",
     "只在旧版本里有、新版本清单里没有的顶层文件，升级后作为残渣留下（不删用户东西优先）。",
     "开发机（macOS）上没有 makensis，build/installer.nsh 的编译与运行只由 Windows 作业验证。",
+    "发版硬门测的是候选版同一个提交另打的安装包（版本号带 -installer-test 后缀），不是 windows 作业上传的那个字节相同的候选包；两者同一份源码、同一套打包配置，差别只在版本号和 app.asar 里的反馈接收端出厂配置，不影响安装目录里有哪些文件。",
+    "默认位置的用户数据种在 runner 的「文档」\\Nomi Projects；应用改了默认位置时，普查测试（核 electron/runtimePaths.ts）先红。",
     "杀毒软件在挪开 / 挪回途中长时间占用文件：重试 10 秒后中止并弹框，未在真用户机器上验证。"
   ],
   "detected_by": "user",

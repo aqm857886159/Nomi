@@ -225,8 +225,16 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # 发版硬门：Windows 安装器真装、真升级、真卸载（v0.24.0 → 本提交、本提交 → 本提交、卸载，三处用户数据都在；
+  # 设计卡 docs/plan/2026-10-29-installer-keep-user-files.md）。它红了 finalize 不跑、本次运行不是 success，
+  # desktop-release.yml 就不晋级。不等 validate：它要一个多小时，和 validate 并行；测的是同一个提交（github.sha，
+  # validate 的第一步核过 inputs.ref 就是它），自己按被测版本号另打一个安装包（工作流里加 -installer-test 后缀），
+  # 和 windows 作业上传的候选包同一份源码、同一套打包配置。
+  windows-installer:
+    uses: ./.github/workflows/win-installer.yml
+
   finalize:
-    needs: [validate, macos, windows]
+    needs: [validate, macos, windows, windows-installer]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

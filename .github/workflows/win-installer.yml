@@ -8,8 +8,12 @@
 # 场景登记在 tests/installer/scenarios.mjs，执行器是 tests/installer/windows-installer-scenarios.mjs；
 # tests/installer/installerScenarios.test.mjs（默认 vitest 车道）核对本文件跑全部场景、不带 --only、反例开着。
 #
-# 触发：动到安装器相关文件的推送（任何分支，推上去就跑）；合入默认分支后也能在 Actions 里手动跑（workflow_dispatch）。
-# Windows runner 计费 2 倍、单跑一个多小时，所以只认这几条路径，不挂每次推送。
+# 触发：
+#   · 动到安装器相关文件的推送（任何分支，推上去就跑）；合入默认分支后也能在 Actions 里手动跑（workflow_dispatch）；
+#   · 发版硬门：desktop-rc.yml 的 windows-installer 作业调用本工作流（workflow_call），它红了候选版的 finalize 不跑、
+#     整次候选版运行不是 success，desktop-release.yml 就拒绝晋级。被调用时 github.sha 就是候选版的提交
+#     （desktop-rc 的 validate 第一步核过 inputs.ref 解析出来等于 github.sha），这里的 checkout 默认就取它。
+# Windows runner 计费 2 倍、单跑一个多小时，所以推送只认这几条路径，不挂每次推送。
 # electron-builder 升级会先让普查测试的模板指纹红，更新指纹要改 tests/installer/ 下的文件，于是推送时本作业一定会跑。
 name: Win Installer Scenarios
 
@@ -22,13 +26,15 @@ on:
       - tests/installer/**
       - .github/workflows/win-installer.yml
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
+# 同一分支连推只留最新一次；候选版调用（github.workflow 是调用方的名字）自成一组、从不被取消。
 concurrency:
-  group: win-installer-${{ github.ref }}
-  cancel-in-progress: true
+  group: win-installer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   scenarios:

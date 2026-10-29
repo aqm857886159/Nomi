@@ -4,6 +4,8 @@
 // 「那个作业量的东西还是对的」：
 //   · 任务书点名的每个覆盖面都有场景认领，场景登记 ↔ 执行器 ↔ 设计卡 ★9 表一一对应；
 //   · 工作流在 windows-latest 上跑全部场景、反例开着、不带 --only，旧版是 v0.24.0；
+//   · 它是发版硬门：desktop-rc.yml 恰好一个作业无条件调用它、finalize 依赖它，desktop-release.yml 只晋级 success 的候选版；
+//   · 执行器种「默认位置」用户数据的地方，还是应用代码里新项目的默认位置（「文档」\Nomi Projects）；
 //   · build/installer.nsh 没有 `RMDir /r`、6 个钩子都在，常量和 scenarios.mjs 逐字一致，引入的清单路径就是生成器写的路径；
 //   · package.json 的打包配置还是 installer.nsh 能处理的形状；
 //   · 每个反例要改的那一句在 installer.nsh 里恰好一处；
@@ -17,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
-import { COUNTEREXAMPLES, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, REQUIRED_COVERAGE, SCENARIOS } from './scenarios.mjs'
+import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, REQUIRED_COVERAGE, SCENARIOS } from './scenarios.mjs'
 import { OLD_VERSION, SCENARIO_RUNNERS, applyMutation } from './windows-installer-scenarios.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -26,6 +28,9 @@ const { manifestPaths, renderNsh } = require('../../scripts/packaging/installer-
 
 const INSTALLER_NSH = 'build/installer.nsh'
 const WORKFLOW = '.github/workflows/win-installer.yml'
+const RC_WORKFLOW = '.github/workflows/desktop-rc.yml'
+const RELEASE_WORKFLOW = '.github/workflows/desktop-release.yml'
+const CALLED_AS = `./${WORKFLOW}`
 const DESIGN_CARD = 'docs/plan/2026-10-29-installer-keep-user-files.md'
 const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8')
 
@@ -142,10 +147,24 @@ function workflowProblems(text) {
   }
   const triggers = workflow.on ?? {}
   if (!('workflow_dispatch' in triggers)) problems.push('workflow_dispatch trigger missing')
+  if (!('workflow_call' in triggers)) problems.push(`workflow_call trigger missing (${RC_WORKFLOW} calls this workflow as a release gate)`)
   const paths = triggers.push?.paths ?? []
   const covered = (file) => paths.some((pattern) => (pattern.endsWith('/**') ? file.startsWith(pattern.slice(0, -2)) : pattern === file))
   for (const file of [INSTALLER_NSH, 'scripts/packaging/installer-manifest.cjs', 'scripts/after-pack-mac.cjs', 'tests/installer/scenarios.mjs', 'tests/installer/windows-installer-scenarios.mjs', 'tests/installer/dialog-watcher.ps1', 'tests/installer/installerScenarios.test.mjs', WORKFLOW]) {
     if (!covered(file)) problems.push(`push.paths does not cover ${file}`)
+  }
+  return problems
+}
+
+/** 发版硬门判据：候选版工作流恰好一个作业调用本工作流、不带条件，finalize 依赖它。返回问题清单。 */
+function releaseGateProblems(text) {
+  const problems = []
+  const jobs = yaml.load(text).jobs ?? {}
+  const callers = Object.entries(jobs).filter(([, job]) => job.uses === CALLED_AS)
+  if (callers.length !== 1) problems.push(`expected one ${RC_WORKFLOW} job calling ${CALLED_AS}, found ${callers.length}`)
+  for (const [id, job] of callers) {
+    if (job.if !== undefined) problems.push(`the ${id} job has a condition (${job.if}); the release gate must run on every candidate`)
+    if (![].concat(jobs.finalize?.needs ?? []).includes(id)) problems.push(`finalize does not need ${id}, so a red installer run would not stop the candidate`)
   }
   return problems
 }
@@ -197,6 +216,29 @@ describe('Windows installer workflow', () => {
     expect(workflowProblems(text.replaceAll('runs-on: windows-latest', 'runs-on: ubuntu-latest'))).toContain('expected one windows-latest step running the scenario runner, found 0')
     expect(workflowProblems(text.replaceAll('      - tests/installer/**\n', ''))).toContain('push.paths does not cover tests/installer/scenarios.mjs')
     expect(workflowProblems(text.replaceAll(`v${OLD_VERSION} `, 'v0.23.9 '))).toContain(`no step downloads the v${OLD_VERSION} release installer`)
+    expect(workflowProblems(text.replace('  workflow_call:\n', ''))).toContain(`workflow_call trigger missing (${RC_WORKFLOW} calls this workflow as a release gate)`)
+  })
+
+  it('is a release gate: the release candidate runs it unconditionally, finalize waits for it, and only a successful candidate is promoted', () => {
+    expect(releaseGateProblems(read(RC_WORKFLOW))).toEqual([])
+    expect(read(RELEASE_WORKFLOW)).toContain('test "$(jq -r .conclusion rc-run.json)" = "success"')
+  })
+
+  it('CX8: the release-gate check goes red when the candidate stops waiting for the installer job, drops it or makes it conditional', () => {
+    const text = read(RC_WORKFLOW)
+    const finalizeNeeds = 'needs: [validate, macos, windows, windows-installer]'
+    expect(text.split(finalizeNeeds)).toHaveLength(2)
+    expect(releaseGateProblems(text.replace(finalizeNeeds, 'needs: [validate, macos, windows]'))).toContain('finalize does not need windows-installer, so a red installer run would not stop the candidate')
+    expect(releaseGateProblems(text.replace(`uses: ${CALLED_AS}`, 'uses: ./.github/workflows/win-gate.yml'))).toContain(`expected one ${RC_WORKFLOW} job calling ${CALLED_AS}, found 0`)
+    expect(releaseGateProblems(text.replace(`    uses: ${CALLED_AS}`, `    if: false\n    uses: ${CALLED_AS}`))).toContainEqual(expect.stringMatching(/^the windows-installer job has a condition/))
+  })
+})
+
+describe('the default project location the runner seeds', () => {
+  it('is still the app default: Documents\\Nomi Projects (electron/runtimePaths.ts)', () => {
+    const source = read('electron/runtimePaths.ts')
+    expect(source).toContain(`return "${DEFAULT_PROJECTS_FOLDER}";`)
+    expect(source).toContain('path.join(app.getPath("documents"), defaultProjectsFolderName(appName))')
   })
 })
 
