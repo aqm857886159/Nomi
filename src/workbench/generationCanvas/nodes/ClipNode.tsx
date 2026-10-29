@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -510,8 +511,8 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
         }
       }, articleRef.current?.closest(`[${SHORTCUT_SURFACE_ATTRIBUTE}]`) ?? null)
     }
-    window.addEventListener('keydown', onKeyDown, true)
-    return () => window.removeEventListener('keydown', onKeyDown, true)
+    canvasWindowInput.addEventListener('keydown', onKeyDown, true)
+    return () => canvasWindowInput.removeEventListener('keydown', onKeyDown, true)
   }, [activeClip, closeEditing, durationFrames, editingOpen, handleDuplicateClip, handleNudgeClip, handleRemoveClip, handleSplitClip, playheadFrame, readOnly, selected])
 
   const floatingLayerStyle = React.useMemo<React.CSSProperties | null>(() => {

@@ -203,6 +203,7 @@ export type DesktopBridge = DesktopMediaBridge &
     openFolder: (payload: { rootPath: string; initialize?: boolean; name?: string }) => Promise<unknown>
     listFiles: (payload: { projectId: string; limit?: number }) => Promise<WorkspaceFileListResult>
     revealFile: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>
+    deleteAssets?: (payload: { projectId: string; relativePaths: string[] }) => Promise<import('../workbench/assets/deleteAssetResult').DeleteAssetResultOutcome[]>
     deleteFiles?: (payload: {
       projectId: string
       relativePaths: string[]

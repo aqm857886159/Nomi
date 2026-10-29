@@ -33,6 +33,22 @@
 
 输入事件使用 DOM 原生事件，异步转交复用现有 rendererBridge（绑定收件人及超时），删除复用 planAssetDeletion / deleteAssetResult / 撤销日志。领域约束是 Nomi 的画布/列表/时间轴宿主与版本引用，不自造通用 RPC、事件总线或回收站实现，不装包。
 
+### 5.1 自写登记 `director-refine-panel-hooks` 的再评估
+
+本刀把 `useDismissOnEscape` 的键盘监听从 `window` 换到共享输入边界 `canvasWindowInput`，一行换写，不加分支。这条登记 30 天内第 2 个 fix，所以先评估能不能换现成方案：
+
+| 选项 | 出处 | 结论 |
+|---|---|---|
+| 接入现成方案：Radix `DismissableLayer`（随 dropdown-menu、tooltip 间接装了 1.1.19，按层栈只让最上层响应 Esc） | 已装源码 `@radix-ui/react-dismissable-layer/dist/index.mjs` 第 90–106 行；https://github.com/radix-ui/primitives/tree/main/packages/react/dismissable-layer | 不选：只管浮层这一层，导演台 Esc 链后面的「选中 → 机位视角 → 退出」不是浮层，接进来同一条链就有两套机制；它直接监听 ownerDocument，绕过本刀的隐藏面输入边界，切到列表时照样响应。它也不是 Radix 文档里公开的原语 |
+| 接入现成方案：`@mantine/hooks` 的 `useHotkeys`（现已是直接依赖 8.3.18） | https://mantine.dev/hooks/use-hotkeys/ ；已装源码 `use-hotkeys.mjs` 第 29 行监听 `document.documentElement` | 不选：只有「按了就回调」，没有逐层让路；同样绕过隐藏面输入边界 |
+| 保留自写，只把监听换到共享边界 | 本刀 | 采用 |
+
+为什么现在换不了：导演台的 Esc 归属链（浮层 → 按需面板 → 选中 → 机位视角 → 退出）是领域规则，现成库最多覆盖第一层；本刀又要求所有全局输入监听都经过 `canvasWindowInput`，两个候选都自己挂整页监听。
+
+哪天换：导演台 Esc 归属改由统一的分层快捷键作用域承担时（登记的 revisitWhen 不变），删掉 `useDismissOnEscape`。到那时优先让共享输入边界本身接一个现成的分层快捷键库，而不是每个 hook 各接一个。
+
+登记里「@mantine/hooks 未声明为直接依赖」已过时，本提交一并改正。
+
 ## 6. 选择与删除清单
 
 | 选项 | 代价与风险 | 结论 |
@@ -53,3 +69,8 @@
 ## 特征测试
 
 修前真窗证据存于本线隔离报告；产品修改前补输入矩阵与文件桥边界反例。没有使用合成测试替代真窗复现。
+
+## 裁定（协调会话，2026-10-30）
+
+- 输入权限与删除引用这两类热点：用户「按三刀修」已拍板方向，提交带本文 trailer。
+- 自写登记 `director-refine-panel-hooks`：按 P1 例外代批，事后报用户。命中只因登记口径，`useDismissOnEscape.ts` 本身没命中；改法是把监听目标换成共享边界，不新增分支或特例。

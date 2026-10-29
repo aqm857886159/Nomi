@@ -1,0 +1,28 @@
+{
+  "id": "FB-20261029-hidden-surface-input",
+  "since": "2026-10-29",
+  "source": "只读视图对等审计发现，真实隔离 Electron 复核；detected_by: review。不是用户直接报告的这两件缺陷。",
+  "category": "interaction-semantics",
+  "problem": "列表内 Delete / 撤销能触碰隐藏画布，keep-alive 全局输入未声明宿主权限。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "同一作品切换视图后只操作当前交互面",
+    "共享文件引用不能因入口不同而悬空"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "reviewed",
+  "evidence": [
+    "修前真实窗口复现；两次收尾均没抢前台。",
+    "src/workbench/shortcutSurface.matrix.test.ts"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-29-view-parity-cut1.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/shortcutSurface.matrix.test.ts"
+  }
+}
