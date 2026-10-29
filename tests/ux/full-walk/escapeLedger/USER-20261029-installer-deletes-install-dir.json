@@ -27,7 +27,8 @@
     "57b0f6e42b86488deec3503dacee8451a256dc3c",
     "0d854b0b7b89a94b2bf3286bf7be28db6b33b676",
     "7565502ed829176dcdade74f280bb1c910cd5df0",
-    "9ff61d8020fe7db900ff30c305f7feb441b7eb86"
+    "9ff61d8020fe7db900ff30c305f7feb441b7eb86",
+    "088a22643af4146e55a6b3075e1a214af40d6606"
   ],
   "rootCauseContract": "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
   "classCheck": {
