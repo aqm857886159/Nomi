@@ -1,7 +1,7 @@
 # 方向检查：「项目在哪」没有主人（D-project-location，RW，2026-10-29）
 
 > 触发：`node scripts/fix-churn.mjs`（基线 main 693d890d7）——`electron/projects/repository.ts` 14 天第 6 个 fix、`electron/workspace/workspaceRepository.ts` 第 8 个、目录 `electron/projects/` 第 11 个、概念「项目目录的生死」第 8 个、「项目名」第 9 个。按用户 10-29 批准的 D1（一个单元 ≥10 个 fix 开收敛单），这一页是**收敛单**，不是补丁。
-> 本段只交特征测试、本页和设计卡草稿（`2026-10-29-project-location-owner.design-card.md`），没改生产代码。
+> 本段只交特征测试、本页和设计卡草稿（第 2 段定稿为 `2026-10-29-project-location-owner.md`），没改生产代码。
 > 特征测试：`electron/projects/projectLocation.characterization.test.ts`（21 条，全部走真实生产函数 + 临时目录，现状全绿；标「坏行为」的由收敛单翻过来——改断言，不删用例）。
 
 ## 0. 一句话根因
