@@ -14,6 +14,14 @@
 //   ② 任务面板那一半由 #869（2026-09-25 拍板的任务面板样张）接手：draft_shots 建的草稿不进任务列表，
 //   报价卡在等人时归「等你处理」——这里按那一版断言，不另立一套。④ 的画法由 #870 落进节点自己的运行记录。
 //
+// 2026-10-28（I-double-submit-walks）：②③ 两步按 D2 第③步（#1336，用户 2026-10-23 拍板 Q3c / Q1）之后的规矩断言——
+//   以前「报价卡在等人 = 这一镜归制作流程，节点 ↑ 按不下去」（#875）；现在面板出价开着、这一镜还没决定时，节点 ↑ 可按：
+//   按下去就是用户对这一镜的决定（画布发这一镜，卡认出、不再交）。卡上点了「生成」之后这一镜交给画布那一台，
+//   同一镜只发一次靠「同节点在途」挡——这时节点 ↑ 才按不下去。规矩的唯一说法在概念登记
+//   docs/engineering/concept-owners/production.shot-generation-ownership.json 的 notes，这里不另抄。
+//   钱的那半句（任何一扇门都不把同一镜交两次）由集成矩阵 electron/capabilityCore/sameShotOnceDoors.e2e.test.ts 兜；
+//   这一条真机走查只管屏上说真话 + 按钮态，供应商按镜收几个、盘上 Run 的作业是几个做它的硬证据。
+//
 // 只有远端供应商是 loopback 夹具（零额度）；SDK、IPC、ProductionRun、渲染层、落盘全是真的。
 // 四个时刻，每个都用盘上的 Run 与夹具收到的请求数做硬证据，再看屏上说了什么：
 //   草稿 → 报价卡在等 → 点了、供应商那边还在跑（夹具把任务停在 processing）→ 出图。
@@ -23,6 +31,8 @@ import path from 'node:path'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import { switchAppLocale } from './_permissionTiersPaidSteps.mjs'
+import { canvasRunsOf, offerFacts } from './_spendCardWalk.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
   chooseAssistantModel, createRuntimeWalk, openCanvas, readProject, recorded, sendCanvas,
@@ -45,6 +55,10 @@ function readRun(projectRoot, runId) {
   if (!fs.existsSync(snapshot)) return null
   return JSON.parse(fs.readFileSync(snapshot, 'utf8')).run
 }
+
+/** 供应商收到的、属于这一镜的生成请求（按请求体里的提示词认镜：这条走查只起草这一镜）。 */
+const SHOT_PROMPT = '一只在窗台上晒太阳的橘猫'
+const shotRequests = (walk) => walk.fixture.images.filter((record) => String(record.body?.prompt ?? '').includes(SHOT_PROMPT))
 
 /** 这个节点此刻在屏上说了什么（只看用户看得见的那几样）。 */
 function nodeFace(win, nodeId) {
@@ -100,7 +114,8 @@ async function expectDraftFace(win, walk, nodeId, { runId, locale }) {
   await walk.snap(`draft-${locale}`)
 }
 
-const walk = await createRuntimeWalk('draft-not-queued', { generationProvider: 'apimart' })
+// trustFixtureOrigin：卡上「生成」交给画布那一台，画布要从本机夹具取回成图，产品出站策略默认拒 127.0.0.1（未打包构建里按精确 origin 放行）。
+const walk = await createRuntimeWalk('draft-not-queued', { generationProvider: 'apimart', trustFixtureOrigin: true })
 let failure
 try {
   const { win } = await walk.start({ first: true })
@@ -177,21 +192,22 @@ try {
   expect(await landingHasRun(win, operationId), '报价卡在等人：画布落地 host 仍读着这份 Run').toBe(true)
   await expect.poll(async () => saysOnly(await nodeFace(win, nodeId), 'awaiting_confirmation', 'en'), { message: '报价卡在等人：节点只挂「等你确认」（不说排队）', timeout: DEFAULT_TIMEOUT_MS }).toBe(true)
   await walk.snap('card-waiting-en')
-  // #875：报价卡摆出来等人 = 这一镜归制作流程，画布再发一次就是同一镜两笔。节点只挂「等你确认」（上一句），
-  // 选中它时生成钮按不下去（批量入口只剩组的「生成整组」，与制作归属共用一份可生成集合，单测钉死）。
-  // 点一下空白画布取消选中（不按 Esc：会碰到面板上的卡）。
+  // D2 Q3c（用户 2026-10-23）：面板出价开着、这一镜还没决定 → 节点 ↑ 就是用户对这一镜的决定，按得下去
+  // （按下去画布发这一镜、卡认出就不再交；那一下的集成证据在 agentPanelSpendCard.e2e 任务 C 与 sameShotOnceDoors M1）。
+  // 这里只证「按得下去」、不按它：下一步要用卡上的「生成」来交。点一下空白画布取消选中（不按 Esc：会碰到面板上的卡）。
   await clickOrFail(win.locator(`[data-node-id="${nodeId}"]`).first(), '选中报价卡在等的这一镜')
-  const generateButton = win.locator('[data-bar-segment="generate"]').first()
-  await proveProbe(generateButton, '选中后节点生成钮出现')
+  // 认这一镜自己的生成钮（挂在它的节点里），不认页面里第一颗：别处（面板、别的节点）的同名钮不能顶替它。
+  const generateButton = win.locator(`[data-node-id="${nodeId}"] [data-bar-segment="generate"]`)
+  await proveProbe(generateButton, '选中后这一镜自己的节点生成钮出现')
   await walk.snap('card-waiting-selected-en')
-  await expect(generateButton, '报价卡在等人：节点生成钮按不下去').toBeDisabled()
+  await expect(generateButton, 'Q3c：报价卡在等人、这一镜还没决定：节点生成钮按得下去').toBeEnabled()
   await win.locator('.react-flow__pane').first().click({ position: { x: 24, y: 24 } })
   await proveProbe(card, '取消选中后报价卡仍在等人')
 
   // ── ③ 点了：真的派出去；供应商那边停在 processing，拍「生成中」 ──
   walk.fixture.holdTasks(true)
-  await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮「生成这张」', { noWaitAfter: true })
-  await expect.poll(() => walk.fixture.images.length, { message: '按下之后供应商必须真的收到一次生成请求', timeout: stationTimeout({ operations: 4 }) }).toBe(1)
+  await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮「Generate / 生成」', { noWaitAfter: true })
+  await expect.poll(() => shotRequests(walk).length, { message: '按下之后供应商必须真的收到这一镜的一次生成请求', timeout: stationTimeout({ operations: 4 }) }).toBe(1)
   await recorded(goDone.received, 'generate returns after the approval')
   await expectAbsent(card, { provenBy: cardProof, message: '答完的卡收起来' })
   await expect.poll(async () => (await nodeFace(win, nodeId)).phase, { message: '节点状态行说「生成中」', timeout: stationTimeout({ operations: 4 }) }).toBe('generating')
@@ -200,14 +216,35 @@ try {
   expect(inFlight.oldOverlay, '旧的模糊遮罩 + 大 N 不在').toBe(false)
   expect(inFlight.placeholder, '旧的批次占位不在').toBeNull()
   await expect(win.locator(TASK_COUNT), '真的在跑：任务按钮亮 1').toHaveText('1')
-  expect(readRun(projectRoot, operationId)?.generationPlan?.state, '计划已提交').toBe('submitted')
+  // D2 一台发动机：卡上点「生成」= 把这一镜交给画布那一台。制作 Run 自己不派作业、计划一直是草稿，
+  // 出价按「已交给画布」关，作业住在画布那一镜的单镜 Run 里（按镜的盘上证据）。
+  await expect.poll(async () => (await offerFacts(win, projectId, operationId)).handOvers.map((entry) => `${entry.by}:${entry.outcome}`),
+    { message: '这一镜的交接落定为「交到了」', timeout: stationTimeout({ operations: 6 }) }).toEqual(['gesture:accepted'])
+  const offer = await offerFacts(win, projectId, operationId)
+  expect(offer.closedBy, '出价按「已交给画布」关').toBe('handed_to_canvas')
+  expect(offer.productionJobs, '制作 Run 自己一笔作业都没派（作业住在画布那一镜的单镜 Run 里）').toBe(0)
+  const canvasRuns = await canvasRunsOf(win, projectId, operationId)
+  expect(canvasRuns.map((run) => run.jobs.length), '画布那一镜的单镜 Run 里恰好一个作业').toEqual([1])
+  // 按镜的证据留进走查报告（report.json）：供应商这一镜收到几个、制作 Run 几个作业、交接、画布单镜 Run 的作业状态。
+  walk.report.dispatchedMoment = {
+    supplierRequestsForShot: shotRequests(walk).length, productionRunJobs: offer.productionJobs, handOvers: offer.handOvers,
+    canvasRunJobs: canvasRuns.map((run) => ({ shotId: run.shotId, jobs: run.jobs.map((job) => job.status) })),
+  }
   await expect(win.locator(`[data-node-id="${nodeId}"] [data-generation-status]`), 'EN 状态行').toContainText('Generating')
   await walk.snap('dispatched-en')
+  // 生成中：这一镜已经交给画布那一台，同一镜只发一次——选中它，节点生成钮按不下去；供应商仍只收到这一镜的 1 个请求。
+  await clickOrFail(win.locator(`[data-node-id="${nodeId}"]`).first(), '选中生成中的这一镜')
+  const generatingButton = win.locator(`[data-node-id="${nodeId}"] [data-bar-segment="generate"]`)
+  await proveProbe(generatingButton, '选中后生成中这一镜自己的节点生成钮出现')
+  await walk.snap('dispatched-selected-en')
+  await expect(generatingButton, '生成中：这一镜的节点生成钮按不下去（同一镜只发一次）').toBeDisabled()
+  expect(shotRequests(walk), '同一镜只收到 1 个').toHaveLength(1)
+  await win.locator('.react-flow__pane').first().click({ position: { x: 24, y: 24 } })
 
-  // 中文同一态：重开后拍「生成中」（回合已经结束，重开不会打断谁）。
-  await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'zh-CN'))
-  await win.reload()
-  await expect.poll(async () => (await nodeFace(win, nodeId)).phase, { message: 'zh：重开后节点仍说「生成中」', timeout: stationTimeout({ operations: 4 }) }).toBe('generating')
+  // 中文同一态：现场从设置里切回中文拍「生成中」。不重载：D2 之后这一镜的作业住在画布单镜 Run 里，窗口一重载渲染层就不认得它在生成
+  // （节点回到「还没生成」，主进程那头的在途准入照旧挡着第二次），那是另一件事——这里要拍的是同一个「生成中」。
+  await switchAppLocale(win, 'zh-CN')
+  await expect.poll(async () => (await nodeFace(win, nodeId)).phase, { message: 'zh：切语言之后节点仍说「生成中」', timeout: stationTimeout({ operations: 4 }) }).toBe('generating')
   await expect(win.locator(`[data-node-id="${nodeId}"] [data-generation-status]`), 'zh 状态行').toContainText('生成中')
   await walk.snap('dispatched-zh')
 
@@ -216,10 +253,13 @@ try {
   await expect(win.locator(`[data-node-id="${nodeId}"][data-status="success"]`), '还是草稿那一刻建的那个节点，变成 success')
     .toBeVisible({ timeout: stationTimeout({ operations: 6 }) })
   expect((await nodeFace(win, nodeId)).phase, '出图后不再说「生成中」').not.toBe('generating')
+  expect(shotRequests(walk), '整个过程里这一镜只收到 1 个生成请求').toHaveLength(1)
+  expect(walk.fixture.images, '整个过程里供应商一共只收到 1 个生成请求').toHaveLength(1)
   await walk.snap('done-zh')
 
   walk.report.verified = ['draft-says-not-generated-and-spends-nothing', 'draft-not-counted-as-running-task',
-    'card-waiting-says-waiting-for-you', 'card-waiting-canvas-cannot-regenerate', 'dispatched-uses-the-shared-waiting-surface', 'result-lands-on-the-drafted-node']
+    'card-waiting-says-waiting-for-you', 'card-waiting-node-up-allowed-q3c', 'dispatched-uses-the-shared-waiting-surface',
+    'dispatched-canvas-cannot-regenerate', 'one-request-per-shot', 'result-lands-on-the-drafted-node']
 } catch (error) {
   failure = error
   process.exitCode = 1
