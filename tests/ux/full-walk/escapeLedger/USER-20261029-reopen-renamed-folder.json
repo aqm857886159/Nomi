@@ -1,0 +1,23 @@
+{
+  "id": "USER-20261029-reopen-renamed-folder",
+  "since": "2026-10-29",
+  "source": "0.24.0 Windows 用户反馈（2026-10-29 转来）",
+  "category": "project-location",
+  "problem": "在资源管理器里给项目文件夹改名后项目从库里消失；用「打开已有文件夹」选改名后的文件夹，提示项目文件夹不存在。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "改名或挪走项目文件夹后，用「打开已有文件夹」选它，接上原来的项目"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-10-29-project-location-owner.direction-check.md",
+    "electron/projects/projectLocation.characterization.test.ts",
+    "docs/fixes/2026-10-29-project-location-owner.root-cause.json"
+  ],
+  "completionCommits": []
+}

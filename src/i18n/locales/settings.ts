@@ -245,6 +245,8 @@ export const zhSettings = {
     projectLocationErrorNotWritable: '这个文件夹不可写，请选择其他位置。',
     projectLocationErrorOpenFailed: '无法在文件管理器中打开这个文件夹。',
     projectLocationErrorUnknown: '项目位置更改失败，原设置没有改变。',
+    projectLocationErrorInsideApp: '这个位置在 Nomi 自己的目录里（安装目录、应用数据或系统临时目录），升级、卸载或系统清理会把里面的项目删掉。请点「更换位置」选一个你自己的文件夹。',
+    projectLocationErrorMissing: '这个文件夹现在不存在。新建项目时会自动建好；也可以点「更换位置」换一个。',
   },
 }
 
@@ -494,5 +496,7 @@ export const enSettings = {
     projectLocationErrorNotWritable: 'That folder is not writable. Choose another location.',
     projectLocationErrorOpenFailed: 'Nomi could not open this folder in the file manager.',
     projectLocationErrorUnknown: 'Nomi could not change the project location. Nothing was changed.',
+    projectLocationErrorInsideApp: 'This location is inside Nomi’s own folders (install, app data, or system temp), which updates, uninstalls, or system cleanup can wipe. Click “Change location” and choose a folder of your own.',
+    projectLocationErrorMissing: 'This folder does not exist right now. Nomi creates it when you make a new project, or click “Change location” to choose another.',
   },
 }

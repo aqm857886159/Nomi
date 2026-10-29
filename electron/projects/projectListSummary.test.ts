@@ -4,7 +4,15 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
-  app: { getPath: () => os.tmpdir(), getAppPath: () => process.cwd() },
+  // 和真 Electron 一样每个 name 一个目录（都在系统临时目录下）：全指向同一个目录时 userData 就把用户的项目文件夹都罩住了，入口会拒绝。
+  app: {
+    getPath: (name: string) => {
+      const dir = path.join(os.tmpdir(), `electron-${name}`);
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    },
+    getAppPath: () => process.cwd(),
+  },
   // 系统回收站用临时目录假扮（删项目进回收站，⑭；专门的用例在 projectDeleteToTrash.test.ts）。
   shell: {
     trashItem: async (target: string) => {

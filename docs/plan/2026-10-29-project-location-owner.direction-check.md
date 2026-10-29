@@ -127,3 +127,11 @@
 - 入口：默认位置接受安装目录（4a）、接受 `userData`（4b）；选文件夹安全检查不认这两类目录（4c）。
 
 没钉住的：Windows 真机（本线在 macOS；盘符与大小写只用 `path.win32` 推导）；渲染层拿到 2c 那份假记录之后的界面表现（渲染层没起，主进程事实已钉）。
+
+## 自写登记 `gate-family`：这一刀为什么还改自写门岗
+
+第一刀给 `scripts/check-read-path-writes.mjs`（自写登记 `gate-family`，状态 under-review）加门、加反例测试，不新增门岗脚本。
+
+- **现成方案查过**（登记里的 `alternativesChecked` 之外补一条）：eslint 自定义规则 / eslint-plugin-boundaries 只看单个文件或模块之间的 import，看不到「`listProjects` 经三层调用走到 `removeWorkspaceReference`」这种跨文件的函数调用链；dependency-cruiser 是模块级依赖图，分不出同一个文件里哪个函数调了谁；CodeQL 的调用图查询能表达「读命名的函数可达这些写门」，但要接进 CI 的代码扫描、为 TypeScript 维护自己的查询包，本仓库没有接入（`.github/` 里没有）。门岗本身已经用 TypeScript 编译器 API 解析源码，不是自写解析器；自写的只是 Nomi 领域的那张门表（摘登记、写登记、建目录）和成对登记的基线。
+- **为什么现在换不了**：0.24.1 只等这一刀；把门岗迁到 CodeQL 是门岗族整体去留的决定（`docs/audit/2026-10-01-gate-ledger.md` 的门岗账本，用户按保留 / 合并 / 降级 / 删除逐项拍板），不该夹在一个修 bug 的提交里做。
+- **哪天换**：门岗账本的清单拍板时一起定（登记 `reviewBy` 2026-10-31）。如果定了接 CodeQL，「读路径可达写门」改成它的调用图查询，本脚本、`scripts/read-path-writes-baseline.json` 和反例测试同一提交删掉；如果定了保留，门表与基线照现在的成对登记继续只减不增。

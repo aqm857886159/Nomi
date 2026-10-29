@@ -43,8 +43,8 @@ export const GATE_INPUTS = Object.freeze({
   'check:heavy-path': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/heavy-path-baseline.json'], entries: ['scripts/check-heavy-path.mjs'] },
   // check-builtin-vendor-literals.mjs：ROOTS = electron、src，扩展名 ts / tsx
   'check:builtin-vendor-literals': { roots: ['electron','src'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-builtin-vendor-literals.mjs'] },
-  // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）
-  'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs'] },
+  // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）；反例测试 check-read-path-writes.node-test.mjs 读真实的 electron/projects/repository.ts
+  'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs', 'scripts/check-read-path-writes.node-test.mjs'] },
   // check-batch-machines.mjs：src / electron 下非测试 ts 源
   'check:batch-machines': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/batch-machines-baseline.json'], entries: ['scripts/check-batch-machines.mjs'] },
   // check-capability-lifecycle.mjs：组件 useEffect 发布 vs 非组件写入，扫 ts / tsx

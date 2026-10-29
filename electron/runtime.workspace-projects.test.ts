@@ -287,21 +287,22 @@ describe("runtime workspace project APIs", () => {
     expect(folder).toMatchObject({ id: folderProject.id, source: "folder" });
   });
 
-  it("listProjects self-heals: prunes native projects whose folder was deleted outside the app", async () => {
-    // 用户在 app 外手删了 native 项目目录(或某操作删文件没清 registry)→ 幽灵卡片。
-    // 列举时自愈:native 文件夹没了 = 真删,直接从 registry 摘除,不再返回。
+  it("listProjects keeps a native project whose folder vanished outside the app: card marked missing, registry untouched", async () => {
+    // 「项目在哪」收敛单第 1 条（用户 2026-10-29 批准）：以前这里「native 文件夹没了 = 真删」就摘登记（06-14 的自愈）。
+    // 文件夹不在 ≠ 用户删了：改名、挪走、升级清掉安装目录、同步盘晚挂载都是「不在」。卡片一直标「找不到」，
+    // 直到用户自己移除或重新打开那个文件夹；列表读面不摘登记。
     const nativeProject = createProject({ name: "Native Ghost", payload: { scenes: [] } });
     const rootPath = (await listProjects()).find((item) => item.id === nativeProject.id)?.rootPath ?? "";
     expect(rootPath).not.toBe("");
 
-    // 模拟「文件夹被外部删除」。
+    // 模拟「文件夹被外部删掉 / 挪走」。
     fs.rmSync(rootPath, { recursive: true, force: true });
 
-    // 第一次列举即自愈:幽灵消失。
-    expect((await listProjects()).find((item) => item.id === nativeProject.id)).toBeUndefined();
-    // registry 已物理摘除:再列举仍不在(不是每次现算)。
-    expect((await listProjects())).toEqual([]);
+    expect((await listProjects()).find((item) => item.id === nativeProject.id)).toMatchObject({ source: "native", missing: true, rootPath });
+    // 再列举仍在（登记没被摘）：不是每次现算出来的幽灵。
+    expect((await listProjects()).map((item) => item.id)).toEqual([nativeProject.id]);
     expect(readProject(nativeProject.id)).toBeNull();
+    expect(fs.existsSync(rootPath)).toBe(false);
   });
 
   it("listProjects keeps external folder projects when their root is temporarily unavailable", async () => {

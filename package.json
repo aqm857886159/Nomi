@@ -86,7 +86,7 @@
     "check:store-lifetime": "node ./scripts/check-store-lifetime.mjs",
     "check:concept-owners": "node --test ./scripts/check-concept-owners.node-test.mjs && node ./scripts/check-concept-owners.mjs",
     "check:builtin-vendor-literals": "node ./scripts/check-builtin-vendor-literals.mjs",
-    "check:read-path-writes": "node ./scripts/check-read-path-writes.mjs",
+    "check:read-path-writes": "node --test ./scripts/check-read-path-writes.node-test.mjs && node ./scripts/check-read-path-writes.mjs",
     "check:no-default-overwrite": "node ./scripts/check-no-default-overwrite.mjs",
     "gen:agents": "node ./scripts/gen-agents-md.mjs",
     "hooks:reinstall-all": "node ./scripts/install-git-hooks.cjs --all-worktrees",

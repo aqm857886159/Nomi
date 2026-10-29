@@ -15,7 +15,7 @@ import {
   resetLegacyDiscoveryGuard,
 } from "./legacyProjectMigration";
 import * as workspaceManifest from "./workspaceManifest";
-import { rememberWorkspace, recentWorkspacesPath } from "./workspaceRegistry";
+import { bindWorkspaceLocation, recentWorkspacesPath } from "./workspaceRegistry";
 import { workspaceProjectFile } from "./workspacePaths";
 import { normalizeWorkspaceProjectRecord } from "./workspaceTypes";
 
@@ -69,20 +69,12 @@ function writeLegacyProject(projectRoot: string, id: string): void {
 
 /** 把项目注册进 registry（模拟「上次启动已经认识它了」）。 */
 function seedRegistry(settingsRoot: string, projectRoot: string, id: string): void {
-  rememberWorkspace(
-    settingsRoot,
-    normalizeWorkspaceProjectRecord({
-      id,
-      name: id,
-      version: 2,
-      createdAt: 100,
-      updatedAt: 200,
-      savedAt: 200,
-      revision: 1,
-      lastKnownRootPath: path.resolve(projectRoot),
-    }),
-    { source: "native", nativeRootPath: path.resolve(path.dirname(projectRoot)) },
-  );
+  bindWorkspaceLocation(settingsRoot, {
+    id,
+    name: id,
+    rootPath: path.resolve(projectRoot),
+    origin: { source: "native", nativeRootPath: path.resolve(path.dirname(projectRoot)) },
+  });
 }
 
 describe("legacy 发现 = 对 registry 缺失项的增量对账（类级不变量）", () => {

@@ -19,5 +19,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-22",
-  "notes": "合同 docs/fixes/2026-10-22-project-library-gc-race.root-cause.json：READ_PATH_WRITE_DOORS（原名 WRITE_DOORS，与 check-no-default-overwrite 同名，改名以免两份同名门表）加 deleteWorkspaceProject，任何 read / list / resolve / get 前缀的函数沿调用链可达即红。这是门岗自动拦，不是结构保证：按唯一函数名连边、只认这四个前缀，直接 fs.rmSync 或别的前缀走到删除不在图上（V-plibrary2 变异 C），那一层靠测试兜。"
+  "notes": "合同 docs/fixes/2026-10-22-project-library-gc-race.root-cause.json：READ_PATH_WRITE_DOORS（原名 WRITE_DOORS，与 check-no-default-overwrite 同名，改名以免两份同名门表）加 deleteWorkspaceProject，任何 read / list / resolve / get 前缀的函数沿调用链可达即红。2026-10-29「项目在哪」收敛单（合同 docs/fixes/2026-10-29-project-location-owner.root-cause.json）：门再加摘登记 removeWorkspaceReference、写登记 bindWorkspaceLocation / bindWorkspaceLocations / backfillWorkspaceOrigins、建目录 ensureDir，读前缀加 check / reveal / locate；存量按（读函数, 门）成对登记在 scripts/read-path-writes-baseline.json、每对写理由，登记的一对不可达了也红（只减不增）；反例测试 scripts/check-read-path-writes.node-test.mjs（往 listProjects 里加回摘登记 → 退出 1）。这是门岗自动拦，不是结构保证：按唯一函数名连边、只认这七个前缀，直接 fs.rmSync / fs.mkdirSync 或别的前缀走到写盘不在图上（V-plibrary2 变异 C），那一层靠测试兜（electron/projects/projectLocation.matrix.test.ts 的读面目录树快照）。"
 }

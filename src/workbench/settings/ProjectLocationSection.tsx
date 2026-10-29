@@ -15,6 +15,8 @@ const ERROR_KEY: Record<DesktopProjectLocationError, string> = {
   'not-writable': 'settings.file.projectLocationErrorNotWritable',
   'open-failed': 'settings.file.projectLocationErrorOpenFailed',
   'managed-by-environment': 'settings.file.projectLocationManaged',
+  'inside-app': 'settings.file.projectLocationErrorInsideApp',
+  missing: 'settings.file.projectLocationErrorMissing',
 }
 
 type CheckFeedback = {

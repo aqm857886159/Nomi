@@ -1,0 +1,48 @@
+{
+  "name": "项目在哪（项目 id → 项目文件夹：只登记用户这次打开 / 新建的目录，读路径不摘不建，同一 id 两个文件夹都在时不改绑）",
+  "subject": "project.location",
+  "lifecycle": "project-data",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/workspace/workspaceRegistry.ts",
+    "symbol": "bindWorkspaceLocation"
+  },
+  "write_api": [
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "bindWorkspaceLocation"
+    },
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "bindWorkspaceLocations"
+    },
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "removeWorkspaceReference"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "rememberWorkspace",
+      "kind": "definition",
+      "why": "旧写口收整份项目记录、登记清单里创建时写下的 lastKnownRootPath：改名 / 挪走后重开，登记的还是旧路径（0.24.0 用户报的「打开改名后的文件夹提示不存在」）。2026-10-29 删掉，登记只经 bindWorkspaceLocation(s)，rootPath 必填、不收记录。"
+    },
+    {
+      "symbol": "rememberWorkspaces",
+      "kind": "definition",
+      "why": "旧的批量写口，启动发现时按 id 覆盖改绑：默认根里复制一份后每次重启在原件和副本之间来回换。2026-10-29 换成 bindWorkspaceLocations（撞上还在的原件就跳过）。"
+    },
+    {
+      "symbol": "ensureProjectLocationDirectory",
+      "kind": "definition",
+      "why": "设置「检查目录」「打开位置」以前先建目录：升级清掉安装目录后点一次检查就把空的默认根建回来，列表随后把整库当成「用户删了」摘掉。读路径只报、不建。"
+    }
+  ],
+  "parity_test": "electron/projects/projectLocation.matrix.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-29",
+  "notes": "设计卡 docs/plan/2026-10-29-project-location-owner.md，合同 docs/fixes/2026-10-29-project-location-owner.root-cause.json，用户 2026-10-29 批准四条方向。写调用方只有：新建 / 打开（createWorkspaceProject 传用户所选或新建的目录）、保存 / 恢复（传登记里的同一路径）、启动对账（electron/projects/repository.ts 的 listProjects 传扫到的目录，第二刀挪进 app ready）。同一 id 已登记在另一个还在、还装着这个 id 的文件夹上：单条抛 WorkspaceFolderCopyError（electron/shared/contracts/projectLocation.ts），批量跳过并返回冲突。摘登记只剩用户的「从项目库移除」与删除（removeWorkspaceReference）；列表读面不摘（文件夹不在 ≠ 用户删了，卡片标 missing 一直留到用户自己处理）。读路径不可达这些写门由 check:read-path-writes 守（delivery.read-path-destruction-gate）。项目能不能放在某处的判据在 project.location-admission。还没收的：按 id 扫默认根（repository.ts 的 legacyProjectDirById，readProject / projectDirById 的兜底）与媒体解析的无锁「在哪」由第二刀收（删除清单第 4、5 条）。"
+}

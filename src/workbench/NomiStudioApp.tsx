@@ -465,7 +465,7 @@ export default function NomiStudioApp(): JSX.Element {
     // 「新建项目」：默认位置建项目，落「创作」区（CTA「从一段文字或想法开始」）。
     void createAndOpenProject({ workspaceMode: 'creation' }).catch((error) => {
       logRendererError('project-create-failed', error)
-      report(null, projectNotice(t, 'studio.newProjectFailed'))
+      report(null, projectOperationFailureText('create', error, t))
     })
   }, [createAndOpenProject, report, t])
 
@@ -486,7 +486,7 @@ export default function NomiStudioApp(): JSX.Element {
       if (result.opened) useJourneyTourStore.getState().start()
     })().catch((error) => {
       logRendererError('project-create-failed', error, { seed: 'journey-tour' })
-      report(null, projectNotice(t, 'studio.demoProjectFailed'))
+      report(null, projectOperationFailureText('createDemo', error, t))
     })
   }, [createAndOpenProject, report, t])
 

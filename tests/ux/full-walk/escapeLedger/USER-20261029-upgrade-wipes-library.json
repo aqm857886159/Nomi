@@ -1,0 +1,22 @@
+{
+  "id": "USER-20261029-upgrade-wipes-library",
+  "since": "2026-10-29",
+  "source": "0.24.0 Windows 用户反馈（2026-10-29 转来）",
+  "category": "project-location",
+  "problem": "新项目默认位置设在安装目录下，升级后第一次打开项目库全是「文件夹暂不可用」，关掉再开项目全没了。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "升级后打开项目库：找不到文件夹的项目还在库里，标「找不到这个文件夹」",
+    "默认位置在 Nomi 自己的目录里时新建项目被拒，指向设置换位置"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-10-29-project-location-owner.direction-check.md",
+    "electron/projects/projectLocation.characterization.test.ts",
+    "docs/fixes/2026-10-29-project-location-owner.root-cause.json"
+  ],
+  "completionCommits": []
+}

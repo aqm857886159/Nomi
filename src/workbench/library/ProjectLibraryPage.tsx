@@ -493,7 +493,7 @@ export default function ProjectLibraryPage({
               const unavailable = isProjectUnavailable(project)
               const unavailableHint = project.unreadableReason === 'outside-workspace'
                 ? t('library.dataOutsideFolderHint')
-                : project.unreadableReason ? t('library.dataUnreadableHint') : undefined
+                : project.unreadableReason ? t('library.dataUnreadableHint') : project.missing ? t('library.folderMissingHint') : undefined
               return (
                 <div
                   key={project.id}

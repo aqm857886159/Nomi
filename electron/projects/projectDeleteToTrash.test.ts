@@ -11,7 +11,15 @@ const trash = vi.hoisted(() => ({
   calls: [] as string[],
 }));
 vi.mock("electron", () => ({
-  app: { getPath: () => os.tmpdir(), getAppPath: () => process.cwd() },
+  // 和真 Electron 一样每个 name 一个目录（都在系统临时目录下）：全指向同一个目录时 userData 就把用户的项目文件夹都罩住了，入口会拒绝。
+  app: {
+    getPath: (name: string) => {
+      const dir = path.join(os.tmpdir(), `electron-${name}`);
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    },
+    getAppPath: () => process.cwd(),
+  },
   shell: {
     trashItem: async (target: string) => {
       trash.calls.push(target);
@@ -183,11 +191,17 @@ describe("删项目进系统回收站", () => {
   });
 
   it("外部文件夹确认「删除文件」：仍然只解绑，不进回收站、不碰用户的文件", async () => {
-    const externalRoot = path.join(settingsRoot, "用户自己的文件夹");
-    const project = createProject({ name: "外部", rootPath: externalRoot });
-    await expect(deleteProject(project.id, "delete-files")).resolves.toEqual({ id: project.id, deleted: false });
-    expect(trash.calls).toEqual([]);
-    expect(fs.existsSync(externalRoot)).toBe(true);
+    // 用户自己的文件夹在 Nomi 的设置目录之外（设置目录里面的位置入口会拒绝，见 workspaceLocationPolicy）。
+    const externalParent = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-trash-external-"));
+    try {
+      const externalRoot = path.join(externalParent, "用户自己的文件夹");
+      const project = createProject({ name: "外部", rootPath: externalRoot });
+      await expect(deleteProject(project.id, "delete-files")).resolves.toEqual({ id: project.id, deleted: false });
+      expect(trash.calls).toEqual([]);
+      expect(fs.existsSync(externalRoot)).toBe(true);
+    } finally {
+      fs.rmSync(externalParent, { recursive: true, force: true });
+    }
   });
 });
 

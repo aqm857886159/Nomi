@@ -4,7 +4,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { assertTrustedSender } from "../ipcSenderGuard";
-import { ensureDir, getProjectLocationState, type ProjectLocationState } from "../runtimePaths";
+import { ensureDir, getProjectLocationState, type ProjectLocationSource, type ProjectLocationState } from "../runtimePaths";
+import { findAppOwnedLocation } from "../workspace/workspaceLocationPolicy";
 import { backfillWorkspaceOrigins } from "../workspace/workspaceRegistry";
 import { writeProjectsRoot } from "./projectLocationSettings";
 import { getSettingsRoot } from "./settingsRoot";
@@ -13,7 +14,11 @@ export type ProjectLocationError =
   | "not-directory"
   | "not-writable"
   | "open-failed"
-  | "managed-by-environment";
+  | "managed-by-environment"
+  /** 在 Nomi 自己的目录里（安装目录 / 应用数据 / 系统临时目录）：升级、卸载或系统清理会把项目删掉。 */
+  | "inside-app"
+  /** 文件夹现在不存在（检查 / 打开只报、不建）。 */
+  | "missing";
 
 export type ProjectLocationResult =
   | { ok: true; location: ProjectLocationState; canceled?: boolean }
@@ -69,12 +74,30 @@ export function validateProjectLocationRoot(rootPath: string): ProjectLocationEr
   }
 }
 
-function ensureProjectLocationDirectory(rootPath: string): ProjectLocationError | null {
-  const resolved = path.resolve(rootPath);
+/** 文件夹在不在、是不是文件夹：只 stat，不建。 */
+function statProjectLocation(resolved: string): ProjectLocationError | null {
   try {
-    if (fs.existsSync(resolved) && !fs.statSync(resolved).isDirectory()) return "not-directory";
-    ensureDir(resolved);
     return fs.statSync(resolved).isDirectory() ? null : "not-directory";
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "ENOENT" || code === "ENOTDIR" ? "missing" : "not-writable";
+  }
+}
+
+/**
+ * 「检查目录」只报、不建、不写（「项目在哪」收敛单第 7 条）：以前它先建目录再写一个探针文件，升级清掉安装目录后
+ * 点一次「检查」就把空的默认根建回来，列表随后把整库灰卡当成「用户删了」摘掉。
+ * 可写用 access(W_OK) 判：Windows 上它不看 ACL（Node 文档写明的限制），真写不进去在新建项目时报。
+ * 环境变量托管的位置不判应用目录（见 workspaceLocationPolicy 文件头）。
+ */
+export function inspectProjectLocationRoot(rootPath: string, source: ProjectLocationSource): ProjectLocationError | null {
+  const resolved = path.resolve(rootPath);
+  if (source !== "environment" && findAppOwnedLocation(resolved)) return "inside-app";
+  const statError = statProjectLocation(resolved);
+  if (statError) return statError;
+  try {
+    fs.accessSync(resolved, fs.constants.W_OK);
+    return null;
   } catch {
     return "not-writable";
   }
@@ -86,8 +109,8 @@ export function getProjectLocationResponse(): ProjectLocationResult {
 
 export function checkProjectLocation(): ProjectLocationResult {
   const location = getProjectLocationState();
-  const validationError = validateProjectLocationRoot(location.path);
-  return validationError ? { ok: false, error: validationError } : { ok: true, location };
+  const inspectionError = inspectProjectLocationRoot(location.path, location.source);
+  return inspectionError ? { ok: false, error: inspectionError } : { ok: true, location };
 }
 
 export async function pickProjectLocation(
@@ -107,6 +130,8 @@ export async function pickProjectLocation(
   }
 
   const selectedRoot = path.resolve(result.filePaths[0]);
+  // 先判是不是 Nomi 自己的目录（这一步不经可注入的 validateRoot，入口拒绝不能被绕开），再建目录、试写。
+  if (findAppOwnedLocation(selectedRoot)) return { ok: false, error: "inside-app" };
   const validationError = (deps.validateRoot || validateProjectLocationRoot)(selectedRoot);
   if (validationError) return { ok: false, error: validationError };
 
@@ -129,8 +154,9 @@ export async function revealProjectLocation(
   deps: ProjectLocationRevealDeps = { openPath: (rootPath) => shell.openPath(rootPath) },
 ): Promise<ProjectLocationResult> {
   const location = getProjectLocationState();
-  const validationError = ensureProjectLocationDirectory(location.path);
-  if (validationError) return { ok: false, error: validationError };
+  // 「打开位置」只打开、不建（收敛单第 7 条）：文件夹不在就照实说。
+  const statError = statProjectLocation(path.resolve(location.path));
+  if (statError) return { ok: false, error: statError };
 
   try {
     const openError = await deps.openPath(location.path);

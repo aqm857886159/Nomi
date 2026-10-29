@@ -271,7 +271,9 @@ export const zhCN = {
     noProjectsInSource: '这个来源下还没有项目',
     clearSearch: '清除搜索',
     deleteNamedProject: '删除项目 {{name}}',
-    folderUnavailable: '文件夹暂不可用',
+    // 文件夹找不到的项目一直留在库里（「项目在哪」收敛单，用户 2026-10-29 批准）：标签说事实，悬停说下一步。
+    folderUnavailable: '找不到这个文件夹',
+    folderMissingHint: '文件夹被改名、挪走或删掉了。用「打开已有文件夹」重新选它就能接上原项目；不要了可以删除这张卡片，只从项目库移除，不删文件。',
     // 项目数据读不出来的置灰卡（悬停标签 + title 写下一步）：删除只从项目库移除、不删文件。
     dataOutsideFolder: '项目数据指向文件夹外，已停止读取',
     dataOutsideFolderHint: '可从项目库移除，不会删除文件。修好这个文件夹里的 .nomi 后，回到项目库会自动恢复。',
@@ -358,6 +360,13 @@ export const zhCN = {
     projectDeleteStateChanged: '这个项目的状态刚刚变了，没有删除任何东西。项目库已刷新，请看清卡片后再确认一次。',
     projectRestoreFailed: '项目恢复失败',
     renameFailed: '项目重命名保存失败',
+    // 项目位置被拒（「项目在哪」收敛单不变量 ④ ⑤）：说清为什么不行、去哪改。{{place}} 取下面三个之一。
+    appOwnedPlaceInstall: '安装目录',
+    appOwnedPlaceAppData: '应用数据目录',
+    appOwnedPlaceTemp: '系统临时目录',
+    newProjectLocationInsideApp: '没有新建：新项目默认位置在 Nomi 自己的{{place}}里，升级、卸载或系统清理会把里面的项目删掉。请到「设置 → 文件与保存」把「新项目默认位置」换成你自己的文件夹，比如「文稿」。',
+    workspaceFolderInsideApp: '没有打开：这个文件夹在 Nomi 自己的{{place}}里，升级、卸载或系统清理会把它删掉。请先把项目文件夹挪到你自己的位置（比如「文稿」），再打开。',
+    workspaceFolderIsCopy: '没有打开：这个文件夹是「{{name}}」的副本，原文件夹还在 {{path}}。要改用这个文件夹，请先把原文件夹移走或改名，再打开它。',
   },
   onboarding: {
     skip: '跳过',
@@ -688,7 +697,8 @@ export const en = {
     noProjectsInSource: 'No projects from this source yet',
     clearSearch: 'Clear search',
     deleteNamedProject: 'Delete project {{name}}',
-    folderUnavailable: 'Folder unavailable',
+    folderUnavailable: 'Folder not found',
+    folderMissingHint: 'The folder was renamed, moved, or deleted. Use “Open existing folder” to pick it again and reconnect the project; if you no longer need it, delete this card. It only leaves the library; no files are deleted.',
     dataOutsideFolder: 'Project data points outside its folder; reading stopped',
     dataOutsideFolderHint: 'You can remove it from the library; no files are deleted. Fix the .nomi folder inside it and it comes back next time you open the library.',
     dataUnreadable: "Can't read this project's data",
@@ -775,6 +785,12 @@ export const en = {
     projectDeleteStateChanged: "This project changed since you confirmed, so nothing was deleted. The library has been refreshed; check the card and confirm again.",
     projectRestoreFailed: 'Could not restore the project',
     renameFailed: 'Could not save the renamed project',
+    appOwnedPlaceInstall: 'install folder',
+    appOwnedPlaceAppData: 'app data folder',
+    appOwnedPlaceTemp: 'system temp folder',
+    newProjectLocationInsideApp: 'Nothing was created: the default location for new projects is inside Nomi’s own {{place}}, which updates, uninstalls, or system cleanup can wipe. Go to Settings → File & saving and set the default location for new projects to a folder of your own, such as Documents.',
+    workspaceFolderInsideApp: 'Not opened: this folder is inside Nomi’s own {{place}}, which updates, uninstalls, or system cleanup can wipe. Move the project folder somewhere of your own, such as Documents, then open it.',
+    workspaceFolderIsCopy: 'Not opened: this folder is a copy of “{{name}}”, and the original folder is still at {{path}}. To use this folder instead, move or rename the original folder first, then open this one.',
   },
   onboarding: {
     skip: 'Skip',
