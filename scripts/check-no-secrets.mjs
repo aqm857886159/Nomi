@@ -31,6 +31,10 @@ const FORBIDDEN_PATHS = [
   { re: /\.db$/, why: "数据库文件（可能是微信库）" },
   { re: /(^|\/)(all_)?keys?\.json$/, why: "取钥输出（含明文 db_key）" },
   { re: /wechat[-_]?export/i, why: "微信导出目录" },
+  // 执行线临时产物（2026-10-27）：Codex 线没有 Claude 会话那层 add -f 拦截 hook，这里是所有执行体都要过的一道。
+  { re: /(^|\/)\.tmp-pr-body\.md$/, why: "PR 正文草稿（留在工作树里给协调读，不进提交）" },
+  { re: /(^|\/)CODEX-REPORT\.md$/, why: "执行线临时报告（报告写进协调目录，不进仓库）" },
+  { re: /(^|\/)\.[^/]+-walk\//, why: "走查临时产物目录（要留的证据放 docs/evidence/）" },
 ];
 
 // ── 白名单：放行（代码/文档/模板，含正则模式或占位示例，非真数据）──
