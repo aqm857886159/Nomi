@@ -102,8 +102,9 @@ try {
   await clickOrFail(generateAll, '组工具条「生成整组」')
   const dialog = win.locator(SPEND_DIALOG)
   const dialogProof = await proveProbe(dialog, 'T2：一下跑两份，弹确认框')
-  const zhText = await expectNoPriceLine(dialog, 'T2（中文）')
-  expect(zhText, 'T2：确认框说清一下要跑几份').toMatch(/2\s*(张|个|份)/)
+  await expectNoPriceLine(dialog, 'T2（中文）')
+  // 确认框逐条列出这一下要跑的每一份（共享 PlanRows，一行一个勾选框），份数就是勾着的行数。
+  await expect(dialog.locator('[data-v4-block="plan-rows"]').getByRole('checkbox', { checked: true }), 'T2：确认框逐条列出要跑的两份').toHaveCount(2)
   await walk.snap('t2-zh-generate-all-dialog-no-price')
   const tasksBeforeCancel = await nodesOnDisk()
   await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), '确认框「取消」')
