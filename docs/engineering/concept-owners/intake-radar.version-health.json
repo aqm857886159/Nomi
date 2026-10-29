@@ -1,0 +1,28 @@
+{
+  "name": "同窗版本健康与放量结论",
+  "subject": "intake-radar.version-health",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/lib/intake-radar/health.mjs",
+    "symbol": "buildVersionHealth"
+  },
+  "write_api": [
+    {
+      "path": "scripts/lib/intake-radar/health.mjs",
+      "symbol": "buildVersionHealth"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/lib/intake-radar/health.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/lib/intake-radar/aggregate.mjs",
+    "scripts/lib/intake-radar/render.mjs",
+    "scripts/intake-radar.mjs"
+  ],
+  "since": "2026-10-29",
+  "notes": "只消费原雷达缓存后的事件；样本、观察日期、数据质量和待定阈值统一阻止全量，已达到样本的回归优先停止。"
+}

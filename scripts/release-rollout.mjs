@@ -2,12 +2,13 @@
 // 唯一的发布比例写入边界。公开变更必须显式 --yes；默认只读计划。
 import fs from 'node:fs'
 import path from 'node:path'
-import os from 'node:os'
 import crypto from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
+import { makeTempDir } from './_test-temp.mjs'
+import { execGhReadSync, execGhWriteSync, retryTransientSync } from './lib/transientRetry.mjs'
 
 export const METADATA = ['latest.yml', 'latest-mac.yml']
 export function percentage(value) {
@@ -58,7 +59,13 @@ export function planPause(release, previous, files) {
   return { prerelease: true, previous: previous.tag_name, files, changes: [{ name: release.tag_name, before: 'stable', after: 'prerelease（官网 latest 也回到上一稳定版）' }] }
 }
 
-export function runRollout(argv, { gh = args => execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), log = console.log } = {}) {
+function ghCommand(args) {
+  const options = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 }
+  if (args[0] === 'api') return execGhReadSync(args, options)
+  if (args[0] === 'release' && args[1] === 'download') return retryTransientSync(() => execFileSync('gh', args, options), { retryTimeouts: true, timeoutMs: options.timeout })
+  return execGhWriteSync(args, options) // 公开写入只能试一次，不能自动重试
+}
+export function runRollout(argv, { gh = ghCommand, log = console.log } = {}) {
   const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
     dir: { type: 'string' }, percentage: { type: 'string' }, tag: { type: 'string' },
     repo: { type: 'string', default: 'aqm857886159/Nomi' }, yes: { type: 'boolean', default: false },
@@ -81,10 +88,10 @@ export function runRollout(argv, { gh = args => execFileSync('gh', args, { encod
   if (release.tag_name !== tag || release.draft || release.prerelease) throw new Error('目标必须是公开稳定发布')
   if (api('releases/latest').id !== release.id) throw new Error('只能操作当前 latest 稳定发布')
   if (action === 'full' && (release.immutable !== false || api('immutable-releases').enabled !== false)) throw new Error('资产不可变或状态未知：停止，交协调选择新版本/独立 feed')
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-release-rollout-'))
+  const temp = makeTempDir('nomi-release-rollout-')
   try {
     const names = action === 'full' ? [...METADATA, 'SHA256SUMS.txt'] : METADATA
-    const download = ['release', 'download', tag, '--repo', repo, '--dir', temp]
+    const download = ['release', 'download', tag, '--repo', repo, '--dir', temp, '--clobber']
     for (const name of names) download.push('--pattern', name)
     gh(download)
     const files = Object.fromEntries(names.map(name => [name, fs.readFileSync(path.join(temp, name), 'utf8')]))
@@ -102,8 +109,9 @@ export function runRollout(argv, { gh = args => execFileSync('gh', args, { encod
     } else {
       for (const [name, text] of Object.entries(plan.files)) fs.writeFileSync(path.join(temp, name), text)
       gh(['release', 'upload', tag, ...Object.keys(plan.files).map(name => path.join(temp, name)), '--repo', repo, '--clobber'])
-      const verify = fs.mkdtempSync(path.join(temp, 'verify-'))
-      const args = ['release', 'download', tag, '--repo', repo, '--dir', verify]
+      const verify = path.join(temp, 'verify')
+      fs.mkdirSync(verify)
+      const args = ['release', 'download', tag, '--repo', repo, '--dir', verify, '--clobber']
       for (const name of names) args.push('--pattern', name)
       gh(args)
       for (const name of names) if (fs.readFileSync(path.join(verify, name), 'utf8') !== plan.files[name]) throw new Error(`${name} 上传读回不符：停止放量，交协调处理`)
