@@ -63,114 +63,14 @@
   ],
   "doors": [
     {
-      "kind": "write",
-      "path": "electron/agentLane/laneToolSchema.mts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpToolCatalog.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/flatModelInput.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/verbDeclaration.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/verbs/verbFieldProvenance.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts",
-      "symbol": "toPublishedJsonSchema"
-    },
-    {
       "kind": "read",
       "path": "electron/agentLane/laneToolSchema.mts",
       "symbol": "collectVendorCompatibilityFailures"
     },
     {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
-      "symbol": "transportSchemaFromZod"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
-      "symbol": "toStandardModelSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
-      "symbol": "toStandardModelSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
-      "symbol": "toStandardModelSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
-      "symbol": "toStandardModelSchema"
-    },
-    {
       "kind": "read",
       "path": "electron/agentLane/laneToolSchema.mts",
       "symbol": "collectStandardSchemaFailures"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
-      "symbol": "collectStandardSchemaFailures"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
-      "symbol": "toRuntimeJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
-      "symbol": "toRuntimeJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/mcpToolCatalog.ts",
-      "symbol": "toRuntimeJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
-      "symbol": "toRuntimeJsonSchema"
-    },
-    {
-      "kind": "write",
-      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
-      "symbol": "toRuntimeJsonSchema"
     },
     {
       "kind": "read",
@@ -189,14 +89,109 @@
     },
     {
       "kind": "read",
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "symbol": "collectStandardSchemaFailures"
+    },
+    {
+      "kind": "read",
       "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
       "symbol": "runtimeInputSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolSchema.mts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "transportSchemaFromZod"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/flatModelInput.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbDeclaration.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbs/verbFieldProvenance.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs",
+      "symbol": "I"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs",
+      "symbol": "I"
     }
   ],
   "door_reduction": {
     "before": 11,
-    "after": 26,
-    "why_not": "Distinct existing lane, MCP, fingerprint, declaration, provenance and storyboard prompt consumers remain. Every reader was inspected; all retain the shared derivation, schema checks now share the standard whitelist. scripts/check-model-schema.ts is outside door-map roots and checked separately. The initial 11 generated entries were for the existing publisher/vendor collector/transport projection; the after map additionally counts newly centralized normalizer and standard-collector calls, including their owning files. No caller-specific exception or independent schema policy survives."
+    "after": 25,
+    "why_not": "Existing lane, MCP, fingerprint, declaration, provenance and storyboard prompt consumers remain distinct. Regenerated the final map for shared publication, execution, normalization and collector symbols; counted the two generated module exports (I) as the same static meta-validator in CJS/ESM formats. Every caller retains the single derivation and whitelist. scripts/check-model-schema.ts is outside default door-map roots and checked separately. No caller-specific exception or independent schema policy survives."
   },
   "generality_proof": "Shared derivation converts nested tuples, deferred key/string/default constraints and dialect metadata; relocates references; unsupported unknown shapes fail one shared standard collector. Full 54 tool census and unchanged runtime Zod matrix cover both profiles.",
   "shared_boundaries": [
@@ -216,13 +211,13 @@
       "path": "electron/agentLane/laneToolSchema.mts",
       "entry_point": "assertModelVisibleSchemaLossless",
       "disposition": "enforced",
-      "evidence": "toModelVisibleSchema calls this function, which invokes collectVendorCompatibilityFailures."
+      "evidence": "toModelVisibleSchema invokes the shared standard, structural and existing vendor collectors at derivation."
     },
     {
       "path": "scripts/check-model-schema.ts",
       "entry_point": "analyse",
       "disposition": "enforced",
-      "evidence": "Every production internal and MCP schema invokes the same compatibility function."
+      "evidence": "Every production internal and MCP schema invokes collectStandardSchemaFailures through the single owner."
     },
     {
       "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",

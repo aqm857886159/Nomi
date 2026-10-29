@@ -39,7 +39,7 @@ describe('persisted array compatibility', () => {
     for (const value of [[], [1, 2], [1, 2, 3, 4], [1, '2', 3], { x: 1, y: 2, z: 3 }]) {
       expect(aiSceneSchema.safeParse({ groups: [{ elements: [{ type: 'box', [field]: value }] }] }).success).toBe(false)
     }
-    const json = toPublishedJsonSchema(aiSceneSchema) as any
+    const json = toPublishedJsonSchema(aiSceneSchema) as { properties: { groups: { items: { properties: { elements: { items: { properties: Record<string, unknown> } } } } } } }
     const vector = json.properties.groups.items.properties.elements.items.properties[field]
     expect(vector).toMatchObject({ type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 })
   })
@@ -48,7 +48,7 @@ describe('persisted array compatibility', () => {
       const row = field === 'shots' ? valid.shots[0] : { actor: 'hero', verb: 'static' }
       expect(directorPlanSchema.safeParse({ ...valid, [field]: [{ ...row, window }] }).success).toBe(false)
     }
-    const json = toPublishedJsonSchema(directorPlanModelSchema) as any
+    const json = toPublishedJsonSchema(directorPlanModelSchema) as { properties: Record<string, { items: { properties: { window: unknown } } }> }
     expect(json.properties[field].items.properties.window).toMatchObject({
       type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 2,
     })

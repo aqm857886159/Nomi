@@ -22,7 +22,10 @@
     "tests/ux/tool-schema-real.rehearsal.walk.mjs",
     "真实网关与 Windows 待协调核对，未合入不结 fixed。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "964967ef0",
+    "e3a398096"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-29-tool-schema-tuple.root-cause.json",
   "classCheck": {
     "kind": "matrix",
