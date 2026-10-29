@@ -4,7 +4,8 @@ import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, screenshotSettled } from './_assert.mjs'
+import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { switchGenerationView, canvasFitViewButton } from './_shell.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 
@@ -16,7 +17,7 @@ export async function launchParityFixture(name) {
  const locale=process.env.WALK_LOCALE==='en'?'en':'zh-CN'
  const out=path.join(base,`${name}-${locale}`)
  fs.mkdirSync(out,{recursive:true})
-const tempRoot=fs.mkdtempSync(path.join(base,'profile-'))
+const tempRoot=makeTempDir('view-parity-cut1-profile-')
 const projectId='view-parity-cut1'
 const projectRoot=path.join(tempRoot,'projects',projectId)
 fs.mkdirSync(path.join(projectRoot,'.nomi'),{recursive:true})
@@ -49,7 +50,7 @@ fs.writeFileSync(path.join(projectRoot,'.nomi/project.json'),JSON.stringify(reco
    await cdp.send('Network.setCacheDisabled',{cacheDisabled:true})
    await win.getByText(record.name,{exact:false}).first().hover()
    await win.getByRole('button',{name:/继续创作|Continue/}).first().click()
-   await expect(win.locator('[data-generation-view-switcher]')).toBeVisible({timeout:30000})
+   await expectVisible(win.locator('[data-generation-view-switcher]'))
    await switchGenerationView(win,'canvas')
    await canvasFitViewButton(win).click()
    await win.waitForFunction(()=>Boolean(window.__nomiCanvasStore))

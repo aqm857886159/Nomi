@@ -5,6 +5,7 @@ import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyn
 import type { ProviderKind } from './providerKind'
 import type { ProjectDeleteIntent } from '../../electron/shared/projectDeleteIntent'
 import type { DesktopMediaBridge, DesktopVideoDepthBridge } from './bridgeMedia'
+import type { DeleteAssetResultOutcome } from '../workbench/assets/deleteAssetResult'
 import type { DesktopConnectorBridge } from './bridgeConnector'
 import type { McpClientProfile, McpClientUsage, McpInfo, McpInstallResult, McpMigrationResult, McpMigrationState, McpUninstallResult, McpVerifyResult } from './mcpBridgeTypes'
 import type { DesktopSettingsBridge } from './settingsBridge'
@@ -203,7 +204,7 @@ export type DesktopBridge = DesktopMediaBridge &
     openFolder: (payload: { rootPath: string; initialize?: boolean; name?: string }) => Promise<unknown>
     listFiles: (payload: { projectId: string; limit?: number }) => Promise<WorkspaceFileListResult>
     revealFile: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>
-    deleteAssets?: (payload: { projectId: string; relativePaths: string[] }) => Promise<import('../workbench/assets/deleteAssetResult').DeleteAssetResultOutcome[]>
+    deleteAssets?: (payload: { projectId: string; relativePaths: string[] }) => Promise<DeleteAssetResultOutcome[]>
     deleteFiles?: (payload: {
       projectId: string
       relativePaths: string[]

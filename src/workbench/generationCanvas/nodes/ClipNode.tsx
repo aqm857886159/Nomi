@@ -1,4 +1,3 @@
-import { canvasWindowInput } from '../../shortcutSurface'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
@@ -49,7 +48,7 @@ import { buildClipNodeOutputPatch } from './clipNodeOutput'
 import { formatClipNodeDuration, resolveClipNodeVisualMode } from './clipNodeVisual'
 import { buildClipNodeExportTasks, type ClipNodeExportScope } from './clipNodeExport'
 import { dispatchTimelineShortcut } from '../../timeline/timelineShortcuts'
-import { SHORTCUT_SURFACE_ATTRIBUTE } from '../../shortcutSurface'
+import { canvasWindowInput, SHORTCUT_SURFACE_ATTRIBUTE } from '../../shortcutSurface'
 import { useTimelinePlaybackClock } from '../../timeline/useTimelinePlaybackClock'
 import { readVideoDurationSeconds } from '../../../media/videoDurationProbe'
 

@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect } from './_assert.mjs'
+import { expect, expectVisible, expectAbsent, proveProbe } from './_assert.mjs'
 import { switchGenerationView, canvasFitViewButton } from './_shell.mjs'
 import { launchParityFixture } from './_viewParityFixture.mjs'
 
@@ -15,7 +15,7 @@ try {
   await expect.poll(()=>app.windows().filter(page=>page.url().includes('browser-asset-overlay')).length).toBe(1)
   const overlay=app.windows().find(page=>page.url().includes('browser-asset-overlay'))
   const tile=overlay.locator('[data-browser-asset-tile]').filter({hasText:'parity-shared'})
-  await expect(tile).toBeVisible({timeout:30000})
+  await expectVisible(tile)
   await tile.click({button:'right'})
   await overlay.getByRole('menuitem',{name:/删除|Delete/,exact:false}).click()
   const dialog=overlay.locator('[data-confirm-dialog-surface]')
@@ -23,7 +23,7 @@ try {
   await shot('01-confirm',overlay)
   await dialog.locator('[data-confirm-dialog-confirm]').click()
   await expect(dialog).not.toBeVisible()
-  await expect(overlay.getByText(/仍在使用|还在使用|还在画布或时间轴上用着|still in use|still used/i)).toBeVisible({timeout:15000})
+  await expectVisible(overlay.getByText(/仍在使用|还在使用|还在画布或时间轴上用着|still in use|still used/i))
   observations.after={exists:fs.existsSync(file)}
   expect(observations.after.exists).toBe(true)
   await expect(tile).toBeVisible()
@@ -34,12 +34,13 @@ try {
   await win.reload({waitUntil:'domcontentloaded'})
   const resume=win.getByRole('button',{name:/继续创作|Continue/}).first()
   if(await resume.isVisible())await resume.click()
-  await expect(win.locator('[data-generation-view-switcher]')).toBeVisible({timeout:30000})
+  await expectVisible(win.locator('[data-generation-view-switcher]'))
   await switchGenerationView(win,'canvas')
   await canvasFitViewButton(win).click()
   const image=win.locator('.generation-canvas-v2-node[data-node-id="shared-node"] img').first()
   await expect.poll(()=>image.evaluate(i=>i.complete&&i.naturalWidth>0)).toBe(true)
-  await expect(win.locator('[data-node-media-failure]')).toHaveCount(0)
+  const mediaProof=await proveProbe(image,'重载后同一个画布节点的媒体探针可见')
+  await expectAbsent(win.locator('[data-node-media-failure]'),{provenBy:mediaProof})
   observations.reloadedImage=await image.evaluate(i=>({complete:i.complete,width:i.naturalWidth}))
   await shot('03-reloaded-canvas-and-timeline')
   console.log('PASS browser deletion preserved referenced file and media after reload',JSON.stringify(observations))

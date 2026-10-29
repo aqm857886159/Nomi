@@ -355,38 +355,6 @@
       "status": "executable",
       "walk": "tests/ux/library-layout.walk.mjs",
       "owner": "协调会话"
-    },
-    {
-      "id": "switch-view-preserve-selection",
-      "title": "切换列表后保留隐藏画布的节点、选区和撤销状态",
-      "source": {
-        "kind": "审计与真实走查",
-        "ref": "docs/plan/2026-10-29-view-parity-cut1.md"
-      },
-      "creator": "同时使用画布、列表和素材盒的创作者",
-      "moment": "切换工作面或整理项目素材时",
-      "frequencyEvidence": "未知（没有遥测）",
-      "successEnd": "列表 Delete / 撤销不改变隐藏画布；返回画布可继续原选区",
-      "failureGuard": "隐藏的面不能处理指针、键盘或粘贴，当前面仍可操作",
-      "status": "executable",
-      "walk": "tests/ux/hidden-surface-input.walk.mjs",
-      "owner": "协调会话"
-    },
-    {
-      "id": "delete-asset-preserve-references",
-      "title": "从浏览器素材盒删除时保住作品里的引用",
-      "source": {
-        "kind": "审计与真实走查",
-        "ref": "docs/plan/2026-10-29-view-parity-cut1.md"
-      },
-      "creator": "同时使用画布、列表和素材盒的创作者",
-      "moment": "切换工作面或整理项目素材时",
-      "frequencyEvidence": "未知（没有遥测）",
-      "successEnd": "在用文件被保留并显示现有反馈；重载作品媒体仍能打开",
-      "failureGuard": "时间轴、白板图层、封面与其它结果不能悬空；未引用文件仍可删",
-      "status": "executable",
-      "walk": "tests/ux/asset-deletion-reference.walk.mjs",
-      "owner": "协调会话"
     }
   ]
 }
