@@ -3,14 +3,14 @@
   "since": "2026-10-29",
   "source": "用户2026-10-29发版安全网任务；本条仅跟踪发布曝光与健康信号的系统边界，不代表安装器或Agent等具体缺陷已修复。",
   "category": "performance-coverage",
-  "problem": "正式版发布没有分批比例边界，遥测失败信号没有按版本的每日放量结论。",
+  "problem": "版本健康旧判法忽略新版小样本波动而误报，次指标和缺失遥测又永久阻挡全量；本轮按协调阈值统一两组区间和主指标证据。",
   "existingInvariants": [],
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
   "status": "reviewed",
   "manualReview": "reviewed",
-  "rootCauseContract": "docs/fixes/2026-10-29-release-safety-net.root-cause.json",
+  "rootCauseContract": "docs/fixes/2026-10-30-release-health-two-cohort.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "scripts/release-rollout.node-test.mjs"
@@ -21,7 +21,8 @@
   ],
   "completionCommits": [
     "83acbd66b",
-    "0e3506534"
+    "0e3506534",
+    "a51abb53a"
   ],
-  "notes": "实现与合成矩阵已本地验证；未推送、无PR号，不冒充fixed。协调创建PR后挂真实编号结账，CI/merge阶段仍须核验。"
+  "notes": "第2轮本地实现：Newcombe方法10与两失败会话护栏；同率判停30/1000，变差30点检出966/1000，相关合成测试96/96。status保持reviewed，未推送、无PR号；同一首轮缓存已删除，真数据复算待留存副本，不能冒充已验证。协调开PR后挂真实编号结账。"
 }
