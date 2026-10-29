@@ -245,6 +245,32 @@ describe("问题 2：在资源管理器里给项目文件夹改名", () => {
     expect(JSON.parse(fs.readFileSync(workspaceProjectFile(copy), "utf8")).payload?.marker).toBeUndefined();
   });
 
+  it("坏行为 2g：在默认根里复制一份项目文件夹（「xxx - 副本」），之后只是重启：每次启动发现流程按 id 把登记改绑到没登记的那个文件夹，原件和副本来回换，上一次启动后的修改下一次就看不到（收敛单会把它翻过来：启动对账不改绑一个还绑在活文件夹上的 id）", async () => {
+    await defaultLocation();
+    const original = createAtDefault("原片");
+    const copy = `${original.lastKnownRootPath} - 副本`;
+    await saveProject(original.id, { payload: { marker: "复制前" } });
+    fs.cpSync(original.lastKnownRootPath, copy, { recursive: true });
+    const boundTo = (): string | undefined => findRecentWorkspace(getSettingsRoot(), original.id)?.rootPath;
+    const shown = (): string | undefined => (readProject(original.id) as { payload?: { marker?: string } } | null)?.payload?.marker;
+
+    restart();
+    expect(await cardsOf([original.id])).toHaveLength(1);
+    expect(boundTo()).toBe(copy);
+    await saveProject(original.id, { payload: { marker: "第 1 次启动后的修改" } });
+    expect(JSON.parse(fs.readFileSync(workspaceProjectFile(copy), "utf8"))).toMatchObject({ payload: { marker: "第 1 次启动后的修改" } });
+
+    restart();
+    await listProjects();
+    expect(boundTo()).toBe(original.lastKnownRootPath);
+    expect(shown()).toBe("复制前"); // 第 1 次启动后的修改在副本里，这次打开的是原件
+
+    restart();
+    await listProjects();
+    expect(boundTo()).toBe(copy);
+    expect(shown()).toBe("第 1 次启动后的修改");
+  });
+
   it("现状：默认根里改名、不重新打开，下次启动的发现流程按新路径把它登记回来（native）；收敛单要决定这条发现还留不留", async () => {
     await defaultLocation();
     const project = createAtDefault("我的短片");
