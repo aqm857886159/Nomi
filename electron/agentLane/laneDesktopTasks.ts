@@ -49,8 +49,9 @@ export function createDesktopLaneTasks(projectId: string, refresh: () => void) {
         expiresAt = Math.min(expiresAt, Date.parse(preview.expiresAt))
       } catch { /* Missing files or changed ownership omit this preview; the task still exists. */ }
     }
+    // 不读 run.budget：任务卡不印金额（LaneTaskFacts 抬头）。
     const value: LaneTaskFacts = { status, ...(stagesTotal ? { stagesDone, stagesTotal, progress: Math.round(stagesDone / stagesTotal * 100) } : {}),
-      currency: run.budget.currency, spent: run.budget.actual, estimated: run.budget.reserved, candidates }
+      candidates }
     const cached = { value, expiresAt }
     facts.set(run.runId, cached)
     return cached

@@ -1,0 +1,193 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-26-real-media-import-walk",
+  "problem_type": "真实媒体覆盖绕过导入链路，无法发现 4K 视频/图片在画布入口与冷打开阶段的失败",
+  "symptom": "import-real-media 与 walkthrough-real-media 两笔真实素材债到期；原有夹具直接写 project.json，J4/J5 使用小占位素材，导入失败与 S 规模冷打开成本均未被自动化覆盖。",
+  "direct_cause": "真实素材没有经过画布文件选择器、素材库本地导入、系统拖放或 MCP asset.import；J4/J5 旅程的素材来自合成/仓库小样，且没有冷打开耗时证据。",
+  "class_root": "所有媒体写入门没有一份强制真实素材矩阵和可解码/落盘断言，登记表的 debt 状态曾允许覆盖面长期缺失。",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-26",
+  "affected_population": [
+    "使用 4K HEVC/10-bit 视频或高熵 4K 图片导入画布的用户",
+    "从素材库上传、系统拖放、画布文件选择器或 MCP 导入素材的用户",
+    "打开包含大媒体资产的 J4/J5 项目的用户",
+    "没有本机真实素材目录的 CI/开发环境（必须硬失败，不得 skip）"
+  ],
+  "scope_paths": [
+    "tests/ux/real-media-import.walk.mjs",
+    "tests/ux/real-media-fixtures.json",
+    "evals/journeys/j4-reference.mjs",
+    "evals/journeys/j5-edit-export.mjs",
+    "docs/engineering/real-media-debt.json",
+    "docs/engineering/concept-owners/asset.local-file-import.json",
+    "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+    "electron/capabilityCore/core.ts",
+    "evals/lib/isoApp.mjs"
+  ],
+  "entry_points": [
+    "画布隐藏文件选择器 → importLocalFilesToGenerationCanvas",
+    "素材库上传 → importLocalMediaFilesToGenerationCanvas",
+    "系统拖放 → handleCanvasStageDrop → importLocalFilesToGenerationCanvas",
+    "MCP nomi_asset_import → dispatcher asset.import → importProjectAsset"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是仓库内部真实素材登记、Electron 走查与门岗联动的不变量；外部文档不能决定哪些用户入口必须被本地真实素材覆盖。",
+  "invariants": [
+    "登记为 live 的 import/walkthrough 覆盖必须读取 NOMI_REAL_MEDIA_DIR 或 requireRealMediaAssets，素材缺失时退出非零。",
+    "每个可驱动的 UI 导入门都必须断言新画布节点、解码好的 img/video 预览和项目落盘；系统拖放在同一共享导入边界留下结果证据。",
+    "J4/J5 使用登记的 4K PNG/HEVC，冷打开耗时写入隔离项目 .nomi/real-media-cold-open.json。",
+    "MCP nomi_asset_import 的可驱动 4K PNG 路径必须有真实 assetId/url 与项目落盘证据；1.38GB HEVC 若在有界走查内无回执必须保留为残余风险，不得写成拒绝或成功。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "importLocalMediaFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "symbol": "handleCanvasStageDrop"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasAddIntentActions.tsx",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/adapters/clipboardImagePaste.ts",
+      "symbol": "importLocalMediaFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetLibraryLocalImport.ts",
+      "symbol": "importLocalPathsToLibrary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "importProjectAsset"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "importProjectAsset"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 10,
+    "why_not": "door-map 数到的入口分属不同用户动作与传输边界，不能把画布文件选择器、系统拖放、素材库上传/粘贴、剪贴板粘贴和 MCP import 合并成一个测试动作；它们共用落盘 owner，但各自的解析、项目上下文和反馈层仍需保留。系统级拖放无法由 Playwright 驱动原生 Finder，所以在 handleCanvasStageDrop 之后的共享 IPC/落盘结果断言。"
+  },
+  "generality_proof": "走查同时覆盖画布文件选择器、素材库上传、系统拖放和 MCP asset.import，并对两种登记素材分别观察节点、解码与落盘；J4/J5 再把同一登记素材带入参考图与旧节点导出旅程。NOMI_REAL_MEDIA_DIR 缺失、PNG 派生失败和 MCP 视频硬上限都以非零/数字拒绝收口，不能退回合成夹具。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "symbol": "importLocalMediaFilesToGenerationCanvas",
+      "responsibility": "所有画布本地媒体导入的共享上传、预览和项目落盘边界。"
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "importProjectAsset",
+      "responsibility": "MCP 本机路径导入的安全、类型、硬上限和落盘边界。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/real-media-import.walk.mjs",
+      "entry_point": "真实素材导入矩阵",
+      "disposition": "enforced",
+      "evidence": "逐门使用登记视频/PNG并断言节点、解码预览与项目文件。"
+    },
+    {
+      "path": "evals/journeys/j4-reference.mjs",
+      "entry_point": "J4 参考图驱动",
+      "disposition": "enforced",
+      "evidence": "从登记 HEVC 抽出的 4K PNG 经真实 picker 上传并记录冷开。"
+    },
+    {
+      "path": "evals/journeys/j5-edit-export.mjs",
+      "entry_point": "J5 修改旧节点并导出",
+      "disposition": "enforced",
+      "evidence": "隔离项目使用登记 4K HEVC 视频，冷开记录后编辑、重开和导出。"
+    },
+    {
+      "path": "tests/ux/agent-storyboard-real-model.walk.mjs",
+      "entry_point": "Agent 参考素材",
+      "disposition": "not-affected",
+      "evidence": "已有走查只覆盖一张 4K 参考图和 Agent 读取语义，不承担 J4/J5 冷开债；本次不改其真实模型/额度边界。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增画布导入调用者、媒体格式、供应商传输或旧项目数据都可能再次绕开真实素材覆盖；合成小样与直接快照无法代表 4K 解码和首屏成本。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "node scripts/door-map.mjs src/workbench/assets/assetLibraryLocalImport.ts",
+      "node scripts/door-map.mjs electron/capabilityCore/core.ts",
+      "rg -n 'importLocalMediaFilesToGenerationCanvas|importProjectAsset|setInputFiles|DragEvent' src electron tests/ux"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "tests/ux/real-media-import.walk.mjs",
+    "invariant": "requiredClasses 中的 import/walkthrough 必须是 live 测试，真实测试必须读取 NOMI_REAL_MEDIA_DIR 或 requireRealMediaAssets，债到期或素材缺失即红。",
+    "failure_mode": "登记测试缺失、路径未读取环境变量、出现 skip/静默退出或债未销账时门岗退出非零；MCP 视频超硬上限保留带数字拒绝。",
+    "exception_policy": "none",
+    "strategy": "把覆盖面、素材身份和债务销账绑定在同一登记表与机器门岗，删除债登记后不允许再以 status=debt 放行。",
+    "artifacts": [
+      "tests/ux/real-media-import.walk.mjs",
+      "evals/journeys/j4-reference.mjs",
+      "evals/journeys/j5-edit-export.mjs",
+      "tests/ux/real-media-fixtures.json",
+      "docs/engineering/real-media-debt.json"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/real-media-import.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/real-media-import.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "docs/engineering/real-media-debt.json"
+    ],
+    "rationale": "两笔到期 debt 登记在同一提交中销账；旧合成/占位素材不作为真实覆盖回退。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次只编排现有 Electron、ffmpeg、MCP 和门岗，不升级第三方依赖。",
+    "exit_criteria": []
+  },
+  "migration": "无用户数据迁移；真实素材只读，派生 PNG 与项目副本写入隔离临时目录，走查结束删除。",
+  "residual_risks": [
+    "本次无法用 Finder 原生拖放事件驱动系统层，断言落在 handleCanvasStageDrop 之后的共享导入/落盘边界。",
+    "MCP 的 1.38GB 视频调用在 300 秒有界等待内没有回执；本次不把它写成拒绝或成功，保留为 MCP/大媒体处理边界的未验证项。",
+    "J4 needsAgent 仍依赖隔离评测目录的本地模型目录来创建视频节点；真实供应商生成不执行，zeroVendorCalls 仍是评测安全门。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "tests/ux/real-media-import.walk.mjs",
+    "tests": [
+      "tests/ux/real-media-import.walk.mjs"
+    ],
+    "why": "登记表把 import coverage 绑定到真实素材矩阵；共享生产边界仍由现有 importLocalMediaFilesToGenerationCanvas/importProjectAsset 负责，走查只观测不改产品。"
+  }
+}

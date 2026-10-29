@@ -1,0 +1,138 @@
+{
+  "script": "browser-extract-real.paid.mjs",
+  "mode": "paid（真读图模型）",
+  "startedAt": "2026-10-28T02:12:43.158Z",
+  "finishedAt": "2026-10-28T02:14:29.695Z",
+  "result": "passed",
+  "failure": null,
+  "model": "apimart/gemini-3.5-flash",
+  "image": {
+    "id": "image-4k-png",
+    "bytes": 3615533,
+    "originalBytes": 9978601,
+    "maxEdge": 1920,
+    "fileName": "reference.png"
+  },
+  "locales": [
+    "zh-CN"
+  ],
+  "passes": [
+    {
+      "locale": "zh-CN",
+      "steps": [
+        {
+          "id": "1-cancel",
+          "text": "悬停点提取 → 出卡 → 取消：供应商 0 次，库不变，标签页写已取消",
+          "ok": true,
+          "delta": {
+            "outbound": 0,
+            "fixtureVision": null,
+            "library": 0,
+            "cardsOpened": 1,
+            "maxConcurrentCards": 1,
+            "cardSamples": 21
+          }
+        },
+        {
+          "id": "2-busy",
+          "text": "卡开着时再触发：回忙，标签页那句等于词典原文，始终只有 1 张卡",
+          "ok": true,
+          "delta": {
+            "outbound": 0,
+            "fixtureVision": null,
+            "library": 0,
+            "cardsOpened": 2,
+            "maxConcurrentCards": 1,
+            "cardSamples": 25
+          }
+        },
+        {
+          "id": "3-confirm",
+          "text": "在卡上点确认：供应商恰好 1 次，库多 1 条，再等 60 秒仍是 1 次",
+          "ok": true,
+          "delta": {
+            "outbound": 1,
+            "fixtureVision": null,
+            "library": 1,
+            "cardsOpened": 2,
+            "maxConcurrentCards": 1,
+            "cardSamples": 31
+          },
+          "added": {
+            "title": "图片提示词"
+          }
+        },
+        {
+          "id": "4-screenshot-cancel",
+          "text": "工具栏截图提取 → 出卡 → 取消：供应商仍是 1 次",
+          "ok": true,
+          "delta": {
+            "outbound": 1,
+            "fixtureVision": null,
+            "library": 1,
+            "cardsOpened": 3,
+            "maxConcurrentCards": 1,
+            "cardSamples": 35
+          }
+        }
+      ],
+      "shots": [
+        "docs/evidence/2026-10-27-browser-extract-grant/paid/zh-1-extract-card.png",
+        "docs/evidence/2026-10-27-browser-extract-grant/paid/zh-2-busy-hint.png",
+        "docs/evidence/2026-10-27-browser-extract-grant/paid/zh-3-library-entry.png"
+      ],
+      "counts": {
+        "base": {
+          "outbound": 0,
+          "fixtureVision": null,
+          "library": 0,
+          "cards": {
+            "opened": 0,
+            "maxConcurrent": 0,
+            "samples": 11
+          }
+        },
+        "cardTextAtStep1": "把这张图写成提示词？\n\n读图模型会看一次这张图，写好的提示词存进提示词库。\n\n来源页\n127.0.0.1\n图片\nreference.png\n读图\napimart · gemini-3.5-flash\n取消\n提取",
+        "reconcile": {
+          "confirmClicks": 1,
+          "outbound": 1,
+          "supplierSide": "回包落成的库内容：{\"title\":\"图片提示词\",\"promptChars\":143}"
+        },
+        "final": {
+          "outbound": 1,
+          "fixtureVision": null,
+          "library": 1,
+          "cardsOpened": 3,
+          "maxConcurrentCards": 1,
+          "cardSamples": 35
+        },
+        "libraryPanel": {
+          "entryShownWithoutReload": false,
+          "entryShownAfterReload": true
+        },
+        "ledger": [
+          {
+            "url": "https://api.apimart.ai/v1/chat/completions",
+            "host": "api.apimart.ai",
+            "model": "gemini-3.5-flash",
+            "hasImage": true
+          }
+        ]
+      }
+    }
+  ],
+  "holdAfterConfirmMs": 60000,
+  "spend": {
+    "text": {
+      "replies": 0,
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "models": {}
+    },
+    "mediaCalls": 0
+  },
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-browser-extract-real-development-1793153563772"
+}

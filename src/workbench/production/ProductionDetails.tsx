@@ -9,22 +9,12 @@ type Props = {
   details: ProductionRunView['details']
 }
 
-function formatAmount(value: number, currency: string, language: string): string {
-  try {
-    return new Intl.NumberFormat(language, {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value)
-  } catch {
-    return `${currency} ${value.toFixed(2)}`
-  }
-}
-
+// 界面不谈钱：这里原有四个金额格（已授权 / 已预留 / 已结算 / 待结算），值是把账本合计现算成货币。
+// 账本合计只加已知价，算不出价的镜头不在里面，实付也从不回写——四格印出来的零金额没有依据（2026-10-27 删，
+// 方向检查 docs/engineering/direction-checks/2026-10-27-ui-money-amounts.md）。视图里也不再带预算，
+// 界面上新写金额格式化由 ESLint 的 ui-money 规则拦（scripts/ui-money-format.mjs）。
 export function ProductionDetails({ details }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
-  const budget = details.budget
-  const amount = (value: number) => formatAmount(value, budget.currency, i18n.language)
   const updatedAt = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -51,24 +41,6 @@ export function ProductionDetails({ details }: Props): JSX.Element {
           </div>
         ))}
       </div>
-      <dl className={cn('grid grid-cols-2 gap-x-3 gap-y-2 text-caption')}>
-        <div>
-          <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.authorized')}</dt>
-          <dd className={cn('mt-0.5 font-medium tabular-nums text-nomi-ink')}>{amount(budget.authorized)}</dd>
-        </div>
-        <div>
-          <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.reserved')}</dt>
-          <dd className={cn('mt-0.5 font-medium tabular-nums text-nomi-ink')}>{amount(budget.reserved)}</dd>
-        </div>
-        <div>
-          <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.actual')}</dt>
-          <dd className={cn('mt-0.5 font-medium tabular-nums text-nomi-ink')}>{amount(budget.actual)}</dd>
-        </div>
-        <div>
-          <dt className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.unsettled')}</dt>
-          <dd className={cn('mt-0.5 font-medium tabular-nums text-nomi-ink')}>{amount(budget.unsettled)}</dd>
-        </div>
-      </dl>
       <div className={cn('grid gap-1 text-caption')}>
         <span className={cn('text-nomi-ink-60')}>{t('generationCommon.production.runDetails.skills')}</span>
         <span className={cn('text-nomi-ink-80')}>

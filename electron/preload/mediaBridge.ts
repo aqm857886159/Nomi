@@ -80,6 +80,7 @@ export const mediaBridge = {
       ipcRenderer.invoke("browser:prompt-extraction-settings:read", payload),
     writePromptExtractionSettings: (payload: unknown) =>
       ipcRenderer.invoke("browser:prompt-extraction-settings:write", payload),
+    runPromptExtraction: (payload: unknown) => ipcRenderer.invoke("browser:prompt-extraction:run", payload),
     setResourceCapture: (payload: unknown) => ipcRenderer.send("browser:view:set-resource-capture", payload),
     captureResource: (payload: unknown) => ipcRenderer.send("browser:view:capture-resource", payload),
     showChromeMenu: (payload: unknown) => ipcRenderer.invoke("browser:chrome-menu:show", payload),
@@ -168,6 +169,8 @@ export const mediaBridge = {
     },
     deconstruct: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:deconstruct", payload) as Promise<unknown>,
+    cancelDeconstruct: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:video:deconstruct-cancel", payload) as Promise<{ ok: boolean }>,
   },
   screenshot: {
     get: () => ipcRenderer.invoke("nomi:screenshot:get") as Promise<unknown>,

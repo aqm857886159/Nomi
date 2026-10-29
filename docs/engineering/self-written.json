@@ -123,6 +123,10 @@
       "reason": "MCP 工具结果的内容：一次制作发出了哪几镜、停在哪、没发的还能不能继续、进度起步那一句——按镜头花钱的领域事实（协议与传输另在 mcp* 自写登记里）"
     },
     {
+      "path": "electron/capabilityCore/assetImport*",
+      "reason": "素材领域的导入路由：capability / MCP 的 asset.import 落到唯一的本地导入写路 importLocalFile（项目会话、导入请求的中止与转码收尾）；素材是 Nomi 的领域本身。从 dispatcher.ts 体外移出（体积冻结上限），不是新能力"
+    },
+    {
       "path": "electron/shared/agentCapabilities/",
       "reason": "能力契约与动词：画布 / 文稿 / 时间轴 / 生成的领域读写、审批语义"
     },
@@ -161,6 +165,10 @@
     {
       "path": "electron/shared/production*",
       "reason": "制作流程的镜头阶段、批次成员、停下原因、命令 id"
+    },
+    {
+      "path": "electron/shared/contracts/browserPromptExtraction*",
+      "reason": "浏览器提取提示词的跨进程契约：主进程那扇门的请求与回话形状、付费卡上「读哪个页面的哪张图」两行的编码——按次花钱卡上的领域事实"
     },
     {
       "path": "electron/shared/contracts/canvasHandOver*",
@@ -408,6 +416,10 @@
     {
       "path": "electron/browser/captureNaming*",
       "reason": "采集素材的命名规则"
+    },
+    {
+      "path": "electron/browser/prompt/",
+      "reason": "内置浏览器里「把一张图写成提示词」：每次读图前问人、按这一次调用铸令牌——按次花钱的领域语义（问人与铸令牌走现成的 confirmSpendAndMintGrant，不自写）"
     },
     {
       "path": "src/workbench/ai/lane/",
@@ -1899,6 +1911,38 @@
       "revisitWhen": "Vitest 提供按用例的「自定义在途资源」钩子，或导出任务表改成按项目实例化、不再是模块级单例时"
     },
     {
+      "id": "ipc-inflight-request-stop",
+      "capability": "主进程在途 IPC 长请求的停止边界：按「发送方:requestId」登记，渲染层撤回 / 发起窗口销毁 / 项目会话复核失败 / 退出收摊（drain：立刻中止、此后不接新请求、等收尾做完才兑现）汇成交给干活那一层的同一个 AbortSignal，停下回 null（补预览、视频拆解、本地素材导入共用）",
+      "status": "justified",
+      "paths": [
+        "electron/ipcRequestRegistry.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Electron ipcRenderer.invoke：只有通道与结构化克隆的参数，没有取消机制，AbortSignal 过不了 IPC——取消只能是第二条按请求号寻址的通道",
+          "source": "https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args"
+        },
+        {
+          "name": "Node / WHATWG AbortController 与 AbortSignal（接入：信号本身就是它，abort、throwIfAborted、spawn 的 signal 选项都不自写）",
+          "source": "https://nodejs.org/api/globals.html#class-abortcontroller"
+        },
+        {
+          "name": "Electron webContents 的 destroyed 事件（接入：发起窗口没了就停）",
+          "source": "https://www.electronjs.org/docs/latest/api/web-contents#event-destroyed"
+        },
+        {
+          "name": "LSP / vscode-jsonrpc 的 $/cancelRequest：带取消协议的 JSON-RPC，要把主窗口整条 ipcMain.handle 传输换成 JSON-RPC 连接",
+          "source": "https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#cancelRequest"
+        },
+        {
+          "name": "仓库先例：文本流按 streamId 撤（不校验发起窗口，谁拿到号都能撤）",
+          "source": "electron/ai/textStreamIpc.ts:118"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：「停」在 Nomi 里除了渲染层撤回，还要认两样框架不知道的事——项目会话（切项目 / 关项目 = 停，由发起时 projectInteractionCapture 签发的断言周期复核）与发起窗口（只有发起那个窗口撤得动自己的请求，多窗口下不串）。本模块只把现成的 AbortController、webContents 的 destroyed 事件、registerQuitDrain 接到一起（约 60 行），不重写 IPC 传输、不自造信号；换成 JSON-RPC 的 $/cancelRequest 等于把主窗口整条 ipcMain.handle 传输换掉，代价远大于这 60 行。",
+      "revisitWhen": "Electron 的 invoke 原生支持取消（AbortSignal 或带取消的 MessagePort 请求），或主窗口 IPC 整体换到带取消协议的 RPC 层时，删掉本模块；视频拆解迁进制作 Run（Run 自己持有停止）时，把拆解这一家迁出"
+    },
+    {
       "id": "docs-site-glue",
       "capability": "教程站接入胶水：把 Astro Starlight 的产物搬进官网目录、去掉站内链接的 .html、写页面清单并入 sitePages",
       "status": "justified",
@@ -2040,6 +2084,30 @@
       "revisitWhen": "Leafer 场景可直接无损导入/导出 Nomi WhiteboardState 且保持资产引用、分组/文本变换、版本恢复和节点 frame 独立时，删除这份映射适配；通用生命周期仍优先用框架。"
     },
     {
+      "id": "whiteboard-frame-size-commit",
+      "capability": "画板画框尺寸 → 画板文档尺寸的唯一提交口：分清「画板自己请求宿主改画框」（打开、比例、尺寸框、撤销 / 重做）和「创作者拖框」，拖框停稳 250ms 后重读画框与文档，只提交那一刻的真值。",
+      "status": "justified",
+      "paths": [
+        "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardFrameSize.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Mantine 8.3.18 useDebouncedCallback：防抖、cancel、卸载时撤掉都直接用它，不手写计时器（原来 WhiteboardDrawingTool 里手写的 commitTimer 已在本 PR 删掉）。",
+          "source": "node_modules/@mantine/hooks/esm/use-debounced-callback/use-debounced-callback.mjs:5"
+        },
+        {
+          "name": "Mantine useResizeObserver / useElementSize：自己造 ref，尺寸经 requestAnimationFrame 合并后进 state，下一帧才读得到；这里画框 ref 来自宿主，而且每次观察当下就要和 settle 登记的等待尺寸对账，路过的中间尺寸不能先落进 state。观察直接用浏览器标准 ResizeObserver。",
+          "source": "node_modules/@mantine/hooks/esm/use-resize-observer/use-resize-observer.mjs:14"
+        },
+        {
+          "name": "React Flow NodeResizer 的 onResize / onResizeEnd：住在所有节点共用的外壳里，只覆盖拖把手；画板自己的四扇门经宿主 fit 改画框，不经过把手，外壳本单也不改。",
+          "source": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx:282"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：画框是画布节点，画板文档尺寸是 Nomi WhiteboardState 的 canvasDimensions；「这一次画框变了，是画板自己请求的 fit 还是创作者拖框」只有画板知道（settle 登记的等待尺寸、打开时定下的缩放）。通用部分全用现成的（浏览器 ResizeObserver、Mantine useDebouncedCallback），本文件只做这份领域判定和提交前重读真值。只豁免这一精确文件，不扩大 hooks / 领域目录范围。",
+      "revisitWhen": "画板文档尺寸不再跟着画框走（例如画框只做视图缩放、尺寸只由比例和尺寸框决定），或节点外壳把「拖把手结束」交给节点自己处理时，删掉这份判定，改在拖完那一下提交。"
+    },
+    {
       "id": "agent-inline-reference-admission",
       "capability": "常驻 Agent 的句中媒体引用：把共享 PromptEditor 的原件缩略图与现有项目附件准入、会话寿命和 canonical claim 对齐",
       "status": "justified",
@@ -2136,6 +2204,40 @@
       ],
       "whyNotIntegrated": "领域约束：格式钮要同时服从 Nomi 设计系统的按下态与 Tooltip 规范，并在三处 Nomi 独有的编辑表面（创作文稿、选区生成浮条、画布文本节点）保住编辑器选区；通用部分（Tooltip、编辑器状态订阅）都已接现成能力，自写的只剩一颗按钮的组合。",
       "revisitWhen": "设计系统出了通用的「带提示的开关图标钮」原语时，改用它并删掉本文件"
+    },
+    {
+      "id": "test-temp-owner-reclaim",
+      "capability": "测试 / 走查 / 门岗的系统临时目录按「创建者进程号」归属并回收：目录名 nomi-<前缀>-p<进程号>-<随机>，创建者被 SIGKILL 后由下一个进程第一次分配、或杀它的 runner（等整棵进程树没了）按进程是否存活回收。脚本侧（scripts/_test-temp.mjs 管系统临时目录里的测试 / 走查目录，scripts/pre-push-contracts.mjs 的 terminateAndReclaim 是杀后回收的唯一口子）与产品侧（electron/assets/scratchCleanup.ts 管用户项目根下的上传暂存）各一份——登记为什么是两份、各管哪边",
+      "status": "justified",
+      "paths": [
+        "scripts/_test-temp.mjs",
+        "scripts/pre-push-contracts.mjs",
+        "electron/assets/scratchCleanup.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Node fs.mkdtemp + process.on('exit')（原做法）：'SIGKILL' cannot have a listener installed，被杀时退出钩子不跑——10-24 到 10-28 漏 10 份、约 8.6G",
+          "source": "https://nodejs.org/api/process.html#signal-events"
+        },
+        {
+          "name": "npm tmp 的 setGracefulCleanup：只在进程退出时清理，没有按创建者死活回收（README 没谈被信号杀死）",
+          "source": "https://github.com/raszi/node-tmp#graceful-cleanup"
+        },
+        {
+          "name": "pytest tmp_path 的保留策略：按次数留最近 3 份（我们这里 3 份 = 2.5G），不看创建者死活",
+          "source": "https://docs.pytest.org/en/stable/how-to/tmp_path.html#temporary-directory-location-and-retention"
+        },
+        {
+          "name": "systemd tmpfiles.d 的 Age：按年龄清理，天级，管不了一次门岗超时漏的 0.85G",
+          "source": "https://www.freedesktop.org/software/systemd/man/latest/tmpfiles.d.html#Age"
+        },
+        {
+          "name": "仓库内已有的同形实现（产品侧，TypeScript，依赖 retryOnSharingViolation 与日志）：目录名带进程号 + process.kill(pid, 0) 判存活",
+          "source": "electron/assets/scratchCleanup.ts:24"
+        }
+      ],
+      "whyNotIntegrated": "没有现成库提供「目录名带创建者进程号 + 按进程存活回收 + 杀进程的一方等整棵树没了再收」这一整套：上面四条要么只在进程退出时清理，要么按次数 / 年龄猜，而杀这些进程的正是我们自己的门岗 runner（SIGKILL 整组）。为什么是两份而不是一份：scripts/_test-temp.mjs 是纯 node 直接跑的零依赖 .mjs（被构建链用到——scripts/package-build-stamp.mjs，并被 scripts/electron-build.test.mjs 单文件拷进夹具），没有 TS 加载器，不能 import TypeScript 产品代码；产品代码也不许 import scripts/；两边共同的只有一个存活判断（process.kill(pid, 0)）加一个目录名形状，十来行。共用要么动 electron/ 的结构（本单不碰，也是任务书的停点），要么新造一个需要构建步骤的跨运行时模块，代价远大于重复。各管一边：scratchCleanup.ts 管用户项目根下的 .nomi-upload-p<pid>-xxxxxx（别的活进程的按年龄兜底、有 liveStaging 保护本进程在用的）；_test-temp.mjs 管系统临时目录里的 <前缀>-p<pid>-xxxxxx（共享目录，所以多一道 uid 校验、lstat 不跟符号链接，且不按年龄——活进程的永远不动）。脚本侧另有三份存活判断（scripts/vitest-fair-share.mjs:44、scripts/lib/nomiClient.mjs:44、scripts/git-delivery.mjs:480），同样因为零依赖不合并，合并是另一刀。",
+      "revisitWhen": "脚本侧能直接 import 一份编译后的产品模块、或两边有了共用的零依赖跨运行时模块时，合并成一份并删掉重复的存活判断；或 vitest 运行根 / evals / 视频原生导入暂存也接进同一套归属后复查两份是否还都需要"
     }
   ]
 }

@@ -168,7 +168,7 @@ describe('转写腿点名不可用：与读图腿同一条规矩（编排本体�
     const authorizeSpend = vi.fn(async (_plan: Plan) => 'grant-1' as string | null)
     const result = await deconstructVideo(
       { videoUrl: 'nomi-local://asset/p/v.mp4', projectId: 'p', framesPerShot: 1, vision: { vendorKey: 'moonshot', modelKey: 'kimi-k2' }, ...(transcribe ? { transcribe } : {}) } as never,
-      { authorizeSpend },
+      { authorizeSpend, signal: new AbortController().signal },
     ).catch((error: unknown) => error as Error)
     return { result, authorizeSpend }
   }

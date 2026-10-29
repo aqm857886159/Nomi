@@ -17,19 +17,17 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // 跑：pnpm run build && APIMART_E2E=1 NOMI_SPEND_OK=1 node tests/ux/p4-s6p5-multishot-paid.e2e.mjs
 
-import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
+import { launchNomiApp, repoRoot, spawnQuietElectron } from './_launchApp.mjs'
 import { prepareIsolation, createBlankProject, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
 import { realNomiProfile } from './_realProfile.mjs'
 import { clickOrFail, proveProbe } from './_assert.mjs'
-import { createRequire } from 'node:module'
-import { spawn, execFileSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import readline from 'node:readline'
 import path from 'node:path'
 
-const require = createRequire(import.meta.url)
 
 // MCP 客户端证明：HMAC-SHA256(capabilityToken, "nomi-mcp-client:v1:<client>") → 让 stdio 子进程被认成
 // 注册客户端 'claude'（否则 current_project bootstrap 拒发 lease）。token 从隔离 capDir/token 读（同机）。
@@ -98,7 +96,7 @@ function resolveLocalArtifact(relativePath, projectDir) {
 function spawnAgent(clientProofEnv) {
   const pending = new Map()
   let seq = 0
-  const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
+  const child = spawnQuietElectron([repoRoot, '--disable-gpu'], {
     cwd: repoRoot,
     env: { ...process.env, ...SEMANTIC_ENV, ...clientProofEnv, NOMI_MCP_STDIO: '1' },
     stdio: ['pipe', 'pipe', 'inherit'],

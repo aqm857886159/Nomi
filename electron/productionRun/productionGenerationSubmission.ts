@@ -23,12 +23,13 @@ import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunLock } from "./productionRunLock";
 import type { ProductionRunRepository } from "./productionRunRepository";
-import { isTransportLevelFailure, observeSubmissionHandoffs, providerExplicitlyRejected } from "../outboundDispatchEvidence";
+import { isTransportLevelFailure, observeSubmissionHandoffs } from "../outboundDispatchEvidence";
 import {
   SubmissionNotDispatchedError,
   SubmissionReceiptUnknownError,
   SubmissionReconciliationRequiredError,
   createSubmissionOutbox,
+  submissionFailureOutcome,
 } from "./submissionOutbox";
 import { createProductionExecutionBinding, validateProductionExecutionBinding, type ProductionExecutionBinding } from "./productionExecutionBinding";
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
@@ -557,8 +558,10 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           if (observed.notDispatched) {
             throw new SubmissionNotDispatchedError(error instanceof Error ? error.message : String(error), observed.notDispatched);
           }
-          // 供应商当场明确拒绝（收到了 4xx / 失败信封、没有任务号）：确定没受理，信封留在封好的状态，由出口记成确定的失败。
-          if (providerExplicitlyRejected(error)) throw error;
+          // 只有「结果未知」才记进信封。确定的答复——供应商当场明确拒绝（收到了 4xx / 失败信封、没有任务号），或答了、结果在
+          // 回答里但本机落地失败（落地门的正证据）——信封留在封好的状态（它没有「答了但没有任务号」这一态，耐久的结局记在
+          // Run 的 job 上），由出口按同一个封闭结局落盘。
+          if (submissionFailureOutcome(error, false) !== "unknown") throw error;
           prepared.envelope.markSubmittedUnknown();
           throw error;
         },

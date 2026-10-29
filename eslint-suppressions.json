@@ -294,7 +294,7 @@
   },
   "scripts/check-test-temp-static.node-test.mjs": {
     "no-useless-escape": {
-      "count": 2
+      "count": 1
     }
   },
   "scripts/check-test-types.test.mjs": {
@@ -966,11 +966,6 @@
       "count": 1
     }
   },
-  "tests/ux/_offscreenWindows.cjs": {
-    "@typescript-eslint/no-require-imports": {
-      "count": 2
-    }
-  },
   "tests/ux/_paidNetwork.mjs": {
     "no-useless-escape": {
       "count": 1
@@ -982,11 +977,6 @@
     }
   },
   "tests/ux/_realProfile.test.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/_textTasksSteps.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -1656,11 +1646,6 @@
       "count": 2
     }
   },
-  "tests/ux/full-walk/offscreenWindow.cjs": {
-    "@typescript-eslint/no-require-imports": {
-      "count": 1
-    }
-  },
   "tests/ux/full-walk/playbooks/pb04-script-attachment-long-chat.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -2288,11 +2273,6 @@
     }
   },
   "tests/ux/video-clip-direct.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/video-deconstruct.e2e.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

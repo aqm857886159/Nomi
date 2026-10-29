@@ -1,0 +1,224 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-shot-scope-undecided",
+  "problem_type": "付费卡的范围在「没点名」时没有主人：每扇门各补一份「没给就全量」，Agent 不点名再出价时卡越界，正在生成的镜被摆回卡上",
+  "symptom": "0.24 发版阻断项里的花钱错，第 1 轮复现 4/4：R-a 第一次点名 shot-1、卡开着，Agent 不点名再 generate → 卡和回执都成了 shot-1/2/3；R-b 卡上点了 shot-1 生成（交给画布、在生成）再取消，回执按设计告诉 Agent「他要的话对同一份草稿再调 generate」，Agent 照做不点名 → 新卡摆 shot-1/2/3，在生成的 shot-1 又上卡，用户再点一下就是同一镜花两次钱；「直接生成」档里卡上两镜都在交时 Agent 不点名再 generate，新卡又摆这两镜、策略替用户再交一次（改前这一格回 ok:true 带 spendDecision）= 同一镜花两次钱；R-c 外部宿主 gate 不点名、开着的卡上一镜不剩待定 → 封全部；R-d 卡已关、没定的只有 shot-2 → 封全部（交给画布的镜在制作 Run 上没有合同，被当成「没封过」再封一次）。",
+  "direct_cause": "electron/capabilityCore/mcpGenerationTools.ts:558 handler 在交给 store 之前就用 resolveGenerationShotScope 把「没点名」翻译成「点名全部」（requested === undefined → 全部，generationShotScope.ts:3），持久层 presentationScope 自己的不点名规则根本没机会跑；presentationScope（productionGenerationPresentationEdits.ts:69-71）又在「没送过的」为空时回退成整份再来一轮；付费门 resolveGateScope（mcpGenerationMultiShot.ts:692-695）只认开着的卡，卡上没剩或卡已关就回退 open 全集；reducer sealScopeOf（productionGenerationSeal.ts:131-135）留着同一个回退。",
+  "class_root": "表示层的问题：shotIds?: string[] 一个可选数组同时承载「点名了」和「没点名 = 让系统按事实决定」，缺省值由每个读它的人自己补。补的人手里都有「计划里有哪些镜」，只有出价账知道「最近一次出价还没定哪几镜」，所以最省事的缺省永远是「全部」。2026-09-19 那次同类修复只把点名的范围收进了 Run 变更边界，不点名的默认没有主人——修一处，下一扇门（新车道、外部宿主、文稿方案、reducer）又各补一份。",
+  "migration": "换（用户 2026-10-27 拍板「五件都按推荐办」）：新增唯一规则 resolveUndecidedGenerationShotScope（electron/shared/agentCapabilities/generationShotScope.ts）——不点名 = 最近一张卡（开着或已关）上还没定的镜；从没出过价 = 勾着、没送过、没去掉过的；一镜不剩就拒（GenerationScopeRefusal，码 generation_input_invalid，正文逐镜说状态并给下一步）。同一个提交删掉旧函数 resolveGenerationShotScope、presentationScope 的「整份再来一轮」与 generation_nothing_to_present、resolveGateScope 的 onCard → open 回退与 scopeInvalid / requestedShotIds、sealScopeOf 的不点名分支（多镜封印必须带 scope）、内存 store 的 present 默认；handler 原样转交 shotIds，store 接口的范围参数改成原样值。没有开关、没有回退、没有落盘字段变化。",
+  "affected_population": [
+    "在 Agent 面板里分批生成分镜的用户：「先生成第一张看看 → 剩下的也生成」「卡上点了几张又取消 → 让 Agent 再出卡」，以前卡上会混进卡外的镜和正在生成的镜",
+    "「直接生成」档的用户：卡上的镜还在交时 Agent 不点名再出价，同一镜被策略再决一次、再扣一次钱",
+    "外部 MCP 宿主（nomi_operation_gate 不收 shotIds）：卡关掉之后再请求门，以前会把交给画布的镜再封一次"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/generationShotScope.ts",
+    "electron/productionRun/productionGenerationPresentationEdits.ts",
+    "electron/productionRun/productionGenerationSeal.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "src/workbench/capability/storyboardPresent.ts"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpGenerationTools.ts present（Agent generate 经 handler：原样转交 shotIds，回执读这一次出价）",
+    "electron/productionRun/productionGenerationPresentationEdits.ts presentationScope（持久出价，唯一算不点名范围的写口）",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts resolveGateScope（付费门，外部宿主不点名）",
+    "electron/productionRun/productionGenerationSeal.ts sealScopeOf（reducer 封印：多镜必须带 scope）",
+    "electron/capabilityCore/generationTransportAdapters.ts tryExecute（分镜选择 = 用户的点名）",
+    "src/workbench/capability/storyboardPresent.ts presentStoryboard（文稿方案，没有出价账）",
+    "electron/capabilityCore/mcpGenerationMultiShot.ts presentStoryboardAuthoring（文稿方案转交：不再静默丢掉非数组）",
+    "electron/capabilityCore/mcpGenerationOperationMemoryStore.ts present（测试用内存 store：拒绝，没有出价账）"
+  ],
+  "invariants": [
+    "不点名的 generate 摆的镜 ⊆ 最近一张卡（开着或已关）上还没定的镜；从没出过价时 = 勾着、没送过、没去掉过的",
+    "最近一张卡上没剩还没定的镜、又没点名 → 拒绝，码 generation_input_invalid，正文逐镜说状态、点出卡外的镜、给这扇门的下一步（present：在 shotIds 里点名；gate：另起草稿），什么都不写",
+    "正在生成（交给画布：在交 / 交到了 / 结果未知）的镜不会因为不点名再出价而再上卡；「直接生成」档一次出价里同一镜至多交一次",
+    "点名照旧：present 门可以点计划里任何一镜（重试照常、负债检查照旧），gate 门只认此刻还能封的；重复 / 空 / 不存在一律原子拒绝",
+    "回执 shots = 这一次出价摆的镜",
+    "多镜 generation.seal 必须带 scope，结构上封不出「全部」"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "resolveUndecidedGenerationShotScope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "resolveNamedGenerationShots"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "symbol": "resolveUndecidedGenerationShotScope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "resolveUndecidedGenerationShotScope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSeal.ts",
+      "symbol": "resolveNamedGenerationShots"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "resolveNamedGenerationShots"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "resolveUndecidedGenerationShotScope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "shotsOnOffer"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 8,
+    "why_not": "门数没减是因为每扇门本来就是独立入口（持久出价、付费门、封印、分镜选择、文稿方案、回执），合并的是规则：改前 7 扇门各自算「没点名」的缺省（resolveGenerationShotScope 的 5 个调用方 + resolveGateScope 的 onCard→open 回退 + sealScopeOf 的回退），改后只有 resolveUndecidedGenerationShotScope 一条规则算缺省、resolveNamedGenerationShots 一处验点名，门只剩调用它们；handler 不再算范围（只读回执 shotsOnOffer），内存 store 不再出价，sealScopeOf 只验点名。改后门表用 node scripts/door-map.mjs resolveUndecidedGenerationShotScope resolveNamedGenerationShots shotsOnOffer 生成。"
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/generationShotScope.test.ts",
+    "electron/capabilityCore/mcpGenerationShotScope.e2e.test.ts",
+    "electron/productionRun/productionGenerationPresentationScope.test.ts",
+    "electron/capabilityCore/generationTransportAdapters.test.ts",
+    "src/workbench/capability/storyboardPresent.test.ts",
+    "electron/capabilityCore/agentPanelSpendCardStop.e2e.test.ts"
+  ],
+  "residual_risks": [
+    "点名重摆一镜正在交给画布的镜：负债检查 hasUnsettledLiability 只看制作 Run 自己的作业，看不到画布交接（不点名的路本次堵上，点名的路不在本次范围）",
+    "「这一镜还能封吗」两份定义（MCP 视图 !shot.contract 与 reducer「这一次出价里没批过」）在「新一轮重试已封过的镜」时答案不同，本次不合并",
+    "laneExtendedDesktopPorts.ts 的导演台预览检查在不点名时按全集查：只会多拦、不会多花",
+    "文稿方案没有出价账：不点名仍是这一轮全集；方案一镜都没有时不点名现在在渲染层被拒，过 IPC 只剩一句话，模型拿到兜底码而不是 nothing_to_generate（都没花钱）",
+    "不点名再出价顶掉一张开着的卡：那张卡上在交的镜不算没定，顶掉时还没绑上画布的那几笔被收回，就此不在任何一张卡上，要再摆得点名（拒绝文案会列出它们）",
+    "真模型数字（Agent 收到拒绝后一步点名的比例、回合成功率）未验证：要额度，交协调",
+    "不点名再出价被拒时，面板上是通用的红色失败行「这一步没做成（generation_input_invalid）…」（走查 agent-spend-waiting-owner ④ 的截图 05）：拒绝正文是写给模型的，界面没有专门的领域拒绝样式；要不要渲染得更轻是界面问题，不在本次范围"
+  ],
+  "internal_only_reason": "纯内部问题：范围事实是 Nomi 自己的出价账（generationPlan.presentations），规则、拒绝文案和门都在仓库里；外部参考（kubectl delete 必须给名字 / gh run rerun 省略 = 全部的反例 / Anthropic 写工具指南）只用于设计卡 ★0 的取舍，不是这次缺陷的依据。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "第三次碰同一类：2026-09-19「三镜请求摆出 33 镜」修了点名那一半，2026-09-30 付费卡逐镜又是范围事实散在各层，这一次是不点名的默认。机制是表示层：可选数组的缺省由读者自己补，任何新车道、新宿主、新的封印调用者都会再补一份「全部」。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs resolveGenerationShotScope（改前）：读 5 扇——generationTransportAdapters.ts:557、mcpGenerationOperationMemoryStore.ts:66、mcpGenerationTools.ts:558、productionGenerationPresentationEdits.ts:68、storyboardPresent.ts:50",
+      "node scripts/door-map.mjs resolveGateScope（改前）：mcpGenerationTools.ts:631/635；sealScopeOf：productionGenerationSeal.ts:174",
+      "mcpGenerationMultiShot.ts:581 presentStoryboardAuthoring 对非数组 shotIds 静默丢弃（= 变成没点名），本次一并收掉",
+      "electron/productionRun/productionRunIpc.ts 渲染层 generation.present 只收非空、无重复的点名：不经不点名规则，不受影响"
+    ]
+  },
+  "generality_proof": "修在两个最早的共享边界上：①规则只有一份纯函数 resolveUndecidedGenerationShotScope，事实只从出价账的唯一读口 generationPresentationOutcome 来，调用方必须明说「有出价 / 没有出价」（CurrentOfferFacts），undefined 混不过去；②handler 不再预解析，store 接口只收原样值，摆哪几镜只由 Run 主人 presentGenerationPlan 算——新车道直接调 store.present、外部宿主的付费门、文稿方案、分镜选择都走同一个函数；多镜封印必须点名范围，reducer 里没有第二份缺省可补。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/generationShotScope.ts",
+      "symbol": "resolveUndecidedGenerationShotScope",
+      "responsibility": "这一次 generate / 付费门摆哪几镜的唯一规则：不点名 = 最近一张卡上还没定的，一镜不剩就拒，点名原子校验"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "symbol": "presentGenerationPlan",
+      "responsibility": "持久出价的唯一写口：按出价账算范围（presentationScope 调规则），负债检查在规则之后"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "entry_point": "createGenerationPlanningHandler",
+      "disposition": "enforced",
+      "evidence": "present 分支原样转交 params.shotIds、回执用 shotsOnOffer；mcpGenerationShotScope.e2e.test.ts A1 / A2 经 handler 与传输各跑一遍（改前红：卡和回执都是三镜）"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "entry_point": "resolveGateScope",
+      "disposition": "enforced",
+      "evidence": "调同一条规则（door gate，offerable = open）；mcpGenerationShotScope.e2e.test.ts A3（R-c 拒绝、R-d 只封 shot-2，含经 handler 的真形状）与 A4（在等的门）"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSeal.ts",
+      "entry_point": "sealScopeOf",
+      "disposition": "enforced",
+      "evidence": "多镜不带 scope → 拒；点名过 resolveNamedGenerationShots；productionGenerationPresentationScope.test.ts A13"
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "entry_point": "createPiGenerationTransportAdapter",
+      "disposition": "enforced",
+      "evidence": "分镜选择走同一条规则（NO_CURRENT_OFFER）；GenerationScopeRefusal 经 ownMessage 原样到模型；generationTransportAdapters.test.ts 选择外点名被拒、planning 一次没调"
+    },
+    {
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "entry_point": "presentStoryboard",
+      "disposition": "enforced",
+      "evidence": "文稿方案显式 NO_CURRENT_OFFER；storyboardPresent.test.ts 不点名 = 这一轮全集、点名不在方案里的镜在落节点前被拒"
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationOperationMemoryStore.ts",
+      "entry_point": "createInMemoryGenerationOperationStore",
+      "disposition": "enforced",
+      "evidence": "present 拒绝（没有出价账，留着就是第二份默认）；mcpGenerationShotScope.e2e.test.ts A9"
+    },
+    {
+      "path": "electron/productionRun/productionRunIpc.ts",
+      "entry_point": "generation.present",
+      "disposition": "not-affected",
+      "evidence": "渲染层这扇门只收非空、无重复的点名（productionRunIpc.test.ts），不经不点名规则"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/generationShotScope.ts",
+    "invariant": "不点名的范围只有 resolveUndecidedGenerationShotScope 一条规则，事实只从出价账来，调用方必须明说有没有当前出价；一镜不剩就拒，不回退成「全部」",
+    "failure_mode": "某扇门再写一份「没给就全量」或预解析成「点名全部」→ mcpGenerationShotScope.e2e.test.ts A1 / A2 / A12 红（卡、回执、供应商收到的次数逐项断言）；拒绝改成放行 → A2 变体 / A3 R-c / A12(b) / generationShotScope.test.ts 红；新写一份规则函数 → check:concept-owners 第二写口红；多镜封印不带 scope → reducer 当场拒",
+    "exception_policy": "none",
+    "strategy": "一条规则、一个事实来源、handler 不预解析、封印必须点名；拒绝写给模型看并带下一步",
+    "artifacts": [
+      "electron/shared/agentCapabilities/generationShotScope.ts",
+      "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "electron/productionRun/productionGenerationSeal.ts",
+      "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "docs/engineering/concept-owners/production.spend-card-presentation.json",
+      "electron/shared/agentCapabilities/generationShotScope.test.ts",
+      "electron/capabilityCore/mcpGenerationShotScope.e2e.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/shared/agentCapabilities/generationShotScope.test.ts",
+    "electron/capabilityCore/mcpGenerationShotScope.e2e.test.ts",
+    "electron/productionRun/productionGenerationPresentationScope.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/agentCapabilities/generationShotScope.ts",
+      "electron/productionRun/productionGenerationPresentationEdits.ts",
+      "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "electron/productionRun/productionGenerationSeal.ts",
+      "electron/capabilityCore/mcpGenerationOperationMemoryStore.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts"
+    ],
+    "rationale": "同一个提交删掉：generationShotScope.ts 的旧函数 resolveGenerationShotScope（整个删除）；productionGenerationPresentationEdits.ts presentationScope 的「整份再来一轮」回退与 generation_nothing_to_present；mcpGenerationMultiShot.ts resolveGateScope 的 onCard → open 回退与 scopeInvalid / requestedShotIds；productionGenerationSeal.ts sealScopeOf 的不点名分支与那句再也走不到的「nothing to seal」；mcpGenerationOperationMemoryStore.ts present 的「没点名 = 全部」；mcpGenerationTools.ts handler 的预解析。没有开关、没有回退、没有并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖：按镜头的花钱语义与出价账是 Nomi 自己的领域（self-written 领域目录），点名数组校验十来行，不引库。",
+    "exit_criteria": []
+  },
+  "external_sources": [],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-10",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/generationShotScope.ts",
+    "tests": [
+      "electron/shared/agentCapabilities/generationShotScope.test.ts",
+      "electron/capabilityCore/mcpGenerationShotScope.e2e.test.ts"
+    ],
+    "why": "规则只有这一个纯函数，持久出价、付费门、选择、文稿方案都调它；输入表单测守规则本身，端到端守每扇门真的调了它（卡、回执、供应商三处对账）。"
+  }
+}

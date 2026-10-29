@@ -65,10 +65,11 @@ export function buildAudioTrackArgs(inputPath: string, outPath: string): string[
   ];
 }
 
-function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
+/** `signal` 交给 spawn：abort 即杀子进程，`error`（AbortError）先到、Promise 只认这一次落定。 */
+function runFfmpeg(ffmpegPath: string, args: string[], signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     ensureExecutable(ffmpegPath);
-    const child = spawn(ffmpegPath, args, { windowsHide: true });
+    const child = spawn(ffmpegPath, args, { windowsHide: true, ...(signal ? { signal } : {}) });
     let stderr = "";
     child.stderr?.on("data", (chunk) => { stderr += String(chunk); });
     child.on("error", reject);
@@ -83,10 +84,16 @@ function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
  * 取音轨。**没有音轨不是错误**——广告片常是纯画面或只有背景音乐，
  * 这时返回 `hasAudio:false`，让拆解继续跑（对白列留空），而不是把整条链炸掉。
  */
-export async function extractAudioTrack(payload: ExtractAudioTrackPayload): Promise<ExtractAudioTrackResult> {
+export async function extractAudioTrack(
+  payload: ExtractAudioTrackPayload,
+  /** 拆解的停止信号：abort 后下载 / 探测 / ffmpeg 子进程一起停，取出来的音轨也不写缓存。不传 = 跑完为止。 */
+  options: { signal?: AbortSignal } = {},
+): Promise<ExtractAudioTrackResult> {
   const { videoUrl, projectId } = payload;
+  const { signal } = options;
   if (!videoUrl || typeof videoUrl !== "string") throw new AudioTrackError("缺少源视频地址");
   if (!projectId || typeof projectId !== "string") throw new AudioTrackError("缺少 projectId");
+  signal?.throwIfAborted();
 
   if (!payload.forceRerun) {
     const cached = trackCache.get(cacheKey(payload));
@@ -96,10 +103,10 @@ export async function extractAudioTrack(payload: ExtractAudioTrackPayload): Prom
   const ffmpegPath = resolveFfmpegPath();
   if (!ffmpegPath) throw new AudioTrackError("找不到 ffmpeg 可执行文件");
 
-  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId);
+  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId, signal);
   const outPath = path.join(os.tmpdir(), `nomi-audio-${crypto.randomUUID()}.mp3`);
   try {
-    const meta = await probeMediaMetadata(filePath);
+    const meta = await probeMediaMetadata(filePath, signal ? { signal } : {});
     const durationSeconds = typeof meta.durationSeconds === "number" && Number.isFinite(meta.durationSeconds)
       ? meta.durationSeconds
       : 0;
@@ -115,10 +122,13 @@ export async function extractAudioTrack(payload: ExtractAudioTrackPayload): Prom
       );
     }
 
-    await runFfmpeg(ffmpegPath, buildAudioTrackArgs(filePath, outPath));
+    signal?.throwIfAborted();
+    await runFfmpeg(ffmpegPath, buildAudioTrackArgs(filePath, outPath), signal);
     if (!fs.existsSync(outPath) || fs.statSync(outPath).size === 0) {
       throw new AudioTrackError("ffmpeg 未产出有效音轨");
     }
+    // 子进程恰好写完、信号才到：不写缓存、不交出去。
+    signal?.throwIfAborted();
     const bytes = fs.readFileSync(outPath);
     const written = writeProjectCacheFile(projectId, bytes, "audio-track", ".mp3");
     const result: ExtractAudioTrackResult = { url: written.url, hasAudio: true, durationSeconds };

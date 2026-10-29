@@ -79,8 +79,11 @@ export type GenerationOperationStore = {
   read(projectId: string, operationId: string): GenerationOperation | null | Promise<GenerationOperation | null>;
   /** `shotId`：改多镜草稿里的一镜（那一镜的候选 revision +1，其它镜一字不动）；缺省 = 顶层候选。 */
   patch(projectId: string, operationId: string, patch: Partial<Omit<PlanCandidate, "candidateId" | "revision">>, now: string, shotId?: string, target?: GenerationInvocationContext['storyboardTarget']): GenerationOperation | Promise<GenerationOperation>;
-  /** `generate` 动词：清掉 `cardHidden`，报价卡从这一刻起可投影。只对 draft 合法。 */
-  present(projectId: string, operationId: string, now: string, shotIds?: readonly string[], target?: GenerationInvocationContext['storyboardTarget'], policySnapshot?: ProjectAgentApprovalPolicy): GenerationOperation | Promise<GenerationOperation>;
+  /**
+   * `generate` 动词：摆出这一次出价，报价卡从这一刻起可投影。`requested` 是模型给的 `shotIds` 原样（`undefined` = 没点名）：
+   * 摆哪几镜只由 Run 主人按出价账算（`resolveUndecidedGenerationShotScope`），调用方不预解析、不补缺省。
+   */
+  present(projectId: string, operationId: string, now: string, requested: unknown, target?: GenerationInvocationContext['storyboardTarget'], policySnapshot?: ProjectAgentApprovalPolicy): GenerationOperation | Promise<GenerationOperation>;
   // P4 S6.5: `multiShot` seals per-shot sub-contracts + planHash (reducer freezes the whole batch). Absent
   // → single-shot seal of the one top-level contract (byte-identical to today).
   seal(projectId: string, operationId: string, contract: ExecutionContractV1, now: string, multiShot?: GenerationSealMultiShot, authorization?: GenerationAuthorizationPreparation): GenerationOperation | Promise<GenerationOperation>;

@@ -14,7 +14,7 @@ import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Panel, V4FlowRow } from './AgentPanelV4Panel'
 import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileDeviationCard'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
-import type { InterventionData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
+import type { InterventionData, TaskCardData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
 // 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。
 const NO_HANDLERS = { onPlanToggle: () => undefined, onCollapsePlan: () => undefined }
@@ -215,13 +215,20 @@ describe('④ 任务卡 · 五态', () => {
     expect(markup).toContain('换模型重试')
   })
 
-  it('每张卡都能带花费——这是我们要赢 MiniMax 的地方', () => {
-    const markup = html(el(V4TaskCard, {
-      task: { title: 'x', action: 'image', status: 'running', params: ['2K'], cost: '≈ ¥0.12' },
-      labels: taskLabels,
-    }))
-    expect(markup).toContain('≈ ¥0.12')
-    expect(markup).toContain('bg-nomi-warning-soft')
+  it('卡上不印金额：删字段之前的预估 / 已花混进来也不画，参数 chip 和脚注照旧', () => {
+    // 设计系统「钱只印一处」（2026-10-27 删了 TaskCardData 的 cost / footnoteTrailing）。这里故意喂删之前的形状：
+    // 组件把预估胶囊或卡尾数画回来，这条就红。
+    const legacy = {
+      title: 'x', action: 'image', status: 'running', params: ['2K'], footnote: '脚注',
+      cost: '≈ ¥0.12', footnoteTrailing: '已花 ¥0.24',
+    } as unknown as TaskCardData
+    const markup = html(el(V4TaskCard, { task: legacy, labels: taskLabels }))
+    expect(markup).not.toContain('¥')
+    expect(markup).not.toContain('已花')
+    expect(markup).not.toContain('bg-nomi-warning-soft')
+    // 阳性对照：同一张卡的参数 chip 和脚注还在（删的只是金额）。
+    expect(markup).toContain('2K')
+    expect(markup).toContain('脚注')
   })
 })
 

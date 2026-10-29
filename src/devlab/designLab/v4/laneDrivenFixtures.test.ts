@@ -30,7 +30,6 @@ const labels: LaneViewModelLabels = {
   unknown: '—',
   taskTitle: '生成任务',
   formatStages: (done, total) => `${done} / ${total} 阶段`,
-  formatMoney: (currency, amount) => `${currency} ${amount.toFixed(2)}`,
   taskUnknown: '任务详情在任务中心',
   attachmentUnavailable: '附件不可用',
   answered: '已回答',

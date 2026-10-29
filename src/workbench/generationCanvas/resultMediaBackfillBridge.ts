@@ -127,7 +127,7 @@ async function relocalizeNode(nodeId: string, result: GenerationNodeResult, proj
 }
 
 export type PreviewBackfillDeps = {
-  /** 带发起项目的绑定与请求号：项目关了 / 换了 / 窗口没了，主进程就杀掉在途派生（electron/assets/previewRequests）。 */
+  /** 带发起项目的绑定与请求号：项目关了 / 换了 / 窗口没了，主进程就杀掉在途派生（请求登记 electron/ipcRequestRegistry.ts）。 */
   ensurePreview: (payload: { url: string; projectBinding?: ProjectExecutionContext['binding']; requestId?: string }) => Promise<PreviewReceipt>
   /** 渲染层撤回一个在途派生（换项目、桥 dispose）：主进程杀子进程、删产物。 */
   cancelPreview?: (payload: { requestId: string }) => unknown

@@ -1,6 +1,7 @@
 // scripts/pre-push-contracts.mjs（pre-push 钩子入口）的「真实路径」行为测试（慢：起 git 副本、spawn 真入口、tsc 探针、超时）。
 // 纯函数 / 结构 / 契约用例在 scripts/pre-push-structure.node-test.mjs（快，推送前钩子自己会跑它）。
-// 红测试走真实路径：在一个真实 git 仓库副本（共享对象的 clone，稀疏检出）里改文件、提交、再用真实的入口脚本跑——
+// 红测试走真实路径：在一个真实 git 仓库副本（共享对象的 clone，整仓检出约 0.87G——不是稀疏检出；克隆 + 检出本机约 5 秒、CI 整个文件除用例外的开销合计约 9 秒，
+// 不是成本所在，成本在重门岗被重复跑，见下面「重门岗只跑几次」一节）里改文件、提交、再用真实的入口脚本跑——
 // 不 mock 门岗，门岗红就是门岗脚本真的 exit 1。
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -10,9 +11,11 @@ import test, { after, before } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { makeTempDir } from './_test-temp.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 import { touchesGateInputs } from './pre-push-gate-inputs.mjs'
-import { TAG_IN_MAIN_NOTICE, runNode, runWithDeadline } from './pre-push-contracts.mjs'
+import { PRE_PUSH_GATES, SCAN_TESTS, TAG_IN_MAIN_NOTICE, runNode, runWithDeadline } from './pre-push-contracts.mjs'
+import { relatedTests } from './pre-push-related-tests.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -74,20 +77,160 @@ function prePush({ body = CARD, cwd = work, args = HOOK_ARGS, refLine, dispatche
   // 真钩子由分发器设内部标记；只给两个参数、没有标记的不算钩子
   if (dispatched) env.NOMI_GIT_HOOK_DISPATCH = 'pre-push'
   else delete env.NOMI_GIT_HOOK_DISPATCH
-  return run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
+  const result = run(cwd, process.execPath, [path.join(cwd, 'scripts/pre-push-contracts.mjs'), ...args], {
     input: refLine ? refLine(sha) : `refs/heads/topic ${sha} refs/heads/topic ${ZERO}\n`,
     env,
   })
+  if (runsHeavyGates(result.stderr)) heavyHookRuns += 1
+  return result
 }
+
+// ── 重门岗只跑几次：同类证明共用一次真入口运行（设计卡 docs/plan/2026-10-28-contracts-speed.md）──────────────────────
+// 改了 src / electron / scripts / tests 下的代码，钩子就选中整套重门岗（typecheck、扫描型守卫批量、相关单测、lint:changed 等），
+// 而下面那些用例各自只断言某一道门红了 / 绿了。以前每条各提交一份改动、各跑一遍整套——同一批重门岗被重复跑了十几次：
+// 2026-10-27 CI（889255e98）check:claude-hooks 898 秒，本文件 26 条用例合计 889 秒，其中改了代码的 10 条（11 次钩子运行）占 832 秒，
+// 每次 39–166 秒；克隆 + 检出 + 收尾加起来约 9 秒（本机：克隆 0.06 秒 + 检出 5.1 秒，真入口运行占用例总耗时的 95%）。
+// 「让夹具只触发它要测的那道门」做不到：check:filesize 只看 src / electron 的 ts，ipc-sender-binding 只看 electron，vocabularies /
+// store-lifetime 只看 src，而 src / electron 下任何 ts 改动都选中 typecheck + 扫描型守卫 + lint + 相关单测。
+// 所以改成：每条红 / 绿证明只贡献一份「改动」（RED_PROBES / GREEN_PROBES），同类的合成一次提交、钩子只跑一次，各用例断言自己那道门在这一次
+// 输出里红了 / 绿了——断言一字没动。守住强度的两处：① 每条证明单独改动就必须选中自己那道门（下面第一条用例），合成一次运行不掩盖选择范围缩小；
+// ② 每个红的原因仍然是各自那份探针（消息里点名探针，各用例的 match 照旧）。
+// 只有这几种必须各自独立跑一次：红和绿不能同棵树（census 转绿要所有扫描型守卫都登记了），推送形态（分离 HEAD / 新 tag）各要自己的 stdin。
+// 新的证明：把改动加进 RED_PROBES / GREEN_PROBES，不要另起一次运行（预算护栏在本文件最后一条用例）。
+const HEAVY_GATES = Object.freeze(['typecheck', 'test:scan-guards', 'test:related'])
+/** 钩子入口自己打的那行「改动 N 个文件，跑：a、b、c」里选中的门岗名。 */
+const selectedGatesOf = (stderr) => (/\[pre-push\] 改动 [^\n]*?跑：([^\n]*)/.exec(stderr)?.[1] ?? '').split('、')
+const runsHeavyGates = (stderr) => selectedGatesOf(stderr).some((gate) => HEAVY_GATES.includes(gate))
+let heavyHookRuns = 0
+/** 选中整套重门岗的真入口运行次数上限：合成的红证明 1 次 + 合成的转绿证明 1 次 + 推送形态（分离 HEAD、新 tag）各 1 次。 */
+const HEAVY_HOOK_RUN_BUDGET = 4
+
+// 登记类核对必须由「新增被登记对象」触发（2026-10-16 #1202 #1203 #1207 #1209 #1210 #1211：只新增一个扫源码的测试文件，触发不了只看自己输入的结构门岗，CI 才红）
+const SCAN_PROBE_FILE = 'electron/prepushScanProbe.structure.test.ts'
+const SCAN_PROBE = [
+  "import fs from 'node:fs'",
+  "import path from 'node:path'",
+  "import { expect, test } from 'vitest'",
+  'const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]))',
+  "test('没有违规', () => { for (const file of walk(path.join(process.cwd(), 'electron'))) expect(fs.readFileSync(file, 'utf8').includes('PREPUSH_PROBE_' + 'BAD')).toBe(false) })",
+  '',
+].join('\n')
+
+/**
+ * 每条红证明：gate = 它要看红的那道门；files = 改动的路径（第一条用例用它核「单独改这些就选中 gate」）；apply = 往夹具工作树里写这份改动。
+ * 彼此不改同一个文件；各门岗报出来的都是自己那份探针（用例的 match 点名探针）。合成的这一次里除了各用例点名的门，还会多出别的红
+ * （check:self-written、test:related 等），没有用例断言它们——要断言某道门的绿，放进下面的 GREEN_PROBES，不要放这里。
+ * 同一道门的两种不同的红（例如「超基线」和「新文件超 800 行」）不要共用一次运行，会互相替；另起一次并改预算、写明理由。
+ */
+const RED_PROBES = Object.freeze([
+  {
+    gate: 'check:filesize',
+    files: ['electron/main.ts'],
+    apply: () => {
+      const file = path.join(work, 'electron/main.ts')
+      fs.appendFileSync(file, `${Array.from({ length: 80 }, (_, i) => `export const prepushPadding${i} = ${i}`).join('\n')}\n`)
+    },
+  },
+  {
+    gate: 'check:ipc-sender-binding',
+    files: ['electron/prepushUnboundIpc.ts'],
+    apply: () => fs.writeFileSync(path.join(work, 'electron/prepushUnboundIpc.ts'), "import { ipcMain } from 'electron'\nipcMain.on('prepush:unbound', () => {})\n"),
+  },
+  {
+    gate: 'test:temp-helper',
+    files: ['tests/ux/prepush-probe.walk.mjs'],
+    apply: () => {
+      fs.mkdirSync(path.join(work, 'tests/ux'), { recursive: true })
+      fs.writeFileSync(path.join(work, 'tests/ux/prepush-probe.walk.mjs'), "import fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nexport const dir = fs.mkdtempSync(path.join(os.tmp" + "dir(), 'probe-'))\n")
+    },
+  },
+  {
+    gate: 'check:vocabularies',
+    files: ['src/prepushProbeVocabulary.ts'],
+    apply: () => fs.writeFileSync(path.join(work, 'src/prepushProbeVocabulary.ts'), "export type PrepushProbeState = 'queued' | 'running' | 'success'\n"),
+  },
+  {
+    gate: 'check:store-lifetime',
+    files: ['src/workbench/prepushProbe/useProbeStore.ts'],
+    apply: () => {
+      fs.mkdirSync(path.join(work, 'src/workbench/prepushProbe'), { recursive: true })
+      fs.writeFileSync(path.join(work, 'src/workbench/prepushProbe/useProbeStore.ts'), "import { create } from 'zustand'\nexport const useProbeStore = create<{ value: number }>(() => ({ value: 1 }))\n")
+    },
+  },
+  {
+    gate: 'check:scan-guard-census',
+    files: [SCAN_PROBE_FILE],
+    apply: () => fs.writeFileSync(path.join(work, SCAN_PROBE_FILE), SCAN_PROBE),
+  },
+  {
+    gate: 'test:pre-push-structure',
+    files: ['scripts/pre-push-gate-inputs.mjs'],
+    apply: () => {
+      const file = path.join(work, 'scripts/pre-push-gate-inputs.mjs')
+      const source = fs.readFileSync(file, 'utf8')
+      const marker = 'export const GATE_INPUTS = Object.freeze({'
+      assert.ok(source.includes(marker))
+      fs.writeFileSync(file, source.replace(marker, `${marker}\n  'check:prepush-probe-gate': { roots: ['src'], exts: ['ts'], files: [], entries: [] },`))
+    },
+  },
+])
+
+/**
+ * 转绿的证明同样合成一次：登记后 check:scan-guard-census 转绿 + 改 build 脚本后 test:related 选中并跑通。两份改动互不相干，也不互相带红——
+ * 被登记的探针归扫描型守卫批量跑、不再混进「相关单测」，所以这一次里 test:related 挑到的仍然只有 build 脚本这条线的测试（和单独改它时同一批）。
+ * 要的是一棵没有红探针的树（census 转绿要所有扫描型守卫都登记了），所以不和上面的红证明合并。
+ */
+const GREEN_PROBES = Object.freeze([
+  {
+    gate: 'check:scan-guard-census',
+    files: [SCAN_PROBE_FILE, 'scripts/pre-push-scan-guards.mjs'],
+    apply: () => {
+      fs.writeFileSync(path.join(work, SCAN_PROBE_FILE), SCAN_PROBE)
+      const file = path.join(work, 'scripts/pre-push-scan-guards.mjs')
+      const source = fs.readFileSync(file, 'utf8')
+      const anchor = 'export const SCAN_GUARDS = Object.freeze(['
+      assert.ok(source.includes(anchor))
+      fs.writeFileSync(file, source.replace(anchor, `${anchor}\n  { file: '${SCAN_PROBE_FILE}', roots: ['electron'] },`))
+    },
+  },
+  {
+    gate: 'test:related',
+    files: ['scripts/build-electron.mjs'],
+    apply: () => {
+      const file = path.join(work, 'scripts/build-electron.mjs')
+      fs.writeFileSync(file, `${fs.readFileSync(file, 'utf8')}\n// prepush probe\n`)
+    },
+  },
+])
+
+/** 一组探针合成一次提交、钩子只跑一次；返回的是值（之后夹具被谁 reset 都不影响它），第一条用到它的用例付这次的时间，后面的直接读。 */
+function sharedRun(probes) {
+  commitChange(() => { for (const probe of probes) probe.apply() })
+  // files 与 apply 必须同源：第一条护栏拿 files 核选择范围，apply 实际改了别的路径，它就核错了地方
+  assert.deepEqual(gitPaths(['diff', '--name-only', baseSha, 'HEAD'], { cwd: work }).sort(), probes.flatMap((probe) => probe.files).sort())
+  return { sha: git('rev-parse', 'HEAD'), result: prePush() }
+}
+let redRun = null
+let greenRun = null
+const sharedRedRun = () => (redRun ??= sharedRun(RED_PROBES))
+const sharedGreenRun = () => (greenRun ??= sharedRun(GREEN_PROBES))
 
 before(gitSetup)
 
+test('共用一次运行不掩盖选择范围：每条证明单独改动就选中它自己那道门（选择器把范围缩小了，这里先红）', () => {
+  const entries = [...PRE_PUSH_GATES, ...SCAN_TESTS]
+  for (const probe of [...RED_PROBES, ...GREEN_PROBES]) {
+    if (probe.gate === 'test:related') continue // 相关单测不在选择表里，下面单独核
+    const entry = entries.find((item) => item.name === probe.gate)
+    assert.ok(entry !== undefined && (entry.when === null || entry.when(probe.files)), `${probe.gate}：只改 ${probe.files.join('、')} 时选择器没有选中它（或这道门不在选择表里了）——选择范围缩小了；合成一次运行时别的探针会替它选中，所以在这里单独核`)
+  }
+  // build 脚本单独改动时，相关单测必须挑得出 electron-build.test.mjs（vitest 的依赖图看不见它：计算路径动态 import）；转绿那一次里它是 test:related 唯一的来源
+  const related = relatedTests(['scripts/build-electron.mjs'], { root: repoRoot })
+  assert.ok([...related.vitest, ...related.node].includes('scripts/electron-build.test.mjs'), '只改 build 脚本时相关单测没有挑出 scripts/electron-build.test.mjs——转绿那一次里 test:related 的绿就不再证明它')
+})
+
 test('必红：改了 electron/main.ts 超出基线 → 推送前检查红，且报出 check:filesize', () => {
-  commitChange(() => {
-    const file = path.join(work, 'electron/main.ts')
-    fs.appendFileSync(file, `${Array.from({ length: 80 }, (_, i) => `export const prepushPadding${i} = ${i}`).join('\n')}\n`)
-  })
-  const result = prePush()
+  const { result } = sharedRedRun()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:filesize/)
   assert.match(result.stderr, /BLOCKED/)
@@ -101,8 +244,7 @@ test('对照：没改任何东西时同一个门岗是绿的（红不是环境�
 })
 
 test('必红：新增未加固的 ipcMain.on → 推送前红', () => {
-  commitChange(() => fs.writeFileSync(path.join(work, 'electron/prepushUnboundIpc.ts'), "import { ipcMain } from 'electron'\nipcMain.on('prepush:unbound', () => {})\n"))
-  const result = prePush()
+  const { result } = sharedRedRun()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:ipc-sender-binding/)
 })
@@ -215,18 +357,13 @@ test('手动跑可以用 NOMI_PR_BODY_FILE 给正文；文件读不了 = 明确�
 // ── 10-09 补进推送前的「几秒能跑完、却在 CI 才红」的门岗：必红 + 路径选择 ───────────────────
 
 test('必红：走查新增 mkdtempSync(os.tmpdir()…) → 推送前就红，点名 test:temp-helper（CI 上 3 个 PR 撞过）', () => {
-  commitChange(() => {
-    fs.mkdirSync(path.join(work, 'tests/ux'), { recursive: true })
-    fs.writeFileSync(path.join(work, 'tests/ux/prepush-probe.walk.mjs'), "import fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nexport const dir = fs.mkdtempSync(path.join(os.tmp" + "dir(), 'probe-'))\n")
-  })
-  const result = prePush({ body: CARD })
+  const { result } = sharedRedRun()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ test:temp-helper/)
 })
 
 test('必红：src 新增未登记的 type union（生命周期词）→ 推送前红，点名 check:vocabularies', () => {
-  commitChange(() => fs.writeFileSync(path.join(work, 'src/prepushProbeVocabulary.ts'), "export type PrepushProbeState = 'queued' | 'running' | 'success'\n"))
-  const result = prePush({ body: CARD })
+  const { result } = sharedRedRun()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:vocabularies/)
   assert.match(result.stderr, /PrepushProbeState/, '红的原因要是这个新 union，不是缺依赖')
@@ -248,69 +385,36 @@ test('有标记 + 两个参数才算钩子：同一条删除 ref 这时才允许
 })
 
 test('必红：新增一个没有 declareStoreLifetime 的 zustand store → 推送前红，点名 check:store-lifetime（#1135 / #1133 在 CI 才撞到）', () => {
-  commitChange(() => {
-    fs.mkdirSync(path.join(work, 'src/workbench/prepushProbe'), { recursive: true })
-    fs.writeFileSync(path.join(work, 'src/workbench/prepushProbe/useProbeStore.ts'), "import { create } from 'zustand'\nexport const useProbeStore = create<{ value: number }>(() => ({ value: 1 }))\n")
-  })
-  const result = prePush()
+  const { result } = sharedRedRun()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ check:store-lifetime/)
   assert.match(result.stderr, /useProbeStore/, '红的原因要是这个新 store')
 })
 
-// 登记类核对必须由「新增被登记对象」触发（2026-10-16 #1202 #1203 #1207 #1209 #1210 #1211：只新增一个扫源码的测试文件，触发不了只看自己输入的结构门岗，CI 才红）
-const SCAN_PROBE = [
-  "import fs from 'node:fs'",
-  "import path from 'node:path'",
-  "import { expect, test } from 'vitest'",
-  'const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]))',
-  "test('没有违规', () => { for (const file of walk(path.join(process.cwd(), 'electron'))) expect(fs.readFileSync(file, 'utf8').includes('PREPUSH_PROBE_' + 'BAD')).toBe(false) })",
-  '',
-].join('\n')
-
 test('必红：只新增一个扫 electron 的测试文件、没登记 → 推送前红，点名 check:scan-guard-census 与该文件；登记后同一道门绿', () => {
-  const probe = 'electron/prepushScanProbe.structure.test.ts'
-  commitChange(() => fs.writeFileSync(path.join(work, probe), SCAN_PROBE))
-  const red = prePush()
+  const red = sharedRedRun().result
   assert.equal(red.status, 1, red.stderr)
   assert.match(red.stderr, /✖ check:scan-guard-census/)
   assert.match(red.stderr, /electron\/prepushScanProbe\.structure\.test\.ts：扫描型守卫测试没有去处/)
   assert.match(red.stderr, /SCAN_GUARDS/, '沿用现有报错文字，点名该登记进哪张表')
-  commitChange(() => {
-    fs.writeFileSync(path.join(work, probe), SCAN_PROBE)
-    const file = path.join(work, 'scripts/pre-push-scan-guards.mjs')
-    const source = fs.readFileSync(file, 'utf8')
-    const anchor = 'export const SCAN_GUARDS = Object.freeze(['
-    assert.ok(source.includes(anchor))
-    fs.writeFileSync(file, source.replace(anchor, `${anchor}\n  { file: '${probe}', roots: ['electron'] },`))
-  })
-  const green = prePush()
+  const green = sharedGreenRun().result
   assert.match(green.stderr, /✅ check:scan-guard-census/, green.stderr)
 })
 
 test('必红：往 GATE_INPUTS 加了一道门、没补 SCANNER_READS → 推送前就红，点名 test:pre-push-structure（#1147 在 CI 才撞到）', () => {
-  commitChange(() => {
-    const file = path.join(work, 'scripts/pre-push-gate-inputs.mjs')
-    const source = fs.readFileSync(file, 'utf8')
-    const marker = 'export const GATE_INPUTS = Object.freeze({'
-    assert.ok(source.includes(marker))
-    fs.writeFileSync(file, source.replace(marker, `${marker}\n  'check:prepush-probe-gate': { roots: ['src'], exts: ['ts'], files: [], entries: [] },`))
-  })
-  const result = prePush()
+  const { sha, result } = sharedRedRun()
   assert.equal(result.status, 1, result.stderr)
   assert.match(result.stderr, /✖ test:pre-push-structure/)
   // 失败输出只回放最后 25 行，红的具体用例名不一定在里面；是不是「SCANNER_READS 与 GATE_INPUTS 不一致」这一条红，对照下面一行
+  // （合成的那次提交里还有别的探针会让结构测试里别的用例红，所以这一行单点名这条用例；夹具先回到那次提交的样子）
+  git('reset', '-q', '--hard', sha)
   const direct = run(work, process.execPath, ['--test', '--test-name-pattern=每道按路径选的新门岗', 'scripts/pre-push-structure.node-test.mjs'], { env: { ...isolatedFromCiBaseRefs(process.env), NODE_TEST_CONTEXT: undefined } })
   assert.notEqual(direct.status, 0)
   assert.match(direct.stdout, /样例表与输入声明的门岗集合必须一致/)
 })
 
 test('必红：改了 build 脚本 → 推送前真入口选中并跑 test:related，且 electron-build.test.mjs 在被跑的文件里（#1148）', () => {
-  commitChange(() => {
-    const file = path.join(work, 'scripts/build-electron.mjs')
-    fs.writeFileSync(file, `${fs.readFileSync(file, 'utf8')}\n// prepush probe\n`)
-  })
-  const result = prePush()
+  const { result } = sharedGreenRun()
   assert.match(result.stderr, /test:related/, result.stderr)
   assert.match(result.stderr, /✅ test:related（[\d.]+s） vitest \d+ 个文件通过/, '被选中的 vitest 测试（含 electron-build.test.mjs）真的跑过且通过')
 })
@@ -385,6 +489,12 @@ test('推送前输出点名：只在 CI 跑的门共 N 道，部分覆盖的（c
   assert.match(result.stderr, /只在 CI 跑的门共 \d+ 道/)
   assert.match(result.stderr, /check:i18n（本机只跑了 check:test-copy-literals）/)
   assert.match(result.stderr, /CI 才是最终裁判/)
+})
+
+// ── 预算护栏：必须排在最后一条（它数的是前面所有用例里选中整套重门岗的真入口运行）────────────────────────────────
+
+test(`护栏：选中整套重门岗的真入口运行不超过 ${HEAVY_HOOK_RUN_BUDGET} 次——新的证明加进 RED_PROBES / GREEN_PROBES 共用那一次，别另起一次（CI 上每次 40–160 秒）`, () => {
+  assert.ok(heavyHookRuns <= HEAVY_HOOK_RUN_BUDGET, `本文件里选中 ${HEAVY_GATES.join(' / ')} 的钩子运行有 ${heavyHookRuns} 次，预算 ${HEAVY_HOOK_RUN_BUDGET}：每多一次，CI 的 check:claude-hooks 多 40–160 秒（2026-10-27 因此一轮 Contracts 28–30 分钟）。新的「必红 / 转绿」证明把改动加进 RED_PROBES / GREEN_PROBES（合成一次提交、钩子只跑一次），不要另起 commitChange + prePush；确需新增一次独立运行（例如新的推送形态）再改预算，并在 PR 里写明为什么不能共用`)
 })
 
 // ── 复审 3：门自己的实现脚本被改，必须选中这道门本身 ─────────────────────────────────────────────────────

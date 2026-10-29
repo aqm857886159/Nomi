@@ -61,7 +61,7 @@ const captureScreenshots = hasArg('--screenshots')
 // 而停掉渲染帧，所以同时关掉遮挡判定，帧率才是真的。
 const packagedExecutable = argValue('--exe')
 const offscreenWindows = process.env.NOMI_PERF_OFFSCREEN === '1'
-const OFFSCREEN_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')
+const OFFSCREEN_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), '_quietWalk.cjs')
 const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
 const FIRST_RUN_SEEN = Object.freeze({
   'nomi:splash:v1': 'seen',
@@ -1234,6 +1234,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       //（2026-10-05 卡 17 的 13.8 秒就是这么来的）。老用户每次启动看到的是没有动画的项目库。
       initialLocalStorage: FIRST_RUN_SEEN,
       mainRequire: offscreenWindows ? [OFFSCREEN_MODULE] : [],
+      foreground: offscreenWindows ? undefined : '画布性能量具需要在屏幕上显示窗口',
       timeout: launchTimeoutMs,
       settleMs: 900,
       env: {

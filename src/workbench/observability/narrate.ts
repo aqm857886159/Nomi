@@ -4,6 +4,7 @@
 // S2 先覆盖生成进度域;错误 hint(classifyGenerationError 七段)按总方案在 S4 迁入。
 // 设计系统铁律呼应:No fake progress——没有真实百分比就不给 percent,用"已等 N 秒"说真话。
 import i18n from '../../i18n'
+import type { TranslationKey } from '../../i18n/translationKey'
 
 export type GenerationProgressPhase =
   | 'queued' //      已入队,还没开始
@@ -113,6 +114,10 @@ export type GenerationErrorKind =
   // 主进程发送前的参考守在花钱之前拒了：请求里带着参考区没在用的图（有入口绕过了唯一推导）。
   // 请求没离开本机；下一步是重新点生成，会按参考区重新组一次请求。不是服务商的事。
   | 'reference-not-in-use'
+  // 用户明确选的画幅比例超出这条连接的尺寸范围（electron/catalog/paramTranslate.ts 的 ratioResToOpenAiSize 在构造请求时抛，
+  // 机器码 NOMI_ERR::aspect-ratio-unsupported::）。以前这种比例会被悄悄省略 size、让服务商按默认尺寸出图——选的画幅被换成别的。
+  // 请求没离开本机；下一步是在生成框里换一个比例再生成（或换一个支持该比例的模型）。不是服务商的事，也不是模型没配好。
+  | 'aspect-ratio-unsupported'
   // Nomi 自己的出站安全策略把取片拦下了（私网/回环/fake-ip 未确证）。与 network 分开，因为
   // 它的**真相和下一步都不同**：network = 上游或线路偶发，等一等重试可能就好；这条是**确定性**
   // 的自我拒绝（同一个 URL 重试一万次都是同一堵墙），而且任务**已经付过钱**——正确的动作是去
@@ -174,6 +179,7 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'asset-too-large': 'assetTooLarge',
   'asset-invalid': 'assetInvalid',
   'reference-not-in-use': 'referenceNotInUse',
+  'aspect-ratio-unsupported': 'aspectRatioUnsupported',
   'outbound-blocked': 'outboundBlocked',
   'outbound-blocked-submit': 'outboundBlockedSubmit',
   'outbound-blocked-credential-origin': 'outboundBlockedCredentialOrigin',
@@ -278,6 +284,8 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'asset-invalid': RETRY_FIRST,
   // 请求没离开本机：重新点生成会按参考区重新组请求，主动作就是重试。
   'reference-not-in-use': RETRY_FIRST,
+  // 比例超界：换比例的地方就在下方生成框（按钮只给 retry，改的动作在 composer）；该比例确实要用，就换一个支持它的模型。
+  'aspect-ratio-unsupported': RETRY_FIRST,
   // 「去模型接入」正是网络那一行的家（NetworkSection 就住在模型设置抽屉里）。绝不给 retry：
   // 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢，只是产物还没取回来。
   'outbound-blocked': ACCESS_FIRST,
@@ -339,6 +347,7 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'asset-too-large': true,
   'asset-invalid': false,
   'reference-not-in-use': false,
+  'aspect-ratio-unsupported': false,
   'outbound-blocked': false,
   'outbound-blocked-submit': false,
   'outbound-blocked-credential-origin': false,
@@ -374,6 +383,30 @@ export function narrateGenerationErrorActions(kind: GenerationErrorKind): {
 } {
   const { primary, secondary } = ACTION_BY_KIND[kind]
   return { primary, secondary }
+}
+
+/**
+ * 没有可以再查的任务时（2026-10-28）：同步供应商把结果放在创建请求的那一次回答里，Nomi 本机没能把它落进项目——
+ * 节点上没有任务号，结果地址也只在那一次回答里，再取一次无从谈起。默认动作 / 说明会把人领去「重新取回」的那几类，
+ * 这里给不暗示能取回的那一版：动作按「有没有任务号」选（主动作重试 = 重新生成；取片被拦照旧先去网络那一行），
+ * 说明换成 `hintWithoutTask`（只说事实和下一步，不谈钱；两类取回失败说的是同一件事，共用一条）。
+ * 不在表里的类照默认：它们的动作和说明本来就不暗示能取回。守门：`narrateWithoutTask.test.ts` 遍历全部类别。
+ */
+const WITHOUT_TASK_BY_KIND: Readonly<Partial<Record<GenerationErrorKind, GenerationErrorActions & { hintKey: TranslationKey }>>> = {
+  'retrieval-incomplete': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'output-retrieval-failed': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'outbound-blocked': { ...ACCESS_FIRST, hintKey: 'generationCommon.observability.error.outboundBlocked.hintWithoutTask' },
+}
+
+/** 这一类失败在「没有可以再查的任务」时的说明与动作；`null` = 照默认（默认本来就不暗示能取回）。 */
+export function narrateGenerationErrorWithoutTask(kind: GenerationErrorKind): {
+  hint: string
+  primary: GenerationErrorAction
+  secondary: GenerationErrorAction | null
+} | null {
+  const entry = WITHOUT_TASK_BY_KIND[kind]
+  if (!entry) return null
+  return { hint: i18n.t(entry.hintKey), primary: entry.primary, secondary: entry.secondary }
 }
 
 const ACTION_KEY: Record<GenerationErrorAction, string> = {

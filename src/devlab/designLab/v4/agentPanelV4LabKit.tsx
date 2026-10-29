@@ -26,7 +26,6 @@ import type { V4FlowItem } from '../../../workbench/ai/v4/AgentPanelV4Panel'
 import type { V4CommandRow, V4ModelRow } from '../../../workbench/ai/v4/AgentPanelV4Composer'
 import type { LaneViewModelLabels } from '../../../workbench/ai/lane/laneViewModel'
 import { providerFailureText } from '../../../workbench/ai/lane/laneCommandFailure'
-import { formatMoney } from '../../../workbench/ai/v4/formatMoney'
 
 /** 面板宽度 = 定稿的 390（可拖 320–520，< 320 收成 rail）。 */
 /**
@@ -73,7 +72,7 @@ export function Piece({
 
 export function useV4Fixtures() {
   const { t, i18n } = useTranslation()
-  // `locale` 跟着夹具一起给出去：金额怎么印看界面语言（`formatMoney`），实验室与生产同一条路。
+  // `locale` 跟着夹具一起给出去：格子按界面语言挑夹具的语种（例如 Flow 板断线那一格的转录）。
   return React.useMemo(() => ({ ...buildFixtures(t), locale: i18n.language }), [t, i18n.language])
 }
 
@@ -109,12 +108,11 @@ export function labViewModelLabels(fx: ReturnType<typeof useV4Fixtures>, toolLab
     // 3c 的重试行：两个数由调用方填（语序问题），这一格永不渲染重试行，给最朴素的形状。
     retryLabel: (attempt, maxAttempts) => `${attempt}/${maxAttempts}`,
     unknown: fx.t('agentPanelV4.contextUnknown'),
-    // 任务卡的四个词条。这一格只画工具收据，一条 task 段都没有，所以它们永远不会被渲染——
+    // 任务卡的三个词条。这一格只画工具收据，一条 task 段都没有，所以它们永远不会被渲染——
     // 但类型要求穷尽，而穷尽正是它的价值：哪天这一格接上任务卡，缺的那句话是编译错误，
     // 不是画面上的一块空白。
     taskTitle: fx.t('agentPanelV4.taskRun'),
     formatStages: (done, total) => fx.t('agentPanelV4.taskStages', { done, total }),
-    formatMoney: (currency, amount) => formatMoney(fx.locale, currency, amount),
     taskUnknown: fx.t('agentPanelV4.taskUnknown'),
     attachmentUnavailable: fx.t('agentPanelV4.attachmentUnavailable'),
     answered: fx.t('agentPanelV4.questionAnswered'),
@@ -242,7 +240,6 @@ function buildFixtures(t: TFunction) {
       trailing: t('agentPanelV4.fixtureRunningSeconds'),
       excerpt: t('agentPanelV4.fixtureExcerpt'),
       params: ['GPT Image 2', '16:9', '2K'],
-      cost: '≈ ¥0.12',
       progress: 45,
     },
     complete: {
@@ -282,7 +279,6 @@ function buildFixtures(t: TFunction) {
       ],
       progress: 50,
       footnote: t('agentPanelV4.fixtureOnCanvasHint'),
-      footnoteTrailing: t('agentPanelV4.fixtureCostSpent'),
     },
     trimApplied: {
       title: t('agentPanelV4.fixtureTrimAndShift'),

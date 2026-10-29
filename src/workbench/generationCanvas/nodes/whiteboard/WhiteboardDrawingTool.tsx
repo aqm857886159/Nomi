@@ -25,6 +25,8 @@ import {
 import { applyTextChanges, createWhiteboardText, type TextMeasure } from './whiteboardTextMetrics'
 import { WhiteboardEditingToolbar } from './WhiteboardEditingToolbar'
 import { WhiteboardLibraryPanel, type WhiteboardLibraryTabKey } from './WhiteboardLibraryPanel'
+import { useWhiteboardFrameSize } from './useWhiteboardFrameSize'
+import { whiteboardCanvasDimensions } from './whiteboardRasterState'
 import { blobToDataUrl, removeBackgroundBlob } from '../../../../lib/removeBackground'
 import { removeBackgroundFailureMessage, removeBackgroundProgressMessage } from '../localImageOpPhase'
 import {
@@ -138,7 +140,6 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
       historySet(id)
     }, [historySet])
     const [activeLayerId, setActiveLayerId] = React.useState(document.state.activeLayerId)
-    const [liveDimensions, setLiveDimensions] = React.useState<CanvasDimensions | null>(null)
     const state = React.useMemo(() => ({ ...document.state, activeLayerId }), [document.state, activeLayerId])
     const setState = React.useCallback((updater: React.SetStateAction<WhiteboardState>) => {
       const previous = documentRef.current
@@ -152,7 +153,14 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const [selectedTargets, setSelectedTargets] = React.useState<CanvasObjectTarget[]>([])
     const [textSize, setTextSize] = React.useState(32)
     const frameRef = React.useRef<HTMLDivElement | null>(null)
-    const viewScaleRef = React.useRef<number | null>(null)
+    // The only path from the frame's size to the board's size; ratio, size field and undo settle through it (2026-10-27).
+    const frameSize = useWhiteboardFrameSize({
+      frameRef,
+      readDocumentDimensions: () => whiteboardCanvasDimensions(documentRef.current.state),
+      commitDimensions: (dimensions) => setState((value) => ({ ...value, canvasDimensions: dimensions })),
+      onFitFrame: onBoardDimensionsChange,
+    })
+    const settleFrame = frameSize.settle
     const [activeCanvasObject, setActiveCanvasObject] = React.useState<CanvasObjectTarget | null>(null)
     const [initialImageStatus, setInitialImageStatus] = React.useState<WhiteboardInitialImageStatus>(initialImage?.url && !initialState ? 'loading' : 'ready')
     const [initialImportAttempt, setInitialImportAttempt] = React.useState(0)
@@ -169,7 +177,10 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const fileInputRef = React.useRef<HTMLInputElement | null>(null)
     const importedInitialImageRef = React.useRef('')
 
-    const canvasDimensions = React.useMemo(() => liveDimensions ?? state.canvasDimensions ?? getCanvasDimensions(state.activeRatio, 1280), [liveDimensions, state.canvasDimensions, state.activeRatio])
+    const canvasDimensions = React.useMemo(
+      () => frameSize.liveDimensions ?? whiteboardCanvasDimensions({ canvasDimensions: state.canvasDimensions, activeRatio: state.activeRatio }),
+      [frameSize.liveDimensions, state.canvasDimensions, state.activeRatio],
+    )
     const canvasDimensionsRef = React.useRef(canvasDimensions)
     canvasDimensionsRef.current = canvasDimensions
     const assetPanelItems = React.useMemo(
@@ -198,8 +209,8 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const setActiveRatio = React.useCallback((activeRatio: AspectRatioKey) => {
       const dimensions = getCanvasDimensions(activeRatio, canvasDimensions.width)
       setState((current) => ({ ...current, activeRatio, canvasDimensions: dimensions }))
-      onBoardDimensionsChange?.(dimensions)
-    }, [canvasDimensions.width, onBoardDimensionsChange, setState])
+      settleFrame(dimensions)
+    }, [canvasDimensions.width, settleFrame, setState])
 
     const commitStroke = React.useCallback(
       (stroke: CanvasStroke) => {
@@ -535,7 +546,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const handleDimensionsChange = (dimensions: CanvasDimensions) => {
       const safe = { width: Math.round(Math.max(64, Math.min(4096, dimensions.width))), height: Math.round(Math.max(64, Math.min(4096, dimensions.height))) }
       setState((current) => ({ ...current, canvasDimensions: safe }))
-      onBoardDimensionsChange?.(safe)
+      settleFrame(safe)
     }
 
     React.useEffect(() => { if (initialImageStatus === 'ready') onDraftChange?.() }, [revision, initialImageStatus, onDraftChange])
@@ -544,44 +555,10 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const moveHistory = (direction: 'back' | 'forward') => {
       if (direction === 'back' ? !canUndo : !canRedo) return
       const target = snapshotsRef.current.get(historyState.history[historyState.current + (direction === 'back' ? -1 : 1)])!
-      setLiveDimensions(null)
       setActiveLayerId(target.state.activeLayerId)
-      onBoardDimensionsChange?.(target.state.canvasDimensions ?? getCanvasDimensions(target.state.activeRatio, 1280))
+      settleFrame(whiteboardCanvasDimensions(target.state))
       history[direction]()
     }
-    React.useLayoutEffect(() => {
-      const frame = frameRef.current
-      if (!frame) return
-      const initialStyle = window.getComputedStyle(frame)
-      const initialBounds = { width: Number.parseFloat(initialStyle.width), height: Number.parseFloat(initialStyle.height) }
-      viewScaleRef.current ??= initialBounds.width / (initialDocumentRef.current.state.canvasDimensions?.width ?? getCanvasDimensions(initialDocumentRef.current.state.activeRatio, 1280).width)
-      let scheduled: number | null = null
-      let commitTimer: ReturnType<typeof setTimeout> | null = null
-      const observer = new ResizeObserver(() => {
-        if (scheduled !== null) cancelAnimationFrame(scheduled)
-        scheduled = requestAnimationFrame(() => {
-          const style = window.getComputedStyle(frame)
-          const bounds = { width: Number.parseFloat(style.width), height: Number.parseFloat(style.height) }
-          const scale = viewScaleRef.current
-          if (!scale || bounds.width < 1 || bounds.height < 1) return
-          const current = documentRef.current.state
-          // A frame within one screen pixel of the document is the same frame: stored node sizes are rounded, and reading the
-          // rounding back as a resize turned an untouched reopen into a 1280x719 board and a new version (2026-10-22).
-          const currentDimensions = current.canvasDimensions
-          if (currentDimensions && Math.abs(bounds.width - currentDimensions.width * scale) < 1 && Math.abs(bounds.height - currentDimensions.height * scale) < 1) return
-          const dimensions = { width: Math.round(bounds.width / scale), height: Math.round(bounds.height / scale) }
-          if (currentDimensions?.width === dimensions.width && currentDimensions?.height === dimensions.height) return
-          setLiveDimensions(dimensions)
-          if (commitTimer !== null) clearTimeout(commitTimer)
-          commitTimer = setTimeout(() => {
-            setState((value) => ({ ...value, canvasDimensions: dimensions }))
-            setLiveDimensions(null)
-          }, 250)
-        })
-      })
-      observer.observe(frame)
-      return () => { observer.disconnect(); if (scheduled !== null) cancelAnimationFrame(scheduled); if (commitTimer !== null) clearTimeout(commitTimer) }
-    }, [setState])
 
     const panelContent = panel === 'materials' ? (
       <div className="w-[360px] overflow-hidden">

@@ -6,12 +6,12 @@ import {
   connectProjectNodes,
   createNamedProject,
   deleteProjectNodes,
-  importProjectAsset,
   listAllProjects,
   setProjectNodePrompt,
   type FetchTaskResultFn,
   type RunTaskFn,
 } from './core'
+import { dispatchAssetImport } from './assetImportRoute'
 import { CANVAS_WRITE_HEADLESS_OPERATIONS, CANVAS_WRITE_LIVE_RENDERER_OPERATIONS, CANVAS_WRITE_OPERATIONS, canvasWriteSemanticInputSchema, type CanvasWriteOperation } from '../shared/agentCapabilities/canvasWrite'
 import { canvasDeleteSemanticInputSchema } from '../shared/agentCapabilities/canvasDelete'
 import { documentWriteSemanticInputSchema } from '../shared/agentCapabilities/documentWrite'
@@ -715,12 +715,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
     }
     case 'asset.import':
       // M2：本机文件 → 项目素材 → nomi-local:// URL。安全判据在 importAssetGuard（纯函数，逐条单测）。
-      assertOnlyFields(params, new Set(['projectId', 'path', 'title']))
-      return importProjectAsset({
-        projectId: requiredIdentifier(params.projectId, 'project'),
-        path: String(params.path || ''),
-        ...(typeof params.title === 'string' && params.title.trim() ? { title: params.title.trim() } : {}),
-      })
+      return dispatchAssetImport(params)
     case 'integration.begin': {
       const optional = ['sessionId', 'baseUrl', 'docs', 'providerKind', 'authType', 'authHeader', 'authQueryParam', 'clientRequestId'] as const
       return (ctx.integrationSessions || getIntegrationSessionService()).begin(

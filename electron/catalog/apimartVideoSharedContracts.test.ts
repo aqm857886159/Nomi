@@ -5,6 +5,7 @@ import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { applyParamMap } from "./paramTranslate";
 import { modeSlotReach } from "./referenceReachability";
 import { applyHeadlessParamDefaults, taskTemplateParams } from "./taskParams";
+import { modelReferenceSelection } from "./modelCatalogListing";
 
 const candidates = buildVideoModelCandidates(APIMART_VIDEO_MODELS.map((model) => ({
   provider: "apimart",
@@ -48,9 +49,7 @@ describe("APIMart curated video profiles stay aligned across shared planning and
         if (!mapping) continue;
         const extras = applyHeadlessParamDefaults(
           { modelKey: model.modelKey },
-          candidate.archetype.id,
-          taskKind,
-          "apimart",
+          modelReferenceSelection("apimart", { modelKey: model.modelKey, meta: { archetypeId: candidate.archetype.id } }, taskKind),
           mapping.create.defaultParams,
           mapping.create.body,
         );

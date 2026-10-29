@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, screenshotSettled, proveProbe, expectAbsent, expectOverlayReachable } from './_assert.mjs'
+import { expect, screenshotSettled, proveProbe, expectAbsent, expectOverlayReachable, waitForVisualQuiescence } from './_assert.mjs'
 import { buildInlineWhiteboardProject } from './_whiteboardFixture.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { collapseAgentPanel, canvasSetZoomPercent, canvasResetView, canvasZoomPercent } from './_shell.mjs'
@@ -53,11 +53,19 @@ const action = name => page.locator(`[data-toolbar-action="whiteboard-${name}"]`
 const editor = page.locator('[data-nomi-inline-whiteboard="true"]')
 const node = page.locator('[data-node-id="image"]')
 async function snap(name) { await screenshotSettled(page, { path: path.join(output, `${name}.png`) }) }
+// Measure only once the element is on screen and the screen has stopped moving. A bare boundingBox() right after opening
+// a project or a fit read null or a box from mid-layout (2026-10-27: the en run's first measurement came back null).
+async function settledBox(locator, name) {
+  await expect(locator, `${name} is visible before it is measured`).toBeVisible()
+  await waitForVisualQuiescence(page)
+  const box = await locator.boundingBox()
+  expect(box, `${name} has a box once the screen is still`).not.toBeNull()
+  return box
+}
 async function stroke() {
   await action('brush').click()
   const layer = editor.getByLabel(t('generationCommon.whiteboard.drawingLayerAria'), { exact: true })
-  const box = await layer.boundingBox()
-  expect(box).not.toBeNull()
+  const box = await settledBox(layer, 'drawing layer')
   await page.mouse.move(box.x + box.width * .25, box.y + box.height * .45)
   await page.mouse.down()
   await page.mouse.move(box.x + box.width * .65, box.y + box.height * .5, { steps: 16 })
@@ -67,8 +75,7 @@ async function stroke() {
 // The creator's first gesture after opening: no tool is picked first (the 2026-10-22 escape — the walk used to pick the brush for them).
 async function firstGestureStroke(nodeId) {
   const layer = editor.getByLabel(t('generationCommon.whiteboard.drawingLayerAria'), { exact: true })
-  const box = await layer.boundingBox()
-  expect(box).not.toBeNull()
+  const box = await settledBox(layer, 'drawing layer')
   await page.mouse.move(box.x + box.width * .3, box.y + box.height * .4)
   await page.mouse.down()
   await page.mouse.move(box.x + box.width * .6, box.y + box.height * .55, { steps: 16 })
@@ -89,11 +96,13 @@ try {
     await expect.poll(() => canvasZoomPercent(page)).toBe(100)
     await canvasSetZoomPercent(page, 85)
   }
-  const titleBox = await page.getByText('Photograph', { exact: true }).boundingBox()
+  const titleBox = await settledBox(page.getByText('Photograph', { exact: true }), 'image node title')
+  const positionBeforeTitleDrag = readNode('image').position
   await page.mouse.move(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2)
   await page.mouse.down()
   await page.mouse.move(titleBox.x + titleBox.width / 2 + 210, titleBox.y + titleBox.height / 2, { steps: 16 })
   await page.mouse.up()
+  await expect.poll(() => readNode('image').position.x - positionBeforeTitleDrag.x, { message: 'dragging the title moves the node' }).toBeGreaterThan(100)
   const firstOpenStarted = performance.now()
   await openImage()
   await expect.poll(() => readNode('image').meta.whiteboardState?.canvasAssets.length ?? 0).toBe(1)
@@ -140,7 +149,7 @@ try {
   await expect.poll(() => readNode('image').meta.whiteboardState.strokes.length).toBe(1)
   check('undo and redo preserve the document', true)
   await action('eraser').click()
-  const eraseFrame = await editor.boundingBox()
+  const eraseFrame = await settledBox(editor, 'editor frame')
   await page.mouse.move(eraseFrame.x+eraseFrame.width*.45,eraseFrame.y+eraseFrame.height*.35)
   await page.mouse.down()
   await page.mouse.move(eraseFrame.x+eraseFrame.width*.45,eraseFrame.y+eraseFrame.height*.65,{steps:12})
@@ -150,7 +159,7 @@ try {
   await expect.poll(() => readNode('image').meta.whiteboardState.strokes.filter(item => item.tool==='eraser').length).toBe(0)
   check('eraser path persists and undo removes it (pixel erasure not asserted)',true)
   await action('text').click()
-  let frame = await editor.boundingBox()
+  let frame = await settledBox(editor, 'editor frame')
   await page.mouse.click(frame.x + frame.width * .3, frame.y + frame.height * .72)
   const textInput = toolbar.getByRole('textbox', { name: t('generationCommon.whiteboard.text'), exact: true })
   await textInput.fill('Revised title')
@@ -172,7 +181,7 @@ try {
   const grown = scene().texts[0]
   check('text bounds are re-derived from the edited content', grown.width > textBefore.width * 1.5 && grown.height >= textBefore.height)
   check('edited text stays inside the exported board range', grown.x + grown.width <= scene().canvasDimensions.width && grown.y + grown.height <= scene().canvasDimensions.height)
-  const stageBox = await editor.getByLabel(t('generationCommon.whiteboard.drawingLayerAria'), { exact: true }).boundingBox()
+  const stageBox = await settledBox(editor.getByLabel(t('generationCommon.whiteboard.drawingLayerAria'), { exact: true }), 'drawing layer')
   const toClient = (x, y) => ({ x: stageBox.x + x / scene().canvasDimensions.width * stageBox.width, y: stageBox.y + y / scene().canvasDimensions.height * stageBox.height })
   const textOffset = () => scene().sceneTransforms?.offsets?.[`text:${grown.id}`] ?? { x: 0, y: 0 }
   await action('select').click()
@@ -200,7 +209,7 @@ try {
   await expect.poll(() => scene().texts[0].width).toBe(grown.width)
   check('editing back to the long content derives the same bounds', true)
   await action('select').click()
-  frame = await editor.boundingBox()
+  frame = await settledBox(editor, 'editor frame')
   const positionBefore = readNode('image').position
   await page.mouse.move(frame.x + frame.width * .45, frame.y + frame.height * .3)
   await page.mouse.down()
@@ -232,7 +241,7 @@ try {
   await expect(heightInput).toHaveValue('900')
   check('canvas dimensions accept ordinary sequential keyboard input', true)
   await expect.poll(() => readNode('image').meta.whiteboardState.canvasDimensions.height).toBe(900)
-  const resizedFrame = await editor.boundingBox()
+  const resizedFrame = await settledBox(editor, 'resized editor frame')
   check('custom frame height changes independently of source image aspect', Math.abs(resizedFrame.height / resizedFrame.width - 900 / 1280) < .01)
   check('resizing the board range does not scale image or text objects', JSON.stringify(readNode('image').meta.whiteboardState.canvasAssets) === JSON.stringify(sceneBeforeResize.canvasAssets) && JSON.stringify(readNode('image').meta.whiteboardState.texts) === JSON.stringify(sceneBeforeResize.texts))
   await expect.poll(() => sizePanel.evaluate(el => { const a=el.getBoundingClientRect(), b=document.querySelector('[data-nomi-inline-whiteboard] [role=toolbar]').getBoundingClientRect(); return a.bottom <= b.top - 6 || a.top >= b.bottom + 6 })).toBe(true)

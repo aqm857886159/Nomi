@@ -99,6 +99,27 @@ export const COMPOSER_INPUT = '[data-v4-control="input"]'
 export const COMPOSER_SEND = '[data-v4-control="send"]'
 
 /**
+ * 读 / 断言 Agent 输入框此刻**画给人看的**占位提示。输入框是 TipTap 富文本编辑器（PromptEditor），没有 `placeholder`
+ * 属性：`toHaveAttribute('placeholder', …)` 读到 null（10-12 换形态后，短片走查的运行中那一句每晚红在这）。
+ * 占位的真实长相：Placeholder 扩展只在编辑器**空着**时给那个空段落挂 `is-editor-empty` + `data-placeholder`，
+ * 再由 CSS `::before { content: attr(data-placeholder) }` 画出来（`src/workbench/assets/tiptapPlaceholderClasses.ts`）。
+ * 这里读空段落 `::before` 算出来的 content，也就是用户眼睛看到的那句：框里有字（占位不画）、样式丢了（属性在、字画不出来）
+ * 都读到 null——只读属性会在后一种坏法下仍然绿。读到的是哪句话由调用方按词典键给，这里不抄任何一句文案。
+ * 这两个是读占位的**唯一**出口：check-walkthroughs 的 composer-input-read 规则拦按 `placeholder` 属性读 Agent 输入框的写法。
+ */
+export async function composerPlaceholder(input) {
+  return input.evaluate((el) => {
+    const empty = el.querySelector('.is-editor-empty')
+    if (!empty) return null
+    const painted = getComputedStyle(empty, '::before').content
+    return /^(["']).*\1$/.test(painted) ? painted.slice(1, -1) : null
+  })
+}
+export async function expectComposerPlaceholder(input, text, message) {
+  await expect.poll(() => composerPlaceholder(input), { message, timeout: DEFAULT_TIMEOUT_MS }).toBe(text)
+}
+
+/**
  * 读 / 断言 Agent 输入框里的字。输入框是富文本编辑器（PromptEditor，句中能插参考缩略图），不是 input / textarea：
  * toHaveValue / inputValue 会报 "Not an input element"。走查读它的字只走这两个出口（check:walkthroughs 的
  * composer-input-read 规则拦直接读）；写字用 locator.fill / pressSequentially（编辑器上照常可用）。
@@ -424,9 +445,9 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
       : {}),
   })
   const testNetworkGuardPath = path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')
-  // 桌面机（Windows / macOS）上跑走查不许弹到用户面前、抢焦点：窗口建出来就在屏幕外（_offscreenWindows.cjs）。
+  // 桌面机（Windows / macOS）上跑走查不许弹到用户面前、抢焦点：窗口建出来就在屏幕外（_quietWalk.cjs）。
   // Linux CI 跑在无头显示上，本来就没人看，保持原样。
-  const offscreenWindows = process.platform === 'linux' ? [] : [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')]
+  const offscreenWindows = process.platform === 'linux' ? [] : [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')]
   const testNetworkMainRequire = [...new Set([testNetworkGuardPath, ...offscreenWindows, ...(mainRequire ?? [])])]
   const testNetworkRedirects = generationProvider === 'apimart'
     ? [{ from: 'https://api.apimart.ai', to: fixture.baseURL }]

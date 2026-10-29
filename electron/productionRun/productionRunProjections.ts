@@ -23,6 +23,33 @@ type SafeProductionJob = Pick<ProductionRun['jobs'][number], 'jobId' | 'stageId'
   // （还装着 ffDesc/dialogue/retryDirective 等未脱敏长文本），类型上承诺全量、实际只发一格 = 类型说谎。
   & { metadata?: { shotId: string } }
 type LandingRefProjection = { shotId: string; index: number; title?: string }
+
+/**
+ * 对外的预算只给「知道的数」（2026-10-27，方向检查 docs/engineering/direction-checks/2026-10-27-ui-money-amounts.md）。
+ *
+ * 账本合计只加已知价（budgetLedger.ts：预留 `amount: null` = 算不出价，求和时跳过），算不出价的镜头记在
+ * 另一根轴上（授权信封的 `unknownJobCount`、在途笔数 `unknownInFlight`）——合计本身看不出缺了它们。
+ * 以前这里原样外发合计，读的一方（Agent）只能当全额转述：批过算不出价镜头的 Run 被说成「预算上限 0 · 已花费 0」。
+ * - `authorized`：批过的信封里有算不出价的镜头，或有未知价的笔在途 → 上限管不住整个 Run → null；
+ * - `actual`：还有预留中 / 结果不明 / 未知价在途的笔 → 本机不知道供应商最后收了多少 → null；全部落定才是真数
+ *   （生产代码不回写实付，派发过的 Run 这里会一直是 null——如实，不是缺数据）；
+ * - 预留、未结算、在途笔数是账本内部的记账口径，不外发。
+ * 草稿什么都没批：上限 0、已花 0 是真数。
+ */
+export type KnownRunBudget = { currency: string; authorized: number | null; actual: number | null }
+
+export function knownRunBudget(run: Pick<ProductionRun, 'budget' | 'gates'>): KnownRunBudget {
+  const { currency, authorized, reserved, actual, unsettled, unknownInFlight } = run.budget
+  const unknownPriceApproved = run.gates.some((gate) =>
+    gate.status === 'approved' && (gate.authorizationEnvelope?.budget.unknownJobCount ?? 0) > 0)
+  const everyEntrySettled = reserved === 0 && unsettled === 0 && unknownInFlight === 0
+  return {
+    currency,
+    authorized: unknownPriceApproved || unknownInFlight !== 0 ? null : authorized,
+    actual: everyEntrySettled ? actual : null,
+  }
+}
+
 export type ProductionRunProjection = {
   schemaVersion: number
   runId: string
@@ -38,7 +65,8 @@ export type ProductionRunProjection = {
   stageId: string
   playbook: ProductionRun['playbook']
   origin: ProductionRun['origin']
-  budget: ProductionRun['budget']
+  /** 只有知道的数（knownRunBudget）；不知道 = null，绝不写成 0。 */
+  budget: KnownRunBudget
   planVersion: number
   snapshotCursor: number
   stages: ProductionRun['stages']
@@ -89,7 +117,7 @@ export function safeRunProjection(run: ProductionRun): Omit<ProductionRunProject
     stageId: run.stageId,
     playbook: { name: run.playbook.name, version: run.playbook.version },
     origin: { host: run.origin.host, ...(run.origin.actorId ? { actorId: run.origin.actorId } : {}) },
-    budget: { ...run.budget },
+    budget: knownRunBudget(run),
     planVersion: run.planVersion,
     snapshotCursor: run.snapshotCursor,
     // B3：run 级信任档位（老 run 无字段 → 默认 key_confirm）。合同/状态转述据此显示打扰程度。

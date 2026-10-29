@@ -476,13 +476,27 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 
 **工作区浮层必须可关闭**：任何浮在工作区上的元素都必须能关掉；关闭后完全消失，不留残余高度或占位。还原入口在常驻 chrome，关闭选择按用户记住；新消息或待确认不得擅自弹回。避让只是次选，不能代替关闭权。Agent 输入坞的还原是顶栏角标展开面板，之后再收起仍尊重关闭选择。
 
-真相源 `src/design/overlayLayers.ts` 的 `NOMI_OVERLAY_Z_INDEX`，六档（低→高）：
-`floatingPanel 4000` < `applicationModal 9000` < `dialog 9100` < `popover 9200` < `confirmation 9300` < `feedback`。
+真相源 `src/design/overlayLayers.ts` 的 `NOMI_OVERLAY_Z_INDEX`，七档（低→高）：
+`shellChrome 100`（地板）< `floatingPanel 4000` < `applicationModal 9000` < `dialog 9100` < `popover 9200` < `confirmation 9300` < `feedback`。
 
 | 写在哪 | 怎么写 |
 |---|---|
 | TS / style 对象 | `style={{ zIndex: NOMI_OVERLAY_Z_INDEX.dialog }}` |
-| className | `z-floating-panel` / `z-application-modal` / `z-dialog` / `z-popover` / `z-confirmation` / `z-feedback` |
+| className | `z-shell-chrome` / `z-floating-panel` / `z-application-modal` / `z-dialog` / `z-popover` / `z-confirmation` / `z-feedback` |
+
+**外壳也是刻度的一档（2026-10-27）**：顶栏 / 左栏是 Mantine `AppShell`，它的层级来自 `AppShell` 的 `zIndex`，
+在 `src/theme/nomiTheme.ts` 的 `components.AppShell.defaultProps.zIndex` 接到 `shellChrome`（和 `Modal` / `Drawer` / `Menu` /
+`Popover` / `Select` 同一处接线；值等于 Mantine 默认的 100，只是从此有名字、有不变量测试 `src/ui/feedbackLayer.test.ts`、
+`src/ui/app-shell/shell/shellFrame.zIndex.test.tsx`）。它是整套刻度的**地板**：所有全局层都在它之上。起因：开屏动画手写 `z-[60]`，
+顶栏取 Mantine 默认 100，整条顶栏画在开屏上面、「跳过」被压住点不到——此前 10-09（#1136）文稿右键菜单 `fixed z-50` 沉到抽屉下面、
+09-07 画布浮层 `z-[9999]` 压过花钱确认卡，是同一类的前两次。
+
+**门岗（`pnpm run check:tokens` 第 9 类，规则与自证见 `scripts/lib/overlayZScan.mjs`、`scripts/overlayZScan.test.mjs`）**：
+视口级层（`position: fixed`）的层级只许走这份刻度，不管写的是多大的数字；任何 ≥ 地板（100）的手写数字层级也不许——
+≥ 地板就是要压过外壳，已经是全局层。五种写法全覆盖：className 的 `z-[N]` / Tailwind 默认的 `z-10…z-50`、行内 `zIndex: N`
+（含 `el.style.zIndex = N`）、`zIndex={N}` 属性、命名常量 `FOO_Z_INDEX = N`、CSS 的 `z-index: N`。地板以下、不是 `fixed` 的数字
+（`absolute z-[2]` 这类）是组件内局部层叠，随组件走，不受限。存量逐文件登记在 `scripts/overlay-z-baseline.json`
+（`{ 文件: { count, reason } }`，reason 写这一处该进哪一档、为什么还没迁），**只减不增**：新增 → 红牌，清理 → 黄牌；没有「先放过」的开关。
 
 className 那一列是 2026-09-07 补的**合法出口**：Tailwind 默认 `zIndex` 刻度只到 50，
 在此之前 className 侧根本写不出 4000–9300，于是画布/素材库五处浮层只能硬写 `z-[9999]`/`z-[10000]`，
@@ -494,7 +508,12 @@ CSS 变量（`--nomi-z-dialog` …）与 Tailwind 刻度都由那份 TS 常量�
 
 **判档口径**：接管整个工作区/整屏的查看器与任务层 → `applicationModal`；
 承载一次决策的对话框（含花钱确认）→ `dialog`；菜单/下拉/气泡 → `popover`；
-破坏性二次确认 → `confirmation`；toast 一类通知 → `feedback`。
+破坏性二次确认 → `confirmation`；toast 一类通知 → `feedback`；外壳自己（顶栏 / 左栏）→ `shellChrome`。
+
+**层级之外还有一条几何规则**（`src/ui/app-shell/windowChrome.ts` 头注与 `windowChrome.test.ts`）：40px 顶栏同时是系统拖拽带和窗口按钮区，
+命中测试**看几何、不看 DOM 层级**——盖在它上面的东西，落在这条带里的点击会被系统当成拖窗口吃掉（issue #58、2026-09-04 导演台）。
+所以全屏层的可交互内容不许落在顶栏带里：不是 `z-index` 抬到顶栏之上就算「点得到」，CDP / Playwright 的合成点击绕过原生命中测试，
+量这件事要量几何（见 `tests/ux/director-windowbar.walk.mjs`）。
 
 ### 2.1 颜色 token 全表
 

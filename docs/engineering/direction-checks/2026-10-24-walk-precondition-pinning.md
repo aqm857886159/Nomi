@@ -28,7 +28,7 @@
 
 | 预测 | 怎么验证 |
 |---|---|
-| director-electron ④a 时过时不过，取决于那次健康度把谁排第一 | 同一构建隔一段时间跑两次 `NOMI_WALK_OFFSCREEN=1 node tests/ux/director-electron.walk.mjs`，对比日志里「④ 目标镜头的模型」 |
+| director-electron ④a 时过时不过，取决于那次健康度把谁排第一 | 同一构建隔一段时间跑两次 `node tests/ux/director-electron.walk.mjs`，对比日志里「④ 目标镜头的模型」 |
 | 别的走查也有「左栏加节点 → 断言某种能力才有的行为」而没钉模型，同样会漂 | `grep -n "addCanvasNodeFromRail" tests/ux/*.walk.mjs`，逐条看后面有没有依赖能力的断言 |
 | 哪天健康度把 `seedream` 也排掉，④b 写死的名字会以产品失败的样子报红 | 从档案里临时拿掉 `seedream` 再跑 ④b |
 

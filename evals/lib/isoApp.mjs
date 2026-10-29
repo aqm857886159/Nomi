@@ -76,6 +76,22 @@ export async function launchIsolatedApp(repoRoot, iso) {
   return { app, win };
 }
 
+/**
+ * 开屏「跳过」中心点最上层是不是被别的元素盖住：盖住了返回那个元素的描述，没盖住 / 开屏不在 / 点在窗口外返回 null。
+ * 只看 DOM 命中（elementFromPoint），不看系统拖拽带——后者 CDP 量不到，见 tests/ux/director-windowbar.walk.mjs 头注。
+ */
+export async function splashSkipCoveredBy(win) {
+  return win.evaluate(() => {
+    const button = document.querySelector('[data-splash-skip="true"]');
+    if (!(button instanceof HTMLElement)) return null;
+    const box = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    if (!hit || button.contains(hit)) return null;
+    const label = hit.getAttribute("aria-label");
+    return `${hit.tagName.toLowerCase()}${label ? `[${label}]` : ""}`;
+  });
+}
+
 /** 隔离实例每次都是首启 → SplashIntro 开屏遮罩会拦点击。先跳过它(无则 no-op)。 */
 export async function dismissSplashIfPresent(win) {
   const skip = win.locator('[data-splash-skip="true"]');
@@ -83,8 +99,14 @@ export async function dismissSplashIfPresent(win) {
     await skip.click({ timeout: 4_000 });
     await win.locator(".nomi-splash").waitFor({ state: "detached", timeout: 4_000 }).catch(() => undefined);
   } catch {
-    // React 动画首帧偶发让 Playwright actionability 观察不到按钮；保留同一语义
-    // 控件，用 DOM click 收尾，避免遮罩仍在时把后续失败误报成产品入口故障。
+    // 真点没成：要么开屏不在（首启已看过）、要么 React 动画首帧偶发让 Playwright actionability 观察不到按钮、
+    // 要么「跳过」被别的元素盖住了。前两种保留同一语义控件，用 DOM click 收尾，避免遮罩仍在时把后续失败误报成产品入口故障；
+    // 第三种必须红：2026-10-27 之前整整三周，顶栏（z 100）压着开屏（z 60），这里一声不响地 DOM 点掉，
+    // 十来条走查靠它一直绿，真用户却只能干等开屏放完。先量命中，被盖住就抛，不再替产品兜底。
+    const coveredBy = await splashSkipCoveredBy(win).catch(() => null);
+    if (coveredBy) {
+      throw new Error(`开屏「跳过」被别的元素盖住：中心点最上层是 ${coveredBy}（Playwright 真点已超时；用户点不到它，只能干等开屏放完——不能再用 DOM click 兜底放行）`);
+    }
     await win.evaluate(() => {
       const button = document.querySelector('[data-splash-skip="true"]');
       if (button instanceof HTMLElement) button.click();
@@ -115,13 +137,13 @@ export async function openGenerationAiPanel(win) {
   // generation-assistant aria label and launcher class were removed when the
   // resident panel became the shared host, so looking them up makes every
   // agent journey fail before its first message.
-  const input = win.locator('[data-v4-control="input"]');
-  if (await input.count()) return;
+  const input = win.locator('[data-v4-panel="true"] [data-v4-control="input"]');
+  if (await input.first().isVisible().catch(() => false)) return;
   // 空白项目默认落「创作」标签,生成 AI 面板在「生成」工作区——先切过去
   // (旧版直接点「Nomi 生成」文字在创作标签下找不到 → 整批评测 infra 超时)。
   await win.getByRole("button", { name: "生成", exact: true }).first().click({ timeout: 5000 }).catch(() => {});
   await win.waitForTimeout(800);
-  if (await input.count()) return;
+  if (await input.first().isVisible().catch(() => false)) return;
   // 空白项目默认无「画面」board(空态显示「这里还没有画面 / 新建画面」)→ 助手输入框不挂载。
   // 先建一个 board(无则 no-op),再开面板。
   const boardCta = win.locator('button[aria-label^="新建一个"][aria-label$="节点"]').first();
@@ -129,7 +151,7 @@ export async function openGenerationAiPanel(win) {
     await boardCta.click({ timeout: 5000 }).catch(() => {});
     await win.waitForTimeout(1200);
   }
-  if (await input.count()) return;
+  if (await input.first().isVisible().catch(() => false)) return;
   // 面板若处于收起态，经 tests/ux/_shell.mjs 叫回来（外壳位置的唯一出口，外壳换了只改那一处）。
   await ensureAgentPanelOpen(win, "展开生成区 AI 面板");
   await input.first().waitFor({ state: "visible", timeout: 8000 });
@@ -152,8 +174,8 @@ export async function readAssistantModelLabel(win) {
 }
 
 export async function sendAgentMessage(win, message) {
-  await win.locator('[data-v4-control="input"]').first().fill(message, { timeout: 5000 });
-  await win.locator('[data-v4-control="send"]').first().click({ timeout: 5000 });
+  await win.locator('[data-v4-panel="true"] [data-v4-control="input"]').first().fill(message, { timeout: 5000 });
+  await win.locator('[data-v4-panel="true"] [data-v4-control="send"]').first().click({ timeout: 5000 });
 }
 
 export function readEventsLog(projectDir) {

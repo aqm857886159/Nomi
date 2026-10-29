@@ -343,6 +343,10 @@ export const zhGenerationCommon = {
       progressUnknownSize: '导入中 · {{percent}}%',
       checking: '导入中 · 检查中 · {{size}}',
       checkingUnknownSize: '导入中 · 检查中',
+      converting: '导入中 · 转换格式 · {{percent}}% · {{size}}',
+      convertingUnknownSize: '导入中 · 转换格式 · {{percent}}%',
+      convertingUnmeasured: '导入中 · 转换格式 · {{size}}',
+      convertingUnmeasuredUnknownSize: '导入中 · 转换格式',
       finalizing: '导入中 · 收尾中 · {{size}}',
       finalizingUnknownSize: '导入中 · 收尾中',
     },
@@ -408,6 +412,10 @@ export const zhGenerationCommon = {
         reason: '这次生成没发出去：请求里带了参考区没在用的图',
         hint: 'Nomi 在发给服务商之前发现，这次请求里夹着参考区标「未用到」或当前方式用不上的图，于是在发出之前拦下了——这次请求一个字节都没离开你的电脑，服务商没被请求到。重新点一次生成即可：Nomi 会按参考区里正在用的图重新组一次请求。如果反复出现，请把下方技术详情反馈给我们，这说明有个入口没走统一的参考规则。',
       },
+      aspectRatioUnsupported: {
+        reason: '这次生成没发出去：所选画幅比例超出了这条连接出图尺寸支持的范围',
+        hint: '这条连接用 OpenAI 兼容的尺寸字段传出图尺寸，长边最多是短边的 3 倍（最宽 3:1、最窄 1:3），你选的比例超出了——哪怕模型本身支持这个比例，这条连接也表达不了。Nomi 没有悄悄换成别的画幅，而是在发出之前就拦下了：这次生成请求没有发出去，服务商没被请求到。请在下方换一个比例（比如 16:9、1:1 或 9:16）再点重试；这个比例确实要用的话，换一个能直接选这个比例的模型或连接。具体选了哪个比例，见下方技术详情。',
+      },
       assetInvalid: {
         reason: '参考素材本身有问题',
         hint: '这张参考素材没通过发送前的本机检查：文件读不到、认不出类型，或者内容不是真正的图片/视频（比如把网页存成了 .png）。请求还没发出去。同一个文件重试结果不会变——请在画布上换一张参考素材，或重新导入原文件，再点重试。具体是哪个文件，见下方技术详情。',
@@ -415,6 +423,8 @@ export const zhGenerationCommon = {
       outboundBlocked: {
         reason: '取片被 Nomi 自己的安全策略拦下了',
         hint: '这不是服务商的故障，也不是你的生成失败了——任务多半已经在服务商那边跑完了，产物还在。是 Nomi 在下载产物时把目标地址判成了内网并拒绝下载。最常见的原因是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式：所有域名都会被解析成 198.18.x 这类合成地址。请到「模型接入 → 网络」看那一行有没有写「检测到本地代理」；确认后回到这里用「重新取回」把它取回来；不要重新生成，重新生成会另做一份新的。具体是哪个地址，见下方技术详情。',
+        // 没有可以再查的任务（同步供应商：结果只在那一次回答里）：不提「重新取回」，下一步是先看网络、再重试。
+        hintWithoutTask: '这不是服务商的故障。服务商这次把结果直接放在了回答里，是 Nomi 在下载它时把目标地址判成了内网并拒绝下载。最常见的原因是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式：所有域名都会被解析成 198.18.x 这类合成地址。这一次没有可以再查的任务，没法再下载一次。请先到「模型接入 → 网络」看那一行有没有写「检测到本地代理」，确认后再重试（重试会重新生成一次）。具体是哪个地址，见下方技术详情。',
       },
       outboundBlockedSubmit: {
         reason: '这次生成没发出去，Nomi 自己的安全策略先拦下了',
@@ -461,6 +471,8 @@ export const zhGenerationCommon = {
       retrievalIncomplete: {
         reason: '任务已提交，这次没能取回结果',
         hint: '这一镜已经交给服务商了，是 Nomi 这一次查结果、读结果或下载结果没成（常见原因：本机网络或代理一时不通、服务商的查询接口报错）。不要重新生成，那会另做一份新的。点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。',
+        // 没有可以再查的任务（同步供应商：结果只在那一次回答里）：不提「重新取回」，下一步是重试（会重新生成）。
+        hintWithoutTask: '服务商这次把结果直接放在了回答里，是 Nomi 把它下载回项目这一步没成（常见原因：结果地址过期或不让访问、本机网络或代理一时不通、返回的不是能用的文件）。这一次没有可以再查的任务，没法再下载一次；重试会重新生成一次。具体原因见下方技术详情。',
       },
       // 本机处理失败（截帧 / 提取深度 / 本地素材复制）：没有服务商、没有模型参与——不说「换模型」，只留重试。
       localProcessing: {
@@ -971,12 +983,11 @@ export const zhGenerationCommon = {
     ratio: '比例',
     selectRatio: '选择画板比例',
     imageNodeMissing: '图片节点不存在',
-    snapshotSaveFailed: '画板截图保存失败，请稍后重试',
+    drawingSaveFailed: '画好的图没能存下来，请再试一次，画板里的内容还在',
     savedPrimary: '已保存为主图',
-    saveFailed: '画板保存失败',
     screenshotName: '{{title}} 截图',
     screenshotCreated: '已创建画板截图节点',
-    screenshotFailed: '画板截图失败',
+    screenshotSaveFailed: '截图没能存下来，请再点一次截图，画板里的内容还在',
     close: '关闭',
     closeAria: '关闭画板',
     done: '完成',
@@ -1475,10 +1486,6 @@ export const zhGenerationCommon = {
     runDetails: {
       stages: '阶段进度',
       stageCount: '{{completed}} / {{total}} 个阶段已完成',
-      authorized: '已授权',
-      reserved: '已预留',
-      actual: '已结算',
-      unsettled: '待结算',
       skills: '已加载技能',
       noSkills: '未记录技能证据',
       updatedAt: '最近更新',
@@ -2084,6 +2091,10 @@ export const enGenerationCommon = {
       progressUnknownSize: 'Importing · {{percent}}%',
       checking: 'Importing · Checking · {{size}}',
       checkingUnknownSize: 'Importing · Checking',
+      converting: 'Importing · Converting · {{percent}}% · {{size}}',
+      convertingUnknownSize: 'Importing · Converting · {{percent}}%',
+      convertingUnmeasured: 'Importing · Converting · {{size}}',
+      convertingUnmeasuredUnknownSize: 'Importing · Converting',
       finalizing: 'Importing · Finishing up · {{size}}',
       finalizingUnknownSize: 'Importing · Finishing up',
     },
@@ -2147,6 +2158,10 @@ export const enGenerationCommon = {
         reason: 'This generation was not sent: the request carried references that are not in use',
         hint: 'Before sending, Nomi found images in this request that the reference row marks as Unused, or that the current mode cannot take, so it stopped the request before sending. Not a single byte left your machine and the provider was never called. Just generate again: Nomi will rebuild the request from the references currently in use. If this keeps happening, please send us the technical details below — it means some entry point is not following the shared reference rule.',
       },
+      aspectRatioUnsupported: {
+        reason: 'This generation was not sent: the aspect ratio you picked is outside the image sizes this connection supports',
+        hint: 'This connection sends the image size as an OpenAI-compatible size field, which keeps the long edge within 3 times the short edge (at most 3:1 wide or 1:3 tall). The ratio you picked is outside that, even if the model itself supports it. Rather than silently generating a different shape, Nomi stopped before sending - the generation request was never sent and the provider was never called. Pick another ratio below (for example 16:9, 1:1 or 9:16) and retry; if you really need this ratio, use a model or connection that offers it directly. The technical details below show which ratio was selected.',
+      },
       assetInvalid: {
         reason: 'The reference asset itself is invalid',
         hint: 'This reference asset failed the local check before sending: the file could not be read, its type could not be identified, or its content is not a real image or video (for example, a web page saved as .png). Nothing was sent. Retrying the same file will not change the result — replace the reference on the canvas or re-import the original file, then retry. The technical details below name the file.',
@@ -2154,6 +2169,7 @@ export const enGenerationCommon = {
       outboundBlocked: {
         reason: "Nomi's own network policy blocked the download",
         hint: 'This is not a provider outage and your generation did not fail — it most likely finished upstream, and the result is still there. Nomi classified the download address as a private network and refused to fetch it. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x. Check Model Access > Network for a "Local proxy detected" line, then come back and use "Retrieve again" to retrieve it. Do NOT regenerate — that would make a brand-new one. The technical details below name the address.',
+        hintWithoutTask: 'This is not a provider outage. This time the provider put the result directly in its reply, and Nomi classified the download address as a private network and refused to fetch it. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x. There is no task to check this time, so it cannot be downloaded again. Check Model Access > Network for a "Local proxy detected" line first, then retry (a retry generates a new one). The technical details below name the address.',
       },
       outboundBlockedSubmit: {
         reason: "This generation was never sent - Nomi's own network policy stopped it first",
@@ -2198,6 +2214,7 @@ export const enGenerationCommon = {
       retrievalIncomplete: {
         reason: 'Submitted, but the result could not be retrieved this time',
         hint: 'This shot was already handed to the provider; what failed is Nomi checking the task, reading its result or downloading it this time (usually the local network or proxy dropped for a moment, or the provider’s status endpoint returned an error). Do not generate again — that makes a brand-new one. Use “Retrieve again”: Nomi only checks the task and downloads it once more. The technical details below give the exact reason.',
+        hintWithoutTask: 'This time the provider put the result directly in its reply; the step that failed is Nomi downloading it into your project (usually the result address expired or was not allowed, the local network or proxy dropped for a moment, or what came back was not a usable file). There is no task to check this time, so it cannot be downloaded again; a retry generates a new one. The technical details below give the exact reason.',
       },
       localProcessing: {
         reason: 'Local processing failed',
@@ -2684,12 +2701,11 @@ export const enGenerationCommon = {
     ratio: 'Ratio',
     selectRatio: 'Select whiteboard ratio',
     imageNodeMissing: 'The image node does not exist',
-    snapshotSaveFailed: 'Could not save the whiteboard screenshot. Try again shortly.',
+    drawingSaveFailed: "Couldn't save the drawing. Please try again. Your board is unchanged.",
     savedPrimary: 'Saved as primary image',
-    saveFailed: 'Failed to save the whiteboard',
     screenshotName: '{{title}} screenshot',
     screenshotCreated: 'Created a whiteboard screenshot node',
-    screenshotFailed: 'Whiteboard screenshot failed',
+    screenshotSaveFailed: "Couldn't save the screenshot. Take it again. Your board is unchanged.",
     close: 'Close',
     closeAria: 'Close whiteboard',
     done: 'Done',
@@ -3183,10 +3199,6 @@ export const enGenerationCommon = {
     runDetails: {
       stages: 'Stage progress',
       stageCount: '{{completed}} / {{total}} stages done',
-      authorized: 'Authorized',
-      reserved: 'Reserved',
-      actual: 'Settled',
-      unsettled: 'Unsettled',
       skills: 'Loaded skills',
       noSkills: 'No skill evidence recorded',
       updatedAt: 'Last updated',

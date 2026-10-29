@@ -5,16 +5,13 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // GUI，经 RPC 转发）：stdio 发 nomi_canvas_edit(action=add_nodes, 3 节点) → 主进程经 hybrid 网关 requestRenderer('plan.confirm')
 // → GUI 弹方案卡 → 截图人眼看 → 点「落到画布」→ stdio 拿到 ids。全程**不花额度**（只建节点，不生成）。
 // 用法：pnpm run build && node tests/ux/plan-gate.walk.mjs
-import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
-import { createRequire } from 'node:module'
-import { spawn } from 'node:child_process'
+import { launchNomiApp, repoRoot, spawnQuietElectron } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import readline from 'node:readline'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
 
-const require = createRequire(import.meta.url)
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/plan-gate')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -80,7 +77,7 @@ try {
   for (let i = 0; i < 5; i++) { const s = win.locator('button,[role="button"],a', { hasText: /跳过|开始创作|进入|完成/ }).first(); if (await s.count()) await s.click({ timeout: 1000 }).catch(() => {}); await win.keyboard.press('Escape').catch(() => {}); await sleep(300) }
   await screenshotSettled(win, { path: path.join(shotsDir, '01-app-ready.png') })
 
-  child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), { cwd: repoRoot, env: { ...process.env, ...sharedEnv, NOMI_MCP_STDIO: '1' }, stdio: ['pipe', 'pipe', 'inherit'] })
+  child = spawnQuietElectron([repoRoot, '--disable-gpu'], { cwd: repoRoot, env: { ...process.env, ...sharedEnv, NOMI_MCP_STDIO: '1' }, stdio: ['pipe', 'pipe', 'inherit'] })
   const rl = readline.createInterface({ input: child.stdout })
   rl.on('line', (line) => {
     const t = line.trim(); if (!t.startsWith('{')) return

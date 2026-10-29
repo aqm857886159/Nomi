@@ -34,7 +34,7 @@ for (const config of configs) {
     name: `pending-install-${config.name}`,
     tempRoot,
     settleMs: 0,
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi-color-scheme': config.scheme, 'nomi:locale:v1': config.locale, __nomiE2E: '1' },
   })
   try {

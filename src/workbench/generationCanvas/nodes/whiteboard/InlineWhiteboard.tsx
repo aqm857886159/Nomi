@@ -15,10 +15,10 @@ import WhiteboardDrawingTool, { type WhiteboardDrawingToolHandle } from './White
 import type { WhiteboardResultLibraryItem } from './whiteboardTypes'
 import type { WhiteboardInitialImage, WhiteboardState } from './whiteboardTypes'
 import { readWhiteboardState, serializeWhiteboardState, whiteboardDraftIdentity } from './whiteboardState'
-import { whiteboardHasVisibleContent, whiteboardRasterStateKey } from './whiteboardRasterState'
+import { whiteboardCanvasDimensions, whiteboardHasVisibleContent, whiteboardRasterStateKey } from './whiteboardRasterState'
 import { getCanvasDimensions } from './lib/canvas'
 import { useNodeAttachedPanel } from '../nodeAttachedPanel'
-import { closeWhiteboard, registerWhiteboardFinish } from './whiteboardSession'
+import { registerWhiteboardFinish } from './whiteboardSession'
 import { computeMediaMetaPatch, mediaNodeSize, resolveNodeVisualSize } from '../nodeSizing'
 import i18n from '../../../../i18n'
 
@@ -40,7 +40,7 @@ function makeWhiteboardSnapshotResult(nodeId: string, url: string): GenerationNo
 }
 
 function dimensionsForWhiteboardState(state: WhiteboardState | null): ReturnType<typeof getCanvasDimensions> | null {
-  return state ? state.canvasDimensions ?? getCanvasDimensions(state.activeRatio, 1280) : null
+  return state ? whiteboardCanvasDimensions(state) : null
 }
 
 function isSameWhiteboardState(a: WhiteboardState | undefined, b: WhiteboardState | null): boolean {
@@ -74,6 +74,7 @@ export default function InlineWhiteboard({
     : initialState ? serializeWhiteboardState(initialState) : null }))
   const draftIdentityRef = React.useRef(sourceNode ? whiteboardDraftIdentity(sourceNode) : `board:${nodeId}`)
   const lastDraftRef = React.useRef('')
+  const pendingDraftRef = React.useRef<WhiteboardState | null>(null)
   const draftTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [initialDimensions] = React.useState(() => initialState?.canvasDimensions ?? getCanvasDimensions(initialState?.activeRatio ?? initialImage?.aspectRatio ?? '16:9', 1280))
   const hostScaleRef = React.useRef(sourceNode ? resolveNodeVisualSize(sourceNode).width / initialDimensions.width : 1)
@@ -95,6 +96,7 @@ export default function InlineWhiteboard({
       if (lastDraftRef.current === signature) return serializedState
       lastDraftRef.current = signature
       const latest = useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)
+      if (!latest) return null
       updateNode(nodeId, {
         meta: {
           ...(latest?.meta || {}),
@@ -108,13 +110,20 @@ export default function InlineWhiteboard({
     [nodeId, projectLifetime, savedStateRef, updateNode],
   )
 
-  const scheduleDraft = React.useCallback(() => {
+  const flushDraft = React.useCallback(() => {
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
-    draftTimerRef.current = setTimeout(() => { draftTimerRef.current = null; persistWhiteboardState() }, 250)
+    draftTimerRef.current = null
+    const draft = pendingDraftRef.current
+    pendingDraftRef.current = null
+    if (draft) persistWhiteboardState(draft)
   }, [persistWhiteboardState])
-  React.useEffect(() => () => {
-    if (draftTimerRef.current) { clearTimeout(draftTimerRef.current); persistWhiteboardState() }
-  }, [persistWhiteboardState])
+  const scheduleDraft = React.useCallback(() => {
+    // React detaches child handles before passive cleanup. Capture while the document is still mounted.
+    pendingDraftRef.current = drawingRef.current?.getState() ?? null
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    draftTimerRef.current = setTimeout(flushDraft, 250)
+  }, [flushDraft])
+  React.useEffect(() => flushDraft, [flushDraft])
 
   const resizeBoard = React.useCallback((dimensions: { width: number; height: number }) => {
     if (projectLifetime?.signal.aborted) return
@@ -155,7 +164,7 @@ export default function InlineWhiteboard({
       project.assertCurrent()
       const snapshotUrl = await persistNodeImageFile(file, nodeId, project)
       project.assertCurrent()
-      if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.snapshotSaveFailed'))
+      if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.drawingSaveFailed'))
       const latestSource = useGenerationCanvasStore.getState().nodes.find(node => node.id === nodeId)
       if (!latestSource) throw new Error(t('generationCommon.whiteboard.imageNodeMissing'))
 
@@ -218,7 +227,7 @@ export default function InlineWhiteboard({
         closed = true
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return
-        reportFeedback(error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.saveFailed'))
+        reportFeedback(error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.drawingSaveFailed'))
       } finally {
         savingRef.current = false
         if (!project.signal.aborted) setScreenshotBusy(false)
@@ -228,7 +237,6 @@ export default function InlineWhiteboard({
   }, [nodeId, onClose, persistWhiteboardState, reportFeedback, saveImageWhiteboardSnapshot, t])
 
   React.useEffect(() => registerWhiteboardFinish(handleClose), [handleClose])
-  React.useEffect(() => () => closeWhiteboard(nodeId), [nodeId])
 
   const handleCreateScreenshotNode = React.useCallback(async () => {
     if (screenshotBusy) return null
@@ -250,7 +258,7 @@ export default function InlineWhiteboard({
         project.assertCurrent()
         const snapshotUrl = await persistNodeImageFile(file, nodeId, project)
         project.assertCurrent()
-        if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.snapshotSaveFailed'))
+        if (!snapshotUrl) throw new Error(t('generationCommon.whiteboard.screenshotSaveFailed'))
 
         const latestState = useGenerationCanvasStore.getState()
         const latestSource = latestState.nodes.find((node) => node.id === nodeId)
@@ -283,7 +291,7 @@ export default function InlineWhiteboard({
             },
           },
         })
-        if (!created) throw new Error(t('generationCommon.whiteboard.screenshotFailed'))
+        if (!created) throw new Error(t('generationCommon.whiteboard.screenshotSaveFailed'))
         const snapshotResult = { ...makeWhiteboardSnapshotResult(created.id, snapshotUrl), raw: { whiteboardState: currentWhiteboardState } }
         updateNode(created.id, {
           result: snapshotResult,
@@ -313,8 +321,13 @@ export default function InlineWhiteboard({
         return created.id
       } catch (error) {
         if (project.signal.aborted || isProjectImportCancellation(error)) return null
+        // The camera saves the drawing on an image entry and makes a screenshot node on a board entry; say which one failed.
         reportFeedback(
-          error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.screenshotFailed'),
+          error instanceof Error && error.message
+            ? error.message
+            : sourceKind === 'image'
+              ? t('generationCommon.whiteboard.drawingSaveFailed')
+              : t('generationCommon.whiteboard.screenshotSaveFailed'),
         )
         return null
       } finally {

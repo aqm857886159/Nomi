@@ -1,0 +1,192 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-composer-upload-connect",
+  "change_kind": "corrective",
+  "problem_type": "异步动作完成时，拿「承载入口的界面还挂着吗」推断用户有没有取消，而这次动作自己就会让那个界面卸载",
+  "symptom": "新建图片节点（文字生图）→ 生成框参考行「+」→「上传本地文件」→ 选一张图：画布上多一张素材卡且被选中，生成框收起，两者之间 0 条连线，生成方式还是文字生图；用户以为加了参考，其实没用上（0.24 开发期回归，v0.23.x 没有）。",
+  "direct_cause": "导入建卡调 addNode 不传 select，新卡默认被选中（canvasNodeActions.ts addNode）；画布里生成框只在目标卡被单选时挂着（BaseGenerationNode 的 composerWanted），选中一变就卸载；NodeInputReferenceEntry 卸载清理把 openRef.current 置 false；上传完成时 addUploadedInput 读 shouldConnect: () => openRef.current 得到 false，于是不接线。",
+  "class_root": "10-09 定的「上传途中用户关掉选择器 → 不接线」被实现成「完成时选择器还开着」这一界面状态读数：它是给画布层的左环选择器定的（会话不随选中卸载），10-12 照抄进随选中挂载的生成框宿主，并在卸载时置否——用户意图（取消）从界面存续推断，而这次动作本身就会改选中、卸界面。单测把 shouldConnect 写死、导入也桩掉（连 addNode 都传了 select: false），走查没走这条真路径，所以一直没拦住。",
+  "affected_population": [
+    "画布视图里从生成框参考行「+」上传本地文件（或把文件拖进这个选择器）当参考的用户：图片 / 视频节点不带声明槽、走 NodeInputReferenceEntry 的参考行，以及文本节点生成框里的同一个入口",
+    "列表视图内嵌生成框（不随画布选中卸载）：原来能接上，但选中停在新素材卡上",
+    "左环「给它加输入」→「从素材库添加…」→ 上传：同一个 addUploadedInput，接上后选中原来也停在新卡上"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+    "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.upload.test.ts",
+    "tests/ux/composer-upload-connect.test.mjs",
+    "tests/ux/fixtures/composer-upload-connect-harness.tsx",
+    "tests/ux/fixtures/composer-upload-connect-harness.html"
+  ],
+  "entry_points": [
+    "生成框参考行「+」→ 素材选择器「上传本地文件」或把文件拖进选择器（NodeInputReferenceEntry → AssetPicker onUpload → addUploadedInput）",
+    "左环「给它加输入」→「从素材库添加…」→ 上传（GenerationCanvasReactFlowOverlays → AssetPicker onUpload → addUploadedInput）"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Nomi 自有的交互语义：选择器关闭 = 用户取消、导入建卡默认选中新卡、生成框随选中挂载。没有第三方 API 或依赖决定这条不变量。",
+  "invariants": [
+    "addUploadedInput 完成时只认用户显式取消：入口给的 shouldConnect 只许在用户关选择器的那几下（点外面 / Esc / 再点「+」/「画布点选」/ 选了一项 /「浏览全部」）里翻转；承载入口的界面卸载不进判断。",
+    "上传途中用户关掉选择器 → 已导入的留成素材卡、不连线、不还选中（2026-10-08 设计卡 ★5 中途表不变）。",
+    "接上后，选中还停在这次导入建的卡上才还回上传前的选中；用户途中自己改了选中就不动；目标卡途中被删 → 不接、不报错、不还。",
+    "上传 + 接线仍是一个撤销点（导入与接线共用同一个 undoTxn）。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasAddIntentActions.tsx",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasMenuActions.ts",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+      "symbol": "addUploadedInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "symbol": "importLocalFilesToGenerationCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "symbol": "addUploadedInput"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "六扇门是两种动作。canvasAddIntentActions / canvasStageDrop / useCanvasMenuActions 是普通导入（加节点条导入、拖进画布、右键菜单），建卡选中新卡正是它们要的行为，不该收；nodeInputActions 是「当输入导入」唯一调导入的地方。NodeInputReferenceEntry 与 GenerationCanvasReactFlowOverlays 是同一个动作的两个入口（生成框参考行、左环），已经只经 addUploadedInput 这一个 owner，各自只供一个「用户关掉了」的信号；把两个入口再合成一个要改左环所在的 reactFlow/ 热点目录，本单按任务书不碰。"
+  },
+  "generality_proof": "接不接线、选中回哪只在 addUploadedInput 一处决定，两个入口都经它：它的合同写明 shouldConnect 只反映用户显式取消，并在它里面统一还选中（只还导入自己造成的那次切换，用户途中改过就不动，目标没了就不还）。生成框入口把取消信号从「界面还挂着」换成每次上传一个、只在用户关选择器那几下置位的标志，同提交删掉 openRef 和卸载置位；左环入口的信号是画布层的会话身份，只在用户关掉或开新会话时变，不随选中卸载。宿主 × 用户动作的类测试走真参考区组件、真 store、真导入链，以后多一种随选中挂载的宿主，矩阵加一行就被覆盖。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "symbol": "addUploadedInput",
+      "responsibility": "「素材选择器上传当一张卡的输入」的唯一结局：导入完成且用户没有显式取消 → 接线（与导入同一个撤销点），并把导入切走的选中还回上传前（仅当选中仍停在这次建的卡上）；用户取消 / 导入失败 / 目标已删 → 只留素材卡。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+      "entry_point": "AssetPicker onUpload（参考行「+」上传本地文件 / 拖文件进选择器）",
+      "disposition": "enforced",
+      "evidence": "改后每次上传一个 { cancelled } 标志，只有 closePicker（AssetPickerPopover onClose = 点外面 / Esc、再点「+」、「画布点选」、选了一项、「浏览全部」）置位；卸载清理只取消画布点选模式。tests/ux/composer-upload-connect.test.mjs 画布 × 不碰 修前红（0 条边）修后绿。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "entry_point": "左环「从素材库添加…」AssetPicker onUpload",
+      "disposition": "enforced",
+      "evidence": "同经 addUploadedInput，接上后的选中归还在 owner 里统一生效；它的 shouldConnect 是 latestPickerRef.current === session，会话存在 useGenerationCanvasReactFlowMenus 的画布层 state 里，只有 closeAssetInputPicker（用户关掉 / 选了一项）或新开会话会改，不随选中卸载。nodeInputActions.upload.test.ts 走同一个 owner。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+      "entry_point": "AssetReferenceButton「画布点选」（pickCanvasInputFor / cancelPick）",
+      "disposition": "not-affected",
+      "evidence": "完成 = 用户在画布上点中一张卡 → connectExistingInput，不读任何界面状态；进入点选模式不改选中（CanvasPickModeLayer 吞掉指针事件），这次动作自己不会让生成框卸载。卸载清理取消点选是「入口没了，模式跟着收」，不是结局判断。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx",
+      "entry_point": "AssetPicker onPick（从素材库选一项）",
+      "disposition": "not-affected",
+      "evidence": "同步完成：addAssetInput 用 addAssetLibraryNode(..., select: false) 建卡，选中不离开目标卡，没有「完成时」这一刻。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/slotFileUploads.ts",
+      "entry_point": "声明槽上传（首尾帧 / 数组参考 / 源视频）",
+      "disposition": "not-affected",
+      "evidence": "直接落盘拿 URL 写进槽（onArrayAdd / onSingleFrameUrl / onSourceVideoUrl），不建画布卡、不改选中；完成时只核项目上下文仍是当前（isProjectExecutionContextCurrent），不读界面存续。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "entry_point": "剪辑卡素材选择器上传",
+      "disposition": "not-affected",
+      "evidence": "完成就 addAsset 写进剪辑，只核项目上下文；上传中 closePicker 直接 return，选择器关不掉。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotReferenceStrip.tsx",
+      "entry_point": "分镜行参考条上传",
+      "disposition": "not-affected",
+      "evidence": "完成就 place(...) 写进镜头参考，不读选择器开没开，不建画布卡、不改选中。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeAssetDrop.ts",
+      "entry_point": "把文件拖到节点上",
+      "disposition": "not-affected",
+      "evidence": "完成时读的是 access.canWrite（节点写权限闸），不是界面存续；不建新卡、不改选中。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasStageDrop.ts",
+      "entry_point": "拖进画布 / 加节点条导入 / 右键菜单导入（importLocalFilesToGenerationCanvas 的普通调用者）",
+      "disposition": "not-affected",
+      "evidence": "普通导入：建卡并选中新卡就是想要的结果，完成后不接线、不读任何界面状态。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何在「随选中挂载」的宿主里发起、完成时读界面状态当用户意图的异步动作，都会被同一动作改选中 / 卸界面打穿；新宿主（列表内嵌、以后的面板）或新入口照抄同一写法就会回来。",
+    "same_class_scan": [
+      "git grep -n \"shouldConnect\" -- src：只剩 addUploadedInput 的合同与它的两个入口",
+      "node scripts/door-map.mjs addUploadedInput importLocalFilesToGenerationCanvas：6 扇写门，逐扇核过（见 same_class_entry_points）",
+      "git grep -n \"importWorkbenchLocalAssetFile\" -- src：slotFileUploads.ts、ClipNode（importClipNodeAsset）、ShotReferenceStrip.tsx、useNodeAssetDrop.ts 完成时都不读界面存续",
+      "git grep -n \"useEffect(() => () =>\" -- src/workbench/generationCanvas/nodes：卸载清理里没有别处改「完成时要读的标志」"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+    "invariant": "addUploadedInput 是「选择器上传当输入」唯一的结局 owner：只认入口给的用户显式取消；接线与导入同一个撤销点；导入切走的选中仅在仍停在这次建的卡上时还回。",
+    "failure_mode": "用户关掉选择器 → 只留素材卡、不接线、不还选中；导入失败或被取消（切项目）→ 没有建成的卡，什么都不接；目标卡途中被删 → 不接、不报错、不还选中。",
+    "exception_policy": "none",
+    "strategy": "删掉旧读法（openRef 与卸载置位），生成框入口改成每次上传一个只由用户关闭置位的标志；结局与选中归还收在 addUploadedInput 一处，两个入口共用。宿主 × 用户动作的类测试（真组件、真 store、真导入链）守住「宿主卸载 ≠ 用户取消」，单测按真实顺序走导入链、取消信号上传途中才翻转。",
+    "artifacts": [
+      "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/quickActions/nodeInputActions.upload.test.ts",
+    "tests/ux/composer-upload-connect.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/composer-upload-connect.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeInputReferenceEntry.tsx"
+    ],
+    "rationale": "旧读法 openRef（每次渲染同步 open、卸载清理置 false）与 shouldConnect: () => openRef.current 同提交删掉；没有并行判断、没有开关。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及第三方依赖：取消信号、导入、选中都是 Nomi 自己的代码。",
+    "exit_criteria": []
+  },
+  "migration": "不改落盘形状（边与节点照旧，选中是会话层），无迁移。旧版本里已经建了却没接上的素材卡照旧留在画布上，用户可用「画布点选」或拖线接上。",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+    "tests": [
+      "src/workbench/generationCanvas/quickActions/nodeInputActions.upload.test.ts",
+      "tests/ux/composer-upload-connect.test.mjs"
+    ]
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-26",
+  "residual_risks": [
+    "画布里导入期间生成框会先收起、完成后再出现（选中先到新卡，接上后才还回来）。根治是「当输入导入」建卡时不改选中（像 addAssetInput 的 select: false），开关要穿过 assetImportAdapter.ts（热点：目录与概念都命中），本单按任务书不碰，交协调定。",
+    "画布里选择器随生成框一起卸载，「上传途中用户关掉选择器」只在建卡前那一小段做得到；建卡之后用户想反悔，只能撤销或删卡。",
+    "左环入口的取消信号（画布层会话身份）没有并进同一个原语：GenerationCanvasReactFlowOverlays.tsx 在 reactFlow/ 热点目录，本单不碰；核过它只在用户关掉或开新会话时变，不随选中卸载。",
+    "上传途中用户多选了几张卡（含目标卡或新卡）时，connectToNode 会走编组连线分支：这是现有连线规则，不是本单引入的，类测试没专门覆盖这一格。"
+  ]
+}

@@ -21,7 +21,7 @@ import { CREATION_PANEL, chooseAssistantModel, createRuntimeWalk, expandResident
 
 // 一眼就是假的：形状够长，值没有任何真实含义。
 const FAKE_KEY = 'rehearsal-fake-key-0123456789abcdef'
-const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }, { vendorKey: 'apimart', modelKey: 'gpt-image-2' }]
+const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash' }, { vendorKey: 'apimart', modelKey: 'gpt-image-2' }]
 
 const paid = await openPaidWalk('paid-env-key-connect.rehearsal.walk.mjs', 'paid-env-key-connect-rehearsal', MODELS, {
   env: { ...process.env, CI: '', NOMI_SPEND_OK: '1', [ENV_KEY_VAR]: FAKE_KEY },
@@ -67,7 +67,7 @@ try {
   //    2026-10-16 真 key 首跑：每轮都是红卡「服务商返回了一个没见过的错误」、0 token——这一步就是为它守的。
   walk.fixture.respond({ label: 'rehearsal chat', match: () => true, reply: { type: 'text', text: 'REHEARSAL_BRAIN_OK' } })
   await expandResidentPanel(win)
-  await chooseAssistantModel(win, paid.label('apimart', 'deepseek-v3.2'), CREATION_PANEL)
+  await chooseAssistantModel(win, paid.label('apimart', 'deepseek-v4-flash'), CREATION_PANEL)
   await sendCreation(win, '你好，请回复一个字。')
   await expect(win.locator(`${CREATION_PANEL} [data-v4-block="assistant"]`).filter({ hasText: 'REHEARSAL_BRAIN_OK' }).first(), 'Agent 用这把 key 说话成功').toBeVisible({ timeout: stationTimeout({ turns: 1 }) })
   expect(walk.fixture.requests.length, '夹具收到对话请求').toBeGreaterThan(0)

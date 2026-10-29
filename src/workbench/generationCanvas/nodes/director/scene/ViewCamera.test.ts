@@ -5,13 +5,15 @@ import { DEFAULT_VIEW_SETTINGS, FREE_CAMERA_HOME } from './viewSettings'
 import { matchesHotkey, isMacPlatform, DIRECTOR_HOTKEYS } from '../model/hotkeys'
 import { buildCameraFromPreset, CAMERA_PRESETS } from '../model/cameraPresets'
 
-const runtime = vi.hoisted(() => ({ store: null as unknown as DirectorStore, effects: [] as (() => (() => void) | void)[], frames: [] as ((state: unknown, delta: number) => void)[], three: {} as Record<string, unknown>, api: { current: null as unknown }, registry: {}, capture: vi.fn(), labels: vi.fn() }))
+const runtime = vi.hoisted(() => ({ store: null as unknown as DirectorStore, effects: [] as (() => (() => void) | void)[], frames: [] as ((state: unknown, delta: number) => void)[], three: {} as Record<string, unknown>, api: { current: null as unknown }, registry: {}, capture: vi.fn(), labels: vi.fn(), layerActive: true }))
 vi.mock('react', async (original) => {
   const actual = await original<typeof import('react')>()
   return { ...actual, default: { ...actual, useRef: (current: unknown) => ({ current }), useState: (initial: unknown) => [initial, vi.fn()], useCallback: (fn: unknown) => fn, useMemo: (fn: () => unknown) => fn(), useLayoutEffect: (fn: () => (() => void) | void) => runtime.effects.push(fn), useEffect: (fn: () => (() => void) | void) => runtime.effects.push(fn) } }
 })
 vi.mock('@react-three/fiber', () => ({ createPortal: (children: unknown) => children, useThree: () => runtime.three, useFrame: (fn: (state: unknown, delta: number) => void) => runtime.frames.push(fn) }))
 vi.mock('@react-three/drei', () => ({ OrbitControls: 'orbit-controls', TransformControls: 'transform-controls' }))
+// 生成页那一格看不看得见（2026-10-29）：导演台藏着时窗口级键盘监听必须摘掉；测试里由 runtime.layerActive 控制
+vi.mock('../../../../generation/pageLayerContext', () => ({ useGenerationPageLayerActive: () => runtime.layerActive }))
 vi.mock('../DirectorEditorContext', () => ({ useDirectorStoreApi: () => runtime.store, useDirectorStore: (select: (state: ReturnType<DirectorStore['getState']>) => unknown) => select(runtime.store.getState()) }))
 vi.mock('./ViewportApiContext', () => ({ useViewportApi: () => runtime.api }))
 vi.mock('./SceneRegistryContext', () => ({ useSceneRegistry: () => runtime.registry }))
@@ -61,7 +63,7 @@ function setup() {
 
 beforeEach(() => {
   runtime.store = createDirectorStore({ defaultSceneName: 'Scene' })
-  runtime.effects = []; runtime.frames = []; handlers = new Map(); cleanups = []; overlay = false
+  runtime.effects = []; runtime.frames = []; handlers = new Map(); cleanups = []; overlay = false; runtime.layerActive = true
   documentState = { activeElement: null, querySelector: () => overlay ? {} : null }
   vi.stubGlobal('document', documentState)
   vi.stubGlobal('window', { addEventListener: (name: string, fn: (event: KeyboardEvent) => void) => { if (!handlers.has(name)) handlers.set(name, new Set()); handlers.get(name)!.add(fn) }, removeEventListener: (name: string, fn: (event: KeyboardEvent) => void) => handlers.get(name)?.delete(fn) })
@@ -100,6 +102,14 @@ describe('director keyboard navigation boundary', () => {
     expect(orbit.target.distanceTo(target)).toBe(0)
     expect(camera.position.distanceTo(start)).toBeGreaterThan(0)
     expect(camera.position.distanceTo(target)).toBeCloseTo(radius)
+  })
+  it('hidden layer (page switched away): no roam key listener is registered, so keys of other pages are never touched', () => {
+    runtime.layerActive = false
+    const { camera, frame } = setup(); const start = camera.position.clone()
+    expect(handlers.get('keydown')?.size ?? 0).toBe(0)
+    expect(handlers.get('keyup')?.size ?? 0).toBe(0)
+    key('KeyW'); frame()
+    expect(camera.position.distanceTo(start)).toBe(0)
   })
   it('does not activate an unmodified binding when the other platform modifier is held', () => {
     const event = { key: 'r', ctrlKey: false, metaKey: true, shiftKey: false, altKey: false }
@@ -231,6 +241,11 @@ describe('multi-entity shortcut undo boundaries', () => {
     cleanups = runtime.effects.map((effect) => effect()).filter((fn): fn is () => void => Boolean(fn))
   }
   function object(name: string) { return runtime.store.getState().addObject({ name, type: 'cube', position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 }, visible: true, locked: false }) }
+  it('hidden layer: the hotkey dispatcher registers nothing, so Backspace / undo of another page are never swallowed', () => {
+    const a = object('a'); runtime.store.getState().select({ objectId: a, multiObjectIds: [a] }); runtime.layerActive = false; HotkeyHarness()
+    expect(handlers.get('keydown')?.size ?? 0).toBe(0)
+    key('Backspace'); expect(runtime.store.getState().activeScene().objects).toHaveLength(1)
+  })
   it('one undo restores all objects deleted by one Backspace', () => {
     const a = object('a'), b = object('b'); runtime.store.getState().select({ objectId: a, multiObjectIds: [a, b] }); HotkeyHarness()
     key('Backspace'); expect(runtime.store.getState().activeScene().objects).toHaveLength(0)

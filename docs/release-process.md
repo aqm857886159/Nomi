@@ -72,6 +72,7 @@ macOS 上密钥的钥匙串条目名随 app 名走，所以密钥要在 Preview 
 1. 从 `origin/main` 创建 `release/0.20.0`。
 2. 只把本次确定发布的 PR 合入 release 分支。
 3. 在 release 分支把 `package.json` 版本改为 `0.20.0`，补齐 CHANGELOG 和 release notes。
+   同一提交里补这一版的 Agent 提案收据样本：`pnpm exec tsx scripts/generate-published-receipt-fixtures.mjs HEAD`，再把生成的 `HEAD.json` 改名为 `v0.20.0.json`（写入器取自当前提交，与标签名无关；标签要到晋级时才打），并在同目录 README 的命令里加上这一版。漏了它，`projectAgentProposalReceiptStore.test.ts` 的「当前版本要进格式矩阵」会红，门岗推不上去。
 4. 未选中的 PR 保持独立，不进入 release 分支。
 
 release 分支仍通过 PR 进入 `main`。为保持 RC commit 可追溯，release PR 使用 merge commit 或 fast-forward，不能 squash。
@@ -109,7 +110,9 @@ RC 工作流会：
 - macOS 双架构与 Windows 安装包；
 - 官网下载和应用内检查更新；
 - **Windows 卡顿巡检**（2026-09-24 起必做）：在一台 Windows 机器上，用 RC 那个 commit 构建后跑
-  `node tests/ux/windows-freeze-sweep.walk.mjs --label rc-<版本>` 和同样参数加 `--held`（模拟同步盘 / 杀毒占用）。
+  `NOMI_WALK_FOREGROUND_OK=1 node tests/ux/windows-freeze-sweep.walk.mjs --label rc-<版本>` 和同样参数加 `--held`（模拟同步盘 / 杀毒占用）。
+  放行变量必须带：「失焦再聚焦」那一步要真焦点，窗口会到前台；不带就不起 App、按退出码 125 跳过，不出报告。
+  PowerShell 先执行 `$env:NOMI_WALK_FOREGROUND_OK='1'`，再跑去掉前缀的同一条命令。
   两份 `tests/ux/shots/windows-freeze-sweep/<label>/report.json` 都必须 0 红、0 残留锁，截图亲眼看过。
   原因：v0.22.0 的三个 Windows 专属问题（等待动效着色器在 D3D11 上编译 100 秒卡死、同步盘占用让存盘锁
   永久卡住、导入被清理错误改写成失败）在 macOS 与 Linux CI 上全部测不出来。

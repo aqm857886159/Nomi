@@ -18,9 +18,13 @@ import {
   releaseDeconstructionRun,
   resetDeconstructionRuns,
 } from './deconstructionLifecycle'
-import { cancelDeconstruction, deconstructToShotTable, ensureDeconstructionShotTable } from './factBridge'
+import { cancelDeconstruction, deconstructToShotTable, ensureDeconstructionShotTable, retryShot } from './factBridge'
 
-const bridge = vi.hoisted(() => ({ deconstruct: vi.fn(), onDeconstructionProgress: vi.fn(() => vi.fn()) }))
+const bridge = vi.hoisted(() => ({
+  deconstruct: vi.fn(),
+  cancelDeconstruct: vi.fn(async () => ({ ok: true })),
+  onDeconstructionProgress: vi.fn(() => vi.fn()),
+}))
 vi.mock('../../../../desktop/bridge', () => ({ getDesktopBridge: () => ({ video: bridge }) }))
 
 const project = vi.hoisted(() => ({ controller: new AbortController() }))
@@ -37,6 +41,7 @@ beforeEach(() => {
   project.controller = new AbortController()
   abandonPendingCanvasWrite()
   bridge.deconstruct.mockReset()
+  bridge.cancelDeconstruct.mockClear()
   resetDeconstructionRuns()
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
 })
@@ -153,6 +158,115 @@ describe('deconstruction node terminal state', () => {
     bridge.deconstruct.mockResolvedValue({ shots: [], durationSeconds: 0, hasAudio: false, failedShotIndexes: [] })
     await deconstructToShotTable(sourceId, originProject())
     expect(tableSource(tableId).status).toBe('ready')
+  })
+})
+
+// 拆解取消 · 渲染层（第一刀，2026-10-27；设计卡 docs/plan/2026-10-27-deconstruct-cancel.md）。
+// 第 1 轮在这里钉过修前现状：取消、项目被换走都只在渲染层落笔，主进程那次 invoke 一个字都收不到；
+// 单镜重试连 requestId 都不带。现在：拆解与单镜重试都带 requestId + projectBinding；点取消、项目被换走
+// 都按同一个 requestId 撤主进程那次（主进程不再起新的一步、不再进付费闸）；主进程回 null = 被停下了，不是失败。
+describe('取消撤到主进程（第一刀）', () => {
+  /** 主进程那次拆解的替身：挂着，直到测试给它一个回话（null = 主进程说「停下了」）。 */
+  function holdEngine() {
+    let reply!: (value: unknown) => void
+    let engineStarted!: () => void
+    const started = new Promise<void>(resolve => { engineStarted = resolve })
+    bridge.deconstruct.mockImplementation(() => { engineStarted(); return new Promise(resolve => { reply = resolve }) })
+    return { started, reply: (value: unknown) => reply(value) }
+  }
+  const firstPayload = () => bridge.deconstruct.mock.calls[0]?.[0] as Record<string, unknown>
+  function legacyTable(): string {
+    const legacy = {
+      shots: [{ index: 1, startSeconds: 0, endSeconds: 2, durationSeconds: 2, sourceFrameUrl: 'nomi-local://isolated-project/frame.png', shotSize: 'close', mood: 'quiet',
+        visual: 'Door opens', onScreenText: '', dialogue: '', carriedOver: false, imagePrompt: 'A door', motionPrompt: 'Opening', custom: {} }],
+      durationSeconds: 2, hasAudio: false, failedShotIndexes: [],
+    }
+    const store = useGenerationCanvasStore.getState()
+    const node = store.addNode({ kind: 'video', title: 'Reference', position: { x: 0, y: 0 }, meta: { videoDeconstruction: legacy } })
+    store.updateNode(node.id, { result: { id: 'result', type: 'video', url: 'nomi-local://isolated-project/video.mp4', createdAt: 1 } })
+    return ensureDeconstructionShotTable(node.id)!
+  }
+  const tableMeta = (tableId: string) => useGenerationCanvasStore.getState().nodes.find(node => node.id === tableId)?.meta
+
+  it('点取消：按这次调用的同一个 requestId 撤主进程那次；主进程回 null 不落失败，表停在已取消', async () => {
+    const sourceId = sourceVideo()
+    const tableId = ensureDeconstructionShotTable(sourceId)!
+    const engine = holdEngine()
+    const running = deconstructToShotTable(sourceId, originProject())
+    await engine.started
+    expect(firstPayload().requestId).toEqual(expect.any(String))
+    expect(firstPayload().projectBinding).toEqual(originProject().binding)
+    expect(bridge.cancelDeconstruct).not.toHaveBeenCalled()
+
+    cancelDeconstruction(tableId)
+    expect(bridge.cancelDeconstruct).toHaveBeenCalledTimes(1)
+    expect(bridge.cancelDeconstruct).toHaveBeenCalledWith({ requestId: firstPayload().requestId })
+    expect(tableSource(tableId).status).toBe('cancelled')
+    engine.reply(null)
+    await running
+    expect(tableSource(tableId).status).toBe('cancelled')
+    expect(tableSource(tableId).errorMessage).toBeUndefined()
+    // 取消之后不再撤第二次（窗口的项目信号只在项目被换走时才响）。
+    expect(bridge.cancelDeconstruct).toHaveBeenCalledTimes(1)
+  })
+
+  it('项目被换走（窗口关掉 / 切项目）：同一个 requestId 撤主进程那次，表落中断态', async () => {
+    const sourceId = sourceVideo()
+    const tableId = ensureDeconstructionShotTable(sourceId)!
+    const engine = holdEngine()
+    const running = deconstructToShotTable(sourceId, originProject())
+    await engine.started
+    project.controller.abort()
+    expect(bridge.cancelDeconstruct).toHaveBeenCalledWith({ requestId: firstPayload().requestId })
+    engine.reply(null)
+    await running
+    expect(tableSource(tableId).status).toBe('interrupted')
+  })
+
+  it('主进程自己停下回 null（发起时项目会话已过期）：不写结果、不落失败，收敛到中断态、可重新拆解', async () => {
+    const sourceId = sourceVideo()
+    const tableId = ensureDeconstructionShotTable(sourceId)!
+    bridge.deconstruct.mockResolvedValue(null)
+    await deconstructToShotTable(sourceId, originProject())
+    expect(tableSource(tableId).status).toBe('interrupted')
+    expect(tableSource(tableId).errorMessage).toBeUndefined()
+    expect(bridge.cancelDeconstruct).not.toHaveBeenCalled()
+  })
+
+  it('单镜重试带 requestId + projectBinding；重试途中项目被换走就撤主进程那 1 次；回 null 什么都不写', async () => {
+    const tableId = legacyTable()
+    const before = tableMeta(tableId)
+    const engine = holdEngine()
+    const retrying = retryShot(tableId, 'fact-1', originProject())
+    await engine.started
+    expect(firstPayload().requestId).toEqual(expect.any(String))
+    expect(firstPayload().projectBinding).toEqual(originProject().binding)
+
+    project.controller.abort()
+    expect(bridge.cancelDeconstruct).toHaveBeenCalledWith({ requestId: firstPayload().requestId })
+    engine.reply(null)
+    await retrying
+    expect(tableMeta(tableId)).toBe(before)
+  })
+
+  // 上一条先把项目换走再回 null，`canWrite()` 抢先拦下了，守不住 `if (!result) return` 那一句；这一条把两件事拆开：
+  // 项目仍是当前项目、主进程自己回 null（它说「停下了」）时，也得不写表、不抛、不再撤第二次。
+  it('单镜重试：项目仍是当前项目、主进程回 null → 不写表、不抛', async () => {
+    const tableId = legacyTable()
+    const before = tableMeta(tableId)
+    bridge.deconstruct.mockResolvedValue(null)
+    await expect(retryShot(tableId, 'fact-1', originProject())).resolves.toBeUndefined()
+    expect(tableMeta(tableId)).toBe(before)
+    expect(project.controller.signal.aborted).toBe(false)
+    expect(bridge.cancelDeconstruct).not.toHaveBeenCalled()
+  })
+
+  it('项目已经换走了才点单镜重试：一次都不发', async () => {
+    const tableId = legacyTable()
+    project.controller.abort()
+    await retryShot(tableId, 'fact-1', originProject())
+    expect(bridge.deconstruct).not.toHaveBeenCalled()
+    expect(bridge.cancelDeconstruct).not.toHaveBeenCalled()
   })
 })
 

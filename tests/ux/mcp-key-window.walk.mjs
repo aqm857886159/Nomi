@@ -50,7 +50,10 @@ async function rpc(advert, connectionAttestation, method, params) {
 
 async function main() {
   fs.mkdirSync(shotsDir, { recursive: true })
-  const launched = await launchNomiApp({ name: 'mcp-key-window', syntheticCredentialStorage: true, settleMs: 900 })
+  const launched = await launchNomiApp({
+    name: 'mcp-key-window', syntheticCredentialStorage: true, settleMs: 900,
+    foreground: '验证 MCP 请求能把隐藏的 Nomi 窗口带回前台',
+  })
   const { app, win } = launched
   // 'not-needed' = Nomi 自己就把焦点拿到了；'pending' = 没拿到，已下阳性对照，等旅程走完再判。
   let focusControl = 'not-needed'
@@ -170,5 +173,5 @@ async function main() {
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.stack || error.message : String(error))
-  process.exitCode = 1
+  process.exitCode = error?.code === 'NOMI_WALK_SKIPPED' ? error.exitCode : 1
 })

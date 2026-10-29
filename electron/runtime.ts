@@ -311,12 +311,14 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const taskId = `task-${crypto.randomUUID()}`;
   const effectiveVendorKey = vendor.key;
   const mapping = stagedCandidate?.mapping || findTaskMapping(effectiveVendorKey, kind, modelKey, modeId);
-  request.extras = applyHeadlessParamDefaults(assertNoReferenceResidueBeforeSend(request.extras, `${modelKey}/${modeId || "-"}`), (model?.meta as { archetypeId?: string } | undefined)?.archetypeId, kind, effectiveVendorKey, mapping?.create?.defaultParams, mapping?.create?.body, model.modelKey);
+  // 这一次选中连接的完整身份：第一闸（缺参兜底 + 参考投影的容量拒发）与第三闸（imageEditGuardError）同一份。
+  const referenceSelection = modelReferenceSelection(effectiveVendorKey, model as Model, kind);
+  request.extras = applyHeadlessParamDefaults(assertNoReferenceResidueBeforeSend(request.extras, `${modelKey}/${modeId || "-"}`), referenceSelection, mapping?.create?.defaultParams, mapping?.create?.body);
   // A5：@ 内联参考在发出去之前投影成 @image1/@video1。判据与注释住 taskParams（引擎 A 只有这一个出口）。
   request.prompt = projectOutboundPrompt(request.prompt, request.extras);
   const customCall = resolveCustomCallExecution(model as Model, request, mapping);
   const customCallScript = customCall?.script || "";
-  const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), modelReferenceSelection(effectiveVendorKey, model as Model, kind));
+  const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), referenceSelection);
   if (guardError) throw new Error(guardError);
   if (customCallScript)
     return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });

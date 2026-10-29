@@ -73,7 +73,7 @@ async function runZoom(zoomPercent) {
   const launched = await launchNomiApp({
     name: `clip-gesture-${zoomPercent}`, userDataDir: settingsDir, settingsDir, projectsDir,
     settleMs: 1200, args: ['--disable-gpu'], viewportSize: { width: 1280, height: 933 },
-    mainRequire: [path.join(repoRoot, 'tests/ux/_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests/ux/_quietWalk.cjs')],
     initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', 'nomi-color-scheme': SCHEME, 'nomi:locale:v1': LOCALE },
   })
   const { app, win } = launched

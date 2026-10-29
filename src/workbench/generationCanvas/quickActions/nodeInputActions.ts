@@ -146,14 +146,25 @@ export function connectUploadedInputs(createdIds: readonly string[], targetId: s
 }
 
 /**
- * 素材选择器里上传：走画布现有的本地文件导入（复制进项目 + 建素材卡）；导入完成时选择器还开着（`shouldConnect()`）→ 把新卡接进来
- * （左环「给它加输入」就是这个意思）；上传途中用户把选择器关掉了 → 已导入的留成素材卡、不连线（设计卡 ★5 中途表）。
+ * 素材选择器里上传当这张卡的输入（左环「给它加输入」、生成框参考行「+」）：走画布现有的本地文件导入（复制进项目 + 建素材卡），
+ * 完成就把新卡接进来。
+ * - `shouldConnect()` 只许反映**用户**显式取消：上传途中用户把选择器关掉了 → 已导入的留成素材卡、不连线、不还选中
+ *   （2026-10-08 设计卡 ★5 中途表）。承载入口的界面卸载不是取消：导入建卡会把选中切到新卡，随选中挂载的生成框因此卸载，
+ *   那是这次动作自己造成的（2026-10-27 回归：拿「生成框还挂着」当信号，从生成框上传就从来接不上）。
+ * - 选中：导入建卡顺手把它切到了新卡。接上后选中还停在这次建的卡上 = 途中没人动过 → 还回上传前的选中（生成框回到这张卡，
+ *   直接看得到新参考），和「从素材库选」不离开目标卡是同一个终态。用户途中自己点了别处就不动。选中是会话层，不进撤销。
  */
 export async function addUploadedInput(targetId: string, file: File, options: { shouldConnect: () => boolean }): Promise<void> {
   const target = store().nodes.find((node) => node.id === targetId)
   if (!target) return
+  const selectionBefore = [...store().selectedNodeIds]
   // 上传 + 接线是**一个撤销点**：导入自己的每一笔写（建卡 / 进度 / 落盘结果）都在 undoTxn 里压住撤销屏障，接线也进同一个事务，Ctrl+Z 一次撤干净。
   const undoTxn = txn('upload-input')
   const created = await importLocalFilesToGenerationCanvas([file], { basePosition: resolveRingMenuPlacement(target, 'left', 'asset'), categoryId: target.categoryId, undoTxn })
-  if (created.length && options.shouldConnect()) connectUploadedInputs(created, targetId, undoTxn)
+  if (!created.length || !options.shouldConnect()) return
+  // 目标卡途中被删：没有可接的，选中也不还给一张不存在的卡。
+  if (!store().nodes.some((node) => node.id === targetId)) return
+  connectUploadedInputs(created, targetId, undoTxn)
+  const { selectedNodeIds } = store()
+  if (selectedNodeIds.length > 0 && selectedNodeIds.every((id) => created.includes(id))) store().selectNodes(selectionBefore)
 }

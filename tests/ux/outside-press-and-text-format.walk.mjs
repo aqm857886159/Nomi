@@ -24,7 +24,6 @@ const scheme = schemeArg > 0 ? process.argv[schemeArg + 1] : 'light'
 const tag = scheme === 'dark' ? `${locale}-dark` : locale
 const shot = process.argv.includes('--shot')
 const label = (key) => uiText(locale, key)
-const offscreen = path.resolve('tests/ux/full-walk/offscreenWindow.cjs')
 const root = makeTempDir('nomi-outside-press-text-format-')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'outside-press-text-format'
@@ -58,7 +57,7 @@ async function check(name, body) {
 }
 
 const run = await launchNomiApp({
-  name: 'outside-press-and-text-format', projectsDir, settleMs: 0, mainRequire: [offscreen],
+  name: 'outside-press-and-text-format', projectsDir, settleMs: 0,
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
 })
 const win = run.win

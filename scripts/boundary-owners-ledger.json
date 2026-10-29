@@ -510,6 +510,36 @@
         "symbol": "planAssetDeletion"
       },
       "reason": "2026-10-24 素材删除判定换成显式的 planAssetDeletion（隐式计划 { matches, fileTarget } 的 buildAssetResultDeletionPlan 同提交删除，见 docs/fixes/2026-10-24-asset-library-delete-verdict.root-cause.json）。09-02 合同的不变量「先摘结果元数据；只要剩下的结果还引用同一份项目文件就不删文件」由它承担：planAssetDeletion 判本项目文件 trash / keep，keep 的依据仍是唯一引用判定 isProjectFileReferenced（摘完以后的画布 + 时间轴），执行口 deleteAssetResult 先摘结果、只对 trash 进回收站。守它的测试：assetDeletionMatrix.test.ts（共享文件 / 封面 / 白板图层各格）、assetResultDeletion.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-16-canvas-image-preview-contract.root-cause.json",
+      "path": "electron/assets/previewRequests.ts",
+      "symbol": "createPreviewRequestRegistry",
+      "anchor": {
+        "path": "electron/ipcRequestRegistry.ts",
+        "symbol": "createIpcRequestRegistry"
+      },
+      "reason": "2026-10-27 拆解取消第一刀（docs/fixes/2026-10-27-deconstruct-cancel.root-cause.json，用户拍板「五件都按推荐办」第 5 题）：补预览的在途请求登记原样挪成中立模块 electron/ipcRequestRegistry.ts（补预览与视频拆解共用一份，加退出收摊 abortAll），旧文件同提交删除。10-16 合同的不变量「补预览在途请求的取消边界：发起窗口销毁、项目上下文失效、渲染层按请求号撤回，汇成一个 AbortSignal 交给预览 owner」不变，由 createIpcRequestRegistry 承担，assetsIpc 的 nomi:assets:ensure-preview / cancel-preview 照旧经它。守它的测试：electron/ipcRequestRegistry.test.ts（登记本身）、electron/assets/previewRequests.test.ts（补预览取消的行为用例原样保留，只改成从新模块取登记）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError",
+      "anchor": {
+        "path": "electron/tasks/retrievalStageError.ts",
+        "symbol": "retrievalStageError"
+      },
+      "reason": "2026-10-28 取回阶段的错误出口 retrievalStageError 从 taskResultQuery.ts 原样搬到 electron/tasks/retrievalStageError.ts：结果落地门 assets/localizeTaskAsset 失败时要经它挂取回阶段码（同步供应商在提交里落地），而 taskResultQuery 从运行时取执行器、运行时又引落地门，搬到不依赖运行时的模块才不成环。函数体一字未改，取回出口仍只有它一个（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-22-retrieval-stage-error-class.root-cause.json",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError",
+      "anchor": {
+        "path": "electron/tasks/retrievalStageError.ts",
+        "symbol": "retrievalStageError"
+      },
+      "reason": "2026-10-28 取回阶段的错误出口 retrievalStageError 从 taskResultQuery.ts 原样搬到 electron/tasks/retrievalStageError.ts：结果落地门 assets/localizeTaskAsset 失败时要经它挂取回阶段码（同步供应商在提交里落地），而 taskResultQuery 从运行时取执行器、运行时又引落地门，搬到不依赖运行时的模块才不成环。函数体一字未改，取回出口仍只有它一个（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
     }
   ],
   "retirements": [

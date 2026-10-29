@@ -1,0 +1,28 @@
+{
+  "name": "Agent 面板任务卡的形状（领域事实契约与卡片数据，不带金额）",
+  "subject": "agent-lane.task-card-facts",
+  "lifecycle": "projection",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentLane/laneContracts.ts",
+    "symbol": "LaneTaskFacts"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneTaskFacts"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Types.ts",
+      "symbol": "TaskCardData"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/lane/laneViewModel.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-lane-task-no-money.root-cause.json。任务卡事实由 electron/agentLane/laneDesktopTasks.ts 的 createDesktopLaneTasks 按 ProductionRun 现 join（全仓唯一的写手，转录里只存 productionRunId 与 operationId 两个 id）；渲染层 src/workbench/ai/lane/laneViewModel.ts 的 taskCardFor 是唯一把它投成 TaskCardData 的生产代码，V4TaskCard 上屏。两份形状都不带金额：设计系统「钱只印一处」，2026-10-27 删了币种 / 已花 / 预估三个字段和卡上的预估胶囊、卡尾数。要让金额回到卡上，得先改这两份类型，并会撞上 laneDesktopTasks.test.ts 的键集合与 laneViewModel.test.ts 的整卡断言。"
+}

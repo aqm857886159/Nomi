@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { classifyGenerationError } from './generationRunController'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
 import { desktopT } from '../../../../electron/i18n'
+import { ratioResToOpenAiSize } from '../../../../electron/catalog/paramTranslate'
 import { describeAgentError } from '../../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../../electron/ai/runtimeVendorError'
 import { laneModelTimeoutMessage } from '../../../../electron/shared/agentLane/laneAssistantFault'
@@ -146,7 +147,8 @@ describe('classifyGenerationError — 已知分类', () => {
   it('账号档位闸·RunningHub 1014 企业共享 Key → 账号权限不足(不误导成「参数不被接受」)', () => {
     const message =
       "NOMI_VENDOR_ERR_B64::" +
-      Buffer.from(JSON.stringify({ category: 'input', upstreamMsg: '标准模型API仅限企业级-共享API Key调用|Access Denied: Standard Model API is restricted to Enterprise-Shared API Keys only.', vendorKey: 'runninghub' }), 'utf8').toString('base64') +
+      // 200 + 错误码信封：vendorHttp 记 logicalCode（「code 1014」），这是服务商回了话的证据。
+      Buffer.from(JSON.stringify({ category: 'input', logicalCode: 1014, upstreamMsg: '标准模型API仅限企业级-共享API Key调用|Access Denied: Standard Model API is restricted to Enterprise-Shared API Keys only.', vendorKey: 'runninghub' }), 'utf8').toString('base64') +
       ":: Provider request failed (code 1014) at runninghub POST https://x: 标准模型API仅限企业级-共享API Key调用"
     const r = classifyGenerationError(message)
     expect(r.reason).toBe('账号权限不足')
@@ -249,8 +251,9 @@ describe('classifyGenerationError — 已知分类', () => {
     // 文案必须先指向代理，否则用户对着一个网络问题去「稍后重试」，永远重试不好。
     expect(r.hint).toMatch(/代理/)
     expect(r.hint).toMatch(/境外/)
-    // 哪个图床怎么挂的仍要看得见（排查线索不能丢）。
-    expect(r.providerMessage).toMatch(/litterbox/)
+    // 哪个图床怎么挂的仍要看得见（排查线索不能丢）——在技术详情里。那句是我们拼的汇总，不是服务商原话（2026-10-27）。
+    expect(r.providerMessage).toBeUndefined()
+    expect(r.raw).toMatch(/litterbox/)
   })
 
   // 2026-08-20 用户真机截图：本机 mp4 → 直连通道（非匿名链）抛裸 `素材上传失败(HTTP 413)`。
@@ -331,6 +334,56 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(coded.raw).not.toMatch(/NOMI_ERR/)
     expect(coded.raw).toMatch(/firstFrameUrl/)
     expect(i18n.t('generationCommon.observability.error.referenceNotInUse.reason', { lng: 'en' })).not.toBe(coded.reason)
+  })
+
+  // 用户明确选了、却超过 3:1 的生图比例（#1344 评审）：以前悄悄省略 size，服务商按默认尺寸出图，选的画幅被换成别的。
+  // 现在主进程在构造请求时就拒（electron/catalog/paramTranslate.ts），渲染层按码给词条。错误取自真实生产者、不手写——
+  // 码或人话任一边改了，这条跟着红。
+  describe('画幅比例超出连接范围被主进程在构造请求时拒发（aspect-ratio-unsupported）', () => {
+    const refusal = (): string => {
+      try {
+        ratioResToOpenAiSize(['4:1', '1K'], 'text_to_image')
+      } catch (error) {
+        return `Error invoking remote method 'nomi:tasks:run': ${String(error)}`
+      }
+      throw new Error('expected 4:1 to be refused for an image task')
+    }
+
+    it('归到它自己那一类：不落 unknown、不甩锅服务商，主动作重试、次动作换模型，码标记不外露', () => {
+      const report = classifyGenerationError(refusal())
+      expect(report.kind).toBe('aspect-ratio-unsupported')
+      expect(report.vendorSide).toBe(false)
+      expect(report.primary).toBe('retry')
+      expect(report.secondary).toBe('switch-model')
+      expect(report.providerMessage).toBeUndefined()
+      expect(report.raw).not.toMatch(/NOMI_ERR/)
+      expect(report.raw).toMatch(/4:1/)
+      expect(report.hint).not.toMatch(/服务商临时故障/)
+    })
+
+    it('中文词条：说清比例超出了这条连接支持的范围、请求没发出去、请换一个比例', () => {
+      const report = classifyGenerationError(refusal())
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.reason'))
+      expect(report.hint).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.hint'))
+      expect(report.reason).toMatch(/比例.*超出/)
+      expect(report.hint).toMatch(/3:1/)
+      expect(report.hint).toMatch(/换一个比例/)
+      expect(report.hint).toMatch(/没被请求到/)
+    })
+
+    it('英文词条同样来自词典，不混中文', async () => {
+      await i18n.changeLanguage('en')
+      try {
+        const report = classifyGenerationError(refusal())
+        expect(report.kind).toBe('aspect-ratio-unsupported')
+        expect(report.reason).toMatch(/aspect ratio.*outside/i)
+        expect(report.hint).toMatch(/Pick another ratio/)
+        expect(report.hint).toMatch(/provider was never called/)
+        expect(`${report.reason}${report.hint}`).not.toMatch(/[㐀-鿿]/)
+      } finally {
+        await i18n.changeLanguage('zh-CN')
+      }
+    })
   })
 
   it('stripNomiErrorCode:剥掉码标记后只留人话（展示端不泄露机器信号）', () => {
@@ -433,33 +486,54 @@ describe('providerMessage —— 服务商真实原话提到可见区（别埋�
   const encode = (structured: Record<string, unknown>, tail = 'Provider request failed (code 429) at dm-fox: x') =>
     `Error: NOMI_VENDOR_ERR_B64::${Buffer.from(JSON.stringify(structured), 'utf8').toString('base64')}:: ${tail}`
 
+  // 载荷照生产者的真实形状写：服务商回了话才有 logicalCode / httpStatus（vendorHttp 回话分支），原话才算数。
   it('structured: 分类标题通用，但服务商原话单独可见', () => {
-    const r = classifyGenerationError(encode({ category: 'quota', upstreamMsg: '官方算力限制，请等待一段时间后再进行使用' }))
+    const r = classifyGenerationError(encode({ category: 'quota', logicalCode: 429, upstreamMsg: '官方算力限制，请等待一段时间后再进行使用' }))
     expect(r.reason).toBe('配额或限流') // 标题仍是"哪一类"
     expect(r.providerMessage).toBe('官方算力限制，请等待一段时间后再进行使用') // 真实原因可见
   })
 
   it('structured: 原话与分类标题重复时不冗余显示', () => {
-    const r = classifyGenerationError(encode({ category: 'balance', upstreamMsg: '余额不足' }))
+    const r = classifyGenerationError(encode({ category: 'balance', httpStatus: 402, upstreamMsg: '余额不足' }))
     expect(r.reason).toBe('余额不足')
     expect(r.providerMessage).toBeUndefined()
   })
 
   it('structured: 占位「(no detail from provider)」不显示', () => {
-    const r = classifyGenerationError(encode({ category: 'server', upstreamMsg: '(no detail from provider)' }))
+    const r = classifyGenerationError(encode({ category: 'server', httpStatus: 500, upstreamMsg: '(no detail from provider)' }))
     expect(r.providerMessage).toBeUndefined()
   })
 
-  it('legacy: 从 raw 抠出的可读原话也提到可见区', () => {
+  // 2026-10-27 用户拍板（docs/engineering/direction-checks/2026-10-27-vendor-quote-provenance.md）：只认有来源的原话。
+  // 来源不明的原始串（老项目存的 node.error、本机运行时的报错）证明不了是服务商说的——不进「服务商原话」，原文留在技术详情。
+  it('legacy：来源不明的原始串不顶替服务商原话，原文留在技术详情', () => {
     const r = classifyGenerationError('429 rate limit: 当前模型排队人数过多，请稍后再试')
     expect(r.reason).toBe('配额或限流')
-    expect(r.providerMessage).toMatch(/排队人数过多/)
+    expect(r.providerMessage).toBeUndefined()
+    expect(r.raw).toContain('排队人数过多')
   })
 
   it('unknown 兜底: reason 本身就是原话，不重复给 providerMessage', () => {
     const r = classifyGenerationError(JSON.stringify({ message: 'something odd happened' }))
     expect(r.reason).toBe('something odd happened')
     expect(r.providerMessage).toBeUndefined()
+  })
+
+  // 每条都是真实来源的原样：Node/undici、浏览器、DNS、超时、openai 客户端、我们自己 electron/systemProxy.ts 的代理兜底句。
+  it.each([
+    'ECONNRESET',
+    'fetch failed',
+    'TypeError: fetch failed',
+    'getaddrinfo ENOTFOUND api.apimart.ai',
+    'TypeError: Failed to fetch',
+    'request failed: ETIMEDOUT',
+    'Request timed out.',
+    '网络请求失败：无法连接到该地址。（当前未启用代理；若该地址需科学上网，请开启系统代理后重启应用）',
+  ])('本机网络错误 %s 不被标成服务商原话（原文留在技术详情）', (raw) => {
+    const report = classifyGenerationError(raw)
+    expect(report.kind).toBe('network')
+    expect(report.providerMessage).toBeUndefined()
+    expect(report.raw).toBe(raw)
   })
 })
 
@@ -542,7 +616,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
     auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
-    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-not-in-use': true, 'outbound-blocked': true,
+    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
     'outbound-blocked-submit': true, 'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
     'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'submission-not-sent': true, 'output-retrieval-failed': true, 'retrieval-incomplete': true, 'local-processing': true, unknown: true,
   }
@@ -1065,6 +1139,7 @@ describe('vendorSide —— 失败是不是服务商那一侧的事', () => {
   it.each([
     ['结果已送达、本机读不出来', tagNomiError('output-unreadable', 'Generated media validation failed (decode_failed)')],
     ['参考素材本身不行（请求没发出）', tagNomiError('asset-invalid', '参考素材读取失败')],
+    ['选的画幅比例超出连接范围（构造请求时就拒了）', tagNomiError('aspect-ratio-unsupported', 'Request stopped before sending: aspect ratio 4:1 is outside the image sizes this connection supports')],
     ['我们自己的出站策略拦了提交（走的是 VendorRequestError 的壳）', structuredMessage({ vendorKey: 'x', category: 'network', upstreamMsg: 'refused' }, `Provider request refused by outbound policy: ${tagNomiError('outbound-blocked-submit', 'blocked')}`)],
     ['取片被出站策略拦了', tagNomiError('outbound-blocked', 'blocked')],
     ['模型已被我们下线', 'Model is retired: sora-2'],

@@ -114,14 +114,12 @@ export function runRehearsal(): { generatedAt: string; summary: Record<string, n
     });
     const support = bodyReferenceSupport(mapping.create?.body, referenceContext);
     const extras = referenceExtras(testCase.family, testCase.falseKeys);
+    // 第一闸收的与第三闸（下面的 imageEditGuardError）同一份完整身份（2026-10-27）。
     const merged = applyHeadlessParamDefaults(
       extras,
-      archetypeId,
-      mapping.taskKind,
-      mapping.vendorKey,
+      referenceContext,
       mapping.create?.defaultParams,
       mapping.create?.body,
-      mapping.modelKey,
     ) ?? {};
     const guardError = imageEditGuardError(
       mapping.taskKind,

@@ -5,7 +5,9 @@
 // content, not about audio_urls itself. Controlled by MODE env var:
 //   MODE=image_only   -> real photo, no audio_urls, generate_audio default(true)
 //   MODE=image_audio  -> real photo + real audio (same fixture as the paid smoke script)
-import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+// Runs on the real profile (isolate:false), so it cannot carry the quiet-walk instrument and its window
+// comes to the front: it only starts with NOMI_WALK_FOREGROUND_OK=1, otherwise it exits 125 without launching.
+import { exitIfWalkSkipped, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +20,11 @@ const MODE = process.env.MODE || 'image_only'
 const AUDIO_FIXTURE = path.join(repoRoot, 'tests/ux/fixtures/real-narration.mp3')
 const IMAGE_FIXTURE = path.join(repoRoot, 'resources/onboarding-demo/kid.jpg')
 
-const { app, win } = await launchNomiApp({ name: 'audio-ref-diag-probe', isolate: false })
+const { app, win } = await launchNomiApp({
+  name: 'audio-ref-diag-probe',
+  isolate: false,
+  foreground: '真实资料付费诊断（真 APIMart key、真项目库）',
+}).catch(exitIfWalkSkipped)
 try {
   await win.getByText('新建空白项目', { exact: false }).first().click()
   await win.waitForTimeout(3500)

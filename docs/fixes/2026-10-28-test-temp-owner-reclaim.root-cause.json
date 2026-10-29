@@ -1,0 +1,224 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-28-test-temp-owner-reclaim",
+  "problem_type": "System temp directories handed out to tests, walkthroughs and gates have an allocation boundary but no reclaim boundary: cleanup lives only in the creator's own process, so any process that never reaches its exit hook leaks the directory forever",
+  "symptom": "Between 2026-10-24 and 2026-10-28 ten nomi-prepush-* directories (0.84-0.87G each, about 8.6G) were left in the system temp directory and the disk went from 25G free to 99% full in two days; the user had to run a cleanup script by hand. Every one of them belonged to a process that no longer existed.",
+  "direct_cause": "scripts/pre-push-contracts.node-test.mjs:38 clones the whole repository into makeTempDir('nomi-prepush-') (0.85G). scripts/_test-temp.mjs cleaned up only through process.once('exit'). The pre-push runner kills a timed-out gate (scripts/pre-push-contracts.mjs, single-gate timeout and whole-hook deadline) with SIGKILL on the whole process group; Node documents that 'SIGKILL' cannot have a listener installed, so the exit hook of the process that created the directory never ran and nothing else knew the directory existed.",
+  "class_root": "Ownership of a temp directory was an in-process fact (an entry in a Set plus an exit listener), not a property of the directory. Nobody else could answer 'is the creator still alive, may I delete this?', so abnormal exits (SIGKILL from a gate timeout, kill -9, crash, OOM, power loss) were unrecoverable by construction. The same repository already had the right answer for product code (electron/assets/scratchCleanup.ts: pid in the directory name plus a liveness check) but it was never promoted to the shared allocation boundary, and check:test-temp-static only recognised five literal spellings in some file suffixes, so bypasses of the boundary were invisible.",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-28",
+  "invariant_owner_layer": {
+    "layer": "scripts/_test-temp.mjs",
+    "tests": [
+      "scripts/_test-temp.node-test.mjs"
+    ],
+    "why": "makeTempDir/makeTempDirAsync are the only system-temp allocators for node:test, walkthroughs and gates (check:test-temp-static forbids others); every directory they hand out carries its creator's pid and reclaimAbandonedTestTemp is the single reclaim function used by the first allocation of every process and by the runner that kills a process tree."
+  },
+  "affected_population": [
+    "Every developer, agent line and CI job that runs pnpm run gates, the pre-push hook or Electron walkthroughs on a machine whose gates can be killed by a timeout (the observed machine lost about 8.6G in four days)",
+    "384 scripts/tests/evals call sites of makeTempDir/makeTempDirAsync (node scripts/door-map.mjs makeTempDir makeTempDirAsync --roots=scripts,tests,evals --include-tests)",
+    "Any future kill path (git-hook dispatcher timeout, manual kill -9, crash, OOM) that terminates a process owning a helper-allocated directory"
+  ],
+  "scope_paths": [
+    "scripts/_test-temp.mjs",
+    "scripts/pre-push-contracts.mjs",
+    "scripts/lib/systemTempScan.mjs",
+    "scripts/test-temp-bypass-baseline.json",
+    "scripts/pre-push-gate-inputs.mjs"
+  ],
+  "entry_points": [
+    "Allocation: makeTempDir / makeTempDirAsync in scripts/_test-temp.mjs (names now nomi-<prefix>-p<creator pid>-<6 random>; prefixes that do not start with nomi- get it prepended, so every helper-made directory is recognisable)",
+    "Reclaim at the next allocation: the first makeTempDir of every process per temp root runs reclaimAbandonedTestTemp",
+    "Reclaim by the killer: terminateAndReclaim in scripts/pre-push-contracts.mjs, used by the single-gate timeout (runNode) and the whole-hook deadline (runWithDeadline)",
+    "Bypass detection: scripts/check-test-temp-static.node-test.mjs via scripts/lib/systemTempScan.mjs, with the legacy bypasses frozen in scripts/test-temp-bypass-baseline.json"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/process.html#signal-events",
+      "checked_at": "2026-10-28",
+      "purpose": "'SIGKILL' cannot have a listener installed, it will unconditionally terminate Node.js on all platforms - an exit hook can never be the only cleanup path"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/process.html#processkillpid-signal",
+      "checked_at": "2026-10-28",
+      "purpose": "process.kill(pid, 0) tests for the existence of a process and throws if the target does not exist; on Windows signal 0 is the platform independent existence test (so the Python/CPython os.kill(pid, 0) console-event hazard noted in scripts/with-gates-lock.py does not apply to Node)"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/kill.html",
+      "checked_at": "2026-10-28",
+      "purpose": "Null signal only performs error checking; ESRCH means no such process or group, EPERM means the process exists but may not be signalled - only ESRCH may count as 'creator is gone'"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/raszi/node-tmp#graceful-cleanup",
+      "checked_at": "2026-10-28",
+      "purpose": "The mainstream Node temp library also cleans only on process exit, so adopting it would not fix the SIGKILL case (no dependency added)"
+    }
+  ],
+  "invariants": [
+    "Every directory handed out by makeTempDir/makeTempDirAsync has the creating process id in its name, so 'does anyone still want this directory' is answerable from the directory alone",
+    "A directory is reclaimed only when its name has the owner shape (starts with nomi- and ends with -p<pid>-<6 random>, so another program's directory with a similar tail is never touched), its creator is gone (kill(pid, 0) reports ESRCH; EPERM and any unknown error count as alive), it belongs to the current user and lstat says it is a real directory; a live creator's directory is never touched",
+    "The process that kills a process tree reclaims through the same function, after the whole tree is really gone (a SIGKILLed creator is still 'alive' for a few milliseconds)",
+    "Every killProcessTree call in the pre-push runner goes through terminateAndReclaim",
+    "No file under scripts/ or tests/ may add a direct mkdtemp(<system temp dir>); the existing ones are frozen in a baseline that can only shrink"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDir"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDirAsync"
+    },
+    {
+      "kind": "write",
+      "path": "tests/setup/tempWorkspace.ts",
+      "symbol": "createTempWorkspace"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "registerTestTemp"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/pre-push-contracts.mjs",
+      "symbol": "terminateAndReclaim"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "reclaimAbandonedTestTemp"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "door-map.mjs only scans src/electron by default; with --roots=scripts,tests,evals --include-tests it reports 384 write doors and 1 read door for makeTempDir/makeTempDirAsync, all of which call the same two symbols in scripts/_test-temp.mjs, so the boundary is already one place and the contract lists boundary-level doors only. The remaining doors have to exist: makeTempDir/makeTempDirAsync are the sync/async halves of one allocator; createTempWorkspace owns the Vitest run TMPDIR (a different runner, exempted with a reason in check:test-temp-static); registerTestTemp lets launchNomiApp adopt a caller-supplied root (exit-hook cleanup only, residual risk R3); terminateAndReclaim is the killer's reclaim call and reclaimAbandonedTestTemp is the single reclaim function behind both the first-allocation sweep and the runner."
+  },
+  "generality_proof": "The invariant lives in the directory name, so every allocation path (384 call sites, sync or async, any prefix), every killer (the pre-push runner, the git-hook dispatcher, git-delivery, daily-radar, manual kill -9, crash, OOM, power loss) and every machine converges on the same two shared boundaries: makeTempDir names the directory with its creator, and reclaimAbandonedTestTemp, run at the first allocation of any later process or by the killer once the tree is gone, removes it. Callers do not have to remember anything. Bypasses of the allocation boundary are caught by an AST gate over scripts/ and tests/ instead of five regular expressions, and the legacy ones are frozen in a ratchet baseline.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "makeTempDir",
+      "responsibility": "Hand out every system temp directory with the creator's pid in its name and run the once-per-process reclaim before allocating."
+    },
+    {
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "reclaimAbandonedTestTemp",
+      "responsibility": "The single reclaim function: remove owner-shaped directories whose creator is gone, owned by the current user and not symlinks."
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "symbol": "terminateAndReclaim",
+      "responsibility": "The only place the pre-push runner kills a process tree: kill, wait until the tree is really gone, then call the same reclaim function."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "entry_point": "runNode single-gate timeout",
+      "disposition": "enforced",
+      "evidence": "The timer now calls terminateAndReclaim; the structure test in scripts/pre-push-structure.node-test.mjs fails if any killProcessTree call sits outside it; mutation 'runner does not reclaim' turns the runner test red."
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "entry_point": "runWithDeadline whole-hook deadline",
+      "disposition": "enforced",
+      "evidence": "The deadline timer calls terminateAndReclaim for every still-running child; the same structure test requires exactly one terminateAndReclaim call in runNode and one in runWithDeadline. Because the kill-wait-reclaim now takes a few milliseconds, the deadline marks itself expired synchronously, stops starting queued tasks and its result wins over the task pool's (found by check:claude-hooks in the first pnpm run gates; fast regression test in scripts/pre-push-structure.node-test.mjs, red when either half is removed)."
+    },
+    {
+      "path": "scripts/git-hook.mjs",
+      "entry_point": "dispatcher step timeout (spawnSync with killSignal SIGKILL)",
+      "disposition": "enforced",
+      "evidence": "It kills only the direct child, orphaning descendants whose directories nobody reclaims right away; with owner-named directories the first makeTempDir of any later process reclaims them (scripts/_test-temp.node-test.mjs 'real kill, without the runner'). No per-killer code was added."
+    },
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "killProcessTree in the delivery wrapper",
+      "disposition": "enforced",
+      "evidence": "node scripts/door-map.mjs killProcessTree --roots=scripts,tests,evals --include-tests lists it with daily-radar-session.mjs, lib/nomiClient.mjs and tests/ux/memory.e2e.mjs as the other kill doors; the leak they could cause is closed structurally at the next allocation, not by copying the reclaim call into each."
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "entry_point": "launchNomiApp default root makeTempDir(`${name}-`)",
+      "disposition": "enforced",
+      "evidence": "Electron walkthrough profiles come from makeTempDir at tests/ux/_launchApp.mjs, so they carry the creator pid and are reclaimed after a SIGKILL of the walk."
+    },
+    {
+      "path": "tests/setup/tempWorkspace.ts",
+      "entry_point": "createTempWorkspace (Vitest run root nomi-vitest-run-*)",
+      "disposition": "not-affected",
+      "evidence": "Out of this order and explicitly exempted with a reason in check:test-temp-static; it is a small directory (about 0.1G across 14 leftovers) created by direct mkdtemp and still leaks when Vitest is SIGKILLed. Listed in residual_risks R1."
+    },
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "entry_point": "nomi-video-native-import-* transcode staging (product code, line 163)",
+      "disposition": "not-affected",
+      "evidence": "Same missing invariant on users' machines (up to 1.22G per leftover) but in electron/, which this order must not touch; order #14 is changing that area. Listed in residual_risks R2."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is generic: any process that owns a helper-allocated directory and dies without running its exit hook (timeout kill, kill -9, crash, OOM, power loss) leaks it, on every machine and every future run. The concept 'test and walkthrough temp directory ownership' already had its 7th fix in 14 days, and 10 leaks happened in 4 days.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs makeTempDir makeTempDirAsync --roots=scripts,tests,evals --include-tests -> 384 write doors, 1 read door, all through scripts/_test-temp.mjs",
+      "node scripts/door-map.mjs killProcessTree --roots=scripts,tests,evals --include-tests -> kill doors in pre-push-contracts.mjs (2), git-delivery.mjs, daily-radar-session.mjs, lib/nomiClient.mjs, tests/ux/memory.e2e.mjs (2) plus tests; scripts/git-hook.mjs kills by spawnSync killSignal",
+      "git grep -n mkdtemp -- scripts tests plus the AST scan scripts/lib/systemTempScan.mjs -> 24 files / 37 direct system-temp mkdtemp sites frozen in scripts/test-temp-bypass-baseline.json (the old regex gate saw none of them: four bypass shapes added by hand all passed it)",
+      "grep -rn mkdtemp electron src evals -> product and eval bypasses (electron/assets/localFileImport.ts:163, evals/*) recorded as residual risks, not changed here"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/_test-temp.mjs",
+    "invariant": "Every system temp directory handed out to tests, walkthroughs and gates is named after its creating process and is removed once that process is gone, whoever notices first.",
+    "failure_mode": "A creator that dies without cleanup leaves a directory that the next process's first allocation (or the killing runner) removes; a live creator's directory, another user's directory, a symlink or a differently shaped name is never removed. A new direct mkdtemp(<system temp dir>) under scripts/ or tests/ fails check:test-temp-static.",
+    "exception_policy": "none",
+    "strategy": "Move ownership from an in-process Set + exit listener into the directory name, add one reclaim function used by the first allocation and by the killer, route every kill in the runner through one function, and replace the five-regex bypass detector with an AST gate plus a shrink-only baseline.",
+    "artifacts": [
+      "scripts/_test-temp.mjs",
+      "scripts/pre-push-contracts.mjs",
+      "scripts/lib/systemTempScan.mjs",
+      "scripts/test-temp-bypass-baseline.json",
+      "scripts/pre-push-gate-inputs.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/check-test-temp-static.node-test.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/_test-temp.node-test.mjs",
+    "scripts/check-test-temp-static.node-test.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-test-temp-static.node-test.mjs"
+    ],
+    "rationale": "The five-regex bypass detector, its test-suffix-only file filter and three dead exemptions are deleted in scripts/check-test-temp-static.node-test.mjs and replaced by the AST scan. The exit hook in scripts/_test-temp.mjs is kept as the creator's own immediate half of the same ownership model (it removes exactly the directories its own process allocated, which are now also reclaimable by anyone else), not as a parallel second cleanup system."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Only Node built-ins (fs, os, process.kill) and the already-installed typescript parser are used; no third-party runtime controls this invariant and none was added.",
+    "exit_criteria": []
+  },
+  "migration": "No migration: directories created before this change have no owner pid in their name and are never reclaimed automatically (the ten existing leaks are handled by the cleanup script, outside this order). Other worktrees that still run the old helper keep leaking until they merge main; their old-format directories are ignored by the new reclaim. The new name shape only appends a pid segment, so callers that compare against the prefix keep working.",
+  "residual_risks": [
+    "R1: tests/setup/tempWorkspace.ts creates the Vitest run root nomi-vitest-run-* by direct mkdtemp (exempted with a reason); it still leaks, about 0.1G in total, when Vitest is SIGKILLed.",
+    "R2: electron/assets/localFileImport.ts:163 (nomi-video-native-import-*) has the same missing invariant on users' machines (up to 1.22G per leftover). Not touched here; order #14 is changing that area.",
+    "R3: roots adopted through registerTestTemp (launchNomiApp({ tempRoot })) that were created by something other than makeTempDir have no owner pid and stay exit-hook-only; the 24 files / 37 sites in scripts/test-temp-bypass-baseline.json, the 10 files / 19 sites in evals/ and the 332 files / 457 sites in electron/ + src/ (mostly Vitest fixtures that live under the per-run Vitest root; same AST scan, read-only count on 2026-10-28) are the same debt.",
+    "R4: process-id reuse can only delay a reclaim (a dead creator whose pid was reused looks alive); it cannot delete a live creator's directory. Containers that share /tmp across PID namespaces would misjudge, but the repository's workflows do not use containers.",
+    "R5: the reclaim and the runner wait were verified on macOS only; the Windows branch (taskkill /T, kill(pid, 0) on the group leader only) follows the Node documentation and was not run on Windows. Directory names are now 7-14 characters longer (the p<pid>- segment), which also eats into the Windows MAX_PATH headroom of deep Electron profile paths; not measured.",
+    "R6: a reclaim deletes a directory that an orphaned descendant (for example a detached Electron) may still be using; that orphan is already abandoned, and before this change its directory simply leaked.",
+    "R7: the pre-push runner spawns its gates in their own process groups, so killing an outer process group (for example a runner that is itself a child of another runner, as in scripts/pre-push-contracts.node-test.mjs) does not reach the inner runner's gate processes; they survive as orphans (observed in the forced-timeout runs: orphaned inner gates kept running and even re-created node_modules/.cache/nomi-typecheck inside an already reclaimed clone path). Their dead creator's directories are still reclaimed by the next allocation (observed: a 0.87G leftover shrank to 5 MB through an orphan's first makeTempDir), but the orphan processes themselves are not stopped by this change."
+  ]
+}

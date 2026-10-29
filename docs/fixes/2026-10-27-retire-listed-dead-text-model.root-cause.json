@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-retire-listed-dead-text-model",
+  "change_kind": "corrective",
+  "problem_type": "A curated APIMart text model that the relay still lists but no longer serves stayed in the built-in catalog",
+  "symptom": "New installs offered APIMart DeepSeek V3.2 as an Agent brain; every call to it returned HTTP 404 {\"error\":{\"code\":\"model_not_found\",\"message\":\"The model deepseek-v3.2 does not exist\"}} (2026-10-18 paid walkthrough).",
+  "direct_cause": "deepseek-v3.2 was still a row of APIMART_TEXT_MODELS. The 2026-09-07 probe had found it alive, and the relay's /v1/models still lists it, so nothing marked it retired after the upstream withdrew it.",
+  "class_root": "Built-in catalog membership follows the relay's listing, and the listing is not liveness (2026-09-07 contract): no automatic evidence catches a model that stays listed but fails every call, so retirement stays a manual two-part edit (delete the curated row and add the key to the retirement list) triggered by a paid observation.",
+  "affected_population": [
+    "New installs: the APIMart text-model picker offered a model whose every call fails",
+    "Existing installs that already have the apimart/deepseek-v3.2 row, enabled or not, including users who selected it as the Agent brain",
+    "Paid-walk helpers that mirror the built-in APIMart text list (tests/ux/_paidEnvKey.mjs)"
+  ],
+  "scope_paths": [
+    "electron/catalog/apimartTexts.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "electron/catalog/seedModelIdentity.ts",
+    "electron/catalog/seedBuiltins.test.ts",
+    "electron/catalog/apimartTextMigration.test.ts",
+    "tests/ux/_paidEnvKey.mjs",
+    "tests/ux/_paidEnvKey.test.mjs",
+    "tests/ux/_paidRun.test.mjs",
+    "tests/ux/paid-env-key-connect.rehearsal.walk.mjs",
+    "docs/fixes/2026-09-07-relay-catalog-listing-is-not-liveness.root-cause.json"
+  ],
+  "entry_points": [
+    "applyBuiltinSeeds seeds APIMART_TEXT_MODELS into new installs and runs the one-time RETIRED_APIMART_TEXT_MODEL_KEYS migration on existing installs",
+    "seedModelIdentity's LEGACY_MODEL_KEYS names model keys that are still seeded under a legacy identity",
+    "Paid-walk helpers mirror APIMART_TEXT_MODELS and pick a brain model for rehearsals"
+  ],
+  "internal_only_reason": "The fact being acted on is the relay's own response recorded in the 2026-10-18 paid walkthrough (HTTP 404 model_not_found while /v1/models still lists the id); no third-party document states the liveness of an individual relay model.",
+  "invariants": [
+    "An APIMart text model key is either seeded (APIMART_TEXT_MODELS) or retired (RETIRED_APIMART_TEXT_MODEL_KEYS), never both.",
+    "Retiring a text model never deletes an existing user's row or changes its enabled decision: the one-time migration sets unlisted: true and meta.catalogLifecycle: \"legacy\" and keeps every other meta field; later user edits are not overwritten.",
+    "Rows of other vendors that use the same model key are untouched."
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/catalog/apimartTexts.ts", "symbol": "ApimartTextModel" },
+    { "kind": "read", "path": "electron/catalog/apimartTexts.ts", "symbol": "ApimartTextMapping" },
+    { "kind": "read", "path": "electron/catalog/seedBuiltins.ts", "symbol": "APIMART_TEXT_MODELS" },
+    { "kind": "read", "path": "electron/catalog/seedBuiltins.ts", "symbol": "APIMART_TEXT_MAPPINGS" },
+    { "kind": "read", "path": "src/devlab/designLab/catalogLiveness/states/01-listing.tsx", "symbol": "APIMART_TEXT_MODELS" },
+    { "kind": "read", "path": "electron/catalog/seedBuiltins.ts", "symbol": "RETIRED_APIMART_TEXT_MODEL_KEYS" },
+    { "kind": "read", "path": "electron/catalog/seedModelIdentity.ts", "symbol": "LEGACY_MODEL_KEYS" },
+    { "kind": "write", "path": "electron/catalog/catalogStore.ts", "symbol": "applyBuiltinSeeds" }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "Retiring a model removes one row from the curated list and adds its key to the retirement list; it neither adds nor removes a door. The catalog has one writer (applyBuiltinSeeds, called from catalogStore); the remaining doors are reads of the curated list, the retirement list, the legacy identity table and a devlab listing state, each with its own consumer."
+  },
+  "generality_proof": "Every built-in text-model retirement goes through applyBuiltinSeeds: the curated list drives new installs, the retirement list drives the one-time migration of existing installs. The seeding tests fail if a model is only deleted from the curated list (existing installs are not migrated) or only added to the retirement list (new installs still get it), whichever model is retired next.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "applyBuiltinSeeds",
+      "responsibility": "Seed curated models into new installs and apply each retirement once to existing installs (prune for generation models, unlisted plus legacy for text models) without overwriting user decisions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "entry_point": "applyBuiltinSeeds",
+      "disposition": "enforced",
+      "evidence": "seedBuiltins.test.ts asserts a new install has no apimart/deepseek-v3.2 while the other four APIMart text models stay enabled; apimartTextMigration.test.ts asserts the existing row becomes unlisted plus legacy with enabled and meta.note kept, other vendors untouched, and a later user edit is not overwritten."
+    },
+    {
+      "path": "electron/catalog/seedModelIdentity.ts",
+      "entry_point": "LEGACY_MODEL_KEYS",
+      "disposition": "enforced",
+      "evidence": "deepseek-v3.2 is removed from the legacy identity table so it no longer claims a key that is not seeded."
+    },
+    {
+      "path": "tests/ux/_paidEnvKey.mjs",
+      "entry_point": "APIMART_TEXT_MODEL_KEYS",
+      "disposition": "enforced",
+      "evidence": "The paid-walk mirror drops deepseek-v3.2 and _paidEnvKey.test.mjs cross-checks it against APIMART_TEXT_MODELS; the env-key rehearsal walk picks deepseek-v4-flash."
+    },
+    {
+      "path": "scripts/model-radar.ts",
+      "entry_point": "apimart-llm unlisted lane",
+      "disposition": "not-affected",
+      "evidence": "The radar reports seeded ids the relay no longer lists; a listed-but-dead id is invisible to it without a paid call probe, which the user decided not to add for 0.24 (residual risk)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "This is the second listed-but-dead APIMart text model (deepseek-v3.2-think on 2026-09-07, deepseek-v3.2 now); the next one will look the same because nothing checks liveness automatically.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs RETIRED_APIMART_TEXT_MODEL_KEYS APIMART_TEXT_MODELS LEGACY_MODEL_KEYS and node scripts/door-map.mjs electron/catalog/apimartTexts.ts enumerate the seeding and retirement doors listed above.",
+      "git grep for deepseek-v3.2 in default-brain, preferred-model, recommendation and onboarding code finds none; the default brain is deepseek-v4-pro.",
+      "The 2026-10-18 paid walkthrough recorded the 404; the other four seeded APIMart text models were not observed failing."
+    ]
+  },
+  "prevention": {
+    "kind": "migration",
+    "enforcement_path": "electron/catalog/seedBuiltins.ts",
+    "invariant": "Seeded and retired APIMart text keys are disjoint, and a retired key migrates existing rows once to unlisted plus legacy.",
+    "failure_mode": "A half retirement fails the seeding or migration tests. A future listed-but-dead model is not detected automatically; until it is retired by hand, its calls fail with a classified 'model unavailable at the provider' message (2026-10-27-agent-upstream-failure-payload) and the model settings row shows it as no longer listed once the relay drops it.",
+    "exception_policy": "none",
+    "strategy": "Follow the deepseek-v3.2-think precedent (af48ff336): delete the curated row and add the key to RETIRED_APIMART_TEXT_MODEL_KEYS in the same change, so new installs never get it and existing installs are migrated once without touching the user's enabled decision; drop it from LEGACY_MODEL_KEYS and from the paid-walk mirror.",
+    "artifacts": [
+      "electron/catalog/seedBuiltins.ts",
+      "electron/catalog/apimartTexts.ts",
+      "electron/catalog/seedModelIdentity.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/seedBuiltins.test.ts",
+    "electron/catalog/apimartTextMigration.test.ts",
+    "tests/ux/_paidEnvKey.test.mjs",
+    "tests/ux/_paidRun.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/seedBuiltins.test.ts",
+    "electron/catalog/apimartTextMigration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/apimartTexts.ts",
+      "electron/catalog/seedModelIdentity.ts"
+    ],
+    "rationale": "The deepseek-v3.2 seed row is deleted from APIMART_TEXT_MODELS and its entry from LEGACY_MODEL_KEYS in the same change; no switch keeps it seedable."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The catalog is Nomi's own data; the relay's listing is an input to the radar, not a runtime dependency of this boundary.",
+    "exit_criteria": []
+  },
+  "migration": "One-time: an existing apimart/deepseek-v3.2 row becomes unlisted: true with meta.catalogLifecycle: \"legacy\"; enabled and all other meta stay as the user left them, and later edits are not overwritten. New installs never get the row. modelContextWindowCatalog keeps the V3.2 window facts so existing rows still read them (same as the v3.2-think precedent).",
+  "residual_risks": [
+    "列表不是 liveness：0.24 不加付费调用探针（用户 10-27）；要覆盖只能另立手动触发、带预算的付费抽检。",
+    "Existing users who keep V3.2 selected still get a 404 on every call; their selection is not switched for them. After this change the panel says the model is unavailable at the provider. The migration marks the row legacy and unlisted, but a later model-list refresh clears unlisted again (modelListReconciliation follows the relay, which still lists the id), so the 'not in the vendor list' note can disappear while calls keep failing.",
+    "Three paid walk scripts (tests/ux/agent-spend-r30.mjs, tests/ux/agent-spend-real-image.paid.mjs, tests/ux/core-a-storyboard.paid.mjs) still name apimart/deepseek-v3.2 as their brain; choosing their replacement brain is the walk owner's call (D-L19 notes deepseek-v4-flash does not call generate), so they are left for the coordinator.",
+    "No real APIMart call is repeated on this branch; the coordinator owns the paid confirmation."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-26",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/seedBuiltins.ts",
+    "tests": [
+      "electron/catalog/seedBuiltins.test.ts",
+      "electron/catalog/apimartTextMigration.test.ts"
+    ],
+    "why": "内置目录的种入与退役只经 applyBuiltinSeeds 一处（catalog.builtin-seeding）；新装机种什么、老装机迁什么都在这一层定，测试在这一层核对两份清单互斥与一次性迁移。"
+  }
+}

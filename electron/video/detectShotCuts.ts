@@ -90,11 +90,14 @@ export class ShotCutError extends Error {
   }
 }
 
-/** 跑 ffmpeg 并收 stdout（metadata=print:file=- 写的是 stdout，实测 stderr 无内容）。 */
-function runFfmpegCapture(ffmpegPath: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+/**
+ * 跑 ffmpeg 并收 stdout（metadata=print:file=- 写的是 stdout，实测 stderr 无内容）。
+ * `signal` 交给 spawn：abort 即杀子进程，`error`（AbortError）先到、Promise 只认这一次落定。
+ */
+function runFfmpegCapture(ffmpegPath: string, args: string[], signal?: AbortSignal): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     ensureExecutable(ffmpegPath);
-    const child = spawn(ffmpegPath, args, { windowsHide: true });
+    const child = spawn(ffmpegPath, args, { windowsHide: true, ...(signal ? { signal } : {}) });
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (chunk) => { stdout += String(chunk); });
@@ -221,17 +224,23 @@ export function buildSheetFilter(ptsList: readonly number[], columns: number, ro
   return `select='${picks}',scale=-2:${tileHeight},tile=${columns}x${rows}`;
 }
 
-export async function detectShotCuts(payload: DetectShotCutsPayload): Promise<DetectShotCutsResult> {
+export async function detectShotCuts(
+  payload: DetectShotCutsPayload,
+  /** 拆解的停止信号：abort 后下载 / 探测 / ffmpeg 子进程一起停，联系表也不写缓存。不传 = 跑完为止。 */
+  options: { signal?: AbortSignal } = {},
+): Promise<DetectShotCutsResult> {
   const videoUrl = String(payload?.videoUrl || "").trim();
   const projectId = String(payload?.projectId || "").trim();
+  const { signal } = options;
   if (!videoUrl) throw new ShotCutError("缺少视频地址");
   if (!projectId) throw new ShotCutError("缺少项目 id");
   const ffmpegPath = resolveFfmpegPath();
   if (!ffmpegPath) throw new ShotCutError("没找到 ffmpeg，无法检测镜头切点");
+  signal?.throwIfAborted();
 
-  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId);
+  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId, signal);
   try {
-    const meta = await probeMediaMetadata(filePath);
+    const meta = await probeMediaMetadata(filePath, signal ? { signal } : {});
     const durationSeconds = typeof meta.durationSeconds === "number" && Number.isFinite(meta.durationSeconds)
       ? meta.durationSeconds
       : 0;
@@ -242,7 +251,7 @@ export async function detectShotCuts(payload: DetectShotCutsPayload): Promise<De
       "-i", filePath,
       "-vf", buildDetectFilter(SHOT_CUT_DETECT_THRESHOLD),
       "-an", "-f", "null", "-",
-    ]);
+    ], signal);
     if (detect.code !== 0) {
       throw new ShotCutError(`镜头切点检测失败（code ${detect.code}）：${detect.stderr.trim().slice(-300) || "(无 stderr)"}`);
     }
@@ -278,6 +287,7 @@ export async function detectShotCuts(payload: DetectShotCutsPayload): Promise<De
     if (!cuts.length) return { ...base, sheetUrl: null };
 
     // ② 联系表：按**这份清单的 pts** 点名选帧，故第 i 格恒是 cuts[i]——由构造保证，不靠两边算得一样。
+    signal?.throwIfAborted();
     const outPath = path.join(os.tmpdir(), `nomi-shotsheet-${crypto.randomUUID()}.jpg`);
     try {
       const sheet = await runFfmpegCapture(ffmpegPath, [
@@ -286,12 +296,14 @@ export async function detectShotCuts(payload: DetectShotCutsPayload): Promise<De
         "-vf", buildSheetFilter(kept.map((cut) => cut.pts), SHOT_SHEET_COLUMNS, sheetRows, SHOT_SHEET_TILE_HEIGHT),
         "-frames:v", "1", "-q:v", "4", "-an",
         outPath,
-      ]);
+      ], signal);
       if (sheet.code !== 0 || !fs.existsSync(outPath) || fs.statSync(outPath).size === 0) {
         // 缩略图挂了不该拖垮整件事：切点数据仍然有用（用户照样能按时间点选）。
         return { ...base, sheetUrl: null };
       }
       // 落项目缓存区而非素材库：这是可再生的中间产物，写进素材库会把用户的库刷屏（见 filmstrip 的同款教训）。
+      // 子进程恰好写完、信号才到：不写缓存、不交出去。
+      signal?.throwIfAborted();
       const written = writeProjectCacheFile(projectId, fs.readFileSync(outPath), "shot-cuts", ".jpg");
       return { ...base, sheetUrl: written.url };
     } finally {

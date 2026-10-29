@@ -51,7 +51,7 @@ async function launch(name) {
     name,
     tempRoot,
     settleMs: 0,
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: { 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi-color-scheme': 'light', __nomiE2E: '1' },
   })
   await handle.win.waitForLoadState('domcontentloaded')

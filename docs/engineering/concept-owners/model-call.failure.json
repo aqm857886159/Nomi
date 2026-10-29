@@ -20,8 +20,9 @@
   "parity_test": "electron/ai/textTaskCallers.integration.test.ts",
   "allowed_consumers": [
     "electron/textTaskRunner.ts",
-    "electron/providerAdapter/compiler.ts"
+    "electron/providerAdapter/compiler.ts",
+    "electron/agentLane/laneModelProvider.mts"
   ],
   "since": "2026-10-21",
-  "notes": "合同 docs/fixes/2026-10-21-text-task-liveness.root-cause.json：按传输层（modelCallFetch）记下的状态码与响应体定类，分类只查 categorizeVendorFailure 一张表；上游错误码经 pickUpstreamCode（provider.upstream-error-code）。渲染层「错误种类 → 是否自动重提」对照迁移前后一致（c0-ai4-renderer-verdicts.txt）。"
+  "notes": "合同 docs/fixes/2026-10-21-text-task-liveness.root-cause.json：按传输层（modelCallFetch）记下的状态码与响应体定类，分类只查 categorizeVendorFailure 一张表；上游错误码经 pickUpstreamCode（provider.upstream-error-code）。渲染层「错误种类 → 是否自动重提」对照迁移前后一致（c0-ai4-renderer-verdicts.txt）。 2026-10-27（合同 docs/fixes/2026-10-27-agent-upstream-failure-payload.root-cause.json）：Agent 车道也走这一个入口——provider 装配点 laneModelProvider.createNomiProvider 在 pi 判这次调用失败、且最后一次尝试是 HTTP 回复时调它，载荷挂在失败消息的 pi diagnostics 上；categorizeVendorFailure 与 VendorRequestError 同日搬到轻模块 electron/shared/vendorFailure.ts（vendorHttp 照旧转出），pi 岛编得到它而不拖进整条 HTTP 传输。"
 }

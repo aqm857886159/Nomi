@@ -158,7 +158,7 @@ function sealAndApprove(base: ReturnType<typeof setup>, resolveShotPrice: (shotI
     commandId: "seal",
     expectedRevision: 0,
     type: "generation.seal",
-    payload: { contract, authorization, ...(multiShot ? { shots: multiShot.shots, planHash: multiShot.planHash } : {}) },
+    payload: { contract, authorization, ...(multiShot ? { shots: multiShot.shots, scope: multiShot.scope, planHash: multiShot.planHash } : {}) },
     issuedAt: NOW,
   }).run;
   const run = repository.execute("project-1", "op-1", {

@@ -4,6 +4,9 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { JourneyBlocked, JourneyFailure } from './evidence.mjs'
 import { addCanvasNodeFromRail } from '../_canvasRail.mjs'
+import { addTextNode } from '../_textTasksSteps.mjs'
+import { stationTimeout } from '../_station-budget.mjs'
+import { uiText } from '../full-walk/invariants.mjs'
 
 async function requireVisible(locator, code, message, timeout = 5000) {
   try {
@@ -49,9 +52,10 @@ async function chooseNodeModel(composer, page, modelId) {
   await option.click()
 }
 
+// 图片 / 视频 / 声音 / 3D 节点的通用生成框。文字节点没有这张框，走下面的 runTextNodeProcess。
 async function runCanvasNode(ui, recorder, { kind, modelId, prompt }) {
   await ui.openCanvas()
-  const labels = { image: '图片', video: '视频', text: '文字', audio: '声音', model3d: '3D 模型' }
+  const labels = { image: '图片', video: '视频', audio: '声音', model3d: '3D 模型' }
   // 左缘加节点收口在 tests/ux/_canvasRail.mjs：自 2026-09-06「第三档」起只有 5 种是常驻钮，
   // 文字 / 3D 模型等收进了「更多」，按 aria-label 直点左缘会点不到（而且是静默点不到）。
   // 助手按 kind 自己判断该在常驻还是「更多」，找不到当场抛。
@@ -71,21 +75,9 @@ async function runCanvasNode(ui, recorder, { kind, modelId, prompt }) {
   if (!nodeId) throw new JourneyFailure('node-id-missing', `${labels[kind]}节点没有可定位的节点 id`)
   const node = ui.win.locator(`.generation-canvas-v2-node[data-node-id="${nodeId}"]`)
   await chooseNodeModel(composer, ui.win, modelId)
-  // 文本节点的输入不在 composer（isTextKind 分支刻意隐藏 PromptEditor，见
-  // NodeGenerationComposer.tsx:660）：正文是节点卡自己的富文本 body（TextDocumentNode）。
-  const promptInput = kind === 'text'
-    ? node.locator('[contenteditable="true"]').first()
-    : composer.locator('.generation-canvas-v2-node__prompt-input').first()
+  const promptInput = composer.locator('.generation-canvas-v2-node__prompt-input').first()
   await requireVisible(promptInput, 'prompt-input-missing', `${labels[kind]}节点没有可填写提示词`)
-  if (kind === 'text') {
-    await promptInput.click()
-    await ui.win.waitForTimeout(300)
-    await ui.win.keyboard.type(prompt, { delay: 15 })
-    const took = (await node.textContent().catch(() => '')) || ''
-    if (!took.includes(prompt)) throw new JourneyFailure('prompt-not-typed', '文本节点正文没有吃进输入', { seen: took.slice(0, 200) })
-  } else {
-    await promptInput.fill(prompt)
-  }
+  await promptInput.fill(prompt)
   const generate = composer.getByRole('button', { name: /生成素材|生成/ }).last()
   if (await generate.isDisabled()) throw new JourneyFailure('generate-disabled', `${labels[kind]}节点材料齐全后生成按钮仍不可用`)
   await generate.click()
@@ -115,12 +107,13 @@ async function confirmSpendGate(page, timeoutMs = 4000) {
   return true
 }
 
-async function assertRenderedNode(ui, recorder, { kind, node, expectedText, deadlineMs }) {
+// 图片 / 视频 / 声音 / 3D 节点的「渲染出可消费结果」判据。文字节点的判据不在这里：
+// 它要核「节点里的字就是夹具回的那句」，见 runTextNodeProcess 与 J04 的 rendered 步骤。
+async function assertRenderedNode(ui, recorder, { kind, node, deadlineMs }) {
   const deadline = Date.now() + (deadlineMs ?? (kind === 'video' ? 35_000 : 20_000))
   while (Date.now() < deadline) {
-    // expectedText 必须作为参数传进 evaluate：页面上下文里没有 Node 侧闭包，直接引用是
-    // ReferenceError（潜伏缺陷——旧 J04 从没跑到 rendered，2026-09-02 首次触发后修复）。
-    const proof = await node.evaluate((element, { type, expected }) => {
+    // kind 必须作为参数传进 evaluate：页面上下文里没有 Node 侧闭包，直接引用是 ReferenceError。
+    const proof = await node.evaluate((element, type) => {
       if (type === 'image') {
         const image = element.querySelector('img')
         return image && image.naturalWidth > 0 && image.naturalHeight > 0 ? { width: image.naturalWidth, height: image.naturalHeight } : null
@@ -133,10 +126,9 @@ async function assertRenderedNode(ui, recorder, { kind, node, expectedText, dead
         const audio = element.querySelector('audio')
         return audio && audio.readyState >= 1 ? { duration: audio.duration } : null
       }
-      if (type === 'text') return element.textContent?.includes(expected) ? { text: expected } : null
       if (type === 'model3d') return element.querySelector('canvas') ? { canvas: true } : null
       return null
-    }, { type: kind, expected: String(expectedText || 'fixture text') })
+    }, kind)
     if (proof) {
       await recorder.screenshot(ui.win, `${kind}-node-rendered`)
       recorder.artifact(`${kind}-proof`, proof)
@@ -146,6 +138,130 @@ async function assertRenderedNode(ui, recorder, { kind, node, expectedText, dead
   }
   const errorText = await node.textContent().catch(() => '')
   throw new JourneyFailure('result-not-rendered', `${kind} 节点没有渲染可消费结果`, { nodeText: errorText?.slice(0, 800) })
+}
+
+// ── 文字节点：处理框 ─────────────────────────────────────────────────────────────────
+// 文字节点没有图片 / 视频那张通用生成框（.generation-canvas-v2-node__composer-card）：NodeGenerationComposer 把 text 分给
+// TextNodeComposer——正文是节点里的 ProseMirror 编辑区，「扩写」这类处理在节点自己的处理框 [data-text-process-box] 里点预设，
+// 模型从处理框的模型菜单选（不选 = 跟随 Agent 的模型）。加节点 → 点进正文写一句 → 选中节点的步骤本体是
+// tests/ux/_textTasksSteps.mjs 的 addTextNode（文本任务演练和付费走查走的同一份）。
+const TEXT_PROCESS_BOX = '[data-text-process-box]'
+// fixture-server.mjs 的 GET /models 里那条文本模型：接入页存下它，文字节点的处理框要能用上它。
+const TEXT_MODEL = 'fixture-text-chat'
+// fixture-server.mjs 的 /chat/completions 流式回的那句（'fixture ' + 'text'）。节点正文里不许出现它，
+// 否则「节点里有这句话」不用生成也成立（旧判据正是这样：输入 'say fixture text'，判 textContent.includes('fixture text')）。
+const TEXT_FIXTURE_REPLY = 'fixture text'
+// 供应商协议 → 夹具上对应的生成路径后缀（fixture-server.mjs 按同样的后缀分路）。
+const PROTOCOL_WIRE_SUFFIX = Object.freeze({ 'openai-compatible': '/chat/completions', 'openai-responses': '/responses', anthropic: '/v1/messages' })
+
+/**
+ * 从文字节点的处理框执行：加文字节点、写一句 → 处理框模型菜单指定接入页存下的模型 → 点预设。
+ * 返回 rendered 步骤要用的：节点 id / 正文编辑区 / 点预设之前夹具已收到的请求数 / 存下的连接与协议。
+ */
+async function runTextNodeProcess(ui, fixture, { modelId, body, preset }) {
+  const { win } = ui
+  if (body.includes(TEXT_FIXTURE_REPLY)) {
+    throw new JourneyFailure('answer-already-in-input', `写进节点的正文里已经有夹具的回答「${TEXT_FIXTURE_REPLY}」，“节点里出现回答”不用生成也成立`)
+  }
+  // 接入页存下了哪个连接、哪个协议：以落盘的 catalog 为准，走查里不再另写死一份。
+  const snapshot = ui.catalogSnapshot()
+  const model = snapshot?.models?.find((candidate) => candidate.modelKey === modelId)
+  const vendor = snapshot?.vendors?.find((candidate) => candidate.key === model?.vendorKey)
+  if (!model || !vendor) throw new JourneyFailure('saved-model-missing', `接入页存下的模型 ${modelId} 不在落盘的 catalog 里`, { models: snapshot?.models?.map((candidate) => candidate.modelKey) })
+
+  await ui.enableCanvasBridge()
+  await ui.openCanvas()
+  try {
+    await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), undefined, { timeout: stationTimeout() })
+  } catch {
+    throw new JourneyFailure('canvas-bridge-missing', '画布 store 的走查桥没挂上：localStorage.__nomiE2E 要在进项目工作台之前置旗')
+  }
+
+  let added
+  try {
+    added = await addTextNode(win, body)
+  } catch (error) {
+    throw new JourneyFailure('node-entry-missing', '画布上加不出文字节点、点不进正文或选不中节点', { detail: String(error?.message || error).slice(0, 600) })
+  }
+  const { id, editor } = added
+
+  const box = win.locator(TEXT_PROCESS_BOX).last()
+  await requireVisible(box, 'text-process-box-missing', '选中文字节点后没有出现处理框', stationTimeout())
+  // 界面上把处理框的模型指定成接入页存下的那个：模型菜单默认是「跟随 Agent 的模型」，从菜单里选它。
+  const modelMenu = box.locator('[data-text-composer="model-menu"]')
+  await requireVisible(modelMenu, 'text-model-menu-missing', '处理框没有模型菜单', stationTimeout())
+  const defaultLabel = ((await modelMenu.textContent()) || '').trim()
+  await modelMenu.click()
+  const option = win.getByRole('menuitemradio', { name: modelId }).first()
+  await requireVisible(option, 'model-not-in-text-process-box', `接入页存下的模型 ${modelId} 没出现在文字节点处理框的模型菜单里`, stationTimeout())
+  const optionLabel = ((await option.textContent()) || '').trim()
+  await option.click()
+  try {
+    await win.waitForFunction(({ nodeId, want }) => window.__nomiCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.meta?.modelKey === want,
+      { nodeId: id, want: modelId }, { timeout: stationTimeout() })
+  } catch {
+    throw new JourneyFailure('process-box-model-not-set', `在处理框菜单里点了 ${modelId}，节点上却没有记下这个模型`)
+  }
+  const meta = await win.evaluate((nodeId) => {
+    const node = window.__nomiCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    return { modelKey: node?.meta?.modelKey ?? null, modelVendor: node?.meta?.modelVendor ?? null }
+  }, id)
+  // 节点上记的模型 + 连接必须就是接入页存下的那一对（同名模型可以挂在别的连接下）。
+  if (meta.modelKey !== modelId || meta.modelVendor !== model.vendorKey) {
+    throw new JourneyFailure('process-box-model-mismatch', '处理框指定的模型不是接入页存下的那一个', { saved: { modelKey: modelId, vendorKey: model.vendorKey }, onNode: meta })
+  }
+  const shownLabel = ((await modelMenu.textContent()) || '').trim()
+  if (shownLabel === defaultLabel || !shownLabel.includes(optionLabel)) {
+    throw new JourneyFailure('process-box-label-mismatch', '处理框的模型菜单上显示的不是刚选的模型', { before: defaultLabel, picked: optionLabel, shown: shownLabel })
+  }
+
+  const presetButton = box.locator(`[data-preset="${preset}"]`)
+  await requireVisible(presetButton, 'text-preset-missing', `处理框没有预设 ${preset}`, stationTimeout())
+  if (await presetButton.isDisabled()) throw new JourneyFailure('text-preset-disabled', `正文写好后预设 ${preset} 仍不可点`, { hint: await presetButton.getAttribute('title') })
+  await ui.screenshot('text-node-process-box-model-picked')
+  const since = fixture.requests.length
+  await presetButton.click()
+  return { id, editor, since, modelId, vendorKey: model.vendorKey, savedProtocol: vendor.providerKind, pickedLabel: shownLabel }
+}
+
+/**
+ * 点完预设以后：节点里的字等于夹具回的那句，而且夹具在这之后收到的生成请求走的是存下的协议路径、带的是存下的模型。
+ * 这三条各自独立：字对而路径错 = 走了别的协议；路径对而字不对 = 回答没落进节点；模型对不上 = 处理框没把指定的模型发出去。
+ */
+async function assertTextNodeAnswer(ui, fixture, run) {
+  const { win } = ui
+  try {
+    await win.waitForFunction(({ nodeId, want }) => {
+      const node = window.__nomiCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+      if (node?.status === 'error' || node?.status === 'recoverable') return true
+      const text = document.querySelector(`[data-node-id="${nodeId}"] .ProseMirror`)?.innerText.trim()
+      return node?.status === 'success' && text === want
+    }, { nodeId: run.id, want: TEXT_FIXTURE_REPLY }, { timeout: stationTimeout({ operations: 2 }) })
+  } catch {
+    await ui.screenshot('text-node-answer-missing')
+    throw new JourneyFailure('text-answer-missing', '文字节点没有显示夹具回的那句话', { want: TEXT_FIXTURE_REPLY, nodeText: ((await run.editor.innerText().catch(() => '')) || '').trim().slice(0, 300) })
+  }
+  const state = await win.evaluate((nodeId) => {
+    const node = window.__nomiCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    return { status: node?.status ?? null, error: node?.error ?? null, preset: node?.meta?.textGenPreset ?? null, resultText: node?.result?.text ?? null }
+  }, run.id)
+  const shown = ((await run.editor.innerText()) || '').trim()
+  await ui.screenshot('text-node-answer')
+  if (state.status !== 'success') throw new JourneyFailure('text-run-failed', '文字节点落了错误，没有显示回答', { status: state.status, error: String(state.error ?? '').slice(0, 400), nodeText: shown.slice(0, 300) })
+  if (shown !== TEXT_FIXTURE_REPLY) throw new JourneyFailure('text-answer-mismatch', '文字节点里的字不是夹具回的那句', { want: TEXT_FIXTURE_REPLY, shown: shown.slice(0, 300) })
+
+  const sent = fixture.requests.slice(run.since)
+  const posts = sent.filter((request) => request.method === 'POST')
+  const suffix = PROTOCOL_WIRE_SUFFIX[run.savedProtocol]
+  if (!suffix) throw new JourneyFailure('saved-protocol-unknown', `落盘的协议 ${run.savedProtocol} 没有对应的夹具路径`, { known: Object.keys(PROTOCOL_WIRE_SUFFIX) })
+  if (posts.length === 0) throw new JourneyFailure('protocol-wire-missing', '文字出现了，但点预设之后夹具一次 POST 都没收到', { seen: sent.map((request) => `${request.method} ${request.path}`) })
+  const offPath = posts.filter((request) => !request.path.endsWith(suffix))
+  if (offPath.length > 0) throw new JourneyFailure('protocol-wire-mismatch', `生成请求没走存下的协议（${run.savedProtocol}）对应的 ${suffix}`, { posts: posts.map((request) => request.path) })
+  const modelsSent = posts.map((request) => {
+    try { return JSON.parse(request.body).model ?? null } catch { return null }
+  })
+  if (modelsSent.some((sentModel) => sentModel !== run.modelId)) throw new JourneyFailure('model-wire-mismatch', '生成请求里带的模型不是处理框指定的那一个', { want: run.modelId, sent: modelsSent })
+  return { nodeId: run.id, vendor: run.vendorKey, model: run.modelId, protocol: run.savedProtocol, wirePath: suffix, posts: posts.length, preset: state.preset, shown, resultText: state.resultText }
 }
 
 /** 递归找项目资产（落库证明用）。返回首个命中文件的绝对路径，找不到返回 ''。 */
@@ -399,8 +515,8 @@ async function threeTextProtocols(journey, ui, fixture, recorder) {
     await ui.openModels(); await ui.openRelayWizard(); await ui.fillRelay({ name: 'Protocol Fixture', baseUrl: fixture.origin })
     // The advanced disclosure is "高级设置（接口协议 / 自定义请求头）"; inside it a
     // "手动指定" toggle surfaces the three protocol choices.
-    await ui.win.getByText(/高级设置/).first().click()
-    await ui.win.getByText(/手动指定/).first().click()
+    await ui.openRelayProtocols()
+    await ui.showManualProtocol()
     for (const label of ['Chat Completions', 'Responses', 'Anthropic']) await requireVisible(ui.win.getByText(label, { exact: true }).first(), 'protocol-option-missing', `高级设置缺少 ${label}`)
     return { protocols: ['openai-compatible', 'openai-responses', 'anthropic'] }
   })
@@ -418,37 +534,75 @@ async function threeTextProtocols(journey, ui, fixture, recorder) {
       await ui.win.getByText(label, { exact: true }).first().click()
       const before = fixture.requests.length
       await ui.clickTestConnection()
-      // 诚实提示语义：成功但明说「要真跑一次才知道」（探针 2026-09-02 实测文案）。
-      await requireVisible(
-        ui.win.locator('[data-model-connection-diagnostics]').getByText(/没问题|真跑一次才知道|连接正常|已连上/).first(),
-        'probe-honesty-missing', `${label} 下测试连接没有给出「探测成功 + 诚实边界」提示`, 15_000,
-      )
+      // 诚实提示语义：免费自检只说明地址 / Key 可达，真实生成仍需一次画布试跑。
+      const checked = ui.win.locator('[data-model-connection-diagnostics]').getByText(ui.copy.probeSuccess).first()
+      await requireVisible(checked, 'probe-honesty-missing', `${label} 下测试连接没有给出「自检通过、还没试跑」的诚实边界提示`, 15_000)
+      // 结果行在诊断区最下面，窗口矮时落在折叠线以下：滚进视野再拍，截图里才看得到成功结果态。
+      await checked.scrollIntoViewIfNeeded()
       const seen = fixture.requests.slice(before)
       const probes = seen.filter((request) => request.method === 'GET' && request.path.endsWith('/models'))
       if (probes.length === 0) throw new JourneyFailure('probe-wire-missing', `${label} 下测试连接没有发出 GET /models 可达性探测`, { seen: seen.map((r) => `${r.method} ${r.path}`) })
-      // 「零额度」负向断言：探测窗口内不许出现协议 POST。这个探针的“会红”由本旅程自身证明——
-      // rendered 步骤用同一份 fixture.requests、同一个路径匹配去**要求** POST /chat/completions
-      // 出现；仪器和谓词是活的，不是永真断言。
-      const protocolPosts = seen.filter((request) => request.method === 'POST' && /(\/chat\/completions|\/responses|\/v1\/messages)$/.test(request.path))
-      if (protocolPosts.length > 0) throw new JourneyFailure('probe-not-zero-cost', `${label} 下测试连接发出了协议请求，不再是零额度探测`, { protocolPosts: protocolPosts.map((r) => r.path) })
-      results.push({ protocol: label, probeRequests: probes.map((r) => `${r.method} ${r.path}`) })
+      // 「零额度」负向断言：探测窗口内夹具一次 POST 都不许收到（不只三条协议路径，任何 POST 都算）。这个探针的“会红”
+      // 由本旅程自身证明——rendered 步骤用同一份 fixture.requests 去**要求**点预设之后出现存下的协议对应的 POST；
+      // 仪器和谓词是活的，不是永真断言。
+      const posts = seen.filter((request) => request.method === 'POST')
+      if (posts.length > 0) throw new JourneyFailure('probe-not-zero-cost', `${label} 下测试连接发出了 POST，不再是零额度探测`, { posts: posts.map((r) => `${r.method} ${r.path}`) })
+      await ui.screenshot(`test-connection-checked-${label.toLowerCase().replaceAll(/\W+/g, '-')}`)
+      results.push({ protocol: label, probeRequests: probes.map((r) => `${r.method} ${r.path}`), postCount: posts.length })
     }
     return { results }
   })
-  await recorder.step('persisted', '选择文本模型并保存探测出的协议', async () => {
+  const saved = await recorder.step('persisted', '选择文本模型并保存探测出的协议', async () => {
     // 上面探测按钮把协议留在 Anthropic；显式选回 Chat Completions 再保存，让 rendered 的
     // 真实生成走 openai-compatible（fixture 的 /chat/completions 返回 'fixture text'）。
     await ui.win.getByText('Chat Completions', { exact: true }).first().click()
-    await ui.fetchModels(); await ui.chooseModels(['fixture-text-chat']); await ui.waitForCatalogModels(['fixture-text-chat'])
-    return { model: 'fixture-text-chat', savedProtocol: 'openai-compatible' }
+    await ui.fetchModels(); await ui.chooseModels([TEXT_MODEL]); const catalog = await ui.waitForCatalogModels([TEXT_MODEL])
+    // 存下的协议以落盘的 catalog 为准：不是走查嘴上说的，是接入页真写进盘里的。
+    const model = catalog.models.find((candidate) => candidate.modelKey === TEXT_MODEL)
+    const savedProtocol = catalog.vendors.find((vendor) => vendor.key === model?.vendorKey)?.providerKind
+    if (savedProtocol !== 'openai-compatible') throw new JourneyFailure('protocol-not-saved', '接入页选了 Chat Completions，落盘的连接协议却不是 openai-compatible', { savedProtocol, vendorKey: model?.vendorKey })
+    // 保存模型时接入页做的是「自检」（evidence: self-check），落盘记 verified——等它写进盘里，详情页才有得读。
+    await waitForCatalogState(
+      ui,
+      (snapshot) => snapshot.models.find((candidate) => candidate.modelKey === TEXT_MODEL)?.meta?.adapter?.state === 'verified',
+      undefined, 'self-check-not-recorded', '接入页保存文本模型后，落盘的自检状态没有变成 verified',
+    )
+    return { model: TEXT_MODEL, kind: model.kind, vendorKey: model.vendorKey, savedProtocol }
   })
-  const run = await recorder.step('executed', '从真实文本节点执行', () => runCanvasNode(ui, recorder, { kind: 'text', modelId: 'fixture-text-chat', prompt: 'say fixture text' }))
-  await recorder.step('rendered', '文本节点显示上游返回文本（真跑一次，协议 wire 在此发出）', async () => {
-    const proof = await assertRenderedNode(ui, recorder, { kind: 'text', node: run.node, expectedText: 'fixture text' })
-    // 「要真跑一次才知道」的那一次真跑：协议请求必须真实出现（同一仪器证明 observed 的负向断言会红）。
-    if (!fixture.requests.some((request) => request.method === 'POST' && request.path.endsWith('/chat/completions'))) {
-      throw new JourneyFailure('protocol-wire-missing', '文本出现了，但 fixture 没收到 /chat/completions 协议请求')
+  await recorder.step('persisted', '设置页模型详情写着“自检通过，还没试跑”，而此刻夹具一次 POST 都没收到', async () => {
+    let detail
+    try {
+      detail = await ui.openModelDetail({ vendorKey: saved.vendorKey, modelKey: TEXT_MODEL })
+    } catch (error) {
+      await ui.screenshot('model-detail-unreachable')
+      const pages = await ui.win.evaluate(() => [...document.querySelectorAll('[data-model-settings-page]')].map((element) => element.getAttribute('data-model-settings-page')))
+      throw new JourneyFailure('model-detail-unreachable', '从模型首页点不进刚存下的模型的详情页', { pages, detail: String(error?.message || error).split('\n')[0] })
     }
+    const section = detail.locator('[data-model-adapter-state]').first()
+    await requireVisible(section, 'model-detail-status-missing', '模型详情页没有状态块', stationTimeout())
+    const state = await section.getAttribute('data-model-adapter-state')
+    const title = ((await section.locator('h3').first().textContent()) || '').trim()
+    await ui.screenshot('model-detail-checked-not-tried')
+    // 词不手抄，取词典里那条键的值：产品改词，这里跟着改，不会两份真相。
+    const wantTitle = uiText(ui.locale, 'onboardingProviders.workspace.adapter.title.readyVerified')
+    if (state !== 'readyVerified' || title !== wantTitle) throw new JourneyFailure('model-detail-status-mismatch', '模型详情页没有显示“自检通过，还没试跑”', { state, title, wantTitle })
+    // “还没试跑”要名副其实：到这一步为止（保存、自检、详情页）夹具没有收到任何生成请求。
+    const tried = fixture.requests.filter((request) => request.method === 'POST')
+    if (tried.length > 0) throw new JourneyFailure('claimed-untried-but-generated', '详情页写着还没试跑，夹具却已经收到了 POST', { posts: tried.map((request) => request.path) })
+    await ui.closeModelDetail()
+    return { state, title, postsSoFar: tried.length }
+  })
+  const run = await recorder.step('executed', '从真实文字节点的处理框执行：模型菜单指定接入页存下的模型，点预设', async () => {
+    try {
+      return await runTextNodeProcess(ui, fixture, { modelId: TEXT_MODEL, body: ui.locale === 'en' ? 'A cat. Rain outside the window.' : '一只猫。窗外下雨。', preset: 'expand' })
+    } catch (error) {
+      await ui.screenshot('text-node-executed-failed').catch(() => {})
+      throw error
+    }
+  })
+  await recorder.step('rendered', '文字节点显示夹具回的那句话；生成请求走存下的协议路径、带存下的模型', async () => {
+    const proof = await assertTextNodeAnswer(ui, fixture, run)
+    recorder.artifact('text-node-proof', proof)
     return proof
   })
 }

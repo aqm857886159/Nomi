@@ -3,6 +3,8 @@ import { trustedRetrievalOrigin } from "../vendor/vendorOutboundGuard";
 import { scheduleTechnicalReview } from "../review/reviewTrace";
 import { hardenedFetchDiagnostics } from "../hardenedFetch";
 import { logWarn } from "../logging/logger";
+import { withResultLandingEvidence } from "../outboundDispatchEvidence";
+import { retrievalStageError } from "../tasks/retrievalStageError";
 import { importRemoteAsset } from "./projectAssetStore";
 import { broadcastAssetLocalizationStarted } from "./assetEvents";
 import { localizedTaskAssetFileName, probeLocalizedDurationSeconds } from "./localizedAsset";
@@ -40,6 +42,12 @@ function warnLocalizationFailed(assetUrl: string, type: LocalizedTaskAssetType, 
   }, error);
 }
 
+/**
+ * 结果落地门：把供应商回答里的结果地址落进项目（下载 / 字节与解码校验 / 写盘）。调用方只会拿供应商答复里的地址来调它，
+ * 所以它失败的那一刻供应商已经答过了：统一挂取回阶段码（与异步取回同一个出口 retrievalStageError），并挂上
+ * 「答过了」的正证据（`withResultLandingEvidence`，全仓只有这一扇门挂）——同步供应商在提交里就落地，提交出口靠它
+ * 把「答了、本机落地失败」从「结果未知」里分出来（2026-10-28）。
+ */
 export async function localizeTaskAsset(
   projectId: string,
   assetUrl: string,
@@ -65,7 +73,7 @@ export async function localizeTaskAsset(
     })) as typeof imported;
   } catch (error) {
     warnLocalizationFailed(assetUrl, type, startedAt, error);
-    throw error;
+    throw withResultLandingEvidence(retrievalStageError("retrieval-download", error));
   }
   const durationSeconds = imported.data?.durationSeconds ?? await probeLocalizedDurationSeconds(type, imported.data?.absolutePath);
   if (type === "image" || type === "video")

@@ -308,3 +308,61 @@ describe('nomi_read target=run：停下的原因来自 Run 记下的事实', () 
     expect(text, '没记原因就不猜成预算').not.toMatch(/budget used up/i)
   })
 })
+
+// Agent 只转述知道的数（2026-10-27）：账本合计只加已知价，算不出价的笔在另一根轴上，实付从不回写。
+// 投影（knownRunBudget）把「不知道」给成 null，这里只核转述：null 就不写钱、不写 0；结构化结果同样是 null。
+describe('nomi_read / nomi_run_control：预算只报知道的数', () => {
+  const at = '2026-10-27T00:00:00.000Z'
+  const approvedGate = (unknownJobCount: number) => ({
+    gateId: 'gate-generate-v1', scope: 'budget_envelope', status: 'approved', planHash: 'h', title: 'Approve', summary: 'Approve the shots',
+    jobIds: ['job-1'], createdAt: at, expiresAt: '2099-01-01T00:00:00.000Z', decidedAt: at,
+    authorizationEnvelope: { budget: { currency: 'CNY', maximum: 0, ledgerCeiling: 0, unknownJobCount } },
+  })
+  const run = (budget: Partial<ProductionRun['budget']>, gates: unknown[] = []) => ({
+    schemaVersion: 1, runId: 'run-money', projectId: 'p1', revision: 4, status: 'running', stageId: 'generate',
+    playbook: { name: 'generation.single-shot', version: '1' }, origin: { host: 'semantic-mcp' },
+    budget: { currency: 'CNY', authorized: 0, reserved: 0, actual: 0, unsettled: 0, unknownInFlight: 0, ...budget },
+    policy: {}, planVersion: 1, snapshotCursor: 4, stages: [], gates, jobs: [], artifacts: [], createdAt: at, updatedAt: at,
+  }) as unknown as ProductionRun
+  const read = (value: ProductionRun, locale?: 'en') =>
+    buildToolOutcome('nomi_read', { target: 'run', projectId: 'p1', runId: 'run-money' }, safeRunProjection(value), locale)
+  const ZH_MONEY = /预算上限|已花费/
+  const EN_MONEY = /budget cap|spent -?\d/
+
+  it('批过算不出价的镜头、在途：中英转述都不写钱也不写 0，结构化结果给 null', () => {
+    const unknown = run({ unknownInFlight: 1 }, [approvedGate(1)])
+    const zh = read(unknown)
+    const en = read(unknown, 'en')
+    expect(zh.text).not.toMatch(ZH_MONEY)
+    expect(en.text).not.toMatch(EN_MONEY)
+    expect(zh.outcome).toMatchObject({ budget: { authorized: null, actual: null } })
+  })
+
+  it('已知价、还有预留中的笔：只报上限，不报已花费', () => {
+    const { text, outcome } = read(run({ authorized: 12, reserved: 8 }, [approvedGate(0)]))
+    expect(text).toContain('预算上限 12')
+    expect(text).not.toContain('已花费')
+    expect(outcome).toMatchObject({ budget: { authorized: 12, actual: null } })
+  })
+
+  it('已知价且每一笔都落定：照报两个数', () => {
+    const { text, outcome } = read(run({ authorized: 12, actual: 7 }, [approvedGate(0)]), 'en')
+    expect(text).toContain('budget cap 12')
+    expect(text).toContain('spent 7')
+    expect(outcome).toMatchObject({ budget: { authorized: 12, actual: 7 } })
+  })
+
+  it('草稿什么都没批：0 是真数，照报', () => {
+    const { outcome } = read(run({}))
+    expect(outcome).toMatchObject({ budget: { authorized: 0, actual: 0 } })
+  })
+
+  it('暂停一个有未知价在途的 Run：回执不写已花费，结构化结果给 null', () => {
+    const projection = safeRunProjection(run({ authorized: 12, reserved: 8, unknownInFlight: 1 }, [approvedGate(1)]))
+    const zh = buildToolOutcome('nomi_run_control', { action: 'pause', projectId: 'p1', runId: 'run-money' }, projection)
+    const en = buildToolOutcome('nomi_run_control', { action: 'pause', projectId: 'p1', runId: 'run-money' }, projection, 'en')
+    expect(zh.text).not.toMatch(ZH_MONEY)
+    expect(en.text).not.toMatch(EN_MONEY)
+    expect(zh.outcome).toMatchObject({ kind: 'run_control', budget: { actual: null } })
+  })
+})

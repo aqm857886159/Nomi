@@ -1,0 +1,244 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-deconstruct-cancel",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-27",
+  "problem_type": "长 IPC 编排的「停」只活在渲染层：渲染层取消 = 结果作废，主进程那次 invoke 没有停止边界，编排里没有一步拿得到停止信号，付费闸也不看它。",
+  "symptom": "分镜表拆解中点「取消」，表顶上写「你取消了这次拆解」，主进程那次拆解却照样把报价里的抽帧、取音轨、转写、逐镜读图跑完：四个取消时机都把报价的 7 行发满，整次以成功收尾；单镜重试在切项目 / 关窗后也照发。用户以为点了取消就不再花钱。",
+  "direct_cause": "nomi:video:deconstruct 只有开始口没有取消口（ipcRenderer.invoke 本身不能取消），handler 交给 deconstructVideo 的 options 里没有 signal；deconstructVideo 的每一步（探测、切点、报价、抽帧、读图 runTask、取音轨、转写 runTask）都不看任何停止信号，两处 runTask 用的是 runtime 默认的令牌闸；渲染层 cancelDeconstruction 只在 deconstructionLifecycle 里打「已取消」标记、丢弃迟到结果，单镜重试连 requestId 都不带。另外三处 catch（读图、转写腿的 LocalSpeechError 归类、transcribeShots 的 .catch）会把停下来的那一次记成普通失败。",
+  "class_root": "「停」被当成界面状态，而不是主进程的执行事实：长 IPC 请求的停止信号没有唯一主人。各家要么在渲染层作废结果（拆解；09-22 与 10-11 两张卡都把「取消 = 结果作废」当成可接受），要么在自己目录里写一份登记（补预览 10-16 的 electron/assets/previewRequests.ts）。付费闸只认令牌不认停止，于是只要编排还在跑，还没发出的付费调用就会照发。修在最早共享边界：主进程请求登记（中立模块，补预览与拆解共用）签发唯一的 AbortSignal；付费闸外层（admission 包一层）、编排每一步、每个 ffmpeg 叶子都读它。",
+  "affected_population": [
+    "拆参考片中途点取消、切项目、关窗、退出的用户（中英界面）：取消后报价里还没发出的读图 / 转写照发、照扣钱",
+    "单镜重试途中切项目 / 关窗的用户",
+    "以后给拆解编排加一步、或者新加一种花钱的长 IPC 的实现线",
+    "补预览（与拆解共用同一份请求登记，行为不变）"
+  ],
+  "scope_paths": [
+    "electron/ipcRequestRegistry.ts",
+    "electron/ipcRequestRegistry.test.ts",
+    "electron/assets/",
+    "electron/tasks/taskSpend.ts",
+    "electron/video/deconstructVideo.ts",
+    "electron/video/videoIpc.ts",
+    "electron/video/extractVideoFrame.ts",
+    "electron/video/extractAudioTrack.ts",
+    "electron/video/detectShotCuts.ts",
+    "electron/video/deconstructCancellation.test.ts",
+    "electron/video/videoIpcSession.test.ts",
+    "electron/video/deconstructMediaStop.test.ts",
+    "electron/video/extractVideoFrameProjectContext.test.ts",
+    "src/desktop/bridgeMedia.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/deconstructionLifecycle.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/deconstructionTerminalState.test.ts"
+  ],
+  "entry_points": [
+    "nomi:video:deconstruct（videoIpc.ts）：拆解唯一的主进程入口，在第一个 await 之前进请求登记；缺 requestId / 缺 projectBinding / projectBinding 与 projectId 不符直接拒，发起时项目会话已失效回 null",
+    "nomi:video:deconstruct-cancel（videoIpc.ts）：按「发送方:requestId」撤，别的窗口撤不动",
+    "退出收摊 registerQuitDrain('video-deconstruct-requests')：在跑的拆解全撤",
+    "deconstructVideo（deconstructVideo.ts）：编排，options.signal 必填；每一步发之前判，停下抛 DeconstructCancelledError 并记 deconstruct.cancelled",
+    "runTask 拆解两处（读图、转写）：admission 换成 stoppableAdmission（付费闸外层判停）",
+    "extractVideoFrameToAsset / extractAudioTrack / detectShotCuts / resolveVideoLocalPath：signal 交给下载、ffprobe、spawn，abort 后不发布素材、不写缓存",
+    "cancelDeconstruction / deconstructToShotTable / retryShot（factBridge.ts）：渲染层点取消、项目被换走、单镜重试，都按同一个 requestId 调取消口",
+    "preload mediaBridge.video.cancelDeconstruct（electron/preload/mediaBridge.ts）：把渲染层的撤回接成第二条 IPC，只是接线、没有判据",
+    "nomi:assets:ensure-preview / cancel-preview（assetsIpc.ts）：补预览，改用同一份中立登记"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/ipcRequestRegistry.ts",
+    "tests": [
+      "electron/ipcRequestRegistry.test.ts",
+      "electron/video/videoIpcSession.test.ts",
+      "electron/video/deconstructCancellation.test.ts"
+    ],
+    "why": "一次长 IPC 请求停没停只有这一份登记说了算（渲染层撤回 / 发起窗口销毁 / 项目会话失效 / 退出 → 同一个 AbortSignal）；「停了不许再进付费闸」由同一个概念（ipc.inflight-request-stop）的第二个写接口 stoppableAdmission 在付费闸外层判，编排与 ffmpeg 叶子只读这个 signal。"
+  },
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/ipc-renderer#ipcrendererinvokechannel-args",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 invoke 只有通道与结构化克隆的参数、没有取消机制，AbortSignal 过不了 IPC：取消只能是第二条按 requestId 寻址的通道（nomi:video:deconstruct-cancel）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/child_process.html#child_processspawncommand-args-options",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 spawn 的 signal 选项：abort 等同 kill（默认 SIGTERM），子进程先发 error（AbortError）再 close；三个 ffmpeg 叶子直接把 signal 交给 spawn，不手写 kill，Promise 只认第一次落定。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/globals.html#abortsignalthrowifaborted",
+      "checked_at": "2026-10-27",
+      "purpose": "确认 throwIfAborted 在已 abort 时抛 signal.reason（无理由时是 AbortError）；编排与叶子每一步发之前用它判停，付费闸外层也用它。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/web-contents#event-destroyed",
+      "checked_at": "2026-10-27",
+      "purpose": "确认发起窗口的 webContents 销毁时发 destroyed：请求登记据此停掉这个窗口发起的在途请求。"
+    }
+  ],
+  "invariants": [
+    "点取消（或发起窗口没了、项目换了、退出）之后，这次拆解不再有新的调用进付费闸、过付费闸；取消那一刻已经过了付费闸的那一次照常结算（第一刀不断开在途）。",
+    "取消之后不再起新的本机子进程（探测、切点、抽帧、取音轨），在跑的 ffmpeg 收信号退出；abort 之后抽出来的帧、音轨、联系表不发布、不写缓存。",
+    "取消不是失败：编排抛 DeconstructCancelledError，零条 deconstruct.*-failed 错误日志、不进 failedShotIndexes、不认成 local-speech；IPC 回 null；主进程记一条 deconstruct.cancelled（报价行数、已过付费闸「已发或未知」、从未发出、转写腿 none / stopped / settled / failed）。",
+    "主进程拒掉缺 requestId / 缺 projectBinding / projectBinding 与 projectId 不符的拆解请求；只有发起那个窗口撤得动自己的请求。",
+    "长 IPC 请求的停止只有一份登记（createIpcRequestRegistry），补预览与拆解共用；按目录再写一份是概念门禁止的第二个定义。"
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/ipcRequestRegistry.ts", "symbol": "createIpcRequestRegistry" },
+    { "kind": "read", "path": "electron/runtime.ts", "symbol": "TaskAdmission" },
+    { "kind": "read", "path": "electron/tasks/taskSpend.ts", "symbol": "TaskAdmission" },
+    { "kind": "read", "path": "electron/video/deconstructVideo.ts", "symbol": "DeconstructCancelledError" },
+    { "kind": "read", "path": "electron/video/deconstructVideo.ts", "symbol": "TaskAdmission" },
+    { "kind": "read", "path": "electron/video/deconstructVideo.ts", "symbol": "resolveVideoLocalPath" },
+    { "kind": "read", "path": "electron/video/depthVideoJob.ts", "symbol": "resolveVideoLocalPath" },
+    { "kind": "read", "path": "electron/video/detectShotCuts.ts", "symbol": "resolveVideoLocalPath" },
+    { "kind": "read", "path": "electron/video/extractAudioTrack.ts", "symbol": "resolveVideoLocalPath" },
+    { "kind": "read", "path": "electron/video/extractVideoFrame.ts", "symbol": "resolveVideoLocalPath" },
+    { "kind": "read", "path": "electron/video/trimVideo.ts", "symbol": "resolveVideoLocalPath" },
+    { "kind": "read", "path": "src/desktop/bridgeMedia.ts", "symbol": "DeconstructionProgress" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/nodes/shotTable/deconstructionLifecycle.ts", "symbol": "liveRuns" },
+    { "kind": "write", "path": "electron/assets/assetsIpc.ts", "symbol": "createIpcRequestRegistry" },
+    { "kind": "write", "path": "electron/video/deconstructVideo.ts", "symbol": "stoppableAdmission" },
+    { "kind": "write", "path": "electron/video/videoIpc.ts", "symbol": "createIpcRequestRegistry" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts", "symbol": "cancelDeconstruct" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts", "symbol": "markDeconstructionCancelled" }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 18,
+    "why_not": "门变多是因为主进程这条停止路以前根本不存在。新增 5 扇都是停止本身：videoIpc 进请求登记（createIpcRequestRegistry 写）、拆解两处 runTask 的付费闸外层（stoppableAdmission 写）、编排认取消（DeconstructCancelledError 读）、admission 在 deconstructVideo 的类型读（TaskAdmission）、渲染层取消口（cancelDeconstruct 写）。补预览那两扇（assetsIpc 的写、登记模块自己的类型读）原样换成中立模块的同名两扇，按目录的旧登记删掉。剩下的门各管各的：resolveVideoLocalPath 6 扇是源视频下载（拆解链 4 扇传 signal，depthVideoJob / trimVideo 不传、行为不变）；runtime.ts 的 TaskAdmission 是所有付费出口统一先过的闸（第一刀一行不改）；liveRuns 是渲染层表终态的在飞登记（只管迟到结果作废与表的终态）；DeconstructionProgress 是带 requestId 的进度事件契约。门表：node scripts/door-map.mjs createIpcRequestRegistry stoppableAdmission cancelDeconstruct markDeconstructionCancelled DeconstructCancelledError resolveVideoLocalPath TaskAdmission DeconstructionProgress liveRuns（改前同一组以 createPreviewRequestRegistry 代 createIpcRequestRegistry，13 扇）。"
+  },
+  "generality_proof": "停止在主进程只有一个签发点：createIpcRequestRegistry 把渲染层撤回、发起窗口销毁、项目会话失效、退出四个来源汇成同一个 AbortSignal，登记在第一个 await 之前。花钱只有一条出口：runtime 的每条付费出口（自定义调用、音频、映射、文本、兜底）发请求之前都先调 admission.spendGate，拆解把 admission 换成 stoppableAdmission——已停就不进闸、闸回来再判一次——所以拆解里现在和以后的任何 runTask 调用、不管走哪种 runner，都过不了这道门，不靠每条 runner 自己记得判，runtime.ts 也一行不改。编排里新加一步：deconstructVideo 的 options.signal 必填（新调用方漏传编译期就红），已 abort 的 signal 下每一步都是 0 次由单测按全集断言。新的长 IPC 要能停：复用同一份登记（概念 ipc.inflight-request-stop；按目录再写一份 createPreviewRequestRegistry 这类定义，概念门当第二个写口拦）。",
+  "shared_boundaries": [
+    {
+      "path": "electron/ipcRequestRegistry.ts",
+      "symbol": "createIpcRequestRegistry",
+      "responsibility": "长 IPC 请求停止的唯一签发点：按「发送方:requestId」登记，渲染层撤回 / 发起窗口销毁 / 项目会话失效 / 退出汇成一个 AbortSignal；停下回 null，没停的失败照常抛。"
+    },
+    {
+      "path": "electron/tasks/taskSpend.ts",
+      "symbol": "stoppableAdmission",
+      "responsibility": "付费闸外层的停：已停不进闸（不核令牌、不扣钱），闸里等人确认回来时已停也不放行；闸里面（consumeTaskSpend / 令牌 / 确认）一行不改，过了闸的那一次照常发出、照常结算。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/video/videoIpc.ts",
+      "entry_point": "nomi:video:deconstruct",
+      "disposition": "enforced",
+      "evidence": "videoIpcSession.test.ts：缺 requestId / 缺 projectBinding / 绑定不符被拒、编排不调；发起时绑定过期回 null；同一窗口撤回 → 编排拿到的 signal 停、回 null；别的窗口、陌生号、空号撤不动；编排还没加载完时到的撤回照样停；发起窗口销毁、项目会话复核失败、退出收摊都停；没撤的失败照常抛。放行缺 requestId 的请求，「直接拒」那格红（反例实跑）。"
+    },
+    {
+      "path": "electron/video/deconstructVideo.ts",
+      "entry_point": "deconstructVideo",
+      "disposition": "enforced",
+      "evidence": "deconstructCancellation.test.ts 六个取消时机（报价待定 / 取音轨中 / 第一镜读完 / 下一镜即将起跑 / 还没进付费闸 / 付费闸里等人确认）：取消后过闸与进闸次数都不再增长（0 / 4 / 6 / 5 / 0 / 0），取消前已过闸的照常结算，零条 *-failed 错误日志，回执记清楚；已 abort 的 signal 下每一步都是 0 次；不取消照常发满 7 行。拿掉付费闸外层判 signal、恢复任一处吞掉取消，对应格红（反例实跑）。"
+    },
+    {
+      "path": "electron/assets/assetsIpc.ts",
+      "entry_point": "nomi:assets:ensure-preview",
+      "disposition": "enforced",
+      "evidence": "补预览改用同一份中立登记，行为不变：previewRequests.test.ts 的窗口销毁 / 项目失效 / 渲染层撤回 / 发起前已失效 / 并发两请求各用例原样通过（只改成从新模块取登记）；ipcRequestRegistry.test.ts 钉登记本身的契约。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "entry_point": "retryShot",
+      "disposition": "enforced",
+      "evidence": "deconstructionTerminalState.test.ts：单镜重试带 requestId + projectBinding；重试途中项目被换走就按同一个 requestId 撤；主进程回 null 什么都不写；项目已换走才点重试一次都不发。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "entry_point": "cancelDeconstruction",
+      "disposition": "enforced",
+      "evidence": "deconstructionTerminalState.test.ts：点取消按开始那次的同一个 requestId 调 video.cancelDeconstruct，项目被换走走同一个口；主进程回 null 不落失败，用户点的取消留「已取消」，窗口 / 项目没了收敛成「已中断」。"
+    },
+    {
+      "path": "electron/video/videoIpc.ts",
+      "entry_point": "nomi:video:trim",
+      "disposition": "not-affected",
+      "evidence": "直接剪辑不花钱，已有按 jobId 的取消口（nomi:video:trim-cancel → cancelTrimJob 杀 ffmpeg）；收进中立登记是另一刀（设计卡「不做」），本次不改它。"
+    },
+    {
+      "path": "electron/video/depthVideoIpc.ts",
+      "entry_point": "nomi:video-depth:cancel",
+      "disposition": "not-affected",
+      "evidence": "深度视频不花钱，按 jobId 取消 + registerQuitDrain 退出收摊，自成一套；resolveVideoLocalPath 那扇门不传 signal，行为不变。"
+    },
+    {
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "entry_point": "runTask",
+      "disposition": "not-affected",
+      "evidence": "画布单镜 Run 交的那一段带 RUN_APPROVED_ADMISSION，停与收据归 Run 自己；本次没把停止信号接进这条路，也没改 runtime.ts。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个形状第三次出现：09-22 与 10-11 两张卡都把「取消 = 渲染层作废结果、主进程照跑」当成可接受，10-16 补预览只给自己目录写了一份停止登记。不把停止收成主进程的一份登记、不在付费闸外层判，下一个花钱的长 IPC 或编排里新加的一步会照样在取消之后发请求。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs createIpcRequestRegistry stoppableAdmission cancelDeconstruct markDeconstructionCancelled DeconstructCancelledError resolveVideoLocalPath TaskAdmission DeconstructionProgress liveRuns：改后 18 扇（写 5 读 13）；改前同一组（createPreviewRequestRegistry 代 createIpcRequestRegistry）13 扇。",
+      "git grep -n \"runTask(\" -- electron/video：只有 deconstructVideo.ts 两处（转写、读图），都改传 stoppableAdmission。",
+      "git grep -n 'ipcMain.handle(\"nomi:video' -- electron：nomi:video 族里花钱的长 IPC 只有拆解；剪辑、深度视频各有按 jobId 的取消口、不花钱。",
+      "grep -n \"spendGate\" electron/runtime.ts 与 git grep -n \"spendGate\" -- electron/catalog：自定义调用（customCallDispatch 收 admission.spendGate）、音频、映射、文本、兜底五条付费出口发请求之前都先过 admission.spendGate。",
+      "git grep -n \"createPreviewRequestRegistry\" -- electron src：0 处（旧形状同提交删，概念把它列为禁止定义）。",
+      "git ls-tree -r --name-only origin/main -- electron/assets：没有 importRequests.ts（导入转码那份同类登记还没合进 main，本刀不收）。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/tasks/taskSpend.ts",
+    "invariant": "停下之后不再有调用进付费闸、过付费闸；停止信号只有主进程请求登记一个签发点，编排每一步与每个 ffmpeg 叶子都读它。",
+    "failure_mode": "拆解里任何一处 runTask 在停下之后要进闸，stoppableAdmission 先抛（不核令牌、不扣钱）；闸里等确认时停下，闸回来再抛；编排漏判某一步，已 abort 的全集断言与六个时机的次数断言红；新调用方不传 signal，typecheck 红；按目录再写一份登记，概念门红；IPC 放行缺 requestId 的请求，videoIpcSession.test.ts 红。",
+    "exception_policy": "none",
+    "strategy": "换：停止从「渲染层作废结果」换成「主进程请求登记签发的 AbortSignal」，补预览那份按目录的登记挪成中立模块、旧文件同提交删，不留开关、不留回退；付费闸外层包一层判停，闸里面与 runtime.ts 不动。",
+    "artifacts": [
+      "electron/tasks/taskSpend.ts",
+      "electron/ipcRequestRegistry.ts",
+      "electron/video/deconstructVideo.ts",
+      "electron/video/videoIpc.ts",
+      "electron/video/extractVideoFrame.ts",
+      "electron/video/extractAudioTrack.ts",
+      "electron/video/detectShotCuts.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/video/deconstructCancellation.test.ts",
+    "electron/video/videoIpcSession.test.ts",
+    "electron/ipcRequestRegistry.test.ts",
+    "electron/video/deconstructMediaStop.test.ts",
+    "electron/video/extractVideoFrameProjectContext.test.ts",
+    "electron/assets/previewRequests.test.ts",
+    "electron/video/deconstructLegResolution.test.ts",
+    "electron/video/deconstructVisionLeg.test.ts",
+    "src/workbench/generationCanvas/nodes/shotTable/deconstructionTerminalState.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/video/deconstructCancellation.test.ts",
+    "electron/video/videoIpcSession.test.ts",
+    "electron/ipcRequestRegistry.test.ts",
+    "electron/video/deconstructMediaStop.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/assets/previewRequests.ts"
+    ],
+    "rationale": "补预览按目录的请求登记（createPreviewRequestRegistry）原样挪进中立模块 electron/ipcRequestRegistry.ts（加退出收摊 abortAll），旧文件同提交删，assetsIpc 改用新模块；10-16 合同声明的这条共享边界在 scripts/boundary-owners-ledger.json 记 reanchored 到新模块。渲染层「取消 = 只作废结果」那条路同提交换成调取消口，没有并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只用 Node / Electron 自带的 AbortController、spawn 的 signal 选项与 webContents 的 destroyed 事件，不新增也不升级依赖。",
+    "exit_criteria": []
+  },
+  "migration": "不落盘、不迁移：停止是进程内状态（请求登记随主进程寿命），表的 cancelled / interrupted 终态沿用现有字段与收敛规则；渲染层与主进程同包发版，主进程对缺 requestId / projectBinding 的请求直接拒，不存在发不出取消的旧调用方。",
+  "residual_risks": [
+    "取消时已经发出去的那一次请求照常结算：取消那一刻已经过了付费闸的读图（并发 4，最多 4 次）与转写（1 次）照常发完、照常扣费，结果作废不进表，日志只记「已发或未知」。在途立即断开是第二刀（0.25）：把 signal 交给 runtime 的 runner（executeProfileOperation.signal、executeTextTask.abortSignal、runCustomCallScript.signal、requestMultipart / runLocalSpeechTranscription.signal），要动 electron/runtime.ts（格式化后 665 行，顶在体积冻结上限），同一刀里必须从它迁出等量代码。",
+    "在途的本机转写会跑完它那一段（几分钟、占 CPU / GPU），同样等第二刀接 signal。",
+    "渲染层点取消走的是不等回话的第二条 IPC：这条 IPC 万一没送到（只有发送方不可信时会被拒），用户点的取消退回成「结果作废」；切项目、关窗、退出不靠它（主进程项目会话复核、窗口 destroyed、退出收摊各自会停）。",
+    "没有持久回执：取消只记主进程日志 deconstruct.cancelled，不进任务表、不落盘；拆解迁进制作 Run（停止原因、收据、可续）另立项。",
+    "令牌不撤：取消后令牌余额留着，30 分钟自然失效（electron/spendGrant.ts）；付费闸外层前后两次判停已经拦住新的调用。",
+    "剪辑、antigravity、深度视频、文本流各自的取消口没收进中立登记；导入转码那份同类登记（electron/assets/importRequests.ts）还没合进 origin/main，本刀不收，协调另派收口。",
+    "零花费走查与真付费核对未做（unverified）：仓库里没有覆盖拆解取消的走查；Windows 上 ffmpeg 收信号的行为未实测。"
+  ]
+}

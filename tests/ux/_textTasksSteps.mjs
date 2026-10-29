@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { addCanvasNodeFromRail } from './_canvasRail.mjs'
+import { collapseAgentPanel } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 export const MARK = Object.freeze({ expand: 'S_EXPAND', rewrite: 'S_REWRITE', translate: 'S_TRANSLATE', optimize: 'S_OPTIMIZE' })
@@ -35,7 +36,7 @@ async function timed(visible, done, { operations }) {
   return { firstFeedbackMs: firstFeedbackMs ?? Date.now() - started, totalMs: Date.now() - started }
 }
 
-async function addTextNode(win, body) {
+export async function addTextNode(win, body) {
   await addCanvasNodeFromRail(win, 'text')
   const id = await win.evaluate(() => window.__nomiCanvasStore.getState().nodes.at(-1).id)
   const editor = win.locator(`[data-node-id="${id}"] .ProseMirror`).first()
@@ -80,7 +81,7 @@ export async function runTextTaskEntries(win, { report, snap, protocol = 'openai
   {
     const { id, editor } = await addTextNode(win, `${MARK.rewrite} 她把纸条展开了，慢慢地，像是害怕它会碎掉一样小心翼翼。`)
     await clickOrFail(editor, '点进正文')
-    await win.keyboard.press('Control+A')
+    await win.keyboard.press('ControlOrMeta+A')
     await expect.poll(() => win.evaluate((nodeId) => window.__nomiCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.meta?.textGenSelection ?? '', id),
       { message: '选区已记进节点' }).toContain(MARK.rewrite)
     await clickOrFail(win.locator(`${COMPOSER} [data-text-composer="mode-menu"]:visible`).last(), label('「续写 / 改写」菜单', 'Revise menu'))
@@ -116,9 +117,11 @@ export async function runTextTaskEntries(win, { report, snap, protocol = 'openai
   {
     // 前两步的文本节点清掉（真人操作：点空白画布 → 全选 → 删除），新图片节点落在画布中间，提示词底栏不被画布底部工具条盖住。
     await win.locator('.react-flow__pane').first().click({ position: { x: 40, y: 40 } })
-    await win.keyboard.press('Control+A')
+    await win.keyboard.press('ControlOrMeta+A')
     await win.keyboard.press('Delete')
     await expect.poll(() => win.evaluate(() => window.__nomiCanvasStore.getState().nodes.length), { message: '画布清空' }).toBe(0)
+    // 右下角的 Agent 面板盖在图片节点提示词底栏的右半边上（翻译钮在它底下，点击被面板拦下）：像真人一样先把它收成小球。
+    await collapseAgentPanel(win, label('收起 Agent 面板', 'Collapse the Agent panel'))
     await addCanvasNodeFromRail(win, 'image')
     const prompt = win.locator(PROMPT_EDITOR).first()
     await clickOrFail(prompt, '图片节点提示词框')
@@ -157,8 +160,13 @@ export function makeTwoShotVideo(dir) {
   return file
 }
 
-/** #6 视频拆解读图（一次性，带付费确认）：导入素材 → 拆解 → 在确认框上点确认 → 等结构表。 */
-export async function runDeconstruct(win, { report, snap, protocol = 'openai-compatible', operations = 12, video, english = false }) {
+/**
+ * #6 视频拆解读图（一次性）：导入素材 → 拆解 → 等结构表。
+ * 2026-10-18 用户拍板「短片不弹，长片才弹」：一共不超过 DECONSTRUCT_ASK_ABOVE_CALLS（30）次调用时，点「拆解」那一下就是确认，不弹报价卡。
+ * 这条两镜小视频只有 2 次读图，所以**不会**有确认框；框要是弹了，主进程会停在付费闸上等人点，没人点它，调用就永远等不到结果——
+ * 所以下面一边等结果一边盯着框，框一出现这一步就按「回归」判红，不替它点确认（那是把回归点成通过）。
+ */
+export async function runDeconstruct(win, { report, protocol = 'openai-compatible', video }) {
   const bytes = fs.readFileSync(video).toString('base64')
   const projectId = await win.evaluate(() => {
     const url = new URL(location.href)
@@ -175,19 +183,40 @@ export async function runDeconstruct(win, { report, snap, protocol = 'openai-com
     if (asset.reason === 'no-disk-space') { report.unverified = [...(report.unverified ?? []), '#6 拆解：本机磁盘余量不足，素材导入被拒（no-disk-space）'] ; return }
     throw new Error(`#6 拆解素材导入失败：${asset.reason}`)
   }
+  // 照生产（factBridge.deconstructToShotTable）：主进程入口要 requestId（取消口寻址）和 projectBinding（这次拆解归哪个项目会话），
+  // 缺了直接拒。binding = 当前打开项目的三维身份，取自项目记录（与渲染层 coordinator 签发的是同一份）。
+  const projectBinding = await win.evaluate(async (id) => {
+    const record = await window.nomiDesktop.projects.readAsync(id)
+    return { projectId: id, immutableProjectUuid: record?.immutableProjectUuid, projectGeneration: record?.projectGeneration }
+  }, projectId)
+  if (!projectBinding.immutableProjectUuid || !Number.isSafeInteger(projectBinding.projectGeneration)) {
+    throw new Error(`#6 拆解：读不到当前项目的绑定（projectBinding）：${JSON.stringify(projectBinding)}`)
+  }
   const started = Date.now()
-  const pending = win.evaluate(async ({ url, id }) => {
-    try { return { ok: true, data: await window.nomiDesktop.video.deconstruct({ videoUrl: url, projectId: id }) } }
-    catch (error) { return { ok: false, error: String(error?.message ?? error) } }
-  }, { url: asset.url, id: projectId })
-  await expect(win.locator(SPEND_DIALOG), '拆解先问确认（读图要调模型）').toBeVisible({ timeout: stationTimeout({ operations: 6 }) })
-  await snap(`${english ? 'en' : 'zh'}-07-deconstruct-confirm`)
-  await clickOrFail(win.locator(`${SPEND_DIALOG} [data-spend-confirm-action="confirm"]`).first(), english ? 'Confirm' : '确认')
-  const out = await pending
+  // 调用的结果放进页面里的一个槽，走查边等边看确认框（直接 await 这次 evaluate 的话，框弹出来时走查就卡死在里面）。
+  await win.evaluate(({ url, id, binding }) => {
+    window.__textTaskDeconstruct = { done: false }
+    window.nomiDesktop.video.deconstruct({ videoUrl: url, projectId: id, requestId: crypto.randomUUID(), projectBinding: binding }).then(
+      (data) => { window.__textTaskDeconstruct = { done: true, ok: true, data } },
+      (error) => { window.__textTaskDeconstruct = { done: true, ok: false, error: String(error?.message ?? error) } },
+    )
+  }, { url: asset.url, id: projectId, binding: projectBinding })
+  let state = 'running'
+  await expect.poll(async () => {
+    state = (await win.locator(SPEND_DIALOG).count()) ? 'dialog' : (await win.evaluate(() => window.__textTaskDeconstruct.done)) ? 'done' : 'running'
+    return state
+  }, { message: '#6 拆解走完或弹出了确认框', timeout: stationTimeout({ turns: 1 }), intervals: [200] }).toMatch(/^(done|dialog)$/)
+  expect(state, '#6 拆解一次性走完，不弹报价卡（2 次读图 ≤ 30 次调用）').toBe('done')
+  const out = await win.evaluate(() => window.__textTaskDeconstruct)
   const totalMs = Date.now() - started
   if (!out.ok) {
     summary(report, { entry: '#6 视频拆解读图（一次性）', protocol, firstFeedbackMs: null, totalMs, result: `error: ${out.error.slice(0, 120)}`, errorKind: 'unknown' })
     throw new Error(`#6 拆解失败：${out.error}`)
+  }
+  // 主进程回 null = 这次拆解被停下了（取消 / 项目会话对不上 / 窗口没了）：这条演练没人点取消，所以出现就是绑定没被接受。
+  if (!out.data) {
+    summary(report, { entry: '#6 视频拆解读图（一次性）', protocol, firstFeedbackMs: null, totalMs, result: 'stopped（主进程回 null）', errorKind: 'unknown' })
+    throw new Error('#6 拆解被主进程判成「已停」（回 null）：projectBinding 与窗口的项目会话对不上，或有人撤了它')
   }
   const failed = out.data.failedShotIndexes ?? []
   const shots = out.data.shots ?? []

@@ -44,5 +44,5 @@
     "electron/catalog/referenceKeyProjectionCensus.test.ts"
   ],
   "since": "2026-10-25",
-  "notes": "模型容量先从选中档案的 typed reference slots、slot.max 与 combineSlotsInto 读取；没有对应模型声明时才回落到显式 headlessReferenceKeys、TRANSLATED_REFERENCE_INPUT_KEYS 与 APIMart 别名组的键形态。referenceReachability、taskParams 拒发建议和 modelCatalogListing 只读同一份模型作用域判据；没有同类声明位或超过 max 时 headless 请求在网络前拒发，并提示调用方写明参数名。"
+  "notes": "模型容量先从选中档案的 typed reference slots、slot.max 与 combineSlotsInto 读取；没有对应模型声明时才回落到显式 headlessReferenceKeys、TRANSLATED_REFERENCE_INPUT_KEYS 与 APIMart 别名组的键形态。referenceReachability、taskParams 拒发建议和 modelCatalogListing 只读同一份模型作用域判据；没有同类声明位或超过 max 时 headless 请求在网络前拒发，并提示调用方写明参数名。 2026-10-27（合同 docs/fixes/2026-10-27-first-gate-full-model-identity.root-cause.json）：第一闸 applyHeadlessParamDefaults 收的身份就是 modelReferenceSelection 的投影（与清单、第三闸同一个；引擎 A 交给第三闸的是同一个对象），不再手搭只有 archetypeId 的缩减身份，自写能力合同声明的上限在第一闸就生效；projectReferencesOntoBodyKeys 的显式值容量循环挪到「没带参考就返回」之前，直接写进 body 键的参考同样计数。"
 }

@@ -75,9 +75,6 @@ export const zhModelSetup = {
   diagnostics: '连接诊断（可选）',
   testConnection: '测试连接',
   testAndSaveHint: '“测试连接”是可选的显式上游请求；“保存”只写入本地，不会发起测试。',
-  // T-MO-27：这一下今天确实会发一次真实 POST /chat/completions（onboardingIpc.probeOneProtocol）。
-  // 费用边界的 owner（catalog/credentialProbePolicy）还没接到这条路上，所以本批先如实说，不加确认卡。
-  testConnectionSpendHint: '会向该地址发送一次测试请求。',
   connectedProtocol: '已连上 · 用的是 {{protocol}} 协议',
   connected: '连接正常',
   connectedReachabilityOnly:
@@ -224,8 +221,6 @@ export const enModelSetup = {
   testConnection: 'Test connection',
   testAndSaveHint:
     '“Test connection” is an optional explicit upstream request. “Save” only writes locally and never runs a test.',
-  testConnectionSpendHint:
-    'This sends one test request to that address.',
   connectedProtocol: 'Connected · Using the {{protocol}} protocol',
   connected: 'Connection successful',
   connectedReachabilityOnly:

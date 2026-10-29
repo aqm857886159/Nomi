@@ -69,7 +69,7 @@ async function redirectPair(status: number) {
       response.end();
     });
   });
-  return { source, seen, sourceHits: () => sourceHits };
+  return { source, target, seen, sourceHits: () => sourceHits };
 }
 
 const AUTH_HEADERS = { "x-api-key": "redirect-api-key", "x-tenant-key": "redirect-tenant", "content-type": "application/json" };
@@ -143,13 +143,13 @@ describe.each([302, 307, 308])("带密钥请求遇到 HTTP %s 跳转：第二个
   });
 
   it("门 4 接入向导协议探测：失败说人话，第二个网站收不到", async () => {
-    const { source, seen, sourceHits } = await redirectPair(status);
+    const { source, target, seen, sourceHits } = await redirectPair(status);
     const result = await handlers.get("nomi:onboarding:test-connection")?.({}, {
       baseUrl: source, providerKind: "openai-compatible", modelId: "m", apiKey: "redirect-api-key",
       headers: { "x-tenant-key": "redirect-tenant" },
     });
     expect(result).toMatchObject({ ok: false });
-    expect(JSON.stringify(result)).toContain(desktopT("network.credentialRedirect"));
+    expect(JSON.stringify(result)).toContain(desktopT("network.credentialRedirectTo", { target: `${target}/stolen` }));
     expect(sourceHits()).toBeGreaterThanOrEqual(1);
     expect(seen).toEqual([]);
   });

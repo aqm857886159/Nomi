@@ -30,7 +30,7 @@ const launched = await launchNomiApp({
   settleMs: 1500,
   timeout: 60_000,
   // Never show a window on the machine running the test.
-  mainRequire: [path.join(repoRoot, 'tests/ux/_offscreenWindows.cjs')],
+  mainRequire: [path.join(repoRoot, 'tests/ux/_quietWalk.cjs')],
 })
 
 const processHandle = launched.app.process()

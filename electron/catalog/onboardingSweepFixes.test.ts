@@ -27,12 +27,14 @@ describe("dreamina CLI：--download_dir 只许 query_result（提交子命令带
 });
 
 describe("headless wire 兜底：缺必填参 vendor 直接拒 → 档案默认桥接兜住（applyHeadlessParamDefaults）", () => {
+  /** 只带档案指针的身份（这一组只测档案默认值，不投参考）。 */
+  const archetype = (archetypeId: string, taskKind: string, vendorKey: string) => ({ vendorKey, modelMeta: { archetypeId }, taskKind });
   it("火山 Seedream 缺 size → 桥接填档案默认 2048x2048（缺 size→HTTP 400）", () => {
-    const out = applyHeadlessParamDefaults({}, "volcengine-seedream", "text_to_image", "volcengine", undefined);
+    const out = applyHeadlessParamDefaults({}, archetype("volcengine-seedream", "text_to_image", "volcengine"), undefined);
     expect(out?.size).toBe("2048x2048");
   });
   it("apimart 配音 headless：线上 model 由 owner 按模式给 gpt-4o-mini-tts（缺 model→HTTP 500），默认表只补 voice", () => {
-    const out = applyHeadlessParamDefaults({}, "nomi-audio", "text_to_audio", "apimart", undefined);
+    const out = applyHeadlessParamDefaults({}, archetype("nomi-audio", "text_to_audio", "apimart"), undefined);
     // model 不归默认表（2026-10-16）：发哪个 model 串只问 wireModelIdentity。
     expect(out).not.toHaveProperty("model");
     expect(out?.voice).toBeTruthy();
@@ -41,11 +43,11 @@ describe("headless wire 兜底：缺必填参 vendor 直接拒 → 档案默认�
     expect(params.model).toBe("gpt-4o-mini-tts");
   });
   it("豆包语音 缺 voice → 桥接填档案默认音色（缺 voice→「未选择音色」）", () => {
-    const out = applyHeadlessParamDefaults({}, "volcengine-doubao-tts", "text_to_audio", "volcengine-speech", undefined);
+    const out = applyHeadlessParamDefaults({}, archetype("volcengine-doubao-tts", "text_to_audio", "volcengine-speech"), undefined);
     expect(out?.voice).toBeTruthy();
   });
   it("既有值优先（UI 路已填→零影响）", () => {
-    const out = applyHeadlessParamDefaults({ size: "1024x1024" }, "volcengine-seedream", "text_to_image", "volcengine", undefined);
+    const out = applyHeadlessParamDefaults({ size: "1024x1024" }, archetype("volcengine-seedream", "text_to_image", "volcengine"), undefined);
     expect(out?.size).toBe("1024x1024");
   });
 });

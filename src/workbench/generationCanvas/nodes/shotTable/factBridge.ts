@@ -31,6 +31,14 @@ function visionLegPayload(table: DeconstructionShotTableDocument): { vision: { v
   return preferred?.vendorKey ? { visionPreferred: preferred } : {}
 }
 
+/**
+ * 撤主进程那次拆解（按 requestId，2026-10-27）。不等回话：撤了之后主进程不再起新的抽帧 / 读图 / 转写、
+ * 不再进付费闸，那次 `deconstruct` 回 `null`。已经过了付费闸的那一次照常结算（在途断开是第二刀）。
+ */
+function stopMainDeconstruction(requestId: string): void {
+  void getDesktopBridge()?.video?.cancelDeconstruct?.({ requestId })
+}
+
 async function writeTable(
   tableNodeId: string,
   canWrite: () => boolean,
@@ -120,6 +128,9 @@ export async function deconstructToShotTable(
   // 在飞登记：从这里到 finally 之间，`running` 这一格才由一个**活着的 promise** 作保。
   // 登记与这个渲染进程同寿命——进程没了它自然空，下次读回来的 running 会被判为中断。
   registerDeconstructionRun(id, requestId)
+  // 项目被换走 / 窗口要关：撤主进程那次拆解（同一个取消口；主进程按项目会话复核也会自己停）。
+  const stopMain = (): void => { stopMainDeconstruction(requestId) }
+  project.signal.addEventListener('abort', stopMain, { once: true })
   const unsubscribe = getDesktopBridge()?.video?.onDeconstructionProgress?.((event) => {
     if (event.requestId !== requestId || event.projectId !== projectId || !canWrite()) return
     // detail 是阶段内部那句更细的话（本地转写的下载/分段进度）。主进程按用户语言生成好再发，
@@ -130,9 +141,13 @@ export async function deconstructToShotTable(
     const result = await deconstruct({
       // nodeId：这次拆解的付费令牌按它记预算，主进程的一次报价卡也按它显示是哪张表。
       // 转写腿：这一次显式给的（「改用云端」）优先，其次是表上选的，都没有 = 主进程自动挑。
-      videoUrl: source.result.url, projectId, requestId, nodeId: id, ...((transcribe ?? table.source.transcribeModel) ? { transcribe: transcribe ?? table.source.transcribeModel } : {}), ...visionLegPayload(table),
+      // requestId + projectBinding：主进程按它们登记这次拆解（取消口寻址、项目会话复核），缺了直接拒。
+      videoUrl: source.result.url, projectId, requestId, projectBinding: project.binding, nodeId: id, ...((transcribe ?? table.source.transcribeModel) ? { transcribe: transcribe ?? table.source.transcribeModel } : {}), ...visionLegPayload(table),
       customColumns: table.columns.filter((column) => column.kind === 'custom').map((column) => ({ name: column.columnId, hint: column.hint || column.labelKey })),
     })
+    // 主进程回 null = 这次拆解被停下了（用户取消 / 项目换了 / 窗口没了）：不写结果、不落失败；
+    // 表的终态由取消那一下（已取消）或下面 finally 的收敛（已中断）给。
+    if (!result) return id
     // A completion from a departed project must never write into its successor.
     if (!canWrite()) return id
     // 用户在这次跑的中途按了「取消」：结果作废，取消态是终态，不许被迟到的 ready 拽回去。
@@ -144,6 +159,7 @@ export async function deconstructToShotTable(
     // 引擎侧任何一条挂了（ffmpeg 子进程被杀 / 供应商超时 / 抽帧失败）都在这里落失败态并带上原话。
     await writeTable(id, canWrite, current => ({ ...current, source: { ...current.source, status: 'failed', progressDetail: undefined, errorMessage: error instanceof Error ? error.message : String(error) } }))
   } finally {
+    project.signal.removeEventListener('abort', stopMain)
     unsubscribe?.()
     releaseDeconstructionRun(id, requestId)
     // 终态兜底：上面每一条 `return id` 都是「这次调用不许把结果写进这张表」，
@@ -172,8 +188,8 @@ export function settleInterruptedDeconstructions(): void {
 }
 
 /**
- * 用户取消这次拆解。IPC 的 invoke 没有取消口，所以取消 = **把这次调用的结果作废**：
- * 主进程那边跑完就跑完了，回来的东西不再写进表。
+ * 用户取消这次拆解：撤主进程那次拆解（第二条 IPC，按 requestId；2026-10-27 之前 invoke 没有取消口，
+ * 取消只是把结果作废、主进程照样把报价的调用发满），同时**把这次调用的结果作废**：迟到的东西不再写进表。
  *
  * 为什么取消是独立一格而不是 `failed`：没出错，是用户不要了。把它记成失败会在日志、
  * 在「这台机器上拆解成功率」里都留下一条假的失败。
@@ -182,7 +198,10 @@ export function cancelDeconstruction(tableNodeId: string): void {
   // 没有在飞的调用却停在 running = 这次拆解**早就已经死了**（进程重启前留下的影子）。
   // 那一下点击仍然必须有反应：按 owner 的判据落中断态，而不是一颗点不动的按钮——
   // 「看着能点、点了没事」正是 T-ED-06 那一格的另一种形态。
-  if (!markDeconstructionCancelled(tableNodeId)) { settleInterruptedDeconstructions(); return }
+  const requestId = markDeconstructionCancelled(tableNodeId)
+  if (!requestId) { settleInterruptedDeconstructions(); return }
+  // 当场撤：主进程不再起新的抽帧 / 读图 / 转写，不再进付费闸（已经过了闸的那一次照常结算）。
+  stopMainDeconstruction(requestId)
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((entry) => entry.id === tableNodeId)
   const table = readShotTable(node?.meta)
@@ -206,10 +225,16 @@ export async function retryShot(tableNodeId: string, rowId: string, project: Pro
   const row = table.rows.find(item => item.rowId === rowId)
   const source = canvas.nodes.find(node => node.id === table.source.sourceNodeId)
   const deconstruct = getDesktopBridge()?.video?.deconstruct
-  if (!row || !source?.result?.url || !deconstruct) return
-  const result = await deconstruct({ videoUrl: source.result.url, projectId, shotIndexes: [row.order], nodeId: tableNodeId, ...visionLegPayload(table),
+  if (!row || !source?.result?.url || !deconstruct || project.signal.aborted) return
+  // 单镜重试也走同一条停止边界：没有取消按钮（不改界面），项目被换走 / 窗口要关时撤主进程那 1 次读图。
+  const requestId = crypto.randomUUID()
+  const stopMain = (): void => { stopMainDeconstruction(requestId) }
+  project.signal.addEventListener('abort', stopMain, { once: true })
+  const result = await deconstruct({ requestId, projectBinding: project.binding, videoUrl: source.result.url, projectId, shotIndexes: [row.order], nodeId: tableNodeId, ...visionLegPayload(table),
     customColumns: table.columns.filter(column => column.kind === 'custom').map(column => ({ name: column.columnId, hint: column.hint || column.labelKey })),
-  })
+  }).finally(() => project.signal.removeEventListener('abort', stopMain))
+  // 主进程回 null = 这次重试被停下了（项目换了 / 窗口没了）：不写表、不报错。
+  if (!result) return
   const canWrite = () => getUndoJournalGeneration() === generation && isProjectExecutionContextCurrent(project)
   if (!canWrite()) return
   await writeTable(tableNodeId, canWrite, latest => {

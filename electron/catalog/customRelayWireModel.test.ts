@@ -25,6 +25,7 @@ import type { GenerationCanvasNode } from "../../src/workbench/generationCanvas/
 import { buildProfileHttpRequest } from "./profileHttpRequest";
 import { runMultipartProfileOperation } from "./multipartOperation";
 import { applyHeadlessParamDefaults, taskTemplateParams } from "./taskParams";
+import { modelReferenceSelection } from "./modelCatalogListing";
 import {
   NEWAPI_IMAGE_CREATE_OP,
   NEWAPI_IMAGE_EDIT_OP,
@@ -123,7 +124,7 @@ describe("自定义中转 · headless / MCP 入口（引擎 A 缺参兜底之后
     ["seedance-2", "image_to_video", "video", NEWAPI_VIDEO_CREATE_OP],
   ] as const)("%s：目录行带 archetypeId 时，兜底默认值也不许把 model 换成档案名", (modelKey, taskKind, kind, operation) => {
     const model = relayModel(modelKey, kind, { meta: { archetypeId: modelKey } });
-    const extras = applyHeadlessParamDefaults({ modelKey }, modelKey, taskKind, RELAY_KEY, operation.defaultParams, operation.body, modelKey);
+    const extras = applyHeadlessParamDefaults({ modelKey }, modelReferenceSelection(RELAY_KEY, model, taskKind), operation.defaultParams, operation.body);
     const request = { kind: taskKind, prompt: "a red paper crane", extras } as TaskRequest;
     expect(jsonBodyModel(request, model, operation)).toBe(modelKey);
   });

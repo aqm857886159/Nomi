@@ -32,7 +32,6 @@ const localeArg = process.argv.indexOf('--locale')
 const locale = localeArg > 0 ? process.argv[localeArg + 1] : 'zh-CN'
 const shot = process.argv.includes('--shot')
 const GENERATE_TAB = /^(生成|Generate)$/
-const offscreen = path.resolve('tests/ux/full-walk/offscreenWindow.cjs')
 const root = makeTempDir('nomi-toolbar-open-select-')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'toolbar-open-select'
@@ -61,7 +60,7 @@ let run = null
 let crashedThisRound = false
 async function launch() {
   run = await launchNomiApp({
-    name: 'canvas-toolbar-open-select', projectsDir, settleMs: 0, mainRequire: [offscreen],
+    name: 'canvas-toolbar-open-select', projectsDir, settleMs: 0,
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
   })
   const page = run.win

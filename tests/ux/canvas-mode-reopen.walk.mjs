@@ -1,5 +1,5 @@
 // I-canvas-revert-h：落盘的旧视频单图方式在冷重开后回到文生视频。
-// 用法：NOMI_WALK_OFFSCREEN=1 NOMI_WALK_LANG=zh|en node tests/ux/canvas-mode-reopen.walk.mjs
+// 用法：NOMI_WALK_LANG=zh|en node tests/ux/canvas-mode-reopen.walk.mjs
 
 import fs from 'node:fs'
 import path from 'node:path'

@@ -3,11 +3,11 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // Default: isolated HOME/settings/projects, safe to rerun.
 // Build selection: `--app-path=/path/to/Nomi.app` or `--app-path=/path/to/electron`.
-// Real check: `node tests/ux/mcp-client-activation.walk.mjs --real-connect`
+// Real check: `NOMI_WALK_FOREGROUND_OK=1 node tests/ux/mcp-client-activation.walk.mjs --real-connect`
 // verifies the real HOME's `nomi` entries in place (handshake + trust switch). It never writes host configs:
 // a walkthrough is an isolated instance (NOMI_E2E=1) and Nomi refuses to rewrite real host configs from one
 // (docs/plan/2026-09-14-mcp-connection-truthfulness.md) — reconnecting is a click in the installed Nomi.
-import { launchNomiApp } from './_launchApp.mjs'
+import { exitIfWalkSkipped, launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -24,7 +24,8 @@ if (helpRequested) {
 Options:
   --app-path=<path>  Nomi.app bundle or Electron/Nomi executable (default: /Applications/Nomi.app)
   --cdp-url=<url>    Attach to a Nomi instance opened by macOS instead of launching it directly
-  --real-connect     Use the real HOME, settings, projects, and MCP client configs (read-only: verify + trust switch)
+  --real-connect     Use the real HOME, settings, projects, and MCP client configs (read-only: verify + trust switch);
+                     the window comes to the front, so it only runs with NOMI_WALK_FOREGROUND_OK=1 (otherwise exit 125)
   -h, --help         Show this help`)
   process.exit(0)
 }
@@ -52,6 +53,7 @@ if (tempRoot) for (const marker of ['.claude', '.codex', '.cursor']) fs.mkdirSyn
 
 // 隔离模式把 HOME/能力目录也换掉（MCP 配置写在 HOME 下，不能污染真机）；--real-connect 要的
 // 就是真 HOME 与真配置，故走 isolate:false。NOMI_E2E 那两条由启动器强制，这里不再重复。
+// isolate:false 装不了安静仪表，窗口会到前台：声明 foreground，要带 NOMI_WALK_FOREGROUND_OK=1 才起，否则按 125 跳过。
 const launchOptions = tempRoot
   ? {
       userDataDir: settingsDir,
@@ -60,7 +62,7 @@ const launchOptions = tempRoot
       // Windows 的主目录看 USERPROFILE 不看 HOME：两个都换，否则 Windows 上读写的是真机配置。
       env: { HOME: testHome, USERPROFILE: testHome, APPDATA: path.join(testHome, 'AppData', 'Roaming'), NOMI_CAPABILITY_DIR: capabilityDir },
     }
-  : { isolate: false }
+  : { isolate: false, foreground: '--real-connect 用真实 HOME 与真实资料核对已装的 MCP 配置' }
 
 function assert(condition, message) {
   if (!condition) throw new Error(`MCP ACTIVATION WALK FAIL: ${message}`)
@@ -251,7 +253,7 @@ if (cdpUrl) {
     executablePath,
     settleMs: 0,
     ...launchOptions,
-  })
+  }).catch(exitIfWalkSkipped)
   app = launched.app
   win = launched.win
 }

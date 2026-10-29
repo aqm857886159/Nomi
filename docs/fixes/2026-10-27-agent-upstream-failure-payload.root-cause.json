@@ -1,0 +1,205 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-agent-upstream-failure-payload",
+  "change_kind": "corrective",
+  "problem_type": "The Agent lane surfaced upstream HTTP failures only as pi's display string, so the provider's own error code never reached the renderer's classifier",
+  "symptom": "With an Agent brain that the relay still lists but no longer serves (APIMart deepseek-v3.2 in the 2026-10-18 paid walkthrough: HTTP 404 {\"error\":{\"code\":\"model_not_found\",...}}), every turn ended in the red card 'the provider returned an error we have not seen' with the raw JSON, instead of telling the user that the model is unavailable at the provider.",
+  "direct_cause": "pi-ai formats a failed HTTP response as errorMessage '<status>: <body>'. The lane projection copied errorMessage into the error part, and the renderer's classifyGenerationError reads provider facts only behind the NOMI_VENDOR_ERR_B64 marker, so upstreamCode model_not_found never met UPSTREAM_CODE_KINDS and the failure fell through to unclassified.",
+  "class_root": "The structured upstream-failure payload was minted per caller (vendorHttp for image and video, textTaskRunner and the compiler for text) instead of at the provider assembly point that every Agent model call shares, so the Agent lane had no minting door. The three-channel parity test and the concept owner pointed at describeRuntimeError, a function with zero production callers, so parity stayed green while the real Agent channel carried only pi's display string. The failure core (VendorRequestError, the category table, the IPC encoding) also lived inside the heavy vendorHttp transport, so code compiled into the pi NodeNext island could not import the shared mapping at all; logging/diskSafeFailure.ts had already copied the category list for the same reason.",
+  "affected_population": [
+    "Agent workspace-lane users whose brain model answers a call with a non-2xx HTTP response and a JSON error envelope (model_not_found, auth, quota, balance, server errors)",
+    "Single-shot and production-planning callers that run through callModelOnce or runLaneSingleShot",
+    "All three wire protocols: openai-compatible, openai-responses and anthropic"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneModelProvider.mts",
+    "electron/ai/modelCallFetch.ts",
+    "electron/ai/runtimeVendorError.ts",
+    "electron/ai/agentError.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "electron/shared/agentLane/laneAssistantFault.ts",
+    "electron/agentLane/laneModelCall.test.ts",
+    "electron/vendor/upstreamEvidenceParity.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts",
+    "electron/ai/modelCallFetch.test.ts",
+    "electron/ai/runtimeVendorError.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "tests/agent-runtime/httpFixture.mts",
+    "tests/agent-runtime/lane-resilience.test.mts",
+    "tests/agent-runtime/lane-single-shot.test.mts",
+    "docs/engineering/concept-owners/model-call.failure.json",
+    "docs/engineering/concept-owners/model-call.transport-evidence.json",
+    "docs/engineering/concept-owners/provider.upstream-error-code.json"
+  ],
+  "entry_points": [
+    "createNomiProvider wraps stream and streamSimple of every pi provider instance: the workspace lane through laneHost, single-shot and text calls through laneModelCall",
+    "projectLaneSnapshot and projectSingleShotResponse turn the failed assistant message into the error part the panel renders",
+    "executeTextTask and compileProviderAdapter call modelCallFailure themselves and throw to IPC"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.openai.com/docs/guides/error-codes",
+      "checked_at": "2026-10-27",
+      "purpose": "OpenAI-compatible relays answer with {error:{message,type,param,code}}; the machine-readable code (model_not_found) is the provider's own reason and the message is human text."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc9457",
+      "checked_at": "2026-10-27",
+      "purpose": "Problem Details: consumers classify by structured fields rather than parsing human-readable text, so the payload is minted where the facts are first available."
+    }
+  ],
+  "invariants": [
+    "A model call whose last attempt received a non-2xx HTTP response yields exactly one structured vendor payload, minted by modelCallFailure from the transport facts recorded for that call (status, redacted body and URL).",
+    "The payload rides on the failed AssistantMessage's pi diagnostics (type nomi.vendor-failure) and never enters errorMessage, so pi's retry and transient judgements are unchanged.",
+    "The projected error part takes its text from the payload when present and from errorMessage otherwise; transcripts written before this change project exactly as before.",
+    "Failures without an HTTP response (SSE error events, connection resets, watchdog stalls, user abort) and successful retries carry no payload, and an earlier 429 does not leak into a later failure."
+  ],
+  "doors": [
+    { "kind": "write", "path": "electron/agentLane/laneModelProvider.mts", "symbol": "modelCallFailure" },
+    { "kind": "write", "path": "electron/providerAdapter/compiler.ts", "symbol": "modelCallFailure" },
+    { "kind": "write", "path": "electron/textTaskRunner.ts", "symbol": "modelCallFailure" },
+    { "kind": "write", "path": "electron/agentLane/laneModelProvider.mts", "symbol": "observeModelFetch" },
+    { "kind": "write", "path": "electron/ai/modelCallFetch.ts", "symbol": "observeModelFetch" },
+    { "kind": "write", "path": "electron/agentLane/laneHost.mts", "symbol": "createNomiProvider" },
+    { "kind": "write", "path": "electron/agentLane/laneModelCall.mts", "symbol": "createNomiProvider" },
+    { "kind": "write", "path": "electron/shared/agentLane/laneProjection.ts", "symbol": "laneVendorFailureText" },
+    { "kind": "read", "path": "electron/agentLane/laneModelProvider.mts", "symbol": "LANE_VENDOR_FAILURE_DIAGNOSTIC" },
+    { "kind": "read", "path": "electron/shared/agentLane/laneAssistantFault.ts", "symbol": "LANE_VENDOR_FAILURE_DIAGNOSTIC" },
+    { "kind": "write", "path": "electron/ai/agentError.ts", "symbol": "encodeVendorErrorMessage" },
+    { "kind": "write", "path": "electron/ai/runtimeVendorError.ts", "symbol": "categorizeVendorFailure" },
+    { "kind": "write", "path": "electron/assets/localAssetFile.ts", "symbol": "categorizeVendorFailure" },
+    { "kind": "write", "path": "electron/tasks/taskIpcGuard.ts", "symbol": "encodeVendorErrorMessage" },
+    { "kind": "write", "path": "electron/vendor/vendorHttp.ts", "symbol": "categorizeVendorFailure" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 15,
+    "why_not": "The Agent channel had no minting door, and that absence was the bug, so this change adds doors instead of merging them: one modelCallFailure call and one observeModelFetch call at the provider assembly point, plus the diagnostic carrier (written by the provider, read through laneAssistantFault by laneProjection), because pi's AssistantMessage is the only object both the provider and the projection see. describeRuntimeError's encodeVendorErrorMessage door is deleted with the function, and the single-shot transport wrapper in laneDesktopRuntime is deleted because the provider now owns the recorder for every Agent call. The remaining doors stay separate on purpose: text tasks and the compiler throw to IPC instead of returning a pi message, and the image/video, local-asset and task-IPC users of the category table and the IPC encoding are different transports. All of them call the same modelCallFailure, categorizeVendorFailure and encodeVendorErrorMessage."
+  },
+  "generality_proof": "Every Agent model call gets its pi provider from createNomiProvider (laneHost for the workspace lane, laneModelCall for single-shot and text calls), and the annotation wraps both stream and streamSimple there regardless of protocol or vendor. The mapping is the existing modelCallFailure shared with text tasks and the compiler, fed by the same observeModelFetch recorder (a fetch the caller already observed is reused, not wrapped twice). A new caller, protocol or vendor therefore gets the payload without new code, and the renderer classifies it by upstream code through the existing UPSTREAM_CODE_KINDS table.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "modelCallFailure",
+      "responsibility": "Map the last attempt's transport facts of a failed model call to the one structured vendor error (status, upstream message and code, category, retryable) for text tasks, the compiler and the Agent provider alike."
+    },
+    {
+      "path": "electron/ai/modelCallFetch.ts",
+      "symbol": "observeModelFetch",
+      "responsibility": "Record per-attempt transport facts and the secrets actually sent for one model call, reusing the existing recorder when the fetch is already observed."
+    },
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "projectLaneSnapshot",
+      "responsibility": "Project a failed assistant message into the error part, taking the text from the nomi.vendor-failure diagnostic when it is present."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "entry_point": "createNomiProvider",
+      "disposition": "enforced",
+      "evidence": "laneModelCall.test.ts replays the recorded 404 over loopback for all three protocols and asserts one diagnostic whose payload parses to httpStatus 404, upstreamCode model_not_found and classifies as model-unavailable-upstream; tests/agent-runtime lane-resilience and lane-single-shot assert the same through the real workspace lane and single-shot."
+    },
+    {
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "entry_point": "providerFailureText",
+      "disposition": "enforced",
+      "evidence": "laneCommandFailure.test.ts feeds the main-process product for the recorded 404 and asserts it is classified (not the unknown-error fallback) in zh and en, while a legacy raw '404: {...}' string still falls back."
+    },
+    {
+      "path": "electron/textTaskRunner.ts",
+      "entry_point": "executeTextTask",
+      "disposition": "not-affected",
+      "evidence": "Already mints through modelCallFailure since 2026-10-21; the provider reuses its modelCallTransport recorder (modelCallFetch.test.ts reuse case), so the facts are recorded once."
+    },
+    {
+      "path": "electron/providerAdapter/compiler.ts",
+      "entry_point": "compileProviderAdapter",
+      "disposition": "not-affected",
+      "evidence": "Same as text tasks: modelCallFailure over its own modelCallTransport, which the provider reuses."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestVendor",
+      "disposition": "not-affected",
+      "evidence": "Image, video and JSON requests mint VendorRequestError at the transport since 2026-09-29; upstreamEvidenceParity.test.ts compares that channel with the text and Agent channels."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same class (upstream failure facts dropped before the renderer classifies) has now surfaced on a third channel: image and video (2026-09-29), text tasks (2026-10-21) and the Agent lane (this change). Any new transport or caller that builds its own error string would repeat it.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs modelCallFailure, observeModelFetch, createNomiProvider, laneVendorFailureText, LANE_VENDOR_FAILURE_DIAGNOSTIC, encodeVendorErrorMessage and categorizeVendorFailure enumerate every door listed above.",
+      "electron/vendor/upstreamEvidenceParity.test.ts now drives the Agent channel through the real provider (callModelOnce) instead of the dead describeRuntimeError, so a channel that stops minting turns it red.",
+      "git grep -n model_not_found src/ finds only the existing UPSTREAM_CODE_KINDS table and tests; no renderer special case was added."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/runtimeVendorError.ts",
+    "invariant": "Every model-call HTTP failure the user can see is described by modelCallFailure from recorded transport facts, and the Agent provider assembly point applies it to every pi call.",
+    "failure_mode": "A failed pi message without an HTTP attempt carries no diagnostic and the projection falls back to errorMessage; if the mapping itself throws, the annotation is skipped with a logged warning (lane-vendor-failure-annotation-failed) and the original message passes through, so the turn still ends instead of hanging.",
+    "exception_policy": "none",
+    "strategy": "Mint at the provider assembly point instead of per caller: createNomiProvider observes each call's fetch (reusing a caller's recorder), and when pi ends the call with stopReason error after an HTTP attempt it attaches describeAgentError(modelCallFailure(...)) as a diagnostic that the projection reads. The failure core moves to the light electron/shared/vendorFailure.ts (vendorHttp re-exports it) so the pi island can import the shared mapping; the dead describeRuntimeError and the single-shot transport wrapper are deleted, and the parity test is bound to the real door.",
+    "artifacts": [
+      "electron/ai/runtimeVendorError.ts",
+      "electron/agentLane/laneModelProvider.mts",
+      "electron/ai/modelCallFetch.ts",
+      "electron/shared/agentLane/laneProjection.ts",
+      "electron/shared/agentLane/laneAssistantFault.ts",
+      "electron/shared/vendorFailure.ts",
+      "electron/vendor/vendorHttp.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneModelCall.test.ts",
+    "electron/vendor/upstreamEvidenceParity.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts",
+    "electron/ai/modelCallFetch.test.ts",
+    "electron/ai/runtimeVendorError.test.ts",
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "tests/agent-runtime/lane-resilience.test.mts",
+    "tests/agent-runtime/lane-single-shot.test.mts"
+  ],
+  "class_regression_tests": [
+    "electron/vendor/upstreamEvidenceParity.test.ts",
+    "electron/agentLane/laneModelCall.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/runtimeVendorError.ts",
+      "electron/agentLane/laneDesktopRuntime.ts"
+    ],
+    "rationale": "describeRuntimeError (zero production callers; the parity test and the concept owner pointed at it) is deleted from runtimeVendorError.ts, and the single-shot modelCallTransport wrapper is deleted from laneDesktopRuntime.ts because the provider now owns the recorder for every Agent call. No compatibility path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The payload rides on the public AssistantMessage.diagnostics field of the pinned pi-ai version; the lane tests run the real pi stream, so an upgrade that drops or renames the field turns them red. The mapping itself is Nomi's own.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted-data migration. Transcripts written before this change carry no diagnostic and project exactly as before; new failed messages keep the diagnostic in the transcript, which older builds ignore. vendorHttp keeps re-exporting the moved names, so existing imports are unchanged.",
+  "residual_risks": [
+    "The real APIMart call for deepseek-v3.2 is not repeated on this branch (no spend); the coordinator owns the one-sample paid confirmation that the panel says the model is unavailable at the provider.",
+    "MCP production planning (capabilityApplyHandler -> RendererApplyError -> buildToolErrorOutcome) passes raw messages through, so an MCP client can now see the NOMI_VENDOR_ERR_B64 prefix for an Agent-model failure, as it already could for text-task-backed operations.",
+    "logging/diskSafeFailure.ts still keeps its own copy of the category list (written because vendorHttp was too heavy for the pi island); it can now import electron/shared/vendorFailure.ts, left for a follow-up to stay in scope.",
+    "The renderer decoder src/workbench/generationCanvas/runner/vendorErrorIpc.ts still mirrors the marker constant instead of importing it from electron/shared/vendorFailure.ts.",
+    "Windows paths are not exercised on this Mac-only implementation line."
+  ],
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-26",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneModelProvider.mts",
+    "tests": [
+      "electron/agentLane/laneModelCall.test.ts",
+      "electron/vendor/upstreamEvidenceParity.test.ts",
+      "tests/agent-runtime/lane-resilience.test.mts",
+      "tests/agent-runtime/lane-single-shot.test.mts"
+    ],
+    "why": "provider 装配点是所有 Agent 模型调用（工作区 lane、单次提问、文本调用）共用的最早一层：既看得到这一次调用的传输事实，又在 pi 判定失败之后；载荷在这里铸，下游只读结构。"
+  }
+}

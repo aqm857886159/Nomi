@@ -147,7 +147,14 @@ try {
       try { await dialog.waitFor({ state: 'visible', timeout: 15_000 }); await dialog.locator('[data-spend-confirm-action="confirm"]').click() } catch { /* 没弹卡 = 短片 */ }
     })()
     const transcribe = TRANSCRIBE_ARG ? { vendorKey: TRANSCRIBE_ARG.split('/')[0], modelKey: TRANSCRIBE_ARG.split('/').slice(1).join('/') } : undefined
-    const result = await win.evaluate(({ url, projectId, nodeId, vision, transcribe }) => window.nomiDesktop.video.deconstruct({ videoUrl: url, projectId, nodeId, vision, ...(transcribe ? { transcribe } : {}) }), { ...seeded, vision: model, transcribe })
+    // 照生产（factBridge.deconstructToShotTable）：主进程入口要 requestId（取消口寻址）和 projectBinding（这次拆解归哪个项目会话），缺了直接拒。
+    const result = await win.evaluate(async ({ url, projectId, nodeId, vision, transcribe }) => {
+      const record = await window.nomiDesktop.projects.readAsync(projectId)
+      const projectBinding = { projectId, immutableProjectUuid: record?.immutableProjectUuid, projectGeneration: record?.projectGeneration }
+      return window.nomiDesktop.video.deconstruct({ videoUrl: url, projectId, nodeId, vision, requestId: crypto.randomUUID(), projectBinding, ...(transcribe ? { transcribe } : {}) })
+    }, { ...seeded, vision: model, transcribe })
+    // 主进程回 null = 这次拆解被停下了（取消 / 项目会话对不上 / 窗口没了）：评测没人点取消，出现就是绑定没被接受。
+    if (!result) throw new Error(`${item.id} 拆解被主进程判成「已停」（回 null）：projectBinding 与窗口的项目会话对不上`)
     await dialogWatcher
     const seconds = (Date.now() - startedAt) / 1000
     const after = await counts()

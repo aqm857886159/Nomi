@@ -38,12 +38,19 @@ export function NodeImportingOverlay({ node, motion, preset }: {
   // 大视频会在这一段停几十秒，报「0%」像卡死了；说「检查中」才是那一刻真实发生的事。
   const checking = ratio === 0
   const percent = Math.round(ratio * 100)
+  // 转换格式：比例来自 ffmpeg 已转时长 / 探到的总时长。探不到总时长时主进程只报开头那个 0、不编比例，
+  // 这时说「转换格式」不带百分比——一直挂着「转换格式 · 0%」像卡死了。
+  const converting = progress?.phase === 'converting'
   // 字节搬完了、事情没完（哈希重读整份文件、落库、认领预览）。这一段在 1.3 GB 真素材上约 5 秒，
   // 此前显示的是「100%」，和卡死长得一模一样（2026-09-17，W-08）。
   // 不编一个走到 99% 就停的假进度条：这一段没有可测的分母，诚实说「在收尾」。
   const finalizing = progress?.phase === 'finalizing'
   const label = finalizing
     ? (size ? t('generationCommon.observability.import.finalizing', { size }) : t('generationCommon.observability.import.finalizingUnknownSize'))
+    : converting && checking
+      ? (size ? t('generationCommon.observability.import.convertingUnmeasured', { size }) : t('generationCommon.observability.import.convertingUnmeasuredUnknownSize'))
+    : converting
+      ? (size ? t('generationCommon.observability.import.converting', { percent, size }) : t('generationCommon.observability.import.convertingUnknownSize', { percent }))
     : checking
       ? (size ? t('generationCommon.observability.import.checking', { size }) : t('generationCommon.observability.import.checkingUnknownSize'))
       : (size ? t('generationCommon.observability.import.progress', { percent, size }) : t('generationCommon.observability.import.progressUnknownSize', { percent }))

@@ -194,6 +194,49 @@ export async function scopedText(locator) {
 }
 
 /**
+ * 把一串文字矩形（`Range.getClientRects()` 的竖向 top / bottom）数成**行**。
+ *
+ * 归行不看 `top` 是否相等，看**竖向中点**：同一行里字号不同的几段字（主按钮的文字 + 小一号的 `⏎`）`top` 会差几个像素，
+ * 按 `top` 去重会把一行数成两行。两段算同一行 = 中点相差不到较矮那段高度的一半；上下相邻两行的中点至少差一个行距
+ * （实际约为较矮那段高度的 0.8 倍以上），远超这个门槛，不会把两行并成一行。参照点是各行**第一个**矩形，不随并入漂移
+ * （漂移会让一个偏高的矩形把相邻两行连成一行）。零高度的矩形（折叠掉的空白）不算。
+ * @param {{ top: number, bottom: number }[]} rects
+ */
+export function countLineBoxes(rects) {
+  const lines = []
+  for (const { top, bottom } of rects) {
+    const height = bottom - top
+    if (!(height > 0)) continue
+    const mid = (top + bottom) / 2
+    if (!lines.some((line) => Math.abs(line.mid - mid) < Math.min(line.height, height) / 2)) lines.push({ mid, height })
+  }
+  return lines.length
+}
+
+/**
+ * 一个元素里的文字此刻占了几行（行盒数）——「不折行」的**唯一**读法。
+ *
+ * 为什么不用盒子高度（2026-10-28，`agent-spend-priced-card` 走查）：按钮高度由 `h-7` 写死、折行时也不变，`< 24` 这类绝对数
+ * 是按钮还是 22px 时写的；「与旁边的钮等高」又依赖那一行是 `items-center`，换了对齐方式就恒真。这里直接数字：
+ * 对元素下每个文本节点取 `Range.getClientRects()`（折了几行就有几个矩形），再交给 `countLineBoxes` 归行。
+ * 看不见字 = 0——读不到字不算「一行」，`toBe(1)` 会红，不静默通过。
+ */
+export async function textLineBoxes(locator) {
+  const rects = await locator.evaluate((element) => {
+    const found = []
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent.trim()) continue
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      for (const rect of range.getClientRects()) if (rect.width > 0 && rect.height > 0) found.push({ top: rect.top, bottom: rect.bottom })
+    }
+    return found
+  })
+  return countLineBoxes(rects)
+}
+
+/**
  * 把源码剥成「只剩代码」再做结构扫描。
  *
  * 结构测试扫源码找违禁字符串时，不剥注释会**反噬文档**：全仓 33 个结构测试里 31 个没剥。

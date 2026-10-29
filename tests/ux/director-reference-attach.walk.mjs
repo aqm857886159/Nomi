@@ -1,8 +1,8 @@
 // I-3d-ref · 「出成片」之后付费请求里到底带不带预演参考、编号对不对 —— Electron 真机取证（免费）。
 //
 // 用法（渲染端走构建产物 dist，主进程走 dist-electron；先 `pnpm run build:electron && pnpm run build:renderer`）：
-//   NOMI_WALK_OFFSCREEN=1 NOMI_WALK_LANG=zh-CN node tests/ux/director-reference-attach.walk.mjs
-//   NOMI_WALK_OFFSCREEN=1 NOMI_WALK_LANG=en    node tests/ux/director-reference-attach.walk.mjs
+//   NOMI_WALK_LANG=zh-CN node tests/ux/director-reference-attach.walk.mjs
+//   NOMI_WALK_LANG=en    node tests/ux/director-reference-attach.walk.mjs
 // 编译器 / Seedance mapping 是 TS 源码：经 tsx/cjs/api 的 require 加载，裸 `node` 就能跑（夜跑就是裸 node；
 // 静态 import .ts 会在 Node 自带的类型剥离里栽在无扩展名的相对 import 上，2026-10-24 夜跑红过）。
 //

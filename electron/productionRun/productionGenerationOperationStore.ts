@@ -198,7 +198,7 @@ export function createProductionGenerationOperationStore(
       notifyPlanChanged(operation.projectId, operation.operationId);
       return operation;
     },
-    async present(projectId, operationId, now, shotIds, target, policySnapshot) {
+    async present(projectId, operationId, now, requested, target, policySnapshot) {
       read(projectId, operationId);
       const run = owner.readFull(projectId, operationId);
       assertTarget(run, target);
@@ -207,7 +207,8 @@ export function createProductionGenerationOperationStore(
         commandId: `generation.present:${operationId}:${revision}`,
         expectedRevision: revision,
         type: "generation.present",
-        payload: { ...(shotIds === undefined ? {} : { shotIds }), ...(policySnapshot ? { policySnapshot } : {}) },
+        // 点名原样转交（不点名就不带）：摆哪几镜由 reducer 里的 `presentGenerationPlan` 按出价账算，这里不补缺省。
+        payload: { ...(requested === undefined ? {} : { shotIds: requested }), ...(policySnapshot ? { policySnapshot } : {}) },
         issuedAt: now,
       });
       const operation = operationFromRun(result.run);

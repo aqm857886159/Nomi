@@ -37,7 +37,7 @@ import { IPC_PROBE_MODULE, startDiagnostics } from './canvas-scale/diagnostics.m
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/perf/results')
 // 屏幕外窗口会被 Windows 判成「被遮挡」而停掉渲染帧：挂屏幕外时同时关掉遮挡判定，量到的帧才是真的。
-const OFFSCREEN_MODULE = path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')
+const OFFSCREEN_MODULE = path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')
 const OFFSCREEN_CHROMIUM_ARGS = ['--disable-features=CalculateNativeWinOcclusion']
 const FIRST_RUN_SEEN = Object.freeze({
   'nomi:locale:v1': 'zh-CN',
@@ -810,6 +810,7 @@ async function main() {
           mainRequire: [...(extra.mainRequire ?? []), ...(onscreen ? [] : [OFFSCREEN_MODULE]), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
           initialLocalStorage: { ...FIRST_RUN_SEEN, ...(extra.initialLocalStorage ?? {}) },
           env: { NOMI_DISABLE_AUTO_UPDATE: '1', ...(extra.env ?? {}) },
+          foreground: onscreen ? '画布性能量具需要在屏幕上显示窗口' : undefined,
         })
         app = launched.app
         const page = launched.win

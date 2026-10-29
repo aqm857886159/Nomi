@@ -5,6 +5,7 @@ import path from "node:path";
 import { check } from "../lib/journeyRunner.mjs";
 import { dismissSplashIfPresent, waitForPersistedCanvas } from "../lib/isoApp.mjs";
 import { backToLibrary, canvasFitViewButton } from "../../tests/ux/_shell.mjs";
+import { requireRealMediaAssets } from "../../tests/ux/fixtures/realMedia.mjs";
 
 const require = createRequire(import.meta.url);
 const ffprobePath = require("@ffprobe-installer/ffprobe").path;
@@ -12,6 +13,11 @@ const PROJECT_ID = "j5-existing-project";
 const PROJECT_NAME = "已有项目：咖啡机短片";
 const NODE_ID = "j5-shot-1";
 const NEW_PROMPT = "清晨露营桌上，钛灰色咖啡机被暖阳照亮，镜头缓慢推近，蒸汽清晰可见。";
+// 用到时才取登记素材：旅程注册表的契约测试也导入本模块，那里（含 CI）没有 NOMI_REAL_MEDIA_DIR。
+const REAL_MEDIA = ["video-4k-hevc-10bit"];
+function realVideo() {
+  return requireRealMediaAssets(REAL_MEDIA).assets.get(REAL_MEDIA[0]).file;
+}
 // 浮框钉在节点正下方的判据（与 src/workbench/generationCanvas/nodes/composerCanvasPlacement.ts 同一组数）：
 // 卡顶边 = 节点底边 + 14×缩放、卡中线 = 节点中线、屏幕宽恒 560。
 const COMPOSER_GAP = 14;
@@ -25,11 +31,11 @@ function seedExistingProject(repoRoot, projectsDir) {
   const assetDir = path.join(projectDir, "assets", "generated");
   fs.mkdirSync(path.join(projectDir, ".nomi"), { recursive: true });
   fs.mkdirSync(assetDir, { recursive: true });
-  fs.copyFileSync(path.join(repoRoot, "resources/onboarding-demo/shot-3.jpg"), path.join(assetDir, "coffee.jpg"));
-  const url = `nomi-local://asset/${encodeURIComponent(PROJECT_ID)}/assets/generated/coffee.jpg`;
+  fs.copyFileSync(realVideo(), path.join(assetDir, "real-4k.mov"));
+  const url = `nomi-local://asset/${encodeURIComponent(PROJECT_ID)}/assets/generated/real-4k.mov`;
   const node = {
     id: NODE_ID,
-    kind: "image",
+    kind: "video",
     categoryId: "shots",
     title: "镜头 1：露营咖啡机",
     prompt: "旧提示词：咖啡机放在桌上。",
@@ -37,7 +43,7 @@ function seedExistingProject(repoRoot, projectsDir) {
     exactPosition: true,
     size: { width: 360, height: 280 },
     status: "success",
-    result: { id: "j5-result-1", type: "image", url, createdAt: 1 },
+    result: { id: "j5-result-1", type: "video", url, createdAt: 1 },
   };
   const generationCanvas = {
     nodes: [node],
@@ -57,9 +63,15 @@ function seedExistingProject(repoRoot, projectsDir) {
         id: "imageTrack",
         type: "image",
         label: "图片轨",
+        clips: [],
+      },
+      {
+        id: "videoTrack",
+        type: "video",
+        label: "视频轨",
         clips: [{
           id: "j5-clip-1",
-          type: "image",
+          type: "video",
           sourceNodeId: NODE_ID,
           label: "镜头 1",
           startFrame: 0,
@@ -70,7 +82,6 @@ function seedExistingProject(repoRoot, projectsDir) {
           url,
         }],
       },
-      { id: "videoTrack", type: "video", label: "视频轨", clips: [] },
       { id: "audioTrack", type: "audio", label: "音频轨", clips: [] },
     ],
     textClips: [],
@@ -297,17 +308,22 @@ export default {
   id: "j5-edit-export",
   name: "修改项目并进入导出",
   needsAgent: false,
+  realMedia: REAL_MEDIA, // 要私有真素材：CI 不选它（scripts/eval-journey-selection.mjs）
   smoke: true,
   successCriterion: "打开已有项目，修改 prompt 后重开仍保留，时间轴可见并真实导出有效 MP4",
   async prepare({ iso, repoRoot }) {
     return { projectDir: seedExistingProject(repoRoot, iso.projectsDir) };
   },
   async setup({ win, prepared }) {
+    const startedAt = Date.now();
     await dismissSplashIfPresent(win);
     const card = win.locator('[data-project-card="true"]', { hasText: PROJECT_NAME }).first();
     await card.waitFor({ state: "visible", timeout: 10_000 });
     await card.click();
     await win.waitForURL(/projectId=/, { timeout: 10_000 });
+    await win.getByRole("button", { name: "生成", exact: true }).first().click();
+    await win.locator(`[data-node-id="${NODE_ID}"]`).first().waitFor({ state: "visible", timeout: 30_000 });
+    fs.writeFileSync(path.join(prepared.projectDir, ".nomi", "real-media-cold-open.json"), JSON.stringify({ journey: "j5-edit-export", elapsedMs: Date.now() - startedAt, asset: "video-4k-hevc-10bit" }));
     return prepared.projectDir;
   },
   milestones: [
@@ -330,6 +346,7 @@ export default {
         const promptText = await ctx.win.locator(".generation-canvas-v2-node__prompt-input").first().innerText().catch(() => "");
         return [
           check("旧节点已打开", Boolean(node), NODE_ID),
+          check("J5 冷打开耗时已记录", Number(JSON.parse(fs.readFileSync(path.join(ctx.projectDir, ".nomi", "real-media-cold-open.json"))).elapsedMs) >= 0, fs.readFileSync(path.join(ctx.projectDir, ".nomi", "real-media-cold-open.json"), "utf8"), "performance"),
           check("新 prompt 已写入 UI", promptText.includes("清晨露营桌上"), promptText),
           check("新 prompt 已持久化", node?.prompt === NEW_PROMPT, node?.prompt || "missing"),
         ];

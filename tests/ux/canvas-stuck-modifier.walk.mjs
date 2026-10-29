@@ -54,7 +54,7 @@ try {
     projectsDir,
     // 窗口挂屏幕外、不抢焦点（在用户正在用的电脑上跑）；Windows 会把屏幕外窗口判成被遮挡而停帧，一并关掉遮挡判定。
     args: ['--no-proxy-server', '--disable-features=CalculateNativeWinOcclusion'],
-    mainRequire: [path.join(path.dirname(fileURLToPath(import.meta.url)), '_offscreenWindows.cjs')],
+    mainRequire: [path.join(path.dirname(fileURLToPath(import.meta.url)), '_quietWalk.cjs')],
     initialLocalStorage: FIRST_RUN_SEEN,
     settleMs: 900,
     env: { NOMI_DISABLE_CAPABILITY_CORE: '1' },

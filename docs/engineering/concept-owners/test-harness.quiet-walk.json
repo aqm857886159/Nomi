@@ -1,0 +1,31 @@
+{
+  "name": "走查默认安静与前台门岗",
+  "subject": "test-harness.quiet-walk",
+  "lifecycle": "delivery",
+  "authority_kind": "gateway",
+  "trust_domain": "test",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "tests/ux/_launchApp.mjs",
+    "symbol": "launchNomiApp"
+  },
+  "write_api": [
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "launchNomiApp"
+    },
+    {
+      "path": "tests/ux/_launchApp.mjs",
+      "symbol": "spawnQuietElectron"
+    },
+    {
+      "path": "tests/ux/_quietWalk.cjs",
+      "symbol": "QuietBrowserWindow"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "根因合同 docs/fixes/2026-10-27-walk-steals-foreground.root-cause.json：所有隔离 launchNomiApp 默认注入同一主进程 quiet-walk；不经 launchNomiApp、直接 spawn Electron 的走查只许经 spawnQuietElectron（同一份仪表，放行位钉成空串）。普通走查窗口、app focus、Dock、shell、Notification 和原生对话框都由该边界安静处理；真实前台行为必须显式声明 foreground 并由启动器放行，Mac lsappinfo 门岗负责发现普通走查抢前台。"
+}

@@ -40,11 +40,13 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'tests/system/walks-never-trash-projects.test.mjs', roots: ['tests/ux', 'tests/system', 'scripts', 'evals', 'docs/evidence'] }, // ⑭：走查 / 脚本不许调产品删除项目口、点确认删除或直接 trashItem（会往用户真回收站塞垃圾）；遍历五个目录的脚本（<1 秒）
   { file: 'scripts/lib/buildGateScan.test.mjs', roots: ['tests'] }, // G-walk-build：tests/ 下起构建产物的入口都先核构建戳；遍历 tests（<1 秒）
   { file: 'electron/offLedgerEgress.structure.test.ts', roots: ELECTRON }, // #1156：新增 child_process 出网口没登记（5 秒）
+  { file: 'scripts/check-import-ffmpeg-owner.test.mjs', roots: ELECTRON }, // 2026-10-27：ffmpeg / ffprobe 子进程只经有界运行器起，直接起的旧门冻结只减不增；遍历 electron 非测试源码按语法树找（2 秒）
   { file: 'electron/capabilityCore/reservationAmountSingleExit.structure.test.ts', roots: ELECTRON }, // 2026-10-18：确认卡金额只许从 reservationMaximumForDisplay 出（遍历 electron 源码，1 秒）
   { file: 'electron/fileIdentity.test.ts', roots: ELECTRON }, // #1142：不许手写 dev / ino 比较（2 秒）
   { file: 'electron/shared/agentCapabilities/canvasReadShotTable.test.ts', roots: ['electron/shared/agentCapabilities', 'electron/agentLane', 'electron/capabilityCore'] }, // 2026-10-19：Agent 面只有 canvasReadShotTable.ts 读分镜表文档（遍历三目录，<1 秒）
   { file: 'scripts/check-network-entry.test.mjs', roots: ELECTRON }, // #1142：Node 网络调用必须走共用传输；扫描器 scripts/check-network-entry.mjs 在闭包里（6 秒）
   { file: 'src/vendor/tablerIcons.test.ts', roots: ['src'] }, // 2026-10-18：源码用到的 tabler 图标必须在 src/vendor/tablerIcons.ts 登记（否则只有 build 会炸；遍历 src，<1 秒）
+  { file: 'src/ui/app-shell/windowChrome.test.ts', roots: ['src'] }, // 2026-10-28：src 里每个铺满整窗的 fixed inset-0 根都得分类（让开顶栏 / 盖住顶栏但控件在带外 / 独立文档），没分类就红；遍历 src 的 .tsx（<1 秒）
   { file: 'electron/shared/mcpClientRegistry.test.ts', roots: ['src', 'electron'] }, // #1142：不许手抄客户端清单（4 秒）
   { file: 'electron/shared/contracts/ipcInvokeFailure.test.ts', roots: ['electron', 'src'] }, // 2026-10-24：全仓代码里写下的错误类名都要过 isCodeClassName（遍历 electron + src，<1 秒）
   { file: 'electron/capabilityCore/spendDoorSingleOwner.test.ts', roots: ELECTRON }, // 5 秒
@@ -76,7 +78,6 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/customEventWiring.test.ts', roots: SRC },
   { file: 'src/design/mediaOverlayInk.test.ts', roots: SRC },
   { file: 'src/design/menu.structure.test.ts', roots: SRC },
-  { file: 'src/design/portalLayer.structure.test.ts', roots: SRC },
   { file: 'src/design/outsidePress.structure.test.ts', roots: SRC }, // 「点外面」只有一种听法：遍历 src 找 mousedown / touchstart / 冒泡 pointerdown 监听与 useClickOutside（<1 秒）
   { file: 'src/design/popoverTracking.structure.test.ts', roots: SRC }, // 浮层跟踪不许逐帧轮询：遍历 src 找 autoUpdate 与 animationFrame（<2 秒）
   { file: 'src/ui/browser/assetSurfaceInvariants.test.ts', roots: SRC }, // 7 秒
@@ -90,11 +91,16 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/viteOptimizeDeps.test.mjs', roots: SRC }, // 4 秒
   { file: 'scripts/build-tailwind.test.ts', roots: SRC, exts: [...CODE_EXTS, 'css', 'html'], files: ['tailwind.config.ts'] }, // 跑一次 tailwind content 扫描（12 秒）
   { file: 'scripts/canvas-store-subscriptions.test.mjs', roots: SRC, files: ['eslint.config.mjs'] }, // 画布 nodes / edges 整表订阅存量冻结：遍历 src 按语法树数处数（11 秒）
+  { file: 'scripts/ui-money-format.test.mjs', roots: SRC, files: ['eslint.config.mjs', 'scripts/fixtures/ui-money/ProductionDetails.before.tsx.txt'] }, // 界面不印金额的出口名单只减不增：遍历 src 按语法树数处数（Mac 本机单跑约 5–7 秒）
+  { file: 'evals/journeys/journeyContracts.test.ts', roots: ['evals/journeys'], files: ['tests/ux/real-media-fixtures.json'] }, // 旅程读了真素材就必须声明 realMedia（CI 不选它）：遍历 evals/journeys 的旅程源码对全集断言，id 对登记表
   { file: 'src/workbench/project/projectActionIssuance.contract.test.ts', roots: ['src', 'electron'] }, // 13 秒
   { file: 'src/assets/vendor-logos/vendorLogos.test.ts', roots: ['src/assets/vendor-logos', 'src/config', 'src/design', 'src/ui', 'src/workbench'] },
   // ── src/workbench 及以下 ──
+  { file: 'src/workbench/sessionCleanupCensus.test.ts', roots: [...WORKBENCH, 'docs/engineering/concept-owners'], exts: [...CODE_EXTS, 'json'] }, // 概念登记驱动 effect cleanup 普查：会话业务写入不随组件卸载（Mac 单跑 1.4 秒）
   { file: 'src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts', roots: WORKBENCH }, // 5 秒
+  { file: 'src/workbench/pageLayerCensus.test.ts', roots: WORKBENCH }, // 2026-10-29：src/workbench 里每个挂到 document.body 的 portal（createPortal / <BodyPortal>）都要登记归属与生命周期，页格内的层只经 GenerationPageLayer、藏着时键盘监听要停，按 class 名找画布格只许三处存量；遍历 workbench 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/ai/pointer/pointerDoors.test.ts', roots: ['src/workbench/ai/pointer'] }, // 指向元素目录：不许自己动画布视口（唯一出口 viewNodeInCanvas）、不自带焦点环；只遍历这一个目录，按语法树判（<1 秒）
+  { file: 'src/workbench/promptLibrary/userPromptDoors.guard.test.ts', roots: ['src', 'electron'] }, // 2026-10-28：「我的库」提示词列表只有一条写入路——桥的写方法只有 promptLibraryApi 调、publishUserPrompts 只有一个调用方、存储写函数只有 promptLibraryIpc 引用、存盘文件名只在存储与并排安装拷贝里；遍历 src 与 electron 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/generationCanvas/nodes/fencedCanvas.invariant.test.ts', roots: WORKBENCH },
   { file: 'src/workbench/generationCanvas/store/canvasReadyOwner.test.ts', roots: WORKBENCH }, // 12 秒
   { file: 'src/workbench/generationCanvas/components/canvasControlsStructure.test.ts', roots: ['src/workbench/generationCanvas'] }, // 4 秒
@@ -113,6 +119,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/vitest-lanes.test.ts', match: TEST_STYLE_FILE }, // 全仓每个测试样式文件都必须被某条车道认领；vitest.config.ts 在闭包里
   { file: 'tests/ux/_launchApp.test.mjs', roots: ['tests/ux', 'scripts'], exts: ['mjs'] }, // 每个字面凭据夹具都显式声明隔离合成存储（3 秒）
   { file: 'tests/ux/_paidRun.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每个 *.paid.mjs 都走 openPaidWalk 或在例外表里
+  { file: 'tests/ux/_paidEnvKey.test.mjs', roots: ['tests/ux'], files: ['electron/catalog/seedBuiltins.ts'], exts: ['mjs'] }, // 2026-10-28：走查脚本不许点名 seedBuiltins.ts 退役名单里的 APIMart 文本模型；退役名单一改也跑（<1 秒）
   { file: 'tests/ux/storyboard-editor-entry.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 走查不许自己点方案行进编辑器，只经 openStoryboardEditor（1 秒）
   { file: 'tests/ux/design-lab/labFailureTriage.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每份设计实验室走查入口认领角色、不写死端口
   { file: 'tests/ux/full-walk/limitsRegistry.test.mjs', roots: ['tests/ux/full-walk'], exts: ['mjs'] }, // 2026-10-25：全功能走查（监视器 / 动作 / 剧本）读的每一个 limits.<名字> 都在 loadLimits 登记、带出处（<1 秒）

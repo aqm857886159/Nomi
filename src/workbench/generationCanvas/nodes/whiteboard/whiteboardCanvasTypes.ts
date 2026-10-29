@@ -26,12 +26,15 @@ export type LeaferGroup = InstanceType<LeaferUiModule['Group']>
 export type LeaferPath = InstanceType<LeaferUiModule['Path']>
 export type LeaferPathCommandData = ReturnType<LeaferUiModule['PathConvert']['parse']>
 export type LeaferPathTools = Pick<LeaferUiModule, 'PathCommandMap' | 'PathConvert' | 'PathNumberCommandLengthMap'>
-export type LeaferRenderContext = Pick<
+/** What the scene renderer draws with: the Leafer classes and the group it fills. It never needs the App. */
+export type LeaferSceneContext = Pick<
   LeaferUiModule,
   'Box' | 'Group' | 'Image' | 'Path' | 'PathCommandMap' | 'PathConvert' | 'PathNumberCommandLengthMap' | 'Rect' | 'Text'
 > & {
-  app: LeaferApp
   rootGroup: LeaferGroup
+}
+export type LeaferRenderContext = LeaferSceneContext & {
+  app: LeaferApp
 }
 export type CanvasObjectKind = 'asset' | 'stroke' | 'group' | 'text'
 export type CanvasObjectOffset = {

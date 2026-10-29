@@ -58,15 +58,16 @@ export function isDeconstructionRunLive(tableNodeId: string): boolean {
 }
 
 /**
- * 标记「用户取消了这一次」。不 abort 主进程那次调用（IPC invoke 没有取消口），
- * 而是**把这次调用的结果作废**：它回来时不许再写进表。
- * 返回 false = 这个节点上根本没有在飞的调用，没什么可取消。
+ * 标记「用户取消了这一次」：它回来时不许再写进表（迟到结果作废）。
+ * 返回这次调用的 requestId——调用方拿它去撤主进程那次拆解（`video.cancelDeconstruct`，2026-10-27）：
+ * 停不停由主进程那份请求登记说了算，这里只管表的终态。
+ * 返回 undefined = 这个节点上根本没有在飞的调用，没什么可取消。
  */
-export function markDeconstructionCancelled(tableNodeId: string): boolean {
+export function markDeconstructionCancelled(tableNodeId: string): string | undefined {
   const run = liveRuns.get(tableNodeId)
-  if (!run) return false
+  if (!run) return undefined
   run.cancelled = true
-  return true
+  return run.requestId
 }
 
 export function isDeconstructionRunCancelled(tableNodeId: string, requestId: string): boolean {

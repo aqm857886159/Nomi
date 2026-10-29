@@ -1,0 +1,160 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-ui-money-amounts",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-27",
+  "problem_type": "Run 账本的已知价合计被当成全额：任务中心把它格式化成金额上屏，对外投影把它原样交给 Agent 转述。",
+  "symptom": "任务中心「制作详情」的已授权 / 已预留 / 已结算 / 待结算四格印出零金额；Agent 读一个批过算不出价镜头的 Run 时转述「预算上限 0 · 已花费 0」，结构化结果里也是 0。",
+  "direct_cause": "ProductionDetails.tsx 用 Intl currency 格式化 view.details.budget；safeRunProjection 原样外发 run.budget，mcpToolResults.ts 见到数字就转述。",
+  "class_root": "账本把已知价合计和未知价笔数分两根轴记（预留 amount=null、unknownInFlight、信封 unknownJobCount），实付也从不回写；读侧没有一个共享的「这个合计是不是全额」判定，各出口直接读合计。门岗只按词表扫词典字符串，看不见代码里现算出来的金额。",
+  "affected_population": [
+    "任务中心打开任何一个制作详情的用户（中英界面）",
+    "经 MCP 读 Run 的外部 Agent 与内置 Agent（nomi_read target=run、nomi_run_control、nomi_run_gate、nomi_run_start）",
+    "以后在渲染层新写金额格式化的任何界面"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunProjections.ts",
+    "electron/productionRun/productionRunProjections.test.ts",
+    "electron/capabilityCore/mcpToolResults.test.ts",
+    "scripts/ui-money-format.mjs",
+    "scripts/ui-money-format.test.mjs",
+    "eslint.config.mjs"
+  ],
+  "entry_points": [
+    "safeRunProjection → knownRunBudget：所有 MCP 读 Run 的结果都经它",
+    "ProductionDetails：任务中心制作详情（四格已删，视图不再带预算）",
+    "src/ 渲染层源码里任何金额格式化写法与货币格式化函数的 import（ESLint ui-money/*）"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionRunProjections.ts",
+    "tests": [
+      "electron/productionRun/productionRunProjections.test.ts",
+      "electron/capabilityCore/mcpToolResults.test.ts"
+    ],
+    "why": "对外投影是 Run 离开主进程的唯一形状（dispatcher 的 readProjection / createDraft 都经它），它同时看得见账本合计和未知价那根轴，是最早能判定「这个数是不是全额」的共享层；账本本身已经区分未知与 0，不改。"
+  },
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/eslint/eslint/blob/v10.4.1/lib/rules/no-restricted-imports.js",
+      "checked_at": "2026-10-27",
+      "purpose": "确认仓库锁定的 eslint 10.4.1 的 no-restricted-imports 支持 patterns[].regex（本机 node_modules 同版本源码），用来只放行登记过的货币格式化函数调用者。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/eslint/eslint/blob/v10.4.1/lib/rules/no-restricted-syntax.js",
+      "checked_at": "2026-10-27",
+      "purpose": "确认按 esquery 选择器报告节点（本机同版本源码与实跑反例表），金额写法按语法树认，不自写扫描器。"
+    }
+  ],
+  "invariants": [
+    "对外投影的 budget 只有 currency / authorized / actual：批过算不出价的镜头或有未知价在途时 authorized 为 null；还有预留中 / 结果不明 / 未知价在途的笔时 actual 为 null；绝不把不知道写成 0。",
+    "Agent 转述只说投影给出的数：null 时不写钱、不写 0。",
+    "任务中心制作详情不印金额；渲染层源码不新增金额格式化写法，现存的几处登记在 scripts/ui-money-format.mjs，只减不增。"
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/agentLane/laneDesktopRuntime.ts", "symbol": "createDesktopLaneTasks" },
+    { "kind": "read", "path": "electron/productionRun/productionRunArtifactOperations.ts", "symbol": "runProjection" },
+    { "kind": "read", "path": "electron/productionRun/productionRunProjections.ts", "symbol": "knownRunBudget" },
+    { "kind": "read", "path": "electron/productionRun/productionRunProjections.ts", "symbol": "safeRunProjection" },
+    { "kind": "read", "path": "electron/productionRun/productionRunService.ts", "symbol": "runProjection" },
+    { "kind": "read", "path": "src/workbench/production/useProductionStatus.ts", "symbol": "buildProductionRunView" },
+    { "kind": "write", "path": "electron/productionRun/budgetLedger.ts", "symbol": "summarizeBudgetLedger" },
+    { "kind": "write", "path": "electron/productionRun/productionRunReducer.ts", "symbol": "validateBudget" },
+    { "kind": "write", "path": "electron/productionRun/productionRunRepository.ts", "symbol": "applyBudgetEntry" },
+    { "kind": "write", "path": "electron/productionRun/productionRunRepository.ts", "symbol": "createBudgetLedger" },
+    { "kind": "write", "path": "electron/productionRun/productionRunRepository.ts", "symbol": "withReadDefaults" },
+    { "kind": "write", "path": "electron/productionRun/productionRunRepository.ts", "symbol": "summarizeBudgetLedger" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 12,
+    "why_not": "写入口 6 扇是账本自己的记账门（逐笔回放、合计、读盘补计数、旧 budget.set 校验），都不把未知记成 0，属花钱逻辑本身，本次不动。读侧对外的门（service / artifact operations 的 runProjection）全部汇到 safeRunProjection → knownRunBudget 这一个判定（新增的这一扇就是那个判定本身）；渲染层的 buildProductionRunView 仍是任务中心读 Run 的门，但视图不再带预算；Agent 面板任务卡（createDesktopLaneTasks）读原始合计，属 Agent 面板价格文案，本次只列名单。"
+  },
+  "generality_proof": "判定放在对外投影这一层：nomi_read / nomi_run_control / nomi_run_gate / nomi_run_start 的结果、MCP 文本转述、nomiOutcome、nomiRunData 都从同一份投影来，任何新的 MCP 读口只要经 readProjection 就自动得到同一口径；类型 KnownRunBudget 让外发形状里根本没有预留 / 未结算 / 在途笔数。渲染层这一侧由 ESLint 规则按语法树拦所有金额格式化写法，并卡死唯一现成格式化函数的调用者名单，新组件写不出新的金额格。",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionRunProjections.ts",
+      "symbol": "knownRunBudget",
+      "responsibility": "判定对外的预算哪个数是知道的：未知价批过 / 在途时上限为 null，未落定时已花为 null，记账口径字段不外发。"
+    },
+    {
+      "path": "scripts/ui-money-format.mjs",
+      "symbol": "MONEY_FORMAT_SELECTORS",
+      "responsibility": "渲染层金额格式化写法的唯一判据与现存出口名单（eslint.config.mjs 的 ui-money/* 规则读它，普查测试按同一份数）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionRunProjections.ts",
+      "entry_point": "safeRunProjection",
+      "disposition": "enforced",
+      "evidence": "budget 改由 knownRunBudget 给出，只有三个键；productionRunProjections.test.ts 表驱动 11 种账本形状 + 键断言。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpToolResults.ts",
+      "entry_point": "buildToolOutcome nomi_read / nomi_run_control",
+      "disposition": "enforced",
+      "evidence": "转述本来只在 typeof number 时写数；经真投影的用例证明未知价 Run 中英文本都不写钱、不写 0，结构化结果为 null，已知且落定照报。"
+    },
+    {
+      "path": "src/workbench/production/ProductionDetails.tsx",
+      "entry_point": "ProductionDetails",
+      "disposition": "enforced",
+      "evidence": "四个金额格、只给它用的货币格式化与四个词典键已删，视图类型不再有 budget；ProductionRunTaskCard.test.ts 断言详情里没有金额键和货币符号；删之前的原文件在 ui-money-format.test.mjs 里必红。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "账本合计的字段名不带「仅已知价」限定，任何新的读侧出口都会自然把它当全额；渲染层任何组件都能现算货币格式，词表门岗看不见。不在共享层判定、不在 lint 层拦，这一类会从下一个组件或下一个读口回来。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs --write=summarizeBudgetLedger,applyBudgetEntry,createBudgetLedger,validateBudget,withReadDefaults --read=knownRunBudget,safeRunProjection,runProjection,buildProductionRunView,createDesktopLaneTasks：写 6 扇读 6 扇，写入口都不把未知记成 0。",
+      "git grep budget.(authorized|actual|reserved|unsettled) 全仓：对外投影的消费者只有 mcpToolResults 与 production-mcp-journey e2e 的草稿断言（草稿仍为 0），其余读的是原始 Run。",
+      "scripts/ui-money-format.test.mjs 普查全 src（1632 个文件）：14 处命中全在出口名单的 7 个文件里，名单外 0 处。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionRunProjections.ts",
+    "invariant": "对外的 Run 预算只给知道的数，不知道是 null；渲染层不新增金额格式化。",
+    "failure_mode": "新的读口原样外发合计会过不了 KnownRunBudget 类型与 productionRunProjections.test.ts 的键断言；新组件写金额格式化或 import 货币格式化函数会被 ESLint ui-money/* 报错，普查测试按出口名单处数核对。",
+    "exception_policy": "none",
+    "strategy": "投影层换掉原样外发（同提交删除旧写法），任务中心删格，ESLint 内置规则以独立 id 注册拦写法与 import，出口名单只减不增。",
+    "artifacts": [
+      "electron/productionRun/productionRunProjections.ts",
+      "scripts/ui-money-format.mjs",
+      "eslint.config.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionRunProjections.test.ts",
+    "electron/capabilityCore/mcpToolResults.test.ts",
+    "src/workbench/production/ProductionRunTaskCard.test.ts",
+    "scripts/ui-money-format.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionRunProjections.test.ts",
+    "scripts/ui-money-format.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/productionRunProjections.ts",
+      "src/workbench/production/ProductionDetails.tsx",
+      "src/workbench/production/productionRunView.ts"
+    ],
+    "rationale": "投影里原样外发 run.budget 的写法、任务中心详情的四个金额格与它专用的货币格式化、视图里的 details.budget 都在本提交删除；文件本身保留为各自的 owner。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只用仓库已锁定的 eslint 内置规则，不新增也不升级依赖。",
+    "exit_criteria": []
+  },
+  "migration": "不落盘、不迁移：投影是读时派生；旧盘缺 unknownInFlight 仍由 withReadDefaults 补 0，旧信封缺 unknownJobCount 按 0。",
+  "residual_risks": [
+    "Agent 面板任务卡读原始账本（electron/agentLane/laneDesktopTasks.ts），未知价仍会印成零金额；付费确认卡、Agent 付费卡、Agent 提案卡的预估、节点来历面板、两条词典模板仍印金额。都登记在 scripts/ui-money-format.mjs 的出口名单里，去留交协调。",
+    "规则看不见不带币种的裸数字（如付费确认卡的 formatAmount）和经变量间接传给 t() 的金额。",
+    "生产代码不回写实付，派发过的 Run 对外的已花费会一直是 null。",
+    "没有授权信封的旧式门上跑过的未知价镜头，落定后上限会重新显示为账面数（旧写手已退役，只剩旧盘）。"
+  ]
+}

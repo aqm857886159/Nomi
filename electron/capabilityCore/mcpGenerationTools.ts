@@ -5,7 +5,7 @@ import { createDocumentPlanAuthoring } from './generationDocumentPlan';
 import { GenerationOperationNotFoundError } from '../productionRun/productionRunErrors';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
 import type { GenerationInvocationContext } from '../shared/agentCapabilities/generationInvocationContext';
-import { resolveGenerationShotScope } from "../shared/agentCapabilities/generationShotScope";
+import { shotsOnOffer } from "../shared/agentCapabilities/generationShotScope";
 import crypto from "node:crypto";
 import { hasMentions } from "../shared/storyboard/promptMentions";
 import {
@@ -555,11 +555,10 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // The durable owner validates lifecycle and preserves prior execution evidence.
       // 2026-09-22 上午这里有一条「被 × 过的 operationId 不许再 present」的拒绝。当天下午用户改窄了裁决 D：
       // × 收回的是**这一次出价**，不是那份计划——对同一份草稿再 `generate` 就是重新出价，必须放行。
-      const scope = resolveGenerationShotScope(current.shots?.map((shot) => shot.shotId) ?? [current.candidate.candidateId], params.shotIds);
-      const operation = await deps.operations.present(input.lease.projectId, operationId, now(), scope, input.storyboardTarget, input.approvalPolicy);
-      const shots = operation.shots && operation.shots.length > 0
-        ? operation.shots.filter((shot) => shot.included !== false).map((shot) => shot.shotId)
-        : [operation.candidate.candidateId];
+      // 2026-10-27：`shotIds` 原样交给 Run 主人，摆哪几镜只在 `presentGenerationPlan` 按出价账算（不点名 = 最近一张卡上还没定的，
+      // 一镜不剩就拒）；这里不预解析。回执的 `shots` 就是这一次出价摆的镜。
+      const operation = await deps.operations.present(input.lease.projectId, operationId, now(), params.shotIds, input.storyboardTarget, input.approvalPolicy);
+      const shots = shotsOnOffer(operation);
       return { operation, taskRef: generationTaskReference(operation.operationId), shots, nextAction: "await_user" };
     }
     if (input.capability === "plan") {
@@ -625,8 +624,8 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     }
     if (input.capability === "gate_request") {
       if (current.sourceDocumentId) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "This draft came from a storyboard; use the original storyboard confirmation instead of requesting a gate here.");
-      // 逐镜（2026-09-30）：这一次封哪几镜——卡上点到的那几镜；不点名 = 还没封过的全部。一次没点完、盖着别的镜的
-      // 那份等人授权先撤掉（只解封它盖着的镜），再按这一次的范围封（`resolveGateScope`）。
+      // 逐镜（2026-09-30）：这一次封哪几镜——点到的那几镜；不点名 = 最近一张卡上还没定、也还没封的（2026-10-27，一镜不剩就拒）。
+      // 一次没点完、盖着别的镜的那份等人授权先撤掉（只解封它盖着的镜），再按这一次的范围封（`resolveGateScope`）。
       let base = current;
       let decision = resolveGateScope(base, params.shotIds);
       if (decision.kind === "abandon-then-seal") {

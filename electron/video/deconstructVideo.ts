@@ -29,12 +29,13 @@ import { firstString, isJsonRecord, parseLooseJsonObject, trim } from "../jsonUt
 // 旧分支从 agentChatV2 import 已失效，port 时改指真源（docs/ARCHITECTURE-NOW 的「文本大脑」判据同一处）。
 import { resolveVisionLeg, type VisionLegIdentity } from "./deconstructVisionLeg";
 import { runTask } from "../runtime";
+import { TOKEN_ADMISSION, stoppableAdmission, type TaskAdmission } from "../tasks/taskSpend";
 import { findExecutableModel, findExecutableModelForMode, findExecutableModelInMode } from "../catalog/executableModel";
 import { readCatalog } from "../catalog/catalogStore";
 import { readVendorPreferenceSettings } from "../settings/vendorPreferenceSettings";
 import { getDesktopLocale } from "../i18n";
 import { isSpendAuthorizationError } from "../spendGrant";
-import { logError } from "../logging/logger";
+import { logError, logInfo } from "../logging/logger";
 import { desktopT } from "../i18n";
 
 /** 用户自定义列：`hint` 会拼进 VLM 的输出 schema —— 你想让 AI 关注什么，就加一列告诉它。 */
@@ -69,6 +70,8 @@ export type DeconstructShot = {
 export type DeconstructVideoPayload = {
   videoUrl: string;
   projectId: string;
+  /** IPC 的请求号：主进程按「发送方:requestId」登记这次拆解，取消口按它撤（缺了主进程直接拒）。 */
+  requestId?: string;
   /** 切点灵敏度；不传用 detectShotCuts 的默认低阈值全集。 */
   threshold?: number;
   /** 每镜取几帧，默认 3。调到 1 = 省钱档（会漏快闪字幕）。 */
@@ -138,6 +141,12 @@ export type DeconstructVideoOptions = {
    */
   onPhase?: (phase: 0 | 1 | 2, detail?: string) => void;
   authorizeSpend: DeconstructAuthorizeSpend;
+  /**
+   * 这次拆解的停止信号。**必填**，理由同 authorizeSpend：新调用方漏传在编译期就红，而不是写出一条停不下来的拆解。
+   * 由主进程请求登记签发（electron/ipcRequestRegistry.ts：渲染层撤回 / 发起窗口销毁 / 项目会话失效 / 退出）。
+   * 第一刀（2026-10-27）：已取消就不再起新的本机子进程、不再进付费闸；取消那一刻已经过了付费闸的那一次照常结算。
+   */
+  signal: AbortSignal;
 };
 
 export type DeconstructVideoResult = {
@@ -166,6 +175,27 @@ export class DeconstructError extends Error {
     this.name = "DeconstructError";
   }
 }
+
+/** 这次拆解被停下了（用户点取消 / 发起窗口没了 / 项目换了 / 退出）。不是失败：IPC 侧据此回「已停」，不写失败、不记失败日志。 */
+export class DeconstructCancelledError extends Error {
+  constructor() {
+    super("deconstruct cancelled");
+    this.name = "DeconstructCancelledError";
+  }
+}
+
+/** 编排里每一步发之前都过这一下：已取消就不往下走——不起新的本机子进程、不发新的付费调用。 */
+function stopIfCancelled(signal: AbortSignal): void {
+  if (signal.aborted) throw new DeconstructCancelledError();
+}
+
+/** 取消时记的那一笔（日志 `deconstruct.cancelled`）。过了付费闸的记「已发或未知」：供应商可能已受理，不说退款、不说没花钱。 */
+type CancelReceipt = {
+  quotedCalls: number;
+  sentOrUnknown: number;
+  /** 转写腿：none = 没起跑；stopped = 被停下（没进闸，或回来时已取消）；settled = 照常回来；failed = 取消前就失败了。 */
+  transcribe: "none" | "stopped" | "settled" | "failed";
+};
 
 export const DECONSTRUCT_FRAMES_PER_SHOT = 3;
 export const DECONSTRUCT_CONCURRENCY = 4;
@@ -233,17 +263,21 @@ async function transcribeShots(
   projectId: string,
   boundaries: ShotBoundary[],
   leg: { vendorKey: string; modelKey: string; grantId: string; nodeId: string },
+  run: { signal: AbortSignal; admission: TaskAdmission },
   onDetail?: (detail: string) => void,
 ): Promise<{ hasAudio: boolean; dialogues: ReturnType<typeof assignSegmentsToShots>; failureReason?: string; failureKind?: "local-speech" }> {
   const empty = assignSegmentsToShots([], boundaries);
-  // ⚠️ 这个函数**绝不能 reject**：调用方把它当悬空 promise 先起跑、几十秒后才 await，
-  // 中间若抛出，Node 会判「未处理的 rejection」→ 主进程崩 → IPC 侧只看到
+  // ⚠️ 这个函数**只在取消时 reject**（抛 DeconstructCancelledError，调用方当场挂着 `.catch` 认它）；
+  // 其余失败一律带原因返回：调用方把它当悬空 promise 先起跑、几十秒后才 await，
+  // 中间若抛出又没人接，Node 会判「未处理的 rejection」→ 主进程崩 → IPC 侧只看到
   // 「reply was never sent」，完全查不出真因（2026-08-13 真踩，排查了两轮）。
   // 所以取音轨这一步也必须包住——它会因「视频太长/没装 ffmpeg」正常抛错。
   let track: Awaited<ReturnType<typeof extractAudioTrack>>;
   try {
-    track = await extractAudioTrack({ videoUrl, projectId });
+    track = await extractAudioTrack({ videoUrl, projectId }, { signal: run.signal });
   } catch (error) {
+    // 取消不是「取音轨失败」：照原样交出去，由调用方的 `.catch` 记成「转写腿已停」。
+    if (run.signal.aborted) throw new DeconstructCancelledError();
     logError("tasks", "deconstruct.audio-track-failed", error, { projectId });
     return { hasAudio: false, dialogues: empty, failureReason: messageOf(error) };
   }
@@ -274,6 +308,8 @@ async function transcribeShots(
     );
   });
   try {
+    // 发转写之前再看一眼：已取消就连付费闸都不碰。
+    stopIfCancelled(run.signal);
     const result = await runTask({
       vendor: leg.vendorKey,
       request: {
@@ -286,7 +322,7 @@ async function transcribeShots(
         // 被按中文转写。它同时进 spend plan 的 parameters，报价与真实调用看到的是同一个值。
         extras: { projectId, file: track.url, language: transcribeLanguage(), modelKey: leg.modelKey, grantId: leg.grantId, nodeId: leg.nodeId },
       },
-    });
+    }, run.admission);
     const raw = (result as { raw?: unknown }).raw;
     const segments: TranscriptSegment[] = isJsonRecord(raw) && Array.isArray(raw.segments)
       ? raw.segments.flatMap((item) => {
@@ -304,6 +340,9 @@ async function transcribeShots(
     }
     return { hasAudio: true, dialogues: assignSegmentsToShots(segments, boundaries) };
   } catch (error) {
+    // 取消之后回来的任何错误（闸外层拒了、在途那一次失败了、本机转写停了）都是「已停」，不是转写失败：
+    // 不记 transcribe-failed，更不认成 local-speech——那会给出「改用云端重试」，让用户为一次取消多花钱。
+    if (run.signal.aborted) throw new DeconstructCancelledError();
     // 转写挂了不该毁掉整次拆解——画面那半仍然有价值。但**原因要带回去**：
     // 顶上一行说清「对白为什么是空的」，不再让用户对着空列猜（诊断「静默吞错门」第 2 行）。
     logError("tasks", "deconstruct.transcribe-failed", error, { projectId });
@@ -383,8 +422,33 @@ export function resolveTranscribeLeg(requested?: DeconstructVideoPayload["transc
  * 于是 09-09 的付费闸把每一镜都在发请求之前挡掉，再被 catch 吞成每格「没读出」。
  */
 export async function deconstructVideo(payload: DeconstructVideoPayload, options: DeconstructVideoOptions): Promise<DeconstructVideoResult> {
-  const onPhase = options.onPhase;
-  onPhase?.(0);
+  const receipt: CancelReceipt = { quotedCalls: 0, sentOrUnknown: 0, transcribe: "none" };
+  try {
+    const result = await runDeconstruction(payload, options, receipt);
+    // 两条腿都回来了才发现已取消：结果作废，不交出去（IPC 侧回「已停」）。
+    stopIfCancelled(options.signal);
+    return result;
+  } catch (error) {
+    if (!options.signal.aborted) throw error;
+    logInfo("tasks", "deconstruct.cancelled", {
+      projectId: trim(payload.projectId),
+      nodeId: trim(payload.nodeId),
+      requestId: trim(payload.requestId),
+      quotedCalls: receipt.quotedCalls,
+      sentOrUnknown: receipt.sentOrUnknown,
+      neverSent: Math.max(0, receipt.quotedCalls - receipt.sentOrUnknown),
+      transcribe: receipt.transcribe,
+    });
+    throw error instanceof DeconstructCancelledError ? error : new DeconstructCancelledError();
+  }
+}
+
+async function runDeconstruction(payload: DeconstructVideoPayload, options: DeconstructVideoOptions, receipt: CancelReceipt): Promise<DeconstructVideoResult> {
+  const { signal } = options;
+  // 取消之后不再报进度：表已经是「已取消」，迟到的阶段不该把它演回「进行中」。
+  const onPhase = (phase: 0 | 1 | 2, detail?: string): void => { if (!signal.aborted) options.onPhase?.(phase, detail); };
+  stopIfCancelled(signal);
+  onPhase(0);
   const { videoUrl, projectId } = payload;
   if (!trim(videoUrl)) throw new DeconstructError("缺少源视频地址");
   if (!trim(projectId)) throw new DeconstructError("缺少 projectId");
@@ -394,11 +458,11 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, options
 
   // 时长算最后一镜的结尾；
   // hasAudio 决定这次到底要不要买一次转写——没有音轨就不该出现在报价里。
-  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId);
+  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId, signal);
   let durationSeconds: number;
   let sourceHasAudio: boolean;
   try {
-    const meta = await probeMediaMetadata(filePath);
+    const meta = await probeMediaMetadata(filePath, { signal });
     durationSeconds = typeof meta.durationSeconds === "number" ? meta.durationSeconds : 0;
     sourceHasAudio = meta.hasAudio === true;
   } finally {
@@ -406,7 +470,8 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, options
   }
   if (!(durationSeconds > 0)) throw new DeconstructError("读不出视频时长，无法拆解");
 
-  const detected = await detectShotCuts({ videoUrl, projectId });
+  stopIfCancelled(signal);
+  const detected = await detectShotCuts({ videoUrl, projectId }, { signal });
   const threshold = payload.threshold;
   const cutSeconds = (detected.cuts || [])
     .filter((cut) => (typeof threshold === "number" ? cut.score >= threshold : true))
@@ -464,19 +529,24 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, options
       ...(transcribeLeg ? [{ ...transcribeLeg, parameters: { language: transcribeLanguage() } }] : []),
     ],
   };
+  receipt.quotedCalls = plan.lines.length;
+  // 报价卡之前、令牌回来之后各看一眼：已取消就不弹卡；卡上确认与取消同时到，也不发。
+  stopIfCancelled(signal);
   const grantId = await options.authorizeSpend(plan);
+  stopIfCancelled(signal);
   if (!grantId) throw new DeconstructError(desktopT("deconstruct.spendDeclined"));
+  // 付费闸外层的「停」：已取消不进闸、不扣钱；闸里等人确认回来时已取消也不放行。
+  // 过了闸的那一次照常发出、照常结算（在途不断开，runtime.ts 一行不动；断开是第二刀），这里只记「已发或未知」几次。
+  const admission = stoppableAdmission(signal, TOKEN_ADMISSION, () => { receipt.sentOrUnknown += 1; });
 
   // 声音那一路和画面那一路并行跑（互不依赖）。
-  // `.catch` 是第二道保险：transcribeShots 已承诺不 reject，但悬空 promise 一旦破例
-  // 就会崩主进程（见该函数头注释），这里再兜一层，代价为零。
-  type AudioOutcome = Awaited<ReturnType<typeof transcribeShots>>;
+  // `.catch` 当场挂上：transcribeShots 只在取消时 reject，悬空 promise 没人接就会崩主进程（见该函数头注释）。
+  // 取消照原样认出来（记「转写腿已停」），不摊成「对白没取到」那句失败；别的意外才落失败原因。
+  type AudioOutcome = Awaited<ReturnType<typeof transcribeShots>> & { stopped?: boolean };
   const audioPromise: Promise<AudioOutcome> = transcribeLeg
-    ? transcribeShots(videoUrl, projectId, boundaries, { ...transcribeLeg, grantId, nodeId }, (detail) => onPhase?.(2, detail)).catch((error: unknown) => ({
-        hasAudio: false,
-        dialogues: assignSegmentsToShots([], boundaries),
-        failureReason: messageOf(error),
-      }))
+    ? transcribeShots(videoUrl, projectId, boundaries, { ...transcribeLeg, grantId, nodeId }, { signal, admission }, (detail) => onPhase(2, detail)).catch((error: unknown) => (signal.aborted
+        ? { hasAudio: false, dialogues: assignSegmentsToShots([], boundaries), stopped: true }
+        : { hasAudio: false, dialogues: assignSegmentsToShots([], boundaries), failureReason: messageOf(error) }))
     : Promise.resolve({
         hasAudio: sourceHasAudio,
         dialogues: assignSegmentsToShots([], boundaries),
@@ -485,23 +555,27 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, options
         ...(transcribeResolution && !transcribeResolution.ok ? { failureReason: desktopT("deconstruct.noTranscribeModel") } : {}),
       });
 
-  onPhase?.(1);
+  onPhase(1);
   // 闸在半路拒了（令牌过期 / 预算被别处吃光）= 整件事没被授权，不是某一格空白。
   // 记下来、停掉后续镜头，收尾时整体抛出——绝不摊进每一格变成满屏「没读出」。
   let gateFailure: string | null = null;
   const analyzed = await mapWithConcurrency(targets, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot): Promise<AnalyzedShot> => {
     const empty: AnalyzedShot = { shot, frameUrls: [], parsed: null };
-    if (gateFailure) return empty;
+    // 闸拒了，或已取消：后面的镜不再起跑。取消不留原因——它不是这一镜读图失败（结果整份作废）。
+    if (gateFailure || signal.aborted) return empty;
     const seconds = sampleSecondsForShot(shot, framesPerShot);
     let frameUrls: string[];
     try {
       frameUrls = await Promise.all(
-        seconds.map(async (s) => (await extractVideoFrameToAsset({ videoUrl, which: s, projectId })).url),
+        seconds.map(async (s) => (await extractVideoFrameToAsset({ videoUrl, which: s, projectId }, { signal })).url),
       );
     } catch (error) {
+      if (signal.aborted) return empty;
       logError("tasks", "deconstruct.frame-failed", error, { projectId, shot: String(shot.index) });
       return { ...empty, failureReason: messageOf(error) };
     }
+    // 发读图之前再看一眼：抽帧那几秒里取消了，这一镜就不发。
+    if (signal.aborted) return empty;
     try {
       const result = await runTask({
         vendor: brain.vendor,
@@ -518,11 +592,13 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, options
             maxRetries: 0,
           },
         },
-      });
+      }, admission);
       const parsed = parseLooseJsonObject(textFromTaskResult((result as { raw?: unknown }).raw));
       // 模型回了但不是可解析的 JSON：也要留一句话，不让这一镜只剩空白。
       return { shot, frameUrls, parsed, ...(parsed ? {} : { failureReason: desktopT("deconstruct.visionUnparseable") }) };
     } catch (error) {
+      // 取消之后回来的任何错误（闸外层拒了、在途那一次失败了）都是「已停」，不摊成这一镜读图失败、不记失败日志。
+      if (signal.aborted) return { shot, frameUrls, parsed: null };
       if (isSpendAuthorizationError(error)) {
         gateFailure = messageOf(error);
         return { shot, frameUrls, parsed: null };
@@ -533,8 +609,9 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, options
   });
   if (gateFailure) throw new DeconstructError(gateFailure);
 
-  onPhase?.(2);
+  onPhase(2);
   const audio = await audioPromise;
+  if (transcribeLeg) receipt.transcribe = audio.stopped ? "stopped" : audio.failureReason ? "failed" : "settled";
   const { hasAudio, dialogues } = audio;
   const dialogueByIndex = new Map(dialogues.map((d) => [d.shotIndex, d]));
   const failedShotIndexes: number[] = [];

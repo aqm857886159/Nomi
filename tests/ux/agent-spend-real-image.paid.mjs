@@ -11,7 +11,7 @@
 //   ② 「全自动」（project）档：同一句话 → **一张卡都不出** → 真图照样落到画布上，
 //      而工具回执说的是「档位替你答了、已经开跑」，不是「有张卡在等你」。
 //
-// 大脑与生图都走 APIMart（内置供应商，谁的机器上都有）：大脑 DeepSeek V3.2，生图最便宜的 z-image-turbo。
+// 大脑与生图都走 APIMart（内置供应商，谁的机器上都有）：大脑用付费走查的缺省大脑（`_paidRun.mjs` 的 `DEFAULT_PAID_BRAIN`），生图最便宜的 z-image-turbo。
 // 凭据是**真实资料目录里的 safeStorage 密文 + Windows 的 Local State**，原样拷进隔离副本（_realProfile.mjs）——
 // 明文 key 从头到尾不落任何文件、不进报告、不回显；跑完凭据副本当场删除，原库指纹跑前跑后比对（_paidRun.mjs）。
 // 隔离副本里别的生成模型全部停用：模型从 `list_models` 里点谁，都只能点到 z-image-turbo，花销可预期。
@@ -19,7 +19,7 @@
 //
 // zh / en 各留一张真截图：① 在中文界面走，② 走之前从设置里把界面切成 English（真人怎么切就怎么切）。
 import { clickOrFail, expect } from './_assert.mjs'
-import { openPaidWalk } from './_paidRun.mjs'
+import { DEFAULT_PAID_BRAIN, openPaidWalk } from './_paidRun.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { laneMessages, laneMessageText, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { cardFacts, pointerOf } from './_spendCardWalk.mjs'
@@ -30,7 +30,7 @@ import {
 
 // 真模型一轮的安全上限走公共预算 owner（tests/ux/_station-budget.mjs），不自造墙钟常量。
 const MODEL_TURN_MS = stationTimeout({ turns: 1 })
-const BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }
+const BRAIN = DEFAULT_PAID_BRAIN
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
 
 // 真人会点名模型（「用 XX 生成」），而这正好是本条 lane 要证的那条路：

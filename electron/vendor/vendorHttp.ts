@@ -16,7 +16,6 @@ import type { Vendor } from "../catalog/types";
 import { vendorAuthSpec } from "../catalog/vendorAuthSpec";
 import { isRedirectRefusal, networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
 import { tagNomiError } from "../shared/nomiErrorCodes";
-import type { ProviderAnswer } from "../outboundDispatchEvidence";
 import { extractTaskId } from "../ai/requestPipeline";
 import { BoundedResponseError, readBoundedResponseBytes } from "./boundedResponse";
 import { providerDispatcher } from "../providerNetwork";
@@ -24,8 +23,10 @@ import { createFreshConnectionDispatcher } from "../systemProxy";
 import type { Dispatcher } from "undici";
 import { authorizeSubmitDestination } from "./vendorOutboundGuard";
 import { outboundRequestWasNeverWritten } from "../outboundDispatchEvidence";
-
-export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
+import { VendorRequestError, categorizeVendorFailure } from "../shared/vendorFailure";
+// 失败的结构化事实（错误类、类别查表、穿 IPC 的编码）住 shared/vendorFailure：它不碰网络，pi 岛也要引；这里照旧转出去，已有的 import 不用改。
+export { VENDOR_ERROR_IPC_MARKER, VendorRequestError, categorizeVendorFailure, encodeStructuredErrorMessage, encodeVendorErrorMessage } from "../shared/vendorFailure";
+export type { VendorErrorCategory, VendorErrorStructured } from "../shared/vendorFailure";
 
 // 单次 vendor HTTP 请求的硬超时（堵无界阻塞 P2 根因：此前裸 fetch 无 timeout，vendor 一 hang
 // 整条生成链 await 死，外部 MCP 端跟着永久转圈）。一次往返足够慢的同步图生成也走得完；异步 vendor
@@ -56,75 +57,6 @@ function callerCancellation(signal?: AbortSignal): Error | null {
   if (!signal?.aborted) return null;
   if (signal.reason instanceof Error) return signal.reason;
   return new Error("Provider request cancelled");
-}
-
-export type VendorErrorStructured = {
-  vendorKey: string;
-  method: string;
-  url: string;
-  httpStatus?: number;
-  logicalCode?: number | string;
-  /** 上游原话,截 256(防日志爆炸,§4.3)。 */
-  upstreamMsg: string;
-  /**
-   * 上游**自己给的错误码**（`model_not_found` 这一类字符串标识；没有就不写）。状态码只说「请求有问题」，
-   * 这个码才是它说的原因——渲染层分类优先读它（classifyError 的 UPSTREAM_CODE_KINDS），不靠 400 猜「参数不对」。
-   */
-  upstreamCode?: string;
-  /** 查表分类,不是猜:401/403→auth,402→balance,429→quota,400/422→input,5xx→server。 */
-  category: VendorErrorCategory;
-  retryable: boolean;
-  reasonCode?: "response_timeout";
-};
-
-export class VendorRequestError extends Error {
-  readonly structured: VendorErrorStructured;
-  declare readonly cause?: unknown;
-  /** 只在**收到了响应**时才有：「提交有没有被受理」由 `outboundDispatchEvidence.providerExplicitlyRejected` 读它判。 */
-  readonly providerAnswer?: ProviderAnswer;
-  constructor(message: string, structured: VendorErrorStructured, providerAnswer?: ProviderAnswer, options?: { cause?: unknown }) {
-    super(message);
-    // 与原生 `new Error(msg, { cause })` 同形（非枚举）；app 工程的 lib 还没有 ErrorOptions 类型，所以手挂。
-    if (options?.cause !== undefined) Object.defineProperty(this, "cause", { value: options.cause, enumerable: false, writable: true, configurable: true });
-    this.name = "VendorRequestError";
-    this.structured = structured;
-    if (providerAnswer) this.providerAnswer = providerAnswer;
-  }
-}
-
-/**
- * Electron IPC 的 promise rejection 只保留 message 字符串(自定义字段全丢)。
- * structured 经 base64 标记嵌进 message 穿过 IPC;渲染层配对解析器:
- * src/workbench/generationCanvas/runner/vendorErrorIpc.ts(双端常量,改一处必改另一处)。
- */
-export const VENDOR_ERROR_IPC_MARKER = "NOMI_VENDOR_ERR_B64::";
-
-export function encodeVendorErrorMessage(error: VendorRequestError): string {
-  return encodeStructuredErrorMessage(error.structured, error.message);
-}
-
-/** Reuse the established IPC marker for non-provider structured task errors. */
-export function encodeStructuredErrorMessage(structured: Record<string, unknown>, message: string): string {
-  const b64 = Buffer.from(JSON.stringify(structured), "utf8").toString("base64");
-  return `${VENDOR_ERROR_IPC_MARKER}${b64}:: ${message}`;
-}
-
-/** 状态码→类别查表(数字逻辑码与 HTTP 状态同表)。 */
-export function categorizeVendorFailure(
-  httpStatus?: number,
-  logicalCode?: number | string,
-): { category: VendorErrorCategory; retryable: boolean } {
-  const code = typeof httpStatus === "number" ? httpStatus : typeof logicalCode === "number" ? logicalCode : Number(logicalCode);
-  if (!Number.isFinite(code)) return { category: "network", retryable: true };
-  if (code === 401 || code === 403) return { category: "auth", retryable: false };
-  if (code === 402) return { category: "balance", retryable: false };
-  if (code === 429) return { category: "quota", retryable: true };
-  if (code === 400 || code === 422) return { category: "input", retryable: false };
-  // 厂商业务码（≥1000，非 HTTP 状态码，如 RunningHub 1014/1007/1001）：是应用级拒绝（鉴权档/缺参/路径），
-  // 重试无意义 → 非 retryable。放在 ≥500 之前，免被误判成「服务端可重试」白白重试几次。
-  if (typeof httpStatus !== "number" && code >= 1000) return { category: "input", retryable: false };
-  if (code >= 500) return { category: "server", retryable: true };
-  return { category: "unknown", retryable: false };
 }
 
 /**

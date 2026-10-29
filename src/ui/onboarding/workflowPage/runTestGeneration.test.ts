@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  mintSpendGrant: vi.fn(),
   runWorkbenchTaskByVendor: vi.fn(),
   runComfyCandidateTestByVendor: vi.fn(),
   cancelComfyCandidateTestRevision: vi.fn(),
 }))
 
 vi.mock('../../../workbench/api/taskApi', () => ({
-  mintSpendGrant: mocks.mintSpendGrant,
   runWorkbenchTaskByVendor: mocks.runWorkbenchTaskByVendor,
   runComfyCandidateTestByVendor: mocks.runComfyCandidateTestByVendor,
   cancelComfyCandidateTestRevision: mocks.cancelComfyCandidateTestRevision,
@@ -19,7 +17,6 @@ import { runTestGeneration } from './runTestGeneration'
 describe('ComfyUI workflow test bridge flow', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mocks.mintSpendGrant.mockResolvedValue('grant-1')
     mocks.cancelComfyCandidateTestRevision.mockResolvedValue({ ok: true })
     mocks.runComfyCandidateTestByVendor.mockResolvedValue({
       ok: true,
@@ -72,8 +69,8 @@ describe('ComfyUI workflow test bridge flow', () => {
     })
   })
 
-  it('cleans the exact staged revision when spend-grant minting throws before candidate IPC', async () => {
-    mocks.mintSpendGrant.mockRejectedValue(new Error('grant failed'))
+  it('cleans the exact staged revision when candidate IPC rejects before completion', async () => {
+    mocks.runComfyCandidateTestByVendor.mockRejectedValue(new Error('candidate failed'))
 
     await expect(runTestGeneration({
       vendorKey: 'comfyui-local', candidateVendorKey: 'candidate', revisionId: 'comfy-r1', modelKey: 'workflow-1',
@@ -84,15 +81,4 @@ describe('ComfyUI workflow test bridge flow', () => {
     })
   })
 
-  it('cleans the exact staged revision when the candidate desktop bridge rejects', async () => {
-    mocks.runComfyCandidateTestByVendor.mockRejectedValue(new Error('bridge failed'))
-
-    await runTestGeneration({
-      vendorKey: 'comfyui-local', candidateVendorKey: 'candidate', revisionId: 'comfy-r1', modelKey: 'workflow-1',
-      binding: { outputNodeId: '9', outputKind: 'video' }, prompt: '', extras: {},
-    })
-    expect(mocks.cancelComfyCandidateTestRevision).toHaveBeenCalledWith({
-      revisionId: 'comfy-r1', modelKey: 'workflow-1', taskKind: 'text_to_video',
-    })
-  })
 })

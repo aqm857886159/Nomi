@@ -1,11 +1,14 @@
 // 真模型 smoke:验「镜级 verify」契约 —— 真视觉模型 + 真图 + verify prompt → 能否返回可解析 JSON 判决。
 // 自带 --disable-gpu 启动、不开窗(verify 只需主进程 safeStorage 解密 + fetch),绕开本机 GUI/GPU 启动崩。
-// 跑:node evals/verify-shot-smoke.mjs  (额度默认授权;需打包版 Nomi 关着)
+// 跑:NOMI_WALK_FOREGROUND_OK=1 node evals/verify-shot-smoke.mjs  (额度默认授权;需打包版 Nomi 关着;
+// 真实资料起，装不了安静仪表、会到用户面前，没带放行变量就不起 App、按 125 跳过)
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { assertForegroundAllowed, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import { readRealCatalog } from '../tests/ux/_realProfile.mjs'
+
+const FOREGROUND = '真实资料付费抽检：safeStorage 钥匙绑真实 userData'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -50,6 +53,8 @@ function parseLoose(text) {
 }
 
 async function main() {
+  // 没放行就在读真实资料之前跳过：跳过路径一个字节都不碰用户的 catalog。
+  assertForegroundAllowed(FOREGROUND)
   const cfg = pickVision(loadCatalog())
   if (!cfg) { console.log('❌ 无 enabled 视觉模型(带 key)→ verify 本机降级仅结构校验'); return null }
   console.log('视觉模型:', cfg.modelKey, '@', cfg.root)
@@ -61,6 +66,7 @@ async function main() {
     env: { NOMI_SMOKE_NO_WINDOW: '1' },
     isolate: false,
     waitForWindow: false,
+    foreground: FOREGROUND,
   })
   try {
     // 不开窗:直接在主进程 evaluate 解密 + 抓图 + 调模型。
@@ -93,4 +99,7 @@ async function main() {
     await app.close().catch(() => {})
   }
 }
-main().catch((e) => console.error('❌ smoke 失败:', e.message))
+main().catch((e) => {
+  if (e?.code === 'NOMI_WALK_SKIPPED') process.exitCode = e.exitCode
+  else console.error('❌ smoke 失败:', e.message)
+})

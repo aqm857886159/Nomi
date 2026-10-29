@@ -132,7 +132,7 @@ The installer has no Authenticode signature. In the SmartScreen prompt, choose *
 
 > **Disclosure:** the APIMart link carries a referral code. You always pay providers directly with your own key at their price. Nomi never proxies or resells inference, and every provider can be swapped for your own endpoint.
 
-More: [quick start](https://nomiaqm.com/en/quickstart) · [model connection](docs/guide/model-connection-en.md) · [user guide](docs/user-guide.md) · [providers](docs/provider-integration.md) · [CLI + MCP](docs/guide/capability-core-cli-mcp.md)
+More: [quick start](https://nomiaqm.com/en/quickstart) · [connect your first model (English)](docs/guide/model-connection-en.md) · [user guide](docs/user-guide.md) · [providers](docs/provider-integration.md) · [CLI + MCP](docs/guide/capability-core-cli-mcp.md)
 
 ## Use Nomi from your own agent
 
@@ -147,7 +147,7 @@ Nomi ships an MCP server with 24 MCP tools, so Claude Code, Codex, or Cursor can
 WeChat users can scan to join the user group (left). If the group code has expired, add the maintainer (right) at **TZ857886159**.
 
 <p align="center">
-  <a href="docs/media/nomi-canvas-group-wechat-2026-10-25.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-10-25.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
+  <a href="docs/media/nomi-canvas-group-wechat-2026-11-03.jpg"><img src="docs/media/nomi-canvas-group-wechat-2026-11-03.jpg" alt="Nomi user group WeChat QR" width="220" /></a>
   &nbsp;&nbsp;
   <a href="docs/media/qingyang-wechat.jpg"><img src="docs/media/qingyang-wechat.jpg" alt="Nomi maintainer WeChat QR" width="180" /></a>
 </p>

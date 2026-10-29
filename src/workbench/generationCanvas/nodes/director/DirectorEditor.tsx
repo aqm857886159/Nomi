@@ -1,26 +1,27 @@
 /**
- * [INPUT]: 依赖 react / react-dom 的 createPortal、react-i18next、../../../../design 的 confirmDialog / TooltipProvider、
- *          ../fullscreenZIndex 的 FULLSCREEN_Z_INDEX、../../../../ui/app-shell/windowChrome 的 currentFullscreenOverlayTopOffset、
+ * [INPUT]: 依赖 react、react-i18next、../../../../design 的 confirmDialog / TooltipProvider、
+ *          ../../../generation/pageLayerContext 的 useGenerationPageLayerActive（这一格此刻看不看得见）、
  *          ./model/directorStore 的 createDirectorStore、./DirectorEditorContext、
  *          ./scene/ViewportApiContext、
  *          ./scene/viewSettings（偏好读写）、./useDirectorHotkeys、./useMobileCamera、./MobileCameraContext、
  *          ./panels/dialogs/{MobileConnectDialog, SettingsDialog, HelpDialog}、./model/directorTypes、./DirectorViewShell、./DirectorRefineShell、./directorSessionRegistry、./directorEditorPersistence（写回规矩的唯一 owner）
  *          ./model/cameraCoordinateSpace / sceneObjectGraph 的当前世界视角转图层局部位姿、创建模式取消登记
- * [OUTPUT]: 对外提供 DirectorEditor（default）：全屏壳 —— 精修（DirectorRefineShell：顶栏 / 满宽视口 / 选中才出的属性卡 / 时间轴）+ 退出确认 + 写回接线（规矩住 directorEditorPersistence）+
+ * [OUTPUT]: 对外提供 DirectorEditor（default）：导演台页面根 —— 精修（DirectorRefineShell：顶栏 / 满宽视口 / 选中才出的属性卡 / 时间轴）+ 退出确认 + 写回接线（规矩住 directorEditorPersistence）+
  *           占画布区的导演视图外壳（默认；2026-10-16 起唯一的导演台，开关与旧导演台已删），镜头条只读且沿用实测模块；编辑器会话登记为外部 AI 写入入口
  *           区域感知快捷键 + 手机虚拟相机桥 + 本机偏好（漫游 / 灵敏度 / 视口主题）与设置 / 帮助对话框
  * [POS]: director 的页面根：创建并注入 store 与视口 API，负责「打开/关闭/写回」生命周期与区域布局（方案 §4.0 O1–O5）。
- *        壳从 Windows 自绘窗口栏之下起画（不是 inset-0 铺满）：那条 32px 是系统拖拽带，盖住它顶部工具条
- *        整条点不动、窗口控件也埋在下面（2026-09-04，与 issue #58 同根，见 windowChrome）。
+ *        2026-10-29 起它是**生成页里的一块**（DirectorNode 经 GenerationPageLayer 把它挂进画布那一格），根 `size-full` 铺满所在容器：
+ *        版面（右边让不让停靠栏、顶栏 / 左栏在哪）归 GenerationWorkspace 的网格，这里不读 Agent 形态也不算偏移；
+ *        藏着（切走生成页 / 列表视图，useGenerationPageLayerActive 为假）时：Esc 监听摘掉（不吞别的页的 Esc）、暗色锁释放、录制中的运镜放弃，
+ *        快捷键 / 视口漫游 / 3D 渲染循环在各自的家里跟着停。窗口栏 / 顶栏不再靠顶偏移让开——页格本来就在顶栏之下
+ *        （Windows 那条 32px 拖拽带的场景见 docs/fixes/2026-09-04-fullscreen-overlay-windows-windowbar.root-cause.json，仍由构造保证）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React, { type JSX } from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { TooltipProvider, confirmDialog } from '../../../../design'
-import { FULLSCREEN_Z_INDEX } from '../fullscreenZIndex'
 import { toast } from '../../../../ui/toast'
-import { currentFullscreenOverlayTopOffset } from '../../../../ui/app-shell/windowChrome'
+import { useGenerationPageLayerActive } from '../../../generation/pageLayerContext'
 import { NomiColorSchemeContext } from '../../../../theme/colorScheme'
 import { CameraRecorderContext } from './CameraRecorderContext'
 import { DirectorStoreContext, useDirectorStore, useDirectorStoreApi } from './DirectorEditorContext'
@@ -56,8 +57,6 @@ import { viewNodeInCanvas } from '../../../generation/list/generationListSource'
 import { createEditorShotFocusSession } from './directorShotFocusSession'
 import { DirectorViewShell, type DirectorViewMode } from './DirectorViewShell'
 import { DirectorRefineShell } from './DirectorRefineShell'
-import { useWorkbenchStore } from '../../../workbenchStore'
-import { assistantPaneWidth } from '../../../assistantWidthBounds'
 
 export type DirectorEditorProps = {
   rawProject: unknown
@@ -170,6 +169,12 @@ function EditorBody({ nodeTitle, scopeRef, onExit, preferences, onChangePreferen
   const store = useDirectorStoreApi()
   const { t } = useTranslation()
   const recorder = useCameraMotionRecorder({ apiRef, notify: (key, params) => toast(t(key as 'director.camera.recordDone', params), 'info') })
+  // 切走（生成页被藏 / 列表视图）就放弃本次录制，和 Esc 同语义：采样循环是 DOM 侧 rAF，不看页面藏没藏，放着不管会在后台把时间轴一路录下去。
+  const layerActive = useGenerationPageLayerActive()
+  const { active: recording, cancel: cancelRecording } = recorder
+  React.useEffect(() => {
+    if (!layerActive && recording) cancelRecording()
+  }, [layerActive, recording, cancelRecording])
   const mobile = useMobileCamera({ recorder, apiRef })
   const outputs = useDirectorOutputs({ apiRef, ownerNodeId: nodeId, onSendToCanvas })
   const [settingsOpen, setSettingsOpen] = React.useState(false)
@@ -269,26 +274,26 @@ function EditorBody({ nodeTitle, scopeRef, onExit, preferences, onChangePreferen
 /**
  * 导演台永远是暗的（2026-09-09 用户拍板：这个面默认深色）。和剪辑 / 调色台同理 —— 判断画面明暗的地方
  * 不能让外壳底色跟着白天变。经 provider 的暗色锁声明，不自己写 DOM：那样会被「天黑自动暗」的定时器改回去。
+ * 锁是整个 App 的：导演台藏着（切去创作 / 预览页）时必须释放，否则别的页跟着变暗；回到生成页再按下。
  */
-function useDirectorForcedDark(): void {
+function useDirectorForcedDark(active: boolean): void {
   const scheme = React.useContext(NomiColorSchemeContext)
   const acquire = scheme?.acquireForcedDark
   React.useEffect(() => {
-    if (!acquire) return
+    if (!acquire || !active) return
     return acquire()
-  }, [acquire])
+  }, [acquire, active])
 }
 
 export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false, linkedAssets = EMPTY_LINKED_ASSETS, nodeId, onSendToCanvas, onClose, onProjectChange }: DirectorEditorProps): JSX.Element {
   const { t } = useTranslation()
-  useDirectorForcedDark()
+  const layerActive = useGenerationPageLayerActive()
+  useDirectorForcedDark(layerActive)
   const storeRef = React.useRef<DirectorStore | null>(null)
   if (!storeRef.current) {
     storeRef.current = createDirectorStore({ rawProject, defaultSceneName: t('director.node.sceneDefaultName') })
   }
   const store = storeRef.current
-  const assistantWidth = useWorkbenchStore((state) => state.editingPanelLayout.assistantWidth)
-  const assistantCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
   const onProjectChangeRef = React.useRef(onProjectChange)
   onProjectChangeRef.current = onProjectChange
   // 写回规矩（一个写者、外部改动重载、空闲自动保存、撤销前落盘）只有 directorEditorPersistence 一个家，不看界面模式（导演 / 精修）。
@@ -316,20 +321,6 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
   const changePreferences = React.useCallback((next: DirectorPreferences) => {
     setPreferences(next)
     writeDirectorPreferences(next)
-  }, [])
-
-  // body 滚动锁（与 V1 壳同机制）
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return undefined
-    const { body } = document
-    const previousOverflow = body.style.overflow
-    const previousOverscroll = body.style.overscrollBehavior
-    body.style.overflow = 'hidden'
-    body.style.overscrollBehavior = 'none'
-    return () => {
-      body.style.overflow = previousOverflow
-      body.style.overscrollBehavior = previousOverscroll
-    }
   }, [])
 
   // 「出成片」（设计卡 docs/plan/2026-10-16-director-3dbox-produce-design-card.md，选项 A）：只做准备，不花钱——
@@ -370,7 +361,9 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
   }, [onClose, persistence, readOnly, t])
 
   // Esc 归属（O5）：浮层/模式先吃；再清工具 + 选择；再退 POV；都没有 → 退出确认
+  // 藏着（切去别的页 / 列表视图）时整条监听摘掉：它在 window 捕获期、会 stopPropagation，留着就吞掉那一页的 Esc。
   React.useEffect(() => {
+    if (!layerActive) return undefined
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       if (isTextTarget(event.target)) return
@@ -402,17 +395,15 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
     // 捕获期：壳根节点 onKeyDown 会 stopPropagation（隔离画布快捷键），冒泡到 window 的监听在壳内按键时永远收不到
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [handleExit, store])
+  }, [handleExit, layerActive, store])
 
-  const shell = (
+  return (
     <LinkedAssetsContext.Provider value={linkedAssets}>
     <DirectorStoreContext.Provider value={store}>
       <TooltipProvider>
         <div
-          className="fixed inset-x-0 bottom-0 isolate flex flex-col overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans"
-          style={{ top: currentFullscreenOverlayTopOffset(), right: assistantCollapsed ? 0 : assistantPaneWidth(assistantWidth), zIndex: FULLSCREEN_Z_INDEX }}
-          role="dialog"
-          aria-modal="true"
+          className="isolate flex size-full flex-col overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans"
+          role="region"
           aria-label={nodeTitle ? `${t('director.editor.aria')} · ${nodeTitle}` : t('director.editor.aria')}
           tabIndex={0}
           data-testid="director-editor"
@@ -437,6 +428,4 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
     </DirectorStoreContext.Provider>
     </LinkedAssetsContext.Provider>
   )
-
-  return typeof document === 'undefined' ? shell : createPortal(shell, document.body)
 }

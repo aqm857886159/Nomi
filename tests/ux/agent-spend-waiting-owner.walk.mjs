@@ -9,8 +9,9 @@
 //   ③ 卡还挂着的时候**冷重启**（C）→ 那一次出价被收回：重开项目没有卡、没有人在等；
 //      计划是 draft / 未 present（**不是** cancelled——重启不是用户说「不」），节点一个没少。
 //   ④ 重启后用户再说一句「生成」→ 同一个 operationId 的卡 → 点「生成」→ 供应商**恰好收到一次**；
-//      同一回合里模型**再调一次** `generate`（F）→ 宿主当成「再来一次」重新摆卡（要花钱必须再点一次）；「取消」掉它，
-//      供应商仍然只收到那一次，而且**出过图的节点还在**。
+//      同一回合里模型**不点名再调一次** `generate`（F）→ 卡上已经没有还在等他的镜（唯一那一镜在生成）→ 宿主拒绝、不出卡，
+//      告诉模型「要再来一次就点名」（2026-10-27 拍板：不点名只重摆最近一张卡上还没定的镜）；供应商仍然只收到那一次，
+//      **出过图的节点还在**。
 //
 // 「看卡 >90 秒再确认仍成功」不在这里：`check:test-waits` 不许走查里放墙钟空等，而那条要证的不变量
 // 本来也不是「90 秒」，是「等待不计入工具超时」——由 `tests/agent-runtime/lane-resilience.test.mts`（「waiting in the domain preflight…」）
@@ -24,7 +25,7 @@ import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, flattenRequestText } fro
 import { cardFacts } from './_spendCardWalk.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, INTERVENTION_CONFIRM,
-  closeSpendCard, createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded, sendCanvas,
+  createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 
 // 目录里没有价目 = 干净装机的真实处境，也是零额度保险下唯一能真的跑完确认链的一档。
@@ -142,13 +143,14 @@ try {
     reply: { type: 'tool', id: 'wo-generate-4', name: 'generate', args: { operationId } },
   })
   const secondAnswer = walk.fixture.expectText({
-    label: 'whatever the host answers to the repeated generate, the turn ends',
+    label: 'the repeated generate without shotIds is refused (nothing on the card is still waiting), the turn ends',
     match: (body) => hasToolResult(body, 'wo-generate-4'),
     reply: { type: 'text', text: 'S_WO_DONE：已经在生成了。' },
   })
   await sendCanvas(win, 'S_WO_FINAL：生成吧。')
   await recorded(afterRestart.received, 'present after restart')
   await expect(card, '重启后说一句「生成」= 对同一份草稿重新出价').toBeVisible()
+  const finalCardProof = await proveProbe(card, 'the card presented after the restart is really on screen')
   await clickOrFail(card.locator(INTERVENTION_CONFIRM), '卡上的主按钮「生成」', { noWaitAfter: true })
   // 先等「有结论」再判对错：被拒会写在卡上那一行说明里（不是超时的形状）。
   await expect.poll(async () => {
@@ -160,23 +162,20 @@ try {
     // 付费卡逐镜（2026-09-30）：回执渲染宿主的逐镜结局——这张卡上的每一镜都在生成，才说「都在生成」。
     '模型读到「用户批了、已经开始生成」').toContain('All 1 shot(s) on the card are generating')
 
-  // 同回合第二次 generate：上一批已经结清，所以宿主把它当成「同一镜再来一次」——**重新摆一张卡**，要花钱必须再点一次
-  // （这是既有的产品路径：`agentPanelSpendBatches` 的「new confirmation … distinct attempt」）。模型自己花不了第二笔。
-  // 用户不想要第二次 → 「取消」。撤的是**这次请求**，不是已经花过钱的那张图：出过图的节点必须还在。
-  // （第一版在这里把出过图的节点一起删了、画布空了——本走查当场抓到，修在 `spendCardRollback.ownedSpendNodeIds` 判据 ④。）
-  const repeatCard = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`)
-  await expect(repeatCard, '「再来一次」要花钱就得再问一次').toBeVisible()
-  expect(walk.fixture.images, '第二张卡摆出来的时候，供应商仍然只收到过那一次').toHaveLength(1)
-  await closeSpendCard(repeatCard, '不要第二次：关掉这张卡')
-  await recorded(secondAnswer.received, 'the repeated generate returns once its card was closed')
+  // 同回合第二次 generate、没点名：这张卡上唯一那一镜已经批了、在生成，最近一张卡上没有还在等他的镜。宿主拒绝、不出卡，
+  // 拒绝里逐镜说状态，并告诉模型「要再来一次就在 shotIds 里点名」（2026-10-27 用户拍板：不点名只重摆最近一张卡上还没定的镜；
+  // 以前这里把在生成的这一镜重新摆上卡，「直接生成」档会替用户再决一次）。模型自己花不了第二笔，出过图的节点也不动。
+  const repeated = flattenRequestText((await recorded(secondAnswer.received, 'the repeated generate returns refused')).body)
+  expect(repeated, '模型读到的是「没有还在等他的镜」和下一步（点名），不是一张新卡').toContain('call generate again with shotIds naming them')
+  await expectAbsent(card, { provenBy: finalCardProof, message: '不点名再 generate 不许再摆一张卡' })
   await expect(win.locator('[data-node-id][data-status="success"]').first(), '花过钱、出过图的那个节点还在画布上').toBeVisible()
-  expect(await nodeIds(), '「取消」不许撤掉已经出图的节点').toEqual(draftedNodes)
+  expect(await nodeIds(), '被拒不动画布节点').toEqual(draftedNodes)
   expect(walk.fixture.images, '同一回合里再调一次 generate，供应商仍然只收到一次（只扣一次）').toHaveLength(1)
   await walk.snap('waiting-owner-05-confirmed-once-charged-once')
 
   walk.report.verified = ['typed-text-answers-the-spend-card-and-withdraws-only-the-quote',
     'same-draft-can-be-presented-again', 'restart-withdraws-the-quote-not-the-plan',
-    'confirm-after-restart-reaches-the-vendor-once', 'repeated-generate-in-the-same-turn-charges-nothing-more']
+    'confirm-after-restart-reaches-the-vendor-once', 'repeated-generate-without-shotids-is-refused-and-charges-nothing-more']
 } catch (error) {
   failure = error
   process.exitCode = 1

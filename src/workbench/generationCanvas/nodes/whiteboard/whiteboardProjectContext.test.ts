@@ -33,10 +33,14 @@ vi.mock('react', async original => {
 })
 vi.mock('@mantine/hooks', async () => {
   const { default: React } = await import('react')
-  return { useStateHistory: (initial: unknown) => {
-    const [value, set] = React.useState(initial)
-    return [value, { set, back: vi.fn(), forward: vi.fn(), reset: vi.fn() }, { history: [initial], current: 0 }]
-  } }
+  return {
+    useStateHistory: (initial: unknown) => {
+      const [value, set] = React.useState(initial)
+      return [value, { set, back: vi.fn(), forward: vi.fn(), reset: vi.fn() }, { history: [initial], current: 0 }]
+    },
+    // The frame-size hook's debounce; its timing has its own test (useWhiteboardFrameSize.test.tsx).
+    useDebouncedCallback: (callback: () => void) => Object.assign(() => callback(), { cancel: vi.fn(), flush: vi.fn() }),
+  }
 })
 vi.mock('./WhiteboardEditingToolbar', () => ({ WhiteboardEditingToolbar: 'toolbar' }))
 vi.mock('../nodeAttachedPanel', () => ({ useNodeAttachedPanel: () => {} }))
@@ -265,6 +269,47 @@ describe('board Done', () => {
     const onClose = await done({ ...board, result: { id: 'v1', type: 'image', url: 'nomi-local://v1' }, history: [{ id: 'v1', type: 'image', url: 'nomi-local://v1' }], meta: { whiteboardState: drawn() } } as unknown as GenerationCanvasNode, drawn())
     expect(fixture.capture).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledOnce()
+  })
+  // 2026-10-27: Done no longer saves a screenshot, so a failed save says the drawing was not saved; the board stays open.
+  it.each([
+    ['the store returns no address', () => fixture.persist.mockResolvedValue(null)],
+    ['the save fails without a message', () => fixture.persist.mockRejectedValue(new Error(''))],
+  ])('a Done whose drawing cannot be saved says so and keeps the board open (%s)', async (_case, arrange) => {
+    arrange()
+    fixture.boardState = drawn()
+    const onClose = await done(board)
+    expect(fixture.feedback).toHaveBeenCalledOnce()
+    expect(fixture.feedback.mock.calls[0][0].message).toBe('generationCommon.whiteboard.drawingSaveFailed')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(fixture.update.mock.calls.every(([, patch]) => !('result' in patch))).toBe(true)
+  })
+})
+
+// The camera button runs a different transaction per entrance: an image saves the drawing as its primary picture, a
+// board makes a screenshot node. A failure names the one that failed (2026-10-27).
+describe('camera failure copy', () => {
+  const camera = async (sourceKind: 'image' | 'whiteboard') => {
+    const tree = InlineWhiteboard({ nodeId: 'source', sourceKind, onClose: vi.fn() })
+    await (find(tree, node => typeof node.props.onScreenshot === 'function').props.onScreenshot as () => Promise<unknown>)()
+    await Promise.allSettled(fixture.callbacks)
+    expect(fixture.feedback).toHaveBeenCalledOnce()
+    return fixture.feedback.mock.calls[0][0].message as string
+  }
+  it('an image entrance that cannot save the drawing says the drawing was not saved', async () => {
+    fixture.persist.mockResolvedValue(null)
+    expect(await camera('image')).toBe('generationCommon.whiteboard.drawingSaveFailed')
+  })
+  it.each([
+    ['the store returns no address', () => fixture.persist.mockResolvedValue(null)],
+    ['the screenshot node cannot be made', () => fixture.add.mockReturnValue(null)],
+    ['the save fails without a message', () => fixture.persist.mockRejectedValue(new Error(''))],
+  ])('a board entrance whose screenshot cannot be saved says the screenshot was not saved (%s)', async (_case, arrange) => {
+    arrange()
+    expect(await camera('whiteboard')).toBe('generationCommon.whiteboard.screenshotSaveFailed')
+  })
+  it('an image entrance whose save fails without a message still says the drawing was not saved', async () => {
+    fixture.persist.mockRejectedValue(new Error(''))
+    expect(await camera('image')).toBe('generationCommon.whiteboard.drawingSaveFailed')
   })
 })
 it('publishes the imported raster baseline before the first edit and never publishes the loading empty draft', async () => {

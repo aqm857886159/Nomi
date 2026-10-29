@@ -1,5 +1,5 @@
 // I-canvas-revert-h：视频档案断开最后一张首帧参考后，生成框回到文生视频。
-// 用法：NOMI_WALK_OFFSCREEN=1 NOMI_WALK_LANG=zh|en node tests/ux/video-mode-revert.walk.mjs
+// 用法：NOMI_WALK_LANG=zh|en node tests/ux/video-mode-revert.walk.mjs
 
 import fs from 'node:fs'
 import path from 'node:path'

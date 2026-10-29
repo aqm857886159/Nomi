@@ -313,6 +313,8 @@ export default function WorkbenchShell({
         [setWorkspaceMode],
     );
 
+    // 生成页槽位此刻看不看得见（槽位 hidden 与页内全屏层的 active 同一份事实：导演台 / 全景查看器跟着它藏、跟着它停键盘与渲染）。
+    const generationActive = workspaceMode === "generation";
     // 四个工作区槽。外壳（ShellFrame）给它们一块被外壳底色包住的区域；圆角工作面各自画。
     const workspaceSlots = (
         <>
@@ -327,8 +329,8 @@ export default function WorkbenchShell({
                 </WorkspaceSlot>
             ) : null}
             {mountedWorkspaceModes.includes("generation") ? (
-                <WorkspaceSlot active={workspaceMode === "generation"} label={t("workspace.generation")}>
-                    <GenerationWorkspace canvas={generation} aiCollapsed={workspaceAiCollapsed} agentDockRef={agentDockRefs.generation} agentLayerRef={setGenerationAgentLayer} />
+                <WorkspaceSlot active={generationActive} label={t("workspace.generation")}>
+                    <GenerationWorkspace canvas={generation} active={generationActive} aiCollapsed={workspaceAiCollapsed} agentDockRef={agentDockRefs.generation} agentLayerRef={setGenerationAgentLayer} />
                 </WorkspaceSlot>
             ) : null}
             {mountedWorkspaceModes.includes("preview") ? (

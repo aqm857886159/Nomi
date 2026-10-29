@@ -5,15 +5,20 @@
 // 会让「删旧目录」变成「顺手删掉新通路的模型装配」。搬过来之后旧位置只留一条 re-export
 // （`pi/model.mts` 仍导出 `createNomiModelRuntime`，那是旧路 `session.mts` 的专属接缝，
 // 随本目录一起死），**不是第二份实现**（P1）。
-import { createProvider, InMemoryCredentialStore, type Api, type Model, type ProviderHeaders,
-  type ProviderStreams, type StreamOptions } from '@earendil-works/pi-ai';
+import { createAssistantMessageEventStream, createProvider, InMemoryCredentialStore, type Api, type AssistantMessage,
+  type AssistantMessageEventStream, type Model, type ProviderHeaders, type ProviderStreams, type StreamOptions } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
 import { z } from 'zod';
 import type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
+import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
 import { guardProviderStreams, type NomiStreamGuard } from './laneProviderGuard.mjs';
 import { applyProfileToRequestBody, getModelProfile } from '../ai/modelProfiles.js';
+import { observeModelFetch, type ModelCallRecorder } from '../ai/modelCallFetch.js';
+import { modelCallFailure } from '../ai/runtimeVendorError.js';
+import { describeAgentError } from '../ai/agentError.js';
+import { logWarn } from '../logging/logger.js';
 
 export type { NomiStreamGuard } from './laneProviderGuard.mjs';
 
@@ -101,6 +106,48 @@ export async function prewarmProviderProtocols(protocols: readonly NomiModelConf
   await yieldToMain();
 }
 
+/**
+ * 一次调用以 `stopReason: 'error'` 收场、而这次调用最后一次尝试是 **HTTP 非 2xx** → 按文本任务同一个映射
+ * （`modelCallFailure` → `describeAgentError`，即 `NOMI_VENDOR_ERR_B64` 载荷）铸好，挂到 pi 的 `diagnostics` 上。
+ *
+ * 为什么不改 `errorMessage`：pi 的重试判据是对整段 `errorMessage` 跑一条无词边界的正则（`retry.js` 里的 "429" / "500" /
+ * "502"…），上下文溢出也读它；把 base64 塞进去，随机出现的数字串就能把一次确定的 404 变成三轮重试。
+ * 别的失败（200 里 SSE 报错、连不上、看门狗、断流、用户停）不挂：它们各有事实（pi 的瞬时判定、`fault`），
+ * 「最后一次尝试是 HTTP 失败」才是「服务商回了状态码与原话」的证据（上一次尝试的 429 不许串到这一次，见 modelCallFetch）。
+ */
+function withVendorFailure(message: AssistantMessage, vendorKey: string, recorder: ModelCallRecorder): AssistantMessage {
+  if (message.stopReason !== 'error') return message;
+  const attempt = recorder.lastAttempt();
+  if (attempt?.kind !== 'http') return message;
+  try {
+    const payload = describeAgentError(modelCallFailure({ vendorKey, errorMessage: message.errorMessage, attempt, redact: recorder.redact }));
+    return { ...message, diagnostics: [...(message.diagnostics ?? []),
+      { type: LANE_VENDOR_FAILURE_DIAGNOSTIC, timestamp: Date.now(), details: { message: payload } }] };
+  } catch (error) {
+    // 铸不出载荷也不能把这条失败弄丢（终止事件推不出去，回合就一直挂着）：退回 pi 原样那条，记一笔。
+    logWarn('agent', 'lane-vendor-failure-annotation-failed', { vendorKey }, error);
+    return message;
+  }
+}
+
+/**
+ * 原样、按序转交一条流，只在终止的失败事件上挂失败载荷。终止事件就是 `result()` 的来源，
+ * 所以挂载发生在**推出去之前**（与 laneProviderGuard 的归一同理）；没推终止事件、只被 `end(result)` 收尾的流，按结果再挂一次。
+ */
+function annotateFailure(stream: AssistantMessageEventStream, annotate: (message: AssistantMessage) => AssistantMessage): AssistantMessageEventStream {
+  const output = createAssistantMessageEventStream();
+  void (async () => {
+    let failed: AssistantMessage | undefined;
+    for await (const event of stream) {
+      if (event.type !== 'error') { output.push(event); continue; }
+      failed = annotate(event.error);
+      output.push({ ...event, error: failed });
+    }
+    output.end(failed ?? annotate(await stream.result()));
+  })();
+  return output;
+}
+
 /** 每百万 token 的美元价 → pi `ModelCost` 的每百万单价（`calculateCost` 自己除以 1e6）。 */
 function modelCost(config: NomiModelConfig): Model<Api>['cost'] {
   const pricing = config.tokenPricing;
@@ -166,13 +213,13 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
     headers.Authorization = null;
   }
   const native = protocol.streams();
-  const requestOptions = <T extends StreamOptions>(options?: T) => ({
+  const requestOptions = <T extends StreamOptions>(options: T | undefined, fetch: typeof globalThis.fetch) => ({
     ...options,
     // pi requires a nonempty constructor key, even for keyless servers. This is
     // NOT a credential: the public null header suppression removes it on wire.
     ...(config.authType === 'none' ? { apiKey: 'nomi-keyless-constructor-only' } : {}),
     headers: { ...options?.headers, ...headers },
-    fetch: config.kind === 'anthropic' ? anthropicFetch(baseUrl, fetchRequest) : fetchRequest,
+    fetch: config.kind === 'anthropic' ? anthropicFetch(baseUrl, fetch) : fetch,
     onPayload: async (payload: unknown, selected: Model<Api>) => {
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
         throw new Error('Expected a provider request object');
@@ -192,9 +239,15 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
       return (await options?.onPayload?.(profiled, selected)) ?? profiled;
     },
   });
+  // 每一次调用一份留证（最后那次尝试的事实 + 这次真正发出去的秘密）：失败收场时按它铸结构化载荷（withVendorFailure）。
+  // lane 工作区、一次性提问、文本任务、编译器都经这一处出网——载荷在这里铸一次，谁都不用再各包一层。
+  const observed = (send: (fetch: typeof globalThis.fetch) => AssistantMessageEventStream): AssistantMessageEventStream => {
+    const recorder = observeModelFetch(fetchRequest, { modelId: config.modelId, knownSecrets: config.apiKey ? [config.apiKey] : [] });
+    return annotateFailure(send(recorder.fetch), (message) => withVendorFailure(message, config.providerId, recorder));
+  };
   const base: ProviderStreams = {
-    stream: (chosen, context, options) => native.stream(chosen, context, requestOptions(options)),
-    streamSimple: (chosen, context, options) => native.streamSimple(chosen, context, requestOptions(options)),
+    stream: (chosen, context, options) => observed((fetch) => native.stream(chosen, context, requestOptions(options, fetch))),
+    streamSimple: (chosen, context, options) => observed((fetch) => native.streamSimple(chosen, context, requestOptions(options, fetch))),
   };
   const streams = guard ? guardProviderStreams(base, guard) : base;
   const provider = createProvider({

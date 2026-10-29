@@ -82,9 +82,9 @@ const timeline = { operation: 'read_timeline', revision: 'r1', fps: 30, scale: 1
 const plan = { baseRevision: 'r1', summary: 'Move opening clip', operations: [{ kind: 'move', clipId: 'clip-1', startFrame: 30 }] };
 // draft_shots 的 parameters 是模型档案声明的标量表；嵌套结构由宿主按目录钳值，不进模型面。
 const nestedParameters = { seed: 7, aspect_ratio: '16:9', hd: true };
-const queued: LaneTaskFacts = { status: 'queued', progress: 0, currency: 'CNY' };
-const running: LaneTaskFacts = { status: 'running', progress: 40, currency: 'CNY', spent: 0.1 };
-const complete: LaneTaskFacts = { status: 'complete', progress: 100, currency: 'CNY', spent: 0.2, candidates: [{ artifactId: 'asset-1', projectId: 'fixture', productionRunId: 'run-1', thumbnailUrl: 'nomi-local://asset/fixture/asset-1.png', adopted: true, canAdopt: false }] };
+const queued: LaneTaskFacts = { status: 'queued', progress: 0 };
+const running: LaneTaskFacts = { status: 'running', progress: 40 };
+const complete: LaneTaskFacts = { status: 'complete', progress: 100, candidates: [{ artifactId: 'asset-1', projectId: 'fixture', productionRunId: 'run-1', thumbnailUrl: 'nomi-local://asset/fixture/asset-1.png', adopted: true, canAdopt: false }] };
 
 /** Five capability families × three concrete scripts, plus four interaction scripts — on the 20-verb face
  * (design 2026-09-11 §5): storyboard/generation go through `draft_shots`, the Run family is not on the model face.

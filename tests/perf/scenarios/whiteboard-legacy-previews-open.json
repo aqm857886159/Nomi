@@ -1,0 +1,27 @@
+{
+  "id": "whiteboard-legacy-previews-open",
+  "feature": "Boards saved as state only (0.23.0, or before Done made a picture on 2026-10-22) show their drawing on the card: each card in view draws an off-screen preview from its state, one at a time, cached by the raster key; time from the cards mounting to every preview decoded on screen",
+  "script": "tests/ux/whiteboard-perf.probe.mjs",
+  "args": [
+    "--scene",
+    "legacy-previews",
+    "--repo-media"
+  ],
+  "scale": "20 legacy boards in view at once (opening fits the canvas to its nodes: 76% in the 1280x933 window), each 1280x720 with 2 placed photographs from 6 distinct frames of the repository real AI shot (640x360), 12 brush paths and a line of text, all different (no cache hits); the project is opened by double click on its card",
+  "metrics": [
+    "openToInteractive",
+    "longTasks"
+  ],
+  "budget": 1000,
+  "budgetStatus": "proposed",
+  "budgetBasis": "Default open-to-interactive budget (<=1 s, Nielsen 1 s limit for keeping the flow of thought) from docs/engineering/perf-scenarios.md, applied to the part this feature adds to opening a project: from the twenty cards mounting to all twenty drawn previews on screen. The cold open before the cards mount has its own scenario (project-open-100-nodes); the probe also prints double click to all previews (projectOpenToPreviewsMs) and the longest task in the window (longestTaskMs).",
+  "baseline": {
+    "median": 986,
+    "p95": 1053,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-27",
+    "commit": "7256a78d9",
+    "noisy": true
+  }
+}

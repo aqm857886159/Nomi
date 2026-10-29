@@ -19,7 +19,7 @@ if (process.platform !== 'darwin') {
   console.log('SKIP real-trash-roundtrip: 只在 macOS 真机跑（磁盘映像卷上的废纸篓）。')
   process.exit(0)
 }
-process.env.NOMI_WALK_OFFSCREEN = '1' // 窗口开在屏幕外，不抢用户的焦点
+// 走查启动器默认安装 quiet-walk：窗口开在屏幕外，不抢用户的焦点。
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 const fromRepo = (rel) => pathToFileURL(path.join(repo, rel)).href

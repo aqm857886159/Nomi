@@ -33,7 +33,7 @@ import { DeferredNodeImage } from './DeferredNodeMedia'
 import { canvasImageSourceOf } from './canvasImageSource'
 import { NodeVideoSessionProvider } from './NodeVideoSession'
 import { NodeVideoPlaybackGuard } from './NodeVideoPlaybackGuard'
-import { useNodePanoramaHandlers } from './useNodePanoramaHandlers'
+import { useNodePanoramaHandlers, usePanoramaFullscreenTrigger } from './useNodePanoramaHandlers'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
@@ -112,7 +112,7 @@ function BaseGenerationNodeImpl({
     selectCanvasNodeExists(state, node.derivedFrom),
   )
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const panoramaFullscreenRef = React.useRef<(() => void) | null>(null)
+  const panoramaFullscreen = usePanoramaFullscreenTrigger()
   const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const [provenanceOpen, setProvenanceOpen] = React.useState(false)
   const showVersionCards = React.useMemo(() => nodeHasVersionCards(node), [node])
@@ -236,7 +236,7 @@ function BaseGenerationNodeImpl({
         <PanoramaNodeToolbar
           node={node}
           reportFeedback={reportFeedback}
-          fullscreenRef={panoramaFullscreenRef}
+          fullscreenRef={panoramaFullscreen.ref}
           uploadInputRef={panoramaUploadInputRef}
           onFileChange={handlePanoramaFileChange}
           onOpenProvenance={() => setProvenanceOpen(true)}
@@ -302,7 +302,7 @@ function BaseGenerationNodeImpl({
       {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
       {status === 'error' && node.error ? (
         <NodeErrorReport summaryVisible={false}
-          message={node.error} meta={node.meta} nodeId={node.id} taskId={node.runs?.[0]?.taskId}
+          message={node.error} meta={node.meta} nodeId={node.id} run={node.runs?.[0]}
           onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
           onRetry={
             isAssetKind && node.meta?.source === 'clipboard-url'
@@ -360,12 +360,11 @@ function BaseGenerationNodeImpl({
           node.result?.url || node.meta?.imageUrl ? (
             <React.Suspense fallback={<NodeBodyLoading />}>
               <PanoramaViewer
+                nodeId={node.id}
                 imageUrl={(node.result?.url || node.meta?.imageUrl) as string}
                 width={visualSize.width}
                 height={previewHeight}
-                onEnterFullscreen={(trigger) => {
-                  panoramaFullscreenRef.current = trigger
-                }}
+                onEnterFullscreen={panoramaFullscreen.onEnterFullscreen}
                 onScreenshot={handlePanoramaScreenshot}
               />
             </React.Suspense>

@@ -36,6 +36,8 @@ export type ExtractVideoFrameResult = { url: string };
 export type ExtractVideoFrameOptions = {
   /** 可信主进程交互断言（IPC 按 sender 会话签发）；后台调用方（审片环/拆解）不传，只固定磁盘身份。 */
   assertCurrent?: () => void;
+  /** 拆解的停止信号：abort 后下载 / 探测 / ffmpeg 子进程一起停，抽出来的帧也不发布。不传 = 跑完为止。 */
+  signal?: AbortSignal;
 };
 
 export class VideoFrameError extends Error {
@@ -56,6 +58,7 @@ const cacheKey = (p: ExtractVideoFramePayload) => `${p.projectId}::${p.videoUrl}
 export async function resolveVideoLocalPath(
   videoUrl: string,
   projectId: string,
+  signal?: AbortSignal,
 ): Promise<{ filePath: string; cleanup: () => void }> {
   const noop = () => {};
   if (videoUrl.startsWith("nomi-local://")) {
@@ -69,7 +72,7 @@ export async function resolveVideoLocalPath(
     // application/octet-stream 发视频，真伪交给随后的 ffmpeg 解码兜底。
     let result;
     try {
-      result = await hardenedFetch(videoUrl, { maxBytes: 300 * 1024 * 1024, timeoutMs: 60_000 });
+      result = await hardenedFetch(videoUrl, { maxBytes: 300 * 1024 * 1024, timeoutMs: 60_000, ...(signal ? { signal } : {}) });
     } catch (error) {
       throw new VideoFrameError(`源视频下载失败：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -96,27 +99,28 @@ export function clampSeekSeconds(seconds: number, durationSeconds: number): numb
   return Math.min(wanted, Math.max(0, durationSeconds - END_MARGIN_SECONDS));
 }
 
-async function probeDurationSeconds(filePath: string): Promise<number> {
-  const meta = await probeMediaMetadata(filePath);
+async function probeDurationSeconds(filePath: string, signal?: AbortSignal): Promise<number> {
+  const meta = await probeMediaMetadata(filePath, signal ? { signal } : {});
   return typeof meta.durationSeconds === "number" ? meta.durationSeconds : 0;
 }
 
 /** 算出抽哪一秒。last 需先 probe 时长，取末尾 0.1s 处；指定秒数超出时长时夹到同一个位置。 */
-async function resolveSeekSeconds(filePath: string, which: VideoFrameWhich): Promise<number> {
+async function resolveSeekSeconds(filePath: string, which: VideoFrameWhich, signal?: AbortSignal): Promise<number> {
   if (which === "first") return 0;
-  if (typeof which === "number") return clampSeekSeconds(which, await probeDurationSeconds(filePath).catch(() => 0));
+  if (typeof which === "number") return clampSeekSeconds(which, await probeDurationSeconds(filePath, signal).catch(() => 0));
   // which === 'last'
-  const duration = await probeDurationSeconds(filePath);
+  const duration = await probeDurationSeconds(filePath, signal);
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new VideoFrameError("无法读取源视频时长，取不到尾帧");
   }
   return clampSeekSeconds(duration, duration);
 }
 
-function runFfmpeg(ffmpegPath: string, args: string[]): Promise<void> {
+/** `signal` 交给 spawn：abort 即杀子进程，`error`（AbortError）先到、Promise 只认这一次落定。 */
+function runFfmpeg(ffmpegPath: string, args: string[], signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     ensureExecutable(ffmpegPath);
-    const child = spawn(ffmpegPath, args, { windowsHide: true });
+    const child = spawn(ffmpegPath, args, { windowsHide: true, ...(signal ? { signal } : {}) });
     let stderr = "";
     child.stderr?.on("data", (chunk) => { stderr += String(chunk); });
     child.on("error", reject);
@@ -136,8 +140,10 @@ export async function extractVideoFrameToAsset(
   options: ExtractVideoFrameOptions = {},
 ): Promise<ExtractVideoFrameResult> {
   const { videoUrl, which, projectId } = payload;
+  const { signal } = options;
   if (!videoUrl || typeof videoUrl !== "string") throw new VideoFrameError("缺少源视频地址");
   if (!projectId || typeof projectId !== "string") throw new VideoFrameError("缺少 projectId");
+  signal?.throwIfAborted();
   // 动作起点固定项目身份（根目录 + 完整绑定 + 交互断言），ffmpeg 之后的发布只认这一份，不再按 projectId 现查目录。
   const context = await captureAssetWriteContext(projectId, payload.projectBinding, options.assertCurrent);
 
@@ -150,10 +156,10 @@ export async function extractVideoFrameToAsset(
   const ffmpegPath = resolveFfmpegPath();
   if (!ffmpegPath) throw new VideoFrameError("找不到 ffmpeg 可执行文件");
 
-  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId);
+  const { filePath, cleanup } = await resolveVideoLocalPath(videoUrl, projectId, signal);
   const outPath = path.join(os.tmpdir(), `nomi-frame-${crypto.randomUUID()}.png`);
   try {
-    const ss = await resolveSeekSeconds(filePath, which);
+    const ss = await resolveSeekSeconds(filePath, which, signal);
     // 输入端粗 seek（快速跳过）+ 输出端精 seek（解码精确到目标帧）—— 又快又准，
     // 避开 -sseof 在部分封装上的不稳（handoff §5 坑）。
     const inputSeek = Math.max(0, ss - 2);
@@ -168,10 +174,13 @@ export async function extractVideoFrameToAsset(
       "-update", "1",
       outPath,
     ];
-    await runFfmpeg(ffmpegPath, args);
+    signal?.throwIfAborted();
+    await runFfmpeg(ffmpegPath, args, signal);
     if (!fs.existsSync(outPath) || fs.statSync(outPath).size === 0) {
       throw new VideoFrameError("ffmpeg 未产出有效帧图");
     }
+    // 子进程恰好写完、信号才到：这一帧也不发布、不进缓存。
+    signal?.throwIfAborted();
     const bytes = fs.readFileSync(outPath);
     const label = which === "first" ? "first" : which === "last" ? "last" : `at-${which}s`;
     const record = await writeGeneratedAsset(projectId, bytes, `frame-${label}-${crypto.randomUUID().slice(0, 8)}.png`, "image/png", {

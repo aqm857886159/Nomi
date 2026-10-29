@@ -136,7 +136,7 @@ async function recordLocale(locale) {
       }
     },
     extras: {
-      mainRequire: [path.join(repoRoot, 'tests/ux/_offscreenWindows.cjs')],
+      mainRequire: [path.join(repoRoot, 'tests/ux/_quietWalk.cjs')],
       env: { USERPROFILE: fakeHome, HOME: fakeHome, APPDATA: fakeAppData },
     },
   })

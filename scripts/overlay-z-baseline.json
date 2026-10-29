@@ -1,0 +1,90 @@
+{
+  "src/ui/app-shell/UpdateDialog.tsx": {
+    "count": 1,
+    "reason": "更新弹窗（fixed inset-0，130）：该进 dialog 档；130 高过顶栏 100、用得了，迁 dialog 要连同花钱确认卡（同档）的叠放一起重测，留待以后迁"
+  },
+  "src/ui/browser/dialog/NomiBrowserDialogView.tsx": {
+    "count": 6,
+    "reason": "内置浏览器停靠面板（520）和它的右键菜单 / 飞入图 / 提示词模式菜单（560–575）都是 fixed，:504 的拖拽条 570 是面板内局部层：整套该进 applicationModal + popover 档，现数字低于 3D 全屏编辑器（3000）和抽屉（4000），要整套一起迁、一起重测"
+  },
+  "src/ui/browser/overlay/BrowserAssetOverlayApp.tsx": {
+    "count": 1,
+    "reason": "素材浮层应用里的飞入图（absolute，600，在自己的层叠上下文里）：局部层，迁移时降成组件内小数字，不上刻度"
+  },
+  "src/ui/browser/popover/BrowserAssetPopoverView.tsx": {
+    "count": 3,
+    "reason": "素材气泡宿主：contained 时 absolute 560 压在内置浏览器面板里，非 contained 时 fixed 贴角落 2 / 1；该进 popover 档，随内置浏览器那一套一起迁"
+  },
+  "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx": {
+    "count": 1,
+    "reason": "提示词抽取设置弹窗（Portal 到 body，fixed inset-0，3400）：承载一次编辑决策，该进 dialog 档；3400 低于 4000 的浮层，迁移要重测与内置浏览器面板的叠放"
+  },
+  "src/workbench/assets/AssetMentionSuggestion.ts": {
+    "count": 1,
+    "reason": "@ 素材提及的建议气泡（命令式 fixed，60，挂 body）：该进 popover 档；60 低于顶栏 100，在顶栏带里弹不出来，留待以后迁"
+  },
+  "src/workbench/assets/AssetPickerPopover.tsx": {
+    "count": 1,
+    "reason": "素材选择器气泡的 z 常量 60（覆盖 AnchoredPopover 的默认 popover 档）：该删这份常量走默认档；60 低于顶栏 100，留待以后迁"
+  },
+  "src/workbench/assets/AssetTile.tsx": {
+    "count": 2,
+    "reason": "素材卡悬停提示 / 放大图（fixed，10000，pointer-events-none，挂 body）：该进 popover 档；10000 比花钱确认卡（dialog 9100）还高，不挡点击但会画在确认卡上面，迁移优先"
+  },
+  "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx": {
+    "count": 2,
+    "reason": "框选保存条（fixed，100）与保存弹窗（fixed inset-0，101），即原 portalLayer.structure.test 冻结的那一处：条该进 popover 档、弹窗该进 dialog 档；100/101 与顶栏 100 贴着，留待以后迁"
+  },
+  "src/workbench/generationCanvas/nodes/ClipNode.tsx": {
+    "count": 2,
+    "reason": "剪辑节点的浮动参数层 / 导出层（fixed，1000 / 1001，按节点锚点定位）：该进 popover 档，留待以后迁"
+  },
+  "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx": {
+    "count": 1,
+    "reason": "节点参数面板浮层（fixed，600，按触发器定位）：该进 popover 档，留待以后迁"
+  },
+  "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx": {
+    "count": 1,
+    "reason": "溯源面板（fixed inset-0，210）：只读对话框，该进 dialog 档；210 高过顶栏 100、用得了，留待以后迁"
+  },
+  "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx": {
+    "count": 1,
+    "reason": "画布素材输入选择器（fixed，60，按指针位置定位）：该进 popover 档；60 低于顶栏 100，但它只在画布里弹出、不会进顶栏带，留待以后迁"
+  },
+  "src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx": {
+    "count": 1,
+    "reason": "形象确认卡里的看大图层（fixed inset-0，4400）：整张卡挂在 SpendConfirmDialog（dialog 9100）的层叠上下文里，4400 只和卡内兄弟比、不与根层的层比；迁移时改成卡内局部层，不上刻度（所以不会盖住或被花钱确认卡盖住）"
+  },
+  "src/workbench/onboarding/HandbookPanel.tsx": {
+    "count": 1,
+    "reason": "手册面板（Portal，fixed inset-0，行内 4000）：接管整屏的查看器，该进 applicationModal 档；现与 floatingPanel 同数，留待以后迁"
+  },
+  "src/workbench/onboarding/JourneyTourController.tsx": {
+    "count": 2,
+    "reason": "引导旅途的收尾对话框 3402 与步骤气泡 3401（fixed）：该进 applicationModal / popover 档；现数字夹在 3D 编辑器（3000）与浮层（4000）之间，留待以后迁"
+  },
+  "src/workbench/onboarding/OnboardingSpotlight.tsx": {
+    "count": 2,
+    "reason": "引导聚光圈 3400 与说明气泡 3401（fixed）：同引导旅途，该进 popover 档，留待以后迁"
+  },
+  "src/workbench/preview/EditingLayoutMenu.tsx": {
+    "count": 1,
+    "reason": "预览页布局菜单（absolute，130，开在顶栏的层叠上下文里）：局部层，迁移时降成组件内小数字，不上刻度"
+  },
+  "src/workbench/promptLibrary/PromptPreviewOverlay.tsx": {
+    "count": 1,
+    "reason": "提示词预览灯箱（Portal，fixed inset-0，行内 4200）：接管整屏的查看器，该进 applicationModal 档，留待以后迁"
+  },
+  "src/workbench/sidebar/CategoryTree.tsx": {
+    "count": 1,
+    "reason": "目录树右键菜单（fixed，z-50）：它开在左栏抽屉（floatingPanel 4000）的层叠上下文里，50 只和抽屉内兄弟比；迁移时降成组件内局部层或改 popover 档"
+  },
+  "src/workbench/taskCenter/TaskCenterPanel.tsx": {
+    "count": 1,
+    "reason": "任务中心浮卡（Portal，fixed，行内 4000，贴顶栏下沿）：该进 floatingPanel 档，现数字与它同值；迁移时保留 app-no-drag（issue #58）"
+  },
+  "src/workbench/timeline/TimelineShortcutsDialog.tsx": {
+    "count": 1,
+    "reason": "时间线快捷键对话框（fixed inset-0，z-40）：该进 dialog 档；40 低于顶栏 100，弹出时顶栏仍画在它上面（用得了，只是没盖住顶栏），留待以后迁"
+  }
+}

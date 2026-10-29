@@ -4,15 +4,13 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 一条参考视频 → 拆解 → 看懂结构表 → 勾选镜头 → 加入画布逐个冒出 + 自动编组（整批一个 Cmd+Z）→ 起稿。
 // 外壳/画布/IPC/持久化/store 全真；截图人眼判断（P3：跑通 ≠ 拆得对）。
 //
-// 两条路合一（对齐编排者要求）：
-//   · 有 APIMART_API_KEY → **真跑引擎一次**（会花 APIMart 视觉+whisper ≈ $0.02–0.05），验「拆解→结构表」真通；
-//   · 断言可重复部分（勾选/落组/共存态/暗色）一律用**注入的确定性结果**跑——不依赖模型输出，稳定复现。
+// 断言一律用**注入的确定性结果**跑（勾选 / 落组 / 共存态 / 暗色）——不依赖模型输出，稳定复现，不碰供应商、不花钱。
+// 真拆解引擎的付费走查在 deconstruct-real.paid.mjs（走 _paidRun.mjs 的标准付费入口；2026-10-27 起这里不再有读环境变量的真跑档）。
 //
 // 走查坑单遵守：isolate profile（默认）· 禁 win.reload()（用 store seam 造现场）· 探针先行（clickOrFail/proveProbe）·
 // 截图走 screenshotSettled（等视觉安定）· 主题翻转走 applyColorSchemeForShot（四属性）· 禁私有墙钟轮询（用 _assert 的重试断言）。
 //
 // 用法：pnpm run build && node tests/ux/deconstruction-panel.walk.mjs
-//   真跑闭环：pnpm run build && APIMART_API_KEY=sk-... node tests/ux/deconstruction-panel.walk.mjs
 // 产出：tests/ux/shots/deconstruction-panel/*.png
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
@@ -44,7 +42,6 @@ if (!fs.existsSync(FIXTURE)) {
   console.log(`SKIP: 找不到 fixture 视频 ${FIXTURE}`)
   process.exit(0)
 }
-const REAL_RUN = Boolean(process.env.APIMART_API_KEY)
 
 // 注入用的确定性拆解结果（镜像 DeconstructVideoResult；含一个 visionFailed 镜、一个 carriedOver 镜）。
 // ⚠️ 时间戳落在 fixture 的真实时长内（fixture-video.mp4 = 2.0s），这样「加入画布」逐镜抽帧才真抽得出来——
@@ -96,11 +93,6 @@ try {
   await win.waitForTimeout(1500)
   await win.waitForFunction(() => Boolean(window.__nomiCanvasStore), undefined, { timeout: DEFAULT_TIMEOUT_MS })
 
-  // 真跑档：把 APIMart key 落进 catalog（deconstruct 现读 catalog，无需刷新页面）。
-  if (REAL_RUN) {
-    await win.evaluate((key) => window.nomiDesktop.modelCatalog.upsertVendorApiKey('apimart', { apiKey: key, enabled: true }), process.env.APIMART_API_KEY)
-  }
-
   // 把 fixture 视频导入成项目素材（拿到 nomi-local:// URL，和用户拖进来同一条路），再 seed 成画布视频节点。
   const bytes = fs.readFileSync(FIXTURE)
   const seeded = await win.evaluate(async ({ b64 }) => {
@@ -141,29 +133,6 @@ try {
   await expectVisible(panelLocator.first(), '拆解面板已占住右槽（空态）')
   await expectVisible(win.locator('[data-deconstruct-start="true"]').first(), '空态·开始拆解 可见')
   await snap('01-panel-empty')
-
-  // ── 真跑一次（有 key 才跑；验「拆解→结构表」真通，人眼看打印的表）。──
-  if (REAL_RUN) {
-    console.log('  → 真跑引擎（APIMart 视觉+whisper，会花 ~$0.02–0.05）…')
-    await clickOrFail(win.locator('[data-deconstruct-start="true"]'), '开始拆解（真跑）')
-    // 结果态出现 = 拆完（不用私有墙钟轮询；靠 _assert 重试断言等 status=ready，上限放宽到真模型耗时）。
-    await expect(
-      win.locator(`[data-deconstruct-panel="${nodeId}"][data-deconstruct-status="ready"]`).first(),
-      '真跑没落到结果态：引擎抛错 / key 无效 / 模型不可达',
-    ).toBeVisible({ timeout: 180_000 })
-    const real = await win.evaluate(() => {
-      const entry = Object.values(window.__nomiCanvasStore.getState().videoDeconstructions)[0]
-      return entry?.result || null
-    })
-    check(Boolean(real && real.shots.length >= 1), `真跑拆出 ≥1 镜（${real?.shots.length ?? 0} 镜 · 音轨 ${real?.hasAudio ? '有' : '无'}）`)
-    console.log('\n———— 真跑拆出来的表（人眼看这一段，别只看勾）————')
-    for (const s of real?.shots ?? []) {
-      console.log(`[镜 ${s.index}] ${s.startSeconds.toFixed(1)}–${s.endSeconds.toFixed(1)}s · ${s.shotSize || '?'} · ${s.mood || '?'}${s.carriedOver ? ' · 承接' : ''}${s.visionFailed ? ' · ⚠️画面失败' : ''}`)
-      if (s.visual) console.log(`  画面：${s.visual}`)
-      if (s.dialogue) console.log(`  对白：${s.dialogue}`)
-    }
-    await snap('01b-panel-real-result')
-  }
 
   // ── 注入确定性结果（断言可重复部分一律走它，稳定复现）。──
   await win.evaluate(({ id, result }) => {
@@ -253,7 +222,7 @@ try {
   await expectVisible(win.locator(`[data-deconstruct-panel="${nodeId}"]`).first(), '暗色·结果态面板可见')
   await snap('06-panel-result-dark')
 
-  console.log(failures.length ? `\n❌ 未达标 ${failures.length} 项：${failures.join('、')}` : `\n✅ 全部达标${REAL_RUN ? '（含真跑闭环）' : '（注入档；真跑闭环需 APIMART_API_KEY）'}`)
+  console.log(failures.length ? `\n❌ 未达标 ${failures.length} 项：${failures.join('、')}` : '\n✅ 全部达标（注入档）')
 } catch (error) {
   console.error('走查异常：', error)
   await win.screenshot({ path: path.join(shotsDir, 'ERROR.png') }).catch(() => {})

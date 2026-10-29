@@ -1,0 +1,21 @@
+{
+  "id": "AUD-20261027-deconstruct-cancel",
+  "since": "2026-10-27",
+  "source": "0.24 发版前花钱审计：拆解点了取消，主进程照样调供应商",
+  "category": "claims-and-outcomes",
+  "problem": "分镜表拆解中点「取消」，表顶上写「你取消了这次拆解」，主进程那次拆解却照样把报价里的抽帧、取音轨、转写、逐镜读图全部跑完（四个取消时机都发满报价的行数），整次还以成功收尾；单镜重试在切项目 / 关窗后也照发。用户以为点了取消就不再花钱",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "electron/video/deconstructCancellation.test.ts：六个取消时机，点取消之后不再有新的调用过付费闸、也不再新进闸，抽帧 / 取音轨不再新起；取消那一刻已过闸的照常结算、结果作废；取消不记成失败；已 abort 的 signal 下每个子步骤的调用全集为空；回执 deconstruct.cancelled 逐项对账",
+    "src/workbench/generationCanvas/nodes/shotTable/deconstructionTerminalState.test.ts：点取消、项目被换走都按同一个 requestId 撤主进程那次，表停在已取消 / 已中断；单镜重试带 requestId 与 projectBinding；主进程回 null（项目仍是当前项目）不写表、不抛",
+    "docs/engineering/direction-checks/2026-10-27-deconstruct-cancel.md"
+  ],
+  "completionCommits": []
+}

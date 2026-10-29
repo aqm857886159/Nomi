@@ -99,11 +99,6 @@ export interface LaneViewModelLabels {
   taskTitle: string
   /** 「{done} / {total} 阶段」。两个数分开传，是因为不同语言的量词位置不同。 */
   formatStages(done: number, total: number): string
-  /**
-   * 金额。**币种由领域给**（`ProductionRun.budget.currency`），不是这一层猜的——
-   * 同一个项目里用 APIMart 和用 kie 结算的币种可以不同，印错的那个数看起来完全正常。
-   */
-  formatMoney(currency: string, amount: number): string
   /** join 不到领域事实时卡上那句脚注（「任务详情在任务中心」）。 */
   taskUnknown: string
   /** 历史里那条用户消息挂过的附件，文件现在解不出来时签上写的那句（「附件不可用」）。 */
@@ -226,14 +221,12 @@ function receiptFor(part: Extract<LanePart, { kind: 'tool-call' }>, labels: Lane
  * **`facts` 缺席 = 只画标题 + 一句「详情在任务中心」**，与今天 `taskCardFor` 的裁决逐字相同：
  * join 不到就不给状态，而不是给一个「排队中」——那会让用户以为有东西在跑，
  * 而实际上我们只是没读到那条 run。
+ *
+ * 卡上不印金额（`LaneTaskFacts` 抬头）。
  */
 function taskCardFor(part: Extract<LanePart, { kind: 'task' }>, labels: LaneViewModelLabels): TaskCardData {
   const { facts } = part
   if (!facts) return { title: labels.taskTitle, action: 'video', status: 'queued', footnote: labels.taskUnknown }
-  const money = (amount: number | undefined): string | undefined =>
-    amount !== undefined && facts.currency !== undefined ? labels.formatMoney(facts.currency, amount) : undefined
-  const spent = money(facts.spent)
-  const estimated = money(facts.estimated)
   return {
     title: labels.taskTitle,
     action: 'video',
@@ -243,8 +236,6 @@ function taskCardFor(part: Extract<LanePart, { kind: 'task' }>, labels: LaneView
     // Keep the verified artifact identity and image; numbering is display-only.
     ...(facts.candidates?.length
       ? { candidates: facts.candidates.map((candidate, index) => ({ ...candidate, tag: String(index + 1) })) } : {}),
-    ...(estimated === undefined ? {} : { cost: estimated }),
-    ...(spent === undefined ? {} : { footnoteTrailing: spent }),
   }
 }
 

@@ -14,10 +14,6 @@
     {
       "path": "electron/assets/assetPreview.ts",
       "symbol": "attachStoredAssetPreview"
-    },
-    {
-      "path": "electron/assets/previewRequests.ts",
-      "symbol": "createPreviewRequestRegistry"
     }
   ],
   "forbidden_derivations": [],
@@ -33,5 +29,5 @@
     "electron/assets/assetsIpc.ts"
   ],
   "since": "2026-09-25",
-  "notes": "落盘边界抽首帧；渲染层只经 bridge.assets.ensurePreview（ensureLocalAssetPreview）要，不许自己抽帧（旧的胶片条推导已删）。老节点缺封面由 resultMediaBackfillBridge 打开项目后补。 2026-10-16：同一个 owner 也派生图片预览，并在回执上写 previewState（ready / source / missing）；制作流程物化（generationOutputMaterializer）的回执也过它。画布侧投影见 canvas.image-preview-fact。 补预览可打断（V-1209）：在途派生的取消边界是 electron/assets/previewRequests.ts（窗口销毁 / 项目失效 / 渲染层撤回 → 一个 AbortSignal 传到 ffmpeg）。"
+  "notes": "落盘边界抽首帧；渲染层只经 bridge.assets.ensurePreview（ensureLocalAssetPreview）要，不许自己抽帧（旧的胶片条推导已删）。老节点缺封面由 resultMediaBackfillBridge 打开项目后补。 2026-10-16：同一个 owner 也派生图片预览，并在回执上写 previewState（ready / source / missing）；制作流程物化（generationOutputMaterializer）的回执也过它。画布侧投影见 canvas.image-preview-fact。 补预览可打断（V-1209）：在途派生的取消边界（窗口销毁 / 项目失效 / 渲染层撤回 → 一个 AbortSignal 传到 ffmpeg）2026-10-27 起归概念 ipc.inflight-request-stop（中立模块 electron/ipcRequestRegistry.ts，与视频拆解共用；旧的 electron/assets/previewRequests.ts 同提交删除），本概念只管预览怎么派生、回执怎么写。"
 }

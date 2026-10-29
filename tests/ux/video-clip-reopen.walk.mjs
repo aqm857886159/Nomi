@@ -24,7 +24,6 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const argValue = (flag, fallback) => { const index = process.argv.indexOf(flag); return index > 0 ? process.argv[index + 1] : fallback }
 const locale = argValue('--locale', 'zh-CN')
 const scheme = argValue('--scheme', 'light')
-const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}`
 const evidence = path.join(repoRoot, 'docs/evidence/2026-10-10-video-clip-direct')
 fs.mkdirSync(evidence, { recursive: true })
@@ -63,7 +62,7 @@ const L = {
 
 const results = []
 const launch = () => launchNomiApp({
-  name: 'video-clip-reopen', userDataDir, settingsDir, projectsDir, settleMs: 0, mainRequire: [offscreen],
+  name: 'video-clip-reopen', userDataDir, settingsDir, projectsDir, settleMs: 0,
   viewportSize: { width: 1680, height: 1050 },
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
 })

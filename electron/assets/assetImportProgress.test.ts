@@ -72,6 +72,16 @@ describe('进度上报器', () => {
     expect(last?.copiedBytes).toBe(1_000)
   })
 
+  it('转换格式阶段用转码比例投影到同一条 localization 事件', () => {
+    const reporter = createAssetImportProgressReporter({ projectId: 'p1', nodeId: 'n-convert', totalBytes: 1_000 })
+    reporter.announce()
+    reporter.convert(0.35)
+    reporter.convert(0.8)
+    const payloads = vi.mocked(broadcastAssetImportProgress).mock.calls.map(([payload]) => payload)
+    expect(payloads.at(-2)).toMatchObject({ phase: 'converting', copiedBytes: 350, totalBytes: 1_000 })
+    expect(payloads.at(-1)).toMatchObject({ phase: 'converting', copiedBytes: 800, totalBytes: 1_000 })
+  })
+
   it('中途按节流丢掉密集事件，但 100% 那条无条件送达', () => {
     const reporter = createAssetImportProgressReporter({ projectId: 'p1', nodeId: 'n1', totalBytes: 1_000 })
     reporter.announce()

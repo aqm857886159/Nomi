@@ -1,0 +1,43 @@
+{
+  "name": "主进程在途 IPC 长请求的停止",
+  "subject": "ipc.inflight-request-stop",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/ipcRequestRegistry.ts",
+    "symbol": "createIpcRequestRegistry"
+  },
+  "write_api": [
+    {
+      "path": "electron/ipcRequestRegistry.ts",
+      "symbol": "createIpcRequestRegistry"
+    },
+    {
+      "path": "electron/tasks/taskSpend.ts",
+      "symbol": "stoppableAdmission"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "createPreviewRequestRegistry",
+      "kind": "definition",
+      "why": "补预览与视频拆解共用这一份登记；按目录各写一份就是第二个停止边界（2026-10-27 挪成中立模块时删掉的旧形状）"
+    },
+    {
+      "symbol": "createImportRequestRegistry",
+      "kind": "definition",
+      "why": "本地素材导入也用这一份登记；导入专用的那份（electron/assets 下，2026-10-27 并成一份时删掉）是同一个停止边界的第二个定义"
+    }
+  ],
+  "parity_test": "electron/ipcRequestRegistry.test.ts",
+  "allowed_consumers": [
+    "electron/assets/assetsIpc.ts",
+    "electron/video/videoIpc.ts",
+    "electron/video/deconstructVideo.ts"
+  ],
+  "since": "2026-10-27",
+  "notes": "一次 ipcMain.handle 长请求「停没停」只有一个主人：createIpcRequestRegistry 按「发送方:requestId」登记，渲染层撤回（同一个窗口才撤得动）、发起窗口 destroyed、项目会话复核失败（发起时 projectInteractionCapture 签发的 assertCurrent，每 200ms 一次）、退出收摊（registerQuitDrain → drain：立刻中止全部在途、此后不再接新请求、返回的 Promise 等它们连收尾都做完才兑现；要等真停的调用方 await，只要立刻中止的不 await）四个来源汇成交给干活那一层的同一个 AbortSignal；signal 停了之后干活那一层抛的任何错都回 null（停下不是失败），没停的失败照常抛。登记在第一个 await 之前，动态 import 期间到达的撤回也找得到它。Electron 的 invoke 没有取消口，所以取消是第二条按 requestId 寻址的 IPC。第二个写接口 stoppableAdmission 是同一个停止在付费闸外层的落点：已停就不进闸（不核令牌、不扣钱），闸里等人确认回来时已停也不放行；闸里面（consumeTaskSpend / 令牌 / 确认）一行不改，过了闸的那一次照常发出、照常结算——在途断开是第二刀（0.25，给 runtime 的 runner 接 signal）。现有使用方：补预览（nomi:assets:ensure-preview / cancel-preview，不挂退出收摊）、视频拆解（nomi:video:deconstruct / deconstruct-cancel，编排每一步发之前判 signal，ffmpeg 叶子把它交给 spawn；退出只中止、不等）与本地素材导入（nomi:assets:import-file / import-native-file / copy-files / ensure-playable，不带请求号；退出时可选项立刻 drain，必选项 await drain 并等转码在途表，等到进程真没了、半成品和临时目录删掉）。三家各自一个实例，共用这一份实现；这个登记里 null 分不出「停下」和 work 自己合法地回 null，两者要分开的调用方（懒自愈）把结果装箱再交给 run。合同 docs/fixes/2026-10-27-deconstruct-cancel.root-cause.json（导入一家见 docs/fixes/2026-10-27-import-transcode-hogs-and-orphans.root-cause.json）；10-16 补预览合同声明的旧边界 electron/assets/previewRequests.ts#createPreviewRequestRegistry 在边界主人台账记 reanchored 到这里。"
+}

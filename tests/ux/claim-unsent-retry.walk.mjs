@@ -58,7 +58,7 @@ const smoke = await launchCoreSmoke({
     },
   }),
   extras: {
-    mainRequire: [...egress.mainRequire, path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [...egress.mainRequire, path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     env: { ...egress.env, ...relay.env },
     needsOptions: { fixture: { usage: 'measured' } },
   },
@@ -98,7 +98,7 @@ const setFixtureVendorHeader = (value) => {
 }
 
 try {
-  // 不打扰用户：窗口从建出来那一刻就在屏幕外、不可聚焦（tests/ux/_offscreenWindows.cjs）。
+  // 不打扰用户：窗口从建出来那一刻就在屏幕外、不可聚焦（tests/ux/_quietWalk.cjs）。
   O.windows = await smoke.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => ({ pos: w.getPosition(), focusable: w.isFocusable(), focused: w.isFocused() })))
   check('windows-offscreen-and-unfocusable', O.windows.length > 0 && O.windows.every((w) => w.pos[0] <= -10000 && w.pos[1] <= -10000 && !w.focusable && !w.focused), O.windows)
   await smoke.openProject()

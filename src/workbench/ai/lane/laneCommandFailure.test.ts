@@ -14,6 +14,8 @@ import { LANE_ERROR_CODES } from '../../../../electron/shared/agentLane/laneErro
 import { zhAgentLaneError, enAgentLaneError } from '../../../i18n/locales/agentLaneError'
 import { zhAgentPanelV4, enAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 import { laneAssistantFaultOf } from '../../../../electron/shared/agentLane/laneAssistantFault'
+import { describeAgentError } from '../../../../electron/ai/agentError'
+import { modelCallFailure } from '../../../../electron/ai/runtimeVendorError'
 
 const key = (k: string) => k
 
@@ -93,6 +95,35 @@ describe('服务商报文 → 面板红字（原始 JSON / 分类标记不进界
     spy.mockRestore()
   })
 
+  // 2026-10-27 翻转（原「现状：HTTP 404 的 model_not_found 原始 JSON 落进『服务商返回了一个没见过的错误』」）：
+  // Agent 车道的上游 HTTP 失败由主进程 provider 装配点按这一次调用的传输事实铸成结构化载荷（与文本任务同一个映射），
+  // 投影错误段带的是它。这里喂的就是那个生产者的真产物——渲染层一行没改，按上游自己的码归类。
+  it('HTTP 404 model_not_found（10-18 付费走查实录）：主进程铸的载荷 → 「模型在上游不可用：原话」，不再落进兜底句', () => {
+    const recorded = '{"error":{"code":"model_not_found","message":"The model deepseek-v3.2 does not exist","type":"invalid_request_error"}}'
+    const payload = describeAgentError(modelCallFailure({ vendorKey: 'apimart',
+      attempt: { kind: 'http', status: 404, url: 'https://api.apimart.ai/v1/chat/completions', body: recorded } }))
+    const report = classifyGenerationError(payload)
+    expect(report.kind).toBe('model-unavailable-upstream')
+    expect(providerFailureText(payload, key)).not.toBe('agentResident.providerUnknownError')
+    expect(providerFailureIsUnclassified(payload)).toBe(false)
+    const translate = (table: Record<string, string>): ((k: string, o?: Record<string, unknown>) => string) => (k, o) =>
+      (table[k.replace('agentPanelV4.', '')] ?? k).replace(/\{\{(\w+)\}\}/g, (_m, name: string) => String(o?.[name] ?? ''))
+    const en = providerFailureText(payload, translate(enAgentPanelV4 as unknown as Record<string, string>))
+    expect(en).toBe(`${report.reason}: The model deepseek-v3.2 does not exist`)
+    const zh = providerFailureText(payload, translate(zhAgentPanelV4 as unknown as Record<string, string>))
+    expect(zh).toBe(`${report.reason}：The model deepseek-v3.2 does not exist`)
+    for (const shown of [en, zh]) {
+      expect(shown).not.toContain('NOMI_VENDOR_ERR_B64')
+      expect(leaksInternals(shown)).toBe(false)
+    }
+  })
+
+  it('没有载荷的旧转录（本卡之前落盘的 pi 展示串）：仍按原文分，fail-closed 不变', () => {
+    const raw = '404: {"error":{"code":"model_not_found","message":"The model deepseek-v3.2 does not exist","type":"invalid_request_error"}}'
+    expect(providerFailureText(raw, key)).toBe('agentResident.providerUnknownError')
+    expect(providerFailureIsUnclassified(raw)).toBe(true)
+  })
+
   it('class: 带汉字的原始 JSON 也不算人话', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     for (const raw of ['{"code":1,"msg":"系统异常，请稍后"}', '[{"错误":"x","code":7}]', `op-4f2a9c1e-7b3d-4e8a-9c21-0d5e6f7a8b9c 失败了`]) {
@@ -151,11 +182,18 @@ describe('服务商报文：断线 / 超时归网络类，不再说「认不出�
   it('原因 + 服务商原话的拼法走 i18n：en 半角冒号加空格，zh 全角冒号', () => {
     const translate = (table: Record<string, string>): ((k: string, o?: Record<string, unknown>) => string) => (k, o) =>
       (table[k.replace('agentPanelV4.', '')] ?? k).replace(/\{\{(\w+)\}\}/g, (_m, name: string) => String(o?.[name] ?? ''))
-    const en = providerFailureText('Connection error.', translate(enAgentPanelV4 as unknown as Record<string, string>))
-    expect(en).toMatch(/: Connection error\.$/)
+    // 只有服务商真回了话（带 httpStatus 的结构化载荷，形状照 pi 运行时那条通道）才有原话可拼（2026-10-27 用户拍板：只认有来源的原话）。
+    const said = 'Too many requests, slow down.'
+    const vendorSaid = `NOMI_VENDOR_ERR_B64::${Buffer.from(JSON.stringify({ vendorKey: 'provider', method: 'POST', url: '', httpStatus: 429, upstreamMsg: said, category: 'quota', retryable: true }), 'utf8').toString('base64')}:: （HTTP 429）${said}`
+    const en = providerFailureText(vendorSaid, translate(enAgentPanelV4 as unknown as Record<string, string>))
+    expect(en).toMatch(/: Too many requests, slow down\.$/)
     expect(en).not.toContain('：')
-    const zh = providerFailureText('Connection error.', translate(zhAgentPanelV4 as unknown as Record<string, string>))
-    expect(zh).toMatch(/：Connection error\.$/)
+    const zh = providerFailureText(vendorSaid, translate(zhAgentPanelV4 as unknown as Record<string, string>))
+    expect(zh).toMatch(/：Too many requests, slow down\.$/)
+    // 本机断线的那句（openai 客户端的 `Connection error.`）不是服务商说的：只给原因，不当原话拼上去。
+    const local = providerFailureText('Connection error.', translate(zhAgentPanelV4 as unknown as Record<string, string>))
+    expect(local).not.toContain('Connection error.')
+    expect(local).toBe(classifyGenerationError('Connection error.').reason)
   })
 
   it('共享嗅探表的「terminated」只认整串：账号被终止 / 策略终止 / 用户终止不会被说成连不上服务商', () => {

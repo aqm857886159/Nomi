@@ -31,7 +31,6 @@ const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}
 const zh = locale !== 'en'
 const evidence = path.join(repoRoot, 'docs/evidence/2026-10-08-canvas-handles')
 const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
-const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 
 const temp = makeTempDir('nomi-handle-menus-')
 const projectsDir = path.join(temp, 'projects')
@@ -65,7 +64,7 @@ for (const name of ['project.json', '.nomi/project.json']) fs.writeFileSync(path
 
 const results = []
 const run = await launchNomiApp({
-  name: 'canvas-handle-menus', projectsDir, settleMs: 0, mainRequire: [offscreen],
+  name: 'canvas-handle-menus', projectsDir, settleMs: 0,
   viewportSize: { width: 1680, height: 1050 },
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
 })

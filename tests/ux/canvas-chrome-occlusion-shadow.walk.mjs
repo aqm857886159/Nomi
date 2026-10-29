@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 生成框压住底部外框控件时，控件盒子外的投影圈也必须让位。
-// 真 Electron、隔离 profile、NOMI_WALK_OFFSCREEN=1；只移动节点和截图，不点生成。
+// 真 Electron、隔离 profile、；只移动节点和截图，不点生成。
 
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'

@@ -162,7 +162,7 @@ async function openEditor(locale) {
   appInstance = await launchNomiApp({
     name: `storyboard-table-structure-${locale}`, tempRoot, settingsDir, projectsDir, settleMs: 1200,
     viewportSize: MIN_WINDOW,
-    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs')],
+    mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: {
       'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen',
       'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen',

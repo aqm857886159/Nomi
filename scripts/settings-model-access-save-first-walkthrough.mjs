@@ -584,7 +584,7 @@ try {
     'retried task to complete',
   )
   assert(completedRuns.runs.find((run) => run.id === firstRun.id)?.stage === 'cancelled', 'A late response changed the cancelled task')
-  await win.getByText('全部通过真实测试，可以在画布中使用。', { exact: true }).waitFor({ state: 'visible' })
+  await win.getByText('全部通过自检，可以在画布里试跑。', { exact: true }).waitFor({ state: 'visible' })
   await screenshot(win, '09-desktop-retry-completed.png')
 
   await retryTask.locator('[data-model-settings-back]').click()

@@ -1,39 +1,26 @@
 import { ipcMain } from "electron";
 import { upsertRendererCatalogVendorApiKey } from "../../catalog/rendererCatalogMutation";
-import { appFetch } from "../../appFetch";
 import type { AiSdkProviderKind } from "../../catalog/types";
-import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar, mergeHeadersCaseInsensitive } from "../../jsonUtils";
+import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar } from "../../jsonUtils";
 import { guessModelKind, type GuessableModelKind } from "../../catalog/modelKindHeuristic";
 import {
   buildAuthHeaders,
-  describeNetworkErrorLazy,
   fetchModelList,
   readExtraHeaders,
-  upstreamErrorText,
 } from "./modelListProbe";
 import { normalizeProviderKind } from "../../catalog/catalogStore";
+import { credentialProbePlan } from "../../catalog/credentialProbePolicy";
 import { connectionAuthSpec } from "../../catalog/vendorAuthSpec";
 import type { VendorAuthSpec } from "../requestPipeline";
 import { checkVendorHealth } from "./vendorHealth";
-import { createExplicitProxyDispatcher } from "../../systemProxy";
 
 import { assertTrustedSender } from "../../ipcSenderGuard";
 import { registerAntigravityIpc } from "../antigravityIpc";
-import type { Dispatcher } from "undici";
 // ---------------------------------------------------------------------------
 // Onboarding — 中转拉取式接入 IPC（手填地址+key → 拉模型 → 按 id 分类 → 保存）。
 // 「AI 读文档」子系统已下线（Issue #8：各家中转参数不一，读文档抠参数不可靠）。
 // ---------------------------------------------------------------------------
 
-/** 单协议探测结果。mismatch=true 表示像「路由/协议不对」（可换下一个协议试）。 */
-type ProtocolProbe = { ok: boolean; status?: number; error?: string; mismatch?: boolean };
-
-/**
- * 用极小请求体探测一个 wire protocol 是否接受。三协议各自的 URL/认证/body 形状：
- *  - anthropic        : host root + /v1/messages，x-api-key + anthropic-version，messages 体（剥尾随 /v1 防双拼）
- *  - openai-responses : {baseUrl}/responses，bearer，{input, max_output_tokens}（非 messages！）
- *  - openai-compatible: {baseUrl}/chat/completions，bearer，{messages, max_tokens}
- */
 /**
  * 探测这条地址时该用哪份鉴权说法：全新接入 = 没有已保存的连接 → 按协议缺省；
  * 重测一条已存在的连接 → 用它声明的那份（方案词只住在那里，向导上没有填它的格子）。
@@ -42,45 +29,6 @@ function savedConnectionAuth(baseUrl: string, kind: AiSdkProviderKind): VendorAu
   return connectionAuthSpec({ baseUrl, authType: kind === "anthropic" ? "x-api-key" : "bearer" });
 }
 
-async function probeOneProtocol(
-  kind: AiSdkProviderKind,
-  rawBaseUrl: string,
-  apiKey: string,
-  modelId: string,
-  extraHeaders: Record<string, string>,
-  signal: AbortSignal,
-  proxyUrl?: string,
-  auth?: VendorAuthSpec,
-): Promise<ProtocolProbe> {
-  let url: string;
-  const headers = mergeHeadersCaseInsensitive({ "content-type": "application/json" }, buildAuthHeaders(kind, apiKey, extraHeaders, auth));
-  let body: Record<string, unknown>;
-  if (kind === "anthropic") {
-    const root = (rawBaseUrl || "https://api.anthropic.com").replace(/\/v1$/i, "");
-    url = `${root}/v1/messages`;
-    body = { model: modelId || "claude-3-5-haiku-latest", max_tokens: 1, messages: [{ role: "user", content: "ping" }] };
-  } else if (kind === "openai-responses") {
-    url = `${rawBaseUrl}/responses`;
-    body = { model: modelId || "gpt-4o-mini", input: "ping", max_output_tokens: 16 };
-  } else {
-    url = `${rawBaseUrl}/chat/completions`;
-    body = { model: modelId || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
-  }
-  let dispatcher: Dispatcher | undefined;
-  try {
-    dispatcher = proxyUrl ? createExplicitProxyDispatcher(proxyUrl) : undefined;
-    const res = await appFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal, ...(dispatcher ? { dispatcher } : {}) });
-    if (res.ok) return { ok: true, status: res.status };
-    const text = await res.text().catch(() => "");
-    // 404/405/501/502/503 多为「路由/协议不对」→ 换下一个协议；401/403/400 多为鉴权/请求问题（不是协议错）。
-    const mismatch = [404, 405, 501, 502, 503].includes(res.status);
-    return { ok: false, status: res.status, error: upstreamErrorText(text, res.status), mismatch };
-  } catch (error) {
-    return { ok: false, error: await describeNetworkErrorLazy(error), mismatch: true };
-  } finally {
-    if (dispatcher) await dispatcher.close().catch(() => undefined);
-  }
-}
 export function registerOnboardingIpc(): void {
   registerAntigravityIpc();
   ipcMain.handle("nomi:model-catalog:vendor-api-key:upsert", async (event, vendorKey: string, payload: unknown) => {
@@ -112,18 +60,15 @@ export function registerOnboardingIpc(): void {
     return { kinds };
   });
 
-  // 接口协议探测（auto-probe）+ 连接测试。非阻塞，永不 gate 保存。
-  // 真实用户接不进来的根因是「不知道选哪个协议」（P4）——默认让主进程替他试：
-  // chat↔responses 共享 /v1 baseURL + bearer，只 path/body 不同，挨个发极小请求探测；
-  // anthropic（host root + x-api-key）仅当 hostname 像 anthropic 或地址留空时纳入。
-  // 专家在表单展开「接口协议」强制指定时，payload.providerKind 给定 → 只测那一个。
+  // 连接自检只走 credentialProbePolicy 允许的免费探测；自建中转没有内置种子，统一落到 GET /models。
+  // 这个按钮不负责猜 openai-compatible 与 openai-responses，真正生成时若协议不对再由现有错误指路。
   ipcMain.handle("nomi:onboarding:test-connection", async (event, payload: Record<string, unknown>) => {
     assertTrustedSender(event);
     const rawBaseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");
     const apiKey = String(payload?.apiKey || "").trim();
-    const modelId = String(payload?.modelId || "").trim();
     const forcedKind = payload?.providerKind ? normalizeProviderKind(payload.providerKind) : undefined;
-    const autoProbe = payload?.autoProbe === true && !forcedKind;
+    const vendorKey = String(payload?.vendorKey || "").trim();
+    const probePlan = credentialProbePlan(vendorKey);
     // 「接口协议」只管**文本**模型怎么发聊天；图片/视频走 mapping 的自有端点（如 new-api 的
     // /v1/video/generations），压根不读 providerKind。所以当用户一个文本模型都没选时（纯图片/
     // 视频中转），拿模型 id 去发 chat/completions 必然被上游拒——那是我们探错了，不是他接不通。
@@ -143,6 +88,7 @@ export function registerOnboardingIpc(): void {
     // 纯图片/视频上游：不探协议（探了也白探，它们不走 providerKind），只探地址+Key 通不通。
     if (reachabilityOnly) {
       if (!/^https?:\/\//i.test(rawBaseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
+      if (probePlan.kind !== "model-list") return { ok: false, failureKind: "unsupported", error: "该连接需要在首次使用时自检" };
       const kind = forcedKind ?? "openai-compatible";
       // 已保存的那条连接可能声明了方案词（Higgsfield 的 `Key id:secret`）。不带它探，
       // 得到的 401 说的是「我们头拼错了」，用户读到的却是「你的 key 不对」。
@@ -158,40 +104,23 @@ export function registerOnboardingIpc(): void {
         clearTimeout(timeout);
       }
     }
-    // 候选协议：强制 → 只它；自动 → chat+responses（+anthropic 当 hostname 像 anthropic 或地址留空）。
-    let candidates: AiSdkProviderKind[];
-    if (forcedKind) {
-      candidates = [forcedKind];
-    } else if (autoProbe) {
-      const host = (() => {
-        try { return new URL(rawBaseUrl).hostname; } catch { return ""; }
-      })();
-      const anthropicLikely = !rawBaseUrl || /anthropic|claude/i.test(host);
-      candidates = !rawBaseUrl
-        ? ["anthropic"]
-        : anthropicLikely
-          ? ["anthropic", "openai-compatible", "openai-responses"]
-          : ["openai-compatible", "openai-responses"];
-    } else {
-      candidates = ["openai-compatible"];
-    }
-    // openai-* 必须有 http(s) 地址；anthropic 可留空（托管默认）。无地址且无 anthropic 候选 → 直接报错。
-    if (!/^https?:\/\//i.test(rawBaseUrl) && !candidates.includes("anthropic")) {
+    if (probePlan.kind !== "model-list") return { ok: false, failureKind: "unsupported", error: "该连接需要在首次使用时自检" };
+    const host = (() => {
+      try { return new URL(rawBaseUrl).hostname; } catch { return ""; }
+    })();
+    const anthropicLikely = /anthropic|claude/i.test(host);
+    const kind: AiSdkProviderKind = forcedKind ?? (anthropicLikely ? "anthropic" : "openai-compatible");
+    if (!/^https?:\/\//i.test(rawBaseUrl) && kind !== "anthropic") {
       return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
-      let best: (ProtocolProbe & { kind: AiSdkProviderKind }) | null = null;
-      for (const kind of candidates) {
-        // openai-* 没地址就跳过（避免 fetch 无效 URL）。
-        if (kind !== "anthropic" && !/^https?:\/\//i.test(rawBaseUrl)) continue;
-        const r = await probeOneProtocol(kind, rawBaseUrl, apiKey, modelId, extraHeaders, controller.signal, proxyUrl, savedConnectionAuth(rawBaseUrl, kind));
-        if (r.ok) return { ok: true, status: r.status, detectedKind: kind };
-        // 留住「最该报给用户」的错：非 mismatch（鉴权/请求错，可操作）优先于 mismatch（换协议）。
-        if (!best || (best.mismatch && !r.mismatch)) best = { ...r, kind };
-      }
-      return { ok: false, status: best?.status, error: best?.error || "连接失败", detectedKind: forcedKind };
+      const headers = buildAuthHeaders(kind, apiKey, extraHeaders, savedConnectionAuth(rawBaseUrl, kind));
+      const listed = await fetchModelList(kind, rawBaseUrl || "https://api.anthropic.com", headers, controller.signal, { proxyUrl });
+      return listed.ok
+        ? { ok: true, status: listed.statuses.at(-1), ...(kind === "anthropic" ? { detectedKind: "anthropic" as const } : {}) }
+        : { ok: false, status: listed.status, failureKind: listed.failureKind, error: listed.error };
     } finally {
       clearTimeout(timeout);
     }

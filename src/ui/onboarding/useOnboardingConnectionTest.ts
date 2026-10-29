@@ -11,6 +11,7 @@ export function useOnboardingConnectionTest({
   bridge,
   baseUrl,
   apiKey,
+  vendorKey,
   models,
   providerKind,
   kindForced,
@@ -23,6 +24,7 @@ export function useOnboardingConnectionTest({
   bridge: ReturnType<typeof getDesktopBridge>
   baseUrl: string
   apiKey: string
+  vendorKey?: string
   models: TestModel[]
   providerKind: ProviderKind
   kindForced: boolean
@@ -45,15 +47,14 @@ export function useOnboardingConnectionTest({
     if (!bridge?.onboarding?.testConnection) return
     setTestState('testing')
     setTestMessage('')
-    const firstTextModelId = models.filter((m) => m.kind === 'text').map((m) => m.id.trim()).find(Boolean)
-    const reachabilityOnly = !firstTextModelId
+    const reachabilityOnly = !models.some((m) => m.kind === 'text' && m.id.trim())
     try {
       const res = await bridge.onboarding.testConnection({
         baseUrl,
         apiKey,
-        modelId: firstTextModelId,
+        ...(vendorKey ? { vendorKey } : {}),
         ...(reachabilityOnly ? { probe: 'reachability' as const } : {}),
-        ...(kindForced ? { providerKind } : { autoProbe: true }),
+        ...(kindForced ? { providerKind } : {}),
         headers: buildHeadersObject(),
         ...(proxyUrl.trim() ? { proxyUrl: proxyUrl.trim() } : {}),
       })
@@ -102,7 +103,7 @@ export function useOnboardingConnectionTest({
         }),
       )
     }
-  }, [apiKey, baseUrl, bridge, buildHeadersObject, kindForced, models, noApiKey, onDetectedKind, onProtocolFallback, providerKind, proxyUrl, t])
+  }, [apiKey, baseUrl, bridge, buildHeadersObject, kindForced, models, noApiKey, onDetectedKind, onProtocolFallback, providerKind, proxyUrl, t, vendorKey])
 
   const resetTest = React.useCallback(() => {
     setTestState('idle')

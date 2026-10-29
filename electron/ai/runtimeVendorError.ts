@@ -10,8 +10,9 @@ import type { RuntimeErrorFacts } from '../shared/agentCapabilities/transportCon
 import { laneAssistantFaultOf, type LaneModelTimeoutPhase } from '../shared/agentLane/laneAssistantFault';
 import { MODEL_CALL_CEILING_ERROR } from '../shared/agentLane/modelCallPort';
 import { isJsonRecord, pickUpstreamCode } from '../jsonUtils';
-import { VendorRequestError, categorizeVendorFailure, encodeVendorErrorMessage } from '../vendor/vendorHttp';
-import { desktopT } from '../i18n';
+// 失败事实与文案只引轻模块：laneModelProvider（pi 的 NodeNext 岛）也编到这里，vendorHttp / i18n 会把整个运行时拖进那份编译。
+import { VendorRequestError, categorizeVendorFailure } from '../shared/vendorFailure';
+import { desktopT } from '../desktopStrings';
 import type { ModelCallAttempt } from './modelCallFetch';
 
 /** 上游报文里的人话：{error:{message}} / {error} / {message} / {msg} 四种常见信封。 */
@@ -69,12 +70,6 @@ export function vendorErrorFromRuntimeFacts(error: RuntimeErrorFacts, vendorKey:
     ...(error.status !== undefined ? { httpStatus: error.status } : {}),
     upstreamMsg: upstreamMsg.slice(0, 256), ...(upstreamCode ? { upstreamCode } : {}), ...categorizeVendorFailure(error.status),
   });
-}
-
-/** Map recorded pi transport facts directly; never impersonate an AI4 error. */
-export function describeRuntimeError(error: RuntimeErrorFacts, vendorKey: string): string {
-  const vendorError = vendorErrorFromRuntimeFacts(error, vendorKey);
-  return vendorError ? encodeVendorErrorMessage(vendorError) : error.message;
 }
 
 const STALL_KEYS: Record<LaneModelTimeoutPhase, Parameters<typeof desktopT>[0]> = {

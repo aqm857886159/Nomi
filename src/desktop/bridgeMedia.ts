@@ -72,8 +72,14 @@ export type DesktopMediaBridge = {
      * `failedShotIndexes` 是画面分析没成功的镜号——诚实回报，那几镜其余字段（如对白）仍可用。
      */
     onDeconstructionProgress: (callback: (event: DeconstructionProgress) => void) => () => void
+    /**
+     * `requestId` 与 `projectBinding` 必填（主进程缺了直接拒）：requestId 是取消口 `cancelDeconstruct` 寻址用的，
+     * projectBinding 让主进程把这次拆解绑在发起项目的会话上——项目换了 / 窗口没了，主进程自己停。
+     * 回 `null` = 这次拆解被停下了（取消、项目换了、窗口没了），不是失败，不写表。
+     */
     deconstruct: (payload: {
-      requestId?: string
+      requestId: string
+      projectBinding: ProjectBinding
       videoUrl: string
       projectId: string
       /**
@@ -120,7 +126,12 @@ export type DesktopMediaBridge = {
       failureReason?: string
       /** 失败类别（机器可读）。`local-speech` = 本地离线转写那一路挂了，UI 据此给「改用云端重试」。 */
       failureKind?: 'local-speech'
-    }>
+    } | null>
+    /**
+     * 撤回这个窗口发起的那次拆解（按 requestId）。不等回话也行：撤了之后主进程不再起新的一步、不再进付费闸，
+     * 那次 `deconstruct` 回 `null`。已经过了付费闸的那一次照常结算（在途断开是第二刀）。
+     */
+    cancelDeconstruct: (payload: { requestId: string }) => Promise<{ ok: boolean }>
   }
   /**
    * 全局截图热键（默认关，见 electron/screenshot/screenshotHotkey.ts）。

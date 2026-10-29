@@ -37,7 +37,7 @@ vi.mock("../export/mediaProbe", async (importOriginal) => {
 });
 vi.mock("../export/ffmpegRunner", () => ({ resolveFfmpegPath: () => "ffmpeg" }));
 
-const { createPreviewRequestRegistry } = await import("./previewRequests");
+const { createIpcRequestRegistry } = await import("../ipcRequestRegistry");
 const { attachStoredAssetPreview, isAssetPreviewCancelled } = await import("./assetPreview");
 const { readAssetSidecarMeta } = await import("./assetSidecar");
 
@@ -71,7 +71,7 @@ async function untilFfmpegStarted(): Promise<void> {
 
 describe("补预览在途请求的取消", () => {
   it("发起窗口关掉：杀掉在途 ffmpeg、删掉没写完的预览、不写 sidecar、返回 null", async () => {
-    const registry = createPreviewRequestRegistry();
+    const registry = createIpcRequestRegistry();
     const sender = new FakeSender(1);
     const record = storedRecord();
     const pending = registry.run(sender, "r1", undefined, (signal) => attachStoredAssetPreview(record, undefined, { signal }));
@@ -89,7 +89,7 @@ describe("补预览在途请求的取消", () => {
   });
 
   it("项目上下文失效（关项目 / 换项目，发起时签发的 assertCurrent 开始抛）：同样杀进程、不留产物", async () => {
-    const registry = createPreviewRequestRegistry({ pollMs: 5 });
+    const registry = createIpcRequestRegistry({ pollMs: 5 });
     let projectOpen = true;
     const assertCurrent = () => { if (!projectOpen) throw new Error("project_binding_stale"); };
     const record = storedRecord();
@@ -102,7 +102,7 @@ describe("补预览在途请求的取消", () => {
   });
 
   it("渲染层显式撤回只认同一个窗口的请求号；别的窗口撤不动", async () => {
-    const registry = createPreviewRequestRegistry();
+    const registry = createIpcRequestRegistry();
     const record = storedRecord();
     const pending = registry.run(new FakeSender(3), "r3", undefined, (signal) => attachStoredAssetPreview(record, undefined, { signal }));
     await untilFfmpegStarted();
@@ -113,7 +113,7 @@ describe("补预览在途请求的取消", () => {
   });
 
   it("发起前项目就已失效：一次子进程都不起", async () => {
-    const registry = createPreviewRequestRegistry();
+    const registry = createIpcRequestRegistry();
     const record = storedRecord();
     const result = await registry.run(new FakeSender(5), "r5", () => { throw new Error("project_binding_stale"); }, (signal) => attachStoredAssetPreview(record, undefined, { signal }));
     expect(result).toBeNull();
@@ -131,7 +131,7 @@ describe("补预览在途请求的取消", () => {
 // V-1209 复验的新阻断：同一素材两个并发补预览，取消其中一个不许删掉另一个已经 ready 的预览（sidecar 还指着它）。
 describe("同一素材并发补预览：取消只清自己的产物", () => {
   it("A 在途、B 先完成并登记 sidecar，再撤 A：B 的预览文件还在，sidecar 指的文件存在", async () => {
-    const registry = createPreviewRequestRegistry();
+    const registry = createIpcRequestRegistry();
     const record = storedRecord();
     const finalPreview = record.data.absolutePath.replace(/\.jpg$/, ".preview.jpg");
     processControl.completeImmediately = new Set([1]);

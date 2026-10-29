@@ -198,6 +198,13 @@ export function buildNomiTheme() {
       design: nomiDesignTokens
     },
     components: {
+      // 外壳（顶栏 / 左栏）的层级走刻度的地板，不取 Mantine 默认的 100（数值相同，但从此有名字、有不变量测试）：
+      // 全局层都在它之上，谁也不许手写一个够不着它的数字（2026-10-27 开屏 z-[60] 被顶栏压住）。
+      AppShell: {
+        defaultProps: {
+          zIndex: NOMI_OVERLAY_Z_INDEX.shellChrome
+        }
+      },
       Button: {
         defaultProps: {
           radius: 'xs',

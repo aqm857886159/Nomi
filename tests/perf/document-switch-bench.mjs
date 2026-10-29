@@ -60,7 +60,7 @@ async function launch(suffix) {
       },
     }),
     extras: {
-      mainRequire: [path.join(repoRoot, 'tests', 'ux', '_offscreenWindows.cjs'), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
+      mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs'), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
       // 屏幕外窗口会被 Windows 判成被遮挡而停帧；关掉遮挡判定，量到的才是真的。
       env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' },
     },

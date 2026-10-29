@@ -30,6 +30,10 @@
     {
       "path": "src/workbench/generationCanvas/nodes/whiteboard/whiteboardState.ts",
       "symbol": "readWhiteboardEditingState"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardFrameSize.ts",
+      "symbol": "useWhiteboardFrameSize"
     }
   ],
   "forbidden_derivations": [],
@@ -40,8 +44,10 @@
     "src/workbench/generationCanvas/nodes/whiteboard/NodeInlineWhiteboardHost.tsx",
     "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardCanvasDocument.ts",
     "src/workbench/generationCanvas/nodes/whiteboard/whiteboardStateOps.ts",
-    "src/workbench/assets/assetResultDeletion.ts"
+    "src/workbench/assets/assetResultDeletion.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/whiteboardStatePreview.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardCardBody.tsx"
   ],
   "since": "2026-10-12",
-  "notes": "所有图片/独立画板、历史快照和草稿复用同一份 WhiteboardState；serializeWhiteboardState 去除临时 File 并复制可变集合。capture/restore 只在 whiteboardCanvasTypes.ts 定义，统一转换 offsets、assetTransforms、flips，禁止在保存调用者另抄引擎映射。旧数据由 readWhiteboardState 补空字段。此登记说明实际单一代码 owner，不代表真实 Electron 功能已验收。 readWhiteboardAssetUrls 为资产存活判据读取当前草稿/历史快照 URL，不复制大文档，不另造白板删除策略。 readWhiteboardEditingState 归 whiteboardState owner，按当前结果 identity 读取草稿或 raw 历史文档；节点 host 只消费。"
+  "notes": "所有图片/独立画板、历史快照和草稿复用同一份 WhiteboardState；serializeWhiteboardState 去除临时 File 并复制可变集合。capture/restore 只在 whiteboardCanvasTypes.ts 定义，统一转换 offsets、assetTransforms、flips，禁止在保存调用者另抄引擎映射。旧数据由 readWhiteboardState 补空字段。此登记说明实际单一代码 owner，不代表真实 Electron 功能已验收。 readWhiteboardAssetUrls 为资产存活判据读取当前草稿/历史快照 URL，不复制大文档，不另造白板删除策略。 readWhiteboardEditingState 归 whiteboardState owner，按当前结果 identity 读取草稿或 raw 历史文档；节点 host 只消费。 画框尺寸什么时候写进文档的 canvasDimensions 只归 useWhiteboardFrameSize：提交时重读画框和文档，比例、尺寸框、撤销重做、打开都经它的 settle（2026-10-27）。whiteboardStatePreview 与画板卡片只读 state 现画预览，不写回、不落盘。"
 }

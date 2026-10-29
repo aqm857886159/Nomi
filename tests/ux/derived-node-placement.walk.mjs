@@ -23,7 +23,6 @@ const locale = argValue('--locale', 'zh-CN')
 const scheme = argValue('--scheme', 'light')
 const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}`
 const evidence = path.join(repoRoot, 'docs/evidence/2026-10-19-derived-node-placement')
-const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 fs.mkdirSync(evidence, { recursive: true })
 
 const temp = makeTempDir('nomi-derived-placement-')
@@ -54,7 +53,7 @@ for (const name of ['project.json', '.nomi/project.json']) fs.writeFileSync(path
 
 const results = []
 const run = await launchNomiApp({
-  name: 'derived-node-placement', projectsDir, settleMs: 0, mainRequire: [offscreen], viewportSize: { width: 1680, height: 1050 },
+  name: 'derived-node-placement', projectsDir, settleMs: 0, viewportSize: { width: 1680, height: 1050 },
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
 })
 const { app } = run

@@ -39,7 +39,6 @@ const tag = `${locale === 'en' ? 'en' : 'zh'}${scheme === 'dark' ? '-dark' : ''}
 const zh = locale !== 'en'
 const evidence = path.join(repoRoot, 'docs/evidence/2026-10-11-video-trim-production')
 const failShotDir = path.join(repoRoot, '.tmp/walk-fail')
-const offscreen = path.join(repoRoot, 'tests/ux/full-walk/offscreenWindow.cjs')
 const withShots = argValue('--shots', 'yes') !== 'no'
 
 const temp = makeTempDir('nomi-video-clip-')
@@ -103,7 +102,7 @@ const L = {
 
 const results = []
 const run = await launchNomiApp({
-  name: 'video-clip-direct', projectsDir, settleMs: 0, mainRequire: [offscreen],
+  name: 'video-clip-direct', projectsDir, settleMs: 0,
   viewportSize: { width: 1680, height: 1050 },
   initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
 })

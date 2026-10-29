@@ -1,0 +1,39 @@
+{
+  "name": "本地文件进入项目素材的统一导入路由",
+  "subject": "asset.local-file-import",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/localFileImport.ts",
+    "symbol": "importLocalFile"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/localFileImport.ts",
+      "symbol": "importLocalFile"
+    },
+    {
+      "path": "src/workbench/generationCanvas/adapters/assetImportAdapter.ts",
+      "symbol": "importLocalMediaFilesToGenerationCanvas"
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "importProjectAsset"
+    },
+    {
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "transcodeFileToPlayableMp4IfNeeded"
+    },
+    {
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "withVideoImportScratchDir"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-26-real-media-import-walk.root-cause.json：画布本地媒体导入与 MCP 本机路径导入都必须落到 importLocalFile 这一条项目素材写路；入口函数各自负责用户动作 / MCP 安全边界，但不另造落盘、准入、预览或视频归一化语义。导入时的视频归一化也归这条写路：transcodeFileToPlayableMp4IfNeeded 只在导入请求里转码（中止信号跟着导入走），临时产物只落 withVideoImportScratchDir 给的目录（合同 docs/fixes/2026-10-27-import-transcode-hogs-and-orphans.root-cause.json）。"
+}

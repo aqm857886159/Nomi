@@ -12,7 +12,7 @@ import {
   APIMART_TEXT_MODEL_KEYS, ENV_KEY_ALLOW_CATALOG, ENV_KEY_VAR, REDACTED, assertNoSecretOnDisk, assertUsableEnvKey, envKeyOf,
   filesContainingSecret, paidCredentialSource, redact, redactNetLogEntry, redactedError,
 } from './_paidEnvKey.mjs'
-import { assertEnvKeyModels, envKeyBrainOf, openPaidWalk, paidRunRefusal } from './_paidRun.mjs'
+import { assertEnvKeyModels, DEFAULT_PAID_BRAIN, envKeyBrainOf, openPaidWalk, paidRunRefusal } from './_paidRun.mjs'
 import { finalizeRuntimeWalk } from './agent-runtime-walk-support.mjs'
 
 // 合成 key：形状像真 key，值纯属虚构。
@@ -119,6 +119,30 @@ describe('登记表和产品代码对得上', () => {
     expect(envKeyBrainOf([{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).toBe('deepseek-v4-flash')
     expect(envKeyBrainOf([{ vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).toBe('deepseek-v4-pro')
   })
+
+  test('付费走查缺省大脑在现役文本模型表里：退役了这里就红，不等跑付费才发现', () => {
+    expect(APIMART_TEXT_MODEL_KEYS).toContain(DEFAULT_PAID_BRAIN.modelKey)
+    expect(envKeyBrainOf([{ vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).toBe(DEFAULT_PAID_BRAIN.modelKey)
+  })
+
+  test('走查脚本不点名已退役的 APIMart 文本模型：退役了在这里红，不等跑付费才发现', () => {
+    const seed = fs.readFileSync(new URL('../../electron/catalog/seedBuiltins.ts', import.meta.url), 'utf8')
+    const listed = seed.match(/RETIRED_APIMART_TEXT_MODEL_KEYS = Object\.freeze\(\[([^\]]*)\]\)/)
+    expect(listed).not.toBeNull()
+    const retired = [...listed[1].matchAll(/["']([^"']+)['"]/g)].map((match) => match[1])
+    expect(retired).toContain('deepseek-v3.2')
+    // 故意种退役模型、用来测「退役的会被清掉」的走查：这里点名退役 key 是对的。
+    const SEEDS_RETIRED_ON_PURPOSE = new Set(['model-selection-real.e2e.mjs'])
+    const here = new URL('./', import.meta.url)
+    const offenders = fs.readdirSync(here)
+      .filter((name) => name.endsWith('.mjs') && !name.endsWith('.test.mjs') && !SEEDS_RETIRED_ON_PURPOSE.has(name))
+      .flatMap((name) => {
+        const text = fs.readFileSync(new URL(name, here), 'utf8')
+        return retired.filter((key) => text.includes(`'${key}'`) || text.includes(`"${key}"`)).map((key) => `${name}: ${key}`)
+      })
+    for (const name of SEEDS_RETIRED_ON_PURPOSE) expect(fs.existsSync(new URL(name, here))).toBe(true)
+    expect(offenders).toEqual([])
+  })
 })
 
 /** 一个能跑完 openPaidWalk 全程的假隔离实例：真文件、真 finalizeRuntimeWalk，只是不起 App。 */
@@ -156,7 +180,7 @@ WARN agent Authorization: Bearer ${KEY} failed
 /** 假界面：listModels / upsertModel 跑在内存里，lockSpendToModels 的 win.evaluate 直接调用传入的函数。 */
 function fakeWin() {
   const rows = [
-    { vendorKey: 'apimart', modelKey: 'deepseek-v3.2', kind: 'text', labelZh: 'DeepSeek V3.2', enabled: true, availability: { usable: true } },
+    { vendorKey: 'apimart', modelKey: 'deepseek-v4-flash', kind: 'text', labelZh: 'DeepSeek V4 Flash', enabled: true, availability: { usable: true } },
     { vendorKey: 'apimart', modelKey: 'z-image-turbo', kind: 'image', labelZh: 'Z-Image Turbo', enabled: true, availability: { usable: true } },
     { vendorKey: 'apimart', modelKey: 'gpt-image-2', kind: 'image', labelZh: 'GPT Image 2', enabled: true, availability: { usable: true } },
   ]
@@ -169,7 +193,7 @@ function fakeWin() {
 
 // 这些测试用假 App 验的是凭据 / 收窄 / 收尾；构建检查有自己的测试（_paidRun.test.mjs）。
 const noBuildCheck = () => {}
-const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }]
+const MODELS = [{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }]
 
 describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
   function envFor(root) {
@@ -192,10 +216,10 @@ describe('openPaidWalk · env-key 路（假 App、假界面）', () => {
     fs.appendFileSync(seen.opts.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'guard-loaded', layers: ['fetch', 'socket', 'chromium'] })}\n`)
     await paid.lockToAuthorizedModels(win)
     fs.appendFileSync(seen.opts.env.NOMI_WALK_NET_LOG, `${JSON.stringify({ kind: 'request', url: 'https://api.apimart.ai/v1/balance', headers: { authorization: `Bearer ${KEY}` } })}\n`)
-    expect(connectCalls).toEqual([{ apiKey: KEY, textModelKey: 'deepseek-v3.2', requiredModels: MODELS }])
+    expect(connectCalls).toEqual([{ apiKey: KEY, textModelKey: 'deepseek-v4-flash', requiredModels: MODELS }])
     expect(paid.label('apimart', 'z-image-turbo')).toBe('Z-Image Turbo')
     // 花钱面收窄：被授权的图片模型之外的生成模型都停了，文本模型不动。
-    expect(win.rows.filter((row) => row.enabled).map((row) => row.modelKey).sort()).toEqual(['deepseek-v3.2', 'z-image-turbo'])
+    expect(win.rows.filter((row) => row.enabled).map((row) => row.modelKey).sort()).toEqual(['deepseek-v4-flash', 'z-image-turbo'])
     await paid.finish(undefined)
 
     expect(fs.existsSync(tempRootDir), '整个隔离副本已删除').toBe(false)

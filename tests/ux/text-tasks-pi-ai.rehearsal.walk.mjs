@@ -59,7 +59,7 @@ try {
       report, snap: (name) => walk.snap(name), english, operations: 12,
       expected: { expand: EXPANDED, rewrite: REWRITTEN, translate: TRANSLATED, optimize: OPTIMIZED },
     })
-    if (!english) await runDeconstruct(win, { report, snap: (name) => walk.snap(name), english, operations: 12, video: makeTwoShotVideo(makeTempDir('text-tasks-video-')) })
+    if (!english) await runDeconstruct(win, { report, video: makeTwoShotVideo(makeTempDir('text-tasks-video-')) })
     await walk.stopApp()
   }
   // 35 秒那两步（中文轮）确实想了 35 秒以上：迁移前它们在 30 秒处被掐。

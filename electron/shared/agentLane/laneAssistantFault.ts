@@ -41,6 +41,29 @@ export type LaneAssistantFault =
   | Readonly<{ kind: 'context-overflow' }>
 
 /**
+ * 上游 HTTP 失败的**结构化载荷**挂在 pi `AssistantMessage.diagnostics` 里的类型名（2026-10-27）。
+ *
+ * pi 把 HTTP 失败压成一句展示串（`"<status>: <body>"`）放进 `errorMessage`，而它的重试 / 溢出判据就读那一句，
+ * 所以那一句我们一个字都不动；主进程在 provider 装配点（laneModelProvider）按**这一次调用**的传输事实，
+ * 用文本任务同一个映射铸好那份载荷（`NOMI_VENDOR_ERR_B64::…:: 人话`），挂在 pi 自己给诊断留的槽位上，随转录落盘。
+ * 投影的错误段读它；渲染层的 `classifyGenerationError` 于是拿得到上游自己的码（`model_not_found` 一类）。
+ */
+export const LANE_VENDOR_FAILURE_DIAGNOSTIC = 'nomi.vendor-failure'
+
+type DiagnosticLike = { readonly type?: unknown; readonly details?: unknown }
+
+/** 出错的助手消息上那份上游失败载荷；没有（非 HTTP 失败、旧转录）就 `undefined`，调用方照旧用 `errorMessage`。 */
+export function laneVendorFailureText(message: { readonly diagnostics?: readonly DiagnosticLike[] }): string | undefined {
+  for (const diagnostic of message.diagnostics ?? []) {
+    if (diagnostic?.type !== LANE_VENDOR_FAILURE_DIAGNOSTIC) continue
+    const details = diagnostic.details
+    const text = details && typeof details === 'object' ? (details as { message?: unknown }).message : undefined
+    if (typeof text === 'string' && text.trim()) return text
+  }
+  return undefined
+}
+
+/**
  * 出错的助手消息 → 事实；认不出就 `undefined`（那是服务商原话，归生成域分类器管）。
  * `contextOverflow` 是宿主用 pi 的 `isContextOverflow` 判好的结论（各家服务商的溢出原话由 pi 那张表认）。
  */

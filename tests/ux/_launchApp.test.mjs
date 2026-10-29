@@ -6,8 +6,11 @@ import net from 'node:net'
 import path from 'node:path'
 import os from 'node:os'
 import vm from 'node:vm'
-import { spawn } from 'node:child_process'
-import { describe, expect, test } from 'vitest'
+import { spawn, spawnSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+import ts from 'typescript'
+import { _electron as playwrightElectron } from 'playwright'
+import { describe, expect, test, vi } from 'vitest'
 import {
   buildNomiLaunchEnv,
   cleanupTempRoot,
@@ -21,7 +24,15 @@ import {
   prepareLocalStorageSeed,
   launchNomiApp,
   mainRequireArgs,
-  withWalkOffscreen,
+  withQuietWalk,
+  quietElectronSpawn,
+  assertForegroundAllowed,
+  exitIfWalkSkipped,
+  WalkSkippedError,
+  WALK_SKIPPED_EXIT_CODE,
+  frontGuardVerdict,
+  parseLsappinfoInfo,
+  summarizeFrontSamples,
   repoRoot,
   registerTempRoot,
   requireBeforePackagedMain,
@@ -34,6 +45,32 @@ import {
   withIsolatedHostConfig,
 } from './_launchApp.mjs'
 import { MCP_CLIENT_HOST_ENV_VARS, mcpClientLocations, mcpClientPlatform, resolveMcpClientPath } from '../../electron/shared/mcpClientRegistry.ts'
+
+/** 会起 App 的源码：tests / scripts / evals 下的 .mjs / .js（单测故意拼不合法的选项来测拒绝路径，不算入口）。按需解析成 AST。 */
+let launchSourceCache = null
+function launchSources() {
+  launchSourceCache ??= ['tests', 'scripts', 'evals']
+    .flatMap((directory) => fs.readdirSync(path.join(repoRoot, directory), { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.m?js$/.test(entry.name) && !/\.(?:test|node-test)\.m?js$/.test(entry.name) && !entry.parentPath.includes('node_modules'))
+      .map((entry) => path.join(entry.parentPath, entry.name)))
+    .map((file) => {
+      const text = fs.readFileSync(file, 'utf8')
+      let source = null
+      return { rel: path.relative(repoRoot, file).split(path.sep).join('/'), text, get source() { return (source ??= ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)) } }
+    })
+  return launchSourceCache
+}
+function objectLiterals(file) {
+  const found = []
+  const visit = (node) => {
+    if (ts.isObjectLiteralExpression(node)) found.push(node)
+    ts.forEachChild(node, visit)
+  }
+  visit(file.source)
+  return found
+}
+const declaresForeground = (node, source) => node.properties.some((property) => property.name?.getText(source) === 'foreground')
+const lineOf = (file, node) => file.source.getLineAndCharacterOfPosition(node.getStart()).line + 1
 
 describe('shared Electron temp-root lifecycle', () => {
   test('cleanup is idempotent for explicit and generated roots', () => {
@@ -105,15 +142,75 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
     }
   })
 
-  test('NOMI_WALK_OFFSCREEN=1 才补屏外模块；已经带了不重复；没设就原样', () => {
+  test('每个隔离启动默认补 quiet-walk；已经带了不重复', () => {
     const guard = path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')
-    expect(withWalkOffscreen(undefined, {})).toEqual([])
-    expect(withWalkOffscreen([guard], {})).toEqual([guard])
-    const withOffscreen = withWalkOffscreen([guard], { NOMI_WALK_OFFSCREEN: '1' })
-    expect(withOffscreen).toHaveLength(2)
-    expect(withOffscreen[1]).toMatch(/_offscreenWindows.cjs$/)
-    expect(withWalkOffscreen(withOffscreen, { NOMI_WALK_OFFSCREEN: '1' })).toEqual(withOffscreen)
-    expect(mainRequireArgs(withOffscreen)).toHaveLength(4)
+    expect(withQuietWalk(undefined)).toHaveLength(1)
+    expect(withQuietWalk([guard])).toHaveLength(2)
+    const withQuiet = withQuietWalk([guard])
+    expect(withQuiet[1]).toMatch(/_quietWalk.cjs$/)
+    expect(withQuietWalk(withQuiet)).toEqual(withQuiet)
+    expect(mainRequireArgs(withQuiet)).toHaveLength(4)
+  })
+
+  test('foreground 声明缺少放行变量时以退出码 125 跳过', () => {
+    expect(() => assertForegroundAllowed(undefined, {})).not.toThrow()
+    expect(() => assertForegroundAllowed('需要验证前台激活', {})).toThrow(WalkSkippedError)
+    try { assertForegroundAllowed('需要验证前台激活', {}) } catch (error) {
+      expect(error).toMatchObject({ code: 'NOMI_WALK_SKIPPED', exitCode: 125 })
+    }
+    expect(() => assertForegroundAllowed('需要验证前台激活', { NOMI_WALK_FOREGROUND_OK: '1' })).not.toThrow()
+  })
+
+  test('exitIfWalkSkipped：跳过就以 125 退出，别的错照抛', () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation((code) => { throw new Error(`exit ${code}`) })
+    try {
+      expect(() => exitIfWalkSkipped(new WalkSkippedError('未跑'))).toThrow(`exit ${WALK_SKIPPED_EXIT_CODE}`)
+      expect(() => exitIfWalkSkipped(new Error('boom'))).toThrow('boom')
+      expect(exit).toHaveBeenCalledTimes(1)
+    } finally {
+      exit.mockRestore()
+    }
+  })
+
+  test('门岗只把走查 App PID 在最前判红，foreground 声明豁免', () => {
+    expect(frontGuardVerdict({ frontPid: 42, appPid: 42 })).toMatchObject({ ok: false, reason: '走查抢了前台' })
+    expect(frontGuardVerdict({ frontPid: 41, appPid: 42 })).toMatchObject({ ok: true })
+    expect(frontGuardVerdict({ frontPid: 42, appPid: 42, foreground: true })).toMatchObject({ ok: true, exempt: true })
+  })
+
+  // 约 220 条走查结尾自己 process.exit(…)，13 条是 process.exit(0)：判红只设 exitCode 会被它盖成绿。
+  test('门岗判红后走查自己 process.exit(0) / exit(125)：退出码仍是 1；没违规照原码退，别的红码不改', () => {
+    const launcher = pathToFileURL(path.join(repoRoot, 'tests/ux/_launchApp.mjs')).href
+    const run = (frontPid, exitWith) => spawnSync(process.execPath, ['--input-type=module', '-e', `
+      const { startMacForegroundGuard } = await import(${JSON.stringify(launcher)})
+      const sample = () => ({ asn: 'ASN:0x0-0x1:', pid: ${frontPid}, name: 'walk', applicationType: 'Foreground', appType: 'Foreground' })
+      startMacForegroundGuard({ appPid: 42, platform: 'darwin', intervalMs: 60_000, sample })
+      process.exit(${exitWith})
+    `], { cwd: repoRoot, encoding: 'utf8' })
+    const stolen = run(42, 0)
+    expect(stolen.status, stolen.stderr).toBe(1)
+    expect(stolen.stderr).toContain('走查抢了前台')
+    expect(run(42, WALK_SKIPPED_EXIT_CODE).status).toBe(1)
+    expect(run(42, 3).status).toBe(3)
+    expect(run(41, 0).status).toBe(0)
+  }, 60_000)
+
+  test('lsappinfo 输出解析出最前应用的名字、PID、类型', () => {
+    expect(parseLsappinfoInfo('"pid"=30987\n"ApplicationType"="Foreground"\n"LSDisplayName"="Claude"\n'))
+      .toEqual({ pid: 30987, name: 'Claude', applicationType: 'Foreground' })
+    expect(parseLsappinfoInfo('"ApplicationType"="UIElement"\n')).toEqual({ pid: null, name: null, applicationType: 'UIElement' })
+    expect(parseLsappinfoInfo('')).toEqual({ pid: null, name: null, applicationType: null })
+  })
+
+  test('门岗收尾那一行：全程最前是谁、走查 App 类型、判定', () => {
+    const row = (overrides) => ({ phase: 'interval', at: 't1', pid: 30987, name: 'Claude', appType: 'UIElement', ok: true, exempt: false, ...overrides })
+    expect(summarizeFrontSamples([row({ phase: 'started', at: 't0' }), row()], 42))
+      .toBe('[quiet-walk] 前台抽样 2 次；最前：Claude(pid 30987)×2；走查 App(pid 42) 类型：UIElement×2；没抢前台')
+    expect(summarizeFrontSamples([row(), row({ pid: 42, name: 'Electron', appType: 'Foreground', ok: false, at: 't2' }), row({ pid: null, error: 'timeout' })], 42))
+      .toBe('[quiet-walk] 前台抽样 3 次；最前：Claude(pid 30987)×1、Electron(pid 42)×1、未知(抽样失败)×1；走查 App(pid 42) 类型：UIElement×2、Foreground×1；抢了前台 1 次（首次 interval t2）')
+    expect(summarizeFrontSamples([row({ exempt: true, pid: 42 })], 42)).toContain('foreground 声明，豁免')
+    expect(summarizeFrontSamples([row(), row({ phase: 'after-close', appType: null }), row({ appType: null })], 42))
+      .toContain('走查 App(pid 42) 类型：UIElement×1、已退出×1、未登记×1；')
   })
 
   test('相对路径与不存在的文件当场拒（相对路径会被 Node 当包名去找，闸就静默没装上）', () => {
@@ -124,6 +221,103 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
   test('不许装进真实 profile', async () => {
     await expect(launchNomiApp({ executablePath: 'unused-by-isolation-guard', isolate: false, mainRequire: [path.join(repoRoot, 'scripts', 'walkthrough-network-guard.cjs')] }))
       .rejects.toThrow('mainRequire requires an isolated Nomi profile')
+  })
+
+  // 仪表装不进真实 profile（上一条），非隔离起来的就是一个不安静的 Nomi：没声明 foreground 就不许起，门岗也不该把它判成抢前台。
+  test('非隔离启动没声明 foreground：起 App 之前就拒；声明了但没放行：按 125 跳过，同样不起', async () => {
+    const launch = vi.spyOn(playwrightElectron, 'launch')
+    const allowed = process.env.NOMI_WALK_FOREGROUND_OK
+    delete process.env.NOMI_WALK_FOREGROUND_OK
+    try {
+      const options = { executablePath: '/fixture/Nomi', isolate: false, waitForWindow: false, allowUntrackedProcessForTest: true }
+      await expect(launchNomiApp(options)).rejects.toThrow('非隔离启动装不了安静仪表，要声明 foreground')
+      await expect(launchNomiApp({ ...options, foreground: '真实资料付费抽检' })).rejects.toMatchObject({ code: 'NOMI_WALK_SKIPPED', exitCode: 125 })
+      expect(launch).not.toHaveBeenCalled()
+    } finally {
+      launch.mockRestore()
+      if (allowed === undefined) delete process.env.NOMI_WALK_FOREGROUND_OK
+      else process.env.NOMI_WALK_FOREGROUND_OK = allowed
+    }
+  })
+
+  // 同类入口：新写一条 isolate:false 却忘了声明，CI 里这一条先红，不等到有人在真机上跑才发现。
+  test('仓库里每个 isolate: false 的启动选项都同时声明了 foreground', () => {
+    const offenders = []
+    for (const file of launchSources().filter(({ text }) => /\bisolate\s*:\s*false\b/.test(text))) {
+      for (const node of objectLiterals(file)) {
+        const isolateFalse = node.properties.some((property) => ts.isPropertyAssignment(property)
+          && property.name.getText(file.source) === 'isolate' && property.initializer.kind === ts.SyntaxKind.FalseKeyword)
+        if (isolateFalse && !declaresForeground(node, file.source)) offenders.push(`${file.rel}:${lineOf(file, node)}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  // 不经 launchNomiApp、自己 spawn Electron 的走查也装同一份仪表；放行位在子进程环境里同样钉死，终端 export 的 1 漏不进来。
+  test('直接 spawn Electron 的入口：-r 装安静仪表，子进程环境里的放行位钉成空串', () => {
+    const spec = quietElectronSpawn(['.', '--disable-gpu'], { cwd: '/fixture', env: { PATH: '/bin', NOMI_WALK_FOREGROUND_OK: '1' } }, 'darwin')
+    expect(spec.args).toEqual(['-r', expect.stringMatching(/_quietWalk\.cjs$/), '.', '--disable-gpu'])
+    expect(spec.options).toEqual({ cwd: '/fixture', env: { PATH: '/bin', NOMI_WALK_FOREGROUND_OK: '' } })
+    expect(quietElectronSpawn(['.'], {}, 'linux').args).toEqual(['-r', expect.stringMatching(/_quietWalk\.cjs$/), '.', '--no-sandbox', '--enable-unsafe-swiftshader'])
+    const inherited = process.env.NOMI_WALK_FOREGROUND_OK
+    process.env.NOMI_WALK_FOREGROUND_OK = '1'
+    try {
+      expect(quietElectronSpawn(['.']).options.env.NOMI_WALK_FOREGROUND_OK).toBe('')
+    } finally {
+      if (inherited === undefined) delete process.env.NOMI_WALK_FOREGROUND_OK
+      else process.env.NOMI_WALK_FOREGROUND_OK = inherited
+    }
+  })
+
+  // 同类入口：新写一处直接 spawn Electron、自己拼 `-r <仪表>` 和 process.env，放行位就又能被继承进去——只许经 spawnQuietElectron。
+  test('仓库里直接 spawn Electron 又装安静仪表的，都经 spawnQuietElectron（放行位钉死）', () => {
+    const offenders = []
+    const spawnLike = /^(?:spawn|spawnSync|execFile|execFileSync|fork)$/
+    for (const file of launchSources().filter(({ rel, text }) => rel !== 'tests/ux/_launchApp.mjs' && /_quietWalk|QUIET_WALK_MODULE/.test(text))) {
+      const visit = (node) => {
+        if (ts.isCallExpression(node) && spawnLike.test(node.expression.getText(file.source).split('.').pop())) {
+          const args = node.arguments.map((argument) => argument.getText(file.source)).join(' ')
+          if (/require\(\s*['"]electron['"]\s*\)|['"](?:-r|--require)['"]/.test(args)) offenders.push(`${file.rel}:${lineOf(file, node)}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(file.source)
+    }
+    expect(offenders).toEqual([])
+  })
+
+  // P1：屏外 / 不抢焦点的主进程仪表只有一份。旧的 tests/ux/full-walk/offscreenWindow.cjs 已删，不许再长出并行版。
+  test('挂 browser-window-created 的主进程走查仪表全仓只有 tests/ux/_quietWalk.cjs', () => {
+    const instruments = ['tests', 'scripts', 'evals']
+      .flatMap((directory) => fs.readdirSync(path.join(repoRoot, directory), { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile() && /\.c?js$/.test(entry.name) && !entry.parentPath.includes('node_modules'))
+        .map((entry) => path.join(entry.parentPath, entry.name)))
+      .filter((file) => fs.readFileSync(file, 'utf8').includes('browser-window-created'))
+      .map((file) => path.relative(repoRoot, file).split(path.sep).join('/'))
+    expect(instruments).toEqual(['tests/ux/_quietWalk.cjs'])
+  })
+
+  // 安静模式下 BrowserWindow 的 focus / moveTop 是空操作、窗口在屏外不可聚焦：靠真焦点、真窗口的走查不声明 foreground，
+  // 要么红，要么更糟——悄悄不测还报绿（windows-freeze-sweep 的失焦再聚焦循环就是这样）。
+  test('靠真焦点 / 真窗口的走查都声明了 foreground，没放行按 125 退出', () => {
+    const FOREGROUND_WALKS = [
+      'tests/ux/app-page-zoom.e2e.mjs', // bringToFront、focus 之后按缩放快捷键
+      'tests/ux/attention-sound.walk.mjs', // 窗口有没有焦点决定提示音
+      'tests/ux/window-drag.e2e.mjs', // show / setBounds / moveTop / focus 之后拖窗口
+      'tests/ux/windows-freeze-sweep.walk.mjs', // blur / focus 循环
+      'tests/ux/mcp-key-window.walk.mjs', // app.focus({ steal }) 把窗口叫回前台
+    ]
+    const sources = launchSources()
+    // 同类：Playwright 的 bringToFront 只在真前台才有意义，用到它的走查一律要声明。
+    const bringToFront = sources.filter(({ text }) => /\.bringToFront\(/.test(text)).map(({ rel }) => rel)
+    const missing = []
+    for (const rel of [...new Set([...FOREGROUND_WALKS, ...bringToFront])]) {
+      const file = sources.find((candidate) => candidate.rel === rel)
+      if (!file) { missing.push(`${rel}: 文件不在了`); continue }
+      if (!objectLiterals(file).some((node) => declaresForeground(node, file.source))) missing.push(`${rel}: 没声明 foreground`)
+      if (!/exitIfWalkSkipped|NOMI_WALK_SKIPPED/.test(file.text)) missing.push(`${rel}: 跳过时没按 125 退出`)
+    }
+    expect(missing).toEqual([])
   })
 
   // 打包好的 App 静默忽略 `-r`：闸没装上、请求直奔真网。打包形态必须在主入口第一行之前真的装上。
@@ -185,6 +379,8 @@ describe('buildNomiLaunchEnv', () => {
       NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
       // 走查环境里主进程日志必须看得见（否则 CI 的 job 日志里一条 WARN 都没有）。
       NOMI_LOG_STDERR: '1',
+      // 安静仪表的放行位：没声明 foreground 就显式是空串。
+      NOMI_WALK_FOREGROUND_OK: '',
       NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir,
       NOMI_SETTINGS_DIR: dirs.settingsDir,
       NOMI_PROJECTS_DIR: dirs.projectsDir,
@@ -205,6 +401,36 @@ describe('buildNomiLaunchEnv', () => {
     expect(env.NOMI_E2E_ALLOW_MULTI_INSTANCE).toBe('1')
   })
 
+  // 跑走查的终端里 export 过 NOMI_WALK_FOREGROUND_OK=1：不钉死的话，没声明 foreground 的走查也起成前台模式，安静仪表整个失效。
+  test('安静仪表的放行位只跟 foreground 声明走：继承来的、调用方传的 1 都盖不掉', () => {
+    expect(buildNomiLaunchEnv({ ...dirs, baseEnv: { NOMI_WALK_FOREGROUND_OK: '1' } }).NOMI_WALK_FOREGROUND_OK).toBe('')
+    expect(buildNomiLaunchEnv({ ...dirs, baseEnv: {}, extraEnv: { NOMI_WALK_FOREGROUND_OK: '1' } }).NOMI_WALK_FOREGROUND_OK).toBe('')
+    expect(buildNomiLaunchEnv({ ...dirs, baseEnv: {}, foreground: true }).NOMI_WALK_FOREGROUND_OK).toBe('1')
+    expect(buildNomiLaunchEnv({ ...dirs, baseEnv: {}, extraEnv: { NOMI_WALK_FOREGROUND_OK: '' }, foreground: true }).NOMI_WALK_FOREGROUND_OK).toBe('1')
+  })
+
+  test('launchNomiApp 把这一位接进真正起 App 的 env（只换掉 electron.launch）', async () => {
+    const launches = []
+    const launch = vi.spyOn(playwrightElectron, 'launch').mockImplementation(async (launchOptions) => {
+      launches.push(launchOptions)
+      return { process: () => ({}), close: async () => {} }
+    })
+    const allowed = process.env.NOMI_WALK_FOREGROUND_OK
+    process.env.NOMI_WALK_FOREGROUND_OK = '1'
+    try {
+      for (const options of [{}, { env: { NOMI_WALK_FOREGROUND_OK: '1' } }, { foreground: '测前台' }]) {
+        const root = makeTempDir('nomi-launch-quiet-env-')
+        const handle = await launchNomiApp({ tempRoot: root, executablePath: '/fixture/Nomi', waitForWindow: false, allowUntrackedProcessForTest: true, ...options })
+        await handle.close()
+      }
+      expect(launches.map((launchOptions) => launchOptions.env.NOMI_WALK_FOREGROUND_OK)).toEqual(['', '', '1'])
+    } finally {
+      launch.mockRestore()
+      if (allowed === undefined) delete process.env.NOMI_WALK_FOREGROUND_OK
+      else process.env.NOMI_WALK_FOREGROUND_OK = allowed
+    }
+  })
+
   test('额外 env 照常透传（走查各自的开关不受影响）', () => {
     const env = buildNomiLaunchEnv({ ...dirs, baseEnv: { PATH: '/usr/bin' }, extraEnv: { NOMI_TEST_SYSTEM_LOCALE: '1' } })
     expect(env.NOMI_TEST_SYSTEM_LOCALE).toBe('1')
@@ -220,7 +446,7 @@ describe('buildNomiLaunchEnv', () => {
 
   test('启动器把显式的 syntheticCredentialStorage: true（且只有它）接成假凭据', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'tests/ux/_launchApp.mjs'), 'utf8')
-    expect(source).toMatch(/buildNomiLaunchEnv\(\{[^}]*fixtureCredentials: options\.syntheticCredentialStorage === true/)
+    expect(source).toMatch(/fixtureCredentials:\s*options\.syntheticCredentialStorage === true/)
   })
 
   test('seedSavedFixtureCredentials 只给显式的隔离假凭据用，且两次起 App 必须同一组目录，否则当场拒绝', async () => {
@@ -295,7 +521,7 @@ describe('宿主配置隔离：隔离起的 App 读写不到用户真实的 Clau
 
   test('launchNomiApp 把 hostConfigDir 接进同一个 env 构造，并在起 App 前把目录建好（Codex 要求 CODEX_HOME 已存在）', () => {
     const launcher = fs.readFileSync(path.join(repoRoot, 'tests/ux/_launchApp.mjs'), 'utf8')
-    expect(launcher).toMatch(/buildNomiLaunchEnv\(\{[^}]*hostConfigDir[^}]*\}\)/)
+    expect(launcher).toMatch(/buildNomiLaunchEnv\(\{[\s\S]*hostConfigDir[\s\S]*\}\)/)
     expect(launcher).toMatch(/if \(isolate\) prepareHostConfigDir\(hostConfigDir, extraEnv\)/)
     const root = makeTempDir('nomi-host-config-')
     try {

@@ -5,6 +5,7 @@ import { generationTaskReference } from '../shared/agentCapabilities/taskReferen
 import { GENERATE_USER_DECISION_KEY, type GenerateUserDecision } from '../shared/agentLane/generateUserDecision';
 import { storyboardSubjectFromCandidate, storyboardReferenceSlot } from '../shared/storyboard/storyboardSubjectAdapter';
 import { storyboardAuthorFieldsSchema, type StoryboardAuthorFields } from '../shared/agentCapabilities/generationPlanSchemas';
+import { currentOfferFrom, resolveNamedGenerationShots, resolveUndecidedGenerationShotScope, type OfferOutcomeFacts } from '../shared/agentCapabilities/generationShotScope';
 // 能力核 · P4 S6.5 语义多镜 create 入口逻辑（从 mcpGenerationTools.ts 抽出，守 800 行门岗 R9）。
 //
 // 这份文件是「语义多镜生产入口」的单一职责家：把 `nomi_operation_create` 收到的 `shots`（client 逐镜计划）
@@ -577,8 +578,9 @@ export async function upsertStoryboardDesign(request: RequestRenderer,
 export async function presentStoryboardAuthoring(current: {candidate:PlanCandidate;sourceDocumentId?:string},
   projectId:string,designId:string,requested:unknown,request?: (op:string,payload:unknown)=>Promise<unknown>) {
   if (!request || !current.sourceDocumentId) throw new Error('storyboard_renderer_required');
+  // 点名原样转交（不是数组也照转）：范围规则在渲染层的 `presentStoryboard` 里，非数组在那里被拒，不在这里悄悄变成「没点名」。
   const reply=await request('storyboard.present',{projectId,designId,sourceDocumentId:current.sourceDocumentId,
-    ...(Array.isArray(requested) ? {shotIds:requested} : {})});
+    ...(requested===undefined ? {} : {shotIds:requested})});
   const receipt=reply as {status?:unknown;designId?:unknown;shotIds?:unknown;decision?:unknown;operations?:unknown} | null;
   if (!receipt || receipt.status!=='presented' || receipt.designId!==designId || !Array.isArray(receipt.shotIds)) throw new Error('storyboard_presentation_receipt_mismatch');
   const shots=receipt.shotIds as string[];
@@ -645,8 +647,8 @@ type GateScopeView = Readonly<{
   state: string;
   shots?: ReadonlyArray<Readonly<{ shotId: string; included?: boolean; contract?: unknown }>>;
   authorization?: Readonly<{ status: string; envelope: Readonly<{ jobs: ReadonlyArray<Readonly<{ shotId: string }>> }> }>;
-  /** 宿主算的这一次出价结局：卡还开着时，不点名的范围就是卡上还没决定的镜。 */
-  presentationOutcome?: Readonly<{ closedBy: string; undecided: ReadonlyArray<Readonly<{ shotId: string }>> }>;
+  /** 宿主算的最近一次出价（开着或已关）的结局：不点名只封那张卡上还没定的镜。 */
+  presentationOutcome?: OfferOutcomeFacts;
 }>;
 
 /** 这一次开门怎么做：复用手上那道（同一次点击的重试）/ 先撤一次没点完的那道再封 / 封这几镜。 */
@@ -655,44 +657,32 @@ export type GateScopeDecision =
   | Readonly<{ kind: "abandon-then-seal" }>
   | Readonly<{ kind: "seal"; scope?: readonly string[] }>;
 
-function scopeInvalid(): never {
-  throw Object.assign(new Error("generation_scope_invalid"), { code: "generation_scope_invalid" });
-}
-
-function requestedShotIds(value: unknown): string[] | undefined {
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length === 0 || value.some((shotId) => typeof shotId !== "string" || !shotId.trim())) scopeInvalid();
-  return [...new Set((value as string[]).map((shotId) => shotId.trim()))];
-}
-
 /**
  * 这一次付费门盖哪几镜（2026-09-30 付费卡逐镜：每点一次封一份，只盖那一次点到的镜）。
  *
- * - 单镜旧形态：只封一次；草稿以外（门在等 / 已在跑）复用手上那一道。
- * - 多镜：点名的镜（`shotIds`）；不点名 = 卡上这一次出价里还没决定的镜，没有开着的出价 = 勾进这一批、还没封过的全部
- *   （外部宿主、全自动档、第一次封整份草稿的形状不变）。
+ * - 单镜旧形态：只封一次；草稿以外（门在等 / 已在跑）复用手上那一道。它没有镜可点，点名就拒。
+ * - 多镜：规则只有一条 `resolveUndecidedGenerationShotScope`（2026-10-27）——点名的（只认此刻还没封的镜）；
+ *   不点名 = 最近一张卡（开着或已关）上还没定、也还没封的镜，从没出过价 = 勾进这一批、还没封过的全部；
+ *   一镜不剩就拒，正文告诉外部宿主下一步（另起一份草稿），不再回退成「没封过的全部」。
  *   已经有一道门在等：盖的正好是这几镜（或没点名）→ 复用；盖的是别的镜 → 那是一次没点完的点击，先撤掉再封。
- * 点名了一镜却不在「还没封过」里（已经批过 / 去掉了 / 不存在）→ `generation_scope_invalid`，不替用户改范围。
  */
 export function resolveGateScope(operation: GateScopeView, requested: unknown): GateScopeDecision {
   const shots = operation.shots ?? [];
-  const asked = requestedShotIds(requested);
   if (shots.length === 0) {
-    if (asked) scopeInvalid();
+    if (requested !== undefined) resolveNamedGenerationShots([], requested); // 单镜没有可点的镜：点名一律拒
     return operation.state === "draft" ? { kind: "seal" } : { kind: "reuse" };
   }
+  const planShotIds = shots.map((shot) => shot.shotId);
   const waiting = operation.authorization?.status === "waiting"
     ? [...new Set(operation.authorization.envelope.jobs.map((job) => job.shotId))]
     : undefined;
   if (waiting) {
+    const asked = requested === undefined ? undefined : resolveNamedGenerationShots(planShotIds, requested);
     if (!asked || (asked.length === waiting.length && asked.every((shotId) => waiting.includes(shotId)))) return { kind: "reuse", scope: waiting };
     return { kind: "abandon-then-seal" };
   }
   const open = shots.filter((shot) => shot.included !== false && !shot.contract).map((shot) => shot.shotId);
-  const onCard = operation.presentationOutcome?.closedBy === "open"
-    ? operation.presentationOutcome.undecided.map((entry) => entry.shotId).filter((shotId) => open.includes(shotId))
-    : [];
-  const scope = asked ?? (onCard.length > 0 ? onCard : open);
-  if (scope.length === 0 || scope.some((shotId) => !open.includes(shotId))) scopeInvalid();
-  return { kind: "seal", scope };
+  return { kind: "seal", scope: resolveUndecidedGenerationShotScope({
+    door: "gate", planShotIds, requested, currentOffer: currentOfferFrom(operation.presentationOutcome), offerable: open,
+  }) };
 }

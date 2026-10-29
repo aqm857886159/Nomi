@@ -1,6 +1,8 @@
 // Playwright Electron check for the 40px merged top bar's drag region (10-08 shell redesign).
 // Windows uses native window controls (titleBarOverlay); the whole top bar is the drag region and every
 // button inside it is no-drag. Success means BrowserWindow bounds changed after dragging the top bar.
+// 用法（Windows）：pnpm build 后带 NOMI_WALK_FOREGROUND_OK=1 跑 node tests/ux/window-drag.e2e.mjs——
+// 要真窗口、真焦点（show / setBounds / moveTop / focus 之后拖标题栏），窗口会到前台；没带放行变量就不起 App、按 125 跳过。
 import { launchNomiApp } from "./_launchApp.mjs";
 import { stationTimeout } from "./_station-budget.mjs";
 import { spawnSync } from "node:child_process";
@@ -336,6 +338,7 @@ try {
     args: ["--disable-gpu"],
     env: { NOMI_E2E_WINDOW_DRAG: "1" },
     settleMs: 0,
+    foreground: "show / setBounds / moveTop / focus 之后真拖窗口，安静模式下窗口在屏外、focus 是空操作",
   }));
 
   const primaryCard = newProjectEntry(win);
@@ -489,8 +492,12 @@ try {
 
   console.log(`\nWINDOW DRAG PASS: ${passed} assertions`);
 } catch (error) {
-  console.error(`\n${error?.message || error}`);
-  process.exitCode = 1;
+  if (error?.code === "NOMI_WALK_SKIPPED") {
+    process.exitCode = error.exitCode;
+  } else {
+    console.error(`\n${error?.message || error}`);
+    process.exitCode = 1;
+  }
 } finally {
   if (app) await app.close().catch(() => undefined);
   fs.rmSync(userData, { recursive: true, force: true });

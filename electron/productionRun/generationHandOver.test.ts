@@ -169,7 +169,8 @@ describe("每一条关卡的路都收尾还没绑上的那几笔", () => {
     const run = ledger({ policySnapshot: { mode: "direct" } });
     run.handOver(["s1", "s2"], "policy");
     run.bind("s1");
-    run.present();
+    // 两镜都在交，不点名不剩没定的（会被拒）；点名重摆才顶得掉这一张。
+    run.present(["s1", "s2"]);
     const [superseded, current] = run.read().generationPlan!.presentations!.slice(-2);
     expect(superseded.closed?.by).toBe("stopped");
     expect(superseded.handOvers!.find((entry) => entry.shotId === "s2")?.settled).toMatchObject({ outcome: "withdrawn", withdrawnBy: "stopped" });

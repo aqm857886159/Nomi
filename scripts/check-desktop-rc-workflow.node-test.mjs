@@ -40,6 +40,12 @@ test('desktop RC collects every release-critical journey before deciding', () =>
   assert.equal(upload.uses, 'actions/upload-artifact@v4')
 })
 
+test('desktop RC canvas performance journey opts into the foreground its instrument declares', () => {
+  const step = workflow.jobs.validate.steps.find((candidate) => candidate.name === 'Canvas performance RC journey')
+  // 量具声明了前台：CI 虚拟屏上不显式放行就整条按 125 跳过，continue-on-error 下发版前看不出来
+  assert.equal(step.env?.NOMI_WALK_FOREGROUND_OK, '1')
+})
+
 test('desktop RC rejects a checkout ref that differs from the triggering commit before validation', () => {
   const steps = workflow.jobs.validate.steps
   const guardIndex = steps.findIndex((step) => step.name === 'Verify workflow ref matches dispatched commit')

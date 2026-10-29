@@ -2,7 +2,8 @@
 // 真实用户任务走查（R16）：**让 Agent 从零做一条 20 秒短片**。
 //
 // 不是功能探索，是一个人带着一个目标走完全程：写脚本 → 改文稿 → 去画布生成 → 中途改主意
-// 停下来 → 关掉重开发现东西还在。v4 接线之后每一步都由宿主数据驱动，所以这条走查同时
+// 停下来 → 关掉重开发现东西还在 → 重开后再让它改一下，服务商这回整条回错，收起面板后小球必须亮出「出错」。
+// v4 接线之后每一步都由宿主数据驱动，所以这条走查同时
 // 是接线的行为证据：设计实验室的基线证明「同样的 view model 长同样的样子」，
 // 单测证明「同样的宿主真相产出同样的 view model」，这里证明「人按下去真的发生了事情」。
 //
@@ -14,6 +15,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import {
   APPROVAL_CARD,
   ASSISTANT_MESSAGE,
@@ -30,6 +32,7 @@ import {
   DOCUMENT,
   EMPTY_STARTER,
   EMPTY_STATE,
+  ERROR_BAR,
   PERMISSION_POPOVER,
   TOOL_RECEIPT,
   USER_BUBBLE,
@@ -37,6 +40,7 @@ import {
   V4_PANEL,
   chooseAssistantModel,
   createRuntimeWalk,
+  escapeForRegExp,
   expandResidentPanel,
   hasToolResult,
   openCanvas,
@@ -46,7 +50,7 @@ import {
   readProject,
   sendCanvas,
   sendCreation,
-  waitForV4TurnIdle, expectComposerText } from './agent-runtime-walk-support.mjs'
+  waitForV4TurnIdle, expectComposerText, expectComposerPlaceholder } from './agent-runtime-walk-support.mjs'
 
 // 空态第一条起手（创作面 = 写脚本）。它的字住 i18n（`agentPanelV4.starterWriteScriptPrompt`），
 // 这里抄一份是为了断言「chip 填进去的就是这句」；两边漂了这条走查会当场红。
@@ -59,16 +63,23 @@ const TIGHTEN_TOOL = 'v4-doc-tighten-1'
 const REFERENCE = '给这 4 镜生成参考图。'
 const REFERENCE_TOOL = 'v4-canvas-plan-1'
 const SLOW = '再想想整体节奏。'
+const FAIL = '再把结尾润一遍。'
 // 收起/展开要验「他读到哪儿了」，就得有一条**真的翻得动**的对话。收据的展开是 DOM 上的
 // `<details open>`，收起时随子树一起没了，撑不起溢出；只有落进流里的消息才留得下来。
+//
+// 这份清单一镜一段、每镜写全（景别 / 声音 / 秒数）——一份要打印贴墙的清单本来就该这样。段与段之间必须是
+// 空行：markdown 里单个换行是软换行，用 `\n` 连起来五镜会糊成**一段**，对话流在最小窗里只溢出 35px
+// （Mac 实测；前提要 ≥ 80，Linux 夜跑上够、Mac 上不够）。前提的量靠内容撑，所以内容要有余量，不靠降阈值。
 const RECAP = '把这 4 镜按顺序完整列一遍，我要打印出来贴墙上。'
 const RECAP_TEXT = [
-  '镜 1｜清晨的街，门牌与霓虹熄灭的余温；手持，轻微呼吸感；3 秒。',
-  '镜 2｜她推门，铜铃响；门缝里的光切进室内；侧光贴着侧脸；4 秒。',
-  '镜 3｜红色杯子落在白桌面上，热气斜着走；微距，焦点从杯沿滑到指节；5 秒。',
-  '镜 4｜她坐下，按下录制键；机身红点亮起，环境声压低；定格 3 秒。',
+  '《咖啡馆推门》20 秒 · 4 镜，按顺序如下，可直接打印。',
+  '镜 1｜清晨的街，门牌与霓虹熄灭的余温；全景，手持，轻微呼吸感；街声由远及近；4 秒。',
+  '镜 2｜她推门，铜铃响；中景，门缝里的光切进室内，侧光贴着侧脸；铜铃声压过街声；5 秒。',
+  '镜 3｜红色杯子落在白桌面上，热气斜着走；微距，焦点从杯沿滑到指节；杯底轻磕桌面；6 秒。',
+  '镜 4｜她坐下，按下录制键；近景，机身红点亮起；环境声压低，只剩一声提示音；定格 5 秒。',
   '整段 20 秒，节奏是「街—门—杯—人」，前两镜给环境，后两镜收到她身上。',
-].join('\n')
+  '声音线：街声 → 铜铃 → 杯底轻磕 → 一声提示音；全片不加配乐，留给环境声。',
+].join('\n\n')
 
 const walk = await createRuntimeWalk('v4-short-film')
 let failure
@@ -210,6 +221,8 @@ try {
   // 就被弹回最新一条——「收起」于是成了一个会悄悄弄丢阅读位置的动作（定稿 §11.2：原宽**原状态**还原）。
   const creationFlow = win.locator(`${CREATION_PANEL} ${V4_FLOW}`)
   const creationOverflow = await creationFlow.evaluate((node) => node.scrollHeight - node.clientHeight)
+  // 实测溢出记进报告：前提靠内容撑，余量要看得见（只在红的时候才看见 px 数，下一次就是「突然红」）。
+  walk.report.minWindowFlowOverflowPx = creationOverflow
   if (creationOverflow < 80) throw new Error(`最小窗下对话流只溢出 ${creationOverflow}px，滚动位置这条断言证不了任何东西`)
   // 停在**半路**（这里取最顶）而不是底：跟到底那条逻辑本来就会把底还原成底，
   // 只有翻在半路才分得出「把位置还回来」与「又跟了一次底」。
@@ -258,19 +271,21 @@ try {
   await recorded(slowTurn.received, 'slow turn request')
   const running = canvas.locator(`${COMPOSER}[data-mode="running"]`)
   await expect(running).toBeVisible()
-  // 运行中占位文案换成「可继续输入，将排队发送」——它是这一刻唯一在说话的东西。
-  await expect(canvas.locator(COMPOSER_INPUT)).toHaveAttribute('placeholder', /排队/)
+  // 运行中占位文案换成「可继续输入，将排队发送」——它是这一刻唯一在说话的东西。输入框是 TipTap，占位不是
+  // `placeholder` 属性，而是空段落上画出来的字：读的是用户眼睛看到的那一句，文案按键从词典取（不抄字面量）。
+  await expectComposerPlaceholder(canvas.locator(COMPOSER_INPUT), uiText('zh-CN', 'agentPanelV4.placeholderRunning'),
+    '运行中输入框画出来的占位必须是词典里的排队提示')
   await walk.snap('09-running')
   await clickOrFail(canvas.locator(`${COMPOSER}[data-mode="running"] ${COMPOSER_SEND}`), 'composer 停止')
   slowTurn.release({ type: 'text', text: '好，先停在这里。' })
   await expect(running, '停止之后 composer 必须退出运行态').toBeHidden({ timeout: 60_000 })
   await walk.snap('10-stopped')
 
-  // ── 8. 收起：坏消息不会被收起吞掉 ─────────────────────────────────────────
+  // ── 8. 收起：用户自己点的停止不是坏消息 ──────────────────────────────────────
   //
   // 2026-09-06 用户改：收起态不再是右侧那条满高 32px rail 上的两颗小 icon，
   // 而是 Nomi 一直延续的那枚 logo 钮（血统 `src/ui/app-shell/CollapsedAiChip.tsx`）。
-  // 空闲档在 §1 已验（待确认档由 shell-redesign 走查覆盖），这里验失败档。
+  // 空闲档在 §1 已验（待确认档由 shell-redesign 走查覆盖），这里验**停止之后**那一档；失败档在第 10 步（真失败）。
   // 收起前先量一下面板宽：定稿说「点角标 = **原宽**原状态还原」（collapse≠unmount），
   // 所以还原之后这个数必须一模一样，不是「又一个默认 340」。
   const beforeCollapseWidth = Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0)
@@ -278,13 +293,14 @@ try {
   await expect(win.locator(COLLAPSED_SHELL)).toBeAttached()
   const dock = win.locator(COLLAPSED_DOCK)
   await expect(dock, '收起后画布右下必须有那颗小球').toBeVisible()
-  // 刚被停下的那一轮在面板上留了一条错误带。收起藏掉的是**面板**，不是那件事——
-  // 角标必须把它接住，否则「收起」就成了一个悄悄吞掉坏消息的动作。
-  // 小球的「出错」档 = 右上一粒 danger 点（Chrome 板），坏消息由无障碍名 / tooltip 说清。
-  await expect(dock).toHaveAttribute('data-agent-dock-status', 'failed')
-  await expect(dock).toHaveAttribute('data-agent-ball', 'failed')
-  await expect(dock).toHaveAttribute('aria-label', /有一步没成/)
-  await walk.snap('11-collapsed-failed')
+  // 刚被停下的那一轮在面板上**没有**错误带：用户自己点的停止留下的是一句中性的灰字「已停止」（09-14 定的回执，
+  // `agentPanelV4Blocks.test.ts` 钉着），不是错误。小球的「出错」只认「最后一件事是不是坏的」——面板错误带，或流末尾那条
+  // 未化解的 error（`ProjectAgentResidentShell.tsx` 的 `failed`，用户 09-06 改）。所以收起后它先是「刚做完」（`done`，
+  // 2.4 秒），随后落回「空闲」（`idle`）；这时报「出错」就是假警报（协调 10-28 判：走查过期，产品是对的）。
+  // 「收起不吞**坏**消息」不拿「停止」当失败的替身（替身一过期，真东西就没人量了），由第 10 步那一轮**真失败**去证。
+  await expect(dock).toHaveAttribute('data-agent-dock-status', /^(done|idle)$/)
+  await expect(dock).toHaveAttribute('data-agent-ball', /^(done|idle)$/)
+  await walk.snap('11-collapsed-stopped')
 
   // 点顶栏角标展开：整条对话原样还在，收起从来没有中断过它。
   const widthBeforeCollapse = beforeCollapseWidth
@@ -320,6 +336,8 @@ try {
   ;({ win } = await walk.start())
   await clickOrFail(win.locator('[data-project-card="true"]').filter({ hasText: project.name }), '冷重启后打开同一项目')
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '创作工作区')
+  // 冷重启后外壳要过一会儿才把常驻面板（按落盘的形态：上一步还原成了展开）挂上来；`expandResidentPanel` 经
+  // `_shell.mjs` 的 `ensureAgentPanelOpen` 先等「面板或小球」其中一个出现再判，这里不用再自己绕一遍。
   await expandResidentPanel(win)
   const restored = win.locator(CREATION_PANEL)
   await expect(restored.locator(USER_BUBBLE).first(), '冷重启后对话流必须还在').toContainText('20 秒', { timeout: 60_000 })
@@ -335,6 +353,33 @@ try {
   expect(laneMessages(restoredLane), '历史消息按原始顺序恢复，不能重放工具').toEqual(messagesBeforeRestart)
   await expect(win.locator(DOCUMENT)).toContainText(TIGHTEN_APPLIED)
   await walk.snap('12-cold-restart')
+
+  // ── 10. 重开之后再发一轮，这回服务商整条回错：收起不吞**坏**消息 ─────────────────────────
+  //
+  // 第 8 步证了「停止不是坏消息」，这一步证它的反面：真坏消息，收起之后小球必须接住。之前全仓只有 `resolveDockStatus`
+  // 的纯函数单测，没有一条走查在真机上量过它（协调 10-28 判）。放在冷重启之后：只多一轮请求、不再多起一个 Electron，
+  // 也顺带量到「恢复出来的会话还能再跑一轮、如实报错」。
+  // 夹具回 HTTP 400 的整条回错（`pb09` 同形），不回 500：lane 对 500 会重试三次（`LANE_RETRY_POLICY`），一轮变四次请求、
+  // 多等约 7 秒，走查还会绑死在重试次数上；这里要证的是「最后一件事是坏的 → 收起后小球报出」，和重试无关。
+  const failedTurn = walk.fixture.expectText({
+    label: 'the provider answers this turn with a hard error',
+    match: (body) => flattenRequestText(body).includes(FAIL),
+    reply: { type: 'http-error', status: 400, json: { error: { message: 'Upstream gateway refused the request', type: 'invalid_request_error', code: 'E7731' } } },
+  })
+  await sendCreation(win, FAIL)
+  await recorded(failedTurn.received, 'failing turn request')
+  // 阳性对照：失败真的落到了面板上（错误带在、composer 退出运行态）。下面小球不报失败，才是产品的错，而不是夹具没出错。
+  await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: restored.locator(ERROR_BAR).last(), doneTimeout: stationTimeout({ operations: 2 }) })
+  await walk.snap('13-failed-turn-panel')
+  await clickOrFail(restored.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')
+  const failedDock = win.locator(COLLAPSED_DOCK)
+  await expect(failedDock, '收起后创作面右下必须有那颗小球').toBeVisible()
+  // 收起藏掉的是**面板**，不是那件事：小球「出错」档 = 右上一粒 danger 点，坏消息由无障碍名 / tooltip 说清（文案取词典）。
+  await expect(failedDock).toHaveAttribute('data-agent-dock-status', 'failed')
+  await expect(failedDock).toHaveAttribute('data-agent-ball', 'failed')
+  await expect(failedDock).toHaveAttribute('aria-label', new RegExp(escapeForRegExp(uiText('zh-CN', 'agentPanelV4.dockFailed'))))
+  walk.report.failedDockLabel = await failedDock.getAttribute('aria-label')
+  await walk.snap('14-collapsed-failed')
 
 } catch (error) {
   failure = error
