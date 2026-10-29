@@ -66,6 +66,11 @@ async function compileInstallerTemplates(source) {
   return artifacts
 }
 
+// Each compile test runs electron-builder and makensis for real: about 5 s on an idle Mac, past 20 s
+// inside the full parallel vitest lane. The timeout only catches a hung compiler; the test never judges
+// speed (same rule as testTimeout in vitest.config.ts and the other heavy fixtures under tests/ux).
+const COMPILE_TIMEOUT_MS = 120_000
+
 export function registerInstallerCompileTests() {
   it('manifest include uses a path the Windows NSIS 3.04 splitter can resolve', () => {
     const match = /^!include "(\$\{PROJECT_DIR\}[^"\n]+installer-manifest[^"\n]+)"$/m.exec(include)
@@ -81,11 +86,11 @@ export function registerInstallerCompileTests() {
     const executables = artifacts.filter((file) => file.endsWith('.exe'))
     expect(executables).toHaveLength(2)
     for (const executable of executables) expect(fs.statSync(executable).size).toBeGreaterThan(0)
-  }, 20000)
+  }, COMPILE_TIMEOUT_MS)
 
   it('counterexample: an invalid NSIS instruction is rejected by the real compiler', async () => {
     await expect(compileInstallerTemplates(`${include}\nNomiInvalidInstruction\n`)).rejects.toThrow(/NomiInvalidInstruction|Invalid command/)
-  }, 20000)
+  }, COMPILE_TIMEOUT_MS)
 
   it('pre-push selects real compilation for every installer input', () => {
     const guard = SCAN_GUARDS.find((entry) => entry.file === 'tests/installer/installerScenarios.test.mjs')
