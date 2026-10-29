@@ -160,14 +160,14 @@ try {
   await clickOrFail(openFolderButton(win), '项目库：打开已有文件夹（外部盘上带图的项目）')
   await waitForProject(win, external.projectId, '外部项目打开，进的是它自己的 id')
   check('登记 = 选的那个文件夹', entryOf(external.projectId)?.rootPath === external.projectRoot, entryOf(external.projectId)?.rootPath)
-  await backToLibrary(win, { label: '回项目库' })
+  await backToLibrary(win, { label: '外部项目打开后，从顶栏项目菜单回到项目库' })
 
   await clickOrFail(newProjectEntry(win), '项目库：新建项目（落在默认位置）')
   await win.waitForFunction(() => /[?&]projectId=/.test(location.href), undefined, { timeout: stationTimeout({ operations: 2 }) })
   const nativeId = await projectIdInUrl(win)
   const nativeRoot = entryOf(nativeId)?.rootPath
   check('新建项目落在默认位置里', Boolean(nativeRoot) && path.dirname(nativeRoot) === projectsDir, nativeRoot)
-  await backToLibrary(win, { label: '回项目库' })
+  await backToLibrary(win, { label: '新建项目后，从顶栏项目菜单回到项目库' })
   await expectVisible(card(win, external.projectId), '外部项目的卡片在库里')
   await expectVisible(card(win, nativeId), '新建项目的卡片在库里')
   await snap(win, '01-library-two-projects')
@@ -221,7 +221,7 @@ try {
   }
   check('画布上的图片节点都加载出来了', true, `${shotIds.length} 张`)
   await snap(win, '04-reopened-renamed-folder-canvas')
-  await backToLibrary(win, { label: '回项目库' })
+  await backToLibrary(win, { label: '接上改名后的项目后，从顶栏项目菜单回到项目库' })
   await expectVisible(card(win, external.projectId), '接上之后卡片在库里')
   await expect(card(win, external.projectId), '接上之后不再是「找不到」').not.toHaveAttribute('title', missingHint)
   check('接上之后原文件夹没被建回来', !fs.existsSync(external.projectRoot))
