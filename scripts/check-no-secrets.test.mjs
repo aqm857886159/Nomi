@@ -202,6 +202,17 @@ describe("路径白名单对非凭证规则仍然有效（没被这次改动误�
   });
 });
 
+describe("执行线临时产物进不了提交（2026-10-27：一条线把 PR 正文草稿强制加进了提交）", () => {
+  it.each([".tmp-pr-body.md", "docs/.tmp-pr-body.md", "CODEX-REPORT.md", ".relay-fallback-walk/a.png", "tests/ux/.x-walk/log.json"])("%s 拦住", (rel) => {
+    const r = scanContent(rel, "草稿\n");
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("[禁止路径]");
+  });
+  it.each(["docs/plan/2026-10-27-tmp-pr-body.md", "docs/CODEX-REPORT-notes.md", "tests/ux/onboarding.walk.mjs", "docs/evidence/x-walk/a.png"])("%s 不误报", (rel) => {
+    expect(scanContent(rel, "草稿\n").code).toBe(0);
+  });
+});
+
 // 2026-09-03 删掉了这里的「--all 全绿」用例。
 //
 // 它跑的是 `node scripts/check-no-secrets.mjs --all`——与 package.json 的 `check:secrets`
