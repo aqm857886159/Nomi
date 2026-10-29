@@ -36,7 +36,8 @@
 !include "LogicLib.nsh"
 
 ; 构建时生成的清单：scripts/packaging/installer-manifest.cjs 在 afterPack 里写出（剪完平台二进制之后）。
-!include "${PROJECT_DIR}/.tmp/installer-manifest/${PRODUCT_FILENAME}-x64.nsh"
+; NSIS 3.04 Windows !include 只按反斜杠拆目录/文件名；Unix makensis 会转换反斜杠。
+!include "${PROJECT_DIR}\.tmp\installer-manifest\${PRODUCT_FILENAME}-x64.nsh"
 !if "${NOMI_INSTALLER_MANIFEST_VERSION}" S!= "${VERSION}"
   !error "stale installer manifest (${NOMI_INSTALLER_MANIFEST_VERSION}, building ${VERSION}): package with electron-builder so afterPack regenerates it"
 !endif

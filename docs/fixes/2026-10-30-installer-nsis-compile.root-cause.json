@@ -1,0 +1,181 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-installer-nsis-compile",
+  "problem_type": "NSIS include paths must be valid for the compiler host and installer changes must compile before push",
+  "symptom": "Windows run 40921209572 aborts at installer.nsh:39 before any installer scenario executes.",
+  "direct_cause": "The generated manifest exists in the uploaded artifact, but PROJECT_DIR uses Windows backslashes and the include appends forward slashes. NSIS v304 get_file_name splits only on the host separator, so the basename includes the forward-slash suffix and cannot match the manifest.",
+  "class_root": "Text-only manifest and template census tests never execute makensis. Cross-host path assembly can pass Mac and static tests while failing the Windows compiler.",
+  "affected_population": [
+    "Windows packaging via win-installer.yml, win-gate.yml and desktop-rc.yml",
+    "Future NSIS include, generated manifest, or build.nsis changes"
+  ],
+  "scope_paths": [
+    "build/installer.nsh",
+    "scripts/packaging/installer-compile.cases.mjs",
+    "scripts/pre-push-scan-guards.mjs",
+    "tests/installer/installerScenarios.test.mjs"
+  ],
+  "entry_points": [
+    "afterPack -> writeInstallerManifest -> installer.nsh !include",
+    "electron-builder NSIS installer and BUILD_UNINSTALLER passes"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/kichik/nsis/blob/v304/Source/util.cpp",
+      "checked_at": "2026-10-30",
+      "purpose": "get_dir_name/get_file_name only split on host separator; Windows slash support is explicitly marked BUGBUG."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/kichik/nsis/blob/v304/Source/scriptpp.cpp",
+      "checked_at": "2026-10-30",
+      "purpose": "pp_include splits before enumerating directory and comparing file spec."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electron.build/v26/docs/features/multi-platform-build/",
+      "checked_at": "2026-10-30",
+      "purpose": "macOS tool dependencies downloaded on demand; checked installed 26.15.3 getMakeNsisPath and UninstallerReader implementation for exact behavior."
+    }
+  ],
+  "invariants": [
+    "NSIS manifest include uses backslashes, converted by Unix makensis and native on Windows.",
+    "Production include, generated data macros and production nsis settings compile in both real electron-builder passes with warnings-as-errors before push.",
+    "A compiler error is a hard test failure; no platform or missing-tool skip."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "manifestPaths"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "renderNsh"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "writeInstallerManifest"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/after-pack-mac.cjs",
+      "symbol": "writeInstallerManifest"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "manifestPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "renderNsh"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 6,
+    "why_not": "door-map.mjs writeInstallerManifest renderNsh manifestPaths --roots=scripts,tests: afterPack must produce the manifest; manifestPaths and renderNsh are its shared path/render helpers and module exports. No parallel producer is added. The existing shared installer.nsh include is the sole consumer being repaired."
+  },
+  "generality_proof": "Both installer and uninstaller use the same corrected include; all Windows packaging entry points converge there. The new test invokes installed electron-builder build API with the real nsis config, real include and real generator. A Windows basename assertion covers the host-specific behavior Mac makensis alone cannot detect.",
+  "shared_boundaries": [
+    {
+      "path": "build/installer.nsh",
+      "symbol": "!include",
+      "responsibility": "Use one cross-host resolvable manifest path for both compile passes."
+    },
+    {
+      "path": "scripts/packaging/installer-compile.cases.mjs",
+      "symbol": "compile",
+      "responsibility": "Execute the production templates with generated manifest and actual configuration; fail on errors."
+    },
+    {
+      "path": "scripts/pre-push-scan-guards.mjs",
+      "symbol": "SCAN_GUARDS",
+      "responsibility": "Select the real compile test on every installer input change."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/win-installer.yml",
+      "entry_point": "Package the Windows installer",
+      "disposition": "enforced",
+      "evidence": "Uses package.json build.nsis.include; same production template tested locally."
+    },
+    {
+      "path": ".github/workflows/desktop-rc.yml",
+      "entry_point": "Windows NSIS packaging",
+      "disposition": "enforced",
+      "evidence": "Shares package.json NSIS configuration and generated afterPack manifest."
+    },
+    {
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "entry_point": "renderNsh",
+      "disposition": "enforced",
+      "evidence": "Generated macros are included in both real compilation passes, including special-character fixture filenames."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any later include, macro or NSIS configuration change can fail at compilation before installation tests run. The host separator issue affects every Windows package invocation.",
+    "same_class_scan": [
+      "door-map.mjs writeInstallerManifest renderNsh manifestPaths --roots=scripts,tests (6 doors)",
+      "rg manifest/afterPack/productFilename/PRODUCT_FILENAME in generator, afterPack, package.json and full CI log; uploaded manifest verified present",
+      "Inspected win-installer.yml, desktop-rc.yml and installed NsisTarget.executeMakensis / computeScriptAndSignUninstaller"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/pre-push-scan-guards.mjs",
+    "invariant": "Changes to the installer include, generator, afterPack, build configuration or dependency lock select real NSIS compilation.",
+    "failure_mode": "Default vitest and pre-push fail on path invariant or makensis error, including unavailable tools.",
+    "exception_policy": "none",
+    "strategy": "Register the compile test in SCAN_GUARDS and the default vitest lane instead of relying on a manual Windows push.",
+    "artifacts": [
+      "scripts/pre-push-scan-guards.mjs",
+      "scripts/packaging/installer-compile.cases.mjs",
+      "build/installer.nsh",
+      "tests/installer/installerScenarios.test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/installer/installerScenarios.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/installer/installerScenarios.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "build/installer.nsh"
+    ],
+    "rationale": "Replace the mixed-separator manifest include; retain no alternate include or fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Compiler defect is bounded by native separators; 26.15.3 already ships mac/makensis and native uninstaller extraction. No new dependency or compiler install is needed.",
+    "current": "electron-builder 26.15.3 / nsis 3.0.4.1",
+    "target": "Supported electron-builder / NSIS version retaining the production hooks",
+    "exit_criteria": [
+      "On electron-builder or toolset upgrade, real two-pass compile test and Windows installer scenarios must pass; re-review template fingerprints."
+    ]
+  },
+  "migration": "No persisted state changes; regenerate manifests normally in afterPack.",
+  "residual_risks": [
+    "Mac compilation does not execute Windows installer, registry, NTFS lock or UAC behavior. A1-A13 and CX1-CX3 remain pending the coordinator push and Windows job.",
+    "The small compile fixture validates templates and syntax; it is not a runnable Nomi application. Full application packaging is verified separately."
+  ],
+  "change_kind": "corrective",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "build/installer.nsh",
+    "tests": [
+      "tests/installer/installerScenarios.test.mjs"
+    ]
+  }
+}

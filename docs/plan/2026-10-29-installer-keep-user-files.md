@@ -199,3 +199,19 @@ Mac 侧（vitest，本线自跑）：
 - [ ] 生成效果
 - [ ] 数据格式
 - [ ] 新增功能 / 性能
+
+## 2026-10-30 编译闭环补充（实施前）
+
+★0：实查 [electron-builder v26 跨平台文档](https://www.electron.build/v26/docs/features/multi-platform-build/)：macOS 按需下载工具；本仓 26.15.3 `out/toolsets/windows.js#getMakeNsisPath` 默认下载 nsis-3.0.4.1，内含 `mac/makensis`（Mach-O x86_64），用 NSISDIR 指向包根可在本机运行。`NsisTarget.computeScriptAndSignUninstaller` 在 Catalina 及以后用 UninstallerReader 提取卸载器，不必通过 Wine 执行它；完整打包另实跑确认。保留依赖版本，不另装软件。
+
+实查 [NSIS v304 scriptpp.cpp](https://github.com/kichik/nsis/blob/v304/Source/scriptpp.cpp) 与 [util.cpp](https://github.com/kichik/nsis/blob/v304/Source/util.cpp)：`pp_include` 用 `get_dir_name/get_file_name` 拆路径，后两者只认宿主分隔符，源码也标着 Windows 不支持 `/` 的 BUGBUG。CI 40921209572 完整日志实际是 `!include: could not find`，不是清单内某条指令非法；产物中清单存在。决定：include 使用反斜杠，Unix makensis 自己转换，Windows 使用原生分隔符。
+
+★1：目标是安装器改动在推送之前就经过真实编译器；量具 = 默认 vitest / 推送前扫描登记的编译测试（退出码 + exe 产物）、本机完整打包日志。此处不证明 Windows 安装运行场景通过，A1–A13 仍由 Windows 作业验证。
+
+★2：唯一源码仍是 installer.nsh + afterPack 生成器；编译测试复用 electron-builder 的 build API、实际 nsis 配置和实际 include，不另写一份模拟 NSIS 模板。
+
+★3：用 electron-builder 自己解析并下载工具、生成两轮模板并执行 -WX；极小 payload 仅加速编译，不模拟 Windows 文件保护行为；完整应用另打一次 Windows 安装包。
+
+★4：编译成功必须有非空 exe；任何语法错误、版本不匹配、缺失工具/下载失败都硬红，不 skip、不放宽 -WX、不移除 !error。
+
+★9 验收清单（先写后改）：本机重现现有完整编译错误；修正所有实际编译暴露的问题后，两轮模板与生成清单编译通过，完整安装包产出；默认车道测试真实编译；推送前对 installer.nsh、生成器、package.json（包括 nsis 配置）、锁文件和 afterPack 的修改选中此测试；反例在 include 副本插入非法 NSIS 指令，真实编译必须失败。另以 Windows 路径拆分断言拒绝 `/` include（Mac 不能代跑 Windows 查找路径）；现有普查和场景不删不弱化。回滚本轮提交即可。

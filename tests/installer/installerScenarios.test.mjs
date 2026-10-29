@@ -18,6 +18,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { afterEach, describe, expect, it } from 'vitest'
+import { registerInstallerCompileTests } from '../../scripts/packaging/installer-compile.cases.mjs'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, REQUIRED_COVERAGE, SCENARIOS } from './scenarios.mjs'
 import { OLD_VERSION, SCENARIO_RUNNERS, applyMutation } from './windows-installer-scenarios.mjs'
@@ -269,8 +270,8 @@ describe('build/installer.nsh', () => {
   })
 
   it('includes the manifest at the path the generator writes, and only uses macros the generator renders', () => {
-    const include = /^!include "\$\{PROJECT_DIR\}\/(.+)"$/m.exec(source)?.[1]
-    const generated = path.relative('/project', manifestPaths('/project', '${PRODUCT_FILENAME}', 'x64').nsh).split(path.sep).join('/')
+    const include = /^!include "\$\{PROJECT_DIR\}\\(.+)"$/m.exec(source)?.[1]
+    const generated = path.relative('/project', manifestPaths('/project', '${PRODUCT_FILENAME}', 'x64').nsh).split(path.sep).join(String.fromCharCode(92))
     expect(include).toBe(generated)
     const rendered = renderNsh({ version: '1.0.0', files: ['Nomi.exe'], dirs: ['resources'], topLevelNames: ['Nomi.exe', 'resources'] })
     const used = new Set([...source.matchAll(/\bNOMI_INSTALLER_[A-Z_]+\b/g)].map((match) => match[0]))
@@ -320,3 +321,5 @@ describe('electron-builder NSIS templates', () => {
     expect(fingerprintProblems(copy)).toEqual([expect.stringMatching(/^include\/installUtil\.nsh: [0-9a-f]{64}$/)])
   })
 })
+
+registerInstallerCompileTests()

@@ -125,7 +125,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'tests/ux/full-walk/limitsRegistry.test.mjs', roots: ['tests/ux/full-walk'], exts: ['mjs'] }, // 2026-10-25：全功能走查（监视器 / 动作 / 剧本）读的每一个 limits.<名字> 都在 loadLimits 登记、带出处（<1 秒）
   // 2026-10-29：Windows 安装器普查按路径读这些固定文件（不 import），改到就跑；electron-builder 的 NSIS 模板指纹随 package.json / 锁文件变。
   // 识别器认到的 readdirSync 在它 import 的 Windows 执行器里（列被测的安装目录，只在 Windows 作业里跑），普查本身不遍历仓库目录（<1 秒）
-  { file: 'tests/installer/installerScenarios.test.mjs', files: ['build/installer.nsh', 'package.json', 'pnpm-lock.yaml', '.github/workflows/win-installer.yml', '.github/workflows/desktop-rc.yml', '.github/workflows/desktop-release.yml', 'docs/plan/2026-10-29-installer-keep-user-files.md', 'electron/runtimePaths.ts'] },
+  { file: 'tests/installer/installerScenarios.test.mjs', files: ['build/installer.nsh', 'scripts/packaging/installer-manifest.cjs', 'scripts/after-pack-mac.cjs', 'package.json', 'pnpm-lock.yaml', '.github/workflows/win-installer.yml', '.github/workflows/desktop-rc.yml', '.github/workflows/desktop-release.yml', 'docs/plan/2026-10-29-installer-keep-user-files.md', 'electron/runtimePaths.ts'] },
 ])
 
 /**
