@@ -27,11 +27,18 @@ const waitFor = async (predicate, message, timeoutMs = 60_000) => {
   }
 }
 
+// 完整写完再发布：existsSync不能把IO压力下刚open、尚未写完的文件当作就绪。
+const writeReadyPid = (file) => {
+  const staging = `${file}.writing`
+  fs.writeFileSync(staging, String(process.pid))
+  fs.renameSync(staging, file)
+}
+
 /** 只由生成的夹具调用；孙进程自己写PID，保证它已经执行到用户代码。 */
 export function hangReadyTree(parentFile, descendantFile) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(process.env.NOMI_TEST_FIXTURE_START_DELAY_MS || 0))
-  fs.writeFileSync(parentFile, String(process.pid))
-  spawn(process.execPath, ['-e', `require('node:fs').writeFileSync(${JSON.stringify(descendantFile)}, String(process.pid)); setInterval(() => {}, 1000)`], { stdio: 'ignore' })
+  writeReadyPid(parentFile)
+  spawn(process.execPath, ['-e', `const fs = require('node:fs'); (${writeReadyPid.toString()})(${JSON.stringify(descendantFile)}); setInterval(() => {}, 1000)`], { stdio: 'ignore' })
   test('hang', () => new Promise(() => setInterval(() => {}, 1000)))
 }
 

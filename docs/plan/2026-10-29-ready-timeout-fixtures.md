@@ -18,7 +18,7 @@
 
 ## ★3 复用
 
-复用 `_test-temp.mjs`、Node mock.timers、现有 `runNode` 和进程树终止边界；沿用 processTree.node-test / _test-temp.node-test 的条件就绪写法。统一共享测试助手提供夹具、延迟、PID有效性、存活及消失检查。删掉原来的三个短期限后读取子进程副作用的组合夹具。生产文件不新增测试回调，不新增门岗。
+复用 `_test-temp.mjs`、Node mock.timers、现有 `runNode` 和进程树终止边界；沿用 processTree.node-test / _test-temp.node-test 的条件就绪写法。统一共享测试助手提供夹具、延迟、PID有效性、存活及消失检查；PID完整写入后rename发布，避免空文件被误当就绪。删掉原来的三个短期限后读取子进程副作用的组合夹具。生产文件不新增测试回调，不新增门岗。
 
 ## ★4 状态
 

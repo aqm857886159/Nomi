@@ -12,7 +12,8 @@
   "scope_paths": [
     "scripts/_test-ready-timeout.mjs",
     "scripts/pre-push-structure.node-test.mjs",
-    "scripts/lib/transientRetry.node-test.mjs"
+    "scripts/lib/transientRetry.node-test.mjs",
+    "docs/engineering/concept-owners/delivery.script-process-tree.json"
   ],
   "entry_points": [
     "relatedTests node:test lane",
@@ -42,7 +43,8 @@
   "invariants": [
     "A tree timeout assertion requires two distinct valid PIDs alive before the deadline fires and gone before success.",
     "Fixture startup delay is excluded from the test-controlled deadline; production startup deadlines are unchanged.",
-    "Synchronous retry policy cannot depend on a counter being written by a process that may time out during startup."
+    "Synchronous retry policy cannot depend on a counter being written by a process that may time out during startup.",
+    "PID readiness files are published by rename only after the complete PID has been written."
   ],
   "doors": [
     {
@@ -66,7 +68,7 @@
     {
       "path": "scripts/_test-ready-timeout.mjs",
       "symbol": "readyTreeTimeout",
-      "responsibility": "Freeze the test deadline until readiness, check two live PIDs, trigger timeout with real cleanup scheduling, then require both PIDs gone."
+      "responsibility": "Freeze the test deadline until readiness, check two live PIDs, trigger timeout with real cleanup scheduling, then require both PIDs gone. Publish complete PID records atomically before exposing readiness."
     }
   ],
   "same_class_entry_points": [
