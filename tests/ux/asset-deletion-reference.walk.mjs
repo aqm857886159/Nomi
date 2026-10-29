@@ -11,7 +11,7 @@ try {
   const {app,win,file,url,projectRoot,shot,cdp}=fixture
   observations.before={exists:fs.existsSync(file),timeline:JSON.parse(fs.readFileSync(path.join(projectRoot,'.nomi/project.json'))).payload.timeline}
   await win.evaluate(()=>window.dispatchEvent(new CustomEvent('nomi-open-browser')))
-  await win.getByRole('button',{name:/素材盒|Asset box/,exact:false}).first().click()
+  await win.getByRole('button',{name:/打开素材盒|Open asset box/,exact:true}).click()
   await expect.poll(()=>app.windows().filter(page=>page.url().includes('browser-asset-overlay')).length).toBe(1)
   const overlay=app.windows().find(page=>page.url().includes('browser-asset-overlay'))
   const tile=overlay.locator('[data-browser-asset-tile]').filter({hasText:'parity-shared'})
