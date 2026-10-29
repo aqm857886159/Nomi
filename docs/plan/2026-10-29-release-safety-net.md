@@ -54,3 +54,19 @@
 - 回滚：revert 本任务的实现提交；已发布更高版本另按正式流程，不在本任务操作线上。
 
 独立验收：不适用：发版流程和脚本，非四类。
+
+
+## 自验记录
+
+| 反例/任务 | 结果 | 证据 |
+|---|---|---|
+| 两平台20/100、非法比例、坏YAML/校验和、未确认不能公开写、暂停不改元数据 | 通过 | release-rollout.node-test.mjs |
+| 工作流缺首批输入/唯一写入口 | 改前红，改后绿 | 同一工作流合约测试 |
+| 三种健康结论、低于样本边界、未知/取消/自动化/窗外/坏缓存/待定阈值 | 通过 | health.node-test.mjs |
+| 一天大样本代替三天观察 | 拒绝 | health.node-test.mjs观察日期用例 |
+| 原雷达抓取/缓存链路中的回归，终端/Markdown末行及非0退出 | 通过 | intake-radar.node-test.mjs |
+| 公开v0.24.0 full/pause | 只读计划通过，未公开写入 | 专用临时目录演练日志；私有交接报告 |
+| 全套相关合成测试 | 88/88，0失败 | node --test scripts/release-rollout.node-test.mjs scripts/lib/intake-radar/*.node-test.mjs scripts/intake-radar.node-test.mjs |
+| 完整gates | 未通过：design-lab现役截图差异；本次无UI改动，不更新基线 | 私有交接报告保留失败摘要 |
+
+GitHub latest 排除草稿与pre-release的原文核对：[GitHub Releases API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)。

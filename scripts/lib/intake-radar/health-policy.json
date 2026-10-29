@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "windowDays": 3,
+  "windowBasis": "待协调定：初设同一UTC日历窗口3天；遥测时间戳只有日精度，不能声称完整72小时。",
+  "minLaunches": 47,
+  "launchBasis": "0.23启动1214/26日，ceil=47；启动量没有安装基数，只作样本护栏。",
+  "approvalPending": [
+    "观察天数、每日均值样本门槛与历史噪声带仅为初值，业务容忍度待协调定",
+    "Agent样本与安装完成遥测不足，待协调定"
+  ],
+  "metrics": {
+    "generation.image": {
+      "minSamples": 42,
+      "maxIncrease": 0.029,
+      "basis": "0.23，2026-10-03..28（26日），389/1089；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "generation.image-edit": {
+      "minSamples": 21,
+      "maxIncrease": 0.0394,
+      "basis": "0.23，2026-10-03..28（26日），154/531；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "generation.video": {
+      "minSamples": 16,
+      "maxIncrease": 0.0477,
+      "basis": "0.23，2026-10-03..28（26日），256/415；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "local.image": {
+      "minSamples": 15,
+      "maxIncrease": 0.0424,
+      "basis": "0.23，2026-10-03..28（26日），88/389；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "local.image-edit": {
+      "minSamples": 6,
+      "maxIncrease": 0.0604,
+      "basis": "0.23，2026-10-03..28（26日），26/154；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "local.video": {
+      "minSamples": 10,
+      "maxIncrease": 0.0589,
+      "basis": "0.23，2026-10-03..28（26日），85/256；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "update.download": {
+      "minSamples": 1,
+      "maxIncrease": 0.2049,
+      "basis": "0.23，2026-10-03..28（26日），6/20；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
+    },
+    "update.install": {
+      "minSamples": 1,
+      "maxIncrease": 0.2308,
+      "basis": "0.23历史0/13，零失败按rule-of-three近似95%上界3/13；仅初值，业务容忍度待协调定。"
+    },
+    "agent": {
+      "minSamples": null,
+      "maxIncrease": null,
+      "basis": "0.23无agent.turn.completed样本，待协调定。"
+    }
+  }
+}

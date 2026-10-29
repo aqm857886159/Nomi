@@ -102,6 +102,13 @@ RC 工作流会：
 
 验收以下真实场景：
 
+**新增两道发版硬门（当前待接线）**：
+
+- Windows 真装、升级、卸载矩阵：用户数据分别位于默认位置、自选位置、安装目录。由安装器修复线建设 Windows 作业；未进 main 前标「待接线」，协调必须在 Windows 的隔离测试目录逐格留证，缺任一格不发。不能用 macOS 门岗代替。
+- 核心任务真模型评测：起草分镜、批量出图，使用相同输入、模型和参数对比上一正式版，变差不发。分别由起草失败修复线与批量生成卡死修复线留下可重复评测。未接线前由协调在候选包和上一版隔离资料上逐项实测，缺对比证据不发；现有单版本付费通过不能代替回归比较。
+
+其余验收场景：
+
 - 从上一正式版升级，项目和设置不丢；
 - 创建、保存、关闭并重开项目；
 - 密钥、安全存储、MCP 和单实例；
@@ -138,7 +145,8 @@ RC 验收通过后：
 2. 记下成功 RC 工作流页面中的 run ID；
 3. 手动运行 `Desktop Release`：
    - `rc_run_id`: 成功 RC 的 run ID；
-   - `tag`: `v0.20.0`。
+   - `tag`: `v0.20.0`；
+   - `staging_percentage`: 首批比例，默认 `20`，必须为 1–100 整数，`100` 为全量。
 
 正式发布工作流会验证 RC commit 已包含在 `origin/main`，然后：
 
@@ -185,3 +193,38 @@ https://nomiaqm.com/?download=1&source=app-update&platform=darwin&arch=arm64
 `arch` 来自桌面主进程真实的 `process.arch`，Intel Mac 会传 `x64`。官网删除一次性参数后立即下载对应 DMG；如果参数无效，则停留在官网并保留普通下载按钮，不把用户丢到 GitHub Release 资产列表。
 
 - RC 前必须运行 `pnpm run feel:nightly`，并确认接触表无未分诊体感发现。
+
+
+## 9. 分批放和全量
+
+**首批默认 20%**。`Desktop Release` 在原始 RC 产物通过校验之后、上传之前，经唯一入口 `scripts/release-rollout.mjs prepare` 写 `latest.yml` 和 `latest-mac.yml` 的 `stagingPercentage`，并同步两份元数据的 SHA256SUMS；不重建或修改安装包。每台安装由 electron-updater 持久 ID 固定分组，重复检查不会重新抽签。[机制与换版规则](https://www.electron.build/docs/features/auto-update)。
+
+比例只约束应用内 updater 的更新发现。官网、新用户和 tag 手动下载仍可获取新包；未签名 Mac 走官网直接下载也受这个限制。比例不代表实际升级人数。安装目录不能作为项目数据位置的安全保证，仍须通过上面的 Windows 矩阵。
+
+每次发版由发布协调负责：首批后每日运行一次现有 `pnpm run intake:radar`，在日常雷达同一份报告末尾看「版本健康」。默认初设看三个 UTC 日历日（**待协调定**，不是完整72小时；不会按天自动增量），同窗比较新版/上一版的 image、image-edit（有样本时）、video 失败率，失败中疑似本地拒绝占比，启动数，更新下载/安装动作，Agent回合。失败率分母是成功+失败，取消和未知单列，所有项写样本数。阈值唯一来源为 `scripts/lib/intake-radar/health-policy.json`，内含0.23历史聚合计算依据与待定政策；不得把历史的高失败率解释成可接受质量。
+
+```bash
+# 日常雷达（沿用自己的增量缓存）；需要固定比较版本时显式指定
+NOMI_HEALTH_NEW_VERSION=0.24.0 NOMI_HEALTH_OLD_VERSION=0.23.2 pnpm run intake:radar
+# 调研使用副本，不改变日常雷达的 seenKeys
+NOMI_INTAKE_CACHE=/absolute/copied-cache NOMI_HEALTH_NEW_VERSION=0.24.0 NOMI_HEALTH_OLD_VERSION=0.23.2 pnpm run intake:radar
+```
+
+遥测只带 major.minor，因此以上参数实际比较 **0.24 / 0.23**，无法区分0.23.2和同系列其他补丁。`<1s + unknown` 是疑似本地拒绝，不能断言原因。更新事件版本是发起动作的当前版本，`install success` 只代表安装动作受理，不能证明升级后启动成功。缺Agent事件必须写「遥测缺这一项」。事件数不等于独立用户数；同窗也未控制模型/用户构成，报告是告警信号，不是因果证明。
+
+报告最后一行固定三选一：`可以全量`（所有样本/阈值/数据质量均满足）、`停止放量：指标、新旧比例、样本n`（退出非0）、`样本不够：缺数/缺项/待协调定`。样本不够退出0仅表示雷达抓取和报告完成，**不是放量授权**。拉取失败非0，不能称今天健康。待协调阈值没定、观察不满、缺样本、两道新硬门证据不全，保持首批不扩量；已知丢数据、用不了等严重反馈由协调立即暂停，不等统计显著。
+
+以下命令默认只读并打印计划。只有明确添加 `--yes` 才改公开资产或发布状态；先核目标再执行。脚本拒绝非 latest、未知/不可变资产状态或无上一稳定版的暂停，不改仓库设置。
+
+```bash
+# 全量：两份元数据改为100，同时更新校验和；先打印，再人工执行带--yes的同一命令
+node scripts/release-rollout.mjs full --tag v0.24.0
+node scripts/release-rollout.mjs full --tag v0.24.0 --yes
+# 暂停：标记为pre-release，稳定版的 /releases/latest 回到上一稳定版
+node scripts/release-rollout.mjs pause --tag v0.24.0
+node scripts/release-rollout.mjs pause --tag v0.24.0 --yes
+```
+
+暂停不改yml比例、不建抢先体验通道。已升级的不降级、在途/已缓存下载无法撤回，tag直链仍可下载；官网latest入口也回到上一稳定版。公开资产替换不是原子事务：脚本失败立即停止后续放量，由协调读回两份元数据与SHA256SUMS处理，不把部分成功当完成。仓库以后若开启不可变发布，资产重写会拒绝；协调另定独立可变feed或发更高版本，不能临时改设置绕过。
+
+**放坏了用更高版本换版**：暂停当前版 → 修复并验证 → 版本号高于坏版（如0.24.0坏了发0.24.1）→ 按RC和两道硬门完整走 → 新版本首批20%。不能复用坏版版本号或覆盖安装包，让已升级用户滞留。重新发布已暂停版本或自动恢复不在本批范围。

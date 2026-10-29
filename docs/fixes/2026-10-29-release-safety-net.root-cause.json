@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-release-safety-net",
+  "problem_type": "Release rollout without bounded exposure and version health evidence",
+  "symptom": "Every release reaches all eligible installations and generation failure signals have no version decision.",
+  "direct_cause": "Promotion uploads updater metadata without a percentage; radar reports totals without a version decision.",
+  "class_root": "Release visibility and expansion lack a shared validated policy boundary.",
+  "affected_population": [
+    "Windows and macOS stable installations",
+    "Future stable release promotions and daily health runs"
+  ],
+  "scope_paths": [
+    ".github/workflows/desktop-release.yml",
+    "scripts/release-rollout.mjs",
+    "scripts/intake-radar.mjs",
+    "scripts/lib/intake-radar/aggregate.mjs",
+    "scripts/lib/intake-radar/render.mjs",
+    "scripts/lib/intake-radar/health.mjs",
+    "scripts/lib/intake-radar/health-policy.json"
+  ],
+  "entry_points": [
+    "Desktop Release prepare/upload",
+    "Release rollout prepare/full/pause CLI",
+    "Intake Radar cached event report"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electron.build/docs/features/auto-update",
+      "checked_at": "2026-10-29",
+      "purpose": "stagingPercentage and higher-version recovery"
+    }
+  ],
+  "invariants": [
+    "Both platform manifests use one validated integer percentage writer before upload.",
+    "Public mutations print a plan and require --yes.",
+    "Same-window version decisions never treat missing evidence as health."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/intake-radar.mjs",
+      "symbol": "buildIntakeReport"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/release-contract.mjs",
+      "symbol": "prepareReleaseAssets"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "Release artifact preparation and radar reporting remain separate commands: they own different states. The release-contract CLI prepares validated binaries; intake-radar alone gathers event records."
+  },
+  "generality_proof": "Platform manifests share planMetadata validation; daily decisions share buildVersionHealth after existing event flattening and automation exclusion, across capabilities, versions and result shapes.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/release-rollout.mjs",
+      "symbol": "planMetadata",
+      "responsibility": "Validate both manifests and checksums before any write."
+    },
+    {
+      "path": "scripts/lib/intake-radar/health.mjs",
+      "symbol": "buildVersionHealth",
+      "responsibility": "Compare same-window evidence with sample and pending-policy guards."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/desktop-release.yml",
+      "entry_point": "promote",
+      "disposition": "enforced",
+      "evidence": "Workflow contract requires the single rollout script before upload."
+    },
+    {
+      "path": "scripts/intake-radar.mjs",
+      "entry_point": "run",
+      "disposition": "enforced",
+      "evidence": "Report consumes the existing downloaded cache; regression yields nonzero."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every future release and every platform can repeat the missing boundary.",
+    "same_class_scan": [
+      "rg stagingPercentage .github scripts electron: no existing rollout writer",
+      "door-map prepareReleaseAssets buildIntakeReport --roots=scripts",
+      "Read GitHubProvider and AppUpdater installed 6.8.9 sources; read telemetryEvents major/minor result contracts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/release-rollout.mjs",
+    "invariant": "Both manifests require explicit valid percentage; missing evidence never authorizes expansion.",
+    "failure_mode": "Reject before writes; stop health decisions exit nonzero; pending policy yields insufficient evidence.",
+    "exception_policy": "none",
+    "strategy": "One manifest writer and one cached-event decision function, with workflow boundary tests.",
+    "artifacts": [
+      "scripts/release-rollout.mjs",
+      "scripts/lib/intake-radar/health.mjs",
+      ".github/workflows/desktop-release.yml"
+    ]
+  },
+  "regression_tests": [
+    "scripts/release-rollout.node-test.mjs",
+    "scripts/lib/intake-radar/health.node-test.mjs",
+    "scripts/intake-radar.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/release-rollout.node-test.mjs",
+    "scripts/lib/intake-radar/health.node-test.mjs",
+    "scripts/intake-radar.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/desktop-release.yml"
+    ],
+    "rationale": "Unconditional metadata upload preparation replaced by explicit rollout boundary. No second fetch pipeline introduced."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "electron-updater 6.8.9",
+    "target": "A supported updater retaining stable GitHub selection and staging semantics",
+    "rationale": "Installed source supports staging; validation must occur before publication because updater allows missing/NaN. No package installation in scope.",
+    "exit_criteria": [
+      "Recheck installed source and official rollout docs on updater upgrade",
+      "If immutable releases become required, stop asset rewrite and coordinate an independent mutable feed or higher release"
+    ]
+  },
+  "migration": "Old manifests without percentage are accepted only as explicit rewrite inputs; new promotion always requires a percentage. Existing cache and incremental state unchanged.",
+  "residual_risks": [
+    "No live Release mutation performed.",
+    "Manual/tag downloads bypass staging; in-flight downloads cannot be recalled.",
+    "Telemetry lacks patch versions and true post-install completion; Agent and operational thresholds pending coordination.",
+    "GitHub multiple asset replacements are not atomic; a failed write must be investigated before expansion."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "scripts",
+    "tests": [
+      "scripts/release-rollout.node-test.mjs",
+      "scripts/lib/intake-radar/health.node-test.mjs"
+    ]
+  }
+}
