@@ -63,6 +63,7 @@ test('stop boundary difference=4.99 points despite positive lower bound and n>=1
   const h = health([...generation(24,10000,499), ...generation(23,10000,0)])
   assert.ok(image(h).interval.lower > 0); assert.ok(image(h).interval.difference < .05); assert.equal(h.stop,false)
   assert.equal(health([...generation(24,10000,500), ...generation(23,10000,0)]).stop,true)
+  assert.equal(health([...generation(24,10000,3500), ...generation(23,10000,3000)]).stop,true, '35% minus 30% is exactly the 5-point boundary')
 })
 test('one failure session is listed as concentrated and does not stop; two do stop', () => {
   const events = [...fixture(), ...generation(24,42,40,'video',1), ...generation(23,300,0,'video')]

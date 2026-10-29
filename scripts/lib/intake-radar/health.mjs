@@ -69,7 +69,9 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
   if (observedDays.newer < thresholds.windowDays) missing.push(`观察日期还差${thresholds.windowDays - observedDays.newer}天（${observedDays.newer}/${thresholds.windowDays}）`)
   const compare = (key, label, newer, olderCounts) => {
     const interval = newcombeDifference(newer.failure, newer.n, olderCounts.failure, olderCounts.n, thresholds.z)
-    const credible = newer.n >= thresholds.stopMinSamples && interval?.lower > 0 && interval.difference >= thresholds.stopMinIncrease
+    // Compare on the common count denominator so 35% - 30% cannot round below 5 points.
+    const practical = newer.failure * olderCounts.n - olderCounts.failure * newer.n >= thresholds.stopMinIncrease * (newer.n * olderCounts.n)
+    const credible = newer.n >= thresholds.stopMinSamples && interval?.lower > 0 && practical
     const stop = Boolean(credible && newer.failureSessions >= thresholds.stopMinFailureSessions)
     rows.push({ key, label, newer, older: olderCounts, interval, stop })
     if (newer.n < thresholds.stopMinSamples) uncovered.push(`${label}（新版n=${newer.n}<${thresholds.stopMinSamples}）`)
