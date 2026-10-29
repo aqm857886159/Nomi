@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 import { makeTempDir } from './_test-temp.mjs'
+import { readyTreeTimeout } from './_test-ready-timeout.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
 import { TEST_FILE, scanEvidence, walkSites } from './lib/scanGuardDetect.mjs'
 
@@ -460,35 +461,16 @@ test('慢测试不进相关单测：pre-push-contracts.node-test.mjs 被命中�
   for (const file of Object.keys(SLOW_TEST_FILES)) assert.ok(fs.existsSync(path.join(repoRoot, file)), `SLOW_TEST_FILES 里的 ${file} 已不存在`)
 })
 
-test('必红：假慢测试（永不退出）→ 到上限被终止、不算红、note 点名文件并说「没跑完，CI 会跑」；真红的测试照样红', async () => {
-  const dir = makeTempDir('nomi-related-')
-  const slow = path.join(dir, 'slow.node-test.mjs')
-  const slowPidFile = path.join(dir, 'slow.pid')
-  const descendantPidFile = path.join(dir, 'descendant.pid')
-  const red = path.join(dir, 'red.node-test.mjs')
-  fs.writeFileSync(slow, ["import fs from 'node:fs'", "import { spawn } from 'node:child_process'", "import test from 'node:test'", `fs.writeFileSync(${JSON.stringify(slowPidFile)}, String(process.pid))`, `const descendant = ${['sp', 'awn'].join('')}(process.execPath, ['-e', ${JSON.stringify("setInterval(() => {}, 1000)")}], { stdio: 'ignore' }); fs.writeFileSync(${JSON.stringify(descendantPidFile)}, String(descendant.pid))`, "test('hang', () => new Promise(() => setInterval(() => {}, 1000)))", ''].join('\n'))
-  fs.writeFileSync(red, ["import test from 'node:test'", "import assert from 'node:assert/strict'", "test('red', () => assert.equal(1, 2))", ''].join('\n'))
-  const started = Date.now()
-  const timedOut = await runRelatedTests({ vitest: [], node: [slow], browser: [], skipped: [], truncated: 0 }, isolatedRun, { budgetMs: 1500 })
-  assert.ok(Date.now() - started < 30_000, '超时上限没生效')
+test('必红：假慢测试（永不退出）→ 到上限被终止、不算红、note 点名文件并说「没跑完，CI 会跑」；真红的测试照样红', async (t) => {
+  const { result: timedOut, file: slow } = await readyTreeTimeout(t, (file, budgetMs) =>
+    runRelatedTests({ vitest: [], node: [file], browser: [], skipped: [], truncated: 0 }, isolatedRun, { budgetMs }))
   assert.equal(timedOut.status, 0, '超时不算红')
   assert.match(timedOut.note, /相关单测没跑完/)
   assert.match(timedOut.note, /CI 会跑/)
   assert.ok(timedOut.note.includes(slow), '要点名没跑的文件')
-  const slowPid = Number(fs.readFileSync(slowPidFile, 'utf8'))
-  const deadline = Date.now() + 3000
-  while (Date.now() < deadline) {
-    try {
-      process.kill(slowPid, 0)
-    } catch (error) {
-      if (error.code === 'ESRCH') break
-      throw error
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  }
-  assert.throws(() => process.kill(slowPid, 0), { code: 'ESRCH' }, '超时后假慢测试的 pid 仍存活')
-  const descendantPid = Number(fs.readFileSync(descendantPidFile, 'utf8'))
-  assert.throws(() => process.kill(descendantPid, 0), { code: 'ESRCH' }, '超时后假慢测试派生的 pid 仍存活')
+  const dir = makeTempDir('nomi-related-red-')
+  const red = path.join(dir, 'red.node-test.mjs')
+  fs.writeFileSync(red, ["import test from 'node:test'", "import assert from 'node:assert/strict'", "test('red', () => assert.equal(1, 2))", ''].join('\n'))
   const failed = await runRelatedTests({ vitest: [], node: [red], browser: [], skipped: [], truncated: 0 }, isolatedRun, { budgetMs: 60_000 })
   assert.notEqual(failed.status, 0, '上限内真红必须拦')
 })
