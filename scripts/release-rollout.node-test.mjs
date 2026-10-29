@@ -7,11 +7,12 @@ import yaml from 'js-yaml'
 import { makeTempDir } from './_test-temp.mjs'
 import { METADATA, percentage, planMetadata, planPause, runRollout } from './release-rollout.mjs'
 const sha = t => crypto.createHash('sha256').update(t).digest('hex')
+const matrix = { percentages: [20, 100], invalidPercentages: [undefined, '', 0, 101, -1, 1.5, '20x', 'NaN', '1e1'] }
 function fixture(value) {
   const text = `version: 1.2.3\nfiles:\n  - url: installer.zip\n    sha512: unchanged\n    size: 42\n${value === undefined ? '' : `stagingPercentage: ${value}\n`}`
   return { 'latest.yml': text, 'latest-mac.yml': text, 'SHA256SUMS.txt': METADATA.map(n => `${sha(text)}  ${n}\n`).join('') + 'a'.repeat(64) + '  installer.zip\n' }
 }
-for (const n of [20, 100]) test(`manifest fixture writes ${n} on both platforms with valid checksums`, () => {
+for (const n of matrix.percentages) test(`manifest fixture writes ${n} on both platforms with valid checksums`, () => {
   const original = fixture(), plan = planMetadata(original, n, '1.2.3')
   for (const name of METADATA) {
     const doc = yaml.load(plan.files[name]);assert.equal(doc.stagingPercentage, n)
@@ -20,7 +21,7 @@ for (const n of [20, 100]) test(`manifest fixture writes ${n} on both platforms 
   }
   assert.ok(plan.files['SHA256SUMS.txt'].includes('a'.repeat(64) + '  installer.zip'))
 })
-for (const n of [undefined, '', 0, 101, -1, 1.5, '20x', 'NaN', '1e1']) test(`reject invalid percentage ${n}`, () => assert.throws(() => percentage(n), /整数/))
+for (const n of matrix.invalidPercentages) test(`reject invalid percentage ${n}`, () => assert.throws(() => percentage(n), /整数/))
 for (const mutation of [files => delete files['latest-mac.yml'], files => files['latest.yml'] += 'stagingPercentage: 10\nstagingPercentage: 20\n', files => files['latest-mac.yml'] = '[]', files => files['latest-mac.yml'] = files['latest-mac.yml'].replace('1.2.3', '1.2.2'), files => files['SHA256SUMS.txt'] = 'bad']) test('invalid platform metadata fails before local writes', () => {
   const dir = makeTempDir('nomi-release-fixture-');const files = fixture();mutation(files)
   try {
