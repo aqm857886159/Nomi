@@ -10,14 +10,15 @@
   "fullWalkJourneys": [],
   "status": "reviewed",
   "manualReview": "reviewed",
-  "rootCauseContract": "docs/fixes/2026-10-30-release-health-two-cohort.root-cause.json",
+  "rootCauseContract": "docs/fixes/2026-10-29-release-safety-net.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "scripts/release-rollout.node-test.mjs"
   },
   "evidence": [
     "docs/plan/2026-10-29-release-safety-net.md",
-    "scripts/lib/intake-radar/health.node-test.mjs"
+    "scripts/lib/intake-radar/health.node-test.mjs",
+    "docs/fixes/2026-10-30-release-health-two-cohort.root-cause.json"
   ],
   "completionCommits": [
     "83acbd66b",

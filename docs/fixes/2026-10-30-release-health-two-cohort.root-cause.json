@@ -118,7 +118,7 @@
     "Telemetry lacks patch versions, Agent turns and true post-install completion.",
     "Same first-round cache was deleted; offline real-data verification requires the coordinator retained copy."
   ],
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-11-05",
   "invariant_owner_layer": {
     "layer": "scripts",
