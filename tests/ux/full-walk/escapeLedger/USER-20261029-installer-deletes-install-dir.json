@@ -13,7 +13,7 @@
     "挪开 / 挪回途中被打断：下次运行安装程序按待恢复记录挪回原路径"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "tests/installer/installerScenarios.test.mjs：普查——installer.nsh 无 RMDir /r、钩子齐、常量与场景登记一致、模板指纹、工作流跑全部场景与反例",
@@ -21,7 +21,7 @@
     "tests/installer/windows-installer-scenarios.mjs + .github/workflows/win-installer.yml：windows-latest 上用 v0.24.0 Release 安装包真装真升真卸（A1–A13 + 反例 CX1–CX3；A1、A11 的用户数据放默认位置、安装目录外的自选位置、安装目录里三处，升级后、卸载后各验一遍）",
     ".github/workflows/desktop-rc.yml：发版硬门，windows-installer 作业调用上面的工作流，finalize 依赖它，红了候选版不能晋级",
     "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
-    "本地修复：Windows 作业待推送分支后首跑，未结为 fixed"
+    "Windows 作业：PR #1381 推送后首跑（Win Installer Scenarios），运行号与结果写在 PR 正文「验证」一节"
   ],
   "completionCommits": [
     "57b0f6e42b86488deec3503dacee8451a256dc3c",
@@ -33,5 +33,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "tests/installer/installerScenarios.test.mjs"
-  }
+  },
+  "fixedInPr": 1381
 }
