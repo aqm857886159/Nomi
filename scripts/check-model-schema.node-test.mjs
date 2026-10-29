@@ -412,11 +412,12 @@ test('the actual lane execution boundary rejects deferred constraints with struc
 
 
 test('official meta validator is reproducible and runs with string code generation disabled', async () => {
-  const { generateMetaValidator, outputFile } = await import('./gen-model-schema-meta-validator.mjs')
+  const { generateMetaValidators, outputFiles } = await import('./gen-model-schema-meta-validator.mjs')
   const { readFileSync } = await import('node:fs')
   const vm = await import('node:vm')
-  const code = await generateMetaValidator()
-  assert.equal(readFileSync(outputFile, 'utf8'), code)
+  const formats = await generateMetaValidators()
+  for (const format of ['cjs', 'esm']) assert.equal(readFileSync(outputFiles[format], 'utf8'), formats[format])
+  const code = formats.cjs
   const module = { exports: {} }
   const context = vm.createContext({ module, exports: module.exports }, { codeGeneration: { strings: false, wasm: false } })
   vm.runInContext(code, context)

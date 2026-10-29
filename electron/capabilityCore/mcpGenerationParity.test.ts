@@ -60,7 +60,7 @@ describe('MCP generation draft schema parity', () => {
     try {
       const laneResult = await adapter.tryExecute({ toolCallId: 'parity', toolName: 'nomi_generation_plan',
         args: { operation: 'create', shots: [shot] } }, new AbortController().signal)
-      const external = tool.build({ leaseHandle: 'lease', projectId: binding.projectId, shots: [shot] })
+      const external = tool.build({ leaseHandle: 'lease', projectId: binding.projectId, shots: [shot] }) as Record<string, unknown>
       expect(planning).toHaveBeenCalledWith(expect.objectContaining({ capability: 'create', params: expect.objectContaining({ shots: external.shots }) }))
       // Parity 不是「两边各自失败」——那两条断言互不相干，删掉任意一条另一条照样绿。守得住的
       // 不变量是**同一份入参在同一个 owner 上被同一个理由拒掉**：外部入口直接调用抛出来的那句话，

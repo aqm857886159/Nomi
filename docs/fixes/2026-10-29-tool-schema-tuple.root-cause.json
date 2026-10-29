@@ -21,7 +21,8 @@
     "electron/capabilityCore/mcpGenerationToolCatalog.ts",
     "electron/capabilityCore/mcpProtocol.ts",
     "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs",
-    "vite.config.ts"
+    "vite.config.ts",
+    "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs"
   ],
   "entry_points": [
     "Agent lane generation-time validation",
@@ -262,7 +263,8 @@
       "electron/capabilityCore/mcpToolCatalog.ts",
       "electron/capabilityCore/mcpGenerationToolCatalog.ts",
       "electron/capabilityCore/mcpProtocol.ts",
-      "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs"
+      "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs",
+      "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs"
     ]
   },
   "regression_tests": [
@@ -288,7 +290,7 @@
   },
   "dependency_lifecycle": {
     "decision": "retain-with-exit",
-    "current": "zod 3.25.76, zod-to-json-schema 3.25.1 and development-only Ajv 8.20.0; official 2020-12 meta-schema compiled to a self-contained static validator for both Electron contexts.",
+    "current": "zod 3.25.76, zod-to-json-schema 3.25.1 and development-only Ajv 8.20.0; official 2020-12 meta-schema compiled to self-contained CJS/ESM formats of the same static validator for both Electron contexts.",
     "target": "A future Zod / converter upgrade that preserves the fixed-array transport contract",
     "rationale": "The converter correctly emitted draft-07 tuples. The missing application publication invariant, not a converter bug, owns this repair.",
     "exit_criteria": [

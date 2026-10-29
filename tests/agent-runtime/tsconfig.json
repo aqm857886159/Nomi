@@ -2,8 +2,14 @@
   "extends": "../../electron/tsconfig.pi.json",
   "compilerOptions": {
     "rootDir": "../..",
-    "outDir": "../../.tmp/agent-runtime-tests"
+    "outDir": "../../.tmp/agent-runtime-tests",
+    "allowJs": true,
+    "checkJs": false
   },
-  "include": ["**/*.mts", "**/*.cts"],
+  "include": [
+    "**/*.mts",
+    "**/*.cts",
+    "../../electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs"
+  ],
   "exclude": []
 }
