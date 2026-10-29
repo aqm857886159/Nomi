@@ -20,7 +20,7 @@ import { groupGenerateButton, groupSelectedNodes } from './_groupGenerate.mjs'
 import { PRICE_LINE, SPEND_DIALOG, openPaidWalk, watchSpendDialogs } from './_paidRun.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
-import { canvasFitViewButton } from './_shell.mjs'
+import { canvasFitViewButton, collapseAgentPanel } from './_shell.mjs'
 
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
 const NODE_GENERATE = '[data-composer-host="canvas"] [data-bar-segment="generate"]'
@@ -38,6 +38,9 @@ try {
   await openCanvas(win)
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()
+  // 新外壳里 Agent 默认是右下角的浮窗，1280 宽下正好盖住节点底栏的 ↑（底栏不躲任何东西，2026-09-25 拍板）。
+  // 像人一样先把它收成小球、把画布还回来——免费走查同一个入口（_shell.mjs）。
+  await collapseAgentPanel(win)
 
   const nodesOnDisk = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes ?? []
   const nodeOnDisk = async (id) => (await nodesOnDisk()).find((node) => node.id === id)
