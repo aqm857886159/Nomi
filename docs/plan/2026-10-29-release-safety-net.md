@@ -67,6 +67,6 @@
 | 原雷达抓取/缓存链路中的回归，终端/Markdown末行及非0退出 | 通过 | intake-radar.node-test.mjs |
 | 公开v0.24.0 full/pause | 只读计划通过，未公开写入 | 专用临时目录演练日志；私有交接报告 |
 | 全套相关合成测试 | 88/88，0失败 | node --test scripts/release-rollout.node-test.mjs scripts/lib/intake-radar/*.node-test.mjs scripts/intake-radar.node-test.mjs |
-| 完整gates | 未通过：design-lab现役截图差异；本次无UI改动，不更新基线 | 私有交接报告保留失败摘要 |
+| 完整gates | 本机design-lab为advisory：136项截图差异不阻断；本次无UI改动，不更新基线；完整结果见私有交接报告 | 私有交接报告保留失败摘要 |
 
 GitHub latest 排除草稿与pre-release的原文核对：[GitHub Releases API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)。
