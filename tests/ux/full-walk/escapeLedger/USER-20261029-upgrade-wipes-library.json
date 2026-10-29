@@ -11,12 +11,26 @@
     "默认位置在 Nomi 自己的目录里时新建项目被拒，指向设置换位置"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
+    "docs/plan/2026-10-29-project-location-owner.md",
     "docs/plan/2026-10-29-project-location-owner.direction-check.md",
+    "docs/fixes/2026-10-29-project-location-owner.root-cause.json",
+    "docs/engineering/concept-owners/project.location.json",
+    "docs/engineering/concept-owners/project.location-admission.json",
     "electron/projects/projectLocation.characterization.test.ts",
-    "docs/fixes/2026-10-29-project-location-owner.root-cause.json"
+    "electron/projects/projectLocation.matrix.test.ts",
+    "scripts/check-read-path-writes.node-test.mjs",
+    "tests/ux/project-location-owner.walk.mjs"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "5628a820cbcb8ceae602e86c005940b9817693c9",
+    "bedd2833beb559379632c19959bfa0468f03c1ac"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-29-project-location-owner.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/projects/projectLocation.matrix.test.ts"
+  }
 }
