@@ -31,7 +31,7 @@
 | type / properties / required / description / 字符串 enum | 普遍使用；核心/原生/pi/MCP 均覆盖 | 普通工具声明的保守核心；type 数组、复杂 enum 值等形状不能借同名关键字过门 |
 | items 对象 / minItems / maxItems | arrange_canvas、stage_shot、draft_shots、edit_timeline 等 | OpenAPI 同质数组；strict 的长度约束支持另算 |
 | items 数组 | stage_shot 的 plan.blocking.window、plan.shots.window、edits 中两处 window | 不可移植；已生成 4 个具体指针。源码 vec3 另有 tuple；当前整清单生成产物只观察到 window 四处，仍需同类替换和存盘回归 |
-| minimum / maximum / minLength / maxLength / pattern | 多数领域工具；pattern 在 stage_shot 与 MCP nomi_read | 普通 JSON Schema 与 Gemini Schema 有对应字段；不能推成全 strict 都支持 |
+| minimum / maximum / minLength / maxLength / pattern | 多数领域工具；pattern 在 stage_shot 与 save_skill | 普通 JSON Schema 与 Gemini Schema 有对应字段；不能推成全 strict 都支持 |
 | anyOf | stage_shot、draft_shots、MCP nomi_operation_plan | 字段级 union；Google 当前 Schema 列出，不能一概判为不支持；null 分支仍需按形状核对 |
 | default | stage_shot、MCP nomi_read / nomi_canvas_edit / nomi_operation_plan | Gemini 列出；普通 input_schema 与 strict 要分开；不可盲删执行默认值 |
 | additionalProperties | 47 个条目，其中既有 boolean，也有 schema 值 | Gemini legacy Schema 未列；typed record 不是附带元数据，删除会放宽值域 |
@@ -39,6 +39,7 @@
 | $ref | draft_shots、MCP nomi_operation_plan | Gemini legacy Schema 未列；包含真正递归，不能有限展开等价替换 |
 | propertyNames | stage_shot 的 plan.actors[].anchors 和 edits 的 actor 值 | Gemini 未列，OpenAPI 3.0.3 未纳入；动态键名 regex 不能用固定 properties 等价表达 |
 | exclusiveMinimum:number | stage_shot、look_at_media、draft_shots、edit_timeline、MCP nomi_canvas_edit / nomi_timeline_edit / nomi_media_query | Gemini 未列；对整数可研究 minimum(n+1)，实数开区间不能用闭区间 minimum(ε) 等价替换 |
+| type 数组 | draft_shots、MCP nomi_canvas_edit、MCP nomi_try_model 的参数/元数据值 | 当前生成器压缩了原始类型 union；Google legacy type 必须单字符串，需与 anyOf/null 分支一起核形状 |
 | prefixItems | 存量 0 | 应在白名单之外；加入反例覆盖 |
 
 ### 不能等价替换的存量：实施停点
