@@ -13,10 +13,12 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
-import { makeTempDir } from './_test-temp.mjs'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 import { readyTreeTimeout } from './_test-ready-timeout.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
 import { TEST_FILE, scanEvidence, walkSites } from './lib/scanGuardDetect.mjs'
+import { clearTypecheckCoverageCache, programRootFiles, touchesTypecheck } from './lib/typecheckCoverage.mjs'
+import { TYPECHECK_PROJECTS, TYPECHECK_SHARED_CONFIGS } from './lib/typecheckProjects.mjs'
 
 import { scanGuardCensusInputs } from './check-scan-guard-census.mjs'
 import { judgeLint } from './lint-changed.mjs'
@@ -281,6 +283,47 @@ test('check:i18n 如实标成「只在 CI 跑」：不再有同名别名掩盖�
   assert.ok(CI_ONLY.some((group) => group.gates.includes('check:i18n')))
   assert.equal(PARTIAL_LOCAL['check:i18n'].by, 'check:test-copy-literals')
   assert.ok(PRE_PUSH_NAMES.has('check:test-copy-literals'))
+})
+
+function typecheckFixture(t) {
+  const root = makeTempDir('typecheck-selector-')
+  t.after(() => {
+    clearTypecheckCoverageCache()
+    cleanupTestTemp(root)
+  })
+  const roots = ['covered.ts', 'covered-js.js', 'covered-jsx.jsx', 'covered-mjs.mjs', 'covered.cjs']
+  for (const file of [...roots, 'uncovered.mjs']) fs.writeFileSync(path.join(root, file), 'export {}\n')
+  for (const config of TYPECHECK_SHARED_CONFIGS) fs.writeFileSync(path.join(root, config), '{}\n')
+  for (const [label, config] of Object.entries(TYPECHECK_PROJECTS)) {
+    const dir = path.dirname(path.join(root, config))
+    fs.mkdirSync(dir, { recursive: true })
+    const files = label === 'nativeTest' ? roots : ['covered.ts']
+    fs.writeFileSync(path.join(root, config), JSON.stringify({
+      compilerOptions: { allowJs: label === 'nativeTest', jsx: 'preserve' },
+      include: files.map((file) => path.relative(dir, path.join(root, file)).split(path.sep).join('/')),
+    }))
+  }
+  return { root, roots }
+}
+
+test('typecheck 夹具：allowJs 的 CJS 根文件单独改必须选中，所有 JS 根文件同样遵循真实覆盖', (t) => {
+  const { root, roots } = typecheckFixture(t)
+  const compiled = programRootFiles(TYPECHECK_PROJECTS.nativeTest, root)
+  for (const file of ['covered.cjs', ...roots]) {
+    assert.ok(compiled.includes(file), `${file} 必须先被真实 tsconfig 展开为根文件`)
+    assert.equal(touchesTypecheck([file], root), true, `${file} 是根文件，单独修改必须选中 typecheck`)
+  }
+})
+
+test('typecheck 夹具反例：未覆盖 MJS 不选中；TS、配置、side inputs 与混合输入保持原语义', (t) => {
+  const { root } = typecheckFixture(t)
+  assert.equal(touchesTypecheck(['uncovered.mjs'], root), false)
+  assert.equal(touchesTypecheck([], root), false)
+  for (const file of ['covered.ts', ...Object.values(TYPECHECK_PROJECTS), ...TYPECHECK_SHARED_CONFIGS,
+    'other/tsconfig.devlab.json', 'package.json', 'pnpm-lock.yaml', 'scripts/test-types-baseline.json']) {
+    assert.equal(touchesTypecheck([file], root), true, file)
+  }
+  assert.equal(touchesTypecheck(['uncovered.mjs', 'covered.cjs'], root), true)
 })
 
 test('typecheck 不覆盖的目录诚实地不选中（tests/ux 的 tsx、evals 非 test、packages 等），（tsconfig 配置文件本身另测：任何 tsconfig*.json 都选中）', () => {
