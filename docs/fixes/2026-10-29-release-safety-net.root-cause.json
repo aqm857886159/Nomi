@@ -63,7 +63,7 @@
     {
       "path": "scripts/lib/intake-radar/health.mjs",
       "symbol": "buildVersionHealth",
-      "responsibility": "Compare same-window evidence with sample and pending-policy guards."
+      "responsibility": "Compare same-window evidence using the coordinated two-cohort interval policy and primary evidence guards."
     }
   ],
   "same_class_entry_points": [
@@ -93,7 +93,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "scripts/release-rollout.mjs",
     "invariant": "Both manifests require explicit valid percentage; missing evidence never authorizes expansion.",
-    "failure_mode": "Reject before writes; stop health decisions exit nonzero; pending policy yields insufficient evidence.",
+    "failure_mode": "Reject before writes; stop health decisions exit nonzero; insufficient primary evidence blocks full rollout.",
     "exception_policy": "none",
     "strategy": "One manifest writer and one cached-event decision function, with workflow boundary tests.",
     "artifacts": [
@@ -133,7 +133,7 @@
   "residual_risks": [
     "No live Release mutation performed.",
     "Manual/tag downloads bypass staging; in-flight downloads cannot be recalled.",
-    "Telemetry lacks patch versions and true post-install completion; Agent and operational thresholds pending coordination.",
+    "Telemetry lacks patch versions, true post-install completion and Agent turns; event cohorts do not control model/user mix.",
     "GitHub multiple asset replacements are not atomic; a failed write must be investigated before expansion."
   ],
   "detected_by": "user",

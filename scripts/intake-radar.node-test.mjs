@@ -158,12 +158,11 @@ test('run(): 单个 get 失败 → 整轮返回 1，明说"今天没查成"', as
 
 test('version regression uses existing fetch/cache, returns nonzero and renders the final decision', async () => {
   const cacheDir=tmpCacheDir(),key='events/2026-10-29/synthetic.json',logs=[]
-  const events=[23,24].flatMap(appMinor=>Array.from({length:2},()=>({timestamp:'2026-10-29T00:00:00Z',eventName:'generation.completed',props:{capability:'image',result:appMinor===24?'failure':'success',durationBucket:'<1s',errorType:'unknown'},systemProps:{appMajor:0,appMinor}})))
+  const events=[23,24].flatMap(appMinor=>Array.from({length:appMinor===24?10:300},(_,i)=>({sessionId:`s${i%2}`,timestamp:'2026-10-29T00:00:00Z',eventName:'generation.completed',props:{capability:'image',result:appMinor===24?'failure':'success',durationBucket:'<1s',errorType:'unknown'},systemProps:{appMajor:0,appMinor}})))
   const { writeRawFile }=await import('./lib/intake-radar/store.mjs')
   writeRawFile(cacheDir,key,Buffer.from(JSON.stringify({payload:{events}})))
   const {fetchImpl,getLog}=makeFakeFetch({objectsByPrefix:{'events/':[key]}})
-  const thresholds={windowDays:3,minLaunches:1,approvalPending:[],metrics:{'generation.image':{minSamples:2,maxIncrease:.2}}}
-  const code=await run({cacheDirOverride:cacheDir,resolveCredentialsImpl:OK_CREDENTIALS,fetchImpl,now:()=>new Date('2026-10-29T08:00:00Z'),healthOptions:{newVersion:'0.24.0',oldVersion:'0.23.2',thresholds},log:m=>logs.push(m)})
+  const code=await run({cacheDirOverride:cacheDir,resolveCredentialsImpl:OK_CREDENTIALS,fetchImpl,now:()=>new Date('2026-10-29T08:00:00Z'),healthOptions:{newVersion:'0.24.0',oldVersion:'0.23.2'},log:m=>logs.push(m)})
   assert.equal(code,1);assert.deepEqual(getLog,[])
   assert.match(logs.at(-1).split('\n').at(-1),/^停止放量：/)
   const md=fs.readFileSync(path.join(cacheDir,'reports/2026-10-29.md'),'utf8')

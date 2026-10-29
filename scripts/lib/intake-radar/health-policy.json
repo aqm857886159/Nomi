@@ -1,58 +1,16 @@
 {
-  "schemaVersion": 1,
   "windowDays": 3,
-  "windowBasis": "待协调定：初设同一UTC日历窗口3天；遥测时间戳只有日精度，不能声称完整72小时。",
-  "minLaunches": 47,
-  "launchBasis": "0.23启动1214/26日，ceil=47；启动量没有安装基数，只作样本护栏。",
-  "approvalPending": [
-    "观察天数、每日均值样本门槛与历史噪声带仅为初值，业务容忍度待协调定",
-    "Agent样本与安装完成遥测不足，待协调定"
-  ],
-  "metrics": {
-    "generation.image": {
-      "minSamples": 42,
-      "maxIncrease": 0.029,
-      "basis": "0.23，2026-10-03..28（26日），389/1089；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "generation.image-edit": {
-      "minSamples": 21,
-      "maxIncrease": 0.0394,
-      "basis": "0.23，2026-10-03..28（26日），154/531；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "generation.video": {
-      "minSamples": 16,
-      "maxIncrease": 0.0477,
-      "basis": "0.23，2026-10-03..28（26日），256/415；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "local.image": {
-      "minSamples": 15,
-      "maxIncrease": 0.0424,
-      "basis": "0.23，2026-10-03..28（26日），88/389；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "local.image-edit": {
-      "minSamples": 6,
-      "maxIncrease": 0.0604,
-      "basis": "0.23，2026-10-03..28（26日），26/154；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "local.video": {
-      "minSamples": 10,
-      "maxIncrease": 0.0589,
-      "basis": "0.23，2026-10-03..28（26日），85/256；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "update.download": {
-      "minSamples": 1,
-      "maxIncrease": 0.2049,
-      "basis": "0.23，2026-10-03..28（26日），6/20；minSamples=ceil(n/26)，maxIncrease=2*sqrt(p*(1-p)/n)。仅历史噪声带，业务容忍度待协调定；零失败无可靠上界，阈值留空。"
-    },
-    "update.install": {
-      "minSamples": 1,
-      "maxIncrease": 0.2308,
-      "basis": "0.23历史0/13，零失败按rule-of-three近似95%上界3/13；仅初值，业务容忍度待协调定。"
-    },
-    "agent": {
-      "minSamples": null,
-      "maxIncrease": null,
-      "basis": "0.23无agent.turn.completed样本，待协调定。"
-    }
-  }
+  "windowBasis": "协调2026-10-30确定：新版在同一窗口至少3个UTC日期有事件；日精度不等于完整72小时。",
+  "minLaunches": 10,
+  "launchBasis": "0.23平均每天约47次启动，20%首批3天约28次；协调取保守最低10次。",
+  "primaryMinSamples": 20,
+  "primaryBasis": "协调确定唯一主指标image最低20个成功或失败结果，以小用户群排除大的变差，不要求统计证明无退步。",
+  "stopMinSamples": 10,
+  "stopSampleBasis": "协调确定各项新版至少10个已知结果才判停；不足10列未覆盖，不阻挡全量。",
+  "stopMinIncrease": 0.05,
+  "increaseBasis": "协调确定点估计至少增加5个百分点，且差值95%区间下界大于0才视作可信变差。",
+  "stopMinFailureSessions": 2,
+  "sessionBasis": "现有flattenEvents保留sessionId；协调要求每指标新版失败来自至少2个不同会话，避免单会话重复失败判停。",
+  "z": 1.959963984540054,
+  "intervalBasis": "标准正态双侧95%分位数；Newcombe 1998方法10，无连续性校正，两边各用Wilson score区间。"
 }
