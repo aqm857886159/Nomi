@@ -18,7 +18,7 @@ const include = fs.readFileSync(path.join(repo, pkg.build.nsis.include), 'utf8')
 const temps = []
 afterEach(() => { for (const root of temps.splice(0)) cleanupTestTemp(root) })
 
-async function compile(source) {
+async function compileInstallerTemplates(source) {
   if (pkg.build.nsis.script) throw new Error('Compile guard expects the stock electron-builder template; review custom nsis.script before packaging')
   const projectDir = makeTempDir('installer-compile-')
   temps.push(projectDir)
@@ -77,14 +77,14 @@ export function registerInstallerCompileTests() {
   })
 
   it('compiles the entire production installer and uninstaller with the generated manifest', async () => {
-    const artifacts = await compile(include)
+    const artifacts = await compileInstallerTemplates(include)
     const executables = artifacts.filter((file) => file.endsWith('.exe'))
     expect(executables).toHaveLength(2)
     for (const executable of executables) expect(fs.statSync(executable).size).toBeGreaterThan(0)
   }, 20000)
 
   it('counterexample: an invalid NSIS instruction is rejected by the real compiler', async () => {
-    await expect(compile(`${include}\nNomiInvalidInstruction\n`)).rejects.toThrow(/NomiInvalidInstruction|Invalid command/)
+    await expect(compileInstallerTemplates(`${include}\nNomiInvalidInstruction\n`)).rejects.toThrow(/NomiInvalidInstruction|Invalid command/)
   }, 20000)
 
   it('pre-push selects real compilation for every installer input', () => {

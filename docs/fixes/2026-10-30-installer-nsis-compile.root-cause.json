@@ -67,6 +67,11 @@
     },
     {
       "kind": "write",
+      "path": "scripts/packaging/installer-compile.cases.mjs",
+      "symbol": "writeInstallerManifest"
+    },
+    {
+      "kind": "write",
       "path": "scripts/packaging/installer-manifest.cjs",
       "symbol": "manifestPaths"
     },
@@ -78,8 +83,8 @@
   ],
   "door_reduction": {
     "before": 6,
-    "after": 6,
-    "why_not": "door-map.mjs writeInstallerManifest renderNsh manifestPaths --roots=scripts,tests: afterPack must produce the manifest; manifestPaths and renderNsh are its shared path/render helpers and module exports. No parallel producer is added. The existing shared installer.nsh include is the sole consumer being repaired."
+    "after": 7,
+    "why_not": "The six production generator/export/helper doors remain; the seventh is the compile-only fixture calling the same writeInstallerManifest, not a second manifest producer. afterPack owns production generation, manifestPaths/renderNsh remain shared helpers/exports, and both use the same generator."
   },
   "generality_proof": "Both installer and uninstaller use the same corrected include; all Windows packaging entry points converge there. The new test invokes installed electron-builder build API with the real nsis config, real include and real generator. A Windows basename assertion covers the host-specific behavior Mac makensis alone cannot detect.",
   "shared_boundaries": [
@@ -90,13 +95,8 @@
     },
     {
       "path": "scripts/packaging/installer-compile.cases.mjs",
-      "symbol": "compile",
+      "symbol": "compileInstallerTemplates",
       "responsibility": "Execute the production templates with generated manifest and actual configuration; fail on errors."
-    },
-    {
-      "path": "scripts/pre-push-scan-guards.mjs",
-      "symbol": "SCAN_GUARDS",
-      "responsibility": "Select the real compile test on every installer input change."
     }
   ],
   "same_class_entry_points": [
@@ -123,14 +123,14 @@
     "classification": "recurring",
     "reason": "Any later include, macro or NSIS configuration change can fail at compilation before installation tests run. The host separator issue affects every Windows package invocation.",
     "same_class_scan": [
-      "door-map.mjs writeInstallerManifest renderNsh manifestPaths --roots=scripts,tests (6 doors)",
+      "door-map.mjs writeInstallerManifest renderNsh manifestPaths --roots=scripts,tests: 6 original doors, 7 after adding the compiler fixture caller.",
       "rg manifest/afterPack/productFilename/PRODUCT_FILENAME in generator, afterPack, package.json and full CI log; uploaded manifest verified present",
       "Inspected win-installer.yml, desktop-rc.yml and installed NsisTarget.executeMakensis / computeScriptAndSignUninstaller"
     ]
   },
   "prevention": {
     "kind": "static-gate",
-    "enforcement_path": "scripts/pre-push-scan-guards.mjs",
+    "enforcement_path": "scripts/packaging/installer-compile.cases.mjs",
     "invariant": "Changes to the installer include, generator, afterPack, build configuration or dependency lock select real NSIS compilation.",
     "failure_mode": "Default vitest and pre-push fail on path invariant or makensis error, including unavailable tools.",
     "exception_policy": "none",
