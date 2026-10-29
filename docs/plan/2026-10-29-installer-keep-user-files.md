@@ -76,8 +76,8 @@
 
 - 「安装目录里哪些属于安装器」：唯一来源 = 构建时生成的清单（`scripts/packaging/installer-manifest.cjs`，由 `scripts/after-pack-mac.cjs` 在 win32 打包时调用），NSH 与 JSON 同一次生成；卸载段、挪开分类、Windows 作业的断言都读它。同一份事实 1 份。
 - 「当前登记的卸载程序只删自己的」：注册表 `RemovesOnlyOwnFiles`，只由安装程序 `customInstall` 写，值 = 写入它的版本；读的只有安装程序的挪开判断。
-- 「挪到一半的记录」：`HKCU\Software\<GUID>.keep` 的 `Pending1` / `Pending2` = 原位置，挪开前写、全部挪回后删；旧卸载程序删 `Software\<GUID>` 时碰不到它。
-- 状态 owner 是安装程序；应用代码不读不写这些东西。没有 `docs/engineering/concept-owners/` 里的概念被碰。没有靠「东西不见了」猜意图。
+- 「挪到一半的记录」：`HKCU\Software\<GUID>.nomi-keep` 的 `Pending1` / `Pending2` = 原位置，挪开前写、全部挪回后删；旧卸载程序删 `Software\<GUID>` 时碰不到它。
+- 状态 owner 是安装程序；应用代码不读不写这些东西。`docs/engineering/concept-owners/` 里已有的概念一个没碰；新登记一个 `delivery.installer-owned-files`（owner = 清单生成器 `computeInstallerManifest`，写接口另有 `installer.nsh` 的 `customRemoveFiles`、`nomiKeepAside`），和根因合同同一个提交。没有靠「东西不见了」猜意图。
 - 门表：`node scripts/door-map.mjs quitAndInstall install --roots=electron` → 应用里触发安装的唯一入口是 `electron/update/installGate.ts`（本单不改）；安装程序被启动的方式只有 electron-updater 的两种参数组合 + 用户手动运行。
 
 ## ★3 一致与复用
@@ -132,7 +132,7 @@
 - Windows：GitHub Actions `windows-latest` 真装真升真卸，旧版用 GitHub Release 上的 v0.24.0 安装包（真包，不是自建模拟）。
 - 干净安装：每个场景开始前清注册表、目录、快捷方式。
 - 静默 / 交互：作业只跑静默（electron-updater「退出时安装」的参数）；「重启以更新」的非静默界面 `unverified`（同一段代码，只差界面和 `--force-run`）。
-- UAC 内层实例（不带管理员权限的用户选「所有用户」时）：`unverified`——CI 上 UAC 关着，造不出内层实例；这条路径与外层共用同一个函数，只是入口不同。
+- UAC 内层实例（以普通权限运行安装程序、选「所有用户」时经 UAC 提权出来的那个实例）：`unverified`——CI 上 UAC 关着，造不出内层实例；这条路径与外层共用同一个函数，只是入口不同。
 - 英文界面 / 最小窗口 / 键盘全程 / 真付费：不适用（系统对话框中英同框；无付费）。
 - 真用户机器上的杀毒软件拦截：`unverified`。
 
@@ -142,9 +142,9 @@
 
 ## ★9 验收与反例（实施前）
 
-验收线：协调另派（编号不同于本线）。命令：推本分支触发 `.github/workflows/win-installer.yml`（或在 Actions 里手动 `workflow_dispatch`），读作业摘要与上传的 `installer-scenarios` 报告；Mac 侧 `pnpm vitest run scripts/packaging/installer-manifest.test.mjs tests/installer/installerScenarios.test.mjs`。
+验收线：协调另派（编号不同于本线）。命令：推本分支触发 `.github/workflows/win-installer.yml`（或在 Actions 里手动 `workflow_dispatch`），读作业摘要与上传的 `installer-scenarios` 报告。被测包在作业里临时改用 `<package.json 版本>-installer-test` 这个版本号（不提交）：`package.json` 现在还是 0.24.0，和旧版同号时 A7 量不到东西，执行器遇到同号直接报错。Mac 侧 `pnpm vitest run scripts/packaging/installer-manifest.test.mjs tests/installer/installerScenarios.test.mjs`。
 
-每个场景都核：种下的每个用户文件 SHA-256 不变（含隐藏 / 只读属性）；结束时不存在 `<目录>.nomi-keep`、不存在 `Software\<GUID>.keep`；没有意外对话框；安装器退出码符合预期。各场景另核：
+每个场景都核：种下的每个用户文件 SHA-256 不变（含隐藏 / 只读属性）；结束时不存在 `<目录>.nomi-keep`、不存在 `Software\<GUID>.nomi-keep`；没有意外对话框；安装器退出码符合预期。各场景另核：
 
 | 编号 | 场景 id | 怎么做 | 另核什么 |
 |---|---|---|---|
@@ -154,9 +154,9 @@
 | A4 | `old-to-new-locked-user-file` | 0.24.0 + 用户文件；另一个进程独占打开 `xiangmu\proj1\.nomi\project.json`；新包 `--updated /S` | 静默下捕获到 1 个对话框、文本含 `xiangmu`；退出码 2；安装目录与注册表版本仍是 0.24.0；然后解除占用重跑 → 同 A1 全绿 |
 | A5 | `old-to-new-changed-dir` | 0.24.0 装到 `Nomi_old` + 用户文件；新包 `/S /D=<另一个目录>`（手动重装改目录，不带 `--updated`） | 用户文件仍在 `Nomi_old`；`Nomi_old` 里旧应用文件都不在；新目录装好；注册表安装位置 = 新目录 |
 | A6 | `old-to-new-per-machine` | 0.24.0 `/S /allusers /D=` 装给所有用户（HKLM）+ 用户文件；新包 `--updated /S` | 用户文件都在；HKLM 下 `RemovesOnlyOwnFiles` = 新版本（覆盖「旧卸载程序跑两轮、最后一轮后才挪回」） |
-| A7 | `old-to-new-stale-marker` | 0.24.0 + 用户文件；往 `HKCU\Software\<GUID>` 手写 `RemovesOnlyOwnFiles = 9.9.9`（别的版本写的）；新包 `--updated /S` | 用户文件都在（过期标记不被信） |
+| A7 | `old-to-new-stale-marker` | 0.24.0 + 用户文件；往 `HKCU\Software\<GUID>` 手写 `RemovesOnlyOwnFiles = <被测新版本号>`（别的版本写的，而且恰好等于正在跑的安装程序自己的版本：比对象必须是登记着的 `DisplayVersion`，比成安装程序自己的版本这里就红）；新包 `--updated /S` | 用户文件都在（过期标记不被信） |
 | A8 | `old-to-new-no-foreign-then-uninstall` | 0.24.0 装到 `Clean`，不放任何东西；新包升级；再卸载 | 升级后顶层条目恰好 = 清单顶层名 + 卸载程序、没建过旁边目录；卸载后 `Clean` 目录不存在（零残渣） |
-| A9 | `interrupted-after-old-uninstall` | 0.24.0 + 用户文件；模拟上次修好的安装程序挪开后、旧卸载程序已跑完时被打断：用户文件已在 `<L>.nomi-keep`（含说明文件）、写了 `Pending1`、旧版已被卸载（注册表没了）；跑新包 `--updated /S` | 用户文件回到 `<L>` 原路径；旁边目录与 `.keep` 键都没了 |
+| A9 | `interrupted-after-old-uninstall` | 0.24.0 + 用户文件；模拟上次修好的安装程序挪开后、旧卸载程序已跑完时被打断：用户文件已在 `<L>.nomi-keep`（含说明文件）、写了 `Pending1`、旧版已被卸载（注册表没了）；跑新包 `--updated /S` | 用户文件回到 `<L>` 原路径；旁边目录与 `.nomi-keep` 键都没了 |
 | A10 | `interrupted-before-old-uninstall` | 同上但旧版还装着（注册表还在）；跑新包 `--updated /S` | 先挪回、再正常挪开 / 升级 / 挪回；用户文件在 `<L>`；升级成功 |
 | A11 | `new-to-new-update` | 新包装好；种顶层文件夹 + 散文件 + 嵌套 `resources\user-notes\a.txt`、`locales\my.txt`；独占打开其中一个用户文件；新包再 `--updated /S` | 退出码 0（被占用的用户文件不挡升级 = 没走挪开、新卸载程序没碰它）；嵌套用户文件也在；没建旁边目录 |
 | A12 | `new-to-new-changed-dir` | 新包装到 `A` + 用户文件；新包 `/S /D=B` | 用户文件留在 `A`；`A` 里清单文件全不在；`B` 装好 |
@@ -167,8 +167,8 @@
 Mac 侧（vitest，本线自跑）：
 
 - M1 清单生成器矩阵：普通树 / 空目录 / 中文、空格、`$`、`'`、`&`、`#` 文件名 / 符号链接目录（跟随、防环）/ `packElevateHelper` 开关与 `perMachine` / 不支持的架构抛错 / 配了 `fileAssociations` 抛错 / 文件名含 `${` 抛错 / 同一棵树两次输出逐字节相同；NSH 解析回来与 JSON、与独立遍历三方一致。
-- M2 afterPack 接线：用假的 win32 打包上下文调 `after-pack-mac.cjs`，清单写到 `<projectDir>/.tmp/installer-manifest/<产品名>-x64.*`；darwin / linux 不写。
-- M3 普查：`build.nsis.include === "build/installer.nsh"`、`oneClick === false`；`installer.nsh` 没有 `RMDir /r`、定义了 6 个钩子；常量与 `scenarios.mjs` 逐字一致；electron-builder 模板 11 个文件的 SHA-256 指纹；工作流对 `windows-latest` 跑全部场景、不带 `--only`、反例开着；每个反例的「改哪一句」在 `installer.nsh` 里恰好出现一次。
+- M2 afterPack 接线：用假的 win32 打包上下文调 `after-pack-mac.cjs`，清单写到 `<projectDir>/.tmp/installer-manifest/<产品名>-x64.*`；linux 不写（darwin 那一支会真调 codesign，单测不调它；两者走的是同一句 `=== "win32"` 判断）。
+- M3 普查：`build.nsis.include === "build/installer.nsh"`、`oneClick === false`；`installer.nsh` 没有 `RMDir /r`、定义了 6 个钩子；常量与 `scenarios.mjs` 逐字一致；electron-builder 模板 12 个文件的 SHA-256 指纹；工作流对 `windows-latest` 跑全部场景、不带 `--only`、反例开着；每个反例的「改哪一句」在 `installer.nsh` 里恰好出现一次。
 
 反例（先改 → 必须红 → 还原）：
 
