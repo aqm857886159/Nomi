@@ -317,7 +317,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         },
       },
       commonjsOptions: {
-        include: [/node_modules/],
+        include: [/node_modules/, /modelSchemaMetaValidator\.generated\.cjs$/],
         transformMixedEsModules: true,
       },
       rollupOptions: {

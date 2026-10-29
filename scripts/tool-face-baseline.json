@@ -7,13 +7,11 @@
   ],
   "field-descriptions-complete": [
     "delete_from_canvas#/nodeIds",
-    "delete_from_canvas#/reason",
     "edit_timeline#/operations",
     "edit_timeline#/operations/items/audio/fadeInFrames",
     "edit_timeline#/operations/items/audio/fadeOutFrames",
     "edit_timeline#/operations/items/audio/gainDb",
-    "edit_timeline#/operations/items/audio/muted",
-    "edit_timeline#/summary"
+    "edit_timeline#/operations/items/audio/muted"
   ],
   "mcp-transport-catalog": [
     "nomi_artifact_review",

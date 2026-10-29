@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MCP_TOOL_RESOLVER } from "../electron/capabilityCore/mcpToolCatalog";
 import {
-  collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
+  collectStructuralFailures, collectVendorCompatibilityFailures, collectStandardSchemaFailures, toPublishedJsonSchema,
 } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
 import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
 import {
@@ -72,6 +72,7 @@ type RuleId =
   | "empty-schema"
   | "root-union"
   | "const-instead-of-enum"
+  | "standard-schema"
   | "identical-input-schema"
   | "thin-description"
   | "missing-example"
@@ -81,6 +82,7 @@ const RULE_ORDER: readonly RuleId[] = [
   "empty-schema",
   "root-union",
   "const-instead-of-enum",
+  "standard-schema",
   "identical-input-schema",
   "thin-description",
   "missing-example",
@@ -198,6 +200,10 @@ function analyse(tools: readonly ModelVisibleTool[]): Finding[] {
     for (const detail of structural) {
       findings.push({ rule: "empty-schema", identity: `${where}#${detail.split(" ")[0]}`, detail: `${where} ${detail}` });
     }
+
+    const standard: string[] = [];
+    collectStandardSchemaFailures(tool.schema, "", standard);
+    for (const detail of standard) findings.push({ rule: "standard-schema", identity: `${where}#${detail.split(" ")[0]}`, detail: `${where} ${detail}` });
 
     // 供应商底线两条一起收：根级 union 的身份是工具本身（一个工具只可能有一个根），
     // `const` 的身份带上 JSON 指针（同一个工具里可能有好几个，修掉一个要能单独销账）。

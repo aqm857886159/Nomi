@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { generationCandidateSchema, generationPlanInputSchema } from '../shared/agentCapabilities/generationPlanSchemas'
-import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationToolCatalog'
+import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 import { validateToolArguments } from './mcpProtocol'
 import { toPublishedJsonSchema } from '../shared/agentCapabilities/modelVisibleJsonSchema'
 
@@ -8,7 +8,7 @@ import { createPiGenerationTransportAdapter } from './generationTransportAdapter
 import { draftShotFromPlan } from './mcpGenerationMultiShot'
 import type { ProjectLeaseV2 } from './projectLease'
 
-const tool = MCP_GENERATION_TOOL_CATALOG.find(tool => tool.name === 'nomi_operation_plan')!
+const tool = MCP_TOOL_RESOLVER.resolve('nomi_operation_plan')!
 
 describe('MCP generation draft schema parity', () => {
   it('accepts lane prompt-only shots and preserves nested JSON parameters', () => {
@@ -18,7 +18,7 @@ describe('MCP generation draft schema parity', () => {
     }
     expect(generationPlanInputSchema.safeParse({ operation: 'create', shots: [shot] }).success).toBe(true)
     const args = { leaseHandle: 'lease', projectId: 'project', shots: [shot] }
-    expect(validateToolArguments(tool.name, tool.inputSchema, args)).toBeNull()
+    expect(validateToolArguments(tool.name, tool.runtimeInputSchema, args)).toBeNull()
     expect(tool.build(args)).toMatchObject({ shots: [shot] })
   })
 
@@ -27,7 +27,7 @@ describe('MCP generation draft schema parity', () => {
     const properties = tool.inputSchema.properties as Record<string, unknown>
     expect(properties).toMatchObject(create.properties as Record<string, unknown>)
     expect(properties.patch).toMatchObject({ type: 'object', additionalProperties: false })
-    expect(validateToolArguments(tool.name, tool.inputSchema, { leaseHandle: 'lease', operationId: 'op', patch: { parameters: { nested: [null, { x: true }] } } })).toBeNull()
+    expect(validateToolArguments(tool.name, tool.runtimeInputSchema, { leaseHandle: 'lease', operationId: 'op', patch: { parameters: { nested: [null, { x: true }] } } })).toBeNull()
   })
 
   it('exposes typed candidate/reference/patch fields and rejects malformed metadata', () => {
@@ -35,7 +35,7 @@ describe('MCP generation draft schema parity', () => {
       { candidate: { candidateId: 'one', revision: 'bad' } },
       { references: [{ assetId: 'a', contentHash: 'h', version: 'bad' }] },
       { operationId: 'op', patch: { references: [{ assetId: 'a', contentHash: 'h', version: 'bad' }] } },
-    ]) expect(validateToolArguments(tool.name, tool.inputSchema, { leaseHandle: 'lease', ...args })).not.toBeNull()
+    ]) expect(validateToolArguments(tool.name, tool.runtimeInputSchema, { leaseHandle: 'lease', ...args })).not.toBeNull()
   })
 
   // 名字原本叫「…the same existing candidate rejection」——把「只给 prompt 的镜头会被拒」当成契约钉住了。

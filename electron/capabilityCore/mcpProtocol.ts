@@ -116,7 +116,7 @@ type CatalogTool = ReturnType<typeof MCP_TOOL_RESOLVER.list>[number]
 const argumentSchemas = new WeakMap<object, ReturnType<typeof fromJsonSchema>>()
 
 /**
- * tools/call 的参数校验——运行时唯一的校验边界，引擎是 SDK 的 JSON Schema 校验器（tools/list 广播的就是这份 schema）。
+ * tools/call 的参数校验——运行时唯一的校验边界，引擎是 SDK 的 JSON Schema 校验器。执行视图保留原约束；tools/list 仅广播同源的标准模型视图。
  * 不合契约返回 `capability_input_invalid`，由调用方投成工具级错误。门岗与单测也走这一个函数。
  */
 export function validateToolArguments(toolName: string, schema: unknown, args: unknown): Error | null {
@@ -518,7 +518,7 @@ export function createNomiMcpServer(host: McpHost) {
     }
     // 参数容忍钩子已在入口跑过（guardMcpTransport → tolerateToolArguments）；这里是唯一的校验边界。
     const rawArgs = params.arguments
-    const invalid = validateToolArguments(tool.name, tool.inputSchema, rawArgs === undefined ? {} : rawArgs)
+    const invalid = validateToolArguments(tool.name, tool.runtimeInputSchema, rawArgs === undefined ? {} : rawArgs)
     if (invalid) return toolError(invalid) as CallToolResult
     const args = (rawArgs as Record<string, unknown>) || {}
     // 进度：客户端在 _meta.progressToken 要了才发，只挂长任务（建 Run / 提交单次生成）。心跳报真实已用时长（兼保活）。

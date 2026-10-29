@@ -21,7 +21,7 @@
 
 ## ★2 谁说了算
 
-Zod 是唯一入参真相源，原契约不改字、不新抄一套 schema。发布与白名单 owner 为 electron/shared/agentCapabilities/modelVisibleJsonSchema.ts；laneToolSchema.mts 生成时拦截与 scripts/check-model-schema.ts 存量棘轮 import 同一判据。MCP 旧聚合器继续做已有 union 投影，使用共享标准转换和判据，不维护第二份标准白名单。原执行入口 laneTools.mts 的 descriptor.schema.safeParse 与 MCP parseCall 保留，违反运行时约束仍走已有结构化错误。
+Zod 是唯一入参真相源，原契约不改字、不新抄一套 schema。发布与白名单 owner 为 electron/shared/agentCapabilities/modelVisibleJsonSchema.ts；laneToolSchema.mts 生成时拦截与 scripts/check-model-schema.ts 存量棘轮 import 同一判据。MCP 旧聚合器继续做已有 union 投影，使用共享标准转换和判据，不维护第二份标准白名单。模型视图与执行视图从同一契约派生；MCP runtimeInputSchema 保留原传输约束，由 mcpProtocol 校验，原执行入口 laneTools.mts 的 descriptor.schema.safeParse 与 MCP parseCall 保留，违反运行时约束仍走已有结构化错误。
 
 ## ★3 一致与复用
 
@@ -61,3 +61,5 @@ Zod 是唯一入参真相源，原契约不改字、不新抄一套 schema。发
 - 真实走查复用已有脚本若足够，否则 openPaidWalk 付费脚本 + 同步骤零花费中英演练，buildMarkers 使用新发布器字面量；仅协调跑付费。HTTP 接受不能替代工具写对率与两镜落盘。
 - gates 退出 0；纪律页推送前快检与每次 fix-churn --staged；无推送、无合并。
 - 独立验收：待协调派验收线。回滚实现提交即可，无数据迁移。
+
+运行上下文补充：共享模块同时被主进程与渲染进程使用。实走查证实运行时 Ajv 编译被上下文/CSP 拒绝；按 [Ajv standalone](https://ajv.js.org/standalone.html) 与 [CSP 说明](https://ajv.js.org/security.html#content-security-policy) 预编译官方元 schema，生成一个自包含静态 CJS 产物，两端共用。Ajv 保留开发依赖，不增加运行时依赖、不放宽 CSP；生成器与禁用动态代码生成的回归锁定该产物。
