@@ -19,7 +19,7 @@
   ],
   "external_sources": [
     {
-      "kind": "source-code",
+      "kind": "official-doc",
       "url": "https://www.researchgate.net/publication/13687790_Interval_estimation_for_the_difference_between_independent_proportions_Comparison_of_eleven_methods",
       "checked_at": "2026-10-30",
       "purpose": "Original Newcombe 1998 pp.876–877 method 10 and Table II(a) [0.0524,0.3339]"
