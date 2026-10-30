@@ -28,7 +28,8 @@
   "completionCommits": [
     "c90eb0504e6e3b6b9b22f6dcaa36052d259984ca",
     "c90eb0504",
-    "21fda54d5"
+    "21fda54d5",
+    "419a0e0c12a53258557afff451f5c1b76b97a07d"
   ],
   "rootCauseContract": "docs/fixes/2026-10-30-previz-ruler.root-cause.json",
   "fixedInPr": 1385,
