@@ -69,9 +69,9 @@
   border-color: transparent !important;
 }
 
-.generation-canvas-react-flow .react-flow__viewport {
-  will-change: transform;
-}
+/* 视口不写 will-change（2026-10-31，设计卡 docs/plan/2026-10-31-canvas-detail-admission.md）：常驻合成层让 Chromium 按
+ * 「放大看过的倍率」栅格远看画面，还把压在上面的每条连线、每个组框、每张卡各拆成一层——512MB 瓦片预算装不下，
+ * 卡和组底整块不画。回到 React Flow 的默认（不升层）；远看平移 / 滚轮的跟手由 canvas-far-dense-pan 场景守。 */
 
 .generation-canvas-react-flow .react-flow__nodes {
   z-index: var(--canvas-z-nodes);

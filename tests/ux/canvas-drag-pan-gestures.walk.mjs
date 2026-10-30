@@ -469,7 +469,9 @@ try {
   // 等画面视觉安定（_assert.mjs 的共享判据）再开始。
   await waitForVisualQuiescence(getWin())
   const before = await readTransform()
-  assert(before.willChange.includes('transform'), '变换层已提升为合成层（will-change: transform）', before.willChange)
+  // 2026-10-31 反过来钉：视口静止时不升合成层（常驻 will-change 让远看按近看倍率栅格、连线 / 组框 / 卡各拆一层，
+  // 512MB 瓦片预算下整块不画；设计卡 docs/plan/2026-10-31-canvas-detail-admission.md）。
+  assert(!before.willChange.includes('transform'), '视口静止时不升合成层（will-change 不含 transform）', before.willChange)
 
   // 这一笔平移偶发「画布反向跳 (+322,+177)」（2026-09-22 两个会话各见过一次，之后 30+ 次复跑未再现）。
   // 失败时要有证据：被动记下视口 transform 的每次改写、指针事件落点、选中变化（只观察、不改时序），

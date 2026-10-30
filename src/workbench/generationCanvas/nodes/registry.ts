@@ -61,6 +61,13 @@ export type GenerationNodePluginDefinition<TKind extends string = string> = {
    * - `output`：有没有能给下游用的产出（图 / 视频 / 声音素材，或文本给下游当提示词上下文）。
    */
   connects: { input: 'models' | readonly ReferenceAssetKind[] | false; output: boolean }
+  /**
+   * 这一种卡自己按缩放分档画远看（远 / 中 / 近）：缩到细节线（55%）以下也不换成通用轻量卡，由它自己画
+   * （2026-10-31 设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★2；读它的只有节点外壳的细节准入）。
+   * 只有自己读画布缩放、按档换画法的卡才声明——不声明的卡远看一律画通用轻量卡（标题 + 预览图）。
+   * 目前只有分镜表（拍板稿图 4 的远 / 中 / 近三档，`shotTableDensityForZoom`）。
+   */
+  ownsZoomTiers?: true
 }
 
 function defineGenerationNodePlugins<
@@ -87,6 +94,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: false,
     agentCreatable: false,
     connects: NODE_KIND_CONNECTS['shot_table'],
+    ownsZoomTiers: true,
   },
   {
     kind: 'text',

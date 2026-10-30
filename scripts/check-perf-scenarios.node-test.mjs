@@ -91,11 +91,12 @@ test('门岗必红：预算状态不认识、提议的预算没写依据', () =>
 test('画布规模基准的读结果：工作台场景的响应与主进程往返按样本读出，缺的数不凑 0', () => {
   const payload = { results: [{ samples: [
     { frameP95Ms: 12, longTasks: 0, responseMs: 80, mainRoundTripMaxMs: 40 },
-    { frameP95Ms: 14, longTasks: 1, responseMs: 95, mediaRequests: 7 },
+    { frameP95Ms: 14, longTasks: 1, responseMs: 95, mediaRequests: 7, blankCardPct: 0 },
   ] }] }
   const runs = DRIVERS['tests/perf/canvas-scale-bench.mjs'].readRuns(payload)
   // mediaRequests：库场景（library-*）打开那一下发出的图片 / 视频请求数（设计卡 2026-10-23-skill-prompt-library-layout ★7）。
-  assert.deepEqual(runs, { frameGapP95: [12, 14], longTasks: [0, 1], response: [80, 95], mainRoundTripMax: [40], mediaRequests: [7] })
+  // blankCardPct：远看密集（far-dense-pan）的缺块率；阳性对照没过的样本不交这个数（缺的不凑 0）。
+  assert.deepEqual(runs, { frameGapP95: [12, 14], longTasks: [0, 1], response: [80, 95], mainRoundTripMax: [40], mediaRequests: [7], blankCardPct: [0] })
   const open = DRIVERS['tests/ux/project-open-stages.e2e.mjs'].readRuns({ samples: [
     { kind: 'cold', clickToMediaMs: 900, longTaskCount: 2, backToLibraryMs: 210 },
     { kind: 'reopen', clickToMediaMs: 500, longTaskCount: 0 },

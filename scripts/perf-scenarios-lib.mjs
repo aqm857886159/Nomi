@@ -11,7 +11,7 @@ import { approvalCommand, sha256Of } from './lib/coordApprovals.mjs'
 
 export const SCENARIO_DIR = 'tests/perf/scenarios'
 /** 可选的指标。登记表的 budget / baseline 对应 metrics[0]（主指标），其余指标只打印、不判。 */
-export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests'])
+export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'blankCardPct'])
 export const MIN_RUNS = 5
 /** 预算状态：proposed = 实现线提议、等安静窗口量完基线由协调定；approved = 已定。不写 = 已定（老条目）。 */
 export const BUDGET_STATUSES = Object.freeze(['proposed', 'approved'])
@@ -51,15 +51,16 @@ export const DRIVERS = Object.freeze({
   // 帧间隔 + 长任务：画布规模基准（tests/perf/canvas-scale-bench.mjs，自带 CDP 指标与 rAF 探针）；
   // 工作台场景（tests/perf/canvas-scale/workbenchScenarios.mjs）另有 responseMs（操作 → 界面到位）与主进程往返峰值；
   // 库场景（library-*）另有 mediaRequests：打开那一下浏览器发出的图片 / 视频请求数（设计卡 2026-10-23-skill-prompt-library-layout ★7）。
+  // 远看密集（far-dense-pan）另有 blankCardPct：真实合成帧里已解码却没画出来的卡占比（%，带阳性对照；设计卡 2026-10-31-canvas-detail-admission ★7）。
   'tests/perf/canvas-scale-bench.mjs': {
-    supports: ['frameGapP95', 'longTasks', 'response', 'mainRoundTripMax', 'mediaRequests'],
+    supports: ['frameGapP95', 'longTasks', 'response', 'mainRoundTripMax', 'mediaRequests', 'blankCardPct'],
     buildArgs: (script, args, { runs, label }) => [script, ...args, '--runs', String(runs), '--label', label],
     resultFile: (label) => `tests/perf/results/canvas-scale-${label}.json`,
     readRuns(payload) {
       const row = firstRow(payload)
       if (!row) return {}
       const pick = (key) => row.samples.map((sample) => sample[key]).filter(isNumber)
-      return { frameGapP95: pick('frameP95Ms'), longTasks: pick('longTasks'), response: pick('responseMs'), mainRoundTripMax: pick('mainRoundTripMaxMs'), mediaRequests: pick('mediaRequests') }
+      return { frameGapP95: pick('frameP95Ms'), longTasks: pick('longTasks'), response: pick('responseMs'), mainRoundTripMax: pick('mainRoundTripMaxMs'), mediaRequests: pick('mediaRequests'), blankCardPct: pick('blankCardPct') }
     },
   },
   // 生成框 B3 的最坏规模操作（tests/perf/composer-refs-bench.mjs：实验室里真组件 + 30 张参考，无头 Chromium 真鼠标，

@@ -1617,7 +1617,8 @@ function sampleHardFailures(sample) {
     if (sample.actionDetails?.retryFailure !== true) failures.push('media failure did not surface after retry')
     if (sample.actionDetails?.recoverySuccess !== true) failures.push('media failure did not recover successfully')
   }
-  if (sample.scenario === 'low-zoom-preview' && !sample.error && sample.fixture?.nodes > 80) {
+  // 远看轻量卡与节点数无关（2026-10-31 删掉了「节点 > 80」门槛），每个夹具都要过这一段。
+  if (sample.scenario === 'low-zoom-preview' && !sample.error) {
     const zoom = sample.actionDetails?.zoom
     const lightweightNodeCount = sample.actionDetails?.settled?.lightweightCanvasNodes
     const lightweightPreviewCount = sample.actionDetails?.settled?.lightweightPreviewNodes
