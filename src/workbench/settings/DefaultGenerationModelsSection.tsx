@@ -49,7 +49,7 @@ export function DefaultGenerationModelsSection({
   const handlePick = (taskKind: GenerationDefaultTaskKind, value: string): void => {
     const next = { ...defaults }
     // 空串 = 「自动选择」：删掉这一条而不是存一个空身份。缺席才是「没设过」的正确表达。
-    const identity = value ? decode(value) : null
+    const identity = value ? decode(value, taskKind) : null
     if (identity) next[taskKind] = identity
     else delete next[taskKind]
     onChange(next)
@@ -72,7 +72,7 @@ export function DefaultGenerationModelsSection({
           const current = defaults[taskKind]
           // 设过、但那个模型此刻不在目录里（供应商删了 / 模型禁用了 / 换了台机器）——
           // 明着标出来，别让用户以为还生效着。生成时会自动回退到健康挑选。
-          const encoded = current ? encode(current) : null
+          const encoded = current ? encode(current, taskKind) : null
           const missing = Boolean(current) && !encoded
           return (
             <div key={taskKind} className="flex min-w-0 items-center gap-3">

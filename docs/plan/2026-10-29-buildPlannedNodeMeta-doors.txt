@@ -1,0 +1,27 @@
+[
+  {
+    "kind": "write",
+    "path": "src/workbench/capability/landedShotIntent.ts",
+    "symbol": "buildPlannedNodeMeta"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+    "symbol": "buildPlannedNodeMeta"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+    "symbol": "buildPlannedNodeMeta"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "symbol": "buildPlannedNodeMeta"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "symbol": "buildPlannedNodeMeta"
+  }
+]

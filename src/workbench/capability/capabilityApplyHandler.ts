@@ -21,6 +21,7 @@ import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStory
 import { createTimelineExportManifest } from '../export/exportApi'
 import { exportTimelineToWebm } from '../export/timelineWebmExport'
 import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
+import { isAssessedShotReview } from '../../../electron/shared/shotReviewEvidence'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
 import { storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/storyboardPlan'
 import { projectPlanShotsOntoCreatedNodes } from '../creation/storyboard/exec/storyboardProjection'
@@ -234,20 +235,12 @@ async function confirmPlanForAgent(info: PlanConfirmPayload): Promise<{ confirme
   return { confirmed: Boolean(ok) }
 }
 
-/** 从 content 偏差的 `actual`（人话「第 N 档」）抠回 1-5 档分数；抠不出给 undefined。 */
-function scoreFromDeviationActual(actual: unknown): number | undefined {
-  const match = typeof actual === 'string' ? actual.match(/(\d+)/) : null
-  if (!match) return undefined
-  const n = Number(match[1])
-  return Number.isFinite(n) ? Math.max(1, Math.min(5, n)) : undefined
-}
-
 /**
  * W1.5 路径②审片：production run 的 qa 阶段让渲染层对本次生成镜头判分。
  * 复用**现成的** verifyShotsAndReport（判分+对账卡+回灌闭环），
  * 这里只做参数适配（run 的镜头节点 id → 它的入参）+ 将本次调用返回的判决塑形回传。
  * 判决 = content 偏差（每条 kind:'content' 回指 shotNodeId + 维度 field + 档位 actual + reason）；
- * 被审但无偏差的镜头 = 过检。verify 关闭 / 无镜头 → skipped（driver 据此落「审片跳过」）。
+ * 只有实际评过维度且无偏差才过检；缺失证据明确未审。verify 关闭 / 无镜头 → skipped（driver 据此落「审片跳过」）。
  */
 async function verifyShotsForProduction(shotNodeIds: readonly string[], loaded: ProjectExecutionContext | null): Promise<unknown> {
   if (!isShotVerifyEnabled()) return { skipped: true, skipReason: '画面审片已在设置中关闭' }
@@ -257,30 +250,33 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[], loaded: 
   if (reviewedShotIds.length === 0) return { skipped: true, skipReason: '当前项目里找不到本次生成的镜头节点' }
   // 现成闭环：内部 gather → 判分 → 写 shotVerify store。直接使用「本次」返回值，不能在 await
   // 后读全局 store——同项目另一轮审片可能已经后发先至，读到的会是另一次结果。
-  const deviations = await verifyShotsAndReport(reviewedShotIds, loaded)
-  const flaggedByShot = new Map<string, Array<{ dimensionName?: string; score?: number; reason?: string }>>()
-  for (const deviation of deviations) {
+  const report = await verifyShotsAndReport(shotNodeIds, loaded)
+  const flaggedByShot = new Map<string, Array<{ dimension?: string; dimensionName?: string; score?: number; reason?: string }>>()
+  for (const deviation of report.deviations) {
     if (deviation.kind !== 'content' || !deviation.shotNodeId) continue
     const list = flaggedByShot.get(deviation.shotNodeId) ?? []
     list.push({
+      dimension: deviation.dimension,
       dimensionName: typeof deviation.field === 'string' ? deviation.field : undefined,
-      score: scoreFromDeviationActual(deviation.actual),
+      score: deviation.score,
       reason: typeof deviation.reason === 'string' ? deviation.reason : undefined,
     })
     flaggedByShot.set(deviation.shotNodeId, list)
   }
   const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
-  const verdicts = reviewedShotIds.map((shotNodeId) => {
+  const verdicts = report.assessments.map((assessment) => {
+    const shotNodeId = assessment.shotNodeId
     const flagged = flaggedByShot.get(shotNodeId) ?? []
     const title = (nodesById.get(shotNodeId)?.title || '').trim()
     return {
       shotNodeId,
-      passed: flagged.length === 0,
+      assessment,
+      passed: isAssessedShotReview(assessment) && flagged.length === 0,
       ...(title ? { shotTitle: title } : {}),
       ...(flagged.length ? { flagged } : {}),
     }
   })
-  return { reviewedShotIds, verdicts }
+  return { requestedShotIds: [...new Set(shotNodeIds)], reviewedShotIds: report.assessments.filter(isAssessedShotReview).map(item => item.shotNodeId), verdicts }
 }
 
 /** 处理一条主进程转发来的能力操作。未知操作抛错（主进程会把错误透传给 agent）。 */

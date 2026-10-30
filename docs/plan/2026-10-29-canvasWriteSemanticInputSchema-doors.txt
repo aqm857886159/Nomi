@@ -1,0 +1,52 @@
+[
+  {
+    "kind": "read",
+    "path": "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "electron/capabilityCore/dispatcher.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "electron/capabilityCore/verifiedCapabilityInvocationRendererFactories.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "electron/shared/agentCapabilities/verbs/verbSemanticInput.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/capability/canonicalCanvasPlanPatch.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+    "symbol": "canvasWriteSemanticInputSchema"
+  }
+]

@@ -1,3 +1,4 @@
+import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { notifyModelOptionsRefresh, preloadModelOptions } from '../../../../config/modelCatalogCache'
 import type { ModelCatalogHealthDto, ModelCatalogModelDto } from '../../../api/modelCatalogApi'
@@ -9,12 +10,15 @@ import type { GenerationNodeExecutor } from '../../../generationCanvas/runner/ge
 import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
 import { useSpendConfirmStore } from '../../../generationCanvas/spend/spendConfirm'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
-import { generateShotRow, runStoryboardBatch } from './storyboardRowActions'
+import { generateShotRow, materializeShotRow, runStoryboardBatch } from './storyboardRowActions'
 import { deriveStoryboardBatch, deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import { presentStoryboard } from '../../../capability/storyboardPresent'
 
 const calls = vi.hoisted(() => ({ execute: vi.fn<GenerationNodeExecutor>(), confirm: vi.fn(), consent: vi.fn() }))
 const models: ModelCatalogModelDto[] = [
+  { modelKey: 'approval-imported-i2v', labelZh: 'Imported I2V', kind: 'video', vendorKey: 'approval-fixture',
+    meta: { comfyWorkflowImport: { binding: { outputKind: 'video' } }, parameters: [{ key: 'first_frame_url', label: 'Load Image', type: 'image-url', mediaKind: 'image' }] },
+    enabled: true, published: true, publishedModes: ['image_to_video'], availability: { usable: true }, createdAt: 't', updatedAt: 't' },
   { modelKey: 'approval-image', labelZh: 'Image', kind: 'image', vendorKey: 'approval-fixture', meta: { archetypeId: 'agnes-image' },
     enabled: true, published: true, publishedModes: ['text_to_image'], availability: { usable: true }, createdAt: 't', updatedAt: 't' },
   { modelKey: 'approval-video', labelZh: 'Video', kind: 'video', vendorKey: 'approval-fixture', meta: { archetypeId: 'seedance-2' },
@@ -149,4 +153,76 @@ it.each(['prompt', 'model', 'reference'] as const)('original row keeps the %s co
   expect(calls.confirm).toHaveBeenCalledOnce()
   expect(calls.execute).toHaveBeenCalledTimes(2)
   expect(shotNodes()).toHaveLength(2)
+})
+
+it('reuses an already-generated storyboard image, realizes one video, and submits video only after confirmation', async () => {
+  const frameResult = { id: 'existing-storyboard-frame', type: 'image' as const, url: 'https://fixture.invalid/frame.jpg', createdAt: 1 }
+  const original = state().addNode({ kind: 'image', title: 'Storyboard frame', prompt: 'Original image prompt',
+    meta: { storyboardDesignId: 'design', shotId: shot.shotId, materializationOperationId: 'storyboard:design', materializationClientId: shot.shotId,
+      modelKey: 'approval-image', modelVendor: 'approval-fixture' } })
+  state().updateNode(original.id, { status: 'success', result: frameResult })
+  calls.confirm.mockImplementation(async () => {
+    expect(state().nodes).toHaveLength(1)
+    expect(state().nodes[0].result).toEqual(frameResult)
+    return true
+  })
+  const rows = deriveStoryboardRowRuntimes({ plan, designId: 'design', nodes: state().nodes,
+    imageModelOptions: await preloadModelOptions('image', 'any-published'),
+    videoModelOptions: await preloadModelOptions('video', 'any-published') })
+  const batch = deriveStoryboardBatch(rows)
+  expect(batch.runnable).toHaveLength(1)
+  await runStoryboardBatch(context, batch.runnable)
+  expect(calls.confirm).toHaveBeenCalledOnce()
+  expect(calls.execute.mock.calls.map(([node]) => node.kind)).toEqual(['video'])
+  expect(state().nodes).toHaveLength(2)
+  expect(state().nodes.find(node => node.id === original.id)?.result).toEqual(frameResult)
+  expect(state().edges).toMatchObject([{ source: original.id, target: video().id, mode: 'first_frame' }])
+  expect(video().kind).toBe('video')
+  expect(resolveGenerationReferences(calls.execute.mock.calls[0][0], calls.execute.mock.calls[0][1]).firstFrameUrl).toBe(frameResult.url)
+  await vi.waitFor(() => expect({ status: video().status, error: video().error }).toEqual({ status: 'success', error: undefined }))
+  await materializeShotRow(context, shot, null, true)
+  expect(state().nodes).toHaveLength(2)
+  const after = deriveStoryboardRowRuntimes({ plan, designId: 'design', nodes: state().nodes,
+    imageModelOptions: await preloadModelOptions('image', 'any-published'),
+    videoModelOptions: await preloadModelOptions('video', 'any-published') })
+  expect(deriveStoryboardBatch(after).runnable).toHaveLength(0)
+})
+
+it('official patch converts all 26 image-only shots to imported I2V, preserves frames, and reaches the existing batch runner', async () => {
+  const imagePlan: StoryboardPlan = { title: '26 original images', anchors: [], shots: Array.from({ length: 26 }, (_, i) => ({
+    index: i + 1, shotId: `long-shot-${i + 1}`, shotKind: 'image', durationSec: 5, anchorIds: [], prompt: `Motion for shot ${i + 1}`,
+    modelKey: 'approval-image', modelVendor: 'approval-fixture', modeId: 't2i',
+  })) }
+  useWorkbenchStore.getState().setStoryboardPlan(imagePlan, 'doc', 'design')
+  const imageIds: string[] = []
+  for (const one of imagePlan.shots) {
+    const image = state().addNode({ kind: 'image', title: `Shot ${one.index}`, prompt: one.prompt,
+      meta: { storyboardDesignId: 'design', shotId: one.shotId, materializationOperationId: 'storyboard:design', materializationClientId: one.shotId,
+        modelKey: 'approval-image', modelVendor: 'approval-fixture' } })
+    state().updateNode(image.id, { status: 'success', result: { id: `existing-frame-${one.index}`, type: 'image', url: 'https://fixture.invalid/frame.jpg', createdAt: 1 } })
+    imageIds.push(image.id)
+  }
+  await applyCanvasToolCall('nomi_canvas_edit', { operation: 'patch_shots', select: { kind: 'all' },
+    patch: { shotKind: 'video', modelKey: 'approval-imported-i2v', modelVendor: 'approval-fixture' } }, undefined, undefined, 'doc', 'design')
+  const next = useWorkbenchStore.getState().storyboardDesignsByDocumentId.doc.find(d => d.id === 'design')!.plan
+  expect(next.shots).toHaveLength(26)
+  expect(next.shots.every(one => one.shotKind === 'video' && one.keyframe?.enabled && one.modelVendor === 'approval-fixture')).toBe(true)
+  expect(state().nodes).toHaveLength(26) // author mutation does not generate or create new nodes
+  const rows = deriveStoryboardRowRuntimes({ plan: next, designId: 'design', nodes: state().nodes,
+    imageModelOptions: await preloadModelOptions('image', 'any-published'), videoModelOptions: await preloadModelOptions('video', 'any-published') })
+  expect(deriveStoryboardBatch(rows).runnable).toHaveLength(26)
+  calls.confirm.mockImplementation(async () => { expect(state().nodes).toHaveLength(26); return true })
+  const completed = new Promise<void>(resolve => {
+    const complete = () => state().nodes.filter(node => node.kind === 'video' && node.status === 'success').length === 26
+    const unsubscribe = useGenerationCanvasStore.subscribe(() => { if (complete()) { unsubscribe(); resolve() } })
+    if (complete()) { unsubscribe(); resolve() }
+  })
+  await runStoryboardBatch({ ...context, plan: next }, deriveStoryboardBatch(rows).runnable)
+  await completed
+  expect(calls.confirm).toHaveBeenCalledOnce()
+  expect(calls.execute).toHaveBeenCalledTimes(26)
+  expect(calls.execute.mock.calls.every(([node]) => node.kind === 'video')).toBe(true)
+  expect(state().nodes).toHaveLength(52)
+  expect(state().edges.filter(edge => edge.mode === 'first_frame')).toHaveLength(26)
+  for (const id of imageIds) expect(state().nodes.find(node => node.id === id)?.result?.type).toBe('image')
 })

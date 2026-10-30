@@ -1,7 +1,9 @@
+import { applyCanvasToolCall } from './applyCanvasToolCall'
+import * as lookup from './availableModels'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   assertCanvasWriteAdmissionMatches,
@@ -212,4 +214,14 @@ describe('canonical storyboard patch production transaction', () => {
     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['storyboard-doc']?.[0]?.plan).toEqual(before)
   })
 
+})
+
+it('rejects an unavailable explicit provider/model pair through canonical patch before author mutation', async () => {
+  const catalog = vi.spyOn(lookup, 'listAvailableModelsForAgent').mockResolvedValue(lookup.buildAgentModelEntries([{ value: 'seedance-2', label: 'Video', vendor: 'kie', kind: 'video' }]))
+  const before = structuredClone(useWorkbenchStore.getState().storyboardDesignsByDocumentId)
+  await expect(applyCanvasToolCall('nomi_canvas_edit', { operation: 'patch_shots', select: { kind: 'all' },
+    patch: { modelKey: 'seedance-2', modelVendor: 'codex-local' } }, undefined, undefined, 'storyboard-doc', 'test-storyboard-doc')).rejects.toThrow(/model_identity_unavailable/)
+  catalog.mockRestore()
+  expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId).toEqual(before)
+  expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0)
 })

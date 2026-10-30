@@ -77,6 +77,40 @@ afterEach(() => {
 })
 
 describe('recovery reads only the task identity', () => {
+  it('uses the submitted transport and mode after current model and references change', async () => {
+    const nodeId = recoverableNode({ attempt: { vendorKey: 'original-provider', modelKey: 'original-model', query: { taskKind: 'image_to_video', modeId: 'original-i2v' } } })
+    const store = useGenerationCanvasStore.getState()
+    const node = store.nodes.find(n => n.id === nodeId)!
+    store.updateNode(nodeId, { meta: { ...node.meta, archetype: { modeId: 'new-t2v' } } })
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockResolvedValue(succeeded('nomi-local://asset/project-a/recovered.png'))
+    await recoverInOpenProject(nodeId)
+    expect(fetchWorkbenchTaskResultByVendor).toHaveBeenCalledWith(expect.objectContaining({
+      taskKind: 'image_to_video', archetype: { modeId: 'original-i2v' },
+    }))
+  })
+
+  it('does not borrow a newly selected mode when the submitted request had none', async () => {
+    const nodeId = recoverableNode({ attempt: { vendorKey: 'apimart', modelKey: 'image-model', query: { taskKind: 'text_to_image' } } })
+    const store = useGenerationCanvasStore.getState()
+    const node = store.nodes.find(n => n.id === nodeId)!
+    store.updateNode(nodeId, { meta: { ...node.meta, archetype: { modeId: 'new-mode' } } })
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockResolvedValue(succeeded('nomi-local://asset/project-a/recovered.png'))
+    await recoverInOpenProject(nodeId)
+    expect(vi.mocked(fetchWorkbenchTaskResultByVendor).mock.calls[0][0]).not.toHaveProperty('archetype')
+  })
+
+  it.each([
+    { vendorKey: 'original-provider', modelKey: 'original-model' },
+    { vendorKey: 'comfyui-local--candidate-original', modelKey: 'original-workflow' },
+  ])('uses the submitted provider/model after the node selection changes: $vendorKey', async (attempt) => {
+    const nodeId = recoverableNode({ projectId: 'project-a', attempt })
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockResolvedValue(succeeded('nomi-local://asset/project-a/recovered.png'))
+    await recoverInOpenProject(nodeId)
+    expect(fetchWorkbenchTaskResultByVendor).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: 'task-paid-1', vendor: attempt.vendorKey, modelKey: attempt.modelKey,
+    }))
+  })
+
   it('an old record without a projectId derives it from the project the record is persisted in', async () => {
     const nodeId = recoverableNode({})
     vi.mocked(fetchWorkbenchTaskResultByVendor).mockResolvedValue(succeeded('nomi-local://asset/project-a/recovered.png'))

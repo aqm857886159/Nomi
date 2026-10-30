@@ -1,0 +1,153 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-script-process-cleanup-evidence",
+  "problem_type": "Windows process teardown returns unobserved success",
+  "symptom": "The shared script tree terminator returns true when taskkill is missing or fails.",
+  "direct_cause": "spawnSync result.error/status are ignored.",
+  "class_root": "Shared script teardown admission confuses attempting cleanup with proof of success.",
+  "affected_population": [
+    "All script tree terminator consumers",
+    "Windows taskkill unavailable/nonzero and already-exited children"
+  ],
+  "scope_paths": [
+    "scripts/lib/processTree.mjs"
+  ],
+  "entry_points": [
+    "scripts/daily-radar-session.mjs",
+    "scripts/git-delivery.mjs",
+    "scripts/lib/nomiClient.mjs",
+    "scripts/pre-push-contracts.mjs"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Existing Node child-process owner and isolated native fixtures; no model or external API.",
+  "invariants": [
+    "A failed native tree termination cannot return success.",
+    "An already-observed exited child can return false, but an unproved live child fails closed.",
+    "POSIX process-group ownership and test-double signal semantics remain unchanged."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "killProcessTree"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/daily-radar-session.mjs",
+      "symbol": "killProcessTree"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/git-delivery.mjs",
+      "symbol": "killProcessTree"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/nomiClient.mjs",
+      "symbol": "killProcessTree"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/pre-push-contracts.mjs",
+      "symbol": "killProcessTree"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 5,
+    "why_not": "The independent delivery, headless client, radar and validation callers retain their tasks; one existing tree owner enforces native result evidence for all."
+  },
+  "generality_proof": "The shared owner checks both spawn failure and unsuccessful exit across every Windows caller, without tool/provider-specific exceptions.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/processTree.mjs",
+      "symbol": "killProcessTree",
+      "responsibility": "Require native taskkill outcome evidence."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/local-cli-bridge.cjs",
+      "entry_point": "killProcessTree",
+      "disposition": "enforced",
+      "evidence": "Generated scripts door map; native CLI bridge now passes this existing shared owner to each selected runner."
+    },
+    {
+      "path": "scripts/daily-radar-session.mjs",
+      "entry_point": "killProcessTree",
+      "disposition": "enforced",
+      "evidence": "Generated scripts door map; native CLI bridge now passes this existing shared owner to each selected runner."
+    },
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "killProcessTree",
+      "disposition": "enforced",
+      "evidence": "Generated scripts door map; native CLI bridge now passes this existing shared owner to each selected runner."
+    },
+    {
+      "path": "scripts/lib/nomiClient.mjs",
+      "entry_point": "killProcessTree",
+      "disposition": "enforced",
+      "evidence": "Generated scripts door map; native CLI bridge now passes this existing shared owner to each selected runner."
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "entry_point": "killProcessTree",
+      "disposition": "enforced",
+      "evidence": "Generated scripts door map; native CLI bridge now passes this existing shared owner to each selected runner."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Windows caller can encounter missing taskkill or nonzero exit.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs killProcessTree --roots=scripts",
+      "Read all four direct script callers and existing processTree tests"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/processTree.mjs",
+    "invariant": "Unproved tree cleanup never reports true.",
+    "failure_mode": "Throw process_cleanup_failed for an unobserved live child; observed exit returns false.",
+    "exception_policy": "none",
+    "strategy": "Check native command result before reporting completion.",
+    "artifacts": [
+      "scripts/lib/processTree.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/lib/processTree.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/lib/processTree.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/lib/processTree.mjs"
+    ],
+    "rationale": "Unconditional Windows success is removed in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Supported Windows taskkill and Node child_process",
+    "target": "Supported OS tree termination tool",
+    "rationale": "Retain current platform owner; no replacement process engine.",
+    "exit_criteria": [
+      "Revisit on supported platform changes; native failure and descendant fixtures must remain green."
+    ]
+  },
+  "migration": "No user processes or configuration changed; tests own all children.",
+  "residual_risks": [
+    "POSIX native process-group acceptance is unavailable on this Windows host."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/processTree.mjs",
+    "tests": [
+      "scripts/lib/processTree.node-test.mjs"
+    ]
+  }
+}

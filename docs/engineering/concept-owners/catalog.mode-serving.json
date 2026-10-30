@@ -22,6 +22,10 @@
     {
       "path": "src/config/modelCatalogCache.ts",
       "symbol": "optionsFromRows"
+    },
+    {
+      "path": "src/workbench/settings/defaultGenerationModelOptions.ts",
+      "symbol": "buildDefaultModelOptions"
     }
   ],
   "forbidden_derivations": [
@@ -39,8 +43,10 @@
   "parity_test": "src/config/modelCatalogCache.test.ts",
   "allowed_consumers": [
     "electron/video/deconstructVideo.ts",
-    "src/config/modelCatalogCache.ts"
+    "src/config/modelCatalogCache.ts",
+    "src/workbench/settings/defaultGenerationModelOptions.ts",
+    "src/workbench/ai/v4/agentPanelV4ModelRows.ts"
   ],
   "since": "2026-10-19",
-  "notes": "合同 docs/fixes/2026-10-19-deconstruct-transcribe-leg.root-cause.json：主进程和渲染层都必须在同一份 listModelCatalogModels 投影上调用 rowServesMode；不可把 audio kind 当成 transcribe 模式。"
+  "notes": "合同 docs/fixes/2026-10-19-deconstruct-transcribe-leg.root-cause.json：主进程和渲染层都必须在同一份 listModelCatalogModels 投影上调用 rowServesMode；不可把 audio kind 当成 transcribe 模式。 2026-10-30: register the verified existing repair boundary/projection; no alternate owner or guard exception."
 }

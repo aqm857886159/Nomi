@@ -1,8 +1,5 @@
 {
   "electron/productionRun/productionGenerationSubmission.test.ts": 1,
   "electron/productionRun/productionRunRepository.test.ts": 1,
-  "electron/productionRun/productionTrustLevel.test.ts": 1,
-  "scripts/lab-analyze.ts": 2,
-  "scripts/lab-onboard.ts": 3,
-  "scripts/probe-extract-matrix.ts": 2
+  "electron/productionRun/productionTrustLevel.test.ts": 1
 }

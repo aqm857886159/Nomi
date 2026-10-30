@@ -1,0 +1,7 @@
+[
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "symbol": "assertStoryboardModelIdentities"
+  }
+]

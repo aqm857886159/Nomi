@@ -1,3 +1,4 @@
+import { comfyWorkflowArchetypeForModel } from '../modelArchetypes/comfyWorkflow';
 import type {
   ArchetypeIntent,
   ArchetypeMode,
@@ -51,6 +52,7 @@ export type VideoCatalogModel = {
   modelKey: string;
   label: string;
   archetypeId?: string;
+  meta?: unknown;
   parameterControls?: readonly ModelParameterControl[];
   /** 这一行接不接受档案的型号名（缺省 = 问本进程的查询口），见 modelArchetypes/modelNameSource.ts。 */
   modelNameSource?: ModelNameSource;
@@ -206,6 +208,8 @@ function unknownVideoArchetype(model: VideoCatalogModel): ModelArchetype {
 }
 
 function profileFor(model: VideoCatalogModel): ModelArchetype {
+  const workflow = comfyWorkflowArchetypeForModel(model);
+  if (workflow) return workflow;
   const exact = model.archetypeId
     ? SOURCE_BACKED_PROFILES.find((profile) => profile.id === model.archetypeId)
     : undefined;
@@ -283,7 +287,8 @@ export function buildVideoModelCandidates(models: readonly VideoCatalogModel[]):
           variantChoices: archetype.variants.map((variant) => ({ id: variant.id, label: variant.label, modelKey: variant.modelKey })),
         } : {}),
       };
-    });
+    })
+    .filter(candidate => candidate.archetype.modes.length > 0);
 }
 
 export function sourceBackedVideoProfiles(): readonly ModelArchetype[] {

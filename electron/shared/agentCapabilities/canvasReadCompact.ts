@@ -114,7 +114,7 @@ export function projectCanvasForAgent(result: CanvasReadResult): CanvasAgentProj
   ];
 
   const titleById = new Map(result.nodes.map((node) => [node.id, compactHead(node.title, 80)]));
-  const nodes = boundedJoin(orderedNodes, NODE_SUMMARY_BUDGET, "\n", (node) => {
+  let nodes = boundedJoin(orderedNodes, NODE_SUMMARY_BUDGET, "\n", (node) => {
     const storyboardDesignId = (node as unknown as { meta?: { storyboardDesignId?: unknown } }).meta?.storyboardDesignId;
     const flags = [
       selectedIds.has(node.id) ? "选中" : null,
@@ -144,11 +144,24 @@ export function projectCanvasForAgent(result: CanvasReadResult): CanvasAgentProj
       node.director ? ` | 3D-BOX revision=${node.director.revision} shots=${boundedJoin(node.director.shots, 120, ",", (name) => compactHead(name, 40)).text} actors=${boundedJoin(node.director.actors, 80, ",", (name) => compactHead(name, 40)).text}${node.director.setPieces.length ? ` setPieces=${boundedJoin(node.director.setPieces, 60, ",", (name) => compactHead(name, 40)).text}` : ""} issues=${node.director.issueCount} preview=${node.director.preview}${node.director.previewTargetNodeId ? `→${compactHead(node.director.previewTargetNodeId, 120)}` : ""}${node.director.previewAssetId ? ` previewAssetId=${compactHead(node.director.previewAssetId, 120)}` : ""}` : "",
     ].join("");
   });
+  // Keep the addressable inventory before prompt excerpts and duplicated result
+  // history. Otherwise later shots disappear although the full read contains them.
+  if (nodes.truncated) {
+    nodes = boundedJoin(orderedNodes, NODE_SUMMARY_BUDGET, '\n', (node) => [
+      `- ${compactHead(node.id, 120)} | ${compactHead(node.kind, 40)} | ${compactHead(node.title, 80)}`,
+      node.shotLabel ? ` | ${node.shotLabel}` : '',
+      selectedIds.has(node.id) ? ' | 选中' : '',
+      node.hasResult ? ' | 已有结果' : '',
+      node.status !== 'idle' && node.status !== 'success' ? ` | ${node.status}` : '',
+      node.locked ? ' | 已锁定' : '',
+    ].join(''))
+  }
   const listedSelected = orderedNodes.slice(0, nodes.listed).filter((node) => selectedIds.has(node.id)).length;
   const selection: CanvasSelectionAccount = selectedAll.length === 0
     ? EMPTY_SELECTION
     : { total: selectedAll.length, listed: listedSelected, omitted: selectedAll.length - listedSelected };
-  const edges = boundedJoin(result.edges, EDGE_SUMMARY_BUDGET, ", ", (edge) =>
+  const edgeBudget = Math.min(4_000, Math.max(EDGE_SUMMARY_BUDGET, MAX_CANVAS_PROMPT_CHARACTERS - nodes.text.length - 600));
+  const edges = boundedJoin(result.edges, edgeBudget, ", ", (edge) =>
     `${titleById.get(edge.source) || compactHead(edge.source, 120)}→${titleById.get(edge.target) || compactHead(edge.target, 120)}`);
   const writer = createPromptWriter(MAX_CANVAS_PROMPT_CHARACTERS);
   writer.appendLine(`画布节点 ${result.nodes.length} 个(id | 类型 | 镜头号与角色 | 归属节点 | 标题 | 状态 | prompt 摘要 | 结果身份):`);

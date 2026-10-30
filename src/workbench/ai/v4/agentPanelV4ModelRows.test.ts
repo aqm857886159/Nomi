@@ -70,8 +70,8 @@ describe('对话那一行的选项', () => {
 it('projects all three catalog kinds through the production row owner and preserves selection callbacks', async () => {
   const { buildV4ModelRows } = await import('./agentPanelV4ModelRows')
   const chat = model('catalog', 'chat')
-  const image: ModelCatalogModelDto = { ...model('catalog', 'image'), kind: 'image', pricing: { enabled: true, cost: 3, specCosts: [] } }
-  const video: ModelCatalogModelDto = { ...model('catalog', 'video'), kind: 'video' }
+  const image: ModelCatalogModelDto = { ...model('catalog', 'image'), kind: 'image', publishedModes: ['text_to_image'], pricing: { enabled: true, cost: 3, specCosts: [] } }
+  const video: ModelCatalogModelDto = { ...model('catalog', 'video'), kind: 'video', publishedModes: ['text_to_video'] }
   let changed: unknown
   const rows = buildV4ModelRows({ models: [chat], generationModels: [image, video], vendors: {}, orderedVendorKeys: [], selectedModel: chat, modelLabel: chat.labelZh, selectModel: () => {}, generationDefaults: { text_to_image: image, text_to_video: video }, setGenerationDefault: (kind, identity) => { changed = { kind, identity } } }, (key, args) => `${key}${args?.cost ?? ''}`)
   expect(rows.map(row => row.slot)).toEqual(['agentPanelV4.modelChat', 'agentPanelV4.imageDefault', 'agentPanelV4.videoDefault'])

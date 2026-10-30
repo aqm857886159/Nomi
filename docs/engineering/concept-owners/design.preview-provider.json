@@ -1,0 +1,26 @@
+{
+  "name": "Standalone public design preview provider",
+  "subject": "design.preview-provider",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/previewHost.tsx",
+    "symbol": "NomiPreviewHost"
+  },
+  "write_api": [
+    {
+      "path": "src/design/previewHost.tsx",
+      "symbol": "NomiPreviewHost"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/support-entrypoints.node-test.mjs",
+  "allowed_consumers": [
+    ".design-sync/support/ds-entry.mjs"
+  ],
+  "since": "2026-10-30",
+  "notes": "Registers the current shared owner and its direct projections validated by the 2026-10-30 unpaid repair contracts. This metadata adds no runtime permission, fallback or second implementation."
+}

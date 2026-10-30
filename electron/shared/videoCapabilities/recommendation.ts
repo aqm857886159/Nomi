@@ -1,5 +1,5 @@
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype, ModelParameterControl, ModelParameterControlOption } from "./types";
-import { nearestNumber, numericOptionValues } from "./paramConstraints";
+import { durationControlOf, isDurationControl, nearestNumber, numericOptionValues } from "./paramConstraints";
 import { resolveArchetypeVariant } from "../modelArchetypes/variantResolution";
 
 type Scalar = ModelParameterControlOption["value"];
@@ -63,8 +63,17 @@ type ReferenceSummary = {
   characterImages: number;
 };
 
-const slotForKind = (mode: ArchetypeMode, kind: ArchetypeReferenceSlot["kind"]): ArchetypeReferenceSlot | undefined =>
-  mode.slots.find((slot) => slot.kind === kind);
+const slotForKind = (mode: ArchetypeMode, kind: ArchetypeReferenceSlot["kind"]): ArchetypeReferenceSlot | undefined => {
+  const slots = mode.slots.filter((slot) => slot.kind === kind);
+  if (slots.length < 2) return slots[0];
+  // Distinct declared inputs of one media kind are separate wire keys, but share
+  // one reference count budget. Preserve the keys on the actual mode slots.
+  return {
+    ...slots[0]!,
+    min: slots.reduce((sum, slot) => sum + slot.min, 0),
+    max: slots.some(slot => slot.max === undefined) ? undefined : slots.reduce((sum, slot) => sum + slot.max!, 0),
+  };
+};
 
 const summarizeReferences = (references: readonly VideoReferenceInput[]): ReferenceSummary => ({
   hasAny: references.length > 0,
@@ -123,7 +132,7 @@ export const effectiveVideoModes = (candidate: VideoModelCandidate): ArchetypeMo
 
 const chooseParamValue = (control: ModelParameterControl, input: VideoGenerationRecommendationInput): Scalar | undefined => {
   const requestedDuration = input.goals?.durationSeconds;
-  if (control.key === "duration" && typeof requestedDuration === "number" && Number.isFinite(requestedDuration)) {
+  if (isDurationControl(control) && typeof requestedDuration === "number" && Number.isFinite(requestedDuration)) {
     const options = numericOptionValues(control);
     if (options.length > 0) return nearestNumber(requestedDuration, options);
     const min = typeof control.min === "number" ? control.min : requestedDuration;
@@ -144,7 +153,7 @@ const chooseParamValue = (control: ModelParameterControl, input: VideoGeneration
 };
 
 const durationSupport = (mode: ArchetypeMode, target: number): { supported: boolean; description: string } | null => {
-  const control = mode.params.find((item) => item.key === "duration");
+  const control = durationControlOf(mode.params);
   if (!control) return null;
   const options = numericOptionValues(control);
   if (options.length > 0) {

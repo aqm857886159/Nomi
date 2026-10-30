@@ -23,6 +23,9 @@ export type ReconcileDeviation = {
    * 两类共用同一张对账卡,但语气不同(结构=没按计划落地;内容=画面跟设定对不上)。
    */
   kind?: 'structure' | 'content'
+  /** Machine provenance for content review; display strings never authorize retries. */
+  dimension?: string
+  score?: number
   /** content 偏差回指的镜头节点 id(Stage 2 闭环据此决定回灌/重生哪几镜);structure 偏差不填。 */
   shotNodeId?: string
 }

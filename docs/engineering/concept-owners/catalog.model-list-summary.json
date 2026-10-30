@@ -1,0 +1,26 @@
+{
+  "name": "Truthful model list usability summary",
+  "subject": "catalog.model-list-summary",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "symbol": "buildListModelsOutcome"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "symbol": "buildListModelsOutcome"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/mcpToolResults.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpToolResults.ts"
+  ],
+  "since": "2026-10-30",
+  "notes": "Registers the current shared owner and its direct projections validated by the 2026-10-30 unpaid repair contracts. This metadata adds no runtime permission, fallback or second implementation."
+}

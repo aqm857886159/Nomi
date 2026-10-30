@@ -549,18 +549,19 @@ describe('closeElectronWithin', () => {
 
   test('descendantPids：按 ps 的父子关系收整棵子孙树', () => {
     const ps = () => ['  10     1', '  11    10', '  12    11', '  13    10', '  20     1', ''].join('\n')
-    expect(descendantPids(10, ps).sort()).toEqual([11, 12, 13])
-    expect(descendantPids(20, ps)).toEqual([])
+    expect(descendantPids(10, ps, 'linux').sort()).toEqual([11, 12, 13])
+    expect(descendantPids(20, ps, 'linux')).toEqual([])
   })
 
   test('优雅关闭到上限没结束：杀掉关之前拍下的整棵树、放掉管道（Linux 上帮手进程攥着管道的最小复现）', async () => {
     // 主进程忽略 SIGTERM 且常驻；孙进程继承它的 stdout / stderr——Electron 的帮手进程就是这样让 Playwright 的 close 永远等不到管道关。
-    const grandchild = 'process.on("SIGTERM", () => {}); process.stdout.write("grandchild-ready\\n"); setInterval(() => {}, 1000)'
+    const grandchild = 'process.on("SIGTERM", () => {}); process.stdout.write("grandchild-ready " + process.pid + "\\n"); setInterval(() => {}, 1000)'
     const script = `process.on('SIGTERM', () => {}); require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: 'inherit' }); setInterval(() => {}, 1000)`
     const child = spawn(process.execPath, ['-e', script], { stdio: ['pipe', 'pipe', 'pipe'] })
-    await new Promise((resolve) => { let seen = ''; child.stdout.on('data', (chunk) => { seen += chunk; if (seen.includes('grandchild-ready')) resolve() }) })
+    const grandchildPid = await new Promise((resolve) => { let seen = ''; child.stdout.on('data', (chunk) => { seen += chunk; const match = /grandchild-ready (\d+)/.exec(seen); if (match) resolve(Number(match[1])) }) })
     const tree = descendantPids(child.pid)
-    expect(tree.length).toBeGreaterThan(0)
+    if (process.platform !== 'win32') expect(tree).toContain(grandchildPid)
+    tree.push(grandchildPid)
     // 关闭永远不回（new Promise(() => {})）：closeElectronWithin 照样返回，上限就生效了；挂住的话这条测试自己超时变红。
     // 不量墙钟（check:test-waits 的 wallclock-budget-assertion：判据要和机器快慢无关）。
     await closeElectronWithin({ process: () => child }, () => new Promise(() => {}), 300)

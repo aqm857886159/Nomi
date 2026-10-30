@@ -326,7 +326,10 @@ try:
         def hooked_popen(*args, **kwargs):
             child = real_popen(*args, **kwargs)
             observed['pid'] = child.pid
-            os.kill(os.getpid(), signal.SIGTERM)
+            if os.name == 'nt':
+                signal.raise_signal(signal.SIGTERM)  # os.kill(SIGTERM) calls TerminateProcess on Windows, bypassing Python handlers.
+            else:
+                os.kill(os.getpid(), signal.SIGTERM)
             return child
 
         lock.subprocess.Popen = hooked_popen
@@ -339,12 +342,15 @@ try:
             owner,
         )
         observed['child_alive'] = lock.alive(observed['pid'])
-        try:
-            os.killpg(observed['pid'], 0)
-        except ProcessLookupError:
-            observed['group_alive'] = False
+        if os.name == 'nt':
+            observed['group_alive'] = None  # Windows has no POSIX process group. Child liveness is checked above.
         else:
-            observed['group_alive'] = True
+            try:
+                os.killpg(observed['pid'], 0)
+            except ProcessLookupError:
+                observed['group_alive'] = False
+            else:
+                observed['group_alive'] = True
         lock.unlock(file)
     takeover = real_popen(
         [sys.executable, ${JSON.stringify(wrapper)}, '--', sys.executable, '-c', "print('TAKEOVER', flush=True)"],
@@ -359,9 +365,9 @@ try:
 finally:
     os.unlink(path)
 print(json.dumps(observed))`)
-  assert.equal(observed.code, 143)
+  assert.equal(observed.code, process.platform === 'win32' ? 1 : 143)
   assert.equal(observed.child_alive, false)
-  assert.equal(observed.group_alive, false)
+  assert.equal(observed.group_alive, process.platform === 'win32' ? null : false)
   assert.equal(observed.takeover_code, 0, observed.takeover_output)
   assert.match(observed.takeover_output, /TAKEOVER/)
 })
@@ -491,4 +497,37 @@ test('heavy npm entrypoints all use the shared machine lock', () => {
       assert.match(command, /^python3 scripts\/with-gates-lock\.py /, name)
     }
   }
+})
+
+// Real native handles: deletion must follow close on every platform, not only on NTFS.
+test('dead ticket reclamation closes its native handle before unlink and preserves live tickets',async()=>{
+ const observed=await probe(`${loadWrapper}
+import tempfile
+with tempfile.TemporaryDirectory() as root:
+    queue = os.path.join(root, 'queue')
+    lock.ensure_queue_dir(queue)
+    with lock.ticket_file(queue, 0):
+        pass
+    live = lock.ticket_file(queue, 1)
+    assert lock.try_lock(live)
+    opened = []
+    actual_open = lock.ticket_file
+    actual_remove = lock.remove_ticket
+    def tracked_open(*args, **kwargs):
+        file = actual_open(*args, **kwargs)
+        opened.append((lock.ticket_path(args[0], args[1]), file))
+        return file
+    def checked_remove(path):
+        assert all(file.closed for name, file in opened if name == path), 'ticket handle still open at unlink'
+        actual_remove(path)
+    lock.ticket_file = tracked_open
+    lock.remove_ticket = checked_remove
+    lock.cleanup_dead_tickets(queue)
+    dead_removed = not os.path.exists(lock.ticket_path(queue, 0))
+    live_preserved = os.path.exists(lock.ticket_path(queue, 1))
+    lock.unlock(live)
+    live.close()
+    lock.cleanup_dead_tickets(queue)
+    print(json.dumps({'dead_removed': dead_removed, 'live_preserved': live_preserved, 'tickets': lock.ticket_numbers(queue)}))`)
+ assert.deepEqual(observed,{dead_removed:true,live_preserved:true,tickets:[]})
 })

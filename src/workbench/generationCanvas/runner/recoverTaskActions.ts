@@ -34,22 +34,27 @@ function buildRecoverPayload(nodeId: string): { taskId: string; vendor: string; 
   const state = useGenerationCanvasStore.getState()
   const node = state.nodes.find((candidate) => candidate.id === nodeId)
   if (!node) return null
-  const taskId = asTrimmedString(node.runs?.[0]?.taskId) || asTrimmedString(node.progress?.taskId)
-  const vendor = selectedVendor(node)
+  const run = node.runs?.[0]
+  const taskId = asTrimmedString(run?.taskId) || asTrimmedString(node.progress?.taskId)
+  // A submitted job belongs to its original provider/model even when the next-run selection changes.
+  const vendor = asTrimmedString(run?.attempt?.vendorKey) || selectedVendor(node)
+  const modelKey = asTrimmedString(run?.attempt?.modelKey) || selectedModelKey(node) || ''
   if (!taskId || !vendor) return null
   // 用同一套 reference 解析还原原始 granular kind（image_to_video vs text_to_video…），
   // 让主进程 findTaskMapping 命中与首发同一个 query 桶。
   const references = resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges })
   const archetype = node.meta?.archetype
-  const modeId = archetype && typeof archetype === 'object' ? asTrimmedString((archetype as { modeId?: unknown }).modeId) : ''
+  const sameSelection = vendor === selectedVendor(node) && modelKey === (selectedModelKey(node) || '')
+  const query = run?.attempt?.query
+  const modeId = query ? asTrimmedString(query.modeId) : sameSelection && archetype && typeof archetype === 'object' ? asTrimmedString((archetype as { modeId?: unknown }).modeId) : ''
   return {
     taskId,
     vendor,
-    taskKind: resolveTaskKind(node, references),
+    taskKind: query?.taskKind ?? resolveTaskKind(node, references),
     prompt: asTrimmedString(node.prompt),
-    modelKey: selectedModelKey(node) || '',
+    modelKey,
     ...(modeId ? { archetype: { modeId } } : {}),
-    ...(node.runs?.[0] ? { run: node.runs[0] } : {}),
+    ...(run ? { run } : {}),
   }
 }
 

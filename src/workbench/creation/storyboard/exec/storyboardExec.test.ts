@@ -384,3 +384,31 @@ describe('deriveAnchorCardRuntimes（参考卡执行态 = 节点投影，B3）',
     expect(running.progressPercent).toBe(55)
   })
 })
+
+
+it('an existing storyboard image is a reusable first frame, never a completed video', () => {
+  const shot = shotOf({ shotKind: 'video', keyframe: { enabled: true, prompt: 'Opening' } })
+  const image = nodeOf({ id: 'existing-image', kind: 'image', result: { id: 'image-result', type: 'image', url: 'nomi-local://frame.png', createdAt: 1 }, meta: { storyboardDesignId: DESIGN, shotId: shot.shotId } })
+  expect(findShotNode([image], DESIGN, shot)).toBeNull()
+  expect(findShotKeyframeNode([image], DESIGN, shot)?.id).toBe(image.id)
+  const exec = deriveShotRowExec({ plan: planOf([shot]), shot, designId: DESIGN, nodes: [image], mode: firstFrameMode })
+  expect(exec.status).toBe('ready')
+  expect(exec.keyframeNode?.id).toBe(image.id)
+  const next = storyboardShotToCreateNodesArgs(planOf([shot]), shot, { storyboardDesignId: DESIGN, materializationOperationId: 'storyboard:design', existingKeyframeNodeId: image.id })
+  expect(next.nodes).toHaveLength(1)
+  expect(next.nodes[0].kind).toBe('video')
+  expect(next.nodes[0].metadata?.materializationClientId).not.toBe(shot.shotId)
+  expect(next.edges).toEqual([{ sourceClientId: image.id, targetClientId: shot.shotId, mode: 'first_frame' }])
+})
+it('a previous video cannot satisfy an image row after switching output type', () => {
+  const shot = shotOf({ shotKind: 'image' })
+  const video = nodeOf({ id: 'old-video', kind: 'video', meta: { storyboardDesignId: DESIGN, shotId: shot.shotId } })
+  expect(findShotNode([video], DESIGN, shot)).toBeNull()
+})
+
+it('a video node with an image payload cannot satisfy a video row', () => {
+  const shot = shotOf({ shotKind: 'video', anchorIds: [] })
+  const wrong = nodeOf({ id: 'wrong-video', kind: 'video', result: { id: 'wrong-output', type: 'image', url: 'nomi-local://frame.png', createdAt: 1 },
+    meta: { storyboardDesignId: DESIGN, shotId: shot.shotId } })
+  expect(deriveShotRowExec({ plan: planOf([shot]), shot, designId: DESIGN, nodes: [wrong], mode: t2vMode }).status).not.toBe('done')
+})

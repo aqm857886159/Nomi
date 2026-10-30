@@ -1,0 +1,113 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-poll-budget-boundary",
+  "problem_type": "Polling starts an outbound read after its shared deadline",
+  "symptom": "Shared submit-plus-wait budget fixture does not return at forty seconds.",
+  "direct_cause": "Polling checks time before sleeping but starts fetch after sleep even when no time remains.",
+  "class_root": "The shared polling boundary admits an outbound attempt without a positive remaining budget.",
+  "affected_population": [
+    "Onboarding wait after a slow submit",
+    "Any nonterminal poll where interval reaches remaining budget"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/pollTaskToTerminal.ts"
+  ],
+  "entry_points": [
+    "pollTaskToTerminal"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Node child lifecycle and Nomi bounded-owner implementation are directly reproduced with real local fixture children; no inference or external behavior is involved.",
+  "invariants": [
+    "No new fetch begins when the shared wait budget has expired.",
+    "Timeout retains accepted task identity and never submits again."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "pollTaskToTerminal"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/pollTaskToTerminal.ts",
+      "symbol": "sleep"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 2,
+    "why_not": "Existing model onboarding consumers share the polling owner."
+  },
+  "generality_proof": "A shared post-sleep admission check applies across every interval and provider without extending deadlines.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/pollTaskToTerminal.ts",
+      "symbol": "pollTaskToTerminal",
+      "responsibility": "Admit each fetch against the remaining wait budget after sleep."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "enforced",
+      "evidence": "Thirty-second submit shares the same forty-second tool budget."
+    },
+    {
+      "path": "electron/capabilityCore/pollTaskToTerminal.ts",
+      "entry_point": "pollTaskToTerminal",
+      "disposition": "enforced",
+      "evidence": "Interval longer than or equal to remaining budget is covered by direct fake-clock tests."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any final sleep can exhaust the remaining budget.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs pollTaskToTerminal",
+      "Inspected all shared wait consumers and tryModelSubmitBudget fixture",
+      "Refreshed generated door map after whole-owner extraction: pollTaskToTerminal, sleep"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/pollTaskToTerminal.ts",
+    "invariant": "Positive remaining budget is required before each fetch.",
+    "failure_mode": "Return timeout with the unchanged nonterminal task; never retry generation.",
+    "exception_policy": "none",
+    "strategy": "Check the same absolute elapsed deadline after sleep before invoking fetch.",
+    "artifacts": [
+      "electron/capabilityCore/pollTaskToTerminal.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/pollTaskToTerminal.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/pollTaskToTerminal.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/pollTaskToTerminal.ts"
+    ],
+    "rationale": "The expired-budget fetch is removed from the existing owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade; reuse existing shared publication contract.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted state or settings change.",
+  "residual_risks": [
+    "No real provider submit is performed."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/pollTaskToTerminal.ts",
+    "tests": [
+      "electron/capabilityCore/pollTaskToTerminal.test.ts"
+    ]
+  }
+}

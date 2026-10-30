@@ -1,0 +1,36 @@
+{
+  "name": "Explicit assessed dimensions and evidence-owned review retry",
+  "subject": "production.review-assessment",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/shotReviewEvidence.ts",
+    "symbol": "isAssessedShotReview"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/shotReviewEvidence.ts",
+      "symbol": "isAssessedShotReview"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "verifyGeneratedShots"
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "buildQaRetryPlans"
+    },
+    {
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "createQaStageRunner"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/shotReviewEvidence.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "Registers the current shared owner and its direct projections validated by the 2026-10-30 unpaid repair contracts. This metadata adds no runtime permission, fallback or second implementation."
+}

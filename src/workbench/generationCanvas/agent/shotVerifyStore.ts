@@ -10,6 +10,9 @@ import { declareStoreLifetime } from '../../project/storeLifetime'
 import { create } from 'zustand'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import type { ReconcileDeviation } from './reconcile'
+import type { ShotVerifyReport } from './shotVerifyRunner'
+import { resultIdentity } from '../model/nodeResultLifecycle'
+import { areRequestedShotsAssessed, unreviewedShot } from '../../../../electron/shared/shotReviewEvidence'
 import { createLoopBudget, startRound, canStartRound, type LoopBudgetState } from './storyboardLoopBudget'
 // 重依赖(画布 store / judge 接线)在 verifyShotsAndReport 内动态 import:
 // 让本 store 模块(状态机 + buildContentFixMessage)保持轻、可裸测,不拖进桌面桥/对话客户端。
@@ -45,8 +48,8 @@ function normalizeProjectId(projectId: string | null | undefined): string | null
   return normalized || null
 }
 
-function resultState(deviations: ReconcileDeviation[], budget: LoopBudgetState) {
-  if (deviations.length === 0) {
+function resultState(deviations: ReconcileDeviation[], budget: LoopBudgetState, converged: boolean) {
+  if (converged && deviations.length === 0) {
     return { status: 'ready' as const, deviations: [], budget: createLoopBudget(), exhausted: false }
   }
   return { status: 'ready' as const, deviations, exhausted: !canStartRound(budget) }
@@ -69,11 +72,12 @@ type ShotVerifyState = {
   completeVerify: (
     request: ShotVerifyRequest,
     activeProjectId: string | null | undefined,
-    deviations: ReconcileDeviation[],
+    report: ShotVerifyReport,
+    requestedShotIds: readonly string[],
   ) => boolean
   /**
    * 写校验结果。预算生命周期铁律:
-   * - 偏差清零(收敛/无问题)→ **重置预算**(本闭环结束,下一闭环满额起步);
+   * - 只有 completeVerify 的完整评估证据证明收敛才重置预算；直接写空偏差不算。
    * - 仍有偏差 → **不动预算**(同一闭环延续),按剩余预算算 exhausted。
    * 故「点修→重生→再校验」链路预算只减不回弹,半自动封顶真实生效。
    */
@@ -127,14 +131,16 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
       && state.projectId === request.projectId
       && normalizeProjectId(activeProjectId) === request.projectId
   },
-  completeVerify: (request, activeProjectId, deviations) => {
+  completeVerify: (request, activeProjectId, report, requestedShotIds) => {
     if (!get().isVerifyCurrent(request, activeProjectId)) return false
-    set(resultState(deviations, get().budget))
+    const converged = areRequestedShotsAssessed(requestedShotIds, report.assessments)
+      && report.assessments.every(item => item.unassessedDimensions.length === 0)
+    set(resultState(report.deviations, get().budget, converged))
     return true
   },
   setDeviations: (deviations) => {
-    // 收敛:本闭环结束,预算回满供下一条分镜；仍有偏差则预算不动。
-    set(resultState(deviations, get().budget))
+    // 直接写偏差没有审片覆盖证据，不能重置预算。
+    set(resultState(deviations, get().budget, false))
   },
   consumeRound: () => {
     const { budget } = get()
@@ -158,49 +164,59 @@ export const useShotVerifyStore = create<ShotVerifyState>()((set, get) => ({
 
 /**
  * 生成完成后跑校验并写 store(fire-and-forget,不阻塞「生成完成」toast)。
- * verify 是增益:任何失败都静默吞(setDeviations([])),绝不把生成完成拖红。
+ * 失败保留未审证据，不把生成成功拖红，也不把空结果当收敛。
  */
 export async function verifyShotsAndReport(
   shotNodeIds: readonly string[],
-  /** 被审镜头所在的项目（调用方在动作起点签发）：审片只读它的画布、结果只写回它。 */
   project: ProjectExecutionContext,
-): Promise<ReconcileDeviation[]> {
-  if (!isShotVerifyEnabled()) return []
-  // 项目归属来自签发的上下文；后续切项目（含 A→B→A）时上下文失效，request 也被 lifecycle 作废，
-  // judge 继续使用旧项目的 ephemeral key，而不会在新项目会话里留下旧镜头的上下文。
+): Promise<ShotVerifyReport> {
+  const requested = [...new Set(shotNodeIds)]
+  const unavailable = (reason: string): ShotVerifyReport => ({ deviations: [], assessments: requested.map(id => unreviewedShot(id, reason)) })
+  if (!isShotVerifyEnabled()) return unavailable('review-disabled')
   const projectId = project.binding.projectId
   const owns = (request: ShotVerifyRequest): boolean =>
     isProjectExecutionContextCurrent(project) && useShotVerifyStore.getState().isVerifyCurrent(request, projectId)
-  const complete = (request: ShotVerifyRequest, deviations: ReconcileDeviation[]): void => {
-    if (isProjectExecutionContextCurrent(project)) useShotVerifyStore.getState().completeVerify(request, projectId, deviations)
+  const complete = (request: ShotVerifyRequest, report: ShotVerifyReport): void => {
+    if (owns(request)) useShotVerifyStore.getState().completeVerify(request, projectId, report, requested)
   }
   const request = useShotVerifyStore.getState().beginVerify(projectId)
-  // 不在此重置预算:预算只在「收敛(偏差清零)」时回满(见 setDeviations),
-  // 这样「点修→重生→再校验」链路里预算只减不回弹,半自动封顶真实生效。
   try {
-    const [{ gatherShotVerifyInputs }, { verifyGeneratedShots }, { makeShotVerifyDeps }, { useGenerationCanvasStore }] =
-      await Promise.all([
-        import('./gatherShotVerifyInputs'),
-        import('./shotVerifyRunner'),
-        import('./shotVerifyJudge'),
-        import('../store/generationCanvasStore'),
-      ])
-    // dynamic import 期间可能已经切项目/清场。先验所有权再读全局画布快照，避免把新项目
-    // 的节点拿去给旧项目请求审片。
-    if (!owns(request)) return []
+    const [{ gatherShotVerifyInputs }, { verifyGeneratedShots }, { makeShotVerifyDeps }, { useGenerationCanvasStore }] = await Promise.all([
+      import('./gatherShotVerifyInputs'), import('./shotVerifyRunner'), import('./shotVerifyJudge'), import('../store/generationCanvasStore'),
+    ])
+    if (!owns(request)) return unavailable('stale-request')
     const { nodes, edges } = useGenerationCanvasStore.getState()
-    const inputs = gatherShotVerifyInputs(shotNodeIds, nodes, edges)
+    const inputs = gatherShotVerifyInputs(requested, nodes, edges)
     if (inputs.length === 0) {
-      complete(request, [])
-      return []
+      const report = unavailable('node-or-result-unavailable')
+      complete(request, report)
+      return report
     }
-    const deviations = await verifyGeneratedShots(inputs, makeShotVerifyDeps(projectId))
-    complete(request, deviations)
-    return deviations
+    const signature = (input: (typeof inputs)[number], snapshotNodes: typeof nodes): string => {
+      const node = snapshotNodes.find(candidate => candidate.id === input.shotNodeId)
+      const result = node?.result
+      return JSON.stringify([input, result ? resultIdentity(result) : null, result?.url, result?.type, result?.versionNo,
+        node?.runs?.[0]?.id, node?.runs?.[0]?.taskId])
+    }
+    const captured = new Map(inputs.map(input => [input.shotNodeId, signature(input, nodes)]))
+    const report = await verifyGeneratedShots(inputs, makeShotVerifyDeps(projectId))
+    if (!isProjectExecutionContextCurrent(project)) return unavailable('stale-project')
+    const current = useGenerationCanvasStore.getState()
+    const currentInputs = new Map(gatherShotVerifyInputs(requested, current.nodes, current.edges).map(input => [input.shotNodeId, input]))
+    const changed = new Set(requested.filter(id => {
+      const input = currentInputs.get(id)
+      return captured.has(id) && (!input || signature(input, current.nodes) !== captured.get(id))
+    }))
+    report.assessments = report.assessments.map(item => changed.has(item.shotNodeId) ? unreviewedShot(item.shotNodeId, 'review-input-changed') : item)
+    report.deviations = report.deviations.filter(item => !item.shotNodeId || !changed.has(item.shotNodeId))
+    const present = new Set(report.assessments.map(item => item.shotNodeId))
+    report.assessments.push(...requested.filter(id => !present.has(id)).map(id => unreviewedShot(id, 'node-or-result-unavailable')))
+    complete(request, report)
+    return report
   } catch {
-    // 只有当前项目的最新请求能清空；旧请求晚失败不得抹掉更新请求已经写入的结果。
-    complete(request, [])
-    return []
+    const report = unavailable('review-unavailable')
+    complete(request, report)
+    return report
   }
 }
 

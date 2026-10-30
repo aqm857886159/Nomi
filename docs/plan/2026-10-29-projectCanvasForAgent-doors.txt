@@ -1,0 +1,12 @@
+[
+  {
+    "kind": "write",
+    "path": "electron/agentLane/laneCanvasTools.ts",
+    "symbol": "projectCanvasForAgent"
+  },
+  {
+    "kind": "write",
+    "path": "electron/shared/agentCapabilities/canvasReadCompact.ts",
+    "symbol": "projectCanvasForAgent"
+  }
+]

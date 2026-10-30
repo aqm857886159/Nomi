@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-native-speech-archive-extractor",
+  "problem_type": "Ambient executable lookup selects an incompatible archive implementation",
+  "symptom": "Five complete installer class tests fail with GNU tar interpreting a Windows C: archive path as a remote host.",
+  "direct_cause": "extractArchive spawns the bare tar name; Git usr/bin before System32 selects GNU tar, which does not provide the promised ZIP extraction contract.",
+  "class_root": "The target-platform archive contract is not bound to the system bsdtar implementation the installer requires.",
+  "affected_population": [
+    "Windows installations with Git or other tar ahead in PATH",
+    "macOS installations with a different tar ahead in PATH"
+  ],
+  "scope_paths": [
+    "electron/localSpeech/localSpeechInstall.ts"
+  ],
+  "entry_points": [
+    "ensureLocalSpeechReady",
+    "installEngine",
+    "extractArchive"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/windows/tar/",
+      "checked_at": "2026-10-30",
+      "purpose": "Windows ships libarchive bsdtar supporting ZIP extraction; bind that implementation rather than an incompatible PATH tool."
+    }
+  ],
+  "invariants": [
+    "ZIP extraction uses the supported OS bsdtar, independent of ambient PATH.",
+    "Missing or invalid native executable configuration fails visibly; no alternate archive engine or unchecked fallback.",
+    "Existing archive/member/weight hashes and atomic publication remain mandatory."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "extractArchive"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1,
+    "why_not": "The one install owner invokes the extractor for every supported engine archive."
+  },
+  "generality_proof": "Explicit target-native archive selection prevents PATH drift across every installed engine/member population without a model/provider exception.",
+  "shared_boundaries": [
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "extractArchive",
+      "responsibility": "Invoke the supported native ZIP extractor before member verification and atomic publication."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "entry_point": "installEngine",
+      "disposition": "enforced",
+      "evidence": "All supported engine installation reaches extractArchive."
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "entry_point": "ensureLocalSpeechReady",
+      "disposition": "enforced",
+      "evidence": "Readiness invokes the same engine installer; member/weight/VAD failures remain tested."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any supported machine with a different tar earlier in PATH selects incompatible semantics.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs extractArchive",
+      "Compared Windows System32 bsdtar 3.8.9 with Git GNU tar failure under identical ZIP fixtures",
+      "Inspected all supported engine platform declarations and archive install callers"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/localSpeech/localSpeechInstall.ts",
+    "invariant": "Only the native supported bsdtar owns ZIP extraction.",
+    "failure_mode": "Unsupported target or missing Windows root/executable reports install failure; no silent alternate tool.",
+    "exception_policy": "none",
+    "strategy": "Resolve the system archive executable at the existing extractor boundary; preserve all verified cache/member publication checks.",
+    "artifacts": [
+      "electron/localSpeech/localSpeechInstall.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/localSpeech/localSpeechInstall.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/localSpeech/localSpeechInstall.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/localSpeech/localSpeechInstall.ts"
+    ],
+    "rationale": "Ambient bare tar lookup is replaced; no second extraction implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Windows system bsdtar 3.8.9; macOS system bsdtar",
+    "target": "Supported target OS bundled bsdtar",
+    "rationale": "Use the existing system archive library required by repository design; no new unzip implementation or dependency.",
+    "exit_criteria": [
+      "Revisit when shipped engine archive format or supported OS targets change; rerun real archive/member verification tests."
+    ]
+  },
+  "migration": "No installed speech assets, user preferences, permissions or project data are changed by this source repair.",
+  "residual_risks": [
+    "macOS path selection is covered by fixtures; native macOS execution is not available on this host."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/localSpeech/localSpeechInstall.ts",
+    "tests": [
+      "electron/localSpeech/localSpeechInstall.test.ts"
+    ]
+  }
+}

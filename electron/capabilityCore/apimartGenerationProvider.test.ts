@@ -1093,3 +1093,31 @@ describe("引擎 B 第一闸：自写能力合同的参考上限在出网前拒�
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
+
+
+it('submits declared keyless HTTP without Authorization but rejects absent connection', async () => {
+  const state=acmeCatalog();
+  state.vendors.find(v=>v.key==='acme')!.authType='none';
+  const fetchImpl=vi.fn<typeof fetch>(async()=>new Response(JSON.stringify({id:'keyless-task'}),{status:200}));
+  const provider=createProvider({vendorKey:'acme',catalogReader:()=>state,resolveConnection:()=>({apiKey:''}),fetchImpl});
+  const request=provider.buildRequest(input({providerId:'acme',modelId:'acme-image',parameters:{}}));
+  await expect(provider.submit(request,'keyless-test')).resolves.toMatchObject({providerTaskId:'keyless-task'});
+  const headers=new Headers(fetchImpl.mock.calls[0]?.[1]?.headers);
+  expect(headers.has('Authorization')).toBe(false);
+  const unavailable=createProvider({vendorKey:'acme',catalogReader:()=>state,resolveConnection:()=>null,fetchImpl});
+  const unavailableRequest=unavailable.buildRequest(input({providerId:'acme',modelId:'acme-image',parameters:{}}));
+  await expect(unavailable.submit(unavailableRequest,'missing-test')).rejects.toThrow(/connection/);
+});
+
+
+it.each(['auth-change','disabled'])('refuses stale keyless request before network after %s', async mutation => {
+  const state=acmeCatalog();
+  const vendor=state.vendors.find(v=>v.key==='acme')!;
+  vendor.authType='none';
+  const fetchImpl=vi.fn<typeof fetch>();
+  const provider=createProvider({vendorKey:'acme',catalogReader:()=>state,resolveConnection:()=>({apiKey:''}),fetchImpl});
+  const request=provider.buildRequest(input({providerId:'acme',modelId:'acme-image',parameters:{}}));
+  if(mutation==='auth-change')vendor.authType='bearer';else vendor.enabled=false;
+  await expect(provider.submit(request,'stale-keyless-test')).rejects.toThrow();
+  expect(fetchImpl).not.toHaveBeenCalled();
+});

@@ -217,7 +217,7 @@ const storyboardPatchShotsInputSchema = z
         // ——那两处只进内部模型面，对 MCP 载荷是 0 字节。这不是省略，是把话说在
         // 不会顶穿别人预算的那一层。
         kind: z.enum(["all", "indexes"]).describe("Select all shots or explicit one-based indexes."),
-        indexes: jsonTolerantArray(z.array(z.number().int().min(1).max(24)).min(1).max(24)).describe("One-based shot indexes when kind is indexes.").optional(),
+        indexes: jsonTolerantArray(z.array(z.number().int().min(1)).min(1)).describe("One-based shot indexes when kind is indexes.").optional(),
       })
       .strict()
       .superRefine((value, context) => {

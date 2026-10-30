@@ -275,3 +275,7 @@ describe("canvas.write canonical contract", () => {
     expect(canvasWriteResultSchema.safeParse({ ...result, directTool: "patch_shots" }).success).toBe(false);
   });
 });
+
+it('admits later storyboard indexes independently of the per-request node creation limit', () => {
+  expect(canvasWriteSemanticInputSchema.safeParse({ operation: 'patch_shots', select: { kind: 'indexes', indexes: [12, 25, 26, 50] }, patch: { promptAppend: 'Rain' } }).success).toBe(true)
+})

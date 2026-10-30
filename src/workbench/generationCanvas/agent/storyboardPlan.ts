@@ -321,7 +321,7 @@ function buildShotRowNodes(
         plan,
         shot,
         options.materializationOperationId,
-        id,
+        `${id}:${isImageShot ? 'image' : 'video'}`,
         options.creationDocumentId,
         options.storyboardDesignId,
       ),

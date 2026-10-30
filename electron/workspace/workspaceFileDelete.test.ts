@@ -63,7 +63,7 @@ describe("workspace delete-files", () => {
 
     await expect(deleteFiles(root, ["assets/imported/a.png"])).resolves.toEqual({ ok: true, deletedCount: 1, failedCount: 0 });
 
-    expect(mocks.trashed.map((target) => path.relative(root, target))).toEqual(["assets/imported/a.png", "assets/imported/a.png.meta"]);
+    expect(mocks.trashed.map((target) => path.relative(root, target).split(path.sep).join("/"))).toEqual(["assets/imported/a.png", "assets/imported/a.png.meta"]);
     // 删除和写入走同一个信号：素材库两个页签与「所有项目」清单都靠它刷新，调用方不必各自手动重拉。
     expect(mocks.broadcast).toHaveBeenCalledTimes(1);
     expect(mocks.broadcast).toHaveBeenCalledWith("p1");

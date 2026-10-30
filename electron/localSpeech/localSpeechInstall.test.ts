@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { zipSync } from "fflate";
 
 /**
  * 安装那一层的**失败路径**测试。
@@ -37,12 +37,9 @@ let origin = "";
 const routes = new Map<string, Buffer>();
 
 function zipOf(files: Record<string, Buffer>): Buffer {
-  const dir = fs.mkdtempSync(path.join(root, "zip-"));
-  for (const [name, bytes] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), bytes);
-  const zipPath = path.join(root, `${crypto.randomUUID().slice(0, 8)}.zip`);
-  // 用系统自带的打包器造夹具：解包侧用的也是系统自带的 bsdtar，两边同一套实现才测得准。
-  execFileSync("zip", ["-q", "-j", zipPath, ...Object.keys(files).map((name) => path.join(dir, name))]);
-  return fs.readFileSync(zipPath);
+  // Test archive creation uses the existing cross-platform library. The production
+  // extractor is still exercised independently, including member/hash failures.
+  return Buffer.from(zipSync(files));
 }
 
 const sha = (bytes: Buffer): string => crypto.createHash("sha256").update(bytes).digest("hex");
@@ -147,15 +144,18 @@ function modelFixture(bytes: Buffer, shaOverride?: string) {
 }
 
 describe.runIf(ENGINE_SHIPS_HERE)("本地转写引擎安装（本平台发引擎：跑完整条安装与校验链）", () => {
-  it("装好之后可执行文件在位、带执行位，压缩包不留在缓存里", async () => {
+  it("装好后成员在位并请求执行权限（POSIX 验执行位），压缩包不留缓存", async () => {
     const engine = engineFixture({ members: { "whisper-server": Buffer.from("#!/bin/sh\nexit 0\n"), "extra.dll": Buffer.from("dll") }, executable: "whisper-server" });
+    const chmod = vi.spyOn(fs, "chmodSync");
     const install = await loadInstall(engine);
     const model = modelFixture(Buffer.from("weights"));
 
     const ready = await install.ensureLocalSpeechReady(model);
 
     expect(fs.existsSync(ready.executablePath)).toBe(true);
-    expect(fs.statSync(ready.executablePath).mode & 0o111).toBeGreaterThan(0);
+    expect(chmod).toHaveBeenCalledWith(expect.stringContaining("whisper-server"), 0o755);
+    if (process.platform !== "win32") expect(fs.statSync(ready.executablePath).mode & 0o111).toBeGreaterThan(0);
+    expect(fs.readFileSync(ready.executablePath)).toEqual(Buffer.from("#!/bin/sh\nexit 0\n"));
     expect(fs.existsSync(ready.modelPath)).toBe(true);
     expect(fs.existsSync(ready.vadModelPath)).toBe(true);
     expect(install.isLocalSpeechEngineInstalled(engine)).toBe(true);
@@ -290,3 +290,16 @@ describe.runIf(!ENGINE_SHIPS_HERE)("本平台不发引擎", () => {
     expect(localSpeechEngineForPlatform()).toBeUndefined();
   });
 });
+
+describe('target-native archive executable',()=>{
+ it('binds Windows extraction to the native system tool instead of ambient PATH',async()=>{
+  const {localSpeechArchiveExtractor}=await import('./localSpeechInstall');
+  expect(localSpeechArchiveExtractor('win32','C:/Windows')).toBe(path.win32.normalize('C:/Windows/System32/tar.exe'));
+ });
+ it('binds macOS extraction to its native bsdtar and rejects unsupported/missing target configuration',async()=>{
+  const {localSpeechArchiveExtractor}=await import('./localSpeechInstall');
+  expect(localSpeechArchiveExtractor('darwin')).toBe('/usr/bin/tar');
+  expect(()=>localSpeechArchiveExtractor('linux')).toThrow();
+  expect(()=>localSpeechArchiveExtractor('win32','')).toThrow();
+ });
+})

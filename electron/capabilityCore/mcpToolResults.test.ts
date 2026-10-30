@@ -72,7 +72,7 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
 describe('nomi_read target=models 转述（交付1：只有 keyStatus=ok 说可用 + 参考能力 + locale）', () => {
   const modelsResult = {
     models: [
-      { vendor: 'apimart', modelId: 'seedream', label: 'Seedream', kind: 'image', keyStatus: 'ok', statusReason: '已接入且可用', accepts: { image: true, video: false, audio: false, multiImage: true }, modeIds: ['image_edit'] },
+      { vendor: 'apimart', modelId: 'seedream', label: 'Seedream', kind: 'image', usable: true, keyStatus: 'ok', statusReason: '已接入且可用', accepts: { image: true, video: false, audio: false, multiImage: true }, modeIds: ['image_edit'] },
       { vendor: 'kie', modelId: 'kie-x', label: 'Kie X', kind: 'video', keyStatus: 'missing', statusReason: '未配置 Kie 的 API Key；请先在 Nomi 应用的模型接入里填入', accepts: { image: false, video: false, audio: false, multiImage: false }, modeIds: [] },
       { vendor: 'volcengine', modelId: 'volc-y', label: '火山 Y', kind: 'image', keyStatus: 'locked', statusReason: '火山 的 API Key 已保存但当前宿主身份解不开；请在 Nomi 应用里重新保存该 Key', accepts: { image: false, video: false, audio: false, multiImage: false }, modeIds: [] },
     ],
@@ -364,5 +364,25 @@ describe('nomi_read / nomi_run_control：预算只报知道的数', () => {
     expect(zh.text).not.toMatch(ZH_MONEY)
     expect(en.text).not.toMatch(EN_MONEY)
     expect(zh.outcome).toMatchObject({ kind: 'run_control', budget: { actual: null } })
+  })
+})
+
+
+describe('model list summary preserves authoritative row usability', () => {
+  it.each(['en', 'zh-CN'] as const)('does not count key-ok but unusable models in %s', locale => {
+    const models = [
+      { vendor: 'ready', modelId: 'usable', label: 'Ready', kind: 'image', usable: true, keyStatus: 'ok', statusReason: 'ready' },
+      { vendor: 'unsupported', modelId: 'blocked', label: 'Unsupported', kind: 'text', usable: false, keyStatus: 'ok', statusReason: 'platform_unsupported' },
+    ]
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'models' }, { models }, locale)
+    expect(outcome).toMatchObject({ total: 2, usable: 1 })
+    expect(outcome!.models).toEqual(models)
+    expect(text?.split('\n').find(line => line.includes('unsupported · blocked'))).toContain('✗')
+  })
+  it('does not infer missing usability evidence from key status', () => {
+    const { outcome } = buildToolOutcome('nomi_read', { target: 'models' }, {
+      models: [{ vendor: 'unknown', modelId: 'missing-evidence', keyStatus: 'ok' }],
+    }, 'en')
+    expect(outcome).toMatchObject({ usable: 0 })
   })
 })

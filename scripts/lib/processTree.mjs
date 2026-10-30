@@ -12,7 +12,13 @@ export function killProcessTree(child, signal = 'SIGKILL') {
   if (!pid) return child?.kill?.(signal) ?? false
   try {
     if (process.platform === 'win32') {
-      spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+      // A completed parent PID may be reused; do not issue a new native kill against it.
+      if (child.exitCode != null || child.signalCode != null) return false
+      const result = spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+      if (result.error || result.status !== 0) {
+        if (child.exitCode != null || child.signalCode != null) return false
+        throw new Error('process_cleanup_failed: native tree termination was not successful', { cause: result.error ?? new Error('taskkill_exit_' + result.status) })
+      }
     } else {
       process.kill(-pid, signal)
     }

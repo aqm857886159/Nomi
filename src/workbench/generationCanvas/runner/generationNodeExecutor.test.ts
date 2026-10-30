@@ -67,12 +67,16 @@ describe('generationNodeExecutor connected text prompt integration', () => {
     const text = textNode('text-1', 'connected story context')
     const target = mediaNode(`${kind}-1`, kind)
 
+    const onTaskRequest = vi.fn(async () => {})
     await generationNodeExecutor(target, {
+      onTaskRequest,
       projectTarget: { projectId: 'project-test', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 1 },
       nodes: [text, target],
       edges: [textPromptEdge(text.id, target.id)],
     })
 
+    expect(onTaskRequest).toHaveBeenCalledOnce()
+    expect(onTaskRequest.mock.invocationCallOrder[0]).toBeLessThan(runWorkbenchTaskByVendor.mock.invocationCallOrder[0])
     expect(runWorkbenchTaskByVendor).toHaveBeenCalledOnce()
     const [, request] = runWorkbenchTaskByVendor.mock.calls[0] as [string, TaskRequestDto]
     expect(request.prompt).toBe('base prompt\n\nconnected story context')

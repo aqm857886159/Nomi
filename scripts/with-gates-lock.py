@@ -217,12 +217,15 @@ def cleanup_dead_tickets(queue_path):
             ticket = ticket_file(queue_path, number, create=False)
         except FileNotFoundError:
             continue
+        reclaimed = False
         try:
             if try_lock(ticket):
-                remove_ticket(path)
                 unlock(ticket)
+                reclaimed = True
         finally:
             ticket.close()
+        if reclaimed:
+            remove_ticket(path)
 
 
 def queue_notice(owner, count):
@@ -393,9 +396,9 @@ def main():
                 owner = metadata(file)
                 ahead = len(active_ticket_numbers(queue_path, before=ticket_number))
                 if ahead == 0 and try_lock(file):
-                    remove_ticket(ticket_pathname)
                     unlock(ticket)
                     ticket.close()
+                    remove_ticket(ticket_pathname)
                     ticket = None
                     ticket_pathname = None
                     token = uuid.uuid4().hex
@@ -409,8 +412,8 @@ def main():
                 time.sleep(0.2)
         finally:
             if ticket is not None:
-                remove_ticket(ticket_pathname)
                 ticket.close()
+                remove_ticket(ticket_pathname)
             counter.close()
             guard.close()
 

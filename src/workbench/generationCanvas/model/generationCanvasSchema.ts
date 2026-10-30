@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PROFILE_KINDS } from '../../../../electron/shared/contracts/modelAccessCapabilities'
 import { generationNodeStatusSchema } from '../../../../electron/shared/canvas/generationNodeStatus'
 import { CATEGORY_IDS } from './generationCanvasTypes'
 import { GENERATION_NODE_KINDS } from './generationNodeKinds'
@@ -62,7 +63,7 @@ export const generationNodeResultSchema = z.object({
 export const generationNodeRunRecordSchema = z.object({
   id: z.string().min(1),
   status: generationNodeRunStatusSchema,
-  attempt: z.object({ vendorKey: z.string().min(1), modelKey: z.string().min(1) }).optional(),
+  attempt: z.object({ vendorKey: z.string().min(1), modelKey: z.string().min(1), query: z.object({ taskKind: z.enum(PROFILE_KINDS).exclude(['image_to_audio']), modeId: z.string().min(1).optional() }).optional() }).optional(),
   projectId: z.string().optional(),
   taskId: z.string().optional(),
   taskKind: generationNodeTaskKindSchema.optional(),

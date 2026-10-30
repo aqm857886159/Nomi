@@ -138,6 +138,8 @@ describe('contentDeviationsToReconcile', () => {
     expect(recon[0].kind).toBe('content')
     expect(recon[0].where).toBe('主角特写')
     expect(recon[0].field).toBe('身份')
+    expect(recon[0].dimension).toBe('identity')
+    expect(recon[0].score).toBe(1)
     expect(recon[0].shotNodeId).toBe('shot-5')
     expect(recon[0].reason).toBe('脸对不上')
   })

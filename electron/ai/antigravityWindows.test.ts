@@ -46,13 +46,13 @@ describe("Antigravity platform and protocol contract regressions", () => {
   it("distinguishes handshake mismatch from a missing hook and withholds the task", async () => {
     const f = await fixture("media-handshake-mismatch");
     await expect(runAntigravityProcess({ prompt: "PRIVATE_TASK", capability: "image", cliVersion: "1.1.21" },
-      { invocation: f.invocation, env: { ...process.env, HOME: f.dir } })).rejects.toThrow("ANTIGRAVITY_HANDSHAKE_MISMATCH");
+      { invocation: f.invocation, platform: "linux", env: { ...process.env, HOME: f.dir } })).rejects.toThrow("ANTIGRAVITY_HANDSHAKE_MISMATCH");
     expect(await readFile(path.join(f.dir, "input"), "utf8")).not.toContain("PRIVATE_TASK");
   });
   it("allows media to drain after a result for more than two seconds", async () => {
     const f = await fixture("media-slow-drain");
     await expect(runAntigravityProcess({ prompt: "draw", capability: "image", cliVersion: "1.1.21" },
-      { invocation: f.invocation, env: { ...process.env, HOME: f.dir } })).resolves.toMatchObject({ artifacts: [{ mimeType: "image/png" }] });
+      { invocation: f.invocation, platform: "linux", env: { ...process.env, HOME: f.dir } })).resolves.toMatchObject({ artifacts: [{ mimeType: "image/png" }] });
   });
 });
 

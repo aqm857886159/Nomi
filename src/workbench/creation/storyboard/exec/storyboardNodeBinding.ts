@@ -36,6 +36,7 @@ export function findShotNode(
   return preferOriginal(nodes.filter((node) => {
     const meta = metaOf(node)
     return belongsToDesign(node, designId) && meta.shotId === shotId && meta.storyboardKeyframe !== true
+      && node.kind === (shot.shotKind ?? 'video')
       && !node.regeneratedFrom && !node.derivedFrom
   }))
 }
@@ -47,10 +48,17 @@ export function findShotKeyframeNode(
   shot: PlanShot,
 ): GenerationCanvasNode | null {
   const shotId = stableShotId(shot)
-  return preferOriginal(nodes.filter((node) => {
+  const explicit = preferOriginal(nodes.filter((node) => {
     const meta = metaOf(node)
     return belongsToDesign(node, designId) && meta.shotId === shotId && meta.storyboardKeyframe === true
+      && node.kind === 'image' && !node.regeneratedFrom && !node.derivedFrom
   }))
+  if (explicit) return explicit
+  // A previous image-shot output remains an image artifact when its row becomes
+  // image+video. Reuse it as first frame; never relabel its media as completed video.
+  return shot.shotKind !== 'image' && shot.keyframe?.enabled === true
+    ? findShotNode(nodes, designId, { ...shot, shotKind: 'image' })
+    : null
 }
 
 /** 该参考卡绑定的画布节点（B 起按 meta.anchorId；旧项目回退 referenceSheet + 同名匹配）。 */

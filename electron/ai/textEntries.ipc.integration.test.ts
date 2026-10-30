@@ -87,9 +87,9 @@ vi.mock("../../src/workbench/library/localProjectStore", async () => {
   const { testProjectBinding } = await import("../../src/workbench/project/projectSessionTestHarness");
   return {
     readLocalProjectAsync: vi.fn(async (projectId: string) => structuredClone(disk.get(projectId) ?? null)),
-    saveLocalProject: vi.fn(async (projectId: string, payload: unknown, name?: string) => {
+    saveLocalProject: vi.fn(async (projectId: string, payload: unknown) => {
       const binding = testProjectBinding(projectId);
-      disk.set(projectId, structuredClone({ id: projectId, name, version: 1, immutableProjectUuid: binding.immutableProjectUuid, projectGeneration: binding.projectGeneration, payload }));
+      disk.set(projectId, structuredClone({ id: projectId, name: "Rewrite fixture", version: 1, immutableProjectUuid: binding.immutableProjectUuid, projectGeneration: binding.projectGeneration, payload }));
       return disk.get(projectId);
     }),
   };
@@ -104,7 +104,10 @@ import { runGenerationNode } from "../../src/workbench/generationCanvas/runner/g
 import { runWorkbenchTextTaskStream } from "../../src/workbench/api/taskApi";
 import { requestTaskCancel, clearTaskCancel, isLocalTaskCancelledError } from "../../src/workbench/generationCanvas/runner/localTaskControl";
 import { useGenerationCanvasStore } from "../../src/workbench/generationCanvas/store/generationCanvasStore";
-import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from "../../src/workbench/project/projectSessionTestHarness";
+import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from "../../src/workbench/project/projectSessionTestHarness";
+
+import { readCurrentWorkbenchProjectPayload, setActiveWorkbenchProjectSaveTarget } from "../../src/workbench/project/workbenchProjectSession";
+import { saveLocalProject } from "../../src/workbench/library/localProjectStore";
 
 let upstream: Awaited<ReturnType<typeof startTextUpstream>>;
 let script: (index: number) => UpstreamReply = () => reply.text("改写后的句子。");
@@ -125,8 +128,11 @@ beforeEach(async () => {
   useGenerationCanvasStore.setState({ nodes: [], edges: [], selectedNodeIds: [], groups: [] });
   session = createProjectSessionTestHarness();
   projectTarget = await session.open("project-rewrite");
+  setActiveWorkbenchProjectSaveTarget({ projectId: "project-rewrite", canPersist: () => true,
+    persist: () => saveLocalProject("project-rewrite", readCurrentWorkbenchProjectPayload(), testProjectBinding("project-rewrite")),
+  });
 });
-afterEach(() => session.dispose());
+afterEach(() => { setActiveWorkbenchProjectSaveTarget(null); session.dispose(); });
 
 function rewriteNode() {
   const store = useGenerationCanvasStore.getState();

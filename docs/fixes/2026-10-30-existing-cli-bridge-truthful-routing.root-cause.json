@@ -1,0 +1,154 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-existing-cli-bridge-truthful-routing",
+  "problem_type": "Existing custom text bridge contradicts selected identity and evidence",
+  "symptom": "Selected Codex/Claude errors silently invoke another CLI; bridge forces English, drops images and reports fixed150tokens.",
+  "direct_cause": "Catch-all provider fallback, blanket language rewriting, text extraction drops non-text parts, and hardcoded usage in JSON/SSE.",
+  "class_root": "Existing custom bridge does not preserve request identity, modality, language or evidence at its shared admission/response boundaries.",
+  "affected_population": [
+    "Existing custom CLI bridge HTTP requests",
+    "All3 existing selected CLI routes",
+    "JSON and streamed responses"
+  ],
+  "scope_paths": [
+    "scripts/local-cli-bridge.cjs",
+    "scripts/local-cli-bridge.node-test.cjs"
+  ],
+  "entry_points": [
+    "Existing /v1/chat/completions and /chat/completions aliases",
+    "Existing direct executeCliModel dispatcher",
+    "Existing buildCliPrompt messages projection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Repair of a user-provided customization using the existing Nomi generic OpenAI-compatible connection; official CLI/MCP architecture is unchanged. No external protocol extensions or new bridge engine.",
+  "invariants": [
+    "Exact selected CLI is the only invoked provider; failure is explicit.",
+    "Non-text content is rejected before any CLI starts.",
+    "Conversation language and authoritative prompt text are preserved.",
+    "Missing measured usage stays unknown; never fabricate token counts.",
+    "Do not write future raw prompts or replies to disk.",
+    "Pre-aborted requests start no CLI; cancellation settles every selected runner without substituting another provider.",
+    "Only non-null JSON request objects reach field projection; scalar/array bodies return400 before any CLI starts.",
+    "All CLI cancellation/timeout tree termination uses the existing checked script process owner; failed cleanup is an error."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "extractBridgeText"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "buildCliPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "runCodexCli"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "runClaudeCli"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "runAgyCli"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "executeCliModel"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "parseResponseForToolCalls"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "Standalone script internal request/prompt/runner/response doors remain necessary; cross-provider fallback branches are removed inside these shared owners. Door-map explicitly scans scripts; it does not confuse a private extractor with unrelated src/electron extractText symbols."
+  },
+  "generality_proof": "Enforce on common request projection and exact dispatcher, with shared JSON/SSE response behavior. All existing routes/aliases use these boundaries.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "executeCliModel",
+      "responsibility": "Exact request identity and no provider substitution."
+    },
+    {
+      "path": "scripts/local-cli-bridge.cjs",
+      "symbol": "buildCliPrompt",
+      "responsibility": "Preserve authoritative language and reject unsupported content."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/local-cli-bridge.cjs",
+      "entry_point": "HTTP JSON completion",
+      "disposition": "enforced",
+      "evidence": "VM handler test with local reply fixture asserts no fabricated usage."
+    },
+    {
+      "path": "scripts/local-cli-bridge.cjs",
+      "entry_point": "HTTP streamed completion",
+      "disposition": "enforced",
+      "evidence": "VM handler SSE test asserts no fabricated usage."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Same fallback and fabricated evidence spans all selected CLIs and both response formats.",
+    "same_class_scan": [
+      "Read entire preserved Desktop bridge including prompt construction,3CLI runners,exact dispatch,GETmodels and both completion branches.",
+      "Compared official native Antigravity Windows fail-closed policy and generic OpenAI model-list descriptor owner.",
+      "Independent source review found null body access outside the request try/catch; five actual handler body-shape regressions and all three shared-owner cancellation routes checked."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/local-cli-bridge.cjs",
+    "invariant": "Exact provider/language/text-only admission and truthful optional usage apply to every retained request path.",
+    "failure_mode": "Unsupported content or unknown model rejects before invocation; selected CLI failure remains failure; missing usage omitted.",
+    "exception_policy": "none",
+    "strategy": "Remove fallback and blanket English rewriting; retain existing request/response transport.",
+    "artifacts": [
+      "scripts/local-cli-bridge.cjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/local-cli-bridge.node-test.cjs"
+  ],
+  "class_regression_tests": [
+    "scripts/local-cli-bridge.node-test.cjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/local-cli-bridge.cjs"
+    ],
+    "rationale": "Existing script fallback,forced English,fake usage and future raw logging branches removed in same change; no parallel implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No CLI/SDK version change or inference; existing native support claims retained only as actual repo contract.",
+    "exit_criteria": []
+  },
+  "migration": "Original Desktop dirty source and raw logs preserved. Active service remains unchanged until validated activation task. Existing bridge remains explicitly a customization.",
+  "residual_risks": [
+    "Actual CLI authentication/inference excluded; local test doubles do not prove live provider readiness.",
+    "Native Antigravity on Windows remains officially unsupported; existing custom bridge route is not proof of native support."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "scripts/local-cli-bridge.cjs",
+    "tests": [
+      "scripts/local-cli-bridge.node-test.cjs"
+    ]
+  }
+}

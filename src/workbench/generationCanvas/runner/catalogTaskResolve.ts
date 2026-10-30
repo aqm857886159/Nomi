@@ -62,6 +62,8 @@ export type CatalogTaskActionOptions = {
   /** 轮询抖动的随机源（默认 Math.random）。只为让抖动可直测，产品代码不传。 */
   pollRandom?: () => number
   /** S2 进度报告:catalog 任务各阶段回报(phase 经 narrate 翻成人话,治 bug② 卡 30 秒像死了)。 */
+  /** Persist exact query routing before the provider receives this built request. */
+  onTaskRequest?: (vendor: string, request: TaskRequestDto) => Promise<void>
   onProgress?: (progress: { phase: GenerationProgressPhase; message: string; taskId?: string }) => void
   /** 文本任务逐 token 回调。仅文本 kind 生效;文本 kind 一律走流式通道,这里只决定增量给不给调用方看。 */
   onTextDelta?: (delta: string) => void

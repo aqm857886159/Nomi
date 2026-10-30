@@ -213,3 +213,37 @@ describe("resolveArchetypeForModel — vendorKey 只做 B 层特化，不改变�
     expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: "kie" })?.id).toBe("gpt-image-2");
   });
 });
+
+
+describe('imported workflow declared capabilities', () => {
+  const meta = (outputKind = 'video', parameters: unknown[] = [{ key: 'first_frame_url', type: 'image-url', mediaKind: 'image' }, { key: 'comfy_steps', type: 'number', default: 8 }]) => ({ comfyWorkflowImport: { binding: { outputKind }, text: 'opaque graph' }, parameters });
+  it.each(['comfy-minimax-h3-fastvideo-custom', 'unrecognized-local-graph'])('uses declarations before name inference: %s', modelKey => {
+    const a = resolveArchetypeForModel(m({ modelKey, meta: meta() }));
+    expect(a?.kind).toBe('video');
+    expect(a?.modes.map(mode => mode.id)).toEqual(['image_to_video']);
+    expect(a?.modes[0]?.slots).toEqual([{kind:'image_ref',label:'first_frame_url',min:1,max:1,inputKey:'first_frame_url',asArray:false}]);
+    expect(a?.modes[0]?.params).toEqual([expect.objectContaining({key:'comfy_steps',defaultValue:8})]);
+  });
+  it.each([['image','image_edit'],['video','image_to_video'],['model3d','image_to_3d']])('derives %s output transport', (kind, task) => {
+    expect(resolveArchetypeForModel(m({modelKey:'workflow',meta:meta(kind)}))?.transportTaskKind).toBe(task);
+  });
+  it.each(['video','audio'])('retains %s references without inventing image transport', mediaKind => {
+    const a=resolveArchetypeForModel(m({modelKey:'workflow',meta:meta('video',[{key:'first_frame_url',type:'image-url',mediaKind}])}));
+    expect(a?.transportTaskKind).toBe('text_to_video');
+    expect(a?.modes[0]?.slots[0]).toMatchObject({kind:`${mediaKind}_ref`,inputKey:'first_frame_url'});
+  });
+  it('retains text-only and multiple exact media inputs', () => {
+    expect(resolveArchetypeForModel(m({modelKey:'workflow',meta:meta('video',[])}))?.modes[0]?.slots).toEqual([]);
+    const a=resolveArchetypeForModel(m({modelKey:'workflow',meta:meta('video',[{key:'a',type:'image-url'},{key:'b',type:'image-url'}])}));
+    expect(a?.modes[0]?.slots.map(s=>s.inputKey)).toEqual(['a','b']);
+  });
+  it.each([[{key:'bad',type:'unsupported'}],[{key:'a',type:'image-url'},{key:'a',type:'image-url'}]])('fails closed on malformed declarations', (...parameters) => {
+    expect(resolveArchetypeForModel(m({modelKey:'minimax-h3',meta:meta('video',parameters)}))).toBeNull();
+  });
+});
+
+
+it('keeps legacy imports without a declared output unavailable', () => {
+  const a=resolveArchetypeForModel(m({modelKey:'minimax-h3',meta:{comfyWorkflowImport:{binding:{}},parameters:[]}}));
+  expect(a).toBeNull();
+});

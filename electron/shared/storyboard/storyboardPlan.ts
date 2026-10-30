@@ -114,13 +114,13 @@ export type PlanShot = {
    */
   shotKind?: 'image' | 'video'
   /**
-   * 该镜时长(秒)。视频镜头 = 生成时长——落画布写进视频节点 duration 参数，按所选模型控件钳值。
+   * 该镜时长(秒)。视频镜头 = 生成时长——通过共享参数合同写入所选模型声明的时长控件。
    * 图片镜头 = **停留时长**（分镜 v5：进时间轴/顺播时这张图停几秒）——默认 3 = `DEFAULT_IMAGE_SECONDS`
    * 单一真相源（buildClipFromGenerationNode.ts）；≤0（旧 planner 对图片镜吐 0）经
    * `effectiveShotDurationSec` 回落到默认，别在展示/合计处再写字面量 3。
    */
   durationSec: number
-  /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
+  /** 旧方案的锚关系记录（按 anchor.id 引用）；不产生参考边或隐式 prompt 注入。实际素材见 referenceBindings。 */
   anchorIds: string[]
   /**
    * **按槽的参考绑定**（键 = `ArchetypeReferenceSlotKind`，值 = 有序素材列表）。

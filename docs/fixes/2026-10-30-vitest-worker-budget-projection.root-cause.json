@@ -1,0 +1,114 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-vitest-worker-budget-projection",
+  "problem_type": "Duplicate CLI worker options under fair-share admission",
+  "symptom": "A focused validation run with explicit maxWorkers fails before collection when another Vitest peer exists.",
+  "direct_cause": "main injects a fair-share maxWorkers option without consuming the existing explicit CLI option; Vitest rejects duplicate singleton options.",
+  "class_root": "Worker admission budget and caller worker limit are serialized independently instead of producing one authoritative effective option.",
+  "affected_population": [
+    "Parallel focused/default runs with explicit numeric limits",
+    "Parallel percentage limits and split/equal argument forms"
+  ],
+  "scope_paths": [
+    "scripts/vitest-fair-share.mjs"
+  ],
+  "entry_points": [
+    "buildVitestInvocation",
+    "fair-share main CLI"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Node child lifecycle and Nomi bounded-owner implementation are directly reproduced with real local fixture children; no inference or external behavior is involved.",
+  "invariants": [
+    "One canonical worker option is emitted under shared admission.",
+    "Effective workers never exceed either the caller limit or shared budget.",
+    "Exclusive invocation preserves original arguments and Vitest defaults."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/vitest-fair-share.mjs",
+      "symbol": "buildVitestInvocation"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1,
+    "why_not": "The one CLI owner builds the invocation for all validation entrypoints."
+  },
+  "generality_proof": "Invocation construction consumes the one singleton option and chooses the smaller resolved worker limit, covering both argument encodings and percentages without caller-specific branches.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/vitest-fair-share.mjs",
+      "symbol": "buildVitestInvocation",
+      "responsibility": "Project caller worker preference and fair share into a single invocation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/vitest-fair-share.mjs",
+      "entry_point": "main",
+      "disposition": "enforced",
+      "evidence": "Focused command reproduced duplicate values [32,1]."
+    },
+    {
+      "path": "package.json",
+      "entry_point": "test / test:unit:shard",
+      "disposition": "enforced",
+      "evidence": "Both invoke the same wrapper; argument forms and percentages are checked against installed Vitest parsing."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every explicit worker limit collides whenever peers>1.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs buildVitestInvocation --roots=scripts",
+      "Inspected pinned Vitest 4.1.8 coverage.DM_a_rWm.js getWorkersCountByPercentage and resolveInlineWorkerOption",
+      "Inspected wrapper main and buildVitestInvocation plus all package wrapper callers"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/vitest-fair-share.mjs",
+    "invariant": "Only the effective minimum budget is serialized into argv.",
+    "failure_mode": "Duplicate or invalid explicit shared-mode worker options fail before launching; no silent over-budget invocation.",
+    "exception_policy": "none",
+    "strategy": "Move worker option projection into the existing invocation owner and remove main’s blind prepend.",
+    "artifacts": [
+      "scripts/vitest-fair-share.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/vitest-fair-share.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/vitest-fair-share.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/vitest-fair-share.mjs"
+    ],
+    "rationale": "Blind option injection is removed; no second runner."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Retain pinned Vitest 4.1.8; percentage conversion matches its installed source. No new dependency is needed.",
+    "current": "vitest 4.1.8",
+    "target": "Next repository-approved Vitest release",
+    "exit_criteria": [
+      "Recheck singleton CLI option and percentage worker semantics during the next Vitest upgrade."
+    ]
+  },
+  "migration": "No settings or registry format changes.",
+  "residual_risks": [
+    "The existing fair-share minimum-two oversubscription policy is preserved."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "scripts/vitest-fair-share.mjs",
+    "tests": [
+      "scripts/vitest-fair-share.node-test.mjs"
+    ]
+  }
+}

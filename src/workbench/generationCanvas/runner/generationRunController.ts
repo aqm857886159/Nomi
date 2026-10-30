@@ -3,6 +3,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult }
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { GenerationRunOutcome } from './generationRunOutcome'
+import { persistSubmittedRunAttempt } from './runProjectDelivery'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -348,6 +349,14 @@ export async function runGenerationNode(
               message: progress.message,
               ...(progress.taskId ? { taskId: progress.taskId } : {}),
             })
+          },
+          onTaskRequest: async (vendor, request) => {
+            const modelKey = typeof request.extras?.modelKey === 'string' ? request.extras.modelKey.trim() : ''
+            if (!vendor || !modelKey) throw new Error('Submitted task identity is incomplete')
+            const archetype = request.extras?.archetype
+            const modeId = archetype && typeof archetype === 'object' && 'modeId' in archetype && typeof archetype.modeId === 'string' ? archetype.modeId.trim() : ''
+            run.attempt = { vendorKey: vendor, modelKey, query: { taskKind: request.kind, ...(modeId ? { modeId } : {}) } }
+            await persistSubmittedRunAttempt(target, id, run.id, run.attempt)
           },
           onMediaDimensions: (dimensions) => { mediaDimensions = dimensions },
         })

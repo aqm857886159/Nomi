@@ -123,3 +123,31 @@ describe("shared video capability registry", () => {
     expect(mismatches).toEqual([]);
   });
 });
+
+
+it.each(['comfy-minimax-h3-fastvideo-custom','unknown-local-graph'])('preserves import declarations in planner: %s', modelKey => {
+  const [candidate]=buildVideoModelCandidates([{provider:'comfyui-local',modelKey,label:'Imported graph',meta:{comfyWorkflowImport:{binding:{outputKind:'video'}},parameters:[{key:'first_frame_url',type:'image-url',mediaKind:'image'}]}}]);
+  expect(candidate?.archetype.modes.map(mode=>mode.id)).toEqual(['image_to_video']);
+  expect(candidate?.archetype.modes[0]?.slots[0]?.inputKey).toBe('first_frame_url');
+});
+
+
+it('recommends exactly the declared count of separate workflow image inputs', () => {
+  const candidates=buildVideoModelCandidates([{provider:'comfyui-local',modelKey:'local-multi',label:'multi',meta:{comfyWorkflowImport:{binding:{outputKind:'video'}},parameters:[{key:'a',type:'image-url'},{key:'b',type:'image-url'}]}}]);
+  const recommendations=(n:number)=>recommendVideoGeneration({references:Array.from({length:n},()=>({kind:'image' as const}))},candidates).recommendations;
+  expect(recommendations(2)).toHaveLength(1);
+  expect(recommendations(1)).toHaveLength(0);
+  expect(recommendations(3)).toHaveLength(0);
+});
+
+
+it('does not recommend malformed imported declarations as cloud profiles', () => {
+  expect(buildVideoModelCandidates([{provider:'local',modelKey:'minimax-h3',label:'invalid',meta:{comfyWorkflowImport:{binding:{}},parameters:[]}}])).toEqual([]);
+});
+
+
+it('keeps imported graph media authoritative over a generic custom text default in planning', () => {
+ const [candidate]=buildVideoModelCandidates([{provider:'comfyui-local',modelKey:'local-i2v',label:'local',meta:{parameters:[{key:'frame',type:'image-url'}],comfyWorkflowImport:{binding:{outputKind:'video'}},customCapabilityContract:{version:1,kind:'video',defaultModeId:'default',transportTaskKind:'text_to_video',modes:[{id:'default',intent:'text',vendorTerm:'Default mode',hint:'',promptRequired:true,transportTaskKind:'text_to_video',slots:[],params:[]}]}}}]);
+ expect(candidate?.archetype.transportTaskKind).toBe('image_to_video');
+ expect(candidate?.archetype.modes[0]?.slots[0]?.inputKey).toBe('frame');
+});

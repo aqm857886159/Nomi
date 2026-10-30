@@ -83,7 +83,31 @@ function resolveVitestBin() {
   return fs.existsSync(local) ? local : null
 }
 
-export function buildVitestInvocation(args, vitestBin = resolveVitestBin()) {
+export function buildVitestInvocation(args, vitestBin = resolveVitestBin(), share = null, cores = os.availableParallelism?.() ?? os.cpus().length) {
+  if (share !== null) {
+    const projected = []
+    let explicit
+    for (let index = 0; index < args.length; index += 1) {
+      const argument = args[index]
+      if (argument === '--') { projected.push(...args.slice(index)); break }
+      const matched = /^(--maxWorkers|--max-workers)(?:=(.*))?$/.exec(argument)
+      if (!matched) { projected.push(argument); continue }
+      if (explicit !== undefined) throw new Error('Duplicate --maxWorkers')
+      explicit = matched[2] ?? args[++index]
+      if (explicit === undefined) throw new Error('Missing --maxWorkers value')
+    }
+    let limit = share
+    if (explicit !== undefined) {
+      const requested = /^\d+%$/.test(explicit)
+        ? Math.max(1, Math.min(cores, Math.round(Number.parseInt(explicit, 10) / 100 * cores)))
+        : Number(explicit)
+      if (!Number.isInteger(requested) || requested < 1) throw new Error('Invalid --maxWorkers value')
+      limit = Math.min(limit, requested)
+    }
+    const separator = projected.indexOf('--')
+    projected.splice(separator < 0 ? projected.length : separator, 0, '--maxWorkers=' + limit)
+    args = projected
+  }
   return vitestBin
     ? { command: process.execPath, args: [vitestBin, ...args], shell: false }
     : { command: 'vitest', args, shell: false }
@@ -126,7 +150,6 @@ async function main() {
   if (share === null) {
     console.log(`[vitest] 独占本机（${cores} 核），worker 数交给 vitest 默认。`)
   } else {
-    args.splice(1, 0, `--maxWorkers=${share}`)
     console.log(
       `[vitest] 检测到 ${peers} 个 vitest 并发（${cores} 核）→ 本次限 ${share} 个 worker。` +
         `\n         并发时不让路会把机器压进 swap，测试因超载而超时、红灯失去意义（见脚本头注）。`,
@@ -134,7 +157,7 @@ async function main() {
   }
 
   const vitestBin = resolveVitestBin()
-  const invocation = buildVitestInvocation(args, vitestBin)
+  const invocation = buildVitestInvocation(args, vitestBin, share, cores)
   const child = spawn(invocation.command, invocation.args, { stdio: 'inherit', env: process.env, shell: invocation.shell })
   child.on('error', (err) => {
     console.error(`[vitest] 启动失败：${err.message}`)

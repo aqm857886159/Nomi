@@ -1,0 +1,7 @@
+[
+  {
+    "kind": "write",
+    "path": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+    "symbol": "belongsToDesign"
+  }
+]

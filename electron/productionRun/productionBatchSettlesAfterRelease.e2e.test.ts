@@ -1,3 +1,5 @@
+function qaAssessmentFixture(shotNodeId: string) { return { shotNodeId, assessed: true as const, dimensions: ['identity', 'composition', 'continuity'], unassessedDimensions: [], scope: 'single-frame' as const } }
+
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -113,7 +115,7 @@ function setup() {
       const shotNodeIds = (payload as { shotNodeIds?: string[] }).shotNodeIds ?? [];
       if (op === "production.verify-shots") {
         reviewed.push(shotNodeIds);
-        return { reviewedShotIds: shotNodeIds, verdicts: shotNodeIds.map((shotNodeId) => ({ shotNodeId, passed: true })) };
+        return { reviewedShotIds: shotNodeIds, verdicts: shotNodeIds.map((shotNodeId) => ({ shotNodeId, assessment: qaAssessmentFixture(shotNodeId), passed: true })) };
       }
       if (op === "production.arrange") return { arranged: shotNodeIds.length, total: shotNodeIds.length, timelineContract: { version: 1, clips: shotNodeIds } };
       throw new Error(`unexpected renderer operation ${op}`);

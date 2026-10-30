@@ -1,0 +1,180 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-keyless-generation-readiness",
+  "problem_type": "Semantic generation requires credentials for keyless catalog connections",
+  "symptom": "Usable local HTTP model is refused with configured_provider in native operation preview.",
+  "direct_cause": "Bootstrap and submit unconditionally require a nonempty saved API key.",
+  "class_root": "Semantic executor ignores declared authentication mode.",
+  "affected_population": [
+    "Every enabled published authType none HTTP connection"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/generationProviderBootstrap.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts"
+  ],
+  "entry_points": [
+    "Native MCP generation preview and submit",
+    "Production run catalog provider"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal catalog declaration projection, not third-party protocol.",
+  "invariants": [
+    "Keyless connections require a live enabled connection, not invented credentials.",
+    "Keyed connections still require valid enabled decryptable credentials.",
+    "Unsupported PROCESS and multipart semantic transport remain refused before submission."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
+      "symbol": "GenerationProviderBootstrap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "GenerationProviderBootstrapOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "GenerationProviderBootstrap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "GenerationProviderBootstrap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationIdentity.ts",
+      "symbol": "CatalogGenerationProviderError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProjection.ts",
+      "symbol": "ApimartImageReferenceWithRole"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "CatalogGenerationProviderError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "CatalogGenerationProviderOptions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createCatalogGenerationProvider"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 13,
+    "why_not": "Desktop and stdio each require their own assembly entry, but both call the same live bootstrap and executor."
+  },
+  "generality_proof": "Declaration-based auth handling spans every keyless HTTP vendor without provider-name branches.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap",
+      "responsibility": "Resolve readiness from declared auth mode and live catalog."
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "createCatalogGenerationProvider",
+      "responsibility": "Recheck live connection and declared auth mode at network edge."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "createGenerationProviderBootstrap",
+      "disposition": "enforced",
+      "evidence": "Live runtime factory calls shared bootstrap."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createGenerationProviderBootstrap",
+      "disposition": "enforced",
+      "evidence": "Same live factory for stdio MCP."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every imported graph can hit unknown or colliding model identity on each projection.",
+    "same_class_scan": [
+      "door-map resolveArchetypeForModel: 25 consumer files",
+      "door-map buildVideoModelCandidates: both production producers",
+      "Independent review traced renderer, handbook and planner; native refusal reproduced."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/generationProviderBootstrap.ts",
+    "invariant": "Keyless connections require a live enabled connection, not invented credentials.",
+    "failure_mode": "Missing or disabled live connection rejects, and any keyed auth still requires nonempty key.",
+    "exception_policy": "none",
+    "strategy": "Use catalog authentication declaration consistently at readiness and network edge.",
+    "artifacts": [
+      "electron/capabilityCore/generationProviderBootstrap.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/generationProviderBootstrapOwnership.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/generationProviderBootstrapOwnership.test.ts",
+    "electron/capabilityCore/apimartGenerationProvider.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/generationProviderBootstrap.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts"
+    ],
+    "rationale": "Remove unconditional key requirement only for explicit authType none; preserve all keyed-auth and unsupported-transport checks."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency determines internal metadata projection.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes or fake credentials. Read live auth declaration.",
+  "residual_risks": [
+    "Codex PROCESS execution remains on existing canvas transport, not this HTTP-only executor."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-10-29",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore",
+    "tests": [
+      "electron/capabilityCore/generationProviderBootstrapOwnership.test.ts",
+      "electron/capabilityCore/apimartGenerationProvider.test.ts"
+    ]
+  }
+}

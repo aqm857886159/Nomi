@@ -100,3 +100,20 @@ describe('storyboardPatchShots scoped production coverage', () => {
     )).toThrow(/镜号 4 超出范围/)
   })
 })
+
+
+it('uses the canonical kind transition instead of retaining an image model on a video shot', () => {
+  const old = { ...basePlan, shots: [{ ...basePlan.shots[0], durationSec: 0, modelKey: 'image-only', modelVendor: 'image-vendor', modeId: 't2i', params: { quality: 'old' } }] }
+  const result = previewStoryboardPatchShots(old, input({ select: { kind: 'all' }, patch: { shotKind: 'video' } }))
+  expect(result.nextPlan.shots[0]).toMatchObject({ shotKind: 'video', durationSec: 5 })
+  expect(result.nextPlan.shots[0].modelKey).toBeUndefined()
+  expect(result.nextPlan.shots[0].modelVendor).toBeUndefined()
+  expect(result.nextPlan.shots[0].params).toBeUndefined()
+})
+
+it('a catalog-declared I2V transition enables image reuse through the same shot-kind helper', () => {
+  const old = { ...basePlan, shots: [{ ...basePlan.shots[0], durationSec: 0 }] }
+  const models = [{ modelId: 'imported-i2v', vendor: 'local', defaultModeId: 'image_to_video', modes: [{ modeId: 'image_to_video', slots: [{ kind: 'image_ref', label: 'Load Image' }] }] }] as unknown as import('./availableModels').AgentModelEntry[]
+  const result = previewStoryboardPatchShots(old, input({ select: { kind: 'all' }, patch: { shotKind: 'video', modelKey: 'imported-i2v', modelVendor: 'local' } }), models)
+  expect(result.nextPlan.shots[0]).toMatchObject({ shotKind: 'video', durationSec: 5, keyframe: { enabled: true }, modelKey: 'imported-i2v', modelVendor: 'local' })
+})

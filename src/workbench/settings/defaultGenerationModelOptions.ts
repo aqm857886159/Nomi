@@ -8,6 +8,8 @@
 //    配一张 decode 表——从结构上消灭转义 bug。
 
 import type { ModelCatalogModelDto } from '../api/modelCatalogApi'
+import { keepUsableModelRows } from '../../config/modelCatalogCache'
+import { rowServesMode } from '../../../electron/shared/modelPublication'
 import type { NomiSelectOption } from '../../design'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import {
@@ -16,7 +18,7 @@ import {
   type GenerationModelDefault,
 } from '../../../electron/settings/generationModelDefaultsContract'
 
-/** 目录只按 image/video 粗分（DTO 的 kind 就这个粒度）。图片两类共用图片模型，视频两类共用视频模型。 */
+/** Billing kind narrows the media family; published modes own task compatibility. */
 const KIND_OF_TASK: Record<GenerationDefaultTaskKind, 'image' | 'video'> = {
   text_to_image: 'image',
   image_edit: 'image',
@@ -27,13 +29,13 @@ const KIND_OF_TASK: Record<GenerationDefaultTaskKind, 'image' | 'video'> = {
 export type DefaultModelOptionSet = {
   optionsByKind: Record<GenerationDefaultTaskKind, NomiSelectOption[]>
   /** 下拉值 → 双段身份。值不认识（目录变了）时返回 null。 */
-  decode: (value: string) => GenerationModelDefault | null
+  decode: (value: string, taskKind: GenerationDefaultTaskKind) => GenerationModelDefault | null
   /** 双段身份 → 下拉值。目录里没有这个模型时返回 null（UI 据此标「已不可用」）。 */
-  encode: (identity: GenerationModelDefault) => string | null
+  encode: (identity: GenerationModelDefault, taskKind: GenerationDefaultTaskKind) => string | null
 }
 
 /** 不透明 id：只保证同一次构建内稳定且唯一，不承载语义，外部不许 split 它。 */
-function identityId(index: number): string {
+function defaultModelOptionId(index: number): string {
   return `m${index}`
 }
 
@@ -47,10 +49,10 @@ export function buildDefaultModelOptions(
   // 「能不能用」只认主进程那一个答案。旧版这里只看 `enabled`——这是全仓最宽的一份判据，
   // 于是 Agent 面板「图片默认 / 视频默认」两行能列出一个供应商没接入、根本跑不了的模型，
   // 而同一份目录在画布选择器里早就被滤掉了（2026-09-12 P0-10 同类）。
-  const usable = models.filter((model) => model.availability.usable && model.vendorKey && model.modelKey)
+  const usable = keepUsableModelRows(models).filter((model) => rowServesMode(model, 'any-published') && model.vendorKey && model.modelKey)
 
   usable.forEach((model, index) => {
-    const id = identityId(index)
+    const id = defaultModelOptionId(index)
     decodeMap.set(id, { vendorKey: model.vendorKey, modelKey: model.modelKey })
     encodeMap.set(`${model.vendorKey}\0${model.modelKey}`, id)
   })
@@ -60,12 +62,12 @@ export function buildDefaultModelOptions(
     const wanted = KIND_OF_TASK[taskKind]
     const options: NomiSelectOption[] = [{ value: '', label: autoLabel }]
     usable.forEach((model, index) => {
-      if (model.kind !== wanted) return
+      if (model.kind !== wanted || !rowServesMode(model, taskKind)) return
       // 展示名过 model-display 边界：目录里的 labelZh / vendor.name 是稳定中文档案键，
       // 英文界面要显示译名（词典没有的（用户自建模型）原样透传）。
       const vendorName = translateModelDisplayText(vendorNameOf(model.vendorKey) || model.vendorKey)
       options.push({
-        value: identityId(index),
+        value: defaultModelOptionId(index),
         // 「模型 · 供应商」：同名模型跨供应商时，这一段是用户唯一分得清的依据。
         label: `${translateModelDisplayText(model.labelZh || model.modelKey)} · ${vendorName}`,
       })
@@ -75,7 +77,10 @@ export function buildDefaultModelOptions(
 
   return {
     optionsByKind,
-    decode: (value) => decodeMap.get(value) ?? null,
-    encode: (identity) => encodeMap.get(`${identity.vendorKey}\0${identity.modelKey}`) ?? null,
+    decode: (value, taskKind) => optionsByKind[taskKind].some(option => option.value === value) ? decodeMap.get(value) ?? null : null,
+    encode: (identity, taskKind) => {
+      const value = encodeMap.get(`${identity.vendorKey}\0${identity.modelKey}`)
+      return value && optionsByKind[taskKind].some(option => option.value === value) ? value : null
+    },
   }
 }

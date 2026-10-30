@@ -1,13 +1,18 @@
 import { makeTempDir } from '../_test-temp.mjs'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, symlinkSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync, symlinkSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import test from 'node:test'
 import { compose, scores } from './compose.mjs'
 
+// Fixture scripts run in the installed Git-for-Windows POSIX runtime; product hooks are unchanged.
+const shellRoot = process.platform === 'win32'
+  ? path.resolve(execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim(), '../../..', 'usr/bin')
+  : '/bin'
+const bash = path.join(shellRoot, process.platform === 'win32' ? 'bash.exe' : 'bash')
+const sh = path.join(shellRoot, process.platform === 'win32' ? 'sh.exe' : 'sh')
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const official = JSON.parse(readFileSync(path.join(root, 'tests/fixtures/standard-formats/claude-notification/input.json'), 'utf8'))
 const settings = JSON.parse(readFileSync(path.join(root, '.claude/settings.json'), 'utf8'))
@@ -22,12 +27,20 @@ function fixture(t, platform = 'Darwin', players = ['afplay', 'osascript']) {
   mkdirSync(log)
   const script = (name, body) => writeFileSync(path.join(bin, name), '#!/bin/bash\n' + body, { mode: 0o755 })
   script('uname', `echo '${platform}'\n`)
-  symlinkSync('/bin/bash', path.join(bin, 'bash'))
-  symlinkSync('/bin/sh', path.join(bin, 'sh'))
+  if (process.platform === 'win32') {
+    // Invoke the real binary directory so its MSYS DLLs stay discoverable under the isolated PATH.
+    const quote = value => "'" + value.split(path.sep).join('/').replaceAll("'", "'\\''") + "'"
+    symlinkSync(bash, path.join(bin, 'bash.exe'))
+    script('bash', 'exec ' + quote(bash) + ' "$@"\n')
+    script('sh', 'exec ' + quote(sh) + ' "$@"\n')
+  } else {
+    symlinkSync(bash, path.join(bin, 'bash'))
+    symlinkSync(sh, path.join(bin, 'sh'))
+  }
   symlinkSync(process.execPath, path.join(bin, 'node'))
   // A private file per process keeps concurrent invocations separate, even for large arguments.
   for (const name of players) script(name, `printf '%s\\0' '${name}' "$@" > "$CUE_TEST_LOG/${name}.$$"\n`)
-  const env = { ...process.env, PATH: bin, CLAUDE_PROJECT_DIR: root, CUE_TEST_LOG: log }
+  const env = { ...process.env, PATH: process.platform === 'win32' ? [bin, shellRoot].join(path.delimiter) : bin, CLAUDE_PROJECT_DIR: root.split(path.sep).join('/'), CUE_TEST_LOG: log.split(path.sep).join('/') }
   const calls = () => readdirSync(log).map(file => readFileSync(path.join(log, file), 'utf8').split('\0').slice(0, -1))
   return { dir, env, calls, script }
 }
@@ -57,7 +70,7 @@ test('three committed WAVs are deterministic PCM16, bounded, audible and unclipp
 test('official Notification input reaches play.sh via actual registered command, safely', (t) => {
   const f = fixture(t)
   const reason = '要花钱 ¥33 "quote"\n$(touch /tmp/nomi-cue-should-not-run)'
-  const run = spawnSync('/bin/sh', ['-c', registration.hooks[0].command], { env: f.env, input: JSON.stringify({ ...official, message: reason }), encoding: 'utf8' })
+  const run = spawnSync(sh, ['-c', registration.hooks[0].command], { env: f.env, input: JSON.stringify({ ...official, message: reason }), encoding: 'utf8' })
   assert.equal(run.status, 0, run.stderr)
   assert.equal(run.stdout, '')
   const calls = f.calls()
@@ -71,18 +84,18 @@ test('only human-attention types match; malformed/other events remain silent', (
   for (const type of ['permission_prompt', 'idle_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input']) assert.ok(matcher.test(type))
   for (const type of ['auth_success', 'agent_completed', 'elicitation_complete', 'elicitation_response']) {
     assert.equal(matcher.test(type), false)
-    const run = spawnSync('/bin/sh', ['-c', registration.hooks[0].command], { env: f.env, input: JSON.stringify({ ...official, notification_type: type }), encoding: 'utf8' })
+    const run = spawnSync(sh, ['-c', registration.hooks[0].command], { env: f.env, input: JSON.stringify({ ...official, notification_type: type }), encoding: 'utf8' })
     assert.equal(run.status, 0)
   }
   for (const input of ['{', JSON.stringify({ ...official, hook_event_name: 'PostToolUse' })]) {
-    assert.equal(spawnSync('/bin/sh', ['-c', registration.hooks[0].command], { env: f.env, input }).status, 0)
+    assert.equal(spawnSync(sh, ['-c', registration.hooks[0].command], { env: f.env, input }).status, 0)
   }
   assert.deepEqual(f.calls(), [])
 })
 
 test('missing afplay is silent, successful, and still sends the native notification', (t) => {
   const f = fixture(t, 'Darwin', ['osascript'])
-  const run = spawnSync('/bin/bash', [path.join(root, 'scripts/play-attention-cue.sh'), '--reason', '需要决定'], { env: f.env, encoding: 'utf8' })
+  const run = spawnSync(bash, [path.join(root, 'scripts/play-attention-cue.sh').split(path.sep).join('/'), '--reason', '需要决定'], { env: f.env, encoding: 'utf8' })
   assert.equal(run.status, 0)
   assert.equal(run.stderr, '')
   assert.equal(run.stdout, '')
@@ -97,7 +110,7 @@ for (const [platform, players, expected] of [
 ]) {
   test(`${platform} native player selection: ${expected || 'silent without players'}`, (t) => {
     const f = fixture(t, platform, players)
-    const run = spawnSync('/bin/bash', [path.join(root, 'scripts/play-attention-cue.sh'), '--candidate', 'b'], { env: f.env, encoding: 'utf8' })
+    const run = spawnSync(bash, [path.join(root, 'scripts/play-attention-cue.sh').split(path.sep).join('/'), '--candidate', 'b'], { env: f.env, encoding: 'utf8' })
     assert.equal(run.status, 0)
     assert.equal(run.stderr, '')
     if (expected) assert.deepEqual(f.calls().map(([command]) => command), [expected])
@@ -108,7 +121,7 @@ for (const [platform, players, expected] of [
 test('fixture preserves concurrent invocations and exact argument boundaries', (t) => {
   const f = fixture(t)
   const args = ['line one\nline two', '', 'quote " and $literal', 'x'.repeat(8192)]
-  const run = spawnSync('/bin/bash', ['-c', 'for i in {1..8}; do afplay "$@" & osascript "$@" & done; wait', 'fixture', ...args], { env: f.env, encoding: 'utf8' })
+  const run = spawnSync(bash, ['-c', 'for i in {1..8}; do afplay "$@" & osascript "$@" & done; wait', 'fixture', ...args], { env: f.env, encoding: 'utf8' })
   assert.equal(run.status, 0, run.stderr)
   const calls = f.calls()
   assert.equal(calls.length, 16)

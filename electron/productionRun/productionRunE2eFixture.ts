@@ -1,3 +1,5 @@
+function qaAssessmentFixture(shotNodeId: string) { return { shotNodeId, assessed: true as const, dimensions: ['identity', 'composition', 'continuity'], unassessedDimensions: [], scope: 'single-frame' as const } }
+
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -541,17 +543,17 @@ export function createProductionRunE2eRenderer(options: FixtureOptions) {
           reviewedShotIds: shotNodeIds,
           verdicts: [
             {
-              shotNodeId: first,
+              shotNodeId: first, assessment: qaAssessmentFixture(first!),
               passed: false,
               flagged: [{ dimension: 'continuity', score: 2, reason: 'fixture fail-once: identity continuity needs a targeted retry' }],
             },
-            ...rest.map((shotNodeId) => ({ shotNodeId, passed: true })),
+            ...rest.map((shotNodeId) => ({ shotNodeId, assessment: qaAssessmentFixture(shotNodeId), passed: true })),
           ],
         }
       }
       return {
         reviewedShotIds: shotNodeIds,
-        verdicts: shotNodeIds.map((shotNodeId) => ({ shotNodeId, passed: true })),
+        verdicts: shotNodeIds.map((shotNodeId) => ({ shotNodeId, assessment: qaAssessmentFixture(shotNodeId), passed: true })),
       }
     }
 

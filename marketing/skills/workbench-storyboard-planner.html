@@ -375,7 +375,7 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 <li><strong><code>title</code></strong>：镜头标题（用户给定标题、角色名保持原文；未给定时按回复语言起简洁标题）。</li>
 <li><strong><code>prompt</code></strong>：可直接生成的画面/动作提示词（简体中文用户 → 中文提示词）。</li>
 <li><strong><code>taskKind</code></strong>：<code>text_to_image</code>（静帧）或 <code>text_to_video</code>（有时长与运镜的镜头）；视频镜给 <code>durationSec</code>。</li>
-<li><strong><code>role: &quot;anchor&quot;</code></strong>：跨镜头要保持一致的东西（角色/场景/道具/风格）作为<strong>锚镜</strong>先建，分类、载体与作用范围放在 <code>storyboard</code>；镜头用 <code>storyboard.anchorIds</code> 绑定宿主返回的真实锚 ID。</li>
+<li><strong><code>role: &quot;anchor&quot;</code></strong>：跨镜头要保持一致的东西（角色/场景/道具/风格）作为<strong>锚镜</strong>先建，分类、载体与作用范围放在 <code>storyboard</code>；<code>storyboard.anchorIds</code> 只记录宿主返回的真实锚 ID；实际素材必须用 <code>storyboard.referenceBindings</code> 显式绑定。</li>
 <li><strong><code>modelId</code> / <code>modeId</code> / <code>parameters</code></strong>：用户已指定模型或清晰度时才填（从 <code>list_models</code> 取准确值）。</li>
 </ul>
 <p><strong>结构铁律</strong>：<code>shots</code> 必须是工具参数里的<strong>数组本体</strong>，不是 JSON 文本。正确是 <code>shots: [{...}, {...}]</code>；错误是 <code>shots: &quot;[{...}]&quot;</code>。不要为了塞长内容把数组序列化成字符串，也不要输出任何转义 JSON 文本。</p>
@@ -440,14 +440,16 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 <li><code>storyboard.carrier</code>：<code>visual</code> 是需要参考图锁定的特定实例，角色/场景/道具通常使用；<code>text</code> 是能用文字表达的特征，风格通常使用。规划阶段两者都不提交生成。</li>
 <li><code>storyboard.scope</code>：<code>all</code> 每镜适用，<code>selective</code> 只对引用该锚的镜头适用；按剧情决定，不为省接线把选择性锚改成全局。</li>
 </ul>
-<p>新建时不填 <code>shotId</code>，宿主分配身份：参考卡与镜头各自编号，镜号只数镜头（「第 1 镜」就是第一个镜头，不会是参考卡）。不要编造 ID：<strong>创建的返回里就带着真实锚 ID 与每个镜头的行号</strong>，需要选择性关联时用同一个 <code>operationId</code> 加真实镜头 <code>shotId</code> 补写 <code>storyboard.anchorIds</code>。这是修改同一份方案，不再创建一份。已有素材引用使用工具返回的真实身份。</p>
+<p>新建时不填 <code>shotId</code>，宿主分配身份：参考卡与镜头各自编号，镜号只数镜头（「第 1 镜」就是第一个镜头，不会是参考卡）。不要编造 ID：<strong>创建的返回里就带着真实锚 ID 与每个镜头的行号</strong>，需要选择性关联时用同一个 <code>operationId</code> 加真实镜头 <code>shotId</code> 更新原镜头；<code>storyboard.anchorIds</code> 只记关系，实际视觉输入用 <code>storyboard.referenceBindings</code> 绑定已读到的真实 URL。尚无参考图时说明缺口，不编造素材，也不宣称已经接好。这是修改同一份方案，不再创建一份。已有素材引用使用工具返回的真实身份。</p>
 <h2 id="第-3-步-每个镜头-shot">第 3 步 · 每个镜头 = shot</h2>
 <ul>
 <li>数组按剧本时序排列；镜号由宿主分配，不传顶层 <code>index</code>。</li>
 <li><code>taskKind</code>：按第 0 步选择图片/视频及参考模式，媒体类型由该字段推导。不要另传媒体类型字段；图片+视频另填 <code>storyboard.keyframe.enabled=true</code>。</li>
-<li><code>durationSec</code>：时长（秒），<strong>仅视频分镜</strong>——<strong>别拍脑袋、别信剧本「约 Ns」标注</strong>（画面骨架估时系统性低估对白与表演），按下方 <strong>§演时换算法</strong> 给每镜算出真实表演秒数填入。落画布时系统会钳到所选模型上限；<strong>算出超过单条上限的拍子，拆成连续多镜</strong>（见 §演时换算），别硬塞进一镜被截断。<strong>图片分镜省掉这个字段。</strong></li>
-<li><code>storyboard.anchorIds</code>：这镜用到哪些锚（写读回的真实锚 ID）。出现的角色/所在场景/用到的道具/整片风格都列上——系统据此给视觉锚连参考边、把文本锚拼进 prompt。</li>
-<li><code>prompt</code>：按上述输出语言规则，可直接生成的高质量提示词——<strong>运镜（推/拉/摇/跟…）→ 动作演进 → 节奏/时长感</strong>。不要复述锚的静态外貌（那由参考图/文本锚负责），写这一镜独有的画面与动作。<ul>
+<li><code>durationSec</code>：时长（秒），<strong>仅视频分镜</strong>——<strong>别拍脑袋、别信剧本「约 Ns」标注</strong>（画面骨架估时系统性低估对白与表演），按下方 <strong>§演时换算法</strong> 给每镜算出真实表演秒数填入。先按所选模型声明的合法范围规划；<strong>算出超过单条上限的拍子，拆成连续多镜</strong>（见 §演时换算），别硬塞进一镜被截断。<strong>图片分镜省掉这个字段。</strong></li>
+<li><code>storyboard.anchorIds</code>：只记录真实锚 ID 的关系，不会自动连边或追加文本。</li>
+<li><code>storyboard.referenceBindings</code>：实际发送的具名参考槽，键取所选模式声明的 <code>image_ref</code> / <code>first_frame</code> / <code>last_frame</code> 等槽；值为有序素材数组，每项必须有已读到的真实 <code>url</code>，可附 <code>anchorId</code> / <code>sourceNodeId</code> / <code>name</code>。例如 <code>{image_ref:[{url:真实素材地址,anchorId:真实锚ID}]}</code>。使用工具顶层 <code>references</code> 时沿用其真实资产身份，不要同时填写冲突的两套参考来源。首帧图和视频是独立的生成阶段，不能把视频行的锚关系当成首帧图已绑定的素材。</li>
+<li>文本锚不会成为视觉输入，也不会隐式注入 prompt；必要的文字约束由作者明确写在该镜可见的 prompt 内。</li>
+<li><code>prompt</code>：按上述输出语言规则，可直接生成的高质量提示词——<strong>运镜（推/拉/摇/跟…）→ 动作演进 → 节奏/时长感</strong>。已绑定视觉参考时避免无谓重描；只有文本依据的必要特征应明确保留在可见 prompt 内，再写这一镜独有的画面与动作。<ul>
 <li><strong>忠于剧本，不发明</strong>：天气、光线、服装、环境陈设这些细节，<strong>剧本写了才写</strong>。剧本没说下雨就不要写「雨夜」，没说霓虹就不要写「霓虹冷光」。可以用景别/运镜/构图增强画面，但不要替用户<strong>新增剧情性的视觉事实</strong>。</li>
 <li><strong>保连续性 / 守时空</strong>：人物的身份、所处时间与场景必须跟剧本一致。注意<strong>闪回 / 今昔 / 转行</strong>——一个角色在「三年前的医院」是医生、在「现在的便利店」就不是了，别把过去的身份/服装（如白大褂）错带到现在的镜头里。</li>
 <li><strong>物理化，不写抽象情绪词</strong>：AI 演不出「愤怒地 / 焦虑地 / 深情地」这类抽象词，必须翻成可拍的身体信号——眉 / 颌 / 喉 / 手 / 肩 / 呼吸 / 视线焦点 + 具体动作（如「愤怒辩解」→「眉头紧锁、下颌收紧、喉结滚动，扑身抓起东西举到脸前，手微微发抖」）。「背对 / 望向 / 注视」→ 写身体朝向 + 头部方向 + 眼睛焦点，别用抽象事件名。</li>
@@ -500,7 +502,7 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 </ul>
 <h3 id="一致性要点-跨镜别换脸-换景-换物">§一致性要点（跨镜别换脸 / 换景 / 换物）</h3>
 <ul>
-<li>同角色/场景/道具 ≥2 镜 → 建 anchor（第 2 步已定）；镜头 <code>storyboard.anchorIds</code> 引用它，<strong>prompt 里不重描外貌</strong>（交参考图锚）。同一人别名归并成一个锚。</li>
+<li>同角色/场景/道具 ≥2 镜 → 建 anchor（第 2 步已定）；视觉参考通过 <code>storyboard.referenceBindings</code> 绑定真实素材，<code>anchorIds</code> 只记关系；无视觉参考时，必要特征写在可见 prompt 内。同一人别名归并成一个锚。</li>
 <li><strong>场内状态延续</strong>：一旦某镜出现血/伤/衣破/湿身，后续同场镜头 prompt 必须继承该状态，直到剧本明确清除。</li>
 <li>群演/一次性配角不建锚，用去个性化描述（戴盔/背影/远景）避穿帮；手部特写易多指，非必要不给手特写。</li>
 </ul>

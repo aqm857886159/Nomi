@@ -206,3 +206,18 @@ describe('custom capability contract v1', () => {
     expect(parseCustomCapabilityContract({ customCapabilityContract: circular })).toBeNull()
   })
 })
+
+
+it.each([null,{binding:{}}])('preserves validated explicit custom contract over historical invalid import marker', comfyWorkflowImport => {
+  const a=resolveArchetypeForModel({vendorKey:'local',modelKey:'workflow',meta:{customCapabilityContract:FUTURE_VIDEO_CONTRACT,comfyWorkflowImport,parameters:[]}});
+  expect(a?.defaultModeId).toBe(FUTURE_VIDEO_CONTRACT.defaultModeId);
+});
+
+
+it('does not let a generic text default erase the declared inputs of a valid imported graph', () => {
+  const generic={version:1,kind:'video',defaultModeId:'default',transportTaskKind:'text_to_video',modes:[{id:'default',intent:'text',vendorTerm:'Default mode',hint:'',promptRequired:true,transportTaskKind:'text_to_video',slots:[],params:[]}]};
+  const a=resolveArchetypeForModel({vendorKey:'comfyui-local',modelKey:'local-i2v',meta:{customCapabilityContract:generic,comfyWorkflowImport:{binding:{outputKind:'video'}},parameters:[{key:'first_frame_url',type:'image-url',mediaKind:'image'}]}});
+  expect(a?.transportTaskKind).toBe('image_to_video');
+  expect(a?.modes.map(mode=>mode.id)).toEqual(['image_to_video']);
+  expect(a?.modes[0]?.slots).toEqual([expect.objectContaining({inputKey:'first_frame_url',kind:'image_ref',asArray:false})]);
+});

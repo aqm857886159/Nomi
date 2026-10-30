@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildModelEntryIndex, buildPlannedNodeMeta, resolvePlannedNodeArgs } from "./plannedNodeMeta";
+import { assertPlannedModelIdentity, buildModelEntryIndex, buildPlannedNodeMeta, resolvePlannedNodeArgs } from "./plannedNodeMeta";
 import { buildAgentModelEntries, type AgentModelEntry } from "./availableModels";
 import type { ModelOption } from "../../../config/models";
 import { ASPECT_EXPLICIT_META_KEY } from "../nodes/aspectExplicit";
@@ -52,12 +52,10 @@ describe("buildPlannedNodeMeta", () => {
   });
 
   it("冲突的 vendor/modelVendor 不会静默改路由", () => {
-    expect(
-      buildPlannedNodeMeta(
-        { modelKey: "seedance-2", vendor: "kie", modelVendor: "other-vendor", variantId: "fast" },
-        entryByKey(),
-      ),
-    ).toBeUndefined();
+    expect(buildPlannedNodeMeta(
+      { modelKey: "seedance-2", vendor: "kie", modelVendor: "other-vendor", variantId: "fast" },
+      entryByKey(),
+    )).toBeUndefined();
   });
 
   it("agent 的合法参数覆盖默认", () => {
@@ -242,3 +240,27 @@ describe("buildPlannedNodeMeta · 比例明确选过的标记", () => {
     expect(meta[ASPECT_EXPLICIT_META_KEY]).toBe(true);
   });
 });
+
+
+it('rejects an explicit non-existent provider/model identity instead of silently retaining another model', () => {
+  expect(() => assertPlannedModelIdentity({ modelKey: 'seedance-2', modelVendor: 'codex-local' }, entryByKey())).toThrow(/model_identity_unavailable/)
+  const vendorless = new Map([...entryByKey()].map(([key, entry]) => [key, { ...entry, vendor: null }]))
+  expect(() => assertPlannedModelIdentity({ modelKey: 'seedance-2', modelVendor: 'invented-vendor' }, vendorless)).toThrow(/model_identity_unavailable/)
+})
+
+describe('approved duration reaches an imported workflow control', () => {
+  const entries = () => buildModelEntryIndex(buildAgentModelEntries([{
+    value: 'custom-workflow', modelKey: 'custom-workflow', label: 'Custom workflow', kind: 'video', vendor: 'comfyui-local-fixture',
+    meta: { comfyWorkflowImport: { binding: { outputKind: 'video' } }, parameters: [
+      { key: 'first_frame_url', type: 'image-url', mediaKind: 'image', label: 'Frame' },
+      { key: 'comfy_duration', type: 'number', label: 'Duration', default: 5 },
+    ] },
+  } as ModelOption]))
+  it.each([6, 7, 8])('places the approved %s seconds into the declared execution key', duration => {
+    const meta = buildPlannedNodeMeta({ modelKey: 'custom-workflow', modelVendor: 'comfyui-local-fixture', params: { duration } }, entries())
+    expect(meta?.comfy_duration).toBe(duration)
+  })
+  it('refuses contradictory explicit semantic and wire durations', () => {
+    expect(() => buildPlannedNodeMeta({ modelKey: 'custom-workflow', params: { duration: 7, comfy_duration: 5 } }, entries())).toThrow(/duration.*conflict/)
+  })
+})

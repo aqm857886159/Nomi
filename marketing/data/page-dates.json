@@ -4,56 +4,56 @@
     "date": "2026-10-27"
   },
   "/docs": {
-    "hash": "f091bde3519cf124",
-    "date": "2026-10-28"
+    "hash": "5bdf19870c46fe87",
+    "date": "2026-10-30"
   },
   "/docs/mcp/before-you-connect": {
-    "hash": "42da40a5965b082f",
-    "date": "2026-10-28"
+    "hash": "c0811bf3e305f839",
+    "date": "2026-10-30"
   },
   "/docs/mcp/connect-clients": {
-    "hash": "cdeb7fa20c0e9d0b",
-    "date": "2026-10-28"
+    "hash": "414e77a7e20dba3e",
+    "date": "2026-10-30"
   },
   "/docs/mcp/verify-and-troubleshoot": {
-    "hash": "6ee9ed6066bc38a1",
-    "date": "2026-10-28"
+    "hash": "0fc2f0243b87eed0",
+    "date": "2026-10-30"
   },
   "/docs/start/first-project": {
-    "hash": "c4a5d390ed72644c",
-    "date": "2026-10-28"
+    "hash": "e79361c1b43df29c",
+    "date": "2026-10-30"
   },
   "/docs/start/what-is-nomi": {
-    "hash": "d1f63f708f045c43",
-    "date": "2026-10-28"
+    "hash": "047346dcfea06c74",
+    "date": "2026-10-30"
   },
   "/en/": {
     "hash": "39696d5f1d7cafe6",
     "date": "2026-10-27"
   },
   "/en/docs": {
-    "hash": "abb1dd18e307eb86",
-    "date": "2026-10-28"
+    "hash": "d159009a7976c4e7",
+    "date": "2026-10-30"
   },
   "/en/docs/mcp/before-you-connect": {
-    "hash": "44ee2814fb755b18",
-    "date": "2026-10-28"
+    "hash": "36b06abde64d6553",
+    "date": "2026-10-30"
   },
   "/en/docs/mcp/connect-clients": {
-    "hash": "312ed5d0a7811f65",
-    "date": "2026-10-28"
+    "hash": "ba58385fb2d37b5b",
+    "date": "2026-10-30"
   },
   "/en/docs/mcp/verify-and-troubleshoot": {
-    "hash": "5cc1ea431dee3474",
-    "date": "2026-10-28"
+    "hash": "0b14034f187cacc2",
+    "date": "2026-10-30"
   },
   "/en/docs/start/first-project": {
-    "hash": "2c053efa6fa8d943",
-    "date": "2026-10-28"
+    "hash": "3fa94936d200d611",
+    "date": "2026-10-30"
   },
   "/en/docs/start/what-is-nomi": {
-    "hash": "4862b2c37dc6f9fc",
-    "date": "2026-10-28"
+    "hash": "7163fb6335953ca7",
+    "date": "2026-10-30"
   },
   "/en/features": {
     "hash": "87f82b4e2303aa57",
@@ -364,8 +364,8 @@
     "date": "2026-10-24"
   },
   "/en/skills/director-consistency": {
-    "hash": "556f376fa1035ed8",
-    "date": "2026-10-24"
+    "hash": "460c71cffb89ddba",
+    "date": "2026-10-30"
   },
   "/en/skills/director-guzhuang": {
     "hash": "4d13f6c849544a33",
@@ -428,8 +428,8 @@
     "date": "2026-10-24"
   },
   "/en/skills/workbench-storyboard-planner": {
-    "hash": "861d8ce5d9fafccc",
-    "date": "2026-10-24"
+    "hash": "983dd0d4a28bb245",
+    "date": "2026-10-30"
   },
   "/en/skills/writer-adaptation": {
     "hash": "ae003b2911c8c5d9",
@@ -700,8 +700,8 @@
     "date": "2026-10-28"
   },
   "/skills": {
-    "hash": "46e1e95f1f68edb6",
-    "date": "2026-10-24"
+    "hash": "b07e33226d76a5a8",
+    "date": "2026-10-30"
   },
   "/skills/brand-promo": {
     "hash": "f6bc314a7cc78924",
@@ -772,52 +772,52 @@
     "date": "2026-10-24"
   },
   "/skills/director-action": {
-    "hash": "6bf29e32ca875aa0",
-    "date": "2026-10-24"
+    "hash": "a0563315da2fabed",
+    "date": "2026-10-30"
   },
   "/skills/director-art-design": {
-    "hash": "e32fc6574d56a8eb",
-    "date": "2026-10-24"
+    "hash": "389dbe5d338af2d7",
+    "date": "2026-10-30"
   },
   "/skills/director-cinematography": {
-    "hash": "4a12a27cda596d2c",
-    "date": "2026-10-24"
+    "hash": "5137958eb2668f4d",
+    "date": "2026-10-30"
   },
   "/skills/director-consistency": {
-    "hash": "3f979b0ea395f2c6",
-    "date": "2026-10-24"
+    "hash": "868ea15b5ec4c71c",
+    "date": "2026-10-30"
   },
   "/skills/director-guzhuang": {
-    "hash": "723b3ba6192f7dde",
-    "date": "2026-10-24"
+    "hash": "b59038a3179c33c4",
+    "date": "2026-10-30"
   },
   "/skills/director-keyframe-review": {
-    "hash": "92b3f81ffd3de4ae",
-    "date": "2026-10-24"
+    "hash": "b5dc65ad1fe56573",
+    "date": "2026-10-30"
   },
   "/skills/director-performance": {
-    "hash": "63a9d852a92c0612",
-    "date": "2026-10-24"
+    "hash": "3dfa6c719bbbf22b",
+    "date": "2026-10-30"
   },
   "/skills/director-shot-translation": {
-    "hash": "b99bdd386d5ecfd1",
-    "date": "2026-10-24"
+    "hash": "81ff87e36ca3fd78",
+    "date": "2026-10-30"
   },
   "/skills/director-sound": {
-    "hash": "92f60b8d35130933",
-    "date": "2026-10-24"
+    "hash": "09c4046a6f392556",
+    "date": "2026-10-30"
   },
   "/skills/director-staging": {
-    "hash": "38964bedf492b759",
-    "date": "2026-10-24"
+    "hash": "b6a011f1fc35e46a",
+    "date": "2026-10-30"
   },
   "/skills/director-style-otomo-wright": {
-    "hash": "0381a621a7c6a975",
-    "date": "2026-10-24"
+    "hash": "dee6df25037bc791",
+    "date": "2026-10-30"
   },
   "/skills/director-transitions": {
-    "hash": "dc55aed175994c93",
-    "date": "2026-10-24"
+    "hash": "d48d72d491a638fc",
+    "date": "2026-10-30"
   },
   "/skills/drama-short": {
     "hash": "51b1bb658cbca2cb",
@@ -848,8 +848,8 @@
     "date": "2026-10-24"
   },
   "/skills/workbench-storyboard-planner": {
-    "hash": "c2fbeaff66902706",
-    "date": "2026-10-24"
+    "hash": "472398431ea91fcb",
+    "date": "2026-10-30"
   },
   "/skills/writer-adaptation": {
     "hash": "47783567a3c2f269",

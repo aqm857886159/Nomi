@@ -365,7 +365,7 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
     <nav class="toc" aria-label="On this page"><p>On this page</p><ol><li><a href="#一-一致性的五个维度">一、一致性的五个维度</a></li><li><a href="#二-三级锚定体系">二、三级锚定体系</a></li><li><a href="#三-场内状态表-state-table">三、场内状态表 (State Table)</a></li><li><a href="#四-段与段的承接检查">四、段与段的承接检查</a></li><li><a href="#五-常见一致性陷阱与规避">五、常见一致性陷阱与规避</a></li><li><a href="#六-拆镜头-审镜头时的一致性核对清单">六、拆镜头 / 审镜头时的一致性核对清单</a></li></ol></nav>
     <div class="skill-main">
       <article class="prose" lang="zh-CN"><p>AI 视频生成的头号敌人不是「画面不好看」，而是<strong>同一个人看起来不像同一个人</strong>。多镜头、多段的片子若不解决一致性，观众看两三镜就出戏。本文不发明技术，而是把业界已验证的一致性手段整理成拆镜头与生成时的强制动作。</p>
-<p><strong>在 Nomi 里落地的方式</strong>：凡是「跨镜头要保持一致」的东西，都建成画布上的 <strong>anchor 节点</strong>（<code>kind</code>：<code>character</code> 角色 / <code>scene</code> 场景 / <code>prop</code> 道具 / <code>style</code> 风格）。视觉锚（<code>carrier: visual</code>）会先生成一张参考图锁住长相；文本锚（<code>carrier: text</code>）把特征词拼进每个引用它的镜头。镜头用 <code>anchorIds</code> 引用哪些锚，系统据此给视觉锚<strong>连参考边</strong>、把文本锚描述拼进 prompt。所以下文凡说「@引用某素材」，在 Nomi 里就是<strong>在该镜的 <code>anchorIds</code> 里点名那个 anchor</strong>，不是把提示词复制到外部工具。</p>
+<p><strong>在 Nomi 里落地的方式</strong>：跨镜元素可建角色、场景、道具或风格参考卡。<code>anchorIds</code> 只保留锚的关系记录，不会自动连参考边，也不会把文本锚描述追加到 prompt。真正发送的内容只有行上可见的 prompt 和 <code>referenceBindings</code> 里明确绑定的真实素材。视觉锚需已有真实参考图，并按所选模式支持的 <code>image_ref</code>、<code>first_frame</code> 等槽绑定；尚无产物时明确说明缺口，不编造 URL 或声称已经连好。文本锚的必要特征由作者明确写进该镜可见的 prompt，不能假定系统隐式注入。</p>
 <hr>
 <h2 id="一-一致性的五个维度">一、一致性的五个维度</h2>
 <p>每个镜头产出前，逐维度自检——哪一维会漂移，就为它建/引用对应的锚：</p>
@@ -382,7 +382,7 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 <td><strong>角色</strong></td>
 <td>脸、身材、发型、肤色、瞳色</td>
 <td>换脸、身高忽高忽低</td>
-<td><code>character</code> 视觉锚（参考图含面部特写 + 三视图）+ 镜头 <code>anchorIds</code> 引用</td>
+<td><code>character</code> 视觉锚（参考图含面部特写 + 三视图）+ 镜头 <code>referenceBindings</code> 绑定真实图</td>
 </tr>
 <tr>
 <td><strong>服化</strong></td>
@@ -394,7 +394,7 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 <td><strong>道具</strong></td>
 <td>关键道具的造型、材质、铭文</td>
 <td>道具外形每镜不同、设备换型</td>
-<td><code>prop</code> 视觉锚（多角度 + 材质特写 + 比例参照）+ <code>anchorIds</code> 引用</td>
+<td><code>prop</code> 视觉锚（多角度 + 材质特写 + 比例参照）+ <code>referenceBindings</code> 绑定真实图</td>
 </tr>
 <tr>
 <td><strong>场景</strong></td>
@@ -421,15 +421,16 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 <li><strong>场景</strong>：<code>空场景全景 + 关键光位</code>，不带人物、不带剧情。</li>
 </ul>
 <blockquote>
-<p><strong>一元素一锚，不要合成</strong>：人物、场景、道具各自独立建锚、各自独立参考图，<strong>绝不把人物和场景塞进同一张参考图</strong>——合成会同时拉低场景和人物的 identity 精度。这正是 Nomi「每个跨镜元素一个 anchor 节点」的设计初衷：系统会把多张参考图分别喂给生成，不需要、也不要你手动拼成一张。</p>
+<p><strong>一元素一锚，不要合成</strong>：人物、场景、道具各自独立建锚、各自独立参考图，<strong>绝不把人物和场景塞进同一张参考图</strong>——合成会同时拉低场景和人物的 identity 精度。这正是 Nomi「每个跨镜元素一个 anchor 节点」的设计初衷：按模式声明的槽与数量显式绑定多张参考图；只有真实绑定的素材才会发送，不需要手动拼成一张。</p>
 </blockquote>
-<h3 id="level-2-anchor-引用-镜头层">Level 2 · anchor 引用（镜头层）</h3>
-<p>镜头<strong>只引用锚，不在 prompt 里重描锚的静态外貌</strong>。外貌交给参考图/文本锚，镜头 prompt 只写这一镜独有的运镜与动作：</p>
+<h3 id="level-2-显式参考绑定-镜头层">Level 2 · 显式参考绑定（镜头层）</h3>
+<p>把已有视觉参考图按所选模式的真实槽写进该镜的 <code>referenceBindings</code>，例如 <code>image_ref: [{ url: 真实素材地址, anchorId: 真实锚ID }]</code>；需要首帧的模式使用 <code>first_frame</code>。<code>anchorIds</code> 不代替这些绑定。</p>
 <ul>
-<li>良例：<code>anchorIds: [角色A, 指挥舱]</code>；prompt =「角色A背部直挺，右手食指缓慢从面板抬起后放下」。</li>
-<li>劣例：不引用锚，prompt 里从头描述「一个穿制服的男人在飞船舱桥中……」→ 每镜重描 = 每镜重掷骰子 = 必漂移。</li>
+<li>有效做法：绑定角色与场景的真实参考图，prompt 写该镜独有的动作和运镜。</li>
+<li>文本锚不产生视觉输入。需要服装、风格等文字约束时，把它们明确写在该镜可见的 prompt 内。</li>
+<li>没有已生成参考图、模式不支持该槽或超出数量时，明确说明缺口；不猜连线，不把关系 ID 当素材地址。</li>
+<li>只出现一次的一次性元素可直接写进 prompt，不必新建参考卡。</li>
 </ul>
-<p><strong>硬规则</strong>：出现在某镜里的每个角色 / 所在场景 / 用到的道具 / 整片风格，都要列进这一镜的 <code>anchorIds</code>；只出现一次的一次性元素（群演、路过的物件）<strong>不建锚</strong>，直接写进那一镜 prompt。</p>
 <h3 id="level-3-段间承接-handoff">Level 3 · 段间承接（handoff）</h3>
 <p>段与段之间（一场戏拆成多个连续镜头，或一整段接下一段）的视觉连续性，靠<strong>首尾帧承接</strong>：上一镜的尾帧状态（角色位置/朝向/姿态/环境/光位）明确传给下一镜的起点。Nomi 里对应「用上一镜产物做下一镜的首帧（<code>first_frame</code>）」或在下一镜 prompt 里显式承接尾帧状态。承接分三级：</p>
 <table>
@@ -524,8 +525,8 @@ html[lang="en"] .card-body h3 { font-family: var(--font-ui); font-weight: 600; }
 <h2 id="六-拆镜头-审镜头时的一致性核对清单">六、拆镜头 / 审镜头时的一致性核对清单</h2>
 <p>拆完镜头、或复核一份分镜方案时，逐条打勾：</p>
 <ul>
-<li><input disabled="" type="checkbox"> 出现在某镜里的角色 / 场景 / 道具 / 全片风格，是否都进了这一镜的 <code>anchorIds</code>？（漏引用 = 漏锚 = 会漂）</li>
-<li><input disabled="" type="checkbox"> 镜头 prompt 里有没有<strong>重复描述锚的静态外貌</strong>？（应交参考图/文本锚，prompt 只写运镜+动作）</li>
+<li><input disabled="" type="checkbox"> 需要视觉参考的跨镜元素是否已用真实素材写进本镜 <code>referenceBindings</code>，且所选模式支持这些槽和数量？</li>
+<li><input disabled="" type="checkbox"> 已绑视觉参考时避免无谓重描；只有文本依据的必要约束是否明确写在可见 prompt 内？</li>
 <li><input disabled="" type="checkbox"> 同一个人是否只建了<strong>一个</strong>角色锚？（别名/职称/「他」都归并成一个，别一人两锚）</li>
 <li><input disabled="" type="checkbox"> 同场戏内的状态（伤/血/衣破/湿身）是否与状态表一致、只进不退？</li>
 <li><input disabled="" type="checkbox"> 相邻/跨段镜头的承接级别（L1/L2/L3）是否想清楚，L1 是否用尾帧做了首帧或 prompt 承接？</li>

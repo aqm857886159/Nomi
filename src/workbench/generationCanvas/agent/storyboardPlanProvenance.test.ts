@@ -87,7 +87,7 @@ describe('StoryboardPlan provenance', () => {
     expect(args.nodes.map((node) => node.metadata)).toEqual(expect.arrayContaining([
       // 锚节点自 B 起恒带 anchorId（分镜表绑定键），materialization 戳原样保留。
       expect.objectContaining({ materializationOperationId: 'materialize:run-1:v1', materializationClientId: 'hero', anchorId: 'hero' }),
-      expect.objectContaining({ materializationOperationId: 'materialize:run-1:v1', materializationClientId: 'shot-stable-1' }),
+      expect.objectContaining({ materializationOperationId: 'materialize:run-1:v1', materializationClientId: 'shot-stable-1:video' }),
     ]))
   })
 })

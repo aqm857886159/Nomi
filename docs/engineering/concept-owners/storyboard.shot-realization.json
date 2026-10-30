@@ -1,0 +1,24 @@
+{
+  "name": "Storyboard shot to canonical canvas node arguments",
+  "subject": "storyboard.shot-realization",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "symbol": "storyboardShotToCreateNodesArgs"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "symbol": "storyboardShotToCreateNodesArgs"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/agent/storyboardPlanProvenance.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "Registers the current shared owner and its direct projections validated by the 2026-10-30 unpaid repair contracts. This metadata adds no runtime permission, fallback or second implementation."
+}

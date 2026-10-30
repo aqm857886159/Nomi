@@ -55,9 +55,10 @@ describe('storyboard frame media decoder boundary', () => {
     expect(html).not.toContain(videoUrl)
   })
 
-  it('uses result media type even when the planned node kind is video', () => {
+  it('does not present an image result as a completed video shot', () => {
     const html = frame({ type: 'image', url: 'nomi-local://asset/frame.png' })
-    expect(html).toContain('<img src="nomi-local://asset/frame.png"')
+    expect(html).toContain('data-storyboard-frame="ready"')
+    expect(html).not.toContain('<img')
     expect(html).not.toContain('<video')
   })
 })

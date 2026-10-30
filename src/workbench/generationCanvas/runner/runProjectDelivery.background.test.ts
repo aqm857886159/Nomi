@@ -12,13 +12,15 @@ import { runCatalogGenerationTask } from './catalogTaskActions'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
 import { resetModelHealthMemory } from './modelHealthMemory'
-import { readRunGraph, deliverRunOutcome } from './runProjectDelivery'
+import { readRunGraph, deliverRunOutcome, persistSubmittedRunAttempt } from './runProjectDelivery'
 import { buildTaskCenterView } from '../../taskCenter/taskCenterEntries'
 import { readLocalProjectAsync, saveLocalProject } from '../../library/localProjectStore'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness, testProjectBinding } from '../../project/projectSessionTestHarness'
 import type { TaskRequestDto } from '../../api/taskApi'
 
 const disk = vi.hoisted(() => new Map<string, unknown>())
+const persistIdentity = vi.hoisted(() => vi.fn())
+vi.mock('../../project/workbenchProjectSession', async (original) => ({ ...(await original<typeof import('../../project/workbenchProjectSession')>()), persistActiveWorkbenchProjectNow: persistIdentity }))
 vi.mock('../../library/localProjectStore', () => ({
   readLocalProjectAsync: vi.fn(async (projectId: string) => structuredClone(disk.get(projectId) ?? null)),
   saveLocalProject: vi.fn(async (projectId: string, payload: unknown, name?: string) => {
@@ -66,6 +68,7 @@ function diskNode(projectId: string, nodeId: string): GenerationCanvasNode | und
 
 let session: ProjectSessionTestHarness
 beforeEach(() => {
+  persistIdentity.mockReset().mockResolvedValue(null)
   disk.clear()
   vi.mocked(saveLocalProject).mockClear()
   session = createProjectSessionTestHarness()
@@ -291,4 +294,27 @@ it('settles the queue if workspace identity changes between the graph read and i
   expect(useGenerationCanvasStore.getState().nodes).toEqual([])
   expect(useGenerationQueueStore.getState().entries).toEqual([expect.objectContaining({ nodeId: node.id, state: 'error' })])
   expect(Object.values(useGenerationQueueStore.getState().batches)).toEqual([expect.objectContaining({ finishedAt: expect.any(Number) })])
+})
+
+
+describe('submitted query identity durability', () => {
+  it('awaits disk save and preserves previously recorded receipt fields', async () => {
+    const target = await session.open('project-a')
+    const store = useGenerationCanvasStore.getState()
+    const node = store.addNode({ kind: 'image', prompt: 'test' })
+    store.appendNodeRun(node.id, { id: 'receipt-run', status: 'running', startedAt: 1, updatedAt: 2, taskId: 'already-submitted' })
+    persistIdentity.mockImplementationOnce(async () => { persistOpenCanvasAs('project-a'); return disk.get('project-a') })
+    const attempt = { vendorKey: 'original', modelKey: 'model', query: { taskKind: 'image_to_video' as const, modeId: 'i2v' } }
+    await persistSubmittedRunAttempt(target, node.id, 'receipt-run', attempt)
+    expect(diskNode('project-a', node.id)?.runs?.[0]).toMatchObject({ taskId: 'already-submitted', status: 'running', attempt })
+    await expect(persistSubmittedRunAttempt(target, node.id, 'receipt-run', { ...attempt, modelKey: 'different' })).rejects.toThrow('identity changed')
+  })
+  it('rejects a disk-save failure before the provider callback can return', async () => {
+    const target = await session.open('project-a')
+    const store = useGenerationCanvasStore.getState()
+    const node = store.addNode({ kind: 'image', prompt: 'test' })
+    store.appendNodeRun(node.id, { id: 'receipt-run', status: 'queued', startedAt: 1, updatedAt: 1 })
+    persistIdentity.mockRejectedValueOnce(new Error('disk write failed'))
+    await expect(persistSubmittedRunAttempt(target, node.id, 'receipt-run', { vendorKey: 'original', modelKey: 'model', query: { taskKind: 'text_to_image' } })).rejects.toThrow('disk write failed')
+  })
 })

@@ -4,7 +4,7 @@
 // modelKey 空时跑）就不会再自动补 vendor/label/默认参数——所以这里必须**自铺全**：
 // modelVendor / modelLabel / archetype.{id,modeId} / 该 mode 的默认参数，再用 agent 的合法参数覆盖。
 import type { AgentModelEntry } from "./availableModels";
-import { isParamValueAllowed } from "../../../../electron/shared/videoCapabilities/paramConstraints";
+import { isParamValueAllowed, placeDurationParameters } from "../../../../electron/shared/videoCapabilities/paramConstraints";
 import {
   canonicalArchetypeVariantId,
   resolveArchetypeForModel,
@@ -75,6 +75,33 @@ export function buildModelEntryIndex(entries: readonly AgentModelEntry[], ordere
   return index;
 }
 
+/** New author intent/submission requires a catalog identity. Historic output projection stays separate. */
+export function assertPlannedModelIdentity(planned: PlannedNodeModelInput, entries: ReadonlyMap<string, AgentModelEntry>): void {
+  const modelKey = nonBlankString(planned.modelKey)
+  const vendor = nonBlankString(planned.vendor)
+  const modelVendor = nonBlankString(planned.modelVendor)
+  const declared = vendor || modelVendor
+  if (!modelKey || !declared) return // vendorless legacy resolution keeps its existing owner
+  const entry = entries.get(`${declared}::${modelKey}`) ?? entries.get(modelKey)
+  if ((vendor && modelVendor && vendor !== modelVendor) || !entry || entry.vendor !== declared) {
+    throw Object.assign(new Error(`model_identity_unavailable: ${declared}::${modelKey}`), {
+      code: 'capability_input_invalid',
+      modelKey, modelVendor: declared,
+      availableIdentities: [...new Set([...entries.values()].filter(row => row.modelId === modelKey).map(row => `${row.vendor ?? ''}::${row.modelId}`))],
+    })
+  }
+}
+
+export function assertStoryboardModelIdentities(
+  plan: import('./storyboardPlan').StoryboardPlan, entries: ReadonlyMap<string, AgentModelEntry>,
+): void {
+  for (const anchor of plan.anchors) assertPlannedModelIdentity(anchor, entries)
+  for (const shot of plan.shots) {
+    assertPlannedModelIdentity(shot, entries)
+    if (shot.keyframe?.enabled) assertPlannedModelIdentity(shot.keyframe, entries)
+  }
+}
+
 export function buildPlannedNodeMeta(
   planned: PlannedNodeModelInput,
   entryByKey: ReadonlyMap<string, AgentModelEntry>,
@@ -98,9 +125,6 @@ export function buildPlannedNodeMeta(
   // for legacy/custom catalog rows.
   const vendor = nonBlankString(planned.vendor);
   const modelVendor = nonBlankString(planned.modelVendor);
-  // The two spellings are aliases on the wire, not two independent routing
-  // choices. Reject a contradictory direct renderer call just as the shared
-  // capability schema does for the Host transport.
   if (vendor && modelVendor && vendor !== modelVendor) return undefined;
   const requestedVendor = vendor || modelVendor;
   if (requestedVendor && entry.vendor && requestedVendor !== entry.vendor) return undefined;
@@ -168,7 +192,7 @@ export function buildPlannedNodeMeta(
   //    与宿主准入同一个判据（`electron/shared/aspectRatioValue.ts`）。以前这里只认同名控件：整片 16:9 落到
   //    Z-Image（比例键叫 `size`）上被当未知键丢掉，节点是出厂 1:1。
   const ratioControls = aspectRatioControlsOf(mode.params);
-  const rawParams = placeAspectRatio(
+  const aspectParams = placeAspectRatio(
     planned.params && typeof planned.params === "object" && !Array.isArray(planned.params)
       ? (planned.params as Record<string, unknown>)
       : {},
@@ -176,6 +200,9 @@ export function buildPlannedNodeMeta(
   ).parameters;
   // 哪个控件是这个模式的比例控件按控件的选项判（与 placeAspectRatio 同一个判据），不按键名：
   // Agnes Video 2.5 的 `size` 是清晰度（720P / 960P / 2K），比例在 `aspect_ratio`。
+  const rawParams = entry.kind === "video"
+    ? placeDurationParameters(aspectParams, mode.params)
+    : aspectParams;
   const ratioKey = aspectRatioControlKey(ratioControls);
   for (const control of mode.params) {
     const value = rawParams[control.key];

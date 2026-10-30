@@ -1,7 +1,8 @@
+import type { AgentModelEntry } from './availableModels'
 import { validateAnchorModelFit, type AnchorModelFitIssue } from './storyboardAnchorPolicy'
 import type { CanvasWriteInput } from '../../../../electron/shared/agentCapabilities/canvasWrite'
 import type { PlanShot, StoryboardPlan } from './storyboardPlan'
-import { updateShotAt, type PlanShotPatch } from './storyboardPlanEdits'
+import { shotKindPatch, updateShotAt, type PlanShotPatch } from './storyboardPlanEdits'
 
 export type StoryboardPatchShotsInput = Extract<CanvasWriteInput, { operation: 'patch_shots' }>
 
@@ -42,8 +43,10 @@ function selectedPositions(plan: StoryboardPlan, input: StoryboardPatchShotsInpu
   return positions
 }
 
-function patchShot(shot: PlanShot, patch: StoryboardPatchShotsInput['patch']): PlanShotPatch {
-  const next: Omit<Partial<PlanShot>, 'modelKey' | 'modelVendor'> = {}
+function patchShot(shot: PlanShot, patch: StoryboardPatchShotsInput['patch'], reuseImage: boolean): PlanShotPatch {
+  const next: PlanShotPatch = patch.shotKind !== undefined && patch.shotKind !== (shot.shotKind ?? 'video')
+    ? shotKindPatch(shot, patch.shotKind === 'image' ? 'image' : shot.keyframe?.enabled || reuseImage ? 'image-video' : 'video')
+    : {}
   if (patch.promptAppend !== undefined) {
     next.prompt = `${shot.prompt}${shot.prompt ? '，' : ''}${patch.promptAppend}`
     next.promptSegments = undefined
@@ -54,7 +57,7 @@ function patchShot(shot: PlanShot, patch: StoryboardPatchShotsInput['patch']): P
   }
   if (patch.shotKind !== undefined) next.shotKind = patch.shotKind
   if (patch.durationSec !== undefined) next.durationSec = patch.durationSec
-  if (patch.aspectRatio !== undefined) next.params = { ...(shot.params ?? {}), aspect_ratio: patch.aspectRatio }
+  if (patch.aspectRatio !== undefined) next.params = { ...('params' in next ? next.params : shot.params), aspect_ratio: patch.aspectRatio }
   // The capability schema already requires modelKey and modelVendor together; the pair is written as one
   // value here too (PlanShotPatch forbids a lone half). A model identity change cannot reuse a mode chosen
   // for the previous model; params stay because aspectRatio may arrive in the same patch.
@@ -66,12 +69,20 @@ function patchShot(shot: PlanShot, patch: StoryboardPatchShotsInput['patch']): P
 export function previewStoryboardPatchShots(
   plan: StoryboardPlan,
   input: StoryboardPatchShotsInput,
+  models: readonly AgentModelEntry[] = [],
 ): StoryboardPatchShotsPreview {
   const positions = selectedPositions(plan, input)
   let nextPlan = plan
   const changedFields = new Set<string>()
   for (const position of positions) {
-    const patch = patchShot(nextPlan.shots[position], input.patch)
+    const shot = nextPlan.shots[position]
+    const key = input.patch.modelKey ?? shot.modelKey
+    const vendor = input.patch.modelVendor ?? shot.modelVendor
+    const model = models.find(entry => entry.modelId === key && (!vendor || entry.vendor === vendor))
+    const mode = model?.modes.find(mode => mode.modeId === (input.patch.modelKey ? model.defaultModeId : shot.modeId ?? model.defaultModeId))
+    const reuseImage = shot.shotKind === 'image' && input.patch.shotKind === 'video'
+      && Boolean(mode?.slots.some(slot => slot.kind === 'first_frame' || slot.kind === 'image_ref'))
+    const patch = patchShot(shot, input.patch, reuseImage)
     nextPlan = updateShotAt(nextPlan, position, patch)
     for (const field of Object.keys(input.patch)) changedFields.add(field === 'promptAppend' ? 'prompt' : field)
   }

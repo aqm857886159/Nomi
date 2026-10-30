@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-default-generation-mode-selection",
+  "problem_type": "Mode-specific defaults project billing kind instead of published execution capability",
+  "symptom": "Settings and resident model pickers offer t2i-only models for image editing and imported I2V-only models for text-to-video.",
+  "direct_cause": "The shared default option builder filters by billing kind only; encode/decode ignore which task picker is using the identity.",
+  "class_root": "The default selection projection bypasses the existing rowServesMode owner.",
+  "affected_population": [
+    "All default generation task kinds",
+    "Both settings and resident Agent model selectors",
+    "Renamed imported workflows and same-named models from different vendors"
+  ],
+  "scope_paths": [
+    "src/workbench/settings/defaultGenerationModelOptions.ts",
+    "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+    "src/workbench/ai/v4/agentPanelV4ModelRows.ts",
+    "src/workbench/settings/defaultGenerationModelOptions.test.ts"
+  ],
+  "entry_points": [
+    "Settings default selectors",
+    "Resident Agent generation defaults"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal projection defect; the existing shared modelPublication.rowServesMode contract already defines the answer.",
+  "invariants": [
+    "Only a usable row publishing the requested task mode can be offered or encoded/decoded for that default.",
+    "Exact vendor/model identity and explicit automatic selection are preserved.",
+    "No stored setting is silently rewritten or another model substituted."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/agentPanelV4ModelRows.ts",
+      "symbol": "buildDefaultModelOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/defaultGenerationModelOptions.ts",
+      "symbol": "defaultModelOptionId"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+      "symbol": "buildDefaultModelOptions"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "Distinct existing UI/result consumers remain; the owner projection and its private helper are included by generated door scans."
+  },
+  "generality_proof": "All four task pickers and both UI surfaces consume the same mode-scoped options and identity resolver; existing publication/availability evidence remains authoritative.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/settings/defaultGenerationModelOptions.ts",
+      "symbol": "buildDefaultModelOptions",
+      "responsibility": "Project canonical rowServesMode evidence into task-scoped choices and exact identity resolution."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4ModelRows.ts",
+      "entry_point": "buildDefaultModelOptions",
+      "disposition": "enforced",
+      "evidence": "Generated door map confirms this selector consumes buildDefaultModelOptions; mode-scoped encode/decode must be passed the same task."
+    },
+    {
+      "path": "src/workbench/settings/DefaultGenerationModelsSection.tsx",
+      "entry_point": "buildDefaultModelOptions",
+      "disposition": "enforced",
+      "evidence": "Generated door map confirms this selector consumes buildDefaultModelOptions; mode-scoped encode/decode must be passed the same task."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any provider or imported graph can expose only one mode of a billing kind; both existing consumers share the faulty projection.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs buildDefaultModelOptions",
+      "Read defaultGenerationModelOptions, DefaultGenerationModelsSection and agentPanelV4ModelRows",
+      "Compared catalog.mode-serving rowServesMode and generationDefaultModelResolver task publication checks"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/settings/defaultGenerationModelOptions.ts",
+    "invariant": "All choices and their identity conversions require canonical support for the requested mode.",
+    "failure_mode": "Unsupported saved or foreign-task identities return null and are not offered; no fallback.",
+    "exception_policy": "none",
+    "strategy": "Replace billing-kind-only filtering with rowServesMode and require task context for encode/decode.",
+    "artifacts": [
+      "src/workbench/settings/defaultGenerationModelOptions.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/settings/defaultGenerationModelOptions.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/settings/defaultGenerationModelOptions.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/settings/defaultGenerationModelOptions.ts"
+    ],
+    "rationale": "The old kind-only projection and task-blind identity conversions are replaced in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade; reuse existing shared publication contract.",
+    "exit_criteria": []
+  },
+  "migration": "Existing stored choices are preserved. Unsupported preferences project unavailable instead of being silently changed.",
+  "residual_risks": [
+    "No paid inference is authorized. Visual acceptance and final build activation remain separate tasks."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/settings/defaultGenerationModelOptions.ts",
+    "tests": [
+      "src/workbench/settings/defaultGenerationModelOptions.test.ts"
+    ]
+  }
+}

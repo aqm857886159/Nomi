@@ -1,0 +1,24 @@
+{
+  "name": "Storyboard execution node output-role binding",
+  "subject": "storyboard.execution-binding",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+    "symbol": "findShotNode"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+      "symbol": "findShotNode"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "Registers the current shared owner and its direct projections validated by the 2026-10-30 unpaid repair contracts. This metadata adds no runtime permission, fallback or second implementation."
+}

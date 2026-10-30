@@ -551,3 +551,42 @@ describe("runBoundedProcess", () => {
     })).rejects.toMatchObject({ code: "process_cleanup_failed" });
   });
 });
+
+describe('serialized cleanup ownership',()=>{
+ it('does not start force teardown while its earlier asynchronous teardown is pending',async()=>{
+  vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+  let release!:()=>void; const gate=new Promise<void>(r=>{release=r});
+  const terminateTree=vi.fn(async(child:{kill:(signal:NodeJS.Signals)=>boolean})=>{await gate;child.kill('SIGKILL')});
+  const controller=new AbortController();
+  const pending=runBoundedProcess(process.execPath,['-e','setInterval(()=>{},1000)'],{signal:controller.signal,timeoutMs:10000,maxStdoutBytes:1024,maxStderrBytes:1024},{terminateTree,cleanupGraceMs:0}).catch(error=>error);
+  controller.abort();
+  try {await vi.advanceTimersByTimeAsync(1);expect(terminateTree).toHaveBeenCalledTimes(1)}finally{release();await pending;vi.useRealTimers()}
+ });
+ it.each([{exitCode:0,signalCode:null},{exitCode:null,signalCode:'SIGKILL' as const}])('does not kill a positively observed exited child after a late taskkill rejection',async(exit)=>{
+  const child={pid:999999,killed:false,kill:vi.fn(()=>false),...exit};
+  await expect(terminateProcessTree(child,true,{platform:'win32',runTaskkill:async()=>{throw Error('already exited')}})).resolves.toBeUndefined();
+  expect(child.kill).not.toHaveBeenCalled();
+ });
+})
+
+it('serializes force escalation after delayed graceful cleanup settles with a live child',async()=>{
+ vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+ let release!:()=>void;const gate=new Promise<void>(r=>{release=r});
+ let owned: {kill:(signal:NodeJS.Signals)=>boolean}|undefined;
+ const terminateTree=vi.fn(async(child:{kill:(signal:NodeJS.Signals)=>boolean},force:boolean)=>{owned=child;if(force){child.kill('SIGKILL');return}await gate});
+ const controller=new AbortController();
+ const pending=runBoundedProcess(process.execPath,['-e','setInterval(()=>{},1000)'],{signal:controller.signal,timeoutMs:10000,maxStdoutBytes:1024,maxStderrBytes:1024},{terminateTree,cleanupGraceMs:0}).catch(error=>error);
+ controller.abort();
+ try{await vi.advanceTimersByTimeAsync(1);expect(terminateTree).toHaveBeenCalledTimes(1);release();await vi.advanceTimersByTimeAsync(0);expect(terminateTree.mock.calls.map(call=>call[1])).toEqual([false,true]);await expect(pending).resolves.toMatchObject({code:'cancelled'})}finally{release();owned?.kill('SIGKILL');await pending;vi.useRealTimers()}
+})
+
+it('never launches new force cleanup after its final deadline even when earlier cleanup settles late',async()=>{
+ vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+ let release!:()=>void;const gate=new Promise<void>(r=>{release=r});
+ let owned: {kill:(signal:NodeJS.Signals)=>boolean}|undefined;
+ const terminateTree=vi.fn(async(child:{kill:(signal:NodeJS.Signals)=>boolean},force:boolean)=>{owned=child;if(force){child.kill('SIGKILL');return}await gate});
+ const controller=new AbortController();
+ const pending=runBoundedProcess(process.execPath,['-e','setInterval(()=>{},1000)'],{signal:controller.signal,timeoutMs:10000,maxStdoutBytes:1024,maxStderrBytes:1024},{terminateTree,cleanupGraceMs:0,cleanupDeadlineMs:2}).catch(error=>error);
+ controller.abort();
+ try {await vi.advanceTimersByTimeAsync(2);await expect(pending).resolves.toMatchObject({code:'process_cleanup_failed'});owned?.kill('SIGKILL');release();await vi.advanceTimersByTimeAsync(0);expect(terminateTree.mock.calls.map(call=>call[1])).toEqual([false])}finally{release();owned?.kill('SIGKILL');await pending;vi.useRealTimers()}
+})

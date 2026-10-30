@@ -8,6 +8,7 @@ import {
   generationCanvasNodeSchema,
   generationCanvasSnapshotSchema,
   generationNodeRunStatusSchema,
+  generationNodeRunRecordSchema,
   generationNodeStatusSchema,
   nodeGroupSchema,
 } from './generationCanvasSchema'
@@ -169,5 +170,17 @@ describe('generationCanvasSchema Phase E.2 groups', () => {
       trajectoryGroups: [expect.objectContaining({ id: 'group-1' })],
       sceneTimeline: { totalDuration: 3 },
     })
+  })
+})
+
+
+describe('submitted query snapshot persistence', () => {
+  it('preserves exact transport and mode through a saved run roundtrip', () => {
+    const run = { id: 'run-identity', status: 'running', startedAt: 1, updatedAt: 1, attempt: { vendorKey: 'original', modelKey: 'i2v', query: { taskKind: 'image_to_video', modeId: 'first-frame' } } }
+    expect(generationNodeRunRecordSchema.parse(JSON.parse(JSON.stringify(run)))).toEqual(run)
+  })
+  it('keeps historical attempts without an exact query snapshot readable', () => {
+    const run = { id: 'run-old', status: 'running', startedAt: 1, updatedAt: 1, attempt: { vendorKey: 'original', modelKey: 'i2v' } }
+    expect(generationNodeRunRecordSchema.parse(run)).toEqual(run)
   })
 })

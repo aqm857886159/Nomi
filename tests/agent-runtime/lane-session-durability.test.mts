@@ -7,6 +7,7 @@
 // 出处：`docs/research/2026-09-07-pi-reference-implementation-conformance.md` §3.2 / §9.5
 // 与 CHANGELOG 坑 1（0.84.0 的 `FileSystem.renameFile` breaking change）。
 import assert from 'node:assert/strict';
+import { assertWindowsPrivateAcl } from './nativeFilePrivacy.mjs';
 import { readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -52,6 +53,15 @@ test('the transcript is owner-only on disk — it holds the user’s manuscript,
   await lane.close();
 
   const { root, slug, file } = await theSessionFile(fixture.projectDir);
+  if (process.platform === 'win32') {
+    // stat.mode does not represent NTFS access. Inspect the actual isolated profile ACL instead.
+    // Explicit NTFS hardening on a publicly shared project root is not established by this fixture.
+    for (const target of [file, slug, root]) assertWindowsPrivateAcl(target);
+    const inheritedControl = join(slug, 'control.jsonl');
+    await writeFile(inheritedControl, 'x');
+    assertWindowsPrivateAcl(inheritedControl);
+    return;
+  }
   assert.equal(await mode(file), LANE_FILE_MODE, 'the session jsonl is 0o600');
   assert.equal(await mode(slug), LANE_DIR_MODE, 'the slug directory is 0o700');
   assert.equal(await mode(root), LANE_DIR_MODE, 'the sessions root is 0o700');

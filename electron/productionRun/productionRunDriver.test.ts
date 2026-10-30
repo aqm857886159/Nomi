@@ -1,3 +1,5 @@
+function qaAssessmentFixture(shotNodeId: string) { return { shotNodeId, assessed: true as const, dimensions: ['identity', 'composition', 'continuity'], unassessedDimensions: [], scope: 'single-frame' as const } }
+
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import os from 'node:os'
@@ -454,7 +456,7 @@ describe('ProductionRunService driver round 1', () => {
         rendererCalls.push({ op, payload })
         if (op === 'production.verify-shots') {
           const ids = (payload as { shotNodeIds: string[] }).shotNodeIds
-          return { reviewedShotIds: ids, verdicts: ids.map((shotNodeId) => ({ shotNodeId, passed: true })) }
+          return { reviewedShotIds: ids, verdicts: ids.map((shotNodeId) => ({ shotNodeId, assessment: qaAssessmentFixture(shotNodeId), passed: true })) }
         }
         if (op === 'production.arrange') {
           return { arranged: 2, total: 2, timelineContract: { version: 1, clips: ['node-shot-a', 'node-shot-b'] } }

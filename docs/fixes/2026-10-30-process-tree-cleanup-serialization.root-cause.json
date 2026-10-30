@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-process-tree-cleanup-serialization",
+  "problem_type": "Concurrent process-tree cleanup races",
+  "symptom": "Windows cancellation, timeout and output-limit report process_cleanup_failed after the owned child has actually exited.",
+  "direct_cause": "Force timer launches a second taskkill while the first asynchronous tree cleanup is still pending; a late taskkill failure attempts to kill an already exited child.",
+  "class_root": "The bounded process owner does not serialize teardown operations or recognize an observed exited child at the Windows fallback boundary.",
+  "affected_population": [
+    "Import cancellation and application teardown",
+    "Media probing and export cancellation",
+    "Windows process cleanup under taskkill latency"
+  ],
+  "scope_paths": [
+    "electron/export/mediaProbe.ts"
+  ],
+  "entry_points": [
+    "runBoundedProcess",
+    "terminateProcessTree"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Node child lifecycle and Nomi bounded-owner implementation are directly reproduced with real local fixture children; no inference or external behavior is involved.",
+  "invariants": [
+    "At most one teardown operation is pending for a child.",
+    "An observed exited child does not become a cleanup failure merely because a late taskkill returns nonzero.",
+    "A still-running unkillable child retains process_cleanup_failed.",
+    "Grace expiry during a pending teardown retains a force request; settlement must service that request sequentially if the child is still live.",
+    "Terminal settlement prevents any new force request; late child close still updates close evidence. A final cleanup failure never authorizes a later PID-based force operation."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "terminateProcessTree"
+    },
+    {
+      "kind": "read",
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityArtifacts.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/assetPreview.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/videoImportNormalize.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "runBoundedProcess"
+    },
+    {
+      "kind": "write",
+      "path": "electron/settings/attentionSoundIpc.ts",
+      "symbol": "runBoundedProcess"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "Media probe, decode, ffmpeg import and export are distinct consumers of the same bounded process owner."
+  },
+  "generality_proof": "Serialize the shared cleanup owner for all stop reasons and consumers, with explicit positive exit evidence for fallback completion.",
+  "shared_boundaries": [
+    {
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "runBoundedProcess",
+      "responsibility": "Own stop escalation without overlapping async teardown."
+    },
+    {
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "terminateProcessTree",
+      "responsibility": "Recognize exited children and fail closed when live cleanup cannot succeed."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/videoImportNormalize.ts",
+      "entry_point": "runBoundedProcess",
+      "disposition": "enforced",
+      "evidence": "Actual import lifecycle integration exercises caller cancellation and quit."
+    },
+    {
+      "path": "electron/export/mediaProbe.ts",
+      "entry_point": "runBoundedProcess",
+      "disposition": "enforced",
+      "evidence": "Timeout, output-limit and abort real-child regressions."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every Windows asynchronous taskkill longer than escalation grace can race another teardown.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs runBoundedProcess terminateProcessTree",
+      "Inspected importTranscodeLifecycle integration and mediaProbe process owner tests",
+      "Inspected shared export and probe consumers"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/export/mediaProbe.ts",
+    "invariant": "Only one cleanup operation owns a child at a time; fallback uses positive exit evidence.",
+    "failure_mode": "Unconfirmed live process cleanup still fails visibly.",
+    "exception_policy": "none",
+    "strategy": "Guard escalation against a pending teardown and inspect child exitCode/signalCode before direct kill fallback.",
+    "artifacts": [
+      "electron/export/mediaProbe.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/export/mediaProbe.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/export/mediaProbe.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/export/mediaProbe.ts"
+    ],
+    "rationale": "Overlapping force escalation is replaced in the existing owner; no alternative runner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade; reuse existing shared publication contract.",
+    "exit_criteria": []
+  },
+  "migration": "No user data changes; existing process clients retain their error and cancellation contracts.",
+  "residual_risks": [
+    "Only owned fixture child processes are terminated during validation.",
+    "Independent review found and required the delayed graceful completion population, not only a first cleanup that kills the child."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpToolResults.ts",
+    "tests": [
+      "electron/capabilityCore/mcpToolResults.test.ts"
+    ]
+  }
+}

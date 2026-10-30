@@ -9,7 +9,9 @@
 import assert from 'node:assert/strict';
 import { chmod, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import fs from 'node:fs';
-import { tmpdir, userInfo } from 'node:os';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
@@ -258,18 +260,26 @@ test('S11 · 无 Electron 的 Node 进程里根仍然有序：NOMI_SKILLS_DIR �
   assert.equal(roots.at(-1)?.origin, 'user');
 });
 
-test('S37 · 一个读不了的技能只出 warning，其余照常加载——不让整条 lane 之后每个回合都失败', { skip: userInfo().username === 'root' ? 'root 读得了任何文件' : false }, async (t) => {
+test('S37 · 一个读不了的技能只出 warning，其余照常加载——不让整条 lane 之后每个回合都失败', async (t) => {
   const root = await tempRoot(t);
   const unreadable = await landSkill(root, 'unreadable', skillMd('unreadable'));
   await landSkill(root, 'fine', skillMd('fine'));
-  await chmod(unreadable, 0o000);
+  let release: (() => Promise<void>) | undefined;
+  if (process.platform === 'win32') {
+    // Hold a real regular file unreadable through a native sharing lock; no ACL changes.
+    const helper = spawn(path.join(process.env.SystemRoot!, 'System32/WindowsPowerShell/v1.0/powershell.exe'), ['-NoProfile','-NonInteractive','-Command', '$f = [IO.File]::Open($env:NOMI_TEST_LOCK_TARGET,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None); try { [Console]::Out.WriteLine("ready"); [Console]::Out.Flush(); [Console]::ReadLine() | Out-Null } finally { $f.Dispose() }'], {env:{...process.env,NOMI_TEST_LOCK_TARGET:unreadable},windowsHide:true,stdio:['pipe','pipe','pipe']});
+    release = async () => { helper.stdin.end('release\n'); if(helper.exitCode === null && helper.signalCode === null) await once(helper,'exit'); };
+    await new Promise<void>((resolve,reject) => { helper.stdout.once('data',()=>resolve()); helper.once('error',reject); helper.once('exit',code=>reject(new Error('File lock helper exited before ready: '+code))); });
+  } else {
+    await chmod(unreadable, 0o000);
+    t.after(() => chmod(unreadable, 0o600));
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return t.skip('root bypasses POSIX file-read permissions');
+  }
   try {
     const { records, diagnostics } = await discoverSkillRecords([{ path: root, origin: 'user' }]);
     assert.deepEqual(records.map((record) => record.directoryName), ['fine']);
     assert.ok(diagnostics.some((d) => d.code === 'read_failed' && d.type === 'warning'), JSON.stringify(diagnostics));
-  } finally {
-    await chmod(unreadable, 0o644);
-  }
+  } finally { await release?.(); }
 });
 
 test('S38/S39 · 软链的技能目录 / 软链的 SKILL.md 不进目录，各记一条诊断（pi 会跟着软链走，我们不许）', async (t) => {

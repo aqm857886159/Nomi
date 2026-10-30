@@ -1058,3 +1058,51 @@ describe('resolveTaskKind — kind × 能力面穷举（防「档案桶/兜底�
     }
   })
 })
+
+
+describe('submitted query identity persistence', () => {
+  it('does not submit if the exact built request cannot be durably recorded', async () => {
+    const runTask = vi.fn()
+    const onTaskRequest = vi.fn(async (vendor: string, request: TaskRequestDto) => {
+      expect(vendor).toBe('mock-vendor')
+      expect(request.kind).toBe('text_to_image')
+      expect(request.extras?.modelKey).toBe('mock-image')
+      throw new Error('identity write failed')
+    })
+    const node: GenerationCanvasNode = { id: 'identity-1', kind: 'image', title: '', position: { x: 0, y: 0 }, prompt: 'test', meta: { modelKey: 'mock-image', vendor: 'mock-vendor' } }
+    await expect(runCatalogGenerationTask(node, { projectTarget: TEST_TARGET, runTask, onTaskRequest, listCatalogVendors: async () => { throw new Error('no catalog') } })).rejects.toThrow('identity write failed')
+    expect(onTaskRequest).toHaveBeenCalledOnce()
+    expect(runTask).not.toHaveBeenCalled()
+  })
+})
+
+
+it.each(['comfyui-local','comfyui-local--candidate-import'])('keeps exact workflow file parameters authoritative for %s', vendor => {
+  const node:GenerationCanvasNode={id:'imported',kind:'video',title:'',position:{x:0,y:0},prompt:'Diya',meta:{
+    modelKey:'imported-graph',modelVendor:vendor,vendor,
+    comfyWorkflowImport:{binding:{outputKind:'video'}},parameters:[{key:'frame_a',type:'image-url'},{key:'frame_b',type:'image-url'}],
+    parameterReferenceSlots:{modelKey:'imported-graph',vendorKey:vendor,slots:[{key:'frame_a',label:'A',group:'reference',mediaKind:'image'},{key:'frame_b',label:'B',group:'reference',mediaKind:'image'}]},
+    referenceImages:['https://wrong.test/legacy.png'],referenceImageUrls:['https://wrong.test/upload.png'],
+    archetypeInput:{frame_a:'https://wrong.test/override.png'},archetype:{id:'minimax-h3',modeId:'i2v'},
+  }};
+  const {request}=buildCatalogTaskRequest(node,{references:{parameterReferenceUrls:{frame_a:'https://real.test/a.png',frame_b:'https://real.test/b.png'},referenceImages:['https://wrong.test/generic.png']}});
+  expect(request.extras?.frame_a).toBe('https://real.test/a.png');
+  expect(request.extras?.frame_b).toBe('https://real.test/b.png');
+  expect(request.extras?.archetypeInput).toBeUndefined();
+});
+
+describe('imported duration request admission', () => {
+  const target = (values: Record<string, unknown>): GenerationCanvasNode => ({
+    id: 'duration-request', kind: 'video', title: 'Duration', prompt: 'A lamp flickers', position: { x: 0, y: 0 },
+    meta: { modelVendor: 'comfyui-local-fixture', modelKey: 'custom-duration',
+      comfyWorkflowImport: { binding: { outputKind: 'video' } },
+      parameters: [{ key: 'comfy_duration', type: 'number', label: 'Duration', default: 5 }], ...values },
+  })
+  it('maps explicit semantic duration before creating a wire request', () => {
+    const built = buildCatalogTaskRequest(target({ duration: 8 }))
+    expect(built.request.extras?.comfy_duration).toBe(8)
+  })
+  it('blocks old contradictory metadata before any provider submission', () => {
+    expect(() => buildCatalogTaskRequest(target({ duration: 7, comfy_duration: 5 }))).toThrow(/duration.*conflict/)
+  })
+})

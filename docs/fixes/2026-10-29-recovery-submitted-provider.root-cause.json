@@ -1,0 +1,188 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-recovery-submitted-provider",
+  "problem_type": "Recovery routing follows mutable selection instead of submitted job identity",
+  "symptom": "Retrieve again can query the wrong provider or model after a node selection changes.",
+  "direct_cause": "buildRecoverPayload reads selectedVendor and selectedModelKey despite an existing run.attempt snapshot.",
+  "class_root": "Recovery query routing does not honor immutable submission identity at its shared payload boundary.",
+  "affected_population": [
+    "Any non-production canvas task with a saved attempt and changed provider/model selection",
+    "Imported ComfyUI candidate workflows and cloud providers"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/model/generationCanvasTypes.ts",
+    "src/workbench/generationCanvas/model/generationCanvasSchema.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts"
+  ],
+  "entry_points": [
+    "recoverNodeResult legacy canvas recovery",
+    "Production-owned recovery delegates to durable Production Run"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This invariant is controlled by Nomi saved run records and internal task routing, not a third-party protocol.",
+  "invariants": [
+    "When a run has a submitted provider/model snapshot, retrieve using that snapshot.",
+    "Do not attach a newly selected model mode to an earlier model task.",
+    "Production Run ownership and project identity checks remain intact.",
+    "Persist the exact built request task kind and mode before transport submission; recovery must use this snapshot despite later reference/mode edits."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "buildRecoverPayload"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+      "symbol": "onTaskRequest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "onTaskRequest"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/generationCanvasSchema.ts",
+      "symbol": "generationNodeRunRecordSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/generationCanvasTypes.ts",
+      "symbol": "GenerationNodeRunAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "symbol": "GenerationNodeRunAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/nodeModelHealth.ts",
+      "symbol": "GenerationNodeRunAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "persistSubmittedRunAttempt"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "GenerationNodeRunAttempt"
+    }
+  ],
+  "door_reduction": {
+    "before": 9,
+    "after": 9,
+    "why_not": "Recovery consumption, executor forwarding, provider-bound submission and schema parsing are separate lifecycle boundaries; each is necessary and now shares one persisted query snapshot rather than independent routing guesses."
+  },
+  "generality_proof": "All legacy canvas recovery queries pass through buildRecoverPayload. Provider-independent regression cases cover cloud and imported ComfyUI identities; production-owned jobs already use durable run retrieval.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "runCatalogGenerationTask",
+      "responsibility": "Existing registered generation gateway awaits persistence of the exact built request routing before any provider submission. Recovery reads that same stored identity."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "deliverRunOutcome",
+      "responsibility": "Existing registered run-outcome writer owns original-project identity delivery. Its local persistSubmittedRunAttempt helper retains receipt fields, flushes the existing save owner and verifies the bound disk receipt; no second run writer is introduced."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "enforced",
+      "evidence": "Every legacy task query consumes buildRecoverPayload."
+    },
+    {
+      "path": "src/workbench/production/retryProductionRetrieval.ts",
+      "entry_point": "retryProductionRetrievalForNode",
+      "disposition": "not-affected",
+      "evidence": "Production-owned nodes delegate to durable run retrieval before the legacy payload path."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any later selection change can affect an earlier task across providers and future runs.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs buildRecoverPayload: one production entry, src/electron 3063 files searched.",
+      "rg attempt.vendorKey and attempt?.vendorKey in runner: nodeModelHealth already reads saved attempt identity.",
+      "Checked recoverNodeResult production dispatch before legacy recovery."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "invariant": "Saved run routing takes precedence over mutable next-run selection.",
+    "failure_mode": "Missing task/vendor retains existing missing-task error; project mismatch remains refused.",
+    "exception_policy": "none",
+    "strategy": "Persist exact built request routing through the existing run-started delivery before submission; consume this immutable query snapshot at the recovery boundary.",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/model/generationCanvasTypes.ts",
+      "src/workbench/generationCanvas/model/generationCanvasSchema.ts",
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/recoverTaskActions.projectIdentity.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "src/workbench/generationCanvas/model/generationCanvasSchema.test.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.test.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+    "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/recoverTaskActions.projectIdentity.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "src/workbench/generationCanvas/model/generationCanvasSchema.test.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.test.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+    "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/recoverTaskActions.ts"
+    ],
+    "rationale": "Removed unconditional selected-vendor/model routing when an immutable attempt exists; no parallel recovery engine added."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls which persisted identity is selected for the query.",
+    "exit_criteria": []
+  },
+  "migration": "New tasks persist query kind/mode from the final built request before submission. Historical records remain readable and preserve prior best-effort inference only when no exact query snapshot exists; missing historical inputs are not fabricated.",
+  "residual_risks": [
+    "Live UI retrieval and restart into this isolated build remain unverified.",
+    "Legacy records without an attempt cannot recover unavailable historical identity.",
+    "Historical records lacking an exact query snapshot still depend on existing legacy reference/mode inference; original absent inputs cannot be guessed.",
+    "Single-submit characterization fixtures now register the existing durable save owner and preserve workspace identity; no production persistence check was relaxed. The missing-owner failure was reproduced in single-submit-diagnostic.log."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/runner",
+    "tests": [
+      "src/workbench/generationCanvas/runner/recoverTaskActions.projectIdentity.test.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+      "src/workbench/generationCanvas/model/generationCanvasSchema.test.ts",
+      "src/workbench/generationCanvas/runner/generationNodeExecutor.test.ts",
+      "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts"
+    ]
+  }
+}

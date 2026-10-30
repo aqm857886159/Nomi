@@ -1,3 +1,5 @@
+import type { StoryboardPlan } from './storyboardPlan'
+import { assertStoryboardModelIdentities } from './plannedNodeMeta'
 import { hasRealCharacterReferences, normalizeStoryboardAnchorDefaults, validateAnchorModelFit } from './storyboardAnchorPolicy'
 import { getUndoJournalGeneration } from '../events/canvasUndoJournal'
 import { captureCurrentProjectCanvasReadSurfaceBinding } from '../../project/projectCanvasReadSurface'
@@ -223,6 +225,12 @@ export function parseCameraMoveSpec(record: Record<string, unknown>): {
   }
 }
 
+async function admitStoryboardModelIdentities(plan: StoryboardPlan): Promise<void> {
+  const selections = [...plan.anchors, ...plan.shots, ...plan.shots.flatMap(shot => shot.keyframe?.enabled ? [shot.keyframe] : [])]
+  if (!selections.some(selection => selection.modelKey && selection.modelVendor)) return
+  assertStoryboardModelIdentities(plan, buildModelEntryIndex(await listAvailableModelsForAgent()))
+}
+
 export async function applyCanvasToolCall(
   toolName: string,
   args: unknown,
@@ -263,7 +271,7 @@ export async function applyCanvasToolCall(
     return applyDirectorWrite(parsed.data, { inCtx, resolveNodeId, ...(gesture?.proposalId ? { proposalId: gesture.proposalId } : {}) })
   }
 
-  if (toolName === 'nomi_canvas_plan' && operation === 'patch_shots') {
+  if (operation === 'patch_shots' && (toolName === 'nomi_canvas_plan' || toolName === 'nomi_canvas_edit')) {
     const store = useWorkbenchStore.getState()
     const targetDocumentId = documentId ?? store.activeDocumentId
     const targetDesign = store.storyboardDesignsByDocumentId[targetDocumentId]?.find((item) => item.id === (storyboardId ?? store.activeStoryboardId))
@@ -277,7 +285,13 @@ export async function applyCanvasToolCall(
     if (!parsed.success || parsed.data.operation !== 'patch_shots') {
       throw Object.assign(new Error('分镜修改参数无效。'), { code: 'capability_input_invalid' })
     }
-    const preview = previewStoryboardPatchShots(targetDesign.plan, parsed.data)
+    const models = parsed.data.patch.modelKey || targetDesign.plan.shots.some(shot => shot.modelKey) ? await listAvailableModelsForAgent() : []
+    const preview = previewStoryboardPatchShots(targetDesign.plan, parsed.data, models)
+    await admitStoryboardModelIdentities(preview.nextPlan)
+    if (assertTargetCurrent) await assertTargetCurrent()
+    if (useWorkbenchStore.getState().storyboardDesignsByDocumentId[targetDocumentId]?.find(item => item.id === targetDesign.id) !== targetDesign) {
+      throw new SurfacePortWireError('capability_target_stale')
+    }
     const targetStoryboardId = storyboardId
       ?? store.activeStoryboardId
       ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]?.id
@@ -316,6 +330,7 @@ export async function applyCanvasToolCall(
     const plan = hasRealCharacterReferences(parsedPlan)
       ? normalizeStoryboardAnchorDefaults(parsedPlan, await listAvailableModelsForAgent(), (await getVendorPreference()).orderedVendorKeys)
       : parsedPlan
+    await admitStoryboardModelIdentities(plan)
     const store = useWorkbenchStore.getState()
     const currentDocument = store.workbenchDocuments.find(document => document.id === targetDocumentId)
     const currentDesign = storyboardId ? store.storyboardDesignsByDocumentId[targetDocumentId]?.find(design => design.id === storyboardId) : undefined

@@ -1,0 +1,17 @@
+[
+  {
+    "kind": "read",
+    "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+    "symbol": "findShotKeyframeNode"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "symbol": "findShotKeyframeNode"
+  },
+  {
+    "kind": "read",
+    "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "symbol": "findShotKeyframeNode"
+  }
+]
