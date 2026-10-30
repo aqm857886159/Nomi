@@ -20,6 +20,7 @@ import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 import { judgeBaselineGrowth, judgeBaseUnavailable } from './lib/walkthroughBaselineGuard.mjs'
 import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 import { findComposerInputReads } from './lib/composerInputReads.mjs'
+import { findAbsenceWithoutBaseline } from './lib/absenceWithoutBaseline.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -345,5 +346,305 @@ describe('composer-input-read：占位也不能按 placeholder 属性读（短�
   })
   it('如实：读 data-placeholder 不在这条规则里（它是活的读法，Agent 输入框上全仓 0 处；唯一一处在生成节点的描述框）', () => {
     assert.deepEqual(findComposerInputReads("const node = win.locator('.generation-canvas-v2-node__prompt-input [data-placeholder]')\nawait node.getAttribute('data-placeholder')"), [])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// absence-without-baseline：归零比较归属给「被比较的那个表达式」（2026-10-30，设计卡 ★9 的 A / B / C 编号）
+//
+// 起因：中转视频线的 `expect(readCreates(), '…').toBe(0)` 数的是 HTTP POST，被旧规则判成界面上的「不存在断言没有基线」，
+// 只因往上 5 行碰巧有 `locator(`。旧规则判的是「附近有没有界面观测词」，不是「被比较的东西是不是界面观测」；
+// 反过来，观测离比较远于 5 行时又漏掉。下面 A 组是旧规则会冤枉的（先红：旧窗口对 A1 / A2 / A3 / A5 都命中），
+// B 组是旧规则就该命中、新规则一条不许丢的，C 组把形状清单的边界钉在现状。
+// ─────────────────────────────────────────────────────────────────────────────
+const sourceLines = (...rows) => rows.join('\n')
+const hitLines = (code) => findAbsenceWithoutBaseline(code).map((hit) => hit.line)
+
+describe('absence-without-baseline A：数的不是界面匹配数，附近有观测词也不许命中', () => {
+  it('A1 中转视频线原件：HTTP 计数函数是解构形参，往上 5 行有 locator / count()', () => {
+    const code = sourceLines(
+      'export async function runRelayVideoPaidSteps({ paid, win, plan, mcpEnv = {}, readCreates, readCreateBodies, freeOnly = false }) {',
+      '  const prepared = await prepareRelayVideo({ win })',
+      "  await prepared.node.locator('[data-parameter-summary]').click()",
+      "  const duration = win.locator('[data-agent-parameter-panel] [data-agent-parameter-control=\"duration\"]')",
+      "  const slider = duration.getByRole('slider')",
+      "  if (await slider.count()) await slider.press('Home')",
+      "  const visibleSettings = await prepared.node.locator('[data-node-composer-footer]').innerText()",
+      "  expect(visibleSettings, 'the visible minimum resolution agrees with the sealed request').toContain(plan.resolution)",
+      "  expect(readCreates(), 'free preparation has not submitted a generation').toBe(0)",
+      '}',
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A2 同一句，HTTP 计数是本地函数', () => {
+    const code = sourceLines(
+      'const requests = []',
+      "const readCreates = () => requests.filter((request) => request.method === 'POST').length",
+      "const card = win.locator('[data-card]')",
+      'await card.click()',
+      "expect(readCreates(), 'no generation yet').toBe(0)",
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A3 回调形参是元素本身，不是匹配数；for-of 里的一项也是成员：e.children.length === 0、text.length === 0', () => {
+    const code = sourceLines(
+      "const leaves = await win.evaluate(() => [...document.querySelectorAll('[role=listbox] *')].filter((e) => e.children.length === 0).map((e) => e.textContent))",
+      "const texts = Array.from(document.querySelectorAll('body *')).map((e) => (e.children.length === 0 ? (e.textContent || '').trim() : ''))",
+      "for (const text of await win.locator('[data-row]').allTextContents()) {",
+      "  if (text.length === 0) failures.push('有一行是空的')",
+      '}',
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A4 元素的几何与属性值不是匹配数：br.width === 0、getAttribute(…) === 0、textContent().length === 0', () => {
+    const code = sourceLines(
+      'const collapsed = (el) => {',
+      '  const br = el.getBoundingClientRect()',
+      '  if (br.width === 0 || br.height === 0) return true',
+      '  return false',
+      '}',
+      "const first = win.locator('[data-start]').first()",
+      "check('起点归零', Number(await first.getAttribute('data-start')) === 0)",
+      "check('文本为空', (await first.textContent()).length === 0)",
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A5 同一个 evaluate 返回的对象：数界面卡片的字段命中，数模型目录的字段不命中（按字段取，不整包算）', () => {
+    const code = sourceLines(
+      'const initial = await win.evaluate(async () => {',
+      '  let textModels = -1',
+      '  try { textModels = (await window.nomiDesktop.modelCatalog.listModels({ kind: "text" })).length } catch { textModels = -1 }',
+      "  const projectCards = document.querySelectorAll('[data-project-card]').length",
+      '  return { textModels, projectCards }',
+      '})',
+      "check('全新安装：项目库为空', initial.projectCards === 0)",
+      "if (initial.textModels === 0) check('状态条带接入文本模型按钮', true)",
+    )
+    assert.deepEqual(hitLines(code), [7])
+  })
+
+  it('A6 控制台错误、供应商调用这些计数不是界面匹配数', () => {
+    const code = sourceLines(
+      'const consoleErrors = []',
+      "page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })",
+      "await win.locator('[data-ready]').waitFor()",
+      "check('全程零 console error', consoleErrors.length === 0)",
+      "if (fixture.images.length !== 0) failures.push('点生成之前就发生了供应商调用')",
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A7 违规清单：Array.filter(谓词) 之后的零取决于谓词，不是选择器；Locator.filter({…}) 仍是选择器', () => {
+    const code = sourceLines(
+      "const bad = await win.evaluate(() => [...document.querySelectorAll('img')].filter((img) => img.naturalWidth < 10).length)",
+      "assert(bad === 0, '图片非空渲染')",
+      "assert((await win.locator('li').all()).filter((item) => item.draft).length === 0, '谓词筛出来的清单是空的')",
+      "assert((await win.locator('li').filter({ hasText: '草稿' }).all()).length === 0, '没有草稿行')",
+    )
+    assert.deepEqual(hitLines(code), [4])
+  })
+
+  it('A8 .not.toHaveCount(0) / .not.toBe(0) 断言「至少一个」，是 proveProbe 的形状，不是不存在断言', () => {
+    const code = sourceLines(
+      "await expect(win.locator('[role=option]'), '下拉点开了却一个选项都没有').not.toHaveCount(0)",
+      "expect(await win.locator('[role=option]').count()).not.toBe(0)",
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A9 循环下标与取模：index === 0 ? 1500 : 900、total % 4 !== 0（#1101 的两个误中）', () => {
+    const code = sourceLines(
+      "const cards = win.locator('[data-card]')",
+      'const total = await cards.count()',
+      'for (let index = 0; index < total; index += 1) {',
+      '  await win.waitForTimeout(index === 0 ? 1500 : 900)',
+      '}',
+      "if (total % 4 !== 0) throw new Error('张数不是 4 的倍数')",
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A10 注释和字符串里写的 count() === 0 不是代码', () => {
+    const code = sourceLines(
+      "// expect(await win.locator('x').count()).toBe(0)",
+      "const note = 'await win.locator(\"x\").count() === 0'",
+      "console.log(`expect(win.locator('x')).toHaveCount(0)`)",
+    )
+    assert.deepEqual(hitLines(code), [])
+  })
+
+  it('A11 块级作用域：别的块里同名的 n 是匹配数，当前块的 n 不是', () => {
+    const code = sourceLines(
+      '{',
+      "  const n = await win.locator('[data-a]').count()",
+      '  console.log(n)',
+      '}',
+      '{',
+      '  const n = items.length - 1',
+      "  if (n === 0) throw new Error('只有一项')",
+      '}',
+      '{',
+      "  const n = await win.locator('[data-b]').count()",
+      "  if (n === 0) throw new Error('没有 b')",
+      '}',
+    )
+    assert.deepEqual(hitLines(code), [11])
+  })
+})
+
+describe('absence-without-baseline B：被比较的是界面匹配数，照旧命中', () => {
+  it('B1 Locator 专属断言 toHaveCount(0)：直接写、经变量、形参传进来的 locator 都命中', () => {
+    const code = sourceLines(
+      "await expect(page.locator('[data-x]')).toHaveCount(0)",
+      "const dialog = win.locator('[role=dialog]')",
+      'await expect(dialog).toHaveCount(0)',
+      'async function expectGone(target) {',
+      '  await expect(target).toHaveCount(0)',
+      '}',
+    )
+    assert.deepEqual(hitLines(code), [1, 3, 5])
+  })
+
+  it('B2 观测和比较隔了 8 行（旧的 5 行窗口够不到）', () => {
+    const code = sourceLines(
+      "const n = await page.locator('[data-x]').count()",
+      "console.log('a')",
+      "console.log('b')",
+      "console.log('c')",
+      "console.log('d')",
+      "console.log('e')",
+      "console.log('f')",
+      "console.log('g')",
+      "console.log('h')",
+      "if (n === 0) throw new Error('零')",
+    )
+    assert.deepEqual(hitLines(code), [10])
+  })
+
+  it('B3 来源的各种写法：重新赋值、+=、数组解构、解构默认值、一批匹配的 length、对字段的写入（按字段）', () => {
+    const code = sourceLines(
+      'let reassigned = 0',
+      "reassigned = await win.locator('[data-a]').count()",
+      "check('a', reassigned === 0)",
+      'let total = 0',
+      "total += await win.locator('[data-b]').count()",
+      "check('b', total === 0)",
+      "const [first, second] = await Promise.all([win.locator('[data-c]').count(), win.locator('[data-d]').count()])",
+      "check('c', second === 0)",
+      "const { cards = await win.locator('[data-e]').count() } = options",
+      "check('d', cards === 0)",
+      "const rows = await win.locator('[data-f]').all()",
+      "check('e', rows.length === 0)",
+      'const facts = {}',
+      "facts.cards = await win.locator('[data-g]').count()",
+      'facts.other = 5',
+      "check('f', facts.cards === 0)",
+      "check('g', facts.other === 0)",
+    )
+    assert.deepEqual(hitLines(code), [3, 6, 8, 10, 12, 16])
+  })
+
+  it('B4 .count().catch(() => 0) 的尾巴不让观测断掉', () => {
+    const code = sourceLines(
+      "const gone = (await win.locator('.nomi-splash').count().catch(() => 0)) === 0",
+      "if ((await getWin().locator('.nomi-splash').count().catch(() => 0)) === 0 && i > 0) break",
+    )
+    assert.deepEqual(hitLines(code), [1, 2])
+  })
+
+  it('B5 本地函数的返回：箭头函数、函数声明', () => {
+    const code = sourceLines(
+      "const cards = () => win.locator('[data-card]').count()",
+      "async function edges() { const found = await win.locator('[data-edge]').count(); return found }",
+      "assert((await cards()) === 0, '没有卡')",
+      "assert((await edges()) === 0, '没有边')",
+    )
+    assert.deepEqual(hitLines(code), [3, 4])
+  })
+
+  it('B6 页内回调的返回值：直接返回匹配数，或返回对象里的字段', () => {
+    const code = sourceLines(
+      "const direct = await win.evaluate(() => document.querySelectorAll('[data-x]').length)",
+      "const bag = await win.evaluate(() => ({ cards: document.querySelectorAll('[data-card]').length, scroll: window.scrollY }))",
+      "assert(direct === 0, 'x')",
+      "assert(bag.cards === 0, 'y')",
+      "assert(bag.scroll === 0, 'z')",
+    )
+    assert.deepEqual(hitLines(code), [3, 4])
+  })
+
+  it('B7 一批匹配的各种写法：展开、Array.from、all()、allTextContents()、new Set(…).size', () => {
+    const code = sourceLines(
+      "const a = await win.evaluate(() => [...document.querySelectorAll('[data-a]')].length === 0)",
+      "const b = await win.evaluate(() => Array.from(document.querySelectorAll('[data-b]')).length === 0)",
+      "const c = (await win.getByRole('button', { name: '保存' }).all()).length === 0",
+      "const d = (await win.getByText('草稿').allTextContents()).length === 0",
+      'const e = new Set(await win.locator("[data-e]").all()).size === 0',
+    )
+    assert.deepEqual(hitLines(code), [1, 2, 3, 4, 5])
+  })
+
+  it('B8 expect.poll 比较的是回调的返回值', () => {
+    const code = sourceLines(
+      "await expect.poll(() => win.locator('[data-x]').count(), { timeout: 5000 }).toBe(0)",
+      "await expect.poll(async () => { const n = await win.locator('[data-y]').count(); return n }).toBe(0)",
+      'await expect.poll(() => readCreates()).toBe(0)',
+    )
+    assert.deepEqual(hitLines(code), [1, 2])
+  })
+
+  it('B9 旧规则覆盖的全部归零写法：=== 0、== 0、!== 0、toBe(0)、toHaveCount(0)、length === 0；一行多个只记一行', () => {
+    const code = sourceLines(
+      "const n = await win.locator('[data-x]').count()",
+      "check('1', n === 0)",
+      "check('2', n == 0)",
+      "check('3', n !== 0)",
+      'expect(n).toBe(0)',
+      "await expect(win.locator('[data-x]')).toHaveCount(0)",
+      "check('4', (await win.locator('[data-a]').all()).length === 0)",
+      "check('5', n === 0 && (await win.locator('[data-b]').count()) === 0)",
+    )
+    assert.deepEqual(hitLines(code), [2, 3, 4, 5, 6, 7, 8])
+  })
+
+  it('B10 命中项是 { line, text }：行号是原文行号，text 是去掉首尾空白的原行、最多 120 字', () => {
+    const long = `check('${'x'.repeat(150)}', (await win.locator('[data-x]').count()) === 0)`
+    const hits = findAbsenceWithoutBaseline(`\n\n  ${long}\n`)
+    assert.equal(hits.length, 1)
+    assert.equal(hits[0].line, 3)
+    assert.equal(hits[0].text, long.slice(0, 120))
+  })
+
+  it('B11 吃原文：// 行注释里带 /*（stripComments 会连后面的代码一起吃掉）、CRLF 换行、烂代码、空文件', () => {
+    const code = sourceLines(
+      '// 产出: tests/ux/shots/*.png 截图',
+      "const gone = await win.locator('[data-x]').count()",
+      'try { await step() } catch { /* ignore */ }',
+      "check('x', gone === 0)",
+    )
+    assert.deepEqual(hitLines(code), [4])
+    assert.deepEqual(hitLines(code.split('\n').join('\r\n')), [4])
+    assert.doesNotThrow(() => findAbsenceWithoutBaseline('const = ; ((( )) === 0 .toBe(0'))
+    assert.deepEqual(findAbsenceWithoutBaseline(''), [])
+  })
+})
+
+describe('absence-without-baseline C：形状清单之外的写法不在这条规则里（现状，缺口如实钉住）', () => {
+  it('C1 toBe(false)、< 1、0 === x、!= 0、toHaveCount(0, {…})、expectCount(…, 0) 旧规则就不认，这次也不认', () => {
+    // 任务书写的「expect(await page.getByText('x').isVisible()).toBe(false) 现在规则覆盖」与旧代码不符：旧正则只认归零比较。
+    // 要补这些形状是另一个决定（会多出新命中），不顺手做；谁补，谁翻转这条。
+    const code = sourceLines(
+      "expect(await win.getByText('x').isVisible()).toBe(false)",
+      "check('a', (await win.locator('[data-x]').count()) < 1)",
+      "check('b', 0 === (await win.locator('[data-x]').count()))",
+      "check('c', (await win.locator('[data-x]').count()) != 0)",
+      "await expect(win.locator('[data-x]')).toHaveCount(0, { timeout: 5000 })",
+      "await expectCount(win.locator('[data-x]'), 0, 'x')",
+    )
+    assert.deepEqual(hitLines(code), [])
   })
 })
