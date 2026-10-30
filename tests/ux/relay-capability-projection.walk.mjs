@@ -75,13 +75,21 @@ try {
   const textBody = relay.hits.find((h) => h.method === 'POST').body
   expect(Number(textBody.duration)).toBe(1)
   expect(textBody.resolution).toBe('360p')
-  // The existing design selects video modes from inputs; a single image mode has no radio.
+  // The picker follows current inputs. Add a real reference through its existing input owner.
   await win.keyboard.press('Escape')
+  await node.locator('[data-asset-add-tile]').first().click()
+  await win.locator('[data-testid="asset-picker"]').first().locator('input[type="file"]').setInputFiles(path.resolve('resources/onboarding-demo/shot-5.jpg'))
+  await expect.poll(async () => (await readProject(win, prepared.projectId)).payload.generationCanvas.nodes.find((n) => n.id === prepared.nodeId)?.meta?.archetype?.modeId, { timeout: stationTimeout() }).toBe('i2v')
+  await win.keyboard.press('Escape')
+  await node.click({ position: { x: 8, y: 8 } })
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await relayModelOption(win, models[1].id).click()
   await expect.poll(async () => (await readProject(win, prepared.projectId)).payload.generationCanvas.nodes.find((n) => n.id === prepared.nodeId)?.meta?.archetype?.modeId, { timeout: stationTimeout() }).toBe('i2v')
   await node.locator('[contenteditable="true"]').last().fill('A glass marble rolls slowly')
   const runButton = node.locator('[data-bar-segment="generate"]')
+  await expect(node.locator('[data-asset-slot] img').first()).toBeVisible()
+  await node.locator('[data-asset-slot] [data-asset-tile-remove]').click()
+  await expect(node.locator('[data-asset-slot] img')).toHaveCount(0)
   await expect(runButton).toBeDisabled()
   expect(await node.locator('[data-asset-slot]').count()).toBe(1)
   await capture('frame-required')
