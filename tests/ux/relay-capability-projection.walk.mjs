@@ -106,6 +106,35 @@ try {
   expect(posts[1].body.image_urls).toHaveLength(1)
   expect(Number(posts[1].body.duration)).toBe(3)
   expect(posts[1].body.resolution).toBe('540p')
+  // Exercise the non-default image route of the dual-mode declaration too.
+  await win.keyboard.press('Escape')
+  await node.locator('[data-bar-segment="model-params"] button').first().click()
+  await relayModelOption(win, models[0].id).click()
+  await node.locator('[data-parameter-summary]').click()
+  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: /图生视频|Image-to-video/ }).click()
+  const dualDuration = panel.locator('[data-agent-parameter-control="duration"]')
+  const slider = dualDuration.getByRole('slider')
+  if (await slider.count()) await slider.press('Home')
+  else await dualDuration.getByRole('spinbutton').fill('1')
+  expect(await panel.locator('[data-agent-parameter-control="resolution"]').innerText()).toContain('360p')
+  await capture('dual-image-parameters')
+  await win.keyboard.press('Escape')
+  report.reattachedDualImage = !(await node.locator('[data-asset-slot] img').count())
+  if (report.reattachedDualImage) {
+    await node.locator('[data-asset-slot] [data-asset-add-tile]').click()
+    await win.locator('[data-testid="asset-picker"]').first().locator('input[type="file"]').setInputFiles(path.resolve('resources/onboarding-demo/shot-5.jpg'))
+    await expect(node.locator('[data-asset-slot] img').first()).toBeVisible()
+    await win.keyboard.press('Escape')
+  }
+  report.dualImageResult = await generateRelayVideo({ win, prepared, capture })
+  fs.copyFileSync(report.dualImageResult.media.filePath, path.join(evidence, 'dual-image-result.mp4'))
+  expect(relay.tasks.size).toBe(3)
+  const allPosts = relay.hits.filter((h) => h.method === 'POST')
+  expect(allPosts).toHaveLength(3)
+  expect(allPosts[2].body.model).toBe(models[0].id)
+  expect(allPosts[2].body.image_urls).toHaveLength(1)
+  expect(Number(allPosts[2].body.duration)).toBe(1)
+  expect(allPosts[2].body.resolution).toBe('360p')
   report.manualCapabilityEdits = 0
 } catch (error) {
   failure = error
