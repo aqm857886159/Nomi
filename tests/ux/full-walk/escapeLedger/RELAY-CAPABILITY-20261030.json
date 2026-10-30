@@ -21,7 +21,8 @@
     "47b6c72c8b112594acc34dbbcc077945ca475e7e",
     "efa14d42d8d65df5d8e9c3768402835f0ff06248",
     "8b79097902573cf1efd6fe5502d0474afba6b6a5",
-    "9366a2a652f33427b2a77fd3630e0cd05e3fcebd"
+    "9366a2a652f33427b2a77fd3630e0cd05e3fcebd",
+    "de9ca150230b4964d80da45e1e3c1132caf4c114"
   ],
   "evidence": [
     "tests/relay-onboarding/contracts.test.mjs",
