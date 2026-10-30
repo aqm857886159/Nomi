@@ -101,6 +101,10 @@
 | 还原后台投递 | 后台纯进度改了项目快照，测试红；恢复后身份/终态照存、瞬态不存 | runProjectDelivery.background.test.ts |
 | 旧数据 taskId/taskKind 不一致 | 去掉运行记录身份比较时两项均红，恢复后通过 | canvasRunActions.idle.test.ts 的 legacy 参数化检查 |
 | 导入 / 聊天 | 导入 8 项、指向元素 38 项通过；不替代真窗 | NodeImportingOverlay.test.ts、NodePointer.test.tsx |
-| 正式性能 / 真窗 / gates | unverified：构建门岗锁排队 25 分钟未获锁；前台为 Claude；未起 Electron | 本地实现不等于完整验收；不得合并前据此标已解决 |
+| 续跑 build / 冒烟 | 槽 B build 0；N60/N100 各一次 60 秒冒烟，draw / 30 秒保存 IPC / 重复 pending 快照均 0，帧 p95=9.1/9.2ms | docs/evidence/2026-10-31-generation-idle-work/smoke-counters.json；不是正式基线 |
+| 真窗 / 新阻断 | 中文较早量具一轮 12/12 落卡并持久化；英文两轮 11/12，最新一轮捕获 RuntimeEnvelopeConflictError；新确定性交错测试两项红，测试文件字节还原 | docs/evidence/2026-10-31-generation-idle-work/restart-blocker.json |
+| 正式性能 / gates / 快检 | 未运行：按任务书新分支规则停在重启验收；未扩大产品改动 | 本地三删不等于完整验收，不得标已解决 |
 
-全部反例由脚本 finally 还原原始字节，SHA256 前后相同；等待面一轮单文件测试曾在资源拥塞期超时，后续定位运行及最终运行通过，未调高超时。真实 N=60/100、60 秒等待、30 秒保存 IPC、双语重启与截图以及完整 gates/推送前快检尚未执行。性能场景保持 proposed/pending，不写虚构基线，不由实现线批准预算。
+全部反例由脚本 finally 还原原始字节，SHA256 前后相同；等待面一轮单文件测试曾在资源拥塞期超时，后续定位运行及最终运行通过，未调高超时。N=60/100 是静态背景数，额外 k=12 个真实 loopback 任务（实际 72/112 节点）。两档 60 秒冒烟已执行，正式五次改前后仍未运行；中英静止灰格及 75% 条的 100% 缩放截图已逐张查看，重启闭环整体未通过。性能场景保持 proposed/pending，不由实现线批准基线或预算。
+
+执行条件以任务书 10-30 23:3x 裁定为准：load5<10 且前台不是 Claude 或 HIDIdle≥600 秒；构建/冒烟/走查走 B，正式量数双槽。本轮未改原 ★9 清单、未重做门图/反例/账本。新增恢复竞态需查询返回后再次核完成态，会新增状态处理分支，按任务书先停并交协调裁定。

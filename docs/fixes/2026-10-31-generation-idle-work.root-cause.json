@@ -856,9 +856,11 @@
   },
   "migration": "No stored schema changes. Existing taskId and frozen contracts remain readable; only transient redundant work disappears.",
   "residual_risks": [
-    "Real Windows GPU and original user project are unverified.",
-    "N=60/100 60-second performance and both-language Electron restart/screenshots remain unverified: the shared build gate never admitted this worktree within the prescribed 25-minute queue limit, and the foreground application remained Claude.",
-    "Full gates and pre-push validation were not run; independent acceptance and merge verification belong to the coordinating session."
+    "Real Windows GPU and the original user project remain unverified.",
+    "Slot B build and one 60-second smoke per scale passed. Formal exclusive before/after five-run measurements have not run because restart acceptance is blocked.",
+    "One earlier Chinese walkthrough retained all 12 original task ids, submitted no new jobs and persisted all 12 successful results. Two English attempts ended at 11/12; the second captured RuntimeEnvelopeConflictError: Provider acceptance is required before recording a poll.",
+    "A deterministic late-poll/materialization interleaving reproduces the same error for both pending and completed late observations. The failing real-window envelope was not preserved, so its exact interleaving is inferred. Product changes for a post-query lifecycle check require a new branch ruling under the task brief and were not made.",
+    "Full gates and pre-push validation have not run after the mandatory step7 stop. The lightweight fresh-base prerequisite exits1; main integration was explicitly deferred to the coordinator. Independent acceptance and merge verification remain pending."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-30",
