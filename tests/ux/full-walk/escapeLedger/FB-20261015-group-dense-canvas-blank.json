@@ -8,8 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
     "docs/fixes/2026-10-16-canvas-image-preview-contract.root-cause.json",
     "docs/engineering/direction-checks/2026-10-16-canvas-image-preview.md",
@@ -21,7 +21,9 @@
     "tests/perf/scenarios/canvas-far-dense-blank.json",
     "tests/perf/scenarios/canvas-far-dense-pan.json"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "525feeacb"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-31-canvas-detail-admission.root-cause.json",
   "classCheck": {
     "kind": "matrix",

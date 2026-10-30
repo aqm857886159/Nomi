@@ -30,8 +30,8 @@ const INTERACTION_CELLS = [
   { name: 'multi-selection-member', primarySelection: false, focusFlash: false },
   { name: 'focus-flash', primarySelection: false, focusFlash: true },
 ] as const
-/** 自己按缩放分档画远看的种类。改这份清单 = 有意识地决定一种卡远看由它自己画（登记表 ownsZoomTiers）。 */
-const KINDS_OWNING_ZOOM_TIERS = ['shot_table'] as const
+/** 自己管远看的种类。改这份清单 = 有意识地决定一种卡缩远了也不换成通用轻量卡（登记表 ownsZoomTiers）。 */
+const KINDS_OWNING_ZOOM_TIERS = ['shot_table', 'clip'] as const
 
 function expectedFull(zoom: number, kind: string, interaction: (typeof INTERACTION_CELLS)[number]): boolean {
   if (zoom >= LIGHTWEIGHT_NODE_ZOOM_THRESHOLD) return true
@@ -68,10 +68,21 @@ describe('canvas detail admission matrix (zoom × node count × interaction × k
     expect(isZoomedOutForLightweight(LIGHTWEIGHT_NODE_ZOOM_THRESHOLD - 0.001)).toBe(true)
   })
 
-  it('kinds that draw their own far view are exactly the enumerated list', () => {
+  it('kinds that own their far view are exactly the enumerated list', () => {
     expect(GENERATION_NODE_KINDS.filter(generationNodeKindOwnsZoomTiers)).toEqual([...KINDS_OWNING_ZOOM_TIERS])
     // 分镜表远看确实由它自己画（拍板稿图 4：远 / 中 / 近三档）——声明不是空话。
     expect(shotTableDensityForZoom(0.2)).toBe('card')
+  })
+
+  it('every kind that owns its far view really reads the canvas zoom', () => {
+    // 声明的依据：组件自己订画布缩放。不读缩放还声明，就是白白在远看挂整卡（判据的口子）。
+    const sources: Record<(typeof KINDS_OWNING_ZOOM_TIERS)[number], string> = {
+      shot_table: '../nodes/shotTable/ShotTableNode.tsx',
+      clip: '../nodes/ClipNode.tsx',
+    }
+    for (const kind of KINDS_OWNING_ZOOM_TIERS) {
+      expect(fs.readFileSync(path.join(here, sources[kind]), 'utf8'), kind).toMatch(/selectFlowZoom|useCanvasLiveZoom/)
+    }
   })
 })
 

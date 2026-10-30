@@ -22,7 +22,7 @@
   "entry_points": [
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css（视口合成提示 .react-flow__viewport，本刀删掉）",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx:194 shouldRenderFullNodeContent（节点外壳的细节准入）",
-    "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts shotTableDensityForZoom（分镜表自带远 / 中 / 近三档）",
+    "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts shotTableDensityForZoom（分镜表自带远 / 中 / 近三档；剪辑卡的时间轴同样声明 ownsZoomTiers）",
     "src/workbench/generationCanvas/nodes/canvasImageSource.ts canvasImageSourceOf（远看图源：画布预览档）"
   ],
   "invariants": [
@@ -139,7 +139,7 @@
       "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
       "entry_point": "shotTableDensityForZoom",
       "disposition": "not-affected",
-      "evidence": "分镜表远看由它自己的三档画（拍板稿图 4），登记表声明 ownsZoomTiers，准入对它恒为整卡；矩阵测试列举声明集合 = {shot_table}"
+      "evidence": "分镜表远看由它自己的三档画（拍板稿图 4），登记表声明 ownsZoomTiers，准入对它恒为整卡；剪辑卡同样声明（时间轴 50% 下要能操作）；矩阵测试列举声明集合 = {shot_table, clip}"
     },
     {
       "path": "src/workbench/generationCanvas/nodes/canvasImageSource.ts",
