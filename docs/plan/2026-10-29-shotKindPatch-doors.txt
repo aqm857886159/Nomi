@@ -1,0 +1,12 @@
+[
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+    "symbol": "shotKindPatch"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "symbol": "shotKindPatch"
+  }
+]

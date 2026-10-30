@@ -122,7 +122,7 @@ function adoptStoryboardNodes(shots: readonly MaterializeShotInput[], runId: str
     if (stamped.has(shot.shotId)) continue
     const node = shot.role === 'anchor'
       ? findAnchorNode(nodes, runId, { id: shot.shotId, name: '' } as PlanAnchor)
-      : stableShotId({ shotId: shot.shotId, index: -1 }) === shot.shotId ? findShotNode(nodes, runId, { shotId: shot.shotId, index: -1 } as PlanShot) : null
+      : stableShotId({ shotId: shot.shotId, index: -1 }) === shot.shotId ? findShotNode(nodes, runId, { shotId: shot.shotId, index: -1, shotKind: shot.kind === 'image' ? 'image' : 'video' } as PlanShot) : null
     if (node) adopted.set(shot.shotId, node.id)
   }
   return adopted

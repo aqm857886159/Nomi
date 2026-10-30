@@ -34,15 +34,16 @@ describe("look_at_canvas 的选区：选中状态跟着节点行", () => {
     expect(selectionLineOf(projection.text)).toBe("当前选中 40 个（节点行里标了「选中」）");
   });
 
-  it("选中 120 个、节点预算放不下：行内账与文本里的 M 对得上", () => {
-    const result = canvasOf(120, { prompt: () => "x".repeat(100) });
+  it("超出全局文本预算的选区：行内账与文本里的 M 对得上", () => {
+    const selectedCount = MAX_CANVAS_PROMPT_CHARACTERS;
+    const result = canvasOf(selectedCount, { prompt: () => "x".repeat(100) });
     const projection = projectCanvasForAgent(result);
     const marked = selectedNodeLinesOf(projection.text).length;
 
-    expect(projection.selection.total).toBe(120);
+    expect(projection.selection.total).toBe(selectedCount);
     expect(projection.selection.listed).toBe(marked);
-    expect(marked).toBeLessThan(120);
-    expect(selectionLineOf(projection.text)).toBe(`当前选中 120 个，只列出了其中 ${marked} 个；没列出的不要猜，请让用户缩小选区`);
+    expect(marked).toBeLessThan(selectedCount);
+    expect(selectionLineOf(projection.text)).toBe(`当前选中 ${selectedCount} 个，只列出了其中 ${marked} 个；没列出的不要猜，请让用户缩小选区`);
     expect(projection.text).not.toContain("look_at_canvas");
   });
 
@@ -79,4 +80,10 @@ describe("look_at_canvas 的选区：选中状态跟着节点行", () => {
     const long = projectCanvasForAgent(longCanvas).selection;
     expect(long).toEqual(short);
   });
+});
+
+it('keeps a normal 120-node inventory addressable before verbose prompt excerpts', () => {
+  const projection = projectCanvasForAgent(canvasOf(120, { prompt: () => 'x'.repeat(100) }));
+  expect(projection.selection).toEqual({ total: 120, listed: 120, omitted: 0 });
+  expect(projection.text.length).toBeLessThanOrEqual(MAX_CANVAS_PROMPT_CHARACTERS);
 });

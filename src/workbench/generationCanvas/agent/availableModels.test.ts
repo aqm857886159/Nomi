@@ -171,3 +171,11 @@ describe("默认模型解析：用户保存的偏好优先，正则阶梯只兜�
     expect(pickSavedDefaultModel(entries, "image", {})).toBeUndefined();
   });
 });
+
+
+it('keeps an imported graph available with the same declared native mode', () => {
+  const entries=buildAgentModelEntries([{value:'local-graph',modelKey:'local-graph',vendor:'comfyui-local',label:'Local graph',kind:'video',meta:{comfyWorkflowImport:{binding:{outputKind:'video'}},parameters:[{key:'frame',type:'image-url',mediaKind:'image'},{key:'steps',type:'number',default:8}]}}]);
+  expect(entries[0]?.defaultModeId).toBe('image_to_video');
+  expect(entries[0]?.modes.map(mode=>mode.modeId)).toEqual(['image_to_video']);
+  expect(entries[0]?.modes[0]?.params).toEqual([expect.objectContaining({key:'steps',defaultValue:8})]);
+});

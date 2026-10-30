@@ -18,12 +18,15 @@ import type { StoryboardRowRuntime } from './storyboardRowStatus'
 // 「入口」= 用户的哪个动作：行内生成 / 生成剩余（批量） / Agent 确认框（storyboard.present，与批量同一个函数） /
 // 放到画布 / production.materialize-storyboard / 方案编辑后的投影。它们汇到的函数在下面各调一次。
 
-vi.mock('../../../generationCanvas/agent/availableModels', () => ({
-  buildAgentModelEntries: () => [],
-  listAvailableModelsForAgent: async () => [],
-  resolveStoryboardImageDefault: async () => ({}),
-  resolveStoryboardVideoDefault: async () => ({}),
-}))
+vi.mock('../../../generationCanvas/agent/availableModels', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../../generationCanvas/agent/availableModels')>()
+  return {
+    ...actual,
+    listAvailableModelsForAgent: async () => actual.buildAgentModelEntries([{ value: 'MiniMax-H3', label: 'MiniMax H3', vendor: 'apimart', kind: 'video' }]),
+    resolveStoryboardImageDefault: async () => ({}),
+    resolveStoryboardVideoDefault: async () => ({}),
+  }
+})
 vi.mock('../../../generationCanvas/runner/generationRunController', () => ({
   confirmAndRunNode: async (_nodeId: string, options: { deferredMaterialization?: { materialize: () => Promise<string> } }) => {
     await options.deferredMaterialization?.materialize()

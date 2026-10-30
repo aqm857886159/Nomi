@@ -1,0 +1,27 @@
+[
+  {
+    "kind": "read",
+    "path": "electron/assets/projectAssetStore.ts",
+    "symbol": "materializationKey"
+  },
+  {
+    "kind": "read",
+    "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+    "symbol": "materializationKey"
+  },
+  {
+    "kind": "read",
+    "path": "electron/catalog/processOperation.ts",
+    "symbol": "materializationKey"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "symbol": "materializationKey"
+  },
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/materializationStamp.ts",
+    "symbol": "materializationKey"
+  }
+]

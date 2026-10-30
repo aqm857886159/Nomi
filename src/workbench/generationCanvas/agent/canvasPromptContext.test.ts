@@ -131,3 +131,13 @@ describe('formatCanvasForAgent — canonical canvas.read compact presentation', 
   })
 
 })
+
+
+it('keeps every addressable shot and reference edge in a 26-shot summary before verbose result history', () => {
+  const nodes = Array.from({ length: 38 }, (_, i) => node({ id: `gen-v2-image-mvtk-${String(i).padStart(2,'0')}`, title: i < 12 ? `Visual anchor ${i}` : `Shot ${i - 11}`, prompt: 'Detailed camera and visual description '.repeat(12), hasResult: true, currentResultId: `result-${i}-${'x'.repeat(80)}`, resultIds: [`result-${i}-${'x'.repeat(80)}`, `older-result-${i}`] }))
+  const edges = nodes.slice(12).map((n,i) => ({ id: `edge-${i}`, source: nodes[i % 12].id, target: n.id, mode: 'reference' as const }))
+  const text = formatCanvasForAgent(canvas({ nodes, edges }))
+  for (const n of nodes) expect(text).toContain(n.id)
+  expect(text).toContain('Shot 26')
+  expect(text.length).toBeLessThanOrEqual(MAX_CANVAS_PROMPT_CHARACTERS)
+})

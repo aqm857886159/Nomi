@@ -13,7 +13,9 @@ import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { requestTaskCancel } from './localTaskControl'
 import { classifyGenerationError } from '../../observability/classifyError'
-import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
+import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
+import { readCurrentWorkbenchProjectPayload, setActiveWorkbenchProjectSaveTarget } from '../../project/workbenchProjectSession'
+import { saveLocalProject } from '../../library/localProjectStore'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
 
@@ -30,8 +32,8 @@ const calls = vi.hoisted(() => ({
 }))
 vi.mock('../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
-  saveLocalProject: async (id: string, payload: WorkbenchProjectRecordV1['payload'], name: string) => {
-    const record = { ...(calls.disk.get(id) as object | undefined), id, name, version: 1 as const, payload }
+  saveLocalProject: async (id: string, payload: WorkbenchProjectRecordV1['payload']) => {
+    const record = { ...(calls.disk.get(id) as object | undefined), ...testProjectBinding(id), id, name: 'Project A', version: 1 as const, payload }
     calls.disk.set(id, structuredClone(record))
     return record
   },
@@ -84,8 +86,12 @@ beforeEach(async () => {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
   await session.open('project-a')
+  // The real submit guard requires a durable owner, not only a canvas-read session.
+  setActiveWorkbenchProjectSaveTarget({ projectId: 'project-a', canPersist: () => true,
+    persist: () => saveLocalProject('project-a', readCurrentWorkbenchProjectPayload(), testProjectBinding('project-a')),
+  })
 })
-afterEach(() => { session.dispose(); vi.restoreAllMocks() })
+afterEach(() => { setActiveWorkbenchProjectSaveTarget(null); session.dispose(); vi.restoreAllMocks() })
 
 function addImageNode(prompt = 'a red cube') {
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt })
@@ -105,7 +111,7 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
     await expect(confirmAndRunNode(id, { initiator: 'user' })).resolves.toBe('started')
 
     expect(calls.confirm).not.toHaveBeenCalled()
-    expect(calls.runTask).toHaveBeenCalledOnce()
+    expect(calls.runTask, nodeOf(id).error ?? nodeOf(id).runs?.[0]?.error).toHaveBeenCalledOnce()
     const [vendor, request, projectId] = calls.runTask.mock.calls[0] as [string, TaskRequestDto, string]
     expect(vendor).toBe('acme')
     expect(projectId).toBe('project-a')
@@ -134,7 +140,7 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
 
     await confirmAndRunNode(id, { initiator: 'user' })
 
-    expect(calls.runTask).toHaveBeenCalledOnce()
+    expect(calls.runTask, nodeOf(id).error ?? nodeOf(id).runs?.[0]?.error).toHaveBeenCalledOnce()
     expect(calls.fetchResult).toHaveBeenCalledOnce()
     // 收敛后：查也经这一次运行的单镜 Run。
     expect(calls.fetchResult.mock.calls[0]?.[0]).toMatchObject({ taskId: 'task-async', vendor: 'acme', projectId: 'project-a', runRecordId: nodeOf(id).runs?.[0]?.id })
@@ -149,7 +155,7 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
 
     await expect(confirmAndRunNode(id, { initiator: 'user' })).resolves.toBe('started')
 
-    expect(calls.runTask).toHaveBeenCalledOnce()
+    expect(calls.runTask, nodeOf(id).error ?? nodeOf(id).runs?.[0]?.error).toHaveBeenCalledOnce()
     expect(nodeOf(id).status).toBe('error')
     expect(nodeOf(id).runs?.[0]).toMatchObject({ status: 'error', error: expect.stringContaining('content policy') })
     expect(queueOf(id).map((entry) => entry.state)).toEqual(['error'])

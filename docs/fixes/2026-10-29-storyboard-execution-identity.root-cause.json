@@ -1,0 +1,385 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-storyboard-execution-identity",
+  "problem_type": "Storyboard output-role and explicit provider identity drift",
+  "symptom": "26 video shots yield nothing to generate, summary only exposes early shots",
+  "direct_cause": "Image nodes satisfy a video row; materialization deduplicates image/video under one client key; agent kind edit skips canonical transition; invalid explicit catalog pairs silently retain old routing; verbose rows exhaust compact read budget; patch selector rejects indexes above 24 despite longer valid plans",
+  "class_root": "Author output role, exact catalog identity and addressable canvas identity are not enforced at shared realization/read boundaries",
+  "affected_population": [
+    "Any image/video storyboard transition in any provider",
+    "Large canvases with verbose result histories",
+    "Explicit nonexistent model/provider pairs"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "electron/shared/agentCapabilities/canvasReadCompact.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "skills/director-consistency/SKILL.md",
+    "skills/workbench-storyboard-planner/SKILL.md",
+    "tests/agent-runtime/lane-c0-instructions.test.mts",
+    "electron/shared/agentCapabilities/canvasReadSelection.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.test.ts"
+  ],
+  "entry_points": [
+    "UI and agent storyboard edits",
+    "Single-row/batch realization",
+    "Pi compact canvas and official full MCP read"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "These are internal domain invariants decided by repository source; no external dependency owns storyboard identity or read budgets. PlanShot source edits in this task are comment documentation only, not runtime enforcement; runtime scope is listed below.",
+  "invariants": [
+    "Only a compatible media node can satisfy a storyboard row",
+    "Existing images survive and can feed video first frames without regeneration",
+    "Explicit unknown provider/model pairs fail before author mutation or spend",
+    "Normal 26-shot canvas summaries retain every addressable node before verbose history",
+    "Shot selection is bounded by the actual storyboard, not an unrelated node-creation batch size",
+    "Built-in storyboard/consistency guidance must agree with compileShotOutbound: only visible prompt and explicit referenceBindings are outbound; anchorIds alone do not wire or inject text.",
+    "Retired bare patch_shots cannot mutate state even with a fully valid canonical payload; only the current public tool envelope dispatches that operation."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "findShotNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "findShotNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "findShotNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "findShotNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "findShotKeyframeNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "findShotKeyframeNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "findShotKeyframeNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardShotToCreateNodesArgs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "previewStoryboardPatchShots"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/landedShotIntent.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "projectCanvasForAgent"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/canvasReadCompact.ts",
+      "symbol": "projectCanvasForAgent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/verifiedCapabilityInvocationRendererFactories.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/verbSemanticInput.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/canonicalCanvasPlanPatch.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "symbol": "canvasWriteSemanticInputSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+      "symbol": "shotKindPatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "shotKindPatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "materializationKey"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "materializationKey"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/processOperation.ts",
+      "symbol": "materializationKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "materializationKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/materializationStamp.ts",
+      "symbol": "materializationKey"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "assertPlannedModelIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "assertPlannedModelIdentity"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "assertStoryboardModelIdentities"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+      "symbol": "belongsToDesign"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+      "symbol": "patchShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "symbol": "storyboardShotMetadata"
+    }
+  ],
+  "door_reduction": {
+    "before": 39,
+    "after": 39,
+    "why_not": "Independent entry points are required by UI, agent, production landing and compact/full read surfaces; they converge on the same binding, transition, metadata and presentation owners."
+  },
+  "generality_proof": "Role binding uses requested media kind, not model/vendor names. Materialization separates shot output roles. Explicit catalog pair admission is shared by plan mutation and node metadata. Compact presentation drops optional detail before node identity.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+      "symbol": "findShotNode",
+      "responsibility": "Resolve only compatible shot output roles, reusing image as first frame separately"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "symbol": "storyboardShotToCreateNodesArgs",
+      "responsibility": "Separate image and video realization identities"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+      "symbol": "previewStoryboardPatchShots",
+      "responsibility": "Reuse UI shot-kind transition semantics for agent edits"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "assertPlannedModelIdentity",
+      "responsibility": "Reject explicit nonexistent routing identities"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasReadCompact.ts",
+      "symbol": "projectCanvasForAgent",
+      "responsibility": "Prioritize complete node identity over optional verbose detail"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "materializeShotRow",
+      "disposition": "enforced",
+      "evidence": "Uses shared findShotNode/keyframe and storyboardShotToCreateNodesArgs for single and batch realization"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "applyCanvasToolCall",
+      "disposition": "enforced",
+      "evidence": "Propose and patch admission checks requested identities before store mutation"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "entry_point": "deriveShotRowExec",
+      "disposition": "enforced",
+      "evidence": "Shared binding no longer returns a previous image as completed video"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasRead.ts",
+      "entry_point": "projectCanvasRead",
+      "disposition": "not-affected",
+      "evidence": "Full official MCP read contains all 37 existing nodes including Shot26; truncation is only compact presentation"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every plan type change and every similarly populated canvas can reproduce across vendors and projects",
+    "same_class_scan": [
+      "Generated door maps for six shared owners in docs/plan/*-doors.txt",
+      "Checked UI shotKindPatch versus agent patchShot; single/batch row actions; production landing; full and compact reads"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+    "invariant": "Bound shot output matches current author media kind; other outputs remain preserved artifacts or first frames",
+    "failure_mode": "Wrong media cannot satisfy done or suppress generation; invalid identity fails closed before spending",
+    "exception_policy": "none",
+    "strategy": "Use shared type transition, role-aware binding/materialization, strict explicit identity admission and identity-first bounded reads",
+    "artifacts": [
+      "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "electron/shared/agentCapabilities/canvasReadCompact.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPatchShots.test.ts",
+    "src/workbench/generationCanvas/agent/canvasPromptContext.test.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts",
+    "src/workbench/creation/storyboard/exec/shotOutbound.parity.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardFirstFrameApproval.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPatchShots.integration.test.ts",
+    "electron/shared/agentCapabilities/canvasWrite.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanProvenance.test.ts",
+    "tests/agent-runtime/lane-c0-instructions.test.mts",
+    "electron/shared/agentCapabilities/canvasReadSelection.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPatchShots.test.ts",
+    "src/workbench/generationCanvas/agent/canvasPromptContext.test.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts",
+    "src/workbench/creation/storyboard/exec/shotOutbound.parity.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardFirstFrameApproval.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPatchShots.integration.test.ts",
+    "electron/shared/agentCapabilities/canvasWrite.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanProvenance.test.ts",
+    "tests/agent-runtime/lane-c0-instructions.test.mts",
+    "electron/shared/agentCapabilities/canvasReadSelection.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/storyboardPatchShots.ts"
+    ],
+    "rationale": "Replace the direct agent-only shotKind assignment with existing canonical transition; replace media-agnostic shot binding. No alternate scheduler or regeneration path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party upgrade changes these author/execution invariants",
+    "exit_criteria": []
+  },
+  "migration": "No destructive file migration. Existing authored rows and output files remain; compatible binding and first-frame reuse work when old projects are read/materialized. Wrong explicit routing must be corrected explicitly; never guess a replacement vendor. Already-approved historic artifact projection remains readable without an available provider catalog; new author and submission boundaries enforce identity.",
+  "residual_risks": [
+    "No new paid or 26-shot batch is authorized; full-film continuity remains unverified",
+    "Existing prior repair full-gate limitations remain; delivery preflight reports current accumulated dirty worktree and upstream drift",
+    "Reference-guidance repair aligns prompts with the already-correct shared compileShotOutbound boundary; actual visual identity still requires explicit valid reference assets and paid verification is excluded."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-10-29",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/exec/storyboardNodeBinding.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+      "src/workbench/generationCanvas/agent/storyboardPatchShots.test.ts",
+      "src/workbench/generationCanvas/agent/canvasPromptContext.test.ts",
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts"
+    ]
+  }
+}

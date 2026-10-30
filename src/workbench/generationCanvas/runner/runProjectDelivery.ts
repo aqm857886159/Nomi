@@ -16,11 +16,12 @@ import { getTextGenMode, textDocumentDigest } from './textGenerationDocument'
 //     用户回到原项目时就在节点上看到；新项目零副作用。
 import { sameProjectAgentBinding, type ProjectBinding } from '../../../../electron/shared/projectBinding'
 import { isProjectBindingOpen } from '../../project/projectCanvasReadSurface'
+import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { readLocalProjectAsync } from '../../library/localProjectStore'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { nodeRunOutcomePatch, type NodeRunOutcome } from '../store/nodeRunOutcome'
-import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeRunAttempt } from '../model/generationCanvasTypes'
 
 export type RunProjectTarget = ProjectBinding
 
@@ -115,6 +116,24 @@ export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string
     await applyPatch({ projectId: target.projectId, nodeId, patch, expectedBinding: target })
     return false
   })
+}
+
+
+/** Record final query identity durably before submission, retaining any receipt already recorded. */
+export async function persistSubmittedRunAttempt(target: RunProjectTarget, nodeId: string, runId: string, attempt: GenerationNodeRunAttempt): Promise<void> {
+  const graph = await readRunGraph(target)
+  const existing = graph?.nodes.find(node => node.id === nodeId)?.runs?.find(run => run.id === runId)
+  if (!existing) throw new Error('Submitted run no longer exists')
+  if (existing.attempt?.query && stableProjectAgentJson(existing.attempt) !== stableProjectAgentJson(attempt)) {
+    throw new Error('Submitted task identity changed during retry')
+  }
+  const landed = await deliverRunOutcome(target, nodeId, { kind: 'run-started', run: { ...existing, attempt } })
+  if (landed) await persistActiveWorkbenchProjectNow()
+  const saved = await readRunProjectRecord(target)
+  const receipt = saved?.payload.generationCanvas?.nodes.find(node => node.id === nodeId)?.runs?.find(run => run.id === runId)
+  if (!receipt?.attempt || stableProjectAgentJson(receipt.attempt) !== stableProjectAgentJson(attempt)) {
+    throw new Error('Submitted task identity was not persisted')
+  }
 }
 
 

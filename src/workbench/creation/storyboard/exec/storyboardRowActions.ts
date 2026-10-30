@@ -25,7 +25,7 @@ import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas
 import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards, type DeferredNodeMaterialization } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
-import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
+import { assertPlannedModelIdentity, buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { getVendorPreference } from '../../../api/vendorPreferenceApi'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
@@ -145,6 +145,9 @@ async function prepareShotRow(ctx: RowActionContext, shot: PlanShot, mode: Arche
   const existing = existingRowBindings(ctx, shot)
   const keyframeEnabled = shot.shotKind !== 'image' && shot.keyframe?.enabled === true
   const defaults = await resolveDefaults()
+  const entries = await liveModelEntryIndex()
+  assertPlannedModelIdentity(shot, entries)
+  if (keyframeEnabled && shot.keyframe) assertPlannedModelIdentity(shot.keyframe, entries)
   if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard materialization')
   const args = storyboardShotToCreateNodesArgs(ctx.plan, shot, {
     ...defaults,

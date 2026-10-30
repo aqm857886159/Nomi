@@ -127,11 +127,11 @@ export function deriveShotRowExec(input: {
   const plannedFirstFrame: PlannedFirstFrame | null = plannedSlot
     ? { slotKind: plannedSlot.kind, url: keyframeNode && hasUsableResult(keyframeNode) ? resultDisplayUrl(keyframeNode) : null }
     : null
-  const locked = Boolean(node && isAnchorFrozen(node) && hasUsableResult(node))
+  const done = Boolean(node && node.result?.type === (shot.shotKind ?? 'video') && hasUsableResult(node))
+  const locked = Boolean(node && isAnchorFrozen(node) && done)
   const generating = isNodeActive(node) || isNodeActive(keyframeNode)
   const failedNode = isNodeFailed(node) ? node : isNodeFailed(keyframeNode) ? keyframeNode : null
   const recoverableNode = isNodeRecoverable(node) ? node : isNodeRecoverable(keyframeNode) ? keyframeNode : null
-  const done = Boolean(node && hasUsableResult(node))
 
   // 真失败排在可找回之前：两个节点一个 error 一个 recoverable 时，红态才是那一行的真相
   // （error 那一步没出片，重跑它才是唯一出路）。

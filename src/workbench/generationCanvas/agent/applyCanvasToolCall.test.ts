@@ -224,6 +224,7 @@ describe('applyCanvasToolCall canonical nomi_canvas_plan patch_shots', () => {
 
   it('rejects the retired public tool name and stale shot indexes without mutating state', async () => {
     const before = structuredClone(shots())
+    await expect(applyCanvasToolCall('patch_shots', { operation: 'patch_shots', select: { kind: 'indexes', indexes: [1] }, patch: { prompt: 'retired name must not mutate' } })).rejects.toThrow(/unknown tool/)
     await expect(applyCanvasToolCall('patch_shots', { select: { kind: 'all' }, patch: { prompt: 'x' } }, undefined, undefined, 'doc-1')).rejects.toThrow(/unknown tool/)
     await expect(patch({ select: { kind: 'indexes', indexes: [9] }, patch: { prompt: 'x' } })).rejects.toMatchObject({ code: 'capability_target_stale' })
     expect(shots()).toEqual(before)

@@ -1,0 +1,7 @@
+[
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "symbol": "storyboardShotMetadata"
+  }
+]

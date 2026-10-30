@@ -1,0 +1,7 @@
+[
+  {
+    "kind": "write",
+    "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+    "symbol": "patchShot"
+  }
+]
