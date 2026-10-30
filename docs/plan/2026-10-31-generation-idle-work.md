@@ -108,3 +108,20 @@
 全部反例由脚本 finally 还原原始字节，SHA256 前后相同；等待面一轮单文件测试曾在资源拥塞期超时，后续定位运行及最终运行通过，未调高超时。N=60/100 是静态背景数，额外 k=12 个真实 loopback 任务（实际 72/112 节点）。两档 60 秒冒烟已执行，正式五次改前后仍未运行；中英静止灰格及 75% 条的 100% 缩放截图已逐张查看，重启闭环整体未通过。性能场景保持 proposed/pending，不由实现线批准基线或预算。
 
 执行条件以任务书 10-30 23:3x 裁定为准：load5<10 且前台不是 Claude 或 HIDIdle≥600 秒；构建/冒烟/走查走 B，正式量数双槽。本轮未改原 ★9 清单、未重做门图/反例/账本。新增恢复竞态需查询返回后再次核完成态，会新增状态处理分支，按任务书先停并交协调裁定。
+
+
+## ★9 扩围类合同（10-31 03:5x，产品修改前）
+
+用户裁定原话：“并进这条线修”。范围仅 productionGenerationSubmission 的 poll/materialize 与 productionRunRuntimeEnvelope 共享生命周期。
+
+1. 两扇门等待外部调用后，依据最新持久事实提交；已 materialized 读已有回执，不改信封字节/Run revision，不误报尚未受理。
+2. 未完成时，Run 命令在写入前取最新 revision，保留其他作者的 metadata/状态写入。
+3. 每次查询持有开始时的观察版本；只接受仍基于当前版本的回执。对方只记 completed 未落地时，旧 processing/failed/unknown/completed 均不能覆盖新 raw。旧数据无版本按0，真实观察变化才推进版本。
+4. materialize 的供应商取回/提取在锁外；回来后在共享文件级生命周期边界重新裁定。观察已变则重读当前已受理任务的结果；已落地直接读回执。实际 materializeOutput 只在持有同一信封互斥租约时执行，完成前再次核验所有权/最新Run，不重复落盘。复用已有 ProductionRunLock，不新增依赖或供应商特例。
+5. 相同 pending 快路径不拿写锁、不写锁文件、不重写快照；变更/落地才用互斥。报告逐次新增同步读取、锁文件I/O；双档三个零断言不变。
+6. 清单 tests/fixtures/generation-lifecycle-cases.json 逐行驱动一个矩阵测试。poll×poll、poll×materialize、materialize×materialize × 四种迟到结果 × materialized/completed/revision 三时机；另有未完成阳性。materialize API不返回status，四种迟到结果在清单显式投影成空产物/单产物/失败/不支持。
+7. 每格核返回/真实失败分类、无生命周期或revision冲突、落地后字节和revision不变、submit及materializeOutput次数、并发metadata未丢。Promise握手固定交错，无sleep。原两个红测先纳入；清单多一行测试数多一项。
+8. 只去掉共享“等完重判”的门，防重矩阵红，未完成阳性绿；finally逐字节还原。不能只改单个调用者/只重试失败卡。
+9. 验证顺序：矩阵+原138 → B构建 → 最终产品HEAD双语12/12（12→12、落卡落盘、每图Read）→ gates及快检 → 最后exclusive每档改前后各≥5。超预算停。旧三删门图/反例/账本不重做。
+
+入口清单来自 recovery-doors-poll-materialize.json（23项）及 recovery-doors-envelope.json（4项），不是手造门；同名但非Run生命周期的素材/预览/供应商底层方法保留在合同并标not-affected。Electron入口与独立stdio入口均须使用同一文件级门。

@@ -13,3 +13,6 @@
 追加协调裁定：BaseGenerationNode 只删 preset import、prop、解构、透传四处；本线同提交删 img-fx 依赖、patch、锁条目及全部 preset 类型，不留本地类型替身或空参数。该文件热点和 productionGenerationSubmission 等任务书列出的热点在本次裁定范围内。其他禁碰文件不修改。
 
 NodeImportingOverlay 为文件级第 3 个 fix，协调按用户同一次拍板放行：仅删 preset import、解构、参数类型与透传。静态路径不增转圈或文字；后续样张另议。
+
+
+协调裁定（10-31 03:5x）：用户原话“并进这条线修”。新增范围仅 poll 与 materialize 等外部调用后按最新事实提交的共享生命周期；包含已落地幂等、仅completed未落地时保留更新观察、最新Run revision及跨实例落地互斥。productionGenerationSubmission.ts、productionRunRuntimeEnvelope.ts热点按此放行。不新增供应商特例，不动提交/重试/项目写口；其余文件级热点照旧停。

@@ -3,8 +3,8 @@
   "id": "2026-10-31-generation-idle-work",
   "problem_type": "Idle observations incorrectly schedule continuous rendering and durable snapshot work",
   "symptom": "Canvas interaction stalls while multiple cards wait for generation",
-  "direct_cause": "Waiting shaders draw continuously; every progress tick bumps persistence revision; every pending poll writes envelope and Run snapshots",
-  "class_root": "Display observations and durable execution facts lack separate scheduling/persistence boundaries",
+  "direct_cause": "Waiting shaders draw continuously; every progress tick bumps persistence revision; every pending poll writes envelope and Run snapshots; poll/materialize capture state before external awaits and commit after another operation has advanced observation, revision or completion.",
+  "class_root": "Display observations and durable execution facts lack separate scheduling/persistence boundaries; async observations lacked a durable version fence and materialization ownership at the shared lifecycle boundary.",
   "affected_population": [
     "Every image/video waiting node and chat pointer",
     "Every setNodeProgress producer",
@@ -34,7 +34,10 @@
     "Waiting for unchanged generation never schedules canvas drawing",
     "Only recovery identity or lifecycle changes mark the project dirty",
     "Same-status pending never rewrites complete envelope or Run snapshots",
-    "First task identity, state transitions, terminal raw and idempotency remain durable"
+    "First task identity, state transitions, terminal raw and idempotency remain durable",
+    "After every external await, completed receipts win without writes or recovery conflicts.",
+    "Stale observations cannot overwrite a newer completed observation, even before materialization.",
+    "Run changes use the latest revision; only one filesystem lifecycle owner may invoke materializeOutput for an unlanded envelope."
   ],
   "doors": [
     {
@@ -721,14 +724,144 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
       "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/runwayShared.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/localTaskJobs.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useActiveProductionRun.ts",
+      "symbol": "poll"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "markMaterialized"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "markMaterialized"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "markPolled"
     }
   ],
   "door_reduction": {
-    "before": 135,
-    "after": 137,
-    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged."
+    "before": 163,
+    "after": 163,
+    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged. Recovery extension: GUI canvas-poll/recovery, Run controls/observers/scheduler and independent stdio MCP keep their user-facing entries but share the envelope lifecycle. Conservative same-name materialize/poll matches are retained and classified in same_class_entry_points; the store exports stay as the only durable observation/completion boundary."
   },
-  "generality_proof": "All seven progress writers converge on createCanvasRunActions; background delivery shares the recovery-fact predicate. Every waiting reader uses the same static surface. Shared upstream status classification handles all providers and persisted pending observations after restart.",
+  "generality_proof": "All seven progress writers converge on createCanvasRunActions; background delivery shares the recovery-fact predicate. Every waiting reader uses the same static surface. Shared upstream status classification handles all providers and persisted pending observations after restart. The shared file-backed observation revision and lifecycle lease span Electron and independent stdio instances. Materialization extraction remains outside the lease; asset writes and finalization share one lease and revalidate durable state.",
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
@@ -752,8 +885,8 @@
     },
     {
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
-      "symbol": "markPolled",
-      "responsibility": "Skip unchanged pending envelope writes but retain terminal receipts"
+      "symbol": "createProductionRunRuntimeEnvelope",
+      "responsibility": "Persistent observation version, late-result rejection, idempotent completion and file-backed exclusive materialization; no-write pending fast path."
     }
   ],
   "same_class_entry_points": [
@@ -798,6 +931,168 @@
       "entry_point": "setNodeProgress",
       "disposition": "enforced",
       "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "materialize",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "entry_point": "materialize",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "entry_point": "poll",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "electron/capabilityCore/generationRuntimeAdapter.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "materialize",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. independent stdio process: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. independent stdio process: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "electron/catalog/runwayShared.ts",
+      "entry_point": "poll",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "materialize",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "materialize",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "entry_point": "poll",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "entry_point": "materialize",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/tasks/localTaskJobs.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "src/workbench/production/useActiveProductionRun.ts",
+      "entry_point": "poll",
+      "disposition": "not-affected",
+      "evidence": "Generated conservative same-name census: provider extraction, Asset sink, UI projection/local task/draft materialization, or test provider; not a direct Run-envelope writer. Asset output is guarded when invoked by production submission."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "markPolled",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "markMaterialized",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "entry_point": "markMaterialized",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "entry_point": "markPolled",
+      "disposition": "enforced",
+      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
     }
   ],
   "recurrence": {
@@ -807,16 +1102,18 @@
       "node scripts/door-map.mjs setNodeProgress: 7 direct producer files",
       "node scripts/door-map.mjs GenerationWaitingSurface: 3 consumer files",
       "node scripts/door-map.mjs markPolled and writeJsonFileAtomic: envelope and Run snapshot paths",
-      "rg img-fx src electron: only WaitingSurface imports runtime; all other imports are preset types"
+      "rg img-fx src electron: only WaitingSurface imports runtime; all other imports are preset types",
+      "door-map --write=poll,materialize:23 file+symbol entries; --write=markPolled,markMaterialized:4 entries.",
+      "Read poll pre-query/post-query and materialize pre-extraction/post-output windows; independently instantiated Electron and stdio submissions share durable files."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
-    "invariant": "Transient observations cannot dirty project or rewrite unchanged pending snapshots; waiting feedback has no animation engine.",
+    "invariant": "Transient observations cannot dirty project or rewrite unchanged pending snapshots; waiting feedback has no animation engine. Async completion is immutable, obsolete observations are fenced, and asset materialization has exclusive file-backed ownership.",
     "failure_mode": "Unknown provider status remains needs_attention; identity and terminal facts always persist; empty status still rejects.",
     "exception_policy": "none",
-    "strategy": "Delete shader dependency and enforce durability comparison at shared progress and poll boundaries, including background delivery.",
+    "strategy": "Delete shader dependency and enforce durability comparison at shared progress and poll boundaries, including background delivery. Enforce lifecycle decisions and version comparisons in the envelope store, using the existing ProductionRunLock only for changes/materialization, never same-pending no-ops.",
     "artifacts": [
       "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
       "src/workbench/generationCanvas/store/canvasRunActions.ts",
@@ -831,7 +1128,8 @@
     "electron/productionRun/productionGenerationSubmission.test.ts",
     "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
     "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
-    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts"
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts",
+    "electron/productionRun/productionGenerationLifecycle.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
@@ -839,7 +1137,8 @@
     "electron/productionRun/productionGenerationSubmission.test.ts",
     "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
     "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
-    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts"
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts",
+    "electron/productionRun/productionGenerationLifecycle.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -854,13 +1153,10 @@
     "rationale": "img-fx runtime and patched dependency are removed; static existing surface uses React and CSS tokens. No third-party shader lifecycle remains.",
     "exit_criteria": []
   },
-  "migration": "No stored schema changes. Existing taskId and frozen contracts remain readable; only transient redundant work disappears.",
+  "migration": "No stored schema changes. Existing taskId and frozen contracts remain readable; only transient redundant work disappears. Older lastPoll observations without revision are version0; the first genuine observation change writes a version. No background migration or pending heartbeat write.",
   "residual_risks": [
-    "Real Windows GPU and the original user project remain unverified.",
-    "Slot B build and one 60-second smoke per scale passed. Formal exclusive before/after five-run measurements have not run because restart acceptance is blocked.",
-    "One earlier Chinese walkthrough retained all 12 original task ids, submitted no new jobs and persisted all 12 successful results. Two English attempts ended at 11/12; the second captured RuntimeEnvelopeConflictError: Provider acceptance is required before recording a poll.",
-    "A deterministic late-poll/materialization interleaving reproduces the same error for both pending and completed late observations. The failing real-window envelope was not preserved, so its exact interleaving is inferred. Product changes for a post-query lifecycle check require a new branch ruling under the task brief and were not made.",
-    "Full gates and pre-push validation have not run after the mandatory step7 stop. The lightweight fresh-base prerequisite exits1; main integration was explicitly deferred to the coordinator. Independent acceptance and merge verification remain pending."
+    "New lifecycle extension is designed but not yet implemented or validated. Original smoke results predate this extension.",
+    "Cross-platform true-window and final-HEAD dual-locale restart, full gates/prepush and exclusive five-run comparisons remain pending."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-30",
