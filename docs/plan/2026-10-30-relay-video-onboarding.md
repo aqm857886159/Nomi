@@ -152,12 +152,14 @@
 - 旧 revision 存在/缺失/损坏/属于别的连接或模型/未包含当前模式；重复启动；用户原有显式合同：只恢复可证明的缺失，不制造新能力，网络 POST=0。
 - 新卡提交包含一个有效模型和一个不可表达模型：整次事务拒绝，不能留下第一个模型或 vendor 的部分修改。
 
-### 共享类型边界（提议，尚未与第二刀完成约定）
+### 共享类型边界（协调 10-30 17:5x 裁定）
 
 第一刀使用现有 `AdapterModelDraft`、`AdapterModeDraft`、`CustomCapabilityContractV1`、`Mapping`，不修改 `HttpOperation`、multipart、结果响应类型。第二刀独占 wire 编码与结果类型，投影按完整操作对象传递，不能再另列白名单丢掉它新增的合法字段。单图引用先以现有 `referenceParam/referenceShape` 表达；超出既有表达力的形状明确拒绝，不加供应商分支。
 
-### 范围核对：旧目录迁移入口待协调分配
+### 范围核对：旧目录迁移入口已归本刀
 
 静态追踪确认：目录加载经 `catalogStore.readCatalogShared → catalogMigrations.migrateCatalogForward`；原始 revision 保存在 `ProviderAdapterStore`，不在 `Model.meta`。现有六个独占文件没有覆盖这条加载与一次性迁移接线。只在登记/晋升里补投影不能修复从未再次交卡的旧模型；只在 Agent 说明里补也不会回到画布与派发。
 
 要满足第 5 项，需协调分配一次性迁移与接线（至少 `electron/catalog/catalogMigrations.ts`，以及原始 revision 的只读供给与可见状态的既有出口；具体补充文件须先查清并认领）。若采用目录版本迁移，还涉及第二刀独占的 `electron/catalog/types.ts`。当前不越界改这些文件，不在共享纯读函数里偷读文件、改目录或只导出一个无人调用的迁移函数。实现前先交协调核定这段所有权。
+
+协调已将 catalogMigrations.ts、catalogVersion.json、catalogStore.ts 的迁移接线及 store.ts 的只读 revision 供给归本刀；types.ts 仅目录版本联合那一行归本刀。modelAvailability.ts 增加 capability_incomplete 原因与缺失字段。Agent 模型说明负责引导重交；picker/i18n 留第三刀，故本刀不再以新增 UI 为前置。版本迁移幂等，至少验证原卡可恢复、原卡不可恢复、完整目录不变三类。新增派发原因在现有可执行模型门的拒发接线正等待补充确认，其余实现继续。
