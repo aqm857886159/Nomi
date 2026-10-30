@@ -14,12 +14,13 @@
     "保存失败按结构原因显示"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-30-project-save-draft-contract.md",
     "docs/fixes/2026-10-30-project-save-draft-contract.root-cause.json",
-    "src/workbench/project/editorPersistability.property.test.ts"
+    "src/workbench/project/editorPersistability.property.test.ts",
+    "修复：存盘读盘只认草稿面，严格面留给规划模型和 Agent 入参；保存通道返回结构化失败原因（#1390）。"
   ],
   "completionCommits": [
     "281b22cddaf2ce52288b3fb52a60cd39af0d7c08"
@@ -28,5 +29,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "src/workbench/project/editorPersistability.property.test.ts"
-  }
+  },
+  "fixedInPr": 1390
 }
