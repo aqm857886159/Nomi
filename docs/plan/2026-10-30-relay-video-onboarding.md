@@ -1,8 +1,8 @@
 # 中转媒体接入：证据、能力与交付共用一份合同（设计卡草稿）
 
-状态：调研与可执行复现；未批准实现。2026-10-30。
-范围：测试、走查脚本和方案；本批不修改产品代码、不新增依赖、不推送。
-实现前由协调确认协议子集、并行文件所有权和界面清单；本卡不提供样张。
+状态：整体方案按刀验收；第二刀已获协调授权实施（2026-10-30），当前收据见第二刀一节。
+范围：本刀协议与物化；能力投影、发现与界面归并行线。不新增依赖，只本地提交、不推送。
+各刀按协调的协议子集与文件所有权实施；本卡不提供界面样张。
 
 改动名：中转视频接入与主动发现。类别：[花钱][长跑][可打断][新界面][Agent 行为][数据格式][新增功能 / 性能]。
 
@@ -166,6 +166,10 @@
 
 ### 第二刀当前验收记录
 
-四项既有复现已从 it.fails 转普通 it：修复前 4 failed / 5 passed / 6 expected fail；修复后 9 passed / 6 expected fail。剩余 expected fail 属于发现/能力投影线。新增独立协议矩阵 17 passed，走声明处理函数、真 loopback HTTP、现役解码与项目落库，包括工作区暂不可用后的恢复。测试文件落在现役 Vitest tests/**/*.test.mjs 默认车道，CI quality-gate 的 test:unit:shard 必跑；不另建无人调用的 JSON 矩阵。
+四项既有复现已从 it.fails 转普通 it：修复前 4 failed / 5 passed / 6 expected fail；修复后 9 passed / 6 expected fail。剩余 expected fail 属于发现/能力投影线。新增独立协议矩阵当前 18 passed，走声明处理函数、真 loopback HTTP、现役解码与项目落库，包括工作区暂不可用后的恢复。测试文件落在现役 Vitest tests/**/*.test.mjs 默认车道，CI quality-gate 的 test:unit:shard 必跑；不另建无人调用的 JSON 矩阵。
 
-限制：字节结果必须有项目身份，无项目的调用在花钱前拒绝；试模型入口的项目身份由其独占线处理。性能脚本 tests/perf/relay-media-materialization-bench.mjs 已准备，统一登记需要现役 scripts/perf-scenarios-lib.mjs 新量具适配（不在本刀文件范围），未越界修改。中英真窗、付费共步骤演练、字节分支变异、性能基线和最终 gates 仍须取得实际收据才能勾选。
+限制：字节结果必须有项目身份，无项目的调用在花钱前拒绝；试模型入口的项目身份由其独占线处理。性能脚本 tests/perf/relay-media-materialization-bench.mjs 已准备，统一登记需要现役 scripts/perf-scenarios-lib.mjs 新量具适配（不在本刀文件范围），未越界修改。字节分支删除变异为 7 failed / 10 passed，源码逐字节还原后 17 passed。相关回归 11 文件、249 passed / 6 expected fail。中英真窗、付费共步骤演练、统一性能基线和最终 gates 仍须取得实际收据才能勾选。
+
+入口复核补充：`newapiTransportFor` 数门 4 扇。`catalogCommit.draftShapeForKind` 的 video 兜底与 `relayNativeWireUpgrade` 仍会取旧默认，均在本刀独占范围外，未改动。不能把本刀 builtin/no-mapping 的拒发推广成全产品路由已证据化；该缺口交协调分配后再结账。
+
+第二刀最终诊断收据：五份类型检查全绿；最终协议矩阵18 passed，删除字节分支7 failed / 11 passed，源码逐字节还原后18 passed。原始性能量具分离上游后正常退出0（5轮×256MiB/2GiB），load5约18.74–19.51，noisy。256MiB额外RSS中位/p95约2.97/100.58MiB，2GiB约3.89/24.09MiB；传输写盘约199.88/281.55ms和1892.54/6055.23ms；取消约2.43/32.05ms和3.01/11.02ms。首轮RSS超过64MiB，未判达标；独立冷2GiB、正式场景登记和完整物化性能仍缺。没有真窗、共步骤演练或完整gates收据，不能合入。

@@ -42,7 +42,7 @@
     }
   ],
   "invariants": [
-    "Only explicit declarations select a video route",
+    "The corrected builtin factory and no-mapping runtime do not infer a video route; external legacy catalog producers are pending",
     "Binary video results never pass through JSON/text buffering",
     "Task identifier survives retrieval errors; retrieval does not submit"
   ],
@@ -86,12 +86,32 @@
       "kind": "read",
       "path": "electron/tasks/taskResultReading.ts",
       "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "newapiTransportFor"
     }
   ],
   "door_reduction": {
-    "before": 8,
-    "after": 8,
-    "why_not": "catalogCommit self-check, runtime create, taskResultQuery query/result remain separate lifecycle callers of one executor; taskResultReading, apimartGenerationOutputs and runtime preserve JSON readers and receive no file bytes."
+    "before": 12,
+    "after": 12,
+    "why_not": "Runtime create and result-query remain separate lifecycle callers; JSON readers remain necessary. The builtin factory has explicit protocol selection, while catalogCommit.draftShapeForKind and relayNativeWireUpgrade still produce legacy defaults outside this task scope and need coordination before this class can be closed."
   },
   "generality_proof": "Response role drives streaming at the shared executor for all declared connections; no vendor or model branch.",
   "shared_boundaries": [
@@ -166,7 +186,7 @@
       "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
       "electron/runtime.ts"
     ],
-    "rationale": "Remove unknown-connection video route inference; preserve explicit user mappings and documented transport library"
+    "rationale": "Remove implicit selection in builtinOpenAiCompatibleDraft and the no-mapping runtime. Explicit mappings remain unchanged. Legacy automatic producers in catalogCommit and relayNativeWireUpgrade are still pending outside this task scope."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -179,7 +199,8 @@
     "Legacy public URL materialization still uses the existing buffered path; the new bounded stream applies to authenticated file responses",
     "The retrieval function accepts AbortSignal, but main IPC and production cancellation callers have not been changed or end-to-end verified",
     "File responses require project identity; the independently owned tryModel entry does not currently supply it",
-    "Unified perf driver registration requires a shared infrastructure change outside this task scope"
+    "Unified perf driver registration requires a shared infrastructure change outside this task scope",
+    "catalogCommit.draftShapeForKind at the video fallback and relayNativeWireUpgrade still call the legacy transport without protocol evidence; routing remediation is incomplete"
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",

@@ -192,8 +192,8 @@ export async function executeProfileOperation(input: {
   localAssetReader?: import("./catalog/assetLocalization").LocalAssetReader; signal?: AbortSignal; stage: ProfileOperationStage; antigravityPreflight?: import("./ai/antigravityTask").PreparedAntigravityTask;
 }): Promise<{ response: unknown; request: unknown }> {
   if (input.operation.mediaResponse) {
-    if (input.stage !== "result" || input.operation.method.toUpperCase() !== "GET" || (input.model.kind !== "video" || input.operation.mediaResponse.contentType !== "video/mp4")) throw new Error("mediaResponse requires a video GET result");
-    const built = buildProfileHttpRequest(input);
+    if (input.stage !== "result" || input.operation.method.toUpperCase() !== "GET" || input.operation.mediaResponse.kind !== "binary" || input.operation.multipart || input.operation.process || input.operation.audioResponse || (input.model.kind !== "video" || input.operation.mediaResponse.contentType !== "video/mp4")) throw new Error("mediaResponse requires a video GET result");
+    const built = assertNoReferencesOutsideSubmit(input.stage, buildProfileHttpRequest(input));
     const response = await materializeProfileMediaResult({ vendor: input.vendor, apiKey: input.apiKey, url: built.url,
       headers: built.headers, query: built.query, signal: input.signal, projectId: trim(input.request.extras?.projectId),
       nodeId: trim(input.request.extras?.nodeId), providerTaskId: firstString(input.providerMeta?.task_id, input.providerMeta?.query_id) });

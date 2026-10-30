@@ -40,7 +40,10 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
     provider: { baseUrl, authType: 'bearer', providerKind: 'openai-compatible' },
     sources: [{ url: 'https://docs.example.test/video', evidence: `${root}; explicit task query and result contract` }],
     assetIngestion: { strategy: 'none', sourceUrl: 'https://docs.example.test/video' },
-    models: [{ modelKey: id, labelZh: id, kind: 'video', parameters: [
+    models: [{ modelKey: id, labelZh: id, kind: 'video', parameters: shape === 'content' ? [
+      { key: 'duration', label: '时长', type: 'select', options: [{ value: '4', label: '4s' }], default: '4' },
+      { key: 'size', label: '尺寸', type: 'select', options: [{ value: '1280x720', label: '1280x720' }], default: '1280x720' },
+    ] : [
       { key: 'duration', label: '时长', type: 'number', min: 1, max: 15, default: 1 },
       { key: 'resolution', label: '清晰度', type: 'select', options: [{ value: '360p', label: '360p' }], default: '360p' },
     ], modes: [mode] }],
@@ -74,6 +77,7 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
     if (req.method === 'POST' && pathname === root) {
       if (fault === 'create-rejected') return json(404, { error: { message: 'documented route unavailable' } })
       if (shape === 'content' && !String(req.headers['content-type']).startsWith('multipart/form-data')) return json(415, { error: { message: 'multipart/form-data required' } })
+      if (shape === 'content' && (!['4', '8', '12'].includes(String(body.seconds)) || !['720x1280', '1280x720', '1024x1792', '1792x1024'].includes(String(body.size)))) return json(400, { error: { message: 'documented seconds and pixel size are required' } })
       const model = models.find((m) => m.id === body.model)
       if (!model) return json(400, { error: { message: 'unknown wire model id' } })
       if (model.frameOnly && (!Array.isArray(body.image_urls) || body.image_urls.length !== 1 || !/^(https?:\/\/|data:image\/)/.test(String(body.image_urls[0])))) return json(400, { error: { message: 'exactly one first frame is required' } })
@@ -98,7 +102,7 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
       if (fault === 'wrong-mime') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(MP4) }
       if (fault === 'redirect') { res.writeHead(302, { Location: `${baseUrl.replace('127.0.0.1', 'localhost')}/asset.mp4` }); return res.end() }
       if (fault === 'oversize') { res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(2 * 1024 ** 3 + 1) }); return res.end(MP4) }
-      if (fault === 'bad-bytes') { res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(Buffer.from('ftyp this is not a movie')) }
+      if (fault === 'bad-bytes') { res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(MP4.subarray(0, 48)) }
       if (fault === 'slow') {
         res.writeHead(200, { 'Content-Type': 'video/mp4' }); res.write(MP4.subarray(0, 16))
         return // Intentionally never finish; request timeout / cancellation owns termination.

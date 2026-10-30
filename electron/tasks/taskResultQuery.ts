@@ -267,7 +267,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
           providerMeta: resultProviderMeta,
         });
       } catch (error) {
-        throw retrievalStageError("retrieval-query", error, fellBackNote);
+        throw retrievalStageError(mapping.result.mediaResponse ? "retrieval-download" : "retrieval-query", error, fellBackNote);
       }
       const resultNormalized = await readResult(executed.response, mapping.result);
       normalized = { ...resultNormalized, actualCost: resultNormalized.actualCost ?? normalized.actualCost, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };

@@ -6,8 +6,9 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { relayDeclaration, startRelayVideoFixture, FAKE_RELAY_KEY } from '../ux/_relayVideoFixture.mjs'
 import { submitDeclaration } from '../../electron/capabilityCore/modelOnboarding/submitDeclaration.ts'
 import { readCatalog, upsertModelCatalogVendorApiKey } from '../../electron/catalog/catalogStore.ts'
-import { createProject, runTask, fetchTaskResult, taskCache } from '../../electron/runtime.ts'
+import { createProject, runTask, fetchTaskResult, taskCache, executeProfileOperation } from '../../electron/runtime.ts'
 import { readNomiLocalAsset } from '../../electron/assets/localAssetFile.ts'
+import { listProjectAssets } from '../../electron/assets/projectAssetStore.ts'
 import { buildOpenAiCompatibleDraft } from '../../electron/providerAdapter/builtinOpenAiCompatibleDraft.ts'
 import { validateProviderAdapterDraft } from '../../electron/providerAdapter/validator.ts'
 import { streamProfileMediaToFile } from '../../electron/capabilityCore/generationOutputMaterializer.ts'
@@ -47,15 +48,17 @@ it.each(['content', 'plural-url', 'legacy-url'])('%s: AI declaration reaches dec
   const asset = finished.result.assets[0]
   expect(asset.url).toMatch(/^nomi-local:/)
   expect(readNomiLocalAsset(asset.url).bytes.equals(relay.mp4)).toBe(true)
+  expect(listProjectAssets({ projectId: poll.projectId }).items.find((item) => item.data.url === asset.url)?.data.mediaType).toBe('video')
   expect(posts()).toHaveLength(1)
   if (shape === 'content') {
     expect(Object.values(posts()[0].body).every((value) => typeof value === 'string')).toBe(true)
+    expect(posts()[0].body).toMatchObject({ seconds: '4', size: '1280x720' })
     expect(relay.hits.filter((hit) => hit.path.endsWith('/content'))[0].authorized).toBe(true)
   }
 })
 it.each(['html', 'json-error', 'wrong-mime', 'bad-bytes', 'oversize', 'redirect'])('%s result never becomes an asset and retry/restart only GET the accepted task', async (fault) => {
   const { poll } = await prepare('content', fault)
-  await expect(fetchTaskResult(poll)).rejects.toThrow()
+  await expect(fetchTaskResult(poll)).rejects.toThrow(['html', 'json-error', 'wrong-mime', 'oversize'].includes(fault) ? /retrieval-download/ : undefined)
   expect(taskCache.get('task-1')).toBeTruthy()
   taskCache.delete('task-1') // Same recovery boundary as a fresh main process: context is rebuilt from the persisted identity.
   await expect(fetchTaskResult(poll)).rejects.toThrow()
@@ -131,5 +134,17 @@ it('a landing failure preserves the receipt; after the workspace returns recover
   expect(taskCache.get('task-1')).toBeTruthy()
   taskCache.delete('task-1')
   expect((await fetchTaskResult(poll)).result.assets).toHaveLength(1)
+  expect(posts()).toHaveLength(1)
+})
+
+it('file-result operations preserve the shared ban on forwarding local references after submission', async () => {
+  const { row, card, accepted, poll } = await prepare()
+  const vendor = readCatalog().vendors.find((item) => item.key === row.vendorKey)
+  const operation = { ...card.models[0].modes[0].result, query: { image: 'nomi-local://asset/project/missing.png' } }
+  await expect(executeProfileOperation({ vendor, model: row, apiKey: FAKE_RELAY_KEY,
+    request: { kind: 'text_to_video', prompt: 'A blue marble', extras: { projectId: poll.projectId } },
+    operation, providerMeta: { task_id: accepted.id }, stage: 'result',
+  })).rejects.toThrow()
+  expect(relay.hits.filter((hit) => hit.path.endsWith('/content'))).toHaveLength(0)
   expect(posts()).toHaveLength(1)
 })
