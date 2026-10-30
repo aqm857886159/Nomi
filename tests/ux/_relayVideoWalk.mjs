@@ -96,6 +96,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
     await win.keyboard.press('Escape')
     await win.reload()
     await node.waitFor({ state: 'visible', timeout: stationTimeout() })
+    await node.locator('[data-node-empty-state]').click()
     await node.locator('[data-bar-segment="model-params"] button').first().click()
     await capture('model-menu-after-reload')
     neededReload = true

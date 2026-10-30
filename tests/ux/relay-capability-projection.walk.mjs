@@ -56,6 +56,7 @@ try {
     await win.getByRole('button', { name: new RegExp(`设置 ${model.id} 的输入与生成方式|Set inputs and generation for ${model.id}`) }).click()
     await win.locator('[data-model-settings-page="capability"]').waitFor({ timeout: stationTimeout() })
     await capture(`${model.id}-explanation`)
+    await win.locator('[data-model-settings-dialog]').getByRole('button', { name: /^(关闭|Close)$/ }).click()
     await win.locator('[data-settings-close]').click()
   }
   const prepared = await prepareRelayVideo({ win, newProject: () => createRelayProject(walk, win), model: { vendorKey: vendor.key, modelKey: models[0].id }, capture })
