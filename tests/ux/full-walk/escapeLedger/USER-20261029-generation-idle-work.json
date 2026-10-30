@@ -20,7 +20,8 @@
   ],
   "completionCommits": [
     "879d8cd5c4af11495b91cca2da1095951fade802",
-    "1fcc7ed0133638874d1e625fd3aa06d182636ee6"
+    "1fcc7ed0133638874d1e625fd3aa06d182636ee6",
+    "7a2f8590e08f0c362bad5af4dcfb938b5a6d525a"
   ],
   "rootCauseContract": "docs/fixes/2026-10-31-generation-idle-work.root-cause.json",
   "classCheck": {
